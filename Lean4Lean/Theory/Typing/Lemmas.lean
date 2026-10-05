@@ -241,6 +241,7 @@ theorem IsDefEqU.symm {env : VEnv} (h1 : env.IsDefEqU U Γ e₁ e₂) : env.IsDe
   h1.imp fun _ => (·.symm)
 
 inductive Ordered : VEnv → Prop where
+  | eliminator : Ordered env → Ordered (env.addEliminator block schema)
   | empty : Ordered ∅
   | const :
     Ordered env → ci.WF env →
@@ -251,6 +252,7 @@ inductive Ordered : VEnv → Prop where
     Ordered base →
     Ordered envCtors →
     decl.sourceNames.Nodup →
+    (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
     (∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes) →
     decl.SourceParameterWF base →
@@ -266,6 +268,7 @@ theorem Ordered.projectionConstant (H : Ordered env)
     (hprojection : env.projections name info) :
     ∃ constant, env.constants name = some constant := by
   induction H with
+  | eliminator _ ih => exact ih hprojection
   | empty => cases hprojection
   | const _ _ hadd ih =>
     rw [VEnv.addConst_projections hadd] at hprojection
@@ -273,7 +276,7 @@ theorem Ordered.projectionConstant (H : Ordered env)
     exact ⟨constant, (VEnv.addConst_le hadd).constants hconstant⟩
   | defeq _ _ ih => exact ih hprojection
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
+      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
@@ -300,13 +303,14 @@ theorem Ordered.projectionConstructor (H : Ordered env)
       uvars := info.uvars
       type := info.ctorType } := by
   induction H with
+  | eliminator _ ih => exact ih hprojection
   | empty => cases hprojection
   | const _ _ hadd ih =>
     rw [VEnv.addConst_projections hadd] at hprojection
     exact (VEnv.addConst_le hadd).constants (ih hprojection)
   | defeq _ _ ih => exact ih hprojection
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
+      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
     rcases hprojection with hnew | hold
@@ -330,13 +334,14 @@ theorem Ordered.projections_unique (H : Ordered env)
     (hleft : env.projections name left)
     (hright : env.projections name right) : left = right := by
   induction H with
+  | eliminator _ ih => exact ih hleft hright
   | empty => cases hleft
   | const _ _ hadd ih =>
     rw [VEnv.addConst_projections hadd] at hleft hright
     exact ih hleft hright
   | defeq _ _ ih => exact ih hleft hright
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
+      hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     have hstages : envCtors.projections = base.projections :=
       (VEnv.addConstVals_projections hctors).trans <|
@@ -394,8 +399,11 @@ theorem Ordered.induction (motive : VEnv → Nat → VExpr → VExpr → Prop)
       Ordered env → OnTypes env (motive env) → HasType env U [] e A → motive env U e A)
     (H : Ordered env) : OnTypes env (motive env) := by
   induction H with
+  | eliminator _ ih =>
+    exact ⟨fun h => (ih.1 h).imp fun _ => mono VEnv.addEliminator_le,
+      fun h => (ih.2 h).imp (mono VEnv.addEliminator_le) (mono VEnv.addEliminator_le)⟩
   | empty => exact ⟨nofun, nofun⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
     exact ⟨fun h => (ih.1 (by simpa using h)).imp fun _ => mono VEnv.addProjections_le,
       fun h => (ih.2 (by simpa using h)).imp (mono VEnv.addProjections_le)
         (mono VEnv.addProjections_le)⟩
@@ -443,6 +451,9 @@ variable! (henv : OnTypes env fun _ e A => e.ClosedN ∧ A.ClosedN) in
 theorem IsDefEq.closedN' (H : env.IsDefEq U Γ e1 e2 A) (hΓ : CtxClosed Γ) :
     e1.ClosedN Γ.length ∧ e2.ClosedN Γ.length ∧ A.ClosedN Γ.length := by
   induction H with
+  | elimDF _ _ _ _ _ _ _ ih => exact ⟨trivial, trivial, (ih hΓ).1⟩
+  | elimIota _ _ _ _ _ _ _ ihLeft ihRight =>
+    exact ⟨(ihLeft hΓ).1, (ihRight hΓ).1, (ihLeft hΓ).2.2⟩
   | bvar h => exact ⟨h.lt, h.lt, hΓ.lookup h⟩
   | constDF h1 =>
     let ⟨_, h, _⟩ := henv.1 h1
@@ -524,6 +535,10 @@ theorem IsDefEqCtx.closed (H : CtxClosed Γ₀) :
 variable! {env env' : VEnv} (henv : env ≤ env') in
 theorem IsDefEq.mono (H : env.IsDefEq U Γ e1 e2 A) : env'.IsDefEq U Γ e1 e2 A := by
   induction H with
+  | elimDF hlookup htype hclosed hperm hright heq _ ih =>
+    exact .elimDF (henv.eliminators hlookup) htype hclosed hperm hright heq ih
+  | elimIota hlookup hgen hmem hclosed hperm _ _ ihLeft ihRight =>
+    exact .elimIota (henv.eliminators hlookup) hgen hmem hclosed hperm ihLeft ihRight
   | bvar h => exact .bvar h
   | constDF h1 h2 h3 h4 h5 => exact .constDF (henv.1 h1) h2 h3 h4 h5
   | sortDF h1 h2 h3 => exact .sortDF h1 h2 h3
@@ -579,6 +594,7 @@ namespace VEnv
 
 theorem Ordered.constWF (H : Ordered env) (h : env.constants n = some ci) : ci.WF env := by
   induction H with
+  | eliminator _ ih => exact .mono VEnv.addEliminator_le (ih h)
   | empty => cases h
   | const _ h2 h3 ih =>
     refine .mono (addConst_le h3) ?_
@@ -587,11 +603,12 @@ theorem Ordered.constWF (H : Ordered env) (h : env.constants n = some ci) : ci.W
     · cases h; exact h2
     · exact ih h
   | defeq _ _ ih => exact .mono addDefEq_le (ih h)
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
   induction H with
+  | eliminator _ ih => exact .mono VEnv.addEliminator_le (ih h)
   | empty => cases h
   | const _ _ h3 ih =>
     refine .mono (addConst_le h3) (ih ?_)
@@ -601,7 +618,7 @@ theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
     obtain rfl | h := h
     · assumption
     · exact ih h
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
     exact .mono VEnv.addProjections_le (ih (by simpa using h))
 
 variable! (henv : Ordered env) in
@@ -614,6 +631,10 @@ variable {env : VEnv} in
 theorem IsDefEq.levelWF (H : env.IsDefEq U Γ e1 e2 A) (W : OnCtx Γ fun _ A => A.LevelWF U) :
     e1.LevelWF U ∧ e2.LevelWF U ∧ A.LevelWF U := by
   induction H with
+  | elimDF _ _ _ hp hright _ _ ih =>
+    exact ⟨by simpa [VExpr.LevelWF] using And.intro hp.target_wf hp.levels_wf, hright, (ih W).1⟩
+  | elimIota _ _ _ _ _ _ _ ihLeft ihRight =>
+    exact ⟨(ihLeft W).1, (ihRight W).1, (ihLeft W).2.2⟩
   | bvar h =>
     refine ⟨⟨⟩, ⟨⟩, ?_⟩
     induction h with
@@ -675,6 +696,17 @@ variable! (henv : Ordered env) in
 theorem IsDefEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : env.IsDefEq U Γ e1 e2 A) :
     env.IsDefEq U Γ' (e1.liftN n k) (e2.liftN n k) (A.liftN n k) := by
   induction H generalizing k Γ' with
+  | elimDF hlookup htype hclosed hperm hright heq _ ih =>
+    have htype' := ih W
+    simp only [hclosed.instL.liftN_eq (Nat.zero_le _)] at htype' ⊢
+    exact .elimDF hlookup htype hclosed hperm hright heq htype'
+  | elimIota hlookup hgen hmem hclosed hperm _ _ ihLeft ihRight =>
+    have hleft := ihLeft W
+    have hright := ihRight W
+    simp only [hclosed.1.instL.liftN_eq (Nat.zero_le _),
+      hclosed.2.1.instL.liftN_eq (Nat.zero_le _),
+      hclosed.2.2.instL.liftN_eq (Nat.zero_le _)] at hleft hright ⊢
+    exact .elimIota hlookup hgen hmem hclosed hperm hleft hright
   | bvar h => refine .bvar (h.weakN W)
   | symm _ ih => exact .symm (ih W)
   | trans _ _ ih1 ih2 => exact .trans (ih1 W) (ih2 W)
@@ -801,6 +833,14 @@ variable! {env : VEnv} {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U') in
 theorem IsDefEq.instL (H : env.IsDefEq U Γ e1 e2 A) :
     env.IsDefEq U' (Γ.map (VExpr.instL ls)) (e1.instL ls) (e2.instL ls) (A.instL ls) := by
   induction H with
+  | elimDF hlookup htype hclosed hperm hright heq _ ih =>
+    simp only [VExpr.instL, VExpr.instL_instL, List.map_cons] at ih ⊢
+    exact .elimDF hlookup htype hclosed (hperm.instL hls)
+      (by simp [VLevel.WF.inst hls])
+      (by simpa using heq.imp fun _ _ => VLevel.inst_congr_l) ih
+  | elimIota hlookup hgen hmem hclosed hperm _ _ ihLeft ihRight =>
+    simp only [VExpr.instL_instL, List.map_cons] at ihLeft ihRight ⊢
+    exact .elimIota hlookup hgen hmem hclosed (hperm.instL hls) ihLeft ihRight
   | bvar h => refine .bvar h.instL
   | symm _ ih => exact .symm ih
   | trans _ _ ih1 ih2 => exact .trans ih1 ih2
@@ -875,6 +915,17 @@ variable! (henv : Ordered env) (h₀ : env.HasType U Γ₀ e₀ A₀) in
 theorem IsDefEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.IsDefEq U Γ₁ e1 e2 A) :
     env.IsDefEq U Γ (e1.inst e₀ k) (e2.inst e₀ k) (A.inst e₀ k) := by
   induction H generalizing Γ k with
+  | elimDF hlookup htype hclosed hperm hright heq _ ih =>
+    have htype' := ih W
+    simp only [hclosed.instL.instN_eq (Nat.zero_le _)] at htype' ⊢
+    exact .elimDF hlookup htype hclosed hperm hright heq htype'
+  | elimIota hlookup hgen hmem hclosed hperm _ _ ihLeft ihRight =>
+    have hleft := ihLeft W
+    have hright := ihRight W
+    simp only [hclosed.1.instL.instN_eq (Nat.zero_le _),
+      hclosed.2.1.instL.instN_eq (Nat.zero_le _),
+      hclosed.2.2.instL.instN_eq (Nat.zero_le _)] at hleft hright ⊢
+    exact .elimIota hlookup hgen hmem hclosed hperm hleft hright
   | @bvar _ i ty h =>
     dsimp [inst]
     induction W generalizing i ty with
@@ -1015,6 +1066,10 @@ theorem IsDefEq.forallE_inv'
     (H : env.IsDefEq U Γ e1 e2 V) (eq : e1 = A.forallE B ∨ e2 = A.forallE B) :
     env.IsType U Γ A ∧ env.IsType U (A::Γ) B := by
   induction H generalizing A B with
+  | elimIota _ _ _ _ _ _ _ ihLeft ihRight =>
+    rcases eq with heq | heq
+    · exact ihLeft (.inl heq)
+    · exact ihRight (.inl heq)
   | symm _ ih => exact ih eq.symm
   | trans _ _ ih1 ih2
   | proofIrrel _ _ _ _ ih1 ih2 =>
@@ -1083,6 +1138,10 @@ variable! (henv : Ordered env) in
 theorem IsDefEq.sort_inv'
     (H : env.IsDefEq U Γ e1 e2 V) (eq : e1 = .sort u ∨ e2 = .sort u) : u.WF U := by
   induction H with
+  | elimIota _ _ _ _ _ _ _ ihLeft ihRight =>
+    rcases eq with heq | heq
+    · exact ihLeft (.inl heq)
+    · exact ihRight (.inl heq)
   | symm _ ih => exact ih eq.symm
   | trans _ _ ih1 ih2
   | proofIrrel _ _ _ _ ih1 ih2 =>
@@ -1136,6 +1195,8 @@ variable! (henv : Ordered env)
 theorem IsDefEq.isType' (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e1 e2 A) :
     env.IsType U Γ A := by
   induction H with
+  | elimDF _ _ _ _ _ _ htype _ => exact ⟨_, htype⟩
+  | elimIota _ _ _ _ _ _ _ ihLeft _ => exact ihLeft hΓ
   | bvar h => exact .lookup henv hΓ h
   | proofIrrel h1 => exact ⟨_, h1⟩
   | extra h1 h2 =>

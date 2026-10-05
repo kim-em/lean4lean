@@ -21,7 +21,7 @@ theorem SemanticRunWithStatsResult.addInductCanonical
   rcases Hrecursors.canonicalOrdinaryRuleTranslation with ⟨T⟩
   exact ⟨decl, (Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
-      T.compilation⟩
+      (T.compilation hnonempty)⟩
 
 /-- The complete executable ordinary checker refines `VEnv.AddInduct`
 without a caller-supplied declaration skeleton, constructor targets, or

@@ -1241,6 +1241,102 @@ theorem RecursorTypeTranslations.recursorInfoTranslation
     · rfl
   · exact Hwf
 
+/-- The exact result of the executable, context-independent K eligibility
+check. Keeping the successful return value prevents generated recursor metadata
+from silently enabling K for a family the production check rejected. -/
+def KTargetCheck (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (k : Bool) : Prop :=
+  ∀ c, AddInductive.isKTarget stats indTypes c = .ok k
+
+/-- The same executable check cannot certify two different metadata bits. -/
+theorem KTargetCheck.unique (H : KTargetCheck stats indTypes k)
+    (H' : KTargetCheck stats indTypes k') (c : AddInductive.Context) : k = k' :=
+  Except.ok.inj ((H c).symm.trans (H' c))
+
+private theorem isKTarget_context_eq
+    (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
+    (c d : AddInductive.Context) :
+    AddInductive.isKTarget stats indTypes c =
+      AddInductive.isKTarget stats indTypes d := by
+  rcases indTypes with ⟨xs⟩
+  cases xs with
+  | nil => rfl
+  | cons ind rest =>
+    cases rest with
+    | cons next rest => rfl
+    | nil =>
+      unfold AddInductive.isKTarget
+      unfold AddInductive.isLargeEliminator.match_4
+      simp only [Array.size,
+        List.length_cons, List.length_nil, ↓reduceDIte, Array.getLit]
+      split
+      · change (match ind.ctors with
+          | [ctor] => pure (AddInductive.isKTarget.loop stats 0 ctor.type)
+          | _ => pure false : AddInductive.M Bool) c =
+          (match ind.ctors with
+          | [ctor] => pure (AddInductive.isKTarget.loop stats 0 ctor.type)
+          | _ => pure false : AddInductive.M Bool) d
+        cases ind.ctors with
+        | nil => rfl
+        | cons ctor ctors => cases ctors <;> rfl
+      · rfl
+
+/-- Retain the actual successful result of the production check. -/
+theorem AddInductive.isKTarget.checkedWF
+    (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
+    (c : AddInductive.Context) :
+    (AddInductive.isKTarget stats indTypes c).WF
+      (KTargetCheck stats indTypes) := by
+  intro k hk c'
+  exact (isKTarget_context_eq stats indTypes c' c).trans hk
+
+private theorem isKTarget_loop_bound (stats : AddInductive.InductiveStats) (type : Expr)
+    (i : Nat) (h : AddInductive.isKTarget.loop stats i type = true) :
+    AddInductive.constructorArity type ≤ stats.params.size - i := by
+  induction type generalizing i <;>
+    simp_all [AddInductive.isKTarget.loop, AddInductive.constructorArity]
+  rename_i _ _ _ _ _ ih
+  obtain ⟨hless, hloop⟩ := h
+  have := ih (i + 1) hloop
+  omega
+
+/-- A successful K check permits one propositional family with one constructor
+and no constructor binders beyond the common parameters. -/
+theorem KTargetCheck.true_shape
+    (stats : AddInductive.InductiveStats) (indTypes : Array InductiveType)
+    (H : KTargetCheck stats indTypes true) (c : AddInductive.Context) :
+    ∃ ind ctor, indTypes = #[ind] ∧ stats.resultLevel.isAlwaysZero = true ∧
+      ind.ctors = [ctor] ∧ AddInductive.constructorArity ctor.type ≤ stats.params.size := by
+  have h := H c
+  rcases indTypes with ⟨xs⟩
+  cases xs with
+  | nil => cases h
+  | cons ind rest =>
+    cases rest with
+    | cons next rest => cases h
+    | nil =>
+      unfold AddInductive.isKTarget at h
+      unfold AddInductive.isLargeEliminator.match_4 at h
+      simp only [Array.size, List.length_cons, List.length_nil, ↓reduceDIte,
+        Array.getLit] at h
+      split at h
+      · rename_i hzero
+        change (match ind.ctors with
+          | [ctor] => pure (AddInductive.isKTarget.loop stats 0 ctor.type)
+          | _ => pure false : AddInductive.M Bool) c = .ok true at h
+        cases hctors : ind.ctors with
+        | nil => simp only [hctors] at h; cases h
+        | cons ctor ctors =>
+          cases ctors with
+          | nil =>
+            simp only [hctors] at h
+            have hloop : AddInductive.isKTarget.loop stats 0 ctor.type = true :=
+              Except.ok.inj h
+            exact ⟨ind, ctor, rfl, hzero, hctors,
+              by simpa using isKTarget_loop_bound stats ctor.type 0 hloop⟩
+          | cons next rest => simp only [hctors] at h; cases h
+      · cases h
+
 /-- Pointwise record emitted by one iteration of the production recursor
 loop. It retains only the metadata needed to connect that iteration to the
 independent shape and semantic-typing judgments. -/
@@ -1257,6 +1353,8 @@ structure GeneratedRecursorEntry
   levels : info.levelParams =
     AddInductive.getRecLevelParams elimLevel lparams
   name : info.name = Lean.mkRecName indTypes[ownerIdx]!.name
+  all : info.all = (indTypes.map (·.name)).toList
+  kChecked : KTargetCheck stats indTypes info.k
   /-- The production recursor pass chooses safety from the checking context.
   Retaining this exact bit is needed when an unsafe block is hidden from the
   partial and safe environment observers. -/
@@ -1292,6 +1390,8 @@ def GeneratedRecursorEntry.ofRecursorInfo
     (k isUnsafe : Bool) (ownerIdx : Nat) (rules : List RecursorRule)
     (recursor : VConstVal)
     (hunsafe : isUnsafe = (c.safety != .safe))
+    (hall : all = (indTypes.map (·.name)).toList)
+    (hk : KTargetCheck stats indTypes k)
     (Htr : TrConstVal safety env
       (.recInfo (AddInductive.declareRecursors.recursorInfo stats indTypes
         elimLevel recInfos numMinors numMotives all c.lctx k isUnsafe
@@ -1313,6 +1413,8 @@ def GeneratedRecursorEntry.ofRecursorInfo
   translated := Htr
   levels := rfl
   name := rfl
+  all := hall
+  kChecked := hk
   isUnsafe := by
     simp [AddInductive.declareRecursors.recursorInfo, hunsafe]
   numParams := rfl
@@ -1902,7 +2004,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
       decl block)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
-    OrdinaryCompilationCertificate sourceEnv decl block := by
+    OrdinaryShapeCertificate sourceEnv decl block := by
   refine {
     types := htypes
     ctors := hctors
@@ -1917,7 +2019,7 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate
 /-- Rule-batch endpoint for ordinary compilation. Generated family batches
 accumulate `IotaRule` evidence with `IotaBuildCertificate`; exact flattened
 coverage turns that executable traversal invariant into the final rule
-certificate consumed by `OrdinaryCompilationCertificate`. -/
+certificate consumed by `OrdinaryShapeCertificate`. -/
 theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
       recInfos entries)
@@ -1939,14 +2041,14 @@ theorem GeneratedRecursors.ordinaryCompilationCertificate_ofRuleBuild
     (hrulesLength : block.rules.length = decl.ownedConstructors.length)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
-    OrdinaryCompilationCertificate sourceEnv decl block :=
+    OrdinaryShapeCertificate sourceEnv decl block :=
   H.ordinaryCompilationCertificate Hc Hbindings Hparams hnoalias Hcard Hdecl
     block htypes hctors hprojections hrecursors
     (Hrules.completeBlock hrulesLength) hnames
 
-/-- Nested restoration reuses the verified primary recursor traversal and
-adds only the separately audited auxiliary-name/guardedness suffix. -/
-def GeneratedRecursors.nestedCompilationCertificate
+/-- The primary traversal supplies only legacy nested shape evidence.
+Auxiliary RHS guardedness cannot certify complete compilation. -/
+def GeneratedRecursors.nestedShapeCertificate
     (H : GeneratedRecursors safety env lparams elimLevel c stats indTypes
       recInfos entries)
     (Hc : BindingContextWF c)
@@ -1973,7 +2075,7 @@ def GeneratedRecursors.nestedCompilationCertificate
     (hprimaryRules : NestedIotaListCertificate decl block primaryRules)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
-    NestedCompilationCertificate sourceEnv decl block where
+    NestedShapeCertificate sourceEnv decl block where
   main := main
   rest := rest
   types_source := htypesSource

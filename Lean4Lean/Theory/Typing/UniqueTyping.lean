@@ -37,6 +37,20 @@ theorem IsDefEq.uniq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     intro (.const b1 b2 b3 b4); cases a1.symm.trans b1
     replace le₁ := Nat.sub_le_sub_right le₁ 1
     exact ⟨_, a4.hasType, _, rfl, a4.mono le₁, a4.mono le₁⟩
+  | @elim block type levels target Γ typeLevel n₁ schema owner a1 a2 a3 a4 a5 =>
+    intro H2
+    generalize he : VExpr.elim block owner.val (target :: levels) = expression at H2
+    cases H2 with
+    | @elim block' type' levels' target' _ _ _ schema' owner' b1 b2 b3 b4 b5 =>
+      obtain ⟨hblock, howner, hlevels⟩ := VExpr.elim.inj he
+      subst block'
+      cases henv.eliminators_unique a1 b1
+      cases Fin.ext howner
+      obtain ⟨rfl, rfl⟩ := List.cons.inj hlevels
+      cases Option.some.inj (a2.symm.trans b2)
+      replace le₁ := Nat.sub_le_sub_right le₁ 1
+      exact ⟨_, a5.hasType, _, rfl, a5.mono le₁, a5.mono le₁⟩
+    | bvar | sort' | const | app | proj | lam | forallE => cases he
   | app _ a2 a3 a4 _ a6 a7 _ _ ih3 =>
     intro (.app _ _ b3 b4 b5 _ b7)
     have ⟨_, c1, _, _, c3, c4⟩ := ih3 n IH hΓ (Nat.le_of_succ_le le₁) (Nat.le_of_succ_le le₂) b5
@@ -64,7 +78,7 @@ theorem IsDefEq.uniq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     have ⟨d1, d2⟩ := IsDefEqU.fieldType_inv_stratified henv hΓ a1 a2 a3 a4 a5 a6
       a9.hasType.1 b2 b3 b4 b5 b6 b9.hasType.1 a11
       ⟨_, a9.trans (IsDefEq.defeqDF c1.symm b9).symm⟩ ⟨_, c1⟩ a8 b8
-    exact ⟨_, d1, _, rfl, a8.mono le₁, d2.mono le₂⟩
+    exact ⟨_, d1, _, d2, a8.mono le₁, b8.mono le₂⟩
   | lam a1 a2 _ a4 _ _ ih3 =>
     intro (.lam b1 b2 b3 b4)
     have ⟨_, c1, _, c2, c3, c4⟩ := ih3 n IH ⟨hΓ, _, a1.hasType⟩
@@ -180,6 +194,12 @@ theorem IsDefEqU.trans (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     env.IsDefEqU U Γ e₁ e₃ := h1.imp fun _ h1 => let ⟨_, h2⟩ := h2; h1.trans_l henv hΓ h2
 
 variable! (henv : VEnv.WF env) (hΓ : OnCtx Γ' (env.IsType U)) in
+/-- Legacy migration obligation, not an established structural principle.
+The two-dependent-singleton model in `docs/inductives/STRENGTHENING.md`
+challenges this unrestricted inverse direction: both endpoints can omit a
+proof variable while an equality derivation uses it in intermediate terms.
+Consumers need justified context transport; do not use this admission as
+a premise of the new inversion/confluence foundation. -/
 theorem IsDefEqU.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) ↔ env.IsDefEqU U Γ e1 e2 := by
   refine ⟨fun h => have := henv; have := hΓ; sorry, fun h => h.weakN henv W⟩

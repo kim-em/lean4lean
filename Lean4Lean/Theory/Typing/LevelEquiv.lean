@@ -17,16 +17,39 @@ inductive LEquiv (U : Nat) : VExpr → VExpr → Prop
   | refl : LEquiv U e e
   | sort : u ≈ v → v.WF U → LEquiv U (.sort u) (.sort v)
   | const : List.Forall₂ (· ≈ ·) us vs → (∀ v ∈ vs, v.WF U) → LEquiv U (.const c us) (.const c vs)
+  | elim : List.Forall₂ (· ≈ ·) us vs → (∀ v ∈ vs, v.WF U) →
+      LEquiv U (.elim block owner us) (.elim block owner vs)
   | app : LEquiv U f f' → LEquiv U a a' → LEquiv U (.app f a) (.app f' a')
   | proj : LEquiv U e e' → LEquiv U (.proj n i e) (.proj n i e')
   | lam : LEquiv U A A' → LEquiv U b b' → LEquiv U (.lam A b) (.lam A' b')
   | forallE : LEquiv U A A' → LEquiv U b b' → LEquiv U (.forallE A b) (.forallE A' b')
+
+/-- The symmetric level relation used by strong typing implies this
+one-sided relation used by concrete expression translation. -/
+theorem LEquiv.of_eqUpToLevels (H : VEnv.EqUpToLevels U e e') : LEquiv U e e' := by
+  induction H with
+  | bvar => exact .refl
+  | sort _ h2 h3 => exact .sort h3 h2
+  | const _ h2 h3 => exact .const h3 h2
+  | elim _ h2 h3 => exact .elim h3 h2
+  | app _ _ ih1 ih2 => exact .app ih1 ih2
+  | proj _ ih => exact .proj ih
+  | lam _ _ ih1 ih2 => exact .lam ih1 ih2
+  | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
+
+/-- Specialization respects equivalent source and elimination universes in
+all generated syntax, including abstract case heads. -/
+theorem LEquiv.instL_expr (e : VExpr)
+    (hus : ∀ u ∈ us, u.WF U) (hvs : ∀ v ∈ vs, v.WF U)
+    (heq : List.Forall₂ (· ≈ ·) us vs) : LEquiv U (e.instL us) (e.instL vs) :=
+  .of_eqUpToLevels (VEnv.EqUpToLevels.instL_expr e hus hvs heq)
 
 theorem LEquiv.liftN (H : LEquiv U e e') : LEquiv U (e.liftN n k) (e'.liftN n k) := by
   induction H generalizing k with
   | refl => exact .refl
   | sort h1 h2 => exact .sort h1 h2
   | const h1 h2 => exact .const h1 h2
+  | elim h1 h2 => exact .elim h1 h2
   | app _ _ ih1 ih2 => exact .app ih1 ih2
   | proj _ ih => exact .proj ih
   | lam _ _ ih1 ih2 => exact .lam ih1 ih2
@@ -38,6 +61,7 @@ theorem LEquiv.inst (H : LEquiv U e e') (x : VExpr) (k : Nat) :
   | refl => exact .refl
   | sort h1 h2 => exact .sort h1 h2
   | const h1 h2 => exact .const h1 h2
+  | elim h1 h2 => exact .elim h1 h2
   | app _ _ ih1 ih2 => exact .app (ih1 k) (ih2 k)
   | proj _ ih => exact .proj (ih k)
   | lam _ _ ih1 ih2 => exact .lam (ih1 k) (ih2 (k + 1))
@@ -84,6 +108,14 @@ theorem _root_.Lean4Lean.VExpr.LEquiv.defeq (henv : VEnv.WF env) (hΓ : OnCtx Γ
     have ⟨_, h⟩ := h
     have ⟨_, h3, h4, h5⟩ := HasType.const_inv henv.ordered hΓ h
     exact ⟨_, .constDF h3 h4 h2 h5 h1⟩
+  | elim h1 h2 =>
+    obtain ⟨_, h⟩ := h
+    obtain ⟨schema, owner, type, target, levels, typeLevel, rfl, rfl,
+      hschema, htype, hclosed, hperm, _, htyped⟩ :=
+      HasType.elim_inv henv.ordered hΓ h
+    cases h1 with
+    | cons htarget hlevels =>
+      exact ⟨_, .elimDF hschema htype hclosed hperm h2 (.cons htarget hlevels) htyped⟩
   | app _ _ ih1 ih2 =>
     have ⟨_, _, hf, ha⟩ := VExpr.WF.app_inv henv.ordered hΓ h
     exact ⟨_, .appDF ((ih1 hΓ ⟨_, hf⟩).of_l henv hΓ hf) ((ih2 hΓ ⟨_, ha⟩).of_l henv hΓ ha)⟩

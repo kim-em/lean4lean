@@ -188,7 +188,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
     by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
-      T.compilation.compilesTo
+      (T.compilation hnonempty).compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
@@ -209,7 +209,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     apply VEnv.addProjections_le.constants
     apply (VEnv.addConstVals_le B.staged.abstract_ctors).constants
     exact htypesEq
-  rcases B.extendSafeExact wf hdecl hcompile horigins Hrecursors.closed
+  rcases B.extendSafeExact wf hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors with ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=

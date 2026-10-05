@@ -29,7 +29,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.replayTrace_eq_blueprint
       targetIndices :=
         O.exposedType.getAppArgs[stats.params.size:]
       template := O.current.lctx.mkLambda O.args <|
-        (mkAppN (.bvar 0)
+        (mkAppN (.bvar O.args.size)
           O.exposedType.getAppArgs[stats.params.size:]).app
             (mkAppN field O.args) })
     (howner : O.ownerIdx < recInfos.size)

@@ -1,0 +1,237 @@
+import Lean4Lean.Theory.Inductive.CompilationLemmas
+import Lean4Lean.Theory.Typing.EnvLemmas
+import Lean4Lean.Theory.Typing.Strong
+
+/-! Rigidity of registered structure heads from declaration history.
+
+This proof uses canonical equation ownership and freshness. It requires no
+injectivity, uniqueness, or confluence theorem.
+-/
+
+namespace Lean4Lean
+namespace VEnv
+
+variable {env : VEnv} {U : Nat}
+
+/-- A constant at the head of a typed expression, after leading lambdas are
+removed, must be declared in the environment. -/
+theorem HasType.head_const_lookup (henv : env.Ordered)
+    {Γ : List VExpr} (hΓ : OnCtx Γ (env.IsType U))
+    {e type : VExpr} (H : env.HasType U Γ e type)
+    (hhead : e.stripLams.getAppFnArgs.1 = .const name levels) :
+    ∃ ci, env.constants name = some ci := by
+  induction e generalizing Γ type with
+  | const n ls =>
+    have heq : n = name ∧ ls = levels := by simpa [VExpr.stripLams] using hhead
+    rcases heq with ⟨hn, hls⟩
+    subst n
+    rcases H.const_inv henv hΓ with ⟨ci, hci, _⟩
+    exact ⟨ci, hci⟩
+  | app fn arg ihfn _ =>
+    rcases H.app_inv henv hΓ with ⟨A, B, hf, _⟩
+    have hh : fn.getAppFnArgs.1 = .const name levels := by
+      simpa [VExpr.stripLams] using hhead
+    exact ihfn hΓ hf (by rw [VExpr.stripLams_of_head_const hh]; exact hh)
+  | lam domain body _ ihbody =>
+    rcases H.lam_inv henv hΓ with ⟨hdomain, type', hbody⟩
+    exact ihbody (Γ := domain :: Γ) ⟨hΓ, hdomain⟩ hbody hhead
+  | bvar | sort | elim | proj | forallE => cases hhead
+
+/-- Well-formed equations cannot mention an undeclared constant at their
+left-hand head. -/
+theorem Ordered.rigid_of_absent (henv : env.Ordered)
+    (habsent : env.constants name = none) : env.Rigid name := by
+  intro df hdf levels hhead
+  rcases (henv.defEqWF hdf).1.head_const_lookup henv (Γ := []) ⟨⟩ hhead with ⟨ci, hci⟩
+  rw [habsent] at hci
+  contradiction
+
+private def ProjectionRigid (env : VEnv) : Prop :=
+  ∀ name info, env.projections name info → env.Rigid name
+
+private theorem addConst_defeqs_eq {env env' : VEnv}
+    (H : env.addConst name ci = some env') : env'.defeqs = env.defeqs := by
+  unfold VEnv.addConst at H
+  split at H <;> cases H
+  rfl
+
+private theorem addConstVals_defeqs_eq {env env' : VEnv} {cis : List VConstVal}
+    (H : env.addConstVals cis = some env') : env'.defeqs = env.defeqs := by
+  induction cis generalizing env with
+  | nil => cases H; rfl
+  | cons ci cis ih =>
+    cases hc : env.addConst ci.name ci.toVConstant with
+    | none => simp [VEnv.addConstVals, hc] at H
+    | some middle =>
+      simp [VEnv.addConstVals, hc] at H
+      exact (ih H).trans (addConst_defeqs_eq hc)
+
+private theorem ProjectionRigid.addConstVals {env env' : VEnv} {cis : List VConstVal}
+    (H : ProjectionRigid env) (hadd : env.addConstVals cis = some env') :
+    ProjectionRigid env' := by
+  intro name info hinfo
+  rw [VEnv.addConstVals_projections hadd] at hinfo
+  simpa only [VEnv.Rigid, addConstVals_defeqs_eq hadd] using H name info hinfo
+
+private theorem ProjectionRigid.addConst {env env' : VEnv}
+    (H : ProjectionRigid env) (hadd : env.addConst name ci = some env') :
+    ProjectionRigid env' := by
+  intro name info hinfo
+  rw [VEnv.addConst_projections hadd] at hinfo
+  simpa only [VEnv.Rigid, addConst_defeqs_eq hadd] using H name info hinfo
+
+private theorem ProjectionRigid.register
+    {base envTypes envCtors : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (hbase : base.Ordered) (hctors : ProjectionRigid envCtors)
+    (htypesSource : block.types = decl.typeConstants)
+    (hprojections : block.projections = decl.projectionEntries)
+    (htypes : base.addConstVals block.types = some envTypes)
+    (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors) :
+    ProjectionRigid (envCtors.addProjections block.projections) := by
+  intro name info hinfo
+  rw [VEnv.addProjections_iff] at hinfo
+  rcases hinfo with ⟨entry, hentry, rfl, rfl⟩ | hold
+  · rw [hprojections] at hentry
+    rcases VInductDecl.projectionEntries_origin hentry with
+      ⟨type, htype, ctor, hctor, rfl⟩
+    have hfresh := VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
+      rw [htypesSource]
+      exact List.mem_map.mpr ⟨type, htype, rfl⟩)
+    have hrigid := hbase.rigid_of_absent hfresh
+    simpa only [VEnv.Rigid, VEnv.addProjections_defeqs,
+      addConstVals_defeqs_eq hctorsAdded, addConstVals_defeqs_eq htypes] using hrigid
+  · simpa only [VEnv.Rigid, VEnv.addProjections_defeqs] using hctors name info hold
+
+private theorem ProjectionRigid.addRules {env : VEnv} {rules : List VDefEq}
+    (H : ProjectionRigid env)
+    (hnew : ∀ rule ∈ rules, ∀ name info, env.projections name info →
+      ∀ levels, rule.lhs.stripLams.getAppFnArgs.1 ≠ .const name levels) :
+    ProjectionRigid (env.addDefEqRules rules) := by
+  induction rules generalizing env with
+  | nil => exact H
+  | cons rule rules ih =>
+    apply ih (env := env.addDefEq rule)
+    · intro name info hinfo df hdf levels
+      rcases hdf with rfl | hdf
+      · exact hnew df (by simp) name info hinfo levels
+      · exact H name info hinfo df hdf levels
+    · intro df hdf name info hinfo levels
+      exact hnew df (by simp [hdf]) name info hinfo levels
+
+private theorem ProjectionRigid.compileRules {pre recEnv : VEnv} {block : VInductBlock}
+    (H : ProjectionRigid pre) (hordered : pre.Ordered)
+    (hrecs : pre.addConstVals block.recursors = some recEnv)
+    (hheads : ∀ df ∈ block.rules, ∃ recursor ∈ block.recursors, ∃ levels,
+      df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels) :
+    ProjectionRigid (recEnv.addDefEqRules block.rules) := by
+  apply (H.addConstVals hrecs).addRules
+  intro df hdf name info hinfo levels hhead
+  rw [VEnv.addConstVals_projections hrecs] at hinfo
+  rcases hordered.projectionConstant hinfo with ⟨ci, hci⟩
+  rcases hheads df hdf with ⟨recursor, hrecursor, ls, hrecHead⟩
+  have hn : recursor.name = name := (VExpr.const.inj (hrecHead.symm.trans hhead)).1
+  have hfresh := VEnv.addConstVals_names_fresh hrecs recursor hrecursor
+  rw [hn, hci] at hfresh
+  contradiction
+
+private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl}
+    (H : ProjectionRigid base) (hbase : base.Ordered)
+    (hdecl : decl.WF base) (hadd : VEnv.AddInduct base decl env') :
+    ProjectionRigid env' := by
+  cases hadd with
+  | intro _ hcompile hblock hinstall =>
+    rcases hblock with ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs,
+      htypesWF, hctorsWF, hrecsWF, hrulesWF⟩
+    have henvTypes := hbase.addConstVals htypesWF htypes
+    have henvCtors := henvTypes.addConstVals hctorsWF hctors
+    have hparams := hdecl.sourceParameterWF (by rwa [hcompile.types] at htypes)
+    have hpreOrdered := Ordered.inductProjections hbase henvCtors hcompile.sourceNames hdecl.1.originalTypes
+      hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at (by rwa [hcompile.types] at htypes))
+      hparams hparams.rawCtorShape hcompile.types hcompile.ctors hcompile.projections htypes hctors
+    have hpreRigid := (H.addConstVals htypes).addConstVals hctors
+    have hpreRegistered := hpreRigid.register hbase hcompile.types hcompile.projections htypes hctors
+    have hresult := hpreRegistered.compileRules hpreOrdered hrecs hcompile.compiled.equation_head_owned
+    simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
+    cases hinstall
+    exact hresult
+
+private theorem addConsts_eq_addConstVals {env : VEnv} {cis : List VDefVal} :
+    env.addConsts cis = env.addConstVals (cis.map (·.toVConstVal)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih =>
+    simp only [VEnv.addConsts, List.foldlM_cons, List.map_cons, VEnv.addConstVals]
+    cases env.addConst ci.name ci.toVConstant with
+    | none => rfl
+    | some middle => exact ih (env := middle)
+
+private theorem addDefEqs_eq_addDefEqRules {env : VEnv} {cis : List VDefVal} :
+    env.addDefEqs cis = env.addDefEqRules (cis.map (·.toDefEq)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
+
+private theorem ProjectionRigid.addDefinitions {env env' : VEnv} {cis : List VDefVal}
+    (H : ProjectionRigid env) (hordered : env.Ordered)
+    (hadd : env.addConsts cis = some env') : ProjectionRigid (env'.addDefEqs cis) := by
+  rw [addDefEqs_eq_addDefEqRules]
+  apply H.compileRules (block := {
+    types := [], ctors := [], projections := []
+    recursors := cis.map (·.toVConstVal), rules := cis.map (·.toDefEq) }) hordered
+  · rwa [← addConsts_eq_addConstVals]
+  · intro df hdf
+    rcases List.mem_map.mp hdf with ⟨ci, hci, rfl⟩
+    exact ⟨ci.toVConstVal, List.mem_map.mpr ⟨ci, hci, rfl⟩,
+      VLevel.params ci.uvars, rfl⟩
+
+private theorem ProjectionRigid.addQuot {env env' : VEnv}
+    (H : ProjectionRigid env) (hordered : env.Ordered)
+    (hadd : env.addQuot = some env') : ProjectionRigid env' := by
+  let constants : List VConstVal := [
+    { name := ``Quot, toVConstant := quotConst },
+    { name := ``Quot.mk, toVConstant := quotMkConst },
+    { name := ``Quot.lift, toVConstant := quotLiftConst },
+    { name := ``Quot.ind, toVConstant := quotIndConst }]
+  simp [VEnv.addQuot] at hadd
+  rcases hadd with ⟨e1, h1, e2, h2, e3, h3, pre, h4, rfl⟩
+  have hpre : env.addConstVals constants = some pre := by
+    simp [constants, VEnv.addConstVals, h1, h2, h3, h4]
+  apply H.compileRules (block := {
+    types := [], ctors := [], projections := []
+    recursors := constants, rules := [quotDefEq] }) hordered hpre
+  intro df hdf
+  rcases List.mem_singleton.mp hdf with rfl
+  refine ⟨{ name := ``Quot.lift, toVConstant := quotLiftConst }, by simp [constants], [.param 0, .param 1], ?_⟩
+  rfl
+
+/-- Registered structure heads remain rigid through every declaration
+extension. Canonical recursor ownership excludes new inductive equations;
+constant freshness excludes definitions and the quotient equation. -/
+theorem WF.projectionRigid {env : VEnv} (H : env.WF)
+    {name : Name} {info : VProjectionInfo} (hinfo : env.projections name info) :
+    env.Rigid name := by
+  suffices h : ∀ {ds env}, VEnv.WF' ds env → ProjectionRigid env from
+    h H.choose_spec name info hinfo
+  intro ds env H
+  induction H with
+  | empty => intro _ _ hinfo; cases hinfo
+  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih
+  | @decl d env' ds env hdecl hbase ih =>
+    have hordered := (show env.WF from ⟨ds, hbase⟩).ordered
+    cases hdecl with
+    | «axiom» _ hadd | «opaque» _ hadd => exact ih.addConst hadd
+    | «example» => exact ih
+    | @«def» _ _ ci _ hadd =>
+      exact ih.addDefinitions (cis := [ci]) hordered (by
+        simpa [VEnv.addConsts] using hadd)
+    | mutualDef _ hadd _ => exact ih.addDefinitions hordered hadd
+    | quot _ hadd => exact ih.addQuot hordered hadd
+    | induct hdecl hadd => exact ih.addInduct hordered hdecl hadd
+  | @inductProjections baseDecls ds base envTypes envCtors decl block
+      hbase hctorsWF hsource htypesWF hconstructorUvars hctorsTyped hparams hshape htypesSource
+      hctorsSource hprojections htypes hctors ihBase ihCtors =>
+    exact ihCtors.register (show base.WF from ⟨baseDecls, hbase⟩).ordered
+      htypesSource hprojections htypes hctors
+
+end VEnv
+end Lean4Lean

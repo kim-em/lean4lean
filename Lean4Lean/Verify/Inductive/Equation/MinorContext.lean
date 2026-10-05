@@ -44,7 +44,7 @@ theorem RecursorPhasesResult.finalPairedParameterAlignmentAt
     simpa [H.generated.length] using howner
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hcanonical⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   refine ⟨T, S, ?_⟩
   exact Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
@@ -101,7 +101,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   rcases A.finalPairedParameterAlignment with ⟨T, S, hparameters⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨T, S.canonical.mono hbase, by
     simpa [RecursorCanonicalMotiveTelescope.mono] using hparameters⟩
@@ -720,7 +720,7 @@ theorem
   have hscope : scope.fvars = outerBinders.reverse :=
     hscopeFiltered.trans A.finalOuterFilteredFVars
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   let HscopeOut := Hscope.mono hbase
   have hscopeSourceOut : ∀ body,
@@ -914,7 +914,7 @@ theorem
   have hscope : scope.fvars = sourceBinders.reverse :=
     hscopeFiltered.trans A.finalSelectedMinorFilteredFVars
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   let HscopeOut := Hscope.mono hbase
   have hscopeSourceOut : ∀ body,
@@ -1584,7 +1584,7 @@ theorem
     ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
   rw [hparams, hmotives, hminors] at HouterPrefix
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   let E := A.semantics.fieldRootExtension
   have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx

@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.VDecl
 import Lean4Lean.Theory.Quot
 import Lean4Lean.Theory.Inductive
+import Lean4Lean.Theory.Inductive.CaseFormation
 
 namespace Lean4Lean
 
@@ -48,11 +49,26 @@ inductive VDecl.WF : VEnv → VDecl → VEnv → Prop where
 inductive VEnv.WF' : List VDecl → VEnv → Prop where
   | empty : VEnv.WF' [] .empty
   | decl {env} : VDecl.WF env d env' → env.WF' ds → env'.WF' (d::ds)
+  /-- Register the abstract schemas of a formed finite compilation after its
+  exact source constants are present. A fresh key fixes the meaning of every
+  owner slot, including nested auxiliaries, for all later environments. -/
+  | inductEliminators {base env : VEnv} {source : VInductDecl}
+      {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
+    VEnv.WF' baseDecls base →
+    VEnv.WF' ds env →
+    base ≤ env →
+    schema.Certified base source block →
+    source.types.head?.map (·.name) = some key →
+    ((∀ value ∈ block.types ++ block.ctors,
+      env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs) →
+    schema.Fresh env key →
+    VEnv.WF' ds (env.addEliminator key schema)
   | inductProjections {base envTypes envCtors : VEnv}
       {decl : VInductDecl} {block : VInductBlock} :
     VEnv.WF' baseDecls base →
     VEnv.WF' ds envCtors →
     decl.sourceNames.Nodup →
+    (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
     (∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes) →
     decl.SourceParameterWF base →
@@ -66,6 +82,21 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
 
 def VEnv.WF (env : VEnv) : Prop := ∃ ds, VEnv.WF' ds env
 
+theorem VEnv.WF.inductEliminators {base env : VEnv}
+    {source : VInductDecl} {block : VInductBlock}
+    {schema : InductiveSignature.CaseSchema}
+    (hbase : base.WF) (henv : env.WF) (hle : base ≤ env)
+    (hformed : schema.Certified base source block)
+    (hkey : source.types.head?.map (·.name) = some key)
+    (hconstants : ∀ value ∈ block.types ++ block.ctors,
+      env.constants value.name = some value.toVConstant)
+    (hequations : env.defeqs = base.defeqs)
+    (hfresh : schema.Fresh env key) :
+    (env.addEliminator key schema).WF := by
+  rcases hbase with ⟨baseDecls, hbase⟩
+  rcases henv with ⟨ds, henv⟩
+  exact ⟨ds, .inductEliminators hbase henv hle hformed hkey ⟨hconstants, hequations⟩ hfresh⟩
+
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete
 environment retain independent declaration traces; the remaining premises
@@ -75,6 +106,7 @@ theorem VEnv.WF.inductProjections
     {block : VInductBlock}
     (hbase : base.WF) (hctorsWF : envCtors.WF)
     (hsource : decl.sourceNames.Nodup)
+    (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
     (hconstructorUvars :
       ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars)
     (hctorsWF' : ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes)
@@ -88,6 +120,6 @@ theorem VEnv.WF.inductProjections
     (envCtors.addProjections block.projections).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases hctorsWF with ⟨decls, hctorsWF⟩
-  exact ⟨decls, .inductProjections hbase hctorsWF hsource
+  exact ⟨decls, .inductProjections hbase hctorsWF hsource htypesWF
     hconstructorUvars hctorsWF' hparams hshape htypesSource hctorsSource hprojections
     htypes hctors⟩

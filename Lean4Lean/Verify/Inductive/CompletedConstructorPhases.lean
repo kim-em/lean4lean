@@ -233,7 +233,9 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
   headers : HeaderCertificate sourceEnv decl
   params : List VExpr
   headerParams : headers.params = params
+  sourceHeaderParams : sourceMaterialized.headers.params = params
   parameterScope : VLCtx
+  sourceParameterScope : sourceMaterialized.parameterScope = parameterScope
   materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
     headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
   materializedParams : materialized.headers.params = params
@@ -357,6 +359,7 @@ def CompletedConstructorPhases.materializedFinal
   let M := R.materialized.mono (R.installation.constructorLE.trans R.ctorLE)
   exact {
     headers := M.headers
+    isNotZero := M.isNotZero
     commonLevel := M.commonLevel
     levels := M.levels
     levelParams := M.levelParams
@@ -412,7 +415,9 @@ def ConstructorPhasesResult.completed
   headers := H.headers
   params := H.headers.params
   headerParams := rfl
+  sourceHeaderParams := H.sourceHeaderParams
   parameterScope := H.materialized.parameterScope
+  sourceParameterScope := H.parameterScopeEq.symm
   materialized := H.materialized
   materializedParams := H.headerParams
   materializedParameterScope := rfl
@@ -476,6 +481,7 @@ theorem PrimitiveConstructorPhasesResult.projectedWF
   · rw [← R.declared.contextVEnv]
     exact R.declared.context.checking.tr.wf
   · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
+  · exact Lean4Lean.VerifyInductive.TrInductDeclCore.typeHeadersWF R.core
   · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars R.core
   · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF R.core
   · exact R.formation.formationWF.sourceParameterWF
@@ -531,7 +537,9 @@ def PrimitiveConstructorPhasesResult.completed
   headers := H.headers
   params := H.headers.params
   headerParams := rfl
+  sourceHeaderParams := H.sourceHeaderParams
   parameterScope := H.materialized.parameterScope
+  sourceParameterScope := H.parameterScopeEq.symm
   materialized := H.materialized
   materializedParams := H.headerParams
   materializedParameterScope := rfl

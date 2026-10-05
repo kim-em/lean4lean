@@ -11,3 +11,4 @@ import Lean4Lean.Verify.Inductive.EqBootstrap
 import Lean4Lean.Verify.Inductive.EqBootstrapDispatch
 import Lean4Lean.Verify.Inductive.NestedFinalSpecification
 import Lean4Lean.Verify.Inductive.FinalDispatch
+import Lean4Lean.Verify.Inductive.Recursor.Realization

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Constructor.Positivity
+import Lean4Lean.Verify.Inductive.Constructor.Normalization
 
 namespace Lean4Lean
 
@@ -1186,6 +1186,24 @@ theorem readerBind.WF
     ((x >>= f) c).WF R := by
   exact Hx.bind Hf
 
+
+theorem checkIndexUniverses.WF (indices : Array Expr) (c : AddInductive.Context) :
+    (AddInductive.mkRecInfos.checkIndexUniverses indices c).WF fun _ =>
+      (c.lctx.mkForall indices (.sort .zero)).levelParamsIn c.lparams = true := by
+  rw [AddInductive.mkRecInfos.checkIndexUniverses]
+  have hread : ((readThe AddInductive.Context :
+      AddInductive.M AddInductive.Context) c).WF (fun ctx => ctx = c) := by
+    intro ctx h
+    cases h
+    rfl
+  refine readerBind.WF (x := readThe AddInductive.Context) hread fun ctx hctx => ?_
+  subst ctx
+  by_cases hscope : (c.lctx.mkForall indices (.sort .zero)).levelParamsIn c.lparams = true
+  · rw [if_pos hscope]
+    exact Except.WF.pure hscope
+  · rw [if_neg hscope]
+    exact Except.WF.throw
+
 namespace mkRecInfos.loopInd1
 
 /-- The first recursor pass appends exactly one `RecInfo` (motive, indices,
@@ -1230,6 +1248,7 @@ theorem resultCount
     intro indices cIndices
     by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
     · rw [if_pos harity]
+      refine (checkIndexUniverses.WF indices cIndices).bind fun _ _ => ?_
       apply withLocalDecl.continueRaw
       let cMajor : AddInductive.Context := { cIndices with
         ngen := cIndices.ngen.next
@@ -1373,7 +1392,7 @@ theorem continueWith {α : Type}
             targetTypeIdx := itIdx
             targetIndices := itIndices
             template := lctx.mkLambda xs <|
-              (mkAppN (.bvar 0) itIndices).app (mkAppN u[i] xs) } :
+              (mkAppN (.bvar xs.size) itIndices).app (mkAppN u[i] xs) } :
               AddInductive.RecCallBlueprint))) c).WF
           (fun _ => True) := by
       intro _ _
@@ -2519,13 +2538,36 @@ theorem _root_.Lean4Lean.VerifyInductive.checkInductiveTypes.loopType.FrontFVLif
     | vlet current name type value type' value' tail =>
       exact Hm.vlet_false.elim
 
+theorem _root_.Lean4Lean.FVarsIn.abstractN_of {P : FVarId → Prop} {xs : List FVarId} :
+    ∀ {e : Expr} {k}, FVarsIn (fun fv => fv ∈ xs ∨ P fv) e → FVarsIn P (e.abstractN xs k)
+  | .bvar _, _, _ => trivial
+  | .fvar v, k, h => by
+    simp only [Expr.abstractN]
+    split
+    · trivial
+    · rename_i hnone
+      exact h.resolve_left (Expr.lastRevIdx?_eq_none_iff.1 hnone)
+  | .sort _, _, h => h
+  | .const _ _, _, h => h
+  | .lit _, _, h => h
+  | .mvar _, _, h => h
+  | .mdata _ e, k, h => FVarsIn.abstractN_of (e := e) h
+  | .proj _ _ e, k, h => FVarsIn.abstractN_of (e := e) h
+  | .app f a, k, h => ⟨FVarsIn.abstractN_of (e := f) h.1, FVarsIn.abstractN_of (e := a) h.2⟩
+  | .lam _ t b _, k, h => ⟨FVarsIn.abstractN_of (e := t) h.1, FVarsIn.abstractN_of (e := b) h.2⟩
+  | .forallE _ t b _, k, h =>
+    ⟨FVarsIn.abstractN_of (e := t) h.1, FVarsIn.abstractN_of (e := b) h.2⟩
+  | .letE _ t v b _, k, h =>
+    ⟨FVarsIn.abstractN_of (e := t) h.1, FVarsIn.abstractN_of (e := v) h.2.1,
+      FVarsIn.abstractN_of (e := b) h.2.2⟩
+
 theorem _root_.Lean4Lean.FVarsIn.abstract_fvarArray_of
     (fvars : List FVarId) (selected : Array Expr)
     (hselected : selected = (fvars.map Expr.fvar).toArray)
     (H : FVarsIn (fun fv => fv ∈ fvars ∨ P fv) e) :
     FVarsIn P (e.abstract selected) := by
-  rw [hselected, Expr.abstract_eq]
-  exact H.abstractList_of
+  rw [hselected, Expr.abstractN_eq]
+  exact H.abstractN_of
 
 /-- `instantiateRev` introduces no free variables beyond those already in
 the body and substitution array. -/
@@ -2742,11 +2784,20 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
               (ctor := ctor) (idx := i) Hc Hruntime Hstats
               hconsume hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+            have Huniform := checkPositivity.uniformNormalFormNarrow
+              (ctor := ctor) (idx := i) Hc Hruntime Hstats hlevels
+              hconsume hlit hdomNarrow
+              (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
+            have Hboth : (AddInductive.checkPositivity stats dom ctor i c).WF
+                (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowDom ∧
+                  ∃ normalized, Hc.venv.IsDefEqU decl.uvars scope.toCtx narrowDom normalized ∧
+                    decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :=
+              fun value hrun => ⟨Hpos value hrun, Huniform value hrun⟩
             refine checkConstructors.loopCtor.safeField.sourceWF
               (Q := fun _ => ConstructorTailCertificate Hc.venv decl target
                 scope.toCtx depth (.forallE narrowDom narrowBody) ∧
                 ∃ k, Expr.ForallSpine (.forallE name dom body bi) k)
-              Hc hparamAt Hdom hbodyFull Hpos ?_
+              Hc hparamAt Hdom hbodyFull Hboth ?_
             intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped
               hfieldBound hpositive bodyFull' _hbodyFullEq hopenedFull
             let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
@@ -2821,14 +2872,16 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                 shape := .field
                   (by simpa [Hstats.uvars] using hfieldNarrow)
                   (hbound fieldLevel fieldLevel' hlevel hfieldBound)
-                  (Or.inr hpositive)
+                  (Or.inr hpositive.1)
                   (by simpa [Hstats.uvars] using hfieldEq)
                   (by simpa [Hstats.uvars] using hbodyTyped)
                   htail.shape
                 isType := VEnv.IsType.forallE
                   ⟨_, by simpa [Hstats.uvars] using hfieldNarrow⟩
                   htail.isType
-                raw := hraw }
+                raw := hraw
+                uniform := .field ⟨_, by simpa [Hstats.uvars] using hfieldNarrow⟩
+                  (.inr hpositive.2) htail.uniform }
               exact ⟨this, kspine + 1, hspine'⟩
           | true =>
             refine checkConstructors.loopCtor.unsafeField.sourceWF
@@ -2917,7 +2970,9 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                 isType := VEnv.IsType.forallE
                   ⟨_, by simpa [Hstats.uvars] using hfieldNarrow⟩
                   htail.isType
-                raw := hraw }
+                raw := hraw
+                uniform := .field ⟨_, by simpa [Hstats.uvars] using hfieldNarrow⟩
+                  (.inl (hunsafe rfl)) htail.uniform }
               exact ⟨this, kspine + 1, hspine'⟩
     · cases hvalid : AddInductive.isValidIndAppIdx stats type targetIdx
       · exact checkConstructors.loopCtor.invalidResult.WF hforall hvalid
@@ -2947,8 +3002,9 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
         subst target
         exact Hshape.mono fun _ hshape =>
           ⟨⟨hshape, by simpa [Hstats.uvars] using hisType,
-            [], narrowType, by simp [VExpr.wrapForalls],
-            by simpa using hvalidAt, by rw [hspine, hlevelsEq]⟩,
+            ⟨[], narrowType, by simp [VExpr.wrapForalls],
+              by simpa using hvalidAt, by rw [hspine, hlevelsEq]⟩,
+            .result hvalidAt (by rw [hspine, hlevelsEq])⟩,
             0, .codomain hhead⟩
 
 /-- Aggregation boundary for constructors: once the common-parameter prefix

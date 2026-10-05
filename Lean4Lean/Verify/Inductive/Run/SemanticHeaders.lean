@@ -209,7 +209,8 @@ def AssembledSemanticHeadersOf.declaredResult
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
-      some commonLevel) :
+      some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
     DeclaredHeadersResult c stats H.decl nparams isUnsafe depth Hc.venv
       indTypes outEnv := by
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -254,7 +255,7 @@ def AssembledSemanticHeadersOf.declaredResult
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
     H.toAssembledSemanticHeaders.materializedResult hlevels hlevelParams
-      hindices hconsts hparams Hcache Hsuffix Hambient hcommon
+      hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.semanticPrefix.complete H.materialized = H.headers
     exact H.headers_eq.symm
@@ -281,6 +282,7 @@ def AssembledSemanticHeadersOf.declaredResult
     sourceContext := Hc
     sourceContextVEnv := rfl
     sourceMaterialized := sourceMaterialized
+    sourceHeaderParams := congrArg (fun headers => headers.params) hsourceHeaders
     materialized := materialized
     headerParams := by
       calc
@@ -333,6 +335,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprim : c.allowPrimitive = true → ∀ info ∈
@@ -349,7 +352,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
               isUnsafe depth Hc.venv indTypes headerEnv) := by
   let HheaderMaterialized := Hsemantic.materializedResult
     (isUnsafe := isUnsafe) hlevels hlevelParams hindices hconsts hparams
-      hcommonParams Hcache Hsuffix Hambient hcommon
+      hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
   have hheaderParams : HheaderMaterialized.headers.params =
       commonParams := by
     simp [HheaderMaterialized,
@@ -380,7 +383,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
         exact hindices
       refine ⟨Hassembled.decl, ⟨?_⟩⟩
       exact Hassembled.declaredResult Hinstalled hlevels hlevelParams
-        hindicesAssembled hconsts hparams Hcache Hsuffix Hambient hcommon
+        hindicesAssembled hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
 
 end VerifyInductive
 end Lean4Lean

@@ -620,7 +620,7 @@ theorem
       ruleConsumedResidual, hruleSource, hruleConsumed, HruleSource₀,
       hruleConsumedTarget, HruleContexts⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
@@ -700,7 +700,7 @@ theorem
       _ruleConsumedResidual, hruleSource, hruleConsumed, HruleSource₀,
       _hruleConsumedTarget, HruleContexts⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have HruleSource : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
       A.semantics.parameterTail
@@ -771,7 +771,7 @@ theorem
   have hrootLE : HS.semantic.rootWF.venv ≤ H.outVEnv := by
     rw [← HS.semantic.fieldsRecent.contextExtension.venv_eq,
       ← HS.semantic.hypothesesRecent.contextExtension.venv_eq,
-      ← HS.semantic.extension.venv_eq, H.recursorEnv,
+      ← HS.semantic.extension.venv_eq, H.recursorEnv_legacy,
       R.declared.contextVEnv]
     exact H.installed.le
   have Htarget' := Htarget.mono hrootLE
@@ -784,7 +784,7 @@ theorem
       (R.materialized.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
       A.semantics.parameterTail target := by
-    simpa only [← H.parameterDecls] using HtargetAtParameters
+    simpa only [← H.parameterDecls_legacy] using HtargetAtParameters
   exact ⟨S, HS, target, hlocal, htail, HtargetFinal⟩
 
 /-- The target retained from first-pass minor construction and the field
@@ -1286,7 +1286,7 @@ theorem
       (T.params ++ T.motives ++ T.minors.take minorIdx).reverse := by
     simpa using Hprefix₀
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hscopeSourceOut : Hscope.sources.closeSource S.origin =
       H.localContext.lctx.mkForall
@@ -1455,7 +1455,7 @@ theorem
     rw [← hfullTarget, ← hweakenedTarget, ← hnarrowTarget]
     exact HfullEq
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have HruntimeWF : OnCtx H.recursorWF.mlctx.vlctx.toCtx
       (H.outVEnv.IsType Us.length) :=
@@ -3353,7 +3353,7 @@ theorem
     ⟨outerScope, Houter, outerFields, outerResidual, houterScope,
       houterShift, houterFields, HouterTail, HouterType, HouterPrefix⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   rcases A.semantics.fieldContextDefEqMono with
     ⟨sourceDomains, _sourceResidual, ruleFields, ruleResidual,
@@ -3721,7 +3721,7 @@ theorem
   rcases HS.semantic.sourceWF.translatedDeclarationType D with
     ⟨sourceTarget, HsourceTarget⟩
   have henv : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hsourceEnv : HS.semantic.sourceWF.venv ≤ H.outVEnv := by
     rw [← HS.semantic.extension.venv_eq]

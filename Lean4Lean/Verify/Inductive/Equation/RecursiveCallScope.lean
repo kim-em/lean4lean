@@ -521,7 +521,7 @@ theorem
     F.semantic.recent.venv_eq.trans <|
       F.originRecent.venv_eq.trans <|
         A.semantics.context_venv.trans <|
-          H.recursorEnv.trans R.declared.contextVEnv
+          H.recursorEnv_legacy.trans R.declared.contextVEnv
   have Htr := M.translation
   have Htype := M.typing
   rw [hsemantic] at Htr Htype
@@ -755,7 +755,7 @@ theorem
   have henv : F.originContext.venv ≤ H.outVEnv := by
     have horigin : F.originContext.venv = H.recursorWF.venv :=
       F.originRecent.venv_eq.trans A.semantics.context_venv
-    rw [horigin, H.recursorEnv, R.declared.contextVEnv]
+    rw [horigin, H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨scope, Hscope.mono henv, hscope⟩
 
@@ -945,7 +945,7 @@ theorem
     have hcurrent : F.semantic.current_context.venv = H.recursorWF.venv :=
       F.semantic.recent.venv_eq.trans <|
         F.originRecent.venv_eq.trans A.semantics.context_venv
-    rw [hcurrent, H.recursorEnv, R.declared.contextVEnv]
+    rw [hcurrent, H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us :=
     F.semantic.current_context.mlctx_wf.mono henv
@@ -980,14 +980,14 @@ theorem
       HlocalBase HlocalUp with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocalDomains,
       hcontext, hshift, _hexpanded, Hreplay⟩
-  have hsource : ∀ body,
+  have hsource : ∀ body, Closed body →
       F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body =
         F.semantic.current_context.mlctx.mkForall
           F.semantic.generated.localArgs.size HlocalPrefix.le body := by
-    intro body
+    intro body hbody
     rw [← F.semantic.current_context.lctx_eq]
-    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    refine F.semantic.current_context.mlctx_wf.mkForall_eq _ _ ?_ hbody
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     rw [hle]
@@ -999,7 +999,7 @@ theorem
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
       hshift
   · intro body target Hbody HbodyType
-    rw [hsource]
+    rw [hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
     simpa [HlocalBase,
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
       Hreplay Hbody HbodyType
@@ -1078,7 +1078,7 @@ theorem
     F.semantic.recent.venv_eq.trans <|
       F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans <|
-          H.recursorEnv.trans R.declared.contextVEnv
+          H.recursorEnv_legacy.trans R.declared.contextVEnv
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
     (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices

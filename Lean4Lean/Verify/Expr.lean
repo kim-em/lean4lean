@@ -45,10 +45,6 @@ theorem Expr.SameForallDomains.inferImplicit
       simp only [Expr.inferImplicit]
       exact .cons (ih Htail)
 
-instance : LawfulBEq FVarId where
-  eq_of_beq := @fun ⟨a⟩ ⟨b⟩ h => by cases LawfulBEq.eq_of_beq (α := Name) h; rfl
-  rfl := BEq.rfl (α := Name)
-
 instance : LawfulBEq MVarId where
   eq_of_beq := @fun ⟨a⟩ ⟨b⟩ h => by cases LawfulBEq.eq_of_beq (α := Name) h; rfl
   rfl := BEq.rfl (α := Name)

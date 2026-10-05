@@ -188,7 +188,8 @@ noncomputable def NestedFinalAssemblyCertificate.compilation
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     rw [← hvalues]
     exact VEnv.addConstVals_names_nodup C.canonical.productionTrace.abstract
-  exact NestedCompilationCertificate.ofRestoration sourceEnv
+  refine { toNestedShapeCertificate := ?_, canonical := C.compiled }
+  exact NestedShapeCertificate.ofRestoration sourceEnv
     C.canonical.venvTypes C.canonical.venvCtors decl block C.main C.rest
     C.typesSource C.primaryRecursors C.auxiliaryRecursors C.primaryRules
     C.auxiliaryRules
@@ -398,7 +399,12 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         exact (Hchecking.of_value hfind hs hvalue).mono
           VEnv.addDefEqRules_le
     }
-    have Hadd := H.addInductConcrete Habstract HcheckingRules
+    have Hprovenance : InductiveRecursorProvenance observer
+        sourceProdEnv.constants (ves.venv observer) outEnv.constants
+        Breplay.finalVEnv :=
+      (C.provenance.rebaseBlock (wf.mono DefinitionSafety.le_safe) hout
+        B.install Breplay.install rfl).ofUnsafe
+    have Hadd := H.addInductConcrete Habstract HcheckingRules Hprovenance
       Hvalid.tr.map_wf Horigins
     exact ⟨replayBase, Breplay,
       hprojections.trans (by rfl), Hadd, hout⟩
@@ -606,7 +612,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
       decl outEnv.constants
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules)) :=
-    H.addInductConcrete F.addInduct HcheckingRules Hvalid.tr.map_wf
+    H.addInductConcrete F.addInduct HcheckingRules C.provenance Hvalid.tr.map_wf
       Horigins
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       (C.finalBaseVEnv.addDefEqRules

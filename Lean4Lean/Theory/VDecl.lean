@@ -2,40 +2,6 @@ import Lean4Lean.Theory.VEnv
 
 namespace Lean4Lean
 
-structure VConstVal extends VConstant where
-  name : Name
-
-structure VDefVal extends VConstVal where
-  value : VExpr
-
-def VDefVal.toDefEq (v : VDefVal) : VDefEq :=
-  ⟨v.uvars, .const v.name (VLevel.params v.uvars), v.value, v.type⟩
-
-structure VInductiveType extends VConstVal where
-  /-- Number of indices after the common parameters. This is recovered from
-  the checked source arity by the executable implementation. -/
-  numIndices : Nat
-  /-- Sort level at the end of the parameter/index telescope. -/
-  resultLevel : VLevel
-  ctors : List VConstVal
-
-structure VInductDecl where
-  uvars : Nat
-  nparams : Nat
-  types : List VInductiveType
-  /-- Unsafe inductive declarations skip the strict-positivity check. They are
-  represented explicitly so that the abstract declaration judgment does not
-  accidentally ascribe the safe formation rule to them. -/
-  isUnsafe : Bool
-
-/-- The staged output of compiling an inductive declaration. -/
-structure VInductBlock where
-  types : List VConstVal
-  ctors : List VConstVal
-  recursors : List VConstVal
-  rules : List VDefEq
-  projections : List VProjectionEntry
-
 namespace VEnv
 
 /-- Add constants from left to right, failing on the first collision. -/
@@ -49,6 +15,13 @@ def addConstVals : VEnv → List VConstVal → Option VEnv
 def addDefEqRules : VEnv → List VDefEq → VEnv
   | env, [] => env
   | env, df :: dfs => addDefEqRules (env.addDefEq df) dfs
+
+@[simp] theorem addDefEqRules_eliminators
+    (env : VEnv) (rules : List VDefEq) :
+    (env.addDefEqRules rules).eliminators = env.eliminators := by
+  induction rules generalizing env with
+  | nil => rfl
+  | cons rule rules ih => exact ih (env := env.addDefEq rule)
 
 @[simp] theorem addDefEqRules_projections
     (env : VEnv) (rules : List VDefEq) :
@@ -66,32 +39,6 @@ def addDefEqRules : VEnv → List VDefEq → VEnv
   | cons rule rules ih => exact ih (env := env.addDefEq rule)
 
 end VEnv
-
-def VInductDecl.typeConstants (decl : VInductDecl) : List VConstVal :=
-  decl.types.map VInductiveType.toVConstVal
-
-def VInductDecl.constructorConstants (decl : VInductDecl) : List VConstVal :=
-  decl.types.flatMap VInductiveType.ctors
-
-def VInductDecl.sourceNames (decl : VInductDecl) : List Name :=
-  decl.typeConstants.map VConstVal.name ++
-    decl.constructorConstants.map VConstVal.name
-
-/-- Projection metadata is derived solely from singleton-constructor source
-families. -/
-def VInductDecl.projectionEntries (decl : VInductDecl) : List VProjectionEntry :=
-  decl.types.filterMap fun type =>
-    match type.ctors with
-    | [ctor] => some {
-        typeName := type.name
-        info := {
-          uvars := decl.uvars
-          nparams := decl.nparams
-          nindices := type.numIndices
-          resultLevel := type.resultLevel
-          ctorName := ctor.name
-          ctorType := ctor.type } }
-    | _ => none
 
 theorem VInductDecl.typeNames_nodup
     {decl : VInductDecl} (H : decl.sourceNames.Nodup) :
@@ -187,6 +134,7 @@ theorem addProjections_addConst
     · funext projectionName projectionInfo
       apply propext
       simp only [VEnv.addProjections_iff]
+    · simp only [VEnv.addProjections_eliminators]
 
 theorem addProjections_addConstVals
     (env : VEnv) (entries : List VProjectionEntry)
@@ -212,6 +160,17 @@ def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
   return env.addDefEqRules block.rules
 
 namespace VEnv
+
+theorem addConstVals_defeqs {env env' : VEnv} {cis : List VConstVal}
+    (H : env.addConstVals cis = some env') : env'.defeqs = env.defeqs := by
+  induction cis generalizing env with
+  | nil => cases H; rfl
+  | cons ci cis ih =>
+    cases hadd : env.addConst ci.name ci.toVConstant with
+    | none => simp [VEnv.addConstVals, hadd] at H
+    | some middle =>
+      simp [VEnv.addConstVals, hadd] at H
+      exact (ih H).trans (VEnv.addConst_defeqs hadd)
 
 theorem addConstVals_le {env env' : VEnv} {cis : List VConstVal}
     (H : env.addConstVals cis = some env') : env ≤ env' := by
@@ -280,13 +239,16 @@ theorem addConstVals_projections {env env' : VEnv} {cis : List VConstVal}
         split at hadd <;> cases hadd
         rfl)
 
-end VEnv
+theorem addConstVals_eliminators {env env' : VEnv} {cis : List VConstVal}
+    (H : env.addConstVals cis = some env') :
+    env'.eliminators = env.eliminators := by
+  induction cis generalizing env with
+  | nil => simp [VEnv.addConstVals] at H; subst env'; rfl
+  | cons ci cis ih =>
+    cases hadd : env.addConst ci.name ci.toVConstant with
+    | none => simp [VEnv.addConstVals, hadd] at H
+    | some middle =>
+      simp [VEnv.addConstVals, hadd] at H
+      exact (ih H).trans (VEnv.addConst_eliminators hadd)
 
-inductive VDecl where
-  | axiom (_ : VConstVal)
-  | def (_ : VDefVal)
-  | opaque (_ : VDefVal)
-  | example (_ : VDefVal)
-  | quot
-  | induct (_ : VInductDecl)
-  | mutualDef (_ : List VDefVal)
+end VEnv

@@ -4,6 +4,7 @@ import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Typing.PrimSpec
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Theory.Typing.Strong
+import Lean4Lean.Theory.Typing.NativeCaptureTransport
 import Lean4Lean.Theory.Typing.UniqueTyping
 import Lean4Lean.Instantiate
 
@@ -192,12 +193,22 @@ theorem FVarsIn.abstract_instantiateRev_fvarArray
     (xs : Array Expr) (vars : List FVarId)
     (hvars : xs = (vars.map Expr.fvar).toArray)
     (hfree : FVarsIn (fun v => v ∉ vars) e)
-    (hnodup : vars.Nodup) :
+    (hnodup : vars.Nodup) (hclosed : e.looseBVarRange' ≤ vars.length) :
     (e.instantiateRev xs).abstract xs = e := by
   subst xs
-  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstract_eq]
-  simpa [Expr.instantiateList_reverse] using
-    hfree.abstractList_instantiateRevList (k := 0) hnodup
+  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstract_eq _ _ hnodup]
+  · simpa [Expr.instantiateList_reverse] using
+      hfree.abstractList_instantiateRevList (k := 0) hnodup
+  · refine Nat.le_zero.1 ?_
+    have := Expr.instantiateList_looseBVarRange (n := 0) (k := 0)
+      (e := e) (as := ((vars.map Expr.fvar).toArray.reverse).toList)
+      (by simpa using hclosed) (by
+        intro a ha
+        simp only [Array.toList_reverse, List.toList_toArray, List.mem_reverse,
+          List.mem_map] at ha
+        obtain ⟨_, _, rfl⟩ := ha
+        simp [Expr.looseBVarRange'])
+    simpa using this
 
 /-- Reopening after the cancellation law substitutes a new parameter array
 into the original abstract body. -/
@@ -205,10 +216,10 @@ theorem FVarsIn.reabstract_instantiateRev_fvarArray
     (xs ys : Array Expr) (vars : List FVarId)
     (hvars : xs = (vars.map Expr.fvar).toArray)
     (hfree : FVarsIn (fun v => v ∉ vars) e)
-    (hnodup : vars.Nodup) :
+    (hnodup : vars.Nodup) (hclosed : e.looseBVarRange' ≤ vars.length) :
     ((e.instantiateRev xs).abstract xs).instantiateRev ys =
       e.instantiateRev ys := by
-  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup]
+  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup hclosed]
 
 theorem FVarsIn.abstract1 (h1 : FVarsIn P e) :
     FVarsIn P (Expr.abstract1 a e k) := by
@@ -268,6 +279,18 @@ theorem Closed.of_looseBVarRange : ∀ {e : Expr} {k},
 theorem Closed.of_looseBVarRange_zero
     (hm : e.hasExprMVar' = false) (hb : e.looseBVarRange' = 0) : Closed e :=
   .of_looseBVarRange hm (Nat.le_of_eq hb)
+
+theorem Closed.instantiate1 : ∀ {e : Expr} {k},
+    Closed e (k+1) → Closed a → Closed (Expr.instantiate1' e a k) k := by
+  intro e
+  induction e <;> intro k he ha <;> simp_all [Closed, Expr.instantiate1']
+  rename_i i
+  split
+  · simpa [Closed]
+  · split
+    · rw [Expr.liftLooseBVars_eq_self (by simpa using ha.looseBVarRange_zero)]
+      exact ha.mono (Nat.zero_le _)
+    · simp [Closed]; omega
 
 /-- `FVarsIn` rules out free variables, expression metavariables *and* level metavariables --
 the last in the `sort` and `const` cases -- so all three flags are needed. -/
@@ -1858,6 +1881,8 @@ theorem TrExpr.abstract (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (H : 
     TrExpr env Us Δ (e.abstract1 v₀ dk) e' :=
   let ⟨_, s, h⟩ := H; ⟨_, s.abstract W, W.toCtx ▸ h⟩
 
+/-- Syntactic uniqueness applies to projection-free source syntax. Generated
+projection witnesses are compared by typed equality instead. -/
 def TrExprS.IsUnique : Expr → Prop
   | .bvar _
   | .fvar _
@@ -1870,18 +1895,7 @@ def TrExprS.IsUnique : Expr → Prop
   | .forallE _ t b _ => IsUnique t ∧ IsUnique b
   | .letE _ _ v b _ => IsUnique v ∧ IsUnique b
   | .mdata _ e => IsUnique e
-  | .proj _ _ e => IsUnique e
-
-/-- Projection translation is primitive, so every expression has a unique
-translation once the fvar layout of the context is fixed. -/
-theorem TrExprS.IsUnique.all : ∀ e : Expr, IsUnique e
-  | .bvar _ | .fvar _ | .sort _ | .const .. | .mvar .. | .lit _ => ⟨⟩
-  | .app f a => ⟨IsUnique.all f, IsUnique.all a⟩
-  | .lam _ t b _ => ⟨IsUnique.all t, IsUnique.all b⟩
-  | .forallE _ t b _ => ⟨IsUnique.all t, IsUnique.all b⟩
-  | .letE _ _ v b _ => ⟨IsUnique.all v, IsUnique.all b⟩
-  | .mdata _ e => IsUnique.all e
-  | .proj _ _ e => IsUnique.all e
+  | .proj .. => False
 
 theorem TrExprS.IsUnique.natLitToConstructor : ∀ {n : Nat}, IsUnique (.natLitToConstructor n)
   | 0 => ⟨⟩
@@ -1930,10 +1944,7 @@ theorem TrExprS.unique' (hΔ : IsUniqueCtx Δ₁ Δ₂) (H : IsUnique e)
   | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ H.1 ‹_›; cases ih2 (hΔ.cons .vlet) H.2 ‹_›; rfl
   | lit _ _ ih => exact ih hΔ .toConstructor ‹_›
   | mdata _ ih => exact ih hΔ H ‹_›
-  | proj _ hp ih =>
-    rename_i hp'
-    cases ih hΔ H ‹_›
-    rw [hp.target_eq, hp'.target_eq]
+  | proj => exact H.elim
 
 theorem TrExprS.unique (H : IsUnique e)
     (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := H1.unique' .base H H2
@@ -2350,6 +2361,66 @@ theorem BetaReduce.cheapBetaReduce (hc : e.Closed) : BetaReduce e e.cheapBetaRed
     · exact Expr.instantiateList_eq_self hl₁.1.looseBVarRange_zero
     · exact ih hl₁.2 _ (Nat.lt_of_succ_lt_succ lt)
 
+/-- Retain the original application's result conversions, including their
+individual universe sorts, instead of comparing two independently recovered typings. -/
+private theorem betaAppView (henv : env.Ordered)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (H : env.HasType U Γ (.app f a) V) :
+    ∃ A B, env.HasType U Γ f (.forallE A B) ∧ env.HasType U Γ a A ∧
+      TypeConversion env U Γ (B.inst a) V := by
+  replace H := (H.strong henv hΓ).hasType'.1
+  generalize eq : true = b, eq' : f.app a = e' at H
+  induction H with cases eq
+  | defeq _ edge _ _ _ _ _ ih =>
+    obtain ⟨A, B, hf, ha, path⟩ := ih hΓ rfl eq'
+    exact ⟨A, B, hf, ha, .tail path edge.defeq⟩
+  | base H =>
+    subst eq'
+    let .app _ _ _ _ _ hf ha _ := H
+    exact ⟨_, _, hf.hasType, ha.hasType, .refl⟩
+
+/-- The lambda's original body typing and natural Pi type, followed by its
+actual conversion path. Structural inversion supplies this without uniqueness. -/
+private theorem betaLamView (henv : env.Ordered)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (H : env.HasType U Γ (.lam A body) V) :
+    ∃ B, env.HasType U (A :: Γ) body B ∧ env.IsType U Γ (.forallE A B) ∧
+      TypeConversion env U Γ (.forallE A B) V := by
+  replace H := (H.strong henv hΓ).hasType'.1
+  generalize eq : true = b, eq' : A.lam body = e' at H
+  induction H with cases eq
+  | defeq _ edge _ _ _ _ _ ih =>
+    obtain ⟨B, hb, hPi, path⟩ := ih hΓ rfl eq'
+    exact ⟨B, hb, hPi, .tail path edge.defeq⟩
+  | base H =>
+    subst eq'
+    let .lam _ _ _ _ hb hPi := H
+    exact ⟨_, hb.hasType, ⟨_, hPi.hasType⟩, .refl⟩
+
+/-- The alignment needed by converted beta: type the actual argument at the
+lambda's written domain and connect this one instantiated result to the caller's
+result. No stratification bound is needed by the consumer.
+
+This remains a boundary to the existing foundation: composing the original conversion path
+uses `IsDefEqU.trans` (and hence uniqueness), followed by Pi inversion. The views
+and the beta branch below do not require those results independently. -/
+private theorem betaLambdaAlignment (henv : env.WF)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (hf : env.HasType U Γ (.lam A body) (.forallE C D))
+    (ha : env.HasType U Γ a C) :
+    ∃ B, env.HasType U (A :: Γ) body B ∧ env.HasType U Γ a A ∧
+      TypeConversion env U Γ (B.inst a) (D.inst a) := by
+  obtain ⟨B, hb, ⟨u, hPi⟩, path⟩ := betaLamView henv hΓ hf
+  have closePath {X Y} (path : TypeConversion env U Γ X Y)
+      (hX : env.IsType U Γ X) : env.IsDefEqU U Γ X Y := by
+    induction path with
+    | refl => obtain ⟨_, hX⟩ := hX; exact ⟨_, hX⟩
+    | tail _ edge ih => exact ih.trans henv hΓ ⟨_, edge⟩
+  have hWhole := closePath path ⟨u, hPi⟩
+  obtain ⟨⟨_, hAC⟩, _, hBD⟩ := hWhole.forallE_inv henv hΓ
+  have haA : env.HasType U Γ a A := .defeqDF hAC.symm ha
+  exact ⟨B, hb, haA, .single (hBD.instN henv haA .zero)⟩
+
 theorem TrExpr.beta (H : TrExpr env Us Δ e e')
     (henv : VEnv.WF env) (hΓ : VLCtx.WF env Us.length Δ)
     (H : BetaReduce e e₂) : TrExpr env Us Δ e₂ e' := by
@@ -2361,17 +2432,12 @@ theorem TrExpr.beta (H : TrExpr env Us Δ e e')
     have ⟨_, _, hf', ha'⟩ := df.hasType.1.app_inv henv hΓ
     exact ((ih ⟨_, tf, _, hf'⟩).app henv hΓ hf' ha' (ta.trExpr henv hΓ)).defeq henv hΓ ⟨_, df⟩
   | beta =>
-    let ⟨_, .app hf ha tf ta, _, df⟩ := H
-    let .lam hA tA tb := tf
-    have ⟨⟨_, hA⟩, _, hb⟩ := hf.lam_inv henv hΓ
-    have ht := hf.uniqU henv hΓ (hA.lam hb)
-    have ⟨⟨_, Ae⟩, _, be⟩ := ht.forallE_inv henv hΓ
-    have hΓΓ := VLCtx.IsDefEq.cons (.refl henv hΓ) (ofv := none) nofun (.vlam Ae.symm)
-    have ⟨_, tb'⟩ := tb.defeqDFC henv hΓΓ
-    have beta := hb.beta (Ae.defeq ha)
-    have be' := (tb.uniq henv hΓΓ tb').of_l henv hΓΓ.wf hb
-    have hi := be'.instDF henv hΓ (.defeq Ae ha)
-    exact ⟨_, .inst henv ha tb' ta, _, beta.trans_l henv hΓ hi |>.symm.trans_l henv hΓ df⟩
+    let ⟨_, .app _ _ tf ta, _, df⟩ := H
+    let .lam _ _ tb := tf
+    obtain ⟨_, _, hf, ha, resultPath⟩ := betaAppView henv hΓ df.hasType.1
+    obtain ⟨_, hb, haA, bodyPath⟩ := betaLambdaAlignment henv hΓ hf ha
+    have beta := resultPath.cast (bodyPath.cast (.beta hb haA))
+    exact ⟨_, .inst henv haA tb ta, _, beta.symm.trans df⟩
 
 theorem FVarsBelow.cheapBetaReduce (he : e.Closed) : FVarsBelow Δ e e.cheapBetaReduce :=
   .betaReduce (.cheapBetaReduce he)

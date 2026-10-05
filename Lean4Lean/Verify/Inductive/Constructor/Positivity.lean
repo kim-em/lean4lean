@@ -1763,7 +1763,7 @@ theorem resultCount
           let val := mkAppN (mkAppN (mkAppN val stats.params) motives) minors
           let lctx ← getLCtx
           return (lctx.mkLambda xs <|
-            (mkAppN (.bvar 0) itIndices).app
+            (mkAppN (.bvar xs.size) itIndices).app
               (mkAppN u[i] xs)).instantiate1 val) c).WF
           (fun _ => True)) := by
       intro _ _
@@ -1867,7 +1867,7 @@ def GeneratedRecursiveCall
     let recursor := mkAppN (mkAppN (mkAppN recursor stats.params) motives)
       minors
     value = (lctx.mkLambda localArgs <|
-      (mkAppN (.bvar 0) indices).app
+      (mkAppN (.bvar localArgs.size) indices).app
         (mkAppN field localArgs)).instantiate1 recursor
 
 /-- Prefix invariant for `mkRecRules.loopU`: generated values correspond
@@ -1948,7 +1948,7 @@ theorem generatedCalls
         let val := mkAppN (mkAppN (mkAppN val stats.params) motives) minors
         let lctx ← getLCtx
         return (lctx.mkLambda xs <|
-          (mkAppN (.bvar 0) itIndices).app
+          (mkAppN (.bvar xs.size) itIndices).app
             (mkAppN u[i] xs)).instantiate1 val
     have hval :
         (AddInductive.mkRecInfos.loopUArgs u[i] buildCall c).WF

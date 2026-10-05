@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Constructor.Replay
+import Lean4Lean.Verify.Typing.RawShape
 
 namespace Lean4Lean
 
@@ -106,11 +107,9 @@ theorem CheckedConstructorParameterPrefix.ctorParameterShape
       (hrawChecked.symm henv.ordered)
     simpa [VInductDecl.ParamsDefEq, huvars] using hparams'
 
-/-- The closed raw constructor type is the parameter prefix over the checked
-tail; since projection translation is primitive, the tail translation in the
-raw scope coincides with the cached-scope translation, so the tail
-certificate's syntactic telescope is the syntactic telescope of the closed
-constructor type. -/
+/-- The closed raw constructor retains the checked tail's telescope, owning
+family, and common-parameter variables. Projection implementation choices
+inside fields and indices do not affect this skeleton. -/
 theorem CheckedConstructorParameterPrefix.rawCtorShape
     {decl : VInductDecl} {target : VInductiveType} {ctor : VConstVal}
     {tail : Expr} {tailTarget : VExpr}
@@ -125,14 +124,18 @@ theorem CheckedConstructorParameterPrefix.rawCtorShape
     decl.RawCtorShape target ctor := by
   rcases H.rawTranslation henv hscope Horiginal with
     ⟨rawScope, domains, residual, htarget, hlength, _, _, Hunique, Hresidual⟩
-  have hres : residual = tailTarget :=
-    Hresidual.unique' Hunique (TrExprS.IsUnique.all _) Htail
-  subst hres
+  have hres := TrExprS.rawShape Hunique.rawShape Hresidual Htail
   rcases Hcert.raw with ⟨doms, result, hwrap, hvalid, hhead⟩
-  refine ⟨domains ++ doms, result, ?_, ?_, ?_, hhead⟩
-  · rw [htarget, hwrap, VExpr.wrapForalls_append]
-  · simp [hlength]
-  · simpa [hlength] using hvalid
+  have hshape : decl.RawCtorShape target
+      {ctor with type := VExpr.wrapForalls domains tailTarget} := by
+    refine ⟨domains ++ doms, result, ?_, ?_, ?_, hhead⟩
+    · simp only [hwrap, VExpr.wrapForalls_append]
+    · simp [hlength]
+    · simpa [hlength] using hvalid.raw
+  apply hshape.of_rawShapeRel
+  change VExpr.RawShapeRel ctor.type (VExpr.wrapForalls domains tailTarget)
+  rw [htarget]
+  exact hres.wrapForalls domains
 
 /-- The completed constructor replay yields the raw syntactic shape of every
 source constructor, positionally aligned with the declaration. -/
@@ -171,11 +174,9 @@ theorem CheckedConstructorsResult.rawShapes
       indTypes[familyIdx].ctors[ctorIdx].type decl.nparams _tail scope
       _sourceDomains := by
     simpa [hparamsSize] using Hcomparisons
-  have hctorType : ctorVal.type = decl.types[familyIdx].ctors[ctorIdx].type :=
-    Hraw.type.unique' .base (TrExprS.IsUnique.all _) Hctor.type
   have Hshape := Hcomparisons'.rawCtorShape henv hscope Hraw.type Htranslated
     Htail
-  simpa [VInductDecl.RawCtorShape, hctorType] using Hshape
+  exact Hshape.of_rawShapeRel (TrExprS.rawShape .base Hctor.type Hraw.type)
 
 /-- The completed constructor replay already contains every successful raw
 parameter comparison.  Pair it with the declaration translation at the same

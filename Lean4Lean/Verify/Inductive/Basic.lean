@@ -156,7 +156,7 @@ theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
         VExpr.getAppFnArgs.go fn (arg :: suffix)
         VExpr.mkApps head args = VExpr.mkApps (.app fn arg) suffix)
       simpa [VExpr.mkApps] using ihFn (arg :: suffix)
-    | bvar | sort | const | proj => intro suffix; rfl
+    | bvar | sort | const | elim | proj => intro suffix; rfl
     | lam | forallE => intro suffix; rfl
   simpa [VExpr.getAppFnArgs, VExpr.mkApps] using go e []
 
@@ -220,7 +220,7 @@ theorem VExpr.takeForalls_rebuild
         rcases ih htail with ⟨hrebuild, hlength⟩
         exact ⟨by simp [VExpr.wrapForalls, hrebuild], by simp [hlength]⟩
     | proj typeName index struct => simp [VExpr.takeForalls] at H
-    | bvar | sort | const | app | lam => simp [VExpr.takeForalls] at H
+    | bvar | sort | const | elim | app | lam => simp [VExpr.takeForalls] at H
 
 /-- Split one successful telescope decomposition at an arbitrary intermediate
 arity.  This lets a total translated recursor telescope be recovered as its
@@ -929,25 +929,8 @@ theorem VEnv.WF.addConstVals
     {env env' : VEnv} {cis : List VConstVal}
     (Henv : env.WF)
     (Hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
-    (Hadd : env.addConstVals cis = some env') : env'.WF := by
-  induction cis generalizing env env' with
-  | nil =>
-    simp [VEnv.addConstVals] at Hadd
-    subst env'
-    exact Henv
-  | cons ci cis ih =>
-    cases hci : env.addConst ci.name ci.toVConstant with
-    | none => simp [VEnv.addConstVals, hci] at Hadd
-    | some next =>
-      simp [VEnv.addConstVals, hci] at Hadd
-      have hhead : ci.toVConstant.WF env := Hwf ci (by simp)
-      have Hnext : next.WF := by
-        rcases Henv with ⟨ds, Hds⟩
-        exact ⟨.axiom ci :: ds, .decl (.axiom hhead hci) Hds⟩
-      apply ih Hnext (env' := env')
-      · intro ci' hmem
-        exact (Hwf ci' (by simp [hmem])).mono (VEnv.addConst_le hci)
-      · exact Hadd
+    (Hadd : env.addConstVals cis = some env') : env'.WF :=
+  _root_.Lean4Lean.VEnv.WF.addConstVals Henv Hwf Hadd
 
 /-- Repeated application syntax retains a well-typed prefix. -/
 theorem VExpr.WF.mkApps_fn
@@ -2280,6 +2263,7 @@ theorem VExpr.GuardedIota.ofContainsAnyConstFalse
   induction e generalizing depth with
   | bvar => exact .bvar
   | sort => exact .sort
+  | elim => exact .elim
   | const name levels =>
       apply VExpr.GuardedIota.const
       intro hmem
@@ -2306,6 +2290,7 @@ theorem VExpr.SourceConstFree.guardedIota
   induction H generalizing depth with
   | bvar => exact .bvar
   | sort => exact .sort
+  | elim => exact .elim
   | const name levels fresh => exact .const fresh
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | proj _ _ _ ihMajor => exact .proj ihMajor

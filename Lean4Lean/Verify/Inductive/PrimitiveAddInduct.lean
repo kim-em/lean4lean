@@ -23,7 +23,7 @@ theorem VerifiedPrimitiveInductiveRunResult.addInductCanonical
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   exact ⟨c', Hc', decl, (Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
-      T.compilation⟩
+      (T.compilation hnonempty)⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -639,7 +639,7 @@ theorem RecursorContextWF.mkForallRecent
   have hsource : c.lctx.mkForall xs body =
       H.mlctx.mkForall n hn body := by
     rw [← H.lctx_eq]
-    exact H.mlctx_wf.mkForall_eq n hn hxs
+    exact H.mlctx_wf.mkForall_eq n hn hxs (by simpa [TypeChecker.MLCtx.noBV] using htr.closed)
   rw [hsource]
   exact H.mlctx_wf.mkForall_trS H.checking.tr.wf htr hty n hn
 

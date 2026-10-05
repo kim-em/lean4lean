@@ -632,6 +632,7 @@ theorem laterLoopIndSemantic
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth' →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
+      stats'.isNotZero = stats'.resultLevel.isNeverZero →
       (k stats' c').WF Q)
     (Hc : ContextWF c)
     (henvRoot : c.env = root.env)
@@ -665,7 +666,8 @@ theorem laterLoopIndSemantic
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
-      some commonLevel) :
+      some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx
       stats k c).WF Q := by
   by_cases hidx : dIdx < indTypes.size
@@ -701,6 +703,7 @@ theorem laterLoopIndSemantic
     · exact Hsuffix'
     · exact Hambient'
     · simpa [updatedStats, hlparams'] using hcommon
+    · simpa [updatedStats] using hnotzero
   · have hcoverage : indTypes.size ≤ dIdx := Nat.le_of_not_gt hidx
     have htake : indTypes.toList.take dIdx = indTypes.toList :=
       List.take_of_length_le (by simpa using hcoverage)
@@ -727,7 +730,7 @@ theorem laterLoopIndSemantic
           have : dIdx = indTypes.size := by omega
           simpa [this] using hconsts)
         (by simpa [htake] using hconstsExact)
-        hnonempty hparams hcommonParams Hcache Hsuffix Hambient hcommon
+        hnonempty hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
 termination_by indTypes.size - dIdx
 
 /-- Initialize and complete semantic header accumulation from the first
@@ -772,6 +775,7 @@ theorem firstLoopIndSemantic
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth' →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
+      stats'.isNotZero = stats'.resultLevel.isNeverZero →
       (k stats' c').WF Q)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < indTypes.size)
@@ -829,6 +833,7 @@ theorem firstLoopIndSemantic
       indTypes[0].name
   · exact Hambient
   · simpa [updatedStats] using hofLevel
+  · simp [updatedStats]
 
 /-- Public skeleton-free verifier retaining exact source translations, the
 full synthesized semantic certificate for every mutual family, and exact
@@ -875,6 +880,7 @@ theorem checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
+      stats'.isNotZero = stats'.resultLevel.isNeverZero →
       (k stats' c').WF Q) :
     (AddInductive.checkInductiveTypes nparams indTypes k c).WF Q := by
   change (AddInductive.checkInductiveTypes.loopInd nparams indTypes 0
@@ -928,6 +934,7 @@ theorem checkInductiveTypes.accumulatesSemanticHeaders
       checkInductiveTypes.loopType.AmbientParamContext
         Hc' commonParams depth →
       VLevel.ofLevel c'.lparams stats'.resultLevel = some commonLevel →
+      stats'.isNotZero = stats'.resultLevel.isNeverZero →
       (k stats' c').WF Q) :
     (AddInductive.checkInductiveTypes nparams indTypes k c).WF Q := by
   apply checkInductiveTypes.accumulatesSemanticHeadersSourceAligned
@@ -935,10 +942,10 @@ theorem checkInductiveTypes.accumulatesSemanticHeaders
   intro c' stats' depth commonParams commonLevel Hc' henv hsafety
     hlparams _hallowPrimitive _hfuel _hvenv Hsemantic hlevels hlevelParams
     hindicesSize hindices hconstsSize hconsts hnonempty' hparams
-    hcommonParams Hcache Hsuffix Hambient hcommon
+    hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
   exact Hfinish Hc' henv hsafety hlparams Hsemantic hlevels hlevelParams
     hindicesSize hindices hconstsSize hconsts hnonempty' hparams
-    hcommonParams Hcache Hsuffix Hambient hcommon
+    hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
 
 end checkInductiveTypes.loopInd
 end VerifyInductive

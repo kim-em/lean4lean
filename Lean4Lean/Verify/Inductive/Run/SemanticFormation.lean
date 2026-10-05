@@ -37,6 +37,7 @@ theorem AddInductive.semanticFormationCoreWF
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
@@ -60,7 +61,7 @@ theorem AddInductive.semanticFormationCoreWF
   have HheadersAndLoop :=
     AddInductive.declareInductiveTypes.semanticConstructorsWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
-      hcommonParams Hcache Hsuffix Hambient hcommon hvisible hnprimTypes
+      hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
       hconsume hlparams
   have Hcombined :
       ((AddInductive.declareInductiveTypes stats nparams indTypes numNested

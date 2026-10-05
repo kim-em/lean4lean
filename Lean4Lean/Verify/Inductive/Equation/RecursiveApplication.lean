@@ -546,7 +546,7 @@ theorem
   have HclosedMajor := closeSource Hmajor
   have HclosedExposed := closeSource Hexposed
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq]
@@ -709,7 +709,7 @@ theorem
   have Hinserted : OnCtx (inserted.reverse ++ parameterDecls.toCtx)
       (H.outVEnv.IsType Us.length) := by
     have := (HprefixEq.symm H.outVEnvWF.ordered).isType
-    simpa [inserted, parameterDecls, H.parameterDecls, Us,
+    simpa [inserted, parameterDecls, H.parameterDecls_legacy, Us,
       List.reverse_append,
       List.append_assoc] using this
   have Hrecent : OnCtx
@@ -911,7 +911,7 @@ theorem
       (inserted.reverse ++ parameterDecls.toCtx)
       (H.outVEnv.IsType Us.length) := by
     have := (HprefixEq.symm H.outVEnvWF.ordered).isType
-    simpa [inserted, parameterDecls, H.parameterDecls, Us,
+    simpa [inserted, parameterDecls, H.parameterDecls_legacy, Us,
       List.reverse_append, List.append_assoc] using this
   have Hrecent : OnCtx
       ((fieldDomains ++ localDomains).reverse ++ parameterDecls.toCtx)

@@ -204,7 +204,8 @@ def AssembledSemanticHeaders.materializedResult
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc params depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
-      some commonLevel) :
+      some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
     checkInductiveTypes.loopInd.MaterializedHeaderResult
       Hc.venv c.lparams Hc.mlctx.vlctx
       stats H.decl depth := by
@@ -216,6 +217,7 @@ def AssembledSemanticHeaders.materializedResult
       H.semanticPrefix.normalizedSourceAtMaterialized H.materialized
     normalizedShapes :=
       H.semanticPrefix.normalizedShapeAtMaterialized H.materialized
+    isNotZero := hnotzero
     commonLevel := hcommon
     levels := ?_
     levelParams := hlevelParams

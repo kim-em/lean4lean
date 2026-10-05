@@ -189,13 +189,15 @@ def MaterializedSourceHeaderSemanticAccumulator.materializedResult
     (Hsuffix : ParameterContextSuffix Hc stats depth)
     (Hambient : AmbientParamContext Hc params depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
-      some commonLevel) :
+      some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
     checkInductiveTypes.loopInd.MaterializedHeaderResult
       Hc.venv c.lparams Hc.mlctx.vlctx stats
         (H.headerDecl isUnsafe) depth where
   headers := H.headerCertificate isUnsafe
   normalizedSources := H.normalizedSourceAt
   normalizedShapes := H.normalizedShapeAt
+  isNotZero := hnotzero
   commonLevel := hcommon
   levels := hlevels
   levelParams := hlevelParams

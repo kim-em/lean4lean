@@ -1770,7 +1770,7 @@ theorem resultBindings {alpha : Type}
             targetTypeIdx := itIdx
             targetIndices := itIndices
             template := lctx.mkLambda xs <|
-              (mkAppN (.bvar 0) itIndices).app (mkAppN u[i] xs) } :
+              (mkAppN (.bvar xs.size) itIndices).app (mkAppN u[i] xs) } :
               AddInductive.RecCallBlueprint))) c).WF
           (fun _ => True) := by
       intro _ _
@@ -1845,7 +1845,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
           targetTypeIdx := itIdx
           targetIndices := itIndices
           template := lctx.mkLambda xs <|
-            (mkAppN (.bvar 0) itIndices).app (mkAppN u[j] xs) } :
+            (mkAppN (.bvar xs.size) itIndices).app (mkAppN u[j] xs) } :
             AddInductive.RecCallBlueprint))) next).WF fun result =>
           ∃ viTarget,
             TrExprS Rnext.venv recLparams Rnext.mlctx.vlctx
@@ -1862,7 +1862,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
                 targetIndices :=
                   O.exposedType.getAppArgs[stats.params.size:]
                 template := O.current.lctx.mkLambda O.args <|
-                  (mkAppN (.bvar 0)
+                  (mkAppN (.bvar O.args.size)
                     O.exposedType.getAppArgs[stats.params.size:]).app
                       (mkAppN u[j]! O.args) } ∧
               RecInfoCallBlueprintSemanticOrigin stats
@@ -2010,7 +2010,7 @@ theorem inductionHypothesisTypeOrigin
               targetIndices :=
                 O.exposedType.getAppArgs[stats.params.size:]
               template := O.current.lctx.mkLambda O.args <|
-                (mkAppN (.bvar 0)
+                (mkAppN (.bvar O.args.size)
                   O.exposedType.getAppArgs[stats.params.size:]).app
                     (mkAppN (.fvar fv) O.args) } ∧
             RecInfoCallBlueprintSemanticOrigin stats
@@ -2056,7 +2056,7 @@ theorem inductionHypothesisTypeOrigin
           targetIndices :=
             O.exposedType.getAppArgs[stats.params.size:]
           template := O.current.lctx.mkLambda O.args <|
-            (mkAppN (.bvar 0)
+            (mkAppN (.bvar O.args.size)
               O.exposedType.getAppArgs[stats.params.size:]).app
                 (mkAppN (.fvar fv) O.args) } ∧
         ∀ (domain : VExpr),

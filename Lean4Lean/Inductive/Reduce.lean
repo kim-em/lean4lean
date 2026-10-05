@@ -74,7 +74,10 @@ def inductiveReduceRecTail (info : RecursorVal) (ls : List Level) (recArgs : Arr
     (major : Expr) : Option Expr := do
   let some rule := getRecRuleFor info major | none
   let majorArgs := major.getAppArgs
-  if majorArgs.size != info.numParams + rule.nfields then none
+  -- Restored nested recursors need not bind the constructor's parameters: for
+  -- example, `Lean.Syntax.rec_1` eliminates `Array Lean.Syntax` with no parameters.
+  -- Constructor fields are the suffix, independently of the recursor telescope.
+  if rule.nfields > majorArgs.size then none
   if ls.length != info.levelParams.length then none
   let mut rhs := rule.rhs.instantiateLevelParams info.levelParams ls
   -- get the parameters, motives and minor premises from the recursor application (recursor rules

@@ -1,3 +1,4 @@
+import Lean4Lean.WHNFCacheKey
 import Lean4Lean.Declaration
 import Lean4Lean.Level
 import Lean4Lean.Quot
@@ -407,7 +408,7 @@ def whnfCore' (e : Expr) (cheapProj := false) : RecM Expr := do
   if let some r := (← get).whnfCoreCache[e]? then
     return r
   let rec save r := do
-    if !cheapProj then
+    if !cheapProj && whnfCacheKey e then
       modify fun s => { s with whnfCoreCache := s.whnfCoreCache.insert e r }
     return r
   match e with
@@ -574,7 +575,8 @@ def whnf' (e : Expr) : RecM Expr := do
     loop t fuel
   let ctx ← readThe Context
   let r ← loop e <| if ctx.eagerReduce then ctx.fuel.whnfEager else ctx.fuel.whnf
-  modify fun s => { s with whnfCache := s.whnfCache.insert e r }
+  if whnfCacheKey e then
+    modify fun s => { s with whnfCache := s.whnfCache.insert e r }
   return r
 
 /-- If `t` and `s` are lambda expressions, checks that their domains are defeq and recurses on the

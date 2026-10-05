@@ -1,0 +1,174 @@
+import Lean4Lean.Theory.Typing.Injectivity
+import Lean4Lean.Theory.Typing.Lemmas
+
+namespace InductiveBranchReview
+open Lean4Lean
+
+def family : VInductiveType where
+  name := `ReviewEmpty
+  uvars := 0
+  type := .sort (.succ .zero)
+  numIndices := 0
+  resultLevel := .succ .zero
+  ctors := []
+def decl : VInductDecl where
+  uvars := 0
+  nparams := 0
+  types := [family]
+  isUnsafe := false
+def typesEnv : VEnv where
+  constants := fun n => if `ReviewEmpty = n then some family.toVConstant else none
+  defeqs := fun _ => False
+
+theorem addTypes : VEnv.empty.addConstVals decl.typeConstants = some typesEnv := by
+  simp [decl, family, typesEnv, VInductDecl.typeConstants, VEnv.addConstVals, VEnv.addConst, VEnv.empty]
+theorem familyWF : family.toVConstant.WF VEnv.empty :=
+  ⟨_, .sortDF (by trivial) (by trivial) rfl⟩
+theorem familyLookup : typesEnv.constants `ReviewEmpty = some family.toVConstant := by
+  simp [typesEnv]
+theorem declWF : decl.WF .empty := by
+  unfold VInductDecl.WF VInductDecl.SourceWF
+  constructor
+  · refine ⟨by simp [decl], by simp [decl, VInductDecl.sourceNames,
+      VInductDecl.typeConstants, VInductDecl.constructorConstants, family], ?_, ?_,
+      typesEnv, typesEnv, addTypes, ?_, ?_, ?_⟩
+    · simp [decl, family]
+    · simp [decl, family, VInductDecl.constructorConstants]
+    · simp [decl, family, VInductDecl.constructorConstants, VEnv.addConstVals]
+    · intro type hmem
+      simp only [decl, List.mem_singleton] at hmem
+      subst type
+      exact familyWF
+    · simp [decl, family, VInductDecl.constructorConstants]
+  · apply VInductDecl.FormationEvidence.ordinary
+    unfold VInductDecl.FormationWF
+    refine ⟨[], .succ .zero, typesEnv, addTypes, ?_, ?_⟩
+    · intro type hmem
+      simp only [decl, List.mem_singleton] at hmem
+      subst type
+      refine ⟨rfl, .sort (.succ .zero), [], .sort (.succ .zero), [],
+        .sort (.succ .zero), .sort (.succ (.succ .zero)), ?_, rfl, rfl, ?_, ?_⟩
+      · exact .sortDF (by trivial) (by trivial) rfl
+      · exact .zero
+      · exact .sortDF (by trivial) (by trivial) rfl
+    · constructor <;> intro type ht ctor hc <;>
+        simp only [decl, List.mem_singleton] at ht <;> subst type <;>
+        simp [family] at hc
+
+def motive : VExpr := .forallE (.const `ReviewEmpty []) (.sort .zero)
+def recursor : VConstVal where
+  name := `ReviewEmpty.rec
+  uvars := 0
+  type := .forallE motive (.forallE (.const `ReviewEmpty []) (.app (.bvar 1) (.bvar 0)))
+def badRule : VDefEq where
+  uvars := 0
+  lhs := .sort .zero
+  rhs := .forallE (.sort .zero) (.sort .zero)
+  type := .sort (.succ .zero)
+def block : VInductBlock where
+  types := decl.typeConstants
+  ctors := []
+  recursors := [recursor]
+  rules := [badRule]
+  projections := []
+
+def recShape : decl.NestedRecursorShape family recursor :=
+  (VInductDecl.RecursorShape.ofWrapped
+    (decl := decl) (owner := family) (recursor := recursor) (ownerIdx := 0)
+    (params := []) (motives := [motive]) (minors := [])
+    (indices := []) (major := [.const `ReviewEmpty []])
+    (by simp [decl]) rfl (by simp [recursor, VInductDecl.recursorName, family])
+    (.inl rfl) rfl rfl rfl rfl rfl rfl
+    (by simp [VInductDecl.recursorResult, VInductDecl.recursorResultWithCounts,
+      decl, family, VExpr.mkApps])).toNested
+
+def compilation : decl.NestedCompilation .empty block where
+  main := family
+  rest := []
+  types_source := rfl
+  types := rfl
+  ctors := rfl
+  projections := rfl
+  primaryRecursors := [recursor]
+  auxiliaryRecursors := []
+  recursors_eq := rfl
+  primary_recursors := .cons ⟨recShape⟩ .nil
+  primaryRules := []
+  auxiliaryRules := [badRule]
+  rules_eq := rfl
+  primary_rules := ⟨typesEnv, typesEnv, addTypes, rfl, .nil⟩
+  auxiliary_guarded := by
+    intro rule h
+    simp only [List.mem_singleton] at h
+    subst rule
+    exact .body [] (.forallE .sort .sort)
+  names := by
+    simp [block, decl, family, recursor, VInductDecl.typeConstants]
+
+theorem recursorWF : recursor.toVConstant.WF typesEnv := by
+  have hE {Γ : List VExpr} : typesEnv.HasType 0 Γ (.const `ReviewEmpty []) (.sort (.succ .zero)) :=
+    .constDF familyLookup nofun nofun rfl .nil
+  have hm : typesEnv.HasType 0 [] motive (.sort (.succ .zero)) := by
+    exact .defeqDF (.sortDF (by trivial) (by trivial) (by rfl))
+      (.forallEDF hE (.sortDF (by trivial) (by trivial) rfl))
+  refine ⟨_, VEnv.HasType.forallE hm (VEnv.HasType.forallE (v := .zero) hE ?_)⟩
+  have hf : typesEnv.HasType 0 [.const `ReviewEmpty [], motive]
+      (.bvar 1) (.forallE (.const `ReviewEmpty []) (.sort .zero)) :=
+    .bvar (.succ .zero)
+  have ha : typesEnv.HasType 0 [.const `ReviewEmpty [], motive]
+      (.bvar 0) (.const `ReviewEmpty []) := .bvar .zero
+  exact .appDF hf ha
+
+theorem badRuleWF (env : VEnv) : badRule.WF env := by
+  constructor
+  · exact .sortDF (by trivial) (by trivial) rfl
+  · exact .defeqDF (.sortDF (by trivial) (by trivial) (by rfl))
+      (.forallEDF (.sortDF (by trivial) (by trivial) rfl)
+        (.sortDF (by trivial) (by trivial) rfl))
+
+theorem blockWF : block.WF .empty := by
+  obtain ⟨out, hout⟩ := VEnv.addConst_eq_none (env := typesEnv)
+    (name := recursor.name) (ci := recursor.toVConstant) (by decide)
+  refine ⟨typesEnv, typesEnv, out, addTypes, rfl, ?_, ?_, ?_, ?_, ?_⟩
+  · simpa [block, VEnv.addConstVals, VEnv.addProjections, hout] using hout
+  · intro ci h
+    simp only [block, decl, VInductDecl.typeConstants, List.map_cons, List.map_nil,
+      List.mem_singleton] at h
+    subst ci
+    exact familyWF
+  · simp [block]
+  · intro ci h
+    simp only [block, List.mem_singleton] at h
+    subst ci
+    exact recursorWF
+  · intro df h
+    simp only [block, List.mem_singleton] at h
+    subst df
+    exact badRuleWF out
+
+-- No admitted metatheory is used in this counterexample.
+theorem specification_allows_sort_forall_equality :
+    ∃ env : VEnv, env.WF ∧
+      env.IsDefEqU 0 [] (.sort .zero) (.forallE (.sort .zero) (.sort .zero)) := by
+  obtain ⟨env, henv⟩ := blockWF.exists_install
+  refine ⟨env, ⟨[.induct decl], .decl (.induct declWF
+    (.intro declWF (.nested compilation) blockWF henv)) .empty⟩, ?_⟩
+  have hmem : env.defeqs badRule := by
+    rcases blockWF with ⟨et, ec, er, ht, hc, hr, _⟩
+    have he : env = er.addDefEqRules block.rules := by
+      apply Option.some.inj
+      simpa [VInductBlock.install, ht, hc, hr] using henv.symm
+    rw [he]
+    exact .inl rfl
+  exact ⟨.sort (.succ .zero), .extra (ls := []) hmem nofun rfl⟩
+
+theorem inversion_statement_is_false :
+    ¬ (∀ env : VEnv, env.WF →
+      ¬ env.IsDefEqU 0 [] (.sort .zero) (.forallE (.sort .zero) (.sort .zero))) := by
+  intro h
+  obtain ⟨env, hwf, heq⟩ := specification_allows_sort_forall_equality
+  exact h env hwf heq
+
+#print axioms specification_allows_sort_forall_equality
+#print axioms inversion_statement_is_false
+end InductiveBranchReview

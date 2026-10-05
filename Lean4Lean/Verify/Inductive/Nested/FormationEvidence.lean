@@ -197,6 +197,7 @@ theorem nestedExprExpansion_toNestedExprWFExpansion
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | elim => exact .elim
   | proj _ ihMajor => exact .proj ihMajor
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody

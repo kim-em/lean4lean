@@ -32,40 +32,45 @@ def _root_.Lean.ConstantInfo.safety (ci : ConstantInfo) : DefinitionSafety :=
 right-hand side translates the executable rule's right-hand side, and the rule's constructor has
 the constructor shape at `cnparams` parameters. -/
 structure RecursorRuleAlignment (venv : VEnv) (rec : RecursorVal) (rule : RecursorRule)
-    (indLevels : List VLevel) (cnparams : Nat) (df : VDefEq) : Prop where
+    (indLevels : List VLevel) (cnparams : Nat) (ctorParams : List VExpr)
+    (df : VDefEq) : Prop where
   shape : Nonempty (VIotaRuleShape venv rec.name rec.levelParams.length rec.numParams cnparams
-    rec.numMotives rec.numMinors rec.numIndices rule.ctor indLevels rule.nfields df)
+    rec.numMotives rec.numMinors rec.numIndices rule.ctor indLevels rule.nfields df ctorParams)
   rhs : TrExprS venv rec.levelParams [] rule.rhs df.rhs
   ctor : ∃ ctorUvars, indLevels.length = ctorUvars ∧
     Nonempty (VConstructorShape venv rule.ctor ctorUvars cnparams rule.nfields rec.numIndices
       rec.getMajorInduct)
 
-/-- The recursor `rec` has the recursor shape with `cnparams` constructor parameters, its major
-inductive is rigid, and every rule is a stored equation. -/
-def RecursorAlignment (venv : VEnv) (rec : RecursorVal) (cnparams : Nat) : Prop :=
-  ∃ indLevels, cnparams ≤ rec.numParams ∧
+/-- The recursor's major type and all its rules share a scoped constructor
+parameter substitution. The constructor parameter count is existential and
+need not agree with `rec.numParams`. Its major family is rigid. -/
+def RecursorAlignment (venv : VEnv) (rec : RecursorVal) : Prop :=
+  ∃ cnparams indLevels ctorParams,
     Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
-      rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels) ∧
+      rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels ctorParams) ∧
     venv.Rigid rec.getMajorInduct ∧
-    ∀ rule ∈ rec.rules, ∃ df, RecursorRuleAlignment venv rec rule indLevels cnparams df
+    ∀ rule ∈ rec.rules, ∃ df, RecursorRuleAlignment venv rec rule indLevels cnparams ctorParams df
 
 /-- `RecursorAlignment` without its rigidity clause: the part that is monotone in the abstract
 environment. Rigidity of the major inductive is recovered from the heads of the stored equations
 (`EquationHeadsCoherent`). -/
-def RecursorAlignmentCore (venv : VEnv) (rec : RecursorVal) (cnparams : Nat) : Prop :=
-  ∃ indLevels, cnparams ≤ rec.numParams ∧
+def RecursorAlignmentCore (venv : VEnv) (rec : RecursorVal) : Prop :=
+  ∃ cnparams indLevels ctorParams,
     Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams cnparams
-      rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels) ∧
-    ∀ rule ∈ rec.rules, ∃ df, RecursorRuleAlignment venv rec rule indLevels cnparams df
+      rec.numMotives rec.numMinors rec.numIndices rec.getMajorInduct indLevels ctorParams) ∧
+    ∀ rule ∈ rec.rules, ∃ df, RecursorRuleAlignment venv rec rule indLevels cnparams ctorParams df
 
 /-- A K-like recursor eliminates from a proposition with a single constructor whose only
-arguments are the parameters; the constructor's parameter binders are definitionally the
-inductive type's parameter binders, under the binders before them. -/
+arguments are the parameters. Stored headers and constructor types may require reduction
+to expose these telescopes (for example, a header ending in `id Prop`). The constructor's
+parameter binders agree with the inductive's binders by typed equality. -/
 def KLikeAlignment (venv : VEnv) (rec : RecursorVal) (ctorName : Name) : Prop :=
-  ∃ indUvars indDoms ctorDoms ctorBody,
-    venv.constants rec.getMajorInduct = some ⟨indUvars, VExpr.wrapForalls indDoms (.sort .zero)⟩ ∧
+  ∃ indUvars indType ctorType indDoms ctorDoms ctorBody,
+    venv.constants rec.getMajorInduct = some ⟨indUvars, indType⟩ ∧
+    venv.IsDefEqU indUvars [] indType (VExpr.wrapForalls indDoms (.sort .zero)) ∧
     indDoms.length = rec.numParams + rec.numIndices ∧
-    venv.constants ctorName = some ⟨indUvars, VExpr.wrapForalls ctorDoms ctorBody⟩ ∧
+    venv.constants ctorName = some ⟨indUvars, ctorType⟩ ∧
+    venv.IsDefEqU indUvars [] ctorType (VExpr.wrapForalls ctorDoms ctorBody) ∧
     ctorDoms.length = rec.numParams ∧
     ∀ k (hk : k < indDoms.length) (hk' : k < ctorDoms.length),
       venv.IsDefEqU indUvars ((indDoms.take k).reverse) indDoms[k] ctorDoms[k]
@@ -79,7 +84,7 @@ def KLikeRecursor (C : ConstMap) (venv : VEnv) (rec : RecursorVal) : Prop :=
 /-- Every visible recursor of the constant map is aligned with the abstract environment. -/
 def RecursorRulesCoherent (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) : Prop :=
   ∀ {name rec}, C.find? name = some (.recInfo rec) → safety ≤ (ConstantInfo.recInfo rec).safety →
-    RecursorAlignment venv rec rec.numParams ∧
+    RecursorAlignment venv rec ∧
     (rec.k = true → ∃ info ctorName, C.find? rec.getMajorInduct = some (.inductInfo info) ∧
       info.ctors = [ctorName] ∧ KLikeAlignment venv rec ctorName)
 
@@ -126,7 +131,7 @@ structure InductiveRecursorProvenance (safety : DefinitionSafety)
   recursor : ∀ {name rec}, m₂.find? name = some (.recInfo rec) →
     m₁.find? name = some (.recInfo rec) ∨
     (safety ≤ (ConstantInfo.recInfo rec).safety →
-      RecursorAlignmentCore env₂ rec rec.numParams ∧ KLikeRecursor m₂ env₂ rec ∧
+      RecursorAlignmentCore env₂ rec ∧ KLikeRecursor m₂ env₂ rec ∧
       ∃ info, m₂.find? rec.getMajorInduct = some (.inductInfo info))
   defeq : ∀ df, env₂.defeqs df → env₁.defeqs df ∨
     ∃ head ls rec, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
@@ -144,12 +149,6 @@ theorem VEnv.RigidPreserving.rfl : VEnv.RigidPreserving venv venv := fun _ h => 
 theorem VEnv.RigidPreserving.trans (h1 : VEnv.RigidPreserving venv₁ venv₂)
     (h2 : VEnv.RigidPreserving venv₂ venv₃) : VEnv.RigidPreserving venv₁ venv₃ :=
   fun c h => h2 c (h1 c h)
-
-theorem VEnv.addConst_defeqs {env env' : VEnv} (h : env.addConst name ci = some env') :
-    env'.defeqs = env.defeqs := by
-  unfold VEnv.addConst at h
-  split at h <;> cases h
-  rfl
 
 theorem VEnv.RigidPreserving.addConst (h : venv.addConst name ci = some venv') :
     VEnv.RigidPreserving venv venv' := by
@@ -202,14 +201,6 @@ theorem VEnv.addDefEqRules_defeqs_iff : ∀ {dfs : List VDefEq} {env : VEnv} {df
       · exact .inl (.inl rfl)
       · exact .inr h
 
-theorem VEnv.addConstVals_defeqs : ∀ {cis : List VConstVal} {env env' : VEnv},
-    env.addConstVals cis = some env' → env'.defeqs = env.defeqs
-  | [], _, _, h => by cases h; rfl
-  | ci :: cis, env, env', h => by
-    simp [VEnv.addConstVals, Option.bind_eq_some_iff] at h
-    obtain ⟨env₁, h₁, h₂⟩ := h
-    rw [VEnv.addConstVals_defeqs h₂, VEnv.addConst_defeqs h₁]
-
 theorem VEnv.addConsts_defeqs : ∀ {cis : List VDefVal} {env env' : VEnv},
     env.addConsts cis = some env' → env'.defeqs = env.defeqs
   | [], _, _, h => by cases h; rfl
@@ -243,9 +234,9 @@ headed elsewhere, which is what `RigidPreserving` records. -/
 
 def VRecursorShape.mono (h : venv ≤ venv')
     (H : VRecursorShape venv recName recUvars nparams cnparams nmotives nminors nindices indName
-      indLevels) :
+      indLevels ctorParams) :
     VRecursorShape venv' recName recUvars nparams cnparams nmotives nminors nindices indName
-      indLevels :=
+      indLevels ctorParams :=
   { H with const := h.constants H.const }
 
 def VConstructorShape.mono (h : venv ≤ venv')
@@ -255,44 +246,46 @@ def VConstructorShape.mono (h : venv ≤ venv')
 
 def VIotaRuleShape.mono (h : venv ≤ venv')
     (H : VIotaRuleShape venv recName recUvars nparams cnparams nmotives nminors nindices ctorName
-      ctorLevels nfields df) :
+      ctorLevels nfields df ctorParams) :
     VIotaRuleShape venv' recName recUvars nparams cnparams nmotives nminors nindices ctorName
-      ctorLevels nfields df :=
+      ctorLevels nfields df ctorParams :=
   { H with defeq := h.defeqs H.defeq }
 
 theorem RecursorRuleAlignment.mono {rec : RecursorVal} (h : venv ≤ venv')
-    (H : RecursorRuleAlignment venv rec rule indLevels cnparams df) :
-    RecursorRuleAlignment venv' rec rule indLevels cnparams df where
+    (H : RecursorRuleAlignment venv rec rule indLevels cnparams ctorParams df) :
+    RecursorRuleAlignment venv' rec rule indLevels cnparams ctorParams df where
   shape := H.shape.elim fun s => ⟨s.mono h⟩
   rhs := H.rhs.mono h
   ctor := H.ctor.elim fun u ⟨hu, hs⟩ => ⟨u, hu, hs.elim fun s => ⟨s.mono h⟩⟩
 
 theorem RecursorAlignmentCore.mono (h : venv ≤ venv')
-    (H : RecursorAlignmentCore venv rec cnparams) : RecursorAlignmentCore venv' rec cnparams :=
-  let ⟨indLevels, hle, ⟨s⟩, hrules⟩ := H
-  ⟨indLevels, hle, ⟨s.mono h⟩, fun rule hrule =>
+    (H : RecursorAlignmentCore venv rec) : RecursorAlignmentCore venv' rec :=
+  let ⟨cnparams, indLevels, ctorParams, ⟨s⟩, hrules⟩ := H
+  ⟨cnparams, indLevels, ctorParams, ⟨s.mono h⟩, fun rule hrule =>
     let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h⟩⟩
 
-theorem RecursorAlignment.core (H : RecursorAlignment venv rec cnparams) :
-    RecursorAlignmentCore venv rec cnparams :=
-  let ⟨indLevels, hle, hs, _, hrules⟩ := H
-  ⟨indLevels, hle, hs, hrules⟩
+theorem RecursorAlignment.core (H : RecursorAlignment venv rec) :
+    RecursorAlignmentCore venv rec :=
+  let ⟨cnparams, indLevels, ctorParams, hs, _, hrules⟩ := H
+  ⟨cnparams, indLevels, ctorParams, hs, hrules⟩
 
-theorem RecursorAlignmentCore.toAlignment (H : RecursorAlignmentCore venv rec cnparams)
-    (hrigid : venv.Rigid rec.getMajorInduct) : RecursorAlignment venv rec cnparams :=
-  let ⟨indLevels, hle, hs, hrules⟩ := H
-  ⟨indLevels, hle, hs, hrigid, hrules⟩
+theorem RecursorAlignmentCore.toAlignment (H : RecursorAlignmentCore venv rec)
+    (hrigid : venv.Rigid rec.getMajorInduct) : RecursorAlignment venv rec :=
+  let ⟨cnparams, indLevels, ctorParams, hs, hrules⟩ := H
+  ⟨cnparams, indLevels, ctorParams, hs, hrigid, hrules⟩
 
 theorem RecursorAlignment.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving venv venv')
-    (H : RecursorAlignment venv rec cnparams) : RecursorAlignment venv' rec cnparams :=
-  let ⟨indLevels, hle, ⟨s⟩, hrigid, hrules⟩ := H
-  ⟨indLevels, hle, ⟨s.mono h⟩, hr _ hrigid, fun rule hrule =>
+    (H : RecursorAlignment venv rec) : RecursorAlignment venv' rec :=
+  let ⟨cnparams, indLevels, ctorParams, ⟨s⟩, hrigid, hrules⟩ := H
+  ⟨cnparams, indLevels, ctorParams, ⟨s.mono h⟩, hr _ hrigid, fun rule hrule =>
     let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h⟩⟩
 
 theorem KLikeAlignment.mono (h : venv ≤ venv')
     (H : KLikeAlignment venv rec ctorName) : KLikeAlignment venv' rec ctorName := by
-  obtain ⟨indUvars, indDoms, ctorDoms, ctorBody, hI, hIlen, hC, hClen, hparams⟩ := H
-  refine ⟨indUvars, indDoms, ctorDoms, ctorBody, h.constants hI, hIlen, h.constants hC, hClen, ?_⟩
+  obtain ⟨indUvars, indType, ctorType, indDoms, ctorDoms, ctorBody,
+    hI, hInorm, hIlen, hC, hCnorm, hClen, hparams⟩ := H
+  refine ⟨indUvars, indType, ctorType, indDoms, ctorDoms, ctorBody,
+    h.constants hI, hInorm.mono h, hIlen, h.constants hC, hCnorm.mono h, hClen, ?_⟩
   intro k hk hk'
   exact (hparams k hk hk').mono h
 
@@ -430,7 +423,7 @@ theorem RecursorEnvCoherent.extend {C C' : ConstMap}
     (hrec : ∀ {n rec}, C'.find? n = some (.recInfo rec) →
       safety ≤ (ConstantInfo.recInfo rec).safety →
       C.find? n = some (.recInfo rec) ∨
-      (RecursorAlignmentCore venv' rec rec.numParams ∧ KLikeRecursor C' venv' rec ∧
+      (RecursorAlignmentCore venv' rec ∧ KLikeRecursor C' venv' rec ∧
         ∃ info, C'.find? rec.getMajorInduct = some (.inductInfo info)))
     (hle : venv ≤ venv')
     (hdefeq : ∀ df, venv'.defeqs df → venv.defeqs df ∨ EquationHeadOf C' df) :
@@ -534,7 +527,7 @@ environment `venv'`, the K clause over the map before the insertion, and its ind
 def RecursorInstallStep (safety : DefinitionSafety) (C : ConstMap) (venv' : VEnv) :
     ConstantInfo → Prop
   | .recInfo rec => safety ≤ (ConstantInfo.recInfo rec).safety →
-    RecursorAlignmentCore venv' rec rec.numParams ∧ KLikeRecursor C venv' rec ∧
+    RecursorAlignmentCore venv' rec ∧ KLikeRecursor C venv' rec ∧
     ∃ info, C.find? rec.getMajorInduct = some (.inductInfo info)
   | _ => True
 
@@ -599,4 +592,34 @@ theorem InductiveRecursorProvenance.mono {m₁ m₂ : ConstMap} {env₁ env₂ e
     · exact .inl h
     · exact (P.defeq df h).imp hle₁.defeqs id
 
+/-- Installing a block adds exactly its generated equations to the source. -/
+theorem VInductBlock.install_defeqs_iff
+    {env out : VEnv} {block : VInductBlock}
+    (h : block.install env = some out) (df : VDefEq) :
+    out.defeqs df ↔ env.defeqs df ∨ df ∈ block.rules := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at h
+  rcases h with ⟨envTypes, ht, envCtors, hc, envRecs, hr, rfl⟩
+  rw [VEnv.addDefEqRules_defeqs_iff, VEnv.addConstVals_defeqs hr,
+    VEnv.addProjections_defeqs, VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]
+
+theorem InductiveRecursorProvenance.ofUnsafe
+    (H : InductiveRecursorProvenance .unsafe source base target out) :
+    InductiveRecursorProvenance safety source base target out where
+  recursor h := (H.recursor h).imp id (fun h _ => h DefinitionSafety.unsafe_le)
+  defeq := H.defeq
+
+theorem InductiveRecursorProvenance.rebaseBlock
+    {block block' : VInductBlock}
+    (H : InductiveRecursorProvenance safety source base target out)
+    (hbase : base ≤ base') (hout : out ≤ out')
+    (hi : block.install base = some out)
+    (hi' : block'.install base' = some out')
+    (hrules : block.rules = block'.rules) :
+    InductiveRecursorProvenance safety source base' target out' := by
+  apply H.mono hbase hout
+  intro df hd
+  rcases (VInductBlock.install_defeqs_iff hi' df).mp hd with h | h
+  · exact .inl h
+  · exact .inr ((VInductBlock.install_defeqs_iff hi df).mpr (.inr (hrules ▸ h)))
 end Lean4Lean

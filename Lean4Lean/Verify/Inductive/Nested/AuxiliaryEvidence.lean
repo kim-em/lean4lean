@@ -25,7 +25,7 @@ structure RestoredAuxiliaryStepFinalEvidence
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceEnv targetEnv)
     (priorRecursors : List VConstVal) where
-  semantics : RestoredAuxiliaryStepSemantics decl block main safety trEnv
+  semantics : RestoredAuxiliaryStepShape decl block main safety trEnv
     Hstep priorRecursors
   recursorWF : semantics.recursor.toVConstant.WF recursorEnv
   rulesWF : ∀ rule ∈ semantics.rules, rule.WF ruleEnv
@@ -51,7 +51,7 @@ theorem StateForMTrace.auxiliaryFinalEvidence
         trEnv recursorEnv ruleEnv Hstep priorRecursors))
     (priorRecursors : List VConstVal) (priorRules : List VDefEq) :
     ∃ finalRecursors finalRules,
-      ∃ Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety
+      ∃ Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety
         trEnv Htrace priorRecursors priorRules finalRecursors finalRules,
         RestoredAuxiliaryFinalWFTrace decl block main safety trEnv recursorEnv
           ruleEnv Hsemantic priorRecursors priorRules finalRecursors
@@ -66,7 +66,7 @@ theorem StateForMTrace.auxiliaryFinalEvidence
       let nextRules := priorRules ++ Hhead.semantics.rules
       rcases ih (nextRecursors) (nextRules) with
         ⟨finalRecursors, finalRules, Hrest, Hfinal⟩
-      let Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety
+      let Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety
           trEnv (.cons Hstep Htail) priorRecursors priorRules finalRecursors
             finalRules :=
         .cons Hstep Htail Hhead.semantics Hrest
@@ -92,7 +92,7 @@ theorem StateForMTrace.auxiliaryFinalEvidenceEmpty
       Nonempty (RestoredAuxiliaryStepFinalEvidence decl block main safety
         trEnv recursorEnv ruleEnv Hstep priorRecursors)) :
     ∃ auxiliaryRecursors auxiliaryRules,
-      ∃ Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety
+      ∃ Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety
         trEnv Htrace [] [] auxiliaryRecursors auxiliaryRules,
         RestoredAuxiliaryFinalWFTrace decl block main safety trEnv recursorEnv
           ruleEnv Hsemantic [] [] auxiliaryRecursors auxiliaryRules := by
@@ -117,7 +117,7 @@ theorem RestoredNestedDeclarationsResult.auxiliaryFinalEvidence
       Nonempty (RestoredAuxiliaryStepFinalEvidence decl block main safety
         trEnv recursorEnv ruleEnv Hstep priorRecursors)) :
     ∃ auxiliaryRecursors auxiliaryRules,
-      ∃ Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety
+      ∃ Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety
         trEnv H.auxiliaries [] [] auxiliaryRecursors auxiliaryRules,
         RestoredAuxiliaryFinalWFTrace decl block main safety trEnv recursorEnv
             ruleEnv Hsemantic [] [] auxiliaryRecursors auxiliaryRules ∧

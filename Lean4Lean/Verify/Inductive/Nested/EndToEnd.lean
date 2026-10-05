@@ -1942,7 +1942,7 @@ theorem RecursorPhasesResult.declarationTypeAvoidsGeneratedRecursors
   rcases H.recursorWF.translatedDeclarationType D with ⟨target, Htype⟩
   apply checkPositivityStep.TrExprS.sourceAvoidsFresh _ Htype
   intro name hname
-  rw [H.recursorEnv, R.declared.contextVEnv]
+  rw [H.recursorEnv, ConstructorPhasesResult.completed, R.declared.contextVEnv]
   simpa using H.recursorNamesFresh [] (by simp) name hname
 
 /-- Production restoration never renames the primary recursor of an

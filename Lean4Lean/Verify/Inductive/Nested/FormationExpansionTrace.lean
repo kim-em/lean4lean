@@ -169,6 +169,7 @@ theorem VInductDecl.NestedAuxiliarySource.liftDepth
     (fun relativeDepth _ cutoff _ => .bvar)
     (fun relativeDepth _ cutoff _ => .sort)
     (fun relativeDepth _ cutoff _ => .const)
+    (fun relativeDepth _ cutoff _ => .elim)
     (fun _ ihMajor relativeDepth habsolute cutoff Hcutoff => by
       simpa [VExpr.liftN] using
         VInductDecl.NestedExprWFExpansion.proj
@@ -252,6 +253,7 @@ theorem VExpr.NestedExprExpansion.toAbsoluteConstructorDepth
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | elim => exact .elim
   | proj _ ihMajor => exact .proj ihMajor
   | app _ _ ihFn ihArg => exact .app ihFn ihArg
   | lam _ _ ihDomain ihBody =>
@@ -277,6 +279,7 @@ theorem VExpr.NestedExprExpansion.toRelativeConstructorDepthAux
   | bvar => exact .bvar
   | sort => exact .sort
   | const => exact .const
+  | elim => exact .elim
   | proj _ ihMajor => exact .proj (ihMajor hdepth)
   | app _ _ ihFn ihArg => exact .app (ihFn hdepth) (ihArg hdepth)
   | lam _ _ ihDomain ihBody =>
@@ -307,6 +310,7 @@ theorem VExpr.NestedExprExpansion.liftDepth
   | bvar => exact VExpr.NestedExprExpansion.refl leaf _ _
   | sort => exact .sort
   | const => exact .const
+  | elim => exact .elim
   | proj _ ihMajor =>
     simpa [VExpr.liftN] using
       VExpr.NestedExprExpansion.proj
@@ -413,6 +417,7 @@ theorem VExpr.NestedExprExpansion.liftAbsolute
   | bvar => exact VExpr.NestedExprExpansion.refl _ _ _
   | sort => exact .sort
   | const => exact .const
+  | elim => exact .elim
   | proj _ ihMajor =>
     simpa [VExpr.liftN] using
       VExpr.NestedExprExpansion.proj
@@ -2261,20 +2266,6 @@ theorem NestedLoweringResultClosed.originalHeaderExpansionAtFresh
       htargetDecl).symm
   · exact (Hmetadata.resultLevel hdeclLength familyIdx hsourceDecl
       htargetDecl).symm
-
-/-- Header staging alone yields a well-formed mutual-family environment;
-constructor staging is not needed by the structural expansion proof. -/
-theorem TrInductDeclCore.envTypesWF
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (henv : env.WF) : envTypes.WF := by
-  apply VEnv.WF.addConstVals henv _ H.typesAdded
-  intro ci hci
-  simp only [VInductDecl.typeConstants] at hci
-  rcases List.mem_map.mp hci with ⟨target, htarget, rfl⟩
-  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
-    ⟨_source, _hsource, Htarget⟩
-  exact Htarget.header.wf
 
 /-- Exact interpretation of successful replacement leaves for one closed
 lowering result and one independently translated source/expanded block.  In

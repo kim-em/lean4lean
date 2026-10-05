@@ -622,7 +622,7 @@ structure RestoredAuxiliaryFinalWFTrace.CanonicalReplay
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    {Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+    {Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv
       Htrace priorRecursors priorRules finalRecursors finalRules}
     (H : RestoredAuxiliaryFinalWFTrace decl block main safety trEnv
       recursorEnv ruleEnv Hsemantic priorRecursors priorRules finalRecursors
@@ -640,7 +640,7 @@ theorem RestoredAuxiliaryFinalWFTrace.existsCanonicalReplay
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    {Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+    {Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv
       Htrace priorRecursors priorRules finalRecursors finalRules}
     (H : RestoredAuxiliaryFinalWFTrace decl block main safety trEnv
       recursorEnv ruleEnv Hsemantic priorRecursors priorRules finalRecursors
@@ -694,7 +694,7 @@ inductive RestoredAuxiliaryRecursorWFTrace
           names sourceEnv targetEnv}
         {priorRecursors : List VConstVal} {priorRules : List VDefEq}
         {finalRecursors : List VConstVal} {finalRules : List VDefEq},
-      RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+      RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
         priorRecursors priorRules finalRecursors finalRules →
       List VConstVal → List VDefEq → List VConstVal → List VDefEq → Prop
   | nil (sourceEnv : Environment) (recursors : List VConstVal)
@@ -707,9 +707,9 @@ inductive RestoredAuxiliaryRecursorWFTrace
       (Htail : StateForMTrace
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hsemantic : RestoredAuxiliaryStepSemantics decl block main safety trEnv
+      (Hsemantic : RestoredAuxiliaryStepShape decl block main safety trEnv
         Hstep priorRecursors)
-      (Hrest : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+      (Hrest : RestoredAuxiliaryShapeTrace decl block main safety trEnv
         Htail (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules)
       (Hrecursor : Hsemantic.recursor.toVConstant.WF recursorEnv)
@@ -1199,7 +1199,7 @@ structure RestoredAuxiliaryRecursorWFTrace.CanonicalReplay
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    {Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+    {Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv
       Htrace priorRecursors priorRules finalRecursors finalRules}
     (H : RestoredAuxiliaryRecursorWFTrace decl block main safety trEnv
       recursorEnv Hsemantic priorRecursors priorRules finalRecursors
@@ -1217,7 +1217,7 @@ theorem RestoredAuxiliaryRecursorWFTrace.existsCanonicalReplay
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    {Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+    {Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv
       Htrace priorRecursors priorRules finalRecursors finalRules}
     (H : RestoredAuxiliaryRecursorWFTrace decl block main safety trEnv
       recursorEnv Hsemantic priorRecursors priorRules finalRecursors
@@ -1456,7 +1456,7 @@ def RestoredSourceInductiveSemanticTrace.CanonicalReplay.appendAuxiliary
     {HauxTrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       auxRecNames primaryProdEnv outProdEnv}
-    {HauxSemantic : RestoredAuxiliarySemanticTrace decl block main safety
+    {HauxSemantic : RestoredAuxiliaryShapeTrace decl block main safety
       sourceVEnv HauxTrace [] [] auxiliaryRecursors auxiliaryRules}
     {HauxWF : RestoredAuxiliaryFinalWFTrace decl block main safety sourceVEnv
       envCtors ruleEnv HauxSemantic [] [] auxiliaryRecursors auxiliaryRules}
@@ -1645,6 +1645,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     · exact HsourceChecking.wf
     · exact TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf
     · exact TrInductDeclCore.sourceNames_nodup Hcore
+    · exact TrInductDeclCore.typeHeadersWF Hcore
     · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore
     · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore
     · exact Hparams

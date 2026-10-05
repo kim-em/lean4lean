@@ -25,7 +25,7 @@ theorem SemanticPrimitiveRunWithStatsResult.addInductCanonical
   rcases Hrecursors.canonicalCompletedRuleTranslation with ⟨T⟩
   exact ⟨decl, (Hrecursors.blockCertificate T.rules T.rulesWF).finalVEnv,
     Hrecursors.addInductOfOrdinaryCompilation T.rules T.rulesWF hnonempty
-      T.compilation⟩
+      (T.compilation hnonempty)⟩
 
 /-- Declaration-facing skeleton-free primitive refinement, retaining the
 source checker-context equalities needed by environment composition. -/

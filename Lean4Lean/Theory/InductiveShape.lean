@@ -12,34 +12,6 @@ declaration-level facts when projection metadata is registered.
 
 namespace Lean4Lean
 
-/-- Split exactly `n` leading forall binders, retaining domains in outermost to
-innermost order. -/
-def VExpr.takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
-  | 0, e => some ([], e)
-  | n + 1, .forallE dom body => do
-    let (doms, result) ← body.takeForalls n
-    return (dom :: doms, result)
-  | _ + 1, _ => none
-
-/-- Head and left-to-right arguments of an application spine. -/
-def VExpr.getAppFnArgs (e : VExpr) : VExpr × List VExpr :=
-  go e []
-where
-  go : VExpr → List VExpr → VExpr × List VExpr
-    | .app fn arg, args => go fn (arg :: args)
-    | fn, args => (fn, args)
-
-def VExpr.wrapLams (domains : List VExpr) (body : VExpr) : VExpr :=
-  domains.foldr .lam body
-
-def VExpr.wrapForalls (domains : List VExpr) (body : VExpr) : VExpr :=
-  domains.foldr .forallE body
-
-/-- The common parameters as de Bruijn variables beneath `depth` additional
-constructor-field binders. -/
-def VInductDecl.paramVars (decl : VInductDecl) (depth : Nat) : List VExpr :=
-  (List.range decl.nparams).reverse.map fun i => .bvar (depth + i)
-
 def VInductDecl.ParamsDefEq (env : VEnv) (decl : VInductDecl)
     (params params' : List VExpr) : Prop :=
   VEnv.IsDefEqCtx env decl.uvars [] params.reverse params'.reverse
@@ -51,6 +23,8 @@ inductive VExpr.SourceConstFree (names : List Name) : VExpr → Prop
   | sort (level : VLevel) : SourceConstFree names (.sort level)
   | const (name : Name) (levels : List VLevel) (fresh : name ∉ names) :
       SourceConstFree names (.const name levels)
+  | elim (block : Name) (owner : Nat) (levels : List VLevel) :
+      SourceConstFree names (.elim block owner levels)
   | proj (typeName : Name) (index : Nat) :
       SourceConstFree names struct →
       SourceConstFree names (.proj typeName index struct)
@@ -60,6 +34,19 @@ inductive VExpr.SourceConstFree (names : List Name) : VExpr → Prop
       SourceConstFree names (.lam domain body)
   | forallE : SourceConstFree names domain →
       SourceConstFree names body → SourceConstFree names (.forallE domain body)
+
+/-- Raw constructor-result skeleton. It records the owner, universe arity,
+argument count, and literal common-parameter variables. Positivity and absence
+of recursive constants in indices belong to `ValidIndAppAt`, separately. -/
+def VInductDecl.RawIndAppAt (decl : VInductDecl) (target : Option Name)
+    (depth : Nat) (e : VExpr) : Prop :=
+  let (fn, args) := e.getAppFnArgs
+  ∃ type ∈ decl.types, (target = none ∨ target = some type.name) ∧
+    ∃ levels,
+      fn = .const type.name levels ∧
+      levels.length = decl.uvars ∧
+      args.length = decl.nparams + type.numIndices ∧
+      args.take decl.nparams = decl.paramVars depth
 
 /-- A fully applied occurrence of one of the simultaneously declared types.
 Recursive occurrences use precisely the common parameter variables, and their
@@ -75,6 +62,11 @@ def VInductDecl.ValidIndAppAt (decl : VInductDecl) (target : Option Name)
       args.take decl.nparams = decl.paramVars depth ∧
       ∀ arg ∈ args.drop decl.nparams,
         arg.SourceConstFree (decl.types.map (·.name))
+
+theorem VInductDecl.ValidIndAppAt.raw {decl : VInductDecl}
+    (h : decl.ValidIndAppAt target depth e) : decl.RawIndAppAt target depth e := by
+  obtain ⟨type, hmem, htarget, levels, hfn, hlevels, hargs, hparams, _⟩ := h
+  exact ⟨type, hmem, htarget, levels, hfn, hlevels, hargs, hparams⟩
 
 /-- Shape of one inductive type after normalization: common parameters,
 exactly the recorded indices, and the recorded result sort. -/
@@ -108,7 +100,7 @@ def VInductDecl.RawCtorShape (decl : VInductDecl) (type : VInductiveType)
   ∃ doms result,
     ctor.type = VExpr.wrapForalls doms result ∧
     decl.nparams ≤ doms.length ∧
-    decl.ValidIndAppAt (some type.name) (doms.length - decl.nparams) result ∧
+    decl.RawIndAppAt (some type.name) (doms.length - decl.nparams) result ∧
     result.getAppFnArgs.1 = .const type.name (VLevel.params decl.uvars)
 
 /-- Source-facing common-parameter formation retained by both ordinary and

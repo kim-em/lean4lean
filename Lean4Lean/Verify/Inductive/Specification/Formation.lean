@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Basic
+import Lean4Lean.Theory.Inductive.Normalization
 
 namespace Lean4Lean
 
@@ -258,6 +259,9 @@ structure ConstructorTailCertificate (env : VEnv) (decl : VInductDecl)
     tail = VExpr.wrapForalls doms result ∧
     decl.ValidIndAppAt (some target.name) (depth + doms.length) result ∧
     result.getAppFnArgs.1 = .const target.name (VLevel.params decl.uvars)
+  /-- Actual source-field domains and contexts carry the uniform recursive
+  normal forms checked before introducing the eliminator universe. -/
+  uniform : decl.UniformCtorTail env target (VLevel.params decl.uvars) ctx depth tail
 
 /-- Prefix invariant for constructor checking in the exact flattened order
 used by recursor-minor and iota-rule generation. -/
@@ -1373,6 +1377,14 @@ theorem TrInductDeclCore.ofPhases
     ctorsAdded := Hctors.ctorsAdded
     types := combine Hheaders.types Hctors.types }
 
+/-- The original family headers were checked before their installation. -/
+theorem TrInductDeclCore.typeHeadersWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors) :
+    ∀ type ∈ decl.types, type.toVConstant.WF env := by
+  intro type member
+  obtain ⟨source, _, translated⟩ := Lean4Lean.List.Forall₂.forall_exists_r H.types type member
+  exact translated.header.wf
+
 /-- The two abstract staging environments retained by core translation are
 well formed whenever the source environment is: translated headers may be
 added as axioms first, followed by the independently checked original
@@ -1417,6 +1429,20 @@ theorem TrInductDeclCore.constructorsWF
   rcases Lean4Lean.List.Forall₂.forall_exists_r Htarget.ctors ci hctor with
     ⟨sourceCtor, _hsourceCtor, Hctor⟩
   exact Hctor.wf
+
+/-- Header constants are typed in the source environment, so their exact
+installation is well formed independently of constructor installation. -/
+theorem TrInductDeclCore.envTypesWF
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
+      envTypes envCtors)
+    (henv : env.WF) : envTypes.WF := by
+  apply VEnv.WF.addConstVals henv _ H.typesAdded
+  intro ci hci
+  simp only [VInductDecl.typeConstants] at hci
+  rcases List.mem_map.mp hci with ⟨target, htarget, rfl⟩
+  rcases Lean4Lean.List.Forall₂.forall_exists_r H.types target htarget with
+    ⟨_source, _hsource, Htarget⟩
+  exact Htarget.header.wf
 
 /-- Pointwise original-source translations already contain all typing and
 universe facts required by `SourceWF`. Thus the aggregate source judgment

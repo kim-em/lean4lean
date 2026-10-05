@@ -517,6 +517,7 @@ theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   | const _ h1 _ _ _ ih => exact ih.insert _ _ h1
   | defeq _ ih => exact ih
   | projections _ ih => exact ih
+  | eliminators _ ih => exact ih
   | mapExt _ htarget _ _ => exact htarget
 
 theorem Aligned.find?_iff (H : Aligned safety C venv) :
@@ -533,6 +534,7 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
   | defeq _ ih => exact ih
   | projections _ ih =>
     simpa only [VEnv.addProjections_constants] using ih
+  | eliminators _ ih => exact ih
   | mapExt _ _ heq ih =>
     rw [← heq]
     exact ih
@@ -630,6 +632,9 @@ theorem Aligned.find? (H : Aligned safety C venv)
     rcases ih h with ⟨ci', hci', htr⟩
     exact ⟨ci', by simpa only [VEnv.addProjections_constants] using hci',
       htr.mono (VEnv.addProjections_le (entries := entries))⟩
+  | eliminators _ ih =>
+    rcases ih h with ⟨ci', hci', htr⟩
+    exact ⟨ci', hci', htr.mono VEnv.addEliminator_le⟩
   | mapExt _ _ heq ih =>
     rw [← heq] at h
     exact ih h
@@ -657,6 +662,9 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
       ⟨hname, htr⟩
     exact ⟨hname, htr.mono
       (VEnv.addProjections_le (env := _) (entries := entries))⟩
+  | eliminators _ ih =>
+    rcases ih h hs with ⟨hname, htr⟩
+    exact ⟨hname, htr.mono VEnv.addEliminator_le⟩
   | mapExt _ _ heq ih =>
     rw [← heq] at h
     exact ih h hs
@@ -1254,6 +1262,39 @@ theorem CheckingEnv.addProjections
   wf := hwf
   of_value := fun hfind hvisible hvalue =>
     (H.of_value hfind hvisible hvalue).mono VEnv.addProjections_le
+
+theorem CheckingEnv.addEliminator
+    (H : CheckingEnv safety env venv)
+    (hwf : (venv.addEliminator block schema).WF) :
+    CheckingEnv safety env (venv.addEliminator block schema) where
+  aligned := .eliminators H.aligned
+  wf := hwf
+  of_value := fun hfind hvisible hvalue =>
+    (H.of_value hfind hvisible hvalue).mono VEnv.addEliminator_le
+
+theorem CheckingEnv.ValidCore.addEliminator
+    (H : CheckingEnv.ValidCore safety env venv)
+    (hwf : (venv.addEliminator block schema).WF) :
+    CheckingEnv.ValidCore safety env (venv.addEliminator block schema) where
+  tr := H.tr.addEliminator hwf
+  hasPrimitives := H.hasPrimitives.addEliminator
+  safePrimitives := H.safePrimitives
+  typeAnnotationWrappers := H.typeAnnotationWrappers
+
+/-- Certified abstract schemas are available to checking before native
+recursor installation, while every concrete metadata invariant is preserved. -/
+theorem CheckingEnv.Valid.addEliminator
+    (H : CheckingEnv.Valid safety env venv)
+    (hwf : (venv.addEliminator block schema).WF) :
+    CheckingEnv.Valid safety env (venv.addEliminator block schema) where
+  toValidCore := H.toValidCore.addEliminator hwf
+  constructorOwners := H.constructorOwners
+  projectionRegistry := H.projectionRegistry.monoEnv VEnv.addEliminator_le
+  recursors := H.recursors.extendSimple (fun h => h) (fun h _ => h)
+    VEnv.addEliminator_le (fun _ h => h)
+  quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminator_le
+    (H.recursors.extendSimple (fun h => h) (fun h _ => h)
+      VEnv.addEliminator_le (fun _ h => h)).heads
 
 theorem CheckingEnv.ValidCore.addProjections
     (H : CheckingEnv.ValidCore safety env venv)

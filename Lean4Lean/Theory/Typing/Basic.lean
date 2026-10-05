@@ -29,6 +29,19 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
     ls.length = ci.uvars →
     List.Forall₂ (· ≈ ·) ls ls' →
     Γ ⊢ .const c ls ≡ .const c ls' : ci.type.instL ls
+  /-- Abstract case symbols are typed from their declaration-derived schema,
+  with permission checked at the occurrence's specialized universes. -/
+  | elimDF {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators block schema →
+    schema.genericType owner = some type →
+    type.Closed →
+    schema.Permission uvars owner levels target →
+    (∀ level ∈ target' :: levels', level.WF uvars) →
+    List.Forall₂ (· ≈ ·) (target :: levels) (target' :: levels') →
+    Γ ⊢ type.instL (target :: levels) : .sort typeLevel →
+    Γ ⊢ .elim block owner.val (target :: levels) ≡
+      .elim block owner.val (target' :: levels') : type.instL (target :: levels)
   | appDF :
     Γ ⊢ f ≡ f' : .forallE A B →
     Γ ⊢ a ≡ a' : A →
@@ -70,6 +83,19 @@ inductive IsDefEq : List VExpr → VExpr → VExpr → VExpr → Prop where
   | extra :
     env.defeqs df → (∀ l ∈ ls, l.WF uvars) → ls.length = df.uvars →
     Γ ⊢ df.lhs.instL ls ≡ df.rhs.instL ls : df.type.instL ls
+  /-- Only the same schema's generated case equations may reduce an abstract
+  eliminator. Their endpoints retain explicit typing premises. -/
+  | elimIota {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators block schema →
+    schema.genericEquations block owner = some rules →
+    df ∈ rules →
+    InductiveSignature.CaseSchema.RuleClosed df →
+    schema.Permission uvars owner levels target →
+    Γ ⊢ df.lhs.instL (target :: levels) : df.type.instL (target :: levels) →
+    Γ ⊢ df.rhs.instL (target :: levels) : df.type.instL (target :: levels) →
+    Γ ⊢ df.lhs.instL (target :: levels) ≡ df.rhs.instL (target :: levels) :
+      df.type.instL (target :: levels)
   | projIota :
     env.projections typeName info →
     Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) : fieldType →

@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
+import Lean4Lean.Verify.Inductive.Equation.Final
 import Lean4Lean.Verify.Inductive.Nested.PrimaryIotaBlockTransport
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryEvidence
 import Lean4Lean.Verify.Inductive.Nested.FormationNativeEvidence
@@ -28,7 +29,7 @@ private theorem List.set_getElem_eq_self
 
 /-! # Exact evidence boundary for nested final assembly
 
-`NestedFinalAssemblyProducerEvidence` is the certificate-facing aggregate.
+`NestedFinalAssemblyShapeEvidence` is the certificate-facing aggregate.
 This module decomposes that aggregate into evidence indexed by the exact
 lowering/restoration run. Source non-emptiness, source-map well-formedness,
 and the fresh-constant trace are derived operationally. None of the remaining
@@ -41,7 +42,7 @@ The fields are split by role:
   canonical dependency order and identifies the recursor value suffix;
 * `NestedFinalAuxiliaryEvidence` contains the genuinely semantic auxiliary
   recursor/rule trace and its final well-formedness proof;
-* `NestedFinalAssemblySemanticEvidence` retains canonical installation,
+* `NestedFinalAssemblyShapeSemanticEvidence` retains canonical installation,
   formation, and pointwise source/primary semantics, but no executable
   freshness or lowering non-emptiness assumptions.
 -/
@@ -80,8 +81,8 @@ theorem RestoredSourceInductiveSemanticTrace.existsRecursorEntries
 
 /-- The exact concrete/abstract auxiliary-recursor pairs selected by an
 auxiliary semantic trace. -/
-theorem RestoredAuxiliarySemanticTrace.existsRecursorEntries
-    (H : RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+theorem RestoredAuxiliaryShapeTrace.existsRecursorEntries
+    (H : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
       priorRecursors priorRules finalRecursors finalRules) :
     ∃ entries : List (ConstantInfo × VConstVal),
       finalRecursors = priorRecursors ++ entries.map Prod.snd ∧
@@ -104,7 +105,7 @@ restored recursor batch with the required primary/auxiliary value split. -/
 theorem existsExactRestoredRecursorEntries
     (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
       sourceVEnv envTypes envCtors sourceTrace owners primaryRecursors)
-    (Hauxiliary : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+    (Hauxiliary : RestoredAuxiliaryShapeTrace decl block main safety trEnv
       auxiliaryTrace [] [] auxiliaryRecursors auxiliaryRules) :
     ∃ primaryEntries auxiliaryEntries : List (ConstantInfo × VConstVal),
       primaryEntries.map Prod.snd = primaryRecursors ∧
@@ -2079,7 +2080,7 @@ structure NestedFinalAuxiliaryEvidence
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
     (canonicalVEnv finalBaseVEnv : VEnv) : Prop where
-  semantics : RestoredAuxiliarySemanticTrace decl
+  semantics : RestoredAuxiliaryShapeTrace decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety canonicalVEnv H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
@@ -2114,7 +2115,7 @@ theorem NestedFinalAuxiliaryEvidence.ofStepEvidence
         main safety canonicalVEnv canonicalVEnv finalBaseVEnv Hstep
           priorRecursors))
     (Houtputs : ∀ finalRecursors finalRules,
-      RestoredAuxiliarySemanticTrace decl
+      RestoredAuxiliaryShapeTrace decl
         (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
           primaryRules auxiliaryRules)
         main safety canonicalVEnv H.auxiliaries [] [] finalRecursors finalRules →
@@ -3146,7 +3147,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfValidation
     ⟨Hrecursor⟩
   rcases A.rulesOfValidation HruleValid HruleRun hrec with
     ⟨rules, Hlength, HrulesWF, HrulesGuarded⟩
-  let Hsemantics : RestoredAuxiliaryStepSemantics decl block main c.safety
+  let Hsemantics : RestoredAuxiliaryStepShape decl block main c.safety
       recursorEnv Hstep priorRecursors := {
     recursor := Hrecursor.recursor
     rules := rules
@@ -3196,7 +3197,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfRecursorTrace
       E.semantics.recursor = Hrecursor.recursor } := by
   rcases A.rulesOfValidation HruleValid HruleRun hrec with
     ⟨rules, Hlength, HrulesWF, HrulesGuarded⟩
-  let Hsemantics : RestoredAuxiliaryStepSemantics decl block main c.safety
+  let Hsemantics : RestoredAuxiliaryStepShape decl block main c.safety
       recursorEnv Hstep priorRecursors := {
     recursor := Hrecursor.recursor
     rules := rules
@@ -3217,13 +3218,13 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfRecursorTrace
 same recursor-name set.  The block's type, constructor, and rule fields do
 not occur in the step judgment; guardedness observes only recursor-name
 membership. -/
-def RestoredAuxiliaryStepSemantics.rebaseBlock
-    (H : RestoredAuxiliaryStepSemantics decl block main safety trEnv Hstep
+def RestoredAuxiliaryStepShape.rebaseBlock
+    (H : RestoredAuxiliaryStepShape decl block main safety trEnv Hstep
       priorRecursors)
     (Hnames : ∀ name,
       name ∈ block.recursors.map (·.name) ↔
         name ∈ block'.recursors.map (·.name)) :
-    RestoredAuxiliaryStepSemantics decl block' main safety trEnv Hstep
+    RestoredAuxiliaryStepShape decl block' main safety trEnv Hstep
       priorRecursors where
   recursor := H.recursor
   rules := H.rules
@@ -3239,7 +3240,7 @@ same recursor-name support.  This is useful because the final rule list is an
 output of the fold, while the guardedness checker needs only the recursor
 list, which is fixed beforehand by the independent recursor trace. -/
 noncomputable def RestoredAuxiliaryFinalWFTrace.rebaseBlock
-    {Hsemantic : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+    {Hsemantic : RestoredAuxiliaryShapeTrace decl block main safety trEnv
       Htrace priorRecursors priorRules finalRecursors finalRules}
     (H : RestoredAuxiliaryFinalWFTrace decl block main safety trEnv
       recursorEnv ruleEnv Hsemantic priorRecursors priorRules finalRecursors
@@ -3247,19 +3248,19 @@ noncomputable def RestoredAuxiliaryFinalWFTrace.rebaseBlock
     (Hnames : ∀ name,
       name ∈ block.recursors.map (·.name) ↔
         name ∈ block'.recursors.map (·.name)) :
-    Nonempty { Hsemantic' : RestoredAuxiliarySemanticTrace decl block' main
+    Nonempty { Hsemantic' : RestoredAuxiliaryShapeTrace decl block' main
         safety trEnv Htrace priorRecursors priorRules finalRecursors finalRules //
       RestoredAuxiliaryFinalWFTrace decl block' main safety trEnv recursorEnv
         ruleEnv Hsemantic' priorRecursors priorRules finalRecursors
           finalRules } :=
   match H with
   | .nil sourceEnv recursors rules =>
-      ⟨⟨RestoredAuxiliarySemanticTrace.nil sourceEnv recursors rules,
+      ⟨⟨RestoredAuxiliaryShapeTrace.nil sourceEnv recursors rules,
         .nil sourceEnv recursors rules⟩⟩
   | .cons Hstep Htail Hhead Hrest Hrecursor Hrules Hfinal => by
       let Hhead' := Hhead.rebaseBlock Hnames
       rcases Hfinal.rebaseBlock Hnames with ⟨⟨Hrest', Hfinal'⟩⟩
-      let Hsemantic' : RestoredAuxiliarySemanticTrace decl block' main safety
+      let Hsemantic' : RestoredAuxiliaryShapeTrace decl block' main safety
           trEnv (.cons Hstep Htail) _ _ _ _ :=
         .cons Hstep Htail Hhead' Hrest'
       exact ⟨⟨Hsemantic', .cons Hstep Htail Hhead' Hrest' Hrecursor Hrules
@@ -3380,7 +3381,7 @@ noncomputable def RestoredAuxiliaryRecursorTrace.finalEvidenceOfRuleValidation
     (decl : VInductDecl) (main : VInductiveType)
     (priorRules : List VDefEq) :
     ∃ finalRules,
-      ∃ Hsemantic : RestoredAuxiliarySemanticTrace decl block main
+      ∃ Hsemantic : RestoredAuxiliaryShapeTrace decl block main
           c.safety recursorEnv Htrace priorRecursors priorRules
             finalRecursors finalRules,
         RestoredAuxiliaryFinalWFTrace decl block main c.safety recursorEnv
@@ -3388,7 +3389,7 @@ noncomputable def RestoredAuxiliaryRecursorTrace.finalEvidenceOfRuleValidation
             finalRecursors finalRules :=
   match Hrecursors with
   | .nil sourceEnv recursors => by
-      let Hsemantic : RestoredAuxiliarySemanticTrace decl block main
+      let Hsemantic : RestoredAuxiliaryShapeTrace decl block main
           c.safety recursorEnv
             (StateForMTrace.nil
               (P := RestoredRecursorStep result loweredEnv auxRec allIndNames)
@@ -3664,7 +3665,7 @@ theorem NestedLoweringResultClosed.sourceFamiliesOfInstalledSuffixes
 /-- Specification-facing evidence for one exact production/restoration run.
 The executable part of the adapter supplies the fresh trace and map WF; this
 record supplies only its canonical interpretation and semantic payloads. -/
-structure NestedFinalAssemblySemanticEvidence
+structure NestedFinalAssemblyShapeSemanticEvidence
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -3737,7 +3738,7 @@ structure NestedFinalAssemblySemanticEvidence
 pointwise source/primary producers, an exact pre-rule layout callback, and
 only the genuinely post-primary auxiliary semantics.  This is the preferred
 field-by-field constructor for the native producer proof. -/
-theorem NestedFinalAssemblySemanticEvidence.ofCanonical
+theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonical
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -3792,7 +3793,7 @@ theorem NestedFinalAssemblySemanticEvidence.ofCanonical
       NestedFinalAuxiliaryEvidence H sourceEnv decl safety main
         primaryRecursors C.auxiliaryRecursors primaryRules C.auxiliaryRules
           (C.canonical.venvCtors.addProjections decl.projectionEntries) C.finalBaseVEnv) :
-    Nonempty (NestedFinalAssemblySemanticEvidence P H sourceEnv decl lparams
+    Nonempty (NestedFinalAssemblyShapeSemanticEvidence P H sourceEnv decl lparams
       nparams isUnsafe safety actualEntries) := by
   exact ⟨{
     typeEntries := C.typeEntries
@@ -3823,7 +3824,7 @@ whole primary-family callback from pointwise structural restoration evidence.
 The source core, family owner positions, generated equations, and the final
 recursor reblocking are all recovered from the retained canonical and
 restoration traces. -/
-theorem NestedFinalAssemblySemanticEvidence.ofCanonicalStructuralPrimary
+theorem NestedFinalAssemblyShapeSemanticEvidence.ofCanonicalStructuralPrimary
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -3922,7 +3923,7 @@ theorem NestedFinalAssemblySemanticEvidence.ofCanonicalStructuralPrimary
         (restoredBlock := canonicalRestoredShapeBlock sourceDecl
           primaryRecursors C.auxiliaryRecursors)
         S hold hnew C.finalBaseVEnv)) :
-    Nonempty (NestedFinalAssemblySemanticEvidence P Hrestored sourceVEnv
+    Nonempty (NestedFinalAssemblyShapeSemanticEvidence P Hrestored sourceVEnv
       sourceDecl c.lparams nparams isUnsafe c.safety actualEntries) := by
   subst P
   have htypesAdded : sourceVEnv.addConstVals sourceDecl.typeConstants =
@@ -3950,7 +3951,7 @@ theorem NestedFinalAssemblySemanticEvidence.ofCanonicalStructuralPrimary
         exact Hlower.restoredPrimaryTelescopeAtFreshOfValidation Hc Hprod
           HvalidationValid HrecursorValidation hempty familyIdx hfamily
             hentry stepSource stepTarget Hstep)
-  apply NestedFinalAssemblySemanticEvidence.ofCanonical _ Hrestored
+  apply NestedFinalAssemblyShapeSemanticEvidence.ofCanonical _ Hrestored
     sourceVEnv sourceDecl c.lparams nparams isUnsafe c.safety actualEntries C
       HexactSource
   · intro primaryRecursors Hsource
@@ -4043,7 +4044,7 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (hnumParams : sourceDecl.nparams = nparams)
     (hunsafeEq : sourceDecl.isUnsafe = isUnsafe)
     (hsourceNonempty : sourceTypes ≠ []) :
-    Nonempty { C : NestedFinalAssemblyCertificate Hrestored sourceVEnv
+    Nonempty { C : NestedFinalAssemblyShape Hrestored sourceVEnv
         sourceDecl c.lparams nparams isUnsafe c.safety // C.production = P } := by
   subst P
   have HsourceCons : ∃ main rest, sourceTypes = main :: rest := by
@@ -4144,7 +4145,7 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
           HauxiliaryRecursors HruleValid HruleRun sourceDecl main sourceVEnv
           primaryRecursors primaryRules Hnames with
         ⟨auxiliaryRules, Hauxiliary⟩
-      have HauxiliarySemantics : RestoredAuxiliarySemanticTrace sourceDecl
+      have HauxiliarySemantics : RestoredAuxiliaryShapeTrace sourceDecl
           (canonicalRestoredBlock sourceDecl primaryRecursors
             auxiliaryRecursors primaryRules auxiliaryRules)
           main c.safety
@@ -4220,7 +4221,7 @@ theorem NestedValidatedRunResult.assemblyOfFormation
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (Hformation : NestedFormationAssembly sourceVEnv sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl) :
-    Nonempty { C : NestedFinalAssemblyCertificate E.restoration sourceVEnv
+    Nonempty { C : NestedFinalAssemblyShape E.restoration sourceVEnv
         sourceDecl lparams nparams isUnsafe safety //
       C.production = E.production } := by
   have HsourceCons : ∃ main rest, sourceTypes = main :: rest := by
@@ -4641,7 +4642,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (Hformation : NestedFormationAssembly sourceVEnv sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl) :
-    Nonempty { C : NestedFinalAssemblyCertificate E.restoration sourceVEnv
+    Nonempty { C : NestedFinalAssemblyShape E.restoration sourceVEnv
         sourceDecl lparams nparams isUnsafe safety //
       C.production = E.production } := by
   let P := E.production
@@ -4774,6 +4775,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       · exact HbaseValid.tr.wf
       · exact TrInductDeclCore.envCtorsWF Hcore HbaseValid.tr.wf
       · exact TrInductDeclCore.sourceNames_nodup Hcore
+      · exact TrInductDeclCore.typeHeadersWF Hcore
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore
       · exact Hparams
@@ -4875,7 +4877,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
           NestedInstalledProduction.rebuildIndTypes_eq P
             result.types.toArray hindTypes
   let CertificateAt := fun q : Sigma RestorationAt =>
-    Nonempty { C : NestedFinalAssemblyCertificate q.2 P.initialEnv sourceDecl
+    Nonempty { C : NestedFinalAssemblyShape q.2 P.initialEnv sourceDecl
         P.c.lparams P.nparams P.isUnsafe P.c.safety // C.production = P }
   have hp : (⟨P.c.env, Hrestored⟩ : Sigma RestorationAt) =
       ⟨sourceProdEnv, E.restoration⟩ := by
@@ -4898,13 +4900,13 @@ formation comes from the installed constructor phases; source parameter
 formation comes from the literal restored-parameter validator; and the full
 ordered nested expansion comes from the producer-owned generated registry.
 No declaration-specific evidence is accepted from the caller. -/
-theorem NestedValidatedRunResult.assemblyNative
+theorem NestedValidatedRunResult.assemblyShapeNative
     {ves : VEnvs}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    Nonempty { C : NestedFinalAssemblyCertificate E.restoration
+    Nonempty { C : NestedFinalAssemblyShape E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.production = E.production } := by
@@ -5039,9 +5041,24 @@ theorem NestedValidatedRunResult.assemblyNative
     (by cases isUnsafe <;> decide) Hformation (by
       simpa only [safety] using hformationExpanded)
 
+/-- The canonical equations and concrete recursor evidence are selected from
+this complete successful run. This theorem does not upgrade arbitrary legacy
+rule batches or accept a caller-supplied compilation callback. -/
+theorem NestedValidatedRunResult.assemblyNative
+    {ves : VEnvs}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    Nonempty { C : NestedFinalAssemblyCertificate E.restoration
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+        nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
+      C.production = E.production } := by
+  sorry
+
 /-- Attach the three operational facts supplied by lowering/restoration and
 obtain the certificate-facing producer aggregate. -/
-theorem NestedFinalAssemblySemanticEvidence.producerEvidence
+theorem NestedFinalAssemblyShapeSemanticEvidence.producerEvidence
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -5052,12 +5069,12 @@ theorem NestedFinalAssemblySemanticEvidence.producerEvidence
     {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {actualEntries : List ConstantInfo}
-    (E : NestedFinalAssemblySemanticEvidence P H sourceEnv decl lparams
+    (E : NestedFinalAssemblyShapeSemanticEvidence P H sourceEnv decl lparams
       nparams isUnsafe safety actualEntries)
     (Hactual : FreshConstantTrace sourceProdEnv actualEntries outEnv)
     (hsourceMapWF : sourceProdEnv.constants.WF)
     (hsourceNonempty : sourceTypes ≠ []) :
-    Nonempty (NestedFinalAssemblyProducerEvidence (sourceTypes := sourceTypes)
+    Nonempty (NestedFinalAssemblyShapeEvidence (sourceTypes := sourceTypes)
       P H sourceEnv decl lparams nparams isUnsafe safety) := by
   exact ⟨{
     typeEntries := E.typeEntries

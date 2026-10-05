@@ -28,7 +28,7 @@ theorem AuxiliaryRestorationPrefix.pushRestoredRecursor
 
 /-- Restored-rule guardedness is deliberately supplied independently of
 `RuleRestoration`: the latter is a syntactic executable refinement, whereas
-this premise is the semantic fact required by `NestedCompilation`. -/
+this premise is the legacy shape fact; canonical compilation separately fixes the whole equation. -/
 theorem AuxiliaryRestorationPrefix.appendRestoredRules
     (H : AuxiliaryRestorationPrefix decl block main recursors rules)
     (Hrestore : RulesRestoration result prodEnv auxRec oldRecName newRecName
@@ -55,10 +55,11 @@ theorem AuxiliaryRestorationPrefix.appendRestoredRules
   have Hentry := Hrestore.entry i hsource hrestored
   exact hguarded i hsource hrestored hi Hentry
 
-/-- Independent semantic interpretation of one operational auxiliary
-recursor step. The syntactic restoration relation comes from the executable
-trace; translation, sequential naming, and guardedness are supplied here. -/
-structure RestoredAuxiliaryStepSemantics
+/-- Legacy shape of one operational auxiliary recursor step. Translation fixes
+the recursor constant, while the abstract rule batch has only its length and
+RHS guardedness constrained. This record cannot justify installing equations;
+the stronger final producer result supplies finite canonical compilation. -/
+structure RestoredAuxiliaryStepShape
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -77,8 +78,8 @@ structure RestoredAuxiliaryStepSemantics
       Hstep.restored.newInfo.rules[i] →
     rules[i].rhs.GuardedRuleRhs (block.recursors.map (·.name))
 
-theorem RestoredAuxiliaryStepSemantics.advance
-    (H : RestoredAuxiliaryStepSemantics decl block main safety trEnv Hstep
+theorem RestoredAuxiliaryStepShape.advance
+    (H : RestoredAuxiliaryStepShape decl block main safety trEnv Hstep
       priorRecursors)
     (Hprefix : AuxiliaryRestorationPrefix decl block main priorRecursors
       priorRules) :
@@ -89,10 +90,10 @@ theorem RestoredAuxiliaryStepSemantics.advance
   exact Hrecursor.appendRestoredRules Hstep.restored.restoration.rules
     H.rulesLength H.guarded
 
-/-- Trace-aligned semantic interpretation of an auxiliary restoration fold.
-Unlike a callback over arbitrary prefixes, this object records the exact
-abstract recursor and rule batch chosen for every operational step. -/
-inductive RestoredAuxiliarySemanticTrace
+/-- Trace-aligned legacy shape of an auxiliary restoration fold. The chosen
+rule batches are retained explicitly, but this judgment alone does not
+constrain their left-hand sides or establish their concrete realization. -/
+inductive RestoredAuxiliaryShapeTrace
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv) :
     ∀ {names sourceEnv targetEnv},
@@ -102,7 +103,7 @@ inductive RestoredAuxiliarySemanticTrace
       List VConstVal → List VDefEq →
       List VConstVal → List VDefEq → Prop
   | nil (sourceEnv) (recursors rules) :
-      RestoredAuxiliarySemanticTrace decl block main safety trEnv
+      RestoredAuxiliaryShapeTrace decl block main safety trEnv
         (StateForMTrace.nil (P :=
           RestoredRecursorStep result loweredEnv auxRec allIndNames)
           (source := sourceEnv)) recursors rules recursors rules
@@ -112,17 +113,17 @@ inductive RestoredAuxiliarySemanticTrace
       (Htail : StateForMTrace
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hsemantic : RestoredAuxiliaryStepSemantics decl block main safety trEnv
+      (Hsemantic : RestoredAuxiliaryStepShape decl block main safety trEnv
         Hstep priorRecursors)
-      (Hrest : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+      (Hrest : RestoredAuxiliaryShapeTrace decl block main safety trEnv
         Htail (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules) :
-      RestoredAuxiliarySemanticTrace decl block main safety trEnv
+      RestoredAuxiliaryShapeTrace decl block main safety trEnv
         (.cons Hstep Htail) priorRecursors priorRules
           finalRecursors finalRules
 
-theorem RestoredAuxiliarySemanticTrace.prefix
-    (H : RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+theorem RestoredAuxiliaryShapeTrace.prefix
+    (H : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
       priorRecursors priorRules finalRecursors finalRules)
     (Hprefix : AuxiliaryRestorationPrefix decl block main priorRecursors
       priorRules) :
@@ -132,12 +133,12 @@ theorem RestoredAuxiliarySemanticTrace.prefix
   | cons Hstep Htail Hsemantic Hrest ih =>
     exact ih (Hsemantic.advance Hprefix)
 
-theorem RestoredAuxiliarySemanticTrace.recursorsLength
+theorem RestoredAuxiliaryShapeTrace.recursorsLength
     {names : List Name} {sourceEnv targetEnv : Environment}
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv}
-    (H : RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+    (H : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
       priorRecursors priorRules finalRecursors finalRules) :
     finalRecursors.length = priorRecursors.length + names.length := by
   induction H with

@@ -48,6 +48,7 @@ def renameConsts (rename : Name → Name) : VExpr → VExpr
   | .bvar i => .bvar i
   | .sort u => .sort u
   | .const name levels => .const (rename name) levels
+  | .elim block owner levels => .elim block owner levels
   | .app fn arg => .app (fn.renameConsts rename) (arg.renameConsts rename)
   | .proj typeName index major =>
       .proj (rename typeName) index (major.renameConsts rename)
@@ -79,7 +80,7 @@ def renameConsts (rename : Name → Name) : VExpr → VExpr
   | app fn arg ihFn _ =>
       simp only [VExpr.renameConsts, VExpr.getAppFnArgs_app, ihFn]
       simp
-  | bvar | sort | const | proj | lam | forallE => rfl
+  | bvar | sort | const | elim | proj | lam | forallE => rfl
 
 theorem IsFieldApp.renameConsts
     (H : IsFieldApp fieldVars depth e) :
@@ -101,6 +102,7 @@ theorem GuardedIota.renameConsts
   induction H with
   | bvar => exact .bvar
   | sort => exact .sort
+  | elim => exact .elim
   | @const name depth levels hname =>
       apply VExpr.GuardedIota.const
       intro hmem

@@ -1,0 +1,142 @@
+import Lean4Lean.Theory.Typing.QuotWitnessTyping
+import Lean4Lean.Theory.Typing.QuotPrefixReduction
+import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
+import Lean4Lean.Theory.Typing.NativeRegistryInstallation
+import Lean4Lean.Verify.Inductive.FinalDispatch
+import Lean4Lean.Verify.TypeChecker
+import Lean4Lean.Verify.Inductive.Recursor.Realization
+import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
+import Lean4Lean.Theory.Inductive.StructureEtaProgram
+import Lean4Lean.Theory.Inductive.CaseRegistration
+import Lean4Lean.Theory.Typing.FullChurchRosser
+import Lean4Lean.Theory.Typing.NativeDeltaReduction
+import Lean4Lean.Theory.Typing.NativeCaptureTransport
+import Lean4Lean.Theory.Typing.CaseReduction
+import Lean4Lean.Theory.Typing.ChurchRosser
+import Lean4Lean.Verify.Typing.ProjectionDesugaring
+
+/-! Audit the transitive dependency closure, including opaque theorem bodies.
+Run through `scripts/check-inductive-audit.py`; this file emits one JSON record
+per root. A successful Lean build alone does not check these obligations. -/
+
+open Lean Meta Elab Command
+
+private structure AuditDependency where
+  name : String
+  path : Array String
+  deriving ToJson
+
+private structure AuditReport where
+  root : String
+  visited : Nat
+  axioms : Array AuditDependency
+  sorrySources : Array AuditDependency
+  deriving ToJson
+
+private def dependencyPath (parent : Std.HashMap Name Name) (name : Name) : Array String := Id.run do
+  let mut path := #[name.toString]
+  let mut current := name
+  for _ in [:parent.size] do
+    let some previous := parent[current]? | break
+    if previous == current then break
+    path := path.push previous.toString
+    current := previous
+  return path.reverse
+
+elab "#inductive_audit " ids:ident* : command => do
+  let env ← getEnv
+  for id in ids do
+    let root ← liftCoreM <| realizeGlobalConstNoOverload id
+    let mut parent : Std.HashMap Name Name := ({} : Std.HashMap Name Name).insert root root
+    let mut queue := #[root]
+    let mut i := 0
+    let mut axioms := #[]
+    let mut sorrySources := #[]
+    while i < queue.size do
+      let name := queue[i]!
+      i := i + 1
+      let some ci := env.find? name | throwError "missing dependency {name}"
+      let dependency := { name := name.toString, path := dependencyPath parent name : AuditDependency }
+      let mut deps := ci.type.getUsedConstants ++
+        ((ci.value? (allowOpaque := true)).map (·.getUsedConstants)).getD #[]
+      match ci with
+      | .axiomInfo _ => axioms := axioms.push dependency
+      | .inductInfo v => deps := deps ++ v.ctors.toArray
+      | .recInfo v => for rule in v.rules do deps := deps ++ rule.rhs.getUsedConstants
+      | .ctorInfo v => deps := deps.push v.induct
+      | _ => pure ()
+      if deps.contains ``sorryAx then sorrySources := sorrySources.push dependency
+      for dep in deps do
+        unless parent.contains dep do
+          parent := parent.insert dep name
+          queue := queue.push dep
+    let report := { root := root.toString, visited := queue.size, axioms, sorrySources : AuditReport }
+    liftIO <| IO.println s!"INDUCTIVE_AUDIT {(toJson report).compress}"
+
+#inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF
+#inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveFinalResultWF
+#inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
+#inductive_audit Lean4Lean.TypeChecker.whnf.WF
+#inductive_audit Lean4Lean.TypeChecker.Inner.reduceRecursor.WF
+#inductive_audit Lean4Lean.InductiveSignature.Instance.equation
+#inductive_audit Lean4Lean.InductiveSignature.Compiles
+#inductive_audit Lean4Lean.InductiveSignature.RecursorRealization
+#inductive_audit Lean4Lean.InductiveSignature.CompilationRealization
+#inductive_audit Lean4Lean.InductiveSignature.Restoration.expr
+#inductive_audit Lean4Lean.CompiledInductive
+#inductive_audit Lean4Lean.InductiveSignature.RestoredCompilationRealization
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.ofCompilation
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.Certified
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.genericEquations
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.genericProjectionPrefix
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.Generates
+#inductive_audit Lean4Lean.VEnv.MatchedCaseStep
+#inductive_audit Lean4Lean.ProjectionDesugaring
+
+#inductive_audit Lean4Lean.VEnv.NormalEq.headParallel
+#inductive_audit Lean4Lean.VEnv.HeadParallelReduction
+#inductive_audit Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalTypeTranslations
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt
+#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.singletonEquation
+#inductive_audit Lean4Lean.VEnv.NativeRecursorRegistered
+#inductive_audit Lean4Lean.VEnv.NativeReductionTrace
+#inductive_audit Lean4Lean.VEnv.NativeDeltaRule
+#inductive_audit Lean4Lean.VEnv.NativeDeltaRule.defeq
+
+#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.prefixProgram
+
+#inductive_audit Lean4Lean.VEnv.FullStep
+
+#inductive_audit Lean4Lean.VEnv.FullReduction
+
+#inductive_audit Lean4Lean.VEnv.FullEquationCoverage
+
+#inductive_audit Lean4Lean.VEnv.IsDefEq.full_church_rosser
+
+#inductive_audit Lean4Lean.InductiveSignature.CaseSchema.structureEta
+
+#inductive_audit Lean.Level.paramsIn
+#inductive_audit Lean.Expr.levelParamsIn
+
+#inductive_audit Lean4Lean.QuotPrefixProgram.witness
+#inductive_audit Lean4Lean.QuotPrefixProgram.generate
+#inductive_audit Lean4Lean.VEnv.QuotRegistered
+#inductive_audit Lean4Lean.VEnv.QuotDeltaRule
+#inductive_audit Lean4Lean.VEnv.DefinitionRegistered
+#inductive_audit Lean4Lean.VEnv.DefinitionPattern
+#inductive_audit Lean4Lean.VEnv.installDefinitions
+#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.compilationEntries
+#inductive_audit Lean4Lean.InductiveSignature.NativeRecursorData.installEntries
+#inductive_audit Lean4Lean.VEnv.QuotDeltaRule.defeq
+
+#inductive_audit Lean4Lean.VEnv.QuotRegistered.witness_app
+
+-- These proofs must remain below the admitted inversion/confluence layer.
+#inductive_audit Lean4Lean.VEnv.IsDefEq.strong
+#inductive_audit Lean4Lean.VEnv.IsDefEqStrong.subst
+#inductive_audit Lean4Lean.VEnv.IsDefEq.transport_bvar
+#inductive_audit Lean4Lean.VEnv.NativeCaptureReplay.transport
+#inductive_audit Lean4Lean.VEnv.HasType.native_open
+#inductive_audit Lean4Lean.VEnv.HasType.native_eta
+#inductive_audit Lean4Lean.VEnv.IsDefEq.native_wrapLams

@@ -6,3 +6,5 @@ import Lean4Lean.Theory.Typing.IotaLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Theory.Typing.HeadReduction
+import Lean4Lean.Theory.Inductive.Signature
+import Lean4Lean.Theory.Inductive.CompilationLemmas

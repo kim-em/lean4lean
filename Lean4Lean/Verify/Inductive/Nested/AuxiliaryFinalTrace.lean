@@ -24,7 +24,7 @@ inductive RestoredAuxiliaryFinalWFTrace
           names sourceEnv targetEnv}
         {priorRecursors : List VConstVal} {priorRules : List VDefEq}
         {finalRecursors : List VConstVal} {finalRules : List VDefEq},
-      RestoredAuxiliarySemanticTrace decl block main safety trEnv Htrace
+      RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
         priorRecursors priorRules finalRecursors finalRules →
       List VConstVal → List VDefEq → List VConstVal → List VDefEq → Prop
   | nil (sourceEnv : Environment) (recursors : List VConstVal)
@@ -37,9 +37,9 @@ inductive RestoredAuxiliaryFinalWFTrace
       (Htail : StateForMTrace
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hsemantic : RestoredAuxiliaryStepSemantics decl block main safety trEnv
+      (Hsemantic : RestoredAuxiliaryStepShape decl block main safety trEnv
         Hstep priorRecursors)
-      (Hrest : RestoredAuxiliarySemanticTrace decl block main safety trEnv
+      (Hrest : RestoredAuxiliaryShapeTrace decl block main safety trEnv
         Htail (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules)
       (Hrecursor : Hsemantic.recursor.toVConstant.WF recursorEnv)

@@ -195,7 +195,7 @@ theorem _root_.Lean4Lean.VExpr.WF.of_inst_occurs (henv : VEnv.WF env) {a : VExpr
     obtain rfl : i = Δ.length := Nat.le_antisymm (Nat.lt_succ_iff.1 h1) h2
     simp only [VExpr.inst, VExpr.instVar, Nat.lt_irrefl, if_false, if_true] at H
     exact (IsDefEqU.weakN_iff henv hΓ' (.zero Δ)).1 H
-  | sort | const => exact fun _ _ _ hocc => (hocc trivial).elim
+  | sort | const | elim => exact fun _ _ _ hocc => (hocc trivial).elim
   | app f x ihf ihx =>
     intro Δ hΓ' H hocc
     simp only [VExpr.inst] at H
@@ -349,7 +349,7 @@ theorem _root_.Lean4Lean.VExpr.mkApps_getAppFnArgs_eq (e : VExpr) :
     | app fn arg ihFn _ =>
       intro suffix
       simpa [VExpr.getAppFnArgs.go, VExpr.mkApps] using ihFn (arg :: suffix)
-    | bvar | sort | const | proj | lam | forallE => intro suffix; rfl
+    | bvar | sort | const | elim | proj | lam | forallE => intro suffix; rfl
   simpa [VExpr.mkApps] using go e []
 
 
@@ -363,6 +363,32 @@ theorem _root_.Lean4Lean.VInductDecl.ValidIndAppAt.instOuter {decl : VInductDecl
         VExpr.mkApps (.const typeName levels) (args.take decl.nparams ++ indices) ∧
       ∃ type ∈ decl.types, type.name = typeName ∧ indices.length = type.numIndices := by
   obtain ⟨type, htype, hname, levels', hfn', hlevels, hlen, hparams, -⟩ := H
+  rcases hname with hname | hname
+  · cases hname
+  cases Option.some.inj hname
+  have hfn'' : (VExpr.getAppFnArgs.go result []).1 = .const type.name levels := hfn
+  rw [hfn'] at hfn''
+  cases hfn''
+  have hresult := VExpr.mkApps_getAppFnArgs_eq result
+  rw [hfn'] at hresult
+  generalize hxs : (VExpr.getAppFnArgs.go result []).2 = xs at hlen hparams hresult
+  refine ⟨(xs.drop decl.nparams).map (·.instOuter args), ?_, type, htype, rfl, ?_⟩
+  · have e1 : result.instOuter args = ((VExpr.const type.name levels).mkApps xs).instOuter args := by
+      rw [hresult]
+    rw [e1, VExpr.instOuter_mkApps, VExpr.instOuter_const]
+    congr 1
+    conv => lhs; rw [← List.take_append_drop decl.nparams xs]
+    rw [List.map_append, hparams, decl.paramVars_instOuter args h]
+  · simp [hlen]
+
+theorem _root_.Lean4Lean.VInductDecl.RawIndAppAt.instOuter {decl : VInductDecl}
+    (H : decl.RawIndAppAt (some typeName) depth result)
+    (hfn : result.getAppFnArgs.1 = .const typeName levels)
+    (args : List VExpr) (h : args.length = depth + decl.nparams) :
+    ∃ indices, result.instOuter args =
+        VExpr.mkApps (.const typeName levels) (args.take decl.nparams ++ indices) ∧
+      ∃ type ∈ decl.types, type.name = typeName ∧ indices.length = type.numIndices := by
+  obtain ⟨type, htype, hname, levels', hfn', hlevels, hlen, hparams⟩ := H
   rcases hname with hname | hname
   · cases hname
   cases Option.some.inj hname
@@ -430,7 +456,7 @@ theorem _root_.Lean4Lean.VExpr.Occurs.of_not_skips' :
     have : VExpr.bvar (k + d) = (VExpr.bvar k).liftN d := by
       simp [VExpr.liftN, liftVar, Nat.add_comm]
     rw [this]; exact .refl
-  | sort | const => intro _ h; exact (h trivial).elim
+  | sort | const | elim => intro _ h; exact (h trivial).elim
   | app f x ihf ihx =>
     intro d h
     simp only [VExpr.Skips', not_and] at h
@@ -904,7 +930,7 @@ theorem VProjectionInfo.field_typing_of_ctorApp {decl : VInductDecl}
     (hwf : env.IsType info.uvars [] info.ctorType)
     (hctor : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩)
     (hshape : info.ctorType = VExpr.wrapForalls doms result)
-    (hvalid : decl.ValidIndAppAt (some S) (doms.length - decl.nparams) result)
+    (hvalid : decl.RawIndAppAt (some S) (doms.length - decl.nparams) result)
     (hhead : result.getAppFnArgs.1 = .const S (VLevel.params decl.uvars))
     (hdn : decl.nparams = info.nparams) (hdu : decl.uvars = info.uvars)
     (hle : info.nparams ≤ doms.length) :

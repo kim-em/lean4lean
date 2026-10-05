@@ -41,6 +41,7 @@ theorem AddInductive.runWithStats.semanticWF
           ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -59,7 +60,7 @@ theorem AddInductive.runWithStats.semanticWF
         R.declared.context.venv stats.indConsts := by
       rw [R.declared.contextVEnv]
       exact hlitCtors.addProjections _
-    exact (R.recursorPhasesWF hclosed hlparams hlit hnotPartial hnprim).mono
+    exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
             isUnsafe sourceEnv outEnv
@@ -94,6 +95,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (Hclosed : MutualInductivesClosed c.env)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -105,6 +107,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hlparams : c.lparams.Nodup)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprimRecursors : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -113,11 +116,11 @@ theorem AddInductive.runWithStats.semanticClosedWF
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       (SemanticRunWithStatsResult c stats nparams depth indTypes isUnsafe
         Hc.venv) := by
-  apply AddInductive.runWithStats.semanticWF stats nparams indTypes numNested
+  apply AddInductive.runWithStats.semanticWF (hsourceSafety := hsourceSafety) stats nparams indTypes numNested
     isUnsafe c depth Hc.venv
   · exact AddInductive.semanticFormationCoreClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
-      Hcache Hsuffix Hambient hcommon Hclosed hvisible hnprimTypes
+      Hcache Hsuffix Hambient hcommon hnotzero Hclosed hvisible hnprimTypes
       Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams
   · exact hlparams
   · exact hnotPartial
@@ -225,7 +228,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     intro c' stats depth commonParams commonLevel Hc' henv hsafety
       hlparams hallowPrimitive hfuel hvenv Hsemantic
       hlevels hlevelParams hindicesSize hindices _hconstsSize hconsts
-      _hnonempty hparams hcommonParams Hcache Hsuffix Hambient hcommon
+      _hnonempty hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
     let I := Hinputs (stats := stats) (depth := depth) Hc'
       hallowPrimitive hfuel Hsemantic
     have Hclosed' : MutualInductivesClosed c'.env := by
@@ -243,9 +246,10 @@ theorem AddInductive.run.semanticSourceAlignedWF
       exact hnodup
     have hnotPartial : c'.safety ≠ .partial := by
       simpa [hsafety] using HnotPartial
-    exact (AddInductive.runWithStats.semanticClosedWF Hsemantic hlevels
+    exact (AddInductive.runWithStats.semanticClosedWF
+      (hsourceSafety := by rw [hsafety]) Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
-      Hcache Hsuffix Hambient hcommon Hclosed' hvisible I.freshTypes
+      Hcache Hsuffix Hambient hcommon hnotzero Hclosed' hvisible I.freshTypes
       I.freshConstructors hlparamsNodup hnotPartial
       I.freshRecursors).mono fun outEnv Hrun =>
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,

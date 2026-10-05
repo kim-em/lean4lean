@@ -22,6 +22,8 @@ structure DefEqLE (source target : VEnv) : Prop where
   defeqs : ∀ {rule}, source.defeqs rule → target.defeqs rule
   projections : ∀ {name info}, source.projections name info →
     target.projections name info
+  eliminators : ∀ {name schema}, source.eliminators name schema →
+    target.eliminators name schema
 
 /-- A semantic environment inclusion restricted to the constants used by a
 particular derivation.  Constants selected by `changed` may be absent from
@@ -42,6 +44,8 @@ structure DefEqLEExcept (changed : Name → Prop)
   defeqs : ∀ {rule}, source.defeqs rule → target.defeqs rule
   projections : ∀ {name info}, source.projections name info →
     target.projections name info
+  eliminators : ∀ {name schema}, source.eliminators name schema →
+    target.eliminators name schema
 
 theorem DefEqLE.toDefEqLEExcept
     (E : DefEqLE source target) (changed : Name → Prop) :
@@ -49,6 +53,7 @@ theorem DefEqLE.toDefEqLEExcept
   constants hlookup _ := E.constants hlookup
   defeqs := E.defeqs
   projections := E.projections
+  eliminators := E.eliminators
 
 /-- Transport a typed definitional equality through a semantic environment
 inclusion.  The local context is unchanged; its target-environment
@@ -61,6 +66,11 @@ theorem IsDefEq.rebaseDefEqLE
     (H : source.IsDefEq uvars ctx left right type) :
     target.IsDefEq uvars ctx left right type := by
   induction H with
+  | elimDF hlookup htype hclosed hperm hright heq _ ih =>
+    exact .elimDF (E.eliminators hlookup) htype hclosed hperm hright heq (ih hctx)
+  | elimIota hlookup hgen hmem hclosed hperm _ _ ihLeft ihRight =>
+    exact .elimIota (E.eliminators hlookup) hgen hmem hclosed hperm
+      (ihLeft hctx) (ihRight hctx)
   | bvar Hlookup => exact .bvar Hlookup
   | symm _ ih => exact .symm (ih hctx)
   | trans _ _ ih₁ ih₂ => exact .trans (ih₁ hctx) (ih₂ hctx)
@@ -124,6 +134,11 @@ theorem IsDefEq.rebaseDefEqLEExcept
     (HU : H.UsesOnly changed) :
     target.IsDefEq uvars ctx left right type := by
   induction HU with
+  | elimDF hlookup htype hclosed hperm hright heq _ _ ih =>
+    exact .elimDF (E.eliminators hlookup) htype hclosed hperm hright heq (ih hctx)
+  | elimIota hlookup hgen hmem hclosed hperm _ _ _ _ ihLeft ihRight =>
+    exact .elimIota (E.eliminators hlookup) hgen hmem hclosed hperm
+      (ihLeft hctx) (ihRight hctx)
   | bvar Hlookup => exact .bvar Hlookup
   | symm _ ih => exact .symm (ih hctx)
   | trans _ _ ihLeft ihRight => exact .trans (ihLeft hctx) (ihRight hctx)

@@ -64,6 +64,8 @@ inductive NoHit {leaf : Nat → VExpr → VExpr → Prop} :
       (.sort level))
   | const : NoHit (.const : NestedExprExpansion leaf depth (.const name levels)
       (.const name levels))
+  | elim : NoHit (.elim : NestedExprExpansion leaf depth (.elim block owner levels)
+      (.elim block owner levels))
   | app : NoHit Hfn → NoHit Harg → NoHit (.app Hfn Harg)
   | proj : NoHit Hmajor → NoHit (.proj Hmajor)
   | lam : NoHit Hdomain → NoHit Hbody → NoHit (.lam Hdomain Hbody)
@@ -77,7 +79,7 @@ theorem NoHit.eq {leaf : Nat → VExpr → VExpr → Prop} {depth : Nat}
     (H : NestedExprExpansion.NoHit expansion) :
     source = target := by
   induction H with
-  | bvar | sort | const => rfl
+  | bvar | sort | const | elim => rfl
   | app _ _ ihFn ihArg => simp [ihFn, ihArg]
   | proj _ ihMajor => simp [ihMajor]
   | lam _ _ ihDomain ihBody => simp [ihDomain, ihBody]
@@ -91,6 +93,7 @@ theorem NoHit.refl (leaf : Nat → VExpr → VExpr → Prop)
   | bvar => exact ⟨.bvar, .bvar⟩
   | sort => exact ⟨.sort, .sort⟩
   | const => exact ⟨.const, .const⟩
+  | elim => exact ⟨.elim, .elim⟩
   | app _ _ ihFn ihArg =>
     rcases ihFn depth with ⟨Hfn, HfnNoHit⟩
     rcases ihArg depth with ⟨Harg, HargNoHit⟩

@@ -139,11 +139,11 @@ theorem RecursorPhasesResult.stagedIotaRuleTranslation
   have hfreshRoot : ∀ name ∈
       (H.blockCertificate rules hrules).block.recursors.map (·.name),
       H.recursorWF.venv.constants name = none := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     simpa using H.recursorNamesFresh rules hrules
   have hrootVEnv : H.recursorWF.venv =
       R.declared.venvCtors.addProjections decl.projectionEntries :=
-    H.recursorEnv.trans R.declared.contextVEnv
+    H.recursorEnv_legacy.trans R.declared.contextVEnv
   have hstaged := A.rule.stagedIotaRuleTranslation_ofSemantics A.semantics
     Hequation hfreshRoot hctx (by
       intro i hi _originRoot _callDepth _Rorigin S
@@ -348,7 +348,7 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleBuild
       (R.declared.venvCtors.addProjections decl.projectionEntries) decl
       (H.blockCertificate rules hrules).block rules)
     (hrulesLength : rules.length = decl.ownedConstructors.length) :
-    OrdinaryCompilationCertificate sourceEnv decl
+    OrdinaryShapeCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
   let Hgenerated : GeneratedRecursors c.safety
       (R.declared.venvCtors.addProjections decl.projectionEntries) c.lparams
@@ -386,7 +386,7 @@ theorem RecursorPhasesResult.ordinaryCompilationOfRuleTranslations
       (R.declared.venvCtors.addProjections decl.projectionEntries) H.outVEnv Us Δ decl
       (H.blockCertificate rules hrules).block owner rules)
     (hcomplete : owner = H.entries.length) :
-    OrdinaryCompilationCertificate sourceEnv decl
+    OrdinaryShapeCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
   have Hbuild : IotaBuildCertificate (R.declared.venvCtors.addProjections decl.projectionEntries) decl
       (H.blockCertificate rules hrules).block rules :=

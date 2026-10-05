@@ -93,6 +93,9 @@ theorem VEnv.addConstVals_LEExcept
     rw [VEnv.addConstVals_projections_eq Hsource]
     rw [VEnv.addConstVals_projections_eq Htarget]
     exact id
+  eliminators := by
+    rw [VEnv.addConstVals_eliminators Hsource, VEnv.addConstVals_eliminators Htarget]
+    exact id
 
 /-- Constructor environments produced from two independently translated
 inductive blocks over the same base agree away from the first block's own

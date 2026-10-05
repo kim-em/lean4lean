@@ -4,7 +4,6 @@ import Lean4Lean.Verify.Typing.Lemmas
 /-!
 # Syntactic facts about translation
 
-* `TrExprS.det`: translation is functional.
 * `TrExprS.instL_lequiv`: the translation of a level-instantiated expression is `LEquiv` to the
   syntactic level instantiation of the translation of the original.
 * `TrExprS.weakBV_inv`: an expression closed below the inserted bound variables translates to
@@ -13,20 +12,6 @@ import Lean4Lean.Verify.Typing.Lemmas
 
 namespace Lean4Lean
 open VEnv Lean
-
-theorem TrExprS.det (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ := by
-  induction H1 generalizing e₂ with cases H2
-  | bvar h1 => cases h1.symm.trans ‹_›; rfl
-  | fvar h1 => cases h1.symm.trans ‹_›; rfl
-  | sort h1 => cases h1.symm.trans ‹_›; rfl
-  | const _ h1 => cases h1.symm.trans ‹_›; rfl
-  | app _ _ _ _ ih1 ih2 => cases ih1 ‹_›; cases ih2 ‹_›; rfl
-  | lam _ _ _ ih1 ih2 => cases ih1 ‹_›; cases ih2 ‹_›; rfl
-  | forallE _ _ _ _ ih1 ih2 => cases ih1 ‹_›; cases ih2 ‹_›; rfl
-  | letE _ _ _ _ ih1 ih2 ih3 => cases ih1 ‹_›; cases ih2 ‹_›; exact ih3 ‹_›
-  | lit _ _ ih => exact ih ‹_›
-  | mdata _ ih => exact ih ‹_›
-  | proj _ h2 ih => cases ih ‹_›; cases h2; cases ‹TrProj _ _ _ _ _›; rfl
 
 /-! ### Level-equivalent contexts -/
 

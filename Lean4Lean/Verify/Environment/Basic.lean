@@ -807,6 +807,9 @@ inductive Aligned : ConstMap → VEnv → Prop where
     venv.addConst n ci' = some venv' → ci.name = n → Aligned (C.insert n ci) venv'
   | defeq : Aligned C venv → Aligned C (venv.addDefEq df)
   | projections : Aligned C venv → Aligned C (venv.addProjections entries)
+  /-- Abstract case symbols are absent from the native constant map. Their
+  independent certification is carried by the checking environment's WF trace. -/
+  | eliminators : Aligned C venv → Aligned C (venv.addEliminator block schema)
   /-- Production constant maps are implementation maps rather than ordered
   declaration lists.  A bulk declaration such as nested restoration may
   insert fresh entries in a different order from the dependency order used

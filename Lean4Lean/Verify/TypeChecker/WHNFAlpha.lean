@@ -10,14 +10,12 @@ namespace TypeChecker
 open private getAppNumArgsAux from Lean.Expr
 
 /-- Source forms which reach the public WHNF cache after the cheap syntactic
-cases have been discharged.  Free variables are absent because inductive
-checker contexts contain only constant declarations, so their WHNF branch
-returns before consulting the cache. -/
+cases have been discharged. Let bindings and free variables are excluded
+from insertion because their strict translations can already be foralls. -/
 inductive Expr.WhnfCacheable : Expr → Prop
   | lam : Expr.WhnfCacheable (.lam name domain body bi)
   | app : Expr.WhnfCacheable (.app fn arg)
   | const : Expr.WhnfCacheable (.const name levels)
-  | letE : Expr.WhnfCacheable (.letE name type value body nondep)
   | proj : Expr.WhnfCacheable (.proj name index body)
 
 /-- An existing public-WHNF cache entry is returned literally without
@@ -28,7 +26,7 @@ theorem Inner.whnf'_cache_hit
     (methods : Methods) (context : Context) :
     Inner.whnf' input methods context state = .ok (result, state) := by
   cases Hform <;>
-    simp [Inner.whnf', hcache, Bind.bind, Monad.toBind,
+    simp [Inner.whnf', whnfCacheKey, hcache, Bind.bind, Monad.toBind,
       ReaderT.instMonad, ReaderT.bind, StateT.instMonad, StateT.bind,
       liftM, monadLift, MonadLiftT.monadLift, MonadLift.monadLift,
       instMonadLiftTOfMonadLift, instMonadLiftT,
@@ -84,7 +82,7 @@ theorem Inner.whnf'_cache_miss_eq
           (result, ({ loopState with whnfCache :=
             (loopState.whnfCache.insert input result) } : State)) := by
   cases Hform <;>
-    simp only [Inner.whnf', Bind.bind, Monad.toBind,
+    simp only [Inner.whnf', whnfCacheKey, Bind.bind, Monad.toBind,
       ReaderT.instMonad, ReaderT.bind, StateT.instMonad, StateT.bind,
       liftM, monadLift, MonadLiftT.monadLift, MonadLift.monadLift,
       instMonadLiftTOfMonadLift, instMonadLiftT,
@@ -671,28 +669,22 @@ theorem Inner.reduceNative_eq_of_closed_alpha
       | app =>
           have happ := Hinput.alpha.isApp_eq
           simp [Expr.isApp] at happ
-      | lam | const | letE | proj => rfl
+      | lam | const | proj => rfl
   | const =>
       cases HrightForm with
       | app =>
           have happ := Hinput.alpha.isApp_eq
           simp [Expr.isApp] at happ
-      | lam | const | letE | proj => rfl
-  | letE =>
-      cases HrightForm with
-      | app =>
-          have happ := Hinput.alpha.isApp_eq
-          simp [Expr.isApp] at happ
-      | lam | const | letE | proj => rfl
+      | lam | const | proj => rfl
   | proj =>
       cases HrightForm with
       | app =>
           have happ := Hinput.alpha.isApp_eq
           simp [Expr.isApp] at happ
-      | lam | const | letE | proj => rfl
+      | lam | const | proj => rfl
   | @app leftFn leftArg =>
       cases HrightForm with
-      | lam | const | letE | proj =>
+      | lam | const | proj =>
           have happ := Hinput.alpha.isApp_eq
           simp [Expr.isApp] at happ
       | @app rightFn rightArg =>

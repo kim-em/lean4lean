@@ -1953,6 +1953,9 @@ structure RecursorMotiveTelescopeSeed
   target_lt : target < decl.types.length
   indexCount : info.indices.size =
     (decl.types[target]'target_lt).numIndices
+  /-- The actual completed index telescope passed the original-universe
+  guard before this family's major and motive declarations were added. -/
+  indexUniverses : (root.lctx.mkForall info.indices (.sort .zero)).levelParamsIn root.lparams = true
   family : VExpr
   familyActualType : VExpr
   familyType : VExpr
@@ -2064,6 +2067,9 @@ def RecursorMotiveTelescopeSeed.mono
       exact VEnv.LE.rfl)
     target_lt := H.target_lt
     indexCount := H.indexCount
+    indexUniverses := by
+      rw [H.indicesBound.mkForall_mono Hext.contextLE, Hext.contextLE.lparams_eq]
+      exact H.indexUniverses
     family := H.family.lift' (Hext.shift.consN 0)
     familyActualType := H.familyActualType.lift' (Hext.shift.consN 0)
     familyType := H.familyType.lift' (Hext.shift.consN 0)
@@ -2130,6 +2136,7 @@ def RecursorMotiveTelescopeSeed.congrInfo
     indices_length := by simpa [hindices] using H.canonical.indices_length }
   target_lt := H.target_lt
   indexCount := by simpa [hindices] using H.indexCount
+  indexUniverses := by simpa only [hindices] using H.indexUniverses
   family := H.family
   familyActualType := H.familyActualType
   familyType := H.familyType

@@ -1,6 +1,7 @@
 import Batteries.Data.List.Basic
 import Lean4Lean.Environment.Basic
 import Lean4Lean.TypeChecker
+import Lean4Lean.ExprUniverses
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -454,6 +455,13 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
       else
         k indices
 
+/-- Generated indices belong to the source declaration's universe scope.
+The recursor's additional elimination universe is reserved for its motive. -/
+def checkIndexUniverses (indices : Array Expr) : M Unit := do
+  let ctx ← readThe Context
+  unless (ctx.lctx.mkForall indices (.sort .zero)).levelParamsIn ctx.lparams do
+    throw <| .other "recursor indices use undeclared universe parameters"
+
 variable (stats : InductiveStats) (indTypes : Array InductiveType) (elimLevel : Level) in
 def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α) : M α := do
   if _h : dIdx < indTypes.size then
@@ -461,6 +469,7 @@ def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α
     loopArgs1 stats (← whnf indTypes[dIdx].type) 0 #[] ctx.fuel.inductiveFuel fun indices => do
     unless indices.size == stats.nindices[dIdx]! do
       throw <| .other "recursor index arity does not match checked inductive header"
+    checkIndexUniverses indices
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
     withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
     let lctx ← getLCtx
@@ -541,7 +550,7 @@ def loopUBlueprints (i : Nat) (v : Array Expr)
         targetTypeIdx := itIdx
         targetIndices := itIndices
         template := lctx.mkLambda xs <|
-          (mkAppN (.bvar 0) itIndices).app (mkAppN ui xs) } :
+          (mkAppN (.bvar xs.size) itIndices).app (mkAppN ui xs) } :
             RecCallBlueprint))
     let vName := ((← getLCtx).get! ui.fvarId!).userName.appendAfter "_ih"
     withLocalDecl vName .default viTy.consumeTypeAnnotationsVerified fun vi => do
@@ -618,8 +627,14 @@ def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
       let val := .const (mkRecName indTypes[itIdx]!.name) lvls
       let val := mkAppN (mkAppN (mkAppN val stats.params) motives) minors
       let lctx ← getLCtx
+      -- The recursor head is a placeholder for the loose variable just outside
+      -- the `xs` binders: `mkLambda` does not shift loose bound variables, so
+      -- it must be `.bvar xs.size` inside the body. `instantiate1` then lifts
+      -- `val` under those binders; its first-pass field variables may reuse
+      -- identifiers of `xs`, so `val` cannot be placed in the body before the
+      -- abstraction.
       return (lctx.mkLambda xs <|
-        (mkAppN (.bvar 0) itIndices).app (mkAppN ui xs)).instantiate1
+        (mkAppN (.bvar xs.size) itIndices).app (mkAppN ui xs)).instantiate1
           val
     loopU indTypes stats motives minors lvls u (i + 1) (v.push val) k
   else
@@ -665,6 +680,9 @@ def RecCallBlueprint.build (blueprint : RecCallBlueprint)
     (motives minors : Array Expr) (lvls : List Level) : Expr :=
   let value := .const (mkRecName indTypes[blueprint.targetTypeIdx]!.name) lvls
   let value := mkAppN (mkAppN (mkAppN value stats.params) motives) minors
+  -- The template binds the field arguments over a loose placeholder
+  -- (`.bvar args.size` inside the body, see `loopUBlueprints`); instantiating it
+  -- afterwards lifts `value` under those binders.
   blueprint.template.instantiate1 value
 
 def RecRuleBlueprint.build (blueprint : RecRuleBlueprint)
@@ -1385,6 +1403,21 @@ def rawBVarBound : Expr → Nat
   | .mdata _ body | .proj _ _ body => rawBVarBound body
   | .mvar _ | .fvar _ | .sort _ | .const _ _ | .lit _ => 0
 
+/-- Fuel for the guard traversal.  `Expr.approxDepth` saturates at 255 and
+ignores the constructor expansion of literals (`Nat.succ` chains and string
+characters), so it is not an adequate bound; this structural bound is. -/
+def guardFuel : Expr → Nat
+  | .app fn arg => max (guardFuel fn) (guardFuel arg) + 1
+  | .lam _ domain body _ | .forallE _ domain body _ =>
+      max (guardFuel domain) (guardFuel body) + 1
+  | .letE _ type value body _ =>
+      max (max (guardFuel type) (guardFuel value)) (guardFuel body) + 1
+  | .mdata _ body | .proj _ _ body => guardFuel body + 1
+  | .lit (.natVal n) => 2 * n + 4
+  | .lit (.strVal s) =>
+      2 * s.length + 2 * s.foldl (fun bound c => max bound c.toNat) 0 + 16
+  | .bvar _ | .mvar _ | .fvar _ | .sort _ | .const _ _ => 1
+
 /-- Executable guarded-recursion check for a literal restored expression.
 The fuel decreases even when a constant-headed application is flattened, so
 the definition is total independently of any assumptions about expression
@@ -1485,7 +1518,7 @@ def recursiveFieldVars (recursors : List Name) (expression : Expr) :
     | fuel + 1, .lam _ _ body _ => go fuel body
     | fuel + 1, residual =>
       recursiveMajorFieldVars recursors fuel 0 residual
-  (go (expression.approxDepth.toNat + rawBVarBound expression + 1)
+  (go (guardFuel expression + rawBVarBound expression + 1)
     expression).eraseDups
 
 /-- Check a closed equation RHS by peeling its rule telescope.  Binder
@@ -1509,7 +1542,7 @@ def checkGuardedWithFields (recursors : List Name) (fieldVars : List Nat)
     (expression : Expr) :
     Except Exception Unit :=
   unless guardedRuleCheck recursors fieldVars
-      (expression.approxDepth.toNat + rawBVarBound expression + 1)
+      (guardFuel expression + rawBVarBound expression + 1)
       expression do
     throw <| .other s!"restored recursor rule is not structurally guarded: {expression}"
 

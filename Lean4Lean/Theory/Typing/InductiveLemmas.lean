@@ -46,7 +46,7 @@ theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
   have htypes' : env.addConstVals decl.typeConstants = some envTypes := by
     rwa [hcompile.types] at htypes
   have hparams := hdecl.sourceParameterWF htypes'
-  have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames
+  have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames hdecl.1.originalTypes
     hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at htypes') hparams
     hparams.rawCtorShape
     hcompile.types hcompile.ctors
@@ -96,8 +96,16 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
     exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
       hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
       ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
+  | @eliminator env' key schema _ ih =>
+    rcases ih hproj with ⟨decl, type, ctor, htype, hctor, hname, hctorUvars,
+      huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
+      ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
+    have hle : env' ≤ env'.addEliminator key schema := VEnv.addEliminator_le
+    exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
+      hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
+      ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
   | @inductProjections base envTypes envCtors decl block
-      hbase hctorsOrdered hsource hconstructorUvars hctorsWF hparams hshape
+      hbase hctorsOrdered hsource htypesWF hconstructorUvars hctorsWF hparams hshape
       htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hproj
     rcases hproj with hnew | hold

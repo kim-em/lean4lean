@@ -41,10 +41,10 @@ theorem checkInductiveTypes.materializesSemanticHeaders
     _hlparams Hsemantic
     hlevels hlevelParams _hindicesSize hindices
     _hconstsSize hconsts _hnonempty hparams hcommonParams
-    Hcache Hsuffix Hambient hcommon
+    Hcache Hsuffix Hambient hcommon hnotzero
   exact Hfinish Hc' Hsemantic <|
     Hsemantic.materializedResult hlevels hlevelParams hindices hconsts
-      hparams hcommonParams Hcache Hsuffix Hambient hcommon
+      hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
 
 end checkInductiveTypes.loopInd
 end VerifyInductive

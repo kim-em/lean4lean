@@ -54,9 +54,45 @@ theorem IsMajorPremise.instN : IsMajorPremise e1 → IsMajorPremise (e1.inst a k
 
 theorem IsMajorPremise.lam : ¬IsMajorPremise (.lam A e) := nofun
 
+theorem IsMajorPremise.head (H : IsMajorPremise e) :
+    ∃ name levels, e.getAppFnArgs.1 = .const name levels := by
+  obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels, values, hm⟩ := H
+  have hn := (Params.nativeHeads hp).subpattern (Subpattern.trans (.appL .refl) hs)
+  obtain ⟨name, he⟩ := hn.matches_head hm
+  exact ⟨name, levels, he⟩
+
+theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.NativeHeadRigid name)
+    (hhead : e.getAppFnArgs.1 = .const name levels) : False := by
+  obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels', values, hm⟩ := H
+  cases Params.simple_app hp hs
+  have hn := matches_nativeHead hm hhead
+  obtain ⟨equation, originalName, originalLevels, hd, hh, he⟩ := pat_origin hp
+  change p₁.nativeHead = some originalName at hh
+  have heq : originalName = name := Option.some.inj (hh.symm.trans hn)
+  subst originalName
+  exact hrigid equation hd originalLevels he
+
+theorem IsMajorPremise.not_caseMajor (H : IsMajorPremise e) (H' : IsCaseMajorPremise env e) : False := by
+  obtain ⟨name, levels, hn⟩ := H.head
+  obtain ⟨block, owner, packed, hb⟩ := H'.head
+  rw [hb] at hn
+  cases hn
+
+theorem IsCaseMajorPremise.not_native_match (H : IsCaseMajorPremise env fn)
+    (hp : Pat p r) (hm : p.Matches (.app fn arg) levels values) : False := by
+  obtain ⟨sp, rfl⟩ := pat_simple hp
+  obtain ⟨name, hn⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
+  obtain ⟨block, owner, packed, hb⟩ := H.head
+  rw [case_spine_app] at hn
+  change fn.getAppFnArgs.1 = .const name levels at hn
+  rw [hb] at hn
+  cases hn
+
 set_option hygiene false
 local notation:65 Γ " ⊢ " e1 " ⤳ " e2:36 => WHRed Γ e1 e2
 inductive WHRed (Γ : List VExpr) : VExpr → VExpr → Prop where
+  | schema : AppliedSchemaReduction env univs Γ e e' → Γ ⊢ e ⤳ e'
+  | caseMajor : IsCaseMajorPremise env f → Γ ⊢ a ⤳ a' → Γ ⊢ .app f a ⤳ .app f a'
   | app : Γ ⊢ f ⤳ f' → Γ ⊢ .app f a ⤳ .app f' a
   | major : IsMajorPremise f → Γ ⊢ a ⤳ a' → Γ ⊢ .app f a ⤳ .app f a'
   | beta : Γ ⊢ .app (.lam A e) a ⤳ e.inst a
@@ -66,6 +102,8 @@ inductive WHRed (Γ : List VExpr) : VExpr → VExpr → Prop where
 theorem WHRed.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
     (H : Γ₁ ⊢ e1 ⤳ e2) : Γ₂ ⊢ e1 ⤳ e2 := by
   induction H generalizing Γ₂ with
+  | schema h => exact .schema (h.defeqDFC henv W)
+  | caseMajor hm _ ih => exact .caseMajor hm (ih W)
   | app _ ih1 => exact .app (ih1 W)
   | major h1 _ ih1 => exact .major h1 (ih1 W)
   | beta => exact .beta
@@ -73,6 +111,8 @@ theorem WHRed.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
 
 theorem WHRed.weak' (W : Ctx.Lift' ρ Γ Γ') :
     Γ ⊢ e1 ⤳ e2 → Γ' ⊢ e1.lift' ρ ⤳ e2.lift' ρ
+  | .schema h => .schema (h.weak' henv W)
+  | .caseMajor hm hr => .caseMajor (IsCaseMajorPremise.lift'.2 hm) (hr.weak' W)
   | .app h1 => .app (h1.weak' W)
   | .major h1 h2 => .major (IsMajorPremise.lift'.2 h1) (h2.weak' W)
   | .beta => by rw [VExpr.lift'_inst_hi]; exact .beta
@@ -90,6 +130,15 @@ theorem WHRed.weakU_inv (W : Ctx.Lift' ρ Γ Γ') (H : Γ' ⊢ e1.lift' ρ ⤳ e
     ∃ e2, e2' = e2.lift' ρ ∧ Γ ⊢ e1 ⤳ e2 := by
   generalize he : e1.lift' ρ = e1' at H
   induction H generalizing e1 with
+  | schema h =>
+    subst he
+    obtain ⟨rhs, hr, heq⟩ := h.weak'_inv henv hΓ W
+    exact ⟨rhs, heq, .schema hr⟩
+  | caseMajor hm hr ih =>
+    let .app .. := e1
+    cases he
+    obtain ⟨_, rfl, hred⟩ := ih rfl
+    exact ⟨_, rfl, .caseMajor (IsCaseMajorPremise.lift'.1 hm) hred⟩
   | app h1 ih => let .app .. := e1; cases he; obtain ⟨_, rfl, a1⟩ := ih rfl; exact ⟨_, rfl, .app a1⟩
   | major h1 h2 ih =>
     let .app .. := e1; cases he; obtain ⟨_, rfl, a1⟩ := ih rfl
@@ -106,6 +155,8 @@ theorem WHRed.weakU_inv (W : Ctx.Lift' ρ Γ Γ') (H : Γ' ⊢ e1.lift' ρ ⤳ e
 
 theorem WHRed.parRed (H : Γ ⊢ e1 ⤳ e2) : Γ ⊢ e1 ≫ e2 := by
   induction H with
+  | schema h => exact .of_schema h
+  | caseMajor _ _ ih => exact .app .rfl ih
   | app _ ih => exact .app ih .rfl
   | major _ _ ih => exact .app .rfl ih
   | beta => exact .beta .rfl .rfl
@@ -122,6 +173,8 @@ variable! (H₀ : Γ₀ ⊢ a : A₀) in
 theorem WHRed.instN (W : Ctx.InstN Γ₀ a A₀ k Γ₁ Γ)
     (H : Γ₁ ⊢ e1 ⤳ e2) : Γ ⊢ e1.inst a k ⤳ e2.inst a k := by
   induction H with
+  | schema h => exact .schema (h.instN henv H₀ W)
+  | caseMajor hm _ ih => exact .caseMajor hm.instN ih
   | app _ ih => exact .app ih
   | major h1 _ ih => exact .major h1.instN ih
   | beta => rw [(by apply inst_inst_hi : (inst ..).inst _ _ = _)]; exact .beta
@@ -136,6 +189,54 @@ theorem WHNF.lam : WHNF Γ (.lam A e) := nofun
 theorem WHNF.sort : WHNF Γ (.sort A) := nofun
 theorem WHNF.forallE : WHNF Γ (.forallE A B) := nofun
 
+theorem WHNF.case_prefix (Hprefix : IsCasePrefix env e) : WHNF Γ e := by
+  intro out H
+  revert Hprefix
+  induction H with
+  | schema h => exact fun hp => hp.not_reduction henv h
+  | app _ ih => exact fun hp => ih hp.app_left
+  | caseMajor hm _ _ => exact fun hp => hm.not_strict_prefix henv hp
+  | major hm _ _ =>
+    intro hp
+    obtain ⟨name, levels, hn⟩ := hm.head
+    obtain ⟨block, owner, packed, hb⟩ := hp.app_left.head
+    rw [hb] at hn
+    cases hn
+  | beta => exact fun hp => hp.app_left.not_lam
+  | extra hp hm =>
+    intro hprefix
+    obtain ⟨sp, rfl⟩ := pat_simple hp
+    obtain ⟨name, hn⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
+    obtain ⟨block, owner, levels, hb⟩ := hprefix.head
+    rw [hb] at hn
+    cases hn
+
+theorem IsCaseMajorPremise.whnf (H : IsCaseMajorPremise env e) : WHNF Γ e :=
+  WHNF.case_prefix H.toPrefix
+
+theorem WHNF.rigid_head (hrigid : env.NativeHeadRigid name)
+    (hhead : e.getAppFnArgs.1 = .const name levels) : WHNF Γ e := by
+  intro out H
+  revert hhead
+  induction H with
+  | schema h =>
+    intro hh
+    obtain ⟨_, _, _, hb⟩ := h.head
+    rw [hb] at hh
+    cases hh
+  | app _ ih => exact fun hh => ih ((congrArg Prod.fst (case_spine_app _ _)).symm.trans hh)
+  | caseMajor hm _ _ =>
+    intro hh
+    obtain ⟨_, _, _, hb⟩ := hm.head
+    have hh' := (congrArg Prod.fst (case_spine_app _ _)).symm.trans hh
+    rw [hb] at hh'
+    cases hh'
+  | major hm _ _ =>
+    intro hh
+    exact hm.not_rigid hrigid ((congrArg Prod.fst (case_spine_app _ _)).symm.trans hh)
+  | beta => intro hh; cases hh
+  | extra hp hm => exact fun hh => Params.not_rigid_match hrigid hp hm hh
+
 theorem WHNF.subpattern
     (h1 : Pat p r) (h2 : Subpattern p₁ p) (h3 : p₁ ≠ p) (h4 : p₁.Matches e m1 m2) : WHNF Γ e := by
   intro _ H2
@@ -147,6 +248,18 @@ theorem WHNF.subpattern
     exact h3.symm (h2.antisymm (.varN .refl))
   clear h3
   induction H2 generalizing n with
+  | schema h =>
+    obtain ⟨name, hn⟩ := (NativeHeads.varN (p := .const c) trivial).matches_head h4
+    obtain ⟨_, _, _, hb⟩ := h.head
+    rw [hb] at hn
+    cases hn
+  | caseMajor hm _ _ =>
+    let n+1 := n
+    let .var h4 := h4
+    obtain ⟨name, hn⟩ := (NativeHeads.varN (p := .const c) trivial).matches_head h4
+    obtain ⟨_, _, _, hb⟩ := hm.head
+    rw [hb] at hn
+    cases hn
   | app r1 ih => let n+1 := n; let .var h4 := h4; exact ih _ (.trans (.varL .refl) h2) h4
   | major r1 r2 ih =>
     let n+1 := n; let .var h4 := h4
@@ -171,10 +284,50 @@ theorem IsMajorPremise.whnf : IsMajorPremise e → WHNF Γ e := by
   refine .subpattern h1 (.trans (.appL .refl) h2) ?_ h3
   rintro rfl; cases h2.antisymm (.appL .refl)
 
+theorem WHRed.schema_determ (H : AppliedSchemaReduction env univs Γ e out)
+    (H' : Γ ⊢ e ⤳ out') : out = out' := by
+  cases H with
+  | @iota rule actual hm =>
+    generalize he : actual.expr = source at H'
+    cases H' with
+    | schema hs =>
+      subst source
+      exact (AppliedSchemaReduction.iota hm).determ henv hs
+    | app hf =>
+      cases he
+      exact False.elim (hm.majorPremise henv |>.whnf _ hf)
+    | caseMajor _ hmajor =>
+      cases he
+      exact False.elim (WHNF.rigid_head hm.ctor_rigid
+        (congrArg Prod.fst (InductiveSignature.spine_mkApps_exact _ _ rfl)) _ hmajor)
+    | major hnative _ =>
+      cases he
+      obtain ⟨name, levels, hn⟩ := hnative.head
+      rw [InductiveSignature.spine_mkApps_exact _ _ rfl] at hn
+      cases hn
+    | beta =>
+      have hfn := VExpr.app.inj he |>.1
+      exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn)
+    | extra hp hmatch _ =>
+      subst source
+      obtain ⟨sp, rfl⟩ := pat_simple hp
+      exact False.elim ((AppliedSchemaReduction.iota hm).not_native_match hmatch)
+
 theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = e₂ := by
   induction H1 generalizing e₂ with
+  | schema h => exact WHRed.schema_determ h H2
+  | caseMajor hm ha ih =>
+    cases H2 with
+    | schema hs => exact (WHRed.schema_determ hs (.caseMajor hm ha)).symm
+    | app hf => exact False.elim (hm.whnf _ hf)
+    | caseMajor _ ha' => cases ih ha'; rfl
+    | major hn _ => exact False.elim (hn.not_caseMajor hm)
+    | beta => exact False.elim hm.not_lam
+    | extra hp hmatch => exact False.elim (hm.not_native_match hp hmatch)
   | app l1 ih =>
     cases H2 with
+    | schema hs => exact (WHRed.schema_determ hs (.app l1)).symm
+    | caseMajor hm _ => exact False.elim (hm.whnf _ l1)
     | app r1 => cases ih r1; rfl
     | major r1 r2 => cases r1.whnf _ l1
     | beta => cases WHNF.lam _ l1
@@ -184,7 +337,9 @@ theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = 
       | var => cases pat_not_var r1
   | major l1 l2 ih =>
     cases H2 with
+    | schema hs => exact (WHRed.schema_determ hs (.major l1 l2)).symm
     | app r1 => cases l1.whnf _ r1
+    | caseMajor hm _ => exact False.elim (l1.not_caseMajor hm)
     | major _ r2 => cases ih r2; rfl
     | beta => cases l1.lam
     | extra r1 r2 =>
@@ -193,12 +348,16 @@ theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = 
       | app _ r4 => cases WHNF.subpattern r1 (.appR .refl) nofun r4 _ l2
   | beta =>
     cases H2 with
+    | schema hs => exact (WHRed.schema_determ hs .beta).symm
     | app r1 => cases WHNF.lam _ r1
     | major r1 => cases r1.lam
+    | caseMajor hm _ => exact False.elim hm.not_lam
     | beta => rfl
     | extra _ r2 => nomatch r2
-  | extra l1 l2 =>
+  | extra l1 l2 lcheck =>
     cases H2 with
+    | schema hs => exact (WHRed.schema_determ hs (.extra l1 l2 lcheck)).symm
+    | caseMajor hm _ => exact False.elim (hm.not_native_match l1 l2)
     | beta => nomatch l2
     | major r1 r2 =>
       cases l2 with
@@ -236,6 +395,12 @@ theorem WHRedS.major (H1 : IsMajorPremise f) (H : Γ ⊢ a ⤳* a') : Γ ⊢ f.a
   induction H with
   | rfl => exact .rfl
   | tail _ h2 ih => exact .tail ih (h2.major H1)
+
+theorem WHRedS.caseMajor (Hmajor : IsCaseMajorPremise env f) (H : Γ ⊢ a ⤳* a') :
+    Γ ⊢ f.app a ⤳* f.app a' := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h2 ih => exact .tail ih (.caseMajor Hmajor h2)
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem WHRedS.defeq (H : Γ ⊢ e1 ⤳* e2) (he : Γ ⊢ e1 : A) : Γ ⊢ e1 ≡ e2 : A :=
@@ -294,6 +459,7 @@ inductive StRed : List VExpr → VExpr → VExpr → Prop where
   | bvar : Γ ⊢ e ⤳* .bvar i → Γ ⊢ e ⤳< .bvar i
   | sort : Γ ⊢ e ⤳* .sort u → Γ ⊢ e ⤳< .sort u
   | const : Γ ⊢ e ⤳* .const c ls → Γ ⊢ e ⤳< .const c ls
+  | elim : Γ ⊢ e ⤳* .elim block owner ls → Γ ⊢ e ⤳< .elim block owner ls
   | app : Γ ⊢ e ⤳* .app f a → Γ ⊢ f ⤳< f' → Γ ⊢ a ⤳< a' → Γ ⊢ e ⤳< .app f' a'
   | proj : Γ ⊢ e ⤳* .proj typeName index major →
     Γ ⊢ major ⤳< major' →
@@ -305,6 +471,7 @@ protected theorem StRed.rfl : ∀ {e}, Γ ⊢ e ⤳< e
   | .bvar _ => .bvar .rfl
   | .sort .. => .sort .rfl
   | .const .. => .const .rfl
+  | .elim .. => .elim .rfl
   | .app .. => .app .rfl .rfl .rfl
   | .proj .. => .proj .rfl .rfl
   | .lam .. => .lam .rfl .rfl .rfl
@@ -312,24 +479,24 @@ protected theorem StRed.rfl : ∀ {e}, Γ ⊢ e ⤳< e
 
 theorem StRed.bvar_l (H : Γ ⊢ .bvar i ⤳< e) : e = .bvar i := by
   cases H with
-  | bvar h1 | sort h1 | const h1 | app h1 | proj h1 | lam h1 | forallE h1 =>
+  | bvar h1 | sort h1 | const h1 | elim h1 | app h1 | proj h1 | lam h1 | forallE h1 =>
     cases WHNF.bvar.whRedS h1 <;> rfl
 
 theorem StRed.sort_l (H : Γ ⊢ .sort u ⤳< e) : e = .sort u := by
   cases H with
-  | bvar h1 | sort h1 | const h1 | app h1 | proj h1 | lam h1 | forallE h1 =>
+  | bvar h1 | sort h1 | const h1 | elim h1 | app h1 | proj h1 | lam h1 | forallE h1 =>
     cases WHNF.sort.whRedS h1 <;> rfl
 
 theorem StRed.lam_l (H : Γ ⊢ .lam A B ⤳< e) :
     ∃ A' B', e = .lam A' B' ∧ Γ ⊢ A ⤳< A' ∧ A::Γ ⊢ B ⤳< B' := by
   cases H with
-  | bvar h1 | sort h1 | const h1 | app h1 | proj h1 | forallE h1 => cases WHNF.lam.whRedS h1
+  | bvar h1 | sort h1 | const h1 | elim h1 | app h1 | proj h1 | forallE h1 => cases WHNF.lam.whRedS h1
   | lam h1 h2 h3 => cases WHNF.lam.whRedS h1; exact ⟨_, _, rfl, h2, h3⟩
 
 theorem StRed.forallE_l (H : Γ ⊢ .forallE A B ⤳< e) :
     ∃ A' B', e = .forallE A' B' ∧ Γ ⊢ A ⤳< A' ∧ A::Γ ⊢ B ⤳< B' := by
   cases H with
-  | bvar h1 | sort h1 | const h1 | app h1 | proj h1 | lam h1 => cases WHNF.forallE.whRedS h1
+  | bvar h1 | sort h1 | const h1 | elim h1 | app h1 | proj h1 | lam h1 => cases WHNF.forallE.whRedS h1
   | forallE h1 h2 h3 => cases WHNF.forallE.whRedS h1; exact ⟨_, _, rfl, h2, h3⟩
 
 variable! (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
@@ -339,6 +506,7 @@ theorem StRed.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
   | bvar h1 => exact .bvar (h1.defeqDFC W)
   | sort h1 => exact .sort (h1.defeqDFC W)
   | const h1 => exact .const (h1.defeqDFC W)
+  | elim h1 => exact .elim (h1.defeqDFC W)
   | app h1 _ _ ih1 ih2 =>
     let hΓ := W.isType' hΓ₀; have ⟨_, _, hf, ha⟩ := (h1.hasType hΓ h).app_inv henv hΓ
     exact .app (h1.defeqDFC W) (ih1 W hf) (ih2 W ha)
@@ -356,7 +524,7 @@ theorem StRed.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
 
 theorem StRed.parRedS (H : Γ ⊢ e ⤳< e') : Γ ⊢ e ≫* e' := by
   induction H with
-  | bvar h1 | sort h1 | const h1 => exact h1.parRedS
+  | bvar h1 | sort h1 | const h1 | elim h1 => exact h1.parRedS
   | app h1 _ _ ih1 ih2 => exact h1.parRedS.trans (ih1.app ih2)
   | proj h1 _ ihMajor => exact h1.parRedS.trans ihMajor.proj
   | lam h1 _ _ ih1 ih2 => exact h1.parRedS.trans (ih1.lam ih2)
@@ -367,6 +535,7 @@ theorem StRed.whRed (H1 : Γ ⊢ e₁ ⤳* e₂) (H2 : Γ ⊢ e₂ ⤳< e') : Γ
   | bvar h1 => exact .bvar (H1.trans h1)
   | sort h1 => exact .sort (H1.trans h1)
   | const h1 => exact .const (H1.trans h1)
+  | elim h1 => exact .elim (H1.trans h1)
   | app h1 h2 h3 => exact .app (H1.trans h1) h2 h3
   | proj h1 h2 => exact .proj (H1.trans h1) h2
   | lam h1 h2 h3 => exact .lam (H1.trans h1) h2 h3
@@ -382,6 +551,7 @@ theorem StRed.weak' (W : Ctx.Lift' ρ Γ Γ') (H : Γ ⊢ e1 ⤳< e2) :
   | bvar h1 => exact .bvar (h1.weak' W)
   | sort h1 => exact .sort (h1.weak' W)
   | const h1 => exact .const (h1.weak' W)
+  | elim h1 => exact .elim (h1.weak' W)
   | app h1 _ _ ih1 ih2 => exact .app (h1.weak' W) (ih1 W) (ih2 W)
   | proj h1 _ ihMajor => exact .proj (h1.weak' W) (ihMajor W)
   | lam h1 _ _ ih1 ih2 => exact .lam (h1.weak' W) (ih1 W) (ih2 W.cons)
@@ -408,6 +578,7 @@ theorem StRed.instN (W : Ctx.InstN Γ₀ a1 A₀ k Γ₁ Γ)
       | succ h => exact ih.weakN .one
   | sort h1 => exact .sort (h1.instN H₀' W)
   | const h1 => exact .const (h1.instN H₀' W)
+  | elim h1 => exact .elim (h1.instN H₀' W)
   | app h1 _ _ ih1 ih2 => exact .app (h1.instN H₀' W) (ih1 W) (ih2 W)
   | proj h1 _ ihMajor => exact .proj (h1.instN H₀' W) (ihMajor W)
   | lam h1 _ _ ih1 ih2 => exact .lam (h1.instN H₀' W) (ih1 W) (ih2 W.succ)
@@ -420,11 +591,135 @@ theorem StRed.apply_pat {p : Pattern} (r : p.RHS) {m1 m2 m3}
   | .app f a => exact .app .rfl (apply_pat f H) (apply_pat a H)
   | .var f => exact H _
 
+/-- Expose the unchanged head and the source argument spine of a standard
+reduction whose target has a constant or abstract eliminator head. -/
+theorem StRed.expose_spine
+    (hhead : (∃ name levels, head = .const name levels) ∨
+      ∃ block owner levels, head = .elim block owner levels)
+    (H : Γ ⊢ e ⤳< VExpr.mkApps head arguments) :
+    ∃ sourceArgs, Γ ⊢ e ⤳* VExpr.mkApps head sourceArgs ∧
+      List.Forall₂ (StRed Γ) sourceArgs arguments := by
+  generalize heq : arguments.reverse = revArgs
+  have : arguments = revArgs.reverse := by rw [← heq, List.reverse_reverse]
+  subst arguments
+  clear heq
+  induction revArgs generalizing e with
+  | nil =>
+    rcases hhead with ⟨name, levels, rfl⟩ | ⟨block, owner, levels, rfl⟩
+    · let .const h := H
+      exact ⟨[], h, .nil⟩
+    · let .elim h := H
+      exact ⟨[], h, .nil⟩
+  | cons arg arguments ih =>
+    rw [List.reverse_cons, VExpr.mkApps_append] at H
+    change Γ ⊢ e ⤳< .app (VExpr.mkApps head arguments.reverse) arg at H
+    let .app hroot hfn harg := H
+    rename_i sourceFn sourceArg
+    obtain ⟨sourceArgs, hsource, hargs⟩ := ih hfn
+    refine ⟨sourceArgs ++ [sourceArg], ?_, ?_⟩
+    · rw [VExpr.mkApps_append]
+      exact hroot.trans hsource.app
+    · simpa only [List.reverse_cons] using case_forall₂_append hargs (.cons harg .nil)
+
+open InductiveSignature.CaseSchema in
+theorem StRed.expose_case (hm : MatchedCaseStep env univs Γ₂ rule actual)
+    (H : Γ ⊢ e ⤳< actual.expr) :
+    ∃ source, Γ ⊢ e ⤳* source.expr ∧ CaseApplicationRelated (StRed Γ) source actual := by
+  let .app hroot hfn hmajor := H
+  obtain ⟨sourceArgs, hfnRed, hargs⟩ := hfn.expose_spine
+    (.inr ⟨actual.block, actual.owner, actual.levels, rfl⟩)
+  obtain ⟨sourceCtorArgs, hmajorRed, hctorArgs⟩ := hmajor.expose_spine
+    (.inl ⟨actual.ctorName, actual.ctorLevels, rfl⟩)
+  let source : Application := { actual with arguments := sourceArgs, ctorArguments := sourceCtorArgs }
+  refine ⟨source, ?_, ⟨rfl, rfl, rfl, rfl, rfl, hargs, hctorArgs⟩⟩
+  have hmajorPremise := hm.majorPremise henv
+  obtain ⟨schema, block, owner, levels, args, hlookup, heq, hlen⟩ := hmajorPremise
+  have hsourceMajor : IsCaseMajorPremise env
+      (VExpr.mkApps (.elim actual.block actual.owner actual.levels) sourceArgs) := by
+    have hinj := InductiveSignature.spine_mkApps_exact
+      (.elim actual.block actual.owner actual.levels) actual.arguments rfl
+    have hinj' := InductiveSignature.spine_mkApps_exact (.elim block owner.val levels) args rfl
+    have heq' := congrArg VExpr.getAppFnArgs heq
+    rw [hinj, hinj'] at heq'
+    have hhead := congrArg Prod.fst heq'
+    have hlist := congrArg Prod.snd heq'
+    change VExpr.elim actual.block actual.owner actual.levels = .elim block owner.val levels at hhead
+    change actual.arguments = args at hlist
+    refine ⟨schema, block, owner, levels, sourceArgs, hlookup, ?_, ?_⟩
+    · rw [hhead]
+    · exact hargs.length_eq.trans ((congrArg List.length hlist).trans hlen)
+  exact hroot.trans hfnRed.app |>.trans (hmajorRed.caseMajor hsourceMajor)
+
+open InductiveSignature in
+theorem StRed.instantiate_variables {arguments arguments' : List VExpr} (hv : VariableApplications body)
+    (hlen : arguments'.length = arguments.length)
+    (hargs : ∀ i (hi : i < arguments.length),
+      Γ ⊢ arguments[i] ⤳< arguments'[i]'(by omega))
+    (hclosed : body.ClosedN arguments.length) :
+    Γ ⊢ instantiateParams body arguments ⤳< instantiateParams body arguments' := by
+  induction hv with
+  | @bvar i =>
+    change i < arguments.length at hclosed
+    rw [instantiateParams_eq_instOuter, instantiateParams_eq_instOuter,
+      VExpr.instOuter_bvar arguments hclosed, VExpr.instOuter_bvar arguments' (by omega)]
+    simpa only [hlen] using hargs (arguments.length - 1 - i) (by omega)
+  | app hf ha ihf iha =>
+    exact .app .rfl (ihf hclosed.1) (iha hclosed.2)
+
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
+theorem CaseApplicationRelated.stRed_defeq
+    (H : CaseApplicationRelated (StRed Γ) actual actual')
+    (ht : Γ ⊢ actual.expr : type) : CaseApplicationRelated (IsDefEqU env univs Γ) actual actual' := by
+  obtain ⟨_, _, hf, ha⟩ := ht.app_inv henv hΓ
+  refine { H with arguments := ?_, ctorArguments := ?_ }
+  · exact H.arguments.and_mem.imp fun _ _ h => by
+      obtain ⟨type, ht⟩ := schema_mkApps_arg_type hΓ hf h.2.1
+      exact ⟨type, h.1.defeq hΓ ht⟩
+  · exact H.ctorArguments.and_mem.imp fun _ _ h => by
+      obtain ⟨type, ht⟩ := schema_mkApps_arg_type hΓ ha h.2.1
+      exact ⟨type, h.1.defeq hΓ ht⟩
+
+theorem CaseApplicationRelated.stRed (H : CaseApplicationRelated (StRed Γ) actual actual') :
+    Γ ⊢ actual.expr ⤳< actual'.expr := by
+  have mkApps {fn fn' : VExpr} {args args' : List VExpr}
+      (hf : Γ ⊢ fn ⤳< fn') (ha : List.Forall₂ (StRed Γ) args args') :
+      Γ ⊢ VExpr.mkApps fn args ⤳< VExpr.mkApps fn' args' := by
+    induction ha generalizing fn fn' with
+    | nil => exact hf
+    | cons h ht ih => exact ih (.app .rfl hf h)
+  exact .app .rfl (mkApps (by rw [H.block_eq, H.owner_eq, H.levels_eq]; exact .rfl) H.arguments)
+    (mkApps (by rw [H.ctor_eq, H.ctorLevels_eq]; exact .rfl) H.ctorArguments)
+
 variable! (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
 theorem StRed.triangle (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
     (h : Γ₁ ⊢ e : A) (H1 : Γ₁ ⊢ e ⤳< e₁) (H2 : Γ₂ ⊢ e₁ ≫ e₂) : Γ₁ ⊢ e ⤳< e₂ := by
   induction H2 generalizing Γ₁ e A with
-  | bvar | sort | const => exact H1
+  | @schema Γ₂ arguments rule actual hm hl hr ih =>
+    have hΓ := W.isType' hΓ₀
+    obtain ⟨source, hred, hspine⟩ := H1.expose_case hm
+    have htyped := hred.hasType hΓ h
+    have heq := hspine.stRed.defeq hΓ htyped
+    have hdef := hspine.stRed_defeq hΓ htyped
+    have hsym : CaseApplicationRelated (IsDefEqU env univs Γ₁) actual source := {
+      block_eq := hdef.block_eq.symm
+      owner_eq := hdef.owner_eq.symm
+      levels_eq := hdef.levels_eq.symm
+      ctor_eq := hdef.ctor_eq.symm
+      ctorLevels_eq := hdef.ctorLevels_eq.symm
+      arguments := hdef.arguments.flip.imp fun _ _ h => IsDefEqU.symm h
+      ctorArguments := hdef.ctorArguments.flip.imp fun _ _ h => IsDefEqU.symm h }
+    have hm' := (hm.defeqDFC henv (W.symm henv)).congr henv hΓ hsym ⟨_, heq.symm⟩
+    have hcapture := hspine.capture (rule := rule)
+    have hcaplen := hcapture.length_eq
+    refine .whRed (.tail hred (.schema (.iota hm'))) ?_
+    have hvars := hm'.source.rhs_variables
+    simp only [InductiveSignature.CaseSchema.AppliedRule.rhs, hvars.instL_eq]
+    refine StRed.instantiate_variables hvars (hl.trans hcaplen.symm) ?_ hm'.source.closed.2.1
+    intro i hi
+    have hi' : i < (rule.capture actual).length := by omega
+    obtain ⟨type, ht⟩ := hm'.capture_typed (List.getElem_mem hi)
+    exact ih i hi' W ht (case_forall₂_get hcapture hi hi')
+  | bvar | sort | const | elim => exact H1
   | app b1 b2 ih1 ih2 =>
     let .app a1 a2 a3 := H1
     have hΓ := W.isType' hΓ₀; have ⟨_, _, hf, ha⟩ := (a1.hasType hΓ h).app_inv henv hΓ
@@ -465,6 +760,7 @@ theorem StRed.triangle (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
     clear h2 ih h; intro p' m1 m2 hp h2
     induction h2 generalizing e with
     | const => let .const H1 := H1; exact ⟨_, _, H1, .const, nofun⟩
+    | elim => let .elim H1 := H1; exact ⟨_, _, H1, .elim, nofun⟩
     | app l1 l2 ih1 ih2 =>
       let .app r1 r2 r3 := H1
       have ⟨_, _, a1, a2, a3⟩ := ih1 r2 (.trans (.appL .refl) hp)
@@ -486,44 +782,6 @@ theorem StRed.triangleS (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRedS.standard (h : Γ ⊢ e : A) (H : Γ ⊢ e ≫* e') : Γ ⊢ e ⤳< e' :=
   .triangleS hΓ .zero h .rfl H
-
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem IsDefEq.reduce_sort (H : Γ ⊢ e ≡ .sort u : A) :
-    ∃ u', Γ ⊢ e ⤳* .sort u' ∧ u' ≈ u := by
-  have ⟨_, _, e', _, h1, h2, h3⟩ := H.church_rosser hΓ
-  cases (h2.standard hΓ H.hasType.2).sort_l
-  have hu := H.hasType.2.sort_inv henv
-  obtain ⟨v, rfl, a1⟩ : ∃ v, e' = sort v ∧ v ≈ u := by
-    cases h3 with
-    | refl => exact ⟨_, rfl, rfl⟩
-    | sortDF _ _ h => exact ⟨_, rfl, h⟩
-    | etaL h => cases ((HasType.sort hu).uniqU henv hΓ h).sort_forallE_inv henv hΓ
-    | proofIrrel h1 _ h3 =>
-      have := h1.defeqU_l henv hΓ ((HasType.sort hu).uniqU henv hΓ h3).symm
-      have := ((HasType.sort (by exact hu)).uniqU henv hΓ this).sort_inv henv hΓ
-      cases congrFun this []
-  let .sort h1 := h1.standard hΓ H.hasType.1
-  exact ⟨_, h1, a1⟩
-
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem IsDefEq.reduce_forallE (H : Γ ⊢ e ≡ .forallE A B : V) :
-    ∃ A' B', Γ ⊢ e ⤳* .forallE A' B' := by
-  have ⟨_, _, e', _, h1, h2, h3⟩ := H.church_rosser hΓ
-  obtain ⟨A₁, B₁, rfl, eA, eB⟩ := (h2.standard hΓ H.hasType.2).forallE_l
-  have ⟨⟨_, hA⟩, _, hB⟩ := H.hasType.2.forallE_inv henv
-  have hA₁ := eA.parRedS.defeq hΓ hA
-  have hB₁ := eB.parRedS.hasType (by exact ⟨hΓ, _, hA⟩) hB |>.defeq_l henv hA₁
-  obtain ⟨_, _, rfl⟩ : ∃ A' B', e' = .forallE A' B' := by
-    cases h3 with
-    | refl
-    | forallEDF _ _ h => exact ⟨_, _, rfl⟩
-    | etaL h => cases ((hA₁.hasType.2.forallE hB₁).uniqU henv hΓ h).sort_forallE_inv henv hΓ
-    | proofIrrel h1 _ h3 =>
-      have := h1.defeqU_l henv hΓ ((hA₁.hasType.2.forallE hB₁).uniqU henv hΓ h3).symm
-      have := ((HasType.sort (by exact this.sort_inv henv)).uniqU henv hΓ this).sort_inv henv hΓ
-      cases congrFun this []
-  let .forallE h1 .. := h1.standard hΓ H.hasType.1
-  exact ⟨_, _, h1⟩
 
 theorem WHRedS.inferType
     (H1 : Γ ⊢ e ⤳* e₁) (W1 : WHNF Γ e₁)

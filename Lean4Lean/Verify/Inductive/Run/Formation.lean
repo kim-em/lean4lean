@@ -133,6 +133,7 @@ structure DeclaredHeadersResult (c : AddInductive.Context)
   sourceContextVEnv : sourceContext.venv = sourceEnv
   sourceMaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
+  sourceHeaderParams : sourceMaterialized.headers.params = headers.params
   materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
     context.venv c.lparams context.mlctx.vlctx stats decl depth
   headerParams : materialized.headers.params = headers.params
@@ -214,6 +215,7 @@ theorem AddInductive.declareInductiveTypes.headersWF
       sourceContext := Hc
       sourceContextVEnv := rfl
       sourceMaterialized := Hmaterialized
+      sourceHeaderParams := rfl
       materialized := Hmaterialized.mono Hinstalled.le
       headerParams := rfl
       parameterScopeEq := rfl }, trivial⟩
@@ -952,6 +954,7 @@ theorem AddInductive.declareConstructors.WF
       · exact hsourceWF
       · exact hvalidCore.tr.wf
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup core
+      · exact Lean4Lean.VerifyInductive.TrInductDeclCore.typeHeadersWF core
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core
       · intro ctor hctor
         change H.context.venv.IsType ctor.uvars [] ctor.type
@@ -1130,6 +1133,7 @@ def ConstructorPhasesResult.materialized
   let M := H.materialized.mono henv
   exact {
     headers := M.headers
+    isNotZero := M.isNotZero
     commonLevel := M.commonLevel
     levels := M.levels
     levelParams := M.levelParams
@@ -1905,7 +1909,9 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
     (k : Level → Bool → Array AddInductive.RecInfo → AddInductive.M alpha)
     (Hk : ∀ elimLevel,
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) →
-      ∀ kTarget,
+      AddInductive.getElimLevel stats indTypes { c with env := outEnv } =
+        .ok elimLevel →
+      ∀ kTarget, KTargetCheck stats indTypes kTarget →
       ∀ {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF cOut
@@ -1953,9 +1959,14 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
         let kTarget ← AddInductive.isKTarget stats indTypes
         AddInductive.mkRecInfos stats indTypes elimLevel
           (k elimLevel kTarget)) { c with env := outEnv }).WF Q := by
-  have Helim := AddInductive.getElimLevel.WF stats indTypes
-    { c with env := outEnv }
-  exact Helim.bind fun elimLevel hElim => by
+  have Helim : (AddInductive.getElimLevel stats indTypes
+      { c with env := outEnv }).WF (fun level =>
+        AddInductive.AdmissibleElimLevel c.lparams level ∧
+        AddInductive.getElimLevel stats indTypes { c with env := outEnv } =
+          .ok level) := by
+    intro level hrun
+    exact ⟨AddInductive.getElimLevel.WF stats indTypes { c with env := outEnv } level hrun, hrun⟩
+  exact Helim.bind fun elimLevel ⟨hElim, hElimRun⟩ => by
     simp only [AddInductive.withTypeCheckerLParams, withReader,
       MonadWithReaderOf.withReader]
     exact (show (AddInductive.isKTarget stats indTypes
@@ -1963,9 +1974,10 @@ theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
         env := outEnv
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF
-        fun _ => True from fun _ _ => trivial).bind fun kTarget _ =>
+        (KTargetCheck stats indTypes) from
+          AddInductive.isKTarget.checkedWF stats indTypes _).bind fun kTarget hk =>
       R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit
-        (k elimLevel kTarget) (Hk elimLevel hElim kTarget)
+        (k elimLevel kTarget) (Hk elimLevel hElim hElimRun kTarget hk)
 
 /-- The executable constructor check and declaration folds jointly establish
 the independent formation judgment and the complete pointwise source/core
@@ -2553,6 +2565,7 @@ theorem BlockCertificate.rebaseCertificate
     · exact Hvalid.tr.wf
     · exact HvalidCtors.tr.wf
     · exact Hcompile.sourceNames
+    · exact fun type member => (Hdecl.1.originalTypes type member).mono hbase
     · exact Hdecl.1.2.2.2.1
     · rcases Hdecl.1.originalConstructors with ⟨envTypes, htypes, hwf⟩
       intro ctor hctor
@@ -2924,21 +2937,6 @@ theorem BlockCertificate.addInductOfNestedFormation
       .nested Hformation VEnv.LE.rfl⟩
     Hcompile.compilesTo
 
-/-- Certificate obligation (open, see HANDOFF.md): the recursors installed by a
-certified block are aligned with the stored iota equations of its final
-abstract environment (`RecursorAlignmentCore`, the K clause, and an inductive
-major), and every new stored equation is headed by one of them. The shapes
-follow from the compilation certificate (`VInductDecl.CompilesTo`) and the
-recursor certificates of the staged trace. -/
-theorem BlockCertificate.recursorProvenance {decl : VInductDecl}
-    (H : BlockCertificate checkSafety prodEnv venv types ctors recursors
-      rules outEnv outVEnv)
-    (_hdecl : decl.WF venv)
-    (_hcompile : decl.CompilesTo venv H.block) :
-    InductiveRecursorProvenance checkSafety prodEnv.constants venv
-      outEnv.constants H.finalVEnv := by
-  sorry
-
 /-- Final assembly point for the implementation-refinement boundary. Once
 the executable traversals have supplied source formation, compilation shape,
 staged typing, and production-map conservation, no further semantic facts are
@@ -2950,6 +2948,8 @@ theorem BlockCertificate.addInduct
     (hcompile : decl.CompilesTo venv H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      venv outEnv.constants H.finalVEnv)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv) :
     AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
       H.finalVEnv := by
@@ -2969,7 +2969,7 @@ theorem BlockCertificate.addInduct
   · intro Haligned
     exact aligned_addDefEqs (H.staged.aligned Haligned) rules
   · exact H.staged.deltaConservative hsourceAligned
-  · exact H.recursorProvenance hdecl hcompile
+  · exact hprovenance.ofUnsafe
 
 /-- For a safe declaration, the staging trace directly supplies the concrete
 safe-observer alignment required by `AddInduct`. -/
@@ -2980,10 +2980,12 @@ theorem BlockCertificate.addInductSafe
     (hcompile : decl.CompilesTo venv H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      venv outEnv.constants H.finalVEnv)
     (hsourceAligned : Aligned .safe prodEnv.constants venv) :
     AddInduct .safe prodEnv.constants venv decl outEnv.constants
       H.finalVEnv := by
-  exact H.addInduct hdecl hcompile horigins hsourceAligned
+  exact H.addInduct hdecl hcompile horigins hprovenance hsourceAligned
 
 /-- Replay a safe certified block into any safety-indexed source model and
 construct the concrete `AddInduct` relation at that model's observer safety. -/
@@ -2995,7 +2997,9 @@ theorem BlockCertificate.rebaseAddInductSafe
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
-      decl) :
+      decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      base outEnv.constants H.finalVEnv) :
     ∃ largerOutBase,
       ∃ Hlarger : BlockCertificate targetSafety prodEnv largerBase types ctors
         recursors rules outEnv largerOutBase,
@@ -3014,10 +3018,12 @@ theorem BlockCertificate.rebaseAddInductSafe
       have hblock := Hlarger.block_eq_of_projections_eq H hprojections
       rw [← hblock] at hcompile
       exact hcompile.mono hbase Hlarger.wf
+  have hprovenanceLarger := hprovenance.rebaseBlock hbase
+    (VEnv.addDefEqRules_mono houtBase) H.install Hlarger.install rfl
   have hadd : AddInduct targetSafety prodEnv.constants largerBase decl outEnv.constants
       (largerOutBase.addDefEqRules rules) := by
     simpa [BlockCertificate.finalVEnv, hprojections] using
-      Hlarger.addInduct hdeclLarger hcompileLarger horigins Hvalid.tr.aligned
+      Hlarger.addInduct hdeclLarger hcompileLarger horigins hprovenanceLarger Hvalid.tr.aligned
   exact ⟨largerOutBase, Hlarger, hadd,
     VEnv.addDefEqRules_mono houtBase, hprojections⟩
 
@@ -3083,6 +3089,8 @@ theorem BlockCertificate.extendSafeExact
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      (ves.venv .safe) outEnv.constants H.finalVEnv)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
@@ -3098,13 +3106,13 @@ theorem BlockCertificate.extendSafeExact
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
       wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
   rcases H.rebaseAddInductSafe (valid .unsafe)
-      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins with
+      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProj⟩
   rcases H.rebaseAddInductSafe (valid .partial)
-      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins with
+      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins hprovenance with
     ⟨partialBase, Hpartial, HpartialAdd, hpartialLE, hpartialProj⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl
-      hdecl hcompile horigins with
+      hdecl hcompile horigins hprovenance with
     ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProj⟩
   let pre : DefinitionSafety → VEnv
     | .unsafe => unsafeBase
@@ -3187,6 +3195,8 @@ theorem BlockCertificate.extendSafe
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      (ves.venv .safe) outEnv.constants H.finalVEnv)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
@@ -3194,7 +3204,7 @@ theorem BlockCertificate.extendSafe
         H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases H.extendSafeExact wf hdecl hcompile horigins hclosed
+  rcases H.extendSafeExact wf hdecl hcompile horigins hprovenance hclosed
       hconstructorOwners hconstructorSemantics with
     ⟨ves', wf', hle, _hadd, _hsafe⟩
   exact ⟨ves', wf', hle⟩
@@ -3210,11 +3220,13 @@ theorem BlockCertificate.trEnv'
     (hcompile : decl.CompilesTo venv H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      venv outEnv.constants H.finalVEnv)
     (hsource : TrEnv' checkSafety prodEnv.constants quotInit venv) :
     TrEnv' checkSafety outEnv.constants quotInit
       H.finalVEnv :=
   .induct hdecl
-    (H.addInduct hdecl hcompile horigins hsource.aligned) hsource
+    (H.addInduct hdecl hcompile horigins hprovenance hsource.aligned) hsource
 
 theorem BlockCertificate.trEnvSafe
     {decl : VInductDecl}
@@ -3224,11 +3236,13 @@ theorem BlockCertificate.trEnvSafe
     (hcompile : decl.CompilesTo venv H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      venv outEnv.constants H.finalVEnv)
     (hsource : TrEnv' .safe prodEnv.constants quotInit venv) :
     TrEnv' .safe outEnv.constants quotInit
       H.finalVEnv :=
   .induct hdecl
-    (H.addInductSafe hdecl hcompile horigins hsource.aligned) hsource
+    (H.addInductSafe hdecl hcompile horigins hprovenance hsource.aligned) hsource
 
 /-- Unsafe inductives extend only the unsafe abstract model; partial and safe
 models replay the concrete additions through `TrEnv'.ignore`. -/
@@ -3241,6 +3255,8 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      (ves.venv .unsafe) outEnv.constants H.finalVEnv)
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe)
     (hclosed : MutualInductivesClosed outEnv)
@@ -3269,7 +3285,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
   have htrUnsafe : TrEnv' .unsafe outEnv.constants outEnv.quotInit
       H.finalVEnv := by
     rw [H.staged.quotInit_eq]
-    exact H.trEnv' hdecl hcompile horigins
+    exact H.trEnv' hdecl hcompile horigins hprovenance
       (wf.tr (safety := .unsafe))
   have htrPartial : TrEnv' .partial outEnv.constants outEnv.quotInit
       (ves.venv .partial) := by
@@ -3298,7 +3314,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
   have haddUnsafe : AddInduct .unsafe prodEnv.constants
       (ves.venv .unsafe) decl outEnv.constants
       H.finalVEnv :=
-    H.addInduct hdecl hcompile horigins
+    H.addInduct hdecl hcompile horigins hprovenance
       (wf.tr (safety := .unsafe)).aligned
   have houtMapWF := H.staged.productionTrace.targetMapWF
     (wf.tr (safety := .unsafe)).map_wf
@@ -3354,6 +3370,8 @@ theorem BlockCertificate.extendUnsafeOfHidden
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      (ves.venv .unsafe) outEnv.constants H.finalVEnv)
     (hunsafe : ∀ entry ∈ types ++ ctors ++ recursors,
       entry.1.safety = .unsafe)
     (hclosed : MutualInductivesClosed outEnv)
@@ -3363,72 +3381,9 @@ theorem BlockCertificate.extendUnsafeOfHidden
         H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases H.extendUnsafeOfHiddenExact wf hdecl hcompile horigins hunsafe hclosed
+  rcases H.extendUnsafeOfHiddenExact wf hdecl hcompile horigins hprovenance hunsafe hclosed
       hconstructorOwners hconstructorSemantics with ⟨ves', wf', hle, _⟩
   exact ⟨ves', wf', hle⟩
-
-theorem BlockCertificate.trEnvOfOrdinaryCompilation
-    (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
-      blockRecursors rules outEnv outVEnv)
-    (Hformation : FormationCertificate venv decl)
-    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : OrdinaryCompilationCertificate venv decl H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
-      decl)
-    (htr : TrEnv' checkSafety prodEnv.constants quotInit venv) :
-    TrEnv' checkSafety outEnv.constants quotInit
-      H.finalVEnv := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty
-      Hsource
-      (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty Hsource hnonempty)
-  exact H.trEnv' (Hformation.declWF Htranslated.sourceWF)
-    Hcompile.compilesTo horigins htr
-
-theorem BlockCertificate.trEnvOfNestedCompilation
-    (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
-      blockRecursors rules outEnv outVEnv)
-    (Hformation : FormationCertificate venv decl)
-    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : NestedCompilationCertificate venv decl H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
-      decl)
-    (htr : TrEnv' checkSafety prodEnv.constants quotInit venv) :
-    TrEnv' checkSafety outEnv.constants quotInit
-      H.finalVEnv := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
-      Hsource hnonempty Hcompile
-  exact H.trEnv' (Hformation.declWF Htranslated.sourceWF)
-    Hcompile.compilesTo horigins htr
-
-/-- Concrete-environment endpoint using the independent nested formation
-derivation.  This is the refinement path for declarations whose restored
-constructors deliberately do not have the ordinary lowered `CtorShape`. -/
-theorem BlockCertificate.trEnvOfNestedFormation
-    (H : BlockCertificate checkSafety prodEnv venv blockTypes blockCtors
-      blockRecursors rules outEnv outVEnv)
-    (Hformation : decl.NestedFormationWF venv)
-    (Hsource : TrInductDeclCore venv lparams nparams sourceTypes isUnsafe decl
-      sourceEnvTypes sourceEnvCtors)
-    (hnonempty : sourceTypes ≠ [])
-    (Hcompile : NestedCompilationCertificate venv decl H.block)
-    (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
-      decl)
-    (htr : TrEnv' checkSafety prodEnv.constants quotInit venv) :
-    TrEnv' checkSafety outEnv.constants quotInit
-      H.finalVEnv := by
-  have Htranslated :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNestedCompilation
-      Hsource hnonempty Hcompile
-  exact H.trEnv'
-    ⟨Htranslated.sourceWF, .nested Hformation VEnv.LE.rfl⟩
-    Hcompile.compilesTo horigins htr
-
 
 end VerifyInductive
 end Lean4Lean

@@ -87,6 +87,10 @@ theorem VEnv.IsDefEq.noConsts
           Hfresh Hlookup (by simpa using hcontains)
       have htype := (Htypes.1 Hlookup).choose_spec.1
       exact ⟨hname, hname, by simpa using htype⟩
+  | elimDF _ _ _ _ _ _ _ ih =>
+      exact ⟨rfl, rfl, (ih Hctx).1⟩
+  | elimIota _ _ _ _ _ _ _ ihLeft ihRight =>
+      exact ⟨(ihLeft Hctx).1, (ihRight Hctx).1, (ihLeft Hctx).2.2⟩
   | appDF _ _ ihFn ihArg =>
       specialize ihFn Hctx
       specialize ihArg Hctx

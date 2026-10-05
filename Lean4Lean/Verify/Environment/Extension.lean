@@ -27,13 +27,15 @@ theorem VEnv.addConst_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ �
       dsimp
       split <;> [exact id; exact H.constants]
     defeqs := H.defeqs
-    projections := H.projections }
+    projections := H.projections
+    eliminators := H.eliminators }
 
 theorem VEnv.addDefEq_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
     env₁.addDefEq df ≤ env₂.addDefEq df where
   constants := H.constants
   defeqs := by rintro d (rfl | hd) <;> [exact .inl rfl; exact .inr (H.defeqs hd)]
   projections := by exact H.projections
+  eliminators := H.eliminators
 
 theorem VEnv.addConsts_mono {env₁ env₂ env₁' env₂' : VEnv} (H : env₁ ≤ env₂) :
     ∀ {cis}, env₁.addConsts cis = some env₁' → env₂.addConsts cis = some env₂' → env₁' ≤ env₂'

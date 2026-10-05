@@ -119,6 +119,7 @@ theorem AddInductive.runWithStats.primitiveClosedWF
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hlparams : c.lparams.Nodup)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial) :
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
       c).WF fun outEnv =>
@@ -126,7 +127,7 @@ theorem AddInductive.runWithStats.primitiveClosedWF
         ∃ R : CompletedConstructorPhases c stats decl numParams isUnsafe
             depth Hc.venv indTypes ctorEnv,
           Nonempty (CompletedRecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.completedPrimitiveWF stats numParams
+  apply AddInductive.runWithStats.completedPrimitiveWF (hsourceSafety := hsourceSafety) stats numParams
     indTypes numNested isUnsafe c
   · exact AddInductive.formationCore.primitiveClosedWF Hc Hclosed Hdecl
       Hmaterialized Hshape hvisible
@@ -200,7 +201,8 @@ theorem AddInductive.run.primitiveClosedWF
       simpa [hlparamsEq] using Hshape
     have hlparamsNodup : c'.lparams.Nodup := by
       simpa [hlparamsEq] using hnodup
-    exact (AddInductive.runWithStats.primitiveClosedWF Hc' Hclosed' Hdecl'
+    exact (AddInductive.runWithStats.primitiveClosedWF
+      (hsourceSafety := by rw [hsafetyEq]) Hc' Hclosed' Hdecl'
       Hmaterialized Hshape' hvisible hlparamsNodup
       HnotPartial').mono fun outEnv Hout => by
         rcases Hout with ⟨ctorEnv, R, Hrecursors⟩

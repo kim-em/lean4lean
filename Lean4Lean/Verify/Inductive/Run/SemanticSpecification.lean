@@ -44,7 +44,7 @@ theorem SemanticRunWithStatsResult.independentSpecification
     envCtors := R.declared.venvCtors
     source := R.core
     extension := Hrecursors.addInductOfOrdinaryCompilation T.rules
-      T.rulesWF hnonempty T.compilation }⟩⟩
+      T.rulesWF hnonempty (T.compilation hnonempty) }⟩⟩
 
 /-- Declaration-facing source alignment retains the exact original syntax in
 the independent specification result. -/

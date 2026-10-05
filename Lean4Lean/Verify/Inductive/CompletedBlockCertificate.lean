@@ -222,6 +222,7 @@ theorem CompletedBlockCertificate.rebaseCertificate
     · exact Hvalid.tr.wf
     · exact HcheckingCtors.wf
     · exact Hcompile.sourceNames
+    · exact fun type member => (Hdecl.1.originalTypes type member).mono hbase
     · exact Hdecl.1.2.2.2.1
     · rcases Hdecl.1.originalConstructors with ⟨baseTypes, hbaseTypes, hwf⟩
       have hle : baseTypes ≤ largerTypes :=
@@ -273,17 +274,6 @@ theorem CompletedBlockCertificate.addInductAbstract
     VEnv.AddInduct venv decl H.finalVEnv :=
   .intro Hdecl Hcompile H.wf H.install
 
-/-- Certificate obligation (open, see HANDOFF.md): recursor provenance of a
-completed block, as `BlockCertificate.recursorProvenance`. -/
-theorem CompletedBlockCertificate.recursorProvenance {decl : VInductDecl}
-    (H : CompletedBlockCertificate checkSafety prodEnv venv types ctors
-      recursors rules outEnv outVEnv)
-    (_hdecl : decl.WF venv)
-    (_hcompile : decl.CompilesTo venv H.block) :
-    InductiveRecursorProvenance checkSafety prodEnv.constants venv
-      outEnv.constants H.finalVEnv := by
-  sorry
-
 /-- Concrete executable-to-specification boundary for a completed block.
 Whole-block alignment and delta conservation use the atomic trace, which is
 valid for ordinary and primitive formation alike. -/
@@ -294,6 +284,8 @@ theorem CompletedBlockCertificate.addInduct
     (hcompile : decl.CompilesTo venv H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      venv outEnv.constants H.finalVEnv)
     (hsourceAligned : Aligned checkSafety prodEnv.constants venv) :
     AddInduct checkSafety prodEnv.constants venv decl outEnv.constants
       H.finalVEnv := by
@@ -315,7 +307,7 @@ theorem CompletedBlockCertificate.addInduct
       (H.staged.combinedAtomic.aligned (.projections Haligned)) rules
   · exact H.staged.combinedAtomic.deltaConservative
       (.projections hsourceAligned)
-  · exact H.recursorProvenance hdecl hcompile
+  · exact hprovenance.ofUnsafe
 
 /-- Replay a safe completed block into one observer model and construct the
 corresponding concrete `AddInduct` witness. -/
@@ -327,7 +319,9 @@ theorem CompletedBlockCertificate.rebaseAddInductSafe
     (hdecl : decl.WF base)
     (hcompile : decl.CompilesTo base H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
-      decl) :
+      decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      base outEnv.constants H.finalVEnv) :
     ∃ largerOutBase,
       ∃ Hlarger : CompletedBlockCertificate targetSafety prodEnv largerBase
         types ctors recursors rules outEnv largerOutBase,
@@ -347,11 +341,13 @@ theorem CompletedBlockCertificate.rebaseAddInductSafe
       have hblock := Hlarger.block_eq_of_projections_eq H hprojections
       rw [← hblock] at hcompile
       exact hcompile.mono hbase Hlarger.wf
+  have hprovenanceLarger := hprovenance.rebaseBlock hbase
+    (VEnv.addDefEqRules_mono houtBase) H.install Hlarger.install rfl
   have hadd : AddInduct targetSafety prodEnv.constants largerBase decl
       outEnv.constants
         (largerOutBase.addDefEqRules rules) := by
     simpa [CompletedBlockCertificate.finalVEnv, hprojections] using
-      Hlarger.addInduct hdeclLarger hcompileLarger horigins Hvalid.tr.aligned
+      Hlarger.addInduct hdeclLarger hcompileLarger horigins hprovenanceLarger Hvalid.tr.aligned
   exact ⟨largerOutBase, Hlarger, hadd,
     VEnv.addDefEqRules_mono houtBase, hprojections⟩
 

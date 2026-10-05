@@ -839,9 +839,11 @@ structure PrimitiveDeclaredHeadersResult (c : AddInductive.Context)
   sourceContextVEnv : sourceContext.venv = sourceEnv
   sourceMaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
+  sourceHeaderParams : sourceMaterialized.headers.params = headers.params
   materialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
     context.venv c.lparams context.mlctx.vlctx stats decl depth
   headerParams : materialized.headers.params = headers.params
+  parameterScopeEq : materialized.parameterScope = sourceMaterialized.parameterScope
 
 /-- Constructor installation completes the primitive batch and is the first
 point at which the ordinary valid checking context is restored. -/

@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.Typing.LevelEquiv
+import Lean4Lean.WHNFCacheKey
 
 namespace Lean4Lean
 open VEnv Lean
@@ -91,23 +92,34 @@ theorem ConditionallyHasType.fresh
     · cases Nat.lt_irrefl _ (h2 _ rfl)
     · exact h1
 
-/-- The cache invariant for `whnfCore`/`whnf`: the result is definitionally equal to the input,
-and when the input translates to a `forallE` the result translates to the same `forallE`
-(the checker returns such inputs syntactically, only stripping `mdata` and let bindings). -/
+theorem whnfCacheKey_eqv {e e' : Expr} (h : e == e') :
+    whnfCacheKey e = whnfCacheKey e' := by
+  simp [(· == ·)] at h
+  cases e <;> cases e' <;> first | rfl | (change false = true at h; cases h)
+
+theorem TrExprS.cacheKey_not_forall (H : TrExprS env Us Δ e e')
+    (hkey : whnfCacheKey e = true) : e' ≠ .forallE domain body := by
+  cases H <;> simp only [whnfCacheKey] at hkey
+  all_goals first | contradiction | (intro h; cases h)
+  case proj hmajor hprojection => exact hprojection.target_not_forall rfl
+
+/-- Cached inputs have heads whose translations cannot already be foralls.
+The retained translation and equality remain valid under context changes;
+no literal choice of a projection expansion is compared across witnesses. -/
 def ConditionallyWHNF
     (ngen : NameGenerator) (env : VEnv) (Us : List Name) (Δ : VLCtx) (e e₁ : Expr) : Prop :=
   Closed e ∧ FVarsIn ngen.Reserves e ∧ Closed e₁ ∧ FVarsIn ngen.Reserves e₁ ∧
     (FVarsIn (· ∈ Δ.fvars) e → ∃ e',
       FVarsBelow Δ e e₁ ∧ TrExprS env Us Δ e e' ∧ TrExpr env Us Δ e₁ e' ∧
-      (∀ A B, e' = .forallE A B → TrExprS env Us Δ e₁ e'))
+      whnfCacheKey e = true)
 
 theorem ConditionallyWHNF.mk {Δ : VLCtx}
     (noBV : Δ.NoBV) (hb : FVarsBelow Δ e e₁)
     (he : TrExprS env Us Δ e e') (he₁ : TrExpr env Us Δ e₁ e')
-    (hs : ∀ A B, e' = .forallE A B → TrExprS env Us Δ e₁ e')
+    (hkey : whnfCacheKey e = true)
     (re : FVarsIn ngen.Reserves e) (re₁ : FVarsIn ngen.Reserves e₁) :
     ConditionallyWHNF ngen env Us Δ e e₁ := by
-  refine ⟨noBV ▸ he.closed, re, noBV ▸ he₁.closed, re₁, fun _ => ⟨_, hb, he, he₁, hs⟩⟩
+  refine ⟨noBV ▸ he.closed, re, noBV ▸ he₁.closed, re₁, fun _ => ⟨_, hb, he, he₁, hkey⟩⟩
 
 theorem ConditionallyWHNF.mono (H : ngen₁ ≤ ngen₂) :
     ConditionallyWHNF ngen₁ env Us Δ e A → ConditionallyWHNF ngen₂ env Us Δ e A
@@ -130,17 +142,10 @@ theorem ConditionallyWHNF.weakN_inv
   have ee₁ := h3.uniq henv (.refl henv hΔ) <| he₁.weakFV henv W hΔ
   have h4 := ee₁.symm.trans henv hΔ.toCtx h4 |>.trans henv hΔ.toCtx ee
   have h4 := (IsDefEqU.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
-  refine ⟨_, fun P hP he' => ?_, he, ⟨_, he₁, h4⟩, fun A B hAB => ?_⟩
+  refine ⟨_, fun P hP he' => ?_, he, ⟨_, he₁, h4⟩, h5⟩
   · exact h1 _
       ⟨(IsFVarUpSet.and_fvars hΔ.1.fvwf).1 hP, fun h => (hΔ.2.1 _ _ rfl).1.elim h.2⟩
       (he'.mp (fun _ => .intro) he.fvarsIn) |>.mono fun _ => (·.1)
-  · have eq1 := h2.det (he.weakFV henv W hΔ)
-    have h6 := h5 _ _ (by rw [eq1, hAB]; rfl)
-    have ⟨e₁'', he₁'⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h6 c2 <| h1 _ this H4
-    have eq2 := h6.det (he₁'.weakFV henv W hΔ)
-    rw [eq1] at eq2
-    cases VExpr.liftN_inj.1 eq2
-    exact he₁'
 
 theorem ConditionallyWHNF.fresh
     (henv : env.WF)
@@ -151,11 +156,7 @@ theorem ConditionallyWHNF.fresh
   have ⟨e', h1, h2, h3, h5⟩ := H (H4.mp ?_ f1)
   · have W : VLCtx.FVLift Δ ((some (⟨ngen.curr⟩, deps), d) :: Δ) 0 (0 + d.depth) 0 :=
       .skip_fvar _ _ .refl
-    refine ⟨_, fun P hP => h1 _ hP.1, h2.weakFV henv W hΔ, h3.weakFV henv W hΔ, fun A B hAB => ?_⟩
-    obtain ⟨A₀, B₀, rfl⟩ : ∃ A₀ B₀, e' = .forallE A₀ B₀ := by
-      cases e' <;> simp [VExpr.liftN] at hAB
-      exact ⟨_, _, rfl⟩
-    exact (h5 _ _ rfl).weakFV henv W hΔ
+    exact ⟨_, fun P hP => h1 _ hP.1, h2.weakFV henv W hΔ, h3.weakFV henv W hΔ, h5⟩
   · intro _ h1 h2; simp at h1; rcases h1 with rfl | h1
     · cases Nat.lt_irrefl _ (h2 _ rfl)
     · exact h1

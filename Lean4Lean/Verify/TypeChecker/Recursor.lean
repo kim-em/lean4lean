@@ -169,7 +169,7 @@ theorem quotReduceRecCont.lift.WF (he : c.TrExprS e e') {ls : List Level}
     rw [← hsplit]; exact hfull.wf c.Ewf c.Δwf
   have hmajor : c.IsDefEqU args'[5] (VExpr.mkApps (.const ``Quot.mk lsm') ([a1', a2'] ++ [a3'])) :=
     hmkdefeq.symm
-  have hiota := VIotaRuleShape.iota_body c.Ewf c.Δwf.toCtx hq.liftRecursorShape (by decide)
+  have hiota := VIotaRuleShape.iota_body c.Ewf c.Δwf.toCtx hq.liftRecursorShape
     hq.mkConstructorShape hq.liftRuleShape hq.rigid rfl hls'w hls'len (pre := args'.take 5)
     (by simp; omega) hwf hlsm'len hlsm'w rfl rfl hmajor
   have hbody : ((hq.liftRuleShape.rhsBody.instL ls').instOuter
@@ -366,7 +366,7 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
   subst hname'
   have hfindC : c.env.constants.find? info.name = some (.recInfo info) := by
     rwa [← c.trenv.map_wf.find?'_eq_find?]
-  obtain ⟨⟨indLevels, hcnp, ⟨Hrec⟩, hrigid, hrules⟩, -⟩ := c.recursorRules hfindC hsafe
+  obtain ⟨⟨cnparams, indLevels, ctorParams, ⟨Hrec⟩, hrigid, hrules⟩, -⟩ := c.recursorRules hfindC hsafe
   obtain ⟨df, ⟨Hrule⟩, hrhs, ctorUvars, hIL, ⟨Hctor⟩⟩ := hrules rule hmem
   have hls'len : ls'.length = info.levelParams.length :=
     (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hls)).symm.trans hlsLen
@@ -387,10 +387,23 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
     (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlsc)).symm.trans hlenc
   have hlsc'w := VLevel.WF.of_mapM_ofLevel hlsc
   have hmajor : c.IsDefEqU (args'[info.getMajorIdx]'(by omega))
-      (VExpr.mkApps (.const rule.ctor lsc') (MA'.take info.numParams ++ MA'.drop info.numParams)) := by
+      (VExpr.mkApps (.const rule.ctor lsc') (MA'.take cnparams ++ MA'.drop cnparams)) := by
     rw [List.take_append_drop]
     exact hmdefeq.symm.trans c.Ewf c.Δwf (hm₂S.uniq c.Ewf (.refl c.Ewf c.Δwf) hMfull)
-  have hMlen : MA'.length = info.numParams + rule.nfields := by rw [← hMsize]; exact hsizeM
+  have hMlen : MA'.length = cnparams + rule.nfields := by
+    have hprefix := VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx
+      (f := VExpr.mkApps (.const info.name ls')
+        (args'.take info.getMajorIdx ++ [args'[info.getMajorIdx]'(by omega)]))
+      (args := args'.drop (info.getMajorIdx + 1))
+      (by
+        rw [← VExpr.mkApps_append, List.append_assoc, List.singleton_append,
+          ← List.drop_eq_getElem_cons (by omega), List.take_append_drop]
+        exact hfull.wf c.Ewf c.Δwf)
+    have ⟨_, ht, _⟩ := Hrec.spine_typing c.Ewf c.Δwf.toCtx hls'w hls'len
+      (by simp [RecursorVal.getMajorIdx]; omega) hprefix
+    have hmTyped := (hmajor.of_l c.Ewf c.Δwf.toCtx ht).hasType.2
+    rw [List.take_append_drop] at hmTyped
+    exact Hctor.saturated_of_hasType c.Ewf c.Δwf.toCtx hrigid hmTyped
   -- the abstract reduction
   have hsplit : args' = args'.take info.getMajorIdx ++
       (args'[info.getMajorIdx]'(by omega)) :: args'.drop (info.getMajorIdx + 1) := by
@@ -399,7 +412,7 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
       (VExpr.mkApps (.const info.name ls') (args'.take info.getMajorIdx ++
         (args'[info.getMajorIdx]'(by omega)) :: args'.drop (info.getMajorIdx + 1))) := by
     rw [← hsplit]; exact hfull.wf c.Ewf c.Δwf
-  have hiota := Hrule.iota c.Ewf c.Δwf.toCtx Hrec hcnp Hctor hrigid hIL hls'w hls'len
+  have hiota := Hrule.iota c.Ewf c.Δwf.toCtx Hrec Hctor hrigid hIL hls'w hls'len
     (pre := args'.take info.getMajorIdx)
     (by simp [RecursorVal.getMajorIdx]; omega) hwf hlsc'len hlsc'w
     (by simp; omega) (by simp; omega) hmajor
@@ -425,13 +438,13 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
     · rw [List.nil_append, List.length_take, ← Expr.getAppArgs_toList, Array.length_toList,
         Nat.min_eq_left hfii]
   have hr2 : ∀ f, mkAppRange f (major₂.getAppArgs.size - rule.nfields) major₂.getAppArgs.size
-      major₂.getAppArgs = f.mkAppList (major₂.getAppArgsList.drop info.numParams) := by
+      major₂.getAppArgs = f.mkAppList (major₂.getAppArgsList.drop cnparams) := by
     intro f
     rw [mkAppRange_suffix_eq (by omega)]
     congr 2; omega
   generalize hA : e.getAppArgsList.take fii ++
-    major₂.getAppArgsList.drop info.numParams ++ e.getAppArgsList.drop (info.getMajorIdx + 1) = A
-  generalize hA' : args'.take fii ++ MA'.drop info.numParams ++
+    major₂.getAppArgsList.drop cnparams ++ e.getAppArgsList.drop (info.getMajorIdx + 1) = A
+  generalize hA' : args'.take fii ++ MA'.drop cnparams ++
     args'.drop (info.getMajorIdx + 1) = A'
   have hAtr : List.Forall₂ c.TrExprS A A' := by
     rw [← hA, ← hA']
@@ -497,8 +510,8 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
   split <;> [exact hid; skip]
   simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI hnargs
   subst hI
-  obtain ⟨ind, ctorName, hind, hctors, indUvars, indDoms, ctorDoms, ctorBody, hIc, hIlen, hCc,
-    hClen, hparams⟩ := hK
+  obtain ⟨ind, ctorName, hind, hctors, indUvars, indType, ctorType,
+    indDoms, ctorDoms, ctorBody, hIc, hInorm, hIlen, hCc, hCnorm, hClen, hparams⟩ := hK
   -- the nullary constructor application
   have hind' : c.env.find? info.getMajorInduct = some (.inductInfo ind) := by
     rw [Lean.Kernel.Environment.find?, c.trenv.map_wf.find?'_eq_find?]; exact hind
@@ -538,14 +551,19 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
   have hAAwf := hAfull.wf c.Ewf c.Δwf
   -- the inductive application is a proposition, and its arguments are typed along its telescope
   have hcI := VEnv.HasType.const (Γ := c.vlctx.toCtx) hIc hlsI'w (by simpa using hlsI'len)
+  have hcI := hcI.defeqU_r c.Ewf c.Δwf.toCtx
+    ((hInorm.instL hlsI'w).weak0 c.Ewf.ordered)
   rw [VExpr.instL_wrapForalls] at hcI
   have ⟨hIargs, hIsort⟩ := VEnv.HasType.mkApps_wrapForalls c.Ewf c.Δwf.toCtx hcI hAAwf
     (by simp [hAAlen, hIlen])
   simp only [VExpr.instL, VLevel.inst, VExpr.instOuter_sort] at hIsort
   have hΓI : OnCtx (indDoms.reverse ++ []) (c.venv.IsType indUvars) :=
-    (VEnv.IsType.wrapForalls_inv c.Ewf trivial (c.Ewf.ordered.constWF hIc)).1
+    (VEnv.IsType.wrapForalls_inv c.Ewf trivial
+      ((c.Ewf.ordered.constWF hIc).defeqU_l c.Ewf trivial hInorm)).1
   -- the constructor application is typed at the inductive application
   have hcT := VEnv.HasType.const (Γ := c.vlctx.toCtx) hCc hlsI'w (by simpa using hlsI'len)
+  have hcT := hcT.defeqU_r c.Ewf c.Δwf.toCtx
+    ((hCnorm.instL hlsI'w).weak0 c.Ewf.ordered)
   rw [VExpr.instL_wrapForalls] at hcT
   have hnewT : c.HasType (VExpr.mkApps (.const ctorName lsI') (AA'.take info.numParams))
       ((ctorBody.instL lsI').instOuter (AA'.take info.numParams)) := by

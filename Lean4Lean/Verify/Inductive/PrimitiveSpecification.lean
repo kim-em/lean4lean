@@ -31,7 +31,7 @@ theorem SemanticPrimitiveRunWithStatsResult.independentSpecification
     envCtors := R.ctorVEnv
     source := R.core
     extension := Hrecursors.addInductOfOrdinaryCompilation T.rules
-      T.rulesWF hnonempty T.compilation }⟩⟩
+      T.rulesWF hnonempty (T.compilation hnonempty) }⟩⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -1,3 +1,4 @@
+import Lean4Lean.Verify.Inductive.Recursor.RestoredRealization
 import Lean4Lean.Verify.Inductive.Nested.CompilationAssembly
 import Lean4Lean.Verify.Inductive.Nested.OrderInsensitiveAlignment
 import Lean4Lean.Verify.Inductive.Nested.EndToEnd
@@ -154,7 +155,7 @@ constructor.  `productionOrder` is the exact finite join between them.
 This separation is essential for mutual nested declarations: asking the
 abstract environment to follow production's per-family order would require a
 constructor to typecheck before later sibling headers existed. -/
-structure NestedFinalAssemblyCertificate
+structure NestedFinalAssemblyShape
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -191,7 +192,7 @@ structure NestedFinalAssemblyCertificate
     (canonicalRestoredShapeBlock decl primaryRecursors auxiliaryRecursors)
       finalBaseVEnv production sourceSemantics
       (main :: rest) primaryRules
-  auxiliarySemantics : RestoredAuxiliarySemanticTrace decl
+  auxiliarySemantics : RestoredAuxiliaryShapeTrace decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety (canonical.venvCtors.addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
@@ -213,7 +214,7 @@ structure NestedFinalAssemblyCertificate
       (canonical.venvCtors.addProjections decl.projectionEntries)
       finalBaseVEnv auxiliarySemantics [] [] auxiliaryRecursors auxiliaryRules
 
-theorem NestedFinalAssemblyCertificate.constructorArityPrefix
+theorem NestedFinalAssemblyShape.constructorArityPrefix
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -222,7 +223,7 @@ theorem NestedFinalAssemblyCertificate.constructorArityPrefix
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
     {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
+    (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams
       isUnsafe safety) :
     decl.ConstructorArityPrefix C.production.loweredDecl := by
   have h := C.formationAssembly.constructorArityPrefix
@@ -233,7 +234,7 @@ theorem NestedFinalAssemblyCertificate.constructorArityPrefix
 exact executable restoration trace.  All concrete layout, production order,
 and restored constant-value equations are projections of `replay`; only the
 semantic rule/formation judgments remain downstream of installation. -/
-noncomputable def NestedFinalAssemblyCertificate.ofCanonicalReplay
+noncomputable def NestedFinalAssemblyShape.ofCanonicalReplay
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -261,7 +262,7 @@ noncomputable def NestedFinalAssemblyCertificate.ofCanonicalReplay
     (Hprimary : RestoredPrimaryIotaSemanticTrace decl
       (canonicalRestoredShapeBlock decl primaryRecursors auxiliaryRecursors)
         finalBaseVEnv P Hsource (main :: rest) primaryRules)
-    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+    (Hauxiliary : RestoredAuxiliaryShapeTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety (canonical.venvCtors.addProjections decl.projectionEntries)
           H.auxiliaries
@@ -278,7 +279,7 @@ noncomputable def NestedFinalAssemblyCertificate.ofCanonicalReplay
         primaryRules auxiliaryRules) main safety (canonical.venvCtors.addProjections decl.projectionEntries)
           (canonical.venvCtors.addProjections decl.projectionEntries)
           finalBaseVEnv Hauxiliary [] [] auxiliaryRecursors auxiliaryRules) :
-    NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams isUnsafe
+    NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe
       safety where
   production := P
   typeEntries := replay.typeEntries
@@ -341,7 +342,7 @@ structure NestedFinalAssemblyRemainder
       actualEntries ~
         (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   sourceMapWF : sourceProdEnv.constants.WF
-  auxiliarySemantics : RestoredAuxiliarySemanticTrace decl
+  auxiliarySemantics : RestoredAuxiliaryShapeTrace decl
     (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules) main safety (canonical.venvCtors.addProjections decl.projectionEntries) H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules
@@ -376,7 +377,7 @@ noncomputable def NestedFinalAssemblyRemainder.ofCanonicalReplay
       replay.constructorEntries replay.recursorEntries decl.projectionEntries
         canonicalProdEnv finalBaseVEnv)
     (hsourceWF : sourceProdEnv.constants.WF)
-    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+    (Hauxiliary : RestoredAuxiliaryShapeTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety (canonical.venvCtors.addProjections decl.projectionEntries)
           H.auxiliaries
@@ -441,7 +442,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     (hunsafeEq : decl.isUnsafe = isUnsafe)
     (htypesSource : decl.types = main :: rest)
     (hsourceNonempty : sourceTypes ≠ []) :
-    NestedFinalAssemblyCertificate (sourceTypes := sourceTypes) H sourceEnv
+    NestedFinalAssemblyShape (sourceTypes := sourceTypes) H sourceEnv
       decl lparams nparams isUnsafe safety where
   production := P
   typeEntries := typeEntries
@@ -532,7 +533,7 @@ semantics and primary iota semantics are supplied one actual restoration step
 at a time; neither aggregate trace nor the final certificate can be replaced
 by an unrelated witness.  The residual `finish` callback begins only after
 both folds have exposed their exact owner, recursor, and rule lists. -/
-structure NestedFinalAssemblyProducerEvidence
+structure NestedFinalAssemblyShapeEvidence
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -664,7 +665,7 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfExactSource
         auxiliaryRecursors restoredRules auxiliaryRules typeEntries
         constructorEntries recursorEntries canonicalProdEnv finalBaseVEnv
         canonical)) :
-    Nonempty { C : NestedFinalAssemblyCertificate H sourceEnv decl lparams
+    Nonempty { C : NestedFinalAssemblyShape H sourceEnv decl lparams
         nparams isUnsafe safety // C.production = P } := by
   have hownersNonempty : decl.types ≠ [] :=
     List.Forall₂.right_ne_nil Hsource.types hsourceNonempty
@@ -750,7 +751,7 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfFamilies
         auxiliaryRecursors restoredRules auxiliaryRules typeEntries
         constructorEntries recursorEntries canonicalProdEnv finalBaseVEnv
         canonical)) :
-    Nonempty { C : NestedFinalAssemblyCertificate H sourceEnv decl lparams
+    Nonempty { C : NestedFinalAssemblyShape H sourceEnv decl lparams
         nparams isUnsafe safety // C.production = P } := by
   rcases HexactSource with ⟨primaryRecursors, Hsource'⟩
   exact H.finalAssemblyOfExactSource P sourceEnv decl lparams nparams
@@ -762,10 +763,10 @@ theorem RestoredNestedDeclarationsResult.finalAssemblyOfFamilies
     (fun main rest Hsource restoredRules Hprimary =>
       Hfinish main rest primaryRecursors Hsource restoredRules Hprimary)
 
-theorem NestedFinalAssemblyProducerEvidence.certificate
-    (E : NestedFinalAssemblyProducerEvidence P H sourceEnv decl lparams
+theorem NestedFinalAssemblyShapeEvidence.certificate
+    (E : NestedFinalAssemblyShapeEvidence P H sourceEnv decl lparams
       nparams isUnsafe safety) :
-    Nonempty { C : NestedFinalAssemblyCertificate H sourceEnv decl lparams
+    Nonempty { C : NestedFinalAssemblyShape H sourceEnv decl lparams
         nparams isUnsafe safety // C.production = P } :=
   H.finalAssemblyOfFamilies P sourceEnv decl lparams nparams isUnsafe safety
     E.typeEntries E.constructorEntries E.recursorEntries E.canonicalProdEnv
@@ -774,35 +775,66 @@ theorem NestedFinalAssemblyProducerEvidence.certificate
     E.materialized E.uvars E.numParams E.unsafeEq E.sourceNonempty
     E.exactSource E.primaryFamilies E.finish
 
-theorem NestedFinalAssemblyCertificate.typesAdded
+theorem NestedFinalAssemblyShape.typesAdded
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
-    (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
+    (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams
       isUnsafe safety) :
     sourceEnv.addConstVals decl.typeConstants = some C.canonical.venvTypes := by
   rw [← C.typeValues]
   exact C.canonical.typesAdded.abstract
 
-theorem NestedFinalAssemblyCertificate.constructorsAdded
+theorem NestedFinalAssemblyShape.constructorsAdded
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
-    (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
+    (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams
       isUnsafe safety) :
     C.canonical.venvTypes.addConstVals decl.constructorConstants =
       some C.canonical.venvCtors := by
   rw [← C.constructorValues]
   exact C.canonical.ctorsAdded.abstract
 
-theorem NestedFinalAssemblyCertificate.primaryIotaBuild
+theorem NestedFinalAssemblyShape.primaryIotaBuild
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
-    (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
+    (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams
       isUnsafe safety) :
     NestedIotaBuildCertificate decl
       (canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
         C.primaryRules C.auxiliaryRules) C.primaryRules :=
   (C.primaryIota.build C.typesSource).rebaseRecursors (by
     simp [canonicalRestoredShapeBlock, canonicalRestoredBlock])
+
+/-- Actual producer result. The finite derivation and concrete recursor
+provenance describe the exact same selected rules and restored constants.
+Only the full validated execution constructs this stronger result. -/
+structure NestedFinalAssemblyCertificate
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {sourceTypes : List InductiveType}
+    {auxRecNames : List Name} {outEnv : Environment}
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv))
+    (sourceEnv : VEnv) (decl : VInductDecl) (lparams : List Name)
+    (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
+    extends NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety where
+  realization : InductiveSignature.RestoredCompilationRealization sourceEnv decl
+    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+      primaryRules auxiliaryRules) finalBaseVEnv recursorEntries
+  provenance : InductiveRecursorProvenance .unsafe sourceProdEnv.constants sourceEnv
+    outEnv.constants (finalBaseVEnv.addDefEqRules (primaryRules ++ auxiliaryRules))
+
+/-- Abstract compilation is a projection of the same signature/restoration
+witness that realizes all concrete recursor entries and metadata. -/
+theorem NestedFinalAssemblyCertificate.compiled
+    {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
+    (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
+      isUnsafe safety) :
+    CompiledInductive sourceEnv decl
+      (canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
+        C.primaryRules C.auxiliaryRules) :=
+  C.realization.compiles
 
 /-- Assemble the final independent nested judgment and the concrete restored
 environment alignment from the same trace-indexed certificate. -/
@@ -846,7 +878,7 @@ noncomputable def NestedFinalAssemblyCertificate.finalEnvironment
     C.main C.rest C.typesSource C.primaryRecursors C.auxiliaryRecursors
     C.primaryRules C.auxiliaryRules C.sourceSemantics.primaryRecursors
     C.primaryIotaBuild (C.primaryIota.length C.typesSource)
-    C.auxiliarySemantics
+    C.auxiliarySemantics C.compiled
     C.formationAssembly.formation Hsource C.sourceNonempty
     (by
       rw [← C.recursorValues]

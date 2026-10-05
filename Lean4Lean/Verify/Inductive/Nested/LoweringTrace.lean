@@ -2586,6 +2586,7 @@ theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
       mlctx.mkForall mlctx.length (Nat.le_refl _) e := by
     rw [← hlctx]
     exact hmlctx.mkForall_eq mlctx.length (Nat.le_refl _) hparams
+      (by simpa [TypeChecker.MLCtx.noBV] using Hexpr.closed)
   refine ⟨mlctx.mkForall' mlctx.length (Nat.le_refl _) e', ?_⟩
   rw [hconcrete]
   exact Hclosed

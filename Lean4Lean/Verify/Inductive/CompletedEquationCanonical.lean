@@ -339,7 +339,7 @@ theorem CompletedRecursorPhasesResult.ordinaryCompilationOfRuleBuild
     (Hrules : IotaBuildCertificate R.context.venv decl
       (H.blockCertificate rules hrules).block rules)
     (hrulesLength : rules.length = decl.ownedConstructors.length) :
-    OrdinaryCompilationCertificate sourceEnv decl
+    OrdinaryShapeCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
   let Hgenerated : GeneratedRecursors c.safety
       R.context.venv c.lparams
@@ -378,7 +378,7 @@ theorem CompletedRecursorPhasesResult.ordinaryCompilationOfRuleTranslations
       R.context.venv H.outVEnv Us Δ decl
       (H.blockCertificate rules hrules).block owner rules)
     (hcomplete : owner = H.entries.length) :
-    OrdinaryCompilationCertificate sourceEnv decl
+    OrdinaryShapeCertificate sourceEnv decl
       (H.blockCertificate rules hrules).block := by
   have Hbuild : IotaBuildCertificate R.context.venv decl
       (H.blockCertificate rules hrules).block rules :=

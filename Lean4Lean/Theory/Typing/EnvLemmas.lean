@@ -5,6 +5,113 @@ import Lean4Lean.Theory.Typing.InductiveLemmas
 
 namespace Lean4Lean
 
+theorem VEnv.addConsts_eliminators {env env' : VEnv} :
+    ∀ {cis}, env.addConsts cis = some env' → env'.eliminators = env.eliminators
+  | [], h => by cases h; rfl
+  | _ :: _, h => by
+    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
+      Option.bind_eq_some_iff] at h
+    obtain ⟨middle, hfirst, hrest⟩ := h
+    exact (VEnv.addConsts_eliminators hrest).trans (VEnv.addConst_eliminators hfirst)
+
+@[simp] theorem VEnv.addDefEqs_eliminators (env : VEnv) (cis : List VDefVal) :
+    (env.addDefEqs cis).eliminators = env.eliminators := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
+
+theorem VInductBlock.install_eliminators {env env' : VEnv}
+    (H : VInductBlock.install env block = some env') :
+    env'.eliminators = env.eliminators := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
+  rw [VEnv.addDefEqRules_eliminators, VEnv.addConstVals_eliminators hr,
+    VEnv.addProjections_eliminators, VEnv.addConstVals_eliminators hc,
+    VEnv.addConstVals_eliminators ht]
+
+theorem VEnv.addQuot_eliminators {env env' : VEnv}
+    (H : env.addQuot = some env') : env'.eliminators = env.eliminators := by
+  simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := H
+  exact (VEnv.addConst_eliminators hd).trans <|
+    (VEnv.addConst_eliminators hc).trans <|
+      (VEnv.addConst_eliminators hb).trans (VEnv.addConst_eliminators ha)
+
+theorem VDecl.WF.eliminators (H : VDecl.WF env decl env') :
+    env'.eliminators = env.eliminators := by
+  cases H with
+  | «axiom» _ h | «opaque» _ h => exact VEnv.addConst_eliminators h
+  | «def» _ h => exact (VEnv.addConst_eliminators h : _ = env.eliminators)
+  | «example» => rfl
+  | mutualDef _ h _ =>
+    exact (VEnv.addDefEqs_eliminators ..).trans (VEnv.addConsts_eliminators h)
+  | quot _ h => exact VEnv.addQuot_eliminators h
+  | induct _ h => cases h with | intro _ _ _ h => exact VInductBlock.install_eliminators h
+
+/-- Fresh registration fixes a schema for every abstract block key. -/
+theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
+    (hleft : env.eliminators key left) (hright : env.eliminators key right) :
+    left = right := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hleft
+  | decl h _ ih =>
+    rw [h.eliminators] at hleft hright
+    exact ih hleft hright
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hleft hright
+    exact ih hleft hright
+  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+    rcases hleft with ⟨rfl, rfl⟩ | hleft
+    · rcases hright with ⟨_, rfl⟩ | hright
+      · rfl
+      · exact (hfresh.1 _ hright).elim
+    · rcases hright with ⟨rfl, rfl⟩ | hright
+      · exact (hfresh.1 _ hleft).elim
+      · exact ih hleft hright
+
+theorem VEnv.WF.eliminators_originalFamilies_nodup (H : VEnv.WF env)
+    (hlookup : env.eliminators key schema) : schema.originalFamilies.Nodup := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hlookup
+  | decl h _ ih =>
+    rw [h.eliminators] at hlookup
+    exact ih hlookup
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hlookup
+    exact ih hlookup
+  | inductEliminators _ _ _ hformed _ _ _ _ ih =>
+    rcases hlookup with ⟨_, rfl⟩ | hlookup
+    · exact hformed.originalFamilies_nodup
+    · exact ih hlookup
+
+/-- A native family has one registered block and schema. In particular,
+typed projection translation cannot choose another block's owner slot. -/
+theorem VEnv.WF.eliminators_owner_unique (H : VEnv.WF env)
+    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
+    (hnameLeft : name ∈ left.originalFamilies)
+    (hnameRight : name ∈ right.originalFamilies) : leftKey = rightKey ∧ left = right := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hleft
+  | decl h _ ih =>
+    rw [h.eliminators] at hleft hright
+    exact ih hleft hright
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hleft hright
+    exact ih hleft hright
+  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+    rcases hleft with ⟨rfl, rfl⟩ | hleft
+    · rcases hright with ⟨rfl, rfl⟩ | hright
+      · exact ⟨rfl, rfl⟩
+      · exact (hfresh.2 _ _ hright hnameLeft hnameRight).elim
+    · rcases hright with ⟨rfl, rfl⟩ | hright
+      · exact (hfresh.2 _ _ hleft hnameRight hnameLeft).elim
+      · exact ih hleft hright
+
 theorem VEnv.addConsts_le {env env' : VEnv} : ∀ {cis}, env.addConsts cis = some env' → env ≤ env'
   | [], h => by cases h; exact .rfl
   | _ :: _, h => by
@@ -88,6 +195,7 @@ theorem VEnv.WF.ordered : WF env → Ordered env
   | ⟨ds, H⟩ => by
     induction H with
     | empty => exact .empty
+    | inductEliminators _ _ _ _ _ _ _ _ ih => exact .eliminator ih
     | decl h _ ih =>
       cases h with
       | «axiom» h1 h2 => exact .const ih h1 h2
@@ -104,9 +212,37 @@ theorem VEnv.WF.ordered : WF env → Ordered env
       | «example» _ => exact ih
       | quot h1 h2 => exact addQuot_WF ih h1 h2
       | induct h1 h2 => exact addInduct_WF ih h1 h2
-    | inductProjections _ _ hsource hconstructorUvars hctorsWF hparams hshape htypesSource
+    | inductProjections _ _ hsource htypesWF hconstructorUvars hctorsWF hparams hshape htypesSource
         hctorsSource hprojections htypes hctors ihBase ihCtors =>
-      exact .inductProjections ihBase ihCtors hsource hconstructorUvars hctorsWF hparams
+      exact .inductProjections ihBase ihCtors hsource htypesWF hconstructorUvars hctorsWF hparams
         hshape htypesSource hctorsSource hprojections htypes hctors
+
+/-- A dependency-ordered list of well-formed constants may be viewed as a
+sequence of abstract axioms extending a well-formed environment.  Stating
+the input typing in the original environment is sufficient because each
+constant can be weakened through the preceding fresh additions. -/
+theorem VEnv.WF.addConstVals
+    {env env' : VEnv} {cis : List VConstVal}
+    (Henv : env.WF)
+    (Hwf : ∀ ci ∈ cis, ci.toVConstant.WF env)
+    (Hadd : env.addConstVals cis = some env') : env'.WF := by
+  induction cis generalizing env env' with
+  | nil =>
+    simp [VEnv.addConstVals] at Hadd
+    subst env'
+    exact Henv
+  | cons ci cis ih =>
+    cases hci : env.addConst ci.name ci.toVConstant with
+    | none => simp [VEnv.addConstVals, hci] at Hadd
+    | some next =>
+      simp [VEnv.addConstVals, hci] at Hadd
+      have hhead : ci.toVConstant.WF env := Hwf ci (by simp)
+      have Hnext : next.WF := by
+        rcases Henv with ⟨ds, Hds⟩
+        exact ⟨.axiom ci :: ds, .decl (.axiom hhead hci) Hds⟩
+      apply ih Hnext (env' := env')
+      · intro ci' hmem
+        exact (Hwf ci' (by simp [hmem])).mono (VEnv.addConst_le hci)
+      · exact Hadd
 
 instance : CoeOut (VEnv.WF env) env.Ordered := ⟨(·.ordered)⟩

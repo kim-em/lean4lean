@@ -175,6 +175,8 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      (ves.venv .safe) outEnv.constants H.finalVEnv)
     (hsafePrimitives : forall {n ci}, outEnv.find? n = some ci ->
       Environment.primitives.contains n ->
       ci.safety = .safe /\ ci.levelParams = [])
@@ -192,14 +194,14 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
       wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
   rcases H.rebaseAddInductSafe (valid .unsafe)
-      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins with
+      (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProjections⟩
   rcases H.rebaseAddInductSafe (valid .partial)
-      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins with
+      (wf.mono DefinitionSafety.le_safe) hdecl hcompile horigins hprovenance with
     ⟨partialBase, Hpartial, HpartialAdd, hpartialLE,
       hpartialProjections⟩
   rcases H.rebaseAddInductSafe (valid .safe) VEnv.LE.rfl hdecl hcompile
-      horigins with
+      horigins hprovenance with
     ⟨safeBase, Hsafe, HsafeAdd, hsafeLE, hsafeProjections⟩
   let pre : DefinitionSafety -> VEnv
     | .unsafe => unsafeBase
@@ -296,6 +298,8 @@ theorem CompletedBlockCertificate.extendSafePrimitiveEqReadyOrAbsent
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
       decl)
+    (hprovenance : InductiveRecursorProvenance .unsafe prodEnv.constants
+      (ves.venv .safe) outEnv.constants H.finalVEnv)
     (hsafePrimitives : forall {n ci}, outEnv.find? n = some ci ->
       Environment.primitives.contains n ->
       ci.safety = .safe /\ ci.levelParams = [])
@@ -308,11 +312,11 @@ theorem CompletedBlockCertificate.extendSafePrimitiveEqReadyOrAbsent
       forall safety, ves.venv safety <= ves'.venv safety := by
   rcases hEq with habsent | hcanonical
   · have houtAbsent := hpreserveAbsent habsent
-    rcases H.extendSafePrimitiveExact wf hconstants hdecl hcompile horigins
+    rcases H.extendSafePrimitiveExact wf hconstants hdecl hcompile horigins hprovenance
         hsafePrimitives hclosed hconstructorOwners hconstructorSemantics with
       ⟨ves', wf', hle, _hadd⟩
     exact ⟨ves', wf', Or.inl houtAbsent, hle⟩
-  · rcases H.extendSafePrimitiveExact wf hconstants hdecl hcompile horigins
+  · rcases H.extendSafePrimitiveExact wf hconstants hdecl hcompile horigins hprovenance
         hsafePrimitives hclosed hconstructorOwners hconstructorSemantics with
       ⟨ves', wf', hle, _hadd⟩
     exact ⟨ves', wf', Or.inr (hcanonical.mono hle), hle⟩
@@ -398,7 +402,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
     simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
       CompletedBlockCertificate.block] using
-      T.compilation.compilesTo
+      (T.compilation hnonempty).compilesTo
   have hconstants := R.primitiveAbstractConstants Hshape
   have HvalidOut := Hrecursors.outValid
   have hlocalSafety : Hrecursors.localContext.safety = .safe :=
@@ -411,7 +415,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
     Hrecursors.completedConstructorSemantics
       (wf.constructorSemantics (safety := .safe)) T.rules
   rcases Hcert.extendSafePrimitiveExact wf hconstants hdecl hcompile
-      Hrecursors.productionInductiveOrigins HvalidOut.safePrimitives
+      Hrecursors.productionInductiveOrigins T.recursorProvenance HvalidOut.safePrimitives
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
     ⟨ves', wf', hle, hadd⟩
@@ -452,7 +456,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
     simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono,
       CompletedBlockCertificate.block] using
-      T.compilation.compilesTo
+      (T.compilation hnonempty).compilesTo
   have hconstants := R.primitiveAbstractConstants Hshape
   have HvalidOut := Hrecursors.outValid
   have hlocalSafety : Hrecursors.localContext.safety = .safe :=
@@ -480,7 +484,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent
     exact hout
   rcases Hcert.extendSafePrimitiveEqReadyOrAbsent wf hEq hpreserveAbsent
       hconstants hdecl hcompile Hrecursors.productionInductiveOrigins
-      HvalidOut.safePrimitives Hrecursors.closed
+      T.recursorProvenance HvalidOut.safePrimitives Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics with
     ⟨ves', wf', hEq', hle⟩
   exact ⟨decl, ves', wf', hEq', hle⟩

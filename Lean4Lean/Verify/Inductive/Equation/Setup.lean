@@ -12,6 +12,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+@[simp] theorem ConstructorPhasesResult.completed_materializedFinal
+    (R : ConstructorPhasesResult H ctorEnv) :
+    R.completed.materializedFinal = R.materialized := rfl
+
 /-- Complete output of the executable recursor suffix, retaining the local
 binder selections required for compilation and the final mutual-lookup
 invariant required by subsequent nested restoration. -/
@@ -23,55 +27,7 @@ structure RecursorPhasesResult
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : ConstructorPhasesResult Hheaders ctorEnv)
-    (outEnv : Environment) where
-  elimLevel : Level
-  elimLevelAdmissible : AddInductive.AdmissibleElimLevel c.lparams elimLevel
-  lparamsNodup : c.lparams.Nodup
-  recInfos : Array AddInductive.RecInfo
-  localContext : AddInductive.Context
-  localWF : BindingContextWF localContext
-  localExtends : BindingContextLE { c with
-    env := ctorEnv
-    typeCheckerLParams := some <|
-      AddInductive.getRecLevelParams elimLevel c.lparams } localContext
-  recursorDepth : Nat
-  recursorWF : RecursorContextWF localContext
-    (AddInductive.getRecLevelParams elimLevel c.lparams)
-  recursorEnv : recursorWF.venv = R.declared.context.venv
-  parameterSuffix : RecursorParameterContextSuffix recursorWF stats
-    recursorDepth
-  parameterDecls : parameterSuffix.parameterDecls =
-    (R.materialized.parameterSuffix.toRecursorContext
-      elimLevelAdmissible).parameterDecls
-  validStats : RecursorValidAppStatsWF recursorWF.venv
-    (AddInductive.getRecLevelParams elimLevel c.lparams)
-    recursorWF.mlctx.vlctx stats decl recursorDepth
-  noIndConsts : VLCtx.NoIndConsts (decl.types.map (·.name))
-    recursorWF.mlctx.vlctx
-  bindings : RecInfoBindings localContext recInfos
-  origins : RecInfoTypeOrigins localContext recInfos
-  blueprints : RecInfoRuleBlueprintOrigins stats recInfos origins
-  blueprintSemantics : RecInfoRuleBlueprintSemanticOrigins recursorWF decl
-    stats recInfos elimLevel parameterSuffix.parameterDecls origins
-  minorSources : RecInfoMinorSourceAlignment stats indTypes origins
-  minorSemantics : RecInfoMinorSemanticAlignment recursorWF origins
-    parameterSuffix.parameterDecls
-  majorTypes : RecursorTranslatedOriginTypes recursorWF origins.majorTypes
-  majorShapes : RecInfoMajorTypeShapes stats recInfos origins.majorTypes
-  motiveTypes : RecursorTranslatedOriginTypes recursorWF origins.motiveTypes
-  motiveShapes : RecInfoMotiveTypeShapes localContext recInfos
-    origins.motiveTypes elimLevel
-  motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl
-    (R.materialized.parameterSuffix.toRecursorContext
-      elimLevelAdmissible).parameterDecls.toCtx recInfos elimLevel
-  indexRows : RecursorTranslatedOriginTypeRows recursorWF origins.indexTypes
-  params : BoundFVarArray localContext stats.params
-  noAlias : bindings.NoAlias params
-  outerOrder : RecInfoOuterOrder recursorWF params bindings
-  arities : RecInfoArities stats recInfos
-  minorCounts : ∀ i, i < recInfos.size →
-    recInfos[i]!.minors.size = indTypes[i]!.ctors.length
-  cardinality : RecursorCardinalityCertificate stats recInfos decl
+    (outEnv : Environment) extends CompletedRecursorConstruction R.completed where
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
   generated : GeneratedRecursors localContext.safety
@@ -84,6 +40,20 @@ structure RecursorPhasesResult
     (R.declared.venvCtors.addProjections decl.projectionEntries)
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
+  canonicalTargets : ∀ i (hi : i < entries.length), entries[i].2 =
+    toCompletedRecursorConstruction.nativeTarget i
+
+theorem RecursorPhasesResult.parameterDecls_legacy
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    H.parameterSuffix.parameterDecls =
+      (R.materialized.parameterSuffix.toRecursorContext H.elimLevelAdmissible).parameterDecls := by
+  exact H.parameterDecls
+
+theorem RecursorPhasesResult.recursorEnv_legacy
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    H.recursorWF.venv = R.declared.context.venv := H.recursorEnv
 
 /-- Embed the ordinary recursor result in the common completed boundary used
 by equation construction. -/
@@ -99,52 +69,51 @@ def RecursorPhasesResult.completed
     CompletedRecursorPhasesResult R.completed outEnv := by
   have hmaterialized : R.completed.materializedFinal = R.materialized := rfl
   exact {
-    elimLevel := H.elimLevel
-    elimLevelAdmissible := H.elimLevelAdmissible
-    lparamsNodup := H.lparamsNodup
-    recInfos := H.recInfos
-    localContext := H.localContext
-    localWF := H.localWF
-    localExtends := H.localExtends
-    recursorDepth := H.recursorDepth
-    recursorWF := H.recursorWF
-    recursorEnv := H.recursorEnv
-    parameterSuffix := H.parameterSuffix
-    parameterDecls := by
-      rw [hmaterialized]
-      exact H.parameterDecls
-    validStats := H.validStats
-    noIndConsts := H.noIndConsts
-    bindings := H.bindings
-    origins := H.origins
-    blueprints := H.blueprints
-    blueprintSemantics := H.blueprintSemantics
-    minorSources := H.minorSources
-    minorSemantics := H.minorSemantics
-    majorTypes := H.majorTypes
-    majorShapes := H.majorShapes
-    motiveTypes := H.motiveTypes
-    motiveShapes := H.motiveShapes
-    motiveTelescopes := by
-      rw [hmaterialized]
-      exact H.motiveTelescopes
-    indexRows := H.indexRows
-    params := H.params
-    noAlias := H.noAlias
-    outerOrder := H.outerOrder
-    arities := H.arities
-    minorCounts := H.minorCounts
-    cardinality := H.cardinality
+    toCompletedRecursorConstruction := H.toCompletedRecursorConstruction
     outVEnv := H.outVEnv
     entries := H.entries
-    generated := by
-      simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
-        H.generated
+    generated := {
+      length := H.generated.length
+      entry := fun i hi => {
+        H.generated.entry i hi with
+        translated := by
+          simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
+            (H.generated.entry i hi).translated } }
     ruleSemantics := H.ruleSemantics
     installed := by
       simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
         H.installed
-    closed := H.closed }
+    closed := H.closed
+    canonicalTargets := H.canonicalTargets }
+
+def RecursorPhasesResult.ofCompleted
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : CompletedRecursorPhasesResult R.completed outEnv) :
+    RecursorPhasesResult R outEnv := by
+  have hmaterialized : R.completed.materializedFinal = R.materialized := rfl
+  exact {
+    toCompletedRecursorConstruction := H.toCompletedRecursorConstruction
+    outVEnv := H.outVEnv
+    entries := H.entries
+    generated := {
+      length := H.generated.length
+      entry := fun i hi => {
+        H.generated.entry i hi with
+        translated := by
+          simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
+            (H.generated.entry i hi).translated } }
+    ruleSemantics := H.ruleSemantics
+    installed := by
+      simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
+        H.installed
+    closed := H.closed
+    canonicalTargets := H.canonicalTargets }
 
 /-- Constructor ownership is preserved by the completed recursor boundary. -/
 theorem RecursorPhasesResult.constructorOwnersPresent
@@ -176,6 +145,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (hlparams : c.lparams.Nodup)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       R.declared.context.venv stats.indConsts)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -190,134 +160,10 @@ theorem ConstructorPhasesResult.recursorPhasesWF
             kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorPhasesResult R outEnv) := by
-  apply R.getElimLevelMkRecInfosWF hlparams
-    Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit
-    (Q := fun outEnv => Nonempty (RecursorPhasesResult R outEnv))
-    (k := fun elimLevel kTarget recInfos =>
-      AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget
-        c.lparams)
-  intro elimLevel hElim kTarget localContext localDepth recInfos Rlocal henvLocal
-    HsuffixLocal hparameterDeclsLocal HstatsLocal hctxLocal Hbindings
-    Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics HmajorTypes HmajorShapes
-    HmotiveTypes HmotiveShapes
-    Htelescopes HindexRows Hparams hnoalias houterOrder Harities HminorCounts
-    Hcard Hle
-  have Hvalid : CheckingEnv.Valid localContext.safety localContext.env
-      (R.declared.venvCtors.addProjections decl.projectionEntries) := by
-    rw [Hle.safety_eq, Hle.env_eq]
-    simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
-      R.completed.projectedChecking
-  have Hcore : TrInductDeclCore sourceEnv localContext.lparams nparams
-      indTypes.toList isUnsafe decl Hheaders.context.venv
-      R.declared.venvCtors := by
-    rw [Hle.lparams_eq]
-    exact R.core
-  have Hseed : ∀ owner (howner : owner < indTypes.size),
-      ∀ ctor, ctor ∈ indTypes[owner]!.ctors →
-        ∃ tail tailTarget introTarget,
-          RecursorParamPrefix stats 0 ctor.type tail ∧
-          Nonempty
-            (CheckedConstructorOwnerNormalForm stats owner tail) ∧
-          tail.FVarsIn (· ∈ ExprArrayFVarIds stats.params) ∧
-          TrExprS Rlocal.venv
-            (AddInductive.getRecLevelParams elimLevel c.lparams)
-            Rlocal.mlctx.vlctx tail tailTarget ∧
-          Rlocal.venv.IsType
-            (AddInductive.getRecLevelParams elimLevel c.lparams).length
-            Rlocal.mlctx.vlctx.toCtx tailTarget ∧
-          TrExprS Rlocal.venv
-            (AddInductive.getRecLevelParams elimLevel c.lparams)
-            Rlocal.mlctx.vlctx
-            (mkAppN (.const ctor.name stats.levels) stats.params)
-            introTarget ∧
-          Rlocal.venv.HasType
-            (AddInductive.getRecLevelParams elimLevel c.lparams).length
-            Rlocal.mlctx.vlctx.toCtx introTarget tailTarget := by
-    intro owner howner ctor hctor
-    have hownerBang : indTypes[owner]! = indTypes[owner] := by
-      simp [Array.getElem!_eq_getD, Array.getD, howner]
-    rw [hownerBang] at hctor
-    rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
-    rcases R.checkedConstructorRuntimeSeedAt elimLevel hElim hlparams Rlocal
-        henvLocal HsuffixLocal hparameterDeclsLocal owner howner ctorIdx
-        hctorIdx with
-      ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars, Htail,
-        HtailType, Hintro, HintroType⟩
-    exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
-      Htail, HtailType, Hintro, HintroType⟩
-  have Hrecursors := AddInductive.declareRecursors.bindingSemanticWF
-    (elimLevel := elimLevel) kTarget Hvalid Rlocal.toBindingContextWF Rlocal
-    HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
-    (by simpa only [henvLocal] using hlit)
-    hctxLocal Hcard Hcore Hbindings
-    Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
-    Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed (by
-      rw [Hle.safety_eq]
-      exact hnotPartial) (by
-        intro hallow
-        exact hnprim (Hle.allowPrimitive_eq ▸ hallow))
-  have hclosedLocal : MutualInductivesClosed localContext.env := by
-    rw [Hle.env_eq]
-    exact hclosed
-  have Hrecursors' :
-      (AddInductive.declareRecursors stats indTypes elimLevel recInfos
-        kTarget c.lparams localContext).WF fun outEnv =>
-          ∃ outVEnv : VEnv,
-          ∃ entries : List (ConstantInfo × VConstVal),
-            Nonempty (GeneratedRecursors localContext.safety
-              (R.declared.venvCtors.addProjections decl.projectionEntries)
-              localContext.lparams elimLevel localContext
-              stats indTypes recInfos entries) ∧
-            Nonempty (GeneratedRecursorRuleSemanticsRange Rlocal decl stats
-              indTypes recInfos Horigins elimLevel
-                HsuffixLocal.parameterDecls 0 entries) ∧
-            AddConstants localContext.safety localContext.env
-              (R.declared.venvCtors.addProjections decl.projectionEntries)
-              entries outEnv outVEnv := by
-    simpa only [Hle.lparams_eq] using Hrecursors
-  exact Hrecursors'.mono fun outEnv Hout => by
-    rcases Hout with
-      ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled⟩
-    exact ⟨{
-      elimLevel := elimLevel
-      elimLevelAdmissible := hElim
-      lparamsNodup := hlparams
-      recInfos := recInfos
-      localContext := localContext
-      localWF := Rlocal.toBindingContextWF
-      localExtends := Hle
-      recursorDepth := localDepth
-      recursorWF := Rlocal
-      recursorEnv := henvLocal
-      parameterSuffix := HsuffixLocal
-      parameterDecls := hparameterDeclsLocal
-      validStats := HstatsLocal
-      noIndConsts := hctxLocal
-      bindings := Hbindings
-      origins := Horigins
-      blueprints := Hblueprints
-      blueprintSemantics := HblueprintSemantics
-      minorSources := HminorSources
-      minorSemantics := HminorSemantics
-      majorTypes := HmajorTypes
-      majorShapes := HmajorShapes
-      motiveTypes := HmotiveTypes
-      motiveShapes := HmotiveShapes
-      motiveTelescopes := Htelescopes
-      indexRows := HindexRows
-      params := Hparams
-      noAlias := hnoalias
-      outerOrder := houterOrder
-      arities := Harities
-      minorCounts := HminorCounts
-      cardinality := Hcard
-      outVEnv := outVEnv
-      entries := entries
-      generated := Hgenerated
-      ruleSemantics := HruleSemantics
-      installed := Hinstalled
-      closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
-        hclosedLocal }⟩
+  exact (R.completed.recursorPhasesWF (hsourceSafety := hsourceSafety)
+    hclosed hlparams hlit hnotPartial hnprim).mono fun outEnv Hout => by
+      obtain ⟨H⟩ := Hout
+      exact ⟨RecursorPhasesResult.ofCompleted H⟩
 
 /-- The prefix length of the concrete minor rows is the constructor-prefix
 offset used by rule generation.  Retaining this equality avoids treating the
@@ -1892,7 +1738,9 @@ theorem
     simpa [E.levels, H.localExtends.lparams_eq, inner, Us] using
       TrExprS.of_inferImplicit Htranslated
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy]
+    change R.declared.context.venv ≤ H.outVEnv
+    rw [R.declared.contextVEnv]
     exact H.installed.le
   have Hsort : TrExprS H.outVEnv Us []
       (H.localContext.lctx.mkForall stats.params
@@ -1942,7 +1790,9 @@ theorem
           (H.parameterSuffix.parameterDecls.toCtx.reverse ++ [])
           (.sort (.zero : VLevel)) := by simp
   refine ⟨T, ?_⟩
-  simpa only [hleftEq, hrightEq, parameterDecls, ← H.parameterDecls,
+  have hparameterDecls : H.parameterSuffix.parameterDecls = parameterDecls := by
+    simpa only [ConstructorPhasesResult.completed_materializedFinal] using H.parameterDecls_legacy
+  simpa only [hleftEq, hrightEq, parameterDecls, ← hparameterDecls,
     VLCtx.toCtx, List.append_nil, List.reverse_reverse] using hcontexts
 
 /-- Translate the common parameter prefix of a generated recursor without
@@ -2541,7 +2391,7 @@ theorem
       (A.rule.params_bound.fvars.reverse.map Expr.fvar) parameterDecls := by
     have Hbase := H.parameterSuffix.cached
     rw [hparamExprs] at Hbase
-    simpa [parameterDecls, H.parameterDecls] using Hbase
+    simpa [parameterDecls, H.parameterDecls_legacy] using Hbase
   have Hdecls : List.Forall₂
       (fun fv entry => ∃ deps type,
         entry = (some (fv, deps), .vlam type))
@@ -2703,9 +2553,9 @@ theorem
         hcached
     calc
       parameterDecls.toCtx.length = parameterDecls.length := by
-        simpa [parameterDecls, H.parameterDecls] using h
+        simpa [parameterDecls, H.parameterDecls_legacy] using h
       _ = stats.params.size := by
-        simpa [parameterDecls, H.parameterDecls] using
+        simpa [parameterDecls, H.parameterDecls_legacy] using
           H.parameterSuffix.parameterDecls_length
   have hparamsFields : (params ++ fields).Nodup := by
     apply List.nodup_append.mpr
@@ -3396,7 +3246,9 @@ theorem
   dsimp only
   rcases A.finalPairedMotiveSeed with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy]
+    change R.declared.context.venv ≤ H.outVEnv
+    rw [R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨S, hparams.mono hbase, S.motiveTypeTr.mono hbase,
     S.motiveTypeDefEq.mono hbase⟩
@@ -3428,7 +3280,9 @@ theorem
     simpa [H.generated.length] using howner
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy]
+    change R.declared.context.venv ≤ H.outVEnv
+    rw [R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 
@@ -3458,7 +3312,9 @@ theorem RecursorPhasesResult.finalCanonicalMotiveTelescopeAt
     simpa [H.generated.length] using howner
   rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hparams⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy]
+    change R.declared.context.venv ≤ H.outVEnv
+    rw [R.declared.contextVEnv]
     exact H.installed.le
   exact ⟨S.canonical.mono hbase, hparams.mono hbase⟩
 

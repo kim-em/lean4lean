@@ -1,0 +1,107 @@
+import Lean4Lean.Theory.Typing.NativePrefixSubstitution
+
+namespace Lean4Lean.InductiveSignature
+open VExpr
+
+theorem Restoration.wrapForalls_shape {r : Restoration}
+    (H : r.expr (VExpr.wrapForalls domains body) = some output) :
+    ∃ domains' body', output = VExpr.wrapForalls domains' body' ∧ domains'.length = domains.length := by
+  induction domains generalizing output with
+  | nil => exact ⟨[], output, rfl, rfl⟩
+  | cons domain domains ih =>
+    change (do let domain' ← r.expr domain; let body' ← r.expr (VExpr.wrapForalls domains body)
+               pure (.forallE domain' body')) = some output at H
+    simp only [bind, Option.bind_eq_some_iff] at H
+    obtain ⟨domain', _, out, hout, H⟩ := H
+    cases H
+    obtain ⟨domains', body', rfl, hlen⟩ := ih hout
+    exact ⟨domain' :: domains', body', rfl, congrArg Nat.succ hlen⟩
+
+namespace NativeRecursorData
+
+theorem recursorType_telescope {data : NativeRecursorData}
+    (H : data.recursorType = some type) :
+    ∃ domains body, type = VExpr.wrapForalls domains body ∧ domains.length = data.majorOffset + 1 := by
+  unfold recursorType Instance.recursorType at H
+  obtain ⟨domains, body, htype, hlen⟩ := Restoration.wrapForalls_shape H
+  refine ⟨domains, body, htype, hlen.trans ?_⟩
+  simp [Instance.params, Instance.motives, Instance.minors, insertBinders,
+    majorOffset, indexOffset, numParams, numIndices, Nat.add_assoc]
+
+
+theorem supplyType_wrapForalls_exists (hbound : args.length ≤ domains.length) :
+    ∃ residual doms tail, supplyType args (VExpr.wrapForalls domains body) = some residual ∧
+      residual = VExpr.wrapForalls doms tail ∧ doms.length = domains.length - args.length := by
+  induction args generalizing domains body with
+  | nil => exact ⟨_, domains, body, rfl, rfl, by simp⟩
+  | cons arg args ih =>
+    cases domains with
+    | nil => simp at hbound
+    | cons d ds =>
+      have hn : args.length ≤ (VExpr.instDomains ds arg 0).length := by simp; simp at hbound; omega
+      obtain ⟨residual, doms, tail, hsupply, hshape, hlen⟩ := ih
+        (body := body.inst arg ds.length) hn
+      refine ⟨residual, doms, tail, ?_, hshape, ?_⟩
+      · change supplyType args ((VExpr.wrapForalls ds body).inst arg) = some residual
+        rw [VExpr.wrapForalls_inst, Nat.zero_add]
+        exact hsupply
+      · simpa only [VExpr.instDomains_length, List.length_cons, Nat.add_sub_add_right] using hlen
+
+theorem takeForalls_wrapForalls (domains : List VExpr) (body : VExpr) :
+    takeForalls domains.length (VExpr.wrapForalls domains body) = some (domains, body) := by
+  induction domains with
+  | nil => rfl
+  | cons d ds ih =>
+    change (do let p ← takeForalls ds.length (VExpr.wrapForalls ds body); pure (d :: p.1, p.2)) = _
+    rw [ih]
+    rfl
+
+/-- Changing the supplied terms cannot change prefix-generation success.
+The static recursor telescope, restoration metadata, and argument counts
+control generation; typed index alignment is a separate replay check. -/
+theorem prefixProgram_sameArity {data : NativeRecursorData} {levels : List VLevel}
+    (H : data.prefixProgram U levels args = some program) (hargs : args'.length = args.length) :
+    ∃ program', data.prefixProgram U levels args' = some program' := by
+  have hbound := (prefixProgram_spec H).1
+  unfold prefixProgram at H ⊢
+  simp only [hargs]
+  split at H <;> try contradiction
+  rename_i hguard
+  rw [if_neg hguard]
+  simp only [bind, Option.bind_eq_some_iff] at H
+  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+    constructor, hconstructor, source, hsource, fields, hfields,
+    equation, hequation, body, hbody, H⟩ := H
+  split at H <;> try contradiction
+  rename_i hcaptures
+  obtain ⟨doms, tail, hshape, hlen⟩ := recursorType_telescope htype
+  have hbound' : args'.length ≤ (doms.map (VExpr.instL levels)).length := by simp; omega
+  obtain ⟨residual', domains', result', hsupply', hshape', hlen'⟩ :=
+    supplyType_wrapForalls_exists (body := tail.instL levels) hbound'
+  simp only [bind, htype, Option.bind_some]
+  rw [hshape, VExpr.instL_wrapForalls]
+  simp only [hsupply', Option.bind_some, hshape']
+  have hlen'' : domains'.length = data.majorOffset + 1 - args.length := by
+    simpa only [List.length_map, hlen, hargs] using hlen'
+  have htake' := takeForalls_wrapForalls domains' result'
+  rw [hlen''] at htake'
+  have hconstructor' : ∃ ctor', data.reconstructCanonical U levels
+      (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++ vars (data.majorOffset + 1 - args.length) 0) = some ctor' := by
+    have h := reconstructCanonical_isSome (data := data) (U := U) (levels := levels)
+      (args := args.map (·.liftN (data.majorOffset + 1 - args.length)) ++ vars (data.majorOffset + 1 - args.length) 0)
+      (args' := args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++ vars (data.majorOffset + 1 - args.length) 0)
+      (by simp only [List.length_append, List.length_map, hargs])
+    rw [hconstructor] at h
+    cases hg : data.reconstructCanonical U levels
+        (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++ vars (data.majorOffset + 1 - args.length) 0) with
+    | none => simp [hg] at h
+    | some ctor => exact ⟨ctor, rfl⟩
+  obtain ⟨ctor', hconstructor'⟩ := hconstructor'
+  simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hconstructor', hsource,
+    hfields, hequation, hbody]
+  simp only [List.length_append, List.length_map, List.length_take, hargs] at hcaptures ⊢
+  rw [if_neg hcaptures]
+  exact ⟨_, rfl⟩
+
+end NativeRecursorData
+end Lean4Lean.InductiveSignature

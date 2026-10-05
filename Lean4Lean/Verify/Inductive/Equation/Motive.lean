@@ -1078,7 +1078,7 @@ theorem
   rcases H.finalOwnerMotiveDomainTranslationAt owner howner with
     ⟨T, S, hparameters, Hgenerated, _HgeneratedType⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hparameterScope := S.motiveParameterAlignment.mono hbase
   have hparameters' :=
@@ -1629,7 +1629,7 @@ theorem
   rcases A.semanticConstructorMotiveTyped with
     ⟨motiveTarget, resultLevel, Htr, Htyped⟩
   have hsemantic : A.semantics.context.venv = R.declared.context.venv :=
-    A.semantics.context_venv.trans H.recursorEnv
+    A.semantics.context_venv.trans H.recursorEnv_legacy
   rw [hsemantic] at Htr Htyped
   rw [R.declared.contextVEnv] at Htr Htyped
   exact ⟨motiveTarget, resultLevel,
@@ -1686,7 +1686,7 @@ theorem
         A.semantics.fieldsRecent.venv_eq.symm
       _ = R.declared.venvCtors.addProjections decl.projectionEntries :=
         A.semantics.context_venv.trans
-          (H.recursorEnv.trans R.declared.contextVEnv)
+          (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   rw [hsemantic] at Hclosed
   have HclosedFinal := And.intro
     (Hclosed.1.mono H.installed.le)
@@ -1715,7 +1715,7 @@ theorem
   have hcurrentSemantic : A.semantics.context.venv =
       R.declared.venvCtors.addProjections decl.projectionEntries :=
     A.semantics.context_venv.trans
-      (H.recursorEnv.trans R.declared.contextVEnv)
+      (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   have HtypedFinal := Htyped
   rw [hcurrentSemantic] at HtypedFinal
   have HtypedOut := HtypedFinal.mono H.installed.le
@@ -1798,7 +1798,7 @@ theorem
         A.semantics.fieldsRecent.venv_eq.symm
       _ = R.declared.venvCtors.addProjections decl.projectionEntries :=
         A.semantics.context_venv.trans
-          (H.recursorEnv.trans R.declared.contextVEnv)
+          (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   rw [hsemanticRoot] at Hclosed
   have HclosedFinal := And.intro
     (Hclosed.1.mono H.installed.le)
@@ -1827,7 +1827,7 @@ theorem
   have hsemanticCurrent : A.semantics.context.venv =
       R.declared.venvCtors.addProjections decl.projectionEntries :=
     A.semantics.context_venv.trans
-      (H.recursorEnv.trans R.declared.contextVEnv)
+      (H.recursorEnv_legacy.trans R.declared.contextVEnv)
   rw [hsemanticCurrent] at Hindices Htyped
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
     (fun _ _ Hindex => Hindex.mono H.installed.le) Hindices
@@ -1882,7 +1882,7 @@ theorem RecursorPhasesResult.GeneratedRuleAlignment.finalFieldTelescope
       A.semantics.fieldRootContext.venv = A.semantics.context.venv :=
         A.semantics.fieldsRecent.venv_eq.symm
       _ = H.recursorWF.venv := A.semantics.context_venv
-      _ = R.declared.context.venv := H.recursorEnv
+      _ = R.declared.context.venv := H.recursorEnv_legacy
       _ = R.declared.venvCtors.addProjections decl.projectionEntries :=
         R.declared.contextVEnv
   have Htarget := F.target_translation
@@ -1955,7 +1955,7 @@ theorem
       R.declared.venvCtors.addProjections decl.projectionEntries :=
     Hext.venv_eq.trans <|
       A.semantics.context_venv.trans <|
-        H.recursorEnv.trans R.declared.contextVEnv
+        H.recursorEnv_legacy.trans R.declared.contextVEnv
   have Hexposed := F.exposed_translation
   have HexposedType := F.exposed_type
   have Happlied := F.applied_translation

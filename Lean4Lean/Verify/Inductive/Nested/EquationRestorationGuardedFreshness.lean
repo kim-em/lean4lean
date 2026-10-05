@@ -98,7 +98,7 @@ theorem AvoidsTargetOnlyRecursors.targetFree
     (hsource : source.containsAnyConst sourceRecursors = false) :
     source.containsAnyConst targetRecursors = false := by
   induction source with
-  | bvar | sort => rfl
+  | bvar | sort | elim => rfl
   | const name levels =>
       have hsourceNot : name ∉ sourceRecursors := by
         simpa [VExpr.containsAnyConst] using hsource

@@ -4793,7 +4793,7 @@ theorem RecursorParameterContextSuffix.closedSortTyped
         (.sort (.zero : Level)) =
       parameterMLCtx.mkForall parameterMLCtx.length (Nat.le_refl _)
         (.sort (.zero : Level)) :=
-    hparameterWF.mkForall_eq parameterMLCtx.length (Nat.le_refl _) hparams
+    hparameterWF.mkForall_eq parameterMLCtx.length (Nat.le_refl _) hparams trivial
   have hzero : VLevel.ofLevel recLparams (.zero : Level) =
       some (.zero : VLevel) := rfl
   have hsort : TrExprS R.venv recLparams parameterMLCtx.vlctx

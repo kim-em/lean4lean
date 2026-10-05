@@ -506,14 +506,14 @@ theorem
       HlocalBase HlocalUp with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocalDomains,
       hcontext, hshift, _hexpanded, Hreplay⟩
-  have hsource : ∀ body,
+  have hsource : ∀ body, Closed body →
       F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body =
         F.semantic.current_context.mlctx.mkForall
           F.semantic.generated.localArgs.size HlocalPrefix.le body := by
-    intro body
+    intro body hbody
     rw [← F.semantic.current_context.lctx_eq]
-    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    refine F.semantic.current_context.mlctx_wf.mkForall_eq _ _ ?_ hbody
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     rw [hle]
@@ -525,7 +525,7 @@ theorem
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
       hshift
   · intro body target Hbody HbodyType
-    rw [hsource]
+    rw [hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
     simpa [HlocalBase,
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
       Hreplay Hbody HbodyType

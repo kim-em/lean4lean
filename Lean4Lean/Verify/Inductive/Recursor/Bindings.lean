@@ -1979,6 +1979,7 @@ theorem RecursorRecentBoundFVarArray.mkLambda
       R.mlctx.mkLambda xs.size H.size_le body := by
     rw [← R.lctx_eq]
     exact R.mlctx_wf.mkLambda_eq xs.size H.size_le H.reverse_eq
+      (by simpa [TypeChecker.MLCtx.noBV] using hbody.closed)
   rw [hsource]
   simpa only [H.venv_eq, H.drop_eq,
     TypeChecker.MLCtx.mkForall'_eq_wrapForalls,

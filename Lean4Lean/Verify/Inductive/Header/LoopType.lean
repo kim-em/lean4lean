@@ -137,7 +137,13 @@ def FVarNarrowSources.closeSource
   | .nil => body
   | .cons (fv := fv) tail name binderInfo domain _ =>
     tail.closeSource (.forallE name domain
-      (body.abstract1 fv) binderInfo)
+      (body.abstractN [fv]) binderInfo)
+
+/-- Retained source scopes consist of free-variable entries only. -/
+theorem FVarNarrowSources.noBV (H : FVarNarrowSources env Us scope) : scope.bvars = 0 := by
+  induction H with
+  | nil => rfl
+  | cons _ _ _ _ _ ih => simpa [VLCtx.bvars] using ih
 
 @[simp] theorem FVarNarrowSources.closeSource_mono
     {env env' : VEnv} (henv : env ≤ env')
@@ -1467,7 +1473,7 @@ theorem MLCtxOnlyLams.narrowFVarsSource
       have hnextFVars : ∀ body,
           Hnext.sources.closeSource body =
             HtailScope.sources.closeSource
-              (.forallE name type (body.abstract1 fv) bi) := by
+              (.forallE name type (body.abstractN [fv]) bi) := by
         intro body
         rfl
       have holdDecls : ∀ other ∈ tailScope.fvars.reverse,

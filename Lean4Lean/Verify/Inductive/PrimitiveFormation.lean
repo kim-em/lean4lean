@@ -84,8 +84,10 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersWF
       sourceContext := Hc
       sourceContextVEnv := rfl
       sourceMaterialized := Hmaterialized
+      sourceHeaderParams := rfl
       materialized := Hmaterialized.mono Hinstalled.le
-      headerParams := rfl }, trivial⟩
+      headerParams := rfl
+      parameterScopeEq := rfl }, trivial⟩
 
 end VerifyInductive
 end Lean4Lean

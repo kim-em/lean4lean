@@ -27,6 +27,7 @@ theorem AddInductive.runWithStats.completedWF
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -41,7 +42,7 @@ theorem AddInductive.runWithStats.completedWF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
     rcases Hresult with ⟨R, hclosed⟩
-    exact (R.recursorPhasesWF hclosed hlparams hlit
+    exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit.available
       hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show ∃ ctorEnv,
@@ -70,6 +71,7 @@ theorem AddInductive.runWithStats.completedOrdinaryWF
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -81,7 +83,7 @@ theorem AddInductive.runWithStats.completedOrdinaryWF
         ∃ R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
             sourceEnv indTypes ctorEnv,
           Nonempty (CompletedRecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.completedWF stats nparams indTypes
+  apply AddInductive.runWithStats.completedWF (hsourceSafety := hsourceSafety) stats nparams indTypes
     numNested isUnsafe c
   · exact Hformation.mono fun ctorEnv Hresult => by
       rcases Hresult with ⟨_headerEnv, _Hheaders, R, hclosed⟩
@@ -110,6 +112,7 @@ theorem AddInductive.runWithStats.completedPrimitiveWF
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    {hsourceSafety : isUnsafe = (c.safety != .safe)}
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -121,7 +124,7 @@ theorem AddInductive.runWithStats.completedPrimitiveWF
         ∃ R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
             sourceEnv indTypes ctorEnv,
           Nonempty (CompletedRecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.completedWF stats nparams indTypes
+  apply AddInductive.runWithStats.completedWF (hsourceSafety := hsourceSafety) stats nparams indTypes
     numNested isUnsafe c
   · exact Hformation.mono fun ctorEnv Hresult => by
       rcases Hresult with ⟨_headerEnv, _Hheaders, R, hclosed⟩

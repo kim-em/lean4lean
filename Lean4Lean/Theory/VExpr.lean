@@ -8,6 +8,10 @@ inductive VExpr where
   | bvar (deBruijnIndex : Nat)
   | sort (u : VLevel)
   | const (declName : Name) (us : List VLevel)
+  /-- Declaration-derived eliminator, disjoint from native constant names.
+  The universe spine starts with the elimination level, followed by the source
+  declaration's levels; `owner` indexes the expanded mutual block. -/
+  | elim (block : Name) (owner : Nat) (us : List VLevel)
   | app (fn arg : VExpr)
   | proj (typeName : Name) (index : Nat) (struct : VExpr)
   | lam (binderType body : VExpr)
@@ -49,6 +53,7 @@ def liftN : VExpr → (k :_:= 0) → VExpr
   | .bvar i, k => .bvar (liftVar n i k)
   | .sort u, _ => .sort u
   | .const c us, _ => .const c us
+  | .elim block owner us, _ => .elim block owner us
   | .app fn arg, k => .app (fn.liftN k) (arg.liftN k)
   | .proj n i e, k => .proj n i (e.liftN k)
   | .lam ty body, k => .lam (ty.liftN k) (body.liftN (k+1))
@@ -135,7 +140,7 @@ theorem sizeOf_liftN (e : VExpr) (k : Nat) : sizeOf e ≤ sizeOf (liftN n e k) :
 
 def ClosedN : VExpr → (k :_:= 0) → Prop
   | .bvar i, k => i < k
-  | .sort .., _ | .const .., _ => True
+  | .sort .., _ | .const .., _ | .elim .., _ => True
   | .app fn arg, k => fn.ClosedN k ∧ arg.ClosedN k
   | .proj _ _ e, k => e.ClosedN k
   | .lam ty body, k => ty.ClosedN k ∧ body.ClosedN (k+1)
@@ -187,6 +192,7 @@ def instL : VExpr → VExpr
   | .bvar i => .bvar i
   | .sort u => .sort (u.inst ls)
   | .const c us => .const c (us.map (VLevel.inst ls))
+  | .elim block owner us => .elim block owner (us.map (VLevel.inst ls))
   | .app fn arg => .app fn.instL arg.instL
   | .proj n i e => .proj n i e.instL
   | .lam ty body => .lam ty.instL body.instL
@@ -201,14 +207,14 @@ def instL : VExpr → VExpr
 
 theorem ClosedN.instL {e} (h : ClosedN e k) : ClosedN (e.instL ls) k := by
   induction e generalizing k with
-  | bvar | sort | const => exact h
+  | bvar | sort | const | elim => exact h
   | proj _ _ _ ihe => exact ihe h
   | app _ _ ih1 ih2 | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
     exact ⟨ih1 h.1, ih2 h.2⟩
 
 theorem ClosedN.instL_rev {e} (h : ClosedN (e.instL ls) k) : ClosedN e k := by
   induction e generalizing k with
-  | bvar | sort | const => exact h
+  | bvar | sort | const | elim => exact h
   | proj _ _ _ ihe => exact ihe h
   | app _ _ ih1 ih2 | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
     exact ⟨ih1 h.1, ih2 h.2⟩
@@ -224,13 +230,13 @@ theorem instL_instL {e : VExpr} : (e.instL ls).instL ls' = e.instL (ls.map (VLev
 def LevelWF (U : Nat) : VExpr → Prop
   | .bvar _ => True
   | .sort l => l.WF U
-  | .const _ ls => ∀ l ∈ ls, l.WF U
+  | .const _ ls | .elim _ _ ls => ∀ l ∈ ls, l.WF U
   | .app e1 e2 | .lam e1 e2 | .forallE e1 e2 => e1.LevelWF U ∧ e2.LevelWF U
   | .proj _ _ e => e.LevelWF U
 
 theorem LevelWF.instL_id {e : VExpr} (h : e.LevelWF U) : e.instL (VLevel.params U) = e := by
   induction e <;> simp_all [instL, LevelWF, VLevel.inst_id]
-  case const => exact List.map_id''' _ fun _ h1 => VLevel.inst_id (h _ h1)
+  case const | elim => exact List.map_id''' _ fun _ h1 => VLevel.inst_id (h _ h1)
 
 theorem levelWF_liftN : (liftN n e k).LevelWF U ↔ e.LevelWF U := by
   induction e generalizing k <;> simp [liftN, LevelWF, *]
@@ -297,6 +303,7 @@ def inst : VExpr → VExpr → (k :_:= 0) → VExpr
   | .bvar i, e, k => instVar i e k
   | .sort u, _, _ => .sort u
   | .const c us, _, _ => .const c us
+  | .elim block owner us, _, _ => .elim block owner us
   | .app fn arg, e, k => .app (fn.inst e k) (arg.inst e k)
   | .proj n i s, e, k => .proj n i (s.inst e k)
   | .lam ty body, e, k => .lam (ty.inst e k) (body.inst e (k+1))
@@ -385,7 +392,7 @@ theorem inst_liftN_bvar : ∀ (e : VExpr) (k : Nat), (liftN 1 e (k+1)).inst (.bv
       · have : i = k := by omega
         subst this; rw [if_neg (Nat.lt_irrefl _), if_pos rfl]; simp
     · rw [if_neg (by omega), if_neg (by omega)]; congr 1; omega
-  | .sort .., _ | .const .., _ => rfl
+  | .sort .., _ | .const .., _ | .elim .., _ => rfl
   | .app .., k => by simp only [liftN, inst, inst_liftN_bvar]
   | .proj .., k => by simp only [liftN, inst, inst_liftN_bvar]
   | .lam .., k | .forallE .., k => by simp only [liftN, inst, inst_liftN_bvar]
@@ -482,7 +489,7 @@ theorem skips_add : Skips e (n1+n2) k ↔ ∃ e', Skips e' n1 k ∧ e = liftN n2
 
 def Skips' (n : Nat) : VExpr → (k :_:= 0) → Prop
   | .bvar i, k => i < k + n → i < k
-  | .sort .., _ | .const .., _ => True
+  | .sort .., _ | .const .., _ | .elim .., _ => True
   | .app fn arg, k => fn.Skips' n k ∧ arg.Skips' n k
   | .proj _ _ e, k => e.Skips' n k
   | .lam ty body, k => ty.Skips' n k ∧ body.Skips' n (k+1)
@@ -515,6 +522,9 @@ theorem skips_iff : Skips e n k ↔ Skips' n e k := by
     | const c ls =>
       refine ⟨fun ⟨e', h1, h2⟩ => ?_, fun _ => ⟨.const c ls, by simp [Skips', liftN]⟩⟩
       cases e' <;> cases h2; simp [Skips']
+    | elim block owner ls =>
+      refine ⟨fun ⟨e', h1, h2⟩ => ?_, fun _ => ⟨.elim block owner ls, by simp [Skips', liftN]⟩⟩
+      cases e' <;> cases h2; simp [Skips']
     | app f a fIH aIH =>
       simp [Skips', ← fIH, ← aIH]; refine ⟨fun ⟨e', h1, h2⟩ => ?_, ?_⟩
       · cases e' <;> cases h2; exact ⟨⟨_, h1.1, rfl⟩, ⟨_, h1.2, rfl⟩⟩
@@ -527,7 +537,7 @@ theorem skips_iff : Skips e n k ↔ Skips' n e k := by
         | proj candidateName candidateIndex candidateBody =>
           cases heq
           exact ⟨candidateBody, hskip, rfl⟩
-        | bvar | sort | const | app | lam | forallE => cases heq
+        | bvar | sort | const | elim | app | lam | forallE => cases heq
       · rintro ⟨candidateBody, hBody, rfl⟩
         exact ⟨.proj typeName index candidateBody, hBody, rfl⟩
     | forallE f a fIH aIH =>
@@ -583,7 +593,7 @@ theorem ClosedN.instN (h1 : ClosedN e (k+j+1)) (h2 : ClosedN e2 k) :
     · have hk := Nat.lt_of_le_of_ne (Nat.not_lt.1 h1) (Ne.symm h1')
       let i+1 := i
       exact Nat.lt_of_succ_lt_succ hclosed
-  | sort | const => exact h1
+  | sort | const | elim => exact h1
   | proj _ _ _ ihe => exact ihe h1
   | app _ _ ih1 ih2 => exact ⟨ih1 h1.1, ih2 h1.2⟩
   | lam _ _ ih1 ih2 | forallE _ _ ih1 ih2 =>
@@ -834,6 +844,7 @@ namespace VExpr
   | .bvar i, k => .bvar (k.liftVar i)
   | .sort u, _ => .sort u
   | .const c us, _ => .const c us
+  | .elim block owner us, _ => .elim block owner us
   | .app fn arg, k => .app (fn.lift' k) (arg.lift' k)
   | .proj n i e, k => .proj n i (e.lift' k)
   | .lam ty body, k => .lam (ty.lift' k) (body.lift' k.cons)
@@ -879,6 +890,7 @@ def subst : VExpr → Subst → VExpr
   | .bvar i, σ => σ i
   | .sort u, _ => .sort u
   | .const c us, _ => .const c us
+  | .elim block owner us, _ => .elim block owner us
   | .app fn arg, σ => .app (fn.subst σ) (arg.subst σ)
   | .proj n i e, σ => .proj n i (e.subst σ)
   | .lam ty body, σ => .lam (ty.subst σ) (body.subst σ.lift)

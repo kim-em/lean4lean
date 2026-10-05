@@ -24,6 +24,13 @@ variable {venv : VEnv}
 parameters of `Quot.mk`. -/
 def QuotCoherent.liftRecursorShape (H : QuotCoherent venv) :
     VRecursorShape venv ``Quot.lift 2 5 2 0 0 0 ``Quot [.param 0] where
+  ctorParams_length := rfl
+  ctorParams_closed := by
+    intro p hp
+    simp only [VExpr.bvarRange, List.mem_map] at hp
+    obtain ⟨i, hi, rfl⟩ := hp
+    simp only [VExpr.ClosedN]
+    omega
   type := quotLiftConst.type
   const := H.lift
   doms := [.sort (.param 0), .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero)),

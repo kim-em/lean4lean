@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Typing.Strong
+import Lean4Lean.Theory.Typing.ProjectionRigidity
 
 /-! Structural inversion theorems for definitional equality. -/
 
@@ -32,15 +33,17 @@ theorem IsDefEqU.sort_forallE_inv (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsTy
     ¬env.IsDefEqU U Γ (.sort u) (.forallE A B) := sorry
 
 /-- Field types of one projection computed at definitionally equal major types are
-definitionally equal, at the sort recorded by the first typing, and the second field type can
-be retyped at that sort without increasing its stratification height.
+definitionally equal at the sort recorded by the first typing, and their recorded
+universe levels are equivalent.
 
-This is the projection analogue of `forallE_inv_stratified`, which likewise retypes the
-codomain of the second function type at the sort of the first. Its content is
-`structApp_inv` (the parameters and universe levels of the two major types agree), the
-congruence of `VProjectionInfo.fieldType` under definitional equality of its inputs, and
-uniqueness of the sort of a type; the last is what `IsDefEq.uniq` proves and cannot use while
-being proven, which is why the statement is recorded here as a conjecture. -/
+Keep each field's original stratified typing at its own literal sort. Even equivalent
+universe expressions can require a conversion step: a constant stored at `Sort 1`
+has stratification height one there, but needs height two at `Sort (max 0 1)`.
+Retyping the second field at the first literal sort with unchanged height would be
+false. `IsDefEq.uniq` instead retains both original bounds and uses the level equality.
+
+This remains an independent foundation obligation: its proof must establish field
+congruence and sort coherence without using the uniqueness theorem that consumes it. -/
 theorem IsDefEqU.fieldType_inv_stratified (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (hinfo : env.projections typeName info)
     (hlevels₁ : ∀ l ∈ levels₁, l.WF U) (huvars₁ : levels₁.length = info.uvars)
@@ -61,13 +64,7 @@ theorem IsDefEqU.fieldType_inv_stratified (henv : VEnv.WF env) (hΓ : OnCtx Γ (
     (hF₁ : env.HasTypeStratified U Γ fieldType₁ (.sort fieldLevel₁) true n)
     (hF₂ : env.HasTypeStratified U Γ fieldType₂ (.sort fieldLevel₂) true n') :
     env.IsDefEq U Γ fieldType₁ fieldType₂ (.sort fieldLevel₁) ∧
-      env.HasTypeStratified U Γ fieldType₂ (.sort fieldLevel₁) true n' := sorry
-
-/-- A constant is *rigid* when no definitional rule of the environment is headed by it
-after stripping the lambda binders that wrap stored rules: it has no delta rule, and it is
-not a recursor. Inductive type constants are rigid. -/
-def _root_.Lean4Lean.VEnv.Rigid (env : VEnv) (c : Name) : Prop :=
-  ∀ df, env.defeqs df → ∀ ls, df.lhs.stripLams.getAppFnArgs.1 ≠ .const c ls
+      fieldLevel₁ ≈ fieldLevel₂ := sorry
 
 /-- Injectivity of applications of a rigid constant, at the type level: two definitionally
 equal types headed by the same rigid constant have equivalent universe levels and pairwise
@@ -82,13 +79,11 @@ theorem IsDefEqU.rigidApp_inv (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U
     (h2 : env.HasType U Γ (VExpr.mkApps (.const c ls) args) (.sort u)) :
     List.Forall₂ (· ≈ ·) ls ls' ∧ List.Forall₂ (env.IsDefEqU U Γ) args args' := sorry
 
-/-- `rigidApp_inv` for the head of a registered structure. A registered structure type
-is an inductive type constant of the environment, hence rigid; deriving that from the
-declaration trace is routine once the nested auxiliary rules record their left-hand side
-shape, and until then this is stated separately so that the projection metatheory depends
-on exactly one injectivity fact. -/
+/-- A registered structure head is rigid by its declaration history, so the
+general rigid-head injectivity theorem applies. -/
 theorem IsDefEqU.structApp_inv (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (hinfo : env.projections c info)
     (h1 : env.IsDefEqU U Γ (VExpr.mkApps (.const c ls) args) (VExpr.mkApps (.const c ls') args'))
     (h2 : env.HasType U Γ (VExpr.mkApps (.const c ls) args) (.sort u)) :
-    List.Forall₂ (· ≈ ·) ls ls' ∧ List.Forall₂ (env.IsDefEqU U Γ) args args' := sorry
+    List.Forall₂ (· ≈ ·) ls ls' ∧ List.Forall₂ (env.IsDefEqU U Γ) args args' :=
+  IsDefEqU.rigidApp_inv henv hΓ (henv.projectionRigid hinfo) h1 h2

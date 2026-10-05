@@ -120,7 +120,10 @@ private theorem primitiveResultTailCertificate
     isType := ⟨.succ .zero, htyped⟩
     raw := ⟨[], .const target.name [], by simp [VExpr.wrapForalls],
       by simpa using primitiveValidIndApp htypes huvars hnparams hnindices 0,
-      by simp [huvars, VLevel.params]⟩ }
+      by simp [huvars, VLevel.params]⟩
+    uniform := .result
+      (primitiveValidIndApp htypes huvars hnparams hnindices 0)
+      (by simp [huvars, VLevel.params]) }
 
 private theorem primitiveNatSuccTailCertificate
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}
@@ -153,7 +156,13 @@ private theorem primitiveNatSuccTailCertificate
       VEnv.IsDefEq.forallEDF hdom hbody⟩
     raw := ⟨[.nat], .nat, by simp [VExpr.wrapForalls],
       by simpa [VExpr.nat, hname] using hvalid1,
-      by simp [VExpr.nat, hname, huvars, VLevel.params]⟩ }
+      by simp [VExpr.nat, hname, huvars, VLevel.params]⟩
+    uniform := .field ⟨_, hdom⟩
+      (.inr ⟨.nat, ⟨_, hdom⟩, .inr ⟨[], .nat, rfl, by simp,
+        by simpa [VExpr.nat, hname] using hvalid0.forgetTarget,
+        target, by simp [htypes], by simp [VExpr.nat, hname, huvars, VLevel.params]⟩⟩)
+      (.result (by simpa [VExpr.nat, hname] using hvalid1)
+        (by simp [VExpr.nat, hname, huvars, VLevel.params])) }
 
 private theorem primitiveTailReplay
     {env : VEnv} {decl : VInductDecl} {target : VInductiveType}

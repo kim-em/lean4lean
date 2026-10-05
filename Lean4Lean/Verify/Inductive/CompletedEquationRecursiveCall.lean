@@ -287,15 +287,15 @@ theorem
     ⟨scope, Hscope, hscopeFVars, hscopeBase, localDomains,
       hlocalDomains, hscopeContext, hscopeShift, hscopeExpanded,
       Hreplay⟩
-  have hsource : ∀ body,
+  have hsource : ∀ body, Closed body →
       F.semantic.current_context.mlctx.mkForall
           F.semantic.generated.localArgs.size HlocalPrefix.le body =
         F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body := by
-    intro body
+    intro body hbody
     rw [← F.semantic.current_context.lctx_eq]
     symm
-    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    refine F.semantic.current_context.mlctx_wf.mkForall_eq _ _ ?_ hbody
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     simpa only [hle] using F.semantic.recent.reverse_eq
@@ -307,7 +307,7 @@ theorem
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
         hscopeBase
   · intro body target Hbody HbodyType
-    rw [← hsource]
+    rw [← hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
     exact Hreplay Hbody HbodyType
 
 /-- Closing first the call-local higher-order arguments and then the complete
@@ -623,14 +623,14 @@ theorem
       HlocalBase HlocalUp with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
       hcontext, _hshift, Hreplay⟩
-  have hsource : ∀ body,
+  have hsource : ∀ body, Closed body →
       F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body =
         F.semantic.current_context.mlctx.mkForall
           F.semantic.generated.localArgs.size HlocalPrefix.le body := by
-    intro body
+    intro body hbody
     rw [← F.semantic.current_context.lctx_eq]
-    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    refine F.semantic.current_context.mlctx_wf.mkForall_eq _ _ ?_ hbody
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     rw [hle]
@@ -638,7 +638,7 @@ theorem
   exact ⟨scope, Hscope, by simpa [hlocalRev] using hscope,
     hdrop, localDomains, hlocal, hcontext, by
       intro body target Hbody HbodyType
-      rw [hsource]
+      rw [hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
       simpa [HlocalBase,
         checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
         Hreplay Hbody HbodyType⟩

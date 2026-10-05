@@ -840,35 +840,11 @@ theorem RestoredConstructorValidationEnvironment.validProjected
 
 /-! ### The final restored environment -/
 
-/-- Certificate obligation (open, see HANDOFF.md): the rule-validation
-environment of a nested restoration satisfies the full checking invariant.
-The environment is the restored environment with the rule lists of the
-restored recursors removed, so the recursor facts reduce to the recursor
-shapes (`VRecursorShape`), the K clause, and the presence of the major
-inductive for every restored recursor; the local invariants, owners and
-registry transport from the restored environment since only rule lists
-change, and the old recursors keep their alignment since the staged target
-adds no stored equation. -/
-theorem RestoredNestedDeclarationsResult.ruleValidationValid
-    (_H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv
-      auxRec allIndNames types auxRecNames ((), outEnv))
-    (_hsource : CheckingEnv.Valid safety sourceEnv sourceVEnv)
-    (_hle : sourceVEnv ≤ targetVEnv)
-    (_hdefeq : ∀ df, targetVEnv.defeqs df → sourceVEnv.defeqs df)
-    (_hcore : CheckingEnv.ValidCore safety outEnv targetVEnv)
-    (_howners : ConstructorOwnersPresent outEnv)
-    (_hregistry : ProjectionRegistryCoherent safety outEnv.constants targetVEnv) :
-    CheckingEnv.Valid safety
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames auxRec types auxRecNames))
-      targetVEnv := by
-  sorry
-
-/-- The complete checking invariant at the rule-validation environment of the
-final restored environment: local invariants come from the canonical staged
-replay, owners from the exact restoration trace, and the projection registry
-from the production origins of the restored families. -/
-theorem RestoredNestedDeclarationsResult.finalValidOfStaged
+/-- Local checking facts for the final restored environment: core invariants
+come from canonical replay, owners from the restoration trace, and projection
+metadata from the restored source families. These facts do not supply
+recursor semantics. -/
+theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -896,10 +872,9 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
     (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
     (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
-    CheckingEnv.Valid c.safety
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
-      finalVEnv := by
+    CheckingEnv.ValidCore c.safety outEnv finalVEnv ∧
+      ConstructorOwnersPresent outEnv ∧
+      ProjectionRegistryCoherent c.safety outEnv.constants finalVEnv := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have houtWF : outEnv.constants.WF := Hactual.targetWF hsourceWF
@@ -951,9 +926,48 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged
     · intro entry hentry
       exact hle.projections
         (VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩))
-  exact Hrestored.ruleValidationValid hvalidSource canonical.le canonical.defeqs
-    (canonical.validCoreOfFreshPermutation Hactual hperm hvalidSource.toValidCore)
-    howners hregistry
+  exact ⟨canonical.validCoreOfFreshPermutation Hactual hperm hvalidSource.toValidCore,
+    howners, hregistry⟩
+
+/-- Full validation of the stripped-rule environment must be derived from the
+actual lowering and recursor-generation traces. A generic restored constant
+map does not justify the restored recursors' major types or K metadata. -/
+theorem RestoredNestedDeclarationsResult.finalValidOfStaged
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
+    {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
+    {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
+      isUnsafe sourceDecl envTypes envCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
+    (hempty : initialState.nestedAux = #[])
+    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+      auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
+      ((), outEnv))
+    (Hactual : FreshConstantTrace c.env actualEntries outEnv)
+    (canonical : StagedBlock c.safety c.env sourceVEnv types ctors recursors
+      sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
+    (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
+    (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
+    (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
+    (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
+    CheckingEnv.Valid c.safety
+      (Lean4Lean.stripRecursorRules outEnv
+        (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
+      finalVEnv := by
+  obtain ⟨hcore, howners, hregistry⟩ :=
+    Hrestored.finalLocalValidOfStaged Hlower Hc Hprod Hsource Hmetadata Hsources
+      Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
+  sorry
 
 end VerifyInductive
 end Lean4Lean

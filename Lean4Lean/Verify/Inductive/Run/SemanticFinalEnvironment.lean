@@ -135,7 +135,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
     by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
-      T.compilation.compilesTo
+      (T.compilation hnonempty).compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
@@ -146,7 +146,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
     Hrecursors.productionInductiveOrigins
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
-  rcases B.extendSafeExact wf hdecl hcompile horigins
+  rcases B.extendSafeExact wf hdecl hcompile horigins T.recursorProvenance
       Hrecursors.closed howners hconstructors with
     ⟨ves', wf', hle, hadd, _hsafe⟩
   exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
@@ -217,7 +217,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .unsafe) B.block :=
     by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
-      T.compilation.compilesTo
+      (T.compilation hnonempty).compilesTo
   have hisUnsafe : isUnsafe = true := by
     exact hproduction.trans (by rw [hsafety]; decide)
   have hconstructors :
@@ -245,7 +245,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     · exact Hrecursors.generated.entrySafety_eq_unsafe
         hlocalSafety hrecursors
   rcases B.extendUnsafeOfHiddenExact wf hdecl hcompile
-      horigins hentries Hrecursors.closed howners hconstructors with
+      horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors with
     ⟨ves', wf', hle, hadd⟩
   exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
     wf', hle, R.core, hadd⟩

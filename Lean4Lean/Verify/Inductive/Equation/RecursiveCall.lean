@@ -184,7 +184,7 @@ theorem
     ⟨scope, Hscope, hscope⟩
   have henv : F.originContext.venv ≤ H.outVEnv := by
     rw [F.originExtension.venv_eq, A.semantics.context_venv,
-      H.recursorEnv, R.declared.contextVEnv]
+      H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   refine ⟨scope, Hscope.mono henv, ?_⟩
   intro fv
@@ -247,7 +247,7 @@ theorem
     ⟨semanticLocalDomains, HlocalPrefix⟩
   have hbase : F.semantic.current_context.venv ≤ H.outVEnv := by
     rw [F.semantic.recent.venv_eq, F.originExtension.venv_eq,
-      A.semantics.context_venv, H.recursorEnv,
+      A.semantics.context_venv, H.recursorEnv_legacy,
       R.declared.contextVEnv]
     exact H.installed.le
   have HcurrentWF : F.semantic.current_context.mlctx.WF H.outVEnv Us :=
@@ -294,15 +294,15 @@ theorem
     ⟨scope, Hscope, hscopeFVars, hscopeBase, localDomains,
       hlocalDomains, hscopeContext, hscopeShift, hscopeExpanded,
       Hreplay⟩
-  have hsource : ∀ body,
+  have hsource : ∀ body, Closed body →
       F.semantic.current_context.mlctx.mkForall
           F.semantic.generated.localArgs.size HlocalPrefix.le body =
         F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body := by
-    intro body
+    intro body hbody
     rw [← F.semantic.current_context.lctx_eq]
     symm
-    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    refine F.semantic.current_context.mlctx_wf.mkForall_eq _ _ ?_ hbody
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     simpa only [hle] using F.semantic.recent.reverse_eq
@@ -314,7 +314,7 @@ theorem
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
         hscopeBase
   · intro body target Hbody HbodyType
-    rw [← hsource]
+    rw [← hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
     exact Hreplay Hbody HbodyType
 
 /-- Closing first the call-local higher-order arguments and then the complete
@@ -488,7 +488,7 @@ def RecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame.core
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       B.fieldScope A.semantics.context.mlctx.vlctx := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq]
@@ -576,7 +576,7 @@ theorem
   have HoriginWF : F.originContext.mlctx.WF H.outVEnv Us := by
     have henv : F.originContext.venv ≤ H.outVEnv := by
       rw [F.originRecent.venv_eq, A.semantics.context_venv,
-        H.recursorEnv, R.declared.contextVEnv]
+        H.recursorEnv_legacy, R.declared.contextVEnv]
       exact H.installed.le
     exact F.originContext.mlctx_wf.mono henv
   have hpriorSkip : ∀ fv ∈ F.originContext.mlctx.fvarRevList
@@ -609,7 +609,7 @@ theorem
   have HlocalWF : F.semantic.current_context.mlctx.WF H.outVEnv Us := by
     have henv : F.semantic.current_context.venv ≤ H.outVEnv := by
       rw [F.semantic.recent.venv_eq, F.originRecent.venv_eq,
-        A.semantics.context_venv, H.recursorEnv,
+        A.semantics.context_venv, H.recursorEnv_legacy,
         R.declared.contextVEnv]
       exact H.installed.le
     exact F.semantic.current_context.mlctx_wf.mono henv
@@ -637,14 +637,14 @@ theorem
       HlocalBase HlocalUp with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
       hcontext, _hshift, Hreplay⟩
-  have hsource : ∀ body,
+  have hsource : ∀ body, Closed body →
       F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body =
         F.semantic.current_context.mlctx.mkForall
           F.semantic.generated.localArgs.size HlocalPrefix.le body := by
-    intro body
+    intro body hbody
     rw [← F.semantic.current_context.lctx_eq]
-    apply F.semantic.current_context.mlctx_wf.mkForall_eq
+    refine F.semantic.current_context.mlctx_wf.mkForall_eq _ _ ?_ hbody
     have hle : HlocalPrefix.le = F.semantic.recent.size_le :=
       Subsingleton.elim _ _
     rw [hle]
@@ -652,7 +652,7 @@ theorem
   exact ⟨scope, Hscope, by simpa [hlocalRev] using hscope,
     hdrop, localDomains, hlocal, hcontext, by
       intro body target Hbody HbodyType
-      rw [hsource]
+      rw [hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
       simpa [HlocalBase,
         checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
         Hreplay Hbody HbodyType⟩
@@ -734,7 +734,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have Hindices := evidence.indices_translation
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
@@ -958,7 +958,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have HmajorFull := F.semantic.applied_field_translation
   have HexposedFull := F.semantic.exposed_translation
   rw [hsemantic] at HmajorFull HexposedFull
@@ -1200,7 +1200,7 @@ theorem
       (H.outVEnv.IsType
         (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq]
@@ -1266,7 +1266,7 @@ theorem
     rw [← B.runtime.front.length_eq, B.front, B.fieldDomains_length]
   have hexpanded := B.runtime.front.expandedContext
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hfieldBaseEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq]
@@ -1448,7 +1448,7 @@ theorem
   have Hreplayed₀ := HS.semantic.replayedSourceDefEqConsumed
   have Hreplayed₁ := HS.semantic.extension.weakDefEqU Hreplayed₀
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have Hreplayed : H.outVEnv.IsDefEqU Us.length
       H.recursorWF.mlctx.vlctx.toCtx
@@ -2230,7 +2230,7 @@ theorem
     H.bindings.flatMinors.fvars
   let outerBinders := parameterBinders ++ insertedBinders
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   rcases A.semantics.fieldContextDefEqMono with
     ⟨runtimeDomains, runtimeResidual, _consumedDomains, _consumedResidual,
@@ -2500,7 +2500,7 @@ theorem
       consumedResidual, _hlocal, htail, hsource, hconsumed,
       Hsource, hconsumedTarget, HsourceConsumed⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have Hsource' := Hsource.mono hbase
   have hfields : S.fields.size = A.rule.allArgs.size := by
@@ -2570,7 +2570,7 @@ theorem
   have hbaseEnv : HS.semantic.rootWF.venv ≤ H.outVEnv := by
     rw [← HS.semantic.fieldsRecent.contextExtension.venv_eq,
       ← HS.semantic.hypothesesRecent.contextExtension.venv_eq,
-      ← HS.semantic.extension.venv_eq, H.recursorEnv,
+      ← HS.semantic.extension.venv_eq, H.recursorEnv_legacy,
       R.declared.contextVEnv]
     exact H.installed.le
   have Hnarrow₁ := Hnarrow₀.mono hbaseEnv
@@ -2604,7 +2604,7 @@ theorem
         baseShift) := by
     exact Hnarrow.weakFV' H.outVEnvWF.ordered Wbase HbaseContext.wf
   have hfieldBaseEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
-    rw [← A.semantics.fieldRootExtension.venv_eq, H.recursorEnv,
+    rw [← A.semantics.fieldRootExtension.venv_eq, H.recursorEnv_legacy,
       R.declared.contextVEnv]
     exact H.installed.le
   rcases A.semantics.fieldContextDefEq with
@@ -2761,7 +2761,7 @@ theorem
     ⟨_S₂, _HS₂, narrowDomains, narrowResidual,
       hnarrow, Hnarrow, HnarrowFields⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
       (H.outVEnv.IsType Us.length) := by
@@ -2772,15 +2772,15 @@ theorem
   have Hminor' : TrExprS H.outVEnv Us
       H.parameterSuffix.parameterDecls A.semantics.parameterTail
       (VExpr.wrapForalls minorDomains minorResidual) := by
-    simpa only [← H.parameterDecls] using Hminor
+    simpa only [← H.parameterDecls_legacy] using Hminor
   have Hchecked' : TrExprS H.outVEnv Us
       H.parameterSuffix.parameterDecls A.semantics.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual) := by
-    simpa only [← H.parameterDecls] using Hchecked
+    simpa only [← H.parameterDecls_legacy] using Hchecked
   have HminorChecked' : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (minorDomains.reverse ++ H.parameterSuffix.parameterDecls.toCtx)
       (checkedDomains.reverse ++ H.parameterSuffix.parameterDecls.toCtx) := by
-    simpa only [← H.parameterDecls] using HminorChecked
+    simpa only [← H.parameterDecls_legacy] using HminorChecked
   have HminorNarrowTarget := Hminor'.uniq H.outVEnvWF
     (VLCtx.IsDefEq.refl H.outVEnvWF
       (H.parameterSuffix.parameterWF.mono hrecBase)) Hnarrow
@@ -2844,12 +2844,12 @@ theorem
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have Hchecked' : TrExprS H.outVEnv Us
       H.parameterSuffix.parameterDecls A.semantics.parameterTail
       (VExpr.wrapForalls checkedDomains checkedResidual) := by
-    simpa only [← H.parameterDecls] using Hchecked
+    simpa only [← H.parameterDecls_legacy] using Hchecked
   have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
       (H.outVEnv.IsType Us.length) := by
     have HfieldCtx := B.fieldContextWF
@@ -2881,7 +2881,7 @@ theorem
     have Hextended :=
       Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
         hparams HprefixCanonical
-    simpa [insertedCtx, ← H.parameterDecls] using Hextended
+    simpa [insertedCtx, ← H.parameterDecls_legacy] using Hextended
   have HinsertedCtx : OnCtx
       (insertedCtx ++ H.parameterSuffix.parameterDecls.toCtx)
       (H.outVEnv.IsType Us.length) :=
@@ -3017,7 +3017,7 @@ theorem
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have HparameterCtx : OnCtx H.parameterSuffix.parameterDecls.toCtx
       (H.outVEnv.IsType Us.length) := by
@@ -3289,7 +3289,7 @@ theorem
           H.parameterSuffix.parameterDecls).toCtx target := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv, R.declared.contextVEnv]
+    rw [H.recursorEnv_legacy, R.declared.contextVEnv]
     exact H.installed.le
   have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq]
@@ -3714,7 +3714,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have Hmajor := F.semantic.applied_field_translation
   rw [hsemantic] at Hmajor
   have HmajorFinal := Hmajor.mono H.installed.le
@@ -3785,7 +3785,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have Hfull := F.semantic.exposed_translation
   have HfullType : F.semantic.current_context.venv.IsType Us.length
       F.semantic.current_context.mlctx.vlctx.toCtx
@@ -3853,7 +3853,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have HfullMajor := F.semantic.applied_field_translation
   have HfullExposed := F.semantic.exposed_translation
   have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
@@ -3917,7 +3917,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have HfullMajor := F.semantic.applied_field_translation
   have HfullExposed := F.semantic.exposed_translation
   have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
@@ -4029,7 +4029,7 @@ theorem
     F.semantic.recent.venv_eq.trans
       (F.originExtension.venv_eq.trans <|
         A.semantics.context_venv.trans
-        (H.recursorEnv.trans R.declared.contextVEnv))
+        (H.recursorEnv_legacy.trans R.declared.contextVEnv))
   have Hindices := evidence.indices_translation
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
@@ -4134,7 +4134,7 @@ theorem
       F.semantic.recent.venv_eq.trans
         (F.originExtension.venv_eq.trans <|
           A.semantics.context_venv.trans
-          (H.recursorEnv.trans R.declared.contextVEnv))
+          (H.recursorEnv_legacy.trans R.declared.contextVEnv))
     have Hfull := F.semantic.exposed_translation
     rw [hsemantic] at Hfull
     exact Hscope.fullTargetEq H.outVEnvWF HnarrowExposed

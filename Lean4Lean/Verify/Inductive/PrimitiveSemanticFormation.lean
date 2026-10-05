@@ -42,7 +42,8 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
     (Hambient : checkInductiveTypes.loopType.AmbientParamContext
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
-      some commonLevel) :
+      some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
     PrimitiveDeclaredHeadersResult c stats H.decl nparams isUnsafe depth
       Hc.venv indTypes outEnv := by
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -85,7 +86,7 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
     H.toAssembledSemanticHeaders.materializedResult hlevels hlevelParams
-      hindices hconsts hparams Hcache Hsuffix Hambient hcommon
+      hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
     change H.semanticPrefix.complete H.materialized = H.headers
     exact H.headers_eq.symm
@@ -111,6 +112,7 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
     sourceContext := Hc
     sourceContextVEnv := rfl
     sourceMaterialized := sourceMaterialized
+    sourceHeaderParams := congrArg (fun headers => headers.params) hsourceHeaders
     materialized := materialized
     headerParams := by
       calc
@@ -122,7 +124,11 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
           checkInductiveTypes.loopInd.MaterializedHeaderResult.mono_headers_params
             sourceMaterialized hle
         _ = H.headers.params := congrArg (fun headers => headers.params)
-          hsourceHeaders }
+          hsourceHeaders
+    parameterScopeEq := by
+      simpa [materialized, materializedMono] using
+        checkInductiveTypes.loopInd.MaterializedHeaderResult.retargetScope_parameterScope
+          materializedMono hscope }
 
 /-- Primitive header installation with the declaration synthesized from the
 successful semantic header fold and the finite canonical constructor rows.
@@ -152,6 +158,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
     (hvisible : c.safety ≤
@@ -174,7 +181,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
       rw [A.metadata_eq]
       exact hindices
     let Hheaders := A.primitiveDeclaredResult Hatomic hlevels hlevelParams
-      hindices' hconsts hparams Hcache Hsuffix Hambient hcommon
+      hindices' hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
     exact ⟨A.decl, envTypes, Hheaders, trivial⟩
 
 end VerifyInductive

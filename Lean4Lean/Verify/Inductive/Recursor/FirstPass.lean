@@ -2098,7 +2098,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
       Rmajor.mlctx.mkForall 1 hone (Expr.sort elimLevel) := by
     dsimp only [majorBody]
     rw [← Rmajor.lctx_eq]
-    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent
+    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
   have hsortConsume : (Expr.sort elimLevel).consumeTypeAnnotationsVerified =
       Expr.sort elimLevel := by
     apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
@@ -2112,7 +2112,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
     exact (congrArg (fun lctx => lctx.mkForall indices majorBody)
       Rindices.lctx_eq).symm.trans
         (Rindices.mlctx_wf.mkForall_eq indices.size hindicesSize
-          hindicesRecent)
+          hindicesRecent (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial))
   have hconsumeMotive : motiveTy.consumeTypeAnnotationsVerified = motiveTy := by
     rw [hmotiveMkForall]
     exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self
@@ -2306,7 +2306,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
       Rmajor.mlctx.mkForall 1 hone (Expr.sort elimLevel) := by
     dsimp only [majorBody]
     rw [← Rmajor.lctx_eq]
-    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent
+    exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
   have hsortConsume : (Expr.sort elimLevel).consumeTypeAnnotationsVerified =
       Expr.sort elimLevel := by
     apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
@@ -2320,7 +2320,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     exact (congrArg (fun lctx => lctx.mkForall indices majorBody)
       Rindices.lctx_eq).symm.trans
         (Rindices.mlctx_wf.mkForall_eq indices.size hindicesSize
-          hindicesRecent)
+          hindicesRecent (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial))
   have hconsumeMotive : motiveTy.consumeTypeAnnotationsVerified = motiveTy := by
     rw [hmotiveMkForall]
     exact Rindices.onlyLams.mkForall_consumeTypeAnnotations_eq_self

@@ -16,18 +16,22 @@ structure LEExcept (changed : Name → Prop) (src dst : VEnv) : Prop where
   defeqs : ∀ {df}, src.defeqs df → dst.defeqs df
   projections : ∀ {name info}, src.projections name info →
     dst.projections name info
+  eliminators : ∀ {name schema}, src.eliminators name schema →
+    dst.eliminators name schema
 
 theorem LE.toLEExcept (H : src ≤ dst) (changed : Name → Prop) :
     LEExcept changed src dst where
   constants h _ := H.constants h
   defeqs := H.defeqs
   projections := H.projections
+  eliminators := H.eliminators
 
 theorem LEExcept.rfl (env : VEnv) (changed : Name → Prop) :
     LEExcept changed env env where
   constants h _ := h
   defeqs := id
   projections := id
+  eliminators := id
 
 theorem LEExcept.trans
     (Hab : LEExcept changed a b) (Hbc : LEExcept changed b c) :
@@ -35,6 +39,7 @@ theorem LEExcept.trans
   constants h hn := Hbc.constants (Hab.constants h hn) hn
   defeqs h := Hbc.defeqs (Hab.defeqs h)
   projections h := Hbc.projections (Hab.projections h)
+  eliminators h := Hbc.eliminators (Hab.eliminators h)
 
 /-- The constants on which a particular typing/definitional-equality
 derivation depends.  This is proof-relevant on purpose: merely knowing that
@@ -43,6 +48,31 @@ constant. -/
 inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
     (changed : Name → Prop) :
     ∀ {ctx lhs rhs type}, env.IsDefEq uvars ctx lhs rhs type → Prop where
+  | elimDF {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size}
+      (Hlookup : env.eliminators block schema)
+      (Htype : schema.genericType owner = some type)
+      (Hclosed : type.Closed)
+      (Hperm : schema.Permission uvars owner levels target)
+      (Hright : ∀ level ∈ target' :: levels', level.WF uvars)
+      (Heq : List.Forall₂ (· ≈ ·) (target :: levels) (target' :: levels'))
+      (Htyping : env.IsDefEq uvars ctx (type.instL (target :: levels))
+        (type.instL (target :: levels)) (.sort typeLevel)) :
+      UsesOnly changed Htyping →
+      UsesOnly changed (.elimDF Hlookup Htype Hclosed Hperm Hright Heq Htyping)
+  | elimIota {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size}
+      (Hlookup : env.eliminators block schema)
+      (Hgen : schema.genericEquations block owner = some rules)
+      (Hmem : df ∈ rules)
+      (Hclosed : InductiveSignature.CaseSchema.RuleClosed df)
+      (Hperm : schema.Permission uvars owner levels target)
+      (Hleft : env.IsDefEq uvars ctx (df.lhs.instL (target :: levels))
+        (df.lhs.instL (target :: levels)) (df.type.instL (target :: levels)))
+      (Hright : env.IsDefEq uvars ctx (df.rhs.instL (target :: levels))
+        (df.rhs.instL (target :: levels)) (df.type.instL (target :: levels))) :
+      UsesOnly changed Hleft → UsesOnly changed Hright →
+      UsesOnly changed (.elimIota Hlookup Hgen Hmem Hclosed Hperm Hleft Hright)
   | bvar (H : Lookup ctx i type) : UsesOnly changed (.bvar H)
   | symm : UsesOnly changed H → UsesOnly changed (.symm H)
   | trans : UsesOnly changed H₁ → UsesOnly changed H₂ →
@@ -143,6 +173,10 @@ theorem IsDefEq.rebaseExcept
     (HU : H.UsesOnly changed) :
     dst.IsDefEq uvars ctx lhs rhs type := by
   induction HU with
+  | elimDF hlookup htype hclosed hperm hright heq _ _ ih =>
+    exact .elimDF (E.eliminators hlookup) htype hclosed hperm hright heq ih
+  | elimIota hlookup hgen hmem hclosed hperm _ _ _ _ ihLeft ihRight =>
+    exact .elimIota (E.eliminators hlookup) hgen hmem hclosed hperm ihLeft ihRight
   | bvar Hlookup => exact .bvar Hlookup
   | symm _ IH => exact .symm IH
   | trans _ _ IH₁ IH₂ => exact .trans IH₁ IH₂
@@ -181,6 +215,10 @@ theorem IsDefEq.usesOnly_of_constants
       ¬ changed name) :
     H.UsesOnly changed := by
   induction H with
+  | elimDF hlookup htype hclosed hperm hright heq htyping ih =>
+    exact .elimDF hlookup htype hclosed hperm hright heq htyping ih
+  | elimIota hlookup hgen hmem hclosed hperm hleft hright ihLeft ihRight =>
+    exact .elimIota hlookup hgen hmem hclosed hperm hleft hright ihLeft ihRight
   | bvar Hlookup => exact .bvar Hlookup
   | symm H IH => exact .symm IH
   | trans H₁ H₂ IH₁ IH₂ => exact .trans IH₁ IH₂
@@ -223,6 +261,12 @@ theorem IsDefEq.UsesOnly.mono
     (HU : H.UsesOnly changed) :
     (H.mono henv).UsesOnly changed := by
   induction HU with
+  | elimDF hlookup htype hclosed hperm hright heq htyping _ ih =>
+    exact .elimDF (henv.eliminators hlookup) htype hclosed hperm hright heq
+      (htyping.mono henv) ih
+  | elimIota hlookup hgen hmem hclosed hperm hleft hright _ _ ihLeft ihRight =>
+    exact .elimIota (henv.eliminators hlookup) hgen hmem hclosed hperm
+      (hleft.mono henv) (hright.mono henv) ihLeft ihRight
   | bvar Hlookup => exact .bvar Hlookup
   | symm _ IH => exact .symm IH
   | trans _ _ IH₁ IH₂ => exact .trans IH₁ IH₂
@@ -502,6 +546,8 @@ theorem TrProj.RestrictionSupport.rebaseExcept
     exact E.defeqs (S.anchor_le.defeqs hdf)
   · intro name info hlookup
     exact E.projections (S.anchor_le.projections hlookup)
+  · intro name schema hlookup
+    exact E.eliminators (S.anchor_le.eliminators hlookup)
 
 def TrProj.RestrictionSupport.mono
     {env env' : VEnv} (henv : env ≤ env')

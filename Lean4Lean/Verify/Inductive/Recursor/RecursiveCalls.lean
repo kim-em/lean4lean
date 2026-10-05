@@ -65,6 +65,7 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     · intro indices originTypes cIndices HcIndices Hindices HindexOrigins hIndices
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · rw [if_pos harity]
+        refine (checkIndexUniverses.WF indices cIndices).bind fun _ _ => ?_
         let majorTy :=
           (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotationsVerified
@@ -244,6 +245,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       unless indices.size == stats.nindices[dIdx]! do
         throw <| .other
           "recursor index arity does not match checked inductive header"
+      AddInductive.mkRecInfos.checkIndexUniverses indices
       let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
       withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
       let lctx ← getLCtx
@@ -271,6 +273,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · simp only [loopK]
         rw [if_pos harity]
+        refine (checkIndexUniverses.WF indices cIndices).bind fun _ hindexUniverses => ?_
         rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
@@ -613,7 +616,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             Rmajor.mlctx.mkForall 1 hone (.sort elimLevel) := by
           dsimp only [majorBody]
           rw [← Rmajor.lctx_eq]
-          exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent
+          exact Rmajor.mlctx_wf.mkForall_eq 1 hone hmajorRecent trivial
         have HmajorBodyFVars : majorBody.FVarsIn
             (· ∈ scope.fvars) := by
           rw [hmajorConcrete]
@@ -642,6 +645,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
           rw [hmotiveConcrete, ← Rindices.lctx_eq]
           exact Rindices.mlctx_wf.mkForall_eq indices.size Hrecent.size_le
             Hrecent.reverse_eq
+            (hmajorConcrete ▸ Rmajor.mlctx_wf.mkForall_closed 1 hone trivial)
         have hfrontLength : Hruntime.frontSourceDomains.length =
             indices.size := by
           rw [hfront, Hsynthesis.indexCount, ← hindicesSize]
@@ -851,6 +855,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               (HmajorExtension.shift.consN 0)).lift'
                 (HmotiveExtension.shift.consN 0)
           resultLevel := Hframe.resultLevel
+          indexUniverses := by
+            change (cMotive.lctx.mkForall indices (.sort .zero)).levelParamsIn cMotive.lparams = true
+            rw [HindexOrigins.bound.mkForall_mono
+              (HmajorExtension.contextLE.trans HmotiveExtension.contextLE)]
+            exact hindexUniverses
           motiveClosedScope :=
             (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
           motiveClosedAmbient := Hsuffix.ambientDecls
@@ -1882,7 +1891,7 @@ structure RecInfoHypothesisCallBlueprintOrigins
             targetTypeIdx := O.ownerIdx
             targetIndices := O.exposedType.getAppArgs[stats.params.size:]
             template := O.current.lctx.mkLambda O.args <|
-              (mkAppN (.bvar 0)
+              (mkAppN (.bvar O.args.size)
                 O.exposedType.getAppArgs[stats.params.size:]).app
                   (mkAppN fields[j]! O.args) }
 
@@ -1911,7 +1920,7 @@ theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
       targetTypeIdx := O.ownerIdx
       targetIndices := O.exposedType.getAppArgs[stats.params.size:]
       template := O.current.lctx.mkLambda O.args <|
-        (mkAppN (.bvar 0)
+        (mkAppN (.bvar O.args.size)
           O.exposedType.getAppArgs[stats.params.size:]).app
             (mkAppN fields[hypotheses.size]! O.args) }) :
     RecInfoHypothesisCallBlueprintOrigins
@@ -2189,7 +2198,7 @@ structure BoundGeneratedRecursiveCall
     let recursor := mkAppN (mkAppN (mkAppN recursor stats.params) motives)
       minors
     value = (current.lctx.mkLambda localArgs <|
-      (mkAppN (.bvar 0) indices).app
+      (mkAppN (.bvar localArgs.size) indices).app
         (mkAppN field localArgs)).instantiate1 recursor
 
 /-- Pre-installation semantics of one generated recursive call.  The
@@ -2337,7 +2346,7 @@ def mkRecRules.buildRecursiveCall
       minors
     let lctx ← getLCtx
     return (lctx.mkLambda args <|
-      (mkAppN (.bvar 0) indices).app
+      (mkAppN (.bvar args.size) indices).app
         (mkAppN field args)).instantiate1 recursor
 
 /-- Pointwise semantic refinement of the exact recursive-call builder used
@@ -2377,7 +2386,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
         minors
       let lctx ← getLCtx
       return (lctx.mkLambda args <|
-        (mkAppN (.bvar 0) indices).app
+        (mkAppN (.bvar args.size) indices).app
           (mkAppN (.fvar fv) args)).instantiate1 recursor
   have Hloop := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats
     buildCallAt root R Hstats hconsume hlit hctx hfield
@@ -2416,7 +2425,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
         happliedType hvalid hexposedScope hcurrentUp
       change (Except.ok
         ((current.lctx.mkLambda args <|
-          (mkAppN (.bvar 0)
+          (mkAppN (.bvar args.size)
             exposedType.getAppArgs[stats.params.size:]).app
               (mkAppN (.fvar fv) args)).instantiate1
                 (mkAppN (mkAppN (mkAppN
@@ -2425,7 +2434,7 @@ theorem mkRecRules.boundGeneratedCallSemantic
       let Hgenerated : BoundGeneratedRecursiveCall indTypes stats motives
           minors lvls root (.fvar fv)
           ((current.lctx.mkLambda args <|
-            (mkAppN (.bvar 0)
+            (mkAppN (.bvar args.size)
               exposedType.getAppArgs[stats.params.size:]).app
                 (mkAppN (.fvar fv) args)).instantiate1
                   (mkAppN (mkAppN (mkAppN
@@ -2527,7 +2536,7 @@ def BoundGeneratedRecursiveCall.body
   let recursor := .const (Lean.mkRecName indTypes[typeIdx]!.name) lvls
   let recursor := mkAppN (mkAppN (mkAppN recursor stats.params) motives)
     minors
-  let templateBody := (mkAppN (.bvar 0) indices).app
+  let templateBody := (mkAppN (.bvar H.localArgs.size) indices).app
     (mkAppN field H.localArgs)
   (templateBody.abstractList H.arguments_bound.fvars).instantiate1'
     recursor H.localArgs.size
@@ -2537,7 +2546,7 @@ theorem BoundGeneratedRecursiveCall.value_eq_body
       root field value) :
     value = (H.current.lctx.mkLambda H.localArgs <|
       let indices := (AddInductive.getIIndices stats H.exposedType).2
-      (mkAppN (.bvar 0) indices).app
+      (mkAppN (.bvar H.localArgs.size) indices).app
         (mkAppN field H.localArgs)).instantiate1
           (mkAppN (mkAppN (mkAppN
             (.const (Lean.mkRecName
@@ -2556,7 +2565,7 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
       Hvalue⟩
   let templateBody : Expr :=
     let (typeIdx, indices) := AddInductive.getIIndices stats exposedType
-    (mkAppN (.bvar 0) indices).app (mkAppN field localArgs)
+    (mkAppN (.bvar localArgs.size) indices).app (mkAppN field localArgs)
   let recursor : Expr :=
     let (typeIdx, _) := AddInductive.getIIndices stats exposedType
     mkAppN (mkAppN (mkAppN
@@ -2594,7 +2603,7 @@ theorem SemanticBoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
   let templateBody : Expr :=
     let indices :=
       (AddInductive.getIIndices stats H.generated.exposedType).2
-    (mkAppN (.bvar 0) indices).app
+    (mkAppN (.bvar H.generated.localArgs.size) indices).app
       (mkAppN field H.generated.localArgs)
   let applied := H.generated.current.lctx.mkLambda H.generated.localArgs
     (mkAppN field H.generated.localArgs)
@@ -2620,7 +2629,7 @@ theorem SemanticBoundGeneratedRecursiveCall.sameAppliedFieldLambdaPrefix
       ((H.generated.current.lctx.mkLambda H.generated.localArgs <|
         let indices :=
           (AddInductive.getIIndices stats H.generated.exposedType).2
-        (mkAppN (.bvar 0) indices).app
+        (mkAppN (.bvar H.generated.localArgs.size) indices).app
           (mkAppN field H.generated.localArgs)).instantiate1 recursor)
       (H.generated.current.lctx.mkLambda H.generated.localArgs
         (mkAppN field H.generated.localArgs)) := by
@@ -2748,7 +2757,7 @@ theorem BoundGeneratedRecursiveCall.abstractedBody_eq
       (.const (Lean.mkRecName indTypes[typeIdx]!.name) lvls)
       stats.params) motives) minors
     let abstractedFn :=
-      mkAppN ((Expr.bvar 0).abstractList H.arguments_bound.fvars)
+      mkAppN ((Expr.bvar H.localArgs.size).abstractList H.arguments_bound.fvars)
         (indices.map fun e => e.abstractList H.arguments_bound.fvars)
     let abstractedMajor :=
       mkAppN (field.abstractList H.arguments_bound.fvars)
@@ -2800,7 +2809,7 @@ def BoundGeneratedRecursiveCall.abstractedRecursor
   let indices := (AddInductive.getIIndices stats H.exposedType).2
   let recursor := mkAppN (mkAppN (mkAppN
     (.const H.recursorName lvls) stats.params) motives) minors
-  (mkAppN ((Expr.bvar 0).abstractList H.arguments_bound.fvars)
+  (mkAppN ((Expr.bvar H.localArgs.size).abstractList H.arguments_bound.fvars)
     (indices.map fun e => e.abstractList H.arguments_bound.fvars)).instantiate1'
       recursor H.localArgs.size
 

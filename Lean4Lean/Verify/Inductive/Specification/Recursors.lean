@@ -282,7 +282,7 @@ theorem NestedIotaListCertificate.forall₂
 /-- Generator-facing form of ordinary compilation. Its indexed fields match
 the loops in `mkRecInfos` and `mkRecRules`; `ordinary` below converts them to
 the independent list-relational specification. -/
-structure OrdinaryCompilationCertificate (env : VEnv)
+structure OrdinaryShapeCertificate (env : VEnv)
     (decl : VInductDecl) (block : VInductBlock) : Prop where
   types : block.types = decl.typeConstants
   ctors : block.ctors = decl.constructorConstants
@@ -309,10 +309,45 @@ theorem sourceNames_nodup_ofBlock
   simp only [List.map_append] at hnames
   exact (List.nodup_append.mp hnames).1
 
-theorem OrdinaryCompilationCertificate.sourceNames_nodup
-    (H : OrdinaryCompilationCertificate env decl block) :
+theorem OrdinaryShapeCertificate.sourceNames_nodup
+    (H : OrdinaryShapeCertificate env decl block) :
     decl.sourceNames.Nodup :=
   sourceNames_nodup_ofBlock H.types H.ctors H.names
+
+theorem OrdinaryShapeCertificate.ordinary
+    (H : OrdinaryShapeCertificate env decl block) :
+    decl.OrdinaryShape env block := by
+  rcases H.rules with ⟨envTypes, envCtors, htypes, hctors, Hrules⟩
+  exact {
+  types := H.types
+  ctors := H.ctors
+  projections := H.projections
+  recursors := H.recursors.forall₂
+  rules := ⟨envTypes, envCtors, htypes, hctors, Hrules.forall₂⟩
+  names := H.names }
+
+/-- Direct generation and the shared finite derivation supplement the legacy
+shape checks. Only this stronger certificate can introduce an ordinary block. -/
+structure OrdinaryCompilationCertificate (env : VEnv)
+    (decl : VInductDecl) (block : VInductBlock) : Prop
+    extends OrdinaryShapeCertificate env decl block where
+  canonical : InductiveSignature.Compiles env decl block
+  finite : CompiledInductive env decl block
+
+theorem OrdinaryCompilationCertificate.sourceNames_nodup
+    (H : OrdinaryCompilationCertificate env decl block) : decl.sourceNames.Nodup :=
+  H.toOrdinaryShapeCertificate.sourceNames_nodup
+
+theorem OrdinaryCompilationCertificate.ordinary
+    (H : OrdinaryCompilationCertificate env decl block) :
+    decl.OrdinaryCompilation env block :=
+  { H.toOrdinaryShapeCertificate.ordinary with
+    canonical := H.canonical
+    finite := H.finite }
+
+theorem OrdinaryCompilationCertificate.compilesTo
+    (H : OrdinaryCompilationCertificate env decl block) : decl.CompilesTo env block :=
+  .ordinary H.ordinary
 
 theorem TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
@@ -324,28 +359,10 @@ theorem TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
     (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty H hsource)
     Hcompile.sourceNames_nodup
 
-theorem OrdinaryCompilationCertificate.ordinary
-    (H : OrdinaryCompilationCertificate env decl block) :
-    decl.OrdinaryCompilation env block := by
-  rcases H.rules with ⟨envTypes, envCtors, htypes, hctors, Hrules⟩
-  exact {
-  types := H.types
-  ctors := H.ctors
-  projections := H.projections
-  recursors := H.recursors.forall₂
-  rules := ⟨envTypes, envCtors, htypes, hctors, Hrules.forall₂⟩
-  names := H.names }
-
-theorem OrdinaryCompilationCertificate.compilesTo
-    (H : OrdinaryCompilationCertificate env decl block) :
-    decl.CompilesTo env block :=
-  .ordinary H.ordinary
-
-/-- Indexed, generator-facing form of nested compilation. The primary
-recursors and rules use the same certificates as ordinary compilation, while
-the restoration-only suffix is isolated to deterministic names and guarded
-right-hand sides. -/
-structure NestedCompilationCertificate (env : VEnv)
+/-- Legacy nested restoration shape. This records primary coverage and
+auxiliary RHS guardedness but leaves auxiliary equation syntax unconstrained.
+Only `NestedCompilationCertificate` can justify an abstract installation. -/
+structure NestedShapeCertificate (env : VEnv)
     (decl : VInductDecl) (block : VInductBlock) where
   main : VInductiveType
   rest : List VInductiveType
@@ -370,8 +387,8 @@ structure NestedCompilationCertificate (env : VEnv)
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
-theorem NestedCompilationCertificate.sourceNames_nodup
-    (H : NestedCompilationCertificate env decl block) :
+theorem NestedShapeCertificate.sourceNames_nodup
+    (H : NestedShapeCertificate env decl block) :
     decl.sourceNames.Nodup :=
   sourceNames_nodup_ofBlock H.types H.ctors H.names
 
@@ -379,15 +396,15 @@ theorem TrInductDeclCore.toTrInductDeclOfNestedCompilation
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors)
     (hsource : types ≠ [])
-    (Hcompile : NestedCompilationCertificate env decl block) :
+    (Hcompile : NestedShapeCertificate env decl block) :
     TrInductDecl env lparams nparams types isUnsafe decl :=
   Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H
     (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty H hsource)
     Hcompile.sourceNames_nodup
 
-def NestedCompilationCertificate.nested
-    (H : NestedCompilationCertificate env decl block) :
-    decl.NestedCompilation env block where
+def NestedShapeCertificate.nested
+    (H : NestedShapeCertificate env decl block) :
+    decl.NestedShape env block where
   main := H.main
   rest := H.rest
   types_source := H.types_source
@@ -405,6 +422,18 @@ def NestedCompilationCertificate.nested
     H.primary_rules.forall₂⟩
   auxiliary_guarded := H.auxiliary_guarded
   names := H.names
+
+/-- Canonical nested compilation adds finite generation to the shape-only
+restoration certificate. -/
+structure NestedCompilationCertificate (env : VEnv)
+    (decl : VInductDecl) (block : VInductBlock)
+    extends NestedShapeCertificate env decl block where
+  canonical : CompiledInductive env decl block
+
+def NestedCompilationCertificate.nested
+    (H : NestedCompilationCertificate env decl block) :
+    decl.NestedCompilation env block :=
+  { H.toNestedShapeCertificate.nested with canonical := H.canonical }
 
 theorem NestedCompilationCertificate.compilesTo
     (H : NestedCompilationCertificate env decl block) :
@@ -445,7 +474,7 @@ theorem AuxiliaryRestorationPrefix.appendRules
 recursors and rules. Unlike the ordinary shortcut, these need not be the
 lowered constants verbatim: restoration may rewrite their telescopes while
 preserving the independent recursor/iota specifications. -/
-def NestedCompilationCertificate.ofRestoration
+def NestedShapeCertificate.ofRestoration
     (env envTypes envCtors : VEnv) (decl : VInductDecl)
     (block : VInductBlock)
     (main : VInductiveType) (rest : List VInductiveType)
@@ -468,7 +497,7 @@ def NestedCompilationCertificate.ofRestoration
     (hrules : block.rules = primaryRules ++ auxiliaryRules)
     (hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
-    NestedCompilationCertificate env decl block where
+    NestedShapeCertificate env decl block where
   main := main
   rest := rest
   types_source := htypesSource

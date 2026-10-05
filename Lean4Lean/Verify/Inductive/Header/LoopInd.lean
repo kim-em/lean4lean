@@ -1486,6 +1486,7 @@ structure MaterializedHeaderResult (env : VEnv) (Us : List Name)
             sourceTelescope.ownParams.reverse)
           residual (.sort decl.types[i].resultLevel)
             (.sort (.succ decl.types[i].resultLevel))
+  isNotZero : stats.isNotZero = stats.resultLevel.isNeverZero
   commonLevel : VLevel.ofLevel Us stats.resultLevel =
     some headers.resultLevel
   levels : stats.levels.length = decl.uvars
@@ -1611,6 +1612,7 @@ def MaterializedHeaderResult.mono {env env' : VEnv}
       ⟨sourceTelescope, residual, exprType, hheader, hresult⟩
     exact ⟨sourceTelescope.mono henv, residual, exprType,
       hheader.mono henv, hresult.mono henv⟩
+  isNotZero := H.isNotZero
   commonLevel := H.commonLevel
   levels := H.levels
   levelParams := H.levelParams
@@ -1662,6 +1664,7 @@ theorem laterSteps.materialize
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (Hfinish : ∀ {c' : AddInductive.Context}
       {stats' : AddInductive.InductiveStats} {decl : VInductDecl}
@@ -1718,6 +1721,7 @@ theorem laterSteps.materialize
     · exact Hprefix'
     · exact Hambient'
     · simpa [updatedStats, hlparams'] using hcommon
+    · simpa [updatedStats] using hnotzero
     · exact hconsume
     · intro c'' stats'' decl depth'' Hc'' henv'' hsafety'' hlparams'' Hdecl'' Hresult
       exact Hfinish Hc'' (henv''.trans henv')
@@ -1750,6 +1754,7 @@ theorem laterSteps.materialize
           Hprefix'.normalizedSourceAtMaterialized hmaterialize
         normalizedShapes :=
           Hprefix'.normalizedShapeAtMaterialized hmaterialize
+        isNotZero := hnotzero
         commonLevel := hcommon
         levels := ?_
         levelParams := hlevelParams
@@ -1888,6 +1893,7 @@ def MaterializedHeaderResult.withAmbient
     headers := H.headers
     normalizedSources := H.normalizedSources
     normalizedShapes := H.normalizedShapes
+    isNotZero := H.isNotZero
     commonLevel := H.commonLevel
     levels := H.levels
     levelParams := H.levelParams
@@ -1990,6 +1996,7 @@ theorem firstStep.materialize
   · exact Hprefix'
   · exact Hambient'
   · simpa [statsNext, updatedStats] using hofLevel
+  · simp [statsNext, updatedStats]
   · exact hconsume
   · intro c'' stats'' decl depth'' Hc'' henv'' hsafety'' hlparams'' Hdecl'' Hresult
     exact Hfinish Hc'' (henv''.trans henv')

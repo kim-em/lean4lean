@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Generation
+import Lean4Lean.Verify.Inductive.Recursor.CanonicalTargets
 
 namespace Lean4Lean
 
@@ -1697,6 +1697,8 @@ theorem AddInductive.declareRecursors.loop.WF
     (hnumMotives : numMotives = (recInfos.map (·.motive)).size)
     (k isUnsafe : Bool) (allowPrimitive : Bool)
     (hisUnsafe : isUnsafe = (c.safety != .safe))
+    (hall : all = (indTypes.map (·.name)).toList)
+    (hk : KTargetCheck stats indTypes k)
     (dIdx : Nat) (hdone : dIdx ≤ indTypes.size)
     (env : Environment)
     (Hvalid : CheckingEnv.ValidCore c.safety env currentVEnv)
@@ -1823,7 +1825,7 @@ theorem AddInductive.declareRecursors.loop.WF
             Rowners Hbindings Horigins Hblueprints HminorSources HminorSemantics
             Hparams hnoalias hcounts numMinors numMotives all hnumMinors
             hnumMotives k
-            isUnsafe allowPrimitive hisUnsafe (dIdx + 1) (by omega)
+            isUnsafe allowPrimitive hisUnsafe hall hk (dIdx + 1) (by omega)
             (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
           exact Htail.mono fun out Hout => by
             rcases Hout with
@@ -1834,7 +1836,7 @@ theorem AddInductive.declareRecursors.loop.WF
               exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
                 lparams elimLevel c stats indTypes recInfos numMinors
                 numMotives all hnumMinors hnumMotives k isUnsafe dIdx
-                generated.1 recursor hisUnsafe
+                generated.1 recursor hisUnsafe hall hk
                 HtrSource
                 Hgenerated
             have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
@@ -1878,6 +1880,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     {sourceVEnv currentVEnv envTypes envCtors : VEnv}
     {decl : VInductDecl} {indTypes : Array InductiveType}
     {parameterDecls : VLCtx}
+    {recursors : Nat → VConstVal}
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv lparams nparams
       indTypes.toList sourceIsUnsafe decl envTypes envCtors)
@@ -1921,18 +1924,19 @@ theorem AddInductive.declareRecursors.loop.semanticWF
     (hnumMotives : numMotives = (recInfos.map (·.motive)).size)
     (k isUnsafe : Bool) (allowPrimitive : Bool)
     (hisUnsafe : isUnsafe = (c.safety != .safe))
+    (hall : all = (indTypes.map (·.name)).toList)
+    (hk : KTargetCheck stats indTypes k)
     (dIdx : Nat) (hdone : dIdx ≤ indTypes.size)
     (env : Environment)
     (Hvalid : CheckingEnv.ValidCore c.safety env currentVEnv)
     (hle : sourceVEnv ≤ currentVEnv)
     (Htranslate : ∀ owner (howner : owner < indTypes.size)
       (rules : List RecursorRule),
-      ∃ recursor : VConstVal,
-        TrConstVal c.safety sourceVEnv
+      TrConstVal c.safety sourceVEnv
           (.recInfo (AddInductive.declareRecursors.recursorInfo stats
             indTypes elimLevel recInfos numMinors numMotives all c.lctx k
-            isUnsafe lparams owner rules)) recursor ∧
-        recursor.toVConstant.WF sourceVEnv)
+            isUnsafe lparams owner rules)) (recursors owner) ∧
+        (recursors owner).toVConstant.WF sourceVEnv)
     (hnprim : allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
@@ -1948,7 +1952,8 @@ theorem AddInductive.declareRecursors.loop.semanticWF
             elimLevel c stats indTypes recInfos dIdx entries) ∧
           Nonempty (GeneratedRecursorRuleSemanticsRange R decl stats
             indTypes recInfos Horigins elimLevel parameterDecls dIdx entries) ∧
-          AddConstants c.safety env currentVEnv entries out.1 outVEnv := by
+          AddConstants c.safety env currentVEnv entries out.1 outVEnv ∧
+          ∀ i (hi : i < entries.length), entries[i].2 = recursors (dIdx + i) := by
   rw [AddInductive.declareRecursors.loop]
   by_cases hidx : dIdx < indTypes.size
   · rw [dif_pos hidx]
@@ -2015,8 +2020,9 @@ theorem AddInductive.declareRecursors.loop.semanticWF
       rw [hnormalize]
       have Hname := checkName.WF Hvalid.tr.map_wf info.name allowPrimitive
       exact Hname.bind fun _ Hchecked => by
+          let recursor := recursors dIdx
           rcases Htranslate dIdx hidx generated.1 with
-            ⟨recursor, HtrSource, HwfSource⟩
+            ⟨HtrSource, HwfSource⟩
           rcases CheckingEnv.exists_addConst Hvalid.tr Hchecked.1
               recursor.toVConstant with ⟨nextVEnv, hadd⟩
           have Htr : TrConstVal c.safety currentVEnv (.recInfo info) recursor :=
@@ -2052,19 +2058,19 @@ theorem AddInductive.declareRecursors.loop.semanticWF
             Hblueprints HblueprintSemantics HminorSources HminorSemantics
             Hparams hnoalias hcounts hparameterUp Hseed numMinors numMotives
             all hnumMinors hnumMotives k isUnsafe
-            allowPrimitive hisUnsafe (dIdx + 1) (by omega)
+            allowPrimitive hisUnsafe hall hk (dIdx + 1) (by omega)
             (env.add (.recInfo info)) HnextValid hnextLe Htranslate hnprim
           exact Htail.mono fun out Hout => by
             rcases Hout with
               ⟨outVEnv, entries, hstate, ⟨Hrange⟩, ⟨HsemRange⟩,
-                Hinstalled⟩
+                Hinstalled, Htargets⟩
             let entry : ConstantInfo × VConstVal := (.recInfo info, recursor)
             have Hentry : GeneratedRecursorEntry c.safety sourceVEnv lparams
                 elimLevel c stats indTypes recInfos dIdx entry := by
               exact GeneratedRecursorEntry.ofRecursorInfo c.safety sourceVEnv
                 lparams elimLevel c stats indTypes recInfos numMinors
                 numMotives all hnumMinors hnumMotives k isUnsafe dIdx
-                generated.1 recursor hisUnsafe
+                generated.1 recursor hisUnsafe hall hk
                 HtrSource
                 Hgenerated.bound
             have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
@@ -2113,8 +2119,13 @@ theorem AddInductive.declareRecursors.loop.semanticWF
                 (entry :: entries) out.1 outVEnv := by
               exact AddConstants.cons Hchecked.1
                 hnprimInfo Htr Hwf haddInfo rfl Hinstalled
-            exact ⟨outVEnv, entry :: entries, hstate, ⟨Hrange'⟩,
-              ⟨HsemRange'⟩, Hinstalled'⟩
+            refine ⟨outVEnv, entry :: entries, hstate, ⟨Hrange'⟩,
+              ⟨HsemRange'⟩, Hinstalled', ?_⟩
+            intro i hi
+            cases i with
+            | zero => rfl
+            | succ i =>
+              simpa [Nat.add_assoc, Nat.add_comm 1 i] using Htargets i (by simpa using hi)
   · rw [dif_neg hidx]
     have heq : dIdx = indTypes.size := by omega
     subst dIdx
@@ -2135,7 +2146,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
               simpa using htypes
             rw [hsize, ← Hcard.records])
         entry := by intro i hi; simp at hi }⟩,
-      .nil⟩
+      .nil, by intro i hi; simp at hi⟩
 termination_by indTypes.size - dIdx
 
 /-- Public recursor-declaration boundary. The executable setup is reduced to
@@ -2145,6 +2156,7 @@ theorem AddInductive.declareRecursors.bindingWF
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     {currentVEnv : VEnv}
     (k : Bool)
+    (hk : KTargetCheck stats indTypes k)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
     (Hcontext : BindingContextWF c)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
@@ -2200,7 +2212,7 @@ theorem AddInductive.declareRecursors.bindingWF
     HminorSemantics Hparams hnoalias hcounts
     (recInfos.flatMap (·.minors)).size
     (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList rfl rfl k
-    (c.safety != .safe) c.allowPrimitive rfl 0 (by omega) c.env
+    (c.safety != .safe) c.allowPrimitive rfl rfl hk 0 (by omega) c.env
     Hvalid.toValidCore VEnv.LE.rfl
     (Htypes.recursorInfoTranslation k) hnprim
   change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
@@ -2215,14 +2227,15 @@ theorem AddInductive.declareRecursors.bindingWF
       simpa using Hrange.covered
     exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, Hinstalled⟩
 
-/-- Public semantic recursor-declaration boundary.  This is the same
-executable declaration pass as `bindingWF`, with the constructor-rule
-semantics retained alongside the ordinary generated-recursors certificate. -/
-theorem AddInductive.declareRecursors.bindingSemanticWF
+/-- Install the selected source-generator targets through the actual
+recursor declaration pass. The checker supplies their typing; the result
+retains exact target equality alongside constructor-rule semantics. -/
+theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     {indTypes : Array InductiveType} {parameterDecls : VLCtx}
     {currentVEnv : VEnv} {recLparams : List Name} {depth : Nat}
     (k : Bool)
+    (hk : KTargetCheck stats indTypes k)
     (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
     (Hcontext : BindingContextWF c)
     (R : RecursorContextWF c recLparams)
@@ -2262,6 +2275,11 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
             introTarget ∧
           R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx introTarget
             tailTarget)
+    (targets : Nat → VExpr)
+    (Hcanonical : ∀ owner (howner : owner < indTypes.size),
+      TrExprS currentVEnv (AddInductive.getRecLevelParams elimLevel c.lparams) []
+        (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner)
+        (targets owner))
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -2277,7 +2295,11 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
           Nonempty (GeneratedRecursorRuleSemanticsRange R decl stats
             indTypes recInfos Horigins elimLevel parameterDecls 0 entries) ∧
           AddConstants c.safety c.env currentVEnv entries outEnv
-            outVEnv := by
+            outVEnv ∧
+          ∀ i (hi : i < entries.length), entries[i].2 = {
+            name := Lean.mkRecName indTypes[i]!.name
+            uvars := (AddInductive.getRecLevelParams elimLevel c.lparams).length
+            type := targets i } := by
   unfold AddInductive.declareRecursors
   simp only [getLCtx, readThe, read, ReaderT.read]
   simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
@@ -2303,9 +2325,10 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
       (recInfos.flatMap (·.minors)).size
       (recInfos.map (·.motive)).size (indTypes.map (·.name)).toList
       rfl rfl k
-      (c.safety != .safe) c.allowPrimitive rfl 0 (by omega) c.env
+      (c.safety != .safe) c.allowPrimitive rfl rfl hk 0 (by omega) c.env
       Hvalid.toValidCore VEnv.LE.rfl
-      (Htypes.recursorInfoTranslation k) hnprim
+      (fun owner howner rules => Htypes.recursorInfoTranslationOfTarget
+        Hvalid.tr.wf k owner howner rules (Hcanonical owner howner)) hnprim
   change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
       elimLevel recInfos (recInfos.map (·.motive))
       (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
@@ -2314,17 +2337,18 @@ theorem AddInductive.declareRecursors.bindingSemanticWF
   exact Hloop.map fun out Hout => by
     rcases Hout with
       ⟨outVEnv, entries, _hstate, ⟨Hrange⟩, ⟨HsemRange⟩,
-        Hinstalled⟩
+        Hinstalled, Htargets⟩
     have hsize : entries.length = recInfos.size := by
       simpa using Hrange.covered
     exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, ⟨HsemRange⟩,
-      Hinstalled⟩
+      Hinstalled, by simpa using Htargets⟩
 
 /-- Full-context wrapper for callers that have semantic local-context typing,
 retaining the original public interface. -/
 theorem AddInductive.declareRecursors.WF
     {envTypes envCtors : VEnv} {decl : VInductDecl}
     (k : Bool)
+    (hk : KTargetCheck stats indTypes k)
     (Hcontext : ContextWF c)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
@@ -2355,7 +2379,7 @@ theorem AddInductive.declareRecursors.WF
             elimLevel c stats indTypes recInfos entries) ∧
           AddConstants c.safety c.env Hcontext.venv entries outEnv
             outVEnv :=
-  AddInductive.declareRecursors.bindingWF k Hcontext.checking
+  AddInductive.declareRecursors.bindingWF k hk Hcontext.checking
     Hcontext.toBindingContextWF Hcard Hdecl Rowners Hbindings Horigins
     Hblueprints HminorSources HminorSemantics Hparams hnoalias hcounts
     hnotPartial

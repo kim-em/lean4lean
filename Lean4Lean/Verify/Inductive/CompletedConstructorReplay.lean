@@ -465,7 +465,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts)
     (k : Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
@@ -536,7 +536,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       typeCheckerLParams := some <|
         AddInductive.getRecLevelParams elimLevel c.lparams }) (Q := Q)
     stats indTypes 0 recInfos k Rframes HsuffixFrames
-    HstatsFrames hconsume hlit.available
+    HstatsFrames hconsume (by simpa only [henvFrames] using hlit)
     (checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts
       Rframes.onlyLams)
     HbindingsFrames HoriginsFrames
@@ -591,11 +591,13 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
       sourceEnv indTypes ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.LiteralDisjoint stats.indConsts)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.context.venv stats.indConsts)
     (k : Level -> Bool -> Array AddInductive.RecInfo -> AddInductive.M alpha)
     (Hk : forall elimLevel,
       (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) ->
-      forall kTarget,
+      AddInductive.getElimLevel stats indTypes { c with env := ctorEnv } =
+        .ok elimLevel ->
+      forall kTarget, KTargetCheck stats indTypes kTarget ->
       forall {cOut : AddInductive.Context} {outDepth : Nat}
       (recInfos : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF cOut
@@ -643,18 +645,24 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
         let kTarget ← AddInductive.isKTarget stats indTypes
         AddInductive.mkRecInfos stats indTypes elimLevel
           (k elimLevel kTarget)) { c with env := ctorEnv }).WF Q := by
-  have Helim := AddInductive.getElimLevel.WF stats indTypes
-    { c with env := ctorEnv }
-  exact Helim.bind fun elimLevel hElim => by
+  have Helim : (AddInductive.getElimLevel stats indTypes
+      { c with env := ctorEnv }).WF (fun level =>
+        AddInductive.AdmissibleElimLevel c.lparams level ∧
+        AddInductive.getElimLevel stats indTypes { c with env := ctorEnv } =
+          .ok level) := by
+    intro level hrun
+    exact ⟨AddInductive.getElimLevel.WF stats indTypes { c with env := ctorEnv } level hrun, hrun⟩
+  exact Helim.bind fun elimLevel ⟨hElim, hElimRun⟩ => by
     simp only [AddInductive.withTypeCheckerLParams, withReader]
     exact (show (AddInductive.isKTarget stats indTypes
       { c with
         env := ctorEnv
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF
-        fun _ => True from fun _ _ => trivial).bind fun kTarget _ =>
+        (KTargetCheck stats indTypes) from
+          AddInductive.isKTarget.checkedWF stats indTypes _).bind fun kTarget hk =>
       R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit
-        (k elimLevel kTarget) (Hk elimLevel hElim kTarget)
+        (k elimLevel kTarget) (Hk elimLevel hElim hElimRun kTarget hk)
 
 end VerifyInductive
 end Lean4Lean

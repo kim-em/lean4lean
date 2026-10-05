@@ -26,10 +26,13 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
-    (Hauxiliary : RestoredAuxiliarySemanticTrace decl
+    (Hauxiliary : RestoredAuxiliaryShapeTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules)
+    (Hcanonical : CompiledInductive sourceEnv decl
+      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules))
     (Hformation : decl.NestedFormationWF sourceEnv)
     (Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
       isUnsafe decl envTypes envCtors)
@@ -71,8 +74,8 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
   have Haux : AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
       auxiliaryRules := by
     exact Hauxiliary.prefix (AuxiliaryRestorationPrefix.empty decl block main)
-  let Hcompile : NestedCompilationCertificate sourceEnv decl block :=
-    NestedCompilationCertificate.ofRestoration sourceEnv envTypes envCtors
+  let Hshape : NestedShapeCertificate sourceEnv decl block :=
+    NestedShapeCertificate.ofRestoration sourceEnv envTypes envCtors
       decl block main rest htypesSource primaryRecursors auxiliaryRecursors
       primaryRules auxiliaryRules
       (HprimaryRecursors.recursorCertificate htypesSource) HprimaryRules
@@ -101,7 +104,8 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
   exact .intro
     ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
       .nested Hformation VEnv.LE.rfl⟩
-    Hcompile.compilesTo HblockWF Hinstall
+    (NestedCompilationCertificate.compilesTo
+      { Hshape with canonical := Hcanonical }) HblockWF Hinstall
 
 end VerifyInductive
 end Lean4Lean
