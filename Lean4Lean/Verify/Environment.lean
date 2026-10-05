@@ -297,11 +297,17 @@ theorem addInductiveDeclaration.preservesWF
 and nested execution paths.  The executable primitive precheck selects the
 primitive branch; otherwise the verified lowering result selects ordinary
 versus the exact nested continuation.  Inductive soundness does not depend on
-the presence or interpretation of the separately bootstrapped `Eq` constant. -/
+the presence or interpretation of the separately bootstrapped `Eq` constant.
+The independent source specification additionally assumes that the source
+declaration has no loose bound variables; the executable only rejects
+metavariables and free variables, and nested lowering would silently repair
+loose bound variables while re-closing constructor types.  Environment
+preservation itself (`finalPreservesWF`) does not need this hypothesis. -/
 theorem addInductiveDeclaration.finalResultWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig) :
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (HsourcesB : VerifyInductive.SourceBVarClosed types) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (VerifyInductive.InductiveFinalResult outEnv ves lparams
@@ -313,7 +319,7 @@ theorem addInductiveDeclaration.finalResultWF
   cases allowPrimitive with
   | false =>
     exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
-      env lparams nparams types isUnsafe fuel ves wf
+      env lparams nparams types isUnsafe fuel ves wf HsourcesB
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -323,8 +329,10 @@ theorem addInductiveDeclaration.finalResultWF
       VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
         env lparams nparams types isUnsafe fuel ves wf Hprimitive
 
-/-- Traditional environment-preservation projection of the complete
-inductive declaration result. -/
+/-- Traditional environment-preservation theorem for the complete inductive
+declaration dispatch.  This is unconditional: it is derived from the
+well-formedness halves of the three execution branches, not from the
+source-facing specification. -/
 theorem addInductiveDeclaration.finalPreservesWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
@@ -332,10 +340,33 @@ theorem addInductiveDeclaration.finalPreservesWF
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
-          ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addInductiveDeclaration.finalResultWF wf lparams nparams types
-    isUnsafe fuel).mono
-      fun _ ⟨H⟩ => H.modelExtension
+          ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel
+    (fun outEnv => ∃ ves' : VEnvs, ves'.WF outEnv ∧
+      ∀ safety, ves.venv safety ≤ ves'.venv safety)
+  intro allowPrimitive hallow
+  cases allowPrimitive with
+  | false =>
+    apply VerifyInductive.Environment.addInductive.checkedLoweringClosedWF
+      env lparams nparams types isUnsafe false fuel wf.inductivesClosed
+      (VerifyInductive.VEnvs.WF.environmentTypesClosed wf)
+    intro res Hsources Hlower
+    by_cases haux : res.aux2nested.size = 0
+    · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF
+        env lparams nparams types isUnsafe fuel res ves wf Hlower.toResult haux
+    · exact
+        (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
+          env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower
+            haux).mono fun _ ⟨H⟩ => H.modelExtension
+  | true =>
+    have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
+        nparams types isUnsafe :=
+      (VerifyInductive.checkPrimitiveInductive_eq_true_iff env lparams
+        nparams types isUnsafe).mp hallow
+    exact
+      (VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
+        env lparams nparams types isUnsafe fuel ves wf Hprimitive).mono
+        fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
   fun _ h => nomatch h

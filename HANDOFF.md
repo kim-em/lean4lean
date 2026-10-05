@@ -121,27 +121,29 @@ declarations; validation must not assume correctness of its own artifact.
      `abstractN_eq_abstractList`, `abstractN_cons`, `abstractN_append_singleton`,
      `abstractN_nil`, `abstractN_hasLooseBVar_zero`, `abstractN_lower`,
      `abstractN_singleton`, `lastRevIdx?` lemmas.
-   - The false statement survives only as the **`sorry`'d theorem**
-     `Expr.abstract_eq_legacy` (and the derived
-     `abstractN_eq_abstractList_legacy`). It was briefly an axiom; Codex
-     showed that together with `abstractN_eq` it proves `False` (`bvar 0 =
-     bvar 1`, both sides computable), so it must never be an axiom. As a
-     `sorry` it is visible to the audit, but it is **unprovable**, so every
-     result depending on it is conditional on a false statement until the
-     uses are removed. `--require-complete` cannot pass while it exists.
-     Remaining uses (grep `abstract_eq_legacy`): `LocalContext.mkBinding_eq`
-     (the sequential bridge), `FVarsIn.abstract_instantiateRev_fvarArray`
-     (`Verify/Typing/Lemmas.lean`), `Expr.reopenParams_eq_reopenFVarsAt`
-     (`Recursor/Telescope.lean`), and the nested-lowering files
-     `Nested/{FormationNativeEvidence,Lowering,LoweringTrace,Opening,Mapping}`.
-     `MLCtx.WF.mkForall_partial/mkLambda_eq` (`TypeChecker/Basic.lean`) and the
-     pure congruence lemmas (`BoundFVarArray.mkForall_mono`, `mkLambda_mono`,
-     `CanonicalParameterReplay`, `Telescope` parameter source) already use the
-     exact bridge `mkBinding_eqN`.
-   - `Verify/LocalContext.lean` now has two models: the sequential
-     `mkBindingList` (legacy bridge `mkBinding_eq`) and the exact
-     `mkBindingListN` with the true bridge `mkBinding_eqN` and the full
-     `cons`/`fold` lemma family. The recursive-call verification
+   - The false statement is **gone**: `Expr.abstract_eq_legacy`,
+     `abstractN_eq_abstractList_legacy`, and the sequential bridge
+     `LocalContext.mkBinding_eq` were deleted (2026-10-05). Every former
+     consumer now either runs on the exact model (`mkBinding_eqN`,
+     `abstractN` telescopes, `reopenFVarsAt_eq_reopenParams` with a
+     `looseBVarRange' = 0` premise, `NestedReplacementReopens.restoreNode`
+     stated at arbitrary binder depth) or converts to the sequential model
+     through `abstractN_eq_abstractList_of_closed` with an honest closedness
+     fact. Closedness is supplied by translations (`TrExprS.closed` plus
+     `MLCtx.noBV`), by the kernel's own nested-parameter check
+     (`NestedParameterScan.closed`, recorded as
+     `GeneratedFamilyWitness.argsClosed`), by `LctxClosed` of semantic
+     contexts (`BoundFVarDeclarationAt.closed`), or by new fields/hypotheses:
+     `ConstructorRestorationBodyInverse.sourceBVarClosed`,
+     `GeneratedRecursorRestorationTelescopeAlignment.oldBVarClosed`,
+     `hsourceBVar : Closed source.type` on the constructor restoration chain,
+     and `hparamsSize : params.size = nparams` where the honest cancellation
+     law needs the parameter count. `--require-complete` no longer reports it.
+   - `Verify/LocalContext.lean` keeps two models: the sequential
+     `mkBindingList` (now only a specification-side device; its bridge to
+     `mkBinding` is `mkBinding_eq'`, which requires `Closed b`, nodup, and
+     `DeclsClosed`) and the exact `mkBindingListN` with the true bridge
+     `mkBinding_eqN` and the full `cons`/`fold` lemma family. The recursive-call verification
      (`BoundGeneratedRecursiveCall.body/abstractedRecursor/abstractedMajor`,
      `lambdaTelescope`, `appliedFieldLambdaTelescope`,
      `mkLambda_fvars_lambdaTelescopeN`, `mkLambda_fvars_avoidingLambdaTelescopeN`,
@@ -159,6 +161,29 @@ declarations; validation must not assume correctness of its own artifact.
      `Closed.consumeForallTypes`, `AvoidsConsts.abstractN`,
      `SameLambdaPrefix.abstractN`, `ForallBinderAt.abstractN`,
      `FVarsIn.abstractN_of` were added.
+
+6. **The source-facing specification needs a hypothesis the executable does
+   not check.** Lowering (`ElimNestedInductive.lowerConstructor`, mirroring
+   C++ `elim_nested_inductive`) opens the parameter telescope of every source
+   constructor type and re-closes it with `mkForall`. Because `instantiate`
+   lowers loose bound variables while `abstract` does not shift them, a
+   constructor type with a loose bound variable under its parameter binders
+   is silently *repaired* (`∀ α, (x : bvar 1) → T α` becomes
+   `∀ α, (x : α) → T α`), and the kernel then checks and stores the repaired
+   type. So `result.types = sourceTypes` (ordinary case) and "restored
+   constructor ≡ source constructor" (nested case) are false for such
+   inputs, and the former proofs of them rested on the false bridge. The
+   honest statements carry `SourceBVarClosed types` (every inductive type and
+   constructor type has no loose bound variables), threaded as
+   `HsourcesB` into `ordinary_types_eq_source`,
+   `ordinaryFinalSpecificationModelWF`, `inductiveFinalResultWF`, and
+   `addInductiveDeclaration.finalResultWF`. The checker contract
+   `addDecl.WF` and `finalPreservesWF` are **unconditional**: they go
+   through the well-formedness halves (`ordinaryFinalModelWF`,
+   `nestedInductiveFinalResultWF.modelExtension`, primitive) only. The
+   executable matches the C++ kernel on such inputs (no new rejection); the
+   nested path needed no new top-level hypothesis because every source-facing
+   fact there comes with a translation of the source.
 
 ## Assessment
 
@@ -183,22 +208,17 @@ inside this project's scope without solving open base metatheory:
 - The honest reachable target is: executable validated against Lean on large
   corpora; inductive-specific obligations closed; final theorem conditional
   only on the named base conjectures; no false statement in the trusted base.
-  Of these, the first is done, the last is partially done (legacy axiom
-  isolated), and the middle two remain open.
+  Of these, the first and the last are done, and the middle two remain open.
 
 ## Remaining obstacles, in priority order
 
-1. **Remove `Expr.abstract_eq_legacy`** (the development is otherwise
-   conditional on a false statement). Switch `LocalContext.mkBinding_eq`
-   consumers to `mkBinding_eqN` (or add `Closed` hypotheses), and thread
-   bound-variable closedness through the nested-lowering structures
-   (`GeneratedFamilyWitness.args`, `NestedRestorationOpening.input`,
-   `ClosedNestedAuxiliaryTranslation.e`, ...). The closedness source is the
-   kernel's own check (declaration types have no loose bvars) and
-   `TrExprS.closed`; `Closed.of_abstractList`-style inversion lemmas are
-   needed where only `residual` translations are available. Keep the
-   recipe: every site is marked `TODO(abstract_eq_legacy)` or uses
-   `abstractN_eq_abstractList_legacy`.
+1. **Done: `Expr.abstract_eq_legacy` removed** (item 5/6 above). Residual
+   risk: the new `SourceBVarClosed` hypothesis on the specification-facing
+   theorems is not discharged by the executable; decide with Mario whether
+   the kernel's silent repair of loose bound variables in source constructor
+   types should be rejected instead (a one-line `hasLooseBVars` check in
+   `checkInductiveSources`, which would be a divergence from C++ on
+   malformed input and would let `SourceSyntaxChecks` carry the fact).
 2. **Close the three refinement junctions** (see above). Start from
    `ConsumedGeneration.types` (translation of
    `declareRecursors.recursorType` to `InductiveSignature.Instance.recursorType`)
@@ -238,18 +258,20 @@ inside this project's scope without solving open base metatheory:
 ## Evidence and commands
 
 - Dependency audit of `addDecl.WF`: now a permanent root of
-  `scripts/InductiveAudit.lean`; result listed above (10 sorries plus the
-  unprovable `abstract_eq_legacy`; axioms are the inventory's implementation
-  axioms including `abstractN_eq`).
+  `scripts/InductiveAudit.lean`; result listed above (exactly the 10 sorries
+  of item 1; `abstract_eq_legacy` is gone; axioms are the inventory's
+  implementation axioms including `abstractN_eq`).
 - Executable oracle: regenerate an inductive through `Lean4Lean.addDecl` on a
   renamed copy and compare `RecursorVal`s with Lean's; `lake env
   .lake/build/bin/lean4lean Init` (25 "already declared" artifacts, same as
   upstream), `… Std` (6, same as upstream), `--fresh Init.Prelude`,
   `--fresh Init.Core`.
 - `lake build` (default targets), `lake build Lean4Lean.Tests`, the fresh
-  `Init.Prelude`/`Init.Core` replays, and
-  `python3 scripts/check-inductive-audit.py --self-test` all pass at this
-  state; `--require-complete` fails on the 13 reachable open obligations.
+  `Init.Prelude` (1975 declarations) and `Init.Core` (3953 declarations)
+  replays, and `python3 scripts/check-inductive-audit.py --self-test` all
+  pass at this state (2026-10-05, after removing the false bridge);
+  `--require-complete` fails only on the 10 reachable open obligations of
+  item 1 (plus the Church-Rosser roots outside the `addDecl.WF` cone).
 
 Final acceptance still requires: `lake build`, `lake build Lean4Lean.Tests`,
 fresh `Init.Prelude` and `Init.Core` replay,

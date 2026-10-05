@@ -141,13 +141,15 @@ theorem CompletedRecursorConstruction.replayMotiveWithIndexDomains
   have HresEq := Hres.uniq henv Hcontexts HnewRes
   have HnewType := (HresType.defeqU_l henv Hcontexts.wf.toCtx HresEq).defeqDFC
     henv.ordered Hcontexts.defeqCtx
-  have HmajorTel := ((S.majorBound.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractList
+  have HmajorTel := ((S.majorBound.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractN
     S.indicesBound.fvars).abstractList H.params.fvars H.recInfos[owner]!.indices.size
   have hsort (fvars : List FVarId) (k : Nat) :
       (Expr.sort H.elimLevel).abstractList fvars k = .sort H.elimLevel :=
     Expr.abstractList_eq_self_of_abstract1 (.sort H.elimLevel)
       (by intro fv depth; simp [Expr.abstract1]) fvars k
-  simp only [Array.size_singleton, hsort] at HmajorTel
+  have hsortN (fvars : List FVarId) (k : Nat) :
+      (Expr.sort H.elimLevel).abstractN fvars k = .sort H.elimLevel := rfl
+  simp only [Array.size_singleton, hsort, hsortN] at HmajorTel
   obtain ⟨majorDomains, residual, hmajorLen, hnewResult, Hsort⟩ :=
     TrExprS.forallTelescope_shape_with_context HmajorTel HnewRes
   cases majorDomains with

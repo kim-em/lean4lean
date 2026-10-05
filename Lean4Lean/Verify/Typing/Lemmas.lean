@@ -290,6 +290,14 @@ theorem Closed.instantiate1 : ∀ {e : Expr} {k},
       exact ha.mono (Nat.zero_le _)
     · simp [Closed]; omega
 
+/-- Exact-model form of `FVarsIn.abstract_instantiate1`: closing a fresh variable after
+opening a binder with it is the identity on bodies closed below that binder. -/
+theorem FVarsIn.abstractN_instantiate1 {e : Expr} {v : FVarId} {k : Nat}
+    (h : FVarsIn (· ≠ v) e) (hc : Closed e (k + 1)) :
+    (Expr.instantiate1' e (.fvar v) k).abstractN [v] k = e := by
+  rw [Expr.abstractN_singleton (hc.instantiate1 (a := Expr.fvar v) trivial).looseBVarRange_le]
+  exact h.abstract_instantiate1
+
 /-- `FVarsIn` rules out free variables, expression metavariables *and* level metavariables --
 the last in the `sort` and `const` cases -- so all three flags are needed. -/
 theorem FVarsIn.of_hasFVar {P} : ∀ {e : Expr},

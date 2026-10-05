@@ -2115,7 +2115,7 @@ no-alias lambda telescope over the retained binder sequence. -/
 theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       ctor minorIdx rule) :
-    rule.rhs = LocalContext.mkBindingList true H.outerRoot.lctx
+    rule.rhs = LocalContext.mkBindingListN true H.outerRoot.lctx
       H.binders H.sourceRhsBody := by
   rw [H.rhs_eq]
   symm
@@ -2137,8 +2137,8 @@ theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
     rcases H.outer_wf.findCDecl fv hmem with
       ⟨index, name, type, bi, kind, hfind⟩
     exact ⟨.cdecl index fv name type bi kind, hfind⟩
-  rw [LocalContext.mkBindingList_append_four hdecl H.binders_nodup]
-  simp only [LocalContext.mkLambda, ← LocalContext.mkBinding_eq]
+  rw [LocalContext.mkBindingListN_append_four hdecl H.binders_nodup]
+  simp only [LocalContext.mkLambda, ← LocalContext.mkBinding_eqN]
   have hp : ({ toList := H.params_bound.fvars.map Expr.fvar } :
       Array Expr) = stats.params := by
     simpa using H.params_bound.expressions.symm
@@ -2154,7 +2154,7 @@ theorem BoundGeneratedRecursorRule.rhs_eq_bindingList
   rw [hp, hm, hmi, ha]
   have hfields := H.all_args_bound.mkLambda_mono H.root_le_outer
     (mkAppN (mkAppN minors[minorIdx]! H.allArgs) H.recursiveResults)
-  simpa only [LocalContext.mkLambda, ← LocalContext.mkBinding_eq] using
+  simpa only [LocalContext.mkLambda, ← LocalContext.mkBinding_eqN] using
     congrArg (fun body =>
       H.outerRoot.lctx.mkLambda stats.params <|
         H.outerRoot.lctx.mkLambda motives <|
@@ -2164,9 +2164,9 @@ theorem BoundGeneratedRecursorRule.rhsLambdaTelescope
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
       ctor minorIdx rule) :
     Expr.LambdaTelescope rule.rhs H.binders.length
-      (H.sourceRhsBody.abstractList H.binders) := by
+      (H.sourceRhsBody.abstractN H.binders) := by
   rw [H.rhs_eq_bindingList]
-  exact LocalContext.mkBindingList_lambdaTelescope
+  exact LocalContext.mkBindingListN_lambdaTelescope
     (H.all_binders_bound.toLocalForallSelection
       H.outer_wf).declarations
 
@@ -2815,7 +2815,7 @@ theorem BoundGeneratedRecursorRule.translatedRhsShape
       domains.length = H.binders.length ∧
       rhs = VExpr.wrapLams domains rhsBody ∧
       TrExprS env Us (abstractForallContext domains Δ)
-        (H.sourceRhsBody.abstractList H.binders) rhsBody :=
+        (H.sourceRhsBody.abstractN H.binders) rhsBody :=
   TrExprS.lambdaTelescope_shape_with_context H.rhsLambdaTelescope Htr
 
 theorem BoundGeneratedRecursorRule.translatedRhsShape_noFresh
@@ -2828,7 +2828,7 @@ theorem BoundGeneratedRecursorRule.translatedRhsShape_noFresh
       domains.length = H.binders.length ∧
       rhs = VExpr.wrapLams domains rhsBody ∧
       TrExprS env Us (abstractForallContext domains Δ)
-        (H.sourceRhsBody.abstractList H.binders) rhsBody ∧
+        (H.sourceRhsBody.abstractN H.binders) rhsBody ∧
       ∀ dom ∈ domains, dom.SourceConstFree recursors :=
   TrExprS.lambdaTelescope_shape_with_context_noFresh
     hfresh hctx H.rhsLambdaTelescope Htr

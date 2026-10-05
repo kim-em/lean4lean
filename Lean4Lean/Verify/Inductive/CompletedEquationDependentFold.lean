@@ -431,10 +431,18 @@ theorem
   have Hsame := (selection.sameForallPrefix
     E.frame.semantic.generated.arguments_bound.nodup
     (.sort (.zero : Level)) motiveApp).abstractList A.rule.binders
-  have Htemplate₀ := (selection.forallTelescope
-    (.sort (.zero : Level))).abstractList A.rule.binders
+  rcases E.frame.motiveApplication with ⟨HproducerMotive⟩
+  have hmotiveAppClosed : Closed motiveApp := by
+    have hclosed := HproducerMotive.translation.closed
+    rw [E.frame.semantic.current_context.mlctx.noBV] at hclosed
+    simpa [motiveApp] using hclosed
+  have Htemplate₀ := (selection.forallTelescopeList
+    (.sort (.zero : Level)) E.frame.semantic.generated.arguments_bound.nodup
+    trivial).abstractList A.rule.binders
   have Hreplacement₀ :=
-    (selection.forallTelescope motiveApp).abstractList A.rule.binders
+    (selection.forallTelescopeList motiveApp
+      E.frame.semantic.generated.arguments_bound.nodup
+      hmotiveAppClosed).abstractList A.rule.binders
   have hselectionFVars : selection.fvars =
       E.frame.semantic.generated.arguments_bound.fvars := rfl
   rw [hselectionFVars] at Htemplate₀ Hreplacement₀
@@ -611,8 +619,14 @@ theorem
   let selection :=
     E.frame.semantic.generated.arguments_bound.toBoundFVarArray.toLocalForallSelection
       E.frame.semantic.generated.current_wf
-  have Hraw := (selection.forallTelescope motiveApp).abstractList
-    A.rule.binders
+  rcases E.frame.motiveApplication with ⟨HproducerMotive⟩
+  have hmotiveAppClosed : Closed motiveApp := by
+    have hclosed := HproducerMotive.translation.closed
+    rw [E.frame.semantic.current_context.mlctx.noBV] at hclosed
+    simpa [motiveApp] using hclosed
+  have Hraw := (selection.forallTelescopeList motiveApp
+    E.frame.semantic.generated.arguments_bound.nodup
+    hmotiveAppClosed).abstractList A.rule.binders
   have hselectionFVars : selection.fvars =
       E.frame.semantic.generated.arguments_bound.fvars := rfl
   rw [hselectionFVars] at Hraw
@@ -871,8 +885,9 @@ theorem
     (.sort (.zero : Level))
     (mkAppN A.rule.recursiveArgs[j]
       E.frame.semantic.generated.localArgs)).abstractList A.rule.binders
-  have Hforall₀ := (selection.forallTelescope
-    (.sort (.zero : Level))).abstractList A.rule.binders
+  have Hforall₀ := (selection.forallTelescopeList
+    (.sort (.zero : Level)) E.frame.semantic.generated.arguments_bound.nodup
+    trivial).abstractList A.rule.binders
   have hselectionFVars : selection.fvars =
       E.frame.semantic.generated.arguments_bound.fvars := rfl
   rw [hselectionFVars] at Hforall₀
@@ -1621,11 +1636,6 @@ theorem
       E.frame.semantic.generated.localArgs.size
       (E.frame.semantic.generated.outerAbstractedMotiveApp
         A.rule.all_args_bound.fvars) := by
-    have Hsource :=
-      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescope
-        E.frame.semantic.generated.current_wf generatedMotiveApp
-    have Hsource' := Hsource.abstractList
-      A.rule.all_args_bound.fvars 0
     have hresidual :=
       E.frame.semantic.generated.outerAbstractedMotiveApp_eq
         A.rule.all_args_bound.fvars hfieldLoose
@@ -1642,6 +1652,17 @@ theorem
           hgeneratedOwnerRecInfos]
       simp
     rw [hselectedMotive] at hresidual
+    rcases E.frame.motiveApplication with ⟨HproducerMotive'⟩
+    have hgenClosed : Closed generatedMotiveApp := by
+      have hclosed := HproducerMotive'.translation.closed
+      rw [E.frame.semantic.current_context.mlctx.noBV, hselectedMotive] at hclosed
+      simpa [generatedMotiveApp] using hclosed
+    have Hsource :=
+      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescopeList
+        E.frame.semantic.generated.current_wf generatedMotiveApp
+        E.frame.semantic.generated.arguments_bound.nodup hgenClosed
+    have Hsource' := Hsource.abstractList
+      A.rule.all_args_bound.fvars 0
     have hresidual' :
         (generatedMotiveApp.abstractList
           E.frame.semantic.generated.arguments_bound.fvars).abstractList
@@ -1737,7 +1758,9 @@ theorem
     rw [hpreviousMotiveAbstract, hfieldMotiveShift,
       hfieldClosedMotiveApp]
   subst sourceType
-  have HsourceTelescope := O.sourceTelescope
+  have HsourceTelescope := O.sourceTelescopeList
+    (O.motiveApp_closed_of_outer S.fields_bound.fvars
+      (by simpa [S.fields_bound.length_fvars] using HoriginMotiveClosed))
   have HpreviousHypotheses := HsourceTelescope.abstractList
     (S.hypotheses_bound.fvars.take j) 0
   have HsourceFields := HpreviousHypotheses.abstractList
@@ -2580,8 +2603,10 @@ theorem
     simpa [originMotiveApp, generatedMotiveApp] using Hprefix
   have HoriginTelescope : Expr.ForallTelescope originFieldSource O.args.size
       (O.outerAbstractedMotiveApp S.fields_bound.fvars) := by
-    have Hsource := O.sourceTelescope.abstractList
-      S.fields_bound.fvars 0
+    have Hsource := (O.sourceTelescopeList
+      (O.motiveApp_closed_of_outer S.fields_bound.fvars
+        (by simpa [S.fields_bound.length_fvars, hsourceFields, Nat.add_comm] using
+          HoriginMotiveClosedRaw))).abstractList S.fields_bound.fvars 0
     have hresidual :
         (originMotiveApp.abstractList
           O.arguments_bound.fvars).abstractList
@@ -2707,11 +2732,6 @@ theorem
       E.frame.semantic.generated.localArgs.size
       (E.frame.semantic.generated.outerAbstractedMotiveApp
         A.rule.all_args_bound.fvars) := by
-    have Hsource :=
-      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescope
-        E.frame.semantic.generated.current_wf generatedMotiveApp
-    have Hsource' := Hsource.abstractList
-      A.rule.all_args_bound.fvars 0
     have hresidual :=
       E.frame.semantic.generated.outerAbstractedMotiveApp_eq
         A.rule.all_args_bound.fvars E.frame.semantic.fieldClosed
@@ -2729,6 +2749,17 @@ theorem
           hgeneratedOwnerRecInfos]
       simp
     rw [hselectedMotive] at hresidual
+    rcases E.frame.motiveApplication with ⟨HproducerMotive'⟩
+    have hgenClosed : Closed generatedMotiveApp := by
+      have hclosed := HproducerMotive'.translation.closed
+      rw [E.frame.semantic.current_context.mlctx.noBV, hselectedMotive] at hclosed
+      simpa [generatedMotiveApp] using hclosed
+    have Hsource :=
+      E.frame.semantic.generated.arguments_bound.toBoundFVarArray.mkForall_forallTelescopeList
+        E.frame.semantic.generated.current_wf generatedMotiveApp
+        E.frame.semantic.generated.arguments_bound.nodup hgenClosed
+    have Hsource' := Hsource.abstractList
+      A.rule.all_args_bound.fvars 0
     have hresidual' :
         (generatedMotiveApp.abstractList
           E.frame.semantic.generated.arguments_bound.fvars).abstractList

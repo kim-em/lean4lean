@@ -1964,7 +1964,10 @@ theorem
     (by simpa [hsourceFields, hsourceHypotheses] using hpositive)
   have horigin : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsume
-  have Hexpected := S.sourceTelescope.abstractList sourceBinders
+  have hmotiveClosed : Closed S.motiveApp := by
+    have h := HS.semantic.motivePreTranslation.closed
+    simpa [HS.semantic.terminalWF.mlctx.noBV] using h
+  have Hexpected := (S.sourceTelescopeList hmotiveClosed).abstractList sourceBinders
   rw [← horigin] at Hexpected
   have hresidual : sourceResidual =
       (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
@@ -2102,7 +2105,10 @@ theorem
   have hconsume := HS.semantic.sourceType_consumeTypeAnnotations_eq_self
   have hsourceType : S.origin = S.sourceType :=
     S.consumed_eq.symm.trans hconsume
-  have Hexpected := S.sourceTelescope.abstractList sourceBinders
+  have hmotiveClosed : Closed S.motiveApp := by
+    have h := HS.semantic.motivePreTranslation.closed
+    simpa [HS.semantic.terminalWF.mlctx.noBV] using h
+  have Hexpected := (S.sourceTelescopeList hmotiveClosed).abstractList sourceBinders
   rw [← hsourceType] at Hexpected
   have hresidualShape : splitResidual =
       (((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
@@ -3601,7 +3607,9 @@ theorem
       A.producerMinorShape.fields_bound.fvars j).abstractList
         sourceBinders position
   have HdeclarationBinder :=
-    (A.producerMinorShape.hypothesisBinderAt D).abstractList sourceBinders
+    (A.producerMinorShape.hypothesisBinderAtList D
+      (HminorSemantic.elim fun HS => D.closed HS.semantic.sourceWF.lctxClosed)).abstractList
+      sourceBinders
   simp only [Nat.zero_add] at HdeclarationBinder
   rw [hsourceFields] at HdeclarationBinder
   have HdeclarationBinder' : Expr.ForallBinderAt

@@ -852,6 +852,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfSuffix
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       sourceIsUnsafe sourceDecl envTypes envCtors)
     (hresultNparams : result.nparams = nparams)
+    (hparamsSize : result.params.size = result.nparams)
     (Hsuffix : GeneratedRecursorRestoredSuffixTranslationsInvariant
       A.alignment Hprod.origins envCtors []
       ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
@@ -859,7 +860,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfSuffix
     Nonempty (RestoredAuxiliaryRecursorStep c.safety envCtors envCtors
       Hstep) := by
   rcases Hprod.restoredTelescopeOfSuffix Hsource A.ownerIdx A.entry_lt
-      A.alignment hresultNparams Hsuffix with ⟨targetType, Htype⟩
+      A.alignment hresultNparams hparamsSize Hsuffix with ⟨targetType, Htype⟩
   have Hmetadata := Hprod.restoredPrimaryRecursorMetadata A.ownerIdx
     A.entry_lt Hstep A.oldRecName_eq
   have Hlevels := Hprod.restoredPrimaryRecursorLevelParams A.ownerIdx
@@ -1123,6 +1124,7 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfSuffixes
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       sourceIsUnsafe sourceDecl envTypes envCtors)
     (hresultNparams : result.nparams = nparams)
+    (hparamsSize : result.params.size = result.nparams)
     (Hsuffixes : ∀ oldRecName stepSource stepTarget
       (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
         oldRecName stepSource stepTarget)
@@ -1136,7 +1138,7 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfSuffixes
         auxiliaryRecursors := by
   exact H.recursorTrace c.safety envCtors envCtors
     (fun oldRecName stepSource stepTarget Hstep A =>
-      A.recursorStepOfSuffix Hsource hresultNparams
+      A.recursorStepOfSuffix Hsource hresultNparams hparamsSize
         (Hsuffixes oldRecName stepSource stepTarget Hstep A)) []
 
 /-- Canonical concrete replay of the block-independent auxiliary recursor

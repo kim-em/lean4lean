@@ -269,16 +269,8 @@ theorem checkInductiveTypes.loopType.NormalizedHeaderSourceTelescope.closedIndex
   have Hcomplete := H.semanticSources.closeSource_telescope
     H.semanticScopeWF.fvars_nodup (.sort (.zero : Level))
   have hsortAbstract : ∀ fvars : List FVarId,
-      (Expr.sort (.zero : Level)).abstractList fvars =
-        .sort (.zero : Level) := by
-    intro fvars
-    induction fvars with
-    | nil => rfl
-    | cons fv fvars ih =>
-      simp only [Expr.abstractList]
-      rw [show (Expr.sort (.zero : Level)).abstract1 fv =
-        .sort (.zero : Level) by rfl]
-      exact ih
+      (Expr.sort (.zero : Level)).abstractN fvars =
+        .sort (.zero : Level) := fun _ => rfl
   rw [hsortAbstract] at Hcomplete
   have Hcombined : Expr.ForallTelescope source
       (nparams + nindices) indexResidual :=

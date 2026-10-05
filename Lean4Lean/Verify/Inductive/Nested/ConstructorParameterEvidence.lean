@@ -478,6 +478,9 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomains
     have Hsame' := HctorMapping.sourceTargetSameForallPrefix
       ((HsourceCtor.type.fvarsIn).mono fun fv hfv => by
         simpa [VLCtx.fvars] using hfv)
+      (by
+        have h := HsourceCtor.type.closed
+        simpa [VLCtx.bvars] using h)
     simpa only [hproductionFamilyEq, hloweredCtorValue] using Hsame'
   have Hconstructor : TrExprS E.assembly.canonical.venvCtors lparams []
       sourceTypes[familyIdx].ctors[ctorIdx].type

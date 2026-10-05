@@ -918,6 +918,26 @@ theorem Closed.abstractList_at
     have Htail := ih (outer := outer + 1) Hhead
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Htail
 
+theorem _root_.Lean4Lean.Closed.mkAppList_iff {fn : Expr} {args : List Expr}
+    {k : Nat} :
+    Closed (Expr.mkAppList fn args) k ↔
+      Closed fn k ∧ ∀ a ∈ args, Closed a k := by
+  induction args generalizing fn with
+  | nil => simp [Expr.mkAppList]
+  | cons a as ih =>
+    simp only [Expr.mkAppList, ih, Closed, List.mem_cons, forall_eq_or_imp]
+    constructor
+    · rintro ⟨⟨h1, h2⟩, h3⟩
+      exact ⟨h1, h2, h3⟩
+    · rintro ⟨h1, h2, h3⟩
+      exact ⟨⟨h1, h2⟩, h3⟩
+
+theorem _root_.Lean4Lean.Closed.getAppArgsList_at {e : Expr} {k : Nat}
+    (h : Closed e k) {a : Expr} (ha : a ∈ e.getAppArgsList) : Closed a k := by
+  have h' : Closed (Expr.mkAppList e.getAppFn e.getAppArgsList) k := by
+    rwa [Expr.mkAppList_getAppArgsList]
+  exact (Closed.mkAppList_iff.mp h').2 a ha
+
 /-- Abstracting free variables below `extra` freshly introduced binders is
 the same operation as abstracting at the original depth and weakening the
 result.  Closedness rules out pre-existing loose variables at the insertion
@@ -1528,30 +1548,80 @@ theorem Expr.getAppFn_reopenFVarsAt_eq_const
     simp [Expr.reopenFVarsAt, Expr.getAppFn] at H
 
 /-- The implementation's array operation is the depth-zero instance of the
-transparent free-variable reopening model. -/
+transparent free-variable reopening model, provided the expression has no
+loose bound variables.  Without that premise the exact `Expr.abstract` leaves
+loose bound variables in place while the sequential list model shifts them. -/
 theorem Expr.reopenParams_eq_reopenFVarsAt
+    (hnd : fvars.Nodup)
     (hparams : params = (fvars.map Expr.fvar).toArray)
-    (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray) :
+    (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray)
+    (hlb : e.looseBVarRange' = 0) :
     Expr.reopenParams e params restoreAs =
       Expr.reopenFVarsAt e fvars restoreFvars 0 := by
-  -- TODO(abstract_eq_legacy): true only for closed `e`; see `Expr.abstract_eq_legacy`.
   subst params
   subst restoreAs
-  simp only [Expr.reopenParams, Expr.reopenFVarsAt, Expr.abstract_eq_legacy,
+  simp only [Expr.reopenParams, Expr.reopenFVarsAt,
+    Expr.abstract_eq_of_closed e fvars hnd hlb,
     Expr.instantiateRev_eq, Expr.instantiate_eq, Array.toList_reverse,
     Expr.instantiateList_reverse, List.toList_toArray, List.map_reverse]
 
 /-- Reopening at the depth of a syntax traversal agrees with the operational
-depth-zero parameter reopening. -/
+depth-zero parameter reopening for expressions without loose bound
+variables. -/
 theorem Expr.reopenFVarsAt_eq_reopenParams
     (hnd : fvars.Nodup) (hsize : restoreFvars.length = fvars.length)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray)
-    (e : Expr) (k : Nat) :
+    (e : Expr) (k : Nat) (hlb : e.looseBVarRange' = 0) :
     Expr.reopenFVarsAt e fvars restoreFvars k =
       Expr.reopenParams e params restoreAs := by
   rw [Expr.reopenFVarsAt_depth_independent hnd hsize e k 0]
-  exact (Expr.reopenParams_eq_reopenFVarsAt hparams hrestore).symm
+  exact (Expr.reopenParams_eq_reopenFVarsAt hnd hparams hrestore hlb).symm
+
+theorem Expr.reopenFVarsAt_app (fvars restoreFvars : List FVarId) (k : Nat) :
+    Expr.reopenFVarsAt (.app fn arg) fvars restoreFvars k =
+      .app (Expr.reopenFVarsAt fn fvars restoreFvars k)
+        (Expr.reopenFVarsAt arg fvars restoreFvars k) := by
+  simp [Expr.reopenFVarsAt]
+
+theorem Expr.reopenFVarsAt_const (fvars restoreFvars : List FVarId) (k : Nat) :
+    Expr.reopenFVarsAt (.const name levels) fvars restoreFvars k =
+      .const name levels :=
+  Expr.reopenFVarsAt_of_abstract1_eq_self
+    (by intro fv depth; simp [Expr.abstract1])
+    (by simp [Expr.looseBVarRange']) fvars restoreFvars k
+
+theorem Expr.reopenFVarsAt_mkAppList (fvars restoreFvars : List FVarId)
+    (k : Nat) :
+    Expr.reopenFVarsAt (Expr.mkAppList fn args) fvars restoreFvars k =
+      Expr.mkAppList (Expr.reopenFVarsAt fn fvars restoreFvars k)
+        (args.map fun arg => Expr.reopenFVarsAt arg fvars restoreFvars k) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons arg args ih =>
+    simp only [Expr.mkAppList, List.map_cons]
+    rw [ih, Expr.reopenFVarsAt_app]
+
+theorem Expr.reopenFVarsAt_of_getAppFn_const (fvars restoreFvars : List FVarId)
+    (k : Nat) (hhead : input.getAppFn = .const name levels) :
+    Expr.reopenFVarsAt input fvars restoreFvars k =
+      Expr.mkAppList (.const name levels)
+        (input.getAppArgsList.map fun arg =>
+          Expr.reopenFVarsAt arg fvars restoreFvars k) := by
+  calc
+    Expr.reopenFVarsAt input fvars restoreFvars k =
+        Expr.reopenFVarsAt
+          (Expr.mkAppList input.getAppFn input.getAppArgsList)
+          fvars restoreFvars k :=
+      congrArg (fun e => Expr.reopenFVarsAt e fvars restoreFvars k)
+        (Expr.mkAppList_getAppArgsList input).symm
+    _ = Expr.mkAppList
+          (Expr.reopenFVarsAt input.getAppFn fvars restoreFvars k)
+          (input.getAppArgsList.map fun arg =>
+            Expr.reopenFVarsAt arg fvars restoreFvars k) :=
+      Expr.reopenFVarsAt_mkAppList fvars restoreFvars k
+    _ = _ := by
+      rw [hhead, Expr.reopenFVarsAt_const]
 
 theorem Expr.reopenParams_app
     (fvars : List FVarId)
@@ -2836,6 +2906,31 @@ theorem FVarsIn.of_abstractList
         · exact Or.inl (by simp [h])
         · exact Or.inr h
 
+theorem FVarsIn.of_abstractN {fvars : List FVarId} {P : FVarId → Prop} :
+    ∀ {e : Expr} {k : Nat}, (e.abstractN fvars k).FVarsIn P →
+      e.FVarsIn fun fv => fv ∈ fvars ∨ P fv
+  | .bvar _, _, _ => trivial
+  | .fvar v, _, h => by
+    by_cases hmem : v ∈ fvars
+    · exact Or.inl hmem
+    · right
+      have h' : Expr.FVarsIn P (.fvar v) := by
+        simpa [Expr.abstractN, Expr.lastRevIdx?_eq_none_iff.2 hmem] using h
+      exact h'
+  | .sort _, _, h => h
+  | .const _ _, _, h => h
+  | .lit _, _, h => h
+  | .mvar _, _, h => h
+  | .mdata _ e, _, h => FVarsIn.of_abstractN (e := e) h
+  | .proj _ _ e, _, h => FVarsIn.of_abstractN (e := e) h
+  | .app f a, _, h => ⟨FVarsIn.of_abstractN (e := f) h.1, FVarsIn.of_abstractN (e := a) h.2⟩
+  | .lam _ d b _, _, h => ⟨FVarsIn.of_abstractN (e := d) h.1, FVarsIn.of_abstractN (e := b) h.2⟩
+  | .forallE _ d b _, _, h =>
+    ⟨FVarsIn.of_abstractN (e := d) h.1, FVarsIn.of_abstractN (e := b) h.2⟩
+  | .letE _ t v b _, _, h =>
+    ⟨FVarsIn.of_abstractN (e := t) h.1, FVarsIn.of_abstractN (e := v) h.2.1,
+      FVarsIn.of_abstractN (e := b) h.2.2⟩
+
 @[simp] theorem abstractForallContext_append
     (outer inner : List VExpr) (Δ : VLCtx) :
     abstractForallContext inner (abstractForallContext outer Δ) =
@@ -3608,45 +3703,42 @@ theorem Expr.ForallTelescopeTypeTranslation.ofTrExprS
       exact .cons Hdom HdomType (ih Hbody HbodyType)
 
 /-- The source closure retained by non-contiguous narrowing has exactly one
-forall per selected free variable, and its residual is ordinary simultaneous
+forall per selected free variable, and its residual is exact simultaneous
 abstraction in oldest-first order. -/
 theorem checkInductiveTypes.loopType.FVarNarrowSources.closeSource_telescope
     (H : checkInductiveTypes.loopType.FVarNarrowSources env Us scope)
-    (hnodup : scope.fvars.Nodup) (body : Expr) :
+    (_hnodup : scope.fvars.Nodup) (body : Expr) :
     Expr.ForallTelescope (H.closeSource body) scope.length
-      (body.abstractList scope.fvars.reverse) := by
+      (body.abstractN scope.fvars.reverse) := by
+  clear _hnodup
   induction H generalizing body with
-  | nil => exact .nil body
+  | nil =>
+    have hfvars : (VLCtx.fvars ([] : VLCtx)) = [] := rfl
+    simp only [FVarNarrowSources.closeSource, hfvars, List.reverse_nil,
+      Expr.abstractN_nil, List.length_nil]
+    exact .nil body
   | @cons scope domainTarget fv deps tail name binderInfo domain Hdomain ih =>
-    change (fv :: scope.fvars).Nodup at hnodup
-    have hnodupParts := List.nodup_cons.mp hnodup
-    let innerBody := body.abstract1 fv
-    have Houter := ih hnodupParts.2
-      (.forallE name domain innerBody binderInfo)
+    let innerBody := body.abstractN [fv]
+    have Houter := ih (.forallE name domain innerBody binderInfo)
     have Houter' : Expr.ForallTelescope
         (tail.closeSource (.forallE name domain innerBody binderInfo))
         scope.length
-        (.forallE name (domain.abstractList scope.fvars.reverse)
-          (innerBody.abstractList scope.fvars.reverse 1) binderInfo) := by
-      simpa [innerBody] using Houter
+        (.forallE name (domain.abstractN scope.fvars.reverse)
+          (innerBody.abstractN scope.fvars.reverse 1) binderInfo) := by
+      simpa [innerBody, Expr.abstractN] using Houter
     have Hinner : Expr.ForallTelescope
-        (.forallE name (domain.abstractList scope.fvars.reverse)
-          (innerBody.abstractList scope.fvars.reverse 1) binderInfo)
-        1 (innerBody.abstractList scope.fvars.reverse 1) := by
+        (.forallE name (domain.abstractN scope.fvars.reverse)
+          (innerBody.abstractN scope.fvars.reverse 1) binderInfo)
+        1 (innerBody.abstractN scope.fvars.reverse 1) := by
       simpa using Expr.ForallTelescope.cons
         (Expr.ForallTelescope.nil
-          (innerBody.abstractList scope.fvars.reverse 1))
+          (innerBody.abstractN scope.fvars.reverse 1))
     have Hcombined := Houter'.trans Hinner
-    have hfv : fv ∉ scope.fvars.reverse := by
-      simpa using hnodupParts.1
     have hresidual :
-        (body.abstract1 fv).abstractList scope.fvars.reverse 1 =
-          body.abstractList (fv :: scope.fvars).reverse := by
-      rw [List.reverse_cons, Expr.abstractList_append]
-      simp only [Expr.abstractList]
-      simpa using (Expr.abstract1_abstractList
-        (e := body) (a := fv) (as := scope.fvars.reverse)
-        (k := 0) hfv).symm
+        (body.abstractN [fv]).abstractN scope.fvars.reverse 1 =
+          body.abstractN (fv :: scope.fvars).reverse := by
+      rw [List.reverse_cons, Expr.abstractN_append]
+      rfl
     rw [hresidual] at Hcombined
     simpa [FVarNarrowSources.closeSource] using Hcombined
 
@@ -3682,7 +3774,12 @@ theorem checkInductiveTypes.loopType.FVarNarrowSources.closeTranslation
         (.forallE domainTarget target) :=
       VEnv.IsType.forallE HdomainType HbodyType
     have Hclosed := ih HtailWF Hforall HforallType
-    simpa [FVarNarrowSources.closeSource, VLCtx.toCtx,
+    have hbodyClosed : Closed body := by
+      have h := Hbody.closed
+      simpa [VLCtx.bvars, tail.noBV] using h
+    have h1 : body.abstractN [fv] = body.abstract1 fv :=
+      Expr.abstractN_singleton hbodyClosed.looseBVarRange_le
+    simpa [h1, FVarNarrowSources.closeSource, VLCtx.toCtx,
       List.reverse_cons, VExpr.wrapForalls] using Hclosed
 
 /-- Typed telescope form of `closeTranslation` when the exact semantic
@@ -3772,16 +3869,8 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTelescope
       (H.sources.closeSource (.sort (.zero : Level))) scope.length
       (.sort (.zero : Level)) := by
     have hsort : ∀ fvars : List FVarId,
-        (Expr.sort (.zero : Level)).abstractList fvars =
-          .sort (.zero : Level) := by
-      intro fvars
-      induction fvars with
-      | nil => rfl
-      | cons fv fvars ih =>
-        simp only [Expr.abstractList]
-        rw [show (Expr.sort (.zero : Level)).abstract1 fv =
-          .sort (.zero : Level) by rfl]
-        exact ih
+        (Expr.sort (.zero : Level)).abstractN fvars =
+          .sort (.zero : Level) := fun _ => rfl
     rw [hsort] at Htelescope
     exact Htelescope
   exact Expr.ForallTelescopeTypeTranslation.ofTrExprS
@@ -4001,6 +4090,19 @@ theorem LocalContext.mkForall_fvars_forallTelescope
       fvs.length (body.abstractN fvs) := by
   rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
   exact LocalContext.mkBindingListN_forallTelescope hdecl
+
+/-- Sequential-model form of `mkForall_fvars_forallTelescope`, valid for locally closed bodies
+and duplicate-free variable lists. -/
+theorem LocalContext.mkForall_fvars_forallTelescopeList
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (hnodup : fvs.Nodup) (hb : Closed body) :
+    Expr.ForallTelescope
+      (lctx.mkForall (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractList fvs) := by
+  rw [← Expr.abstractN_eq_abstractList_of_closed hnodup hb]
+  exact LocalContext.mkForall_fvars_forallTelescope hdecl
 
 /-- A concrete expression consists of exactly `arity` leading lambda binders
 and the indicated residual body. -/
@@ -4910,6 +5012,19 @@ theorem LocalContext.mkLambda_fvars_lambdaTelescopeN
   rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
   exact LocalContext.mkBindingListN_lambdaTelescope hdecl
 
+
+/-- Sequential-model form of `mkLambda_fvars_lambdaTelescopeN`, valid for locally closed
+bodies and duplicate-free variable lists. -/
+theorem LocalContext.mkLambda_fvars_lambdaTelescopeList
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (hnodup : fvs.Nodup) (hb : Closed body) :
+    Expr.LambdaTelescope
+      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractList fvs) := by
+  rw [← Expr.abstractN_eq_abstractList_of_closed hnodup hb]
+  exact LocalContext.mkLambda_fvars_lambdaTelescopeN hdecl
 
 /-- Binder-aware counterpart retaining source-level absence for every
 selected local declaration type. -/

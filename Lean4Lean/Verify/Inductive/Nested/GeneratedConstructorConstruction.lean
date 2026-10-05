@@ -50,6 +50,68 @@ theorem _root_.Lean4Lean.Closed.instantiateLevelParams
   rw [Expr.instantiateLevelParams_eq]
   induction e generalizing k <;>
     simp_all [Expr.instantiateLevelParamsCore', Lean4Lean.Closed]
+/-- Instantiating a bound variable below a closedness bound lowers the bound by one. -/
+theorem _root_.Lean4Lean.Closed.instantiate1'_le {a : Expr} :
+    ∀ {e : Expr} {k m : Nat}, k ≤ m → Closed e (m + 1) → Closed a →
+      Closed (Expr.instantiate1' e a k) m := by
+  intro e
+  induction e <;> intro k m hkm he ha <;> simp_all [Closed, Expr.instantiate1']
+  · rename_i i
+    split
+    · simp [Closed]
+      omega
+    · split
+      · rw [Expr.liftLooseBVars_eq_self (by simpa using ha.looseBVarRange_zero)]
+        exact ha.mono (Nat.zero_le _)
+      · simp [Closed]
+        omega
+  all_goals first
+    | exact ⟨by assumption, by assumption⟩
+    | exact ⟨by assumption, by assumption, by assumption⟩
+    | assumption
+
+/-- Reverse-list instantiation with closed arguments consumes one closedness
+bound per argument. -/
+theorem _root_.Lean4Lean.Closed.instantiateRevList :
+    ∀ {as : List Expr} {e : Expr} {k m : Nat}, k ≤ m →
+      Closed e (m + as.length) → (∀ a ∈ as, Closed a) →
+      Closed (Expr.instantiateRevList e as k) m
+  | [], e, k, m, _, he, _ => by simpa using he
+  | a :: as, e, k, m, hkm, he, has => by
+    simp only [Expr.instantiateRevList]
+    apply Closed.instantiate1'_le hkm
+    · apply Closed.instantiateRevList (Nat.le_succ_of_le hkm)
+      · simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using he
+      · intro a' ha'
+        exact has a' (by simp [ha'])
+    · exact has a (by simp)
+
+
+/-- Scoped expressions contain no expression metavariables. -/
+theorem _root_.Lean4Lean.FVarsIn.hasExprMVar'_eq_false {P : FVarId → Prop} :
+    ∀ {e : Expr}, FVarsIn P e → e.hasExprMVar' = false
+  | .bvar _, _ => rfl
+  | .fvar _, _ => rfl
+  | .sort _, _ => rfl
+  | .const _ _, _ => rfl
+  | .lit _, _ => rfl
+  | .mvar _, h => h.elim
+  | .mdata _ e, h => FVarsIn.hasExprMVar'_eq_false (e := e) h
+  | .proj _ _ e, h => FVarsIn.hasExprMVar'_eq_false (e := e) h
+  | .app f a, h => by
+    simp [Expr.hasExprMVar', FVarsIn.hasExprMVar'_eq_false (e := f) h.1,
+      FVarsIn.hasExprMVar'_eq_false (e := a) h.2]
+  | .lam _ d b _, h => by
+    simp [Expr.hasExprMVar', FVarsIn.hasExprMVar'_eq_false (e := d) h.1,
+      FVarsIn.hasExprMVar'_eq_false (e := b) h.2]
+  | .forallE _ d b _, h => by
+    simp [Expr.hasExprMVar', FVarsIn.hasExprMVar'_eq_false (e := d) h.1,
+      FVarsIn.hasExprMVar'_eq_false (e := b) h.2]
+  | .letE _ t v b _, h => by
+    simp [Expr.hasExprMVar', FVarsIn.hasExprMVar'_eq_false (e := t) h.1,
+      FVarsIn.hasExprMVar'_eq_false (e := v) h.2.1,
+      FVarsIn.hasExprMVar'_eq_false (e := b) h.2.2]
+
 
 /-- Removing a forall prefix from a closed type exposes a residual scoped by
 exactly the removed binders. -/
@@ -245,6 +307,68 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResi
       Nat.min_eq_left H.argsArity]
   rw [Hrange, ← Hspecialize,
     Expr.abstractList_instantiateForallBody, HtailAbstract]
+/-- The reopened constructor residual has no loose bound variables. -/
+theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResidualClosed
+    {ves : VEnvs}
+    (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
+      params nestedAux concrete H)
+    (B : C.BuiltConstructorTranslation i hi)
+    (lparams : List Name) (parameterDomains baseArgs : List VExpr)
+    (Hbase : List.Forall₂
+      (TrExprS (ves.venv safety) lparams
+        (abstractForallContext parameterDomains []))
+      ((H.args.toList.take H.nestedNParams).map
+        (fun arg => arg.abstractList H.selection.fvars))
+      baseArgs)
+    (hdomains : parameterDomains.length = H.selection.fvars.length) :
+    Closed (B.sourceTail.instantiateRevRange 0 H.nestedNParams H.args) := by
+  let rawArgs := H.args.toList.take H.nestedNParams
+  have HrawClosed : ∀ arg ∈ rawArgs, arg.Closed 0 := by
+    intro arg harg
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Hbase
+        (arg.abstractList H.selection.fvars) (by
+          exact List.mem_map.mpr ⟨arg, harg, rfl⟩) with
+      ⟨targetArg, _htargetArg, Harg⟩
+    have Hclosed := Harg.closed
+    have Hclosed' : Closed (arg.abstractList H.selection.fvars)
+        H.selection.fvars.length := by
+      simpa only [abstractForallContext_bvars, VLCtx.bvars, Nat.add_zero,
+        hdomains] using Hclosed
+    exact Expr.closed_of_abstractList
+      (fvars := H.selection.fvars) (depth := 0) (by
+        simpa only [Nat.zero_add] using Hclosed')
+  have HsourceClosed : Closed
+      (B.sourceInfo.type.instantiateLevelParams B.sourceInfo.levelParams
+        H.levels) 0 :=
+    B.sourceTranslation.2.2.closed.instantiateLevelParams _ _
+  have HtailClosed : Closed B.sourceTail H.nestedNParams := by
+    simpa using B.sourceTelescope.resultClosed HsourceClosed
+  have HsourceFVars :
+      (B.sourceInfo.type.instantiateLevelParams B.sourceInfo.levelParams
+        H.levels).FVarsIn (fun _ => False) := by
+    have Hsource :=
+      B.sourceTranslation.2.2.fvarsIn.instantiateLevelParams
+        (levelParams := B.sourceInfo.levelParams)
+        (levels := H.levels) H.levelsNoMVars
+    simpa [VLCtx.fvars] using Hsource
+  have HtailFVars : B.sourceTail.FVarsIn (fun _ => False) :=
+    B.sourceTelescope.resultFVarsIn HsourceFVars
+  have hrawLength : rawArgs.length = H.nestedNParams := by
+    simp [rawArgs, Nat.min_eq_left H.argsArity]
+  have Hrange :
+      B.sourceTail.instantiateRevRange 0 H.nestedNParams H.args =
+        B.sourceTail.instantiateRevList rawArgs := by
+    rw [Expr.instantiateRevRange_eq, Expr.instantiateRev_eq,
+      Expr.instantiate_eq, Array.toList_reverse,
+      Expr.instantiateList_reverse]
+    congr 1
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
+      Nat.min_eq_left H.argsArity]
+  rw [Hrange]
+  apply Closed.instantiateRevList (Nat.le_refl 0) _ HrawClosed
+  rw [Nat.zero_add, hrawLength]
+  exact HtailClosed
+
 
 /-- The generated family residual is the installed source-family telescope
 consumed by the exact cached parameter spine. -/
@@ -320,6 +444,120 @@ theorem GeneratedFamilyInstalledContainer.familySourceResidual
       Nat.min_eq_left H.argsArity]
   rw [Hrange, ← Hspecialize,
     Expr.abstractList_instantiateForallBody, HtailAbstract]
+/-- The reopened family residual has no loose bound variables. -/
+theorem GeneratedFamilyInstalledContainer.familySourceResidualClosed
+    (C : GeneratedFamilyInstalledContainer prodEnv venv
+      params nestedAux concrete H)
+    (lparams : List Name) (parameterDomains baseArgs : List VExpr)
+    (sourceTail : Expr)
+    (HsourceTelescope : Expr.ForallTelescope
+      (H.sourceInfo.type.instantiateLevelParams H.sourceInfo.levelParams
+        H.levels) H.nestedNParams sourceTail)
+    (Hbase : List.Forall₂
+      (TrExprS venv lparams
+        (abstractForallContext parameterDomains []))
+      ((H.args.toList.take H.nestedNParams).map
+        (fun arg => arg.abstractList H.selection.fvars))
+      baseArgs)
+    (hdomains : parameterDomains.length = H.selection.fvars.length) :
+    Closed (sourceTail.instantiateRevRange 0 H.nestedNParams H.args) := by
+  let rawArgs := H.args.toList.take H.nestedNParams
+  have HrawClosed : ∀ arg ∈ rawArgs, arg.Closed 0 := by
+    intro arg harg
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Hbase
+        (arg.abstractList H.selection.fvars) (by
+          exact List.mem_map.mpr ⟨arg, harg, rfl⟩) with
+      ⟨targetArg, _htargetArg, Harg⟩
+    have Hclosed := Harg.closed
+    have Hclosed' : Closed (arg.abstractList H.selection.fvars)
+        H.selection.fvars.length := by
+      simpa only [abstractForallContext_bvars, VLCtx.bvars, Nat.add_zero,
+        hdomains] using Hclosed
+    exact Expr.closed_of_abstractList
+      (fvars := H.selection.fvars) (depth := 0) (by
+        simpa only [Nat.zero_add] using Hclosed')
+  have HsourceClosed : Closed
+      (H.sourceInfo.type.instantiateLevelParams H.sourceInfo.levelParams
+        H.levels) 0 :=
+    C.familyTranslation.2.2.closed.instantiateLevelParams _ _
+  have HtailClosed : Closed sourceTail H.nestedNParams := by
+    simpa using HsourceTelescope.resultClosed HsourceClosed
+  have HsourceFVars :
+      (H.sourceInfo.type.instantiateLevelParams H.sourceInfo.levelParams
+        H.levels).FVarsIn (fun _ => False) := by
+    have Hsource := C.familyTranslation.2.2.fvarsIn.instantiateLevelParams
+      (levelParams := H.sourceInfo.levelParams) (levels := H.levels)
+      H.levelsNoMVars
+    simpa [VLCtx.fvars, ConstantInfo.type, ConstantInfo.toConstantVal,
+      InductiveVal.toConstantVal] using Hsource
+  have HtailFVars : sourceTail.FVarsIn (fun _ => False) :=
+    HsourceTelescope.resultFVarsIn HsourceFVars
+  have hrawLength : rawArgs.length = H.nestedNParams := by
+    simp [rawArgs, Nat.min_eq_left H.argsArity]
+  have Hrange :
+      sourceTail.instantiateRevRange 0 H.nestedNParams H.args =
+        sourceTail.instantiateRevList rawArgs := by
+    rw [Expr.instantiateRevRange_eq, Expr.instantiateRev_eq,
+      Expr.instantiate_eq, Array.toList_reverse,
+      Expr.instantiateList_reverse]
+    congr 1
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
+      Nat.min_eq_left H.argsArity]
+  rw [Hrange]
+  apply Closed.instantiateRevList (Nat.le_refl 0) _ HrawClosed
+  rw [Nat.zero_add, hrawLength]
+  exact HtailClosed
+
+
+/-- The residual of a generated family's source telescope, instantiated with
+the recognized application's parameters, has no loose bound variables once
+the environment's declared types have none. -/
+theorem GeneratedFamilyWitness.residualClosed
+    (H : GeneratedFamilyWitness env params nestedAux family)
+    (HenvB : EnvironmentTypesBVarClosed env) (sourceTail : Expr)
+    (HsourceTelescope : Expr.ForallTelescope
+      (H.sourceInfo.type.instantiateLevelParams H.sourceInfo.levelParams
+        H.levels) H.nestedNParams sourceTail) :
+    Closed (sourceTail.instantiateRevRange 0 H.nestedNParams H.args) := by
+  have HsourceClosed : Closed
+      (H.sourceInfo.type.instantiateLevelParams H.sourceInfo.levelParams
+        H.levels) 0 := by
+    have h := HenvB _ _ H.built.lookup
+    exact h.instantiateLevelParams _ _
+  have HtailClosed : Closed sourceTail H.nestedNParams := by
+    simpa using HsourceTelescope.resultClosed HsourceClosed
+  let rawArgs := H.args.toList.take H.nestedNParams
+  have HrawClosed : ∀ arg ∈ rawArgs, Closed arg := by
+    intro arg harg
+    rcases List.mem_iff_getElem.mp harg with ⟨i, hi, rfl⟩
+    have hin : i < H.nestedNParams := by
+      have hi' := hi
+      simp only [rawArgs, List.length_take, Array.length_toList] at hi'
+      omega
+    have hiargs : i < H.args.size := Nat.lt_of_lt_of_le hin H.argsArity
+    have hz : H.args[i].looseBVarRange' = 0 := by
+      have hlb := H.argsClosed i hin
+      rw [getElem!_pos H.args i hiargs] at hlb
+      simpa [Expr.hasLooseBVars, Expr.looseBVarRange_eq] using hlb
+    have hmv : H.args[i].hasExprMVar' = false :=
+      (H.argsFVars _ (Array.getElem_mem hiargs)).hasExprMVar'_eq_false
+    have hc : Closed H.args[i] := Closed.of_looseBVarRange_zero hmv hz
+    simpa [rawArgs, List.getElem_take, Array.getElem_toList] using hc
+  have hrawLength : rawArgs.length = H.nestedNParams := by
+    simp [rawArgs, Nat.min_eq_left H.argsArity]
+  have Hrange :
+      sourceTail.instantiateRevRange 0 H.nestedNParams H.args =
+        sourceTail.instantiateRevList rawArgs := by
+    rw [Expr.instantiateRevRange_eq, Expr.instantiateRev_eq,
+      Expr.instantiate_eq, Array.toList_reverse,
+      Expr.instantiateList_reverse]
+    congr 1
+    simp [rawArgs, Array.toList_extract, List.extract_eq_take_drop,
+      Nat.min_eq_left H.argsArity]
+  rw [Hrange]
+  apply Closed.instantiateRevList (Nat.le_refl 0) _ HrawClosed
+  rw [Nat.zero_add, hrawLength]
+  exact HtailClosed
 
 /-- The header translated by the ordinary checker for an exact generated
 family is definitionally the canonical specialization of its installed
@@ -498,10 +736,14 @@ theorem GeneratedFamilyInstalledContainer.directAuxiliaryFamilyType
       (abstractForallContext parameterDomains []).toCtx
       (VExpr.applyForallType instFamilyType baseArgs) :=
     Happlied.2.isType henv.ordered hctx
+  have hresidualClosed := C.familySourceResidualClosed lparams parameterDomains
+    baseArgs sourceTail HsourceTelescope Hbase hdomains
   have HfamilyTelescope : Expr.ForallTelescope concrete.type H.As.size
       ((sourceTail.instantiateRevRange 0 H.nestedNParams H.args).abstractList
         H.selection.fvars) := by
-    simpa only [H.family_eq, H.built.arity] using HgeneratedTelescope
+    simpa only [H.family_eq, H.built.arity,
+      Expr.abstractN_eq_abstractList_of_closed H.selectionNodup hresidualClosed] using
+      HgeneratedTelescope
   have hparameterArity : parameterDomains.length = H.As.size :=
     hdomains.trans H.selection.size.symm
   have HwholeTranslation :=
@@ -768,11 +1010,14 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
     ⟨familyTail, _HsourceFamilyTelescope, HgeneratedFamilyTelescope⟩
   have hparameterArity : parameterDomains.length = H.As.size :=
     hdomains.trans H.selection.size.symm
+  have hfamilyClosed := C.familySourceResidualClosed lparams parameterDomains
+    baseArgs familyTail _HsourceFamilyTelescope Hbase hdomains
   have HfamilyTelescope : Expr.ForallTelescope concrete.type
       H.As.size
       ((familyTail.instantiateRevRange 0 H.nestedNParams H.args).abstractList
         H.selection.fvars) := by
-    simpa only [H.family_eq, H.built.arity] using
+    simpa only [H.family_eq, H.built.arity,
+      Expr.abstractN_eq_abstractList_of_closed H.selectionNodup hfamilyClosed] using
       HgeneratedFamilyTelescope
   have HctorTelescope : Expr.ForallTelescope
       (concrete.ctors[i]'hconcreteCtor).type H.As.size
@@ -787,6 +1032,10 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
         congrArg InductiveType.ctors H.family_eq
       simpa [hctors] using B.targetType
     rw [htargetType]
+    rw [Expr.abstractN_eq_abstractList_of_closed H.selectionNodup
+      (GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.sourceResidualClosed
+        C B lparams parameterDomains baseArgs Hbase hdomains)]
+      at HtargetTelescope
     exact HtargetTelescope
   have HwholeTranslation := B.sameForallPrefix.replaceTranslatedResidual
     HfamilyTelescope HctorTelescope henv (by trivial) hparameterArity Hfamily

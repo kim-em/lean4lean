@@ -245,6 +245,12 @@ theorem CompletedRecursorConstruction.sourceConstructorTail
   obtain ⟨result, Hnew, HnewType, Hres, HresType, _⟩ :=
     TrExprS.retargetForallPrefix R.headerCheckingAnnotations.1.wf R.headerAnonymousParameterWF Htel
       (H.sourceFields_length owner howner localIndex hlocal) Hsource HsourceType' Htemplate
+  have hterminalClosed : Closed HS.semantic.traversal.terminal := by
+    have h := HS.semantic.terminalTranslation.closed
+    simpa [TypeChecker.MLCtx.noBV] using h
+  have hboundNodup : Hbound.fvars.Nodup := HS.semantic.fieldsRecent.nodup
+  rw [Expr.abstractN_eq_abstractList_of_closed (xs := Hbound.fvars) hboundNodup
+    hterminalClosed] at Hres
   refine ⟨result, Hnew, ?_, Hres, ?_⟩
   · simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HnewType
   · simpa [abstractForallContext_toCtx, VLCtx.toCtx] using HresType

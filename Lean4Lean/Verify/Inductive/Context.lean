@@ -740,6 +740,14 @@ theorem RecursorContextWF.toBindingContextWF
     rw [← R.mlctx_wf.tr.fvars_eq, R.lctx_eq]
     exact hfv
 
+/-- Every declaration of a semantic checking context is locally closed. -/
+theorem ContextWF.lctxClosed (H : ContextWF c) : LocalContext.LctxClosed c.lctx :=
+  H.lctx_eq ▸ H.mlctx_wf.tr.lctxClosed
+
+theorem RecursorContextWF.lctxClosed (R : RecursorContextWF c recLparams) :
+    LocalContext.LctxClosed c.lctx :=
+  R.lctx_eq ▸ R.mlctx_wf.tr.lctxClosed
+
 theorem BindingContextWF.current_not_mem (H : BindingContextWF c) :
     ⟨c.ngen.curr⟩ ∉ c.lctx.fvars := fun hmem =>
   c.ngen.not_reserves_self (H.fresh _ hmem)

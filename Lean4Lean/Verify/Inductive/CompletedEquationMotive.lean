@@ -127,17 +127,19 @@ theorem
         .sort H.elimLevel := by
     exact Expr.abstractList_eq_self_of_abstract1 (.sort H.elimLevel)
       (by intro fv depth; rfl) fvars k
+  have hsortN (fvars : List FVarId) (k : Nat) :
+      (Expr.sort H.elimLevel).abstractN fvars k = .sort H.elimLevel := rfl
   have HmajorRaw : Expr.ForallTelescope
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
         (.sort H.elimLevel)) 1 (.sort H.elimLevel) := by
-    simpa [hsortAbstract] using
+    simpa [hsortN] using
       selections.major.forallTelescope (.sort H.elimLevel)
   have Hmajor : Expr.ForallTelescope
       ((H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
-        (.sort H.elimLevel)).abstractList selections.indices.fvars)
+        (.sort H.elimLevel)).abstractN selections.indices.fvars)
       1 (.sort H.elimLevel) := by
-    have HmajorClosed := HmajorRaw.abstractList selections.indices.fvars 0
-    simpa only [hsortAbstract] using HmajorClosed
+    have HmajorClosed := HmajorRaw.abstractN selections.indices.fvars 0
+    simpa only [hsortN] using HmajorClosed
   have Hindices : Expr.ForallTelescope
       (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
         (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]

@@ -113,7 +113,9 @@ theorem CompletedRecursorConstruction.consumedFieldDomains
   have hsort (fvars : List FVarId) (k : Nat) :
       (Expr.sort .zero).abstractList fvars k = .sort .zero :=
     Expr.abstractList_eq_self_of_abstract1 _ (by intro fv depth; simp [Expr.abstract1]) fvars k
-  simp only [hsort] at Htel
+  have hsortN (fvars : List FVarId) (k : Nat) :
+      (Expr.sort .zero).abstractN fvars k = .sort .zero := rfl
+  simp only [hsort, hsortN] at Htel
   obtain ⟨domains, result, hdomains, heq, Hresult⟩ :=
     TrExprS.forallTelescope_shape_with_context Htel Habstract
   cases Hresult with

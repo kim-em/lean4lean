@@ -81,6 +81,8 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
       initialSize runFinalState T.nested T.auxName)
     (resultSelection : LocalForallSelection result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (hAs : As.size = result.params.size)
     (Hscope : input.FVarsIn (· ∈ Hselection.fvars)) :
     let currentSource := mkAppRange (.const T.targetName T.levels) 0
       T.value.numParams input.getAppArgs
@@ -98,25 +100,40 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
   have Haway : currentClosed.FVarsIn
       (fun fv => fv ∉ resultSelection.fvars) :=
     HcurrentClosed.mono fun _ hfalse => False.elim hfalse
+  have hprefix : currentSource.looseBVarRange' = 0 :=
+    T.candidate.prefixLooseBVarRange_zero (.const T.targetName T.levels) rfl
+  have hlb : currentClosed.looseBVarRange' ≤ resultSelection.fvars.length := by
+    have hbound := Expr.abstractN_looseBVarRange_le (e := currentSource)
+      (fvs := Hselection.fvars) (k := 0)
+    rw [hprefix] at hbound
+    have h1 : Hselection.fvars.length = As.size := by
+      simpa using (congrArg Array.size Hselection.expressions).symm
+    have h2 : resultSelection.fvars.length = result.params.size := by
+      simpa using (congrArg Array.size resultSelection.expressions).symm
+    have hrw : currentClosed = currentSource.abstractN Hselection.fvars := by
+      simp only [currentClosed, Hselection.expressions, Expr.abstractN_eq]
+    rw [hrw]
+    omega
   have hcancel := Haway.abstract_instantiateRev_fvarArray result.params
-    resultSelection.fvars resultSelection.expressions hresultNodup
+    resultSelection.fvars resultSelection.expressions hresultNodup hlb
   have hcurrent : T.nested.abstract result.params == currentClosed := by
-    have Habstract := Expr.abstractList_eqv
-      (vars := resultSelection.fvars) (k := 0)
+    have Habstract := Expr.abstractN_eqv
+      (xs := resultSelection.fvars) (k := 0)
       T.nested_eq
-    have hcancelList :
-        (currentClosed.instantiateRev result.params).abstractList
+    have hcancelN :
+        (currentClosed.instantiateRev result.params).abstractN
           resultSelection.fvars = currentClosed := by
-      simpa only [Expr.abstract_eq_legacy, resultSelection.expressions] using hcancel
-    rw [hcancelList] at Habstract
-    simpa only [Expr.abstract_eq_legacy, resultSelection.expressions] using Habstract
+      have h := hcancel
+      simp only [resultSelection.expressions, Expr.abstractN_eq] at h ⊢
+      exact h
+    rw [hcancelN] at Habstract
+    simpa only [resultSelection.expressions, Expr.abstractN_eq] using Habstract
   have hgenerated : O.origin.generated.data.nested.abstract result.params =
       (mkAppRange
         (.const O.origin.generated.sourceName O.origin.generated.levels) 0
         O.origin.generated.nestedNParams O.origin.generated.args).abstractList
-          O.origin.generated.selection.fvars := by
-    simpa only [Expr.abstract_eq_legacy, resultSelection.expressions] using
-      O.origin.generated.cachedClosureAlpha resultSelection hresultNodup
+          O.origin.generated.selection.fvars :=
+    O.origin.generated.cachedClosureAlphaExact resultSelection hresultNodup
   have hclosedEqv : currentClosed ==
       (mkAppRange
         (.const O.origin.generated.sourceName O.origin.generated.levels) 0
@@ -126,8 +143,8 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
     exact BEq.symm hcurrent
   have hcurrentAbstract : currentClosed =
       currentSource.abstractList Hselection.fvars := by
-    simpa only [currentClosed, currentSource, Expr.abstract_eq_legacy,
-      Hselection.expressions]
+    simp only [currentClosed, Hselection.expressions]
+    exact Expr.abstract_eq_of_closed _ _ hselectionNodup hprefix
   rw [← hcurrentAbstract]
   exact hclosedEqv
 
@@ -143,6 +160,8 @@ theorem NestedReplacementTargetSpine.cachedSourceSpines
       initialSize runFinalState T.nested T.auxName)
     (resultSelection : LocalForallSelection result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
+    (hselectionNodup : Hselection.fvars.Nodup)
+    (hAs : As.size = result.params.size)
     (Hscope : input.FVarsIn (· ∈ Hselection.fvars)) :
     T.targetName = O.origin.generated.sourceName ∧
     T.levels = O.origin.generated.levels ∧
@@ -153,7 +172,7 @@ theorem NestedReplacementTargetSpine.cachedSourceSpines
         O.origin.generated.nestedNParams).map
           (fun arg => arg.abstractList O.origin.generated.selection.fvars)) := by
   have Halpha := T.cachedSourceApplicationEqv O resultSelection
-    hresultNodup Hscope
+    hresultNodup hselectionNodup hAs Hscope
   have hcurrent :
       (mkAppRange (.const T.targetName T.levels) 0 T.value.numParams
         input.getAppArgs).abstractList Hselection.fvars =
@@ -799,6 +818,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
     (resultSelection : LocalForallSelection result.lctx result.params)
     (hresultNodup : resultSelection.fvars.Nodup)
     (hselectionNodup : Hselection.fvars.Nodup)
+    (hAs : As.size = result.params.size)
     (Hparams : SelectedParameterTargets Hselection.fvars fieldDepth sourceCtx)
     (hparamLength : N.sourceParams.length = Hselection.fvars.length)
     (Hscope : input.FVarsIn (· ∈ Hselection.fvars)) :
@@ -807,7 +827,8 @@ theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
         (Hselection.fvars.length + fieldDepth))
       (N.baseArgs.map (fun arg => arg.liftN fieldDepth 0))
       S.baseArgsAtDepth := by
-  rcases T.cachedSourceSpines O resultSelection hresultNodup Hscope with
+  rcases T.cachedSourceSpines O resultSelection hresultNodup hselectionNodup hAs
+      Hscope with
     ⟨_headName, _headLevels, Halpha⟩
   let currentArgs := input.getAppArgsList.take T.value.numParams
   let currentAbstract := currentArgs.map
@@ -1331,7 +1352,8 @@ theorem FinalLoweredGeneratedFamilyOrigin.formationHeaderParameterDomains
     (Htarget : TrInductiveType sourceVEnv targetTypesVEnv c.lparams
       targetConcrete targetAbstract)
     (htarget : targetAbstract ∈ loweredDecl.types)
-    (hparams : params.size = nparams) :
+    (hparams : params.size = nparams)
+    (HenvB : EnvironmentTypesBVarClosed c.env) :
     let parameterDomains :=
       (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
         (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse
@@ -1347,7 +1369,10 @@ theorem FinalLoweredGeneratedFamilyOrigin.formationHeaderParameterDomains
   have Htelescope : Expr.ForallTelescope H.source.type nparams
       ((sourceTail.instantiateRevRange 0 H.generated.nestedNParams
         H.generated.args).abstractList H.generated.selection.fvars) := by
-    simpa only [H.generated.family_eq, hparams] using HgeneratedTelescope
+    simpa only [H.generated.family_eq, hparams,
+      Expr.abstractN_eq_abstractList_of_closed H.generated.selectionNodup
+        (H.generated.residualClosed HenvB sourceTail _HsourceTelescope)] using
+      HgeneratedTelescope
   have Htelescope' : Expr.ForallTelescope H.source.type loweredDecl.nparams
       ((sourceTail.instantiateRevRange 0 H.generated.nestedNParams
         H.generated.args).abstractList H.generated.selection.fvars) := by
@@ -1416,7 +1441,13 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
       source.type.FVarsIn fun _ => False := by
     intro source hsource
     exact Hsources.typeClosed hsource
-  rcases H.sourceParameterPrefix HsourceClosed e with
+  have HsourceBClosed : ∀ source ∈ sourceTypes, Closed source.type := by
+    intro source hsource
+    rcases Lean4Lean.List.Forall₂.forall_exists_l HsourceHeaders source hsource with
+      ⟨target, _htarget, Htr⟩
+    have h := Htr.type.closed
+    simpa [VLCtx.bvars] using h
+  rcases H.sourceParameterPrefix HsourceClosed HsourceBClosed e with
     ⟨first, rest, residual, hsourceTypes, Htelescope, Hsame⟩
   subst sourceTypes
   have hfamily : 0 < (first :: rest).length := by simp
@@ -1741,7 +1772,8 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
       _HbaseClosed, hfamily⟩
   rcases H.installedContainerBeforeHeaders wf rfl Hrun Hc Hprod
       HsourceHeaders HsourceAdded realization with ⟨C⟩
-  rcases H.formationHeaderParameterDomains Htarget htarget hparamsSize with
+  rcases H.formationHeaderParameterDomains Htarget htarget hparamsSize
+      (VEnvs.WF.environmentTypesBVarClosed wf) with
     ⟨sourceDomains, familyTarget, hsourceDomains, Hfamily, Hcontext⟩
   have henv : (ves.venv safety).WF := wf.tr.wf
   have hbaseLE : ves.venv safety ≤ sourceTypesVEnv :=
@@ -2186,8 +2218,8 @@ theorem NestedGeneratedFamilyNativeSources.replacementCompat
   have hparamLength : Nsource.sourceParams.length = selection.fvars.length := by
     exact Nsource.sourceParamsLength.trans (hnparams ▸ hselectionLength.symm)
   have Hbase := Nsource.baseExpansionsAtReplacement T S Ocanonical
-    resultSelection hresultNodup hselectionNodup HsourceParams hparamLength
-      Hscope
+    resultSelection hresultNodup hselectionNodup Harity HsourceParams
+      hparamLength Hscope
   have HbaseAbsolute : List.Forall₂
       (VExpr.NestedExprExpansion
         (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl
@@ -2212,7 +2244,8 @@ theorem NestedGeneratedFamilyNativeSources.replacementCompat
       (VExpr.mkApps VInductDecl.nestedTrailingMarker T.trailing) := by
     have := forall₂_nestedTrailingExpansion Htrailing
     simpa [Hdepth, hselectionLength] using this
-  rcases T.cachedSourceSpines Ocanonical resultSelection hresultNodup Hscope with
+  rcases T.cachedSourceSpines Ocanonical resultSelection hresultNodup
+      hselectionNodup Harity Hscope with
     ⟨hheadName, hheadLevels, _Halpha⟩
   have hinputName : T.targetName = Nsource.containerFamily.name :=
     hheadName.trans Nsource.containerName.symm

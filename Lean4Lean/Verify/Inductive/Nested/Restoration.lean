@@ -525,6 +525,7 @@ structure GeneratedRecursorRestorationTelescopeAlignment
   oldPrefix : Expr.ForallTelescope Hentry.info.type result.nparams
     (trace.opening.body.abstractList trace.opening.selection.fvars)
   oldClosed : Hentry.info.type.FVarIdsIn fun _ => False
+  oldBVarClosed : Closed Hentry.info.type
   oldSuffix : Expr.ForallTelescopeTypeTranslation venv Hentry.info.levelParams
     (abstractForallContext oldParamDomains [])
     (trace.opening.body.abstractList trace.opening.selection.fvars)
@@ -1006,10 +1007,11 @@ theorem RecursorRestoration.generatedTelescopeAlignment
     Htrace.opening.abstractBody_eq_suffix HsourcePrefix' Hinput
       Hgenerated.typed.translation.closed
   refine ⟨⟨Htrace, Hselections, hnoalias, hparams, paramDomains,
-    suffixTarget, howner, ?_, ?_, ?_, ?_⟩⟩
+    suffixTarget, howner, ?_, ?_, ?_, ?_, ?_⟩⟩
   · exact hparamDomains.trans hparams.symm
   · simpa only [hbody] using HsourcePrefix'
   · exact FVarsIn_to_FVarIdsIn Hinput
+  · exact Hgenerated.typed.translation.closed
   · rw [hbody]
     simpa [suffixArity] using Hsuffix
 
@@ -1247,9 +1249,10 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
     (Htemplate : TrExprS newEnv Hentry.info.levelParams [] template
       (VExpr.wrapForalls parameterDomains templateTarget))
     (hparameterDomains : parameterDomains.length = result.nparams)
+    (hparams : result.params.size = result.nparams)
     (Hsuffix : Expr.ForallTelescopeTypeTranslation newEnv
       Hentry.info.levelParams (abstractForallContext parameterDomains [])
-      (H.trace.opening.restoredBody.abstractN
+      (H.trace.opening.restoredBody.abstractList
         H.trace.opening.selection.fvars)
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size +
@@ -1264,9 +1267,18 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
   let suffixArity := (recInfos.map (·.motive)).size +
     (recInfos.flatMap (·.minors)).size +
     recInfos[ownerIdx]!.indices.size + 1
+  have hbodyClosed : Closed H.trace.opening.restoredBody := by
+    have h := Hsuffix.translation.closed
+    have hlen : parameterDomains.length =
+        H.trace.opening.selection.fvars.length := by
+      rw [hparameterDomains, H.trace.opening.selectionLength, hparams]
+    simp only [abstractForallContext_bvars, VLCtx.bvars, Nat.add_zero, hlen] at h
+    exact Expr.closed_of_abstractList (depth := 0) (by simpa using h)
+  rw [← Expr.abstractN_eq_abstractList_of_closed H.trace.opening.selectionNodup
+    hbodyClosed] at Hsuffix
   have HoldNew : Expr.SameForallPrefix result.nparams Hentry.info.type
       newInfo.type :=
-    H.trace.opening.sameForallPrefix H.oldPrefix H.oldClosed
+    H.trace.opening.sameForallPrefix H.oldPrefix H.oldClosed H.oldBVarClosed
   have HtemplateNew : Expr.SameForallDomains result.nparams template
       newInfo.type := by
     have HoldNewDomains := HoldNew.sameForallDomains

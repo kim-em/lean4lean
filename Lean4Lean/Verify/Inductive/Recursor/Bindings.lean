@@ -317,6 +317,29 @@ theorem BoundFVarArray.mkForall_forallTelescope
   rw [houter]
   simpa only [← hsize] using Htelescope
 
+/-- Sequential-model form of `mkForall_forallTelescope` for locally closed bodies. -/
+theorem BoundFVarArray.mkForall_forallTelescopeList
+    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (body : Expr)
+    (hnodup : H.fvars.Nodup) (hb : Closed body) :
+    Expr.ForallTelescope (c.lctx.mkForall xs body) xs.size
+      (body.abstractList H.fvars) := by
+  rw [← Expr.abstractN_eq_abstractList_of_closed hnodup hb]
+  exact H.mkForall_forallTelescope Hc body
+
+/-- Closing a locally closed body over selected declarations of a locally closed context
+yields a locally closed expression. -/
+theorem BoundFVarArray.mkForall_closed
+    (H : BoundFVarArray c xs) (Hc : BindingContextWF c) (hnodup : H.fvars.Nodup)
+    (hl : LocalContext.LctxClosed c.lctx) (hb : Closed body) :
+    Closed (c.lctx.mkForall xs body) := by
+  rw [H.expressions, LocalContext.mkForall]
+  exact LocalContext.mkBinding_closed
+    (fun fv hfv => by
+      rcases Hc.findCDecl fv (H.members fv hfv) with ⟨i, n, t, bi, k, h⟩
+      exact ⟨_, h⟩)
+    hnodup hb hl.declsClosed
+
+
 /-- A retained array introduced strictly after `root`. Besides recording that
 its entries remain selectable, this packages the two facts needed to combine
 it with selections already present at `root`: its entries are distinct and

@@ -122,6 +122,27 @@ theorem LocalContext.mkForall_fvars_forallBinderAt
   exact LocalContext.mkBindingListN_forallBinderAt hdecl hnodup i hi
     index name type bi kind hselected
 
+/-- Sequential-model form of `mkForall_fvars_forallBinderAt` for closed binder
+types. -/
+theorem LocalContext.mkForall_fvars_forallBinderAtList
+    {lctx : LocalContext} {fvars : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvars, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (hnodup : fvars.Nodup)
+    (i : Nat) (hi : i < fvars.length)
+    (index : Nat) (name : Name) (type : Expr) (bi : BinderInfo)
+    (kind : LocalDeclKind)
+    (hselected : lctx.find? fvars[i] =
+      some (.cdecl index fvars[i] name type bi kind))
+    (hclosed : Closed type) :
+    Expr.ForallBinderAt
+      (lctx.mkForall (fvars.map Expr.fvar).toArray body) i
+      (type.abstractList (fvars.take i)) := by
+  rw [← Expr.abstractN_eq_abstractList_of_closed
+    (List.Nodup.sublist (List.take_sublist _ _) hnodup) hclosed]
+  exact LocalContext.mkForall_fvars_forallBinderAt hdecl hnodup i hi index name
+    type bi kind hselected
+
 /-- `LocalForallSelection` form of the positional source-domain theorem. -/
 theorem LocalForallSelection.forallBinderAt
     (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
@@ -139,6 +160,15 @@ theorem LocalForallSelection.forallBinderAt
     hifvars D.index D.userName D.type D.binderInfo D.kind
   rw [hselectedFVar]
   exact D.declaration
+
+/-- Sequential-model form of `forallBinderAt` for a locally closed declaration type. -/
+theorem LocalForallSelection.forallBinderAtList
+    (H : LocalForallSelection c.lctx xs) (hnodup : H.fvars.Nodup)
+    (D : BoundFVarDeclarationAt c xs i) (htype : Closed D.type) :
+    Expr.ForallBinderAt (c.lctx.mkForall xs body) i
+      (D.type.abstractList (H.fvars.take i)) := by
+  rw [← Expr.abstractN_eq_abstractList_of_closed hnodup.take htype]
+  exact H.forallBinderAt hnodup D
 
 /-- The hypothesis binder at position `j` in a generated minor is the exact
 local declaration type used by the first pass, closed first over preceding
@@ -172,12 +202,42 @@ theorem RecInfoMinorTypeShape.hypothesisBinderAt
   rw [horigin]
   exact Hsource
 
+/-- Sequential-model form of `hypothesisBinderAt` for a closed hypothesis
+type. -/
+theorem RecInfoMinorTypeShape.hypothesisBinderAtList
+    (S : RecInfoMinorTypeShape)
+    (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
+    (hclosed : Closed D.type) :
+    Expr.ForallBinderAt S.origin (S.fields.size + j)
+      ((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
+        S.fields_bound.fvars j) := by
+  have h := S.hypothesisBinderAt D
+  have hlen : S.hypotheses.size = S.hypotheses_bound.fvars.length := by
+    simpa using congrArg Array.size S.hypotheses_bound.expressions
+  have hj : j < S.hypotheses_bound.fvars.length := hlen ▸ D.inBounds
+  rw [Expr.abstractN_eq_abstractList_of_closed
+    (List.Nodup.sublist (List.take_sublist _ _) S.hypotheses_nodup) hclosed] at h
+  rw [Expr.abstractN_eq_abstractList S.fields_nodup _ _ (by
+    have hc := (Closed.abstractList_at (fvars := S.hypotheses_bound.fvars.take j)
+      (depth := 0) (outer := 0) hclosed).looseBVarRange_le
+    simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj)] using hc)] at h
+  exact h
+
 theorem LocalForallSelection.forallTelescope
     (H : LocalForallSelection lctx xs) (body : Expr) :
     Expr.ForallTelescope (lctx.mkForall xs body) xs.size
       (body.abstractN H.fvars) := by
   rcases H with ⟨fvars, rfl, declarations⟩
   simpa using LocalContext.mkForall_fvars_forallTelescope declarations
+
+/-- Sequential-model form of `forallTelescope` for locally closed bodies. -/
+theorem LocalForallSelection.forallTelescopeList
+    (H : LocalForallSelection lctx xs) (body : Expr) (hnodup : H.fvars.Nodup)
+    (hb : Closed body) :
+    Expr.ForallTelescope (lctx.mkForall xs body) xs.size
+      (body.abstractList H.fvars) := by
+  rw [← Expr.abstractN_eq_abstractList_of_closed hnodup hb]
+  exact H.forallTelescope body
 
 /-- Prepending one retained binder group to an existing telescope preserves
 the inner telescope and abstracts its residual below exactly the inner arity. -/
@@ -495,6 +555,27 @@ theorem RecursorLocalSelections.parameterBinderAt
   exact (H.params.forallBinderAt hnoalias.parts.params D).inferImplicit
     1000 false
 
+theorem RecursorLocalSelections.parameterBinderAtList
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
+    (D : BoundFVarDeclarationAt c stats.params paramIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false) paramIdx
+      (D.type.abstractList (H.params.fvars.take paramIdx)) := by
+  dsimp only
+  have h := H.parameterBinderAt hnoalias D
+  dsimp only at h
+  rwa [Expr.abstractN_eq_abstractList_of_closed
+    (List.Nodup.sublist (List.take_sublist _ _) hnoalias.parts.params)
+    (D.closed hl)] at h
+
 /-- Every retained motive slot has a source domain independent of the
 recursor owner.  It is closed over the common parameters and the strictly
 earlier motives; the owner's indices and major occur only below this slot. -/
@@ -557,6 +638,33 @@ theorem RecursorLocalSelections.motiveBinderAt
     rw [← H.params.size]
   simpa [motiveSource, motiveBody, hparamsLength] using
     Hraw.inferImplicit 1000 false
+
+theorem RecursorLocalSelections.motiveBinderAtList
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
+    (D : BoundFVarDeclarationAt c
+      (recInfos.map (·.motive)) motiveIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + motiveIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.motives.fvars.take motiveIdx)) := by
+  dsimp only
+  have h := H.motiveBinderAt hnoalias D
+  dsimp only at h
+  have hall : (H.params.fvars ++ (H.motives.fvars ++
+      (H.minors.fvars ++ (H.indices.fvars ++ H.major.fvars)))).Nodup := hnoalias
+  have hnodup : (H.params.fvars ++ H.motives.fvars.take motiveIdx).Nodup :=
+    List.Nodup.sublist (List.Sublist.append (List.Sublist.refl _)
+      ((List.take_sublist _ _).trans (List.sublist_append_left _ _))) hall
+  rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
 /-- The owner motive slot of the concrete production recursor closes the
 exact retained motive declaration over precisely the common parameters and
@@ -621,6 +729,33 @@ theorem RecursorLocalSelections.ownerMotiveBinderAt
     rw [← H.params.size]
   simpa [motiveSource, motiveBody, hparamsLength] using
     Hraw.inferImplicit 1000 false
+
+theorem RecursorLocalSelections.ownerMotiveBinderAtList
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
+    (D : BoundFVarDeclarationAt c
+      (recInfos.map (·.motive)) ownerIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + ownerIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.motives.fvars.take ownerIdx)) := by
+  dsimp only
+  have h := H.ownerMotiveBinderAt hnoalias D
+  dsimp only at h
+  have hall : (H.params.fvars ++ (H.motives.fvars ++
+      (H.minors.fvars ++ (H.indices.fvars ++ H.major.fvars)))).Nodup := hnoalias
+  have hnodup : (H.params.fvars ++ H.motives.fvars.take ownerIdx).Nodup :=
+    List.Nodup.sublist (List.Sublist.append (List.Sublist.refl _)
+      ((List.take_sublist _ _).trans (List.sublist_append_left _ _))) hall
+  rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
 /-- The flattened minor slot of the concrete production recursor closes the
 exact recorded minor declaration over all parameters, all motives, and the
@@ -740,6 +875,37 @@ theorem RecursorLocalSelections.minorBinderAt
       HrawBase
   simpa [motiveSource, minorSource, minorBody, hparamsLength,
     hmotivesLength, Nat.add_assoc] using Hraw.inferImplicit 1000 false
+
+theorem RecursorLocalSelections.minorBinderAtList
+    (H : RecursorLocalSelections c stats recInfos ownerIdx)
+    (hnoalias : H.NoAlias) (hl : LocalContext.LctxClosed c.lctx)
+    (D : BoundFVarDeclarationAt c
+      (recInfos.flatMap (·.minors)) minorIdx) :
+    let raw :=
+      c.lctx.mkForall stats.params <|
+      c.lctx.mkForall (recInfos.map (·.motive)) <|
+      c.lctx.mkForall (recInfos.flatMap (·.minors)) <|
+      c.lctx.mkForall recInfos[ownerIdx]!.indices <|
+      c.lctx.mkForall #[recInfos[ownerIdx]!.major]
+        (.app (mkAppN recInfos[ownerIdx]!.motive
+          recInfos[ownerIdx]!.indices) recInfos[ownerIdx]!.major)
+    Expr.ForallBinderAt (raw.inferImplicit 1000 false)
+      (stats.params.size + (recInfos.map (·.motive)).size + minorIdx)
+      (D.type.abstractList
+        (H.params.fvars ++ H.motives.fvars ++
+          H.minors.fvars.take minorIdx)) := by
+  dsimp only
+  have h := H.minorBinderAt hnoalias D
+  dsimp only at h
+  have hall : (H.params.fvars ++ (H.motives.fvars ++
+      (H.minors.fvars ++ (H.indices.fvars ++ H.major.fvars)))).Nodup := hnoalias
+  have hnodup : (H.params.fvars ++ H.motives.fvars ++
+      H.minors.fvars.take minorIdx).Nodup := by
+    rw [List.append_assoc]
+    exact List.Nodup.sublist (List.Sublist.append (List.Sublist.refl _)
+      (List.Sublist.append (List.Sublist.refl _)
+        ((List.take_sublist _ _).trans (List.sublist_append_left _ _)))) hall
+  rwa [Expr.abstractN_eq_abstractList_of_closed hnodup (D.closed hl)] at h
 
 /-- The owner-index slot of the concrete production recursor is the exact
 retained index declaration closed over parameters, motives, minors, and the

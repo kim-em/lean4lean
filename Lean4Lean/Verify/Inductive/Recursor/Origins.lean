@@ -311,6 +311,12 @@ structure BoundFVarDeclarationAt
   declaration : c.lctx.find? fvar = some
     (.cdecl index fvar userName type binderInfo kind)
 
+/-- Declared types of a semantically well-formed context have no loose bound
+variables. -/
+theorem BoundFVarDeclarationAt.closed (D : BoundFVarDeclarationAt c xs i)
+    (hl : LocalContext.LctxClosed c.lctx) : Closed D.type :=
+  hl.cdecl D.declaration
+
 theorem BoundFVarArray.declarationAt
     (H : BoundFVarArray c xs) (Hc : BindingContextWF c)
     (i : Nat) (hi : i < xs.size) :
@@ -996,6 +1002,45 @@ theorem RecInfoMinorHypothesisTypeOrigin.outerAbstractedMotiveApp_eq
   rw [Expr.abstractList_mkAppN]
   simp [List.map_ofFn, Function.comp_def]
 
+/-- Closedness of the recorded motive application follows from closedness of
+its outer abstraction, by peeling the two sequential closures. -/
+theorem RecInfoMinorHypothesisTypeOrigin.motiveApp_closed_of_outer
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (fieldBinders : List FVarId)
+    (hclosed : Closed (O.outerAbstractedMotiveApp fieldBinders)
+      (O.args.size + fieldBinders.length)) :
+    let indices : Array Expr :=
+      O.exposedType.getAppArgs[stats.params.size:]
+    let motiveApp := Expr.app
+      (mkAppN recInfos[O.ownerIdx]!.motive indices)
+      (mkAppN field O.args)
+    Closed motiveApp := by
+  dsimp only
+  rw [← O.outerAbstractedMotiveApp_eq fieldBinders] at hclosed
+  have h1 := Expr.closed_of_abstractList (depth := O.args.size)
+    (fvars := fieldBinders) hclosed
+  have hlen : O.arguments_bound.fvars.length = O.args.size :=
+    O.arguments_bound.length_fvars
+  exact Expr.closed_of_abstractList (depth := 0)
+    (fvars := O.arguments_bound.fvars) (by simpa [hlen] using h1)
+
+/-- Sequential-model form of `sourceTelescope` for a closed motive
+application. -/
+theorem RecInfoMinorHypothesisTypeOrigin.sourceTelescopeList
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (hclosed : Closed (Expr.app
+      (mkAppN recInfos[O.ownerIdx]!.motive
+        (O.exposedType.getAppArgs[stats.params.size:] : Array Expr))
+      (mkAppN field O.args))) :
+    Expr.ForallTelescope type O.args.size
+      ((Expr.app
+        (mkAppN recInfos[O.ownerIdx]!.motive
+          (O.exposedType.getAppArgs[stats.params.size:] : Array Expr))
+        (mkAppN field O.args)).abstractList O.arguments_bound.fvars) := by
+  have h := O.sourceTelescope
+  dsimp only at h
+  rwa [Expr.abstractN_eq_abstractList_of_closed O.arguments_bound.nodup hclosed] at h
+
 /-- After also closing an outer binder list, the selected first-pass field
 is the canonical outer de Bruijn variable shifted beneath its higher-order
 arguments and applied to their canonical local spine. -/
@@ -1263,6 +1308,24 @@ theorem RecInfoMinorTypeShape.sourceTelescope
   have Hhypotheses :=
     S.hypothesisTelescope.abstractN S.fields_bound.fvars
   simpa only [Nat.zero_add] using Hfields.trans Hhypotheses
+
+/-- Sequential-model form of `sourceTelescope` for a closed motive
+application. -/
+theorem RecInfoMinorTypeShape.sourceTelescopeList
+    (S : RecInfoMinorTypeShape) (hclosed : Closed S.motiveApp) :
+    Expr.ForallTelescope S.sourceType
+      (S.fields.size + S.hypotheses.size)
+      ((S.motiveApp.abstractList S.hypotheses_bound.fvars).abstractList
+        S.fields_bound.fvars S.hypotheses.size) := by
+  have h := S.sourceTelescope
+  have hlen : S.hypotheses.size = S.hypotheses_bound.fvars.length := by
+    simpa using congrArg Array.size S.hypotheses_bound.expressions
+  rw [Expr.abstractN_eq_abstractList_of_closed S.hypotheses_nodup hclosed] at h
+  rw [Expr.abstractN_eq_abstractList S.fields_nodup _ _ (by
+    have hc := (Closed.abstractList_at (fvars := S.hypotheses_bound.fvars)
+      (depth := 0) (outer := 0) hclosed).looseBVarRange_le
+    simpa [hlen] using hc)] at h
+  exact h
 
 /-- The annotation-consumed origin installed as the minor declaration keeps
 the complete field/hypothesis arity of its unconsumed production source. -/

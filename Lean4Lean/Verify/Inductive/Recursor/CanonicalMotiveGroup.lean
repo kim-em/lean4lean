@@ -146,7 +146,9 @@ theorem CompletedRecursorConstruction.motiveBinderSource
   have Hclosed : Closed D.type 0 := Htype ▸ Hsupport.2
   simp only [BoundFVarArray.toLocalForallSelection, Nat.zero_add] at Hb
   change Expr.ForallBinderAt _ owner
-    ((D.type.abstractList (H.bindings.motives.fvars.take owner)).abstractList H.params.fvars owner) at Hb
+    ((D.type.abstractN (H.bindings.motives.fvars.take owner)).abstractList H.params.fvars owner) at Hb
+  rw [Expr.abstractN_eq_abstractList_of_closed
+    (List.Nodup.sublist (List.take_sublist _ _) hmotives) Hclosed] at Hb
   have Habstract := Expr.abstractList_add_eq_liftLooseBVars (extra := owner) Hclosed hparams
   simp only [Nat.zero_add] at Habstract
   rw [Hnone.abstractList_eq_self Hclosed, Habstract, Htype] at Hb
@@ -212,7 +214,9 @@ theorem CompletedRecursorConstruction.generatedMotivesTranslation
   have hsort (fvars : List FVarId) (k : Nat) :
       (Expr.sort .zero).abstractList fvars k = .sort .zero :=
     Expr.abstractList_eq_self_of_abstract1 _ (by intro fv depth; simp [Expr.abstract1]) fvars k
-  simp only [Array.size_map, hsort] at Htel
+  have hsortN (fvars : List FVarId) (k : Nat) :
+      (Expr.sort .zero).abstractN fvars k = .sort .zero := rfl
+  simp only [Array.size_map, hsort, hsortN] at Htel
   apply TrExprS.of_forallBinderTranslations Htel hcount
   · intro i hi sourceDomain Hbinder
     have hi' : i < H.recInfos.size := by omega
@@ -227,7 +231,7 @@ theorem CompletedRecursorConstruction.generatedMotivesTranslation
     obtain ⟨S, _⟩ := H.motiveTelescopes.seed i hi'
     have Hindices := S.indicesBound.mkForall_forallTelescope H.localWF
       (H.localContext.lctx.mkForall #[H.recInfos[i]!.major] (.sort H.elimLevel))
-    have Hmajor := (S.majorBound.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractList
+    have Hmajor := (S.majorBound.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractN
       S.indicesBound.fvars
     have Hwhole := ((Hindices.trans Hmajor).abstractList H.params.fvars).liftLooseBVars' 0 i
     exact TrExprS.isType_of_forallTelescope Hwhole (by simp) Htr
@@ -263,6 +267,12 @@ theorem CompletedRecursorConstruction.generatedParametersMotivesTranslation
     rw [H.params.forallDomainsOnly H.localWF hparams, H.recursorEnv]
     simpa only [InductiveSignature.Instance.params, hp, hl] using H.sourceParameterTranslation
   obtain ⟨Hmotives, HmotivesType⟩ := H.generatedMotivesTranslation g hp hf hl hu
+  have hmotivesNodup : H.bindings.motives.fvars.Nodup :=
+    (List.nodup_append.mp (List.nodup_append.mp houter).1).2.1
+  have hmotivesClosed : Closed (H.localContext.lctx.mkForall (H.recInfos.map (·.motive))
+      (.sort .zero)) :=
+    H.bindings.motives.mkForall_closed H.localWF hmotivesNodup H.recursorWF.lctxClosed trivial
+  rw [← Expr.abstractN_eq_abstractList_of_closed hparams hmotivesClosed] at Hmotives
   have Hfull := (TrExprS.rebuildForallPrefix Htel hcount Htemplate Hmotives HmotivesType).1
   rw [H.recursorEnv, ← VExpr.wrapForalls_append] at Hfull
   exact Hfull

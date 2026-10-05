@@ -44,7 +44,12 @@ theorem FVarNarrowSources.closeSourceTranslation
         (.forallE target bodyTarget) :=
       .forallE HtargetType HbodyType
     have IH' := IH htail Hforall HforallType
-    simpa [FVarNarrowSources.closeSource, VLCtx.toCtx,
+    have hbodyClosed : Closed body := by
+      have h := Hbody.closed
+      simpa [VLCtx.bvars, tail.noBV] using h
+    have h1 : body.abstractN [fv] = body.abstract1 fv :=
+      Expr.abstractN_singleton hbodyClosed.looseBVarRange_le
+    simpa [h1, FVarNarrowSources.closeSource, VLCtx.toCtx,
       List.reverse_cons, VExpr.wrapForalls_append,
       VExpr.wrapForalls] using IH'
 

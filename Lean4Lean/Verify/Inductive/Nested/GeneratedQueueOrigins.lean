@@ -151,6 +151,7 @@ theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
     (hsourceParams : nparams = sourceInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (HargsClosed : ∀ i, i < nparams → args[i]!.hasLooseBVars = false)
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 := by
@@ -187,6 +188,7 @@ theorem GeneratedAuxiliary.pendingGeneratedFamilyOrigins
       closing := Hclosing
       levelsNoMVars := Hlevels
       argsFVars := Hargs
+      argsClosed := HargsClosed
       built := Hbuilt
       family_eq := by simp [Array.getElem_push]
       cached := by simp }⟩
@@ -206,6 +208,7 @@ theorem GeneratedAuxiliaryBatch.pendingGeneratedFamilyOrigins
     (hnparamsTrigger : nparams = triggerInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (HargsClosed : ∀ i, i < nparams → args[i]!.hasLooseBVars = false)
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 := by
@@ -222,7 +225,7 @@ theorem GeneratedAuxiliaryBatch.pendingGeneratedFamilyOrigins
     exact ih
       (fun sourceName hsource => hsourceNames sourceName (by simp [hsource]))
       (Hstep.pendingGeneratedFamilyOrigins Hselection
-        hselectionNodup Hclosing hnparams hstepParams Hlevels Hargs Horigins)
+        hselectionNodup Hclosing hnparams hstepParams Hlevels Hargs HargsClosed Horigins)
 
 theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
@@ -235,6 +238,7 @@ theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
     (htrigger : env.find? targetName = some (.inductInfo value))
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (HargsClosed : ∀ i, i < value.numParams → args[i]!.hasLooseBVars = false)
     (Horigins : PendingGeneratedFamilyOrigins env params initialSize cursor
       state) :
     PendingGeneratedFamilyOrigins env params initialSize cursor out.2 := by
@@ -243,7 +247,7 @@ theorem RecognizedNestedReplacement.pendingGeneratedFamilyOrigins
   | generated _ Hbatch =>
     exact Hbatch.pendingGeneratedFamilyOrigins Hselection hselectionNodup
       Hclosing hnparams hclosures value htrigger (by simp) rfl Hlevels Hargs
-      Horigins
+      HargsClosed Horigins
 
 theorem NestedReplacement.pendingGeneratedFamilyOrigins
     (H : NestedReplacement env lctx params As e state out)
@@ -270,7 +274,8 @@ theorem NestedReplacement.pendingGeneratedFamilyOrigins
         intro arg harg
         apply Hinput.getAppArgsList
         rw [← Expr.getAppArgs_toList]
-        exact Array.mem_toList_iff.mpr harg) Horigins
+        exact Array.mem_toList_iff.mpr harg) Hcandidate.parameters.closed
+      Horigins
 
 theorem NestedExprReplacement.pendingGeneratedFamilyOrigins
     (H : NestedExprReplacement env lctx params As e state out)

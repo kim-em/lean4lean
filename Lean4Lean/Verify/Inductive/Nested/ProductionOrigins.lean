@@ -83,6 +83,14 @@ private theorem Expr.constructorArity_abstractList
       exact (ih (e.abstract1 fv k) k).trans
         (Expr.constructorArity_abstract1 e fv k)
 
+private theorem Expr.constructorArity_abstractN
+    (e : Expr) (fvars : List FVarId) (k : Nat := 0) :
+    AddInductive.constructorArity (e.abstractN fvars k) =
+      AddInductive.constructorArity e := by
+  induction e generalizing k <;>
+    simp [Expr.abstractN, AddInductive.constructorArity, *]
+  all_goals split <;> simp [AddInductive.constructorArity]
+
 private theorem Expr.constructorArity_eq_of_eqv
     {left right : Expr} (H : (left == right) = true) :
     AddInductive.constructorArity left =
@@ -103,7 +111,8 @@ private theorem Expr.ForallTelescope.constructorArity_eq
 
 private theorem LoweredConstructorMapping.constructorArity_eq
     (H : LoweredConstructorMapping env params nparams result source state out)
-    (Hsource : source.type.FVarsIn fun _ => False) :
+    (Hsource : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type) :
     AddInductive.constructorArity out.1.type =
       AddInductive.constructorArity source.type := by
   rcases H.mapped with
@@ -112,14 +121,14 @@ private theorem LoweredConstructorMapping.constructorArity_eq
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
   have hsource : lctx.mkForall As tail = source.type :=
     Hopening.toRestoreParamOpening.root_mkForall_tail hlctxWF Htelescope
-      (FVarsIn_to_FVarIdsIn Hsource)
+      (FVarsIn_to_FVarIdsIn Hsource) hsourceBVar
   have HtailTelescope := Hselection.forallTelescope tail
   have HloweredTelescope := Hselection.forallTelescope lowered
   have htailArity := HtailTelescope.constructorArity_eq
   have hloweredArity := HloweredTelescope.constructorArity_eq
   rw [htype, ← hsource, hloweredArity, htailArity,
-    Expr.constructorArity_abstractList,
-    Expr.constructorArity_abstractList, Hmapping.constructorArity_eq]
+    Expr.constructorArity_abstractN,
+    Expr.constructorArity_abstractN, Hmapping.constructorArity_eq]
 
 /-- Lookup classification for one checked production addition. -/
 theorem Environment.find?_freshAdd_cases
@@ -1070,6 +1079,9 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
       simpa [hsourceCtorVal] using HsourceSyntaxAt
     have HsourceClosed : sourceCtor.type.FVarsIn fun _ => False :=
       HsourceSyntax.closed
+    have HsourceBVar : Closed sourceCtor.type := by
+      have h := HsourceCtor.type.closed
+      simpa [VLCtx.bvars, hsourceCtorVal] using h
     have HsourceDisjoint :
         RestoreSourceDisjoint result loweredEnv sourceCtor.type :=
       HsourceSyntax.noNestedAux.restoreSourceDisjointOfFresh
@@ -1080,8 +1092,8 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
         (by simpa [htargetCtorVal] using List.getElem_mem htargetCtor) (by
           simp [hctorNames, htargetCtorVal])
     rcases HctorMapping.constructorRestoration_inverse rfl fvars hparams
-        hnodup HsourceClosed loweredEnv HsourceDisjoint hresultNParams
-        HctorRestore holdType with ⟨Hinverse⟩
+        hnodup HsourceClosed HsourceBVar hparamsSize loweredEnv HsourceDisjoint
+        hresultNParams HctorRestore holdType with ⟨Hinverse⟩
     have hrestoredArity :
         AddInductive.constructorArity newCtorInfo.type =
           AddInductive.constructorArity sourceCtor.type :=
@@ -1089,7 +1101,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
     have harityMapping :
         AddInductive.constructorArity targetCtor.type =
           AddInductive.constructorArity sourceCtor.type :=
-      HctorMapping.constructorArity_eq HsourceClosed
+      HctorMapping.constructorArity_eq HsourceClosed HsourceBVar
     have habstractName : newCtorInfo.name =
         sourceDecl.types[familyIdx].ctors[ctorIdx].name := by
       calc

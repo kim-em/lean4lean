@@ -21,6 +21,15 @@ theorem lambdaDeclarationScope_toCtx_length
       rcases hhead with ⟨deps, type, rfl⟩
       simp [VLCtx.toCtx, ih]
 
+/-- A context consisting solely of free-variable entries binds no bound variables. -/
+theorem VLCtx.bvars_of_fvarEntries {fvs : List FVarId} {Δ : VLCtx}
+    (H : List.Forall₂
+      (fun fv entry => ∃ deps type, entry = (some (fv, deps), .vlam type)) fvs Δ) :
+    Δ.bvars = 0 := by
+  induction H with
+  | nil => rfl
+  | cons h _ ih => obtain ⟨_, _, rfl⟩ := h; simpa [VLCtx.bvars] using ih
+
 /-- Exact semantic restoration package for one production rule RHS.  The
 inner replacement is interpreted by a finite concrete provenance plan.  The
 outer parameter lambdas are not re-proved semantically: restoration reuses
@@ -96,8 +105,8 @@ theorem RestoredRuleRhsTranslation.restoredTranslation
     H.targetDeclarations htargetNodup H.body.targetTranslation
   have HsourceTelescope : Expr.LambdaTelescope oldRule.rhs
       H.opening.selection.fvars.length
-      (H.opening.body.abstractList H.opening.selection.fvars) := by
-    have Htelescope := LocalContext.mkLambda_fvars_lambdaTelescope
+      (H.opening.body.abstractN H.opening.selection.fvars) := by
+    have Htelescope := LocalContext.mkLambda_fvars_lambdaTelescopeN
       (body := H.opening.body)
       H.opening.selection.declarations
     simpa only [← H.opening.selection.expressions,
@@ -109,9 +118,15 @@ theorem RestoredRuleRhsTranslation.restoredTranslation
       H.opening.selection.fvars.length
       (H.opening.restoredBody.abstractList
         H.opening.selection.fvars) := by
-    have Htelescope := LocalContext.mkLambda_fvars_lambdaTelescope
+    have hrestoredClosed : Closed H.opening.restoredBody := by
+      have hbv : H.targetScope.bvars = 0 :=
+        VLCtx.bvars_of_fvarEntries H.targetDeclarations
+      have := H.body.targetTranslation.closed
+      change Closed H.opening.restoredBody H.targetScope.bvars at this
+      rwa [hbv] at this
+    have Htelescope := LocalContext.mkLambda_fvars_lambdaTelescopeList
       (body := H.opening.restoredBody)
-      H.opening.selection.declarations
+      H.opening.selection.declarations H.opening.selectionNodup hrestoredClosed
     simpa only [← H.opening.selection.expressions, ← houtput] using
       Htelescope
   have Hsame : Expr.SameLambdaPrefix

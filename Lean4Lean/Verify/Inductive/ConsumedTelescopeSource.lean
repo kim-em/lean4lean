@@ -12,6 +12,14 @@ theorem Expr.abstract1_consumeForallTypes (source : Expr) (fv : FVarId) (k : Nat
       TypeChecker.Expr.abstract1_consumeTypeAnnotationsVerified, *]
   split <;> rfl
 
+theorem Expr.abstractN_consumeForallTypes (source : Expr) (xs : List FVarId) (k : Nat := 0) :
+    (Expr.consumeForallTypes source).abstractN xs k =
+      Expr.consumeForallTypes (source.abstractN xs k) := by
+  induction source generalizing k <;>
+    simp [Expr.consumeForallTypes, Expr.abstractN,
+      TypeChecker.Expr.abstractN_consumeTypeAnnotationsVerified, *]
+  split <;> rfl
+
 theorem Expr.abstractList_consumeForallTypes (source : Expr) (fvars : List FVarId) (k : Nat := 0) :
     (Expr.consumeForallTypes source).abstractList fvars k =
       Expr.consumeForallTypes (source.abstractList fvars k) := by

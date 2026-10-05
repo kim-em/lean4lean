@@ -79,7 +79,7 @@ theorem RestoredPrimaryOperationalFamilyAlignment.withSourceSemantics
     RestoredPrimaryOperationalFamilySemantics A owner Hrecursor := by
   refine { constructors := ?_ }
   apply A.constructors.sourceSemanticMapping Hconstructors.forall₂ Hsyntax
-    Hdisjoint rfl A.fvars A.params A.paramsNodup hresultNParams
+    Hdisjoint rfl A.fvars A.params A.paramsNodup hresultNParams A.paramsSize
 
 /-- Select one constructor while retaining all three identities at once:
 the original source constructor, its lowered/restored operational step, and

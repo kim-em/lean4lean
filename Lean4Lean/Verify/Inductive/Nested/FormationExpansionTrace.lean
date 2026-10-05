@@ -1970,6 +1970,7 @@ theorem LoweredConstructorMapping.abstractExpansion
     (hparamsSize : params.size = nparams)
     (hnparams : nparams = sourceDecl.nparams)
     (HsourceClosed : sourceConcrete.type.FVarsIn fun _ => False)
+    (HsourceBVar : Closed sourceConcrete.type)
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
@@ -1997,7 +1998,7 @@ theorem LoweredConstructorMapping.abstractExpansion
     ⟨lctx, tail, As, lowered, openedState, Hopening, _hlctxWF, Hselection,
       hnodup, _hopenedTypes, _hopenedAux, _hopenedNext, hsize, Hbody,
       htargetType⟩
-  have Hsame := Hmapping.sourceTargetSameForallPrefix HsourceClosed
+  have Hsame := Hmapping.sourceTargetSameForallPrefix HsourceClosed HsourceBVar
   rcases Hsame.openedAbstractProjection (depth := 0) HsourceEnvWF HtargetEnvWF
       (by trivial) (by trivial)
       (.nil : NestedExpansionCtx (fun _ _ _ => False) 0 [] [])
@@ -2024,7 +2025,10 @@ theorem LoweredConstructorMapping.abstractExpansion
   have HtargetTelescope : Expr.ForallTelescope targetConcrete.type nparams
       (lowered.abstractList Hselection.fvars) := by
     rw [htargetType, ← hsize]
-    exact Hselection.forallTelescope lowered
+    have hloweredClosed : Closed lowered :=
+      Hbody.closed Hselection (Hopening.tailClosed HsourceBVar)
+    have h := Hselection.forallTelescope lowered
+    rwa [Expr.abstractN_eq_abstractList_of_closed hnodup hloweredClosed] at h
   rcases Hopened.targetResidualData with
     ⟨targetResidual, HtargetTelescope', htargetResidual⟩
   have htargetTelescopeResidual : targetResidual =
@@ -2081,6 +2085,7 @@ theorem LoweredConstructorMappings.abstractExpansions
       out.1 targetTargets)
     (Hclosed : ∀ source ∈ sources,
       source.type.FVarsIn fun _ => False)
+    (HbClosed : ∀ source ∈ sources, Closed source.type)
     (HsourceEnvWF : sourceVEnv.WF)
     (HtargetEnvWF : targetVEnv.WF)
     (hparamsSize : params.size = nparams)
@@ -2120,9 +2125,11 @@ theorem LoweredConstructorMappings.abstractExpansions
       | cons HtargetHead HtargetTail =>
         exact .cons
           (Hhead.abstractExpansion HsourceHead HtargetHead HsourceEnvWF
-            HtargetEnvWF hparamsSize hnparams (Hclosed _ (by simp)) Hhit)
+            HtargetEnvWF hparamsSize hnparams (Hclosed _ (by simp))
+            (HbClosed _ (by simp)) Hhit)
           (ih HsourceTail HtargetTail (fun source hsource =>
-            Hclosed source (by simp [hsource])))
+            Hclosed source (by simp [hsource])) (fun source hsource =>
+            HbClosed source (by simp [hsource])))
 
 /-- The constructor-independent fields of one nested family expansion.  This
 small carrier lets the exact lowering provenance discharge family metadata
@@ -2210,9 +2217,15 @@ theorem LoweredInductiveMapping.abstractExpansion
   numIndices := Hheader.numIndices
   resultLevel := Hheader.resultLevel
   constructors := by
+    have HbClosed : ∀ source ∈ sourceConcrete.ctors, Closed source.type := by
+      intro source hs
+      rcases Lean4Lean.List.Forall₂.forall_exists_l Hsource.ctors source hs with
+        ⟨target, _htarget, Htr⟩
+      have h := Htr.type.closed
+      simpa [VLCtx.bvars] using h
     simpa only [hnparams] using
       Hmapping.constructors.abstractExpansions Hsource.ctors Htarget.ctors
-        Hclosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams Hhit
+        Hclosed HbClosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams Hhit
 
 /-- Exact original-prefix specialization.  The source family remains at its
 original queue position; the independent source and production translations,

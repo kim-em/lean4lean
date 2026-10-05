@@ -1433,3 +1433,13 @@ theorem abstract1_eqv {e₁ e₂ : Expr} :
 theorem abstractList_eqv {e₁ e₂ : Expr} (h : e₁ == e₂) :
     e₁.abstractList vars k == e₂.abstractList vars k := by
   induction vars generalizing e₁ e₂ <;> simp [abstract1_eqv, *]
+
+theorem abstractN_eqv {e₁ e₂ : Expr} :
+    e₁ == e₂ → e₁.abstractN xs k == e₂.abstractN xs k := by
+  simp [(· == ·)]
+  induction e₁ generalizing e₂ k
+  all_goals
+    cases e₂ <;> try change false = _ → _; rintro ⟨⟩
+    simp only [abstractN, eqv']
+    intros; simp_all [eqv']
+  all_goals split <;> simp_all [eqv']

@@ -97,59 +97,8 @@ def NestedParamOpening.closingContext
     close := ?_ }
   intro body Hbody
   rcases H.forallTelescope with ⟨residual, Htelescope⟩
-  rcases H.toRestoreParamOpening.forall_rebuilding_data Hbinding.wf
-      Htelescope with
-    ⟨decls, _hlctx, hparams, _hlength, _hdeclNodup, _hfind, hrebuild⟩
-  have hids : Hselection.fvars = decls.map (fun d => d.fvarId) := by
-    have harr : (Hselection.fvars.map Expr.fvar).toArray =
-        ((decls.map (fun d => d.fvarId)).map Expr.fvar).toArray := by
-      rw [← Hselection.expressions]
-      apply Array.toList_inj.mp
-      simpa [Function.comp_def] using hparams
-    have hlist : Hselection.fvars.map Expr.fvar =
-        (decls.map (fun d => d.fvarId)).map Expr.fvar := by
-      simpa using congrArg Array.toList harr
-    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
-  have hsourceFold :
-      Hselection.fvars.foldr
-          (fun fv result =>
-            LocalContext.mkBindingList1 false lctx [] fv
-              (result.abstract1 fv)) tail = source := by
-    have hclosed := FVarsIn_to_FVarIdsIn Hsource
-    have havoid : source.FVarIdsIn
-        (fun fv => fv ∉ decls.map (fun d => d.fvarId)) :=
-      hclosed.mono fun fv hfalse => False.elim hfalse
-    simpa [hids] using hrebuild havoid
-  have hbodyFold : lctx.mkForall As body =
-      Hselection.fvars.foldr
-        (fun fv result =>
-          LocalContext.mkBindingList1 false lctx [] fv
-            (result.abstract1 fv)) body := by
-    calc
-      lctx.mkForall As body =
-          lctx.mkForall (Hselection.fvars.map Expr.fvar).toArray body :=
-        congrArg (fun xs => lctx.mkForall xs body) Hselection.expressions
-      _ = _ := by
-        rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
-        apply LocalContext.mkBindingList_eq_fold
-        · intro fv hfv
-          rcases Hselection.declarations fv hfv with
-            ⟨index, name, type, bi, kind, hfind⟩
-          exact ⟨.cdecl index fv name type bi kind, hfind⟩
-        · exact hnodup
-  have hsame := LocalContext.sameForallPrefix_fold
-    Hselection.declarations body tail
-  have hlen : Hselection.fvars.length = n := by
-    have := congrArg Array.size Hselection.expressions
-    simpa [H.initial_size] using this.symm
-  rw [hlen, hsourceFold, ← hbodyFold] at hsame
-  have HbodyResidual : (body.abstractList Hselection.fvars).FVarsIn
-      (fun _ => False) := by
-    apply FVarsIn.abstractList_of
-    exact Hbody.mono fun fv hfv => Or.inl hfv
-  have HbodyTelescope := Hselection.forallTelescope body
-  rw [H.initial_size] at HbodyTelescope
-  exact hsame.leftFVarsIn HbodyTelescope Hsource HbodyResidual
+  exact H.toRestoreParamOpening.root_mkForall_fvarsClosed Hbinding.wf
+    Htelescope Hsource Hselection Hbody
 
 theorem LoweredConstructorTranslation.targetRestoreTelescope
     (H : LoweredConstructorTranslation env params nparams source state out) :
@@ -346,59 +295,18 @@ forall prefix; lowering changes only the residual constructor body. -/
 theorem LoweredConstructorMapping.sourceTargetSameForallPrefix
     (H : LoweredConstructorMapping env params nparams finalResult source state
       out)
-    (Hsource : source.type.FVarsIn fun _ => False) :
+    (Hsource : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type) :
     Expr.SameForallPrefix nparams source.type out.1.type := by
   rcases H.mapped with
     ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF, Hselection,
       hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hmapping, htype⟩
   rcases Hopening.forallTelescope with ⟨residual, Htelescope⟩
-  rcases Hopening.toRestoreParamOpening.forall_rebuilding_data hlctxWF
-      Htelescope with
-    ⟨decls, _hlctx, hparams, _hlength, _hdeclNodup, _hfind, hrebuild⟩
-  have hids : Hselection.fvars = decls.map (fun d => d.fvarId) := by
-    have harr : (Hselection.fvars.map Expr.fvar).toArray =
-        ((decls.map (fun d => d.fvarId)).map Expr.fvar).toArray := by
-      rw [← Hselection.expressions]
-      apply Array.toList_inj.mp
-      simpa [Function.comp_def] using hparams
-    have hlist : Hselection.fvars.map Expr.fvar =
-        (decls.map (fun d => d.fvarId)).map Expr.fvar := by
-      simpa using congrArg Array.toList harr
-    exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlist
-  have hsourceFold :
-      Hselection.fvars.foldr
-          (fun fv result =>
-            LocalContext.mkBindingList1 false lctx [] fv
-              (result.abstract1 fv)) tail = source.type := by
-    have hclosed := FVarsIn_to_FVarIdsIn Hsource
-    have havoid : source.type.FVarIdsIn
-        (fun fv => fv ∉ decls.map (fun d => d.fvarId)) :=
-      hclosed.mono fun fv hfalse => False.elim hfalse
-    simpa [hids] using hrebuild havoid
-  have htargetFold : lctx.mkForall As lowered =
-      Hselection.fvars.foldr
-        (fun fv result =>
-          LocalContext.mkBindingList1 false lctx [] fv
-            (result.abstract1 fv)) lowered := by
-    calc
-      lctx.mkForall As lowered =
-          lctx.mkForall (Hselection.fvars.map Expr.fvar).toArray lowered :=
-        congrArg (fun xs => lctx.mkForall xs lowered) Hselection.expressions
-      _ = _ := by
-        rw [LocalContext.mkForall, LocalContext.mkBinding_eq]
-        apply LocalContext.mkBindingList_eq_fold
-        · intro fv hfv
-          rcases Hselection.declarations fv hfv with
-            ⟨index, name, type, bi, kind, hfind⟩
-          exact ⟨.cdecl index fv name type bi kind, hfind⟩
-        · exact hnodupAs
-  have hsame := LocalContext.sameForallPrefix_fold
-    Hselection.declarations tail lowered
-  have hlen : Hselection.fvars.length = nparams := by
-    have := congrArg Array.size Hselection.expressions
-    simpa [hsize] using this.symm
-  rw [hlen] at hsame
-  rw [hsourceFold, ← htargetFold, ← htype] at hsame
+  have hsource : lctx.mkForall As tail = source.type :=
+    Hopening.toRestoreParamOpening.root_mkForall_tail hlctxWF Htelescope
+      (FVarsIn_to_FVarIdsIn Hsource) hsourceBVar
+  have hsame := Hselection.sameForallPrefix hnodupAs tail lowered
+  rw [hsize, hsource, ← htype] at hsame
   exact hsame
 
 theorem LoweredConstructorMapping.reopens
@@ -408,7 +316,8 @@ theorem LoweredConstructorMapping.reopens
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
-    (Hsource : source.type.FVarsIn fun _ => False) :
+    (Hsource : source.type.FVarsIn fun _ => False)
+    (hparamsSize : params.size = nparams) :
     LoweredConstructorReopening env params nparams finalResult restoreAs source
       state out := by
   refine ⟨H.name, ?_⟩
@@ -420,7 +329,11 @@ theorem LoweredConstructorMapping.reopens
       (Hsource.mono fun fv hfalse => False.elim hfalse)
   exact ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize,
-    Hmapping.reopens hresultParams fvars hparams hnodup Hselection Htail,
+    Hmapping.reopens hresultParams fvars hparams hnodup Hselection (by
+      have h1 : Hselection.fvars.length = As.size := by
+        simpa using (congrArg Array.size Hselection.expressions).symm
+      have h2 : fvars.length = params.size := by simp [hparams]
+      omega) Htail,
     htype⟩
 
 /-- Opening the lowered constructor with restoration's fresh parameters
@@ -451,18 +364,10 @@ theorem LoweredConstructorReopening.restoreTail
   have Htelescope := Hselection.forallTelescope lowered
   rw [hsize, ← htype] at Htelescope
   have htail := Hrestore.forallResidual Htelescope
-  have habstract : lowered.abstract As =
-      lowered.abstractList Hselection.fvars :=
-    calc
-      lowered.abstract As = lowered.abstract
-          (Hselection.fvars.map Expr.fvar).toArray :=
-        congrArg lowered.abstract Hselection.expressions
-      _ = lowered.abstractList Hselection.fvars :=
-        Expr.abstract_eq_legacy lowered Hselection.fvars
   refine ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype,
     ?_⟩
-  simpa [habstract] using htail
+  simpa only [Hselection.expressions, Expr.abstractN_eq] using htail
 
 /-- The body exposed by restoration is the original constructor body with
 the restoration parameters substituted for lowering's fresh parameters.
@@ -478,7 +383,8 @@ theorem LoweredConstructorReopening.restoreTail_inverse
     (restoreEnv : Environment)
     (htargetAs : targetAs = restoreAs)
     (hresultNParams : finalResult.nparams = nparams)
-    (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type) :
+    (Hsource : RestoreSourceDisjoint finalResult restoreEnv source.type)
+    (hsourceBVar : Closed source.type) :
     ∃ lctx tail As lowered openedState,
       NestedParamOpening {} #[] source.type nparams lctx tail As ∧
       ∃ Hselection : LocalForallSelection lctx As,
@@ -517,10 +423,15 @@ theorem LoweredConstructorReopening.restoreTail_inverse
     restoreFvars
     (by simpa [htargetAs] using hrestoreArray) hrestoreSize hresultSize
     HtailSource 0
+  have htailClosed : Closed tail := Hopening.tailClosed hsourceBVar
+  have hloweredClosed : Closed lowered :=
+    Hreopening.closed Hselection htailClosed
   have hloweredOpen := Expr.reopenFVarsAt_eq_reopenParams hnodupAs
     hrestoreSize Hselection.expressions hrestoreArray lowered 0
+    hloweredClosed.looseBVarRange_zero
   have hsourceOpen := Expr.reopenFVarsAt_eq_reopenParams hnodupAs
     hrestoreSize Hselection.expressions hrestoreArray tail 0
+    htailClosed.looseBVarRange_zero
   have hrestoredOpen :
       restoredTail = Expr.reopenParams lowered As restoreAs := by
     simpa [Expr.reopenParams] using hrestoredTail
@@ -542,6 +453,8 @@ theorem LoweredConstructorMapping.restoredBody_inverse
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreLctx : LocalContext) (restoreAs : Array Expr)
     (openedBody restoredBody : Expr)
     (Hrestore : RestoreParamOpening {} #[] out.1.type nparams restoreLctx
@@ -559,9 +472,9 @@ theorem LoweredConstructorMapping.restoredBody_inverse
         (restoredBody == Expr.reopenParams tail As restoreAs) = true := by
   have Hreopening : LoweredConstructorReopening env params nparams finalResult
       restoreAs source state out :=
-    H.reopens hresultParams paramFvars hparams hnodup HsourceClosed
+    H.reopens hresultParams paramFvars hparams hnodup HsourceClosed hparamsSize
   rcases Hreopening.restoreTail_inverse restoreLctx restoreAs openedBody
-      Hrestore restoreEnv rfl hresultNParams Hsource with
+      Hrestore restoreEnv rfl hresultNParams Hsource hsourceBVar with
     ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
       hnodupAs, _hopenedTypes, _hopenedAux, _hopenedNext, hsize,
       _Hreopening, _htype, _hopenedBody, hinverse⟩
@@ -580,6 +493,8 @@ theorem LoweredConstructorMapping.restoredBody_inverseOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (Hreserved : RestoreNamesReserved finalResult restoreEnv)
     (restoreLctx : LocalContext) (restoreAs : Array Expr)
@@ -596,7 +511,8 @@ theorem LoweredConstructorMapping.restoredBody_inverseOfSyntax
         Hselection.fvars.Nodup ∧ As.size = nparams ∧
         (restoredBody == Expr.reopenParams tail As restoreAs) = true :=
   H.restoredBody_inverse hresultParams paramFvars hparams hnodup
-    Hsyntax.closed restoreLctx restoreAs openedBody restoredBody Hrestore
+    Hsyntax.closed hsourceBVar hparamsSize restoreLctx restoreAs openedBody
+    restoredBody Hrestore
     restoreEnv Hbody hresultNParams
     (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved)
 
@@ -626,6 +542,7 @@ structure ConstructorRestorationBodyInverse
   sourceTail : Expr
   sourceAs : Array Expr
   sourceClosed : source.type.FVarsIn fun _ => False
+  sourceBVarClosed : Closed source.type
   loweredFVarIdsClosed : lowered.type.FVarIdsIn fun _ => False
   sourceLoweredPrefix :
     Expr.SameForallPrefix nparams source.type lowered.type
@@ -648,6 +565,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
@@ -663,7 +582,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
   have Hopening' := Hopening.1
   rw [hresultNParams] at Hopening'
   rcases H.restoredBody_inverse hresultParams paramFvars hparams hnodup
-      HsourceClosed restoreLctx restoreAs openedBody restoredBody Hopening'
+      HsourceClosed hsourceBVar hparamsSize restoreLctx restoreAs openedBody
+      restoredBody Hopening'
       restoreEnv Hbody hresultNParams HsourceDisjoint with
     ⟨sourceLctx, sourceTail, sourceAs, HsourceOpening, Hselection,
       hsourceNodup, hsourceArity, hinverse⟩
@@ -682,8 +602,9 @@ theorem LoweredConstructorMapping.nestedRestoration_inverse
     sourceTail := sourceTail
     sourceAs := sourceAs
     sourceClosed := HsourceClosed
+    sourceBVarClosed := hsourceBVar
     loweredFVarIdsClosed := H.targetFVarIdsClosed HsourceClosed
-    sourceLoweredPrefix := H.sourceTargetSameForallPrefix HsourceClosed
+    sourceLoweredPrefix := H.sourceTargetSameForallPrefix HsourceClosed hsourceBVar
     sourceOpening := HsourceOpening
     sourceSelection := Hselection
     sourceNodup := hsourceNodup
@@ -697,6 +618,8 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
@@ -705,7 +628,7 @@ theorem LoweredConstructorMapping.nestedRestoration_inverseOfSyntax
     Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 restoredType) := by
   exact H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
-    Hsyntax.closed restoreEnv
+    Hsyntax.closed hsourceBVar hparamsSize restoreEnv
     (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
     Hrestored
 
@@ -725,9 +648,16 @@ theorem ConstructorRestorationBodyInverse.restoredBody_residual
       (fun fv => fv ∉ H.sourceSelection.fvars) :=
     (Htelescope.resultFVarsIn H.sourceClosed).mono fun fv hfalse =>
       False.elim hfalse
+  have hlb : residual.looseBVarRange' ≤ H.sourceSelection.fvars.length := by
+    have hres := (Htelescope.closed_result (depth := 0)
+      H.sourceBVarClosed).looseBVarRange_le
+    have hlen : H.sourceSelection.fvars.length = H.sourceAs.size := by
+      simpa using (congrArg Array.size H.sourceSelection.expressions).symm
+    rw [hlen, H.sourceArity]
+    simpa using hres
   have hcancel := hfree.reabstract_instantiateRev_fvarArray H.sourceAs
     H.restoreAs H.sourceSelection.fvars H.sourceSelection.expressions
-    H.sourceNodup
+    H.sourceNodup hlb
   have hopen : Expr.reopenParams H.sourceTail H.sourceAs H.restoreAs =
       residual.instantiateRev H.restoreAs := by
     rw [htail]
@@ -758,6 +688,7 @@ theorem ConstructorRestorationBodyInverse.restoredType_eqv_source
   have hsourceRebuild :
       H.restoreLctx.mkForall H.restoreAs sourceOpened = source.type :=
     HsourceRestore.root_mkForall_tail H.restoreLctxWF Htelescope hclosedSource
+      H.sourceBVarClosed
   have hwrapped := H.restoreSelection.mkForall_eqv H.restoreNodup hbodyOpened
   rw [hsourceRebuild] at hwrapped
   have houtput : restoredType =
@@ -794,6 +725,8 @@ theorem LoweredConstructorMapping.constructorRestoration_inverse
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
@@ -802,7 +735,7 @@ theorem LoweredConstructorMapping.constructorRestoration_inverse
     Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 newInfo.type) := by
   apply H.nestedRestoration_inverse hresultParams paramFvars hparams hnodup
-    HsourceClosed restoreEnv HsourceDisjoint hresultNParams
+    HsourceClosed hsourceBVar hparamsSize restoreEnv HsourceDisjoint hresultNParams
   simpa [htype] using Hrestored.type
 
 theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
@@ -812,6 +745,8 @@ theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
@@ -820,7 +755,7 @@ theorem LoweredConstructorMapping.constructorRestoration_inverseOfSyntax
     Nonempty (ConstructorRestorationBodyInverse result restoreEnv nparams source
       out.1 newInfo.type) := by
   apply H.nestedRestoration_inverseOfSyntax hresultParams paramFvars hparams
-    hnodup Hsyntax restoreEnv Hreserved hresultNParams
+    hnodup Hsyntax hsourceBVar hparamsSize restoreEnv Hreserved hresultNParams
   simpa [htype] using Hrestored.type
 
 /-- Transport source translation across constructor restoration using exact
@@ -833,6 +768,8 @@ theorem LoweredConstructorMapping.restoredType_translation
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
@@ -841,7 +778,8 @@ theorem LoweredConstructorMapping.restoredType_translation
     (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
     TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
   rcases H.constructorRestoration_inverse hresultParams paramFvars hparams
-      hnodup HsourceClosed restoreEnv HsourceDisjoint hresultNParams Hrestored
+      hnodup HsourceClosed hsourceBVar hparamsSize restoreEnv HsourceDisjoint
+      hresultNParams Hrestored
       htype with
     ⟨Hinverse⟩
   apply Hsource.eqv
@@ -859,6 +797,8 @@ theorem LoweredConstructorMapping.sourceType_translationOfRestored
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (HsourceClosed : source.type.FVarsIn fun _ => False)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (HsourceDisjoint : RestoreSourceDisjoint result restoreEnv source.type)
     (hresultNParams : result.nparams = nparams)
@@ -868,7 +808,8 @@ theorem LoweredConstructorMapping.sourceType_translationOfRestored
       newInfo.type targetType) :
     TrExprS venv oldInfo.levelParams [] source.type targetType := by
   rcases H.constructorRestoration_inverse hresultParams paramFvars hparams
-      hnodup HsourceClosed restoreEnv HsourceDisjoint hresultNParams Hrestored
+      hnodup HsourceClosed hsourceBVar hparamsSize restoreEnv HsourceDisjoint
+      hresultNParams Hrestored
       htype with
     ⟨Hinverse⟩
   exact Htranslation.eqv Hinverse.restoredType_eqv_source
@@ -883,6 +824,8 @@ theorem LoweredConstructorMapping.sourceType_translationOfRestoredSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
@@ -892,7 +835,7 @@ theorem LoweredConstructorMapping.sourceType_translationOfRestoredSyntax
       newInfo.type targetType) :
     TrExprS venv oldInfo.levelParams [] source.type targetType := by
   exact H.sourceType_translationOfRestored hresultParams paramFvars hparams
-    hnodup Hsyntax.closed restoreEnv
+    hnodup Hsyntax.closed hsourceBVar hparamsSize restoreEnv
     (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
     Hrestored htype Htranslation
 
@@ -907,6 +850,8 @@ theorem LoweredConstructorMapping.restoredType_translationOfSyntax
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
     (Hsyntax : SourceConstructorSyntax source)
+    (hsourceBVar : Closed source.type)
+    (hparamsSize : params.size = nparams)
     (restoreEnv : Environment)
     (Hreserved : RestoreNamesReserved result restoreEnv)
     (hresultNParams : result.nparams = nparams)
@@ -915,7 +860,7 @@ theorem LoweredConstructorMapping.restoredType_translationOfSyntax
     (Hsource : TrExprS venv oldInfo.levelParams [] source.type targetType) :
     TrExprS venv oldInfo.levelParams [] newInfo.type targetType := by
   exact H.restoredType_translation hresultParams paramFvars hparams hnodup
-    Hsyntax.closed restoreEnv
+    Hsyntax.closed hsourceBVar hparamsSize restoreEnv
     (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
     Hrestored htype Hsource
 
@@ -933,6 +878,7 @@ theorem RestoredConstructorStep.installationOfDisjoint
     (HsourceClosed : source.type.FVarsIn fun _ => False)
     (HsourceDisjoint : RestoreSourceDisjoint result loweredEnv source.type)
     (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams)
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
@@ -947,7 +893,8 @@ theorem RestoredConstructorStep.installationOfDisjoint
         sourceVEnv targetVEnv) := by
   apply Hstep.installationOfMetadata Hvalid constructor Hsafety Huvars Hname
   · exact Hmapping.restoredType_translation hresultParams paramFvars
-      hparams hnodup HsourceClosed loweredEnv HsourceDisjoint hresultNParams
+      hparams hnodup HsourceClosed (by simpa [VLCtx.bvars] using Hsource.closed)
+      hparamsSize loweredEnv HsourceDisjoint hresultNParams
       Hstep.restored.restoration htype Hsource
   · exact Hwf
 
@@ -966,6 +913,7 @@ theorem RestoredConstructorStep.installationOfSource
     (HsourceClosed : source.type.FVarsIn fun _ => False)
     (HsourceDisjoint : RestoreSourceDisjoint result loweredEnv source.type)
     (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams)
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
@@ -978,7 +926,7 @@ theorem RestoredConstructorStep.installationOfSource
       Nonempty (RestoredConstructorInstallationSemantics safety Hstep
         sourceVEnv targetVEnv) := by
   apply Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
-    hnodup HsourceClosed HsourceDisjoint hresultNParams htype Hvalid
+    hnodup HsourceClosed HsourceDisjoint hresultNParams hparamsSize htype Hvalid
     constructor Hsafety
   · rw [hlevels]
     exact Hsource.uvars.symm
@@ -1005,6 +953,7 @@ theorem RestoredConstructorStep.installationOfFresh
       (`_nested).isPrefixOf name = true)
     (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv sourceVEnv)
     (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams)
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
@@ -1022,6 +971,7 @@ theorem RestoredConstructorStep.installationOfFresh
   · exact Hsyntax.noNestedAux.restoreSourceDisjointOfFresh
       Hsource.constantsDefined Hfamilies Hconstructors
   · exact hresultNParams
+  · exact hparamsSize
   · exact htype
   · exact Hvalid
   · exact Hsafety
@@ -1048,6 +998,7 @@ theorem RestoredConstructorStep.installationOfFreshSource
       (`_nested).isPrefixOf name = true)
     (Hconstructors : RestoreAuxConstructorsFresh result loweredEnv sourceVEnv)
     (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams)
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
@@ -1064,6 +1015,7 @@ theorem RestoredConstructorStep.installationOfFreshSource
   · exact Hsyntax.noNestedAux.restoreSourceDisjointOfFresh
       Hsource.type.constantsDefined Hfamilies Hconstructors
   · exact hresultNParams
+  · exact hparamsSize
   · exact htype
   · exact Hvalid
   · exact Hsafety
@@ -1086,6 +1038,7 @@ theorem RestoredConstructorStep.installationOfSyntax
     (Hsyntax : SourceConstructorSyntax source)
     (Hreserved : RestoreNamesReserved result loweredEnv)
     (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams)
     (htype : Hstep.oldInfo.type = out.1.type)
     (Hvalid : CheckingEnv safety sourceProdEnv sourceVEnv)
     (constructor : VConstVal)
@@ -1099,7 +1052,8 @@ theorem RestoredConstructorStep.installationOfSyntax
         sourceVEnv targetVEnv) := by
   apply Hstep.installationOfDisjoint Hmapping hresultParams paramFvars hparams
     hnodup Hsyntax.closed
-    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams htype
+    (Hsyntax.noNestedAux.restoreSourceDisjoint Hreserved) hresultNParams
+    hparamsSize htype
     Hvalid constructor
   · exact Hold.1.1
   · simpa [ConstantInfo.levelParams, ConstantInfo.toConstantVal] using
@@ -1361,7 +1315,8 @@ theorem RestoredConstructorMappingTrace.sourceSemantics
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
-    (hresultNParams : result.nparams = nparams) :
+    (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams) :
     RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv
       (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv
         sources constructors := by
@@ -1383,7 +1338,8 @@ theorem RestoredConstructorMappingTrace.sourceSemantics
         have HrestoredType : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
             Hstep.restored.newInfo.type vctor.type :=
           Hmapping.restoredType_translation hresultParams paramFvars hparams
-            hnodup HsourceSyntax.closed loweredEnv
+            hnodup HsourceSyntax.closed
+            (by simpa [VLCtx.bvars] using HsourceType.closed) hparamsSize loweredEnv
             (Hdisjoint source (by simp)) hresultNParams
             Hstep.restored.restoration htype HsourceType
         have Htranslated : TrConstVal safety canonicalEnv
@@ -1419,13 +1375,15 @@ theorem RestoredConstructorMappingTrace.sourceTranslationsOfRestored
           constructor ∧
         constructor.toVConstant.WF canonicalEnv)
     (Hsyntax : SourceConstructorSyntaxes sources)
+    (HsyntaxBVar : ∀ source ∈ sources, Closed source.type)
     (Hdisjoint : ∀ source ∈ sources,
       RestoreSourceDisjoint result loweredEnv source.type)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
-    (hresultNParams : result.nparams = nparams) :
+    (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams) :
     ∃ constructors : List VConstVal,
       List.Forall₂ (fun source constructor =>
         TrSourceConst canonicalEnv lparams source.name source.type constructor)
@@ -1447,7 +1405,8 @@ theorem RestoredConstructorMappingTrace.sourceTranslationsOfRestored
       have HsourceType : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
           source.type constructor.type :=
         Hmapping.sourceType_translationOfRestored hresultParams paramFvars
-          hparams hnodup HsourceSyntax.closed loweredEnv
+          hparams hnodup HsourceSyntax.closed (HsyntaxBVar source (by simp))
+          hparamsSize loweredEnv
           (Hdisjoint source (by simp)) hresultNParams
           Hstep.restored.restoration htype HrestoredType
       have Hsource : TrSourceConst canonicalEnv lparams source.name source.type
@@ -1470,7 +1429,8 @@ theorem RestoredConstructorMappingTrace.sourceTranslationsOfRestored
           RestoreSourceDisjoint result loweredEnv tail.type := by
         intro tail htail
         exact Hdisjoint tail (by simp [htail])
-      rcases ih HtailSyntax HtailDisjoint with
+      rcases ih HtailSyntax (fun tail htail => HsyntaxBVar tail (by simp [htail]))
+          HtailDisjoint with
         ⟨constructors, Hsources⟩
       exact ⟨constructor :: constructors, .cons Hsource Hsources⟩
 
@@ -1492,22 +1452,24 @@ theorem RestoredConstructorMappingTrace.sourceSemanticsOfRestored
           constructor ∧
         constructor.toVConstant.WF canonicalEnv)
     (Hsyntax : SourceConstructorSyntaxes sources)
+    (HsyntaxBVar : ∀ source ∈ sources, Closed source.type)
     (Hdisjoint : ∀ source ∈ sources,
       RestoreSourceDisjoint result loweredEnv source.type)
     (hresultParams : result.params = params)
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
-    (hresultNParams : result.nparams = nparams) :
+    (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams) :
     ∃ constructors : List VConstVal,
       RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv
         (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv
           sources constructors := by
-  rcases H.sourceTranslationsOfRestored Hrestored Hsyntax Hdisjoint
-      hresultParams paramFvars hparams hnodup hresultNParams with
+  rcases H.sourceTranslationsOfRestored Hrestored Hsyntax HsyntaxBVar Hdisjoint
+      hresultParams paramFvars hparams hnodup hresultNParams hparamsSize with
     ⟨constructors, Hsources⟩
   exact ⟨constructors, H.sourceSemantics Hsources Hsyntax Hdisjoint
-    hresultParams paramFvars hparams hnodup hresultNParams⟩
+    hresultParams paramFvars hparams hnodup hresultNParams hparamsSize⟩
 
 inductive LoweredConstructorReopenings
     (env : Environment) (params : Array Expr) (nparams : Nat)
@@ -1532,7 +1494,8 @@ theorem LoweredConstructorMappings.reopens
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
     (Hsources : ∀ source ∈ sources,
-      source.type.FVarsIn fun _ => False) :
+      source.type.FVarsIn fun _ => False)
+    (hparamsSize : params.size = nparams) :
     LoweredConstructorReopenings env params nparams finalResult restoreAs
       sources state out := by
   induction H with
@@ -1540,7 +1503,7 @@ theorem LoweredConstructorMappings.reopens
   | cons Hhead Htail ih =>
     apply LoweredConstructorReopenings.cons
     · exact Hhead.reopens hresultParams fvars hparams hnodup
-        (Hsources _ (by simp))
+        (Hsources _ (by simp)) hparamsSize
     · apply ih
       intro source hsource
       exact Hsources source (by simp [hsource])
@@ -1692,11 +1655,13 @@ theorem LoweredInductiveMapping.reopens
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
     (Hsource : ∀ ctor ∈ source.ctors,
-      ctor.type.FVarsIn fun _ => False) :
+      ctor.type.FVarsIn fun _ => False)
+    (hparamsSize : params.size = nparams) :
     LoweredInductiveReopening env params nparams finalResult restoreAs source
       state out :=
   ⟨H.name, H.type,
-    H.constructors.reopens hresultParams fvars hparams hnodup Hsource⟩
+    H.constructors.reopens hresultParams fvars hparams hnodup Hsource
+      hparamsSize⟩
 
 theorem LoweredInductiveTranslation.newTypesLE
     (H : LoweredInductiveTranslation env params nparams source state out) :
@@ -2638,11 +2603,11 @@ theorem NestedLoweringRun.validatedAuxiliaryResidualTranslations
     rw [mlctx.fvarRevList_all, ← hmlctx.tr.fvars_eq, hlctx]
     exact H.resultParams_reverse_fvars
   have hnodup : selection.fvars.Nodup := by
-    have h1 : selection.fvars.map Expr.fvar = res.params.toList := by
+    have h1 : res.params.toList = selection.fvars.map Expr.fvar := by
       simpa using congrArg Array.toList selection.expressions
     have h2 : selection.fvars.reverse = mlctx.fvarRevList mlctx.length (Nat.le_refl _) := by
-      apply List.map_injective_iff.1 (fun _ _ h => Expr.fvar.inj h)
-      rw [List.map_reverse, h1]
+      apply (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp
+      rw [List.map_reverse, ← h1]
       exact hparams
     have := hmlctx.fvarRevList_nodup mlctx.length (Nat.le_refl _)
     rw [← h2] at this

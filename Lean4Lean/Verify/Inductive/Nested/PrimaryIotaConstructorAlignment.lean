@@ -62,7 +62,8 @@ theorem RestoredConstructorMappingTrace.sourceSemanticMapping
     (paramFvars : List FVarId)
     (hparams : params = (paramFvars.map Expr.fvar).toArray)
     (hnodup : paramFvars.Nodup)
-    (hresultNParams : result.nparams = nparams) :
+    (hresultNParams : result.nparams = nparams)
+    (hparamsSize : params.size = nparams) :
     RestoredConstructorSemanticMappingTrace result mappingEnv loweredEnv
       params nparams safety lparams canonicalEnv sources state targets
         finalState sourceProdEnv targetProdEnv constructors := by
@@ -84,7 +85,8 @@ theorem RestoredConstructorMappingTrace.sourceSemanticMapping
         have HrestoredType : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
             Hstep.restored.newInfo.type constructor.type :=
           Hmapping.restoredType_translation hresultParams paramFvars hparams
-            hnodup HsourceSyntax.closed loweredEnv
+            hnodup HsourceSyntax.closed
+            (by simpa [VLCtx.bvars] using HsourceType.closed) hparamsSize loweredEnv
             (Hdisjoint source (by simp)) hresultNParams
             Hstep.restored.restoration htype HsourceType
         have Htranslated : TrConstVal safety canonicalEnv

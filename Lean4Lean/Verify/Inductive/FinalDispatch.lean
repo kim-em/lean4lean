@@ -17,6 +17,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WF env)
     (Hsources : SourceSyntaxChecks sourceTypes)
+    (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
@@ -25,7 +26,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
         Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
-    env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources
+    env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources HsourcesB
     Hlower haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨InductiveFinalResult.ofModel ves' wf' hle Hspec⟩
@@ -103,13 +104,18 @@ theorem addInductiveDeclaration.primitiveInductiveFinalResultWF
           mono := hle
           specification := Hspec }⟩
 
-/-- Dispatch over the actual lowering result.  The zero-auxiliary case is
+/-- Dispatch over the actual lowering result.  The source-facing
+specification requires the source declaration to have no loose bound
+variables (`SourceBVarClosed`): lowering re-closes constructor types over the
+opened parameters, which would silently repair such variables, so the checked
+block is literally the source only under that hypothesis.  The zero-auxiliary case is
 closed directly; the continuation is exactly the nonzero nested branch and
 receives the closed lowering trace selected by execution. -/
 theorem Environment.addInductive.inductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WF env) :
+    (ves : VEnvs) (wf : ves.WF env)
+    (HsourcesB : SourceBVarClosed types) :
     (Environment.addInductive env lparams nparams types isUnsafe false
       fuel).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
@@ -122,7 +128,7 @@ theorem Environment.addInductive.inductiveFinalResultWF
   intro res Hsources Hlower
   by_cases haux : res.aux2nested.size = 0
   · exact Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
-      env lparams nparams types isUnsafe fuel res ves wf Hsources
+      env lparams nparams types isUnsafe fuel res ves wf Hsources HsourcesB
       Hlower.toResult haux
   · exact
       Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
@@ -135,6 +141,7 @@ theorem addInductiveDeclaration.inductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
+    (HsourcesB : SourceBVarClosed types)
     (hcheck : Primitive.checkInductive env lparams nparams types
       isUnsafe = .ok false) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
@@ -142,7 +149,7 @@ theorem addInductiveDeclaration.inductiveFinalResultWF
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
           isUnsafe) := by
   have Hrun := Environment.addInductive.inductiveFinalResultWF env lparams
-    nparams types isUnsafe fuel ves wf
+    nparams types isUnsafe fuel ves wf HsourcesB
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 
 end VerifyInductive

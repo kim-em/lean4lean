@@ -64,7 +64,9 @@ theorem NestedLoweringResultClosed.auxiliaryRestorationHeadTranslation
     (name : Name) (e : Expr)
     (hfind : result.aux2nested.find? name = some e)
     (restoreSelection : LocalForallSelection restoreLctx restoreAs)
-    (hrestoreNodup : restoreSelection.fvars.Nodup) :
+    (hrestoreNodup : restoreSelection.fvars.Nodup)
+    (hselectionNodup : selection.fvars.Nodup)
+    (hsize : restoreSelection.fvars.length = selection.fvars.length) :
     ∃ domains target,
       domains.length = result.params.size ∧
       TrExprS venv lparams (abstractForallContext domains [])
@@ -74,7 +76,8 @@ theorem NestedLoweringResultClosed.auxiliaryRestorationHeadTranslation
         (abstractForallContext domains []).toCtx target := by
   rcases Htranslations name e hfind with ⟨Haux⟩
   have Hscope := H.auxFVarsInSelection selection name e hfind
-  have halpha := Haux.restorationAlpha Hscope restoreSelection hrestoreNodup
+  have halpha := Haux.restorationAlpha Hscope hselectionNodup restoreSelection
+    hrestoreNodup hsize
   refine ⟨Haux.domains, Haux.residualTarget, Haux.arity, ?_,
     Haux.residualType⟩
   rw [halpha]
@@ -164,6 +167,7 @@ theorem ClosedNestedAuxiliaryTranslation.toRecursorContext
     {c : AddInductive.Context}
     (H : ClosedNestedAuxiliaryTranslation venv c.lparams res selection e)
     (henv : venv.WF)
+    (hselectionNodup : selection.fvars.Nodup)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     Nonempty (ClosedNestedAuxiliaryTranslation venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -187,6 +191,8 @@ theorem ClosedNestedAuxiliaryTranslation.toRecursorContext
         HclosedType with
       ⟨domains, residualTarget, harity, htarget, Hresidual,
         HresidualType⟩
+    rw [Expr.abstractN_eq_abstractList_of_closed hselectionNodup H.sourceClosed]
+      at Hresidual
     exact ⟨⟨H.closedTarget.instL shift, domains, residualTarget, harity,
       Hclosed, HclosedType, htarget, Hresidual, HresidualType⟩⟩
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
@@ -197,13 +203,14 @@ theorem ClosedNestedAuxiliaryTranslations.toRecursorContext
     {c : AddInductive.Context}
     (H : ClosedNestedAuxiliaryTranslations venv c.lparams res selection)
     (henv : venv.WF)
+    (hselectionNodup : selection.fvars.Nodup)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     ClosedNestedAuxiliaryTranslations venv
       (AddInductive.getRecLevelParams elimLevel c.lparams)
       res selection := by
   intro name e hfind
   rcases H name e hfind with ⟨Haux⟩
-  exact Haux.toRecursorContext henv Helim
+  exact Haux.toRecursorContext henv hselectionNodup Helim
 
 /-- Rebase a validated auxiliary residual along a semantic conversion from
 the caller's parameter telescope to the domains recovered by validation.
@@ -360,6 +367,7 @@ theorem NestedLoweringResultClosed.sourceParameterPrefix
     (H : NestedLoweringResultClosed env fuel nparams types initialState result)
     (Hclosed : ∀ source ∈ types,
       source.type.FVarsIn fun _ => False)
+    (HbClosed : ∀ source ∈ types, Closed source.type)
     (body : Expr) :
     ∃ first rest residual,
       types = first :: rest ∧
@@ -378,6 +386,7 @@ theorem NestedLoweringResultClosed.sourceParameterPrefix
     Hclosed first (by rw [htypes]; simp)
   have hclosed := Hopening.toRestoreParamOpening.root_mkForall_tail Hctx.wf
     Htelescope (FVarsIn_to_FVarIdsIn hsourceClosed)
+    (HbClosed first (by rw [htypes]; simp))
   have HselectionResult : LocalForallSelection result.lctx result.params := by
     rcases Hqueue.resultContext with ⟨hlctx, hparams⟩
     rw [hlctx, hparams]
@@ -1612,7 +1621,13 @@ theorem NestedLoweringResultClosed.auxiliaryCanonicalParameterContext
         hsource with ⟨target, _htarget, Htarget⟩
     exact Htarget.header.type.fvarsIn.mono fun fv hfv => by
       simpa [VLCtx.fvars] using hfv
-  rcases H.sourceParameterPrefix HsourceClosed e with
+  have HsourceBClosed : ∀ source ∈ sourceTypes, Closed source.type := by
+    intro source hsource
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Hsource.types source
+        hsource with ⟨target, _htarget, Htarget⟩
+    have h := Htarget.header.type.closed
+    simpa [VLCtx.bvars] using h
+  rcases H.sourceParameterPrefix HsourceClosed HsourceBClosed e with
     ⟨first, rest, residual, hsourceTypes, Htelescope, Hsame⟩
   subst sourceTypes
   have hfamily : 0 < (first :: rest).length := by simp
@@ -2062,6 +2077,7 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
     exact (Hsyntax.of_mem hsource).noNestedAux
       |>.restoreSourceDisjointOfFresh Hsource.type.constantsDefined Hfamilies
         Hconstructors) rfl fvars hparams hnodup H.toResult.resultNParams
+      (H.resultParamsSize.trans H.toResult.resultNParams)
   simpa [hctorNames] using Hsemantic
 
 /-- Native source-constructor semantics for one restored family.  The
@@ -2865,6 +2881,7 @@ theorem RecursorPhasesResult.restoredTelescopeOfSuffix
     (A : GeneratedRecursorRestorationTelescopeAlignment result loweredEnv
       auxRec newInfo (Hprod.generated.entry ownerIdx hentry))
     (hresultNparams : result.nparams = nparams)
+    (hparamsSize : result.params.size = result.nparams)
     (Hsemantics : GeneratedRecursorRestoredSuffixTranslationsInvariant A
       Hprod.origins envCtors []
       ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
@@ -2967,7 +2984,7 @@ theorem RecursorPhasesResult.restoredTelescopeOfSuffix
       HsuffixSemantics with ⟨suffixTarget, Hsuffix⟩
   refine ⟨VExpr.wrapForalls parameterDomains suffixTarget, ?_⟩
   have Hclosed := A.closeTransportedSuffix hctorsOrdered HtemplatePrefix'
-    HtemplateTelescope' Htemplate' hparameterDomains Hsuffix
+    HtemplateTelescope' Htemplate' hparameterDomains hparamsSize Hsuffix
   simpa [E, Nat.add_assoc] using Hclosed
 
 /-- Assemble the complete canonical type of one restored primary recursor
@@ -3111,7 +3128,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
       HsuffixSemantics with ⟨suffixTarget, Hsuffix⟩
   refine ⟨VExpr.wrapForalls parameterDomains suffixTarget, ?_⟩
   have Hclosed := A.closeTransportedSuffix hctorsOrdered HtemplatePrefix'
-    HtemplateTelescope' Htemplate' hparameterDomains Hsuffix
+    HtemplateTelescope' Htemplate' hparameterDomains H.resultParamsSize Hsuffix
   have holdLevels := Hprod.restoredPrimaryRecursorLevelParams familyIdx hentry
     Hstep.restored.recursor holdRecName'
   rw [holdLevels]

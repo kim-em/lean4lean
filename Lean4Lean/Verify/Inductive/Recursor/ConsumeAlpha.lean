@@ -32,6 +32,31 @@ theorem Expr.abstract1_consumeTypeAnnotationsVerified
         cases head <;> simp_all [Expr.consumeTypeAnnotationsVerified, Expr.abstract1]
         case fvar => split <;> simp_all [Expr.consumeTypeAnnotationsVerified]
 
+/-- Exact-model closing of a free-variable list commutes with the structural
+annotation consumer. -/
+theorem Expr.abstractN_consumeTypeAnnotationsVerified
+    (e : Expr) (xs : List FVarId) (k : Nat := 0) :
+    e.consumeTypeAnnotationsVerified.abstractN xs k =
+      (e.abstractN xs k).consumeTypeAnnotationsVerified := by
+  fun_induction Expr.consumeTypeAnnotationsVerified e generalizing k
+  case case1 name levels type value h ih =>
+    simpa [Expr.consumeTypeAnnotationsVerified, Expr.abstractN, h] using ih k
+  case case2 name levels type value h =>
+    simp [Expr.consumeTypeAnnotationsVerified, Expr.abstractN, h]
+  case case3 name levels type h ih =>
+    simpa [Expr.consumeTypeAnnotationsVerified, Expr.abstractN, h] using ih k
+  case case4 name levels type h =>
+    simp [Expr.consumeTypeAnnotationsVerified, Expr.abstractN, h]
+  case case5 e htwo hone =>
+    cases e <;> simp_all [Expr.consumeTypeAnnotationsVerified, Expr.abstractN]
+    case fvar => split <;> simp_all [Expr.consumeTypeAnnotationsVerified]
+    case app fn arg =>
+      cases fn <;> simp_all [Expr.consumeTypeAnnotationsVerified, Expr.abstractN]
+      case fvar => split <;> simp_all [Expr.consumeTypeAnnotationsVerified]
+      case app head middle =>
+        cases head <;> simp_all [Expr.consumeTypeAnnotationsVerified, Expr.abstractN]
+        case fvar => split <;> simp_all [Expr.consumeTypeAnnotationsVerified]
+
 /-- Closing a free-variable spine commutes with removal of the outer type
 annotations recognized by the executable checker. -/
 theorem Expr.abstractList_consumeTypeAnnotations

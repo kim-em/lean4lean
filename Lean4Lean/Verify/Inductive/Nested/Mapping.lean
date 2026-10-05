@@ -297,6 +297,50 @@ theorem NestedAuxLE.mem
     exact List.mem_append_left suffix hsource
   simpa using htarget
 
+/-- An application spine has no loose bound variables when neither its head
+nor any argument has one. -/
+theorem Expr.looseBVarRange'_mkAppList_eq_zero {fn : Expr} {args : List Expr}
+    (hfn : fn.looseBVarRange' = 0)
+    (hargs : ∀ arg ∈ args, arg.looseBVarRange' = 0) :
+    (Expr.mkAppList fn args).looseBVarRange' = 0 := by
+  induction args generalizing fn with
+  | nil => exact hfn
+  | cons arg args ih =>
+    simp only [Expr.mkAppList]
+    apply ih
+    · simp [Expr.looseBVarRange', hfn, hargs arg (by simp)]
+    · intro a ha
+      exact hargs a (by simp [ha])
+
+/-- The parameter prefix of a recognized nested application has no loose
+bound variables: this is the kernel's own "nested inductive datatype
+parameters cannot contain local variables" check. -/
+theorem Expr.mkAppRange_looseBVarRange_zero {fn : Expr} {args : Array Expr}
+    {n : Nat} (hfn : fn.looseBVarRange' = 0) (harity : n ≤ args.size)
+    (hargs : ∀ i, i < n → args[i]!.hasLooseBVars = false) :
+    (mkAppRange fn 0 n args).looseBVarRange' = 0 := by
+  rw [Expr.mkAppRange_from_zero _ _ _ harity]
+  apply Expr.looseBVarRange'_mkAppList_eq_zero hfn
+  intro arg harg
+  rcases List.mem_iff_getElem.mp harg with ⟨i, hi, rfl⟩
+  have hin : i < n := by
+    have hi' := hi
+    simp only [List.length_take, Array.length_toList] at hi'
+    omega
+  have hiargs : i < args.size := Nat.lt_of_lt_of_le hin harity
+  have hz : args[i].looseBVarRange' = 0 := by
+    have hclosed := hargs i hin
+    rw [getElem!_pos args i hiargs] at hclosed
+    simpa [Expr.hasLooseBVars, Expr.looseBVarRange_eq] using hclosed
+  simpa [List.getElem_take, Array.getElem_toList] using hz
+
+theorem NestedAppCandidate.prefixLooseBVarRange_zero
+    (H : NestedAppCandidate env state input value) (fn : Expr)
+    (hfn : fn.looseBVarRange' = 0) :
+    (mkAppRange fn 0 value.numParams input.getAppArgs).looseBVarRange' = 0 :=
+  Expr.mkAppRange_looseBVarRange_zero hfn H.parameters.arity
+    H.parameters.closed
+
 /-- A family freshly appended by nested lowering, together with the matching
 cache entry that lets restoration recover the application from which it was
 built.  Keeping the two append-only arrays paired is the provenance that is
@@ -322,6 +366,7 @@ structure GeneratedFamilyWitness
   closing : NestedClosingContext lctx As ngen
   levelsNoMVars : ∀ level ∈ levels, level.hasMVar' = false
   argsFVars : ∀ arg ∈ args, arg.FVarsIn (· ∈ selection.fvars)
+  argsClosed : ∀ i, i < nestedNParams → args[i]!.hasLooseBVars = false
   built : BuiltAuxiliary env lctx params As levels nestedNParams args
     sourceName auxName sourceInfo data
   family_eq : family = data.type
@@ -354,9 +399,63 @@ theorem GeneratedFamilyWitness.cachedClosureAlpha
   rw [H.built.nested]
   change (Expr.reopenParams sourceApp H.As params).abstractList
       resultSelection.fvars = sourceApp.abstractList H.selection.fvars
-  rw [Expr.reopenParams_eq_reopenFVarsAt H.selection.expressions
-    resultSelection.expressions]
+  rw [Expr.reopenParams_eq_reopenFVarsAt H.selectionNodup H.selection.expressions
+    resultSelection.expressions
+    (Expr.mkAppRange_looseBVarRange_zero rfl H.argsArity H.argsClosed)]
   exact Haway.abstractList_instantiateRevList hresultNodup
+
+/-- Exact-model form of `cachedClosureAlpha`: the operational abstraction of
+the cached application over the final parameters is literally the de Bruijn
+closure of the source application over the parameters selected when the
+auxiliary was built. -/
+theorem GeneratedFamilyWitness.cachedClosureAlphaExact
+    (H : GeneratedFamilyWitness env params nestedAux family)
+    (resultSelection : LocalForallSelection resultLctx params)
+    (hresultNodup : resultSelection.fvars.Nodup) :
+    H.data.nested.abstract params =
+      (mkAppRange (.const H.sourceName H.levels) 0 H.nestedNParams
+        H.args).abstractList H.selection.fvars := by
+  let sourceApp := mkAppRange (.const H.sourceName H.levels) 0
+    H.nestedNParams H.args
+  have hsource : sourceApp.looseBVarRange' = 0 :=
+    Expr.mkAppRange_looseBVarRange_zero rfl H.argsArity H.argsClosed
+  have HsourceScope : sourceApp.FVarsIn (· ∈ H.selection.fvars) := by
+    apply FVarsIn.mkAppRange_zero H.argsArity
+    · simpa [Lean4Lean.FVarsIn] using H.levelsNoMVars
+    · exact H.argsFVars
+  have Hclosed : (sourceApp.abstract H.As).FVarsIn (fun _ => False) :=
+    FVarsIn.abstract_fvarArray_of H.selection.fvars H.As H.selection.expressions
+      (HsourceScope.mono fun fv hfv => Or.inl hfv)
+  have Haway : (sourceApp.abstract H.As).FVarsIn
+      (fun fv => fv ∉ resultSelection.fvars) :=
+    Hclosed.mono fun _ hfalse => False.elim hfalse
+  have hlb : (sourceApp.abstract H.As).looseBVarRange' ≤
+      resultSelection.fvars.length := by
+    have hbound := Expr.abstractN_looseBVarRange_le (e := sourceApp)
+      (fvs := H.selection.fvars) (k := 0)
+    rw [hsource] at hbound
+    have h1 : H.selection.fvars.length = H.As.size := by
+      simpa using (congrArg Array.size H.selection.expressions).symm
+    have h2 : resultSelection.fvars.length = params.size := by
+      simpa using (congrArg Array.size resultSelection.expressions).symm
+    have harity := H.built.arity
+    have hrw : sourceApp.abstract H.As = sourceApp.abstractN H.selection.fvars :=
+      calc
+        sourceApp.abstract H.As =
+            sourceApp.abstract (H.selection.fvars.map Expr.fvar).toArray :=
+          congrArg sourceApp.abstract H.selection.expressions
+        _ = sourceApp.abstractN H.selection.fvars := Expr.abstractN_eq _ _
+    rw [hrw]
+    omega
+  rw [H.built.nested]
+  change ((sourceApp.abstract H.As).instantiateRev params).abstract params = _
+  rw [Haway.abstract_instantiateRev_fvarArray params resultSelection.fvars
+    resultSelection.expressions hresultNodup hlb]
+  calc
+    sourceApp.abstract H.As =
+        sourceApp.abstract (H.selection.fvars.map Expr.fvar).toArray :=
+      congrArg sourceApp.abstract H.selection.expressions
+    _ = _ := Expr.abstract_eq_of_closed _ _ H.selectionNodup hsource
 
 /-- The unprocessed source stored in a dynamic lowering-queue slot is either
 one of the initial mutual families or an auxiliary family generated while an
@@ -658,6 +757,7 @@ theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
     (hsourceParams : nparams = sourceInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (HargsClosed : ∀ i, i < nparams → args[i]!.hasLooseBVars = false)
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 := by
   rcases H.generated with
@@ -695,6 +795,7 @@ theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
       closing := Hclosing
       levelsNoMVars := Hlevels
       argsFVars := Hargs
+      argsClosed := HargsClosed
       built := Hbuilt
       family_eq := by simp [Array.getElem_push]
       cached := by simp }⟩
@@ -793,6 +894,7 @@ theorem GeneratedAuxiliaryBatch.pendingSourceFamilyOrigins
     (hnparamsTrigger : nparams = triggerInfo.numParams)
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (HargsClosed : ∀ i, i < nparams → args[i]!.hasLooseBVars = false)
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 := by
   induction H with
@@ -808,7 +910,7 @@ theorem GeneratedAuxiliaryBatch.pendingSourceFamilyOrigins
     exact ih
       (fun sourceName hsource => hsourceNames sourceName (by simp [hsource]))
       (Hstep.pendingSourceFamilyOrigins Hselection hselectionNodup
-        Hclosing hnparams hstepParams Hlevels Hargs Horigins)
+        Hclosing hnparams hstepParams Hlevels Hargs HargsClosed Horigins)
 
 theorem GeneratedAuxiliaryBatch.namesWF
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
@@ -1123,21 +1225,30 @@ def NestedReplacementReopens
 `restoreNestedNode`.  The auxiliary parameter prefix is discarded and the
 reopened source-family prefix is reattached to the identically renamed
 non-parameter arguments, yielding the renamed original application up to
-Lean expression equivalence. -/
+expression equivalence.  The statement is at an arbitrary binder depth `k`
+because the hit may sit below binders of the constructor body; only the
+closed parameter prefix is compared with the depth-zero array operation. -/
 theorem NestedReplacementReopens.restoreNode
     (H : NestedReplacementReopens env lctx params As input state lowered
       finalResult restoreAs)
     (restoreEnv : Environment)
     (Hselection : LocalForallSelection lctx As)
-    (hresultNParams : finalResult.nparams = As.size) :
+    (hnd : Hselection.fvars.Nodup)
+    (restoreFvars : List FVarId)
+    (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray)
+    (hsize : restoreFvars.length = Hselection.fvars.length)
+    (hresultNParams : finalResult.nparams = As.size) (k : Nat) :
     ∃ restored,
       finalResult.restoreNestedNode restoreEnv restoreAs {}
-          (Expr.reopenParams lowered As restoreAs) = some restored ∧
-      (restored == Expr.reopenParams input As restoreAs) = true := by
+          (Expr.reopenFVarsAt lowered Hselection.fvars restoreFvars k) =
+        some restored ∧
+      (restored ==
+        Expr.reopenFVarsAt input Hselection.fvars restoreFvars k) = true := by
   rcases H with
     ⟨value, targetName, levels, auxName, auxLevels, nested,
       Hcandidate, hhead, hlowered, hlookup, hreopens⟩
-  let R : Expr → Expr := fun e => Expr.reopenParams e As restoreAs
+  let R : Expr → Expr := fun e =>
+    Expr.reopenFVarsAt e Hselection.fvars restoreFvars k
   let trailing : List Expr :=
     input.getAppArgsList.drop value.numParams |>.map R
   let paramPrefix : List Expr := As.toList.map R
@@ -1146,10 +1257,8 @@ theorem NestedReplacementReopens.restoreNode
     rw [hlowered]
     rw [Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
     rw [Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
-    change Expr.reopenParams _ As restoreAs = _
-    rw [Expr.reopenParams_mkAppList Hselection.fvars
-      Hselection.expressions]
-    rw [Expr.reopenParams_const Hselection.fvars Hselection.expressions]
+    change Expr.reopenFVarsAt _ Hselection.fvars restoreFvars k = _
+    rw [Expr.reopenFVarsAt_mkAppList, Expr.reopenFVarsAt_const]
     simp [R, paramPrefix, trailing, Expr.getAppArgs_toList]
   have hfn : (R lowered).getAppFn = .const auxName auxLevels := by
     rw [hloweredReopened]
@@ -1187,21 +1296,25 @@ theorem NestedReplacementReopens.restoreNode
           Expr.mkAppList (.const targetName levels)
             (input.getAppArgsList.take value.numParams |>.map R) := by
       rw [Expr.mkAppRange_from_zero _ _ _ Hcandidate.parameters.arity]
-      change Expr.reopenParams _ As restoreAs = _
-      rw [Expr.reopenParams_mkAppList Hselection.fvars
-        Hselection.expressions]
-      rw [Expr.reopenParams_const Hselection.fvars Hselection.expressions]
+      change Expr.reopenFVarsAt _ Hselection.fvars restoreFvars k = _
+      rw [Expr.reopenFVarsAt_mkAppList, Expr.reopenFVarsAt_const]
       simp [R, Expr.getAppArgs_toList]
-    change (((nested.abstract finalResult.params).instantiateRev restoreAs) ==
-      R (mkAppRange (.const targetName levels) 0 value.numParams
-        input.getAppArgs)) = true at hreopens
+    have hprefixExact :
+        ((mkAppRange (.const targetName levels) 0 value.numParams
+          input.getAppArgs).abstract As).instantiateRev restoreAs =
+        R (mkAppRange (.const targetName levels) 0 value.numParams
+          input.getAppArgs) := by
+      change Expr.reopenParams _ As restoreAs = _
+      symm
+      exact Expr.reopenFVarsAt_eq_reopenParams hnd hsize Hselection.expressions
+        hrestore _ k (Hcandidate.prefixLooseBVarRange_zero _ rfl)
+    rw [hprefixExact] at hreopens
     have happended := Expr.mkAppList_eqv hreopens trailing
     rw [hprefixSource] at happended
     have hinput : R input =
         Expr.mkAppList (.const targetName levels)
           (input.getAppArgsList.map R) :=
-      Expr.reopenParams_of_getAppFn_const Hselection.fvars
-        Hselection.expressions hhead
+      Expr.reopenFVarsAt_of_getAppFn_const Hselection.fvars restoreFvars k hhead
     rw [← Expr.mkAppList_append] at happended
     simp only [trailing] at happended
     rw [List.map_take, List.map_drop, List.take_append_drop] at happended
@@ -1219,6 +1332,8 @@ theorem NestedReplacementHasFinalMapping.reopens
     (fvars : List FVarId)
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
+    (Hselection : LocalForallSelection lctx As)
+    (hAs : Hselection.fvars.length ≤ fvars.length)
     (hclosed : ∀ value targetName levels,
       NestedAppCandidate env state input value →
       input.getAppFn = .const targetName levels →
@@ -1235,8 +1350,8 @@ theorem NestedReplacementHasFinalMapping.reopens
   have habstract :
       (nested.abstract params) ==
         ((base.instantiateRev params).abstract params) := by
-    rw [hparams, Expr.abstract_eq_legacy, Expr.abstract_eq_legacy]
-    apply Expr.abstractList_eqv
+    rw [hparams, Expr.abstractN_eq, Expr.abstractN_eq]
+    apply Expr.abstractN_eqv
     simpa [base, hparams] using hnested
   have heqv :
       ((nested.abstract finalResult.params).instantiateRev restoreAs) ==
@@ -1250,8 +1365,16 @@ theorem NestedReplacementHasFinalMapping.reopens
   have hfree : FVarsIn (fun fv => fv ∉ fvars) base :=
     (hclosed value targetName levels Hcandidate hhead).mono
       fun fv hfalse => False.elim hfalse
+  have hlb : base.looseBVarRange' ≤ fvars.length := by
+    have hprefix := Hcandidate.prefixLooseBVarRange_zero (.const targetName levels) rfl
+    have hbound := Expr.abstractN_looseBVarRange_le
+      (e := mkAppRange (.const targetName levels) 0 value.numParams
+        input.getAppArgs) (fvs := Hselection.fvars) (k := 0)
+    rw [hprefix] at hbound
+    simp only [base, Hselection.expressions, Expr.abstractN_eq]
+    omega
   have hcancel := hfree.reabstract_instantiateRev_fvarArray
-    params restoreAs fvars hparams hnodup
+    params restoreAs fvars hparams hnodup hlb
   rw [hcancel] at heqv
   exact heqv
 
@@ -1287,10 +1410,11 @@ theorem NestedReplacementHasFinalMapping.reopensOfFVars
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
     (Hselection : LocalForallSelection lctx As)
+    (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
     NestedReplacementReopens env lctx params As input state lowered
       finalResult restoreAs := by
-  apply H.reopens hresultParams fvars hparams hnodup
+  apply H.reopens hresultParams fvars hparams hnodup Hselection hAs
   intro value targetName levels Hcandidate hhead
   exact Hcandidate.abstractedPrefixClosed Hselection Hinput hhead
 
@@ -1302,10 +1426,12 @@ theorem NestedReplacementFinalTrace.reopensOfFVars
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
     (Hselection : LocalForallSelection lctx As)
+    (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
     NestedReplacementReopens env lctx params As input state lowered
       finalResult restoreAs :=
-  H.mapping.reopensOfFVars hresultParams fvars hparams hnodup Hselection Hinput
+  H.mapping.reopensOfFVars hresultParams fvars hparams hnodup Hselection hAs
+    Hinput
 
 /-- Successful node replacement retains both the independent recognition
 certificate and the final restoration-map entry for the auxiliary family it
@@ -1450,6 +1576,57 @@ theorem NestedExprMapping.outputFVarIdsIn
   | proj Hnode Hbody ihBody =>
     simpa [Expr.updateProj!, Expr.FVarIdsIn] using ihBody Hinput
 
+
+
+/-- Nested lowering preserves bound-variable closedness at every depth: a
+hit replaces a closed parameter prefix by an auxiliary head applied to the
+copied parameter variables, and structural misses recurse componentwise. -/
+theorem NestedExprMapping.closed
+    (H : NestedExprMapping env lctx params As finalResult input state out)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : Closed input k) : Closed out.1 k := by
+  induction H generalizing k with
+  | hit Hnode =>
+    rcases Hnode.mapping with
+      ⟨value, targetName, levels, auxName, auxLevels, nested,
+        Hcandidate, _hauxLevels, hhead, hlowered, hnested, hlookup⟩
+    rw [hlowered, Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
+    apply Closed.mkAppList_iff.mpr
+    refine ⟨?_, ?_⟩
+    · rw [Expr.mkAppN_eq_mkAppList]
+      apply Closed.mkAppList_iff.mpr
+      refine ⟨trivial, ?_⟩
+      intro arg harg
+      rw [Hselection.expressions] at harg
+      rcases List.mem_map.mp (by simpa using harg) with ⟨fv, _, rfl⟩
+      trivial
+    · intro arg harg
+      apply Hinput.getAppArgsList_at
+      rw [← Expr.getAppArgs_toList]
+      exact List.mem_of_mem_drop harg
+  | bvar | fvar | mvar | sort | const | lit => exact Hinput
+  | app Hnode Hfn Harg ihFn ihArg =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateApp!, Closed] using
+      And.intro (ihFn Hinput.1) (ihArg Hinput.2)
+  | lam Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateLambdaE!, Closed] using
+      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
+  | forallE Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateForallE!, Closed] using
+      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateLet!, Closed] using
+      And.intro (ihType Hinput.1)
+        (And.intro (ihValue Hinput.2.1) (ihBody Hinput.2.2))
+  | mdata Hnode Hbody ihBody =>
+    simpa [Expr.updateMData!, Closed] using ihBody Hinput
+  | proj Hnode Hbody ihBody =>
+    simpa [Expr.updateProj!, Closed] using ihBody Hinput
+
 /-- Structural lowering map with every successful leaf upgraded to its
 parameter-reopening certificate. -/
 inductive NestedExprReopening
@@ -1532,6 +1709,55 @@ inductive NestedExprReopening
         (.proj name idx body) state
         (Expr.updateProj! (.proj name idx body) body', outState)
 
+/-- Leafwise reopening certificates also preserve bound-variable closedness
+at every depth. -/
+theorem NestedExprReopening.closed
+    (H : NestedExprReopening env lctx params As finalResult restoreAs input
+      state out)
+    (Hselection : LocalForallSelection lctx As)
+    (Hinput : Closed input k) : Closed out.1 k := by
+  induction H generalizing k with
+  | hit Hnode =>
+    rcases Hnode with
+      ⟨value, targetName, levels, auxName, auxLevels, nested,
+        Hcandidate, hhead, hlowered, hlookup, hreopens⟩
+    rw [hlowered, Expr.mkAppRange_to_end _ _ _ Hcandidate.parameters.arity]
+    apply Closed.mkAppList_iff.mpr
+    refine ⟨?_, ?_⟩
+    · rw [Expr.mkAppN_eq_mkAppList]
+      apply Closed.mkAppList_iff.mpr
+      refine ⟨trivial, ?_⟩
+      intro arg harg
+      rw [Hselection.expressions] at harg
+      rcases List.mem_map.mp (by simpa using harg) with ⟨fv, _, rfl⟩
+      trivial
+    · intro arg harg
+      apply Hinput.getAppArgsList_at
+      rw [← Expr.getAppArgs_toList]
+      exact List.mem_of_mem_drop harg
+  | bvar | fvar | mvar | sort | const | lit => exact Hinput
+  | app Hnode Hfn Harg ihFn ihArg =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateApp!, Closed] using
+      And.intro (ihFn Hinput.1) (ihArg Hinput.2)
+  | lam Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateLambdaE!, Closed] using
+      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
+  | forallE Hnode Hdom Hbody ihDom ihBody =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateForallE!, Closed] using
+      And.intro (ihDom Hinput.1) (ihBody Hinput.2)
+  | letE Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
+    simp only [Closed] at Hinput
+    simpa [Expr.updateLet!, Closed] using
+      And.intro (ihType Hinput.1)
+        (And.intro (ihValue Hinput.2.1) (ihBody Hinput.2.2))
+  | mdata Hnode Hbody ihBody =>
+    simpa [Expr.updateMData!, Closed] using ihBody Hinput
+  | proj Hnode Hbody ihBody =>
+    simpa [Expr.updateProj!, Closed] using ihBody Hinput
+
 /-- Lift a complete expression mapping to leafwise reopening.  Source
 free-variable scoping is split structurally in exactly the same way as the
 lowering traversal. -/
@@ -1542,13 +1768,14 @@ theorem NestedExprMapping.reopens
     (hparams : params = (fvars.map Expr.fvar).toArray)
     (hnodup : fvars.Nodup)
     (Hselection : LocalForallSelection lctx As)
+    (hAs : Hselection.fvars.length ≤ fvars.length)
     (Hinput : FVarsIn (· ∈ Hselection.fvars) input) :
     NestedExprReopening env lctx params As finalResult restoreAs input state
       out := by
   induction H with
   | hit Hnode =>
     exact .hit (Hnode.reopensOfFVars hresultParams fvars hparams hnodup
-      Hselection Hinput)
+      Hselection hAs Hinput)
   | bvar Hnode => exact .bvar Hnode
   | fvar Hnode => exact .fvar Hnode
   | mvar Hnode => exact .mvar Hnode
@@ -1679,13 +1906,9 @@ theorem NestedExprReopening.restore_eqv
       Expr.reopenFVarsAt input Hselection.fvars restoreFvars k) = true := by
   induction H generalizing k with
   | @hit hitInput hitState hitOutput nextState Hnode =>
-    have hout := Expr.reopenFVarsAt_eq_reopenParams hnd hsize
-      Hselection.expressions hrestore hitOutput k
-    have hin := Expr.reopenFVarsAt_eq_reopenParams hnd hsize
-      Hselection.expressions hrestore hitInput k
-    rcases Hnode.restoreNode restoreEnv Hselection hresultNParams with
+    rcases Hnode.restoreNode restoreEnv Hselection hnd restoreFvars hrestore
+        hsize hresultNParams k with
       ⟨restored, hrestored, heqv⟩
-    rw [hout, hin]
     rw [Expr.replace_eq, Lean.Expr.replaceNoCache.eq_def, hrestored]
     exact heqv
   | bvar Hnode =>
@@ -2069,6 +2292,7 @@ theorem RecognizedNestedReplacement.pendingSourceFamilyOrigins
     (htrigger : env.find? targetName = some (.inductInfo value))
     (Hlevels : ∀ level ∈ levels, level.hasMVar' = false)
     (Hargs : ∀ arg ∈ args, arg.FVarsIn (· ∈ Hselection.fvars))
+    (HargsClosed : ∀ i, i < value.numParams → args[i]!.hasLooseBVars = false)
     (Horigins : PendingSourceFamilyOrigins env params initial cursor state) :
     PendingSourceFamilyOrigins env params initial cursor out.2 := by
   cases H with
@@ -2076,7 +2300,7 @@ theorem RecognizedNestedReplacement.pendingSourceFamilyOrigins
   | generated _ Hbatch =>
     exact Hbatch.pendingSourceFamilyOrigins Hselection hselectionNodup
       Hclosing hnparams hclosures value htrigger (by simp) rfl Hlevels Hargs
-      Horigins
+      HargsClosed Horigins
 
 theorem RecognizedNestedReplacement.namesWF
     (H : RecognizedNestedReplacement env lctx params As targetName levels args
@@ -2133,7 +2357,8 @@ theorem NestedReplacement.pendingSourceFamilyOrigins
         intro arg harg
         apply Hinput.getAppArgsList
         rw [← Expr.getAppArgs_toList]
-        exact Array.mem_toList_iff.mpr harg) Horigins
+        exact Array.mem_toList_iff.mpr harg) Hcandidate.parameters.closed
+      Horigins
 
 theorem NestedReplacement.namesWF
     (H : NestedReplacement env lctx params As e state out)

@@ -39,28 +39,6 @@ where
   | [], b => b
   | x :: xs, b => go xs (mkBindingList1 isLambda lctx xs.reverse x b)
 
-/-- Sequential-model bridge for `mkBinding`.  **Legacy**: it rests on the false
-`Expr.abstract_eq_legacy`, and is true only when `b` and the binder types/values are locally
-closed and `xs` is duplicate-free (`Expr.abstract_eq_of_closed`).  The exact bridge is
-`mkBinding_eqN` below. -/
-theorem mkBinding_eq :
-    mkBinding isLambda lctx ⟨xs.map .fvar⟩ b = mkBindingList isLambda lctx xs b := by
-  simp only [mkBinding, List.getElem_toArray, Expr.abstractRange_eq, Expr.hasLooseBVar_eq,
-    Expr.abstract_eq_legacy, ← Array.take_eq_extract, List.take_toArray, Bool.and_false,
-    ← List.map_take, List.getElem_map, Expr.lowerLooseBVars_eq]
-  dsimp only [Array.size]
-  simp only [List.getElem_eq_getElem?_get, Option.get_eq_getD (fallback := default)]
-  change Nat.foldRev _ (fun i x =>
-    mkBindingList1 isLambda lctx (xs.take i) (xs[i]?.getD default)) .. = mkBindingList.go ..
-  rw [List.length_map]; generalize eq : xs.length = n
-  generalize b.abstractList xs = b
-  induction n generalizing xs b with
-  | zero => let [] := xs; simp [mkBindingList.go]
-  | succ n ih =>
-    obtain rfl | ⟨xs, a, rfl⟩ := List.eq_nil_or_concat xs; · cases eq
-    simp at eq ⊢; subst eq
-    simp +contextual only [Nat.le_of_lt, List.take_append_of_le_length,
-      List.getElem?_append_left, mkBindingList.go, ih]; simp
 
 theorem mkBindingList1_abstract {xs : List FVarId}
     (hx : lctx.find? x = some decl) (nd : (a :: xs).Nodup) :
@@ -275,7 +253,7 @@ theorem mkBindingListN_eq_mkBindingList (hex : ∀ x ∈ xs, ∃ d, lctx.find? x
     rw [heq]
     exact mkBindingList1N_eq_mkBindingList1 hd (hdecl a (List.mem_cons_self ..) d hd) hcl
 
-/-- Exact bridge for the sequential model: `mkBinding_eq` under the hypotheses that make the
+/-- Exact bridge for the sequential model: `mkBinding` agrees with `mkBindingList` under the hypotheses that make the
 sequential model true. Prefer this (or `mkBinding_eqN`) to the legacy `mkBinding_eq`. -/
 theorem mkBinding_eq' (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d)
     (nd : xs.Nodup) (hb : Closed b) (hdecl : DeclsClosed lctx xs) :
@@ -601,6 +579,26 @@ theorem _root_.Lean.LocalContext.mkBindingList_append
     LocalContext.mkBindingList_eq_fold hdeclYs hys,
     List.foldr_append]
 
+/-- With distinct selected declarations, closing a concatenated free-variable
+list is exactly the same as closing the suffix and then the prefix. -/
+theorem _root_.Lean.LocalContext.mkBindingListN_append
+    (hdecl : ∀ fv ∈ xs ++ ys, ∃ decl, lctx.find? fv = some decl)
+    (hnodup : (xs ++ ys).Nodup) :
+    LocalContext.mkBindingListN isLambda lctx (xs ++ ys) body =
+      LocalContext.mkBindingListN isLambda lctx xs
+        (LocalContext.mkBindingListN isLambda lctx ys body) := by
+  rcases List.nodup_append.mp hnodup with ⟨hxs, hys, _⟩
+  have hdeclXs : ∀ fv ∈ xs, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    exact hdecl fv (List.mem_append_left ys hfv)
+  have hdeclYs : ∀ fv ∈ ys, ∃ decl, lctx.find? fv = some decl := by
+    intro fv hfv
+    exact hdecl fv (List.mem_append_right xs hfv)
+  rw [LocalContext.mkBindingListN_eq_fold hdecl hnodup,
+    LocalContext.mkBindingListN_eq_fold hdeclXs hxs,
+    LocalContext.mkBindingListN_eq_fold hdeclYs hys,
+    List.foldr_append]
+
 /-- Closing an older selected list after extending the local context by one
 fresh selected declaration is the same as closing the new declaration first
 and then using the old context. -/
@@ -615,7 +613,7 @@ theorem _root_.Lean.LocalContext.mkForall_append_fresh
     next.mkForall
         ((selected ++ [fv]).map Expr.fvar).toArray body =
       lctx.mkForall (selected.map Expr.fvar).toArray
-        (.forallE name type (body.abstract1 fv) bi) := by
+        (.forallE name type (body.abstractN [fv]) bi) := by
   dsimp only
   let next := lctx.mkLocalDecl fv name type bi
   have hfresh : fv ∉ selected := by
@@ -655,15 +653,15 @@ theorem _root_.Lean.LocalContext.mkForall_append_fresh
     apply hfresh
     rw [← hb', ← hab]
     exact ha
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
-    LocalContext.mkForall, LocalContext.mkBinding_eq]
-  rw [LocalContext.mkBindingList_append hallNext hallNodup]
-  have hsingle : LocalContext.mkBindingList false next [fv] body =
-      .forallE name type (body.abstract1 fv) bi := by
-    simp [LocalContext.mkBindingList_eq_fold, hnewNext,
-      LocalContext.mkBindingList1]
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN,
+    LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  rw [LocalContext.mkBindingListN_append hallNext hallNodup]
+  have hsingle : LocalContext.mkBindingListN false next [fv] body =
+      .forallE name type (body.abstractN [fv]) bi := by
+    simp [LocalContext.mkBindingListN_eq_fold, hnewNext,
+      LocalContext.mkBindingList1N, Expr.abstractN_nil]
   rw [hsingle]
-  exact LocalContext.mkBindingList_congr (by
+  exact LocalContext.mkBindingListN_congr (by
     intro other hother
     simp only [next, LocalContext.mkLocalDecl, LocalContext.find?,
       hwf.map_wf.find?_insert]
@@ -683,9 +681,9 @@ theorem _root_.Lean.LocalContext.mkForall_skip_fresh
     next.mkForall (selected.map Expr.fvar).toArray body =
       lctx.mkForall (selected.map Expr.fvar).toArray body := by
   dsimp only
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
-    LocalContext.mkForall, LocalContext.mkBinding_eq]
-  apply LocalContext.mkBindingList_congr
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN,
+    LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  apply LocalContext.mkBindingListN_congr
   intro other hother
   simp only [LocalContext.mkLocalDecl, LocalContext.find?,
     hwf.map_wf.find?_insert]

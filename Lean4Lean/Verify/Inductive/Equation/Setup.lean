@@ -1845,15 +1845,8 @@ theorem RecursorPhasesResult.sourceRecursorParameterTemplateAt
   have HtemplateRaw := sourceSelection.forallTelescope
     (.sort (.zero : Level))
   have htemplateResidual :
-      (Expr.sort (.zero : Level)).abstractList sourceSelection.fvars =
-        .sort (.zero : Level) := by
-    induction sourceSelection.fvars with
-    | nil => rfl
-    | cons fv fvars ih =>
-      simp only [Expr.abstractList]
-      rw [show (Expr.sort (.zero : Level)).abstract1 fv =
-        .sort (.zero : Level) by rfl]
-      exact ih
+      (Expr.sort (.zero : Level)).abstractN sourceSelection.fvars =
+        .sort (.zero : Level) := rfl
   rw [htemplateResidual] at HtemplateRaw
   have HtemplateTelescope : Expr.ForallTelescope template stats.params.size
       (.sort (.zero : Level)) := by

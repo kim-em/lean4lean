@@ -69,44 +69,6 @@ structure ClosedNestedAuxiliaryTranslation
     (abstractForallContext domains []).toCtx residualTarget
 
 
-/-- Depth-general form of `restorationAlpha`, for auxiliary occurrences
-encountered underneath the remaining recursor binders. -/
-theorem ClosedNestedAuxiliaryTranslation.restorationAlphaAt
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
-    (Hscope : e.FVarsIn (· ∈ selection.fvars))
-    (hselectionNodup : selection.fvars.Nodup)
-    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
-    (hrestoreNodup : restoreSelection.fvars.Nodup)
-    (hsize : restoreSelection.fvars.length = selection.fvars.length)
-    (k : Nat) :
-    ((e.abstract res.params).instantiateRev restoreAs).abstractList
-        restoreSelection.fvars k =
-      e.abstractList selection.fvars k := by
-  have hopen : (e.abstract res.params).instantiateRev restoreAs =
-      Expr.reopenFVarsAt e selection.fvars restoreSelection.fvars k := by
-    symm
-    exact Expr.reopenFVarsAt_eq_reopenParams hselectionNodup hsize
-      selection.expressions restoreSelection.expressions e k
-  rw [hopen]
-  unfold Expr.reopenFVarsAt
-  apply FVarsIn.abstractList_instantiateRevList
-  · have Hclosed : (e.abstractList selection.fvars k).FVarsIn
-        (fun _ => False) := by
-      apply FVarsIn.abstractList_of
-      exact Hscope.mono fun fv hfv => Or.inl hfv
-    exact Hclosed.mono fun _ hfalse => False.elim hfalse
-  · exact hrestoreNodup
-
-/-- The closed auxiliary witness itself is a binder-by-binder typed
-telescope, using the same certificate language as restored recursor types. -/
-theorem ClosedNestedAuxiliaryTranslation.telescopeTyped
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e) :
-    Expr.ForallTelescopeTypeTranslation venv lparams []
-      (res.lctx.mkForall res.params e) res.params.size H.closedTarget := by
-  have Htel := selection.forallTelescope e
-  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel H.closed
-    H.closedType
-
 /-- The open auxiliary witness contains no pre-existing loose bound
 variables.  This is derived from the residual translation's scoping theorem,
 not imposed as an additional executable validation condition. -/
@@ -131,6 +93,45 @@ theorem ClosedNestedAuxiliaryTranslation.sourceClosed
   apply Expr.closed_of_abstractList
   rw [hbvars] at HresidualClosed
   simpa [H.arity, selection.size] using HresidualClosed
+
+/-- Depth-general form of `restorationAlpha`, for auxiliary occurrences
+encountered underneath the remaining recursor binders. -/
+theorem ClosedNestedAuxiliaryTranslation.restorationAlphaAt
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (Hscope : e.FVarsIn (· ∈ selection.fvars))
+    (hselectionNodup : selection.fvars.Nodup)
+    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
+    (hrestoreNodup : restoreSelection.fvars.Nodup)
+    (hsize : restoreSelection.fvars.length = selection.fvars.length)
+    (k : Nat) :
+    ((e.abstract res.params).instantiateRev restoreAs).abstractList
+        restoreSelection.fvars k =
+      e.abstractList selection.fvars k := by
+  have hopen : (e.abstract res.params).instantiateRev restoreAs =
+      Expr.reopenFVarsAt e selection.fvars restoreSelection.fvars k := by
+    symm
+    exact Expr.reopenFVarsAt_eq_reopenParams hselectionNodup hsize
+      selection.expressions restoreSelection.expressions e k
+      H.sourceClosed.looseBVarRange_zero
+  rw [hopen]
+  unfold Expr.reopenFVarsAt
+  apply FVarsIn.abstractList_instantiateRevList
+  · have Hclosed : (e.abstractList selection.fvars k).FVarsIn
+        (fun _ => False) := by
+      apply FVarsIn.abstractList_of
+      exact Hscope.mono fun fv hfv => Or.inl hfv
+    exact Hclosed.mono fun _ hfalse => False.elim hfalse
+  · exact hrestoreNodup
+
+/-- The closed auxiliary witness itself is a binder-by-binder typed
+telescope, using the same certificate language as restored recursor types. -/
+theorem ClosedNestedAuxiliaryTranslation.telescopeTyped
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e) :
+    Expr.ForallTelescopeTypeTranslation venv lparams []
+      (res.lctx.mkForall res.params e) res.params.size H.closedTarget := by
+  have Htel := selection.forallTelescope e
+  exact Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel H.closed
+    H.closedType
 
 /-- The expression inserted by a family hit in `restoreNestedNode` closes to
 the same de-Bruijn auxiliary body retained by `residual`, independently of
@@ -571,10 +572,10 @@ def NestedClosingContext.push
       have heq' : id = fv := beq_iff_eq.mp heq
       exact heq' ▸ hfv)
   have happend :
-      LocalContext.mkBindingList false nextLctx nextSelection.fvars body =
-        LocalContext.mkBindingList false nextLctx H.selection.fvars
-          (.forallE name dom (body.abstract1 id) bi) := by
-    rw [LocalContext.mkBindingList_eq_fold hnextDecls (by
+      LocalContext.mkBindingListN false nextLctx nextSelection.fvars body =
+        LocalContext.mkBindingListN false nextLctx H.selection.fvars
+          (.forallE name dom (body.abstractN [id]) bi) := by
+    rw [LocalContext.mkBindingListN_eq_fold hnextDecls (by
       simp only [nextSelection]
       apply List.nodup_append.mpr
       refine ⟨H.nodup, by simp, ?_⟩
@@ -582,32 +583,32 @@ def NestedClosingContext.push
       simp only [List.mem_singleton] at hfv'
       subst fv'
       exact fun heq => hidNotMem (heq ▸ hfv))]
-    rw [LocalContext.mkBindingList_eq_fold holdDecls H.nodup]
+    rw [LocalContext.mkBindingListN_eq_fold holdDecls H.nodup]
     simp only [nextSelection, List.foldr_append, List.foldr_cons,
       List.foldr_nil]
-    simp [LocalContext.mkBindingList1, nextLctx,
+    simp [LocalContext.mkBindingList1N, nextLctx,
       LocalContext.mkLocalDecl, LocalContext.find?,
-      H.binding.wf.map_wf.find?_insert]
+      H.binding.wf.map_wf.find?_insert, Expr.abstractN_nil]
   have hcloseEq :
       nextLctx.mkForall nextParams body =
-        lctx.mkForall params (.forallE name dom (body.abstract1 id) bi) := by
+        lctx.mkForall params (.forallE name dom (body.abstractN [id]) bi) := by
     rw [show nextParams = (nextSelection.fvars.map Expr.fvar).toArray from
       nextSelection.expressions]
     rw [show params = (H.selection.fvars.map Expr.fvar).toArray from
       H.selection.expressions]
-    rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
-      LocalContext.mkForall, LocalContext.mkBinding_eq, happend]
-    exact LocalContext.mkBindingList_congr hfindOld
+    rw [LocalContext.mkForall, LocalContext.mkBinding_eqN,
+      LocalContext.mkForall, LocalContext.mkBinding_eqN, happend]
+    exact LocalContext.mkBindingListN_congr hfindOld
   rw [hcloseEq]
   apply H.close
   constructor
   · exact Hdom
-  · apply FVarsIn.abstract1_of
+  · apply FVarsIn.abstractN_of
     exact Hbody.mono fun fv hfv => by
       simp only [nextSelection, List.mem_append, List.mem_singleton] at hfv
       rcases hfv with hfv | hfv
       · exact Or.inr hfv
-      · exact Or.inl hfv
+      · exact Or.inl (by simp [hfv])
 
 theorem NestedParamOpening.forallTelescope
     (H : NestedParamOpening lctx As e n outLctx tail outAs) :
@@ -638,6 +639,17 @@ theorem NestedParamOpening.tailFVarsIn
     apply Array.mem_toList_iff.mp
     rw [hsuffix]
     simp
+
+/-- Opening the parameter telescope of a closed type yields a closed tail. -/
+theorem NestedParamOpening.tailClosed
+    (H : NestedParamOpening lctx params source n outLctx tail outParams)
+    (hsource : Closed source) : Closed tail := by
+  induction H with
+  | done => exact hsource
+  | step _ ih =>
+    apply ih
+    rw [Expr.instantiate1_eq]
+    exact hsource.2.instantiate1 trivial
 
 theorem NestedParamOpening.initial_size
     (H : NestedParamOpening {} #[] type n outLctx tail outParams) :
@@ -1103,6 +1115,20 @@ theorem VEnvs.WF.environmentTypesClosed
       DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩
   exact Htr.2.2.fvarsIn.mono fun fv hfv => by simp at hfv
 
+/-- Declared types in a well-formed environment also have no loose bound
+variables.  Unlike `EnvironmentTypesClosed`, this is a type-checking fact
+rather than a syntax precheck. -/
+def EnvironmentTypesBVarClosed (env : Environment) : Prop :=
+  ∀ name info, env.find? name = some info → Closed info.type
+
+theorem VEnvs.WF.environmentTypesBVarClosed
+    (H : VEnvs.WF env ves) : EnvironmentTypesBVarClosed env := by
+  intro name info hfind
+  rcases (H.tr (safety := .unsafe)).find? hfind
+      DefinitionSafety.unsafe_le with ⟨vinfo, _hvfind, Htr⟩
+  have h := Htr.2.2.closed
+  simpa [VLCtx.bvars] using h
+
 theorem Expr.ForallTelescope.resultFVarsIn
     (H : Expr.ForallTelescope outer arity result)
     (Houter : outer.FVarsIn P) : result.FVarsIn P := by
@@ -1328,6 +1354,28 @@ theorem VExpr.takeForalls_eq_zero_of_defEqSort
 def InductiveConstructorsClosed (type : InductiveType) : Prop :=
   ∀ ctor ∈ type.ctors, ctor.type.FVarsIn fun _ => False
 
+/-- Loose-bound-variable closedness of one source inductive type's
+constructors.  The executable source precheck only rejects metavariables and
+free variables; lowering then re-closes every constructor type over the
+opened parameters, which silently repairs loose bound variables instead of
+reporting them.  Source-facing statements therefore carry this as a genuine
+hypothesis. -/
+def InductiveConstructorsBVarClosed (type : InductiveType) : Prop :=
+  ∀ ctor ∈ type.ctors, Closed ctor.type
+
+/-- Loose-bound-variable closedness of a whole source block. -/
+def SourceBVarClosed (types : List InductiveType) : Prop :=
+  ∀ type ∈ types, Closed type.type ∧ InductiveConstructorsBVarClosed type
+
+theorem SourceBVarClosed.typeClosed
+    (H : SourceBVarClosed types) (hmem : type ∈ types) : Closed type.type :=
+  (H type hmem).1
+
+theorem SourceBVarClosed.constructorsClosed
+    (H : SourceBVarClosed types) (hmem : type ∈ types) :
+    InductiveConstructorsBVarClosed type :=
+  (H type hmem).2
+
 theorem BuiltAuxiliary.constructorsClosed
     (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
       auxName sourceInfo data)
@@ -1482,6 +1530,12 @@ def PendingNewTypesClosed (cursor : Nat)
     (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
   ∀ j, cursor ≤ j → (hj : j < state.newTypes.size) →
     InductiveConstructorsClosed state.newTypes[j]
+
+/-- Loose-bound-variable twin of `PendingNewTypesClosed`. -/
+def PendingNewTypesBVarClosed (cursor : Nat)
+    (state : Lean4Lean.ElimNestedInductive.State) : Prop :=
+  ∀ j, cursor ≤ j → (hj : j < state.newTypes.size) →
+    InductiveConstructorsBVarClosed state.newTypes[j]
 
 theorem GeneratedAuxiliary.pendingNewTypesClosed
     (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
@@ -1907,6 +1961,10 @@ theorem SourceSyntaxChecks.constructorsClosed
     rcases hmem with rfl | htail
     · exact Hhead.constructors.closed
     · exact ih htail
+
+
+
+
 
 private theorem checkConstructorSources_refines
     (env : Environment) (ctors : List Constructor) :

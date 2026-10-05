@@ -168,9 +168,23 @@ theorem CompletedRecursorConstruction.consumedMotiveDomains
           H.parameterSuffix.parameterDecls.toCtx
           (VExpr.wrapForalls indices (.forallE major (.sort level))) S.canonical.motiveType := by
   obtain ⟨S, target, Htr, Htype, Heq⟩ := H.consumedMotiveAtParameters owner howner
-  have Hmajor := S.majorBound.mkForall_forallTelescope H.localWF (.sort H.elimLevel)
-  have Hindices := S.indicesBound.mkForall_forallTelescope H.localWF
+  have hlctx : LocalContext.LctxClosed H.localContext.lctx := H.recursorWF.lctxClosed
+  have hparts := (H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner).parts
+  have hmajorNodup : S.majorBound.fvars.Nodup := by
+    rw [S.majorBound.fvars_eq (H.bindings.major owner howner) (by simp)]; exact hparts.major
+  have hindicesNodup : S.indicesBound.fvars.Nodup := by
+    rw [S.indicesBound.fvars_eq (H.bindings.indices owner howner) (by simp)]; exact hparts.indices
+  have hmajorClosed : Closed (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.sort H.elimLevel)) :=
+    S.majorBound.mkForall_closed H.localWF hmajorNodup hlctx trivial
+  have hinnerClosed : Closed (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+      (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))) :=
+    S.indicesBound.mkForall_closed H.localWF hindicesNodup hlctx hmajorClosed
+  have Hmajor := S.majorBound.mkForall_forallTelescopeList H.localWF (.sort H.elimLevel)
+    hmajorNodup trivial
+  have Hindices := S.indicesBound.mkForall_forallTelescopeList H.localWF
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))
+    hindicesNodup hmajorClosed
   have Htel := (Hindices.trans (Hmajor.abstractList S.indicesBound.fvars)).abstractList H.params.fvars
   simp only [Array.size_singleton, abstractList_sort, Nat.zero_add] at Htel
   obtain ⟨domains, result, hlength, htarget, Hresult⟩ :=
@@ -324,11 +338,17 @@ theorem CompletedRecursorConstruction.majorBinderSource
   have hsizeP : H.params.fvars.length = stats.params.size := by
     simpa using congrArg Array.size H.params.expressions.symm
   obtain ⟨D⟩ := M.declarationAt H.localWF 0 (by simp)
-  have Hb := (M.toLocalForallSelection H.localWF).forallBinderAt hmajor D
+  have hlctx : LocalContext.LctxClosed H.localContext.lctx := H.recursorWF.lctxClosed
+  have hDtype : Closed D.type := hlctx.cdecl D.declaration
+  have Hb := (M.toLocalForallSelection H.localWF).forallBinderAtList hmajor D hDtype
     (body := .sort H.elimLevel)
   simp only [List.take_zero, Expr.abstractList] at Hb
-  have HI := I.mkForall_forallTelescope H.localWF
+  have hmajorClosed : Closed (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (.sort H.elimLevel)) :=
+    M.mkForall_closed H.localWF hmajor hlctx trivial
+  have HI := I.mkForall_forallTelescopeList H.localWF
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))
+    hindices hmajorClosed
   have Hclosed := (HI.prependBinderAt (Hb.abstractList I.fvars)).abstractList H.params.fvars
   simp only [Nat.add_zero, Nat.zero_add] at Hclosed
   have hdomain := Expr.abstractList_after_inner (e := D.type)

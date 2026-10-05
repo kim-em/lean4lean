@@ -179,7 +179,7 @@ theorem
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
   have HoriginBinder :=
-    selections.ownerMotiveBinderAt hselectionNoAlias D
+    selections.ownerMotiveBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
   have HoriginBinderStats : Expr.ForallBinderAt
       (H.generated.entry owner howner).info.type
       (stats.params.size + owner)
@@ -403,7 +403,7 @@ theorem
     owner hrecInfo
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
-  have HoriginBinder := selections.minorBinderAt hselectionNoAlias D
+  have HoriginBinder := selections.minorBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
   have HoriginBinderStats : Expr.ForallBinderAt
       (H.generated.entry owner howner).info.type
       (stats.params.size + (H.recInfos.map (·.motive)).size + minorIdx)
@@ -499,7 +499,7 @@ theorem
           _ = .fvar H.params.fvars[idx] := hexpr
           _ = .fvar d.fvarId := congrArg Expr.fvar hget
       have hdEq := D.declaration_eq_of_mem H.localWF d hd hDfv.symm
-      have Hbinder := selections.parameterBinderAt hselectionNoAlias D
+      have Hbinder := selections.parameterBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
       dsimp only at Hbinder
       rw [← (H.generated.entry owner howner).type] at Hbinder
       have Hclosed := Hbinder.domainFVarsIn HsourceClosed
@@ -527,7 +527,7 @@ theorem
           _ = .fvar H.bindings.motives.fvars[idx] := hexpr
           _ = .fvar d.fvarId := congrArg Expr.fvar hget
       have hdEq := D.declaration_eq_of_mem H.localWF d hd hDfv.symm
-      have Hbinder := selections.motiveBinderAt hselectionNoAlias D
+      have Hbinder := selections.motiveBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
       dsimp only at Hbinder
       rw [← (H.generated.entry owner howner).type] at Hbinder
       have Hclosed := Hbinder.domainFVarsIn HsourceClosed
@@ -568,7 +568,7 @@ theorem
         _ = .fvar H.bindings.flatMinors.fvars[idx] := hexpr
         _ = .fvar d.fvarId := congrArg Expr.fvar hget
     have hdEq := D.declaration_eq_of_mem H.localWF d hd hDfv.symm
-    have Hbinder := selections.minorBinderAt hselectionNoAlias D
+    have Hbinder := selections.minorBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
     dsimp only at Hbinder
     rw [← (H.generated.entry owner howner).type] at Hbinder
     have Hclosed := Hbinder.domainFVarsIn HsourceClosed
@@ -1134,13 +1134,14 @@ theorem
         position ≤ (H.params.fvars ++ H.bindings.motives.fvars).length)]
       simp
     have HprefixCanonical :=
-      LocalContext.mkForall_fvars_forallBinderAt hsourceDecls hsourceNodup
+      LocalContext.mkForall_fvars_forallBinderAtList hsourceDecls hsourceNodup
         position hposition D.index D.userName D.type D.binderInfo D.kind (by
           rw [hsourceAt]
           exact D.declaration)
+        (D.closed H.recursorWF.lctxClosed)
         (body := (.sort (.zero : Level)))
     have HrecursorCanonical :=
-      selections.parameterBinderAt hselectionNoAlias D
+      selections.parameterBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
     dsimp only at HrecursorCanonical
     rw [← (H.generated.entry owner howner).type] at HrecursorCanonical
     have hprefixDomain : prefixDomain =
@@ -1187,13 +1188,14 @@ theorem
             (H.params.fvars ++ H.bindings.motives.fvars).length)]
         simp
       have HprefixCanonical :=
-        LocalContext.mkForall_fvars_forallBinderAt hsourceDecls hsourceNodup
+        LocalContext.mkForall_fvars_forallBinderAtList hsourceDecls hsourceNodup
           position hposition D.index D.userName D.type D.binderInfo D.kind (by
             rw [hsourceAt]
             exact D.declaration)
+        (D.closed H.recursorWF.lctxClosed)
           (body := (.sort (.zero : Level)))
       have HrecursorCanonical :=
-        selections.motiveBinderAt hselectionNoAlias D
+        selections.motiveBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
       dsimp only at HrecursorCanonical
       rw [← (H.generated.entry owner howner).type] at HrecursorCanonical
       have hstatsPosition : stats.params.size + motivePos = position := by
@@ -1259,13 +1261,14 @@ theorem
         rw [hminorCount, List.take_take,
           Nat.min_eq_left (Nat.le_of_lt hpriorPos)]
       have HprefixCanonical :=
-        LocalContext.mkForall_fvars_forallBinderAt hsourceDecls hsourceNodup
+        LocalContext.mkForall_fvars_forallBinderAtList hsourceDecls hsourceNodup
           position hposition D.index D.userName D.type D.binderInfo D.kind (by
             rw [hsourceAt]
             exact D.declaration)
+        (D.closed H.recursorWF.lctxClosed)
           (body := (.sort (.zero : Level)))
       have HrecursorCanonical :=
-        selections.minorBinderAt hselectionNoAlias D
+        selections.minorBinderAtList hselectionNoAlias H.recursorWF.lctxClosed D
       dsimp only at HrecursorCanonical
       rw [← (H.generated.entry owner howner).type] at HrecursorCanonical
       have hstatsPosition : stats.params.size +

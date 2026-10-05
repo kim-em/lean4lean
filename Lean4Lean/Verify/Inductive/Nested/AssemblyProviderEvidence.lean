@@ -1717,7 +1717,7 @@ theorem NestedLoweringResultClosed.primaryFamiliesOfStructuralRestorations
     constructors := by
       apply A.constructors.sourceSemanticMapping HconstructorTranslations
         Hsyntax Hdisjoint rfl A.fvars A.params A.paramsNodup
-          H.toResult.resultNParams }
+          H.toResult.resultNParams A.paramsSize }
   have hrestoredName : Hstep.restored.recursor.restored.newRecName =
       Lean.mkRecName sourceTypes[familyIdx].name := by
     have hunmapped := H.sourceRecursorUnmappedAtFresh Hc Hprod hempty
@@ -1874,7 +1874,7 @@ theorem NestedLoweringResultClosed.primaryFamiliesOfValidation
     constructors := by
       apply A.constructors.sourceSemanticMapping HconstructorTranslations
         Hsyntax Hdisjoint rfl A.fvars A.params A.paramsNodup
-          H.toResult.resultNParams }
+          H.toResult.resultNParams A.paramsSize }
   have hrestoredName : Hstep.restored.recursor.restored.newRecName =
       Lean.mkRecName sourceTypes[familyIdx].name := by
     have hunmapped := H.sourceRecursorUnmappedAtFresh Hc Hprod hempty
@@ -2612,7 +2612,8 @@ theorem NestedLoweringResultClosed.flatMinorConstructorReopeningAtFresh
     familyOrigin.sourceOrigin.constructorsClosedOfSyntax Henv
       (by simpa using Hsources) sourceCtor hsourceCtor
   exact ⟨finalState, Hrun, familyOrigin, sourceCtor, before, after,
-    hsourceCtor, ⟨M.reopens rfl paramFvars hparams hnodup Hclosed⟩⟩
+    hsourceCtor, ⟨M.reopens rfl paramFvars hparams hnodup Hclosed
+      (H.resultParamsSize.trans H.toResult.resultNParams)⟩⟩
 
 /-- Every flattened minor row has a constructor source which was translated
 before lowering.  Original rows use the checked source declaration at the
@@ -2805,7 +2806,8 @@ theorem NestedLoweringResultClosed.flatMinorSourceConstructorReopeningAtFresh
     ⟨sourceCtor, sourceTarget, before, after, Htranslated, Hclosed, ⟨M⟩⟩
   rcases H.resultParamsNodup with ⟨paramFvars, hparams, hnodup⟩
   exact ⟨sourceCtor, sourceTarget, before, after, Htranslated,
-    ⟨M.reopens rfl paramFvars hparams hnodup Hclosed⟩⟩
+    ⟨M.reopens rfl paramFvars hparams hnodup Hclosed
+      (H.resultParamsSize.trans H.toResult.resultNParams)⟩⟩
 
 /-- Pointwise source-family producer extracted from the closed lowering run,
 ordinary recursor production, and the exact restoration step.  Header and
