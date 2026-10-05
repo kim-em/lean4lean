@@ -46,8 +46,15 @@ declarations; validation must not assume correctness of its own artifact.
    sorries above; five are open upstream too (`origin/master`, Aug 2026, still
    has `sort_inv`, `forallE_inv`, `weakN_iff`, `TrProj`, `VInductDecl.WF` as
    sorries and several `Experimental/*` attempts), and one is false (next
-   item). Decision: stop investing in Anchored; it should be deleted (Kim's
-   call, since it is inherited untracked work).
+   item). **Deleted** (with Kim's approval): the 1834 Anchored files, their
+   11 sole dependents (`Theory/Typing/{EquationHeaderDerivation,FieldAdequacy,
+   NativeDeclaredFieldOrigin,NativeExtensionalTerminal,NativeInitialFieldOccurrences,
+   NativeInitialSelection,NativeReplayEligibilitySoundness,NativeResultBridge,
+   NativeTerminalSoundness,NativeZeroFieldProgram,TypedWorldProofPrefix}.lean`),
+   and two stale unused modules that no longer compiled
+   (`Theory/Typing/RigidHeadStrengthening.lean`, `Verify/Typing/ProjectionInverse.lean`).
+   Some `docs/inductives/*.lean` witness files import deleted modules and are
+   now historical text only. `lake build` (default targets) passes.
 
 3. **`IsDefEqU.weakN_iff` is false as stated.** The groupoid countermodel in
    [STRENGTHENING.md](docs/inductives/STRENGTHENING.md) is sound as far as
@@ -220,9 +227,10 @@ inside this project's scope without solving open base metatheory:
   .lake/build/bin/lean4lean Init` (25 "already declared" artifacts, same as
   upstream), `… Std` (6, same as upstream), `--fresh Init.Prelude`,
   `--fresh Init.Core`.
-- `lake build Lean4Lean.Verify.Environment` succeeds at this state;
-  `lake build` (default targets) also compiles the Anchored files and is not
-  a useful acceptance step until they are removed.
+- `lake build` (default targets), `lake build Lean4Lean.Tests`, the fresh
+  `Init.Prelude`/`Init.Core` replays, and
+  `python3 scripts/check-inductive-audit.py --self-test` all pass at this
+  state; `--require-complete` fails on the 13 reachable open obligations.
 
 Final acceptance still requires: `lake build`, `lake build Lean4Lean.Tests`,
 fresh `Init.Prelude` and `Init.Core` replay,
