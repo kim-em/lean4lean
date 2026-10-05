@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.Rules
+import Lean4Lean.Verify.Inductive.Recursor.FieldTypeScope
 
 namespace Lean4Lean
 
@@ -294,12 +295,12 @@ theorem RecInfoHypothesisCallSemanticOriginsAt.pushCurrent
       hpriorSize, S⟩
 
 /-- The exact scope of one selected recursive field: the parameters together
-with the constructor fields up to and including that field, in binder
-order.  Its binder-domain translation can therefore be strengthened to the
-field's own prefix context. -/
+with the constructor fields before that field, in binder order.  The
+field's declared type and the domains of its induction hypothesis can
+therefore be strengthened to the field's own prefix context. -/
 def RecursorFieldPrefixScope (params : Array Expr) (fields : List FVarId)
     (field : Expr) (fv : FVarId) : Prop :=
-  fv ∈ fields.take (fields.idxOf (recursorFVarId field) + 1) ∨
+  fv ∈ fields.take (fields.idxOf (recursorFVarId field)) ∨
     fv ∈ ExprArrayFVarIds params
 
 /-- Field-traversal semantics retained at the exact producer contexts. -/
@@ -2124,7 +2125,7 @@ termination_by u.size - i
 
 /-- Pointwise semantic certificate for the exact pair returned by the
 blueprint-producing `loopUArgs` callback. -/
-theorem inductionHypothesisTypeOrigin
+theorem inductionHypothesisTypeOriginOfInferredScope
     (fv : FVarId) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
     (c : AddInductive.Context) {recLparams : List Name}
@@ -2139,7 +2140,8 @@ theorem inductionHypothesisTypeOrigin
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
     {rootScope : FVarId → Prop}
-    (hfieldScope : rootScope fv)
+    (hinferredScope : ((monadLift (TypeChecker.inferType (.fvar fv)) :
+      AddInductive.M Expr) c).WF fun ty => ty.FVarsIn rootScope)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
     (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
     (hrecords : recInfos.size = stats.indConsts.size)
@@ -2233,8 +2235,8 @@ theorem inductionHypothesisTypeOrigin
   have hfvRoot : fv ∈ c.lctx.fvars := by
     rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
     exact hfvScope
-  have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomain fv stats build c R
-    Hstats hconsume hlit hctx hfield hfieldScope hrootUp
+  have Hrun := mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope fv stats build
+    c R Hstats hconsume hlit hctx hfield hinferredScope hrootUp
     (Q := fun target result => ∃ viTarget,
       TrExprS R.venv recLparams R.mlctx.vlctx
         result.1.consumeTypeAnnotationsVerified viTarget ∧
@@ -2424,6 +2426,100 @@ theorem inductionHypothesisTypeOrigin
         Hargs.toFreshBoundFVarArray.toBoundFVarArray.exprArrayFVarIds]
       rfl
 
+/-- The original form: the field's own membership in the up-set scopes its
+inferred type through the `FVarsBelow` contract. -/
+theorem inductionHypothesisTypeOrigin
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (recInfos : Array AddInductive.RecInfo)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {rootScope : FVarId → Prop}
+    (hfieldScope : rootScope fv)
+    (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
+    (hrecords : recInfos.size = stats.indConsts.size)
+    (Happ : ∀ {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hargs : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      (hvalid : AddInductive.isValidIndApp? stats exposedType =
+        some target) →
+      let itIndices := exposedType.getAppArgs[stats.params.size:]
+      let motiveApp := Expr.app
+        (mkAppN recInfos[target]!.motive itIndices)
+        (mkAppN (.fvar fv) args)
+      ∃ motiveTarget,
+        TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+          motiveApp motiveTarget ∧
+        Rcurrent.venv.IsType recLparams.length
+          Rcurrent.mlctx.vlctx.toCtx motiveTarget) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        let targetIndices := exposedType.getAppArgs[stats.params.size:]
+        let lctx ← getLCtx
+        let motiveApp := Expr.app
+          (mkAppN recInfos[target]!.motive targetIndices)
+          (mkAppN (.fvar fv) args)
+        let viTy := lctx.mkForall args motiveApp
+        return (viTy, ({
+          major := .fvar fv
+          args := args
+          lctx := lctx
+          targetTypeIdx := target
+          targetIndices := targetIndices
+          template := lctx.mkLambda args <|
+            (mkAppN (.bvar args.size) targetIndices).app
+              (mkAppN (.fvar fv) args) } :
+            AddInductive.RecCallBlueprint))) c).WF fun result =>
+        ∃ viTarget,
+          TrExprS R.venv recLparams R.mlctx.vlctx
+            result.1.consumeTypeAnnotationsVerified viTarget ∧
+          R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx viTarget ∧
+          ∃ O : RecInfoHypothesisTypeOrigin
+              stats recInfos c (.fvar fv) result.1,
+            result.2 = {
+              major := .fvar fv
+              args := O.args
+              lctx := O.current.lctx
+              targetTypeIdx := O.ownerIdx
+              targetIndices :=
+                O.exposedType.getAppArgs[stats.params.size:]
+              template := O.current.lctx.mkLambda O.args <|
+                (mkAppN (.bvar O.args.size)
+                  O.exposedType.getAppArgs[stats.params.size:]).app
+                    (mkAppN (.fvar fv) O.args) } ∧
+            RecInfoCallBlueprintSemanticOrigin stats
+              (recInfos.map (·.motive)) R rootScope decl depth
+              (.fvar fv) result.2 :=
+  inductionHypothesisTypeOriginOfInferredScope fv stats recInfos c R Hstats hconsume hlit
+    hctx hfield
+    ((inferTypeFVarInRecursorContext.WF R hfield).mono fun _ ⟨_, hbelow, _, _, _⟩ =>
+      hbelow rootScope hrootUp (by simpa only [FVarsIn] using hfieldScope))
+    hrootUp Hmotives hrecords Happ
+
 /-- Close the retained-blueprint hypothesis loop from the independently
 verified motive applications.  The additional output is produced by the same
 successful traversal, so no replay or alpha-compatibility premise is needed. -/
@@ -2450,7 +2546,8 @@ theorem resultSemanticsOfMotiveApplications
     (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ R.mlctx.vlctx.fvars)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
     (fieldScope : Nat → FVarId → Prop)
-    (HfieldsSharp : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv → fieldScope j fv)
+    (HfieldsSharp : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv →
+      ∀ decl, c.lctx.find? fv = some decl → decl.type.FVarsIn (fieldScope j))
     (sharpInContext : ∀ j fv, fieldScope j fv → fv ∈ R.mlctx.vlctx.fvars)
     (hsharpUp : ∀ j, IsFVarUpSet (fieldScope j) R.mlctx.vlctx)
     (Happlications : RecInfoMotiveApplications R stats decl recInfos
@@ -2514,10 +2611,16 @@ theorem resultSemanticsOfMotiveApplications
         hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
         (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
         ?happCoarse)
-    (inductionHypothesisTypeOrigin fv stats recInfos next
+    (inductionHypothesisTypeOriginOfInferredScope fv stats recInfos next
       Rnext HstatsNext hconsume
         (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
-        (HfieldsSharp j hj fv hfieldEq)
+        ((inferTypeFVarRun.WF next fv).mono fun _ ⟨decl, hfind, hty⟩ => by
+          subst hty
+          have hfvRoot : fv ∈ c.lctx.fvars := by
+            rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
+            simpa only [FVarsIn] using Hfield.fvarsIn
+          rw [Hprior.contextLE.declarations fv hfvRoot] at hfind
+          exact HfieldsSharp j hj fv hfieldEq decl hfind)
         (Hprior.upsetRoot (sharpInContext j) (hsharpUp j))
         (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
         ?happSharp)) ?combine
@@ -2580,7 +2683,8 @@ theorem resultSemanticsOfMotiveTelescopes
     (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ R.mlctx.vlctx.fvars)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
     (fieldScope : Nat → FVarId → Prop)
-    (HfieldsSharp : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv → fieldScope j fv)
+    (HfieldsSharp : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv →
+      ∀ decl, c.lctx.find? fv = some decl → decl.type.FVarsIn (fieldScope j))
     (sharpInContext : ∀ j fv, fieldScope j fv → fv ∈ R.mlctx.vlctx.fvars)
     (hsharpUp : ∀ j, IsFVarUpSet (fieldScope j) R.mlctx.vlctx)
     (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
@@ -4143,7 +4247,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       (fun j => RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
         recursiveFields[j]!)
       (by
-        intro j hj fv hfv
+        intro j hj fv hfv decl hfind
         have hbang : recursiveFields[j]! = .fvar fv := by
           rw [getElem!_pos recursiveFields j hj]
           exact hfv
@@ -4153,8 +4257,17 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           exact Array.getElem_mem_toList hj
         rw [HfieldsRecent.expressions] at hallExpr
         have hmem : fv ∈ HfieldsRecent.fvars := by simpa using hallExpr
-        have htake := List.mem_take_idxOf_succ hmem
-        exact Or.inl (by simpa [hbang, recursorFVarId] using htake))
+        have hpos : HfieldsRecent.fvars.idxOf fv < HfieldsRecent.fvars.length :=
+          List.idxOf_lt_length_of_mem hmem
+        have hfind' : current.lctx.find? HfieldsRecent.fvars[HfieldsRecent.fvars.idxOf fv] =
+            some decl := by
+          rw [List.getElem_idxOf hpos]
+          exact hfind
+        rw [Hopening.fvars_eq_bound
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+        have hscope := HfieldsRecent.fieldTypeScope _HfieldParameterUp _ hpos decl hfind'
+        rw [hbang]
+        exact hscope)
       (by
         intro j fv hfv
         rcases hfv with hfield | hparam
@@ -4196,7 +4309,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           rw [← hsplit]
           exact _HfieldParameterUp
         have hsharp := IsFVarUpSet.sharpenPrefix _ _ _ hwf hprefix hfresh hup
-          (HfieldsRecent.fvars.idxOf (recursorFVarId recursiveFields[j]!) + 1)
+          (HfieldsRecent.fvars.idxOf (recursorFVarId recursiveFields[j]!))
         rw [← hsplit] at hsharp
         exact hsharp)
       HtelescopesArgs HbindingsArgs HoriginsArgs HmotiveShapesArgs hrecords

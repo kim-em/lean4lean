@@ -1625,6 +1625,127 @@ not merely the validated family application exposed after traversing its
 higher-order binders.  This is the semantic certificate needed to align the
 implementation's selected recursive calls with `VInductDecl.RecursiveField`.
 -/
+theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
+    (fv : FVarId) (stats : AddInductive.InductiveStats)
+    (k : Expr → Array Expr → Nat → AddInductive.M alpha)
+    (c : AddInductive.Context) {recLparams : List Name}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {depth : Nat}
+    (Hstats : RecursorValidAppStatsWF R.venv recLparams
+      R.mlctx.vlctx stats decl depth)
+    (hconsume : RecursorConsumeTypeAnnotationsCompat)
+    (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
+    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
+    {fieldTarget : VExpr}
+    (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
+      (.fvar fv) fieldTarget)
+    {P : FVarId → Prop}
+    (hinferredScopeRun : ((monadLift (TypeChecker.inferType (.fvar fv)) :
+      AddInductive.M Expr) c).WF fun ty => ty.FVarsIn P)
+    (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
+    {Q : Nat → alpha → Prop}
+    (Hk : ∀ (Hinput : RecursorLoopUArgsInput c (.fvar fv))
+      {current : AddInductive.Context}
+      (Rcurrent : RecursorContextWF current recLparams)
+      {exposedType : Expr} {syntaxTarget terminalTarget : VExpr}
+      {appliedTarget : VExpr} {args : Array Expr} {target : Nat},
+      RecursorLoopUArgsPrefix c Hinput.normalizedType current exposedType args →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        exposedType syntaxTarget →
+      Rcurrent.venv.IsDefEqU recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget →
+      Rcurrent.venv.IsType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx terminalTarget →
+      (Hrecent : RecursorRecentBoundFVarArray R Rcurrent args) →
+      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
+        (mkAppN (.fvar fv) args) appliedTarget →
+      Rcurrent.venv.HasType recLparams.length
+        Rcurrent.mlctx.vlctx.toCtx appliedTarget terminalTarget →
+      AddInductive.isValidIndApp? stats exposedType = some target →
+      exposedType.FVarsIn
+        (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
+        Rcurrent.mlctx.vlctx →
+      (k exposedType args target current).WF (Q target)) :
+    (AddInductive.mkRecInfos.loopUArgs (.fvar fv)
+      (fun exposedType args => do
+        let some target := AddInductive.isValidIndApp? stats exposedType
+          | throw (.other
+            "recursive constructor field lost its inductive result type")
+        k exposedType args target) c).WF fun out =>
+          ∃ domain,
+            R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
+              fieldTarget domain ∧
+            ∃ target, ∃ htarget : target < decl.types.length,
+              decl.RecursiveArgAtTarget R.venv recLparams.length
+                (decl.types[target]'htarget).name
+                R.mlctx.vlctx.toCtx depth domain ∧ Q target out := by
+  unfold AddInductive.mkRecInfos.loopUArgs
+  let inferRun :=
+    (monadLift (TypeChecker.inferType (.fvar fv)) : AddInductive.M Expr) c
+  have hinferSemantic := inferTypeFVarInRecursorContext.WF R hfield
+  have hinfer : inferRun.WF fun inferred =>
+      inferRun = .ok inferred ∧
+      ∃ inferredTarget, TrTyping R.venv recLparams R.mlctx.vlctx
+        (.fvar fv) inferred fieldTarget inferredTarget := by
+    intro inferred hr
+    exact ⟨hr, hinferSemantic inferred hr⟩
+  refine hinfer.bind fun inferred hinferred => ?_
+  rcases hinferred with
+    ⟨hinferRun, inferredTarget, _hbelow, hfieldAgain, hinferredTr,
+      hfieldTyping⟩
+  have hinferredScope : inferred.FVarsIn P :=
+    hinferredScopeRun inferred hinferRun
+  have hinferredType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx inferredTarget :=
+    hfieldTyping.isType R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
+  let normalizeRun :=
+    (monadLift (TypeChecker.whnf inferred) : AddInductive.M Expr) c
+  have hnormalizeSemantic :=
+    whnfInRecursorContext.scopeWF R hinferredTr
+  have hnormalize : normalizeRun.WF fun normalized =>
+      normalizeRun = .ok normalized ∧
+      FVarsBelow R.mlctx.vlctx inferred normalized ∧
+      TrExpr R.venv recLparams R.mlctx.vlctx normalized inferredTarget := by
+    intro normalized hr
+    exact ⟨hr, hnormalizeSemantic normalized hr⟩
+  refine hnormalize.bind fun normalized hnormalized => ?_
+  rcases hnormalized with ⟨hnormalizeRun, hnormalizedScope,
+    hnormalizedTr⟩
+  let Hinput : RecursorLoopUArgsInput c (.fvar fv) := {
+    inferredType := inferred
+    normalizedType := normalized
+    inference := hinferRun
+    normalization := hnormalizeRun }
+  have hnormalizedScope : normalized.FVarsIn P :=
+    hnormalizedScope P hrootUp hinferredScope
+  change (AddInductive.mkRecInfos.loopUArgs.loop
+    (fun exposedType args => do
+      let some target := AddInductive.isValidIndApp? stats exposedType
+        | throw (.other
+          "recursive constructor field lost its inductive result type")
+      k exposedType args target)
+    normalized #[] c.fuel.inductiveFuel c).WF _
+  have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
+    (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k R
+    hconsume hlit R Hstats hctx hnormalizedTr hinferredType
+    (RecursorRecentBoundFVarArray.empty R)
+    (RecursorLoopUArgsPrefix.root (root := c) (source := normalized))
+    (hnormalizedScope.mono fun _ h => Or.inr h)
+    (by
+      apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
+      intro fv _
+      change P fv ↔ fv ∈ ([] : List FVarId) ∨ P fv
+      simp)
+    (by
+      change TrExprS R.venv recLparams R.mlctx.vlctx
+        (.fvar fv) fieldTarget
+      exact hfieldAgain)
+    hfieldTyping (Hk Hinput)
+  exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
+
+/-- The original form: the field's own membership in the up-set scopes its
+inferred type through the `FVarsBelow` contract. -/
 theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
     (fv : FVarId) (stats : AddInductive.InductiveStats)
     (k : Expr → Array Expr → Nat → AddInductive.M alpha)
@@ -1678,72 +1799,11 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomain {alpha : Type}
             ∃ target, ∃ htarget : target < decl.types.length,
               decl.RecursiveArgAtTarget R.venv recLparams.length
                 (decl.types[target]'htarget).name
-                R.mlctx.vlctx.toCtx depth domain ∧ Q target out := by
-  unfold AddInductive.mkRecInfos.loopUArgs
-  let inferRun :=
-    (monadLift (TypeChecker.inferType (.fvar fv)) : AddInductive.M Expr) c
-  have hinferSemantic := inferTypeFVarInRecursorContext.WF R hfield
-  have hinfer : inferRun.WF fun inferred =>
-      inferRun = .ok inferred ∧
-      ∃ inferredTarget, TrTyping R.venv recLparams R.mlctx.vlctx
-        (.fvar fv) inferred fieldTarget inferredTarget := by
-    intro inferred hr
-    exact ⟨hr, hinferSemantic inferred hr⟩
-  refine hinfer.bind fun inferred hinferred => ?_
-  rcases hinferred with
-    ⟨hinferRun, inferredTarget, _hbelow, hfieldAgain, hinferredTr,
-      hfieldTyping⟩
-  have hfieldSourceScope : (Expr.fvar fv).FVarsIn P := by
-    simpa only [FVarsIn] using hfieldScope
-  have hinferredScope : inferred.FVarsIn P :=
-    _hbelow P hrootUp hfieldSourceScope
-  have hinferredType : R.venv.IsType recLparams.length
-      R.mlctx.vlctx.toCtx inferredTarget :=
-    hfieldTyping.isType R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
-  let normalizeRun :=
-    (monadLift (TypeChecker.whnf inferred) : AddInductive.M Expr) c
-  have hnormalizeSemantic :=
-    whnfInRecursorContext.scopeWF R hinferredTr
-  have hnormalize : normalizeRun.WF fun normalized =>
-      normalizeRun = .ok normalized ∧
-      FVarsBelow R.mlctx.vlctx inferred normalized ∧
-      TrExpr R.venv recLparams R.mlctx.vlctx normalized inferredTarget := by
-    intro normalized hr
-    exact ⟨hr, hnormalizeSemantic normalized hr⟩
-  refine hnormalize.bind fun normalized hnormalized => ?_
-  rcases hnormalized with ⟨hnormalizeRun, hnormalizedScope,
-    hnormalizedTr⟩
-  let Hinput : RecursorLoopUArgsInput c (.fvar fv) := {
-    inferredType := inferred
-    normalizedType := normalized
-    inference := hinferRun
-    normalization := hnormalizeRun }
-  have hnormalizedScope : normalized.FVarsIn P :=
-    hnormalizedScope P hrootUp hinferredScope
-  change (AddInductive.mkRecInfos.loopUArgs.loop
-    (fun exposedType args => do
-      let some target := AddInductive.isValidIndApp? stats exposedType
-        | throw (.other
-          "recursive constructor field lost its inductive result type")
-      k exposedType args target)
-    normalized #[] c.fuel.inductiveFuel c).WF _
-  have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
-    (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k R
-    hconsume hlit R Hstats hctx hnormalizedTr hinferredType
-    (RecursorRecentBoundFVarArray.empty R)
-    (RecursorLoopUArgsPrefix.root (root := c) (source := normalized))
-    (hnormalizedScope.mono fun _ h => Or.inr h)
-    (by
-      apply (IsFVarUpSet.congr (R.mlctx_wf.tr.wf).fvwf ?_).mp hrootUp
-      intro fv _
-      change P fv ↔ fv ∈ ([] : List FVarId) ∨ P fv
-      simp)
-    (by
-      change TrExprS R.venv recLparams R.mlctx.vlctx
-        (.fvar fv) fieldTarget
-      exact hfieldAgain)
-    hfieldTyping (Hk Hinput)
-  exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
+                R.mlctx.vlctx.toCtx depth domain ∧ Q target out :=
+  resultRecursiveDomainOfInferredScope fv stats k c R Hstats hconsume hlit hctx hfield
+    ((inferTypeFVarInRecursorContext.WF R hfield).mono fun _ ⟨_, hbelow, _, _, _⟩ =>
+      hbelow P hrootUp (by simpa only [FVarsIn] using hfieldScope))
+    hrootUp Hk
 
 /-- Source-level construction retained for one induction-hypothesis type.
 It records the terminal family application and exact higher-order telescope
