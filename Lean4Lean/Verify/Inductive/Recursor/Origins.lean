@@ -1321,7 +1321,7 @@ structure RecInfoCallBlueprintOrigins
             targetIndices :=
               O.exposedType.getAppArgs[origins.stats.params.size:]
             template := O.current.lctx.mkLambda O.args <|
-              (mkAppN (.bvar 0)
+              (mkAppN (.bvar O.args.size)
                 O.exposedType.getAppArgs[origins.stats.params.size:]).app
                   (mkAppN fields[j]! O.args) }
 

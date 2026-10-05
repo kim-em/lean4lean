@@ -107,15 +107,15 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
     have hcancelList :
         (currentClosed.instantiateRev result.params).abstractList
           resultSelection.fvars = currentClosed := by
-      simpa only [Expr.abstract_eq, resultSelection.expressions] using hcancel
+      simpa only [Expr.abstract_eq_legacy, resultSelection.expressions] using hcancel
     rw [hcancelList] at Habstract
-    simpa only [Expr.abstract_eq, resultSelection.expressions] using Habstract
+    simpa only [Expr.abstract_eq_legacy, resultSelection.expressions] using Habstract
   have hgenerated : O.origin.generated.data.nested.abstract result.params =
       (mkAppRange
         (.const O.origin.generated.sourceName O.origin.generated.levels) 0
         O.origin.generated.nestedNParams O.origin.generated.args).abstractList
           O.origin.generated.selection.fvars := by
-    simpa only [Expr.abstract_eq, resultSelection.expressions] using
+    simpa only [Expr.abstract_eq_legacy, resultSelection.expressions] using
       O.origin.generated.cachedClosureAlpha resultSelection hresultNodup
   have hclosedEqv : currentClosed ==
       (mkAppRange
@@ -126,7 +126,7 @@ theorem NestedReplacementTargetSpine.cachedSourceApplicationEqv
     exact BEq.symm hcurrent
   have hcurrentAbstract : currentClosed =
       currentSource.abstractList Hselection.fvars := by
-    simpa only [currentClosed, currentSource, Expr.abstract_eq,
+    simpa only [currentClosed, currentSource, Expr.abstract_eq_legacy,
       Hselection.expressions]
   rw [← hcurrentAbstract]
   exact hclosedEqv

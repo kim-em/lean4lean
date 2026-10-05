@@ -2159,6 +2159,32 @@ theorem _root_.Lean.Expr.AvoidsConsts.abstract1
       simpa [Expr.abstract1] using
         Lean.Expr.AvoidsConsts.proj structName idx _ (ih k)
 
+/-- Simultaneous (one-pass) abstraction cannot introduce a constant name. -/
+theorem _root_.Lean.Expr.AvoidsConsts.abstractN
+    (H : Lean.Expr.AvoidsConsts names e) (fvs : List FVarId) (k : Nat := 0) :
+    Lean.Expr.AvoidsConsts names (Lean.Expr.abstractN fvs e k) := by
+  induction H generalizing k with
+  | bvar i => exact Lean.Expr.AvoidsConsts.bvar _
+  | fvar other =>
+      simp only [Expr.abstractN]
+      split
+      · exact Lean.Expr.AvoidsConsts.bvar _
+      · exact Lean.Expr.AvoidsConsts.fvar other
+  | mvar mv => exact Lean.Expr.AvoidsConsts.mvar mv
+  | sort u => exact Lean.Expr.AvoidsConsts.sort u
+  | const name levels fresh => exact Lean.Expr.AvoidsConsts.const name levels fresh
+  | app fn arg _ _ ihFn ihArg =>
+      exact Lean.Expr.AvoidsConsts.app _ _ (ihFn k) (ihArg k)
+  | lam name dom body bi _ _ ihDom ihBody =>
+      exact Lean.Expr.AvoidsConsts.lam name _ _ bi (ihDom k) (ihBody (k + 1))
+  | forallE name dom body bi _ _ ihDom ihBody =>
+      exact Lean.Expr.AvoidsConsts.forallE name _ _ bi (ihDom k) (ihBody (k + 1))
+  | letE name type value body nondep _ _ _ ihType ihValue ihBody =>
+      exact Lean.Expr.AvoidsConsts.letE name _ _ _ nondep (ihType k) (ihValue k) (ihBody (k + 1))
+  | lit value expanded _ => exact Lean.Expr.AvoidsConsts.lit value expanded
+  | mdata data body _ ih => exact Lean.Expr.AvoidsConsts.mdata data _ (ih k)
+  | proj structName idx body _ ih => exact Lean.Expr.AvoidsConsts.proj structName idx _ (ih k)
+
 /-- Simultaneous abstraction likewise preserves source-level absence. -/
 theorem _root_.Lean.Expr.AvoidsConsts.abstractList
     (H : Lean.Expr.AvoidsConsts names e) (fvs : List FVarId)

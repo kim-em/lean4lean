@@ -307,7 +307,9 @@ theorem
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
         hscopeBase
   · intro body target Hbody HbodyType
-    rw [← hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
+    rw [← hsource body (by
+      have h := Hbody.closed
+      rwa [Hscope.sources.noBV] at h)]
     exact Hreplay Hbody HbodyType
 
 /-- Closing first the call-local higher-order arguments and then the complete
@@ -638,7 +640,9 @@ theorem
   exact ⟨scope, Hscope, by simpa [hlocalRev] using hscope,
     hdrop, localDomains, hlocal, hcontext, by
       intro body target Hbody HbodyType
-      rw [hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
+      rw [hsource body (by
+        have h := Hbody.closed
+        rwa [Hscope.noBV] at h)]
       simpa [HlocalBase,
         checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
         Hreplay Hbody HbodyType⟩
@@ -1129,9 +1133,10 @@ theorem
                   index))).toArray := by
         dsimp only [sourceMajor]
         rw [Expr.abstractList_mkAppN, hlocalAbstract]
-      _ = F.semantic.generated.abstractedMajor :=
-        (F.semantic.generated.abstractedMajor_eq_of_closed
-          hfieldClosed).symm
+      _ = F.semantic.generated.abstractedMajor := by
+        rw [F.semantic.generated.abstractedMajor_eq_of_closed hfieldClosed,
+          Expr.abstractN_eq_abstractList F.semantic.generated.arguments_bound.nodup _ 0
+            (Nat.le_of_eq hfieldClosed)]
   rw [hmajorLocal] at HmajorClosed
   have HclosedCtx : OnCtx
       (abstractForallContext (B.fieldDomains ++ localDomains)
@@ -4341,9 +4346,10 @@ theorem
                     index))).toArray := by
         unfold sourceMajor
         rw [Expr.abstractList_mkAppN, hlocalAbstract]
-      _ = F.semantic.generated.abstractedMajor :=
-        (F.semantic.generated.abstractedMajor_eq_of_closed
-          hfieldClosed).symm
+      _ = F.semantic.generated.abstractedMajor := by
+        rw [F.semantic.generated.abstractedMajor_eq_of_closed hfieldClosed,
+          Expr.abstractN_eq_abstractList F.semantic.generated.arguments_bound.nodup _ 0
+            (Nat.le_of_eq hfieldClosed)]
   rw [show mkAppN A.rule.recursiveArgs[j]
       F.semantic.generated.localArgs = sourceMajor from rfl,
     hmajorLocal] at HclosedMajor

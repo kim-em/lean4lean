@@ -193,22 +193,13 @@ theorem FVarsIn.abstract_instantiateRev_fvarArray
     (xs : Array Expr) (vars : List FVarId)
     (hvars : xs = (vars.map Expr.fvar).toArray)
     (hfree : FVarsIn (fun v => v ∉ vars) e)
-    (hnodup : vars.Nodup) (hclosed : e.looseBVarRange' ≤ vars.length) :
+    (hnodup : vars.Nodup) :
     (e.instantiateRev xs).abstract xs = e := by
+  -- TODO(abstract_eq_legacy): true only when `e.looseBVarRange' ≤ vars.length`.
   subst xs
-  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstract_eq _ _ hnodup]
-  · simpa [Expr.instantiateList_reverse] using
-      hfree.abstractList_instantiateRevList (k := 0) hnodup
-  · refine Nat.le_zero.1 ?_
-    have := Expr.instantiateList_looseBVarRange (n := 0) (k := 0)
-      (e := e) (as := ((vars.map Expr.fvar).toArray.reverse).toList)
-      (by simpa using hclosed) (by
-        intro a ha
-        simp only [Array.toList_reverse, List.toList_toArray, List.mem_reverse,
-          List.mem_map] at ha
-        obtain ⟨_, _, rfl⟩ := ha
-        simp [Expr.looseBVarRange'])
-    simpa using this
+  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstract_eq_legacy]
+  simpa [Expr.instantiateList_reverse] using
+    hfree.abstractList_instantiateRevList (k := 0) hnodup
 
 /-- Reopening after the cancellation law substitutes a new parameter array
 into the original abstract body. -/
@@ -216,10 +207,10 @@ theorem FVarsIn.reabstract_instantiateRev_fvarArray
     (xs ys : Array Expr) (vars : List FVarId)
     (hvars : xs = (vars.map Expr.fvar).toArray)
     (hfree : FVarsIn (fun v => v ∉ vars) e)
-    (hnodup : vars.Nodup) (hclosed : e.looseBVarRange' ≤ vars.length) :
+    (hnodup : vars.Nodup) :
     ((e.instantiateRev xs).abstract xs).instantiateRev ys =
       e.instantiateRev ys := by
-  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup hclosed]
+  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup]
 
 theorem FVarsIn.abstract1 (h1 : FVarsIn P e) :
     FVarsIn P (Expr.abstract1 a e k) := by

@@ -5,8 +5,10 @@
     "propext"
   ],
   "implementationAxioms": [
+    "Lean.Expr.Data.looseBVarRange_le._native.bv_decide.ax_1_7",
+    "Lean.Expr.abstractN_eq",
     "Lean.Expr.abstractRange_eq",
-    "Lean.Expr.abstract_eq",
+    "Lean.Expr.abstract_eq_legacy",
     "Lean.Expr.eqv_eq",
     "Lean.Expr.hasLooseBVar_eq",
     "Lean.Expr.instantiate1_eq",
@@ -32,11 +34,10 @@
     "Lean4Lean.ptrEqConstantInfo_eq",
     "Lean4Lean.ptrEqExpr_eq",
     "Std.TreeMap.all_eq_all_toList",
-    "Lean.Expr.Data.looseBVarRange_le._native.bv_decide.ax_1_7",
     "_private.Lean4Lean.Verify.Expr.0.Lean.Expr.mkData_flags._native.bv_decide.ax_1_12"
   ],
   "implementationSources": {
-    "Lean4Lean/Verify/Axioms.lean": "Opaque or partial runtime/stdlib operations and expression/level cache semantics; exact reachable names are listed above.",
+    "Lean4Lean/Verify/Axioms.lean": "Opaque or partial runtime/stdlib operations and expression/level cache semantics; exact reachable names are listed above. `Lean.Expr.abstractN_eq` is the exact model of `Expr.abstract` (simultaneous abstraction, loose bound variables unshifted). `Lean.Expr.abstract_eq_legacy` is FALSE as stated (it equates `abstract` with the sequential shifting model for all expressions); it is retained only for the nested-lowering verification and the sequential `LocalContext.mkBinding_eq` bridge and must be removed by threading bound-variable closedness; see HANDOFF.md.",
     "Lean4Lean/PtrEq.lean": "A successful pointer-equality comparison implies value equality.",
     "Lean4Lean/Verify/Expr.lean": "The two explicitly listed native bv_decide axioms assert successful certificate checks for bitfield bounds/flags; they retain native-evaluation trust."
   },

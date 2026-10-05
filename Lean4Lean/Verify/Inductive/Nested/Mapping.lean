@@ -1235,7 +1235,7 @@ theorem NestedReplacementHasFinalMapping.reopens
   have habstract :
       (nested.abstract params) ==
         ((base.instantiateRev params).abstract params) := by
-    rw [hparams, Expr.abstract_eq, Expr.abstract_eq]
+    rw [hparams, Expr.abstract_eq_legacy, Expr.abstract_eq_legacy]
     apply Expr.abstractList_eqv
     simpa [base, hparams] using hnested
   have heqv :

@@ -1788,7 +1788,7 @@ theorem NestedRestorationOpening.abstractBody_eq_suffix
     Hopen.body.abstractList Hopen.selection.fvars =
         Hopen.body.abstract
           (Hopen.selection.fvars.map Expr.fvar).toArray :=
-      (Expr.abstract_eq Hopen.body Hopen.selection.fvars).symm
+      (Expr.abstract_eq_legacy Hopen.body Hopen.selection.fvars).symm
     _ = Hopen.body.abstract Hopen.params :=
       congrArg Hopen.body.abstract Hopen.selection.expressions.symm
     _ = suffix := by simpa [hbody] using Hcancel

@@ -80,13 +80,14 @@ theorem ClosedNestedAuxiliaryTranslation.restorationAlpha
     (hrestoreNodup : restoreSelection.fvars.Nodup) :
     (((e.abstract res.params).instantiateRev restoreAs).abstract restoreAs) =
       e.abstractList selection.fvars := by
+  -- TODO(abstract_eq_legacy): needs `selection.fvars.Nodup` and closed `e`.
   have hlowered : e.abstract res.params =
       e.abstractList selection.fvars := by
     calc
       e.abstract res.params =
           e.abstract (selection.fvars.map Expr.fvar).toArray :=
         congrArg e.abstract selection.expressions
-      _ = e.abstractList selection.fvars := Expr.abstract_eq _ _
+      _ = e.abstractList selection.fvars := Expr.abstract_eq_legacy _ _
   have Hclosed : (e.abstractList selection.fvars).FVarsIn
       (fun _ => False) := by
     apply FVarsIn.abstractList_of

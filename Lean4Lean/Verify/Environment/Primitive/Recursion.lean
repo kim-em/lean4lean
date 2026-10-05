@@ -982,10 +982,10 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
     have hndFvs : ((m'.fvarRevList n hn).reverse).Nodup :=
       List.nodup_reverse.2 (‹c.MLCWF m'›.wf.fvarRevList_nodup n hn)
     have hFlb : (F.abstractList (m'.fvarRevList n hn).reverse).looseBVarRange' = 0 := by
-      simp only [Fa, hfvs, Expr.abstract_eq _ _ hndFvs hFclosed.looseBVarRange_zero] at hF
+      simp only [Fa, hfvs, Expr.abstract_eq_of_closed _ _ hndFvs hFclosed.looseBVarRange_zero] at hF
       simpa [Expr.hasLooseBVars] using hF
     have hFaF : Fa = F := by
-      simp only [Fa, hfvs, Expr.abstract_eq _ _ hndFvs hFclosed.looseBVarRange_zero]
+      simp only [Fa, hfvs, Expr.abstract_eq_of_closed _ _ hndFvs hFclosed.looseBVarRange_zero]
       exact Expr.abstractList_eq_self (Nat.le_of_eq hFlb)
     obtain ⟨Fv, hFaS⟩ : ∃ Fv, (c.withMLC m').TrExprS Fa Fv := ⟨_, hFaF ▸ hFF⟩
     -- and the same guard read on the variables rather than the term: `F` mentions none of the

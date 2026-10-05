@@ -91,7 +91,7 @@ theorem ElimNestedInductive.run'.primitiveNoop
           Expr.getAppArgs, LocalContext.mkForall] at hout
         subst res
         have habstract (e : Expr) : e.abstract #[] = e := by
-          simpa using Expr.abstract_eq e []
+          simpa [Expr.abstractN_nil] using Expr.abstractN_eq e []
         simp only [LocalContext.mkBinding, habstract]
         repeat' constructor <;> rfl
 

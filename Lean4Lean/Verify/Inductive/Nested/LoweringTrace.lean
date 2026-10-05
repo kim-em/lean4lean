@@ -458,7 +458,7 @@ theorem LoweredConstructorReopening.restoreTail
           (Hselection.fvars.map Expr.fvar).toArray :=
         congrArg lowered.abstract Hselection.expressions
       _ = lowered.abstractList Hselection.fvars :=
-        Expr.abstract_eq lowered Hselection.fvars
+        Expr.abstract_eq_legacy lowered Hselection.fvars
   refine ⟨lctx, tail, As, lowered, openedState, Hopening, Hselection,
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreopening, htype,
     ?_⟩

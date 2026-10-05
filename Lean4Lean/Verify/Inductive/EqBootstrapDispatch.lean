@@ -140,7 +140,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
         Expr.getAppArgs] at hout
       subst res
       have habstract (e : Expr) : e.abstract #[] = e := by
-        simpa using Expr.abstract_eq e []
+        simpa [Expr.abstractN_nil] using Expr.abstractN_eq e []
       simp [eqBootstrapType, eqBootstrapReflType, habstract]
       constructor
       · exact hclose _

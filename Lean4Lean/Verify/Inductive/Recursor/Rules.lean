@@ -30,8 +30,8 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMajor_eq_bvar
     intro hmem
     exact H.arguments_bound.fresh fv hmem hfieldRoot
   have hfieldLocal :
-      (Expr.fvar fv).abstractList H.arguments_bound.fvars = .fvar fv :=
-    Expr.abstractList_fvar_of_not_mem hfresh
+      (Expr.fvar fv).abstractN H.arguments_bound.fvars = .fvar fv :=
+    Expr.abstractN_fvar_of_not_mem hfresh
   have hlocalSize : H.localArgs.size = H.arguments_bound.fvars.length := by
     have := congrArg Array.size H.arguments_bound.expressions
     simpa using this
@@ -172,8 +172,9 @@ theorem BoundGeneratedRecursiveCall.abstractedRecursor_head
   have hsize : H.localArgs.size = H.arguments_bound.fvars.length := by
     have := congrArg Array.size H.arguments_bound.expressions
     simpa using this
-  rw [Expr.abstractList_bvar_ge H.arguments_bound.fvars 0 0]
-  simp only [Nat.zero_add, Expr.instantiate1'_mkAppN]
+  rw [show (Expr.bvar H.localArgs.size).abstractN H.arguments_bound.fvars =
+    .bvar H.localArgs.size from rfl]
+  simp only [Expr.instantiate1'_mkAppN]
   repeat' rw [getAppFn_mkAppN]
   simp [Expr.instantiate1', hsize]
   repeat' rw [getAppFn_mkAppN]
@@ -249,7 +250,7 @@ theorem SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
     H.generated.abstractedRecursor =
       mkAppN (recursor.liftLooseBVars' 0 H.generated.localArgs.size)
         (indices.map fun source =>
-          source.abstractList H.generated.arguments_bound.fvars) := by
+          source.abstractN H.generated.arguments_bound.fvars) := by
   dsimp only
   let indices := (AddInductive.getIIndices stats
     H.generated.exposedType).2
@@ -293,31 +294,31 @@ theorem SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
     exact hexposedClosed.getAppArgsList (hindexFullMem source hsource)
   have hindicesInst :
       (indices.map fun source =>
-        (source.abstractList H.generated.arguments_bound.fvars).instantiate1'
+        (source.abstractN H.generated.arguments_bound.fvars).instantiate1'
           recursor H.generated.localArgs.size) =
       indices.map fun source =>
-        source.abstractList H.generated.arguments_bound.fvars := by
+        source.abstractN H.generated.arguments_bound.fvars := by
     apply Array.ext
     · simp
     · intro i hiLeft hiRight
       have hi : i < indices.size := by simpa using hiRight
       simp only [Array.getElem_map]
       apply Expr.instantiate1'_eq_self
-      have hrange := Expr.abstractList_looseBVarRange_le
+      have hrange := Expr.abstractN_looseBVarRange_le
         (e := indices[i]'hi)
         (fvs := H.generated.arguments_bound.fvars) (k := 0)
       have hclosed := (hindexClosed (indices[i]'hi)
         (Array.getElem_mem hi)).looseBVarRange_zero
       calc
-        ((indices[i]'hi).abstractList
+        ((indices[i]'hi).abstractN
               H.generated.arguments_bound.fvars).looseBVarRange' ≤
             H.generated.arguments_bound.fvars.length := by
           simpa [hclosed] using hrange
         _ = H.generated.localArgs.size := hsize.symm
   unfold BoundGeneratedRecursiveCall.abstractedRecursor
-  rw [Expr.abstractList_bvar_ge
-    H.generated.arguments_bound.fvars 0 0]
-  simp only [Nat.zero_add, Expr.instantiate1'_mkAppN]
+  rw [show (Expr.bvar H.generated.localArgs.size).abstractN H.generated.arguments_bound.fvars =
+    .bvar H.generated.localArgs.size from rfl]
+  simp only [Expr.instantiate1'_mkAppN]
   rw [Array.map_map]
   have hindicesInst' :
       ((AddInductive.getIIndices stats H.generated.exposedType).2.map
@@ -326,10 +327,10 @@ theorem SemanticBoundGeneratedRecursiveCall.abstractedRecursor_eq
             (.const H.generated.recursorName lvls) stats.params) motives)
             minors) H.generated.localArgs.size) ∘
           fun source =>
-            source.abstractList H.generated.arguments_bound.fvars)) =
+            source.abstractN H.generated.arguments_bound.fvars)) =
       (AddInductive.getIIndices stats H.generated.exposedType).2.map
         (fun source =>
-          source.abstractList H.generated.arguments_bound.fvars) := by
+          source.abstractN H.generated.arguments_bound.fvars) := by
     simpa [indices, recursor, Function.comp_def] using hindicesInst
   rw [hindicesInst']
   simp [Expr.instantiate1', hsize, recursor, indices]
@@ -402,48 +403,48 @@ theorem SemanticBoundGeneratedRecursiveCall.outerAbstractedRecursorArgsAvoids
     exact hexposed.getAppArgsList (hindexFullMem source hsource)
   have hindicesInst :
       (indices.map fun source =>
-        (source.abstractList H.generated.arguments_bound.fvars).instantiate1'
+        (source.abstractN H.generated.arguments_bound.fvars).instantiate1'
           recursor H.generated.localArgs.size) =
       indices.map fun source =>
-        source.abstractList H.generated.arguments_bound.fvars := by
+        source.abstractN H.generated.arguments_bound.fvars := by
     apply Array.ext
     · simp
     · intro i hiLeft hiRight
       have hi : i < indices.size := by simpa using hiRight
       simp only [Array.getElem_map]
       apply Expr.instantiate1'_eq_self
-      have hrange := Expr.abstractList_looseBVarRange_le
+      have hrange := Expr.abstractN_looseBVarRange_le
         (e := indices[i]'hi)
         (fvs := H.generated.arguments_bound.fvars) (k := 0)
       have hclosed := (hindexClosed (indices[i]'hi)
         (Array.getElem_mem hi)).looseBVarRange_zero
       calc
-        ((indices[i]'hi).abstractList
+        ((indices[i]'hi).abstractN
               H.generated.arguments_bound.fvars).looseBVarRange' ≤
             H.generated.arguments_bound.fvars.length := by
           simpa [hclosed] using hrange
         _ = H.generated.localArgs.size := hsize.symm
   have hindicesInst' :
       (indices.map fun source =>
-        source.abstractList H.generated.arguments_bound.fvars).map
+        source.abstractN H.generated.arguments_bound.fvars).map
           (fun source => source.instantiate1' recursor
             H.generated.localArgs.size) =
       indices.map fun source =>
-        source.abstractList H.generated.arguments_bound.fvars := by
+        source.abstractN H.generated.arguments_bound.fvars := by
     simpa [Array.map_map, Function.comp_def] using hindicesInst
   have habstractedRecursor : H.generated.abstractedRecursor =
       mkAppN (recursor.liftLooseBVars' 0 H.generated.localArgs.size)
         (indices.map fun source =>
-          source.abstractList H.generated.arguments_bound.fvars) := by
+          source.abstractN H.generated.arguments_bound.fvars) := by
     unfold BoundGeneratedRecursiveCall.abstractedRecursor
-    rw [Expr.abstractList_bvar_ge
-      H.generated.arguments_bound.fvars 0 0]
-    simp only [Nat.zero_add, Expr.instantiate1'_mkAppN]
+    rw [show (Expr.bvar H.generated.localArgs.size).abstractN H.generated.arguments_bound.fvars =
+      .bvar H.generated.localArgs.size from rfl]
+    simp only [Expr.instantiate1'_mkAppN]
     change mkAppN
-      ((Expr.bvar H.generated.arguments_bound.fvars.length).instantiate1'
+      ((Expr.bvar H.generated.localArgs.size).instantiate1'
         recursor H.generated.localArgs.size)
       ((indices.map fun source =>
-          source.abstractList H.generated.arguments_bound.fvars).map
+          source.abstractN H.generated.arguments_bound.fvars).map
         (fun source => source.instantiate1' recursor
           H.generated.localArgs.size)) = _
     rw [hindicesInst']
@@ -476,7 +477,7 @@ theorem SemanticBoundGeneratedRecursiveCall.outerAbstractedRecursorArgsAvoids
           H.generated.localArgs.size
       · rcases List.mem_map.mp hindices with ⟨source, hsource, rfl⟩
         exact (hindexAvoids source
-          (Array.mem_toList_iff.mp hsource)).abstractList
+          (Array.mem_toList_iff.mp hsource)).abstractN
           H.generated.arguments_bound.fvars
 
 /-- Exact translation of the generated major premise for a selected field
@@ -497,8 +498,8 @@ theorem BoundGeneratedRecursiveCall.translatedMajor_eq
     intro hmem
     exact H.arguments_bound.fresh fv hmem hfieldRoot
   have hfieldAbstract :
-      (Expr.fvar fv).abstractList H.arguments_bound.fvars = .fvar fv :=
-    Expr.abstractList_fvar_of_not_mem hfresh
+      (Expr.fvar fv).abstractN H.arguments_bound.fvars = .fvar fv :=
+    Expr.abstractN_fvar_of_not_mem hfresh
   have hlocalSize :
       H.localArgs.size = H.arguments_bound.fvars.length := by
     have := congrArg Array.size H.arguments_bound.expressions

@@ -525,7 +525,9 @@ theorem
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
       hshift
   · intro body target Hbody HbodyType
-    rw [hsource body (by simpa [TypeChecker.MLCtx.noBV] using Hbody.closed)]
+    rw [hsource body (by
+      have h := Hbody.closed
+      rwa [Hscope.sources.noBV] at h)]
     simpa [HlocalBase,
       checkInductiveTypes.loopType.FVarNarrowScope.retargetRuntime] using
       Hreplay Hbody HbodyType

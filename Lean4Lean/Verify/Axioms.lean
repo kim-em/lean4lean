@@ -644,9 +644,25 @@ theorem abstractN_eq_abstractList {xs : List FVarId} (hnd : xs.Nodup) :
 
 /-- Lean's `abstract` agrees with the sequential model on locally closed expressions and
 duplicate-free variable lists. -/
-theorem abstract_eq (e : Expr) (xs : List FVarId) (hnd : xs.Nodup) (h : e.looseBVarRange' = 0) :
-    e.abstract ⟨xs.map .fvar⟩ = e.abstractList xs := by
+theorem abstract_eq_of_closed (e : Expr) (xs : List FVarId) (hnd : xs.Nodup)
+    (h : e.looseBVarRange' = 0) : e.abstract ⟨xs.map .fvar⟩ = e.abstractList xs := by
   rw [abstractN_eq]; exact abstractN_eq_abstractList hnd e 0 (by omega)
+
+/-- **FALSE as stated**: `(Expr.bvar 0).abstract #[.fvar x] = .bvar 0`, while
+`abstractList (.bvar 0) [x] = .bvar 1`; the statement also fails for duplicate lists.
+Lean's `abstract` is `abstractN` (`abstractN_eq`), and the sequential model agrees with it
+only on locally closed expressions and duplicate-free lists (`abstract_eq_of_closed`).
+This legacy axiom is retained temporarily for the nested-lowering verification, whose
+structures do not yet record bound-variable closedness; every remaining use must be
+removed by threading that invariant. Do not add new uses. -/
+axiom abstract_eq_legacy (e : Expr) (xs : List FVarId) :
+    e.abstract ⟨xs.map .fvar⟩ = e.abstractList xs
+
+/-- **FALSE in general**: derived from `abstract_eq_legacy`; true only under the hypotheses of
+`abstractN_eq_abstractList`. Every use is legacy debt to be removed with that axiom. -/
+theorem abstractN_eq_abstractList_legacy (e : Expr) (xs : List FVarId) :
+    e.abstractN xs = e.abstractList xs := by
+  rw [← abstractN_eq, abstract_eq_legacy]
 
 /-- Abstracting a single variable from a locally closed expression. -/
 theorem abstractN_singleton (h : e.looseBVarRange' ≤ k) :
@@ -721,6 +737,75 @@ theorem abstractN_cons (h : a ∉ xs) : ∀ (e : Expr) (d : Nat),
   | .letE _ t v b _, d => by
     simp [abstractN, abstractN_cons h t d, abstractN_cons h v d, abstractN_cons h b (d+1),
       Nat.add_right_comm]
+  | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => rfl
+
+theorem lastRevIdx?_lt_length {v : FVarId} : ∀ {xs : List FVarId} {r : Nat},
+    lastRevIdx? v xs = some r → r < xs.length
+  | [], _, h => by cases h
+  | a :: as, r, h => by
+    simp only [lastRevIdx?] at h
+    split at h
+    · rename_i hr
+      have := lastRevIdx?_lt_length hr
+      cases h; simp; omega
+    · split at h
+      · cases h; simp
+      · cases h
+
+theorem lastRevIdx?_append_singleton (v : FVarId) : ∀ {zs : List FVarId}, a ∉ zs →
+    lastRevIdx? v (zs ++ [a]) =
+      match lastRevIdx? v zs with
+      | some r => some (r + 1)
+      | none => if a == v then some 0 else none
+  | [], _ => by simp [lastRevIdx?]
+  | b :: zs, hz => by
+    simp only [List.mem_cons, not_or] at hz
+    have ih := lastRevIdx?_append_singleton v hz.2
+    simp only [List.cons_append, lastRevIdx?, ih]
+    cases hzs : lastRevIdx? v zs with
+    | some r => simp
+    | none =>
+      by_cases hav : a = v
+      · subst hav
+        have hbv : (b == a) = false := by simpa using Ne.symm hz.1
+        simp [hbv]
+      · have hav' : (a == v) = false := by simpa using hav
+        by_cases hbv : b = v
+        · subst hbv; simp [hav', List.length_append]
+        · have hbv' : (b == v) = false := by simpa using hbv
+          simp [hav', hbv']
+
+/-- Abstracting one more variable, placed innermost, is an earlier abstraction below the
+binder depth of the remaining variables. -/
+theorem abstractN_append_singleton (h : a ∉ ys) : ∀ (e : Expr) (d : Nat),
+    abstractN (ys ++ [a]) e d = abstractN ys (abstractN [a] e d) (d + 1)
+  | .bvar _, _ => rfl
+  | .fvar v, d => by
+    rw [abstractN, lastRevIdx?_append_singleton v h]
+    cases hr : lastRevIdx? v ys with
+    | some r =>
+      by_cases hv : a = v
+      · subst hv
+        rw [lastRevIdx?_eq_none_of_not_mem h] at hr
+        cases hr
+      · have : (a == v) = false := by simpa using hv
+        simp [abstractN, lastRevIdx?, this, hr, Nat.add_assoc, Nat.add_comm 1 r]
+    | none =>
+      by_cases hv : a = v
+      · subst hv; simp [abstractN, lastRevIdx?, hr]
+      · have : (a == v) = false := by simpa using hv
+        simp [abstractN, lastRevIdx?, this, hr]
+  | .mdata _ e, d => by simp [abstractN, abstractN_append_singleton h e d]
+  | .proj _ _ e, d => by simp [abstractN, abstractN_append_singleton h e d]
+  | .app f a', d => by
+    simp [abstractN, abstractN_append_singleton h f d, abstractN_append_singleton h a' d]
+  | .lam _ t b _, d => by
+    simp [abstractN, abstractN_append_singleton h t d, abstractN_append_singleton h b (d+1)]
+  | .forallE _ t b _, d => by
+    simp [abstractN, abstractN_append_singleton h t d, abstractN_append_singleton h b (d+1)]
+  | .letE _ t v b _, d => by
+    simp [abstractN, abstractN_append_singleton h t d, abstractN_append_singleton h v d,
+      abstractN_append_singleton h b (d+1)]
   | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => rfl
 
 theorem abstractN_nil : ∀ (e : Expr) (d : Nat), abstractN [] e d = e

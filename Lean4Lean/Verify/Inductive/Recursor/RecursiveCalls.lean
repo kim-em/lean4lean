@@ -2538,7 +2538,7 @@ def BoundGeneratedRecursiveCall.body
     minors
   let templateBody := (mkAppN (.bvar H.localArgs.size) indices).app
     (mkAppN field H.localArgs)
-  (templateBody.abstractList H.arguments_bound.fvars).instantiate1'
+  (templateBody.abstractN H.arguments_bound.fvars).instantiate1'
     recursor H.localArgs.size
 
 theorem BoundGeneratedRecursiveCall.value_eq_body
@@ -2575,7 +2575,7 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
       (current.lctx.mkLambda localArgs templateBody).instantiate1 recursor := by
     simpa [templateBody, recursor] using Hvalue
   change Expr.LambdaTelescope value localArgs.size
-    ((templateBody.abstractList Hargs.fvars).instantiate1'
+    ((templateBody.abstractN Hargs.fvars).instantiate1'
       recursor localArgs.size)
   rw [Hvalue']
   let Hselection :=
@@ -2583,7 +2583,7 @@ theorem BoundGeneratedRecursiveCall.lambdaTelescope
   have Hfvars : Hselection.fvars = Hargs.fvars := rfl
   rcases Hselection with ⟨fvars, rfl, Hdecl⟩
   rw [← Hfvars]
-  have Htemplate := LocalContext.mkLambda_fvars_lambdaTelescope
+  have Htemplate := LocalContext.mkLambda_fvars_lambdaTelescopeN
     (body := templateBody) Hdecl
   simpa using Htemplate.instantiate1 recursor
 
@@ -2673,9 +2673,9 @@ theorem SemanticBoundGeneratedRecursiveCall.outerAvoidingLambdaTelescope
           (H.generated.arguments_bound.fvars.map Expr.fvar).toArray))
       H.generated.arguments_bound.fvars.length
       ((mkAppN field
-        (H.generated.arguments_bound.fvars.map Expr.fvar).toArray).abstractList
+        (H.generated.arguments_bound.fvars.map Expr.fvar).toArray).abstractN
           H.generated.arguments_bound.fvars) :=
-    LocalContext.mkLambda_fvars_avoidingLambdaTelescope hdecl
+    LocalContext.mkLambda_fvars_avoidingLambdaTelescopeN hdecl
       (fun fv index userName type bi kind hfv hfind =>
         checkPositivityStep.RecursorContextWF.cdeclTypeAvoids
           H.current_context hcurrentFresh hfind)
@@ -2689,7 +2689,7 @@ theorem SemanticBoundGeneratedRecursiveCall.outerAvoidingLambdaTelescope
         (H.generated.current.lctx.mkLambda H.generated.localArgs
           (mkAppN field H.generated.localArgs))
         H.generated.localArgs.size
-        ((mkAppN field H.generated.localArgs).abstractList
+        ((mkAppN field H.generated.localArgs).abstractN
           H.generated.arguments_bound.fvars) := by
       simpa [H.generated.arguments_bound.expressions, hlocalSize] using Htel
     exact H.sameAppliedFieldLambdaPrefix.symm.avoidingLambdaTelescope
@@ -2757,10 +2757,10 @@ theorem BoundGeneratedRecursiveCall.abstractedBody_eq
       (.const (Lean.mkRecName indTypes[typeIdx]!.name) lvls)
       stats.params) motives) minors
     let abstractedFn :=
-      mkAppN ((Expr.bvar H.localArgs.size).abstractList H.arguments_bound.fvars)
-        (indices.map fun e => e.abstractList H.arguments_bound.fvars)
+      mkAppN ((Expr.bvar H.localArgs.size).abstractN H.arguments_bound.fvars)
+        (indices.map fun e => e.abstractN H.arguments_bound.fvars)
     let abstractedMajor :=
-      mkAppN (field.abstractList H.arguments_bound.fvars)
+      mkAppN (field.abstractN H.arguments_bound.fvars)
         (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
           Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
     H.body =
@@ -2770,22 +2770,22 @@ theorem BoundGeneratedRecursiveCall.abstractedBody_eq
     ⟨typeIdx, indices⟩
   have hlocal :
       H.localArgs.map (fun e =>
-        e.abstractList H.arguments_bound.fvars) =
+        e.abstractN H.arguments_bound.fvars) =
       (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
         Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray := by
     calc
       H.localArgs.map (fun e =>
-          e.abstractList H.arguments_bound.fvars) =
+          e.abstractN H.arguments_bound.fvars) =
           ((H.arguments_bound.fvars.map Expr.fvar).toArray.map fun e =>
-            e.abstractList H.arguments_bound.fvars) := by
+            e.abstractN H.arguments_bound.fvars) := by
         exact congrArg (Array.map fun e =>
-          e.abstractList H.arguments_bound.fvars)
+          e.abstractN H.arguments_bound.fvars)
             H.arguments_bound.expressions
       _ = _ := by
-        simpa using Expr.abstractList_fvarArray
+        simpa using Expr.abstractN_fvarArray
           H.arguments_bound.fvars 0 H.arguments_bound.nodup
   simp only [BoundGeneratedRecursiveCall.body, hindices,
-    Expr.abstractList_app, Expr.abstractList_mkAppN]
+    Expr.abstractN_app, Expr.abstractN_mkAppN]
   rw [hlocal]
   rfl
 
@@ -2809,8 +2809,8 @@ def BoundGeneratedRecursiveCall.abstractedRecursor
   let indices := (AddInductive.getIIndices stats H.exposedType).2
   let recursor := mkAppN (mkAppN (mkAppN
     (.const H.recursorName lvls) stats.params) motives) minors
-  (mkAppN ((Expr.bvar H.localArgs.size).abstractList H.arguments_bound.fvars)
-    (indices.map fun e => e.abstractList H.arguments_bound.fvars)).instantiate1'
+  (mkAppN ((Expr.bvar H.localArgs.size).abstractN H.arguments_bound.fvars)
+    (indices.map fun e => e.abstractN H.arguments_bound.fvars)).instantiate1'
       recursor H.localArgs.size
 
 def BoundGeneratedRecursiveCall.abstractedMajor
@@ -2818,7 +2818,7 @@ def BoundGeneratedRecursiveCall.abstractedMajor
       root field value) : Expr :=
   let recursor := mkAppN (mkAppN (mkAppN
     (.const H.recursorName lvls) stats.params) motives) minors
-  (mkAppN (field.abstractList H.arguments_bound.fvars)
+  (mkAppN (field.abstractN H.arguments_bound.fvars)
     (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
       Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray).instantiate1'
         recursor H.localArgs.size
@@ -2852,27 +2852,27 @@ theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
   rw [HselectionFvars] at Hdecl
   have Hexpressions := H.arguments_bound.expressions
   rw [Hexpressions]
-  have Htel := LocalContext.mkLambda_fvars_lambdaTelescope
+  have Htel := LocalContext.mkLambda_fvars_lambdaTelescopeN
     (body := mkAppN field
       (H.arguments_bound.fvars.map Expr.fvar).toArray) Hdecl
   have hlocal :
       (H.arguments_bound.fvars.map Expr.fvar).toArray.map (fun e =>
-        e.abstractList H.arguments_bound.fvars) =
+        e.abstractN H.arguments_bound.fvars) =
       (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
         Expr.bvar
           (H.arguments_bound.fvars.length - 1 - i))).toArray := by
-    simpa using Expr.abstractList_fvarArray
+    simpa using Expr.abstractN_fvarArray
       H.arguments_bound.fvars 0 H.arguments_bound.nodup
   have hsize : H.localArgs.size = H.arguments_bound.fvars.length := by
     have := congrArg Array.size H.arguments_bound.expressions
     simpa using this
-  let major := mkAppN (field.abstractList H.arguments_bound.fvars)
+  let major := mkAppN (field.abstractN H.arguments_bound.fvars)
     (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
       Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
   have hfieldRange :
-      (field.abstractList H.arguments_bound.fvars).looseBVarRange' ≤
+      (field.abstractN H.arguments_bound.fvars).looseBVarRange' ≤
         H.arguments_bound.fvars.length := by
-    have Hrange := Expr.abstractList_looseBVarRange_le
+    have Hrange := Expr.abstractN_looseBVarRange_le
       (e := field) (fvs := H.arguments_bound.fvars) (k := 0)
     simpa [hfieldClosed] using Hrange
   have hmajorRange : major.looseBVarRange' ≤
@@ -2896,7 +2896,7 @@ theorem BoundGeneratedRecursiveCall.appliedFieldLambdaTelescope
         stats.params) motives) minors) H.localArgs.size = major
     exact hmajorInst
   rw [habstractedMajor]
-  simpa [Expr.abstractList_mkAppN, hlocal, major] using Htel
+  simpa [Expr.abstractN_mkAppN, hlocal, major] using Htel
 
 /-- When the producer field expression is closed, the exact instantiated
 template major reduces to the ordinary eta-expanded field residual. -/
@@ -2905,10 +2905,10 @@ theorem BoundGeneratedRecursiveCall.abstractedMajor_eq_of_closed
       root field value)
     (hfieldClosed : field.looseBVarRange' = 0) :
     H.abstractedMajor =
-      mkAppN (field.abstractList H.arguments_bound.fvars)
+      mkAppN (field.abstractN H.arguments_bound.fvars)
         (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
           Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray := by
-  let major := mkAppN (field.abstractList H.arguments_bound.fvars)
+  let major := mkAppN (field.abstractN H.arguments_bound.fvars)
     (List.ofFn (fun i : Fin H.arguments_bound.fvars.length =>
       Expr.bvar (H.arguments_bound.fvars.length - 1 - i))).toArray
   change major.instantiate1'
@@ -2920,7 +2920,7 @@ theorem BoundGeneratedRecursiveCall.abstractedMajor_eq_of_closed
     simpa using this
   rw [hsize]
   apply Expr.mkAppN_looseBVarRange_le
-  · have Hrange := Expr.abstractList_looseBVarRange_le
+  · have Hrange := Expr.abstractN_looseBVarRange_le
       (e := field) (fvs := H.arguments_bound.fvars) (k := 0)
     simpa [hfieldClosed] using Hrange
   · intro arg harg
@@ -3095,12 +3095,12 @@ theorem BoundGeneratedRecursiveCall.outerAbstractedMotiveApp_eq
   rw [hlocal]
   unfold BoundGeneratedRecursiveCall.outerAbstractedMotiveApp
   unfold BoundGeneratedRecursiveCall.outerAbstractedMajor
-  rw [H.abstractedMajor_eq_of_closed hfieldClosed]
-  rw [Expr.abstractList_mkAppN]
+  rw [H.abstractedMajor_eq_of_closed hfieldClosed,
+    Expr.abstractN_eq_abstractList H.arguments_bound.nodup field 0 (Nat.le_of_eq hfieldClosed)]
   simp [BoundGeneratedRecursiveCall.outerAbstractedMotiveApp,
     BoundGeneratedRecursiveCall.replayTrace,
     BoundGeneratedRecursiveCall.outerAbstractedMajor,
-    Array.map_map, Function.comp_def]
+    Expr.abstractList_mkAppN, Array.map_map, Array.map_ofFn, Function.comp_def]
 
 
 end VerifyInductive

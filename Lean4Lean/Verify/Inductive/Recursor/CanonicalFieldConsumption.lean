@@ -25,12 +25,10 @@ theorem RecursorFieldDecisions.consumeClosed
     (H : RecursorFieldDecisions stats root source current terminal fields selected positions)
     (Hroot : BindingContextWF root)
     (hsource : source.FVarsIn (fun fv => fv ∈ root.lctx.fvars))
-    (hclosed : Closed source)
     (C : Expr → Expr)
     (hforall : ∀ name dom body bi, C (.forallE name dom body bi) =
       .forallE name dom.consumeTypeAnnotationsVerified (C body) bi)
-    (habstract : ∀ e fv, (C e).abstract1 fv = C (e.abstract1 fv))
-    (hC : ∀ e k, Closed e k → Closed (C e) k) :
+    (habstract : ∀ e fv, (C e).abstract1 fv = C (e.abstract1 fv)) :
     current.lctx.mkForall fields (C terminal) = C source := by
   induction H with
   | nil => exact LocalContext.mkForall_empty _ _
@@ -38,8 +36,6 @@ theorem RecursorFieldDecisions.consumeClosed
   | @recursive c name dom body bi fields selected positions target H _ ih =>
     obtain ⟨Hc, _, ⟨Hfields⟩⟩ := H.freshBindings Hroot
     have hbodyScope := (H.currentFVarsIn Hroot hsource).2
-    have hbodyClosed : Closed (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) := by
-      rw [Expr.instantiate1_eq]; exact hclosed.2.instantiate1 trivial
     have hbodyFresh : body.FVarsIn (fun fv => fv ≠ (⟨c.ngen.curr⟩ : FVarId)) := by
       apply hbodyScope.mono
       intro fv hfv heq
@@ -54,23 +50,20 @@ theorem RecursorFieldDecisions.consumeClosed
       (type := dom.consumeTypeAnnotationsVerified) (bi := bi)
     have hbodyClose : (C (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))).abstract1 ⟨c.ngen.curr⟩ = C body := by
       rw [habstract, Expr.instantiate1_eq, hbodyFresh.abstract_instantiate1]
-    rw [Expr.abstractN_singleton (hC _ _ hbodyClosed).looseBVarRange_le, hbodyClose,
-      ← hforall] at hclose
+    rw [hbodyClose, ← hforall] at hclose
     have harr : ((Hfields.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]).map Expr.fvar).toArray =
         fields.push (.fvar ⟨c.ngen.curr⟩) := by simp [Hfields.expressions]
     rw [harr, ← Hfields.expressions] at hclose
-    exact hclose.trans (ih hbodyClosed)
+    exact hclose.trans ih
 
 theorem RecursorFieldDecisions.consumeForallTypes
     (H : RecursorFieldDecisions stats root source current terminal fields selected positions)
     (Hroot : BindingContextWF root)
-    (hsource : source.FVarsIn (fun fv => fv ∈ root.lctx.fvars))
-    (hclosed : Closed source) :
+    (hsource : source.FVarsIn (fun fv => fv ∈ root.lctx.fvars)) :
     current.lctx.mkForall fields (Lean4Lean.Expr.consumeForallTypes terminal) =
       Lean4Lean.Expr.consumeForallTypes source :=
-  H.consumeClosed Hroot hsource hclosed Lean4Lean.Expr.consumeForallTypes
+  H.consumeClosed Hroot hsource Lean4Lean.Expr.consumeForallTypes
     (fun _ _ _ _ => rfl) (fun e fv => Lean4Lean.Expr.abstract1_consumeForallTypes e fv)
-    (fun _ _ h => h.consumeForallTypes)
 
 theorem CompletedRecursorConstruction.constructorConsumedSource
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
@@ -92,7 +85,6 @@ theorem CompletedRecursorConstruction.constructorConsumedSource
     exact List.mem_append_right _ hfv
   have hclosed := HS.semantic.traversal.decisions.consumeForallTypes
     HS.semantic.rootWF.toBindingContextWF hsource
-    (by simpa [TypeChecker.MLCtx.noBV] using HS.semantic.parameterTranslation.closed)
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, _, hvalid, _⟩ :=
     H.minorSources owner howner (by rwa [← H.sourceFamilyCount]) localIndex hlocal
   have heq : traversal = HS.semantic.traversal :=

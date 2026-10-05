@@ -47,8 +47,8 @@ theorem RecInfoMinorSemanticSource.fieldSourceFVars
     (HS.traversal.terminalContext.lctx.mkForall S.fields (.sort .zero)).FVarsIn
       (· ∈ HS.parameterSuffix.parameterDecls.fvars) := by
   rw [← HS.terminalWF.lctx_eq,
-    HS.terminalWF.mlctx_wf.mkForall_eq S.fields.size HS.fieldsRecent.size_le HS.fieldsRecent.reverse_eq
-      trivial]
+    HS.terminalWF.mlctx_wf.mkForall_eq (e := .sort .zero) S.fields.size HS.fieldsRecent.size_le
+      HS.fieldsRecent.reverse_eq trivial]
   have Hup : IsFVarUpSet
       (fun fv => fv ∈ HS.terminalWF.mlctx.fvarRevList S.fields.size HS.fieldsRecent.size_le ∨
         fv ∈ ExprArrayFVarIds HS.traversal.stats.params) HS.terminalWF.mlctx.vlctx := by

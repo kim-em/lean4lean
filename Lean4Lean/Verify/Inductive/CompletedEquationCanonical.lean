@@ -1472,7 +1472,25 @@ theorem
   have hclosed := F.rawRecursorPrefixClosed
   rw [Expr.liftLooseBVars_eq_self hclosed.looseBVarRange_le]
   rw [Expr.abstractList_mkAppN, Expr.mkAppN_eq_mkAppList]
+  have hidx : ∀ index ∈ Std.Slice.toList
+      (F.semantic.generated.exposedType.getAppArgs.toSubarray stats.params.size),
+      index.abstractN F.semantic.generated.arguments_bound.fvars =
+        index.abstractList F.semantic.generated.arguments_bound.fvars := by
+    intro index hmem
+    have hexposedClosed : Closed F.semantic.generated.exposedType := by
+      have h := F.semantic.exposed_translation.closed
+      rwa [F.semantic.current_context.mlctx.noBV] at h
+    have hmem' : index ∈ F.semantic.generated.exposedType.getAppArgsList := by
+      rw [← Expr.getAppArgs_toList]
+      have hsub : index ∈ (F.semantic.generated.exposedType.getAppArgs.toSubarray
+          stats.params.size).toList := hmem
+      rw [Subarray.toList_eq_drop_take, Array.array_toSubarray] at hsub
+      exact List.mem_of_mem_take (List.mem_of_mem_drop hsub)
+    exact Expr.abstractN_eq_abstractList F.semantic.generated.arguments_bound.nodup index 0
+      (hexposedClosed.getAppArgsList hmem').looseBVarRange_le
   simp [AddInductive.getIIndices, List.map_map, Function.comp_def]
+  congr 1
+  exact List.map_congr_left fun index hmem => by rw [hidx index hmem]
 
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedCommonPrefix_eq_lift

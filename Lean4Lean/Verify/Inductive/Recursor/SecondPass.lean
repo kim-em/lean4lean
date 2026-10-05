@@ -1993,7 +1993,7 @@ theorem inductionHypothesisTypeOrigin
           targetTypeIdx := target
           targetIndices := targetIndices
           template := lctx.mkLambda args <|
-            (mkAppN (.bvar 0) targetIndices).app
+            (mkAppN (.bvar args.size) targetIndices).app
               (mkAppN (.fvar fv) args) } :
             AddInductive.RecCallBlueprint))) c).WF fun result =>
         ∃ viTarget,
@@ -2032,7 +2032,7 @@ theorem inductionHypothesisTypeOrigin
         targetTypeIdx := target
         targetIndices := targetIndices
         template := lctx.mkLambda args <|
-          (mkAppN (.bvar 0) targetIndices).app
+          (mkAppN (.bvar args.size) targetIndices).app
             (mkAppN (.fvar fv) args) })
   have hfvScope : fv ∈ R.mlctx.vlctx.fvars := by
     simpa only [FVarsIn] using hfield.fvarsIn
@@ -2110,7 +2110,7 @@ theorem inductionHypothesisTypeOrigin
         targetTypeIdx := target
         targetIndices := targetIndices
         template := current.lctx.mkLambda args <|
-          (mkAppN (.bvar 0) targetIndices).app
+          (mkAppN (.bvar args.size) targetIndices).app
             (mkAppN (.fvar fv) args) } :
           AddInductive.RecCallBlueprint))).WF _
     let O : RecInfoHypothesisTypeOrigin stats recInfos c
@@ -2145,7 +2145,7 @@ theorem inductionHypothesisTypeOrigin
       targetTypeIdx := target
       targetIndices := targetIndices
       template := current.lctx.mkLambda args <|
-        (mkAppN (.bvar 0) targetIndices).app
+        (mkAppN (.bvar args.size) targetIndices).app
           (mkAppN (.fvar fv) args) }
     let value := call.build indTypes stats (recInfos.map (·.motive))
       minors lvls

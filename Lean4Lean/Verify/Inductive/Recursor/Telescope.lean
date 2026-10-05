@@ -665,6 +665,27 @@ theorem Expr.abstractList_bvar_lt (fvs : List FVarId)
   | cons fv fvars ih =>
     simp [Expr.abstractList, Expr.abstract1, ih]
 
+@[simp] theorem Expr.abstractN_app :
+    (Expr.app fn arg).abstractN fvs k = .app (fn.abstractN fvs k) (arg.abstractN fvs k) := rfl
+
+theorem Expr.abstractN_mkAppN :
+    (mkAppN fn args).abstractN fvs k =
+      mkAppN (fn.abstractN fvs k) (args.map fun arg => arg.abstractN fvs k) := by
+  unfold mkAppN
+  rw [← Array.foldl_toList, ← Array.foldl_toList]
+  simp only [Array.toList_map]
+  generalize args.toList = list
+  induction list generalizing fn with
+  | nil => simp
+  | cons arg args ih =>
+    simp only [List.foldl_cons, List.map_cons]
+    rw [ih]
+    simp [Expr.abstractN]
+
+theorem Expr.abstractN_fvar_of_not_mem (hmem : fv ∉ fvs) :
+    (Expr.fvar fv).abstractN fvs k = .fvar fv := by
+  simp [Expr.abstractN, Expr.lastRevIdx?_eq_none_of_not_mem hmem]
+
 theorem Expr.abstractList_mkAppN :
     (mkAppN fn args).abstractList fvs k =
       mkAppN (fn.abstractList fvs k)
@@ -1021,6 +1042,33 @@ theorem Expr.closed_of_abstractList
     rw [Expr.abstractList_proj] at Hclosed
     simpa only [Closed] using ih Hclosed
 
+theorem Expr.abstractN_fvar_getElem
+    (hnd : fvs.Nodup) (i : Nat) (hi : i < fvs.length) :
+    (Expr.fvar fvs[i]).abstractN fvs k = .bvar (k + (fvs.length - 1 - i)) := by
+  rw [Expr.abstractN_eq_abstractList hnd _ _ (by simp [Expr.looseBVarRange'])]
+  exact Expr.abstractList_fvar_getElem hnd i hi
+
+theorem Expr.abstractN_fvarArray
+    (fvs : List FVarId) (k : Nat) (hnd : fvs.Nodup) :
+    ((fvs.map Expr.fvar).toArray.map fun e => e.abstractN fvs k) =
+      (List.ofFn fun i : Fin fvs.length =>
+        Expr.bvar (k + (fvs.length - 1 - i))).toArray := by
+  apply Array.ext
+  · simp
+  · intro i h1 h2
+    have hi : i < fvs.length := by simpa using h1
+    simp only [Array.getElem_map, List.getElem_toArray, List.getElem_map, List.getElem_ofFn]
+    exact Expr.abstractN_fvar_getElem hnd i hi
+
+theorem Expr.abstractN_add_eq_liftLooseBVars
+    (Hclosed : Closed e depth) (Hnodup : fvars.Nodup) :
+    e.abstractN fvars (depth + extra) =
+      (e.abstractN fvars depth).liftLooseBVars' depth extra := by
+  rw [Expr.abstractN_eq_abstractList Hnodup _ _
+      (Nat.le_trans Hclosed.looseBVarRange_le (Nat.le_add_right _ _)),
+    Expr.abstractN_eq_abstractList Hnodup _ _ Hclosed.looseBVarRange_le]
+  exact Expr.abstractList_add_eq_liftLooseBVars Hclosed Hnodup
+
 theorem Expr.abstractList_fvarArray
     (fvs : List FVarId) (k : Nat) (hnd : fvs.Nodup) :
     ((fvs.map Expr.fvar).toArray.map fun e => e.abstractList fvs k) =
@@ -1043,7 +1091,7 @@ theorem Expr.abstract_instantiateRev_fvar_getElem
         (fvars.map Expr.fvar).toArray).instantiateRev
         (restoreFvars.map Expr.fvar).toArray =
       .fvar restoreFvars[i] := by
-  rw [Expr.abstract_eq, Expr.abstractList_fvar_getElem hnd i hi,
+  rw [Expr.abstract_eq_of_closed _ _ hnd rfl, Expr.abstractList_fvar_getElem hnd i hi,
     Expr.instantiateRev_eq, Expr.instantiate_eq]
   simp only [Array.toList_reverse]
   rw [Expr.instantiateList_reverse]
@@ -1405,11 +1453,12 @@ theorem Expr.reopenParams_eq_reopenFVarsAt
     (hrestore : restoreAs = (restoreFvars.map Expr.fvar).toArray) :
     Expr.reopenParams e params restoreAs =
       Expr.reopenFVarsAt e fvars restoreFvars 0 := by
+  -- TODO(abstract_eq_legacy): true only for closed `e`; see `Expr.abstract_eq_legacy`.
   subst params
   subst restoreAs
-  simp [Expr.reopenParams, Expr.reopenFVarsAt, Expr.abstract_eq,
+  simp only [Expr.reopenParams, Expr.reopenFVarsAt, Expr.abstract_eq_legacy,
     Expr.instantiateRev_eq, Expr.instantiate_eq, Array.toList_reverse,
-    Expr.instantiateList_reverse]
+    Expr.instantiateList_reverse, List.toList_toArray, List.map_reverse]
 
 /-- Reopening at the depth of a syntax traversal agrees with the operational
 depth-zero parameter reopening. -/
@@ -1430,7 +1479,7 @@ theorem Expr.reopenParams_app
       .app (Expr.reopenParams fn params restoreAs)
         (Expr.reopenParams arg params restoreAs) := by
   subst params
-  simp [Expr.reopenParams, Expr.abstract_eq, Expr.instantiateRev_eq,
+  simp [Expr.reopenParams, Expr.abstractN_eq, Expr.abstractN, Expr.instantiateRev_eq,
     Expr.instantiate_eq, Array.toList_reverse]
 
 theorem Expr.reopenParams_const
@@ -1439,11 +1488,10 @@ theorem Expr.reopenParams_const
     Expr.reopenParams (.const name levels) params restoreAs =
       .const name levels := by
   subst params
-  simp only [Expr.reopenParams, Expr.abstract_eq,
+  simp only [Expr.reopenParams, Expr.abstractN_eq,
     Expr.instantiateRev_eq, Expr.instantiate_eq]
-  have habstract : (Expr.const name levels).abstractList fvars =
-      .const name levels := by
-    induction fvars <;> simp [Expr.abstractList, Expr.abstract1, *]
+  have habstract : (Expr.const name levels).abstractN fvars =
+      .const name levels := rfl
   rw [habstract]
   apply Expr.instantiateList'_eq_self
   exact Nat.le_refl 0
@@ -3053,6 +3101,24 @@ theorem Expr.ForallBinderAt.abstract1
       simpa [Expr.abstract1, Nat.add_assoc, Nat.add_comm,
         Nat.add_left_comm] using Hresult
 
+theorem Expr.ForallBinderAt.abstractN
+    (H : Expr.ForallBinderAt source i domain) (xs : List FVarId) (k : Nat := 0) :
+    Expr.ForallBinderAt (source.abstractN xs k) i
+      (domain.abstractN xs (k + i)) := by
+  induction H generalizing k with
+  | @here name domain body bi =>
+      simpa [Expr.abstractN] using
+        (Expr.ForallBinderAt.here (name := name)
+          (body := body.abstractN xs (k + 1))
+          (bi := bi) (domain := domain.abstractN xs k))
+  | @there body i domain name outerDomain bi H ih =>
+      have Htail := ih (k + 1)
+      have Hresult := Expr.ForallBinderAt.there
+        (name := name) (outerDomain := outerDomain.abstractN xs k)
+        (bi := bi) Htail
+      simpa [Expr.abstractN, Nat.add_assoc, Nat.add_comm,
+        Nat.add_left_comm] using Hresult
+
 theorem Expr.ForallBinderAt.abstractList
     (H : Expr.ForallBinderAt source i domain)
     (fvars : List FVarId) (k : Nat := 0) :
@@ -3821,6 +3887,17 @@ theorem Expr.SameForallLambdaPrefix.abstract1
     simp only [Expr.abstract1]
     exact .cons (ih (k + 1))
 
+theorem Expr.SameForallLambdaPrefix.abstractN
+    (H : Expr.SameForallLambdaPrefix n forallBody lambdaBody)
+    (fvs : List FVarId) (k : Nat := 0) :
+    Expr.SameForallLambdaPrefix n
+      (forallBody.abstractN fvs k) (lambdaBody.abstractN fvs k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.abstractN]
+    exact .cons (ih (k + 1))
+
 theorem Expr.SameForallLambdaPrefix.abstractList
     (H : Expr.SameForallLambdaPrefix n forallBody lambdaBody)
     (fvars : List FVarId) (k : Nat := 0) :
@@ -3889,6 +3966,15 @@ theorem Expr.SameLambdaPrefix.abstract1
   | nil => exact .nil
   | cons H ih =>
     simp only [Expr.abstract1]
+    exact .cons (ih (k + 1))
+
+theorem Expr.SameLambdaPrefix.abstractN
+    (H : Expr.SameLambdaPrefix n left right) (fvs : List FVarId) (k : Nat := 0) :
+    Expr.SameLambdaPrefix n (left.abstractN fvs k) (right.abstractN fvs k) := by
+  induction H generalizing k with
+  | nil => exact .nil
+  | cons H ih =>
+    simp only [Expr.abstractN]
     exact .cons (ih (k + 1))
 
 theorem Expr.SameLambdaPrefix.abstractList
@@ -4101,6 +4187,33 @@ theorem Expr.abstract1_looseBVarRange_le
 
 /-- Simultaneous free-variable abstraction raises a closed loose-variable
 boundary by exactly the number of introduced binders. -/
+theorem Expr.abstractN_looseBVarRange_le
+    {e : Expr} {fvs : List FVarId} {k : Nat}
+    : (e.abstractN fvs k).looseBVarRange' ≤
+        max k e.looseBVarRange' + fvs.length := by
+  induction e generalizing k with
+  | bvar i => simp [Expr.abstractN, Expr.looseBVarRange']; omega
+  | fvar v =>
+    simp only [Expr.abstractN]
+    split
+    · rename_i r hr
+      have := Expr.lastRevIdx?_lt_length hr
+      simp [Expr.looseBVarRange']; omega
+    · simp [Expr.looseBVarRange']
+  | mdata _ e ih | proj _ _ e ih => simpa [Expr.abstractN, Expr.looseBVarRange'] using ih
+  | app f a ihf iha =>
+    simp only [Expr.abstractN, Expr.looseBVarRange', Nat.max_le]
+    constructor <;> [have := @ihf k; have := @iha k] <;> omega
+  | lam _ t b _ iht ihb | forallE _ t b _ iht ihb =>
+    simp only [Expr.abstractN, Expr.looseBVarRange', Nat.max_le]
+    have h1 := @iht k; have h2 := @ihb (k + 1)
+    constructor <;> omega
+  | letE _ t v b _ iht ihv ihb =>
+    simp only [Expr.abstractN, Expr.looseBVarRange', Nat.max_le]
+    have h1 := @iht k; have h2 := @ihv k; have h3 := @ihb (k + 1)
+    refine ⟨⟨?_, ?_⟩, ?_⟩ <;> omega
+  | const _ _ | sort _ | mvar _ | lit _ => simp [Expr.abstractN, Expr.looseBVarRange']
+
 theorem Expr.abstractList_looseBVarRange_le
     {e : Expr} {fvs : List FVarId} {k : Nat}
     : (e.abstractList fvs k).looseBVarRange' ≤
@@ -4489,6 +4602,100 @@ theorem LocalContext.mkBindingList_lambdaTelescope
       hdecl fv (by simpa using hfv))
 
 /-- The production `LocalContext.mkLambda` interface specialized to an
+explicit array of ordinary local free variables, with the exact (simultaneous)
+abstraction as residual. -/
+theorem LocalContext.mkBindingListN_lambdaTelescope
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.LambdaTelescope
+      (LocalContext.mkBindingListN true lctx fvs body)
+      fvs.length (body.abstractN fvs) := by
+  have go : ∀ (xs : List FVarId) (current : Expr),
+      (∀ fv ∈ xs, ∃ index name type bi kind,
+        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
+      Expr.LambdaTelescope
+        (LocalContext.mkBindingListN.go true lctx xs current)
+        xs.length current := by
+    intro xs
+    induction xs with
+    | nil =>
+      intro current _
+      exact .nil _
+    | cons fv xs ih =>
+      intro current hxs
+      rw [LocalContext.mkBindingListN.go]
+      have htail := ih
+        (LocalContext.mkBindingList1N true lctx xs.reverse fv current)
+        (fun x hx => hxs x (by simp [hx]))
+      rcases hxs fv (by simp) with
+        ⟨index, name, type, bi, kind, hfind⟩
+      have hhead : Expr.LambdaTelescope
+          (LocalContext.mkBindingList1N true lctx xs.reverse fv current)
+          1 current := by
+        simp only [LocalContext.mkBindingList1N, hfind]
+        exact Expr.LambdaTelescope.cons (.nil _)
+      simpa using htail.trans hhead
+  simpa only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core,
+    List.length_reverse] using
+    go fvs.reverse (body.abstractN fvs) (fun fv hfv =>
+      hdecl fv (by simpa using hfv))
+
+theorem LocalContext.mkBindingListN_avoidingLambdaTelescope
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (havoid : ∀ fv index name type bi kind,
+      fv ∈ fvs →
+      lctx.find? fv = some (.cdecl index fv name type bi kind) →
+      type.AvoidsConsts namesToAvoid) :
+    Expr.AvoidingLambdaTelescope namesToAvoid
+      (LocalContext.mkBindingListN true lctx fvs body)
+      fvs.length (body.abstractN fvs) := by
+  have go : ∀ (xs : List FVarId) (current : Expr),
+      xs ⊆ fvs →
+      (∀ fv ∈ xs, ∃ index name type bi kind,
+        lctx.find? fv = some (.cdecl index fv name type bi kind)) →
+      Expr.AvoidingLambdaTelescope namesToAvoid
+        (LocalContext.mkBindingListN.go true lctx xs current)
+        xs.length current := by
+    intro xs
+    induction xs with
+    | nil =>
+      intro current _ _
+      exact .nil _
+    | cons fv xs ih =>
+      intro current hsubset hxs
+      rw [LocalContext.mkBindingListN.go]
+      have htail := ih
+        (LocalContext.mkBindingList1N true lctx xs.reverse fv current)
+        (fun x hx => hsubset (by simp [hx]))
+        (fun x hx => hxs x (by simp [hx]))
+      rcases hxs fv (by simp) with
+        ⟨index, name, type, bi, kind, hfind⟩
+      have hhead : Expr.AvoidingLambdaTelescope namesToAvoid
+          (LocalContext.mkBindingList1N true lctx xs.reverse fv current)
+          1 current := by
+        simp only [LocalContext.mkBindingList1N, hfind]
+        apply Expr.AvoidingLambdaTelescope.cons
+        · exact (havoid fv index name type bi kind
+            (hsubset (by simp)) hfind).abstractN xs.reverse
+        · exact .nil _
+      simpa using htail.trans hhead
+  simpa only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core,
+    List.length_reverse] using
+    go fvs.reverse (body.abstractN fvs) (by simp)
+      (fun fv hfv => hdecl fv (by simpa using hfv))
+
+theorem LocalContext.mkLambda_fvars_lambdaTelescopeN
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind)) :
+    Expr.LambdaTelescope
+      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractN fvs) := by
+  rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
+  exact LocalContext.mkBindingListN_lambdaTelescope hdecl
+
+/-- The production `LocalContext.mkLambda` interface specialized to an
 explicit array of ordinary local free variables. -/
 theorem LocalContext.mkLambda_fvars_lambdaTelescope
     {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
@@ -4546,6 +4753,20 @@ theorem LocalContext.mkBindingList_avoidingLambdaTelescope
     List.length_reverse] using
     go fvs.reverse (body.abstractList fvs) (by simp)
       (fun fv hfv => hdecl fv (by simpa using hfv))
+
+theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescopeN
+    {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
+    (hdecl : ∀ fv ∈ fvs, ∃ index name type bi kind,
+      lctx.find? fv = some (.cdecl index fv name type bi kind))
+    (havoid : ∀ fv index name type bi kind,
+      fv ∈ fvs →
+      lctx.find? fv = some (.cdecl index fv name type bi kind) →
+      type.AvoidsConsts namesToAvoid) :
+    Expr.AvoidingLambdaTelescope namesToAvoid
+      (lctx.mkLambda (fvs.map Expr.fvar).toArray body)
+      fvs.length (body.abstractN fvs) := by
+  rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
+  exact LocalContext.mkBindingListN_avoidingLambdaTelescope hdecl havoid
 
 theorem LocalContext.mkLambda_fvars_avoidingLambdaTelescope
     {lctx : LocalContext} {fvs : List FVarId} {body : Expr}
