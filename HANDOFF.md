@@ -205,6 +205,23 @@ inside this project's scope without solving open base metatheory:
   components must be re-audited now that the template chain runs on the exact
   model; the executable they describe is now validated empirically against
   Lean's own recursors, which was not true before.
+- **The junctions are the whole specification connection, not an
+  assembly step.** Outside the three junction targets and their
+  `Realization` definitions, the verification layer references the abstract
+  generator only through `InductiveSignature.Instance.motive`
+  (`CanonicalMotiveGroup.lean`). Nothing relates a production minor type to
+  `Instance.minor`/`Instance.hypothesis`, a generated iota rule to
+  `Instance.equation`, or `declareRecursors.recursorType` to
+  `Instance.recursorType` (grep 2026-10-05). The equation layer
+  (`Equation/*`, `Completed*`, about 56k lines) proves source-vs-production
+  alignment of binders and residuals, not generator correspondence. So
+  "recursor metadata/equations" and the minors part of recursor types are
+  open in full, hidden behind `Nonempty` of certificate structures; the
+  derived audit root `canonicalTypeTranslations` is not independent evidence.
+  The first real junction theorem is: for `s := R.sourceSignature`, the
+  production minor type of each constructor translates to `Instance.minor`
+  (fields via `sourceSignature_fieldTypes`, hypotheses via
+  `RecInfoMinorHypothesisTypeOrigin`, residual via the terminal spine).
 - The honest reachable target is: executable validated against Lean on large
   corpora; inductive-specific obligations closed; final theorem conditional
   only on the named base conjectures; no false statement in the trusted base.
