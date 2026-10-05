@@ -210,11 +210,21 @@ declarations; validation must not assume correctness of its own artifact.
    against `minorFieldsTemplate`); and its residual inverts to the owner's
    motive variable applied to translations of the closed terminal indices and
    to the canonical constructor spine `mkApps (const ctor levels) (vars …)`
-   (`minorResidualSource`, `recursorTelescope_minorResidual`). Still open in
-   this inversion: identifying the index translations with the lifted
-   `sourceConstructorIndices` (forward: `liftOriginalType`,
-   `insertBeforeInner`, `bvLift`, then `uniqueS`) and the hypothesis domains
-   (item 8). Correction of an earlier plan: the junction
+   (`minorResidualSource`, `recursorTelescope_minorResidual`); its index
+   translations are the lifted `sourceConstructorIndices`
+   (`recursorTelescope_minorIndices`: lift the header replay with
+   `liftOriginalType`, peel the field telescope, weaken with
+   `insertBeforeInner` and `bvLift`, then `uniqueS`); and each hypothesis
+   domain translates the retained hypothesis declaration in its generator
+   context (`recursorTelescope_hypothesisSlot`) and inverts to a telescope of
+   argument domains, the owner's motive variable applied to translations of
+   the closed exposed indices, and the recursive field variable applied to
+   the canonical argument spine (`hypothesisResidualSource`,
+   `recursorTelescope_hypothesisShape`, from the blueprint hypothesis origins
+   `RecInfoMinorHypothesisTypeOrigin`). What remains for the minors is
+   exactly item 8: the argument domains and exposed indices must be the lifts
+   of small-context `Recursive` shapes for `Instance.hypothesis` to match.
+   Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
    `consumeTypeAnnotationsVerified` domains, and
@@ -316,9 +326,10 @@ inside this project's scope without solving open base metatheory:
    field-domain template `minorFieldsTemplate`, the per-minor translation
    `recursorTelescope_minor`, the field-domain identification
    `recursorTelescope_minorFields`, and the residual inversion
-   `recursorTelescope_minorResidual` (motive variable, constructor spine, and
-   the index translations as a `Forall₂`). Next: `idx` equals the lifted
-   `sourceConstructorIndices`
+   `recursorTelescope_minorResidual` (motive variable, constructor spine),
+   the index identification `recursorTelescope_minorIndices`, and the
+   hypothesis-domain shape `recursorTelescope_hypothesisShape`. Previously
+   planned and now done: `idx` equals the lifted `sourceConstructorIndices`
    (forward: `liftOriginalType`, `insertBeforeInner`, `bvLift`, then
    uniqueness); each hypothesis domain inverts to `wrapForalls A (app (mkApps
    (bvar m) I) (mkApps (bvar f) bvars))`, and the consumed signature's
