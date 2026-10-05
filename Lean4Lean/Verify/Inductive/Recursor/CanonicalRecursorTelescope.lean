@@ -416,4 +416,103 @@ theorem CompletedRecursorConstruction.recursorTelescope_minorFields
   rw [← hF']
   simpa [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc] using Hres
 
+/-- The executable's universe arguments translate to the recursor's abstract
+level list, for any materialized header over the same parameter names. -/
+theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTranslation'
+    {env : VEnv} {Us : List Name} {Δ : VLCtx} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {depth : Nat}
+    (H : checkInductiveTypes.loopInd.MaterializedHeaderResult env Us Δ stats decl depth)
+    (hlparams : Us.Nodup) {elimLevel : Level}
+    (Helim : AddInductive.AdmissibleElimLevel Us elimLevel) :
+    stats.levels.mapM (VLevel.ofLevel (AddInductive.getRecLevelParams elimLevel Us)) =
+      some (recursorDeclarationAbstractLevels Us Helim) := by
+  cases elimLevel with
+  | zero =>
+    simpa [AddInductive.getRecLevelParams, recursorDeclarationAbstractLevels,
+      List.map_param_idxOf_eq_params hlparams] using H.levelTranslation
+  | param fresh =>
+    have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim H.levelTranslation
+    simpa [AddInductive.getRecLevelParams, recursorDeclarationAbstractLevels,
+      List.map_param_idxOf_eq_params hlparams] using hshifted
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
+theorem CompletedRecursorConstruction.statsLevelsTranslation
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) :
+    stats.levels.mapM (VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)) =
+      some (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) :=
+  R.materialized.recursorLevelTranslation' H.lparamsNodup H.elimLevelAdmissible
+
+/-- The source motive application of a minor, with the owner of its motive
+resolved through the validated terminal application. -/
+theorem CompletedRecursorConstruction.minorMotiveAppForm
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    S.motiveApp = Expr.app
+      (mkAppN H.recInfos[mowner]!.motive
+        (AddInductive.getIIndices stats HS.semantic.traversal.terminal).2)
+      (mkAppN (mkAppN (.const S.constructor.name stats.levels) stats.params) S.fields) := by
+  intro S HS
+  have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, _, _, hmotiveApp, _, _, _⟩ :=
+    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+  have heq : traversal = HS.semantic.traversal :=
+    Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
+  subst heq
+  have hfst := checkPositivityStep.getIIndices.fst_eq_of_valid (H.constructorTerminalOwner mowner hmowner localIndex hlocal HS)
+  rw [hmotiveApp]
+  rcases hindices : AddInductive.getIIndices stats HS.semantic.traversal.terminal with
+    ⟨motiveOwner, indices⟩
+  have : motiveOwner = mowner := by simpa [hindices] using hfst
+  subst this
+  rfl
+
+/-- Closing a list of distinct free variables over itself yields the
+canonical descending de Bruijn spine above the abstraction depth. -/
+theorem Expr.abstractList_fvar_spine (fvs : List FVarId) (hnd : fvs.Nodup) (k : Nat) :
+    (fvs.map Expr.fvar).map (fun e => e.abstractList fvs k) =
+      List.ofFn fun j : Fin fvs.length => Expr.bvar (k + (fvs.length - 1 - j)) := by
+  apply List.ext_getElem
+  · simp
+  · intro i hleft hright
+    have hi : i < fvs.length := by simpa using hright
+    simp only [List.getElem_map, List.getElem_ofFn]
+    exact Expr.abstractList_fvar_getElem hnd i hi
+
+/-- Closing a prefix of distinct free variables over a longer distinct list
+places each at its descending position above the trailing variables. -/
+theorem Expr.abstractList_fvar_prefix_spine (fvs rest : List FVarId)
+    (hnd : (fvs ++ rest).Nodup) (k : Nat) :
+    (fvs.map Expr.fvar).map (fun e => e.abstractList (fvs ++ rest) k) =
+      List.ofFn fun j : Fin fvs.length => Expr.bvar ((k + rest.length) + (fvs.length - 1 - j)) := by
+  apply List.ext_getElem
+  · simp
+  · intro i hleft hright
+    have hi : i < fvs.length := by simpa using hright
+    simp only [List.getElem_map, List.getElem_ofFn]
+    have h := Expr.abstractList_fvar_getElem hnd (fvs := fvs ++ rest) i (by simp; omega) (k := k)
+    rw [List.getElem_append_left hi] at h
+    rw [h]
+    congr 1
+    simp only [List.length_append]
+    omega
+
+/-- Bound variables below the abstraction depth are untouched. -/
+theorem Expr.abstractList_bvar_spine (n below : Nat) (fvs : List FVarId) (k : Nat)
+    (h : below + n ≤ k) :
+    (List.ofFn fun j : Fin n => Expr.bvar (below + (n - 1 - j))).map
+        (fun e => e.abstractList fvs k) =
+      List.ofFn fun j : Fin n => Expr.bvar (below + (n - 1 - j)) := by
+  apply List.ext_getElem
+  · simp
+  · intro i hleft hright
+    have hi : i < n := by simpa using hright
+    simp only [List.getElem_map, List.getElem_ofFn]
+    exact Expr.abstractList_bvar_lt fvs (by omega)
+
 end Lean4Lean.VerifyInductive
