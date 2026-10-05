@@ -1137,4 +1137,158 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisSlot
   rw [htake, hget] at Ht
   simpa [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc] using Ht
 
+/-- The closed source of a hypothesis's motive application: after closing the
+higher-order arguments, the earlier hypotheses, the fields and the outer
+binders, the motive is the canonical outer variable, the recursive field is
+the canonical field variable applied to the canonical argument spine, and
+the indices are closed pointwise. -/
+theorem CompletedRecursorConstruction.hypothesisResidualSource
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R)
+    (minorIdx : Nat) (hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∀ (j : Nat)
+      (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+        S.hypotheses)
+      (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
+      {root : AddInductive.Context} {sourceType : Expr}
+      (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+        (S.recursiveFields[j]!) sourceType)
+      (howner : O.ownerIdx < H.recInfos.size)
+      (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
+      (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
+      ((((Expr.app
+          (mkAppN origins.recInfos[O.ownerIdx]!.motive
+            (O.exposedType.getAppArgs[origins.stats.params.size:] : Array Expr))
+          (mkAppN (S.recursiveFields[j]!) O.args)).abstractN O.arguments_bound.fvars).abstractList
+            (S.hypotheses_bound.fvars.take j) O.args.size).abstractList S.fields_bound.fvars
+              (j + O.args.size)).abstractList ys (S.fields.size + j + O.args.size) =
+        Expr.app
+          (Expr.mkAppList
+            (.bvar (S.fields.size + j + O.args.size + minorIdx +
+              ((H.recInfos.map (·.motive)).size - 1 - O.ownerIdx)))
+            ((O.exposedType.getAppArgs[origins.stats.params.size:] : Array Expr).toList.map fun e =>
+              (((e.abstractN O.arguments_bound.fvars).abstractList
+                (S.hypotheses_bound.fvars.take j) O.args.size).abstractList S.fields_bound.fvars
+                  (j + O.args.size)).abstractList ys (S.fields.size + j + O.args.size)))
+          (Expr.mkAppList (.bvar (j + O.args.size + (S.fields.size - 1 - pos)))
+            (List.ofFn fun l : Fin O.args.size => Expr.bvar (O.args.size - 1 - l))) := by
+  intro S ys j origins hmotives root sourceType O howner pos hpos hfield
+  obtain ⟨mfv, hmotive, hmroot⟩ := O.motive_is_fvar
+  obtain ⟨ffv, hfieldEq, hfroot⟩ := O.field_fvar
+  have hffv : ffv = S.fields_bound.fvars[pos]'hpos := Expr.fvar.inj (hfieldEq.symm.trans hfield)
+  have hna : O.arguments_bound.fvars.length = O.args.size := O.arguments_bound.length_fvars
+  have hnf : S.fields_bound.fvars.length = S.fields.size := S.fields_bound.length_fvars
+  have hmotiveLt : O.ownerIdx < (H.recInfos.map (·.motive)).size := by simpa using howner
+  have hoLt : O.ownerIdx < origins.recInfos.size := by
+    have h := congrArg Array.size hmotives
+    simp only [Array.size_map] at h
+    omega
+  -- The motive variable is the owner's motive binder.
+  obtain ⟨hmfvLt, hmotiveGet⟩ := H.bindings.motives.getElem_eq_fvar O.ownerIdx hmotiveLt
+  have hmfv : mfv = H.bindings.motives.fvars[O.ownerIdx]'hmfvLt := by
+    have h1 : (origins.recInfos.map (·.motive))[O.ownerIdx]'(by simpa using hoLt) =
+        (H.recInfos.map (·.motive))[O.ownerIdx]'hmotiveLt := by
+      simp only [hmotives]
+    rw [hmotiveGet, Array.getElem_map] at h1
+    have hm := hmotive
+    rw [getElem!_pos origins.recInfos O.ownerIdx hoLt] at hm
+    exact Expr.fvar.inj (hm.symm.trans h1)
+  -- Freshness of the arguments relative to the root.
+  have hargsFresh : ∀ fv, fv ∈ root.lctx.fvars → fv ∉ O.arguments_bound.fvars := by
+    intro fv hroot hmem
+    exact O.arguments_bound.fresh fv hmem hroot
+  have hmNotArgs : mfv ∉ O.arguments_bound.fvars := hargsFresh mfv hmroot
+  have hfNotArgs : ffv ∉ O.arguments_bound.fvars := hargsFresh ffv hfroot
+  -- The motive is not a hypothesis or a field.
+  have hmInMotives : mfv ∈ ExprArrayFVarIds (origins.recInfos.map (·.motive)) := by
+    simp only [ExprArrayFVarIds, List.mem_map, Array.mem_toList_iff]
+    refine ⟨.fvar mfv, ?_, rfl⟩
+    rw [← hmotive, getElem!_pos origins.recInfos O.ownerIdx hoLt,
+      ← Array.getElem_map (f := fun x : AddInductive.RecInfo => x.motive)]
+    exact Array.getElem_mem (by simpa using hoLt)
+  have hmNotHyps : mfv ∉ S.hypotheses_bound.fvars.take j := by
+    intro hmem
+    have h := origins.hypotheses_outer_fresh mfv (List.mem_append_right _ hmInMotives)
+    rw [S.hypotheses_bound.exprArrayFVarIds] at h
+    exact h (List.mem_of_mem_take hmem)
+  have hmNotFields : mfv ∉ S.fields_bound.fvars := by
+    intro hmem
+    have h := H.blueprints.fields_outer_fresh mowner hmowner localIndex hlocal mfv hmem
+    apply h
+    apply List.mem_append_left
+    apply List.mem_append_right
+    rwa [← hmotives]
+  have hfNotHyps : ffv ∉ S.hypotheses_bound.fvars.take j := by
+    intro hmem
+    exact S.hypotheses_fields_fresh ffv (List.mem_of_mem_take hmem) (hffv ▸ List.getElem_mem hpos)
+  -- Distinctness and lengths of the outer binders.
+  have houter := H.bindings.outerNodup H.params H.noAlias
+  have hys : ys.Nodup := by
+    apply List.Nodup.sublist _ houter
+    exact List.Sublist.append (List.Sublist.refl _) (List.take_sublist _ _)
+  have hparamsLen : H.params.fvars.length = stats.params.size := H.params.length_fvars
+  have hmotivesLen : H.bindings.motives.fvars.length = (H.recInfos.map (·.motive)).size :=
+    H.bindings.motives.length_fvars
+  have hminorsLen : (H.bindings.flatMinors.fvars.take minorIdx).length = minorIdx := by
+    rw [List.length_take, H.bindings.flatMinors.length_fvars]
+    omega
+  -- Component computations.
+  have hfvarKeep : ∀ (fv : FVarId) (xs : List FVarId), fv ∉ xs → ∀ k,
+      (Expr.fvar fv).abstractList xs k = .fvar fv := by
+    intro fv xs hfv k
+    exact FVarsIn.abstractList_eq_self (e := .fvar fv) (by simpa [FVarsIn] using hfv) (by simp [Closed])
+  have hmotiveAbs : ((((origins.recInfos[O.ownerIdx]!.motive.abstractN O.arguments_bound.fvars).abstractList
+      (S.hypotheses_bound.fvars.take j) O.args.size).abstractList S.fields_bound.fvars
+        (j + O.args.size)).abstractList ys (S.fields.size + j + O.args.size)) =
+      .bvar (S.fields.size + j + O.args.size + minorIdx +
+        ((H.recInfos.map (·.motive)).size - 1 - O.ownerIdx)) := by
+    rw [hmotive, Expr.abstractN_fvar_of_not_mem hmNotArgs, hfvarKeep _ _ hmNotHyps,
+      hfvarKeep _ _ hmNotFields]
+    have hposY : H.params.fvars.length + O.ownerIdx < ys.length := by
+      simp only [ys, List.length_append]
+      omega
+    have hget : ys[H.params.fvars.length + O.ownerIdx]'hposY =
+        H.bindings.motives.fvars[O.ownerIdx]'hmfvLt := by
+      simp only [ys]
+      rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by omega)]
+      congr 1
+      omega
+    rw [hmfv, ← hget, Expr.abstractList_fvar_getElem hys _ hposY]
+    congr 1
+    simp only [ys, List.length_append, hparamsLen, hmotivesLen, hminorsLen]
+    omega
+  have hfieldAbs : ((((Expr.fvar ffv).abstractN O.arguments_bound.fvars).abstractList
+      (S.hypotheses_bound.fvars.take j) O.args.size).abstractList S.fields_bound.fvars
+        (j + O.args.size)).abstractList ys (S.fields.size + j + O.args.size) =
+      .bvar (j + O.args.size + (S.fields.size - 1 - pos)) := by
+    rw [Expr.abstractN_fvar_of_not_mem hfNotArgs, hfvarKeep _ _ hfNotHyps, hffv,
+      Expr.abstractList_fvar_getElem S.fields_nodup pos hpos, hnf,
+      Expr.abstractList_bvar_lt _ (by omega)]
+  have hargsAbs : (O.args.toList.map fun e =>
+      (((e.abstractN O.arguments_bound.fvars).abstractList (S.hypotheses_bound.fvars.take j)
+        O.args.size).abstractList S.fields_bound.fvars (j + O.args.size)).abstractList ys
+          (S.fields.size + j + O.args.size)) =
+      List.ofFn fun l : Fin O.args.size => Expr.bvar (O.args.size - 1 - l) := by
+    have hlist : O.args.toList = O.arguments_bound.fvars.map Expr.fvar := by
+      simpa using congrArg Array.toList O.arguments_bound.expressions
+    rw [hlist]
+    apply List.ext_getElem
+    · simp [hna]
+    · intro i hleft hright
+      have hi : i < O.arguments_bound.fvars.length := by simpa using hleft
+      simp only [List.getElem_map, List.getElem_ofFn]
+      rw [Expr.abstractN_fvar_getElem O.arguments_bound.nodup i hi, hna, Nat.zero_add,
+        Expr.abstractList_bvar_lt _ (by omega), Expr.abstractList_bvar_lt _ (by omega),
+        Expr.abstractList_bvar_lt _ (by omega)]
+  simp only [hfieldEq, Expr.abstractN_app, Expr.abstractN_mkAppN]
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+  rw [hmotiveAbs, hfieldAbs]
+  simp only [Expr.mkAppN_eq_mkAppList, Array.toList_map, List.map_map, Function.comp_def]
+  rw [← hargsAbs]
+
 end Lean4Lean.VerifyInductive
