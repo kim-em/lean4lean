@@ -229,7 +229,28 @@ declarations; validation must not assume correctness of its own artifact.
    of the junction is reduced exactly to the minor group, and the minor group
    to item 8: the hypothesis argument domains and exposed indices must be the
    lifts of small-context `Recursive` shapes for `Instance.hypothesis` to
-   match. Correction of an earlier plan: the junction
+   match. Translation strengthening is available for this:
+   `Recursor/ContextRestriction.lean` restricts a lambda-only typechecker
+   context to any up-set of its free variables (`MLCtx.restrictUpSetCtx`:
+   the result is a well-formed `MLCtx` whose declarations carry the
+   strengthened translations, with the `FVLift'` witness; uses
+   `TrExprS.weakFV'_inv`, which does not depend on `weakN_iff`) and closes
+   such a context into abstract binders (`TrExprS.closeAllLams`). The
+   remaining program for the minors, independent of item 8's resolution:
+   for hypothesis `j` take the semantic call row
+   (`RecInfoHypothesisCallSemanticOrigins` → `SemanticBoundGeneratedRecursiveCall`,
+   with `current_scope_up : IsFVarUpSet (args ∨ fields ∨ params)`), sharpen
+   the up-set to `params ∪ fields.take f ∪ args` (field dependencies lie in
+   earlier fields by `VLCtx.WF` plus `fieldParameterUp`; argument scope by
+   induction over `RecursorLoopUArgsPrefix` with `whnf.WF`'s `FVarsBelow`),
+   restrict the row's context, read the `Recursive` binders off
+   `MLCtxForallDomains` of the restricted context and the indices off the
+   restricted `exposed_translation`, close with `closeAllLams`, weaken into
+   the generator's hypothesis context with `insertBeforeInner`/`bvLift`, and
+   identify with `recursorTelescope_hypothesisShape` by `uniqueS` (the two
+   passes' telescopes are related through `replayTrace_eq_blueprint`). Only
+   `Models.recursiveTypes` for these shapes then remains (item 8).
+   Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
    `consumeTypeAnnotationsVerified` domains, and
