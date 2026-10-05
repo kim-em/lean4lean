@@ -1071,4 +1071,70 @@ theorem CompletedRecursorConstruction.recursorTelescope_minorIndices
   simp only [Function.comp_def, hhyps, hdomLen] at hright
   simpa using hright.symm
 
+/-- The `j`-th hypothesis domain of a flat minor slot translates the retained
+hypothesis declaration type, closed over the earlier hypotheses, the fields,
+and the outer binders, in the generator context of that hypothesis. -/
+theorem CompletedRecursorConstruction.recursorTelescope_hypothesisSlot
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (minorIdx : Nat)
+    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
+    (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let fields := InductiveSignature.insertBinders
+      ((H.sourceFields mowner hmowner localIndex hlocal).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      ((H.recInfos.map (·.motive)).size + minorIdx)
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∀ (hyps : List VExpr) (res : VExpr) (hhyps : hyps.length = S.hypotheses.size),
+      T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
+        VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
+      ∀ (j : Nat) (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j),
+      TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+        (abstractForallContext
+          (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j) [])
+        (((D.type.abstractList (S.hypotheses_bound.fvars.take j)).abstractList
+          S.fields_bound.fvars j).abstractList ys (S.fields.size + j))
+        (hyps[j]'(by rw [hhyps]; exact D.inBounds)) := by
+  intro S fields ys hyps res hhyps hminorEq j D
+  have Hminor := H.recursorTelescope_minor howner T minorIdx D₀
+  have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  obtain ⟨horigin, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
+    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+  have hsource : D₀.type = S.origin := hD.trans horigin.symm
+  rw [hsource, hminorEq, ← VExpr.wrapForalls_append] at Hminor
+  have hclosedD : Closed D.type := by
+    apply H.recursorWF.lctxClosed.cdecl
+    rw [hsourceLE.declarations D.fvar D.member]
+    exact D.declaration
+  have Hb := (S.hypothesisBinderAtList D hclosedD).abstractList ys
+  rw [Nat.zero_add] at Hb
+  have hfieldsLen : fields.length = S.fields.size := by
+    simp only [fields, InductiveSignature.insertBinders, List.length_map, List.length_zipIdx]
+    exact H.sourceFields_length mowner hmowner localIndex hlocal
+  have hj : j < S.hypotheses.size := D.inBounds
+  have hi : S.fields.size + j < (fields ++ hyps).length := by
+    simp only [List.length_append, hfieldsLen, hhyps]
+    omega
+  have Ht := Hb.translation Hminor hi
+  have htake : (fields ++ hyps).take (S.fields.size + j) = fields ++ hyps.take j := by
+    rw [List.take_append, List.take_of_length_le (by omega)]
+    congr 2
+    omega
+  have hget : (fields ++ hyps)[S.fields.size + j]'hi = hyps[j]'(by rw [hhyps]; exact hj) := by
+    rw [List.getElem_append_right (by omega)]
+    congr 1
+    omega
+  rw [htake, hget] at Ht
+  simpa [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc] using Ht
+
 end Lean4Lean.VerifyInductive
