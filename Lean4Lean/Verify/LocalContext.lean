@@ -213,6 +213,76 @@ theorem mkBindingList1N_congr (H : lctx₁.find? x = lctx₂.find? x) :
     mkBindingList1N isLambda lctx₁ xs x b = mkBindingList1N isLambda lctx₂ xs x b := by
   simp [mkBindingList1N, H]
 
+/-- A local declaration whose type (and value) are locally closed. -/
+def DeclClosed : LocalDecl → Prop
+  | .cdecl _ _ _ ty _ _ => Closed ty
+  | .ldecl _ _ _ ty val _ _ => Closed ty ∧ Closed val
+
+/-- Closedness of the declarations selected by a binding. -/
+def DeclsClosed (lctx : LocalContext) (xs : List FVarId) : Prop :=
+  ∀ x ∈ xs, ∀ d, lctx.find? x = some d → DeclClosed d
+
+theorem DeclsClosed.tail (h : DeclsClosed lctx (a :: xs)) : DeclsClosed lctx xs :=
+  fun x hx => h x (List.mem_cons_of_mem a hx)
+
+private theorem closed_lower_of_abstract1 (he : Closed e)
+    (h : (e.abstract1 a).hasLooseBVar' 0 = false) :
+    Closed ((e.abstract1 a).lowerLooseBVars' 1 1) := by
+  rw [Expr.lowerLooseBVars_eq_instantiate h (v := .sort .zero)]
+  exact Closed.instantiate1 he.abstract1 trivial
+
+/-- One binding step of the exact model agrees with the sequential model on a closed body with
+closed declaration, and the result is closed again. -/
+theorem mkBindingList1N_eq_mkBindingList1 (hx : lctx.find? x = some d)
+    (hd : DeclClosed d) (hb : Closed b) :
+    mkBindingList1N isLambda lctx [] x (b.abstractN [x]) =
+      mkBindingList1 isLambda lctx [] x (b.abstract1 x) ∧
+    Closed (mkBindingList1 isLambda lctx [] x (b.abstract1 x)) := by
+  have hsingle : b.abstractN [x] = b.abstract1 x :=
+    Expr.abstractN_singleton hb.looseBVarRange_le
+  cases d with
+  | cdecl _ _ _ ty bi _ =>
+    simp only [DeclClosed] at hd
+    simp only [mkBindingList1N, mkBindingList1, hx, hsingle, Expr.abstractN_nil, Expr.abstractList]
+    cases isLambda
+    · simp only [Bool.false_eq_true, ite_false]
+      exact ⟨trivial, hd, hb.abstract1⟩
+    · simp only [ite_true]
+      exact ⟨trivial, hd, hb.abstract1⟩
+  | ldecl _ _ _ ty val _ _ =>
+    simp only [DeclClosed] at hd
+    simp only [mkBindingList1N, mkBindingList1, hx, hsingle, Expr.abstractN_nil, Expr.abstractList]
+    by_cases h : (b.abstract1 x).hasLooseBVar' 0 = true
+    · simp only [h, ite_true]
+      exact ⟨trivial, hd.1, hd.2, hb.abstract1⟩
+    · simp only [h, Bool.false_eq_true, ite_false]
+      exact ⟨trivial, closed_lower_of_abstract1 hb (by simpa using h)⟩
+
+/-- The exact and the sequential binding models agree when the body and the selected
+declarations are locally closed and the variables are duplicate-free. -/
+theorem mkBindingListN_eq_mkBindingList (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d)
+    (nd : xs.Nodup) (hb : Closed b) (hdecl : DeclsClosed lctx xs) :
+    mkBindingListN isLambda lctx xs b = mkBindingList isLambda lctx xs b ∧
+      Closed (mkBindingList isLambda lctx xs b) := by
+  rw [mkBindingListN_eq_fold hex nd, mkBindingList_eq_fold hex nd]
+  induction xs with
+  | nil => exact ⟨rfl, hb⟩
+  | cons a xs ih =>
+    have hex' : ∀ x ∈ xs, ∃ d, lctx.find? x = some d := fun x hx => hex x (List.mem_cons_of_mem a hx)
+    obtain ⟨heq, hcl⟩ := ih hex' (List.nodup_cons.1 nd).2 hdecl.tail
+    obtain ⟨d, hd⟩ := hex a (List.mem_cons_self ..)
+    simp only [List.foldr_cons]
+    rw [heq]
+    exact mkBindingList1N_eq_mkBindingList1 hd (hdecl a (List.mem_cons_self ..) d hd) hcl
+
+/-- Exact bridge for the sequential model: `mkBinding_eq` under the hypotheses that make the
+sequential model true. Prefer this (or `mkBinding_eqN`) to the legacy `mkBinding_eq`. -/
+theorem mkBinding_eq' (hex : ∀ x ∈ xs, ∃ d, lctx.find? x = some d)
+    (nd : xs.Nodup) (hb : Closed b) (hdecl : DeclsClosed lctx xs) :
+    mkBinding isLambda lctx ⟨xs.map .fvar⟩ b = mkBindingList isLambda lctx xs b := by
+  rw [mkBinding_eqN]
+  exact (mkBindingListN_eq_mkBindingList hex nd hb hdecl).1
+
 theorem mkBindingListN_congr
     (H : ∀ x ∈ xs, lctx₁.find? x = lctx₂.find? x) :
     mkBindingListN isLambda lctx₁ xs b = mkBindingListN isLambda lctx₂ xs b := by
