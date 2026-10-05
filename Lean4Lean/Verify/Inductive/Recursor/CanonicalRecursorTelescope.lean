@@ -1598,4 +1598,130 @@ theorem CompletedRecursorConstruction.recursorTelescope_indicesMajor
   exact VExpr.wrapForalls_prefix_domains_eq (suffix := []) hlenT
     (by simp [H.sourceIndices_length]) (by simpa [VExpr.liftN] using heq)
 
+theorem insertBinders_append_singleton (domains : List VExpr) (x : VExpr) (n : Nat) :
+    InductiveSignature.insertBinders (domains ++ [x]) n =
+      InductiveSignature.insertBinders domains n ++ [x.liftN n domains.length] := by
+  rw [insertBinders_eq_prefix, insertBinders_eq_prefix, List.reverse_append, List.reverse_singleton,
+    List.singleton_append]
+  simp [liftContextPrefixAt]
+
+/-- The canonical major domain lifted beneath `extra` binders above the
+indices is the generator's family application. -/
+theorem majorDomain_lift (name : Name) (levels : List VLevel) (nparams nidx extra : Nat) :
+    (VExpr.mkApps (.const name levels) (recursorCanonicalVars (nparams + nidx))).liftN extra nidx =
+      VExpr.mkApps (.const name levels)
+        (InductiveSignature.vars nparams (extra + nidx) ++ InductiveSignature.vars nidx 0) := by
+  simp only [VExpr.liftN_mkApps, VExpr.liftN]
+  rw [recursorCanonicalVars_add, List.map_append, List.map_map, ← vars_eq_canonical,
+    ← vars_eq_canonical]
+  congr 1
+  congr 1
+  · have h : (InductiveSignature.vars nparams 0).map
+        ((fun arg => arg.liftN extra nidx) ∘ fun arg => arg.liftN nidx 0) =
+        ((InductiveSignature.vars nparams 0).map (fun arg => arg.liftN nidx 0)).map
+          (fun arg => arg.liftN extra nidx) := by simp [List.map_map]
+    rw [h, vars_lift, Nat.add_zero, vars_lift_below]
+  · exact vars_lift_above nidx extra
+
+/-- The checked recursor type is the generator's recursor type as soon as
+the minor groups agree: parameters, motives, indices, major and result are
+already identified. -/
+theorem CompletedRecursorConstruction.recursorTarget_eq_of_minors
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (g : InductiveSignature.Instance s)
+    (hp : s.params = R.parameterScope.toCtx.reverse)
+    (hf : s.families = H.consumedFamilies)
+    (hl : g.levels = recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)
+    (hu : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      H.elimLevel = some g.targetLevel)
+    (hctors : s.constructors.size = (H.recInfos.flatMap (·.minors)).size)
+    (hminors : T.minors = g.minors) :
+    target = g.recursorType ⟨owner, by rw [hf]; simpa using howner⟩ := by
+  have hfam : s.families.size = (H.recInfos.map (·.motive)).size := by
+    rw [hf]; simp
+  have hmotivesLt : owner < (H.recInfos.map (·.motive)).size := by simpa using howner
+  have hp' : g.params = T.params := by
+    rw [InductiveSignature.Instance.params, hp, hl, ← H.parameterDomains,
+      H.recursorTelescope_params T]
+  have hm' : T.motives = g.motives := H.recursorTelescope_motives T g hp hf hl hu
+  have him := H.recursorTelescope_indicesMajor howner T hu
+  have hres := T.resultShape hmotivesLt
+  have hfin : owner < s.families.size := by rw [hf]; simpa using howner
+  have hfam' : s.families[(⟨owner, hfin⟩ : Fin s.families.size)] =
+      H.consumedFamilies[owner]'(by simpa using howner) := by
+    simp [hf]
+  have hidxLen : (InductiveSignature.insertBinders
+      ((H.sourceIndices ⟨owner, howner⟩).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size)).length =
+      H.recInfos[owner]!.indices.size := by
+    simp [InductiveSignature.insertBinders, H.sourceIndices_length]
+  have hsplit : InductiveSignature.insertBinders
+      ((H.sourceIndices ⟨owner, howner⟩).map
+          (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) ++
+        [VExpr.mkApps
+          (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
+            (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+          (recursorCanonicalVars (stats.params.size + H.recInfos[owner]!.indices.size))])
+      ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) =
+      InductiveSignature.insertBinders
+        ((H.sourceIndices ⟨owner, howner⟩).map
+          (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+        ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) ++
+      [VExpr.mkApps
+        (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
+          (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+        (InductiveSignature.vars stats.params.size
+          (((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) +
+            H.recInfos[owner]!.indices.size) ++
+          InductiveSignature.vars H.recInfos[owner]!.indices.size 0)] := by
+    rw [insertBinders_append_singleton, List.length_map, H.sourceIndices_length, majorDomain_lift]
+  rw [hsplit] at him
+  have hvars : InductiveSignature.vars H.recInfos[owner]!.indices.size 1 =
+      (List.range H.recInfos[owner]!.indices.size).reverse.map fun index => VExpr.bvar (index + 1) := by
+    simp [InductiveSignature.vars, Nat.add_comm]
+  have hplen : s.params.length = stats.params.size := by
+    rw [hp]
+    simp [H.sourceParameterCount]
+  have him' : T.indices ++ T.major =
+      InductiveSignature.insertBinders
+        ((H.sourceIndices ⟨owner, howner⟩).map
+          (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+        (s.families.size + s.constructors.size) ++
+      [VExpr.mkApps
+        (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name
+          (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+        (InductiveSignature.vars stats.params.size
+          ((s.families.size + s.constructors.size) + H.recInfos[owner]!.indices.size) ++
+          InductiveSignature.vars H.recInfos[owner]!.indices.size 0)] := by
+    rw [him]
+    simp only [← hfam, ← hctors]
+  have hres' : T.result = VExpr.mkApps
+      (.bvar (1 + H.recInfos[owner]!.indices.size + s.constructors.size +
+        (s.families.size - 1 - owner)))
+      (((List.range H.recInfos[owner]!.indices.size).reverse.map fun index =>
+          .bvar (index + 1)) ++ [.bvar 0]) := by
+    rw [hres]
+    simp only [← hfam, ← hctors]
+  have hidxLen' : (InductiveSignature.insertBinders
+      ((H.sourceIndices ⟨owner, howner⟩).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      (s.families.size + s.constructors.size)).length = H.recInfos[owner]!.indices.size := by
+    simp [InductiveSignature.insertBinders, H.sourceIndices_length]
+  rw [T.target_eq, InductiveSignature.Instance.recursorType]
+  simp only [InductiveSignature.Instance.familyApp, InductiveSignature.familyApp]
+  rw [hp', ← hm', ← hminors, hfam', H.consumedFamilies_indices ⟨owner, howner⟩,
+    H.consumedFamilies_name ⟨owner, howner⟩, hl, hidxLen', hplen, hres', hvars,
+    List.append_assoc (T.params ++ T.motives ++ T.minors) T.indices T.major, him',
+    ← List.append_assoc]
+  congr 3
+  omega
+
 end Lean4Lean.VerifyInductive
