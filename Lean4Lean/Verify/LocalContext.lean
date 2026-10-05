@@ -209,6 +209,19 @@ theorem mkBindingListN_eq_fold
     xs.foldr (fun a e => mkBindingList1N isLambda lctx [] a (e.abstractN [a])) b := by
   induction xs <;> simp_all [mkBindingListN_cons]
 
+theorem mkBindingList1N_congr (H : lctx₁.find? x = lctx₂.find? x) :
+    mkBindingList1N isLambda lctx₁ xs x b = mkBindingList1N isLambda lctx₂ xs x b := by
+  simp [mkBindingList1N, H]
+
+theorem mkBindingListN_congr
+    (H : ∀ x ∈ xs, lctx₁.find? x = lctx₂.find? x) :
+    mkBindingListN isLambda lctx₁ xs b = mkBindingListN isLambda lctx₂ xs b := by
+  obtain ⟨xs, rfl⟩ : ∃ xs', List.reverse xs' = xs := ⟨_, List.reverse_reverse _⟩
+  simp [mkBindingListN, mkBindingListN.core] at *
+  generalize b.abstractN _ = b
+  induction xs generalizing b <;> simp_all [mkBindingListN.go]
+  simp [mkBindingList1N_congr H.1]
+
 theorem mkBindingList1_congr (H : lctx₁.find? x = lctx₂.find? x) :
     mkBindingList1 isLambda lctx₁ xs x b = mkBindingList1 isLambda lctx₂ xs x b := by
   simp [mkBindingList1, H]

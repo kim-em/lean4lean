@@ -14,6 +14,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "INDUCTIVE_AUDIT "
 ROOTS = {
+    "Lean4Lean.addDecl.WF",
     "Lean4Lean.VEnv.QuotRegistered.witness_app",
     "Lean4Lean.VEnv.QuotDeltaRule.defeq",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF",

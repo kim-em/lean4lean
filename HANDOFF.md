@@ -56,18 +56,24 @@ declarations; validation must not assume correctness of its own artifact.
    Some `docs/inductives/*.lean` witness files import deleted modules and are
    now historical text only. `lake build` (default targets) passes.
 
-3. **`IsDefEqU.weakN_iff` is false as stated.** The groupoid countermodel in
-   [STRENGTHENING.md](docs/inductives/STRENGTHENING.md) is sound as far as
-   checked: two singleton-eliminating indexed `Prop` families over a
-   non-discrete index type give `Γ, q : P v ⊢ SI ≡ SJ` by proof irrelevance
-   while `Γ ⊢ SI ≡ SJ` fails in a model without `Eq`. The same construction
-   refutes existential `WF` strengthening and closed-term strengthening in
-   environments with opaque constants. In environments containing Lean's
-   `Eq` (K-like) the smaller context can extract `P v`, so any true variant
-   must mention `Eq`; `weakN_iff` has 63 uses in 24 live files (including
-   upstream's `OnCtx.weakN_inv`, `HasType.weakN_iff`, `IsType.weakN_iff`,
-   `VLocalDecl.weakN_iff`, `LevelEquiv`, `ConditionallyTyped`). This is a
-   base-theory defect shared with upstream, not inductive-specific.
+3. **`IsDefEqU.weakN_iff` has a mathematical countermodel.** The groupoid
+   construction in [STRENGTHENING.md](docs/inductives/STRENGTHENING.md)
+   (two singleton-eliminating indexed `Prop` families over a non-discrete
+   index type) gives `Γ, q : P v ⊢ SI ≡ SJ` by proof irrelevance while
+   separating `SI` and `SJ` in the smaller context. A second opinion (Codex,
+   this session) found no defect in the construction but notes the
+   certification boundary is open: the checked files establish the
+   larger-context derivation and finite transport calculations, not a
+   soundness proof for every `VEnv.IsDefEq` rule of a certified `VEnv.WF`
+   environment, nor nonderivability of the existential `IsDefEqU`. Scope:
+   this refutes unrestricted *equality* reflection; fixed-type typing
+   reflection follows the same way; existential `VExpr.WF` strengthening is
+   not refuted by it. Adding Lean's `Eq` lets the smaller context extract
+   `P v` and so defeats this particular model; no general repair theorem is
+   established either way. `weakN_iff` has 63 uses in 24 live files
+   (including upstream's `OnCtx.weakN_inv`, `HasType.weakN_iff`,
+   `IsType.weakN_iff`, `VLocalDecl.weakN_iff`, `LevelEquiv`,
+   `ConditionallyTyped`); it is a base-theory issue shared with upstream.
 
 4. **Two executable regressions were found and fixed** (upstream on the same
    toolchain `v4.33.0-rc2` replays `Init`, `Std`, `Lean.Data`,
@@ -115,15 +121,23 @@ declarations; validation must not assume correctness of its own artifact.
      `abstractN_eq_abstractList`, `abstractN_cons`, `abstractN_append_singleton`,
      `abstractN_nil`, `abstractN_hasLooseBVar_zero`, `abstractN_lower`,
      `abstractN_singleton`, `lastRevIdx?` lemmas.
-   - The false statement survives only as `axiom Expr.abstract_eq_legacy`
-     (and the derived `abstractN_eq_abstractList_legacy`), with a `FALSE`
-     docstring, no `@[simp]`, listed in the audit inventory. Remaining uses
-     (grep `abstract_eq_legacy`): `LocalContext.mkBinding_eq` (the sequential
-     bridge, hence `MLCtx.WF.mkForall_partial/mkLambda_eq` in
-     `TypeChecker/Basic.lean`), `FVarsIn.abstract_instantiateRev_fvarArray`
+   - The false statement survives only as the **`sorry`'d theorem**
+     `Expr.abstract_eq_legacy` (and the derived
+     `abstractN_eq_abstractList_legacy`). It was briefly an axiom; Codex
+     showed that together with `abstractN_eq` it proves `False` (`bvar 0 =
+     bvar 1`, both sides computable), so it must never be an axiom. As a
+     `sorry` it is visible to the audit, but it is **unprovable**, so every
+     result depending on it is conditional on a false statement until the
+     uses are removed. `--require-complete` cannot pass while it exists.
+     Remaining uses (grep `abstract_eq_legacy`): `LocalContext.mkBinding_eq`
+     (the sequential bridge), `FVarsIn.abstract_instantiateRev_fvarArray`
      (`Verify/Typing/Lemmas.lean`), `Expr.reopenParams_eq_reopenFVarsAt`
      (`Recursor/Telescope.lean`), and the nested-lowering files
      `Nested/{FormationNativeEvidence,Lowering,LoweringTrace,Opening,Mapping}`.
+     `MLCtx.WF.mkForall_partial/mkLambda_eq` (`TypeChecker/Basic.lean`) and the
+     pure congruence lemmas (`BoundFVarArray.mkForall_mono`, `mkLambda_mono`,
+     `CanonicalParameterReplay`, `Telescope` parameter source) already use the
+     exact bridge `mkBinding_eqN`.
    - `Verify/LocalContext.lean` now has two models: the sequential
      `mkBindingList` (legacy bridge `mkBinding_eq`) and the exact
      `mkBindingListN` with the true bridge `mkBinding_eqN` and the full
@@ -174,7 +188,8 @@ inside this project's scope without solving open base metatheory:
 
 ## Remaining obstacles, in priority order
 
-1. **Remove `Expr.abstract_eq_legacy`.** Switch `LocalContext.mkBinding_eq`
+1. **Remove `Expr.abstract_eq_legacy`** (the development is otherwise
+   conditional on a false statement). Switch `LocalContext.mkBinding_eq`
    consumers to `mkBinding_eqN` (or add `Closed` hypotheses), and thread
    bound-variable closedness through the nested-lowering structures
    (`GeneratedFamilyWitness.args`, `NestedRestorationOpening.input`,
@@ -198,10 +213,15 @@ inside this project's scope without solving open base metatheory:
 5. **Audit discipline.** `scripts/check-inductive-audit.py` roots
    `full_church_rosser`, `headParallel`, and `NormalEq.fullStep` are outside
    the `addDecl.WF` cone; decide whether they remain goals.
-6. **Tests.** `Lean4Lean/Tests/InductiveTheory.lean:232` does not build
-   (`InductiveSignature.Models.mk` gained a ninth field, `constructorArity`);
-   the test instance predates the field. This was failing before this
-   session.
+6. **Tests.** `Tests/InductiveTheory.lean` was repaired (the enum `Models`
+   instance gained the ninth field `constructorArity`).
+   `Tests/RecursorOracle.lean` regenerates `Acc`, `Lean.Order.iterates`,
+   `Nat`, `List`, `Prod`, several nested inductives, a `TSyntax`-field nested
+   type and a multi-binder higher-order predicate through `Lean4Lean.addDecl`
+   and compares every recursor (type, metadata, rule RHSs) with Lean's, and
+   pins `Expr.abstract`'s behaviour on loose bvars. Still missing: a test
+   exercising the first-pass/minor fvar-id collision directly, and a
+   large-literal guard test.
 
 ## Source map
 
@@ -217,11 +237,10 @@ inside this project's scope without solving open base metatheory:
 
 ## Evidence and commands
 
-- Dependency audit of `addDecl.WF`: a scratch file importing
-  `Lean4Lean.Verify.Environment` plus the `#inductive_audit` elaborator from
-  `scripts/InductiveAudit.lean`; result listed above (10 sorries; axioms are
-  the inventory's implementation axioms including `abstractN_eq` and
-  `abstract_eq_legacy`).
+- Dependency audit of `addDecl.WF`: now a permanent root of
+  `scripts/InductiveAudit.lean`; result listed above (10 sorries plus the
+  unprovable `abstract_eq_legacy`; axioms are the inventory's implementation
+  axioms including `abstractN_eq`).
 - Executable oracle: regenerate an inductive through `Lean4Lean.addDecl` on a
   renamed copy and compare `RecursorVal`s with Lean's; `lake env
   .lake/build/bin/lean4lean Init` (25 "already declared" artifacts, same as

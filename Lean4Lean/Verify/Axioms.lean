@@ -648,15 +648,19 @@ theorem abstract_eq_of_closed (e : Expr) (xs : List FVarId) (hnd : xs.Nodup)
     (h : e.looseBVarRange' = 0) : e.abstract ⟨xs.map .fvar⟩ = e.abstractList xs := by
   rw [abstractN_eq]; exact abstractN_eq_abstractList hnd e 0 (by omega)
 
-/-- **FALSE as stated**: `(Expr.bvar 0).abstract #[.fvar x] = .bvar 0`, while
-`abstractList (.bvar 0) [x] = .bvar 1`; the statement also fails for duplicate lists.
+/-- **FALSE as stated, hence unprovable**: `(Expr.bvar 0).abstract #[.fvar x] = .bvar 0`
+while `abstractList (.bvar 0) [x] = .bvar 1`; the statement also fails for duplicate lists.
 Lean's `abstract` is `abstractN` (`abstractN_eq`), and the sequential model agrees with it
 only on locally closed expressions and duplicate-free lists (`abstract_eq_of_closed`).
-This legacy axiom is retained temporarily for the nested-lowering verification, whose
-structures do not yet record bound-variable closedness; every remaining use must be
-removed by threading that invariant. Do not add new uses. -/
-axiom abstract_eq_legacy (e : Expr) (xs : List FVarId) :
-    e.abstract ⟨xs.map .fvar⟩ = e.abstractList xs
+Together with `abstractN_eq` this statement would refute `bvar 0 = bvar 1` without touching
+the opaque `abstract`, so it must not be an axiom. It is kept as an open obligation, used
+only by the sequential `LocalContext.mkBinding_eq` bridge and the nested-lowering
+verification, whose structures do not yet record bound-variable closedness. The way to
+discharge it is to remove every use (replace by `abstract_eq_of_closed` or the exact model),
+not to prove it. Do not add new uses. -/
+theorem abstract_eq_legacy (e : Expr) (xs : List FVarId) :
+    e.abstract ⟨xs.map .fvar⟩ = e.abstractList xs := by
+  sorry
 
 /-- **FALSE in general**: derived from `abstract_eq_legacy`; true only under the hypotheses of
 `abstractN_eq_abstractList`. Every use is legacy debt to be removed with that axiom. -/

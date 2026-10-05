@@ -281,9 +281,9 @@ theorem BoundFVarArray.mkForall_mono
     (body : Expr) :
     c'.lctx.mkForall xs body = c.lctx.mkForall xs body := by
   rcases H with ⟨fvars, rfl, members⟩
-  rw [LocalContext.mkForall, LocalContext.mkBinding_eq,
-    LocalContext.mkForall, LocalContext.mkBinding_eq]
-  apply LocalContext.mkBindingList_congr
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN,
+    LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  apply LocalContext.mkBindingListN_congr
   intro fv hfv
   exact hle.declarations fv (members fv hfv)
 
@@ -292,9 +292,9 @@ theorem BoundFVarArray.mkLambda_mono
     (body : Expr) :
     c'.lctx.mkLambda xs body = c.lctx.mkLambda xs body := by
   rcases H with ⟨fvars, rfl, members⟩
-  rw [LocalContext.mkLambda, LocalContext.mkBinding_eq,
-    LocalContext.mkLambda, LocalContext.mkBinding_eq]
-  apply LocalContext.mkBindingList_congr
+  rw [LocalContext.mkLambda, LocalContext.mkBinding_eqN,
+    LocalContext.mkLambda, LocalContext.mkBinding_eqN]
+  apply LocalContext.mkBindingListN_congr
   intro fv hfv
   exact hle.declarations fv (members fv hfv)
 

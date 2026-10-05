@@ -46,8 +46,8 @@ theorem RecursorParameterContextSuffix.closeParameters
       parameterMLCtx.lctx.mkForall stats.params
         source := by
     rw [hparamsArray, LocalContext.mkForall, LocalContext.mkForall,
-      LocalContext.mkBinding_eq, LocalContext.mkBinding_eq]
-    apply LocalContext.mkBindingList_congr
+      LocalContext.mkBinding_eqN, LocalContext.mkBinding_eqN]
+    apply LocalContext.mkBindingListN_congr
     intro fv hfv
     apply R.onlyLams.dropN_find?_eq R.mlctx_wf depth H.depth_le
     exact List.mem_reverse.mp hfv
