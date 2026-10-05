@@ -212,6 +212,41 @@ declarations; validation must not assume correctness of its own artifact.
    signature whose `Models` follows from `sourceSignature_models` through the
    definitional equalities already proved (`sourceConstructorDefEq`).
 
+8. **The consumed signature's recursive-field model is the central open
+   junction risk.** `Compiles` (`Recursor/Realization.lean`,
+   `CompilationRealization.generated`) requires `s.Models env decl` for the
+   signature whose recursors and equations are installed, and
+   `Models.recursiveTypes` asks, for every recursive field, a definitional
+   equality `type ≡ s.recursiveType i r` in the *small* context
+   `fieldTypes.take i ++ params`. The generator's hypothesis domains are
+   `Instance.hypothesis`, built from `r.binders`/`r.indices`, so for the
+   installed minor types to be syntactically the generator's output these
+   shapes must be the translations of production's `loopUArgs` telescope
+   (`RecInfoMinorHypothesisTypeOrigin.args`, `exposedType`). Production
+   classifies recursive arguments in the big first-pass context
+   (`RecursorRecursiveDomainAt.ctx := R'.mlctx.vlctx.toCtx`, Bindings.lean),
+   which interleaves indices, majors, motives, earlier minors and stale fields;
+   the raw signature's shapes (`signatureFieldOfUniform`, header phase) are
+   only definitionally related normal forms, in the small context. Moving the
+   production shapes to the small context is fine for translations
+   (`TrExprS.weakFV'_inv` drops any unused free-variable declarations whose
+   dependents are kept, and does not use `weakN_iff`), but the required
+   *definitional equality* in the small context is exactly context
+   strengthening, which `docs/inductives/STRENGTHENING.md` shows false in
+   general. `Models.recursiveTypes` has no consumer in the theory besides
+   `Models.mono` (grep 2026-10-05). Resolutions, to decide with Mario:
+   (a) prove `TypeChecker.whnf` deterministic modulo free-variable renaming
+   and context/environment extension, so the recursor-pass telescope equals
+   the header-phase one and the raw `Models` transports; (b) have the type
+   checker's `whnf` soundness also return an untyped head-reduction trace
+   (`FullWHRedS`, whose `weak'_inv` strengthening exists in
+   `Theory/Typing/FullHeadStrengthening.lean`) and strengthen the trace;
+   (c) restate `Models.recursiveTypes` in the generator's own hypothesis
+   context, where the checked recursor type supplies the typing by
+   inversion; (d) change the executable to reuse the header-phase
+   classification. Until one is chosen, `canonicalConsumedGeneration` cannot be
+   closed, independently of the uniqueness and inversion machinery of item 7.
+
 ## Assessment
 
 The inductive verification is **not complete** and cannot be made sorry-free
@@ -290,6 +325,7 @@ inside this project's scope without solving open base metatheory:
    signature by definitional transport from `sourceSignature_models`,
    `sourceOrigins` by construction, `types` from `T.target_eq`, and
    `minorTranslation` from the `params ++ motives ++ minors` prefix of `T`.
+   The `Recursive` shapes and `Models.recursiveTypes` are blocked by item 8.
    The other junctions (`canonicalCompletedRuleTranslation`, `assemblyNative`)
    need `RecursorEntryRealization` per owner (`Recursor/Realization.lean`) and
    the restored analogue plus `InductiveRecursorProvenance`; the equation
