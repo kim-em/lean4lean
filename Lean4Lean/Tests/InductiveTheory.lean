@@ -228,8 +228,8 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
   have hadd : VEnv.empty.addConstVals enumDecl.typeConstants = some enumTypesEnv := by
     simp [enumDecl, enumType, enumTypesEnv, VInductDecl.typeConstants,
       VEnv.addConstVals, VEnv.addConst, VEnv.empty]
-  refine ⟨enumSignature, enumInstance, enumTypesEnv, ?_, hadd, ?_, ?_, rfl, rfl⟩
-  · refine ⟨rfl, rfl, rfl, ?_, ?_, ?_, Or.inr ?_, Or.inr ?_, ?_⟩
+  refine ⟨enumSignature, enumInstance, enumTypesEnv, ?_, hadd, ?_, ?_, ?_, rfl, rfl⟩
+  · refine ⟨rfl, rfl, rfl, ?_, ?_, Or.inr ?_, Or.inr ?_, ?_⟩
     · change List.Forall₂ _ [enumType] [enumType]
       refine .cons ⟨rfl, rfl, rfl, (by rfl), ?_, rfl⟩ .nil
       exact ⟨_, .sortDF (by trivial) (by trivial) rfl⟩
@@ -237,11 +237,6 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       change List.Forall₂ _ [enumCtor] [enumCtor]
       refine .cons ⟨rfl, rfl, ?_⟩ .nil
       exact ⟨_, .constDF (ci := enumType.toVConstant) (by simp [enumTypesEnv]) nofun nofun rfl .nil⟩
-    · refine ⟨enumTypesEnv, hadd, ?_⟩
-      intro ctor hctor i hi
-      have hctor := List.mem_singleton.mp hctor
-      subst ctor
-      exact (Nat.not_lt_zero i hi).elim
     · refine ⟨enumTypesEnv, hadd, ?_⟩
       intro ctor hctor i hi type hfield
       have hctor := List.mem_singleton.mp hctor
@@ -256,6 +251,12 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       subst ctor
       rfl
   · exact ⟨rfl, nofun, by trivial, Or.inr (Or.inl (by rfl))⟩
+  · intro index j hj
+    rcases index with ⟨_ | k, hk⟩
+    · have h0 : (InductiveSignature.Instance.recursiveFields
+          enumSignature.constructors[(⟨0, hk⟩ : Fin enumSignature.constructors.size)]).length = 0 := rfl
+      omega
+    · simp [enumSignature] at hk
   · intro owner
     have h : owner = (⟨0, by decide⟩ : Fin enumSignature.families.size) := by
       apply Fin.ext
@@ -464,7 +465,7 @@ private def malformedEnumBlock : VInductBlock :=
 theorem malformed_enum_not_canonical :
     ¬ InductiveSignature.Compiles .empty enumDecl malformedEnumBlock := by
   intro h
-  rcases h.generated with ⟨s, g, _, hm, _, _, _, hr, _⟩
+  rcases h.generated with ⟨s, g, _, hm, _, _, _, _, hr, _⟩
   have hp : s.params = [] := List.length_eq_zero_iff.mp hm.nparams
   have hmem : malformedEnumRecursor ∈ g.recursors := by
     rw [← hr]
