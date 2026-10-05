@@ -782,4 +782,293 @@ theorem CompletedRecursorConstruction.recursorTelescope_minorResidual
       refine ⟨hyps, idx, hhyps, ?_, Hidx⟩
       rw [heq, hresEq, hf', ha', hm', hP, hF, hus, VExpr.mkApps_append]
 
+theorem Expr.abstractList_mkAppList' (head : Expr) (args : List Expr)
+    (fvars : List FVarId) (depth : Nat) :
+    (Expr.mkAppList head args).abstractList fvars depth =
+      Expr.mkAppList (head.abstractList fvars depth)
+        (args.map fun arg => arg.abstractList fvars depth) := by
+  induction args generalizing head with
+  | nil => rfl
+  | cons arg args ih =>
+    simpa only [Expr.mkAppList, List.map_cons, Expr.abstractList_app] using ih (.app head arg)
+
+theorem Expr.liftLooseBVars'_mkAppList (head : Expr) (args : List Expr) (start amount : Nat) :
+    (Expr.mkAppList head args).liftLooseBVars' start amount =
+      Expr.mkAppList (head.liftLooseBVars' start amount)
+        (args.map fun arg => arg.liftLooseBVars' start amount) := by
+  induction args generalizing head with
+  | nil => rfl
+  | cons arg args ih =>
+    simpa only [Expr.mkAppList, List.map_cons, Expr.liftLooseBVars'] using ih (.app head arg)
+
+/-- Application spines of equal length are injective in head and arguments. -/
+theorem VExpr.mkApps_inj {f g : VExpr} {l₁ l₂ : List VExpr} (hlen : l₁.length = l₂.length)
+    (h : VExpr.mkApps f l₁ = VExpr.mkApps g l₂) : f = g ∧ l₁ = l₂ := by
+  induction l₁ generalizing f g l₂ with
+  | nil =>
+    cases l₂ with
+    | nil => exact ⟨h, rfl⟩
+    | cons _ _ => simp at hlen
+  | cons a l₁ ih =>
+    cases l₂ with
+    | nil => simp at hlen
+    | cons b l₂ =>
+      have h' : VExpr.mkApps (.app f a) l₁ = VExpr.mkApps (.app g b) l₂ := h
+      obtain ⟨hfg, hl⟩ := ih (by simpa using hlen) h'
+      cases hfg
+      exact ⟨rfl, by rw [hl]⟩
+
+theorem getIIndices_snd_toList (stats : AddInductive.InductiveStats) (e : Expr) :
+    (AddInductive.getIIndices stats e).2.toList = e.getAppArgsList.drop stats.params.size := by
+  rw [← Expr.getAppArgs_toList]
+  simp only [AddInductive.getIIndices]
+  let suffix := e.getAppArgs.toSubarray stats.params.size
+  calc
+    (Std.Slice.toArray suffix).toList = suffix.toList := by
+      exact (congrArg Array.toList
+        (Subarray.toArray_eq_sliceToArray (s := suffix)).symm).trans
+          Subarray.toList_toArray
+    _ = e.getAppArgs.toList.drop stats.params.size := by
+      rw [List.drop_eq_drop_min]
+      simp only [suffix, Subarray.toList_eq, Array.array_toSubarray,
+        Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
+        Array.toList_extract, List.extract_eq_take_drop,
+        Array.length_toList]
+      apply List.take_of_length_le
+      simp
+
+/-- Pointwise syntactic uniqueness of translation lists. -/
+theorem TrExprS.forall₂_uniqueS {env : VEnv} {Us : List Name} {Δ : VLCtx}
+    {srcs : List Expr} {l₁ l₂ : List VExpr}
+    (H₁ : List.Forall₂ (TrExprS env Us Δ) srcs l₁)
+    (H₂ : List.Forall₂ (TrExprS env Us Δ) srcs l₂) : l₁ = l₂ := by
+  induction H₁ generalizing l₂ with
+  | nil => cases H₂; rfl
+  | cons h₁ _ ih =>
+    cases H₂ with
+    | cons h₂ H₂ => rw [h₁.uniqueS h₂, ih H₂]
+
+/-- Abstraction removes the abstracted variable from the free-variable scope. -/
+theorem _root_.Lean4Lean.FVarsIn.abstract1_not {P : FVarId → Prop} {e : Expr} {v : FVarId} {k : Nat}
+    (h : FVarsIn P e) : FVarsIn (fun fv => P fv ∧ fv ≠ v) (e.abstract1 v k) := by
+  induction e generalizing k with
+  | fvar v' =>
+    simp only [FVarsIn] at h
+    by_cases hv : v = v'
+    · subst hv; simp [Expr.abstract1, FVarsIn]
+    · simp [Expr.abstract1, hv, FVarsIn, h, Ne.symm hv]
+  | _ => simp_all [FVarsIn, Expr.abstract1]
+
+theorem _root_.Lean4Lean.FVarsIn.abstractList_not {P : FVarId → Prop} {e : Expr} {xs : List FVarId} {k : Nat}
+    (h : FVarsIn P e) : FVarsIn (fun fv => P fv ∧ fv ∉ xs) (e.abstractList xs k) := by
+  induction xs generalizing P e with
+  | nil => simpa using h
+  | cons a as ih =>
+    simp only [Expr.abstractList]
+    have h' := ih (P := fun fv => P fv ∧ fv ≠ a) (h.abstract1_not (v := a) (k := k))
+    apply h'.mono
+    intro fv hfv
+    simp only [List.mem_cons, not_or]
+    exact ⟨hfv.1.1, hfv.1.2, hfv.2⟩
+
+/-- Closing a parameter-and-field term over hypotheses, fields, and the outer
+binders in the generator's order equals closing it over fields and
+parameters first and then lifting. -/
+theorem Expr.closeIndexSource (e : Expr) (fields params rest : List FVarId) (nf nh : Nat)
+    (hclosed : Closed e 0) (hfields : fields.Nodup) (hnodup : (params ++ rest).Nodup)
+    (hscope : e.FVarsIn fun fv => fv ∈ params ∨ fv ∈ fields) :
+    (e.abstractList fields nh).abstractList (params ++ rest) (nf + nh) =
+      (((e.abstractList fields).abstractList params nf).liftLooseBVars' nf rest.length).liftLooseBVars'
+        0 nh := by
+  have h1 : e.abstractList fields nh = (e.abstractList fields).liftLooseBVars' 0 nh := by
+    simpa using Expr.abstractList_add_eq_liftLooseBVars (e := e) (fvars := fields)
+      (depth := 0) (extra := nh) hclosed hfields
+  rw [h1, Expr.liftLooseBVars'_abstractList_add _ _ 0 nf nh (Nat.zero_le _) hnodup,
+    Expr.abstractList_append]
+  congr 1
+  apply FVarsIn.abstractList_eq_liftLooseBVars
+  have h2 := (hscope.abstractList_not (xs := fields) (k := 0)).abstractList_not (xs := params)
+    (k := nf)
+  apply h2.mono
+  intro fv hfv hrest
+  rcases hfv with ⟨⟨hpf, hnotf⟩, hnotp⟩
+  rcases hpf with hp | hf
+  · exact hnotp hp
+  · exact hnotf hf
+
+/-- The index translations of a flat minor slot are the selected source
+constructor indices, instantiated at the recursor universes and lifted
+beneath the motives, earlier minors, fields and hypotheses. -/
+theorem CompletedRecursorConstruction.recursorTelescope_minorIndices
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat}
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (minorIdx : Nat) (hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let fields := InductiveSignature.insertBinders
+      ((H.sourceFields mowner hmowner localIndex hlocal).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      ((H.recInfos.map (·.motive)).size + minorIdx)
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∀ (hyps idx : List VExpr), hyps.length = S.hypotheses.size →
+      List.Forall₂
+        (TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+          (abstractForallContext
+            (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps) []))
+        ((AddInductive.getIIndices stats HS.semantic.traversal.terminal).2.toList.map fun arg =>
+          (arg.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+            (S.fields.size + S.hypotheses.size))
+        idx →
+      idx = (H.sourceConstructorIndices mowner hmowner localIndex hlocal).map fun e =>
+        ((e.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)).liftN
+          ((H.recInfos.map (·.motive)).size + minorIdx) S.fields.size).liftN S.hypotheses.size 0 := by
+  intro S HS fields ys hyps idx hhyps Hidx
+  have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, hst, _, _, _, _, hsourceLE⟩ :=
+    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+  have heqT : traversal = HS.semantic.traversal :=
+    Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
+  subst heqT
+  -- The header-environment replay of the field telescope and its indices.
+  obtain ⟨Hsrc, _, Hindices⟩ := H.sourceConstructorIndices_replay mowner hmowner localIndex hlocal
+  have Hle := R.installation.constructorLE.trans R.ctorLE
+  have Hlift := H.liftOriginalType (Hsrc.mono Hle)
+  rw [VExpr.instL_wrapForalls] at Hlift
+  -- Peel the field telescope.
+  have hfv : (S.fields_bound.mono hsourceLE).fvars = S.fields_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq _ _ rfl
+  have Htel := ((S.fields_bound.mono hsourceLE).mkForall_forallTelescope H.localWF
+    HS.semantic.traversal.terminal).abstractList H.params.fvars
+  rw [hfv, Nat.zero_add] at Htel
+  have hdomLen : ((H.sourceFields mowner hmowner localIndex hlocal).map
+      (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))).length =
+      S.fields.size := by
+    simp only [List.length_map]
+    exact H.sourceFields_length mowner hmowner localIndex hlocal
+  have Hres := TrExprS.forallTelescope_residual Htel hdomLen Hlift
+  have hctx₁ : abstractForallContext ((H.sourceFields mowner hmowner localIndex hlocal).map
+      (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []) =
+      abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        (H.sourceFields mowner hmowner localIndex hlocal).map
+          (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))) [] := by
+    simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
+  rw [hctx₁] at Hres
+  -- Insert the motives and earlier minors, then the hypotheses.
+  have Hins := TrExprS.insertBeforeInner H.recursorWF.checking.tr.wf.ordered Hres
+    (T.motives ++ T.minors.take minorIdx)
+  have Hhyp := Hins.weakBV H.recursorWF.checking.tr.wf.ordered
+    (abstractForallContext.bvLift hyps _)
+  have hminorT : minorIdx < T.minors.length := by rw [T.minors_length]; exact hminor
+  have hinserted : (T.motives ++ T.minors.take minorIdx).length =
+      (H.recInfos.map (·.motive)).size + minorIdx := by
+    simp only [List.length_append, T.motives_length, List.length_take, T.minors_length]
+    omega
+  have hctx₂ : abstractForallContext hyps
+      (abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        (T.motives ++ T.minors.take minorIdx) ++
+        (liftContextPrefix (T.motives ++ T.minors.take minorIdx).length
+          ((H.sourceFields mowner hmowner localIndex hlocal).map
+            (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))).reverse).reverse)
+        []) =
+      abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps) [] := by
+    rw [← H.recursorTelescope_params T, hinserted]
+    simp only [fields, insertBinders_eq_prefix, liftContextPrefix]
+    simp [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc]
+  rw [H.recursorEnv, hctx₂, hinserted] at Hhyp
+  -- Decompose the lifted terminal application on both sides.
+  obtain ⟨hhead, hparamsTake⟩ := H.constructorTerminalSpine mowner hmowner localIndex hlocal HS
+  have hterminal : HS.semantic.traversal.terminal =
+      Expr.mkAppList (.const (decl.types[mowner]'(by rw [← H.cardinality.records]; exact hmowner)).name
+        stats.levels)
+        (stats.params.toList ++ HS.semantic.traversal.terminal.getAppArgsList.drop stats.params.size) := by
+    conv => lhs; rw [← Expr.mkAppList_getAppArgsList HS.semantic.traversal.terminal]
+    rw [hhead, ← hparamsTake, List.take_append_drop]
+  have hclosedT : Closed HS.semantic.traversal.terminal 0 := by
+    have h := HS.semantic.terminalTranslation.closed
+    rw [HS.semantic.terminalWF.mlctx.noBV] at h
+    simpa using h
+  have hparamsList : stats.params.toList = H.params.fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList H.params.expressions
+  have hids : ExprArrayFVarIds HS.semantic.traversal.stats.params = H.params.fvars := by
+    rw [hst]
+    simp only [ExprArrayFVarIds, hparamsList, List.map_map]
+    simp [Function.comp_def, recursorFVarId]
+  have hscopeT : HS.semantic.traversal.terminal.FVarsIn
+      (fun fv => fv ∈ H.params.fvars ∨ fv ∈ S.fields_bound.fvars) := by
+    have h := HS.semantic.fieldOpening.currentFVarsIn HS.semantic.parameterScope
+    apply h.mono
+    intro fv hfv
+    rcases hfv with hfield | hparam
+    · right
+      rwa [HS.semantic.fieldOpening.fvars_eq_bound S.fields_bound] at hfield
+    · left
+      rwa [HS.semantic.parameterSuffix.parameterDecls_fvars, hids, List.mem_reverse] at hparam
+  have hclosedApp : Closed (Expr.mkAppList
+      (.const (decl.types[mowner]'(by rw [← H.cardinality.records]; exact hmowner)).name stats.levels)
+      (stats.params.toList ++ HS.semantic.traversal.terminal.getAppArgsList.drop stats.params.size))
+      0 := by
+    rw [← hterminal]; exact hclosedT
+  rw [hterminal, Expr.abstractN_eq_abstractList_of_closed S.fields_nodup hclosedApp] at Hhyp
+  simp only [Expr.abstractList_mkAppList', Expr.liftLooseBVars'_mkAppList, List.map_append,
+    List.map_map] at Hhyp
+  obtain ⟨fn', left', right', _, Hleft, Hright, hout⟩ :=
+    checkPositivityStep.TrExprS.mkAppList_append_inv Hhyp
+  simp only [VExpr.instL_mkApps, VExpr.liftN_mkApps, List.map_append, List.map_map] at hout
+  simp only [Function.comp_def, hhyps, hdomLen] at Hright
+  have hleftLen : left'.length = stats.params.size := by
+    rw [← Lean4Lean.List.Forall₂.length_eq Hleft]
+    simp [hparamsList, H.params.length_fvars]
+  have hindicesLen := Lean4Lean.List.Forall₂.length_eq Hindices
+  have hrightLen : right'.length = (H.sourceConstructorIndices mowner hmowner localIndex hlocal).length := by
+    rw [← Lean4Lean.List.Forall₂.length_eq Hright]
+    simpa using hindicesLen
+  obtain ⟨_, hargs⟩ := VExpr.mkApps_inj (by
+    simp only [List.length_append, List.length_map, hleftLen, hrightLen, InductiveSignature.vars]
+    simp) hout
+  have hright := List.append_inj_right hargs (by simp [hleftLen, InductiveSignature.vars])
+  -- The two index source lists coincide.
+  have houter := H.bindings.outerNodup H.params H.noAlias
+  have hys : (H.params.fvars ++ (H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx)).Nodup := by
+    rw [← List.append_assoc]
+    apply List.Nodup.sublist _ houter
+    exact List.Sublist.append (List.Sublist.refl _) (List.take_sublist _ _)
+  have hrestLen : (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars.take minorIdx).length =
+      (H.recInfos.map (·.motive)).size + minorIdx := by
+    rw [List.length_append, H.bindings.motives.length_fvars, List.length_take,
+      H.bindings.flatMinors.length_fvars]
+    omega
+  have hsrcEq : (AddInductive.getIIndices stats HS.semantic.traversal.terminal).2.toList.map
+      (fun arg => (arg.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+        (S.fields.size + S.hypotheses.size)) =
+      (HS.semantic.traversal.terminal.getAppArgsList.drop stats.params.size).map
+        (fun arg => (((arg.abstractList S.fields_bound.fvars).abstractList H.params.fvars
+          S.fields.size).liftLooseBVars' S.fields.size
+            ((H.recInfos.map (·.motive)).size + minorIdx)).liftLooseBVars' 0 S.hypotheses.size) := by
+    rw [getIIndices_snd_toList]
+    apply List.map_congr_left
+    intro arg harg
+    have hmem := List.mem_of_mem_drop harg
+    have hc := hclosedT.getAppArgsList_at hmem
+    have hs := hscopeT.of_mem_getAppArgsList hmem
+    rw [← hrestLen]
+    simpa [ys, List.append_assoc] using
+      Expr.closeIndexSource arg S.fields_bound.fvars H.params.fvars
+        (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars.take minorIdx)
+        S.fields.size S.hypotheses.size hc S.fields_nodup hys hs
+  rw [hsrcEq] at Hidx
+  rw [TrExprS.forall₂_uniqueS Hidx Hright]
+  simp only [Function.comp_def, hhyps, hdomLen] at hright
+  simpa using hright.symm
+
 end Lean4Lean.VerifyInductive
