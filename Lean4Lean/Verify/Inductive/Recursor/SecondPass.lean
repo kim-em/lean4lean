@@ -124,6 +124,184 @@ theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
     exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
       hpriorSize, S⟩
 
+theorem _root_.Except.WF.and {ε α : Type} {x : Except ε α} {Q R : α → Prop}
+    (h1 : x.WF Q) (h2 : x.WF R) : x.WF fun a => Q a ∧ R a :=
+  fun a h => ⟨h1 a h, h2 a h⟩
+
+theorem List.mem_take_idxOf_succ {α : Type} [BEq α] [LawfulBEq α]
+    {l : List α} {a : α} (h : a ∈ l) :
+    a ∈ l.take (l.idxOf a + 1) := by
+  have hlt : l.idxOf a < l.length := List.idxOf_lt_length_of_mem h
+  rw [List.take_add_one]
+  apply List.mem_append.mpr
+  right
+  simp [List.getElem?_eq_getElem hlt, List.getElem_idxOf hlt]
+
+/-- Sharpening a field up-set to a binder-order prefix of the fields.  The
+retained fields form the exact newest-first prefix of the context, each
+depends only on earlier binders, and no field lies in the root scope `P`. -/
+theorem IsFVarUpSet.sharpenPrefix {P : FVarId → Prop} :
+    ∀ (Δpre Δroot : VLCtx) (L : List FVarId),
+      VLCtx.FVWF (Δpre ++ Δroot) →
+      VLCtx.fvars Δpre = L.reverse →
+      (∀ fv ∈ L, ¬ P fv) →
+      IsFVarUpSet (fun fv => fv ∈ L ∨ P fv) (Δpre ++ Δroot) →
+      ∀ k, IsFVarUpSet (fun fv => fv ∈ L.take k ∨ P fv) (Δpre ++ Δroot)
+  | [], Δroot, L, _, hL, _, hup, k => by
+    have hnil : L = [] := by simpa using hL.symm
+    subst hnil
+    simpa using hup
+  | (none, d) :: Δpre, Δroot, L, hwf, hL, hfresh, hup, k =>
+    sharpenPrefix Δpre Δroot L hwf.1 hL hfresh hup k
+  | (some (fv, deps), d) :: Δpre, Δroot, L, hwf, hL, hfresh, hup, k => by
+    have hcons : VLCtx.fvars ((some (fv, deps), d) :: Δpre) =
+        fv :: VLCtx.fvars Δpre := by
+      simp [VLCtx.fvars]
+    rw [hcons] at hL
+    obtain ⟨L', hL'⟩ : ∃ L', VLCtx.fvars Δpre = L'.reverse :=
+      ⟨(VLCtx.fvars Δpre).reverse, by simp⟩
+    have hLeq : L = L' ++ [fv] := by
+      rw [hL'] at hL
+      have := congrArg List.reverse hL
+      simpa using this.symm
+    subst hLeq
+    have hfvTail : fv ∉ VLCtx.fvars (Δpre ++ Δroot) := (hwf.2 fv deps rfl).1
+    have hdeps : deps ⊆ VLCtx.fvars (Δpre ++ Δroot) := (hwf.2 fv deps rfl).2
+    have hfvL' : fv ∉ L' := by
+      intro h
+      apply hfvTail
+      rw [VLCtx.fvars_append, hL']
+      simp [h]
+    have hcongrTail : ∀ Q₁ Q₂ : FVarId → Prop,
+        (∀ x ∈ VLCtx.fvars (Δpre ++ Δroot), Q₁ x ↔ Q₂ x) →
+        IsFVarUpSet Q₁ (Δpre ++ Δroot) → IsFVarUpSet Q₂ (Δpre ++ Δroot) :=
+      fun _ _ h H => (IsFVarUpSet.congr hwf.1 h).mp H
+    have hupTail : IsFVarUpSet (fun x => x ∈ L' ∨ P x) (Δpre ++ Δroot) := by
+      refine hcongrTail _ _ ?_ hup.1
+      intro x hx
+      have hxfv : x ≠ fv := fun h => hfvTail (h ▸ hx)
+      simp [hxfv]
+    have ih := sharpenPrefix Δpre Δroot L' hwf.1 hL'
+      (fun x hx => hfresh x (List.mem_append_left _ hx)) hupTail
+    refine ⟨?_, ?_⟩
+    · by_cases hk : k ≤ L'.length
+      · have htake : (L' ++ [fv]).take k = L'.take k := by
+          rw [List.take_append_of_le_length hk]
+        rw [htake]
+        exact ih k
+      · have htake : (L' ++ [fv]).take k = L' ++ [fv] := by
+          apply List.take_of_length_le
+          simp
+          omega
+        rw [htake]
+        exact hup.1
+    · intro hfvScope x hx
+      have hfvFull : fv ∈ L' ++ [fv] ∨ P fv := Or.inl (by simp)
+      rcases hup.2 hfvFull x hx with hxL | hxP
+      · left
+        have hxTail : x ∈ VLCtx.fvars (Δpre ++ Δroot) := hdeps hx
+        have hxfv : x ≠ fv := fun h => hfvTail (h ▸ hxTail)
+        have hxL' : x ∈ L' := by
+          rcases List.mem_append.mp hxL with h | h
+          · exact h
+          · simp at h
+            exact absurd h hxfv
+        rcases hfvScope with hfvTake | hfvP
+        · have hk : L'.length < k := by
+            by_contra hle
+            have hle' : k ≤ L'.length := Nat.le_of_not_lt hle
+            rw [List.take_append_of_le_length hle'] at hfvTake
+            exact hfvL' (List.mem_of_mem_take hfvTake)
+          rw [List.take_of_length_le (by simp; omega)]
+          exact List.mem_append_left _ hxL'
+        · exact absurd hfvP (hfresh fv (by simp))
+      · exact Or.inr hxP
+
+/-- Per-field variant of `RecInfoHypothesisCallSemanticOrigins`: entry `j`
+is scoped by `fieldScope j`, the exact up-set established for the `j`-th
+selected recursive field.  The producer establishes both rows from the same
+executable run; the coarse row serves the equation layer while this one
+supports strengthening the call context to the field's own prefix. -/
+structure RecInfoHypothesisCallSemanticOriginsAt
+    {recLparams : List Name}
+    (Rroot : RecursorContextWF fieldRoot recLparams)
+    (decl : VInductDecl) (depth : Nat)
+    (stats : AddInductive.InductiveStats) (motives : Array Expr)
+    (fieldScope : Nat → FVarId → Prop)
+    (fields hypotheses : Array Expr)
+    (calls : Array AddInductive.RecCallBlueprint) : Prop where
+  size_eq : calls.size = hypotheses.size
+  entry : ∀ j (hj : j < hypotheses.size),
+    ∃ originRoot,
+      ∃ Rorigin : RecursorContextWF originRoot recLparams,
+        ∃ priorHypotheses : Array Expr,
+          ∃ _ : RecursorRecentBoundFVarArray Rroot Rorigin priorHypotheses,
+            priorHypotheses.size = j ∧
+              Nonempty (RecInfoCallBlueprintSemanticOrigin stats motives
+                Rorigin (fieldScope j) decl (depth + j) fields[j]! calls[j]!)
+
+theorem RecInfoHypothesisCallSemanticOriginsAt.empty
+    {recLparams : List Name}
+    (R : RecursorContextWF c recLparams) (decl : VInductDecl) (depth : Nat)
+    (stats : AddInductive.InductiveStats) (motives : Array Expr)
+    (fieldScope : Nat → FVarId → Prop)
+    (fields : Array Expr) :
+    RecInfoHypothesisCallSemanticOriginsAt R decl depth stats motives fieldScope
+      fields #[] #[] where
+  size_eq := rfl
+  entry j hj := by simp at hj
+
+theorem RecInfoHypothesisCallSemanticOriginsAt.pushCurrent
+    {recLparams : List Name}
+    {Rroot : RecursorContextWF fieldRoot recLparams}
+    {R : RecursorContextWF c recLparams}
+    {calls : Array AddInductive.RecCallBlueprint}
+    (Hsem : RecInfoHypothesisCallSemanticOriginsAt Rroot decl depth stats
+      motives fieldScope fields hypotheses calls)
+    (hnext : hypotheses.size < fields.size)
+    (Hrecent : RecursorRecentBoundFVarArray Rroot R hypotheses)
+    (call : AddInductive.RecCallBlueprint)
+    (S : RecInfoCallBlueprintSemanticOrigin stats motives R
+      (fieldScope hypotheses.size) decl
+      (depth + hypotheses.size) fields[hypotheses.size]! call) :
+    RecInfoHypothesisCallSemanticOriginsAt Rroot decl depth stats motives
+      fieldScope fields (hypotheses.push (.fvar ⟨c.ngen.curr⟩))
+      (calls.push call) := by
+  refine {
+    size_eq := by simpa using congrArg Nat.succ Hsem.size_eq
+    entry := ?_ }
+  intro j hj
+  by_cases hlast : j = hypotheses.size
+  · subst j
+    have hcall : (calls.push call)[hypotheses.size]! = call := by
+      rw [show hypotheses.size = calls.size from Hsem.size_eq.symm]
+      simp
+    rw [hcall]
+    exact ⟨c, R, hypotheses, Hrecent, rfl, ⟨S⟩⟩
+  · have hjOld : j < hypotheses.size := by
+      have : j < hypotheses.size + 1 := by simpa using hj
+      omega
+    rcases Hsem.entry j hjOld with
+      ⟨originRoot, Rorigin, priorHypotheses, Hprior, hpriorSize, S⟩
+    have hjCalls : j < calls.size := by rw [Hsem.size_eq]; exact hjOld
+    have hcall : (calls.push call)[j]! = calls[j]! := by
+      simp only [Array.getElem!_eq_getD]
+      unfold Array.getD
+      rw [dif_pos (by simp; omega), dif_pos hjCalls]
+      exact Array.getElem_push_lt hjCalls
+    rw [hcall]
+    exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
+      hpriorSize, S⟩
+
+/-- The exact scope of one selected recursive field: the parameters together
+with the constructor fields up to and including that field, in binder
+order.  Its binder-domain translation can therefore be strengthened to the
+field's own prefix context. -/
+def RecursorFieldPrefixScope (params : Array Expr) (fields : List FVarId)
+    (field : Expr) (fv : FVarId) : Prop :=
+  fv ∈ fields.take (fields.idxOf (recursorFVarId field) + 1) ∨
+    fv ∈ ExprArrayFVarIds params
+
 /-- Field-traversal semantics retained at the exact producer contexts. -/
 structure RecInfoRuleFieldSemanticSource
     {recLparams : List Name}
@@ -268,6 +446,11 @@ def RecInfoRuleBlueprintSemanticOriginAt
           stats (recInfos.map (·.motive))
           (fun fv => fv ∈ F.fieldsRecent.fvars ∨
             fv ∈ ExprArrayFVarIds stats.params)
+          S.recursiveFields S.hypotheses B.recursiveCalls) ∧
+        Nonempty (RecInfoHypothesisCallSemanticOriginsAt F.terminalWF decl
+          depth stats (recInfos.map (·.motive))
+          (fun j => RecursorFieldPrefixScope stats.params F.fieldsRecent.fvars
+            S.recursiveFields[j]!)
           S.recursiveFields S.hypotheses B.recursiveCalls)
 
 theorem RecInfoRuleBlueprintSemanticOriginAt.mono
@@ -286,10 +469,11 @@ theorem RecInfoRuleBlueprintSemanticOriginAt.mono
     ⟨origins, hshape, hstats, hmotives, F, hparams, depth, HvalidStats,
       fields, Hselection, hexpectedValid, hexpectedLt,
       ownerIdx, htargetValid, Hvalidated, binding, Hevidence,
-      Hlookup, Hcalls⟩
+      Hlookup, Hcalls, Hsharp⟩
   exact ⟨origins, hshape, hstats, hmotives, F.mono E, hparams, depth,
     HvalidStats, fields, Hselection, hexpectedValid, hexpectedLt,
-    ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hlookup, Hcalls⟩
+    ownerIdx, htargetValid, Hvalidated, binding, Hevidence, Hlookup, Hcalls,
+    Hsharp⟩
 
 /-- Owner/minor-indexed persistence of the semantic blueprint rows through
 the complete mutual second pass. -/
@@ -1822,6 +2006,9 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (HcallOrigins : RecInfoHypothesisCallBlueprintOrigins Horigins calls)
     (HcallSemantics : RecInfoHypothesisCallSemanticOrigins Rroot decl depth
       stats (recInfos.map (·.motive)) rootScope u v calls)
+    (fieldScope : Nat → FVarId → Prop)
+    (HsharpSemantics : RecInfoHypothesisCallSemanticOriginsAt Rroot decl depth
+      stats (recInfos.map (·.motive)) fieldScope u v calls)
     (hprocessed : v.size = i)
     (hcalls : calls.size = v.size)
     (Hvi : ∀ {next : AddInductive.Context}
@@ -1867,6 +2054,9 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
                       (mkAppN u[j]! O.args) } ∧
               RecInfoCallBlueprintSemanticOrigin stats
                 (recInfos.map (·.motive)) Rnext rootScope decl
+                (depth + prior.size) u[j]! result.2 ∧
+              RecInfoCallBlueprintSemanticOrigin stats
+                (recInfos.map (·.motive)) Rnext (fieldScope j) decl
                 (depth + prior.size) u[j]! result.2)
     (Hk : ∀ {out : AddInductive.Context}
       (Rout : RecursorContextWF out recLparams)
@@ -1878,6 +2068,8 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       RecInfoHypothesisCallBlueprintOrigins HoutOrigins outCalls →
       RecInfoHypothesisCallSemanticOrigins Rroot decl depth stats
         (recInfos.map (·.motive)) rootScope u values outCalls →
+      RecInfoHypothesisCallSemanticOriginsAt Rroot decl depth stats
+        (recInfos.map (·.motive)) fieldScope u values outCalls →
       values.size = v.size + (u.size - i) →
       outCalls.size = values.size →
       (k values outCalls out).WF Q) :
@@ -1889,7 +2081,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     refine (Hvi R Hrecent i hnext).bind fun result Hresult => ?_
     rcases result with ⟨viTy, call⟩
     rcases Hresult with
-      ⟨viTarget, HviTr, HviType, O, hcall, HcallSemantic⟩
+      ⟨viTarget, HviTr, HviType, O, hcall, HcallSemantic, HsharpSemantic⟩
     subst i
     have hget : ((getLCtx : AddInductive.M LocalContext) current).WF
         (fun lctx => lctx = current.lctx) := by
@@ -1915,17 +2107,19 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       (HcallOrigins.pushCurrent R.toBindingContextWF vName viTy .default
         hnext Hrecent.contextLE O call hcall)
       (HcallSemantics.pushCurrent hnext Hrecent call HcallSemantic)
+      fieldScope
+      (HsharpSemantics.pushCurrent hnext Hrecent call HsharpSemantic)
       (by simp) (by simp [hcalls]) Hvi ?_
     intro out Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
-      HvalueCallSemantics hsize hcallSize
+      HvalueCallSemantics HvalueSharpSemantics hsize hcallSize
     apply Hk Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
-      HvalueCallSemantics
+      HvalueCallSemantics HvalueSharpSemantics
     · simp only [Array.size_push] at hsize
       omega
     · exact hcallSize
   · rw [dif_neg hnext]
     exact Hk R v calls Hrecent Horigins HcallOrigins HcallSemantics
-      (by omega) hcalls
+      HsharpSemantics (by omega) hcalls
 termination_by u.size - i
 
 /-- Pointwise semantic certificate for the exact pair returned by the
@@ -2255,6 +2449,10 @@ theorem resultSemanticsOfMotiveApplications
           (.fvar fv) fieldTarget ∧ rootScope fv)
     (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ R.mlctx.vlctx.fvars)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (fieldScope : Nat → FVarId → Prop)
+    (HfieldsSharp : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv → fieldScope j fv)
+    (sharpInContext : ∀ j fv, fieldScope j fv → fv ∈ R.mlctx.vlctx.fvars)
+    (hsharpUp : ∀ j, IsFVarUpSet (fieldScope j) R.mlctx.vlctx)
     (Happlications : RecInfoMotiveApplications R stats decl recInfos
       elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
@@ -2272,6 +2470,8 @@ theorem resultSemanticsOfMotiveApplications
       RecInfoHypothesisCallBlueprintOrigins HoutOrigins calls →
       RecInfoHypothesisCallSemanticOrigins R decl depth stats
         (recInfos.map (·.motive)) rootScope u values calls →
+      RecInfoHypothesisCallSemanticOriginsAt R decl depth stats
+        (recInfos.map (·.motive)) fieldScope u values calls →
       values.size = u.size →
       calls.size = values.size →
       (k values calls out).WF Q) :
@@ -2284,6 +2484,9 @@ theorem resultSemanticsOfMotiveApplications
       (RecInfoHypothesisTypeOrigins.empty stats recInfos c u))
     (RecInfoHypothesisCallSemanticOrigins.empty R decl depth stats
       (recInfos.map (·.motive)) rootScope u)
+    fieldScope
+    (RecInfoHypothesisCallSemanticOriginsAt.empty R decl depth stats
+      (recInfos.map (·.motive)) fieldScope u)
     rfl rfl ?_ ?_
   intro next Rnext prior Hprior j hj
   rcases Hfields j hj with ⟨fv, fieldTarget, hfieldEq, Hfield, hfieldScope⟩
@@ -2304,38 +2507,52 @@ theorem resultSemanticsOfMotiveApplications
     rw [getElem!_pos u j hj]
     exact hfieldEq
   rw [hfieldEq, hfieldBang]
-  apply inductionHypothesisTypeOrigin fv stats recInfos next
-    Rnext HstatsNext hconsume
-      (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
-      hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
-      (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
-  intro current Rcurrent exposedType syntaxTarget terminalTarget
-    appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
-    HappliedType hvalid
-  let HstatsCurrent := HstatsNext.weakenRecent Hargs
-  have htargetStats : target < stats.indConsts.size :=
-    (checkPositivityStep.isValidIndApp?_some hvalid).1
-  have htarget : target < recInfos.size := by
-    rw [hrecords]
-    exact htargetStats
-  have htargetDecl : target < decl.types.length := by
-    rw [← HstatsCurrent.types_size]
-    exact htargetStats
-  have hctxCurrent : VLCtx.NoIndConsts
-      (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
-    Hargs.noIndConsts (names := decl.types.map (·.name)) hctxNext
-  let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
-    htargetDecl
-      (by simpa only [Hargs.venv_eq, Hprior.venv_eq] using hlit)
-    hctxCurrent
-  exact Happlications.applyAtMono Hbindings Horigins Hshape
-    (Hprior.contextExtension.trans Hargs.contextExtension)
-    target htarget Hexposed Hdefeq
-    Hterminal Happlied HappliedType Hvalidated
+  refine Except.WF.mono (Except.WF.and
+    (inductionHypothesisTypeOrigin fv stats recInfos next
+      Rnext HstatsNext hconsume
+        (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
+        hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
+        (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
+        ?happCoarse)
+    (inductionHypothesisTypeOrigin fv stats recInfos next
+      Rnext HstatsNext hconsume
+        (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
+        (HfieldsSharp j hj fv hfieldEq)
+        (Hprior.upsetRoot (sharpInContext j) (hsharpUp j))
+        (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
+        ?happSharp)) ?combine
+  case combine =>
+    rintro result ⟨⟨viTarget, HviTr, HviType, O, hcall, Hsem⟩,
+      ⟨_, _, _, _, _, Hsharp⟩⟩
+    exact ⟨viTarget, HviTr, HviType, O, hcall, Hsem, Hsharp⟩
+  case happCoarse | happSharp =>
+    intro current Rcurrent exposedType syntaxTarget terminalTarget
+      appliedTarget args target Hexposed Hdefeq Hterminal Hargs Happlied
+      HappliedType hvalid
+    let HstatsCurrent := HstatsNext.weakenRecent Hargs
+    have htargetStats : target < stats.indConsts.size :=
+      (checkPositivityStep.isValidIndApp?_some hvalid).1
+    have htarget : target < recInfos.size := by
+      rw [hrecords]
+      exact htargetStats
+    have htargetDecl : target < decl.types.length := by
+      rw [← HstatsCurrent.types_size]
+      exact htargetStats
+    have hctxCurrent : VLCtx.NoIndConsts
+        (decl.types.map (·.name)) Rcurrent.mlctx.vlctx :=
+      Hargs.noIndConsts (names := decl.types.map (·.name)) hctxNext
+    let Hvalidated := HstatsCurrent.validatedIndAppAt Hexposed hvalid
+      htargetDecl
+        (by simpa only [Hargs.venv_eq, Hprior.venv_eq] using hlit)
+      hctxCurrent
+    exact Happlications.applyAtMono Hbindings Horigins Hshape
+      (Hprior.contextExtension.trans Hargs.contextExtension)
+      target htarget Hexposed Hdefeq
+      Hterminal Happlied HappliedType Hvalidated
   · intro out Rout values calls Hvalues HvalueOrigins HvalueCallOrigins
-      HvalueCallSemantics hsize hcallSize
+      HvalueCallSemantics HvalueSharpSemantics hsize hcallSize
     apply Hk Rout values calls Hvalues HvalueOrigins HvalueCallOrigins
-      HvalueCallSemantics
+      HvalueCallSemantics HvalueSharpSemantics
     · simpa using hsize
     · exact hcallSize
 
@@ -2362,6 +2579,10 @@ theorem resultSemanticsOfMotiveTelescopes
           (.fvar fv) fieldTarget ∧ rootScope fv)
     (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ R.mlctx.vlctx.fvars)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (fieldScope : Nat → FVarId → Prop)
+    (HfieldsSharp : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv → fieldScope j fv)
+    (sharpInContext : ∀ j fv, fieldScope j fv → fv ∈ R.mlctx.vlctx.fvars)
+    (hsharpUp : ∀ j, IsFVarUpSet (fieldScope j) R.mlctx.vlctx)
     (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
       elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
@@ -2379,6 +2600,8 @@ theorem resultSemanticsOfMotiveTelescopes
       RecInfoHypothesisCallBlueprintOrigins HoutOrigins calls →
       RecInfoHypothesisCallSemanticOrigins R decl depth stats
         (recInfos.map (·.motive)) rootScope u values calls →
+      RecInfoHypothesisCallSemanticOriginsAt R decl depth stats
+        (recInfos.map (·.motive)) fieldScope u values calls →
       values.size = u.size →
       calls.size = values.size →
       (k values calls out).WF Q) :
@@ -2386,6 +2609,7 @@ theorem resultSemanticsOfMotiveTelescopes
       k c).WF Q :=
   resultSemanticsOfMotiveApplications stats u recInfos k R rootScope Hstats
     hconsume hlit hctx Hfields rootScopeInContext hrootUp
+    fieldScope HfieldsSharp sharpInContext hsharpUp
     Htelescopes.applications Hbindings
     Horigins Hshape hrecords Hk
 
@@ -2585,18 +2809,20 @@ theorem RecInfoRuleBlueprintSemanticOriginAt.rebaseMotiveCore
     ⟨origins, hshape, hstats, hmotives, F, hparams, depth, HvalidStats,
       fields, Hselection, hexpectedValid, hexpectedLt, ownerIdx,
       htargetValid, Hvalidated, binding, ⟨Hevidence⟩,
-      ⟨Hlookup⟩, Hcalls⟩
+      ⟨Hlookup⟩, Hcalls, Hsharp⟩
   let binding' := binding.congrInfo (H.motive_eq ownerIdx)
     (H.indices_eq ownerIdx) (H.major_eq ownerIdx)
   let evidence' := Hevidence.congrInfo (H.motive_eq ownerIdx)
     (H.indices_eq ownerIdx) (H.major_eq ownerIdx)
   have Hcalls' := Hcalls
   rw [H.map_motive] at Hcalls'
+  have Hsharp' := Hsharp
+  rw [H.map_motive] at Hsharp'
   exact ⟨origins, hshape, hstats, hmotives.trans H.map_motive,
     F, hparams, depth, HvalidStats, fields, Hselection, hexpectedValid,
     hexpectedLt, ownerIdx, htargetValid, Hvalidated,
     binding', ⟨evidence'⟩,
-    ⟨Hlookup.rebaseMotiveCore H⟩, Hcalls'⟩
+    ⟨Hlookup.rebaseMotiveCore H⟩, Hcalls', Hsharp'⟩
 
 theorem RecInfoCoreEq.flatMap_minors
     (H : RecInfoCoreEq left right) :
@@ -3914,9 +4140,69 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         rw [Hopening.fvars_eq_bound
           HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
         exact _HfieldParameterUp)
+      (fun j => RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
+        recursiveFields[j]!)
+      (by
+        intro j hj fv hfv
+        have hbang : recursiveFields[j]! = .fvar fv := by
+          rw [getElem!_pos recursiveFields j hj]
+          exact hfv
+        have hallExpr : Expr.fvar fv ∈ allFields.toList := by
+          apply Hselections.toSource.selectedSublist.subset
+          rw [← hfv]
+          exact Array.getElem_mem_toList hj
+        rw [HfieldsRecent.expressions] at hallExpr
+        have hmem : fv ∈ HfieldsRecent.fvars := by simpa using hallExpr
+        have htake := List.mem_take_idxOf_succ hmem
+        exact Or.inl (by simpa [hbang, recursorFVarId] using htake))
+      (by
+        intro j fv hfv
+        rcases hfv with hfield | hparam
+        · have hmem := HfieldsRecent.members fv (List.mem_of_mem_take hfield)
+          rw [← Rargs.lctx_eq, Rargs.mlctx_wf.tr.fvars_eq] at hmem
+          exact hmem
+        · have hp : fv ∈ Hparams.fvars := by
+            rw [← Hparams.exprArrayFVarIds]
+            exact hparam
+          have hmem := HextArgs.contextLE (Hparams.members fv hp)
+          rw [← Rargs.lctx_eq, Rargs.mlctx_wf.tr.fvars_eq] at hmem
+          exact hmem)
+      (by
+        intro j
+        rw [Hopening.fvars_eq_bound
+          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+        have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+          Rargs.mlctx allFields.size HfieldsRecent.size_le
+        rw [HfieldsRecent.drop_eq] at hsplit
+        have hprefix : VLCtx.fvars (Rargs.mlctx.vlctx.take allFields.size) =
+            HfieldsRecent.fvars.reverse := by
+          rw [TypeChecker.MLCtx.vlctx_take_fvars]
+          exact HfieldsRecent.fvarRevList_eq
+        have hwf : VLCtx.FVWF
+            (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
+          rw [← hsplit]
+          exact Rargs.mlctx_wf.tr.wf.fvwf
+        have hfresh : ∀ fv ∈ HfieldsRecent.fvars,
+            ¬ fv ∈ ExprArrayFVarIds stats.params := by
+          intro fv hfv hparam
+          apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfv
+          apply Hparams.members
+          rw [← Hparams.exprArrayFVarIds]
+          exact hparam
+        have hup : IsFVarUpSet
+            (fun fv => fv ∈ HfieldsRecent.fvars ∨
+              fv ∈ ExprArrayFVarIds stats.params)
+            (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
+          rw [← hsplit]
+          exact _HfieldParameterUp
+        have hsharp := IsFVarUpSet.sharpenPrefix _ _ _ hwf hprefix hfresh hup
+          (HfieldsRecent.fvars.idxOf (recursorFVarId recursiveFields[j]!) + 1)
+        rw [← hsplit] at hsharp
+        exact hsharp)
       HtelescopesArgs HbindingsArgs HoriginsArgs HmotiveShapesArgs hrecords
   intro outCtx Rout hypotheses calls HhypothesesRecent HhypothesisOrigins
-    HhypothesisCallOrigins HhypothesisCallSemantics hhypothesesSize hcallsSize
+    HhypothesisCallOrigins HhypothesisCallSemantics HhypothesisCallSharpSemantics
+    hhypothesesSize hcallsSize
   let HextAll := HextArgs.trans HhypothesesRecent.contextExtension
   have HmotiveAt : TrExprS Rout.venv recLparams Rout.mlctx.vlctx
       (Expr.app
@@ -4259,8 +4545,9 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           Happlication.owner_valid, ⟨Hvalidated⟩,
           Hbinding, HmotiveEvidence,
           ⟨RecInfoMotiveTelescopeLookup.of HtelescopesArgs HbindingsArgs
-            HoriginsArgs HmotiveShapesArgs⟩, ⟨?_⟩⟩
-        · simpa using HhypothesisCallSemantics) ?_
+            HoriginsArgs HmotiveShapesArgs⟩, ⟨?_⟩, ⟨?_⟩⟩
+        · simpa using HhypothesisCallSemantics
+        · simpa using HhypothesisCallSharpSemantics) ?_
   intro nextCtx nextDepth next Rnext henvNext HsuffixNext
     hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
     HblueprintsNext HblueprintSemanticsNext HminorSourcesNext

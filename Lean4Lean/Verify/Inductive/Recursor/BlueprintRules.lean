@@ -873,7 +873,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
   let HmotiveTelescope := Htail.1
   let Htail' := Htail.2
   let HlookupNonempty := Htail'.1
-  let HcallsNonempty := Htail'.2
+  let HcallsNonempty := Htail'.2.1
   rcases HlookupNonempty with ⟨Hlookup⟩
   let Hcalls := Classical.choice HcallsNonempty
   rcases H.callOrigins with
