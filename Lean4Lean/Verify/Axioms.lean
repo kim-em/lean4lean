@@ -518,9 +518,8 @@ def lastRevIdx? (v : FVarId) : List FVarId → Option Nat
 /-- Simultaneous abstraction of a list of free variables, the model of Lean's `Expr.abstract`
 (C++ `abstract`): under `d` binders, `xs[i]` becomes `bvar (d + xs.length - 1 - i)`; when a
 variable occurs more than once the last occurrence wins; and loose bound variables are left
-unchanged. The sequential `abstractList` instead shifts every loose bound variable at or above
-the cutoff once per abstracted variable, so the two agree only on expressions without such
-variables (`abstractN_eq_abstractList`, `abstract_eq_of_closed`). -/
+unchanged. It agrees with the sequential `abstractList` on duplicate-free lists and expressions
+with no loose bound variables at or above the cutoff (`abstractN_eq_abstractList`). -/
 def abstractN (xs : List FVarId) : Expr → (k :_:= 0) → Expr
   | e@(.bvar _), _ => e
   | e@(.fvar v), d =>
@@ -539,10 +538,7 @@ def abstractN (xs : List FVarId) : Expr → (k :_:= 0) → Expr
   | e@(.mvar _), _
   | e@(.lit _), _ => e
 
-/-- This could be an `@[implemented_by]`. An earlier form of this axiom equated `abstract`
-with the sequential `abstractList` unconditionally; that statement is false, since
-`(Expr.bvar 0).abstract #[.fvar x] = .bvar 0` while `abstractList` returns `.bvar 1`, and
-`abstractList` also numbers duplicate variables differently. -/
+/-- This could be an `@[implemented_by]` -/
 @[simp] axiom abstractN_eq (e : Expr) (xs : List FVarId) :
     e.abstract ⟨xs.map .fvar⟩ = e.abstractN xs
 
