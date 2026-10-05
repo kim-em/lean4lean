@@ -92,4 +92,68 @@ theorem TrExprS.closeAllLams {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Exp
     (by simpa [VerifyInductive.abstractForallContext] using Htr)
   simpa using h
 
+/-- Restriction to an up-set as a typechecker context: the kept declarations
+keep their concrete types, and their abstract types are the strengthened
+translations in the restricted tail. -/
+theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv : env.WF)
+    (P : FVarId → Prop) :
+    ∀ (c : MLCtx), c.WF env Us → VerifyInductive.MLCtxOnlyLams c → IsFVarUpSet P c.vlctx →
+    ∃ (c' : MLCtx) (n : Lift), c'.WF env Us ∧ VerifyInductive.MLCtxOnlyLams c' ∧
+      VLCtx.FVLift' c'.vlctx c.vlctx 0 n 0 ∧
+      (∀ fv, fv ∈ c'.vlctx.fvars ↔ fv ∈ c.vlctx.fvars ∧ P fv)
+  | .nil, _, _, _ => ⟨.nil, .refl, trivial, VerifyInductive.MLCtxOnlyLams.nil, .refl, by simp⟩
+  | .vlet id name ty v ty' v' c, _, honly, _ => by
+    exfalso
+    obtain ⟨_, _, _, _, _, _, h⟩ :=
+      honly (.ldecl c.length id name ty v false default) (by simp [MLCtx.decls])
+    cases h
+  | .vlam fv name ty ty' bi c, hwf, honly, hup => by
+    have hwfBig : VLCtx.WF env Us.length (MLCtx.vlam fv name ty ty' bi c).vlctx := hwf.tr.wf
+    obtain ⟨hwfc, _, htr, _⟩ := hwf
+    have honlyc : VerifyInductive.MLCtxOnlyLams c := honly.tail_vlam
+    have hupc : IsFVarUpSet P c.vlctx := hup.1
+    obtain ⟨c', n, hwf', honly', W, hfvars⟩ := restrictUpSetCtx henv P c hwfc honlyc hupc
+    have hvwf : VLCtx.WF env Us.length c.vlctx := hwfc.tr.wf
+    have hnotin : fv ∉ c.vlctx.fvars := (hwfBig.2.1 fv ty.fvarsList rfl).1
+    by_cases hP : P fv
+    · have hdeps : ∀ fv' ∈ ty.fvarsList, P fv' := hup.2 hP
+      have hdepsIn : ty.fvarsList ⊆ c'.vlctx.fvars := fun fv' h =>
+        (hfvars fv').2 ⟨htr.fvarsList h, hdeps fv' h⟩
+      have hv : FVarsIn (· ∈ c'.vlctx.fvars) ty :=
+        fvarsIn_iff.mpr ⟨hdepsIn, (fvarsIn_iff.mp htr.fvarsIn).2⟩
+      have hc : Closed ty 0 := by
+        have h := htr.closed
+        rwa [c.noBV] at h
+      obtain ⟨ty₀, htr₀⟩ := htr.weakFV'_inv henv W (.refl henv.ordered hvwf) hc hv
+      have hlift := htr₀.weakFV' henv W hvwf
+      have hty' : ty' = ty₀.lift' n := by simpa using htr.uniqueS hlift
+      have W' : VLCtx.FVLift' ((some (fv, ty.fvarsList), .vlam ty₀) :: c'.vlctx)
+          (MLCtx.vlam fv name ty ty' bi c).vlctx 0 (.consN n 1) 0 := by
+        have W'' := W.cons_fvar (fv, ty.fvarsList) (.vlam ty₀) hdepsIn
+        simpa [VLocalDecl.lift', VLocalDecl.depth, hty'] using W''
+      have hwfSmall := W'.wf henv hwfBig
+      have hfind' : c'.lctx.find? fv = none :=
+        hwf'.tr.find?_eq_none.2 fun h => hnotin ((hfvars fv).1 h).1
+      refine ⟨.vlam fv name ty ty₀ bi c', .consN n 1, ⟨hwf', hfind', htr₀, hwfSmall.2.2⟩,
+        honly'.vlam, W', ?_⟩
+      intro x
+      simp only [MLCtx.vlctx, VLCtx.fvars_cons_some, List.mem_cons]
+      constructor
+      · rintro (rfl | hx)
+        · exact ⟨Or.inl rfl, hP⟩
+        · exact ⟨Or.inr ((hfvars x).1 hx).1, ((hfvars x).1 hx).2⟩
+      · rintro ⟨rfl | hx, hPx⟩
+        · exact Or.inl rfl
+        · exact Or.inr ((hfvars x).2 ⟨hx, hPx⟩)
+    · refine ⟨c', n.skipN 1, hwf', honly', ?_, ?_⟩
+      · simpa [VLocalDecl.depth] using W.skip_fvar (fv, ty.fvarsList) (.vlam ty')
+      · intro x
+        simp only [MLCtx.vlctx, VLCtx.fvars_cons_some, List.mem_cons]
+        constructor
+        · intro hx
+          exact ⟨Or.inr ((hfvars x).1 hx).1, ((hfvars x).1 hx).2⟩
+        · rintro ⟨rfl | hx, hPx⟩
+          · exact absurd hPx hP
+          · exact (hfvars x).2 ⟨hx, hPx⟩
+
 end Lean4Lean
