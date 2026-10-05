@@ -188,8 +188,11 @@ theorem CompletedConstructorPhases.recursorPhasesWF
         HtailType, Hintro, HintroType⟩
     exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
       Htail, HtailType, Hintro, HintroType⟩
-  let construction : CompletedRecursorConstruction R := {
+  let construction (T : RecursorTypeTranslations R.context.venv localContext.lparams
+      elimLevel localContext stats indTypes recInfos) :
+      CompletedRecursorConstruction R := {
     sourceSafety := hsourceSafety
+    recursorTypes := T
     elimLevel := elimLevel
     elimLevelAdmissible := hElim
     elimLevelChecked := hElimRun
@@ -232,9 +235,9 @@ theorem CompletedConstructorPhases.recursorPhasesWF
     (by simpa only [henvLocal] using hlit) hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
     Hparams hnoalias HminorCounts HsuffixLocal.parameterFVarsUp Hseed
-    (fun owner => (construction.nativeTarget owner).type) (by
-      intro owner howner
-      simpa only [Hle.lparams_eq] using construction.canonicalTypeTranslations owner howner) (by
+    (fun T owner => ((construction T).nativeTarget owner).type) (by
+      intro T owner howner
+      simpa only [Hle.lparams_eq] using (construction T).canonicalTypeTranslations owner howner) (by
       rw [Hle.safety_eq]
       exact hnotPartial) (by
         intro hallow
@@ -257,16 +260,18 @@ theorem CompletedConstructorPhases.recursorPhasesWF
             AddConstants localContext.safety localContext.env
               R.context.venv
               entries outEnv outVEnv ∧
+            ∃ T : RecursorTypeTranslations R.context.venv localContext.lparams
+              elimLevel localContext stats indTypes recInfos,
             ∀ i (hi : i < entries.length), entries[i].2 = {
               name := Lean.mkRecName indTypes[i]!.name
               uvars := (AddInductive.getRecLevelParams elimLevel c.lparams).length
-              type := (construction.nativeTarget i).type } := by
+              type := ((construction T).nativeTarget i).type } := by
     simpa only [Hle.lparams_eq] using Hrecursors
   exact Hrecursors'.mono fun outEnv Hout => by
     rcases Hout with
-      ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled, Htargets⟩
+      ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled, T, Htargets⟩
     exact ⟨{
-      toCompletedRecursorConstruction := construction
+      toCompletedRecursorConstruction := construction T
       outVEnv := outVEnv
       entries := entries
       generated := Hgenerated
@@ -282,7 +287,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
           simp only [Array.length_toList] at hc
           omega
         rw [Htargets i hi]
-        exact (construction.nativeTarget_eq i hbound).symm }⟩
+        exact ((construction T).nativeTarget_eq i hbound).symm }⟩
 
 end VerifyInductive
 end Lean4Lean

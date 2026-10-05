@@ -42,6 +42,13 @@ structure CompletedRecursorConstruction
   recursorWF : RecursorContextWF localContext
     (AddInductive.getRecLevelParams elimLevel c.lparams)
   recursorEnv : recursorWF.venv = R.context.venv
+  /-- The executable type-checks every generated recursor type before any
+  recursor is installed.  These translations are the only derivations of the
+  closed recursor telescopes available before installation: the minor
+  premises mention motives, so their translations cannot be rebuilt from the
+  free-variable contexts of the first pass without strengthening. -/
+  recursorTypes : RecursorTypeTranslations R.context.venv localContext.lparams elimLevel
+    localContext stats indTypes recInfos
   parameterSuffix : RecursorParameterContextSuffix recursorWF stats
     recursorDepth
   parameterDecls : parameterSuffix.parameterDecls =

@@ -2275,11 +2275,13 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
             introTarget ∧
           R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx introTarget
             tailTarget)
-    (targets : Nat → VExpr)
-    (Hcanonical : ∀ owner (howner : owner < indTypes.size),
+    (targets : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+      stats indTypes recInfos → Nat → VExpr)
+    (Hcanonical : ∀ (T : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+      stats indTypes recInfos) owner (howner : owner < indTypes.size),
       TrExprS currentVEnv (AddInductive.getRecLevelParams elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats recInfos c.lctx owner)
-        (targets owner))
+        (targets T owner))
     (hnotPartial : c.safety ≠ .partial)
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
@@ -2296,10 +2298,12 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
             indTypes recInfos Horigins elimLevel parameterDecls 0 entries) ∧
           AddConstants c.safety c.env currentVEnv entries outEnv
             outVEnv ∧
+          ∃ T : RecursorTypeTranslations currentVEnv c.lparams elimLevel c
+            stats indTypes recInfos,
           ∀ i (hi : i < entries.length), entries[i].2 = {
             name := Lean.mkRecName indTypes[i]!.name
             uvars := (AddInductive.getRecLevelParams elimLevel c.lparams).length
-            type := targets i } := by
+            type := targets T i } := by
   unfold AddInductive.declareRecursors
   simp only [getLCtx, readThe, read, ReaderT.read]
   simp only [readThe, read, ReaderT.read, bind, ReaderT.bind]
@@ -2328,7 +2332,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
       (c.safety != .safe) c.allowPrimitive rfl rfl hk 0 (by omega) c.env
       Hvalid.toValidCore VEnv.LE.rfl
       (fun owner howner rules => Htypes.recursorInfoTranslationOfTarget
-        Hvalid.tr.wf k owner howner rules (Hcanonical owner howner)) hnprim
+        Hvalid.tr.wf k owner howner rules (Hcanonical Htypes owner howner)) hnprim
   change ((Prod.fst <$> AddInductive.declareRecursors.loop stats indTypes
       elimLevel recInfos (recInfos.map (·.motive))
       (recInfos.flatMap (·.minors)) (recInfos.flatMap (·.minors)).size
@@ -2341,7 +2345,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
     have hsize : entries.length = recInfos.size := by
       simpa using Hrange.covered
     exact ⟨outVEnv, entries, ⟨Hrange.atZero hsize⟩, ⟨HsemRange⟩,
-      Hinstalled, by simpa using Htargets⟩
+      Hinstalled, Htypes, by simpa using Htargets⟩
 
 /-- Full-context wrapper for callers that have semantic local-context typing,
 retaining the original public interface. -/
