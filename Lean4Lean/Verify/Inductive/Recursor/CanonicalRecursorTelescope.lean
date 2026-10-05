@@ -1724,4 +1724,181 @@ theorem CompletedRecursorConstruction.recursorTarget_eq_of_minors
   congr 3
   omega
 
+/-- The first `n` binder domains of a forall telescope, exactly as they sit in
+the expression: the `i`-th domain still carries loose bound variables
+`0, …, i - 1` for the `i` binders before it. -/
+def Expr.forallDomainList : Nat → Expr → List Expr
+  | 0, _ => []
+  | n + 1, .forallE _ domain body _ => domain :: forallDomainList n body
+  | _, _ => []
+
+theorem Expr.ForallTelescope.forallDomainList_length
+    (H : Expr.ForallTelescope source n residual) :
+    (Expr.forallDomainList n source).length = n := by
+  induction H with
+  | nil => simp [Expr.forallDomainList]
+  | cons _ ih => simp [Expr.forallDomainList, ih]
+
+/-- Abstracting free variables of a forall telescope abstracts its `i`-th
+literal domain at cutoff advanced by the `i` binders before it. -/
+theorem Expr.ForallTelescope.forallDomainList_abstractList
+    (H : Expr.ForallTelescope source n residual) (fvs : List FVarId) (k : Nat)
+    {i : Nat} (hi : i < n) :
+    (Expr.forallDomainList n (source.abstractList fvs k))[i]! =
+      (Expr.forallDomainList n source)[i]!.abstractList fvs (k + i) := by
+  induction H generalizing k i with
+  | nil => omega
+  | cons _ ih =>
+    rw [Expr.abstractList_forallE]
+    cases i with
+    | zero => simp [Expr.forallDomainList]
+    | succ i =>
+      simp only [Expr.forallDomainList, List.getElem!_cons_succ]
+      rw [ih (k + 1) (by omega)]
+      congr 1
+      omega
+
+/-- Telescope inversion recording each translated domain: the `i`-th
+abstract domain is the translation of the `i`-th literal source domain in the
+context extended by the earlier abstract domains. -/
+theorem TrExprS.forallTelescope_domains
+    (Htel : Expr.ForallTelescope source n residual)
+    (Htr : TrExprS env Us Δ source (VExpr.wrapForalls domains result))
+    (hlen : domains.length = n) :
+    ∀ (i : Nat) (hi : i < domains.length),
+      TrExprS env Us (abstractForallContext (domains.take i) Δ)
+        (Expr.forallDomainList n source)[i]! (domains[i]'hi) := by
+  induction Htel generalizing Δ domains with
+  | nil =>
+    intro i hi
+    simp only [List.length_eq_zero_iff] at hlen
+    subst hlen
+    simp at hi
+  | cons Htel ih =>
+    cases domains with
+    | nil => simp at hlen
+    | cons d ds =>
+      simp only [VExpr.wrapForalls, List.foldr_cons] at Htr
+      cases Htr with
+      | forallE _ _ Hdom Hbody =>
+        intro i hi
+        cases i with
+        | zero => simpa [Expr.forallDomainList, abstractForallContext] using Hdom
+        | succ i =>
+          have Hi := ih (domains := ds) Hbody (by simpa using hlen) i (by simpa using hi)
+          simpa [Expr.forallDomainList, abstractForallContext, List.map_append,
+            List.append_assoc] using Hi
+
+/-- The binder domains of a minor hypothesis's higher-order argument
+telescope, in order, exactly as they sit in the hypothesis type
+`current.lctx.mkForall args motiveApp` (which is also the installed declaration
+type, since `type.consumeTypeAnnotationsVerified = type`).  The `i`-th domain
+is therefore already closed over the arguments before it: its loose bound
+variables `0, …, i - 1` refer to those arguments. -/
+def RecInfoMinorHypothesisTypeOrigin.argDomains
+    (_O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) : List Expr :=
+  Expr.forallDomainList _O.args.size type
+
+theorem RecInfoMinorHypothesisTypeOrigin.argDomains_length
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) :
+    O.argDomains.length = O.args.size :=
+  O.sourceTelescope.forallDomainList_length
+
+/-- `recursorTelescope_hypothesisShape` together with the identity of each
+higher-order argument domain `A[i]`: it is the translation of the `i`-th
+literal domain `O.argDomains[i]!` of the hypothesis type (already closed over
+the earlier arguments), closed over the earlier hypotheses at depth `i`, the
+fields at depth `j + i` and the outer binders at depth `S.fields.size + j + i`,
+in the context extended by `A.take i`. -/
+theorem CompletedRecursorConstruction.recursorTelescope_hypothesisDomains
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+    {target : VExpr}
+    (T : GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
+      target stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner)
+    (minorIdx : Nat)
+    (D₀ : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors)) minorIdx)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
+    (hD : D₀.type = H.origins.minorTypes[mowner]![localIndex]!) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let fields := InductiveSignature.insertBinders
+      ((H.sourceFields mowner hmowner localIndex hlocal).map
+        (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)))
+      ((H.recInfos.map (·.motive)).size + minorIdx)
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ∀ (hyps : List VExpr) (res : VExpr) (hhyps : hyps.length = S.hypotheses.size),
+      T.minors[minorIdx]'(by rw [T.minors_length]; exact D₀.inBounds) =
+        VExpr.wrapForalls fields (VExpr.wrapForalls hyps res) →
+      ∀ (j : Nat)
+        (origins : RecInfoMinorHypothesisTypeOrigins S.sourceFullContext S.recursiveFields
+          S.hypotheses)
+        (hmotives : origins.recInfos.map (·.motive) = H.recInfos.map (·.motive))
+        {root : AddInductive.Context} {sourceType : Expr}
+        (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
+          (S.recursiveFields[j]!) sourceType)
+        (D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j)
+        (hDtype : D.type = sourceType.consumeTypeAnnotationsVerified)
+        (howner' : O.ownerIdx < H.recInfos.size)
+        (pos : Nat) (hpos : pos < S.fields_bound.fvars.length)
+        (hfield : S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos)),
+      ∃ A I : List VExpr, A.length = O.args.size ∧
+        hyps[j]'(by rw [hhyps]; exact D.inBounds) =
+          VExpr.wrapForalls A
+            (.app
+              (VExpr.mkApps (.bvar (S.fields.size + j + O.args.size + minorIdx +
+                ((H.recInfos.map (·.motive)).size - 1 - O.ownerIdx))) I)
+              (VExpr.mkApps (.bvar (j + O.args.size + (S.fields.size - 1 - pos)))
+                (InductiveSignature.vars O.args.size 0))) ∧
+        List.Forall₂
+          (TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j ++ A) []))
+          ((O.exposedType.getAppArgs[origins.stats.params.size:] : Array Expr).toList.map fun e =>
+            (((e.abstractN O.arguments_bound.fvars).abstractList
+              (S.hypotheses_bound.fvars.take j) O.args.size).abstractList S.fields_bound.fvars
+                (j + O.args.size)).abstractList ys (S.fields.size + j + O.args.size))
+          I ∧
+        ∀ (i : Nat) (hi : i < A.length),
+          TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+            (abstractForallContext
+              (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j ++
+                A.take i) [])
+            (((O.argDomains[i]!.abstractList (S.hypotheses_bound.fvars.take j) i).abstractList
+              S.fields_bound.fvars (j + i)).abstractList ys (S.fields.size + j + i))
+            (A[i]'hi) := by
+  intro S fields ys hyps res hhyps hminorEq j origins hmotives root sourceType O D hDtype howner'
+    pos hpos hfield
+  obtain ⟨A, I, hA, hEq, HI⟩ := H.recursorTelescope_hypothesisShape howner T minorIdx D₀ mowner
+    hmowner localIndex hlocal hD hyps res hhyps hminorEq j origins hmotives O D hDtype howner'
+    pos hpos hfield
+  refine ⟨A, I, hA, hEq, HI, ?_⟩
+  intro i hi
+  have Hslot := H.recursorTelescope_hypothesisSlot howner T minorIdx D₀ mowner hmowner localIndex
+    hlocal hD hyps res hhyps hminorEq j D
+  have htype : D.type = sourceType := hDtype.trans O.consumeTypeAnnotationsVerified_eq_self
+  rw [htype, hEq] at Hslot
+  have Htel₀ := O.sourceTelescope
+  have Htel₁ := Htel₀.abstractList (S.hypotheses_bound.fvars.take j)
+  have Htel₂ := Htel₁.abstractList S.fields_bound.fvars j
+  have Htel₃ := Htel₂.abstractList ys (S.fields.size + j)
+  have Hd := TrExprS.forallTelescope_domains Htel₃ Hslot hA i hi
+  have hi' : i < O.args.size := hA ▸ hi
+  rw [Htel₂.forallDomainList_abstractList _ _ hi', Htel₁.forallDomainList_abstractList _ _ hi',
+    Htel₀.forallDomainList_abstractList _ _ hi', Nat.zero_add] at Hd
+  have hctx : abstractForallContext (A.take i)
+      (abstractForallContext
+        (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j) []) =
+      abstractForallContext
+        (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j ++
+          A.take i) [] := by
+    simp only [abstractForallContext, List.reverse_append, List.map_append, List.append_assoc,
+      List.append_nil]
+  rw [hctx] at Hd
+  exact Hd
+
 end Lean4Lean.VerifyInductive
