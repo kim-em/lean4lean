@@ -337,7 +337,7 @@ theorem CompletedRuleTranslationResult.equationProvenance
   rcases VEnv.addDefEqRules_defeqs_iff.mp hdf with hold | hnew
   · exact .inl (by simpa only [VEnv.addProjections_defeqs] using Hatomic.defeqs df hold)
   · right
-    rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, hn, hr, he, hentries⟩
+    rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
     change T.rules = g.equations at he
     rw [he] at hnew
     rcases List.mem_map.mp hnew with ⟨index, _, rfl⟩
@@ -409,7 +409,7 @@ theorem CompletedRuleTranslationResult.recursorProvenance
   · exact .inl hold
   · right
     intro _hsafety
-    rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, hn, hr, he, hentries⟩
+    rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
     change T.rules = g.equations at he
     have hrecursors : ∀ owner, H.outVEnv.constants (g.recursorName owner) =
         some (g.recursor owner).toVConstant := by

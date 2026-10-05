@@ -26,13 +26,6 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
       normalized.name = source.name ∧ normalized.uvars = source.uvars ∧
       envTypes.IsDefEqU decl.uvars [] normalized.type source.type)
       s.declaration.constructorConstants decl.constructorConstants
-  recursiveTypes : ∃ envTypes,
-    env.addConstVals decl.typeConstants = some envTypes ∧
-    ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length) type r,
-      ctor.fields[i] = Field.recursive type r →
-      envTypes.IsDefEqU decl.uvars
-        (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
-        type (s.recursiveType i r)
   /-- Positivity checks a field after reduction, while generated minors retain
   its original domain. An external field may therefore contain source names
   erased by reduction; its checked normal form must be source-free. -/
@@ -81,6 +74,28 @@ structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
     (∀ family ∈ s.families.toList, (family.resultLevel.inst g.levels).IsNeverZero) ∨
     g.targetLevel ≈ .zero ∨ s.SingletonElimination envTypes g.uvars g.levels
 
+/-- Each recursive field's domain is definitionally its recursive shape in the
+context where the generated induction hypothesis uses it, lifted exactly as
+`hypothesis` lifts the shape.  This is the typing fact the generator needs
+for its hypotheses and recursive calls.  It is stated in the generator's own
+context rather than beneath the parameters and earlier fields alone: the
+executable classifies recursive arguments in its recursor-construction
+context, and definitional equality does not strengthen to smaller contexts in
+general (see `docs/inductives/STRENGTHENING.md`), so the smaller-context form
+is an over-specification that no executable run can establish. -/
+def Instance.RecursiveTypesWF {s : InductiveSignature} (g : Instance s) (envTypes : VEnv) : Prop :=
+  ∀ (index : Fin s.constructors.size) (j : Nat)
+    (hj : j < (recursiveFields s.constructors[index]).length) (type : VExpr),
+    s.constructors[index].fields[(recursiveFields s.constructors[index])[j].1]? =
+      some (.recursive type (recursiveFields s.constructors[index])[j].2) →
+    envTypes.IsDefEqU g.uvars (g.hypothesisContext s.constructors[index] index.val j)
+      (underFields (type.instL g.levels) (recursiveFields s.constructors[index])[j].1
+        s.constructors[index].fields.length j (s.families.size + index.val) 0)
+      (underFields ((s.recursiveType (recursiveFields s.constructors[index])[j].1
+          (recursiveFields s.constructors[index])[j].2).instL g.levels)
+        (recursiveFields s.constructors[index])[j].1
+        s.constructors[index].fields.length j (s.families.size + index.val) 0)
+
 /-- Ordinary canonical generation fixes every motive, minor, recursive call,
 and both sides of every equation. This certificate does not accept an
 arbitrary list of equations on the strength of their typing. -/
@@ -88,7 +103,7 @@ structure Compiles (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Pr
   generated : ∃ (s : InductiveSignature) (g : Instance s) (envTypes : VEnv),
     s.Models env decl ∧
     env.addConstVals decl.typeConstants = some envTypes ∧
-    g.Admissible envTypes ∧
+    g.Admissible envTypes ∧ g.RecursiveTypesWF envTypes ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations
 

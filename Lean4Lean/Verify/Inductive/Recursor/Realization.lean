@@ -86,7 +86,7 @@ structure CompilationRealization (env : VEnv) (decl : VInductDecl)
   generated : ∃ (s : InductiveSignature) (g : Instance s) (envTypes : VEnv),
     s.Models env decl ∧
     env.addConstVals decl.typeConstants = some envTypes ∧
-    g.Admissible envTypes ∧
+    g.Admissible envTypes ∧ g.RecursiveTypesWF envTypes ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations ∧
     List.Forall₂ (RecursorEntryRealization g venv)
@@ -95,8 +95,8 @@ structure CompilationRealization (env : VEnv) (decl : VInductDecl)
 theorem CompilationRealization.compiles
     (H : CompilationRealization env decl block venv entries) :
     Compiles env decl block := by
-  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hn, hr, he, _⟩
-  exact ⟨s, g, envTypes, hm, ht, ha, hn, hr, he⟩
+  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he, _⟩
+  exact ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he⟩
 
 /-- The parameter count is fixed by the source declaration even when the
 signature witness is existential. Choosing a different witness cannot repair
@@ -106,7 +106,7 @@ theorem CompilationRealization.parameterCount
     {rec : Lean.RecursorVal} {value : VConstVal}
     (hmem : (Lean.ConstantInfo.recInfo rec, value) ∈ entries) :
     rec.numParams = decl.nparams := by
-  rcases H.generated with ⟨s, g, _, hm, _, _, _, _, _, hentries⟩
+  rcases H.generated with ⟨s, g, _, hm, _, _, _, _, _, _, hentries⟩
   rcases Lean4Lean.List.Forall₂.forall_exists_r hentries _ hmem with
     ⟨owner, _, concrete, he, _, hrec⟩
   cases he
@@ -130,8 +130,8 @@ theorem RecursorRealization.mono {s : InductiveSignature} {g : Instance s}
 theorem CompilationRealization.monoTarget
     (H : CompilationRealization env decl block venv entries) (hle : venv ≤ venv') :
     CompilationRealization env decl block venv' entries := by
-  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hn, hr, he, hentries⟩
-  refine ⟨s, g, envTypes, hm, ht, ha, hn, hr, he, ?_⟩
+  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he, hentries⟩
+  refine ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he, ?_⟩
   apply Lean4Lean.List.Forall₂.imp (l₁ := List.finRange s.families.size) _ hentries
   intro owner entry h
   rcases h with ⟨rec, hc, hv, hrec⟩
@@ -144,9 +144,10 @@ theorem CompilationRealization.monoSource
     (H : CompilationRealization env decl block venv entries) (hle : env ≤ env')
     (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
     CompilationRealization env' decl block venv entries := by
-  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrest⟩
+  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrec, hrest⟩
   exact ⟨s, g, envTypes', hm.mono hle htypes, htypes,
-    ha.mono (VEnv.addConstVals_mono hle ht htypes), hrest⟩
+    ha.mono (VEnv.addConstVals_mono hle ht htypes),
+    hrec.mono (VEnv.addConstVals_mono hle ht htypes), hrest⟩
 
 end InductiveSignature
 end Lean4Lean

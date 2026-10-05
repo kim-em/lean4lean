@@ -259,8 +259,28 @@ declarations; validation must not assume correctness of its own artifact.
    signature whose `Models` follows from `sourceSignature_models` through the
    definitional equalities already proved (`sourceConstructorDefEq`).
 
-8. **The consumed signature's recursive-field model is the central open
-   junction risk.** `Compiles` (`Recursor/Realization.lean`,
+8. **The recursive-field clause of the specification was restated at the
+   instance level (decision taken with Kim, 2026-10-05).** `Models` no longer
+   carries `recursiveTypes`; instead `Instance.RecursiveTypesWF g envTypes`
+   (`Theory/Inductive/Signature.lean`) demands, for every recursive field,
+   the definitional equality of the field type with its `Recursive` shape in
+   `Instance.hypothesisContext` (`SignatureData.lean`: parameters, motives,
+   earlier minors, all fields, earlier hypotheses), lifted exactly as
+   `Instance.hypothesis` lifts the shape. It is required next to
+   `Admissible` in `Compiles`, `CompilationRealization`, and (for the nested
+   path) `CompilationData.recursiveTypesWF`. Rationale: `InductiveSignature`
+   and `Models` are this branch's formalization (upstream has `VInductDecl.WF :=
+   sorry`), the generator needs the equality only in that context, and the
+   former small-context form (parameters and earlier fields only) was an
+   over-specification: production classifies recursive arguments in the
+   recursor-construction context and definitional equality does not
+   strengthen (next paragraph). The former form implies the new one by
+   weakening and universe instantiation; this implication is not yet
+   recorded as a lemma. Mario should review the clause with the rest of the
+   signature specification. The paragraph below records the obstruction that
+   motivated the change.
+
+   **Former statement of the risk.** `Compiles` (`Recursor/Realization.lean`,
    `CompilationRealization.generated`) requires `s.Models env decl` for the
    signature whose recursors and equations are installed, and
    `Models.recursiveTypes` asks, for every recursive field, a definitional
@@ -290,8 +310,9 @@ declarations; validation must not assume correctness of its own artifact.
    `Theory/Typing/FullHeadStrengthening.lean`) and strengthen the trace;
    (c) restate `Models.recursiveTypes` in the generator's own hypothesis
    context, where the checked recursor type supplies the typing by
-   inversion; (d) change the executable to reuse the header-phase
-   classification. Cost check for (a) (2026-10-05): `Verify/TypeChecker/
+   inversion (chosen; see above); (d) change the executable to reuse the
+   header-phase classification (rejected: unnecessary divergence from the C++
+   kernel). Cost check for (a) (2026-10-05): `Verify/TypeChecker/
    AlphaLocality.lean` already has the renaming framework
    (`ExprAlphaUnder`, `Context.OrderedBinderRenaming`) and locality of
    `whnf` only for the forall, immediate and free-variable-head cases
@@ -303,7 +324,11 @@ declarations; validation must not assume correctness of its own artifact.
    IsDefEqU …`), not the translation of a retained telescope, so (a) also
    needs the header phase to retain its `whnf` telescope syntactically. Until
    one option is chosen, `canonicalConsumedGeneration` cannot be closed,
-   independently of the uniqueness and inversion machinery of item 7.
+   independently of the uniqueness and inversion machinery of item 7. With
+   (c) chosen, what remains for `canonicalConsumedGeneration` is the item 7
+   program (define the shapes by translation strengthening, identify the
+   minor group) plus `RecursiveTypesWF` for the actual instance, which
+   follows from the retained type check by inversion.
 
 ## Assessment
 

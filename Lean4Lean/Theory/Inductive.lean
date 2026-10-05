@@ -103,27 +103,28 @@ theorem VInductDecl.OrdinaryShape.mono
         ⟨rule.mono (VEnv.addProjections_mono hctorsLE)⟩)
       holdRules⟩ }
 
+theorem InductiveSignature.Instance.RecursiveTypesWF.mono {s : InductiveSignature}
+    {g : InductiveSignature.Instance s} {envTypes envTypes' : VEnv}
+    (H : g.RecursiveTypesWF envTypes) (hle : envTypes ≤ envTypes') :
+    g.RecursiveTypesWF envTypes' :=
+  fun index j hj type he => VEnv.IsDefEqU.mono hle (H index j hj type he)
+
 theorem InductiveSignature.Models.mono
     {s : InductiveSignature} {env env' envTypes' : VEnv} {decl : VInductDecl}
     (H : s.Models env decl) (henv : env ≤ env')
     (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
     s.Models env' decl := by
   rcases H.constructors with ⟨envTypes, htypesOld, hctors⟩
-  rcases H.recursiveTypes with ⟨envTypesRec, htypesRec, hrec⟩
   have hle := VEnv.addConstVals_mono henv htypesOld htypes
-  have hleRec := VEnv.addConstVals_mono henv htypesRec htypes
   refine { H with
     families := ?_
     constructors := ⟨envTypes', htypes, ?_⟩
-    recursiveTypes := ⟨envTypes', htypes, ?_⟩
     externalFields := ?_ }
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1,
         h.2.2.2.2.1.mono henv, h.2.2.2.2.2⟩) H.families
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) hctors
-  · intro ctor hc i hi type r hr
-    exact (hrec ctor hc i hi type r hr).mono hleRec
   · rcases H.externalFields with hunsafe | ⟨envTypesExt, htypesExt, hext⟩
     · exact .inl hunsafe
     · refine .inr ⟨envTypes', htypes, ?_⟩
@@ -148,9 +149,10 @@ theorem InductiveSignature.Compiles.mono
     (H : Compiles env decl block) (henv : env ≤ env')
     (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
     Compiles env' decl block := by
-  rcases H.generated with ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, hrest⟩
+  rcases H.generated with ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, hrec, hrest⟩
   exact ⟨s, g, envTypes', hmodel.mono henv htypes, htypes,
-    hadmissible.mono (VEnv.addConstVals_mono henv htypesOld htypes), hrest⟩
+    hadmissible.mono (VEnv.addConstVals_mono henv htypesOld htypes),
+    hrec.mono (VEnv.addConstVals_mono henv htypesOld htypes), hrest⟩
 
 theorem VInductDecl.OrdinaryCompilation.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}

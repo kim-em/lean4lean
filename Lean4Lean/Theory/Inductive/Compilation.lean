@@ -159,6 +159,9 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   admissible : ∃ envExpandedTypes,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     g.Admissible envExpandedTypes
+  recursiveTypesWF : ∃ envExpandedTypes,
+    env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
+    g.RecursiveTypesWF envExpandedTypes
   recursorNames : ∀ owner, g.recursorName owner = s.families[owner].name.str "rec"
   generatedNames : ((expanded.typeConstants ++ expanded.constructorConstants ++
     g.recursors).map (·.name)).Nodup
@@ -228,7 +231,7 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     (hprojections : block.projections = source.projectionEntries)
     (hnames : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup) :
     CompiledInductive env source block := by
-  rcases Hcanonical.generated with ⟨s, g, envTypes, Hmodel, hadded, Hadmissible,
+  rcases Hcanonical.generated with ⟨s, g, envTypes, Hmodel, hadded, Hadmissible, Hrec,
     hrecNames, hrecs, hrules⟩
   have hrestore : InductiveSignature.compilationRestoration source [] = {} := rfl
   have hfresh : ∀ recursor ∈ block.recursors, env.constants recursor.name = none := by
@@ -258,6 +261,7 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     restorationScoped := ?_
     correspondence := ?_
     admissible := ⟨envTypes, hadded, Hadmissible⟩
+    recursiveTypesWF := ⟨envTypes, hadded, Hrec⟩
     recursorNames := hrecNames
     generatedNames := ?_
     recursorsFresh := ?_

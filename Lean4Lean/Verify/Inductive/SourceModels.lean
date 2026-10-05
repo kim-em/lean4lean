@@ -69,8 +69,7 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
     refine ⟨hget.1, huvars.trans (Hsource.2.2.1 _ (List.getElem_mem hi')).symm,
       hget.2.1, ?_, hget.2.2.2, hctorFamilies owner (List.getElem_mem hi') hget.1⟩
     exact hget.2.2.1 ▸ rfl
-  refine ⟨huvars, hparams, hsafety, ?_, ⟨envTypes, hadd, ?_⟩,
-    ⟨envTypes, hadd, ?_⟩, ?_, ?_, Harity⟩
+  refine ⟨huvars, hparams, hsafety, ?_, ⟨envTypes, hadd, ?_⟩, ?_, ?_, Harity⟩
   · exact Lean4Lean.List.Forall₂.imp (fun _ _ h =>
       ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, h.2.2.2.2.1,
         ctorNames_eq_of_forall₂ h.2.2.2.2.2 (fun _ _ hc => hc.1)⟩) hfull
@@ -81,10 +80,6 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
     induction hfull with
     | nil => exact .nil
     | cons h _ ih => exact h.2.2.2.2.2.append' ih
-  · intro ctor hc i hi type r he
-    have hfield := Hfields ctor hc i hi
-    rw [he] at hfield
-    exact hfield.1
   · by_cases hunsafe : s.isUnsafe = true
     · exact Or.inl hunsafe
     · refine Or.inr ⟨envTypes, hadd, ?_⟩

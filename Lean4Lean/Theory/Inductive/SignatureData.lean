@@ -187,6 +187,19 @@ def minor (g : Instance s) (ctor : Constructor s.families.size) (prior : Nat) : 
 def minors (g : Instance s) : List VExpr :=
   s.constructors.toList.zipIdx.map fun (ctor, i) => g.minor ctor i
 
+/-- The abstract context, innermost first, in which the `j`-th induction
+hypothesis of the `prior`-th constructor's minor premise is formed:
+parameters, motives, the earlier minors, all fields, and the earlier
+hypotheses. -/
+def hypothesisContext (g : Instance s) (ctor : Constructor s.families.size)
+    (prior j : Nat) : List VExpr :=
+  let extra := s.families.size + prior
+  let fields := insertBinders ((s.fieldTypes ctor).map (·.instL g.levels)) extra
+  let ihs := ((recursiveFields ctor).zipIdx.map fun ((field, r), i) =>
+    g.hypothesis ctor prior i field r).take j
+  ihs.reverse ++ fields.reverse ++ (g.minors.take prior).reverse ++ g.motives.reverse ++
+    g.params.reverse
+
 def recursorType (g : Instance s) (owner : Fin s.families.size) : VExpr :=
   let family := s.families[owner]
   let extra := s.families.size + s.constructors.size

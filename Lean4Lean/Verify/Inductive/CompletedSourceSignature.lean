@@ -514,7 +514,7 @@ theorem sourceSignature_models
       simp only [sourceSignature, Array.size_ofFn]
       simp [VInductDecl.ownedConstructors, hempty]
     refine ⟨rfl, R.sourceSignatureHeader_params_length, rfl, ?_,
-      ⟨R.headerVEnv, R.core.typesAdded, ?_⟩, ⟨R.headerVEnv, R.core.typesAdded, ?_⟩,
+      ⟨R.headerVEnv, R.core.typesAdded, ?_⟩,
       .inr ⟨R.headerVEnv, R.core.typesAdded, ?_⟩, .inr ?_, ?_⟩
     all_goals simp [declaration, hfamilies, hctors, VInductDecl.constructorConstants, hempty]
   · exact R.sourceSignature_models_of_nonempty hempty
