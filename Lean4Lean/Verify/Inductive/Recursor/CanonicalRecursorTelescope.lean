@@ -515,4 +515,181 @@ theorem Expr.abstractList_bvar_spine (n below : Nat) (fvs : List FVarId) (k : Na
     simp only [List.getElem_map, List.getElem_ofFn]
     exact Expr.abstractList_bvar_lt fvs (by omega)
 
+/-- The motive application of a minor after closing hypotheses, fields, and
+the outer parameter, motive and earlier-minor binders: the motive is the
+canonical outer variable, the constructor spine is the canonical parameter
+and field spine, and the indices are closed pointwise. -/
+theorem CompletedRecursorConstruction.minorResidualSource
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R)
+    (minorIdx : Nat) (hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
+    let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+    let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
+    let ys := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars.take minorIdx
+    ((S.motiveApp.abstractN S.hypotheses_bound.fvars).abstractN S.fields_bound.fvars
+        S.hypotheses.size).abstractList ys (S.fields.size + S.hypotheses.size) =
+      Expr.app
+        (Expr.mkAppList
+          (.bvar (S.fields.size + S.hypotheses.size + minorIdx +
+            ((H.recInfos.map (·.motive)).size - 1 - mowner)))
+          ((AddInductive.getIIndices stats HS.semantic.traversal.terminal).2.toList.map fun arg =>
+            (arg.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+              (S.fields.size + S.hypotheses.size)))
+        (Expr.mkAppList (.const S.constructor.name stats.levels)
+          ((List.ofFn fun k : Fin stats.params.size =>
+              Expr.bvar (((H.recInfos.map (·.motive)).size + minorIdx + S.fields.size +
+                S.hypotheses.size) + (stats.params.size - 1 - k))) ++
+            (List.ofFn fun j : Fin S.fields.size =>
+              Expr.bvar (S.hypotheses.size + (S.fields.size - 1 - j))))) := by
+  intro S HS ys
+  have hclosed : Closed S.motiveApp 0 := by
+    have h := HS.semantic.motivePreTranslation.closed
+    rw [HS.semantic.terminalWF.mlctx.noBV] at h
+    simpa using h
+  rw [Expr.abstractN_eq_abstractList_of_closed S.hypotheses_nodup hclosed,
+    HS.semantic.abstractHypotheses_motiveApp,
+    Expr.abstractN_eq_abstractList S.fields_nodup _ _
+      (by rw [hclosed.looseBVarRange_zero]; exact Nat.zero_le _),
+    H.minorMotiveAppForm mowner hmowner localIndex hlocal]
+  -- Freshness of the fields relative to the traversal root.
+  have hfieldsFvars : HS.semantic.fieldsRecent.fvars = S.fields_bound.fvars :=
+    BoundFVarArray.fvars_eq_of_array_eq
+      HS.semantic.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray S.fields_bound rfl
+  have hrootFresh : ∀ fv, fv ∈ HS.semantic.rootWF.mlctx.vlctx.fvars →
+      fv ∉ S.fields_bound.fvars := by
+    intro fv hroot hfield
+    rw [← hfieldsFvars] at hfield
+    apply HS.semantic.fieldsRecent.fresh fv hfield
+    rw [← HS.semantic.rootWF.lctx_eq, HS.semantic.rootWF.mlctx_wf.tr.fvars_eq]
+    exact hroot
+  -- The motive is a root free variable.
+  obtain ⟨mfv, hhead, hmroot⟩ := HS.semantic.motiveHeadRoot
+  have hmotiveForm := H.minorMotiveAppForm mowner hmowner localIndex hlocal
+  have hmotiveLt : mowner < (H.recInfos.map (·.motive)).size := by simpa using hmowner
+  obtain ⟨hmfvLt, hmotiveGet⟩ := H.bindings.motives.getElem_eq_fvar mowner hmotiveLt
+  have hmotive : H.recInfos[mowner]!.motive = .fvar (H.bindings.motives.fvars[mowner]'hmfvLt) := by
+    have h := hmotiveGet
+    simpa [Array.getElem_map, getElem!_pos H.recInfos mowner hmowner] using h
+  have hmfv : mfv = H.bindings.motives.fvars[mowner]'hmfvLt := by
+    have h := hhead
+    rw [hmotiveForm, hmotive] at h
+    simp only [Expr.getAppFn, Expr.getAppFn_mkAppN] at h
+    exact (Expr.fvar.inj h).symm
+  -- Parameters are root free variables.
+  have hstats : HS.semantic.traversal.stats = stats := by
+    have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
+    obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, hst, _, _, _, _, _⟩ :=
+      H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+    have heq : traversal = HS.semantic.traversal :=
+      Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
+    rw [← heq]
+    exact hst
+  have hparamsList : stats.params.toList = H.params.fvars.map Expr.fvar := by
+    simpa using congrArg Array.toList H.params.expressions
+  have hparamsRoot : ∀ fv ∈ H.params.fvars, fv ∈ HS.semantic.rootWF.mlctx.vlctx.fvars := by
+    intro fv hfv
+    have hids : ExprArrayFVarIds HS.semantic.traversal.stats.params = H.params.fvars := by
+      rw [hstats]
+      simp only [ExprArrayFVarIds, hparamsList, List.map_map]
+      simp [Function.comp_def, recursorFVarId]
+    have hmem : fv ∈ (HS.semantic.parameterSuffix.ambientDecls ++
+        HS.semantic.parameterSuffix.parameterDecls).fvars := by
+      rw [VLCtx.fvars_append, HS.semantic.parameterSuffix.parameterDecls_fvars, hids]
+      apply List.mem_append_right
+      rwa [List.mem_reverse]
+    rwa [← HS.semantic.parameterSuffix.context] at hmem
+  -- Lengths and distinctness of the outer binders.
+  have houter := H.bindings.outerNodup H.params H.noAlias
+  have hys : ys.Nodup := by
+    apply List.Nodup.sublist _ houter
+    exact List.Sublist.append (List.Sublist.refl _) (List.take_sublist _ _)
+  have hparamsLen : H.params.fvars.length = stats.params.size := H.params.length_fvars
+  have hmotivesLen : H.bindings.motives.fvars.length = (H.recInfos.map (·.motive)).size :=
+    H.bindings.motives.length_fvars
+  have hminorsLen : (H.bindings.flatMinors.fvars.take minorIdx).length = minorIdx := by
+    rw [List.length_take, H.bindings.flatMinors.length_fvars]
+    omega
+  -- Component computations.
+  have hconst : ∀ (fvs : List FVarId) (k : Nat),
+      (Expr.const S.constructor.name stats.levels).abstractList fvs k =
+        .const S.constructor.name stats.levels :=
+    fun fvs k => Expr.abstractList_eq_self_of_abstract1 _ (fun _ _ => rfl) fvs k
+  have hfvarField : ∀ fv, fv ∉ S.fields_bound.fvars → ∀ k,
+      (Expr.fvar fv).abstractList S.fields_bound.fvars k = .fvar fv := by
+    intro fv hfv k
+    exact FVarsIn.abstractList_eq_self (e := .fvar fv) (by simpa [FVarsIn] using hfv) (by simp [Closed])
+  have hmotiveAbs : ((H.recInfos[mowner]!.motive.abstractList S.fields_bound.fvars
+      S.hypotheses.size).abstractList ys (S.fields.size + S.hypotheses.size)) =
+      .bvar (S.fields.size + S.hypotheses.size + minorIdx +
+        ((H.recInfos.map (·.motive)).size - 1 - mowner)) := by
+    rw [hmotive, hfvarField _ (hmfv ▸ hrootFresh mfv hmroot)]
+    have hpos : H.params.fvars.length + mowner < ys.length := by
+      simp only [ys, List.length_append]
+      omega
+    have hget : ys[H.params.fvars.length + mowner]'hpos =
+        H.bindings.motives.fvars[mowner]'hmfvLt := by
+      simp only [ys]
+      rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by omega)]
+      congr 1
+      omega
+    rw [← hget, Expr.abstractList_fvar_getElem hys _ hpos]
+    congr 1
+    simp only [ys, List.length_append, hparamsLen, hmotivesLen, hminorsLen]
+    omega
+  have hparamsAbs : (stats.params.toList.map fun e =>
+      (e.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+        (S.fields.size + S.hypotheses.size)) =
+      List.ofFn fun k : Fin stats.params.size =>
+        Expr.bvar (((H.recInfos.map (·.motive)).size + minorIdx + S.fields.size +
+          S.hypotheses.size) + (stats.params.size - 1 - k)) := by
+    have hinner : stats.params.toList.map (fun e =>
+        (e.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+          (S.fields.size + S.hypotheses.size)) =
+        (H.params.fvars.map Expr.fvar).map (fun e => e.abstractList ys
+          (S.fields.size + S.hypotheses.size)) := by
+      rw [hparamsList]
+      apply List.map_congr_left
+      intro e he
+      obtain ⟨fv, hfv, rfl⟩ := List.mem_map.mp he
+      rw [hfvarField fv (hrootFresh fv (hparamsRoot fv hfv))]
+    rw [hinner]
+    have hspine := Expr.abstractList_fvar_prefix_spine H.params.fvars
+      (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars.take minorIdx)
+      (by simpa [ys, List.append_assoc] using hys) (S.fields.size + S.hypotheses.size)
+    simp only [ys, List.append_assoc]
+    rw [hspine]
+    apply List.ext_getElem
+    · simp [hparamsLen]
+    · intro i hleft hright
+      simp only [List.getElem_ofFn, List.length_append, hmotivesLen, hminorsLen, hparamsLen]
+      congr 1
+      omega
+  have hfieldsAbs : (S.fields.toList.map fun e =>
+      (e.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+        (S.fields.size + S.hypotheses.size)) =
+      List.ofFn fun j : Fin S.fields.size =>
+        Expr.bvar (S.hypotheses.size + (S.fields.size - 1 - j)) := by
+    have hlen : S.fields_bound.fvars.length = S.fields.size := S.fields_bound.length_fvars
+    have hinner : S.fields.toList.map (fun e =>
+        (e.abstractList S.fields_bound.fvars S.hypotheses.size).abstractList ys
+          (S.fields.size + S.hypotheses.size)) =
+        ((S.fields_bound.fvars.map Expr.fvar).map
+          (fun e => e.abstractList S.fields_bound.fvars S.hypotheses.size)).map
+            (fun e => e.abstractList ys (S.fields.size + S.hypotheses.size)) := by
+      have hflist : S.fields.toList = S.fields_bound.fvars.map Expr.fvar := by
+        simpa using congrArg Array.toList S.fields_bound.expressions
+      rw [hflist]
+      simp [List.map_map, Function.comp_def]
+    rw [hinner, Expr.abstractList_fvar_spine _ S.fields_nodup, hlen,
+      Expr.abstractList_bvar_spine _ _ _ _ (by omega)]
+  have hS : H.origins.minorShapes mowner hmowner localIndex hlocal = S := rfl
+  have hHS : H.sourceMinorSemantics mowner hmowner localIndex hlocal = HS := rfl
+  simp only [Expr.abstractList_app, Expr.abstractList_mkAppN]
+  simp only [hS, hHS, Expr.mkAppN_eq_mkAppList, Array.toList_map, List.map_map,
+    Function.comp_def, hconst, hmotiveAbs, hparamsAbs, hfieldsAbs]
+  rw [Expr.mkAppList_append]
+
 end Lean4Lean.VerifyInductive
