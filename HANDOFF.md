@@ -248,8 +248,31 @@ declarations; validation must not assume correctness of its own artifact.
    restricted `exposed_translation`, close with `closeAllLams`, weaken into
    the generator's hypothesis context with `insertBeforeInner`/`bvLift`, and
    identify with `recursorTelescope_hypothesisShape` by `uniqueS` (the two
-   passes' telescopes are related through `replayTrace_eq_blueprint`). Only
-   `Models.recursiveTypes` for these shapes then remains (item 8).
+   passes' telescopes are related through `replayTrace_eq_blueprint`). With
+   item 8 resolved by (c), only `Instance.RecursiveTypesWF` for the actual
+   instance then remains, by inversion of the retained type check.
+   **Next concrete task (analysed 2026-10-05, not started).** The scope
+   sharpening is the only non-mechanical step. The semantic rows record
+   `rootScope := (∈ fieldsRecent.fvars ∨ ∈ params)` for every hypothesis of a
+   minor (`RecInfoRuleBlueprintSemanticOriginAt`, `SecondPass.lean`), but
+   `Recursive.binders` of field `f` must be scoped over parameters and
+   fields *before* `f` only (`Instance.hypothesis` lifts them over the `nf -
+   f` remaining fields). The producer `loopUBlueprints` soundness
+   (`SecondPass.lean` around lines 1815 to 2080) threads one `rootScope`
+   through `RecInfoHypothesisCallSemanticOrigins.pushCurrent` and the `Hvi`
+   contract; the underlying `mkRecInfos.loopUArgs.loop.resultSemantics`
+   (`RecursiveCalls.lean` around line 1262) is already parametric in the
+   up-set `P` and takes `htypeScope`/`hcurrentUp`. So: make the per-call row
+   carry a per-field scope `(∈ params ∨ ∈ fieldsRecent.fvars.take position)`
+   where `position` is the field's index among all fields
+   (`RecursorFieldDecisions.selected_at` relates recursive fields to
+   positions), prove the two inputs the loop theorem needs from
+   `fieldParameterUp` and `VLCtx.WF` (a kept field's dependencies lie in its
+   tail, hence in earlier fields and parameters; the field's own type has the
+   same scope), and keep the existing coarse `rootScope` facts for the
+   equation layer, which consumes them widely. Then restrict the row's
+   context with `MLCtx.restrictUpSetCtx`, define the shapes, and close the
+   minor group as described above.
    Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
