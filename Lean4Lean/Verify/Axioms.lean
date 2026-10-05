@@ -424,9 +424,33 @@ def instantiate1' (e : Expr) (subst : Expr) (d := 0) : Expr :=
   | e, [], _ => e
   | e, a :: as, k => instantiateList (instantiate1' e a k) as k
 
+/-- Simultaneous instantiation of the loose bound variables `k, …, k + subst.length - 1`, the
+model of Lean's `Expr.instantiate` (C++ `instantiate`): under `d` binders, `bvar (d + i)` becomes
+`subst[i]` lifted over those `d` binders, variables above the range are lowered by
+`subst.length`, and the inserted terms are not traversed again. It agrees with the sequential
+`instantiateList` when no entry has loose bound variables (`instantiateN_eq_instantiateList`). -/
+def instantiateN (subst : List Expr) : Expr → (k :_:= 0) → Expr
+  | .bvar i, d =>
+    if i < d then .bvar i
+    else match subst[i - d]? with
+      | some a => a.liftLooseBVars' 0 d
+      | none => .bvar (i - subst.length)
+  | .mdata m e, d => .mdata m (instantiateN subst e d)
+  | .proj s i e, d => .proj s i (instantiateN subst e d)
+  | .app f a, d => .app (instantiateN subst f d) (instantiateN subst a d)
+  | .lam n t b bi, d => .lam n (instantiateN subst t d) (instantiateN subst b (d+1)) bi
+  | .forallE n t b bi, d => .forallE n (instantiateN subst t d) (instantiateN subst b (d+1)) bi
+  | .letE n t v b bi, d =>
+    .letE n (instantiateN subst t d) (instantiateN subst v d) (instantiateN subst b (d+1)) bi
+  | e@(.const ..), _
+  | e@(.sort _), _
+  | e@(.fvar _), _
+  | e@(.mvar _), _
+  | e@(.lit _), _ => e
+
 /-- This could be an `@[implemented_by]` -/
-@[simp] axiom instantiate_eq (e : Expr) (subst) :
-    e.instantiate subst = e.instantiateList subst.toList
+@[simp] axiom instantiateN_eq (e : Expr) (subst : Array Expr) :
+    e.instantiate subst = e.instantiateN subst.toList
 
 /-- This could be an `@[implemented_by]` -/
 @[simp] axiom instantiateRev_eq (e : Expr) (subst) :

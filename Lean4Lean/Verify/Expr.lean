@@ -964,13 +964,73 @@ theorem instantiateList_instantiate1_comm (h : a.looseBVarRange' = 0) :
   congr 1; refine (instantiate1'_instantiate1' (j := 0) ..).trans ?_
   rw [liftLooseBVars_eq_self (by simp [h])]
 
-theorem instantiateRev_eq_instantiateList {e : Expr} {subst : Array Expr} :
-    instantiateRev e subst = instantiateList e subst.toList.reverse := by
-  let ⟨subst⟩ := subst; simp
+theorem instantiateList_mdata : instantiateList (.mdata m e) as k = .mdata m (instantiateList e as k) := by
+  induction as generalizing e <;> simp [instantiate1', *]
 
-theorem instantiateRev_push {e : Expr} {subst a} :
-    instantiateRev e (subst.push a) = instantiateRev (e.instantiate1' a) subst := by
-  let ⟨subst⟩ := subst; simp [instantiateList]
+theorem instantiateList_proj : instantiateList (.proj s i e) as k = .proj s i (instantiateList e as k) := by
+  induction as generalizing e <;> simp [instantiate1', *]
+
+theorem instantiateList_bvar (h : ∀ a ∈ subst, a.looseBVarRange' = 0) :
+    ∀ (i k : Nat), instantiateList (.bvar i) subst k = instantiateN subst (.bvar i) k := by
+  induction subst with
+  | nil => intro i k; simp [instantiateN]
+  | cons a as ih =>
+    intro i k
+    simp only [List.mem_cons, forall_eq_or_imp] at h
+    simp only [instantiateList, instantiate1']
+    split
+    · rename_i hik
+      rw [ih h.2]; simp [instantiateN, hik]
+    · split
+      · subst i
+        rw [liftLooseBVars_eq_self (by omega), instantiateList'_eq_self (by omega)]
+        simp only [instantiateN, Nat.lt_irrefl, ↓reduceIte, Nat.sub_self, List.getElem?_cons_zero]
+        exact (liftLooseBVars_eq_self (by omega)).symm
+      · rename_i h1 h2
+        have h1' : ¬ i - 1 < k := by omega
+        rw [ih h.2]
+        simp only [instantiateN, if_neg h1', if_neg h1, List.length_cons]
+        rw [show i - k = (i - 1 - k) + 1 by omega, List.getElem?_cons_succ]
+        cases as[i - 1 - k]? with
+        | some b => rfl
+        | none =>
+          show Expr.bvar (i - 1 - as.length) = Expr.bvar (i - (as.length + 1))
+          congr 1; omega
+
+/-- On substitutions whose entries have no loose bound variables, simultaneous instantiation
+agrees with the sequential model. -/
+theorem instantiateN_eq_instantiateList (h : ∀ a ∈ subst, a.looseBVarRange' = 0) :
+    ∀ (e : Expr) (k : Nat), instantiateN subst e k = instantiateList e subst k
+  | .bvar i, k => (instantiateList_bvar h i k).symm
+  | .fvar _, k => by rw [instantiateN, instantiateList'_eq_self (by simp [looseBVarRange'])]
+  | .mdata _ e, k => by rw [instantiateN, instantiateList_mdata, instantiateN_eq_instantiateList h e k]
+  | .proj _ _ e, k => by rw [instantiateN, instantiateList_proj, instantiateN_eq_instantiateList h e k]
+  | .app f a, k => by
+    rw [instantiateN, instantiateList_app, instantiateN_eq_instantiateList h f k,
+      instantiateN_eq_instantiateList h a k]
+  | .lam _ t b _, k => by
+    rw [instantiateN, instantiateList_lam, instantiateN_eq_instantiateList h t k,
+      instantiateN_eq_instantiateList h b (k+1)]
+  | .forallE _ t b _, k => by
+    rw [instantiateN, instantiateList_forallE, instantiateN_eq_instantiateList h t k,
+      instantiateN_eq_instantiateList h b (k+1)]
+  | .letE _ t v b _, k => by
+    rw [instantiateN, instantiateList_letE, instantiateN_eq_instantiateList h t k,
+      instantiateN_eq_instantiateList h v k, instantiateN_eq_instantiateList h b (k+1)]
+  | .const .., k | .sort _, k | .mvar _, k | .lit _, k => by
+    rw [instantiateN, instantiateList'_eq_self (by simp [looseBVarRange'])]
+
+/-- Lean's `instantiate` agrees with the sequential model on substitutions without loose bound
+variables. -/
+theorem instantiate_eq_of_closed (e : Expr) (subst : Array Expr)
+    (h : ∀ a ∈ subst, a.looseBVarRange' = 0) :
+    e.instantiate subst = e.instantiateList subst.toList := by
+  rw [instantiateN_eq]; exact instantiateN_eq_instantiateList (by simpa using h) e 0
+
+theorem instantiateRev_eq_instantiateList {e : Expr} {subst : Array Expr}
+    (h : ∀ a ∈ subst, a.looseBVarRange' = 0) :
+    instantiateRev e subst = instantiateList e subst.toList.reverse := by
+  rw [instantiateRev_eq, instantiate_eq_of_closed _ _ (by simpa using h)]; simp
 
 theorem abstractList_eq_foldl {e : Expr} {as k} :
     abstractList e as k = List.foldl (fun e a => abstract1 a e k) e as := by
