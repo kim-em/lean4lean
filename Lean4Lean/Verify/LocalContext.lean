@@ -59,15 +59,15 @@ theorem mkBinding_eq :
       List.getElem?_append_left, mkBindingList.go, ih]; simp
 
 theorem mkBindingList1_abstract {xs : List FVarId}
-    (hx : lctx.find? x = some decl) (ha : a ∉ xs) :
+    (hx : lctx.find? x = some decl) :
     (mkBindingList1 isLambda lctx xs x b).abstractN [a] xs.length =
     mkBindingList1 isLambda lctx (a :: xs) x (b.abstractN [a] (xs.length + 1)) := by
   simp [mkBindingList1, hx]; cases decl with simp
-  | cdecl _ _ _ ty => split <;> simp [Expr.abstractN, Expr.abstractN_cons ha]
+  | cdecl _ _ _ ty => split <;> simp [Expr.abstractN, Expr.abstractN_cons (xs := xs)]
   | ldecl =>
     rw [Expr.abstractN_hasLooseBVar_zero]
     split
-    · simp [Expr.abstractN, Expr.abstractN_cons ha]
+    · simp [Expr.abstractN, Expr.abstractN_cons (xs := xs)]
     · rename_i h; simp at h
       rw [Expr.abstractN_lower _ _ _ h]
 
@@ -84,7 +84,7 @@ theorem mkBindingList_core_cons {xs : List FVarId} {b : Expr}
     simp at hx nd ih
     let ⟨decl, eq⟩ := hx.1
     simp [mkBindingList.go]
-    rw [← xs.length_reverse, ← mkBindingList1_abstract eq (by simp [*])]
+    rw [← xs.length_reverse, ← mkBindingList1_abstract eq]
     simp [ih hx.2 nd.1.2 nd.2.2]
 
 @[simp] theorem mkBindingList_nil : mkBindingList isLambda lctx [] b = b := by
@@ -95,7 +95,7 @@ theorem mkBindingList_cons
     mkBindingList isLambda lctx (a :: xs) b =
     mkBindingList1 isLambda lctx [] a ((mkBindingList isLambda lctx xs b).abstractN [a]) := by
   simp only [mkBindingList]
-  rw [Expr.abstractN_cons (by simpa using (List.nodup_cons.1 nd).1), Nat.zero_add,
+  rw [Expr.abstractN_cons, Nat.zero_add,
     mkBindingList_core_cons hx nd]
 
 theorem mkBindingList_eq_fold
@@ -108,7 +108,6 @@ theorem mkBindingList1_congr (H : lctx₁.find? x = lctx₂.find? x) :
     mkBindingList1 isLambda lctx₁ xs x b = mkBindingList1 isLambda lctx₂ xs x b := by
   simp [mkBindingList1, H]
 
-/-- A local declaration whose type (and value) are locally closed. -/
 theorem mkBindingList_congr
     (H : ∀ x ∈ xs, lctx₁.find? x = lctx₂.find? x) :
     mkBindingList isLambda lctx₁ xs b = mkBindingList isLambda lctx₂ xs b := by

@@ -969,34 +969,6 @@ theorem MLCtx.WF.mkLambda_eq {c : MLCtx} (wf : c.WF env Us) (n hn)
     exact wf.tr.find?_eq_some.2 ((MLCtx.fvarRevList_prefix ..).subset (List.mem_reverse.1 h))
   · exact List.nodup_reverse.2 (wf.fvarRevList_nodup ..)
 
-theorem MLCtx.WF.mkForall_closed {c : MLCtx} (wf : c.WF env Us) (n hn) (he : Closed e) :
-    Closed (c.mkForall n hn e) := by
-  induction n generalizing c e with
-  | zero => exact he
-  | succ n ih =>
-    match c with
-    | .vlam .. =>
-      have hty := wf.2.2.1.closed; simp only [MLCtx.noBV] at hty
-      exact ih wf.1 _ ⟨hty, he.abstract1⟩
-    | .vlet .. =>
-      have hty := wf.2.2.1.closed; simp only [MLCtx.noBV] at hty
-      have hv := wf.2.2.2.1.closed; simp only [MLCtx.noBV] at hv
-      exact ih wf.1 _ (letStep_closed hty hv he)
-
-theorem MLCtx.WF.mkLambda_closed {c : MLCtx} (wf : c.WF env Us) (n hn) (he : Closed e) :
-    Closed (c.mkLambda n hn e) := by
-  induction n generalizing c e with
-  | zero => exact he
-  | succ n ih =>
-    match c with
-    | .vlam .. =>
-      have hty := wf.2.2.1.closed; simp only [MLCtx.noBV] at hty
-      exact ih wf.1 _ ⟨hty, he.abstract1⟩
-    | .vlet .. =>
-      have hty := wf.2.2.1.closed; simp only [MLCtx.noBV] at hty
-      have hv := wf.2.2.2.1.closed; simp only [MLCtx.noBV] at hv
-      exact ih wf.1 _ (letStep_closed hty hv he)
-
 namespace Inner
 
 theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
