@@ -161,7 +161,7 @@ theorem inferLambda.loop.WF {c : VContext} {e₀ : Expr}
     let ⟨h1', h2''⟩ := mwf.1.mkLambda_trS c.Ewf h1 h3 n hn
     have h3' := (mwf.1.mkForall_trS c.Ewf h2' (h3.isType c.Ewf mwf.1.tr.wf.toCtx) n hn).1
     simp [hdrop] at h1' h2'' h3'
-    refine mwf.1.mkForall_eq _ _ (eqfvs ▸ harr) ▸
+    refine mwf.1.mkForall_eq _ _ (eqfvs ▸ harr) (m.noBV ▸ h2'.closed) ▸
       ⟨_, _, fun P hP he => ?_, he₀ ▸ h1', h3', h2''⟩
     have ⟨c1, c2, c3⟩ := hbelow _ hP he
     have := c3 _ <| FVarsBelow.cheapBetaReduce (m.noBV ▸ h2.closed) _ c1 <| hb _ c1 c2
@@ -369,7 +369,7 @@ theorem inferLet.loop.WF {c : VContext} {e₀ : Expr}
     let ⟨h1', h2'⟩ := mwf.1.mkLet_trS c.Ewf h1 h3 n hn nds hnds
     have h3' := (mwf.1.mkForall_trS c.Ewf hty (h3.isType c.Ewf mwf.1.tr.wf.toCtx) n hn).1
     simp [hdrop] at h1' h2' h3'
-    erw [mwf.1.mkForall_eq _ _ (eqfvs ▸ harr)]
+    erw [mwf.1.mkForall_eq _ _ (eqfvs ▸ harr) (m.noBV ▸ hty.closed)]
     refine ⟨_, _, fun P hP he => ?_, he₀ ▸ h1', h3', h2'⟩
     have ⟨c1, c2, c3⟩ := hbelow _ hP he
     have := c3 _ <| FVarsBelow.cheapBetaReduce (m.noBV ▸ h2.closed) _ c1 <| hb _ c1 c2
