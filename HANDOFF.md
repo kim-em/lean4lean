@@ -185,6 +185,33 @@ declarations; validation must not assume correctness of its own artifact.
    nested path needed no new top-level hypothesis because every source-facing
    fact there comes with a translation of the source.
 
+7. **Translations are syntactically unique, and the junction must invert the
+   executable's type check.** `TrProj` has one constructor, so
+   `TrExprS.uniqueS` (`Recursor/CanonicalMinorFields.lean`) gives
+   `TrExprS Δ e e₁ → TrExprS Δ e e₂ → e₁ = e₂` with no `IsUnique` side
+   condition; every "which translation was chosen" question in the junction
+   disappears. The minor premises mention motives, and the first pass only
+   translates them in free-variable contexts that interleave indices, majors
+   and stale fields between the parameters and the motives; moving such a
+   translation into the generator's abstract context `params ++ motives ++
+   earlier minors` would need context strengthening, which is the `weakN_iff`
+   problem. The only derivation of a closed recursor type available before
+   installation is the executable's own `checkRecursorTypes`, so
+   `CompletedRecursorConstruction` now retains it (`recursorTypes :
+   RecursorTypeTranslations …`; `bindingSemanticWFOfTargets` lets the
+   installed targets depend on it). `Recursor/CanonicalRecursorTelescope.lean`
+   inverts it into the five binder groups (`recursorTelescope`) and identifies
+   the parameter group with the cached parameter telescope and the motive group
+   with `Instance.motives` by uniqueness (`recursorTelescope_params`,
+   `recursorTelescope_motives`). Correction of an earlier plan: the junction
+   signature cannot be `R.sourceSignature`. Its field types translate the raw
+   constructor telescope, while the production minors bind their fields with
+   `consumeTypeAnnotationsVerified` domains, and
+   `ConsumedGeneration.sourceOrigins` requires `fieldTypes = H.sourceFields`
+   (consumed, header universe). The junction signature is a consumed
+   signature whose `Models` follows from `sourceSignature_models` through the
+   definitional equalities already proved (`sourceConstructorDefEq`).
+
 ## Assessment
 
 The inductive verification is **not complete** and cannot be made sorry-free
@@ -236,63 +263,43 @@ inside this project's scope without solving open base metatheory:
    types should be rejected instead (a one-line `hasLooseBVars` check in
    `checkInductiveSources`, which would be a divergence from C++ on
    malformed input and would let `SourceSyntaxChecks` carry the fact).
-2. **Close the three refinement junctions** (see above). Assessment after
-   the bridge removal (2026-10-05): the junction structures are unchanged
-   and nothing in them depended on the deleted statement, so their component
-   lemmas are now honest. For `canonicalConsumedGeneration`
-   (`Recursor/CanonicalConstruction.lean`): take `signature :=
-   R.sourceSignature` (`CompletedSourceSignature.lean` already proves
-   `sourceSignature_models`, field types, constructor names/owners, replay),
-   `generation` from `elimLevel`/`recursorDeclarationAbstractLevels`;
-   `params`/`motives` are covered by `sourceParameterTranslation` and
-   `generatedParametersMotivesTranslation`; `consumedMotive`,
-   `consumedMotiveDomains`, `majorBinderSource` cover the owner's indices
-   and major. **Missing**: no theorem mentions
-   `declareRecursors.recursorType`; the minors telescope has no translation
-   to `Instance.minors` (each minor must be matched with `Instance.minor`
-   through `RecInfoMinorSemanticSource` and the `Equation/MinorAlignment`
-   field/hypothesis splits), and `sourceOrigins` must be assembled from
-   `origins`/`minorSources`. `canonicalCompletedRuleTranslation` then needs
-   `CompilationRealization` (`Recursor/Realization.lean`): the equation
-   build (`existsCanonicalGeneratedEquationBuild`) supplies the rule list,
-   so what remains is `RecursorEntryRealization` per owner (metadata fields
-   and `RuleRealization` of each concrete rule against `Instance.equation`).
-   `assemblyNative` needs the restored analogue
-   (`RestoredCompilationRealization`) plus `InductiveRecursorProvenance` on
-   top of `assemblyShapeNative`. Concrete entry point for the minors: the
-   production recursor type is already decomposed by
-   `GeneratedRecursorTelescopeTranslation` (`Nested/Replacement.lean`, with
-   `domainsResult_eq` uniqueness), and `finalSelectedMinorTypedSplit`
-   (`Equation/MinorAlignment.lean`) writes `T.minors[minorIdx]!` as
-   `wrapForalls (fieldDomains ++ hypothesisDomains) targetResidual` with
-   translations in the context `params ++ motives ++ minors.take minorIdx`.
-   The theorem to prove is that these are `insertBinders` lifts of the
-   source-signature field types (`sourceFieldDomains`, translated in the
-   parameter context only; relate by `TrExprS` weakening in the forward
-   direction plus `TrExprS.unique`, not by `weakN_iff`), that
-   `hypothesisDomains` are `Instance.hypothesis`, and that `targetResidual`
-   is the motive application of `Instance.minor`; then `types` follows by
-   `rebuildForallPrefix`-style assembly with `generatedParametersMotivesTranslation`
-   and `consumedMotive`. Note the staging constraint:
-   `CompletedRecursorPhasesResult` (`CompletedRecursorPhases.lean`) defines
-   its installed recursor constants as `nativeTarget`, i.e. through
-   `Classical.choice` of `canonicalConsumedGeneration`, so the junction must
-   be proved at the `CompletedRecursorConstruction` stage from
-   `minorSemantics` (`RecInfoMinorSemanticSource`); the post-installation
-   `GeneratedRecursorTelescopeTranslation`/`finalSelectedMinorTypedSplit`
-   results are downstream of the junction and may only be reused as proof
-   technique, not as premises. Two facts make the field-domain step tractable:
-   `TrExprS` terms depend on the context only through its free-variable
-   layout (`abstractForallContext domains []` fixes it by `domains.length`),
-   so defeq-but-different parameter contexts (`T.params` versus
-   `parameterDecls.toCtx.reverse`, related by `finalPairedParameterAlignmentAt`)
-   yield the same translated terms; and motive/minor free variables do not
-   occur in field domains, so `abstractList (params ++ motives ++ minors)`
-   is a `liftLooseBVars'` of `abstractList params` there, matching
-   `TrExprS.insertBeforeInner` and `insertBinders_eq_prefix`
-   (`CanonicalMotiveGroup.lean`). Use the recursor-comparison scratch
-   (regenerating `Acc`, `iterates`, nested types through `Lean4Lean.addDecl`)
-   as the executable oracle.
+2. **Close the three refinement junctions.** `canonicalConsumedGeneration`
+   (`Recursor/CanonicalConstruction.lean`) first, from the retained type check
+   `T := recursorTelescope owner` (item 7). Done: the `params` and `motives`
+   groups (`recursorTelescope_params`, `recursorTelescope_motives`), and the
+   field-domain template `minorFieldsTemplate` (the `insertBinders` lift of
+   `H.sourceFields` beneath any inserted binders). Next, for each flat minor
+   `i`: its binder source is `D.type.abstractList (params ++ motives ++
+   flatMinors.take i)` with `D.type = S.sourceType` (`minorSources`,
+   `sourceType_consumeTypeAnnotations_eq_self`), translated to `T.minors[i]`
+   in `abstractForallContext (T.params ++ T.motives ++ T.minors.take i) []`.
+   Invert that translation along `S.sourceType = mkForall fields (mkForall
+   hyps motiveApp)`: the field domains equal the template by uniqueness; the
+   residual is `app (mkApps (bvar motive) idx) (mkApps (const ctor us) bvars)`
+   by inversion, and `idx` equals the lifted `sourceConstructorIndices`
+   (forward: `liftOriginalType`, `insertBeforeInner`, `bvLift`, then
+   uniqueness); each hypothesis domain inverts to `wrapForalls A (app (mkApps
+   (bvar m) I) (mkApps (bvar f) bvars))`, and the consumed signature's
+   `Recursive` shapes must be defined so that `Instance.hypothesis` reproduces
+   `A` and `I`: either as unlifts (`VExpr.unliftN`) of the inverted domains,
+   justified by first-pass scope facts (`O.args` domains and `exposedType`
+   indices mention only parameters, earlier fields and earlier arguments), or
+   by forward derivations closed with `mkLambda` over fields and arguments,
+   dropped to the parameter suffix (`dropFVarPrefix`), abstracted
+   (`abstractParameters`) and weakened. Then `Models` of the consumed
+   signature by definitional transport from `sourceSignature_models`,
+   `sourceOrigins` by construction, `types` from `T.target_eq`, and
+   `minorTranslation` from the `params ++ motives ++ minors` prefix of `T`.
+   The other junctions (`canonicalCompletedRuleTranslation`, `assemblyNative`)
+   need `RecursorEntryRealization` per owner (`Recursor/Realization.lean`) and
+   the restored analogue plus `InductiveRecursorProvenance`; the equation
+   build (`existsCanonicalGeneratedEquationBuild`) supplies the rule list.
+   Staging: the junction is proved at the `CompletedRecursorConstruction`
+   stage, whose fields (now including `recursorTypes`) are the only premises;
+   post-installation results (`GeneratedRecursorTelescopeTranslation`,
+   `finalSelectedMinorTypedSplit`) are reusable as technique only. Use the
+   recursor-comparison scratch (regenerating `Acc`, `iterates`, nested types
+   through `Lean4Lean.addDecl`) as the executable oracle.
 3. **Replace `weakN_iff` and repair consumers**; coordinate with upstream.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
@@ -334,6 +341,8 @@ inside this project's scope without solving open base metatheory:
   .lake/build/bin/lean4lean Init` (25 "already declared" artifacts, same as
   upstream), `… Std` (6, same as upstream), `--fresh Init.Prelude`,
   `--fresh Init.Core`.
+- After adding `recursorTypes` (2026-10-05): `lake build` (629 jobs) and
+  `python3 scripts/check-inductive-audit.py --self-test` pass.
 - `lake build` (default targets), `lake build Lean4Lean.Tests`, the fresh
   `Init.Prelude` (1975 declarations) and `Init.Core` (3953 declarations)
   replays, and `python3 scripts/check-inductive-audit.py --self-test` all
