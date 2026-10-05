@@ -219,12 +219,32 @@ inside this project's scope without solving open base metatheory:
    types should be rejected instead (a one-line `hasLooseBVars` check in
    `checkInductiveSources`, which would be a divergence from C++ on
    malformed input and would let `SourceSyntaxChecks` carry the fact).
-2. **Close the three refinement junctions** (see above). Start from
-   `ConsumedGeneration.types` (translation of
-   `declareRecursors.recursorType` to `InductiveSignature.Instance.recursorType`)
-   and `GeneratedEquationWitness` producers; use the recursor-comparison
-   scratch (`/tmp`-style tests regenerating `Acc`, `iterates`, nested types
-   through `Lean4Lean.addDecl`) as the executable oracle.
+2. **Close the three refinement junctions** (see above). Assessment after
+   the bridge removal (2026-10-05): the junction structures are unchanged
+   and nothing in them depended on the deleted statement, so their component
+   lemmas are now honest. For `canonicalConsumedGeneration`
+   (`Recursor/CanonicalConstruction.lean`): take `signature :=
+   R.sourceSignature` (`CompletedSourceSignature.lean` already proves
+   `sourceSignature_models`, field types, constructor names/owners, replay),
+   `generation` from `elimLevel`/`recursorDeclarationAbstractLevels`;
+   `params`/`motives` are covered by `sourceParameterTranslation` and
+   `generatedParametersMotivesTranslation`; `consumedMotive`,
+   `consumedMotiveDomains`, `majorBinderSource` cover the owner's indices
+   and major. **Missing**: no theorem mentions
+   `declareRecursors.recursorType`; the minors telescope has no translation
+   to `Instance.minors` (each minor must be matched with `Instance.minor`
+   through `RecInfoMinorSemanticSource` and the `Equation/MinorAlignment`
+   field/hypothesis splits), and `sourceOrigins` must be assembled from
+   `origins`/`minorSources`. `canonicalCompletedRuleTranslation` then needs
+   `CompilationRealization` (`Recursor/Realization.lean`): the equation
+   build (`existsCanonicalGeneratedEquationBuild`) supplies the rule list,
+   so what remains is `RecursorEntryRealization` per owner (metadata fields
+   and `RuleRealization` of each concrete rule against `Instance.equation`).
+   `assemblyNative` needs the restored analogue
+   (`RestoredCompilationRealization`) plus `InductiveRecursorProvenance` on
+   top of `assemblyShapeNative`. Use the recursor-comparison scratch
+   (regenerating `Acc`, `iterates`, nested types through `Lean4Lean.addDecl`)
+   as the executable oracle.
 3. **Replace `weakN_iff` and repair consumers**; coordinate with upstream.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
