@@ -488,6 +488,16 @@ theorem Expr.ForallTelescope.abstractN
     apply Expr.ForallTelescope.cons
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (k + 1)
 
+/-- A closed telescope has a result closed at the depth of its binders. -/
+theorem Expr.ForallTelescope.closed_result
+    (H : Expr.ForallTelescope outer arity result) (Houter : Closed outer depth) :
+    Closed result (depth + arity) := by
+  induction H generalizing depth with
+  | nil => simpa using Houter
+  | cons _ ih =>
+    have Hresult := ih Houter.2
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hresult
+
 theorem Expr.lastRevIdx?_append (v : FVarId) : ∀ (ys zs : List FVarId),
     Expr.lastRevIdx? v (ys ++ zs) =
       match Expr.lastRevIdx? v zs with
@@ -745,6 +755,17 @@ theorem Expr.abstractN_mkAppN :
 theorem Expr.abstractN_fvar_of_not_mem (hmem : fv ∉ fvs) :
     (Expr.fvar fv).abstractN fvs k = .fvar fv := by
   simp [Expr.abstractN, Expr.lastRevIdx?_eq_none_of_not_mem hmem]
+
+/-- An expression without free variables is unchanged by abstraction. -/
+theorem FVarsIn.abstractN_eq_self {e : Expr} (h : FVarsIn (fun _ => False) e)
+    (xs : List FVarId) (k : Nat) : e.abstractN xs k = e := by
+  induction e generalizing k with
+  | fvar v => exact absurd h id
+  | bvar | const | sort | mvar | lit => rfl
+  | mdata _ e ih | proj _ _ e ih => simp [Expr.abstractN, ih h]
+  | app f a ihf iha => simp [Expr.abstractN, ihf h.1, iha h.2]
+  | lam _ t b _ iht ihb | forallE _ t b _ iht ihb => simp [Expr.abstractN, iht h.1, ihb h.2]
+  | letE _ t v b _ iht ihv ihb => simp [Expr.abstractN, iht h.1, ihv h.2.1, ihb h.2.2]
 
 theorem Expr.abstractList_mkAppN :
     (mkAppN fn args).abstractList fvs k =

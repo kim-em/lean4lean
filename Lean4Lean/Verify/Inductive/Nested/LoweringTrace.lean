@@ -2587,7 +2587,8 @@ theorem NestedLoweringRun.closeValidatedNestedAuxiliaries
     rw [← hlctx]
     exact hmlctx.mkForall_eq mlctx.length (Nat.le_refl _) hparams
       (by simpa [TypeChecker.MLCtx.noBV] using Hexpr.closed)
-  refine ⟨mlctx.mkForall' mlctx.length (Nat.le_refl _) e', ?_⟩
+  refine ⟨by simpa [TypeChecker.MLCtx.noBV] using Hexpr.closed,
+    mlctx.mkForall' mlctx.length (Nat.le_refl _) e', ?_⟩
   rw [hconcrete]
   exact Hclosed
 
@@ -2632,9 +2633,23 @@ theorem NestedLoweringRun.validatedAuxiliaryResidualTranslations
     ∃ selection : LocalForallSelection res.lctx res.params,
       ClosedNestedAuxiliaryTranslations venv lparams res selection := by
   rcases H.resultContextSelection with ⟨selection⟩
+  have hparams : res.params.toList.reverse =
+      (mlctx.fvarRevList mlctx.length (Nat.le_refl _)).map Expr.fvar := by
+    rw [mlctx.fvarRevList_all, ← hmlctx.tr.fvars_eq, hlctx]
+    exact H.resultParams_reverse_fvars
+  have hnodup : selection.fvars.Nodup := by
+    have h1 : selection.fvars.map Expr.fvar = res.params.toList := by
+      simpa using congrArg Array.toList selection.expressions
+    have h2 : selection.fvars.reverse = mlctx.fvarRevList mlctx.length (Nat.le_refl _) := by
+      apply List.map_injective_iff.1 (fun _ _ h => Expr.fvar.inj h)
+      rw [List.map_reverse, h1]
+      exact hparams
+    have := hmlctx.fvarRevList_nodup mlctx.length (Nat.le_refl _)
+    rw [← h2] at this
+    simpa using this
   exact ⟨selection,
     (H.closeValidatedNestedAuxiliaries henv mlctx hmlctx hlctx Hvalidated
-      ).residualTranslations henv selection⟩
+      ).residualTranslations henv selection hnodup⟩
 
 theorem NestedLoweringRun.resultParamsFVarsIn
     (H : NestedLoweringRun env fuel nparams types initialState out) :

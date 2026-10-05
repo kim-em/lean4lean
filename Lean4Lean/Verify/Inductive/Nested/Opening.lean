@@ -1742,7 +1742,7 @@ theorem NestedRestorationOpening.outputPrefixTelescope
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htelescope : Expr.ForallTelescope input result.nparams suffix) :
     Expr.ForallTelescope output result.nparams
-      (Hopen.restoredBody.abstractList Hopen.selection.fvars) := by
+      (Hopen.restoredBody.abstractN Hopen.selection.fvars) := by
   rcases Hopen with ⟨lctx, params, body, restoredBody, Hopening, _HlctxWF,
     Hselection, _Hnodup, _HselectionLength, _Hreplacement, houtput⟩
   have Hrebuilt := Hselection.forallTelescope restoredBody
@@ -1767,7 +1767,7 @@ theorem NestedRestorationOpening.outputPrefixTelescope
           Htelescope.isForall_of_pos (by omega)
         simpa [hfor] using houtput
   change Expr.ForallTelescope output result.nparams
-    (restoredBody.abstractList Hselection.fvars)
+    (restoredBody.abstractN Hselection.fvars)
   simpa only [houtputForall] using Hrebuilt
 
 /-- Closing the fresh parameter variables exposed by an operational root
@@ -1775,20 +1775,33 @@ opening recovers the original de Bruijn suffix of a closed forall telescope. -/
 theorem NestedRestorationOpening.abstractBody_eq_suffix
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htelescope : Expr.ForallTelescope input result.nparams suffix)
-    (Hinput : input.FVarsIn fun _ => False) :
+    (Hinput : input.FVarsIn fun _ => False) (hclosed : Closed input) :
     Hopen.body.abstractList Hopen.selection.fvars = suffix := by
   have hbody := Hopen.opening.forallResidual Htelescope
   have Hsuffix : suffix.FVarsIn (fun _ => False) :=
     Htelescope.resultFVarsIn Hinput
   have Haway : suffix.FVarsIn (fun fv => fv ∉ Hopen.selection.fvars) :=
     Hsuffix.mono fun _ hfalse => False.elim hfalse
+  have hlength : Hopen.selection.fvars.length = result.nparams :=
+    Hopen.selection.size.symm.trans Hopen.opening.initial_size
+  have hlb : suffix.looseBVarRange' ≤ Hopen.selection.fvars.length := by
+    rw [hlength]
+    simpa using (Htelescope.closed_result hclosed).looseBVarRange_le
   have Hcancel := Haway.abstract_instantiateRev_fvarArray Hopen.params
-    Hopen.selection.fvars Hopen.selection.expressions Hopen.selectionNodup
+    Hopen.selection.fvars Hopen.selection.expressions Hopen.selectionNodup hlb
+  have hbodyClosed : Hopen.body.looseBVarRange' = 0 := by
+    rw [hbody, Expr.instantiateRev_eq, Expr.instantiate_eq, Hopen.selection.expressions]
+    have hinst : (Expr.instantiateList suffix
+        ((Hopen.selection.fvars.map Expr.fvar).toArray.reverse.toList) 0).looseBVarRange'
+        ≤ 0 + 0 :=
+      Expr.instantiateList_looseBVarRange (by simpa using hlb)
+        (by intro a ha; simp at ha; obtain ⟨_, _, rfl⟩ := ha; exact Nat.le_refl 0)
+    simpa using hinst
   calc
     Hopen.body.abstractList Hopen.selection.fvars =
         Hopen.body.abstract
           (Hopen.selection.fvars.map Expr.fvar).toArray :=
-      (Expr.abstract_eq_legacy Hopen.body Hopen.selection.fvars).symm
+      (Expr.abstract_eq_of_closed _ _ Hopen.selectionNodup hbodyClosed).symm
     _ = Hopen.body.abstract Hopen.params :=
       congrArg Hopen.body.abstract Hopen.selection.expressions.symm
     _ = suffix := by simpa [hbody] using Hcancel
@@ -2080,11 +2093,9 @@ theorem NestedRestoration.concreteRecursorResult_forallTelescope
   rw [houtput, hfor]
   have Hcombined := Hselection.prependTelescope Hrestored
   rw [Hopening.initial_size] at Hcombined
-  have habstract : recResult.abstractList Hselection.fvars
-      (numMotives + numMinors + numIndices + 1) = recResult := by
-    apply (concreteRecursorResult_noFVars.mono fun fv hfalse =>
-      False.elim hfalse).abstractList_eq_self
-    exact concreteRecursorResult_closed howner
+  have habstract : recResult.abstractN Hselection.fvars
+      (numMotives + numMinors + numIndices + 1) = recResult :=
+    FVarsIn.abstractN_eq_self concreteRecursorResult_noFVars _ _
   rw [habstract] at Hcombined
   simpa [recResult] using Hcombined
 

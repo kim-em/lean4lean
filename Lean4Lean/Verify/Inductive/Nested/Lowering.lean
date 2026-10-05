@@ -43,7 +43,7 @@ statement that must be translated. -/
 def ClosedValidatedNestedAuxiliaries (venv : VEnv) (lparams : List Name)
     (res : Lean4Lean.ElimNestedInductive.Result) : Prop :=
   ∀ name e, res.aux2nested.find? name = some e →
-    ∃ e', TrExprS venv lparams [] (res.lctx.mkForall res.params e) e' ∧
+    Closed e ∧ ∃ e', TrExprS venv lparams [] (res.lctx.mkForall res.params e) e' ∧
       venv.IsType lparams.length [] e'
 
 /-- De-Bruijn form of one closed auxiliary witness.  It records both the
@@ -68,37 +68,6 @@ structure ClosedNestedAuxiliaryTranslation
   residualType : venv.IsType lparams.length
     (abstractForallContext domains []).toCtx residualTarget
 
-/-- The expression inserted by a family hit in `restoreNestedNode` closes to
-the same de-Bruijn auxiliary body retained by `residual`, independently of
-the fresh free-variable names chosen by restoration.  This is the alpha-
-conversion bridge between executable restoration and the canonical closed
-auxiliary translation. -/
-theorem ClosedNestedAuxiliaryTranslation.restorationAlpha
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
-    (Hscope : e.FVarsIn (· ∈ selection.fvars))
-    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
-    (hrestoreNodup : restoreSelection.fvars.Nodup) :
-    (((e.abstract res.params).instantiateRev restoreAs).abstract restoreAs) =
-      e.abstractList selection.fvars := by
-  -- TODO(abstract_eq_legacy): needs `selection.fvars.Nodup` and closed `e`.
-  have hlowered : e.abstract res.params =
-      e.abstractList selection.fvars := by
-    calc
-      e.abstract res.params =
-          e.abstract (selection.fvars.map Expr.fvar).toArray :=
-        congrArg e.abstract selection.expressions
-      _ = e.abstractList selection.fvars := Expr.abstract_eq_legacy _ _
-  have Hclosed : (e.abstractList selection.fvars).FVarsIn
-      (fun _ => False) := by
-    apply FVarsIn.abstractList_of
-    exact Hscope.mono fun fv hfv => Or.inl hfv
-  have Haway : (e.abstractList selection.fvars).FVarsIn
-      (fun fv => fv ∉ restoreSelection.fvars) :=
-    Hclosed.mono fun _ hfalse => False.elim hfalse
-  have Hcancel := Haway.abstract_instantiateRev_fvarArray restoreAs
-    restoreSelection.fvars restoreSelection.expressions hrestoreNodup
-  rw [hlowered]
-  exact Hcancel
 
 /-- Depth-general form of `restorationAlpha`, for auxiliary occurrences
 encountered underneath the remaining recursor binders. -/
@@ -163,6 +132,46 @@ theorem ClosedNestedAuxiliaryTranslation.sourceClosed
   rw [hbvars] at HresidualClosed
   simpa [H.arity, selection.size] using HresidualClosed
 
+/-- The expression inserted by a family hit in `restoreNestedNode` closes to
+the same de-Bruijn auxiliary body retained by `residual`, independently of
+the fresh free-variable names chosen by restoration.  This is the alpha-
+conversion bridge between executable restoration and the canonical closed
+auxiliary translation. -/
+theorem ClosedNestedAuxiliaryTranslation.restorationAlpha
+    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
+    (Hscope : e.FVarsIn (· ∈ selection.fvars))
+    (hselectionNodup : selection.fvars.Nodup)
+    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
+    (hrestoreNodup : restoreSelection.fvars.Nodup)
+    (hsize : restoreSelection.fvars.length = selection.fvars.length) :
+    (((e.abstract res.params).instantiateRev restoreAs).abstract restoreAs) =
+      e.abstractList selection.fvars := by
+  have hlowered : e.abstract res.params =
+      e.abstractList selection.fvars := by
+    calc
+      e.abstract res.params =
+          e.abstract (selection.fvars.map Expr.fvar).toArray :=
+        congrArg e.abstract selection.expressions
+      _ = e.abstractList selection.fvars :=
+        Expr.abstract_eq_of_closed _ _ hselectionNodup H.sourceClosed.looseBVarRange_zero
+  have Hclosed : (e.abstractList selection.fvars).FVarsIn
+      (fun _ => False) := by
+    apply FVarsIn.abstractList_of
+    exact Hscope.mono fun fv hfv => Or.inl hfv
+  have Haway : (e.abstractList selection.fvars).FVarsIn
+      (fun fv => fv ∉ restoreSelection.fvars) :=
+    Hclosed.mono fun _ hfalse => False.elim hfalse
+  have hlb : (e.abstractList selection.fvars).looseBVarRange' ≤
+      restoreSelection.fvars.length := by
+    rw [← Expr.abstractN_eq_abstractList_of_closed hselectionNodup H.sourceClosed, hsize]
+    have := Expr.abstractN_looseBVarRange_le (e := e) (fvs := selection.fvars) (k := 0)
+    rw [H.sourceClosed.looseBVarRange_zero] at this
+    simpa using this
+  have Hcancel := Haway.abstract_instantiateRev_fvarArray restoreAs
+    restoreSelection.fvars restoreSelection.expressions hrestoreNodup hlb
+  rw [hlowered]
+  exact Hcancel
+
 /-- The residual auxiliary translation remains valid underneath any suffix
 of freshly introduced recursor binders.  The concrete source is presented at
 the actual binder depth used by restoration rather than as an opaque lift. -/
@@ -209,14 +218,16 @@ recursor parameter binders. -/
 theorem ClosedValidatedNestedAuxiliaries.residualTranslations
     (H : ClosedValidatedNestedAuxiliaries venv lparams res)
     (henv : venv.WF)
-    (selection : LocalForallSelection res.lctx res.params) :
+    (selection : LocalForallSelection res.lctx res.params)
+    (hnodup : selection.fvars.Nodup) :
     ClosedNestedAuxiliaryTranslations venv lparams res selection := by
   intro name e hfind
-  rcases H name e hfind with ⟨closedTarget, Hclosed, HclosedType⟩
+  rcases H name e hfind with ⟨hclosedE, closedTarget, Hclosed, HclosedType⟩
   have Htel := selection.forallTelescope e
   rcases TrExprS.forallTelescope_typed_shape_with_context henv Htel Hclosed
       HclosedType with
     ⟨domains, residualTarget, harity, htarget, Hresidual, HresidualType⟩
+  rw [Expr.abstractN_eq_abstractList_of_closed hnodup hclosedE] at Hresidual
   exact ⟨⟨closedTarget, domains, residualTarget, harity, Hclosed,
     HclosedType, htarget, Hresidual, HresidualType⟩⟩
 
@@ -1286,7 +1297,7 @@ theorem BuiltAuxiliary.generatedFamilyTelescope
         (sourceInfo.type.instantiateLevelParams sourceInfo.levelParams levels)
         nparams sourceTail ∧
       Expr.ForallTelescope data.type.type params.size
-        ((sourceTail.instantiateRevRange 0 nparams args).abstractList
+        ((sourceTail.instantiateRevRange 0 nparams args).abstractN
           Hselection.fvars) := by
   rcases H.opening with ⟨sourceTail, Hsource, htype⟩
   refine ⟨sourceTail, Hsource, ?_⟩

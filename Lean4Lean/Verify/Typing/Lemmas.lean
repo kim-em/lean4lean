@@ -193,11 +193,18 @@ theorem FVarsIn.abstract_instantiateRev_fvarArray
     (xs : Array Expr) (vars : List FVarId)
     (hvars : xs = (vars.map Expr.fvar).toArray)
     (hfree : FVarsIn (fun v => v ∉ vars) e)
-    (hnodup : vars.Nodup) :
+    (hnodup : vars.Nodup) (hlb : e.looseBVarRange' ≤ vars.length) :
     (e.instantiateRev xs).abstract xs = e := by
-  -- TODO(abstract_eq_legacy): true only when `e.looseBVarRange' ≤ vars.length`.
   subst xs
-  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstract_eq_legacy]
+  rw [Expr.instantiateRev_eq, Expr.instantiate_eq, Expr.abstractN_eq]
+  have hclosed : (e.instantiateList ((vars.map Expr.fvar).toArray.reverse.toList)).looseBVarRange'
+      ≤ 0 := by
+    have hinst : (Expr.instantiateList e ((vars.map Expr.fvar).toArray.reverse.toList) 0).looseBVarRange'
+        ≤ 0 + 0 :=
+      Expr.instantiateList_looseBVarRange (by simpa using hlb)
+        (by intro a ha; simp at ha; obtain ⟨_, _, rfl⟩ := ha; exact Nat.le_refl 0)
+    simpa using hinst
+  rw [Expr.abstractN_eq_abstractList hnodup _ _ hclosed]
   simpa [Expr.instantiateList_reverse] using
     hfree.abstractList_instantiateRevList (k := 0) hnodup
 
@@ -207,10 +214,10 @@ theorem FVarsIn.reabstract_instantiateRev_fvarArray
     (xs ys : Array Expr) (vars : List FVarId)
     (hvars : xs = (vars.map Expr.fvar).toArray)
     (hfree : FVarsIn (fun v => v ∉ vars) e)
-    (hnodup : vars.Nodup) :
+    (hnodup : vars.Nodup) (hlb : e.looseBVarRange' ≤ vars.length) :
     ((e.instantiateRev xs).abstract xs).instantiateRev ys =
       e.instantiateRev ys := by
-  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup]
+  rw [hfree.abstract_instantiateRev_fvarArray xs vars hvars hnodup hlb]
 
 theorem FVarsIn.abstract1 (h1 : FVarsIn P e) :
     FVarsIn P (Expr.abstract1 a e k) := by

@@ -553,23 +553,19 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.restoredForallTelescope
     (recInfos.flatMap (·.minors)).size +
     recInfos[ownerIdx]!.indices.size + 1
   have HnewPrefix := H.trace.opening.outputPrefixTelescope H.oldPrefix
-  have HnewSuffix := H.trace.suffix.newTelescope.abstractList
+  have HnewSuffix := H.trace.suffix.newTelescope.abstractN
     H.trace.opening.selection.fvars
   have hresidual :
       (concreteRecursorResult (recInfos.map (·.motive)).size
         (recInfos.flatMap (·.minors)).size
-        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractN
           H.trace.opening.selection.fvars suffixArity =
       concreteRecursorResult (recInfos.map (·.motive)).size
         (recInfos.flatMap (·.minors)).size
-        recInfos[ownerIdx]!.indices.size ownerIdx := by
-    apply (concreteRecursorResult_noFVars.mono fun fv hfalse =>
-      False.elim hfalse).abstractList_eq_self
-    have howner : ownerIdx < (recInfos.map (·.motive)).size := by
-      simpa using H.owner_lt
-    exact concreteRecursorResult_closed howner
+        recInfos[ownerIdx]!.indices.size ownerIdx :=
+    FVarsIn.abstractN_eq_self concreteRecursorResult_noFVars _ _
   have HnewSuffix' : Expr.ForallTelescope
-      (H.trace.opening.restoredBody.abstractList
+      (H.trace.opening.restoredBody.abstractN
         H.trace.opening.selection.fvars)
       suffixArity
       (concreteRecursorResult (recInfos.map (·.motive)).size
@@ -1008,6 +1004,7 @@ theorem RecursorRestoration.generatedTelescopeAlignment
   have hbody : Htrace.opening.body.abstractList
       Htrace.opening.selection.fvars = suffixSource :=
     Htrace.opening.abstractBody_eq_suffix HsourcePrefix' Hinput
+      Hgenerated.typed.translation.closed
   refine ⟨⟨Htrace, Hselections, hnoalias, hparams, paramDomains,
     suffixTarget, howner, ?_, ?_, ?_, ?_⟩⟩
   · exact hparamDomains.trans hparams.symm
@@ -1046,7 +1043,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.motiveDomain_eq
       (H.trace.opening.body.abstractList
         H.trace.opening.selection.fvars)
       motiveIdx domain) :
-    domain = D.type.abstractList
+    domain = D.type.abstractN
       (H.selections.params.fvars ++
         H.selections.motives.fvars.take motiveIdx) := by
   apply (H.fullDomainAt Hdomain).unique
@@ -1066,7 +1063,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.minorDomain_eq
       (H.trace.opening.body.abstractList
         H.trace.opening.selection.fvars)
       ((recInfos.map (·.motive)).size + minorIdx) domain) :
-    domain = D.type.abstractList
+    domain = D.type.abstractN
       (H.selections.params.fvars ++
         (H.selections.motives.fvars ++
           H.selections.minors.fvars.take minorIdx)) := by
@@ -1088,7 +1085,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.indexDomain_eq
         H.trace.opening.selection.fvars)
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size + indexIdx) domain) :
-    domain = D.type.abstractList
+    domain = D.type.abstractN
       (H.selections.params.fvars ++ (H.selections.motives.fvars ++
         (H.selections.minors.fvars ++
           H.selections.indices.fvars.take indexIdx))) := by
@@ -1110,7 +1107,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.majorDomain_eq
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size +
         recInfos[ownerIdx]!.indices.size) domain) :
-    domain = D.type.abstractList
+    domain = D.type.abstractN
       (H.selections.params.fvars ++ (H.selections.motives.fvars ++
         (H.selections.minors.fvars ++ H.selections.indices.fvars))) := by
   apply (H.fullDomainAt Hdomain).unique
@@ -1252,7 +1249,7 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
     (hparameterDomains : parameterDomains.length = result.nparams)
     (Hsuffix : Expr.ForallTelescopeTypeTranslation newEnv
       Hentry.info.levelParams (abstractForallContext parameterDomains [])
-      (H.trace.opening.restoredBody.abstractList
+      (H.trace.opening.restoredBody.abstractN
         H.trace.opening.selection.fvars)
       ((recInfos.map (·.motive)).size +
         (recInfos.flatMap (·.minors)).size +
@@ -1281,23 +1278,19 @@ theorem GeneratedRecursorRestorationTelescopeAlignment.closeTransportedSuffix
     HtemplateNew.replaceTranslatedResidual HtemplateTelescope HnewPrefix
       Henv (by trivial) hparameterDomains Htemplate Hsuffix.translation
         Hsuffix.isType
-  have HnewSuffix := H.trace.suffix.newTelescope.abstractList
+  have HnewSuffix := H.trace.suffix.newTelescope.abstractN
     H.trace.opening.selection.fvars
   have hresidual :
       (concreteRecursorResult (recInfos.map (·.motive)).size
         (recInfos.flatMap (·.minors)).size
-        recInfos[ownerIdx]!.indices.size ownerIdx).abstractList
+        recInfos[ownerIdx]!.indices.size ownerIdx).abstractN
           H.trace.opening.selection.fvars suffixArity =
       concreteRecursorResult (recInfos.map (·.motive)).size
         (recInfos.flatMap (·.minors)).size
-        recInfos[ownerIdx]!.indices.size ownerIdx := by
-    apply (concreteRecursorResult_noFVars.mono fun fv hfalse =>
-      False.elim hfalse).abstractList_eq_self
-    have howner : ownerIdx < (recInfos.map (·.motive)).size := by
-      simpa using H.owner_lt
-    exact concreteRecursorResult_closed howner
+        recInfos[ownerIdx]!.indices.size ownerIdx :=
+    FVarsIn.abstractN_eq_self concreteRecursorResult_noFVars _ _
   have HnewSuffix' : Expr.ForallTelescope
-      (H.trace.opening.restoredBody.abstractList
+      (H.trace.opening.restoredBody.abstractN
         H.trace.opening.selection.fvars)
       suffixArity
       (concreteRecursorResult (recInfos.map (·.motive)).size
