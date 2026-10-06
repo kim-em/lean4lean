@@ -109,6 +109,7 @@ structure RecursorMotiveFrameWF
     (Rindices.mlctx.vlctx.toCtx.take indices.size).reverse
   resultLevel : VLevel
   resultLevelWF : resultLevel.WF recLparams.length
+  resultLevelOf : VLevel.ofLevel recLparams elimLevel = some resultLevel
   motiveTarget : VExpr
   motiveTarget_eq :
     motiveTarget =

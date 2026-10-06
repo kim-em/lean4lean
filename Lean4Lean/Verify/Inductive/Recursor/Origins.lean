@@ -2329,6 +2329,18 @@ structure RecursorMotiveTelescopeSeed
   motiveSourceFVars : FVarsIn (· ∈ motiveSourceScope.fvars)
     (root.lctx.mkForall info.indices
       (root.lctx.mkForall #[info.major] (.sort elimLevel)))
+  /-- The motive translated directly in its narrow parameter scope, from the
+checker context in which its indices were opened. -/
+  motiveSourceTarget : VExpr
+  motiveSourceTr : TrExprS Rroot.venv recLparams motiveSourceScope
+    (root.lctx.mkForall info.indices
+      (root.lctx.mkForall #[info.major] (.sort elimLevel)))
+    motiveSourceTarget
+  motiveSourceType : Rroot.venv.IsType recLparams.length
+    motiveSourceScope.toCtx motiveSourceTarget
+  motiveSourceCanonical : Rroot.venv.IsDefEqU recLparams.length
+    motiveSourceScope.toCtx motiveSourceTarget canonical.motiveType
+  motiveSourceWF : motiveSourceScope.WF Rroot.venv recLparams.length
   motiveClosedTarget : VExpr
   motiveClosedTr : TrExprS Rroot.venv recLparams motiveClosedScope
     (root.lctx.mkForall info.indices
@@ -2434,6 +2446,19 @@ def RecursorMotiveTelescopeSeed.mono
     motiveSourceFVars := by
       rw [hmotiveSource]
       exact H.motiveSourceFVars
+    motiveSourceTarget := H.motiveSourceTarget
+    motiveSourceTr := by
+      rw [hmotiveSource]
+      simpa only [Hext.venv_eq] using H.motiveSourceTr
+    motiveSourceType := by
+      simpa only [Hext.venv_eq] using H.motiveSourceType
+    motiveSourceCanonical := by
+      show Rcurrent.venv.IsDefEqU recLparams.length H.motiveSourceScope.toCtx
+        H.motiveSourceTarget H.canonical.motiveType
+      rw [Hext.venv_eq]
+      exact H.motiveSourceCanonical
+    motiveSourceWF := by
+      simpa only [Hext.venv_eq] using H.motiveSourceWF
     motiveClosedTarget := H.motiveClosedTarget
     motiveClosedTr := by
       simpa only [Hext.venv_eq] using HmotiveClosedTr
@@ -2493,6 +2518,11 @@ def RecursorMotiveTelescopeSeed.congrInfo
   motiveSourceNoBV := H.motiveSourceNoBV
   motiveSourceFVars := by
     simpa [hindices, hmajor] using H.motiveSourceFVars
+  motiveSourceTarget := H.motiveSourceTarget
+  motiveSourceTr := by simpa [hindices, hmajor] using H.motiveSourceTr
+  motiveSourceType := H.motiveSourceType
+  motiveSourceCanonical := H.motiveSourceCanonical
+  motiveSourceWF := H.motiveSourceWF
   motiveClosedTarget := H.motiveClosedTarget
   motiveClosedTr := by simpa [hindices, hmajor] using H.motiveClosedTr
   motiveClosedType := H.motiveClosedType

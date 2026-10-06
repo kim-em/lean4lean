@@ -1029,10 +1029,8 @@ theorem
     S.motiveClosedCanonicalDefEq.mono hbase, S.motiveTypeCanonicalEq,
     Hgenerated⟩
 
-/-- Restrict the retained production motive translation all the way back to
-the canonical parameter scope.  This is the first point where the ambient
-frames from earlier mutual families are genuinely removed, rather than only
-described by a context decomposition. -/
+/-- The production motive translated in the canonical parameter scope, as
+replayed in the checker context of the first pass. -/
 theorem
     CompletedRecursorPhasesResult.finalOwnerNarrowMotiveTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1071,39 +1069,14 @@ theorem
             T.motives[owner]! := by
   dsimp only
   rcases H.finalOwnerClosedMotiveFrameAt owner howner with
-    ⟨T, S, _hparameters, hsource, W, Hcontext, _hdecomposition,
-      HclosedTr, _HclosedType, HclosedCanonical, _hmotiveType,
+    ⟨T, S, _hparameters, hsource, _W, _Hcontext, _hdecomposition,
+      _HclosedTr, _HclosedType, _HclosedCanonical, _hmotiveType,
       Hgenerated⟩
-  have hbvars : VLCtx.bvars S.motiveClosedScope = 0 := by
-    calc
-      VLCtx.bvars S.motiveClosedScope =
-          VLCtx.bvars S.motiveSourceExpanded := Hcontext.bvars.symm
-      _ = VLCtx.bvars S.motiveSourceScope := W.bvars_eq
-      _ = 0 := S.motiveSourceNoBV
-  have hclosed := HclosedTr.closed
-  rw [hbvars] at hclosed
-  rcases HclosedTr.weakFV'_inv H.outVEnvWF W
-      (Hcontext.symm H.outVEnvWF.ordered) hclosed
-      S.motiveSourceFVars with ⟨narrowTarget, Hnarrow⟩
-  have HnarrowWeak : TrExprS H.outVEnv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      S.motiveSourceExpanded
-      (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
-        (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
-          (.sort H.elimLevel)))
-      (narrowTarget.lift' S.motiveSourceShift) := by
-    exact Hnarrow.weakFV' H.outVEnvWF.ordered W Hcontext.wf
-  have HweakTarget := HnarrowWeak.uniq H.outVEnvWF Hcontext HclosedTr
-  have HcanonicalExpanded := HclosedCanonical.defeqDFC
-    H.outVEnvWF.ordered
-    (Hcontext.defeqCtx.symm H.outVEnvWF.ordered)
-  have HweakCanonical := HweakTarget.trans H.outVEnvWF
-    Hcontext.wf.toCtx HcanonicalExpanded
-  rw [← S.motiveClosedCanonicalEq] at HweakCanonical
-  have Hcanonical :=
-    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF Hcontext.wf.toCtx W.toCtx).1
-      HweakCanonical
-  exact ⟨T, S, narrowTarget, hsource, Hnarrow, Hcanonical, Hgenerated⟩
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv]
+    exact H.installed.le
+  exact ⟨T, S, S.motiveSourceTarget, hsource, S.motiveSourceTr.mono hbase,
+    S.motiveSourceCanonical.mono hbase, Hgenerated⟩
 
 /-- Abstract the exact cached parameter suffix of the narrowed production
 motive, then transport it to the generated parameter telescope.  Earlier
