@@ -885,7 +885,21 @@ inside this project's scope without solving open base metatheory:
    canonical `Eq`; 2 (6k to 10k): confluence completion assuming
    `headInversion`; 3 (8k to 15k, open): strengthening with `Eq` via a
    conversion-certificate calculus, after a 1k to 3k falsification study.
-   Total 35k to 55k lines. Phase 0 started.
+   Total 35k to 55k lines. **Phase 0 done (222373b9, on main):**
+   `Theory/Typing/HeadInversion.lean` defines `TypeChain`, `SpineArgsEq`,
+   `HeadInversion` (eight fields: the seven designed plus `proj_fieldType`,
+   because the projection case of uniqueness substitutes untypable data
+   projections for unused earlier binders and cannot be derived from the
+   others without strengthening) and the single conjecture
+   `VEnv.WF.headInversion`; `IsDefEq.uniq` is reproved without
+   stratification (`uniq_chain`, `TypeChain.collapse`); `sort_inv`,
+   `forallE_inv`, `sort_forallE_inv`, `rigidApp_inv`, `structApp_inv`,
+   `saturated_of_hasType` are theorems; new `rigidApp_forallE_inv`,
+   `rigidApp_ne`, `sort_rigidApp_inv`; `forallE_inv_stratified` and
+   `fieldType_inv_stratified` deleted. Remaining Theory sorries on main:
+   `headInversion`, `weakN_iff` (false; replaced on E3 by
+   `strengthening_of_canonicalEq`), `headParallel`, `fullStep`, `strip`.
+   Phase 1 spike (semantic layer on the `Experimental` prototype) started.
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
