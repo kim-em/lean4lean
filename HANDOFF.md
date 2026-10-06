@@ -883,8 +883,13 @@ inside this project's scope without solving open base metatheory:
    corollaries of narrow ones until Steps 3 to 6 make every lifted run
    narrow. It had been hidden in `Declaration.IsModelled`; being made an
    explicit argument of the top-level theorems together with
-   `ProjectionWalkCorner`. Steps 3 to 6 (per-phase narrow-scope proofs)
-   remain.
+   `ProjectionWalkCorner`. **Done (4ba46b2, pushed):** `addDecl.WF` on E1 now
+   reads `(wf) (hcorner : ProjectionWalkCorner) (hloc :
+   CheckerSubContextLocality) (decl) (hdecl)`; `IsModelled` is `False` for
+   `quotDecl` and `True` otherwise; the checker cone is free of `weakN_iff`;
+   25 inductive-side sites remain (LoopType 7, Verify/Typing/Lemmas 4,
+   Basic 2, twelve files with one each). Steps 3 to 6 (per-phase
+   narrow-scope proofs, deleting `hloc`) in progress after merging main.
    **E3 status (2026-10-06): complete on `agent/verify-inductives-e3`**
    (commits 7c544ac..717fc23, pushed): `VEnv.Strengthening` replaces the
    `weakN_iff` sorry; threaded through the Theory consumers, a new
