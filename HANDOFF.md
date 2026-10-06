@@ -345,6 +345,29 @@ declarations; validation must not assume correctness of its own artifact.
    `hypothesisContext` would not have pinned the shape well either, because
    later fields in that context may be proofs.
 
+   **Second correction (2026-10-06, decided with Kim after a second Astra
+   opinion).** `Models.externalFields` and `Models.recursiveDomains` required,
+   for the consumed signature, agreement between the header phase's field
+   classification (`checkPositivity`, which records nothing executably) and
+   the recursor pass's (`isRecArg`): a field the generator calls external must
+   be external for the header too, and the generator's binders must be
+   syntactically source-free although the recursor pass never checks binder
+   source-freedom. No lemma gives this agreement (it needs `whnf`
+   alpha/context locality plus a syntactically retained header telescope, or
+   new confluence-class admissions, and confluence alone cannot yield
+   syntactic source-freedom). Both clauses are replaced by one
+   classification-independent clause `Models.positiveFields`: every field
+   type, in its own scope, is definitionally a
+   `VInductDecl.UniformFieldNormalForm` at the source universes (source-free,
+   or a telescope over source-free domains ending in a fully applied family),
+   which is exactly the header evidence (`SignatureFieldModel` now carries
+   it). The generator's classification and shapes are constrained only by
+   `RecursiveTypesWF`; their fidelity to the C++ classification is validated
+   by the recursor oracle tests, not by the specification. Astra's caveat for
+   Mario: a future soundness proof for the permitted recursive presentations
+   must justify the generated recursive calls (descent along the positive
+   constructor structure), which the specification alone does not establish.
+
    **Former statement of the risk.** `Compiles` (`Recursor/Realization.lean`,
    `CompilationRealization.generated`) requires `s.Models env decl` for the
    signature whose recursors and equations are installed, and

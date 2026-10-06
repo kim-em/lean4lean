@@ -24,7 +24,7 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
       envTypes.IsDefEqU decl.uvars [] (s.constructorType ctor) pair.2.type)
       s.constructors.toList decl.ownedConstructors)
     (Hfields : ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length),
-      SignatureFieldModel envTypes decl.uvars s
+      SignatureFieldModel envTypes decl s
         (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse) i ctor.fields[i])
     (Harity : ∀ ctor ∈ s.constructors.toList,
       ctor.indices.length = s.families[ctor.owner].indices.length) :
@@ -69,7 +69,7 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
     refine ⟨hget.1, huvars.trans (Hsource.2.2.1 _ (List.getElem_mem hi')).symm,
       hget.2.1, ?_, hget.2.2.2, hctorFamilies owner (List.getElem_mem hi') hget.1⟩
     exact hget.2.2.1 ▸ rfl
-  refine ⟨huvars, hparams, hsafety, ?_, ⟨envTypes, hadd, ?_⟩, ?_, ?_, Harity⟩
+  refine ⟨huvars, hparams, hsafety, ?_, ⟨envTypes, hadd, ?_⟩, ?_, Harity⟩
   · exact Lean4Lean.List.Forall₂.imp (fun _ _ h =>
       ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, h.2.2.2.2.1,
         ctorNames_eq_of_forall₂ h.2.2.2.2.2 (fun _ _ hc => hc.1)⟩) hfull
@@ -83,17 +83,7 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
   · by_cases hunsafe : s.isUnsafe = true
     · exact Or.inl hunsafe
     · refine Or.inr ⟨envTypes, hadd, ?_⟩
-      intro ctor hc i hi type he
-      have hfield := Hfields ctor hc i hi
-      rw [he] at hfield
-      exact hfield.resolve_left hunsafe
-  · by_cases hunsafe : s.isUnsafe = true
-    · exact Or.inl hunsafe
-    · right
-      intro ctor hc type r hm
-      obtain ⟨i, hi, he⟩ := List.mem_iff_getElem.mp hm
-      have hfield := Hfields ctor hc i hi
-      rw [he] at hfield
-      exact hfield.2.resolve_left hunsafe
+      intro ctor hc i hi
+      exact (Hfields ctor hc i hi).2.resolve_left hunsafe
 
 end Lean4Lean.VerifyInductive

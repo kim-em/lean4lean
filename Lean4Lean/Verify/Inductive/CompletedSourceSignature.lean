@@ -91,7 +91,7 @@ theorem CheckedConstructorTailReplayAt.signatureConstructor
       sourceCtor.name = source.name ∧ ctor.name = source.name ∧ ctor.owner = owner ∧
       env.IsDefEqU decl.uvars [] (s.constructorType ctor) sourceCtor.type ∧
       (∀ i (hi : i < ctor.fields.length),
-        SignatureFieldModel env decl.uvars s
+        SignatureFieldModel env decl s
           (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse) i ctor.fields[i]) ∧
       SourceConstructorReplay env Us scope stats decl target source sourceCtor s ctor := by
   obtain ⟨sourceCtor, tail, tailTarget, sourceDomains, hmem, hraw, hprefix, hcomparisons, htranslation, htail,
@@ -218,7 +218,7 @@ theorem sourceSignatureHeader_constructor
       R.headerVEnv.IsDefEqU decl.uvars []
         (R.sourceSignatureHeader.constructorType ctor) decl.types[i].ctors[j].type ∧
       (∀ k (hk : k < ctor.fields.length),
-        SignatureFieldModel R.headerVEnv decl.uvars R.sourceSignatureHeader
+        SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
           (((R.sourceSignatureHeader.fieldTypes ctor).take k).reverse ++
             R.sourceSignatureHeader.params.reverse) k ctor.fields[k]) ∧
       ∃ production ∈ indTypes.toList.flatMap (·.ctors),
@@ -274,7 +274,7 @@ theorem sourceSignatureHeader_ownedConstructor
       R.headerVEnv.IsDefEqU decl.uvars []
         (R.sourceSignatureHeader.constructorType ctor) pair.2.type ∧
       (∀ k (hk : k < ctor.fields.length),
-        SignatureFieldModel R.headerVEnv decl.uvars R.sourceSignatureHeader
+        SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
           (((R.sourceSignatureHeader.fieldTypes ctor).take k).reverse ++
             R.sourceSignatureHeader.params.reverse) k ctor.fields[k]) ∧
       ∃ production ∈ indTypes.toList.flatMap (·.ctors),
@@ -361,8 +361,8 @@ theorem sourceSignature_constructorType
 theorem sourceSignature_fieldModel
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) (field : Field R.sourceSignatureHeader.families.size) :
-    SignatureFieldModel env U R.sourceSignature ctx k field ↔
-      SignatureFieldModel env U R.sourceSignatureHeader ctx k field := by
+    SignatureFieldModel env decl' R.sourceSignature ctx k field ↔
+      SignatureFieldModel env decl' R.sourceSignatureHeader ctx k field := by
   cases field <;> rfl
 
 /-- Every selected source constructor keeps its exact production replay,
@@ -486,13 +486,13 @@ private theorem sourceSignature_models_of_nonempty
         R.sourceSignatureConstructor ⟨i, hi'⟩ := by
       simp only [sourceSignature, Array.getElem_toList, Array.getElem_ofFn]
     simp only [hget] at hk ⊢
-    have hf : SignatureFieldModel R.headerVEnv decl.uvars R.sourceSignatureHeader
+    have hf : SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
         (((R.sourceSignatureHeader.fieldTypes (R.sourceSignatureConstructor ⟨i, hi'⟩)).take k).reverse ++
           R.sourceSignatureHeader.params.reverse) k
         (R.sourceSignatureConstructor ⟨i, hi'⟩).fields[k] := hmodel.2.2.2.1 k hk
     apply (R.sourceSignature_fieldModel _).2
     rw [sourceSignature_fieldTypes]
-    change SignatureFieldModel R.headerVEnv decl.uvars R.sourceSignatureHeader
+    change SignatureFieldModel R.headerVEnv decl R.sourceSignatureHeader
       (((R.sourceSignatureHeader.fieldTypes (R.sourceSignatureConstructor ⟨i, hi'⟩)).take k).reverse ++
         R.sourceSignatureHeader.params.reverse) k
       (R.sourceSignatureConstructor ⟨i, hi'⟩).fields[k]
@@ -515,7 +515,7 @@ theorem sourceSignature_models
       simp [VInductDecl.ownedConstructors, hempty]
     refine ⟨rfl, R.sourceSignatureHeader_params_length, rfl, ?_,
       ⟨R.headerVEnv, R.core.typesAdded, ?_⟩,
-      .inr ⟨R.headerVEnv, R.core.typesAdded, ?_⟩, .inr ?_, ?_⟩
+      .inr ⟨R.headerVEnv, R.core.typesAdded, ?_⟩, ?_⟩
     all_goals simp [declaration, hfamilies, hctors, VInductDecl.constructorConstants, hempty]
   · exact R.sourceSignature_models_of_nonempty hempty
 

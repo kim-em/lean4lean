@@ -229,7 +229,7 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
     simp [enumDecl, enumType, enumTypesEnv, VInductDecl.typeConstants,
       VEnv.addConstVals, VEnv.addConst, VEnv.empty]
   refine ⟨enumSignature, enumInstance, enumTypesEnv, ?_, hadd, ?_, ?_, ?_, rfl, rfl⟩
-  · refine ⟨rfl, rfl, rfl, ?_, ?_, Or.inr ?_, Or.inr ?_, ?_⟩
+  · refine ⟨rfl, rfl, rfl, ?_, ?_, Or.inr ?_, ?_⟩
     · change List.Forall₂ _ [enumType] [enumType]
       refine .cons ⟨rfl, rfl, rfl, (by rfl), ?_, rfl⟩ .nil
       exact ⟨_, .sortDF (by trivial) (by trivial) rfl⟩
@@ -238,14 +238,10 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       refine .cons ⟨rfl, rfl, ?_⟩ .nil
       exact ⟨_, .constDF (ci := enumType.toVConstant) (by simp [enumTypesEnv]) nofun nofun rfl .nil⟩
     · refine ⟨enumTypesEnv, hadd, ?_⟩
-      intro ctor hctor i hi type hfield
+      intro ctor hctor i hi
       have hctor := List.mem_singleton.mp hctor
       subst ctor
       exact (Nat.not_lt_zero i hi).elim
-    · intro ctor hctor type r hfield
-      have hctor := List.mem_singleton.mp hctor
-      subst ctor
-      exact (List.not_mem_nil hfield).elim
     · intro ctor hctor
       have hctor := List.mem_singleton.mp hctor
       subst ctor

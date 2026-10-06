@@ -26,23 +26,24 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
       normalized.name = source.name ∧ normalized.uvars = source.uvars ∧
       envTypes.IsDefEqU decl.uvars [] normalized.type source.type)
       s.declaration.constructorConstants decl.constructorConstants
-  /-- Positivity checks a field after reduction, while generated minors retain
-  its original domain. An external field may therefore contain source names
-  erased by reduction; its checked normal form must be source-free. -/
-  externalFields : s.isUnsafe = true ∨ ∃ envTypes,
+  /-- Every field type is, in its own scope (the parameters and the earlier
+  fields), definitionally a strictly positive normal form at the source
+  universes: either free of the families being defined, or a telescope over
+  family-free domains ending in a family applied to the parameters and
+  family-free indices (`VInductDecl.UniformFieldNormalForm`).  This is what
+  the header phase's positivity check establishes.  It is stated for every
+  field regardless of the generator's `external`/`recursive` classification:
+  the generator's classification and recursive shapes are constrained only
+  by the well-formedness of the generated recursor (`Instance.RecursiveTypesWF`);
+  tying them to the header's classification would need agreement between two
+  normalisation passes, which the checker does not establish. -/
+  positiveFields : s.isUnsafe = true ∨ ∃ envTypes,
     env.addConstVals decl.typeConstants = some envTypes ∧
-    ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length) type,
-      ctor.fields[i] = Field.external type →
+    ∀ ctor ∈ s.constructors.toList, ∀ i (hi : i < ctor.fields.length),
       ∃ normalized,
-        envTypes.IsDefEqU decl.uvars
-          (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
-          type normalized ∧
-        normalized.SourceConstFree (s.families.toList.map (·.name))
-  recursiveDomains : s.isUnsafe = true ∨
-    ∀ ctor ∈ s.constructors.toList, ∀ type r,
-      Field.recursive type r ∈ ctor.fields →
-      (∀ domain ∈ r.binders, domain.SourceConstFree (s.families.toList.map (·.name))) ∧
-      (∀ index ∈ r.indices, index.SourceConstFree (s.families.toList.map (·.name)))
+        envTypes.IsDefEqU decl.uvars (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse)
+          (s.fieldType i ctor.fields[i]) normalized ∧
+        decl.UniformFieldNormalForm (VLevel.params decl.uvars) i normalized
   /-- The checked constructor result has the owning family's exact index
   count. Normalization retains this finite syntactic fact independently of
   the typed correspondence between the selected and source telescopes. -/

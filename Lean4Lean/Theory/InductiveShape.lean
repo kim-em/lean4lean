@@ -68,6 +68,16 @@ theorem VInductDecl.ValidIndAppAt.raw {decl : VInductDecl}
   obtain ⟨type, hmem, htarget, levels, hfn, hlevels, hargs, hparams, _⟩ := h
   exact ⟨type, hmem, htarget, levels, hfn, hlevels, hargs, hparams⟩
 
+/-- A positive normal form with the uniform recursive universe spine still
+attached. Executable source checking supplies this stronger certificate. -/
+def VInductDecl.UniformFieldNormalForm (decl : VInductDecl) (levels : List VLevel)
+    (depth : Nat) (e : VExpr) : Prop :=
+  e.SourceConstFree (decl.types.map (·.name)) ∨
+  ∃ domains result, e = VExpr.wrapForalls domains result ∧
+    (∀ domain ∈ domains, domain.SourceConstFree (decl.types.map (·.name))) ∧
+    decl.ValidIndAppAt none (depth + domains.length) result ∧
+    ∃ family ∈ decl.types, result.getAppFnArgs.1 = .const family.name levels
+
 /-- Shape of one inductive type after normalization: common parameters,
 exactly the recorded indices, and the recorded result sort. -/
 def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)

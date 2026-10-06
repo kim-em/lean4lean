@@ -119,19 +119,19 @@ theorem InductiveSignature.Models.mono
   refine { H with
     families := ?_
     constructors := ⟨envTypes', htypes, ?_⟩
-    externalFields := ?_ }
+    positiveFields := ?_ }
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1,
         h.2.2.2.2.1.mono henv, h.2.2.2.2.2⟩) H.families
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) hctors
-  · rcases H.externalFields with hunsafe | ⟨envTypesExt, htypesExt, hext⟩
+  · rcases H.positiveFields with hunsafe | ⟨envTypesPos, htypesPos, hpos⟩
     · exact .inl hunsafe
     · refine .inr ⟨envTypes', htypes, ?_⟩
-      intro ctor hc i hi type he
-      obtain ⟨normalized, hnormal, hfree⟩ := hext ctor hc i hi type he
+      intro ctor hc i hi
+      obtain ⟨normalized, hnormal, hshape⟩ := hpos ctor hc i hi
       exact ⟨normalized,
-        hnormal.mono (VEnv.addConstVals_mono henv htypesExt htypes), hfree⟩
+        hnormal.mono (VEnv.addConstVals_mono henv htypesPos htypes), hshape⟩
 
 theorem InductiveSignature.Instance.Admissible.mono
     {s : InductiveSignature} {g : s.Instance} {env env' : VEnv}

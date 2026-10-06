@@ -128,9 +128,11 @@ theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
   · intro index hindex
     simpa [hnames] using hindices index hindex
 
-/-- Per-field part of the source signature model, indexed by the real prefix
-context. Stored field domains remain exactly the source domains. -/
-def SignatureFieldModel (env : VEnv) (U : Nat) (s : InductiveSignature)
+/-- Classification part of the per-field source signature model: an external
+field normalizes to a source-free type, and a recursive field is
+definitionally its generated recursive type with source-free binders and
+indices. -/
+def SignatureFieldClass (env : VEnv) (U : Nat) (s : InductiveSignature)
     (ctx : List VExpr) (depth : Nat) : Field s.families.size → Prop
   | .external type => s.isUnsafe = true ∨ ∃ normalized,
       env.IsDefEqU U ctx type normalized ∧
@@ -140,6 +142,17 @@ def SignatureFieldModel (env : VEnv) (U : Nat) (s : InductiveSignature)
       (s.isUnsafe = true ∨
         (∀ domain ∈ r.binders, domain.SourceConstFree (s.families.toList.map (·.name))) ∧
         (∀ index ∈ r.indices, index.SourceConstFree (s.families.toList.map (·.name))))
+
+/-- Per-field part of the source signature model, indexed by the real prefix
+context. Stored field domains remain exactly the source domains. Besides the
+classification, every field's domain is definitionally a uniform positive
+normal form at the source universes, independently of its classification. -/
+def SignatureFieldModel (env : VEnv) (decl : VInductDecl) (s : InductiveSignature)
+    (ctx : List VExpr) (depth : Nat) (field : Field s.families.size) : Prop :=
+  SignatureFieldClass env decl.uvars s ctx depth field ∧
+  (s.isUnsafe = true ∨ ∃ normalized,
+    env.IsDefEqU decl.uvars ctx (s.fieldType depth field) normalized ∧
+    decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized)
 
 /-- Select the independent field classification from the successful source
 check, retaining the exact domain in both external and recursive cases. -/
@@ -152,13 +165,19 @@ theorem signatureFieldOfUniform
       env.IsDefEqU decl.uvars ctx domain normalized ∧
       decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized) :
     ∃ field : Field s.families.size, s.fieldType depth field = domain ∧
-      SignatureFieldModel env decl.uvars s ctx depth field := by
+      SignatureFieldModel env decl s ctx depth field := by
   rcases H with hunsafe | ⟨normalized, hnormal, hshape⟩
-  · exact ⟨.external domain, rfl, .inl (hsafety.trans hunsafe)⟩
+  · exact ⟨.external domain, rfl, .inl (hsafety.trans hunsafe), .inl (hsafety.trans hunsafe)⟩
+  have hpositive : ∀ field : Field s.families.size, s.fieldType depth field = domain →
+      s.isUnsafe = true ∨ ∃ normalized,
+        env.IsDefEqU decl.uvars ctx (s.fieldType depth field) normalized ∧
+        decl.UniformFieldNormalForm (VLevel.params decl.uvars) depth normalized :=
+    fun _ hfield => .inr ⟨normalized, hfield ▸ hnormal, hshape⟩
   rcases hshape.recursiveShape huvars hparams hnames with hfree | ⟨r, hr, hdomains, hindices⟩
-  · exact ⟨.external domain, rfl, .inr ⟨normalized, hnormal, hfree⟩⟩
-  · rw [hr] at hnormal
-    exact ⟨.recursive domain r, rfl, hnormal, .inr ⟨hdomains, hindices⟩⟩
+  · exact ⟨.external domain, rfl, .inr ⟨normalized, hnormal, hfree⟩, hpositive _ rfl⟩
+  · have hpos := hpositive (.recursive domain r) rfl
+    rw [hr] at hnormal
+    exact ⟨.recursive domain r, rfl, ⟨hnormal, .inr ⟨hdomains, hindices⟩⟩, hpos⟩
 
 /-- Fold the original telescope in binder order. Classification does not
 replace a domain, so every later field keeps exactly its source context. -/
@@ -175,7 +194,7 @@ theorem signatureFieldsOfUniform
     ∃ fields : List (Field s.families.size),
       fields.map (s.fieldType 0) = domains ∧
       ∀ i (hi : i < fields.length),
-        SignatureFieldModel env decl.uvars s ((domains.take i).reverse ++ ctx)
+        SignatureFieldModel env decl s ((domains.take i).reverse ++ ctx)
           (depth + i) fields[i] := by
   induction domains generalizing ctx depth with
   | nil => exact ⟨[], rfl, by intro i hi; simp at hi⟩
@@ -242,7 +261,7 @@ theorem signatureConstructorOfUniform
       ctor.name = ctorName ∧ ctor.owner = owner ∧
       VExpr.wrapForalls s.params tail = s.constructorType ctor ∧
       ∀ i (hi : i < ctor.fields.length),
-        SignatureFieldModel env decl.uvars s
+        SignatureFieldModel env decl s
           (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse) i ctor.fields[i] := by
   obtain ⟨domains, result, rfl, hresult, hhead, hfields⟩ := H.telescope
   obtain ⟨fields, hfieldsEq, hmodels⟩ := signatureFieldsOfUniform
