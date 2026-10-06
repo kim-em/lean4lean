@@ -127,6 +127,10 @@ structure Scoped (P : Nat) : Prop where
   indices : ∀ k (h : k < S.indices.length), (S.indices[k]).ClosedN (P + k)
   slot_lt : ∀ i k, S.slot.getD i none = some k → k < S.indices.length
 
+theorem Scoped.mono_pa {S : CastSpec} {pa : List VExpr} (H : S.Scoped P) (h : pa.length = P) :
+    S.Scoped pa.length :=
+  h ▸ H
+
 theorem Scoped.fields_getD {S : CastSpec} (H : S.Scoped P) (i : Nat) :
     (S.fields.getD i default).ClosedN (P + i) := by
   rw [List.getD_eq_getElem?_getD]
@@ -342,9 +346,37 @@ theorem liftN_instOuter_take (v : VExpr) (t : List VExpr) (k : Nat) (hk : k ≤ 
   · rw [VExpr.Subst.ofList_ge _ (by omega), VExpr.Subst.ofList_ge _ (by simp; omega)]
     congr 1; simp; omega
 
+theorem wrapForalls_append (A B : List VExpr) (X : VExpr) :
+    VExpr.wrapForalls (A ++ B) X = VExpr.wrapForalls A (VExpr.wrapForalls B X) := by
+  simp [VExpr.wrapForalls, List.foldr_append]
+
+/-- Instantiating at a concatenation: first the outer arguments beneath the inner binders,
+then the inner arguments. -/
+theorem instOuter_append_split (X : VExpr) (base t : List VExpr) :
+    X.instOuter (base ++ t) =
+      (X.subst ((VExpr.Subst.ofList base).liftN t.length)).instOuter t := by
+  rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst, VExpr.subst_subst]
+  congr 1
+  funext x
+  simp only [VExpr.Subst.comp, VExpr.Subst.liftN_apply]
+  by_cases hx : x < t.length
+  · rw [if_pos hx, VExpr.subst_bvar, VExpr.Subst.ofList_lt _ hx,
+      VExpr.Subst.ofList_lt _ (by simp; omega), List.getElem_append_right (by simp; omega)]
+    congr 1; simp; omega
+  · rw [if_neg hx, VExpr.instOuter_eq_subst_aux]
+    by_cases hb : x - t.length < base.length
+    · rw [VExpr.Subst.ofList_lt _ hb, VExpr.Subst.ofList_lt _ (by simp; omega),
+        List.getElem_append_left (by simp; omega)]
+      congr 1; simp; omega
+    · rw [VExpr.Subst.ofList_ge (base ++ t) (by simp; omega), VExpr.Subst.ofList_ge base (by omega)]
+      congr 1; simp; omega
+
 theorem instOuter_closed0 {e : VExpr} (h : e.ClosedN 0) (args : List VExpr) :
     e.instOuter args = e := by
   rw [VExpr.instOuter_eq_subst]; exact h.subst_eq .zero
+
+theorem getD_take_lt {l : List α} {d : α} (h : m < i) : (l.take i).getD m d = l.getD m d := by
+  simp [List.getD_eq_getElem?_getD, List.getElem?_take_of_lt h]
 
 theorem getD_append_left' {l₁ l₂ : List α} {d : α} (h : i < l₁.length) :
     (l₁ ++ l₂).getD i d = l₁.getD i d := by
@@ -464,6 +496,23 @@ theorem HasType.wrapForalls_prop (henv : env.Ordered) :
     have hf := HasType.forallE hd (HasType.wrapForalls_prop henv hctx h)
     have hu := (hd.isType henv hΓ).sort_inv henv
     exact .defeqDF (.sortDF (by simp [VLevel.WF]; exact hu) (by simp [VLevel.WF]) VLevel.imax_zero) hf
+
+theorem TelInst.append (HA : TelInst env U Γ A a) (hB : b.length = B.length)
+    (hBt : ∀ j, j < B.length →
+      env.HasType U Γ (b.getD j default) ((B.getD j default).instOuter (a ++ b.take j))) :
+    TelInst env U Γ (A ++ B) (a ++ b) := by
+  refine ⟨by simp [HA.1, hB], fun j hj hj' => ?_⟩
+  by_cases hja : j < a.length
+  · rw [List.getElem_append_left hja, List.getElem_append_left (HA.1 ▸ hja),
+      List.take_append_of_le_length (Nat.le_of_lt hja)]
+    exact HA.2 j hja (HA.1 ▸ hja)
+  · have hm : j - a.length < B.length := by simp at hj'; have := HA.1; omega
+    rw [List.getElem_append_right (Nat.le_of_not_gt hja),
+      List.getElem_append_right (HA.1 ▸ Nat.le_of_not_gt hja), List.take_append,
+      List.take_of_length_le (by omega)]
+    have := hBt (j - a.length) hm
+    rw [getD_of_lt (by omega), getD_of_lt hm] at this
+    simpa [HA.1] using this
 
 theorem TelInst.nil : TelInst env U Γ [] [] := ⟨rfl, fun _ h => by simp at h⟩
 
@@ -1499,6 +1548,221 @@ theorem value_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec} {E
   unfold value valueType
   apply HasType.wrapLams_of (by simpa using hΔg)
   simpa [List.reverse_append, List.append_assoc, motive] using hres
+
+/-- The cast arguments (`.1`) and the reconstructed fields (`.2`) at an occurrence with
+parameters `ps`, indices `idx` and major `m`. A data field is read from its index; the cast
+argument for it is `Eq.refl` at the index's type. A proof field is the extraction function
+applied to the occurrence and to the earlier cast arguments. -/
+def occ (ps idx : List VExpr) (m : VExpr) : Nat → List VExpr × List VExpr
+  | 0 => ([], [])
+  | i + 1 =>
+    let (t, c) := occ ps idx m i
+    match S.slot.getD i none with
+    | some k =>
+      (t ++ [VExpr.eqReflApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero))
+          ((S.indices.getD k default).instOuter (ps ++ idx.take k))],
+        c ++ [idx.getD k default])
+    | none =>
+      (t ++ [VExpr.mkApps (value S params E i) (ps ++ idx ++ [m] ++ t)],
+        c ++ [VExpr.mkApps (value S params E i) (ps ++ idx ++ [m] ++ t)])
+
+theorem occ_length (ps idx : List VExpr) (m : VExpr) (i : Nat) :
+    (occ S params E ps idx m i).1.length = i ∧ (occ S params E ps idx m i).2.length = i := by
+  induction i with
+  | zero => simp [occ]
+  | succ i ih =>
+    simp only [occ]
+    split <;> simp [ih]
+
+open VEnv CastSpec in
+/-- At an occurrence aligned with some typed field instance `f`, the reconstructed fields are
+a typed field instance, definitionally equal to `f` field by field. -/
+theorem occ_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec} {E : PropElim}
+    (W : E.WF S params env U) (hΓ : OnCtx Γ (env.IsType U)) (hpsl : ps.length = params.length)
+    (hargs : TelInst env U Γ (params ++ S.indices ++ [majorTy S params E]) (ps ++ idx ++ [m]))
+    (hf : TelInst env U Γ (params ++ S.fields) (ps ++ f))
+    (halign : ∀ l k, S.slot.getD l none = some k →
+      env.IsDefEq U Γ (f.getD l default) (idx.getD k default)
+        ((S.fields.getD l default).instOuter (ps ++ f.take l))) :
+    ∀ i, i ≤ S.fields.length →
+      TelInst env U Γ (S.tel ps idx i).1 (occ S params E ps idx m i).1 ∧
+      TelInst env U Γ (params ++ S.fields.take i) (ps ++ (occ S params E ps idx m i).2) ∧
+      (∀ l, l < i → env.IsDefEq U Γ ((occ S params E ps idx m i).2.getD l default) (f.getD l default)
+        ((S.fields.getD l default).instOuter (ps ++ (occ S params E ps idx m i).2.take l))) ∧
+      (∀ l, l < i → env.IsDefEq U Γ ((occ S params E ps idx m i).2.getD l default)
+        ((S.substHat ps idx i (occ S params E ps idx m i).1).getD l default)
+        ((S.fields.getD l default).instOuter (ps ++ (occ S params E ps idx m i).2.take l))) := by
+  have T := W.typed
+  have h1' := hargs.1
+  have h2' := hf.1
+  simp only [List.length_append, List.length_singleton] at h1' h2'
+  have hidxl : idx.length = S.indices.length := by omega
+  have hfl : f.length = S.fields.length := by omega
+  have hpsT : TelInst env U Γ params ps := by
+    have := (show TelInst env U Γ (params ++ (S.indices ++ [majorTy S params E]))
+      (ps ++ (idx ++ [m])) by simpa [List.append_assoc] using hargs).take
+    simpa [hpsl] using this
+  intro i
+  induction i with
+  | zero =>
+    intro _
+    refine ⟨by simpa [tel, occ] using TelInst.nil, by simpa [occ] using hpsT, ?_, ?_⟩ <;>
+      intro l hl <;> omega
+  | succ i ih =>
+    intro hi
+    have hi' : i < S.fields.length := hi
+    obtain ⟨h1, h2, h3, h4⟩ := ih (Nat.le_of_lt hi')
+    obtain ⟨htl, hcl⟩ := occ_length S params E ps idx m i
+    generalize ht : (occ S params E ps idx m i).1 = t at h1 h2 h3 h4 htl
+    generalize hc : (occ S params E ps idx m i).2 = c at h1 h2 h3 h4 hcl
+    have hσl : (S.substHat ps idx i t).length = i := by
+      rw [← tel_instOuter (T.scope.mono_pa hpsl) hidxl i t htl]; simp [(S.tel_length _ _ i).2]
+    -- the field type at the instantiated cast data, at the reconstruction and at `f`
+    have hfs := T.fieldSort i hi'
+    have hcongr : ∀ (a : List VExpr), a.length = i →
+        (∀ l, l < i → env.IsDefEq U Γ (c.getD l default) (a.getD l default)
+          ((S.fields.getD l default).instOuter (ps ++ c.take l))) →
+        env.IsDefEq U Γ (S.fields[i].instOuter (ps ++ c)) (S.fields[i].instOuter (ps ++ a))
+          (.sort (S.fieldSort i)) := by
+      intro a hal hpt
+      have := IsDefEq.closed_instOuter_congr' henv hΓ (T.fieldsCtx i (Nat.le_of_lt hi')) hfs
+        (args := ps ++ c) (args' := ps ++ a)
+        (by simp [hpsl, hcl, Nat.min_eq_left (Nat.le_of_lt hi')])
+        (by simp [hpsl, hal, Nat.min_eq_left (Nat.le_of_lt hi')]) (fun j hj => by
+          by_cases hjP : j < params.length
+          · rw [getD_append_left' (by omega), getD_append_left' (by omega)]
+            have := h2.getD hj
+            rwa [getD_append_left' (by omega)] at this
+          · have hm : j - params.length < i := by
+              simp [Nat.min_eq_left (Nat.le_of_lt hi')] at hj; omega
+            rw [getD_append_right' (by omega), getD_append_right' (by omega), hpsl,
+              getD_append_right' (by omega), getD_take_lt hm, List.take_append,
+              List.take_of_length_le (by omega), hpsl]
+            exact hpt _ hm)
+      simpa using this
+    have hYc := hcongr (S.substHat ps idx i t) hσl (fun l hl => h4 l hl)
+    have hFc := hcongr (f.take i) (by simp; omega) (fun l hl => by
+      rw [getD_take_lt hl]
+      exact h3 l hl)
+    have hfi : env.HasType U Γ (f.getD i default) (S.fields[i].instOuter (ps ++ f.take i)) := by
+      have := hf.getD (j := params.length + i) (by simp; omega)
+      rw [getD_append_right' (by omega), getD_append_right' (by omega), List.take_append,
+        List.take_of_length_le (by omega), hpsl, Nat.add_sub_cancel_left,
+        getD_of_lt (l := S.fields) hi'] at this
+      exact this
+    -- list bookkeeping for the extended reconstruction
+    have hgetc : ∀ (x : VExpr) l, l < i → (c ++ [x]).getD l default = c.getD l default :=
+      fun x l hl => getD_append_left' (by omega)
+    have htakec : ∀ (x : VExpr) l, l ≤ i → (c ++ [x]).take l = c.take l :=
+      fun x l hl => List.take_append_of_le_length (by omega)
+    have hlastc : ∀ x : VExpr, (c ++ [x]).getD i default = x := fun x => by
+      rw [getD_append_right' (by omega), hcl, Nat.sub_self]; rfl
+    have hsubst : ∀ x : VExpr, S.substHat ps idx (i + 1) (t ++ [x]) =
+        S.substHat ps idx i t ++ [S.valHat ps idx i (S.substHat ps idx i t) x] := fun x => by
+      simp only [substHat]
+      rw [List.take_append_of_le_length (by omega), List.take_of_length_le (by omega),
+        getD_append_right' (by omega), htl, Nat.sub_self]
+      rfl
+    have hfields : params ++ S.fields.take (i + 1) = (params ++ S.fields.take i) ++ [S.fields[i]] := by
+      rw [List.take_add_one, List.getElem?_eq_getElem hi']; simp
+    have htel : (S.tel ps idx (i + 1)).1 = (S.tel ps idx i).1 ++ [(S.step ps idx i (S.tel ps idx i).2).1] := by
+      simp [tel]
+    have hdom : ((S.step ps idx i (S.tel ps idx i).2).1).instOuter t =
+        S.domHat ps idx i (S.substHat ps idx i t) := by
+      have := tel_dom_instOuter (T.scope.mono_pa hpsl) hidxl (i + 1) i (by omega) t htl
+      rwa [htel, getD_append_right' (by rw [(S.tel_length _ _ i).1]; exact Nat.le_refl _), (S.tel_length _ _ i).1,
+        Nat.sub_self] at this
+    cases hs : S.slot.getD i none with
+    | some k =>
+      have hk := T.scope.slot_lt i k hs
+      have hsort : S.fieldSort i = S.sorts.getD i .zero := by unfold fieldSort; rw [hs]
+      have hu := T.sortWF i
+      rw [hsort] at hYc hFc
+      -- the index and its type
+      have hidxPre : ∀ k', k' ≤ S.indices.length →
+          TelInst env U Γ (params ++ S.indices.take k') (ps ++ idx.take k') := by
+        intro k' hk'
+        have h0 := (show TelInst env U Γ (params ++ (S.indices ++ [majorTy S params E]))
+          (ps ++ (idx ++ [m])) by simpa [List.append_assoc] using hargs)
+        have hsplit : params ++ (S.indices ++ [majorTy S params E]) =
+            (params ++ S.indices.take k') ++ (S.indices.drop k' ++ [majorTy S params E]) := by
+          rw [List.append_assoc, ← List.append_assoc (List.take k' S.indices) (List.drop k' S.indices),
+            List.take_append_drop]
+        rw [hsplit] at h0
+        have := h0.take
+        simpa [List.take_append, hpsl, Nat.min_eq_left hk', hidxl,
+          Nat.sub_eq_zero_of_le hk', List.take_of_length_le (show ps.length ≤ params.length + k' by omega)]
+          using this
+      have hidxT := hidxPre k (Nat.le_of_lt hk)
+      have hX := HasType.closed_instOuter henv (T.indicesCtx k (Nat.le_of_lt hk))
+        (T.slotSort i k hs hk) hidxT
+      simp only [VExpr.instOuter_sort] at hX
+      have hidxk : env.HasType U Γ (idx.getD k default)
+          ((S.indices.getD k default).instOuter (ps ++ idx.take k)) := by
+        have := (hidxPre (k + 1) hk).getD (j := params.length + k) (by simp; omega)
+        rw [getD_append_right' (by omega), getD_append_right' (by omega), hpsl, Nat.add_sub_cancel_left,
+          getD_take_lt (by omega), getD_take_lt (by omega), List.take_append,
+          List.take_of_length_le (by omega), hpsl, Nat.add_sub_cancel_left,
+          List.take_take, Nat.min_eq_left (by omega)] at this
+        exact this
+      rw [getD_of_lt hk] at hidxk
+      generalize hXd : S.indices[k].instOuter (ps ++ idx.take k) = X at hX hidxk
+      generalize hYd : S.fields[i].instOuter (ps ++ S.substHat ps idx i t) = Y at hYc
+      -- `X ≡ Y`: the index's type and the cast field type both type the aligned field
+      have hal := halign i k hs
+      rw [getD_of_lt (l := S.fields) hi'] at hal
+      obtain ⟨_, hXF⟩ := IsDefEq.uniq henv hΓ hidxk hal.symm.hasType.1
+      have hXY : env.IsDefEq U Γ X Y (.sort (S.sorts.getD i .zero)) :=
+        ((hX.trans_l henv hΓ hXF).trans hFc.symm).trans hYc
+      have hsu : (VLevel.succ (S.sorts.getD i .zero)).WF U := hu
+      have hrefl : env.HasType U Γ (VExpr.eqReflApp (.succ (S.sorts.getD i .zero))
+          (.sort (S.sorts.getD i .zero)) X)
+          (VExpr.eqApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X Y) :=
+        (IsDefEq.eqApp_r heq hsu (.sort hu) hX hXY).defeq (HasType.eqReflApp heq hsu (.sort hu) hX)
+      have hocc : occ S params E ps idx m (i + 1) =
+          (t ++ [VExpr.eqReflApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X],
+            c ++ [idx.getD k default]) := by
+        simp only [occ, ht, hc, hs, getD_of_lt hk, hXd]
+      rw [hocc, hsubst]
+      have hxc : env.HasType U Γ (idx.getD k default) (S.fields[i].instOuter (ps ++ c)) :=
+        ((hX.trans_l henv hΓ hXF).trans hFc.symm).defeq hidxk
+      have hσl' := hσl
+      refine ⟨?_, ?_, ?_, ?_⟩
+      · rw [htel]
+        apply h1.append_one
+        rw [hdom]
+        unfold domHat
+        rw [hs]
+        simp only [getD_of_lt hk, hXd, getD_of_lt (l := S.fields) hi', hYd]
+        exact hrefl
+      · rw [hfields]
+        simpa only [List.append_assoc] using h2.append_one hxc
+      · intro l hl
+        rcases Nat.lt_or_ge l i with hli | hli
+        · rw [hgetc _ l hli, htakec _ l (Nat.le_of_lt hli)]
+          exact h3 l hli
+        · have : l = i := by omega
+          subst this
+          rw [hlastc, htakec _ _ (Nat.le_refl _), List.take_of_length_le (by omega),
+            getD_of_lt (l := S.fields) hi']
+          exact .defeqDF hFc.symm hal.symm
+      · intro l hl
+        rcases Nat.lt_or_ge l i with hli | hli
+        · rw [hgetc _ l hli, htakec _ l (Nat.le_of_lt hli), getD_append_left' (by omega)]
+          exact h4 l hli
+        · have : l = i := by omega
+          subst this
+          rw [hlastc, htakec _ _ (Nat.le_refl _), List.take_of_length_le (by omega),
+            getD_append_right' (by omega), hσl, Nat.sub_self, getD_of_lt (l := S.fields) hi']
+          show env.IsDefEq U Γ _ ([S.valHat ps idx l (S.substHat ps idx l t) _].getD 0 default) _
+          simp only [List.getD_cons_zero]
+          unfold valHat
+          rw [hs]
+          simp only [getD_of_lt hk, hXd, getD_of_lt (l := S.fields) hi', hYd]
+          have hK := IsDefEq.typeCast_refl henv heq hu hΓ hXY hrefl hidxk
+          exact .defeqDF hYc.symm hK.symm
+    | none =>
+      sorry
 
 end PropElim
 end Lean4Lean
