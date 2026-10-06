@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.RuleTranslationAssembly
+import Lean4Lean.Verify.Inductive.RuleTranslation
 
 namespace Lean4Lean
 
@@ -20,8 +21,7 @@ theorem CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv) :
     Nonempty (CompletedRuleTranslationResult H) :=
-  -- pending: RuleTranslation.ruleRhsTranslations
-  H.completedRuleTranslation_of (by sorry)
+  H.completedRuleTranslation_of H.ruleRhsTranslations
 
 end VerifyInductive
 
