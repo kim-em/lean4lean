@@ -252,7 +252,8 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
         ⟨hsf, hd.1.1.2.1, hd.1.1.2.2⟩
         (by rw [← wf.tr.map_wf.find?'_eq_find?]; exact hd.2.2.1) hd.2.1 h₁' wf.tr
     have wf₁ : VEnvAt (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe })) bs venv₁ :=
-      { tr := htr
+      { projectionCorner := wf.projectionCorner
+        tr := htr
         recursors := htr.recursorEnvCoherent
         quot := htr.quotEnvCoherent
         hasPrimitives := wf.hasPrimitives.addConst hd.2.2.2 h₁'
@@ -328,6 +329,7 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     · rw [hsame sf hv]; exact VEnv.LE.rfl
   refine ⟨ves', ?_, hleFinal⟩
   exact {
+    projectionCorner := wf.projectionCorner
     tr {sf} := by
       show TrEnv sf _ _
       unfold TrEnv
@@ -423,6 +425,7 @@ theorem VEnvs.WF.extendUnsafeExact
   let ves' : VEnvs := ⟨next⟩
   refine ⟨ves', ?_, ?_, rfl⟩
   · refine {
+      projectionCorner := wf.projectionCorner
       tr := ?_
       hasPrimitives := ?_
       safePrimitives := hsafePrimitives
@@ -540,6 +543,7 @@ theorem VEnvs.WF.extendInductExact
   let ves' : VEnvs := ⟨next⟩
   refine ⟨ves', ?_, ?_, ?_⟩
   · exact {
+      projectionCorner := wf.projectionCorner
       tr := by
         intro safety
         change TrEnv' safety env'.constants env'.quotInit (next safety)
@@ -645,6 +649,7 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have h := hves' safety; unfold VEnv.AddConst at h; rwa [if_neg hvisible] at h
   refine ⟨ves', ?_, hves'⟩
   exact {
+    projectionCorner := wf.projectionCorner
     tr {safety} := by
       by_cases hvisible : safety ≤ ci.safety
       · exact step safety _ (visible_tr safety hvisible) (visible_wf safety hvisible)
@@ -738,6 +743,7 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     have h := hves' safety; unfold VEnv.AddDef at h; rwa [if_neg hvisible] at h
   refine ⟨ves', ?_, hves'⟩
   refine {
+    projectionCorner := wf.projectionCorner
     tr {safety} := by
       change TrEnv' safety (env.constants.insert v.name (.defnInfo v)) env.quotInit _
       by_cases hvisible : safety ≤ (ConstantInfo.defnInfo v).safety
@@ -815,6 +821,7 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   refine ⟨⟨fun | .unsafe => base.addDefEq ci'.toDefEq | sf => ves.venv sf⟩, ?_,
     by rintro ⟨⟩ <;> first | exact hle | exact .rfl⟩
   exact {
+    projectionCorner := wf.projectionCorner
     tr {safety} := by
       change TrEnv' safety (env.constants.insert v.name (.defnInfo v)) env.quotInit _
       match safety with

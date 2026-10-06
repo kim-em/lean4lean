@@ -24,6 +24,10 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) where
   inductiveProvenance : InstalledInductiveProvenance
     safety env.constants (ves.venv safety)
   mono : safety ≤ safety' → ves.venv safety' ≤ ves.venv safety
+  /-- The open corner of the projection walk (`ProjectionWalkCorner`), an explicit hypothesis of
+  the checker's correctness. It does not mention the environment, so it is carried along
+  unchanged by every installation. -/
+  projectionCorner : ProjectionWalkCorner
 
 /-- The unsafe observer sees every production inductive, so the persistent
 semantic invariant also supplies safety-independent exact constructor
@@ -36,10 +40,12 @@ theorem VEnvs.WF.inductiveConstructorsCoherent
       familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
   exact ⟨C.toInductiveConstructorCoherenceAt⟩
 
+/-- What projection inference assumes: the registry coherence, from the installed provenance, and
+the open projection-walk corner. -/
 theorem VEnvs.WF.projectionRegistryCoherent
     {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
-    ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
-  wf.inductiveProvenance.projectionRegistryCoherent
+    ProjectionInference safety env.constants (ves.venv safety) :=
+  ⟨wf.inductiveProvenance.projectionRegistryCoherent, wf.projectionCorner⟩
 
 theorem VEnvs.WF.toCheckingValid
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
@@ -67,15 +73,17 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
   recursors : RecursorEnvCoherent safety env.constants venv
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
+  projectionCorner : ProjectionWalkCorner
 
 theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
   safePrimitives := wf.safePrimitives
-  projectionRegistry := wf.projectionRegistryCoherent
+  projectionRegistry := wf.projectionRegistryCoherent.registry
   recursors := wf.tr.recursorEnvCoherent
   quot := wf.tr.quotEnvCoherent
+  projectionCorner := wf.projectionCorner
 
 namespace TypeChecker
 open Inner
@@ -113,6 +121,7 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
     (projectionRegistry : ProjectionRegistryCoherent safety env.constants venv)
     (recursors : RecursorEnvCoherent safety env.constants venv)
     (quot : env.quotInit = true → QuotEnvCoherent env.constants venv)
+    (projectionCorner : ProjectionWalkCorner)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel
   venv
@@ -122,6 +131,7 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
   projectionRegistry
   recursors
   quot
+  projectionCorner
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -130,7 +140,7 @@ def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives wf.projectionRegistry
-    wf.recursors wf.quot lparams fuel
+    wf.recursors wf.quot wf.projectionCorner lparams fuel
 
 def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
@@ -144,6 +154,7 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
+  projectionCorner := wf.projectionCorner
   mlctx
   mlctx_wf
   lctx := mlctx.lctx
@@ -159,6 +170,7 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
+  projectionCorner := wf.projectionCorner
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -190,9 +202,10 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
+    {projectionCorner : ProjectionWalkCorner}
     {lparams : List Name} {fuel : FuelConfig} :
     VState.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot lparams fuel) {} where
+      recursors quot projectionCorner lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -212,7 +225,7 @@ theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
     VState.WF (.mkCheckingValid wf lparams fuel) {} :=
   VState.WF.emptyChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
     (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot)
+    (recursors := wf.recursors) (quot := wf.quot) (projectionCorner := wf.projectionCorner)
 
 theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -255,9 +268,10 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
+    {projectionCorner : ProjectionWalkCorner}
     {x : M α} {Q}
     (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot lparams fuel) {} fun a _ => Q a) :
+      recursors quot projectionCorner lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -273,7 +287,7 @@ theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     (M.run env safety {} lparams fuel x).WF Q :=
   M.WF.runChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
     (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot) H
+    (recursors := wf.recursors) (quot := wf.quot) (projectionCorner := wf.projectionCorner) H
 
 theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}

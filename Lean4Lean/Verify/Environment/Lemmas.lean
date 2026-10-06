@@ -2,6 +2,7 @@ import Lean4Lean.Std.SMap
 import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Environment.Recursors
+import Lean4Lean.Verify.Typing.ProjectionCorner
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -1133,6 +1134,10 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
   typeAnnotationWrappers : TypeAnnotationWrappers env
+  /-- The open corner of the projection walk, an explicit hypothesis of the checker's
+  correctness (see `ProjectionWalkCorner`). It does not depend on the environment, so every
+  installation carries it along unchanged. -/
+  projectionCorner : ProjectionWalkCorner
 
 /-- All global invariants needed to run the verified executable type checker
 against an environment assembled in stages.  Beyond the local invariants,
@@ -1152,14 +1157,21 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   present. This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
 
+/-- What projection inference assumes of a checking environment: the registry coherence and the
+open projection-walk corner `ProjectionWalkCorner`. -/
+structure ProjectionInference (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) :
+    Prop where
+  registry : ProjectionRegistryCoherent safety C venv
+  corner : ProjectionWalkCorner
+
 theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
       Kernel.Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers env) :
+    (hannotations : TypeAnnotationWrappers env) (hcorner : ProjectionWalkCorner) :
     CheckingEnv.ValidCore safety env venv :=
-  ⟨H.toChecking, hprims, hsafe, hannotations⟩
+  ⟨H.toChecking, hprims, hsafe, hannotations, hcorner⟩
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
@@ -1168,10 +1180,10 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
       ci.safety = .safe ∧ ci.levelParams = [])
     (hannotations : TypeAnnotationWrappers env)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
-    (hregistry : ProjectionRegistryCoherent safety env.constants venv) :
+    (hproj : ProjectionInference safety env.constants venv) :
     CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe, hannotations⟩, howners, hregistry, H.recursorEnvCoherent,
-    H.quotEnvCoherent⟩
+  ⟨⟨H.toChecking, hprims, hsafe, hannotations, hproj.corner⟩, howners, hproj.registry,
+    H.recursorEnvCoherent, H.quotEnvCoherent⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
     (hn : env.find? ci.name = none)
@@ -1186,6 +1198,7 @@ theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
   safePrimitives := H.tr.safePrimitives_add hn hnprim H.safePrimitives
   typeAnnotationWrappers := VerifyInductive.TypeAnnotationWrappers.addConstant
     H.typeAnnotationWrappers H.tr.map_wf ci hn
+  projectionCorner := H.projectionCorner
 
 /-- Constructor-owner presence of a valid environment, stated on its
 constant map. -/
@@ -1280,6 +1293,7 @@ theorem CheckingEnv.ValidCore.addEliminator
   hasPrimitives := H.hasPrimitives.addEliminator
   safePrimitives := H.safePrimitives
   typeAnnotationWrappers := H.typeAnnotationWrappers
+  projectionCorner := H.projectionCorner
 
 /-- Certified abstract schemas are available to checking before native
 recursor installation, while every concrete metadata invariant is preserved. -/
@@ -1304,6 +1318,7 @@ theorem CheckingEnv.ValidCore.addProjections
   hasPrimitives := H.hasPrimitives.addProjections
   safePrimitives := H.safePrimitives
   typeAnnotationWrappers := H.typeAnnotationWrappers
+  projectionCorner := H.projectionCorner
 
 /-- Add an exact, independently well-formed projection table without changing
 the represented production environment. -/

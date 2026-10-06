@@ -228,13 +228,6 @@ theorem TrExprS.weakBV_inv (W : VLCtx.BVLift Δ Δ' dn dk n k) (hΔ' : Δ'.WF en
     have t' := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx (e := .proj _ _ s₀)).1 t
     exact ⟨_, .proj hs₀ (.direct m' t'), rfl⟩
 
-/-- A body under one bound variable that is closed translates to a lift. -/
-theorem TrExprS.weakBV_inv₁ (henv : VEnv.WF env)
-    (hΔ : VLCtx.WF env Us.length ((none, .vlam A) :: Δ))
-    (H : TrExprS env Us ((none, .vlam A) :: Δ) e e') (hc : Closed e) :
-    ∃ e₀, TrExprS env Us Δ e e₀ ∧ e' = e₀.lift :=
-  H.weakBV_inv henv (.skip (.vlam A) .refl) hΔ hc
-
 theorem Closed.of_closed_looseBVarRange {e : Expr} {k j : Nat}
     (hc : Closed e k) (hb : e.looseBVarRange' ≤ j) : Closed e j := by
   induction e generalizing k j with

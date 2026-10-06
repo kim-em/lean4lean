@@ -504,6 +504,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     rwa [(VExpr.WF.closedN c.Ewf.ordered (hT₀.wf c.Ewf.ordered (by trivial)) trivial).liftN_eq
       (j := 0) (Nat.le_refl 0)] at this
   obtain ⟨T₀, hT₀nil, hT₀, L⟩ := hcT
+  have L₀ := L
   rw [hshape, VExpr.instL_wrapForalls] at L
   obtain ⟨doms₀, result₀, rfl, hdoms, -⟩ := L.wrapForalls_inv
   have hdomsLen : doms₀.length = doms.length := by
@@ -537,12 +538,14 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       rwa [List.getElem_take]
   split <;> [rename_i afterParameters hafter; exact hfail']
   obtain ⟨⟨⟨R₁, hR₁, hafter'⟩, hfvAfter⟩, hlvAfter⟩ := H _ rfl
+  have hR₁0 := hR₁
   rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
     (by rw [hP'len]; exact hnpLen)] at hR₁
   cases hR₁
   rw [hP'len] at hafter'
+  try simp only [hP'len] at hR₁0
   generalize hds_def : VExpr.instDomsAt (doms₀.drop info.nparams) (args'.take info.nparams) 0 = ds
-    at hafter'
+    at hafter' hR₁0
   -- the sort level of the structure type
   refine (getSortLevel.WF htT).bind fun l _ _ ⟨u', hu', hsortT⟩ => ?_
   have hsortT' : c.HasType (VExpr.mkApps (.const st ls') args') (.sort u') :=
@@ -590,7 +593,13 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   -- the fields
   have hile : i ≤ ds.length := by omega
   refine (instantiateProjectionFields.WF_all (st := st) (G := G) he ⟨_, hety⟩ (.inr rfl) hG hafter'
-    hile fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu).bind
+    hile (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
+    (fun _ m _ D body' hres hD hnG body hbody hcl =>
+      c.projectionCorner c.Ewf c.Δwf hinfo hlsWF hlen' L₀ hP'len
+        (idx := args'.drop info.nparams) (by rw [List.take_append_drop]; exact hety)
+        (j := m) (by
+          rw [VProjectionInfo.instantiateProjectionParameters_append, hR₁0]; simpa [projs] using hres)
+        hD hnG hbody hcl)).bind
     fun r _ _ H => ?_
   split <;> [skip; exact hfail']
   obtain ⟨⟨⟨R₂, hR₂, hsel'⟩, hfvSel⟩, hlvSel⟩ := H _ rfl

@@ -5,6 +5,7 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
 import Lean4Lean.Verify.Typing.UniverseSupport
+import Lean4Lean.Verify.Typing.ProjectionCorner
 
 namespace Except
 
@@ -330,6 +331,9 @@ structure VContext extends Context where
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
   equation are present.  This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
+  /-- The open corner of the projection walk (`ProjectionWalkCorner`), an explicit hypothesis of
+  the checker's correctness. -/
+  projectionCorner : ProjectionWalkCorner
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx

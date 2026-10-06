@@ -162,6 +162,7 @@ theorem CheckingEnv.ValidCore.mapExt
     CheckingEnv.ValidCore safety target venv where
   tr := CheckingEnv.mapExt H.tr htargetWF heq
   hasPrimitives := H.hasPrimitives
+  projectionCorner := H.projectionCorner
   safePrimitives := by
     intro name ci hfind hprimitive
     have hfindTarget : target.constants.find? name = some ci := by
@@ -202,6 +203,7 @@ theorem CheckingEnv.Valid.mapExt
   recursors := H.recursors.mapExt heq
   quot hq := (H.quot (hquotInit ▸ hq)).mapExt heq
   hasPrimitives := H.hasPrimitives
+  projectionCorner := H.projectionCorner
   safePrimitives := by
     intro name ci hfind hprimitive
     have hfindTarget : target.constants.find? name = some ci := by

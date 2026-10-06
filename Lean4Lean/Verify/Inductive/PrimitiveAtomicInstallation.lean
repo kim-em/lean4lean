@@ -26,10 +26,13 @@ structure StagedContextWF (c : AddInductive.Context) where
   indFresh : forall fv, fv ∈ mlctx.vlctx.fvars -> c.ngen.Reserves fv
   kernelFresh : forall fv, fv ∈ mlctx.vlctx.fvars ->
     ({} : TypeChecker.State).ngen.Reserves fv
+  /-- The open projection-walk corner, carried to the restored checker context. -/
+  projectionCorner : ProjectionWalkCorner
 
 def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
   venv := H.venv
   checking := H.checking.tr
+  projectionCorner := H.checking.projectionCorner
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -48,6 +51,7 @@ def StagedContextWF.withEnv (H : StagedContextWF c)
     StagedContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
+  projectionCorner := H.projectionCorner
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -79,6 +83,7 @@ def StagedContextWF.complete (H : StagedContextWF c)
       intro n ci hfind hprimitive
       exact hsafe hfind hprimitive
     typeAnnotationWrappers := hannotations
+    projectionCorner := H.projectionCorner
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors
