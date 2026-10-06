@@ -112,9 +112,9 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
     (H : NativePrefixReplay env univs Γ (mkApps (.const ``Quot.lift levels) args) program)
     (hg : QuotPrefixProgram.generate levels args = some program)
     (hg' : QuotPrefixProgram.generate levels args' = some program')
-    (ha : List.Forall₂ (NormalEq Γ) args args') :
-    List.Forall₂ (NormalEq (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
-      NormalEq (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
+    (ha : List.Forall₂ (NormalEqF η Γ) args args') :
+    List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
+      NormalEqF η (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
   obtain ⟨hlen, hctor, hcaptures⟩ := QuotPrefixProgram.generate_layout hg
   obtain ⟨hlen', hctor', hcaptures'⟩ := QuotPrefixProgram.generate_layout hg'
   have hargs := (QuotPrefixProgram.generate_spec hg).2.1
@@ -122,7 +122,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
   have W : Ctx.LiftN (6 - args.length) 0 Γ (program.domains.reverse ++ Γ) :=
     .zero _ (by simpa only [List.length_reverse] using hlen)
-  have hall : List.Forall₂ (NormalEq (program.domains.reverse ++ Γ))
+  have hall : List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ))
       (QuotPrefixProgram.prefixArguments args) (QuotPrefixProgram.prefixArguments args') := by
     unfold QuotPrefixProgram.prefixArguments
     rw [← halen]
@@ -136,7 +136,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
       obtain ⟨i, hi, rfl⟩ := he
       exact .refl (.bvar (Lookup.ofLt (by simp only [List.length_append, List.length_reverse]; omega)).2)
   have hnorm (i : Nat) (hi : i < 6) :
-      NormalEq (program.domains.reverse ++ Γ)
+      NormalEqF η (program.domains.reverse ++ Γ)
         ((QuotPrefixProgram.prefixArguments args)[i]?.getD default)
         ((QuotPrefixProgram.prefixArguments args')[i]?.getD default) := by
     have hil : i < (QuotPrefixProgram.prefixArguments args).length := by
@@ -147,7 +147,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
       exact hil
     simpa only [List.getElem?_eq_getElem hil, List.getElem?_eq_getElem hir, Option.getD_some] using
       Lean4Lean.List.forall₂_getElem hall i hil hir
-  have hp : NormalEq (program.domains.reverse ++ Γ)
+  have hp : NormalEqF η (program.domains.reverse ++ Γ)
       (QuotPrefixProgram.prefixProof levels args) (QuotPrefixProgram.prefixProof levels args') := by
     have hm : QuotPrefixProgram.prefixProof levels args ∈ program.captures := by
       rw [hcaptures]
@@ -158,7 +158,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
     unfold QuotPrefixProgram.prefixProof at ht ⊢
     obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.ordered hctx
       (show VExpr.WF env univs _ _ from ⟨_, ht⟩)
-    exact NormalEq.mkApps_spine hctx (.refl hfn)
+    exact NormalEqF.mkApps_spine hctx (.refl hfn)
       (.cons (hnorm 0 (by decide)) (.cons (hnorm 1 (by decide)) (.cons (hnorm 5 (by decide)) .nil))) ht
   constructor
   · rw [hcaptures, hcaptures']
@@ -168,7 +168,7 @@ theorem NativePrefixReplay.quot_normal_components {levels : List VLevel}
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hctx
       (show VExpr.WF env univs _ _ from ⟨_, hc⟩)
     rw [hctor, hctor']
-    exact NormalEq.mkApps_spine hctx (.refl hhead)
+    exact NormalEqF.mkApps_spine hctx (.refl hhead)
       (.cons (hnorm 0 (by decide)) (.cons (hnorm 1 (by decide)) (.cons hp .nil))) hc
 
 /-- Normal changes to the actual supplied quotient arguments preserve the
@@ -176,8 +176,8 @@ generated delta rule and relate its two resulting lambda telescopes. -/
 theorem QuotDeltaRule.congr_normal {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
     (H : QuotDeltaRule env univs Γ levels args rhs)
-    (ha : List.Forall₂ (NormalEq Γ) args args') :
-    ∃ rhs', QuotDeltaRule env univs Γ levels args' rhs' ∧ NormalEq Γ rhs rhs' := by
+    (ha : List.Forall₂ (NormalEqF η Γ) args args') :
+    ∃ rhs', QuotDeltaRule env univs Γ levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
   cases H with
   | @intro program hr hw hz hg replay =>
     have halen := Lean4Lean.List.Forall₂.length_eq ha
@@ -192,7 +192,7 @@ theorem QuotDeltaRule.congr_normal {levels : List VLevel}
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
-    have hs := NormalEq.mkApps_spine hΓ (.refl hhead) ha replay.source_typed
+    have hs := NormalEqF.mkApps_spine hΓ (.refl hhead) ha replay.source_typed
     have ht := hr.prefixType henv hΓ hw hg'
       ⟨_, ((hs.defeq hΓ).of_l henv hΓ replay.source_typed).hasType.2⟩
     obtain ⟨hcaptures, hctor⟩ := replay.quot_normal_components hΓ hg hg' ha

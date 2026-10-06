@@ -591,6 +591,321 @@ theorem EtaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
 
 end EtaMirror
 
+
+section DeltaMirror
+
+omit [Params] in
+theorem List.Forall₂.exists_mid {R S U V : α → α → Prop} :
+    ∀ {l₁ l l'}, List.Forall₂ R l₁ l → List.Forall₂ S l l' →
+      (∀ x y z, y ∈ l → R x y → S y z → ∃ w, U x w ∧ V w z) →
+      ∃ ws, List.Forall₂ U l₁ ws ∧ List.Forall₂ V ws l'
+  | [], [], [], .nil, .nil, _ => ⟨[], .nil, .nil⟩
+  | _ :: _, _ :: _, _ :: _, .cons h1 t1, .cons h2 t2, H => by
+    obtain ⟨w, hu, hv⟩ := H _ _ _ (List.mem_cons_self ..) h1 h2
+    obtain ⟨ws, hus, hvs⟩ := List.Forall₂.exists_mid t1 t2
+      fun x y z hy => H x y z (List.mem_cons_of_mem _ hy)
+    exact ⟨w :: ws, .cons hu hus, .cons hv hvs⟩
+
+omit [Params] in
+theorem mkApps_snoc (f : VExpr) (l : List VExpr) (b : VExpr) :
+    VExpr.mkApps f (l ++ [b]) = .app (VExpr.mkApps f l) b := by
+  induction l generalizing f with
+  | nil => rfl
+  | cons a l ih => exact ih (.app f a)
+
+omit [Params] in
+theorem snoc_induction {P : List α → Prop} (nil : P []) (snoc : ∀ l a, P l → P (l ++ [a]))
+    (l : List α) : P l := by
+  rw [← List.reverse_reverse l]
+  induction l.reverse with
+  | nil => exact nil
+  | cons a l ih => rw [List.reverse_cons]; exact snoc _ _ ih
+
+/-- Spine exposure without eta. A term normally equal to a rigid-headed spine
+is a proof or literally a spine with an equivalent head. -/
+theorem NormalEq₀.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHead h)
+    (H : NormalEq₀ Γ x (VExpr.mkApps h targs)) (hx : Γ ⊢ x : T) :
+    (Γ ⊢ T : .sort .zero) ∨
+    ∃ h' targs', HeadEquiv h' h ∧ x = VExpr.mkApps h' targs' ∧
+      List.Forall₂ (NormalEq₀ Γ) targs' targs := by
+  induction targs using snoc_induction generalizing x T with
+  | nil =>
+    obtain ⟨n, H⟩ := H
+    cases hh with
+    | const =>
+      generalize hR : VExpr.mkApps (.const _ _) [] = R at H
+      cases H with
+      | refl _ => subst hR; exact .inr ⟨_, [], RigidHead.const.equiv_rfl, rfl, .nil⟩
+      | constDF _ _ _ _ h5 => cases hR; exact .inr ⟨_, [], .const h5, rfl, .nil⟩
+      | proofIrrel l1 l2 _ => exact .inl (l1.defeqU_l henv hΓ (l2.uniqU henv hΓ hx))
+      | _ => cases hR
+    | elim =>
+      generalize hR : VExpr.mkApps (.elim _ _ _) [] = R at H
+      cases H with
+      | refl _ => subst hR; exact .inr ⟨_, [], RigidHead.elim.equiv_rfl, rfl, .nil⟩
+      | elimDF _ h2 => cases hR; exact .inr ⟨_, [], .elim h2, rfl, .nil⟩
+      | proofIrrel l1 l2 _ => exact .inl (l1.defeqU_l henv hΓ (l2.uniqU henv hΓ hx))
+      | _ => cases hR
+  | snoc targs t ih =>
+    obtain ⟨n, H⟩ := H
+    rw [mkApps_snoc] at H
+    generalize hR : VExpr.app (VExpr.mkApps h targs) t = R at H
+    cases H with
+    | refl _ =>
+      subst hR
+      have hx' : Γ ⊢ VExpr.mkApps h (targs ++ [t]) : T := by rwa [mkApps_snoc]
+      exact .inr ⟨h, targs ++ [t], hh.equiv_rfl, (mkApps_snoc ..).symm,
+        NormalEqF.forall₂_refl fun _ hm => schema_mkApps_arg_type hΓ hx' hm⟩
+    | proofIrrel l1 l2 _ => exact .inl (l1.defeqU_l henv hΓ (l2.uniqU henv hΓ hx))
+    | appDF l1 l2 l3 l4 l5 l6 =>
+      cases hR
+      rcases ih ⟨_, l5⟩ l1 with hp | ⟨h', targs', he, rfl, hargs⟩
+      · exact .inl (HasType.mkApps_proof hΓ hp l1 (bs := [_]) hx)
+      · exact .inr ⟨h', targs' ++ [_], he, (mkApps_snoc ..).symm,
+          case_forall₂_append hargs (.cons ⟨_, l6⟩ .nil)⟩
+    | _ => cases hR
+
+theorem NativeDeltaRule.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+    (hw : ∀ level ∈ levels', level.WF univs) (hls : List.Forall₂ (· ≈ ·) levels levels')
+    (ha : List.Forall₂ (NormalEq₀ Γ) args args') :
+    ∃ rhs', NativeDeltaRule env univs recursorData Γ name levels' args' rhs' ∧
+      NormalEq₀ Γ rhs rhs' := by
+  obtain ⟨rhs₁, h1, e1⟩ := H.congr_normal hΓ ha
+  obtain ⟨rhs₂, h2, e2⟩ := h1.congr_levels henv hΓ hw hls
+    (eqUpToLevels_forall₂_rfl hΓ (NormalEqF.forall₂_typed_right hΓ ha))
+  obtain ⟨_, hd⟩ := h1.defeq henv hΓ
+  exact ⟨rhs₂, h2, e1.trans hΓ (NormalEqF.of_levelEquiv hΓ (.of_eqUpToLevels e2) hd.hasType.2)⟩
+
+theorem QuotDeltaRule.congr₀ (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotDeltaRule env univs Γ levels args rhs)
+    (hw : ∀ level ∈ levels', level.WF univs) (hls : List.Forall₂ (· ≈ ·) levels levels')
+    (ha : List.Forall₂ (NormalEq₀ Γ) args args') :
+    ∃ rhs', QuotDeltaRule env univs Γ levels' args' rhs' ∧ NormalEq₀ Γ rhs rhs' := by
+  obtain ⟨rhs₁, h1, e1⟩ := H.congr_normal hΓ ha
+  obtain ⟨rhs₂, h2, e2⟩ := h1.congr_levels henv hΓ hw hls
+    (eqUpToLevels_forall₂_rfl hΓ (NormalEqF.forall₂_typed_right hΓ ha))
+  obtain ⟨_, hd⟩ := h1.defeq henv hΓ
+  exact ⟨rhs₂, h2, e1.trans hΓ (NormalEqF.of_levelEquiv hΓ (.of_eqUpToLevels e2) hd.hasType.2)⟩
+
+
+theorem DeltaPar.mkApps (hf : DeltaPar Γ f f') (H : List.Forall₂ (DeltaPar Γ) args args') :
+    DeltaPar Γ (VExpr.mkApps f args) (VExpr.mkApps f' args') := by
+  induction H generalizing f f' with
+  | nil => exact hf
+  | cons h _ ih => exact ih (.app hf h)
+
+theorem DeltaPar.mkApps_args (H : List.Forall₂ (DeltaPar Γ) args args') :
+    DeltaPar Γ (VExpr.mkApps f args) (VExpr.mkApps f args') := DeltaPar.mkApps .rfl H
+
+omit [Params] in
+theorem forall₂_getElem?_right {R : α → β → Prop} :
+    ∀ {l : List α} {l' : List β} {i : Nat} {y : β}, List.Forall₂ R l l' → l'[i]? = some y →
+      ∃ x, l[i]? = some x ∧ R x y
+  | _ :: _, _ :: _, 0, _, .cons h _, hy => by cases hy; exact ⟨_, rfl, h⟩
+  | _ :: _, _ :: _, i + 1, _, .cons _ t, hy => by
+    simp only [List.getElem?_cons_succ] at hy ⊢; exact forall₂_getElem?_right t hy
+  | [], [], _, _, .nil, hy => by cases hy
+
+/-- Pointwise mirrors of developed arguments. -/
+theorem DeltaPar.mirror_args (hΓ : OnCtx Γ (env.IsType univs))
+    (ha : Γ ⊢ VExpr.mkApps f args : A) (hlen : args.length = args'.length)
+    (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
+    (ih : ∀ i (hi : i < args.length) (hi' : i < args'.length) {c A}, OnCtx Γ (env.IsType univs) →
+      NormalEq₀ Γ c args[i] → Γ ⊢ args[i] : A → ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' args'[i])
+    (hrel : List.Forall₂ (NormalEq₀ Γ) args₁ args) :
+    ∃ Xs, List.Forall₂ (DeltaPar Γ) args₁ Xs ∧ List.Forall₂ (NormalEq₀ Γ) Xs args' := by
+  have hS : List.Forall₂ (fun y z => ∀ {c A}, NormalEq₀ Γ c y → Γ ⊢ y : A →
+      ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' z) args args' :=
+    forall₂_of_getElem hlen fun i hi hi' _ _ h1 h2 => ih i hi hi' hΓ h1 h2
+  exact List.Forall₂.exists_mid hrel hS fun x y z hy h1 h2 =>
+    h2 h1 (schema_mkApps_arg_type hΓ ha hy).choose_spec
+
+
+/-- The induction hypothesis of a mirror for developed arguments. -/
+abbrev MirrorArgs (Γ : List VExpr) (args args' : List VExpr) : Prop :=
+  ∀ i (hi : i < args.length) (hi' : i < args'.length) {c A}, OnCtx Γ (env.IsType univs) →
+    NormalEq₀ Γ c args[i] → Γ ⊢ args[i] : A → ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' args'[i]
+
+theorem DeltaPar.mirror_delta (hΓ : OnCtx Γ (env.IsType univs))
+    (hlen : args.length = args'.length)
+    (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
+    (hr : NativeDeltaRule env univs recursorData Γ name ls args' rhs)
+    (ih : MirrorArgs Γ args args')
+    (hc : NormalEq₀ Γ c (VExpr.mkApps (.const name ls) args))
+    (ha : Γ ⊢ VExpr.mkApps (.const name ls) args : A) :
+    ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' rhs := by
+  have hb := (DeltaPar.full (.delta hlen hargs hr)).hasType hΓ ha
+  have hcT := ha.defeqU_l henv hΓ (NormalEqF.defeq hΓ hc).symm
+  rcases NormalEq₀.spine_expose hΓ .const hc hcT with hp | ⟨h', args₁, he, rfl, hrel⟩
+  · exact ⟨c, .rfl, .proofIrrel hp hcT hb⟩
+  obtain ⟨ls₁, rfl, hls⟩ : ∃ ls₁, h' = .const name ls₁ ∧ List.Forall₂ (· ≈ ·) ls₁ ls := by
+    cases he with | const h => exact ⟨_, rfl, h⟩
+  obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ ha hlen hargs ih hrel
+  obtain ⟨_, hh₁⟩ := schema_mkApps_head_type hΓ hcT
+  obtain ⟨_, _, hw₁, _⟩ := hh₁.const_inv henv hΓ
+  obtain ⟨rhs', hr', e'⟩ := hr.congr₀ hΓ hw₁
+    (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls))
+    (Lean4Lean.List.Forall₂.imp (fun _ _ h => NormalEqF.symm hΓ h) (Lean4Lean.List.Forall₂.flip eXs))
+  have ⟨hl', hx'⟩ := getElem_of_forall₂ hXs
+  exact ⟨rhs', .delta hl' hx' hr', e'.symm hΓ⟩
+
+theorem DeltaPar.mirror_quotDelta (hΓ : OnCtx Γ (env.IsType univs))
+    (hlen : args.length = args'.length)
+    (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
+    (hr : QuotDeltaRule env univs Γ ls args' rhs)
+    (ih : MirrorArgs Γ args args')
+    (hc : NormalEq₀ Γ c (VExpr.mkApps (.const ``Quot.lift ls) args))
+    (ha : Γ ⊢ VExpr.mkApps (.const ``Quot.lift ls) args : A) :
+    ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' rhs := by
+  have hb := (DeltaPar.full (.quotDelta hlen hargs hr)).hasType hΓ ha
+  have hcT := ha.defeqU_l henv hΓ (NormalEqF.defeq hΓ hc).symm
+  rcases NormalEq₀.spine_expose hΓ .const hc hcT with hp | ⟨h', args₁, he, rfl, hrel⟩
+  · exact ⟨c, .rfl, .proofIrrel hp hcT hb⟩
+  obtain ⟨ls₁, rfl, hls⟩ : ∃ ls₁, h' = .const ``Quot.lift ls₁ ∧
+      List.Forall₂ (· ≈ ·) ls₁ ls := by
+    cases he with | const h => exact ⟨_, rfl, h⟩
+  obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ ha hlen hargs ih hrel
+  obtain ⟨_, hh₁⟩ := schema_mkApps_head_type hΓ hcT
+  obtain ⟨_, _, hw₁, _⟩ := hh₁.const_inv henv hΓ
+  obtain ⟨rhs', hr', e'⟩ := hr.congr₀ hΓ hw₁
+    (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls))
+    (Lean4Lean.List.Forall₂.imp (fun _ _ h => NormalEqF.symm hΓ h) (Lean4Lean.List.Forall₂.flip eXs))
+  have ⟨hl', hx'⟩ := getElem_of_forall₂ hXs
+  exact ⟨rhs', .quotDelta hl' hx' hr', e'.symm hΓ⟩
+
+theorem DeltaPar.mirror_projIota (hΓ : OnCtx Γ (env.IsType univs))
+    (hlen : args.length = args'.length)
+    (hargs : ∀ i (hi : i < args.length) (hi' : i < args'.length), DeltaPar Γ args[i] args'[i])
+    (hl : env.projections family info)
+    (hs : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName ls) args') : fieldType)
+    (hi : args'[info.nparams + index]? = some field) (ht : Γ ⊢ field : fieldType)
+    (ih : MirrorArgs Γ args args')
+    (hc : NormalEq₀ Γ c (.proj family index (VExpr.mkApps (.const info.ctorName ls) args)))
+    (ha : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName ls) args) : A) :
+    ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' field := by
+  have hstep := DeltaPar.projIota hlen hargs hl hs hi ht
+  have hb := (DeltaPar.full hstep).hasType hΓ ha
+  have hcT := ha.defeqU_l henv hΓ (NormalEqF.defeq hΓ hc).symm
+  obtain ⟨n, hc'⟩ := hc
+  generalize hR : VExpr.proj family index (VExpr.mkApps (.const info.ctorName ls) args) = R at hc'
+  cases hc' with
+  | refl _ => subst hR; exact ⟨_, hstep, .refl hb⟩
+  | proofIrrel l1 l2 l3 =>
+    subst hR; exact ⟨c, .rfl, .proofIrrel l1 l2 ((DeltaPar.full hstep).hasType hΓ l3)⟩
+  | projDF l1 l2 =>
+    cases hR
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := ha.proj_inv henv hΓ
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm₁, _, _⟩ := hcT.proj_inv henv hΓ
+    rcases NormalEq₀.spine_expose hΓ .const ⟨_, l2⟩ hm₁.hasType.2 with
+      hp | ⟨h', args₁, he, hM, hrel⟩
+    · have hA := HasType.proj_result_prop_of_major_proof henv hΓ hcT hp hm₁.hasType.2
+      exact ⟨_, .rfl, .proofIrrel hA hcT hb⟩
+    subst hM
+    obtain ⟨ls₁, rfl, hls⟩ : ∃ ls₁, h' = .const info.ctorName ls₁ ∧
+        List.Forall₂ (· ≈ ·) ls₁ ls := by
+      cases he with | const h => exact ⟨_, rfl, h⟩
+    obtain ⟨Xs, hXs, eXs⟩ := DeltaPar.mirror_args hΓ hm.hasType.2 hlen hargs ih hrel
+    obtain ⟨X, hX, eX⟩ := forall₂_getElem?_right eXs hi
+    have ⟨hl', hx'⟩ := getElem_of_forall₂ hXs
+    have hcong : DeltaPar Γ (.proj family index (VExpr.mkApps (.const info.ctorName ls₁) args₁))
+        (.proj family index (VExpr.mkApps (.const info.ctorName ls₁) Xs)) :=
+      .proj (DeltaPar.mkApps_args hXs)
+    have hT := (DeltaPar.full hcong).hasType hΓ hcT
+    have hXT := hb.defeqU_l henv hΓ (NormalEqF.defeq hΓ eX).symm
+    exact ⟨X, .projIota hl' hx' hl hT hX hXT, eX⟩
+  | sortDF | constDF | elimDF | appDF | lamDF | forallEDF => cases hR
+
+theorem DeltaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
+    (H : DeltaPar Γ a b) (hc : NormalEq₀ Γ c a) (ha : Γ ⊢ a : A) :
+    ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' b := by
+  induction H generalizing c A with
+  | bvar | sort | const | elim => exact ⟨c, .rfl, hc⟩
+  | @app _ f f' x x' h1 h2 ih1 ih2 =>
+    have hb := (DeltaPar.full (.app h1 h2)).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.app f x = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .app h1 h2, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((DeltaPar.full (.app h1 h2)).hasType hΓ l3)⟩
+    | appDF l1 l2 l3 l4 l5 l6 =>
+      cases hR
+      obtain ⟨F, hF, eF⟩ := ih1 hΓ ⟨_, l5⟩ l2
+      obtain ⟨X, hX, eX⟩ := ih2 hΓ ⟨_, l6⟩ l4
+      exact ⟨_, .app hF hX, .appDF ((DeltaPar.full hF).hasType hΓ l1)
+        ((DeltaPar.full h1).hasType hΓ l2) ((DeltaPar.full hX).hasType hΓ l3)
+        ((DeltaPar.full h2).hasType hΓ l4) eF eX⟩
+    | sortDF | constDF | elimDF | projDF | lamDF | forallEDF => cases hR
+  | @proj _ m m' family index h1 ih =>
+    have hb := (DeltaPar.full (.proj h1)).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.proj family index m = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .proj h1, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((DeltaPar.full (.proj h1)).hasType hΓ l3)⟩
+    | projDF l1 l2 =>
+      cases hR
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := ha.proj_inv henv hΓ
+      obtain ⟨M, hM, eM⟩ := ih hΓ ⟨_, l2⟩ hm.hasType.2
+      exact ⟨_, .proj hM, .projDF ((DeltaPar.full (.proj hM)).hasType hΓ l1) eM⟩
+    | sortDF | constDF | elimDF | appDF | lamDF | forallEDF => cases hR
+  | @lam _ D D' t t' h1 h2 ih1 ih2 =>
+    have hb := (DeltaPar.full (.lam h1 h2)).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.lam D t = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .lam h1 h2, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((DeltaPar.full (.lam h1 h2)).hasType hΓ l3)⟩
+    | lamDF l1 l2 l3 =>
+      cases hR
+      obtain ⟨⟨_, hD⟩, _, ht⟩ := ha.lam_inv henv hΓ
+      have hΓ' : OnCtx (D :: _) (env.IsType univs) := ⟨hΓ, _, hD⟩
+      have l3' := l3.defeqDFC hΓ (.succ .zero l2)
+      obtain ⟨T, hT, eT⟩ := ih2 hΓ' ⟨_, l3'⟩ ht
+      have hDD₁ := l2.symm.trans l1
+      have ht₁ := ((NormalEqN.defeq hΓ' l3').of_r henv hΓ' ht).hasType.1
+      refine ⟨_, .lam .rfl (hT.defeqDFC hΓ (.succ .zero hDD₁) ht₁), ?_⟩
+      have hD2 := l2.hasType.2
+      have hDD' := (DeltaPar.full h1).defeq hΓ hD2
+      exact .lamDF hDD₁ hDD' eT
+    | sortDF | constDF | elimDF | appDF | projDF | forallEDF => cases hR
+  | @forallE _ D D' t t' h1 h2 ih1 ih2 =>
+    have hb := (DeltaPar.full (.forallE h1 h2)).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.forallE D t = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .forallE h1 h2, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((DeltaPar.full (.forallE h1 h2)).hasType hΓ l3)⟩
+    | forallEDF l1 l2 l3 l4 =>
+      cases hR
+      obtain ⟨⟨_, hD⟩, _, ht⟩ := ha.forallE_inv henv
+      obtain ⟨D₁', hD₁, eD⟩ := ih1 hΓ ⟨_, l2⟩ hD
+      have hΓ' : OnCtx (D :: _) (env.IsType univs) := ⟨hΓ, _, hD⟩
+      have W' := l1.transU_l henv hΓ (NormalEqN.defeq hΓ l2)
+      have l4' := l4.defeqDFC hΓ (.succ .zero W')
+      obtain ⟨T, hT, eT⟩ := ih2 hΓ' ⟨_, l4'⟩ ht
+      have l3'' := l3.defeqDFC henv (.succ .zero W')
+      have hA₁ := l1.hasType.2
+      have hD₁T := (DeltaPar.full hD₁).defeq hΓ hA₁
+      refine ⟨_, .forallE hD₁ (hT.defeqDFC hΓ (.succ .zero (W'.symm.trans l1)) l3''), ?_⟩
+      have hT1 := (DeltaPar.full hT).hasType hΓ' l3''
+      exact .forallEDF (W'.symm.trans (l1.trans hD₁T)) eD hT1 eT
+    | sortDF | constDF | elimDF | appDF | projDF | lamDF => cases hR
+  | delta hlen hargs hr ih => exact DeltaPar.mirror_delta hΓ hlen hargs hr ih hc ha
+  | quotDelta hlen hargs hr ih => exact DeltaPar.mirror_quotDelta hΓ hlen hargs hr ih hc ha
+  | projIota hlen hargs hl hs hi ht ih =>
+    exact DeltaPar.mirror_projIota hΓ hlen hargs hl hs hi ht ih hc ha
+
+end DeltaMirror
+
 section Levels
 
 /-- The untyped level relations. -/
@@ -692,9 +1007,6 @@ theorem ParRed.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
     (H : ParRed Γ a b) (hc : NormalEq₀ Γ c a) (ha : Γ ⊢ a : A) :
     ∃ c', ParRed Γ c c' ∧ NormalEq₀ Γ c' b := sorry
 
-theorem DeltaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
-    (H : DeltaPar Γ a b) (hc : NormalEq₀ Γ c a) (ha : Γ ⊢ a : A) :
-    ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' b := sorry
 
 
 theorem DeltaPar.peak (hΓ : OnCtx Γ (env.IsType univs))
