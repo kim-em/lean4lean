@@ -274,3 +274,54 @@ structural induction, and whose completeness `IsDefEq → CertEq` needs
 transitivity to be admissible for certificates, i.e. the strip lemma redone with
 certificate premises (Siles and Herbelin's method for PTS conversion, for the
 much richer rule set here).
+
+### 3.3 Pilot: strengthening a normal-equality witness without certificates
+
+Setting: `Γ' ⊢ x↑ ≡ₚ[n] y↑` (`NormalEqN true n`), `x`, `y` typed in `Γ`. Induction
+on `n` in two modes: *common* (`Γ ⊢ x : T`, `Γ ⊢ y : T`) and *own* (each side its
+own `Γ`-type, neither side a proof). Uniqueness, injectivity and inversion in `Γ`
+are used freely (obligation (a)).
+
+Cases that close:
+
+* common mode at a proposition `T`: `proofIrrel` in `Γ`, whatever the rule;
+* `refl`, `sortDF`, `constDF`, `elimDF`;
+* `forallEDF`: domains at a common sort (`Γ' ⊢ A₁ ≡ A₂` gives `Sort u₁ ≡ Sort u₂`,
+  hence `u₁ ≈ u₂`; levels are context-free);
+* `lamDF`, `etaL`, `etaR` in common mode: `T ≡ Π A T_e` from the lambda's own typing,
+  injectivity aligns domains and bodies are compared at a common type;
+* application spines whose head is a variable, constant or abstract eliminator: argument
+  types are forced by the head's declared type;
+* eta at an application head, `(λ A. e) a₁ ≡ₚ e' a₂`: if the arguments are proofs,
+  substitute `a₁`/`a₂` heterogeneously (each `refl` leaf on the bound variable becomes a
+  `proofIrrel` leaf, index preserved), giving `e[a₁] ≡ₚ[n₁] e' a₂` with
+  `n₁ < n₁ + n₂ + 3`; otherwise compare the arguments first (own mode, index `n₂`),
+  which aligns `A` with `dom(type e')` through uniqueness, then substitute the same
+  argument (`NormalEqN.instN`, index preserved) and close with congruence in `Γ`;
+* lambda-headed redexes `(λ A₁. e₁) a₁ ≡ₚ (λ A₂. e₂) a₂`: the same two cases.
+
+**Statements that fail** (each is a strengthening instance between `q`-free terms
+that is not bounded by `n`):
+
+1. `lamDF`/`forallEDF` in *own* mode (bare lambdas compared as non-proof arguments or
+   in function position): the domain premises are full judgements
+   `Γ' ⊢ A ≡ A₁ : Sort u`, `Γ' ⊢ A ≡ A₂ : Sort u`, and the step needs
+   `Γ ⊢ A₁ ≡ A₂`.
+2. `projDF` with majors of different `Γ`-types `S ps₁`, `S ps₂`: needs
+   `Γ ⊢ ps₁ ≡ ps₂` (the two field types are computed from independently synthesized
+   parameters).
+3. `etaBoth` at a type `T` that is a `Π` only after reduction: needs
+   `Γ ⊢ T ≡ Π A B`, i.e. the reduction of `T` valid in `Γ`.
+4. Reduction steps of the witness: K and singleton alignment checks
+   (`Γ' ⊢ a ≡ b` for `Eq.rec … b h`, `h : a = b`; `idx ≡ pattern(readData idx)`).
+
+A certificate calculus closes 1–3 locally: the needed agreement is obtained by
+certified transitivity from sub-certificates (the typing certificates of the two
+sides), and 4 by making the check a sub-certificate. All of them then rest on one
+global fact, admissibility of transitivity for certificates. That is the strip
+lemma with certificate premises. The mainline strip cannot be reused by
+instantiation: its proofs call uniqueness, inversion and declarative transitivity on
+premises several hundred times (`LevelledReduction`: 17 `uniq`, about 120 inversion and
+95 transitivity uses), and for certificate premises each of these needs certified
+transitivity on smaller certificates, so the strip has to be restated as an induction
+over certificate size.
