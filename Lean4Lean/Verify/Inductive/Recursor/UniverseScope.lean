@@ -37,24 +37,63 @@ namespace VerifyInductive
 
 /-! ### Type-checker runs in a recursor context -/
 
-/-- `whnf` in a recursor context preserves the universe support of its input. -/
+theorem _root_.Lean4Lean.IsFVarUpSet.and {P Q : FVarId → Prop} (Δ : VLCtx)
+    (hP : IsFVarUpSet P Δ) (hQ : IsFVarUpSet Q Δ) :
+    IsFVarUpSet (fun fv => P fv ∧ Q fv) Δ := by
+  induction Δ with
+  | nil => trivial
+  | cons d Δ ih =>
+    obtain ⟨ofv, d⟩ := d
+    cases ofv with
+    | none => exact ih hP hQ
+    | some p =>
+      obtain ⟨fv, deps⟩ := p
+      exact ⟨ih hP.1 hQ.1, fun ⟨hp, hq⟩ fv' h => ⟨hP.2 hp fv' h, hQ.2 hq fv' h⟩⟩
+
+/-- Universe support established in the checker context of a recursor frame
+holds in its main context, for inputs translated in the checker context. -/
+theorem RecursorContextWF.levelsBelow_of_check (Hc : RecursorContextWF c recLparams)
+    (hn : TrExprS Hc.venv recLparams Hc.chk.vlctx e e₀)
+    (h : Hc.checkTC.LevelsBelow e e₁) : Hc.typeChecker.LevelsBelow e e₁ := by
+  intro Us P hs he hP
+  refine h Us (fun fv => P fv ∧ fv ∈ Hc.chk.vlctx.fvars) ⟨?_, ?_⟩ he ?_
+  · exact IsFVarUpSet.and _ (Hc.check.embed.isFVarUpSet hs.1)
+      (IsFVarUpSet.fvars Hc.check.wf.tr.wf.fvwf)
+  · intro fv d ⟨hPfv, _⟩ hfind
+    change Hc.chk.lctx.find? fv = some d at hfind
+    rw [Hc.check.lctx_eq] at hfind
+    obtain ⟨d', hfind', hd⟩ := Hc.check.sub fv d hfind
+    have hmain : Hc.typeChecker.lctx'.find? fv = some d' := by
+      change Hc.mlctx.lctx.find? fv = some d'
+      rw [Hc.lctx_eq]; exact hfind'
+    have h' := hs.2 fv d' hPfv hmain
+    have htype : d'.type = d.type := by
+      have e1 : ∀ x : LocalDecl, (x.setIndex 0).type = x.type := by
+        intro x; cases x <;> rfl
+      rw [← e1 d', hd, e1 d]
+    have hvalue : ∀ v, d.value? true = some v → d'.value? true = some v := by
+      have e1 : ∀ x : LocalDecl, (x.setIndex 0).value? true = x.value? true := by
+        intro x; cases x with
+        | cdecl => rfl
+        | ldecl _ _ _ _ _ nd => cases nd <;> rfl
+      intro v hv
+      rw [← e1 d', hd, e1 d]; exact hv
+    exact ⟨htype ▸ h'.1, fun v hv => h'.2 v (hvalue v hv)⟩
+  · have hc := (fvarsIn_iff.mp hn.fvarsIn).1
+    refine fvarsIn_iff.mpr ⟨fun fv hfv => ⟨(fvarsIn_iff.mp hP).1 fv hfv, hc fv hfv⟩,
+      (fvarsIn_iff.mp hP).2⟩
+
+/-- `whnf` in a recursor context preserves the universe support of its
+input; the run is verified in the checker context, on the checker
+translation `hn` of the input. -/
 theorem whnfInRecursorContext.levelsWF
     (Hc : RecursorContextWF c recLparams)
-    (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e') :
+    (hn : TrExprS Hc.venv recLparams Hc.chk.vlctx e e₀) :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
-      Hc.typeChecker.LevelsBelow e e₁ := by
-  change (TypeChecker.M.run c.env c.safety c.checkLCtx
-    (c.typeCheckerLParams.getD c.lparams) c.fuel
-    (TypeChecker.whnf e)).WF _
-  rw [Hc.typeCheckerLParams_eq]
-  refine Hc.runOfMain (.whnf e) _ ?_
-  rw [← Hc.lctx_eq]
-  have Hx : TypeChecker.M.WF Hc.typeChecker {}
-      (TypeChecker.whnf e) (fun e₁ _ => Hc.typeChecker.LevelsBelow e e₁) :=
-    (TypeChecker.Inner.whnf.WF_levels he).run
-  exact TypeChecker.M.WF.runCheckingValidMLC
-    (lparams := recLparams) (fuel := c.fuel)
-    Hc.kernelFresh Hx
+      Hc.typeChecker.LevelsBelow e e₁ :=
+  (liftTypeChecker.recursorWF Hc
+    ((TypeChecker.Inner.whnf.WF_levels hn).run)).mono fun _ h =>
+      Hc.levelsBelow_of_check hn h
 
 /-! ### Closed telescopes -/
 
