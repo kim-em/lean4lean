@@ -169,3 +169,9 @@ validity and soundness are proved together by induction along the `VEnv.WF'` cha
 ## 5. Status
 
 (updated as the work proceeds)
+
+* Head classification and separation (`ShapeModel/Head.lean`): the shape model at the base
+  valuation is a `HeadModel` (`headModel_of_shapeModel`, interface moved from the spike to
+  `Theory/Typing/HeadSeparationModel.lean`), giving `headSeparation_of_shapeModel` from
+  `SemSig.Coherent`, `SemSig.EnvFacts`, `SemSig.HeadFacts`, `ExtraValid`, `ElimValid`. The
+  `sorry` of `VEnv.WF.headSeparation` remains until the signature of a real environment is built.
