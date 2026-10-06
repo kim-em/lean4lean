@@ -257,6 +257,124 @@ theorem NativeRecursorRegistered.iota_shapes {data : NativeRecursorData} (henv :
   subst hfields
   exact ⟨head, ⟨Hrec⟩, ⟨hctorShape⟩, ⟨I⟩, hrigid⟩
 
+private theorem argumentRHS_var {p : Pattern} :
+    ∀ {n} {x : (p.varN n).RHS}, x ∈ p.argumentRHS n → ∃ path, x = .var path
+  | 0, _, h => by cases h
+  | n + 1, x, h => by
+    simp only [Pattern.argumentRHS, List.mem_append, List.mem_map, List.mem_singleton] at h
+    rcases h with ⟨y, hy, rfl⟩ | rfl
+    · obtain ⟨path, rfl⟩ := argumentRHS_var hy
+      exact ⟨_, rfl⟩
+    · exact ⟨_, rfl⟩
+
+private theorem argumentRHS_apply_levels {p : Pattern} {n : Nat} (l l' : List VLevel)
+    (v : (p.varN n).Path → VExpr) :
+    (p.argumentRHS n).map (·.apply l v) = (p.argumentRHS n).map (·.apply l' v) := by
+  apply List.map_congr_left
+  intro x hx
+  obtain ⟨path, rfl⟩ := argumentRHS_var hx
+  rfl
+
+/-- The major arguments of a restored native rule: the specialized parameters
+and the field variables. -/
+private theorem ruleMajorArguments_eq
+    (I : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
+      ctorLevels nfields df ctorParams) :
+    NativeRecursorData.ruleMajorArguments df =
+      (ctorParams.map fun p => p.liftN (nmotives + nminors + nfields)) ++
+        VExpr.bvarRange nfields nfields := by
+  unfold NativeRecursorData.ruleMajorArguments
+  rw [I.lhs_eq, stripLams_wrap', I.lhs_pattern,
+    VExpr.stripLams_of_head_const (VExpr.getAppFnArgs_mkApps_head _ _),
+    VerifyInductive.VExpr.getAppFnArgs_mkApps]
+  simp only [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go, List.nil_append,
+    List.getLast?_append, List.getLast?_singleton, Option.some_or, Option.getD_some]
+  have h := VerifyInductive.VExpr.getAppFnArgs_mkApps (.const ctorName ctorLevels)
+    ((ctorParams.map fun p => p.liftN (nmotives + nminors + nfields)) ++
+      VExpr.bvarRange nfields nfields)
+  simp only [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go, List.nil_append] at h
+  rw [h]
+
+/-- Native iota patterns are sound: a matched redex is definitionally equal
+to the captured instance of the installed native equation. -/
+theorem NativeIotaPattern.sound (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (_hregistry : ∀ name data, registry name = some data →
+      NativeRecursorRegistered env data ∧ data.name = name)
+    (H : NativeIotaPattern env registry p rhs)
+    (hm : p.Matches e levels values) (ht : env.HasType U Γ e type) :
+    env.IsDefEqU U Γ e (rhs.1.apply levels values) := by
+  cases H with
+  | @intro data index equation _ hr _ ho hg =>
+  obtain ⟨head, ⟨Hrec⟩, ⟨Hctor⟩, ⟨Hrule⟩, hrigid⟩ := hr.iota_shapes henv ho hg
+  have hargsEq := ruleMajorArguments_eq Hrule
+  simp only [NativeRecursorData.rulePattern, SimplePattern.toPattern] at hm
+  cases hm with
+  | @app _ F _ g1 _ M lsc g2 hF hM =>
+  have hFe := hF.const_arguments
+  have hMe := hM.const_arguments
+  generalize hpre : ((Pattern.const data.name).argumentRHS data.majorOffset).map
+    (·.apply levels g1) = pre at hFe
+  generalize hcargs : ((Pattern.const (data.ruleConstructor index)).argumentRHS
+    (NativeRecursorData.ruleMajorArguments equation).length).map (·.apply lsc g2) = cargs at hMe
+  subst hFe hMe
+  have hpreLen : pre.length = data.majorOffset := by
+    rw [← hpre]; simp [Pattern.argumentRHS_length]
+  have hcLen : cargs.length = head.arguments.length +
+      data.schema.signature.constructors[index].fields.length := by
+    rw [← hcargs]; simp [Pattern.argumentRHS_length, hargsEq]
+  have happ : VExpr.mkApps (.const data.name levels)
+      (pre ++ VExpr.mkApps (.const (data.ruleConstructor index) lsc) cargs :: []) =
+      .app (VExpr.mkApps (.const data.name levels) pre)
+        (VExpr.mkApps (.const (data.ruleConstructor index) lsc) cargs) := by
+    simp [VExpr.mkApps, List.foldl_append]
+  have hwf : VExpr.WF env U Γ (VExpr.mkApps (.const data.name levels)
+      (pre ++ VExpr.mkApps (.const (data.ruleConstructor index) lsc) cargs :: [])) := by
+    rw [happ]; exact ⟨_, ht⟩
+  obtain ⟨_, hc⟩ := VExpr.WF.of_mkApps henv.ordered hΓ hwf
+  obtain ⟨ci, hci, hw, hl⟩ := HasType.const_inv henv.ordered hΓ hc
+  rw [Hrec.const] at hci
+  cases hci
+  have hfa : VExpr.WF env U Γ (.app (VExpr.mkApps (.const data.name levels) pre)
+      (VExpr.mkApps (.const (data.ruleConstructor index) lsc) cargs)) := ⟨_, ht⟩
+  obtain ⟨_, _, _, hMt⟩ := hfa.app_inv henv.ordered hΓ
+  obtain ⟨_, hcc⟩ := VExpr.WF.of_mkApps henv.ordered hΓ (⟨_, hMt⟩ :
+    VExpr.WF env U Γ (VExpr.mkApps (.const (data.ruleConstructor index) lsc) cargs))
+  obtain ⟨cci, hcci, hcw, hcl⟩ := HasType.const_inv henv.ordered hΓ hcc
+  rw [Hctor.const] at hcci
+  cases hcci
+  have key := VIotaRuleShape.iota henv hΓ Hrec Hctor Hrule hrigid rfl hw hl
+    (by rw [hpreLen]; rfl) hwf hcl hcw
+    (P' := cargs.take head.arguments.length) (fields := cargs.drop head.arguments.length)
+    (by rw [List.length_take, hcLen]; omega) (by rw [List.length_drop, hcLen]; omega)
+    (by rw [List.take_append_drop]; exact ⟨_, hMt⟩)
+  rw [happ] at key
+  have hrhs : ∀ hcl, @Pattern.RHS.apply (data.rulePattern index equation) levels (Sum.elim g1 g2)
+        (data.ruleRHS index equation hcl) =
+      VExpr.mkApps (equation.rhs.instL levels)
+        (pre.take (data.schema.signature.params.length + data.schema.signature.families.size +
+          data.schema.signature.constructors.size) ++ cargs.drop head.arguments.length ++ []) := by
+    intro hcl
+    simp only [NativeRecursorData.ruleRHS, NativeRecursorData.ruleCaptures]
+    refine (Pattern.RHS.applyArgs_apply (p := data.rulePattern index equation) _ _).trans ?_
+    simp only [List.map_append, List.map_map, Function.comp_def, List.append_nil]
+    have h1 : ∀ x : ((Pattern.const data.name).varN data.majorOffset).RHS,
+        Pattern.RHS.apply (p := data.rulePattern index equation) levels (Sum.elim g1 g2)
+          (x.mapPaths Sum.inl) = x.apply levels g1 := fun x =>
+      Pattern.RHS.mapPaths_apply (q := data.rulePattern index equation) Sum.inl x
+    have h2 : ∀ x : ((Pattern.const (data.ruleConstructor index)).varN
+        (NativeRecursorData.ruleMajorArguments equation).length).RHS,
+        Pattern.RHS.apply (p := data.rulePattern index equation) levels (Sum.elim g1 g2)
+          (x.mapPaths Sum.inr) = x.apply levels g2 := fun x =>
+      Pattern.RHS.mapPaths_apply (q := data.rulePattern index equation) Sum.inr x
+    simp only [h1, h2]
+    show VExpr.mkApps (equation.rhs.instL levels) _ = _
+    have hk : (NativeRecursorData.ruleMajorArguments equation).length -
+        data.schema.signature.constructors[index].fields.length = head.arguments.length := by
+      rw [hargsEq]; simp
+    rw [hk, List.map_take, List.map_drop, hpre, argumentRHS_apply_levels levels lsc, hcargs]
+    rfl
+  exact (hrhs _) ▸ key
+
 end VEnv
 
 end Lean4Lean
