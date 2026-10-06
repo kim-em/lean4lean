@@ -12,7 +12,7 @@ Phase 1 spike (`Spike/README.md`, section "The obstruction").
    inspect is the index, and when the index has the same denotation as the aligned one
    (`hidx`), soundness of the iota rule at the aligned index fixes the value.
 
-2. `check_of_piAdequacy`: suppose a Coquand–Huber adequacy theorem holds in the form that
+2. `check_of_piAdequacy`: suppose a Coquand and Huber adequacy theorem holds in the form that
    `forallE_forallE` needs, namely that a type whose denotation is Pi-headed weak-head
    reduces, by the relation `Red` the logical relation is built on, to a Pi with a typable
    domain (`PiAdequacy`; Carneiro's `LRS.TyDefEq` at a `forallE` shape provides exactly
@@ -58,7 +58,7 @@ theorem HeadModel.readThrough (M : HeadModel env) (hC : M.Compositional)
     M.den U Γ (.app (.app F b) h) = M.den U Γ m :=
   (hC.app (hC.app rfl hidx) hmaj).trans (M.sound hΓ hiota)
 
-/-- What a Coquand–Huber adequacy theorem provides at Pi-headed types, in the reflexive
+/-- What a Coquand and Huber adequacy theorem provides at Pi-headed types, in the reflexive
 form (one type, not a chain). This is strictly weaker than what `forallE_forallE` needs,
 so the obstruction below applies to every Phase 1 design that proves `forallE_forallE`
 through such a theorem. `Red U Γ` is the (reflexive-transitive) weak-head reduction on

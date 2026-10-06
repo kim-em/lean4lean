@@ -15,7 +15,7 @@ namespace Lean4Lean.Spike.KObstructionExamples
 /-! ## 1. `Eq.rec` with two variable indices
 
 `T` is a type (`T : Type`) whose head, read through the cast, is the Pi type
-`R y → R y` — but `R : Q a → Type` while `y : Q b`, so that reduct is ill-typed, and the
+`R y → R y`, but `R : Q a → Type` while `y : Q b`, so that reduct is ill-typed, and the
 checked K-like step does not fire because `a` and `b` are distinct variables. -/
 section variables
 variable (α : Type) (a b : α) (h : a = b) (Q : α → Type) (R : Q a → Type) (y : Q b)
@@ -49,7 +49,7 @@ example : True := by
 
 end variables
 
-/-! ## 2. Indices that no model of the Coquand–Huber kind can tell apart
+/-! ## 2. Indices that no model of the Coquand and Huber kind can tell apart
 
 `f` and `g` are both the identity on `Nat` as functions on finite approximations (each
 sends the shape of a numeral, or of a partial numeral `succ (succ ⊥)`, to itself, and
@@ -123,6 +123,34 @@ example (p : I C F c P leftMap c v (leftMap v)) :
     SI C F c P leftMap K v p = SI C F c P leftMap K v p := by
   fail_if_success
     have : SI C F c P leftMap K v p = SIrec C F c P leftMap K v p := rfl
+  rfl
+
+/-- The cast-pushing evaluation of `Spike/README.md` (section "The repair") needs typed
+transports between the eliminator's index and the constructor form at the origin, in both
+directions, for an arbitrary family `D` over the index telescope. The family's own
+recursor provides both, without `Eq`. -/
+noncomputable def toOrigin (D : (n : C) → (x w : F n) → I C F c P leftMap n x w → Type)
+    {n : C} {x w : F n} (p : I C F c P leftMap n x w) (z : D n x w p) :
+    D c (orig C F c P leftMap p) (leftMap (orig C F c P leftMap p))
+      (I.mk (orig C F c P leftMap p) (origProof C F c P leftMap p)) :=
+  I.rec (motive := fun n x w p => D n x w p →
+      D c (orig C F c P leftMap p) (leftMap (orig C F c P leftMap p))
+        (I.mk (orig C F c P leftMap p) (origProof C F c P leftMap p)))
+    (fun _ _ z => z) p z
+
+noncomputable def fromOrigin (D : (n : C) → (x w : F n) → I C F c P leftMap n x w → Type)
+    {n : C} {x w : F n} (p : I C F c P leftMap n x w)
+    (z : D c (orig C F c P leftMap p) (leftMap (orig C F c P leftMap p))
+      (I.mk (orig C F c P leftMap p) (origProof C F c P leftMap p))) : D n x w p :=
+  I.rec (motive := fun n x w p =>
+      D c (orig C F c P leftMap p) (leftMap (orig C F c P leftMap p))
+        (I.mk (orig C F c P leftMap p) (origProof C F c P leftMap p)) → D n x w p)
+    (fun _ _ z => z) p z
+
+/-- Both transports are the identity at a constructor major. -/
+example (D : (n : C) → (x w : F n) → I C F c P leftMap n x w → Type) (q : P v)
+    (z : D c v (leftMap v) (I.mk v q)) :
+    fromOrigin C F c P leftMap D (I.mk v q) (toOrigin C F c P leftMap D (I.mk v q) z) = z :=
   rfl
 
 end singleton
