@@ -920,6 +920,21 @@ structure NestedGeneratedFamilyNativeSources
         sourceTypesVEnv lparams
           loweredDecl.types[sourceTypes.length + i],
         N.payload.source = generated[i]
+  /-- The common parameter context of the header phase. -/
+  parameterContext : List VExpr
+  /-- Every slot has a native source whose parameter telescope is
+  definitionally the common header parameter context. -/
+  parametersAt : ∀ (i : Nat) (hi : i < generated.length)
+      (hresult : sourceTypes.length + i < result.types.length)
+      (htarget : sourceTypes.length + i < loweredDecl.types.length),
+    ∃ Horigin : FinalLoweredGeneratedFamilyOrigin prodEnv result.params
+        nparams finalState result.types[sourceTypes.length + i],
+      ∃ N : FinalLoweredGeneratedFamilyNativeSource Horigin baseVEnv
+        sourceTypesVEnv lparams
+          loweredDecl.types[sourceTypes.length + i],
+        N.payload.source = generated[i] ∧
+        VEnv.IsDefEqCtx baseVEnv lparams.length [] N.sourceParams.reverse
+          parameterContext
 
 theorem FinalLoweredGeneratedFamilyOrigin.auxName_eq_targetName
     (H : FinalLoweredGeneratedFamilyOrigin env params nparams finalState
@@ -1024,8 +1039,9 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     (hsourceParamsLength : sourceParams.length = nparams)
     (hbaseClosed : ∀ arg ∈ baseArgs, arg.ClosedN sourceParams.length)
     (hlevelsLength : levels.length = C.container.uvars) :
-    Nonempty (FinalLoweredGeneratedFamilyNativeSource Horigin
-      (ves.venv safety) sourceTypesVEnv lparams target) := by
+    ∃ N : FinalLoweredGeneratedFamilyNativeSource Horigin
+      (ves.venv safety) sourceTypesVEnv lparams target,
+      N.sourceParams = sourceParams := by
   let containerFamily := C.container.types[C.familyIdx]'C.familyIdx_lt
   let largerVes : VEnvs := ⟨fun _ => sourceTypesVEnv⟩
   let Ctypes := C.mono hbaseLE
@@ -1237,7 +1253,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
       simpa only [containerFamily, Ctypes,
         GeneratedFamilyInstalledContainer.mono] using HfamilyAppsIsType
     constructors := by
-      simpa [payload, source, containerFamily] using HdirectConstructors' }⟩
+      simpa [payload, source, containerFamily] using HdirectConstructors' }, rfl⟩
 
 /-- Every family header installed by the current ordinary production was
 absent from its source production environment.  This is the producer-facing
@@ -1766,8 +1782,11 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
       targetConcrete targetAbstract)
     (htarget : targetAbstract ∈ loweredDecl.types)
     (hparamsSize : result.params.size = nparams) :
-    Nonempty (FinalLoweredGeneratedFamilyNativeSource H sourceVEnv
-      sourceTypesVEnv c.lparams targetAbstract) := by
+    ∃ N : FinalLoweredGeneratedFamilyNativeSource H sourceVEnv
+      sourceTypesVEnv c.lparams targetAbstract,
+      VEnv.IsDefEqCtx sourceVEnv c.lparams.length [] N.sourceParams.reverse
+        (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          (elimLevel := .zero) (by trivial)).parameterDecls.toCtx := by
   subst sourceVEnv
   let parameterDomains :=
     (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
@@ -1925,7 +1944,10 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
       HcheckedHeader
       HfamilyApps HfamilyAppsIsType hsourceDomains hbaseClosed
       hlevelsLength
-  exact Hnative
+  rcases Hnative with ⟨N, hN⟩
+  refine ⟨N, ?_⟩
+  rw [hN]
+  simpa only [parameterDomains, List.reverse_reverse] using Hcontext
 
 /-- Construct the complete generated-source registry by finite choice over
 the literal final suffix.  Every choice is immediately certified by the
@@ -1964,9 +1986,15 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
       c.lparams result selection)
     (Htarget : TrInductDeclCore sourceVEnv c.lparams nparams result.types
       isUnsafe loweredDecl targetTypesVEnv targetCtorsVEnv) :
-    Nonempty (NestedGeneratedFamilyNativeSources Hrun sourceVEnv
-      sourceTypesVEnv c.lparams loweredDecl) := by
+    ∃ N : NestedGeneratedFamilyNativeSources Hrun sourceVEnv
+      sourceTypesVEnv c.lparams loweredDecl,
+      N.parameterContext =
+        (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+          (elimLevel := .zero) (by trivial)).parameterDecls.toCtx := by
   subst sourceVEnv
+  let parameterContext :=
+    (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
+      (elimLevel := .zero) (by trivial)).parameterDecls.toCtx
   let count := result.types.length - sourceTypes.length
   have hle : sourceTypes.length ≤ result.types.length :=
     (show NestedLoweringResult c.env fuel nparams sourceTypes
@@ -1984,9 +2012,11 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     Σ Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params
       nparams finalState
         (getElem result.types (sourceTypes.length + i.1) (hresultAt i)),
-      FinalLoweredGeneratedFamilyNativeSource Horigin (ves.venv safety)
-        sourceTypesVEnv c.lparams
-          (getElem loweredDecl.types (sourceTypes.length + i.1) (htargetAt i))
+      { N : FinalLoweredGeneratedFamilyNativeSource Horigin (ves.venv safety)
+          sourceTypesVEnv c.lparams
+            (getElem loweredDecl.types (sourceTypes.length + i.1) (htargetAt i)) //
+        VEnv.IsDefEqCtx (ves.venv safety) c.lparams.length []
+          N.sourceParams.reverse parameterContext }
   have Hpoint : ∀ i : Fin count, Nonempty (NativeAt i) := by
     intro i
     have hresult := hresultAt i
@@ -2002,15 +2032,17 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
         (Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Htarget
           (sourceTypes.length + i.1) hresult htarget)
         (List.getElem_mem htarget) Hrun.resultParamsSize with
-      ⟨N⟩
-    exact ⟨⟨Horigin, N⟩⟩
+      ⟨N, hN⟩
+    exact ⟨⟨Horigin, N, hN⟩⟩
   let nativeAt (i : Fin count) : NativeAt i := Classical.choice (Hpoint i)
   let generated : List VInductiveType :=
-    List.ofFn fun i : Fin count => (nativeAt i).2.payload.source
+    List.ofFn fun i : Fin count => (nativeAt i).2.1.payload.source
   refine ⟨{
     generated := generated
     length := ?_
-    sourceAt := ?_ }⟩
+    sourceAt := ?_
+    parameterContext := parameterContext
+    parametersAt := ?_ }, rfl⟩
   · simp only [generated, List.length_ofFn, count]
     omega
   · intro i hi hresult htarget
@@ -2018,11 +2050,20 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
       simpa only [generated, List.length_ofFn] using hi
     let fi : Fin count := ⟨i, hicount⟩
     let O := (nativeAt fi).1
-    let N := (nativeAt fi).2
+    let N := (nativeAt fi).2.1
     refine ⟨O, ?_, ?_⟩
     · simpa only [fi, O, N] using N
     · simp only [generated, List.getElem_ofFn, N]
       congr 1
+  · intro i hi hresult htarget
+    have hicount : i < count := by
+      simpa only [generated, List.length_ofFn] using hi
+    let fi : Fin count := ⟨i, hicount⟩
+    let O := (nativeAt fi).1
+    let N := (nativeAt fi).2
+    refine ⟨O, N.1, ?_, N.2⟩
+    simp only [generated, List.getElem_ofFn, N]
+    congr 1
 
 /-- Every target position in the exact generated suffix has zero indices.
 The result is reconstructed from the native specialized-container typing and
