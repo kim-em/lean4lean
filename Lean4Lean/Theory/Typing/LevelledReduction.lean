@@ -3993,7 +3993,96 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     (hM : EtaPar Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments) M')
     (ha : Γ ⊢ actual.expr : A) :
     ∃ d, ReflTransGen (Below Γ 3) (.app F' M') d ∧ EtaPar Γ (rule.rhs actual.levels arguments) d := by
-  sorry
+  classical
+  have ha' : Γ ⊢ .app (VExpr.mkApps (.elim actual.block actual.owner actual.levels) actual.arguments)
+      (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments) : A := ha
+  obtain ⟨_, _, tF, tM⟩ := ha'.app_inv henv hΓ
+  obtain ⟨args', hargs', hy⟩ := EtaPar.collapse_elim hΓ hF tF
+  have hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
+      actual.ctorArguments : .forallE D B := fun _ _ h => MatchedCaseStep.major_not_pi henv hΓ hm h
+  obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major
+    (kc := actual.ctorArguments.length) hΓ
+    (fun hl' hs => let ⟨h1, h2, _⟩ := schema_struct_major hm hl' hs; ⟨h1, h2⟩) hM tM hnotpi rfl
+  have hb := (EtaPar.full hΓ (.app hF hM) ha').hasType hΓ ha'
+  have c₁ : ReflTransGen (Below Γ 3) (.app F' M')
+      (.app (VExpr.mkApps (.elim actual.block actual.owner actual.levels) args') M') :=
+    Below.ofParRedS (hy M') (by decide)
+  have tb₁ := Below.hasType hΓ c₁ hb
+  have c₂ := Below.app hΓ .rfl cM tb₁
+  have tb₂ := Below.hasType hΓ c₂ tb₁
+  have hps₀len : ps₀.length = actual.ctorArguments.length := by
+    rcases hdisj with ⟨_, rfl⟩ | ⟨_, _, _, _, _, _, h, _, _⟩
+    · exact (Lean4Lean.List.Forall₂.length_eq hfs₀).symm
+    · exact h
+  -- the captured arguments of the collapsed eta side
+  let nP := rule.numPrefix
+  let nF := rule.numFields
+  let len := actual.ctorArguments.length
+  have hcapη : List.Forall₂ (EtaPar Γ) (rule.capture actual) (args'.take nP ++ ps₀.drop (len - nF)) := by
+    unfold InductiveSignature.CaseSchema.AppliedRule.capture
+    refine case_forall₂_append (forall₂_take hargs' _) ?_
+    rcases hdisj with ⟨_, rfl⟩ | ⟨fam, info, _, hl', hcc, hkc, hlen₀, hdrop, hs'⟩
+    · exact forall₂_drop hfs₀ _
+    · obtain ⟨_, _, hnf⟩ := schema_struct_major hm hl' hs'
+      have hk : len - nF = info.nparams + (len - nF - info.nparams) := by
+        simp only [len, nF]; omega
+      have hd : ps₀.drop (len - nF) = fs₀.drop (len - nF) := by
+        rw [hk, ← List.drop_drop, ← List.drop_drop, hdrop]
+      rw [hd]
+      exact forall₂_drop hfs₀ _
+  have htcap : ∀ x ∈ rule.capture actual, ∃ T, Γ ⊢ x : T := fun _ hx => hm.capture_typed hx
+  obtain ⟨D, hD, eD⟩ := EtaPar.parRed_join_args hΓ IH (fun _ hx => sizeOf_capture hx) htcap
+    hcapη (forall₂_of_getElem hl.symm fun i hi _ => hr i hi)
+  obtain ⟨A', C', hcapD, hA', hC', hlA, hlC⟩ := capture_replace (fun _ => .rfl) hD
+  let actual₃ : InductiveSignature.CaseSchema.Application :=
+    { actual with arguments := A', ctorLevels := lsc', ctorArguments := C' }
+  have hcap₃ : rule.capture actual₃ = D := by
+    unfold InductiveSignature.CaseSchema.AppliedRule.capture
+    simp only [actual₃, hlC, hps₀len]
+    exact hcapD
+  have hexpr₃ : actual₃.expr = .app (VExpr.mkApps (.elim actual.block actual.owner actual.levels) A')
+      (VExpr.mkApps (.const actual.ctorName lsc') C') := rfl
+  obtain ⟨_, _, tF₂, tM₂⟩ := tb₂.app_inv henv hΓ
+  have c₃ : ReflTransGen (Below Γ 3)
+      (.app (VExpr.mkApps (.elim actual.block actual.owner actual.levels) args')
+        (VExpr.mkApps (.const actual.ctorName lsc') ps₀)) actual₃.expr := by
+    rw [hexpr₃]
+    exact Below.app hΓ (Below.mkApps hΓ .rfl hA' tF₂) (Below.mkApps hΓ .rfl hC' tM₂) tb₂
+  have tb₃ := Below.hasType hΓ c₃ tb₂
+  -- the case step at the developed application
+  have hdefa : Γ ⊢ actual.expr ≡ actual₃.expr := by
+    have h1 := (EtaPar.full hΓ (.app hF hM) ha').defeq hΓ ha'
+    have h2 := Below.defeq hΓ ((c₁.trans c₂).trans c₃) hb
+    exact ⟨_, h1.trans h2⟩
+  have hcapdef : List.Forall₂ (IsDefEqU env univs Γ) (rule.capture actual) (rule.capture actual₃) := by
+    rw [hcap₃]
+    have hl1 := Lean4Lean.List.Forall₂.length_eq hcapη
+    have hl2 := Lean4Lean.List.Forall₂.length_eq hD
+    apply forall₂_of_getElem (hl1.trans hl2)
+    intro i hi hi'
+    have h1 := case_forall₂_get hcapη hi (by omega)
+    have h2 := case_forall₂_get hD (by omega) hi'
+    obtain ⟨T, ht⟩ := htcap _ (List.getElem_mem hi)
+    have d1 := (EtaPar.full hΓ h1 ht).defeq hΓ ht
+    exact ⟨_, d1.trans (Below.defeq hΓ h2 d1.hasType.2)⟩
+  have hcl : List.Forall₂ (· ≈ ·) actual₃.ctorLevels actual.ctorLevels := by
+    rcases hdisj with ⟨rfl, _⟩ | ⟨fam, info, ps, hl', hcc, hkc, hlen₀, _, hs'⟩
+    · exact forall₂_equiv_refl _
+    · rw [hcc] at hs'
+      obtain ⟨idx, hT⟩ := HasType.ctorApp_type hΓ hl' hs' (by rw [← hkc])
+      obtain ⟨_, hsort⟩ := hs'.isType henv hΓ
+      exact (IsDefEqU.structApp_inv henv hΓ hl' hT hsort).1
+  have hm₃ := hm.transport hΓ (actual' := actual₃) rfl rfl rfl rfl hcl (by simp [actual₃, hlA, Lean4Lean.List.Forall₂.length_eq hargs'])
+    (by simp [actual₃, hlC, hps₀len]) hcapdef hdefa
+  have hlen₃ : D.length = (rule.capture actual₃).length := by rw [hcap₃]
+  have hfire : ParRed Γ actual₃.expr (rule.rhs actual₃.levels D) :=
+    .schema hm₃ hlen₃ fun i hi => by
+      have : (rule.capture actual₃)[i] = D[i]'(by rw [← hcap₃]; exact hi) := by
+        simp only [hcap₃]
+      rw [this]; exact .rfl
+  refine ⟨_, ((c₁.trans c₂).trans c₃).tail ⟨1, by decide, hfire⟩, ?_⟩
+  simp only [InductiveSignature.CaseSchema.AppliedRule.rhs]
+  exact EtaPar.congrRel.instantiateParams_args eD
 end EtaParRed
 
 section Levels
