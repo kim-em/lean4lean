@@ -227,7 +227,7 @@ theorem CompilationData.heads_not_recursors
       ⟨h.name, ctorNames_eq_of_forall₂ h.constructors (fun _ _ h => h.1)⟩) hfamilies)
   have hexpandedNames : familyNames s.declaration.types = familyNames expanded.types :=
     familyNames_eq_of_forall₂ (Lean4Lean.List.Forall₂.imp (fun left right h =>
-      ⟨h.1, h.2.2.2.2.2⟩) H.model.families)
+      ⟨h.1, h.2.2.2.2⟩) H.model.families)
   have hheadNames :
       ((compilationRestoration source auxiliaries).heads.map (·.auxiliary)) =
         familyNames direct := by

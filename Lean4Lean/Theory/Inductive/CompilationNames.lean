@@ -24,7 +24,7 @@ theorem familyNames_nodup {decl : VInductDecl} (H : decl.sourceNames.Nodup) :
 theorem Models.familyNames {s : InductiveSignature} (H : s.Models env decl) :
     familyNames s.declaration.types = familyNames decl.types :=
   familyNames_eq_of_forall₂ (Lean4Lean.List.Forall₂.imp (fun _ _ h =>
-    ⟨h.1, h.2.2.2.2.2⟩) H.families)
+    ⟨h.1, h.2.2.2.2⟩) H.families)
 
 theorem RestoresFamily.familyNames
     (H : List.Forall₂ (RestoresFamily r env U) left right) :

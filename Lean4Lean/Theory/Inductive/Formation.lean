@@ -541,6 +541,49 @@ theorem VInductDecl.TypeShape.mono
     htype.mono henv, hparams, hindices, hparamsDefEq.mono henv,
     hresult.mono henv⟩
 
+private theorem takeForalls_eq_wrapForalls :
+    ∀ {n : Nat} {type result : VExpr} {domains : List VExpr},
+      type.takeForalls n = some (domains, result) →
+      type = VExpr.wrapForalls domains result ∧ domains.length = n
+  | 0, type, result, domains, H => by
+    cases Option.some.inj H
+    exact ⟨rfl, rfl⟩
+  | n + 1, type, result, domains, H => by
+    cases type with
+    | forallE domain body =>
+      cases htail : body.takeForalls n with
+      | none => simp [VExpr.takeForalls, htail] at H
+      | some out =>
+        rw [VExpr.takeForalls, htail] at H
+        cases Option.some.inj H
+        have ih := takeForalls_eq_wrapForalls htail
+        exact ⟨congrArg (VExpr.forallE domain) ih.1, by simp [ih.2]⟩
+    | bvar | sort | const | elim | app | lam | proj => simp [VExpr.takeForalls] at H
+
+/-- A header of the recorded shape is definitionally a telescope, of the
+recorded parameter and index arity, whose body is definitionally the recorded
+sort in the telescope's own scope.  This open form needs no well-formedness
+of the environment. -/
+theorem VInductDecl.TypeShape.header
+    {env : VEnv} {decl : VInductDecl} {params : List VExpr} {type : VInductiveType}
+    (H : decl.TypeShape env params type) :
+    ∃ domains body exprType,
+      domains.length = decl.nparams + type.numIndices ∧
+      env.IsDefEq decl.uvars [] type.type (VExpr.wrapForalls domains body) exprType ∧
+      env.IsDefEq decl.uvars domains.reverse body
+        (.sort type.resultLevel) (.sort (.succ type.resultLevel)) := by
+  rcases H with
+    ⟨normalized, ownParams, afterParams, indices, result, exprType,
+      htype, hparams, hindices, _, hresult⟩
+  have h1 := takeForalls_eq_wrapForalls hparams
+  have h2 := takeForalls_eq_wrapForalls hindices
+  refine ⟨ownParams ++ indices, result, exprType, by simp [h1.2, h2.2], ?_, ?_⟩
+  · have : normalized = VExpr.wrapForalls (ownParams ++ indices) result := by
+      rw [h1.1, h2.1]
+      simp [VExpr.wrapForalls]
+    exact this ▸ htype
+  · simpa [List.reverse_append] using hresult
+
 theorem VInductDecl.CtorShape.mono
     {env env' : VEnv} {decl : VInductDecl}
     (henv : env ≤ env')

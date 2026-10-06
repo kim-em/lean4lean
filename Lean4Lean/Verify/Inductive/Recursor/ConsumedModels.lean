@@ -225,9 +225,7 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
     (hsafety : s.isUnsafe = decl.isUnsafe)
     (Hfamilies : List.Forall₂ (fun f src =>
       f.name = src.name ∧ f.indices.length = src.numIndices ∧
-      f.resultLevel = src.resultLevel ∧
-      env.IsDefEqU decl.uvars []
-        (VExpr.wrapForalls (s.params ++ f.indices) (.sort f.resultLevel)) src.type)
+      f.resultLevel = src.resultLevel)
       s.families.toList decl.types)
     (Hctors : List.Forall₂ (fun ctor pair =>
       s.families[ctor.owner].name = pair.1.name ∧ ctor.name = pair.2.name ∧
@@ -269,7 +267,6 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
       normalized.name = source.name ∧ normalized.uvars = source.uvars ∧
       normalized.numIndices = source.numIndices ∧
       normalized.resultLevel ≈ source.resultLevel ∧
-      env.IsDefEqU decl.uvars [] normalized.type source.type ∧
       List.Forall₂ C normalized.ctors source.ctors) s.declaration.types decl.types := by
     apply Lean4Lean.List.forall₂_of_getElem (by
       simpa [InductiveSignature.declaration] using Lean4Lean.List.Forall₂.length_eq Hfamilies)
@@ -281,19 +278,19 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
       simp [InductiveSignature.declaration, InductiveSignature.declarationFamily, owner]
     rw [he]
     refine ⟨hget.1, huvars.trans (Hsource.2.2.1 _ (List.getElem_mem hi')).symm,
-      hget.2.1, ?_, hget.2.2.2, hctorFamilies owner (List.getElem_mem hi') hget.1⟩
-    exact hget.2.2.1 ▸ rfl
+      hget.2.1, ?_, hctorFamilies owner (List.getElem_mem hi') hget.1⟩
+    exact hget.2.2 ▸ rfl
   refine ⟨huvars, hparams, hsafety, ?_, ⟨envTypes, hadd, ?_⟩, ?_, Harity⟩
   · exact Lean4Lean.List.Forall₂.imp (fun _ _ h =>
-      ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, h.2.2.2.2.1,
-        InductiveSignature.ctorNames_eq_of_forall₂ h.2.2.2.2.2 (fun _ _ hc => hc.1)⟩) hfull
+      ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1,
+        InductiveSignature.ctorNames_eq_of_forall₂ h.2.2.2.2 (fun _ _ hc => hc.1)⟩) hfull
   · change List.Forall₂ C (s.declaration.types.flatMap (·.ctors)) (decl.types.flatMap (·.ctors))
     clear Hfamilies Hctors Hpositive hnames hfamilyNames hctorFamilies Hsource
     generalize s.declaration.types = left at hfull ⊢
     generalize decl.types = right at hfull ⊢
     induction hfull with
     | nil => exact .nil
-    | cons h _ ih => exact h.2.2.2.2.2.append' ih
+    | cons h _ ih => exact h.2.2.2.2.append' ih
   · rcases Hpositive with hunsafe | Hpositive
     · exact Or.inl hunsafe
     · exact Or.inr ⟨envTypes, hadd, Hpositive⟩
@@ -493,10 +490,13 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.fieldPositive
   rw [hget, hfields, D.params, List.reverse_reverse, R.core.uvars]
   exact hres
 
-/-- The family-header obligation of `Models` for the consumed family table:
-each consumed index telescope, closed over the cached parameters and ending
-in the family's result sort, is the declared family type in the source
-environment. -/
+/-- Superseded: this was the family-header obligation of `Models` for the
+consumed family table (each consumed index telescope, closed over the cached
+parameters and ending in the family's result sort, is the declared family
+type in the source environment).  `Models` no longer compares family types;
+the generated motive types need `InductiveSignature.FamilyTypesWF` instead
+(see `CompletedRecursorConstruction.consumedFamilyTypesWF`).  Retained so
+that dependent work keeps compiling. -/
 def CompletedRecursorConstruction.ConsumedFamilyTypes
     (H : CompletedRecursorConstruction R) : Prop :=
   ∀ owner (howner : owner < H.recInfos.size),
@@ -547,11 +547,10 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorNames
     exact hf1.symm.trans (by simpa only [Fin.getElem_fin] using hm')
   · exact hname.trans (hhdrName.symm.trans (R.sourceSignatureConstructor_name _))
 
-/-- Consumed signatures model the source declaration once the consumed
-family headers are known to be the declared family types. -/
-theorem CompletedRecursorConstruction.ConsumedSignatureData.models_of_familyTypes
+/-- Consumed signatures model the source declaration. -/
+theorem CompletedRecursorConstruction.ConsumedSignatureData.models
     {H : CompletedRecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (HF : H.ConsumedFamilyTypes) :
+    (D : H.ConsumedSignatureData s) :
     s.Models sourceEnv decl := by
   have hparams : s.params.length = decl.nparams := by
     rw [D.params, List.length_reverse, H.sourceParameterCount, H.cardinality.params]
@@ -624,15 +623,24 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.models_of_familyType
     simp only [Array.getElem_toList]
     exact D.family_getElem i (by simpa using hi)
   rw [hget, H.consumedFamilies_name ⟨i, howner⟩, H.consumedFamilies_indices ⟨i, howner⟩,
-    H.consumedFamilies_level ⟨i, howner⟩, D.params]
-  refine ⟨rfl, ?_, rfl, HF i howner⟩
+    H.consumedFamilies_level ⟨i, howner⟩]
+  refine ⟨rfl, ?_, rfl⟩
   rw [H.sourceIndices_length, H.cardinality.indices i howner]
 
-/-- The remaining family obligation, stated over the cached parameter
-context: each consumed index telescope agrees with the header's index
-telescope for the same family, in the source environment. The consumed
-indices are only translated in the completed constructor environment, so
-this comparison needs strengthening back to `sourceEnv`. -/
+/-- Superseded by `ConsumedSignatureData.models`, which no longer needs the
+consumed family types; the hypothesis is unused. -/
+theorem CompletedRecursorConstruction.ConsumedSignatureData.models_of_familyTypes
+    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+    (D : H.ConsumedSignatureData s) (_HF : H.ConsumedFamilyTypes) :
+    s.Models sourceEnv decl :=
+  D.models
+
+/-- Superseded (see `ConsumedFamilyTypes`): the former remaining family
+obligation, stated over the cached parameter context: each consumed index
+telescope agrees with the header's index telescope for the same family, in
+the source environment. The consumed indices are only translated in the
+completed constructor environment, so this comparison needs strengthening
+back to `sourceEnv`. -/
 def CompletedRecursorConstruction.ConsumedIndexTelescopes
     (H : CompletedRecursorConstruction R) : Prop :=
   ∀ owner (howner : owner < H.recInfos.size) (hheader : owner < R.sourceSignatureHeader.families.size),
@@ -679,8 +687,8 @@ theorem CompletedRecursorConstruction.consumedFamilyTypes_of_indexTelescopes
 
 theorem CompletedRecursorConstruction.ConsumedSignatureData.models_of_indexTelescopes
     {H : CompletedRecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) (HI : H.ConsumedIndexTelescopes) :
+    (D : H.ConsumedSignatureData s) (_HI : H.ConsumedIndexTelescopes) :
     s.Models sourceEnv decl :=
-  D.models_of_familyTypes (H.consumedFamilyTypes_of_indexTelescopes HI)
+  D.models
 
 end Lean4Lean.VerifyInductive

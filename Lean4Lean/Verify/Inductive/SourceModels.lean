@@ -15,9 +15,7 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
     (hsafety : s.isUnsafe = decl.isUnsafe)
     (Hfamilies : List.Forall₂ (fun f src =>
       f.name = src.name ∧ f.indices.length = src.numIndices ∧
-      f.resultLevel = src.resultLevel ∧
-      env.IsDefEqU decl.uvars []
-        (VExpr.wrapForalls (s.params ++ f.indices) (.sort f.resultLevel)) src.type)
+      f.resultLevel = src.resultLevel)
       s.families.toList decl.types)
     (Hctors : List.Forall₂ (fun ctor pair =>
       s.families[ctor.owner].name = pair.1.name ∧ ctor.name = pair.2.name ∧
@@ -56,7 +54,6 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
       normalized.name = source.name ∧ normalized.uvars = source.uvars ∧
       normalized.numIndices = source.numIndices ∧
       normalized.resultLevel ≈ source.resultLevel ∧
-      env.IsDefEqU decl.uvars [] normalized.type source.type ∧
       List.Forall₂ C normalized.ctors source.ctors) s.declaration.types decl.types := by
     apply Lean4Lean.List.forall₂_of_getElem (by simpa [declaration] using Lean4Lean.List.Forall₂.length_eq Hfamilies)
     intro i hi hi'
@@ -67,19 +64,19 @@ theorem sourceModelsOfTables {s : InductiveSignature} {decl : VInductDecl}
       simp [declaration, declarationFamily, owner]
     rw [he]
     refine ⟨hget.1, huvars.trans (Hsource.2.2.1 _ (List.getElem_mem hi')).symm,
-      hget.2.1, ?_, hget.2.2.2, hctorFamilies owner (List.getElem_mem hi') hget.1⟩
-    exact hget.2.2.1 ▸ rfl
+      hget.2.1, ?_, hctorFamilies owner (List.getElem_mem hi') hget.1⟩
+    exact hget.2.2 ▸ rfl
   refine ⟨huvars, hparams, hsafety, ?_, ⟨envTypes, hadd, ?_⟩, ?_, Harity⟩
   · exact Lean4Lean.List.Forall₂.imp (fun _ _ h =>
-      ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, h.2.2.2.2.1,
-        ctorNames_eq_of_forall₂ h.2.2.2.2.2 (fun _ _ hc => hc.1)⟩) hfull
+      ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1,
+        ctorNames_eq_of_forall₂ h.2.2.2.2 (fun _ _ hc => hc.1)⟩) hfull
   · change List.Forall₂ C (s.declaration.types.flatMap (·.ctors)) (decl.types.flatMap (·.ctors))
     clear Hfamilies Hctors Hfields hnames hfamilyNames hctorFamilies Hsource
     generalize s.declaration.types = left at hfull ⊢
     generalize decl.types = right at hfull ⊢
     induction hfull with
     | nil => exact .nil
-    | cons h _ ih => exact h.2.2.2.2.2.append' ih
+    | cons h _ ih => exact h.2.2.2.2.append' ih
   · by_cases hunsafe : s.isUnsafe = true
     · exact Or.inl hunsafe
     · refine Or.inr ⟨envTypes, hadd, ?_⟩

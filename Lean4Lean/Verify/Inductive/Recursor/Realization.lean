@@ -88,7 +88,8 @@ structure CompilationRealization (env : VEnv) (decl : VInductDecl)
     env.addConstVals decl.typeConstants = some envTypes ∧
     g.Admissible envTypes ∧
     (∃ envCtors, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-      g.RecursiveTypesWF (envCtors.addProjections decl.projectionEntries)) ∧
+      g.RecursiveTypesWF (envCtors.addProjections decl.projectionEntries) ∧
+      s.FamilyTypesWF (envCtors.addProjections decl.projectionEntries) decl.uvars) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations ∧
     List.Forall₂ (RecursorEntryRealization g venv)
@@ -147,12 +148,13 @@ theorem CompilationRealization.monoSource
     (htypes : env'.addConstVals decl.typeConstants = some envTypes')
     (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
     CompilationRealization env' decl block venv entries := by
-  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, ⟨envCtors, hc, hrec⟩, hrest⟩
+  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, ⟨envCtors, hc, hrec, hfam⟩, hrest⟩
   have htypesLE := VEnv.addConstVals_mono hle ht htypes
+  have hprojLE := VEnv.addProjections_mono (entries := decl.projectionEntries)
+    (VEnv.addConstVals_mono htypesLE hc hctors)
   exact ⟨s, g, envTypes', hm.mono hle htypes, htypes,
     ha.mono htypesLE,
-    ⟨envCtors', hctors, hrec.mono (VEnv.addProjections_mono
-      (VEnv.addConstVals_mono htypesLE hc hctors))⟩, hrest⟩
+    ⟨envCtors', hctors, hrec.mono hprojLE, hfam.mono hprojLE⟩, hrest⟩
 
 end InductiveSignature
 end Lean4Lean

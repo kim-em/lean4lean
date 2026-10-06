@@ -102,14 +102,51 @@ end Lean4Lean.InductiveSignature.CaseSchema
 namespace Lean4Lean.InductiveSignature
 open VExpr VEnv
 
+private theorem onCtx_append_right {P : List VExpr → VExpr → Prop} :
+    ∀ {xs ys : List VExpr}, OnCtx (xs ++ ys) P → OnCtx ys P
+  | [], _, H => H
+  | _ :: _, _, H => onCtx_append_right H.1
+
+private theorem ctxClosed_of_onCtx {env : VEnv} {U : Nat} (henv : env.Ordered) :
+    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → CtxClosed Γ
+  | [], _ => trivial
+  | _ :: _, ⟨h1, _, h2⟩ =>
+    ⟨ctxClosed_of_onCtx henv h1, VExpr.WF.closedN henv ⟨_, h2⟩ (ctxClosed_of_onCtx henv h1)⟩
+
+private theorem wrapForalls_sort_closedN {level : VLevel} :
+    ∀ {domains Γ : List VExpr}, CtxClosed (domains.reverse ++ Γ) →
+      (wrapForalls domains (.sort level)).ClosedN Γ.length
+  | [], _, _ => trivial
+  | d :: ds, Γ, H => by
+    have H' : CtxClosed (ds.reverse ++ d :: Γ) := by
+      simpa [List.reverse_cons, List.append_assoc] using H
+    have hd : CtxClosed (d :: Γ) := onCtx_append_right H'
+    exact ⟨hd.2, wrapForalls_sort_closedN (Γ := d :: Γ) H'⟩
+
+/-- A family type of a signature with well-formed family telescopes is closed.
+The telescope's well-formedness (`FamilyTypesWF`) is taken in any ordered
+environment; the source model no longer relates the family types to the
+source headers. -/
+theorem FamilyTypesWF.familyType_closed
+    {s : InductiveSignature} {familyEnv : VEnv} {uvars : Nat}
+    (familyTypes : s.FamilyTypesWF familyEnv uvars) (familyOrdered : familyEnv.Ordered)
+    (owner : Fin s.families.size) :
+    (wrapForalls (s.params ++ s.families[owner].indices)
+      (.sort s.families[owner].resultLevel)).Closed := by
+  have hctx := ctxClosed_of_onCtx familyOrdered (familyTypes owner).1
+  exact wrapForalls_sort_closedN (Γ := []) (by simpa [List.reverse_append] using hctx)
+
 /-- Original normalized family and constructor types are closed by raw
-typing in their actual base and header environments. This needs ordered
-environments only, independently of injectivity or uniqueness of typing. -/
+typing in their actual environments. This needs ordered environments only,
+independently of injectivity or uniqueness of typing. The family types are
+closed by their well-formed telescopes (`FamilyTypesWF`). -/
 theorem Models.projectionTypes_closed_at
     {s : InductiveSignature} {base : VEnv} {decl : VInductDecl}
     (model : s.Models base decl) (ordered : checkingBase.Ordered)
     (source : decl.SourceWF base) (below : base ≤ checkingBase)
     (added : checkingBase.addConstVals decl.typeConstants = some checkingHeaders)
+    {familyEnv : VEnv} {uvars : Nat}
+    (familyTypes : s.FamilyTypesWF familyEnv uvars) (familyOrdered : familyEnv.Ordered)
     (owner : Fin s.families.size)
     (index : Fin s.constructors.size) :
     (wrapForalls (s.params ++ s.families[owner].indices)
@@ -120,9 +157,8 @@ theorem Models.projectionTypes_closed_at
     intro constant member
     obtain ⟨family, familyMember, rfl⟩ := List.mem_map.mp member
     exact (headerTypes family familyMember).mono below) added
-  obtain ⟨_, _, _, _, _, _, ⟨_, familyEqual⟩, _⟩ := model.family owner
   obtain ⟨_, _, _, _, ⟨_, constructorEqual⟩⟩ := model.constructor index installed
-  exact ⟨VExpr.WF.closedN ordered ⟨_, familyEqual.hasType.1.mono below⟩ trivial,
+  exact ⟨familyTypes.familyType_closed familyOrdered owner,
     VExpr.WF.closedN headerOrdered
       ⟨_, constructorEqual.hasType.1.mono (VEnv.addConstVals_mono below installed added)⟩ trivial⟩
 
@@ -130,13 +166,17 @@ theorem Models.projectionTypes_closed_at
 theorem Models.projectionTypes_closed
     {s : InductiveSignature} {base : VEnv} {decl : VInductDecl}
     (model : s.Models base decl) (ordered : base.Ordered)
-    (source : decl.SourceWF base) (owner : Fin s.families.size)
+    (source : decl.SourceWF base)
+    {familyEnv : VEnv} {uvars : Nat}
+    (familyTypes : s.FamilyTypesWF familyEnv uvars) (familyOrdered : familyEnv.Ordered)
+    (owner : Fin s.families.size)
     (index : Fin s.constructors.size) :
     (wrapForalls (s.params ++ s.families[owner].indices)
       (.sort s.families[owner].resultLevel)).Closed ∧
       (s.constructorType s.constructors[index]).Closed := by
   obtain ⟨headers, added, _⟩ := source.originalConstructors
-  exact model.projectionTypes_closed_at ordered source .rfl added owner index
+  exact model.projectionTypes_closed_at ordered source .rfl added familyTypes familyOrdered
+    owner index
 
 /-- A real singleton model passes every projection-data parser check.
 The index count is retained from normalization, independently of typing
@@ -146,6 +186,9 @@ theorem Models.projectionData_exists_at
     (model : schema.signature.Models base decl) (ordered : checkingBase.Ordered)
     (source : decl.SourceWF base) (below : base ≤ checkingBase)
     (added : checkingBase.addConstVals decl.typeConstants = some checkingHeaders)
+    {familyEnv : VEnv} {uvars : Nat}
+    (familyTypes : schema.signature.FamilyTypesWF familyEnv uvars)
+    (familyOrdered : familyEnv.Ordered)
     (identity : schema.restoration = {})
     {owner : Fin schema.signature.families.size}
     (single : schema.signature.constructors.size ≤ 1)
@@ -170,7 +213,7 @@ theorem Models.projectionData_exists_at
   have arity' : schema.signature.constructors[index].indices.length =
       schema.signature.families[owner].indices.length := by
     simpa only [owner_eq] using arity
-  obtain ⟨familyClosed, constructorClosed⟩ := model.projectionTypes_closed_at ordered source below added owner index
+  obtain ⟨familyClosed, constructorClosed⟩ := model.projectionTypes_closed_at ordered source below added familyTypes familyOrdered owner index
   exact CaseSchema.projectionData_of_closed identity length unique arity' familyClosed constructorClosed
 
 /-- Original-base specialization; replayed compilations use the actual later
@@ -179,6 +222,9 @@ theorem Models.projectionData_exists
     {schema : CaseSchema} {base : VEnv} {decl : VInductDecl}
     (model : schema.signature.Models base decl) (ordered : base.Ordered)
     (source : decl.SourceWF base)
+    {familyEnv : VEnv} {uvars : Nat}
+    (familyTypes : schema.signature.FamilyTypesWF familyEnv uvars)
+    (familyOrdered : familyEnv.Ordered)
     (identity : schema.restoration = {})
     {owner : Fin schema.signature.families.size}
     (single : schema.signature.constructors.size ≤ 1)
@@ -187,6 +233,7 @@ theorem Models.projectionData_exists
     {levels : List VLevel} (length : levels.length = schema.signature.uvars) :
     ∃ data, schema.projectionData owner levels = some data := by
   obtain ⟨headers, added, _⟩ := source.originalConstructors
-  exact model.projectionData_exists_at ordered source .rfl added identity single index owner_eq length
+  exact model.projectionData_exists_at ordered source .rfl added familyTypes familyOrdered identity
+    single index owner_eq length
 
 end Lean4Lean.InductiveSignature
