@@ -38,7 +38,7 @@ by `ves` and by the abstract translation of `decl` (see
 `VEnvs.DefinitionStrengthening`, `VEnvs.MutualStrengthening` and
 `VerifyInductive.InductiveDeclStrengthening`).  Nothing is assumed about the
 output environment as such. -/
-def Lean.Declaration.Strengthening (ves : VEnvs) (env : Environment) :
+def _root_.Lean.Declaration.Strengthening (ves : VEnvs) (env : Environment) :
     Declaration → Prop
   | .axiomDecl v => (ves.venv (if v.isUnsafe then .unsafe else .safe)).Strengthening
   | .defnDecl v => ves.DefinitionStrengthening v

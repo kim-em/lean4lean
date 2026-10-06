@@ -234,3 +234,25 @@ Commands for the design evidence:
 lake env lean docs/inductives/SingletonStrengthening.lean
 lake env lean docs/inductives/SingletonStrengtheningModel.lean
 ```
+
+## Current status: strengthening as an explicit environment hypothesis
+
+The former sorried inverse direction of `IsDefEqU.weakN_iff` is now the
+explicit predicate `VEnv.Strengthening` (`Theory/Typing/UniqueTyping.lean`).
+Every lemma that used inverse weakening takes `hs : env.Strengthening` next
+to `henv`. The executable is unchanged. The checker obtains the hypothesis
+from the `strengthening` field of `TypeChecker.VContext`; the inductive
+checking contexts (`ContextWF`, `RecursorContextWF`) carry the same field.
+
+The predicate is not monotone, so it is never derived from `VEnv.WF` or
+stated for an output environment. `addDecl.WF` assumes
+`decl.Strengthening ves env` (`Verify/Environment.lean`). This lists exactly
+the abstract environments in which checking `decl` runs the type checker:
+`VEnvs.DefinitionStrengthening`, `VEnvs.MutualStrengthening` and, for
+inductives, `VerifyInductive.InductiveDeclStrengthening` (built from
+`InductiveStrengthening`, `Verify/Environment/Basic.lean`). Each listed
+environment is pinned by the abstract translation of the declaration. The
+countermodel above shows that the hypothesis fails whenever one of these
+environments contains such a family with its computation rules, for
+instance when the input environment already does; `addDecl.WF` then says
+nothing about that declaration.
