@@ -927,6 +927,45 @@ def loopUArgsCheckLCtx (c : AddInductive.Context) (prior : Array Expr) :
     LocalContext :=
   c.lctx.restrictTo (prior.toList.map (·.fvarId!))
 
+theorem List.takeWhile_fvarId_prefix (fv : FVarId) :
+    ∀ (l : List Expr), (∃ x ∈ l, x.fvarId! = fv) →
+      (l.takeWhile (·.fvarId! != fv)).map (·.fvarId!) =
+        (l.map (·.fvarId!)).take (l.takeWhile (·.fvarId! != fv)).length ∧
+      (l.map (·.fvarId!))[(l.takeWhile (·.fvarId! != fv)).length]? = some fv
+  | [], ⟨_, h, _⟩ => by simp at h
+  | x :: xs, hmem => by
+    by_cases hx : x.fvarId! = fv
+    · simp [List.takeWhile_cons, hx]
+    · obtain ⟨y, hy, hyfv⟩ := hmem
+      have hy' : ∃ y ∈ xs, y.fvarId! = fv := by
+        rcases List.mem_cons.mp hy with rfl | hy
+        · exact absurd hyfv hx
+        · exact ⟨y, hy, hyfv⟩
+      obtain ⟨h1, h2⟩ := List.takeWhile_fvarId_prefix fv xs hy'
+      have hp : (x.fvarId! != fv) = true := by simpa using hx
+      simp only [List.takeWhile_cons, hp, ↓reduceIte, List.map_cons,
+        List.length_cons, List.take_succ_cons, List.getElem?_cons_succ]
+      exact ⟨congrArg _ h1, h2⟩
+
+/-- The checker entries before a recursive field: the parameters and the
+fields before it, as a prefix of the parameters and all fields. -/
+theorem fieldsBefore_priorFVars (stats : AddInductive.InductiveStats)
+    (bu : Array Expr) (fv : FVarId) (hmem : ∃ x ∈ bu.toList, x.fvarId! = fv) :
+    ∃ k, (AddInductive.mkRecInfos.fieldsBefore stats bu (.fvar fv)).toList.map
+        (·.fvarId!) = ((stats.params ++ bu).toList.map (·.fvarId!)).take k ∧
+      ((stats.params ++ bu).toList.map (·.fvarId!))[k]? =
+        some (Expr.fvar fv).fvarId! := by
+  obtain ⟨h1, h2⟩ := List.takeWhile_fvarId_prefix fv bu.toList hmem
+  refine ⟨(stats.params.toList.map (·.fvarId!)).length +
+    (bu.toList.takeWhile (·.fvarId! != fv)).length, ?_, ?_⟩
+  · change (stats.params ++ bu.takeWhile (fun x => x.fvarId! != fv)).toList.map
+      (·.fvarId!) = _
+    rw [Array.toList_append, Array.toList_takeWhile, List.map_append,
+      Array.toList_append, List.map_append, List.take_length_add_append, h1]
+  · rw [Array.toList_append, List.map_append,
+      List.getElem?_append_right (Nat.le_add_right _ _), Nat.add_sub_cancel_left]
+    exact h2
+
 /-- Exact executable input of one `loopUArgs` traversal.  Retaining both
 reader runs prevents later replay arguments from silently choosing an
 unrelated normalized field domain.  `closedNormalized` is the canonical
@@ -947,19 +986,22 @@ structure RecursorLoopUArgsInput
       { root with checkLCtx := loopUArgsCheckLCtx root prior } =
       .ok normalizedType
 
-/-- The checker context of a recorded `loopUArgs` run, rebuilt in any
+/-- The checker context of a `loopUArgs` run over `prior`, rebuilt in any
 recursor frame of its root: the checker entries before the field, among which
 the field's declared type is translated. -/
-theorem RecursorLoopUArgsInput.checkBase
-    {root : AddInductive.Context} {fv : FVarId}
-    (H : RecursorLoopUArgsInput root (.fvar fv))
-    {recLparams : List Name} (R : RecursorContextWF root recLparams) :
+theorem RecursorContextWF.priorBase
+    {root : AddInductive.Context} {fv : FVarId} {prior : Array Expr}
+    {recLparams : List Name} (R : RecursorContextWF root recLparams)
+    (hpriorFVars : ∃ k, prior.toList.map (·.fvarId!) =
+        ((root.checkLCtx.toList.map (·.fvarId)).reverse).take k ∧
+      ((root.checkLCtx.toList.map (·.fvarId)).reverse)[k]? =
+        some (Expr.fvar fv).fvarId!) :
     ∃ (j : Nat) (hj : j ≤ R.chk.length) (ty₀ : VExpr),
-      (R.chk.dropN j hj).lctx = loopUArgsCheckLCtx root H.prior ∧
+      (R.chk.dropN j hj).lctx = loopUArgsCheckLCtx root prior ∧
       TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
         (root.lctx.get! fv).type ty₀ ∧
       R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ := by
-  obtain ⟨k, hprior, hk⟩ := H.priorFVars
+  obtain ⟨k, hprior, hk⟩ := hpriorFVars
   have hlist : (root.checkLCtx.toList.map (·.fvarId)).reverse = R.chk.fvarList := by
     rw [← R.check.lctx_eq, R.check.wf.toList_eq, TypeChecker.MLCtx.decls_fvarId,
       List.reverse_reverse]
@@ -992,6 +1034,17 @@ theorem RecursorLoopUArgsInput.checkBase
   refine ⟨j + 1, hj, ty', ?_, htype ▸ htr, hty⟩
   rw [loopUArgsCheckLCtx, hprior, htake]
   exact ((R.check.below (j + 1) hj).restrictTo_eq R.lctxWF).symm
+
+theorem RecursorLoopUArgsInput.checkBase
+    {root : AddInductive.Context} {fv : FVarId}
+    (H : RecursorLoopUArgsInput root (.fvar fv))
+    {recLparams : List Name} (R : RecursorContextWF root recLparams) :
+    ∃ (j : Nat) (hj : j ≤ R.chk.length) (ty₀ : VExpr),
+      (R.chk.dropN j hj).lctx = loopUArgsCheckLCtx root H.prior ∧
+      TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
+        (root.lctx.get! fv).type ty₀ ∧
+      R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ :=
+  R.priorBase H.priorFVars
 
 /-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
 This ties the retained terminal expression,
