@@ -4,6 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.CompilationDataAssembly
 import Lean4Lean.Theory.Typing.ConstantHeaderProvenance
 import Lean4Lean.Theory.Inductive.ProjectionProgram
 import Lean4Lean.Verify.Typing.ConstSupport
+import Lean4Lean.Verify.Inductive.Nested.EliminatorAvoidance
 
 /-! Restoration of the constructor types of the source families of a
 validated nested run (the `sourceConstructors` field of
@@ -33,18 +34,6 @@ open InductiveSignature
 namespace InductiveSignature
 
 /-! ### Lambda replacement on terms avoiding the restoration heads -/
-
-private theorem heads_find?_eq_none' {r : Restoration} {name : Name}
-    (h : name ∉ r.heads.map (·.auxiliary)) :
-    r.heads.find? (fun h => h.auxiliary == name) = none := by
-  apply List.find?_eq_none.mpr
-  intro head hmem heq
-  exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
-
-theorem Restoration.lambdaReplacement_eq_none {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} {c : Name}
-    (h : c ∉ r.heads.map (·.auxiliary)) : r.lambdaReplacement domains c = none := by
-  simp [Restoration.lambdaReplacement, heads_find?_eq_none' h]
 
 theorem Restoration.mem_heads_of_lambdaReplacement {r : Restoration}
     {domains : HeadSpecialization → List VExpr} {c : Name} {t : VExpr}
@@ -101,16 +90,6 @@ theorem addConstVals_append_defeqs {env envTypes envL : VEnv}
     (VEnv.addConstVals_projections hlowered).trans
       (VEnv.addConstVals_projections htypes).symm⟩
 
-/-- The eliminator schemas of the source header environment do not mention
-the restoration heads. -/
-def EliminatorsAvoid (envTypes : VEnv) (names : List Name) : Prop :=
-  ∀ block schema, envTypes.eliminators block schema →
-    (∀ owner type, schema.genericType owner = some type →
-      type.containsAnyConst names = false) ∧
-    (∀ owner rules, schema.genericEquations block owner = some rules → ∀ df ∈ rules,
-      df.lhs.containsAnyConst names = false ∧ df.rhs.containsAnyConst names = false ∧
-      df.type.containsAnyConst names = false)
-
 /-- The lambda replacement of a restoration table over a common closed
 parameter telescope `P` is a `RestorationSubstitution` from the extended
 header environment to the source header environment. -/
@@ -129,7 +108,7 @@ theorem Restoration.lambdaReplacement_substitution {env envTypes envL : VEnv}
       ci.type.containsAnyConst (r.heads.map (·.auxiliary)) = false ∧
       envTypes.HasType ci.uvars []
         (VExpr.wrapLams P (VExpr.mkApps (.const h.target h.levels) h.arguments)) ci.type)
-    (helim : EliminatorsAvoid envTypes (r.heads.map (·.auxiliary))) :
+    (helim : EliminatorsAvoidConsts envTypes (r.heads.map (·.auxiliary))) :
     RestorationSubstitution envTypes envL r (r.lambdaReplacement fun _ => P) := by
   have hordered := henvTypes.ordered
   have hon := hordered.onTypes_noFreshConsts hfresh
@@ -207,10 +186,13 @@ theorem Restoration.lambdaReplacement_substitution {env envTypes envL : VEnv}
   · intro block schema hs
     rw [hel] at hs
     obtain ⟨ht, hrules⟩ := helim block schema hs
-    refine ⟨hs, fun owner type h => hfix (ht owner type h), ?_⟩
+    have hfix' : ∀ {e : VExpr}, e.mentionsAnyConst (r.heads.map (·.auxiliary)) = false →
+        e.replaceConsts (r.lambdaReplacement fun _ => P) = e :=
+      VExpr.replaceConsts_lambdaReplacement_of_mentions
+    refine ⟨hs, fun owner type h => hfix' (ht owner type h), ?_⟩
     intro owner rules h df hdf
     obtain ⟨a, b, c⟩ := hrules owner rules h df hdf
-    exact ⟨hfix a, hfix b, hfix c⟩
+    exact ⟨hfix' a, hfix' b, hfix' c⟩
   · intro typeName info hp
     rw [hpr] at hp
     obtain ⟨_, htn⟩ := hordered.projectionConstant hp
@@ -282,11 +264,6 @@ open Kernel
 
 /-- The facts used here that are not derived from a validated nested run.
 
-* `eliminators`: the abstract eliminator schemas registered in the source
-  header environment do not mention the restoration heads. `VEnv.Ordered`
-  places no constraint on registered schemas, and `VEnv.WF` only records their
-  certification against an earlier environment, in which the (never
-  installed) auxiliary names of that block may coincide with the current ones.
 * `loweredConstructors`: each lowered constructor type of a source family
   restores to (a term defeq at every type to) the source constructor type.
   The abstract expansion relation `NestedAuxiliarySourceAbsolute` records the
@@ -300,8 +277,6 @@ open Kernel
 structure NestedConstructorRestorationGaps (envTypes : VEnv)
     (sourceDecl loweredDecl : VInductDecl) (s : InductiveSignature)
     (auxiliaries : List ContainerSpecialization) : Prop where
-  eliminators : EliminatorsAvoid envTypes
-    ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
   loweredConstructors : List.Forall₂ (fun lowered source : VInductiveType =>
       List.Forall₂ (fun lc sc : VConstVal => ∃ restored,
           (compilationRestoration sourceDecl auxiliaries).expr lc.type = some restored ∧
@@ -674,7 +649,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of
       obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hentry
       rw [hheadNames]
       exact mem_familyNames.mpr ⟨t, ht, .inl rfl⟩)
-    hrecFresh hreplaced G.eliminators
+    hrecFresh hreplaced (henvTypes.eliminatorsAvoidConsts hfresh)
   -- the lowered defeq of normalized and lowered constructor types
   have hloweredUvars : E.production.loweredDecl.uvars = sourceDecl.uvars := by
     have h1 := E.production.constructors.completed.core.uvars
