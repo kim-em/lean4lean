@@ -280,6 +280,239 @@ theorem
     T.resultShape hownerMotive⟩
 
 
+theorem InductiveSignature.insertBinders_insertBinders (l : List VExpr) (a b : Nat) :
+    InductiveSignature.insertBinders (InductiveSignature.insertBinders l a) b =
+      InductiveSignature.insertBinders l (a + b) := by
+  apply List.ext_getElem
+  · simp [InductiveSignature.insertBinders]
+  · intro i h₁ h₂
+    simp [InductiveSignature.insertBinders, List.getElem_zipIdx,
+      VExpr.liftN'_liftN_hi]
+
+/-- Two retained recursor telescopes with the same translated target have
+the same motive group and the same index/major suffix, whatever their
+environments and sources. -/
+theorem GeneratedRecursorTelescopeTranslation.motivesSuffix_eq_of_target
+    {env₁ env₂ : VEnv} {Us₁ Us₂ : List Name} {source₁ source₂ : Expr}
+    {target₁ target₂ : VExpr}
+    {numParams numMotives numMinors numIndices ownerIdx : Nat}
+    (T₁ : GeneratedRecursorTelescopeTranslation env₁ Us₁ source₁ target₁
+      numParams numMotives numMinors numIndices ownerIdx)
+    (T₂ : GeneratedRecursorTelescopeTranslation env₂ Us₂ source₂ target₂
+      numParams numMotives numMinors numIndices ownerIdx)
+    (htarget : target₁ = target₂) :
+    T₁.motives = T₂.motives ∧ T₁.indices ++ T₁.major = T₂.indices ++ T₂.major := by
+  let domains₁ :=
+    T₁.params ++ T₁.motives ++ T₁.minors ++ T₁.indices ++ T₁.major
+  let domains₂ :=
+    T₂.params ++ T₂.motives ++ T₂.minors ++ T₂.indices ++ T₂.major
+  have hlength₁ : domains₁.length =
+      numParams + numMotives + numMinors + numIndices + 1 := by
+    simp only [domains₁, List.length_append, T₁.params_length,
+      T₁.motives_length, T₁.minors_length, T₁.indices_length,
+      T₁.major_length]
+  have hlength₂ : domains₂.length =
+      numParams + numMotives + numMinors + numIndices + 1 := by
+    simp only [domains₂, List.length_append, T₂.params_length,
+      T₂.motives_length, T₂.minors_length, T₂.indices_length,
+      T₂.major_length]
+  have hwrapped : VExpr.wrapForalls domains₁ T₁.result =
+      VExpr.wrapForalls domains₂ T₂.result := by
+    rw [← T₁.target_eq, ← T₂.target_eq, htarget]
+  have hdomains : domains₁ = domains₂ :=
+    VExpr.wrapForalls_prefix_domains_eq (suffix := [])
+      hlength₁ hlength₂ (by simpa using hwrapped)
+  have H₀ : T₁.params ++
+        (T₁.motives ++ (T₁.minors ++ (T₁.indices ++ T₁.major))) =
+      T₂.params ++
+        (T₂.motives ++ (T₂.minors ++ (T₂.indices ++ T₂.major))) := by
+    simpa [domains₁, domains₂, List.append_assoc] using hdomains
+  have H₁ := List.append_inj_right H₀ (by rw [T₁.params_length, T₂.params_length])
+  have hmotives := List.append_inj_left H₁
+    (by rw [T₁.motives_length, T₂.motives_length])
+  have H₂ := List.append_inj_right H₁ (by rw [T₁.motives_length, T₂.motives_length])
+  have H₃ := List.append_inj_right H₂ (by rw [T₁.minors_length, T₂.minors_length])
+  exact ⟨hmotives, H₃⟩
+
+/-- The checked recursor telescope decomposes the canonical generated
+recursor type itself. -/
+theorem CompletedRecursorConstruction.recursorTelescopeNative
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) (owner : Nat)
+    (howner : owner < H.recInfos.size) :
+    Nonempty (GeneratedRecursorTelescopeTranslation R.context.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (AddInductive.declareRecursors.recursorType stats H.recInfos
+        H.localContext.lctx owner)
+      (H.nativeTarget owner).type stats.params.size
+      (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size
+      owner) := by
+  have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  have henv : R.context.venv.WF := by
+    rw [← H.recursorEnv]
+    exact H.recursorWF.checking.tr.wf
+  obtain ⟨target, Htr₀, Htype₀⟩ := H.recursorTypeTranslation owner hsourceOwner
+  have Htr := H.canonicalTypeTranslations owner hsourceOwner
+  have Heq := Htr.uniq henv .nil Htr₀
+  have Htype : R.context.venv.IsType
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      (H.nativeTarget owner).type :=
+    Htype₀.defeqU_l henv (by trivial) Heq.symm
+  let Hsel := H.bindings.toRecursorLocalSelections H.localWF H.params owner howner
+  have hnoalias := H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner howner
+  have Htel := Hsel.forallTelescope
+    (.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+      H.recInfos[owner]!.major)
+  rw [Hsel.residual_eq_concreteRecursorResult howner hnoalias] at Htel
+  have Htel' : Expr.ForallTelescope
+      (AddInductive.declareRecursors.recursorType stats H.recInfos
+        H.localContext.lctx owner)
+      (stats.params.size + (H.recInfos.map (·.motive)).size +
+        (H.recInfos.flatMap (·.minors)).size + H.recInfos[owner]!.indices.size + 1)
+      (concreteRecursorResult (H.recInfos.map (·.motive)).size
+        (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size
+        owner) := Htel
+  have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS Htel' Htr Htype
+  rcases TrExprS.forallTelescope_shape_with_context Htel' Htr with
+    ⟨domains, result, hlen, htarget, Hresult⟩
+  rcases List.exists_append_five_of_length_eq domains stats.params.size
+      (H.recInfos.map (·.motive)).size (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size 1 hlen with
+    ⟨params, motives, minors, indices, major, hdomains, hp, hm, hmi, hi, hma⟩
+  refine ⟨⟨params, motives, minors, indices, major, result, ?_, hp, hm, hmi, hi,
+    hma, Htyped, ?_⟩⟩
+  · simpa [hdomains] using htarget
+  · simpa [hdomains] using Hresult
+
+/-- The generated index/major suffix of a recursor is literally the owner
+motive's domain telescope, lifted beneath the later motives and all minors.
+Both are produced by the same generator from the owner family's indices. -/
+theorem CompletedRecursorPhasesResult.ownerSuffix_eq_expected
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (motiveDomains : List VExpr) (resultLevel : VLevel)
+    (hmotive : T.motives[owner]! =
+      VExpr.wrapForalls motiveDomains (.sort resultLevel))
+    (hlength : motiveDomains.length = H.recInfos[owner]!.indices.size + 1) :
+    let later := T.motives.drop (owner + 1) ++ T.minors
+    T.indices ++ T.major =
+      (liftContextPrefixAt (later.length + 1) 0 motiveDomains.reverse).reverse := by
+  dsimp only
+  have hrec : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  obtain ⟨T₀⟩ := H.recursorTelescopeNative owner hrec
+  have htgt : H.entries[owner].2.type = (H.nativeTarget owner).type := by
+    rw [H.canonicalTargets owner howner]
+  obtain ⟨hmot, hidx⟩ := T.motivesSuffix_eq_of_target T₀ htgt
+  let g := H.consumedInstance H.familySignature
+  have hm := H.recursorTelescope_motives T₀ g rfl rfl rfl
+    (H.consumedInstance_target _)
+  have him := H.recursorTelescope_indicesMajor hrec T₀
+    (H.consumedInstance_target H.familySignature)
+  have hfam : owner < H.consumedFamilies.size := by simpa using hrec
+  have hgm : g.motives[owner]! = g.motive (H.consumedFamilies[owner]'hfam) owner := by
+    have hlt : owner < g.motives.length := by
+      simp [InductiveSignature.Instance.motives,
+        CompletedRecursorConstruction.familySignature, hrec]
+    rw [getElem!_pos g.motives owner hlt]
+    simp [InductiveSignature.Instance.motives,
+      CompletedRecursorConstruction.familySignature, List.getElem_zipIdx]
+  have hTm : T.motives[owner]! = g.motives[owner]! := by rw [hmot, hm]
+  rw [hTm, hgm] at hmotive
+  have hidxs := H.consumedFamilies_indices ⟨owner, hrec⟩
+  have hname := H.consumedFamilies_name ⟨owner, hrec⟩
+  simp only [InductiveSignature.Instance.motive] at hmotive
+  rw [hidxs, hname] at hmotive
+  have hsrcLen := H.sourceIndices_length ⟨owner, hrec⟩
+  have hplen : H.familySignature.params.length = stats.params.size := by
+    simp [CompletedRecursorConstruction.familySignature, H.sourceParameterCount]
+  rw [hplen] at hmotive
+  let A₀ := (H.sourceIndices ⟨owner, hrec⟩).map
+    (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+  have hA₀len : A₀.length = H.recInfos[owner]!.indices.size := by
+    simp [A₀, hsrcLen]
+  have hdomains : motiveDomains =
+      InductiveSignature.insertBinders A₀ owner ++
+        [VExpr.mkApps
+          (.const (decl.types[owner]'(by rw [← H.cardinality.records]; exact hrec)).name
+            (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
+          (InductiveSignature.vars stats.params.size
+              (owner + (InductiveSignature.insertBinders A₀ owner).length) ++
+            InductiveSignature.vars (InductiveSignature.insertBinders A₀ owner).length 0)] := by
+    apply VExpr.wrapForalls_prefix_domains_eq (suffix := []) hlength
+      (by simp [InductiveSignature.insertBinders, hA₀len])
+    rw [List.append_nil]
+    exact hmotive.symm
+  rw [hidx, him, ← insertBinders_eq_prefix, hdomains,
+    insertBinders_append_singleton, insertBinders_append_singleton,
+    InductiveSignature.insertBinders_insertBinders]
+  have hinsLen : (InductiveSignature.insertBinders A₀ owner).length =
+      H.recInfos[owner]!.indices.size := by
+    simp [InductiveSignature.insertBinders, hA₀len]
+  have hlater : owner + ((T.motives.drop (owner + 1) ++ T.minors).length + 1) =
+      (H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size := by
+    simp only [List.length_append, List.length_drop, T.motives_length,
+      T.minors_length]
+    have : owner < (H.recInfos.map (·.motive)).size := by simpa using hrec
+    omega
+  rw [hlater, hinsLen]
+  congr 2
+  rw [← majorDomain_lift, VExpr.liftN'_liftN_hi, hlater]
+  simp [hA₀len, hsrcLen]
+
+/-- Complete dependent alignment of the generated owner index/major suffix
+with the owner motive's declared domains: the two telescopes coincide. -/
+theorem CompletedRecursorPhasesResult.ownerMotiveSuffixContextFor
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    (motiveDomains : List VExpr) (resultLevel : VLevel)
+    (hmotive : T.motives[owner]! =
+      VExpr.wrapForalls motiveDomains (.sort resultLevel))
+    (hlength : motiveDomains.length = H.recInfos[owner]!.indices.size + 1) :
+    let outer := T.params ++ T.motives ++ T.minors
+    let suffix := T.indices ++ T.major
+    let later := T.motives.drop (owner + 1) ++ T.minors
+    let expected :=
+      (liftContextPrefixAt (later.length + 1) 0 motiveDomains.reverse).reverse
+    VEnv.IsDefEqCtx H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      (suffix.reverse ++ outer.reverse)
+      (expected.reverse ++ outer.reverse) := by
+  dsimp only
+  have heq := H.ownerSuffix_eq_expected owner howner T motiveDomains
+    resultLevel hmotive hlength
+  dsimp only at heq
+  rw [← heq]
+  have Hfull := T.fullContextResultType H.outVEnvWF.ordered
+  apply VEnv.IsDefEqCtx.refl
+  simpa [List.reverse_append, List.append_assoc] using Hfull.1
+
 /-- Final all-binder owner-suffix alignment.  This is the completed bridge
 from the five-group executable recursor telescope to the independently
 shaped owner motive: every generated index and the retained major declaration
@@ -327,7 +560,7 @@ theorem
     simpa [H.generated.length] using howner
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  have Hsuffix := T.ownerMotiveSuffixContext H.outVEnvWF hownerMotive
+  have Hsuffix := H.ownerMotiveSuffixContextFor owner howner T
     motiveDomains resultLevel hmotive hdomainLength
   exact ⟨T, S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩
@@ -378,7 +611,7 @@ theorem
     simpa [H.generated.length] using howner
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  have Hsuffix := T.ownerMotiveSuffixContext H.outVEnvWF hownerMotive
+  have Hsuffix := H.ownerMotiveSuffixContextFor owner howner T
     motiveDomains resultLevel hmotive hdomainLength
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩

@@ -1454,8 +1454,8 @@ theorem
   have hownerMotive :
       selectedOwner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  have Hsuffix := F.telescope.ownerMotiveSuffixContext H.outVEnvWF
-    hownerMotive motiveDomains resultLevel hmotive hdomainLength
+  have Hsuffix := H.ownerMotiveSuffixContextFor selectedOwner F.entry_lt
+    F.telescope motiveDomains resultLevel hmotive hdomainLength
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩
 
