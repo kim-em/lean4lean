@@ -2686,6 +2686,15 @@ inductive MLCtxTopAgree : TypeChecker.MLCtx → TypeChecker.MLCtx → Nat → Pr
       (fv name ty t₁ t₂ bi) :
       MLCtxTopAgree (.vlam fv name ty t₁ bi a) (.vlam fv name ty t₂ bi b) (n + 1)
 
+theorem MLCtxTopAgree.fvarRevList_eq {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (ha : n ≤ a.length) (hb : n ≤ b.length) :
+    a.fvarRevList n ha = b.fvarRevList n hb := by
+  induction H with
+  | zero => simp
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    simp only [TypeChecker.MLCtx.fvarRevList]
+    rw [ih]
+
 theorem MLCtxTopAgree.stepDropEq {a b M : TypeChecker.MLCtx} {n : Nat}
     (fv name ty t₁ t₂ bi)
     (h : ∃ hn : n ≤ b.length, MLCtxTopAgree a b n ∧ b.dropN n hn = M) :
