@@ -255,7 +255,7 @@ theorem CompletedRecursorPhasesResult.alignmentOfRealization
     · rw [hr.numParams]
       simpa only [hr.name, hr.uvars, hr.numMotives, hr.numMinors,
         hr.numIndices, hi.ctor, hi.nfields, howner] using
-        g.iota_shape index H.outVEnvWF VEnv.addDefEqRules_le (fun _ => rfl) hdf hind hlevelsWF
+        g.iota_shape index H.outVEnvWF VEnv.addDefEqRules_le (fun _ => by simp) hdf hind hlevelsWF
           (hrecursors _) (H.constructorTypeDefEq hm index)
     · refine ⟨s.uvars, hlevels, ?_⟩
       have hc' := VConstructorShape.mono (venv' := H.outVEnv.addDefEqRules g.equations)
