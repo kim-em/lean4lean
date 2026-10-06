@@ -716,6 +716,13 @@ theorem ctsRel_comp_iff {R : α → β → Prop} {S : β → γ → Prop} {T : �
   · have ⟨b, h3, h4⟩ := (H _ _).1 h2; exact ⟨(p.1, b), ⟨rfl, h3⟩, h1, h4⟩
   · exact ⟨h1.trans h3, (H _ _).2 ⟨_, h2, h4⟩⟩
 
+theorem ShapeFun.plift_plift (le : n₁ ≤ n₂ ∨ n₃ ≤ n₂) {s : ShapeFun n₁} :
+    (plift (Shape.plift (m := n₃)) (plift (Shape.plift (m := n₂)) s).1).1 =
+    (plift Shape.plift s).1 ∧
+    ((plift Shape.plift s).2 : Option (ShapeFun n₃)) =
+    ((plift Shape.plift s).2 : Option (ShapeFun n₂)).bind (plift Shape.plift · |>.2) :=
+  Shape.plift_plift.go _ _ _ (Shape.plift_plift le)
+
 theorem Shape.plift_thm (le : n ≤ m) {s : Shape m} {t : Shape n} :
     (t.lift m ≤ s ↔ t ≤ (s.plift (m := n)).1) ∧
     (s ≤ t.lift m ↔ ∃ z, (s.plift (m := n)).2 = some z ∧ z ≤ t) := by
@@ -1005,6 +1012,14 @@ theorem ShapeFun.lift_maxBelow {f : ShapeFun n} (le : n ≤ m) :
 @[simp] theorem ShapeFun.lift_app (le : n ≤ m) :
     (app f a : Shape n).lift m = app (lift (Shape.lift m) f) (a.lift m) := by
   simp [app, lift_trunc le, lift_maxBelow le]
+
+/-- Applying a lifted function only looks at the truncation of the argument. -/
+theorem ShapeFun.app_lift_plift (le : n ≤ m) {b : ShapeFun n} {f : Shape m} :
+    app (lift (Shape.lift m) b) f = (app b (f.plift (m := n)).1).lift m := by
+  rw [lift_app le]; simp only [app, trunc]; congr 2
+  apply List.filter_congr; intro x hx
+  simp only [lift, List.mem_map] at hx; obtain ⟨⟨a, _⟩, _, rfl⟩ := hx
+  simp only [decide_eq_decide]; rw [Shape.lift_le_lift le, Shape.le_plift le]
 
 def ShapeFun.join (join : Shape n → Shape n → Shape n) (f f' : ShapeFun n) : ShapeFun n :=
   f.foldl (init := []) fun l x => f'.foldl (init := l) fun l y =>
