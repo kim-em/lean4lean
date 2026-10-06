@@ -172,7 +172,7 @@ theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv :
     VState.WF (.mk1 wf lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
-  ectx := ⟨[], .refl, trivial, .refl, .empty, nofun⟩
+  ectx := .empty
   inferTypeI_wf := .empty
   inferTypeC_wf := .empty
   whnfCore_wf := .empty
@@ -195,7 +195,7 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
       recursors quot lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
-  ectx := ⟨[], .refl, trivial, .refl, .empty, nofun⟩
+  ectx := .empty
   inferTypeI_wf := .empty
   inferTypeC_wf := .empty
   whnfCore_wf := .empty
@@ -223,7 +223,7 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     VState.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} where
   trctx := mlctx_wf.tr
   ngen_wf := hfresh
-  ectx := ⟨mlctx.vlctx, .refl, mlctx_wf.tr.wf, .refl, .empty, hfresh⟩
+  ectx := .empty
   inferTypeI_wf := .empty
   inferTypeC_wf := .empty
   whnfCore_wf := .empty

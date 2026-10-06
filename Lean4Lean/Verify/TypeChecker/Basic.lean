@@ -616,8 +616,9 @@ theorem LevelsCache.WF.empty : LevelsCache.WF c {} := fun _ => by simp
 class VState.WF (c : VContext) (s : VState) where
   trctx : c.TrLCtx
   ngen_wf : ∀ fv ∈ c.vlctx.fvars, s.ngen.Reserves fv
-  ectx : ∃ Δ' n, Δ'.WF c.venv c.lparams.length ∧ c.vlctx.FVLift' Δ' 0 n 0 ∧
-    s.eqvManager.WF c.venv c.lparams Δ' ∧ ∀ fv ∈ Δ'.fvars, s.ngen.Reserves fv
+  /-- Every equivalence the manager records holds in the current context. Binder scopes restore
+  the manager on exit (`State.leaveScope`), so no recorded fact outlives its binder. -/
+  ectx : s.eqvManager.WF c.venv c.lparams c.vlctx
   inferTypeI_wf : s.inferTypeI.WF c s
   inferTypeC_wf : s.inferTypeC.WF c s
   whnfCore_wf : WHNFCache.WF c s s.whnfCoreCache
@@ -922,18 +923,6 @@ theorem VContext.UniverseScope.tail {c c' : VContext}
   refine ⟨h1.1, fun fv decl hP hd => H.2 fv decl hP ?_⟩
   rw [hfind fv (by rintro rfl; simp [hnone] at hd)]; exact hd
 
-/-- A universe scope of a context, cut down to the variables of the context, is a universe scope
-of the context extended by one fresh declaration. -/
-theorem VContext.UniverseScope.cons_restrict {c c' : VContext}
-    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
-    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
-    (hid : x ∉ c.vlctx.fvars)
-    (H : c.UniverseScope Us P) :
-    c'.UniverseScope Us (fun fv => P fv ∧ fv ∈ c.vlctx.fvars) := by
-  refine ⟨?_, fun fv decl hP hd => H.2 fv decl hP.1 ?_⟩
-  · rw [hΔ]; exact ⟨(IsFVarUpSet.and_fvars c.Δwf.fvwf).1 H.1, fun h => (hid h.2).elim⟩
-  · rwa [← hfind fv (by rintro rfl; exact hid hP.2)]
-
 /-- A universe scope extends to a declaration whose type, value and dependencies are in scope. -/
 theorem VContext.UniverseScope.cons {c c' : VContext}
     (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
@@ -965,17 +954,60 @@ theorem LevelsCache.WF.fresh {c c' : VContext}
   · exact (hR h2).elim
   · exact h1
 
-theorem LevelsCache.WF.weakN_inv {c c' : VContext}
-    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
-    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
-    (hid : x ∉ c.vlctx.fvars)
-    (H : LevelsCache.WF c' m) : LevelsCache.WF c m := by
-  intro e e₁ h hf Us P hs hl hP
-  refine H h (hf.mono fun fv h => ?_) Us _ (hs.cons_restrict hΔ hfind hid) hl
-    (hP.mp (fun _ a b => ⟨a, b⟩) hf)
-  rw [hΔ]; simp [h]
-
 def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
+
+/-- The state on leaving a binder scope that was entered at `saved`: the executable's
+`State.leaveScope`, which puts back every context-relative cache and the equivalence manager. -/
+def VState.leaveScope (saved s : VState) : VState := ⟨saved.toState.leaveScope s.toState⟩
+
+theorem withFreshId_eq {α} (x : Name → M α) (c : Context) (s : State) :
+    (withFreshId x : M α) c s =
+      (x s.ngen.curr c { s with ngen := s.ngen.next }).map fun p => (p.1, s.leaveScope p.2) := by
+  unfold withFreshId instMonadLocalNameGeneratorM
+  simp only [bind, ReaderT.bind, StateT.bind, get, getThe, MonadStateOf.get, StateT.get, liftM,
+    monadLift, MonadLift.monadLift, Except.bind, pure, Except.pure, ReaderT.pure, StateT.pure,
+    modify, modifyGet, MonadStateOf.modifyGet, StateT.modifyGet, mkFreshId, getNGen, setNGen]
+  cases x s.ngen.curr c { s with ngen := s.ngen.next } <;> rfl
+
+/-- Leaving a binder scope gives back a well-formed state. The restored caches and equivalence
+manager are those of `saved`, which were well formed in this context before the scope was entered;
+the name generator has only advanced, and the `unfold` cache depends only on the environment. So
+nothing that was established under the binder has to be carried out of it. -/
+theorem VState.WF.leaveScope {c : VContext} {saved s : VState} (wf : saved.WF c) (le : saved ≤ s)
+    (hu : UnfoldCache.WF c s.unfold) : (saved.leaveScope s).WF c where
+  trctx := wf.trctx
+  ngen_wf _ h := le.reservesV (wf.ngen_wf _ h)
+  ectx := wf.ectx
+  inferTypeI_wf _ _ h := (wf.inferTypeI_wf h).mono le
+  inferTypeC_wf _ _ h := (wf.inferTypeC_wf h).mono le
+  whnfCore_wf _ _ h := (wf.whnfCore_wf h).mono le
+  whnf_wf _ _ h := (wf.whnf_wf h).mono le
+  unfold_wf := hu
+  inferTypeI_levels := wf.inferTypeI_levels
+  inferTypeC_levels := wf.inferTypeC_levels
+  whnfCore_levels := wf.whnfCore_levels
+  whnf_levels := wf.whnf_levels
+
+/-- A binder scope of the checker: the body runs from the state with the name generator advanced,
+and the result state is the pre-scope state with only the name generator and the `unfold` cache
+taken from the body (`VState.leaveScope`). -/
+theorem M.WF.withFreshId {c : VContext} {s : VState} {x : Name → M α} {Q : α → VState → Prop}
+    (wf : s.WF c)
+    (H : ∀ a s', x s.ngen.curr c.toContext s.next.toState = .ok (a, s') →
+      ∃ vs', vs'.toState = s' ∧ s.next ≤ vs' ∧ UnfoldCache.WF c vs'.unfold ∧
+        Q a (s.leaveScope vs')) :
+    ∀ a s', (withFreshId x : M α) c.toContext s.toState = .ok (a, s') →
+      ∃ vs', vs'.toState = s' ∧ s ≤ vs' ∧ vs'.WF c ∧ Q a vs' := by
+  intro a s' e
+  rw [withFreshId_eq] at e
+  cases e' : x s.ngen.curr c.toContext { s.toState with ngen := s.ngen.next } with
+  | error => rw [e'] at e; cases e
+  | ok p =>
+    obtain ⟨a', s''⟩ := p
+    rw [e'] at e; cases e
+    obtain ⟨vs', rfl, le, hu, hQ⟩ := H _ _ e'
+    have le' : s ≤ vs' := VState.LE.trans .next le
+    exact ⟨s.leaveScope vs', rfl, le', wf.leaveScope le' hu, hQ⟩
 
 protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : VState} {f : Expr → RecM α} {Q name ty ty' bi}
@@ -983,9 +1015,10 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     (hty' : (c.withMLC m).IsType ty')
     (hs : s₀ ≤ s)
     (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
-      WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id)) Q) :
+      WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id))
+        fun a s'' => Q a (s.leaveScope s'')) :
     (withLocalDecl name bi ty f).WF (c.withMLC m) s Q := by
-  intro _ mwf wf a s' e
+  intro _ mwf wf
   let id := s.ngen.curr
   have h0 := s.ngen.next_reserves_self
   have h1 := s.ngen.not_reserves_self
@@ -1005,50 +1038,27 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
     { ngen_wf := by
         simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-      ectx := by
-        let ⟨_, _, a1, a2, a3, a4⟩ := wf.ectx
-        refine
-          have b1 := ⟨a1, ?_, hty'.weak' c.Ewf.ordered a2.toCtx⟩
-          ⟨_, _, b1, a2.cons_fvar _ _ hty.fvarsList, a3.weak' c.Ewf (.skip_fvar _ _ .refl) b1,
-            fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
-        rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hty.fvarsList.trans a2.fvars_sublist.subset⟩
+      ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
       whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
       inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
       inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
       whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
       whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels }
+  refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
-  refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
-  have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
-      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
-  have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
-      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
-  have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
-      LevelsCache.WF (c.withMLC m) ic :=
-    H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlam h) (wf.trctx.find?_eq_none.1 h1')
-  let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
-  exact {
-    ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
-    ectx := ⟨_, _, a1, .comp (.skip_fvar _ _ .refl) a2, a3⟩
-    trctx := wf.trctx
-    inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
-    whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
-    inferTypeI_levels := hlc wf'.inferTypeI_levels, inferTypeC_levels := hlc wf'.inferTypeC_levels
-    whnfCore_levels := hlc wf'.whnfCore_levels, whnf_levels := hlc wf'.whnf_levels
-  }
+  exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
 
-/-- The `M`-level twin of `RecM.WF.withLocalDecl`. The primitive checker probes its
-definitions under `withLocalDecl` in `M`, so it needs this form. -/
 protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : VState} {f : Expr → M α} {Q name ty ty' bi}
     (hty : (c.withMLC m).TrExprS ty ty')
     (hty' : (c.withMLC m).IsType ty')
     (hs : s₀ ≤ s)
     (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
-      WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id)) Q) :
+      WF (c.withMLC (.vlam id name ty ty' bi m) (wf := cwf')) s' (f (.fvar id))
+        fun a s'' => Q a (s.leaveScope s'')) :
     (withLocalDecl name bi ty f).WF (c.withMLC m) s Q := by
-  intro wf a s' e
+  intro wf
   let id := s.ngen.curr
   have h0 := s.ngen.next_reserves_self
   have h1 := s.ngen.not_reserves_self
@@ -1068,38 +1078,16 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
     { ngen_wf := by
         simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-      ectx := by
-        let ⟨_, _, a1, a2, a3, a4⟩ := wf.ectx
-        refine
-          have b1 := ⟨a1, ?_, hty'.weak' c.Ewf.ordered a2.toCtx⟩
-          ⟨_, _, b1, a2.cons_fvar _ _ hty.fvarsList, a3.weak' c.Ewf (.skip_fvar _ _ .refl) b1,
-            fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
-        rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hty.fvarsList.trans a2.fvars_sublist.subset⟩
+      ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
       whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
       inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
       inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
       whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
       whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels }
+  refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
-  refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
-  have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
-      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
-  have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
-      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
-  have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
-      LevelsCache.WF (c.withMLC m) ic :=
-    H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlam h) (wf.trctx.find?_eq_none.1 h1')
-  let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
-  exact {
-    ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
-    ectx := ⟨_, _, a1, .comp (.skip_fvar _ _ .refl) a2, a3⟩
-    trctx := wf.trctx
-    inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
-    whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
-    inferTypeI_levels := hlc wf'.inferTypeI_levels, inferTypeC_levels := hlc wf'.inferTypeC_levels
-    whnfCore_levels := hlc wf'.whnfCore_levels, whnf_levels := hlc wf'.whnf_levels
-  }
+  exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
 
 protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : VState} {f : Expr → RecM α} {Q name ty ty'}
@@ -1108,9 +1096,10 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
     (hval' : (c.withMLC m).HasType val' ty')
     (hs : s₀ ≤ s)
     (H : ∀ id cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
-      WF (c.withMLC (.vlet id name ty val ty' val' m) (wf := cwf')) s' (f (.fvar id)) Q) :
+      WF (c.withMLC (.vlet id name ty val ty' val' m) (wf := cwf')) s' (f (.fvar id))
+        fun a s'' => Q a (s.leaveScope s'')) :
     (withLetDecl name ty val f).WF (c.withMLC m) s Q := by
-  intro _ mwf wf a s' e
+  intro _ mwf wf
   let id := s.ngen.curr
   have h0 := s.ngen.next_reserves_self
   have h1 := s.ngen.not_reserves_self
@@ -1131,39 +1120,16 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
       H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
     { ngen_wf := by
         simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-      ectx := by
-        let ⟨_, _, a1, a2, a3, a4⟩ := wf.ectx
-        have hv := List.append_subset.2 ⟨hty.fvarsList, hval.fvarsList⟩
-        refine
-          have b1 := ⟨a1, ?_, hval'.weak' c.Ewf.ordered a2.toCtx⟩
-          ⟨_, _, b1, a2.cons_fvar _ _ hv, a3.weak' c.Ewf (.skip_fvar _ _ .refl) b1,
-            fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
-        rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hv.trans a2.fvars_sublist.subset⟩
+      ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
       whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
       inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
       inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
       whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
       whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels }
+  refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
-  refine ⟨s', hs1, le.trans hs2, ?_, hs4⟩
-  have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
-      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
-  have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
-      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
-  have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
-      LevelsCache.WF (c.withMLC m) ic :=
-    H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlet h) (wf.trctx.find?_eq_none.1 h1')
-  let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
-  exact {
-    ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
-    ectx := ⟨_, _, a1, .comp (.skip_fvar _ _ .refl) a2, a3⟩
-    trctx := wf.trctx
-    inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
-    whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
-    inferTypeI_levels := hlc wf'.inferTypeI_levels, inferTypeC_levels := hlc wf'.inferTypeC_levels
-    whnfCore_levels := hlc wf'.whnfCore_levels, whnf_levels := hlc wf'.whnf_levels
-  }
+  exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
 
 @[simp] def MLCtx.mkForall (c : MLCtx) (n) (hn : n ≤ c.length) (e : Expr) : Expr :=
   match n, c, hn with
