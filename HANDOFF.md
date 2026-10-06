@@ -722,6 +722,19 @@ inside this project's scope without solving open base metatheory:
    container constructors included). Agents on both. `CompilationData`
    including `recursiveTypesWF`, `CertifiedSpecializations` and
    `RestoredCompilationRealization` are proved from the run.
+   **Rule junction status (1f8f1dd):** `hrules_of (E) (wf) (Hsources)
+   (HauxRecNames) (HruleShape)` (Nested/RuleJunction.lean): freshness of the
+   restorable names in any shape's final base environment is proved except
+   for a pathological coincidence between a renamed auxiliary recursor name
+   `Main.rec_k` and an auxiliary head name (`HauxRecNames`; arises only
+   because the commutation takes freshness in the TARGET environment, which
+   for rule rhs contains the restored recursors; being replaced by
+   source-environment absence plus trailing-argument provenance).
+   `HruleShape` (a shape whose rules realize `RestoredRulesRealization`)
+   is the main remaining nested obligation: the validator's rule lhs/type are
+   its own build and the checker's inferred type; route: rebuild the shape
+   with the restored generated lhs/type and prove their well-formedness from
+   the restored recursor type plus unique typing (agent running).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
