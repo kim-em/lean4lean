@@ -370,17 +370,35 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
     have hlitInstalled : checkPositivityStep.AvailableLiteralDisjoint
         Hinstalled.context.venv stats.indConsts :=
       Hinstalled.materializedAvailableLiteralDisjoint HheaderMaterialized
-    let HcL := Hinstalled.context.paramCheck stats stats.params.size
+    have hjL : depth ≤ Hinstalled.context.mlctx.length := by
+      rw [Hinstalled.contextMLCtx]; exact Hsuffix.depth_le
+    have hdropL : Hinstalled.context.mlctx.dropN depth hjL =
+        Hc.mlctx.dropN depth Hsuffix.depth_le := by
+      have key : ∀ (m m' : TypeChecker.MLCtx) (_ : m = m') (h : depth ≤ m.length)
+          (h' : depth ≤ m'.length), m.dropN depth h = m'.dropN depth h' := by
+        intro m m' hm h h'; subst hm; rfl
+      exact key _ _ Hinstalled.contextMLCtx _ _
+    let HcL := Hinstalled.context.paramCheck stats stats.params.size depth hjL
+      (by rw [hdropL]; exact Hsuffix.headerFVars)
     have hlitL : checkPositivityStep.AvailableLiteralDisjoint
         HcL.venv stats.indConsts := hlitInstalled
     have htypesAddedL : Hc.venv.addConstVals
         (Hsemantic.headerDecl isUnsafe).typeConstants = some HcL.venv :=
       htypesAdded
+    have halignL : VLCtx.IsDefEq HcL.venv c.lparams.length
+        HheaderMaterialized.parameterScope HcL.chk.vlctx := by
+      have hchk : HcL.chk.vlctx = Hsuffix.parameterDecls := by
+        change (Hinstalled.context.mlctx.dropN depth hjL).vlctx = _
+        rw [hdropL]; exact Hsuffix.headerVLCtx
+      have hwf := HcL.check.wf.tr.wf
+      rw [hchk] at hwf
+      rw [hchk]
+      exact .refl HcL.checking.tr.wf hwf
     have Hconstructors :=
       checkConstructors.loopTypes.assemblesSemanticHeadersExact
-        (c := headerCheckContext c stats) (Hc := Hc.headerCheck stats)
+        (c := headerCheckContext c stats) (Hc := Hsuffix.headerCheck)
         HcL Hinstalled.contextMLCtx htypesAddedL
-        HheaderMaterialized hheaderParams hcommonParams hconsume hlitL
+        HheaderMaterialized hheaderParams halignL hcommonParams hconsume hlitL
     exact (Hconstructors hlparams).mono fun _ Hassembled => by
       rcases Hassembled with ⟨Hassembled⟩
       have hindicesAssembled : stats.nindices.toList =
