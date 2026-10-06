@@ -866,6 +866,20 @@ inside this project's scope without solving open base metatheory:
    environment contains canonical `Eq`"; (iv) the base obligations
    (confluence, injectivity, strengthening with `Eq`) are on the critical
    path, not optional.
+   **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
+   `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
+   `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
+   `env.defeqs`; `HasCanonicalEq.mono`), the single conjecture
+   `strengthening_of_canonicalEq (henv : env.WF) (heq : env.HasCanonicalEq) :
+   env.Strengthening` (registered in the audit inventory), and
+   `addDecl.WF_of_canonicalEq (wf) (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+   (decl) (hdecl)` plus `addDecl.WFHasCanonicalEq` returning the hypothesis
+   for the output (iterable over a replay). Two clauses of
+   `Declaration.Strengthening` gained WF premises their callers already had
+   (unsafe definition's constant WF; projection environment WF). Caveats being
+   checked: that the replay of `Init.Prelude` installs exactly the stored
+   forms (universe order of `Eq.rec`, rule shape), and an `EqBootstrapShape`
+   `nparams = 1` vs real `Eq` (2 params, 1 index) mismatch.
    **Decision (Kim, 2026-10-06): the final theorem may assume the environment
    contains canonical `Eq`.** So the strengthening obligation is stated as
    the base conjecture `strengthening_of_canonicalEq : env.WF →
