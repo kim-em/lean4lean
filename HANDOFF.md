@@ -702,8 +702,14 @@ inside this project's scope without solving open base metatheory:
    input-naming hypotheses on soundness theorems; the literal-expansion
    sites only need the hard-coded constants that exist in the environment
    not to be heads (discharged by freshness), and the out-of-range dummy must
-   be shown unreachable on successful runs. In progress on the hitshape
-   worktree.
+   be shown unreachable on successful runs. **Done (d12593f, merged as
+   ebc0e0e):** `EnvHitShape` now has `prims` (the seven kernel primitive
+   names are never heads: every installed name passed `checkName` without
+   primitive permission) and `strs` (when string literals are supported,
+   `String`/`Char`/`List.nil`/`List.cons` are old constants, hence not
+   heads); every out-of-range read is shown in range. `hprims` is gone from
+   the whole nested chain; `assemblyNative_of_run (E) (wf) (Hsources)
+   (Hrules) (Hprovenance)`.
    **`assemblyNative_of_hprims` (Nested/AssemblyNativeWhnf.lean, merged
    89776a7):** the nested final assembly certificate from `wf`, `Hsources`,
    `hprims` and two named hypotheses: `Hrules` (a shape `C` whose rules
