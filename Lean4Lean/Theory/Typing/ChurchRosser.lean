@@ -1776,29 +1776,29 @@ alias NormalEq.mkApps_spine := NormalEqF.mkApps_spine
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem CaseApplicationRelated.normalEq
-    (H : CaseApplicationRelated (NormalEq Γ) actual actual')
-    (ht : Γ ⊢ actual.expr : type) : Γ ⊢ actual.expr ≡ₚ actual'.expr := by
+    (H : CaseApplicationRelated (NormalEqF η Γ) actual actual')
+    (ht : Γ ⊢ actual.expr : type) : Γ ⊢ actual.expr ≡ₚ{η} actual'.expr := by
   obtain ⟨_, _, hfn, hmajor⟩ := ht.app_inv henv hΓ
   obtain ⟨_, hhead⟩ := schema_mkApps_head_type hΓ hfn
   obtain ⟨_, hctor⟩ := schema_mkApps_head_type hΓ hmajor
-  have hnfn := NormalEq.mkApps_spine hΓ (.refl hhead) H.arguments hfn
-  have hnmajor := NormalEq.mkApps_spine hΓ (.refl hctor) H.ctorArguments hmajor
-  change NormalEq Γ (.app _ _) (.app _ _)
+  have hnfn := NormalEqF.mkApps_spine hΓ (.refl hhead) H.arguments hfn
+  have hnmajor := NormalEqF.mkApps_spine hΓ (.refl hctor) H.ctorArguments hmajor
+  change NormalEqF η Γ (.app _ _) (.app _ _)
   rw [← H.block_eq, ← H.owner_eq, ← H.levels_eq, ← H.ctor_eq, ← H.ctorLevels_eq]
-  apply NormalEq.appDF hfn ?_ hmajor ?_ hnfn hnmajor
+  apply NormalEqF.appDF hfn ?_ hmajor ?_ hnfn hnmajor
   · exact ((hnfn.defeq hΓ).of_l henv hΓ hfn).hasType.2
   · exact ((hnmajor.defeq hΓ).of_l henv hΓ hmajor).hasType.2
 
-private theorem normalEq_forall2_symm (hΓ : OnCtx Γ (env.IsType univs)) (H : List.Forall₂ (NormalEq Γ) args args') :
-    List.Forall₂ (NormalEq Γ) args' args := by
+private theorem normalEq_forall2_symm (hΓ : OnCtx Γ (env.IsType univs)) (H : List.Forall₂ (NormalEqF η Γ) args args') :
+    List.Forall₂ (NormalEqF η Γ) args' args := by
   induction H with
   | nil => exact .nil
   | cons h _ ih => exact .cons (h.symm hΓ) ih
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem CaseApplicationRelated.normalEq_symm
-    (H : CaseApplicationRelated (NormalEq Γ) actual actual') :
-    CaseApplicationRelated (NormalEq Γ) actual' actual where
+    (H : CaseApplicationRelated (NormalEqF η Γ) actual actual') :
+    CaseApplicationRelated (NormalEqF η Γ) actual' actual where
   block_eq := H.block_eq.symm
   owner_eq := H.owner_eq.symm
   levels_eq := H.levels_eq.symm
@@ -1809,7 +1809,7 @@ theorem CaseApplicationRelated.normalEq_symm
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem CaseApplicationRelated.normalEq_defeq
-    (H : CaseApplicationRelated (NormalEq Γ) actual actual') :
+    (H : CaseApplicationRelated (NormalEqF η Γ) actual actual') :
     CaseApplicationRelated (IsDefEqU env univs Γ) actual actual' where
   block_eq := H.block_eq
   owner_eq := H.owner_eq
@@ -1822,7 +1822,7 @@ theorem CaseApplicationRelated.normalEq_defeq
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem MatchedCaseStep.of_normalEq_spine
     (H : MatchedCaseStep env univs Γ rule actual')
-    (hspine : CaseApplicationRelated (NormalEq Γ) actual actual') :
+    (hspine : CaseApplicationRelated (NormalEqF η Γ) actual actual') :
     MatchedCaseStep env univs Γ rule actual := by
   obtain ⟨_, hactual⟩ := H.guard
   have hs := hspine.normalEq_symm hΓ
@@ -1874,7 +1874,7 @@ theorem NormalEqF.of_levelEquiv (L : VExpr.LEquiv univs e e') (ht : Γ ⊢ e : t
 
 alias NormalEq.of_levelEquiv := NormalEqF.of_levelEquiv
 
-private theorem _root_.Lean4Lean.Pattern.RHS.const_levelEquiv
+theorem _root_.Lean4Lean.Pattern.RHS.const_levelEquiv
     (r : (Pattern.const name).RHS) (hls : ∀ l ∈ ls, l.WF univs)
     (hls' : ∀ l ∈ ls', l.WF univs) (he : List.Forall₂ (· ≈ ·) ls ls') :
     VExpr.LEquiv univs (r.apply ls values) (r.apply ls' values') := by
@@ -1883,7 +1883,7 @@ private theorem _root_.Lean4Lean.Pattern.RHS.const_levelEquiv
   | app _ _ ihf iha => exact .app ihf iha
   | var i => cases i
 
-private theorem _root_.Lean4Lean.Pattern.Check.const_levels
+theorem _root_.Lean4Lean.Pattern.Check.const_levels
     (hΓ : OnCtx Γ (env.IsType univs))
     {check : (Pattern.const name).Check}
     (hls : ∀ l ∈ ls, l.WF univs) (hls' : ∀ l ∈ ls', l.WF univs)
