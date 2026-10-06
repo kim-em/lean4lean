@@ -16,6 +16,24 @@ countermodel is parked at its conditional theorem; the Experimental CI
 failure is to be fixed properly as part of porting Mario's prototype. Open
 proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
 
+Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
+`~/worktrees/lean4lean/`):
+- `lean4lean-cr`, branch `agent/verify-inductives-cr`: `FullStep.strip`
+  (eta restricted to non-head positions or the levelled-reduction route).
+- `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
+  Mario's Experimental prototype to this branch's `VExpr` (fixing the
+  Experimental CI build), a sound shape model for the full calculus, the
+  separation half of `HeadInversion`; split the conjecture so only
+  `headInjectivity` remains.
+- `lean4lean-e3` (re-pointed), branch `agent/verify-inductives-headinj`:
+  Phase 1b: the injectivity half (`forallE_forallE`, argument part of
+  `rigid_rigid`, `former_args`, `proj_fieldType`); design candidates:
+  cast-pushing inside the relation, neutral eliminators, type-level relation
+  with singleton eta. Astra design review requested.
+- `lean4lean-base`, branch `agent/verify-inductives-base`: obligation (b):
+  falsification study of strengthening with canonical `Eq`, singleton eta,
+  conversion certificates.
+
 ## Intended result
 
 Finish the executable Lean4Lean inductive checker's refinement of an
