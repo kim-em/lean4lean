@@ -321,7 +321,71 @@ theorem propElim_wf (henv : env.WF) (H : NativeRecursorRegistered env data)
     have := Classical.epsilon_spec hex
     rw [hget, ← getD_of_lt (d := default) hj]
     exact this
-  sorry
+  have hlift : ∀ j (hj : j < (data.nativeInstance.sFields c).length) (u : VLevel),
+      env.HasType data.uvars
+        (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take j).reverse
+        (data.nativeInstance.sFields c)[j] (.sort u) →
+      env.HasType U (gp.params ++ (gp.sFields c).take j).reverse
+        ((gp.sFields c)[j]'(by rw [hnf]; rw [hnfG] at hj; exact hj)) (.sort (u.inst packed)) := by
+    intro j hj u h
+    have h' := h.instL hpk
+    have e1 : (List.map (VExpr.instL packed)
+        (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take j).reverse) =
+        (gp.params ++ (gp.sFields c).take j).reverse := by
+      rw [← hPeq, ← hFeq]
+      simp [propParams, List.map_reverse, List.map_take]
+    have e2 : (data.nativeInstance.sFields c)[j].instL packed = (gp.sFields c)[j]'(by
+        rw [hnf]; rw [hnfG] at hj; exact hj) := by
+      simp only [← hFeq, List.getElem_map]
+    rw [e1, e2] at h'
+    exact h'
+  have hslotEq : ∀ j, fieldSlot (gp.sCtorIndices c) (gp.sFields c).length j =
+      fieldSlot (data.nativeInstance.sCtorIndices c) (data.nativeInstance.sFields c).length j := by
+    intro j
+    rw [← hCIeq, ← hFeq, List.length_map, fieldSlot_instL]
+  have hprop : ∀ j (hj : j < (gp.sFields c).length),
+      fieldSlot (gp.sCtorIndices c) (gp.sFields c).length j = none →
+      env.HasType gp.uvars (gp.params ++ (gp.sFields c).take j).reverse (gp.sFields c)[j]
+        (.sort .zero) := by
+    intro j hj hnone
+    have hjc : j < c.fields.length := hnf ▸ hj
+    obtain ⟨envTypes, hle, hsing⟩ := F.singleton
+    rcases hsing.2.2 c hmem j hjc with hP | hbv
+    · have hG : env.HasType data.uvars
+          (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take j).reverse
+          ((data.nativeInstance.sFields c)[j]'(hnfG ▸ hjc)) (.sort .zero) := by
+        have := hP.mono hle
+        simpa [Instance.sFields, Instance.params, nativeInstance, fieldTypes, List.map_take,
+          List.reverse_append] using this
+      exact hlift j (hnfG ▸ hjc) .zero hG
+    · exfalso
+      apply fieldSlot_none hnone
+      rw [hnf]
+      exact List.mem_map.2 ⟨_, hbv, rfl⟩
+  have hsorts : ∀ j (hj : j < (gp.sFields c).length) k',
+      fieldSlot (gp.sCtorIndices c) (gp.sFields c).length j = some k' →
+      env.HasType gp.uvars (gp.params ++ (gp.sFields c).take j).reverse (gp.sFields c)[j]
+        (.sort (((data.genericSorts env c).map (VLevel.inst packed)).getD j .zero)) := by
+    intro j hj k' hslot
+    have hjG : j < (data.nativeInstance.sFields c).length := hnfG ▸ hnf ▸ hj
+    rw [hslotEq] at hslot
+    have := hlift j hjG _ (hspec j hjG k' hslot)
+    have e : ((data.genericSorts env c).map (VLevel.inst packed)).getD j .zero =
+        ((data.genericSorts env c).getD j .zero).inst packed := by
+      simp [List.getD_eq_getElem?_getD, List.getElem?_map]
+      cases (data.genericSorts env c)[j]? <;> simp [VLevel.inst]
+    rw [e]
+    exact this
+  have hsortWF : ∀ j, (((data.genericSorts env c).map (VLevel.inst packed)).getD j .zero).WF gp.uvars := by
+    intro j
+    have e : ((data.genericSorts env c).map (VLevel.inst packed)).getD j .zero =
+        ((data.genericSorts env c).getD j .zero).inst packed := by
+      simp [List.getD_eq_getElem?_getD, List.getElem?_map]
+      cases (data.genericSorts env c)[j]? <;> simp [VLevel.inst]
+    rw [e]
+    exact VLevel.WF.inst hpk
+  exact gp.singletonElim_wf henv hfam hcs data.owner i hc hown htarget hhead harity hfamHead
+    hprop hsorts hsortWF
 
 end InductiveSignature.NativeRecursorData
 end Lean4Lean
