@@ -77,13 +77,17 @@ inductive EtaPar : List VExpr → VExpr → VExpr → Prop where
       EtaPar Γ (.lam A body) (.lam A' body')
   | forallE : EtaPar Γ A A' → EtaPar (A :: Γ) body body' →
       EtaPar Γ (.forallE A body) (.forallE A' body')
-  | funEta : EtaPar Γ e e' → Γ ⊢ e : .forallE A B →
-      EtaPar Γ e (.lam A (.app e'.lift (.bvar 0)))
-  | structEta : EtaPar Γ e e' → env.projections family info →
+  | funEta : EtaPar Γ e e' → EtaPar Γ A A' → Γ ⊢ e : .forallE A B →
+      EtaPar Γ e (.lam A' (.app e'.lift (.bvar 0)))
+  | structEta {params params' : List VExpr} : EtaPar Γ e e' →
+      (hlen : params.length = params'.length) →
+      (∀ i (hi : i < params.length) (hi' : i < params'.length),
+        EtaPar Γ params[i] params'[i]) →
+      env.projections family info →
       params.length = info.nparams → info.nindices = 0 →
       Γ ⊢ e : VExpr.mkApps (.const family levels) params →
       Γ ⊢ structExpand family info levels params e : VExpr.mkApps (.const family levels) params →
-      EtaPar Γ e (structExpand family info levels params e')
+      EtaPar Γ e (structExpand family info levels params' e')
 
 section Basic
 
@@ -169,12 +173,278 @@ theorem EtaPar.full (hΓ : OnCtx Γ (env.IsType univs)) (H : EtaPar Γ e e')
   | forallE _ _ ih1 ih2 =>
     obtain ⟨⟨_, h1⟩, _, h2⟩ := he.forallE_inv henv
     exact (ih1 hΓ h1).forallE (ih2 ⟨hΓ, _, h1⟩ h2)
-  | funEta _ ht ih =>
+  | funEta _ _ ht ih ihA =>
     have h := ih hΓ ht
-    exact h.tail (.funEta (h.hasType hΓ ht))
-  | structEta _ hl hp hi hs hc ih =>
+    obtain ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := ht.isType henv hΓ; h.forallE_inv henv
+    exact (h.tail (.funEta (h.hasType hΓ ht))).trans ((ihA hΓ hA).lam .rfl)
+  | structEta _ hlen _ hl hp hi hs hc ih ihp =>
     have h := ih hΓ hs
-    exact h.tail (.structEta hl hp hi (h.hasType hΓ hs) ((FullReduction.structExpand h).hasType hΓ hc))
+    obtain ⟨_, hT⟩ := hs.isType henv hΓ
+    have hps : List.Forall₂ (FullReduction _) _ _ := forall₂_of_getElem hlen fun i hi hi' =>
+      ihp i hi hi' hΓ (schema_mkApps_arg_type hΓ hT (List.getElem_mem hi)).choose_spec
+    refine (h.tail (.structEta hl hp hi (h.hasType hΓ hs)
+      ((FullReduction.structExpand h).hasType hΓ hc))).trans ?_
+    exact FullReduction.mkApps_args (case_forall₂_append hps (List.Forall₂.rfl fun _ _ => .rfl))
+
+/-! ### Substitution of definitionally equal arguments -/
+
+theorem _root_.Lean4Lean.Ctx.InstN.substEq (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (env.IsType univs))
+    (ha : Γ₀ ⊢ a₁ ≡ a₂ : A₀) :
+    Ctx.SubstEq env univs Γ ((VExpr.Subst.one a₁).liftN k) ((VExpr.Subst.one a₂).liftN k) Γ₁ := by
+  induction W with
+  | zero =>
+    obtain ⟨hΓ₀, _, hA⟩ := hΓ₁
+    refine .cons (Ctx.SubstEq.id henv.ordered hΓ₀) hA ?_
+    show Γ₀ ⊢ a₁ ≡ a₂ : A₀.subst .id
+    rw [subst_id]; exact ha
+  | succ W ih =>
+    obtain ⟨hΓ₁', _, hA⟩ := hΓ₁
+    have := (ih hΓ₁').lift henv.ordered hA
+    rwa [← instN_eq] at this
+
+theorem HasType.instN_DF (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (env.IsType univs))
+    (ha : Γ₀ ⊢ a₁ ≡ a₂ : A₀) (H : Γ₁ ⊢ e : A) : Γ ⊢ e.inst a₁ k ≡ e.inst a₂ k : A.inst a₁ k := by
+  have hΓ := (W.wf henv.ordered ha.hasType.1 hΓ₁).2
+  simpa only [← instN_eq] using IsDefEq.substDF henv.ordered hΓ₁ hΓ (W.substEq hΓ₁ ha) H
+
+theorem _root_.Lean4Lean.Ctx.InstN.defeqCtx (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (env.IsType univs))
+    (ha : Γ₀ ⊢ a₁ ≡ a₂ : A₀) :
+    ∃ Γ', Ctx.InstN Γ₀ a₂ A₀ k Γ₁ Γ' ∧ IsDefEqCtx env univs Γ₀ Γ' Γ := by
+  induction W with
+  | zero => exact ⟨_, .zero, .zero⟩
+  | succ W ih =>
+    obtain ⟨hΓ₁', _, hA⟩ := hΓ₁
+    obtain ⟨Γ', W', hc⟩ := ih hΓ₁'
+    exact ⟨_, .succ W', .succ hc (HasType.instN_DF W' hΓ₁' ha.symm hA)⟩
+
+/-! ### Weakening, context conversion and substitution -/
+
+theorem DeltaPar.weakN (W : Ctx.LiftN n k Γ Γ') (H : DeltaPar Γ e e') :
+    DeltaPar Γ' (e.liftN n k) (e'.liftN n k) := by
+  induction H generalizing k Γ' with
+  | bvar | sort | const | elim => exact .rfl
+  | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | proj _ ih => exact .proj (ih W)
+  | lam _ _ ih1 ih2 => exact .lam (ih1 W) (ih2 W.succ)
+  | forallE _ _ ih1 ih2 => exact .forallE (ih1 W) (ih2 W.succ)
+  | delta hlen _ hr ih =>
+    simp only [VExpr.liftN_mkApps, VExpr.liftN]
+    exact .delta (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ih i (by simpa using hi) (by simpa using hi') W)
+      (hr.weakN henv W)
+  | quotDelta hlen _ hr ih =>
+    simp only [VExpr.liftN_mkApps, VExpr.liftN]
+    exact .quotDelta (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ih i (by simpa using hi) (by simpa using hi') W)
+      (hr.weakN henv W)
+  | projIota hlen _ hl hs hi ht ih =>
+    have hs' := hs.weakN henv W
+    simp only [VExpr.liftN_mkApps, VExpr.liftN] at hs' ⊢
+    exact .projIota (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ih i (by simpa using hi) (by simpa using hi') W)
+      hl hs' (by simp [hi]) (ht.weakN henv W)
+
+theorem DeltaPar.defeqDFC (hΓ : OnCtx Γ₀ (env.IsType univs))
+    (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
+    (H : DeltaPar Γ₁ e e') (he : Γ₁ ⊢ e : A) : DeltaPar Γ₂ e e' := by
+  induction H generalizing Γ₂ A with
+  | bvar | sort | const | elim => exact .rfl
+  | app _ _ ih1 ih2 =>
+    obtain ⟨_, _, hf, ha⟩ := he.app_inv henv (W.isType' hΓ)
+    exact .app (ih1 W hf) (ih2 W ha)
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ :=
+      he.proj_inv henv (W.isType' hΓ)
+    exact .proj (ih W hm.hasType.2)
+  | lam _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv (W.isType' hΓ)
+    exact .lam (ih1 W hd) (ih2 (.succ W hd) hb)
+  | forallE _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv
+    exact .forallE (ih1 W hd) (ih2 (.succ W hd) hb)
+  | delta hlen _ hr ih =>
+    exact .delta hlen (fun i hi hi' => ih i hi hi' W
+      (schema_mkApps_arg_type (W.isType' hΓ) he (List.getElem_mem hi)).choose_spec)
+      (hr.defeqDFC henv hΓ W)
+  | quotDelta hlen _ hr ih =>
+    exact .quotDelta hlen (fun i hi hi' => ih i hi hi' W
+      (schema_mkApps_arg_type (W.isType' hΓ) he (List.getElem_mem hi)).choose_spec)
+      (hr.defeqDFC henv hΓ W)
+  | projIota hlen _ hl hs hi ht ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ :=
+      he.proj_inv henv (W.isType' hΓ)
+    exact .projIota hlen (fun i hi' hi'' => ih i hi' hi'' W
+      (schema_mkApps_arg_type (W.isType' hΓ) hm.hasType.2 (List.getElem_mem hi')).choose_spec)
+      hl (hs.defeqDFC henv W) hi (ht.defeqDFC henv W)
+
+theorem DeltaPar.instN (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (env.IsType univs))
+    (H₀ : DeltaPar Γ₀ a₁ a₂) (h₀ : Γ₀ ⊢ a₁ : A₀)
+    (H : DeltaPar Γ₁ e e') (he : Γ₁ ⊢ e : T) : DeltaPar Γ (e.inst a₁ k) (e'.inst a₂ k) := by
+  have hΓ₀ := (W.wf henv.ordered h₀ hΓ₁).1
+  have ha := (DeltaPar.full H₀).defeq hΓ₀ h₀
+  have h₂ := ha.hasType.2
+  induction H generalizing Γ k T with
+  | @bvar _ i =>
+    clear he hΓ₁
+    dsimp [inst]
+    induction W generalizing i with
+    | zero =>
+      cases i with simp
+      | zero => exact H₀
+      | succ h => exact .rfl
+    | succ _ ih =>
+      cases i with simp
+      | zero => exact .rfl
+      | succ h => exact (ih ..).weakN .one
+  | sort | const | elim => exact .rfl
+  | app _ _ ih1 ih2 =>
+    obtain ⟨_, _, h1, h2⟩ := he.app_inv henv hΓ₁
+    exact .app (ih1 W hΓ₁ h1) (ih2 W hΓ₁ h2)
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := he.proj_inv henv hΓ₁
+    exact .proj (ih W hΓ₁ hm.hasType.2)
+  | lam _ _ ih1 ih2 =>
+    obtain ⟨⟨_, h1⟩, _, h2⟩ := he.lam_inv henv hΓ₁
+    exact .lam (ih1 W hΓ₁ h1) (ih2 W.succ ⟨hΓ₁, _, h1⟩ h2)
+  | forallE _ _ ih1 ih2 =>
+    obtain ⟨⟨_, h1⟩, _, h2⟩ := he.forallE_inv henv
+    exact .forallE (ih1 W hΓ₁ h1) (ih2 W.succ ⟨hΓ₁, _, h1⟩ h2)
+  | delta hlen _ hr ih =>
+    obtain ⟨Γ', W', hc⟩ := W.defeqCtx hΓ₁ ha
+    have hr' := (hr.instN henv W' h₂).defeqDFC henv hΓ₀ hc
+    simp only [VExpr.inst_mkApps, VExpr.inst]
+    exact .delta (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ih i (by simpa using hi) (by simpa using hi') W hΓ₁
+          (schema_mkApps_arg_type hΓ₁ he (List.getElem_mem (by simpa using hi))).choose_spec)
+      hr'
+  | quotDelta hlen _ hr ih =>
+    obtain ⟨Γ', W', hc⟩ := W.defeqCtx hΓ₁ ha
+    have hr' := (hr.instN henv W' h₂).defeqDFC henv hΓ₀ hc
+    simp only [VExpr.inst_mkApps, VExpr.inst]
+    exact .quotDelta (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ih i (by simpa using hi) (by simpa using hi') W hΓ₁
+          (schema_mkApps_arg_type hΓ₁ he (List.getElem_mem (by simpa using hi))).choose_spec)
+      hr'
+  | projIota hlen _ hl hs hi ht ih =>
+    obtain ⟨Γ', W', hc⟩ := W.defeqCtx hΓ₁ ha
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := he.proj_inv henv hΓ₁
+    have hs' := (hs.instN henv W' h₂).defeqDFC henv hc
+    have ht' := (ht.instN henv W' h₂).defeqDFC henv hc
+    simp only [VExpr.inst_mkApps, VExpr.inst] at hs' ⊢
+    exact .projIota (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ih i (by simpa using hi) (by simpa using hi') W hΓ₁
+          (schema_mkApps_arg_type hΓ₁ hm.hasType.2
+            (List.getElem_mem (by simpa using hi))).choose_spec)
+      hl hs' (by simp [hi]) ht'
+
+theorem structExpand_liftN :
+    (structExpand family info levels params e).liftN n k =
+      structExpand family info levels (params.map (·.liftN n k)) (e.liftN n k) := by
+  simp [structExpand, VExpr.liftN_mkApps, VExpr.liftN, List.map_append, List.map_map,
+    Function.comp_def]
+
+theorem structExpand_inst :
+    (structExpand family info levels params e).inst a k =
+      structExpand family info levels (params.map (·.inst a k)) (e.inst a k) := by
+  simp [structExpand, VExpr.inst_mkApps, VExpr.inst, List.map_append, List.map_map,
+    Function.comp_def]
+
+theorem EtaPar.weakN (W : Ctx.LiftN n k Γ Γ') (H : EtaPar Γ e e') :
+    EtaPar Γ' (e.liftN n k) (e'.liftN n k) := by
+  induction H generalizing k Γ' with
+  | bvar | sort | const | elim => exact .rfl
+  | app _ _ ih1 ih2 => exact .app (ih1 W) (ih2 W)
+  | proj _ ih => exact .proj (ih W)
+  | lam _ _ ih1 ih2 => exact .lam (ih1 W) (ih2 W.succ)
+  | forallE _ _ ih1 ih2 => exact .forallE (ih1 W) (ih2 W.succ)
+  | funEta _ _ ht ih ihA =>
+    simpa only [VExpr.liftN, ← VExpr.lift_liftN', liftVar_zero] using
+      EtaPar.funEta (ih W) (ihA W) (ht.weakN henv W)
+  | structEta _ hlen _ hl hp hi hs hc ih ihp =>
+    have hs' := hs.weakN henv W
+    have hc' := hc.weakN henv W
+    simp only [VExpr.liftN_mkApps, VExpr.liftN, structExpand_liftN] at hs' hc' ⊢
+    exact .structEta (ih W) (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ihp i (by simpa using hi) (by simpa using hi') W)
+      hl (by simpa using hp) hi hs' hc'
+
+theorem EtaPar.defeqDFC (hΓ : OnCtx Γ₀ (env.IsType univs))
+    (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
+    (H : EtaPar Γ₁ e e') (he : Γ₁ ⊢ e : A) : EtaPar Γ₂ e e' := by
+  induction H generalizing Γ₂ A with
+  | bvar | sort | const | elim => exact .rfl
+  | app _ _ ih1 ih2 =>
+    obtain ⟨_, _, hf, ha⟩ := he.app_inv henv (W.isType' hΓ)
+    exact .app (ih1 W hf) (ih2 W ha)
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ :=
+      he.proj_inv henv (W.isType' hΓ)
+    exact .proj (ih W hm.hasType.2)
+  | lam _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.lam_inv henv (W.isType' hΓ)
+    exact .lam (ih1 W hd) (ih2 (.succ W hd) hb)
+  | forallE _ _ ih1 ih2 =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := he.forallE_inv henv
+    exact .forallE (ih1 W hd) (ih2 (.succ W hd) hb)
+  | funEta _ _ ht ih ihA =>
+    obtain ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := ht.isType henv (W.isType' hΓ); h.forallE_inv henv
+    exact .funEta (ih W ht) (ihA W hA) (ht.defeqDFC henv W)
+  | structEta _ hlen _ hl hp hi hs hc ih ihp =>
+    obtain ⟨_, hT⟩ := hs.isType henv (W.isType' hΓ)
+    exact .structEta (ih W hs) hlen (fun i hi hi' => ihp i hi hi' W
+      (schema_mkApps_arg_type (W.isType' hΓ) hT (List.getElem_mem hi)).choose_spec)
+      hl hp hi (hs.defeqDFC henv W) (hc.defeqDFC henv W)
+
+theorem EtaPar.instN (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx Γ₁ (env.IsType univs))
+    (H₀ : EtaPar Γ₀ a₁ a₂) (h₀ : Γ₀ ⊢ a₁ : A₀)
+    (H : EtaPar Γ₁ e e') (he : Γ₁ ⊢ e : T) : EtaPar Γ (e.inst a₁ k) (e'.inst a₂ k) := by
+  induction H generalizing Γ k T with
+  | @bvar _ i =>
+    clear he hΓ₁
+    dsimp [inst]
+    induction W generalizing i with
+    | zero =>
+      cases i with simp
+      | zero => exact H₀
+      | succ h => exact .rfl
+    | succ _ ih =>
+      cases i with simp
+      | zero => exact .rfl
+      | succ h => exact (ih ..).weakN .one
+  | sort | const | elim => exact .rfl
+  | app _ _ ih1 ih2 =>
+    obtain ⟨_, _, h1, h2⟩ := he.app_inv henv hΓ₁
+    exact .app (ih1 W hΓ₁ h1) (ih2 W hΓ₁ h2)
+  | proj _ ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := he.proj_inv henv hΓ₁
+    exact .proj (ih W hΓ₁ hm.hasType.2)
+  | lam _ _ ih1 ih2 =>
+    obtain ⟨⟨_, h1⟩, _, h2⟩ := he.lam_inv henv hΓ₁
+    exact .lam (ih1 W hΓ₁ h1) (ih2 W.succ ⟨hΓ₁, _, h1⟩ h2)
+  | forallE _ _ ih1 ih2 =>
+    obtain ⟨⟨_, h1⟩, _, h2⟩ := he.forallE_inv henv
+    exact .forallE (ih1 W hΓ₁ h1) (ih2 W.succ ⟨hΓ₁, _, h1⟩ h2)
+  | funEta _ _ ht ih ihA =>
+    obtain ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := ht.isType henv hΓ₁; h.forallE_inv henv
+    simpa only [VExpr.inst, ← VExpr.lift_instN_lo, instVar, if_pos (Nat.zero_lt_succ k)] using
+      EtaPar.funEta (ih W hΓ₁ ht) (ihA W hΓ₁ hA) (ht.instN henv W h₀)
+  | structEta _ hlen _ hl hp hi hs hc ih ihp =>
+    obtain ⟨_, hT⟩ := hs.isType henv hΓ₁
+    have hs' := hs.instN henv W h₀
+    have hc' := hc.instN henv W h₀
+    simp only [VExpr.inst_mkApps, VExpr.inst, structExpand_inst] at hs' hc' ⊢
+    exact .structEta (ih W hΓ₁ hs) (by simpa using hlen)
+      (fun i hi hi' => by
+        simpa only [List.getElem_map] using ihp i (by simpa using hi) (by simpa using hi') W hΓ₁
+          (schema_mkApps_arg_type hΓ₁ hT (List.getElem_mem (by simpa using hi))).choose_spec)
+      hl (by simpa using hp) hi hs' hc'
 
 end Basic
 
@@ -410,8 +680,8 @@ theorem FullStep.upStep (H : FullStep Γ e e') : ReflTransGen (UpStep Γ) e e' :
   | projIota hl hs hi ht =>
     exact .tail .rfl (.inr (.inl (.projIota rfl (fun _ _ _ => .rfl) hl hs hi ht)))
   | structEta hl hp hi hs ht =>
-    exact .tail .rfl (.inr (.inr (.structEta .rfl hl hp hi hs ht)))
-  | funEta ht => exact .tail .rfl (.inr (.inr (.funEta .rfl ht)))
+    exact .tail .rfl (.inr (.inr (.structEta .rfl rfl (fun _ _ _ => .rfl) hl hp hi hs ht)))
+  | funEta ht => exact .tail .rfl (.inr (.inr (.funEta .rfl .rfl ht)))
   | @app _ f f' a a' _ _ ih1 ih2 =>
     refine (UpStep.congr (g := id) (f := (VExpr.app · a)) ?_ ih1).trans
       (UpStep.congr (g := id) (f := VExpr.app f') ?_ ih2)
