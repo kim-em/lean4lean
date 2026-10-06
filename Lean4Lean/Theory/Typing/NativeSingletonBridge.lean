@@ -25,8 +25,9 @@ structure SingletonFacts (env : VEnv) (data : NativeRecursorData) : Prop where
   families : data.schema.signature.families.size = 1
   constructors : data.schema.signature.constructors.size ≤ 1
   restoration : data.schema.restoration = {}
-  free : ∃ k, data.target = .param k ∧
+  free : ∃ k, data.target = .param k ∧ k < data.uvars ∧
     ∀ l ∈ data.levels, ∀ (ls : List VLevel) (u : VLevel), l.inst (ls.set k u) = l.inst ls
+  levels_wf : ∀ l ∈ data.levels, l.WF data.uvars
   recursor : env.constants data.name =
     some { uvars := data.uvars, type := data.nativeInstance.recursorType data.owner }
   singleton : ∃ envTypes, envTypes ≤ env ∧
@@ -88,13 +89,16 @@ theorem singletonFacts (H : NativeRecursorRegistered env data) (hlarge : data.la
     constructors := hsingle.1.2.1
     restoration := hrest
     free := ?_
+    levels_wf := by rw [hl, hu]; exact hadm.levels_wf
     recursor := ?_
     singleton := ?_
     familyHead := ?_
     arity := hdata.model.constructorArity
     uvars := ?_ }
   · obtain ⟨k, hk, hlv⟩ := hsingle.2
-    exact ⟨k, ht.trans hk, by rw [hl]; exact hlv⟩
+    have hwf := hadm.target_wf
+    rw [hk] at hwf
+    exact ⟨k, ht.trans hk, by rw [hu]; simpa [VLevel.WF] using hwf, by rw [hl]; exact hlv⟩
   · have hgen : data.recursorType = some (data.nativeInstance.recursorType data.owner) := by
       simp [recursorType, hrest]
     exact NativeRecursorRegistered.recursorType
