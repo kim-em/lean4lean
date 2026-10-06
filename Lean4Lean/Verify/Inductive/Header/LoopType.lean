@@ -1719,10 +1719,11 @@ theorem HeaderTelescopeCertificate.withParameter
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderTelescopeCertificate Hc root (.forallE sourceDom body)
       params [])
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
     HeaderTelescopeCertificate
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType)
+        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
       root body (params ++ [sourceDom]) [] where
   rebuild := by
     simpa [VExpr.wrapForalls, VExpr.wrapForalls_append] using H.rebuild
@@ -1744,10 +1745,11 @@ theorem HeaderTelescopeCertificate.withIndex
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderTelescopeCertificate Hc root (.forallE sourceDom body)
       params indices)
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
     HeaderTelescopeCertificate
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType)
+        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
       root body params (indices ++ [sourceDom]) where
   rebuild := by
     simpa [VExpr.wrapForalls, VExpr.wrapForalls_append] using H.rebuild
@@ -1833,10 +1835,11 @@ def HeaderSynthesisCertificate.withParameter
     (H : HeaderSynthesisCertificate Hc target
       (.forallE sourceDom body) i nindices)
     (hindices : H.indices = [])
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
     HeaderSynthesisCertificate
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType)
+        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
       target body (i + 1) nindices where
   params := H.params ++ [sourceDom]
   indices := []
@@ -1870,10 +1873,11 @@ def HeaderSynthesisCertificate.withIndex
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderSynthesisCertificate Hc target
       (.forallE sourceDom body) i nindices)
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
     HeaderSynthesisCertificate
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType)
+        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
       target body i (nindices + 1) where
   params := H.params
   indices := H.indices ++ [sourceDom]
@@ -3032,17 +3036,18 @@ def HeaderTelescopeLoopCertificate.withParameter
     (H : HeaderTelescopeLoopCertificate Hc root
       (.forallE sourceDom body) i nindices)
     (hindices : H.indices = [])
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
     HeaderTelescopeLoopCertificate
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType)
+        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
       root body (i + 1) nindices where
   params := H.params ++ [sourceDom]
   indices := []
   telescope := by
     have Htel := H.telescope
     rw [hindices] at Htel
-    exact Htel.withParameter hdom
+    exact Htel.withParameter hdom hdom₀
   parameterCount := by simp [H.parameterCount]
   indexCount := by simpa [hindices] using H.indexCount
 
@@ -3050,14 +3055,15 @@ def HeaderTelescopeLoopCertificate.withIndex
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : HeaderTelescopeLoopCertificate Hc root
       (.forallE sourceDom body) i nindices)
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom) :
+    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
     HeaderTelescopeLoopCertificate
       (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType)
+        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
       root body i (nindices + 1) where
   params := H.params
   indices := H.indices ++ [sourceDom]
-  telescope := H.telescope.withIndex hdom
+  telescope := H.telescope.withIndex hdom hdom₀
   parameterCount := H.parameterCount
   indexCount := by simp [H.indexCount]
 
@@ -3100,10 +3106,12 @@ def AmbientParamContext.withIndex
     (H : AmbientParamContext Hc params depth)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
+    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀)
     (hsource : ∃ u, Hc.venv.IsDefEq c.lparams.length
       Hc.mlctx.vlctx.toCtx sourceTy ty' (.sort u)) :
     AmbientParamContext
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty)
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
       params (depth + 1) where
   ambient := sourceTy :: H.ambient
   context := by
@@ -3143,9 +3151,11 @@ def ParameterContextSuffix.push
     (H : ParameterContextSuffix Hc stats 0)
     (hprefix : H.ambientDecls = [])
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
+    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀) :
     ParameterContextSuffix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty)
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
       { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
       0 := by
   let entry : Option (FVarId × List FVarId) × VLocalDecl :=
@@ -3167,7 +3177,7 @@ def ParameterContextSuffix.push
       List.reverse_singleton, List.singleton_append]
     exact .cons ⟨⟨c.ngen.curr⟩, ty.fvarsList, ty', rfl, rfl⟩
       H.cached
-  · let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
+  · let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀
     let W : VLCtx.FVLift H.parameterDecls
         (entry :: H.parameterDecls) 0 1 0 :=
       .skip_fvar _ _ .refl
@@ -3226,9 +3236,11 @@ def ParameterContextSuffix.withIndex
     (Hc : ContextWF c)
     (H : ParameterContextSuffix Hc stats depth)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (htr₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx ty ty₀)
+    (hty₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx ty₀) :
     ParameterContextSuffix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty)
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀)
       stats (depth + 1) := by
   let entry : Option (FVarId × List FVarId) × VLocalDecl :=
     (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
@@ -3348,6 +3360,75 @@ theorem ParameterContextSuffix.fvLiftAt
   rw [← hcontext] at hlift
   exact ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, rfl,
     hcontext, hparam, hlift⟩
+
+theorem _root_.Lean4Lean.TypeChecker.MLCtx.fvarList_eq (m : TypeChecker.MLCtx) :
+    m.fvarList = m.vlctx.fvars.reverse := by
+  induction m with
+  | nil => rfl
+  | vlam id _ _ _ _ c ih =>
+    simp [TypeChecker.MLCtx.fvarList, ih, TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some]
+  | vlet id _ _ _ _ _ c ih =>
+    simp [TypeChecker.MLCtx.fvarList, ih, TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some]
+
+theorem CachedParameterDecl.forall₂_fvars
+    (H : List.Forall₂ CachedParameterDecl ps decls) :
+    VLCtx.fvars decls = ps.map (·.fvarId!) := by
+  induction H with
+  | nil => rfl
+  | cons h _ ih =>
+    obtain ⟨fv, deps, ty, rfl, rfl⟩ := h
+    simp [VLCtx.fvars_cons_some, ih, Expr.fvarId!]
+
+theorem CachedParameterDecl.forall₂_drop :
+    ∀ (n : Nat) {ps : List Expr} {decls : VLCtx},
+      List.Forall₂ CachedParameterDecl ps decls →
+      List.Forall₂ CachedParameterDecl (ps.drop n) (decls.drop n)
+  | 0, _, _, H => by simpa using H
+  | _ + 1, _, _, .nil => .nil
+  | n + 1, _, _, .cons _ H => by simpa using CachedParameterDecl.forall₂_drop n H
+
+theorem ParameterContextSuffix.mlctx_length
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    Hc.mlctx.length = depth + stats.params.size := by
+  rw [← TypeChecker.MLCtx.vlctx_length, H.context, List.length_append,
+    H.prefixLength, H.parameterDecls_length]
+
+/-- The first `k` parameters are the `k` oldest declarations of the main
+context: the bottom of the context that drops all but them. -/
+theorem ParameterContextSuffix.bottom
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) (k : Nat)
+    (hk : k ≤ stats.params.size) :
+    (Hc.mlctx.dropN (depth + (stats.params.size - k))
+        (by rw [H.mlctx_length]; omega)).vlctx =
+      H.parameterDecls.drop (stats.params.size - k) ∧
+    paramCheckFVars stats k =
+      (Hc.mlctx.dropN (depth + (stats.params.size - k))
+        (by rw [H.mlctx_length]; omega)).fvarList := by
+  have hvl : (Hc.mlctx.dropN (depth + (stats.params.size - k))
+      (by rw [H.mlctx_length]; omega)).vlctx =
+      H.parameterDecls.drop (stats.params.size - k) := by
+    rw [Hc.onlyLams.vlctx_dropN, H.context, List.drop_append, H.prefixLength]
+    rw [List.drop_eq_nil_of_le (by rw [H.prefixLength]; omega)]
+    simp
+  refine ⟨hvl, ?_⟩
+  rw [TypeChecker.MLCtx.fvarList_eq, hvl]
+  have hcached := H.cached
+  have hdrop : List.Forall₂ CachedParameterDecl
+      (stats.params.toList.reverse.drop (stats.params.size - k))
+      (H.parameterDecls.drop (stats.params.size - k)) :=
+    CachedParameterDecl.forall₂_drop _ hcached
+  rw [CachedParameterDecl.forall₂_fvars hdrop, ← List.map_reverse]
+  unfold paramCheckFVars
+  congr 1
+  have hlen : stats.params.toList.length = stats.params.size := by simp
+  rw [List.drop_reverse]
+  simp only [List.reverse_reverse]
+  congr 1
+  omega
 
 /-- Narrow concrete scope immediately before consuming cached parameter `i`.
 Only parameters already consumed by this later header may occur; ambient
@@ -3746,6 +3827,75 @@ theorem LaterParameterScope.domainTranslation
   exact hdom.weakFV_inv Hc.checking.tr.wf H.olderLift
     (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hclosed H.fvars.1
 
+theorem LaterParameterScope.olderDrop
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
+    (H : LaterParameterScope Hsuffix i e) (hi : i < stats.params.size) :
+    Hsuffix.parameterDecls.drop (stats.params.size - i) = H.older ∧
+    Hsuffix.parameterDecls.drop (stats.params.size - (i + 1)) =
+      (some (H.fv, H.deps), .vlam H.paramType) :: H.older := by
+  rw [H.parameterDecls]
+  have hn := H.newerLength
+  constructor
+  · rw [show stats.params.size - i = H.newer.length + 1 by omega, List.drop_append]
+    simp
+  · rw [show stats.params.size - (i + 1) = H.newer.length by omega, List.drop_append]
+    simp
+
+/-- The checker contexts of the cached-parameter step: the parameters before
+`i`, and those up to and including `i`, together with the declared type of
+parameter `i` translated among the earlier parameters. -/
+theorem LaterParameterScope.narrowTyping
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
+    (H : LaterParameterScope Hsuffix i e) (hi : i < stats.params.size) :
+    (Hc.mlctx.dropN (depth + (stats.params.size - i))
+        (by rw [Hsuffix.mlctx_length]; omega)).vlctx = H.older ∧
+    (Hc.mlctx.dropN (depth + (stats.params.size - (i + 1)))
+        (by rw [Hsuffix.mlctx_length]; omega)).vlctx =
+      (some (H.fv, H.deps), .vlam H.paramType) :: H.older ∧
+    ∃ paramTy, (AddInductive.getType stats.params[i]! c).WF (fun ty => ty = paramTy) ∧
+      TrExprS Hc.venv c.lparams H.older paramTy H.paramType ∧
+      Hc.venv.IsType c.lparams.length H.older.toCtx H.paramType := by
+  obtain ⟨hd₀, hd₁⟩ := H.olderDrop hi
+  have hb₀ := (Hsuffix.bottom i (by omega)).1
+  have hb₁ := (Hsuffix.bottom (i + 1) (by omega)).1
+  rw [hd₀] at hb₀
+  rw [hd₁] at hb₁
+  refine ⟨hb₀, hb₁, ?_⟩
+  have hj : depth + (stats.params.size - (i + 1)) ≤ Hc.mlctx.length := by
+    rw [Hsuffix.mlctx_length]; omega
+  have hmwf := Hc.mlctx_wf.dropN _ hj
+  have hmem : H.fv ∈ (Hc.mlctx.dropN _ hj).vlctx.fvars := by
+    rw [hb₁]; simp [VLCtx.fvars_cons_some]
+  have hfind := Hc.onlyLams.dropN_find?_eq Hc.mlctx_wf _ hj hmem
+  have honly := Hc.onlyLams.dropN _ hj
+  generalize Hc.mlctx.dropN _ hj = m at hb₁ hmwf hfind honly
+  cases m with
+  | nil => simp at hb₁
+  | vlet => exact honly.vlet_false.elim
+  | vlam id name ty ty' bi tail =>
+    simp only [TypeChecker.MLCtx.vlctx, List.cons.injEq, Prod.mk.injEq,
+      Option.some.injEq] at hb₁
+    obtain ⟨⟨⟨rfl, -⟩, hty'⟩, htail⟩ := hb₁
+    cases hty'
+    obtain ⟨htailWF, hfresh, htr, hty⟩ := hmwf
+    rw [htail] at htr hty
+    refine ⟨ty, ?_, htr, hty⟩
+    intro ty' hrun
+    rw [H.parameter] at hrun
+    change Except.ok ((c.lctx.get! H.fv).type) = Except.ok ty' at hrun
+    have hfind' : c.lctx.find? H.fv =
+        some (.cdecl tail.lctx.decls.size H.fv name ty bi .default) := by
+      rw [← Hc.lctx_eq, hfind]
+      change (tail.lctx.mkLocalDecl H.fv name ty bi).find? H.fv = _
+      rw [LocalContext.find?_mkLocalDecl htailWF.tr.1.map_wf]
+      simp
+    simp only [LocalContext.get!, hfind', Except.ok.injEq] at hrun
+    exact hrun.symm
+
 /-- Recover every premise needed by the executable cached-parameter branch
 from the retained local-context translation. -/
 theorem LaterParameterScope.typing
@@ -4061,12 +4211,12 @@ theorem ParameterCachePrefix.push
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
     ParameterCachePrefix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
       c.lparams
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
       { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
       (done + 1) 0 := by
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
   let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   have hold : List.Forall₂
@@ -4109,11 +4259,11 @@ theorem ParameterCachePrefix.withIndex
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
     ParameterCachePrefix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
       c.lparams
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
       stats done (depth + 1) := by
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
+  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
   let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   refine ⟨?_, H.paramFVars⟩
@@ -4173,8 +4323,10 @@ theorem parameterMismatch.WF
 
 /-- Verification step for an index binder.  `hdom`/`hdomType` are stated for
 the annotation-consumed domain actually installed in the production local
-context; deriving them from the source domain is the separate
-`consumeTypeAnnotations` compatibility obligation. -/
+context, and `hdom₀`/`hdomType₀` for the same domain in the checker context;
+deriving them from the source domain is the separate `consumeTypeAnnotations`
+compatibility obligation.  The continuation receives the facts about the
+normal form in both contexts. -/
 theorem index.WF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
     (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
@@ -4182,52 +4334,25 @@ theorem index.WF
     (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
-    (Hrec : ∀ normalized,
-      TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).venv
-        c.lparams
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
-        normalized body' →
-      (AddInductive.checkInductiveTypes.loopType nparams
-        stats normalized i (nindices + 1) fuel k
-        { c with
-          ngen := c.ngen.next
-          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
-          checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rw [AddInductive.checkInductiveTypes.loopType]
-  rw [if_neg hi]
-  refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
-    (k := fun arg => do
-      let type := body.instantiate1 arg
-      AddInductive.checkInductiveTypes.loopType nparams stats
-        (← TypeChecker.whnf type) i (nindices + 1) fuel k)
-    Hc hdom hdomType ?_
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType
-  have hopened := Hc.instantiateFresh (name := name) (bi := bi)
-    hdom hdomType hbody
-  exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
-    Hrec normalized hnormalized
-
-/-- Index verification with the WHNF free-variable bound retained for
-narrow-scope consumers. -/
-theorem index.scopeWF
-    (Hc : ContextWF c) (hi : ¬ i < nparams)
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      dom.consumeTypeAnnotationsVerified dom')
-    (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hdom₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx
+      dom.consumeTypeAnnotationsVerified dom₀)
+    (hdomType₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx dom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom₀) :: Hc.chk.vlctx) body body₀)
     (Hrec : ∀ normalized,
       FVarsBelow
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).mlctx.vlctx
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
-      TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).venv
+      TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).venv
         c.lparams
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).mlctx.vlctx
         normalized body' →
+      FVarsBelow
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).chk.vlctx
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
+      TrExpr Hc.venv c.lparams
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).chk.vlctx
+        normalized body₀ →
       (AddInductive.checkInductiveTypes.loopType nparams
         stats normalized i (nindices + 1) fuel k
         { c with
@@ -4245,61 +4370,46 @@ theorem index.scopeWF
       let type := body.instantiate1 arg
       AddInductive.checkInductiveTypes.loopType nparams stats
         (← TypeChecker.whnf type) i (nindices + 1) fuel k)
-    Hc hdom hdomType ?_
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType
+    Hc hdom hdomType hdom₀ hdomType₀ ?_
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     hdom hdomType hbody
-  exact (whnfInContext.scopeWF Hc' hopened).bind
-    fun normalized hnormalized =>
-      Hrec normalized hnormalized.1 hnormalized.2
+  have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+    hdom₀ hdomType₀ hbody₀
+  exact (whnfInContext.dualWF Hc' hopened hopened₀).bind
+    fun normalized ⟨⟨h1, h2⟩, h3, h4⟩ => Hrec normalized h1 h2 h3 h4
 
-/-- Source-facing index step: consume the domain certificate and transport the
-source body automatically before invoking `index.WF`. -/
+/-- Source-facing index step: consume the domain certificates and transport
+the source bodies automatically before invoking `index.WF`. -/
 theorem index.sourceWF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-      ∀ normalized,
-        TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
-        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-          i (nindices + 1) fuel k
-          { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  exact index.WF Hc hi Hdom.consumed Hdom.isType hbody''
-    (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
-
-/-- Source-facing index step retaining the WHNF free-variable bound. -/
-theorem index.sourceScopeWF
-    (Hc : ContextWF c) (hi : ¬ i < nparams)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hrec : ∀ body'',
+      ∀ body₀',
       Hc.venv.IsDefEqU c.lparams.length
-        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+        (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀' →
       ∀ normalized,
         FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
-        TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+        TrExpr Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
+        FVarsBelow
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
+        TrExpr Hc.venv c.lparams
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx normalized body₀' →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized
           i (nindices + 1) fuel k
           { c with
@@ -4311,12 +4421,14 @@ theorem index.sourceScopeWF
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  exact index.scopeWF Hc hi Hdom.consumed Hdom.isType hbody''
-    (fun normalized hbelow hnormalized =>
-      Hrec body'' hbodyEq normalized hbelow hnormalized)
+  rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀', hbody₀', hbodyEq₀⟩
+  exact index.WF Hc hi Hdom.consumed Hdom.isType hbody''
+    Hdom₀.consumed Hdom₀.isType hbody₀'
+    (fun normalized h1 h2 h3 h4 =>
+      Hrec body'' hbodyEq body₀' hbodyEq₀ normalized h1 h2 h3 h4)
 
-/-- Index-step wrapper that transports the first-header parameter cache under
-the newly introduced index binder. -/
+/-- Index-step wrapper whose continuation also receives the cached-parameter
+invariant at the extended context. -/
 theorem index.cacheWF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
@@ -4324,19 +4436,33 @@ theorem index.cacheWF
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
+      ∀ body₀',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀' →
       ∀ normalized,
-        TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+        FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
-        ParameterCachePrefix
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
+        TrExpr Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
+        FVarsBelow
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx stats done (depth + 1) →
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) normalized →
+        TrExpr Hc.venv c.lparams
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx normalized body₀' →
+        ParameterCachePrefix Hc.venv c.lparams
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx stats done (depth + 1) →
         (AddInductive.checkInductiveTypes.loopType nparams stats normalized
           i (nindices + 1) fuel k
           { c with
@@ -4349,71 +4475,18 @@ theorem index.cacheWF
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   apply index.sourceWF (stats := stats) (nparams := nparams) (i := i)
     (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi Hdom hbody
-  intro body'' hbodyEq normalized hnormalized
-  exact Hrec body'' hbodyEq normalized hnormalized
+    Hc hi Hdom hbody Hdom₀ hbody₀
+  intro body'' hbodyEq body₀' hbodyEq₀ normalized h1 h2 h3 h4
+  exact Hrec body'' hbodyEq body₀' hbodyEq₀ normalized h1 h2 h3 h4
     (Hcache.withIndex Hc Hdom.consumed Hdom.isType)
 
-/-- Index-step wrapper carrying the translated parameter cache and the exact
-source telescope/counter state in lockstep. -/
-theorem index.cacheTelescopeWF
-    (Hc : ContextWF c) (hi : ¬ i < nparams)
-    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
-      stats done depth)
-    (Htelescope : HeaderTelescopeLoopCertificate Hc root
-      (.forallE sourceDom' sourceBody') i nindices)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hrec : ∀ body'',
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' →
-      ∀ normalized,
-        TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
-        ParameterCachePrefix
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx stats done (depth + 1) →
-        HeaderTelescopeLoopCertificate
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType)
-          root sourceBody' i (nindices + 1) →
-        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-          i (nindices + 1) fuel k
-          { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
-    (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi Hcache Hdom hbody
-  intro body'' hbodyEq normalized hnormalized Hcache'
-  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
-  have hbodyEq'' :
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' := by
-    simpa only [ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
-      ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hbodyEq'
-  exact Hrec body'' hbodyEq'' normalized hnormalized Hcache'
-    (Htelescope.withIndex Hdom)
-
-/-- Complete index branch for the synthesized header telescope.  The source
+/-- Complete index branch for the synthesized header telescope of the first
+header, whose checker context is aligned with the main context.  The source
 body conversion and the following executable `whnf` are composed before the
 recursive state is exposed. -/
 theorem index.cacheSynthesisWF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
+    (halign : Hc.Aligned)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats done depth)
     (Hsuffix : ParameterContextSuffix Hc stats depth)
@@ -4430,6 +4503,7 @@ theorem index.cacheSynthesisWF
       (_hallowPrimitive : c'.allowPrimitive = c.allowPrimitive)
       (_hfuel : c'.fuel = c.fuel)
       (normalized : Expr) (next : VExpr),
+      Hc'.Aligned →
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         stats done (depth + 1) →
@@ -4439,66 +4513,27 @@ theorem index.cacheSynthesisWF
         i (nindices + 1) fuel k c').WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  obtain ⟨source₀, consumed₀, Hdom₀, hsu, -⟩ := halign.consumedDomain Hdom
+  obtain ⟨body₀, hbody₀, -⟩ := halign.body Hdom.sourceIsType hsu hbody
   apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
     (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi Hcache Hdom hbody
-  intro body'' hbodyEq normalized hnormalized Hcache'
+    Hc hi Hcache Hdom hbody Hdom₀ hbody₀
+  intro body'' hbodyEq _ _ normalized _ hnormalized _ _ Hcache'
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType
+    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
   have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
   have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
       Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
-    simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
-      ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hbodyEq'
+    simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv,
+      ContextWF.withCheckedLocalDeclOn_venv, ContextWF.withLocalDecl_toCtx,
+      ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hbodyEq'
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
-  exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next hnext Hcache'
-    (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
-    ((Hsynthesis.withIndex Hdom).normalize hsourceNext)
-
-/-- Later-header index step carrying both the translated parameter cache and
-the ambient-prefix shape used at the constructor boundary. -/
-theorem index.runtimeStateWF
-    (Hc : ContextWF c) (hi : ¬ i < nparams)
-    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
-      stats done depth)
-    (Hambient : AmbientParamContext Hc params depth)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hrec : ∀ body'',
-      Hc.venv.IsDefEqU c.lparams.length
-        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-      ∀ normalized,
-        TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
-        ParameterCachePrefix
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx stats done (depth + 1) →
-        AmbientParamContext
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType) params (depth + 1) →
-        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-          i (nindices + 1) fuel k
-          { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  apply index.cacheWF (stats := stats) (nparams := nparams) (i := i)
-    (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi Hcache Hdom hbody
-  intro body'' hbodyEq normalized hnormalized Hcache'
-  exact Hrec body'' hbodyEq normalized hnormalized Hcache'
-    (Hambient.withIndex Hdom.consumed Hdom.isType Hdom.source_defeq)
+  exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next
+    (halign.withCheckedLocalDecl _ _ _ _) hnext Hcache'
+    (Hsuffix.withIndex Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
+    ((Hsynthesis.withIndex Hdom Hdom₀).normalize hsourceNext)
 
 /-- Verification step for a common parameter of the first mutual header.  In
 addition to the opened-body relation, the continuation sees the exact fresh
@@ -4511,10 +4546,15 @@ theorem firstParameter.WF
     (hdomType : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx dom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hdom₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx
+      dom.consumeTypeAnnotationsVerified dom₀)
+    (hdomType₀ : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx dom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam dom₀) :: Hc.chk.vlctx) body body₀)
     (Hrec : ∀ normalized,
-      TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).venv
+      TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).venv
         c.lparams
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType).mlctx.vlctx
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀).mlctx.vlctx
         normalized body' →
       (AddInductive.checkInductiveTypes.loopType nparams
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
@@ -4535,11 +4575,13 @@ theorem firstParameter.WF
       let type := body.instantiate1 param
       AddInductive.checkInductiveTypes.loopType nparams stats
         (← TypeChecker.whnf type) (i + 1) nindices fuel k)
-    Hc hdom hdomType ?_
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType
+    Hc hdom hdomType hdom₀ hdomType₀ ?_
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) hdom hdomType hdom₀ hdomType₀
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     hdom hdomType hbody
-  exact (whnfInContext.WF Hc' hopened).bind fun normalized hnormalized =>
+  have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+    hdom₀ hdomType₀ hbody₀
+  exact (whnfInContext.WF Hc' hopened hopened₀).bind fun normalized hnormalized =>
     Hrec normalized hnormalized
 
 /-- Source-facing first-parameter step, including annotation-domain and body
@@ -4550,14 +4592,17 @@ theorem firstParameter.sourceWF
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
       ∀ normalized,
         TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
         (AddInductive.checkInductiveTypes.loopType nparams
           { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
           normalized (i + 1) nindices fuel k
@@ -4570,7 +4615,9 @@ theorem firstParameter.sourceWF
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+  rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀', hbody₀', -⟩
   exact firstParameter.WF Hc hi hempty Hdom.consumed Hdom.isType hbody''
+    Hdom₀.consumed Hdom₀.isType hbody₀'
     (fun normalized hnormalized => Hrec body'' hbodyEq normalized hnormalized)
 
 /-- First-parameter wrapper synchronized with the executable cache push. -/
@@ -4582,19 +4629,22 @@ theorem firstParameter.cacheWF
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
       ∀ normalized,
         TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx normalized body'' →
         ParameterCachePrefix
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
           { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
           (done + 1) 0 →
         (AddInductive.checkInductiveTypes.loopType nparams
@@ -4610,75 +4660,16 @@ theorem firstParameter.cacheWF
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   apply firstParameter.sourceWF (stats := stats) (nparams := nparams) (i := i)
     (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi hempty Hdom hbody
+    Hc hi hempty Hdom hbody Hdom₀ hbody₀
   intro body'' hbodyEq normalized hnormalized
   exact Hrec body'' hbodyEq normalized hnormalized
     (Hcache.push Hc Hdom.consumed Hdom.isType)
-
-/-- First-parameter wrapper carrying the cache and source telescope counters
-through the same successful executable branch. -/
-theorem firstParameter.cacheTelescopeWF
-    (Hc : ContextWF c) (hi : i < nparams)
-    (hempty : stats.indConsts.isEmpty = true)
-    (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
-      stats done 0)
-    (Htelescope : HeaderTelescopeLoopCertificate Hc root
-      (.forallE sourceDom' sourceBody') i nindices)
-    (hindices : Htelescope.indices = [])
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hrec : ∀ body'',
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' →
-      ∀ normalized,
-        TrExpr (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx normalized body'' →
-        ParameterCachePrefix
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
-          { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
-          (done + 1) 0 →
-        HeaderTelescopeLoopCertificate
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType)
-          root sourceBody' (i + 1) nindices →
-        (AddInductive.checkInductiveTypes.loopType nparams
-          { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
-          normalized (i + 1) nindices fuel k
-          { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  apply firstParameter.cacheWF (stats := stats) (nparams := nparams)
-    (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi hempty Hcache Hdom hbody
-  intro body'' hbodyEq normalized hnormalized Hcache'
-  have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
-  have hbodyEq'' :
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).venv.IsDefEqU c.lparams.length
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).mlctx.vlctx.toCtx sourceBody' body'' := by
-    simpa only [ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
-      ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hbodyEq'
-  exact Hrec body'' hbodyEq'' normalized hnormalized Hcache'
-    (Htelescope.withParameter hindices Hdom)
 
 /-- Complete first-parameter branch for the synthesized header telescope. -/
 theorem firstParameter.cacheSynthesisWF
     (Hc : ContextWF c) (hi : i < nparams)
     (hempty : stats.indConsts.isEmpty = true)
+    (halign : Hc.Aligned)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
       stats done 0)
     (Hsuffix : ParameterContextSuffix Hc stats 0)
@@ -4697,6 +4688,7 @@ theorem firstParameter.cacheSynthesisWF
       (_hallowPrimitive : c'.allowPrimitive = c.allowPrimitive)
       (_hfuel : c'.fuel = c.fuel)
       (normalized : Expr) (next : VExpr),
+      Hc'.Aligned →
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx normalized next →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
         { stats with params := stats.params.push (.fvar ⟨c.ngen.curr⟩) }
@@ -4712,215 +4704,47 @@ theorem firstParameter.cacheSynthesisWF
         normalized (i + 1) nindices fuel k c').WF Q) :
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
+  obtain ⟨source₀, consumed₀, Hdom₀, hsu, -⟩ := halign.consumedDomain Hdom
+  obtain ⟨body₀, hbody₀, -⟩ := halign.body Hdom.sourceIsType hsu hbody
   apply firstParameter.cacheWF (stats := stats) (nparams := nparams)
     (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi hempty Hcache Hdom hbody
+    Hc hi hempty Hcache Hdom hbody Hdom₀ hbody₀
   intro body'' hbodyEq normalized hnormalized Hcache'
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType
+    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
   have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
   have hbodyEq'' : Hc'.venv.IsDefEqU c.lparams.length
       Hc'.mlctx.vlctx.toCtx sourceBody' body'' := by
-    simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
-      ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hbodyEq'
+    simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv,
+      ContextWF.withCheckedLocalDeclOn_venv, ContextWF.withLocalDecl_toCtx,
+      ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hbodyEq'
   rcases hnormalized with ⟨next, hnext, hnextEq⟩
   have hsourceNext := hbodyEq''.trans Hc'.checking.tr.wf
     Hc'.mlctx_wf.tr.wf.toCtx hnextEq.symm
   let Hsynthesis' :=
-    (Hsynthesis.withParameter hindices Hdom).normalize hsourceNext
-  exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next hnext Hcache'
-    (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType)
+    (Hsynthesis.withParameter hindices Hdom Hdom₀).normalize hsourceNext
+  exact Hrec Hc' rfl rfl rfl rfl rfl rfl normalized next
+    (halign.withCheckedLocalDecl _ _ _ _) hnext Hcache'
+    (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
     Hsynthesis' (by rfl)
 
-/-- Verification step for a common parameter of a later mutual header.  The
-executable checker reuses the cached free variable and requires the new domain
-to be definitionally equal to its local type. -/
-theorem laterParameter.WF
-    (Hc : ContextWF c) (hi : i < nparams)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (hget : (AddInductive.getType stats.params[i]! c).WF (fun ty => ty = paramTy))
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
-    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
-    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body')
-    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-        dom' paramTy' →
-      ∀ normalized, TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized body' →
-      (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-        (i + 1) nindices fuel k c).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rw [AddInductive.checkInductiveTypes.loopType]
-  rw [if_pos hi, if_neg (by simp [hnonempty])]
-  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
-    ((do
-      unless ← AddInductive.withCheckLCtx (← AddInductive.paramCheckLCtx stats i)
-          (TypeChecker.isDefEq dom paramTy) do
-        throw <| .other "parameters of all inductive datatypes must match"
-      let type := body.instantiate1 stats.params[i]!
-      let type ← AddInductive.withCheckLCtx
-        (← AddInductive.paramCheckLCtx stats (i + 1)) (TypeChecker.whnf type)
-      AddInductive.checkInductiveTypes.loopType nparams stats type
-        (i + 1) nindices fuel k) :
-      AddInductive.M _) c).WF Q
-  refine hget.bind fun paramTy' hparamTyEq => ?_
-  subst paramTy'
-  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-  subst hL
-  refine (isDefEqInContext.WF (Hc.paramCheck stats i) hdom hparamTy).bind fun equal hequal => ?_
-  cases equal
-  · change (Except.error _).WF Q
-    exact Except.WF.throw
-  · refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-    subst hL
-    exact (whnfInContext.WF (Hc.paramCheck stats (i + 1)) hopened).bind
-      fun normalized hnormalized => Hrec (hequal rfl) normalized hnormalized
-
-/-- Source-facing later-parameter step.  The successful executable equality
-check supplies exactly the conversion needed to instantiate the translated
-source body with the cached parameter. -/
-theorem laterParameter.sourceWF
-    (Hc : ContextWF c) (hi : i < nparams)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (hget : (AddInductive.getType stats.params[i]! c).WF (fun ty => ty = paramTy))
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
-    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
-    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      stats.params[i]! param')
-    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
-      param' paramTy')
-    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-        dom' paramTy' →
-      ∀ normalized,
-        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
-          (body'.inst param') →
-        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-          (i + 1) nindices fuel k c).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rw [AddInductive.checkInductiveTypes.loopType]
-  rw [if_pos hi, if_neg (by simp [hnonempty])]
-  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
-    ((do
-      unless ← AddInductive.withCheckLCtx (← AddInductive.paramCheckLCtx stats i)
-          (TypeChecker.isDefEq dom paramTy) do
-        throw <| .other "parameters of all inductive datatypes must match"
-      let type := body.instantiate1 stats.params[i]!
-      let type ← AddInductive.withCheckLCtx
-        (← AddInductive.paramCheckLCtx stats (i + 1)) (TypeChecker.whnf type)
-      AddInductive.checkInductiveTypes.loopType nparams stats type
-        (i + 1) nindices fuel k) :
-      AddInductive.M _) c).WF Q
-  refine hget.bind fun paramTy' hparamTyEq => ?_
-  subst paramTy'
-  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-  subst hL
-  refine (isDefEqInContext.WF (Hc.paramCheck stats i) hdom hparamTy).bind fun equal hequal => ?_
-  cases equal
-  · change (Except.error _).WF Q
-    exact Except.WF.throw
-  · have heq := hequal rfl
-    have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
-    refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-    subst hL
-    exact (whnfInContext.WF (Hc.paramCheck stats (i + 1)) hopened).bind
-      fun normalized hnormalized => Hrec heq normalized hnormalized
-
-/-- Complete cached-parameter step with the narrow concrete scope and the
-reconstructed source binder exposed to the continuation. -/
-theorem laterParameter.scopeWF
-    (Hc : ContextWF c) (hi : i < nparams)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
-    (Hscope : LaterParameterScope Hsuffix i
-      (.forallE name dom body bi))
-    (hget : (AddInductive.getType stats.params[i]! c).WF
-      (fun ty => ty = paramTy))
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
-    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
-    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      stats.params[i]! param')
-    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
-      param' paramTy')
-    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-      dom' paramTy' →
-      (∃ sourceBody', TrExprS Hc.venv c.lparams
-        ((none, .vlam Hscope.paramType) :: Hscope.older)
-          body sourceBody') →
-      ∀ normalized,
-        FVarsBelow Hc.mlctx.vlctx
-          (body.instantiate1 stats.params[i]!) normalized →
-        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
-          (body'.inst param') →
-        (∃ sourceBody' normalized',
-          TrExprS Hc.venv c.lparams
-            ((none, .vlam Hscope.paramType) :: Hscope.older)
-            body sourceBody' ∧
-          TrExprS Hc.venv c.lparams
-            ((some (Hscope.fv, Hscope.deps),
-              .vlam Hscope.paramType) :: Hscope.older)
-            normalized normalized' ∧
-          Hc.venv.IsDefEqU c.lparams.length
-            (Hscope.paramType :: Hscope.older.toCtx)
-            sourceBody' normalized') →
-        (i + 1 < stats.params.size →
-          LaterParameterScope Hsuffix (i + 1) normalized) →
-        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-          (i + 1) nindices fuel k c).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  rw [AddInductive.checkInductiveTypes.loopType]
-  rw [if_pos hi, if_neg (by simp [hnonempty])]
-  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
-    ((do
-      unless ← AddInductive.withCheckLCtx (← AddInductive.paramCheckLCtx stats i)
-          (TypeChecker.isDefEq dom paramTy) do
-        throw <| .other "parameters of all inductive datatypes must match"
-      let type := body.instantiate1 stats.params[i]!
-      let type ← AddInductive.withCheckLCtx
-        (← AddInductive.paramCheckLCtx stats (i + 1)) (TypeChecker.whnf type)
-      AddInductive.checkInductiveTypes.loopType nparams stats type
-        (i + 1) nindices fuel k) :
-      AddInductive.M _) c).WF Q
-  refine hget.bind fun paramTy' hparamTyEq => ?_
-  subst paramTy'
-  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-  subst hL
-  refine (isDefEqInContext.WF (Hc.paramCheck stats i) hdom hparamTy).bind
-    fun equal hequal => ?_
-  cases equal
-  · change (Except.error _).WF Q
-    exact Except.WF.throw
-  · have heq := hequal rfl
-    have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
-    let Hbody : LaterParameterScope Hsuffix i body := {
-      Hscope with fvars := Hscope.fvars.2 }
-    have habstract := Hbody.uninstantiate hopened
-    refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-    subst hL
-    exact (whnfInContext.scopeWF (Hc.paramCheck stats (i + 1)) hopened).bind
-      fun normalized hnormalized =>
-      Hrec heq habstract normalized hnormalized.1 hnormalized.2
-        (Hbody.normalizedBody hopened hnormalized.1 hnormalized.2)
-        (fun hnext => Hbody.next hnext hnormalized.1)
-
-/-- Complete cached-parameter step driven only by the retained scope.  In
-particular, lookup of the cached concrete parameter and all of its abstract
-typing data are consequences of `Hscope`, rather than premises supplied by
-the caller. -/
+/-- Complete cached-parameter step of a later mutual header.  The executable
+compares the domain with the cached parameter type in the checker context of
+the earlier parameters, and normalizes the instantiated body in the checker
+context of the parameters up to the current one; both runs are verified in
+those contexts, which are exactly the narrow scopes of `Hscope`. -/
 theorem laterParameter.checkedScopeWF
     (Hc : ContextWF c) (hi : i < nparams)
     (hnonempty : stats.indConsts.isEmpty = false)
     (Hsuffix : ParameterContextSuffix Hc stats depth)
     (Hscope : LaterParameterScope Hsuffix i
       (.forallE name dom body bi))
+    (histats : i < stats.params.size)
     (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
+    (hnarrow : TrExprS Hc.venv c.lparams Hscope.older
+      (.forallE name dom body bi) narrowCurrent)
     (Hrec : ∀ {paramTy' param'},
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
         stats.params[i]! param' →
@@ -4958,47 +4782,83 @@ theorem laterParameter.checkedScopeWF
     (AddInductive.checkInductiveTypes.loopType nparams stats
       (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
   rcases Hscope.typing with
-    ⟨paramTy, paramTy', param', hget, hparamTy, hparamTyEq,
+    ⟨paramTy, paramTy', param', hget, hparamTy, _hparamTyEq,
       hparam, hparamType⟩
-  apply laterParameter.scopeWF (stats := stats) (nparams := nparams)
-    (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi hnonempty Hsuffix Hscope hget hdom hbody hparamTy hparam hparamType
-  intro heq habstract normalized hbelow hnormalized htransition hnext
-  exact Hrec hparam hparamType heq
-    (Hscope.domainDefEq hdom hparamTyEq heq) habstract
-    normalized hbelow hnormalized htransition hnext
-
-/-- Reusing a cached parameter does not alter the retained ambient-prefix
-shape. -/
-theorem laterParameter.runtimeStateWF
-    (Hc : ContextWF c) (hi : i < nparams)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (Hambient : AmbientParamContext Hc params depth)
-    (hget : (AddInductive.getType stats.params[i]! c).WF
-      (fun ty => ty = paramTy))
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
-    (hparamTy : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx paramTy paramTy')
-    (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      stats.params[i]! param')
-    (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
-      param' paramTy')
-    (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-        dom' paramTy' →
-      ∀ normalized,
-        TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized
-          (body'.inst param') →
-        AmbientParamContext Hc params depth →
-        (AddInductive.checkInductiveTypes.loopType nparams stats normalized
-          (i + 1) nindices fuel k c).WF Q) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats
-      (.forallE name dom body bi) i nindices (fuel + 1) k c).WF Q := by
-  apply laterParameter.sourceWF (stats := stats) (nparams := nparams)
-    (i := i) (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-    Hc hi hnonempty hget hdom hbody hparamTy hparam hparamType
-  intro heq normalized hnormalized
-  exact Hrec heq normalized hnormalized Hambient
+  obtain ⟨hb₀, hb₁, paramTy₀, hget₀, hparamTy₀, hparamType₀⟩ :=
+    Hscope.narrowTyping histats
+  cases hnarrow with
+  | forallE _hdomType₀ _hbodyType₀ hdom₀ hbody₀ =>
+  rename_i dom₀ body₀
+  have hj₀ : depth + (stats.params.size - i) ≤ Hc.mlctx.length := by
+    rw [Hsuffix.mlctx_length]; omega
+  have hj₁ : depth + (stats.params.size - (i + 1)) ≤ Hc.mlctx.length := by
+    rw [Hsuffix.mlctx_length]; omega
+  let Hci := Hc.paramCheck stats i _ hj₀ (Hsuffix.bottom i (by omega)).2
+  let Hci₁ := Hc.paramCheck stats (i + 1) _ hj₁ (Hsuffix.bottom (i + 1) (by omega)).2
+  have hchk₀ : Hci.chk.vlctx = Hscope.older := hb₀
+  have hchk₁ : Hci₁.chk.vlctx =
+      (some (Hscope.fv, Hscope.deps), .vlam Hscope.paramType) :: Hscope.older := hb₁
+  have holderWF : VLCtx.WF Hc.venv c.lparams.length Hscope.older :=
+    hchk₀ ▸ Hci.check.wf.tr.wf
+  have hentryWF : VLCtx.WF Hc.venv c.lparams.length
+      ((some (Hscope.fv, Hscope.deps), .vlam Hscope.paramType) :: Hscope.older) :=
+    hchk₁ ▸ Hci₁.check.wf.tr.wf
+  rw [AddInductive.checkInductiveTypes.loopType]
+  rw [if_pos hi, if_neg (by simp [hnonempty])]
+  change (AddInductive.getType stats.params[i]! c >>= fun paramTy =>
+    ((do
+      unless ← AddInductive.withCheckLCtx (← AddInductive.paramCheckLCtx stats i)
+          (TypeChecker.isDefEq dom paramTy) do
+        throw <| .other "parameters of all inductive datatypes must match"
+      let type := body.instantiate1 stats.params[i]!
+      let type ← AddInductive.withCheckLCtx
+        (← AddInductive.paramCheckLCtx stats (i + 1)) (TypeChecker.whnf type)
+      AddInductive.checkInductiveTypes.loopType nparams stats type
+        (i + 1) nindices fuel k) :
+      AddInductive.M _) c).WF Q
+  have hgetBoth : (AddInductive.getType stats.params[i]! c).WF
+      (fun ty => ty = paramTy ∧ ty = paramTy₀) := fun a ha => ⟨hget a ha, hget₀ a ha⟩
+  refine hgetBoth.bind fun paramTy'' ⟨hparamTyEq, hparamTyEq₀⟩ => ?_
+  subst paramTy''
+  subst paramTy₀
+  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+  subst hL
+  have hdomN : TrExprS Hc.venv c.lparams Hci.chk.vlctx dom dom₀ := by
+    rw [hchk₀]; exact hdom₀
+  have hparamTyN : TrExprS Hc.venv c.lparams Hci.chk.vlctx paramTy Hscope.paramType := by
+    rw [hchk₀]; exact hparamTy₀
+  refine (isDefEqInContext.narrowWF Hci hdomN hparamTyN).bind fun equal hequal => ?_
+  cases equal
+  · change (Except.error _).WF Q
+    exact Except.WF.throw
+  · have heq₀ : Hc.venv.IsDefEqU c.lparams.length Hscope.older.toCtx dom₀ Hscope.paramType := by
+      have := hequal rfl; rw [hchk₀] at this; exact this
+    have heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx dom' paramTy' :=
+      Hci.check.embed.isDefEqU Hc.checking.tr.wf hdomN hparamTyN hdom hparamTy (hequal rfl)
+    have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
+    -- the narrow body under the cached parameter type
+    obtain ⟨v, hv⟩ := _hdomType₀
+    have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
+        ((none, .vlam dom₀) :: Hscope.older)
+        ((none, .vlam Hscope.paramType) :: Hscope.older) :=
+      .cons (.refl Hc.checking.tr.wf.ordered holderWF) nofun
+        (.vlam (heq₀.of_l Hc.checking.tr.wf holderWF.toCtx hv))
+    obtain ⟨bodyC, hbodyC⟩ := hbody₀.defeqDFC Hc.checking.tr.wf hctx
+    have hopened₀ : TrExprS Hc.venv c.lparams Hci₁.chk.vlctx
+        (body.instantiate1 stats.params[i]!) bodyC := by
+      rw [hchk₁, Expr.instantiate1_eq, Hscope.parameter]
+      exact hbodyC.inst_fvar Hc.checking.tr.wf.ordered hentryWF
+    refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+    subst hL
+    let Hbody : LaterParameterScope Hsuffix i body := {
+      Hscope with fvars := Hscope.fvars.2 }
+    exact (whnfInContext.dualWF Hci₁ hopened hopened₀).bind
+      fun normalized ⟨⟨hbelow, hnormalized⟩, _, hnormalized₀⟩ => by
+      refine Hrec hparam hparamType heq ⟨dom₀, hdom₀, heq₀⟩ ⟨bodyC, hbodyC⟩
+        normalized hbelow hnormalized ?_ (fun hnext => Hbody.next hnext hbelow)
+      rw [hchk₁] at hnormalized₀
+      obtain ⟨normalized', hnormalized', hnormEq⟩ := hnormalized₀
+      exact ⟨bodyC, normalized', hbodyC, hnormalized', hnormEq.symm⟩
 
 /-- Recursive verifier for the first mutual header.  It follows the concrete
 fuel recursion and carries both the parameter cache and the synthesized
@@ -5029,6 +4889,7 @@ theorem firstHeaderSynthesisWF
       stats'.nindices = baseNindices →
       stats'.indConsts = baseConsts →
       R Hc'.venv →
+      Hc'.Aligned →
       (¬ ∃ name dom body bi, type' = .forallE name dom body bi) →
       i' = nparams →
       ParameterCachePrefix Hc'.venv c'.lparams Hc'.mlctx.vlctx
@@ -5038,6 +4899,7 @@ theorem firstHeaderSynthesisWF
       TrExprS Hc'.venv c'.lparams Hc'.mlctx.vlctx type' current' →
       (k type' stats' nindices' c').WF Q)
     (Hc : ContextWF c)
+    (halign : Hc.Aligned)
     (henv : c.env = sourceEnv)
     (hsafety : c.safety = sourceSafety)
     (hlparams : c.lparams = Us)
@@ -5056,7 +4918,7 @@ theorem firstHeaderSynthesisWF
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type current) :
     (AddInductive.checkInductiveTypes.loopType nparams stats type i nindices
       fuel k c).WF Q := by
-  induction fuel generalizing c stats type current i nindices with
+  induction fuel generalizing c stats type current i nindices halign with
   | zero => exact zero.WF
   | succ fuel ih =>
     by_cases hforall : ∃ name dom body bi,
@@ -5073,12 +4935,12 @@ theorem firstHeaderSynthesisWF
             simpa using Hsuffix.prefixLength
           apply firstParameter.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
-            Hc hi hempty (by simpa using Hcache) Hsuffix hambient
+            Hc hi hempty halign (by simpa using Hcache) Hsuffix hambient
             Hsynthesis hindices Hdom hbody
           intro c' Hc' henv' hsafety' hvenv' hlparams' hallowPrimitive'
-            hfuel' normalized next hnext Hcache' Hsuffix'
+            hfuel' normalized next halign' hnext Hcache' Hsuffix'
             Hsynthesis' hindices'
-          apply ih Hc' (henv'.trans henv) (hsafety'.trans hsafety)
+          apply ih Hc' halign' (henv'.trans henv) (hsafety'.trans hsafety)
             (hlparams'.trans hlparams)
             (hallowPrimitive'.trans hallowPrimitive)
             (hfuel'.trans hfuel)
@@ -5093,11 +4955,11 @@ theorem firstHeaderSynthesisWF
           · exact hnext
         · apply index.cacheSynthesisWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
-            Hc hi Hcache Hsuffix Hsynthesis Hdom hbody
+            Hc hi halign Hcache Hsuffix Hsynthesis Hdom hbody
           intro c' Hc' henv' hsafety' hvenv' hlparams' hallowPrimitive'
-            hfuel' normalized next hnext Hcache' Hsuffix'
+            hfuel' normalized next halign' hnext Hcache' Hsuffix'
             Hsynthesis'
-          apply ih Hc' (henv'.trans henv) (hsafety'.trans hsafety)
+          apply ih Hc' halign' (henv'.trans henv) (hsafety'.trans hsafety)
             (hlparams'.trans hlparams)
             (hallowPrimitive'.trans hallowPrimitive)
             (hfuel'.trans hfuel)
@@ -5112,56 +4974,8 @@ theorem firstHeaderSynthesisWF
       · exact result.WF hforall hi
           (Hresult Hc henv hsafety hlparams hallowPrimitive hfuel hempty
             hlevelsStable hnindicesStable
-            hconstsStable HR hforall hi Hcache Hsuffix Hsynthesis htype)
+            hconstsStable HR halign hforall hi Hcache Hsuffix Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
-
-/-- Follow the executable later-header loop through all cached common
-parameters.  The retained suffix supplies each cached lookup and advances
-after the executable normalization step.  Once `i = nparams`, ownership of
-the unchanged loop state passes to the index/result verifier. -/
-theorem laterParametersWF
-    {alpha : Type} (Hc : ContextWF c)
-    (k : Expr → AddInductive.InductiveStats → Nat →
-      AddInductive.M alpha) (Q : alpha → Prop)
-    (Hresult : ∀ {type' current' i' fuel'},
-      i' = nparams →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type' current' →
-      (AddInductive.checkInductiveTypes.loopType nparams stats type' i'
-        nindices fuel' k c).WF Q)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (Hsuffix : ParameterContextSuffix Hc stats depth)
-    (hparams : stats.params.size = nparams)
-    (hbound : i ≤ nparams)
-    (Hscope : i < stats.params.size →
-      LaterParameterScope Hsuffix i type)
-    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type current) :
-    (AddInductive.checkInductiveTypes.loopType nparams stats type i
-      nindices fuel k c).WF Q := by
-  induction fuel generalizing type current i with
-  | zero => exact zero.WF
-  | succ fuel ih =>
-    by_cases hi : i < nparams
-    · by_cases hforall : ∃ name dom body bi,
-          type = .forallE name dom body bi
-      · rcases hforall with ⟨name, dom, body, bi, rfl⟩
-        rcases TrExpr.forallE_source htype with
-          ⟨dom', body', hdom, hbody, _hdomType, _hbodyType, _hcurrent⟩
-        have histats : i < stats.params.size := by
-          simpa [hparams] using hi
-        apply laterParameter.checkedScopeWF
-          (stats := stats) (nparams := nparams) (i := i)
-          (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
-          Hc hi hnonempty Hsuffix (Hscope histats) hdom hbody
-        intro paramTy' param' _hparam _hparamType _heq _hdomain
-          _habstract normalized _hbelow hnormalized _htransition hnext
-        apply ih (i := i + 1) (current := body'.inst param')
-        · omega
-        · intro hlt
-          exact hnext hlt
-        · exact hnormalized
-      · exact parameterMismatch.WF hforall (Nat.ne_of_lt hi)
-    · have hieq : i = nparams := by omega
-      exact Hresult hieq htype
 
 /-- Cached-parameter recursion with the independent narrow header telescope
 accumulated in lockstep.  The executable reader context remains unchanged;
@@ -5216,13 +5030,18 @@ theorem laterParameterSynthesisWF
         apply laterParameter.checkedScopeWF
           (stats := stats) (nparams := nparams) (i := i)
           (nindices := 0) (fuel := fuel) (k := k) (Q := Q)
-          Hc hi hnonempty Hsuffix Hcurrent hdom hbody
+          Hc hi hnonempty Hsuffix Hcurrent histats hdom hbody htypeNarrow
         intro paramTy' param' _hparam _hparamType _heq hdomain
           _habstract normalized hbelow hnormalized htransition hnext
         have hindices : Hsynthesis.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-        have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf
-          Hc.mlctx_wf.tr.wf
+        have hcurrentWF : VLCtx.WF Hc.venv c.lparams.length
+            ((some (Hcurrent.fv, Hcurrent.deps), .vlam Hcurrent.paramType) ::
+              Hcurrent.older) := by
+          have := (Hc.mlctx_wf.dropN _
+            (by rw [Hsuffix.mlctx_length]; omega :
+              depth + (stats.params.size - (i + 1)) ≤ Hc.mlctx.length)).tr.wf
+          rwa [(Hcurrent.narrowTyping histats).2.1] at this
         rcases Hsynthesis.consumeParameter Hc.checking.tr.wf hindices
             htypeNarrow hcurrentWF hdomain htransition with
           ⟨normalized', hnormalized', ⟨Hsynthesis'⟩⟩
@@ -5274,6 +5093,7 @@ theorem laterIndexSynthesisWF
       (Hsynthesis' : NarrowHeaderSynthesisCertificate Hc'.venv c'.lparams
         target scope' narrowCurrent nparams nindices') →
       NarrowRuntimeScope Hc'.venv c'.lparams scope' Hc'.mlctx.vlctx →
+      VLCtx.IsDefEq Hc'.venv c'.lparams.length scope' Hc'.chk.vlctx →
       TrExprS Hc'.venv c'.lparams scope' type' narrowCurrent →
       FVarsIn (· ∈ scope'.fvars) type' →
       TrExpr Hc'.venv c'.lparams Hc'.mlctx.vlctx type' fullCurrent →
@@ -5304,6 +5124,7 @@ theorem laterIndexSynthesisWF
       commonParams.reverse Hsynthesis.params.reverse)
     (Hruntime : NarrowRuntimeScope Hc.venv c.lparams
       scope Hc.mlctx.vlctx)
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (htypeNarrow : TrExprS Hc.venv c.lparams scope type narrowCurrent)
     (htypeFVars : FVarsIn (· ∈ scope.fvars) type)
     (htypeFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
@@ -5320,6 +5141,8 @@ theorem laterIndexSynthesisWF
       cases htypeNarrow with
       | @forallE indexType narrowBody _ _ _ _ _
           hdomType _hbodyType hdomNarrow hbodyNarrow =>
+        have henvWF := Hc.checking.tr.wf
+        have hscopeWF₀ : VLCtx.WF Hc.venv c.lparams.length scope := halign.wf
         rcases TrExpr.forallE_source htypeFull with
           ⟨sourceDom, fullBody, hdomFull, hbodyFull,
             hdomFullType, _hbodyFullType, _hfullCurrent⟩
@@ -5327,13 +5150,27 @@ theorem laterIndexSynthesisWF
           ⟨consumedDom, Hdom⟩
         rcases Hdom.body Hc hbodyFull with
           ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
-        apply index.scopeWF (stats := stats) (nparams := nparams)
+        -- the same binder in the checker context
+        obtain ⟨domC, hdomC⟩ := hdomNarrow.defeqDFC henvWF halign
+        have hdomCU := hdomNarrow.uniq henvWF halign hdomC
+        have hdomCType : Hc.venv.IsType c.lparams.length Hc.chk.vlctx.toCtx domC :=
+          (hdomType.defeqU_l henvWF hscopeWF₀.toCtx hdomCU).defeqDFC
+            henvWF.ordered halign.defeqCtx
+        rcases hconsume _ Hc.narrow hdomC hdomCType with ⟨consumed₀, Hdom₀⟩
+        obtain ⟨v, hv⟩ := hdomType
+        have hctxC : VLCtx.IsDefEq Hc.venv c.lparams.length
+            ((none, .vlam indexType) :: scope) ((none, .vlam domC) :: Hc.chk.vlctx) :=
+          .cons halign nofun (.vlam (hdomCU.of_l henvWF hscopeWF₀.toCtx hv))
+        obtain ⟨bodyC, hbodyC⟩ := hbodyNarrow.defeqDFC henvWF hctxC
+        rcases Hdom₀.body Hc.narrow hbodyC with
+          ⟨consumedBody₀, hbodyConsumed₀, _hbodyEq₀⟩
+        apply index.WF (stats := stats) (nparams := nparams)
           (i := nparams) (nindices := nindices) (fuel := fuel)
           (k := k) (Q := Q) Hc (by omega) Hdom.consumed Hdom.isType
-          hbodyConsumed
-        intro normalized hbelow hnormalized
+          hbodyConsumed Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
+        intro normalized hbelow hnormalized _hbelow₀ hnormalized₀
         let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp
             (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
@@ -5346,7 +5183,25 @@ theorem laterIndexSynthesisWF
             Hc'.mlctx.vlctx :=
           Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
             hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+        -- the checker context stays aligned with the narrow scope
+        have hindexCons : Hc.venv.IsDefEqU c.lparams.length scope.toCtx indexType consumed₀ := by
+          obtain ⟨_, hsc⟩ := Hdom₀.source_defeq
+          have hsc' := hsc.defeqDFC henvWF.ordered (halign.defeqCtx.symm henvWF.ordered)
+          exact hdomCU.trans henvWF hscopeWF₀.toCtx ⟨_, hsc'⟩
+        have hfreshScope : (⟨c.ngen.curr⟩ : FVarId) ∉ scope.fvars := by
+          rw [halign.fvars]
+          intro h
+          exact Hc.current_not_mem (Hc.check.embed.fvars_subset h)
+        have halign' : VLCtx.IsDefEq Hc'.venv c.lparams.length
+            ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotationsVerified.fvarsList),
+              .vlam indexType) :: scope) Hc'.chk.vlctx :=
+          .cons halign (by rintro _ _ ⟨⟩; exact ⟨hfreshScope, hdeps⟩)
+            (.vlam (hindexCons.of_l henvWF hscopeWF₀.toCtx hv))
+        have hscopeWF : VLCtx.WF Hc'.venv c.lparams.length
+            ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotationsVerified.fvarsList),
+              .vlam indexType) :: scope) := halign'.wf
         have hopenedNarrow : TrExprS Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,
               dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -5366,53 +5221,36 @@ theorem laterIndexSynthesisWF
           rw [VLCtx.fvars_cons_some]
           exact List.mem_cons_self
         have hnormalizedFVars := hbelow _ Hruntime'.upset hopenedFVars
-        rcases hnormalized with
-          ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
-        have hnormalizedClosed : Closed normalized 0 := by
-          have := hnormalizedFull.closed
-          have hnoBV : Hc'.mlctx.vlctx.bvars = 0 := Hc'.mlctx.noBV
-          rw [hnoBV] at this
-          exact this
-        rcases Hruntime'.restrictEq Hc'.checking.tr.wf
-            hnormalizedFull hnormalizedClosed hnormalizedFVars with
-          ⟨normalizedNarrow, hnormalizedNarrow, hnormalizedEq⟩
-        have hopenedWeak : TrExprS Hc'.venv c.lparams Hruntime'.expanded
-            (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
-            (narrowBody.lift' Hruntime'.shift) := by
-          simpa using hopenedNarrow.weakFV' Hc'.checking.tr.wf.ordered
-            Hruntime'.lift Hruntime'.context.wf
-        have hopenedFull := Hc.instantiateFresh
-          (name := name) (bi := bi) Hdom.consumed Hdom.isType
-          hbodyConsumed
-        have hopenedEq := hopenedWeak.uniq Hc'.checking.tr.wf
-          Hruntime'.context hopenedFull
-        have hopenedEq' := hopenedEq.defeqDFC
-          Hc'.checking.tr.wf.ordered Hruntime'.context.defeqCtx
-        have hnormalizeU : Hc'.venv.IsDefEqU c.lparams.length
-            Hc'.mlctx.vlctx.toCtx consumedBody normalizedFull :=
-          hnormalizeEq.symm
-        have hsourceNormalized := hopenedEq'.trans Hc'.checking.tr.wf
-          Hc'.mlctx_wf.tr.wf.toCtx hnormalizeU
-        have hfull : Hc'.venv.IsDefEqU c.lparams.length
-            Hc'.mlctx.vlctx.toCtx
-            (narrowBody.lift' Hruntime'.shift)
-            (normalizedNarrow.lift' Hruntime'.shift) :=
-          hsourceNormalized.trans Hc'.checking.tr.wf
-            Hc'.mlctx_wf.tr.wf.toCtx hnormalizedEq
-        have hexpanded := hfull.defeqDFC Hc'.checking.tr.wf.ordered
-          (Hruntime'.context.defeqCtx.symm Hc'.checking.tr.wf.ordered)
+        -- the checker-context normal form, read in the narrow scope
+        rcases hnormalized₀ with ⟨normalizedC, hnormalizedC, hnormalizedCEq⟩
+        obtain ⟨normalizedNarrow, hnormalizedNarrow⟩ :=
+          hnormalizedC.defeqDFC henvWF (halign'.symm henvWF.ordered)
+        have hnn := hnormalizedNarrow.uniq henvWF halign' hnormalizedC
+        have hctxB : VLCtx.IsDefEq Hc.venv c.lparams.length
+            ((none, .vlam indexType) :: scope)
+            ((none, .vlam consumed₀) :: Hc.chk.vlctx) :=
+          .cons halign nofun (.vlam (hindexCons.of_l henvWF hscopeWF₀.toCtx hv))
+        have hbodyU := hbodyNarrow.uniq henvWF hctxB hbodyConsumed₀
+        have hnormC : Hc.venv.IsDefEqU c.lparams.length
+            (indexType :: scope.toCtx) normalizedC consumedBody₀ :=
+          hnormalizedCEq.defeqDFC henvWF.ordered (hctxB.symm henvWF.ordered).defeqCtx
+        have hscope'Ctx : VLCtx.toCtx ((some (⟨c.ngen.curr⟩,
+              dom.consumeTypeAnnotationsVerified.fvarsList),
+              .vlam indexType) :: scope) = indexType :: scope.toCtx := rfl
+        have hΓ' : OnCtx (indexType :: scope.toCtx) (Hc.venv.IsType c.lparams.length) := by
+          rw [← hscope'Ctx]; exact hscopeWF.toCtx
         have hnarrow : Hc'.venv.IsDefEqU c.lparams.length
             (indexType :: scope.toCtx)
-            narrowBody normalizedNarrow :=
-          (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf
-              Hruntime'.context.wf.toCtx Hruntime'.lift.toCtx).1 hexpanded
+            narrowBody normalizedNarrow := by
+          have h1 : Hc.venv.IsDefEqU c.lparams.length (indexType :: scope.toCtx)
+              normalizedNarrow normalizedC := by
+            rw [← hscope'Ctx]; exact hnn
+          exact hbodyU.trans henvWF hΓ' (hnormC.symm.trans henvWF hΓ' h1.symm)
         have hdomainNarrow : ∃ sourceDom',
             TrExprS Hc'.venv c.lparams scope dom sourceDom' ∧
             Hc'.venv.IsDefEqU c.lparams.length scope.toCtx
               sourceDom' indexType :=
-          ⟨_, hdomNarrow,
-            ⟨.sort (Classical.choose hdomType),
-              Classical.choose_spec hdomType⟩⟩
+          ⟨_, hdomNarrow, ⟨.sort v, hv⟩⟩
         have htransition : ∃ sourceBody' normalized',
             TrExprS Hc'.venv c.lparams
               ((none, .vlam indexType) :: scope)
@@ -5429,7 +5267,7 @@ theorem laterIndexSynthesisWF
             hnormalizedNarrow, hnarrow⟩
         rcases Hsynthesis.consumeIndex (name := name) (bi := bi)
             Hc'.checking.tr.wf
-            (.forallE hdomType _hbodyType hdomNarrow hbodyNarrow)
+            (.forallE ⟨v, hv⟩ _hbodyType hdomNarrow hbodyNarrow)
             hscopeWF hdomainNarrow htransition with
           ⟨nextNarrow, hnextNarrow, Hsynthesis',
             ⟨hparamsPreserved, _hindicesPreserved⟩⟩
@@ -5438,23 +5276,24 @@ theorem laterIndexSynthesisWF
               (by simpa using hlparams'') hallowPrimitive'' hfuel'') Hc'
           (by simpa using henv) (by simpa using hsafety)
           (by simpa using hallowPrimitive) (by simpa using hfuel)
+          (by
+            have h := Hcache.withIndex (name := name) (bi := bi) Hc Hdom.consumed Hdom.isType
+            rw [← Nat.add_assoc]; exact h)
           (by simpa [Nat.add_assoc] using
-            Hcache.withIndex Hc Hdom.consumed Hdom.isType)
+            Hsuffix.withIndex Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
           (by simpa [Nat.add_assoc] using
-            Hsuffix.withIndex Hc Hdom.consumed Hdom.isType)
-          (by simpa [Nat.add_assoc] using
-            (Hambient.withIndex Hdom.consumed Hdom.isType
+            (Hambient.withIndex Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
               Hdom.source_defeq))
           (by change R Hc.venv; exact HR)
           Hsynthesis' (by
             rw [hparamsPreserved]
             change VEnv.IsDefEqCtx Hc.venv paramU []
               commonParams.reverse Hsynthesis.params.reverse
-            exact Hparams) Hruntime' hnextNarrow
+            exact Hparams) Hruntime' halign' hnextNarrow
           hnormalizedFVars
-          ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
+          ⟨_, hnormalized.choose_spec.1, hnormalized.choose_spec.2⟩
     · exact Hresult Hc henv hsafety rfl hallowPrimitive hfuel hforall
-        Hsynthesis Hruntime
+        Hsynthesis Hruntime halign
         htypeNarrow
         htypeFVars htypeFull Hcache Hsuffix Hambient HR Hparams
 
