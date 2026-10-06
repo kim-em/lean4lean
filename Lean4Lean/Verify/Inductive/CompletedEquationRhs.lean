@@ -982,12 +982,22 @@ theorem
     simpa only [Us, equationDomains, inserted, equationFieldDomains,
       List.append_assoc] using C.bodyWF j hj
 
-/-- A well-formed canonical application of the selected minor to the fixed
-equation fields forces those fields to agree with the installed field
-telescope.  The selected minor is stored outside the equation fields, so its
-declared type is read off directly by a variable lookup in the outer
-telescope; `canonicalApplicationContext` then performs the dependent
-binder-by-binder inversion. -/
+theorem liftContextPrefixAt_liftContextPrefixAt (a b k : Nat) :
+    ∀ ds : List VExpr, liftContextPrefixAt a k (liftContextPrefixAt b k ds) =
+      liftContextPrefixAt (b + a) k ds
+  | [] => rfl
+  | d :: ds => by
+    simp only [liftContextPrefixAt, liftContextPrefixAt_length]
+    rw [VExpr.liftN'_liftN_hi, liftContextPrefixAt_liftContextPrefixAt a b k ds]
+
+theorem liftContextPrefix_liftContextPrefix (a b : Nat) (ds : List VExpr) :
+    liftContextPrefix a (liftContextPrefix b ds) = liftContextPrefix (b + a) ds :=
+  liftContextPrefixAt_liftContextPrefixAt a b 0 ds
+
+/-- Once the fixed equation fields agree with the installed field telescope,
+the selected minor applies to the canonical field variables.  The selected
+minor is stored outside the equation fields, so its declared type is read
+off directly by a variable lookup in the outer telescope. -/
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMinorFieldContextOfApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1010,34 +1020,23 @@ theorem
     (fieldDomains hypothesisDomains : List VExpr)
     (targetResidual : VExpr)
     (hfields : fieldDomains.length = A.rule.allArgs.size)
-    (Hctx :
-      let inserted := T.motives ++ T.minors
-      let equationFieldDomains :=
-        (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
-      let equationDomains :=
-        H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
-          equationFieldDomains
-      OnCtx (abstractForallContext equationDomains []).toCtx
-        (H.outVEnv.IsType
-          (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
     (hminorType :
       T.minors[recursorMinorOffset indTypes owner + i]! = VExpr.wrapForalls
         (fieldDomains ++ hypothesisDomains) targetResidual)
-    (Happlication :
+    (HfieldContext :
       let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
       let minorIdx := recursorMinorOffset indTypes owner + i
       let inserted := T.motives ++ T.minors
       let equationFieldDomains :=
         (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
-      let equationDomains :=
-        H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
-          equationFieldDomains
+      let outer := inserted.reverse ++
+        H.parameterSuffix.parameterDecls.toCtx
       let later := T.minors.drop (minorIdx + 1)
-      let minorVar := equationFieldDomains.length + later.length
-      VExpr.WF H.outVEnv Us.length
-        (abstractForallContext equationDomains []).toCtx
-        (VExpr.mkApps (.bvar minorVar)
-          (recursorCanonicalVars equationFieldDomains.length))) :
+      let installedEquationFields :=
+        (liftContextPrefix (later.length + 1) fieldDomains.reverse).reverse
+      VEnv.IsDefEqCtx H.outVEnv Us.length []
+        (equationFieldDomains.reverse ++ outer)
+        (installedEquationFields.reverse ++ outer)) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     let inserted := T.motives ++ T.minors
@@ -1064,7 +1063,7 @@ theorem
           (recursorCanonicalVars equationFieldDomains.length))
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual) := by
-  dsimp only at Hctx Happlication ⊢
+  dsimp only at HfieldContext ⊢
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   let inserted := T.motives ++ T.minors
@@ -1091,12 +1090,10 @@ theorem
         equationFieldDomains.reverse ++ outer := by
     simp [abstractForallContext_toCtx, equationFieldDomains, outer,
       List.reverse_append, List.append_assoc, VLCtx.toCtx]
-  rw [hctxShape] at Hctx Happlication
   have htermShape :
       (VExpr.bvar later.length).liftN equationFieldDomains.length 0 =
         .bvar (equationFieldDomains.length + later.length) := by
     simp [VExpr.liftN, Nat.add_comm]
-  rw [← htermShape] at Happlication
   -- The selected minor is a variable of `outer`; its declared type is the
   -- installed minor type, so its typing there is a direct lookup.
   have hminor : minorIdx < T.minors.length := by
@@ -1142,11 +1139,6 @@ theorem
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual)) :=
     .bvar Hlookup
-  have HfieldContext :=
-    VEnv.HasType.canonicalApplicationContext
-    H.outVEnvWF equationFieldDomains installedEquationFields outer Hctx
-      HminorBase (by simpa [installedEquationFields] using hequationLength)
-      Happlication
   have HminorBase' : H.outVEnv.HasType Us.length outer
       (.bvar later.length)
       (VExpr.wrapForalls
@@ -1257,65 +1249,9 @@ theorem
       equationFieldDomains
   let later := T.minors.drop (minorIdx + 1)
   let minorVar := equationFieldDomains.length + later.length
-  rcases A.finalSelectedOuterRuntimeFieldAlignmentFor B T hpositive with
-    ⟨selectedScope, Hselected, outerScope, Houter,
-      selectedFields, outerFields, applicationHypotheses,
-      applicationResidual, outerResidual,
-      _hselectedScope, _hselectedShift, houterScope, houterShift,
-      hscopeSplit, _hfactor, hrelative, hselectedFields, houterFields,
-      _happlicationHypotheses, HouterTail, HselectedPrefix, HouterPrefix,
-      Happlication, Hnatural, _Hruntime⟩
   have hminor : minorIdx < T.minors.length := by
     rw [T.minors_length]
     exact A.rule.minor_valid
-  have hremainingLength :
-      (H.bindings.flatMinors.fvars.drop minorIdx).length =
-        (T.minors.drop minorIdx).length := by
-    simp only [List.length_drop]
-    rw [H.bindings.flatMinors.length_fvars, T.minors_length]
-  have hdrop : T.minors.drop minorIdx = T.minors[minorIdx] :: later := by
-    simpa [later] using List.drop_eq_getElem_cons hminor
-  have hgeneratedRemaining : (T.minors.drop minorIdx).length =
-      later.length + 1 := by
-    simp [hdrop]
-  have Hnatural' := Hnatural
-  rw [hrelative, liftForallDomains_skipN_consN_refl,
-    hremainingLength, hgeneratedRemaining] at Hnatural'
-  have HselectedOuter := VEnv.IsDefEqCtx.rebaseCommonSuffix H.outVEnvWF
-    (HouterPrefix.symm H.outVEnvWF.ordered) Hnatural'
-  have HouterApplication := Happlication.defeqDFC H.outVEnvWF.ordered
-    HselectedOuter
-  rcases A.finalCheckedConstructorFieldFrame with
-    ⟨T₁, checkedDomains, checkedResidual, _introTarget, hparams,
-      hchecked, Hchecked, _HcheckedResidual, _HcheckedType,
-      _HcheckedTypeT, HcheckedContext, _HintroType, _Hintro,
-      _HintroShape⟩
-  rcases T₁.groupsResult_eq T with
-    ⟨hparamsT, hmotivesT, hminorsT,
-      _hindicesT, _hmajorT, _hresultT⟩
-  rw [hparamsT] at hparams HcheckedContext
-  have hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
-    simpa only [← H.parameterDecls] using hparams
-  have Hchecked' : TrExprS H.outVEnv Us
-      H.parameterSuffix.parameterDecls A.semantics.parameterTail
-      (VExpr.wrapForalls checkedDomains checkedResidual) := by
-    simpa only [← H.parameterDecls] using Hchecked
-  rcases A.finalOuterCheckedEquationFieldAlignmentFor T outerScope Houter
-      outerFields outerResidual houterScope houterShift houterFields
-      HouterTail HouterPrefix checkedDomains checkedResidual hchecked
-      Hchecked' with
-    ⟨outerCheckedFields, houterCheckedFields, HouterChecked⟩
-  rcases A.finalCheckedNarrowEquationContextAlignmentFromFrameFor B T
-      checkedDomains checkedResidual hparams' hchecked Hchecked'
-      HcheckedContext with
-    ⟨checkedEquationFields, hcheckedEquationFields, HcheckedFixed⟩
-  rw [houterCheckedFields] at HouterChecked
-  rw [hcheckedEquationFields] at HcheckedFixed
-  have HouterFixed := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HouterChecked HcheckedFixed
-  have HfixedApplication := HouterApplication.defeqDFC
-    H.outVEnvWF.ordered HouterFixed
   have hequationContext :
       (abstractForallContext equationDomains []).toCtx =
         equationFieldDomains.reverse ++ inserted.reverse ++
@@ -1323,31 +1259,84 @@ theorem
     rw [abstractForallContext_toCtx]
     simp [equationDomains, equationFieldDomains, List.reverse_append,
       List.append_assoc, VLCtx.toCtx]
-  have HapplicationWF : VExpr.WF H.outVEnv Us.length
-      (abstractForallContext equationDomains []).toCtx
-      (VExpr.mkApps (.bvar minorVar)
-        (recursorCanonicalVars equationFieldDomains.length)) := by
-    rw [hequationContext]
-    let applicationType := VExpr.wrapForalls
-      (liftContextPrefixAt (later.length + 1) selectedFields.length
-        applicationHypotheses.reverse).reverse
-      (applicationResidual.liftN (later.length + 1)
-        (selectedFields.length + applicationHypotheses.length))
-    refine ⟨applicationType, ?_⟩
-    change H.outVEnv.HasType Us.length
-      (equationFieldDomains.reverse ++ inserted.reverse ++
-        H.parameterSuffix.parameterDecls.toCtx)
-      (VExpr.mkApps (.bvar minorVar)
-        (recursorCanonicalVars equationFieldDomains.length))
-      applicationType
-    simpa [applicationType, minorVar, minorIdx, equationFieldDomains,
-      inserted, later, VExpr.liftN, hselectedFields, houterFields,
-      B.fieldDomains_length, Nat.add_comm, Nat.add_left_comm,
-      Nat.add_assoc] using HfixedApplication
+  have HinsP : OnCtx (inserted.reverse ++
+      H.parameterSuffix.parameterDecls.toCtx) (H.outVEnv.IsType Us.length) := by
+    have h := HfixedContext
+    rw [hequationContext] at h
+    simp only [List.append_assoc] at h
+    exact OnCtx.append_right h
+  rcases A.finalCheckedNarrowFieldAlignment B with
+    ⟨checkedDomains, checkedResidual, hchecked, Hchecked, HcheckedB⟩
+  have Hlink := A.finalInstalledCheckedFieldLink T hpositive checkedDomains
+    checkedResidual hchecked Hchecked fieldDomains hypothesisDomains
+    targetResidual hfields hminorType
+  have Ha := VEnv.IsDefEqCtx.insertSameMiddle H.outVEnvWF.ordered
+    checkedDomains.reverse B.fieldDomains.reverse inserted.reverse
+    H.parameterSuffix.parameterDecls.toCtx HcheckedB
+    (by simp [hchecked, B.fieldDomains_length]) HinsP
+  let base := T.params ++ T.motives ++ T.minors.take minorIdx
+  let remaining := (T.minors.drop minorIdx).reverse
+  have Hremaining : OnCtx (remaining ++ base.reverse)
+      (H.outVEnv.IsType Us.length) := by
+    have Hprefix := T.prefixContext H.outVEnvWF.ordered
+    have hminors := List.take_append_drop minorIdx T.minors
+    have hreverse : T.minors.reverse =
+        (T.minors.drop minorIdx).reverse ++
+          (T.minors.take minorIdx).reverse := by
+      simpa only [List.reverse_append] using
+        (congrArg List.reverse hminors).symm
+    simp only [List.reverse_append] at Hprefix
+    rw [hreverse] at Hprefix
+    simpa [base, remaining, List.reverse_append, List.append_assoc] using
+      Hprefix
+  have Hb := VEnv.IsDefEqCtx.insertSameMiddle H.outVEnvWF.ordered
+    (liftContextPrefix (T.motives ++ T.minors.take minorIdx).length
+      checkedDomains.reverse)
+    fieldDomains.reverse remaining base.reverse Hlink
+    (by simp [hchecked, hfields]) Hremaining
+  have hfullContext : remaining ++ base.reverse =
+      (T.params ++ T.motives ++ T.minors).reverse := by
+    have hminorPrefix : (T.minors.drop minorIdx).reverse ++
+        (T.minors.take minorIdx).reverse = T.minors.reverse := by
+      simpa only [List.reverse_append] using congrArg List.reverse
+        (List.take_append_drop minorIdx T.minors)
+    simp only [remaining, base, List.reverse_append]
+    rw [← List.append_assoc, hminorPrefix]
+  have hdrop : T.minors.drop minorIdx = T.minors[minorIdx] :: later := by
+    simpa [later] using List.drop_eq_getElem_cons hminor
+  have hremainingLength : remaining.length = later.length + 1 := by
+    simp [remaining, hdrop]
+  rw [liftContextPrefix_liftContextPrefix] at Hb
+  simp only [List.append_assoc] at Hb
+  rw [hfullContext, hremainingLength] at Hb
+  have Hparams := H.finalRecursorParameterContextFor howner T
+  rw [← H.parameterDecls] at Hparams
+  have HouterT : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx)
+      (T.params ++ T.motives ++ T.minors).reverse := by
+    have h := VEnv.IsDefEqCtx.extendSamePrefix
+      (Hparams.symm H.outVEnvWF.ordered) HinsP
+    simpa [inserted, List.reverse_append, List.append_assoc] using h
+  have Hb' := VEnv.IsDefEqCtx.rebaseCommonSuffix H.outVEnvWF HouterT Hb
+  have hlen : (T.motives ++ T.minors.take minorIdx).length +
+      (later.length + 1) = inserted.length := by
+    have hlater : later.length = T.minors.length - (minorIdx + 1) := by
+      simp [later]
+    simp only [inserted, List.length_append, List.length_take]
+    omega
+  rw [hlen] at Hb'
+  have Ha' : VEnv.IsDefEqCtx H.outVEnv Us.length []
+      (liftContextPrefix inserted.length checkedDomains.reverse ++
+        (inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx))
+      (liftContextPrefix inserted.length B.fieldDomains.reverse ++
+        (inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx)) := by
+    simpa [List.append_assoc] using Ha
+  have HfieldContext := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
+    (Ha'.symm H.outVEnvWF.ordered) Hb'
   have HinstalledFields :=
     A.finalCanonicalMinorFieldContextOfApplication B T fieldDomains
-      hypothesisDomains targetResidual hfields HfixedContext hminorType
-      HapplicationWF
+      hypothesisDomains targetResidual hfields hminorType (by
+        simpa [equationFieldDomains, inserted, later] using HfieldContext)
   have HinstalledTyping : H.outVEnv.HasType Us.length
       (abstractForallContext equationDomains []).toCtx
       (VExpr.mkApps (.bvar minorVar)
@@ -1362,7 +1351,7 @@ theorem
       minorVar, List.append_assoc] using HinstalledFields.2
   exact ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
     hfields, hhypotheses, hminorType, HfixedContext, Hminor,
-    HapplicationWF, HinstalledFields.1, HinstalledTyping⟩
+    ⟨_, HinstalledTyping⟩, HinstalledFields.1, HinstalledTyping⟩
 
 /-- Apply all canonical recursive results to a selected minor that has
 already been applied to the fixed equation fields. -/
