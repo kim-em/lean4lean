@@ -628,10 +628,49 @@ theorem
     rw [A.semantics.fieldOpening.fvars_eq_bound
       A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
     simp [List.append_assoc]
-  rcases HlocalPrefix.extendFVarNarrowCore H.outVEnvWF HlocalWF
-      HlocalBase HlocalUp with
+  have hposFields : 0 < A.rule.allArgs.size := by
+    have hlen := A.semantics.selection.fields_length
+    have hne : A.semantics.fields ≠ [] := by
+      intro h
+      rw [h] at hlen
+      simp at hlen
+      omega
+    obtain ⟨cert, hcert⟩ := List.exists_mem_of_ne_nil _ hne
+    have := A.semantics.selection.positions_lt cert hcert
+    omega
+  obtain ⟨hnC, hagreeC, jC, hjC, hdropC⟩ := F.semantic.chkAgree
+  have hchkLocalWF : F.semantic.current_context.chk.WF H.outVEnv Us := by
+    have henv : F.semantic.current_context.venv ≤ H.outVEnv := by
+      rw [F.semantic.recent.venv_eq, F.originRecent.venv_eq,
+        A.semantics.context_venv, H.recursorEnv]
+      exact H.constructorVEnv_le
+    exact F.semantic.current_context.check.wf.mono henv
+  have hhn : HlocalPrefix.le = F.semantic.recent.size_le :=
+    Subsingleton.elim _ _
+  have hbaseEmb : ChkEmbeds H.outVEnv Us.length
+      (F.semantic.current_context.chk.dropN
+        F.semantic.generated.localArgs.size hnC).vlctx B.fieldScope := by
+    rw [hdropC]
+    have hchkEq : F.originContext.chk = A.semantics.context.chk :=
+      F.originCheck
+    have hjC' : jC ≤ A.semantics.context.chk.length := hchkEq ▸ hjC
+    have key : ∀ (m m' : TypeChecker.MLCtx), m = m' → ∀ hj hj',
+        (m.dropN jC hj).vlctx = (m'.dropN jC hj').vlctx := by
+      intro m m' h hj hj'
+      subst h
+      rfl
+    have hdropEq := key _ _ hchkEq hjC hjC'
+    rw [hdropEq]
+    have hfieldEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+      rw [← A.semantics.fieldsRecent.venv_eq, A.semantics.context_venv,
+        H.recursorEnv]
+      exact H.constructorVEnv_le
+    exact ⟨_, _, (A.semantics.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift',
+      ((B.checkAlign hposFields).mono hfieldEnv).symm H.outVEnvWF.ordered⟩
+  rcases HlocalPrefix.extendFVarNarrowCoreEmbedded H.outVEnvWF HlocalWF
+      HlocalBase HlocalUp hchkLocalWF hnC hagreeC hbaseEmb with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
-      hcontext, _hshift, Hreplay⟩
+      hcontext, _hshift, Hreplay, _hembLocal⟩
   have hsource : ∀ body, Closed body →
       F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body =

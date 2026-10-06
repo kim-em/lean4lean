@@ -455,6 +455,147 @@ theorem MLCtxLamPrefix.extendFVarNarrowCore
       simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls_append,
         VExpr.wrapForalls] using Hclosed
 
+/-- `extendFVarNarrowCore` when the recent prefix was also opened in a checker
+context embedded in the base scope.  Each retained domain is the checker
+translation weakened along the embedding, so no runtime translation is
+restricted. -/
+theorem MLCtxLamPrefix.extendFVarNarrowCoreEmbedded
+    (H : MLCtxLamPrefix runtime n domains)
+    (henv : env.WF) (Hwf : runtime.WF env Us)
+    (Hbase : checkInductiveTypes.loopType.FVarNarrowCore env Us
+      baseScope (runtime.dropN n H.le).vlctx)
+    (hup : IsFVarUpSet
+      (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
+      runtime.vlctx)
+    {chk : TypeChecker.MLCtx} (hchkWF : chk.WF env Us)
+    (hn : n ≤ chk.length) (hagree : MLCtxTopAgree runtime chk n)
+    (hbaseEmb : ChkEmbeds env Us.length (chk.dropN n hn).vlctx baseScope) :
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowCore env Us
+          scope runtime.vlctx,
+        scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
+        scope.drop n = baseScope ∧
+        ∃ newDomains : List VExpr,
+          newDomains.length = n ∧
+          scope.toCtx = newDomains.reverse ++ baseScope.toCtx ∧
+          Hscope.shift = Hbase.shift.consN n ∧
+          (∀ {body target},
+            TrExprS env Us scope body target →
+            env.IsType Us.length scope.toCtx target →
+            TrExprS env Us baseScope
+                (runtime.mkForall n H.le body)
+                (VExpr.wrapForalls newDomains target) ∧
+              env.IsType Us.length baseScope.toCtx
+                (VExpr.wrapForalls newDomains target)) ∧
+          ChkEmbeds env Us.length chk.vlctx scope := by
+  induction H generalizing chk with
+  | nil runtime =>
+    exact ⟨baseScope, Hbase,
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl, [], rfl, by simp,
+      by simp [Lift.consN], by
+        intro body target Hbody HbodyType
+        simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls] using
+          And.intro Hbody HbodyType,
+      by simpa using hbaseEmb⟩
+  | @cons tail n domains fv name type type' bi Hprefix ih =>
+    cases hagree with
+    | @vlam _ chkTail _ hagreeTail _ _ _ _ t₂ _ =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    rcases hchkWF with ⟨hchkTailWF, _hfreshC, Htype₀, Htype₀Type⟩
+    have hcurrentFresh : fv ∉ tail.vlctx.fvars :=
+      HtailWF.tr.find?_eq_none.1 hfresh
+    have htailUp : IsFVarUpSet
+        (fun fv' =>
+          fv' ∈ tail.fvarRevList n Hprefix.le ++ baseScope.fvars)
+        tail.vlctx := by
+      apply (IsFVarUpSet.congr HtailWF.tr.wf.fvwf ?_).mp hup.1
+      intro fv' hfv'
+      constructor
+      · intro h
+        rcases List.mem_cons.mp h with hcurrent | h
+        · exact False.elim (hcurrentFresh (hcurrent ▸ hfv'))
+        · exact h
+      · exact List.mem_cons_of_mem _
+    have hnTail : n ≤ chkTail.length := by simpa using hn
+    rcases ih HtailWF Hbase htailUp hchkTailWF hnTail hagreeTail
+        (by simpa using hbaseEmb) with
+      ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
+        tailDomains, htailDomains, htailContext, htailShift,
+        HtailReplay, hembTail⟩
+    have hdepsFull : ∀ dep ∈ type.fvarsList,
+        dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars :=
+      hup.2 (by simp)
+    have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+      intro dep hdep
+      rw [htailScopeFVars]
+      have hselected := hdepsFull dep hdep
+      rcases List.mem_cons.mp hselected with hcurrent | hselected
+      · exact False.elim
+          (hcurrentFresh (hcurrent ▸ Htype.fvarsList hdep))
+      · exact hselected
+    obtain ⟨narrowType, HnarrowType⟩ := hembTail.trExprS henv Htype₀
+    have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
+      hembTail.isType henv Htype₀ HnarrowType Htype₀Type
+    have Hweak : TrExprS env Us HtailScope.expanded type
+        (narrowType.lift' HtailScope.shift) := by
+      simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+        HtailScope.context.wf
+    have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+    have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+        type' := HtypeType.defeqDFC henv.ordered
+          (HtailScope.context.symm henv.ordered).defeqCtx
+    rcases HtargetType with ⟨u, HtargetType⟩
+    have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+        (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+      HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+    let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain HnarrowIsType
+    have hfreshScope : fv ∉ tailScope.fvars := by
+      intro hmem
+      have hsub : tailScope.fvars ⊆ tail.vlctx.fvars := by
+        rw [← HtailScope.context.fvars]
+        exact HtailScope.lift.fvars_sublist.subset
+      exact hcurrentFresh (hsub hmem)
+    refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_,
+      ?_, ?_, ?_⟩
+    · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    · simpa using htailBase
+    · simp [htailDomains]
+    · change narrowType :: tailScope.toCtx = _
+      rw [htailContext]
+      simp [List.reverse_append, List.append_assoc]
+    · change HtailScope.shift.consN 1 = Hbase.shift.consN (n + 1)
+      rw [htailShift]
+      simp [Lift.consN]
+    · intro body target Hbody HbodyType
+      have HdomainType : env.IsType Us.length tailScope.toCtx narrowType :=
+        HnarrowIsType
+      have W : VLCtx.Abstract tailScope fv (.vlam narrowType) 0 0
+          ((some (fv, type.fvarsList), .vlam narrowType) :: tailScope)
+          ((none, .vlam narrowType) :: tailScope) := .zero
+      have Hbody' : TrExprS env Us
+          ((none, .vlam narrowType) :: tailScope)
+          (body.abstract1 fv) target := by
+        apply TrExprS.abstract W
+        simpa [Hnext,
+          checkInductiveTypes.loopType.FVarNarrowCore.withIndex] using Hbody
+      have HbodyType' : env.IsType Us.length
+          (narrowType :: tailScope.toCtx) target := by
+        simpa [Hnext,
+          checkInductiveTypes.loopType.FVarNarrowCore.withIndex,
+          VLCtx.toCtx] using HbodyType
+      have Hone : TrExprS env Us tailScope
+          (.forallE name type (body.abstract1 fv) bi)
+          (.forallE narrowType target) :=
+        .forallE HdomainType HbodyType' HnarrowType Hbody'
+      have HoneType : env.IsType Us.length tailScope.toCtx
+          (.forallE narrowType target) :=
+        VEnv.IsType.forallE HdomainType HbodyType'
+      have Hclosed := HtailReplay Hone HoneType
+      simpa [TypeChecker.MLCtx.mkForall, VExpr.wrapForalls_append,
+        VExpr.wrapForalls] using Hclosed
+    · exact hembTail.cons henv hfreshScope Htype₀ HnarrowType HnarrowIsType
+
 /-- Skip a producer-retained hypothesis suffix above an exact target scope.
 The target declarations are preserved definitionally; only the executable
 weakening records the skipped hypotheses. -/
