@@ -18,8 +18,17 @@ proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
 
 Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
 `~/worktrees/lean4lean/`):
-- `lean4lean-cr`, branch `agent/verify-inductives-cr`: `FullStep.strip`
-  (eta restricted to non-head positions or the levelled-reduction route).
+- `lean4lean-cr`, branch `agent/verify-inductives-cr`: **`FullStep.strip`,
+  `FullReduction.church_rosser`, `IsDefEq.full_church_rosser` PROVED
+  (88430392, pushed)** by decreasing diagrams over a four-level split of
+  `FullStep` (0 normal equality without eta, 1 parallel reduction, 2 parallel
+  prefix/projection computation, 3 parallel eta expansion;
+  `Theory/Typing/LevelledReduction.lean`); `funEta` stays unrestricted
+  because `NormalEqN.beta_aux` needs head eta. Caveat being fixed: the
+  development is parametric in `class Params` (seven new fields) and
+  `class FullEquationCoverage`, which have no instance; the agent is now
+  constructing both for every `VEnv.WF env` to give an unconditional
+  `VEnv.WF.church_rosser`.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
