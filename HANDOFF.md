@@ -976,7 +976,12 @@ inside this project's scope without solving open base metatheory:
    `headParallel`, `fullStep`, `strip`), the last three closed on the cr
    branch pending merge. **Merged (0525770b):** main's open proofs are now
    exactly `headInversion`, `weakN_iff` (hypothesis on E3), `strip`
-   (in progress on the cr branch).
+   (in progress on the cr branch). **E3 at c6293804 (pushed) carries all
+   of this:** its open proofs are exactly `headInversion`,
+   `strengthening_of_canonicalEq`, `strip` (audit: "2 distinct proof
+   obligations remain" from the roots, since `strip` is outside the
+   `addDecl.WF` cone). So on E3, `addDecl.WF_of_canonicalEq` rests on two
+   conjectures: head inversion and strengthening with canonical `Eq`.
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
