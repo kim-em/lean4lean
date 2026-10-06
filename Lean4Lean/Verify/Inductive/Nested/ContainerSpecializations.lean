@@ -591,10 +591,9 @@ theorem AuxiliarySpecializationEvidence.wellFormed
     a.WellFormed envTypes decl params := by
   rcases H.application with
     ⟨sourceParams, _, hsourceCtx, _, htyping, _, _⟩
-  have hctx := VEnv.IsDefEqCtx.trans_empty henv hsourceCtx
-    (hparams.symm henv.ordered)
   exact ⟨H.argumentsLength, H.argumentsClosed, H.levelsLength, H.levelsWF,
-    H.safety, _, htyping.defeqDFC henv.ordered hctx⟩
+    H.safety, _, (htyping.defeqDFC henv.ordered hsourceCtx).defeqDFC henv.ordered
+      (hparams.symm henv.ordered)⟩
 
 /-- The selected container constructors carry a syntactic parameter
 telescope covering the specialisation arguments. -/
@@ -757,7 +756,8 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
     ∃ a : ContainerSpecialization,
       AuxiliarySpecializationEvidence
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceTypesVEnv paramCtx
-        decl a N.payload.source := by
+        decl a N.payload.source ∧
+      a.auxiliary = N.payload.source.name ∧ a.source = N.containerFamily := by
   subst hbase
   rcases List.mem_iff_getElem.mp N.familyMember with ⟨idx, hidx, hfamily⟩
   let a : ContainerSpecialization := {
@@ -789,7 +789,8 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
   have hsafety : decl.isUnsafe = true ∨ N.container.isUnsafe = false := by
     rw [hunsafe, ← N.containerUnsafe]
     exact inductInfo_safety_of_visible hvisible
-  refine ⟨a, {
+  refine ⟨a, ?_, rfl, hsource⟩
+  refine {
     installed := N.installedBase
     auxiliary := rfl
     generatedUvars := N.sourceUvars.trans huvars.symm
@@ -799,7 +800,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
     levelsWF := by rw [huvars]; exact N.levelsWF
     safety := hsafety
     familyForallPrefix := hfamilyPrefix
-    application := ?_ }⟩
+    application := ?_ }
   · intro arg harg
     rw [hnparams, ← N.sourceParamsLength]
     exact N.baseArgsClosed arg harg
@@ -831,6 +832,158 @@ private theorem forall₂_trInductiveType_names
   | nil => rfl
   | cons h _ ih => simp only [List.map_cons, ih, ← h.header.name]
 
+private theorem familyNames_drop_sublist (types : List VInductiveType) (n : Nat) :
+    (familyNames (types.drop n)).Sublist (familyNames types) := by
+  conv => rhs; rw [← List.take_append_drop n types]
+  simp only [familyNames, List.flatMap_append]
+  exact List.sublist_append_right _ _
+
+/-! ### Executable constructor-name restoration -/
+
+/-- `P` is a (non-strict) prefix of a hierarchical name. -/
+inductive NamePrefix (P : Name) : Name → Prop
+  | refl : NamePrefix P P
+  | str {p : Name} (s : String) : NamePrefix P p → NamePrefix P (.str p s)
+  | num {p : Name} (n : Nat) : NamePrefix P p → NamePrefix P (.num p n)
+
+private def nameDepth : Name → Nat
+  | .anonymous => 0
+  | .str p _ => nameDepth p + 1
+  | .num p _ => nameDepth p + 1
+
+theorem Name.replacePrefix_self' (A P : Name) : A.replacePrefix A P = P := by
+  cases A <;> simp [Name.replacePrefix]
+
+private theorem NamePrefix.depth_le (H : NamePrefix P x) : nameDepth P ≤ nameDepth x := by
+  induction H with
+  | refl => exact Nat.le_refl _
+  | str _ _ ih => simp only [nameDepth]; omega
+  | num _ _ ih => simp only [nameDepth]; omega
+
+theorem NamePrefix.replacePrefix_nameDepth (H : NamePrefix P x) (A : Name) :
+    nameDepth A ≤ nameDepth (x.replacePrefix P A) ∧
+      (x ≠ P → nameDepth A < nameDepth (x.replacePrefix P A)) := by
+  induction H with
+  | refl => simp [Name.replacePrefix_self']
+  | @str p s H ih =>
+    have hne : Name.str p s ≠ P := by
+      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
+    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkStr, nameDepth]
+    constructor <;> omega
+  | @num p n H ih =>
+    have hne : Name.num p n ≠ P := by
+      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
+    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkNum, nameDepth]
+    constructor <;> omega
+
+theorem NamePrefix.replacePrefix_replacePrefix (H : NamePrefix P x) (A : Name) :
+    (x.replacePrefix P A).replacePrefix A P = x := by
+  induction H with
+  | refl => simp [Name.replacePrefix_self']
+  | @str p s H ih =>
+    have hne : Name.str p s ≠ P := by
+      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
+    have hnameDepth := (H.replacePrefix_nameDepth A).1
+    have hne' : Name.str (p.replacePrefix P A) s ≠ A := by
+      intro h; have := congrArg nameDepth h; simp [nameDepth] at this; omega
+    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkStr, hne', ih]
+  | @num p n H ih =>
+    have hne : Name.num p n ≠ P := by
+      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
+    have hnameDepth := (H.replacePrefix_nameDepth A).1
+    have hne' : Name.num (p.replacePrefix P A) n ≠ A := by
+      intro h; have := congrArg nameDepth h; simp [nameDepth] at this; omega
+    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkNum, hne', ih]
+
+theorem namePrefix_of_replacePrefix_ne {x P A : Name}
+    (h : x.replacePrefix P A ≠ x) : NamePrefix P x := by
+  induction x with
+  | anonymous =>
+    cases P with
+    | anonymous => exact .refl
+    | str => simp [Name.replacePrefix] at h
+    | num => simp [Name.replacePrefix] at h
+  | str p s ih =>
+    by_cases hP : Name.str p s = P
+    · subst hP; exact .refl
+    · simp only [Name.replacePrefix, beq_iff_eq, hP, if_false, Name.mkStr] at h
+      exact .str s (ih fun h' => h (by rw [h']))
+  | num p n ih =>
+    by_cases hP : Name.num p n = P
+    · subst hP; exact .refl
+    · simp only [Name.replacePrefix, beq_iff_eq, hP, if_false, Name.mkNum] at h
+      exact .num n (ih fun h' => h (by rw [h']))
+
+/-- Executable and abstract constructor restoration agree on every
+auxiliary constructor: the executable renames the lowered constructor
+`a.constructorName ctor` back along the auxiliary/container prefix recorded by
+lowering, and the abstract table maps it to the container constructor.  The
+only side condition is that lowering actually renamed the constructor (which
+is the case whenever the lowered constructor name is fresh). -/
+theorem restoreCtorName_eq_restoredHeadName
+    {decl : VInductDecl} {auxiliaries : List ContainerSpecialization}
+    (hnodup : (auxiliaries.flatMap (·.headNames)).Nodup)
+    {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
+    {ctor : VConstVal} (hctor : ctor ∈ a.source.ctors)
+    (hrenamed : a.constructorName ctor ≠ ctor.name)
+    (r : Lean4Lean.ElimNestedInductive.Result) (env' : Environment)
+    {e : Expr} {ls : List Level}
+    (hget : r.getNestedIfAuxCtor env' (a.constructorName ctor) =
+      some (e, a.auxiliary))
+    (hhead : e.getAppFn = .const a.source.name ls) :
+    r.restoreCtorName env' (a.constructorName ctor) =
+      (compilationRestoration decl auxiliaries).restoredHeadName
+        (a.constructorName ctor) := by
+  rw [restoreCtorName_eq r env' _ _ _ e ls hget hhead,
+    compilationRestoration_restoredHeadName_constructor hnodup ha hctor]
+  exact (namePrefix_of_replacePrefix_ne hrenamed).replacePrefix_replacePrefix _
+
+theorem Expr.getAppFn_abstractN_const {e : Expr} {xs : List FVarId} {k : Nat}
+    {n : Name} {ls : List Level} (H : e.getAppFn = .const n ls) :
+    (e.abstractN xs k).getAppFn = .const n ls := by
+  induction e generalizing k with
+  | app f a ihf _ =>
+    simp only [Expr.abstractN, Expr.getAppFn] at H ⊢
+    exact ihf H
+  | const => simpa [Expr.abstractN] using H
+  | _ => simp [Expr.getAppFn] at H
+
+theorem Expr.getAppFn_instantiate1'_of_const {e s : Expr} {d : Nat}
+    {n : Name} {ls : List Level} (H : e.getAppFn = .const n ls) :
+    (e.instantiate1' s d).getAppFn = .const n ls := by
+  induction e generalizing d with
+  | app f a ihf _ =>
+    simp only [Expr.instantiate1', Expr.getAppFn] at H ⊢
+    exact ihf H
+  | const => simpa [Expr.instantiate1'] using H
+  | _ => simp [Expr.getAppFn] at H
+
+theorem Expr.getAppFn_instantiateList_of_const {e : Expr} {subst : List Expr}
+    {k : Nat} {n : Name} {ls : List Level} (H : e.getAppFn = .const n ls) :
+    (e.instantiateList subst k).getAppFn = .const n ls := by
+  induction subst generalizing e with
+  | nil => simpa [Expr.instantiateList] using H
+  | cons s subst ih =>
+    simp only [Expr.instantiateList]
+    exact ih (Expr.getAppFn_instantiate1'_of_const H)
+
+theorem BuiltAuxiliary.nested_getAppFn
+    {env : Environment} {lctx : LocalContext} {params As : Array Expr}
+    {levels : List Level} {nparams : Nat} {args : Array Expr}
+    {sourceName auxName : Name} {sourceInfo : InductiveVal}
+    {data : Lean4Lean.ElimNestedInductive.AuxiliaryData}
+    (H : BuiltAuxiliary env lctx params As levels nparams args sourceName
+      auxName sourceInfo data)
+    (sel : LocalForallSelection lctx As) (harity : nparams ≤ args.size) :
+    data.nested.getAppFn = .const sourceName levels := by
+  rw [H.nested, sel.expressions, Expr.instantiateRev_eq, Expr.instantiate_eq]
+  apply Expr.getAppFn_instantiateList_of_const
+  have h := Expr.abstractN_eq (mkAppRange (.const sourceName levels) 0 nparams args) sel.fvars
+  simp only [List.toArray] at h ⊢
+  rw [h]
+  apply Expr.getAppFn_abstractN_const
+  rw [Expr.mkAppRange_from_zero _ _ _ harity, Expr.getAppFn_mkAppList]
+  rfl
 /-- The common parameter context recorded by the header phase of a declared
 block (in context order).  Every generated auxiliary's parameter telescope
 is definitionally this context. -/
@@ -842,6 +995,112 @@ def DeclaredHeadersResult.commonParameterContext
       indTypes outEnv) : List VExpr :=
   (H.sourceMaterialized.parameterSuffix.toRecursorContext
     (elimLevel := .zero) (by trivial)).parameterDecls.toCtx
+
+theorem DeclaredHeadersResult.commonParameterContext_eq
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType} {outEnv : Environment}
+    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes outEnv) :
+    H.commonParameterContext = H.materialized.parameterScope.toCtx := by
+  rw [H.parameterScopeEq]
+  rfl
+
+/-- The completed constructor boundary's parameter scope is the header
+phase's common parameter context. -/
+theorem ConstructorPhasesResult.completed_parameterScope_toCtx
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv : Environment}
+    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
+      indTypes headerEnv} (R : ConstructorPhasesResult H ctorEnv) :
+    R.completed.parameterScope.toCtx = H.commonParameterContext :=
+  H.commonParameterContext_eq.symm
+
+private theorem constructorListEntries_findInduct
+    {stats : AddInductive.InductiveStats} {lparams : List Name}
+    {isUnsafe : Bool} {owner : InductiveType} {ctors : List Constructor}
+    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
+    {initial : Nat}
+    (H : ConstructorListEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe owner)
+      initial ctors entries)
+    (hctor : ctor ∈ ctors) :
+    ∃ info : ConstructorVal, ∃ value : VConstVal,
+      (.ctorInfo info, value) ∈ entries ∧
+      info.name = ctor.name ∧ info.induct = owner.name := by
+  induction H with
+  | nil => simp at hctor
+  | @cons start head tail tailEntries value Htail ih =>
+    simp only [List.mem_cons] at hctor
+    rcases hctor with rfl | htail
+    · exact ⟨AddInductive.constructorInfo stats lparams isUnsafe owner
+        start ctor, value, by simp,
+        by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo]⟩
+    · rcases ih htail with ⟨info, value', hmem, hname, hinduct⟩
+      exact ⟨info, value', by simp [hmem], hname, hinduct⟩
+
+private theorem constructorTypeEntries_findInduct
+    {stats : AddInductive.InductiveStats} {lparams : List Name}
+    {isUnsafe : Bool} {types : List InductiveType} {owner : InductiveType}
+    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
+    (H : ConstructorTypeEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe) types entries)
+    (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
+    ∃ info : ConstructorVal, ∃ value : VConstVal,
+      (.ctorInfo info, value) ∈ entries ∧
+      info.name = ctor.name ∧ info.induct = owner.name := by
+  induction H generalizing owner with
+  | nil => simp at howner
+  | cons Hhead Htail ih =>
+    simp only [List.mem_cons] at howner
+    rcases howner with rfl | htailOwner
+    · rcases constructorListEntries_findInduct Hhead hctor with
+        ⟨info, value, hmem, hname, hinduct⟩
+      exact ⟨info, value, List.mem_append_left _ hmem, hname, hinduct⟩
+    · rcases ih htailOwner hctor with ⟨info, value, hmem, hname, hinduct⟩
+      exact ⟨info, value, List.mem_append_right _ hmem, hname, hinduct⟩
+
+/-- Every lowered constructor is installed in the lowered production
+environment as a constructor of its own lowered family, and its name was
+fresh in the abstract source environment. -/
+private theorem loweredConstructor_facts
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {types : List InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv types.toArray headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    {t : VInductiveType} (ht : t ∈ decl.types)
+    {ctor : VConstVal} (hctor : ctor ∈ t.ctors) :
+    (∃ info : ConstructorVal, outEnv.find? ctor.name = some (.ctorInfo info) ∧
+      info.induct = t.name) ∧
+    sourceEnv.constants ctor.name = none := by
+  constructor
+  · rcases Lean4Lean.List.Forall₂.forall_exists_r R.core.types t ht with
+      ⟨T, hT, htrT⟩
+    rcases Lean4Lean.List.Forall₂.forall_exists_r htrT.ctors ctor hctor with
+      ⟨C, hC, htrC⟩
+    rcases constructorTypeEntries_findInduct R.declared.sourceAligned
+        (by simpa using hT) hC with ⟨info, value, hmem, hname, hinduct⟩
+    refine ⟨info, ?_, ?_⟩
+    · rw [htrC.name, ← hname]
+      exact H.findConstructorOfMem hmem
+    · rw [hinduct, ← htrT.header.name]
+  · have hmem : ctor ∈ decl.constructorConstants := by
+      simp only [VInductDecl.constructorConstants, List.mem_flatMap]
+      exact ⟨t, ht, hctor⟩
+    have hfresh := (VEnv.addConstVals_names_fresh R.core.ctorsAdded).2 ctor hmem
+    cases hsource : sourceEnv.constants ctor.name with
+    | none => rfl
+    | some ci =>
+      have := (VEnv.addConstVals_le R.core.typesAdded).constants hsource
+      rw [hfresh] at this
+      cases this
 
 /-- Lowered type, constructor and recursor names are jointly distinct: each
 is looked up in the lowered production environment as an inductive,
@@ -928,6 +1187,10 @@ theorem NestedValidatedRunResult.containerSpecializations
         generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
       (familyNames E.production.loweredDecl.types ++
         E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup ∧
+      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
+        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
+          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
+            (a.constructorName ctor)) ∧
       (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
         ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
           name) := by
@@ -1037,9 +1300,13 @@ theorem NestedValidatedRunResult.containerSpecializations
     (by rw [List.take_append_drop]; exact Htypes)
   have hbaseLE : P.initialEnv ≤ E.nativeSource.envTypes :=
     VEnv.addConstVals_le HsourceAdded
+  have Hmap : NestedAuxMapModels result finalState :=
+    Hrun.resultAuxMapModelsFresh (by simpa using hempty)
   have Hpoint : ∀ family ∈ N.generated, ∃ a,
       AuxiliarySpecializationEvidence (ves.venv safety) E.nativeSource.envTypes
-        N.parameterContext sourceDecl a family := by
+        N.parameterContext sourceDecl a family ∧
+      ∃ nested levels, result.aux2nested.find? a.auxiliary = some nested ∧
+        nested.getAppFn = .const a.source.name levels := by
     intro family hfamily
     rcases List.mem_iff_getElem.mp hfamily with ⟨i, hi, rfl⟩
     have hresult : sourceTypes.length + i < result.types.length := by omega
@@ -1047,16 +1314,66 @@ theorem NestedValidatedRunResult.containerSpecializations
       omega
     rcases N.parametersAt i hi hresult hlowered with ⟨Horigin, NN, hNN, hctx⟩
     rw [← hNN]
-    exact NN.auxiliarySpecialization hinitial wfP sourceDecl Hsource.uvars
-      Hsource.nparams (Hsource.isUnsafe.trans hisUnsafe) hbaseLE hctx
-  rcases exists_forall₂_of_forall Hpoint with ⟨auxiliaries, Haux⟩
+    rcases NN.auxiliarySpecialization hinitial wfP sourceDecl Hsource.uvars
+      Hsource.nparams (Hsource.isUnsafe.trans hisUnsafe) hbaseLE hctx with
+      ⟨a, hev, haux, hsrc⟩
+    refine ⟨a, hev, Horigin.generated.data.nested, Horigin.generated.levels,
+      ?_, ?_⟩
+    · rw [haux, NN.sourceName]
+      exact Hmap _ _ Horigin.generated.cached
+    · rw [hsrc, NN.containerName]
+      exact Horigin.generated.built.nested_getAppFn Horigin.generated.selection
+        Horigin.generated.argsArity
+  rcases exists_forall₂_of_forall Hpoint with ⟨auxiliaries, Haux'⟩
+  have Haux := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1) Haux'
   have Hexpansion := Hparts.2
   have hauxNames := auxiliarySpecializations_names Haux Hexpansion
-  rw [hctxEq] at Haux
-  generalize N.generated = generated at Haux Hexpansion
+  rw [hctxEq] at Haux Haux'
+  generalize N.generated = generated at Haux Haux' Hexpansion
   rw [hinitial] at Hexpansion
   refine ⟨E.nativeSource.envTypes, generated, auxiliaries, hadded,
-    HsourceTypesWF, Haux, Hexpansion, loweredNames_nodup HcP Hprod, ?_⟩
+    HsourceTypesWF, Haux, Hexpansion, loweredNames_nodup HcP Hprod, ?_, ?_⟩
+  · -- executable constructor-name restoration
+    have hheadsNodup : (auxiliaries.flatMap (·.headNames)).Nodup := by
+      rw [auxiliarySpecializations_headNames Haux Hexpansion]
+      have h := (List.nodup_append.mp (loweredNames_nodup HcP Hprod)).1
+      exact h.sublist (familyNames_drop_sublist _ _)
+    intro a ha ctor hctor
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
+      ⟨g, hg, hev, nested, levels, hfindAux, hhead⟩
+    rcases Lean4Lean.List.Forall₂.forall_exists_l Hexpansion g hg with
+      ⟨t, ht, hexp⟩
+    have htLowered : t ∈ P.loweredDecl.types := List.mem_of_mem_drop ht
+    have hnames : t.ctors.map (·.name) = a.source.ctors.map a.constructorName :=
+      (nestedConstructorExpansions_names hexp.constructors).trans
+        hev.generatedCtorNames
+    have hcmem : a.constructorName ctor ∈ t.ctors.map (·.name) := by
+      rw [hnames]; exact List.mem_map_of_mem hctor
+    rcases List.mem_map.mp hcmem with ⟨c', hc', hc'name⟩
+    rcases loweredConstructor_facts Hprod htLowered hc' with
+      ⟨⟨info, hfind, hinduct⟩, hfresh⟩
+    rw [hc'name] at hfind hfresh
+    have hinduct' : info.induct = a.auxiliary := by
+      rw [hinduct, hexp.name, hev.auxiliary]
+    have hget : result.getNestedIfAuxCtor E.loweredEnv (a.constructorName ctor) =
+        some (nested, a.auxiliary) := by
+      simp [Lean4Lean.ElimNestedInductive.Result.getNestedIfAuxCtor, hfind,
+        hinduct', hfindAux]
+    have hrenamed : a.constructorName ctor ≠ ctor.name := by
+      intro heq
+      rcases List.mem_iff_getElem.mp hctor with ⟨k, hk, hkEq⟩
+      have hlookup := hev.installed.constructorConstant a.family k a.family.isLt hk
+      have hsome : (ves.venv safety).constants ctor.name ≠ none := by
+        rw [← hkEq]
+        change (ves.venv safety).constants
+          ((a.container.types[(a.family : Nat)]'a.family.isLt).ctors[k]'hk).name
+            ≠ none
+        rw [hlookup]
+        simp
+      rw [← hinitial, ← heq, hfresh] at hsome
+      exact hsome rfl
+    exact restoreCtorName_eq_restoredHeadName hheadsNodup ha hctor hrenamed
+      result E.loweredEnv hget hhead
   rcases Hrun.source with
     ⟨main, rest, _tail, _paramsState, _lctx, _params, hsourceTypes, _⟩
   have hmainMem : main ∈ sourceTypes := by rw [hsourceTypes]; simp
@@ -1089,11 +1406,35 @@ theorem NestedValidatedRunResult.containerSpecializations
     auxiliaries main rest loweredEnv info hfind hfirst hnames hnodup
 
 
-private theorem familyNames_drop_sublist (types : List VInductiveType) (n : Nat) :
-    (familyNames (types.drop n)).Sublist (familyNames types) := by
-  conv => rhs; rw [← List.take_append_drop n types]
-  simp only [familyNames, List.flatMap_append]
-  exact List.sublist_append_right _ _
+/-- The common header parameter context of the lowered production is a
+well-formed context of the source environment, at the declaration's
+universe arity. -/
+theorem NestedValidatedRunResult.commonParameterContext_refl
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) :
+    VEnv.IsDefEqCtx (ves.venv (if isUnsafe then .unsafe else .safe))
+      sourceDecl.uvars [] E.production.headers.commonParameterContext
+      E.production.headers.commonParameterContext := by
+  have hctx := E.production.headers.sourceMaterialized.paramsContext
+  change VEnv.IsDefEqCtx _ _ [] _ E.production.headers.commonParameterContext at hctx
+  generalize E.production.headers.commonParameterContext = L₂ at hctx ⊢
+  generalize E.production.headers.sourceMaterialized.headers.params.reverse = L₁
+    at hctx
+  rw [E.production.headers.sourceContextVEnv, E.production_initialEnv] at hctx
+  have henv : (ves.venv (if isUnsafe then .unsafe else .safe)).WF :=
+    (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf
+  have huvars : sourceDecl.uvars = E.production.c.lparams.length := by
+    have h := E.nativeSource.core.uvars
+    rw [E.nativeSourceDecl_eq] at h
+    rw [h, E.production_c, E.productionContext_lparams]
+  rw [huvars]
+  exact VEnv.IsDefEqCtx.refl (hctx.symm henv.ordered).isType
 
 /-- The conjuncts of `CompilationData`/`RestoredCompilationRealization` that
 concern the auxiliary specialisations, for the exact validated nested run.
@@ -1125,130 +1466,47 @@ theorem NestedValidatedRunResult.containerSpecializationFacts
         VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
           E.production.headers.commonParameterContext →
         ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
+      VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
+        (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+        E.production.headers.commonParameterContext ∧
+      (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
+        E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
       (∀ (U : Nat) (params : List VExpr), ∃ direct,
         auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
         List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
+      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
+        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
+          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
+            (a.constructorName ctor)) ∧
       (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
         ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
           name) := by
   rcases E.containerSpecializations wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
-      hnodup, hrecursors⟩
+      hnodup, hctorNames, hrecursors⟩
   have hsuffixNodup :
       (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ++
         (E.production.loweredDecl.types.drop sourceDecl.types.length).map
           (fun t => t.name.str "rec")).Nodup :=
     hnodup.sublist ((familyNames_drop_sublist _ _).append
       ((List.drop_sublist _ _).map _))
+  have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
+      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      E.production.headers.commonParameterContext := by
+    rw [List.reverse_reverse,
+      ConstructorPhasesResult.completed_parameterScope_toCtx]
+    exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
+      (E.commonParameterContext_refl wf)
   exact ⟨envTypes, auxiliaries, hadded, henvTypes,
     auxiliarySpecializations_names Haux Hexpansion,
     auxiliarySpecializations_headNames Haux Hexpansion,
     auxiliarySpecializations_certified Haux,
     fun params hparams => auxiliarySpecializations_wellFormed Haux henvTypes params hparams,
+    hlink, auxiliarySpecializations_wellFormed Haux henvTypes _ hlink,
     auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup,
     fun U params => auxiliarySpecializations_directFamilies Haux U params,
-    hrecursors⟩
-
-/-! ### Executable constructor-name restoration -/
-
-/-- `P` is a (non-strict) prefix of a hierarchical name. -/
-inductive NamePrefix (P : Name) : Name → Prop
-  | refl : NamePrefix P P
-  | str {p : Name} (s : String) : NamePrefix P p → NamePrefix P (.str p s)
-  | num {p : Name} (n : Nat) : NamePrefix P p → NamePrefix P (.num p n)
-
-private def nameDepth : Name → Nat
-  | .anonymous => 0
-  | .str p _ => nameDepth p + 1
-  | .num p _ => nameDepth p + 1
-
-theorem Name.replacePrefix_self' (A P : Name) : A.replacePrefix A P = P := by
-  cases A <;> simp [Name.replacePrefix]
-
-private theorem NamePrefix.depth_le (H : NamePrefix P x) : nameDepth P ≤ nameDepth x := by
-  induction H with
-  | refl => exact Nat.le_refl _
-  | str _ _ ih => simp only [nameDepth]; omega
-  | num _ _ ih => simp only [nameDepth]; omega
-
-theorem NamePrefix.replacePrefix_nameDepth (H : NamePrefix P x) (A : Name) :
-    nameDepth A ≤ nameDepth (x.replacePrefix P A) ∧
-      (x ≠ P → nameDepth A < nameDepth (x.replacePrefix P A)) := by
-  induction H with
-  | refl => simp [Name.replacePrefix_self']
-  | @str p s H ih =>
-    have hne : Name.str p s ≠ P := by
-      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
-    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkStr, nameDepth]
-    constructor <;> omega
-  | @num p n H ih =>
-    have hne : Name.num p n ≠ P := by
-      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
-    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkNum, nameDepth]
-    constructor <;> omega
-
-theorem NamePrefix.replacePrefix_replacePrefix (H : NamePrefix P x) (A : Name) :
-    (x.replacePrefix P A).replacePrefix A P = x := by
-  induction H with
-  | refl => simp [Name.replacePrefix_self']
-  | @str p s H ih =>
-    have hne : Name.str p s ≠ P := by
-      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
-    have hnameDepth := (H.replacePrefix_nameDepth A).1
-    have hne' : Name.str (p.replacePrefix P A) s ≠ A := by
-      intro h; have := congrArg nameDepth h; simp [nameDepth] at this; omega
-    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkStr, hne', ih]
-  | @num p n H ih =>
-    have hne : Name.num p n ≠ P := by
-      intro h; have := H.depth_le; rw [← h] at this; simp [nameDepth] at this; omega
-    have hnameDepth := (H.replacePrefix_nameDepth A).1
-    have hne' : Name.num (p.replacePrefix P A) n ≠ A := by
-      intro h; have := congrArg nameDepth h; simp [nameDepth] at this; omega
-    simp only [Name.replacePrefix, beq_iff_eq, hne, if_false, Name.mkNum, hne', ih]
-
-theorem namePrefix_of_replacePrefix_ne {x P A : Name}
-    (h : x.replacePrefix P A ≠ x) : NamePrefix P x := by
-  induction x with
-  | anonymous =>
-    cases P with
-    | anonymous => exact .refl
-    | str => simp [Name.replacePrefix] at h
-    | num => simp [Name.replacePrefix] at h
-  | str p s ih =>
-    by_cases hP : Name.str p s = P
-    · subst hP; exact .refl
-    · simp only [Name.replacePrefix, beq_iff_eq, hP, if_false, Name.mkStr] at h
-      exact .str s (ih fun h' => h (by rw [h']))
-  | num p n ih =>
-    by_cases hP : Name.num p n = P
-    · subst hP; exact .refl
-    · simp only [Name.replacePrefix, beq_iff_eq, hP, if_false, Name.mkNum] at h
-      exact .num n (ih fun h' => h (by rw [h']))
-
-/-- Executable and abstract constructor restoration agree on every
-auxiliary constructor: the executable renames the lowered constructor
-`a.constructorName ctor` back along the auxiliary/container prefix recorded by
-lowering, and the abstract table maps it to the container constructor.  The
-only side condition is that lowering actually renamed the constructor (which
-is the case whenever the lowered constructor name is fresh). -/
-theorem restoreCtorName_eq_restoredHeadName
-    {decl : VInductDecl} {auxiliaries : List ContainerSpecialization}
-    (hnodup : (auxiliaries.flatMap (·.headNames)).Nodup)
-    {a : ContainerSpecialization} (ha : a ∈ auxiliaries)
-    {ctor : VConstVal} (hctor : ctor ∈ a.source.ctors)
-    (hrenamed : a.constructorName ctor ≠ ctor.name)
-    (r : Lean4Lean.ElimNestedInductive.Result) (env' : Environment)
-    {e : Expr} {ls : List Level}
-    (hget : r.getNestedIfAuxCtor env' (a.constructorName ctor) =
-      some (e, a.auxiliary))
-    (hhead : e.getAppFn = .const a.source.name ls) :
-    r.restoreCtorName env' (a.constructorName ctor) =
-      (compilationRestoration decl auxiliaries).restoredHeadName
-        (a.constructorName ctor) := by
-  rw [restoreCtorName_eq r env' _ _ _ e ls hget hhead,
-    compilationRestoration_restoredHeadName_constructor hnodup ha hctor]
-  exact (namePrefix_of_replacePrefix_ne hrenamed).replacePrefix_replacePrefix _
+    hctorNames, hrecursors⟩
 
 end VerifyInductive
 end Lean4Lean
