@@ -705,7 +705,6 @@ inductive IsDefEqStrong : List SExpr → SExpr → SExpr → SExpr → Prop wher
     Γ ⊢ .instL ls (.mk df.lhs) ≡ .instL ls (.mk df.rhs) : .instL ls (.mk df.type)
 end
 
-theorem IsDefEq.strong : Γ ⊢ e1 ≡ e2 : A → IsDefEqStrong Γ e1 e2 A := sorry
 theorem IsDefEqStrong.defeq (H : IsDefEqStrong Γ e1 e2 A) : Γ ⊢ e1 ≡ e2 : A := by
   induction H with
   | bvar h => exact .bvar h
@@ -722,14 +721,6 @@ theorem IsDefEqStrong.defeq (H : IsDefEqStrong Γ e1 e2 A) : Γ ⊢ e1 ≡ e2 : 
   | eta _ _ ih => exact .eta ih
   | proofIrrel _ _ _ ih1 ih2 ih3 => exact .proofIrrel ih1 ih2 ih3
   | extra h1 h2 => exact .extra h1 h2
-
-theorem _root_.Lean4Lean.Params.ctor_ty
-    (hcl1 : Params.classify c = some cl) (hcl2 : cl matches .ctor .. | .etaCtor ..)
-    (hci : env.constants c = some ci) (h_len : ls.length = ci.uvars) :
-    ∃ (I : Name) (Ts args : List SExpr) (u : SLevel),
-      Ts.length = cl.arity ∧ Params.classify I = some (.indTy args.length) ∧ u ≠ .zero ∧
-      Γ ⊢ (SExpr.mk ci.type).instL ls ≡
-        Ts.foldr .forallE (args.foldr (fun A acc => acc.app A) (.const I ls)) : .sort u := sorry
 
 theorem IsDefEq.hasType (H : Γ ⊢ e1 ≡ e2 : A) :
     Γ ⊢ e1 ≡ e1 : A ∧ Γ ⊢ e2 ≡ e2 : A := ⟨H.trans H.symm, H.symm.trans H⟩
@@ -971,11 +962,13 @@ The base case is an arbitrary weakening `ρ : Γ → Γ₀`. (The original base 
 `Ctx.SubstEq Γ₀ .id .id Γ₀` pinned the base context to `Γ₀`, which made `Ctx.SubstEq.lift`
 false: lifting `Ctx.SubstEq [] (.one x) (.one x) [B]` under a binder `A` would need a
 `Ctx.SubstEq [A'] _ _ []`, which no constructor produces. The identity case is now the lemma
-`Ctx.SubstEq.id`.) -/
+`Ctx.SubstEq.id`.) The binder types carry strong typing derivations (`IsDefEqStrong`), from
+which the two-sided substitution `IsDefEqStrong.substEq` is proved without further
+assumptions. -/
 inductive Ctx.SubstEq (Γ₀ : List SExpr) : SExpr.Subst → SExpr.Subst → List SExpr → Prop where
   | nil : Ctx.Lift' ρ Γ Γ₀ → Ctx.SubstEq Γ₀ ρ.toSubst ρ.toSubst Γ
   | cons : Ctx.SubstEq Γ₀ σ.tail σ'.tail Γ →
-    Γ ⊢ A : .sort u →
+    IsDefEqStrong Γ A A (.sort u) →
     Γ₀ ⊢ σ.head ≡ σ'.head : A.subst σ.tail →
     Ctx.SubstEq Γ₀ σ σ' (A :: Γ)
 
@@ -985,14 +978,6 @@ theorem Ctx.SubstEq.left (W : Ctx.SubstEq Γ₀ σ σ' Γ) : Ctx.Subst (· ⊢ �
   induction W with
   | nil W => exact .ofLift W
   | cons _ _ h ih => exact .cons ih h.hasType.1
-
-theorem IsDefEq.subst (W : Ctx.SubstEq Γ₀ σ σ' Γ) :
-    Γ ⊢ e1 ≡ e2 : A → Γ₀ ⊢ e1.subst σ ≡ e2.subst σ' : A.subst σ := sorry
-
-theorem Ctx.SubstEq.symm (W : Ctx.SubstEq Γ₀ σ σ' Γ) : Ctx.SubstEq Γ₀ σ' σ Γ := by
-  induction W with
-  | nil W => exact .nil W
-  | cons W hA h ih => exact .cons ih hA (.defeqDF (.subst W hA) h.symm)
 
 theorem Ctx.SubstEq.lookup (W : Ctx.SubstEq Γ₀ σ σ' Γ) :
     Lookup Γ i A → Γ₀ ⊢ σ i ≡ σ' i : A.subst σ := by
@@ -1016,9 +1001,9 @@ theorem Ctx.SubstEq.weak' (W : Ctx.SubstEq Γ₀ σ σ' Γ) (L : Ctx.Lift' ρ Γ
     have := hhead.weak' L; rwa [lift'_subst] at this
 
 /-- Extension under a binder. The original hypothesis was `Γ₀ ⊢ A.subst σ : .sort u`; the
-`cons` case needs the binder type typed in the *source* context, `Γ ⊢ A : .sort u`, which every
-caller has. -/
-theorem Ctx.SubstEq.lift (W : Ctx.SubstEq Γ₀ σ σ' Γ) (hA : Γ ⊢ A : .sort u) :
+`cons` case needs the binder type typed in the *source* context, `Γ ⊢ A : .sort u` (strongly),
+which every caller has. -/
+theorem Ctx.SubstEq.lift (W : Ctx.SubstEq Γ₀ σ σ' Γ) (hA : IsDefEqStrong Γ A A (.sort u)) :
     Ctx.SubstEq (A.subst σ :: Γ₀) σ.lift σ'.lift (A :: Γ) := by
   have htail {σ : SExpr.Subst} : σ.lift.tail = σ.lift_r (.skip .refl) := by
     funext i; simp [SExpr.Subst.tail, SExpr.Subst.lift, SExpr.Subst.lift_r]
@@ -1063,6 +1048,488 @@ theorem IsDefEq.defeqDF_l (h1 : Γ ⊢ A ≡ A' : .sort u)
 
 theorem HasType.defeq_l (h1 : Γ ⊢ A ≡ A' : .sort u)
     (h2 : A::Γ ⊢ e : B) : A'::Γ ⊢ e : B := h1.defeqDF_l h2
+
+/-! ### The strong judgment: weakening, substitution, validity
+
+`IsDefEq.strong` turns an `IsDefEq` derivation into an `IsDefEqStrong` one, whose rules carry
+typing premises. It needs a well-formed context and the typing assumptions
+`Params.TypedEnv` on the environment. -/
+
+section
+local notation:65 Γ " ⊢ₛ " e " : " A:36 => IsDefEqStrong Γ e e A
+local notation:65 Γ " ⊢ₛ " e1 " ≡ " e2 " : " A:36 => IsDefEqStrong Γ e1 e2 A
+
+theorem closed_lift' {c : VExpr} (h : c.Closed) : (instL ls (mk c)).lift' ρ = instL ls (mk c) :=
+  h.mkS.instL.lift'_eq .zero
+
+theorem closed_subst {c : VExpr} (h : c.Closed) : (instL ls (mk c)).subst σ = instL ls (mk c) :=
+  h.mkS.instL.subst_eq .zero
+
+theorem Ctx.Lift'.nil : ∀ Γ, ∃ ρ, Ctx.Lift' ρ [] Γ
+  | [] => ⟨_, .refl⟩
+  | _::Γ => let ⟨_, h⟩ := Ctx.Lift'.nil Γ; ⟨_, h.skip⟩
+
+theorem lift'_eta {A e : SExpr} :
+    (SExpr.lam A (.app e.lift (.bvar 0))).lift' ρ = .lam (A.lift' ρ) (.app (e.lift' ρ).lift (.bvar 0)) := by
+  simp [SExpr.lift, ← SExpr.lift'_comp]
+
+theorem subst_eta {A e : SExpr} :
+    (SExpr.lam A (.app e.lift (.bvar 0))).subst σ = .lam (A.subst σ) (.app (e.subst σ).lift (.bvar 0)) := by
+  have : (SExpr.lift e).subst σ.lift = (e.subst σ).lift := by
+    rw [lift_subst, show σ.lift.tail = σ.lift_r (.skip .refl) by
+      funext i; simp [SExpr.Subst.tail, SExpr.Subst.lift, SExpr.Subst.lift_r], ← lift'_subst]
+  simp only [SExpr.subst, this]; rfl
+
+theorem inst_lift_bvar0 {B : SExpr} : (B.lift' (Lift.skip .refl).cons).inst (.bvar 0) = B := by
+  rw [inst, subst_lift']
+  conv => rhs; rw [← subst_id (e := B)]
+  congr 1; funext i; cases i <;> rfl
+
+theorem foldr_app_lift' {args : List SExpr} :
+    (args.foldr (fun (A acc : SExpr) => acc.app A) (SExpr.const I ls)).lift' ρ =
+      (args.map (·.lift' ρ)).foldr (fun (A acc : SExpr) => acc.app A) (SExpr.const I ls) := by
+  induction args <;> simp_all [lift']
+
+theorem foldr_app_subst {args : List SExpr} :
+    (args.foldr (fun (A acc : SExpr) => acc.app A) (SExpr.const I ls)).subst σ =
+      (args.map (·.subst σ)).foldr (fun (A acc : SExpr) => acc.app A) (SExpr.const I ls) := by
+  induction args <;> simp_all [subst]
+
+theorem foldr_forallE_lift' (Ts : List SExpr) (body : SExpr) (ρ : Lift) :
+    ∃ (Ts' : List SExpr) (ρ' : Lift), Ts'.length = Ts.length ∧
+      (Ts.foldr .forallE body).lift' ρ = Ts'.foldr .forallE (body.lift' ρ') := by
+  induction Ts generalizing ρ with
+  | nil => exact ⟨[], ρ, rfl, rfl⟩
+  | cons T Ts ih =>
+    obtain ⟨Ts', ρ', h1, h2⟩ := ih ρ.cons
+    exact ⟨T.lift' ρ :: Ts', ρ', by simp [h1], by simp [h2]⟩
+
+theorem foldr_forallE_subst (Ts : List SExpr) (body : SExpr) (σ : Subst) :
+    ∃ (Ts' : List SExpr) (σ' : Subst), Ts'.length = Ts.length ∧
+      (Ts.foldr .forallE body).subst σ = Ts'.foldr .forallE (body.subst σ') := by
+  induction Ts generalizing σ with
+  | nil => exact ⟨[], σ, rfl, rfl⟩
+  | cons T Ts ih =>
+    obtain ⟨Ts', σ', h1, h2⟩ := ih σ.lift
+    exact ⟨T.subst σ :: Ts', σ', by simp [h1], by simp [subst, h2]⟩
+
+theorem CtorBundle.lift' (H : CtorBundle c cl) (ls : List SLevel) (ρ : Lift) :
+    ∃ H' : CtorBundle c cl, H'.u = H.u ∧ (H.rhs ls).lift' ρ = H'.rhs ls := by
+  obtain ⟨Ts', ρ', h1, h2⟩ :=
+    foldr_forallE_lift' H.Ts (H.args.foldr (fun A acc => acc.app A) (.const H.I ls)) ρ
+  refine ⟨⟨H.I, Ts', H.args.map (fun x => x.lift' ρ'), H.u, h1.trans H.hlen,
+    by simpa using H.hclI, H.hu0⟩, rfl, ?_⟩
+  rw [CtorBundle.rhs, h2, foldr_app_lift']; rfl
+
+theorem CtorBundle.subst (H : CtorBundle c cl) (ls : List SLevel) (σ : Subst) :
+    ∃ H' : CtorBundle c cl, H'.u = H.u ∧ (H.rhs ls).subst σ = H'.rhs ls := by
+  obtain ⟨Ts', σ', h1, h2⟩ :=
+    foldr_forallE_subst H.Ts (H.args.foldr (fun A acc => acc.app A) (.const H.I ls)) σ
+  refine ⟨⟨H.I, Ts', H.args.map (fun x => x.subst σ'), H.u, h1.trans H.hlen,
+    by simpa using H.hclI, H.hu0⟩, rfl, ?_⟩
+  rw [CtorBundle.rhs, h2, foldr_app_subst]; rfl
+
+theorem IsDefEqStrong.weak' (W : Ctx.Lift' ρ Γ Γ') (H : Γ ⊢ₛ e1 ≡ e2 : A) :
+    Γ' ⊢ₛ e1.lift' ρ ≡ e2.lift' ρ : A.lift' ρ := by
+  induction H generalizing ρ Γ' with
+  | bvar h _ ih => exact .bvar (h.weak' W) (ih W)
+  | symm _ ih => exact .symm (ih W)
+  | trans _ _ _ ihA ih1 ih2 => exact .trans (ihA W) (ih1 W) (ih2 W)
+  | trans' _ _ ih1 ih2 => exact .trans' (ih1 W) (ih2 W)
+  | sort => exact .sort
+  | @const c ci _ ls _ h1 h2 _ F _ ih3 ih5 =>
+    have hcl := henv.closedC h1
+    have h3' := ih3 W; rw [closed_lift' hcl] at h3'
+    rw [closed_lift' hcl]
+    have ex cl : ∃ H' : CtorBundle c cl,
+        Γ' ⊢ₛ (SExpr.mk ci.type).instL ls ≡ H'.rhs ls : .sort H'.u := by
+      obtain ⟨H', hu, hr⟩ := (F cl).lift' ls ρ
+      have := ih5 cl W; simp only [lift'] at this; rw [closed_lift' hcl, hr, ← hu] at this
+      exact ⟨H', this⟩
+    exact .const h1 h2 h3' (fun cl => Classical.choose (ex cl)) fun cl => Classical.choose_spec (ex cl)
+  | appDF _ _ _ _ ihA ihf iha ihB =>
+    have := ihB W; simp only [lift', SExpr.lift'_inst_hi] at this
+    exact SExpr.lift'_inst_hi .. ▸ .appDF (ihA W) (ihf W) (iha W) this
+  | lamDF _ _ _ _ ihA ihB ih1 ih2 => exact .lamDF (ihA W) (ihB W.cons) (ih1 W.cons) (ih2 W.cons)
+  | forallEDF _ _ _ ihA ih1 ih2 => exact .forallEDF (ihA W) (ih1 W.cons) (ih2 W.cons)
+  | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
+  | beta _ _ _ _ ih1 ih2 ih3 ih4 =>
+    have h3 := ih3 W; have h4 := ih4 W
+    simp only [lift', SExpr.lift'_inst_hi] at h3 h4 ⊢
+    exact .beta (ih1 W.cons) (ih2 W) h3 h4
+  | eta _ _ ih1 ih2 =>
+    have h2 := ih2 W; rw [lift'_eta] at h2; rw [lift'_eta]; exact .eta (ih1 W) h2
+  | proofIrrel _ _ _ ih1 ih2 ih3 => exact .proofIrrel (ih1 W) (ih2 W) (ih3 W)
+  | extra h1 h2 _ _ ih1 ih2 =>
+    have ⟨⟨hl, ht⟩, hr, _⟩ := henv.closed.2 h1
+    have h3 := ih1 W; have h4 := ih2 W
+    simp only [closed_lift' hl, closed_lift' hr, closed_lift' ht] at h3 h4 ⊢
+    exact .extra h1 h2 h3 h4
+
+theorem IsDefEqStrong.weak0 (H : [] ⊢ₛ e1 ≡ e2 : A) :
+    ∃ ρ, Γ ⊢ₛ e1.lift' ρ ≡ e2.lift' ρ : A.lift' ρ :=
+  let ⟨ρ, W⟩ := Ctx.Lift'.nil Γ; ⟨ρ, H.weak' W⟩
+
+theorem IsDefEqStrong.left_sort (h : Γ ⊢ₛ X ≡ Y : .sort u) : Γ ⊢ₛ X : .sort u :=
+  .trans .sort h h.symm
+
+theorem IsDefEqStrong.right_sort (h : Γ ⊢ₛ X ≡ Y : .sort u) : Γ ⊢ₛ Y : .sort u :=
+  .trans .sort h.symm h
+
+/-- Validity for the strong judgment: the type of a strong derivation is a type. -/
+theorem IsDefEqStrong.isType (H : Γ ⊢ₛ e1 ≡ e2 : A) : ∃ u, Γ ⊢ₛ A : .sort u := by
+  induction H with
+  | bvar _ h => exact ⟨_, h⟩
+  | symm _ ih => exact ih
+  | trans hA => exact ⟨_, hA⟩
+  | trans' | forallEDF | sort => exact ⟨_, .sort⟩
+  | const _ _ h => exact ⟨_, h⟩
+  | appDF _ _ _ hB => exact ⟨_, hB.left_sort⟩
+  | lamDF hA hB => exact ⟨_, .forallEDF hA.left_sort hB hB⟩
+  | defeqDF hAB => exact ⟨_, hAB.right_sort⟩
+  | beta _ _ _ _ _ _ ih => exact ih
+  | eta _ _ ih => exact ih
+  | proofIrrel h => exact ⟨_, h⟩
+  | extra _ _ _ _ ih => exact ih
+
+theorem IsDefEqStrong.left (H : Γ ⊢ₛ e1 ≡ e2 : A) : Γ ⊢ₛ e1 : A :=
+  let ⟨_, h⟩ := H.isType; .trans h H H.symm
+
+theorem IsDefEqStrong.right (H : Γ ⊢ₛ e1 ≡ e2 : A) : Γ ⊢ₛ e2 : A :=
+  let ⟨_, h⟩ := H.isType; .trans h H.symm H
+
+end
+
+section
+local notation:65 Γ " ⊢ₛ " e " : " A:36 => IsDefEqStrong Γ e e A
+local notation:65 Γ " ⊢ₛ " e1 " ≡ " e2 " : " A:36 => IsDefEqStrong Γ e1 e2 A
+
+/-- Strong typing, as a ternary relation for `Ctx.Subst`. -/
+abbrev StrongHasType (Γ : List SExpr) (e A : SExpr) : Prop := Γ ⊢ₛ e : A
+
+theorem Ctx.Subst.liftS (W : Ctx.Subst StrongHasType Γ₀ σ Γ) (hA : Γ₀ ⊢ₛ A.subst σ : .sort u) :
+    Ctx.Subst StrongHasType (A.subst σ :: Γ₀) σ.lift (A :: Γ) := by
+  have : σ.lift.tail = σ.lift_r (.skip .refl) := by
+    funext i; simp [SExpr.Subst.tail, SExpr.Subst.lift, SExpr.Subst.lift_r]
+  refine .cons (this ▸ .lift_r (fun W h => IsDefEqStrong.weak' W h) W .one) (this ▸ ?_)
+  rw [← lift'_subst, ← SExpr.lift]; exact .bvar .zero (hA.weak' .one)
+
+/-- Substitution of a strongly typed substitution into a strong derivation (the same
+substitution on both sides). -/
+theorem IsDefEqStrong.subst' (W : Ctx.Subst StrongHasType Γ₀ σ Γ) (H : Γ ⊢ₛ e1 ≡ e2 : A) :
+    Γ₀ ⊢ₛ e1.subst σ ≡ e2.subst σ : A.subst σ := by
+  induction H generalizing Γ₀ σ with
+  | bvar h => exact W.lookup h
+  | symm _ ih => exact .symm (ih W)
+  | trans _ _ _ ihA ih1 ih2 => exact .trans (ihA W) (ih1 W) (ih2 W)
+  | trans' _ _ ih1 ih2 => exact .trans' (ih1 W) (ih2 W)
+  | sort => exact .sort
+  | @const c ci _ ls _ h1 h2 _ F _ ih3 ih5 =>
+    have hcl := henv.closedC h1
+    have h3' := ih3 W; rw [closed_subst hcl] at h3'
+    rw [closed_subst hcl]
+    have ex cl : ∃ H' : CtorBundle c cl,
+        Γ₀ ⊢ₛ (SExpr.mk ci.type).instL ls ≡ H'.rhs ls : .sort H'.u := by
+      obtain ⟨H', hu, hr⟩ := (F cl).subst ls σ
+      have := ih5 cl W; simp only [subst] at this; rw [closed_subst hcl, hr, ← hu] at this
+      exact ⟨H', this⟩
+    exact .const h1 h2 h3' (fun cl => Classical.choose (ex cl)) fun cl => Classical.choose_spec (ex cl)
+  | appDF _ _ _ _ ihA ihf iha ihB =>
+    have := ihB W; simp only [subst, subst_inst] at this
+    exact subst_inst ▸ .appDF (ihA W) (ihf W) (iha W) this
+  | lamDF _ _ _ _ ihA ihB ih1 ih2 =>
+    have hA := ihA W
+    exact .lamDF hA (ihB (W.liftS hA.left)) (ih1 (W.liftS hA.left)) (ih2 (W.liftS hA.right))
+  | forallEDF _ _ _ ihA ih1 ih2 =>
+    have hA := ihA W
+    exact .forallEDF hA (ih1 (W.liftS hA.left)) (ih2 (W.liftS hA.right))
+  | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
+  | beta _ _ _ _ ih1 ih2 ih3 ih4 =>
+    have h2 := ih2 W; have ⟨_, hA⟩ := h2.isType
+    have h3 := ih3 W; have h4 := ih4 W
+    simp only [subst, subst_inst] at h3 h4 ⊢
+    exact .beta (ih1 (W.liftS hA)) h2 h3 h4
+  | eta _ _ ih1 ih2 =>
+    have h2 := ih2 W; rw [subst_eta] at h2; rw [subst_eta]; exact .eta (ih1 W) h2
+  | proofIrrel _ _ _ ih1 ih2 ih3 => exact .proofIrrel (ih1 W) (ih2 W) (ih3 W)
+  | extra h1 h2 _ _ ih1 ih2 =>
+    have ⟨⟨hl, ht⟩, hr, _⟩ := henv.closed.2 h1
+    have h3 := ih1 W; have h4 := ih2 W
+    simp only [closed_subst hl, closed_subst hr, closed_subst ht] at h3 h4 ⊢
+    exact .extra h1 h2 h3 h4
+
+/-- Strong well-formedness of a context: every entry is strongly typed by a sort. -/
+def CtxStrong : List SExpr → Prop
+  | [] => True
+  | A::Γ => CtxStrong Γ ∧ ∃ u, Γ ⊢ₛ A : .sort u
+
+theorem CtxStrong.lookup : ∀ {Γ}, CtxStrong Γ → Lookup Γ i A → ∃ u, Γ ⊢ₛ A : .sort u
+  | _::_, ⟨_, _, h⟩, .zero => ⟨_, h.weak' .one⟩
+  | _::_, ⟨hΓ, _⟩, .succ l => let ⟨_, h⟩ := hΓ.lookup l; ⟨_, h.weak' .one⟩
+
+theorem CtxStrong.bvar (hΓ : CtxStrong Γ) (h : Lookup Γ i A) : Γ ⊢ₛ .bvar i : A :=
+  let ⟨_, h'⟩ := hΓ.lookup h; .bvar h h'
+
+theorem IsDefEqStrong.inst (H : A::Γ ⊢ₛ e1 ≡ e2 : B) (hΓ : CtxStrong Γ) (H₀ : Γ ⊢ₛ a : A) :
+    Γ ⊢ₛ e1.inst a ≡ e2.inst a : B.inst a := H.subst' (.one hΓ.bvar H₀)
+
+/-- Context conversion for the strong judgment. -/
+theorem IsDefEqStrong.defeqDF_l (h2 : A::Γ ⊢ₛ e1 ≡ e2 : B) (hΓ : CtxStrong Γ)
+    (h1 : Γ ⊢ₛ A ≡ A' : .sort u) : A'::Γ ⊢ₛ e1 ≡ e2 : B := by
+  have W : Ctx.Subst StrongHasType (A'::Γ) .id (A::Γ) := by
+    refine .cons ((Ctx.Subst.id hΓ.bvar).lift_r (fun W h => IsDefEqStrong.weak' W h) .one) ?_
+    show A'::Γ ⊢ₛ .bvar 0 : A.subst (SExpr.Subst.id.lift_r (.skip .refl))
+    rw [← lift'_subst, subst_id]
+    exact .defeqDF (h1.symm.weak' .one) (.bvar .zero (h1.right.weak' .one))
+  simpa using h2.subst' W
+
+/-- Inversion of a strongly typed `forallE`. -/
+theorem IsDefEqStrong.forallE_inv' (H : Γ ⊢ₛ e1 ≡ e2 : V)
+    (eq : e1 = .forallE A B ∨ e2 = .forallE A B) :
+    (∃ u, Γ ⊢ₛ A : .sort u) ∧ ∃ v, A::Γ ⊢ₛ B : .sort v := by
+  induction H generalizing A B with
+  | symm _ ih => exact ih eq.symm
+  | trans _ _ _ _ ih1 ih2 => 
+    obtain eq | eq := eq
+    · exact ih1 (.inl eq)
+    · exact ih2 (.inr eq)
+  | trans' _ _ ih1 ih2 => 
+    obtain eq | eq := eq
+    · exact ih1 (.inl eq)
+    · exact ih2 (.inr eq)
+  | proofIrrel _ _ _ _ ih2 ih3 => 
+    obtain eq | eq := eq
+    · exact ih2 (.inl eq)
+    · exact ih3 (.inl eq)
+  | forallEDF h1 h2 h3 =>
+    obtain ⟨⟨⟩⟩ | ⟨⟨⟩⟩ := eq
+    · exact ⟨⟨_, h1.left⟩, _, h2.left⟩
+    · exact ⟨⟨_, h1.right⟩, _, h3.right⟩
+  | defeqDF _ _ _ ih2 => exact ih2 eq
+  | beta _ _ _ _ _ _ _ ih4 => obtain ⟨⟨⟩⟩ | eq := eq; exact ih4 (.inl eq)
+  | eta _ _ ih1 _ => obtain ⟨⟨⟩⟩ | eq := eq; exact ih1 (.inl eq)
+  | extra _ _ _ _ ih3 ih4 => 
+    obtain eq | eq := eq
+    · exact ih3 (.inl eq)
+    · exact ih4 (.inl eq)
+  | _ => obtain ⟨⟨⟩⟩ | ⟨⟨⟩⟩ := eq
+
+/-- Substitution of definitionally equal arguments into a strongly typed family. -/
+theorem IsDefEqStrong.instDF (hΓ : CtxStrong Γ) (hA : Γ ⊢ₛ A : .sort u)
+    (hB : A::Γ ⊢ₛ B : .sort v) (ha : Γ ⊢ₛ a ≡ a' : A) : Γ ⊢ₛ B.inst a ≡ B.inst a' : .sort v := by
+  have lam : Γ ⊢ₛ .lam A B : .forallE A (.sort v) := .lamDF hA .sort hB hB
+  have app : Γ ⊢ₛ .app (.lam A B) a ≡ .app (.lam A B) a' : .sort v := .appDF hA lam ha .sort
+  have beta {x} (hx : Γ ⊢ₛ x : A) : Γ ⊢ₛ .app (.lam A B) x ≡ B.inst x : .sort v :=
+    .beta hB hx (.appDF hA lam hx .sort) (hB.inst hΓ hx)
+  exact .trans .sort (beta ha.left).symm (.trans .sort app (beta ha.right))
+
+end
+
+/-- **Assumptions of the abstract prototype on the environment** (needed for `IsDefEq.strong`):
+the `SExpr` translations of the environment's constant types and stored rules are strongly
+typed in the empty context, and every constructor's type is convertible to a telescope ending in
+an application of an inductive type (a `CtorBundle`).
+
+`Params` does not relate `env` to the `SExpr` typing judgment at all, so these cannot be
+derived; for the `VExpr` theory the analogues are `VEnv.Ordered.strong` and the constructor
+typing of a well-formed inductive declaration. Like `Params.PatternRegistry`, this is a
+separate `Prop`-valued class because it mentions `IsDefEqStrong`, which is defined from
+`Params`. -/
+class Params.TypedEnv : Prop where
+  const_type : env.constants c = some ci → ls.length = ci.uvars →
+    ∃ u, IsDefEqStrong [] ((SExpr.mk ci.type).instL ls) ((SExpr.mk ci.type).instL ls) (.sort u)
+  ctor_type (cl : CtorBundle.IsCtor c) : env.constants c = some ci → ls.length = ci.uvars →
+    ∃ F : CtorBundle c cl, IsDefEqStrong [] ((SExpr.mk ci.type).instL ls) (F.rhs ls) (.sort F.u)
+  defeq_type : env.defeqs df → ls.length = df.uvars →
+    IsDefEqStrong [] (.instL ls (.mk df.lhs)) (.instL ls (.mk df.lhs)) (.instL ls (.mk df.type)) ∧
+    IsDefEqStrong [] (.instL ls (.mk df.rhs)) (.instL ls (.mk df.rhs)) (.instL ls (.mk df.type))
+
+section
+local notation:65 Γ " ⊢ₛ " e " : " A:36 => IsDefEqStrong Γ e e A
+local notation:65 Γ " ⊢ₛ " e1 " ≡ " e2 " : " A:36 => IsDefEqStrong Γ e1 e2 A
+variable [Params.TypedEnv]
+
+theorem IsDefEqStrong.const_of_env (h1 : env.constants c = some ci) (h2 : ls.length = ci.uvars) :
+    Γ ⊢ₛ .const c ls : (SExpr.mk ci.type).instL ls := by
+  have hcl := henv.closedC h1
+  obtain ⟨u, hT⟩ := Params.TypedEnv.const_type h1 h2
+  obtain ⟨ρ, hT⟩ := hT.weak0 (Γ := Γ)
+  simp only [lift', closed_lift' hcl] at hT
+  have ex cl : ∃ F : CtorBundle c cl, Γ ⊢ₛ (SExpr.mk ci.type).instL ls ≡ F.rhs ls : .sort F.u := by
+    obtain ⟨F, hF⟩ := Params.TypedEnv.ctor_type cl h1 h2
+    obtain ⟨ρ, hF⟩ := hF.weak0 (Γ := Γ)
+    obtain ⟨F', hu, hr⟩ := F.lift' ls ρ
+    simp only [lift'] at hF; rw [closed_lift' hcl, hr, ← hu] at hF; exact ⟨F', hF⟩
+  exact .const h1 h2 hT (fun cl => Classical.choose (ex cl)) fun cl => Classical.choose_spec (ex cl)
+
+theorem IsDefEqStrong.extra_of_env (h1 : env.defeqs df) (h2 : ls.length = df.uvars) :
+    Γ ⊢ₛ .instL ls (.mk df.lhs) ≡ .instL ls (.mk df.rhs) : .instL ls (.mk df.type) := by
+  have ⟨⟨hl, ht⟩, hr, _⟩ := henv.closed.2 h1
+  have ⟨H1, H2⟩ := Params.TypedEnv.defeq_type h1 h2
+  have ⟨_, H1⟩ := H1.weak0 (Γ := Γ); have ⟨_, H2⟩ := H2.weak0 (Γ := Γ)
+  simp only [closed_lift' hl, closed_lift' hr, closed_lift' ht] at H1 H2
+  exact .extra h1 h2 H1 H2
+
+/-- `IsDefEq.strong` over a strongly well-formed context. -/
+theorem IsDefEq.strong' (hΓ : CtxStrong Γ) (H : Γ ⊢ e1 ≡ e2 : A) : Γ ⊢ₛ e1 ≡ e2 : A := by
+  induction H with
+  | bvar h => exact hΓ.bvar h
+  | symm _ ih => exact .symm (ih hΓ)
+  | trans _ _ ih1 ih2 =>
+    have h1 := ih1 hΓ; have ⟨_, hA⟩ := h1.isType; exact .trans hA h1 (ih2 hΓ)
+  | trans' _ _ ih1 ih2 => exact .trans' (ih1 hΓ) (ih2 hΓ)
+  | sort => exact .sort
+  | const h1 h2 => exact .const_of_env h1 h2
+  | appDF _ _ ihf iha =>
+    have hf := ihf hΓ; have ha := iha hΓ
+    have ⟨_, hPi⟩ := hf.isType
+    have ⟨⟨_, hA⟩, _, hB⟩ := hPi.forallE_inv' (.inl rfl)
+    exact .appDF hA hf ha (.instDF hΓ hA hB ha)
+  | lamDF _ _ ihA ihb =>
+    have hA := ihA hΓ
+    have hb := ihb ⟨hΓ, _, hA.left⟩
+    have ⟨_, hB⟩ := hb.isType
+    exact .lamDF hA hB hb (hb.defeqDF_l hΓ hA)
+  | forallEDF _ _ ihA ihb =>
+    have hA := ihA hΓ
+    have hb := ihb ⟨hΓ, _, hA.left⟩
+    exact .forallEDF hA hb (hb.defeqDF_l hΓ hA)
+  | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 hΓ) (ih2 hΓ)
+  | beta _ _ ih1 ih2 =>
+    have he' := ih2 hΓ
+    have ⟨_, hA⟩ := he'.isType
+    have he := ih1 ⟨hΓ, _, hA⟩
+    have ⟨_, hB⟩ := he.isType
+    have lam := IsDefEqStrong.lamDF hA hB he he
+    exact .beta he he' (.appDF hA lam he' (hB.inst hΓ he')) (he.inst hΓ he')
+  | @eta Γ e A B _ ih =>
+    have he := ih hΓ
+    have ⟨_, hPi⟩ := he.isType
+    have ⟨⟨u, hA⟩, v, hB⟩ := hPi.forallE_inv' (.inl rfl)
+    have hA' : A::Γ ⊢ₛ A.lift : .sort u := hA.weak' .one
+    have happ : A::Γ ⊢ₛ .app e.lift (.bvar 0) : B := by
+      have := IsDefEqStrong.appDF hA' (he.weak' .one) (.bvar .zero hA')
+        (by rw [inst_lift_bvar0]; exact hB)
+      rwa [inst_lift_bvar0] at this
+    exact .eta he (.lamDF hA hB happ happ)
+  | proofIrrel _ _ _ ih1 ih2 ih3 => exact .proofIrrel (ih1 hΓ) (ih2 hΓ) (ih3 hΓ)
+  | extra h1 h2 => exact .extra_of_env h1 h2
+
+theorem Ctx.WF.strong : ∀ {Γ}, ⊢ Γ → CtxStrong Γ
+  | [], _ => trivial
+  | _::_, ⟨hΓ, _, h⟩ => ⟨hΓ.strong, _, h.strong' hΓ.strong⟩
+
+/-- The strong form of a derivation. The original statement had neither the well-formedness
+hypothesis `⊢ Γ` nor the environment assumptions `Params.TypedEnv`, and is false without them
+(`bvar` needs the context's types to be typed, `const`/`extra` the environment's types). -/
+theorem IsDefEq.strong (hΓ : ⊢ Γ) (H : Γ ⊢ e1 ≡ e2 : A) : Γ ⊢ₛ e1 ≡ e2 : A :=
+  H.strong' hΓ.strong
+
+/-- Constructor types are telescopes into an inductive type. The original statement was for an
+arbitrary `Params`, where it is false (nothing relates `classify` to the environment's types);
+it now follows from the assumption `Params.TypedEnv.ctor_type`. -/
+theorem _root_.Lean4Lean.Params.ctor_ty
+    (hcl1 : Params.classify c = some cl) (hcl2 : cl matches .ctor .. | .etaCtor ..)
+    (hci : env.constants c = some ci) (h_len : ls.length = ci.uvars) :
+    ∃ (I : Name) (Ts args : List SExpr) (u : SLevel),
+      Ts.length = cl.arity ∧ Params.classify I = some (.indTy args.length) ∧ u ≠ .zero ∧
+      Γ ⊢ (SExpr.mk ci.type).instL ls ≡
+        Ts.foldr .forallE (args.foldr (fun A acc => acc.app A) (.const I ls)) : .sort u := by
+  have hc : CtorBundle.IsCtor c := ⟨cl, hcl1, by revert hcl2; cases cl <;> simp⟩
+  obtain ⟨F, hF⟩ := Params.TypedEnv.ctor_type hc hci h_len
+  obtain ⟨ρ, hF⟩ := hF.weak0 (Γ := Γ)
+  obtain ⟨F', hu, hr⟩ := F.lift' ls ρ
+  simp only [lift'] at hF; rw [closed_lift' (henv.closedC hci), hr, ← hu] at hF
+  have : hc.cl.1 = cl := (Option.some.inj (hcl1.symm.trans hc.cl.2.1)).symm
+  exact ⟨F'.I, F'.Ts, F'.args, F'.u, this ▸ F'.hlen, F'.hclI, F'.hu0, hF.defeq⟩
+
+end
+
+section
+local notation:65 Γ " ⊢ₛ " e " : " A:36 => IsDefEqStrong Γ e e A
+local notation:65 Γ " ⊢ₛ " e1 " ≡ " e2 " : " A:36 => IsDefEqStrong Γ e1 e2 A
+
+theorem Ctx.SubstEq.refl_left (W : Ctx.SubstEq Γ₀ σ σ' Γ) : Ctx.SubstEq Γ₀ σ σ Γ := by
+  induction W with
+  | nil W => exact .nil W
+  | cons _ hA h ih => exact .cons ih hA h.hasType.1
+
+/-- Simultaneous substitution of a pair of related substitutions into a strong derivation,
+with the left, right and cross projections. No assumptions are needed: the typing premises of
+the strong rules supply the conversions. -/
+theorem IsDefEqStrong.substEq' (W : Ctx.SubstEq Γ₀ σ σ' Γ) (H : Γ ⊢ₛ e1 ≡ e2 : A) :
+    Γ₀ ⊢ e1.subst σ ≡ e1.subst σ' : A.subst σ ∧
+    Γ₀ ⊢ e2.subst σ ≡ e2.subst σ' : A.subst σ ∧
+    Γ₀ ⊢ e1.subst σ ≡ e2.subst σ' : A.subst σ := by
+  induction H generalizing Γ₀ σ σ' with
+  | bvar h => have := W.lookup h; exact ⟨this, this, this⟩
+  | symm _ ih => have ⟨l, r, c⟩ := ih W; exact ⟨r, l, (r.trans c.symm).trans l⟩
+  | trans _ _ _ _ ih1 ih2 =>
+    have ⟨l1, _, c1⟩ := ih1 W; have ⟨l2, r2, c2⟩ := ih2 W
+    exact ⟨l1, r2, c1.trans (l2.symm.trans c2)⟩
+  | trans' _ _ ih1 ih2 =>
+    have ⟨l1, _, c1⟩ := ih1 W; have ⟨l2, r2, c2⟩ := ih2 W
+    have hC := (IsDefEq.trans' (ih1 W.refl_left).2.2 (ih2 W.refl_left).2.2).hasType.2
+    exact ⟨l1, .trans' hC r2, .trans' c1 (l2.symm.trans c2)⟩
+  | sort => exact ⟨.sort, .sort, .sort⟩
+  | const h1 h2 =>
+    rw [closed_subst (henv.closedC h1)]
+    have := IsDefEq.const h1 h2 (Γ := Γ₀); exact ⟨this, this, this⟩
+  | appDF _ _ _ _ _ ihf iha ihB =>
+    have ⟨fl, fr, fc⟩ := ihf W; have ⟨al, ar, ac⟩ := iha W
+    have hB := (ihB W.refl_left).2.2
+    simp only [subst, subst_inst] at fl fr fc hB ⊢
+    exact ⟨.appDF fl al, .defeqDF hB.symm (.appDF fr ar), .appDF fc ac⟩
+  | lamDF hA hB _ _ ihA ihB ihb ihb' =>
+    have ⟨Al, Ar, Ac⟩ := ihA W
+    have ⟨bl, _, bc⟩ := ihb (W.lift hA.left)
+    have ⟨_, br', _⟩ := ihb' (W.lift hA.right)
+    have hAA := (ihA W.refl_left).2.2
+    have hBσ := (ihB (W.refl_left.lift hA.left)).2.2
+    refine ⟨.lamDF Al bl, .defeqDF (.forallEDF hAA.symm (hAA.defeqDF_l hBσ)) (.lamDF Ar br'),
+      .lamDF Ac bc⟩
+  | forallEDF hA _ _ ihA ihb ihb' =>
+    have ⟨Al, Ar, Ac⟩ := ihA W
+    have ⟨bl, _, bc⟩ := ihb (W.lift hA.left)
+    have ⟨_, br', _⟩ := ihb' (W.lift hA.right)
+    exact ⟨.forallEDF Al bl, .forallEDF Ar br', .forallEDF Ac bc⟩
+  | defeqDF _ _ ihAB ihe =>
+    have hty := (ihAB W.refl_left).2.2
+    have ⟨l, r, c⟩ := ihe W
+    exact ⟨.defeqDF hty l, .defeqDF hty r, .defeqDF hty c⟩
+  | beta he he' _ _ _ _ ihapp ihinst =>
+    have hβ := (IsDefEq.beta he.defeq he'.defeq).subst' W.left
+    exact ⟨(ihapp W).1, (ihinst W).1, hβ.trans (ihinst W).1⟩
+  | eta he _ ihe ihlam =>
+    have hη := (IsDefEq.eta he.defeq).subst' W.left
+    exact ⟨(ihlam W).1, (ihe W).1, hη.trans (ihe W).1⟩
+  | proofIrrel _ _ _ ihp ihh ihh' =>
+    have hh := (ihh W).1; have hh' := (ihh' W).1
+    exact ⟨hh, hh', .proofIrrel (ihp W).1.hasType.1 hh.hasType.1 hh'.hasType.2⟩
+  | extra h1 h2 =>
+    have ⟨⟨hl, ht⟩, hr, _⟩ := henv.closed.2 h1
+    simp only [closed_subst hl, closed_subst hr, closed_subst ht]
+    have := IsDefEq.extra h1 h2 (Γ := Γ₀)
+    exact ⟨this.hasType.1, this.hasType.2, this⟩
+
+/-- Simultaneous substitution of a pair of related substitutions into a strong derivation. -/
+theorem IsDefEqStrong.substEq (W : Ctx.SubstEq Γ₀ σ σ' Γ) (H : Γ ⊢ₛ e1 ≡ e2 : A) :
+    Γ₀ ⊢ e1.subst σ ≡ e2.subst σ' : A.subst σ := (H.substEq' W).2.2
+
+theorem Ctx.SubstEq.symm (W : Ctx.SubstEq Γ₀ σ σ' Γ) : Ctx.SubstEq Γ₀ σ' σ Γ := by
+  induction W with
+  | nil W => exact .nil W
+  | cons W hA h ih => exact .cons ih hA (.defeqDF (hA.substEq W) h.symm)
+
+/-- Simultaneous substitution into an `IsDefEq` derivation. The original statement had neither
+the well-formedness hypothesis `⊢ Γ` nor the environment assumptions `Params.TypedEnv`; it goes
+through `IsDefEq.strong`, which needs both. (For a single substitution on both sides there is
+the assumption-free `IsDefEq.subst'`.) -/
+theorem IsDefEq.subst [Params.TypedEnv] (hΓ : ⊢ Γ) (W : Ctx.SubstEq Γ₀ σ σ' Γ)
+    (H : Γ ⊢ e1 ≡ e2 : A) : Γ₀ ⊢ e1.subst σ ≡ e2.subst σ' : A.subst σ :=
+  (H.strong hΓ).substEq W
+
+end
 
 variable (DefEq : List SExpr → SExpr → SExpr → SExpr → Prop) in
 structure WithLift (Γ : List SExpr) (e1 e2 A : SExpr) : Prop where
