@@ -415,7 +415,7 @@ instance obligations change:
   fields, not the parameters, so a structure eta expansion of the major
   collapses by projection.
 
-## 7. The `Params` instance of a well-formed environment (in progress)
+## 7. The `Params` instance of a well-formed environment
 
 `Theory/Typing/ConcretePatterns.lean` defines the concrete pattern table
 `ConcretePattern registry env` (definition unfoldings, the primitive quotient
@@ -457,3 +457,38 @@ full presentation, so `FullEquationCoverage` and the unconditional
    `x` while `elim m x S.a` is stuck, although `S.a ≡ S.b` by the unit-like
    rule. This is isolated as an explicit coherence hypothesis on registered
    eliminator schemas (`schema_struct_major` is false without it).
+
+### Resolution: Church-Rosser under canonical `Eq` and coherent eliminators
+
+Both gaps are now hypotheses of the final theorem, and every other premise is
+proved:
+
+```lean
+theorem VEnv.WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hcoh : env.EliminatorsCoherent) (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :
+    letI := henv.params hcoh U
+    ∃ e₁' e₂', FullReduction Γ e₁ e₁' ∧ FullReduction Γ e₂ e₂' ∧ NormalEq Γ e₁' e₂'
+```
+
+(`Theory/Typing/WFParams.lean`). Its only `sorry` dependency is
+`VEnv.WF.headInversion`; it does not use `VEnv.Strengthening`,
+`strengthening_of_canonicalEq` or `IsDefEqU.weakN_iff`.
+
+1. The singleton prefix program (`NativeRecursorData.singletonProgram`,
+   `Theory/Typing/NativeSingletonProgram.lean`) reconstructs the constructor
+   with `PropElim.occ`: data fields are read from the literal index slots, and
+   proof fields are extracted from the major by the native recursor at motive
+   universe `Prop`, with earlier data fields cast along `Eq`. It no longer uses
+   case-eliminator selectors, so no eliminator registration is needed.
+2. `NativeRecursorRegistered.zero_join`
+   (`Theory/Typing/NativeSingletonCoverage.lean`) joins the installed equation
+   of a large-eliminating native singleton at a universe specialization with
+   source `Prop`. Under the equation's binders, the recursor applied to its
+   prefix unfolds by `NativeDeltaRule` at the literal constructor instance,
+   then a beta step with the constructor major gives the right side at the
+   reconstructed fields. Data fields reconstruct to the field variables
+   themselves; proof fields are related to them by proof irrelevance. The
+   replay obligations are typed by `PropElim.occ_typed` and
+   `PropElim.singleton_eta`, which need `env.HasCanonicalEq`.
+3. `WF.singletonCoverage` discharges `WF.SingletonCoverage` from it, and
+   `WF.church_rosser` follows from `WF.church_rosser_of_singletonCoverage`.
