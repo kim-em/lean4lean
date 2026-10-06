@@ -10,40 +10,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- The literal verifier context of an all-lambda metacontext is a
-dependency-selected scope of itself.  This is the exact base used when a
-later producer trace skips generated hypotheses without retranslating the
-older constructor-field declarations. -/
-theorem MLCtxOnlyLams.fvarNarrowRefl
-    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
-    (H : MLCtxOnlyLams c) (henv : env.WF) (Hwf : c.WF env Us) :
-    Nonempty (checkInductiveTypes.loopType.FVarNarrowScope
-      env Us c.vlctx c.vlctx) := by
-  have Hsources : Nonempty
-      (checkInductiveTypes.loopType.FVarNarrowSources env Us c.vlctx) := by
-    induction c with
-    | nil => exact ⟨.nil⟩
-    | vlam fv name type target bi tail ih =>
-      rcases Hwf with ⟨HtailWF, _hfresh, Htype, _HtypeType⟩
-      rcases ih H.tail_vlam HtailWF with ⟨Htail⟩
-      exact ⟨.cons Htail name bi type Htype⟩
-    | vlet fv name type value target valueTarget tail =>
-      exact H.vlet_false.elim
-  rcases Hsources with ⟨Hsources⟩
-  have Hdecls := H.fvarRevList_declarations c.length (Nat.le_refl _)
-  rw [TypeChecker.MLCtx.fvarRevList_all] at Hdecls
-  have hlength : c.length = c.vlctx.length :=
-    (TypeChecker.MLCtx.vlctx_length c).symm
-  rw [hlength, List.take_length] at Hdecls
-  exact ⟨{
-    expanded := c.vlctx
-    shift := .refl
-    lift := .refl
-    context := .refl henv.ordered Hwf.tr.wf
-    upset := IsFVarUpSet.fvars Hwf.tr.wf.fvwf
-    noBV := Hwf.tr.2.noBV
-    declarations := Hdecls
-    sources := Hsources }⟩
 
 theorem BindingContextLE.withLocalDecl
     (c : AddInductive.Context) (Hc : BindingContextWF c)
