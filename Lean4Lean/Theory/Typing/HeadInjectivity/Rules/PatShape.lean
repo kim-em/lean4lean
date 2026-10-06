@@ -38,6 +38,15 @@ theorem VDefEq.PatShape.ofConst {df : VDefEq} (h : df.lhs = .const c ls) :
     df.PatShape (.const c ls) :=
   ⟨⟨[], [], df.rhs, df.type, h, rfl, rfl, .nil⟩⟩
 
+theorem VExpr.wrapLams_mkApps_snoc_ne_const {ds as : List VExpr} {f a : VExpr} :
+    VExpr.wrapLams ds (VExpr.mkApps f (as ++ [a])) ≠ .const n ls := by
+  cases ds with
+  | cons => simp [VExpr.wrapLams]
+  | nil =>
+    simp only [VExpr.wrapLams, List.foldr_nil, VExpr.mkApps, List.foldl_append,
+      List.foldl_cons, List.foldl_nil]
+    nofun
+
 namespace InductiveSignature
 
 /-- The head that restoration produces from a generated recursor head: native
@@ -89,14 +98,16 @@ private theorem mem_vars {count below x : Nat} (h1 : below ≤ x) (h2 : x < belo
 /-- Restoration of a generated recursor equation, for either head mode, yields the
 pattern shape. The leading parameters, motives and minors stay bare variables,
 indices are restored arbitrarily (they are ignored by the pattern), and the
-major keeps its trailing field variables. -/
-theorem Instance.equation_patShape {s : InductiveSignature} (g : Instance s)
+major keeps its trailing field variables. The left-hand side has at least one argument,
+so it is never a bare constant. -/
+theorem Instance.equation_patShape_strong {s : InductiveSignature} (g : Instance s)
     (index : Fin s.constructors.size) (mode : HeadMode) {r : Restoration} {df : VDefEq}
     (hparams : ∀ h ∈ r.heads, h.nparams ≤ s.params.length)
     (hhead : ∀ n ls, g.recursorHead mode s.constructors[index].owner = .const n ls →
       ∀ h ∈ r.heads, h.auxiliary ≠ n)
     (he : r.equation (g.equation index mode) = some df) :
-    df.PatShape (r.headOf (g.recursorHead mode s.constructors[index].owner)) := by
+    df.PatShape (r.headOf (g.recursorHead mode s.constructors[index].owner)) ∧
+      ∀ n ls, df.lhs ≠ .const n ls := by
   obtain ⟨hl, hr, ht⟩ := Restoration.equation_parts he
   let ctor := s.constructors[index]
   let nf := ctor.fields.length
@@ -143,8 +154,11 @@ theorem Instance.equation_patShape {s : InductiveSignature} (g : Instance s)
   rw [hgo, Option.some.injEq] at hout
   subst hout
   obtain ⟨cn, cl, ms, rfl⟩ := Restoration.ctorApp_fields hparams hmajor
-  refine ⟨⟨ds', _, rb, t, hel, her, het, .inr ⟨vars (s.params.length + extra) nf ++ indices',
-    cn, cl, ms, (List.range nf).reverse, ?_, ?_, ?_, ?_⟩⟩⟩
+  refine ⟨⟨⟨ds', _, rb, t, hel, her, het, .inr ⟨vars (s.params.length + extra) nf ++ indices',
+    cn, cl, ms, (List.range nf).reverse, ?_, ?_, ?_, ?_⟩⟩⟩, fun n ls h => ?_⟩
+  rotate_left 4
+  · rw [hel] at h
+    exact VExpr.wrapLams_mkApps_snoc_ne_const h
   · rw [vars_zero]
   · exact List.nodup_reverse.mpr (List.nodup_range)
   · intro i hi
@@ -155,6 +169,15 @@ theorem Instance.equation_patShape {s : InductiveSignature} (g : Instance s)
     by_cases hxf : x < nf
     · exact .inr (by simpa using hxf)
     · exact .inl (List.mem_append_left _ (mem_vars (by omega) (by omega)))
+
+theorem Instance.equation_patShape {s : InductiveSignature} (g : Instance s)
+    (index : Fin s.constructors.size) (mode : HeadMode) {r : Restoration} {df : VDefEq}
+    (hparams : ∀ h ∈ r.heads, h.nparams ≤ s.params.length)
+    (hhead : ∀ n ls, g.recursorHead mode s.constructors[index].owner = .const n ls →
+      ∀ h ∈ r.heads, h.auxiliary ≠ n)
+    (he : r.equation (g.equation index mode) = some df) :
+    df.PatShape (r.headOf (g.recursorHead mode s.constructors[index].owner)) :=
+  (g.equation_patShape_strong index mode hparams hhead he).1
 
 end InductiveSignature
 end Lean4Lean

@@ -25,14 +25,17 @@ Clauses (every occurrence of `Obs` strictly positive, key typing inlined):
 * `lam A t`: `app D c K o` for typed keys, `D` the domain class;
 * `app f a`: `o` whenever `f` has `app D c K o` with `c` the class of `a` at `D` and `K`
   covered by observations of `a`;
-* `const n ls`: rigid spine observations `wrap keys r` (`r` the head observation `rigid n
-  (ls.map eval) keys.length` or an argument observation `rigidArg i cᵢ`), **filtered**: kept
-  only when typed at observations of `ci.type.instL ls`, read at the fixed valuation
-  `(id, ∅)` (the type is closed; `Obs.closed_iff` shows the valuation is irrelevant there).
-  Milestone M2 is for rule-free environments: every constant is rigid.
+* `const n ls`, `n` rigid (`env.Rigid n`: no rule headed by `n`): rigid spine observations
+  `wrap keys r` (`r` the head observation `rigid n (ls.map eval) keys.length` or an argument
+  observation `rigidArg i cᵢ`), **filtered**: kept only when typed at observations of
+  `ci.type.instL ls`, read at the fixed valuation `(id, ∅)` (the type is closed;
+  `Obs.closed_iff` shows the valuation is irrelevant there);
+* `const n ls`, `n` defined (stage A1, section 10.2 of the notes): the observations of the
+  value `df.rhs.instL ls` of its delta rule `df`, with the same filter;
 * `elim` and `proj` have no observations in this milestone.
 
-Structural lemmas: inversion (`*_iff`), weakening (`Obs.lift'_iff`), substitution
+Classes are saturated by level variants (`LvEq`), so `Obs.lvEq` shows that the
+observations of a term are those of its level variants. Structural lemmas: inversion (`*_iff`), weakening (`Obs.lift'_iff`), substitution
 (`Obs.subst_iff`), monotonicity in the observation sets (`Obs.mono`, `Obs.mono_le`),
 compactness (`Obs.compact`), and invariance for closed terms (`Obs.closed_iff`). Typed
 valuations (`TV`) are defined at the end. -/
@@ -97,10 +100,15 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     Obs σ S (.lam A t) (.app (TyCls env U Δ (A.subst σ)) c K o)
   | app : Obs σ S f (.app D c K o) → c = ElCls env U Δ D (a.subst σ) →
     (∀ k ∈ K', Obs σ S a k) → Covers K' K → Obs σ S (.app f a) o
-  | const : env.constants n = some ci →
+  | const : env.Rigid n → env.constants n = some ci →
     (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (wrap keys r) τs → RigidEnd n (ls.map (·.eval)) keys r →
     Obs σ S (.const n ls) (wrap keys r)
+  /-- A defined constant has the observations of its value (the right side of its delta
+  rule, at the same levels), filtered by typing at its type. -/
+  | delta : env.defeqs df → df.lhs = .const n (VLevel.params df.uvars) →
+    env.constants n = some ci → (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
+    TypedOb env U Δ o τs → Obs .id .empty (df.rhs.instL ls) o → Obs σ S (.const n ls) o
 
 /-- `o` is typed at a list of observations of `T`. -/
 def TypedAt (σ : VExpr.Subst) (S : ObSets) (T : VExpr) (o : Ob) : Prop :=
@@ -166,13 +174,19 @@ theorem app_iff : Obs' σ S (.app f a) o ↔
   · rintro ⟨_, _, _, _, h1, h2, h3, h4⟩; exact .app h1 h2 h3 h4
 
 theorem const_iff : Obs' σ S (.const n ls) o ↔
-    ∃ ci τs keys r, o = wrap keys r ∧ env.constants n = some ci ∧
+    (∃ ci τs keys r, o = wrap keys r ∧ env.Rigid n ∧ env.constants n = some ci ∧
       (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
-      TypedOb env U Δ (wrap keys r) τs ∧ RigidEnd n (ls.map (·.eval)) keys r := by
+      TypedOb env U Δ (wrap keys r) τs ∧ RigidEnd n (ls.map (·.eval)) keys r) ∨
+    (∃ df ci τs, env.defeqs df ∧ df.lhs = .const n (VLevel.params df.uvars) ∧
+      env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
+      TypedOb env U Δ o τs ∧ Obs' .id .empty (df.rhs.instL ls) o) := by
   constructor
   · intro h; cases h with
-    | const h1 h2 h3 h4 => exact ⟨_, _, _, _, rfl, h1, h2, h3, h4⟩
-  · rintro ⟨_, _, _, _, rfl, h1, h2, h3, h4⟩; exact .const h1 h2 h3 h4
+    | const h0 h1 h2 h3 h4 => exact .inl ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩
+    | delta h1 h2 h3 h4 h5 h6 => exact .inr ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩
+  · rintro (⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ | ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩)
+    · exact .const h0 h1 h2 h3 h4
+    · exact .delta h1 h2 h3 h4 h5 h6
 
 theorem elim_iff : Obs' σ S (.elim b i ls) o ↔ False := ⟨nofun, nofun⟩
 
@@ -281,7 +295,8 @@ theorem mono (h : Obs' σ S t o) (hS : ∀ i o, S i o → S' i o) : Obs' σ S' t
     | zero => exact h
     | succ i => exact hS i o h
   | app _ h2 _ h4 ih1 ih3 => exact .app (ih1 hS) h2 (fun k hk => ih3 k hk hS) h4
-  | const h1 h2 h3 h4 => exact .const h1 h2 h3 h4
+  | const h0 h1 h2 h3 h4 => exact .const h0 h1 h2 h3 h4
+  | delta h1 h2 h3 h4 h5 h6 => exact .delta h1 h2 h3 h4 h5 h6
 
 /-- Monotonicity up to subsumption: if every observation of `S` is subsumed by one of
 `S'`, every observation under `S` is subsumed by one under `S'`. -/
@@ -316,7 +331,8 @@ theorem mono_le (h : Obs' σ S t o) (hS : ∀ i o, S i o → ∃ o', S' i o' ∧
     have ⟨K'', hK1, hK2⟩ := exists_list_cover (L := K') (R := fun y x => y ≼ x)
       fun k hk => ih3 k hk hS
     exact ⟨y, .app h1' h2 hK1 (Covers.trans hK2 (h4.trans hK₀)), ly⟩
-  | const h1 h2 h3 h4 => exact ⟨_, .const h1 h2 h3 h4, .refl⟩
+  | const h0 h1 h2 h3 h4 => exact ⟨_, .const h0 h1 h2 h3 h4, .refl⟩
+  | delta h1 h2 h3 h4 h5 h6 => exact ⟨_, .delta h1 h2 h3 h4 h5 h6, .refl⟩
 
 /-- Merge finitely many finite witnesses into one. -/
 theorem collect {α : Type} {Q : Ob → Prop} {P : List Ob → α → Prop}
@@ -394,7 +410,8 @@ theorem compact (h : Obs' σ S t o) (n : Nat) :
     rcases List.mem_append.1 hk with hk | hk
     · exact hK₁ k hk
     · exact hK₂ k hk
-  | const h1 h2 h3 h4 => exact ⟨[], nofun, .const h1 h2 h3 h4⟩
+  | const h0 h1 h2 h3 h4 => exact ⟨[], nofun, .const h0 h1 h2 h3 h4⟩
+  | delta h1 h2 h3 h4 h5 h6 => exact ⟨[], nofun, .delta h1 h2 h3 h4 h5 h6⟩
 
 /-- Compactness at the bound variable of an instantiation. -/
 theorem compact0 {S : ObSets} {X : Ob → Prop} (h : Obs' σ (S.cons X) t o) :
@@ -455,6 +472,68 @@ theorem closed_iff {t : VExpr} (ht : t.ClosedN k) (hσ : ∀ i < k, σ i = σ' i
 
 theorem closed_iff_id {t : VExpr} (ht : t.ClosedN) : Obs' σ S t o ↔ Obs' .id .empty t o :=
   closed_iff ht (fun _ h => nomatch h) (fun _ h => nomatch h)
+
+/-! ## Level variants -/
+
+theorem _root_.Lean4Lean.VEnv.Model.map_eval_eq {ls ls' : List VLevel}
+    (h : List.Forall₂ (· ≈ ·) ls ls') : ls.map (·.eval) = ls'.map (·.eval) := by
+  induction h with
+  | nil => rfl
+  | cons h _ ih => simp only [List.map_cons, ih]; exact congrArg (· :: _) h
+
+/-- **Level invariance**: the observations of a term are those of its level variants
+(classes are saturated by `LvEq`, levels are observed through `VLevel.eval`). -/
+theorem lvEq (h : Obs' σ S t o) (ht : LvEq U t t') : Obs' σ S t' o := by
+  induction h generalizing t' with
+  | bvar h => cases ht; exact .bvar h
+  | @sort _ _ l =>
+    cases ht with
+    | refl => exact .sort
+    | sort _ _ h3 => have : l.eval = _ := h3; rw [this]; exact .sort
+  | @piDom _ _ A B =>
+    cases ht with
+    | refl => exact .piDom
+    | forallE h1 _ => rw [TyCls.eq_of_lvEq (h1.subst _)]; exact .piDom
+  | piDomOb _ ih =>
+    cases ht with
+    | refl => exact .piDomOb (ih .refl)
+    | forallE h1 _ => exact .piDomOb (ih h1)
+  | piCod h1 h2 =>
+    cases ht with
+    | refl => exact .piCod h1 h2
+    | forallE l1 l2 =>
+      rw [TyCls.eq_of_lvEq (l1.subst _)] at h1
+      rw [TyCls.eq_of_lvEq (l2.subst _)]; exact .piCod h1 h2
+  | piCodOb h1 _ h3 h4 _ ih2 ih5 =>
+    cases ht with
+    | refl => exact .piCodOb h1 (fun τ hτ => ih2 τ hτ .refl) h3 h4 (ih5 .refl)
+    | forallE l1 l2 =>
+      rw [TyCls.eq_of_lvEq (l1.subst _)] at h1
+      exact .piCodOb h1 (fun τ hτ => ih2 τ hτ l1) h3 h4 (ih5 l2)
+  | lam h1 _ h3 h4 _ ih2 ih5 =>
+    cases ht with
+    | refl => exact .lam h1 (fun τ hτ => ih2 τ hτ .refl) h3 h4 (ih5 .refl)
+    | lam l1 l2 =>
+      rw [TyCls.eq_of_lvEq (l1.subst _)] at h1 ⊢
+      exact .lam h1 (fun τ hτ => ih2 τ hτ l1) h3 h4 (ih5 l2)
+  | app _ h2 _ h4 ih1 ih3 =>
+    cases ht with
+    | refl => exact .app (ih1 .refl) h2 (fun k hk => ih3 k hk .refl) h4
+    | app l1 l2 =>
+      exact .app (ih1 l1) (h2.trans (ElCls.eq_of_lvEq (l2.subst _)))
+        (fun k hk => ih3 k hk l2) h4
+  | const h0 h1 _ h3 h4 ih2 =>
+    cases ht with
+    | refl => exact .const h0 h1 (fun τ hτ => ih2 τ hτ .refl) h3 h4
+    | const w1 w2 w3 =>
+      exact .const h0 h1 (fun τ hτ => ih2 τ hτ (.instL _ w1 w2 w3)) h3
+        (map_eval_eq w3 ▸ h4)
+  | delta h1 h2 h3 _ h5 _ ih4 ih6 =>
+    cases ht with
+    | refl => exact .delta h1 h2 h3 (fun τ hτ => ih4 τ hτ .refl) h5 (ih6 .refl)
+    | const w1 w2 w3 =>
+      exact .delta h1 h2 h3 (fun τ hτ => ih4 τ hτ (.instL _ w1 w2 w3)) h5
+        (ih6 (.instL _ w1 w2 w3))
 
 end Obs
 

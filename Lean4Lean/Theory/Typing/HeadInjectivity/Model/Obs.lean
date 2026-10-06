@@ -42,6 +42,18 @@ inductive Ob where
   | app (D c : VExpr → Prop) (K : List Ob) (o : Ob)
   | rigid (n : Name) (ℓs : List (List Nat → Nat)) (nargs : Nat)
   | rigidArg (i : Nat) (c : VExpr → Prop)
+  /-- The `i`-th argument of a rigid spine has the observation `o`. -/
+  | rigidArgOb (i : Nat) (o : Ob)
+  /-- A constructor application of `c` at levels `ℓs` to `nargs` arguments. -/
+  | ctorHead (c : Name) (ℓs : List (List Nat → Nat)) (nargs : Nat)
+  /-- The `i`-th argument of a constructor application has class `c`. -/
+  | ctorArg (i : Nat) (c : VExpr → Prop)
+  /-- The `i`-th argument of a constructor application has `o`; `pre` records the keys of
+  the earlier arguments (an annotation for typing). -/
+  | ctorArgOb (i : Nat) (pre : List ((VExpr → Prop) × (VExpr → Prop) × List Ob)) (o : Ob)
+  /-- Field `j` of an eta-structure value has `o`; `pre` records the parameter keys and the
+  earlier fields' observation lists (an annotation for typing). -/
+  | fieldOb (j : Nat) (pre : List ((VExpr → Prop) × (VExpr → Prop) × List Ob)) (o : Ob)
 
 /-- Subsumption: `Ob.Le o o'` says `o'` is weaker than `o`. Key lists are compared
 contravariantly, through an explicit choice function (keeping the definition free of
@@ -53,6 +65,9 @@ inductive Ob.Le : Ob → Ob → Prop
     Ob.Le (.piCodOb c K o) (.piCodOb c K' o')
   | app (f : Ob → Ob) : (∀ k ∈ K, f k ∈ K') → (∀ k ∈ K, Ob.Le (f k) k) → Ob.Le o o' →
     Ob.Le (.app D c K o) (.app D c K' o')
+  | rigidArgOb : Ob.Le o o' → Ob.Le (.rigidArgOb i o) (.rigidArgOb i o')
+  | ctorArgOb : Ob.Le o o' → Ob.Le (.ctorArgOb i pre o) (.ctorArgOb i pre o')
+  | fieldOb : Ob.Le o o' → Ob.Le (.fieldOb j pre o) (.fieldOb j pre o')
 
 @[inherit_doc] scoped infix:50 " ≼ " => Ob.Le
 
@@ -106,6 +121,30 @@ theorem Le.trans_aux (h : x ≼ y) : (∀ w, w ≼ x → w ≼ y) ∧ (∀ z, y 
       | piCodOb g hg1 hg2 hgo =>
         refine .piCodOb (fun k => g (f k)) (fun k hk => hg1 _ (hf1 k hk))
           (fun k hk => (ihk k hk).1 _ (hg2 _ (hf1 k hk))) (iho.2 _ hgo)
+  | rigidArgOb _ ih =>
+    refine ⟨fun w hw => ?_, fun z hz => ?_⟩
+    · cases hw with
+      | refl => exact .rigidArgOb (ih.1 _ .refl)
+      | rigidArgOb h => exact .rigidArgOb (ih.1 _ h)
+    · cases hz with
+      | refl => exact .rigidArgOb (ih.2 _ .refl)
+      | rigidArgOb h => exact .rigidArgOb (ih.2 _ h)
+  | ctorArgOb _ ih =>
+    refine ⟨fun w hw => ?_, fun z hz => ?_⟩
+    · cases hw with
+      | refl => exact .ctorArgOb (ih.1 _ .refl)
+      | ctorArgOb h => exact .ctorArgOb (ih.1 _ h)
+    · cases hz with
+      | refl => exact .ctorArgOb (ih.2 _ .refl)
+      | ctorArgOb h => exact .ctorArgOb (ih.2 _ h)
+  | fieldOb _ ih =>
+    refine ⟨fun w hw => ?_, fun z hz => ?_⟩
+    · cases hw with
+      | refl => exact .fieldOb (ih.1 _ .refl)
+      | fieldOb h => exact .fieldOb (ih.1 _ h)
+    · cases hz with
+      | refl => exact .fieldOb (ih.2 _ .refl)
+      | fieldOb h => exact .fieldOb (ih.2 _ h)
   | app f hf1 hf2 _ ihk iho =>
     refine ⟨fun w hw => ?_, fun z hz => ?_⟩
     · cases hw with
@@ -144,6 +183,24 @@ theorem Le.piDom_inv (h : o ≼ .piDom D) : o = .piDom D := by cases h; rfl
 theorem Le.piCod_inv (h : o ≼ .piCod c C) : o = .piCod c C := by cases h; rfl
 theorem Le.rigid_inv (h : o ≼ .rigid n ℓs m) : o = .rigid n ℓs m := by cases h; rfl
 theorem Le.rigidArg_inv (h : o ≼ .rigidArg i c) : o = .rigidArg i c := by cases h; rfl
+theorem Le.ctorHead_inv (h : o ≼ .ctorHead c ℓs n) : o = .ctorHead c ℓs n := by cases h; rfl
+theorem Le.ctorArg_inv (h : o ≼ .ctorArg i c) : o = .ctorArg i c := by cases h; rfl
+
+theorem Le.rigidArgOb_inv (h : o ≼ .rigidArgOb i x) : ∃ y, o = .rigidArgOb i y ∧ y ≼ x := by
+  cases h with
+  | refl => exact ⟨_, rfl, .refl⟩
+  | rigidArgOb h => exact ⟨_, rfl, h⟩
+
+theorem Le.ctorArgOb_inv (h : o ≼ .ctorArgOb i pre x) :
+    ∃ y, o = .ctorArgOb i pre y ∧ y ≼ x := by
+  cases h with
+  | refl => exact ⟨_, rfl, .refl⟩
+  | ctorArgOb h => exact ⟨_, rfl, h⟩
+
+theorem Le.fieldOb_inv (h : o ≼ .fieldOb j pre x) : ∃ y, o = .fieldOb j pre y ∧ y ≼ x := by
+  cases h with
+  | refl => exact ⟨_, rfl, .refl⟩
+  | fieldOb h => exact ⟨_, rfl, h⟩
 
 theorem Le.piDomOb_inv (h : o ≼ .piDomOb x) : ∃ y, o = .piDomOb y ∧ y ≼ x := by
   cases h with
@@ -246,6 +303,7 @@ inductive TypedOb : Ob → List Ob → Prop
     TypedOb o τc → TypedOb (.app D c K o) τs
   | rigid : .sort ℓ ∈ τs → TypedOb (.rigid n ℓs m) τs
   | rigidArg : .sort ℓ ∈ τs → TypedOb (.rigidArg i c) τs
+  | rigidArgOb : .sort ℓ ∈ τs → TypedOb (.rigidArgOb i o) τs
 
 end
 
@@ -262,6 +320,7 @@ theorem TypedOb.strengthen (H : TypedOb env U Δ o τs) (h : Covers τs' τs) :
   | piCodOb h1 h3 h4 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .piCodOb h2 h3 h4
   | rigid h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigid h2
   | rigidArg h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArg h2
+  | rigidArgOb h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArgOb h2
   | @app _ τd K _ c τc _ hD hd _ hc hcod _ ihk iho =>
     have ⟨_, h2, l⟩ := h _ hD; cases l.piDom_inv
     have ⟨τd', hd1, hd2⟩ := exists_list_cover (L := τd) (P := fun y => Ob.piDomOb y ∈ τs')
@@ -299,7 +358,8 @@ which is typed at `[sort 0]`. -/
 theorem TypedOb.not_prop (H : TypedOb env U Δ o τs)
     (h : ∀ τ ∈ τs, TypedOb env U Δ τ [.sort zeroF]) : False := by
   induction H with
-  | sort h1 | piDom h1 | piDomOb h1 | piCod h1 | piCodOb h1 | rigid h1 | rigidArg h1 =>
+  | sort h1 | piDom h1 | piDomOb h1 | piCod h1 | piCodOb h1 | rigid h1 | rigidArg h1
+  | rigidArgOb h1 =>
     exact (h _ h1).not_sort_zero
   | app _ _ _ _ hcod _ _ iho =>
     refine iho fun x hx => ?_

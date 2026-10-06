@@ -106,17 +106,24 @@ theorem instL_wrapForalls' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
 abbrev OI (env : VEnv) (U : Nat) (Γ : List VExpr) : VExpr → Ob → Prop :=
   Obs env U Γ VExpr.Subst.id ObSets.empty
 
+/-- Soundness of the observation model for every derivation of `env` (at every target
+context): the hypothesis of the extraction, supplied by `Model.sound` under the hypotheses
+of each stage. -/
+def SoundEnv (env : VEnv) : Prop :=
+  ∀ {U Δ Γ t t' T}, OnCtx Δ (env.IsType U) → env.IsDefEqStrong U Γ t t' T →
+    SoundAt env U Δ Γ t t' T
+
 /-- Soundness at the identity valuation. -/
-theorem sound_id (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (env.IsType U))
+theorem sound_id (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (H : env.IsDefEqStrong U Γ t t' T) :
     Ob.Sub (OI env U Γ t) (OI env U Γ t') ∧ Ob.Sub (OI env U Γ t') (OI env U Γ t) ∧
     (∀ o, OI env U Γ t o → TypedAt env U Γ VExpr.Subst.id ObSets.empty T o) ∧
     (∀ o, OI env U Γ t' o → TypedAt env U Γ VExpr.Subst.id ObSets.empty T o) :=
-  sound henv hΓ hnr H .id .id .empty (Ctx.SubstEq.id henv hΓ) TV.empty TV.empty
+  hnr hΓ H .id .id .empty (Ctx.SubstEq.id henv hΓ) TV.empty TV.empty
 
 /-- A chain of sort-typed equalities includes the observations of its left end in those of
 its right end (up to subsumption). -/
-theorem chain_sub (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (env.IsType U))
+theorem chain_sub (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (h : env.TypeChain U Γ X Y) : Ob.Sub (OI env U Γ X) (OI env U Γ Y) := by
   induction h with
   | single h => let ⟨_, h⟩ := h; exact (sound_id henv hnr hΓ (h.strong henv hΓ)).1
@@ -125,14 +132,14 @@ theorem chain_sub (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (env.
 
 /-! ## Sorts and Pi types -/
 
-theorem sort_sort (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (env.IsType U))
+theorem sort_sort (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (h : env.TypeChain U Γ (.sort u) (.sort v)) : u ≈ v := by
   obtain ⟨o, ho, l⟩ := chain_sub henv hnr hΓ h _ .sort
   rw [l.sort_inv] at ho
   have := Obs.sort_mem ho
   injection this
 
-theorem forallE_chain (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (env.IsType U))
+theorem forallE_chain (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (h : env.TypeChain U Γ (.forallE A B) (.forallE A' B')) :
     env.TypeChain U Γ A A' ∧ env.TypeChain U (A :: Γ) B B' := by
   have ⟨⟨_, hA⟩, ⟨_, hB⟩⟩ := h.isType_l.forallE_inv henv
@@ -144,7 +151,7 @@ theorem forallE_chain (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (
     have e := Obs.piDom_mem ho
     simp only [VExpr.subst_id] at e
     have : TyCls env U Γ A A' := e ▸ TyCls.self
-    exact (TyCls.mem_iff_chain hA).1 this
+    exact (TyCls.mem_iff_chain henv hΓ hA).1 this
   refine ⟨hdom, ?_⟩
   -- the codomain, at the fresh variable of `A :: Γ`
   have hΔ : OnCtx (A :: Γ) (env.IsType U) := ⟨hΓ, _, hA⟩
@@ -162,7 +169,7 @@ theorem forallE_chain (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (
   have e0 : (B.liftN 1 1).subst (VExpr.Subst.id.cons (.bvar 0)) = B :=
     (VExpr.inst_eq _ _).symm.trans (VExpr.instN_bvar0 B 0)
   rw [e0] at eC
-  have hy0 : env.IsDefEq U (A :: Γ) (.bvar 0) y A.lift := ElCls.collapse h0 .self hy
+  have hy0 : env.IsDefEq U (A :: Γ) (.bvar 0) y A.lift := ElCls.collapse henv hΔ h0 .self hy
   have hy0' : env.IsDefEq U (A :: Γ) y (.bvar 0) A'.lift := hdomw.defeqDF hy0.symm
   have hBw : env.HasType U (A'.lift :: A :: Γ) (B'.liftN 1 1) (.sort _) :=
     hB'.weakN henv (.succ (.zero [A]))
@@ -174,7 +181,7 @@ theorem forallE_chain (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (
   have e1 : TyCls env U (A :: Γ) B = TyCls env U (A :: Γ) B' :=
     eC.trans (TyCls.eq_of_defeq hBB)
   have : TyCls env U (A :: Γ) B B' := e1 ▸ TyCls.self
-  exact (TyCls.mem_iff_chain hB).1 this
+  exact (TyCls.mem_iff_chain henv hΔ hB).1 this
 
 /-! ## Rigid spines -/
 
@@ -203,11 +210,13 @@ theorem wrap_of_obs_mkApps {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} :
 
 /-- The spine observations of a constant end in its own rigid observations. -/
 theorem const_wrap_inv {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
-    (h : Obs env U Δ σ S (.const n ls) (wrap keys o)) (ho : o.NotApp) :
+    (hrig : env.Rigid n) (h : Obs env U Δ σ S (.const n ls) (wrap keys o)) (ho : o.NotApp) :
     RigidEnd n (ls.map (·.eval)) keys o := by
-  obtain ⟨_, _, keys', r, e, _, _, _, hr⟩ := Obs.const_iff.1 h
-  obtain ⟨rfl, rfl⟩ := wrap_inj e ho hr.notApp
-  exact hr
+  rcases Obs.const_iff.1 h with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
+    ⟨df, _, _, hdf, hlhs, _⟩
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e ho hr.notApp
+    exact hr
+  · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
 
 /-- Observations of a Pi type at one typed key. -/
 theorem pi_list {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {K τk τc : List Ob}
@@ -242,7 +251,7 @@ def KeyedArgs (env : VEnv) (U : Nat) (Γ : List VExpr) (keys : List Key) (args :
 and observations `τs` of `T`, there are keys for the arguments such that every observation
 typed at `τs`, wrapped in the keys, is typed at observations of the constant's type (so,
 for a rigid end, it passes the filter of the constant clause). -/
-theorem spine_typed (henv : env.Ordered) (hnr : env.NoRules)
+theorem spine_typed (henv : env.Ordered) (hnr : SoundEnv env)
     (H : env.HasTypeStrong U Γ e T b) : OnCtx Γ (env.IsType U) →
     ∀ args, e = VExpr.mkApps (.const c ls) args → ∀ τs, (∀ τ ∈ τs, OI env U Γ T τ) →
     ∃ ci keys, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
@@ -298,7 +307,8 @@ theorem spine_typed (henv : env.Ordered) (hnr : env.NoRules)
 /-- The analysis of a chain between two rigid spines: same head, same levels, and each
 right argument in the class of the corresponding left argument (at the left spine's keys,
 whose spine observation is typed at the observations of the head's type). -/
-theorem rigid_analysis (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ (env.IsType U))
+theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
+    (hrig : env.Rigid c) (hrig' : env.Rigid c')
     (h : env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c' ls') args')) :
     ∃ ci keys, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
       (∃ τs₀, (∀ τ ∈ τs₀, OI env U Γ (ci.type.instL ls) τ) ∧
@@ -321,7 +331,7 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ 
       OI env U Γ (.mkApps (.const c ls) args) r := by
     intro r hr
     obtain ⟨τs₀, h1, h2⟩ := hQ r (hsort r hr)
-    exact obs_mkApps_of_wrap hk' (.const hci h1 h2 hr)
+    exact obs_mkApps_of_wrap hk' (.const hrig hci h1 h2 hr)
   have hR : ∀ r, RigidEnd c (ls.map (·.eval)) keys r → ∃ keys' : List Key,
       List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 (a.subst .id)) keys' args' ∧
       RigidEnd c' (ls'.map (·.eval)) keys' r := by
@@ -333,7 +343,7 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : env.NoRules) (hΓ : OnCtx Γ 
       · exact l.rigidArg_inv
     subst this
     obtain ⟨keys', hk, hw⟩ := wrap_of_obs_mkApps ho
-    exact ⟨keys', hk, const_wrap_inv hw hr.notApp⟩
+    exact ⟨keys', hk, const_wrap_inv hrig' hw hr.notApp⟩
   have hlen := List.Forall₂.length_eq hkeys
   obtain ⟨keys', hk1, hr1⟩ := hR _ (.inl rfl)
   rcases hr1 with e | ⟨_, _, e⟩
@@ -377,7 +387,7 @@ theorem tele_spine (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) :
         have hdd := hd.substDF henv W''.wf hΓ W''
         have eD : D = TyCls env U Γ (d.subst σ) := hD'.trans (TyCls.eq_of_defeq hdd)
         subst eD; dsimp only at hc; subst hc
-        have haa := ElCls.collapse ha hX ha'
+        have haa := ElCls.collapse henv hΓ ha hX ha'
         refine .cons haa ?_
         rw [VExpr.inst_lift_cons]
         refine tele_spine henv hΓ keys ds w (d :: Γ') (σ.cons _) _ _ _ o
@@ -387,27 +397,27 @@ theorem tele_spine (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) :
         obtain ⟨σ₃, S₃, W₃, hobs₃⟩ := hτs _ hm
         obtain ⟨_, _, y, hy, hxR⟩ := Obs.piCodOb_mem hobs₃
         have hdd₃ := hd.substDF henv W₃.wf hΓ W₃
-        have hay := ElCls.collapse ha hX hy
+        have hay := ElCls.collapse henv hΓ ha hX hy
         exact ⟨σ₃.cons y, S₃.cons (listSet K₀), .cons W₃ hd (.defeqDF hdd₃.symm hay.symm), hxR⟩
 
 end Model
 
-/-- **Chain-level head injectivity for rule-free environments** (milestone M2 of
-`docs/inductives/PHASE1B_NOTES.md`, section 9.3): soundness of the glued observation model
-gives the hypothesis of the syntactic layer. -/
-theorem WF.headInjectivityCore_of_noRules {env : VEnv} (henv : env.WF) (hnr : env.NoRules) :
+/-- **Chain-level head injectivity from soundness**: in a well-formed environment for which
+the observation model is sound, the hypothesis of the syntactic layer holds. -/
+theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Model.SoundEnv env) :
     env.HeadInjectivityCore where
   sort_sort hΓ h := Model.sort_sort henv.ordered hnr hΓ h
   forallE_chain hΓ h := Model.forallE_chain henv.ordered hnr hΓ h
-  rigid_rigid hΓ _ _ h := by
-    obtain ⟨_, keys, _, _, hkeys, _, ec, eℓ, hk'⟩ := Model.rigid_analysis henv.ordered hnr hΓ h
+  rigid_rigid hΓ hrig hrig' h := by
+    obtain ⟨_, keys, _, _, hkeys, _, ec, eℓ, hk'⟩ :=
+      Model.rigid_analysis henv.ordered hnr hΓ hrig hrig' h
     refine ⟨ec, Model.forall₂_equiv_of_map_eval eℓ,
       Model.forall₂_zip (fun k a a' ⟨h1, _, X, hX, h2⟩ h3 => ?_) hkeys hk'⟩
     rw [h1, h2] at h3
-    exact ⟨X, Model.ElCls.collapse hX .self h3⟩
-  former_args {U Γ c ci doms w ls ls' args args'} hΓ _ hci hty h := by
+    exact ⟨X, Model.ElCls.collapse henv.ordered hΓ hX .self h3⟩
+  former_args {U Γ c ci doms w ls ls' args args'} hΓ hrig hci hty h := by
     obtain ⟨ci', keys, hci', hls, hkeys, ⟨τs₀, hτs₀, hty₀⟩, _, _, hk'⟩ :=
-      Model.rigid_analysis henv.ordered hnr hΓ h
+      Model.rigid_analysis henv.ordered hnr hΓ hrig hrig h
     cases hci.symm.trans hci'
     have eT : ci.type.instL ls =
         VExpr.wrapForalls (doms.map (·.instL ls)) (.sort (w.inst ls)) := by
@@ -418,6 +428,20 @@ theorem WF.headInjectivityCore_of_noRules {env : VEnv} (henv : env.WF) (hnr : en
       .id args args' τs₀ _ .nil hT (fun τ hτ => ⟨_, _, .nil, eT ▸ hτs₀ τ hτ⟩) hty₀
       (Model.forall₂_imp (fun k a ⟨h1, _, X, hX, h2⟩ => ⟨h1, X, h2 ▸ .self, hX⟩) hkeys) hk'
     rwa [VExpr.subst_id, ← eT] at this
+
+/-- **Stage A1** (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): chain-level head
+injectivity for well-formed environments whose rules are all definitions' delta rules and
+which have no projections or eliminators. -/
+theorem WF.headInjectivityCore_of_defsOnly {env : VEnv} (henv : env.WF) (hdo : env.DefsOnly) :
+    env.HeadInjectivityCore :=
+  henv.headInjectivityCore_of_sound fun hΔ H =>
+    Model.sound henv.ordered hΔ hdo henv.defRules H
+
+/-- **Chain-level head injectivity for rule-free environments** (milestone M2 of
+`docs/inductives/PHASE1B_NOTES.md`, section 9.3). -/
+theorem WF.headInjectivityCore_of_noRules {env : VEnv} (henv : env.WF) (hnr : env.NoRules) :
+    env.HeadInjectivityCore :=
+  henv.headInjectivityCore_of_defsOnly hnr.defsOnly
 
 end VEnv
 end Lean4Lean

@@ -46,6 +46,18 @@ theorem InductiveSignature.CompilationData.equation_patShape {s : InductiveSigna
       cases heq
       exact H.heads_not_recursors _ h hh) he
 
+/-- A restored native recursor equation is never a bare constant. -/
+theorem InductiveSignature.CompilationData.equation_not_const {s : InductiveSignature}
+    {g : Instance s} (H : CompilationData env source expanded s g auxiliaries block)
+    (index : Fin s.constructors.size) {df : VDefEq}
+    (he : (compilationRestoration source auxiliaries).equation (g.equation index) = some df) :
+    ∀ n ls, df.lhs ≠ .const n ls :=
+  (g.equation_patShape_strong index .native
+    (fun h hh => Nat.le_of_eq (H.restoration_nparams h hh))
+    (fun _ _ heq h hh => by
+      cases heq
+      exact H.heads_not_recursors _ h hh) he).2
+
 /-- Exact origin of every installed rule: a definition's delta rule, the quotient
 rule, or a restored equation of a finite inductive compilation. -/
 theorem VEnv.WF'.defeq_origin {env : VEnv} (H : env.WF' ds) {df : VDefEq}

@@ -483,7 +483,15 @@ and in the major's head).
   t' T` and `theorem VEnv.WF.headInjectivityCore_of_noRules (henv : env.WF) (hnr :
   env.NoRules) : env.HeadInjectivityCore` (no sorry; axioms propext, Classical.choice,
   Quot.sound). Imports only the uniqueness-free base.
-* [plan] M3-M5 (section 9.3).
+* [Lean] Stage A1 (section 10.2): `theorem VEnv.WF.headInjectivityCore_of_defsOnly (henv :
+  env.WF) (hdo : env.DefsOnly) : env.HeadInjectivityCore` (every rule a definition's delta
+  rule, no projections, no eliminators), via `Model.sound (henv : env.Ordered) (hΔ) (hdo :
+  env.DefsOnly) (hdr : env.DefRules)` and the stage-independent extraction
+  `VEnv.WF.headInjectivityCore_of_sound (henv : env.WF) (hs : Model.SoundEnv env)`.
+  `VEnv.WF.defRules` (`Rules/Definitions.lean`): delta rules are unique per constant,
+  exclude every other rule headed by it, and carry the constant's type. Axioms propext,
+  Classical.choice, Quot.sound.
+* [plan] Stages A2-E (section 10.2).
 
 ### 10.1 Deviations of the M0-M2 formalisation from section 9.1
 
@@ -533,3 +541,129 @@ and in the major's head).
   the common parameters and do not rename the recursor head). Rule origin is recomputed by
   `VEnv.WF'.defeq_origin` because `NativeRegistryOfWF` transitively imports `ChurchRosser`
   and `HeadInversion`. No sorry; axioms propext, Classical.choice, Quot.sound.
+
+### 10.2 Design of M3-M5 at the observation level (written before stage A)
+
+This section fixes every extension of `Ob`, `TypedOb` and `Obs` needed by the remaining
+stages, so that later stages add proofs, not observations. Tags as in the rest of the file.
+
+**Stages** (each ends in a committed theorem under an honest intermediate hypothesis):
+A1 every rule is a definition, no projections, no eliminators; A2 + the quotient rule;
+B + native recursors in mode AB on families without projections; C + projections (`proj`,
+`projIota`, `structEta`, `unitLike`, eta-structure iota by projections, review R1);
+D + mode C (proposition families with large elimination: K-like and singleton); E + abstract
+eliminators (`elimDF`, `elimIota`); then the general `VEnv.WF.headInjectivityCore`.
+
+**D8 (level-saturated classes).** `TyCls`/`ElCls` are closed under `LvEq` (terms that differ
+only by `≈`-equivalent levels; reflexive on every term, closed under substitution). For a
+typed term this adds nothing (`EqUpToLevels.defeq`), so the collapse lemma and the anchored
+class lemma are unchanged in content. Gain: `Obs` is invariant under `LvEq` *structurally*
+(`Obs.lvEq`, induction on `Obs`), which is exactly what `constDF` at a defined constant or a
+rule-headed constant needs (the observations of `value.instL ls` and `value.instL ls'`), and
+which cannot come from the induction hypotheses of `constDF` (its premises say nothing about
+the value). Rejected alternative: a level-invariance component in the soundness motive (it
+fails at the same `constDF` leaf).
+
+**D9 (semantic typing derivations in the motive).** The rule cases need soundness of
+*sub-derivations* of the rule's typing premises (the arguments of the left spine, the major's
+constructor spine, the constant types whose rigid observations type constructor
+observations). `IsDefEqStrong`'s induction gives only immediate premises. So the soundness
+motive becomes `SoundAt Γ t t' T ∧ HTS Γ t T ∧ HTS Γ t' T`, where `HTS` ("semantically
+typed") mirrors `HasTypeStrong` (bvar, sort, const (with `HTS [] (ci.type.instL ls) (sort u)`),
+elim, app, proj, lam, forallE, conv), every `IsDefEqStrong` premise of `HasTypeStrong`
+being replaced by the premise together with its `SoundAt`, and every typing premise by
+`HTS` together with its `SoundAt`. Each case of the soundness induction builds `HTS` for both
+sides from the premises exactly as `IsDefEqStrong.hasType'` builds `HasTypeStrong`. The
+**spine lemma** (generalising `Extract.spine_typed`, by induction on `HTS`, no global
+soundness): for `HTS Γ (mkApps h args) T` with `h` a constant (or `elim`) head, a typed
+valuation and type observations `τs ⊆ Obs T`, there are keys of the arguments (any key lists
+`K_i ⊆ Obs args_i` containing given finite demands) whose domain classes are `TyCls (A_i σ)`
+for the derivation's domains `A_i` (with `HTS Γ args_i A_i`), such that every `o` typed at `τs`
+gives `wrap keys o` typed at observations of the head's type, and conversely type
+observations of the head's instantiated codomain are covered by those of `T` (both
+directions of `Ob.Sub`, from the `conv` nodes). For a bare variable argument the `HTS`
+derivation is `bvar` followed by `conv`s, so its domain class is the class of its context
+type (the fact that keeps representatives of rule variables inside their own type's class).
+Through `lam` nodes the lemma reads the body of a rule's left-hand side.
+
+**Observations** (`Ob`, final list): the M2 atoms `sort piDom piDomOb piCod piCodOb app
+rigid rigidArg`, and
+* `rigidArgOb (i : Nat) (o : Ob)`: the `i`-th argument of a rigid spine has `o` (pins the
+  parameter keys recorded by field observations to the type, stage C);
+* `ctorHead (c : Name) (ℓs) (n : Nat)`, `ctorArg (i : Nat) (cls)`, `ctorArgOb (i : Nat)
+  (pre : List Key) (o : Ob)`: a constructor application of `c` at levels `ℓs` to `n`
+  arguments, the class of argument `i`, an observation of argument `i` (with the keys of the
+  earlier arguments, for stage C typing). Produced for constructors of families that are not
+  eta structures, and for `Quot.mk`;
+* `fieldOb (j : Nat) (pre : List Key) (o : Ob)`: field `j` of an eta-structure value has `o`;
+  `pre` holds the parameter keys and the earlier fields' observation lists (no field classes:
+  the class of field `j` is always the class of `proj S j e`, review R1).
+`Ob.Le`: `rigidArgOb`, `ctorArgOb`, `fieldOb` are covariant in `o`; `pre` is an annotation,
+compared by equality.
+
+**Typing** (`TypedOb`): `rigid n ℓs m` needs `.sort ℓ ∈ τs` and `RigidSort n ℓs m ℓ` (if `n`'s
+type is syntactically an `m`-telescope ending in `sort w`, then `ℓ = w` evaluated at `ℓs`);
+`rigidArg`, `rigidArgOb` at some sort. Constructor observations need an indicator
+`rigid I ℓs' m ∈ τs` with `CtorOf c I` and `NonProp I ℓs' m` (the family's declared sort at
+`ℓs'` is not identically zero); with `RigidSort` this gives `TypedOb.not_prop` (proof
+irrelevance) for constructor observations. Constructor observations are not typed at eta
+structures, `fieldOb` only at eta structures (for `structEta`/`unitLike`). The *values* inside
+constructor observations need no typing of their own in stages A2-B: the rule clause binds
+fields from them and soundness compares those bindings with the actual (typed) valuation
+by `≼` and monotonicity. Stage C needs precise typing of `fieldOb` (projection typing
+invariant with dependent fields), which depends on the value's class (the class of
+`proj S i e`); [plan] `TypedOb` then gains the value class (the original 9.1 parameter),
+with the result class of an `app` observation read from `piCod`.
+
+**Constant clauses** of `Obs (const n ls)`:
+* rigid (M2) now requires `env.Rigid n`;
+* constructor: `CtorOf n I` (and `n` not an eta-structure constructor, or `n = Quot.mk`):
+  chains `wrap keys r`, `r ∈ {ctorHead n ℓs keys.length, ctorArg i cᵢ, ctorArgOb i
+  keys[:i] k (k ∈ Kᵢ)}`, filtered by typing at observations of `n`'s type, as the rigid clause;
+  eta-structure constructors: `r = fieldOb j pre k` (`k` in the key of field `j`). A constructor
+  is also rigid, so it keeps its rigid chains (used only when the spine is a type);
+* delta: `env.defeqs df`, `df.lhs = const n (params df.uvars)`: every observation of
+  `df.rhs.instL ls` (closed; valuation `(id, ∅)`), filtered by typing at `ci.type.instL ls`;
+* rule (stages A2-E): `df` a stored rule (or generic equation) with `PatShape` at `const n
+  (params)` (or the `elim` head): `wrapLams doms (mkApps head args)`, `PatArgs`. A chain
+  `wrap keys o` with `keys.length = args.length` is admitted when there is an anchor `τ` and
+  observation sets `S'` for the rule binders such that, for each binder `x`:
+  - if `bvar x` occurs bare in the leading arguments, at the first such position `i`:
+    `τ x ∈ cᵢ`, `cᵢ` a typed class at `TyCls (A_x.subst τ)` (`A_x` the binder's type in the
+    rule context), `S' x = Kᵢ`;
+  - otherwise `x` is the `j`-th field variable of the major, and by the mode of `(df, ls)`:
+    AB: the major key holds `ctorHead ctor ℓs n` with `n = |ms| + |fs|`, `ctorArg (|ms|+j) c`
+    with `τ x ∈ c` typed at `TyCls (A_x.subst τ)`, and `S' x = {k | ctorArgOb (|ms|+j) _ k ∈ K}`;
+    eta (stage C): `τ x` in the class of `proj S j m` for a member `m` of the major's class,
+    `S' x = {k | fieldOb j _ k ∈ K}`; C (stage D): `τ x` any term typed at `A_x.subst τ` with
+    `A_x.subst τ : sort 0`, `S' x = ∅` (data fields of a singleton are bare index variables,
+    so they are bound by the first rule);
+  and `o ∈ Obs τ S' body`; the chain is filtered by typing at observations of the head's
+  type at `ls`. The mode of `(df, ls)` is a declarative predicate from the rule's compilation
+  data (the major's family at `ls` is a proposition: mode C; an eta structure: eta; else AB),
+  with a uniqueness lemma; mode C fires only for proposition families, and never by
+  inspecting the major key (monotonicity). Divergent definitions denote nothing.
+* `elim b o ls` (stage E): the rule clause over the schema's generic equations; no rigid
+  clause (eliminators are never rigid).
+* `proj S j e` (stage C): `k` whenever `e` has `fieldOb j _ k` or `ctorArgOb (np + j) _ k`.
+
+**Soundness of the rule cases.** `extra`/`elimIota` at a pattern rule: the left side's
+observations are `lam`-chains over the rule binders of chains of the head; right-to-left,
+an observation `o` of the body at the binder valuation `v` is typed at the body type (typing
+invariant of the right side), the spine lemma on the left side's `HTS` gives keys whose
+classes are the binder classes (bare variables) and whose major key carries the constructor
+observations (spine lemma on the major's `HTS`; the family indicator in the major's type
+comes from the spine lemma on the family spine inside the head's type, through the `HTS`
+of the constant's type), and the chain is typed; the clause holds with `τ = v`. Left to
+right, the clause's rule is the given one (rule uniqueness per head and constructor;
+definitions exclude pattern rules for the same head), and the body at `(τ, S')` is compared
+with the body at `v` by the body's `SoundAt` (from the `HTS` of the right side's `lam` nodes:
+`τ x ≡ v x` at `A_x` by the class condition and the collapse lemma) and `Obs.mono_le`
+(`S' x` is covered by the actual observations). Definitions: the delta clause, both
+directions, with `Obs.lvEq` for `constDF`. `projIota` reads the field back; `structEta`/
+`unitLike` use that eta-structure values have only `fieldOb` observations; `projDF` is
+congruence; `elimDF`/`constDF` level invariance through eval and `Obs.lvEq`.
+
+**Extraction**: `rigid_rigid`/`former_args` are stated for `env.Rigid` heads, whose
+observations are the rigid ones only (the constructor clause adds no `rigid`/`rigidArg`
+observations, the delta and rule clauses need a rule headed by the constant).
