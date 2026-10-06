@@ -3465,6 +3465,11 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           parameterType := htailType
           parameterTranslation₀ := ⟨_, htail₀⟩
           fieldsRecent := HfieldsRecent
+          fieldCheck := by
+            obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, t₀', ht₀', hroot₀⟩ :=
+              hfieldCheck
+            exact ⟨M, hMwf, hchkM, hnM, hagM, hdropM, _, htail₀, t₀', ht₀',
+              hroot₀⟩
           fieldOpening := Hopening
           fieldParameterUp := by
             rw [Hopening.fvars_eq_bound

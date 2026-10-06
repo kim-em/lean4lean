@@ -4663,6 +4663,21 @@ structure RecInfoMinorSemanticSource
   parameterTranslation₀ : ∃ t, TrExprS rootWF.venv recLparams
     parameterSuffix.parameterDecls traversal.parameterTail t
   fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
+  /-- The fields were also opened in the checker context directly above the
+  parameter declarations, and the checker closure of the terminal agrees
+  with the parameter-scope translation of the tail. -/
+  fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF terminalWF.venv recLparams ∧
+    (0 < S.fields.size → terminalWF.chk = M) ∧
+    ∃ hn : S.fields.size ≤ M.length,
+      MLCtxTopAgree terminalWF.mlctx M S.fields.size ∧
+        (M.dropN S.fields.size hn).vlctx = parameterSuffix.parameterDecls ∧
+        ∃ T₀, TrExprS rootWF.venv recLparams parameterSuffix.parameterDecls
+          traversal.parameterTail T₀ ∧
+        ∃ t₀', TrExprS terminalWF.venv recLparams M.vlctx
+          traversal.terminal t₀' ∧
+          terminalWF.venv.IsDefEqU recLparams.length
+            parameterSuffix.parameterDecls.toCtx T₀
+            (M.mkForall' S.fields.size hn t₀')
   /-- The exact opening chosen by the successful first-pass constructor
   traversal.  Later rule construction reads this certificate instead of
   opening the constructor telescope a second time. -/
@@ -4735,6 +4750,7 @@ def RecInfoMinorSemanticSource.mono
   parameterType := HS.parameterType
   parameterTranslation₀ := HS.parameterTranslation₀
   fieldsRecent := HS.fieldsRecent
+  fieldCheck := HS.fieldCheck
   fieldOpening := HS.fieldOpening
   fieldParameterUp := HS.fieldParameterUp
   hypothesesRecent := HS.hypothesesRecent
