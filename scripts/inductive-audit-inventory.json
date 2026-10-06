@@ -54,7 +54,6 @@
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
     "Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalConsumedGeneration",
     "Lean4Lean.VerifyInductive.CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation",
-    "Lean4Lean.VerifyInductive.NestedValidatedRunResult.assemblyNative",
     "Lean4Lean.VEnv.NormalEq.headParallel",
     "Lean4Lean.VEnv.NormalEq.fullStep",
     "Lean4Lean.VEnv.FullStep.strip"

@@ -23,7 +23,10 @@ Projection type names are deliberately not covered. Restoration keeps
 typed only in the expanded environment (`FamilyTypesWF`), whose projection
 table may contain the schema's own never-installed auxiliary structure
 families. So avoidance in the `containsAnyConst` sense does not follow from
-well-formedness; `replaceConsts` ignores projection names, so
+the formation certificate `Certified`; registration certifies projection names
+separately (`CaseSchema.ProjNamesRegistered`,
+`VEnv.WF.eliminatorsProjNamesRegistered`). `replaceConsts` ignores projection
+names, so
 `EliminatorsAvoidConsts` is what constant replacement needs
 (`VExpr.replaceConsts_lambdaReplacement_of_mentions`).
 -/

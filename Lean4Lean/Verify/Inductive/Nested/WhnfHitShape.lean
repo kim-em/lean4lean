@@ -633,7 +633,7 @@ private theorem forall₂_drop_exists {R : α → β → Prop} :
 
 /-- In a duplicate-free list of family names, no family name is a constructor
 name. -/
-private theorem familyName_not_mem_ctorNames :
+theorem familyName_not_mem_ctorNames :
     ∀ {L : List VInductiveType}, (InductiveSignature.familyNames L).Nodup →
       ∀ t ∈ L, t.name ∉ L.flatMap (fun t => t.ctors.map (·.name))
   | [], _, _, h => by simp at h

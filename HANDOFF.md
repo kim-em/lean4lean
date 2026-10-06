@@ -741,6 +741,102 @@ inside this project's scope without solving open base metatheory:
    (`Nested/FinalModelDispatch.lean`) and must be threaded into
    `assemblyNative`'s signature at wiring time. Remaining for the nested
    junction: `HruleShape` and the `HauxRecNames` residue.
+   **Collision finding (bb40f64, Nested/AuxRecNames.lean):** in the
+   pathological case of a source family named `_nested.i.x` with a container
+   constructor `J.x.rec_k`, the auxiliary constructor name EQUALS the renamed
+   recursor name `Main.rec_k`, so freshness of all restorable names in the
+   final base environment is false; the restoration itself still agrees with
+   the executable (the aux constructor is restored before the renamed
+   recursor is interpreted). The commutation is generalized to freshness
+   outside an avoided set `X` plus input-side `HitTrailAvoids`/
+   `LamPrefixAvoids`; the assembly interface is being switched to these
+   modulo forms, with the residue `LoweredRulesAvoid E heads X` (lowered
+   rules' hit trailing arguments and parameter domains avoid the renamed
+   names) to be discharged from the checker's hit-shape invariant (aux
+   constructor names never occur in index expressions or parameter domains).
+   **Done (next commit after 24cf282):** `assemblyNative_of_run` (now in
+   Nested/RuleJunction.lean) takes `Hrules`/`Hprovenance` in the modulo
+   forms; `hprovenance_of (E) (wf) (Hsources) (hnested)` and
+   `hrules_of (E) (wf) (Hsources) (HruleShape)` discharge them;
+   `loweredRulesAvoid_renamed` closes the residue. **`HruleShape` is the only
+   remaining premise of the nested assembly** (agent running on
+   Nested/RuleShape.lean).
+   **`HruleShape` proved modulo `HrestoredWF` (53437e2, Nested/RuleShape.lean):**
+   the shape is rebuilt with the restored generated equations as its rules
+   (`NestedFinalAssemblyShape.withRules`); primary iota shapes and auxiliary
+   guardedness come from the validator by translation uniqueness. The last
+   nested premise is `HrestoredWF`: every restored generated equation is
+   `VDefEq.WF` in the shape's final base environment (route: transport the
+   generated equation's well-formedness from the lowered recursor environment
+   through a restoration substitution extended with the recursor renaming).
+   Agents: `hrestoredWF_of` and the `assemblyNative` wiring with `hnested`.
+   **Wiring done (a24fc27):** `assemblyNative` lives in
+   Nested/AssemblyNative.lean, takes `hnested`, and
+   `assemblyNative_of_restoredWF (E) (wf) (Hsources) (hnested) (HrestoredWF)`
+   is proved by composition; the final body will be
+   `assemblyNative_of_restoredWF E wf Hsources hnested (E.hrestoredWF_of wf Hsources)`
+   once `hrestoredWF_of` lands (agent running).
+   **`hrestoredWF_of` proved modulo `NestedRestoredEquationGaps` (cf712fb):**
+   Theory/Inductive/RestorationRenaming.lean extends restoration-preserves-
+   typing with the recursor and projection renaming (`VExpr.replaceRen`,
+   `RenamingReplacement`, `ProjectionTransport`); the nested instantiation
+   transports the lowered generated equations' well-formedness (in the
+   rule-free lowered recursor environment) to the final base environment.
+   Six gap fields remain, all believed true: projection names avoid the
+   restorable names in eliminator schemas, lowered constructor types,
+   generated recursor types and equations (agent: `ProjsOK` from the hit-shape
+   chain plus a projection-name analogue of `IsDefEq.noConsts`); typing of each
+   auxiliary constructor's restoration lambda from the container's formation;
+   and `ProjectionTransport` for the lowered projection entries (agent).
+   **Container fields (977b14f):** field 5 proved with no hypothesis (the
+   container's installed formation types `J.c levels args`); field 6 proved
+   for source structures whose lowered constructor type mentions no
+   restorable name, and reduced otherwise to `NestedProjectionTransportGap`:
+   `primaryFields` (field-type transport of nested source structures: the two
+   field types differ by beta of the restoration lambdas under substitution,
+   but `projDF` carries no context well-formedness) and `auxiliary`
+   (projection entries of auxiliary structure-like families versus their
+   containers' registered projections). Agent running on both.
+   **Projection-name fields (35998dc):** fields 2 to 4 proved (translated
+   terms project only out of registered structures; `ProjsOK` of the
+   generated recursor types at the full head set; every piece of a generated
+   equation occurs in a recursor type). Field 1 (eliminator schemas of
+   EARLIER blocks) is not derivable from `VEnv.WF`: a schema may contain
+   `.proj _nested.k …` from that block's own auxiliary structure families and
+   the current block may reuse the name. **Decision (2026-10-06): strengthen
+   the certificate** `CaseSchema.Certified` with "schemas project only out of
+   structures registered at registration time" (a new producer obligation,
+   provable from translation; no theorem is weakened), derive field 1 from it
+   and freshness. **Done (next commit after 7e5cdaa):** the fact lives in the
+   data `VEnv.WF'.inductEliminators` carries (`CaseSchema.ProjNamesRegistered
+   env key`, Theory/Inductive/CaseFormation.lean), since `Certified` knows only
+   the base environment; `WF.eliminatorsProjNamesRegistered` by induction on
+   `WF'`; `eliminatorProjNames_of` and `restoredEquationGaps_of'` (no `Helim`).
+   Note: no producer in the verified pipeline registers eliminator schemas
+   (`inductEliminators` has no caller), so the strengthening creates no new
+   proof obligation today; the two registration lemmas take it as a premise.
+   **Projection transport (28b72e3, Nested/ProjectionTransportGap.lean):**
+   `primaryFields` proved syntactically modulo beta conversion in arbitrary
+   contexts; the context-free `auxiliary` transport is unprovable in
+   arbitrary contexts (counterexample in the module docstring: `projDF`
+   carries no context well-formedness); the fix is the context-carrying
+   `RenamingReplacementOnCtx`/`ProjectionTransportOnCtx` provided there. Final
+   agent: switch `RestoredEquationWF` to the OnCtx transport, prove both
+   projection fields (auxiliary via the syntactic specialization of restored
+   auxiliary constructor types from the lowering trace), compose
+   `hrestoredWF_of` with no gaps, and replace the `assemblyNative` sorry.
+   **NESTED JUNCTION CLOSED (6f16a42).** `assemblyNative :=
+   assemblyNative_of_restoredWF E wf Hsources hnested (E.hrestoredWF_of wf
+   Hsources)`; the transport is the context-carrying
+   `RestorationRenamingOnCtx`; auxiliary projection transport via the
+   constructor shape up to level equivalence now recorded in the lowering
+   traces (`BuiltConstructorTranslation.directAuxiliary`,
+   `FinalLoweredGeneratedFamilyNativeSource.constructorShapes`,
+   `AuxiliarySpecializationEvidence.constructorShapes`). Full build (695
+   jobs), tests, fresh `Init.Prelude`/`Init.Core` replays and the audit
+   self-test pass; `grep sorry` under Verify and Inductive is empty; the
+   audit reports "10 distinct proof obligations remain" (the base ones).
+   `scripts/inductive-audit-inventory.json` no longer lists `assemblyNative`.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and

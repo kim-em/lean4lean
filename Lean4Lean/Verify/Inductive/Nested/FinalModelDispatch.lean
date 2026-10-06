@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterEvidence
 import Lean4Lean.Verify.Inductive.Nested.NoPrimitiveRunInputs
 import Lean4Lean.Verify.Inductive.Nested.AssemblyProviderEvidence
+import Lean4Lean.Verify.Inductive.Nested.AssemblyNative
 
 namespace Lean4Lean
 
@@ -135,7 +136,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := by
       simpa only [hsource] using V
-    rcases V'.assemblyNative wf Hsources with ⟨⟨C, hproduction⟩⟩
+    rcases V'.assemblyNative wf Hsources hnested with ⟨⟨C, hproduction⟩⟩
     have Hvalid : CheckingEnv.Valid
         (if isUnsafe then .unsafe else .safe) env
           (ves.venv (if isUnsafe then .unsafe else .safe)) :=
