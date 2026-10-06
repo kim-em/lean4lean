@@ -776,7 +776,9 @@ theorem
           (fun narrow full => H.outVEnv.IsDefEqU Us.length
             F.semantic.current_context.mlctx.vlctx.toCtx
             (narrow.lift' Hscope.shift) full)
-          narrowIndices evidence.indices := by
+          narrowIndices evidence.indices ∧
+        ChkEmbeds H.outVEnv Us.length
+          F.semantic.current_context.chk.vlctx scope := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
@@ -844,7 +846,7 @@ theorem
   have HindexEq := Hscope.fullTargetEqs H.outVEnvWF HnarrowIndices HindicesFinal
   exact ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
     hscopeExact, hdrop, hlocal, hcontext, Hreplay, hlength,
-    HnarrowIndices, HindexEq⟩
+    HnarrowIndices, HindexEq, hemb⟩
 
 /-- Apply a translated function to the free variables of a lambda prefix
 opened above its context.  The application is translated and typed by the
@@ -1005,7 +1007,7 @@ theorem
   rcases F.cachedCoreSemanticIndices B with
     ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
       hscopeFVars, hdropLocal, hlocal, hscopeContext, Hreplay,
-      hlength, Hindices, HindexEq⟩
+      hlength, Hindices, HindexEq, hemb⟩
   let sourceMajor := mkAppN A.rule.recursiveArgs[j]
     F.semantic.generated.localArgs
   have hmajorScope : sourceMajor.FVarsIn (· ∈ scope.fvars) := by
@@ -1077,20 +1079,253 @@ theorem
     have h := HexposedFinal.closed
     rw [F.semantic.current_context.mlctx.noBV] at h
     exact h
-  rcases Hscope.restrictEq H.outVEnvWF HmajorFinal hmajorClosed
-      hmajorScope with ⟨narrowMajor, Hmajor, HmajorEq⟩
-  rcases Hscope.restrictEq H.outVEnvWF HexposedFinal hexposedClosed
-      hexposedScope with ⟨narrowExposed, Hexposed, _HexposedEq⟩
-  have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
+  -- The major and its type, built from the checker contexts of the
+  -- producer rather than restricted from the runtime context.
+  obtain ⟨hnC, hagreeC, jC, hjC, ty₀, hdropC, hty₀, hty₀Ty, t₀,
+    ⟨t₁, Ht₁, ht₁₀⟩, Ht₀Ty, hcl⟩ := F.semantic.chkAgree
+  have hposFields : 0 < A.rule.allArgs.size := by
+    have hlen := A.semantics.selection.fields_length
+    have hne : A.semantics.fields ≠ [] := by
+      intro h
+      rw [h] at hlen
+      simp at hlen
+      omega
+    obtain ⟨cert, hcert⟩ := List.exists_mem_of_ne_nil _ hne
+    have := A.semantics.selection.positions_lt cert hcert
+    omega
+  have henvO := H.outVEnvWF
+  have hcurEnv : F.semantic.current_context.venv ≤ H.outVEnv := by
+    rw [hsemantic]
+    exact H.constructorVEnv_le
+  have horigEnv : F.originContext.venv ≤ H.outVEnv := by
+    rw [F.originRecent.venv_eq, A.semantics.context_venv, H.recursorEnv]
+    exact H.constructorVEnv_le
+  have hctxEnv : A.semantics.context.venv ≤ H.outVEnv := by
+    rw [A.semantics.context_venv, H.recursorEnv]
+    exact H.constructorVEnv_le
+  have hfieldEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← A.semantics.fieldsRecent.venv_eq]
+    exact hctxEnv
+  have hchkCWF : F.semantic.current_context.chk.WF H.outVEnv Us :=
+    F.semantic.current_context.check.wf.mono hcurEnv
+  have hMcWF : A.semantics.context.chk.WF H.outVEnv Us :=
+    A.semantics.context.check.wf.mono hctxEnv
+  have hchkEq : F.originContext.chk = A.semantics.context.chk := F.originCheck
+  have hjC' : jC ≤ A.semantics.context.chk.length := hchkEq ▸ hjC
+  have keyDrop : ∀ (m m' : TypeChecker.MLCtx), m = m' → ∀ hj hj',
+      m.dropN jC hj = m'.dropN jC hj' := by
+    intro m m' h hj hj'
+    subst h
+    rfl
+  have hbaseOrig := keyDrop _ _ hchkEq hjC hjC'
+  rw [hbaseOrig] at hdropC hty₀ hty₀Ty hcl
+  have halignFS : VLCtx.IsDefEq H.outVEnv Us.length B.fieldScope
+      A.semantics.context.chk.vlctx :=
+    (B.checkAlign hposFields).mono hfieldEnv
+  have hembMc : ChkEmbeds H.outVEnv Us.length
+      A.semantics.context.chk.vlctx B.fieldScope :=
+    ⟨A.semantics.context.chk.vlctx, .refl, .refl,
+      halignFS.symm henvO.ordered⟩
+  have hembBase : ChkEmbeds H.outVEnv Us.length
+      (A.semantics.context.chk.dropN jC hjC').vlctx B.fieldScope :=
+    ChkEmbeds.of_fvLift
+      (A.semantics.context.check.onlyLams.dropN_fvlift jC hjC').toFVLift'
+      hembMc
+  -- the exposed type in the checker context, and in the call scope
+  have Ht₁' := Ht₁.mono hcurEnv
+  have Ht₁Ty : H.outVEnv.IsType Us.length
+      F.semantic.current_context.chk.vlctx.toCtx t₁ :=
+    (Ht₀Ty.mono hcurEnv).defeqU_l henvO hchkCWF.tr.wf.toCtx
+      (ht₁₀.mono hcurEnv).symm
+  obtain ⟨narrowExposed, Hexposed⟩ := hemb.trExprS henvO Ht₁'
+  have HexposedTy : H.outVEnv.IsType Us.length scope.toCtx narrowExposed :=
+    hemb.isType henvO Ht₁' Hexposed Ht₁Ty
+  -- the closed argument telescope of the field type
+  have hxs : F.semantic.generated.localArgs.toList.reverse =
+      (F.semantic.current_context.chk.fvarRevList
+        F.semantic.generated.localArgs.size hnC).map Expr.fvar := by
+    rw [← hagreeC.fvarRevList_eq F.semantic.recent.size_le hnC]
+    exact F.semantic.recent.reverse_eq
+  have hexpClosed : Closed F.semantic.generated.exposedType :=
+    hexposedClosed
+  have hsrcChk := F.semantic.current_context.check.wf.mkForall_eq
+    F.semantic.generated.localArgs.size hnC hxs hexpClosed
+  have hlocalArr : F.semantic.generated.localArgs =
+      (((F.semantic.current_context.chk.fvarRevList
+        F.semantic.generated.localArgs.size hnC).reverse).map
+          Expr.fvar).toArray := by
+    apply Array.ext'
+    have h := congrArg List.reverse hxs
+    simpa [List.map_reverse] using h
+  have hmemChk : ∀ fv ∈ (F.semantic.current_context.chk.fvarRevList
+      F.semantic.generated.localArgs.size hnC).reverse,
+      ∃ d, F.semantic.generated.current.checkLCtx.find? fv = some d := by
+    intro fv hfv
+    rw [← F.semantic.current_context.check.lctx_eq]
+    exact F.semantic.current_context.check.wf.tr.find?_eq_some.2
+      ((TypeChecker.MLCtx.fvarRevList_prefix _).subset (List.mem_reverse.mp hfv))
+  have hsub := F.semantic.current_context.checkSub.mkForall_eq hmemChk
+    F.semantic.generated.exposedType
+  rw [← hlocalArr] at hsub
+  have hlctxChk : F.semantic.generated.current.checkLCtx =
+      F.semantic.current_context.chk.lctx :=
+    F.semantic.current_context.check.lctx_eq.symm
+  rw [hlctxChk, hsrcChk] at hsub
+  have HWbBoth := hchkCWF.mkForall_trS henvO Ht₁' Ht₁Ty
+    F.semantic.generated.localArgs.size hnC
+  rw [← hsub, hdropC] at HWbBoth
+  obtain ⟨u₀, hu₀⟩ := Ht₀Ty.mono hcurEnv
+  have ht₀₁ := (ht₁₀.mono hcurEnv).symm.of_l henvO hchkCWF.tr.wf.toCtx hu₀
+  obtain ⟨_, hcongr⟩ := hchkCWF.mkForall'_congr ht₀₁
+    F.semantic.generated.localArgs.size hnC
+  rw [hdropC] at hcongr
+  have hclW : H.outVEnv.IsDefEqU Us.length
+      (A.semantics.context.chk.dropN jC hjC').vlctx.toCtx ty₀
+      (F.semantic.current_context.chk.mkForall'
+        F.semantic.generated.localArgs.size hnC t₁) :=
+    (hcl.mono hcurEnv).trans henvO
+      ((hMcWF.dropN jC hjC').tr.wf.toCtx) ⟨_, hcongr⟩
+  -- the recursive field in the rule's checker context
+  rcases A.rule.recursive_args_bound.getElem_eq_fvar j hj with
+    ⟨hjFVars, hfieldSource⟩
+  let fvF := A.rule.recursive_args_bound.fvars[j]
+  have hfieldAll : fvF ∈ A.rule.all_args_bound.fvars :=
+    A.rule.recursive_args_bound.fvars_subset_of_sublist
+      A.rule.all_args_bound A.rule.recursive_args_sublist
+      (List.getElem_mem hjFVars)
+  have hfieldRecent : fvF ∈ A.semantics.fieldsRecent.fvars := by
+    rw [BoundFVarArray.fvars_eq
+      A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
+      A.rule.all_args_bound rfl]
+    exact hfieldAll
+  have hmemMc : fvF ∈ A.semantics.context.chk.vlctx.fvars := by
+    rw [← halignFS.fvars, B.scope_fvars]
+    exact List.mem_append_left _ (List.mem_reverse.mpr hfieldRecent)
+  obtain ⟨d, hd⟩ := hMcWF.tr.find?_eq_some.2 hmemMc
+  have hdToList := hd
+  rw [hMcWF.tr.1.find?_eq_find?_toList] at hdToList
+  have hdmem : d ∈ A.semantics.context.chk.lctx.toList :=
+    List.mem_of_find?_eq_some hdToList
+  have hdfv : d.fvarId = fvF := by
+    have h := List.find?_some hdToList
+    exact (beq_iff_eq.mp h).symm
+  obtain ⟨e, Aty, hfind, _, _, _, HAty⟩ := hMcWF.tr.find?_of_mem henvO hdmem
+  rw [hdfv] at hfind
+  have Hfv : TrExprS H.outVEnv Us A.semantics.context.chk.vlctx
+      (.fvar fvF) e := TrExprS.fvar hfind
+  have HfvTy : H.outVEnv.HasType Us.length
+      A.semantics.context.chk.vlctx.toCtx e Aty :=
+    hMcWF.tr.wf.find?_wf henvO.ordered hfind
+  obtain ⟨bF, HbF⟩ := hembMc.trExprS henvO Hfv
+  obtain ⟨Tf, HTf⟩ := hembMc.trExprS henvO HAty
+  have HbFTy := hembMc.hasType henvO Hfv HbF HAty HTf HfvTy
+  -- the field's declared type, read from both contexts
+  have hdtype : d.type =
+      (F.originRoot.lctx.get! (A.rule.recursiveArgs[j]).fvarId!).type := by
+    have hd' : A.rule.root.checkLCtx.find? fvF = some d := by
+      rw [← A.semantics.context.check.lctx_eq]
+      exact hd
+    obtain ⟨d', hd'main, hdeq⟩ := A.semantics.context.checkSub fvF d hd'
+    have hfvRoot : fvF ∈ A.rule.root.lctx.fvars := by
+      rw [← A.semantics.context.lctx_eq, A.semantics.context.mlctx_wf.tr.fvars_eq]
+      have := A.semantics.fieldsRecent.toBoundFVarArray.members fvF hfieldRecent
+      rw [← A.semantics.context.lctx_eq] at this
+      rw [A.semantics.context.mlctx_wf.tr.fvars_eq] at this
+      exact this
+    have horigin : F.originRoot.lctx.find? fvF = some d' :=
+      (F.originRecent.contextLE.declarations fvF hfvRoot).trans hd'main
+    have e1 : ∀ x : LocalDecl, (x.setIndex 0).type = x.type := by
+      intro x; cases x <;> rfl
+    have hget : F.originRoot.lctx.get! fvF = d' := by
+      simp only [LocalContext.get!, horigin]
+    have hfid : (A.rule.recursiveArgs[j]).fvarId! = fvF := by
+      rw [hfieldSource]; rfl
+    rw [hfid, hget, ← e1 d', hdeq, e1]
+  rw [hdtype] at HAty HTf
+  -- the field type is the closed telescope, in the field scope
+  have HWfs := Hreplay Hexposed HexposedTy
+  have hTfW := hembBase.isDefEqU henvO (hty₀.mono horigEnv) HWbBoth.1 HTf
+    HWfs.1 hclW
+  have HbFW := HbFTy.defeqU_r henvO
+    (halignFS.wf.toCtx) hTfW
+  -- apply it to the call-local arguments
+  have hscopeSplit : scope.take F.semantic.generated.localArgs.size ++
+      B.fieldScope = scope := by
+    rw [← hdropLocal]
+    exact List.take_append_drop _ _
+  have hpreCtx : (VLCtx.toCtx (scope.take
+      F.semantic.generated.localArgs.size)).reverse = localDomains := by
+    have hparts := congrArg VLCtx.toCtx hscopeSplit
+    rw [VLCtx.toCtx_append, hscopeContext] at hparts
+    have h := List.append_cancel_right hparts
+    rw [h, List.reverse_reverse]
+  have hlams : ∀ en ∈ scope.take F.semantic.generated.localArgs.size,
+      ∃ fv deps dom, en = (some (fv, deps), .vlam dom) := by
+    intro en hen
+    have hen' := List.mem_of_mem_take hen
+    have gen : ∀ {l₁ : List FVarId} {l₂ : VLCtx},
+        List.Forall₂ (fun fv entry => ∃ deps type,
+          entry = (some (fv, deps), .vlam type)) l₁ l₂ →
+        ∀ en ∈ l₂, ∃ fv deps dom, en = (some (fv, deps), .vlam dom) := by
+      intro l₁ l₂ h
+      induction h with
+      | nil => simp
+      | @cons a en' _ _ hhd _ ih =>
+        intro x hx
+        rcases List.mem_cons.mp hx with rfl | hx
+        · obtain ⟨deps, dom, rfl⟩ := hhd
+          exact ⟨a, deps, dom, rfl⟩
+        · exact ih x hx
+    exact gen Hscope.declarations en hen'
+  have Happ := TrExprS.mkAppList_fvarPrefix henvO HbF
+    (scope.take F.semantic.generated.localArgs.size) (rest := [])
+    (body := narrowExposed) (by rw [hscopeSplit]; exact Hscope.wf) hlams
+    (by simpa [hpreCtx] using HbFW)
+  rw [hscopeSplit] at Happ
+  have hlocalFVars : (VLCtx.fvars (scope.take
+      F.semantic.generated.localArgs.size)).reverse =
+      F.semantic.recent.fvars := by
+    rw [Hscope.fvars_take, hscopeFVars]
+    have hlen : F.semantic.recent.fvars.length =
+        F.semantic.generated.localArgs.size := by
+      rw [F.semantic.recent.toBoundFVarArray.length_fvars]
+    rw [List.append_assoc, List.take_left' (by simp [hlen]),
+      List.reverse_reverse]
+  rw [hlocalFVars] at Happ
+  have hsourceMajor : sourceMajor = Expr.mkAppList (.fvar fvF)
+      (F.semantic.recent.fvars.map Expr.fvar) := by
+    dsimp only [sourceMajor]
+    have h1 : mkAppN A.rule.recursiveArgs[j] F.semantic.generated.localArgs =
+        mkAppN (.fvar fvF) F.semantic.generated.localArgs :=
+      congrArg (fun x => mkAppN x F.semantic.generated.localArgs) hfieldSource
+    have hl : F.semantic.generated.localArgs.toList =
+        F.semantic.recent.fvars.map Expr.fvar := by
+      have key : ∀ (xs : Array Expr) (fvs : List FVarId),
+          xs = (fvs.map Expr.fvar).toArray → xs.toList = fvs.map Expr.fvar := by
+        intro xs fvs h; subst h; simp
+      exact key _ _ F.semantic.recent.expressions
+    rw [h1, Expr.mkAppN_eq_mkAppList, hl]
+  have hnScope : F.semantic.generated.localArgs.size ≤ scope.length := by
+    have h := congrArg List.length hscopeContext
+    rw [Hscope.toCtx_length] at h
+    simp [hlocal] at h
+    omega
+  have hmin : min F.semantic.generated.localArgs.size scope.length =
+      F.semantic.generated.localArgs.size := Nat.min_eq_left hnScope
+  let narrowMajor := VExpr.mkApps
+    (bF.liftN F.semantic.generated.localArgs.size)
+    (recursorCanonicalVars F.semantic.generated.localArgs.size)
+  have Hmajor : TrExprS H.outVEnv Us scope sourceMajor narrowMajor := by
+    rw [hsourceMajor]
+    simpa [List.length_take, hmin] using Happ.1
+  have Htyping : H.outVEnv.HasType Us.length scope.toCtx narrowMajor
+      narrowExposed := by
+    simpa [VExpr.wrapForalls, List.length_take, hmin] using Happ.2
+  have HmajorEq : H.outVEnv.IsDefEqU Us.length
       F.semantic.current_context.mlctx.vlctx.toCtx
-      F.semantic.appliedFieldTarget F.semantic.exposedTarget :=
-    F.semantic.applied_field_typing.defeqU_r
-      F.semantic.current_context.checking.tr.wf
-      F.semantic.current_context.mlctx_wf.tr.wf.toCtx
-      F.semantic.exposed_defeq.symm
-  rw [hsemantic] at HfullMajorType
-  have Htyping := Hscope.hasTypeOfFullPair H.outVEnvWF Hmajor Hexposed
-    HmajorFinal HexposedFinal (HfullMajorType.mono H.constructorVEnv_le)
+      F.semantic.appliedFieldTarget (narrowMajor.lift' Hscope.shift) :=
+    (Hscope.fullTargetEq henvO Hmajor
+      (HmajorFinal.trExpr henvO (Hscope.context.symm henvO.ordered).wf)).symm
   have hzero : VLevel.ofLevel Us (.zero : Level) =
       some (.zero : VLevel) := rfl
   have Hzero : TrExprS H.outVEnv Us scope
