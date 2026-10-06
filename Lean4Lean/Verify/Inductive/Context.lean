@@ -2505,6 +2505,79 @@ context agrees with the main context up to definitional equality of the
 recorded types (`ContextWF.Aligned`).  Checker-context facts are then obtained
 from main-context ones by context conversion. -/
 
+section ScopeAlignment
+
+variable {env : VEnv} {Us : List Name} {scope chk : VLCtx}
+
+/-- A checker-context result whose input is aligned with a scope transfers
+back to that scope, retargeted at the scope translation of the input. -/
+theorem _root_.Lean4Lean.TrExpr.alignBack (henv : env.WF)
+    (h : VLCtx.IsDefEq env Us.length scope chk)
+    (hin : TrExprS env Us scope input nt)
+    (hin₀ : TrExprS env Us chk input t₀)
+    (hres : TrExpr env Us chk result t₀) :
+    TrExpr env Us scope result nt := by
+  rcases hres with ⟨r₀, hr₀, hr₀eq⟩
+  have hsym := h.symm henv.ordered
+  obtain ⟨r, hr⟩ := hr₀.defeqDFC henv hsym
+  have hu := hr₀.uniq henv hsym hr
+  have hctx := h.defeqCtx.symm henv.ordered
+  have hu' := hu.defeqDFC henv.ordered hctx
+  have heq' := hr₀eq.defeqDFC henv.ordered hctx
+  have hinU := hin.uniq henv h hin₀
+  exact ⟨r, hr, (hu'.symm.trans henv h.wf.toCtx heq').trans henv h.wf.toCtx
+    hinU.symm⟩
+
+/-- A scope translation transfers to an aligned checker context. -/
+theorem _root_.Lean4Lean.TrExprS.alignTo (henv : env.WF)
+    (h : VLCtx.IsDefEq env Us.length scope chk)
+    (hs : TrExprS env Us scope e a) :
+    ∃ b, TrExprS env Us chk e b ∧ env.IsDefEqU Us.length scope.toCtx a b := by
+  obtain ⟨b, hb⟩ := hs.defeqDFC henv h
+  exact ⟨b, hb, hs.uniq henv h hb⟩
+
+/-- Type-hood transfers from a scope to an aligned checker context along a
+definitional equality. -/
+theorem _root_.Lean4Lean.VEnv.IsType.alignTo (henv : env.WF)
+    (h : VLCtx.IsDefEq env Us.length scope chk)
+    (hA : env.IsType Us.length scope.toCtx a)
+    (hu : env.IsDefEqU Us.length scope.toCtx a b) :
+    env.IsType Us.length chk.toCtx b :=
+  (hA.defeqU_l henv h.wf.toCtx hu).defeqDFC henv.ordered h.defeqCtx
+
+/-- A forall's domain and body, translated in a scope, transfer to an aligned
+checker context. -/
+theorem _root_.Lean4Lean.VLCtx.IsDefEq.forallE_align (henv : env.WF)
+    (h : VLCtx.IsDefEq env Us.length scope chk)
+    (hdom : TrExprS env Us scope dom d)
+    (hdomT : env.IsType Us.length scope.toCtx d)
+    (hbody : TrExprS env Us ((none, .vlam d) :: scope) body b) :
+    ∃ d₀ b₀, TrExprS env Us chk dom d₀ ∧
+      env.IsType Us.length chk.toCtx d₀ ∧
+      env.IsDefEqU Us.length scope.toCtx d d₀ ∧
+      TrExprS env Us ((none, .vlam d₀) :: chk) body b₀ ∧
+      env.IsDefEqU Us.length (d :: scope.toCtx) b b₀ := by
+  obtain ⟨d₀, hd₀, hu⟩ := hdom.alignTo henv h
+  have hd₀T := hdomT.alignTo henv h hu
+  obtain ⟨v, hv⟩ := hdomT
+  have hctx : VLCtx.IsDefEq env Us.length ((none, .vlam d) :: scope)
+      ((none, .vlam d₀) :: chk) :=
+    .cons h nofun (.vlam (hu.of_l henv h.wf.toCtx hv))
+  obtain ⟨b₀, hb₀⟩ := hbody.defeqDFC henv hctx
+  exact ⟨d₀, b₀, hd₀, hd₀T, hu, hb₀, hbody.uniq henv hctx hb₀⟩
+
+/-- Extend an alignment by a free-variable binder whose two domains are
+definitionally equal. -/
+theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
+    (h : VLCtx.IsDefEq env Us.length scope chk)
+    (hfresh : fv ∉ scope.fvars) (hdeps : deps ⊆ scope.fvars)
+    (hA : env.IsDefEq Us.length scope.toCtx A A₀ (.sort u)) :
+    VLCtx.IsDefEq env Us.length ((some (fv, deps), .vlam A) :: scope)
+      ((some (fv, deps), .vlam A₀) :: chk) :=
+  .cons h (by rintro _ _ ⟨⟩; exact ⟨hfresh, hdeps⟩) (.vlam hA)
+
+end ScopeAlignment
+
 /-- The checker context agrees with the main context, up to definitional
 equality of the recorded binder types. -/
 def ContextWF.Aligned (H : ContextWF c) : Prop :=
@@ -2983,6 +3056,20 @@ theorem ensureTypeInContext.WF (Hc : ContextWF c)
   (ensureTypeInContext.narrowWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
     ⟨e', he, u, u', hs, hu,
       Hc.check.embed.hasType Hc.checking.tr.wf h1 he (.sort hu) (.sort hu) hh⟩
+
+/-- Both the checker-context sort of a type and its main-context transfer. -/
+theorem ensureTypeInContext.dualWF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e')
+    (hn : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e₀) :
+    ((monadLift (TypeChecker.ensureType e) : AddInductive.M Expr) c).WF fun sort =>
+      ∃ u u', sort = .sort u ∧ VLevel.ofLevel c.lparams u = some u' ∧
+        Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx e' (.sort u') ∧
+        ∃ e₁, TrExprS Hc.venv c.lparams Hc.chk.vlctx e e₁ ∧
+          Hc.venv.HasType c.lparams.length Hc.chk.vlctx.toCtx e₁ (.sort u') :=
+  (ensureTypeInContext.narrowWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
+    ⟨u, u', hs, hu,
+      Hc.check.embed.hasType Hc.checking.tr.wf h1 he (.sort hu) (.sort hu) hh,
+      e₁, h1, hh⟩
 
 theorem isDefEqInContext.narrowWF (Hc : ContextWF c)
     (he₁ : TrExprS Hc.venv c.lparams Hc.chk.vlctx e₁ e₁')
