@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.HTS
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RuleSound
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
 /-! # Soundness of the observation model for rule-free environments (milestone M2)
