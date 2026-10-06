@@ -2665,6 +2665,26 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
 
 end ScopeAlignment
 
+/-- Two executable contexts agree on their `n` most recent declarations: the
+same named lambdas with the same source domains, possibly translated
+differently.  This relates a main context to the checker context of the same
+run. -/
+inductive MLCtxTopAgree : TypeChecker.MLCtx → TypeChecker.MLCtx → Nat → Prop
+  | zero (a b : TypeChecker.MLCtx) : MLCtxTopAgree a b 0
+  | vlam {a b : TypeChecker.MLCtx} {n : Nat} (h : MLCtxTopAgree a b n)
+      (fv name ty t₁ t₂ bi) :
+      MLCtxTopAgree (.vlam fv name ty t₁ bi a) (.vlam fv name ty t₂ bi b) (n + 1)
+
+theorem MLCtxTopAgree.stepDrop {a b : TypeChecker.MLCtx} {n : Nat} {V : VLCtx}
+    (fv name ty t₁ t₂ bi)
+    (h : ∃ hn : n ≤ b.length, MLCtxTopAgree a b n ∧ (b.dropN n hn).vlctx = V) :
+    ∃ hn : n + 1 ≤ (TypeChecker.MLCtx.vlam fv name ty t₂ bi b).length,
+      MLCtxTopAgree (.vlam fv name ty t₁ bi a) (.vlam fv name ty t₂ bi b) (n + 1) ∧
+        ((TypeChecker.MLCtx.vlam fv name ty t₂ bi b).dropN (n + 1) hn).vlctx = V := by
+  obtain ⟨hn, hag, hd⟩ := h
+  exact ⟨by simpa using hn, hag.vlam fv name ty t₁ t₂ bi, by simpa using hd⟩
+
+
 /-- Opening a binder in both contexts extends a scope aligned with the
 checker context by the scope translation of the binder's domain. -/
 theorem ContextWF.alignedBinder (Hc : ContextWF c)

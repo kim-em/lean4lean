@@ -259,6 +259,113 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
       rw [htailFront]
       simp [List.append_assoc]
 
+/-- `extendNarrowRuntimeScope` when the recent prefix was also opened in a
+checker context aligned with the base scope.  Each retained domain is the
+checker translation transported along the alignment, so no runtime
+translation is restricted, and the resulting scope stays aligned with the
+checker context. -/
+theorem MLCtxLamPrefix.extendNarrowRuntimeScopeAligned
+    (H : MLCtxLamPrefix runtime n domains)
+    (henv : env.WF)
+    (Hwf : runtime.WF env Us)
+    (Hbase : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+      baseScope (runtime.dropN n H.le).vlctx)
+    (hup : IsFVarUpSet
+      (fun fv => fv ∈ runtime.fvarRevList n H.le ++ baseScope.fvars)
+      runtime.vlctx)
+    {chk : TypeChecker.MLCtx} (hchkWF : chk.WF env Us)
+    (hn : n ≤ chk.length) (hagree : MLCtxTopAgree runtime chk n)
+    (hbaseAlign : VLCtx.IsDefEq env Us.length baseScope (chk.dropN n hn).vlctx) :
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
+          scope runtime.vlctx,
+        scope.fvars = runtime.fvarRevList n H.le ++ baseScope.fvars ∧
+        scope.drop Hscope.frontSourceDomains.length =
+          baseScope.drop Hbase.frontSourceDomains.length ∧
+        (∃ newDomains,
+          newDomains.length = n ∧
+          Hscope.frontSourceDomains =
+            Hbase.frontSourceDomains ++ newDomains) ∧
+        VLCtx.IsDefEq env Us.length scope chk.vlctx := by
+  induction H generalizing chk with
+  | nil runtime =>
+    exact ⟨baseScope, Hbase,
+      by simp [TypeChecker.MLCtx.fvarRevList], rfl, ⟨[], rfl, by simp⟩,
+      by simpa using hbaseAlign⟩
+  | @cons tail n domains fv name type type' bi Hprefix ih =>
+    cases hagree with
+    | @vlam _ chkTail _ hagreeTail _ _ _ _ t₂ _ =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    rcases hchkWF with ⟨hchkTailWF, hfreshC, Htype₀, Htype₀Type⟩
+    have hcurrentFresh : fv ∉ tail.vlctx.fvars :=
+      HtailWF.tr.find?_eq_none.1 hfresh
+    have htailUp : IsFVarUpSet
+        (fun fv' =>
+          fv' ∈ tail.fvarRevList n Hprefix.le ++ baseScope.fvars)
+        tail.vlctx := by
+      apply (IsFVarUpSet.congr HtailWF.tr.wf.fvwf ?_).mp hup.1
+      intro fv' hfv'
+      constructor
+      · intro h
+        rcases List.mem_cons.mp h with hcurrent | h
+        · exact False.elim (hcurrentFresh (hcurrent ▸ hfv'))
+        · exact h
+      · exact List.mem_cons_of_mem _
+    have hnTail : n ≤ chkTail.length := by simpa using hn
+    rcases ih HtailWF Hbase htailUp hchkTailWF hnTail hagreeTail
+        (by simpa using hbaseAlign) with
+      ⟨tailScope, HtailScope, htailScopeFVars, htailBase,
+        ⟨tailDomains, htailDomains, htailFront⟩, halignTail⟩
+    have hdepsFull : ∀ dep ∈ type.fvarsList,
+        dep ∈ fv :: tail.fvarRevList n Hprefix.le ++ baseScope.fvars := by
+      exact hup.2 (by simp)
+    have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+      intro dep hdep
+      rw [htailScopeFVars]
+      have hselected := hdepsFull dep hdep
+      rcases List.mem_cons.mp hselected with hcurrent | hselected
+      · exact False.elim (hcurrentFresh (hcurrent ▸ Htype.fvarsList hdep))
+      · exact hselected
+    have halignTailSymm := halignTail.symm henv.ordered
+    obtain ⟨narrowType, HnarrowType⟩ := Htype₀.defeqDFC henv halignTailSymm
+    have hNU := Htype₀.uniq henv halignTailSymm HnarrowType
+    have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
+      (Htype₀Type.defeqU_l henv hchkTailWF.tr.wf.toCtx hNU).defeqDFC
+        henv.ordered halignTailSymm.defeqCtx
+    have Hweak : TrExprS env Us HtailScope.expanded type
+        (narrowType.lift' HtailScope.shift) := by
+      simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+        HtailScope.context.wf
+    have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+    have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+        type' :=
+      HtypeType.defeqDFC henv.ordered
+        (HtailScope.context.symm henv.ordered).defeqCtx
+    rcases HtargetType with ⟨u, HtargetType⟩
+    have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+        (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+      HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+    let Hnext := HtailScope.withIndex
+      HruntimeWF
+      hdeps name bi type HnarrowType Hdomain HnarrowIsType
+    have hfreshScope : fv ∉ tailScope.fvars := by
+      rw [halignTail.fvars]
+      exact hchkTailWF.tr.find?_eq_none.1 hfreshC
+    have hNU' := hNU.symm.defeqDFC henv.ordered halignTailSymm.defeqCtx
+    obtain ⟨v, hv⟩ := HnarrowIsType
+    refine ⟨_, Hnext, ?_, ?_, ⟨tailDomains ++ [narrowType], ?_, ?_⟩, ?_⟩
+    · simp [Hnext, htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
+    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+      simpa only [List.length_append, List.length_singleton,
+        List.drop_succ_cons] using htailBase
+    · simp [htailDomains]
+    · dsimp [Hnext, checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex]
+      rw [htailFront]
+      simp [List.append_assoc]
+    · exact halignTail.consAligned hfreshScope hdeps
+        (hNU'.of_l henv halignTail.wf.toCtx hv)
+
 /-- Replay an exact recent all-lambda prefix above a dependency-selected,
 possibly non-contiguous free-variable scope.  Unlike
 `extendNarrowRuntimeScope`, the base has no distinguished contiguous front;

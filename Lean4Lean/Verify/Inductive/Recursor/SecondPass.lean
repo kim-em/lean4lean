@@ -332,6 +332,10 @@ structure RecInfoRuleFieldSemanticSource
     traversal.terminal S.fields
   fieldParameterUp : IsFVarUpSet (fun fv => fv ∈ fieldsRecent.fvars ∨
     fv ∈ ExprArrayFVarIds stats.params) terminalWF.mlctx.vlctx
+  fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF terminalWF.venv recLparams ∧
+    ∃ hn : S.fields.size ≤ M.length,
+      MLCtxTopAgree terminalWF.mlctx M S.fields.size ∧
+        (M.dropN S.fields.size hn).vlctx = parameterSuffix.parameterDecls
   terminalTarget : VExpr
   terminalTranslation : TrExprS terminalWF.venv recLparams
     terminalWF.mlctx.vlctx traversal.terminal terminalTarget
@@ -2924,7 +2928,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     recursiveFields fields positions args HterminalNonforall Hterminal
     HterminalType Hselections Hdecisions Hrecursive HfieldsRecent Hopening
     HfieldTargetDefEq _HterminalScope _HfieldParameterUp
-    HintroApplied HintroAppliedType hchkFields
+    HintroApplied HintroAppliedType hchkFields hfieldCheck
   let HextArgs := HfieldsRecent.contextExtension
   let HstatsArgs := Hstats.weakenRecent HfieldsRecent
   have hctxArgs : VLCtx.NoIndConsts (decl.types.map (·.name))
@@ -3523,6 +3527,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             rw [Hopening.fvars_eq_bound
               HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
             exact _HfieldParameterUp
+          fieldCheck := hfieldCheck
           terminalTarget := terminalTarget
           terminalTranslation := Hterminal
           terminalType := HterminalType

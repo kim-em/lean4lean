@@ -524,6 +524,10 @@ structure RetainedGeneratedRuleSemantics
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨ fv ∈ ExprArrayFVarIds stats.params)
       context.mlctx.vlctx
+  fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF context.venv recLparams ∧
+    ∃ hn : allArgs.size ≤ M.length,
+      MLCtxTopAgree context.mlctx M allArgs.size ∧
+        (M.dropN allArgs.size hn).vlctx = parameterSuffix.parameterDecls
   context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
@@ -621,6 +625,7 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
     parameterType := C.parameterType
     fieldOpening := C.fieldOpening
     fieldParameterUp := C.fieldParameterUp
+    fieldCheck := C.fieldCheck
     context_venv := C.context_venv
     validStats := C.validStats
     ownerIdx := C.ownerIdx
@@ -925,6 +930,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     parameterType := F.parameterType
     fieldOpening := F.fieldOpening
     fieldParameterUp := F.fieldParameterUp
+    fieldCheck := F.fieldCheck
     context_venv := F.terminalExtension.venv_eq.symm
     validStats := HvalidStats
     ownerIdx := ownerIdx

@@ -168,11 +168,18 @@ theorem
     intro fv _
     rw [hfieldRev, A.semantics.parameterSuffix.parameterDecls_fvars]
     simp [parameterDecls]
-  rcases HfieldPrefix.extendNarrowRuntimeScope
+  obtain ⟨M, hMwf, hnM, hagree, hdrop⟩ := A.semantics.fieldCheck
+  have hMwf' : M.WF A.semantics.fieldRootContext.venv Us := by
+    simpa only [Us, A.semantics.fieldsRecent.venv_eq] using hMwf
+  have hbaseAlign : VLCtx.IsDefEq A.semantics.fieldRootContext.venv Us.length
+      parameterDecls (M.dropN A.rule.allArgs.size hnM).vlctx := by
+    rw [hdrop]
+    exact .refl A.semantics.fieldRootContext.checking.tr.wf HfieldBase.wf
+  rcases HfieldPrefix.extendNarrowRuntimeScopeAligned
       A.semantics.fieldRootContext.checking.tr.wf HfieldWF HfieldBase
-        HfieldUp with
+        HfieldUp hMwf' hnM hagree hbaseAlign with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
-      fieldDomains, hfieldDomains, hfieldFront⟩
+      ⟨fieldDomains, hfieldDomains, hfieldFront⟩, _halign⟩
   have hbase : fieldScope.drop HfieldScope.frontSourceDomains.length =
       parameterDecls := by
     simpa [HfieldBase, Hparameter,
