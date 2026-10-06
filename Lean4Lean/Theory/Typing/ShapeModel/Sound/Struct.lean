@@ -256,8 +256,8 @@ theorem StrongSoundCore.proj_inv (H : StrongSoundCore env Γ (.proj s i e) T) :
   cases H with | proj h1 h2 h3 h4 => exact ⟨_, _, _, _, _, h1, h2, h3, h4⟩
 
 theorem List.getElem_append_range_proj {params : List VExpr} {j : Nat}
-    (hp : params.length = np) (h : j < nf)
-    (h' : np + j < (params ++ (List.range nf).map fun index => VExpr.proj s index e).length) :
+    (hp : params.length = np) (_h : j < nf)
+    (_h' : np + j < (params ++ (List.range nf).map fun index => VExpr.proj s index e).length) :
     (params ++ (List.range nf).map fun index => VExpr.proj s index e)[np + j] = .proj s j e := by
   subst hp; rw [List.getElem_append_right (by omega)]; simp
 
@@ -305,7 +305,7 @@ theorem Struct.eta (hcl : ConstClosed env) (hF : SemSig.StructFacts env s info)
     obtain ⟨-, hreal⟩ := Ctor.realize hcl hF W hl (by simp [hparams]) hxs
     obtain ⟨n, fs, hint', hfs⟩ := hreal hfp
     have hd : xs.drop info.nparams = fs₀.map (·.T) := by
-      simp [xs, List.drop_append_of_le_length]
+      simp [xs]
     rw [hd] at hfs
     refine hint'.mono (le1.trans (hle.trans ?_))
     rw [WShape.ctor_eq_ctor']
