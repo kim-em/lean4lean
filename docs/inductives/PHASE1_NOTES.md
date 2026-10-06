@@ -97,6 +97,56 @@ rule field, `some j` = the argument at position `j` before the major), and is bo
 A binder that is not a rule field is read from its first literal occurrence among the arguments,
 as before. `SemSig.Coherent` and the statements of `Sound.lean` are unchanged.
 
+D7 (mode C tests the head's rules, not the family's constructors). The `ruleC` clause of `Const`
+(`Interp.lean`) used to require `S.famCtors ci.family = [mj.ctor]`: the major's family has the
+single constructor `mj.ctor`. An eliminator registration may add constructors to a native
+singleton family, so the family's constructor list is not the right test. What
+`Const.compat_join` needs in the `ruleC`/`ruleC` case is that the head has no rule for another
+constructor, so the premise is now
+`∀ r', S.rules r' → r'.head = h → r'.major.map (·.ctor) = some mj.ctor` (every rule of this head
+has this major constructor). The `ruleC`/`ruleC` case of `compat_join` applies the premise of
+one side to the rule of the other, and `major_ctor_eq` identifies the two rules. No other
+proof reads the premise.
+
+D8 (the structure's type is a telescope only semantically). `SemSig.StructFacts.famType` said
+that the declared type of a structure `s` is syntactically a telescope over the parameters and
+indices ending in `Sort info.resultLevel`. Real environments only give this up to `IsDefEq`
+(`VInductDecl.TypeShape`: the declared type is definitionally a telescope; e.g.
+`def T : Type 1 := Type` and then a structure `S : T`). It is replaced by the semantic field
+`famTypeSem : ∃ ci, ∃ Ds : List VExpr, env.constants s = some ci ∧ ci.uvars = info.uvars ∧
+Ds.length = info.nparams + info.nindices ∧ ∀ ls, ls.length = info.uvars → ∀ m,
+Interp env .nil m (ci.type.instL ls) ↔ Interp env .nil m ((Ds.foldr .forallE (.sort info.resultLevel)).instL ls)`,
+to be proved from the derivation by stratified soundness. The quantifier over `ls` carries the
+length hypothesis (all `Ctor.realize` has; a derivation instantiated at levels of the right
+length, all well formed in a large enough universe context, gives it). `Ctor.realize` moves
+the approximation of the structure's type to the base valuation (constant types are closed),
+across `famTypeSem`, reads the telescope there, and moves back. `StructFacts` moved to
+`Sound/Basic.lean` (see D9). The other fields of `StructFacts` and `EnvFacts` were checked for
+the same problem: `ctorType` (the constructor type is syntactically a telescope ending in the
+structure applied to the parameter variables) holds syntactically
+(`VInductDecl.RawCtorShape`, part of `SourceParameterWF`, and `info.ctorType` is the source
+constructor's type); `ctorConst`, `structCtor`, `ctor`, `famCtors`, `isStruct`, `famNotCtor`,
+`famNoRule`, `famLevel` are about the signature or the constant table, not about types;
+`constClosed` is syntactic and true; `elimType` relates the signature to the eliminator
+schema. `SemSig.HeadFacts` (`Head.lean`) already uses `IsDefEq` forms. Open point, not a
+typing problem: `StructFacts.famCtors` (`S.famCtors s = [info.ctorName]`, used by `Ctor.realize`
+for the rigid clause and by `Struct.typedCtor`) is false if an eliminator registration can add
+constructors to the signature's constructor list of a structure, for the reason of D7.
+
+D9 (soundness hypotheses restricted to the derivation environment). For soundness of a
+derivation in an environment `E ≤ env` along the `VEnv.WF'` chain, the facts about later
+declarations must not be needed. `StrongSoundEq.of_isDefEqStrong` now takes
+`SemSig.EnvFactsIn E env` (constant types of `env` closed; eliminator types for
+`E.eliminators`; structure facts for `E.projections`), `ElimValidIn E env` (validity of the
+eliminator rules of `E.eliminators`) and `ExtraValid` for `E.defeqs` (as before).
+`ConstClosed env` stays global. To make the projection case independent of `env.projections`,
+the `proj` case of `StrongSoundCore` records `SemSig.StructFacts env s info` instead of
+`env.projections s info` (used by `Struct.iota`, which now takes `ConstClosed env` and the
+structure facts). `SemSig.EnvFacts env := SemSig.EnvFactsIn env env` and
+`ElimValid env := ElimValidIn env env` are the old global forms, with `.mono` along `E ≤ E'`;
+`StrongSoundEq.of_isDefEqStrong_global` is the old statement. `sound_nil` and `Head.lean`
+take `SemSig.EnvFactsIn env env` and `ElimValidIn env env`.
+
 ## 2. The domain (ShapeModel/Domain.lean, ShapeModel/ShapeTyping.lean)
 
 Carneiro's depth-indexed finite shapes, with:
@@ -149,7 +199,8 @@ require the produced table to be typed at an approximation of the head's type
     `ctor' c fs`; this includes the bottom major of a structure (`fs` all bottom), which is
     what `structEta` forces; the rule's fields are aligned with `fs` at the end, and those
     not stored are read through `Rule.fieldIndex` (D6);
-  * mode C (major's family a proposition with one constructor): the major is ignored (proof
+  * mode C (major's family a proposition, every rule of the head for this major constructor,
+    D7): the major is ignored (proof
     irrelevance makes it invisible); each field is read from the index argument given by
     `Rule.fieldIndex`, and is bottom if there is none. This is read-through
     (PHASE1_SPIKE.md section 3.1); the recursor's typing filter keeps it typed.
@@ -169,3 +220,10 @@ validity and soundness are proved together by induction along the `VEnv.WF'` cha
 ## 5. Status
 
 (updated as the work proceeds)
+
+* Head classification and separation (`ShapeModel/Head.lean`): the shape model at the base
+  valuation is a `HeadModel` (`headModel_of_shapeModel`, interface moved from the spike to
+  `Theory/Typing/HeadSeparationModel.lean`), giving `headSeparation_of_shapeModel` from
+  `SemSig.Coherent`, `SemSig.EnvFactsIn env env`, `SemSig.HeadFacts`, `ExtraValid`,
+  `ElimValidIn env env`. The
+  `sorry` of `VEnv.WF.headSeparation` remains until the signature of a real environment is built.
