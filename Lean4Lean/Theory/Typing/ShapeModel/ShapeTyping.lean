@@ -16,8 +16,8 @@ relation `Shape.hasType` is structurally recursive on the depth; its clauses are
 * `rigid c ls as cts : sort r` iff `(r.IsZero → famProp c ls)` and every telescope of `cts`
   is a type (`CtsTypes cts`);
 * `ctor c fs : rigid I ls as cts` iff `CtsTypes cts`, `famProp I ls = false`,
-  `ctorTy? c cts = some T` (the telescope of the *first* constructor named `c`), and
-  `Fits fs T`.
+  `ctorTy? c cts = some T` (the telescope of the *first* constructor named `c`),
+  `Fits fs T`, and `fs.length = nfields c` (the declared number of fields of `c`).
 
 `Fits fs T` (`hasType.fits`) types the fields along the Pi telescope `T`, at the depth of the
 fields: `Fits [] T` holds, and `Fits (f :: fs) T` holds iff `T = forallE a b`, `f` is typed at
@@ -28,6 +28,14 @@ plift/truncation formulation of `PHASE1_NOTES.md` without the explicit truncatio
 former that is a proposition at its levels are only `bot` (`WShape.HasType.rigid_prop`).
 
 Deviations from the specification, with rationale:
+
+* The `ctor` clause requires the exact number of fields (`ShapeParams.nfields`, added in
+  milestone M3). `Fits fs T` alone accepts field lists shorter than the constructor's
+  telescope (the telescope may be truncated, and `Fits [] T` always holds), so a variable of a
+  structure type could be valued at a constructor shape with too few fields; such a shape
+  approximates the variable `e` but not its structure eta expansion
+  `mk params (proj s 0 e) ... (proj s (n-1) e)`, whose approximations are constructor shapes
+  with exactly `n` fields, and the `structEta` rule would be unsound in the model.
 
 * The `ctor` clause also requires `CtsTypes cts`, i.e. that the rigid former is a type.
   Without it `HasType.isType` (`m : a → a : type`) is false, and `Fits` would not be
@@ -88,7 +96,7 @@ def Shape.hasType : ∀ {n}, Shape n → Shape n → Bool
   | _+1, .ctor c fs, .rigid I ls _ t =>
     (t.all fun p => hasType p.2 .type) && !ShapeParams.famProp I ls &&
       match ctorTy? c t with
-      | some T => hasType.fits hasType fs T
+      | some T => hasType.fits hasType fs T && fs.length == ShapeParams.nfields c
       | none => false
   | _+1, .rigid c ls _ t, .sort r =>
     (!decide r.IsZero || ShapeParams.famProp c ls) && t.all fun p => hasType p.2 .type
@@ -180,7 +188,8 @@ inductive Shape.HasTypeU : ∀ {n}, Shape n → Shape n → Prop
   | forallE : HasTypePi (n := n) b a r → HasTypeU (n := n+1) (.forallE a b) (.sort r)
   | lam : HasTypeLam (n := n) f a b → HasTypeU (n := n+1) (.lam f) (.forallE a b)
   | ctor {l : List (Shape n)} {t : List (Name × Shape n)} : CtsTypes t → ShapeParams.famProp I ls = false → ctorTy? c t = some T →
-    Fits (n := n) fs T → HasTypeU (n := n+1) (.ctor c fs) (.rigid I ls l t)
+    Fits (n := n) fs T → fs.length = ShapeParams.nfields c →
+    HasTypeU (n := n+1) (.ctor c fs) (.rigid I ls l t)
   | rigid {l : List (Shape n)} {t : List (Name × Shape n)} : (r.IsZero → ShapeParams.famProp c ls = true) → CtsTypes t →
     HasTypeU (n := n+1) (.rigid c ls l t) (.sort r)
 
@@ -207,7 +216,8 @@ theorem Shape.HasType.unfold_iff {m a : Shape n} : HasType m a ↔ HasTypeU m a 
       · exact .lam H
       · obtain ⟨⟨h1, h2⟩, h3⟩ := H
         split at h3
-        · exact .ctor (fun p hp => h1 _ _ hp) h2 ‹_› h3
+        · simp only [Bool.and_eq_true, beq_iff_eq] at h3
+          exact .ctor (fun p hp => h1 _ _ hp) h2 ‹_› h3.1 h3.2
         · cases h3
       · exact .rigid (fun hz => H.1.resolve_left (fun h => h hz)) (fun p hp => H.2 _ _ hp)
     · intro H
@@ -217,9 +227,9 @@ theorem Shape.HasType.unfold_iff {m a : Shape n} : HasType m a ↔ HasTypeU m a 
       | sort => rename_i h; simpa [HasType, hasType] using h
       | forallE h => simpa [HasType, hasType, hasType.core.iff, HasTypePi] using h
       | lam h => simpa [HasType, hasType, hasType.core.iff, HasTypeLam, HasTypePi] using h
-      | ctor h1 h2 h3 h4 =>
-        simp only [HasType, hasType, h2, h3, Bool.and_eq_true, List.all_eq_true]
-        exact ⟨⟨fun p hp => h1 p hp, rfl⟩, h4⟩
+      | ctor h1 h2 h3 h4 h5 =>
+        simp only [HasType, hasType, h2, h3, Bool.and_eq_true, List.all_eq_true, beq_iff_eq]
+        exact ⟨⟨fun p hp => h1 p hp, rfl⟩, h4, h5⟩
       | rigid h1 h2 =>
         simp only [HasType, hasType, Bool.and_eq_true, List.all_eq_true, Bool.or_eq_true,
           Bool.not_eq_true', decide_eq_false_iff_not]
@@ -280,7 +290,7 @@ protected theorem Shape.HasType.lift (le : n ≤ n') :
     · rw [core fun _ => (ShapeFun.lift_app le).symm]
     · rw [ctorTy?_ctsMap]; cases ctorTy? _ _ with
       | none => rfl
-      | some T => simp only [Option.map_some]; rw [fits_lift le ih]
+      | some T => simp only [Option.map_some, List.length_map]; rw [fits_lift le ih]
 
 protected theorem Shape.Fits.lift (le : n ≤ n') {fs : List (Shape n)} {T : Shape n} :
     Fits (fs.map (lift n')) (T.lift n') ↔ Fits fs T := by
@@ -342,8 +352,9 @@ protected theorem Shape.HasType.lam (H : HasTypeLam (n := n) f a b) :
     HasType (n := n+1) (.lam f) (.forallE a b) := unfold_iff.2 (.lam H)
 protected theorem Shape.HasType.ctor {l : List (Shape n)} {t : List (Name × Shape n)}
     (h1 : CtsTypes t) (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T)
-    (h4 : Fits fs T) : HasType (n := n+1) (.ctor c fs) (.rigid I ls l t) :=
-  unfold_iff.2 (.ctor h1 h2 h3 h4)
+    (h4 : Fits fs T) (h5 : fs.length = ShapeParams.nfields c) :
+    HasType (n := n+1) (.ctor c fs) (.rigid I ls l t) :=
+  unfold_iff.2 (.ctor h1 h2 h3 h4 h5)
 protected theorem Shape.HasType.rigid {l : List (Shape n)} {t : List (Name × Shape n)}
     (h1 : r.IsZero → ShapeParams.famProp c ls = true) (h2 : CtsTypes t) :
     HasType (n := n+1) (.rigid c ls l t) (.sort r) := unfold_iff.2 (.rigid h1 h2)
@@ -535,11 +546,11 @@ theorem WShape.HasType.mono_r {m a a' : WShape n} (ha : a ≤ a')
   cases H.unfold with
   | bot H => exact .bot Ha.toType
   | sort | forallE | rigid => cases Shape.sort_le.1 ha; exact H
-  | ctor h1 h2 h3 h4 =>
+  | ctor h1 h2 h3 h4 h5 =>
     obtain ⟨l', t', rfl, -, ht⟩ := Shape.rigid_le.1 ha
     have ⟨T', e', hTT'⟩ := ctorTy?_rel ht h3
     have hct' : Shape.CtsTypes t' := by cases Ha.unfold with | rigid _ h => exact h
-    refine .ctor hct' h2 e' ?_
+    refine .ctor hct' h2 e' ?_ h5
     have wT := awf.2 _ (ctorTy?_mem h3); have wT' := awf'.2 _ (ctorTy?_mem e')
     refine (Fits.of_raw mwf.1 (T := ⟨_, wT'⟩)).1 ?_
     exact Fits.mono_T_aux (fun {_ _ _ _} => WShape.HasType.mono_r) (T := ⟨_, wT⟩) hTT'
@@ -651,11 +662,11 @@ theorem WShape.HasType.mono_l {m m' a : WShape n}
     obtain ⟨_, a1, ⟨⟩⟩ := Shape.lam_le.1 hm1; have b1 := Shape.lam_le_lam.1 hm2
     exact .lam <| mono_l.ih_lam mono_l (f := ⟨_, mwf.1⟩) (f' := ⟨_, mwf'.1⟩)
       (a := ⟨_, awf.1⟩) (b := ⟨_, awf.2⟩) hm1 hm2 H'
-  | ctor h1 h2 h3 h4 =>
+  | ctor h1 h2 h3 h4 h5 =>
     cases m' with
     | ctor c' fs' =>
       obtain ⟨rfl, l1⟩ := Shape.LE.def.1 hm1; obtain ⟨-, l2⟩ := Shape.LE.def.1 hm2
-      refine .ctor h1 h2 h3 ?_
+      refine .ctor h1 h2 h3 ?_ (l1.length_eq ▸ h5)
       have wT := awf.2 _ (ctorTy?_mem h3)
       refine (Fits.of_raw mwf'.1 (T := ⟨_, wT⟩)).1 ?_
       exact Fits.mono_l_aux (fun {_ _ _} => WShape.HasType.mono_l)
@@ -740,6 +751,7 @@ inductive WShape.HasTypeU : ∀ {n}, WShape n → WShape n → Prop
   | ctor {l : List (WShape n)} {t : List (Name × WShape n)} {T : WShape n}
     {fs : List (WShape n)} {wf} : CtsTypes t →
     ShapeParams.famProp I ls = false → ctorTy? c t = some T → Fits fs T →
+    fs.length = ShapeParams.nfields c →
     HasTypeU (n := n+1) (.ctor c fs wf) (.rigid I ls l t)
   | rigid {l : List (WShape n)} {t : List (Name × WShape n)} :
     (r.IsZero → ShapeParams.famProp c ls = true) → CtsTypes t →
@@ -763,10 +775,11 @@ theorem WShape.HasType.unfold {m a : WShape n} (H : HasType m a) : HasTypeU m a 
   | lam h =>
     have := HasTypeU.lam (f := ⟨_, mwf.1⟩) (a := ⟨_, awf.1⟩) (b := ⟨_, awf.2⟩) h
     rwa [lam', dif_pos (by exact mwf.2)] at this
-  | ctor h1 h2 h3 h4 =>
+  | ctor h1 h2 h3 h4 h5 =>
     have ⟨_, e⟩ := ctorTy?_ctsAttach (H := awf.2) h3
     have := HasTypeU.ctor (l := List.pmap Subtype.mk _ awf.1) (wf := (WShape.mk_ctor _ mwf).1)
       (CtsTypes.val.2 (by rwa [ctsMap_ctsAttach])) h2 e ((Fits.of_raw mwf.1).2 h4)
+      (by simpa using h5)
     rwa [(WShape.mk_ctor _ mwf).2, WShape.mk_rigid] at this
   | rigid h1 h2 =>
     have := HasTypeU.rigid (l := List.pmap Subtype.mk _ mwf.1) h1
@@ -780,8 +793,9 @@ theorem WShape.HasType.unfold_iff {m a : WShape n} : HasType m a ↔ HasTypeU m 
   | sort h => exact .sort h
   | forallE h => exact .forallE h
   | @lam _ f a b h => unfold lam'; split <;> [exact .lam h; exact .bot (.forallE h.1)]
-  | ctor h1 h2 h3 h4 =>
+  | ctor h1 h2 h3 h4 h5 =>
     exact Shape.HasType.ctor (CtsTypes.val.1 h1) h2 (by rw [ctorTy?_ctsMap, h3]; rfl) h4
+      (by simpa using h5)
   | rigid h1 h2 => exact Shape.HasType.rigid h1 (CtsTypes.val.1 h2)
 
 theorem WShape.HasType.bot' : HasType (n := n) x .type → HasType .bot x :=
@@ -800,13 +814,15 @@ theorem WShape.HasType.rigid_type {l : List (WShape n)} {t} (h : CtsTypes t) :
     HasType (n := n+1) (.rigid c ls l t) .type := .rigid (fun h => absurd h SLvl.not_isZero_one) h
 theorem WShape.HasType.ctor {l : List (WShape n)} {t} {T : WShape n} {fs : List (WShape n)} {wf}
     (h1 : CtsTypes t)
-    (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T) (h4 : Fits fs T) :
-    HasType (.ctor c fs wf) (.rigid I ls l t) := unfold_iff.2 (.ctor h1 h2 h3 h4)
+    (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T) (h4 : Fits fs T)
+    (h5 : fs.length = ShapeParams.nfields c) :
+    HasType (.ctor c fs wf) (.rigid I ls l t) := unfold_iff.2 (.ctor h1 h2 h3 h4 h5)
 theorem WShape.HasType.ctor' {l : List (WShape n)} {t} {T : WShape n} {fs : List (WShape n)}
     (h1 : CtsTypes t)
-    (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T) (h4 : Fits fs T) :
+    (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T) (h4 : Fits fs T)
+    (h5 : fs.length = ShapeParams.nfields c) :
     HasType (.ctor' c fs) (.rigid I ls l t) := by
-  unfold WShape.ctor'; split <;> [exact .ctor h1 h2 h3 h4; exact bot' (.rigid_type h1)]
+  unfold WShape.ctor'; split <;> [exact .ctor h1 h2 h3 h4 h5; exact bot' (.rigid_type h1)]
 
 theorem WShape.HasTypePi.toType (H : HasTypePi (n := n) b a r) :
     HasTypePi (n := n) b a (fun _ => 1) :=
@@ -875,13 +891,14 @@ theorem WShape.HasType.forallE_inv {m : WShape (n+1)} {a : WShape n} {f : WShape
 theorem WShape.HasType.rigid_inv {m : WShape (n+1)} {l : List (WShape n)} {t}
     (H : HasType m (.rigid I ls l t)) :
     CtsTypes t ∧ (m = .bot ∨ ∃ c fs wf T, m = .ctor c fs wf ∧
-      ShapeParams.famProp I ls = false ∧ ctorTy? c t = some T ∧ Fits fs T) := by
+      ShapeParams.famProp I ls = false ∧ ctorTy? c t = some T ∧ Fits fs T ∧
+      fs.length = ShapeParams.nfields c) := by
   generalize eq : WShape.rigid I ls l t = a' at H
   cases H.unfold with
   | bot H' => subst eq; exact ⟨(rigid_sort_inv H').2, .inl rfl⟩
-  | ctor h1 h2 h3 h4 =>
+  | ctor h1 h2 h3 h4 h5 =>
     obtain ⟨rfl, rfl, rfl, rfl⟩ := rigid.inj.1 eq
-    exact ⟨h1, .inr ⟨_, _, _, _, rfl, h2, h3, h4⟩⟩
+    exact ⟨h1, .inr ⟨_, _, _, _, rfl, h2, h3, h4, h5⟩⟩
   | _ => cases congrArg (·.1) eq
 
 omit [ShapeParams] in
@@ -1013,13 +1030,13 @@ theorem WShape.HasType.join {m₁ m₂ a : WShape n} (hJ : m₁.Compat m₂)
       (a := ⟨_, wf'.1⟩) (b := ⟨_, wf'.2⟩) hJ h1' h2'
     rw [HasTypeLam, WShapeFun.join_val (by exact hJ)] at this
     exact .lam this
-  | ctor h1' h2' h3' h4' =>
-    (cases h2.unfold with | bot => exact h1 | ctor k1 k2 k3 k4 | _) <;>
+  | ctor h1' h2' h3' h4' h5' =>
+    (cases h2.unfold with | bot => exact h1 | ctor k1 k2 k3 k4 k5 | _) <;>
       simp only [Shape.Compat, Bool.and_eq_true, decide_eq_true_eq] at hJ
     obtain ⟨rfl, hc⟩ := hJ
     rw [h3'] at k3; cases k3
     simp only [Shape.join, ↓reduceIte]
-    refine .ctor h1' h2' h3' ?_
+    refine .ctor h1' h2' h3' ?_ (by simp [List.length_zipWith, h5', k5])
     have wT := wf'.2 _ (ctorTy?_mem h3')
     have hc' := forall₂_pmap_subtype wf₁.1 wf₂.1 hc
     have := Fits.join_aux (fun {_ _ _} => WShape.HasType.join) hc' (T := ⟨_, wT⟩)
@@ -1314,15 +1331,15 @@ theorem TShape.HasType.rigid {l : List (WShape n)} {t}
 
 theorem TShape.HasType.ctor {l : List (WShape n)} {t} {T : WShape n} {fs : List (WShape n)} {wf}
     (h1 : WShape.CtsTypes t) (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T)
-    (h4 : WShape.Fits fs T) :
+    (h4 : WShape.Fits fs T) (h5 : fs.length = ShapeParams.nfields c) :
     TShape.HasType (WShape.ctor c fs wf).T (WShape.rigid I ls l t).T :=
-  (WShape.HasType.ctor h1 h2 h3 h4).T
+  (WShape.HasType.ctor h1 h2 h3 h4 h5).T
 
 theorem TShape.HasType.ctor' {l : List (WShape n)} {t} {T : WShape n} {fs : List (WShape n)}
     (h1 : WShape.CtsTypes t) (h2 : ShapeParams.famProp I ls = false) (h3 : ctorTy? c t = some T)
-    (h4 : WShape.Fits fs T) :
+    (h4 : WShape.Fits fs T) (h5 : fs.length = ShapeParams.nfields c) :
     TShape.HasType (WShape.ctor' c fs).T (WShape.rigid I ls l t).T :=
-  (WShape.HasType.ctor' h1 h2 h3 h4).T
+  (WShape.HasType.ctor' h1 h2 h3 h4 h5).T
 
 /-- Elements of a rigid type former that is a proposition at its levels are bottom. -/
 theorem WShape.HasType.rigid_prop {l : List (WShape n)} {t} {m : WShape (n+1)}
