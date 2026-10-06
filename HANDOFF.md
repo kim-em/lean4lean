@@ -945,6 +945,12 @@ inside this project's scope without solving open base metatheory:
    `EqBootstrapShape` `nparams = 1` was a real bug making the bootstrap
    theorems vacuous for the real `Eq`; fixed to 2 with the two-parameter
    lowering proof redone; no executable change.
+   **E3 at 41ff3b52 (pushed) carries Phase 0:** remaining Theory sorries on
+   E3 are exactly `headInversion`, `strengthening_of_canonicalEq`,
+   `headParallel`, `fullStep`, `strip` (the last three being closed on the
+   cr branch, to be merged). The inventory still lists
+   `canonicalConsumedGeneration` and `canonicalCompletedRuleTranslation`
+   although they contain no sorry (stale entries; harmless, to be pruned).
    **Decision (Kim, 2026-10-06): the final theorem may assume the environment
    contains canonical `Eq`.** So the strengthening obligation is stated as
    the base conjecture `strengthening_of_canonicalEq : env.WF →
