@@ -351,39 +351,52 @@ theorem Tables.empty_inv : Tables.empty.Inv VEnv.empty where
   projections h := by cases h
 
 theorem VEnv.WF'.tables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
-    ∃ T : Tables, T.Inv env := by
+    ∃ T : Tables, T.Inv env ∧ (VDecl.quot ∈ ds → T.quot = true) := by
   induction H with
-  | empty => exact ⟨_, Tables.empty_inv⟩
+  | empty => exact ⟨_, Tables.empty_inv, fun h => by cases h⟩
   | @decl d env' ds env hdecl hprev ih =>
-    obtain ⟨T, hT⟩ := ih
+    obtain ⟨T, hT, hq⟩ := ih
     have henv : env.WF := ⟨ds, hprev⟩
     have henv' : env'.WF := ⟨d :: ds, .decl hdecl hprev⟩
+    have hq' : ∀ {T' : Tables}, (T.quot = true → T'.quot = true) → d ≠ VDecl.quot →
+        VDecl.quot ∈ d :: ds → T'.quot = true := by
+      intro T' hext hne hmem
+      rcases List.mem_cons.mp hmem with h | h
+      · exact absurd h.symm hne
+      · exact hext (hq h)
     cases hdecl with
-    | «axiom» _ hadd | «opaque» _ hadd =>
+    | «axiom» _ hadd =>
       exact ⟨T, hT.transport (VEnv.addConst_le hadd) (VEnv.addConst_defeqs hadd)
-        (VEnv.addConst_projections hadd)⟩
-    | «example» => exact ⟨T, hT⟩
+        (VEnv.addConst_projections hadd), hq' id (by simp)⟩
+    | «opaque» _ hadd =>
+      exact ⟨T, hT.transport (VEnv.addConst_le hadd) (VEnv.addConst_defeqs hadd)
+        (VEnv.addConst_projections hadd), hq' id (by simp)⟩
+    | «example» => exact ⟨T, hT, hq' id (by simp)⟩
     | @«def» _ _ ci _ hadd =>
-      exact ⟨_, hT.addDefinitions (cis := [ci]) (by simpa [VEnv.addConsts] using hadd)⟩
-    | mutualDef _ hadd _ => exact ⟨_, hT.addDefinitions hadd⟩
-    | quot _ hadd => exact ⟨_, hT.addQuot henv henv' hadd⟩
+      exact ⟨_, hT.addDefinitions (cis := [ci]) (by simpa [VEnv.addConsts] using hadd),
+        hq' id (by simp)⟩
+    | mutualDef _ hadd _ =>
+      exact ⟨_, hT.addDefinitions hadd, hq' id (by simp)⟩
+    | quot _ hadd => exact ⟨_, hT.addQuot henv henv' hadd, fun _ => rfl⟩
     | induct _ hadd =>
       cases hadd with
       | intro _ hcompile _ hinstall =>
-        obtain ⟨T', _, hT'⟩ := hT.install henv hcompile hinstall
-        exact ⟨T', hT'⟩
+        obtain ⟨T', hext, hT'⟩ := hT.install henv hcompile hinstall
+        exact ⟨T', hT', hq' hext.quot (by simp)⟩
   | inductEliminators hbase _ hle hcert _ hconsts _ _ ih =>
-    obtain ⟨T, hT⟩ := ih
-    exact ⟨_, (hT.eliminator ⟨_, hbase⟩ hle hcert hconsts.1 hconsts.2.1).2⟩
+    obtain ⟨T, hT, hq⟩ := ih
+    obtain ⟨hext, hT'⟩ := hT.eliminator ⟨_, hbase⟩ hle hcert hconsts.1 hconsts.2.1
+    exact ⟨_, hT', fun h => hext.quot (hq h)⟩
   | inductProjections hbase hctorsWF hsource _ hconstructorUvars _ hparams hshape htypesSource
       hctorsSource hprojections htypes hctors _ ih =>
-    obtain ⟨T, hT⟩ := ih
+    obtain ⟨T, hT, hq⟩ := ih
     have henv' := VEnv.WF.inductProjections ⟨_, hbase⟩ ⟨_, hctorsWF⟩ hsource
       ‹_› hconstructorUvars ‹_› hparams hshape htypesSource hctorsSource hprojections htypes hctors
-    exact ⟨_, (hT.registerProjections ⟨_, hbase⟩ henv' hsource hconstructorUvars hparams hshape
-      htypesSource hctorsSource hprojections htypes hctors).2⟩
+    obtain ⟨hext, hT'⟩ := hT.registerProjections ⟨_, hbase⟩ henv' hsource hconstructorUvars
+      hparams hshape htypesSource hctorsSource hprojections htypes hctors
+    exact ⟨_, hT', fun h => hext.quot (hq h)⟩
 
 theorem VEnv.WF.tables {env : VEnv} (H : env.WF) : ∃ T : Tables, T.Inv env :=
-  VEnv.WF'.tables H.choose_spec
+  (VEnv.WF'.tables H.choose_spec).imp fun _ h => h.1
 
 end Lean4Lean.ShapeModel
