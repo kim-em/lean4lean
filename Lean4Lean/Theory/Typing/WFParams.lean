@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Typing.ConcreteParams
 import Lean4Lean.Theory.Typing.NativeIotaSoundness
 import Lean4Lean.Theory.Typing.StructureMajorProvenance
 import Lean4Lean.Theory.Typing.EliminatorCoherence
+import Lean4Lean.Theory.Typing.NativeSingletonCoverage
 
 /-! The `Params` instance of a well-formed environment with coherent
 eliminator registrations. Every field is a theorem. -/
@@ -73,5 +74,43 @@ theorem WF.church_rosser_of_singletonCoverage {env : VEnv} (henv : env.WF)
   haveI := henv.equationCoverage hcoh hzero
   obtain ⟨-, -, h⟩ := IsDefEq.full_church_rosser (Γ := Γ) hΓ H
   exact h
+
+/-- Zero-source large-elimination coverage holds in every well-formed
+environment with canonical `Eq`: the installed equation of a native singleton
+at a universe specialization with source `Prop` is joined by the singleton
+prefix unfolding (`NativeRecursorRegistered.zero_join`). -/
+theorem WF.singletonCoverage {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hcoh : env.EliminatorsCoherent) (U : Nat) : henv.SingletonCoverage hcoh U := by
+  letI := henv.params hcoh U
+  intro Γ data index equation levels hΓ hlookup hreg howner hgen hw hl hlarge hzero
+  exact NativeRecursorRegistered.zero_join heq hΓ hlookup hreg howner hgen hw hl hlarge hzero
+
+/-- **Church-Rosser for definitional equality.** In a well-formed environment
+with canonical `Eq` and coherent eliminator registrations, two definitionally
+equal terms reduce, in the full presentation, to normally equal terms: terms
+equal up to universe levels, proof irrelevance and eta.
+
+Both hypotheses are needed by the present reduction relation.
+
+* Canonical `Eq` types the singleton prefix unfolding at a universe
+  specialization whose source is `Prop`: the proof fields of the reconstructed
+  constructor are extracted by the recursor itself into `Prop`, with the
+  earlier data fields cast along `Eq`. Without `Eq` this extraction is not
+  available, and the confluence argument would need strengthening of
+  definitional equality across a binder, which fails in general: the
+  environment `envCM` of `Theory/Typing/Countermodel` is well formed, has no
+  `Eq`, and refutes it.
+* Coherent eliminator registrations tie a registered case schema to the
+  projection metadata of the same family. The counterexample in
+  `EliminatorCoherence.lean` registers `structure S : Type where a ::` and then
+  the case schema of `inductive S : Type | b : S` over an axiom `S.b : S`.
+  Structure eta gives `S.b ≡ S.a`, the case application at `S.b` computes, and
+  the one at `S.a` has no reduct, so the two are definitionally equal without
+  a common normal form. -/
+theorem WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hcoh : env.EliminatorsCoherent) (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :
+    letI := henv.params hcoh U
+    ∃ e₁' e₂', FullReduction Γ e₁ e₁' ∧ FullReduction Γ e₂ e₂' ∧ NormalEq Γ e₁' e₂' :=
+  henv.church_rosser_of_singletonCoverage hcoh (henv.singletonCoverage heq hcoh U) hΓ H
 
 end Lean4Lean.VEnv
