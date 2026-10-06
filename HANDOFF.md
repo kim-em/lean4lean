@@ -805,8 +805,13 @@ inside this project's scope without solving open base metatheory:
    cluster and Theory routes done, carries a restricted projection-corner
    hypothesis (plausibly true), an executable divergence, a replay slowdown,
    and the inductive-side narrow-context change (4.5k to 9k lines) still
-   ahead. Neither route has absorbed the nested work yet; both must before
-   a choice is made.
+   ahead. E3 has absorbed the nested work (merge d923f9f, clean). **Astra
+   (2026-10-06): the countermodel collapses once canonical `Eq` is present**
+   (`extract p : P v` by `I.rec` with an `Eq.rec` motive, checked; see
+   STRENGTHENING.md's last section), so E3's hypothesis is not known false
+   for prelude-derived environments; strengthening in environments with
+   canonical equality is an open conjecture. E1 additionally covers the
+   `Eq`-free bootstrap prefix.
    **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
    79 strengthening uses under `Verify/Inductive` strengthen fresh checker
    runs from the nested context of `Inductive/Add.lean` (later families run

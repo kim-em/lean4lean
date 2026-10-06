@@ -234,3 +234,29 @@ Commands for the design evidence:
 lake env lean docs/inductives/SingletonStrengthening.lean
 lake env lean docs/inductives/SingletonStrengtheningModel.lean
 ```
+
+## Scope of the countermodel: canonical equality (2026-10-06)
+
+The countermodel does not survive adding canonical `Eq`. With `Eq.rec`
+available, the proof field of the singleton family is recoverable from any
+inhabitant in the smaller context:
+
+```lean
+theorem extract {v : F c} (p : I c v (leftMap v)) : P v :=
+  I.rec (motive := fun n x _ _ => (e : n = c) → P (Eq.rec (motive := fun n _ => F n) x e))
+    (fun _ h _ => h) p rfl
+```
+
+(checked; axioms exactly `C, F, P, c, leftMap`). The constructor branch
+typechecks because `e : c = c` is definitionally `rfl` by proof irrelevance,
+so transport reduces by iota; this is the aligned-endpoint behaviour, not
+equality reflection. Substituting `extract p` for `q` in the chain
+`SI ≡ I.rec K (I.mk v q) ≡ K v q ≡ J.rec K (J.mk v q) ≡ SJ` derives
+`SI ≡ SJ` in the smaller context, so the separating point (`p` exists,
+`P v` false) is unavailable in any environment containing `Eq`. Consequently
+the hypothesis `Declaration.Strengthening` of the E3 route is not known to be
+false for prelude-derived environments; whether strengthening holds in every
+environment containing canonical equality is an open conjecture (no
+alternative `Eq`-only or `Acc` counterexample is known). The cache-scope
+experiment (`CacheScopeExperiment.lean`) runs in an environment without `Eq`
+and shows a scope-sensitive implementation phenomenon, not an inconsistency.
