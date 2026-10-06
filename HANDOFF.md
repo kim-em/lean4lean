@@ -65,6 +65,23 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   Kernel-checked evidence: `docs/inductives/StrengtheningFalsification.lean`;
   write-up `docs/inductives/STRENGTHENING_NOTES.md` (on that branch).
   Continuing with singleton eta and the certificate calculus.
+  **Part 3 assessment (interim; `STRENGTHENING_NOTES.md` §3,
+  `STRENGTHENING_ASTRA_REVIEW.md` on that branch):** confluence alone does
+  not give strengthening: the canonical-step witness between binder-free
+  terms has side conditions that are new larger-context judgements
+  (K/singleton alignment checks, eta-domain agreement, binder-domain
+  premises) with no well-founded measure below the original (no
+  normalization; size not preserved by substitution). The irreducible core
+  is a certificate calculus with transitivity-admissibility redone with
+  certificate premises (Siles–Herbelin style), estimated 20k to 40k lines.
+  Astra agrees, knows no published strengthening theorem for this
+  combination, and suggests a checker locality theorem for the cache
+  consumers instead; but the cache-scope experiment shows the unscoped
+  executable is not local, so that route needs E1's executable change plus
+  the inductive-side locality theorem (9k to 16k lines), which was parked by
+  decision. Decision (2026-10-06): continue route (b) as planned (singleton
+  eta, then the certificate calculus); revisit only if the pilot shows it is
+  unworkable.
 
 ## Intended result
 
