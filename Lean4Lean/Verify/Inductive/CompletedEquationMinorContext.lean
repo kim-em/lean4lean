@@ -1075,6 +1075,96 @@ theorem VLCtx.WF.of_append_left {env : VEnv} {U : Nat} :
   | [], _, h => h
   | _ :: X, _, h => VLCtx.WF.of_append_left X h.1
 
+theorem namedLambdaDeclarations_fvars'
+    {xs : List FVarId} {ys : VLCtx}
+    (H : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), VLocalDecl.vlam type)) xs ys) :
+    VLCtx.fvars ys = xs := by
+  induction H with
+  | nil => rfl
+  | cons hentry _ ih =>
+    rcases hentry with ⟨deps, type, rfl⟩
+    simp [ih]
+
+/-- Inverse of `TrExprS.abstractFVarLambdaSuffix`: the anonymous closure of a
+named lambda suffix may be reopened with the same free variables. -/
+theorem TrExprS.instantiateFVarLambdaSuffix {env : VEnv} {Us : List Name}
+    {fvsRev : List FVarId} {scope : VLCtx}
+    (Hdecls : List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), VLocalDecl.vlam type))
+      fvsRev scope)
+    (hnodup : fvsRev.Nodup) :
+    ∀ {domains : List VExpr} {e : Expr} {e' : VExpr},
+    TrExprS env Us
+      (abstractForallContext ((VLCtx.toCtx scope).reverse ++ domains) [])
+      (e.abstractList fvsRev.reverse domains.length) e' →
+    TrExprS env Us (abstractForallContext domains scope) e e' := by
+  induction Hdecls with
+  | nil =>
+    intro domains e e' Htr
+    simpa [VLCtx.toCtx] using Htr
+  | @cons fv entry fvsRev scope hentry Htail ih =>
+    intro domains e e' Htr
+    rcases hentry with ⟨deps, type, rfl⟩
+    have hnodup' := List.nodup_cons.mp hnodup
+    have hfv : fv ∉ fvsRev.reverse := by
+      simpa using hnodup'.1
+    have hsource :
+        (e.abstract1 fv domains.length).abstractList fvsRev.reverse
+            (type :: domains).length =
+          e.abstractList (fv :: fvsRev).reverse domains.length := by
+      rw [List.reverse_cons, Expr.abstractList_append]
+      simp only [Expr.abstractList]
+      simpa using (Expr.abstract1_abstractList
+        (e := e) (a := fv) (as := fvsRev.reverse)
+        (k := domains.length) hfv).symm
+    have Htr' : TrExprS env Us
+        (abstractForallContext ((VLCtx.toCtx scope).reverse ++ type :: domains) [])
+        ((e.abstract1 fv domains.length).abstractList fvsRev.reverse
+          (type :: domains).length) e' := by
+      rw [hsource]
+      simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using Htr
+    have Hhead := ih hnodup'.2 Htr'
+    have W := abstractForallContext.abstractHead domains scope fv deps type
+    have hfresh : fv ∉ VLCtx.fvars scope := by
+      rw [namedLambdaDeclarations_fvars' Htail]
+      exact hnodup'.1
+    have Hinst := TrExprS.instantiateFVar W hfresh Hhead
+    rwa [Expr.instantiate1'_abstract1_self] at Hinst
+
+/-- Reopen the anonymous closure of a non-contiguous free-variable scope. -/
+theorem checkInductiveTypes.loopType.FVarNarrowScope.instantiateAll
+    {env : VEnv} {Us : List Name} {scope runtime : VLCtx}
+    (H : checkInductiveTypes.loopType.FVarNarrowScope env Us scope runtime)
+    (henv : env.WF) {source : Expr} {target : VExpr}
+    (Htr : TrExprS env Us
+      (abstractForallContext scope.toCtx.reverse [])
+      (source.abstractList scope.fvars.reverse) target) :
+    TrExprS env Us scope source target := by
+  have hnodup : scope.fvars.Nodup := (H.scopeWF henv).fvars_nodup
+  have H' := TrExprS.instantiateFVarLambdaSuffix (domains := [])
+    H.declarations hnodup (by simpa using Htr)
+  simpa [abstractForallContext] using H'
+
+/-- Anonymous contexts with pointwise convertible domains are aligned. -/
+theorem VLCtx.IsDefEq.ofNoneCtx {env : VEnv} {U : Nat} :
+    ∀ {ds₁ ds₂ : List VExpr}, VEnv.IsDefEqCtx env U [] ds₁ ds₂ →
+      VLCtx.IsDefEq env U
+        (ds₁.map fun d => ((none, .vlam d) : Option (FVarId × List FVarId) × VLocalDecl))
+        (ds₂.map fun d => ((none, .vlam d) : Option (FVarId × List FVarId) × VLocalDecl))
+  | _, _, .zero => .nil
+  | _, _, .succ (Γ₁ := ds₁) H hdom => by
+    have htoCtx : ∀ ds : List VExpr, VLCtx.toCtx (ds.map fun d =>
+        ((none, .vlam d) : Option (FVarId × List FVarId) × VLocalDecl)) = ds := by
+      intro ds
+      induction ds with
+      | nil => rfl
+      | cons d ds ih => simp [VLCtx.toCtx, ih]
+    exact .cons (VLCtx.IsDefEq.ofNoneCtx H) (by intro _ _ h; cases h)
+      (.vlam (by rw [htoCtx ds₁]; exact hdom))
+
 theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
     ∀ (fvs : List FVarId), Closed (Expr.mkAppList f (fvs.map Expr.fvar))
   | [] => hf
