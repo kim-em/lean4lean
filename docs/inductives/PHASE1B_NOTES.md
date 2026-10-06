@@ -322,6 +322,105 @@ branch (no registered endpoint), so this is recorded here and in the final repor
 branch builds its own model under `HeadInjectivity/Model/`, following Phase 1a's design
 (`PHASE1_NOTES.md` on `agent/verify-inductives-headinv`) wherever classes are irrelevant.
 
-## 9. Status
+## 9. The model, revised: observations instead of shapes (decision D6)
+
+D6. The model is built from **atomic observations** (an intersection-type / filter model
+glued with classes) instead of Carneiro's depth-indexed shapes with joins. Rationale: the
+only obligation is soundness (no logical relation indexed by depth), and with atomic
+observations a term's denotation is a *set* of observations, so directedness and joins
+are free (a "join" is a union), the read-through filter is a property of single
+observations (typedness against a finite list of type observations), and the
+reconstruction lemma R3 becomes trivial (equal type denotations give equal witness lists).
+Soundness is stated up to the subsumption preorder `≼` (key enlargement), which replaces
+Carneiro's downward closure.
+
+### 9.1 Definitions (target context `Δ` fixed; `env`, `U` fixed)
+
+* Classes: `TyLink A B := ∃ u, Δ ⊢ A ≡ B : sort u`, `TyCls A := EqvGen-class of A`;
+  `ElLink D a b := ∃ X ∈ D, Δ ⊢ a ≡ b : X`, `ElCls D a := EqvGen-class`.
+  `TypedTyCls D := ∃ A u, Δ ⊢ A : sort u ∧ D = TyCls A`;
+  `TypedElCls D c := ∃ a X, X ∈ D ∧ Δ ⊢ a : X ∧ c = ElCls D a`.
+* Observations:
+  ```
+  inductive Ob
+    | sort (ℓ : List Nat → Nat)              -- the value is `sort l`, ℓ = l.eval
+    | piDom (D : Set VExpr)                  -- a Pi type with domain type class D
+    | piDomOb (o : Ob)                       -- ... whose domain has observation o
+    | piCod (c : Set VExpr) (C : Set VExpr)  -- codomain instance at argument class c has type class C
+    | piCodOb (c : Set VExpr) (K : List Ob) (o : Ob)  -- ... at argument (c, ⊇K) has observation o
+    | app (D c : Set VExpr) (K : List Ob) (o : Ob)    -- a function with domain class D:
+                                             --   applied to an argument of class c with
+                                             --   observations ⊇ K, the result has o
+    | rigid (n : Name) (ℓs : List (List Nat → Nat)) (nargs : Nat)
+    | rigidArg (i : Nat) (c : Set VExpr)
+    | rigidArgOb (i : Nat) (o : Ob)
+    -- (later: constructor, field and quotient observations)
+  ```
+* Subsumption `o ≼ o'` (`o'` is weaker): structural, with keys compared contravariantly:
+  `app D c K o ≼ app D c K' o'` iff `K ⊑ K'` and `o ≼ o'`, where `K ⊑ K'` iff
+  `∀ k ∈ K, ∃ k' ∈ K', k' ≼ k`; likewise for `piCodOb`; congruence for `piDomOb`,
+  `rigidArgOb`; reflexive on the other atoms. `↑S := {o' | ∃ o ∈ S, o ≼ o'}`.
+* Valuations `ρ : List (Set VExpr × Set Ob)`; representatives `Reps ρ := {σ | ∀ i < ρ.length,
+  σ i ∈ (ρ[i]).1}`; `clsOf ρ D t := ⋃_{σ ∈ Reps ρ} ElCls D (t.subst σ)`,
+  `tyClsOf ρ t := ⋃_{σ ∈ Reps ρ} TyCls (t.subst σ)`.
+* Typed observations `TypedOb (c : Set VExpr) (o : Ob) (τs : List Ob)` ("an observation `o`
+  of a value of class `c`, typed at the type observations `τs`"), by recursion on `o`:
+  sorts at `sort (ℓ+1)`; `piDom D` at some `sort` with `TypedTyCls D`; `piDomOb o` at some
+  `sort` with `o` typed at some sort; `piCodOb c K o` at `sort ℓ` with `o` typed at some
+  `sort ℓ'`, `ℓ = 0 → ℓ' = 0`; `app D c K o` at `τs ∋ piDom D` with `TypedElCls D c`, every
+  `k ∈ K` typed (class `c`) at a list of observations `τ` with `piDomOb τ ∈ τs`, and `o`
+  typed, at class `ElCls C (u x)` (`u ∈` the function's class, `x ∈ c`, `piCod c C ∈ τs`),
+  at a list of observations `τ` with `piCodOb c K' τ ∈ τs`, `K' ⊑ K`; rigid observations at
+  some `sort`. Consequence (proof irrelevance): nothing is typed at a list of observations
+  of a type all of whose observations are typed at `sort 0`.
+* `Obs ρ t o` (inductive; every occurrence of `Obs` positive):
+  * `bvar`: `o ∈ (ρ[i]).2`;
+  * `sort`: `.sort l.eval`;
+  * `forallE A B`: `piDom (tyClsOf ρ A)`; `piDomOb o` for `Obs ρ A o`; for every typed key
+    `(c, K)` at `A` (`TypedElCls (tyClsOf ρ A) c` and every `k ∈ K` typed with class `c` at
+    some list of observations of `A`): `piCod c (tyClsOf ((c,K)::ρ) B)` and `piCodOb c K o`
+    for `Obs ((c,K)::ρ) B o`;
+  * `lam A t`: `app (tyClsOf ρ A) c K o` for every typed key `(c, K)` at `A` and
+    `Obs ((c,K)::ρ) t o`;
+  * `app f a`: `o` whenever `Obs ρ f (app D c K o)`, `c = clsOf ρ D a`, and
+    `∀ k ∈ K, ∃ k', Obs ρ a k' ∧ k' ≼ k`;
+  * `const c ls` (core: rule-free environments): the rigid spine observations
+    `app D₁ c₁ K₁ (… (rigid c (ls.map eval) n | rigidArg i cᵢ | rigidArgOb i k, k ∈ Kᵢ))`,
+    **filtered**: kept only if `TypedOb (class of const c ls) o τs` for a list `τs` of
+    observations of `ci.type.instL ls` (closed, empty valuation).
+* Typed valuation for `Γ`: an anchor `σ` with `Ctx.SubstEq env U Δ σ σ Γ`, each class the
+  class of `σ i` at `TyCls ((A_i).subst σ)`, each observation of `ρ[i]` typed (with that
+  class) at a list of observations of `A_i` under the tail valuation.
+
+### 9.2 Soundness and the three lemmas it rests on
+
+`theorem sound`: for `IsDefEqStrong U Γ t t' A` and every typed valuation `ρ` of `Γ`:
+`Obs ρ t ⊆ ↑Obs ρ t'`, `Obs ρ t' ⊆ ↑Obs ρ t`, and every observation of `t` (and `t'`) is
+typed (class `clsOf ρ (tyClsOf ρ A) t`) at a list of observations of `A`.
+
+* **Class lemma** (syntactic, R6): for anchored typed `ρ` and typed `t`,
+  `clsOf ρ D t = ElCls D (t.subst σ)` and `tyClsOf ρ t = TyCls (t.subst σ)` (anchor `σ`),
+  by `IsDefEq.substDF` and the collapse lemma.
+* **Monotonicity and compactness**: `Obs` is monotone in the observation sets of `ρ`, and
+  every derivation uses finitely many of them.
+* **Substitution**: `Obs ρ (t.inst a) = Obs ((clsOf ρ D a, Obs ρ a) :: ρ) t` for typed
+  `t`, `a` (classes by the class lemma).
+
+Core cases: `appDF` (the argument classes agree because the typing invariant forces
+`D = tyClsOf ρ A`), `lamDF`/`forallEDF` (IH at the typed valuation `(c,K)::ρ`, anchored by a
+member of `c`), `beta` (compactness, monotonicity, substitution), `eta` (typing invariant:
+the observations of `f : Pi A B` are `app (tyClsOf A) c K o` with typed keys; `≼` absorbs key
+enlargement), `proofIrrel` (the consequence above), `defeqDF` (equal type denotations
+transfer the typing witnesses), `sortDF`/`constDF` (levels only through `eval`).
+
+### 9.3 Milestones
+
+* M0 classes and the class lemma; M1 observations, `≼`, `TypedOb`; M2 `Obs` and soundness for
+  rule-free environments (`env.defeqs`, `env.projections`, `env.eliminators` empty), with the
+  extraction giving `HeadInjectivityCore` there; M3 definitions (delta) and `Quot`; M4 native
+  inductives (constructor/field observations, iota in modes AB and C, projections, structure
+  eta, unit-like); M5 abstract eliminators (`elimDF`, `elimIota`).
+
+## 10. Status
 
 (updated as the work proceeds)
