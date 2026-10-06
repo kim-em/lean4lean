@@ -568,9 +568,13 @@ inside this project's scope without solving open base metatheory:
    types should be rejected instead (a one-line `hasLooseBVars` check in
    `checkInductiveSources`, which would be a divergence from C++ on
    malformed input and would let `SourceSyntaxChecks` carry the fact).
-2. **Close the three refinement junctions.** `canonicalConsumedGeneration`
-   and `canonicalCompletedRuleTranslation` are closed (item 7). Remaining:
-   `assemblyNative` and `finalValidOfStaged` (nested). Scoping (2026-10-06): the rule junction must produce
+2. **Close the three refinement junctions. DONE (2026-10-06, 6f16a42):**
+   `canonicalConsumedGeneration`, `canonicalCompletedRuleTranslation`,
+   `finalValidOfStaged` and `assemblyNative` are all proved; no `sorry`
+   remains under `Verify` or `Inductive`. History of the nested closure
+   follows (kept for the record); the open proofs are now exactly the ten
+   base obligations under `Theory` (item 3b) plus the `weakN_iff` route
+   decision (item 3). Scoping (2026-10-06): the rule junction must produce
    `rules = g.equations` syntactically, so each generated rule is identified
    with `Instance.equation` component by component: outer domains from the
    checked type (`canonicalTargets`), field domains from `minorFieldsTemplate`,
