@@ -902,6 +902,179 @@ theorem
       simp
     _ = outerBinders.reverse := hfiltered
 
+/-- Two lambda contexts with the same binder keys and definitionally equal
+domains are aligned. -/
+theorem VLCtx.IsDefEq.ofKeysCtx {env : VEnv} {U : Nat} :
+    ∀ {Δ₁ Δ₂ : VLCtx}, Δ₁.map Prod.fst = Δ₂.map Prod.fst →
+      (∀ e ∈ Δ₁, ∃ k d, e = (k, .vlam d)) →
+      (∀ e ∈ Δ₂, ∃ k d, e = (k, .vlam d)) →
+      VLCtx.WF env U Δ₁ →
+      VEnv.IsDefEqCtx env U [] Δ₁.toCtx Δ₂.toCtx →
+      VLCtx.IsDefEq env U Δ₁ Δ₂
+  | [], [], _, _, _, _, _ => .nil
+  | [], _ :: _, h, _, _, _, _ => by simp at h
+  | _ :: _, [], h, _, _, _, _ => by simp at h
+  | e₁ :: t₁, e₂ :: t₂, hk, h1, h2, hwf, hctx => by
+    obtain ⟨k₁, a, rfl⟩ := h1 e₁ (by simp)
+    obtain ⟨k₂, b, rfl⟩ := h2 e₂ (by simp)
+    simp only [List.map_cons, List.cons.injEq] at hk
+    obtain ⟨rfl, hk'⟩ := hk
+    have hctx' : VEnv.IsDefEqCtx env U [] (a :: VLCtx.toCtx t₁) (b :: VLCtx.toCtx t₂) := by
+      simpa [VLCtx.toCtx] using hctx
+    cases hctx' with
+    | succ htail hab =>
+      exact .cons (VLCtx.IsDefEq.ofKeysCtx hk'
+        (fun e he => h1 e (by simp [he])) (fun e he => h2 e (by simp [he]))
+        hwf.1 htail) hwf.2.1 (.vlam hab)
+
+theorem VLCtx.IsDefEq.keys_eq {env : VEnv} {U : Nat} :
+    ∀ {Δ₁ Δ₂ : VLCtx}, VLCtx.IsDefEq env U Δ₁ Δ₂ → Δ₁.map Prod.fst = Δ₂.map Prod.fst
+  | _, _, .nil => rfl
+  | _, _, .cons h _ _ => by simp [VLCtx.IsDefEq.keys_eq h]
+
+theorem VLCtx.FVLift'.keys_sublist {Δ Δ' : VLCtx} {dk k : Nat} {n : Lift}
+    (W : VLCtx.FVLift' Δ Δ' dk n k) : Δ.map Prod.fst <+ Δ'.map Prod.fst := by
+  induction W with
+  | refl => exact .refl _
+  | skip_fvar _ _ _ ih => exact .cons _ ih
+  | cons_fvar _ _ _ _ ih => exact .cons_cons _ ih
+  | cons_bvar _ _ ih => exact .cons_cons _ ih
+
+theorem VLCtx.mem_fvars_of_key : ∀ {L : VLCtx} {fv : FVarId} {d : List FVarId},
+    some (fv, d) ∈ L.map Prod.fst → fv ∈ L.fvars
+  | [], _, _, h => by simp at h
+  | (none, _) :: L, _, _, h => by
+    simp only [List.map_cons, List.mem_cons, reduceCtorEq, false_or] at h
+    exact VLCtx.mem_fvars_of_key (L := L) h
+  | (some (fv', d'), _) :: L, fv, d, h => by
+    simp only [List.map_cons, List.mem_cons, Option.some.injEq, Prod.mk.injEq] at h
+    simp only [VLCtx.fvars_cons_some, List.mem_cons]
+    rcases h with ⟨rfl, _⟩ | h
+    · exact Or.inl rfl
+    · exact Or.inr (VLCtx.mem_fvars_of_key h)
+
+/-- In a context with distinct free variables, a free variable determines
+its declaration key. -/
+theorem VLCtx.key_unique : ∀ {L : VLCtx}, L.fvars.Nodup →
+    ∀ {fv : FVarId} {d₁ d₂ : List FVarId},
+      some (fv, d₁) ∈ L.map Prod.fst → some (fv, d₂) ∈ L.map Prod.fst → d₁ = d₂
+  | [], _, _, _, _, h, _ => by simp at h
+  | (none, _) :: L, hnd, _, _, _, h1, h2 => by
+    simp only [List.map_cons, List.mem_cons, reduceCtorEq, false_or] at h1 h2
+    exact VLCtx.key_unique (L := L) hnd h1 h2
+  | (some (fv', d'), _) :: L, hnd, fv, d₁, d₂, h1, h2 => by
+    simp only [VLCtx.fvars_cons_some, List.nodup_cons] at hnd
+    simp only [List.map_cons, List.mem_cons, Option.some.injEq, Prod.mk.injEq] at h1 h2
+    rcases h1 with ⟨rfl, rfl⟩ | h1 <;> rcases h2 with ⟨h2a, rfl⟩ | h2
+    · rfl
+    · exact absurd (VLCtx.mem_fvars_of_key h2) hnd.1
+    · exact absurd (h2a ▸ VLCtx.mem_fvars_of_key h1) hnd.1
+    · exact VLCtx.key_unique hnd.2 h1 h2
+
+/-- Two selections of free-variable keys from one context agree when they
+select the same free variables. -/
+theorem VLCtx.keys_eq_of_fvars {L : VLCtx} (hnd : L.fvars.Nodup) :
+    ∀ {A B : List (Option (FVarId × List FVarId))},
+      (∀ x ∈ A, x ∈ L.map Prod.fst) → (∀ x ∈ B, x ∈ L.map Prod.fst) →
+      (∀ x ∈ A, x.isSome) → (∀ x ∈ B, x.isSome) →
+      A.map (Option.map Prod.fst) = B.map (Option.map Prod.fst) → A = B
+  | [], [], _, _, _, _, _ => rfl
+  | [], _ :: _, _, _, _, _, h => by simp at h
+  | _ :: _, [], _, _, _, _, h => by simp at h
+  | a :: A, b :: B, hA, hB, sA, sB, h => by
+    simp only [List.map_cons, List.cons.injEq] at h
+    obtain ⟨hab, hrest⟩ := h
+    have ha := sA a (by simp)
+    have hb := sB b (by simp)
+    obtain ⟨⟨fa, da⟩, rfl⟩ := Option.isSome_iff_exists.mp ha
+    obtain ⟨⟨fb, db⟩, rfl⟩ := Option.isSome_iff_exists.mp hb
+    simp only [Option.map_some, Option.some.injEq] at hab
+    subst hab
+    have hd : da = db :=
+      VLCtx.key_unique hnd (hA (some (fa, da)) (by simp)) (hB (some (fa, db)) (by simp))
+    subst hd
+    congr 1
+    exact VLCtx.keys_eq_of_fvars hnd (fun x hx => hA x (by simp [hx]))
+      (fun x hx => hB x (by simp [hx])) (fun x hx => sA x (by simp [hx]))
+      (fun x hx => sB x (by simp [hx])) hrest
+
+theorem VLCtx.lams_of_declarations {fvs : List FVarId} {L : VLCtx}
+    (H : List.Forall₂ (fun fv entry => ∃ deps type,
+      entry = (some (fv, deps), VLocalDecl.vlam type)) fvs L) :
+    ∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d) := by
+  induction H with
+  | nil => simp
+  | cons h _ ih =>
+    intro e he
+    simp only [List.mem_cons] at he
+    rcases he with rfl | he
+    · obtain ⟨deps, type, rfl⟩ := h
+      exact ⟨_, _, rfl⟩
+    · exact ih e he
+
+theorem VLCtx.lams_of_cached {ps : List Expr} {L : VLCtx}
+    (H : List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl ps L) :
+    ∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d) := by
+  induction H with
+  | nil => simp
+  | cons h _ ih =>
+    intro e he
+    simp only [List.mem_cons] at he
+    rcases he with rfl | he
+    · obtain ⟨fv, deps, type, _, rfl⟩ := h
+      exact ⟨_, _, rfl⟩
+    · exact ih e he
+
+theorem VLCtx.fvars_drop_of_lams : ∀ {L : VLCtx} (m : Nat),
+    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      VLCtx.fvars (L.drop m) = L.fvars.drop m
+  | [], m, _ => by simp
+  | _ :: _, 0, _ => rfl
+  | e :: L, m + 1, h => by
+    obtain ⟨k, d, rfl⟩ := h e (by simp)
+    simp only [List.drop_succ_cons, VLCtx.fvars_cons_some]
+    exact VLCtx.fvars_drop_of_lams m (fun x hx => h x (by simp [hx]))
+
+theorem VLCtx.toCtx_length_of_lams : ∀ {L : VLCtx},
+    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      L.toCtx.length = L.length
+  | [], _ => rfl
+  | e :: L, h => by
+    obtain ⟨k, d, rfl⟩ := h e (by simp)
+    simp [VLCtx.toCtx, VLCtx.toCtx_length_of_lams (L := L)
+      (fun x hx => h x (by simp [hx]))]
+
+theorem VLCtx.fvars_length_of_lams : ∀ {L : VLCtx},
+    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      L.fvars.length = L.length
+  | [], _ => rfl
+  | e :: L, h => by
+    obtain ⟨k, d, rfl⟩ := h e (by simp)
+    simp [VLCtx.fvars_length_of_lams (L := L) (fun x hx => h x (by simp [hx]))]
+
+theorem VLCtx.keys_fvars_of_lams : ∀ {L : VLCtx},
+    (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      (L.map Prod.fst).map (Option.map Prod.fst) = L.fvars.map some
+  | [], _ => rfl
+  | e :: L, h => by
+    obtain ⟨k, d, rfl⟩ := h e (by simp)
+    simp [VLCtx.keys_fvars_of_lams (L := L) (fun x hx => h x (by simp [hx]))]
+
+theorem VLCtx.FVLift'.of_append_lams : ∀ (X : VLCtx) {Q : VLCtx},
+    (∀ e ∈ X, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      ∃ n, VLCtx.FVLift' Q (X ++ Q) 0 n 0
+  | [], _, _ => ⟨_, .refl⟩
+  | e :: X, Q, h => by
+    obtain ⟨k, d, rfl⟩ := h e (by simp)
+    obtain ⟨n, W⟩ := VLCtx.FVLift'.of_append_lams X (Q := Q)
+      (fun x hx => h x (by simp [hx]))
+    exact ⟨_, .skip_fvar k (.vlam d) W⟩
+
+theorem VLCtx.WF.of_append_left {env : VEnv} {U : Nat} :
+    ∀ (X : VLCtx) {Q : VLCtx}, VLCtx.WF env U (X ++ Q) → VLCtx.WF env U Q
+  | [], _, h => h
+  | _ :: X, _, h => VLCtx.WF.of_append_left X h.1
+
 theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
     ∀ (fvs : List FVarId), Closed (Expr.mkAppList f (fvs.map Expr.fvar))
   | [] => hf
@@ -2066,37 +2239,117 @@ theorem
     rw [H.recursorEnv]
     exact H.installed.le
   let E := A.semantics.fieldRootExtension
-  have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
-      A.semantics.parameterTail
-        (A.semantics.parameterTarget.lift' (E.shift.consN 0)) :=
-    (E.weakTrExprS A.semantics.parameterTranslation).mono hbase
-  have HruntimeType : H.outVEnv.IsType Us.length
-      H.recursorWF.mlctx.vlctx.toCtx
-        (A.semantics.parameterTarget.lift' (E.shift.consN 0)) :=
-    (E.weakIsType A.semantics.parameterType).mono hbase
-  have hclosed : Closed A.semantics.parameterTail 0 := by
-    have h := Hruntime.closed
-    rw [H.recursorWF.mlctx.noBV] at h
-    exact h
-  have HtailFVars : A.semantics.parameterTail.FVarsIn
-      (· ∈ outerScope.fvars) := by
-    apply A.semantics.parameterTail_fvars.mono
-    intro fv hfv
-    rw [houterFVars]
-    simp only [List.mem_reverse]
-    exact List.mem_append_left _ (List.mem_append_left _ (by
-      rw [← H.params.exprArrayFVarIds]
-      exact hfv))
-  rcases Houter.restrict H.outVEnvWF Hruntime hclosed HtailFVars with
-    ⟨outerTarget, HouterTail⟩
-  rcases HruntimeType with ⟨u, HruntimeType⟩
-  have HouterType : H.outVEnv.HasType Us.length outerScope.toCtx
-      outerTarget (.sort u) :=
-    Houter.hasTypeOfFull H.outVEnvWF HouterTail Hruntime HruntimeType
+  have hfieldBase : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
+    rw [← E.venv_eq]
+    exact hbase
+  let P := H.parameterSuffix.parameterDecls
+  obtain ⟨t₀, Ht₀, Ht₀Type⟩ := A.semantics.parameterTranslation₀
+  rw [A.parameterDecls_eq] at Ht₀ Ht₀Type
+  have Ht₀' : TrExprS H.outVEnv Us P A.semantics.parameterTail t₀ :=
+    Ht₀.mono hfieldBase
+  have Ht₀Type' : H.outVEnv.IsType Us.length P.toCtx t₀ :=
+    Ht₀Type.mono hfieldBase
+  have hPlams := VLCtx.lams_of_cached H.parameterSuffix.cached
+  have hOlams := VLCtx.lams_of_declarations Houter.declarations
+  have hPfvars : P.fvars = H.params.fvars.reverse := by
+    rw [H.parameterSuffix.parameterDecls_fvars, H.params.exprArrayFVarIds]
+  have hPlen : P.length = H.params.fvars.length := by
+    rw [← VLCtx.fvars_length_of_lams hPlams, hPfvars, List.length_reverse]
+  have hOlen : outerScope.length = outerBinders.length := by
+    rw [← VLCtx.fvars_length_of_lams hOlams, houterFVars, List.length_reverse]
+  let m := (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length
+  have hOlen' : outerScope.length = m + H.params.fvars.length := by
+    rw [hOlen]
+    simp [outerBinders, m]
+    omega
+  let Q : VLCtx := outerScope.drop m
+  let X : VLCtx := outerScope.take m
+  have hXQ : X ++ Q = outerScope := List.take_append_drop m outerScope
+  have hXlams : ∀ e ∈ X, ∃ k d, e = (some k, VLocalDecl.vlam d) :=
+    fun e he => hOlams e (List.mem_of_mem_take he)
+  have hQlams : ∀ e ∈ Q, ∃ k d, e = (some k, VLocalDecl.vlam d) :=
+    fun e he => hOlams e (List.mem_of_mem_drop he)
+  have hXlen : X.length = m := by
+    simp only [X, List.length_take]
+    omega
+  have hQfvars : Q.fvars = P.fvars := by
+    rw [VLCtx.fvars_drop_of_lams m hOlams, houterFVars, hPfvars]
+    simp only [m, List.append_assoc, List.reverse_append]
+    rw [← List.append_assoc, ← List.reverse_append]
+    exact List.drop_left' (by simp; omega)
+  have Hparams := H.finalRecursorParameterContextFor howner T
+  rw [← H.parameterDecls] at Hparams
+  have hTparams : T.params.length = H.params.fvars.length := by
+    have := Hparams.length_eq
+    rw [List.length_reverse, VLCtx.toCtx_length_of_lams hPlams] at this
+    rw [this, hPlen]
+  have hTlen := HouterPrefix.length_eq
+  rw [VLCtx.toCtx_length_of_lams hOlams] at hTlen
+  simp only [List.length_reverse, List.length_append] at hTlen
+  have HQT : VEnv.IsDefEqCtx H.outVEnv Us.length [] Q.toCtx T.params.reverse := by
+    have Hdrop := VEnv.IsDefEqCtx.dropHeads HouterPrefix m
+    have hl : outerScope.toCtx.drop m = Q.toCtx := by
+      rw [← hXQ, VLCtx.toCtx_append]
+      apply List.drop_left'
+      rw [VLCtx.toCtx_length_of_lams hXlams, hXlen]
+    have hr : (T.params ++ T.motives ++ T.minors).reverse.drop m =
+        T.params.reverse := by
+      rw [List.append_assoc, List.reverse_append]
+      apply List.drop_left'
+      simp only [List.length_reverse, List.length_append]
+      omega
+    rw [hl, hr] at Hdrop
+    exact Hdrop
+  have HQPctx := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF HQT Hparams
+  have hnodup := H.recursorWF.mlctx_wf.fvars_nodup
+  have hkeyRuntime : ∀ x ∈ Q.map Prod.fst,
+      x ∈ H.recursorWF.mlctx.vlctx.map Prod.fst := by
+    intro x hx
+    have h1 : x ∈ outerScope.map Prod.fst :=
+      (List.map_subset _ (List.drop_subset m outerScope)) hx
+    have h2 := (VLCtx.FVLift'.keys_sublist Houter.lift).subset h1
+    rwa [VLCtx.IsDefEq.keys_eq Houter.context] at h2
+  have hkeyP : ∀ x ∈ P.map Prod.fst,
+      x ∈ H.recursorWF.mlctx.vlctx.map Prod.fst := by
+    intro x hx
+    rw [H.parameterSuffix.context, List.map_append]
+    exact List.mem_append_right _ hx
+  have hsome : ∀ (L : VLCtx), (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      ∀ x ∈ L.map Prod.fst, x.isSome := by
+    intro L hL x hx
+    obtain ⟨e, he, rfl⟩ := List.mem_map.mp hx
+    obtain ⟨k, d, rfl⟩ := hL e he
+    rfl
+  have hkeys : Q.map Prod.fst = P.map Prod.fst :=
+    VLCtx.keys_eq_of_fvars hnodup hkeyRuntime hkeyP (hsome Q hQlams)
+      (hsome P hPlams) (by
+        rw [VLCtx.keys_fvars_of_lams hQlams, VLCtx.keys_fvars_of_lams hPlams,
+          hQfvars])
+  have hQwf : VLCtx.WF H.outVEnv Us.length Q :=
+    VLCtx.WF.of_append_left X (by rw [hXQ]; exact Houter.wf)
+  have HQP : VLCtx.IsDefEq H.outVEnv Us.length Q P :=
+    VLCtx.IsDefEq.ofKeysCtx hkeys
+      (fun e he => let ⟨_, d, h⟩ := hQlams e he; ⟨_, d, h⟩)
+      (fun e he => let ⟨_, d, h⟩ := hPlams e he; ⟨_, d, h⟩) hQwf HQPctx
+  have HPQ := HQP.symm H.outVEnvWF.ordered
+  obtain ⟨t₁, Ht₁, Ht₁eq⟩ := Ht₀'.defeqDFC' H.outVEnvWF HPQ
+  have Ht₀Q : H.outVEnv.IsType Us.length Q.toCtx t₀ := by
+    obtain ⟨u, hu⟩ := Ht₀Type'
+    exact ⟨u, hu.defeqDFC H.outVEnvWF.ordered (HQPctx.symm H.outVEnvWF.ordered)⟩
+  have Ht₁Type : H.outVEnv.IsType Us.length Q.toCtx t₁ := by
+    obtain ⟨u, hu⟩ := Ht₀Q
+    exact ⟨u, hu.defeqU_l H.outVEnvWF hQwf.toCtx Ht₁eq.symm⟩
+  obtain ⟨n, W⟩ := VLCtx.FVLift'.of_append_lams X (Q := Q) hXlams
+  rw [hXQ] at W
+  have HouterTail : TrExprS H.outVEnv Us outerScope A.semantics.parameterTail
+      (t₁.lift' (n.consN 0)) :=
+    Ht₁.weakFV' H.outVEnvWF.ordered W Houter.wf
+  obtain ⟨u, HouterType⟩ :=
+    Ht₁Type.weak' H.outVEnvWF.ordered W.toCtx
   have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
     A.semantics.fieldOpening.telescope HouterTail
       (⟨u, HouterType⟩ : H.outVEnv.IsType Us.length
-        outerScope.toCtx outerTarget)
+        outerScope.toCtx (t₁.lift' (n.consN 0)))
   rcases Htyped.toWrapForalls with
     ⟨outerFields, _sourceResidual, outerResidual, houterFields,
       _Hsource, houterTarget, _Hresidual, _HresidualType⟩
