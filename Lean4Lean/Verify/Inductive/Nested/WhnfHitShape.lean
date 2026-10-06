@@ -24,12 +24,19 @@ exact validated nested run.
 * `NestedValidatedRunResult.paramsHitParams`: the run's parameters are never
   names of the checker's name generator (`RecursorContextWF.kernelFresh`; the
   checker's generator starts at index `0`).
-* `NestedValidatedRunResult.whnfHitOKFacts`: the resulting `WhnfHitOKFacts`.
+* `NestedValidatedRunResult.whnfHitOKFacts`: the resulting `WhnfHitOKFacts`
+  (`Nested/RecursorHitShape.lean`).
+* `NestedValidatedRunResult.hitShapeInputs_of`: the non-`whnf` inputs
+  `CompletedRecursorConstruction.HitShapeInputs` at `E.hitHeads`.
+* `NestedValidatedRunResult.recursorHitShape'`: the hit shape of the lowered
+  recursor types and rule right-hand sides at the auxiliary heads, from the run
+  and `hprims` alone.
 
-`WhnfHitOKFacts` differs from `WhnfHitShapeFacts`
-(`Nested/RecursorHitShape.lean`) in two ways, both forced by the invariant:
-the head set contains the main constructors, and inputs, scope declarations
-and outputs carry the projection condition. `HitShape.shrink`,
+The provenance chain of `Nested/RecursorHitShape.lean` runs at `E.hitHeads`
+rather than at the auxiliary heads, with the projection condition on inputs
+and scope declarations, both forced by the invariant: the main constructors'
+types mention auxiliary families, and the projection registry of the
+recursor pass contains the block's own structures. `HitShape.shrink`,
 `HitShapeB.shrink` and `HitShapeTele.shrink` return from `E.hitHeads` to
 `E.auxHeads`. -/
 
@@ -287,34 +294,6 @@ theorem _root_.Lean4Lean.HeadType.grow {heads heads' extra : List Name} {n : Nat
   let ⟨body, hl, hb⟩ := H; ⟨body, hl, hb.grow hsub hnew (hl.avoidsConsts havoid)⟩
 
 end Lean.Expr
-
-/-! ### Projections in translated syntax -/
-
-namespace Lean4Lean
-open Lean hiding Environment Exception
-
-/-- Every projection node of translated syntax names a structure registered in
-the abstract environment. -/
-theorem TrExprS.projsRegistered {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr}
-    {e' : VExpr} (henv : env.Ordered) (H : TrExprS env Us Δ e e')
-    (hΔ : Δ.WF env Us.length) :
-    e.ProjsOK (fun s => ∃ info, env.projections s info) := by
-  induction H with
-  | bvar | fvar | sort | const | lit => trivial
-  | app _ _ _ _ ihf iha => exact ⟨ihf hΔ, iha hΔ⟩
-  | lam hty _ _ iht ihb => exact ⟨iht hΔ, ihb ⟨hΔ, by rintro _ _ ⟨⟩, hty⟩⟩
-  | forallE hty _ _ _ iht ihb => exact ⟨iht hΔ, ihb ⟨hΔ, by rintro _ _ ⟨⟩, hty⟩⟩
-  | letE hval _ _ _ iht ihv ihb => exact ⟨iht hΔ, ihv hΔ, ihb ⟨hΔ, by rintro _ _ ⟨⟩, hval⟩⟩
-  | mdata _ ih => exact ih hΔ
-  | proj _ hproj ih =>
-    refine ⟨?_, ih hΔ⟩
-    cases hproj with
-    | direct _ hwf =>
-      obtain ⟨_, hty⟩ := hwf
-      obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ := VEnv.HasType.proj_inv henv hΔ.toCtx hty
-      exact ⟨info, hinfo⟩
-
-end Lean4Lean
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -1185,17 +1164,6 @@ theorem NestedValidatedRunResult.envHitShape
 
 end RunEnv
 
-/-- A hit scope of a recursor-local context in the form consumed by the type
-checker's invariant (`TypeChecker.HitScopeAt`): `P` is an up-set of the context
-whose declarations (types and let-values) are in hit shape and respect the
-projection condition `projHitOK`. -/
-def RecursorContextWF.HitOKScope {c : AddInductive.Context} {recLparams : List Name}
-    (Hc : RecursorContextWF c recLparams) (heads : List Name) (params : List Expr)
-    (ls : List Level) (P : FVarId → Prop) : Prop :=
-  IsFVarUpSet P Hc.mlctx.vlctx ∧ ∀ fv decl, P fv → Hc.mlctx.lctx.find? fv = some decl →
-    decl.type.HitOK c.env heads params ls ∧
-      ∀ v, decl.value? true = some v → v.HitOK c.env heads params ls
-
 /-- **`whnf` preserves hit shape in a recursor context.** The lifted
 `TypeChecker.whnf` call of the inductive checker, run from the empty checker
 state, maps an input in hit shape (with projections respecting `projHitOK`)
@@ -1209,7 +1177,7 @@ theorem whnfInRecursorContext.hitOK
     {heads : List Name} {As : List Expr} {ls : List Level} {P : FVarId → Prop}
     (henv : EnvHitShape c.env heads As.length ls)
     (hAs : TypeChecker.HitParams `_kernel_fresh As)
-    (hscope : Hc.HitOKScope heads As ls P)
+    (hscope : Hc.HitOKScope c.env heads As ls P)
     (hin : e.HitOK c.env heads As ls) (hP : FVarsIn P e) :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       e₁.HitOK c.env heads As ls := by
@@ -1235,30 +1203,6 @@ open Lean hiding Environment Exception
 open Kernel
 
 namespace VerifyInductive
-
-/-- **`whnf` preserves hit shape in the recursor contexts of an environment**,
-in the form provided by the type checker's invariant: inputs and the
-declarations of the scope are in hit shape and their projections respect
-`projHitOK` (`Expr.HitOK`), and so is the output.
-
-Compared with `WhnfHitShapeFacts`, the input and scope carry the projection
-condition `ProjsOK (projHitOK env heads)`. It cannot be dropped: in the
-recursor pass the projection registry already contains the block's
-structures, so `.proj S i x` with `S` a main structure whose constructor
-mentions an auxiliary family translates, and its inferred type exposes the
-auxiliary family at the parameters of `x`'s type rather than at the
-parameter variables. -/
-structure WhnfHitOKFacts (heads : List Name) (params : List Expr) (ls : List Level)
-    (env : Environment) : Prop where
-  whnf : ∀ {c : AddInductive.Context} {recLparams : List Name}
-      (Hc : RecursorContextWF c recLparams) {P : FVarId → Prop} {e e' : Expr}
-      {target : VExpr},
-    c.env = env →
-    TrExprS Hc.venv recLparams Hc.mlctx.vlctx e target →
-    Hc.HitOKScope heads params ls P →
-    e.FVarsIn P → e.HitOK env heads params ls →
-    (monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c = .ok e' →
-    e'.HitOK env heads params ls
 
 /-- `whnf` facts from the environment condition and parameters that the
 checker's name generator never produces. -/
@@ -1315,6 +1259,136 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
     rw [Array.length_toList, E.statsParamsSize, Hrun.resultNParams]
   rw [E.recursorPassEnv, hlen]
   exact E.envHitShape wf Hsources hprims
+
+/-- **The non-`whnf` hit-shape inputs of an exact validated nested run**, at the
+head set `E.hitHeads`, with the projection condition at the environment of the
+recursor pass, derived from the run alone:
+
+* parameter declarations: translated in the source environment, where the
+  heads are fresh and every registered projection names an old structure
+  (`CompletedRecursorConstruction.paramDecls_hitOK`, `projHitOK_of_old`);
+* family headers: translated in the source environment
+  (`NestedValidatedRunResult.familyType_tr`);
+* constructor types: head types for `E.hitHeads`
+  (`NestedValidatedRunResult.ctorTypes_headType`), translated in the header
+  environment, whose projections are the source environment's;
+* recursor names: distinct from the family and constructor names. -/
+theorem NestedValidatedRunResult.hitShapeInputs_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
+      E.hitHeads := by
+  let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
+  have hfresh := E.hitHeads_fresh wf
+  have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
+      E.production.production.completed.toCompletedRecursorConstruction.localContext.env.find?
+        n = some ci := by
+    intro n ci h
+    have := E.ctorEnv_preserves wf h
+    rw [← E.recursorPassEnv] at this
+    exact this
+  obtain ⟨-, -, -, -, -, -, -, hnodup⟩ := E.auxHeadsFacts wf Hsources
+  have hnp : result.nparams = nparams := by
+    obtain ⟨_, Hrun, _, _⟩ := E.lowering
+    exact Hrun.resultNParams
+  have hheaderV : E.production.headers.context.venv.Ordered :=
+    E.production.headers.context.checking.tr.wf.ordered
+  have hheaderSub : ∀ s info, E.production.headers.context.venv.projections s info →
+      ∃ info', (ves.venv sf).projections s info' := by
+    intro s info h
+    rw [VEnv.addConstVals_projections_eq E.production.constructors.core.typesAdded,
+      E.production_initialEnv] at h
+    exact ⟨info, h⟩
+  have hmem : ∀ i, i < E.production.indTypes.size →
+      E.production.indTypes[i]! ∈ E.production.indTypes.toList := by
+    intro i hi
+    rw [getElem!_pos E.production.indTypes i hi]
+    exact Array.getElem_mem_toList hi
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · refine E.production.production.completed.toCompletedRecursorConstruction.paramDecls_hitOK
+      (fun n hn => ?_) (fun s info h => ?_)
+    · rw [E.production_initialEnv]
+      cases hc : (ves.venv sf).constants n with
+      | none => rfl
+      | some ci =>
+        obtain ⟨ci', hfind, -⟩ := (wf.tr (safety := sf)).find?_iff.2 ⟨ci, hc⟩
+        rw [hfresh n hn] at hfind; cases hfind
+    · rw [E.production_initialEnv] at h
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
+        (wf.tr (safety := sf)).wf.ordered.projectionShape h
+      obtain ⟨ci, hci, -⟩ := (wf.tr (safety := sf)).find?_iff.2 ⟨_, hlookup⟩
+      exact projHitOK_of_old wf hpres hfresh hci
+  · intro i hi
+    obtain ⟨e', htr⟩ := E.familyType_tr (hmem i hi)
+    exact ⟨avoids_of_tr wf hfresh _ htr,
+      projsOK_of_tr_sub wf hpres hfresh sf (wf.tr (safety := sf)).wf.ordered
+        (fun s i h => ⟨i, h⟩) htr⟩
+  · intro i hi ctor hctor
+    obtain ⟨⟨e', htr⟩, -⟩ := E.ctorType_tr (hmem i hi) hctor
+    refine ⟨?_, projsOK_of_tr_sub wf hpres hfresh sf hheaderV hheaderSub htr⟩
+    obtain ⟨body, hl, hb⟩ := E.ctorTypes_headType wf Hsources _ (hmem i hi) ctor hctor
+    rw [E.statsLevels, E.statsParamsSize, hnp]
+    exact ⟨body, hl.leadingBinders, hb⟩
+  · exact E.production.production.completed.toCompletedRecursorConstruction.recursorNames_not_mem
+      (fun _ hh => E.hitHeads_subset hh) hnodup
+
+/-- **Hit shape of the lowered recursor type and rule right-hand sides of an
+exact validated nested run, at the checker's head set `E.hitHeads`**:
+`recursorHitShape` with its two hypotheses discharged by
+`hitShapeInputs_of` and `whnfHitOKFacts`. -/
+theorem NestedValidatedRunResult.recursorHitShape_hitHeads
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
+    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    {auxRec : NameMap Name} {allIndNames : List Name}
+    {stepSource stepTarget : Environment}
+    (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
+      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      stepSource stepTarget) :
+    Expr.HitShapeTele E.hitHeads result.nparams (lparams.map Level.param)
+        Hstep.oldInfo.type ∧
+      ∀ rule ∈ Hstep.oldInfo.rules,
+        Expr.HitShapeTele E.hitHeads result.nparams (lparams.map Level.param) rule.rhs :=
+  E.recursorHitShape (E.hitShapeInputs_of wf Hsources) (E.whnfHitOKFacts wf Hsources hprims)
+    owner Hstep
+
+/-- **Hit shape of the lowered recursor type and rule right-hand sides of an
+exact validated nested run**, at the auxiliary heads `E.auxHeads`: for every
+generated owner and every executable restoration step at the owner's lowered
+recursor name, the stored recursor type and every stored rule right-hand side
+are closed parameter telescopes of `result.nparams` binders whose body is in
+bound-variable hit shape for the auxiliary heads at the levels
+`lparams.map Level.param`.
+
+The proof runs the provenance chain at the checker's head set `E.hitHeads`
+(`recursorHitShape_hitHeads`) and drops the main constructors with
+`HitShapeTele.shrink`. The only hypothesis besides the run, `hprims`, is the
+one of `envHitShape`: no main constructor is named like a constant the type
+checker builds on its own. -/
+theorem NestedValidatedRunResult.recursorHitShape'
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
+    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    {auxRec : NameMap Name} {allIndNames : List Name}
+    {stepSource stepTarget : Environment}
+    (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
+      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      stepSource stepTarget) :
+    Expr.HitShapeTele E.auxHeads result.nparams (lparams.map Level.param)
+        Hstep.oldInfo.type ∧
+      ∀ rule ∈ Hstep.oldInfo.rules,
+        Expr.HitShapeTele E.auxHeads result.nparams (lparams.map Level.param) rule.rhs := by
+  obtain ⟨htype, hrules⟩ := E.recursorHitShape_hitHeads wf Hsources hprims owner Hstep
+  exact ⟨htype.shrink E.auxHeads_subset_hitHeads,
+    fun rule hrule => (hrules rule hrule).shrink E.auxHeads_subset_hitHeads⟩
 
 end Run
 

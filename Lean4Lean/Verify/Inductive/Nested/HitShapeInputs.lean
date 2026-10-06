@@ -12,22 +12,25 @@ constructors):
 * `NestedValidatedRunResult.auxHeadsFacts`: the auxiliary heads are fresh in
   the source environment (and after the source headers are added), lie in the
   reserved `_nested` namespace, and contain every key of `aux2nested`.
-* `NestedValidatedRunResult.hitShapeInputs_of`: all fields of
-  `CompletedRecursorConstruction.HitShapeInputs`.
-  - `familyHeaders` (`NestedValidatedRunResult.familyHeadersAvoid`): headers
-    are not lowered, and both source and auxiliary headers are translated in
-    the source environment, where the heads are fresh.
-  - `paramDecls` (`CompletedRecursorConstruction.paramDecls_of_fresh`): the
-    parameters are declarations of the source context, translated in the
-    source environment where the heads are fresh (`TrExprS.sourceAvoidsFresh`).
-  - `constructorTypes` (`NestedValidatedRunResult.constructorTypesHitShape`):
-    every lowered family has a lowering mapping from a pre-lowering family
-    whose constructor types are translated in the source-header environment
-    (`loweredFamilyMappings`: the source translations for the source families,
-    the native payload `NestedGeneratedFamilyNativeSources` for the generated
-    ones), so `LoweredConstructorMapping.hitShapeTele` applies.
-  - `recursorNames` (`CompletedRecursorConstruction.recursorNames_not_mem`):
-    from the distinctness of family and recursor names.
+* Ingredients of `CompletedRecursorConstruction.HitShapeInputs` (assembled at
+  the head set `E.hitHeads` by `NestedValidatedRunResult.hitShapeInputs_of` in
+  `Nested/WhnfHitShape.lean`):
+  - `NestedValidatedRunResult.familyHeadersAvoid`: headers are not lowered,
+    and both source and auxiliary headers are translated in the source
+    environment, where the heads are fresh.
+  - `CompletedRecursorConstruction.paramDecls_of_fresh` and
+    `paramDecls_hitOK`: the parameters are declarations of the source
+    context, translated in the source environment where the heads are fresh
+    (`TrExprS.sourceAvoidsFresh`) and only its structures are registered
+    (`TrExprS.projsRegistered`).
+  - `NestedValidatedRunResult.constructorTypesHitShape`: every lowered family
+    has a lowering mapping from a pre-lowering family whose constructor types
+    are translated in the source-header environment (`loweredFamilyMappings`:
+    the source translations for the source families, the native payload
+    `NestedGeneratedFamilyNativeSources` for the generated ones), so
+    `LoweredConstructorMapping.hitShapeTele` applies.
+  - `CompletedRecursorConstruction.recursorNames_not_mem`: from the
+    distinctness of family and recursor names.
 * `NestedValidatedRunResult.normalizedTotal_of`: `Restoration.expr` is total
   on every normalized constructor type of the compilation signature. The
   predicate `VExpr.HeadsApplied` (every head occurrence is applied to at least
@@ -682,6 +685,31 @@ theorem NestedValidatedRunResult.auxHeadsFacts
     rw [← hheadNames]
     exact List.mem_flatMap.2 ⟨a, ha, by simp [ContainerSpecialization.headNames]⟩
 
+/-! ### Projections in translated syntax -/
+
+/-- Every projection node of translated syntax names a structure registered in
+the abstract environment. -/
+theorem _root_.Lean4Lean.TrExprS.projsRegistered {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr}
+    {e' : VExpr} (henv : env.Ordered) (H : TrExprS env Us Δ e e')
+    (hΔ : Δ.WF env Us.length) :
+    e.ProjsOK (fun s => ∃ info, env.projections s info) := by
+  induction H with
+  | bvar | fvar | sort | const | lit => trivial
+  | app _ _ _ _ ihf iha => exact ⟨ihf hΔ, iha hΔ⟩
+  | lam hty _ _ iht ihb => exact ⟨iht hΔ, ihb ⟨hΔ, by rintro _ _ ⟨⟩, hty⟩⟩
+  | forallE hty _ _ _ iht ihb => exact ⟨iht hΔ, ihb ⟨hΔ, by rintro _ _ ⟨⟩, hty⟩⟩
+  | letE hval _ _ _ iht ihv ihb => exact ⟨iht hΔ, ihv hΔ, ihb ⟨hΔ, by rintro _ _ ⟨⟩, hval⟩⟩
+  | mdata _ ih => exact ih hΔ
+  | proj _ hproj ih =>
+    refine ⟨?_, ih hΔ⟩
+    cases hproj with
+    | direct _ hwf =>
+      obtain ⟨_, hty⟩ := hwf
+      obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ := VEnv.HasType.proj_inv henv hΔ.toCtx hty
+      exact ⟨info, hinfo⟩
+
+
+
 /-! ### Generic discharges at a completed recursor construction -/
 
 section Completed
@@ -767,6 +795,60 @@ theorem CompletedRecursorConstruction.paramDecls_of_fresh
   cases d with
   | cdecl => exact Expr.HitShape.of_avoidsConsts htype
   | ldecl => exact ⟨Expr.HitShape.of_avoidsConsts htype, Expr.HitShape.of_avoidsConsts hvalue⟩
+
+/-- Every declaration of a well-formed source context projects only out of
+structures registered in its environment. -/
+theorem ContextWF.declProjsOK {c : AddInductive.Context} (Hc : ContextWF c)
+    {ok : Name → Prop} (hproj : ∀ s info, Hc.venv.projections s info → ok s)
+    {fv : FVarId} {d : LocalDecl} (hfind : c.lctx.find? fv = some d) :
+    d.type.ProjsOK ok ∧ d.value'.ProjsOK ok := by
+  have hfind' : Hc.mlctx.lctx.find? fv = some d := by rw [Hc.lctx_eq]; exact hfind
+  rw [Hc.mlctx_wf.tr.1.find?_eq_find?_toList] at hfind'
+  have hmem : d ∈ Hc.mlctx.lctx.toList := List.mem_of_find?_eq_some hfind'
+  rcases Hc.mlctx_wf.tr.find?_of_mem Hc.checking.tr.wf hmem with
+    ⟨valueTarget, typeTarget, -, -, -, hvalueTr, htypeTr⟩
+  have hΔ := Hc.mlctx_wf.tr.wf
+  have hord := Hc.checking.tr.wf.ordered
+  exact ⟨(htypeTr.projsRegistered hord hΔ).mono fun s ⟨info, h⟩ => hproj s info h,
+    (hvalueTr.projsRegistered hord hΔ).mono fun s ⟨info, h⟩ => hproj s info h⟩
+
+/-- **Parameter declarations satisfy `HitOK`**: they are the source parameter
+declarations of the header check, translated before any family of the block
+is installed, so they mention no head fresh in the source environment and
+project only out of structures registered there. -/
+theorem CompletedRecursorConstruction.paramDecls_hitOK
+    (H : CompletedRecursorConstruction R) {env : Environment} {heads : List Name}
+    (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none)
+    (hproj : ∀ s info, sourceEnv.projections s info → projHitOK env heads s) :
+    ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
+      d.HitOK env heads stats.params.toList stats.levels := by
+  intro fv hfv d hfind
+  have hparam : Expr.fvar fv ∈ stats.params := H.params.mem_fvars_iff.1 hfv
+  have hc : fv ∈ c.lctx.fvars := by
+    obtain ⟨fvars, hparams, hdecls⟩ :=
+      cachedParameterDecls_fvars R.sourceMaterialized.cachedScope
+    have hmem : Expr.fvar fv ∈ stats.params.toList.reverse := by simpa using hparam
+    rw [hparams] at hmem
+    simp only [List.mem_map, Expr.fvar.injEq, exists_eq_right] at hmem
+    rw [← R.sourceContext.lctx_eq, R.sourceContext.mlctx_wf.tr.fvars_eq,
+      R.sourceMaterialized.scopeDecomposition, VLCtx.fvars_append, hdecls]
+    exact List.mem_append_right _ hmem
+  have hfind' : c.lctx.find? fv = some d := by
+    rw [← hfind]; exact (H.localExtends.declarations fv hc).symm
+  have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
+    rw [R.sourceContextVEnv]; exact hfresh
+  have hproj' : ∀ s info, R.sourceContext.venv.projections s info →
+      projHitOK env heads s := by
+    rw [R.sourceContextVEnv]; exact hproj
+  obtain ⟨htype, hvalue⟩ := R.sourceContext.declAvoids hfresh' hfind'
+  obtain ⟨ptype, pvalue⟩ := R.sourceContext.declProjsOK hproj' hfind'
+  refine ⟨⟨Expr.HitShape.of_avoidsConsts htype, ptype⟩, fun v hv => ?_⟩
+  cases d with
+  | cdecl => simp [LocalDecl.value?] at hv
+  | ldecl _ _ _ _ val nd _ =>
+    have hval : val = v := by cases nd <;> simpa [LocalDecl.value?] using hv
+    subst hval
+    exact ⟨Expr.HitShape.of_avoidsConsts hvalue, pvalue⟩
 
 /-! #### Normalized constructor types -/
 
@@ -1167,35 +1249,6 @@ theorem NestedValidatedRunResult.familyHeadersAvoid
   obtain ⟨source, st, ls, -, havoid, -, M⟩ := hmaps i hi'
   rw [M.type]
   exact havoid
-
-/-! ### The hit-shape inputs of a run -/
-
-/-- **The hit-shape inputs of an exact validated nested run**, at the run's
-auxiliary heads, derived from the run alone. Together with the `whnf`
-hypothesis `W` this gives `NestedValidatedRunResult.recursorHitShape`. -/
-theorem NestedValidatedRunResult.hitShapeInputs_of
-    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
-    {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads := by
-  obtain ⟨-, -, -, -, hfreshSrc, -, -, hnodup⟩ := E.auxHeadsFacts wf Hsources
-  have hfresh : ∀ name ∈ E.auxHeads, E.production.initialEnv.constants name = none := by
-    rw [E.production_initialEnv]; exact hfreshSrc
-  exact {
-    paramDecls :=
-      E.production.production.completed.toCompletedRecursorConstruction.paramDecls_of_fresh
-        hfresh
-    familyHeaders := E.familyHeadersAvoid wf Hsources
-    constructorTypes := E.constructorTypesHitShape wf Hsources
-    recursorNames :=
-      E.production.production.completed.toCompletedRecursorConstruction.recursorNames_not_mem
-        (fun _ hh => familyNames_drop_subset hh) hnodup }
 
 /-! ### Totality of restoration on the normalized constructor types -/
 
