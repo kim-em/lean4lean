@@ -1181,9 +1181,12 @@ class HeadSeparation : Prop where
   (the missing injectivity-class separation, `IsDefEqU.rigidApp_forallE_inv`). -/
   rigid_not_pi : OnCtx Γ (env.IsType univs) → env.Rigid c →
     ¬ Γ ⊢ VExpr.mkApps (.const c ls) args ≡ .forallE A B
-  /-- Distinct rigid heads are never definitionally equal applications. -/
+  /-- Distinct rigid heads are never definitionally equal types. (The
+  restriction to types matters: two proofs headed by distinct rigid
+  constants are equal by proof irrelevance.) -/
   rigid_ne : OnCtx Γ (env.IsType univs) → env.Rigid c → env.Rigid c' → c ≠ c' →
-    ¬ Γ ⊢ VExpr.mkApps (.const c ls) args ≡ VExpr.mkApps (.const c' ls') args'
+    ¬ env.IsDefEq univs Γ (VExpr.mkApps (.const c ls) args)
+      (VExpr.mkApps (.const c' ls') args') (.sort u)
   /-- The constructor major of a matched generated case redex is not a
   function (rigid-family/Pi separation at the case major). -/
   case_not_pi : OnCtx Γ (env.IsType univs) → MatchedCaseStep env univs Γ rule actual →
@@ -2210,8 +2213,10 @@ theorem FullStep.strip [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
       · exfalso
         obtain ⟨info', _, _, _, _, _, _, hinfo, _, _, _, _, _, _, hmaj, _, _⟩ :=
           ht.proj_inv henv hΓ
+        have hu := hmaj.hasType.2.uniqU henv hΓ hs
+        have ⟨_, hsort⟩ := hmaj.hasType.2.isType henv hΓ
         exact HeadSeparation.rigid_ne hΓ (henv.projectionRigid hinfo)
-          (henv.projectionRigid hl) hfamily (hmaj.hasType.2.uniqU henv hΓ hs)
+          (henv.projectionRigid hl) hfamily (hu.of_l henv hΓ hsort)
     | _ => sorry
   | _ => sorry
 
