@@ -1818,7 +1818,7 @@ theorem SpineTransport.schema
       Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls₂)
     have hL : VExpr.LEquiv univs actualℓ.expr actual''.expr :=
       .app (levelEquiv_mkApps (.elim hlsSymm hw₁) _) (levelEquiv_mkApps (.const hls₂Symm hw₂) _)
-    have he' := (NormalEq.of_levelEquiv hΓ hL hEℓ).defeq hΓ
+    have he' := (NormalEq.of_levelEquiv (η := true) hΓ hL hEℓ).defeq hΓ
     have hm' := hmℓ.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he'
     have hspine : CaseApplicationRelated (NormalEq Γ') actual₃ actual'' :=
       ⟨rfl, rfl, rfl, rfl, rfl, hvs, hcs⟩

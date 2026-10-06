@@ -302,17 +302,18 @@ inductive NormalEqN : Bool → Nat → List VExpr → VExpr → VExpr → Prop w
     Γ ⊢ p : .sort .zero → Γ ⊢ h : p → Γ ⊢ h' : p →
     Γ ⊢ h ≡ₚ{b}[0] h'
 
-/-- Normal equality: some bounded comparison derivation exists. -/
-def NormalEq (Γ : List VExpr) (e1 e2 : VExpr) : Prop := ∃ n, NormalEqN true n Γ e1 e2
-
 /-- Normal equality with (`b = true`) or without (`b = false`) eta. -/
 def NormalEqF (b : Bool) (Γ : List VExpr) (e1 e2 : VExpr) : Prop := ∃ n, NormalEqN b n Γ e1 e2
+
+/-- Normal equality: some bounded comparison derivation exists. -/
+abbrev NormalEq (Γ : List VExpr) (e1 e2 : VExpr) : Prop := NormalEqF true Γ e1 e2
 
 /-- Normal equality without eta: structural congruence up to universe levels and
 proof irrelevance. -/
 abbrev NormalEq₀ := NormalEqF false
 
 local notation:65 Γ " ⊢ " e1 " ≡ₚ " e2:30 => NormalEq Γ e1 e2
+local notation:65 Γ " ⊢ " e1 " ≡ₚ{" b "}" e2:30 => NormalEqF b Γ e1 e2
 
 theorem NormalEqN.normalEq (H : Γ ⊢ e1 ≡ₚ[n] e2) : Γ ⊢ e1 ≡ₚ e2 := ⟨_, H⟩
 
@@ -570,9 +571,9 @@ theorem NormalEqF.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) : NormalEqF b
     NormalEqF b Γ (e1.inst e₀ k) (e2.inst e₀ k)
   | ⟨_, H⟩ => ⟨_, H.instN h₀ W⟩
 
-variable! (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (h₀ : Γ₀ ⊢ e₀ : A₀) (H' : Γ₀ ⊢ e₀ ≡ₚ e₀') in
-theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e : A) :
-    Γ ⊢ e.inst e₀ k ≡ₚ e.inst e₀' k := by
+variable! (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (h₀ : Γ₀ ⊢ e₀ : A₀) (H' : Γ₀ ⊢ e₀ ≡ₚ{η} e₀') in
+theorem NormalEqF.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e : A) :
+    Γ ⊢ e.inst e₀ k ≡ₚ{η} e.inst e₀' k := by
   induction e generalizing Γ₁ Γ k A with dsimp [inst]
   | bvar i =>
     have ⟨ty, h⟩ := H.bvar_inv henv hΓ₁; clear H hΓ₁
@@ -617,6 +618,8 @@ theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ �
     have hA := h1.instN henv W h₀
     exact .forallEDF hA (ih1 hΓ₁ W h1) (h2.instN henv W.succ h₀)
       (ih2 (by exact ⟨hΓ₁, _, h1⟩) W.succ h2)
+
+alias NormalEq.instN_r := NormalEqF.instN_r
 
 variable! (H₀ : OnCtx Γ₀ (IsType env univs)) in
 theorem NormalEqN.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
@@ -743,10 +746,10 @@ theorem NormalEqF.trans (hΓ : OnCtx Γ (IsType env univs)) :
 
 open Pattern.RHS in
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem NormalEq.apply_pat
-    (ih : ∀ a A, Γ ⊢ m2 a : A → Γ ⊢ m2 a ≡ₚ m2' a)
+theorem NormalEqF.apply_pat
+    (ih : ∀ a A, Γ ⊢ m2 a : A → Γ ⊢ m2 a ≡ₚ{η} m2' a)
     (he : Γ ⊢ apply m1 m2 r : A) :
-    Γ ⊢ apply m1 m2 r ≡ₚ apply m1 m2' r := by
+    Γ ⊢ apply m1 m2 r ≡ₚ{η} apply m1 m2' r := by
   induction r generalizing A with simp [apply] at he ⊢
   | fixed c => exact .refl he
   | app hf ha ih1 ih2 =>
@@ -754,6 +757,8 @@ theorem NormalEq.apply_pat
     exact .appDF h1 (.defeqU_l henv hΓ ((ih1 h1).defeq hΓ) h1)
       h2 (.defeqU_l henv hΓ ((ih2 h2).defeq hΓ) h2) (ih1 h1) (ih2 h2)
   | var path => exact ih path _ he
+
+alias NormalEq.apply_pat := NormalEqF.apply_pat
 
 set_option hygiene false
 local notation:65 Γ " ⊢ " e1 " ≫ " e2:36 => ParRed Γ e1 e2
@@ -1005,12 +1010,12 @@ theorem ParRed.instantiate_variables (H : VariableApplications body)
   | app hf ha ihf iha => exact .app (ihf hc.1) (iha hc.2)
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.instantiate_variables (H : VariableApplications body)
+theorem NormalEqF.instantiate_variables (H : VariableApplications body)
     (hc : body.ClosedN arguments.length) (hlen : arguments'.length = arguments.length)
     (hargs : ∀ i (hi : i < arguments.length) (hi' : i < arguments'.length),
-      Γ ⊢ arguments[i] ≡ₚ arguments'[i])
+      Γ ⊢ arguments[i] ≡ₚ{η} arguments'[i])
     (ht : Γ ⊢ InductiveSignature.instantiateParams body arguments : type) :
-    Γ ⊢ InductiveSignature.instantiateParams body arguments ≡ₚ
+    Γ ⊢ InductiveSignature.instantiateParams body arguments ≡ₚ{η}
       InductiveSignature.instantiateParams body arguments' := by
   induction H generalizing type with
   | @bvar i =>
@@ -1025,6 +1030,8 @@ theorem NormalEq.instantiate_variables (H : VariableApplications body)
     have hna := iha hc.2 harg
     exact .appDF hfn ((hnf.defeq hΓ).of_l henv hΓ hfn).hasType.2
       harg ((hna.defeq hΓ).of_l henv hΓ harg).hasType.2 hnf hna
+
+alias NormalEq.instantiate_variables := NormalEqF.instantiate_variables
 
 
 theorem ParRed.of_schema (H : AppliedSchemaReduction env univs Γ e e') : Γ ⊢ e ≫ e' := by
@@ -1297,13 +1304,13 @@ theorem CParRed.exists (H : Γ ⊢ e : A) : ∃ e', Γ ⊢ e ⋙ e' := by
     exact ⟨_, .forallE h1 h2⟩
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.instantiate_variables_parRed (H : VariableApplications body)
+theorem NormalEqF.instantiate_variables_parRed (H : VariableApplications body)
     (hc : body.ClosedN arguments.length) (hlen : arguments'.length = arguments.length)
     (hargs : ∀ i (hi : i < arguments.length) (hi' : i < arguments'.length),
-      ∃ out, Γ ⊢ arguments[i] ≫ out ∧ Γ ⊢ out ≡ₚ arguments'[i])
+      ∃ out, Γ ⊢ arguments[i] ≫ out ∧ Γ ⊢ out ≡ₚ{η} arguments'[i])
     (ht : Γ ⊢ InductiveSignature.instantiateParams body arguments : type) :
     ∃ out, Γ ⊢ InductiveSignature.instantiateParams body arguments ≫ out ∧
-      Γ ⊢ out ≡ₚ InductiveSignature.instantiateParams body arguments' := by
+      Γ ⊢ out ≡ₚ{η} InductiveSignature.instantiateParams body arguments' := by
   induction H generalizing type with
   | @bvar i =>
     change i < arguments.length at hc
@@ -1320,6 +1327,8 @@ theorem NormalEq.instantiate_variables_parRed (H : VariableApplications body)
     exact ⟨_, .app hfnRed hargRed, .appDF hfn'
       ((hfnNormal.defeq hΓ).of_l henv hΓ hfn').hasType.2
       harg' ((hargNormal.defeq hΓ).of_l henv hΓ harg').hasType.2 hfnNormal hargNormal⟩
+
+alias NormalEq.instantiate_variables_parRed := NormalEqF.instantiate_variables_parRed
 
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
@@ -1368,8 +1377,8 @@ theorem ParRed.schema_app_triangle
     (ha : Γ ⊢ mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments ≫ major')
     (hrec : ∀ i (hi : i < (rule.capture actual).length) {a b},
       (Γ ⊢ (rule.capture actual)[i] ≫ a) → (Γ ⊢ (rule.capture actual)[i] ⋙ b) →
-      ∃ out, Γ ⊢ a ≫ out ∧ Γ ⊢ out ≡ₚ b) :
-    ∃ out, Γ ⊢ .app fn' major' ≫ out ∧ Γ ⊢ out ≡ₚ rule.rhs actual.levels args := by
+      ∃ out, Γ ⊢ a ≫ out ∧ Γ ⊢ out ≡ₚ{η} b) :
+    ∃ out, Γ ⊢ .app fn' major' ≫ out ∧ Γ ⊢ out ≡ₚ{η} rule.rhs actual.levels args := by
   obtain ⟨actual', he, hspines⟩ := ParRed.case_spines hm hrigid hf ha
   have hstruct : Γ ⊢ actual.expr ≫ actual'.expr := by rw [he]; exact .app hf ha
   have hm' := hm.congr henv hΓ (hspines.parRed_defeq hΓ ht) ⟨_, hstruct.defeq hΓ ht⟩
@@ -1377,7 +1386,7 @@ theorem ParRed.schema_app_triangle
   have hcaplen := hcapture.length_eq
   have recargs : ∀ i : Fin (rule.capture actual).length,
       ∃ out, Γ ⊢ (rule.capture actual')[i.val]'(by omega) ≫ out ∧
-        Γ ⊢ out ≡ₚ args[i.val]'(by omega) := by
+        Γ ⊢ out ≡ₚ{η} args[i.val]'(by omega) := by
     intro i
     exact hrec i.val i.isLt (case_forall₂_get hcapture i.isLt (by omega)) (hcomplete i.val i.isLt)
   classical
@@ -1399,7 +1408,7 @@ theorem ParRed.schema_app_triangle
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e ⋙ o) :
-    ∃ o', Γ ⊢ e' ≫ o' ∧ Γ ⊢ o' ≡ₚ o := by
+    ∃ o', Γ ⊢ e' ≫ o' ∧ Γ ⊢ o' ≡ₚ{η} o := by
   induction e using VExpr.brecOn generalizing Γ A e' o with | _ e e_ih => ?_
   revert e_ih; change let motive := ?_; ∀ _: e.below (motive := motive), _; intro motive e_ih
   induction H2 generalizing A e' with
@@ -1413,7 +1422,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       have hc : rule.body.rhs.ClosedN args'.length := by simpa only [hl'] using hm.source.closed.2.1
       have hlen : args.length = args'.length := hl.trans hl'.symm
       have hargJoin : ∀ i (hi : i < args'.length) (hi' : i < args.length),
-          ∃ out, Γ ⊢ args'[i] ≫ out ∧ Γ ⊢ out ≡ₚ args[i] := by
+          ∃ out, Γ ⊢ args'[i] ≫ out ∧ Γ ⊢ out ≡ₚ{η} args[i] := by
         intro i hi hi'
         have hiC : i < (rule.capture actual).length := by omega
         obtain ⟨ty, ht⟩ := hm.capture_typed (List.getElem_mem hiC)
@@ -1524,7 +1533,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
   | @extra p r e m1 m2 Γ m2' l1 l2 l3 l4 ih =>
     have :
       (∃ m3 m3' : p.Path → VExpr, p.Matches e' m1 m3 ∧
-        (∀ a, Γ ⊢ m2 a ≫ m3 a) ∧ (∀ a, Γ ⊢ m3 a ≫ m3' a) ∧ (∀ a, Γ ⊢ m3' a ≡ₚ m2' a)) ∨
+        (∀ a, Γ ⊢ m2 a ≫ m3 a) ∧ (∀ a, Γ ⊢ m3 a ≫ m3' a) ∧ (∀ a, Γ ⊢ m3' a ≡ₚ{η} m2' a)) ∨
       (∃ p₁ e₁' e₁ m1₁ m2₁, Subpattern p₁ p ∧ (p₁ = p → e₁ = e ∧ e₁' = e' ∧ m1₁ ≍ m1 ∧ m2₁ ≍ m2) ∧
         p₁.Matches e₁ m1₁ m2₁ ∧ ∃ p' r m1 m2 m2',
         Pat p' r ∧ p'.Matches e₁ m1 m2 ∧ (∀ a, Γ ⊢ m2 a ≫ m2' a) ∧ e₁' = r.1.apply m1 m2') := by
@@ -1580,7 +1589,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       obtain ⟨rfl, rfl, ⟨⟩⟩ := pat_uniq l1 r1 h1 hr
       obtain ⟨rfl, rfl, ⟨⟩, ⟨⟩⟩ := h2 rfl; subst e
       obtain ⟨rfl, rfl⟩ := l2'.uniq r2
-      suffices ∃ m3' : p.Path → VExpr, (∀ a, Γ ⊢ m3 a ≫ m3' a) ∧ (∀ a, Γ ⊢ m3' a ≡ₚ m2' a) by
+      suffices ∃ m3' : p.Path → VExpr, (∀ a, Γ ⊢ m3 a ≫ m3' a) ∧ (∀ a, Γ ⊢ m3' a ≡ₚ{η} m2' a) by
         let ⟨m3', h3, h4⟩ := this
         refine ⟨_, ?h3, .apply_pat hΓ (fun a _ _ => h4 a) ((?h3).hasType hΓ (H.hasType hΓ H1))⟩
         exact .apply_pat _ h3
@@ -1603,10 +1612,10 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.church_rosser (H : Γ ⊢ e : A)
     (H1 : Γ ⊢ e ≫ e₁) (H2 : Γ ⊢ e ≫ e₂) :
-      ∃ e₁' e₂', Γ ⊢ e₁ ≫ e₁' ∧ Γ ⊢ e₂ ≫ e₂' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
+      ∃ e₁' e₂', Γ ⊢ e₁ ≫ e₁' ∧ Γ ⊢ e₂ ≫ e₂' ∧ Γ ⊢ e₁' ≡ₚ{η} e₂' := by
   let ⟨e', h'⟩ := CParRed.exists hΓ H
-  let ⟨_, l1, l2⟩ := H1.triangle hΓ H h'
-  let ⟨_, r1, r2⟩ := H2.triangle hΓ H h'
+  let ⟨_, l1, l2⟩ := H1.triangle (η := η) hΓ H h'
+  let ⟨_, r1, r2⟩ := H2.triangle (η := η) hΓ H h'
   exact ⟨_, _, l1, r1, l2.trans hΓ (r2.symm hΓ)⟩
 
 def ParRedS (Γ : List VExpr) : VExpr → VExpr → Prop := ReflTransGen (ParRed Γ)
@@ -1751,9 +1760,9 @@ theorem MatchedCaseStep.normalEq_parRedS
 
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.mkApps_spine
-    (hfn : Γ ⊢ fn ≡ₚ fn') (hargs : List.Forall₂ (NormalEq Γ) args args')
-    (ht : Γ ⊢ mkApps fn args : type) : Γ ⊢ mkApps fn args ≡ₚ mkApps fn' args' := by
+theorem NormalEqF.mkApps_spine
+    (hfn : Γ ⊢ fn ≡ₚ{η} fn') (hargs : List.Forall₂ (NormalEqF η Γ) args args')
+    (ht : Γ ⊢ mkApps fn args : type) : Γ ⊢ mkApps fn args ≡ₚ{η} mkApps fn' args' := by
   induction hargs generalizing fn fn' with
   | nil => exact hfn
   | cons harg hargs ih =>
@@ -1762,6 +1771,8 @@ theorem NormalEq.mkApps_spine
     apply ih _ ht
     exact .appDF hfnType ((hfn.defeq hΓ).of_l henv hΓ hfnType).hasType.2
       hargType ((harg.defeq hΓ).of_l henv hΓ hargType).hasType.2 hfn harg
+
+alias NormalEq.mkApps_spine := NormalEqF.mkApps_spine
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem CaseApplicationRelated.normalEq
@@ -1831,8 +1842,8 @@ theorem NormalEq.schema_of_spine
 
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.of_levelEquiv (L : VExpr.LEquiv univs e e') (ht : Γ ⊢ e : type) :
-    Γ ⊢ e ≡ₚ e' := by
+theorem NormalEqF.of_levelEquiv (L : VExpr.LEquiv univs e e') (ht : Γ ⊢ e : type) :
+    Γ ⊢ e ≡ₚ{η} e' := by
   induction L generalizing Γ type with
   | refl => exact .refl ht
   | sort he hw => exact .sortDF (ht.sort_inv henv.ordered) hw he
@@ -1861,6 +1872,8 @@ theorem NormalEq.of_levelEquiv (L : VExpr.LEquiv univs e e') (ht : Γ ⊢ e : ty
     have hctx : OnCtx (_ :: Γ) (env.IsType univs) := ⟨hΓ, _, hdomain⟩
     exact .forallEDF hdomain (ihd hΓ hdomain) hbody (ihb hctx hbody)
 
+alias NormalEq.of_levelEquiv := NormalEqF.of_levelEquiv
+
 private theorem _root_.Lean4Lean.Pattern.RHS.const_levelEquiv
     (r : (Pattern.const name).RHS) (hls : ∀ l ∈ ls, l.WF univs)
     (hls' : ∀ l ∈ ls', l.WF univs) (he : List.Forall₂ (· ≈ ·) ls ls') :
@@ -1884,8 +1897,8 @@ private theorem _root_.Lean4Lean.Pattern.Check.const_levels
   | defeq left right rest ih =>
     obtain ⟨ht, hr⟩ := H
     obtain ⟨type, ht⟩ := ht
-    have hl := NormalEq.of_levelEquiv hΓ (left.const_levelEquiv (values' := values') hls hls' he) ht.hasType.1
-    have hh := NormalEq.of_levelEquiv hΓ (right.const_levelEquiv (values' := values') hls hls' he) ht.hasType.2
+    have hl := NormalEq.of_levelEquiv (η := true) hΓ (left.const_levelEquiv (values' := values') hls hls' he) ht.hasType.1
+    have hh := NormalEq.of_levelEquiv (η := true) hΓ (right.const_levelEquiv (values' := values') hls hls' he) ht.hasType.2
     exact ⟨(hl.defeq hΓ).symm.trans henv hΓ (IsDefEqU.trans henv hΓ ⟨_, ht⟩ (hh.defeq hΓ)), ih hr⟩
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
