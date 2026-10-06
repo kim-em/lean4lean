@@ -37,13 +37,8 @@ open VEnv
 
 variable {env : VEnv}
 
-/-- The model is compositional in application. For Carneiro's shape semantics this is
-immediate from the only two `LE_Interp` constructors that apply to `.app`
-(`LE_Interp.bot` and `LE_Interp.app`), which see the argument only through the set of its
-approximations. -/
-structure HeadModel.Compositional (M : HeadModel env) : Prop where
-  app : ∀ {U Γ f f' a a'}, M.den U Γ f = M.den U Γ f' → M.den U Γ a = M.den U Γ a' →
-    M.den U Γ (.app f a) = M.den U Γ (.app f' a')
+/-! `HeadModel.Compositional` (the model is compositional in application) is defined in
+`Theory/Typing/HeadSeparationModel.lean`. -/
 
 /-- **Read-through is forced.** `F` is an eliminator spine up to (but excluding) its last
 index and major; `a`/`r` are the aligned index and the canonical major for which the iota
@@ -51,7 +46,7 @@ rule fires (`hiota`); `b`/`h` are an arbitrary index and major. If the model doe
 distinguish `b` from `a` (`hidx`) and does not distinguish the majors (`hmaj`, which proof
 irrelevance forces for proofs of propositions), then the eliminator at `b`, `h` denotes
 the iota result `m`, whether or not `b ≡ a` is derivable. -/
-theorem HeadModel.readThrough (M : HeadModel env) (hC : M.Compositional)
+theorem _root_.Lean4Lean.HeadModel.readThrough (M : HeadModel env) (hC : M.Compositional)
     {U Γ F a b r h m A} (hΓ : OnCtx Γ (env.IsType U))
     (hiota : env.IsDefEq U Γ (.app (.app F a) r) m A)
     (hidx : M.den U Γ b = M.den U Γ a) (hmaj : M.den U Γ h = M.den U Γ r) :
