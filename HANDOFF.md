@@ -866,6 +866,15 @@ inside this project's scope without solving open base metatheory:
    environment contains canonical `Eq`"; (iv) the base obligations
    (confluence, injectivity, strengthening with `Eq`) are on the critical
    path, not optional.
+   **Decision (Kim, 2026-10-06): the final theorem may assume the environment
+   contains canonical `Eq`.** So the strengthening obligation is stated as
+   the base conjecture `strengthening_of_canonicalEq : env.WF →
+   env.HasCanonicalEq → env.Strengthening`, and `addDecl.WF_of_canonicalEq`
+   takes `(heq : ∀ safety, (ves.venv safety).HasCanonicalEq)` (monotone under
+   extension, preserved by the conclusion). The equality-free refutation is
+   no longer on the critical path (feasibility report only). Critical path:
+   the base obligations (confluence programme started on branch
+   `agent/verify-inductives-cr`).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
