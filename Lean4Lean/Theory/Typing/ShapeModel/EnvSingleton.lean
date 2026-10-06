@@ -20,9 +20,10 @@ open VEnv InductiveSignature InductiveSignature.NativeRecursorData
 
 variable {env : VEnv}
 
-/-- T6. `E` is the compilation's header environment. It lies below `env`, the head `data.name` of
-the equation is not a constant of the installation base (hence not of `E`), and `E`'s equations
-are among the installation base's. The family is the only one of its block, it has exactly one
+/-- T6. `E` is the installation's header environment (the installation base extended by the
+block's family headers; it contains the compilation's header environment, where admissibility is
+certified). It is ordered, lies below `env`, and does not contain the equation (whose head, the
+recursor, is not even declared in it). The family is the only one of its block, it has exactly one
 constructor (the equation's), restoration is the identity, and every field of that constructor
 that does not occur as a literal index is a proof in `E` (typed at `.sort .zero` in the context
 of the parameters and the earlier fields, at the equation's levels). -/
@@ -33,9 +34,7 @@ theorem native_singleton (H : env.WF) {data : NativeRecursorData}
     (hgen : data.equation index = some df)
     (hprop : data.schema.signature.families[data.owner].resultLevel.inst data.levels ≈ .zero)
     (htarget : ¬ data.target ≈ .zero) :
-    ∃ E installBase : VEnv, E ≤ env ∧ installBase ≤ env ∧
-      (∀ df', E.defeqs df' → installBase.defeqs df') ∧
-      installBase.constants data.name = none ∧
+    ∃ E : VEnv, E ≤ env ∧ E.Ordered ∧ ¬ E.defeqs df ∧
       VDefEq.head df = .const data.name (VLevel.params data.uvars) ∧
       data.schema.signature.SingletonElimination E data.uvars data.levels ∧
       data.schema.signature.families.size = 1 ∧
@@ -54,7 +53,7 @@ theorem native_singleton (H : env.WF) {data : NativeRecursorData}
   have hhead := native_head HT hd howner hgen
   obtain ⟨_, he⟩ := HT.natives hd
   obtain ⟨base, installBase, source, expanded, aux, block, installed, hdata, _, hbase, hr, _,
-    hinst, hle, _⟩ := he
+    hinst, hle, hIB, hblockWF, _⟩ := he
   obtain ⟨E, hE, hadm⟩ := hdata.admissible
   -- singleton branch of admissibility
   have hsing : data.schema.signature.SingletonElimination E data.uvars data.levels := by
@@ -112,14 +111,25 @@ theorem native_singleton (H : env.WF) {data : NativeRecursorData}
     have := hsing.2.1
     have := index.isLt
     omega
-  refine ⟨E, installBase, hEP.trans (hPinst.trans hle), (install_le hinst).trans hle, ?_, hfresh,
-    hhead, hsing, hsing.1, hctorSize, ?_, ?_⟩
-  · intro df' h'
-    rw [VEnv.addConstVals_defeqs hE] at h'
-    exact hbase.defeqs h'
+  -- the ordered header environment of the installation
+  have hET : E ≤ envTypes' := by
+    refine addConstVals_le_of hE (hbase.trans (VEnv.addConstVals_le htypes')) (fun ci hci => ?_)
+    rw [← hdata.types] at hci
+    exact VEnv.addConstVals_get htypes' hci
+  have hTP : envTypes' ≤ envP :=
+    (VEnv.addConstVals_le hctors').trans VEnv.addProjections_le
+  obtain ⟨_, _, _, _, _, _, htypesWF, _⟩ := hblockWF
+  have hord : envTypes'.Ordered := VEnv.Ordered.addConstVals hIB.ordered htypesWF htypes'
+  have hsing' : data.schema.signature.SingletonElimination envTypes' data.uvars data.levels :=
+    ⟨hsing.1, hsing.2.1, fun ctor hc i hi => (hsing.2.2 ctor hc i hi).imp (·.mono hET) id⟩
+  refine ⟨envTypes', hTP.trans (hPinst.trans hle), hord, ?_, hhead, hsing', hsing.1, hctorSize,
+    ?_, ?_⟩
+  · intro hmem
+    exact hIB.ordered.rigid_of_absent hfresh df
+      (by rwa [VEnv.addConstVals_defeqs htypes'] at hmem) _ hhead
   · rw [hr, hauxNil]; rfl
   · intro i hi
-    exact hsing.2.2 _ (Array.getElem_mem_toList ..) i hi
+    exact hsing'.2.2 _ (Array.getElem_mem_toList ..) i hi
 
 /-- With an ordered installation base (true for the actual installation step of a well-formed
 history), the equation is not stored in its header environment. -/
@@ -138,15 +148,15 @@ theorem native_singleton_proofField (H : env.WF) {data : NativeRecursorData}
     (hgen : data.equation index = some df)
     (hprop : data.schema.signature.families[data.owner].resultLevel.inst data.levels ≈ .zero)
     (htarget : ¬ data.target ≈ .zero) :
-    ∃ E : VEnv, E ≤ env ∧ ∀ {program : SaturatedProgram data} {U : Nat} {levels : List VLevel}
-      {arguments : List VExpr}, E.Ordered → (∀ level ∈ levels, level.WF U) →
+    ∃ E : VEnv, E ≤ env ∧ ¬ E.defeqs df ∧ ∀ {program : SaturatedProgram data} {U : Nat}
+      {levels : List VLevel} {arguments : List VExpr}, (∀ level ∈ levels, level.WF U) →
       data.saturatedProgram levels arguments = some program →
       ∀ {field : Nat} {domain : VExpr}, program.instructions[field]? = some (.proof domain) →
         E.HasType U (((program.equationBody.domains.take (data.indexOffset + field)).map
           (·.instL levels)).reverse) domain (.sort .zero) := by
-  obtain ⟨E, _, hEle, _, _, _, _, hsing, _, _, hid, _⟩ :=
+  obtain ⟨E, hEle, hord, hnot, _, hsing, _, _, hid, _⟩ :=
     native_singleton H hd howner hgen hprop htarget
-  exact ⟨E, hEle, fun hord hlev hsel _ _ hinstr =>
+  exact ⟨E, hEle, hnot, fun hlev hsel _ _ hinstr =>
     data.saturatedProgram_proofField_inst hord hid hsing hlev hsel hinstr⟩
 
 end Lean4Lean.ShapeModel

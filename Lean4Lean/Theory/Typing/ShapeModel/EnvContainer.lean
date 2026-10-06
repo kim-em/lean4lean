@@ -347,7 +347,7 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
     have hX := native_head HT hdX hiX hgX
     rw [hhead] at hX
     have hnameX : a.source.name.str "rec" = dX.name := (VExpr.const.inj hX).1
-    obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, _, _, hrX, _, _, _, hfamX⟩ := hevX
+    obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, _, _, hrX, _, _, _, _, _, hfamX⟩ := hevX
     have hgX' : (compilationRestoration srcX auxX).equation (dX.nativeInstance.equation iX) =
         some ρ := by
       simpa only [NativeRecursorData.equation, hrX] using hgX

@@ -193,7 +193,7 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     refine ⟨quotCtor, [.bvar 5, .bvar 4], 1, (HT.quot hq).2.2.1, rfl, rfl, fun _ => rfl⟩
   · obtain ⟨_, hevX⟩ := HT.natives hdX
     obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, hpriorX, hbX, hrX, _, hinstX,
-      hleX, hfamX⟩ := hevX
+      hleX, _, _, hfamX⟩ := hevX
     have hgX' : (compilationRestoration srcX auxX).equation (dX.nativeInstance.equation iX) =
         some df := by
       simpa only [NativeRecursorData.equation, hrX] using hgX
@@ -244,7 +244,7 @@ theorem same_head_spines {env : VEnv} (H : env.WF) (h1 : env.defeqs df₁) (h2 :
     same_head HT h1 h2 hh1 hh2 hne
   obtain ⟨_, hev⟩ := HT.natives hd
   obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, hpriorX, hbX, hrX, _, hinstX,
-    hleX, hfamX⟩ := hev
+    hleX, _, _, hfamX⟩ := hev
   have hbE : bX ≤ env := hbX.trans ((install_le hinstX).trans hleX)
   have hgi' : (compilationRestoration srcX auxX).equation (data.nativeInstance.equation i) =
       some df₁ := by simpa only [NativeRecursorData.equation, hrX] using hgi

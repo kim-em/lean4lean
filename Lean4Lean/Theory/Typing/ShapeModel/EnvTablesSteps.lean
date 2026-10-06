@@ -476,7 +476,8 @@ theorem installEntries_some {old : Name → Option NativeRecursorData}
 
 theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
     (H : T.Inv env) (henv : env.WF)
-    (hcomp : decl.CompilesTo env block) (hinstall : block.install env = some env') :
+    (hcomp : decl.CompilesTo env block) (hblock : VInductBlock.WF env block)
+    (hinstall : block.install env = some env') :
     ∃ T', T.Extends T' ∧ T'.Inv env' := by
   obtain ⟨cbase, expanded, s, g, aux, hcle, hdata, hprior⟩ := hcomp.compiled.compilationOrigin
   let entries := NativeRecursorData.compilationEntries default decl s aux g
@@ -608,7 +609,7 @@ theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
         congr 1
         exact funext fun owner => (hdata.recursorNames owner).symm
     refine ⟨cbase, env, decl, expanded, aux, block, env', ?_, hprior, hcle, rfl, rfl, hinstall,
-      .rfl, hfamT'⟩
+      .rfl, henv, hblock, hfamT'⟩
     rw [hinstance]
     exact hdata
   refine ⟨T', hext, fun {n v} hv => ?_, fun {n data} hd => ?_, fun hq => ?_, fun {n} hn => ?_,
