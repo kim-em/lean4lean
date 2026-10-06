@@ -79,6 +79,29 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   certificate calculus (rule-level design first, Astra review of admissible
   transitivity); honest size estimate comparable to the confluence stack
   (about 29k lines).
+  **Obstacle (base branch after aac10d3c; `STRENGTHENING_NOTES.md` "Part 3
+  status", `STRENGTHENING_ASTRA_REVIEW2.md`, `REVIEW3.md`):** route (b)
+  rests on a conversion-elimination theorem (admissible transitivity for a
+  certified, transitivity-free calculus whose certificates mention only
+  subterms, synthesized types and reducts of their endpoints) for which no
+  proof organisation is known, already for the Π/λ/app/β/η/proof-irrelevance
+  fragment: every organisation is circular (transitivity needs normal
+  equality transported along β; that needs substitution through the typing
+  evidence of proof-irrelevance and η leaves; substitution for synthesized
+  typing needs conversion composition at variables on outputs of earlier
+  calls, whose size grows) and no measure decreases; Siles–Herbelin does
+  not transfer; the theory does not normalize; Astra knows no proof and no
+  impossibility argument. **Decision (2026-10-06): pursue both remaining
+  routes.** (1) The strengthening agent continues with a minimal Lean
+  prototype of the certified core calculus hunting a termination
+  organisation, documenting each failed measure for Mario. (2) E1 is
+  UN-PARKED: its scoped-cache executable needs strengthening at exactly one
+  restricted site (`ProjectionWalkCorner`); the E1 agent merges the mainline,
+  finishes the last narrow-scope site, deletes `CheckerSubContextLocality`,
+  and reports the residual conjecture set; the strengthening agent assesses
+  whether `ProjectionWalkCorner` is provable with singleton eta. Whichever
+  route reaches a complete proof first wins; GOAL.md's "E1 parked" clause is
+  superseded by this entry.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
