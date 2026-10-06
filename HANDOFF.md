@@ -776,6 +776,18 @@ inside this project's scope without solving open base metatheory:
    is proved by composition; the final body will be
    `assemblyNative_of_restoredWF E wf Hsources hnested (E.hrestoredWF_of wf Hsources)`
    once `hrestoredWF_of` lands (agent running).
+   **`hrestoredWF_of` proved modulo `NestedRestoredEquationGaps` (cf712fb):**
+   Theory/Inductive/RestorationRenaming.lean extends restoration-preserves-
+   typing with the recursor and projection renaming (`VExpr.replaceRen`,
+   `RenamingReplacement`, `ProjectionTransport`); the nested instantiation
+   transports the lowered generated equations' well-formedness (in the
+   rule-free lowered recursor environment) to the final base environment.
+   Six gap fields remain, all believed true: projection names avoid the
+   restorable names in eliminator schemas, lowered constructor types,
+   generated recursor types and equations (agent: `ProjsOK` from the hit-shape
+   chain plus a projection-name analogue of `IsDefEq.noConsts`); typing of each
+   auxiliary constructor's restoration lambda from the container's formation;
+   and `ProjectionTransport` for the lowered projection entries (agent).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
