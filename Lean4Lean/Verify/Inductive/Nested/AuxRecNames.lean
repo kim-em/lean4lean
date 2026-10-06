@@ -1016,6 +1016,28 @@ theorem NestedValidatedRunResult.RestoredRulesRealization.modulo
   obtain ⟨trEnv, Hfresh, HF⟩ := H
   exact ⟨trEnv, fun n hn _ => Hfresh n hn, HF⟩
 
+/-- Freshness outside `X` is freshness outside the restorable names of `X`. -/
+theorem fresh_filter_restorable {R X : List Name} {P : Name → Prop}
+    (H : ∀ n ∈ R, n ∉ X → P n) : ∀ n ∈ R, n ∉ X.filter (· ∈ R) → P n := by
+  intro n hn hnX
+  refine H n hn fun hX => hnX ?_
+  simp [List.mem_filter, hX, hn]
+
+/-- Realization modulo `X` is realization modulo the restorable names of `X`. -/
+theorem NestedValidatedRunResult.RestoredRulesRealizationModulo.filter_restorable
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
+    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    {outEnv : Environment}
+    {E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv}
+    {r : Restoration} {X : List Name} {rules : List VDefEq}
+    (H : E.RestoredRulesRealizationModulo r X rules) :
+    E.RestoredRulesRealizationModulo r (X.filter (· ∈ r.restorableNames)) rules := by
+  obtain ⟨trEnv, Hfresh, HF⟩ := H
+  exact ⟨trEnv, fresh_filter_restorable Hfresh, HF⟩
+
 /-- **One restored equation, modulo `X`.** -/
 theorem NestedValidatedRunResult.restoredEquation_of_realizationModulo
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
