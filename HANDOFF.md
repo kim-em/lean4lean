@@ -761,6 +761,15 @@ inside this project's scope without solving open base metatheory:
    `loweredRulesAvoid_renamed` closes the residue. **`HruleShape` is the only
    remaining premise of the nested assembly** (agent running on
    Nested/RuleShape.lean).
+   **`HruleShape` proved modulo `HrestoredWF` (53437e2, Nested/RuleShape.lean):**
+   the shape is rebuilt with the restored generated equations as its rules
+   (`NestedFinalAssemblyShape.withRules`); primary iota shapes and auxiliary
+   guardedness come from the validator by translation uniqueness. The last
+   nested premise is `HrestoredWF`: every restored generated equation is
+   `VDefEq.WF` in the shape's final base environment (route: transport the
+   generated equation's well-formedness from the lowered recursor environment
+   through a restoration substitution extended with the recursor renaming).
+   Agents: `hrestoredWF_of` and the `assemblyNative` wiring with `hnested`.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
