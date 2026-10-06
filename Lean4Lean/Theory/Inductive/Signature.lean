@@ -68,9 +68,26 @@ def SingletonElimination (s : InductiveSignature) (envTypes : VEnv)
       ((s.fieldType i ctor.fields[i]).instL levels) (.sort .zero) ∨
     VExpr.bvar (ctor.fields.length - 1 - i) ∈ ctor.indices
 
+/-- The elimination universe is a universe parameter on which the source
+universes do not depend, so the recursor can be specialized to any motive
+universe, in particular to `Prop`, without changing the family. This is the
+shape of Lean's recursors (`getElimLevel` returns a fresh parameter). -/
+def Instance.FreeTarget {s : InductiveSignature} (g : Instance s) : Prop :=
+  ∃ k, g.targetLevel = .param k ∧
+    ∀ l ∈ g.levels, ∀ (ls : List VLevel) (u : VLevel), l.inst (ls.set k u) = l.inst ls
+
 /-- Admissibility is checked at the instance's source universes. In particular,
 a Sort-polymorphic family can acquire large elimination after specialization
-without changing its native recursor's type. -/
+without changing its native recursor's type.
+
+Singleton (large) elimination additionally requires a free elimination universe
+(`Instance.FreeTarget`). Without it, `VEnv.WF` admitted a large-eliminating inductive
+proposition whose only recursor has motive universe `succ u`; its proof fields can then
+not be extracted (there is no elimination into `Prop`), so its iota rule has no
+reconstruction step (`FullEquationCoverage` fails) and context strengthening with
+canonical `Eq` is in doubt (`docs/inductives/STRENGTHENING_NOTES.md`, 1.9a). Lean never
+produces such recursors, and the checker's realization satisfies the free shape; this
+corrects the specification (decision recorded in HANDOFF.md, 2026-10-06). -/
 structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
     (envTypes : VEnv) : Prop where
   levels_length : g.levels.length = s.uvars
@@ -78,7 +95,8 @@ structure Instance.Admissible {s : InductiveSignature} (g : Instance s)
   target_wf : g.targetLevel.WF g.uvars
   elimination :
     (∀ family ∈ s.families.toList, (family.resultLevel.inst g.levels).IsNeverZero) ∨
-    g.targetLevel ≈ .zero ∨ s.SingletonElimination envTypes g.uvars g.levels
+    g.targetLevel ≈ .zero ∨
+    (s.SingletonElimination envTypes g.uvars g.levels ∧ g.FreeTarget)
 
 /-- Each generated induction hypothesis is a well-formed type in the context in
 which the generated minor premise binds it: parameters, motives, earlier
