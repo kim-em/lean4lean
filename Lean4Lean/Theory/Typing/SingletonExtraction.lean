@@ -1574,6 +1574,35 @@ theorem occ_length (ps idx : List VExpr) (m : VExpr) (i : Nat) :
     simp only [occ]
     split <;> simp [ih]
 
+/-- The reconstruction commutes with substitution of the occurrence (hence with lifting
+and instantiation), when the extraction functions are closed. -/
+theorem occ_subst (hval : ∀ j, (value S params E j).ClosedN 0) (hsc : S.Scoped ps.length)
+    (hidxl : idx.length = S.indices.length) (τ : VExpr.Subst) :
+    ∀ i, (occ S params E ps idx m i).1.map (·.subst τ) =
+        (occ S params E (ps.map (·.subst τ)) (idx.map (·.subst τ)) (m.subst τ) i).1 ∧
+      (occ S params E ps idx m i).2.map (·.subst τ) =
+        (occ S params E (ps.map (·.subst τ)) (idx.map (·.subst τ)) (m.subst τ) i).2 := by
+  intro i
+  induction i with
+  | zero => simp [occ]
+  | succ i ih =>
+    obtain ⟨ih1, ih2⟩ := ih
+    simp only [occ]
+    split
+    · rename_i k hs
+      have hk := hsc.slot_lt i k hs
+      have hX := VExpr.instOuter_subst_closed (S.indices.getD k default) (ps ++ idx.take k)
+        (by simpa [hidxl, Nat.min_eq_left (Nat.le_of_lt hk)] using hsc.indices_getD k) τ
+      simp only [List.map_append, List.map_cons, List.map_nil, ih1, ih2, VExpr.eqReflApp,
+        VExpr.subst_app, VExpr.subst_const, VExpr.subst_sort, hX, List.map_take]
+      refine ⟨by first | trivial | rfl, ?_⟩
+      congr 2
+      simp [List.getD_eq_getElem?_getD, List.getElem?_map]
+      cases idx[k]? <;> rfl
+    · simp only [List.map_append, List.map_cons, List.map_nil, ih1, ih2, VExpr.subst_mkApps,
+        (hval i).subst_eq .zero]
+      exact ⟨by first | trivial | rfl, by first | trivial | rfl⟩
+
 open VEnv CastSpec in
 /-- At an occurrence aligned with some typed field instance `f`, the reconstructed fields are
 a typed field instance, definitionally equal to `f` field by field. -/
