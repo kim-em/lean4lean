@@ -623,11 +623,28 @@ inductive IsDefEq : List SExpr → SExpr → SExpr → SExpr → Prop where
   | extra : env.defeqs df → ls.length = df.uvars →
     Γ ⊢ .instL ls (.mk df.lhs) ≡ .instL ls (.mk df.rhs) : .instL ls (.mk df.type)
 
-axiom Params.extra_pat (Γ) : env.defeqs df → ls.length = df.uvars →
-  ∃ p r m1 m2 dfs, Pat p r ∧ p.MatchesS (.instL ls (.mk df.lhs)) m1 m2 ∧
-    (dfs : List _).map (·.2) = r.2.defeqsS m1 m2 ∧
-    (∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) ∧
-    .instL ls (.mk df.rhs) = r.1.applyS m1 m2
+/-- **Assumption of the abstract prototype** (formerly the global axiom `Params.extra_pat`):
+every stored rule `df` of the environment, at every level instance, is an instance of a
+registered pattern `Pat p r` whose checks hold, in every context `Γ`, as `IsDefEq` judgments.
+
+This is a property of the pattern registry that `Params` abstracts over (the `VExpr` analogue
+is the registry built by `NativeRegistryOfWF`/`CanonicalRegistryOfWF`). It cannot be a field of
+`Params` itself because it mentions `IsDefEq`, which is defined in terms of `Params`; so it is a
+separate `Prop`-valued class over a `Params` instance, and every theorem that relies on it takes
+`[Params.PatternRegistry]` as an explicit instance argument. -/
+class Params.PatternRegistry : Prop where
+  extra_pat (Γ) : env.defeqs df → ls.length = df.uvars →
+    ∃ p r m1 m2 dfs, Pat p r ∧ p.MatchesS (.instL ls (.mk df.lhs)) m1 m2 ∧
+      (dfs : List _).map (·.2) = r.2.defeqsS m1 m2 ∧
+      (∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) ∧
+      .instL ls (.mk df.rhs) = r.1.applyS m1 m2
+
+theorem Params.extra_pat [Params.PatternRegistry] (Γ) : env.defeqs df → ls.length = df.uvars →
+    ∃ p r m1 m2 dfs, Pat p r ∧ p.MatchesS (.instL ls (.mk df.lhs)) m1 m2 ∧
+      (dfs : List _).map (·.2) = r.2.defeqsS m1 m2 ∧
+      (∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) ∧
+      .instL ls (.mk df.rhs) = r.1.applyS m1 m2 :=
+  Params.PatternRegistry.extra_pat Γ
 
 def CtorBundle.IsCtor (c : Name) : Prop :=
   ∃ cl, Params.classify c = some cl ∧ cl matches .ctor .. | .etaCtor ..

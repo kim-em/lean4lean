@@ -5051,7 +5051,7 @@ theorem LE_Interp.build_spine {m1 : p.Path → TShape} {m2} (a2 : p.MatchesS LHS
         Const.indTy (rargs := .replicate args.length .bot) (List.length_replicate ▸ hI) .rfl
           |>.lift k'.le_succ .mono
 
-theorem LE_Interp.strongSound (H : Γ ⊢ M ≡ N : A) : StrongSoundEq Γ M N A := by
+theorem LE_Interp.strongSound [Params.PatternRegistry] (H : Γ ⊢ M ≡ N : A) : StrongSoundEq Γ M N A := by
   replace H := H.strong
   induction H with
   | @bvar _ i A _ h h2 ih =>
@@ -5258,7 +5258,7 @@ theorem LE_Interp.strongSound (H : Γ ⊢ M ≡ N : A) : StrongSoundEq Γ M N A 
       exact .mono hm_le_typed <| h_foldr_eq ▸ apps_realize W h_m_typed_HT.T ha
         (h_foldr_eq ▸ ih1.left) h_per_arg (.pat a1 hMatch (hRHS.mono_l hbnd))
 
-theorem LE_Interp.sound (H : Γ ⊢ M ≡ N : A) (W : Valuation.Fits Γ₀ Γ ρ) {m} :
+theorem LE_Interp.sound [Params.PatternRegistry] (H : Γ ⊢ M ≡ N : A) (W : Valuation.Fits Γ₀ Γ ρ) {m} :
     (LE_Interp ρ m M ↔ LE_Interp ρ m N) ∧ (LE_Interp ρ m M → InterpTyped ρ m M A) :=
   ⟨(strongSound H).sound W, (strongSound H).left.sound W⟩
 

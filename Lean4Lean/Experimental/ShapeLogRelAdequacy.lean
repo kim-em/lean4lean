@@ -42,7 +42,7 @@ theorem LR.Adequate.trans' : Adequate Γ₀ Γ ρ A₁ A₂ (.sort u) a s →
     have h2 := (LR _).trans' (a1 W.symm.left).2 (b2 W.symm.left)
     exact (LR _).trans ((LR _).symm h1) <| (LR _).trans (a1 W).2 h2
 
-theorem LR.Adequate.cons
+theorem LR.Adequate.cons [Params.PatternRegistry]
     (ihA : ∀ {ρ n} {m a : WShape n}, LE_Interp ρ m.T A → LE_Interp ρ a.T (.sort u) →
       m.HasType a → Adequate Γ₀ Γ ρ A A' (sort u) m a)
     (HA : Γ ⊢ A ≡ A' : .sort u)
@@ -102,8 +102,38 @@ theorem LR.toValTy {m : WShape n'} {b : WShape n} (le_n : n ≤ n') (le_a : b.T 
   exact (LR Γ₀).toType <| (LR Γ₀).mono_r_1 hle hmem'
     (.mono_r hle .sort hmem') .sort H
 
-/-- Main adequacy theorem for the logical relation. -/
-theorem LR.adequacy (H : Γ ⊢ M ≡ N : A)
+/-- **Hypothesis of `LR.adequacy`**: adequacy of the logical relation at constants, over the
+base context `Γ₀`. Whenever a constant `c.{ls}` is approximated by `m`, its type by `a`, and
+`m : a`, under a valuation `ρ` that fits some context over `Γ₀`, the constant is related to
+itself at `m` and `a`.
+
+This is exactly the `const` case of `LR.adequacy`, stated as a `Prop` so that it is an explicit
+hypothesis rather than an unproved case hidden in the proof. It is the realizability of the constants' shape
+interpretation (`LE_Interp.Const`): table (`lam`) shapes of a constant must be matched by the
+constant's applications, and `pat` shapes by an actual reduction step.
+
+**It is false for registered patterns with checks** (`Pattern.Check.defeq`):
+`LE_Interp.Const.pat` ignores the checks, so a checked pattern is read through by the model,
+while the relation at a Pi-shaped type demands a weak-head reduction that only fires once the
+check is derivable (`docs/inductives/PHASE1_SPIKE.md`, section 3, and
+`Lean4Lean/Experimental/Spike/ReadThrough.lean`). We also expect it to fail for unchecked
+patterns that match a constructor argument at a type-valued motive, because `LE_Interp.Matches`
+matches argument *shapes* while `WHRed.extra` matches argument *syntax*, and the relation at an
+inductive type shape (`indTy`) is `True`: a variable with a constructor shape is related to
+itself, the pattern's shape is a Pi, and the stuck eliminator does not reduce to a Pi [paper
+argument, not formalized]. It is plausible when no registered pattern inspects arguments
+(definitional unfolding only); no proof of that is attempted here. -/
+def LR.ConstAdequate (Γ₀ : List SExpr) : Prop :=
+  ∀ {c ci ls n} {ρ : Valuation} {Γ : List SExpr} {m a : WShape n},
+    Params.env.constants c = some ci → ls.length = ci.uvars → ρ.Fits Γ₀ Γ →
+    LE_Interp ρ m.T (.const c ls) → LE_Interp ρ a.T ((SExpr.mk ci.type).instL ls) →
+    m.HasType a →
+    (LR Γ₀).DefEq (.const c ls) (.const c ls) ((SExpr.mk ci.type).instL ls) m a
+
+/-- Main adequacy theorem for the logical relation, under the explicit hypothesis
+`LR.ConstAdequate Γ₀` (adequacy at constants, which is false for checked patterns; see its
+docstring) and the pattern-registry assumption `Params.PatternRegistry`. -/
+theorem LR.adequacy [Params.PatternRegistry] (hc : LR.ConstAdequate Γ₀) (H : Γ ⊢ M ≡ N : A)
     (hM : LE_Interp ρ m.T M) (hA : LE_Interp ρ a.T A) (hmem : m.HasType a) :
     Adequate (n := n) Γ₀ Γ ρ M N A m a := by
   replace H := H.strong; induction H generalizing ρ n m a with
@@ -146,12 +176,9 @@ theorem LR.adequacy (H : Γ ⊢ M ≡ N : A)
           WShape.lam', WShape.lam, WShape.bot, WShape.ctor, WShape.indTy,
           Shape.bot] at h <;> first | split at h <;> simp_all only [reduceCtorEq] | simp_all
   | @const c ci Γ ls _ h1 h2 h3 =>
-    cases hM with | bot => exact .bot hmem.isType | const a1 _ a3 a4 a5 a6
-    cases h1.symm.trans a1
-    suffices ∀ {σ}, (LR Γ₀).DefEq (const c ls) (const c ls) (((mk ci.type).instL ls).subst σ) m a
-      from ⟨fun _ _ _ => ⟨this, this⟩, fun _ _ => this⟩
-    intro σ; rw [(Params.henv.closedC h1).mkS.instL.subst_eq .zero]; clear σ
-    sorry
+    refine .fits fun W => .refl fun σ _ _ => ?_
+    rw [(Params.henv.closedC h1).mkS.instL.subst_eq .zero]
+    exact hc h1 h2 W hM hA hmem
   | @appDF Γ A u F F' B X X' v _ Hf Ha HBa _ ihf iha ihBa =>
     cases hM with | bot => exact .bot hmem.isType | @app _ nf_app f _ _ _ x hif hia le_m
     suffices ∀ {F F' X X' σ σ'}, SubstWF Γ₀ σ σ' Γ ρ →
@@ -431,7 +458,8 @@ theorem LR.adequacy (H : Γ ⊢ M ≡ N : A)
       let ⟨_, _, _, _, _, a1, a2, a3, a4, a5⟩ := Params.extra_pat Γ₀ h1 h2
       exact ((LR _).whr .rfl (.tail .rfl (a5 ▸ .extra a1 a2 a3 a4))).1
 
-theorem forallE_whRed_l (d : Γ ⊢ A₀ ≡ SExpr.forallE B₁ F₁ : .sort s) :
+theorem forallE_whRed_l [Params.PatternRegistry] (hc : LR.ConstAdequate Γ)
+    (d : Γ ⊢ A₀ ≡ SExpr.forallE B₁ F₁ : .sort s) :
     ∃ B₀ F₀, Γ ⊢ A₀ ⤳* .forallE B₀ F₀ ∧ ∃ u v,
       Γ ⊢ B₀ ≡ B₁ : .sort u ∧ B₀::Γ ⊢ F₀ ≡ F₁ : .sort v := by
   have hPi : LE_Interp .nil (WShape.T (n := 1) (.forallE .bot WShapeFun.bot)) (.forallE B₁ F₁) := by
@@ -441,22 +469,25 @@ theorem forallE_whRed_l (d : Γ ⊢ A₀ ≡ SExpr.forallE B₁ F₁ : .sort s) 
     refine WShape.HasType.forallE_l.2 ⟨_, ?_, rfl⟩
     refine WShape.HasTypePi.iff.2 ⟨.bot (.bot' .sort), fun x hx => ?_⟩
     cases WShape.HasType.bot_r hx; exact WShapeFun.bot_app.symm ▸ .bot .sort
-  have := (LR.adequacy d ((LE_Interp.sound d .nil).1.2 hPi) (.sort TShape.sort_eqv.1) hmem).2 .id
+  have := (LR.adequacy hc d ((LE_Interp.sound d .nil).1.2 hPi) (.sort TShape.sort_eqv.1) hmem).2 .id
   have ⟨_, _, _, _, _, _, redA₀, redPi, convB, convF, _⟩ := subst_id ▸ subst_id ▸ subst_id ▸ this
   cases WHNF.forallE.whRedS redPi; exact ⟨_, _, redA₀, _, _, convB, convF⟩
 
 /-- Pi–Pi injectivity: if two Pi types are definitionally equal,
 their domains and codomains are each definitionally equal. -/
-theorem forallE_inv (H : Γ ⊢ SExpr.forallE A₀ B₀ ≡ SExpr.forallE A₁ B₁ : .sort s) :
+theorem forallE_inv [Params.PatternRegistry] (hc : LR.ConstAdequate Γ)
+    (H : Γ ⊢ SExpr.forallE A₀ B₀ ≡ SExpr.forallE A₁ B₁ : .sort s) :
     ∃ u v, Γ ⊢ A₀ ≡ A₁ : .sort u ∧ A₀::Γ ⊢ B₀ ≡ B₁ : .sort v := by
-  have ⟨_, _, red, H⟩ := forallE_whRed_l H
+  have ⟨_, _, red, H⟩ := forallE_whRed_l hc H
   cases WHNF.forallE.whRedS red; exact H
 
-theorem sort_forallE_inv : ¬Γ ⊢ .sort u ≡ SExpr.forallE A₁ B₁ : .sort s :=
-  fun H => have ⟨_, _, H⟩ := forallE_whRed_l H; nomatch WHNF.sort.whRedS H.1
+theorem sort_forallE_inv [Params.PatternRegistry] (hc : LR.ConstAdequate Γ) :
+    ¬Γ ⊢ .sort u ≡ SExpr.forallE A₁ B₁ : .sort s :=
+  fun H => have ⟨_, _, H⟩ := forallE_whRed_l hc H; nomatch WHNF.sort.whRedS H.1
 
 /-- Sort injectivity: if two sorts are definitionally equal, their levels are equal. -/
-theorem sort_inv (d : Γ ⊢ SExpr.sort u ≡ SExpr.sort v : V) : u = v := by
+theorem sort_inv [Params.PatternRegistry] (hc : LR.ConstAdequate Γ)
+    (d : Γ ⊢ SExpr.sort u ≡ SExpr.sort v : V) : u = v := by
   have hM : LE_Interp .nil (WShape.T (n := 1) (.sort (decide (u ≠ .zero)))) (.sort u) :=
     .sort TShape.sort_eqv.1
   have ⟨n, mU, mV, h1, h2, h3, hA, h5⟩ := (LE_Interp.sound d .nil).2 hM |>.out
@@ -468,6 +499,6 @@ theorem sort_inv (d : Γ ⊢ SExpr.sort u ≡ SExpr.sort v : V) : u = v := by
     ext1; generalize mV.val = mv at h5
     let .sort := Shape.HasType.unfold_iff.1 h5; rfl
   have h1' : (1 : Nat) ≤ n := h1
-  have := (LR.adequacy d hM (hA.unlift h1') .sort).2 .id
+  have := (LR.adequacy hc d hM (hA.unlift h1') .sort).2 .id
   have ⟨w, h1, h2⟩ := (LR _).sort_iff.1 (subst_id ▸ subst_id ▸ subst_id ▸ this)
   cases WHNF.sort.whRedS h1; cases WHNF.sort.whRedS h2; rfl
