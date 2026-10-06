@@ -548,7 +548,7 @@ theorem
         ∃ localDomains : List VExpr,
           localDomains.length = F.semantic.generated.localArgs.size ∧
           scope.toCtx = localDomains.reverse ++ B.fieldScope.toCtx ∧
-          ∀ {body target},
+          (∀ {body target},
             TrExprS H.outVEnv Us scope body target →
             H.outVEnv.IsType Us.length scope.toCtx target →
             TrExprS H.outVEnv Us B.fieldScope
@@ -556,7 +556,9 @@ theorem
                   F.semantic.generated.localArgs body)
                 (VExpr.wrapForalls localDomains target) ∧
               H.outVEnv.IsType Us.length B.fieldScope.toCtx
-                (VExpr.wrapForalls localDomains target) := by
+                (VExpr.wrapForalls localDomains target)) ∧
+          ChkEmbeds H.outVEnv Us.length
+            F.semantic.current_context.chk.vlctx scope := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let Hfield := B.core
   rcases F.originContext.onlyLams.lamPrefix
@@ -670,7 +672,7 @@ theorem
   rcases HlocalPrefix.extendFVarNarrowCoreEmbedded H.outVEnvWF HlocalWF
       HlocalBase HlocalUp hchkLocalWF hnC hagreeC hbaseEmb with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
-      hcontext, _hshift, Hreplay, _hembLocal⟩
+      hcontext, _hshift, Hreplay, hembLocal⟩
   have hsource : ∀ body, Closed body →
       F.semantic.generated.current.lctx.mkForall
           F.semantic.generated.localArgs body =
@@ -691,7 +693,35 @@ theorem
         rwa [Hscope.noBV] at h)]
       simpa [HlocalBase,
         checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
-        Hreplay Hbody HbodyType⟩
+        Hreplay Hbody HbodyType, hembLocal⟩
+
+theorem TrExprS.getAppArgsList_translations {env : VEnv} {Us : List Name}
+    {Δ : VLCtx} {e : Expr} {t : VExpr} (H : TrExprS env Us Δ e t) :
+    ∃ args', List.Forall₂ (TrExprS env Us Δ) e.getAppArgsList args' := by
+  rw [← Expr.mkAppList_getAppArgsList e] at H
+  obtain ⟨_, args', _, hargs, _⟩ := checkPositivityStep.TrExprS.mkAppList_inv H
+  exact ⟨args', hargs⟩
+
+theorem _root_.List.Forall₂.drop_both {α β : Type} {R : α → β → Prop} :
+    ∀ {l : List α} {l' : List β}, List.Forall₂ R l l' → ∀ n : Nat,
+      List.Forall₂ R (l.drop n) (l'.drop n)
+  | _, _, .nil, _ => by simp
+  | _, _, .cons h t, 0 => .cons h t
+  | _, _, .cons _ t, n + 1 => t.drop_both n
+
+theorem checkInductiveTypes.loopType.FVarNarrowCore.fullTargetEqs
+    (H : checkInductiveTypes.loopType.FVarNarrowCore env Us scope runtime)
+    (henv : env.WF) :
+    ∀ {sources : List Expr} {narrow full : List VExpr},
+      List.Forall₂ (TrExprS env Us scope) sources narrow →
+      List.Forall₂ (TrExprS env Us runtime) sources full →
+      List.Forall₂ (fun n f => env.IsDefEqU Us.length runtime.toCtx
+        (n.lift' H.shift) f) narrow full
+  | _, _, _, .nil, .nil => .nil
+  | _, _, _, .cons hn tn, .cons hf tf =>
+    .cons (H.fullTargetEq henv hn
+      (hf.trExpr henv (H.context.symm henv.ordered).wf))
+      (H.fullTargetEqs henv tn tf)
 
 /-- Restrict the complete recursive index spine through the exact cached
 target core.  This is the list-level equation certificate: all indices share
@@ -776,7 +806,7 @@ theorem
     (fun _ _ Hindex => Hindex.mono H.constructorVEnv_le) Hindices
   rcases F.currentCachedNarrowCore B with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
-      hcontext, Hreplay⟩
+      hcontext, Hreplay, hemb⟩
   have hscopeExact : scope.fvars = F.semantic.recent.fvars.reverse ++
       A.semantics.fieldsRecent.fvars.reverse ++
         H.parameterSuffix.parameterDecls.fvars := by
@@ -795,52 +825,23 @@ theorem
         Array.array_toSubarray] at hsource
       exact List.mem_of_mem_take (List.mem_of_mem_drop hsource)
     exact F.semantic.exposed_scope.getAppArgsList hsourceFull
-  have restrictIndices : ∀ {sources : List Expr} {targets : List VExpr},
-      List.Forall₂
-          (TrExprS H.outVEnv Us F.semantic.current_context.mlctx.vlctx)
-          sources targets →
-      sources ⊆ sourceIndices →
-      ∃ narrowTargets,
-        List.Forall₂ (TrExprS H.outVEnv Us scope) sources narrowTargets ∧
-        List.Forall₂
-          (fun narrow full => H.outVEnv.IsDefEqU Us.length
-            F.semantic.current_context.mlctx.vlctx.toCtx
-            (narrow.lift' Hscope.shift) full)
-          narrowTargets targets := by
-    intro sources targets Htranslated hsubset
-    induction Htranslated with
-    | nil => exact ⟨[], .nil, .nil⟩
-    | @cons source target sources targets Hindex _ ih =>
-      have hsource : source ∈ sourceIndices := hsubset List.mem_cons_self
-      have Hsource := HsourceScope source hsource
-      have HsourceNarrow : source.FVarsIn (· ∈ scope.fvars) := by
-        apply Hsource.mono
-        intro fv hfv
-        rw [F.root_scope,
-          A.semantics.fieldOpening.fvars_eq_bound
-            A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
-          at hfv
-        rw [hscopeExact, H.parameterSuffix.parameterDecls_fvars]
-        rcases hfv with hlocalFv | hfield | hparam
-        · exact List.mem_append_left _
-            (List.mem_append_left _ (List.mem_reverse.mpr hlocalFv))
-        · exact List.mem_append_left _
-            (List.mem_append_right _ (List.mem_reverse.mpr hfield))
-        · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
-      have hclosed : Closed source 0 := by
-        have h := Hindex.closed
-        rw [F.semantic.current_context.mlctx.noBV] at h
-        exact h
-      rcases Hscope.restrictEq H.outVEnvWF Hindex hclosed HsourceNarrow with
-        ⟨narrowTarget, HnarrowTarget, HtargetEq⟩
-      have htailSubset : sources ⊆ sourceIndices := by
-        intro other hother
-        exact hsubset (List.mem_cons_of_mem source hother)
-      rcases ih htailSubset with ⟨narrowTargets, Hnarrow, Heq⟩
-      exact ⟨narrowTarget :: narrowTargets,
-        .cons HnarrowTarget Hnarrow, .cons HtargetEq.symm Heq⟩
-  rcases restrictIndices HindicesFinal (List.Subset.refl sourceIndices) with
-    ⟨narrowIndices, HnarrowIndices, HindexEq⟩
+  obtain ⟨_, _, _, _, _, _, _, _, ⟨exposed₁, Hexposed₁, _⟩, _⟩ :=
+    F.semantic.chkAgree
+  rw [hsemantic] at Hexposed₁
+  obtain ⟨exposed₂, Hexposed₂⟩ := hemb.trExprS H.outVEnvWF
+    (Hexposed₁.mono H.constructorVEnv_le)
+  obtain ⟨args₂, Hargs₂⟩ :=
+    TrExprS.getAppArgsList_translations Hexposed₂
+  have hsourceIndices : sourceIndices =
+      F.semantic.generated.exposedType.getAppArgsList.drop
+        stats.params.size :=
+    Expr.getAppArgs_slice_toList _ _
+  have HnarrowIndices : List.Forall₂ (TrExprS H.outVEnv Us scope)
+      sourceIndices (args₂.drop stats.params.size) := by
+    rw [hsourceIndices]
+    exact Hargs₂.drop_both _
+  let narrowIndices := args₂.drop stats.params.size
+  have HindexEq := Hscope.fullTargetEqs H.outVEnvWF HnarrowIndices HindicesFinal
   exact ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
     hscopeExact, hdrop, hlocal, hcontext, Hreplay, hlength,
     HnarrowIndices, HindexEq⟩
