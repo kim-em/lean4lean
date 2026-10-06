@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.FullReduction
+import Lean4Lean.Theory.Typing.PrefixRuleCongruence
 import Lean4Lean.Theory.LevelledConfluence
 
 /-! # Levelled parallel relations for the full presentation
@@ -449,6 +450,109 @@ theorem EtaPar.instN (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx 
 end Basic
 
 
+
+
+section Relations
+
+theorem ParRed.congrRel : CongrRel ParRed where
+  rfl := ParRed.rfl
+  app := .app
+  proj := .proj
+  lam := .lam
+  forallE := .forallE
+  weakN W h := h.weakN W
+
+theorem DeltaPar.congrRel : CongrRel DeltaPar where
+  rfl := DeltaPar.rfl
+  app := .app
+  proj := .proj
+  lam := .lam
+  forallE := .forallE
+  weakN W h := h.weakN W
+
+theorem EtaPar.congrRel : CongrRel EtaPar where
+  rfl := EtaPar.rfl
+  app := .app
+  proj := .proj
+  lam := .lam
+  forallE := .forallE
+  weakN W h := h.weakN W
+
+theorem ParRed.argRel : ArgRel ParRed :=
+  ParRed.congrRel.argRel fun hΓ h ha => h.defeq hΓ ha
+
+theorem DeltaPar.argRel : ArgRel DeltaPar :=
+  DeltaPar.congrRel.argRel fun hΓ h ha => (DeltaPar.full h).defeq hΓ ha
+
+theorem EtaPar.argRel : ArgRel EtaPar :=
+  EtaPar.congrRel.argRel fun hΓ h ha => (EtaPar.full hΓ h ha).defeq hΓ ha
+
+theorem HasType.wrapLams_body (hΓ : OnCtx Γ (env.IsType univs)) :
+    ∀ {ds : List VExpr} {body T}, Γ ⊢ VExpr.wrapLams ds body : T →
+      OnCtx (ds.reverse ++ Γ) (env.IsType univs) ∧ ∃ B, (ds.reverse ++ Γ) ⊢ body : B
+  | [], _, _, h => ⟨hΓ, _, h⟩
+  | d :: ds, body, T, h => by
+    have h' : Γ ⊢ .lam d (VExpr.wrapLams ds body) : T := h
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := h'.lam_inv henv hΓ
+    have := HasType.wrapLams_body (Γ := d :: Γ) ⟨hΓ, _, hd⟩ hb
+    simpa only [List.reverse_cons, List.append_assoc, List.singleton_append] using this
+
+/-- A related right-hand side: related body, then a change of definitionally
+equal binder domains. -/
+theorem rhs_rel_join {R : List VExpr → VExpr → VExpr → Prop} (I : CongrRel R) (J : ArgRel R)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hl : ds.length = ds'.length)
+    (ht : IsDefEqU env univs Γ (VExpr.wrapForalls ds res) (VExpr.wrapForalls ds' res'))
+    (hb : R (ds.reverse ++ Γ) body body') (hrhs : Γ ⊢ VExpr.wrapLams ds body : T) :
+    R Γ (VExpr.wrapLams ds body) (VExpr.wrapLams ds body') ∧
+      NormalEq₀ Γ (VExpr.wrapLams ds body') (VExpr.wrapLams ds' body') := by
+  obtain ⟨hctx, _, hB⟩ := HasType.wrapLams_body hΓ hrhs
+  have hB' := (J.defeq hctx hb hB).hasType.2
+  exact ⟨I.wrapLams hb, NormalEqF.wrapLams_congr hΓ hl ht (.refl hB')⟩
+
+theorem NativeDeltaRule.congr_red {R : List VExpr → VExpr → VExpr → Prop}
+    (I : CongrRel R) (J : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+    (ha : List.Forall₂ (R Γ) args args') :
+    ∃ rhs' X, NativeDeltaRule env univs recursorData Γ name levels args' rhs' ∧
+      R Γ rhs X ∧ NormalEq₀ Γ X rhs' := by
+  obtain ⟨_, hd⟩ := H.defeq henv hΓ
+  obtain ⟨rhs', hr, ds, ds', B, B', res, res', rfl, rfl, hl, ht, hb⟩ := H.congr_rel J hΓ ha
+  obtain ⟨h1, h2⟩ := rhs_rel_join I J hΓ hl ht hb hd.hasType.2
+  exact ⟨_, _, hr, h1, h2⟩
+
+theorem QuotDeltaRule.congr_red {R : List VExpr → VExpr → VExpr → Prop}
+    (I : CongrRel R) (J : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotDeltaRule env univs Γ levels args rhs)
+    (ha : List.Forall₂ (R Γ) args args') :
+    ∃ rhs' X, QuotDeltaRule env univs Γ levels args' rhs' ∧ R Γ rhs X ∧ NormalEq₀ Γ X rhs' := by
+  obtain ⟨_, hd⟩ := H.defeq henv hΓ
+  obtain ⟨rhs', hr, ds, ds', B, B', res, res', rfl, rfl, hl, ht, hb⟩ := H.congr_rel J hΓ ha
+  obtain ⟨h1, h2⟩ := rhs_rel_join I J hΓ hl ht hb hd.hasType.2
+  exact ⟨_, _, hr, h1, h2⟩
+
+omit [Params] in
+theorem CongrRel.apply_rhs {R : List VExpr → VExpr → VExpr → Prop} (I : CongrRel R)
+    {p : Pattern} (r : p.RHS) {m m' : p.Path → VExpr} (H : ∀ a, R Γ (m a) (m' a)) :
+    R Γ (r.apply ls m) (r.apply ls m') := by
+  induction r with
+  | fixed => exact I.rfl
+  | app _ _ ih1 ih2 => exact I.app ih1 ih2
+  | var a => exact H a
+
+/-- A pattern check is a list of definitional equalities, so it transports
+along definitionally equal values. -/
+theorem _root_.Lean4Lean.Pattern.Check.OK.defeq_values (hΓ : OnCtx Γ (env.IsType univs))
+    {p : Pattern} {ck : p.Check} {m m' : p.Path → VExpr}
+    (hv : ∀ a, IsDefEqU env univs Γ (m a) (m' a))
+    (H : ck.OK (IsDefEqU env univs Γ) ls m) : ck.OK (IsDefEqU env univs Γ) ls m' := by
+  refine H.map fun a b h => ?_
+  obtain ⟨_, h⟩ := h
+  have ih : ∀ x A, Γ ⊢ m x : A → Γ ⊢ m x ≡ m' x := fun x _ _ => hv x
+  have ha := IsDefEq.apply_pat hΓ (r := a) ih h.hasType.1
+  have hb := IsDefEq.apply_pat hΓ (r := b) ih h.hasType.2
+  exact ⟨_, ha.symm.trans (h.trans hb)⟩
+
+end Relations
 
 section Disjoint
 
