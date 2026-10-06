@@ -781,6 +781,27 @@ inside this project's scope without solving open base metatheory:
    inhabitant of the data field exists, so it is being threaded as an
    explicit hypothesis to the top-level theorems on the E1 branch. E1 is
    therefore not hypothesis-free either.
+   **E3 status (2026-10-06): complete on `agent/verify-inductives-e3`**
+   (commits 7c544ac..717fc23, pushed): `VEnv.Strengthening` replaces the
+   `weakN_iff` sorry; threaded through the Theory consumers, a new
+   `VContext.strengthening` field, `ContextWF`/`RecursorContextWF`, and
+   result structures. `addDecl.WF` gains `(hs : decl.Strengthening ves env)`
+   with `Declaration.Strengthening` per kind: axiom/theorem/opaque: the
+   checking environment; definition: the safe environment, or the unsafe one
+   plus the definition as an axiom; mutual: headers environment and its
+   extension by the translated headers; quot: nothing; inductive:
+   `InductiveStrengthening` of the source declaration and of the executable's
+   nested lowering result, each covering the base, plus type headers, plus
+   constructors, plus projection entries, plus the recursor constants added
+   as axioms. Full build, tests and fresh `Init.Prelude`/`Init.Core` replays
+   pass; executable unchanged. Four legacy theorems outside the `addDecl.WF`
+   cone take a coarser hypothesis quantified over every `ContextWF` with the
+   same Lean environment. The output environment's strengthening is never
+   claimed. Comparison so far: E3 reached its end (weaker but honest
+   statement); E1 has the checker cluster and Theory routes done, carries a
+   restricted projection-corner hypothesis, an executable divergence, a
+   replay slowdown, and the inductive-side narrow-context change (4.5k to 9k
+   lines) still ahead.
    **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
    79 strengthening uses under `Verify/Inductive` strengthen fresh checker
    runs from the nested context of `Inductive/Add.lean` (later families run
