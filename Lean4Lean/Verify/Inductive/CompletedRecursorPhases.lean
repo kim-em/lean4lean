@@ -229,7 +229,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
         henvLocal HsuffixLocal hparameterDeclsLocal owner howner ctorIdx
         hctorIdx with
       ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars, Htail,
-        HtailType, Hintro, HintroType⟩
+        HtailType, Hintro, HintroType, _⟩
     exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
       Htail, HtailType, Hintro, HintroType⟩
   let construction (T : RecursorTypeTranslations R.context.venv localContext.lparams
