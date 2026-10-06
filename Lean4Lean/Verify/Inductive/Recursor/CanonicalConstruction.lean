@@ -4,6 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.CanonicalParameterReplay
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMotiveGroup
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorModel
 import Lean4Lean.Verify.Inductive.ConsumedTranslation
+import Lean4Lean.Verify.Inductive.Recursor.ConsumedGenerationAssembly
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -71,6 +72,7 @@ structure CompletedRecursorConstruction.ConsumedGeneration
       (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       (generation.recursorType ⟨owner, howner⟩)
+  recursiveTypesWF : generation.RecursiveTypesWF R.context.venv
   sourceOrigins : ∀ owner (howner : owner < H.recInfos.size)
     localIndex (hlocal : localIndex < H.origins.minorTypes[owner]!.size),
     ∃ index : Fin signature.constructors.size,
@@ -106,6 +108,110 @@ theorem CompletedRecursorConstruction.ConsumedGeneration.motiveTranslation
         H.localContext.lctx.mkForall (H.recInfos.map (·.motive)) (.sort .zero))
       (VExpr.wrapForalls (G.generation.params ++ G.generation.motives) (.sort .zero)) :=
   H.generatedParametersMotivesTranslation G.generation G.params G.families G.levels G.target
+
+/-- The consumed signature's constructors carry the retained source origins
+of their minors. -/
+theorem CompletedRecursorConstruction.consumedSignature_origins
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+    (owner : Nat) (howner : owner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
+    Nonempty (ConsumedConstructorOrigins (H.consumedSignature HU)
+      (H.origins.minorShapes owner howner localIndex hlocal)
+      (H.consumedConstructorAt HU owner howner localIndex hlocal)) := by
+  have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
+  obtain ⟨_, _, _, hHas, traversal, htrav, _, hfieldsT, _, _, _, _, _, _, _⟩ :=
+    H.minorSources owner howner hsourceOwner localIndex hlocal
+  obtain ⟨origins, horig, _, _⟩ :=
+    (H.origins.minorShapes owner howner localIndex hlocal).hypothesisTypeOrigins_exists
+      stats H.recInfos hHas
+  have hspec := H.consumedShapes_spec HU owner howner localIndex hlocal
+  have hrec := H.consumedConstructorAt_recursiveFields HU owner howner localIndex hlocal
+  refine ⟨{
+    traversal := traversal
+    traversal_eq := htrav
+    name := rfl
+    fields := ?_
+    recursivePositions := ?_
+    hypotheses := origins
+    hypotheses_eq := horig
+    recursiveCount := ?_
+    recursive := ?_ }⟩
+  · simp [CompletedRecursorConstruction.consumedConstructorAt, H.sourceFields_length, hfieldsT]
+  · rw [hrec]; exact hspec.1 traversal htrav
+  · rw [hrec]; exact hspec.2.1
+  · intro j hj
+    have hj' : j < (H.consumedShapes HU owner howner localIndex hlocal).length := by
+      rw [hrec] at hj; exact hj
+    obtain ⟨root, sourceType, O, D, hLE, hD, htarget, hbinders⟩ := hspec.2.2.2 origins horig j hj'
+    refine ⟨root, sourceType, O, D, hLE, hD, ?_, ?_⟩
+    · rw [← htarget]
+      exact congrArg (fun x => x.2.target.val) (List.getElem_of_eq hrec hj)
+    · rw [← hbinders]
+      exact congrArg (fun x => x.2.binders.length) (List.getElem_of_eq hrec hj)
+
+/-- The junction, under the universe support of the hypothesis arguments
+and the consumed family headers. -/
+theorem CompletedRecursorConstruction.consumedGeneration_of
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+    (HF : H.ConsumedFamilyTypes) :
+    Nonempty H.ConsumedGeneration := by
+  have D := H.consumedSignatureData HU
+  have hfamCount : (H.consumedSignature HU).families.size = indTypes.size := by
+    simp [H.consumedFamilies_size, H.sourceFamilyCount]
+  refine ⟨{
+    signature := H.consumedSignature HU
+    generation := H.consumedInstance (H.consumedSignature HU)
+    models := D.models_of_familyTypes HF
+    params := rfl
+    families := rfl
+    admissible := H.consumedInstance_admissible D.uvars D.params D.families D.size
+      (fun owner howner localIndex hlocal => by
+        obtain ⟨hk, _, h2, h3, h4⟩ := D.constructor owner howner localIndex hlocal
+        exact ⟨hk, h2, h3, h4⟩)
+    uvars := rfl
+    levels := rfl
+    target := H.consumedInstance_target _
+    familyCount := hfamCount
+    familyName := ?_
+    names := fun _ => rfl
+    constructorCount := D.size
+    constructorOrder := ?_
+    minorTranslation := H.consumedSignature_minorTranslation HU
+    types := H.consumedSignature_types HU
+    recursiveTypesWF := H.consumedSignature_recursiveTypesWF HU
+    sourceOrigins := ?_ }⟩
+  · intro owner howner
+    have howner' : owner < H.recInfos.size := by
+      simpa [H.consumedFamilies_size] using howner
+    have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
+    have hdeclOwner : owner < decl.types.length := by
+      rw [← H.cardinality.records]; exact howner'
+    have hname := D.family_name ⟨owner, howner⟩ owner howner' rfl
+    have hownerTr := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt R.core
+      owner (by simpa using hsourceOwner) hdeclOwner
+    have hsourceBang : indTypes[owner]! = indTypes[owner] := by
+      simp [hsourceOwner]
+    rw [hsourceBang]
+    refine hname.trans ?_
+    simpa using hownerTr.header.name
+  · apply Lean4Lean.List.forall₂_of_getElem (by simp)
+    intro k hk hk'
+    obtain ⟨owner, howner, localIndex, hlocal, rfl⟩ := H.flatMinorIndex k hk'
+    have hk2 : recursorMinorOffset indTypes owner + localIndex <
+        (H.consumedSignature HU).constructors.size := by
+      simpa using hk
+    simp only [Array.getElem_toList]
+    exact D.constructorNames owner howner localIndex hlocal hk2
+  · intro owner howner localIndex hlocal
+    obtain ⟨hk, _, hown, hft, hidx⟩ := D.constructor owner howner localIndex hlocal
+    refine ⟨⟨recursorMinorOffset indTypes owner + localIndex, hk⟩, rfl, hown, hft, hidx, ?_⟩
+    simp only [Fin.getElem_fin]
+    rw [H.consumedSignature_constructor HU owner howner localIndex hlocal hk]
+    exact H.consumedSignature_origins HU owner howner localIndex hlocal
 
 /-- Construct the joint witness from actual parameter, motive, constructor,
 and loopU traces. Annotation consumption uses the retained source expression

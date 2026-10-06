@@ -131,7 +131,7 @@ theorem CompletedRecursorPhasesResult.generationInstance_admissible
       rfl
     · exact .inr (.inr hsingleton)
 
-open InductiveSignature in
+open _root_.Lean4Lean.InductiveSignature in
 /-- The executable singleton decision interpreted against the literal tail
 retained with the source constructor selection. -/
 theorem SourceConstructorReplay.singletonFields
