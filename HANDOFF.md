@@ -788,6 +788,15 @@ inside this project's scope without solving open base metatheory:
    chain plus a projection-name analogue of `IsDefEq.noConsts`); typing of each
    auxiliary constructor's restoration lambda from the container's formation;
    and `ProjectionTransport` for the lowered projection entries (agent).
+   **Container fields (977b14f):** field 5 proved with no hypothesis (the
+   container's installed formation types `J.c levels args`); field 6 proved
+   for source structures whose lowered constructor type mentions no
+   restorable name, and reduced otherwise to `NestedProjectionTransportGap`:
+   `primaryFields` (field-type transport of nested source structures: the two
+   field types differ by beta of the restoration lambdas under substitution,
+   but `projDF` carries no context well-formedness) and `auxiliary`
+   (projection entries of auxiliary structure-like families versus their
+   containers' registered projections). Agent running on both.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
