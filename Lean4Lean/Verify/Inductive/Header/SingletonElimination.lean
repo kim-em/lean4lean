@@ -187,6 +187,7 @@ theorem LargeEliminationTrace.singletonTelescope
     (Hc : ContextWF c)
     (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hspine : Expr.ForallSpine source arity)
     (hnarrow : TrExprS Hc.venv c.lparams scope source target)
     (hfull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx source fullTarget) :
@@ -218,12 +219,19 @@ theorem LargeEliminationTrace.singletonTelescope
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
         obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
-        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+        rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
+          ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
+        obtain ⟨consumed₀, Hdom₀⟩ :=
+          consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
+        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf
+        have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
+          Hdom Hdom₀ hdomNarrow hdomType hdeps
+        have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
@@ -236,7 +244,7 @@ theorem LargeEliminationTrace.singletonTelescope
         obtain ⟨n, hn⟩ := hspineBody
         have hn' := hn.instantiateFVar (fv := ⟨c.ngen.curr⟩) (d := 0)
         rw [← Expr.instantiate1_eq] at hn'
-        obtain ⟨htail, hrequired⟩ := ih Hnext Hruntime' hn' hopened
+        obtain ⟨htail, hrequired⟩ := ih Hnext Hruntime' halign' hn' hopened
           (hopenedFull.trExpr Hnext.checking.tr.wf Hnext.mlctx_wf.tr.wf)
         refine ⟨.field hdomType ?_ htail, ?_⟩
         · exact .inl hparam
@@ -261,12 +269,19 @@ theorem LargeEliminationTrace.singletonTelescope
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
         obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
-        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+        rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
+          ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
+        obtain ⟨consumed₀, Hdom₀⟩ :=
+          consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
+        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf
+        have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
+          Hdom Hdom₀ hdomNarrow hdomType hdeps
+        have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
@@ -279,13 +294,16 @@ theorem LargeEliminationTrace.singletonTelescope
         obtain ⟨n, hn⟩ := hspineBody
         have hn' := hn.instantiateFVar (fv := ⟨c.ngen.curr⟩) (d := 0)
         rw [← Expr.instantiate1_eq] at hn'
-        obtain ⟨htail, hrequired⟩ := ih Hnext Hruntime' hn' hopened
+        obtain ⟨htail, hrequired⟩ := ih Hnext Hruntime' halign' hn' hopened
           (hopenedFull.trExpr Hnext.checking.tr.wf Hnext.mlctx_wf.tr.wf)
         refine ⟨.field hdomType ?_ htail, ?_⟩
-        · have hconsumed := Hdom.proof_of_largeEliminationCheck Hc hcheck hzero
-          obtain ⟨u, hu⟩ := Hdom.source_defeq
-          have hsource := hconsumed.defeqU_l Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx ⟨_, hu.symm⟩
-          exact .inr (.inl (Hruntime.hasTypeOfFull Hc.checking.tr.wf hdomNarrow hfullDom hsource))
+        · have hconsumed₀ := Hdom₀.proof_of_largeEliminationCheck
+            (Hc := Hc.narrow) Hdom₀ hcheck hzero
+          obtain ⟨u, hu⟩ := Hdom₀.source_defeq
+          have hsource₀ := hconsumed₀.defeqU_l Hc.checking.tr.wf
+            Hc.check.wf.tr.wf.toCtx ⟨_, hu.symm⟩
+          exact .inr (.inl (VEnv.HasType.alignBack Hc.checking.tr.wf halign
+            hdomNarrow Hdom₀.source hsource₀))
         · intro fv hfv index type hfind
           apply ResultBVar.under
           have hfvMem : fv ∈ scope.fvars := VLCtx.find?_eq_some.mp ⟨_, hfind⟩
@@ -307,12 +325,19 @@ theorem LargeEliminationTrace.singletonTelescope
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
         obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
-        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+        rcases halign.forallE_align Hc.checking.tr.wf hdomNarrow hdomType hbodyNarrow with
+          ⟨dom₀, _, hdom₀, hdom₀Type, _, _, _⟩
+        obtain ⟨consumed₀, Hdom₀⟩ :=
+          consumeTypeAnnotationsCompat _ Hc.narrow hdom₀ hdom₀Type
+        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf
+        have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
+          Hdom Hdom₀ hdomNarrow hdomType hdeps
+        have hscopeWF := halign'.wf
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
@@ -325,7 +350,7 @@ theorem LargeEliminationTrace.singletonTelescope
         obtain ⟨n, hn⟩ := hspineBody
         have hn' := hn.instantiateFVar (fv := ⟨c.ngen.curr⟩) (d := 0)
         rw [← Expr.instantiate1_eq] at hn'
-        obtain ⟨htail, hrequired⟩ := ih Hnext Hruntime' hn' hopened
+        obtain ⟨htail, hrequired⟩ := ih Hnext Hruntime' halign' hn' hopened
           (hopenedFull.trExpr Hnext.checking.tr.wf Hnext.mlctx_wf.tr.wf)
         refine ⟨.field hdomType ?_ htail, ?_⟩
         · apply Or.inr; apply Or.inr
@@ -348,13 +373,15 @@ theorem LargeEliminationTrace.singletonTelescope
 context; ambient mutual-header locals cannot affect its literal arguments. -/
 theorem LargeEliminationTrace.singletonClosed
     (H : LargeEliminationTrace stats c source 0 #[])
-    (Hc : ContextWF c) (Hspine : Expr.ForallSpine source arity)
+    (Hc : ContextWF c) (hchk : Hc.chk.vlctx = [])
+    (Hspine : Expr.ForallSpine source arity)
     (Hsource : TrExprS Hc.venv c.lparams [] source target) :
     SingletonTelescope Hc.venv c.lparams.length stats.params.size [] 0 target := by
   have Hfull := Hsource.weakFV Hc.checking.tr.wf.ordered
     (VLCtx.FVLift.to_append [] Hc.mlctx.noBV) (by simpa using Hc.mlctx_wf.tr.wf)
   have Hfull' : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx source (target.liftN Hc.mlctx.vlctx.toCtx.length) := by simpa using Hfull
-  exact (H.singletonTelescope Hc (.empty Hc) Hspine Hsource
+  exact (H.singletonTelescope Hc (.empty Hc) (by rw [hchk]; exact .nil)
+    Hspine Hsource
     (Hfull'.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)).1
 
 
