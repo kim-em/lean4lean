@@ -218,6 +218,9 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
     (ctorEnv : Environment) where
   headerEnv : Environment
   headerVEnv : VEnv
+  /-- The header environment, in which constructors were checked, validates
+  context strengthening (carried over from the header checking context). -/
+  headerStrengthening : headerVEnv.Strengthening
   headerEntries : List (ConstantInfo × VConstVal)
   constructorEntries : List (ConstantInfo × VConstVal)
   headerValues : headerEntries.map Prod.snd = decl.typeConstants
@@ -402,6 +405,7 @@ def ConstructorPhasesResult.completed
       indTypes ctorEnv where
   headerEnv := headerEnv
   headerVEnv := H.context.venv
+  headerStrengthening := H.context.strengthening
   headerEntries := H.entries
   constructorEntries := R.declared.entries
   headerValues := H.values
@@ -517,11 +521,14 @@ def PrimitiveConstructorPhasesResult.completed
     {headerEnv ctorEnv : Environment}
     {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorPhasesResult H ctorEnv) :
+    (R : PrimitiveConstructorPhasesResult H ctorEnv)
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv
       indTypes ctorEnv where
   headerEnv := headerEnv
   headerVEnv := H.context.venv
+  headerStrengthening := hstrs.headersOf H.translation
   headerEntries := H.entries
   constructorEntries := R.declared.entries
   headerValues := H.values
@@ -529,7 +536,8 @@ def PrimitiveConstructorPhasesResult.completed
   sourceContext := H.sourceContext
   sourceContextVEnv := H.sourceContextVEnv
   sourceMaterialized := H.sourceMaterialized
-  context := R.declared.context.withEnv R.projectedChecking (by
+  context := R.declared.context.withEnv R.projectedChecking
+    (hstrs.constructors decl _ _ R.core R.projectedChecking.tr.wf) (by
     rw [R.declared.contextVEnv]
     exact VEnv.addProjections_le)
   headerMLCtx := H.context.mlctx

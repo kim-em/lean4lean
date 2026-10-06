@@ -490,7 +490,7 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomains
   have hscopeFVWF :
       E.production.headers.materialized.parameterScope.FVWF :=
     (E.production.headers.materialized.runtimeScope.scopeWF
-      E.production.headers.context.checking.tr.wf).fvwf
+      E.production.headers.context.checking.tr.wf E.production.headers.context.strengthening).fvwf
   have hscopeWF := HcheckedRestored.scopeWFOfFVWF hcanonicalWF hscopeFVWF
   have hstatsParams : E.production.stats.params.size = nparams := by
     have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'

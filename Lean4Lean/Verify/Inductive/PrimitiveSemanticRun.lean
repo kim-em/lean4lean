@@ -101,7 +101,9 @@ theorem AddInductive.formationCore.primitiveSemanticClosedWF
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -119,7 +121,7 @@ theorem AddInductive.formationCore.primitiveSemanticClosedWF
       Hambient hcommon hnotzero Hshape hvisible
   exact Hheaders.bind fun headerEnv Hheader => by
     rcases Hheader with ⟨decl, _envTypes, Hheader, hclosedHeader⟩
-    exact (AddInductive.primitiveConstructorPhases.WF Hheader Hshape
+    exact (AddInductive.primitiveConstructorPhases.WF (hstrs := hstrs) Hheader Hshape
       hvisible).mono fun outEnv Hresult => by
         rcases Hresult with ⟨R, _⟩
         exact ⟨decl, headerEnv, Hheader, R,
@@ -172,13 +174,15 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hlparams : c.lparams.Nodup)
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
-    (hnotPartial : c.safety ≠ .partial) :
+    (hnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       (SemanticPrimitiveRunWithStatsResult c stats nparams depth Hc.venv
         indTypes isUnsafe) := by
   unfold AddInductive.runWithStats
   have Hformation :=
-    AddInductive.formationCore.primitiveSemanticClosedWF
+    AddInductive.formationCore.primitiveSemanticClosedWF (hstrs := hstrs)
       (numNested := numNested) Hsemantic Hclosed hlevels hlevelParams
       hindicesSize hindices
       hconsts hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero Hshape
@@ -187,7 +191,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
     rcases Hresult with ⟨decl, _headerEnv, Hheaders, R, hclosed⟩
     have Hmaterialized := Hheaders.sourceMaterialized
     rw [Hheaders.sourceContextVEnv] at Hmaterialized
-    exact (R.completed.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
+    exact ((R.completed hstrs).recursorPhasesWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) hclosed hlparams
       (Hshape.materializedLiteralDisjoint Hheaders.translation
         Hmaterialized).available
       hnotPartial
@@ -196,7 +200,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
           fun outEnv Hrecursors =>
             show SemanticPrimitiveRunWithStatsResult c stats nparams depth
                 Hc.venv indTypes isUnsafe outEnv
-            from ⟨decl, ctorEnv, R.completed, Hrecursors⟩
+            from ⟨decl, ctorEnv, R.completed hstrs, Hrecursors⟩
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
 
 /-- Declaration-facing primitive result whose declaration is selected by the
@@ -252,7 +256,9 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
+    (HnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticPrimitiveInductiveRunResultSourceAligned c Hc.venv
         nparams types numNested) := by
@@ -290,7 +296,10 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
       exact hnodup
     have hnotPartial : c'.safety ≠ .partial := by
       simpa [hsafety] using HnotPartial
-    exact (AddInductive.runWithStats.primitiveSemanticWF
+    have hstrs' : InductiveStrengthening Hc'.venv c'.lparams nparams
+        types.toArray.toList (c.safety != .safe) := by
+      rw [hvenv, hlparams]; exact hstrs
+    exact (AddInductive.runWithStats.primitiveSemanticWF (hstrs := hstrs')
       (hsourceSafety := by rw [hsafety]) (numNested := numNested) Hsemantic Hclosed' hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon hnotzero Hshape' hvisible hlparamsNodup
@@ -310,11 +319,13 @@ theorem AddInductive.run.primitiveSemanticWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
+    (HnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticPrimitiveInductiveRunResult c nparams types
         numNested) := by
-  exact (AddInductive.run.primitiveSemanticSourceAlignedWF nparams numNested
+  exact (AddInductive.run.primitiveSemanticSourceAlignedWF (hstrs := hstrs) nparams numNested
     Hc Hclosed Hshape hctx hnonempty HnotPartial).mono fun _ Hresult => by
       rcases Hresult with
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,

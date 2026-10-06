@@ -674,7 +674,7 @@ theorem
 theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
     (H : NestedLoweringResultClosed sourceEnv loweringFuel nparams sourceTypes
       initialState res)
-    (hvalid : CheckingEnv.Valid safety restoredEnv venv)
+    (hvalid : CheckingEnv.Valid safety restoredEnv venv) (hs : venv.Strengthening)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
@@ -683,7 +683,7 @@ theorem NestedLoweringResultClosed.validateNestedAuxiliariesWF
       res).WF fun _ =>
         ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
   rcases H with ⟨finalState, Hrun, Hcache, _Hparams⟩
-  apply Hrun.validateNestedAuxiliariesWF hvalid mlctx hmlctx hlctx hfresh
+  apply Hrun.validateNestedAuxiliariesWF hvalid hs mlctx hmlctx hlctx hfresh
   have hfvars : res.lctx.fvars = mlctx.vlctx.fvars := by
     rw [← hlctx, hmlctx.tr.fvars_eq]
   intro nested name hentry
@@ -2111,14 +2111,16 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFreshOfValidation
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
-      sourceTypes[familyIdx] sourceProdEnv targetProdEnv) :
+      sourceTypes[familyIdx] sourceProdEnv targetProdEnv)
+    (hsSourceTypes : sourceTypesVEnv.Strengthening) :
     ∃ constructors : List VConstVal,
       RestoredSourceConstructorTrace result loweredEnv c.lparams c.safety
         sourceTypesVEnv Hstep.oldInfo.ctors Hstep.restored.headerEnv
           Hstep.restored.constructorEnv sourceTypes[familyIdx].ctors
             constructors := by
   rcases validateRestoredConstructorParameters.sourceConsts_of_run
-      HvalidationValid Hsources HparameterRun (List.getElem_mem hfamily) with
+      HvalidationValid hsSourceTypes
+      Hsources HparameterRun (List.getElem_mem hfamily) with
     ⟨constructors, Htranslations⟩
   have Hfamilies : ∀ name nested,
       result.aux2nested.find? name = some nested →
@@ -3428,6 +3430,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
     (lparams : List Name) (safety : DefinitionSafety)
     (allowPrimitive : Bool) (fuel : FuelConfig)
     (venv : VEnv)
+    (hs : venv.Strengthening)
     (hvalid : ∀ auxiliaryHeaderEnv,
       Nonempty (RestoredHeaderValidationEnvironment loweredEnv sourceProdEnv
         (sourceTypes.map (·.name)) sourceTypes auxiliaryHeaderEnv) →
@@ -3458,7 +3461,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
     _Hvalidation HheaderValidation _Hparameters _HrecursorTypes
     _HrecursorRules
   have Hvalid := hvalid auxiliaryHeaderEnv HheaderValidation
-  refine (Hlower.validateNestedAuxiliariesWF Hvalid mlctx hmlctx hlctx
+  refine (Hlower.validateNestedAuxiliariesWF Hvalid hs mlctx hmlctx hlctx
     hfresh).mono fun _ Hvalidated => ⟨Hvalidated, ?_⟩
   rcases Hlower with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   exact Hrun.validatedAuxiliaryResidualTranslations Hvalid.tr.wf

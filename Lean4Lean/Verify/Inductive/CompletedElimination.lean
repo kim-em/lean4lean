@@ -226,7 +226,7 @@ theorem CompletedConstructorPhases.singletonElimination
       have hheader := Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henv
       have hscope : R.parameterScope.WF R.headerVEnv c.lparams.length := by
         rw [← R.materializedParameterScope]
-        exact R.materialized.runtimeScope.scopeWF hheader
+        exact R.materialized.runtimeScope.scopeWF hheader R.headerStrengthening
       have hparams : R.headerVEnv.IsDefEqCtx c.lparams.length []
           R.sourceSignature.params.reverse R.parameterScope.toCtx := by
         simpa only [CompletedConstructorPhases.sourceSignature, R.materializedParams,

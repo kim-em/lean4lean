@@ -4,19 +4,19 @@ open Lean hiding Environment Exception
 open Kernel
 
 theorem TrExprS.dropFVarPrefix_typed
-    (henv : env.WF) (hscope : (added ++ suffix).WF env Us.length)
+    (henv : env.WF) (hs : env.Strengthening) (hscope : (added ++ suffix).WF env Us.length)
     (hnoBV : (added ++ suffix).NoBV)
     (H : TrExprS env Us (added ++ suffix) source target)
     (Htype : env.IsType Us.length (added ++ suffix).toCtx target)
     (hfvars : FVarsIn (· ∈ suffix.fvars) source) :
     ∃ target', TrExprS env Us suffix source target' ∧ env.IsType Us.length suffix.toCtx target' := by
-  obtain ⟨target', Hnew⟩ := TrExprS.dropFVarPrefix henv hscope hnoBV H hfvars
+  obtain ⟨target', Hnew⟩ := TrExprS.dropFVarPrefix henv hs hscope hnoBV H hfvars
   let W := (VLCtx.FVLift.to_append suffix (VLCtx.NoBV.leftOfAppend added suffix hnoBV)).toFVLift'
   have Hweak := Hnew.weakFV' henv.ordered W hscope
   have Heq := Hweak.uniq henv (.refl henv hscope) H
   obtain ⟨level, HweakType⟩ := Htype.defeqU_l henv hscope.toCtx Heq.symm
   exact ⟨target', Hnew, level,
-    (VEnv.HasType.weak'_iff henv hscope.toCtx W.toCtx).1 HweakType⟩
+    (VEnv.HasType.weak'_iff henv hs hscope.toCtx W.toCtx).1 HweakType⟩
 
 theorem RecInfoMinorSemanticSource.constructorSourceFVars
     {root : AddInductive.Context} {Rroot : RecursorContextWF root recLparams}
@@ -53,7 +53,7 @@ theorem RecInfoMinorSemanticSource.constructorTranslationAtSuffix
   have HnoBV : (HS.parameterSuffix.ambientDecls ++ HS.parameterSuffix.parameterDecls).NoBV := by
     rw [← HS.parameterSuffix.context]
     exact HS.rootWF.mlctx.noBV
-  exact TrExprS.dropFVarPrefix_typed HS.rootWF.checking.tr.wf Hwf HnoBV Htr Htype HS.constructorSourceFVars
+  exact TrExprS.dropFVarPrefix_typed HS.rootWF.checking.tr.wf HS.rootWF.strengthening Hwf HnoBV Htr Htype HS.constructorSourceFVars
 
 /-- Retarget a complete source telescope to a separately selected strict
 translation of the same domain prefix, transporting the residual by typed

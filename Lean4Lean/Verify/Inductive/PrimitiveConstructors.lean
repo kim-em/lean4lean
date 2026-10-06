@@ -301,7 +301,9 @@ theorem AddInductive.declareConstructors.primitiveWF
     (Hchecked : CheckedConstructorCertificate sourceEnv decl H.context.venv
       H.headers.params)
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.declareConstructors stats indTypes isUnsafe
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : PrimitiveDeclaredConstructorsResult H outEnv, True := by
@@ -502,8 +504,6 @@ theorem AddInductive.declareConstructors.primitiveWF
       apply Hcombined.quotEnvCoherent hsourceMapWF hrecursors.heads
       have h := H.sourceContext.checking.quot
       rwa [H.sourceContextVEnv] at h
-    let Hcontext := Hinstalled.completeContext H.context
-      hprimitives hsafe hannotations howners hregistry hrecursors hquot
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
       rw [← hctorValues]
@@ -512,6 +512,11 @@ theorem AddInductive.declareConstructors.primitiveWF
         indTypes.toList decl venvCtors := {
       ctorsAdded := hctorsAdded
       types := Htranslated }
+    let Hcontext := Hinstalled.completeContext H.context
+      hprimitives hsafe hannotations howners hregistry hrecursors hquot
+      (hstrs.constructorsUnprojected decl _ _
+        (Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases H.translation
+          Htranslation))
     refine ⟨{
       venvCtors := venvCtors
       entries := entries

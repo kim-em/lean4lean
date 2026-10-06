@@ -34,6 +34,9 @@ structure CompletedRecursorPhasesResult
   installed : AddConstants localContext.safety localContext.env
     R.context.venv
     entries outEnv outVEnv
+  /-- The recursor environment (generated recursors added as axioms, before
+  their computation rules) validates context strengthening. -/
+  outStrengthening : outVEnv.Strengthening
   closed : MutualInductivesClosed outEnv
   canonicalTargets : ∀ i (hi : i < entries.length),
     entries[i].2 = toCompletedRecursorConstruction.nativeTarget i
@@ -170,7 +173,9 @@ theorem CompletedConstructorPhases.recursorPhasesWF
     (hnprim : c.allowPrimitive = true ->
       forall owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
       AddInductive.withTypeCheckerLParams
         (AddInductive.getRecLevelParams elimLevel c.lparams) do
@@ -274,7 +279,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
     cardinality := Hcard
   }
   have Hrecursors := AddInductive.declareRecursors.bindingSemanticWFOfTargets
-    (elimLevel := elimLevel) kTarget hkTarget Hvalid Rlocal.toBindingContextWF Rlocal
+    (elimLevel := elimLevel) kTarget hkTarget Hvalid R.context.strengthening Rlocal.toBindingContextWF Rlocal
     HstatsLocal Lean4Lean.recursorConsumeTypeAnnotationsCompat
     (by simpa only [henvLocal] using hlit) hctxLocal Hcard Hcore Hbindings
     Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
@@ -321,6 +326,9 @@ theorem CompletedConstructorPhases.recursorPhasesWF
       generated := Hgenerated
       ruleSemantics := HruleSemantics
       installed := Hinstalled
+      outStrengthening := hstrs.recursors decl _ _ R.core _ outVEnv
+        (by rw [← R.contextVEnv]; exact Hinstalled.abstract)
+        (Hinstalled.validCore Hvalid.toValidCore).tr.wf
       closed := Hgenerated.closesMutuals Hinstalled Hvalid.tr.map_wf
         hclosedLocal
       canonicalTargets := by

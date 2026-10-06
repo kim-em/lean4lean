@@ -4,6 +4,18 @@ Current account, 2026-10-05, branch `agent/verify-inductives`.
 This is the single maintained handoff. Update it in place. The source and the
 checked theorem types take precedence over this account.
 
+## Standing goal (2026-10-06)
+
+`docs/inductives/GOAL.md` holds the `/goal` statement. Kim's instruction: do
+not stop to ask questions; get the entire thing done; follow Mario's plan
+(the shape logical relation of `Experimental/ShapeLogRel*`). Decisions taken
+under that instruction on 2026-10-06: the canonical-`Eq` formulation (former
+E3) is merged into this branch as the mainline (`addDecl.WF_of_canonicalEq`);
+E1 (scoped caches) is parked at 14d38a5 and will not be resumed; the
+countermodel is parked at its conditional theorem; the Experimental CI
+failure is to be fixed properly as part of porting Mario's prototype. Open
+proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
+
 ## Intended result
 
 Finish the executable Lean4Lean inductive checker's refinement of an
@@ -847,6 +859,229 @@ inside this project's scope without solving open base metatheory:
    full build, tests, `Init.Core` replay and audit pass; `addDecl.WF`
    unchanged; the nine base declarations (13 sorry sites) are the only open
    proofs there. E1 per-phase work (steps 3 to 6) continues on its branch.
+   **Standard restated by Kim (2026-10-06): nothing counts as done until
+   `addDecl.WF` is proved with complete proofs** (no sorry, no hypotheses
+   beyond the specification). Kim also does not accept the prose
+   countermodel as establishing that `weakN_iff` is false, and regards the
+   equality-free environments where it would fail as irrelevant to the goal.
+   Consequences: (i) a machine-checked refutation attempt is running (branch
+   `agent/verify-inductives-base`): a finite groupoid model of
+   `VEnv.IsDefEq` for the small environment, with feasibility report first;
+   if it fails at a rule, strengthening may be true and a proof attempt
+   follows; (ii) E1 PAUSED at a clean commit (14d38a5, pushed): one site
+   (`weakBV_inv_lift`) remains below `addDecl.WF`, dead lemmas not yet
+   deleted; the executable change is only warranted if strengthening fails
+   in real environments; (iii) on E3 the abstract hypothesis is being
+   replaced by the concrete, monotone `VEnv.HasCanonicalEq` plus the base
+   conjecture `strengthening_of_canonicalEq` (wrapper
+   `addDecl.WF_of_canonicalEq`), so the top-level hypothesis is "the
+   environment contains canonical `Eq`"; (iv) the base obligations
+   (confluence, injectivity, strengthening with `Eq`) are on the critical
+   path, not optional.
+   **Base-obligations design (2026-10-06, `docs/inductives/BASE_OBLIGATIONS_DESIGN.md`):**
+   Injectivity cannot be derived from the current confluence development
+   (circular: confluence uses `uniq` about 130 times, `uniq` uses
+   Injectivity); height-stratified induction is not well-founded (the `defeq`
+   constructor takes unstratified `IsDefEq`); normalization is FALSE for this
+   calculus (Abel–Coquand 2020; `def T := T` loops), so normalization-based
+   literature does not apply. Non-circular route: a semantic layer
+   (Coquand–Huber adequacy over finite shapes, prototyped by Mario in
+   `Experimental/ShapeLogRel*`) proving ONE theorem `VEnv.WF.headInversion`
+   (sort/sort, forallE/forallE, rigid/rigid with argument equality, three
+   separations), from which uniqueness and all inversions follow. Phases:
+   0 (1.5k to 2.5k lines, low risk): `HeadInversion` structure,
+   `uniq_chain`/`TypeChain.collapse`, the five Injectivity lemmas,
+   `saturated_of_hasType` and two separations, all from `headInversion` (six
+   cone sorries collapse to one believed-true base theorem); 1 (15k to 25k,
+   high risk, coordinate with Mario): the semantic layer, which likely needs
+   canonical `Eq`; 2 (6k to 10k): confluence completion assuming
+   `headInversion`; 3 (8k to 15k, open): strengthening with `Eq` via a
+   conversion-certificate calculus, after a 1k to 3k falsification study.
+   Total 35k to 55k lines. **Phase 0 done (222373b9, on main):**
+   `Theory/Typing/HeadInversion.lean` defines `TypeChain`, `SpineArgsEq`,
+   `HeadInversion` (eight fields: the seven designed plus `proj_fieldType`,
+   because the projection case of uniqueness substitutes untypable data
+   projections for unused earlier binders and cannot be derived from the
+   others without strengthening) and the single conjecture
+   `VEnv.WF.headInversion`; `IsDefEq.uniq` is reproved without
+   stratification (`uniq_chain`, `TypeChain.collapse`); `sort_inv`,
+   `forallE_inv`, `sort_forallE_inv`, `rigidApp_inv`, `structApp_inv`,
+   `saturated_of_hasType` are theorems; new `rigidApp_forallE_inv`,
+   `rigidApp_ne`, `sort_rigidApp_inv`; `forallE_inv_stratified` and
+   `fieldType_inv_stratified` deleted. Remaining Theory sorries on main:
+   `headInversion`, `weakN_iff` (false; replaced on E3 by
+   `strengthening_of_canonicalEq`), `headParallel`, `fullStep`, `strip`.
+   Phase 1 spike (semantic layer on the `Experimental` prototype) started.
+   **Phase 1 spike result (branch `agent/verify-inductives-headinv`,
+   d77f4fc6, pushed; `docs/inductives/PHASE1_SPIKE.md`): the semantic route
+   as designed is a NO-GO for the injectivity half**, and `HasCanonicalEq`
+   does not rescue it. Proved in Lean from explicit interface assumptions:
+   (1) `HeadModel.readThrough`: in any sound model where proofs carry no
+   information, an eliminator on a proof major takes its iota value whenever
+   the model cannot distinguish the index from the aligned one (proof
+   irrelevance hides the major; shape models cannot always separate
+   indices); (2) `check_of_piAdequacy`: with the K-like/singleton step gated
+   by a declarative index check, any Carneiro-style adequacy proof of
+   `forallE_forallE` derives equality REFLECTION (`a = b ⊢ a ≡ b`), believed
+   false; firing without the check yields ill-typed reducts; the index check
+   is also circular in the derivation induction. The separation half
+   (`sort_sort`, `sort_forallE`, `sort_rigid`, `forallE_rigid`, head and
+   level parts of `rigid_rigid`) follows from any sound model
+   (`HeadModel.separation`), but downstream lemmas also need uniqueness. The
+   only repair found: an Observational-Type-Theory-style cast-pushing
+   reduction inside the logical relation (untried, no precedent with
+   proof-irrelevant K), 11k to 19k lines; Phase 1 total 19k to 31k. Also:
+   `Eq` is not needed to extract a singleton's proof field (the family's own
+   recursor does it), and Mario's `Experimental/SExpr.lean` no longer builds
+   on this branch (non-exhaustive matches after `VExpr` gained `elim`/`proj`).
+   **`headInversion` is therefore an open metatheoretic problem**
+   (consistent with the Lean4Lean paper retracting the uniqueness proofs).
+   **CI note:** the step "Build Lean4Lean.Experimental" has failed on this
+   branch since 368a34ca (`VExpr.elim`/`proj`, `Pattern.elim`,
+   `Check.nonzero`, six strong-typing rules). c1e990a7 adds the missing
+   match arms to `Experimental/SExpr.lean` (and partly `NormalEq.lean`), so
+   SExpr and its seven dependents build; still failing: `NormalEq.lean`'s
+   `proj` case of `instN_r` (the file's abstract `Typing` has no `proj_inv`;
+   header says "TODO: remove, now part of ChurchRosser"),
+   `ParallelReduction.lean` (imports it), `Stratified.lean:85` and
+   `StratifiedUntyped.lean:67` (inductions over strong typing lacking the six
+   new rules: real obligations). Options: exclude those files from the
+   `Lean4Lean.Experimental` glob, port the ChurchRosser fixes, or allow
+   sorries there. Decision for Kim; none affects `addDecl.WF`.
+   **Church-Rosser step 1 (branch `agent/verify-inductives-cr`, b70dd16b,
+   pushed):** `NormalEq` re-indexed by a Nat bound (`NormalEqN`, `etaBoth`;
+   eta/eta transitivity closes without inverse weakening); every
+   `weakN_iff` reference removed from ChurchRosser (`weakN_inv_DFC`,
+   `ParRed.weakN_inv`, the `ParRedExt` beta machinery deleted; beta by
+   `NormalEqN.beta_aux`); ParRed-only confluence retired for
+   `FullCRDefEq`; spine exposure (`NormalEqN.spine_expose`) and
+   `SpineTransport` close `headParallel` (now `NormalEq.parRed`) and the
+   `fullStep` delta/quotDelta/projection-iota cases, and the distinct-family
+   case of `strip`. Named hypotheses collected in class `HeadSeparation`
+   (`not_pi`, `proof_major`, `case_not_pi`, `rigid_not_pi`, `rigid_ne`); the
+   last two are Phase 0's `rigidApp_forallE_inv`/`rigidApp_ne` (to be
+   discharged on merge); `proof_major` needs a typing analysis of native
+   recursors. Still open: `FullStep.strip` (general confluence): the local
+   confluence property fails for `FullStep` because delta/quot/projection/eta
+   steps do not reduce subterms; needs a fully parallel full-step relation
+   with its own substitution lemma and the critical-pair analysis (native
+   iota against native prefix unfolding at the same head). Next task.
+   **Church-Rosser step 2 (d0470e04, pushed): `HeadSeparation` is gone;
+   every field is a theorem** (`rigid_not_pi`/`rigid_ne` from Phase 0;
+   `MatchedCaseStep.major_not_pi` via a new declaration-history invariant
+   `VEnv.CtorResultRigid` and `WF.case_family_head_rigid`;
+   `Params.major_not_pi` and `Params.major_proof` via
+   `NativeRecursorRegistered.family_head_rigid`/`result_sort`/
+   `major_not_proof` (new `Theory/Typing/NativeMajorFamily.lean`);
+   `Params.pat_recursor` now records that an iota pattern's owner has a
+   constructor). The native-iota-vs-prefix-unfolding critical pair does not
+   exist (incompatible universe guards). `strip` obstacle: `FullStep.funEta`
+   at head position breaks the one-step local property (counterexample
+   `app (Nat.rec z s) Nat.zero`; the peak closes in two steps, so `strip` is
+   not refuted). Decision (2026-10-06): restrict `funEta` to non-head
+   positions (internal proof device; fall back to decreasing diagrams if the
+   completeness direction needs head eta). After step 2, `addDecl.WF` depends
+   only on `weakN_iff` (hypothesis on E3) and `headInversion`.
+   **Milestone (main at 27510ecd):** full build, tests (150 jobs), fresh
+   `Init.Core` replay (3953) and audit self-test pass after the Phase 0 and
+   spike merges; five sorry warnings (`headInversion`, `weakN_iff`,
+   `headParallel`, `fullStep`, `strip`), the last three closed on the cr
+   branch pending merge. **Merged (0525770b):** main's open proofs are now
+   exactly `headInversion`, `weakN_iff` (hypothesis on E3), `strip`
+   (in progress on the cr branch). **E3 at c6293804 (pushed) carries all
+   of this:** its open proofs are exactly `headInversion`,
+   `strengthening_of_canonicalEq`, `strip` (audit: "2 distinct proof
+   obligations remain" from the roots, since `strip` is outside the
+   `addDecl.WF` cone). So on E3, `addDecl.WF_of_canonicalEq` rests on two
+   conjectures: head inversion and strengthening with canonical `Eq`.
+   **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
+   `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
+   `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
+   `env.defeqs`; `HasCanonicalEq.mono`), the single conjecture
+   `strengthening_of_canonicalEq (henv : env.WF) (heq : env.HasCanonicalEq) :
+   env.Strengthening` (registered in the audit inventory), and
+   `addDecl.WF_of_canonicalEq (wf) (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+   (decl) (hdecl)` plus `addDecl.WFHasCanonicalEq` returning the hypothesis
+   for the output (iterable over a replay). Two clauses of
+   `Declaration.Strengthening` gained WF premises their callers already had
+   (unsafe definition's constant WF; projection environment WF). Caveats being
+   checked: that the replay of `Init.Prelude` installs exactly the stored
+   forms (universe order of `Eq.rec`, rule shape), and an `EqBootstrapShape`
+   `nparams = 1` vs real `Eq` (2 params, 1 index) mismatch.
+   **Realizability (a1ea806a on E3, pushed):** the stored forms match the
+   real `Init.Prelude` declaration exactly (universe order `[u, u_1]`;
+   `Verify/Inductive/EqCanonicalForms.lean` proves any translation of the
+   production expressions equals the stored terms; `Compiles.eqRecRules`
+   derives the stored rule from the recursor type;
+   `addDecl.eqBootstrapHasCanonicalEq` shows the bootstrap run of `Eq`
+   yields `HasCanonicalEq` provided the installed `Eq.rec` has the
+   production type (`IsProductionEqRec`, an executable fact checked by the
+   new test `Lean4Lean/Tests/CanonicalEq.lean`, not provable from the theory
+   since the recursor construction uses extern `Expr` operations). The
+   `EqBootstrapShape` `nparams = 1` was a real bug making the bootstrap
+   theorems vacuous for the real `Eq`; fixed to 2 with the two-parameter
+   lowering proof redone; no executable change.
+   **E3 at 41ff3b52 (pushed) carries Phase 0:** remaining Theory sorries on
+   E3 are exactly `headInversion`, `strengthening_of_canonicalEq`,
+   `headParallel`, `fullStep`, `strip` (the last three being closed on the
+   cr branch, to be merged). The inventory still lists
+   `canonicalConsumedGeneration` and `canonicalCompletedRuleTranslation`
+   although they contain no sorry (stale entries; harmless, to be pruned).
+   **Decision (Kim, 2026-10-06): the final theorem may assume the environment
+   contains canonical `Eq`.** So the strengthening obligation is stated as
+   the base conjecture `strengthening_of_canonicalEq : env.WF →
+   env.HasCanonicalEq → env.Strengthening`, and `addDecl.WF_of_canonicalEq`
+   takes `(heq : ∀ safety, (ves.venv safety).HasCanonicalEq)` (monotone under
+   extension, preserved by the conclusion). The equality-free refutation is
+   no longer on the critical path (feasibility report only). Critical path:
+   the base obligations (confluence programme started on branch
+   `agent/verify-inductives-cr`).
+   Refutation feasibility (`docs/inductives/COUNTERMODEL_FEASIBILITY.md`): a
+   machine-checked groupoid countermodel would be 10k to 18k lines (the model
+   must cover every rule of `VEnv.IsDefEq`; no proof-irrelevant model can
+   separate the endpoints); the reviewer judges the unrestricted statement
+   false and strengthening with canonical `Eq` plausibly true but unproved
+   (a proof would need normalization or confluence for typed proof
+   irrelevance with iota and K). **Reversed (Kim, 2026-10-06): a formal
+   refutation of strengthening without canonical `Eq` is worth having.**
+   Restarted without budget on `agent/verify-inductives-base`
+   (Lean4Lean/Theory/Typing/Countermodel/): WF environment via a direct
+   certificate, larger-context derivation, groupoid model with soundness for
+   every `IsDefEq` rule, separation at `v = 2`; target
+   `strengthening_fails : ∃ env, VEnv.WF env ∧ ¬ env.Strengthening`,
+   axiom-clean. **Status (435f2d8b on that branch, pushed;
+   `docs/inductives/COUNTERMODEL_STATUS.md`):** the environment's `VEnv.WF`
+   is PROVED by a direct certificate (`envCM_wf`; `.elim` registration cannot
+   give large elimination for a Prop family, so native recursors are used),
+   the larger-context derivation `larger_defeq : envCM.IsDefEq 0 ctxL SI↑
+   SJ↑ (sort 1)` is PROVED, and `strengthening_fails_of_separated (hsep :
+   ¬ envCM.IsDefEqU 0 ctxS SI SJ) : ∃ env, VEnv.WF env ∧ ¬ env.Strengthening`
+   is proved, all axiom-clean (1322 lines). The separating model is BLOCKED
+   for a set-theoretic reason: soundness must cover every closed universe
+   level (`sortDF` types `Sort n` for all `n`), so all universe
+   interpretations must sit in one Lean universe, each an element of the
+   next, and with Π as all sections each universe is inaccessible-sized; Lean
+   cannot prove such an unbounded chain exists (a plain set model has the
+   same problem; groupoids are additionally required: a transport-free model
+   fails on an explicit motive). Ways forward are research-scale designs
+   (realizability-style groupoid model over syntax with big-step evaluation;
+   or a restricted Hofmann–Streicher model with hereditarily bounded
+   sections). Decision for Kim: pursue one, or accept the conditional
+   theorem.
+   Literature (Astra, `docs/inductives/STRENGTHENING_LITERATURE.md`):
+   Carneiro's thesis (§3.2, Weakening (4)) states strengthening with a proof
+   by mutual induction that does not address the transitivity case; the
+   Lean4Lean paper (§2.4, Conjecture 2.10) labels strengthening a conjecture
+   and retracts the thesis's uniqueness/inversion proofs; Coquand–Spiwack
+   (LICS 2006, §4.4) report failure of strengthening in a related
+   proof-irrelevant calculus; no published treatment of the singleton-family
+   example. The riskiest model rule is `elimIota`. Judgement: unrestricted
+   statement probably false; with canonical `Eq` plausibly true, unproved.
+   **Process rule (Kim, 2026-10-06): no size or time budgets in agent briefs
+   for anything on the critical path.** Agents run to completion or to a
+   genuine mathematical obstacle (a statement believed false, or a precisely
+   stated missing metatheorem); "isolate as a named hypothesis" is only for
+   the latter, never for size. Earlier budgets caused premature hand-backs.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and

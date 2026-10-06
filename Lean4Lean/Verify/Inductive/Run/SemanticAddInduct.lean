@@ -64,7 +64,9 @@ theorem AddInductive.run.semanticAddInductWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun _ =>
       ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
         c'.env = c.env ∧
@@ -75,7 +77,7 @@ theorem AddInductive.run.semanticAddInductWF
   have htypes : types ≠ [] := by
     simpa using List.ne_nil_of_length_pos
       (by simpa using hnonempty : 0 < types.length)
-  exact (AddInductive.run.semanticWF nparams numNested Hc Hclosed hctx
+  exact (AddInductive.run.semanticWF (hstrs := hstrs) nparams numNested Hc Hclosed hctx
     hnonempty HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.addInductCanonical htypes
 

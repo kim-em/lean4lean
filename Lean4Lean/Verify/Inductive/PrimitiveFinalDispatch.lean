@@ -18,7 +18,9 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalEnvironmentEqReadyOr
     (ves : VEnvs) (wf : ves.WF env) (hEq : EqReadyOrAbsent env ves)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
-    (haux : res.aux2nested.size = 0) :
+    (haux : res.aux2nested.size = 0)
+    (hstrs : InductiveStrengthening (ves.venv .safe) lparams nparams
+      types isUnsafe) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       true fuel res).WF fun outEnv =>
         exists decl : VInductDecl, exists ves' : VEnvs,
@@ -40,10 +42,11 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalEnvironmentEqReadyOr
     simpa [c, primitiveAddInductiveContext] using wf
   let Hc : ContextWF c := by
     simpa [c, primitiveAddInductiveContext, initialContext] using
-      ContextWF.initial wf .safe lparams true fuel
+      ContextWF.initial wf .safe hstrs.base lparams true fuel
   have hsource : Hc.venv = ves.venv .safe := rfl
   have hctx : Hc.mlctx.vlctx = [] := rfl
   have Hrun := AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
+    (hstrs := by rw [hsource]; simpa [c, primitiveAddInductiveContext] using hstrs)
     (c := c) (ves := ves) nparams 0 Hc wf' hsource hEq Hshape'
     hctx hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
@@ -56,7 +59,9 @@ theorem Environment.addInductive.primitiveFinalEnvironmentEqReadyOrAbsentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hEq : EqReadyOrAbsent env ves)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
+    (hstrs : InductiveStrengthening (ves.venv .safe) lparams nparams
+      types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
       fun outEnv => exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
@@ -68,7 +73,7 @@ theorem Environment.addInductive.primitiveFinalEnvironmentEqReadyOrAbsentWF
     fuel.inductiveFuel lparams nparams types isUnsafe Hshape
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
-      Environment.addInductiveAfterLowering.primitiveFinalEnvironmentEqReadyOrAbsentWF env
+      Environment.addInductiveAfterLowering.primitiveFinalEnvironmentEqReadyOrAbsentWF (hstrs := hstrs) env
         lparams nparams types isUnsafe fuel res ves wf hEq Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
@@ -79,13 +84,15 @@ theorem addInductiveDeclaration.primitiveFinalEnvironmentEqReadyOrAbsentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hEq : EqReadyOrAbsent env ves)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
+    (hstrs : InductiveStrengthening (ves.venv .safe) lparams nparams
+      types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         exists decl : VInductDecl, exists ves' : VEnvs,
           ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
           forall safety, ves.venv safety <= ves'.venv safety := by
-  have Hrun := Environment.addInductive.primitiveFinalEnvironmentEqReadyOrAbsentWF env
+  have Hrun := Environment.addInductive.primitiveFinalEnvironmentEqReadyOrAbsentWF (hstrs := hstrs) env
     lparams nparams types isUnsafe fuel ves wf hEq Hshape
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape

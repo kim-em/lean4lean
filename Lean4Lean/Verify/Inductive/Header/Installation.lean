@@ -200,6 +200,8 @@ theorem AddInductive.declareInductiveTypes.semanticHeadersWF
     (Hsemantic :
       checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
         Hc.venv c.lparams numParams commonParams commonLevel indTypes.toList)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe)
     (hindices : stats.nindices.size = indTypes.size)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -218,7 +220,7 @@ theorem AddInductive.declareInductiveTypes.semanticHeadersWF
     rcases Hresult with ⟨envTypes, htypes, Hinstalled⟩
     exact ⟨{
       envTypes := envTypes
-      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) Hinstalled.le
+      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) (hstrs.headers _ envTypes Hsemantic.headers.translations htypes) Hinstalled.le
       contextVEnv := rfl
       contextMLCtx := rfl
       installed := Hinstalled

@@ -161,7 +161,7 @@ theorem initialLaterHeaderDefEqOfTranslation
   have hnormalizedNoFVars :
       FVarsIn (fun fv => fv ∈ VLCtx.fvars []) normalized := by
     simpa [VLCtx.fvars] using hfvars
-  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf W
+  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf Hc.strengthening W
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
       hnormalizedClosed hnormalizedNoFVars with
     ⟨normalized', hnormalized'⟩
@@ -174,7 +174,7 @@ theorem initialLaterHeaderDefEqOfTranslation
   have hsourceNoFVars' :
       FVarsIn (fun fv => fv ∈ VLCtx.fvars []) source.type := by
     simpa [VLCtx.fvars] using hsourceNoFVars
-  rcases hsource.weakFV_inv Hc.checking.tr.wf W
+  rcases hsource.weakFV_inv Hc.checking.tr.wf Hc.strengthening W
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
       hsourceClosed hsourceNoFVars' with
     ⟨sourceType', hsourceType'⟩
@@ -195,7 +195,7 @@ theorem initialLaterHeaderDefEqOfTranslation
         Hc.mlctx_wf.tr.wf.toCtx hsourceUniq)
   have hempty : Hc.venv.IsDefEqU c.lparams.length []
       normalized' sourceType' :=
-    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf Hc.strengthening
       Hc.mlctx_wf.tr.wf.toCtx W.toCtx).1 hfull
   have htarget : Hc.venv.IsDefEqU c.lparams.length []
       target.type sourceType' :=
@@ -1007,14 +1007,14 @@ theorem laterResult.extendsPrefixNarrow
   have hsourceFull' : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
       type sourceFull :=
     hsourceFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
-  have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf
+  have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf Hc.strengthening
     htypeNarrow hsourceFull' hsorted
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
   rcases Hruntime.independentSourceScope with
     ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
-    Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
+    Hc.checking.tr.wf Hc.strengthening Hruntime HsourceScope hsourceScopeFVars
       Hc.mlctx.lctx hsourceClosure huvars hparams hofLevel hsortedNarrow
   have hlevel : resultLevel ≈ commonLevel :=
     Level.isEquiv_wf hguard hofLevel hcommon

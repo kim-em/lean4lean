@@ -175,7 +175,7 @@ theorem
   classical
   rcases checkInductiveTypes.loopType.narrowFVars
       F.originContext.onlyLams F.originContext.checking.tr.wf
-      F.originContext.mlctx_wf F.semantic.rootScope F.rootScope_up with
+      F.originContext.strengthening F.originContext.mlctx_wf F.semantic.rootScope F.rootScope_up with
     ⟨scope, Hscope, hscope⟩
   have henv : F.originContext.venv ≤ H.outVEnv := by
     rw [F.originExtension.venv_eq, A.semantics.context_venv,
@@ -283,7 +283,7 @@ theorem
       · exact Or.inl (List.mem_reverse.mp hlocal)
       · exact Or.inr (hroot fv |>.1 hrootSelected).2
   rcases HlocalPrefix.extendFVarNarrowScope H.outVEnvWF
-      HcurrentWF HrootAtDrop Hup with
+      H.outStrengthening HcurrentWF HrootAtDrop Hup with
     ⟨scope, Hscope, hscopeFVars, hscopeBase, localDomains,
       hlocalDomains, hscopeContext, hscopeShift, hscopeExpanded,
       Hreplay⟩
@@ -621,7 +621,7 @@ theorem
     rw [A.semantics.fieldOpening.fvars_eq_bound
       A.semantics.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray]
     simp [List.append_assoc]
-  rcases HlocalPrefix.extendFVarNarrowCore H.outVEnvWF HlocalWF
+  rcases HlocalPrefix.extendFVarNarrowCore H.outVEnvWF H.outStrengthening HlocalWF
       HlocalBase HlocalUp with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
       hcontext, _hshift, Hreplay⟩
@@ -785,7 +785,7 @@ theorem
         have h := Hindex.closed
         rw [F.semantic.current_context.mlctx.noBV] at h
         exact h
-      rcases Hscope.restrictEq H.outVEnvWF Hindex hclosed HsourceNarrow with
+      rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening Hindex hclosed HsourceNarrow with
         ⟨narrowTarget, HnarrowTarget, HtargetEq⟩
       have htailSubset : sources ⊆ sourceIndices := by
         intro other hother
@@ -960,9 +960,9 @@ theorem
     have h := HexposedFinal.closed
     rw [F.semantic.current_context.mlctx.noBV] at h
     exact h
-  rcases Hscope.restrictEq H.outVEnvWF HmajorFinal hmajorClosed
+  rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening HmajorFinal hmajorClosed
       hmajorScope with ⟨narrowMajor, Hmajor, HmajorEq⟩
-  rcases Hscope.restrictEq H.outVEnvWF HexposedFinal hexposedClosed
+  rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening HexposedFinal hexposedClosed
       hexposedScope with ⟨narrowExposed, Hexposed, _HexposedEq⟩
   have HfullMajorType : F.semantic.current_context.venv.HasType Us.length
       F.semantic.current_context.mlctx.vlctx.toCtx
@@ -972,7 +972,7 @@ theorem
       F.semantic.current_context.mlctx_wf.tr.wf.toCtx
       F.semantic.exposed_defeq.symm
   rw [hsemantic] at HfullMajorType
-  have Htyping := Hscope.hasTypeOfFullPair H.outVEnvWF Hmajor Hexposed
+  have Htyping := Hscope.hasTypeOfFullPair H.outVEnvWF H.outStrengthening Hmajor Hexposed
     HmajorFinal HexposedFinal (HfullMajorType.mono H.constructorVEnv_le)
   have hzero : VLevel.ofLevel Us (.zero : Level) =
       some (.zero : VLevel) := rfl
@@ -1040,7 +1040,7 @@ theorem
           (A.rule.all_args_bound.fvars ++
             F.semantic.generated.arguments_bound.fvars)) target := by
     intro source target Hsource
-    have Hclosed := Hscope.abstractPrefix H.outVEnvWF frontCount
+    have Hclosed := Hscope.abstractPrefix H.outVEnvWF H.outStrengthening frontCount
       hdropFront Hsource
     rw [hfrontFVars] at Hclosed
     rw [hfrontDomains] at Hclosed
@@ -1074,7 +1074,7 @@ theorem
         F.semantic.generated.arguments_bound.fvars).Nodup := by
       rw [← hfrontFVars]
       exact List.nodup_reverse.mpr <|
-        (Hscope.scopeWF H.outVEnvWF).fvars_nodup.sublist
+        (Hscope.scopeWF H.outVEnvWF H.outStrengthening).fvars_nodup.sublist
           (List.take_sublist frontCount scope.fvars)
     have h := Expr.abstractList_after_inner
       (e := source) (outer := A.rule.all_args_bound.fvars)
@@ -1141,7 +1141,7 @@ theorem
   have HclosedCtx : OnCtx
       (abstractForallContext (B.fieldDomains ++ localDomains)
         parameterDecls).toCtx (H.outVEnv.IsType Us.length) := by
-    have Hwf := (Hscope.scopeWF H.outVEnvWF).toCtx
+    have Hwf := (Hscope.scopeWF H.outVEnvWF H.outStrengthening).toCtx
     rw [hscopeContext, B.fieldScope_eq] at Hwf
     simpa [parameterDecls, A.parameterDecls_eq,
       List.reverse_append, List.append_assoc,
@@ -1194,7 +1194,7 @@ theorem
     rw [← A.semantics.fieldRootExtension.venv_eq]
     exact hbase
   have Hruntime := B.runtime.mono hfieldBase
-  have Hscope := Hruntime.scopeWF H.outVEnvWF
+  have Hscope := Hruntime.scopeWF H.outVEnvWF H.outStrengthening
   rw [← B.fieldScope_eq]
   exact Hscope.toCtx
 
@@ -2011,7 +2011,7 @@ theorem
   have hscopeNodup :
       (remainingBinders.reverse ++ selectedScope.fvars).Nodup := by
     rw [← hscopeSplit]
-    exact (Houter.scopeWF H.outVEnvWF).fvars_nodup
+    exact (Houter.scopeWF H.outVEnvWF H.outStrengthening).fvars_nodup
   have hrelative := fvarSelectionLift_append_selected
     remainingBinders.reverse selectedScope.fvars
       (by
@@ -2032,7 +2032,7 @@ theorem
   rw [hselectedComposed] at HselectedOuterExpanded
   have HselectedOuterNatural :=
     VEnv.IsDefEqCtx.cancelLiftForallDomains H.outVEnvWF
-      Houter.lift.toCtx HselectedOuterExpanded
+      H.outStrengthening Houter.lift.toCtx HselectedOuterExpanded
   exact ⟨selectedScope, Hselected, outerScope, Houter,
     selectedFields, outerFields, hypothesisDomains, targetResidual,
     outerResidual,
@@ -2271,7 +2271,7 @@ theorem
       (insertedBinders.reverse ++
         H.parameterSuffix.parameterDecls.fvars).Nodup := by
     rw [← houterSplit]
-    exact (Houter.scopeWF H.outVEnvWF).fvars_nodup
+    exact (Houter.scopeWF H.outVEnvWF H.outStrengthening).fvars_nodup
   have hrelativeBase := fvarSelectionLift_append_selected
     insertedBinders.reverse H.parameterSuffix.parameterDecls.fvars
       (by
@@ -2373,7 +2373,7 @@ theorem
     Houter.context.defeqCtx HruntimeFields
   rw [hcheckedComposed] at Hexpanded
   have Hnatural := VEnv.IsDefEqCtx.cancelLiftForallDomains
-    H.outVEnvWF Houter.lift.toCtx Hexpanded
+    H.outVEnvWF H.outStrengthening Houter.lift.toCtx Hexpanded
   have hinsertedLengths : insertedBinders.length = inserted.length := by
     simp only [insertedBinders, inserted, List.length_append]
     rw [H.bindings.motives.length_fvars,
@@ -2684,13 +2684,13 @@ theorem
     rw [VExpr.lift'_wrapForalls_exact, hrightLift]
     exact ⟨.sort closedLevel, Hclosed'⟩
   have HnarrowFields :=
-    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF HbaseContext.wf.toCtx
+    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF H.outStrengthening HbaseContext.wf.toCtx
       Wbase.toCtx).1 Hlifted
   have HparameterBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
       H.parameterSuffix.parameterDecls.toCtx
       H.parameterSuffix.parameterDecls.toCtx :=
     VEnv.IsDefEqCtx.refl
-      (Wbase.wf H.outVEnvWF HbaseContext.wf).toCtx
+      (Wbase.wf H.outVEnvWF H.outStrengthening HbaseContext.wf).toCtx
   have Hfields := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
     HparameterBase (hnarrowLength.trans B.fieldDomains_length.symm)
       HnarrowFields
@@ -3285,13 +3285,13 @@ theorem
     rcases hfv with hfield | hparam
     · exact List.mem_append_left _ (List.mem_reverse.mpr hfield)
     · exact List.mem_append_right _ (List.mem_reverse.mpr hparam)
-  rcases Hruntime.restrictEq H.outVEnvWF Hfull hclosed hscope with
+  rcases Hruntime.restrictEq H.outVEnvWF H.outStrengthening Hfull hclosed hscope with
     ⟨target, Htarget, _HtargetEq⟩
   rcases HfullType with ⟨level, HfullTyping⟩
   have HtargetType : H.outVEnv.IsType Us.length B.fieldScope.toCtx target :=
-    ⟨level, Hruntime.hasTypeOfFull H.outVEnvWF Htarget Hfull
+    ⟨level, Hruntime.hasTypeOfFull H.outVEnvWF H.outStrengthening Htarget Hfull
       HfullTyping⟩
-  have Hclosed := Hruntime.abstractFront H.outVEnvWF B.scope_base Htarget
+  have Hclosed := Hruntime.abstractFront H.outVEnvWF H.outStrengthening B.scope_base Htarget
   have hfrontRev :
       VLCtx.fvars
           (B.fieldScope.take Hruntime.frontSourceDomains.length) =
@@ -3687,7 +3687,7 @@ theorem
     have h := HmajorFinal.closed
     rw [F.semantic.current_context.mlctx.noBV] at h
     exact h
-  rcases Hscope.restrictEq H.outVEnvWF HmajorFinal hclosed hsourceScope with
+  rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening HmajorFinal hclosed hsourceScope with
     ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
   exact ⟨narrowMajor, HnarrowMajor, HmajorEq⟩
 
@@ -3762,11 +3762,11 @@ theorem
     have h := HfullFinal.closed
     rw [F.semantic.current_context.mlctx.noBV] at h
     exact h
-  rcases Hscope.restrictEq H.outVEnvWF HfullFinal hclosed hsourceScope with
+  rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening HfullFinal hclosed hsourceScope with
     ⟨narrowExposed, HnarrowExposed, HexposedEq⟩
   rcases HfullTypeFinal with ⟨resultLevel, Htyped⟩
   have HnarrowTyped := Hscope.hasTypeOfFull H.outVEnvWF
-    HnarrowExposed HfullFinal Htyped
+    H.outStrengthening HnarrowExposed HfullFinal Htyped
   exact ⟨narrowExposed, resultLevel, HnarrowExposed,
     HexposedEq.symm, HnarrowTyped⟩
 
@@ -3826,7 +3826,7 @@ theorem
       F.semantic.exposed_defeq.symm
   rw [hsemantic] at HfullMajor HfullExposed HfullMajorType
   have Htyped := Hscope.hasTypeOfFullPair H.outVEnvWF
-    HnarrowMajor HnarrowExposed
+    H.outStrengthening HnarrowMajor HnarrowExposed
     (HfullMajor.mono H.constructorVEnv_le)
     (HfullExposed.mono H.constructorVEnv_le)
     (HfullMajorType.mono H.constructorVEnv_le)
@@ -3889,7 +3889,7 @@ theorem
       F.semantic.exposed_defeq.symm
   rw [hsemantic] at HfullMajor HfullExposed HfullMajorType
   have Htyped := Hscope.hasTypeOfFullPair H.outVEnvWF
-    HnarrowMajor HnarrowExposed
+    H.outStrengthening HnarrowMajor HnarrowExposed
     (HfullMajor.mono H.constructorVEnv_le)
     (HfullExposed.mono H.constructorVEnv_le)
     (HfullMajorType.mono H.constructorVEnv_le)
@@ -4062,7 +4062,7 @@ theorem
         have h := Hindex.closed
         rw [F.semantic.current_context.mlctx.noBV] at h
         exact h
-      rcases Hscope.restrictEq H.outVEnvWF Hindex hclosed HsourceNarrow with
+      rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening Hindex hclosed HsourceNarrow with
         ⟨narrowTarget, HnarrowTarget, HtargetEq⟩
       have htailSubset : sources ⊆ sourceIndices := by
         intro other hother
@@ -4235,7 +4235,7 @@ theorem
       (A.rule.params_bound.fvars ++ A.rule.all_args_bound.fvars ++
         F.semantic.generated.arguments_bound.fvars).Nodup := by
     rw [← hscopeNames]
-    exact List.nodup_reverse.mpr (Hscope.scopeWF H.outVEnvWF).fvars_nodup
+    exact List.nodup_reverse.mpr (Hscope.scopeWF H.outVEnvWF H.outStrengthening).fvars_nodup
   have hsourceShape : ∀ source : Expr,
       source.abstractList scope.fvars.reverse =
         ((source.abstractList
@@ -4282,7 +4282,7 @@ theorem
             F.semantic.generated.localArgs.size).abstractList
               A.rule.params_bound.fvars cutoff) target := by
     intro source target Hsource
-    have Hclosed := Hscope.abstractAll H.outVEnvWF Hsource
+    have Hclosed := Hscope.abstractAll H.outVEnvWF H.outStrengthening Hsource
     rw [hsourceShape source] at Hclosed
     exact Hclosed
   have closeSources : ∀ {sources : List Expr} {targets : List VExpr},
@@ -4407,11 +4407,11 @@ theorem
       (A.rule.params_bound.fvars ++ A.rule.all_args_bound.fvars).Nodup := by
     rw [← hrootNames]
     exact List.nodup_reverse.mpr
-      (Hroot.scopeWF H.outVEnvWF).fvars_nodup
+      (Hroot.scopeWF H.outVEnvWF H.outStrengthening).fvars_nodup
   let rawLocalForall := F.semantic.generated.current.lctx.mkForall
     F.semantic.generated.localArgs (.sort .zero)
   have HclosedLocalTemplate₀ := Hroot.abstractAll
-    H.outVEnvWF HlocalTemplate
+    H.outVEnvWF H.outStrengthening HlocalTemplate
   have hlocalSource : rawLocalForall.abstractList rootScope.fvars.reverse =
       ((rawLocalForall.abstractList
         A.rule.all_args_bound.fvars).abstractList
@@ -4471,7 +4471,7 @@ theorem
         (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx
       (H.outVEnv.IsType Us.length) := by
     rw [hcontext]
-    exact (Hscope.scopeWF H.outVEnvWF).toCtx
+    exact (Hscope.scopeWF H.outVEnvWF H.outStrengthening).toCtx
   have HclosedTyping : H.outVEnv.HasType Us.length
       (abstractForallContext
         (parameterDomains ++ fieldDomains ++ localDomains) []).toCtx
@@ -4577,7 +4577,7 @@ theorem
         simp [A.rule.all_args_bound.length_fvars,
           F.semantic.generated.arguments_bound.length_fvars]
   exact ⟨hfrontFVars, hfrontLength,
-    Hscope.abstractFrontWF H.outVEnvWF hscopeBase⟩
+    Hscope.abstractFrontWF H.outVEnvWF H.outStrengthening hscopeBase⟩
 
 
 end VerifyInductive

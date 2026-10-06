@@ -69,9 +69,11 @@ def StagedContextWF.complete (H : StagedContextWF c)
     (howners : ConstructorOwnersPresent c.env)
     (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv)
     (hrecursors : RecursorEnvCoherent c.safety c.env.constants H.venv)
-    (hquot : c.env.quotInit = true → QuotEnvCoherent c.env.constants H.venv) :
+    (hquot : c.env.quotInit = true → QuotEnvCoherent c.env.constants H.venv)
+    (hs : H.venv.Strengthening) :
     ContextWF c where
   venv := H.venv
+  strengthening := hs
   checking := {
     tr := H.checking
     hasPrimitives := hprimitives
@@ -806,10 +808,11 @@ def AtomicAddConstants.completeContext
     (howners : ConstructorOwnersPresent outEnv)
     (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
+    (hs : outVEnv.Strengthening) :
     ContextWF { c with env := outEnv } :=
   (source.withEnv (H.checking source.checking) H.le).complete
-    hprimitives hsafe hannotations howners hregistry hrecursors hquot
+    hprimitives hsafe hannotations howners hregistry hrecursors hquot hs
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
 `DeclaredHeadersResult`, except that its checking context and installation

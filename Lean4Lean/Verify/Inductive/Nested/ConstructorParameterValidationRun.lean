@@ -156,7 +156,7 @@ theorem validateRestoredConstructorParameters.loop_eq_ok_of_run
 needed by constructor restoration.  This is derived from the successful
 runtime trace, rather than supplied as final-assembly evidence. -/
 theorem validateRestoredConstructorParameters.sourceConst_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
       safety fuel types result = .ok ())
@@ -167,13 +167,13 @@ theorem validateRestoredConstructorParameters.sourceConst_of_run
       hrun htype hctor with ⟨checked, hcheck⟩
   have hclosed := Hsources.constructorsClosed htype ctor hctor
   have hfvars : ctor.type.FVarsIn fun fv => fv ∈
-      (TypeChecker.VContext.mkCheckingValid hvalid lparams fuel).vlctx.fvars := by
+      (TypeChecker.VContext.mkCheckingValid hvalid hs lparams fuel).vlctx.fvars := by
     simpa [TypeChecker.VContext.mkCheckingValid,
       TypeChecker.VContext.mkChecking] using hclosed
   have Hcheck : (do
       let type ← TypeChecker.checkType ctor.type
       TypeChecker.ensureSort type ctor.type).WF
-      (TypeChecker.VContext.mkCheckingValid hvalid lparams fuel) {}
+      (TypeChecker.VContext.mkCheckingValid hvalid hs lparams fuel) {}
       fun _ _ => ∃ type', TrExprS venv lparams [] ctor.type type' ∧
         venv.IsType lparams.length [] type' := by
     refine (TypeChecker.checkType.WF (e := ctor.type) hfvars).bind
@@ -196,7 +196,7 @@ theorem validateRestoredConstructorParameters.sourceConst_of_run
 /-- Pointwise source-type certification for a family, packaged in the exact
 constructor-list shape consumed by the nested restoration semantics. -/
 theorem validateRestoredConstructorParameters.sourceConsts_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (Hsources : SourceSyntaxChecks types)
     (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
       safety fuel types result = .ok ())
@@ -208,7 +208,7 @@ theorem validateRestoredConstructorParameters.sourceConsts_of_run
   apply forallExists_to_forall₂
   intro ctor hctor
   exact validateRestoredConstructorParameters.sourceConst_of_run hvalid
-    Hsources hrun htype hctor
+    hs Hsources hrun htype hctor
 
 private theorem validateRestoredRecursorTypes.primaryCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
@@ -298,7 +298,7 @@ theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
 /-- The executable recursor-type pass yields a source-environment
 translation and typehood certificate for the exact restored primary type. -/
 theorem validateRestoredRecursorTypes.translation_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
@@ -323,14 +323,14 @@ theorem validateRestoredRecursorTypes.translation_of_run
   have hclosed : restored.type.FVarsIn fun _ => False :=
     checkNoMVarNoFVar.closed hclosedRun
   have hfvars : restored.type.FVarsIn fun fv => fv ∈
-      (TypeChecker.VContext.mkCheckingValid hvalid restored.levelParams
+      (TypeChecker.VContext.mkCheckingValid hvalid hs restored.levelParams
         fuel).vlctx.fvars := by
     simpa [TypeChecker.VContext.mkCheckingValid,
       TypeChecker.VContext.mkChecking] using hclosed
   have Hcheck : (do
       let type ← TypeChecker.checkType restored.type
       TypeChecker.ensureSort type restored.type).WF
-      (TypeChecker.VContext.mkCheckingValid hvalid restored.levelParams fuel) {}
+      (TypeChecker.VContext.mkCheckingValid hvalid hs restored.levelParams fuel) {}
       fun _ _ => ∃ type', TrExprS venv restored.levelParams []
           restored.type type' ∧
         venv.IsType restored.levelParams.length [] type' := by
@@ -373,7 +373,7 @@ private theorem validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run
 yields translation and typehood for the concrete value produced by
 `restoreRecursor`. -/
 theorem validateRestoredRecursorTypes.translation_of_check
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hstep : Lean4Lean.validateRestoredRecursorTypes.check env loweredEnv
       lparams safety fuel result recNameMap allIndNames recName = .ok ())
     (hlookup : loweredEnv.find? recName = some (.recInfo oldInfo)) :
@@ -401,14 +401,14 @@ theorem validateRestoredRecursorTypes.translation_of_check
   have hclosed : restored.type.FVarsIn fun _ => False :=
     checkNoMVarNoFVar.closed hclosedRun
   have hfvars : restored.type.FVarsIn fun fv => fv ∈
-      (TypeChecker.VContext.mkCheckingValid hvalid restored.levelParams
+      (TypeChecker.VContext.mkCheckingValid hvalid hs restored.levelParams
         fuel).vlctx.fvars := by
     simpa [TypeChecker.VContext.mkCheckingValid,
       TypeChecker.VContext.mkChecking] using hclosed
   have Hcheck : (do
       let type ← TypeChecker.checkType restored.type
       TypeChecker.ensureSort type restored.type).WF
-      (TypeChecker.VContext.mkCheckingValid hvalid restored.levelParams fuel) {}
+      (TypeChecker.VContext.mkCheckingValid hvalid hs restored.levelParams fuel) {}
       fun _ _ => ∃ type', TrExprS venv restored.levelParams []
           restored.type type' ∧
         venv.IsType restored.levelParams.length [] type' := by
@@ -435,7 +435,7 @@ theorem validateRestoredRecursorTypes.translation_of_check
 /-- Select and certify one auxiliary restored recursor from the successful
 whole-block validation pass. -/
 theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames)
@@ -446,7 +446,7 @@ theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
     ∃ target, TrExprS venv restored.levelParams [] restored.type target ∧
       venv.IsType restored.levelParams.length [] target := by
   exact validateRestoredRecursorTypes.translation_of_check hvalid
-    (validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run hrun hrec)
+    hs (validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run hrun hrec)
       hlookup
 
 private theorem validateRestoredRecursorRules.primaryFullCheck_eq_ok_of_run
@@ -957,7 +957,7 @@ selected by the executable builder, both closed sides are interpreted by the
 ordinary checker soundness theorem, and the successful final comparison
 relates their inferred abstract types. -/
 theorem validateRestoredRecursorRules.equationTyping_of_checkEquation
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := recInfo.levelParams) (fuel := fuel)
       (Lean4Lean.validateRestoredRecursorRules.checkEquation recInfo rule) =
@@ -977,7 +977,7 @@ theorem validateRestoredRecursorRules.equationTyping_of_checkEquation
         recInfo rule lhs lhsInferred equationLevel = .ok shared ∧
       TrTyping venv recInfo.levelParams [] shared sharedInferred sharedTarget
         sharedTypeTarget := by
-  let c := TypeChecker.VContext.mkCheckingValid hvalid recInfo.levelParams fuel
+  let c := TypeChecker.VContext.mkCheckingValid hvalid hs recInfo.levelParams fuel
   have Hwf :
       (Lean4Lean.validateRestoredRecursorRules.checkEquation recInfo rule).WF
         c {} fun _ _ =>
@@ -1065,7 +1065,7 @@ theorem validateRestoredRecursorRules.equationTyping_of_checkEquation
 
 /-- Soundness of the canonical source-facing primary equation check. -/
 theorem validateRestoredRecursorRules.equationTyping_of_checkPrimaryEquation
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := recInfo.levelParams) (fuel := fuel)
       (Lean4Lean.validateRestoredRecursorRules.checkPrimaryEquation
@@ -1086,7 +1086,7 @@ theorem validateRestoredRecursorRules.equationTyping_of_checkPrimaryEquation
         recInfo rule lhs lhsInferred equationLevel = .ok shared ∧
       TrTyping venv recInfo.levelParams [] shared sharedInferred sharedTarget
         sharedTypeTarget := by
-  let c := TypeChecker.VContext.mkCheckingValid hvalid recInfo.levelParams fuel
+  let c := TypeChecker.VContext.mkCheckingValid hvalid hs recInfo.levelParams fuel
   have Hwf :
       (Lean4Lean.validateRestoredRecursorRules.checkPrimaryEquation
         expectedCtorUvars expectedPrefix recInfo rule).WF
@@ -1180,7 +1180,7 @@ against one literal target type.  This is the projection-safe replacement
 for attempting to identify two independently chosen `TrExprS` derivations.
 -/
 theorem validateRestoredRecursorRules.sharedAbstractRuleWF_of_checkEquation
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := recInfo.levelParams) (fuel := fuel)
       (Lean4Lean.validateRestoredRecursorRules.checkEquation recInfo rule) =
@@ -1205,7 +1205,7 @@ theorem validateRestoredRecursorRules.sharedAbstractRuleWF_of_checkEquation
         type := VExpr.wrapForalls domains typeBody } : VDefEq).WF venv) := by
   dsimp only
   rcases validateRestoredRecursorRules.equationTyping_of_checkEquation
-      hvalid hrun with
+      hvalid hs hrun with
     ⟨equationLevel, lhs, lhsInferred, _rhsInferred, _lhsTarget,
       _lhsTypeTarget, _rhsTarget, _rhsTypeTarget, shared, _sharedInferred,
       sharedTarget, _sharedTypeTarget, hbuild, _Hlhs, _Hrhs, _Htypes,
@@ -1285,7 +1285,7 @@ theorem validateRestoredRecursorRules.sharedAbstractRuleWF_of_checkEquation
 The returned LHS residual is the source-facing canonicalized equation plan,
 not the lowering-specific major-domain application. -/
 theorem validateRestoredRecursorRules.sharedAbstractRuleWF_of_checkPrimaryEquation
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := recInfo.levelParams) (fuel := fuel)
       (Lean4Lean.validateRestoredRecursorRules.checkPrimaryEquation
@@ -1330,7 +1330,7 @@ theorem validateRestoredRecursorRules.sharedAbstractRuleWF_of_checkPrimaryEquati
         type := VExpr.wrapForalls domains typeBody } : VDefEq).WF venv) := by
   dsimp only
   rcases validateRestoredRecursorRules.equationTyping_of_checkPrimaryEquation
-      hvalid hrun with
+      hvalid hs hrun with
     ⟨equationLevel, lhs, lhsInferred, _rhsInferred, _lhsTarget,
       _lhsTypeTarget, _rhsTarget, _rhsTypeTarget, shared, _sharedInferred,
       sharedTarget, _sharedTypeTarget, hbuild, _Hlhs, _Hrhs, _Htypes,
@@ -1416,7 +1416,7 @@ equation.  All three expressions are the translations selected by the
 checker run; the RHS is converted to the LHS's inferred type using the
 successful comparison. -/
 theorem validateRestoredRecursorRules.abstractRuleWF_of_checkEquation
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := recInfo.levelParams) (fuel := fuel)
       (Lean4Lean.validateRestoredRecursorRules.checkEquation recInfo rule) =
@@ -1434,7 +1434,7 @@ theorem validateRestoredRecursorRules.abstractRuleWF_of_checkEquation
         rhs := rhsTarget
         type := targetType } : VDefEq).WF venv) := by
   rcases validateRestoredRecursorRules.equationTyping_of_checkEquation
-      hvalid hrun with
+      hvalid hs hrun with
     ⟨_equationLevel, lhs, lhsInferred, rhsInferred, lhsTarget, lhsTypeTarget,
       rhsTarget, rhsTypeTarget, _shared, _sharedInferred, _sharedTarget,
       _sharedTypeTarget, hbuild, Hlhs, Hrhs, Htypes, _hshared,
@@ -1450,7 +1450,7 @@ theorem validateRestoredRecursorRules.abstractRuleWF_of_checkEquation
 The abstract equation is selected by the checker run itself: neither its
 left-hand side, right-hand side, nor common type is supplied by a caller. -/
 theorem validateRestoredRecursorRules.primaryAbstractRuleWF_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
@@ -1496,14 +1496,14 @@ theorem validateRestoredRecursorRules.primaryAbstractRuleWF_of_run
         rhs := rhsTarget
         type := targetType } : VDefEq).WF venv) := by
   exact validateRestoredRecursorRules.abstractRuleWF_of_checkEquation hvalid
-    (validateRestoredRecursorRules.primaryEquationCheck_of_run hrun htype
+    hs (validateRestoredRecursorRules.primaryEquationCheck_of_run hrun htype
       hlookup hrule)
 
 /-- Auxiliary restored-rule specialization of the exact equation-WF result.
 As in the primary case, the successful executable run fixes the entire
 abstract equation and proves its well-formedness internally. -/
 theorem validateRestoredRecursorRules.auxiliaryAbstractRuleWF_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames)
@@ -1536,7 +1536,7 @@ theorem validateRestoredRecursorRules.auxiliaryAbstractRuleWF_of_run
         rhs := rhsTarget
         type := targetType } : VDefEq).WF venv) := by
   exact validateRestoredRecursorRules.abstractRuleWF_of_checkEquation hvalid
-    (validateRestoredRecursorRules.auxiliaryEquationCheck_of_run hrun hrec
+    hs (validateRestoredRecursorRules.auxiliaryEquationCheck_of_run hrun hrec
       hlookup hrule)
 
 /-- A successful exact restored-rule check supplies translated typing for
@@ -1544,7 +1544,7 @@ the literal RHS selected from the restored recursor metadata.  This is the
 target-side semantic fact retained by the executable post-installation pass;
 it is not a caller-provided rule certificate. -/
 theorem validateRestoredRecursorRules.translation_of_check
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hstep : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
       lparams safety fuel result recNameMap allIndNames auxRecNames recName =
         .ok ())
@@ -1624,7 +1624,7 @@ theorem validateRestoredRecursorRules.translation_of_check
   have hclosed : rule.rhs.FVarsIn fun _ => False :=
     checkNoMVarNoFVar.closed hclosedRun
   have hfvars : rule.rhs.FVarsIn fun fv => fv ∈
-      (TypeChecker.VContext.mkCheckingValid hvalid restored.levelParams
+      (TypeChecker.VContext.mkCheckingValid hvalid hs restored.levelParams
         fuel).vlctx.fvars := by
     simpa [TypeChecker.VContext.mkCheckingValid,
       TypeChecker.VContext.mkChecking] using hclosed
@@ -1646,7 +1646,7 @@ theorem validateRestoredRecursorRules.translation_of_check
 same checker-selected translation of a literal restored RHS.  In particular,
 the guarded target cannot be substituted by a caller-chosen abstract term. -/
 theorem validateRestoredRecursorRules.guardedTranslation_of_check
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hstep : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
       lparams safety fuel result recNameMap allIndNames auxRecNames recName =
         .ok ())
@@ -1666,7 +1666,7 @@ theorem validateRestoredRecursorRules.guardedTranslation_of_check
         rule.rhs inferred target targetType ∧
       target.GuardedRuleRhs restoredRecursorNames := by
   dsimp only
-  rcases validateRestoredRecursorRules.translation_of_check hvalid hstep
+  rcases validateRestoredRecursorRules.translation_of_check hvalid hs hstep
       hlookup hrule with ⟨inferred, target, targetType, Htyping⟩
   have HguardRun := validateRestoredRecursorRules.guardCheck_eq_ok_of_check
     hstep hlookup hrule
@@ -1681,7 +1681,7 @@ the guarded RHS is definitionally the RHS occurring in the well-formed
 `VDefEq`; no translation-uniqueness principle (and in particular no global
 projection-preservation claim) is needed. -/
 theorem validateRestoredRecursorRules.validatedAbstractRule_of_check
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hstep : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
       lparams safety fuel result recNameMap allIndNames auxRecNames recName =
         .ok ())
@@ -1714,7 +1714,7 @@ theorem validateRestoredRecursorRules.validatedAbstractRule_of_check
     validateRestoredRecursorRules.equationCheck_eq_ok_of_check hstep hlookup
       hrule
   rcases validateRestoredRecursorRules.abstractRuleWF_of_checkEquation hvalid
-      Hequation with
+      hs Hequation with
     ⟨lhs, lhsInferred, rhsInferred, lhsTarget, rhsTarget, targetType,
       Hbuild, Hlhs, Hrhs, Htype, Hwf⟩
   have HguardRun := validateRestoredRecursorRules.guardCheck_eq_ok_of_check
@@ -1727,7 +1727,7 @@ theorem validateRestoredRecursorRules.validatedAbstractRule_of_check
 whole-block validation.  It joins equation WF with the exact source-rule
 arity and exact producer-field guardedness on one literal restored RHS. -/
 theorem validateRestoredRecursorRules.primaryValidatedExactRule_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
@@ -1807,7 +1807,7 @@ theorem validateRestoredRecursorRules.primaryValidatedExactRule_of_run
     validateRestoredRecursorRules.primaryCanonicalEquationCheck_of_run hrun
       htype hlookup hsource
   rcases validateRestoredRecursorRules.sharedAbstractRuleWF_of_checkPrimaryEquation
-      hvalid Hequation with
+      hvalid hs Hequation with
     ⟨lhs, lhsInferred, _lhsBodySource, rhsBodySource, plan, canonicalPlan,
       domains, lhsBody, rhsBody, typeBody, Hbuild, Hplan, Hindices, Huvars,
       Hprefix, Hcanonical, _HlhsTelescope, HrhsTelescope, hdomains, HlhsBody,
@@ -1906,7 +1906,7 @@ theorem validateRestoredRecursorRules.primaryValidatedExactRule_of_run
 /-- Primary specialization of `translation_of_check`, selected from the
 successful whole-block rule-validation pass. -/
 theorem validateRestoredRecursorRules.primaryTranslation_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types)
@@ -1925,13 +1925,13 @@ theorem validateRestoredRecursorRules.primaryTranslation_of_run
             (Lean.mkRecName indType.name)) oldInfo).levelParams []
         rule.rhs inferred target targetType := by
   exact validateRestoredRecursorRules.translation_of_check hvalid
-    (validateRestoredRecursorRules.primaryCheck_eq_ok_of_run hrun htype)
+    hs (validateRestoredRecursorRules.primaryCheck_eq_ok_of_run hrun htype)
       hlookup hrule
 
 /-- Auxiliary specialization of `translation_of_check`, selected from the
 successful whole-block rule-validation pass. -/
 theorem validateRestoredRecursorRules.auxiliaryTranslation_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames)
@@ -1945,14 +1945,14 @@ theorem validateRestoredRecursorRules.auxiliaryTranslation_of_run
           (recNameMap.getD recName recName) oldInfo).levelParams []
         rule.rhs inferred target targetType := by
   exact validateRestoredRecursorRules.translation_of_check hvalid
-    (validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run hrun hrec)
+    hs (validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run hrun hrec)
       hlookup hrule
 
 /-- Whole-run auxiliary specialization of the joined equation/guard
 certificate.  The returned `VDefEq` is assembled from the literal LHS, RHS,
 and inferred type chosen by the checker for this exact restored rule. -/
 theorem validateRestoredRecursorRules.auxiliaryValidatedAbstractRule_of_run
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (hrec : recName ∈ auxRecNames)
@@ -1980,7 +1980,7 @@ theorem validateRestoredRecursorRules.auxiliaryValidatedAbstractRule_of_run
   have Hcheck := validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
     hrun hrec
   rcases validateRestoredRecursorRules.validatedAbstractRule_of_check hvalid
-      Hcheck hlookup hrule with
+      hs Hcheck hlookup hrule with
     ⟨lhs, lhsInferred, _rhsInferred, lhsTarget, rhsTarget, targetType,
       Hbuild, Hlhs, Hrhs, Htype, Hwf, Hguard⟩
   exact ⟨lhs, lhsInferred, {

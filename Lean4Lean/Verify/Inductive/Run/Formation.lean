@@ -147,6 +147,8 @@ theorem AddInductive.declareInductiveTypes.headersWF
     (Hc : ContextWF c)
     (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
       indTypes.toList isUnsafe decl envTypes)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
@@ -161,6 +163,7 @@ theorem AddInductive.declareInductiveTypes.headersWF
         ∃ _ : DeclaredHeadersResult c stats decl numParams isUnsafe
           depth Hc.venv
           indTypes outEnv, True := by
+  have hsTypes : envTypes.Strengthening := hstrs.headersOf Hdecl
   rcases Hdecl with
     ⟨huvars, hnparams, hunsafe, htypesAdded, Htypes⟩
   let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
@@ -208,7 +211,7 @@ theorem AddInductive.declareInductiveTypes.headersWF
         simpa using
           Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hentries⟩
       values := hvalues
-      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) Hinstalled.le
+      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) hsTypes Hinstalled.le
       headers := Hmaterialized.headers
       translation := ?_
       installed := Hinstalled
@@ -258,7 +261,7 @@ def DeclaredHeadersResult.formation
   typesInstalled := H.translation.typesAdded
   constructorParameters := Hchecked.parameterShapes
     H.context.checking.tr.wf H.translation.types
-    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf H.context.strengthening)
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized).params_size
     H.materialized.uvars.symm (by
@@ -266,7 +269,7 @@ def DeclaredHeadersResult.formation
       exact H.materialized.paramsContext)
   constructors := Hchecked.checked.formation
   rawShapes := Hchecked.rawShapes H.context.checking.tr.wf H.translation.types
-    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf H.context.strengthening)
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized).params_size
 
@@ -880,6 +883,8 @@ theorem AddInductive.declareConstructors.WF
       indTypes headerEnv)
     (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.materialized.parameterScope)
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprim : c.allowPrimitive = true →
@@ -1094,6 +1099,7 @@ theorem AddInductive.declareConstructors.WF
     exact ⟨{
       toDeclaredConstructorsCore := D
       context := H.context.withEnv hvalid
+        (hstrs.constructors decl H.context.venv venvCtors core hprojectedWF)
         (Hinstalled.le.trans VEnv.addProjections_le)
       contextVEnv := rfl
       contextMLCtx := rfl }, trivial⟩
@@ -2013,7 +2019,9 @@ theorem AddInductive.constructorPhases.WF
     (hnprim : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
@@ -2034,7 +2042,7 @@ theorem AddInductive.constructorPhases.WF
   exact HcheckBoth.bind fun _ HcheckedBoth =>
     let Hchecked := HcheckedBoth.1
     let HownerNormalForms := HcheckedBoth.2
-    (AddInductive.declareConstructors.WF H Hchecked hvisible hnprim).mono
+    (AddInductive.declareConstructors.WF H Hchecked hstrs hvisible hnprim).mono
       fun outEnv Hdeclared => by
         rcases Hdeclared with ⟨Hdeclared, _⟩
         exact ⟨{
@@ -2072,7 +2080,9 @@ theorem AddInductive.formationCore.headersWF
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -2083,10 +2093,10 @@ theorem AddInductive.formationCore.headersWF
           depth Hc.venv indTypes headerEnv,
         ∃ _ : ConstructorPhasesResult Hheaders outEnv, True := by
   have Htypes := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
-    Hmaterialized hvisible hnprimTypes
+    hstrs Hmaterialized hvisible hnprimTypes
   exact Htypes.bind fun headerEnv Hresult => by
     rcases Hresult with ⟨Hheaders, _⟩
-    have Hphases := AddInductive.constructorPhases.WF Hheaders
+    have Hphases := AddInductive.constructorPhases.WF (hstrs := hstrs) Hheaders
       hconsume (Hheaders.installed.availableLiteralDisjoint hlit)
       hunsafe hvisible hnprimCtors hlparams
     exact Hphases.mono fun outEnv Hresult => by
@@ -2114,14 +2124,16 @@ theorem AddInductive.formationPrefix.headersWF
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun outEnv =>
         AddInductive.withEnv outEnv
           (AddInductive.checkConstructors indTypes stats isUnsafe)) c).WF
       fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
   have Htypes := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
-    Hmaterialized hvisible hnprim
+    hstrs Hmaterialized hvisible hnprim
   exact Htypes.bind fun outEnv hresult => by
     rcases hresult with ⟨Hstaged, _⟩
     have Hconstructors := AddInductive.checkConstructors.headersWF Hstaged
@@ -2137,6 +2149,8 @@ theorem AddInductive.declareInductiveTypes.WF
     (Hc : ContextWF c)
     (Hdecl : TrInductDeclCore Hc.venv c.lparams numParams
       indTypes.toList isUnsafe decl envTypes envCtors)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe)
     (Hmaterialized :
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
@@ -2150,6 +2164,8 @@ theorem AddInductive.declareInductiveTypes.WF
       isUnsafe c).WF fun outEnv =>
         ∃ _ : DeclaredTypesResult c stats decl depth Hc.venv
           indTypes outEnv, True := by
+  have hsTypes : envTypes.Strengthening :=
+    hstrs.headersOf (Lean4Lean.VerifyInductive.TrInductDeclCore.headers Hdecl)
   rcases Hdecl with
     ⟨huvars, hnparams, hunsafe, htypesAdded, hctorsAdded, Htypes⟩
   let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
@@ -2176,7 +2192,7 @@ theorem AddInductive.declareInductiveTypes.WF
     refine ⟨{
       entries := List.zip
         (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants
-      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) Hinstalled.le
+      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) hsTypes Hinstalled.le
       headers := Hmaterialized.headers
       typesInstalled := htypesAdded
       sourceTypes := Htypes
@@ -2198,7 +2214,7 @@ def DeclaredTypesResult.formation
     (Lean4Lean.List.Forall₂.imp
       (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
       H.sourceTypes)
-    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf H.context.strengthening)
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized).params_size
     H.materialized.uvars.symm (by
@@ -2209,7 +2225,7 @@ def DeclaredTypesResult.formation
     (Lean4Lean.List.Forall₂.imp
       (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
       H.sourceTypes)
-    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf)
+    (H.materialized.runtimeScope.scopeWF H.context.checking.tr.wf H.context.strengthening)
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized).params_size
 
@@ -2264,13 +2280,15 @@ theorem AddInductive.formationPrefix.WF
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
     (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun outEnv =>
         AddInductive.withEnv outEnv
           (AddInductive.checkConstructors indTypes stats isUnsafe)) c).WF
       fun _ => Nonempty (FormationCertificate Hc.venv decl) := by
-  exact AddInductive.formationPrefix.headersWF Hc
+  exact AddInductive.formationPrefix.headersWF (hstrs := hstrs) Hc
     (Lean4Lean.VerifyInductive.TrInductDeclCore.headers Hdecl)
     Hmaterialized hvisible hnprim hconsume hlit hunsafe hlparams
 

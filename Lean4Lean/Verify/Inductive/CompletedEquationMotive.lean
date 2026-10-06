@@ -324,7 +324,7 @@ theorem
     simpa [H.generated.length] using howner
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  rcases T.ownerMotiveFirstDomainDefEq H.outVEnvWF hownerMotive
+  rcases T.ownerMotiveFirstDomainDefEq H.outVEnvWF H.outStrengthening hownerMotive
       motiveDomains resultLevel hmotive hdomainLength with
     ⟨generatedFirst, generatedRest, motiveFirst, motiveRest,
       hsuffix, hmotiveDomains, Hdomain⟩
@@ -379,7 +379,7 @@ theorem
     simpa [H.generated.length] using howner
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  have Hsuffix := T.ownerMotiveSuffixContext H.outVEnvWF hownerMotive
+  have Hsuffix := T.ownerMotiveSuffixContext H.outVEnvWF H.outStrengthening hownerMotive
     motiveDomains resultLevel hmotive hdomainLength
   exact ⟨T, S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩
@@ -430,7 +430,7 @@ theorem
     simpa [H.generated.length] using howner
   have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
-  have Hsuffix := T.ownerMotiveSuffixContext H.outVEnvWF hownerMotive
+  have Hsuffix := T.ownerMotiveSuffixContext H.outVEnvWF H.outStrengthening hownerMotive
     motiveDomains resultLevel hmotive hdomainLength
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩
@@ -1134,7 +1134,7 @@ theorem
       _ = 0 := S.motiveSourceNoBV
   have hclosed := HclosedTr.closed
   rw [hbvars] at hclosed
-  rcases HclosedTr.weakFV'_inv H.outVEnvWF W
+  rcases HclosedTr.weakFV'_inv H.outVEnvWF H.outStrengthening W
       (Hcontext.symm H.outVEnvWF.ordered) hclosed
       S.motiveSourceFVars with ⟨narrowTarget, Hnarrow⟩
   have HnarrowWeak : TrExprS H.outVEnv
@@ -1153,7 +1153,7 @@ theorem
     Hcontext.wf.toCtx HcanonicalExpanded
   rw [← S.motiveClosedCanonicalEq] at HweakCanonical
   have Hcanonical :=
-    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF Hcontext.wf.toCtx W.toCtx).1
+    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF H.outStrengthening Hcontext.wf.toCtx W.toCtx).1
       HweakCanonical
   exact ⟨T, S, narrowTarget, hsource, Hnarrow, Hcanonical, Hgenerated⟩
 

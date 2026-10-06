@@ -423,6 +423,43 @@ structure VConstructorShape (env : VEnv) (ctorName : Name)
   doms_length : doms.length = nparams + nfields
   indices_length : indices.length = nindices
 
+/-- A typed application whose head has a syntactic telescope ending in a type headed by a
+rigid constant has supplied exactly that telescope when the application itself has a type
+headed by the same rigid constant. This is `HasType.mkApps_sort_arity` with the rigid-head
+against Pi separation `IsDefEqU.rigidApp_forallE_inv` in place of `sort_forallE_inv`. -/
+theorem VEnv.HasType.mkApps_rigid_arity (henv : VEnv.WF env)
+    {Γ : List VExpr} (hΓ : OnCtx Γ (env.IsType U)) (hrigid : env.Rigid c)
+    {f : VExpr} {domains args xs familyArgs : List VExpr} {ls levels : List VLevel}
+    (hf : env.HasType U Γ f (VExpr.wrapForalls domains (VExpr.mkApps (.const c ls) xs)))
+    (ht : env.HasType U Γ (VExpr.mkApps f args) (VExpr.mkApps (.const c levels) familyArgs)) :
+    args.length = domains.length := by
+  induction args generalizing f domains xs with
+  | nil =>
+    cases domains with
+    | nil => rfl
+    | cons domain domains =>
+      have ⟨_, hT⟩ := ht.isType henv.ordered hΓ
+      exact (VEnv.IsDefEqU.rigidApp_forallE_inv henv hΓ hrigid hT
+        (hf.uniqU henv hΓ ht).symm).elim
+  | cons arg args ih =>
+    have hfa : VExpr.WF env U Γ (.app f arg) :=
+      VExpr.WF.of_mkApps henv.ordered hΓ (f := .app f arg) ⟨_, ht⟩
+    rcases hfa.app_inv henv.ordered hΓ with ⟨A, B, hfun, harg⟩
+    cases domains with
+    | nil =>
+      have ⟨_, hT⟩ := hf.isType henv.ordered hΓ
+      exact (VEnv.IsDefEqU.rigidApp_forallE_inv henv hΓ hrigid hT
+        (hf.uniqU henv hΓ hfun)).elim
+    | cons domain domains =>
+      rcases (hf.uniqU henv hΓ hfun).forallE_inv henv hΓ with ⟨⟨_, hd⟩, _⟩
+      have ha := harg.defeqU_r henv hΓ ⟨_, hd.symm⟩
+      have hfa' := hf.app ha
+      change env.HasType U Γ (.app f arg)
+        ((VExpr.wrapForalls domains (VExpr.mkApps (.const c ls) xs)).inst arg) at hfa'
+      rw [VExpr.wrapForalls_inst, VExpr.inst_mkApps] at hfa'
+      have hlen := ih hfa' ht
+      simpa [VExpr.instDomains] using hlen
+
 /-- A constructor whose application has its inductive family as type is fully
 applied. This is a typing inversion obligation, not a runtime arity check.
 In particular, the parameter count here belongs to the constructor, not to a
@@ -434,7 +471,13 @@ theorem VConstructorShape.saturated_of_hasType (henv : VEnv.WF env)
     (ht : env.HasType U Γ (VExpr.mkApps (.const ctorName cls) args)
       (VExpr.mkApps (.const indName levels) familyArgs)) :
     args.length = nparams + nfields := by
-  sorry
+  have hhead : VExpr.WF env U Γ (.const ctorName cls) :=
+    VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
+  obtain ⟨ci, hci, hcls, hlen⟩ := hhead.const_inv henv.ordered hΓ
+  cases H.const.symm.trans hci
+  have hc := VEnv.HasType.const (Γ := Γ) H.const hcls hlen
+  rw [H.type_eq, VExpr.instL_wrapForalls, VExpr.instL_mkApps] at hc
+  simpa [H.doms_length] using VEnv.HasType.mkApps_rigid_arity henv hΓ hrigid hc ht
 
 /-- A stored iota pattern with explicit constructor-parameter specialization.
 The recursor and its rules share `ctorParams`; these expressions are lifted
@@ -596,7 +639,7 @@ theorem _root_.Lean4Lean.OnCtx.of_append {Γ' Γ : List VExpr} {P}
 /-- The arguments a recursor application supplies to a stored iota rule are typed along the rule's
 telescope: the pattern variables of the left-hand side are typed at the recursor and constructor
 telescopes, so unique typing carries the actual arguments over. -/
-theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType U))
     (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
       indLevels ctorParams)
     (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
@@ -702,7 +745,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
       have := Ctx.LiftN.zero (Γ := (doms'.take j).reverse ++ Γ) ((doms'.drop j).reverse)
         (n := doms'.length - j) (by simp)
       rwa [← List.append_assoc, ← List.reverse_append, List.take_append_drop] at this
-    have hΓ_j : OnCtx ((doms'.take j).reverse ++ Γ) (env.IsType U) := hΓ₀.weakN_inv henv W
+    have hΓ_j : OnCtx ((doms'.take j).reverse ++ Γ) (env.IsType U) := hΓ₀.weakN_inv henv hs W
     rcases Nat.lt_or_ge j m with hjm | hjm
     · -- A parameter, motive, or minor position.
       have hv := hvarT j (by simp; omega) (by simp [Hrec.doms_length]; omega)
@@ -712,7 +755,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
         VExpr.instOuter_range_bvar' _ _ _ (hrecC j (by simp [Hrec.doms_length]; omega))
           (by omega)] at hv
       have hU := (hbvT.uniqU henv hΓ₀ hv)
-      have hU' := (IsDefEqU.weakN_iff henv hΓ₀ W).1 hU
+      have hU' := (IsDefEqU.weakN_iff henv hs hΓ₀ W).1 hU
       have hI := IsDefEqU.instOuter_telescope henv hU' hAjlen hA_j
       have hAj : A.take j = pre.take j := by
         rw [← hA, List.take_append_of_le_length (by simp; omega), List.take_take,
@@ -749,7 +792,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.args_typing (henv : VEnv.WF env) (hΓ : 
       rw [← hY] at hv
       rw [show doms'.length - 1 - (m + i) = nfields - 1 - i by omega] at hbvT
       have hU := hbvT.uniqU henv hΓ₀ hv
-      have hU' := (IsDefEqU.weakN_iff henv hΓ₀ W).1 hU
+      have hU' := (IsDefEqU.weakN_iff henv hs hΓ₀ W).1 hU
       have hI := IsDefEqU.instOuter_telescope henv hU' hAjlen hA_j
       -- The instantiated pattern type.
       have hAj : A.take (m + i) = pre.take m ++ fields.take i := by
@@ -838,7 +881,7 @@ theorem _root_.Lean4Lean.VExpr.mkApps_append (f : VExpr) (l₁ l₂ : List VExpr
 /-- Iota reduction: a recursor application whose major premise is definitionally a constructor
 application is definitionally equal to the stored rule's right-hand side applied to the
 parameters, motives, minors, and constructor fields, followed by the remaining arguments. -/
-theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType U))
     (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
       indLevels ctorParams)
     (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
@@ -861,7 +904,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   rw [VExpr.mkApps_append (l₁ := pre.take (nparams + nmotives + nminors) ++ fields)]
   have hwf1 : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])) :=
     VExpr.WF.of_mkApps henv.ordered hΓ hwf
-  have hA := Hrule.args_typing henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP' hf
+  have hA := Hrule.args_typing henv hs hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP' hf
     hmajor
   refine IsDefEqU.mkApps_congr_left henv hΓ ?_ hwf
   -- Notation
@@ -1088,7 +1131,7 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
 
 /-- `iota` with the right-hand side beta-reduced: the instantiated rule body applied to the
 remaining arguments. -/
-theorem _root_.Lean4Lean.VIotaRuleShape.iota_body (henv : VEnv.WF env)
+theorem _root_.Lean4Lean.VIotaRuleShape.iota_body (henv : VEnv.WF env) (hs : env.Strengthening)
     (hΓ : OnCtx Γ (env.IsType U))
     (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
       indLevels ctorParams)
@@ -1107,12 +1150,12 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota_body (henv : VEnv.WF env)
     env.IsDefEqU U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra))
       (VExpr.mkApps ((Hrule.rhsBody.instL ls).instOuter
         (pre.take (nparams + nmotives + nminors) ++ fields)) extra) := by
-  have h1 := Hrule.iota henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf hcls hclsw hP' hf hmajor
+  have h1 := Hrule.iota henv hs hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf hcls hclsw hP' hf hmajor
   have hwf1 : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])) := by
     have : pre ++ major :: extra = (pre ++ [major]) ++ extra := by simp
     rw [this, VExpr.mkApps_append] at hwf
     exact VExpr.WF.of_mkApps henv.ordered hΓ hwf
-  have hA := Hrule.args_typing henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP'
+  have hA := Hrule.args_typing henv hs hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP'
     hf hmajor
   have hrhs : env.HasType U Γ (VExpr.wrapLams (Hrule.doms.map (VExpr.instL ls))
       (Hrule.rhsBody.instL ls))

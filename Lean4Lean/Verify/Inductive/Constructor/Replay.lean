@@ -719,7 +719,7 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
               simpa [shift] using
                 (hsource.prependLevelParam Hc.checking.tr.wf
                   ((checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
-                    Hc H).scopeWF Hc.checking.tr.wf) Helim))
+                    Hc H).scopeWF Hc.checking.tr.wf Hc.strengthening) Helim))
             ih
       have hshifted := go H.narrowParams
       have htargets :
@@ -761,7 +761,7 @@ def checkInductiveTypes.loopType.ParameterContextSuffix.toRecursorContext
       narrowParams := hnarrow
       sources := H.sources.prependLevelParam Hc.checking.tr.wf
         ((checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
-          Hc H).scopeWF Hc.checking.tr.wf) Helim }
+          Hc H).scopeWF Hc.checking.tr.wf Hc.strengthening) Helim }
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
@@ -964,7 +964,7 @@ theorem CheckedConstructorTailReplayAt.toRecursorContext
     have hscopeWF : Hmaterialized.parameterScope.WF
         Hc.venv c.lparams.length :=
       (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix
-        Hc Hmaterialized.parameterSuffix).scopeWF Hc.checking.tr.wf
+        Hc Hmaterialized.parameterSuffix).scopeWF Hc.checking.tr.wf Hc.strengthening
     refine ⟨ctorVal, tail, tailTarget.instL shift, hmem, Hraw.name,
       Hraw.uvars, Hprefix, ?_, ?_, ?_⟩
     · change TrExprS Hc.venv (fresh :: c.lparams)
@@ -1378,7 +1378,7 @@ theorem RecursorLaterParameterScope.ownParameterDefEq
   rcases H.parameterDefEq hi hparamsLength hctx with
     ⟨cachedLevel, hcommonCached⟩
   have holderWF :=
-    (H.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf).1
+    (H.lift.wf R.checking.tr.wf R.strengthening R.mlctx_wf.tr.wf).1
   exact ⟨cachedLevel, hcommonOwn'.symm.trans_r R.checking.tr.wf
     holderWF.toCtx hcommonCached⟩
 
@@ -1515,7 +1515,7 @@ theorem RecursorLaterParameterScope.domainTranslation
   have hclosed : Closed dom 0 := by
     have h := hdom.closed
     simpa [R.mlctx.noBV] using h
-  exact hdom.weakFV_inv R.checking.tr.wf H.olderLift
+  exact hdom.weakFV_inv R.checking.tr.wf R.strengthening H.olderLift
     (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hclosed H.fvars.1
 
 /-- Recover the cached parameter's concrete type and its recursor-universe
@@ -1699,7 +1699,7 @@ theorem RecursorLaterParameterScope.domainDefEq
     simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
       using hfull
   exact ⟨sourceDom', hsourceDom,
-    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf R.strengthening
       R.mlctx_wf.tr.wf.toCtx H.olderLift.toCtx).1 hfull'⟩
 
 /-- Reconstruct the source binder after substituting its cached concrete
@@ -1720,7 +1720,7 @@ theorem RecursorLaterParameterScope.uninstantiateEq
   have hopened' : TrExprS R.venv recLparams R.mlctx.vlctx
       (body.instantiate1' (.fvar H.fv)) body' := by
     simpa [Expr.instantiate1_eq, H.parameter] using hopened
-  have hsuffixWF := H.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf
+  have hsuffixWF := H.lift.wf R.checking.tr.wf R.strengthening R.mlctx_wf.tr.wf
   have hfresh : H.fv ∉ H.older.fvars :=
     (hsuffixWF.2.1 H.fv H.deps rfl).1
   have hsourceFresh : FVarsIn (· ≠ H.fv) body :=
@@ -1730,7 +1730,7 @@ theorem RecursorLaterParameterScope.uninstantiateEq
   have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
     have hclosed := hopened'.closed
     simpa [R.mlctx.noBV] using hclosed
-  exact hopened'.uninstantiateAfterWeakFV_eq R.checking.tr.wf H.lift
+  exact hopened'.uninstantiateAfterWeakFV_eq R.checking.tr.wf R.strengthening H.lift
     (.refl R.checking.tr.wf.ordered R.mlctx_wf.tr.wf)
     hopenedClosed H.openedFVars hsourceFresh
 
@@ -1786,7 +1786,7 @@ theorem RecursorLaterParameterScope.normalizedBody
   have hnormalizedClosed : Closed normalized 0 := by
     have hclosed := hnormalizedFull.closed
     simpa [R.mlctx.noBV] using hclosed
-  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf H.lift
+  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf R.strengthening H.lift
       (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
       hnormalizedClosed hnormalizedFVars with
     ⟨normalized', hnormalized'⟩
@@ -1805,7 +1805,7 @@ theorem RecursorLaterParameterScope.normalizedBody
       (VLCtx.toCtx
         ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
       sourceBody' normalized' :=
-    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf R.strengthening
       R.mlctx_wf.tr.wf.toCtx H.lift.toCtx).1 hfull
   exact ⟨sourceBody', normalized', hsourceBody, hnormalized',
     by simpa [VLCtx.toCtx] using hnarrow⟩

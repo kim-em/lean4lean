@@ -39,6 +39,7 @@ structure RecursorPhasesResult
   installed : AddConstants localContext.safety localContext.env
     (R.declared.venvCtors.addProjections decl.projectionEntries)
     entries outEnv outVEnv
+  outStrengthening : outVEnv.Strengthening
   closed : MutualInductivesClosed outEnv
   canonicalTargets : ∀ i (hi : i < entries.length), entries[i].2 =
     toCompletedRecursorConstruction.nativeTarget i
@@ -83,6 +84,7 @@ def RecursorPhasesResult.completed
     installed := by
       simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
         H.installed
+    outStrengthening := H.outStrengthening
     closed := H.closed
     canonicalTargets := H.canonicalTargets }
 
@@ -112,6 +114,7 @@ def RecursorPhasesResult.ofCompleted
     installed := by
       simpa [ConstructorPhasesResult.completed, R.declared.contextVEnv] using
         H.installed
+    outStrengthening := H.outStrengthening
     closed := H.closed
     canonicalTargets := H.canonicalTargets }
 
@@ -150,7 +153,9 @@ theorem ConstructorPhasesResult.recursorPhasesWF
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
       AddInductive.withTypeCheckerLParams
         (AddInductive.getRecLevelParams elimLevel c.lparams) do
@@ -160,7 +165,7 @@ theorem ConstructorPhasesResult.recursorPhasesWF
             kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
         Nonempty (RecursorPhasesResult R outEnv) := by
-  exact (R.completed.recursorPhasesWF (hsourceSafety := hsourceSafety)
+  exact (R.completed.recursorPhasesWF (hstrs := hstrs) (hsourceSafety := hsourceSafety)
     hclosed hlparams hlit hnotPartial hnprim).mono fun outEnv Hout => by
       obtain ⟨H⟩ := Hout
       exact ⟨RecursorPhasesResult.ofCompleted H⟩
@@ -3338,7 +3343,7 @@ prefixes.  Closing the context conversion around a harmless sort exposes a
 definitional equality of forall telescopes; inverse weakening then applies
 to the whole telescope at once, avoiding binder-by-binder bookkeeping. -/
 theorem VEnv.IsDefEqCtx.cancelLiftForallDomains
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (W : Ctx.Lift' shift outer expanded)
     (Hprefix : VEnv.IsDefEqCtx env U []
       ((liftForallDomains left shift).reverse ++ expanded)
@@ -3348,7 +3353,7 @@ theorem VEnv.IsDefEqCtx.cancelLiftForallDomains
   have hexpanded : OnCtx expanded (env.IsType U) :=
     OnCtx.append_right Hprefix.isType
   have houter : OnCtx outer (env.IsType U) :=
-    hexpanded.weak'_inv henv W
+    hexpanded.weak'_inv henv hs W
   have hlength : left.length = right.length := by
     have h := Hprefix.length_eq
     simp only [List.length_append, List.length_reverse,
@@ -3373,7 +3378,7 @@ theorem VEnv.IsDefEqCtx.cancelLiftForallDomains
   have Hnarrow : env.IsDefEqU U outer
       (VExpr.wrapForalls left (.sort .zero))
       (VExpr.wrapForalls right (.sort .zero)) :=
-    (VEnv.IsDefEqU.weak'_iff henv hexpanded W).1 Hweakened
+    (VEnv.IsDefEqU.weak'_iff henv hs hexpanded W).1 Hweakened
   have Hbase : VEnv.IsDefEqCtx env U [] outer outer :=
     VEnv.IsDefEqCtx.refl houter
   exact VEnv.IsDefEqU.wrapForalls_context henv Hbase hlength Hnarrow
