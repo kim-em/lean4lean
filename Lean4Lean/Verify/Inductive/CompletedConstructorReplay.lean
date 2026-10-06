@@ -290,7 +290,10 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
         Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget ∧
       ∃ tailTarget₀, TrExprS Rcurrent.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
-        HsuffixCurrent.parameterDecls tail tailTarget₀ := by
+        HsuffixCurrent.parameterDecls tail tailTarget₀ ∧
+        Rcurrent.venv.IsType
+          (AddInductive.getRecLevelParams elimLevel c.lparams).length
+          HsuffixCurrent.parameterDecls.toCtx tailTarget₀ := by
   let Hbase := R.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
   let HsuffixBase := R.materializedFinal.parameterSuffix.toRecursorContext Helim
@@ -338,7 +341,7 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
       HintroTypeRuntime, HtailTypeRuntime⟩
   exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailParams,
     HtailRuntime, HtailTypeRuntime, HintroRuntime, HintroTypeRuntime,
-    tailNarrow, HtailCurrent⟩
+    tailNarrow, HtailCurrent, HtailTypeCurrent⟩
 
 /-- Enter the first mutual recursor pass from the completed constructor
 boundary. -/

@@ -520,6 +520,10 @@ structure RetainedGeneratedRuleSemantics
     fieldRootContext.mlctx.vlctx parameterTail parameterTarget
   parameterType : fieldRootContext.venv.IsType recLparams.length
     fieldRootContext.mlctx.vlctx.toCtx parameterTarget
+  parameterTranslation₀ : ∃ t, TrExprS fieldRootContext.venv recLparams
+      parameterSuffix.parameterDecls parameterTail t ∧
+    fieldRootContext.venv.IsType recLparams.length
+      parameterSuffix.parameterDecls.toCtx t
   fieldOpening : ConstructorFieldOpening parameterTail target allArgs
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨ fv ∈ ExprArrayFVarIds stats.params)
@@ -624,6 +628,7 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
     parameterTarget := C.parameterTarget
     parameterTranslation := C.parameterTranslation
     parameterType := C.parameterType
+    parameterTranslation₀ := C.parameterTranslation₀
     fieldOpening := C.fieldOpening
     fieldParameterUp := C.fieldParameterUp
     fieldCheck := C.fieldCheck
@@ -936,6 +941,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
     parameterTarget := F.parameterTarget
     parameterTranslation := F.parameterTranslation
     parameterType := F.parameterType
+    parameterTranslation₀ := F.parameterTranslation₀
     fieldOpening := F.fieldOpening
     fieldParameterUp := F.fieldParameterUp
     fieldCheck := F.fieldCheck
