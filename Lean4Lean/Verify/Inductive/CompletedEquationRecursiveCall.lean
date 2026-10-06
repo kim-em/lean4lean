@@ -2494,6 +2494,150 @@ theorem
     houterFields, hhypotheses, by
       simpa [later, shift, hselectedFields, houterFields] using Htransported⟩
 
+theorem VLCtx.FVLift.of_append_lams : ∀ (X : VLCtx) {Q : VLCtx},
+    (∀ e ∈ X, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      VLCtx.FVLift Q (X ++ Q) 0 X.length 0
+  | [], _, _ => .refl
+  | e :: X, Q, h => by
+    obtain ⟨k, d, rfl⟩ := h e (by simp)
+    have W := VLCtx.FVLift.of_append_lams X (Q := Q)
+      (fun x hx => h x (by simp [hx]))
+    exact .skip_fvar k (.vlam d) W
+
+/-- The parameter declarations sit, up to conversion, at the bottom of the
+complete outer generated scope; the motives and minors above them form a
+contiguous free-variable weakening. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalOuterParameterBase
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (_A : H.GeneratedRuleAlignment owner howner i hctor)
+    (T : GeneratedRecursorTelescopeTranslation H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (H.generated.entry owner howner).info.type H.entries[owner].2.type
+      stats.params.size (H.recInfos.map (·.motive)).size
+      (H.recInfos.flatMap (·.minors)).size
+      H.recInfos[owner]!.indices.size owner)
+    {outerScope : VLCtx}
+    (Houter : checkInductiveTypes.loopType.FVarNarrowScope H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      outerScope H.recursorWF.mlctx.vlctx)
+    (houterFVars : outerScope.fvars =
+      (H.params.fvars ++ H.bindings.motives.fvars ++
+        H.bindings.flatMinors.fvars).reverse)
+    (HouterPrefix : VEnv.IsDefEqCtx H.outVEnv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length []
+      outerScope.toCtx (T.params ++ T.motives ++ T.minors).reverse) :
+    VLCtx.IsDefEq H.outVEnv
+        (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+        H.parameterSuffix.parameterDecls
+        (outerScope.drop (T.motives ++ T.minors).length) ∧
+      VLCtx.FVLift (outerScope.drop (T.motives ++ T.minors).length)
+        outerScope 0 (T.motives ++ T.minors).length 0 := by
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let P := H.parameterSuffix.parameterDecls
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv]
+    exact H.installed.le
+  have hPlams := VLCtx.lams_of_cached H.parameterSuffix.cached
+  have hOlams := VLCtx.lams_of_declarations Houter.declarations
+  have hPfvars : P.fvars = H.params.fvars.reverse := by
+    rw [H.parameterSuffix.parameterDecls_fvars, H.params.exprArrayFVarIds]
+  have hPlen : P.length = H.params.fvars.length := by
+    rw [← VLCtx.fvars_length_of_lams hPlams, hPfvars, List.length_reverse]
+  have hOlen : outerScope.length =
+      (H.params.fvars ++ H.bindings.motives.fvars ++
+        H.bindings.flatMinors.fvars).length := by
+    rw [← VLCtx.fvars_length_of_lams hOlams, houterFVars, List.length_reverse]
+  have Hparams := H.finalRecursorParameterContextFor howner T
+  rw [← H.parameterDecls] at Hparams
+  have hTparams : T.params.length = H.params.fvars.length := by
+    have := Hparams.length_eq
+    rw [List.length_reverse, VLCtx.toCtx_length_of_lams hPlams] at this
+    rw [this, hPlen]
+  have hTlen := HouterPrefix.length_eq
+  rw [VLCtx.toCtx_length_of_lams hOlams] at hTlen
+  simp only [List.length_reverse, List.length_append] at hTlen
+  let m := (T.motives ++ T.minors).length
+  have hm : m = (H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars).length := by
+    simp only [m, List.length_append] at hOlen ⊢
+    omega
+  let Q : VLCtx := outerScope.drop m
+  let X : VLCtx := outerScope.take m
+  have hXQ : X ++ Q = outerScope := List.take_append_drop m outerScope
+  have hXlams : ∀ e ∈ X, ∃ k d, e = (some k, VLocalDecl.vlam d) :=
+    fun e he => hOlams e (List.mem_of_mem_take he)
+  have hQlams : ∀ e ∈ Q, ∃ k d, e = (some k, VLocalDecl.vlam d) :=
+    fun e he => hOlams e (List.mem_of_mem_drop he)
+  have hXlen : X.length = m := by
+    simp only [X, List.length_take]
+    simp only [m, List.length_append] at hOlen ⊢
+    omega
+  have hQfvars : Q.fvars = P.fvars := by
+    rw [VLCtx.fvars_drop_of_lams m hOlams, houterFVars, hPfvars, hm]
+    simp only [List.append_assoc, List.reverse_append]
+    rw [← List.append_assoc, ← List.reverse_append]
+    exact List.drop_left' (by simp; omega)
+  have HQT : VEnv.IsDefEqCtx H.outVEnv Us.length [] Q.toCtx
+      T.params.reverse := by
+    have Hdrop := VEnv.IsDefEqCtx.dropHeads HouterPrefix m
+    have hl : outerScope.toCtx.drop m = Q.toCtx := by
+      rw [← hXQ, VLCtx.toCtx_append]
+      apply List.drop_left'
+      rw [VLCtx.toCtx_length_of_lams hXlams, hXlen]
+    have hr : (T.params ++ T.motives ++ T.minors).reverse.drop m =
+        T.params.reverse := by
+      rw [List.append_assoc, List.reverse_append]
+      apply List.drop_left'
+      simp [m]
+      omega
+    rw [hl, hr] at Hdrop
+    exact Hdrop
+  have HQPctx := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF HQT Hparams
+  have hnodup := H.recursorWF.mlctx_wf.fvars_nodup
+  have hkeyRuntime : ∀ x ∈ Q.map Prod.fst,
+      x ∈ H.recursorWF.mlctx.vlctx.map Prod.fst := by
+    intro x hx
+    have h1 : x ∈ outerScope.map Prod.fst :=
+      (List.map_subset _ (List.drop_subset m outerScope)) hx
+    have h2 := (VLCtx.FVLift'.keys_sublist Houter.lift).subset h1
+    rwa [VLCtx.IsDefEq.keys_eq Houter.context] at h2
+  have hkeyP : ∀ x ∈ P.map Prod.fst,
+      x ∈ H.recursorWF.mlctx.vlctx.map Prod.fst := by
+    intro x hx
+    rw [H.parameterSuffix.context, List.map_append]
+    exact List.mem_append_right _ hx
+  have hsome : ∀ (L : VLCtx),
+      (∀ e ∈ L, ∃ k d, e = (some k, VLocalDecl.vlam d)) →
+      ∀ x ∈ L.map Prod.fst, x.isSome := by
+    intro L hL x hx
+    obtain ⟨e, he, rfl⟩ := List.mem_map.mp hx
+    obtain ⟨k, d, rfl⟩ := hL e he
+    rfl
+  have hkeys : Q.map Prod.fst = P.map Prod.fst :=
+    VLCtx.keys_eq_of_fvars hnodup hkeyRuntime hkeyP (hsome Q hQlams)
+      (hsome P hPlams) (by
+        rw [VLCtx.keys_fvars_of_lams hQlams, VLCtx.keys_fvars_of_lams hPlams,
+          hQfvars])
+  have hQwf : VLCtx.WF H.outVEnv Us.length Q :=
+    VLCtx.WF.append_right (A := X) (by rw [hXQ]; exact Houter.wf)
+  have HQP : VLCtx.IsDefEq H.outVEnv Us.length Q P :=
+    VLCtx.IsDefEq.ofKeysCtx hkeys
+      (fun e he => let ⟨_, d, h⟩ := hQlams e he; ⟨_, d, h⟩)
+      (fun e he => let ⟨_, d, h⟩ := hPlams e he; ⟨_, d, h⟩) hQwf HQPctx
+  refine ⟨HQP.symm H.outVEnvWF.ordered, ?_⟩
+  have W := VLCtx.FVLift.of_append_lams X (Q := Q) hXlams
+  rw [hXQ, hXlen] at W
+  exact W
+
 /-- The source-stable fields reconstructed in the complete generated outer
 scope agree with the independently checked constructor fields after the
 motive/minor block is inserted.  The comparison is made only after both
@@ -2557,188 +2701,27 @@ theorem
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let inserted := T.motives ++ T.minors
-  let parameterBinders := H.params.fvars
-  let insertedBinders := H.bindings.motives.fvars ++
-    H.bindings.flatMinors.fvars
-  let outerBinders := parameterBinders ++ insertedBinders
-  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv]
-    exact H.constructorVEnv_le
-  rcases A.semantics.fieldContextDefEqMono with
-    ⟨runtimeDomains, runtimeResidual, _consumedDomains, _consumedResidual,
-      _hruntimeDomains, _hconsumedDomains, Hruntime₀,
-      _hconsumedTarget, _Hcontexts⟩
-  have Hruntime : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx
-      A.semantics.parameterTail
-      (VExpr.wrapForalls runtimeDomains runtimeResidual) :=
-    Hruntime₀.mono hbase
-  have HruntimeWF : VLCtx.WF H.outVEnv Us.length
-      H.recursorWF.mlctx.vlctx :=
-    (H.recursorWF.mlctx_wf.mono hbase).tr.wf
-  let Hparameter := (H.parameterSuffix.runtimeScope).mono hbase
-  have HcheckedWhole := Hparameter.fullTargetEq H.outVEnvWF
-    HcheckedTail (Hruntime.trExpr H.outVEnvWF HruntimeWF)
-  have HouterWhole := Houter.fullTargetEq H.outVEnvWF HouterTail
-    (Hruntime.trExpr H.outVEnvWF HruntimeWF)
-  have Hwhole : H.outVEnv.IsDefEqU Us.length
-      H.recursorWF.mlctx.vlctx.toCtx
-      ((VExpr.wrapForalls checkedDomains checkedResidual).lift'
-        Hparameter.shift)
-      ((VExpr.wrapForalls outerFields outerResidual).lift'
-        Houter.shift) :=
-    HcheckedWhole.trans H.outVEnvWF HruntimeWF.toCtx HouterWhole.symm
-  rw [VExpr.lift'_wrapForalls_exact,
-    VExpr.lift'_wrapForalls_exact] at Hwhole
-  have HruntimeBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      H.recursorWF.mlctx.vlctx.toCtx
-      H.recursorWF.mlctx.vlctx.toCtx := .refl HruntimeWF.toCtx
-  have HruntimeFields := VEnv.IsDefEqU.wrapForalls_context
-    H.outVEnvWF HruntimeBase
-      ((liftForallDomains_length checkedDomains Hparameter.shift).trans
-        ((hcheckedFields.trans houterFields.symm).trans
-          (liftForallDomains_length outerFields Houter.shift).symm)) Hwhole
-  have hparameterFVars : H.parameterSuffix.parameterDecls.fvars =
-      parameterBinders.reverse := by
-    rw [H.parameterSuffix.parameterDecls_fvars]
-    simpa only [parameterBinders] using
-      congrArg List.reverse H.params.exprArrayFVarIds
-  have houterScope' : outerScope.fvars = outerBinders.reverse := by
-    simpa [outerBinders, parameterBinders, insertedBinders,
-      List.append_assoc] using houterScope
-  have houterShift' : Houter.shift =
-      fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
-        (· ∈ outerBinders) := by
-    simpa [outerBinders, parameterBinders, insertedBinders,
-      List.append_assoc] using houterShift
-  have houterSplit : outerScope.fvars =
-      insertedBinders.reverse ++ H.parameterSuffix.parameterDecls.fvars := by
-    calc
-      outerScope.fvars = outerBinders.reverse := houterScope'
-      _ = insertedBinders.reverse ++ parameterBinders.reverse := by
-        rw [List.reverse_append]
-      _ = insertedBinders.reverse ++
-          H.parameterSuffix.parameterDecls.fvars := by
-        rw [hparameterFVars]
-  have houterNodup :
-      (insertedBinders.reverse ++
-        H.parameterSuffix.parameterDecls.fvars).Nodup := by
-    rw [← houterSplit]
-    exact (Houter.scopeWF H.outVEnvWF).fvars_nodup
-  have hrelativeBase := fvarSelectionLift_append_selected
-    insertedBinders.reverse H.parameterSuffix.parameterDecls.fvars
-      (by
-        intro fv hinserted hparameter
-        exact (List.nodup_append.mp houterNodup).2.2
-          fv hinserted fv hparameter rfl)
-  have hrelative : fvarSelectionLift outerScope.fvars
-      (· ∈ parameterBinders) =
-        .skipN (.consN .refl
-          H.parameterSuffix.parameterDecls.fvars.length)
-          insertedBinders.length := by
-    rw [houterSplit]
-    simpa only [hparameterFVars, List.mem_reverse,
-      List.length_reverse] using hrelativeBase
-  have hparameterSub : ∀ fv,
-      fv ∈ parameterBinders → fv ∈ outerBinders := by
-    intro fv hfv
-    exact List.mem_append_left _ hfv
-  have hfactor := fvarSelectionLift_mono_comp
-    H.recursorWF.mlctx.vlctx.fvars
-      (· ∈ parameterBinders) (· ∈ outerBinders) hparameterSub
-  have houterFiltered : H.recursorWF.mlctx.vlctx.fvars.filter
-      (· ∈ outerBinders) = outerBinders.reverse := by
-    simpa [outerBinders, parameterBinders, insertedBinders,
-      List.append_assoc] using A.finalOuterFilteredFVars
-  rw [houterFiltered] at hfactor
-  have hfactor' : Lift.comp
-      (fvarSelectionLift outerScope.fvars (· ∈ parameterBinders))
-        Houter.shift =
-      fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
-        (· ∈ parameterBinders) := by
-    rw [houterScope', houterShift']
-    exact hfactor
-  have hruntimeFVars : H.recursorWF.mlctx.vlctx.fvars =
-      H.parameterSuffix.ambientDecls.fvars ++
-        H.parameterSuffix.parameterDecls.fvars := by
-    rw [H.parameterSuffix.context, VLCtx.fvars_append]
-  have hruntimeNodup :
-      (H.parameterSuffix.ambientDecls.fvars ++
-        H.parameterSuffix.parameterDecls.fvars).Nodup := by
-    rw [← hruntimeFVars]
-    exact HruntimeWF.fvars_nodup
-  have hparameterSelectionBase := fvarSelectionLift_append_selected
-    H.parameterSuffix.ambientDecls.fvars
-      H.parameterSuffix.parameterDecls.fvars
-      (by
-        intro fv hambient hparameter
-        exact (List.nodup_append.mp hruntimeNodup).2.2
-          fv hambient fv hparameter rfl)
-  have hparameterSelection :
-      fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
-          (· ∈ parameterBinders) =
-        .skipN (.consN .refl
-          H.parameterSuffix.parameterDecls.fvars.length)
-          H.parameterSuffix.ambientDecls.fvars.length := by
-    rw [hruntimeFVars]
-    simpa only [hparameterFVars, List.mem_reverse] using
-      hparameterSelectionBase
-  have hparameterToCtxLength :
-      H.parameterSuffix.parameterDecls.toCtx.length =
-        H.parameterSuffix.parameterDecls.length :=
-    checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
-      H.parameterSuffix.cached
-  have hparameterFVarsLength :
-      H.parameterSuffix.parameterDecls.fvars.length =
-        H.parameterSuffix.parameterDecls.length := by
-    rw [hparameterFVars, List.length_reverse,
-      H.params.length_fvars,
-      H.parameterSuffix.parameterDecls_length]
-  have hruntimeToCtxLength := H.recursorWF.onlyLams.toCtx_length
-  have hruntimeFVarsLength := H.recursorWF.onlyLams.fvars_length
-  have htoCtxParts := congrArg List.length <|
-    congrArg VLCtx.toCtx H.parameterSuffix.context
-  have hfvarParts := congrArg List.length hruntimeFVars
-  simp only [VLCtx.toCtx_append, List.length_append] at htoCtxParts
-  simp only [List.length_append] at hfvarParts
-  have hambientLengths : H.parameterSuffix.ambientDecls.toCtx.length =
-      H.parameterSuffix.ambientDecls.fvars.length := by
-    omega
-  have hparameterShift : Hparameter.shift =
-      .skipN .refl H.parameterSuffix.ambientDecls.toCtx.length := rfl
-  have hparameterRuntime :
-      liftForallDomains checkedDomains Hparameter.shift =
-        liftForallDomains checkedDomains
-          (fvarSelectionLift H.recursorWF.mlctx.vlctx.fvars
-            (· ∈ parameterBinders)) := by
-    rw [hparameterShift, liftForallDomains_skipN_refl,
-      hparameterSelection, liftForallDomains_skipN_consN_refl,
-      hambientLengths]
-  have hcheckedComposed :
-      liftForallDomains checkedDomains Hparameter.shift =
-        liftForallDomains
-          (liftForallDomains checkedDomains
-            (fvarSelectionLift outerScope.fvars
-              (· ∈ parameterBinders))) Houter.shift := by
-    rw [liftForallDomains_comp, hfactor']
-    exact hparameterRuntime
-  have Hexpanded := VEnv.IsDefEqCtx.rebaseCommonSuffix H.outVEnvWF
-    Houter.context.defeqCtx HruntimeFields
-  rw [hcheckedComposed] at Hexpanded
-  have Hnatural := VEnv.IsDefEqCtx.cancelLiftForallDomains
-    H.outVEnvWF Houter.lift.toCtx Hexpanded
-  have hinsertedLengths : insertedBinders.length = inserted.length := by
-    simp only [insertedBinders, inserted, List.length_append]
-    rw [H.bindings.motives.length_fvars,
-      H.bindings.flatMinors.length_fvars,
-      T.motives_length, T.minors_length]
-  rw [hrelative, liftForallDomains_skipN_consN_refl,
-    hinsertedLengths] at Hnatural
+  obtain ⟨HPQ, W⟩ := A.finalOuterParameterBase T Houter houterScope HouterPrefix
+  obtain ⟨t, Ht, Hteq⟩ := HcheckedTail.defeqDFC' H.outVEnvWF HPQ
+  have Ht' := Ht.weakFV H.outVEnvWF.ordered W Houter.wf
+  rcases Hteq with ⟨_, Hteq₀⟩
+  have Hteq' : H.outVEnv.IsDefEqU Us.length outerScope.toCtx
+      (t.liftN inserted.length 0)
+      ((VExpr.wrapForalls checkedDomains checkedResidual).liftN
+        inserted.length 0) :=
+    ⟨_, Hteq₀.weakN H.outVEnvWF.ordered W.toCtx⟩
+  have Huniq := Ht'.uniq H.outVEnvWF (.refl H.outVEnvWF Houter.wf) HouterTail
+  have Hwhole := Hteq'.symm.trans H.outVEnvWF Houter.wf.toCtx Huniq
+  rw [VExpr.liftN_wrapForalls] at Hwhole
+  have Hnatural := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
+    (VEnv.IsDefEqCtx.refl Houter.wf.toCtx)
+    (by simp [hcheckedFields, houterFields]) Hwhole
   let equationFieldDomains :=
     (liftContextPrefix inserted.length checkedDomains.reverse).reverse
   have Hfull := VEnv.IsDefEqCtx.rebaseCommonSuffix H.outVEnvWF
     (HouterPrefix.symm H.outVEnvWF.ordered) Hnatural
   exact ⟨equationFieldDomains, rfl, by
-      simpa [equationFieldDomains, inserted] using
+      simpa [equationFieldDomains, inserted, liftContextPrefix] using
         (Hfull.symm H.outVEnvWF.ordered)⟩
 
 /-- Compose the selected minor's transported consumed fields with the
