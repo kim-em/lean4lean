@@ -2956,6 +2956,15 @@ theorem ensureSortInContext.WF (Hc : ContextWF c)
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u :=
   (ensureSortInContext.scopeWF Hc he hn).mono fun _ h => h.2
 
+theorem ensureSortInContext.dualWF (Hc : ContextWF c)
+    (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e')
+    (hn : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e₂) :
+    ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF fun e₁ =>
+      (TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u) ∧
+      TrExpr Hc.venv c.lparams Hc.chk.vlctx e₁ e₂ :=
+  (ensureSortInContext.narrowScopeWF Hc hn).mono fun _ ⟨_, h2, h3⟩ =>
+    ⟨⟨Hc.check.embed.trExpr Hc.checking.tr.wf hn he h2, h3⟩, h2⟩
+
 theorem ensureTypeInContext.narrowWF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e') :
     ((monadLift (TypeChecker.ensureType e) : AddInductive.M Expr) c).WF fun sort =>
