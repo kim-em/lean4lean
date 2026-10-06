@@ -1033,7 +1033,8 @@ def RecursorParameterContextSuffix.runtimeScope
     upset := ?_
     noBV := ?_
     noIndConsts := H.noIndConsts
-    sources := H.sources }
+    sources := H.sources
+    wf := ?_ }
   · rw [H.context]
     exact W.toFVLift'
   · exact .zero (by
@@ -1052,6 +1053,11 @@ def RecursorParameterContextSuffix.runtimeScope
     change (H.ambientDecls ++ H.parameterDecls).bvars = 0 at hfull
     rw [VLCtx.bvars_append] at hfull
     omega
+  · have hwf : VLCtx.WF R.venv recLparams.length
+        (H.ambientDecls ++ H.parameterDecls) := by
+      rw [← H.context]
+      exact R.mlctx_wf.tr.wf
+    exact hwf.append_right
 
 /-- Any generated recursor local extends only the ambient prefix.  The cached
 parameter suffix and all of its narrow translations remain literally

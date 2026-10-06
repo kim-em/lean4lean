@@ -2852,7 +2852,7 @@ theorem refinesNarrow
                   .vlam narrowDom) :: scope)
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
-              hdomNarrow hdomain
+              hdomNarrow hdomain hdomNarrowType
           -- the narrow domain against the checker's consumed domain
           have hscopeΓ := halign.wf.toCtx
           have hctxSym := halign.defeqCtx.symm henv.ordered

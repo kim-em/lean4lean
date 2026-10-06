@@ -2939,7 +2939,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                   .vlam indexType) :: scope)
                 R'.mlctx.vlctx :=
             Hruntime.withIndex R'.mlctx_wf.tr.wf hdeps name bi dom
-              hdomNarrow hdomain
+              hdomNarrow hdomain hdomType
           have halign' := R.alignedBinder (name := name) (bi := bi) halign
             Hdom Hdom₀ hdomNarrow hdomType hdeps
           have hscopeWF := halign'.wf

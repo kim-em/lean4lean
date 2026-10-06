@@ -177,6 +177,11 @@ theorem _root_.Lean4Lean.VLCtx.WF.mono
     | vlam type => exact Hdecl.mono henv
     | vlet type value => exact Hdecl.mono henv
 
+theorem _root_.Lean4Lean.VLCtx.WF.append_right {env : VEnv} {U : Nat} :
+    ∀ {A B : VLCtx}, VLCtx.WF env U (A ++ B) → VLCtx.WF env U B
+  | [], _, h => h
+  | _ :: A, _, h => VLCtx.WF.append_right (A := A) h.1
+
 /-- Recover the exact source telescope of an executable context containing
 only lambda declarations.  Each `MLCtx` node already retains the strict
 translation used to install its abstract domain. -/
@@ -691,6 +696,9 @@ structure NarrowRuntimeScope (env : VEnv) (Us : List Name)
   noIndConsts : ∀ names,
     checkPositivityStep.VLCtx.NoIndConsts names scope
   sources : FVarNarrowSources env Us scope
+  /-- The semantic scope is well formed in its own right; it is not derived
+  from the executable context, since that would be context strengthening. -/
+  wf : scope.WF env Us.length
 
 def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
     (H : NarrowRuntimeScope env Us scope runtime) :
@@ -706,6 +714,7 @@ def NarrowRuntimeScope.mono {env env' : VEnv} (henv : env ≤ env')
   noBV := H.noBV
   noIndConsts := H.noIndConsts
   sources := H.sources.mono henv
+  wf := H.wf.mono henv
 
 /-- Retarget only the executable context of a narrow scope along an exact
 context equality.  The semantic front is copied field-by-field so its data
@@ -726,12 +735,13 @@ def NarrowRuntimeScope.retargetRuntime
   noBV := H.noBV
   noIndConsts := H.noIndConsts
   sources := H.sources
+  wf := H.wf
 
 theorem NarrowRuntimeScope.scopeWF
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF) :
+    (_henv : env.WF) :
     scope.WF env Us.length :=
-  H.lift.wf henv H.context.wf
+  H.wf
 
 /-- Restrict a translated concrete expression to its semantic header scope.
 The source-side free-variable premise is the deliberate ownership boundary:
@@ -938,7 +948,8 @@ def NarrowRuntimeScope.withIndex
     (sourceDomain : Expr)
     (hsourceDomain : TrExprS env Us scope sourceDomain indexType)
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
-      (indexType.lift' H.shift) runtimeType (.sort u)) :
+      (indexType.lift' H.shift) runtimeType (.sort u))
+    (htype : env.IsType Us.length scope.toCtx indexType) :
     NarrowRuntimeScope env Us
       ((some (fv, deps), .vlam indexType) :: scope)
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
@@ -975,6 +986,14 @@ def NarrowRuntimeScope.withIndex
       (H.noIndConsts names) rfl
   sources := .cons H.sources sourceName sourceBinderInfo sourceDomain
     hsourceDomain
+  wf := by
+    refine ⟨H.wf, ?_, htype⟩
+    rintro _ _ ⟨⟩
+    refine ⟨fun hmem => ?_, hdeps⟩
+    have hsub : scope.fvars ⊆ runtime.fvars := by
+      rw [← H.context.fvars]
+      exact H.lift.fvars_sublist.subset
+    exact (hnewRuntime.2.1 _ _ rfl).1 (hsub hmem)
 
 /-- A dependency-closed semantic subcontext of an executable all-lambda
 context.  Unlike `NarrowRuntimeScope`, this deliberately has no contiguous
@@ -1583,7 +1602,8 @@ def NarrowRuntimeScope.ofParameterSuffix
     upset := ?_
     noBV := ?_
     noIndConsts := Hsuffix.noIndConsts
-    sources := Hsuffix.sources }
+    sources := Hsuffix.sources
+    wf := ?_ }
   · rw [Hsuffix.context]
     exact W.toFVLift'
   · exact .zero (by
@@ -1605,6 +1625,11 @@ def NarrowRuntimeScope.ofParameterSuffix
       Hsuffix.parameterDecls).bvars = 0 at hfull
     rw [VLCtx.bvars_append] at hfull
     omega
+  · have hwf : VLCtx.WF Hc.venv c.lparams.length
+        (Hsuffix.ambientDecls ++ Hsuffix.parameterDecls) := by
+      rw [← Hsuffix.context]
+      exact Hc.mlctx_wf.tr.wf
+    exact hwf.append_right
 
 /-- Relate a domain translated in the semantic scope to the annotation-
 consumed domain installed by the executable checker. -/
@@ -5257,7 +5282,7 @@ theorem laterIndexSynthesisWF
               .vlam indexType) :: scope)
             Hc'.mlctx.vlctx :=
           Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
-            hdomNarrow hdomain
+            hdomNarrow hdomain ⟨v, hv⟩
         -- the checker context stays aligned with the narrow scope
         have hindexCons : Hc.venv.IsDefEqU c.lparams.length scope.toCtx indexType consumed₀ := by
           obtain ⟨_, hsc⟩ := Hdom₀.source_defeq
