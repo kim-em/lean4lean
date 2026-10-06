@@ -1762,7 +1762,91 @@ theorem occ_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec} {E :
           have hK := IsDefEq.typeCast_refl henv heq hu hΓ hXY hrefl hidxk
           exact .defeqDF hYc.symm hK.symm
     | none =>
-      sorry
+      have hsort : S.fieldSort i = .zero := by unfold fieldSort; rw [hs]
+      rw [hsort] at hYc hFc
+      -- the extraction function at the occurrence
+      have hval := value_typed params henv heq W hi' hs
+      have hvcl := hval.closedN' henv.ordered.closed (Γ := []) trivial
+      have hvalΓ := hval.weakN henv.ordered (Ctx.LiftN.zero Γ)
+      simp only [List.append_nil] at hvalΓ
+      rw [hvcl.1.liftN_eq (Nat.zero_le _), hvcl.2.2.liftN_eq (Nat.zero_le _)] at hvalΓ
+      unfold valueType at hvalΓ
+      rw [← VExpr.wrapForalls_append] at hvalΓ
+      have hbl : (ps ++ idx ++ [m]).length = params.length + S.indices.length + 1 := by
+        simp [hpsl, hidxl]; try omega
+      have hpaτ : (genericPa S params).map
+          (fun x : VExpr => x.subst (VExpr.Subst.ofList (ps ++ idx ++ [m]))) = ps := by
+        have := VExpr.instOuter_bvarRange params.length (params.length + S.indices.length + 1)
+          (ps ++ idx ++ [m]) (by omega) (by rw [hbl]; exact Nat.le_refl _)
+        simp only [← VExpr.instOuter_eq_subst]
+        rw [genericPa, this, hbl, Nat.sub_self, List.drop_zero, List.append_assoc,
+          List.take_left' hpsl]
+      have hiaτ : (genericIa S).map
+          (fun x : VExpr => x.subst (VExpr.Subst.ofList (ps ++ idx ++ [m]))) = idx := by
+        have := VExpr.instOuter_bvarRange S.indices.length (S.indices.length + 1)
+          (ps ++ idx ++ [m]) (by omega) (by rw [hbl]; omega)
+        simp only [← VExpr.instOuter_eq_subst]
+        rw [genericIa, this, hbl, show params.length + S.indices.length + 1 - (S.indices.length + 1) =
+          ps.length by omega, List.append_assoc, List.drop_left, List.take_left' hidxl]
+      have hscope : S.Scoped (genericPa S params).length := by simpa [genericPa] using T.scope
+      have hgia : (genericIa S).length = S.indices.length := by simp [genericIa]
+      have htelS := (tel_subst hscope hgia (VExpr.Subst.ofList (ps ++ idx ++ [m])) i).1
+      rw [hpaτ, hiaτ] at htelS
+      have hglen := (S.tel_length (genericPa S params) (genericIa S) i).1
+      have hargsT : TelInst env U Γ
+          ((params ++ S.indices ++ [majorTy S params E]) ++ (S.tel (genericPa S params) (genericIa S) i).1)
+          ((ps ++ idx ++ [m]) ++ t) := by
+        apply TelInst.append hargs (by rw [htl, hglen])
+        intro j hj
+        rw [hglen] at hj
+        have hj' := h1.getD (j := j) (by rw [(S.tel_length ps idx i).1]; exact hj)
+        rw [instOuter_append_split, show (t.take j).length = j by simp; omega]
+        have hd : ((S.tel (genericPa S params) (genericIa S) i).1.getD j default).subst
+            ((VExpr.Subst.ofList (ps ++ idx ++ [m])).liftN j) = (S.tel ps idx i).1.getD j default := by
+          rw [← htelS, getD_of_lt (by rw [hglen]; omega), getD_of_lt (by rw [List.length_mapIdx, hglen]; omega),
+            List.getElem_mapIdx]
+        rw [hd]
+        exact hj'
+      have hci := HasType.mkApps_of_tel henv hΓ hvalΓ hargsT
+      rw [instOuter_append_split, htl, target_subst hscope hgia, hpaτ, hiaτ,
+        target_instOuter (T.scope.mono_pa hpsl) hidxl i t htl] at hci
+      generalize hcid : VExpr.mkApps (value S params E i) (ps ++ idx ++ [m] ++ t) = ci at hci
+      have hocc : occ S params E ps idx m (i + 1) = (t ++ [ci], c ++ [ci]) := by
+        simp only [occ, ht, hc, hs, hcid]
+      rw [hocc, hsubst]
+      rw [getD_of_lt (l := S.fields) hi'] at hci
+      have hcic : env.HasType U Γ ci (S.fields[i].instOuter (ps ++ c)) := hYc.symm.defeq hci
+      refine ⟨?_, ?_, ?_, ?_⟩
+      · rw [htel]
+        apply h1.append_one
+        rw [hdom]
+        unfold domHat
+        rw [hs, getD_of_lt (l := S.fields) hi']
+        exact hci
+      · rw [hfields]
+        simpa only [List.append_assoc] using h2.append_one hcic
+      · intro l hl
+        rcases Nat.lt_or_ge l i with hli | hli
+        · rw [hgetc _ l hli, htakec _ l (Nat.le_of_lt hli)]
+          exact h3 l hli
+        · have : l = i := by omega
+          subst this
+          rw [hlastc, htakec _ _ (Nat.le_refl _), List.take_of_length_le (by omega),
+            getD_of_lt (l := S.fields) hi']
+          exact .proofIrrel hYc.hasType.1 hcic (hFc.symm.defeq hfi)
+      · intro l hl
+        rcases Nat.lt_or_ge l i with hli | hli
+        · rw [hgetc _ l hli, htakec _ l (Nat.le_of_lt hli), getD_append_left' (by omega)]
+          exact h4 l hli
+        · have : l = i := by omega
+          subst this
+          rw [hlastc, htakec _ _ (Nat.le_refl _), List.take_of_length_le (by omega),
+            getD_append_right' (by omega), hσl, Nat.sub_self, getD_of_lt (l := S.fields) hi']
+          show env.IsDefEq U Γ _ ([S.valHat ps idx l (S.substHat ps idx l t) _].getD 0 default) _
+          simp only [List.getD_cons_zero]
+          unfold valHat
+          rw [hs]
+          exact hcic
 
 end PropElim
 end Lean4Lean
