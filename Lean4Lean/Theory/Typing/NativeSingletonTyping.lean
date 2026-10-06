@@ -1095,7 +1095,19 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
     obtain ⟨hk, he⟩ := fieldSlot_spec hfs
     show (g.sCtorIndices c).getD k default = .bvar ((g.sFields c).length - 1 - l)
     rw [getD_of_lt hk, he]
-  · sorry
+  · have e1 : PropElim.majorTy (g.singletonCast owner c sorts) g.params
+        (g.singletonElim owner c h) = g.sMajor owner := by
+      simp only [PropElim.majorTy, singletonElim, singletonCast]
+      rw [← CastSpec.bvarRange_split, hMajEq]
+    have e2 : PropElim.ctorApp (g.singletonCast owner c sorts) g.params
+        (g.singletonElim owner c h) = g.sCtorApp c := by
+      simp [PropElim.ctorApp, sCtorApp, singletonElim, singletonCast, hPlen]
+    simp only [PropElim.motiveType, e1] at hM
+    rw [e2] at hb
+    rw [e1]
+    have hm := HasType.minorOf henv hP hMinT hM hb
+    rw [hrec] at hhead
+    exact HasType.elimApp henv hP hidx hMinT hhead hM hm
 
 end Instance
 end InductiveSignature
