@@ -2,6 +2,8 @@ import Lean4Lean.Verify.Inductive.CompletedRecursorPhases
 import Lean4Lean.Verify.Inductive.Recursor.ConsumedShapeTranslations
 import Lean4Lean.Verify.Inductive.Recursor.Realization
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMinorFields
+import Lean4Lean.Verify.Inductive.EquationWF
+import Lean4Lean.Verify.Inductive.RuleLhsTranslation
 
 /-! Translation of the generated iota rules to the generator's equations.
 
@@ -1001,6 +1003,210 @@ theorem CompletedRecursorConstruction.ruleCallSyn (H : CompletedRecursorConstruc
   rw [hdomsLen]
   simpa [List.append_assoc, Nat.add_assoc] using key
 
+/-- A typed translation of the residual of the rule's right-hand side, in the
+generator's equation telescope, closes to a typed translation of the whole
+right-hand side: the binder domains are typed by the checked minor-premise
+telescope (`minorTranslation`) and the field template (`minorFieldsTemplate`). -/
+theorem CompletedRecursorConstruction.ruleRhsTypedOfResidual (H : CompletedRecursorConstruction R)
+    (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
+    (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size)
+    {env : VEnv} (hle : R.context.venv ≤ env) {res : Lean.Expr} {e₂ : VExpr}
+    (Htel : Expr.LambdaTelescope
+      ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
+          (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+          (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs
+      (H.consumedGeneration.generation.equationDomains
+        ⟨recursorMinorOffset indTypes o + i, hk⟩).length res)
+    (Hres : TrExprS env (AddInductive.getRecLevelParams H.elimLevel c.lparams)
+      (abstractForallContext (H.consumedGeneration.generation.equationDomains
+        ⟨recursorMinorOffset indTypes o + i, hk⟩) []) res e₂) :
+    ∃ X, TrExprS env (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+      ((H.recInfos[o]!.ruleBlueprints[i]!).build indTypes stats
+          (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+          (AddInductive.getRecLevels H.elimLevel stats.levels) H.localContext.lctx).rhs X := by
+  obtain ⟨_, hft, hrfLen, Hshape⟩ := H.consumedGeneration_shapeTranslations o ho i hlocal
+  obtain ⟨hnf, hnp, hnfam, hnctor⟩ := H.ruleCounts o ho i hlocal hk
+  obtain ⟨_, hfieldsB, hlctxB, hminorB, traversal, origins, _, horig, _, _, Hcalls⟩ :=
+    H.blueprints.entry o ho i hlocal
+  obtain ⟨hkN, hminorN⟩ := H.flatMinorFVar o ho i hlocal
+  have houter := H.bindings.outerNodup H.params H.noAlias
+  have hPMN : (H.params.fvars ++ (H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars)).Nodup := by
+    simpa [List.append_assoc] using houter
+  have hdisj : ∀ x ∈ H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars),
+      x ∉ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars := by
+    intro x hx hxF
+    have := H.blueprints.fields_outer_fresh o ho i hlocal x hxF
+    rw [H.params.exprArrayFVarIds, H.bindings.motives.exprArrayFVarIds,
+      H.bindings.flatMinors.exprArrayFVarIds] at this
+    exact this (by simpa [List.append_assoc] using hx)
+  have hdeclPMN : ∀ fv ∈ H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars),
+      ∃ index name type bi kind,
+        H.localContext.lctx.find? fv = some (.cdecl index fv name type bi kind) := by
+    intro fv hfv
+    apply H.localWF.findCDecl
+    simp only [List.mem_append] at hfv
+    rcases hfv with h | h | h
+    · exact H.params.members fv h
+    · exact H.bindings.motives.members fv h
+    · exact H.bindings.flatMinors.members fv h
+  have hdeclPMN' : ∀ fv ∈ H.params.fvars ++ (H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars), ∃ d, H.localContext.lctx.find? fv = some d := by
+    intro fv hfv
+    obtain ⟨_, _, _, _, _, h⟩ := hdeclPMN fv hfv
+    exact ⟨_, h⟩
+  have hnest : ∀ (fl : Bool) (b : Lean.Expr),
+      LocalContext.mkBinding fl H.localContext.lctx stats.params
+        (LocalContext.mkBinding fl H.localContext.lctx (H.recInfos.map (·.motive))
+          (LocalContext.mkBinding fl H.localContext.lctx (H.recInfos.flatMap (·.minors)) b)) =
+      LocalContext.mkBinding fl H.localContext.lctx
+        ((H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).map
+          Lean.Expr.fvar).toArray b := by
+    intro fl b
+    conv => lhs; rw [H.params.expressions, H.bindings.motives.expressions,
+      H.bindings.flatMinors.expressions]
+    simp only [LocalContext.mkBinding_eqN]
+    rw [← LocalContext.mkBindingListN_append (fun fv hfv => hdeclPMN' fv (by simp_all))
+        (List.nodup_append.mp hPMN).2.1,
+      ← LocalContext.mkBindingListN_append hdeclPMN' hPMN]
+  simp only [AddInductive.RecRuleBlueprint.build] at Htel ⊢
+  rw [hfieldsB, hlctxB, hminorB, hminorN] at Htel ⊢
+  have hFexpr := (H.origins.minorShapes o ho i hlocal).fields_bound.expressions
+  simp only [hFexpr, LocalContext.mkLambda] at Htel ⊢
+  rw [hnest true] at Htel ⊢
+  have hlenD : (H.consumedGeneration.generation.params ++ H.consumedGeneration.generation.motives ++
+      H.consumedGeneration.generation.minors).length =
+      (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length := by
+    simp [InductiveSignature.Instance.params, InductiveSignature.Instance.motives,
+      InductiveSignature.Instance.length_minors, hnp, hnfam, hnctor]
+  have Hforall := (H.consumedGeneration.minorTranslation).mono hle
+  simp only [LocalContext.mkForall] at Hforall
+  rw [hnest false] at Hforall
+  have HFtel := LocalContext.mkForall_fvars_forallTelescope (lctx := H.localContext.lctx)
+    (body := .sort .zero) hdeclPMN
+  simp only [LocalContext.mkForall] at HFtel
+  let Sel : LocalForallSelection H.localContext.lctx
+      ((H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).map
+        Lean.Expr.fvar).toArray := ⟨_, rfl, hdeclPMN⟩
+  have Hsame := Sel.sameForallLambdaPrefix (show (H.params.fvars ++ (H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars)).Nodup from hPMN) (.sort .zero)
+    (LocalContext.mkBinding true (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
+        (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray
+        (mkAppN
+          (mkAppN (Expr.fvar H.bindings.flatMinors.fvars[recursorMinorOffset indTypes o + i])
+            (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
+          (Array.map
+            (fun call =>
+              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+                (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
+            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls)))
+  have HL := LocalContext.mkLambda_fvars_lambdaTelescopeN (lctx := H.localContext.lctx)
+    (body := LocalContext.mkBinding true (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
+        (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray
+        (mkAppN
+          (mkAppN (Expr.fvar H.bindings.flatMinors.fvars[recursorMinorOffset indTypes o + i])
+            (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
+          (Array.map
+            (fun call =>
+              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+                (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
+            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls))) hdeclPMN
+  simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
+    at Hsame HL
+  have hsourceOwner : o < indTypes.size := by rwa [← H.sourceFamilyCount]
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
+    H.minorSources o ho hsourceOwner i hlocal
+  have hdeclF : ∀ fv ∈ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars,
+      ∃ index name type bi kind,
+        (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx.find? fv =
+          some (.cdecl index fv name type bi kind) :=
+    fun fv h => (H.origins.minorShapes o ho i hlocal).sourceFullWF.findCDecl fv
+      ((H.origins.minorShapes o ho i hlocal).fields_bound.members fv h)
+  let SelF : LocalForallSelection (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx
+      ((H.origins.minorShapes o ho i hlocal).fields_bound.fvars.map Lean.Expr.fvar).toArray :=
+    ⟨_, rfl, hdeclF⟩
+  have HsameF := (SelF.sameForallLambdaPrefix
+    (show (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.Nodup from
+      (H.origins.minorShapes o ho i hlocal).fields_nodup) (.sort .zero)
+    (mkAppN
+          (mkAppN (Expr.fvar H.bindings.flatMinors.fvars[recursorMinorOffset indTypes o + i])
+            (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
+          (Array.map
+            (fun call =>
+              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+                (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
+            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls))).abstractN
+    (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
+  have HLF := (LocalContext.mkLambda_fvars_lambdaTelescopeN hdeclF (body :=
+    (mkAppN
+          (mkAppN (Expr.fvar H.bindings.flatMinors.fvars[recursorMinorOffset indTypes o + i])
+            (List.map Expr.fvar (H.origins.minorShapes o ho i hlocal).fields_bound.fvars).toArray)
+          (Array.map
+            (fun call =>
+              call.build indTypes stats (Array.map (fun x => x.motive) H.recInfos)
+                (Array.flatMap (fun x => x.minors) H.recInfos) (AddInductive.getRecLevels H.elimLevel stats.levels))
+            H.recInfos[o]!.ruleBlueprints[i]!.recursiveCalls)))).abstractN
+    (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
+  have HFtelF := (LocalContext.mkForall_fvars_forallTelescope hdeclF (body := .sort .zero)).abstractN
+    (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) 0
+  simp only [LocalContext.mkForall, LocalContext.mkLambda, List.size_toArray, List.length_map]
+    at HsameF HLF HFtelF
+  have hlenF : (InductiveSignature.insertBinders
+        (List.map (fun x => VExpr.instL H.consumedGeneration.generation.levels x)
+          (H.consumedGeneration.signature.fieldTypes
+            H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i]))
+        (H.consumedGeneration.signature.families.size +
+          H.consumedGeneration.signature.constructors.size)).length =
+      (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
+    simp [InductiveSignature.insertBinders, InductiveSignature.fieldTypes_length, hnf]
+  have hins : (H.consumedGeneration.generation.motives ++
+      H.consumedGeneration.generation.minors).length =
+      (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length := by
+    simp [InductiveSignature.Instance.motives, InductiveSignature.Instance.length_minors,
+      hnfam, hnctor]
+  have Htemp := H.minorFieldsTemplate o ho i hlocal
+    (H.consumedGeneration.generation.motives ++ H.consumedGeneration.generation.minors)
+    (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars) hins.symm
+  simp only at Htemp
+  have hclosed : Closed (H.localContext.lctx.mkForall (H.origins.minorShapes o ho i hlocal).fields
+      (.sort .zero)) := by
+    have := Htemp.closed
+    simp only [abstractForallContext_bvars] at this
+    apply Expr.closed_of_abstractList (fvars := H.params.fvars ++
+      (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)) (depth := 0)
+    simpa [VLCtx.bvars, H.parameterDomains, hnp, hins, Nat.add_assoc,
+      List.length_reverse, H.sourceParameterCount, H.params.length_fvars] using this
+  rw [← Lean.Expr.abstractN_eq_abstractList_of_closed hPMN hclosed,
+    (H.origins.minorShapes o ho i hlocal).fields_bound.mkForall_mono hsourceLE (.sort .zero)]
+    at Htemp
+  rw [hFexpr] at Htemp
+  simp only [LocalContext.mkForall] at Htemp
+  rw [hins, ← hft, ← H.consumedGeneration.levels] at Htemp
+  have hins' : (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).length =
+      H.consumedGeneration.signature.families.size +
+        H.consumedGeneration.signature.constructors.size := by
+    simp [hnfam, hnctor]
+  rw [hins'] at Htemp
+  have hEqLen : (H.consumedGeneration.generation.equationDomains
+      ⟨recursorMinorOffset indTypes o + i, hk⟩).length =
+      (H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)).length +
+        (H.origins.minorShapes o ho i hlocal).fields_bound.fvars.length := by
+    rw [← hlenD, ← hlenF]
+    simp only [InductiveSignature.Instance.equationDomains, Fin.getElem_fin, List.length_append]
+  rw [hEqLen] at Htel
+  have hres := Htel.result_eq (HL.trans HLF)
+  rw [hres, Nat.zero_add] at Hres
+  have Hres' := Hres
+  simp only [InductiveSignature.Instance.equationDomains, Fin.getElem_fin] at Hres'
+  rw [← abstractForallContext_append] at Hres'
+  have hpd : H.parameterSuffix.parameterDecls.toCtx.reverse = H.consumedGeneration.generation.params := by
+    rw [H.parameterDomains, InductiveSignature.Instance.params, H.consumedGeneration.params,
+      H.consumedGeneration.levels]
+  rw [hpd, H.recursorEnv, ← List.append_assoc] at Htemp
+  rw [Nat.zero_add] at HLF
+  have H2 := HsameF.translateLambda HFtelF HLF hlenF (Htemp.mono hle) Hres'
+  exact ⟨_, Hsame.translateLambda HFtel HL hlenD Hforall H2⟩
+
 /-- The literal right-hand side built from the retained blueprint of local rule
 `i` of owner `o` translates syntactically to the right-hand side of the
 consumed generation's equation for the constructor at the canonical minor
@@ -1269,6 +1475,40 @@ theorem CompletedRecursorPhasesResult.ruleRhsSyn {outEnv : Environment}
   rw [H.rulesLiteral o ho i hi]
   exact H.toCompletedRecursorConstruction.ruleRhsSyn o howner i hlocal
 
+/-- The right-hand side of every installed recursor rule has a typed
+translation in the installed environment.  The residual is typed by the
+production equation frame (`canonicalEquationFrame`), transported to the
+generator's equation telescope along `domains_defeq`; the binder domains are
+typed by `ruleRhsTypedOfResidual`. -/
+theorem CompletedRecursorPhasesResult.ruleRhsTyped {outEnv : Environment}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (o : Nat) (ho : o < H.entries.length)
+    (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
+    ∃ X, TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+      ((H.generated.entry o ho).info.rules[i]).rhs X := by
+  have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho
+  have hlocal : i < H.origins.minorTypes[o]!.size := by
+    rw [← H.blueprints.rows_size o howner, ← H.generated_rules_length o ho]
+    exact hi
+  have hctor : i < indTypes[o]!.ctors.length := by
+    rw [← H.minorTypes_size o howner]; exact hlocal
+  rcases H.generatedRuleAlignment o ho i hctor with ⟨A⟩
+  rcases A.canonicalEquationFrame with ⟨F⟩
+  obtain ⟨hk, -, hnf⟩ := A.generatedConstructor
+  have D := F.domains_defeq hk hnf
+  obtain ⟨e₂, He₂⟩ := TrExprS.defeqDFC H.outVEnvWF (abstractForallContext.isDefEq D)
+    F.rhs_translation
+  have Htel := A.rule.rhsLambdaTelescope
+  have heq : A.rule.sourceRhsBody.abstractN A.rule.binders =
+      A.rule.sourceRhsBody.abstractList A.rule.binders :=
+    Lean.Expr.abstractN_eq_abstractList_of_closed A.rule.binders_nodup A.sourceRhsBody_closed
+  rw [heq, ← A.equationDomains_length hk] at Htel
+  generalize A.rule.sourceRhsBody.abstractList A.rule.binders = res at Htel He₂
+  rw [H.rulesLiteral o ho i hi] at Htel
+  rw [H.rulesLiteral o ho i hi]
+  exact H.toCompletedRecursorConstruction.ruleRhsTypedOfResidual o howner i hlocal hk
+    H.installed.le Htel He₂
+
 /-- The rule junction for right-hand sides: whenever the right-hand side of an
 installed rule has some typed translation in the installed environment, its
 translation is the generator's equation right-hand side.  The target is fixed
@@ -1287,6 +1527,21 @@ theorem CompletedRecursorPhasesResult.ruleRhsTranslation {outEnv : Environment}
   obtain ⟨hk, Hsyn⟩ := H.ruleRhsSyn o ho i hi
   obtain ⟨X, HX⟩ := htyped
   exact ⟨hk, HX.of_syn Hsyn⟩
+
+/-- The rule junction for right-hand sides, with no hypothesis: the right-hand
+side of every installed rule translates to the generator's equation (the form
+of `CompletedRecursorPhasesResult.RuleRhsTranslations`). -/
+theorem CompletedRecursorPhasesResult.ruleRhsTranslations {outEnv : Environment}
+    (H : CompletedRecursorPhasesResult R outEnv) :
+    ∀ owner (howner : owner < H.entries.length) (i : Nat)
+      (hi : i < (H.generated.entry owner howner).info.rules.length)
+      (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size),
+      TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
+        ((H.generated.entry owner howner).info.rules[i]).rhs
+        (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs := by
+  intro owner howner i hi hk
+  obtain ⟨_, Htr⟩ := H.ruleRhsTranslation owner howner i hi (H.ruleRhsTyped owner howner i hi)
+  exact Htr
 
 end VerifyInductive
 end Lean4Lean
