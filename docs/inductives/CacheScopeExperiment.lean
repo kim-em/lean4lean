@@ -6,9 +6,13 @@ Design evidence, not a module of the library. Run with
 
     lake env lean docs/inductives/CacheScopeExperiment.lean
 
-Expected output (2026-10-06): "L4L whole term accepted", "C++ unseeded
-declaration rejected", "C++ whole declaration accepted", and the cache
-experiment `(false, (true, true, true, true), false, true, false)`.
+Output before the checker scoped its binders (2026-10-06): "L4L whole term
+accepted", "C++ unseeded declaration rejected", "C++ whole declaration
+accepted", and the cache experiment `(false, (true, true, true, true), false,
+true, false)`. Since `withLocalDecl`/`withLetDecl` restore the caches and the
+equivalence manager on scope exit (`TypeChecker.State.leaveScope`), the output
+is "L4L whole term rejected" (the C++ lines are unchanged) and the cache
+experiment `(false, (true, true, true, true), false, false, false)`.
 
 Using the two singleton families of `SingletonStrengthening.lean`, the closed
 definition `result : SJ := let seed : (q : P v) → Type 1 := fun q => …; let

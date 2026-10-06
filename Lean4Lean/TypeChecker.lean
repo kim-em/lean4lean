@@ -56,8 +56,25 @@ instance [Monad m] : MonadNameGenerator (StateT State m) where
   getNGen := return (← get).ngen
   setNGen ngen := modify fun s => { s with ngen }
 
+/-- The state on leaving a binder scope entered from `saved`. The name generator stays advanced, so
+that names are never reused, and the `unfold` cache is kept because it depends only on the
+environment. Everything that records a judgement relative to the local context -- the inference and
+reduction caches, the equivalence manager and the failure cache -- is put back to what it was
+before the binder was opened. This is scoped so that no conversion fact outlives its binder: a fact
+found under a binder can hold there without holding in the smaller context, even when it does not
+mention the bound variable. -/
+def State.leaveScope (saved s : State) : State :=
+  { saved with ngen := s.ngen, unfold := s.unfold }
+
+/-- Runs `x` with a fresh free variable, scoped so that no conversion fact outlives its binder
+(see `State.leaveScope`). Every binder of the checker (`withLocalDecl`, `withLetDecl`) opens its
+scope through this. -/
 instance : MonadLocalNameGenerator M where
-  withFreshId x := do x (← mkFreshId)
+  withFreshId x := do
+    let saved ← get
+    let r ← x (← mkFreshId)
+    modify saved.leaveScope
+    pure r
 
 instance (priority := low) : MonadWithReaderOf LocalContext M where
   withReader f := withReader fun s => { s with lctx := f s.lctx }
@@ -590,12 +607,12 @@ def isDefEqLambda (t s : Expr) (subst : Array Expr := #[]) : RecM Bool :=
       let tType := tDom.instantiateRev subst
       if !(← isDefEq tType sType) then return false
       pure (some sType)
-    if tBody.hasLooseBVars || sBody.hasLooseBVars then
-      let sType := sType.getD (sDom.instantiateRev subst)
-      withLocalDecl name bi sType fun fv => do
-        isDefEqLambda tBody sBody (subst.push fv)
-    else
-      isDefEqLambda tBody sBody (subst.push default)
+    -- The bodies are always compared under a binder, even when neither mentions it, so that
+    -- the comparison happens in the context where it is meaningful (scoped so that no conversion
+    -- fact outlives its binder).
+    let sType := sType.getD (sDom.instantiateRev subst)
+    withLocalDecl name bi sType fun fv =>
+      isDefEqLambda tBody sBody (subst.push fv)
   | t, s => isDefEq (t.instantiateRev subst) (s.instantiateRev subst)
 
 /-- If `t` and `s` are for-all expressions, checks that their domains are defeq and recurses on the
@@ -609,12 +626,12 @@ def isDefEqForall (t s : Expr) (subst : Array Expr := #[]) : RecM Bool :=
       let tType := tDom.instantiateRev subst
       if !(← isDefEq tType sType) then return false
       pure (some sType)
-    if tBody.hasLooseBVars || sBody.hasLooseBVars then
-      let sType := sType.getD (sDom.instantiateRev subst)
-      withLocalDecl name bi sType fun fv =>
-        isDefEqForall tBody sBody (subst.push fv)
-    else
-      isDefEqForall tBody sBody (subst.push default)
+    -- The bodies are always compared under a binder, even when neither mentions it, so that
+    -- the comparison happens in the context where it is meaningful (scoped so that no conversion
+    -- fact outlives its binder).
+    let sType := sType.getD (sDom.instantiateRev subst)
+    withLocalDecl name bi sType fun fv =>
+      isDefEqForall tBody sBody (subst.push fv)
   | t, s => isDefEq (t.instantiateRev subst) (s.instantiateRev subst)
 
 /-- Decides definitional equality of `t` and `s` in the cases that can be settled without
