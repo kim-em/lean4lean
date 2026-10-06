@@ -880,6 +880,32 @@ theorem recursorDeclarationAbstractLevels_length
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
+/-- A large elimination universe is a fresh parameter: it translates to the first
+abstract parameter, and the abstract source universes do not mention it. -/
+theorem recursorDeclarationAbstractLevels_freeTarget
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) (hne : elimLevel ≠ .zero)
+    (htarget : VLevel.ofLevel (AddInductive.getRecLevelParams elimLevel lparams) elimLevel =
+      some target) :
+    target = .param 0 ∧ ∀ l ∈ recursorDeclarationAbstractLevels lparams Helim,
+      ∀ (ls : List VLevel) (u : VLevel), l.inst (ls.set 0 u) = l.inst ls := by
+  cases elimLevel with
+  | zero => exact absurd rfl hne
+  | param fresh =>
+    refine ⟨?_, ?_⟩
+    · simp [AddInductive.getRecLevelParams, VLevel.ofLevel] at htarget
+      exact htarget.symm
+    · intro l hl ls u
+      simp only [recursorDeclarationAbstractLevels, List.mem_map, VLevel.params,
+        List.mem_range] at hl
+      obtain ⟨_, ⟨i, _, rfl⟩, rfl⟩ := hl
+      rename_i hi
+      simp only [VLevel.prependShift, VLevel.inst, List.getD_eq_getElem?_getD,
+        List.getElem?_map, List.getElem?_range hi, Option.map_some, Option.getD_some,
+        List.getElem?_set]
+      simp
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
 theorem VConstVal.type_instL_recursorDeclarationAbstractLevels
     (Hwf : ctorVal.toVConstant.WF env)
     (huvars : ctorVal.uvars = lparams.length)
