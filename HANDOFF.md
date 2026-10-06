@@ -287,6 +287,26 @@ declarations; validation must not assume correctness of its own artifact.
    `recursorTelescope_hypothesisDomains`/`_hypothesisShape` by `uniqueS`
    (`replayTrace_eq_blueprint` relates the row to the blueprint origin), then
    un-shift universes and assemble the consumed signature.
+   **Universe un-shift (open, 2026-10-06).** The shapes read off the row are
+   translations in the recursor universe list `u :: c.lparams` (large
+   elimination); the signature needs them in `c.lparams`, with
+   `instL (recursorDeclarationAbstractLevels …)` reproducing the checked
+   domains. `TrExprS.chooseOriginalUniverses_eq` does this given that the
+   source Expr does not mention `u`. The arg domains and exposed indices are
+   `whnf` outputs of the field types, which never mention `u`, but the
+   checker proves no universe-parameter support for `whnf` (only
+   `unfoldDefinition.WF_levelParams` exists; `checkIndexUniverses` is a
+   runtime check for the index telescopes, a divergence from C++ flagged in
+   obstacle 4). A runtime guard for the argument telescopes is excluded by the
+   no-new-rejections rule. Plan (study 2026-10-06, estimate 1.5k to 2.2k
+   lines over 7 to 10 files of `Verify/TypeChecker`): add to `VState.WF` and
+   `Methods.WF` a hereditary universe-support invariant (results of
+   `whnfCore`/`whnf`/`inferType` mention only `Us` when the input and the
+   declarations of an up-set containing its free variables do; `isDefEq` only
+   threads the state invariant), prove it per method, and bridge to
+   `loopUArgs` with the per-field up-set. This also allows removing
+   `checkIndexUniverses`. Work proceeds on branch `agent/universe-support` in
+   a separate worktree and is merged here when it builds.
    Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
