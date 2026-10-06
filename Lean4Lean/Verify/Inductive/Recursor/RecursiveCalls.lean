@@ -1392,6 +1392,7 @@ theorem resultRecursiveDomain {alpha : Type}
       R.mlctx.vlctx.toCtx typeTarget)
     {typeTarget₀ : VExpr}
     (htype₀ : TrExpr R.venv recLparams R.chk.vlctx uiTy typeTarget₀)
+    (htypeType₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx typeTarget₀)
     (Hxs : RecursorRecentBoundFVarArray Rroot R xs)
     {M₀ : TypeChecker.MLCtx} {T₀ : VExpr}
     (hagreeR : ∃ hn : xs.size ≤ R.chk.length,
@@ -1436,6 +1437,7 @@ theorem resultRecursiveDomain {alpha : Type}
           Rcurrent.chk.dropN args.size hn = M₀ ∧
           ∃ t₀, TrExpr Rcurrent.venv recLparams Rcurrent.chk.vlctx
             exposedType t₀ ∧
+          Rcurrent.venv.IsType recLparams.length Rcurrent.chk.vlctx.toCtx t₀ ∧
           Rcurrent.venv.IsDefEqU recLparams.length M₀.vlctx.toCtx T₀
             (Rcurrent.chk.mkForall' args.size hn t₀)) →
       (k exposedType args target current).WF (Q target)) :
@@ -1694,8 +1696,17 @@ theorem resultRecursiveDomain {alpha : Type}
         simp only [Array.size_push]
         refine ⟨hn', hag', hdrop', ?_⟩
         exact hclosed.trans R.checking.tr.wf hM₀WF.tr.wf.toCtx HclosedCongr'
+      have hconsumedBodyType₀ : R'.venv.IsType recLparams.length
+          R'.chk.vlctx.toCtx consumedBody₀ := by
+        have hctx₀ : VEnv.IsDefEqCtx R.venv recLparams.length []
+            (dom₀ :: R.chk.vlctx.toCtx) (consumedDom₀ :: R.chk.vlctx.toCtx) :=
+          .succ (.refl hchkWF.toCtx) Hdom₀.source_defeq.choose_spec
+        have hctx₀' : OnCtx (dom₀ :: R.chk.vlctx.toCtx)
+            (R.venv.IsType recLparams.length) := ⟨hchkWF.toCtx, hdom₀Type⟩
+        have h1 := hbodyN₀Type.defeqU_l R.checking.tr.wf hctx₀' hbodyEq₀
+        exact h1.defeqDFC R.checking.tr.wf.ordered hctx₀
       have Hrec := ih R' Hstats' hctx' hnormalized.2
-        hconsumedBodyType hnormalized₀
+        hconsumedBodyType hnormalized₀ hconsumedBodyType₀
         Hxs' hagreeR' Htrace' hnormalizedScope hnextUp
         happlied' happliedType'
       exact Hrec.mono fun out Hout => by
@@ -1730,7 +1741,7 @@ theorem resultRecursiveDomain {alpha : Type}
           htypeType Hxs happlied happliedType hvalid htypeScope hcurrentUp
           (by
             obtain ⟨hn, hag, hdrop, hclosed⟩ := hagreeR
-            exact ⟨hn, hag, hdrop, _, htype₀, hclosed⟩)
+            exact ⟨hn, hag, hdrop, _, htype₀, htypeType₀, hclosed⟩)
         exact Hterminal.mono fun out hout => by
           rcases hdefeq.symm with ⟨exprType, hterminal⟩
           exact ⟨target, htarget,
@@ -1828,8 +1839,10 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
           ∃ j hj ty₀, Rcurrent.chk.dropN args.size hn = R.chk.dropN j hj ∧
             TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
               (c.lctx.get! fv).type ty₀ ∧
+            R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ ∧
             ∃ t₀, TrExpr Rcurrent.venv recLparams Rcurrent.chk.vlctx
               exposedType t₀ ∧
+            Rcurrent.venv.IsType recLparams.length Rcurrent.chk.vlctx.toCtx t₀ ∧
             Rcurrent.venv.IsDefEqU recLparams.length
               (R.chk.dropN j hj).vlctx.toCtx ty₀
               (Rcurrent.chk.mkForall' args.size hn t₀)) →
@@ -1916,6 +1929,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
   have Hloop := mkRecInfos.loopUArgs.loop.resultRecursiveDomain
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k RF
     hconsume hlit RF Hstats hctx hnormalizedTr hinferredType hnormalized₀
+    hfieldType₀Ty
     (RecursorRecentBoundFVarArray.empty RF)
     (M₀ := RF.chk) (T₀ := fieldType₀)
     ⟨Nat.zero_le _, .zero _ _, rfl, by
@@ -1938,8 +1952,9 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
       Hk Hinput Rcurrent htrace.ofCheckRoot h1 h2 h3 Hrecent.ofCheckRoot
         h4 h5 h6 h7 h8
         (by
-          obtain ⟨hn, hag, hd, t₀, htr, hcl⟩ := h9
-          exact ⟨hn, hag, jF, hjF, fieldType₀, hd, hfieldType₀, t₀, htr, hcl⟩))
+          obtain ⟨hn, hag, hd, t₀, htr, htrTy, hcl⟩ := h9
+          exact ⟨hn, hag, jF, hjF, fieldType₀, hd, hfieldType₀, hfieldType₀Ty,
+            t₀, htr, htrTy, hcl⟩))
   exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
 
 
@@ -2279,8 +2294,11 @@ structure SemanticBoundGeneratedRecursiveCall
           R.chk.dropN j hj ∧
         TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
           (root.lctx.get! field.fvarId!).type ty₀ ∧
+        R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ ∧
         ∃ t₀, TrExpr current_context.venv recLparams
           current_context.chk.vlctx generated.exposedType t₀ ∧
+        current_context.venv.IsType recLparams.length
+          current_context.chk.vlctx.toCtx t₀ ∧
         current_context.venv.IsDefEqU recLparams.length
           (R.chk.dropN j hj).vlctx.toCtx ty₀
           (current_context.chk.mkForall' generated.localArgs.size hn t₀)

@@ -825,7 +825,7 @@ theorem
         Array.array_toSubarray] at hsource
       exact List.mem_of_mem_take (List.mem_of_mem_drop hsource)
     exact F.semantic.exposed_scope.getAppArgsList hsourceFull
-  obtain ⟨_, _, _, _, _, _, _, _, ⟨exposed₁, Hexposed₁, _⟩, _⟩ :=
+  obtain ⟨_, _, _, _, _, _, _, _, _, ⟨exposed₁, Hexposed₁, _⟩, _, _⟩ :=
     F.semantic.chkAgree
   rw [hsemantic] at Hexposed₁
   obtain ⟨exposed₂, Hexposed₂⟩ := hemb.trExprS H.outVEnvWF
@@ -845,6 +845,76 @@ theorem
   exact ⟨binding, evidence, scope, Hscope, localDomains, narrowIndices,
     hscopeExact, hdrop, hlocal, hcontext, Hreplay, hlength,
     HnarrowIndices, HindexEq⟩
+
+/-- Apply a translated function to the free variables of a lambda prefix
+opened above its context.  The application is translated and typed by the
+canonical variables, and its type is the remaining telescope. -/
+theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
+    (henv : env.WF) {Δ₀ : VLCtx} {f : Expr} {bF : VExpr}
+    (hf : TrExprS env Us Δ₀ f bF) :
+    ∀ (pre : VLCtx) {rest : List VExpr} {body : VExpr},
+      (pre ++ Δ₀).WF env Us.length →
+      (∀ e ∈ pre, ∃ fv deps d, e = (some (fv, deps), .vlam d)) →
+      env.HasType Us.length Δ₀.toCtx bF
+        (VExpr.wrapForalls ((VLCtx.toCtx pre).reverse ++ rest) body) →
+      TrExprS env Us (pre ++ Δ₀)
+          (Expr.mkAppList f ((VLCtx.fvars pre).reverse.map Expr.fvar))
+          (VExpr.mkApps (bF.liftN pre.length)
+            (recursorCanonicalVars pre.length)) ∧
+        env.HasType Us.length (pre ++ Δ₀).toCtx
+          (VExpr.mkApps (bF.liftN pre.length)
+            (recursorCanonicalVars pre.length))
+          (VExpr.wrapForalls rest body)
+  | [], rest, body, _, _, hty => by
+    simpa [Expr.mkAppList, VExpr.mkApps, VLCtx.toCtx, VLCtx.fvars] using
+      And.intro hf hty
+  | e :: pre, rest, body, hwf, hlams, hty => by
+    obtain ⟨fv, deps, d, rfl⟩ := hlams e (by simp)
+    have hlams' : ∀ e ∈ pre, ∃ fv deps d, e = (some (fv, deps), .vlam d) :=
+      fun e he => hlams e (by simp [he])
+    have hty' : env.HasType Us.length Δ₀.toCtx bF
+        (VExpr.wrapForalls ((VLCtx.toCtx pre).reverse ++ (d :: rest)) body) := by
+      simpa [VLCtx.toCtx, List.reverse_cons, List.append_assoc] using hty
+    obtain ⟨htr, htyped⟩ :=
+      TrExprS.mkAppList_fvarPrefix henv hf pre hwf.1 hlams' hty'
+    let W : VLCtx.FVLift (pre ++ Δ₀)
+        ((some (fv, deps), .vlam d) :: (pre ++ Δ₀)) 0 1 0 :=
+      .skip_fvar _ _ .refl
+    have htrW := htr.weakFV henv.ordered W hwf
+    have htyW := htyped.weakN henv.ordered W.toCtx
+    have harg : TrExprS env Us ((some (fv, deps), .vlam d) :: (pre ++ Δ₀))
+        (.fvar fv) (.bvar 0) := by
+      apply TrExprS.fvar (A := d.liftN 1)
+      simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+        VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+    have hargTy : env.HasType Us.length
+        (VLCtx.toCtx ((some (fv, deps), .vlam d) :: (pre ++ Δ₀)))
+        (.bvar 0) (d.liftN 1) := by
+      have hlookup : VLCtx.find?
+          ((some (fv, deps), .vlam d) :: (pre ++ Δ₀)) (.inr fv) =
+          some (.bvar 0, d.liftN 1) := by
+        simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
+          VLocalDecl.value, VLocalDecl.type, VExpr.lift]
+      exact hwf.find?_wf henv.ordered hlookup
+    have hfnTy : env.HasType Us.length
+        (VLCtx.toCtx ((some (fv, deps), .vlam d) :: (pre ++ Δ₀)))
+        ((VExpr.mkApps (bF.liftN pre.length)
+          (recursorCanonicalVars pre.length)).liftN 1)
+        (.forallE (d.liftN 1) ((VExpr.wrapForalls rest body).liftN 1 1)) := by
+      simpa [VExpr.wrapForalls, VExpr.liftN] using htyW
+    have happ := TrExprS.app hfnTy hargTy htrW harg
+    have happTy := VEnv.HasType.app hfnTy hargTy
+    have hvars : VExpr.mkApps (bF.liftN (pre.length + 1))
+        (recursorCanonicalVars (pre.length + 1)) =
+        .app ((VExpr.mkApps (bF.liftN pre.length)
+          (recursorCanonicalVars pre.length)).liftN 1) (.bvar 0) := by
+      rw [recursorCanonicalVars_add pre.length 1, VExpr.mkApps_append,
+        VExpr.liftN_mkApps]
+      simp [recursorCanonicalVars, VExpr.mkApps, VExpr.liftN_liftN]
+    refine ⟨?_, ?_⟩
+    · simpa [Expr.mkAppList, List.reverse_cons, List.map_append,
+        Expr.mkAppList_append, hvars] using happ
+    · simpa [hvars, VExpr.instN_bvar0] using happTy
 
 /-- Shared cached-target frame for every semantic argument of one recursive
 call.  Locals and fields are closed from a single dependency-selected core;
