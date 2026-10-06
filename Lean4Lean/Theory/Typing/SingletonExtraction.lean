@@ -905,6 +905,102 @@ theorem tel_branch (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec}
           (VExpr.bvar (S.fields.length - 1 - i)).liftN (i + 1) from liftN_liftN ..] at hx1
         exact IsDefEq.typeCast_refl henv heq hu hΓ' (by simpa [VExpr.liftN] using hXY1) he hx1
 
+/-- The constructor branch returns field `i` at the cast target. -/
+theorem tel_branch_target (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec}
+    (T : S.Typed env U params)
+    (hci : TelInst env U (params ++ S.fields).reverse (params ++ S.indices)
+      (bvarRange params.length (params.length + S.fields.length) ++ ci))
+    (hcil : ci.length = S.indices.length)
+    (hlit : ∀ l k, S.slot.getD l none = some k →
+      ci.getD k default = .bvar (S.fields.length - 1 - l))
+    (i : Nat) (hi' : i < S.fields.length) :
+    env.HasType U
+      ((S.tel (bvarRange params.length (params.length + S.fields.length)) ci i).1.reverse ++
+        (params ++ S.fields).reverse)
+      ((VExpr.bvar (S.fields.length - 1 - i)).liftN i)
+      (S.target (bvarRange params.length (params.length + S.fields.length)) ci i) := by
+  have IH := tel_branch henv heq T hci hcil hlit i (Nat.le_of_lt hi')
+  generalize hP : params.length = P at *
+  have hΔ : OnCtx (params ++ S.fields).reverse (env.IsType U) := by
+    simpa using T.fieldsCtx S.fields.length (Nat.le_refl _)
+  have hfcl : ∀ j (h : j < (params ++ S.fields).length), ((params ++ S.fields)[j]).ClosedN j :=
+    T.prefix_closed (fun l h => T.scope.fields l h)
+  have hid := TelInst.ident (env := env) (U := U) [] hfcl
+  simp only [List.append_nil, List.length_append, hP, bvarRange_split] at hid
+  have hpa : TelInst env U (params ++ S.fields).reverse params (bvarRange P (P + S.fields.length)) := by
+    have := hid.take (doms := params) (more := S.fields)
+    simpa [hP] using this
+  have htyped := tel_typed henv heq T hΔ hpa (by simpa using hci) hcil
+  obtain ⟨hctx, hinst⟩ := htyped i (Nat.le_of_lt hi')
+  obtain ⟨hdl, hσl⟩ := S.tel_length (bvarRange P (P + S.fields.length)) ci i
+  unfold target
+  generalize hdoms : (S.tel (bvarRange P (P + S.fields.length)) ci i).1 = doms at hctx hinst hdl IH ⊢
+  generalize hσ : (S.tel (bvarRange P (P + S.fields.length)) ci i).2 = σ at hinst hσl IH ⊢
+  have hr1 : i < (bvarRange S.fields.length S.fields.length).length := by simp; omega
+  -- the field variable, typed at its declared type in the base context
+  have hfvar : env.HasType U (params ++ S.fields).reverse (.bvar (S.fields.length - 1 - i))
+      (S.fields[i].instOuter (bvarRange P (P + S.fields.length) ++
+        (bvarRange S.fields.length S.fields.length).take i)) := by
+    have := hid.getD (j := P + i) (by simp [hP]; omega)
+    rw [getD_append_right' (by simp only [List.length_append, bvarRange_length, hP]; omega),
+      getD_append_right' (by simp only [List.length_append, bvarRange_length, hP]; omega),
+      List.take_append,
+      List.take_of_length_le (by simp only [List.length_append, bvarRange_length, hP]; omega)] at this
+    simp only [hP, bvarRange_length, Nat.add_sub_cancel_left] at this
+    rw [getD_of_lt hr1, getD_of_lt hi', bvarRange_getElem _ _ _ (by omega)] at this
+    exact this
+  -- the cast substitution agrees with the field variables so far
+  have hcongr : env.IsDefEq U (doms.reverse ++ (params ++ S.fields).reverse)
+      ((S.fields.getD i default).instOuter
+        ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ))
+      (S.fields[i].instOuter
+        ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+          ((bvarRange S.fields.length S.fields.length).take i).map (fun x : VExpr => x.liftN i)))
+      (.sort (S.fieldSort i)) := by
+    rw [getD_of_lt hi']
+    have hl : ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ).length =
+        (params ++ S.fields.take i).length := by simp [hσl, hP]; try omega
+    have hl' : ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+        ((bvarRange S.fields.length S.fields.length).take i).map (fun x : VExpr => x.liftN i)).length =
+        (params ++ S.fields.take i).length := by simp [hP]; try omega
+    have := IsDefEq.closed_instOuter_congr' henv hctx (T.fieldsCtx i (Nat.le_of_lt hi'))
+      (T.fieldSort i hi') hl hl' (fun j hd => by
+        have hlenP : ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i)).length = P := by
+          simp
+        by_cases hjP : j < P
+        · rw [getD_append_left' (by rw [hlenP]; omega), getD_append_left' (by rw [hlenP]; omega)]
+          have := hinst.getD hd
+          rwa [getD_append_left' (by rw [hlenP]; omega)] at this
+        · have hm : j - P < i := by simp [hP] at hd; omega
+          rw [getD_append_right' (by rw [hlenP]; omega), getD_append_right' (by rw [hlenP]; omega), hlenP]
+          have e1 : (params ++ S.fields.take i).getD j default = S.fields.getD (j - P) default := by
+            rw [getD_append_right' (by omega), hP, getD_of_lt (by simp; omega),
+              getD_of_lt (by omega), List.getElem_take]
+          have e2 : (((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i)) ++ σ).take j =
+              (bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ.take (j - P) := by
+            rw [List.take_append, List.take_of_length_le (by rw [hlenP]; omega), hlenP]
+          have e3 : (((bvarRange S.fields.length S.fields.length).take i).map
+              (fun x : VExpr => x.liftN i)).getD (j - P) default =
+              ((bvarRange S.fields.length S.fields.length).getD (j - P) default).liftN i := by
+            rw [getD_of_lt (by simp; omega), getD_of_lt (by simp; omega), List.getElem_map,
+              List.getElem_take]
+          rw [e1, e2, e3]
+          exact IH (j - P) hm)
+    simpa using this
+
+  have hFeq : S.fields[i].instOuter
+        ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+          ((bvarRange S.fields.length S.fields.length).take i).map (fun x : VExpr => x.liftN i)) =
+      (S.fields[i].instOuter (bvarRange P (P + S.fields.length) ++
+        (bvarRange S.fields.length S.fields.length).take i)).liftN i := by
+    rw [VExpr.liftN_instOuter _ _ (by
+      have := T.scope.fields i hi'; rw [hP] at this; simpa [Nat.min_eq_left (by omega : i ≤ S.fields.length)] using this),
+      List.map_append]
+  have hfvar' := hfvar.weakN henv.ordered (Ctx.LiftN.zero doms.reverse)
+  simp only [List.length_reverse, hdl] at hfvar'
+  rw [← hFeq] at hfvar'
+  exact hcongr.symm.defeq hfvar'
+
 end CastSpec
 
 /-- The syntax of a singleton family's elimination into `Prop`, at fixed universe levels:
