@@ -287,7 +287,10 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
           stats.params) introTarget ∧
       Rcurrent.venv.HasType
         (AddInductive.getRecLevelParams elimLevel c.lparams).length
-        Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget := by
+        Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget ∧
+      ∃ tailTarget₀, TrExprS Rcurrent.venv
+        (AddInductive.getRecLevelParams elimLevel c.lparams)
+        HsuffixCurrent.parameterDecls tail tailTarget₀ := by
   let Hbase := R.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
   let HsuffixBase := R.materializedFinal.parameterSuffix.toRecursorContext Helim
@@ -334,7 +337,8 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
     ⟨introTarget, tailTarget, HintroRuntime, HtailRuntime,
       HintroTypeRuntime, HtailTypeRuntime⟩
   exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailParams,
-    HtailRuntime, HtailTypeRuntime, HintroRuntime, HintroTypeRuntime⟩
+    HtailRuntime, HtailTypeRuntime, HintroRuntime, HintroTypeRuntime,
+    tailNarrow, HtailCurrent⟩
 
 /-- Enter the first mutual recursor pass from the completed constructor
 boundary. -/
@@ -583,9 +587,9 @@ theorem CompletedConstructorPhases.mkRecInfosWF
         (hparameterDeclsCurrent.trans hparameterDeclsFrames) familyIdx
         hfamily ctorIdx hctorIdx with
       ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
-        Htail, HtailType, Hintro, HintroType⟩
+        Htail, HtailType, Hintro, HintroType, tailTarget₀, Htail₀⟩
     exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
-      Htail, HtailType, Hintro, HintroType⟩
+      Htail, HtailType, Hintro, HintroType, tailTarget₀, Htail₀⟩
   · intro cOut outDepth out Rout henvOut HsuffixOut hparameterDeclsOut
       HstatsOut hctxOut HbindingsOut HoriginsOut HblueprintsOut
       HblueprintSemanticsOut HminorSourcesOut HminorSemanticsOut houtSize houtCounts

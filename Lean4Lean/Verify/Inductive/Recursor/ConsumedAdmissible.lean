@@ -105,7 +105,7 @@ retained with the source constructor selection, in the retained parameter
 scope itself. -/
 private theorem SourceConstructorReplay.singletonFieldsInScope
     (H : SourceConstructorReplay env Us scope stats decl family source sourceCtor s ctor)
-    (Hc : ContextWF c) (hus : Us = c.lparams)
+    (Hc : ContextWF c) (hchk : Hc.chk.vlctx = []) (hus : Us = c.lparams)
     (hle : env ≤ Hc.venv) (henv : env.WF)
     (hscope : scope.WF env Us.length)
     (hu : decl.uvars = Us.length)
@@ -120,7 +120,7 @@ private theorem SourceConstructorReplay.singletonFieldsInScope
     htail, hcert, hsynthesis, hgenerator⟩ := H
   obtain ⟨rawScope, domains, residual, hrawType, hlength, hrawCtx,
     hcontexts, hshapeCtx, hresidual⟩ := hchecked.rawTranslation henv hscope hraw.type
-  have Hclosed := Htrace.singletonClosed Hc Hspine (hraw.type.mono hle)
+  have Hclosed := Htrace.singletonClosed Hc hchk Hspine (hraw.type.mono hle)
   rw [hrawType] at Hclosed
   have HrawTail := Hclosed.dropParams
   simp only [List.append_nil, Nat.zero_add, hlength, ← hrawCtx] at HrawTail
@@ -288,7 +288,7 @@ theorem CompletedRecursorConstruction.consumedSingletonElimination
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
   obtain ⟨arity, hspine⟩ := hspine
   have Hheader := SourceConstructorReplay.singletonFieldsInScope hreplay
-    (R.context.withCheckLCtx {} LocalContext.empty_mapWF .empty) rfl
+    (R.context.withCheckLCtx {} R.context.baseNil) rfl rfl
     (R.installation.constructorLE.trans R.ctorLE) hheader hscope
     R.core.uvars htrace hspine
   -- Field-by-field comparison of the consumed and header telescopes.
