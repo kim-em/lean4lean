@@ -94,6 +94,17 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   check; completeness reworks only the delta-level parts of
   `LevelledReduction` (about 63 lemmas) and the deep `NormalEqN`, not the
   whole confluence development. Far smaller than the 20k to 40k estimate.
+  **Correction:** the K/singleton alignment check arises in the strip where a
+  proof-irrelevance leaf `h ≡ₚ Eq.refl a` meets iota on the refl side, and
+  the check `a ≡ b` comes from injectivity applied to the type agreement of
+  the leaf (`Eq a b` vs `Eq a a`); witnessing it requires proof-irrelevance
+  leaves to carry witnessed agreement of their independently synthesized
+  types, hence witnessed synthesized-type agreements for typings: the full
+  synthesizing certificate calculus, with transitivity admissibility (strip)
+  restated as induction on certificate size. The deep `NormalEqN` and the
+  §3.3 strengthening analysis stand. Next: singleton eta formally, then the
+  certificate-calculus design doc with the plan for which mainline lemmas
+  carry over.
 
 ## Intended result
 
