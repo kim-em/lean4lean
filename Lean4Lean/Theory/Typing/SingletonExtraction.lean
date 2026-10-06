@@ -270,4 +270,185 @@ theorem TelInst.weak (henv : env.Ordered) (D : List VExpr)
   simpa [List.map_take] using h
 
 end VEnv
+
+namespace CastSpec
+open VEnv
+variable {env : VEnv} {U : Nat}
+
+/-- The sort of field `i`: its declared sort for data, `Prop` for proofs. -/
+def fieldSort (S : CastSpec) (i : Nat) : VLevel :=
+  match S.slot.getD i none with
+  | some _ => S.sorts.getD i .zero
+  | none => .zero
+
+/-- Typing of a singleton family's closed telescopes, at fixed universe levels. -/
+structure Typed (env : VEnv) (U : Nat) (S : CastSpec) (params : List VExpr) : Prop where
+  scope : S.Scoped params.length
+  params_closed : ∀ j (h : j < params.length), (params[j]).ClosedN j
+  fieldsCtx : ∀ i, i ≤ S.fields.length →
+    OnCtx (params ++ S.fields.take i).reverse (env.IsType U)
+  indicesCtx : ∀ k, k ≤ S.indices.length →
+    OnCtx (params ++ S.indices.take k).reverse (env.IsType U)
+  fieldSort : ∀ i (h : i < S.fields.length),
+    env.HasType U (params ++ S.fields.take i).reverse S.fields[i] (.sort (S.fieldSort i))
+  slotSort : ∀ i k, S.slot.getD i none = some k → ∀ h : k < S.indices.length,
+    env.HasType U (params ++ S.indices.take k).reverse S.indices[k] (.sort (S.sorts.getD i .zero))
+  sortWF : ∀ i, (S.sorts.getD i .zero).WF U
+
+theorem Typed.prefix_closed {S : CastSpec} (T : S.Typed env U params)
+    (hrest : ∀ i (h : i < rest.length), (rest[i]).ClosedN (params.length + i)) :
+    ∀ j (h : j < (params ++ rest).length), ((params ++ rest)[j]).ClosedN j := by
+  intro j h
+  by_cases hj : j < params.length
+  · rw [List.getElem_append_left hj]; exact T.params_closed j hj
+  · rw [List.getElem_append_right (Nat.le_of_not_gt hj)]
+    have := hrest (j - params.length) (by simp at h; omega)
+    rwa [Nat.add_sub_cancel' (Nat.le_of_not_gt hj)] at this
+
+theorem getD_of_lt {l : List α} {d : α} (h : i < l.length) : l.getD i d = l[i] := by
+  simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]
+
+/-- The cast telescope is well formed and its substitution is a typed instance of the
+field telescope, at any providers typed as parameter and index instances. -/
+theorem tel_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec}
+    (T : S.Typed env U params) (hΔ : OnCtx Δ (env.IsType U))
+    (hpa : TelInst env U Δ params pa)
+    (hia : TelInst env U Δ (params ++ S.indices) (pa ++ ia)) (hialen : ia.length = S.indices.length) :
+    ∀ i, i ≤ S.fields.length →
+      OnCtx ((S.tel pa ia i).1.reverse ++ Δ) (env.IsType U) ∧
+      TelInst env U ((S.tel pa ia i).1.reverse ++ Δ) (params ++ S.fields.take i)
+        (pa.map (fun x : VExpr => x.liftN i) ++ (S.tel pa ia i).2) := by
+  intro i
+  induction i with
+  | zero =>
+    intro _
+    simpa [tel] using And.intro hΔ hpa
+  | succ i ih =>
+    intro hi
+    obtain ⟨hctx, hinst⟩ := ih (Nat.le_of_succ_le hi)
+    have hi' : i < S.fields.length := hi
+    obtain ⟨hdl, hσl⟩ := S.tel_length pa ia i
+    generalize hdoms : (S.tel pa ia i).1 = doms at hctx hinst hdl
+    generalize hσ : (S.tel pa ia i).2 = σ at hinst hσl
+    have htel : S.tel pa ia (i + 1) =
+        (doms ++ [(S.step pa ia i σ).1], σ.map (·.lift) ++ [(S.step pa ia i σ).2]) := by
+      simp [tel, hdoms, hσ]
+    rw [htel]
+    -- the declared type of field `i` at the current substitution
+    have hY : env.HasType U (doms.reverse ++ Δ)
+        ((S.fields.getD i default).instOuter (pa.map (fun x : VExpr => x.liftN i) ++ σ))
+        (.sort (S.fieldSort i)) := by
+      rw [getD_of_lt hi']
+      simpa using HasType.closed_instOuter henv (T.fieldsCtx i (Nat.le_of_lt hi'))
+        (T.fieldSort i hi') hinst
+    have hfcl : ∀ j (h : j < (params ++ S.fields.take i).length),
+        ((params ++ S.fields.take i)[j]).ClosedN j :=
+      T.prefix_closed (fun l h => by
+        simp only [List.length_take] at h
+        rw [List.getElem_take]; exact T.scope.fields l (by omega))
+    have hlifts : (pa.map (fun x : VExpr => x.liftN i) ++ σ).map (fun x : VExpr => x.liftN 1) =
+        pa.map (fun x : VExpr => x.liftN (i + 1)) ++ σ.map (·.lift) := by
+      simp [List.map_map, Function.comp_def, liftN_liftN]
+    have hfields : params ++ S.fields.take (i + 1) = (params ++ S.fields.take i) ++ [S.fields[i]] := by
+      rw [List.take_add_one, List.getElem?_eq_getElem hi']; simp
+    have hctxEq : (doms ++ [(S.step pa ia i σ).1]).reverse ++ Δ =
+        (S.step pa ia i σ).1 :: (doms.reverse ++ Δ) := by simp
+    rw [hctxEq, hfields]
+    dsimp only
+    rw [← List.append_assoc]
+    -- the old substitution, weakened beneath the new binder
+    have hold := TelInst.weak henv.ordered [(S.step pa ia i σ).1] hfcl hinst
+    simp only [List.length_singleton, hlifts] at hold
+    have hYl : ∀ D : VExpr, env.HasType U (D :: (doms.reverse ++ Δ))
+        ((S.fields.getD i default).instOuter (pa.map (fun x : VExpr => x.liftN i) ++ σ)).lift
+        (.sort (S.fieldSort i)) := fun D => hY.weak henv.ordered
+    have hYeq : ((S.fields.getD i default).instOuter (pa.map (fun x : VExpr => x.liftN i) ++ σ)).lift =
+        S.fields[i].instOuter (pa.map (fun x : VExpr => x.liftN (i + 1)) ++ σ.map (·.lift)) := by
+      rw [getD_of_lt hi']
+      show VExpr.liftN 1 _ 0 = _
+      rw [VExpr.liftN_instOuter _ _ (by
+        simpa [hσl, hpa.1] using T.scope.fields i hi'), hlifts]
+    cases hs : S.slot.getD i none with
+    | none =>
+      have hsort : S.fieldSort i = .zero := by unfold fieldSort; rw [hs]
+      rw [hsort] at hY
+      have hstep : S.step pa ia i σ =
+          ((S.fields.getD i default).instOuter (pa.map (fun x : VExpr => x.liftN i) ++ σ), .bvar 0) := by
+        unfold step; rw [hs]
+      rw [hstep] at hold ⊢
+      refine ⟨⟨hctx, _, hY⟩, ?_⟩
+      apply TelInst.append_one hold
+      rw [← hYeq]
+      exact .bvar .zero
+    | some k =>
+      have hk := T.scope.slot_lt i k hs
+      have hsort : S.fieldSort i = S.sorts.getD i .zero := by unfold fieldSort; rw [hs]
+      rw [hsort] at hY
+      have hu := T.sortWF i
+      -- the index slot's type at the current depth
+      have hicl : ∀ j (h : j < (params ++ S.indices).length), ((params ++ S.indices)[j]).ClosedN j :=
+        T.prefix_closed (fun l h => T.scope.indices l h)
+      have hiw := TelInst.weak henv.ordered doms.reverse hicl hia
+      simp only [List.length_reverse, hdl] at hiw
+      have hsplit : params ++ S.indices = (params ++ S.indices.take k) ++ S.indices.drop k := by
+        simp [List.append_assoc]
+      rw [hsplit] at hiw
+      have hix := hiw.take
+      have htake : ((pa ++ ia).map (fun x : VExpr => x.liftN i)).take
+          (params ++ S.indices.take k).length =
+          pa.map (fun x : VExpr => x.liftN i) ++ (ia.take k).map (fun x : VExpr => x.liftN i) := by
+        simp only [List.map_append, List.take_append, List.length_append, List.length_take,
+          ← hpa.1, List.length_map, Nat.min_eq_left (Nat.le_of_lt (hialen ▸ hk)), Nat.add_sub_cancel_left]
+        rw [List.take_of_length_le (by simp)]
+        simp [List.map_take, hialen]
+      rw [htake] at hix
+      have hX := HasType.closed_instOuter henv (T.indicesCtx k (Nat.le_of_lt hk))
+        (T.slotSort i k hs hk) hix
+      simp only [VExpr.instOuter_sort] at hX
+      -- the index argument itself, at the current depth
+      have hxi : env.HasType U (doms.reverse ++ Δ) ((ia[k]'(hialen ▸ hk)).liftN i)
+          (S.indices[k].instOuter
+            (pa.map (fun x : VExpr => x.liftN i) ++ (ia.take k).map (fun x : VExpr => x.liftN i))) := by
+        have hlenP : (params ++ S.indices.take k).length = params.length + k := by
+          simp [Nat.min_eq_left (Nat.le_of_lt hk)]
+        have := hiw.2 (params.length + k) (by simp [hpa.1, hialen]; omega)
+          (by simp; omega)
+        rw [← htake] at *
+        simpa [List.getElem_append_right, hpa.1, List.getElem_map, List.getElem_drop,
+          Nat.min_eq_left (Nat.le_of_lt hk), List.take_take] using this
+      generalize hXdef : S.indices[k].instOuter
+        (pa.map (fun x : VExpr => x.liftN i) ++ (ia.take k).map (fun x : VExpr => x.liftN i)) = X
+        at hX hxi
+      generalize hYdef : (S.fields.getD i default).instOuter
+        (pa.map (fun x : VExpr => x.liftN i) ++ σ) = Y at hY hYeq
+      have hstep : S.step pa ia i σ =
+          (VExpr.eqApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X Y,
+            VExpr.typeCast (S.sorts.getD i .zero) X.lift Y.lift (.bvar 0)
+              ((ia[k]'(hialen ▸ hk)).liftN (i + 1))) := by
+        unfold step; rw [hs]
+        simp only [← hXdef, ← hYdef, getD_of_lt hk, getD_of_lt (hialen ▸ hk)]
+      rw [hstep] at hold ⊢
+      have hsu : (VLevel.succ (S.sorts.getD i .zero)).WF U := hu
+      have hdom := HasType.eqApp heq hsu (.sort hu) hX hY
+      refine ⟨⟨hctx, _, hdom⟩, ?_⟩
+      apply TelInst.append_one hold
+      rw [← hYeq]
+      have hX' := hX.weak henv.ordered (B := VExpr.eqApp (.succ (S.sorts.getD i .zero))
+        (.sort (S.sorts.getD i .zero)) X Y)
+      have hY' := hY.weak henv.ordered (B := VExpr.eqApp (.succ (S.sorts.getD i .zero))
+        (.sort (S.sorts.getD i .zero)) X Y)
+      have he : env.HasType U (VExpr.eqApp (.succ (S.sorts.getD i .zero))
+          (.sort (S.sorts.getD i .zero)) X Y :: (doms.reverse ++ Δ)) (.bvar 0)
+          (VExpr.eqApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X.lift Y.lift) := by
+        have := IsDefEq.bvar (env := env) (uvars := U) (Lookup.zero (ty := VExpr.eqApp
+          (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X Y)
+          (Γ := doms.reverse ++ Δ))
+        simpa [VEnv.HasType, VExpr.eqApp, VExpr.liftN] using this
+      have hx := hxi.weak henv.ordered (B := VExpr.eqApp (.succ (S.sorts.getD i .zero))
+        (.sort (S.sorts.getD i .zero)) X Y)
+      rw [show ((ia[k]'(hialen ▸ hk)).liftN i).lift = (ia[k]'(hialen ▸ hk)).liftN (i + 1) from
+        liftN_liftN ..] at hx
+      exact HasType.typeCast henv.ordered heq hu (by simpa [VEnv.HasType, VExpr.liftN] using hX') hY' he hx
+
+end CastSpec
 end Lean4Lean
