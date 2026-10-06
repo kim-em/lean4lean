@@ -538,6 +538,72 @@ theorem HasType.minorOf (henv : env.WF) {P F Hs CI : List VExpr} {Mot ctorApp M 
   have := hb.weakN henv.ordered hW
   simpa [List.reverse_append, List.append_assoc] using this
 
+theorem vars_eq_bvarRange (count below : Nat) :
+    vars count below = bvarRange count (count + below) := by
+  apply List.ext_getElem
+  · simp [vars, bvarRange]
+  · intro i hi hi'
+    simp only [vars, List.getElem_map, List.getElem_reverse, List.getElem_range]
+    rw [bvarRange_getElem count (count + below) i (by simpa [vars] using hi)]
+    simp only [List.length_range]
+    have : i < count := by simpa [vars] using hi
+    congr 1
+    omega
+
+theorem insertBinders_eq_mapIdx (l : List VExpr) (n : Nat) :
+    insertBinders l n = l.mapIdx fun k d => d.liftN n k := by
+  apply List.ext_getElem
+  · simp [insertBinders]
+  · intro i h1 h2; simp [insertBinders]
+
+/-- Instantiating the parameters and the motive of a term over both at the parameter
+variables, beneath `r` binders. -/
+theorem instOuter_vars_snoc {X M : VExpr} {n : Nat} (hX : X.ClosedN (n + 1)) (r : Nat) :
+    X.instOuter (bvarRange n (n + r) ++ [M.liftN r]) = (X.inst M 0).liftN r := by
+  rw [VExpr.instOuter_eq_subst, VExpr.liftN_eq_subst (X.inst M 0), VExpr.inst_eq,
+    VExpr.subst_subst]
+  apply VExpr.subst_congr_closedN hX
+  intro i hi
+  cases i with
+  | zero =>
+    rw [VExpr.Subst.ofList_lt _ (by simp)]
+    simp [VExpr.Subst.comp, VExpr.Subst.cons, VExpr.liftN_eq_subst]
+  | succ j =>
+    rw [VExpr.Subst.ofList_lt _ (by simp; omega)]
+    rw [List.getElem_append_left (by simp; omega), bvarRange_getElem _ _ _ (by simp; omega)]
+    simp only [VExpr.Subst.comp, VExpr.Subst.cons, VExpr.Subst.id, VExpr.subst_bvar,
+      VExpr.Subst.shift]
+    congr 1; simp; omega
+
+/-- Inserting two arguments, at two inserted binders, into a telescope instance. -/
+theorem TelInst.insert2 {A B a b : List VExpr} {X Y x y : VExpr}
+    (H : TelInst env U Γ (A ++ B) (a ++ b)) (ha : a.length = A.length)
+    (hBcl : ∀ k (h : k < B.length), (B[k]).ClosedN (A.length + k))
+    (hx : env.HasType U Γ x (X.instOuter a)) (hy : env.HasType U Γ y (Y.instOuter (a ++ [x]))) :
+    TelInst env U Γ (A ++ [X] ++ [Y] ++ B.mapIdx fun k d => d.liftN 2 k)
+      (a ++ [x] ++ [y] ++ b) := by
+  have hb : b.length = B.length := by have := H.1; simp at this; omega
+  have hA : TelInst env U Γ A a := by
+    have := H.take
+    rwa [List.take_left' ha] at this
+  refine TelInst.append (TelInst.append_one (TelInst.append_one hA hx) hy) (by simp [hb]) ?_
+  intro k hk
+  have hk' : k < B.length := by simpa using hk
+  have hkb : k < b.length := by omega
+  have := H.2 (A.length + k) (by simp; omega) (by simp; omega)
+  rw [List.getElem_append_right (by omega), List.getElem_append_right (by simp)] at this
+  rw [List.take_append, List.take_of_length_le (by omega)] at this
+  simp only [ha, Nat.add_sub_cancel_left] at this
+  rw [getD_of_lt hkb, getD_of_lt hk, List.getElem_mapIdx]
+  have htk : (b.take k).length = k := by simp; omega
+  have e := VExpr.liftN_instOuter_drop (e := B[k]) (X := a) (Y := [x, y]) (Z := b.take k)
+    (by rw [htk, ha]; exact hBcl k hk')
+  simp only [List.length_cons, List.length_nil, htk] at e
+  have e' : a ++ [x] ++ [y] ++ b.take k = a ++ [x, y] ++ b.take k := by simp
+  rw [e', e]
+  have hidx : A.length + k - a.length = k := by omega
+  simpa [hidx] using this
+
 end VEnv
 
 end Lean4Lean
