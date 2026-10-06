@@ -421,6 +421,53 @@ transfer the typing witnesses), `sortDF`/`constDF` (levels only through `eval`).
   inductives (constructor/field observations, iota in modes AB and C, projections, structure
   eta, unit-like); M5 abstract eliminators (`elimDF`, `elimIota`).
 
+### 9.4 Design of M3-M5 (rules, constructors, projections, eliminators)
+
+Every computation rule of a WF environment is a definition `const c ls ≡ value`, the
+quotient rule, or a restored native recursor equation (`WF'.nativeRegistry`,
+`NativeRegistryOfWF.lean`); abstract eliminators reduce by their schema's generic case
+equations. All of them have one **pattern shape** (`PatRule`): `lhs = wrapLams doms
+(mkApps head args)`, `rhs = wrapLams doms body`, where each argument is a bound variable
+(parameters, motives, minors), an ignored term (indices, and the constructor's own repeated
+parameters), and, for recursors, a last argument `mkApps (const ctor ls') (ignored ++ field
+variables)` (the major pattern; for `Quot.lift` it is `Quot.mk α r a`). Definitions are the
+degenerate case with no arguments. A syntactic lemma per rule family shows the shape
+(restoration only replaces auxiliary heads by specialised source heads in ignored positions
+and in the major's head).
+
+* One generic **rule clause**: `Obs ρ (const c ls) (app D₁ c₁ K₁ (… o))` when a stored rule
+  for `c` matches the keys: bound variables take their keys directly (first occurrence wins),
+  ignored positions are skipped, and the field keys come from the major key by mode:
+  * mode AB (major family not a proposition at the occurrence's levels, not an eta
+    structure): the major key contains `ctorHead ctor` and the field classes/observations;
+  * eta structure (review R1): the field key `j` is `(class of proj S j major, {o | fieldOb j o
+    ∈ K_major})`, whatever the major's observations;
+  * mode C (major family a proposition at the levels, large elimination): the major is
+    ignored; a data field is read from the index key at a position where the constructor's
+    index is that field variable; a proof field gets `(class of all proofs of its type, ∅)`.
+  and `o` is an observation of `body` under the valuation built from those keys, the whole
+  chain **filtered** by `TypedOb` against observations of the head's type. Divergent
+  definitions denote nothing (inductive least fixed point).
+* Constructor observations: a rigid constant whose type's syntactic result is headed by a
+  family `I` and which is applied as an element (not a type former) produces
+  `ctorHead c ℓs n`, `ctorArg i cᵢ`, `ctorArgOb i o` (non-eta families, `Quot.mk`), or only
+  `fieldOb j ks o` (eta structures: `j` a field, `ks` the observation keys of the earlier
+  fields, no classes: they are the classes of the projections). Typing follows Phase 1a: the
+  family's type observations carry the observations of each constructor's type instantiated
+  at the type's parameter keys (`ctorTele`), and element observations are typed against those
+  (precise dependent field typing, needed by proof irrelevance and eta under projections);
+  no element observation is typed at a family that is a proposition at its levels, and none
+  but `fieldOb` at an eta structure.
+* `proj S j e`: the field observations of `e` (`fieldOb j _ o` or `ctorArgOb (nparams + j) o`).
+* Soundness of `extra`/`elimIota`: the rule clause on the instantiated lhs recovers exactly
+  the keys of the rhs (constructor observations of `mkApps ctor (ps ++ fs)` carry the field
+  keys; in mode C the index positions are the field variables themselves and a proof field's
+  key is the class of all its proofs with no observations); the filter is vacuous because both
+  sides are typed at the same instantiated type. `projIota` reads the field back;
+  `structEta`/`unitLike` hold because eta-structure values have only `fieldOb` observations
+  (typing invariant) and `S.mk ps (proj e i)` reproduces them. `elimDF`/`constDF`: level
+  invariance.
+
 ## 10. Status
 
 * [Lean] Syntactic layer done: `HeadInjectivity/{Core,Congruence,FieldType,Uniqueness,Fields}.lean`,
