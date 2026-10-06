@@ -737,3 +737,28 @@ the model of the final environment `env'`, of the derivations of the environment
 declaration (they are derivations of `env'` by monotonicity, and their rule cases only involve
 earlier rules, whose validity is the induction hypothesis). `Model.sound` then takes
 `∀ df ∈ E.defeqs, RuleValid env' df` for derivations of a prefix `E ≤ env'`.
+
+D11, refined (the plan being implemented). `RuleValid env df` is the statement of the
+`extra` case of soundness for the rule `df` in the model of `env`: for every target context,
+context `Γ` and well-formed levels `ls` with `ls.length = df.uvars`, if the typing premises of
+`extra` (`df.type`, `df.lhs`, `df.rhs` at `ls`, in `[]` and in `Γ`) are sound and semantically
+typed, then `df.lhs.instL ls ≡ df.rhs.instL ls` is sound. `Model.sound` is restated for
+derivations of any environment `E ≤ env` whose rules are valid in the model of `env`; its
+`extra` case is the hypothesis. Validity is proved per rule kind: delta rules (the A1
+argument), the quotient rule (`sound_pat` with the quotient facts), native rules (`sound_pat`
+with the compilation facts; the semantic facts — the major family's semantic sort is its
+recorded result level, small elimination empties the right-hand side, a singleton's proof
+fields have only sort-zero type observations — come from the soundness, in the model of `env`,
+of derivations of the environment preceding the rule's declaration). The final theorem proves
+validity of every rule by induction on the `VEnv.WF'` derivation, calling `Model.sound` on the
+earlier environments.
+
+Note for the native mode-C/AB split: in `pat_rhs_sub` the split is on the derivation sort `u`
+of the major domain of the head's type. A data family needs `u ≠ 0`, which only the semantic
+link to the recorded result level gives (the family's own type need not be syntactic); a
+proposition with several constructors has small elimination, whose right-hand sides have no
+observations (the motive's binder type is syntactically `... → Sort target` with
+`target ≈ 0`, so `chain_terminal_sort` types every observation of the motive application at
+`[sort 0]`); a proposition with one constructor and large elimination is the singleton case.
+`sound_pat`'s hypothesis `hC` must accordingly be weakened to "single rule and proof fields, or
+the right-hand side has no observations, or contradiction".
