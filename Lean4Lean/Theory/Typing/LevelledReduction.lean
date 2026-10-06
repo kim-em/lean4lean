@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.FullReduction
 import Lean4Lean.Theory.Typing.PrefixRuleCongruence
+import Lean4Lean.Theory.Typing.PrefixSupply
 import Lean4Lean.Theory.LevelledConfluence
 
 /-! # Levelled parallel relations for the full presentation
@@ -448,6 +449,84 @@ theorem EtaPar.instN (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx 
       hl (by simpa using hp) hi hs' hc'
 
 end Basic
+
+section LevelDefs
+
+/-- The untyped level relations. -/
+def LevelStep (Γ : List VExpr) : Nat → VExpr → VExpr → Prop
+  | 0 => NormalEq₀ Γ
+  | 1 => ParRed Γ
+  | 2 => DeltaPar Γ
+  | 3 => EtaPar Γ
+  | _ + 4 => fun _ _ => False
+
+/-- Some step below level `n`. -/
+def Below (Γ : List VExpr) (n : Nat) (a b : VExpr) : Prop := ∃ k, k < n ∧ LevelStep Γ k a b
+
+/-- The level relations restricted to typed sources, for the abstract criterion. -/
+def LevelRel (Γ : List VExpr) (n : Nat) (a b : VExpr) : Prop :=
+  (∃ A, Γ ⊢ a : A) ∧ LevelStep Γ n a b
+
+theorem LevelStep.full (hΓ : OnCtx Γ (env.IsType univs)) (hn : 0 < n)
+    (H : LevelStep Γ n a b) (ha : Γ ⊢ a : A) : FullReduction Γ a b := by
+  match n, H with
+  | 1, H => exact .tail .rfl (.core H)
+  | 2, H => exact DeltaPar.full H
+  | 3, H => exact EtaPar.full hΓ H ha
+
+theorem LevelStep.hasType (hΓ : OnCtx Γ (env.IsType univs))
+    (H : LevelStep Γ n a b) (ha : Γ ⊢ a : A) : Γ ⊢ b : A := by
+  match n, H with
+  | 0, H => exact ((NormalEqF.defeq hΓ H).of_l henv hΓ ha).hasType.2
+  | n + 1, H => exact (LevelStep.full hΓ (Nat.succ_pos _) H ha).hasType hΓ ha
+
+theorem Below.hasType (hΓ : OnCtx Γ (env.IsType univs))
+    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) : Γ ⊢ b : A := by
+  induction H with
+  | rfl => exact ha
+  | tail _ h ih => obtain ⟨_, _, h⟩ := h; exact h.hasType hΓ ih
+
+theorem Below.loStar (hΓ : OnCtx Γ (env.IsType univs))
+    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) :
+    Levelled.LoStar (LevelRel Γ) n a b := by
+  induction H with
+  | rfl => exact .rfl
+  | tail h₁ h ih =>
+    obtain ⟨k, hk, h⟩ := h
+    exact .tail ih ⟨k, hk, ⟨_, Below.hasType hΓ h₁ ha⟩, h⟩
+
+theorem Below.ofLoStar (H : Levelled.LoStar (LevelRel Γ) n a b) :
+    ReflTransGen (Below Γ n) a b := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h ih => obtain ⟨k, hk, _, h⟩ := h; exact .tail ih ⟨k, hk, h⟩
+
+theorem Below.mono (h : n ≤ m) (H : ReflTransGen (Below Γ n) a b) :
+    ReflTransGen (Below Γ m) a b := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h' ih => obtain ⟨k, hk, h'⟩ := h'; exact .tail ih ⟨k, by omega, h'⟩
+
+theorem Below.single (hk : k < n) (H : LevelStep Γ k a b) : ReflTransGen (Below Γ n) a b :=
+  .tail .rfl ⟨k, hk, H⟩
+
+/-- Pushing the normal equalities of a levelled reduction to its end. -/
+theorem Below.full (hΓ : OnCtx Γ (env.IsType univs))
+    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) :
+    ∃ a', FullReduction Γ a a' ∧ NormalEq Γ a' b := by
+  induction H with
+  | rfl => exact ⟨_, .rfl, .refl ha⟩
+  | tail h₁ h ih =>
+    obtain ⟨a', hr, he⟩ := ih
+    obtain ⟨k, _, h⟩ := h
+    have hm := Below.hasType hΓ h₁ ha
+    cases k with
+    | zero => exact ⟨a', hr, he.trans hΓ (NormalEqF.toNormalEq h)⟩
+    | succ k =>
+      obtain ⟨out, h1, h2⟩ := he.fullReduction hΓ (h.full hΓ (Nat.succ_pos _) hm)
+      exact ⟨out, hr.trans h1, h2⟩
+
+end LevelDefs
 
 
 
@@ -2064,81 +2143,252 @@ theorem DeltaPar.parRed_diamond (hΓ : OnCtx Γ (env.IsType univs))
 
 end DeltaParRed
 
+
+section DeltaPeakTools
+
+theorem ParRed.mkApps_head (hf : ParRed Γ f f') (args : List VExpr) :
+    ParRed Γ (VExpr.mkApps f args) (VExpr.mkApps f' args) := by
+  induction args generalizing f f' with
+  | nil => exact hf
+  | cons a args ih => exact ih (.app hf .rfl)
+
+theorem ParRedS.mkApps_head (hf : ReflTransGen (ParRed Γ) f f') (args : List VExpr) :
+    ReflTransGen (ParRed Γ) (VExpr.mkApps f args) (VExpr.mkApps f' args) := by
+  induction hf with
+  | rfl => exact .rfl
+  | tail _ h ih => exact ih.tail (ParRed.mkApps_head h args)
+
+theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData} :
+    ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
+      data.prefixProgram univs levels xs = some p →
+      data.prefixProgram univs levels (xs ++ more) = some q →
+      p.equationBody.rhs.ClosedN p.captures.length →
+      ReflTransGen (ParRed Γ) (VExpr.mkApps p.rhs more) q.rhs
+  | [], xs, p, q, hp, hq, _ => by
+    rw [List.append_nil] at hq
+    cases hp.symm.trans hq
+    exact .rfl
+  | m :: rest, xs, p, q, hp, hq, hclosed => by
+    have hbound := (InductiveSignature.NativeRecursorData.prefixProgram_spec hq).1
+    obtain ⟨p₁, hp₁⟩ := InductiveSignature.NativeRecursorData.prefixProgram_anyArity hp
+      (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
+    obtain ⟨d, body, he, hb⟩ :=
+      InductiveSignature.NativeRecursorData.prefixProgram_supply_one hp hp₁ hclosed
+    have hspec := InductiveSignature.NativeRecursorData.prefixProgram_spec hp
+    have hspec₁ := InductiveSignature.NativeRecursorData.prefixProgram_spec hp₁
+    have heq : p.equation = p₁.equation :=
+      Option.some.inj (hspec.2.2.2.2.1.symm.trans hspec₁.2.2.2.2.1)
+    have hbody : p.equationBody = p₁.equationBody := by
+      have h1 := hspec.2.2.2.2.2.1
+      have h2 := hspec₁.2.2.2.2.2.1
+      rw [heq] at h1
+      exact Option.some.inj (h1.symm.trans h2)
+    have hclosed₁ : p₁.equationBody.rhs.ClosedN p₁.captures.length := by
+      rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
+    have hq' : data.prefixProgram univs levels ((xs ++ [m]) ++ rest) = some q := by
+      simpa using hq
+    have ih := prefixProgram_supply_many (Γ := Γ) rest hp₁ hq' hclosed₁
+    refine ReflTransGen.trans (.tail .rfl ?_) ih
+    show ParRed Γ (VExpr.mkApps (.app p.rhs m) rest) _
+    rw [he, ← hb]
+    exact ParRed.mkApps_head (.beta .rfl .rfl) rest
+
+theorem NativeDeltaRule.supply_many
+    (H₁ : NativeDeltaRule env univs recursorData Γ name levels xs rhs₁)
+    (H₂ : NativeDeltaRule env univs recursorData Γ name levels (xs ++ more) rhs₂) :
+    ReflTransGen (ParRed Γ) (VExpr.mkApps rhs₁ more) rhs₂ := by
+  cases H₁ with
+  | @intro data p hl _ _ _ _ _ hp replay =>
+    cases H₂ with
+    | @intro data' q hl' _ _ _ _ _ hq _ =>
+      cases hl.symm.trans hl'
+      exact prefixProgram_supply_many more hp hq (replay.templateScope henv).2.1
+
+theorem quot_supply_many {levels : List VLevel} :
+    ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
+      QuotPrefixProgram.generate levels xs = some p →
+      QuotPrefixProgram.generate levels (xs ++ more) = some q →
+      p.equationBody.rhs.ClosedN p.captures.length →
+      ReflTransGen (ParRed Γ) (VExpr.mkApps p.rhs more) q.rhs
+  | [], xs, p, q, hp, hq, _ => by
+    rw [List.append_nil] at hq
+    cases hp.symm.trans hq
+    exact .rfl
+  | m :: rest, xs, p, q, hp, hq, hclosed => by
+    have hbound := (QuotPrefixProgram.generate_spec hq).2.1
+    obtain ⟨p₁, hp₁⟩ := QuotPrefixProgram.generate_anyArity hp
+      (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
+    obtain ⟨d, body, he, hb⟩ := QuotPrefixProgram.generate_supply_one hp hp₁ hclosed
+    have hspec := QuotPrefixProgram.generate_spec hp
+    have hspec₁ := QuotPrefixProgram.generate_spec hp₁
+    have hbody : p.equationBody = p₁.equationBody := by
+      have h1 := hspec.2.2.2.2.2.1
+      have h2 := hspec₁.2.2.2.2.2.1
+      rw [hspec.2.2.2.2.1] at h1
+      rw [hspec₁.2.2.2.2.1] at h2
+      exact Option.some.inj (h1.symm.trans h2)
+    have hclosed₁ : p₁.equationBody.rhs.ClosedN p₁.captures.length := by
+      rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
+    have hq' : QuotPrefixProgram.generate levels ((xs ++ [m]) ++ rest) = some q := by
+      simpa using hq
+    have ih := quot_supply_many (Γ := Γ) rest hp₁ hq' hclosed₁
+    refine ReflTransGen.trans (.tail .rfl ?_) ih
+    show ParRed Γ (VExpr.mkApps (.app p.rhs m) rest) _
+    rw [he, ← hb]
+    exact ParRed.mkApps_head (.beta .rfl .rfl) rest
+
+theorem QuotDeltaRule.supply_many
+    (H₁ : QuotDeltaRule env univs Γ levels xs rhs₁)
+    (H₂ : QuotDeltaRule env univs Γ levels (xs ++ more) rhs₂) :
+    ReflTransGen (ParRed Γ) (VExpr.mkApps rhs₁ more) rhs₂ := by
+  cases H₁ with
+  | intro _ _ _ hp replay =>
+    cases H₂ with
+    | intro _ _ _ hq _ =>
+      exact quot_supply_many more hp hq (replay.templateScope henv).2.1
+
+/-- The shapes of a parallel prefix step on a constant spine. -/
+theorem DeltaPar.const_spine_cases
+    (H : DeltaPar Γ (VExpr.mkApps (.const name ls) args) out) :
+    ∃ args', List.Forall₂ (DeltaPar Γ) args args' ∧
+      (out = VExpr.mkApps (.const name ls) args' ∨
+        ∃ k rhs, k ≤ args.length ∧
+          (NativeDeltaRule env univs recursorData Γ name ls (args'.take k) rhs ∨
+            (name = ``Quot.lift ∧ QuotDeltaRule env univs Γ ls (args'.take k) rhs)) ∧
+          out = VExpr.mkApps rhs (args'.drop k)) := by
+  induction args using snoc_induction generalizing out with
+  | nil =>
+    generalize he : VExpr.mkApps (.const name ls) [] = src at H
+    cases H with
+    | const => cases he; exact ⟨[], .nil, .inl rfl⟩
+    | delta hl hargs hr =>
+      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      cases List.length_eq_zero_iff.mp hl.symm
+      exact ⟨[], .nil, .inr ⟨0, _, Nat.le_refl _, .inl hr, rfl⟩⟩
+    | quotDelta hl hargs hr =>
+      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      cases List.length_eq_zero_iff.mp hl.symm
+      exact ⟨[], .nil, .inr ⟨0, _, Nat.le_refl _, .inr ⟨rfl, hr⟩, rfl⟩⟩
+    | _ => cases he
+  | snoc args x ih =>
+    generalize he : VExpr.mkApps (.const name ls) (args ++ [x]) = src at H
+    have hshape : src = .app (VExpr.mkApps (.const name ls) args) x := by
+      rw [← he, mkApps_snoc]
+    cases H with
+    | @app _ _ _ _ x' hf hx =>
+      cases hshape
+      obtain ⟨args', hargs', hcase⟩ := ih hf
+      refine ⟨args' ++ [x'], case_forall₂_append hargs' (.cons hx .nil), ?_⟩
+      have hl := Lean4Lean.List.Forall₂.length_eq hargs'
+      rcases hcase with rfl | ⟨k, rhs, hk, hr, rfl⟩
+      · exact .inl (mkApps_snoc ..).symm
+      · refine .inr ⟨k, rhs, by simp; omega, ?_, ?_⟩
+        · rwa [List.take_append_of_le_length (by omega)]
+        · rw [List.drop_append_of_le_length (by omega), mkApps_snoc]
+    | delta hl hargs hr =>
+      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      have h2 := forall₂_of_getElem hl hargs
+      refine ⟨_, h2, .inr ⟨(args ++ [x]).length, out, Nat.le_refl _, ?_, ?_⟩⟩
+      · rw [hl, List.take_length]; exact .inl hr
+      · rw [hl, List.drop_length]; rfl
+    | quotDelta hl hargs hr =>
+      obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj he
+      have h2 := forall₂_of_getElem hl hargs
+      refine ⟨_, h2, .inr ⟨(args ++ [x]).length, out, Nat.le_refl _, ?_, ?_⟩⟩
+      · rw [hl, List.take_length]; exact .inr ⟨rfl, hr⟩
+      · rw [hl, List.drop_length]; rfl
+    | projIota => cases hshape
+    | _ => cases hshape
+
+
+omit [Params] in
+theorem forall₂_update {R : α → α → Prop} (hrefl : ∀ z ∈ pre ++ xs, R z z) (h : R x x') :
+    List.Forall₂ R (pre ++ x :: xs) (pre ++ x' :: xs) := by
+  induction pre with
+  | nil =>
+    exact .cons h (List.Forall₂.rfl fun z hz => hrefl z (by simpa using hz))
+  | cons p pre ih =>
+    exact .cons (hrefl p (by simp)) (ih fun z hz => hrefl z (by
+      simp only [List.cons_append, List.mem_cons]; exact .inr hz))
+
+theorem rule_chain {Rule : List VExpr → VExpr → Prop}
+    (hpar : ∀ {xs ys rhs}, Rule xs rhs → List.Forall₂ (ParRed Γ) xs ys →
+      ∃ rhs' X, Rule ys rhs' ∧ ParRed Γ rhs X ∧ NormalEq₀ Γ X rhs')
+    (hnrm : ∀ {xs ys rhs}, Rule xs rhs → List.Forall₂ (NormalEq₀ Γ) xs ys →
+      ∃ rhs', Rule ys rhs' ∧ NormalEq₀ Γ rhs rhs')
+    (htyped : ∀ {xs rhs}, Rule xs rhs → ∀ x ∈ xs, ∃ T, Γ ⊢ x : T) :
+    ∀ {pre xs ys rhs}, Rule (pre ++ xs) rhs → List.Forall₂ (ReflTransGen (Below Γ 2)) xs ys →
+      ∃ rhs', Rule (pre ++ ys) rhs' ∧ ReflTransGen (Below Γ 2) rhs rhs' := by
+  intro pre xs ys rhs H hc
+  induction hc generalizing pre rhs with
+  | nil => exact ⟨rhs, H, .rfl⟩
+  | @cons x y xs ys hxy _ ih =>
+    have step : ∀ {y'}, ReflTransGen (Below Γ 2) x y' →
+        ∃ rhs', Rule (pre ++ y' :: xs) rhs' ∧ ReflTransGen (Below Γ 2) rhs rhs' := by
+      intro y' hc'
+      induction hc' with
+      | rfl => exact ⟨rhs, H, .rfl⟩
+      | @tail y₁ y₂ _ hst ih' =>
+        obtain ⟨rhs₁, H₁, c₁⟩ := ih'
+        obtain ⟨k, hk, hst⟩ := hst
+        match k, hk, hst with
+        | 0, _, hst =>
+          have hrefl : ∀ z ∈ pre ++ xs, NormalEq₀ Γ z z := fun z hz => by
+            have hz' : z ∈ pre ++ y₁ :: xs := by
+              rcases List.mem_append.mp hz with h | h
+              · exact List.mem_append_left _ h
+              · exact List.mem_append_right _ (List.mem_cons_of_mem _ h)
+            exact NormalEqF.refl (Exists.choose_spec (htyped H₁ z hz'))
+          obtain ⟨rhs₂, H₂, e⟩ := hnrm H₁ (forall₂_update hrefl hst)
+          exact ⟨rhs₂, H₂, c₁.tail ⟨0, by decide, e⟩⟩
+        | 1, _, hst =>
+          obtain ⟨rhs₂, X, H₂, pX, e⟩ := hpar H₁ (forall₂_update (fun _ _ => ParRed.rfl) hst)
+          exact ⟨rhs₂, H₂, (c₁.tail ⟨1, by decide, pX⟩).tail ⟨0, by decide, e⟩⟩
+        | k + 2, hk, _ => omega
+    obtain ⟨rhs₁, H₁, c₁⟩ := step hxy
+    obtain ⟨rhs₂, H₂, c₂⟩ := ih (pre := pre ++ [y]) (by simpa using H₁)
+    exact ⟨rhs₂, by simpa using H₂, c₁.trans c₂⟩
+
+theorem NativeDeltaRule.chain (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NativeDeltaRule env univs recursorData Γ name levels xs rhs)
+    (hc : List.Forall₂ (ReflTransGen (Below Γ 2)) xs ys) :
+    ∃ rhs', NativeDeltaRule env univs recursorData Γ name levels ys rhs' ∧
+      ReflTransGen (Below Γ 2) rhs rhs' := by
+  have htyped : ∀ {xs rhs}, NativeDeltaRule env univs recursorData Γ name levels xs rhs →
+      ∀ x ∈ xs, ∃ T, Γ ⊢ x : T := fun H => by
+    obtain ⟨_, hd⟩ := H.defeq henv hΓ
+    exact HasType.mkApps_args_typed hΓ hd.hasType.1
+  exact rule_chain (pre := [])
+    (Rule := fun xs rhs => NativeDeltaRule env univs recursorData Γ name levels xs rhs)
+    (fun H h => H.congr_red ParRed.congrRel ParRed.argRel hΓ h)
+    (fun H h => by
+      obtain ⟨_, hd⟩ := H.defeq henv hΓ
+      obtain ⟨_, hh⟩ := schema_mkApps_head_type hΓ hd.hasType.1
+      obtain ⟨_, _, hw, _⟩ := hh.const_inv henv hΓ
+      exact H.congr₀ hΓ hw (forall₂_equiv_refl _) h)
+    htyped H hc
+
+theorem QuotDeltaRule.chain (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotDeltaRule env univs Γ levels xs rhs)
+    (hc : List.Forall₂ (ReflTransGen (Below Γ 2)) xs ys) :
+    ∃ rhs', QuotDeltaRule env univs Γ levels ys rhs' ∧ ReflTransGen (Below Γ 2) rhs rhs' := by
+  have htyped : ∀ {xs rhs}, QuotDeltaRule env univs Γ levels xs rhs →
+      ∀ x ∈ xs, ∃ T, Γ ⊢ x : T := fun H => by
+    obtain ⟨_, hd⟩ := H.defeq henv hΓ
+    exact HasType.mkApps_args_typed hΓ hd.hasType.1
+  exact rule_chain (pre := [])
+    (Rule := fun xs rhs => QuotDeltaRule env univs Γ levels xs rhs)
+    (fun H h => H.congr_red ParRed.congrRel ParRed.argRel hΓ h)
+    (fun H h => by
+      obtain ⟨_, hd⟩ := H.defeq henv hΓ
+      obtain ⟨_, hh⟩ := schema_mkApps_head_type hΓ hd.hasType.1
+      obtain ⟨_, _, hw, _⟩ := hh.const_inv henv hΓ
+      exact H.congr₀ hΓ hw (forall₂_equiv_refl _) h)
+    htyped H hc
+
+end DeltaPeakTools
+
 section Levels
-
-/-- The untyped level relations. -/
-def LevelStep (Γ : List VExpr) : Nat → VExpr → VExpr → Prop
-  | 0 => NormalEq₀ Γ
-  | 1 => ParRed Γ
-  | 2 => DeltaPar Γ
-  | 3 => EtaPar Γ
-  | _ + 4 => fun _ _ => False
-
-/-- Some step below level `n`. -/
-def Below (Γ : List VExpr) (n : Nat) (a b : VExpr) : Prop := ∃ k, k < n ∧ LevelStep Γ k a b
-
-/-- The level relations restricted to typed sources, for the abstract criterion. -/
-def LevelRel (Γ : List VExpr) (n : Nat) (a b : VExpr) : Prop :=
-  (∃ A, Γ ⊢ a : A) ∧ LevelStep Γ n a b
-
-theorem LevelStep.full (hΓ : OnCtx Γ (env.IsType univs)) (hn : 0 < n)
-    (H : LevelStep Γ n a b) (ha : Γ ⊢ a : A) : FullReduction Γ a b := by
-  match n, H with
-  | 1, H => exact .tail .rfl (.core H)
-  | 2, H => exact DeltaPar.full H
-  | 3, H => exact EtaPar.full hΓ H ha
-
-theorem LevelStep.hasType (hΓ : OnCtx Γ (env.IsType univs))
-    (H : LevelStep Γ n a b) (ha : Γ ⊢ a : A) : Γ ⊢ b : A := by
-  match n, H with
-  | 0, H => exact ((NormalEqF.defeq hΓ H).of_l henv hΓ ha).hasType.2
-  | n + 1, H => exact (LevelStep.full hΓ (Nat.succ_pos _) H ha).hasType hΓ ha
-
-theorem Below.hasType (hΓ : OnCtx Γ (env.IsType univs))
-    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) : Γ ⊢ b : A := by
-  induction H with
-  | rfl => exact ha
-  | tail _ h ih => obtain ⟨_, _, h⟩ := h; exact h.hasType hΓ ih
-
-theorem Below.loStar (hΓ : OnCtx Γ (env.IsType univs))
-    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) :
-    Levelled.LoStar (LevelRel Γ) n a b := by
-  induction H with
-  | rfl => exact .rfl
-  | tail h₁ h ih =>
-    obtain ⟨k, hk, h⟩ := h
-    exact .tail ih ⟨k, hk, ⟨_, Below.hasType hΓ h₁ ha⟩, h⟩
-
-theorem Below.ofLoStar (H : Levelled.LoStar (LevelRel Γ) n a b) :
-    ReflTransGen (Below Γ n) a b := by
-  induction H with
-  | rfl => exact .rfl
-  | tail _ h ih => obtain ⟨k, hk, _, h⟩ := h; exact .tail ih ⟨k, hk, h⟩
-
-theorem Below.mono (h : n ≤ m) (H : ReflTransGen (Below Γ n) a b) :
-    ReflTransGen (Below Γ m) a b := by
-  induction H with
-  | rfl => exact .rfl
-  | tail _ h' ih => obtain ⟨k, hk, h'⟩ := h'; exact .tail ih ⟨k, by omega, h'⟩
-
-theorem Below.single (hk : k < n) (H : LevelStep Γ k a b) : ReflTransGen (Below Γ n) a b :=
-  .tail .rfl ⟨k, hk, H⟩
-
-/-- Pushing the normal equalities of a levelled reduction to its end. -/
-theorem Below.full (hΓ : OnCtx Γ (env.IsType univs))
-    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) :
-    ∃ a', FullReduction Γ a a' ∧ NormalEq Γ a' b := by
-  induction H with
-  | rfl => exact ⟨_, .rfl, .refl ha⟩
-  | tail h₁ h ih =>
-    obtain ⟨a', hr, he⟩ := ih
-    obtain ⟨k, _, h⟩ := h
-    have hm := Below.hasType hΓ h₁ ha
-    cases k with
-    | zero => exact ⟨a', hr, he.trans hΓ (NormalEqF.toNormalEq h)⟩
-    | succ k =>
-      obtain ⟨out, h1, h2⟩ := he.fullReduction hΓ (h.full hΓ (Nat.succ_pos _) hm)
-      exact ⟨out, hr.trans h1, h2⟩
 
 /-! ### Local diagrams -/
 
