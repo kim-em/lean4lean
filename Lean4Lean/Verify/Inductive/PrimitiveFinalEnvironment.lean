@@ -527,7 +527,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
     (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
-      types isUnsafe) :
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
@@ -554,7 +554,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
     (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
-      types isUnsafe) :
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\

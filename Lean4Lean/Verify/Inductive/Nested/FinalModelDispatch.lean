@@ -72,14 +72,21 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (Hlower : NestedLoweringResultClosed env fuel.inductiveFuel nparams
       sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
-    (hnested : res.aux2nested.size ≠ 0) :
+    (hnested : res.aux2nested.size ≠ 0)
+    (hstrsSource : InductiveStrengthening
+      (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+      sourceTypes isUnsafe)
+    (hstrsLowered : InductiveStrengthening
+      (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
+      res.types ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe)) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   let Hc' : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe false fuel) :=
-    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel
+    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) hstrsSource.base
+      lparams false fuel
   have hctx : Hc'.mlctx.vlctx = [] := rfl
   have Hc'_venv : Hc'.venv =
       ves.venv (if isUnsafe then .unsafe else .safe) := rfl
@@ -140,6 +147,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := {
       loweredEnv := V'.loweredEnv
+      sourceStrengthening := V'.sourceStrengthening
       production := V'.production
       productionContext := V'.productionContext
       productionContextWF := V'.productionContextWF

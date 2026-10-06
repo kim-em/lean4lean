@@ -318,7 +318,7 @@ theorem addInductiveDeclaration.finalResultWF
   intro allowPrimitive hallow
   cases allowPrimitive with
   | false =>
-    exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
+    exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF (hstrs := hstrs)
       env lparams nparams types isUnsafe fuel ves wf HsourcesB
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
@@ -326,7 +326,7 @@ theorem addInductiveDeclaration.finalResultWF
       (VerifyInductive.checkPrimitiveInductive_eq_true_iff env lparams
         nparams types isUnsafe).mp hallow
     exact
-      VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
+      VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF (hstrs := hstrs)
         env lparams nparams types isUnsafe fuel ves wf Hprimitive
 
 /-- Traditional environment-preservation theorem for the complete inductive
@@ -364,7 +364,7 @@ theorem addInductiveDeclaration.finalPreservesWF
       (VerifyInductive.checkPrimitiveInductive_eq_true_iff env lparams
         nparams types isUnsafe).mp hallow
     exact
-      (VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
+      (VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF (hstrs := hstrs)
         env lparams nparams types isUnsafe fuel ves wf Hprimitive).mono
         fun _ ⟨H⟩ => H.modelExtension
 

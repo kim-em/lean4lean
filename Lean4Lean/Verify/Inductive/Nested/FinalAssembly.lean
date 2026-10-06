@@ -905,6 +905,11 @@ structure NestedValidatedRunResult
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
     (outEnv : Environment) where
   loweredEnv : Environment
+  /-- The abstract environments of the source (unlowered) declaration in
+  which the restoration validation runs the checker validate context
+  strengthening. -/
+  sourceStrengthening : InductiveStrengthening sourceEnv lparams nparams
+    sourceTypes isUnsafe
   production : NestedInstalledProduction loweredEnv
   productionContext : AddInductive.Context
   productionContextWF : ContextWF productionContext
@@ -992,6 +997,11 @@ structure NestedExactFinalRunResult
     (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
     (outEnv : Environment) where
   loweredEnv : Environment
+  /-- The abstract environments of the source (unlowered) declaration in
+  which the restoration validation runs the checker validate context
+  strengthening. -/
+  sourceStrengthening : InductiveStrengthening sourceEnv lparams nparams
+    sourceTypes isUnsafe
   production : NestedInstalledProduction loweredEnv
   productionContext : AddInductive.Context
   productionContextWF : ContextWF productionContext
@@ -1362,6 +1372,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
             production_isUnsafe_source := hproducerUnsafe
             production_initialEnv := rfl
             production_indTypes := rfl
+            sourceStrengthening := by rw [hvenv']; exact hstrsSource
             stats := stats
             depth := depth
             commonParams := commonParams
