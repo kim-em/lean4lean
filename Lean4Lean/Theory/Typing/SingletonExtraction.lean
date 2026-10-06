@@ -1,5 +1,7 @@
 import Lean4Lean.Theory.Typing.CanonicalEqTyping
 import Lean4Lean.Theory.Typing.RecursorLemmas
+import Lean4Lean.Theory.Typing.CaseResult
+import Lean4Lean.Theory.Typing.ProjectionProgramTyping
 
 /-! # Extraction of singleton proof fields along type casts
 
@@ -304,6 +306,10 @@ theorem liftN_instOuter_params {X : VExpr} {args : List VExpr} (hX : X.ClosedN (
       bvarRange_getElem _ _ _ (by simp; omega)]
     congr 1; simp; omega
 
+theorem instOuter_closed0 {e : VExpr} (h : e.ClosedN 0) (args : List VExpr) :
+    e.instOuter args = e := by
+  rw [VExpr.instOuter_eq_subst]; exact h.subst_eq .zero
+
 theorem getD_append_left' {l₁ l₂ : List α} {d : α} (h : i < l₁.length) :
     (l₁ ++ l₂).getD i d = l₁.getD i d := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_append_left h]
@@ -468,6 +474,33 @@ theorem TelInst.ident (Γ : List VExpr) (hcl : ∀ j (h : j < doms.length), (dom
   rw [bvarRange_getElem _ _ _ hj, bvarRange_take _ _ _ (Nat.le_of_lt hj),
     VExpr.instOuter_range_bvar' _ _ _ (hcl j hj') (Nat.le_of_lt hj)]
   exact .bvar (Lookup.reverse_append doms Γ j hj')
+
+theorem HasType.mkApps_of_tel (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    (hf : env.HasType U Γ f (VExpr.wrapForalls doms B)) (H : TelInst env U Γ doms args) :
+    env.HasType U Γ (VExpr.mkApps f args) (B.instOuter args) :=
+  IsDefEq.mkApps_congr henv hΓ hf H.1 rfl fun j hj hj' _ => H.2 j hj hj'
+
+/-- A telescope over the parameters, lifted past `r` binders and instantiated at its own
+arguments, is the telescope instantiated at the lifted parameters. -/
+theorem TelInst.unlift {D : List VExpr} (hcl : ∀ j (h : j < D.length), (D[j]).ClosedN (P + j))
+    (hP : params.length = P)
+    (H : TelInst env U Γ (params ++ D) (bvarRange P (P + r) ++ args)) :
+    TelInst env U Γ (D.mapIdx fun l d => d.liftN r l) args := by
+  have hlen : args.length = D.length := by have := H.1; simp [hP] at this; omega
+  refine ⟨by simp [hlen], fun j hj hj' => ?_⟩
+  have hjD : j < D.length := by simpa using hj'
+  have := H.2 (P + j) (by simp; omega) (by simp [hP]; omega)
+  rw [List.getElem_append_right (by simp), List.getElem_append_right (by simp [hP])] at this
+  rw [List.take_append, List.take_of_length_le (by simp)] at this
+  simp only [bvarRange_length, Nat.add_sub_cancel_left, hP] at this
+  have htl : (args.take j).length = j := by simp; omega
+  have e : (D[j].liftN r j).instOuter (args.take j) =
+      D[j].instOuter (bvarRange P (P + r) ++ args.take j) := by
+    have := liftN_instOuter_params (P := P) (X := D[j]) (args := args.take j)
+      (by rw [htl]; exact hcl j hjD) r
+    rwa [htl] at this
+  rw [List.getElem_mapIdx, e]
+  exact this
 
 end VEnv
 
@@ -659,6 +692,20 @@ theorem getD_lift_append_last {σ : List VExpr} {val : VExpr} :
 theorem take_lift_append {σ : List VExpr} {val : VExpr} (h : l ≤ σ.length) :
     (σ.map (fun x : VExpr => x.lift) ++ [val]).take l = (σ.take l).map (fun x : VExpr => x.lift) := by
   rw [List.take_append_of_le_length (by simpa using h), List.map_take]
+
+theorem bvarRange_append (a b t : Nat) (h : a + b ≤ t) :
+    bvarRange (a + b) t = bvarRange a t ++ bvarRange b (t - a) := by
+  apply List.ext_getElem
+  · simp
+  · intro j h1 h2
+    simp only [bvarRange_length] at h1
+    by_cases hj : j < a
+    · rw [List.getElem_append_left (by simpa using hj), bvarRange_getElem _ _ _ h1,
+        bvarRange_getElem _ _ _ hj]
+    · rw [List.getElem_append_right (by simpa using Nat.le_of_not_gt hj), bvarRange_getElem _ _ _ h1]
+      simp only [bvarRange_length]
+      rw [bvarRange_getElem _ _ _ (by omega)]
+      congr 1; omega
 
 theorem bvarRange_split (P r : Nat) :
     bvarRange (P + r) (P + r) = bvarRange P (P + r) ++ bvarRange r r := by
@@ -1070,6 +1117,9 @@ def valueType (j : Nat) : VExpr :=
 slots, and elimination into `Prop` for any motive and branch. -/
 structure WF (env : VEnv) (U : Nat) : Prop where
   typed : S.Typed env U params
+  family_closed : E.family.ClosedN 0
+  ctor_closed : E.ctor.ClosedN 0
+  elimHead_closed : E.elimHead.ClosedN 0
   majorTy_typed : env.HasType U (params ++ S.indices).reverse (PropElim.majorTy S params E) (.sort .zero)
   ctorIndices_length : E.ctorIndices.length = S.indices.length
   ctorIndices_typed : VEnv.TelInst env U (params ++ S.fields).reverse (params ++ S.indices)
@@ -1088,6 +1138,202 @@ structure WF (env : VEnv) (U : Nat) : Prop where
           bvarRange (S.indices.length + 1) (S.indices.length + 1)))
       (VExpr.mkApps (M.liftN (S.indices.length + 1))
         (bvarRange (S.indices.length + 1) (S.indices.length + 1)))
+
+open VEnv CastSpec in
+theorem value_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec} {E : PropElim}
+    (W : E.WF S params env U) (hj : j < S.fields.length) (hs : S.slot.getD j none = none) :
+    env.HasType U [] (value S params E j) (valueType S params E j) := by
+  have T := W.typed
+  -- the generic context: parameters, indices, major
+  have hmcl : (majorTy S params E).ClosedN (params.length + S.indices.length) := by
+    have hc := CtxWF.closed henv.ordered (T.indicesCtx S.indices.length (Nat.le_refl _))
+    rw [List.take_length] at hc
+    have := (W.majorTy_typed.closedN' henv.ordered.closed hc).1
+    simpa [Nat.add_comm] using this
+  have hΔg : OnCtx (params ++ S.indices ++ [majorTy S params E]).reverse (env.IsType U) := by
+    have h1 := T.indicesCtx S.indices.length (Nat.le_refl _)
+    rw [List.take_length] at h1
+    rw [List.reverse_append]
+    exact ⟨h1, _, W.majorTy_typed⟩
+  have hgcl : ∀ i (h : i < (params ++ S.indices ++ [majorTy S params E]).length),
+      ((params ++ S.indices ++ [majorTy S params E])[i]).ClosedN i := by
+    intro i h
+    by_cases hi : i < (params ++ S.indices).length
+    · rw [List.getElem_append_left hi]
+      exact T.prefix_closed (fun l h => T.scope.indices l h) i hi
+    · have : i = (params ++ S.indices).length := by simp at h hi ⊢; omega
+      subst this
+      simpa using hmcl
+  have hid := TelInst.ident (env := env) (U := U) [] hgcl
+  simp only [List.append_nil, List.length_append, List.length_singleton] at hid
+  have hsplit : bvarRange (params.length + S.indices.length + 1)
+      (params.length + S.indices.length + 1) =
+      genericPa S params ++ genericIa S ++ [.bvar 0] := by
+    rw [bvarRange_append _ _ _ (Nat.le_refl _), bvarRange_append _ _ _ (by omega)]
+    simp only [genericPa, genericIa, List.append_assoc]
+    congr 2
+    · simp [bvarRange]; intro a ha; omega
+    · simp [bvarRange]
+  rw [hsplit] at hid
+  have hia : TelInst env U (params ++ S.indices ++ [majorTy S params E]).reverse
+      (params ++ S.indices) (genericPa S params ++ genericIa S) := by
+    have := hid.take (doms := params ++ S.indices) (more := [majorTy S params E])
+    simpa [genericPa, genericIa, List.take_append, List.append_assoc,
+      List.take_of_length_le] using this
+  have hpa : TelInst env U (params ++ S.indices ++ [majorTy S params E]).reverse
+      params (genericPa S params) := by
+    have := hia.take (doms := params) (more := S.indices)
+    simpa [genericPa] using this
+  -- the generic cast telescope and its target
+  obtain ⟨hgctx, hginst⟩ := tel_typed henv heq T hΔg hpa hia (by simp [genericIa]) j (Nat.le_of_lt hj)
+  have hsort : S.fieldSort j = .zero := by unfold fieldSort; rw [hs]
+  have htarget : env.HasType U
+      ((S.tel (genericPa S params) (genericIa S) j).1.reverse ++
+        (params ++ S.indices ++ [majorTy S params E]).reverse)
+      (S.target (genericPa S params) (genericIa S) j) (.sort .zero) := by
+    unfold target
+    rw [getD_of_lt hj]
+    have := HasType.closed_instOuter henv (T.fieldsCtx j (Nat.le_of_lt hj)) (T.fieldSort j hj) hginst
+    simpa [hsort] using this
+  have hbody := HasType.wrapForalls_prop henv.ordered hgctx htarget
+  have hmot : env.HasType U params.reverse (motive S params E j) (motiveType S params E) := by
+    unfold motive motiveType
+    apply HasType.wrapLams_of (by simpa [List.reverse_append, List.append_assoc] using hΔg)
+    simpa [List.reverse_append, List.append_assoc] using hbody
+  -- the branch, at the cast target of the constructor
+  have hΔb : OnCtx (params ++ S.fields).reverse (env.IsType U) := by
+    simpa using T.fieldsCtx S.fields.length (Nat.le_refl _)
+  have hfcl : ∀ i (h : i < (params ++ S.fields).length), ((params ++ S.fields)[i]).ClosedN i :=
+    T.prefix_closed (fun l h => T.scope.fields l h)
+  have hidb := TelInst.ident (env := env) (U := U) [] hfcl
+  simp only [List.append_nil, List.length_append, bvarRange_split] at hidb
+  have hpab : TelInst env U (params ++ S.fields).reverse params (branchPa S params) := by
+    have := hidb.take (doms := params) (more := S.fields)
+    simpa [branchPa] using this
+  obtain ⟨hbctx, _⟩ := tel_typed henv heq T hΔb hpab W.ctorIndices_typed W.ctorIndices_length j
+    (Nat.le_of_lt hj)
+  have hbt := tel_branch_target henv heq T W.ctorIndices_typed W.ctorIndices_length W.slot_literal
+    j hj
+  have hlv : (VExpr.bvar (S.fields.length - 1 - j)).liftN j = .bvar (S.fields.length - 1) := by
+    simp only [VExpr.liftN, liftVar_base']; congr 1; omega
+  rw [hlv] at hbt
+  have hbr0 : env.HasType U (params ++ S.fields).reverse (branch S params E j)
+      (VExpr.wrapForalls (S.tel (branchPa S params) E.ctorIndices j).1
+        (S.target (branchPa S params) E.ctorIndices j)) :=
+    HasType.wrapLams_of hbctx hbt
+  -- the generic body, instantiated at the constructor, is the branch's type
+  have hlenb : (branchPa S params ++ E.ctorIndices ++ [ctorApp S params E]).length =
+      params.length + S.indices.length + 1 := by
+    simp [branchPa, W.ctorIndices_length]; omega
+  have hpaτ : (genericPa S params).map
+      (fun x : VExpr => x.subst (VExpr.Subst.ofList (branchPa S params ++ E.ctorIndices ++ [ctorApp S params E]))) =
+      branchPa S params := by
+    have := VExpr.instOuter_bvarRange params.length (params.length + S.indices.length + 1)
+      (branchPa S params ++ E.ctorIndices ++ [ctorApp S params E]) (by omega) (by rw [hlenb]; omega)
+    simp only [← VExpr.instOuter_eq_subst]
+    rw [genericPa, this, hlenb, Nat.sub_self, List.drop_zero, List.append_assoc,
+      List.take_left' (by simp [branchPa])]
+  have hiaτ : (genericIa S).map
+      (fun x : VExpr => x.subst (VExpr.Subst.ofList (branchPa S params ++ E.ctorIndices ++ [ctorApp S params E]))) =
+      E.ctorIndices := by
+    have := VExpr.instOuter_bvarRange S.indices.length (S.indices.length + 1)
+      (branchPa S params ++ E.ctorIndices ++ [ctorApp S params E]) (by omega) (by rw [hlenb]; omega)
+    simp only [← VExpr.instOuter_eq_subst]
+    rw [genericIa, this, hlenb, show params.length + S.indices.length + 1 - (S.indices.length + 1) =
+      (branchPa S params).length by simp [branchPa], List.append_assoc, List.drop_left,
+      ← W.ctorIndices_length, List.take_left' rfl]
+  have hscope : S.Scoped (genericPa S params).length := by simpa [genericPa] using T.scope
+  have hBτ : (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+        (S.target (genericPa S params) (genericIa S) j)).instOuter
+        (branchPa S params ++ E.ctorIndices ++ [ctorApp S params E]) =
+      VExpr.wrapForalls (S.tel (branchPa S params) E.ctorIndices j).1
+        (S.target (branchPa S params) E.ctorIndices j) := by
+    rw [VExpr.instOuter_eq_subst, subst_wrapForalls, (S.tel_length _ _ j).1,
+      target_subst hscope (by simp [genericIa]), (tel_subst hscope (by simp [genericIa]) _ j).1,
+      hpaτ, hiaτ]
+  -- the motive applied to the constructor is that type
+  have hmajI : (majorTy S params E).instOuter (branchPa S params ++ E.ctorIndices) =
+      VExpr.mkApps E.family (branchPa S params ++ E.ctorIndices) := by
+    have hl : (branchPa S params ++ E.ctorIndices).length = params.length + S.indices.length := by
+      simp [branchPa, W.ctorIndices_length]; try omega
+    simp only [majorTy]
+    simp only [VExpr.instOuter_mkApps, instOuter_closed0 W.family_closed, ← VExpr.mkApps_append]
+    rw [List.map_append, VExpr.instOuter_bvarRange _ _ _ (by omega) (by rw [hl]; exact Nat.le_refl _),
+      VExpr.instOuter_bvarRange _ _ _ (Nat.le_refl _) (by rw [hl]; omega), hl]
+    simp [branchPa, List.drop_left' (by simp [branchPa] : (branchPa S params).length = params.length),
+      List.take_left' (by simp [branchPa] : (branchPa S params).length = params.length),
+      ← W.ctorIndices_length]
+  have htel3 : TelInst env U (params ++ S.fields).reverse
+      (params ++ (S.indices ++ [majorTy S params E]))
+      (branchPa S params ++ (E.ctorIndices ++ [ctorApp S params E])) := by
+    have := W.ctorIndices_typed.append_one (d := majorTy S params E) (a := ctorApp S params E)
+      (by rw [hmajI]; exact W.ctor_typed)
+    simpa [List.append_assoc] using this
+  have hDcl : ∀ i (h : i < (S.indices ++ [majorTy S params E]).length),
+      ((S.indices ++ [majorTy S params E])[i]).ClosedN (params.length + i) := by
+    intro i h
+    by_cases hi : i < S.indices.length
+    · rw [List.getElem_append_left hi]; exact T.scope.indices i hi
+    · have : i = S.indices.length := by simp at h; omega
+      subst this; simpa using hmcl
+  have hD := TelInst.unlift (r := S.fields.length) hDcl rfl htel3
+  have hmotW := hmot.weakN henv.ordered (Ctx.LiftN.zero S.fields.reverse)
+  simp only [List.length_reverse, motiveType, liftN_wrapForalls] at hmotW
+  rw [← List.reverse_append] at hmotW
+  have hT' := HasType.mkApps_of_tel henv hΔb (by simpa [VExpr.liftN] using hmotW) hD
+  simp only [VExpr.instOuter_sort] at hT'
+  have hBcl : (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+      (S.target (genericPa S params) (genericIa S) j)).ClosedN
+      (params.length + (S.indices ++ [majorTy S params E]).length) := by
+    have hc := CtxWF.closed henv.ordered hΔg
+    have := (hbody.closedN' henv.ordered.closed hc).1
+    simp only [List.length_reverse, List.length_append, List.length_singleton] at this
+    simp only [List.length_append, List.length_singleton]
+    rwa [show params.length + (S.indices.length + 1) = params.length + S.indices.length + 1 by omega]
+  have hbeta := VExpr.WF.beta_wrapLams henv hΔb
+    (domains := (S.indices ++ [majorTy S params E]).mapIdx fun l d => d.liftN S.fields.length l)
+    (args := E.ctorIndices ++ [ctorApp S params E])
+    (body := (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+      (S.target (genericPa S params) (genericIa S) j)).liftN S.fields.length
+        (S.indices ++ [majorTy S params E]).length)
+    (by simp [W.ctorIndices_length])
+    (by
+      have := hT'
+      rw [show motive S params E j = VExpr.wrapLams (S.indices ++ [majorTy S params E])
+        (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+          (S.target (genericPa S params) (genericIa S) j)) from rfl, liftN_wrapLams] at this
+      exact ⟨_, this⟩)
+  have hR : ((VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+      (S.target (genericPa S params) (genericIa S) j)).liftN S.fields.length
+        (S.indices ++ [majorTy S params E]).length).instOuter (E.ctorIndices ++ [ctorApp S params E]) =
+      VExpr.wrapForalls (S.tel (branchPa S params) E.ctorIndices j).1
+        (S.target (branchPa S params) E.ctorIndices j) := by
+    rw [show (S.indices ++ [majorTy S params E]).length = (E.ctorIndices ++ [ctorApp S params E]).length by
+        simp [W.ctorIndices_length],
+      liftN_instOuter_params (by have := hBcl; simpa [W.ctorIndices_length] using this),
+      ← List.append_assoc]
+    exact hBτ
+  rw [hR] at hbeta
+  have hb : env.HasType U (params ++ S.fields).reverse (branch S params E j)
+      (VExpr.mkApps ((motive S params E j).liftN S.fields.length)
+        (E.ctorIndices ++ [ctorApp S params E])) := by
+    have h := IsDefEqU.defeqDF henv hΔb (IsDefEqU.symm hbeta) hbr0
+    rw [show motive S params E j = VExpr.wrapLams (S.indices ++ [majorTy S params E])
+        (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+          (S.target (genericPa S params) (genericIa S) j)) from rfl, liftN_wrapLams]
+    exact h
+  -- the eliminator application has the motive's body as its type
+  have helim := W.elim _ _ hmot hb
+  have hΔg' : OnCtx (majorTy S params E :: (params ++ S.indices).reverse) (env.IsType U) := by
+    simpa [List.reverse_append] using hΔg
+  have hres := HasType.projectionMotive_result henv hΔg'
+    (domains := S.indices ++ [majorTy S params E])
+    (body := VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+      (S.target (genericPa S params) (genericIa S) j))
+    (by simpa [motive] using helim)
+  unfold value valueType
+  apply HasType.wrapLams_of (by simpa using hΔg)
+  simpa [List.reverse_append, List.append_assoc, motive] using hres
 
 end PropElim
 end Lean4Lean
