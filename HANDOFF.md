@@ -847,6 +847,25 @@ inside this project's scope without solving open base metatheory:
    full build, tests, `Init.Core` replay and audit pass; `addDecl.WF`
    unchanged; the nine base declarations (13 sorry sites) are the only open
    proofs there. E1 per-phase work (steps 3 to 6) continues on its branch.
+   **Standard restated by Kim (2026-10-06): nothing counts as done until
+   `addDecl.WF` is proved with complete proofs** (no sorry, no hypotheses
+   beyond the specification). Kim also does not accept the prose
+   countermodel as establishing that `weakN_iff` is false, and regards the
+   equality-free environments where it would fail as irrelevant to the goal.
+   Consequences: (i) a machine-checked refutation attempt is running (branch
+   `agent/verify-inductives-base`): a finite groupoid model of
+   `VEnv.IsDefEq` for the small environment, with feasibility report first;
+   if it fails at a rule, strengthening may be true and a proof attempt
+   follows; (ii) E1 PAUSED at a clean commit (14d38a5, pushed): one site
+   (`weakBV_inv_lift`) remains below `addDecl.WF`, dead lemmas not yet
+   deleted; the executable change is only warranted if strengthening fails
+   in real environments; (iii) on E3 the abstract hypothesis is being
+   replaced by the concrete, monotone `VEnv.HasCanonicalEq` plus the base
+   conjecture `strengthening_of_canonicalEq` (wrapper
+   `addDecl.WF_of_canonicalEq`), so the top-level hypothesis is "the
+   environment contains canonical `Eq`"; (iv) the base obligations
+   (confluence, injectivity, strengthening with `Eq`) are on the critical
+   path, not optional.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
