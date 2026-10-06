@@ -20,17 +20,22 @@ theorem CompilationData.major_cases {base : VEnv} {src exp : VInductDecl}
           (g.recursorName s.constructors[j].owner)) (VLevel.params g.uvars))
         (vars (s.params.length + (s.families.size + s.constructors.size))
           s.constructors[j].fields.length ++ idx ++ [major])) ∧
-      ((∃ F ∈ src.types, ∃ c ∈ F.ctors, c.name = s.constructors[j].name ∧
+      idx.length = s.constructors[j].indices.length ∧
+      ((∃ F ∈ src.types, src.types[s.constructors[j].owner.val]? = some F ∧
+        ∃ c ∈ F.ctors, c.name = s.constructors[j].name ∧
         major = VExpr.mkApps (.const c.name g.levels)
           (vars s.params.length (s.families.size + s.constructors.size +
             s.constructors[j].fields.length) ++ vars s.constructors[j].fields.length 0)) ∨
-      (∃ a ∈ aux, ∃ c ∈ a.source.ctors, s.constructors[j].name = a.constructorName c ∧
+      (∃ a ∈ aux, src.types.length ≤ s.constructors[j].owner.val ∧
+        aux[s.constructors[j].owner.val - src.types.length]? = some a ∧
+        ∃ c ∈ a.source.ctors, s.constructors[j].name = a.constructorName c ∧
         major = VExpr.mkApps (.const c.name (a.levels.map (·.inst g.levels)))
           (a.arguments.map (fun arg => instantiateParams (arg.instL g.levels)
             (vars s.params.length (s.families.size + s.constructors.size +
               s.constructors[j].fields.length))) ++ vars s.constructors[j].fields.length 0))) := by
-  obtain ⟨Ds, idx, R, major, hlhs, _, _, _, _, hmaj⟩ := CompilationData.rule_shape hdata j hrestore
-  refine ⟨Ds, idx, major, hlhs, ?_⟩
+  obtain ⟨Ds, idx, R, major, hlhs, _, _, hidx, _, hmaj⟩ :=
+    CompilationData.rule_shape hdata j hrestore
+  refine ⟨Ds, idx, major, hlhs, hidx, ?_⟩
   by_cases ho : s.constructors[j].owner.val < src.types.length
   · obtain ⟨_, _, hctors⟩ := CompilationData.source_slot hdata _ ho
     obtain ⟨c, hc, hcn⟩ := hctors j rfl
@@ -38,7 +43,7 @@ theorem CompilationData.major_cases {base : VEnv} {src exp : VInductDecl}
     have hcn' : c.name ∈ familyNames src.types :=
       List.mem_flatMap.mpr ⟨_, hF, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨c, hc, rfl⟩)⟩
     left
-    refine ⟨_, hF, c, hc, hcn, ?_⟩
+    refine ⟨_, hF, List.getElem?_eq_getElem ho, c, hc, hcn, ?_⟩
     rcases hmaj with ⟨hnone, rfl⟩ | ⟨spec, hspec, hsome, _, _⟩
     · have hhn := hdata.headName_source hcn'
       unfold Restoration.headName at hhn
@@ -65,7 +70,7 @@ theorem CompilationData.major_cases {base : VEnv} {src exp : VInductDecl}
       (s.declarationCtor_family j)
     obtain ⟨c, hc, t, _, hdcname, _⟩ := directFamily_ctor hdf hdc
     have hjn : s.constructors[j].name = _ := hdcn.trans hdcname
-    refine ⟨_, ha, c, hc, hjn, ?_⟩
+    refine ⟨_, ha, ho', List.getElem?_eq_getElem hjb, c, hc, hjn, ?_⟩
     let a := aux[s.constructors[j].owner.val - src.types.length]
     have hhead : HeadSpecialization.mk (a.constructorName c) src.uvars src.nparams c.name
         a.levels a.arguments ∈ (compilationRestoration src aux).heads :=
@@ -198,11 +203,11 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     have hbE : bX ≤ env := hbX.trans ((install_le hinstX).trans hleX)
     have hnp : dX.schema.signature.params.length = srcX.nparams := by
       rw [hdataX.model.nparams, hdataX.nparams]
-    obtain ⟨Ds, idx, major, hlhs, hcases⟩ := CompilationData.major_cases hdataX iX hgX'
+    obtain ⟨Ds, idx, major, hlhs, _, hcases⟩ := CompilationData.major_cases hdataX iX hgX'
     have hmaj : major = VExpr.mkApps (.const c ls) args := by
       rw [hlhs, ruleBody_stripLams] at hm
       exact (VExpr.app.inj hm).2
-    rcases hcases with ⟨F, hF, c', hc', hcn, rfl⟩ | ⟨a, ha, c', hc', hcn, rfl⟩
+    rcases hcases with ⟨F, hF, _, c', hc', hcn, rfl⟩ | ⟨a, ha, _, _, c', hc', hcn, rfl⟩
     · obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hmaj
       have hconst : env.constants c'.name = some c'.toVConstant :=
         hleX.constants (VInductBlock.install_ctor_lookup hinstX (by
@@ -220,5 +225,101 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
       have := CompilationData.container_arity hdataX hpriorX hP hbE htypesE iX ha hc' hcn
       simp only [ctorView]
       omega
+
+/-- T5 (d): two distinct equations with the same head apply it to the same number of arguments,
+and their majors are constructors of the same family (in the table) at the same universe levels.
+(By `same_head`, they are native equations of one recursor entry at distinct constructors.) -/
+theorem same_head_spines {env : VEnv} (H : env.WF) (h1 : env.defeqs df₁) (h2 : env.defeqs df₂)
+    (hh1 : VDefEq.head df₁ = .const h ls₁) (hh2 : VDefEq.head df₂ = .const h ls₂)
+    (hne : df₁ ≠ df₂) :
+    ∃ u pre₁ pre₂ c₁ c₂ lv args₁ args₂ k₁ k₂,
+      df₁.lhs.stripLams = .app (VExpr.mkApps (.const h (VLevel.params u)) pre₁)
+        (VExpr.mkApps (.const c₁ lv) args₁) ∧
+      df₂.lhs.stripLams = .app (VExpr.mkApps (.const h (VLevel.params u)) pre₂)
+        (VExpr.mkApps (.const c₂ lv) args₂) ∧
+      pre₁.length = pre₂.length ∧ c₁ ≠ c₂ ∧
+      ctorOf env c₁ = some k₁ ∧ ctorOf env c₂ = some k₂ ∧ k₁.family = k₂.family := by
+  have HT := envTables_inv H
+  obtain ⟨data, hd, hname, _, i, j, hi, hj, hgi, hgj, _, hnames⟩ :=
+    same_head HT h1 h2 hh1 hh2 hne
+  obtain ⟨_, hev⟩ := HT.natives hd
+  obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, hpriorX, hbX, hrX, _, hinstX,
+    hleX, hfamX⟩ := hev
+  have hbE : bX ≤ env := hbX.trans ((install_le hinstX).trans hleX)
+  have hgi' : (compilationRestoration srcX auxX).equation (data.nativeInstance.equation i) =
+      some df₁ := by simpa only [NativeRecursorData.equation, hrX] using hgi
+  have hgj' : (compilationRestoration srcX auxX).equation (data.nativeInstance.equation j) =
+      some df₂ := by simpa only [NativeRecursorData.equation, hrX] using hgj
+  have hrec : (compilationRestoration srcX auxX).recursorName
+      (data.nativeInstance.recursorName data.owner) = h := by
+    rw [← hname]; unfold NativeRecursorData.name; rw [hrX]; rfl
+  obtain ⟨Ds₁, idx₁, m₁, hl₁, hidx₁, hc₁⟩ := CompilationData.major_cases hdataX i hgi'
+  obtain ⟨Ds₂, idx₂, m₂, hl₂, hidx₂, hc₂⟩ := CompilationData.major_cases hdataX j hgj'
+  rw [hi, hrec] at hl₁
+  rw [hj, hrec] at hl₂
+  have harity := hdataX.model.constructorArity
+  have hind₁ := harity _ (Array.getElem_mem_toList (i := i.val) (h := i.isLt))
+  have hind₂ := harity _ (Array.getElem_mem_toList (i := j.val) (h := j.isLt))
+  simp only [Fin.getElem_fin] at hidx₁ hidx₂ hind₁ hind₂
+  have hpre : (vars (data.schema.signature.params.length + (data.schema.signature.families.size +
+        data.schema.signature.constructors.size))
+        data.schema.signature.constructors[i].fields.length ++ idx₁).length =
+      (vars (data.schema.signature.params.length + (data.schema.signature.families.size +
+        data.schema.signature.constructors.size))
+        data.schema.signature.constructors[j].fields.length ++ idx₂).length := by
+    have hi' := hi
+    have hj' := hj
+    simp only [Fin.getElem_fin] at hi' hj'
+    simp only [hi'] at hind₁
+    simp only [hj'] at hind₂
+    simp only [List.length_append, vars_length, hidx₁, hidx₂, Fin.getElem_fin]
+    omega
+  have hstrip : ∀ {Ds idx : List VExpr} {m : VExpr} {df : VDefEq},
+      df.lhs = VExpr.wrapLams Ds (VExpr.mkApps (.const h (VLevel.params data.nativeInstance.uvars))
+        (idx ++ [m])) →
+      df.lhs.stripLams = .app (VExpr.mkApps (.const h (VLevel.params data.nativeInstance.uvars))
+        idx) m := by
+    intro Ds idx m df hl
+    rw [hl, ruleBody_stripLams]
+  have hs₁ := hstrip hl₁
+  have hs₂ := hstrip hl₂
+  rw [hrX] at hnames
+  have hown : (data.schema.signature.constructors[i].owner).val =
+      (data.schema.signature.constructors[j].owner).val := by rw [hi, hj]
+  have hhn : ∀ {c : VConstVal} {F : VInductiveType}, F ∈ srcX.types → c ∈ F.ctors →
+      (compilationRestoration srcX auxX).headName c.name = c.name := fun hF hc =>
+    hdataX.headName_source
+      (List.mem_flatMap.mpr ⟨_, hF, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨_, hc, rfl⟩)⟩)
+  have hconst : ∀ {c : VConstVal} {F : VInductiveType}, F ∈ srcX.types → c ∈ F.ctors →
+      env.constants c.name = some c.toVConstant := fun hF hc =>
+    hleX.constants (VInductBlock.install_ctor_lookup hinstX (by
+      rw [hdataX.ctors]; exact List.mem_flatMap.mpr ⟨_, hF, hc⟩))
+  rcases hc₁ with ⟨F₁, hF₁, hg₁, c₁, hc₁, hn₁, rfl⟩ | ⟨a₁, ha₁, hle₁, hg₁, c₁, hc₁, hn₁, rfl⟩ <;>
+  rcases hc₂ with ⟨F₂, hF₂, hg₂, c₂, hc₂, hn₂, rfl⟩ | ⟨a₂, ha₂, hle₂, hg₂, c₂, hc₂, hn₂, rfl⟩
+  · rw [hown, hg₂] at hg₁
+    cases hg₁
+    obtain ⟨k₁, hk₁, hf₁, _⟩ := ctor_entry_of_fam HT (hfamX F₁ hF₁ (List.ne_nil_of_mem hc₁)) hc₁
+      (hconst hF₁ hc₁)
+    obtain ⟨k₂, hk₂, hf₂, _⟩ := ctor_entry_of_fam HT (hfamX F₁ hF₁ (List.ne_nil_of_mem hc₂)) hc₂
+      (hconst hF₁ hc₂)
+    refine ⟨_, _, _, _, _, _, _, _, k₁, k₂, hs₁, hs₂, hpre, ?_, hk₁, hk₂, hf₁.trans hf₂.symm⟩
+    intro he
+    apply hnames
+    rw [← hn₁, ← hn₂, hhn hF₁ hc₁, hhn hF₁ hc₂, he]
+  · exfalso
+    have := (List.getElem?_eq_some_iff.mp hg₁).1
+    omega
+  · exfalso
+    have := (List.getElem?_eq_some_iff.mp hg₂).1
+    omega
+  · rw [hown, hg₂] at hg₁
+    cases hg₁
+    have hk₁ := container_ctor HT hpriorX hbE ha₁ hc₁
+    have hk₂ := container_ctor HT hpriorX hbE ha₁ hc₂
+    refine ⟨_, _, _, _, _, _, _, _, _, _, hs₁, hs₂, hpre, ?_, hk₁, hk₂, rfl⟩
+    intro he
+    apply hnames
+    rw [hn₁, hn₂, hdataX.headName_auxiliary_constructor ha₁ hc₁,
+      hdataX.headName_auxiliary_constructor ha₁ hc₂, he]
 
 end Lean4Lean.ShapeModel
