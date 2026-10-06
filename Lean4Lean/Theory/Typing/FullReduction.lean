@@ -1166,7 +1166,7 @@ their checks: the major lives in an inductive family, so it is never a
 function, and a native proof major only matches when the recursor's motive
 is propositional (the generated-case analogue of the latter is proved, see
 `MatchedCaseStep.result_prop_of_major_proof`). -/
-class MajorSeparation : Prop where
+class HeadSeparation : Prop where
   /-- The major premise of a matched native redex is not a function. This is
   an instance of rigid-family/Pi separation (an injectivity-class fact). -/
   not_pi : OnCtx Γ (env.IsType univs) → Pat p r → p.Matches (.app F M) m1 m2 →
@@ -1181,6 +1181,9 @@ class MajorSeparation : Prop where
   (the missing injectivity-class separation, `IsDefEqU.rigidApp_forallE_inv`). -/
   rigid_not_pi : OnCtx Γ (env.IsType univs) → env.Rigid c →
     ¬ Γ ⊢ VExpr.mkApps (.const c ls) args ≡ .forallE A B
+  /-- Distinct rigid heads are never definitionally equal applications. -/
+  rigid_ne : OnCtx Γ (env.IsType univs) → env.Rigid c → env.Rigid c' → c ≠ c' →
+    ¬ Γ ⊢ VExpr.mkApps (.const c ls) args ≡ VExpr.mkApps (.const c' ls') args'
   /-- The constructor major of a matched generated case redex is not a
   function (rigid-family/Pi separation at the case major). -/
   case_not_pi : OnCtx Γ (env.IsType univs) → MatchedCaseStep env univs Γ rule actual →
@@ -1459,7 +1462,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
     (NormalEq.forall₂_refl fun a ha => schema_mkApps_arg_type hΓ hFt ha) (.refl hMt) hEt H
 
 
-theorem SpineTransport.native_iota [MajorSeparation]
+theorem SpineTransport.native_iota [HeadSeparation]
     {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
       (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check}
     (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
@@ -1522,7 +1525,7 @@ theorem SpineTransport.native_iota [MajorSeparation]
     rcases NormalEqN.spine_expose hΓ .const k HM (bs := []) .nil hMt with
       hprop | ⟨h', fs₂, he, hred, hfs⟩ | ⟨A', g, m, targs₁, B', _, _, _, hrel, hty⟩
     · have hMℓP := hMt.defeqU_l henv hΓ (HM.defeq hΓ)
-      have hTℓ := MajorSeparation.proof_major hΓ hp hEℓ hcℓ hEt hMℓP hprop
+      have hTℓ := HeadSeparation.proof_major hΓ hp hEℓ hcℓ hEt hMℓP hprop
       exact ⟨_, .rfl, .proofIrrel hTℓ hxT hrhsT⟩
     · obtain ⟨lsc₂, rfl, hlsc⟩ : ∃ lsc₂, h' = .const cc lsc₂ ∧ List.Forall₂ (· ≈ ·) lsc₂ lsc := by
         cases he with | const h => exact ⟨_, rfl, h⟩
@@ -1565,7 +1568,7 @@ theorem SpineTransport.native_iota [MajorSeparation]
       obtain ⟨_, hcc⟩ := schema_mkApps_head_type hΓ hty
       have hMℓ' := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
       have hpi := hty.defeqU_l henv hΓ (hMℓ'.defeq hΓ)
-      exact MajorSeparation.not_pi hΓ hp hEℓ hcℓ hEt hpi
+      exact HeadSeparation.not_pi hΓ hp hEℓ hcℓ hEt hpi
   have fire' : ∀ {ρ Γ' ls₁ vs₁ M₁ T Tℓ}, OnCtx Γ' (env.IsType univs) → Ctx.Lift' ρ Γ Γ' →
       List.Forall₂ (· ≈ ·) ls₁ m1 → List.Forall₂ (NormalEq Γ') vs₁ (vsF.map (·.lift' ρ)) →
       NormalEq Γ' M₁ ((VExpr.mkApps (.const cc lsc) fsM).lift' ρ) →
@@ -1577,7 +1580,7 @@ theorem SpineTransport.native_iota [MajorSeparation]
   exact SpineTransport.redex (hd := fun ls => .const rc ls) (fun _ => .const) (fun _ _ => rfl)
     (fun he => by cases he with | const h => exact ⟨_, rfl, h⟩) fire'
 
-theorem SpineTransport.native [MajorSeparation] (hp : Pat p r) (hm : p.Matches e m1 m2)
+theorem SpineTransport.native [HeadSeparation] (hp : Pat p r) (hm : p.Matches e m1 m2)
     (hc : r.2.OK (IsDefEqU env univs Γ) m1 m2) (hr : ∀ a, ParRed Γ (m2 a) (m2' a))
     (ih : ∀ a n, SpineTransport Γ (m2 a) (m2' a) n) :
     ∀ n, SpineTransport Γ e (r.1.apply m1 m2') n := by
@@ -1633,7 +1636,7 @@ private theorem levelEquiv_mkApps (hf : VExpr.LEquiv univs f f') (args : List VE
   | nil => exact hf
   | cons a args ih => exact ih (.app hf .refl)
 
-theorem SpineTransport.schema [MajorSeparation]
+theorem SpineTransport.schema [HeadSeparation]
     {rule : InductiveSignature.CaseSchema.AppliedRule}
     {actual : InductiveSignature.CaseSchema.Application}
     (hm : MatchedCaseStep env univs Γ rule actual)
@@ -1732,9 +1735,9 @@ theorem SpineTransport.schema [MajorSeparation]
     obtain ⟨_, hcc⟩ := schema_mkApps_head_type hΓ hty
     have hMℓ' := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
     have hpi := hty.defeqU_l henv hΓ (hMℓ'.defeq hΓ)
-    exact MajorSeparation.case_not_pi hΓ hmℓ (by simpa [CaseApplicationMap] using hpi)
+    exact HeadSeparation.case_not_pi hΓ hmℓ (by simpa [CaseApplicationMap] using hpi)
 
-theorem ParRed.spineTransport [MajorSeparation] (H : ParRed Γ e e') : ∀ n, SpineTransport Γ e e' n := by
+theorem ParRed.spineTransport [HeadSeparation] (H : ParRed Γ e e') : ∀ n, SpineTransport Γ e e' n := by
   induction H with
   | bvar | sort | const | elim => exact fun _ => SpineTransport.same
   | app hf ha ihf iha => exact SpineTransport.app hf ha ihf iha
@@ -1748,7 +1751,7 @@ theorem ParRed.spineTransport [MajorSeparation] (H : ParRed Γ e e') : ∀ n, Sp
 /-- Normal equality respects one parallel step. Eta expansion of the left
 side, needed for the eta and extensionality comparisons, is the full
 presentation's `FullStep.funEta`. -/
-theorem NormalEq.parRed [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
+theorem NormalEq.parRed [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
     (H2 : ParRed Γ e₂ e₂') :
     ∃ e₁', FullReduction Γ e₁ e₁' ∧ NormalEq Γ e₁' e₂' := by
   obtain ⟨n, H1⟩ := H1
@@ -1756,7 +1759,7 @@ theorem NormalEq.parRed [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs)) (H
     (by simp only [VExpr.lift'_refl, VExpr.mkApps, List.foldl]; exact H1)
   simpa only [VExpr.lift'_refl, VExpr.mkApps, List.foldl] using this
 
-theorem NormalEq.parRedS [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
+theorem NormalEq.parRedS [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
     (H2 : ParRedS Γ e₂ e₂') :
     ∃ e₁', FullReduction Γ e₁ e₁' ∧ NormalEq Γ e₁' e₂' := by
   induction H2 with
@@ -1836,7 +1839,7 @@ theorem NormalEqN.fullStep_rigidRule {name : Name}
     have hrhs₁ := hty.defeqU_l henv hΓ (defeq hΓ hr₁)
     exact ⟨_, hred.trans (FullReduction.lam .rfl hY), (NormalEq.etaL hrhs₁ hn).trans hΓ hn₁⟩
 
-theorem NormalEqN.fullStep_projIota [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEqN.fullStep_projIota [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     (lproj : Γ ⊢ .proj family index major : resultType)
     (lMajor : NormalEqN k Γ major (VExpr.mkApps (.const info.ctorName levels) args))
     (hl : env.projections family info)
@@ -1871,7 +1874,7 @@ theorem NormalEqN.fullStep_projIota [MajorSeparation] (hΓ : OnCtx Γ (env.IsTyp
     have hsp := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
     have hpi := hty.defeqU_l henv hΓ (hsp.defeq hΓ)
     have hfam := hmT.defeqU_l henv hΓ (lMajor.defeq hΓ)
-    exact MajorSeparation.rigid_not_pi hΓ (henv.projectionRigid hinfo)
+    exact HeadSeparation.rigid_not_pi hΓ (henv.projectionRigid hinfo)
       (hfam.uniqU henv hΓ hpi)
 
 end RigidRule
@@ -1879,7 +1882,7 @@ end RigidRule
 /-- Normal equality respects full reduction. The remaining proof obligations
 are application-head and primitive projection exposure; constant unfolding
 and the explicit function and structure eta cases are proved. -/
-theorem NormalEqN.fullStep [MajorSeparation] : ∀ n {Γ left right result},
+theorem NormalEqN.fullStep [HeadSeparation] : ∀ n {Γ left right result},
     OnCtx Γ (env.IsType univs) → NormalEqN n Γ left right → FullStep Γ right result →
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   classical
@@ -2119,12 +2122,12 @@ theorem NormalEqN.fullStep [MajorSeparation] : ∀ n {Γ left right result},
     | app => cases hs
     | forallE => cases hs
 
-theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEq.fullStep [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (R : FullStep Γ right result) :
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result :=
   let ⟨n, H⟩ := H; NormalEqN.fullStep n hΓ H R
 
-theorem NormalEq.fullReduction [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEq.fullReduction [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (R : FullReduction Γ right result) :
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   induction R with
@@ -2182,7 +2185,7 @@ theorem FullReduction.funEta_strip (hΓ : OnCtx Γ (env.IsType univs))
 /-- The required global strip property. One arbitrary full step must commute
 with an entire finite development. Local sequence joinability would not be
 sufficient to derive this statement in a calculus without termination. -/
-theorem FullStep.strip (hΓ : OnCtx Γ (env.IsType univs))
+theorem FullStep.strip [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     (ht : HasType env univs Γ source type)
     (step : FullStep Γ source left) (development : FullReduction Γ source right) :
     ∃ left' right', FullReduction Γ left left' ∧ FullReduction Γ right right' ∧
@@ -2204,14 +2207,18 @@ theorem FullStep.strip (hΓ : OnCtx Γ (env.IsType univs))
           (ht.proj_index_lt henv hΓ hl) hs hc ht
         exact ⟨_, _, hcancel.trans development, .rfl,
           .refl (development.hasType hΓ ht)⟩
-      · sorry
+      · exfalso
+        obtain ⟨info', _, _, _, _, _, _, hinfo, _, _, _, _, _, _, hmaj, _, _⟩ :=
+          ht.proj_inv henv hΓ
+        exact HeadSeparation.rigid_ne hΓ (henv.projectionRigid hinfo)
+          (henv.projectionRigid hl) hfamily (hmaj.hasType.2.uniqU henv hΓ hs)
     | _ => sorry
   | _ => sorry
 
 /-- Full confluence follows from the global strip property and transport
 through normal equality; no termination or local-confluence inference is
 used. -/
-theorem FullReduction.church_rosser [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
+theorem FullReduction.church_rosser [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     (ht : HasType env univs Γ source type)
     (left : FullReduction Γ source l) (right : FullReduction Γ source r) :
     ∃ l' r', FullReduction Γ l l' ∧ FullReduction Γ r r' ∧ NormalEq Γ l' r' := by
