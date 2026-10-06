@@ -50,6 +50,8 @@ structure Registry.EnvironmentContract (registry : Registry) (env : VEnv)
   natives : ∀ name data, registry.natives name = some data →
     NativeRecursorRegistered env data ∧ data.name = name ∧
       Nonempty (NativeDeclarationOrigin env declarations data)
+  nativeNotDefinition : ∀ name data, registry.natives name = some data →
+    registry.definitions name = none
   projections : ∀ name info, registry.projections name = some info ↔ env.projections name info
   structures : ∀ name entry, registry.structureConstructors name = some entry ↔
     env.projections entry.typeName entry.info ∧ entry.info.ctorName = name
@@ -94,6 +96,8 @@ theorem _root_.Lean4Lean.VEnv.WF'.canonicalRegistry
     scope := fromHistory_scoped history
     definitions := definitions
     natives := ?_
+    nativeNotDefinition := fun _ _ lookup =>
+      raw.removeEmptyNatives_notDefinition formedEnv definitions nativeSound lookup
     projections := ?_
     structures := ?_
     caseLookup := ?_
