@@ -703,6 +703,21 @@ inside this project's scope without solving open base metatheory:
    consumed translation, `restrictUpSetCtx`, `weakBV_inv_lift`) need either
    producer changes keeping a narrow-context run or a locality theorem for
    fresh checker runs. Estimated total 3k to 12k lines depending on route.
+   **Decision (Kim, 2026-10-06): try both routes in parallel and keep the one
+   that reaches the end.** E1 is developed on branch
+   `agent/verify-inductives-e1` (worktree `../lean4lean-e1`): scoped caches
+   and `EquivManager`, binder always opened in `isDefEqLambda`/`isDefEqForall`,
+   Primitive gadget pieces re-checked in the empty context; success criteria
+   are a full build with no `weakN_iff`-family use under the checker, Primitive
+   and `ConditionallyTyped`, the cache-scope experiment now rejected by the
+   Lean4Lean checker, and fresh `Init.Prelude`/`Init.Core` replays with
+   timings against the unmodified branch. E3 is developed on
+   `agent/verify-inductives-e3` (worktree `../lean4lean-e3`): `VEnv.Strengthening`
+   replaces the sorry as an explicit hypothesis threaded to `addDecl.WF`,
+   quantified over exactly the intermediate environments each declaration kind
+   uses (the output environment's strengthening is never claimed). The nested
+   junction work continues on `agent/verify-inductives` and is merged into
+   the surviving route afterwards.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against
