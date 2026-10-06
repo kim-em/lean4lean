@@ -939,6 +939,35 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
     show _ < _
     omega
   obtain ⟨hctxF, hmb⟩ := minorBody_inst henv hP hM0 hall hFcl hshape hbody hCIcl hccl
+  rw [← List.append_assoc] at hmb
+  -- the constructor indices along the index telescope
+  have hCItel : TelInst env g.uvars (g.params ++ g.sFields c).reverse
+      (g.params ++ g.sIndices owner)
+      (bvarRange g.params.length (g.params.length + (g.sFields c).length) ++ g.sCtorIndices c) := by
+    have := hmb.take
+    rwa [List.take_append_of_le_length (by simp [harity]), List.take_of_length_le (by simp [harity])]
+      at this
+  have hMajEq : g.sMajor owner = VExpr.mkApps (.const s.families[owner].name g.levels)
+      (bvarRange (g.params.length + (g.sIndices owner).length)
+        (g.params.length + (g.sIndices owner).length)) := by
+    have hv := vars_eq_bvarRange (g.sIndices owner).length 0
+    simp only [Nat.add_zero] at hv
+    simp only [sMajor, sIndices, List.length_map] at hv ⊢
+    rw [CastSpec.bvarRange_split, ← vars_eq_bvarRange, ← hv, hPlen]
+  have hctorT : env.HasType g.uvars (g.params ++ g.sFields c).reverse (g.sCtorApp c)
+      (VExpr.mkApps (.const s.families[owner].name g.levels)
+        (bvarRange g.params.length (g.params.length + (g.sFields c).length) ++ g.sCtorIndices c)) := by
+    have hl : (bvarRange g.params.length (g.params.length + (g.sFields c).length) ++
+        g.sCtorIndices c).length = g.params.length + (g.sIndices owner).length := by
+      simp [harity]
+    have := hmb.2 (g.params.length + (g.sIndices owner).length) (by simp [harity])
+      (by simp)
+    rw [List.getElem_append_right (by simp [harity]), List.getElem_append_right (by simp)] at this
+    simp only [List.length_append, bvarRange_length, harity, Nat.sub_self,
+      List.getElem_singleton] at this
+    rw [List.take_append_of_le_length (by simp [harity]), List.take_of_length_le (by simp [harity]),
+      hMajEq, ← hl, instOuter_bvarRange_apps (f := .const s.families[owner].name g.levels) trivial] at this
+    exact this
   sorry
 
 end Instance
