@@ -414,3 +414,46 @@ instance obligations change:
 * `pat_iota_params`: native iota at a structure constructor reads only the
   fields, not the parameters, so a structure eta expansion of the major
   collapses by projection.
+
+## 7. The `Params` instance of a well-formed environment (in progress)
+
+`Theory/Typing/ConcretePatterns.lean` defines the concrete pattern table
+`ConcretePattern registry env` (definition unfoldings, the primitive quotient
+rule when the quotient declaration is present, and native iota rules), over the
+canonical registry of `VEnv.WF.canonicalRegistry`, and proves its syntactic
+non-overlap facts. `Theory/Typing/ConcreteParams.lean` assembles `Params` from
+it. Two `Params` fields were restated truthfully:
+
+* `pat_const_native` and `recursorData_quot` exclude `Quot.lift` only when
+  `QuotRegistered env` holds: without the quotient declaration, `Quot.lift` is
+  an ordinary name and may be a definition.
+* `pat_struct_major` and `schema_struct_major` take the typing context's
+  well-formedness, since they are proved by uniqueness of types.
+
+### Confluence is false for some well-formed environments
+
+`VEnv.WF` admits environments in which `VEnv.IsDefEq` is not confluent in the
+full presentation, so `FullEquationCoverage` and the unconditional
+`VEnv.WF.church_rosser` are false as stated:
+
+1. Large elimination from a `Prop` family is excluded from native iota
+   (`pat_recursor` forces the guard `.nonzero sourceLevel`), so its only
+   computation is the singleton prefix unfolding `NativeDeltaRule`. Its replay
+   requires typed captures, and a proof-field selector is a case-eliminator
+   application at generic indices. The strengthening agent's countermodel
+   `envCM` (branch `agent/verify-inductives-base`, `Theory/Typing/Countermodel/`)
+   exhibits a family where that selector is ill-typed, so the singleton
+   equation cannot be joined. Independently, the selector needs the case
+   schema to be registered: `inductive And` installed without
+   `inductEliminators` is well formed, and its `And.rec` equation (source
+   level zero, large target) cannot be joined. The planned repair, following
+   the coordinator, is `Eq`-cast extraction selectors under
+   `env.HasCanonicalEq`.
+2. `inductProjections` and `inductEliminators` may register metadata for the
+   same constants from different declarations. Example (found by the
+   structure-major fork): register `structure S : Type` with constructor `S.a`
+   over axioms `S`, `S.a`; add the axiom `S.b : S`; register the case schema of
+   `inductive S | b : S` over the empty base. Then `elim m x S.b` computes to
+   `x` while `elim m x S.a` is stuck, although `S.a ≡ S.b` by the unit-like
+   rule. This is isolated as an explicit coherence hypothesis on registered
+   eliminator schemas (`schema_struct_major` is false without it).
