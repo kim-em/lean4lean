@@ -909,7 +909,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of_containers
   let H := E.restoredEquationContainers_of wf Hsources auxiliaries D C hC hV G
   { eliminatorProjNames, constructorProjNames, recursorProjNames, equationProjNames,
     auxiliaryConstructors := H.1
-    projections := H.2 }
+    projections := fun entry hentry => (H.2 entry hentry).onCtx }
 
 end VerifyInductive
 end Lean4Lean

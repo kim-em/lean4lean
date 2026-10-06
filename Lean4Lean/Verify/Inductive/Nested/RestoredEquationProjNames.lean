@@ -1187,7 +1187,7 @@ auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the
 transport of the lowered projection rules (`projections`). The projection
 names of the lowered constructor types, generated recursor types and
 generated equations are `restoredEquationProjNames_of`. The result has the
-shape of the hypothesis `G` of `hrestoredWF_of`. -/
+shape of the hypothesis `G` of `hrestoredWF_of_gaps`. -/
 theorem NestedValidatedRunResult.restoredEquationGaps_of
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -1231,7 +1231,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
                   (VExpr.wrapLams E.production.compilationSignature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionTransport C.finalBaseVEnv
+          VEnv.ProjectionTransportOnCtx C.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
@@ -1293,7 +1293,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of'
                   (VExpr.wrapLams E.production.compilationSignature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionTransport C.finalBaseVEnv
+          VEnv.ProjectionTransportOnCtx C.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming

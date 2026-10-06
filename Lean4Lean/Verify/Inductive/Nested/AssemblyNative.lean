@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.RuleJunction
 import Lean4Lean.Verify.Inductive.Nested.RuleShape
 import Lean4Lean.Verify.Inductive.Nested.RecursorProvenance
+import Lean4Lean.Verify.Inductive.Nested.AuxiliaryProjectionTransport
 
 /-! # The final assembly certificate of a validated nested run
 
@@ -10,8 +11,8 @@ import Lean4Lean.Verify.Inductive.Nested.RecursorProvenance
   final assembly shape. It composes `hruleShape_of`, `hrules_of`,
   `hprovenance_of` and `assemblyNative_of_run`.
 * `NestedValidatedRunResult.assemblyNative`: the same certificate with no
-  hypothesis beyond the run being nested; this is used by
-  `Nested/FinalModelDispatch.lean`. -/
+  hypothesis beyond the run being nested, from `hrestoredWF_of`; this is used
+  by `Nested/FinalModelDispatch.lean`. -/
 
 namespace Lean4Lean
 
@@ -62,24 +63,10 @@ theorem NestedValidatedRunResult.assemblyNative_of_restoredWF
 
 /-- The canonical equations and concrete recursor evidence are selected from
 this complete successful run. This theorem does not upgrade arbitrary legacy
-rule batches or accept a caller-supplied compilation callback.
-
-Remaining obligation: this is `assemblyNative_of_restoredWF E wf Hsources
-hnested HrestoredWF`, where `HrestoredWF` is the hypothesis of
-`assemblyNative_of_restoredWF` (equivalently of `hruleShape_of`): for every
-specialization list `auxiliaries` with
-`RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-(mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams`, every final assembly
-shape `C` with `C.production = E.production` in whose final abstract
-environment `C.finalBaseVEnv` the stripped output environment
-`stripRecursorRules outEnv (restoredRecursorNames ...)` is
-`CheckingEnv.Valid`, and every constructor index `k`, each restored generated
-equation `rule` with `(compilationRestoration sourceDecl auxiliaries).equation
-(E.production.production.completed.canonicalGeneration.equation k) = some rule`
-satisfies `rule.WF C.finalBaseVEnv`. Once that is available as
-`E.hrestoredWF_of wf Hsources` (`Nested/RestoredEquationWF.lean`), the body
-becomes `assemblyNative_of_restoredWF E wf Hsources hnested
-(E.hrestoredWF_of wf Hsources)`. -/
+rule batches or accept a caller-supplied compilation callback. The
+restored-equation well-formedness `HrestoredWF` of
+`assemblyNative_of_restoredWF` is `NestedValidatedRunResult.hrestoredWF_of`
+(`Nested/AuxiliaryProjectionTransport.lean`). -/
 theorem NestedValidatedRunResult.assemblyNative
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -93,8 +80,8 @@ theorem NestedValidatedRunResult.assemblyNative
     Nonempty { C : NestedFinalAssemblyCertificate E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
-      C.production = E.production } := by
-  sorry
+      C.production = E.production } :=
+  E.assemblyNative_of_restoredWF wf Hsources hnested (E.hrestoredWF_of wf Hsources)
 
 end VerifyInductive
 
