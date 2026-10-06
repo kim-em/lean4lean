@@ -568,14 +568,17 @@ where
         loop (body.instantiate1 arg) (i + 1) bu u fuel
     else k t bu u
 
-def loopUArgs (ui : Expr) (k : Expr → Array Expr → M α) : M α := do
+/-- The parameters and the constructor fields before the field `ui`. -/
+def fieldsBefore (stats : InductiveStats) (fields : Array Expr) (ui : Expr) :
+    Array Expr :=
+  stats.params ++ fields.takeWhile (·.fvarId! != ui.fvarId!)
+
+def loopUArgs (prior : Array Expr) (ui : Expr) (k : Expr → Array Expr → M α) : M α := do
   -- checker context narrowed; see docs/inductives/STRENGTHENING.md
   -- The recursive field's type is read off its declaration and normalized in
-  -- the checker context of the fields before it.
+  -- the checker context of `prior`: the parameters and the fields before it.
   let uiTy ← getType ui
-  let check := (← readThe Context).checkLCtx
-  let fieldCheck := (← getLCtx).restrictTo
-    (check.getFVarIds.toList.takeWhile (· != ui.fvarId!))
+  let fieldCheck := (← getLCtx).restrictTo (prior.toList.map (·.fvarId!))
   withCheckLCtx fieldCheck do
   loop (← whnf uiTy) #[] (← readThe Context).fuel.inductiveFuel
 where
@@ -589,11 +592,11 @@ where
     else
       k uiTy xs
 
-variable (stats : InductiveStats) (u : Array Expr) (recInfos : Array RecInfo) in
+variable (stats : InductiveStats) (bu u : Array Expr) (recInfos : Array RecInfo) in
 def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
   if _h : i < u.size then
     let ui := u[i]
-    let viTy ← loopUArgs ui fun uiTy xs => do
+    let viTy ← loopUArgs (fieldsBefore stats bu ui) ui fun uiTy xs => do
       let some itIdx := isValidIndApp? stats uiTy
         | throw (.other
           "recursive constructor field lost its inductive result type")
@@ -607,13 +610,13 @@ def loopU (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
     k v
 termination_by u.size - i
 
-variable (stats : InductiveStats) (u : Array Expr) (recInfos : Array RecInfo) in
+variable (stats : InductiveStats) (bu u : Array Expr) (recInfos : Array RecInfo) in
 def loopUBlueprints (i : Nat) (v : Array Expr)
     (calls : Array RecCallBlueprint)
     (k : Array Expr → Array RecCallBlueprint → M α) : M α := do
   if _h : i < u.size then
     let ui := u[i]
-    let (viTy, call) ← loopUArgs ui fun uiTy xs => do
+    let (viTy, call) ← loopUArgs (fieldsBefore stats bu ui) ui fun uiTy xs => do
       let some itIdx := isValidIndApp? stats uiTy
         | throw (.other
           "recursive constructor field lost its inductive result type")
@@ -646,7 +649,7 @@ def loopCtors (recInfos : Array RecInfo)
     let (itIdx, itIndices) := getIIndices stats t
     let introApp := mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) bu
     let motiveApp := Expr.app (mkAppN recInfos[itIdx]!.motive itIndices) introApp
-    loopUBlueprints stats u recInfos 0 #[] #[] fun v calls => do
+    loopUBlueprints stats bu u recInfos 0 #[] #[] fun v calls => do
     let lctx ← getLCtx
     let minorTy := lctx.mkForall bu <| lctx.mkForall v motiveApp
     let minorName := ctor.name.replacePrefix indTypeName .anonymous
@@ -693,11 +696,11 @@ def getRecLevelParams (elimLevel : Level) (lparams : List Name) : List Name :=
 namespace mkRecRules
 
 def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
-    (motives minors : Array Expr) (lvls : List Level) (u : Array Expr)
+    (motives minors : Array Expr) (lvls : List Level) (bu u : Array Expr)
     (i : Nat) (v : Array Expr) (k : Array Expr → M α) : M α := do
   if _h : i < u.size then
     let ui := u[i]
-    let val ← mkRecInfos.loopUArgs ui fun uiTy xs => do
+    let val ← mkRecInfos.loopUArgs (mkRecInfos.fieldsBefore stats bu ui) ui fun uiTy xs => do
       let some itIdx := isValidIndApp? stats uiTy
         | throw (.other
           "recursive constructor field lost its inductive result type")
@@ -714,7 +717,7 @@ def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
       return (lctx.mkLambda xs <|
         (mkAppN (.bvar xs.size) itIndices).app (mkAppN ui xs)).instantiate1
           val
-    loopU indTypes stats motives minors lvls u (i + 1) (v.push val) k
+    loopU indTypes stats motives minors lvls bu u (i + 1) (v.push val) k
   else
     k v
 termination_by u.size - i
@@ -732,7 +735,7 @@ def loopCtors (indTypes : Array InductiveType) (stats : InductiveStats)
   | ctor :: ctors => do
     let (rule, nextMinorIdx) ←
       (fun minorIdx => mkRecInfos.loopCtorArgs stats ctor.type fun _ bu u =>
-      mkRecRules.loopU indTypes stats motives minors lvls u 0 #[] fun v => do
+      mkRecRules.loopU indTypes stats motives minors lvls bu u 0 #[] fun v => do
       let lctx ← getLCtx
       let rule := {
         ctor := ctor.name

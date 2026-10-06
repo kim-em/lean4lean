@@ -1604,12 +1604,13 @@ theorem resultCount
     (hi : i ≤ u.size) (hv : v.size = i)
     (Hk : ∀ v c, v.size = u.size → (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
-      u i v k c).WF Q := by
+      bu u i v k c).WF Q := by
   rw [AddInductive.mkRecRules.loopU.eq_1]
   by_cases hnext : i < u.size
   · rw [dif_pos hnext]
     have hval :
-        ((AddInductive.mkRecInfos.loopUArgs u[i] (fun uiTy xs =>
+        ((AddInductive.mkRecInfos.loopUArgs
+          (AddInductive.mkRecInfos.fieldsBefore stats bu u[i]) u[i] (fun uiTy xs =>
           do
           let some itIdx := AddInductive.isValidIndApp? stats uiTy
             | throw (.other
@@ -1627,7 +1628,7 @@ theorem resultCount
     refine hval.bind fun val _ => ?_
     exact resultCount (indTypes := indTypes) (stats := stats)
       (motives := motives) (minors := minors) (lvls := lvls)
-      (u := u) (i := i + 1) (v := v.push val) (k := k) (c := c)
+      (bu := bu) (u := u) (i := i + 1) (v := v.push val) (k := k) (c := c)
       (by omega) (by simp [hv]) Hk
   · rw [dif_neg hnext]
     apply Hk
@@ -1641,7 +1642,7 @@ theorem mkRecRules.loopU.resultCountFromEmpty
     {k : Array Expr → AddInductive.M α}
     (Hk : ∀ v c, v.size = u.size → (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
-      u 0 #[] k c).WF Q :=
+      bu u 0 #[] k c).WF Q :=
   mkRecRules.loopU.resultCount (Nat.zero_le _) rfl Hk
 
 namespace mkRecInfos.loopUArgs
@@ -1689,14 +1690,13 @@ private theorem loop_continueWith
 
 theorem continueWith
     {α : Type} {Q : α → Prop}
-    (ui : Expr) (k : Expr → Array Expr → AddInductive.M α)
+    (prior : Array Expr) (ui : Expr) (k : Expr → Array Expr → AddInductive.M α)
     (c : AddInductive.Context)
     (Hk : ∀ uiTy xs c, (k uiTy xs c).WF Q) :
-    (AddInductive.mkRecInfos.loopUArgs ui k c).WF Q := by
+    (AddInductive.mkRecInfos.loopUArgs prior ui k c).WF Q := by
   unfold AddInductive.mkRecInfos.loopUArgs
   let c' : AddInductive.Context := { c with
-    checkLCtx := c.lctx.restrictTo
-      (c.checkLCtx.getFVarIds.toList.takeWhile (· != ui.fvarId!)) }
+    checkLCtx := c.lctx.restrictTo (prior.toList.map (·.fvarId!)) }
   change ((monadLift (TypeChecker.whnf (c.lctx.get! ui.fvarId!).type) :
       AddInductive.M Expr) c' >>= fun normalized =>
     AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
@@ -1790,7 +1790,7 @@ theorem generatedCalls
         u v u.size →
       (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
-      u i v k c).WF Q := by
+      bu u i v k c).WF Q := by
   rw [AddInductive.mkRecRules.loopU.eq_1]
   by_cases hnext : i < u.size
   · rw [dif_pos hnext]
@@ -1807,7 +1807,8 @@ theorem generatedCalls
           (mkAppN (.bvar xs.size) itIndices).app
             (mkAppN u[i] xs)).instantiate1 val
     have hval :
-        (AddInductive.mkRecInfos.loopUArgs u[i] buildCall c).WF
+        (AddInductive.mkRecInfos.loopUArgs
+          (AddInductive.mkRecInfos.fieldsBefore stats bu u[i]) u[i] buildCall c).WF
           (fun value => GeneratedRecursiveCall indTypes stats motives minors
             lvls u[i] value) := by
       apply mkRecInfos.loopUArgs.continueWith
@@ -1841,7 +1842,7 @@ theorem mkRecRules.loopU.generatedCallsFromEmpty
         u v u.size →
       (k v c).WF Q) :
     (AddInductive.mkRecRules.loopU indTypes stats motives minors lvls
-      u 0 #[] k c).WF Q :=
+      bu u 0 #[] k c).WF Q :=
   mkRecRules.loopU.generatedCalls
     (GeneratedRecursiveCalls.empty indTypes stats motives minors lvls u) Hk
 

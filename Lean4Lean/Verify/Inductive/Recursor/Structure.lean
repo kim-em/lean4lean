@@ -107,7 +107,7 @@ theorem generatedRules
           ((fun minorIdx => AddInductive.mkRecInfos.loopCtorArgs stats
             ctor.type fun _ bu u =>
               AddInductive.mkRecRules.loopU indTypes stats motives minors
-                lvls u 0 #[] fun v => do
+                lvls bu u 0 #[] fun v => do
                   let lctx ← getLCtx
                   let rule := {
                     ctor := ctor.name
@@ -1032,17 +1032,18 @@ namespace mkRecInfos.loopU
 Its generated local declarations affect the eventual minor type, but not the
 `RecInfo` array whose cardinality is tracked by `loopCtors`. -/
 theorem continueWith {α : Type}
-    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
     (k : Array Expr → AddInductive.M α) {Q : α → Prop}
     (Hk : ∀ v c, (k v c).WF Q)
     (i : Nat) (v : Array Expr) (c : AddInductive.Context) :
-    (AddInductive.mkRecInfos.loopU stats u recInfos i v k c).WF Q := by
+    (AddInductive.mkRecInfos.loopU stats bu u recInfos i v k c).WF Q := by
       rw [AddInductive.mkRecInfos.loopU]
       by_cases hnext : i < u.size
       · rw [dif_pos hnext]
         have hviTy :
-            ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
+            ((AddInductive.mkRecInfos.loopUArgs
+              (AddInductive.mkRecInfos.fieldsBefore stats bu u[i]) u[i] fun uiTy xs => do
               let some itIdx := AddInductive.isValidIndApp? stats uiTy
                 | throw (.other
                   "recursive constructor field lost its inductive result type")
@@ -1063,7 +1064,7 @@ theorem continueWith {α : Type}
           hget fun lctx hlctx => ?_
         subst lctx
         apply withLocalDecl.continueRaw
-        exact continueWith stats u recInfos k Hk (i + 1)
+        exact continueWith stats bu u recInfos k Hk (i + 1)
           (v.push (.fvar ⟨c.ngen.curr⟩)) _
       · rw [dif_neg hnext]
         exact Hk v c
@@ -1076,7 +1077,7 @@ namespace mkRecInfos.loopUBlueprints
 /-- The retained-blueprint hypothesis loop likewise returns only through its
 continuation, now carrying one exact call blueprint per recursive field. -/
 theorem continueWith {α : Type}
-    (stats : AddInductive.InductiveStats) (u : Array Expr)
+    (stats : AddInductive.InductiveStats) (bu u : Array Expr)
     (recInfos : Array AddInductive.RecInfo)
     (k : Array Expr → Array AddInductive.RecCallBlueprint →
       AddInductive.M α) {Q : α → Prop}
@@ -1084,13 +1085,14 @@ theorem continueWith {α : Type}
     (i : Nat) (v : Array Expr)
     (calls : Array AddInductive.RecCallBlueprint)
     (c : AddInductive.Context) :
-    (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos i v calls
+    (AddInductive.mkRecInfos.loopUBlueprints stats bu u recInfos i v calls
       k c).WF Q := by
   rw [AddInductive.mkRecInfos.loopUBlueprints]
   by_cases hnext : i < u.size
   · rw [dif_pos hnext]
     have hviTy :
-        ((AddInductive.mkRecInfos.loopUArgs u[i] fun uiTy xs => do
+        ((AddInductive.mkRecInfos.loopUArgs
+          (AddInductive.mkRecInfos.fieldsBefore stats bu u[i]) u[i] fun uiTy xs => do
           let some itIdx := AddInductive.isValidIndApp? stats uiTy
             | throw (.other
               "recursive constructor field lost its inductive result type")
@@ -1122,7 +1124,7 @@ theorem continueWith {α : Type}
       hget fun lctx hlctx => ?_
     subst lctx
     apply withLocalDecl.continueRaw
-    exact continueWith stats u recInfos k Hk (i + 1)
+    exact continueWith stats bu u recInfos k Hk (i + 1)
       (v.push (.fvar ⟨c.ngen.curr⟩)) (calls.push call) _
   · rw [dif_neg hnext]
     exact Hk v calls c
@@ -1186,7 +1188,7 @@ theorem resultCount {α : Type} {Q : α → Prop}
       rw [AddInductive.mkRecInfos.loopCtors]
       apply mkRecInfos.loopCtorArgs.selectedSublist stats
       intro t bu u cArgs _
-      apply mkRecInfos.loopUBlueprints.continueWith stats u recInfos
+      apply mkRecInfos.loopUBlueprints.continueWith stats bu u recInfos
       intro v calls cIH
       have hget : ((getLCtx : AddInductive.M LocalContext) cIH).WF
           (fun lctx => lctx = cIH.lctx) := by

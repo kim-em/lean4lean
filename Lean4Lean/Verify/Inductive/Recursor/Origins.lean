@@ -920,11 +920,12 @@ structure RecursorLoopUArgsTrace where
   motive : Expr
   indices : Array Expr
 
-/-- The checker context in which `loopUArgs` normalizes the type of the
-recursive field `field`: the checker entries before the field. -/
-def loopUArgsCheckLCtx (c : AddInductive.Context) (field : Expr) :
+/-- The checker context in which `loopUArgs` normalizes the type of a
+recursive field: the main context restricted to `prior`, the parameters and
+the fields before it. -/
+def loopUArgsCheckLCtx (c : AddInductive.Context) (prior : Array Expr) :
     LocalContext :=
-  c.lctx.restrictTo (c.checkLCtx.getFVarIds.toList.takeWhile (· != field.fvarId!))
+  c.lctx.restrictTo (prior.toList.map (·.fvarId!))
 
 /-- Exact executable input of one `loopUArgs` traversal.  Retaining both
 reader runs prevents later replay arguments from silently choosing an
@@ -932,12 +933,18 @@ unrelated normalized field domain.  `closedNormalized` is the canonical
 alpha-insensitive view once the caller supplies the outer field binders. -/
 structure RecursorLoopUArgsInput
     (root : AddInductive.Context) (field : Expr) where
+  /-- The parameters and the fields before `field`: the checker entries
+  before it. -/
+  prior : Array Expr
+  priorFVars : ∃ k, prior.toList.map (·.fvarId!) =
+      ((root.checkLCtx.toList.map (·.fvarId)).reverse).take k ∧
+    ((root.checkLCtx.toList.map (·.fvarId)).reverse)[k]? = some field.fvarId!
   inferredType : Expr
   normalizedType : Expr
   inference : AddInductive.getType field root = .ok inferredType
   normalization :
     (monadLift (TypeChecker.whnf inferredType) : AddInductive.M Expr)
-      { root with checkLCtx := loopUArgsCheckLCtx root field } =
+      { root with checkLCtx := loopUArgsCheckLCtx root prior } =
       .ok normalizedType
 
 /-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
@@ -945,15 +952,13 @@ This ties the retained terminal expression,
 fresh argument array, and terminal context to the concrete normalized input
 and every intervening WHNF call. -/
 inductive RecursorLoopUArgsPrefix
-    (root : AddInductive.Context) (source : Expr) :
+    (root : AddInductive.Context) (l : LocalContext) (source : Expr) :
     AddInductive.Context → Expr → Array Expr → Prop
-  | root (l : LocalContext) (hwf : l.fvarIdToDecl.WF)
-      (hsub : l.SubContextOf root.lctx) :
-      RecursorLoopUArgsPrefix root source { root with checkLCtx := l } source #[]
+  | root : RecursorLoopUArgsPrefix root l source { root with checkLCtx := l } source #[]
   | push
       {current next : AddInductive.Context} {args : Array Expr}
       {name : Name} {domain body normalized : Expr} {bi : BinderInfo}
-      (previous : RecursorLoopUArgsPrefix root source current
+      (previous : RecursorLoopUArgsPrefix root l source current
         (.forallE name domain body bi) args)
       (next_eq : next = { current with
         ngen := current.ngen.next
@@ -965,19 +970,19 @@ inductive RecursorLoopUArgsPrefix
         (monadLift (TypeChecker.whnf
           (body.instantiate1 (.fvar ⟨current.ngen.curr⟩))) :
             AddInductive.M Expr) next = .ok normalized) :
-      RecursorLoopUArgsPrefix root source next normalized
+      RecursorLoopUArgsPrefix root l source next normalized
         (args.push (.fvar ⟨current.ngen.curr⟩))
 
 /-- A trace rooted at a checker-context variant of `root` is rooted at
 `root`: the root's checker context plays no role. -/
 theorem RecursorLoopUArgsPrefix.ofCheckRoot {root : AddInductive.Context}
-    {l : LocalContext} {source : Expr} {current : AddInductive.Context}
+    {l l' : LocalContext} {source : Expr} {current : AddInductive.Context}
     {exposed : Expr} {args : Array Expr}
-    (H : RecursorLoopUArgsPrefix { root with checkLCtx := l } source current
+    (H : RecursorLoopUArgsPrefix { root with checkLCtx := l' } l source current
       exposed args) :
-    RecursorLoopUArgsPrefix root source current exposed args := by
+    RecursorLoopUArgsPrefix root l source current exposed args := by
   induction H with
-  | root l' hwf hsub => exact .root l' hwf hsub
+  | root => exact .root
   | push _ next_eq normalization ih => exact .push ih next_eq normalization
 
 def RecursorLoopUArgsInput.closedNormalized
@@ -996,7 +1001,8 @@ structure RecInfoMinorHypothesisTypeOrigin
   args : Array Expr
   arguments_bound : FreshBoundFVarArray root current args
   loopInput : RecursorLoopUArgsInput root field
-  loopTrace : RecursorLoopUArgsPrefix root loopInput.normalizedType current
+  loopTrace : RecursorLoopUArgsPrefix root
+    (loopUArgsCheckLCtx root loopInput.prior) loopInput.normalizedType current
     exposedType args
   field_fvar : ∃ fv, field = .fvar fv ∧ fv ∈ root.lctx.fvars
   ownerIdx : Nat
