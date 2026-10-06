@@ -508,7 +508,7 @@ theorem NormalEq.fullStep_delta_args (hΓ : OnCtx Γ (env.IsType univs))
     (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
     (ha : List.Forall₂ (NormalEq Γ) args' args) :
     ∃ rhs', FullReduction Γ (VExpr.mkApps (.const name levels) args') rhs' ∧ NormalEq Γ rhs' rhs := by
-  have hback := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm hΓ)
+  have hback := Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)
     (Lean4Lean.List.Forall₂.flip ha)
   obtain ⟨rhs', hr, hn⟩ := H.congr_normal hΓ hback
   exact ⟨rhs', .tail .rfl (.delta hr), hn.symm hΓ⟩
@@ -517,10 +517,287 @@ theorem NormalEq.fullStep_quotDelta_args (hΓ : OnCtx Γ (env.IsType univs))
     (H : QuotDeltaRule env univs Γ levels args rhs)
     (ha : List.Forall₂ (NormalEq Γ) args' args) :
     ∃ rhs', FullReduction Γ (VExpr.mkApps (.const ``Quot.lift levels) args') rhs' ∧ NormalEq Γ rhs' rhs := by
-  have hback := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm hΓ)
+  have hback := Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)
     (Lean4Lean.List.Forall₂.flip ha)
   obtain ⟨rhs', hr, hn⟩ := H.congr_normal hΓ hback
   exact ⟨rhs', .tail .rfl (.quotDelta hr), hn.symm hΓ⟩
+
+section NormalParallel
+
+local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
+local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
+local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
+
+omit [Params] in
+private theorem mkApps_concat (f : VExpr) (l : List VExpr) (b : VExpr) :
+    VExpr.mkApps f (l ++ [b]) = .app (VExpr.mkApps f l) b := by
+  simp [VExpr.mkApps, List.foldl_append]
+
+omit [Params] in
+private theorem eq_nil_or_snoc (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
+  rcases List.eq_nil_or_concat l with h | ⟨L, b, h⟩
+  · exact .inl h
+  · exact .inr ⟨L, b, by simpa using h⟩
+
+omit [Params] in
+private theorem mkApps_app_isApp (g c : VExpr) (bs : List VExpr) :
+    ∃ f a, VExpr.mkApps (.app g c) bs = .app f a := by
+  rcases eq_nil_or_snoc bs with rfl | ⟨bs', b, rfl⟩
+  · exact ⟨_, _, rfl⟩
+  · exact ⟨_, _, mkApps_concat ..⟩
+
+omit [Params] in
+private theorem lift_beta_spine (A e a : VExpr) (bs : List VExpr) :
+    VExpr.app (VExpr.mkApps (.app (.lam A e) a) bs).lift (.bvar 0) =
+      VExpr.mkApps (.app (.lam A.lift (e.liftN 1 1)) a.lift)
+        (bs.map VExpr.lift ++ [.bvar 0]) := by
+  rw [mkApps_concat]; simp [VExpr.liftN]
+
+omit [Params] in
+private theorem lift_beta_spine_result (e a : VExpr) (bs : List VExpr) :
+    VExpr.mkApps ((e.liftN 1 1).inst a.lift) (bs.map VExpr.lift ++ [.bvar 0]) =
+      VExpr.app (VExpr.mkApps (e.inst a) bs).lift (.bvar 0) := by
+  rw [mkApps_concat, ← lift_inst_hi]; simp
+
+private theorem FullReduction.beta_spine (A e a : VExpr) (bs : List VExpr) :
+    FullReduction Γ (VExpr.mkApps (.app (.lam A e) a) bs) (VExpr.mkApps (e.inst a) bs) := by
+  refine FullReduction.mkApps (.tail .rfl (.core (.beta .rfl .rfl))) ?_
+  induction bs with
+  | nil => exact .nil
+  | cons _ _ ih => exact .cons .rfl ih
+
+/-- Beta computation through normal equality, by strong induction on the
+comparison bound. The first component handles a left side normally equal to
+an applied redex spine (eta and extensionality steps add a fresh variable to
+the spine); the second handles a function normally equal to a lambda. Eta
+expansion of the left side is a `FullStep.funEta` step. -/
+private theorem NormalEqN.beta_aux (n : Nat) :
+    (∀ {Γ A e a bs x T}, OnCtx Γ (env.IsType univs) →
+      NormalEqN n Γ x (VExpr.mkApps (.app (.lam A e) a) bs) → Γ ⊢ x : T →
+      ∃ X, FullReduction Γ x X ∧ NormalEq Γ X (VExpr.mkApps (e.inst a) bs)) ∧
+    (∀ {Γ A e f c T}, OnCtx Γ (env.IsType univs) →
+      NormalEqN n Γ f (.lam A e) → Γ ⊢ .app f c : T →
+      ∃ X, FullReduction Γ (.app f c) X ∧ NormalEq Γ X (e.inst c)) := by
+  induction n using Nat.strongRecOn with | _ n ih => ?_
+  refine ⟨fun {Γ A e a bs x T} hΓ H hx => ?_, fun {Γ A e f c T} hΓ H hfc => ?_⟩
+  · have hRt := hx.defeqU_l henv hΓ (H.defeq hΓ)
+    have hred := FullReduction.beta_spine (Γ := Γ) A e a bs
+    have hrt := hred.hasType hΓ hRt
+    generalize hR : VExpr.mkApps (.app (.lam A e) a) bs = R at H hRt hred
+    have ⟨_, _, happ⟩ := mkApps_app_isApp (.lam A e) a bs
+    cases H with
+    | refl _ => exact ⟨_, hred, .refl hrt⟩
+    | proofIrrel l1 l2 l3 => exact ⟨_, .rfl, .proofIrrel l1 l2 (hred.hasType hΓ l3)⟩
+    | sortDF | constDF | elimDF | projDF | lamDF | forallEDF | etaR =>
+      rw [happ] at hR; cases hR
+    | appDF l1 l2 l3 l4 l5 l6 =>
+      rcases eq_nil_or_snoc bs with rfl | ⟨bs', b, rfl⟩
+      · cases hR
+        obtain ⟨X, hX, hn⟩ := ((ih _ (by omega)).2 hΓ l5 hx)
+        have ⟨⟨_, d1⟩, _, d2⟩ := l2.lam_inv henv hΓ
+        have ⟨⟨_, u1⟩, _⟩ := ((d1.lam d2).uniqU henv hΓ l2).forallE_inv henv hΓ
+        have hx2 := u1.symm.defeq l3
+        exact ⟨X, hX, hn.trans hΓ (.instN_r (by exact ⟨hΓ, _, d1⟩) hx2 ⟨_, l6⟩ .zero d2)⟩
+      · rw [mkApps_concat] at hR; cases hR
+        obtain ⟨X, hX, hn⟩ := ((ih _ (by omega)).1 hΓ l5 l1)
+        have hX' := hX.hasType hΓ l1
+        rw [mkApps_concat]
+        exact ⟨_, hX.app .rfl, .appDF hX' ((hn.defeq hΓ).of_l henv hΓ hX').hasType.2 l3 l4
+          hn ⟨_, l6⟩⟩
+    | etaL l1 l2 =>
+      subst hR
+      have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
+      have hΓ' : OnCtx (_ :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
+      have ⟨_, _, hg⟩ := hx.lam_inv henv hΓ
+      rw [lift_beta_spine] at l2
+      obtain ⟨Y, hY, hn⟩ := (ih _ (by omega)).1 hΓ' l2 hg
+      rw [lift_beta_spine_result] at hn
+      exact ⟨_, .lam .rfl hY, .etaL (hred.hasType hΓ l1) hn⟩
+    | etaBoth l1 l2 l3 =>
+      subst hR
+      have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
+      have hΓ' : OnCtx (_ :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
+      rw [lift_beta_spine] at l3
+      obtain ⟨Y, hY, hn⟩ := (ih _ (by omega)).1 hΓ' l3 ((l1.weakN henv .one).app (.bvar .zero))
+      rw [lift_beta_spine_result] at hn
+      exact ⟨_, (ReflTransGen.tail .rfl (.funEta l1)).trans (FullReduction.lam .rfl hY),
+        .etaL (hred.hasType hΓ l2) hn⟩
+  · have ⟨_, _, hf, hc⟩ := hfc.app_inv henv hΓ
+    have hbeta {A₁ g} : FullStep Γ (.app (.lam A₁ g) c) (g.inst c) := .core (.beta .rfl .rfl)
+    generalize hL : VExpr.lam A e = L at H
+    cases H with
+    | refl _ =>
+      subst hL
+      exact ⟨_, .tail .rfl hbeta, .refl (hbeta.hasType hΓ hfc)⟩
+    | sortDF | constDF | elimDF | projDF | forallEDF | appDF => cases hL
+    | lamDF a1 a2 a3 =>
+      cases hL
+      have ⟨⟨_, H3⟩, _, H4⟩ := hf.lam_inv henv hΓ
+      have ⟨⟨_, u1⟩, _⟩ := ((H3.lam H4).uniqU henv hΓ hf).forallE_inv henv hΓ
+      exact ⟨_, .tail .rfl hbeta,
+        .instN (.defeq (.symm <| .trans_l henv hΓ a1 u1) hc) .zero ⟨_, a3⟩⟩
+    | etaL a1 a2 =>
+      subst hL
+      have ⟨⟨_, c1⟩, _, c2⟩ := hf.lam_inv henv hΓ
+      have ⟨⟨_, u1⟩, _⟩ := ((c1.lam c2).uniqU henv hΓ hf).forallE_inv henv hΓ
+      have := a2.instN (u1.symm.defeq hc) .zero
+      simp [VExpr.inst, inst_lift] at this
+      obtain ⟨X, hX, hn⟩ := (ih _ (by omega)).1 (bs := []) hΓ this (hbeta.hasType hΓ hfc)
+      exact ⟨X, (ReflTransGen.tail .rfl hbeta).trans hX, hn⟩
+    | etaR a1 a2 =>
+      cases hL
+      have ⟨⟨_, u1⟩, _⟩ := (hf.uniqU henv hΓ a1).forallE_inv henv hΓ
+      have := a2.instN (.defeq u1 hc) .zero
+      simp [VExpr.inst, inst_lift] at this
+      exact ⟨_, .rfl, ⟨_, this⟩⟩
+    | etaBoth a1 a2 a3 =>
+      subst hL
+      have ⟨⟨_, u1⟩, _⟩ := (hf.uniqU henv hΓ a1).forallE_inv henv hΓ
+      have := a3.instN (.defeq u1 hc) .zero
+      simp [VExpr.inst, inst_lift] at this
+      exact (ih _ (by omega)).1 (bs := []) hΓ this hfc
+    | proofIrrel a1 a2 a3 =>
+      subst hL
+      have hf' := a2.uniqU henv hΓ hf; have := a1.defeqU_l henv hΓ hf'
+      have ⟨⟨_, b1⟩, _, b2⟩ := this.forallE_inv henv
+      have := ((b1.forallE b2).uniqU henv hΓ this).sort_inv henv hΓ
+      have b3 := let ⟨_, h⟩ := b2.isType henv (by exact ⟨hΓ, _, b1⟩); h.sort_inv henv
+      have b2 := IsDefEq.defeq (.sortDF b3 (by trivial) (VLevel.imax_eq_zero.1 this)) b2
+      have ⟨⟨_, c1⟩, _, c2⟩ := a3.lam_inv henv hΓ
+      have ⟨⟨_, u1⟩, _, u2⟩ := ((c1.lam c2).uniqU henv hΓ a3).trans henv hΓ hf' |>.forallE_inv henv hΓ
+      exact ⟨_, .rfl, .proofIrrel (b2.instN henv .zero hc) (hf.app hc)
+        ((u2.defeq c2).instN henv .zero (u1.symm.defeq hc))⟩
+
+/-- A function normally equal to a lambda computes, when applied, to the
+instantiated lambda body up to normal equality. -/
+theorem NormalEq.lam_beta (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEq Γ f (.lam A e)) (ht : Γ ⊢ .app f c : T) :
+    ∃ X, FullReduction Γ (.app f c) X ∧ NormalEq Γ X (e.inst c) :=
+  let ⟨n, H⟩ := H; (NormalEqN.beta_aux n).2 hΓ H ht
+
+end NormalParallel
+
+section NormalParallel2
+
+local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
+local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
+local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
+
+/- Outstanding head-computation compatibility: expose native or registered
+schema computation through normal equality, including eta expansion and proof
+irrelevance, and transport the parallel developments of captured arguments.
+This is a proof obligation for the concrete reduction relation, not an added
+assumption on its callers. -/
+theorem NormalEq.headParallel (hΓ : OnCtx Γ (env.IsType univs)) (H : NormalEq Γ e₁ e₂)
+    (Hhead : HeadParallelReduction Γ e₂ e₂') :
+    ∃ e₁', FullReduction Γ e₁ e₁' ∧ NormalEq Γ e₁' e₂' := by
+  sorry
+
+/-- Normal equality respects one parallel step. Eta expansion of the left
+side, needed for the eta and extensionality comparisons, is the full
+presentation's `FullStep.funEta`. -/
+theorem NormalEq.parRed (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
+    (H2 : ParRed Γ e₂ e₂') :
+    ∃ e₁', FullReduction Γ e₁ e₁' ∧ NormalEq Γ e₁' e₂' := by
+  obtain ⟨_, H1⟩ := H1
+  induction H1 generalizing e₂' with
+  | refl l1 => exact ⟨_, .tail .rfl (.core H2), .refl (H2.hasType hΓ l1)⟩
+  | sortDF l1 l2 l3 =>
+    cases H2 with
+    | sort => exact ⟨_, .rfl, .sortDF l1 l2 l3⟩
+    | extra r1 r2 => cases r2
+  | elimDF h heq =>
+    cases H2 with
+    | elim => exact ⟨_, .rfl, .elimDF h heq⟩
+    | extra hp hm => exact False.elim (Params.pat_not_elim hp hm)
+  | constDF l1 l2 l3 l4 l5 =>
+    cases H2 with
+    | const => exact ⟨_, .rfl, .constDF l1 l2 l3 l4 l5⟩
+    | extra r1 r2 r3 r4 =>
+      obtain ⟨_, h1, h2⟩ := NormalEq.const_native_parallel hΓ l1 l2 l3 l4 l5 r1 r2 r3 r4
+      exact ⟨_, h1.full, h2⟩
+  | appDF l1 l2 l3 l4 l5 l6 ih1 ih2 =>
+    cases H2 with
+    | app r1 r2 =>
+      let ⟨_, a1, a2⟩ := ih1 hΓ r1
+      let ⟨_, b1, b2⟩ := ih2 hΓ r2
+      exact ⟨_, .app a1 b1,
+        .appDF (a1.hasType hΓ l1) (r1.hasType hΓ l2) (b1.hasType hΓ l3) (r2.hasType hΓ l4) a2 b2⟩
+    | beta r1 r2 =>
+      let ⟨f', a1, a2⟩ := ih1 hΓ (.lam .rfl r1)
+      let ⟨a', b1, b2⟩ := ih2 hΓ r2
+      let ⟨⟨_, d1⟩, _, d2⟩ := l2.lam_inv henv hΓ
+      let ⟨⟨_, u1⟩, _, u2⟩ := ((d1.lam d2).uniqU henv hΓ l2).forallE_inv henv hΓ
+      refine have hΓ' := (by exact ⟨hΓ, _, d1⟩); have d2 := r1.hasType hΓ' (u2.defeq d2); ?_
+      replace l3 := b1.hasType hΓ (u1.symm.defeq l3)
+      let ⟨_, h1, h2⟩ := NormalEq.lam_beta hΓ a2
+        (.app (.defeqU_l henv hΓ (a2.defeq hΓ).symm (d1.lam d2)) l3)
+      exact ⟨_, .trans (a1.app b1) h1, h2.trans hΓ (.instN_r hΓ' l3 b2 .zero d2)⟩
+    | extra r1 r2 r3 r4 =>
+      exact NormalEq.headParallel hΓ ⟨_, .appDF l1 l2 l3 l4 l5 l6⟩ (.native r1 r2 r3 r4)
+    | schema hm hl hr =>
+      exact NormalEq.headParallel hΓ ⟨_, .appDF l1 l2 l3 l4 l5 l6⟩ (.schema hm hl hr)
+  | projDF lproj lMajor ihMajor =>
+    cases H2 with
+    | proj rMajor =>
+      let ⟨_, majorRed, majorNormal⟩ := ihMajor hΓ rMajor
+      have reducedAtLeft := majorRed.proj.hasType hΓ lproj
+      exact ⟨_, majorRed.proj, .projDF reducedAtLeft majorNormal⟩
+    | extra _ hmatch => cases hmatch
+  | lamDF l1 l2 l3 ih1 =>
+    cases H2 with
+    | lam r1 r2 =>
+      refine have hΓ' := (by exact ⟨hΓ, _, l1.hasType.1⟩); have ⟨_, h1⟩ := l3.defeq hΓ'; ?_
+      have h2 := h1.hasType.1.defeqU_l henv hΓ' (l3.defeq hΓ')
+      replace r2 := r2.defeqDFC hΓ (.succ .zero l2.symm) <| .defeqDFC henv (.succ .zero l2) h2
+      let ⟨_, b1, b2⟩ := ih1 hΓ' r2
+      exact ⟨_, .lam .rfl (b1.defeqDFC hΓ (.succ .zero l1) h1.hasType.1),
+        .lamDF l1 (.trans l2 (r1.defeq hΓ (.defeqU_l henv hΓ ⟨_, l2⟩ l1.hasType.1))) b2⟩
+    | extra _ r2 => cases r2
+  | forallEDF l1 l2 l3 l4 ih1 ih2 =>
+    cases H2 with
+    | forallE r1 r2 =>
+      let ⟨_, a1, a2⟩ := ih1 hΓ r1
+      refine have hΓ' := (by exact ⟨hΓ, _, l1.hasType.1⟩)
+        have h2 := l3.defeqU_l henv hΓ' (l4.defeq hΓ'); ?_
+      have W := l1.transU_l henv hΓ (l2.defeq hΓ)
+      replace r2 := r2.defeqDFC hΓ (.succ .zero W.symm) <| .defeqDFC henv (.succ .zero W) h2
+      let ⟨_, b1, b2⟩ := ih2 hΓ' r2
+      have := r1.defeq hΓ (.defeqU_l henv hΓ ⟨_, W⟩ l1.hasType.1)
+      exact ⟨_, .forallE a1 (b1.defeqDFC hΓ (.succ .zero l1) l3),
+        .forallEDF (.transU_l henv hΓ (W.trans this) (a2.defeq hΓ).symm) a2 (b1.hasType hΓ' l3) b2⟩
+    | extra _ r2 => cases r2
+  | etaL l1 l2 ih1 =>
+    have ⟨⟨_, hA⟩, _, hB⟩ := have ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
+    refine have hΓ' := by exact ⟨hΓ, _, hA⟩
+      let ⟨_, a1, a2⟩ := ih1 hΓ' (.app (.weakN .one H2) .bvar); ?_
+    exact ⟨_, .lam .rfl a1, .etaL (H2.hasType hΓ l1) a2⟩
+  | etaR l1 l2 ih1 =>
+    cases H2 with
+    | lam r1 r2 =>
+      have ⟨⟨_, hA⟩, _, _⟩ := have ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
+      obtain ⟨out, hr, hn⟩ := ih1 (by exact ⟨hΓ, _, hA⟩) r2
+      exact ⟨_, (ReflTransGen.tail .rfl (.funEta l1)).trans (FullReduction.lam .rfl hr),
+        .lamDF hA (r1.defeq hΓ hA) hn⟩
+    | extra _ r2 => cases r2
+  | etaBoth l1 l2 l3 ih1 =>
+    have ⟨⟨_, hA⟩, _, hB⟩ := have ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
+    obtain ⟨_, a1, a2⟩ := ih1 (by exact ⟨hΓ, _, hA⟩) (.app (.weakN .one H2) .bvar)
+    exact ⟨_, (ReflTransGen.tail .rfl (.funEta l1)).trans (FullReduction.lam .rfl a1),
+      .etaL (H2.hasType hΓ l2) a2⟩
+  | proofIrrel l1 l2 l3 => exact ⟨_, .rfl, .proofIrrel l1 l2 (H2.hasType hΓ l3)⟩
+
+theorem NormalEq.parRedS (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
+    (H2 : ParRedS Γ e₂ e₂') :
+    ∃ e₁', FullReduction Γ e₁ e₁' ∧ NormalEq Γ e₁' e₂' := by
+  induction H2 with
+  | rfl => exact ⟨_, .rfl, H1⟩
+  | tail _ h2 ih =>
+    let ⟨_, a1, a2⟩ := ih
+    let ⟨_, b1, b2⟩ := a2.parRed hΓ h2
+    exact ⟨_, a1.trans b1, b2⟩
+
+end NormalParallel2
 
 /-- Normal equality respects full reduction. The remaining proof obligations
 are application-head and primitive projection exposure; constant unfolding
@@ -529,6 +806,7 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (R : FullStep Γ right result) :
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   classical
+  obtain ⟨_, H⟩ := H
   induction H generalizing result with
   | refl h => exact ⟨_, .tail .rfl R, .refl (R.hasType hΓ h)⟩
   | proofIrrel hp hl hr => exact ⟨_, .rfl, .proofIrrel hp hl (R.hasType hΓ hr)⟩
@@ -537,14 +815,13 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.sortDF hl hr he).parRed hΓ h
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.sortDF hl hr he).normalEq.parRed hΓ h
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.sortDF hl hr he).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.sortDF hl hr he).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.sortDF hl hr he).fullStep_funEta hΓ hfun
+      exact (NormalEqN.sortDF hl hr he).normalEq.fullStep_funEta hΓ hfun
     | delta h => exact False.elim (VExpr.mkApps_ne_sort (by intros; intro h; cases h) _ hs.symm)
     | quotDelta h => exact False.elim (VExpr.mkApps_ne_sort (by intros; intro h; cases h) _ hs.symm)
     | app => cases hs
@@ -552,19 +829,18 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     | projIota => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @lamDF Γ A A₁ u A₂ body₁ body₂ l1 l2 l3 ih1 =>
+  | @lamDF Γ A A₁ u A₂ _ body₁ body₂ l1 l2 l3 ih1 =>
     generalize hs : VExpr.lam A₂ body₂ = source at R
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.lamDF l1 l2 l3).parRed hΓ h
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.lamDF l1 l2 l3).normalEq.parRed hΓ h
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.lamDF l1 l2 l3).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.lamDF l1 l2 l3).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.lamDF l1 l2 l3).fullStep_funEta hΓ hfun
+      exact (NormalEqN.lamDF l1 l2 l3).normalEq.fullStep_funEta hΓ hfun
     | lam r1 r2 =>
       cases hs
       have hΓ' : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, l1.hasType.1⟩
@@ -580,19 +856,18 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     | proj => cases hs
     | projIota => cases hs
     | forallE => cases hs
-  | @forallEDF Γ A A₁ u A₂ B₁ v B₂ l1 l2 l3 l4 ih1 ih2 =>
+  | @forallEDF Γ A A₁ u _ A₂ B₁ v _ B₂ l1 l2 l3 l4 ih1 ih2 =>
     generalize hs : VExpr.forallE A₂ B₂ = source at R
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.forallEDF l1 l2 l3 l4).parRed hΓ h
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.forallEDF l1 l2 l3 l4).normalEq.parRed hΓ h
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.forallEDF l1 l2 l3 l4).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.forallEDF l1 l2 l3 l4).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.forallEDF l1 l2 l3 l4).fullStep_funEta hΓ hfun
+      exact (NormalEqN.forallEDF l1 l2 l3 l4).normalEq.fullStep_funEta hΓ hfun
     | forallE r1 r2 =>
       cases hs
       obtain ⟨_, a1, a2⟩ := ih1 hΓ r1
@@ -610,19 +885,18 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     | proj => cases hs
     | projIota => cases hs
     | lam => cases hs
-  | @appDF Γ f A B f₂ a b l1 l2 l3 l4 l5 l6 ih1 ih2 =>
+  | @appDF Γ f A B f₂ a b _ _ l1 l2 l3 l4 l5 l6 ih1 ih2 =>
     generalize hs : VExpr.app f₂ b = source at R
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.appDF l1 l2 l3 l4 l5 l6).parRed hΓ h
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.parRed hΓ h
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_funEta hΓ hfun
+      exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_funEta hΓ hfun
     | app r1 r2 =>
       cases hs
       obtain ⟨_, a1, a2⟩ := ih1 hΓ r1
@@ -636,7 +910,7 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
       by_cases hp : ∃ proposition, HasType env univs Γ (VExpr.app f₂ b) proposition ∧
           HasType env univs Γ proposition (.sort .zero)
       · obtain ⟨proposition, ht, hp⟩ := hp
-        exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_proof hΓ rr ht hp
+        exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_proof hΓ rr ht hp
       · sorry
     | quotDelta h =>
       have rr := FullStep.quotDelta h
@@ -644,25 +918,24 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
       by_cases hp : ∃ proposition, HasType env univs Γ (VExpr.app f₂ b) proposition ∧
           HasType env univs Γ proposition (.sort .zero)
       · obtain ⟨proposition, ht, hp⟩ := hp
-        exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_proof hΓ rr ht hp
+        exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_proof hΓ rr ht hp
       · sorry
     | proj => cases hs
     | projIota => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @projDF Γ family index major resultType major' lproj lMajor ihMajor =>
+  | @projDF Γ family index major resultType _ major' lproj lMajor ihMajor =>
     generalize hs : VExpr.proj family index major' = source at R
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.projDF lproj lMajor).parRed hΓ h
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.projDF lproj lMajor).normalEq.parRed hΓ h
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.projDF lproj lMajor).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.projDF lproj lMajor).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.projDF lproj lMajor).fullStep_funEta hΓ hfun
+      exact (NormalEqN.projDF lproj lMajor).normalEq.fullStep_funEta hΓ hfun
     | proj rMajor =>
       cases hs
       obtain ⟨_, majorRed, majorNormal⟩ := ihMajor hΓ rMajor
@@ -688,14 +961,13 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core r =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.elimDF h heq).parRed hΓ r
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.elimDF h heq).normalEq.parRed hΓ r
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.elimDF h heq).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.elimDF h heq).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.elimDF h heq).fullStep_funEta hΓ hfun
+      exact (NormalEqN.elimDF h heq).normalEq.fullStep_funEta hΓ hfun
     | delta h => exact False.elim (mkApps_ne_elim (by intros; intro h; cases h) _ hs.symm)
     | quotDelta h => exact False.elim (mkApps_ne_elim (by intros; intro h; cases h) _ hs.symm)
     | proj => cases hs
@@ -708,14 +980,13 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core r =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.constDF hc hl hr hlen heq).parRed hΓ r
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.constDF hc hl hr hlen heq).normalEq.parRed hΓ r
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.constDF hc hl hr hlen heq).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.constDF hc hl hr hlen heq).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.constDF hc hl hr hlen heq).fullStep_funEta hΓ hfun
+      exact (NormalEqN.constDF hc hl hr hlen heq).normalEq.fullStep_funEta hΓ hfun
     | delta h =>
       obtain ⟨rfl, rfl, rfl⟩ := const_eq_mkApps hs
       exact NormalEq.fullStep_delta_levels hΓ h hl
@@ -734,19 +1005,24 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, hA⟩
     obtain ⟨_, hr, hn⟩ := ih hΓ' (.app (R.weakN .one) .rfl)
     exact ⟨_, .lam .rfl hr, .etaL (R.hasType hΓ ht) hn⟩
-  | @etaR Γ e A B body ht he ih =>
+  | etaBoth hl hr' _ ih =>
+    have ⟨⟨_, hA⟩, _, _⟩ := (hl.isType henv hΓ).choose_spec.forallE_inv henv
+    have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, hA⟩
+    obtain ⟨_, hr, hn⟩ := ih hΓ' (.app (R.weakN .one) .rfl)
+    exact ⟨_, (ReflTransGen.tail .rfl (.funEta hl)).trans (FullReduction.lam .rfl hr),
+      .etaL (R.hasType hΓ hr') hn⟩
+  | @etaR Γ e A B _ body ht he ih =>
     generalize hs : VExpr.lam A body = source at R
     cases R with
     | core r =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.etaR ht he).parRed hΓ r
-      exact ⟨out, hs.full, hn⟩
+      exact (NormalEqN.etaR ht he).normalEq.parRed hΓ r
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
-      exact (NormalEq.etaR ht he).fullStep_structEta hΓ h1 h2 h3 h4 h5
+      exact (NormalEqN.etaR ht he).normalEq.fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.etaR ht he).fullStep_funEta hΓ hfun
+      exact (NormalEqN.etaR ht he).normalEq.fullStep_funEta hΓ hfun
     | lam rd rb =>
       cases hs
       obtain ⟨⟨_, hA⟩, _, _⟩ := (ht.isType henv hΓ).choose_spec.forallE_inv henv
