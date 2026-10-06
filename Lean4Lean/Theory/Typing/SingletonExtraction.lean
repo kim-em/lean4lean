@@ -259,6 +259,51 @@ theorem subst_wrapLams (τ : VExpr.Subst) :
     simp only [List.mapIdx_cons, subst_liftN_lift, List.length_cons]
     rfl
 
+theorem liftN_eq_subst_shift (e : VExpr) (r j : Nat) :
+    e.liftN r j = e.subst ((VExpr.Subst.shift r).liftN j) := by
+  have h := VExpr.liftN_subst (e := e) (n := r) (k := j) (σ := VExpr.Subst.id)
+  rw [VExpr.subst_id] at h
+  rw [h]
+  congr 1
+  funext i
+  simp only [VExpr.Subst.lift_l, VExpr.Subst.id, Lift.liftVar_consN_skipN,
+    VExpr.Subst.liftN_apply, VExpr.Subst.shift]
+  by_cases hi : i < j
+  · rw [liftVar_lt hi, if_pos hi]
+  · rw [liftVar_le (Nat.le_of_not_gt hi), if_neg hi]
+    simp only [VExpr.liftN, liftVar_base']
+    congr 1; omega
+
+theorem liftN_wrapForalls (doms : List VExpr) (B : VExpr) (r : Nat) :
+    (VExpr.wrapForalls doms B).liftN r =
+      VExpr.wrapForalls (doms.mapIdx fun l d => d.liftN r l) (B.liftN r doms.length) := by
+  rw [liftN_eq_subst_shift _ r 0, subst_wrapForalls]
+  simp only [VExpr.Subst.liftN, liftN_eq_subst_shift]
+
+theorem liftN_wrapLams (doms : List VExpr) (B : VExpr) (r : Nat) :
+    (VExpr.wrapLams doms B).liftN r =
+      VExpr.wrapLams (doms.mapIdx fun l d => d.liftN r l) (B.liftN r doms.length) := by
+  rw [liftN_eq_subst_shift _ r 0, subst_wrapLams]
+  simp only [VExpr.Subst.liftN, liftN_eq_subst_shift]
+
+/-- Instantiating the top binders of a term lifted past them: the lifted parameters become
+the variables of the enclosing context. -/
+theorem liftN_instOuter_params {X : VExpr} {args : List VExpr} (hX : X.ClosedN (P + args.length))
+    (r : Nat) :
+    (X.liftN r args.length).instOuter args = X.instOuter (bvarRange P (P + r) ++ args) := by
+  rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst, VExpr.liftN_subst]
+  apply VExpr.subst_congr_closedN hX
+  intro i hi
+  simp only [VExpr.Subst.lift_l, Lift.liftVar_consN_skipN]
+  by_cases hik : i < args.length
+  · rw [liftVar_lt hik, VExpr.Subst.ofList_lt _ hik, VExpr.Subst.ofList_lt _ (by simp; omega),
+      List.getElem_append_right (by simp; omega)]
+    congr 1; simp; omega
+  · rw [liftVar_le (Nat.le_of_not_gt hik), VExpr.Subst.ofList_ge _ (by omega),
+      VExpr.Subst.ofList_lt _ (by simp; omega), List.getElem_append_left (by simp; omega),
+      bvarRange_getElem _ _ _ (by simp; omega)]
+    congr 1; simp; omega
+
 theorem getD_append_left' {l₁ l₂ : List α} {d : α} (h : i < l₁.length) :
     (l₁ ++ l₂).getD i d = l₁.getD i d := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_append_left h]
@@ -861,4 +906,92 @@ theorem tel_branch (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec}
         exact IsDefEq.typeCast_refl henv heq hu hΓ' (by simpa [VExpr.liftN] using hXY1) he hx1
 
 end CastSpec
+
+/-- The syntax of a singleton family's elimination into `Prop`, at fixed universe levels:
+the family and constructor heads (closed terms applied to parameters and indices), the
+constructor's result indices (scoped over the parameters and fields), the eliminator head
+specialized to motive universe zero, and how a minor premise is built from a motive and a
+branch over the fields (for native recursors this adds the unused induction hypotheses). -/
+structure PropElim where
+  family : VExpr
+  ctor : VExpr
+  ctorIndices : List VExpr
+  elimHead : VExpr
+  minorOf : VExpr → VExpr → VExpr
+
+namespace PropElim
+variable (S : CastSpec) (params : List VExpr) (E : PropElim)
+
+/-- The major premise's type, scoped over the parameters and the indices. -/
+def majorTy : VExpr :=
+  VExpr.mkApps E.family
+    (bvarRange params.length (params.length + S.indices.length) ++
+      bvarRange S.indices.length S.indices.length)
+
+/-- The constructor applied to the parameters and fields, scoped over both. -/
+def ctorApp : VExpr :=
+  VExpr.mkApps E.ctor (bvarRange (params.length + S.fields.length) (params.length + S.fields.length))
+
+/-- Motive types, scoped over the parameters. -/
+def motiveType : VExpr :=
+  VExpr.wrapForalls (S.indices ++ [majorTy S params E]) (.sort .zero)
+
+/-- Providers of the generic motive: the parameters and indices beneath the major. -/
+def genericPa : List VExpr :=
+  bvarRange params.length (params.length + S.indices.length + 1)
+def genericIa : List VExpr := bvarRange S.indices.length (S.indices.length + 1)
+
+/-- Providers of the constructor branch: the parameters beneath the fields, and the
+constructor's own indices. -/
+def branchPa : List VExpr := bvarRange params.length (params.length + S.fields.length)
+
+/-- The motive extracting proof field `j`, scoped over the parameters. -/
+def motive (j : Nat) : VExpr :=
+  VExpr.wrapLams (S.indices ++ [majorTy S params E])
+    (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+      (S.target (genericPa S params) (genericIa S) j))
+
+/-- The branch returning field `j`, scoped over the parameters and the fields. -/
+def branch (j : Nat) : VExpr :=
+  VExpr.wrapLams (S.tel (branchPa S params) E.ctorIndices j).1 (.bvar (S.fields.length - 1))
+
+/-- The closed extraction function for proof field `j`: a function of the parameters,
+the indices, the major premise and the cast telescope. -/
+def value (j : Nat) : VExpr :=
+  VExpr.wrapLams (params ++ S.indices ++ [majorTy S params E])
+    (VExpr.mkApps E.elimHead
+      (genericPa S params ++
+        [(motive S params E j).liftN (S.indices.length + 1),
+          (E.minorOf (motive S params E j) (branch S params E j)).liftN (S.indices.length + 1)] ++
+        bvarRange (S.indices.length + 1) (S.indices.length + 1)))
+
+def valueType (j : Nat) : VExpr :=
+  VExpr.wrapForalls (params ++ S.indices ++ [majorTy S params E])
+    (VExpr.wrapForalls (S.tel (genericPa S params) (genericIa S) j).1
+      (S.target (genericPa S params) (genericIa S) j))
+
+/-- What the family's declaration provides: typing of the major and constructor, literal data
+slots, and elimination into `Prop` for any motive and branch. -/
+structure WF (env : VEnv) (U : Nat) : Prop where
+  typed : S.Typed env U params
+  majorTy_typed : env.HasType U (params ++ S.indices).reverse (PropElim.majorTy S params E) (.sort .zero)
+  ctorIndices_length : E.ctorIndices.length = S.indices.length
+  ctorIndices_typed : VEnv.TelInst env U (params ++ S.fields).reverse (params ++ S.indices)
+    (branchPa S params ++ E.ctorIndices)
+  ctor_typed : env.HasType U (params ++ S.fields).reverse (ctorApp S params E)
+    (VExpr.mkApps E.family (branchPa S params ++ E.ctorIndices))
+  slot_literal : ∀ l k, S.slot.getD l none = some k →
+    E.ctorIndices.getD k default = .bvar (S.fields.length - 1 - l)
+  elim : ∀ M b, env.HasType U params.reverse M (motiveType S params E) →
+    env.HasType U (params ++ S.fields).reverse b
+      (VExpr.mkApps (M.liftN S.fields.length) (E.ctorIndices ++ [ctorApp S params E])) →
+    env.HasType U (PropElim.majorTy S params E :: (params ++ S.indices).reverse)
+      (VExpr.mkApps E.elimHead
+        (genericPa S params ++
+          [M.liftN (S.indices.length + 1), (E.minorOf M b).liftN (S.indices.length + 1)] ++
+          bvarRange (S.indices.length + 1) (S.indices.length + 1)))
+      (VExpr.mkApps (M.liftN (S.indices.length + 1))
+        (bvarRange (S.indices.length + 1) (S.indices.length + 1)))
+
+end PropElim
 end Lean4Lean
