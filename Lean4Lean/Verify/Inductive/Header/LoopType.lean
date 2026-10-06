@@ -1568,15 +1568,100 @@ theorem List.filter_mem_eq_of_sublist_nodup
       Bool.true_eq, ↓reduceIte, htail]
     rw [ih (List.nodup_cons.mp hnodup).2]
 
-/-- Re-run source-aware narrowing at a completed semantic header scope.
-This is deliberately a header-boundary theorem rather than a field of
-`NarrowHeaderSynthesisCertificate`: constructor replay universe-instantiates
-that generic certificate using arbitrary abstract levels, while the concrete
-Lean source domains retained here exist only under the original header level
-parameters. -/
-theorem NarrowRuntimeScope.independentSourceScope
+/-- The declarations of an all-lambda context are named lambdas. -/
+theorem MLCtxOnlyLams.declarations {m : TypeChecker.MLCtx}
+    (H : MLCtxOnlyLams m) :
+    List.Forall₂
+      (fun fv entry => ∃ deps type,
+        entry = (some (fv, deps), .vlam type))
+      m.vlctx.fvars m.vlctx := by
+  induction m with
+  | nil => exact .nil
+  | vlam fv name type type' bi tail ih =>
+    exact .cons ⟨_, _, rfl⟩ (ih H.tail_vlam)
+  | vlet => exact H.vlet_false.elim
+
+/-- Closing over all declarations of an all-lambda context through its own
+source telescope is the local-context `mkForall`. -/
+theorem MLCtxOnlyLams.sources_closeSource {m : TypeChecker.MLCtx}
+    {env : VEnv} {Us : List Name}
+    (H : MLCtxOnlyLams m) (Hwf : m.WF env Us) (body : Expr) :
+    (MLCtxOnlyLams.sources H Hwf).closeSource body =
+      m.lctx.mkForall
+        (m.vlctx.fvars.reverse.map Expr.fvar).toArray body := by
+  induction m generalizing body with
+  | nil =>
+    change body = ({} : LocalContext).mkForall #[] body
+    exact (LocalContext.mkForall_empty {} body).symm
+  | @vlam fv name type type' bi tail ih =>
+    have HtailWF := Hwf.1
+    have hfresh := Hwf.2.1
+    change (MLCtxOnlyLams.sources H.tail_vlam HtailWF).closeSource
+        (.forallE name type (body.abstractN [fv]) bi) = _
+    rw [ih H.tail_vlam HtailWF]
+    have holdDecls : ∀ other ∈ tail.vlctx.fvars.reverse,
+        ∃ decl, tail.lctx.find? other = some decl := fun other hother =>
+      HtailWF.tr.find?_eq_some.2 (List.mem_reverse.mp hother)
+    have holdNodup : tail.vlctx.fvars.reverse.Nodup :=
+      List.nodup_reverse.mpr HtailWF.tr.wf.fvars_nodup
+    have Happ := LocalContext.mkForall_append_fresh
+      HtailWF.tr.1 hfresh holdDecls holdNodup
+      (body := body) (name := name) (type := type) (bi := bi)
+    simpa [TypeChecker.MLCtx.lctx, List.reverse_cons] using Happ.symm
+  | vlet => exact H.vlet_false.elim
+
+/-- A dependency-closed scope of a free-variable weakening: the selected
+declarations only depend on selected declarations. -/
+theorem _root_.Lean4Lean.VLCtx.FVLift'.upsetScope {Δ Δ' : VLCtx}
+    {dk k : Nat} {n : Lift} {env : VEnv} {U : Nat}
+    (W : VLCtx.FVLift' Δ Δ' dk n k) (hwf : Δ'.WF env U) :
+    IsFVarUpSet (· ∈ Δ.fvars) Δ' := by
+  induction W with
+  | refl => exact IsFVarUpSet.fvars hwf.fvwf
+  | skip_fvar fv d W ih =>
+    obtain ⟨fv, deps⟩ := fv
+    refine ⟨ih hwf.1, fun h => ?_⟩
+    exact ((hwf.2.1 _ _ rfl).1 (W.fvars_sublist.subset h)).elim
+  | cons_fvar fv d hd W ih =>
+    obtain ⟨fv, deps⟩ := fv
+    refine ⟨(IsFVarUpSet.congr hwf.1.fvwf fun x hx => ?_).1 (ih hwf.1), ?_⟩
+    · simp only [VLCtx.fvars_cons_some, List.mem_cons]
+      constructor
+      · exact Or.inr
+      · rintro (rfl | h)
+        · exact ((hwf.2.1 _ _ rfl).1 hx).elim
+        · exact h
+    · intro _ dep hdep
+      simp only [VLCtx.fvars_cons_some, List.mem_cons]
+      exact Or.inr (hd hdep)
+  | cons_bvar d W ih => exact ih hwf.1
+
+/-- A checker `MLCtx` embedded in a runtime context is a dependency-selected
+scope of it, with its own source telescope. -/
+theorem FVarNarrowScope.ofEmbedding {m : TypeChecker.MLCtx}
+    {env : VEnv} {Us : List Name} {runtime : VLCtx}
+    (Hm : m.WF env Us) (Honly : MLCtxOnlyLams m)
+    (hemb : ChkEmbeds env Us.length m.vlctx runtime) :
+    ∃ Hs : FVarNarrowScope env Us m.vlctx runtime,
+      Hs.sources = MLCtxOnlyLams.sources Honly Hm := by
+  obtain ⟨Δ', n, W, hD⟩ := hemb
+  exact ⟨{
+    expanded := Δ'
+    shift := n
+    lift := W
+    context := hD
+    upset := hD.isFVarUpSet.1 (W.upsetScope hD.wf)
+    noBV := m.noBV
+    declarations := MLCtxOnlyLams.declarations Honly
+    sources := MLCtxOnlyLams.sources Honly Hm
+    wf := Hm.tr.wf }, rfl⟩
+
+/-- The checker context of `Hc`, aligned with a semantic scope, supplies an
+independent source-aware scope without restricting any runtime
+translation. -/
+theorem NarrowRuntimeScope.independentSourceScopeOfCheck
     {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : NarrowRuntimeScope Hc.venv c.lparams scope Hc.mlctx.vlctx) :
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx) :
     ∃ sourceScope,
       ∃ Hsource : FVarNarrowScope Hc.venv c.lparams sourceScope
           Hc.mlctx.vlctx,
@@ -1585,18 +1670,38 @@ theorem NarrowRuntimeScope.independentSourceScope
           Hsource.sources.closeSource body =
             Hc.mlctx.lctx.mkForall
               (sourceScope.fvars.reverse.map Expr.fvar).toArray body := by
-  rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-      Hc.checking.tr.wf Hc.mlctx_wf
-      (· ∈ scope.fvars) H.upset with
-    ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
-      hsourceClosure⟩
-  refine ⟨sourceScope, Hsource, hsourceFVars.trans ?_,
-    hsourceClosure⟩
-  have hsub : scope.fvars <+ Hc.mlctx.vlctx.fvars := by
-    rw [← H.context.fvars]
-    exact H.lift.fvars_sublist
-  exact List.filter_mem_eq_of_sublist_nodup hsub
-    Hc.mlctx_wf.tr.wf.fvars_nodup
+  obtain ⟨Hsource, hsources⟩ := FVarNarrowScope.ofEmbedding
+    Hc.check.wf Hc.check.onlyLams Hc.check.embed
+  refine ⟨Hc.chk.vlctx, Hsource, halign.fvars.symm, fun body => ?_⟩
+  rw [hsources, MLCtxOnlyLams.sources_closeSource, Hc.lctx_eq]
+  have hmem : ∀ fv ∈ Hc.chk.vlctx.fvars.reverse,
+      ∃ d, c.checkLCtx.find? fv = some d := by
+    intro fv hfv
+    rw [← Hc.check.lctx_eq]
+    exact Hc.check.wf.tr.find?_eq_some.2 (List.mem_reverse.mp hfv)
+  rw [Hc.checkSub.mkForall_eq hmem body]
+  exact congrArg (fun l : LocalContext => l.mkForall _ body) Hc.check.lctx_eq
+
+/-- The full source-aware scope of an all-lambda context: the context
+itself, with its own source telescope. -/
+theorem MLCtxOnlyLams.fullSourceScope
+    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
+    (H : MLCtxOnlyLams c) (henv : env.WF) (Hwf : c.WF env Us) :
+    ∃ scope,
+      ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+        scope.fvars = c.vlctx.fvars.filter (· ∈ c.vlctx.fvars) ∧
+        ∀ body,
+          Hscope.sources.closeSource body =
+            c.lctx.mkForall
+              (scope.fvars.reverse.map Expr.fvar).toArray body := by
+  obtain ⟨Hscope, hsources⟩ := FVarNarrowScope.ofEmbedding Hwf H
+    (ChkEmbeds.refl henv.ordered Hwf.tr.wf)
+  refine ⟨c.vlctx, Hscope, ?_, fun body => ?_⟩
+  · exact (List.filter_mem_eq_of_sublist_nodup (.refl _)
+      Hwf.tr.wf.fvars_nodup).symm
+  · rw [hsources]
+    exact MLCtxOnlyLams.sources_closeSource H Hwf body
+
 
 /-- At the parameter/index boundary, discard the ambient prefix retained
 from previously checked mutual headers and keep the exact cached-parameter
@@ -2636,11 +2741,9 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
   normalizedSource := by
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
-        (· ∈ Hc.mlctx.vlctx.fvars) hup with
-      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
-        hsourceClosure⟩
+    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf with
+      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
     have hfilter : Hc.mlctx.vlctx.fvars.filter
         (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
       List.filter_mem_eq_of_sublist_nodup (.refl _)
@@ -2677,11 +2780,9 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
   normalizedShape := by
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
-        (· ∈ Hc.mlctx.vlctx.fvars) hup with
-      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
-        hsourceClosure⟩
+    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf with
+      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
     have hfilter : Hc.mlctx.vlctx.fvars.filter
         (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
       List.filter_mem_eq_of_sublist_nodup (.refl _)
@@ -2758,11 +2859,9 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
   normalizedSource := by
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
-        (· ∈ Hc.mlctx.vlctx.fvars) hup with
-      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
-        hsourceClosure⟩
+    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf with
+      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
     have hfilter : Hc.mlctx.vlctx.fvars.filter
         (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
       List.filter_mem_eq_of_sublist_nodup (.refl _)
@@ -2799,11 +2898,9 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
   normalizedShape := by
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
-        (· ∈ Hc.mlctx.vlctx.fvars) hup with
-      ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
-        hsourceClosure⟩
+    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
+        Hc.checking.tr.wf Hc.mlctx_wf with
+      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
     have hfilter : Hc.mlctx.vlctx.fvars.filter
         (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
       List.filter_mem_eq_of_sublist_nodup (.refl _)

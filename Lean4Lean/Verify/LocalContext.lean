@@ -292,6 +292,30 @@ theorem mkBindingListN_congr
   induction xs generalizing b <;> simp_all [mkBindingListN.go]
   simp [mkBindingList1N_congr H.1]
 
+theorem mkBindingList1N_congr_setIndex
+    (H : (lctx₁.find? x).map (·.setIndex 0) = (lctx₂.find? x).map (·.setIndex 0)) :
+    mkBindingList1N isLambda lctx₁ xs x b = mkBindingList1N isLambda lctx₂ xs x b := by
+  unfold mkBindingList1N
+  rcases h1 : lctx₁.find? x with _ | d1 <;> rcases h2 : lctx₂.find? x with _ | d2 <;>
+    rw [h1, h2] at H <;> simp only [Option.map_some, Option.map_none, Option.some.injEq,
+      reduceCtorEq] at H
+  case some.some =>
+    cases d1 <;> cases d2 <;> simp only [LocalDecl.setIndex, LocalDecl.cdecl.injEq,
+      LocalDecl.ldecl.injEq, reduceCtorEq, true_and] at H
+    · obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := H; rfl
+    · obtain ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩ := H; rfl
+
+/-- `mkBindingListN` only reads the selected declarations, and ignores their
+indices. -/
+theorem mkBindingListN_congr_setIndex
+    (H : ∀ x ∈ xs, (lctx₁.find? x).map (·.setIndex 0) = (lctx₂.find? x).map (·.setIndex 0)) :
+    mkBindingListN isLambda lctx₁ xs b = mkBindingListN isLambda lctx₂ xs b := by
+  obtain ⟨xs, rfl⟩ : ∃ xs', List.reverse xs' = xs := ⟨_, List.reverse_reverse _⟩
+  simp [mkBindingListN, mkBindingListN.core] at *
+  generalize b.abstractN _ = b
+  induction xs generalizing b <;> simp_all [mkBindingListN.go]
+  simp [mkBindingList1N_congr_setIndex H.1]
+
 theorem mkBindingList1_congr (H : lctx₁.find? x = lctx₂.find? x) :
     mkBindingList1 isLambda lctx₁ xs x b = mkBindingList1 isLambda lctx₂ xs x b := by
   simp [mkBindingList1, H]

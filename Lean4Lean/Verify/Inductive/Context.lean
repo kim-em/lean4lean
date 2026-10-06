@@ -450,6 +450,21 @@ theorem _root_.Lean.LocalContext.SubContextOf.mkLocalDecl_both
     rw [if_neg (by simp)]
     exact h fv' d hd
 
+/-- Closing over declarations of a sub-context gives the same result in the
+larger context. -/
+theorem _root_.Lean.LocalContext.SubContextOf.mkForall_eq {l l' : LocalContext}
+    (H : l.SubContextOf l') {fvs : List FVarId}
+    (hmem : ∀ fv ∈ fvs, ∃ d, l.find? fv = some d) (body : Expr) :
+    l'.mkForall (fvs.map Expr.fvar).toArray body =
+      l.mkForall (fvs.map Expr.fvar).toArray body := by
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eqN,
+    LocalContext.mkForall, LocalContext.mkBinding_eqN]
+  apply LocalContext.mkBindingListN_congr_setIndex
+  intro fv hfv
+  obtain ⟨d, hd⟩ := hmem fv hfv
+  obtain ⟨d', hd', heq⟩ := H fv d hd
+  simp [hd, hd', heq]
+
 theorem _root_.Lean.LocalContext.SubContextOf.refl (l : LocalContext) :
     l.SubContextOf l := fun _ d h => ⟨d, h, rfl⟩
 

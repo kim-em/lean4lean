@@ -285,7 +285,8 @@ theorem laterResult.snocsSemanticNarrow
     halign htypeNarrow htype₀ hsorted₀
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
-  rcases Hruntime.independentSourceScope with
+  rcases checkInductiveTypes.loopType.NarrowRuntimeScope.independentSourceScopeOfCheck
+      halign with
     ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
     (uvars := c.lparams.length) (commonParams := commonParams)
@@ -580,7 +581,8 @@ theorem laterStep.extendsSemanticAccumulator
           simpa [hscopeEmpty] using HruntimeBase
         have hsortedNarrow := TrExpr.sort_of_aligned Hc.checking.tr.wf
           .nil hnormalizedNarrow hclosedS hsorted₀
-        rcases Hruntime.independentSourceScope with
+        rcases checkInductiveTypes.loopType.NarrowRuntimeScope.independentSourceScopeOfCheck
+            (scope := []) (Hc := Hc) (by rw [hchk]; exact .nil) with
           ⟨sourceScope, HsourceScope, hsourceScopeFVars,
             hsourceClosure⟩
         have hcommonEmpty : commonParams = [] :=
