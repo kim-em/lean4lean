@@ -2164,6 +2164,9 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
     resultLevelWF := by
       cases hsort with
       | sort hlevel => exact .of_ofLevel hlevel
+    resultLevelOf := by
+      cases hsort with
+      | sort hlevel => exact hlevel
     motiveTarget :=
       ((Rindices.mlctx.mkForall' indices.size hindicesSize
         (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
@@ -2372,6 +2375,9 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
     resultLevelWF := by
       cases hsort with
       | sort hlevel => exact .of_ofLevel hlevel
+    resultLevelOf := by
+      cases hsort with
+      | sort hlevel => exact hlevel
     motiveTarget :=
       ((Rindices.mlctx.mkForall' indices.size hindicesSize
         (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel))).liftN
@@ -3643,6 +3649,9 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope Rnext.mlctx.vlctx) →
       Hruntime.frontSourceDomains = Hsynthesis.indices →
+      VLCtx.IsDefEq Rnext.venv
+        (AddInductive.getRecLevelParams elimLevel base.lparams).length
+        scope Rnext.chk.vlctx →
       TrExprS Rnext.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
@@ -3716,11 +3725,11 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
   intro next nextDepth Rnext henvNext HsuffixNext hparameterDecls type'
     fullTarget' narrowTarget' scope nindices indices originTypes indexTargets
     Hsynthesis' hcanonical' hscopeBase HnarrowStats' Hstats' Hruntime' hfront'
-    _halign' htypeNarrow' htypeFVars' _htypeU' hscopeU' htypeFull' htypeFullType'
+    halign' htypeNarrow' htypeFVars' _htypeU' hscopeU' htypeFull' htypeFullType'
     Hindices HnarrowIndices hindexCount hcanonical Horigins HoriginTypes
     Hrecent HindexTrace
   exact Hk Rnext henvNext HsuffixNext hparameterDecls Hsynthesis' hcanonical'
-    hscopeBase HnarrowStats' Hstats' Hruntime' hfront' htypeNarrow'
+    hscopeBase HnarrowStats' Hstats' Hruntime' hfront' halign' htypeNarrow'
     htypeFVars' htypeFull' htypeFullType' Hindices HnarrowIndices hindexCount
     hcanonical Horigins HoriginTypes Hrecent.ofCheckRoot
     (Hrecent.indexUniverses hscopeU' HnarrowIndices) HindexTrace
