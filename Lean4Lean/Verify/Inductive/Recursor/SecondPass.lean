@@ -3456,6 +3456,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           parameterTarget := tailTarget
           parameterTranslation := htail
           parameterType := htailType
+          parameterTranslation₀ := ⟨_, htail₀⟩
           fieldsRecent := HfieldsRecent
           fieldOpening := Hopening
           fieldParameterUp := by

@@ -4659,6 +4659,9 @@ structure RecInfoMinorSemanticSource
     rootWF.mlctx.vlctx traversal.parameterTail parameterTarget
   parameterType : rootWF.venv.IsType recLparams.length
     rootWF.mlctx.vlctx.toCtx parameterTarget
+  /-- The same tail translated directly in the cached parameter suffix. -/
+  parameterTranslation₀ : ∃ t, TrExprS rootWF.venv recLparams
+    parameterSuffix.parameterDecls traversal.parameterTail t
   fieldsRecent : RecursorRecentBoundFVarArray rootWF terminalWF S.fields
   /-- The exact opening chosen by the successful first-pass constructor
   traversal.  Later rule construction reads this certificate instead of
@@ -4730,6 +4733,7 @@ def RecInfoMinorSemanticSource.mono
   parameterTarget := HS.parameterTarget
   parameterTranslation := HS.parameterTranslation
   parameterType := HS.parameterType
+  parameterTranslation₀ := HS.parameterTranslation₀
   fieldsRecent := HS.fieldsRecent
   fieldOpening := HS.fieldOpening
   fieldParameterUp := HS.fieldParameterUp
@@ -4954,20 +4958,8 @@ theorem RecInfoMinorSemanticSource.parameterTranslationAtSuffix
     {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
     (HS : RecInfoMinorSemanticSource R S) :
     ∃ target, TrExprS HS.rootWF.venv recLparams
-      HS.parameterSuffix.parameterDecls HS.traversal.parameterTail target := by
-  have Htr := HS.parameterTranslation
-  rw [HS.parameterSuffix.context] at Htr
-  have Hwf : (HS.parameterSuffix.ambientDecls ++
-      HS.parameterSuffix.parameterDecls).WF HS.rootWF.venv
-        recLparams.length := by
-    rw [← HS.parameterSuffix.context]
-    exact HS.rootWF.mlctx_wf.tr.wf
-  have HnoBV : (HS.parameterSuffix.ambientDecls ++
-      HS.parameterSuffix.parameterDecls).NoBV := by
-    rw [← HS.parameterSuffix.context]
-    exact HS.rootWF.mlctx.noBV
-  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf
-    Hwf HnoBV Htr HS.parameterScope
+      HS.parameterSuffix.parameterDecls HS.traversal.parameterTail target :=
+  HS.parameterTranslation₀
 
 /-- Compare the replayed unconsumed telescope with the exact consumed target
 installed by production, in the original full source context. -/
