@@ -882,6 +882,20 @@ inside this project's scope without solving open base metatheory:
    false and strengthening with canonical `Eq` plausibly true but unproved
    (a proof would need normalization or confluence for typed proof
    irrelevance with iota and K). Not pursued further.
+   Literature (Astra, `docs/inductives/STRENGTHENING_LITERATURE.md`):
+   Carneiro's thesis (§3.2, Weakening (4)) states strengthening with a proof
+   by mutual induction that does not address the transitivity case; the
+   Lean4Lean paper (§2.4, Conjecture 2.10) labels strengthening a conjecture
+   and retracts the thesis's uniqueness/inversion proofs; Coquand–Spiwack
+   (LICS 2006, §4.4) report failure of strengthening in a related
+   proof-irrelevant calculus; no published treatment of the singleton-family
+   example. The riskiest model rule is `elimIota`. Judgement: unrestricted
+   statement probably false; with canonical `Eq` plausibly true, unproved.
+   **Process rule (Kim, 2026-10-06): no size or time budgets in agent briefs
+   for anything on the critical path.** Agents run to completion or to a
+   genuine mathematical obstacle (a statement believed false, or a precisely
+   stated missing metatheorem); "isolate as a named hypothesis" is only for
+   the latter, never for size. Earlier budgets caused premature hand-backs.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
