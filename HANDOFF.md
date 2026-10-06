@@ -973,7 +973,25 @@ inside this project's scope without solving open base metatheory:
    certificate, larger-context derivation, groupoid model with soundness for
    every `IsDefEq` rule, separation at `v = 2`; target
    `strengthening_fails : ∃ env, VEnv.WF env ∧ ¬ env.Strengthening`,
-   axiom-clean.
+   axiom-clean. **Status (435f2d8b on that branch, pushed;
+   `docs/inductives/COUNTERMODEL_STATUS.md`):** the environment's `VEnv.WF`
+   is PROVED by a direct certificate (`envCM_wf`; `.elim` registration cannot
+   give large elimination for a Prop family, so native recursors are used),
+   the larger-context derivation `larger_defeq : envCM.IsDefEq 0 ctxL SI↑
+   SJ↑ (sort 1)` is PROVED, and `strengthening_fails_of_separated (hsep :
+   ¬ envCM.IsDefEqU 0 ctxS SI SJ) : ∃ env, VEnv.WF env ∧ ¬ env.Strengthening`
+   is proved, all axiom-clean (1322 lines). The separating model is BLOCKED
+   for a set-theoretic reason: soundness must cover every closed universe
+   level (`sortDF` types `Sort n` for all `n`), so all universe
+   interpretations must sit in one Lean universe, each an element of the
+   next, and with Π as all sections each universe is inaccessible-sized; Lean
+   cannot prove such an unbounded chain exists (a plain set model has the
+   same problem; groupoids are additionally required: a transport-free model
+   fails on an explicit motive). Ways forward are research-scale designs
+   (realizability-style groupoid model over syntax with big-step evaluation;
+   or a restricted Hofmann–Streicher model with hereditarily bounded
+   sections). Decision for Kim: pursue one, or accept the conditional
+   theorem.
    Literature (Astra, `docs/inductives/STRENGTHENING_LITERATURE.md`):
    Carneiro's thesis (§3.2, Weakening (4)) states strengthening with a proof
    by mutual induction that does not address the transitivity case; the
