@@ -3493,7 +3493,13 @@ structure BoundGeneratedRecursorRule.Semantics
     (0 < H.allArgs.size → context.chk = M) ∧
     ∃ hn : H.allArgs.size ≤ M.length,
       MLCtxTopAgree context.mlctx M H.allArgs.size ∧
-        (M.dropN H.allArgs.size hn).vlctx = parameterSuffix.parameterDecls
+        (M.dropN H.allArgs.size hn).vlctx = parameterSuffix.parameterDecls ∧
+        ∃ T₀, TrExprS fieldRootContext.venv recLparams
+          parameterSuffix.parameterDecls parameterTail T₀ ∧
+        ∃ t₀', TrExprS context.venv recLparams M.vlctx H.target t₀' ∧
+          context.venv.IsDefEqU recLparams.length
+            parameterSuffix.parameterDecls.toCtx T₀
+            (M.mkForall' H.allArgs.size hn t₀')
   context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth

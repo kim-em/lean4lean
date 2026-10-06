@@ -171,7 +171,7 @@ theorem
     intro fv _
     rw [hfieldRev, A.semantics.parameterSuffix.parameterDecls_fvars]
     simp [parameterDecls]
-  obtain ⟨M, hMwf, hchkM, hnM, hagree, hdrop⟩ := A.semantics.fieldCheck
+  obtain ⟨M, hMwf, hchkM, hnM, hagree, hdrop, -⟩ := A.semantics.fieldCheck
   have hMwf' : M.WF A.semantics.fieldRootContext.venv Us := by
     simpa only [Us, A.semantics.fieldsRecent.venv_eq] using hMwf
   have hbaseAlign : VLCtx.IsDefEq A.semantics.fieldRootContext.venv Us.length
