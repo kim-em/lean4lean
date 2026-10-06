@@ -124,28 +124,6 @@ theorem Expr.getAppArgs_slice_toList (e : Expr) (n : Nat) :
       apply List.take_of_length_le
       simp
 
-/-- Type inference of a free variable in a recursor context preserves the
-universe support of its input. -/
-theorem inferTypeFVarInRecursorContext.levelsWF
-    (Hc : RecursorContextWF c recLparams)
-    (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx (.fvar fv) e') :
-    ((monadLift (TypeChecker.inferType (.fvar fv)) :
-        AddInductive.M Expr) c).WF fun ty =>
-      Hc.typeChecker.LevelsBelow (.fvar fv) ty := by
-  change (TypeChecker.M.run c.env c.safety c.checkLCtx
-    (c.typeCheckerLParams.getD c.lparams) c.fuel
-    (TypeChecker.inferType (.fvar fv))).WF _
-  refine Hc.runOfMain (.inferType (.fvar fv) true) _ ?_
-  rw [inferTypeFVar_lparams_compat c.env c.safety c.lctx
-    (c.typeCheckerLParams.getD c.lparams) recLparams c.fuel fv]
-  rw [← Hc.lctx_eq]
-  have Hx : TypeChecker.M.WF Hc.typeChecker {}
-      (TypeChecker.inferType (.fvar fv)) (fun ty _ =>
-        Hc.typeChecker.LevelsBelow (.fvar fv) ty) :=
-    (TypeChecker.Inner.inferType.WF_levels he).run
-  exact TypeChecker.M.WF.runCheckingValidMLC
-    (lparams := recLparams) (fuel := c.fuel)
-    Hc.kernelFresh Hx
 
 /-- `getType` of a translated free variable returns its declared type, which
 lies in every universe scope of the variable. -/
@@ -175,15 +153,18 @@ universe scope containing every opened argument, and the exposed type mentions
 only `Us` and lies in that scope. -/
 theorem RecursorLoopUArgsPrefix.universeSupport
     (hconsume : RecursorConsumeTypeAnnotationsCompat) {Us : List Name}
-    {root : AddInductive.Context} {source : Expr}
+    {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
-    (trace : RecursorLoopUArgsPrefix root source current exposed args)
-    {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
+    (trace : RecursorLoopUArgsPrefix root l source current exposed args)
+    {recLparams : List Name}
+    (Rroot : RecursorContextWF { root with checkLCtx := l } recLparams)
     {P : FVarId → Prop} (hscope : Rroot.typeChecker.UniverseScope Us P)
     {sourceTarget : VExpr}
     (hsource : TrExpr Rroot.venv recLparams Rroot.mlctx.vlctx source sourceTarget)
     (hsourceType : Rroot.venv.IsType recLparams.length Rroot.mlctx.vlctx.toCtx
       sourceTarget)
+    {sourceTarget₀ : VExpr}
+    (hsource₀ : TrExpr Rroot.venv recLparams Rroot.chk.vlctx source sourceTarget₀)
     (hsourceU : source.levelParamsIn Us = true) (hsourceP : source.FVarsIn P) :
     ∃ (Rcurrent : RecursorContextWF current recLparams) (P' : FVarId → Prop)
       (T : VExpr),
@@ -191,23 +172,32 @@ theorem RecursorLoopUArgsPrefix.universeSupport
       Rcurrent.venv.IsType recLparams.length Rcurrent.mlctx.vlctx.toCtx T ∧
       Rcurrent.typeChecker.UniverseScope Us P' ∧
       exposed.levelParamsIn Us = true ∧ exposed.FVarsIn P' ∧
-      ∀ a ∈ args.toList, ∃ fv, a = .fvar fv ∧ P' fv := by
+      (∀ a ∈ args.toList, ∃ fv, a = .fvar fv ∧ P' fv) ∧
+      ∃ T₀, TrExpr Rcurrent.venv recLparams Rcurrent.chk.vlctx exposed T₀ := by
   induction trace with
-  | root l hwf hsub =>
-    exact ⟨Rroot.withCheckLCtx l hwf hsub, P, _, hsource, hsourceType, hscope,
-      hsourceU, hsourceP, by simp⟩
+  | root =>
+    exact ⟨Rroot, P, _, hsource, hsourceType, hscope,
+      hsourceU, hsourceP, by simp, _, hsource₀⟩
   | @push current next args name domain body normalized bi _previous next_eq
       normalization ih =>
-    obtain ⟨R, P', T, htype, htypeType, hsc, hU, hP, hargs⟩ := ih
+    obtain ⟨R, P', T, htype, htypeType, hsc, hU, hP, hargs, T₀, htype₀⟩ := ih
     subst next_eq
     rcases TrExpr.forallE_source htype with
       ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType, hforallEq⟩
     rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
     rcases Hdom.body R hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+    rcases TrExpr.forallE_source htype₀ with
+      ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
+    rcases hconsume _ recLparams R.narrow hdom₀ hdom₀Type with
+      ⟨consumedDom₀, Hdom₀⟩
+    rcases Hdom₀.body R.narrow hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
     let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+      Hdom₀.consumed Hdom₀.isType
     have hopened := R.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbodyConsumed
+    have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+      Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
     simp only [Expr.levelParamsIn, Bool.and_eq_true] at hU
     have hdomP : domain.FVarsIn P' := hP.1
     have hbodyP : body.FVarsIn P' := hP.2
@@ -242,8 +232,10 @@ theorem RecursorLoopUArgsPrefix.universeSupport
       rw [Expr.instantiate1_eq]
       exact (hbodyP.mono fun _ h => Or.inr h).instantiate1 (by
         simp [FVarsIn])
-    have hscopeRun := (whnfInRecursorContext.scopeWF R' hopened) normalized normalization
-    have hlevelRun := (whnfInRecursorContext.levelsWF R' hopened) normalized normalization
+    have hdualRun := (whnfInRecursorContext.dualWF R' hopened hopened₀) normalized
+      normalization
+    have hscopeRun := hdualRun.1
+    have hlevelRun := (whnfInRecursorContext.levelsWF R' hopened₀) normalized normalization
     have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
@@ -263,7 +255,8 @@ theorem RecursorLoopUArgsPrefix.universeSupport
       simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
         RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using hbodyEq'
     refine ⟨R', P'', consumedBody, hscopeRun.2, hconsumedBodyType, hsc',
-      hlevelRun Us P'' hsc' hinstU hinstP, hscopeRun.1 P'' hsc'.1 hinstP, ?_⟩
+      hlevelRun Us P'' hsc' hinstU hinstP, hscopeRun.1 P'' hsc'.1 hinstP, ?_,
+      _, hdualRun.2.2⟩
     intro a ha
     simp only [Array.toList_push, List.mem_append, List.mem_singleton] at ha
     rcases ha with ha | rfl
@@ -296,7 +289,8 @@ theorem RecursorLoopUArgsInput.callUniverses
     {root : AddInductive.Context} {fv : FVarId}
     (Hinput : RecursorLoopUArgsInput root (.fvar fv))
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
-    (trace : RecursorLoopUArgsPrefix root Hinput.normalizedType current exposed args)
+    (trace : RecursorLoopUArgsPrefix root (loopUArgsCheckLCtx root Hinput.prior)
+      Hinput.normalizedType current exposed args)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
     {Us : List Name} {P : FVarId → Prop} (hscope : Rroot.typeChecker.UniverseScope Us P)
     {fieldTarget : VExpr}
@@ -309,21 +303,28 @@ theorem RecursorLoopUArgsInput.callUniverses
       ∀ e ∈ (exposed.getAppArgs[n:] : Array Expr).toList, e.levelParamsIn Us = true := by
   obtain ⟨inferredTarget, _, _, hinferredTr, hfieldTyping⟩ :=
     getTypeFVarInRecursorContext.WF Rroot hfield _ Hinput.inference
-  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root (.fvar fv))
-    (Rroot.restrictTo _).1 (Rroot.restrictTo _).2
+  obtain ⟨j, hj, ty₀, hlctx, htr₀, _⟩ := Hinput.checkBase Rroot
+  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root Hinput.prior)
+    ((Rroot.check.below j hj).cast hlctx)
+  have hinferredEq : Hinput.inferredType = (root.lctx.get! fv).type := by
+    have h := Hinput.inference.symm.trans (AddInductive.getType.run (.fvar fv) root)
+    exact Except.ok.inj h
+  have hinferred₀ : TrExprS RF.venv recLparams RF.chk.vlctx
+      Hinput.inferredType ty₀ := by
+    rw [hinferredEq]; exact htr₀
   have hinferredType : Rroot.venv.IsType recLparams.length
       Rroot.mlctx.vlctx.toCtx inferredTarget :=
     hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
-  obtain ⟨hnormalizedBelow, hnormalizedTr⟩ :=
-    whnfInRecursorContext.scopeWF RF hinferredTr _ Hinput.normalization
+  obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
+    whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ Hinput.normalization
   have hnormalizedU : Hinput.normalizedType.levelParamsIn Us = true :=
-    whnfInRecursorContext.levelsWF RF hinferredTr _ Hinput.normalization Us P hscope
+    whnfInRecursorContext.levelsWF RF hinferred₀ _ Hinput.normalization Us P hscope
       hinferredU hinferredP
   have hnormalizedP : Hinput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
-  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedU, _, hargs⟩ :=
-    trace.universeSupport hconsume Rroot hscope hnormalizedTr hinferredType
-      hnormalizedU hnormalizedP
+  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedU, _, hargs, _⟩ :=
+    trace.universeSupport hconsume RF hscope hnormalizedTr hinferredType
+      hnormalized₀ hnormalizedU hnormalizedP
   refine ⟨?_, ?_⟩
   · have hargTypes : ∀ x ∈ Hargs.fvars, ∀ decl,
         current.lctx.find? x = some decl → decl.type.levelParamsIn Us = true := by

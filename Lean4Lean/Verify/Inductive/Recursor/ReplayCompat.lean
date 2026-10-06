@@ -842,13 +842,13 @@ theorem RecursorLoopUArgsInput.normalizedType_eq_of_inferred_forall
     H.normalizedType = H.inferredType := by
   have hnormal := H.normalization
   rw [hinferred] at hnormal ⊢
-  change TypeChecker.M.run root.env root.safety (loopUArgsCheckLCtx root field)
+  change TypeChecker.M.run root.env root.safety (loopUArgsCheckLCtx root H.prior)
       (root.typeCheckerLParams.getD root.lparams)
       root.fuel (TypeChecker.whnf (.forallE name domain body bi)) =
     .ok H.normalizedType at hnormal
   unfold TypeChecker.M.run at hnormal
   generalize hrun : TypeChecker.whnf (.forallE name domain body bi)
-      { env := root.env, lctx := loopUArgsCheckLCtx root field, safety := root.safety,
+      { env := root.env, lctx := loopUArgsCheckLCtx root H.prior, safety := root.safety,
         lparams := root.typeCheckerLParams.getD root.lparams,
         fuel := root.fuel }
       ({} : TypeChecker.State) = result at hnormal
@@ -858,7 +858,7 @@ theorem RecursorLoopUArgsInput.normalizedType_eq_of_inferred_forall
   | ok result =>
       rcases result with ⟨normalized, outState⟩
       have hresult := TypeChecker.whnf_forall_result_eq
-        { env := root.env, lctx := loopUArgsCheckLCtx root field, safety := root.safety,
+        { env := root.env, lctx := loopUArgsCheckLCtx root H.prior, safety := root.safety,
           lparams := root.typeCheckerLParams.getD root.lparams,
           fuel := root.fuel }
         ({} : TypeChecker.State) outState name domain body normalized bi hrun

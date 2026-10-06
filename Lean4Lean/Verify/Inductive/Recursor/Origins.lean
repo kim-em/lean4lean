@@ -947,6 +947,52 @@ structure RecursorLoopUArgsInput
       { root with checkLCtx := loopUArgsCheckLCtx root prior } =
       .ok normalizedType
 
+/-- The checker context of a recorded `loopUArgs` run, rebuilt in any
+recursor frame of its root: the checker entries before the field, among which
+the field's declared type is translated. -/
+theorem RecursorLoopUArgsInput.checkBase
+    {root : AddInductive.Context} {fv : FVarId}
+    (H : RecursorLoopUArgsInput root (.fvar fv))
+    {recLparams : List Name} (R : RecursorContextWF root recLparams) :
+    ∃ (j : Nat) (hj : j ≤ R.chk.length) (ty₀ : VExpr),
+      (R.chk.dropN j hj).lctx = loopUArgsCheckLCtx root H.prior ∧
+      TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
+        (root.lctx.get! fv).type ty₀ ∧
+      R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ := by
+  obtain ⟨k, hprior, hk⟩ := H.priorFVars
+  have hlist : (root.checkLCtx.toList.map (·.fvarId)).reverse = R.chk.fvarList := by
+    rw [← R.check.lctx_eq, R.check.wf.toList_eq, TypeChecker.MLCtx.decls_fvarId,
+      List.reverse_reverse]
+  rw [hlist] at hprior hk
+  obtain ⟨j, hj, name, ty, ty', bi, hdrop, htake⟩ :=
+    R.chk.dropN_of_fvarList_getElem? R.check.onlyLams hk
+  have hw := R.check.wf.dropN j (Nat.le_of_succ_le hj)
+  rw [hdrop] at hw
+  obtain ⟨_, _, htr, hty⟩ := hw
+  -- the field's declared type, read off the main context
+  have hmem : fv ∈ (R.chk.dropN j (Nat.le_of_succ_le hj)).vlctx.fvars := by
+    rw [hdrop]; simp [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some, Expr.fvarId!]
+  have hfind := R.check.onlyLams.dropN_find?_eq R.check.wf j _ hmem
+  rw [hdrop] at hfind
+  have hfind' : R.chk.lctx.find? fv = some (.cdecl
+      (R.chk.dropN (j + 1) hj).lctx.decls.size fv name ty bi .default) := by
+    rw [hfind]
+    change ((R.chk.dropN (j + 1) hj).lctx.mkLocalDecl fv name ty bi).find? fv = _
+    rw [LocalContext.find?_mkLocalDecl
+      (R.check.wf.dropN (j + 1) hj).tr.1.map_wf]
+    simp
+  rw [R.check.lctx_eq] at hfind'
+  obtain ⟨d', hd', hdeq⟩ := R.check.sub fv _ hfind'
+  have htype : (root.lctx.get! fv).type = ty := by
+    have e1 : ∀ x : LocalDecl, (x.setIndex 0).type = x.type := by
+      intro x; cases x <;> rfl
+    simp only [LocalContext.get!, hd']
+    rw [← e1 d', hdeq]
+    rfl
+  refine ⟨j + 1, hj, ty', ?_, htype ▸ htr, hty⟩
+  rw [loopUArgsCheckLCtx, hprior, htake]
+  exact ((R.check.below (j + 1) hj).restrictTo_eq R.lctxWF).symm
+
 /-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
 This ties the retained terminal expression,
 fresh argument array, and terminal context to the concrete normalized input
