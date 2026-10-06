@@ -784,6 +784,39 @@ theorem hypothesis_shape (hfam : s.families.size = 1) (c : Constructor s.familie
   rw [List.getElem?_eq_getElem (by omega), Option.some.injEq] at hM
   rw [hM, hnf, VExpr.liftN_liftN]
 
+/-- The constructor applied to the parameter and field variables. -/
+def sCtorApp (c : Constructor s.families.size) : VExpr :=
+  VExpr.mkApps (.const c.name g.levels)
+    (bvarRange (s.params.length + (g.sFields c).length) (s.params.length + (g.sFields c).length))
+
+theorem constructorApp_shape (c : Constructor s.families.size) :
+    g.constructorApp c 1 (g.sHyps c).length =
+      ((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
+        ((g.sFields c).length + (g.sHyps c).length) := by
+  have hnf : (g.sFields c).length = c.fields.length := by simp [sFields, fieldTypes]
+  simp only [constructorApp, sCtorApp, VExpr.liftN_mkApps, hnf]
+  have hv := vars_eq_bvarRange c.fields.length 0
+  simp only [Nat.add_zero] at hv
+  rw [CastSpec.bvarRange_split, ← vars_eq_bvarRange, ← hv]
+  simp only [List.map_append, List.map_map, Function.comp_def]
+  congr 1
+  congr 1 <;>
+  · simp only [vars, List.map_map, Function.comp_def]
+    apply List.map_congr_left
+    intro i hi
+    simp only [List.mem_reverse, List.mem_range] at hi
+    simp only [VExpr.liftN, liftVar]
+    split <;> split <;> (congr 1; omega)
+
+theorem major_lift (owner : Fin s.families.size) :
+    g.familyApp owner (vars s.params.length (2 + (g.sIndices owner).length))
+        (vars (g.sIndices owner).length 0) =
+      (g.sMajor owner).liftN 2 (g.sIndices owner).length := by
+  simp only [familyApp, InductiveSignature.familyApp, sMajor, sIndices, List.length_map,
+    VExpr.liftN_mkApps, List.map_append]
+  rw [vars_map_liftN_hi _ _ _ _ (Nat.le_refl _), vars_map_liftN_lo _ _ _ _ (by omega)]
+  simp [VExpr.liftN, Nat.add_comm]
+
 end Instance
 end InductiveSignature
 end Lean4Lean
