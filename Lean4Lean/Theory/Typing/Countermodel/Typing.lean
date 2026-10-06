@@ -67,6 +67,21 @@ def rule : VDefEq where
 
 theorem equations_eq : sp.inst.equations = [sp.rule] := rfl
 
+/-! The lambda layers of the rule, outermost binder removed first. -/
+def lhsLam3 : VExpr := .lam (.app eP (.bvar 0)) sp.ruleLhsBody
+def lhsLam2 : VExpr := .lam eFc sp.lhsLam3
+def lhsLam1 : VExpr := .lam sp.minorType sp.lhsLam2
+def rhsLam3 : VExpr := .lam (.app eP (.bvar 0)) ruleRhsBody
+def rhsLam2 : VExpr := .lam eFc rhsLam3
+def rhsLam1 : VExpr := .lam sp.minorType rhsLam2
+def ruleTy3 : VExpr := .forallE (.app eP (.bvar 0)) sp.ruleTypeBody
+def ruleTy2 : VExpr := .forallE eFc sp.ruleTy3
+def ruleTy1 : VExpr := .forallE sp.minorType sp.ruleTy2
+
+theorem rule_lhs_eq : sp.rule.lhs = .lam sp.motiveType sp.lhsLam1 := rfl
+theorem rule_rhs_eq : sp.rule.rhs = .lam sp.motiveType sp.rhsLam1 := rfl
+theorem rule_type_eq : sp.rule.type = .forallE sp.motiveType sp.ruleTy1 := rfl
+
 end FamSpec
 
 /-! ## Typing combinators -/
@@ -254,39 +269,59 @@ section
 variable (B : Base E) (hm : sp.MapOK E) (hf : sp.FamOK E) (hc : sp.CtorOK E)
 include B hm hf hc
 
-theorem ty_rule_vars :
-    E.HasType 1 sp.ruleCtx (.bvar 3) sp.motiveType ∧
-    E.HasType 1 sp.ruleCtx (.bvar 2) (sp.minorType.liftN 3) ∧
-    E.HasType 1 sp.ruleCtx (.bvar 1) eFc ∧
-    E.HasType 1 sp.ruleCtx (.bvar 0) (.app eP (.bvar 1)) :=
+theorem ty_rule_vars {Γ0} :
+    E.HasType 1 (sp.ruleCtx ++ Γ0) (.bvar 3) sp.motiveType ∧
+    E.HasType 1 (sp.ruleCtx ++ Γ0) (.bvar 2) (sp.minorType.liftN 3) ∧
+    E.HasType 1 (sp.ruleCtx ++ Γ0) (.bvar 1) eFc ∧
+    E.HasType 1 (sp.ruleCtx ++ Γ0) (.bvar 0) (.app eP (.bvar 1)) :=
   ⟨HasType.bvar (.succ (.succ (.succ .zero))), HasType.bvar (.succ (.succ .zero)),
     HasType.bvar (.succ .zero), HasType.bvar .zero⟩
 
-theorem ty_rule_domains : (∃ u, E.HasType 1 [] sp.motiveType (.sort u)) ∧
-    (∃ u, E.HasType 1 [sp.motiveType] sp.minorType (.sort u)) ∧
-    E.HasType 1 [sp.minorType, sp.motiveType] eFc (.sort lvl1) ∧
-    E.HasType 1 [eFc, sp.minorType, sp.motiveType] (.app eP (.bvar 0)) (.sort .zero) :=
+theorem ty_rule_domains {Γ0} : (∃ u, E.HasType 1 Γ0 sp.motiveType (.sort u)) ∧
+    (∃ u, E.HasType 1 (sp.motiveType :: Γ0) sp.minorType (.sort u)) ∧
+    E.HasType 1 (sp.minorType :: sp.motiveType :: Γ0) eFc (.sort lvl1) ∧
+    E.HasType 1 (eFc :: sp.minorType :: sp.motiveType :: Γ0) (.app eP (.bvar 0)) (.sort .zero) :=
   ⟨ty_motive B hf, ty_minor B hm hf hc, tyFc B, tyPapp B (HasType.bvar .zero)⟩
 
-theorem ty_rule_rhs : E.HasType 1 [] sp.rule.rhs sp.rule.type := by
-  obtain ⟨_, h2, h1, h0⟩ := ty_rule_vars (sp := sp) B hm hf hc
-  obtain ⟨⟨_, dM⟩, ⟨_, dm⟩, dv, dh⟩ := ty_rule_domains (sp := sp) B hm hf hc
-  have hbody : E.HasType 1 sp.ruleCtx ruleRhsBody sp.ruleTypeBody :=
+theorem ty_rule_rhs_open {Γ0} :
+    E.HasType 1 (sp.ruleCtx ++ Γ0) ruleRhsBody sp.ruleTypeBody ∧
+    E.HasType 1 (eFc :: sp.minorType :: sp.motiveType :: Γ0) rhsLam3 sp.ruleTy3 ∧
+    E.HasType 1 (sp.minorType :: sp.motiveType :: Γ0) rhsLam2 sp.ruleTy2 ∧
+    E.HasType 1 (sp.motiveType :: Γ0) sp.rhsLam1 sp.ruleTy1 := by
+  obtain ⟨_, h2, h1, h0⟩ := ty_rule_vars (sp := sp) (Γ0 := Γ0) B hm hf hc
+  obtain ⟨_, ⟨_, dm⟩, dv, dh⟩ := ty_rule_domains (sp := sp) (Γ0 := Γ0) B hm hf hc
+  have hbody : E.HasType 1 (sp.ruleCtx ++ Γ0) ruleRhsBody sp.ruleTypeBody :=
     HasType.app (HasType.app h2 h1) h0
-  exact .lam dM <| .lam dm <| .lam dv <| .lam dh hbody
+  have l3 := HasType.lam dh hbody
+  have l2 := HasType.lam dv l3
+  exact ⟨hbody, l3, l2, HasType.lam dm l2⟩
+
+theorem ty_rule_rhs : E.HasType 1 [] sp.rule.rhs sp.rule.type := by
+  obtain ⟨⟨_, dM⟩, -⟩ := ty_rule_domains (sp := sp) (Γ0 := []) B hm hf hc
+  exact .lam dM (ty_rule_rhs_open (Γ0 := []) B hm hf hc).2.2.2
 
 variable (hr : sp.RecOK E)
 include hr
 
-theorem ty_rule_lhs : E.HasType 1 [] sp.rule.lhs sp.rule.type := by
-  obtain ⟨h3, h2, h1, h0⟩ := ty_rule_vars (sp := sp) B hm hf hc
-  obtain ⟨⟨_, dM⟩, ⟨_, dm⟩, dv, dh⟩ := ty_rule_domains (sp := sp) B hm hf hc
-  have hrec : E.HasType 1 sp.ruleCtx sp.eRec sp.recType :=
+theorem ty_rule_lhs_open {Γ0} :
+    E.HasType 1 (sp.ruleCtx ++ Γ0) sp.ruleLhsBody sp.ruleTypeBody ∧
+    E.HasType 1 (eFc :: sp.minorType :: sp.motiveType :: Γ0) sp.lhsLam3 sp.ruleTy3 ∧
+    E.HasType 1 (sp.minorType :: sp.motiveType :: Γ0) sp.lhsLam2 sp.ruleTy2 ∧
+    E.HasType 1 (sp.motiveType :: Γ0) sp.lhsLam1 sp.ruleTy1 := by
+  obtain ⟨h3, h2, h1, h0⟩ := ty_rule_vars (sp := sp) (Γ0 := Γ0) B hm hf hc
+  obtain ⟨_, ⟨_, dm⟩, dv, dh⟩ := ty_rule_domains (sp := sp) (Γ0 := Γ0) B hm hf hc
+  have hrec : E.HasType 1 (sp.ruleCtx ++ Γ0) sp.eRec sp.recType :=
     HasType.const hr.recursor (by simp [VLevel.WF]) rfl
-  have hbody : E.HasType 1 sp.ruleCtx sp.ruleLhsBody sp.ruleTypeBody :=
+  have hbody : E.HasType 1 (sp.ruleCtx ++ Γ0) sp.ruleLhsBody sp.ruleTypeBody :=
     HasType.app (HasType.app (HasType.app (HasType.app (HasType.app (HasType.app hrec h3) h2)
       (tyc B)) h1) (tyMapApp hm h1)) (tyCtorApp hc h1 h0)
-  exact .lam dM <| .lam dm <| .lam dv <| .lam dh hbody
+  have l3 := HasType.lam dh hbody
+  have l2 := HasType.lam dv l3
+  exact ⟨hbody, l3, l2, HasType.lam dm l2⟩
+
+theorem ty_rule_lhs : E.HasType 1 [] sp.rule.lhs sp.rule.type := by
+  obtain ⟨⟨_, dM⟩, -⟩ := ty_rule_domains (sp := sp) (Γ0 := []) B hm hf hc
+  exact .lam dM (ty_rule_lhs_open (Γ0 := []) B hm hf hc hr).2.2.2
 
 theorem rule_wf : sp.rule.WF E := ⟨ty_rule_lhs B hm hf hc hr, ty_rule_rhs B hm hf hc⟩
 
