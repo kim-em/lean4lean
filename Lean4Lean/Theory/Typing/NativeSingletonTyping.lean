@@ -28,6 +28,31 @@ def trueTy : VExpr := .forallE (.sort .zero) (.forallE (.bvar 0) (.bvar 1))
 /-- Its proof `fun p x => x`. -/
 def truePf : VExpr := .lam (.sort .zero) (.lam (.bvar 0) (.bvar 0))
 
+theorem ClosedN.of_liftN : ∀ {e : VExpr} {n j k : Nat}, (e.liftN n j).ClosedN (k + n) → j ≤ k →
+    e.ClosedN k
+  | .bvar i, n, j, k, h, hj => by
+    simp only [VExpr.liftN, ClosedN, liftVar] at h ⊢
+    split at h <;> omega
+  | .sort _, _, _, _, _, _ | .const _ _, _, _, _, _, _ | .elim _ _ _, _, _, _, _, _ => trivial
+  | .app f a, n, j, k, h, hj => ⟨ClosedN.of_liftN h.1 hj, ClosedN.of_liftN h.2 hj⟩
+  | .proj _ _ e, n, j, k, h, hj => ClosedN.of_liftN (e := e) h hj
+  | .lam A B, n, j, k, h, hj => ⟨ClosedN.of_liftN h.1 hj,
+      ClosedN.of_liftN (j := j + 1) (k := k + 1) (by simpa [Nat.add_right_comm] using h.2)
+        (by omega)⟩
+  | .forallE A B, n, j, k, h, hj => ⟨ClosedN.of_liftN h.1 hj,
+      ClosedN.of_liftN (j := j + 1) (k := k + 1) (by simpa [Nat.add_right_comm] using h.2)
+        (by omega)⟩
+
+theorem ClosedN.mkApps_inv : ∀ {f : VExpr} {args : List VExpr} {n : Nat},
+    (VExpr.mkApps f args).ClosedN n → f.ClosedN n ∧ ∀ a ∈ args, a.ClosedN n
+  | f, [], n, h => ⟨h, by simp⟩
+  | f, b :: bs, n, h => by
+    obtain ⟨⟨hf, hb⟩, hbs⟩ := ClosedN.mkApps_inv (f := .app f b) (args := bs) h
+    refine ⟨hf, fun a ha => ?_⟩
+    rcases List.mem_cons.1 ha with rfl | ha
+    · exact hb
+    · exact hbs a ha
+
 theorem trueTy_closed : trueTy.ClosedN 0 := by simp [trueTy, ClosedN]
 theorem truePf_closed : truePf.ClosedN 0 := by simp [truePf, ClosedN]
 
@@ -856,12 +881,6 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
     (htarget : g.targetLevel = .zero)
     {h : VExpr} (hhead : env.HasType g.uvars [] h (g.recursorType owner))
     (harity : (g.sCtorIndices c).length = (g.sIndices owner).length)
-    (hIcl : ∀ k (hk : k < (g.sIndices owner).length),
-      ((g.sIndices owner)[k]).ClosedN (g.params.length + k))
-    (hFcl : ∀ i (hi : i < (g.sFields c).length),
-      ((g.sFields c)[i]).ClosedN (g.params.length + i))
-    (hCIcl : ∀ e ∈ g.sCtorIndices c,
-      e.ClosedN (g.params.length + (g.sFields c).length))
     (hmajor : env.HasType g.uvars (g.params ++ g.sIndices owner).reverse (g.sMajor owner)
       (.sort .zero))
     {sorts : List VLevel}
@@ -919,6 +938,35 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
             [((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
               ((g.sFields c).length + (g.sHyps c).length)])) := by
     simpa [List.append_assoc] using hMinInv.2
+  have hIcl : ∀ k (hk : k < (g.sIndices owner).length),
+      ((g.sIndices owner)[k]).ClosedN (g.params.length + k) := by
+    intro k hk
+    have := OnCtx.closed_reverse henv.ordered hidx (g.params.length + k) (by simp; omega)
+    rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by simp)] at this
+    simpa using this
+  have hallcl := OnCtx.closed_reverse henv.ordered hall
+  have hFcl : ∀ i (hi : i < (g.sFields c).length),
+      ((g.sFields c)[i]).ClosedN (g.params.length + i) := by
+    intro i hi
+    have := hallcl (g.params.length + 1 + i) (by simp; omega)
+    rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by simp),
+      getElem_insertBinders (by simp; omega)] at this
+    simp only [List.length_append, List.length_singleton,
+      show g.params.length + 1 + i - (g.params.length + 1) = i by omega] at this
+    exact VExpr.ClosedN.of_liftN (k := g.params.length + i) (by simpa [Nat.add_right_comm] using this)
+      (by omega)
+  have hCIcl : ∀ e ∈ g.sCtorIndices c, e.ClosedN (g.params.length + (g.sFields c).length) := by
+    intro e he
+    obtain ⟨_, hb⟩ := hbody
+    have hcl := hb.closedN henv.ordered (CtxWF.closed henv.ordered hall)
+    have := (VExpr.ClosedN.mkApps_inv hcl).2 _ (List.mem_append_left _ (List.mem_map_of_mem he))
+    simp only [List.length_reverse, List.length_append, List.length_singleton,
+      InductiveSignature.Instance.length_insertBinders] at this
+    have h1 := VExpr.ClosedN.of_liftN (k := g.params.length + (g.sFields c).length + (g.sHyps c).length)
+      (j := (g.sFields c).length + (g.sHyps c).length) (by
+        simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this) (by omega)
+    exact VExpr.ClosedN.of_liftN (j := 0) (n := (g.sHyps c).length)
+      (k := g.params.length + (g.sFields c).length) h1 (Nat.zero_le _)
   have hshape : ∀ j (hj : j < (g.sHyps c).length) (args : List VExpr),
       args.length = g.params.length + 1 + (g.sFields c).length + j →
       args[g.params.length]? = some
