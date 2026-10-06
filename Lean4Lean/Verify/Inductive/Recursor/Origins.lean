@@ -161,13 +161,16 @@ def RecursorTranslatedOriginTypes.pushChecked
     {ty : Expr} {ty' : VExpr} {name : Name} {bi : BinderInfo}
     (H : RecursorTranslatedOriginTypes R origins)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+    {ty₀ : VExpr}
+    (htr₀ : TrExprS R.venv recLparams R.chk.vlctx ty ty₀)
+    (hty₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx ty₀) :
     let R' := R.withCheckedLocalDecl (c := c) (recLparams := recLparams)
-      (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
+      (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty htr₀ hty₀
     RecursorTranslatedOriginTypes R' (origins.push ty) := by
   dsimp only
   let R' := R.withCheckedLocalDecl (c := c) (recLparams := recLparams)
-    (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
+    (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty htr₀ hty₀
   let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   let liftedTargets := H.targets.map fun target => target.liftN 1 0
@@ -498,13 +501,14 @@ translations through the corresponding fresh local declaration. -/
 def TranslatedOriginTypes.push
     (H : TranslatedOriginTypes Hc origins)
     (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceTarget₀ consumedTarget₀)
     (name : Name) (bi : BinderInfo) :
     let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType
+      Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
     TranslatedOriginTypes Hc' (origins.push dom.consumeTypeAnnotationsVerified) := by
   dsimp only
   let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType
+    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
   let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   let liftedTargets := H.targets.map fun target => target.liftN 1 0
