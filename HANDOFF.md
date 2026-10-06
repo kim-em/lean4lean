@@ -305,8 +305,29 @@ declarations; validation must not assume correctness of its own artifact.
    declarations of an up-set containing its free variables do; `isDefEq` only
    threads the state invariant), prove it per method, and bridge to
    `loopUArgs` with the per-field up-set. This also allows removing
-   `checkIndexUniverses`. Work proceeds on branch `agent/universe-support` in
-   a separate worktree and is merged here when it builds.
+   `checkIndexUniverses`. **Done (2026-10-06, merged):** `VContext.UniverseScope`,
+   `VContext.LevelsBelow`, `LevelsCache.WF` and the `VState.WF` fields
+   `inferTypeI_levels`/`inferTypeC_levels`/`whnfCore_levels`/`whnf_levels`,
+   with `Methods.WF` fields `whnfCore_levels`/`whnf_levels`/`inferType_levels`,
+   proved for every method (`Verify/TypeChecker/{Basic,Reduce,Recursor,WHNF,
+   Projection,InferType}.lean`, `Verify/ExprUniverses.lean`); no pending
+   lemmas. The bridge to the recursor pass (`ArgumentUniverses`, the
+   hypothesis of `consumedGeneration_of`) is in progress
+   (`Recursor/ArgumentUniverses.lean`). Removing `checkIndexUniverses` is a
+   follow-up (obstacle 4).
+   **Assembly (2026-10-06).** `consumedGeneration_of H HU HF : Nonempty
+   H.ConsumedGeneration` (`Recursor/ConsumedGenerationAssembly.lean`,
+   `CanonicalConstruction.lean`) is proved from `recursorTelescope_hypothesisUnlift`
+   (`Recursor/CanonicalRecursiveShape.lean`: each hypothesis binder group is the
+   `underFields` lift of small-context translations of explicit blueprint
+   sources), the universe un-shift (`TrExprS.unshiftFixed`), `ConsumedModels.lean`
+   (`ConsumedSignatureData.models_of_familyTypes`), `ConsumedAdmissible.lean`
+   (`consumedInstance_admissible`, with `sourceConstructorIndices_eq_header`),
+   `recursorTarget_eq_of_minors`, and `recursiveTypesWF_of_recursorType`.
+   `ConsumedGeneration` gained `recursiveTypesWF`. The two hypotheses `HU :
+   H.ArgumentUniverses` and `HF : H.ConsumedFamilyTypes` are being discharged
+   (the latter by the third correction of item 8, which removes the need for
+   it).
    Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
