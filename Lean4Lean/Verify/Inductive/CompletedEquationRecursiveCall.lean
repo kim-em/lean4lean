@@ -2910,144 +2910,47 @@ theorem
       A.semantics.fieldOpening.telescope Hnarrow with
     ⟨narrowDomains, narrowResidual, hnarrowLength, hnarrowTarget⟩
   rw [hnarrowTarget] at Hnarrow
-  rcases B.runtime.front.base with
-    ⟨baseScope, baseExpanded, baseShift, hscopeBase,
-      hexpandedBase, hshift, Wbase⟩
-  have hbaseScope : baseScope = H.parameterSuffix.parameterDecls := by
-    rw [← hscopeBase, B.scope_base, A.parameterDecls_eq]
-  subst baseScope
-  rcases B.semanticFieldContext with
-    ⟨_hruleLength, _hsemanticContext, hfrontExpanded,
-      _hexpandedContext, HfieldBase, _Hexpanded⟩
-  have HbaseContext : VLCtx.IsDefEq H.outVEnv Us.length
-      baseExpanded A.semantics.fieldRootContext.mlctx.vlctx := by
-    rw [hfrontExpanded] at hexpandedBase
-    have HfieldBase' := HfieldBase
-    rw [hexpandedBase] at HfieldBase'
-    exact HfieldBase'
-  rw [hbaseScope] at Wbase
-  have HnarrowWeak : TrExprS H.outVEnv Us baseExpanded
-      A.semantics.parameterTail
-      ((VExpr.wrapForalls narrowDomains narrowResidual).lift'
-        baseShift) := by
-    exact Hnarrow.weakFV' H.outVEnvWF.ordered Wbase HbaseContext.wf
+  refine ⟨S, HS, narrowDomains, narrowResidual, hnarrowLength, Hnarrow, ?_⟩
+  have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv]
+    exact H.constructorVEnv_le
+  have HPwf : VLCtx.WF H.outVEnv Us.length H.parameterSuffix.parameterDecls :=
+    H.parameterSuffix.parameterWF.mono hrecBase
+  rcases Nat.eq_zero_or_pos A.rule.allArgs.size with h0 | hpos
+  · have hnD : narrowDomains = [] :=
+      List.eq_nil_of_length_eq_zero (hnarrowLength.trans h0)
+    have hfD : B.fieldDomains = [] :=
+      List.eq_nil_of_length_eq_zero (B.fieldDomains_length.trans h0)
+    rw [hnD, hfD]
+    exact VEnv.IsDefEqCtx.refl HPwf.toCtx
   have hfieldBaseEnv : A.semantics.fieldRootContext.venv ≤ H.outVEnv := by
     rw [← A.semantics.fieldRootExtension.venv_eq, H.recursorEnv]
     exact H.constructorVEnv_le
-  rcases A.semantics.fieldContextDefEq with
-    ⟨sourceDomains, sourceResidual, hsource, hparameterTarget,
-      HsourceFields₀⟩
-  have Hsource : TrExprS H.outVEnv Us
-      A.semantics.fieldRootContext.mlctx.vlctx A.semantics.parameterTail
-      (VExpr.wrapForalls sourceDomains sourceResidual) := by
-    have Htr := A.semantics.parameterTranslation.mono hfieldBaseEnv
-    simpa only [hparameterTarget] using Htr
-  have Htarget := HnarrowWeak.uniq H.outVEnvWF HbaseContext Hsource
-  rw [VExpr.lift'_wrapForalls_exact] at Htarget
-  let liftedDomains := liftForallDomains narrowDomains baseShift
-  have hliftedLength : liftedDomains.length = narrowDomains.length := by
-    exact liftForallDomains_length narrowDomains baseShift
-  have HbaseDefEq : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      (VLCtx.toCtx baseExpanded)
-        A.semantics.fieldRootContext.mlctx.vlctx.toCtx :=
-    HbaseContext.defeqCtx
-  have HliftedSource := VEnv.IsDefEqU.wrapForalls_context
-    H.outVEnvWF HbaseDefEq
-      (hliftedLength.trans hnarrowLength |>.trans hsource.symm) Htarget
-  have HsourceFields := HsourceFields₀.mono hfieldBaseEnv
-  rcases B.semanticFieldContext with
-    ⟨_hruleLength, _hsemanticContext, _hfrontExpanded,
-      _hexpandedContext, _HfieldBase, Hexpanded⟩
-  have HsourceExpanded := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HsourceFields (Hexpanded.symm H.outVEnvWF.ordered)
-  have HliftedExpanded := VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-    HliftedSource HsourceExpanded
-  have hexpandedContext : B.runtime.expanded.toCtx =
-      B.runtime.frontExpandedDomains.reverse ++ VLCtx.toCtx baseExpanded := by
-    rw [B.runtime.front.expandedContext, hexpandedBase]
-  rw [hexpandedContext] at HliftedExpanded
-  have HsourceType := A.semantics.parameterType.mono hfieldBaseEnv
-  have HrootWF : VLCtx.WF H.outVEnv Us.length
-      A.semantics.fieldRootContext.mlctx.vlctx :=
-    (A.semantics.fieldRootContext.mlctx_wf.mono hfieldBaseEnv).tr.wf
-  have HparameterTranslation :=
-    A.semantics.parameterTranslation.mono hfieldBaseEnv
-  have HparameterSource := HparameterTranslation.uniq H.outVEnvWF
-    (.refl H.outVEnvWF HrootWF) Hsource
-  have HsourceWrappedType := VEnv.IsType.defeqU_l H.outVEnvWF
-    HrootWF.toCtx HparameterSource HsourceType
-  have HsourceTypeAtBase := HsourceWrappedType.defeqDFC
-    H.outVEnvWF.ordered
-    (HbaseContext.defeqCtx.symm H.outVEnvWF.ordered)
-  have HwholeType : H.outVEnv.IsType Us.length
-      (VLCtx.toCtx baseExpanded)
-      (VExpr.wrapForalls liftedDomains
-        (narrowResidual.lift'
-          (baseShift.consN narrowDomains.length))) :=
-    VEnv.IsType.defeqU_l H.outVEnvWF HbaseContext.wf.toCtx
-      Htarget.symm HsourceTypeAtBase
-  have Hopened := VEnv.IsType.wrapForalls_inv H.outVEnvWF.ordered
-    HbaseContext.wf.toCtx HwholeType
-  rcases Hopened.2 with ⟨bodyLevel, Hbody⟩
-  have Hclosed := VEnv.IsDefEqCtx.closeHeads HliftedExpanded
-    liftedDomains.length (by simp [liftedDomains]) Hbody
-  rcases Hclosed with ⟨closedLevel, Hclosed⟩
-  have hfrontLength : B.runtime.frontExpandedDomains.length =
-      liftedDomains.length := by
-    rw [hfrontExpanded, hliftedLength, hnarrowLength]
-  have Hclosed' : H.outVEnv.IsDefEq Us.length (VLCtx.toCtx baseExpanded)
-      (VExpr.wrapForalls liftedDomains
-        (narrowResidual.lift'
-          (baseShift.consN narrowDomains.length)))
-      (VExpr.wrapForalls B.runtime.frontExpandedDomains
-        (narrowResidual.lift'
-          (baseShift.consN narrowDomains.length)))
-      (.sort closedLevel) := by
-    have hleftDrop :
-        (liftedDomains.reverse ++ VLCtx.toCtx baseExpanded).drop
-            liftedDomains.length = VLCtx.toCtx baseExpanded := by
-      simp
-    have hleftTake :
-        (liftedDomains.reverse ++ VLCtx.toCtx baseExpanded).take
-            liftedDomains.length = liftedDomains.reverse := by
-      simp
-    have hrightTake :
-        (B.runtime.frontExpandedDomains.reverse ++
-            VLCtx.toCtx baseExpanded).take liftedDomains.length =
-          B.runtime.frontExpandedDomains.reverse := by
-      rw [← hfrontLength]
-      simp
-    rw [hleftDrop, hleftTake, hrightTake] at Hclosed
-    simpa using Hclosed
-  have hfrontSourceLength : B.runtime.frontSourceDomains.length =
-      narrowDomains.length := by
-    rw [B.front, B.fieldDomains_length, hnarrowLength]
-  have hrightLift :
-      (VExpr.wrapForalls B.fieldDomains narrowResidual).lift' baseShift =
-        VExpr.wrapForalls B.runtime.frontExpandedDomains
-          (narrowResidual.lift'
-            (baseShift.consN narrowDomains.length)) := by
-    have Hclose := B.runtime.front.closeAtBase baseShift hshift narrowResidual
-    rw [B.front, hshift, hfrontSourceLength] at Hclose
-    exact Hclose
-  have Hlifted : H.outVEnv.IsDefEqU Us.length (VLCtx.toCtx baseExpanded)
-      ((VExpr.wrapForalls narrowDomains narrowResidual).lift' baseShift)
-      ((VExpr.wrapForalls B.fieldDomains narrowResidual).lift' baseShift) := by
-    rw [VExpr.lift'_wrapForalls_exact, hrightLift]
-    exact ⟨.sort closedLevel, Hclosed'⟩
-  have HnarrowFields :=
-    (VEnv.IsDefEqU.weak'_iff H.outVEnvWF HbaseContext.wf.toCtx
-      Wbase.toCtx).1 Hlifted
-  have HparameterBase : VEnv.IsDefEqCtx H.outVEnv Us.length []
-      H.parameterSuffix.parameterDecls.toCtx
-      H.parameterSuffix.parameterDecls.toCtx :=
-    VEnv.IsDefEqCtx.refl
-      (Wbase.wf H.outVEnvWF HbaseContext.wf).toCtx
-  have Hfields := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
-    HparameterBase (hnarrowLength.trans B.fieldDomains_length.symm)
-      HnarrowFields
-  exact ⟨S, HS, narrowDomains, narrowResidual, hnarrowLength,
-    Hnarrow, Hfields⟩
+  have hctxEnv : A.semantics.context.venv ≤ H.outVEnv := by
+    rw [A.semantics.context_venv, H.recursorEnv]
+    exact H.constructorVEnv_le
+  obtain ⟨M, _hMwf, hchkM, hnM, hagM, hdropM, T₀, hT₀, t₀', _ht₀', hroot⟩ :=
+    A.semantics.fieldCheck
+  rw [A.parameterDecls_eq] at hT₀ hroot hdropM
+  have hT₀' := hT₀.mono hfieldBaseEnv
+  have hroot' := hroot.mono hctxEnv
+  have Huniq := Hnarrow.uniq H.outVEnvWF (.refl H.outVEnvWF HPwf) hT₀'
+  have Hwrap := Huniq.trans H.outVEnvWF HPwf.toCtx hroot'
+  rw [TypeChecker.MLCtx.mkForall'_eq_wrapForalls] at Hwrap
+  have HdomLen := hagM.forallDomains_length hnM
+  have Hctx1 := VEnv.IsDefEqU.wrapForalls_context H.outVEnvWF
+    (VEnv.IsDefEqCtx.refl HPwf.toCtx)
+    (hnarrowLength.trans HdomLen.symm) Hwrap
+  have hMsplit := hagM.toCtx_split hnM
+  rw [hdropM] at hMsplit
+  rw [← hMsplit] at Hctx1
+  have Halign := (B.checkAlign hpos).mono hfieldBaseEnv
+  rw [hchkM hpos] at Halign
+  have HfieldCtx := Halign.defeqCtx
+  rw [B.fieldScope_eq, abstractForallContext_toCtx, A.parameterDecls_eq]
+    at HfieldCtx
+  exact VEnv.IsDefEqCtx.transEmpty H.outVEnvWF Hctx1
+    (HfieldCtx.symm H.outVEnvWF.ordered)
 
 /-- The independently checked constructor-field telescope and the narrow
 rule-wide field telescope are definitionally equal over the cached parameter

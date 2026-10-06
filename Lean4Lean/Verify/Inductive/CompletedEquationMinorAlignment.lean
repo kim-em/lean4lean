@@ -1285,24 +1285,25 @@ theorem
   have Hfull : TrExprS H.outVEnv Us H.recursorWF.mlctx.vlctx S.origin
       fullTarget :=
     Hfull₀.mono hbase
-  have hclosed : Closed S.origin 0 := by
-    have h := Hfull.closed
-    rw [H.recursorWF.mlctx.noBV] at h
-    exact h
-  have HabstractClosed :
-      (S.origin.abstractList sourceBinders).FVarsIn (fun _ => False) := by
-    have Hfvars := Hinstalled.translation.fvarsIn
-    exact Hfvars.mono fun fv hfv => by simpa using hfv
-  have HsourceScope : S.origin.FVarsIn (· ∈ scope.fvars) := by
-    have Hraw := FVarsIn.of_abstractList HabstractClosed
-    apply Hraw.mono
-    intro fv hfv
-    rcases hfv with hfv | hfalse
-    · rw [hscope]
-      exact List.mem_reverse.mpr hfv
-    · exact False.elim hfalse
-  rcases Hscope.restrictEq H.outVEnvWF Hfull hclosed HsourceScope with
-    ⟨narrowTarget, Hnarrow, HfullEq⟩
+  have HinstalledTr := Hinstalled.translation
+  have HabstractCtx : VLCtx.IsDefEq H.outVEnv Us.length
+      (abstractForallContext (T.params ++ T.motives ++ T.minors.take minorIdx) [])
+      (abstractForallContext scope.toCtx.reverse []) := by
+    have h := VLCtx.IsDefEq.ofNoneCtx (Hprefix.symm H.outVEnvWF.ordered)
+    simpa [abstractForallContext] using h
+  obtain ⟨narrowTarget, HnarrowAbs⟩ :=
+    HinstalledTr.defeqDFC H.outVEnvWF HabstractCtx
+  have hsourceBinders : sourceBinders = scope.fvars.reverse := by
+    rw [hscope, List.reverse_reverse]
+  have Hnarrow : TrExprS H.outVEnv Us scope S.origin narrowTarget := by
+    apply Hscope.instantiateAll H.outVEnvWF
+    rw [← hsourceBinders]
+    exact HnarrowAbs
+  have HfullEq : H.outVEnv.IsDefEqU Us.length H.recursorWF.mlctx.vlctx.toCtx
+      fullTarget (narrowTarget.lift' Hscope.shift) :=
+    (Hscope.fullTargetEq H.outVEnvWF Hnarrow
+      (Hfull.trExpr H.outVEnvWF
+        (Hscope.context.symm H.outVEnvWF.ordered).wf)).symm
   rcases S.originTelescope with ⟨sourceResidual, HsourceTelescope⟩
   have HsourceTelescope' : Expr.ForallTelescope S.origin
       (A.rule.allArgs.size + A.rule.recursiveArgs.size) sourceResidual := by

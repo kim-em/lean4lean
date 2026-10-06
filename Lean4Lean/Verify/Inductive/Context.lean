@@ -2780,6 +2780,28 @@ theorem MLCtxTopAgree.stepDropForall {env : VEnv} {U : Nat}
   exact ⟨by simpa using hn, hag.vlam fv name ty t₁ t₂ bi, by simpa using hd,
     by simpa using he⟩
 
+theorem MLCtxTopAgree.forallDomains_length {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (hn : n ≤ b.length) :
+    (MLCtxForallDomains b n hn).length = n := by
+  induction H with
+  | zero => simp [MLCtxForallDomains]
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    simp only [MLCtxForallDomains, List.length_append, List.length_singleton]
+    rw [ih]
+
+theorem MLCtxTopAgree.toCtx_split {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (hn : n ≤ b.length) :
+    b.vlctx.toCtx =
+      (MLCtxForallDomains b n hn).reverse ++ (b.dropN n hn).vlctx.toCtx := by
+  induction H with
+  | zero => simp [MLCtxForallDomains]
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    simp only [TypeChecker.MLCtx.vlctx, VLCtx.toCtx,
+      MLCtxForallDomains, List.reverse_append, List.reverse_singleton,
+      List.singleton_append, TypeChecker.MLCtx.dropN]
+    simpa [List.append_assoc] using congrArg (t₂ :: ·)
+      (ih (Nat.le_of_succ_le_succ hn))
+
 /-- Opening a binder in both contexts extends a scope aligned with the
 checker context by the scope translation of the binder's domain. -/
 theorem ContextWF.alignedBinder (Hc : ContextWF c)
