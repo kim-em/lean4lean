@@ -102,6 +102,24 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   whether `ProjectionWalkCorner` is provable with singleton eta. Whichever
   route reaches a complete proof first wins; GOAL.md's "E1 parked" clause is
   superseded by this entry.
+  **`ProjectionWalkCorner` assessment (strengthening agent,
+  `STRENGTHENING_NOTES.md` "Assessment: the restricted projection-walk
+  corner"):** provable by SUBSTITUTION, no certificates, if the environment
+  contains canonical `Nonempty` and `Classical.choice` (both in
+  `Init.Prelude`): eliminate the structure `S` into Prop with motive
+  `fun x => Nonempty D[x]` to get `hne : Nonempty D`, substitute
+  `d := Classical.choice hne`; since the body does not mention `d` the
+  substitution yields the smaller-context translation. Without choice the
+  restriction gives no measure (same conversion-elimination problem).
+  **Decision (2026-10-06): accept `VEnv.HasCanonicalChoice` as a further
+  hypothesis of the final theorem** (same character as `HasCanonicalEq`,
+  prelude-installed, monotone), on the E1 route; the strengthening agent
+  implements `projectionWalkCorner_of_choice` (about 1k to 2k lines) and its
+  realizability, then returns to the prototype. If E1 completes, the final
+  theorem's hypotheses are `ves.WF env`, canonical `Eq`, canonical
+  `Nonempty`/`choice`, `decl.IsModelled`, with `headInversion` the only
+  remaining conjecture; GOAL.md item (3) is to be updated accordingly when
+  that lands.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
