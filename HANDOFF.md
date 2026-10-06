@@ -697,7 +697,13 @@ inside this project's scope without solving open base metatheory:
    `EnvHitShape.prims` field (showing literal expansion and the out-of-range
    dummy never reach a successful recursor-pass output). **Decision for Kim:**
    carry `hprims` as an explicit hypothesis of the nested theorem (hence of
-   `addDecl.WF` for nested inductives) or fund the rework.
+   `addDecl.WF` for nested inductives) or fund the rework. **Resolution
+   (2026-10-06, after Kim asked what Mario would do): rework.** No
+   input-naming hypotheses on soundness theorems; the literal-expansion
+   sites only need the hard-coded constants that exist in the environment
+   not to be heads (discharged by freshness), and the out-of-range dummy must
+   be shown unreachable on successful runs. In progress on the hitshape
+   worktree.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
