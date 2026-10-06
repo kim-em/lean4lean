@@ -65,6 +65,16 @@ class Params where
     Subpattern (.app p₁' p₂') p' → Subpattern (.var p₃) p₁ → p₁'.inter p₃ = none
   pat_app_uniq : Pat p r → Pat p' r' → Subpattern (.app p₁ p₂) p →
     Subpattern (.app p₁' p₂') p' → Subpattern p₃ p₁ → Subpattern p₃' p₂' → p₃.inter p₃' = none
+  /-- Definition patterns unfold definitions, never a native recursor or the
+  quotient lift, whose prefixes compute by native and quotient prefix unfolding. -/
+  pat_const_native : Pat (.const c) r → recursorData c = none ∧ c ≠ ``Quot.lift
+  /-- The quotient lift is not a registered native recursor. -/
+  recursorData_quot : recursorData ``Quot.lift = none
+  /-- The constructor of a native iota pattern carries no computation of its own. -/
+  pat_ctor_rigid : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
+    env.NativeHeadRigid cc
+  /-- Structure constructors carry no computation of their own. -/
+  projection_ctor_rigid : env.projections family info → env.NativeHeadRigid info.ctorName
 variable [Params]
 open Params
 
