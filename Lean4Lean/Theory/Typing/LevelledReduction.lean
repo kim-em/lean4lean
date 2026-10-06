@@ -526,6 +526,185 @@ theorem Below.full (hΓ : OnCtx Γ (env.IsType univs))
       obtain ⟨out, h1, h2⟩ := he.fullReduction hΓ (h.full hΓ (Nat.succ_pos _) hm)
       exact ⟨out, hr.trans h1, h2⟩
 
+
+theorem LevelStep.defeq (hΓ : OnCtx Γ (env.IsType univs))
+    (H : LevelStep Γ n a b) (ha : Γ ⊢ a : A) : Γ ⊢ a ≡ b : A := by
+  match n, H with
+  | 0, H => exact (NormalEqF.defeq hΓ H).of_l henv hΓ ha
+  | n + 1, H => exact (LevelStep.full hΓ (Nat.succ_pos _) H ha).defeq hΓ ha
+
+theorem Below.defeq (hΓ : OnCtx Γ (env.IsType univs))
+    (H : ReflTransGen (Below Γ n) a b) (ha : Γ ⊢ a : A) : Γ ⊢ a ≡ b : A := by
+  induction H with
+  | rfl => exact ha
+  | tail h₁ h ih =>
+    obtain ⟨_, _, h⟩ := h
+    exact ih.trans (h.defeq hΓ (Below.hasType hΓ h₁ ha))
+
+theorem Below.pres {P : VExpr → Prop}
+    (hpres : ∀ {k a b}, P a → LevelStep Γ' k a b → P b)
+    (H : ReflTransGen (Below Γ' n) a b) (ha : P a) : P b := by
+  induction H with
+  | rfl => exact ha
+  | tail _ h ih => obtain ⟨_, _, h⟩ := h; exact hpres ih h
+
+/-- Lift a levelled reduction through a congruence, one step at a time. -/
+theorem Below.congr {f : VExpr → VExpr} {P : VExpr → Prop}
+    (hstep : ∀ {k a b}, P a → LevelStep Γ' k a b → LevelStep Γ k (f a) (f b))
+    (hpres : ∀ {k a b}, P a → LevelStep Γ' k a b → P b)
+    (H : ReflTransGen (Below Γ' n) a b) (ha : P a) :
+    ReflTransGen (Below Γ n) (f a) (f b) := by
+  induction H with
+  | rfl => exact .rfl
+  | @tail b' c' h₁ h ih =>
+    obtain ⟨k, hk, h⟩ := h
+    have hP : P b' := Below.pres hpres h₁ ha
+    exact ih.tail ⟨k, hk, hstep hP h⟩
+
+theorem Below.typed_pres (hΓ : OnCtx Γ (env.IsType univs)) :
+    ∀ {k a b}, (Γ ⊢ a : A) → LevelStep Γ k a b → Γ ⊢ b : A :=
+  fun ha h => h.hasType hΓ ha
+
+theorem LevelStep.app_l (hf : Γ ⊢ f : .forallE X Y) (hx : Γ ⊢ x : X)
+    (hΓ : OnCtx Γ (env.IsType univs)) (H : LevelStep Γ k f f') :
+    LevelStep Γ k (.app f x) (.app f' x) := by
+  match k, H with
+  | 0, H => exact NormalEqF.appDF hf (H.hasType hΓ hf) hx hx H (.refl hx)
+  | 1, H => exact ParRed.app H .rfl
+  | 2, H => exact DeltaPar.app H .rfl
+  | 3, H => exact EtaPar.app H .rfl
+  | _ + 4, H => exact H.elim
+
+theorem LevelStep.app_r (hf : Γ ⊢ f : .forallE X Y) (hx : Γ ⊢ x : X)
+    (hΓ : OnCtx Γ (env.IsType univs)) (H : LevelStep Γ k x x') :
+    LevelStep Γ k (.app f x) (.app f x') := by
+  match k, H with
+  | 0, H => exact NormalEqF.appDF hf hf hx (H.hasType hΓ hx) (.refl hf) H
+  | 1, H => exact ParRed.app .rfl H
+  | 2, H => exact DeltaPar.app .rfl H
+  | 3, H => exact EtaPar.app .rfl H
+  | _ + 4, H => exact H.elim
+
+theorem Below.app (hΓ : OnCtx Γ (env.IsType univs))
+    (hf : ReflTransGen (Below Γ n) f f') (hx : ReflTransGen (Below Γ n) x x')
+    (ht : Γ ⊢ .app f x : T) : ReflTransGen (Below Γ n) (.app f x) (.app f' x') := by
+  obtain ⟨X, Y, tf, tx⟩ := ht.app_inv henv hΓ
+  have h1 := Below.congr (f := (VExpr.app · x)) (P := fun g => Γ ⊢ g : .forallE X Y)
+    (fun hP h => h.app_l hP tx hΓ) (fun hP h => h.hasType hΓ hP) hf tf
+  have tf' := Below.hasType hΓ hf tf
+  have h2 := Below.congr (f := VExpr.app f') (P := fun g => Γ ⊢ g : X)
+    (fun hP h => h.app_r tf' hP hΓ) (fun hP h => h.hasType hΓ hP) hx tx
+  exact h1.trans h2
+
+theorem Below.mkApps (hΓ : OnCtx Γ (env.IsType univs))
+    (hf : ReflTransGen (Below Γ n) f f') (hs : List.Forall₂ (ReflTransGen (Below Γ n)) as as')
+    (ht : Γ ⊢ VExpr.mkApps f as : T) :
+    ReflTransGen (Below Γ n) (VExpr.mkApps f as) (VExpr.mkApps f' as') := by
+  induction hs generalizing f f' with
+  | nil => exact hf
+  | cons h _ ih =>
+    obtain ⟨_, happ⟩ := schema_mkApps_head_type hΓ (fn := .app f _) ht
+    exact ih (Below.app hΓ hf h happ) ht
+
+theorem LevelStep.proj (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : Γ ⊢ .proj s i m : T) (H : LevelStep Γ k m m') :
+    LevelStep Γ k (.proj s i m) (.proj s i m') := by
+  match k, H with
+  | 0, H => exact NormalEqF.projDF ht H
+  | 1, H => exact ParRed.proj H
+  | 2, H => exact DeltaPar.proj H
+  | 3, H => exact EtaPar.proj H
+  | _ + 4, H => exact H.elim
+
+theorem Below.proj (hΓ : OnCtx Γ (env.IsType univs))
+    (hm : ReflTransGen (Below Γ n) m m') (ht : Γ ⊢ .proj s i m : T) :
+    ReflTransGen (Below Γ n) (.proj s i m) (.proj s i m') := by
+  have := Below.congr (f := VExpr.proj s i) (P := fun g => Γ ⊢ .proj s i g : T)
+    (fun hP h => LevelStep.proj hΓ hP h)
+    (fun hP h => (LevelStep.proj hΓ hP h).hasType hΓ hP) hm ht
+  exact this
+
+theorem LevelStep.lam_body (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
+    (hb : D :: Γ ⊢ b : B) (H : LevelStep (D :: Γ) k b b') :
+    LevelStep Γ k (.lam D b) (.lam D b') := by
+  match k, H with
+  | 0, H => exact NormalEqF.lamDF hD hD H
+  | 1, H => exact ParRed.lam .rfl H
+  | 2, H => exact DeltaPar.lam .rfl H
+  | 3, H => exact EtaPar.lam .rfl H
+  | _ + 4, H => exact H.elim
+
+theorem LevelStep.lam_dom (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
+    (hb : D :: Γ ⊢ b : B) (H : LevelStep Γ k D D') :
+    LevelStep Γ k (.lam D b) (.lam D' b) := by
+  match k, H with
+  | 0, H =>
+    have hDD := (NormalEqF.defeq hΓ H).of_l henv hΓ hD
+    exact NormalEqF.lamDF hD hDD (.refl hb)
+  | 1, H => exact ParRed.lam H .rfl
+  | 2, H => exact DeltaPar.lam H .rfl
+  | 3, H => exact EtaPar.lam H .rfl
+  | _ + 4, H => exact H.elim
+
+theorem Below.lam (hΓ : OnCtx Γ (env.IsType univs))
+    (hD : ReflTransGen (Below Γ n) D D') (hb : ReflTransGen (Below (D :: Γ) n) b b')
+    (ht : Γ ⊢ .lam D b : T) : ReflTransGen (Below Γ n) (.lam D b) (.lam D' b') := by
+  obtain ⟨⟨_, tD⟩, _, tb⟩ := ht.lam_inv henv hΓ
+  have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
+  have h1 := Below.congr (f := VExpr.lam D) (P := fun g => D :: Γ ⊢ g : _)
+    (fun hP h => h.lam_body hΓ tD hP) (fun hP h => h.hasType hΓ' hP) hb tb
+  have tb' := Below.hasType hΓ' hb tb
+  have hDD := Below.defeq hΓ hD tD
+  have h2 := Below.congr (f := (VExpr.lam · b')) (P := fun g => Γ ⊢ g : _ ∧ Γ ⊢ D ≡ g)
+    (fun hP h => by
+      have tb'' := tb'.defeqDFC henv (.succ .zero (hP.2.of_l henv hΓ tD))
+      exact h.lam_dom hΓ hP.1 tb'' )
+    (fun hP h => ⟨h.hasType hΓ hP.1, hP.2.trans henv hΓ ⟨_, h.defeq hΓ hP.1⟩⟩) hD ⟨tD, ⟨_, tD⟩⟩
+  exact h1.trans h2
+
+theorem LevelStep.forallE_body (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
+    (hb : D :: Γ ⊢ b : .sort v) (H : LevelStep (D :: Γ) k b b') :
+    LevelStep Γ k (.forallE D b) (.forallE D b') := by
+  match k, H with
+  | 0, H => exact NormalEqF.forallEDF hD (.refl hD) hb H
+  | 1, H => exact ParRed.forallE .rfl H
+  | 2, H => exact DeltaPar.forallE .rfl H
+  | 3, H => exact EtaPar.forallE .rfl H
+  | _ + 4, H => exact H.elim
+
+theorem LevelStep.forallE_dom (hΓ : OnCtx Γ (env.IsType univs)) (hD : Γ ⊢ D : .sort u)
+    (hb : D :: Γ ⊢ b : .sort v) (H : LevelStep Γ k D D') :
+    LevelStep Γ k (.forallE D b) (.forallE D' b) := by
+  match k, H with
+  | 0, H =>
+    exact NormalEqF.forallEDF hD H hb (.refl hb)
+  | 1, H => exact ParRed.forallE H .rfl
+  | 2, H => exact DeltaPar.forallE H .rfl
+  | 3, H => exact EtaPar.forallE H .rfl
+  | _ + 4, H => exact H.elim
+
+theorem Below.forallE (hΓ : OnCtx Γ (env.IsType univs))
+    (hD : ReflTransGen (Below Γ n) D D') (hb : ReflTransGen (Below (D :: Γ) n) b b')
+    (ht : Γ ⊢ .forallE D b : T) : ReflTransGen (Below Γ n) (.forallE D b) (.forallE D' b') := by
+  obtain ⟨⟨_, tD⟩, _, tb⟩ := ht.forallE_inv henv
+  have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
+  have h1 := Below.congr (f := VExpr.forallE D) (P := fun g => D :: Γ ⊢ g : .sort _)
+    (fun hP h => h.forallE_body hΓ tD hP) (fun hP h => h.hasType hΓ' hP) hb tb
+  have tb' := Below.hasType hΓ' hb tb
+  have hDD := Below.defeq hΓ hD tD
+  have h2 := Below.congr (f := (VExpr.forallE · b')) (P := fun g => Γ ⊢ g : _ ∧ Γ ⊢ D ≡ g)
+    (fun hP h => by
+      have tb'' := tb'.defeqDFC henv (.succ .zero (hP.2.of_l henv hΓ tD))
+      exact h.forallE_dom hΓ hP.1 tb'')
+    (fun hP h => ⟨h.hasType hΓ hP.1, hP.2.trans henv hΓ ⟨_, h.defeq hΓ hP.1⟩⟩) hD ⟨tD, ⟨_, tD⟩⟩
+  exact h1.trans h2
+
+theorem Below.ofParRedS (H : ReflTransGen (ParRed Γ) a b) (hn : 1 < n) :
+    ReflTransGen (Below Γ n) a b := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h ih => exact ih.tail ⟨1, hn, h⟩
+
 end LevelDefs
 
 
