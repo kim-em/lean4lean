@@ -322,7 +322,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     {isUnsafe : Bool}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams isUnsafe .safe)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WF sourceProdEnv) (hcorner : ProjectionWalkCorner)
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -340,7 +340,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   have Hvalid : CheckingEnv.Valid .safe sourceProdEnv (ves.venv .safe) :=
     (wf.tr (safety := .safe)).toCheckingValid
       (wf.hasPrimitives (safety := .safe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -362,7 +362,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
     (wf.tr (safety := observer)).toCheckingValid
       (wf.hasPrimitives (safety := observer)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
         ∃ Breplay : BlockCertificate observer sourceProdEnv
@@ -474,7 +474,7 @@ private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams false .safe)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WF sourceProdEnv) (hcorner : ProjectionWalkCorner)
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -485,7 +485,7 @@ private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
           (C.primaryRules ++ C.auxiliaryRules))) :
     Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
       false) := by
-  rcases C.extendSafe wf Horigins hclosed
+  rcases C.extendSafe wf hcorner Horigins hclosed
       hconstructorOwners hconstructorSemantics with
     ⟨ves', wf', hle, ⟨Hfinal⟩, hadd⟩
   exact ⟨InductiveFinalResult.ofModel ves' wf' hle
@@ -514,7 +514,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WF sourceProdEnv) (hcorner : ProjectionWalkCorner)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
@@ -534,7 +534,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.safeInductiveFinalResult wf
+  exact C.safeInductiveFinalResult wf hcorner
     (C.productionInductiveOrigins Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hclosed
@@ -555,7 +555,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : NestedFinalAssemblyCertificate H (ves.venv .unsafe) decl lparams
       nparams true .unsafe)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WF sourceProdEnv) (hcorner : ProjectionWalkCorner)
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hentriesUnsafe : ∀ entries
@@ -573,7 +573,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
   have Hvalid : CheckingEnv.Valid .unsafe sourceProdEnv (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -749,7 +749,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WF sourceProdEnv) (hcorner : ProjectionWalkCorner)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
@@ -772,7 +772,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.unsafeInductiveFinalResult wf
+  exact C.unsafeInductiveFinalResult wf hcorner
     (C.productionInductiveOrigins Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed

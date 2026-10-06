@@ -15,7 +15,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeWithS
     {ves : VEnvs}
     (Hrun : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned source
       (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WF source.env) :
+    (wf : ves.WF source.env) (hcorner : ProjectionWalkCorner) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult (ves.venv .safe)
@@ -32,7 +32,7 @@ theorem VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeWithS
   have Hshape' : PrimitiveInductiveShape c'.lparams nparams
       types.toArray.toList (c'.safety != .safe) := by
     simpa [hsafety] using Hshape
-  rcases Hphases'.extendSafeExact wf' Hshape' with
+  rcases Hphases'.extendSafeExact wf' hcorner Hshape' with
     ⟨ves', decl, envTypes, envCtors, wf'', hle, hcore, hadd⟩
   refine ⟨ves', wf'', hle, ⟨?_⟩⟩
   exact {
@@ -49,7 +49,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env)
+    (wf : ves.WF c.env) (hcorner : ProjectionWalkCorner)
     (hsource : Hc.venv = ves.venv .safe)
     (Hshape : PrimitiveInductiveShape c.lparams nparams
       types.toArray.toList (c.safety != .safe))
@@ -68,14 +68,14 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
-    exact Hresult'.extendSafeWithSpecification wf
+    exact Hresult'.extendSafeWithSpecification wf hcorner
 
 /-- Primitive post-lowering refinement with no equality-bootstrap premise. -/
 theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env)
+    (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0)
@@ -102,11 +102,11 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     simpa [c, primitiveAddInductiveContext] using wf
   let Hc : ContextWF c := by
     simpa [c, primitiveAddInductiveContext, initialContext] using
-      ContextWF.initial wf .safe lparams true fuel hloc
+      ContextWF.initial wf .safe lparams true fuel hloc hcorner
   have hsource : Hc.venv = ves.venv .safe := rfl
   have hctx : Hc.mlctx.vlctx = [] := rfl
   have Hrun := AddInductive.run.primitiveFinalSpecificationModelWF
-    (c := c) (ves := ves) nparams 0 Hc wf' hsource Hshape' hctx
+    (c := c) (ves := ves) nparams 0 Hc wf' hcorner hsource Hshape' hctx
     hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
   rw [haux, htypes]
@@ -116,7 +116,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
 theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WF env)
+    (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (hloc : CheckerSubContextLocality) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
@@ -133,7 +133,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
-        env lparams nparams types isUnsafe fuel res ves wf Hshape
+        env lparams nparams types isUnsafe fuel res ves wf hcorner Hshape
         Hres.1 Hres.2 hloc
   simpa [Environment.addInductive] using Hcombined
 
@@ -142,7 +142,7 @@ premise. -/
 theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WF env)
+    (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (hloc : CheckerSubContextLocality) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
@@ -152,7 +152,7 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF
-    env lparams nparams types isUnsafe fuel ves wf Hshape hloc
+    env lparams nparams types isUnsafe fuel ves wf hcorner Hshape hloc
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun

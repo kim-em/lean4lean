@@ -8,7 +8,8 @@ import Lean4Lean.Verify.Typing.Lemmas
 bound variables is kept without substituting anything for it, so the body, translated under the
 binder, has to be translated without it. When the field's projection is typable it inhabits the
 binder and substitution does this. The remaining case is stated here as `ProjectionWalkCorner`,
-an explicit hypothesis of the checker's correctness (`VEnvs.WF.projectionCorner`).
+an unproved conjecture taken as an explicit argument `(hcorner : ProjectionWalkCorner)` by the
+top-level theorems of `Verify/Environment.lean` and carried to the checker in `VContext`.
 -/
 
 namespace Lean4Lean
@@ -34,7 +35,8 @@ typable (typically a data field of a `Prop` structure; the executable, like the 
 source body translating to `body'` under the binder `D` translates, without the binder, to the
 unlifted residual.
 
-**This is an open hypothesis.** The unrestricted version (any binder `D` whose sort fails the
+**This is an unproved conjecture** (restricted context strengthening at the projection walk),
+assumed explicitly by `addDecl.WF` and the other top-level theorems. The unrestricted version (any binder `D` whose sort fails the
 guard) is false: extend the small context of the two-family model of
 `docs/inductives/STRENGTHENING.md` with `D : Type`, `out : D → P v`, `z : SI` and
 `f : SJ → Prop`; under `d : D` the proof `out d : P v` gives `SI ≡ SJ`, so `f z` translates under

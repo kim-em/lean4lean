@@ -155,7 +155,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     {ves : VEnvs}
     (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WF c.env)
+    (wf : ves.WF c.env) (hcorner : ProjectionWalkCorner)
     (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
@@ -209,7 +209,7 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     apply VEnv.addProjections_le.constants
     apply (VEnv.addConstVals_le B.staged.abstract_ctors).constants
     exact htypesEq
-  rcases B.extendSafeExact wf hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
+  rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors with ⟨ves', wf', hle, hadd, hsafeReplay⟩
   have hsafeEq : (ves'.venv .safe).constants ``Eq = some eqConst :=

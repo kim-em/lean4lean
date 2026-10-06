@@ -3094,7 +3094,7 @@ theorem BlockCertificate.extendSafeExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WF prodEnv) (hcorner : ProjectionWalkCorner)
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
@@ -3114,7 +3114,7 @@ theorem BlockCertificate.extendSafeExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance with
     ⟨unsafeBase, Hunsafe, HunsafeAdd, hunsafeLE, hunsafeProj⟩
@@ -3200,7 +3200,7 @@ theorem BlockCertificate.extendSafe
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WF prodEnv) (hcorner : ProjectionWalkCorner)
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
@@ -3214,7 +3214,7 @@ theorem BlockCertificate.extendSafe
         H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases H.extendSafeExact wf hdecl hcompile horigins hprovenance hclosed
+  rcases H.extendSafeExact wf hcorner hdecl hcompile horigins hprovenance hclosed
       hconstructorOwners hconstructorSemantics with
     ⟨ves', wf', hle, _hadd, _hsafe⟩
   exact ⟨ves', wf', hle⟩
@@ -3260,7 +3260,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WF prodEnv) (hcorner : ProjectionWalkCorner)
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
@@ -3281,7 +3281,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
       ¬ DefinitionSafety.partial ≤ entry.1.safety := by
     intro entry hentry
@@ -3375,7 +3375,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WF prodEnv) (hcorner : ProjectionWalkCorner)
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : ProductionInductiveOrigins prodEnv.constants outEnv.constants
@@ -3391,7 +3391,7 @@ theorem BlockCertificate.extendUnsafeOfHidden
         H.finalVEnv) :
     ∃ ves' : VEnvs, ves'.WF outEnv ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases H.extendUnsafeOfHiddenExact wf hdecl hcompile horigins hprovenance hunsafe hclosed
+  rcases H.extendUnsafeOfHiddenExact wf hcorner hdecl hcompile horigins hprovenance hunsafe hclosed
       hconstructorOwners hconstructorSemantics with ⟨ves', wf', hle, _⟩
   exact ⟨ves', wf', hle⟩
 

@@ -1134,9 +1134,10 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
   typeAnnotationWrappers : TypeAnnotationWrappers env
-  /-- The open corner of the projection walk, an explicit hypothesis of the checker's
-  correctness (see `ProjectionWalkCorner`). It does not depend on the environment, so every
-  installation carries it along unchanged. -/
+  /-- Working carrier of the unproved conjecture `ProjectionWalkCorner`, which enters
+  explicitly as `(hcorner : ProjectionWalkCorner)` at the top-level theorems and
+  `TrEnv.toCheckingValid`. It does not depend on the environment, so every installation
+  carries it along unchanged. -/
   projectionCorner : ProjectionWalkCorner
 
 /-- All global invariants needed to run the verified executable type checker
@@ -1157,13 +1158,6 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   present. This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
 
-/-- What projection inference assumes of a checking environment: the registry coherence and the
-open projection-walk corner `ProjectionWalkCorner`. -/
-structure ProjectionInference (safety : DefinitionSafety) (C : ConstMap) (venv : VEnv) :
-    Prop where
-  registry : ProjectionRegistryCoherent safety C venv
-  corner : ProjectionWalkCorner
-
 theorem TrEnv.toCheckingValidCore (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
     (hsafe : ∀ {n ci}, env.find? n = some ci →
@@ -1180,9 +1174,10 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
       ci.safety = .safe ∧ ci.levelParams = [])
     (hannotations : TypeAnnotationWrappers env)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
-    (hproj : ProjectionInference safety env.constants venv) :
+    (hregistry : ProjectionRegistryCoherent safety env.constants venv)
+    (hcorner : ProjectionWalkCorner) :
     CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe, hannotations, hproj.corner⟩, howners, hproj.registry,
+  ⟨⟨H.toChecking, hprims, hsafe, hannotations, hcorner⟩, howners, hregistry,
     H.recursorEnvCoherent, H.quotEnvCoherent⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)

@@ -36,7 +36,7 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) decl lparams nparams
       isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WF sourceProdEnv) (hcorner : ProjectionWalkCorner)
     (Hsources : SourceSyntaxChecks sourceTypes)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed sourceProdEnv fuel nparams
@@ -54,10 +54,10 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
     simpa only [E.production_eq] using E.assembly.materialized
   cases isUnsafe with
   | false =>
-      exact E.safeInductiveFinalResult wf Hlower' Hmetadata
+      exact E.safeInductiveFinalResult wf hcorner Hlower' Hmetadata
         Hsources hempty hconstructors
   | true =>
-      exact E.unsafeInductiveFinalResult wf Hlower' Hmetadata
+      exact E.unsafeInductiveFinalResult wf hcorner Hlower' Hmetadata
         Hsources hempty hconstructors
 
 /-- Final-result refinement for the nested post-lowering branch.  Exact
@@ -67,7 +67,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env)
+    (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hlower : NestedLoweringResultClosed env fuel.inductiveFuel nparams
       sourceTypes
@@ -80,7 +80,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           isUnsafe) := by
   let Hc' : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe false fuel) :=
-    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel hloc
+    ContextWF.initial wf (if isUnsafe then .unsafe else .safe) lparams false fuel hloc hcorner
   have hctx : Hc'.mlctx.vlctx = [] := rfl
   have Hc'_venv : Hc'.venv =
       ves.venv (if isUnsafe then .unsafe else .safe) := rfl
@@ -136,7 +136,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
         (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
         wf.safePrimitives wf.typeAnnotationWrappers wf.constructorOwners
-        wf.projectionRegistryCoherent
+        wf.projectionRegistryCoherent hcorner
     let E' : NestedExactFinalRunResult res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv := {
@@ -199,7 +199,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       | true =>
           exact E'.unsafeConstructorSemanticsOfParameterDomains wf HlowerExact
             Hmetadata Hsources Howners rfl Hparams
-    exact E'.inductiveFinalResult wf Hsources HlowerInitialClosed rfl
+    exact E'.inductiveFinalResult wf hcorner Hsources HlowerInitialClosed rfl
       hconstructors
 
 end VerifyInductive

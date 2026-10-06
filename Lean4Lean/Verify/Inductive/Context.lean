@@ -532,20 +532,27 @@ inductive CheckerEntry : {α : Type} → TypeChecker.M α → Prop
   | ensureType (e : Expr) (inferOnly : Bool) :
       CheckerEntry (TypeChecker.ensureType e inferOnly)
 
-/-- **Named hypothesis.**  Locality of a fresh embedded checker run, in the
-sub-context direction: if a lifted entry point succeeds in a sub-context of a
-well-formed context of plain local declarations, it succeeds with the same
-value in the full context.
+/-- **Transitional hypothesis: sub-context locality of fresh checker runs.**
+This is an explicit, unproved argument of `addDecl.WF` and the inductive
+dispatch theorems.
 
-This is argued, not proved: a fresh run reads the local context only through
+Precisely: for every lifted entry point `x` (`CheckerEntry`: `whnf`,
+`inferType`, `isDefEq`, `ensureSort`, `ensureType`), every environment,
+safety level, universe parameters and fuel, and every two local contexts
+`lctx ⊆ lctx'` (`lctx.SubContextOf lctx'`) where `lctx`'s declaration map and
+`lctx'` are well formed and every declaration of `lctx'` is a plain local
+assumption (`cdecl`), if the fresh run of `x` in `lctx` returns `.ok a`, then
+the fresh run of `x` in `lctx'` also returns `.ok a`.
+
+It is argued, not proved: a fresh run reads the local context only through
 `find?` on free variables (`inferFVar`, `whnfFVar`, let-variable tests) and
-through `mkForall`/`mkLambda` over its own fresh binders, never globally.
-A lookup that misses in the sub-context either fails the run or behaves as
-for an opaque local declaration, which is what every declaration of the full
-context is.  See `docs/inductives/STRENGTHENING.md`.  The hypothesis is
-transitional: it is only used to keep the main-context lift lemmas, and it
-disappears once every lifted run is verified in its narrow checker
-context. -/
+through `mkForall`/`mkLambda` over its own fresh binders, so a lookup that
+succeeds in `lctx` finds the same declaration in `lctx'`. See
+`docs/inductives/STRENGTHENING.md`. It is used only by the main-context lift
+lemmas of the inductive checker, which run embedded checker calls in a narrow
+checker context and transfer them to the full context. It is to be
+discharged, and removed, once every lifted checker run is verified in its
+narrow context (Steps 3-6 of `docs/inductives/E1_INDUCTIVE_DESIGN.md`). -/
 def CheckerSubContextLocality : Prop :=
   ∀ {α : Type} {x : TypeChecker.M α}, CheckerEntry x →
     ∀ (env : Environment) (safety : DefinitionSafety)
@@ -581,12 +588,12 @@ def initialContext (env : Environment) (lparams : List Name)
 def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig)
-    (hloc : CheckerSubContextLocality) :
+    (hloc : CheckerSubContextLocality) (hcorner : ProjectionWalkCorner) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent hcorner
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl
