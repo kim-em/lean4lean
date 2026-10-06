@@ -3182,6 +3182,25 @@ end Join2Tools
 
 section EtaTools
 
+/-- The selected field of a saturated structure constructor application has the
+type of its projection. -/
+theorem HasType.projIota_field (hΓ : OnCtx Γ (env.IsType univs))
+    (hinfo : env.projections S info)
+    (H : Γ ⊢ .proj S index (VExpr.mkApps (.const info.ctorName ls) args) : F)
+    (hlen : args.length = info.nparams + info.numFields)
+    (hk : args[info.nparams + index]? = some field) : Γ ⊢ field : F := by
+  obtain ⟨decl, type, ctor, _, _, hname, _, huvars, hnparams, _, _, hctorName, hctorType,
+    _, hwf, _, Hraw, _⟩ := henv.ordered.projectionShape hinfo
+  obtain ⟨doms, result, hshape, hle, hvalid, hhead, harity⟩ := Hraw.forallArity
+  subst hname
+  have hctor := henv.ordered.projectionConstructor hinfo
+  rw [hctorType] at hshape harity hwf
+  rw [huvars] at hwf
+  have hlen' : args.length = doms.length := by
+    rw [hlen, VProjectionInfo.numFields, harity]; omega
+  exact VProjectionInfo.field_typing_of_ctorApp henv hΓ hinfo hwf hctor hshape hvalid hhead
+    hnparams huvars (hnparams ▸ hle) index H hlen' hk
+
 theorem EtaPar.root_fun (hΓ : OnCtx Γ (env.IsType univs)) (HD : EtaPar Γ D D')
     (hc : Γ ⊢ c : .forallE D B) (hchain : ReflTransGen (Below Γ n) b₀ d₀)
     (hcd : EtaPar Γ c d₀) (hb : Γ ⊢ .lam D' (.app b₀.lift (.bvar 0)) : T) :
