@@ -203,3 +203,74 @@ which only make every proposition inhabited in `Γ`, making strengthening easier
 
 What remains open is not a candidate counterexample but the proof: a calculus in which
 "reducts of `q`-free terms are `q`-free" holds *and* which is complete for `IsDefEq`.
+
+## Part 3: the proof obligation after the study
+
+### 3.1 What is available (2026-10-06, after merging mainline `fe03b4c3`)
+
+* `IsDefEq.full_church_rosser` (`FullChurchRosser.lean`), now without `sorry`
+  (`FullStep.strip` is proved by the levelled decreasing-diagram development,
+  `LevelledReduction.lean`), under the `Params` and `FullEquationCoverage`
+  instances: `Γ ⊢ a ≡ b` gives `a ≫* a'`, `b ≫* b'` and `a' ≡ₚ b'`, all in the
+  *same* context `Γ`.
+* Uniqueness of types, Π- and rigid-head injectivity, sort inversion, through
+  `VEnv.WF.headInversion` (obligation (a)).
+* Singleton eta with canonical `Eq` (Part 2, not yet formalized).
+
+The remaining sorries of the project are `VEnv.WF.headInversion` and
+`VEnv.strengthening_of_canonicalEq`.
+
+### 3.2 Why confluence in `Γ'` does not by itself give strengthening
+
+For endpoints `e₁, e₂` not mentioning the removed binder `q`, confluence in `Γ'`
+gives a witness among `q`-free terms *provided* every reduction step is canonical
+(eta domains and structure parameters taken from inferred types, proof-major
+computation rebuilding fields by extraction rather than by replaying a typing
+check in the current context). The witness's *side conditions* are judgements of
+`VEnv.IsDefEq` in `Γ'`:
+
+1. typing of reducts (subject reduction; harmless once the step itself is valid in
+   `Γ`);
+2. nonlinear pattern checks of native iota (`rec ps … (mk ps' fields)`: `ps ≡ ps'`,
+   index agreement): *forced* by typing of the redex in `Γ` via injectivity, so
+   harmless;
+3. alignment checks of proof-major computation (K: `Eq.rec … b h` with
+   `h : a = b` needs `a ≡ b`; singleton: `idx ≡ pattern(readData idx)`): **not**
+   forced by typing; a new strengthening instance between subterms of a *reduct*;
+4. normal-equality leaves: in a congruence the two sides' types are forced by the
+   heads (variables and constants have declared types; arguments are compared at
+   the head's instantiated domain), *except* for eta at the function position of an
+   application and `etaBoth` between functions of different `Γ`-types, where
+   `λ (x : A). e ≡ₚ e'` needs `A ≡ dom(type of e')` in `Γ`: a new strengthening
+   instance between a lambda domain and the domain of an inferred type;
+5. proof irrelevance at the root needs the two `Γ`-propositions convertible: a new
+   instance at the level of types (harmless: one level up the next comparison is at
+   a sort).
+
+Items 3 and 4 are strengthening instances that are not subderivations of anything
+in hand. No well-founded measure orders them below the original instance:
+
+* inferred types of subterms are not smaller (the multiset of declaration ranks
+  fails because instantiating a declared type duplicates arguments, which may
+  contain later declarations);
+* derivation *size* is not preserved by substitution; derivation *height* is
+  additive under substitution but lost through uniqueness and injectivity, which
+  come from the semantic obligation (a) without height control;
+* universe stratification fails with impredicative `Prop`;
+* reducts are unbounded (no normalization), and the checks of item 3 compare
+  subterms of reducts.
+
+Generalizing the statement to "for all `q`-free shadows `a₀ ≡ a`, `b₀ ≡ b` in
+`Γ'`, `Γ ⊢ a₀ ≡ b₀`" and inducting on the `Γ'` derivation makes the `trans` case
+trivial (a shadow of one endpoint of the left premise is a shadow of the middle
+term), but breaks every congruence case: a shadow of `f x` need not decompose into
+shadows of `f` and `x` (with `x` a data occurrence of `q`, as in `(λ z. c) q`, there
+is no shadow of `x`).
+
+Conclusion: any proof has to keep the provenance of side conditions through
+confluence. This is the design's conversion-certificate calculus: certificates
+whose side conditions are themselves certificates, so that strengthening is a
+structural induction, and whose completeness `IsDefEq → CertEq` needs
+transitivity to be admissible for certificates, i.e. the strip lemma redone with
+certificate premises (Siles and Herbelin's method for PTS conversion, for the
+much richer rule set here).
