@@ -37,10 +37,17 @@ theorem RecInfoMinorHypothesisTypeOrigin.universeSupport
   have hinference := O.loopInput.inference
   have hnormalization := O.loopInput.normalization
   subst hfv
-  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root (.fvar fv))
-    (Rroot.restrictTo _).1 (Rroot.restrictTo _).2
+  obtain ⟨j, hj, ty₀, hlctx, htr₀, _⟩ := O.loopInput.checkBase Rroot
+  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root O.loopInput.prior)
+    ((Rroot.check.below j hj).cast hlctx)
   obtain ⟨inferredTarget, hbelow, _, hinferredTr, hfieldTyping⟩ :=
     getTypeFVarInRecursorContext.WF Rroot hfield _ hinference
+  have hinferredEq : O.loopInput.inferredType = (root.lctx.get! fv).type := by
+    have h := hinference.symm.trans (AddInductive.getType.run (.fvar fv) root)
+    exact Except.ok.inj h
+  have hinferred₀ : TrExprS RF.venv recLparams RF.chk.vlctx
+      O.loopInput.inferredType ty₀ := by
+    rw [hinferredEq]; exact htr₀
   have hfieldP : (Expr.fvar fv).FVarsIn P := by simpa [FVarsIn] using hfvP
   have hinferredU : O.loopInput.inferredType.levelParamsIn Us = true :=
     getTypeFVarInRecursorContext.levelsWF Rroot hfield _ hinference Us P hscope rfl hfieldP
@@ -48,16 +55,16 @@ theorem RecInfoMinorHypothesisTypeOrigin.universeSupport
   have hinferredType : Rroot.venv.IsType recLparams.length
       Rroot.mlctx.vlctx.toCtx inferredTarget :=
     hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
-  obtain ⟨hnormalizedBelow, hnormalizedTr⟩ :=
-    whnfInRecursorContext.scopeWF RF hinferredTr _ hnormalization
+  obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
+    whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ hnormalization
   have hnormalizedU : O.loopInput.normalizedType.levelParamsIn Us = true :=
-    whnfInRecursorContext.levelsWF RF hinferredTr _ hnormalization Us P hscope
+    whnfInRecursorContext.levelsWF RF hinferred₀ _ hnormalization Us P hscope
       hinferredU hinferredP
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
-  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedU, _, hargs⟩ :=
-    O.loopTrace.universeSupport hconsume Rroot hscope hnormalizedTr hinferredType
-      hnormalizedU hnormalizedP
+  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedU, _, hargs, _⟩ :=
+    O.loopTrace.universeSupport hconsume RF hscope hnormalizedTr hinferredType
+      hnormalized₀ hnormalizedU hnormalizedP
   have hindices : ∀ e ∈ (O.exposedType.getAppArgs[stats.params.size:] : Array Expr).toList,
       e.levelParamsIn Us = true := by
     intro e he
