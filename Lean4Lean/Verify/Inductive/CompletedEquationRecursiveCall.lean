@@ -638,7 +638,7 @@ theorem
     obtain ⟨cert, hcert⟩ := List.exists_mem_of_ne_nil _ hne
     have := A.semantics.selection.positions_lt cert hcert
     omega
-  obtain ⟨hnC, hagreeC, jC, hjC, hdropC⟩ := F.semantic.chkAgree
+  obtain ⟨hnC, hagreeC, jC, hjC, _ty₀, hdropC, _⟩ := F.semantic.chkAgree
   have hchkLocalWF : F.semantic.current_context.chk.WF H.outVEnv Us := by
     have henv : F.semantic.current_context.venv ≤ H.outVEnv := by
       rw [F.semantic.recent.venv_eq, F.originRecent.venv_eq,

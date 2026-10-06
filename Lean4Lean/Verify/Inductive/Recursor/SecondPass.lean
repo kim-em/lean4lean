@@ -1016,7 +1016,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
         Hsemantic domain hfieldType htarget hrecursive⟩)
   · intro Hinput current Rcurrent exposedType syntaxTarget terminalTarget
       appliedTarget args target Htrace Hexposed Hdefeq Hterminal Hargs Happlied
-      HappliedType hvalid hexposedScope hup hchkAgree hexposedNarrow
+      HappliedType hvalid hexposedScope hup hchkAgree
     rcases Happ Rcurrent Hexposed Hdefeq Hterminal Hargs Happlied
         HappliedType hvalid with ⟨motiveTarget, Hmotive, HmotiveType⟩
     have htargetStats : target < stats.indConsts.size :=
@@ -1129,7 +1129,6 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       exposed_scope := hexposedScope
       current_scope_up := hup
       chkAgree := hchkAgree
-      exposedNarrow := hexposedNarrow
       exposedTarget := syntaxTarget
       exposed_translation := Hexposed
       terminalTarget := terminalTarget
