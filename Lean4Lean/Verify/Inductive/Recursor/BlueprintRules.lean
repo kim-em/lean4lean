@@ -83,7 +83,7 @@ theorem RecInfoHypothesisCallSemanticOrigins.retainedGeneratedCalls
   have hiHypotheses : i < hypotheses.size := by rwa [hsize]
   rcases H.entry i hiHypotheses with
     ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-      hpriorSize, ⟨Horigin⟩⟩
+      hpriorSize, hchkO, ⟨Horigin⟩⟩
   rcases Horigin.semantic indTypes minors lvls with
     ⟨S, hscope, ⟨Hmotive⟩, _hreplay⟩
   have hiCalls : i < calls.size := by rw [H.size_eq, hsize]; exact hi
@@ -96,7 +96,7 @@ theorem RecInfoHypothesisCallSemanticOrigins.retainedGeneratedCalls
   rw [show fields[i] = fields[i]! from
     (getElem!_pos fields i hi).symm]
   exact ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-    hpriorSize, depth + i, S, hscope, ⟨Hmotive⟩⟩
+    hpriorSize, hchkO, depth + i, S, hscope, ⟨Hmotive⟩⟩
 
 theorem RecInfoCallBlueprintOrigins.boundGeneratedCalls
     {sourceFullContext fieldRoot : AddInductive.Context}
@@ -525,6 +525,7 @@ structure RetainedGeneratedRuleSemantics
     fv ∈ fieldsRecent.fvars ∨ fv ∈ ExprArrayFVarIds stats.params)
       context.mlctx.vlctx
   fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF context.venv recLparams ∧
+    (0 < allArgs.size → context.chk = M) ∧
     ∃ hn : allArgs.size ≤ M.length,
       MLCtxTopAgree context.mlctx M allArgs.size ∧
         (M.dropN allArgs.size hn).vlctx = parameterSuffix.parameterDecls
@@ -985,7 +986,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
         hsourceDeclaration, hcall⟩
     rcases Hcalls.entry j hjHypotheses with
       ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-        hpriorSize, ⟨HcallSemantic⟩⟩
+        hpriorSize, _hchkO, ⟨HcallSemantic⟩⟩
     rcases HcallSemantic.semantic indTypes
         (recInfos.flatMap (·.minors)) lvls with
       ⟨Scall, hscope, Hmotive, hsemanticReplay⟩

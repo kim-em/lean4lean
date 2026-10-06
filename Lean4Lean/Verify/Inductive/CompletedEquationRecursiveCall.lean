@@ -385,6 +385,12 @@ structure
       A.semantics.targetTarget).lift'
         (A.semantics.fieldRootExtension.shift.consN 0) =
       VExpr.wrapForalls forwardDomains forwardResidual
+  /-- The narrow field scope is aligned with the checker context in which the
+  fields were opened. -/
+  checkAlign : 0 < A.rule.allArgs.size →
+    VLCtx.IsDefEq A.semantics.fieldRootContext.venv
+      (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
+      fieldScope A.semantics.context.chk.vlctx
 
 /-- The rule-wide narrowing frame is literally the constructor-field
 telescope abstracted over the cached parameter declarations.  This exposes
@@ -3342,7 +3348,7 @@ theorem
     Nonempty A.NarrowFieldRuntimeFrame := by
   rcases A.narrowFieldRuntimeScope with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
-      fieldDomains, hfieldDomains, hfieldFront⟩
+      ⟨fieldDomains, hfieldDomains, hfieldFront⟩, hcheckAlign⟩
   rcases A.semantics.fieldContextDefEqMono with
     ⟨_sourceDomains, _sourceResidual, forwardDomains, forwardResidual,
       _hsourceDomains, hforwardDomains, _Hsource, hforwardTarget,
@@ -3358,7 +3364,8 @@ theorem
     forwardDomains := forwardDomains
     forwardResidual := forwardResidual
     forwardDomains_length := hforwardDomains
-    forwardTarget := hforwardTarget }⟩
+    forwardTarget := hforwardTarget
+    checkAlign := hcheckAlign }⟩
 
 
 

@@ -124,7 +124,7 @@ theorem CompletedRecursorConstruction.argumentUniverses (H : CompletedRecursorCo
   have hj' : j < (H.origins.minorShapes owner howner localIndex hlocal).hypotheses.size := by
     rw [← HcallAt.size_eq]
     exact hj
-  obtain ⟨originRoot, Rorigin, prior, Hprior, _, ⟨Csem⟩⟩ := HcallAt.entry j hj'
+  obtain ⟨originRoot, Rorigin, prior, Hprior, _, _, ⟨Csem⟩⟩ := HcallAt.entry j hj'
   have hl : originRoot.lparams = c.lparams := by
     rw [Hprior.contextLE.lparams_eq, ← F.terminalExtension.contextLE.lparams_eq,
       H.localExtends.lparams_eq]

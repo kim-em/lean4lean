@@ -1279,7 +1279,7 @@ structure ProducerStagedSemanticBoundGeneratedRecursiveCalls
         ∃ priorHypotheses : Array Expr,
           ∃ _ : RecursorRecentBoundFVarArray Rfield Rorigin
               priorHypotheses,
-            priorHypotheses.size = i ∧
+            priorHypotheses.size = i ∧ Rorigin.chk = Rfield.chk ∧
               ∃ callDepth,
                 ∃ S : SemanticBoundGeneratedRecursiveCall indTypes stats
                   motives minors lvls Rorigin decl callDepth u[i] v[i]!,
@@ -1295,7 +1295,7 @@ theorem ProducerStagedSemanticBoundGeneratedRecursiveCalls.toStaged
   size := H.size
   entries i hi hiu := by
     rcases H.entries i hi hiu with
-      ⟨originRoot, Rorigin, prior, Hrecent, _hsize, callDepth, S,
+      ⟨originRoot, Rorigin, prior, Hrecent, _hsize, _hchk, callDepth, S,
         hscope, _Hmotive⟩
     exact ⟨originRoot, Rorigin, Hrecent.contextExtension,
       callDepth, S, hscope⟩
@@ -3486,6 +3486,7 @@ structure BoundGeneratedRecursorRule.Semantics
   /-- The fields were also opened in the checker context, directly above the
   parameter declarations. -/
   fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF context.venv recLparams ∧
+    (0 < H.allArgs.size → context.chk = M) ∧
     ∃ hn : H.allArgs.size ≤ M.length,
       MLCtxTopAgree context.mlctx M H.allArgs.size ∧
         (M.dropN H.allArgs.size hn).vlctx = parameterSuffix.parameterDecls

@@ -1794,6 +1794,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     {baseV : VLCtx}
     (hagreeB : ∃ hn : bu.size ≤ B.m.length,
       MLCtxTopAgree R.mlctx B.m bu.size ∧ (B.m.dropN bu.size hn).vlctx = baseV)
+    (hchkB : 0 < bu.size → R.chk = B.m)
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
@@ -1850,6 +1851,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       (0 < bu'.size →
         Rcurrent.chk.fvarList = (stats.params ++ bu').toList.map (·.fvarId!)) →
       (∃ M : TypeChecker.MLCtx, M.WF Rcurrent.venv recLparams ∧
+        (0 < bu'.size → Rcurrent.chk = M) ∧
         ∃ hn : bu'.size ≤ M.length,
           MLCtxTopAgree Rcurrent.mlctx M bu'.size ∧
             (M.dropN bu'.size hn).vlctx = baseV) →
@@ -2148,7 +2150,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
-          (fun _ => hB') hagreeB'
+          (fun _ => hB') hagreeB' (fun _ => rfl)
           hconsumedBodyType (.nonrecursive hfields)
           (.nonrecursive hdecisions hselected.1) hargsWeak Hrecent'
           Hopening' hrootType' hnextUp happlied' happliedType'
@@ -2170,7 +2172,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           simpa using checkPositivityStep.forall₂_append
             hargsWeak (.cons harg .nil)
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
-          (fun _ => hB') hagreeB'
+          (fun _ => hB') hagreeB' (fun _ => rfl)
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl)
           (.recursive hdecisions hselected.1) hargs' Hrecent'
@@ -2179,7 +2181,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         | proj =>
       exact Hk R rfl htype htypeType hfields hdecisions hargs Hrecent
         Hopening hrootType (Hopening.currentFVarsIn hsourceScope) hcurrentUp
-        happlied happliedType hchkFields ⟨B.m, B.wf, hagreeB⟩
+        happlied happliedType hchkFields ⟨B.m, B.wf, hchkB, hagreeB⟩
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -2246,6 +2248,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       (0 < bu'.size →
         Rcurrent.chk.fvarList = (stats.params ++ bu').toList.map (·.fvarId!)) →
       (∃ M : TypeChecker.MLCtx, M.WF Rcurrent.venv recLparams ∧
+        (0 < bu'.size → Rcurrent.chk = M) ∧
         ∃ hn : bu'.size ≤ M.length,
           MLCtxTopAgree Rcurrent.mlctx M bu'.size ∧
             (M.dropN bu'.size hn).vlctx = Hsuffix.parameterDecls) →
@@ -2277,6 +2280,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       htail Hsuffix.fieldBase Hsuffix.fieldBase_fvarList
       (by rw [Hsuffix.fieldBase_vlctx]; exact htail₀) (fun h => by simp at h)
       ⟨Nat.zero_le _, .zero _ _, Hsuffix.fieldBase_vlctx⟩
+      (fun h => by simp at h)
       htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
       hrootType

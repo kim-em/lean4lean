@@ -1393,6 +1393,9 @@ theorem resultRecursiveDomain {alpha : Type}
     {typeTarget₀ : VExpr}
     (htype₀ : TrExpr R.venv recLparams R.chk.vlctx uiTy typeTarget₀)
     (Hxs : RecursorRecentBoundFVarArray Rroot R xs)
+    {M₀ : TypeChecker.MLCtx}
+    (hagreeR : ∃ hn : xs.size ≤ R.chk.length,
+      MLCtxTopAgree R.mlctx R.chk xs.size ∧ R.chk.dropN xs.size hn = M₀)
     {l : LocalContext}
     (Htrace : RecursorLoopUArgsPrefix root l initialType c uiTy xs)
     {P : FVarId → Prop}
@@ -1426,6 +1429,11 @@ theorem resultRecursiveDomain {alpha : Type}
         (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
       IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
         Rcurrent.mlctx.vlctx →
+      (∃ hn : args.size ≤ Rcurrent.chk.length,
+        MLCtxTopAgree Rcurrent.mlctx Rcurrent.chk args.size ∧
+          Rcurrent.chk.dropN args.size hn = M₀) →
+      (∃ t₀, TrExpr Rcurrent.venv recLparams Rcurrent.chk.vlctx
+        exposedType t₀) →
       (k exposedType args target current).WF (Q target)) :
     (AddInductive.mkRecInfos.loopUArgs.loop
       (fun exposedType args => do
@@ -1438,7 +1446,7 @@ theorem resultRecursiveDomain {alpha : Type}
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth typeTarget ∧ Q target out := by
-  induction fuel generalizing c uiTy xs typeTarget typeTarget₀ appliedTarget depth with
+  induction fuel generalizing c uiTy xs typeTarget typeTarget₀ appliedTarget depth R with
   | zero =>
     intro _ h
     simp [AddInductive.mkRecInfos.loopUArgs.loop] at h
@@ -1635,9 +1643,16 @@ theorem resultRecursiveDomain {alpha : Type}
       let Htrace' : RecursorLoopUArgsPrefix root l initialType c' normalized
           (xs.push (.fvar ⟨c.ngen.curr⟩)) :=
         .push Htrace rfl hnormalizeRun
+      have hagreeR' : ∃ hn : (xs.push (.fvar ⟨c.ngen.curr⟩)).size ≤ R'.chk.length,
+          MLCtxTopAgree R'.mlctx R'.chk (xs.push (.fvar ⟨c.ngen.curr⟩)).size ∧
+            R'.chk.dropN (xs.push (.fvar ⟨c.ngen.curr⟩)).size hn = M₀ := by
+        have h := MLCtxTopAgree.stepDropEq ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotationsVerified consumedDom consumedDom₀ bi hagreeR
+        simp only [Array.size_push]
+        exact h
       have Hrec := ih R' Hstats' hctx' hnormalized.2
         hconsumedBodyType hnormalized₀
-        Hxs' Htrace' hnormalizedScope hnextUp
+        Hxs' hagreeR' Htrace' hnormalizedScope hnextUp
         happlied' happliedType'
       exact Hrec.mono fun out Hout => by
         rcases Hout with ⟨target, htarget, hrecursive, hout⟩
@@ -1669,6 +1684,7 @@ theorem resultRecursiveDomain {alpha : Type}
           (by simpa only [Hxs.venv_eq] using hlit) hctx
         have Hterminal := Hk (target := target) R Htrace hsyntax hdefeq
           htypeType Hxs happlied happliedType hvalid htypeScope hcurrentUp
+          hagreeR ⟨_, htype₀⟩
         exact Hterminal.mono fun out hout => by
           rcases hdefeq.symm with ⟨exprType, hterminal⟩
           exact ⟨target, htarget,
@@ -1761,6 +1777,11 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
         (fun fv => fv ∈ Hrecent.fvars ∨ P fv) →
       IsFVarUpSet (fun fv => fv ∈ Hrecent.fvars ∨ P fv)
         Rcurrent.mlctx.vlctx →
+      (∃ hn : args.size ≤ Rcurrent.chk.length,
+        MLCtxTopAgree Rcurrent.mlctx Rcurrent.chk args.size ∧
+          ∃ j hj, Rcurrent.chk.dropN args.size hn = R.chk.dropN j hj) →
+      (∃ t₀, TrExpr Rcurrent.venv recLparams Rcurrent.chk.vlctx
+        exposedType t₀) →
       (k exposedType args target current).WF (Q target)) :
     (AddInductive.mkRecInfos.loopUArgs prior (.fvar fv)
       (fun exposedType args => do
@@ -1845,6 +1866,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     (fuel := c.fuel.inductiveFuel) (.fvar fv) stats k RF
     hconsume hlit RF Hstats hctx hnormalizedTr hinferredType hnormalized₀
     (RecursorRecentBoundFVarArray.empty RF)
+    (M₀ := RF.chk) ⟨Nat.zero_le _, .zero _ _, rfl⟩
     (RecursorLoopUArgsPrefix.root (root := { c with checkLCtx := F }) (l := F)
       (source := normalized))
     (hnormalizedScope.mono fun _ h => Or.inr h)
@@ -1858,9 +1880,13 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
         (.fvar fv) fieldTarget
       exact hfieldAgain)
     hfieldTyping (fun {_} Rcurrent {_} {_ _ _} {_} {_} htrace h1 h2 h3 Hrecent
-        h4 h5 h6 h7 h8 =>
+        h4 h5 h6 h7 h8 h9 h10 =>
       Hk Hinput Rcurrent htrace.ofCheckRoot h1 h2 h3 Hrecent.ofCheckRoot
-        h4 h5 h6 h7 h8)
+        h4 h5 h6 h7 h8
+        (by
+          obtain ⟨hn, hag, hd⟩ := h9
+          exact ⟨hn, hag, jF, hjF, hd⟩)
+        h10)
   exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
 
 
@@ -2191,6 +2217,15 @@ structure SemanticBoundGeneratedRecursiveCall
   current_scope_up : IsFVarUpSet
     (fun fv => fv ∈ recent.fvars ∨ rootScope fv)
     current_context.mlctx.vlctx
+  /-- The call-local arguments were opened in the checker context too, above
+  a prefix of the root checker context. -/
+  chkAgree : ∃ hn : generated.localArgs.size ≤ current_context.chk.length,
+    MLCtxTopAgree current_context.mlctx current_context.chk
+      generated.localArgs.size ∧
+      ∃ j hj, current_context.chk.dropN generated.localArgs.size hn =
+        R.chk.dropN j hj
+  exposedNarrow : ∃ t₀, TrExpr current_context.venv recLparams
+    current_context.chk.vlctx generated.exposedType t₀
   exposedTarget : VExpr
   exposed_translation : TrExprS current_context.venv recLparams
     current_context.mlctx.vlctx generated.exposedType exposedTarget

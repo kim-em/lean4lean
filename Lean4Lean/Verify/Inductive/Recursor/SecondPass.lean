@@ -75,7 +75,7 @@ structure RecInfoHypothesisCallSemanticOrigins
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
           ∃ _ : RecursorRecentBoundFVarArray Rroot Rorigin priorHypotheses,
-            priorHypotheses.size = j ∧
+            priorHypotheses.size = j ∧ Rorigin.chk = Rroot.chk ∧
               Nonempty (RecInfoCallBlueprintSemanticOrigin stats motives
                 Rorigin rootScope decl (depth + j) fields[j]! calls[j]!)
 
@@ -99,6 +99,7 @@ theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
       motives rootScope fields hypotheses calls)
     (hnext : hypotheses.size < fields.size)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R hypotheses)
+    (hchk : R.chk = Rroot.chk)
     (call : AddInductive.RecCallBlueprint)
     (S : RecInfoCallBlueprintSemanticOrigin stats motives R rootScope decl
       (depth + hypotheses.size) fields[hypotheses.size]! call) :
@@ -114,12 +115,12 @@ theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
       rw [show hypotheses.size = calls.size from Hsem.size_eq.symm]
       simp
     rw [hcall]
-    exact ⟨c, R, hypotheses, Hrecent, rfl, ⟨S⟩⟩
+    exact ⟨c, R, hypotheses, Hrecent, rfl, hchk, ⟨S⟩⟩
   · have hjOld : j < hypotheses.size := by
       have : j < hypotheses.size + 1 := by simpa using hj
       omega
     rcases Hsem.entry j hjOld with
-      ⟨originRoot, Rorigin, priorHypotheses, Hprior, hpriorSize, S⟩
+      ⟨originRoot, Rorigin, priorHypotheses, Hprior, hpriorSize, hchkO, S⟩
     have hjCalls : j < calls.size := by rw [Hsem.size_eq]; exact hjOld
     have hcall : (calls.push call)[j]! = calls[j]! := by
       simp only [Array.getElem!_eq_getD]
@@ -128,7 +129,7 @@ theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
       exact Array.getElem_push_lt hjCalls
     rw [hcall]
     exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
-      hpriorSize, S⟩
+      hpriorSize, hchkO, S⟩
 
 theorem List.mem_take_idxOf_succ {α : Type} [BEq α] [LawfulBEq α]
     {l : List α} {a : α} (h : a ∈ l) :
@@ -238,7 +239,7 @@ structure RecInfoHypothesisCallSemanticOriginsAt
       ∃ Rorigin : RecursorContextWF originRoot recLparams,
         ∃ priorHypotheses : Array Expr,
           ∃ _ : RecursorRecentBoundFVarArray Rroot Rorigin priorHypotheses,
-            priorHypotheses.size = j ∧
+            priorHypotheses.size = j ∧ Rorigin.chk = Rroot.chk ∧
               Nonempty (RecInfoCallBlueprintSemanticOrigin stats motives
                 Rorigin (fieldScope j) decl (depth + j) fields[j]! calls[j]!)
 
@@ -262,6 +263,7 @@ theorem RecInfoHypothesisCallSemanticOriginsAt.pushCurrent
       motives fieldScope fields hypotheses calls)
     (hnext : hypotheses.size < fields.size)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R hypotheses)
+    (hchk : R.chk = Rroot.chk)
     (call : AddInductive.RecCallBlueprint)
     (S : RecInfoCallBlueprintSemanticOrigin stats motives R
       (fieldScope hypotheses.size) decl
@@ -279,12 +281,12 @@ theorem RecInfoHypothesisCallSemanticOriginsAt.pushCurrent
       rw [show hypotheses.size = calls.size from Hsem.size_eq.symm]
       simp
     rw [hcall]
-    exact ⟨c, R, hypotheses, Hrecent, rfl, ⟨S⟩⟩
+    exact ⟨c, R, hypotheses, Hrecent, rfl, hchk, ⟨S⟩⟩
   · have hjOld : j < hypotheses.size := by
       have : j < hypotheses.size + 1 := by simpa using hj
       omega
     rcases Hsem.entry j hjOld with
-      ⟨originRoot, Rorigin, priorHypotheses, Hprior, hpriorSize, S⟩
+      ⟨originRoot, Rorigin, priorHypotheses, Hprior, hpriorSize, hchkO, S⟩
     have hjCalls : j < calls.size := by rw [Hsem.size_eq]; exact hjOld
     have hcall : (calls.push call)[j]! = calls[j]! := by
       simp only [Array.getElem!_eq_getD]
@@ -293,7 +295,7 @@ theorem RecInfoHypothesisCallSemanticOriginsAt.pushCurrent
       exact Array.getElem_push_lt hjCalls
     rw [hcall]
     exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
-      hpriorSize, S⟩
+      hpriorSize, hchkO, S⟩
 
 /-- The exact scope of one selected recursive field: the parameters together
 with the constructor fields before that field, in binder order.  The
@@ -333,6 +335,7 @@ structure RecInfoRuleFieldSemanticSource
   fieldParameterUp : IsFVarUpSet (fun fv => fv ∈ fieldsRecent.fvars ∨
     fv ∈ ExprArrayFVarIds stats.params) terminalWF.mlctx.vlctx
   fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF terminalWF.venv recLparams ∧
+    (0 < S.fields.size → terminalWF.chk = M) ∧
     ∃ hn : S.fields.size ≤ M.length,
       MLCtxTopAgree terminalWF.mlctx M S.fields.size ∧
         (M.dropN S.fields.size hn).vlctx = parameterSuffix.parameterDecls
@@ -736,6 +739,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (hprocessed : v.size = i)
     (hcalls : calls.size = v.size)
     (hcheck : current.checkLCtx = root.checkLCtx)
+    (hchkR : R.chk = Rroot.chk)
     (Hvi : ∀ {next : AddInductive.Context}
       (Rnext : RecursorContextWF next recLparams)
       {prior : Array Expr}
@@ -834,10 +838,10 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       (HcallOrigins.pushCurrent R.toBindingContextWF vName viTy .default
         hnext Hrecent.contextLE R (Hrecent.upsetRoot rootScopeInContext hrootUp)
         O call hcall)
-      (HcallSemantics.pushCurrent hnext Hrecent call HcallSemantic)
+      (HcallSemantics.pushCurrent hnext Hrecent hchkR call HcallSemantic)
       fieldScope
-      (HsharpSemantics.pushCurrent hnext Hrecent call HsharpSemantic)
-      (by simp) (by simp [hcalls]) hcheck Hvi ?_
+      (HsharpSemantics.pushCurrent hnext Hrecent hchkR call HsharpSemantic)
+      (by simp) (by simp [hcalls]) hcheck hchkR Hvi ?_
     intro out Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
       HvalueCallSemantics HvalueSharpSemantics hsize hcallSize
     apply Hk Rout values outCalls Hvalues HvalueOrigins HvalueCallOrigins
@@ -1012,7 +1016,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
         Hsemantic domain hfieldType htarget hrecursive⟩)
   · intro Hinput current Rcurrent exposedType syntaxTarget terminalTarget
       appliedTarget args target Htrace Hexposed Hdefeq Hterminal Hargs Happlied
-      HappliedType hvalid hexposedScope hup
+      HappliedType hvalid hexposedScope hup hchkAgree hexposedNarrow
     rcases Happ Rcurrent Hexposed Hdefeq Hterminal Hargs Happlied
         HappliedType hvalid with ⟨motiveTarget, Hmotive, HmotiveType⟩
     have htargetStats : target < stats.indConsts.size :=
@@ -1124,6 +1128,8 @@ theorem inductionHypothesisTypeOriginOfInferredScope
       rootScope := rootScope
       exposed_scope := hexposedScope
       current_scope_up := hup
+      chkAgree := hchkAgree
+      exposedNarrow := hexposedNarrow
       exposedTarget := syntaxTarget
       exposed_translation := Hexposed
       terminalTarget := terminalTarget
@@ -1341,7 +1347,7 @@ theorem resultSemanticsOfMotiveApplications
     fieldScope
     (RecInfoHypothesisCallSemanticOriginsAt.empty R decl depth stats
       (recInfos.map (·.motive)) fieldScope u)
-    rfl rfl rfl ?_ ?_
+    rfl rfl rfl rfl ?_ ?_
   intro next Rnext prior Hprior hcheckNext j hj
   rcases Hfields j hj with ⟨fv, fieldTarget, hfieldEq, Hfield, hfieldScope⟩
   have hpriorFVars : ∃ k,

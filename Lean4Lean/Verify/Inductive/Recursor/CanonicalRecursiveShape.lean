@@ -624,7 +624,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
   have : origins₁ = origins := Option.some.inj (horig₁.symm.trans horig)
   subst this
   obtain ⟨originRoot, sourceType, O, D, -, hDtype, hcall⟩ := Hcalls.entry j hj
-  obtain ⟨_, Rorigin, prior, Hprior, -, ⟨Csem⟩⟩ := HcallAt.entry j hj
+  obtain ⟨_, Rorigin, prior, Hprior, -, -, ⟨Csem⟩⟩ := HcallAt.entry j hj
   obtain ⟨Sc, hscope, -, hSreplay⟩ := Csem.semantic indTypes (H.recInfos.flatMap (·.minors)) []
   have hjR : j < S.recursiveFields.size := S.hypotheses_size ▸ hj
   obtain ⟨pos, hpos, hfield⟩ := S.recursiveField_pos Hsel j hjR
