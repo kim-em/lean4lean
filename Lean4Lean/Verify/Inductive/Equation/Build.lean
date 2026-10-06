@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Equation.Setup
-import Lean4Lean.Verify.Inductive.CompletedEquationAssembly
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
 import Lean4Lean.Verify.Inductive.TypeAnnotations
 import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 

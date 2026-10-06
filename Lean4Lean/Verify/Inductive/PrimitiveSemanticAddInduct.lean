@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.PrimitiveSemanticRun
-import Lean4Lean.Verify.Inductive.CompletedEquationAssembly
+import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
 
 namespace Lean4Lean
 

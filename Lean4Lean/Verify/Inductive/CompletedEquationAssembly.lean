@@ -271,21 +271,6 @@ structure CompletedRuleTranslationResult
   realization : InductiveSignature.CompilationRealization sourceEnv decl
     (H.blockCertificate rules rulesWF).block H.outVEnv H.entries
 
-/-- The completed recursor phase determines the joint generation and concrete
-metadata witness. No rule, telescope, or equation witness is chosen by the
-caller. Source nonemptiness is needed only when forming the installation
-certificate below. -/
-theorem CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
-    Nonempty (CompletedRuleTranslationResult H) := by
-  sorry
-
 /-- Source nonemptiness comes from the existing declaration entry guard.
 The completed run supplies formation and block typing, so the finite
 derivation is constructed here without an additional caller proof. -/

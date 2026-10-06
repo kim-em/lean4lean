@@ -5,7 +5,8 @@ import Lean4Lean.Verify.Inductive.RecursorMetadataRealization
 
 /-! Assembly of the completed rule translation from the closed RHS translations.
 
-`CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation` asks for the
+`CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation` (in
+`CompletedRuleTranslation`) asks for the
 full `CompletedRuleTranslationResult` of a completed recursor run.  Everything
 except the translation of each installed rule's closed right-hand side to the
 generator's equation right-hand side is derived here:
