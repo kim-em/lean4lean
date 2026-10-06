@@ -26,11 +26,15 @@ import Lean4Lean.Verify.Inductive.Nested.WhnfHitShape
   indices), so their projection names are among those of any generated
   recursor type (`Instance.equation_projNamesAvoid_of_recursorType`).
 
-The remaining field `eliminatorProjNames` is not derived here: certified
-eliminator schemas of earlier blocks may project out of the never-installed
-auxiliary structure families of their expansions (`FamilyTypesWF` is checked
-in the expanded environment with its projections), and the executable reuses
-the auxiliary names `_nested.i` across blocks. -/
+* Registered eliminator schemas (`eliminatorProjNames`): certified schemas of
+  earlier blocks are checked in expanded environments whose projection tables
+  may contain never-installed auxiliary structure families, and the
+  executable reuses the auxiliary names `_nested.i` across blocks. So this is
+  not a consequence of `Certified`; registration instead certifies that the
+  schema projects only out of structures registered at registration time
+  (`CaseSchema.ProjNamesRegistered`, a field of `VEnv.WF'.inductEliminators`),
+  whence out of base structures (`VEnv.WF.eliminatorsProjNamesRegistered`),
+  which are old constants (`eliminatorProjNames_of`). -/
 
 namespace Lean4Lean
 
@@ -41,11 +45,8 @@ open Kernel
 
 namespace VExpr
 
-/-- Every projection type name of the term satisfies `ok`. -/
-def ProjNamesOK (ok : Name → Prop) : VExpr → Prop
-  | .bvar _ | .sort _ | .const .. | .elim .. => True
-  | .app f a | .lam f a | .forallE f a => f.ProjNamesOK ok ∧ a.ProjNamesOK ok
-  | .proj n _ e => ok n ∧ e.ProjNamesOK ok
+/-! `VExpr.ProjNamesOK` itself is defined in `Theory/Inductive/CaseFormation.lean`,
+where registration of case schemas uses it. -/
 
 theorem ProjNamesOK.liftN {ok : Name → Prop} {n : Nat} :
     ∀ {e : VExpr} {k : Nat}, e.ProjNamesOK ok → (e.liftN n k).ProjNamesOK ok
@@ -1146,6 +1147,40 @@ theorem NestedValidatedRunResult.restoredEquationProjNames_of
   exact ⟨VExpr.projNamesAvoid_mono hsub hl, VExpr.projNamesAvoid_mono hsub hr,
     VExpr.projNamesAvoid_mono hsub ht⟩
 
+/-- **Field `eliminatorProjNames`**: every eliminator schema registered in the
+base environment projects only out of structures registered there
+(`VEnv.WF.eliminatorsProjNamesRegistered`, certified at registration). Those
+are old constants (`baseProjection_not_restorable`), hence not restorable. -/
+theorem NestedValidatedRunResult.eliminatorProjNames_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
+        (compilationRestoration sourceDecl auxiliaries).restorableNames := by
+  intro auxiliaries D
+  rcases E.restorationTablesRestoringAll wf Hsources with
+    ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -, -⟩
+  have hnodup : (familyNames E.production.loweredDecl.types ++
+      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+    rcases E.containerSpecializations wf Hsources with
+      ⟨_, _, _, _, _, _, _, h, _⟩
+    exact h
+  have hnot : ∀ S, (∃ info, (ves.venv (if isUnsafe then .unsafe else .safe)).projections S info) →
+      S ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames :=
+    fun _ ⟨_, hinfo⟩ hmem => E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup
+      hinfo (D'.restorable_transfer D hmem)
+  intro block schema hlookup
+  have H := (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf.eliminatorsProjNamesRegistered
+    block schema hlookup
+  refine ⟨fun owner type h => (H.1 owner type h).projNamesAvoid hnot,
+    fun owner rules h df hdf => ?_⟩
+  obtain ⟨hl, hr, ht⟩ := H.2 owner rules h df hdf
+  exact ⟨hl.projNamesAvoid hnot, hr.projNamesAvoid hnot, ht.projNamesAvoid hnot⟩
+
 /-- **`NestedRestoredEquationGaps` from its three remaining fields**: the
 eliminator-schema projection names (`eliminatorProjNames`), the typing of the
 auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the
@@ -1224,6 +1259,60 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
       equationProjNames := heqs
       auxiliaryConstructors := haux
       projections := hprojs }
+
+/-- **`NestedRestoredEquationGaps` from its two remaining fields**: the typing
+of the auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and
+the transport of the lowered projection rules (`projections`). The
+eliminator-schema projection names are `eliminatorProjNames_of`. -/
+theorem NestedValidatedRunResult.restoredEquationGaps_of'
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ C : NestedFinalAssemblyShape E.restoration
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+        C.production = E.production →
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+        (∀ envTypes : VEnv,
+          (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+            sourceDecl.typeConstants = some envTypes →
+          ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+            ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
+              h.auxiliary = lc.name →
+              ∃ restored, (compilationRestoration sourceDecl auxiliaries).expr lc.type =
+                  some restored ∧
+                envTypes.HasType sourceDecl.uvars []
+                  (VExpr.wrapLams E.production.compilationSignature.params
+                    (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
+        ∀ entry ∈ E.production.loweredDecl.projectionEntries,
+          VEnv.ProjectionTransport C.finalBaseVEnv
+            ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
+              fun _ => E.production.compilationSignature.params)
+            (compilationRestoration sourceDecl auxiliaries).renaming
+            entry.typeName entry.info) :
+    ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ C : NestedFinalAssemblyShape E.restoration
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+        C.production = E.production →
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+        NestedRestoredEquationGaps E C auxiliaries := by
+  exact E.restoredEquationGaps_of wf Hsources
+    (fun auxiliaries D _ _ _ => E.eliminatorProjNames_of wf Hsources auxiliaries D) Hcontainers
 
 end Run
 

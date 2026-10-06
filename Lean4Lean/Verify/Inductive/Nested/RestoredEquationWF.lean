@@ -223,7 +223,8 @@ private theorem nodup_map_inj_RE {f : α → β} :
 environment avoid the restorable names. Eliminator schemas are certified in
 expanded environments whose projection tables may contain never-installed
 auxiliary structure families (see `Nested.EliminatorAvoidance`), so this is
-not a consequence of well-formedness. -/
+not a consequence of the formation certificate; it follows from the projection
+names certified at registration (`NestedValidatedRunResult.eliminatorProjNames_of`). -/
 def EliminatorProjNamesAvoid (env : VEnv) (names : List Name) : Prop :=
   ∀ block schema, env.eliminators block schema →
     (∀ owner type, schema.genericType owner = some type →

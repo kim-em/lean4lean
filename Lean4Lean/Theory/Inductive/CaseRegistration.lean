@@ -1,7 +1,14 @@
 import Lean4Lean.Theory.Typing.EnvLemmas
 
 /-! Registration of declaration-derived case schemas at the constructor
-boundary. Freshness follows from the actual installation history. -/
+boundary. Freshness follows from the actual installation history.
+
+Registration also carries the certified fact
+`CaseSchema.ProjNamesRegistered` (the schema projects only out of structures
+registered at registration time). This is a new obligation for producers of a
+registration (`register_after_constructors`, `CheckingEnv.Valid.registerCases`
+take it as a hypothesis); it is exposed for every registry entry by
+`VEnv.WF.eliminatorsProjNamesRegistered`. -/
 
 namespace Lean4Lean
 
@@ -97,6 +104,26 @@ theorem VEnv.WF.eliminator_slot_unique {env : VEnv} {leftIndex rightIndex : Nat}
     (hleftName.trans hrightName.symm)⟩
   exact (List.getElem?_eq_some_iff.mp hleftName).1
 
+/-- Every registered case schema projects only out of structures registered in
+the environment: the fact certified at registration, transported along the
+later extensions. -/
+theorem VEnv.WF.eliminatorsProjNamesRegistered {env : VEnv} (H : env.WF) :
+    ∀ block schema, env.eliminators block schema → schema.ProjNamesRegistered env block := by
+  intro block schema hlookup
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hlookup
+  | decl h _ ih =>
+    rw [h.eliminators] at hlookup
+    exact (ih hlookup).mono (declaration_le h)
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hlookup
+    exact (ih hlookup).mono VEnv.addProjections_le
+  | inductEliminators _ _ _ _ _ hc _ _ ih =>
+    rcases hlookup with ⟨rfl, rfl⟩ | hlookup
+    · exact hc.2.2.mono VEnv.addEliminator_le
+    · exact (ih hlookup).mono VEnv.addEliminator_le
+
 namespace InductiveSignature.CaseSchema
 
 /-- The checked source header installation already guarantees freshness of
@@ -147,7 +174,8 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     (H : schema.Certified base source block) (hbase : base.WF)
     (hkey : source.types.head?.map (·.name) = some key)
     (htypes : base.addConstVals block.types = some envTypes)
-    (hctors : envTypes.addConstVals block.ctors = some envCtors) :
+    (hctors : envTypes.addConstVals block.ctors = some envCtors)
+    (hprojs : schema.ProjNamesRegistered envCtors key) :
     (envCtors.addEliminator key schema).WF := by
   have hctorsWF : envCtors.WF := by
     obtain ⟨expanded, g, auxiliaries, hdata, _, _⟩ := H
@@ -165,7 +193,7 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     ((VEnv.addConstVals_eliminators hctors).trans (VEnv.addConstVals_eliminators htypes))
   apply hbase.inductEliminators hctorsWF
     ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) H hkey _
-    ((VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)) hfresh
+    ((VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)) hprojs hfresh
   intro value hvalue
   rcases List.mem_append.mp hvalue with hvalue | hvalue
   · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hvalue)
