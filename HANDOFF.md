@@ -617,9 +617,23 @@ inside this project's scope without solving open base metatheory:
    consumed parameters, constructor renaming), `Nested/RestorationCommutation.lean`
    (`restoreNested` vs `Restoration.expr` under `RestorationMapAgreement` and
    `RestoreReady`), `Nested/StrippedValidity.lean`
-   (`finalValidOfStaged_of_shapes`). In progress: `Nested/RestorationAgreement.lean`
-   (instantiating the agreement and `RestoreReady` for the run) and
-   `Nested/RestoredRecursorShape.lean` (restored `VRecursorShape`).
+   (`finalValidOfStaged_of_shapes`), `Nested/RestoredRecursorShape.lean`
+   (restored `VRecursorShape`), `Nested/CompilationDataAssembly.lean`
+   (`CompilationData` of the run modulo `NestedCompilationPending`:
+   constructor `RestoresType`, auxiliary family headers, restored recursors
+   and equations), `Nested/RestorationAgreement.lean` (2026-10-06:
+   `RestorationMapAgreement` for the run from `RestorationTableData` via
+   `TrExprS.instantiateRevList_inv`; `RestoreReady` of lowered recursor types
+   from the closed-form `LoweredRestoreReady`; per-owner
+   `restoredRecursorTypes` modulo `ForallTelescope`/`LoweredRestoreReady`/
+   `ForallDomainsReady` of the generated type and the restored type's
+   translation). Found and repaired there: the `head` clause of
+   `RestorationMapAgreement` was false for open arguments (sequential
+   `instantiateRev`), now requires free-variable arguments of parameter arity;
+   `RestoreReady` rejected literals (`lit`/`mdata` cases added). In progress:
+   discharging those syntactic hypotheses, `Theory/Inductive/RestorationDefEq.lean`
+   (restoration preserves `IsDefEq`; constructor `RestoresType`), and the
+   auxiliary family header conjuncts.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
