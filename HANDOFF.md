@@ -28,7 +28,19 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   development is parametric in `class Params` (seven new fields) and
   `class FullEquationCoverage`, which have no instance; the agent is now
   constructing both for every `VEnv.WF env` to give an unconditional
-  `VEnv.WF.church_rosser`.
+  `VEnv.WF.church_rosser`. **Merged into the mainline (71addb9b..277edf4d,
+  pushed):** the one strengthening-dependent lemma underneath confluence
+  (`VProjectionInfo.field_typing_of_ctorApp`, via the false
+  `VExpr.WF.of_occurs`) was replaced by the E1 branch's strengthening-free
+  proof (`of_occurs_lift`, `field_typing_aux`; port of ceb04ec); the
+  confluence closure references neither `Strengthening` nor the conjecture.
+  Mainline open proofs: exactly `headInversion` and
+  `strengthening_of_canonicalEq`; full build, tests, both replays and the
+  audit pass. Not ported from E1: `VIotaRuleShape.rec_doms`/`ctor_doms`
+  (needs a new nested-restoration proof at `Restoration.restored_iota_shape`)
+  and the projection-walk substitution (drags in the corner machinery); so
+  `args_typing`/`iota`/`iota_body` still take `hs`. Patch saved at
+  `/tmp/l4l-e1b-partial-port.patch` (volatile).
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
