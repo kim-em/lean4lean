@@ -697,6 +697,39 @@ theorem HasType.elimApp (henv : env.WF) {P I : List VExpr} {Maj Min h M m : VExp
     show P.length + I.length + 3 - (I.length + 1) = P.length + 2 by omega,
     List.drop_left' (by simp), List.take_of_length_le (by simp)]
 
+theorem vars_map_liftN_hi (count below n k : Nat) (h : k ≤ below) :
+    (vars count below).map (fun e => e.liftN n k) = vars count (below + n) := by
+  simp only [vars, List.map_map, Function.comp_def]
+  apply List.map_congr_left
+  intro i _
+  simp only [VExpr.liftN, liftVar]
+  rw [if_neg (by omega)]
+  congr 1; omega
+
+theorem vars_map_liftN_lo (count below n k : Nat) (h : below + count ≤ k) :
+    (vars count below).map (fun e => e.liftN n k) = vars count below := by
+  simp only [vars, List.map_map, Function.comp_def]
+  apply List.map_congr_left
+  intro i hi
+  simp only [List.mem_reverse, List.mem_range] at hi
+  simp only [VExpr.liftN, liftVar]
+  rw [if_pos (by omega)]
+
+/-- The family applied to its parameters and indices, at arguments. -/
+theorem instOuter_bvarRange_apps {f : VExpr} (hf : f.ClosedN 0) (args : List VExpr) :
+    (VExpr.mkApps f (bvarRange args.length args.length)).instOuter args = VExpr.mkApps f args := by
+  rw [VExpr.instOuter_mkApps, instOuter_closed0 hf,
+    instOuter_bvarRange _ _ _ (Nat.le_refl _) (Nat.le_refl _)]
+  simp
+
+theorem sort_agree (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) {A B : VExpr} {a b : VLevel}
+    (hA : env.HasType U Γ A (.sort a)) (hB : env.HasType U Γ B (.sort b))
+    (hAB : env.IsDefEqU U Γ A B) : a ≈ b := by
+  obtain ⟨T, hT⟩ := hAB
+  have h1 := IsDefEq.uniqU henv hΓ hA hT
+  have h2 := IsDefEq.uniqU henv hΓ hT hB
+  exact IsDefEqU.sort_inv henv hΓ (h1.trans henv hΓ h2)
+
 end VEnv
 
 end Lean4Lean
