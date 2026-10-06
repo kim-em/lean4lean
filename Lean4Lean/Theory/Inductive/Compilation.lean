@@ -140,7 +140,7 @@ theorem Models.restores_empty {s : InductiveSignature} {env envTypes : VEnv}
     rcases (Lean4Lean.List.Forall₂.append_of_left hlength).mp hctors with ⟨hhead, hrest⟩
     refine .cons ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, ?_, ?_⟩
       (ih hrest (fun t ht => hsub t (List.mem_cons_of_mem _ ht)))
-    · obtain ⟨domains, body, exprType, htype, hbody⟩ :=
+    · obtain ⟨domains, body, exprType, _, htype, hbody⟩ :=
         (hsub source List.mem_cons_self).header
       exact ⟨domains, body, source.resultLevel, exprType, h.2.2.2.1.symm,
         htype.mono hle, hbody.mono hle⟩
