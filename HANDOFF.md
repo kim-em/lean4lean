@@ -881,7 +881,14 @@ inside this project's scope without solving open base metatheory:
    separate the endpoints); the reviewer judges the unrestricted statement
    false and strengthening with canonical `Eq` plausibly true but unproved
    (a proof would need normalization or confluence for typed proof
-   irrelevance with iota and K). Not pursued further.
+   irrelevance with iota and K). **Reversed (Kim, 2026-10-06): a formal
+   refutation of strengthening without canonical `Eq` is worth having.**
+   Restarted without budget on `agent/verify-inductives-base`
+   (Lean4Lean/Theory/Typing/Countermodel/): WF environment via a direct
+   certificate, larger-context derivation, groupoid model with soundness for
+   every `IsDefEq` rule, separation at `v = 2`; target
+   `strengthening_fails : ∃ env, VEnv.WF env ∧ ¬ env.Strengthening`,
+   axiom-clean.
    Literature (Astra, `docs/inductives/STRENGTHENING_LITERATURE.md`):
    Carneiro's thesis (§3.2, Weakening (4)) states strengthening with a proof
    by mutual induction that does not address the transitivity case; the
