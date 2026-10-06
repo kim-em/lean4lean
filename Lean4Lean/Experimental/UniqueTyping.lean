@@ -117,7 +117,7 @@ theorem HasTypeS.uniq [Params.PatternRegistry] (hc : ∀ Γ, LR.ConstAdequate Γ
     obtain ⟨_, h_pi_eq⟩ := ih_f h_f'
     obtain ⟨_, _, h_A_eq, h_B_eq⟩ := SExpr.forallE_inv (hc _) h_pi_eq
     have W : Ctx.SubstEq Γ' (.one a) (.one a) (A :: Γ') :=
-      .cons .nil h_A_eq.hasType.1 (by simpa using h_a.hasType)
+      .cons .id h_A_eq.hasType.1 (by simpa using h_a.hasType)
     exact transport (h_B_eq.subst W)
   | @lam _ _ _ _ body h_A _ _ ih_body =>
     obtain ⟨_, H2_s, transport⟩ := H2.toStructural
