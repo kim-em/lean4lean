@@ -324,10 +324,22 @@ declarations; validation must not assume correctness of its own artifact.
    (`ConsumedSignatureData.models_of_familyTypes`), `ConsumedAdmissible.lean`
    (`consumedInstance_admissible`, with `sourceConstructorIndices_eq_header`),
    `recursorTarget_eq_of_minors`, and `recursiveTypesWF_of_recursorType`.
-   `ConsumedGeneration` gained `recursiveTypesWF`. The two hypotheses `HU :
-   H.ArgumentUniverses` and `HF : H.ConsumedFamilyTypes` are being discharged
-   (the latter by the third correction of item 8, which removes the need for
-   it).
+   `ConsumedGeneration` gained `recursiveTypesWF` and `familyTypesWF`.
+   **Closed (2026-10-06):** `canonicalConsumedGeneration :=
+   H.consumedGeneration_of H.argumentUniverses`, no remaining hypotheses. The
+   per-field semantic rows retain universe support of each call's argument
+   telescope and exposed indices (`RecInfoCallBlueprintSemanticOrigin.universes`,
+   proved at the producer from the checker's invariant, `Recursor/LoopUniverses.lean`;
+   the parameter and constructor-tail support is discharged at the two
+   `loopInd2.resultSemantics` call sites, `Run/Formation.lean` and
+   `CompletedConstructorReplay.lean`), and `ArgumentUniverses` is stated over
+   the producer-retained blueprint calls (an earlier form quantified over
+   arbitrary origins and was false). Reachable sorries after this step: the
+   ten base obligations of item 1, `canonicalCompletedRuleTranslation`
+   (`CompletedEquationAssembly.lean:278`), `assemblyNative`
+   (`Nested/AssemblyProviderEvidence.lean:5049`) and
+   `RestoredNestedDeclarationsResult.finalValidOfStaged`
+   (`Nested/ValidationEnvironmentRegistry.lean:935`).
    Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
@@ -545,8 +557,8 @@ inside this project's scope without solving open base metatheory:
    `checkInductiveSources`, which would be a divergence from C++ on
    malformed input and would let `SourceSyntaxChecks` carry the fact).
 2. **Close the three refinement junctions.** `canonicalConsumedGeneration`
-   (`Recursor/CanonicalConstruction.lean`) first, from the retained type check
-   `T := recursorTelescope owner` (item 7). Done: the `params` and `motives`
+   is closed (item 7). Next: `canonicalCompletedRuleTranslation`, then
+   `assemblyNative`. Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
    `recursorTelescope_minor`, the field-domain identification
