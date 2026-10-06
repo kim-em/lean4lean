@@ -259,3 +259,67 @@ saturated_of_hasType ~60 on top.
   indexed NormalEq, the strip/confluence proof, or Injectivity-class
   separation lemmas that do not exist yet.
 * `lake build` (675 jobs) passes at 9db09de.
+
+## 5. Confluence step 1 (agent/verify-inductives-cr, 2026-10-06)
+
+Normal equality is re-indexed: `NormalEqN : Nat → List VExpr → VExpr →
+VExpr → Prop` with leaves at bound 0, congruences at one plus their
+premises, and `etaL`/`etaR`/`etaBoth` at two; `NormalEq Γ a b := ∃ n,
+NormalEqN n Γ a b`, with constructor-named theorems so consumers are
+unchanged. `etaBoth` relates two functions whose applications to a fresh
+variable are related. Weakening, substitution and context conversion
+preserve the bound; `NormalEqN.trans` recurses on the sum of the bounds, and
+the eta/eta case closes by `etaBoth`. `NormalEq.weakN_inv_DFC`,
+`NormalEq.weakN_iff`, `ParRed.weakN_inv`, `hasType_app_bvar0` and the
+`ParRedExt` beta machinery are deleted; ChurchRosser.lean has no
+`weakN_iff` reference. The ParRed-only confluence (`CRDefEq`,
+`ParRedS.church_rosser`) is retired: `etaBoth` needs `FullStep.funEta`.
+
+In FullReduction.lean:
+
+* `NormalEqN.spine_expose`: a term related to a rigid-headed spine (applied
+  to related extra arguments) is a proof, reduces to a spine with an
+  equivalent head and related arguments, or reduces to a lambda whose body
+  is a smaller comparison with the eta expansion of such a spine.
+* `NormalEq.parRed` is proved for every parallel step through
+  `SpineTransport` (structural on the step, at every renaming and extra
+  spine, strong induction on the bound). `SpineTransport.redex` handles
+  native iota and generated case redexes. This removes
+  `NormalEq.headParallel`.
+* `NormalEqN.fullStep` uses strong induction on the bound; constant-headed
+  rules (native prefix unfolding, quotient lifting) go through
+  `NormalEqN.fullStep_rigidRule`, projection iota through
+  `NormalEqN.fullStep_projIota`. The three `NormalEq.fullStep` sorries and
+  the distinct-family case of `FullStep.strip` are closed.
+
+These use the hypothesis class `HeadSeparation` (assumed by
+`NormalEq.parRed`, `NormalEq.fullStep`, `FullReduction.church_rosser`,
+`FullStep.strip` and `IsDefEq.full_church_rosser`):
+
+* `not_pi`, `proof_major`: the major of a matched native iota redex is not
+  a function, and a proof major forces a propositional result (native
+  recursor typing; small targets are propositional, large ones carry a
+  nonzero source-level check).
+* `case_not_pi`: the constructor major of a matched generated case redex is
+  not a function (the proof-major case is already proved there).
+* `rigid_not_pi`: a rigid-headed application is never a Pi type (the
+  missing `IsDefEqU.rigidApp_forallE_inv`).
+* `rigid_ne`: distinct rigid heads are never equal types (stated at a sort;
+  proofs with distinct rigid heads are equal by proof irrelevance).
+
+Remaining: `FullStep.strip` for the core, delta, quotient, projection iota
+and congruence steps. Strip follows from a local property D' (for two steps
+from one source, one side closes in at most one step, the other in a
+reduction, modulo normal equality) together with `NormalEq.fullReduction`,
+by induction on the development. D' fails for `FullStep` as defined because
+its delta, quotient, projection iota and eta steps do not reduce their
+subterms in parallel: substituting a stepped argument into a stepped body
+need not be a single step. The route is a fully parallel full-step relation
+between `FullStep` and `FullReduction`, its substitution lemma, and the
+critical pairs, including native iota against native prefix unfolding at
+the same recursor head.
+
+`lake env lean scripts/InductiveAudit.lean`: `NormalEq.parRed` depends on
+`sort_inv`, `forallE_inv_stratified`, `sort_forallE_inv` and
+`fieldType_inv_stratified`; `IsDefEq.full_church_rosser` on these and
+`FullStep.strip`; neither depends on `IsDefEqU.weakN_iff`.
