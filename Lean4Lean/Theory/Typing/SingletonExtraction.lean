@@ -1848,5 +1848,116 @@ theorem occ_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec} {E :
           rw [hs]
           exact hcic
 
+theorem mkApps_instOuter_heads {head : VExpr} (hc : head.ClosedN 0) (a b args : List VExpr)
+    (P n : Nat) (ha : a.length = P) (hb : b.length = n) :
+    (VExpr.mkApps head (bvarRange P (P + n) ++ bvarRange n n)).instOuter (a ++ b) =
+      VExpr.mkApps head (a ++ b) := by
+  have hl : (a ++ b).length = P + n := by simp [ha, hb]
+  simp only [VExpr.instOuter_mkApps, VEnv.instOuter_closed0 hc]
+  rw [List.map_append, VExpr.instOuter_bvarRange _ _ _ (by omega) (by rw [hl]; exact Nat.le_refl _),
+    VExpr.instOuter_bvarRange _ _ _ (Nat.le_refl _) (by rw [hl]; omega), hl]
+  simp [Nat.add_sub_cancel, List.drop_left' ha, List.take_left' ha, ← hb]
+
+open VEnv CastSpec in
+/-- **Singleton eta.** A proof of an aligned instance of a large-eliminating singleton
+proposition is definitionally its constructor applied to the parameters and the
+reconstructed fields: data read from the indices, proofs extracted from the major itself. -/
+theorem singleton_eta (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec} {E : PropElim}
+    (W : E.WF S params env U) (hΓ : OnCtx Γ (env.IsType U)) (hpsl : ps.length = params.length)
+    (hargs : TelInst env U Γ (params ++ S.indices ++ [majorTy S params E]) (ps ++ idx ++ [m]))
+    (hf : TelInst env U Γ (params ++ S.fields) (ps ++ f))
+    (halign : ∀ l k, S.slot.getD l none = some k →
+      env.IsDefEq U Γ (f.getD l default) (idx.getD k default)
+        ((S.fields.getD l default).instOuter (ps ++ f.take l)))
+    (hidx : ∀ k, k < S.indices.length →
+      env.IsDefEq U Γ (idx.getD k default) ((E.ctorIndices.getD k default).instOuter (ps ++ f))
+        ((S.indices.getD k default).instOuter (ps ++ idx.take k))) :
+    env.IsDefEq U Γ m
+      (VExpr.mkApps E.ctor (ps ++ (occ S params E ps idx m S.fields.length).2))
+      ((majorTy S params E).instOuter (ps ++ idx)) := by
+  have T := W.typed
+  have h1' := hargs.1
+  have h2' := hf.1
+  simp only [List.length_append, List.length_singleton] at h1' h2'
+  have hidxl : idx.length = S.indices.length := by omega
+  have hfl : f.length = S.fields.length := by omega
+  obtain ⟨_, h2, h3, _⟩ := occ_typed params (Γ := Γ) henv heq W hΓ hpsl hargs hf halign
+    S.fields.length (Nat.le_refl _)
+  rw [List.take_length] at h2
+  have hcl := (occ_length S params E ps idx m S.fields.length).2
+  generalize (occ S params E ps idx m S.fields.length).2 = c at h2 h3 hcl ⊢
+  have hΔb := T.fieldsCtx S.fields.length (Nat.le_refl _)
+  rw [List.take_length] at hΔb
+  -- the constructor at the reconstructed fields
+  have hcI := HasType.closed_instOuter henv hΔb W.ctor_typed h2
+  have hctorEq : (ctorApp S params E).instOuter (ps ++ c) = VExpr.mkApps E.ctor (ps ++ c) := by
+    unfold ctorApp
+    rw [bvarRange_split]
+    exact mkApps_instOuter_heads W.ctor_closed ps c [] params.length S.fields.length hpsl hcl
+  have hfamEq : ∀ a : List VExpr, a.length = S.fields.length →
+      (VExpr.mkApps E.family (branchPa S params ++ E.ctorIndices)).instOuter (ps ++ a) =
+        VExpr.mkApps E.family (ps ++ E.ctorIndices.map (·.instOuter (ps ++ a))) := by
+    intro a hal
+    have hl : (ps ++ a).length = params.length + S.fields.length := by simp [hpsl, hal]
+    simp only [VExpr.instOuter_mkApps, VEnv.instOuter_closed0 W.family_closed, List.map_append,
+      branchPa]
+    rw [VExpr.instOuter_bvarRange _ _ _ (by omega) (by rw [hl]; exact Nat.le_refl _), hl,
+      Nat.sub_self, List.drop_zero, List.take_left' hpsl]
+  rw [hctorEq, hfamEq c hcl] at hcI
+  -- the constructor's type at `c` is its type at `f`
+  obtain ⟨uT, hTy⟩ := W.ctor_typed.isType henv.ordered hΔb
+  have hcf := IsDefEq.closed_instOuter_congr' henv hΓ hΔb hTy
+    (args := ps ++ c) (args' := ps ++ f) (by simp [hpsl, hcl]) (by simp [hpsl, hfl])
+    (fun j hj => by
+      by_cases hjP : j < params.length
+      · rw [getD_append_left' (by omega), getD_append_left' (by omega)]
+        have := h2.getD hj
+        rwa [getD_append_left' (by omega)] at this
+      · have hm : j - params.length < S.fields.length := by simp at hj; omega
+        rw [getD_append_right' (by omega), getD_append_right' (by omega), hpsl,
+          getD_append_right' (by omega), List.take_append, List.take_of_length_le (by omega), hpsl]
+        exact h3 _ hm)
+  rw [hfamEq c hcl, hfamEq f hfl, VExpr.instOuter_sort] at hcf
+  -- the major's type at `idx` is its type at the constructor's indices
+  have hidxT : TelInst env U Γ (params ++ S.indices) (ps ++ idx) := by
+    have := (show TelInst env U Γ ((params ++ S.indices) ++ [majorTy S params E]) ((ps ++ idx) ++ [m])
+      from hargs).take
+    rwa [List.length_append, ← hpsl, ← hidxl, ← List.length_append,
+      List.take_left' rfl] at this
+  have hΔi := T.indicesCtx S.indices.length (Nat.le_refl _)
+  rw [List.take_length] at hΔi
+  have hmc := IsDefEq.closed_instOuter_congr' henv hΓ hΔi W.majorTy_typed
+    (args := ps ++ idx) (args' := ps ++ E.ctorIndices.map (·.instOuter (ps ++ f)))
+    (by simp [hpsl, hidxl]) (by simp [hpsl, W.ctorIndices_length])
+    (fun j hj => by
+      by_cases hjP : j < params.length
+      · rw [getD_append_left' (by omega), getD_append_left' (by omega)]
+        have := hidxT.getD hj
+        rwa [getD_append_left' (by omega)] at this
+      · have hm : j - params.length < S.indices.length := by simp at hj; omega
+        rw [getD_append_right' (by omega), getD_append_right' (by omega), hpsl,
+          getD_append_right' (by omega), List.take_append, List.take_of_length_le (by omega), hpsl]
+        have e : (E.ctorIndices.map (fun x => x.instOuter (ps ++ f))).getD (j - params.length) default =
+            (E.ctorIndices.getD (j - params.length) default).instOuter (ps ++ f) := by
+          rw [getD_of_lt (by simp [W.ctorIndices_length]; exact hm), List.getElem_map,
+            getD_of_lt (by rw [W.ctorIndices_length]; exact hm)]
+        rw [e]
+        exact hidx _ hm)
+  rw [VExpr.instOuter_sort, majorTy, mkApps_instOuter_heads W.family_closed ps
+    (E.ctorIndices.map (·.instOuter (ps ++ f))) [] params.length S.indices.length hpsl
+    (by simp [W.ctorIndices_length])] at hmc
+  -- proof irrelevance
+  have hm : env.HasType U Γ m ((majorTy S params E).instOuter (ps ++ idx)) := by
+    have := hargs.getD (j := params.length + S.indices.length) (by simp)
+    rw [getD_append_right' (by simp [hpsl, hidxl]), List.take_append_of_le_length (by simp [hpsl, hidxl]),
+      List.take_of_length_le (by simp [hpsl, hidxl])] at this
+    simpa [hpsl, hidxl] using this
+  have hP := HasType.closed_instOuter henv hΔi W.majorTy_typed hidxT
+  simp only [VExpr.instOuter_sort] at hP
+  have hctorM : env.HasType U Γ (VExpr.mkApps E.ctor (ps ++ c))
+      ((majorTy S params E).instOuter (ps ++ idx)) := by
+    exact (hcf.trans_l henv hΓ hmc.symm).defeq hcI
+  exact .proofIrrel hP hm hctorM
+
 end PropElim
 end Lean4Lean
