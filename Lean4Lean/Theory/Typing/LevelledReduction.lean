@@ -705,6 +705,58 @@ theorem Below.ofParRedS (H : ReflTransGen (ParRed Γ) a b) (hn : 1 < n) :
   | rfl => exact .rfl
   | tail _ h ih => exact ih.tail ⟨1, hn, h⟩
 
+
+theorem LevelStep.weakN (W : Ctx.LiftN n k Γ Γ') (H : LevelStep Γ m a b) :
+    LevelStep Γ' m (a.liftN n k) (b.liftN n k) := by
+  match m, H with
+  | 0, H => exact NormalEqF.weakN W H
+  | 1, H => exact ParRed.weakN W H
+  | 2, H => exact DeltaPar.weakN W (H : DeltaPar _ _ _)
+  | 3, H => exact EtaPar.weakN W (H : EtaPar _ _ _)
+  | _ + 4, H => exact H.elim
+
+theorem Below.weakN (W : Ctx.LiftN n k Γ Γ') (H : ReflTransGen (Below Γ m) a b) :
+    ReflTransGen (Below Γ' m) (a.liftN n k) (b.liftN n k) := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h ih => obtain ⟨j, hj, h⟩ := h; exact ih.tail ⟨j, hj, h.weakN W⟩
+
+/-- A levelled step of the body, instantiated at the outermost variable. -/
+theorem LevelStep.inst0 (hΓ : OnCtx Γ (env.IsType univs)) (hx : Γ ⊢ x : D)
+    (H : LevelStep (D :: Γ) m t t') (ht : D :: Γ ⊢ t : B) :
+    LevelStep Γ m (t.inst x) (t'.inst x) := by
+  have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, (hx.isType henv hΓ)⟩
+  match m, H with
+  | 0, H => exact NormalEqF.instN hx .zero H
+  | 1, H => exact ParRed.instN (H₀ := .rfl) (H₀' := hx) .zero H
+  | 2, H => exact DeltaPar.instN .zero hΓ' .rfl hx (H : DeltaPar _ _ _) ht
+  | 3, H => exact EtaPar.instN .zero hΓ' .rfl hx (H : EtaPar _ _ _) ht
+  | _ + 4, H => exact H.elim
+
+/-- A levelled step of the argument, substituted into a fixed body. -/
+theorem LevelStep.inst0_r (hΓ : OnCtx Γ (env.IsType univs)) (hx : Γ ⊢ x : D)
+    (H : LevelStep Γ m x x') (ht : D :: Γ ⊢ t : B) :
+    LevelStep Γ m (t.inst x) (t.inst x') := by
+  have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, (hx.isType henv hΓ)⟩
+  match m, H with
+  | 0, H => exact NormalEqF.instN_r hΓ' hx H .zero ht
+  | 1, H => exact ParRed.instN (H₀ := H) (H₀' := hx) .zero .rfl
+  | 2, H => exact DeltaPar.instN .zero hΓ' (H : DeltaPar _ _ _) hx .rfl ht
+  | 3, H => exact EtaPar.instN .zero hΓ' (H : EtaPar _ _ _) hx .rfl ht
+  | _ + 4, H => exact H.elim
+
+theorem Below.inst0 (hΓ : OnCtx Γ (env.IsType univs))
+    (H : ReflTransGen (Below (D :: Γ) m) t t') (Hx : ReflTransGen (Below Γ m) x x')
+    (ht : D :: Γ ⊢ t : B) (hx : Γ ⊢ x : D) :
+    ReflTransGen (Below Γ m) (t.inst x) (t'.inst x') := by
+  have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, (hx.isType henv hΓ)⟩
+  have h1 := Below.congr (f := (·.inst x)) (P := fun g => D :: Γ ⊢ g : B)
+    (fun hP h => h.inst0 hΓ hx hP) (fun hP h => h.hasType hΓ' hP) H ht
+  have ht' := Below.hasType hΓ' H ht
+  have h2 := Below.congr (f := t'.inst) (P := fun g => Γ ⊢ g : D)
+    (fun hP h => h.inst0_r hΓ hP ht') (fun hP h => h.hasType hΓ hP) Hx hx
+  exact h1.trans h2
+
 end LevelDefs
 
 
