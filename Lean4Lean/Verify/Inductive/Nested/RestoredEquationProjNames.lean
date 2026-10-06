@@ -1,0 +1,1231 @@
+import Lean4Lean.Verify.Inductive.Nested.RestoredEquationWF
+import Lean4Lean.Verify.Inductive.Nested.WhnfHitShape
+
+/-! Projection-name avoidance of the restored generated equations: fields
+`constructorProjNames`, `recursorProjNames` and `equationProjNames` of
+`NestedRestoredEquationGaps` (`Nested/RestoredEquationWF.lean`).
+
+* Translated syntax projects only out of registered structures
+  (`TrExprS.targetProjsRegistered`), and translation maps projection nodes to
+  projection nodes, so a projection condition on the source carries over to
+  the target (`TrExprS.projNamesOK_of_source`).
+* Lowered constructor types (`constructorProjNames`) are translated in the
+  lowered header environment, whose projections are those of the base
+  environment: old structures, absent from the restorable names.
+* Generated recursor types (`recursorProjNames`): the executable recursor type
+  satisfies the projection condition `ProjsOK (projHitOK env E.hitHeads)` of
+  the hit-shape chain (`CompletedRecursorConstruction.recursorTypeProjsOK`,
+  the projection component of `recursorTypeHitShape`, which the hit-shape
+  chain drops). Its translation is the canonical recursor type, which hence
+  neither projects out of a head (in particular an auxiliary family) nor out
+  of anything but a registered structure of the recursor-pass environment (a
+  base structure or a lowered family). This leaves no restorable name.
+* Generated equations (`equationProjNames`) are built from the same pieces as
+  the recursor types (parameters, motives, minor premises, and through those
+  the field types, induction-hypothesis binders and indices, and constructor
+  indices), so their projection names are among those of any generated
+  recursor type (`Instance.equation_projNamesAvoid_of_recursorType`).
+
+The remaining field `eliminatorProjNames` is not derived here: certified
+eliminator schemas of earlier blocks may project out of the never-installed
+auxiliary structure families of their expansions (`FamilyTypesWF` is checked
+in the expanded environment with its projections), and the executable reuses
+the auxiliary names `_nested.i` across blocks. -/
+
+namespace Lean4Lean
+
+open Lean hiding Environment Exception
+open Kernel
+
+/-! ### Projection names of abstract terms -/
+
+namespace VExpr
+
+/-- Every projection type name of the term satisfies `ok`. -/
+def ProjNamesOK (ok : Name → Prop) : VExpr → Prop
+  | .bvar _ | .sort _ | .const .. | .elim .. => True
+  | .app f a | .lam f a | .forallE f a => f.ProjNamesOK ok ∧ a.ProjNamesOK ok
+  | .proj n _ e => ok n ∧ e.ProjNamesOK ok
+
+theorem ProjNamesOK.liftN {ok : Name → Prop} {n : Nat} :
+    ∀ {e : VExpr} {k : Nat}, e.ProjNamesOK ok → (e.liftN n k).ProjNamesOK ok
+  | .bvar _, _, _ | .sort _, _, _ | .const .., _, _ | .elim .., _, _ => trivial
+  | .app _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
+  | .lam _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
+  | .forallE _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
+  | .proj _ _ _, _, h => ⟨h.1, ProjNamesOK.liftN h.2⟩
+
+theorem ProjNamesOK.and {ok ok' : Name → Prop} :
+    ∀ {e : VExpr}, e.ProjNamesOK ok → e.ProjNamesOK ok' →
+      e.ProjNamesOK fun s => ok s ∧ ok' s
+  | .bvar _, _, _ | .sort _, _, _ | .const .., _, _ | .elim .., _, _ => trivial
+  | .app _ _, h, h' => ⟨ProjNamesOK.and h.1 h'.1, ProjNamesOK.and h.2 h'.2⟩
+  | .lam _ _, h, h' => ⟨ProjNamesOK.and h.1 h'.1, ProjNamesOK.and h.2 h'.2⟩
+  | .forallE _ _, h, h' => ⟨ProjNamesOK.and h.1 h'.1, ProjNamesOK.and h.2 h'.2⟩
+  | .proj _ _ _, h, h' => ⟨⟨h.1, h'.1⟩, ProjNamesOK.and h.2 h'.2⟩
+
+theorem ProjNamesOK.projNamesAvoid {ok : Name → Prop} {names : List Name}
+    (hok : ∀ s, ok s → s ∉ names) :
+    ∀ {e : VExpr}, e.ProjNamesOK ok → e.projNamesAvoid names = true
+  | .bvar _, _ | .sort _, _ | .const .., _ | .elim .., _ => rfl
+  | .app _ _, h | .lam _ _, h | .forallE _ _, h => by
+    simp only [VExpr.projNamesAvoid, Bool.and_eq_true]
+    exact ⟨ProjNamesOK.projNamesAvoid hok h.1, ProjNamesOK.projNamesAvoid hok h.2⟩
+  | .proj _ _ _, h => by
+    simp only [VExpr.projNamesAvoid, Bool.and_eq_true, Bool.not_eq_true']
+    exact ⟨by simpa using hok _ h.1, ProjNamesOK.projNamesAvoid hok h.2⟩
+
+/-! #### `projNamesAvoid` under the generator's constructions -/
+
+@[simp] theorem projNamesAvoid_liftN (names : List Name) (n : Nat) :
+    ∀ (e : VExpr) (k : Nat), (e.liftN n k).projNamesAvoid names = e.projNamesAvoid names
+  | .bvar _, _ | .sort _, _ | .const .., _ | .elim .., _ => rfl
+  | .app f a, k | .lam f a, k | .forallE f a, k => by
+    simp [VExpr.liftN, VExpr.projNamesAvoid, projNamesAvoid_liftN]
+  | .proj _ _ e, k => by
+    simp [VExpr.liftN, VExpr.projNamesAvoid, projNamesAvoid_liftN]
+
+@[simp] theorem projNamesAvoid_instL (names : List Name) (ls : List VLevel) :
+    ∀ e : VExpr, (e.instL ls).projNamesAvoid names = e.projNamesAvoid names
+  | .bvar _ | .sort _ | .const .. | .elim .. => rfl
+  | .app f a | .lam f a | .forallE f a => by
+    simp [VExpr.instL, VExpr.projNamesAvoid, projNamesAvoid_instL]
+  | .proj _ _ e => by
+    simp [VExpr.instL, VExpr.projNamesAvoid, projNamesAvoid_instL]
+
+theorem projNamesAvoid_mkApps_iff {names : List Name} (fn : VExpr) (args : List VExpr) :
+    (VExpr.mkApps fn args).projNamesAvoid names = true ↔
+      fn.projNamesAvoid names = true ∧ ∀ a ∈ args, a.projNamesAvoid names = true := by
+  induction args generalizing fn with
+  | nil => simp [VExpr.mkApps]
+  | cons arg args ih =>
+    rw [show VExpr.mkApps fn (arg :: args) = VExpr.mkApps (.app fn arg) args by rfl, ih]
+    simp [projNamesAvoid, and_assoc]
+
+theorem projNamesAvoid_wrapForalls_iff {names : List Name} {domains : List VExpr}
+    {body : VExpr} :
+    (VExpr.wrapForalls domains body).projNamesAvoid names = true ↔
+      (∀ d ∈ domains, d.projNamesAvoid names = true) ∧ body.projNamesAvoid names = true := by
+  induction domains with
+  | nil => simp [VExpr.wrapForalls]
+  | cons d ds ih =>
+    simp only [VExpr.wrapForalls, List.foldr_cons] at ih ⊢
+    simp [projNamesAvoid, ih, and_assoc]
+
+theorem projNamesAvoid_wrapLams_iff {names : List Name} {domains : List VExpr}
+    {body : VExpr} :
+    (VExpr.wrapLams domains body).projNamesAvoid names = true ↔
+      (∀ d ∈ domains, d.projNamesAvoid names = true) ∧ body.projNamesAvoid names = true := by
+  induction domains with
+  | nil => simp [VExpr.wrapLams]
+  | cons d ds ih =>
+    simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
+    simp [projNamesAvoid, ih, and_assoc]
+
+theorem projNamesAvoid_mono {names names' : List Name} (hsub : ∀ n ∈ names', n ∈ names) :
+    ∀ {e : VExpr}, e.projNamesAvoid names = true → e.projNamesAvoid names' = true
+  | .bvar _, _ | .sort _, _ | .const .., _ | .elim .., _ => rfl
+  | .app _ _, h | .lam _ _, h | .forallE _ _, h => by
+    simp only [VExpr.projNamesAvoid, Bool.and_eq_true] at h ⊢
+    exact ⟨projNamesAvoid_mono hsub h.1, projNamesAvoid_mono hsub h.2⟩
+  | .proj _ _ _, h => by
+    simp only [VExpr.projNamesAvoid, Bool.and_eq_true, Bool.not_eq_true',
+      List.contains_eq_mem, decide_eq_false_iff_not] at h ⊢
+    exact ⟨fun hm => h.1 (hsub _ hm), projNamesAvoid_mono hsub h.2⟩
+
+end VExpr
+
+/-! ### Generated equations from generated recursor types
+
+The pieces of every generated equation (parameters, motives, minor premises,
+field types, constructor indices, and the induction-hypothesis binders and
+indices of the recursive calls) all occur in every generated recursor type,
+up to lifting and universe instantiation, which keep projection names. -/
+
+namespace InductiveSignature
+
+private theorem forall_zipIdx_map_iff {α : Type} {P : VExpr → Prop} {Q : α → Prop}
+    {f : α × Nat → VExpr} (h : ∀ a i, P (f (a, i)) ↔ Q a) :
+    ∀ (l : List α) (k : Nat), (∀ d ∈ (l.zipIdx k).map f, P d) ↔ ∀ a ∈ l, Q a
+  | [], _ => by simp
+  | a :: l, k => by
+    simp only [List.zipIdx_cons, List.map_cons, List.mem_cons, forall_eq_or_imp, h a k,
+      forall_zipIdx_map_iff h l (k + 1)]
+
+private theorem exists_mem_zipIdx {α : Type} {a : α} :
+    ∀ {l : List α} (k : Nat), a ∈ l → ∃ i, (a, i) ∈ l.zipIdx k
+  | [], _, h => by simp at h
+  | b :: l, k, h => by
+    rcases List.mem_cons.1 h with rfl | h
+    · exact ⟨k, by simp⟩
+    · obtain ⟨i, hi⟩ := exists_mem_zipIdx (k + 1) h
+      exact ⟨i, by simp [hi]⟩
+
+private theorem mem_zipIdx_getElem {α : Type} :
+    ∀ (l : List α) (k i : Nat) (hi : i < l.length), (l[i], k + i) ∈ l.zipIdx k
+  | [], _, _, hi => by simp at hi
+  | a :: l, k, 0, _ => by simp
+  | a :: l, k, i + 1, hi => by
+    simp only [List.zipIdx_cons, List.getElem_cons_succ, List.mem_cons]
+    right
+    have := mem_zipIdx_getElem l (k + 1) i (by simpa using hi)
+    rwa [show k + 1 + i = k + (i + 1) by omega] at this
+
+theorem vars_projNamesAvoid {names : List Name} (count below : Nat) :
+    ∀ e ∈ vars count below, e.projNamesAvoid names = true := by
+  intro e he
+  simp only [vars, List.mem_map] at he
+  obtain ⟨_, _, rfl⟩ := he
+  rfl
+
+theorem insertBinders_projNamesAvoid_iff {names : List Name} {domains : List VExpr}
+    {count : Nat} :
+    (∀ d ∈ insertBinders domains count, d.projNamesAvoid names = true) ↔
+      ∀ e ∈ domains, e.projNamesAvoid names = true := by
+  unfold insertBinders
+  refine forall_zipIdx_map_iff (P := fun d => d.projNamesAvoid names = true)
+    (Q := fun e => e.projNamesAvoid names = true) (fun a i => ?_) domains 0
+  simp
+
+namespace Instance
+
+variable {s : InductiveSignature} (g : Instance s) {names : List Name}
+
+/-- The pieces of a recursive field avoid `names`. -/
+def RecursiveAvoids (names : List Name) (g : Instance s) (r : Recursive s.families.size) :
+    Prop :=
+  (∀ b ∈ r.binders, (b.instL g.levels).projNamesAvoid names = true) ∧
+    ∀ x ∈ r.indices, (x.instL g.levels).projNamesAvoid names = true
+
+theorem hypothesis_projNamesAvoid_iff (ctor : Constructor s.families.size)
+    (priorMinors priorIHs field : Nat) (r : Recursive s.families.size) :
+    (g.hypothesis ctor priorMinors priorIHs field r).projNamesAvoid names = true ↔
+      RecursiveAvoids names g r := by
+  dsimp only [hypothesis, RecursiveAvoids, underFields]
+  rw [VExpr.projNamesAvoid_wrapForalls_iff, VExpr.projNamesAvoid_mkApps_iff]
+  simp only [VExpr.projNamesAvoid, true_and, List.mem_append, List.mem_singleton]
+  refine and_congr ?_ ?_
+  · refine forall_zipIdx_map_iff (P := fun d => d.projNamesAvoid names = true)
+      (Q := fun b => (b.instL g.levels).projNamesAvoid names = true)
+      (fun a i => ?_) r.binders 0
+    simp
+  · constructor
+    · intro h x hx
+      have := h _ (.inl (List.mem_map_of_mem hx))
+      simpa using this
+    · intro h a ha
+      rcases ha with ha | rfl
+      · obtain ⟨x, hx, rfl⟩ := List.mem_map.1 ha
+        simpa using h x hx
+      · exact (VExpr.projNamesAvoid_mkApps_iff _ _).2 ⟨rfl, vars_projNamesAvoid _ _⟩
+
+theorem recursiveCall_projNamesAvoid (ctor : Constructor s.families.size) (field : Nat)
+    (r : Recursive s.families.size) (mode : HeadMode) (h : RecursiveAvoids names g r) :
+    (g.recursiveCall ctor field r mode).projNamesAvoid names = true := by
+  dsimp only [recursiveCall, underFields]
+  rw [VExpr.projNamesAvoid_wrapLams_iff, VExpr.projNamesAvoid_mkApps_iff]
+  refine ⟨(forall_zipIdx_map_iff (P := fun d => d.projNamesAvoid names = true)
+      (Q := fun b => (b.instL g.levels).projNamesAvoid names = true)
+      (fun a i => by simp) r.binders 0).2 h.1, ?_, ?_⟩
+  · cases mode <;> rfl
+  · intro a ha
+    simp only [List.mem_append, List.mem_singleton] at ha
+    rcases ha with (ha | ha) | rfl
+    · exact vars_projNamesAvoid _ _ a ha
+    · obtain ⟨x, hx, rfl⟩ := List.mem_map.1 ha
+      simpa using h.2 x hx
+    · exact (VExpr.projNamesAvoid_mkApps_iff _ _).2 ⟨rfl, vars_projNamesAvoid _ _⟩
+
+theorem constructorApp_projNamesAvoid (ctor : Constructor s.families.size)
+    (extra below : Nat) : (g.constructorApp ctor extra below).projNamesAvoid names = true := by
+  unfold constructorApp
+  refine (VExpr.projNamesAvoid_mkApps_iff _ _).2 ⟨rfl, fun a ha => ?_⟩
+  rcases List.mem_append.1 ha with ha | ha <;> exact vars_projNamesAvoid _ _ a ha
+
+/-- The pieces of a constructor avoid `names`. -/
+structure CtorAvoids (names : List Name) (g : Instance s) (ctor : Constructor s.families.size) :
+    Prop where
+  fields : ∀ e ∈ s.fieldTypes ctor, (e.instL g.levels).projNamesAvoid names = true
+  indices : ∀ e ∈ ctor.indices, (e.instL g.levels).projNamesAvoid names = true
+  recursive : ∀ p ∈ recursiveFields ctor, RecursiveAvoids names g p.2
+
+theorem ctorAvoids_of_minor (ctor : Constructor s.families.size) (prior : Nat)
+    (h : (g.minor ctor prior).projNamesAvoid names = true) : CtorAvoids names g ctor := by
+  dsimp only [minor] at h
+  rw [VExpr.projNamesAvoid_wrapForalls_iff, VExpr.projNamesAvoid_mkApps_iff] at h
+  obtain ⟨hdoms, -, hargs⟩ := h
+  refine ⟨?_, ?_, ?_⟩
+  · have := insertBinders_projNamesAvoid_iff.1 fun d hd => hdoms d (List.mem_append_left _ hd)
+    intro e he
+    simpa using this _ (List.mem_map_of_mem he)
+  · intro e he
+    have := hargs _ (List.mem_append_left _ (List.mem_map_of_mem he))
+    simpa using this
+  · intro p hp
+    obtain ⟨i, hi⟩ := exists_mem_zipIdx 0 hp
+    obtain ⟨field, r⟩ := p
+    have := hdoms _ (List.mem_append_right _ (List.mem_map.2 ⟨((field, r), i), hi, rfl⟩))
+    exact (hypothesis_projNamesAvoid_iff g ctor prior i field r).1 this
+
+theorem recursorType_domains (owner : Fin s.families.size)
+    (h : (g.recursorType owner).projNamesAvoid names = true) :
+    (∀ p ∈ g.params, p.projNamesAvoid names = true) ∧
+      (∀ m ∈ g.motives, m.projNamesAvoid names = true) ∧
+      ∀ m ∈ g.minors, m.projNamesAvoid names = true := by
+  unfold recursorType at h
+  rw [VExpr.projNamesAvoid_wrapForalls_iff] at h
+  exact ⟨fun p hp => h.1 p (by simp [hp]), fun m hm => h.1 m (by simp [hm]),
+    fun m hm => h.1 m (by simp [hm])⟩
+
+/-- **Generated equations avoid the projection names avoided by a generated
+recursor type.** -/
+theorem equation_projNamesAvoid_of_recursorType (owner : Fin s.families.size)
+    (h : (g.recursorType owner).projNamesAvoid names = true)
+    (index : Fin s.constructors.size) (mode : HeadMode) :
+    (g.equation index mode).lhs.projNamesAvoid names = true ∧
+      (g.equation index mode).rhs.projNamesAvoid names = true ∧
+      (g.equation index mode).type.projNamesAvoid names = true := by
+  obtain ⟨hparams, hmotives, hminors⟩ := g.recursorType_domains owner h
+  have hmem : (s.constructors[index], 0 + index.val) ∈ s.constructors.toList.zipIdx 0 := by
+    have := mem_zipIdx_getElem s.constructors.toList 0 index.val (by simp)
+    simpa using this
+  have hminor : (g.minor s.constructors[index] index.val).projNamesAvoid names = true :=
+    hminors _ (List.mem_map.2 ⟨_, hmem, by simp⟩)
+  have C := g.ctorAvoids_of_minor _ _ hminor
+  have hdomains : ∀ d ∈ g.params ++ g.motives ++ g.minors ++
+      insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
+        (s.families.size + s.constructors.size), d.projNamesAvoid names = true := by
+    intro d hd
+    simp only [List.mem_append] at hd
+    rcases hd with ((hd | hd) | hd) | hd
+    · exact hparams d hd
+    · exact hmotives d hd
+    · exact hminors d hd
+    · refine insertBinders_projNamesAvoid_iff.2 ?_ d hd
+      intro e he
+      obtain ⟨e0, he0, rfl⟩ := List.mem_map.1 he
+      exact C.fields e0 he0
+  have hindices : ∀ e ∈ s.constructors[index].indices.map fun e =>
+      (e.instL g.levels).liftN (s.families.size + s.constructors.size)
+        s.constructors[index].fields.length, e.projNamesAvoid names = true := by
+    intro e he
+    obtain ⟨e0, he0, rfl⟩ := List.mem_map.1 he
+    simpa using C.indices e0 he0
+  have hmajor := g.constructorApp_projNamesAvoid (names := names) s.constructors[index]
+    (s.families.size + s.constructors.size) 0
+  unfold equation
+  refine ⟨?_, ?_, ?_⟩
+  · refine VExpr.projNamesAvoid_wrapLams_iff.2 ⟨hdomains, ?_⟩
+    refine (VExpr.projNamesAvoid_mkApps_iff _ _).2 ⟨by cases mode <;> rfl, ?_⟩
+    intro a ha
+    simp only [List.mem_append, List.mem_singleton] at ha
+    rcases ha with (ha | ha) | rfl
+    · exact vars_projNamesAvoid _ _ a ha
+    · exact hindices a ha
+    · exact hmajor
+  · refine VExpr.projNamesAvoid_wrapLams_iff.2 ⟨hdomains, ?_⟩
+    refine (VExpr.projNamesAvoid_mkApps_iff _ _).2 ⟨rfl, ?_⟩
+    intro a ha
+    rcases List.mem_append.1 ha with ha | ha
+    · exact vars_projNamesAvoid _ _ a ha
+    · obtain ⟨p, hp, rfl⟩ := List.mem_map.1 ha
+      exact g.recursiveCall_projNamesAvoid _ _ _ _ (C.recursive p hp)
+  · refine VExpr.projNamesAvoid_wrapForalls_iff.2 ⟨hdomains, ?_⟩
+    refine (VExpr.projNamesAvoid_mkApps_iff _ _).2 ⟨rfl, ?_⟩
+    intro a ha
+    simp only [List.mem_append, List.mem_singleton] at ha
+    rcases ha with ha | rfl
+    · exact hindices a ha
+    · exact hmajor
+
+end Instance
+
+end InductiveSignature
+
+/-! ### Projection names of translated syntax -/
+
+/-- Every value of the context satisfies the projection condition. -/
+def VLCtx.ProjNamesOK (ok : Name → Prop) (Δ : VLCtx) : Prop :=
+  ∀ {v mapped type}, Δ.find? v = some (mapped, type) → mapped.ProjNamesOK ok
+
+theorem VLCtx.ProjNamesOK.nil {ok : Name → Prop} : VLCtx.ProjNamesOK ok [] := by
+  intro v mapped type h
+  cases v <;> simp [VLCtx.find?] at h
+
+theorem VLCtx.ProjNamesOK.cons {ok : Name → Prop} {Δ : VLCtx} {d : VLocalDecl}
+    {ofv : Option (FVarId × List FVarId)}
+    (H : VLCtx.ProjNamesOK ok Δ) (hvalue : d.value.ProjNamesOK ok) :
+    VLCtx.ProjNamesOK ok ((ofv, d) :: Δ) := by
+  intro v mapped type hfind
+  simp only [VLCtx.find?] at hfind
+  split at hfind
+  · cases hfind
+    exact hvalue
+  · simp at hfind
+    rcases hfind with ⟨old, _type, hfind, hmap, _⟩
+    rw [← hmap]
+    exact (H hfind).liftN
+
+theorem VLocalDecl.value_vlam_projNamesOK {ok : Name → Prop} {ty : VExpr} :
+    (VLocalDecl.vlam ty).value.ProjNamesOK ok := trivial
+
+theorem Literal.toConstructor_projsOK {ok : Name → Prop} :
+    ∀ l : Literal, l.toConstructor.ProjsOK ok
+  | .natVal _ => Expr.ProjsOK.natLitToConstructor
+  | .strVal _ => Expr.ProjsOK.strLitToConstructor
+
+/-- **Translation keeps projection names**: a projection condition on the
+source syntax holds for its translation, given it for the values of the
+context. -/
+theorem TrExprS.projNamesOK_of_source {env : VEnv} {Us : List Name} {Δ : VLCtx}
+    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e') {ok : Name → Prop}
+    (hsrc : e.ProjsOK ok) (hΔ : VLCtx.ProjNamesOK ok Δ) : e'.ProjNamesOK ok := by
+  induction H with
+  | bvar hfind | fvar hfind => exact hΔ hfind
+  | sort _ => trivial
+  | const => trivial
+  | app _ _ _ _ ihf iha => exact ⟨ihf hsrc.1 hΔ, iha hsrc.2 hΔ⟩
+  | lam _ _ _ iht ihb =>
+    exact ⟨iht hsrc.1 hΔ, ihb hsrc.2 (hΔ.cons VLocalDecl.value_vlam_projNamesOK)⟩
+  | forallE _ _ _ _ iht ihb =>
+    exact ⟨iht hsrc.1 hΔ, ihb hsrc.2 (hΔ.cons VLocalDecl.value_vlam_projNamesOK)⟩
+  | letE _ _ _ _ _ ihv ihb =>
+    exact ihb hsrc.2.2 (hΔ.cons (d := .vlet _ _) (ihv hsrc.2.1 hΔ))
+  | lit _ _ ih => exact ih (Literal.toConstructor_projsOK _) hΔ
+  | mdata _ ih => exact ih hsrc hΔ
+  | proj _ hproj ih =>
+    cases hproj
+    exact ⟨hsrc.1, ih hsrc.2 hΔ⟩
+
+/-- **Translated syntax projects only out of registered structures.** -/
+theorem TrExprS.targetProjsRegistered {env : VEnv} {Us : List Name} {Δ : VLCtx}
+    {e : Expr} {e' : VExpr} (henv : env.Ordered) (H : TrExprS env Us Δ e e')
+    (hΔwf : Δ.WF env Us.length)
+    (hΔ : VLCtx.ProjNamesOK (fun s => ∃ info, env.projections s info) Δ) :
+    e'.ProjNamesOK (fun s => ∃ info, env.projections s info) := by
+  induction H with
+  | bvar hfind | fvar hfind => exact hΔ hfind
+  | sort _ => trivial
+  | const => trivial
+  | app _ _ _ _ ihf iha => exact ⟨ihf hΔwf hΔ, iha hΔwf hΔ⟩
+  | lam hty _ _ iht ihb =>
+    exact ⟨iht hΔwf hΔ, ihb ⟨hΔwf, by rintro _ _ ⟨⟩, hty⟩
+      (hΔ.cons VLocalDecl.value_vlam_projNamesOK)⟩
+  | forallE hty _ _ _ iht ihb =>
+    exact ⟨iht hΔwf hΔ, ihb ⟨hΔwf, by rintro _ _ ⟨⟩, hty⟩
+      (hΔ.cons VLocalDecl.value_vlam_projNamesOK)⟩
+  | letE hval _ _ _ _ ihv ihb =>
+    exact ihb ⟨hΔwf, by rintro _ _ ⟨⟩, hval⟩ (hΔ.cons (d := .vlet _ _) (ihv hΔwf hΔ))
+  | lit _ _ ih => exact ih hΔwf hΔ
+  | mdata _ ih => exact ih hΔwf hΔ
+  | proj _ hproj ih =>
+    cases hproj with
+    | direct _ hwf =>
+      obtain ⟨_, hty⟩ := hwf
+      obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ :=
+        VEnv.HasType.proj_inv henv hΔwf.toCtx hty
+      exact ⟨⟨info, hinfo⟩, ih hΔwf hΔ⟩
+
+end Lean4Lean
+
+/-! ### The projection condition along binder closing -/
+
+namespace Lean.LocalDecl
+
+/-- The declaration's type (and, for a `let`, its value) satisfy the
+projection condition. -/
+def DeclProjsOK (ok : Name → Prop) : LocalDecl → Prop
+  | .cdecl _ _ _ ty _ _ => ty.ProjsOK ok
+  | .ldecl _ _ _ ty val _ _ => ty.ProjsOK ok ∧ val.ProjsOK ok
+
+theorem HitOK.declProjsOK {env : Lean.Kernel.Environment} {heads : List Name}
+    {params : List Expr} {ls : List Level} {d : LocalDecl}
+    (H : d.HitOK env heads params ls) : d.DeclProjsOK (Lean4Lean.projHitOK env heads) := by
+  cases d with
+  | cdecl => exact H.1.2
+  | ldecl _ _ _ _ v nd _ => exact ⟨H.1.2, (H.2 v (by cases nd <;> rfl)).2⟩
+
+end Lean.LocalDecl
+
+namespace Lean.Expr
+
+open Lean4Lean
+
+namespace ProjsOK
+
+variable {ok : Name → Prop}
+
+private theorem go_projsOK {isLambda : Bool} {lctx : LocalContext} :
+    ∀ {l : List FVarId}, (∀ x ∈ l, ∃ d, lctx.find? x = some d ∧ d.DeclProjsOK ok) →
+    ∀ {b}, ProjsOK ok b → ProjsOK ok (LocalContext.mkBindingListN.go isLambda lctx l b)
+  | [], _, _, H => H
+  | x :: l, hx, b, H => by
+    obtain ⟨d, hfind, hd⟩ := hx x (.head _)
+    simp only [LocalContext.mkBindingListN.go]
+    refine go_projsOK (fun y hy => hx y (.tail _ hy)) ?_
+    cases d with
+    | cdecl _ _ _ ty _ _ =>
+      simp only [LocalContext.mkBindingList1N, hfind]
+      have hty := (show ty.ProjsOK ok from hd).abstractN l.reverse 0
+      cases isLambda
+      · exact ⟨hty, H⟩
+      · exact ⟨hty, H⟩
+    | ldecl _ _ _ ty val _ _ =>
+      obtain ⟨hty, hval⟩ := (show ty.ProjsOK ok ∧ val.ProjsOK ok from hd)
+      simp only [LocalContext.mkBindingList1N, hfind]
+      split
+      · exact ⟨hty.abstractN _ 0, hval.abstractN _ 0, H⟩
+      · exact H.lowerLooseBVars' 1 1
+
+/-- Closing a telescope of declared free variables keeps the projection
+condition. -/
+theorem mkBinding' {isLambda : Bool} {lctx : LocalContext} {ys : List FVarId} {b : Expr}
+    (H : ProjsOK ok b)
+    (hdecl : ∀ y ∈ ys, ∃ d, lctx.find? y = some d ∧ d.DeclProjsOK ok) :
+    ProjsOK ok (lctx.mkBinding isLambda ⟨ys.map .fvar⟩ b) := by
+  rw [LocalContext.mkBinding_eqN]
+  simp only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core]
+  exact go_projsOK (fun y hy => hdecl y (List.mem_reverse.1 hy)) (H.abstractN ys 0)
+
+theorem mkForall' {lctx : LocalContext} {xs : Array Expr} {ys : List FVarId} {b : Expr}
+    (hxs : xs = (ys.map Expr.fvar).toArray) (H : ProjsOK ok b)
+    (hdecl : ∀ y ∈ ys, ∃ d, lctx.find? y = some d ∧ d.DeclProjsOK ok) :
+    ProjsOK ok (lctx.mkForall xs b) := by
+  subst hxs
+  simpa [LocalContext.mkForall] using H.mkBinding' (isLambda := false) (lctx := lctx) hdecl
+
+theorem mkLambda' {lctx : LocalContext} {xs : Array Expr} {ys : List FVarId} {b : Expr}
+    (hxs : xs = (ys.map Expr.fvar).toArray) (H : ProjsOK ok b)
+    (hdecl : ∀ y ∈ ys, ∃ d, lctx.find? y = some d ∧ d.DeclProjsOK ok) :
+    ProjsOK ok (lctx.mkLambda xs b) := by
+  subst hxs
+  simpa [LocalContext.mkLambda] using H.mkBinding' (isLambda := true) (lctx := lctx) hdecl
+
+theorem mkAppN' {f : Expr} {args : Array Expr} (hf : ProjsOK ok f)
+    (hargs : ∀ a ∈ args.toList, ProjsOK ok a) : ProjsOK ok (Lean.mkAppN f args) := by
+  rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList]
+  exact mkAppList_iff.2 ⟨hf, hargs⟩
+
+theorem getAppArgs_slice' {e : Expr} (H : ProjsOK ok e) (n : Nat) :
+    ∀ a ∈ (e.getAppArgs[n:] : Array Expr).toList, ProjsOK ok a := by
+  intro a ha
+  rw [Lean4Lean.VerifyInductive.Expr.getAppArgs_slice_toList] at ha
+  exact H.of_mem_getAppArgsList (List.mem_of_mem_drop ha)
+
+theorem consumeTypeAnnotationsVerified' {e : Expr} (H : ProjsOK ok e) :
+    ProjsOK ok e.consumeTypeAnnotationsVerified := by
+  fun_induction Expr.consumeTypeAnnotationsVerified e
+  case case1 name us type v _ ih =>
+    exact ih (H.of_mem_getAppArgsList (a := type) (by simp [getAppArgsList]))
+  case case2 => exact H
+  case case3 name us type _ ih =>
+    exact ih (H.of_mem_getAppArgsList (a := type) (by simp [getAppArgsList]))
+  case case4 => exact H
+  case case5 => exact H
+
+end ProjsOK
+
+end Lean.Expr
+
+namespace Lean4Lean
+
+open Lean hiding Environment Exception
+open Kernel
+
+namespace VerifyInductive
+
+/-- The bound free-variable arrays of the recursor construction declare their
+variables with the projection condition when their origin types satisfy it. -/
+theorem BoundFVarTypeOrigins.declProjsOK {ok : Name → Prop} {c : AddInductive.Context}
+    {xs origins : Array Expr}
+    (Ho : BoundFVarTypeOrigins c xs origins)
+    (hQ : ∀ i, i < xs.size → origins[i]!.ProjsOK ok)
+    {fv : FVarId} (hfv : Expr.fvar fv ∈ xs) :
+    ∃ d, c.lctx.find? fv = some d ∧ d.DeclProjsOK ok := by
+  obtain ⟨i, hi, hget⟩ := Array.mem_iff_getElem.mp hfv
+  obtain ⟨D, hD⟩ := Ho.declaration i hi
+  have hfvD : D.fvar = fv := by
+    have := D.expression.symm.trans hget
+    exact (Expr.fvar.inj this)
+  subst hfvD
+  refine ⟨_, D.declaration, ?_⟩
+  show D.type.ProjsOK ok
+  rw [hD]; exact hQ i hi
+
+/-- **The projection condition of one induction-hypothesis type** (regions R2
+and R3): the projection component of `RecInfoMinorHypothesisTypeOrigin.hitShape`. -/
+theorem RecInfoMinorHypothesisTypeOrigin.projsOK
+    {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
+    (W : WhnfHitOKFacts heads params ls env)
+    (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
+    {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
+    {root : AddInductive.Context} {field type : Expr}
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (henv : root.env = env)
+    {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
+    {P : FVarId → Prop} (hscope : Rroot.HitOKScope env heads params ls P)
+    (hfieldP : ∀ fv, field = .fvar fv → P fv) :
+    type.ProjsOK (projHitOK env heads) := by
+  have hinference := O.loopInput.inference
+  have hnormalization := O.loopInput.normalization
+  obtain ⟨fv, hfield, hfvRoot⟩ := O.field_fvar
+  have hfvP : P fv := hfieldP fv hfield
+  obtain ⟨fieldTarget, hfieldTr⟩ := Rroot.trFVar hfvRoot
+  subst hfield
+  obtain ⟨inferredTarget, hbelow, _, hinferredTr, hfieldTyping⟩ :=
+    inferTypeFVarInRecursorContext.WF Rroot hfieldTr _ hinference
+  obtain ⟨decl, hdecl, hty⟩ := inferTypeFVarRun.WF root fv _ hinference
+  have hdeclH : decl.HitOK env heads params ls :=
+    hscope.2 fv decl hfvP (by rw [Rroot.lctx_eq]; exact hdecl)
+  have hinferredH : O.loopInput.inferredType.HitOK env heads params ls := by
+    rw [hty]
+    exact hdeclH.1
+  have hfieldPin : (Expr.fvar fv).FVarsIn P := by simpa [FVarsIn] using hfvP
+  have hinferredP : O.loopInput.inferredType.FVarsIn P := hbelow P hscope.1 hfieldPin
+  have hinferredType : Rroot.venv.IsType recLparams.length
+      Rroot.mlctx.vlctx.toCtx inferredTarget :=
+    hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
+  obtain ⟨hnormalizedBelow, hnormalizedTr⟩ :=
+    whnfInRecursorContext.scopeWF Rroot hinferredTr _ hnormalization
+  have hnormalizedH : O.loopInput.normalizedType.HitOK env heads params ls :=
+    W.whnf Rroot henv hinferredTr hscope hinferredP hinferredH hnormalization
+  have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
+    hnormalizedBelow P hscope.1 hinferredP
+  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedH, _, _, hargs⟩ :=
+    O.loopTrace.hitShape W hp recursorConsumeTypeAnnotationsCompat henv Rroot hscope
+      hnormalizedTr hinferredType hnormalizedH hnormalizedP
+  have hargDecls : ∀ x ∈ O.arguments_bound.fvars, ∀ decl,
+      O.current.lctx.find? x = some decl → decl.DeclProjsOK (projHitOK env heads) := by
+    intro x hx decl hdecl
+    have hxArg : Expr.fvar x ∈ O.args.toList := by
+      rw [O.arguments_bound.expressions]
+      simpa using hx
+    obtain ⟨y, hy, hyP⟩ := hargs _ hxArg
+    cases hy
+    exact (hsc'.2 x decl hyP (by rw [Rcurrent.lctx_eq]; exact hdecl)).declProjsOK
+  obtain ⟨m, hm, _⟩ := O.motive_is_fvar
+  rw [O.type_eq]
+  refine Expr.ProjsOK.mkForall' O.arguments_bound.expressions ?_ ?_
+  · refine ⟨Expr.ProjsOK.mkAppN' (by rw [hm]; trivial) (hexposedH.2.getAppArgs_slice' _),
+      Expr.ProjsOK.mkAppN' trivial ?_⟩
+    intro a ha
+    rw [O.arguments_bound.expressions] at ha
+    simp only [List.mem_map] at ha
+    obtain ⟨y, -, rfl⟩ := ha
+    trivial
+  · intro y hy
+    have hyCur : y ∈ O.current.lctx.fvars := O.arguments_bound.members y hy
+    obtain ⟨index, name, ty, bi, kind, hfind⟩ := O.current_wf.findCDecl y hyCur
+    exact ⟨_, hfind, hargDecls y hy _ hfind⟩
+
+section Assembly
+
+variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+  {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+  {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
+  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    sourceEnv indTypes ctorEnv}
+
+namespace CompletedRecursorConstruction
+
+variable (H : CompletedRecursorConstruction R)
+
+/-- **The projection condition of one generated minor premise type**: the
+projection component of `minorHitShape` (field declarations, induction
+hypotheses and the minor's declared type). -/
+theorem minorProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
+    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+    (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
+    (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
+    (H.origins.minorShapes owner howner localIndex hlocal).origin.ProjsOK
+      (projHitOK H.localContext.env heads) := by
+  have hsourceOwner := H.sourceOwner howner
+  have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
+  have hcallRoots : RecInfoRuleBlueprintOriginAt stats
+      (H.origins.minorShapes owner howner localIndex hlocal)
+      H.recInfos[owner]!.minors[localIndex]!
+      H.recInfos[owner]!.ruleBlueprints[localIndex]! :=
+    H.blueprints.entry owner howner localIndex hlocal
+  obtain ⟨Hsem⟩ := H.blueprintSemantics.entry owner howner localIndex hlocal
+  generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots Hsem ⊢
+  generalize H.recInfos[owner]!.ruleBlueprints[localIndex]! = B at hcallRoots Hsem ⊢
+  obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,
+    hsrcLE⟩ := hsrc
+  obtain ⟨origins, hshape, hstats, -, F, -⟩ := Hsem
+  obtain ⟨-, -, -, -, -, callOrigins, -, hcallShape, -, -, Hcalls⟩ := hcallRoots
+  have hcallOrigins : callOrigins = origins :=
+    Option.some.inj (hcallShape.symm.trans hshape)
+  subst callOrigins
+  have hT : traversal = F.traversal := Option.some.inj (htrav.symm.trans F.traversal_eq)
+  subst hT
+  have hp := H.params_fvar
+  have Hroot := F.rootWF.toBindingContextWF
+  have hTL : BindingContextLE F.traversal.terminalContext H.localContext :=
+    F.terminalExtension.contextLE
+  have Hprefix : RecursorParamPrefix stats 0 S.constructor.type
+      F.traversal.parameterTail := by
+    have := F.traversal.parameterPrefix
+    rwa [F.traversal_stats, F.traversal_constructor] at this
+  have hctorMem : S.constructor ∈ indTypes[owner]!.ctors := by
+    rw [← hsourceCtors]; exact List.mem_of_getElem? S.sourceConstructor
+  have Htail := Hprefix.hitOK H.params.expressions
+    (I.constructorTypes owner hsourceOwner _ hctorMem).1
+    (I.constructorTypes owner hsourceOwner _ hctorMem).2
+  obtain ⟨hterm, hfieldsTerm⟩ := F.traversal.decisions.hitOK Hroot hp Htail
+  rw [F.traversal_fields] at hfieldsTerm
+  have hfieldDecls : ∀ y ∈ S.fields_bound.fvars, ∃ d,
+      S.sourceFullContext.lctx.find? y = some d ∧
+        d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+    intro y hy
+    obtain ⟨fv, index, name, type, bi, kind, hfv, hmem, hfind, htype⟩ :=
+      hfieldsTerm _ (S.fields_bound.mem_fvars_iff.1 hy)
+    cases hfv
+    refine ⟨.cdecl index y name type bi kind, ?_, htype.2⟩
+    rw [← hsrcLE.declarations y (S.fields_bound.members y hy),
+      hTL.declarations y hmem, hfind]
+  have hparamTerm : ∀ pv, Expr.fvar pv ∈ stats.params →
+      pv ∈ F.traversal.terminalContext.lctx.fvars := fun pv h =>
+    (F.traversal.decisions.freshBindings Hroot).choose_spec.1.fvars
+      (F.parameterSuffix.param_mem h)
+  have hfr : origins.fieldRoot = F.traversal.terminalContext :=
+    S.hypothesis_origins_fieldRoot origins F.traversal hshape F.traversal_eq
+  have hper : ∀ j, j < S.hypotheses.size →
+      ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
+        D.type.ProjsOK (projHitOK H.localContext.env heads) := by
+    intro j hj
+    obtain ⟨originRoot, sourceType, recL, Rorigin, O, D, hle, hup, hD, -⟩ :=
+      Hcalls.rooted j hj
+    rw [hstats] at hup
+    rw [hfr] at hle
+    have henv : originRoot.env = H.localContext.env := hle.env_eq.trans hTL.env_eq.symm
+    have hscope : Rorigin.HitOKScope H.localContext.env heads stats.params.toList
+        stats.levels
+        (fun fv => fv ∈ ExprArrayFVarIds S.fields ∨
+          fv ∈ ExprArrayFVarIds stats.params) := by
+      refine ⟨hup, fun fv decl hP hfind => ?_⟩
+      rw [Rorigin.lctx_eq] at hfind
+      rcases hP with hf | hpar
+      · rw [S.fields_bound.exprArrayFVarIds] at hf
+        obtain ⟨fv', index, name, type, bi, kind, hfv, hmem, hfind', htype⟩ :=
+          hfieldsTerm _ (S.fields_bound.mem_fvars_iff.1 hf)
+        cases hfv
+        rw [hle.declarations fv hmem, hfind'] at hfind
+        cases hfind
+        exact LocalDecl.HitOK.of_cdecl htype
+      · rw [H.params.exprArrayFVarIds] at hpar
+        have hmemP := H.params.mem_fvars_iff.1 hpar
+        rw [hle.declarations fv (hparamTerm fv hmemP),
+          ← hTL.declarations fv (hparamTerm fv hmemP)] at hfind
+        exact I.paramDecls fv hpar decl hfind
+    have hjr : j < S.recursiveFields.size := by rw [← S.hypotheses_size]; exact hj
+    have hfieldMem : S.recursiveFields[j]! ∈ S.fields := by
+      rw [← F.traversal_fields]
+      apply F.traversal.decisions.selected_subset
+      rw [F.traversal_recursiveFields, getElem!_pos S.recursiveFields j hjr]
+      exact Array.getElem_mem hjr
+    have hfieldP : ∀ fv, S.recursiveFields[j]! = .fvar fv →
+        (fun fv => fv ∈ ExprArrayFVarIds S.fields ∨
+          fv ∈ ExprArrayFVarIds stats.params) fv := by
+      intro fv hfv
+      left
+      rw [hfv] at hfieldMem
+      exact mem_exprArrayFVarIds_of_fvar_mem hfieldMem
+    have htype := O.projsOK W hp henv Rorigin hscope hfieldP
+    exact ⟨D, by rw [hD]; exact htype.consumeTypeAnnotationsVerified'⟩
+  rw [← S.consumed_eq]
+  refine Expr.ProjsOK.consumeTypeAnnotationsVerified' ?_
+  rw [S.sourceType_eq, ← S.sourceContext_eq]
+  refine Expr.ProjsOK.mkForall' S.fields_bound.expressions ?_ hfieldDecls
+  refine Expr.ProjsOK.mkForall' S.hypotheses_bound.expressions ?_ ?_
+  · rw [hmotiveApp]
+    simp only [AddInductive.getIIndices]
+    have hmo := (checkPositivityStep.isValidIndApp?_some hvalid).1
+    obtain ⟨mfv, hmfv⟩ := H.motive_fvar hmo
+    refine ⟨Expr.ProjsOK.mkAppN' ?_ (hterm.2.getAppArgs_slice' _),
+      Expr.ProjsOK.mkAppN' (Expr.ProjsOK.mkAppN' trivial ?_) ?_⟩
+    · simp only [AddInductive.getIIndices] at hmfv
+      rw [hmfv]; trivial
+    · intro a ha
+      obtain ⟨fv, rfl⟩ := hp a ha
+      trivial
+    · intro a ha
+      obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
+        (Array.mem_toList_iff.1 ha)
+      trivial
+  · intro y hy
+    obtain ⟨j, hjl, hjy⟩ := List.mem_iff_getElem.1 hy
+    have hj : j < S.hypotheses.size := by
+      have := congrArg Array.size S.hypotheses_bound.expressions
+      simp at this; omega
+    obtain ⟨D, hDshape⟩ := hper j hj
+    have hDy : D.fvar = y := by
+      obtain ⟨_, hget⟩ := S.hypotheses_bound.getElem_eq_fvar j hj
+      have := D.expression.symm.trans hget
+      rw [← hjy]; exact Expr.fvar.inj this
+    subst hDy
+    exact ⟨_, D.declaration, hDshape⟩
+
+section Outer
+
+variable {heads : List Name}
+
+/-- Index declarations (region R1): the projection component of
+`indexDeclHitShape`. -/
+theorem indexDeclProjsOK (I : H.HitShapeInputs heads)
+    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+    {k : Nat} (hk : k < H.recInfos.size) {y : FVarId}
+    (hy : Expr.fvar y ∈ H.recInfos[k]!.indices) :
+    ∃ d, H.localContext.lctx.find? y = some d ∧
+      d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+  obtain ⟨type, T⟩ := H.minorSources.traces k hk
+  have hparamDecls : ∀ fv ∈ ExprArrayFVarIds stats.params, ∀ d,
+      H.localContext.lctx.find? fv = some d →
+        d.HitOK H.localContext.env heads stats.params.toList stats.levels := by
+    intro fv hfv d hfind
+    rw [H.params.exprArrayFVarIds] at hfv
+    exact I.paramDecls fv hfv d hfind
+  obtain ⟨-, hidx⟩ := T.hitShape W H.params_fvar rfl hparamDecls
+    (Expr.HitOK.of_avoids (I.familyHeaders k (H.sourceOwner hk)).1
+      (I.familyHeaders k (H.sourceOwner hk)).2)
+  have hyMem : y ∈ (H.bindings.indices k hk).fvars :=
+    (H.bindings.indices k hk).mem_fvars_iff.2 hy
+  obtain ⟨index, name, ty, bi, kind, hfind⟩ :=
+    H.localWF.findCDecl y ((H.bindings.indices k hk).members y hyMem)
+  refine ⟨_, hfind, (hidx y ?_ _ hfind).declProjsOK⟩
+  rw [(H.bindings.indices k hk).exprArrayFVarIds]
+  exact hyMem
+
+/-- Major premise declarations: `I params indices`. -/
+theorem majorDeclProjsOK {ok : Name → Prop} {y : FVarId}
+    (hy : Expr.fvar y ∈ H.recInfos.map (·.major)) :
+    ∃ d, H.localContext.lctx.find? y = some d ∧ d.DeclProjsOK ok := by
+  refine H.origins.majors.declProjsOK (fun i hi => ?_) hy
+  have hi' : i < H.recInfos.size := by simpa using hi
+  rw [H.majorShapes.shape i hi']
+  refine Expr.ProjsOK.consumeTypeAnnotationsVerified' ?_
+  obtain ⟨n, hn⟩ := H.indConst_eq hi'
+  rw [hn]
+  refine Expr.ProjsOK.mkAppN' (Expr.ProjsOK.mkAppN' trivial fun a ha => ?_) fun a ha => ?_
+  · obtain ⟨fv, rfl⟩ := H.params_fvar a ha
+    trivial
+  · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices i hi')
+      (Array.mem_toList_iff.1 ha)
+    trivial
+
+/-- Motive declarations: `∀ indices, ∀ (t : I params indices), Sort u`. -/
+theorem motiveDeclProjsOK (I : H.HitShapeInputs heads)
+    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+    {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.motive)) :
+    ∃ d, H.localContext.lctx.find? y = some d ∧
+      d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+  refine H.origins.motives.declProjsOK (fun i hi => ?_) hy
+  have hi' : i < H.recInfos.size := by simpa using hi
+  rw [H.motiveShapes.shape i hi']
+  refine Expr.ProjsOK.mkForall' (H.bindings.indices i hi').expressions ?_
+    (fun y hy => H.indexDeclProjsOK I W hi'
+      ((H.bindings.indices i hi').mem_fvars_iff.1 hy))
+  refine Expr.ProjsOK.mkForall' (H.bindings.major i hi').expressions trivial
+    (fun y hy => H.majorDeclProjsOK ?_)
+  have h := (H.bindings.major i hi').mem_fvars_iff.1 hy
+  simp only [List.mem_toArray, List.mem_singleton] at h
+  rw [h]
+  exact Array.mem_map.2 ⟨_, H.mem_recInfos hi', rfl⟩
+
+/-- Minor premise declarations. -/
+theorem minorDeclProjsOK (I : H.HitShapeInputs heads)
+    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+    {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.flatMap (·.minors)) :
+    ∃ d, H.localContext.lctx.find? y = some d ∧
+      d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+  obtain ⟨i, hi, hget⟩ := Array.mem_iff_getElem.mp hy
+  obtain ⟨D⟩ := H.bindings.flatMinors.declarationAt H.localWF i hi
+  obtain ⟨Fm⟩ := H.origins.flatMinorOrigin D
+  have hDy : D.fvar = y := Expr.fvar.inj (D.expression.symm.trans hget)
+  subst hDy
+  refine ⟨_, D.declaration, ?_⟩
+  show D.type.ProjsOK (projHitOK H.localContext.env heads)
+  rw [Fm.originType_eq]
+  have howner := Fm.owner_lt
+  have hlocal : Fm.localIndex < H.origins.minorTypes[Fm.owner]!.size := by
+    rw [(H.origins.minors Fm.owner howner).size_eq, getElem!_pos H.recInfos Fm.owner howner]
+    exact Fm.local_lt
+  have hsrc := H.minorSources.rows Fm.owner howner (H.sourceOwner howner) Fm.localIndex hlocal
+  rw [← hsrc.1]
+  exact H.minorProjsOK I W Fm.owner howner Fm.localIndex hlocal
+
+/-- **Generated recursor types satisfy the projection condition**: the
+projection component of `recursorTypeHitShape`, for the executable recursor
+type `declareRecursors.recursorType` (before `inferImplicit`). -/
+theorem recursorTypeProjsOK (I : H.HitShapeInputs heads)
+    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+    (owner : Nat) (howner : owner < H.recInfos.size) :
+    (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx
+      owner).ProjsOK (projHitOK H.localContext.env heads) := by
+  have hp := H.params_fvar
+  have hownerC : owner < stats.indConsts.size := by
+    rw [H.validStats.types_size, ← H.recInfos_size_eq]; exact howner
+  obtain ⟨mfv, hmfv⟩ := H.motive_fvar hownerC
+  have hmajorMem : H.recInfos[owner]!.major ∈ #[H.recInfos[owner]!.major] := by simp
+  obtain ⟨jfv, hjfv, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.major owner howner) hmajorMem
+  have hbody : (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+      H.recInfos[owner]!.major).ProjsOK (projHitOK H.localContext.env heads) := by
+    refine ⟨Expr.ProjsOK.mkAppN' (by rw [hmfv]; trivial) fun a ha => ?_,
+      by rw [hjfv]; trivial⟩
+    obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices owner howner)
+      (Array.mem_toList_iff.1 ha)
+    trivial
+  unfold AddInductive.declareRecursors.recursorType
+  refine Expr.ProjsOK.mkForall' (H.params.expressions) ?_ ?_
+  · refine Expr.ProjsOK.mkForall' H.bindings.motives.expressions ?_
+      (fun y hy => H.motiveDeclProjsOK I W (H.bindings.motives.mem_fvars_iff.1 hy))
+    refine Expr.ProjsOK.mkForall' H.bindings.flatMinors.expressions ?_
+      (fun y hy => H.minorDeclProjsOK I W (H.bindings.flatMinors.mem_fvars_iff.1 hy))
+    refine Expr.ProjsOK.mkForall' (H.bindings.indices owner howner).expressions ?_
+      (fun y hy => H.indexDeclProjsOK I W howner
+        ((H.bindings.indices owner howner).mem_fvars_iff.1 hy))
+    refine Expr.ProjsOK.mkForall' (H.bindings.major owner howner).expressions hbody
+      (fun y hy => H.majorDeclProjsOK ?_)
+    have h := (H.bindings.major owner howner).mem_fvars_iff.1 hy
+    simp only [List.mem_toArray, List.mem_singleton] at h
+    rw [h]
+    exact Array.mem_map.2 ⟨_, H.mem_recInfos howner, rfl⟩
+  · intro y hy
+    obtain ⟨index, name, type, bi, kind, hfind⟩ :=
+      H.localWF.findCDecl y (H.params.members y hy)
+    exact ⟨_, hfind, (I.paramDecls y hy _ hfind).declProjsOK⟩
+
+end Outer
+
+end CompletedRecursorConstruction
+
+end Assembly
+
+/-! ### The nested run -/
+
+section Run
+
+open Lean4Lean.InductiveSignature
+
+variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+
+/-- A structure registered in the base environment is an old constant, so its
+name is not restorable. -/
+theorem NestedValidatedRunResult.baseProjection_not_restorable
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv)
+    {envTypes : VEnv} {generated : List VInductiveType}
+    {auxiliaries : List ContainerSpecialization}
+    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      sourceDecl.typeConstants = some envTypes)
+    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      E.production.headers.commonParameterContext sourceDecl)
+      auxiliaries generated)
+    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (VInductDecl.NestedAuxiliarySourceAbsolute
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.production.loweredDecl.types ++
+      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+    {S : Name} {info : VProjectionInfo}
+    (hS : (ves.venv (if isUnsafe then .unsafe else .safe)).projections S info) :
+    S ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames := by
+  intro hmem
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
+    (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf.ordered.projectionShape hS
+  have h := (VEnv.addConstVals_le hadded).constants hlookup
+  rw [E.restorableNames_fresh hadded Haux Hexpansion hnodup S hmem] at h
+  cases h
+
+/-- **Field `constructorProjNames`**: the lowered constructor types are
+translated in the lowered header environment, which registers only the
+structures of the base environment. -/
+theorem NestedValidatedRunResult.constructorProjNames_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv)
+    {envTypes : VEnv} {generated : List VInductiveType}
+    {auxiliaries : List ContainerSpecialization}
+    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      sourceDecl.typeConstants = some envTypes)
+    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      E.production.headers.commonParameterContext sourceDecl)
+      auxiliaries generated)
+    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (VInductDecl.NestedAuxiliarySourceAbsolute
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.production.loweredDecl.types ++
+      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
+    ∀ lc ∈ E.production.loweredDecl.constructorConstants,
+      lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
+        true := by
+  intro lc hlc
+  obtain ⟨t, ht, hc⟩ := List.mem_flatMap.1 hlc
+  obtain ⟨owner, -, HT⟩ := Lean4Lean.List.Forall₂.forall_exists_r
+    E.production.constructors.core.types t ht
+  obtain ⟨ctor, -, HC⟩ := Lean4Lean.List.Forall₂.forall_exists_r HT.ctors lc hc
+  have hheaderV : E.production.headers.context.venv.Ordered :=
+    E.production.headers.context.checking.tr.wf.ordered
+  have hreg := HC.type.targetProjsRegistered hheaderV trivial VLCtx.ProjNamesOK.nil
+  refine hreg.projNamesAvoid fun S ⟨info, hinfo⟩ => ?_
+  rw [VEnv.addConstVals_projections_eq E.production.constructors.core.typesAdded,
+    E.production_initialEnv] at hinfo
+  exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hinfo
+
+/-- **Field `recursorProjNames`**: the executable recursor type satisfies the
+projection condition at the heads `E.hitHeads` (no projection out of an
+auxiliary family) and is translated in the recursor-pass environment, which
+registers only base structures and lowered families (no auxiliary constructor
+or recursor). The canonical recursor type is its translation. -/
+theorem NestedValidatedRunResult.recursorProjNames_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    {envTypes : VEnv} {generated : List VInductiveType}
+    {auxiliaries : List ContainerSpecialization}
+    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      sourceDecl.typeConstants = some envTypes)
+    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      E.production.headers.commonParameterContext sourceDecl)
+      auxiliaries generated)
+    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (VInductDecl.NestedAuxiliarySourceAbsolute
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.production.loweredDecl.types ++
+      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
+    ∀ owner : Fin E.production.production.completed.generationSignature.families.size,
+      (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+        (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
+  intro owner
+  have hfam := E.production.production.completed.toCompletedRecursorConstruction.consumedGeneration.familyCount
+  have howner : owner.val < E.production.indTypes.size := by
+    have := owner.isLt
+    simp only [CompletedRecursorConstruction.generationSignature] at this
+    omega
+  have hrecSize : E.production.production.completed.toCompletedRecursorConstruction.recInfos.size =
+      E.production.indTypes.size := by
+    rw [E.production.production.completed.toCompletedRecursorConstruction.cardinality.records]
+    simpa using (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
+      E.production.constructors.completed.core).symm
+  have hrec : owner.val <
+      E.production.production.completed.toCompletedRecursorConstruction.recInfos.size := by
+    omega
+  have htr := E.production.production.completed.toCompletedRecursorConstruction.canonicalTypeTranslations
+    owner.val howner
+  have hnative : (E.production.production.completed.toCompletedRecursorConstruction.nativeTarget
+      owner.val).type =
+      E.production.production.completed.canonicalGeneration.recursorType owner := by
+    simp only [CompletedRecursorConstruction.nativeTarget, dif_pos owner.isLt,
+      Instance.recursor]
+    rfl
+  rw [hnative] at htr
+  have W := E.whnfHitOKFacts wf Hsources
+  rw [← E.statsLevels] at W
+  have hsrc := E.production.production.completed.toCompletedRecursorConstruction.recursorTypeProjsOK
+    (E.hitShapeInputs_of wf Hsources) W owner.val hrec
+  have h1 := htr.projNamesOK_of_source hsrc VLCtx.ProjNamesOK.nil
+  have h2 := htr.targetProjsRegistered
+    E.production.constructors.completed.context.checking.tr.wf.ordered trivial
+    VLCtx.ProjNamesOK.nil
+  have hheadNames : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
+      familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) := by
+    rw [compilationRestoration_heads_auxiliary]
+    exact auxiliarySpecializations_headNames Haux Hexpansion
+  refine (h1.and h2).projNamesAvoid fun S ⟨hhit, info, hinfo⟩ hmem => ?_
+  rw [E.production.constructors.completed.contextVEnv] at hinfo
+  rcases VEnv.addProjections_iff.mp hinfo with ⟨entry, hentry, rfl, -⟩ | hbase
+  · simp only [VInductDecl.projectionEntries, List.mem_filterMap] at hentry
+    obtain ⟨t, ht, hsome⟩ := hentry
+    split at hsome
+    · cases hsome
+      simp only [Restoration.restorableNames, List.mem_append, hheadNames,
+        compilationRestoration_recursors_fst, List.mem_map] at hmem
+      rcases hmem with hmem | ⟨a, ha, hname⟩
+      · exact hhit.1 (E.auxHeads_subset_hitHeads _ hmem)
+      · obtain ⟨g, hg, hev⟩ := Lean4Lean.List.Forall₂.forall_exists_l Haux a ha
+        obtain ⟨t', ht', hexp⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hexpansion g hg
+        have h1 : t.name ∈ familyNames E.production.loweredDecl.types :=
+          List.mem_flatMap.2 ⟨t, ht, List.mem_cons_self⟩
+        have h2 : t.name ∈ E.production.loweredDecl.types.map (fun t => t.name.str "rec") := by
+          refine List.mem_map.2 ⟨t', List.mem_of_mem_drop ht', ?_⟩
+          rw [← hname, hev.auxiliary, ← hexp.name]
+        exact (List.nodup_append.1 hnodup).2.2 _ h1 _ h2 rfl
+    · cases hsome
+  · rw [VEnv.addConstVals_projections_eq E.production.constructors.completed.core.ctorsAdded,
+      VEnv.addConstVals_projections_eq E.production.constructors.completed.core.typesAdded,
+      E.production_initialEnv] at hbase
+    exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
+
+/-- **Field `equationProjNames`**: the generated equations are built from the
+pieces of the generated recursor types. -/
+theorem NestedValidatedRunResult.equationProjNames_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    {auxiliaries : List ContainerSpecialization}
+    (Hrec : ∀ owner : Fin E.production.production.completed.generationSignature.families.size,
+      (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+        (compilationRestoration sourceDecl auxiliaries).restorableNames = true) :
+    ∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
+      (E.production.production.completed.canonicalGeneration.equation k).lhs.projNamesAvoid
+          (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
+        (E.production.production.completed.canonicalGeneration.equation k).rhs.projNamesAvoid
+          (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
+        (E.production.production.completed.canonicalGeneration.equation k).type.projNamesAvoid
+          (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
+  intro k
+  exact Instance.equation_projNamesAvoid_of_recursorType _ _
+    (Hrec E.production.production.completed.generationSignature.constructors[k].owner) k .native
+
+/-- **Fields `constructorProjNames`, `recursorProjNames` and
+`equationProjNames` of `NestedRestoredEquationGaps`**, for every restoration
+table of the run and every final assembly shape (the shape and its validity
+are not used): proved for the table of `restorationTablesRestoringAll`, whose
+restorable names contain those of every table
+(`RestorationTableData.restorable_transfer`). -/
+theorem NestedValidatedRunResult.restoredEquationProjNames_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ C : NestedFinalAssemblyShape E.restoration
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+        C.production = E.production →
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+        (∀ lc ∈ E.production.loweredDecl.constructorConstants,
+          lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
+            true) ∧
+        (∀ owner : Fin E.production.production.completed.generationSignature.families.size,
+          (E.production.production.completed.canonicalGeneration.recursorType owner).projNamesAvoid
+            (compilationRestoration sourceDecl auxiliaries).restorableNames = true) ∧
+        (∀ k : Fin E.production.production.completed.generationSignature.constructors.size,
+          (E.production.production.completed.canonicalGeneration.equation k).lhs.projNamesAvoid
+              (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
+            (E.production.production.completed.canonicalGeneration.equation k).rhs.projNamesAvoid
+              (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
+            (E.production.production.completed.canonicalGeneration.equation k).type.projNamesAvoid
+              (compilationRestoration sourceDecl auxiliaries).restorableNames = true) := by
+  intro auxiliaries D _ _ _
+  rcases E.restorationTablesRestoringAll wf Hsources with
+    ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -, -⟩
+  have hnodup : (familyNames E.production.loweredDecl.types ++
+      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+    rcases E.containerSpecializations wf Hsources with
+      ⟨_, _, _, _, _, _, _, h, _⟩
+    exact h
+  have hsub : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+      n ∈ (compilationRestoration sourceDecl aux').restorableNames :=
+    fun _ hn => D'.restorable_transfer D hn
+  have Hrec := E.recursorProjNames_of wf Hsources hadded Haux Hexpansion hnodup
+  refine ⟨fun lc hlc => VExpr.projNamesAvoid_mono hsub
+      (E.constructorProjNames_of wf hadded Haux Hexpansion hnodup lc hlc),
+    fun owner => VExpr.projNamesAvoid_mono hsub (Hrec owner), fun k => ?_⟩
+  obtain ⟨hl, hr, ht⟩ := E.equationProjNames_of Hrec k
+  exact ⟨VExpr.projNamesAvoid_mono hsub hl, VExpr.projNamesAvoid_mono hsub hr,
+    VExpr.projNamesAvoid_mono hsub ht⟩
+
+/-- **`NestedRestoredEquationGaps` from its three remaining fields**: the
+eliminator-schema projection names (`eliminatorProjNames`), the typing of the
+auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the
+transport of the lowered projection rules (`projections`). The projection
+names of the lowered constructor types, generated recursor types and
+generated equations are `restoredEquationProjNames_of`. The result has the
+shape of the hypothesis `G` of `hrestoredWF_of`. -/
+theorem NestedValidatedRunResult.restoredEquationGaps_of
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (Helim : ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ C : NestedFinalAssemblyShape E.restoration
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+        C.production = E.production →
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+        EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
+          (compilationRestoration sourceDecl auxiliaries).restorableNames)
+    (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ C : NestedFinalAssemblyShape E.restoration
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+        C.production = E.production →
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+        (∀ envTypes : VEnv,
+          (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+            sourceDecl.typeConstants = some envTypes →
+          ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+            ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
+              h.auxiliary = lc.name →
+              ∃ restored, (compilationRestoration sourceDecl auxiliaries).expr lc.type =
+                  some restored ∧
+                envTypes.HasType sourceDecl.uvars []
+                  (VExpr.wrapLams E.production.compilationSignature.params
+                    (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
+        ∀ entry ∈ E.production.loweredDecl.projectionEntries,
+          VEnv.ProjectionTransport C.finalBaseVEnv
+            ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
+              fun _ => E.production.compilationSignature.params)
+            (compilationRestoration sourceDecl auxiliaries).renaming
+            entry.typeName entry.info) :
+    ∀ auxiliaries : List ContainerSpecialization,
+      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
+      ∀ C : NestedFinalAssemblyShape E.restoration
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+          nparams isUnsafe (if isUnsafe then .unsafe else .safe),
+        C.production = E.production →
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+        NestedRestoredEquationGaps E C auxiliaries := by
+  intro auxiliaries D C hC hV
+  obtain ⟨hctors, hrecs, heqs⟩ := E.restoredEquationProjNames_of wf Hsources auxiliaries D C hC hV
+  obtain ⟨haux, hprojs⟩ := Hcontainers auxiliaries D C hC hV
+  exact
+    { eliminatorProjNames := Helim auxiliaries D C hC hV
+      constructorProjNames := hctors
+      recursorProjNames := hrecs
+      equationProjNames := heqs
+      auxiliaryConstructors := haux
+      projections := hprojs }
+
+end Run
+
+end VerifyInductive
+end Lean4Lean
