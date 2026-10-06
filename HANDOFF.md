@@ -797,11 +797,16 @@ inside this project's scope without solving open base metatheory:
    pass; executable unchanged. Four legacy theorems outside the `addDecl.WF`
    cone take a coarser hypothesis quantified over every `ContextWF` with the
    same Lean environment. The output environment's strengthening is never
-   claimed. Comparison so far: E3 reached its end (weaker but honest
-   statement); E1 has the checker cluster and Theory routes done, carries a
-   restricted projection-corner hypothesis, an executable divergence, a
-   replay slowdown, and the inductive-side narrow-context change (4.5k to 9k
-   lines) still ahead.
+   claimed. Comparison so far: E3 reached a buildable state with a true
+   statement, which is NOT the same as being the right route: its
+   hypothesis `Declaration.Strengthening` is of unknown truth for real
+   (prelude-derived) environments, and if false there the theorem is vacuous
+   for real replays (Astra consulted, 2026-10-06). E1 has the checker
+   cluster and Theory routes done, carries a restricted projection-corner
+   hypothesis (plausibly true), an executable divergence, a replay slowdown,
+   and the inductive-side narrow-context change (4.5k to 9k lines) still
+   ahead. Neither route has absorbed the nested work yet; both must before
+   a choice is made.
    **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
    79 strengthening uses under `Verify/Inductive` strengthen fresh checker
    runs from the nested context of `Inductive/Add.lean` (later families run
