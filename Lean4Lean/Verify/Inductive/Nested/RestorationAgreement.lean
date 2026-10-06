@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.RestorationCommutation
+import Lean4Lean.Verify.Inductive.Nested.RestorationCommutationHit
 import Lean4Lean.Verify.Inductive.Nested.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.RestoringExpansion
 
@@ -629,7 +629,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
         List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
       refine ⟨_, find?_auxiliary_of_nodup hheadsNodup hmem, D.nparams,
         fun levels hlevels => ⟨hlevelsLength levels hlevels, ?_⟩⟩
-      intro Δ params v _ hAs hsize hTr hv
+      intro Δ params v hAs hsize hTr hv
       rw [AuxNestedSpec.reopen hab] at hv
       exact AuxNestedSpec.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _ hv
     | none =>
@@ -653,7 +653,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
             (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
         refine ⟨_, find?_auxiliary_of_nodup hheadsNodup hmem, D.nparams,
           fun levels hlevels => ⟨hlevelsLength levels hlevels, ?_⟩⟩
-        intro Δ params v _ hAs hsize hTr hv
+        intro Δ params v hAs hsize hTr hv
         rw [Expr.getAppArgs_eq, Expr.getAppArgsList_mkAppList_const,
           Expr.mkAppN_eq_mkAppList, ← hauxEq, hrename a ha ctor hctor] at hv
         exact AuxNestedSpec.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _
@@ -1808,39 +1808,7 @@ theorem NestedValidatedRunResult.restorationMapAgreement
     auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup,
     D.recursorName, hparamsSize, D, D.agreement⟩
 
-/-! ### A closed-form readiness criterion
-
-`RestoreReady` is stated for the opened body of a restoration, whose free
-variables are chosen by the executable. `LoweredRestoreReady` is the same
-condition on the de Bruijn residual of the lowered type after its parameter
-telescope: matched nodes are applied to the parameter bound variables
-themselves. It implies `RestoreReady` for every opening. -/
-
-theorem RestoreFragment.instantiateRevList_fvars {As : List Expr}
-    (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv) {e : Expr} (H : RestoreFragment e) :
-    ∀ d, RestoreFragment (e.instantiateRevList As d) := by
-  induction H with
-  | bvar i =>
-    intro d
-    rw [instantiateRevList_bvar_fvars hAs]
-    split
-    · exact .bvar _
-    · split
-      · rcases hAs _ (List.getElem_mem (l := As) (n := As.length - 1 - (i - d))
-          (by omega)) with ⟨fv, hfv⟩
-        rw [hfv]; exact .fvar _
-      · exact .bvar _
-  | fvar fv => intro d; rw [instantiateRevList_closed rfl]; exact .fvar _
-  | sort u => intro d; rw [instantiateRevList_closed rfl]; exact .sort _
-  | const c ls => intro d; rw [instantiateRevList_closed rfl]; exact .const _ _
-  | app _ _ ihf iha =>
-    intro d; rw [Expr.instantiateRevList_app]; exact .app (ihf d) (iha d)
-  | lam _ _ ihd ihb =>
-    intro d; rw [Expr.instantiateRevList_lam]; exact .lam (ihd d) (ihb (d + 1))
-  | forallE _ _ ihd ihb =>
-    intro d; rw [Expr.instantiateRevList_forallE]; exact .forallE (ihd d) (ihb (d + 1))
-  | lit l h _ => intro d; rw [instantiateRevList_closed rfl]; exact .lit l h
-  | mdata _ ih => intro d; rw [Expr.instantiateRevList_mdata]; exact .mdata (ih d)
+/-! ### Instantiating parameter telescopes at free variables -/
 
 theorem AvoidsConsts.instantiateRevList_fvars {names : List Name} {As : List Expr}
     (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv) {e : Expr} (H : e.AvoidsConsts names) :
@@ -1902,153 +1870,6 @@ theorem getAppFn_instantiateRevList_fvars_const {As : List Expr}
   | .forallE .., d, h => by
     rw [Expr.instantiateRevList_forallE] at h; simp [Expr.getAppFn] at h
   | .letE .., d, h => by rw [Expr.instantiateRevList_letE] at h; simp [Expr.getAppFn] at h
-
-/-- Readiness of the de Bruijn residual of a lowered type below its
-`nparams` parameter binders (`d` further binders deep). `heads` are the
-executable restoration heads (`auxiliaries.flatMap headNames`). -/
-inductive LoweredRestoreReady (heads : List Name) (nparams : Nat)
-    (names : List Name) (auxLevels : List Level) : Nat → Expr → Prop
-  | hit {d : Nat} {t : Expr} {c : Name}
-      (hfn : t.getAppFn = .const c auxLevels) (hc : c ∈ heads)
-      (hsize : nparams ≤ t.getAppArgsList.length)
-      (hparams : t.getAppArgsList.take nparams =
-        (List.range nparams).map fun i => .bvar (d + (nparams - 1 - i)))
-      (hargs : ∀ a ∈ t.getAppArgsList, RestoreFragment a ∧ a.AvoidsConsts names) :
-      LoweredRestoreReady heads nparams names auxLevels d t
-  | bvar (d i : Nat) : LoweredRestoreReady heads nparams names auxLevels d (.bvar i)
-  | fvar (d : Nat) (fv : FVarId) :
-      LoweredRestoreReady heads nparams names auxLevels d (.fvar fv)
-  | sort (d : Nat) (u : Level) :
-      LoweredRestoreReady heads nparams names auxLevels d (.sort u)
-  | lit (d : Nat) (l : Literal) (hf : RestoreFragment (.lit l))
-      (ha : (Expr.lit l).AvoidsConsts names) :
-      LoweredRestoreReady heads nparams names auxLevels d (.lit l)
-  | const (d : Nat) (c : Name) (ls : List Level) (h : c ∉ heads) :
-      LoweredRestoreReady heads nparams names auxLevels d (.const c ls)
-  | app {d : Nat} {fn arg : Expr}
-      (h : ∀ c ls, (Expr.app fn arg).getAppFn = .const c ls → c ∉ heads) :
-      LoweredRestoreReady heads nparams names auxLevels d fn →
-      LoweredRestoreReady heads nparams names auxLevels d arg →
-      LoweredRestoreReady heads nparams names auxLevels d (.app fn arg)
-  | lam {d : Nat} {name : Name} {dom body : Expr} {bi : BinderInfo} :
-      LoweredRestoreReady heads nparams names auxLevels d dom →
-      LoweredRestoreReady heads nparams names auxLevels (d + 1) body →
-      LoweredRestoreReady heads nparams names auxLevels d (.lam name dom body bi)
-  | forallE {d : Nat} {name : Name} {dom body : Expr} {bi : BinderInfo} :
-      LoweredRestoreReady heads nparams names auxLevels d dom →
-      LoweredRestoreReady heads nparams names auxLevels (d + 1) body →
-      LoweredRestoreReady heads nparams names auxLevels d (.forallE name dom body bi)
-
-/-- The closed-form criterion implies `RestoreReady` of the instantiation at
-the opened parameters. -/
-theorem LoweredRestoreReady.restoreReady
-    {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
-    {heads names : List Name} {auxLevels : List Level} {As : Array Expr}
-    (hheads : ∀ c, restoreHead result env As c ≠ none ↔ c ∈ heads)
-    (hAs : ∀ a ∈ As.toList, ∃ fv, a = .fvar fv) (hlen : As.size = result.nparams)
-    {d : Nat} {X : Expr}
-    (H : LoweredRestoreReady heads result.nparams names auxLevels d X) :
-    RestoreReady result env As names auxLevels (X.instantiateRevList As.toList d) := by
-  induction H with
-  | @hit d t c hfn hc hsize hparams hargs =>
-    have ht : t = Expr.mkAppList (.const c auxLevels) t.getAppArgsList := by
-      rw [← hfn, Expr.mkAppList_getAppArgsList]
-    rw [ht, instantiateRevList_mkAppList, instantiateRevList_closed rfl]
-    apply RestoreReady.hit (c := c)
-    · exact Expr.getAppFn_mkAppList_const _ _ _
-    · exact (hheads c).mpr hc
-    · rw [Expr.getAppArgsList_mkAppList_const]; simpa using hsize
-    · rw [Expr.getAppArgsList_mkAppList_const, ← List.map_take, hparams, List.map_map]
-      apply List.ext_getElem
-      · simp [hlen]
-      · intro i h₁ h₂
-        have hi : i < result.nparams := by simpa using h₁
-        simp only [List.getElem_map, List.getElem_range, Function.comp_apply]
-        rw [instantiateRevList_bvar_fvars (As := As.toList) hAs,
-          if_neg (by omega), dif_pos (by simp; omega)]
-        congr 1
-        simp only [Array.length_toList]
-        omega
-    · intro a ha
-      rw [Expr.getAppArgsList_mkAppList_const] at ha
-      rcases List.mem_map.mp ha with ⟨a', ha', rfl⟩
-      exact ⟨(hargs a' ha').1.instantiateRevList_fvars hAs d,
-        AvoidsConsts.instantiateRevList_fvars hAs (hargs a' ha').2 d⟩
-  | bvar d i =>
-    rw [instantiateRevList_bvar_fvars hAs]
-    split
-    · exact .bvar _
-    · split
-      · rcases hAs _ (List.getElem_mem (l := As.toList)
-          (n := As.toList.length - 1 - (i - d)) (by omega)) with ⟨fv, hfv⟩
-        rw [hfv]; exact .fvar _
-      · exact .bvar _
-  | fvar d fv => rw [instantiateRevList_closed rfl]; exact .fvar _
-  | sort d u => rw [instantiateRevList_closed rfl]; exact .sort _
-  | lit d l hf ha => rw [instantiateRevList_closed rfl]; exact .lit l hf ha
-  | const d c ls h =>
-    rw [instantiateRevList_closed rfl]
-    refine .const c ls ?_
-    by_contra hne
-    exact h ((hheads c).mp hne)
-  | @app d fn arg h _ _ ihf iha =>
-    rw [Expr.instantiateRevList_app]
-    refine .app ?_ ihf iha
-    intro c ls hfn
-    have := getAppFn_instantiateRevList_fvars_const hAs (.app fn arg) d
-      (by rw [Expr.instantiateRevList_app]; exact hfn)
-    by_contra hne
-    exact h c ls this ((hheads c).mp hne)
-  | lam _ _ ihd ihb =>
-    rw [Expr.instantiateRevList_lam]; exact .lam ihd ihb
-  | forallE _ _ ihd ihb =>
-    rw [Expr.instantiateRevList_forallE]; exact .forallE ihd ihb
-
-open _root_.Lean4Lean.InductiveSignature (compilationRestoration
-  compilationRestoration_heads_auxiliary) in
-/-- Under the agreement, the executable replacement heads are exactly the
-abstract restoration heads, for every parameter array. -/
-theorem RestorationMapAgreement.restoreHead_ne_none_iff
-    {r : InductiveSignature.Restoration}
-    {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
-    {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
-    {auxLevels : List Level}
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (As : Array Expr) (c : Name) :
-    restoreHead result env As c ≠ none ↔ c ∈ r.heads.map (·.auxiliary) := by
-  constructor
-  · intro hne
-    rcases Option.ne_none_iff_exists.mp hne with ⟨H, hH⟩
-    rcases A.head As c H hH.symm with ⟨h, hh, _⟩
-    exact List.mem_map.mpr ⟨h, List.mem_of_find?_eq_some hh,
-      by simpa using List.find?_some hh⟩
-  · intro hmem hnone
-    exact A.headNone As c hnone hmem
-
-/-- Readiness of every opening of a lowered type from the closed-form
-criterion on its parameter residual. -/
-theorem NestedRestorationOpening.restoreReady_of_lowered
-    {r : InductiveSignature.Restoration}
-    {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
-    {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
-    {auxLevels : List Level} {input output suffix : Expr}
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (Hopen : NestedRestorationOpening result env auxRec input output)
-    (Htel : Expr.ForallTelescope input result.nparams suffix)
-    (Hready : LoweredRestoreReady (r.heads.map (·.auxiliary)) result.nparams
-      r.restorableNames auxLevels 0 suffix) :
-    RestoreReady result env Hopen.params r.restorableNames auxLevels Hopen.body := by
-  rcases Hopen.opening.forallResidualData Htel with ⟨fvars, hAs, hlen, hbody⟩
-  have hparams : Hopen.params.toList = fvars.map Expr.fvar := by simpa using hAs
-  have HAs : ∀ a ∈ Hopen.params.toList, ∃ fv, a = .fvar fv := by
-    intro a ha
-    rw [hparams] at ha
-    rcases List.mem_map.mp ha with ⟨fv, _, rfl⟩
-    exact ⟨fv, rfl⟩
-  have hsize : Hopen.params.size = result.nparams := by
-    rw [← Array.length_toList, hparams, List.length_map, hlen]
-  rw [hbody, ← hparams]
-  exact Hready.restoreReady (A.restoreHead_ne_none_iff Hopen.params) HAs hsize
 
 /-! ### Closure of the restored body -/
 
@@ -2276,8 +2097,9 @@ theorem NestedRestorationOpening.restoredBody_closed {decl : VInductDecl}
 
 /-- **Restored recursor type realization** (the `type` field of
 `RestoredRecursorRealization`): any translation `s` of the lowered recursor
-type restores, under the agreement and the syntactic side conditions on the
-lowered type, to a translation of the restored recursor type. Closure and
+type restores, under the agreement and the hit-shape condition on the
+lowered type, to a translation of the restored recursor type, provided the
+restorable names are fresh in the target environment. Closure and
 free-variable freedom of the lowered type follow from its translation. -/
 theorem RecursorRestoration.restoredTypeRealization
     {r : InductiveSignature.Restoration}
@@ -2290,12 +2112,13 @@ theorem RecursorRestoration.restoredTypeRealization
     (hparams : result.params.size = result.nparams)
     (A : RestorationMapAgreement r result env auxRec targetEnv oldInfo.levelParams
       auxLevels)
-    (Hready : ∀ Hopen : NestedRestorationOpening result env auxRec oldInfo.type
-        newInfo.type,
-      RestoreReady result env Hopen.params r.restorableNames auxLevels Hopen.body ∧
-        Closed Hopen.restoredBody)
+    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
+    (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
+    (Hshape : Expr.HitShapeTele (r.heads.map (·.auxiliary)) result.nparams auxLevels
+      oldInfo.type)
+    (Hclosed : ∀ Hopen : NestedRestorationOpening result env auxRec oldInfo.type
+        newInfo.type, Closed Hopen.restoredBody)
     (Htel : Expr.ForallTelescope oldInfo.type result.nparams suffix)
-    (Hdomains : ForallDomainsReady r.restorableNames result.nparams oldInfo.type)
     (Hs : TrExprS sourceEnv oldInfo.levelParams [] oldInfo.type s)
     (Ht : TrExprS targetEnv newInfo.levelParams [] newInfo.type t) :
     ∃ type, r.expr s = some type ∧
@@ -2304,8 +2127,15 @@ theorem RecursorRestoration.restoredTypeRealization
     Hs.fvarsIn.mono fun _ h => by simp [VLCtx.fvars] at h
   have hclosed : Closed oldInfo.type := by
     simpa [VLCtx.bvars] using Hs.closed
-  exact ⟨t, H.typeRestorationCommutes hparams A Hready Htel Hdomains Hinput hclosed
-    Hs Ht, Ht⟩
+  exact ⟨t, H.typeRestorationCommutes' hparams A hc Hfresh Hshape Hclosed Htel Hinput
+    hclosed Hs Ht, Ht⟩
+
+/-- The specialization arguments of a scoped restoration are scoped by their
+parameters. -/
+theorem _root_.Lean4Lean.InductiveSignature.Restoration.Scoped.argumentsClosed
+    {r : InductiveSignature.Restoration} (H : r.Scoped) :
+    ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams :=
+  fun h hh e he => (H.2.2.1 h hh).2 e he
 
 open _root_.Lean4Lean.InductiveSignature in
 /-- **Restored recursor types of an exact validated nested run.** For the
@@ -2313,10 +2143,11 @@ container specialisations of the run and every generated owner `owner` of
 the lowered production's canonical generation `g`, the restoration step of
 the owner's lowered recursor (named `g.recursorName owner`) restores
 `g.recursorType owner` to a translation of the restored recursor type, given
-the restored type's translation `Ht` and the syntactic side conditions on the
-lowered type: its parameter telescope, the closed-form readiness
-`LoweredRestoreReady` of its parameter residual, and `ForallDomainsReady` of
-its parameter domains. -/
+the restored type's translation `Ht` in an environment lacking the
+restorable names, the parameter telescope of the lowered type, and the
+hit shape of the lowered type (`Expr.HitShapeTele`: every auxiliary family
+or constructor occurrence below the parameter telescope is applied to the
+parameter variables at the levels `lparams`). -/
 theorem NestedValidatedRunResult.restoredRecursorTypes
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -2344,11 +2175,11 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
           stepSource stepTarget)
         (targetEnv : VEnv) {suffix : Expr} {t : VExpr},
         Expr.ForallTelescope Hstep.oldInfo.type result.nparams suffix →
-        LoweredRestoreReady (auxiliaries.flatMap (·.headNames)) result.nparams
-          (compilationRestoration sourceDecl auxiliaries).restorableNames
-          (lparams.map Level.param) 0 suffix →
-        ForallDomainsReady (compilationRestoration sourceDecl auxiliaries).restorableNames
-          result.nparams Hstep.oldInfo.type →
+        Expr.HitShapeTele
+          ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
+          result.nparams (lparams.map Level.param) Hstep.oldInfo.type →
+        (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+          targetEnv.constants n = none) →
         TrExprS targetEnv Hstep.restored.newInfo.levelParams []
           Hstep.restored.newInfo.type t →
         ∃ type, (compilationRestoration sourceDecl auxiliaries).expr
@@ -2360,27 +2191,19 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
     ⟨envTypes, auxiliaries, hadded, _, hnames, _, hcertified, _, hscoped, _,
       hparamsSize, D, A⟩
   refine ⟨envTypes, auxiliaries, hadded, hnames, hcertified, hscoped, ?_⟩
-  intro owner stepSource stepTarget Hstep targetEnv suffix t Htel Hlowered
-    Hdomains Ht
+  intro owner stepSource stepTarget Hstep targetEnv suffix t Htel Hshape Hfresh Ht
   rcases E.production.production.completed.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
+  have hlen : owner.val < E.production.production.entries.length := by
+    rw [show E.production.production.entries =
+      E.production.production.completed.entries from rfl,
+      E.production.production.completed.entries_length_eq]
+    exact owner.isLt
   have hmem := List.getElem_mem (l := E.production.production.entries)
-    (n := owner.val) (by
-      rw [show E.production.production.entries =
-        E.production.production.completed.entries from rfl,
-        E.production.production.completed.entries_length_eq]
-      exact owner.isLt)
+    (n := owner.val) hlen
   have hfind := E.production.production.findRecursorOfMem
-    (info := (E.production.production.entries[owner.val]'(by
-      rw [show E.production.production.entries =
-        E.production.production.completed.entries from rfl,
-        E.production.production.completed.entries_length_eq]
-      exact owner.isLt)).1) hmem
-  have hrec' : (E.production.production.entries[owner.val]'(by
-      rw [show E.production.production.entries =
-        E.production.production.completed.entries from rfl,
-        E.production.production.completed.entries_length_eq]
-      exact owner.isLt)).1 = .recInfo rec := hrec
+    (info := (E.production.production.entries[owner.val]'hlen).1) hmem
+  have hrec' : (E.production.production.entries[owner.val]'hlen).1 = .recInfo rec := hrec
   rw [hrec'] at hfind
   change E.loweredEnv.find? rec.name = some (.recInfo rec) at hfind
   have h2 : some (ConstantInfo.recInfo rec) = some (.recInfo Hstep.oldInfo) := by
@@ -2390,21 +2213,12 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
     injection h2 with h
     injection h
   rw [heq] at M
+  have Hs := M.type
   have hclosed : Closed Hstep.oldInfo.type := by
-    simpa [VLCtx.bvars] using M.type.closed
-  have Hready : ∀ Hopen : NestedRestorationOpening result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
-      Hstep.oldInfo.type Hstep.restored.newInfo.type,
-      RestoreReady result E.loweredEnv Hopen.params
-        (compilationRestoration sourceDecl auxiliaries).restorableNames
-        (lparams.map Level.param) Hopen.body ∧ Closed Hopen.restoredBody := by
-    intro Hopen
-    refine ⟨Hopen.restoreReady_of_lowered (A targetEnv Hstep.oldInfo.levelParams) Htel
-      ?_, Hopen.restoredBody_closed D Htel hclosed⟩
-    rw [compilationRestoration_heads_auxiliary]
-    exact Hlowered
+    simpa [VLCtx.bvars] using Hs.closed
   exact Hstep.restored.restoration.restoredTypeRealization hparamsSize
-    (A targetEnv _) Hready Htel Hdomains M.type Ht
+    (A targetEnv _) hscoped.argumentsClosed Hfresh Hshape
+    (fun Hopen => Hopen.restoredBody_closed D Htel hclosed) Htel Hs Ht
 
 end VerifyInductive
 end Lean4Lean
