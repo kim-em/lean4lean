@@ -122,7 +122,7 @@ theorem
           BindingContextLE traversal.rootContext H.localContext ∧
           BindingContextLE traversal.terminalContext H.localContext ∧
           BindingContextLE S.sourceFullContext H.localContext := by
-    simpa [S] using H.minorSources O.owner O.owner_lt hsourceOwner
+    simpa [S] using H.minorSources.rows O.owner O.owner_lt hsourceOwner
       O.localIndex hshapeBound
   have horigin : S.origin = D.type :=
     Hsource.1.trans O.originType_eq.symm
@@ -403,7 +403,7 @@ theorem
     rw [(H.origins.minors O.owner O.owner_lt).size_eq]
     simpa [getElem!_pos H.recInfos O.owner O.owner_lt] using O.local_lt
   let S := H.origins.minorShapes O.owner O.owner_lt O.localIndex hshapeBound
-  have Hsource := H.minorSources O.owner O.owner_lt hsourceOwner
+  have Hsource := H.minorSources.rows O.owner O.owner_lt hsourceOwner
     O.localIndex hshapeBound
   have hlocal : S.localIndex = i := Hsource.2.1.trans hposition.2
   have hconstructorsAtOrigin :

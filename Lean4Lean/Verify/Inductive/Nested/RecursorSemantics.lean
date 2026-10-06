@@ -122,7 +122,7 @@ theorem RecursorPhasesResult.minorSemanticSourceOfFlatOrigin
     (hsourceOwner : O.owner < indTypes.size) :
     RecursorPhasesResult.FlatMinorSemanticSource H D O := by
   let S := O.shape
-  have Hsource := H.minorSources O.owner O.owner_lt hsourceOwner O.localIndex
+  have Hsource := H.minorSources.rows O.owner O.owner_lt hsourceOwner O.localIndex
     O.shapeBound
   have Hsemantic := H.minorSemantics O.owner O.owner_lt O.localIndex
     O.shapeBound

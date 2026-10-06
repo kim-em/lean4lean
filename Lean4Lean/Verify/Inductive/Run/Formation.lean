@@ -1678,6 +1678,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams } cOut →
       recInfos.size = indTypes.size →
+      RecInfoIndexTraces stats indTypes cOut recInfos →
       (k recInfos cOut).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel 0 #[] k
       { c with
@@ -1745,12 +1746,12 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams })
       Hbase (R.materialized.parameterSuffix (Hc := Hbase)).paramsBound
-      rfl rfl (BindingContextLE.refl _)) ?_
+      rfl rfl (BindingContextLE.refl _)) RecInfoIndexTraces.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut hparameterDeclsOut
     HstatsOut
     Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes
     Htelescopes HindexRows HparamsOut HnoAlias Horder Harities Hempty
-    Hblueprints Hroot hsize
+    Hblueprints Hroot hsize HindexTraces
   have Hroot' : BindingContextLE { c with
       env := outEnv
       typeCheckerLParams := some <|
@@ -1762,7 +1763,7 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     Hbindings Horigins
     HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes (by
       simpa [hparameterDeclsOut] using Htelescopes) HindexRows HparamsOut
-    HnoAlias Horder Harities Hempty Hblueprints Hroot'
+    HnoAlias Horder Harities Hempty Hblueprints Hroot' ?_ HindexTraces
   simpa using hsize
 
 /-- The verified header cache supplies the exact retained parameter binders
@@ -1839,7 +1840,7 @@ theorem ConstructorPhasesResult.mkRecInfosWF
     HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
     HmotiveShapesFrames HtelescopesFrames HindexRowsFrames HparamsFrames
     HnoAliasFrames HorderFrames HaritiesFrames HemptyFrames
-    HblueprintCountsFrames HrootFrames hsizeFrames
+    HblueprintCountsFrames HrootFrames hsizeFrames HindexTracesFrames
   have hrecordsFrames : recInfos.size = stats.indConsts.size := by
     calc
       recInfos.size = indTypes.size := hsizeFrames
@@ -1861,7 +1862,8 @@ theorem ConstructorPhasesResult.mkRecInfosWF
       HblueprintCountsFrames)
     (RecInfoRuleBlueprintSemanticOrigins.ofEmpty Rframes decl HoriginsFrames
       HemptyFrames HblueprintCountsFrames elimLevel)
-    (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames)
+    (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames
+      HindexTracesFrames)
     (RecInfoMinorSemanticAlignment.ofEmpty
       (parameterDecls := HsuffixFrames.parameterDecls)
       Rframes HoriginsFrames HemptyFrames)

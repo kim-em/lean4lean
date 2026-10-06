@@ -8,8 +8,9 @@ type of every generated equation. The right-hand side of a restored rule is
 produced by the executable (`restoreRule`, whose right-hand side is
 `restoreNested` of the lowered rule's right-hand side); this file proves that
 its translation is the abstract restoration of the generated equation's
-right-hand side, under the hit-shape provenance hypotheses of
-`NestedValidatedRunResult.ruleRhsHitShape`. The lowered right-hand side is a
+right-hand side, using the hit shape of the lowered right-hand sides
+(`NestedValidatedRunResult.recursorHitShape'`, which needs nothing beyond the
+run). The lowered right-hand side is a
 lambda telescope, so we first prove the lambda analogue of
 `NestedRestoration.restorationCommutes'`. -/
 
@@ -250,24 +251,20 @@ theorem TrExprS.isForall_false_of_wrapLams {env : VEnv} {Us : List Name} {Δ : V
   | forallE => simp only [VExpr.wrapLams, List.foldr_cons] at H; cases H
   | _ => rfl
 
-/-- **The restored right-hand side of one rule.** Under the hit-shape
-provenance hypotheses, the translation of the right-hand side of the `j`-th
+/-- **The restored right-hand side of one rule.** The translation of the right-hand side of the `j`-th
 restored rule of the restoration step at a generated owner's lowered recursor
 name, in an environment in which the restorable names are fresh, is the
 abstract restoration of the right-hand side of the generated equation at the
 flattened constructor index of that rule. -/
 theorem NestedValidatedRunResult.restoredRuleRhs_of_hitShape
-    {result : Lean4Lean.ElimNestedInductive.Result}
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -324,7 +321,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_of_hitShape
   have Hrule := Hstep.restored.restoration.rules.entry j hjOld hj
   rcases Hrule.rhs.opening hparamsSize with ⟨Hopen⟩
   -- the telescope
-  have Hshape := E.ruleRhsHitShape I W owner Hstep _ (List.getElem_mem hjOld)
+  have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).2 _ (List.getElem_mem hjOld)
   rw [← hheads] at Hshape
   have hnp : result.nparams = P.generationSignature.params.length := by
     rw [← E.statsParamsSize]; exact P.params_size_eq
@@ -446,17 +443,14 @@ def NestedValidatedRunResult.RestoredRulesRealization
 /-- **One restored equation.** A realizing abstract equation is the abstract
 restoration of the generated equation. -/
 theorem NestedValidatedRunResult.restoredEquation_of_realization
-    {result : Lean4Lean.ElimNestedInductive.Result}
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -474,7 +468,7 @@ theorem NestedValidatedRunResult.restoredEquation_of_realization
     (compilationRestoration sourceDecl auxiliaries).equation
       (E.production.production.completed.canonicalGeneration.equation k) = some rule := by
   obtain ⟨owner, j, s, t, Hstep, hj, hk, huvars, Ht, hlhs, htype⟩ := H
-  have hrhs := E.restoredRuleRhs_of_hitShape I W hheads hparamsSize D hscoped Hfresh owner
+  have hrhs := E.restoredRuleRhs_of_hitShape wf Hsources hheads hparamsSize D hscoped Hfresh owner
     Hstep j hj k hk Ht
   simp only [Restoration.equation, hlhs, hrhs, htype, Option.bind_eq_bind, Option.bind_some,
     Option.pure_def, Option.some.injEq]
@@ -485,17 +479,14 @@ theorem NestedValidatedRunResult.restoredEquation_of_realization
 /-- **The restored equation list.** If an abstract equation list realizes the
 executable restored rules, it is the restored generated equation list. -/
 theorem NestedValidatedRunResult.restoredEquations_of_realization
-    {result : Lean4Lean.ElimNestedInductive.Result}
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -511,15 +502,15 @@ theorem NestedValidatedRunResult.restoredEquations_of_realization
   show List.mapM _ ((List.finRange _).map _) = _
   rw [List.mapM_map]
   exact List.mapM_eq_some.mpr (Lean4Lean.List.Forall₂.imp (fun k _ h =>
-    E.restoredEquation_of_realization I W hheads hparamsSize D hscoped Hfresh k h) HF)
+    E.restoredEquation_of_realization wf Hsources hheads hparamsSize D hscoped Hfresh k h) HF)
 
 /-! ### The canonical restored block -/
 
 /-- **The `equations` field of `NestedCompilationPending`.** If the rule
 lists of the final assembly shape realize the executable restored rules
 (`RestoredRulesRealization`), the restored generated equation list of the
-lowered declaration is exactly the rule list of the canonical restored block,
-given the hit-shape provenance hypotheses `I` and `W`. -/
+lowered declaration is exactly the rule list of the canonical restored block
+(via `NestedValidatedRunResult.recursorHitShape'`). -/
 theorem NestedValidatedRunResult.restoredEquations_of_hitShape
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -531,10 +522,7 @@ theorem NestedValidatedRunResult.restoredEquations_of_hitShape
     (C : NestedFinalAssemblyShape E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -548,7 +536,7 @@ theorem NestedValidatedRunResult.restoredEquations_of_hitShape
         (compilationRestoration sourceDecl auxiliaries) =
       some (canonicalRestoredBlock sourceDecl C.primaryRecursors
         C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).rules :=
-  E.restoredEquations_of_realization I W hheads hparamsSize D hscoped hCrules
+  E.restoredEquations_of_realization wf Hsources hheads hparamsSize D hscoped hCrules
 
 /-- **`CompilationData` of a validated nested run with the final assembly
 shape's own rule lists.** For the specializations of
@@ -578,11 +566,7 @@ theorem NestedValidatedRunResult.compilationData_of_hitShape'
     (C : NestedFinalAssemblyShape E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.production = E.production)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env) :
+    (hC : C.production = E.production) :
     ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
@@ -649,7 +633,7 @@ theorem NestedValidatedRunResult.compilationData_of_hitShape'
   have hP := E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
   obtain ⟨-, -, hnames, hheadNames, -, -, hwellFormed, hscoped, hdirect, -⟩ := hP
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
-  have hrecursors := E.restoredRecursors_of_hitShape C hC I W hadded Haux Hexpansion
+  have hrecursors := E.restoredRecursors_of_hitShape C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   have hheads : r.heads.map (·.auxiliary) = E.auxHeads := by
     rw [compilationRestoration_heads_auxiliary]
@@ -658,7 +642,7 @@ theorem NestedValidatedRunResult.compilationData_of_hitShape'
       E.production.compilationInstance.restoredEquations r =
         some (canonicalRestoredBlock sourceDecl C.primaryRecursors
           C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).rules :=
-    fun H => E.restoredEquations_of_hitShape C I W hheads hparamsSize D hscoped H
+    fun H => E.restoredEquations_of_hitShape C wf Hsources hheads hparamsSize D hscoped H
   refine ⟨envTypes, auxiliaries,
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D
       ⟨hrecursors, hequations, ?_⟩⟩

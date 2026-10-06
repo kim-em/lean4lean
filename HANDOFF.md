@@ -666,8 +666,87 @@ inside this project's scope without solving open base metatheory:
    executable (`RecursorRule` has only `ctor`, `nfields`, `rhs`) and are
    supplied by the certificate's own rule choice (`RestoredRulesRealization`),
    which `assemblyNative` must realize with the restored generated lhs/type.
-   In flight: `assemblyNative_of_whnf` (origins worktree), `WhnfHitShapeFacts`
-   discharge (hitshape worktree), final shapes.
+   **`finalValidOfStaged` closed (4a1e2e6):** `finalValidOfStaged_of_hitShape`
+   (Nested/FinalShapes.lean) reads the restored recursor shapes off the
+   staged block and the restoration traces (more than one family from
+   `aux2nested.size ≠ 0`, available at the dispatch site), modulo
+   `HitShapeInputs` (discharged on the origins branch) and
+   `WhnfHitShapeFacts`. The checker-level whnf fact is proved on the
+   hitshape branch only at the larger head set `E.hitHeads` (auxiliary names
+   plus main constructors) with the projection condition `ProjsOK`
+   (`WhnfHitOKFacts`, modulo `hprims`: no main constructor named like a
+   checker-built constant); the `RecursorHitShape` chain is being reworked to
+   run at that head set and shrink back. In flight: that rework,
+   `assemblyNative_of_whnf` (origins worktree).
+   **Milestone (2026-10-06, main at 9cc9c8e):** full `lake build` (676 jobs),
+   `lake build Lean4Lean.Tests`, fresh `Init.Prelude` (1975) and `Init.Core`
+   (3953) replays pass; audit self-test passes. Reachable sorries: the ten
+   base obligations and `assemblyNative` only.
+   **Hit-shape chain complete on `agent/verify-inductives-hitshape` (cb54cf6,
+   pushed; being merged into main):** `recursorHitShape' E wf Hsources hprims`
+   gives `HitShapeTele E.auxHeads …` of every owner's generated recursor type
+   and rule rhs with no `W`/`I`; the chain runs at `E.hitHeads` (auxiliary
+   names plus main constructors) under `HitOK` (hit shape plus `ProjsOK`),
+   and shrinks back. The single remaining hypothesis is
+   `hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames` (no main constructor is
+   named like a constant the checker builds itself: `String.mk`, `List.nil`,
+   `List.cons`, `Char.ofNat`, `Nat.zero`, `Nat.succ`, `_inhabitedExprDummy`,
+   …); `hprims_of_present` reduces it to "those names are already constants
+   of the source environment (true after `Init.Prelude`) and no constructor is
+   named `_inhabitedExprDummy`". Removing it needs a rework of the checker's
+   `EnvHitShape.prims` field (showing literal expansion and the out-of-range
+   dummy never reach a successful recursor-pass output). **Decision for Kim:**
+   carry `hprims` as an explicit hypothesis of the nested theorem (hence of
+   `addDecl.WF` for nested inductives) or fund the rework. **Resolution
+   (2026-10-06, after Kim asked what Mario would do): rework.** No
+   input-naming hypotheses on soundness theorems; the literal-expansion
+   sites only need the hard-coded constants that exist in the environment
+   not to be heads (discharged by freshness), and the out-of-range dummy must
+   be shown unreachable on successful runs. **Done (d12593f, merged as
+   ebc0e0e):** `EnvHitShape` now has `prims` (the seven kernel primitive
+   names are never heads: every installed name passed `checkName` without
+   primitive permission) and `strs` (when string literals are supported,
+   `String`/`Char`/`List.nil`/`List.cons` are old constants, hence not
+   heads); every out-of-range read is shown in range. `hprims` is gone from
+   the whole nested chain; `assemblyNative_of_run (E) (wf) (Hsources)
+   (Hrules) (Hprovenance)`.
+   **`assemblyNative_of_hprims` (Nested/AssemblyNativeWhnf.lean, merged
+   89776a7):** the nested final assembly certificate from `wf`, `Hsources`,
+   `hprims` and two named hypotheses: `Hrules` (a shape `C` whose rules
+   realize `RestoredRulesRealization`: the validator's rule lhs is its own
+   build and the rule type is the checker's inferred type, neither
+   syntactically `r.expr` of the generated equation; plus freshness of the
+   restorable names in `C.finalBaseVEnv`) and `Hprovenance`
+   (`InductiveRecursorProvenance` of the restored recursors with their rules;
+   open core: `VConstructorShape` of every restored rule's constructor,
+   container constructors included). Agents on both. `CompilationData`
+   including `recursiveTypesWF`, `CertifiedSpecializations` and
+   `RestoredCompilationRealization` are proved from the run.
+   **Rule junction status (1f8f1dd):** `hrules_of (E) (wf) (Hsources)
+   (HauxRecNames) (HruleShape)` (Nested/RuleJunction.lean): freshness of the
+   restorable names in any shape's final base environment is proved except
+   for a pathological coincidence between a renamed auxiliary recursor name
+   `Main.rec_k` and an auxiliary head name (`HauxRecNames`; arises only
+   because the commutation takes freshness in the TARGET environment, which
+   for rule rhs contains the restored recursors; being replaced by
+   source-environment absence plus trailing-argument provenance).
+   `HruleShape` (a shape whose rules realize `RestoredRulesRealization`)
+   is the main remaining nested obligation: the validator's rule lhs/type are
+   its own build and the checker's inferred type; route: rebuild the shape
+   with the restored generated lhs/type and prove their well-formedness from
+   the restored recursor type plus unique typing (agent running).
+   **`Hprovenance` proved (104639f):** `hprovenance_of (E) (wf) (Hsources)
+   (hnested : result.aux2nested.size ≠ 0)` (Nested/RecursorProvenance.lean);
+   `hnested` is in scope at the only call site of `assemblyNative`
+   (`Nested/FinalModelDispatch.lean`) and must be threaded into
+   `assemblyNative`'s signature at wiring time. Remaining for the nested
+   junction: `HruleShape` and the `HauxRecNames` residue.
+   **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
+   `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
+   `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
+   `assemblyOfFormationNative`/`assemblyShapeNative`
+   (Nested/AssemblyProviderEvidence.lean) now take `(wf) (Hsources) (hprims)`
+   in place of `(I) (W)` and use `recursorHitShape'`.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
@@ -780,7 +859,37 @@ inside this project's scope without solving open base metatheory:
    eliminating the Prop structure into Prop recovers `P v`, but no syntactic
    inhabitant of the data field exists, so it is being threaded as an
    explicit hypothesis to the top-level theorems on the E1 branch. E1 is
-   therefore not hypothesis-free either.
+   therefore not hypothesis-free either. Done as `ProjectionWalkCorner`
+   (`Verify/Typing/ProjectionCorner.lean`, commit 02ea245 on the E1 branch),
+   quantified over every well-formed environment; being converted from a
+   `VEnvs.WF` field (which would hide it) into an explicit argument of the
+   top-level theorems. With it, no constant under the checker, Primitive,
+   ConditionallyTyped or EquivManager depends on `weakN_iff`; `addAxiom`,
+   `addDefinition`, `addTheorem`, `addOpaque`, `addMutual` are clean; the
+   inductive side (25 sites) remains.
+   **E1 inductive side, steps 0 to 2 done (45d7f7e, pushed):** Step 0 local
+   fixes and deletions of unused false lemmas; Step 1 executable: a second
+   local context `Context.checkLCtx` seen only by the lifted checker calls
+   (18 binders marked "checker context narrowed"; parameters, indices,
+   fields, positivity/`isRecArg`/`loopUArgs` binders in both contexts;
+   majors, motives, minors, hypotheses only in the main one; closed header
+   `whnf` and `isLargeEliminator` under `{}`); replays match baseline counts
+   (`Init.Prelude` 1975, `Init.Core` 3953, `List.Basic` 5521, `Array.Basic`
+   7894, `Format.Basic` 7084), 2 to 17% slower. Step 2 plumbing: `ContextWF`
+   /`RecursorContextWF`/`StagedContextWF` gain `checkMapWF`, `checkSub` and a
+   TRANSITIONAL hypothesis `CheckerSubContextLocality` (a successful lifted
+   checker run in the narrow context succeeds with the same value in the
+   full context), because the main-context lift lemmas cannot be weakened
+   corollaries of narrow ones until Steps 3 to 6 make every lifted run
+   narrow. It had been hidden in `Declaration.IsModelled`; being made an
+   explicit argument of the top-level theorems together with
+   `ProjectionWalkCorner`. **Done (4ba46b2, pushed):** `addDecl.WF` on E1 now
+   reads `(wf) (hcorner : ProjectionWalkCorner) (hloc :
+   CheckerSubContextLocality) (decl) (hdecl)`; `IsModelled` is `False` for
+   `quotDecl` and `True` otherwise; the checker cone is free of `weakN_iff`;
+   25 inductive-side sites remain (LoopType 7, Verify/Typing/Lemmas 4,
+   Basic 2, twelve files with one each). Steps 3 to 6 (per-phase
+   narrow-scope proofs, deleting `hloc`) in progress after merging main.
    **E3 status (2026-10-06): complete on `agent/verify-inductives-e3`**
    (commits 7c544ac..717fc23, pushed): `VEnv.Strengthening` replaces the
    `weakN_iff` sorry; threaded through the Theory consumers, a new
@@ -797,11 +906,21 @@ inside this project's scope without solving open base metatheory:
    pass; executable unchanged. Four legacy theorems outside the `addDecl.WF`
    cone take a coarser hypothesis quantified over every `ContextWF` with the
    same Lean environment. The output environment's strengthening is never
-   claimed. Comparison so far: E3 reached its end (weaker but honest
-   statement); E1 has the checker cluster and Theory routes done, carries a
-   restricted projection-corner hypothesis, an executable divergence, a
-   replay slowdown, and the inductive-side narrow-context change (4.5k to 9k
-   lines) still ahead.
+   claimed. Comparison so far: E3 reached a buildable state with a true
+   statement, which is NOT the same as being the right route: its
+   hypothesis `Declaration.Strengthening` is of unknown truth for real
+   (prelude-derived) environments, and if false there the theorem is vacuous
+   for real replays (Astra consulted, 2026-10-06). E1 has the checker
+   cluster and Theory routes done, carries a restricted projection-corner
+   hypothesis (plausibly true), an executable divergence, a replay slowdown,
+   and the inductive-side narrow-context change (4.5k to 9k lines) still
+   ahead. E3 has absorbed the nested work (merge d923f9f, clean). **Astra
+   (2026-10-06): the countermodel collapses once canonical `Eq` is present**
+   (`extract p : P v` by `I.rec` with an `Eq.rec` motive, checked; see
+   STRENGTHENING.md's last section), so E3's hypothesis is not known false
+   for prelude-derived environments; strengthening in environments with
+   canonical equality is an open conjecture. E1 additionally covers the
+   `Eq`-free bootstrap prefix.
    **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
    79 strengthening uses under `Verify/Inductive` strengthen fresh checker
    runs from the nested context of `Inductive/Add.lean` (later families run
@@ -815,6 +934,23 @@ inside this project's scope without solving open base metatheory:
    (P) is a second executable departure, invisible if (L) holds (argued, not
    proved). Scoping reports copied to `docs/inductives/WEAKN_SCOPE.md` and
    `docs/inductives/RESTORE_READINESS.md`.
+3b. **Base sorries (scoped 2026-10-06, `docs/inductives/BASE_SORRIES.md`).**
+   None is provable with moderate effort. Injectivity (5) follows from
+   confluence in principle but not from the current ChurchRosser development
+   (circular: it uses `uniqU`, `forallE_inv`, `sort_inv`, `weakN_iff`); a
+   non-circular route is a stratified induction on typing height with new
+   head-separation lemmas, roughly 5k to 10k lines. `RecursorLemmas:437`
+   needs a rigid-head-versus-Pi separation lemma (then about 60 lines).
+   `ChurchRosser:2166` is `NormalEq.headParallel` (not the eta/eta case);
+   the eta/eta case of `NormalEq.trans` uses the false `weakN_iff` through
+   `NormalEq.weakN_inv_DFC` and can be replaced only by re-indexing
+   `NormalEq` with a Nat bound and an `etaBoth` constructor (about 550 new
+   lines plus 800 to 1500 of consumer edits). FullReduction's six sorries
+   need spine exposure, two separation lemmas and the full strip proof.
+   Branch `agent/verify-inductives-base` (commit 9db09de) narrows the
+   projection-iota sorry to the `appDF | etaL` cases. Decision for Kim:
+   keep these as documented base conjectures (the branch's standing stance)
+   or fund the confluence programme.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against

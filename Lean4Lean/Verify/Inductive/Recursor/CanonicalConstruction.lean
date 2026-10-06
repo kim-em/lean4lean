@@ -125,7 +125,7 @@ theorem CompletedRecursorConstruction.consumedSignature_origins
       (H.consumedConstructorAt HU owner howner localIndex hlocal)) := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, hHas, traversal, htrav, _, hfieldsT, _, _, _, _, _, _, _⟩ :=
-    H.minorSources owner howner hsourceOwner localIndex hlocal
+    H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   obtain ⟨origins, horig, _, _⟩ :=
     (H.origins.minorShapes owner howner localIndex hlocal).hypothesisTypeOrigins_exists
       stats H.recInfos hHas
