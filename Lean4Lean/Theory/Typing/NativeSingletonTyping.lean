@@ -168,4 +168,131 @@ theorem recursorType_shape (hfam : s.families.size = 1) (hcs : s.constructors.si
 
 end InductiveSignature.Instance
 
+namespace VEnv
+open InductiveSignature
+variable {env : VEnv} {U : Nat}
+
+theorem OnCtx.closed_reverse (henv : env.Ordered) {doms : List VExpr}
+    (h : OnCtx doms.reverse (env.IsType U)) :
+    ∀ j (hj : j < doms.length), (doms[j]).ClosedN j := by
+  intro j hj
+  have hc : OnCtx (doms.reverse ++ []) (fun Γ A => A.ClosedN Γ.length) := by
+    rw [List.append_nil]; exact CtxWF.closed henv h
+  have := OnCtx.getElem_reverse_append hc j hj
+  simpa [Nat.min_eq_left (Nat.le_of_lt hj)] using this.2
+
+theorem getElem_insertBinders {l : List VExpr} {n i : Nat} (h : i < (insertBinders l n).length) :
+    (insertBinders l n)[i] = (l[i]'(by simpa using h)).liftN n i := by
+  simp [insertBinders]
+
+/-- The minor premise's field context, with the motive instantiated: the field telescope is
+well formed in its own context, and the context of the minor premise is instantiated at the
+field variables. -/
+theorem minorFields_inst (henv : env.WF) {P F : List VExpr} {Mot M0 : VExpr}
+    (hP : OnCtx P.reverse (env.IsType U)) (hM0 : env.HasType U P.reverse M0 Mot)
+    (hF : OnCtx ((insertBinders F 1).reverse ++ Mot :: P.reverse) (env.IsType U))
+    (hFcl : ∀ i (h : i < F.length), (F[i]).ClosedN (P.length + i)) :
+    ∀ i, i ≤ F.length → OnCtx (P ++ F.take i).reverse (env.IsType U) ∧
+      TelInst env U (P ++ F.take i).reverse (P ++ [Mot] ++ (insertBinders F 1).take i)
+        (bvarRange P.length (P.length + i) ++ [M0.liftN i] ++ bvarRange i i) := by
+  have hall : OnCtx (P ++ [Mot] ++ insertBinders F 1).reverse (env.IsType U) := by
+    simpa using hF
+  have hcl := OnCtx.closed_reverse henv.ordered hall
+  intro i
+  induction i with
+  | zero =>
+    intro _
+    refine ⟨by simpa using hP, ?_⟩
+    have hPcl : ∀ j (h : j < P.length), (P[j]).ClosedN j := fun j h => by
+      have := hcl j (by simp; omega)
+      rwa [List.getElem_append_left (by simp; omega), List.getElem_append_left h] at this
+    have hI := TelInst.ident (env := env) (U := U) [] hPcl
+    have hMotcl : Mot.ClosedN P.length := by
+      have := hcl P.length (by simp)
+      rw [List.getElem_append_left (by simp), List.getElem_append_right (by simp)] at this
+      simpa using this
+    have hM : env.HasType U P.reverse (M0.liftN 0) (Mot.instOuter (bvarRange P.length P.length)) := by
+      rw [VExpr.instOuter_range_bvar' _ _ _ hMotcl (Nat.le_refl _), Nat.sub_self,
+        VExpr.liftN_zero, VExpr.liftN_zero]
+      exact hM0
+    have := TelInst.append_one (by simpa using hI) hM
+    simpa [bvarRange_zero] using this
+  | succ i ih =>
+    intro hi
+    obtain ⟨hctx, ht⟩ := ih (Nat.le_of_succ_le hi)
+    have hilt : i < F.length := hi
+    have hFi := OnCtx.getElem_reverse_append (L := P ++ [Mot] ++ insertBinders F 1) (Γ := [])
+      (by rw [List.append_nil]; exact hall) (P.length + 1 + i) (by simp; omega)
+    have hdom : (P ++ [Mot] ++ insertBinders F 1)[P.length + 1 + i]'(by simp; omega) =
+        (F[i]).liftN 1 i := by
+      rw [List.getElem_append_right (by simp), getElem_insertBinders (by simp; omega)]
+      simp
+    have htake : (P ++ [Mot] ++ insertBinders F 1).take (P.length + 1 + i) =
+        P ++ [Mot] ++ (insertBinders F 1).take i := by
+      rw [List.take_append, List.take_of_length_le (by simp)]
+      simp
+    rw [hdom, htake, List.append_nil] at hFi
+    obtain ⟨hΔ, u, hu⟩ := hFi
+    have hinst := IsDefEq.closed_instOuter_congr henv hctx hΔ hu ht.1 ht.1
+      (fun j hj _ hd => ht.2 j hj hd)
+    have hFicl := hFcl i hilt
+    have hdrop : ((F[i]).liftN 1 i).instOuter
+        (bvarRange P.length (P.length + i) ++ [M0.liftN i] ++ bvarRange i i) = F[i] := by
+      have := VExpr.liftN_instOuter_drop (e := F[i]) (X := bvarRange P.length (P.length + i))
+        (Y := [M0.liftN i]) (Z := bvarRange i i) (by simpa using hFicl)
+      simp only [List.length_singleton, bvarRange_length] at this
+      rw [this, ← CastSpec.bvarRange_split, VExpr.instOuter_range_bvar' _ _ _ hFicl (Nat.le_refl _),
+        Nat.sub_self, VExpr.liftN_zero]
+    rw [hdrop] at hinst
+    simp only [VExpr.instOuter_sort] at hinst
+    have hctx' : OnCtx (P ++ F.take (i + 1)).reverse (env.IsType U) := by
+      rw [List.take_succ_eq_append_getElem hilt, ← List.append_assoc, List.reverse_append]
+      exact ⟨hctx, _, hinst⟩
+    refine ⟨hctx', ?_⟩
+    have hDcl : ∀ j (h : j < (P ++ [Mot] ++ (insertBinders F 1).take i).length),
+        ((P ++ [Mot] ++ (insertBinders F 1).take i)[j]).ClosedN j := by
+      intro j h
+      have := hcl j (by simp at h ⊢; omega)
+      have key : ∀ (l1 l2 : List VExpr), l1 = l2 → ∀ (h1 : j < l1.length) (h2 : j < l2.length),
+          l1[j] = l2[j] := by intro _ _ e; subst e; intros; rfl
+      rw [key _ _ htake.symm h (by simp at h ⊢; omega), List.getElem_take]
+      exact this
+    have hw := TelInst.weak henv.ordered [F[i]] hDcl ht
+    have hmap : (bvarRange P.length (P.length + i) ++ [M0.liftN i] ++ bvarRange i i).map
+        (fun x : VExpr => x.liftN [F[i]].length) =
+        bvarRange P.length (P.length + (i + 1)) ++ [M0.liftN (i + 1)] ++ bvarRange i (i + 1) := by
+      simp only [List.length_singleton, List.map_append, List.map_cons, List.map_nil]
+      rw [bvarRange_map_liftN _ _ _ (by omega), bvarRange_map_liftN _ _ _ (by omega),
+        VExpr.liftN_liftN]
+      simp only [Nat.add_assoc]
+    rw [hmap] at hw
+    have hb : env.HasType U (F[i] :: (P ++ F.take i).reverse) (.bvar 0)
+        (((F[i]).liftN 1 i).instOuter
+          (bvarRange P.length (P.length + (i + 1)) ++ [M0.liftN (i + 1)] ++
+            bvarRange i (i + 1))) := by
+      have := VExpr.liftN_instOuter_drop (e := F[i]) (X := bvarRange P.length (P.length + (i + 1)))
+        (Y := [M0.liftN (i + 1)]) (Z := bvarRange i (i + 1)) (by simpa using hFicl)
+      simp only [List.length_singleton, bvarRange_length] at this
+      rw [this]
+      have hsplit : bvarRange P.length (P.length + (i + 1)) ++ bvarRange i (i + 1) =
+          bvarRange (P.length + i) (P.length + i + 1) := by
+        rw [CastSpec.bvarRange_append _ _ _ (by omega)]
+        congr 2 <;> omega
+      rw [hsplit, VExpr.instOuter_range_bvar' _ _ _ hFicl (by omega)]
+      simp only [show P.length + i + 1 - (P.length + i) = 1 by omega]
+      exact .bvar .zero
+    have := TelInst.append_one hw hb
+    rw [List.take_succ_eq_append_getElem (l := insertBinders F 1) (by simpa using hilt),
+      getElem_insertBinders]
+    have hsnoc : bvarRange (i + 1) (i + 1) = bvarRange i (i + 1) ++ [.bvar 0] := by
+      rw [CastSpec.bvarRange_append i 1 (i + 1) (by omega)]
+      simp [bvarRange]
+    have hctxeq : (P ++ F.take (i + 1)).reverse = F[i] :: (P ++ F.take i).reverse := by
+      rw [List.take_succ_eq_append_getElem (l := F) hilt, ← List.append_assoc,
+        List.reverse_append]; rfl
+    rw [hctxeq, hsnoc]
+    simpa only [List.append_assoc, List.singleton_append, List.cons_append, List.nil_append] using this
+
+end VEnv
+
 end Lean4Lean
