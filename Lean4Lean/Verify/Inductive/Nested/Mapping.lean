@@ -273,24 +273,31 @@ def NestedNewTypesLE (source target : Lean4Lean.ElimNestedInductive.State) : Pro
 
 /-- Nested-expression traversal also grows the `(nested expression, fresh
 family name)` cache append-only. This is the operational source of the final
-`aux2nested` map used by restoration. -/
+`aux2nested` map used by restoration. The universe arguments `lvls` at which
+every auxiliary occurrence is emitted are never modified. -/
 def NestedAuxLE (source target : Lean4Lean.ElimNestedInductive.State) : Prop :=
-  ∃ suffix, target.nestedAux.toList = source.nestedAux.toList ++ suffix
+  ∃ suffix, target.nestedAux.toList = source.nestedAux.toList ++ suffix ∧
+    target.lvls = source.lvls
 
 theorem NestedAuxLE.refl (state : Lean4Lean.ElimNestedInductive.State) :
-    NestedAuxLE state state := ⟨[], by simp⟩
+    NestedAuxLE state state := ⟨[], by simp, rfl⟩
 
 theorem NestedAuxLE.trans
     (H₁ : NestedAuxLE first middle) (H₂ : NestedAuxLE middle last) :
     NestedAuxLE first last := by
-  rcases H₁ with ⟨xs, hxs⟩
-  rcases H₂ with ⟨ys, hys⟩
-  exact ⟨xs ++ ys, by simp [hys, hxs, List.append_assoc]⟩
+  rcases H₁ with ⟨xs, hxs, hl₁⟩
+  rcases H₂ with ⟨ys, hys, hl₂⟩
+  exact ⟨xs ++ ys, by simp [hys, hxs, List.append_assoc], hl₂.trans hl₁⟩
+
+theorem NestedAuxLE.lvls
+    (H : NestedAuxLE source target) : target.lvls = source.lvls := by
+  obtain ⟨_, _, h⟩ := H
+  exact h
 
 theorem NestedAuxLE.mem
     (H : NestedAuxLE source target)
     (hentry : entry ∈ source.nestedAux) : entry ∈ target.nestedAux := by
-  rcases H with ⟨suffix, hsuffix⟩
+  rcases H with ⟨suffix, hsuffix, -⟩
   have hsource : entry ∈ source.nestedAux.toList := by simpa using hentry
   have htarget : entry ∈ target.nestedAux.toList := by
     rw [hsuffix]
@@ -745,7 +752,7 @@ theorem GeneratedAuxiliary.nestedAuxLE
       sourceName sourceInfo state out) : NestedAuxLE state out.2 := by
   rcases H.generated with ⟨auxName, nextIdx, data, _, _, _, hstate⟩
   rw [hstate]
-  exact ⟨[(data.nested, auxName)], by simp⟩
+  exact ⟨[(data.nested, auxName)], by simp, rfl⟩
 
 theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
     (H : GeneratedAuxiliary env lctx params As targetName levels nparams args
@@ -772,7 +779,7 @@ theorem GeneratedAuxiliary.pendingSourceFamilyOrigins
           nextIdx := nextIdx
           nestedAux := state.nestedAux.push (data.nested, auxName)
           newTypes := state.newTypes.push data.type } :=
-      ⟨[(data.nested, auxName)], by simp⟩
+      ⟨[(data.nested, auxName)], by simp, rfl⟩
     have Horigin' := Horigin.mono Haux
     exact ⟨by simpa [Array.getElem_push, hold] using Horigin'⟩
   · have heq : j = state.newTypes.size := by omega
@@ -2404,6 +2411,27 @@ theorem NestedExprReplacement.nestedAuxLE
     exact Hnode.nestedAuxLE.trans (ihType.trans (ihValue.trans ihBody))
   | mdata Hnode _ ihBody | proj Hnode _ ihBody =>
     exact Hnode.nestedAuxLE.trans ihBody
+
+/-- A successful replacement hit leaves the universe arguments `lvls` of the
+lowering state unchanged. -/
+theorem NestedReplacementFinalTrace.lvls
+    (H : NestedReplacementFinalTrace env lctx params As input state lowered
+      nextState finalResult finalState) : nextState.lvls = state.lvls := by
+  rcases H with ⟨_, _, _, _, _, Hrecognized, _, _⟩
+  exact Hrecognized.nestedAuxLE.lvls
+
+/-- The semantic expression mapping leaves the universe arguments `lvls` of
+the lowering state unchanged. -/
+theorem NestedExprMapping.lvls
+    (H : NestedExprMapping env lctx params As finalResult input state out) :
+    out.2.lvls = state.lvls := by
+  induction H with
+  | hit Hnode => exact Hnode.lvls
+  | bvar | fvar | mvar | sort | const | lit => rfl
+  | app _ _ _ ihFn ihArg => exact ihArg.trans ihFn
+  | lam _ _ _ ihDom ihBody | forallE _ _ _ ihDom ihBody => exact ihBody.trans ihDom
+  | letE _ _ _ _ ihType ihValue ihBody => exact ihBody.trans (ihValue.trans ihType)
+  | mdata _ _ ihBody | proj _ _ ihBody => exact ihBody
 
 theorem NestedExprReplacement.pendingSourceFamilyOrigins
     (H : NestedExprReplacement env lctx params As e state out)

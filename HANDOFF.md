@@ -718,6 +718,33 @@ inside this project's scope without solving open base metatheory:
    uses (the output environment's strengthening is never claimed). The nested
    junction work continues on `agent/verify-inductives` and is merged into
    the surviving route afterwards.
+   **E1 status (2026-10-06):** checker cluster done on `agent/verify-inductives-e1`
+   (commits be54d43, 000dbcc, 758bb60): `State.leaveScope` restores the infer,
+   whnf, failure caches and the `EquivManager` at every `withFreshId` scope
+   (keeps `ngen`, `unfold`); `isDefEqLambda`/`isDefEqForall` always open a
+   binder; `Condition.check` re-checks the gadget pieces at `[]`;
+   `unfoldNatWellFounded` re-checks `F` in the outer context. No
+   `weakN_iff`-family use remains under `Verify/TypeChecker`,
+   `ConditionallyTyped`, `Primitive`; the checker still reaches `weakN_iff`
+   only through `VExpr.WF.of_occurs`, `VIotaRuleShape.args_typing`,
+   `TrExprS.weakBV_inv₁` (class (b), being repaired) and the inductive side.
+   The cache-scope experiment is now rejected by the Lean4Lean checker.
+   Replays check the same declaration counts; cost: `Init.Core` unchanged,
+   `Init.Data.List.Lemmas` +21%, `Std.Data.HashMap.Lemmas` 26.6 s to 49.0 s
+   (+84%), inherent to discarding in-scope cache entries.
+   **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
+   79 strengthening uses under `Verify/Inductive` strengthen fresh checker
+   runs from the nested context of `Inductive/Add.lean` (later families run
+   inside earlier families' indices; constructor and recursor phases inside
+   stale header indices; later constructors under earlier minors). Chosen
+   repair (P): a second local context `checkLCtx` seen only by the lifted
+   checker calls (parameters, indices, fields, argument binders in both
+   contexts; majors, motives, minors, hypotheses only in the main one), with
+   snapshots per parameter and per field; estimated 4.5k to 9k lines of churn
+   (much deletion), versus 9k to 16k for a fresh-run locality theorem (L).
+   (P) is a second executable departure, invisible if (L) holds (argued, not
+   proved). Scoping reports copied to `docs/inductives/WEAKN_SCOPE.md` and
+   `docs/inductives/RESTORE_READINESS.md`.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against

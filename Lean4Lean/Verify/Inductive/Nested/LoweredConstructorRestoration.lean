@@ -16,10 +16,12 @@ source constructor type (`VExpr.NestedExprExpansion.restore`), given that
 * every restoration head occurs in the lowered constructor types at the
   declaration's own universe parameters (`VExpr.ConstLevelsAt`).
 
-The second fact is not derived here: the executable lowering emits each
-auxiliary occurrence at `state.lvls`, which is initialised to the declaration's
-level parameters and never modified, but the relational traces of the run
-(`LoweredConstructorMapping`, `NestedLoweringRun`) do not record `lvls`.
+The second fact is a premise here; it is discharged by
+`NestedValidatedRunResult.loweredConstructorLevels_heads` (in
+`Nested/LoweringLevels.lean`): the executable lowering emits each auxiliary
+occurrence at `state.lvls`, which is initialised to the declaration's level
+parameters and never modified, as recorded by the relational traces of the run
+(`NestedAuxLE`, `LoweredConstructorMapping.lvls`, `NestedLoweringRun.lvls`).
 -/
 
 namespace Lean4Lean

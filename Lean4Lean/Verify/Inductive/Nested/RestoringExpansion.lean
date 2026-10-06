@@ -250,4 +250,47 @@ theorem Restoration.restoringLeaf_liftAbove (r : Restoration)
 
 end InductiveSignature
 
+/-! ### Universe arguments of restoration heads in an expansion -/
+
+/-- Leaves whose target uses the constants `names` only at the universe
+arguments `levels`, whenever the source does not mention `names`. -/
+def VExpr.LevelLeaf (names : List Lean.Name) (levels : List VLevel) :
+    Nat → VExpr → VExpr → Prop :=
+  fun _ source target =>
+    source.containsAnyConst names = false → target.ConstLevelsAt names levels
+
+/-- Level leaves are stable under every binder lift. -/
+theorem VExpr.levelLeaf_liftAbove (names : List Lean.Name) (levels : List VLevel)
+    (np : Nat) :
+    VerifyInductive.NestedExpansionLeafLiftAbove np (VExpr.LevelLeaf names levels) := by
+  intro depth source target cutoff _ H hs
+  rw [VExpr.containsAnyConst_liftN] at hs
+  rw [VExpr.constLevelsAt_liftN]
+  exact H hs
+
+/-- An expansion of a source avoiding `names`, all of whose leaves are level
+leaves, uses `names` only at `levels`: away from the leaves the target copies
+the source. -/
+theorem VExpr.NestedExprExpansion.constLevelsAt {names : List Lean.Name}
+    {levels : List VLevel} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hleaf : ∀ {depth source target}, leaf depth source target →
+      VExpr.LevelLeaf names levels depth source target)
+    {depth : Nat} {source target : VExpr}
+    (H : VExpr.NestedExprExpansion leaf depth source target)
+    (hs : source.containsAnyConst names = false) :
+    target.ConstLevelsAt names levels := by
+  induction H with
+  | hit h => exact Hleaf h hs
+  | bvar | sort | elim => trivial
+  | const =>
+    intro hmem
+    simp only [VExpr.containsAnyConst] at hs
+    simp [hmem] at hs
+  | proj _ ih =>
+    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hs
+    exact ih hs.2
+  | app _ _ ihf iha | lam _ _ ihf iha | forallE _ _ ihf iha =>
+    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hs
+    exact ⟨ihf hs.1, iha hs.2⟩
+
 end Lean4Lean
