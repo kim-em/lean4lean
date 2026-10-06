@@ -357,3 +357,54 @@ Remaining for Part 2: the bridge from a registered native recursor
 induction-hypothesis binders). Integration into `NativePrefixProgram` (replacing the
 `Eq`-free proof selectors, which are ill typed for families such as the countermodel's)
 is coordinated with the confluence branch.
+
+## Part 3 design: the conversion-certificate calculus
+
+### What has to be certified
+
+From the pilot (3.3) and the K-evidence analysis: the strengthening phase is structural
+except where a premise compares two `q`-free terms whose types are not forced by the
+heads. These premises are (a) alignment checks of proof-major computation (K and
+singleton steps, quotient lifts at `Prop`), whose evidence originates in (b) the type
+agreement of proof-irrelevance leaves between independently typed proofs, which in
+turn requires (c) agreement of synthesized types of subterms (application domain
+against argument type, lambda domains in own mode). (c) is typing strengthening, which
+is equivalent to strengthening (each is derivable from the other with injectivity), so
+typing has to be certified as well: the calculus is a *synthesizing* certified typing
+together with certified conversion, as Astra recommends.
+
+### Judgements (all in one context `Δ`, mutually inductive)
+
+* `CTy Δ e A`: syntax-directed typing; `A` is synthesized from `e` and the context
+  (variables, constants with `instL`, `Π`/`λ`/application with certified domain
+  agreement `CEq Δ dom(T_f) T_a`, projections, eliminators). Every type that appears is
+  built from subterms of `e`, context entries and constant types.
+* `CStep Δ a a'`: one step of the full reduction with every typed premise replaced by a
+  certificate: beta; delta and native iota on constructor majors (their nonlinear
+  checks become `CEq` of subterms); proof-major computation with the `Eq`-cast
+  reconstruction of Part 2 (premise: certified alignment of the indices); quotient
+  lift at `Prop` via extraction; projection iota; function and structure eta expansion
+  whose domain and parameters are the *synthesized* ones (`CTy`).
+* `CNorm Δ a b`: deep normal equality: congruences, `≈` levels, proof irrelevance with a
+  certificate `CEq Δ T_a T_b` of the synthesized types, eta (`etaL`/`etaR`/`etaBoth`)
+  with synthesized domains, and *domain* premises of `λ`/`Π` given as `CNorm` (not full
+  judgements).
+* `CEq Δ a b := ∃ a' b', CStep* a a' ∧ CStep* b b' ∧ CNorm a' b'`.
+
+### Theorems
+
+1. Soundness: `CTy → HasType`, `CEq → IsDefEqU` (each rule is an `IsDefEq` instance;
+   the proof-major step uses `PropElim.singleton_eta`).
+2. Strengthening: every rule's premises and introduced terms are subterms, synthesized
+   types or `Eq`/extraction syntax built from them, all of which are lifts when the
+   conclusion's terms are; induction on the certificate.
+3. Completeness: `IsDefEq Δ a b A → CEq Δ a b` (and certified typing of both sides), by
+   induction on the declarative derivation. All cases are direct except transitivity,
+   which needs `CEq.trans`: confluence of `CStep` modulo `CNorm`, i.e. the strip lemma
+   restated with certificate premises and proved by induction on certificate size, so
+   that every premise rebuilt inside a peak comes from certified transitivity,
+   inversion and uniqueness applied to strictly smaller certificates.
+
+The mainline strip (`LevelledReduction`, decreasing diagrams over levels 0–3) is the
+template: its diagram analysis carries over verbatim; what changes is every place where
+a premise is produced, which must now produce a certificate.
