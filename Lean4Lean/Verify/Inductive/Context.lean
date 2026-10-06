@@ -2617,6 +2617,71 @@ theorem ContextWF.alignedBinder (Hc : ContextWF c)
     exact Hc.current_not_mem (Hc.check.embed.fvars_subset hmem)
   exact halign.consAligned hfresh hdeps (hdomC.of_l henv hscopeΓ hdomTyped)
 
+/-- Recursor-frame analogue of `ContextWF.alignedBinder`. -/
+theorem RecursorContextWF.alignedBinder (R : RecursorContextWF c recLparams)
+    (halign : VLCtx.IsDefEq R.venv recLparams.length scope R.chk.vlctx)
+    (Hdom : R.ConsumedDomain dom sourceDom consumedDom)
+    (Hdom₀ : R.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hdomNarrow : TrExprS R.venv recLparams scope dom narrowDom)
+    (hdomNarrowType : R.venv.IsType recLparams.length scope.toCtx narrowDom)
+    (hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars) :
+    VLCtx.IsDefEq R.venv recLparams.length
+      ((some (⟨c.ngen.curr⟩, dom.consumeTypeAnnotationsVerified.fvarsList),
+        .vlam narrowDom) :: scope)
+      (R.withCheckedLocalDecl (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx := by
+  have henv := R.checking.tr.wf
+  have hscopeΓ := halign.wf.toCtx
+  have hdomU := hdomNarrow.uniq henv halign Hdom₀.source
+  rcases Hdom₀.source_defeq with ⟨u₀, hsc₀⟩
+  have hsc₀' := hsc₀.defeqDFC henv.ordered (halign.defeqCtx.symm henv.ordered)
+  have hdomC : R.venv.IsDefEqU recLparams.length scope.toCtx
+      narrowDom consumedDom₀ :=
+    hdomU.trans henv hscopeΓ ⟨_, hsc₀'⟩
+  rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
+  have hfresh : (⟨c.ngen.curr⟩ : FVarId) ∉ scope.fvars := by
+    intro hmem
+    rw [halign.fvars] at hmem
+    exact R.current_not_mem (R.check.embed.fvars_subset hmem)
+  exact halign.consAligned hfresh hdeps (hdomC.of_l henv hscopeΓ hdomTyped)
+
+/-- The checker-context normal form of an opened body, read back in a scope
+aligned with the checker context: the scope translation of the source body
+is definitionally equal to it. -/
+theorem _root_.Lean4Lean.VLCtx.IsDefEq.openedNormalForm {env : VEnv} {Us : List Name}
+    {scope chk : VLCtx} (henv : env.WF)
+    (halign : VLCtx.IsDefEq env Us.length scope chk)
+    {indexType consumed₀ : VExpr} {u : VLevel}
+    (hindex : env.IsDefEq Us.length scope.toCtx indexType consumed₀ (.sort u))
+    (hfresh : ∀ fv deps, ofv = some (fv, deps) → fv ∉ scope.fvars ∧ deps ⊆ scope.fvars)
+    {body : Expr} {narrowBody consumedBody₀ : VExpr}
+    (hbodyNarrow : TrExprS env Us ((none, .vlam indexType) :: scope) body narrowBody)
+    (hbodyConsumed₀ : TrExprS env Us ((none, .vlam consumed₀) :: chk) body consumedBody₀)
+    {normalized : Expr} {normalizedC : VExpr}
+    (hnormalizedC : TrExprS env Us ((ofv, .vlam consumed₀) :: chk) normalized normalizedC)
+    (hnormalizedCEq : env.IsDefEqU Us.length (consumed₀ :: chk.toCtx)
+      normalizedC consumedBody₀) :
+    ∃ normalizedNarrow,
+      TrExprS env Us ((ofv, .vlam indexType) :: scope) normalized normalizedNarrow ∧
+      env.IsDefEqU Us.length (indexType :: scope.toCtx) narrowBody normalizedNarrow := by
+  have halign' : VLCtx.IsDefEq env Us.length ((ofv, .vlam indexType) :: scope)
+      ((ofv, .vlam consumed₀) :: chk) := .cons halign hfresh (.vlam hindex)
+  obtain ⟨normalizedNarrow, hnormalizedNarrow⟩ :=
+    hnormalizedC.defeqDFC henv (halign'.symm henv.ordered)
+  have hnn := hnormalizedNarrow.uniq henv halign' hnormalizedC
+  have hctxB : VLCtx.IsDefEq env Us.length ((none, .vlam indexType) :: scope)
+      ((none, .vlam consumed₀) :: chk) := .cons halign nofun (.vlam hindex)
+  have hbodyU := hbodyNarrow.uniq henv hctxB hbodyConsumed₀
+  have hnormC : env.IsDefEqU Us.length (indexType :: scope.toCtx)
+      normalizedC consumedBody₀ :=
+    hnormalizedCEq.defeqDFC henv.ordered (hctxB.symm henv.ordered).defeqCtx
+  have hΓ' : OnCtx (indexType :: scope.toCtx) (env.IsType Us.length) :=
+    ⟨halign.wf.toCtx, _, hindex.hasType.1⟩
+  have h1 : env.IsDefEqU Us.length (indexType :: scope.toCtx)
+      normalizedNarrow normalizedC := hnn
+  exact ⟨normalizedNarrow, hnormalizedNarrow,
+    hbodyU.trans henv hΓ' (hnormC.symm.trans henv hΓ' h1.symm)⟩
+
 /-- The checker context agrees with the main context, up to definitional
 equality of the recorded binder types. -/
 def ContextWF.Aligned (H : ContextWF c) : Prop :=

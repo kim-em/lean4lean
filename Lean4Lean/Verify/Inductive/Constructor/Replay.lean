@@ -1261,6 +1261,112 @@ theorem RecursorLaterParameterScope.olderLength
   rw [htotal, H.newerLength] at hparts
   omega
 
+theorem RecursorParameterContextSuffix.mlctx_length
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    R.mlctx.length = depth + stats.params.size := by
+  rw [← TypeChecker.MLCtx.vlctx_length, H.context, List.length_append,
+    H.prefixLength, H.parameterDecls_length]
+
+/-- The first `k` parameters are the bottom of the recursor context. -/
+theorem RecursorParameterContextSuffix.bottom
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) (k : Nat)
+    (hk : k ≤ stats.params.size) :
+    (R.mlctx.dropN (depth + (stats.params.size - k))
+        (by rw [H.mlctx_length]; omega)).vlctx =
+      H.parameterDecls.drop (stats.params.size - k) ∧
+    paramCheckFVars stats k =
+      (R.mlctx.dropN (depth + (stats.params.size - k))
+        (by rw [H.mlctx_length]; omega)).fvarList := by
+  have hvl : (R.mlctx.dropN (depth + (stats.params.size - k))
+      (by rw [H.mlctx_length]; omega)).vlctx =
+      H.parameterDecls.drop (stats.params.size - k) := by
+    rw [R.onlyLams.vlctx_dropN, H.context, List.drop_append, H.prefixLength]
+    rw [List.drop_eq_nil_of_le (by rw [H.prefixLength]; omega)]
+    simp
+  refine ⟨hvl, ?_⟩
+  rw [TypeChecker.MLCtx.fvarList_eq, hvl]
+  have hdrop : List.Forall₂ checkInductiveTypes.loopType.CachedParameterDecl
+      (stats.params.toList.reverse.drop (stats.params.size - k))
+      (H.parameterDecls.drop (stats.params.size - k)) :=
+    checkInductiveTypes.loopType.CachedParameterDecl.forall₂_drop _ H.cached
+  rw [checkInductiveTypes.loopType.CachedParameterDecl.forall₂_fvars hdrop,
+    ← List.map_reverse]
+  unfold paramCheckFVars
+  congr 1
+  rw [List.drop_reverse]
+  simp only [List.reverse_reverse]
+  congr 1
+  simp
+  omega
+
+theorem RecursorParameterContextSuffix.headerFVars
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    paramCheckFVars stats stats.params.size =
+      (R.mlctx.dropN depth H.depth_le).fvarList := by
+  have h := (H.bottom stats.params.size (Nat.le_refl _)).2
+  simp only [Nat.sub_self, Nat.add_zero] at h
+  exact h
+
+/-- The checker context of a recursor index telescope: the parameters. -/
+def RecursorParameterContextSuffix.headerCheck
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    RecursorContextWF (headerCheckContext c stats) recLparams :=
+  R.paramCheck stats stats.params.size depth H.depth_le H.headerFVars
+
+theorem RecursorParameterContextSuffix.headerCheck_chk_vlctx
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    H.headerCheck.chk.vlctx = H.parameterDecls := H.dropAmbient_vlctx
+
+/-- The same suffix over the header checker context. -/
+def RecursorParameterContextSuffix.toHeaderCheck
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    RecursorParameterContextSuffix H.headerCheck stats depth := { H with }
+
+theorem RecursorParameterContextSuffix.headerCheck_paramAligned
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : RecursorParameterContextSuffix R stats depth) :
+    VLCtx.IsDefEq R.venv recLparams.length H.parameterDecls
+      H.headerCheck.chk.vlctx := by
+  rw [H.headerCheck_chk_vlctx]
+  exact .refl R.checking.tr.wf H.parameterWF
+
+theorem RecursorLaterParameterScope.olderDrop
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : RecursorParameterContextSuffix R stats depth} {e : Expr}
+    (H : RecursorLaterParameterScope Hsuffix i e) (hi : i < stats.params.size) :
+    Hsuffix.parameterDecls.drop (stats.params.size - i) = H.older ∧
+    Hsuffix.parameterDecls.drop (stats.params.size - (i + 1)) =
+      (some (H.fv, H.deps), .vlam H.paramType) :: H.older := by
+  rw [H.parameterDecls]
+  have hn := H.newerLength
+  constructor
+  · rw [show stats.params.size - i = H.newer.length + 1 by omega, List.drop_append]
+    simp
+  · rw [show stats.params.size - (i + 1) = H.newer.length by omega, List.drop_append]
+    simp
+
 theorem RecursorLaterParameterScope.parameterDefEq
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
