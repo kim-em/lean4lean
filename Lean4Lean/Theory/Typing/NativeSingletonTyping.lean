@@ -733,3 +733,57 @@ theorem sort_agree (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) {A B : VExpr}
 end VEnv
 
 end Lean4Lean
+
+namespace Lean4Lean
+open VExpr VEnv
+
+namespace InductiveSignature
+
+/-- The first index that is literally the given field: the selector rule of
+`CaseSchema.ProjectionData.fieldIndex`. -/
+def fieldSlot (CI : List VExpr) (nF i : Nat) : Option Nat :=
+  (CI.zipIdx.find? fun (index, _) =>
+    match index with
+    | .bvar j => j == nF - 1 - i
+    | _ => false).map Prod.snd
+
+theorem fieldSlot_spec {CI : List VExpr} {nF i k : Nat} (h : fieldSlot CI nF i = some k) :
+    ∃ hk : k < CI.length, CI[k] = .bvar (nF - 1 - i) := by
+  simp only [fieldSlot, Option.map_eq_some_iff] at h
+  obtain ⟨⟨e, k'⟩, hf, rfl⟩ := h
+  have hmem := List.mem_of_find?_eq_some hf
+  have hp := List.find?_some hf
+  obtain ⟨hlt, he⟩ := List.getElem?_eq_some_iff.1 (List.mk_mem_zipIdx_iff_getElem?.1 hmem)
+  refine ⟨hlt, ?_⟩
+  rw [he]
+  cases e <;> simp_all
+
+namespace Instance
+variable {s : InductiveSignature} (g : Instance s)
+
+theorem hypothesis_shape (hfam : s.families.size = 1) (c : Constructor s.families.size)
+    (j : Nat) (hj : j < (g.sHyps c).length) (args : List VExpr) (M : VExpr)
+    (hlen : args.length = s.params.length + 1 + (g.sFields c).length + j)
+    (hM : args[s.params.length]? = some (M.liftN (g.sFields c).length)) :
+    ∃ B xs, ((g.sHyps c)[j]).instOuter args =
+      VExpr.wrapForalls B (VExpr.mkApps (M.liftN ((g.sFields c).length + B.length)) xs) := by
+  have hnf : (g.sFields c).length = c.fields.length := by simp [sFields, fieldTypes]
+  have hj' : j < (recursiveFields c).length := by simpa [sHyps] using hj
+  simp only [sHyps, List.getElem_map, List.getElem_zipIdx, Nat.zero_add, hypothesis]
+  rw [VExpr.instOuter_eq_subst, subst_wrapForalls, VExpr.subst_mkApps]
+  refine ⟨_, _, congrArg (VExpr.wrapForalls _) (congrArg (fun f => VExpr.mkApps f _) ?_)⟩
+  simp only [VExpr.subst_bvar, VExpr.Subst.liftN_apply, List.length_mapIdx]
+  have hpos : s.families.size - 1 - (recursiveFields c)[j].2.target.val = 0 := by
+    have := (recursiveFields c)[j].2.target.isLt; omega
+  simp only [hpos, Nat.add_zero, List.length_map, List.length_zipIdx]
+  rw [if_neg (by omega), show c.fields.length + j + (recursiveFields c)[j].2.binders.length -
+    (recursiveFields c)[j].2.binders.length = c.fields.length + j by omega,
+    VExpr.Subst.ofList_lt _ (by omega)]
+  have hidx : args.length - 1 - (c.fields.length + j) = s.params.length := by omega
+  simp only [hidx]
+  rw [List.getElem?_eq_getElem (by omega), Option.some.injEq] at hM
+  rw [hM, hnf, VExpr.liftN_liftN]
+
+end Instance
+end InductiveSignature
+end Lean4Lean
