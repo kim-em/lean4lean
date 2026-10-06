@@ -143,4 +143,80 @@ theorem Expr.levelParamsIn_mkAppRevList {e : Expr} {args : List Expr}
   | cons a args ih =>
     simp only [Expr.mkAppRevList, Expr.levelParamsIn, Bool.and_eq_true]
     exact ⟨ih (fun a h => ha a (by simp [h])), ha a (by simp)⟩
+
+theorem Expr.levelParamsIn_mkAppRevList_iff {e : Expr} {args : List Expr} :
+    (e.mkAppRevList args).levelParamsIn params = true ↔
+      e.levelParamsIn params = true ∧ ∀ a ∈ args, a.levelParamsIn params = true := by
+  induction args <;> simp_all [Expr.mkAppRevList, Expr.levelParamsIn, and_comm, and_left_comm]
+
+theorem Expr.levelParamsIn_mkAppList_iff {e : Expr} {args : List Expr} :
+    (e.mkAppList args).levelParamsIn params = true ↔
+      e.levelParamsIn params = true ∧ ∀ a ∈ args, a.levelParamsIn params = true := by
+  simp [← Expr.mkAppRevList_reverse, Expr.levelParamsIn_mkAppRevList_iff]
+
+theorem Expr.levelParamsIn_mkAppList {e : Expr} {args : List Expr}
+    (he : e.levelParamsIn params = true) (ha : ∀ a ∈ args, a.levelParamsIn params = true) :
+    (e.mkAppList args).levelParamsIn params = true :=
+  Expr.levelParamsIn_mkAppList_iff.2 ⟨he, ha⟩
+
+theorem Expr.levelParamsIn_of_mem_getAppArgsList {e a : Expr}
+    (he : e.levelParamsIn params = true) (ha : a ∈ e.getAppArgsList) :
+    a.levelParamsIn params = true := by
+  rw [← e.mkAppList_getAppArgsList, Expr.levelParamsIn_mkAppList_iff] at he
+  exact he.2 a ha
+
+theorem Expr.levelParamsIn_of_mem_getAppArgs {e a : Expr}
+    (he : e.levelParamsIn params = true) (ha : a ∈ e.getAppArgs) :
+    a.levelParamsIn params = true :=
+  Expr.levelParamsIn_of_mem_getAppArgsList he (by
+    rw [← Expr.getAppArgs_toList]; exact Array.mem_toList_iff.2 ha)
+
+theorem Expr.levelParamsIn_getElem!_of_forall {args : Array Expr}
+    (ha : ∀ a ∈ args, a.levelParamsIn params = true) (i : Nat) :
+    (args[i]!).levelParamsIn params = true := by
+  by_cases h : i < args.size
+  · rw [getElem!_pos args i h]; exact ha _ (Array.getElem_mem h)
+  · rw [getElem!_neg args i h]; rfl
+
+open private mkAppRangeAux from Lean.Expr in
+theorem Expr.levelParamsIn_mkAppRange {f : Expr} {args : Array Expr}
+    (hf : f.levelParamsIn params = true) (ha : ∀ a ∈ args, a.levelParamsIn params = true) :
+    (mkAppRange f i j args).levelParamsIn params = true := by
+  unfold mkAppRange
+  suffices ∀ k i f, j - i = k → f.levelParamsIn params = true →
+      (mkAppRangeAux j args i f).levelParamsIn params = true from this _ _ _ rfl hf
+  intro k; induction k with
+  | zero => intro i f h hf; rw [mkAppRangeAux.eq_def]; split <;> [omega; exact hf]
+  | succ k ih =>
+    intro i f h hf; rw [mkAppRangeAux.eq_def]; split <;> [skip; exact hf]
+    refine ih _ _ (by omega) ?_
+    simp [mkApp, Expr.levelParamsIn, hf, Expr.levelParamsIn_getElem!_of_forall ha]
+
+theorem Expr.levelParamsIn_natLitToConstructor :
+    (Expr.natLitToConstructor n).levelParamsIn params = true := by
+  cases n <;> simp [Expr.natLitToConstructor, Expr.natZero, Expr.natSucc, Expr.levelParamsIn]
+
+theorem Expr.levelParamsIn_strLitToConstructor :
+    (Expr.strLitToConstructor s).levelParamsIn params = true := by
+  simp [Expr.strLitToConstructor, Expr.levelParamsIn]
+  induction s.toList <;> simp [*, Expr.levelParamsIn, Level.paramsIn]
+
+@[simp] theorem Expr.levelParamsIn_lowerLooseBVars (e : Expr) (k n : Nat) :
+    (e.lowerLooseBVars' k n).levelParamsIn params = e.levelParamsIn params := by
+  induction e generalizing k <;> simp only [lowerLooseBVars'] <;> (try split) <;>
+    simp [levelParamsIn, *]
+
+theorem Level.paramsIn_foldl_mkIMax {us : List Level}
+    (hus : ∀ u ∈ us, u.paramsIn params = true) (hs : s.paramsIn params = true) :
+    (us.foldl (fun x y => mkLevelIMax' y x) s).paramsIn params = true := by
+  induction us generalizing s with
+  | nil => exact hs
+  | cons u us ih =>
+    exact ih (fun v h => hus v (.tail _ h)) (Level.paramsIn_mkIMax (hus u (.head _)) hs)
+
+theorem Expr.levelParamsIn_eqv {e₁ e₂ : Expr} (h : e₁ == e₂) :
+    e₁.levelParamsIn params = e₂.levelParamsIn params := by
+  simp [(· == ·)] at h
+  induction e₁ generalizing e₂ <;> (cases e₂ <;> try change false = _ at h; cases h)
+  all_goals simp [Expr.eqv'] at h; simp [Expr.levelParamsIn] <;> grind
 end Lean

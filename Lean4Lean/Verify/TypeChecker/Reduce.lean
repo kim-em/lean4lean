@@ -26,12 +26,15 @@ def reduceBinNatOpG (guard : Nat → Nat → Prop) [DecidableRel guard]
   if guard v1 v2 then return none
   return some <| .lit <| .natVal <| f v1 v2
 
-theorem reduceBinNatOpG.WF {guard} [DecidableRel guard] {c : VContext}
+/-- `reduceBinNatOpG.WF`, also recording that the result is a literal (so mentions no universe
+parameters). -/
+theorem reduceBinNatOpG.WF_all {guard} [DecidableRel guard] {c : VContext}
     (he : c.TrExprS (.app (.app (.const fc ls) a) b) e')
     (hprim : Environment.primitives.contains fc)
     (heval : c.venv.ReflectsNatNatNat fc f) :
     RecM.WF c s (reduceBinNatOpG guard f a b) fun oe _ => ∀ e₁, oe = some e₁ →
-      c.FVarsBelow (.app (.app (.const fc ls) a) b) e₁ ∧ c.TrExpr e₁ e' := by
+      (c.FVarsBelow (.app (.app (.const fc ls) a) b) e₁ ∧ c.TrExpr e₁ e') ∧
+      ∀ Us, e₁.levelParamsIn Us = true := by
   let .app hb1 hb2 hf hb := he
   let .app ha1 ha2 hf ha := hf
   let .const h1 h2 h3 := hf
@@ -43,7 +46,7 @@ theorem reduceBinNatOpG.WF {guard} [DecidableRel guard] {c : VContext}
   split <;> [rename_i v2 h; exact .pure nofun]
   cases (rawNatLitExt?.WF h b2).2
   split <;> [exact .pure nofun; rename_i h]
-  refine .pure ?_; rintro _ ⟨⟩; refine ⟨fun _ _ _ => trivial, ?_⟩
+  refine .pure ?_; rintro _ ⟨⟩; refine ⟨⟨fun _ _ _ => trivial, ?_⟩, fun _ => rfl⟩
   have ⟨ci, c1, _⟩ := c.trenv.find?_iff.2 ⟨_, h1⟩
   have ⟨_, c3⟩ := c.safePrimitives c1 hprim
   have ⟨_, d1, d2, d3⟩ := c.trenv.find?_uniq c1 h1
@@ -57,12 +60,23 @@ theorem reduceBinNatOpG.WF {guard} [DecidableRel guard] {c : VContext}
   have := ha1.appDF a3 |>.toU.of_r c.Ewf c.Δwf hb1
   exact ⟨_, .appDF this b3⟩
 
-theorem reduceBinNatPred.WF {c : VContext}
+theorem reduceBinNatOpG.WF {guard} [DecidableRel guard] {c : VContext}
+    (he : c.TrExprS (.app (.app (.const fc ls) a) b) e')
+    (hprim : Environment.primitives.contains fc)
+    (heval : c.venv.ReflectsNatNatNat fc f) :
+    RecM.WF c s (reduceBinNatOpG guard f a b) fun oe _ => ∀ e₁, oe = some e₁ →
+      c.FVarsBelow (.app (.app (.const fc ls) a) b) e₁ ∧ c.TrExpr e₁ e' :=
+  (reduceBinNatOpG.WF_all he hprim heval).mono fun _ _ _ H e₁ h => (H e₁ h).1
+
+/-- `reduceBinNatPred.WF`, also recording that the result is a `Bool` constant (so mentions no
+universe parameters). -/
+theorem reduceBinNatPred.WF_all {c : VContext}
     (he : c.TrExprS (.app (.app (.const fc ls) a) b) e')
     (hprim : Environment.primitives.contains fc)
     (heval : c.venv.ReflectsNatNatBool fc f) :
     RecM.WF c s (reduceBinNatPred f a b) fun oe _ => ∀ e₁, oe = some e₁ →
-      c.FVarsBelow (.app (.app (.const fc ls) a) b) e₁ ∧ c.TrExpr e₁ e' := by
+      (c.FVarsBelow (.app (.app (.const fc ls) a) b) e₁ ∧ c.TrExpr e₁ e') ∧
+      ∀ Us, e₁.levelParamsIn Us = true := by
   let .app hb1 hb2 hf hb := he
   let .app ha1 ha2 hf ha := hf
   let .const h1 h2 h3 := hf
@@ -71,7 +85,8 @@ theorem reduceBinNatPred.WF {c : VContext}
   split <;> [rename_i v1 h; exact .pure nofun]; cases (rawNatLitExt?.WF h a2).2
   refine (whnf.WF hb).bind fun b₁ _ _ ⟨b1, _, b2, b3⟩ => ?_
   split <;> [rename_i v2 h; exact .pure nofun]; cases (rawNatLitExt?.WF h b2).2
-  refine .pure ?_; rintro _ ⟨⟩; refine ⟨fun _ _ _ => .boolLit, ?_⟩
+  refine .pure ?_; rintro _ ⟨⟩
+  refine ⟨⟨fun _ _ _ => .boolLit, ?_⟩, fun _ => by cases f _ _ <;> rfl⟩
   have ⟨ci, c1, _⟩ := c.trenv.find?_iff.2 ⟨_, h1⟩
   have ⟨_, c3⟩ := c.safePrimitives c1 hprim
   have ⟨_, d1, d2, d3⟩ := c.trenv.find?_uniq c1 h1
@@ -87,9 +102,11 @@ theorem reduceBinNatPred.WF {c : VContext}
   have := ha1.appDF a3 |>.toU.of_r c.Ewf c.Δwf hb1
   exact  ⟨_, .appDF this b3⟩
 
-theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
+/-- `reduceNat.WF`, also recording that the result is a literal or a `Bool` constant (so mentions
+no universe parameters). -/
+theorem reduceNat.WF_all {c : VContext} (he : c.TrExprS e e') :
     RecM.WF c s (reduceNat e) fun oe _ => ∀ e₁, oe = some e₁ →
-      c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+      (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ ∀ Us, e₁.levelParamsIn Us = true := by
   generalize hP : (fun oe => _) = P
   refine let prims := _; have hprims : Environment.primitives = .ofList prims := rfl; ?_
   replace hprims {a} : Environment.primitives.contains a ↔ a ∈ prims := by
@@ -103,13 +120,13 @@ theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
         RecM.WF c s (do if f == fc then {return ← reduceBinNatOpG guard g a b}; G) P := by
       split <;> [rename_i h; exact hG]
       simp at h ⊢; subst h
-      exact hP ▸ reduceBinNatOpG.WF he (hprims.2 hprim) heval
+      exact hP ▸ reduceBinNatOpG.WF_all he (hprims.2 hprim) heval
     have hpred {g fc G} (hprim : fc ∈ prims)
         (heval : c.venv.ReflectsNatNatBool fc g) (hG : RecM.WF c s G P) :
         RecM.WF c s (do if f == fc then {return ← reduceBinNatPred g a b}; G) P := by
       split <;> [rename_i h; exact hG]
       simp at h ⊢; subst h
-      exact hP ▸ reduceBinNatPred.WF he (hprims.2 hprim) heval
+      exact hP ▸ reduceBinNatPred.WF_all he (hprims.2 hprim) heval
     apply hfun (fun _ _ => False) (by simp [prims]) c.hasPrimitives.natAdd
     apply hfun (fun _ _ => False) (by simp [prims]) c.hasPrimitives.natSub
     apply hfun (fun _ _ => False) (by simp [prims]) c.hasPrimitives.natMul
@@ -133,13 +150,18 @@ theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
     refine (whnf.WF ha).bind fun a₁ _ _ ⟨a1, _, a2, a3⟩ => ?_
     split <;> [rename_i n h; exact hP ▸ .pure nofun]
     obtain ⟨hn, rfl⟩ := rawNatLitExt?.WF h a2
-    refine hP ▸ .pure ?_; rintro _ ⟨⟩; refine ⟨fun _ _ _ => trivial, ?_⟩
+    refine hP ▸ .pure ?_; rintro _ ⟨⟩; refine ⟨⟨fun _ _ _ => trivial, ?_⟩, fun _ => rfl⟩
     have ⟨ci, c1, _⟩ := c.trenv.find?_iff.2 ⟨_, h1⟩
     have ⟨c2, c3⟩ := c.safePrimitives c1 <| hprims.2 (by simp [prims])
     have ⟨d1, d2, d3⟩ := c.trenv.find?_uniq c1 h1; cases h2
     refine have ⟨p1, p2⟩ := TrExprS.natLit c.hasPrimitives hn _; ⟨_, p1, ?_⟩
     refine p2.toU.symm.trans c.Ewf c.Δwf ?_
     exact ⟨_, ha1.appDF <| a3.of_r c.Ewf c.Δwf ha2⟩
+
+theorem reduceNat.WF {c : VContext} (he : c.TrExprS e e') :
+    RecM.WF c s (reduceNat e) fun oe _ => ∀ e₁, oe = some e₁ →
+      c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
+  (reduceNat.WF_all he).mono fun _ _ _ H e₁ h => (H e₁ h).1
 
 theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
     (hproj : c.HasType (.proj n i c') F) :
@@ -239,3 +261,45 @@ theorem reduceProj.WF (he : c.TrExprS (.proj n i e) e') :
   have ⟨_, b1, b2⟩ := h2.proj c.Ewf c.Δwf a2
   refine (reduceProjCore.WF b1).mono fun _ _ _ H _ eq => ?_
   have ⟨c1, c2⟩ := H _ eq; exact ⟨h1.trans c1, c2.defeq c.Ewf c.Δwf b2⟩
+
+/-! ### Universe-parameter support of projection reduction -/
+
+theorem reduceProjCoreCont.WF_levels {c : VContext} {s : VState} :
+    RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
+      ∀ e₁, oe = some e₁ → ∀ Us, c₁.levelParamsIn Us = true → e₁.levelParamsIn Us = true := by
+  unfold reduceProjCoreCont
+  rw [Expr.withApp_eq]
+  split <;> [skip; exact .pure nofun]
+  refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ _ => ?_
+  split <;> [skip; exact .pure nofun]
+  split <;> [skip; exact .pure nofun]
+  split <;> [skip; exact .pure nofun]
+  split <;> [skip; exact .pure nofun]
+  split <;> [skip; exact .pure nofun]
+  split <;> [skip; exact .pure nofun]
+  exact .pure fun e₁ heq Us h =>
+    Expr.levelParamsIn_of_mem_getAppArgs h (Array.mem_of_getElem? heq)
+
+theorem reduceProjCore.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (reduceProjCore n i e) fun oe _ => ∀ e₁, oe = some e₁ → c.LevelsBelow e e₁ := by
+  unfold reduceProjCore
+  extract_lets jp
+  split
+  · have .lit _ hlit := he
+    exact (whnf.WF_levels hlit).bind fun c₁ _ _ h1 =>
+      reduceProjCoreCont.WF_levels.mono fun _ _ _ H e₁ heq Us P hs _ _ =>
+        H e₁ heq Us (h1 Us P hs Expr.levelParamsIn_strLitToConstructor
+          FVarsIn.strLitToConstructor)
+  · exact (RecM.WF.pure (Q := fun c₁ _ => c₁ = e) rfl).bind fun c₁ _ _ h =>
+      h ▸ reduceProjCoreCont.WF_levels.mono fun _ _ _ H e₁ heq Us _ _ hl _ => H e₁ heq Us hl
+
+theorem reduceProj.WF_levels {c : VContext} {s : VState} (he : c.TrExprS (.proj n i e) e') :
+    RecM.WF c s (reduceProj n i e cheapProj) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.LevelsBelow (.proj n i e) e₁ := by
+  unfold reduceProj
+  have .proj (e' := s) a1 _ := he
+  refine .bind (Q := fun e₁ _ => c.FVarsBelow e e₁ ∧ c.LevelsBelow e e₁ ∧ c.TrExpr e₁ s) ?_
+    fun _ _ _ ⟨h1, h2, _, h3, _⟩ => ?_
+  · split <;> [exact whnfCore.WF_below a1; exact whnf.WF_below a1]
+  exact (reduceProjCore.WF_levels h3).mono fun _ _ _ H _ eq Us P hs hl hP =>
+    H _ eq Us P hs (h2 Us P hs hl hP) (h1 P hs.1 hP)
