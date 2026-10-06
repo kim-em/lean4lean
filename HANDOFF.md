@@ -16,6 +16,14 @@ countermodel is parked at its conditional theorem; the Experimental CI
 failure is to be fixed properly as part of porting Mario's prototype. Open
 proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
 
+Specification fix (2026-10-06, D10 in `docs/inductives/PHASE1_NOTES.md`):
+`VEnv.WF'.inductEliminators` now requires `schema.StructCompat env` (the
+schema has exactly the registered constructor of every registered structure
+among its original families). Without it a schema could add constructors to
+a registered structure and structure eta derived `Prop ≡ (Prop → Prop)`.
+The premise is proved at its producers, and `VEnv.WF.schemaStructCompat`
+gives the global invariant `SchemaStructCompat env`.
+
 ## Intended result
 
 Finish the executable Lean4Lean inductive checker's refinement of an

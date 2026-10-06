@@ -63,7 +63,7 @@ theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hleft hright
     exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+  | inductEliminators _ _ _ _ _ _ hfresh _ _ ih =>
     rcases hleft with ⟨rfl, rfl⟩ | hleft
     · rcases hright with ⟨_, rfl⟩ | hright
       · rfl
@@ -83,7 +83,7 @@ theorem VEnv.WF.eliminators_originalFamilies_nodup (H : VEnv.WF env)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
     exact ih hlookup
-  | inductEliminators _ _ _ hformed _ _ _ _ ih =>
+  | inductEliminators _ _ _ hformed _ _ _ _ _ ih =>
     rcases hlookup with ⟨_, rfl⟩ | hlookup
     · exact hformed.originalFamilies_nodup
     · exact ih hlookup
@@ -103,7 +103,7 @@ theorem VEnv.WF.eliminators_owner_unique (H : VEnv.WF env)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hleft hright
     exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+  | inductEliminators _ _ _ _ _ _ hfresh _ _ ih =>
     rcases hleft with ⟨rfl, rfl⟩ | hleft
     · rcases hright with ⟨rfl, rfl⟩ | hright
       · exact ⟨rfl, rfl⟩
@@ -195,7 +195,7 @@ theorem VEnv.WF.ordered : WF env → Ordered env
   | ⟨ds, H⟩ => by
     induction H with
     | empty => exact .empty
-    | inductEliminators _ _ _ _ _ _ _ _ ih => exact .eliminator ih
+    | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact .eliminator ih
     | decl h _ ih =>
       cases h with
       | «axiom» h1 h2 => exact .const ih h1 h2
