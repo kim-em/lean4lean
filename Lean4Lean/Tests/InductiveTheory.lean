@@ -231,8 +231,7 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
   refine ⟨enumSignature, enumInstance, enumTypesEnv, ?_, hadd, ?_, ?_, ?_, rfl, rfl⟩
   · refine ⟨rfl, rfl, rfl, ?_, ?_, Or.inr ?_, ?_⟩
     · change List.Forall₂ _ [enumType] [enumType]
-      refine .cons ⟨rfl, rfl, rfl, (by rfl), ?_, rfl⟩ .nil
-      exact ⟨_, .sortDF (by trivial) (by trivial) rfl⟩
+      exact .cons ⟨rfl, rfl, rfl, (by rfl), rfl⟩ .nil
     · refine ⟨enumTypesEnv, hadd, ?_⟩
       change List.Forall₂ _ [enumCtor] [enumCtor]
       refine .cons ⟨rfl, rfl, ?_⟩ .nil
@@ -247,15 +246,28 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       subst ctor
       rfl
   · exact ⟨rfl, nofun, by trivial, Or.inr (Or.inl (by rfl))⟩
-  · refine ⟨enumCtorsEnv, ?_, ?_⟩
+  · refine ⟨enumCtorsEnv, ?_, ?_, ?_⟩
     · simp [enumDecl, enumType, enumCtor, enumTypesEnv, enumCtorsEnv,
         VInductDecl.constructorConstants, VEnv.addConstVals, VEnv.addConst]
-    intro index j hj
-    rcases index with ⟨_ | k, hk⟩
-    · have h0 : (InductiveSignature.Instance.recursiveFields
-          enumSignature.constructors[(⟨0, hk⟩ : Fin enumSignature.constructors.size)]).length = 0 := rfl
-      omega
-    · simp [enumSignature] at hk
+    · intro index j hj
+      rcases index with ⟨_ | k, hk⟩
+      · have h0 : (InductiveSignature.Instance.recursiveFields
+            enumSignature.constructors[(⟨0, hk⟩ : Fin enumSignature.constructors.size)]).length = 0 := rfl
+        omega
+      · simp [enumSignature] at hk
+    · -- The family has no parameters or indices: `Enum0 : Sort 1`.
+      intro owner
+      have h : owner = (⟨0, by decide⟩ : Fin enumSignature.families.size) := by
+        apply Fin.ext
+        have hi : owner.val < 1 := owner.isLt
+        change owner.val = 0
+        omega
+      subst owner
+      refine ⟨trivial, ?_⟩
+      change (enumCtorsEnv.addProjections enumDecl.projectionEntries).HasType 0 []
+        (.const `Enum0 []) (.sort (.succ .zero))
+      exact .constDF (ci := enumType.toVConstant)
+        (by simp [enumCtorsEnv, enumTypesEnv, VEnv.addProjections_constants]) nofun nofun rfl .nil
   · intro owner
     have h : owner = (⟨0, by decide⟩ : Fin enumSignature.families.size) := by
       apply Fin.ext

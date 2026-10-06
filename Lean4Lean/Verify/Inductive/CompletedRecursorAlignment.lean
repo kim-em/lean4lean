@@ -152,40 +152,12 @@ telescope determines the number of indices. -/
 theorem CompletedRecursorPhasesResult.normalizedIndexArity
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (_H : CompletedRecursorPhasesResult R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
     (index : Fin s.constructors.size) :
     s.constructors[index].indices.length =
-      s.families[s.constructors[index].owner].indices.length := by
-  have henv := H.outVEnvWF
-  rcases hm.family s.constructors[index].owner with
-    ⟨family, hfamily, hfname, hfuvars, hfindex, hflevel, hftype, hfctors⟩
-  rcases hm.constructor index R.core.typesAdded with
-    ⟨ctor, hctor, hcname, hcuvars, hctype⟩
-  have hlookupC := H.constructorConstant ctor hctor
-  have hctypeWF : H.outVEnv.IsType s.uvars [] ctor.type := by
-    simpa only [VConstant.WF, ← hcuvars] using henv.ordered.constWF hlookupC
-  have hnormalWF : H.outVEnv.IsType s.uvars [] (s.constructorType s.constructors[index]) :=
-    hctypeWF.defeqU_l henv (by trivial)
-      (by simpa only [← hm.uvars] using hctype.symm.mono H.headerLE)
-  rcases VEnv.IsType.wrapForalls_inv henv (by trivial) hnormalWF with ⟨hctx, level, hresult⟩
-  have hlookupF := H.familyConstant family hfamily
-  have hfamilyFn := VEnv.HasType.const0 hlookupF (henv.ordered.constWF hlookupF)
-  change H.outVEnv.HasType family.uvars []
-    (.const family.name (VLevel.params family.uvars)) family.type at hfamilyFn
-  have hfamilyFn' : H.outVEnv.HasType s.uvars []
-      (.const s.families[s.constructors[index].owner].name (VLevel.params s.uvars))
-      family.type := by
-    simpa only [← hfuvars, hfname] using hfamilyFn
-  have hnormalFn : H.outVEnv.HasType s.uvars []
-      (.const s.families[s.constructors[index].owner].name (VLevel.params s.uvars))
-      (VExpr.wrapForalls (s.params ++ s.families[s.constructors[index].owner].indices)
-        (.sort s.families[s.constructors[index].owner].resultLevel)) :=
-    hfamilyFn'.defeqU_r henv (by trivial)
-      (by simpa only [← hm.uvars] using hftype.symm.mono H.sourceLE)
-  have hlength := VEnv.HasType.mkApps_sort_arity henv hctx
-    (hnormalFn.weak0 henv.ordered) hresult
-  simpa [InductiveSignature.familyApp, InductiveSignature.vars] using hlength
+      s.families[s.constructors[index].owner].indices.length :=
+  hm.constructorArity _ (by simp)
 
 theorem CompletedRecursorPhasesResult.rawConstructorShape
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
@@ -198,7 +170,7 @@ theorem CompletedRecursorPhasesResult.rawConstructorShape
       s.families[s.constructors[index].owner].name) := by
   have hnames := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
   rcases hm.family s.constructors[index].owner with
-    ⟨family, hfamily, hfname, hfuvars, hfindex, hflevel, hftype, hfctors⟩
+    ⟨family, hfamily, hfname, hfuvars, hfindex, hflevel, hfctors⟩
   rcases hm.constructorInFamily hnames index R.core.typesAdded hfamily hfctors with
     ⟨ctor, hctor, hcname, hcuvars, hctype⟩
   have hcMem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨family, hfamily, hctor⟩
@@ -318,8 +290,11 @@ theorem CompletedRecursorPhasesResult.majorOfRealization
   rcases H.familyInfo family hfamily with ⟨info, hinfo, _⟩
   exact ⟨info, by simpa only [hr.major, hname] using hinfo⟩
 
-/-- K uses the shared normalized parameter telescope. The stored source
-header and constructor need only be definitionally equal to those types. -/
+/-- K alignment is read off source formation: the family header's
+`TypeShape` exposes its parameter and index telescope ending in the recorded
+sort (which is `Prop` by the K condition and the model's result level), the
+constructor's raw parameter prefix comes from `CtorParameterShape`, and both
+parameter telescopes agree with the common one (`ParamsDefEq`). -/
 theorem CompletedRecursorPhasesResult.kOfRealization
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -329,7 +304,7 @@ theorem CompletedRecursorPhasesResult.kOfRealization
     (hr : InductiveSignature.RecursorRealization g H.outVEnv owner rec) :
     KLikeRecursor outEnv.constants (H.outVEnv.addDefEqRules g.equations) rec := by
   intro hk
-  rcases hr.k hk with ⟨hfamilies, hctors, hzero, hfields⟩
+  rcases hr.k hk with ⟨hfamilies, hctors, hzero, _⟩
   let index : Fin s.constructors.size := ⟨0, by omega⟩
   have howner : s.constructors[index].owner = owner := by
     apply Fin.eq_of_val_eq
@@ -343,10 +318,8 @@ theorem CompletedRecursorPhasesResult.kOfRealization
       have heq : i = 0 := by simpa using hi'
       subst i
       rfl
-  have hfield : s.constructors[index].fields = [] :=
-    hfields _ (List.getElem_mem (l := s.constructors.toList) index.isLt)
   rcases hm.family owner with
-    ⟨family, hfamily, hfname, hfuvars, hfindex, hflevel, hftype, hfctors⟩
+    ⟨family, hfamily, hfname, hfuvars, hfindex, hflevel, hfctors⟩
   have hsingle : (s.declarationFamily owner).ctors.map VConstVal.name =
       [s.constructors[index].name] := by
     have hownerVal : s.constructors[index].owner.val = owner.val := congrArg Fin.val howner
@@ -364,42 +337,68 @@ theorem CompletedRecursorPhasesResult.kOfRealization
     have henv := H.outVEnvWF
     have hlookupF := H.familyConstant family hfamily
     have hlookupC := H.constructorConstant ctor (List.mem_flatMap.mpr ⟨family, hfamily, hctor⟩)
-    have hfamilyWF : H.outVEnv.IsType s.uvars [] family.type := by
-      simpa only [VConstant.WF, ← hfuvars] using henv.ordered.constWF hlookupF
-    have hnormalized : H.outVEnv.IsDefEqU s.uvars [] family.type
-        (VExpr.wrapForalls (s.params ++ s.families[owner].indices)
-          (.sort s.families[owner].resultLevel)) := by
-      simpa only [← hm.uvars] using hftype.symm.mono H.sourceLE
-    have hnormalizedWF := hfamilyWF.defeqU_l henv (by trivial) hnormalized
-    rcases VEnv.IsType.wrapForalls_inv henv (by trivial) hnormalizedWF with ⟨hctx, hbodyWF⟩
-    have hsort : H.outVEnv.IsDefEq s.uvars
-        ((s.params ++ s.families[owner].indices).reverse ++ [])
-        (.sort s.families[owner].resultLevel) (.sort .zero)
-        (.sort (.succ s.families[owner].resultLevel)) :=
-      .sortDF (hbodyWF.sort_inv henv.ordered) trivial hzero
-    rcases VExpr.wrapForalls_defeq hctx hsort with ⟨sortLevel, hwrapped⟩
-    have hprop : H.outVEnv.IsDefEqU s.uvars [] family.type
-        (VExpr.wrapForalls (s.params ++ s.families[owner].indices) (.sort .zero)) :=
-      hnormalized.trans henv (by trivial) ⟨.sort sortLevel, hwrapped⟩
-    let ctorBody := s.familyApp s.constructors[index].owner (VLevel.params s.uvars)
-      (InductiveSignature.vars s.params.length 0) s.constructors[index].indices
-    have hctorEq : H.outVEnv.IsDefEqU s.uvars [] ctor.type
-        (VExpr.wrapForalls s.params ctorBody) := by
-      simpa only [← hm.uvars, InductiveSignature.constructorType, InductiveSignature.fieldTypes,
-        hfield, List.zipIdx_nil, List.map_nil, List.append_nil, List.length_nil] using
-        hctype.symm.mono H.headerLE
-    refine ⟨s.uvars, family.type, ctor.type, s.params ++ s.families[owner].indices,
-      s.params, ctorBody, ?_, hprop, ?_, ?_, hctorEq, ?_, ?_⟩
-    · change H.outVEnv.constants rec.getMajorInduct = some ⟨s.uvars, family.type⟩
-      simpa only [hr.major, hfname, hfuvars] using hlookupF
-    · rw [hr.numParams, hr.numIndices, List.length_append]
-    · change H.outVEnv.constants s.constructors[index].name = some ⟨s.uvars, ctor.type⟩
-      simpa only [hcname, hcuvars] using hlookupC
-    · exact hr.numParams.symm
+    have hfamilyWF : H.outVEnv.IsType decl.uvars [] family.type := by
+      simpa only [VConstant.WF, ← hfuvars, hm.uvars] using henv.ordered.constWF hlookupF
+    have hctorWF : H.outVEnv.IsType decl.uvars [] ctor.type := by
+      simpa only [VConstant.WF, ← hcuvars, hm.uvars] using henv.ordered.constWF hlookupC
+    -- The header and constructor shapes come from source formation.
+    obtain ⟨params, envTypes', htypes', Htypes, Hctors, _⟩ :=
+      R.formation.formationWF.sourceParameterWF
+    have hEnvTypes : envTypes' = R.headerVEnv :=
+      Option.some.inj (htypes'.symm.trans R.core.typesAdded)
+    subst hEnvTypes
+    obtain ⟨normalized, ownParams, afterParams, indices, result, exprType,
+      hnorm, htakeP, htakeI, hPD, hres⟩ := Htypes family hfamily
+    obtain ⟨ownParamsC, tail, htakeC, hPDC⟩ := Hctors family hfamily ctor hctor
+    obtain ⟨hnormEq, hPlen⟩ := VExpr.takeForalls_rebuild htakeP
+    obtain ⟨hafterEq, hIlen⟩ := VExpr.takeForalls_rebuild htakeI
+    obtain ⟨hctorShape, hClen⟩ := VExpr.takeForalls_rebuild htakeC
+    have hnorm' : H.outVEnv.IsDefEq decl.uvars [] family.type
+        (VExpr.wrapForalls (ownParams ++ indices) result) exprType := by
+      rw [VExpr.wrapForalls_append, ← hafterEq, ← hnormEq]
+      exact hnorm.mono H.sourceLE
+    have hnormalizedWF : H.outVEnv.IsType decl.uvars []
+        (VExpr.wrapForalls (ownParams ++ indices) result) :=
+      hfamilyWF.defeqU_l henv (by trivial) ⟨_, hnorm'⟩
+    rcases VEnv.IsType.wrapForalls_inv henv (by trivial) hnormalizedWF with ⟨hctx, _⟩
+    have hres' : H.outVEnv.IsDefEq decl.uvars ((ownParams ++ indices).reverse ++ [])
+        result (.sort family.resultLevel) (.sort (.succ family.resultLevel)) := by
+      simpa [List.reverse_append] using hres.mono H.sourceLE
+    have hsortWF : H.outVEnv.IsType decl.uvars ((ownParams ++ indices).reverse ++ [])
+        (.sort family.resultLevel) := ⟨_, hres'.hasType.2⟩
+    have hsort : H.outVEnv.IsDefEq decl.uvars ((ownParams ++ indices).reverse ++ [])
+        (.sort family.resultLevel) (.sort .zero) (.sort (.succ family.resultLevel)) :=
+      .sortDF (hsortWF.sort_inv henv.ordered) trivial (hflevel.symm.trans hzero)
+    rcases VExpr.wrapForalls_defeq hctx (hres'.trans hsort) with ⟨sortLevel, hwrapped⟩
+    have hprop : H.outVEnv.IsDefEqU decl.uvars [] family.type
+        (VExpr.wrapForalls (ownParams ++ indices) (.sort .zero)) :=
+      VEnv.IsDefEqU.trans henv (by trivial) ⟨_, hnorm'⟩ ⟨_, hwrapped⟩
+    have hctorEq : H.outVEnv.IsDefEqU decl.uvars [] ctor.type
+        (VExpr.wrapForalls ownParamsC tail) := by
+      rw [← hctorShape]
+      obtain ⟨_, h⟩ := hctorWF
+      exact ⟨_, h⟩
+    have hPDo : VEnv.IsDefEqCtx H.outVEnv decl.uvars [] params.reverse ownParams.reverse :=
+      VEnv.IsDefEqCtx.mono H.sourceLE hPD
+    have hPDCo : VEnv.IsDefEqCtx H.outVEnv decl.uvars [] params.reverse ownParamsC.reverse :=
+      VEnv.IsDefEqCtx.mono H.headerLE hPDC
+    have hOC : decl.ParamsDefEq H.outVEnv ownParams ownParamsC :=
+      VEnv.IsDefEqCtx.transEmpty henv (hPDo.symm henv.ordered) hPDCo
+    refine ⟨decl.uvars, family.type, ctor.type, ownParams ++ indices,
+      ownParamsC, tail, ?_, hprop, ?_, ?_, hctorEq, ?_, ?_⟩
+    · have hu : family.uvars = decl.uvars := hfuvars.symm.trans hm.uvars
+      rw [hr.major, hfname, hlookupF]
+      rw [← hu]
+    · rw [hr.numParams, hr.numIndices, List.length_append, hPlen, hIlen, hm.nparams, hfindex]
+    · have hu : ctor.uvars = decl.uvars := hcuvars.symm.trans hm.uvars
+      rw [hcname, hlookupC]
+      rw [← hu]
+    · rw [hr.numParams, hClen, hm.nparams]
     · intro k hk hk'
-      rcases hctx.reverse_getElem k hk with ⟨level, htype⟩
-      refine ⟨.sort level, ?_⟩
-      simpa only [VEnv.HasType, List.append_nil, List.getElem_append_left hk'] using htype
+      have hkP : k < ownParams.length := by omega
+      obtain ⟨u, h⟩ := VInductDecl.ParamsDefEq.getElem (i := k) hOC hkP
+      rw [List.take_append_of_le_length (by omega), List.getElem_append_left hkP]
+      exact ⟨_, h⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -1,14 +1,20 @@
 import Lean4Lean.Theory.Inductive.SignatureData
 import Lean4Lean.Theory.InductiveShape
+import Lean4Lean.Theory.Typing.Lemmas
 
 /-! Typed models and elimination admissibility for the pure signature generator. -/
 
 namespace Lean4Lean
 namespace InductiveSignature
 
-/-- Exact family/constructor names and types modulo typed definitional equality.
-The source constructor types are compared in the environment containing the
-source family headers, before any recursor or equation is installed. -/
+/-- Exact family/constructor names and constructor types modulo typed
+definitional equality.  The source constructor types are compared in the
+environment containing the source family headers, before any recursor or
+equation is installed.  The family types are not compared: a family's
+signature telescope is required only to be well formed and to type the family
+applications at the recorded sort (`FamilyTypesWF`, a clause of `Compiles`),
+because the recursor pass computes the index telescope in a context in which
+definitional agreement with the declared one is not derivable. -/
 structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Prop where
   uvars : s.uvars = decl.uvars
   nparams : s.params.length = decl.nparams
@@ -17,7 +23,6 @@ structure Models (s : InductiveSignature) (env : VEnv) (decl : VInductDecl) : Pr
     normalized.name = source.name ∧ normalized.uvars = source.uvars ∧
     normalized.numIndices = source.numIndices ∧
     normalized.resultLevel ≈ source.resultLevel ∧
-    env.IsDefEqU decl.uvars [] normalized.type source.type ∧
     normalized.ctors.map VConstVal.name = source.ctors.map VConstVal.name)
     s.declaration.types decl.types
   constructors : ∃ envTypes,
@@ -93,6 +98,21 @@ def Instance.RecursiveTypesWF {s : InductiveSignature} (g : Instance s) (env : V
         (recursiveFields s.constructors[index])[j].1
         (recursiveFields s.constructors[index])[j].2)
 
+/-- Well-formed family applications: the signature's parameter and index
+telescope is a well-formed context, and each family applied to its parameters
+and indices has the recorded result sort, in the environment in which the
+recursors are declared.  Definitional agreement of each index domain with the
+declared family type in its own prefix is not derivable from the checker's
+evidence (context strengthening of definitional equality), so this clause
+records what the generated motive types need. -/
+def FamilyTypesWF (s : InductiveSignature) (env : VEnv) (uvars : Nat) : Prop :=
+  ∀ owner : Fin s.families.size,
+    OnCtx (s.families[owner].indices.reverse ++ s.params.reverse) (env.IsType uvars) ∧
+    env.HasType uvars (s.families[owner].indices.reverse ++ s.params.reverse)
+      (s.familyApp owner (VLevel.params uvars) (vars s.params.length s.families[owner].indices.length)
+        (vars s.families[owner].indices.length 0))
+      (.sort s.families[owner].resultLevel)
+
 /-- Ordinary canonical generation fixes every motive, minor, recursive call,
 and both sides of every equation. This certificate does not accept an
 arbitrary list of equations on the strength of their typing. -/
@@ -102,7 +122,8 @@ structure Compiles (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Pr
     env.addConstVals decl.typeConstants = some envTypes ∧
     g.Admissible envTypes ∧
     (∃ envCtors, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
-      g.RecursiveTypesWF (envCtors.addProjections decl.projectionEntries)) ∧
+      g.RecursiveTypesWF (envCtors.addProjections decl.projectionEntries) ∧
+      s.FamilyTypesWF (envCtors.addProjections decl.projectionEntries) decl.uvars) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations
 

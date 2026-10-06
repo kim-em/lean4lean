@@ -109,6 +109,12 @@ theorem InductiveSignature.Instance.RecursiveTypesWF.mono {s : InductiveSignatur
     g.RecursiveTypesWF env' :=
   fun index j hj => (H index j hj).mono hle
 
+theorem InductiveSignature.FamilyTypesWF.mono {s : InductiveSignature}
+    {env env' : VEnv} {uvars : Nat}
+    (H : s.FamilyTypesWF env uvars) (hle : env ≤ env') :
+    s.FamilyTypesWF env' uvars :=
+  fun owner => ⟨(H owner).1.mono fun h => h.mono hle, (H owner).2.mono hle⟩
+
 theorem InductiveSignature.Models.mono
     {s : InductiveSignature} {env env' envTypes' : VEnv} {decl : VInductDecl}
     (H : s.Models env decl) (henv : env ≤ env')
@@ -121,8 +127,7 @@ theorem InductiveSignature.Models.mono
     constructors := ⟨envTypes', htypes, ?_⟩
     positiveFields := ?_ }
   · exact Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1,
-        h.2.2.2.2.1.mono henv, h.2.2.2.2.2⟩) H.families
+      (fun _ _ h => h) H.families
   · exact Lean4Lean.List.Forall₂.imp
       (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) hctors
   · rcases H.positiveFields with hunsafe | ⟨envTypesPos, htypesPos, hpos⟩
@@ -151,12 +156,13 @@ theorem InductiveSignature.Compiles.mono
     (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
     Compiles env' decl block := by
   rcases H.generated with
-    ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, ⟨envCtors, hctorsOld, hrec⟩, hrest⟩
+    ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, ⟨envCtors, hctorsOld, hrec, hfam⟩, hrest⟩
   have htypesLE := VEnv.addConstVals_mono henv htypesOld htypes
+  have hprojLE := VEnv.addProjections_mono (entries := decl.projectionEntries)
+    (VEnv.addConstVals_mono htypesLE hctorsOld hctors)
   exact ⟨s, g, envTypes', hmodel.mono henv htypes, htypes,
     hadmissible.mono htypesLE,
-    ⟨envCtors', hctors, hrec.mono (VEnv.addProjections_mono
-      (VEnv.addConstVals_mono htypesLE hctorsOld hctors))⟩, hrest⟩
+    ⟨envCtors', hctors, hrec.mono hprojLE, hfam.mono hprojLE⟩, hrest⟩
 
 theorem VInductDecl.OrdinaryCompilation.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}

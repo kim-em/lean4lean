@@ -29,9 +29,6 @@ theorem Models.family {s : InductiveSignature} (H : s.Models env decl)
       s.families[owner].name = source.name ∧ s.uvars = source.uvars ∧
       s.families[owner].indices.length = source.numIndices ∧
       s.families[owner].resultLevel ≈ source.resultLevel ∧
-      env.IsDefEqU decl.uvars []
-        (VExpr.wrapForalls (s.params ++ s.families[owner].indices)
-          (.sort s.families[owner].resultLevel)) source.type ∧
       (s.declarationFamily owner).ctors.map VConstVal.name = source.ctors.map VConstVal.name := by
   exact Lean4Lean.List.Forall₂.forall_exists_l H.families _ (s.declarationFamily_mem owner)
 

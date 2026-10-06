@@ -7,27 +7,73 @@ family header and the finite compilation correspondence. -/
 
 namespace Lean4Lean.InductiveSignature
 
-/-- The original native header is definitionally equal to a telescope ending
-in the family sort recorded by the normalized source signature. -/
+/-- The original native header is definitionally a telescope whose body is
+definitionally the family sort recorded by the normalized source signature.
+This open form needs no well-formedness of the environment; it is closed by
+`VEnv.IsDefEq.close_sort_header`. -/
 theorem CompilationData.original_family_header {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g auxiliaries block)
     (hfamily : family ∈ source.types) :
     ∃ envTypes, base.addConstVals source.typeConstants = some envTypes ∧
-      ∃ domains level, level ≈ family.resultLevel ∧
-        envTypes.IsDefEqU source.uvars [] family.type (VExpr.wrapForalls domains (.sort level)) := by
+      ∃ domains body level exprType, level ≈ family.resultLevel ∧
+        envTypes.IsDefEq source.uvars [] family.type (VExpr.wrapForalls domains body) exprType ∧
+        envTypes.IsDefEq source.uvars domains.reverse body (.sort level) (.sort (.succ level)) := by
   obtain ⟨envTypes, direct, htypes, _, _, hfamilies⟩ := H.correspondence
   obtain ⟨normalized, hnormalized, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_r
     hfamilies family (List.mem_append_left _ hfamily)
-  obtain ⟨⟨sigFamily, index⟩, _, rfl⟩ := List.mem_map.mp hnormalized
-  obtain ⟨restored, hrestore, htype⟩ := hrel.type
-  obtain ⟨domains, hdomains⟩ := Restoration.forall_sort_shape hrestore
-  refine ⟨envTypes, htypes, domains, sigFamily.resultLevel, hrel.resultLevel, ?_⟩
-  rw [hdomains] at htype
-  exact htype.symm
+  obtain ⟨domains, body, level, exprType, hlevel, htype, hbody⟩ := hrel.type
+  exact ⟨envTypes, htypes, domains, body, level, exprType, hlevel.trans hrel.resultLevel,
+    htype, hbody⟩
 
 end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean.VEnv
+
+private theorem onCtx_append_right {P : List VExpr → VExpr → Prop} :
+    ∀ {xs ys : List VExpr}, OnCtx (xs ++ ys) P → OnCtx ys P
+  | [], _, H => H
+  | _ :: _, _, H => onCtx_append_right H.1
+
+private theorem isType_wrapForalls_inv {env : VEnv} {U : Nat} (henv : env.Ordered) :
+    ∀ {domains Γ : List VExpr} {body : VExpr}, OnCtx Γ (env.IsType U) →
+      env.IsType U Γ (VExpr.wrapForalls domains body) →
+      OnCtx (domains.reverse ++ Γ) (env.IsType U)
+  | [], _, _, hΓ, _ => hΓ
+  | d :: ds, Γ, body, hΓ, H => by
+    have hinv := IsType.forallE_inv henv H
+    have := isType_wrapForalls_inv henv (domains := ds) (Γ := d :: Γ) (body := body)
+      ⟨hΓ, hinv.1⟩ hinv.2
+    simpa [List.reverse_cons, List.append_assoc] using this
+
+private theorem wrapForalls_congr_body {env : VEnv} {U : Nat} :
+    ∀ {domains Γ : List VExpr} {body body' : VExpr} {level : VLevel},
+      OnCtx (domains.reverse ++ Γ) (env.IsType U) →
+      env.IsDefEq U (domains.reverse ++ Γ) body body' (.sort level) →
+      ∃ level', env.IsDefEq U Γ (VExpr.wrapForalls domains body)
+        (VExpr.wrapForalls domains body') (.sort level')
+  | [], _, _, _, level, _, h => ⟨level, h⟩
+  | d :: ds, Γ, body, body', level, hctx, h => by
+    have hctx' : OnCtx (ds.reverse ++ d :: Γ) (env.IsType U) := by
+      simpa [List.reverse_cons, List.append_assoc] using hctx
+    obtain ⟨l', hrest⟩ := wrapForalls_congr_body hctx'
+      (by simpa [List.reverse_cons, List.append_assoc] using h)
+    obtain ⟨dl, hd⟩ := (onCtx_append_right hctx').2
+    exact ⟨.imax dl l', .forallEDF hd hrest⟩
+
+/-- Close the open header form: a well-formed type definitionally equal to a
+telescope whose body is definitionally a sort in the telescope's scope is
+definitionally the telescope ending in that sort. -/
+theorem IsDefEq.close_sort_header {env : VEnv} {U : Nat} {T A body : VExpr}
+    {domains : List VExpr} {level : VLevel}
+    (henv : env.WF) (hT : env.IsType U [] T)
+    (h1 : env.IsDefEq U [] T (VExpr.wrapForalls domains body) A)
+    (h2 : env.IsDefEq U domains.reverse body (.sort level) (.sort (.succ level))) :
+    env.IsDefEqU U [] T (VExpr.wrapForalls domains (.sort level)) := by
+  have hW : env.IsType U [] (VExpr.wrapForalls domains body) :=
+    hT.defeqU_l henv trivial ⟨A, h1⟩
+  have hctx := isType_wrapForalls_inv henv.ordered (Γ := []) trivial hW
+  obtain ⟨_, hw⟩ := wrapForalls_congr_body (Γ := []) (by simpa using hctx) (by simpa using h2)
+  exact IsDefEqU.trans henv trivial ⟨_, h1⟩ ⟨_, hw⟩
 
 private theorem addConst_le_target {base added current : VEnv}
     (hle : base ≤ current) (hadd : base.addConst name ci = some added)
@@ -73,7 +119,7 @@ namespace Lean4Lean
 /-- Every finite source header retains a normalized telescope ending in its
 recorded family sort in an environment where its exact constants are present. -/
 theorem CompiledInductive.original_family_header (H : CompiledInductive base source block) :
-    ∀ (current : VEnv), base ≤ current →
+    ∀ (current : VEnv), current.WF → base ≤ current →
       (∀ family ∈ source.types,
         current.constants family.name = some family.toVConstant) →
       ∀ family ∈ source.types, ∃ domains level,
@@ -81,22 +127,29 @@ theorem CompiledInductive.original_family_header (H : CompiledInductive base sou
           current.IsDefEqU source.uvars [] family.type (VExpr.wrapForalls domains (.sort level)) := by
   exact CompiledInductive.rec
     (motive_1 := fun base source _ _ =>
-      ∀ current : VEnv, base ≤ current →
+      ∀ current : VEnv, current.WF → base ≤ current →
         (∀ family ∈ source.types, current.constants family.name = some family.toVConstant) →
         ∀ family ∈ source.types, ∃ domains level,
           family.uvars = source.uvars ∧ level ≈ family.resultLevel ∧
             current.IsDefEqU source.uvars [] family.type (VExpr.wrapForalls domains (.sort level)))
     (motive_2 := fun _ _ _ => True)
-    (fun hdata _ _ current hle hconstants family hfamily => by
-      obtain ⟨envTypes, htypes, domains, level, hlevel, htype⟩ :=
+    (fun hdata _ _ current hcurrentWF hle hconstants family hfamily => by
+      obtain ⟨envTypes, htypes, domains, body, level, exprType, hlevel, htype, hbody⟩ :=
         hdata.original_family_header hfamily
       have htypesLE := VEnv.addConstVals_le_target hle htypes (by
         intro value hvalue
         obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hvalue
         exact hconstants family hfamily)
-      exact ⟨domains, level, hdata.sourceWF.2.2.1 family hfamily, hlevel, htype.mono htypesLE⟩)
-    (fun _ hle _ ih current hcurrent hconstants family hfamily =>
-      ih current (hle.trans hcurrent) hconstants family hfamily)
+      have huvars := hdata.sourceWF.2.2.1 family hfamily
+      obtain ⟨_, _, _, _, _, _, _, _, hheaders, _⟩ := hdata.sourceWF
+      have hwf := (hheaders family hfamily).mono hle
+      change current.IsType family.uvars [] family.type at hwf
+      rw [huvars] at hwf
+      exact ⟨domains, level, huvars, hlevel,
+        VEnv.IsDefEq.close_sort_header hcurrentWF hwf (htype.mono htypesLE)
+          (hbody.mono htypesLE)⟩)
+    (fun _ hle _ ih current hcurrentWF hcurrent hconstants family hfamily =>
+      ih current hcurrentWF (hle.trans hcurrent) hconstants family hfamily)
     trivial (fun _ _ _ _ _ _ _ => trivial) H
 
 /-- Finite replay preserves the exact original family constant list. -/
@@ -125,23 +178,27 @@ private theorem install_type_lookup (H : VInductBlock.install base block = some 
     (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
 
 /-- Every certified container retains both its exact native family lookup
-and its normalized result-sort telescope in the specialization environment. -/
+and its normalized result-sort telescope in every well-formed extension of
+the specialization environment. -/
 theorem CertifiedSpecializations.family_header (H : CertifiedSpecializations env auxiliaries) :
+    ∀ current : VEnv, current.WF → env ≤ current →
     ∀ a ∈ auxiliaries, ∀ family ∈ a.container.types,
       env.constants family.name = some family.toVConstant ∧
       ∃ domains level, family.uvars = a.container.uvars ∧ level ≈ family.resultLevel ∧
-        env.IsDefEqU a.container.uvars [] family.type (VExpr.wrapForalls domains (.sort level)) := by
+        current.IsDefEqU a.container.uvars [] family.type (VExpr.wrapForalls domains (.sort level)) := by
   exact CertifiedSpecializations.rec
     (motive_1 := fun _ _ _ _ => True)
     (motive_2 := fun env auxiliaries _ =>
+      ∀ current : VEnv, current.WF → env ≤ current →
       ∀ a ∈ auxiliaries, ∀ family ∈ a.container.types,
         env.constants family.name = some family.toVConstant ∧
         ∃ domains level, family.uvars = a.container.uvars ∧ level ≈ family.resultLevel ∧
-          env.IsDefEqU a.container.uvars [] family.type (VExpr.wrapForalls domains (.sort level)))
+          current.IsDefEqU a.container.uvars [] family.type
+            (VExpr.wrapForalls domains (.sort level)))
     (fun _ _ _ => trivial) (fun _ _ _ _ => trivial)
     (by simp)
     (fun {env a rest base block installed} hcompile _ hinstall hle _ _ ih => by
-      intro a ha family hfamily
+      intro current hcurrent hcurrentLE a ha family hfamily
       rcases List.mem_cons.mp ha with rfl | ha
       · have hconstants : ∀ family ∈ a.container.types,
             env.constants family.name = some family.toVConstant := by
@@ -151,9 +208,11 @@ theorem CertifiedSpecializations.family_header (H : CertifiedSpecializations env
           rw [hcompile.source_type_constants]
           exact List.mem_map.mpr ⟨family, hfamily, rfl⟩
         exact ⟨hconstants family hfamily,
-          hcompile.original_family_header env ((install_base_le hinstall).trans hle)
-            hconstants family hfamily⟩
-      · exact ih a ha family hfamily)
+          hcompile.original_family_header current hcurrent
+            (((install_base_le hinstall).trans hle).trans hcurrentLE)
+            (fun family hfamily => hcurrentLE.constants (hconstants family hfamily))
+            family hfamily⟩
+      · exact ih current hcurrent hcurrentLE a ha family hfamily)
     H
 
 end Lean4Lean
@@ -218,14 +277,21 @@ theorem Certified.family_head_type {schema : CaseSchema}
   rcases List.mem_append.mp hfamily with hfamily | hfamily
   · have hfamilyName : family.name ∈ familyNames source.types :=
       List.mem_flatMap.mpr ⟨family, hfamily, List.mem_cons_self⟩
-    obtain ⟨restored, hrestore, hheader⟩ := hrel.type
-    obtain ⟨domains, hdomains⟩ := Restoration.forall_sort_shape hrestore
-    rw [hdomains] at hheader
+    obtain ⟨domains, body, level, exprType, hlevel, htype, hbody⟩ := hrel.type
+    have huvars := hdata.sourceWF.2.2.1 family hfamily
+    have hwf : env.IsType source.uvars [] family.type := by
+      obtain ⟨_, _, _, _, _, _, _, _, hheaders, _⟩ := hdata.sourceWF
+      have := (hheaders family hfamily).mono hle
+      change env.IsType family.uvars [] family.type at this
+      rwa [huvars] at this
+    have hheader := VEnv.IsDefEq.close_sort_header henv hwf (htype.mono htypesLE)
+      (hbody.mono htypesLE)
     have htyped := VEnv.constant_normalized_header henv hΓ (hconstants family hfamily)
-      (hheader.symm.mono htypesLE) hlevels
-      (hlen.trans (hsourceUvars.trans (hdata.sourceWF.2.2.1 family hfamily).symm))
+      hheader hlevels (hlen.trans (hsourceUvars.trans huvars.symm))
     rw [hr, hname, hdata.headName_source hfamilyName, hdata.headLevels_source hfamilyName]
-    exact ⟨_, _, htyped, rfl⟩
+    refine ⟨_, _, htyped, ?_⟩
+    change level.inst levels ≈ schema.signature.families[owner].resultLevel.inst levels
+    exact VLevel.inst_congr_l (by simpa only [declarationFamily] using hlevel)
   · obtain ⟨a, ha, hfamily⟩ := Lean4Lean.List.Forall₂.forall_exists_r
       (List.mapM_eq_some.mp hdirect) family hfamily
     have hfamilyName := ContainerSpecialization.directFamily_name hfamily
@@ -238,7 +304,7 @@ theorem Certified.family_head_type {schema : CaseSchema}
     have hhead := Restoration.headName_of_mem hdata.restorationScoped hspec
     have hheadLevels := Restoration.headLevels_of_mem (levels := levels) hdata.restorationScoped hspec
     obtain ⟨hlookup, domains, level, hfamilyUvars, hlevel, hheader⟩ :=
-      hprior.family_header a ha a.source (List.getElem_mem a.family.isLt)
+      hprior.family_header env henv hle a ha a.source (List.getElem_mem a.family.isLt)
     have hnativeWF : ∀ l ∈ a.levels.map (·.inst levels), l.WF U := by
       intro l hl
       obtain ⟨l, _, rfl⟩ := List.mem_map.mp hl
@@ -246,7 +312,7 @@ theorem Certified.family_head_type {schema : CaseSchema}
     have hnativeLength : (a.levels.map (·.inst levels)).length = a.source.uvars := by
       simpa only [List.length_map, hfamilyUvars] using (hargs a ha).2.2.1
     have htyped := VEnv.constant_normalized_header henv hΓ (hle.constants hlookup)
-      (hheader.mono hle) hnativeWF hnativeLength
+      hheader hnativeWF hnativeLength
     rw [hr, hname, hfamilyName, hhead, hheadLevels]
     refine ⟨_, _, htyped, ?_⟩
     change level.inst (a.levels.map (·.inst levels)) ≈

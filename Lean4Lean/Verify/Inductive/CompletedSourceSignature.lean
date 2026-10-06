@@ -462,7 +462,8 @@ private theorem sourceSignature_models_of_nonempty
     (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF R.core hnonempty
       (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core)) R.core.typesAdded rfl
     R.sourceSignatureHeader_params_length rfl
-  · exact R.sourceSignatureHeader_families
+  · exact Lean4Lean.List.Forall₂.imp (fun _ _ h => ⟨h.1, h.2.1, h.2.2.1⟩)
+      R.sourceSignatureHeader_families
   · apply Lean4Lean.List.forall₂_of_getElem (by simp [sourceSignature])
     intro i hi hi'
     have hmodel := Classical.choose_spec

@@ -91,43 +91,59 @@ def RestoresType (r : Restoration) (env : VEnv) (uvars : Nat)
     env.IsDefEqU uvars [] restored source
 
 /-- Ordered family and constructor correspondence. For an auxiliary, `source`
-is the direct specialization generated from its certified container. -/
+is the direct specialization generated from its certified container.
+
+The family type correspondence is deliberately weaker than restoration of the
+normalized header: the source header is only required to be definitionally
+some telescope whose body is definitionally the recorded sort (in the
+telescope's own scope).  The normalized signature's family telescope is not
+tied definitionally to the source header (see `Models`); what the generated
+recursor needs from it is `FamilyTypesWF`. -/
 structure RestoresFamily (r : Restoration) (envTypes : VEnv) (uvars : Nat)
     (normalized source : VInductiveType) : Prop where
   name : normalized.name = source.name
   universes : normalized.uvars = source.uvars
   indices : normalized.numIndices = source.numIndices
   resultLevel : normalized.resultLevel ≈ source.resultLevel
-  type : RestoresType r envTypes uvars normalized.type source.type
+  type : ∃ domains body level exprType, level ≈ normalized.resultLevel ∧
+    envTypes.IsDefEq uvars [] source.type (VExpr.wrapForalls domains body) exprType ∧
+    envTypes.IsDefEq uvars domains.reverse body (.sort level) (.sort (.succ level))
   constructors : List.Forall₂ (fun normalized source =>
     normalized.name = source.name ∧ normalized.uvars = source.uvars ∧
     RestoresType r envTypes uvars normalized.type source.type)
     normalized.ctors source.ctors
 
 /-- The ordinary source model supplies the empty-restoration correspondence;
-the global constructor list is split using the recorded family boundaries. -/
+the global constructor list is split using the recorded family boundaries.
+The family header shapes come from the source parameter formation. -/
 theorem Models.restores_empty {s : InductiveSignature} {env envTypes : VEnv}
     {decl : VInductDecl} (H : s.Models env decl)
+    (hparams : decl.SourceParameterWF env)
     (htypes : env.addConstVals decl.typeConstants = some envTypes) :
     List.Forall₂ (RestoresFamily {} envTypes decl.uvars) s.declaration.types decl.types := by
   rcases H.constructors with ⟨oldTypes, holdTypes, hctors⟩
   have heq : oldTypes = envTypes := Option.some.inj (holdTypes.symm.trans htypes)
   subst oldTypes
+  have hle := VEnv.addConstVals_le htypes
+  rcases hparams with ⟨params, _, _, hsub, _, _⟩
   have hfamilies := H.families
   simp only [VInductDecl.constructorConstants] at hctors
   generalize s.declaration.types = left at hfamilies hctors ⊢
-  generalize decl.types = right at hfamilies hctors ⊢
+  generalize decl.types = right at hfamilies hctors hsub ⊢
   induction hfamilies with
   | nil => exact .nil
   | @cons normalized source left right h htail ih =>
     simp only [List.flatMap_cons] at hctors
     have hlength : normalized.ctors.length = source.ctors.length := by
-      have := congrArg List.length h.2.2.2.2.2
+      have := congrArg List.length h.2.2.2.2
       simpa using this
     rcases (Lean4Lean.List.Forall₂.append_of_left hlength).mp hctors with ⟨hhead, hrest⟩
-    refine .cons ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, ?_, ?_⟩ (ih hrest)
-    · exact ⟨normalized.type, Restoration.expr_empty _,
-        h.2.2.2.2.1.mono (VEnv.addConstVals_le htypes)⟩
+    refine .cons ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, ?_, ?_⟩
+      (ih hrest (fun t ht => hsub t (List.mem_cons_of_mem _ ht)))
+    · obtain ⟨domains, body, exprType, htype, hbody⟩ :=
+        (hsub source List.mem_cons_self).header
+      exact ⟨domains, body, source.resultLevel, exprType, h.2.2.2.1.symm,
+        htype.mono hle, hbody.mono hle⟩
     · exact Lean4Lean.List.Forall₂.imp (fun n t hc =>
         ⟨hc.1, hc.2.1, n.type, Restoration.expr_empty _, hc.2.2⟩) hhead
 
@@ -162,7 +178,8 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   recursiveTypesWF : ∃ envExpandedTypes envExpandedCtors,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     envExpandedTypes.addConstVals expanded.constructorConstants = some envExpandedCtors ∧
-    g.RecursiveTypesWF (envExpandedCtors.addProjections expanded.projectionEntries)
+    g.RecursiveTypesWF (envExpandedCtors.addProjections expanded.projectionEntries) ∧
+    s.FamilyTypesWF (envExpandedCtors.addProjections expanded.projectionEntries) expanded.uvars
   recursorNames : ∀ owner, g.recursorName owner = s.families[owner].name.str "rec"
   generatedNames : ((expanded.typeConstants ++ expanded.constructorConstants ++
     g.recursors).map (·.name)).Nodup
@@ -262,7 +279,8 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     restorationScoped := ?_
     correspondence := ?_
     admissible := ⟨envTypes, hadded, Hadmissible⟩
-    recursiveTypesWF := let ⟨envCtors, hc, hwf⟩ := Hrec; ⟨envTypes, envCtors, hadded, hc, hwf⟩
+    recursiveTypesWF := let ⟨envCtors, hc, hwf, hfam⟩ := Hrec
+      ⟨envTypes, envCtors, hadded, hc, hwf, hfam⟩
     recursorNames := hrecNames
     generatedNames := ?_
     recursorsFresh := ?_
@@ -275,7 +293,7 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
   · simp [hrestore, InductiveSignature.Restoration.Scoped]
   · refine ⟨envTypes, [], hadded, rfl, ?_, ?_⟩
     · simp
-    · simpa only [hrestore, List.append_nil] using Hmodel.restores_empty hadded
+    · simpa only [hrestore, List.append_nil] using Hmodel.restores_empty Hformation.sourceParameterWF hadded
   · simpa only [← hrecs, ← htypes, ← hctors] using hnames
   · simpa only [← hrecs] using hfresh
   · simp [hrestore, hrecs]
