@@ -900,6 +900,24 @@ inside this project's scope without solving open base metatheory:
    `headInversion`, `weakN_iff` (false; replaced on E3 by
    `strengthening_of_canonicalEq`), `headParallel`, `fullStep`, `strip`.
    Phase 1 spike (semantic layer on the `Experimental` prototype) started.
+   **Church-Rosser step 1 (branch `agent/verify-inductives-cr`, b70dd16b,
+   pushed):** `NormalEq` re-indexed by a Nat bound (`NormalEqN`, `etaBoth`;
+   eta/eta transitivity closes without inverse weakening); every
+   `weakN_iff` reference removed from ChurchRosser (`weakN_inv_DFC`,
+   `ParRed.weakN_inv`, the `ParRedExt` beta machinery deleted; beta by
+   `NormalEqN.beta_aux`); ParRed-only confluence retired for
+   `FullCRDefEq`; spine exposure (`NormalEqN.spine_expose`) and
+   `SpineTransport` close `headParallel` (now `NormalEq.parRed`) and the
+   `fullStep` delta/quotDelta/projection-iota cases, and the distinct-family
+   case of `strip`. Named hypotheses collected in class `HeadSeparation`
+   (`not_pi`, `proof_major`, `case_not_pi`, `rigid_not_pi`, `rigid_ne`); the
+   last two are Phase 0's `rigidApp_forallE_inv`/`rigidApp_ne` (to be
+   discharged on merge); `proof_major` needs a typing analysis of native
+   recursors. Still open: `FullStep.strip` (general confluence): the local
+   confluence property fails for `FullStep` because delta/quot/projection/eta
+   steps do not reduce subterms; needs a fully parallel full-step relation
+   with its own substitution lemma and the critical-pair analysis (native
+   iota against native prefix unfolding at the same head). Next task.
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
