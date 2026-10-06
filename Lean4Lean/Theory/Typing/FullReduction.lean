@@ -679,7 +679,26 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
         have hright := ((hnormal.defeq hΓ).of_l henv hΓ lproj).hasType.2
         have hout := (FullStep.projIota hl hproj hget hfield).hasType hΓ hright
         exact ⟨_, .rfl, .proofIrrel hprop lproj hout⟩
-      | _ => sorry
+      | refl hm =>
+        cases hs
+        exact ⟨_, .tail .rfl (.projIota hl hproj hget hfield), .refl hfield⟩
+      | constDF =>
+        injection hs with _ _ hm
+        obtain ⟨-, -, rfl⟩ := const_eq_mkApps hm
+        simp at hget
+      /- Outstanding: the major is an application spine normally equal to a
+      constructor application (eta or proof irrelevance may occur inside the
+      spine), or an eta expansion of it (excluded only by rigid-head versus Pi
+      separation). -/
+      | appDF | etaL => sorry
+      | _ =>
+        injection hs with _ _ hm
+        first
+        | exact False.elim (VExpr.mkApps_ne_sort (by intros; intro h; cases h) _ hm.symm)
+        | exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hm.symm)
+        | exact False.elim (VExpr.mkApps_ne_forallE (by intros; intro h; cases h) _ hm.symm)
+        | exact False.elim (mkApps_ne_proj (by intros; intro h; cases h) _ hm.symm)
+        | exact False.elim (mkApps_ne_elim (by intros; intro h; cases h) _ hm.symm)
     | app => cases hs
     | lam => cases hs
     | forallE => cases hs
