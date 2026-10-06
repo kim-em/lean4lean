@@ -51,6 +51,8 @@ def specializedRule :
   indexArgs := []
   indexArgs_length := rfl
   lhs_pattern := rfl
+  rec_doms := fun _ _ _ _ _ hj => absurd hj (Nat.not_lt_zero _)
+  ctor_doms := fun _ _ _ hc => by simp [env] at hc
 
 /-- Specialization expressions can depend on a recursor parameter rather than
 merely selecting a prefix of those parameters. -/

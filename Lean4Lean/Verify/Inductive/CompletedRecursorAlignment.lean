@@ -182,6 +182,33 @@ theorem CompletedRecursorPhasesResult.rawConstructorShape
   rcases hraw.constructorShape hnames hfamily hlookup with ⟨fields, hshape⟩
   exact ⟨fields, by simpa only [← hm.uvars, ← hm.nparams, ← hcname, ← hfindex, ← hfname] using hshape⟩
 
+/-- The installed constructor's type is definitionally equal to the signature's constructor
+type. -/
+theorem CompletedRecursorPhasesResult.constructorTypeDefEq
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    {s : InductiveSignature} (hm : s.Models sourceEnv decl)
+    (index : Fin s.constructors.size) :
+    ∀ ctorUvars ctorDoms ctorBody,
+      H.outVEnv.constants s.constructors[index].name =
+        some ⟨ctorUvars, VExpr.wrapForalls ctorDoms ctorBody⟩ →
+      H.outVEnv.IsDefEqU s.uvars [] (s.constructorType s.constructors[index])
+        (VExpr.wrapForalls ctorDoms ctorBody) := by
+  intro ctorUvars ctorDoms ctorBody hc
+  have hnames := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
+  rcases hm.family s.constructors[index].owner with
+    ⟨family, hfamily, hfname, hfuvars, hfindex, hflevel, hfctors⟩
+  rcases hm.constructorInFamily hnames index R.core.typesAdded hfamily hfctors with
+    ⟨ctor, hctor, hcname, hcuvars, hctype⟩
+  have hcMem : ctor ∈ decl.constructorConstants := List.mem_flatMap.mpr ⟨family, hfamily, hctor⟩
+  have hlookup := H.constructorConstant ctor hcMem
+  rw [← hcname, hc] at hlookup
+  have htype : VExpr.wrapForalls ctorDoms ctorBody = ctor.type :=
+    congrArg VConstant.type (Option.some.inj hlookup)
+  rw [htype, hm.uvars]
+  exact hctype.mono H.headerLE
+
 theorem CompletedRecursorPhasesResult.normalizedFamilyRigid
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -197,7 +224,7 @@ theorem CompletedRecursorPhasesResult.alignmentOfRealization
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorPhasesResult R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) (g : s.Instance)
-    (hlevels : g.levels.length = s.uvars)
+    (hlevels : g.levels.length = s.uvars) (hlevelsWF : ∀ l ∈ g.levels, l.WF g.uvars)
     (hrecursors : ∀ owner, H.outVEnv.constants (g.recursorName owner) = some (g.recursor owner).toVConstant)
     (hwf : ∀ index, (g.equation index).WF H.outVEnv)
     {owner : Fin s.families.size} {rec : RecursorVal}
@@ -227,7 +254,9 @@ theorem CompletedRecursorPhasesResult.alignmentOfRealization
              ctor := ?_ }
     · rw [hr.numParams]
       simpa only [hr.name, hr.uvars, hr.numMotives, hr.numMinors,
-        hr.numIndices, hi.ctor, hi.nfields, howner] using g.iota_shape index hdf hind
+        hr.numIndices, hi.ctor, hi.nfields, howner] using
+        g.iota_shape index H.outVEnvWF VEnv.addDefEqRules_le (fun _ => rfl) hdf hind hlevelsWF
+          (hrecursors _) (H.constructorTypeDefEq hm index)
     · refine ⟨s.uvars, hlevels, ?_⟩
       have hc' := VConstructorShape.mono (venv' := H.outVEnv.addDefEqRules g.equations)
         VEnv.addDefEqRules_le hc

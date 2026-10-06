@@ -415,7 +415,7 @@ theorem CompletedRuleTranslationResult.recursorProvenance
     have hrecEq : rec = recInfo := ConstantInfo.recInfo.inj (hinfo.trans hsource)
     subst recInfo
     rw [he]
-    exact ⟨H.alignmentOfRealization hm g ha.levels_length hrecursors hrules hrec,
+    exact ⟨H.alignmentOfRealization hm g ha.levels_length ha.levels_wf hrecursors hrules hrec,
       H.kOfRealization hm g hrec, H.majorOfRealization hm hrec⟩
 
 

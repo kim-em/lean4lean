@@ -244,17 +244,34 @@ def VConstructorShape.mono (h : venv ≤ venv')
     VConstructorShape venv' ctorName ctorUvars nparams nfields nindices indName :=
   { H with const := h.constants H.const }
 
+/-- A rule shape survives environment extension once its recursor and constructor are already
+present, since the domain-agreement fields are stated for the constants' actual types. -/
 def VIotaRuleShape.mono (h : venv ≤ venv')
+    (hrec : ∃ ci, venv.constants recName = some ci)
+    (hctor : ∃ ci, venv.constants ctorName = some ci)
     (H : VIotaRuleShape venv recName recUvars nparams cnparams nmotives nminors nindices ctorName
       ctorLevels nfields df ctorParams) :
     VIotaRuleShape venv' recName recUvars nparams cnparams nmotives nminors nindices ctorName
       ctorLevels nfields df ctorParams :=
-  { H with defeq := h.defeqs H.defeq }
+  { H with
+    defeq := h.defeqs H.defeq
+    rec_doms := fun recDoms recBody hc hlen => by
+      obtain ⟨ci, hci⟩ := hrec
+      rw [h.constants hci] at hc
+      cases hc
+      exact H.rec_doms recDoms recBody hci hlen
+    ctor_doms := fun ctorUvars ctorDoms ctorBody hc hlen i hi hd hcd => by
+      obtain ⟨ci, hci⟩ := hctor
+      rw [h.constants hci] at hc
+      cases hc
+      exact (H.ctor_doms ctorUvars ctorDoms ctorBody hci hlen i hi hd hcd).mono h }
 
 theorem RecursorRuleAlignment.mono {rec : RecursorVal} (h : venv ≤ venv')
+    (hrec : ∃ ci, venv.constants rec.name = some ci)
     (H : RecursorRuleAlignment venv rec rule indLevels cnparams ctorParams df) :
     RecursorRuleAlignment venv' rec rule indLevels cnparams ctorParams df where
-  shape := H.shape.elim fun s => ⟨s.mono h⟩
+  shape := H.ctor.elim fun _ ⟨_, hs⟩ => hs.elim fun c =>
+    H.shape.elim fun s => ⟨s.mono h hrec ⟨_, c.const⟩⟩
   rhs := H.rhs.mono h
   ctor := H.ctor.elim fun u ⟨hu, hs⟩ => ⟨u, hu, hs.elim fun s => ⟨s.mono h⟩⟩
 
@@ -262,7 +279,7 @@ theorem RecursorAlignmentCore.mono (h : venv ≤ venv')
     (H : RecursorAlignmentCore venv rec) : RecursorAlignmentCore venv' rec :=
   let ⟨cnparams, indLevels, ctorParams, ⟨s⟩, hrules⟩ := H
   ⟨cnparams, indLevels, ctorParams, ⟨s.mono h⟩, fun rule hrule =>
-    let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h⟩⟩
+    let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h ⟨_, s.const⟩⟩⟩
 
 theorem RecursorAlignment.core (H : RecursorAlignment venv rec) :
     RecursorAlignmentCore venv rec :=
@@ -278,7 +295,7 @@ theorem RecursorAlignment.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving v
     (H : RecursorAlignment venv rec) : RecursorAlignment venv' rec :=
   let ⟨cnparams, indLevels, ctorParams, ⟨s⟩, hrigid, hrules⟩ := H
   ⟨cnparams, indLevels, ctorParams, ⟨s.mono h⟩, hr _ hrigid, fun rule hrule =>
-    let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h⟩⟩
+    let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h ⟨_, s.const⟩⟩⟩
 
 theorem KLikeAlignment.mono (h : venv ≤ venv')
     (H : KLikeAlignment venv rec ctorName) : KLikeAlignment venv' rec ctorName := by

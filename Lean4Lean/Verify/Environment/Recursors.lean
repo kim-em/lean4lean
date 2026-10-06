@@ -76,6 +76,24 @@ def QuotCoherent.liftRuleShape (H : QuotCoherent venv) :
   indexArgs := []
   indexArgs_length := rfl
   lhs_pattern := rfl
+  rec_doms := by
+    intro recDoms recBody hc hlen j hj
+    rw [H.lift] at hc
+    have htype : VExpr.wrapForalls H.liftRecursorShape.doms H.liftRecursorShape.result =
+        VExpr.wrapForalls recDoms recBody := congrArg VConstant.type (Option.some.inj hc)
+    obtain ⟨rfl, -⟩ := VExpr.wrapForalls_inj_of_length (by rw [hlen]; rfl) htype
+    match j, hj with
+    | 0, _ | 1, _ | 2, _ | 3, _ | 4, _ => rfl
+  ctor_doms := by
+    intro ctorUvars ctorDoms ctorBody hc hlen i hi hd hcd
+    rw [H.quotMk] at hc
+    have htype : VExpr.wrapForalls H.mkConstructorShape.doms
+          (VExpr.mkApps (.const ``Quot (VLevel.params 1))
+            (VExpr.bvarRange 2 (2 + 1) ++ H.mkConstructorShape.indices)) =
+        VExpr.wrapForalls ctorDoms ctorBody := congrArg VConstant.type (Option.some.inj hc)
+    obtain ⟨rfl, -⟩ := VExpr.wrapForalls_inj_of_length (by rw [hlen]; rfl) htype
+    match i, hi with
+    | 0, _ => exact VEnv.IsDefEqU.refl ⟨_, .bvar (.succ (.succ (.succ (.succ .zero))))⟩
 
 /-- A lift over more binders than the instantiation depth is cancelled one step. -/
 @[simp] theorem _root_.Lean4Lean.VExpr.inst_liftN_lt (e a : VExpr) {k m : Nat} (h : k < m) :
