@@ -1301,7 +1301,7 @@ theorem
     · rw [hscope]
       exact List.mem_reverse.mpr hfv
     · exact False.elim hfalse
-  rcases Hscope.restrictEq H.outVEnvWF Hfull hclosed HsourceScope with
+  rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening Hfull hclosed HsourceScope with
     ⟨narrowTarget, Hnarrow, HfullEq⟩
   rcases S.originTelescope with ⟨sourceResidual, HsourceTelescope⟩
   have HsourceTelescope' : Expr.ForallTelescope S.origin
@@ -1311,7 +1311,7 @@ theorem
     TrExprS.isType_of_forallTelescope HsourceTelescope' hpositive Hnarrow
   have HabstractTelescope :=
     HsourceTelescope'.abstractList sourceBinders
-  have HabstractTranslation := Hscope.abstractAll H.outVEnvWF Hnarrow
+  have HabstractTranslation := Hscope.abstractAll H.outVEnvWF H.outStrengthening Hnarrow
   rw [hscope, List.reverse_reverse] at HabstractTranslation
   have HabstractType : H.outVEnv.IsType Us.length
       (abstractForallContext scope.toCtx.reverse []).toCtx narrowTarget := by
@@ -1320,7 +1320,7 @@ theorem
     Expr.ForallTelescopeTypeTranslation.ofTrExprS
       HabstractTelescope HabstractTranslation HabstractType
   have HclosedTyped := Hscope.closeTypedTelescope H.outVEnvWF
-    Hnarrow HnarrowType
+    H.outStrengthening Hnarrow HnarrowType
   rw [hscopeSourceOut] at HclosedTyped
   exact ⟨T, S, HS, scope, Hscope, narrowTarget, fullTarget,
     rfl, hfields, hhypotheses, hsemanticParameterTail, hscope, hscopeShift,

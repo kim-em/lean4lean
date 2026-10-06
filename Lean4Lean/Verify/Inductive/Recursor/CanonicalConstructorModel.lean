@@ -6,7 +6,7 @@ open Lean hiding Environment Exception
 open Kernel
 
 theorem TrExprS.dropFVarPrefix_defeq
-    (henv : env.WF) (hscope : (added ++ suffix).WF env Us.length)
+    (henv : env.WF) (hs : env.Strengthening) (hscope : (added ++ suffix).WF env Us.length)
     (hnoBV : (added ++ suffix).NoBV)
     (Hleft : TrExprS env Us (added ++ suffix) sourceLeft targetLeft)
     (Hright : TrExprS env Us (added ++ suffix) sourceRight targetRight)
@@ -16,8 +16,8 @@ theorem TrExprS.dropFVarPrefix_defeq
     ∃ left right, TrExprS env Us suffix sourceLeft left ∧
       TrExprS env Us suffix sourceRight right ∧
       env.IsDefEqU Us.length suffix.toCtx left right := by
-  obtain ⟨left, HnewLeft⟩ := TrExprS.dropFVarPrefix henv hscope hnoBV Hleft hfvarsLeft
-  obtain ⟨right, HnewRight⟩ := TrExprS.dropFVarPrefix henv hscope hnoBV Hright hfvarsRight
+  obtain ⟨left, HnewLeft⟩ := TrExprS.dropFVarPrefix henv hs hscope hnoBV Hleft hfvarsLeft
+  obtain ⟨right, HnewRight⟩ := TrExprS.dropFVarPrefix henv hs hscope hnoBV Hright hfvarsRight
   let W := (VLCtx.FVLift.to_append suffix (VLCtx.NoBV.leftOfAppend added suffix hnoBV)).toFVLift'
   have HweakLeft := HnewLeft.weakFV' henv.ordered W hscope
   have HweakRight := HnewRight.weakFV' henv.ordered W hscope
@@ -25,10 +25,10 @@ theorem TrExprS.dropFVarPrefix_defeq
   have HeqRight := HweakRight.uniq henv (.refl henv hscope) Hright
   have HweakEq := (HeqLeft.trans henv hscope.toCtx Heq).trans henv hscope.toCtx HeqRight.symm
   exact ⟨left, right, HnewLeft, HnewRight,
-    (VEnv.IsDefEqU.weak'_iff henv hscope.toCtx W.toCtx).1 HweakEq⟩
+    (VEnv.IsDefEqU.weak'_iff henv hs hscope.toCtx W.toCtx).1 HweakEq⟩
 
 theorem TrExprS.isType_dropFVarPrefix
-    (henv : env.WF) (hscope : (added ++ suffix).WF env Us.length)
+    (henv : env.WF) (hs : env.Strengthening) (hscope : (added ++ suffix).WF env Us.length)
     (hnoBV : (added ++ suffix).NoBV)
     (Hfull : TrExprS env Us (added ++ suffix) source target)
     (Hsmall : TrExprS env Us suffix source targetSmall)
@@ -38,7 +38,7 @@ theorem TrExprS.isType_dropFVarPrefix
   have Hweak := Hsmall.weakFV' henv.ordered W hscope
   have Heq := Hweak.uniq henv (.refl henv hscope) Hfull
   obtain ⟨level, HweakType⟩ := Htype.defeqU_l henv hscope.toCtx Heq.symm
-  exact ⟨level, (VEnv.HasType.weak'_iff henv hscope.toCtx W.toCtx).1 HweakType⟩
+  exact ⟨level, (VEnv.HasType.weak'_iff henv hs hscope.toCtx W.toCtx).1 HweakType⟩
 
 /-- The actual field traversal relates the raw constructor source to its
 annotation-consumed telescope in the common parameter context. -/
@@ -65,10 +65,10 @@ theorem RecInfoMinorSemanticSource.constructorDefEqAtSuffix
     rw [← HS.parameterSuffix.context]
     exact HS.rootWF.mlctx.noBV
   obtain ⟨raw, consumed, HrawSmall, HconsumedSmall, HsmallEq⟩ :=
-    TrExprS.dropFVarPrefix_defeq HS.rootWF.checking.tr.wf Hwf HnoBV Hraw Htr Heq
+    TrExprS.dropFVarPrefix_defeq HS.rootWF.checking.tr.wf HS.rootWF.strengthening Hwf HnoBV Hraw Htr Heq
       HS.parameterScope HS.constructorSourceFVars
   refine ⟨raw, consumed, HrawSmall, HconsumedSmall, ?_, HsmallEq⟩
-  apply TrExprS.isType_dropFVarPrefix HS.rootWF.checking.tr.wf Hwf HnoBV Hraw HrawSmall
+  apply TrExprS.isType_dropFVarPrefix HS.rootWF.checking.tr.wf HS.rootWF.strengthening Hwf HnoBV Hraw HrawSmall
   simpa only [← HS.parameterSuffix.context] using HS.parameterType
 
 /-- Close the related constructor sources over exactly the shared parameter

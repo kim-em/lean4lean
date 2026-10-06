@@ -349,6 +349,11 @@ theorem TypeChecker.MLCtx.vlctx_take_fvars
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
+  /-- The abstract environment the embedded checker runs in validates
+  context strengthening (`VEnv.Strengthening`).  This is an explicit
+  assumption on each intermediate environment of the inductive pipeline; it
+  does not follow from `checking` and is not inherited by extensions. -/
+  strengthening : venv.Strengthening
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv c.lparams
   typeCheckerLParams_eq : c.typeCheckerLParams = none
@@ -365,13 +370,14 @@ def initialContext (env : Environment) (lparams : List Name)
   env; lparams; safety; allowPrimitive; fuel
 
 def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (safety : DefinitionSafety) (lparams : List Name)
+    (safety : DefinitionSafety) (hs : (ves.venv safety).Strengthening) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
     wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent
+  strengthening := hs
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl
@@ -384,11 +390,12 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 /-- Retain the local checker state while moving to a production and abstract
 environment pair known to represent the same extension. -/
 def ContextWF.withEnv (H : ContextWF c)
-    (hchecking : CheckingEnv.Valid c.safety env' venv')
+    (hchecking : CheckingEnv.Valid c.safety env' venv') (hs : venv'.Strengthening)
     (hle : H.venv ≤ venv') :
     ContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
+  strengthening := hs
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -415,6 +422,7 @@ def ContextWF.withLocalDecl (H : ContextWF c)
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
   venv := H.venv
   checking := H.checking
+  strengthening := H.strengthening
   mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
   mlctx_wf := ⟨H.mlctx_wf,
     H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
@@ -469,6 +477,11 @@ structure RecursorContextWF (c : AddInductive.Context)
     (recLparams : List Name) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
+  /-- The abstract environment the embedded checker runs in validates
+  context strengthening (`VEnv.Strengthening`).  This is an explicit
+  assumption on each intermediate environment of the inductive pipeline; it
+  does not follow from `checking` and is not inherited by extensions. -/
+  strengthening : venv.Strengthening
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv recLparams
   typeCheckerLParams_eq : c.typeCheckerLParams = some recLparams
@@ -484,10 +497,11 @@ structure RecursorContextWF (c : AddInductive.Context)
 leaving the executable reader state unchanged. -/
 def RecursorContextWF.monoEnv
     (H : RecursorContextWF c recLparams)
-    (hchecking : CheckingEnv.Valid c.safety c.env venv')
+    (hchecking : CheckingEnv.Valid c.safety c.env venv') (hs : venv'.Strengthening)
     (hle : H.venv ≤ venv') : RecursorContextWF c recLparams where
   venv := venv'
   checking := hchecking
+  strengthening := hs
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -505,6 +519,7 @@ def ContextWF.toRecursorContextWF (H : ContextWF c) :
       { c with typeCheckerLParams := some c.lparams } c.lparams where
   venv := H.venv
   checking := H.checking
+  strengthening := H.strengthening
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := rfl
@@ -531,6 +546,7 @@ def ContextWF.prependRecursorLevelParam
   exact {
     venv := H.venv
     checking := H.checking
+    strengthening := H.strengthening
     mlctx := mlctx
     mlctx_wf := H.mlctx_wf.prependLevelParam H.checking.tr.wf hfresh
     typeCheckerLParams_eq := rfl
@@ -579,6 +595,7 @@ def RecursorContextWF.withLocalDecl
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } recLparams where
   venv := H.venv
   checking := H.checking
+  strengthening := H.strengthening
   mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
   mlctx_wf := ⟨H.mlctx_wf,
     H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem, htr, hty⟩
@@ -1362,7 +1379,7 @@ theorem inferTypeFVar_lparams_compat
         readThe, MonadReaderOf.read, instMonadReaderOfReaderTOfMonad]
 
 def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
-  TypeChecker.VContext.mkCheckingValidMLC H.checking H.mlctx H.mlctx_wf c.fuel
+  TypeChecker.VContext.mkCheckingValidMLC H.checking H.strengthening H.mlctx H.mlctx_wf c.fuel
 
 @[simp] theorem ContextWF.typeChecker_lctx (H : ContextWF c) :
     H.typeChecker.lctx = c.lctx := by
@@ -1411,7 +1428,7 @@ parameters while retaining the executable local context built by
 def RecursorContextWF.typeChecker
     (H : RecursorContextWF c recLparams) : TypeChecker.VContext :=
   TypeChecker.VContext.mkCheckingValidMLC
-    H.checking H.mlctx H.mlctx_wf c.fuel
+    H.checking H.strengthening H.mlctx H.mlctx_wf c.fuel
 
 @[simp] theorem RecursorContextWF.typeChecker_lctx
     (H : RecursorContextWF c recLparams) :
@@ -1494,7 +1511,7 @@ theorem RecursorContextWF.initialClosedHeaderDefEq
   have hnormalizedNoFVars :
       FVarsIn (fun fv => fv ∈ VLCtx.fvars []) normalized := by
     simpa [VLCtx.fvars] using hfvars
-  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf W
+  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf R.strengthening W
       (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
       hnormalizedClosed hnormalizedNoFVars with
     ⟨normalizedTarget, hnormalizedTarget⟩
@@ -1507,7 +1524,7 @@ theorem RecursorContextWF.initialClosedHeaderDefEq
   have hsourceNoFVars' :
       FVarsIn (fun fv => fv ∈ VLCtx.fvars []) source := by
     simpa [VLCtx.fvars] using hsourceNoFVars
-  rcases hsource.weakFV_inv R.checking.tr.wf W
+  rcases hsource.weakFV_inv R.checking.tr.wf R.strengthening W
       (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
       hsourceClosed hsourceNoFVars' with
     ⟨sourceTarget', hsourceTarget'⟩
@@ -1529,7 +1546,7 @@ theorem RecursorContextWF.initialClosedHeaderDefEq
         R.mlctx_wf.tr.wf.toCtx hsourceUniq)
   have hempty : R.venv.IsDefEqU recLparams.length []
       normalizedTarget sourceTarget' :=
-    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf R.strengthening
       R.mlctx_wf.tr.wf.toCtx W.toCtx).1 hfull
   have htargetEq : R.venv.IsDefEqU recLparams.length []
       target sourceTarget' :=
@@ -1629,7 +1646,7 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
 `checkClosedType`, this runs with an empty local context and the recursor's
 possibly extended universe-parameter list. -/
 theorem AddInductive.declareRecursors.checkRecursorType.WF
-    (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (Hvalid : CheckingEnv.Valid c.safety c.env venv) (hs : venv.Strengthening)
     (info : RecursorVal) :
     (AddInductive.declareRecursors.checkRecursorType info c).WF fun ty =>
       ∃ type', TrExprS venv info.levelParams [] info.type type' ∧
@@ -1641,13 +1658,13 @@ theorem AddInductive.declareRecursors.checkRecursorType.WF
     exact checkNoMVarNoFVar.closed (env := c.env) (name := info.name) h
   exact hno.bind fun _ hclosed => by
     have hfvars : info.type.FVarsIn fun fv => fv ∈
-        (TypeChecker.VContext.mkCheckingValid Hvalid info.levelParams
+        (TypeChecker.VContext.mkCheckingValid Hvalid hs info.levelParams
           c.fuel).vlctx.fvars := by
       simpa [TypeChecker.VContext.mkCheckingValid,
         TypeChecker.VContext.mkChecking] using
           (hclosed.mono fun _ h => False.elim h)
     have Hcheck : TypeChecker.M.WF
-        (TypeChecker.VContext.mkCheckingValid Hvalid info.levelParams c.fuel)
+        (TypeChecker.VContext.mkCheckingValid Hvalid hs info.levelParams c.fuel)
         {} (do
           let type ← TypeChecker.checkType info.type
           _ ← TypeChecker.ensureSort type info.type
@@ -1668,7 +1685,7 @@ theorem AddInductive.declareRecursors.checkRecursorType.WF
 /-- Package the validated generated type as the abstract constant installed
 by the recursor loop. -/
 theorem AddInductive.declareRecursors.checkRecursorType.constWF
-    (Hvalid : CheckingEnv.Valid c.safety c.env venv)
+    (Hvalid : CheckingEnv.Valid c.safety c.env venv) (hs : venv.Strengthening)
     (info : RecursorVal)
     (hvisible : c.safety ≤
       (if info.isUnsafe then DefinitionSafety.unsafe else .safe)) :
@@ -1676,7 +1693,7 @@ theorem AddInductive.declareRecursors.checkRecursorType.constWF
       ∃ recursor : VConstVal,
         TrConstVal c.safety venv (.recInfo info) recursor ∧
         recursor.toVConstant.WF venv := by
-  exact (AddInductive.declareRecursors.checkRecursorType.WF Hvalid info).mono
+  exact (AddInductive.declareRecursors.checkRecursorType.WF Hvalid hs info).mono
     fun _ ⟨type, Htyping, HwfType⟩ => by
       let recursor : VConstVal := {
         uvars := info.levelParams.length

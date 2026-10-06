@@ -21,7 +21,7 @@ private theorem native_const_spine_lift'_inv {name : Name} {levels : List VLevel
   refine ⟨e.getAppFnArgs.2, ?_, congrArg Prod.snd hs⟩
   simpa only [hf] using (case_rebuild_spine e).symm
 
-theorem NativeSpineMatch.weak'_inv (henv : env.WF)
+theorem NativeSpineMatch.weak'_inv (henv : env.WF) (hs : env.Strengthening)
     (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ')
     (H : NativeSpineMatch env U Γ' (actual.lift' ρ) (expected.lift' ρ)) :
     NativeSpineMatch env U Γ actual expected := by
@@ -29,7 +29,7 @@ theorem NativeSpineMatch.weak'_inv (henv : env.WF)
   obtain ⟨smallArgs, rfl, rfl⟩ := native_const_spine_lift'_inv hactual.symm
   obtain ⟨smallArgs', rfl, rfl⟩ := native_const_spine_lift'_inv hexpected.symm
   refine ⟨name, levels, levels', smallArgs, smallArgs', rfl, rfl, hwf, hwf', heq, ?_⟩
-  exact Lean4Lean.List.Forall₂.imp (fun _ _ h => (IsDefEqU.weak'_iff henv hΓ W).1 h)
+  exact Lean4Lean.List.Forall₂.imp (fun _ _ h => (IsDefEqU.weak'_iff henv hs hΓ W).1 h)
     (List.forall₂_map_left_iff.mp (List.forall₂_map_right_iff.mp hargs))
 
 
@@ -54,7 +54,7 @@ private theorem renameDomains_getLast (domains : List VExpr)
         Nat.add_sub_cancel, consN_cons] using ih (ρ := ρ.cons) hh
 
 
-theorem NativePrefixReplay.weak'_inv (henv : env.WF)
+theorem NativePrefixReplay.weak'_inv (henv : env.WF) (hs : env.Strengthening)
     (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ')
     (H : NativePrefixReplay env U Γ' (source.lift' ρ) (program.rename ρ)) :
     NativePrefixReplay env U Γ source program := by
@@ -73,7 +73,7 @@ theorem NativePrefixReplay.weak'_inv (henv : env.WF)
     apply H.remaining_nonempty
     simp [PrefixProgram.rename, h, renameDomains]
   refine {
-    source_typed := (HasType.weak'_iff henv hΓ W).1 (by
+    source_typed := (HasType.weak'_iff henv hs hΓ W).1 (by
       simpa only [PrefixProgram.rename_type] using H.source_typed)
     remaining_nonempty := hnonempty
     equation_present := H.equation_present
@@ -85,11 +85,11 @@ theorem NativePrefixReplay.weak'_inv (henv : env.WF)
     major_prop := ?_
     native_lhs := ?_ }
   · intro j hj hd
-    have hs : (program.equationBody.domains[j].instL program.levels).ClosedN
+    have hcl : (program.equationBody.domains[j].instL program.levels).ClosedN
         (program.captures.take j).length := by
       simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj)] using (hdomains j hd).instL
-    apply (HasType.weak'_iff henv hctx W').1
-    rw [← instantiateParams_eq_instOuter, VEnv.instantiateParams_lift' hs]
+    apply (HasType.weak'_iff henv hs hctx W').1
+    rw [← instantiateParams_eq_instOuter, VEnv.instantiateParams_lift' hcl]
     have ht := H.captures_typed j (by simpa [PrefixProgram.rename] using hj) hd
     simpa only [PrefixProgram.rename, List.getElem_map, List.map_take,
       instantiateParams_eq_instOuter] using ht
@@ -105,15 +105,15 @@ theorem NativePrefixReplay.weak'_inv (henv : env.WF)
       have he := liftN_lift'_consN d 1 (ρ.consN (program.domains.length - 1))
       simpa only [Lift.consN_consN, Nat.sub_add_cancel (by omega : 1 ≤ program.domains.length)] using he
     rw [hcomm] at hp hm hc
-    refine ⟨d.lift, (HasType.weak'_iff henv hctx W').1 hp, ?_,
-      (HasType.weak'_iff henv hctx W').1 hc⟩
-    apply (HasType.weak'_iff henv hctx W').1
+    refine ⟨d.lift, (HasType.weak'_iff henv hs hctx W').1 hp, ?_,
+      (HasType.weak'_iff henv hs hctx W').1 hc⟩
+    apply (HasType.weak'_iff henv hs hctx W').1
     have hb : (VExpr.bvar 0).lift' (ρ.consN program.domains.length) = .bvar 0 := by
       have he : program.domains.length = (program.domains.length - 1) + 1 := by omega
       rw [he]
       rfl
     simpa only [hb] using hm
-  · apply NativeSpineMatch.weak'_inv henv hctx W'
+  · apply NativeSpineMatch.weak'_inv henv hs hctx W'
     have hleft : (VExpr.app (nativeEtaBody (program.domains.length - 1) source).lift
         program.constructor).lift' (ρ.consN program.domains.length) =
         VExpr.app (nativeEtaBody ((program.rename ρ).domains.length - 1) (source.lift' ρ)).lift
@@ -131,7 +131,7 @@ theorem NativePrefixReplay.weak'_inv (henv : env.WF)
 /-- A native prefix reduction whose supplied arguments are renamed comes
 from a reduction in the original context, including its exact output. -/
 theorem NativeDeltaRule.weak'_inv {name : Name} {levels : List VLevel}
-    (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ')
+    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ')
     (H : NativeDeltaRule env U registry Γ' name levels
       (arguments.map (·.lift' ρ)) rhs) :
     ∃ smallRhs, NativeDeltaRule env U registry Γ name levels arguments smallRhs ∧
@@ -150,18 +150,18 @@ theorem NativeDeltaRule.weak'_inv {name : Name} {levels : List VLevel}
     cases he
     have hreplay : NativePrefixReplay env U Γ
         (mkApps (.const name levels) arguments) small := by
-      apply NativePrefixReplay.weak'_inv henv hΓ W
+      apply NativePrefixReplay.weak'_inv henv hs hΓ W
       simpa only [case_lift'_mkApps, VExpr.lift'] using replay
     exact ⟨small.rhs, .intro hl hr hn ht hw hz hsmall hreplay,
       PrefixProgram.rename_rhs (hreplay.templateScope henv).2.1⟩
 
 theorem NativeDeltaRule.weakN_inv {name : Name} {levels : List VLevel}
-    (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ')
+    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ')
     (H : NativeDeltaRule env U registry Γ' name levels
       (arguments.map (·.liftN n k)) rhs) :
     ∃ smallRhs, NativeDeltaRule env U registry Γ name levels arguments smallRhs ∧
       rhs = smallRhs.liftN n k := by
   simpa only [lift'_consN_skipN] using
-    NativeDeltaRule.weak'_inv henv hΓ (Ctx.liftN_iff_lift'.mp W) (by simpa only [lift'_consN_skipN] using H)
+    NativeDeltaRule.weak'_inv henv hs hΓ (Ctx.liftN_iff_lift'.mp W) (by simpa only [lift'_consN_skipN] using H)
 
 end Lean4Lean.VEnv

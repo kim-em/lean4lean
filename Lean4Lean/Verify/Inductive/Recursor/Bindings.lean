@@ -153,7 +153,7 @@ theorem RecursorContextExtension.restrictTrExprS
   have htr' : TrExprS Rroot.venv recLparams Rcurrent.mlctx.vlctx
       source target := by
     simpa only [H.venv_eq] using htr
-  exact htr'.weakFV'_inv Rroot.checking.tr.wf H.lift
+  exact htr'.weakFV'_inv Rroot.checking.tr.wf Rroot.strengthening H.lift
     (.refl Rroot.checking.tr.wf (by
       simpa only [H.venv_eq] using Rcurrent.mlctx_wf.tr.wf))
     hclosed hfvars
@@ -1070,7 +1070,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
                 hdomNarrow hdomain
-            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
                   dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -1121,7 +1121,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
                 hdomNarrow hdomain
-            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
                   dom.consumeTypeAnnotationsVerified.fvarsList),

@@ -55,13 +55,15 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
+    (HnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) := by
-  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
+  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF (hstrs := hstrs)
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
     HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
@@ -78,7 +80,9 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     (ves : VEnvs) (wf : ves.WF env)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
-    (haux : res.aux2nested.size = 0) :
+    (haux : res.aux2nested.size = 0)
+    (hstrs : InductiveStrengthening (ves.venv .safe) lparams nparams
+      types isUnsafe) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       true fuel res).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -101,10 +105,11 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     simpa [c, primitiveAddInductiveContext] using wf
   let Hc : ContextWF c := by
     simpa [c, primitiveAddInductiveContext, initialContext] using
-      ContextWF.initial wf .safe lparams true fuel
+      ContextWF.initial wf .safe hstrs.base lparams true fuel
   have hsource : Hc.venv = ves.venv .safe := rfl
   have hctx : Hc.mlctx.vlctx = [] := rfl
   have Hrun := AddInductive.run.primitiveFinalSpecificationModelWF
+    (hstrs := by rw [hsource]; simpa [c, primitiveAddInductiveContext] using hstrs)
     (c := c) (ves := ves) nparams 0 Hc wf' hsource Hshape' hctx
     hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
@@ -116,7 +121,9 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
+    (hstrs : InductiveStrengthening (ves.venv .safe) lparams nparams
+      types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -130,7 +137,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     fuel.inductiveFuel lparams nparams types isUnsafe Hshape
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
-      Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
+      Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF (hstrs := hstrs)
         env lparams nparams types isUnsafe fuel res ves wf Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
@@ -141,14 +148,16 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
+    (hstrs : InductiveStrengthening (ves.venv .safe) lparams nparams
+      types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
-  have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF
+  have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF (hstrs := hstrs)
     env lparams nparams types isUnsafe fuel ves wf Hshape
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape

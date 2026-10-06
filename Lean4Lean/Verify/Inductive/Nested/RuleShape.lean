@@ -374,6 +374,43 @@ theorem _root_.Lean4Lean.InductiveSignature.Restoration.equation_eq_some
         subst h
         exact ⟨rfl, rfl, rfl, rfl⟩
 
+/-- The final base environment of any final assembly shape of a validated
+nested run satisfies context strengthening: it is the recursor extension of
+the source declaration's constructor environment, covered by the run's
+`InductiveStrengthening`. -/
+theorem NestedValidatedRunResult.finalBaseVEnv_strengthening
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
+    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv)
+    (C : NestedFinalAssemblyShape E.restoration sourceEnv sourceDecl lparams
+      nparams isUnsafe safety)
+    (hwf : C.finalBaseVEnv.WF) : C.finalBaseVEnv.Strengthening := by
+  have Hcore := E.nativeSource.core
+  rw [E.nativeSourceDecl_eq] at Hcore
+  have htypesAdded : sourceEnv.addConstVals sourceDecl.typeConstants =
+      some C.canonical.venvTypes := by
+    have h := C.canonical.typesAdded.abstract
+    rw [C.typeValues] at h
+    exact h
+  have htypesEq : E.nativeSource.envTypes = C.canonical.venvTypes :=
+    Option.some.inj (Hcore.typesAdded.symm.trans htypesAdded)
+  have hctorsAdded : E.nativeSource.envTypes.addConstVals
+      sourceDecl.constructorConstants = some C.canonical.venvCtors := by
+    have h := C.canonical.ctorsAdded.abstract
+    rw [C.constructorValues] at h
+    rw [htypesEq]
+    exact h
+  have hctorsEq : E.nativeSource.envCtors = C.canonical.venvCtors :=
+    Option.some.inj (Hcore.ctorsAdded.symm.trans hctorsAdded)
+  refine E.sourceStrengthening.recursors sourceDecl _ _ Hcore
+    (C.recursorEntries.map Prod.snd) C.finalBaseVEnv ?_ hwf
+  rw [hctorsEq]
+  exact C.canonical.recursorsAdded.abstract
+
 /-- A restored recursor rule's right-hand side translates in any environment
 in which the stripped output environment is valid (the rule validator). -/
 theorem NestedValidatedRunResult.restoredRuleRhs_translation
@@ -390,6 +427,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translation
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) venv)
+    (hs : venv.Strengthening)
     {recName : Name}
     (hrecName : recName ∈ sourceTypes.map (fun t => Lean.mkRecName t.name) ++
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
@@ -410,13 +448,13 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translation
   · obtain ⟨indType, hind, hname⟩ := List.mem_map.mp hp
     subst hname
     obtain ⟨_, target, _, Hty⟩ :=
-      validateRestoredRecursorRules.primaryTranslation_of_run hvalid hrun hind Hstep.lookup hmem'
+      validateRestoredRecursorRules.primaryTranslation_of_run hvalid hs hrun hind Hstep.lookup hmem'
     refine ⟨target, ?_⟩
     have h := Hty.2.1
     rw [← Hstep.restored.produced] at h
     exact h
   · obtain ⟨_, target, _, Hty⟩ :=
-      validateRestoredRecursorRules.auxiliaryTranslation_of_run hvalid hrun ha Hstep.lookup hmem'
+      validateRestoredRecursorRules.auxiliaryTranslation_of_run hvalid hs hrun ha Hstep.lookup hmem'
     refine ⟨target, ?_⟩
     have h := Hty.2.1
     rw [← Hstep.restored.produced] at h
@@ -501,7 +539,8 @@ theorem NestedValidatedRunResult.restoredRuleRealization_of_equation
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
     rw [← hnames]
     exact List.mem_map_of_mem (List.mem_finRange owner)
-  obtain ⟨target, Ht⟩ := E.restoredRuleRhs_translation hvalid hn Hstep j hjNew
+  obtain ⟨target, Ht⟩ := E.restoredRuleRhs_translation hvalid
+    (E.finalBaseVEnv_strengthening C hvalid.tr.wf) hn Hstep j hjNew
   have hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads := by
     rw [compilationRestoration_heads_auxiliary]
@@ -697,6 +736,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_guarded
         (Lean4Lean.restoredRecursorNames
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) venv)
+    (hs : venv.Strengthening)
     {recName : Name}
     (hrecName : recName ∈ (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
     {s t : Environment}
@@ -718,7 +758,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_guarded
   have hmem : rule ∈ Hstep.restored.newInfo.rules := hrule ▸ List.getElem_mem hj
   rw [Hstep.restored.produced] at hmem Ht
   obtain ⟨_, _, abstractRule, -, Hrhs, -, -, -, -, Hguard⟩ :=
-    validateRestoredRecursorRules.auxiliaryValidatedAbstractRule_of_run hvalid hrun hrecName
+    validateRestoredRecursorRules.auxiliaryValidatedAbstractRule_of_run hvalid hs hrun hrecName
       Hstep.lookup hmem
   rw [Ht.uniqueS Hrhs]
   exact Hguard
@@ -1100,7 +1140,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
   have hjNew : j < Hstep.restored.recursor.restored.newInfo.rules.length := by
     rw [Hstep.restored.recursor.restored.restoration.rules.length]; exact hjOld
   have Hexact := validateRestoredRecursorRules.primaryValidatedExactRule_of_run hvalid
-    E.recursorRuleValidation (List.getElem_mem hf') Hstep.restored.recursor.lookup
+    (E.finalBaseVEnv_strengthening C hvalid.tr.wf) E.recursorRuleValidation (List.getElem_mem hf') Hstep.restored.recursor.lookup
     (List.getElem_mem hjOld)
   dsimp only at Hexact
   rw [← Hstep.restored.recursor.restored.produced] at Hexact
@@ -1767,7 +1807,8 @@ theorem NestedValidatedRunResult.hruleShape_of
       rw [← h]
       exact List.getElem_mem _
     rw [hblockNames]
-    exact E.restoredRuleRhs_guarded hV hrecAux Hstep j hj Ht
+    exact E.restoredRuleRhs_guarded hV
+      (E.finalBaseVEnv_strengthening C₀ hV.tr.wf) hrecAux Hstep j hj Ht
   have Hwf : ∀ rule ∈ rules.drop
       (recursorMinorOffset E.production.indTypes sourceDecl.types.length),
       rule.WF C₀.finalBaseVEnv := by

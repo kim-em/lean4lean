@@ -2561,7 +2561,7 @@ uses only variables from the retained suffix.  The target is intentionally
 existential: deleting locals changes de Bruijn positions, and syntax-directed
 translation computes the uniquely rebased target in the smaller scope. -/
 theorem TrExprS.dropFVarPrefix
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hscope : (added ++ suffix).WF env Us.length)
     (hnoBV : (added ++ suffix).NoBV)
     (H : TrExprS env Us (added ++ suffix) source target)
@@ -2571,7 +2571,7 @@ theorem TrExprS.dropFVarPrefix
     VLCtx.NoBV.leftOfAppend added suffix hnoBV
   let W := VLCtx.FVLift.to_append suffix hadded
   have hclosed : Closed source := hnoBV ▸ H.closed
-  exact H.weakFV_inv henv W (.refl henv hscope) hclosed hfvars
+  exact H.weakFV_inv henv hs W (.refl henv hscope) hclosed hfvars
 
 /-- Locate the first retained free-variable declaration below an anonymous
 forall prefix and replace it by the corresponding bound-variable declaration.
@@ -2650,7 +2650,7 @@ telescope sits directly above the identified base scope. -/
 theorem checkInductiveTypes.loopType.NarrowRuntimeScope.abstractFront
     (H : checkInductiveTypes.loopType.NarrowRuntimeScope
       env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hbase : scope.drop H.frontSourceDomains.length = baseScope)
     (Htr : TrExprS env Us scope source target) :
     TrExprS env Us
@@ -2668,7 +2668,7 @@ theorem checkInductiveTypes.loopType.NarrowRuntimeScope.abstractFront
     simpa [abstractForallContext, hscope] using Htr
   have hnodup : (VLCtx.fvars scopePrefix).Nodup := by
     exact (VLCtx.fvars_take_sublist scope
-      H.frontSourceDomains.length).nodup (H.scopeWF henv).fvars_nodup
+      H.frontSourceDomains.length).nodup (H.scopeWF henv hs).fvars_nodup
   have Habstract := TrExprS.abstractFVarLambdaPrefix
     (domains := []) H.front.sourceDeclarations hnodup Htr'
   simpa [scopePrefix, tail, H.front.sourceTakenContext, hbase] using
@@ -2699,11 +2699,11 @@ original named scope is. -/
 theorem checkInductiveTypes.loopType.NarrowRuntimeScope.abstractFrontWF
     (H : checkInductiveTypes.loopType.NarrowRuntimeScope
       env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hbase : scope.drop H.frontSourceDomains.length = baseScope) :
     OnCtx (abstractForallContext H.frontSourceDomains baseScope).toCtx
       (env.IsType Us.length) := by
-  have HscopeWF := (H.scopeWF henv).toCtx
+  have HscopeWF := (H.scopeWF henv hs).toCtx
   have hcontext :
       (abstractForallContext H.frontSourceDomains baseScope).toCtx =
         scope.toCtx := by
@@ -2756,7 +2756,7 @@ assuming that the selected declarations formed a runtime prefix. -/
 theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAll
     (H : checkInductiveTypes.loopType.FVarNarrowScope
       env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Htr : TrExprS env Us scope source target) :
     TrExprS env Us
       (abstractForallContext scope.toCtx.reverse [])
@@ -2765,7 +2765,7 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAll
       (abstractForallContext [] scope) source target := by
     simpa [abstractForallContext] using Htr
   have hnodup : scope.fvars.Nodup :=
-    (H.scopeWF henv).fvars_nodup
+    (H.scopeWF henv hs).fvars_nodup
   simpa using TrExprS.abstractFVarLambdaSuffix
     H.declarations hnodup Htr'
 
@@ -2773,10 +2773,10 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAll
 theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractAllWF
     (H : checkInductiveTypes.loopType.FVarNarrowScope
       env Us scope runtime)
-    (henv : env.WF) :
+    (henv : env.WF) (hs : env.Strengthening) :
     OnCtx (abstractForallContext scope.toCtx.reverse []).toCtx
       (env.IsType Us.length) := by
-  have Hscope := (H.scopeWF henv).toCtx
+  have Hscope := (H.scopeWF henv hs).toCtx
   simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hscope
 
 private theorem forall₂_takeBoth
@@ -2809,7 +2809,7 @@ form an ordinary named prefix above the cached parameters. -/
 theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractPrefix
     (H : checkInductiveTypes.loopType.FVarNarrowScope
       env Us scope runtime)
-    (henv : env.WF) (n : Nat)
+    (henv : env.WF) (hs : env.Strengthening) (n : Nat)
     (hbase : scope.drop n = baseScope)
     (Htr : TrExprS env Us scope source target) :
     TrExprS env Us
@@ -2826,7 +2826,7 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.abstractPrefix
       (abstractForallContext [] (scopePrefix ++ tail)) source target := by
     simpa [abstractForallContext, hscope] using Htr
   have hnodup : (scope.fvars.take n).Nodup :=
-    (H.scopeWF henv).fvars_nodup.sublist (List.take_sublist n scope.fvars)
+    (H.scopeWF henv hs).fvars_nodup.sublist (List.take_sublist n scope.fvars)
   have Habstract := TrExprS.abstractFVarLambdaPrefix
     (domains := []) Hprefix hnodup Htr'
   simpa [scopePrefix, tail, hprefixFVars, hbase] using Habstract
@@ -3810,13 +3810,13 @@ specification: the body may itself be a dependent telescope. -/
 theorem checkInductiveTypes.loopType.FVarNarrowScope.closeTypedTelescope
     (H : checkInductiveTypes.loopType.FVarNarrowScope
       env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hbody : TrExprS env Us scope body target)
     (HbodyType : env.IsType Us.length scope.toCtx target) :
     Expr.ForallTelescopeTypeTranslation env Us []
       (H.sources.closeSource body) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse target) := by
-  exact H.sources.closeTypedTelescope henv (H.scopeWF henv)
+  exact H.sources.closeTypedTelescope henv (H.scopeWF henv hs)
     Hbody HbodyType
 
 /-- Close the retained source declarations around a trivial sort.  This is
@@ -3825,7 +3825,7 @@ translation of only a later expression under that prefix. -/
 theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
     (H : checkInductiveTypes.loopType.FVarNarrowScope
       env Us scope runtime)
-    (henv : env.WF) :
+    (henv : env.WF) (hs : env.Strengthening) :
     TrExprS env Us []
       (H.sources.closeSource (.sort (.zero : Level)))
       (VExpr.wrapForalls scope.toCtx.reverse
@@ -3833,7 +3833,7 @@ theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTranslation
     env.IsType Us.length []
       (VExpr.wrapForalls scope.toCtx.reverse
         (.sort (.zero : VLevel))) := by
-  have HscopeWF := H.scopeWF henv
+  have HscopeWF := H.scopeWF henv hs
   have hzero : VLevel.ofLevel Us (.zero : Level) =
       some (.zero : VLevel) := rfl
   have Hsort : TrExprS env Us scope (.sort (.zero : Level))
@@ -3857,14 +3857,14 @@ forall telescope, not merely a whole-expression translation. -/
 theorem checkInductiveTypes.loopType.FVarNarrowScope.closedSortTelescope
     (H : checkInductiveTypes.loopType.FVarNarrowScope
       env Us scope runtime)
-    (henv : env.WF) :
+    (henv : env.WF) (hs : env.Strengthening) :
     Expr.ForallTelescopeTypeTranslation env Us []
       (H.sources.closeSource (.sort (.zero : Level))) scope.length
       (VExpr.wrapForalls scope.toCtx.reverse
         (.sort (.zero : VLevel))) := by
-  rcases H.closedSortTranslation henv with ⟨Htranslation, Htype⟩
+  rcases H.closedSortTranslation henv hs with ⟨Htranslation, Htype⟩
   have Htelescope := H.sources.closeSource_telescope
-    (H.scopeWF henv).fvars_nodup (.sort (.zero : Level))
+    (H.scopeWF henv hs).fvars_nodup (.sort (.zero : Level))
   have Htelescope' : Expr.ForallTelescope
       (H.sources.closeSource (.sort (.zero : Level))) scope.length
       (.sort (.zero : Level)) := by

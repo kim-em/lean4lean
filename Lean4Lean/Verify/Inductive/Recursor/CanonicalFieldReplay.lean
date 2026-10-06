@@ -71,7 +71,7 @@ theorem RecInfoMinorSemanticSource.fieldTranslationAtSuffix
   have HnoBV : (HS.parameterSuffix.ambientDecls ++ HS.parameterSuffix.parameterDecls).NoBV := by
     rw [← HS.parameterSuffix.context]
     exact HS.rootWF.mlctx.noBV
-  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf Hwf HnoBV Htr HS.fieldSourceFVars
+  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf HS.rootWF.strengthening Hwf HnoBV Htr HS.fieldSourceFVars
 
 theorem TrExprS.isType_forallSort
     (Htel : Expr.ForallTelescope source n (.sort level))

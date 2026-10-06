@@ -25,35 +25,35 @@ The recognizer's `isDefEq` calls are about `v.value` and `v.type`, so lifting th
 model requires their translations. `addDefinition` establishes those before calling the
 recognizer -- that is what the reordering there is for -- and they arrive here as `hvalue` and
 `htype`, describing the very `ci'` that the caller goes on to add. -/
-theorem checkDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem checkDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hs : (ves.venv .safe).Strengthening)
     (v : DefinitionVal) (ci' : VDefVal)
     (hu : v.levelParams.length = ci'.uvars)
     (htype : TrExprS (ves.venv .safe) v.levelParams [] v.type ci'.type)
     (hvalue : TrExprS (ves.venv .safe) v.levelParams [] v.value ci'.value)
     (hci : ci'.WF (ves.venv .safe))
     (state : VState := {}) :
-    (checkDef v).WF (.mk' wf .safe v.levelParams) state fun allow _ =>
+    (checkDef v).WF (.mk' wf .safe hs v.levelParams) state fun allow _ =>
       allow → PrimitiveResult (ves.venv .safe) v ci' := by
-  have P : Data v ci' (.mk' wf .safe v.levelParams) := ⟨rfl, rfl, hu, htype, hvalue, hci⟩
+  have P : Data v ci' (.mk' wf .safe hs v.levelParams) := ⟨rfl, rfl, hu, htype, hvalue, hci⟩
   unfold checkDef; split
-  · exact (checkNatAdd.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatPred.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatSub.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatMul.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatPow.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatMod.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatDiv.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatGcd.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatBEq.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatBLE.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatBitwise.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatLAnd.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatLOr.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatXor.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatShiftLeft.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkNatShiftRight.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkCharOfNat.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
-  · exact (checkStringOfList.WF wf ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatAdd.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatPred.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatSub.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatMul.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatPow.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatMod.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatDiv.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatGcd.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatBEq.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatBLE.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatBitwise.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatLAnd.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatLOr.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatXor.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatShiftLeft.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkNatShiftRight.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkCharOfNat.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
+  · exact (checkStringOfList.WF wf hs ‹_› P).bind fun _ _ _ h => .pure fun _ => h
   · exact .pure nofun
 
 /-! ### The primitive inductives

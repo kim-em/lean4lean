@@ -343,7 +343,9 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun headerEnv =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
@@ -360,7 +362,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.headerCertificate]
   have Hdeclare :=
     AddInductive.declareInductiveTypes.semanticHeadersWF Hc Hsemantic
-      hindicesSize hvisible hnprim
+      hstrs hindicesSize hvisible hnprim
   exact Hdeclare.mono fun headerEnv Hinstalled => by
     rcases Hinstalled with ⟨Hinstalled⟩
     have htypesAdded : Hc.venv.addConstVals

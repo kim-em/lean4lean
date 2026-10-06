@@ -63,7 +63,7 @@ theorem VLCtx.BVLift.find?_exists_liftVar (W : VLCtx.BVLift Δ Δ' dn dk n k)
       have ⟨⟨e, A⟩, h'⟩ := ih (v := .inr fv) ⟨_, by simpa [VLCtx.liftVar] using h⟩
       exact ⟨(e.liftN d.depth, A.liftN d.depth), by simp [VLCtx.find?, VLCtx.next, bind, h']⟩
 
-variable! (henv : VEnv.WF env) in
+variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
 /-- Inverse of `TrExprS.weakBV` for an arbitrary source: a translation of a
 lifted source in a lifted context is the lift of a translation in the
 original context. -/
@@ -102,14 +102,14 @@ theorem TrExprS.weakBV_inv_lift (W : VLCtx.BVLift Δ Δ' dn dk n k)
     obtain ⟨rfl, rfl⟩ := he
     obtain ⟨f₀, hf₀, rfl⟩ := ih1 W hΔ' rfl
     obtain ⟨a₀, ha₀, rfl⟩ := ih2 W hΔ' rfl
-    have := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx (e := .app f₀ a₀)).1 ⟨_, h1.app h2⟩
-    have ⟨_, _, h3, h4⟩ := this.app_inv henv.ordered (W.wf henv hΔ').toCtx
+    have := (VExpr.WF.weakN_iff henv hs hΔ'.toCtx W.toCtx (e := .app f₀ a₀)).1 ⟨_, h1.app h2⟩
+    have ⟨_, _, h3, h4⟩ := this.app_inv henv.ordered (W.wf henv hs hΔ').toCtx
     exact ⟨_, .app h3 h4 hf₀ ha₀, rfl⟩
   | lam h1 _ _ ih1 ih2 =>
     cases e <;> simp [Expr.liftLooseBVars'] at he
     obtain ⟨rfl, rfl, rfl, rfl⟩ := he
     obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' rfl
-    have h1' := (IsType.weakN_iff henv hΔ'.toCtx W.toCtx).1 h1
+    have h1' := (IsType.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h1
     have hΔ'' : VLCtx.WF env Us.length ((none, .vlam (ty₀.liftN n k)) :: _) := ⟨hΔ', nofun, h1⟩
     obtain ⟨body₀, hbody₀, rfl⟩ := ih2 (W.cons (.vlam ty₀)) hΔ'' rfl
     exact ⟨_, .lam h1' hty₀ hbody₀, rfl⟩
@@ -117,18 +117,18 @@ theorem TrExprS.weakBV_inv_lift (W : VLCtx.BVLift Δ Δ' dn dk n k)
     cases e <;> simp [Expr.liftLooseBVars'] at he
     obtain ⟨rfl, rfl, rfl, rfl⟩ := he
     obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' rfl
-    have h1' := (IsType.weakN_iff henv hΔ'.toCtx W.toCtx).1 h1
+    have h1' := (IsType.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h1
     have hΔ'' : VLCtx.WF env Us.length ((none, .vlam (ty₀.liftN n k)) :: _) := ⟨hΔ', nofun, h1⟩
     obtain ⟨body₀, hbody₀, rfl⟩ := ih2 (W.cons (.vlam ty₀)) hΔ'' rfl
     have hΓ'' : OnCtx (ty₀.liftN n k :: _) (env.IsType Us.length) := ⟨hΔ'.toCtx, h1⟩
-    have h2' := (IsType.weakN_iff henv hΓ'' (W.cons (.vlam ty₀)).toCtx).1 h2
+    have h2' := (IsType.weakN_iff henv hs hΓ'' (W.cons (.vlam ty₀)).toCtx).1 h2
     exact ⟨_, .forallE h1' h2' hty₀ hbody₀, rfl⟩
   | letE h1 _ _ _ ih1 ih2 ih3 =>
     cases e <;> simp [Expr.liftLooseBVars'] at he
     obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := he
     obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' rfl
     obtain ⟨val₀, hval₀, rfl⟩ := ih2 W hΔ' rfl
-    have h1' := (HasType.weakN_iff henv hΔ'.toCtx W.toCtx).1 h1
+    have h1' := (HasType.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h1
     have hΔ'' : VLCtx.WF env Us.length ((none, .vlet (ty₀.liftN n k) (val₀.liftN n k)) :: _) :=
       ⟨hΔ', nofun, h1⟩
     obtain ⟨body₀, hbody₀, rfl⟩ := ih3 (W.cons (.vlet ty₀ val₀)) hΔ'' rfl
@@ -149,8 +149,8 @@ theorem TrExprS.weakBV_inv_lift (W : VLCtx.BVLift Δ Δ' dn dk n k)
     obtain ⟨rfl, rfl, rfl⟩ := he
     obtain ⟨s₀, hs₀, rfl⟩ := ih W hΔ' rfl
     cases hp with | direct m t
-    have m' := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx).1 m
-    have t' := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx (e := .proj _ _ s₀)).1 t
+    have m' := (VExpr.WF.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 m
+    have t' := (VExpr.WF.weakN_iff henv hs hΔ'.toCtx W.toCtx (e := .proj _ _ s₀)).1 t
     exact ⟨_, .proj hs₀ (.direct m' t'), rfl⟩
 
 end Lean4Lean
@@ -256,7 +256,7 @@ theorem liftContextPrefix_reverse_reverse (l : List VExpr) (n : Nat) :
   rw [insertBinders_eq_prefix]; rfl
 
 /-- Translation-level inverse of `TrExprS.insertBeforeInner`. -/
-theorem TrExprS.removeBeforeInner {env : VEnv} {Us : List Name} (henv : env.WF)
+theorem TrExprS.removeBeforeInner {env : VEnv} {Us : List Name} (henv : env.WF) (hs : env.Strengthening)
     {outer inserted inner : List VExpr} {source : Expr} {T : VExpr}
     (hwf : (abstractForallContext (outer ++ inserted ++
       InductiveSignature.insertBinders inner inserted.length) []).WF env Us.length)
@@ -268,12 +268,12 @@ theorem TrExprS.removeBeforeInner {env : VEnv} {Us : List Name} (henv : env.WF)
       (abstractForallContext (outer ++ inner) []).WF env Us.length := by
   have W := abstractForallContext.bvInsertBeforeInner outer inserted inner
   simp only [liftContextPrefix_reverse_reverse] at W
-  obtain ⟨t, Ht, rfl⟩ := TrExprS.weakBV_inv_lift henv W hwf H rfl
-  exact ⟨t, Ht, rfl, W.wf henv hwf⟩
+  obtain ⟨t, Ht, rfl⟩ := TrExprS.weakBV_inv_lift henv hs W hwf H rfl
+  exact ⟨t, Ht, rfl, W.wf henv hs hwf⟩
 
 /-- Remove two inserted groups: `G` directly below the current inner
 telescope and `M` directly above the retained field prefix `Fs`. -/
-theorem TrExprS.unliftStep {env : VEnv} {Us : List Name} (henv : env.WF)
+theorem TrExprS.unliftStep {env : VEnv} {Us : List Name} (henv : env.WF) (hs : env.Strengthening)
     {PP M Fs G B0 : List VExpr} {source : Expr} {T : VExpr}
     (hwf : (abstractForallContext (PP ++ M ++ InductiveSignature.insertBinders Fs M.length ++ G ++
       InductiveSignature.insertBinders
@@ -291,7 +291,7 @@ theorem TrExprS.unliftStep {env : VEnv} {Us : List Name} (henv : env.WF)
   have hlen : ((B0.zipIdx Fs.length).map fun (e, k) => e.liftN M.length k).length = B0.length := by
     simp
   obtain ⟨t₁, H₁, rfl, hwf₁⟩ := TrExprS.removeBeforeInner (outer :=
-    PP ++ M ++ InductiveSignature.insertBinders Fs M.length) (inserted := G) henv hwf
+    PP ++ M ++ InductiveSignature.insertBinders Fs M.length) (inserted := G) henv hs hwf
     (by rw [hlen]; exact H)
   have hins : InductiveSignature.insertBinders (Fs ++ B0) M.length =
       InductiveSignature.insertBinders Fs M.length ++
@@ -303,7 +303,7 @@ theorem TrExprS.unliftStep {env : VEnv} {Us : List Name} (henv : env.WF)
     rw [hins, List.append_assoc]
   rw [hctx] at H₁ hwf₁
   obtain ⟨t, Ht, rfl, hwf₀⟩ := TrExprS.removeBeforeInner (outer := PP) (inserted := M)
-    (inner := Fs ++ B0) henv hwf₁ (by simpa using H₁)
+    (inner := Fs ++ B0) henv hs hwf₁ (by simpa using H₁)
   refine ⟨t, by simpa using Ht, by simp [hlen], by simpa using hwf₀⟩
 
 
@@ -317,7 +317,7 @@ theorem zipIdx_twoLift_eq (B0 : List VExpr) (pos m g : Nat) :
 
 /-- Remove both inserted groups from every binder of a telescope sitting
 below them, one binder at a time. -/
-theorem TrExprS.unliftTelescope {env : VEnv} {Us : List Name} (henv : env.WF)
+theorem TrExprS.unliftTelescope {env : VEnv} {Us : List Name} (henv : env.WF) (hs : env.Strengthening)
     {PP M Fs G : List VExpr} (A : List VExpr) (src : Nat → Expr)
     (hwf : ∀ i, i ≤ A.length → (abstractForallContext
       (PP ++ M ++ InductiveSignature.insertBinders Fs M.length ++ G ++ A.take i) []).WF
@@ -347,7 +347,7 @@ theorem TrExprS.unliftTelescope {env : VEnv} {Us : List Name} (henv : env.WF)
     have Hi := H B0.length hiA
     have hwfi := hwf B0.length (by omega)
     rw [htake, zipIdx_twoLift_eq] at Hi hwfi
-    obtain ⟨t, Ht, hAt, -⟩ := TrExprS.unliftStep henv hwfi Hi
+    obtain ⟨t, Ht, hAt, -⟩ := TrExprS.unliftStep henv hs hwfi Hi
     refine ⟨B0 ++ [t], by simp, ?_, ?_⟩
     · rw [List.take_succ_eq_append_getElem hiA, htake, hAt]
       simp [List.zipIdx_append]
@@ -363,7 +363,7 @@ theorem TrExprS.unliftTelescope {env : VEnv} {Us : List Name} (henv : env.WF)
 
 /-- Pointwise removal of both inserted groups from a list of translations in
 the context extended by the whole telescope. -/
-theorem TrExprS.unliftForall₂ {env : VEnv} {Us : List Name} (henv : env.WF)
+theorem TrExprS.unliftForall₂ {env : VEnv} {Us : List Name} (henv : env.WF) (hs : env.Strengthening)
     {PP M Fs G B0 : List VExpr}
     (hwf : (abstractForallContext (PP ++ M ++ InductiveSignature.insertBinders Fs M.length ++ G ++
       InductiveSignature.insertBinders
@@ -384,8 +384,8 @@ theorem TrExprS.unliftForall₂ {env : VEnv} {Us : List Name} (henv : env.WF)
   | s :: srcs, I, h => by
     cases h with
     | cons hhead htail =>
-      obtain ⟨t, Ht, rfl, -⟩ := TrExprS.unliftStep henv hwf hhead
-      obtain ⟨rest, rfl, Hrest⟩ := TrExprS.unliftForall₂ henv hwf srcs _ htail
+      obtain ⟨t, Ht, rfl, -⟩ := TrExprS.unliftStep henv hs hwf hhead
+      obtain ⟨rest, rfl, Hrest⟩ := TrExprS.unliftForall₂ henv hs hwf srcs _ htail
       exact ⟨t :: rest, rfl, .cons Ht Hrest⟩
 
 
@@ -821,6 +821,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
     rw [show S.fields.size + j + d = pos + (S.fields.size - pos) + j + d by omega, h]
   -- Well-formedness of the generator contexts below the hypothesis.
   have henv : R.context.venv.WF := by rw [← H.recursorEnv]; exact H.recursorWF.checking.tr.wf
+  have hs : R.context.venv.Strengthening := by rw [← H.recursorEnv]; exact H.recursorWF.strengthening
   have hOnA : OnCtx (T.params ++ T.motives ++ T.minors.take minorIdx ++ fields ++ hyps.take j ++
       A).reverse (R.context.venv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length) := by
     have Hty := T.typed.isType
@@ -874,7 +875,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
       exact (List.take_append_drop _ _).symm
     conv => lhs; rw [hf]
     simp only [G, Mv, List.append_assoc]
-  obtain ⟨B0, hB0len, hAeq, HB0⟩ := TrExprS.unliftTelescope henv (PP := T.params) (M := Mv)
+  obtain ⟨B0, hB0len, hAeq, HB0⟩ := TrExprS.unliftTelescope henv hs (PP := T.params) (M := Mv)
     (Fs := Fs) (G := G) A
     (fun i => (O.argDomains[i]!.abstractList (S.fields_bound.fvars.take pos) i).abstractList
       H.params.fvars (pos + i))
@@ -912,7 +913,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
     simp only [Function.comp]
     rw [hsrc _ _ (hIdxScope e he).2, hFs, hMv, hG, hB0na]
   rw [hIsrc] at HI'
-  obtain ⟨indices, hIeq, HIsmall⟩ := TrExprS.unliftForall₂ henv hwfI _ I HI'
+  obtain ⟨indices, hIeq, HIsmall⟩ := TrExprS.unliftForall₂ henv hs hwfI _ I HI'
   -- Assemble.
   have hparamsT := H.recursorTelescope_params T
   have hunder : ∀ (e : VExpr) (k : Nat),

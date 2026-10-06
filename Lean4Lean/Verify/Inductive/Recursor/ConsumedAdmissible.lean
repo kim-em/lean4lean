@@ -282,7 +282,7 @@ theorem CompletedRecursorConstruction.consumedSingletonElimination
   have hheader := Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henvSource
   have hscope : R.parameterScope.WF R.headerVEnv c.lparams.length := by
     rw [← R.materializedParameterScope]
-    exact R.materialized.runtimeScope.scopeWF hheader
+    exact R.materialized.runtimeScope.scopeWF hheader R.headerStrengthening
   have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
   obtain ⟨arity, hspine⟩ := hspine

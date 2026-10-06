@@ -946,7 +946,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
         simp only [VContext.vlctx, VContext.withMLC_mlctx, MLCtx.vlctx, VLCtx.fvars,
           List.filterMap_cons, Option.map, List.mem_cons] at h ⊢
         exact h.1.resolve_left h.2
-      obtain ⟨nrv₀, hnr₀⟩ := TrExprS.weakFV_inv c.Ewf (.skip_fvar _ (.vlam tyv2) .refl)
+      obtain ⟨nrv₀, hnr₀⟩ := TrExprS.weakFV_inv c.Ewf c.strengthening (.skip_fvar _ (.vlam tyv2) .refl)
         (.refl c.Ewf (c.withMLC _ (wf := cwf2b)).Δwf) hnr (m2'.noBV ▸ hnr.closed) hnrfv
       exact ⟨nrv₀, ((hnr₀.weakFV c.Ewf.ordered (.skip_fvar _ _ .refl)
         (c.withMLC _ (wf := cwf2b)).Δwf).uniq c.Ewf
@@ -999,7 +999,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
       exact h.1.resolve_left h.2
     -- so `F` translates in `c` itself, which is the form the bundle stores
     obtain ⟨F', hFbase⟩ : ∃ F', (c.withMLC m₀).TrExprS F F' :=
-      TrExprS.weakFV_inv (c.withMLC m₀).Ewf hinv.lift
+      TrExprS.weakFV_inv (c.withMLC m₀).Ewf (c.withMLC m₀).strengthening hinv.lift
         (.refl (c.withMLC m₀).Ewf (c.withMLC m').Δwf) hFF
         (m'.noBV ▸ hFF.closed) hFfv
     -- `pack` gets there a different way: it *binds* the telescope rather than avoiding it, and
@@ -1042,7 +1042,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
     -- `Aty` the bundle records and whose body is `F`'s codomain there. Identifying it with the
     -- telescope's translation and running `forallE_inv` hands the component defeqs back already
     -- *sorted*, which is what the congruences below need and what `uniq` on its own would not give.
-    obtain ⟨_, hw1Base⟩ := TrExprS.weakFV_inv c.Ewf hinv.lift
+    obtain ⟨_, hw1Base⟩ := TrExprS.weakFV_inv c.Ewf c.strengthening hinv.lift
       (.refl c.Ewf (c.withMLC m').Δwf) hw1S (m'.noBV ▸ hw1S.closed) ⟨hAdomfv, hcodfv⟩
     let .forallE (ty' := Aty) (body' := codv₀) hAty hcodTy hAtyS hcodS := hw1Base
     have hw1uniq := ((TrExprS.forallE hAty hcodTy hAtyS hcodS).weakFV c.Ewf hinv.lift
@@ -1102,7 +1102,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
       have hw2A := (TrExprS.forallE (name := bn) (bi := bi2) hdA hrest hdAS hrestS).abstract
         (v₀ := idd) .zero
       have hw2Afv := FVarsIn.abstract1_erase (k := 0) (P := (· ∈ (c.withMLC m₀).vlctx.fvars)) hw2fv
-      obtain ⟨_, hw2Base⟩ := TrExprS.weakFV_inv c.Ewf
+      obtain ⟨_, hw2Base⟩ := TrExprS.weakFV_inv c.Ewf c.strengthening
         (Δ := (none, .vlam Aty) :: (c.withMLC m₀).vlctx) (.cons_bvar (.vlam Aty) hinv.lift)
         (hΔdefeq.symm c.Ewf) hw2A (by simpa [VLCtx.bvars, m'.noBV] using hw2A.closed) hw2Afv
       let .forallE (ty' := dAv₀) (body' := restv₀) hdAty hrestTy hdAS₀ hrestS₀ := hw2Base
@@ -1120,7 +1120,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
         .succ .zero hAdefeq.symm
       have hcodbase : c.venv.IsDefEqU c.lparams.length (Aty :: (c.withMLC m₀).vlctx.toCtx) codv₀
           (.forallE dAv₀ restv₀) :=
-        (VEnv.IsDefEqU.weakN_iff c.Ewf hΔdefeq.wf.toCtx (.succ hinv.lift.toCtx)
+        (VEnv.IsDefEqU.weakN_iff c.Ewf c.strengthening hΔdefeq.wf.toCtx (.succ hinv.lift.toCtx)
           (e1 := codv₀) (e2 := .forallE dAv₀ restv₀)).1 <|
         .trans c.Ewf hΔdefeq.wf.toCtx ⟨_, hcoddefeq⟩ <|
         .trans c.Ewf hΔdefeq.wf.toCtx
@@ -1154,7 +1154,7 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
     have hFTm := ((hFT.defeqU_r c.Ewf (c.withMLC m').Δwf.toCtx hw1eq.symm).defeqU_r c.Ewf
       (c.withMLC m').Δwf.toCtx hw1uniq.symm).defeqU_l c.Ewf (c.withMLC m').Δwf.toCtx hFeq.symm
     have hFTc : (c.withMLC m₀).HasType F' (.forallE Aty codv₀) :=
-      (VEnv.HasType.weakN_iff c.Ewf (c.withMLC m').Δwf.toCtx hinv.lift.toCtx
+      (VEnv.HasType.weakN_iff c.Ewf c.strengthening (c.withMLC m').Δwf.toCtx hinv.lift.toCtx
         (A := .forallE Aty codv₀)).1 hFTm
     -- and the block's defeq turns that codomain into the pi at `dom` applied that the bundle
     -- records; the domain is untouched, so the congruence needs nothing but `Aty`'s own typing
