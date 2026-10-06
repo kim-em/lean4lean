@@ -3283,6 +3283,63 @@ theorem EtaPar.collapse_spine (hΓ : OnCtx Γ (env.IsType univs))
     · cases he
   | bvar | sort | elim | proj | lam | forallE =>
     rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
+
+theorem struct_family_eq (hΓ : OnCtx Γ (env.IsType univs)) (hl : env.projections fam info')
+    (hM : Γ ⊢ M : VExpr.mkApps (.const fam ls) ps) (hp : Γ ⊢ .proj s i M : T) :
+    fam = s ∧ env.projections s info' := by
+  obtain ⟨info, levels, params, indexArgs, _, _, _, hinfo, _, _, _, _, _, _, hmajor, _, _⟩ :=
+    hp.proj_inv henv hΓ
+  have hu := hM.uniqU henv hΓ hmajor.hasType.2
+  obtain ⟨_, hsort⟩ := hM.isType henv hΓ
+  by_cases hne : fam = s
+  · subst hne; exact ⟨rfl, hl⟩
+  · exact (IsDefEqU.rigidApp_ne henv hΓ (henv.projectionRigid hl) (henv.projectionRigid hinfo)
+      hne hsort hu).elim
+
+/-- Collapse eta expansions of a constructor-spine major beneath a projection,
+by beta reduction and by projection of structure expansions. -/
+theorem EtaPar.collapse_proj (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EtaPar Γ (VExpr.mkApps (.const ctor ls) args) M')
+    (hs : Γ ⊢ .proj s i (VExpr.mkApps (.const ctor ls) args) : T) :
+    ∃ args', List.Forall₂ (EtaPar Γ) args args' ∧
+      ReflTransGen (Below Γ 3) (.proj s i M') (.proj s i (VExpr.mkApps (.const ctor ls) args')) := by
+  generalize hsrc : VExpr.mkApps (.const ctor ls) args = src at H hs
+  induction H generalizing args T with
+  | @app _ f f' x x' hf hx ih₁ _ =>
+    rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he
+    · cases he
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := hs.proj_inv henv hΓ
+      obtain ⟨_, _, tf, _⟩ := hmajor.hasType.2.app_inv henv hΓ
+      obtain ⟨vs₀', h₀, hy⟩ := EtaPar.collapse_spine hΓ hf tf
+      refine ⟨vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), ?_⟩
+      rw [mkApps_snoc]
+      exact Below.ofParRedS (ParRedS.proj (hy x')) (by decide)
+  | funEta H₀ HA hty ih =>
+    subst hsrc
+    obtain ⟨_, _, _, _, _, _, _, hinfo, _, _, _, _, _, _, hmajor', _, _⟩ := hs.proj_inv henv hΓ
+    exact (pi_not_struct hΓ hinfo hty hmajor'.hasType.2).elim
+  | @structEta _ M M₀ fam info' levels ps ps' H₀ hlen hps hl hp hi hsM hexp ih =>
+    subst hsrc
+    obtain ⟨rfl, hl'⟩ := struct_family_eq hΓ hl hsM hs
+    have hidx : i < info'.numFields := hs.proj_index_lt henv hΓ hl'
+    have hstep := EtaPar.structEta H₀ hlen hps hl hp hi hsM hexp
+    have hb := (EtaPar.full hΓ (.proj hstep) hs).hasType hΓ hs
+    have h₀ := (EtaPar.full hΓ (.proj H₀) hs).hasType hΓ hs
+    have hget : (ps' ++ (List.range info'.numFields).map fun j => VExpr.proj fam j M₀)[info'.nparams + i]? =
+        some (.proj fam i M₀) := by
+      rw [List.getElem?_append_right (by omega)]
+      simp [← hp, hlen, hidx]
+    have hδ : DeltaPar _ (.proj fam i (structExpand fam info' levels ps' M₀)) (.proj fam i M₀) :=
+      .projIota rfl (fun _ _ _ => .rfl) hl' hb hget h₀
+    obtain ⟨args', h', hc⟩ := ih hΓ rfl hs
+    exact ⟨args', h', ReflTransGen.trans (.tail .rfl ⟨2, by decide, hδ⟩) hc⟩
+  | const =>
+    rcases mkApps_const_eq_cases hsrc with ⟨rfl, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he; exact ⟨[], .nil, .rfl⟩
+    · cases he
+  | bvar | sort | elim | proj | lam | forallE =>
+    rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
 end EtaTools
 
 section Levels
