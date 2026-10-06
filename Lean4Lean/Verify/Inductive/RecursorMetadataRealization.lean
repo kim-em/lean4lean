@@ -1,0 +1,296 @@
+import Lean4Lean.Verify.Inductive.CompletedRecursorPhases
+import Lean4Lean.Verify.Inductive.CompletedElimination
+import Lean4Lean.Verify.Inductive.Recursor.Realization
+
+/-! Recursor metadata realization for completed recursor phases.
+
+Every field of `RecursorRealization` except the rule list is established for
+each installed recursor entry of a `CompletedRecursorPhasesResult`, against the
+single canonical generation instance chosen by that result.
+-/
+
+namespace Lean4Lean
+namespace InductiveSignature
+
+/-- `RecursorRealization` without its rule coverage: the name, universe arity,
+translated type, cardinalities, major premise, mutual block, safety, and K
+metadata of one concrete recursor. -/
+structure RecursorMetadataRealization {s : InductiveSignature} (g : Instance s)
+    (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
+  name : rec.name = g.recursorName owner
+  uvars : rec.levelParams.length = g.uvars
+  type : TrExprS venv rec.levelParams [] rec.type (g.recursorType owner)
+  numParams : rec.numParams = s.params.length
+  numIndices : rec.numIndices = s.families[owner].indices.length
+  numMotives : rec.numMotives = s.families.size
+  numMinors : rec.numMinors = s.constructors.size
+  major : rec.getMajorInduct = s.families[owner].name
+  all : rec.all = s.families.toList.map (·.name)
+  isUnsafe : rec.isUnsafe = s.isUnsafe
+  k : rec.k = true →
+    s.families.size = 1 ∧ s.constructors.size = 1 ∧
+    s.families[owner].resultLevel ≈ .zero ∧
+    ∀ ctor ∈ s.constructors.toList, ctor.fields = []
+
+/-- Metadata together with rule coverage is a full recursor realization. -/
+theorem RecursorMetadataRealization.toRecursorRealization
+    {s : InductiveSignature} {g : Instance s} {venv : VEnv}
+    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
+    (H : RecursorMetadataRealization g venv owner rec)
+    (rules : List.Forall₂ (RuleRealization g venv rec.levelParams)
+      (s.ownedConstructors owner) rec.rules) :
+    RecursorRealization g venv owner rec :=
+  ⟨H.name, H.uvars, H.type, H.numParams, H.numIndices, H.numMotives,
+    H.numMinors, H.major, H.all, H.isUnsafe, rules, H.k⟩
+
+end InductiveSignature
+
+namespace VerifyInductive
+
+open Lean hiding Environment Exception
+open Kernel
+
+/-- `getMajorInduct` reads the head constant of the domain at the major
+position of the recursor type. -/
+theorem RecursorVal.getMajorInduct_of_binderAt (rec : Lean.RecursorVal)
+    (H : Expr.ForallBinderAt rec.type rec.getMajorIdx domain) :
+    rec.getMajorInduct = domain.getAppFn.constName! := by
+  unfold Lean.RecursorVal.getMajorInduct
+  generalize rec.getMajorIdx = n at H ⊢
+  generalize rec.type = e at H ⊢
+  induction H with
+  | here => rfl
+  | there _ ih => exact ih
+
+/-- Substituting a free variable preserves the executable constructor arity. -/
+theorem constructorArity_instantiate1'_fvar (e : Expr) (fv : FVarId) (d : Nat) :
+    AddInductive.constructorArity (e.instantiate1' (.fvar fv) d) =
+      AddInductive.constructorArity e := by
+  induction e generalizing d with
+  | forallE _ _ _ _ _ ihb =>
+    simp only [Expr.instantiate1', AddInductive.constructorArity, ihb]
+  | bvar i =>
+    simp only [Expr.instantiate1']
+    split
+    · rfl
+    · split
+      · simp [Expr.liftLooseBVars', AddInductive.constructorArity]
+      · rfl
+  | _ => simp [Expr.instantiate1', AddInductive.constructorArity]
+
+/-- The executable arity counts every binder of a concrete forall telescope. -/
+theorem Expr.ForallTelescope.constructorArity
+    (H : Expr.ForallTelescope source n result) :
+    AddInductive.constructorArity source = n + AddInductive.constructorArity result := by
+  induction H with
+  | nil => simp
+  | cons _ ih => simp [AddInductive.constructorArity, ih]; omega
+
+/-- Consuming the cached parameter prefix removes exactly the remaining
+parameter binders. -/
+theorem RecursorParamPrefix.constructorArity
+    (H : RecursorParamPrefix stats i source tail)
+    (hfv : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv) :
+    AddInductive.constructorArity source =
+      (stats.params.size - i) + AddInductive.constructorArity tail := by
+  induction H with
+  | done hi => subst hi; simp
+  | @step i param body tail name dom bi hparam _ ih =>
+    have hi : i < stats.params.size :=
+      (Array.getElem?_eq_some_iff.mp hparam).1
+    rcases hfv param (Array.mem_of_getElem? hparam) with ⟨fv, rfl⟩
+    rw [Expr.instantiate1_eq, constructorArity_instantiate1'_fvar] at ih
+    simp only [AddInductive.constructorArity, ih]
+    omega
+
+/-- Installed recursor entries are indexed by the canonical signature's
+families. -/
+theorem CompletedRecursorPhasesResult.entries_length_eq
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv) :
+    H.entries.length = H.generationSignature.families.size := by
+  rw [H.generated.length]
+  change _ = H.consumedGeneration.signature.families.size
+  rw [H.consumedGeneration.families, H.consumedFamilies_size]
+
+/-- The head constant of the generated major premise is the owner family. -/
+theorem CompletedRecursorPhasesResult.generated_getMajorInduct
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    (H.generated.entry owner howner).info.getMajorInduct =
+      (decl.types[owner]'(by
+        rw [← H.cardinality.records, ← H.generated.length]; exact howner)).name := by
+  have hrecInfo : owner < H.recInfos.size := by
+    rw [← H.generated.length]; exact howner
+  let E := H.generated.entry owner howner
+  let S := H.bindings.toRecursorLocalSelections H.localWF H.params owner hrecInfo
+  have hnoalias : S.NoAlias :=
+    H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
+  obtain ⟨D⟩ := (H.bindings.major owner hrecInfo).declarationAt H.localWF 0 (by simp)
+  have Hbinder := S.majorBinderAt hnoalias D
+  dsimp only at Hbinder
+  rw [← E.type] at Hbinder
+  have hidx : E.info.getMajorIdx = stats.params.size + (H.recInfos.map (·.motive)).size +
+      (H.recInfos.flatMap (·.minors)).size + H.recInfos[owner]!.indices.size := by
+    simp only [Lean.RecursorVal.getMajorIdx, E.numParams, E.numMotives, E.numMinors,
+      E.numIndices, H.arities owner hrecInfo]
+  rw [← hidx] at Hbinder
+  rw [RecursorVal.getMajorInduct_of_binderAt _ Hbinder, H.majorSourceType owner hrecInfo D]
+  simp [Expr.abstractN_mkAppN, Expr.getAppFn_mkAppN, Expr.abstractN, Expr.getAppFn,
+    Expr.constName!]
+
+/-- A successful K check pins down the canonical signature: one family, one
+constructor without fields beyond the parameters, in `Prop`. -/
+theorem CompletedRecursorPhasesResult.kShape
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv) (hk : H.kTarget = true) :
+    H.generationSignature.families.size = 1 ∧
+    H.generationSignature.constructors.size = 1 ∧
+    (∀ owner : Fin H.generationSignature.families.size,
+      H.generationSignature.families[owner].resultLevel ≈ .zero) ∧
+    ∀ ctor ∈ H.generationSignature.constructors.toList, ctor.fields = [] := by
+  have HK : KTargetCheck stats indTypes true := hk ▸ H.kTargetChecked
+  obtain ⟨ind, ctor, hind, hzero, hctors, harity⟩ :=
+    HK.true_shape stats indTypes H.localContext
+  have hfamCons : H.generationSignature.families = H.consumedFamilies :=
+    H.consumedGeneration.families
+  have hsize1 : indTypes.size = 1 := by simp [hind]
+  have hfam1 : H.generationSignature.families.size = 1 :=
+    H.consumedGeneration.familyCount.trans hsize1
+  have hrec1 : H.recInfos.size = 1 := by
+    rw [← H.consumedFamilies_size, ← hfamCons]; exact hfam1
+  have h0 : 0 < H.recInfos.size := by omega
+  have hminors0 : H.recInfos[0]!.minors.size = 1 := by
+    rw [H.minorCounts 0 h0]; simp [hind, hctors]
+  have hflat : (H.recInfos.flatMap (·.minors)).size = 1 := by
+    have : ∃ r, H.recInfos = #[r] := by
+      match hr : H.recInfos, hrec1 with
+      | ⟨[r]⟩, _ => exact ⟨r, rfl⟩
+    obtain ⟨r, hr⟩ := this
+    rw [hr] at hminors0 ⊢
+    simpa using hminors0
+  have hctor1 : H.generationSignature.constructors.size = 1 :=
+    H.consumedGeneration.constructorCount.trans (H.cardinality.minors.symm.trans hflat)
+  refine ⟨hfam1, hctor1, ?_, ?_⟩
+  · intro owner
+    have howner : owner.val < H.recInfos.size := by
+      rw [← H.consumedFamilies_size, ← hfamCons]; exact owner.isLt
+    have hlevel : H.generationSignature.families[owner].resultLevel =
+        (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact howner)).resultLevel := by
+      rw [← H.consumedFamilies_level ⟨owner.val, howner⟩]
+      simp only [Fin.getElem_fin, hfamCons]
+    rw [hlevel]
+    exact (VLevel.equiv_congr_left
+      (R.materialized.headers.commonLevels _ (List.getElem_mem _))).2
+      (ofLevel_isAlwaysZero R.materialized.commonLevel hzero)
+  · intro ct hct
+    obtain ⟨k, hk, rfl⟩ := List.mem_iff_getElem.mp hct
+    have hk0 : k = 0 := by simp only [Array.length_toList] at hk; omega
+    subst hk0
+    have hlocal : 0 < H.origins.minorTypes[0]!.size := by
+      rw [(H.origins.minors 0 h0).size_eq, hminors0]; omega
+    obtain ⟨index, -, -, -, -, ⟨O⟩⟩ := H.consumedGeneration.sourceOrigins 0 h0 0 hlocal
+    have hindex0 : index.val = 0 := by
+      have := index.isLt
+      change _ < H.generationSignature.constructors.size at this
+      omega
+    have hget : H.generationSignature.constructors.toList[0] =
+        H.consumedGeneration.signature.constructors[index] := by
+      simp only [Array.getElem_toList, Fin.getElem_fin, hindex0]
+      rfl
+    rw [hget]
+    obtain ⟨-, hlocalIdx, hsrcCtors, -, traversal, htrav, hcons, -, -, hstats, -⟩ :=
+      H.minorSources 0 h0 (by omega) 0 hlocal
+    have htravEq : traversal = O.traversal :=
+      Option.some.inj (htrav.symm.trans O.traversal_eq)
+    have hSctor : (H.origins.minorShapes 0 h0 0 hlocal).constructor = ctor := by
+      have hsc := (H.origins.minorShapes 0 h0 0 hlocal).sourceConstructor
+      rw [hlocalIdx, hsrcCtors] at hsc
+      simpa [hind, hctors] using hsc.symm
+    have hA := traversal.parameterPrefix.constructorArity
+      (hstats ▸ R.materialized.paramFVars)
+    have hB := traversal.fieldTelescope.constructorArity
+    rw [hcons, hSctor, hstats] at hA
+    have hfields0 : traversal.fields.size = 0 := by omega
+    have hlen := O.fields
+    rw [← htravEq, hfields0] at hlen
+    exact List.eq_nil_of_length_eq_zero hlen
+
+/-- Every installed recursor realizes all non-rule metadata of the canonical
+generated recursor for its owner. -/
+theorem CompletedRecursorPhasesResult.metadataRealization
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Fin H.generationSignature.families.size) :
+    ∃ rec : Lean.RecursorVal,
+      (H.entries[owner.val]'(by rw [H.entries_length_eq]; exact owner.isLt)).1 = .recInfo rec ∧
+      (H.entries[owner.val]'(by rw [H.entries_length_eq]; exact owner.isLt)).2 =
+        H.canonicalGeneration.recursor owner ∧
+      InductiveSignature.RecursorMetadataRealization H.canonicalGeneration H.outVEnv owner rec := by
+  have hi : owner.val < H.entries.length := by rw [H.entries_length_eq]; exact owner.isLt
+  have hrecInfo : owner.val < H.recInfos.size := by rw [← H.generated.length]; exact hi
+  have hfamCons : H.generationSignature.families = H.consumedFamilies :=
+    H.consumedGeneration.families
+  let E := H.generated.entry owner.val hi
+  have htarget : H.entries[owner.val].2 = H.canonicalGeneration.recursor owner := by
+    rw [H.canonicalTargets owner.val hi]
+    unfold CompletedRecursorConstruction.nativeTarget
+    rw [dif_pos owner.isLt]
+    rfl
+  have Htr := E.translated
+  rw [htarget] at Htr
+  obtain ⟨⟨_, huvars, htype⟩, hname⟩ := Htr
+  refine ⟨E.info, E.source_eq, htarget, ?_⟩
+  have hfamily : ∀ k (hk : k < H.generationSignature.families.size),
+      H.generationSignature.families[k] =
+        H.consumedFamilies[k]'(by rw [← hfamCons]; exact hk) := by
+    intro k hk
+    simp only [hfamCons]
+  have hdecl : owner.val < decl.types.length := by
+    rw [← H.cardinality.records]; exact hrecInfo
+  refine {
+    name := hname
+    uvars := huvars
+    type := htype.mono H.installed.le
+    numParams := E.numParams.trans
+      (H.cardinality.params.trans H.consumedGeneration.models.nparams.symm)
+    numIndices := ?_
+    numMotives := ?_
+    numMinors := E.numMinors.trans
+      (H.cardinality.minors.trans H.consumedGeneration.constructorCount.symm)
+    major := ?_
+    all := ?_
+    isUnsafe := (H.generated_isUnsafe owner.val hi).trans
+      H.consumedGeneration.models.safety.symm
+    k := ?_ }
+  · rw [E.numIndices, ← H.arities _ hrecInfo,
+      ← H.sourceIndices_length ⟨owner.val, hrecInfo⟩,
+      ← H.consumedFamilies_indices ⟨owner.val, hrecInfo⟩, Fin.getElem_fin,
+      hfamily owner.val owner.isLt]
+  · rw [E.numMotives, Array.size_map, ← H.consumedFamilies_size, ← hfamCons]
+  · rw [H.generated_getMajorInduct owner.val hi, Fin.getElem_fin,
+      hfamily owner.val owner.isLt, H.consumedFamilies_name ⟨owner.val, hrecInfo⟩]
+  · rw [E.all]
+    apply List.ext_getElem
+    · simp only [List.length_map, Array.length_toList, Array.size_map]
+      exact H.consumedGeneration.familyCount.symm
+    · intro k hk₁ hk₂
+      have hk : k < H.generationSignature.families.size := by simpa using hk₂
+      simp only [Array.toList_map, List.getElem_map, Array.getElem_toList]
+      have hk' : k < indTypes.size := by
+        rw [← H.consumedGeneration.familyCount]; exact hk
+      have h := H.consumedGeneration.familyName k hk
+      rw [getElem!_pos indTypes k hk'] at h
+      exact h.symm
+  · intro hk
+    rw [H.generated_k owner.val hi] at hk
+    obtain ⟨h1, h2, h3, h4⟩ := H.kShape hk
+    exact ⟨h1, h2, h3 owner, h4⟩
+
+end VerifyInductive
+end Lean4Lean
