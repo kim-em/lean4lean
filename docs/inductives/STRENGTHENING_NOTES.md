@@ -325,3 +325,35 @@ premises several hundred times (`LevelledReduction`: 17 `uniq`, about 120 invers
 95 transitivity uses), and for certificate premises each of these needs certified
 transitivity on smaller certificates, so the strip has to be restated as an induction
 over certificate size.
+
+## Part 2: singleton eta (formal, abstract layer)
+
+`Lean4Lean/Theory/Typing/CanonicalEqTyping.lean`: typing of `Eq`, `Eq.refl`, `Eq.rec`
+applications under `HasCanonicalEq`; the type cast `typeCast u X Y e x` along
+`e : @Eq (Sort u) X Y`; K for casts (`IsDefEq.typeCast_refl`: proof irrelevance to
+`Eq.refl`, then the stored `Eq.rec` iota rule).
+
+`Lean4Lean/Theory/Typing/SingletonExtraction.lean` (no `sorry`; uses uniqueness of types,
+i.e. obligation (a)):
+
+* `CastSpec` and `CastSpec.tel`: the cast telescope, parametric in providers (parameter
+  and index arguments); `tel_subst`, `target_subst` (substitution of providers),
+  `tel_instOuter`, `tel_dom_instOuter`, `target_instOuter` (instantiating the cast binders);
+* `tel_typed`: the telescope is well formed and the cast substitution is a typed field
+  instance, at any typed providers;
+* `tel_branch`, `tel_branch_target`: in the constructor branch every cast computes (K);
+* `PropElim`, `PropElim.WF`: an abstract interface for elimination of the family into
+  `Prop` (the `elim` field is the eliminator's typing for an arbitrary motive and branch);
+* `PropElim.value_typed`: the closed extraction function of proof field `j` is well typed
+  (a function of parameters, generic indices, major and the cast telescope);
+* `PropElim.occ`, `occ_typed`: at an occurrence aligned with a typed field instance, the
+  reconstruction (data from indices, proofs by extraction with `Eq.refl` cast arguments) is
+  a typed field instance equal to it field by field;
+* `PropElim.singleton_eta`: `m ≡ mk ps (reconstructed fields)`.
+
+Remaining for Part 2: the bridge from a registered native recursor
+(`NativeRecursorData`, large target, zero source level) to `PropElim.WF`
+(`elim` from the restored recursor type at motive level zero, `minorOf` adding the
+induction-hypothesis binders). Integration into `NativePrefixProgram` (replacing the
+`Eq`-free proof selectors, which are ill typed for families such as the countermodel's)
+is coordinated with the confluence branch.
