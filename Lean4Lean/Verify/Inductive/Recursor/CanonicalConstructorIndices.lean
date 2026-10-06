@@ -33,7 +33,7 @@ theorem CompletedRecursorConstruction.constructorTerminalSpine
     HS.semantic.traversal.terminal.getAppArgsList.take stats.params.size = stats.params.toList := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, hstats, hvalid, _⟩ :=
-    H.minorSources owner howner hsourceOwner localIndex hlocal
+    H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have heq : traversal = HS.semantic.traversal :=
     Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
   rw [heq] at hvalid hstats
@@ -211,7 +211,7 @@ theorem CompletedRecursorConstruction.constructorTerminalOwner
     AddInductive.isValidIndApp? stats HS.semantic.traversal.terminal = some owner := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, _, hvalid, _⟩ :=
-    H.minorSources owner howner hsourceOwner localIndex hlocal
+    H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have heq : traversal = HS.semantic.traversal :=
     Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
   rw [heq] at hvalid
