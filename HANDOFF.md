@@ -735,6 +735,12 @@ inside this project's scope without solving open base metatheory:
    its own build and the checker's inferred type; route: rebuild the shape
    with the restored generated lhs/type and prove their well-formedness from
    the restored recursor type plus unique typing (agent running).
+   **`Hprovenance` proved (104639f):** `hprovenance_of (E) (wf) (Hsources)
+   (hnested : result.aux2nested.size ≠ 0)` (Nested/RecursorProvenance.lean);
+   `hnested` is in scope at the only call site of `assemblyNative`
+   (`Nested/FinalModelDispatch.lean`) and must be threaded into
+   `assemblyNative`'s signature at wiring time. Remaining for the nested
+   junction: `HruleShape` and the `HauxRecNames` residue.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
