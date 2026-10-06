@@ -66,6 +66,37 @@ says why (strengthening, registry soundness, confluence, or validity in a judgme
 context hypothesis). The false and unused `InferType.whRed` was removed, with the
 counterexample in a comment.
 
+D5 (declared field count in constructor typing). Shape typing of a constructor shape
+`ctor c fs` at a rigid family requires `fs.length = nfields c`, the declared number of fields
+(`ShapeParams.nfields`, from `SemSig.nfields`; commit d90f7789, by the M3 author). Without it a
+constructor shape with fewer fields than the constructor is typed at its structure and
+approximates a variable of that type but not the variable's structure eta expansion, so
+`structEta` is unsound in the model.
+
+D6 (rule matching independent of the parameter/field split). Two facts about real
+environments rule out a single agreed split of a constructor's arguments into parameters and
+fields:
+* the same constants can be registered twice with different splits: a structure registration
+  (`inductProjections`) and an eliminator schema (`inductEliminators`) over the same constructor,
+  e.g. `S.mk : (α : Type) → α → S α` as a structure with one parameter and one field, and as the
+  constructor of an inductive with no parameters, one index and two fields
+  (counterexample in `Theory/Typing/ShapeModel/EnvTables.lean`, M4a work on branch
+  `agent/verify-inductives-headinv-m4`);
+* a native rule's field count is the normalized signature's, tied to the constructor's syntactic
+  arity only by a definitional equality in the header environment
+  (`Theory/Typing/ShapeModel/EnvHeaderArity.lean`, same branch).
+So the model no longer assumes that a rule's major has as many fields as the constructor stores.
+`S.ctor c = some ⟨I, np, nf⟩` means that constructor shapes of `c` store the last `nf` arguments
+of a saturated application with `np + nf` arguments; `np` is the structure's parameter count for
+a registered structure constructor (`ctor'` collapse and projections work as before) and `0`
+otherwise (the shape stores every argument). In mode AB the stored fields have the stored count
+(`fs.length = S.nfields mj.ctor`) and are aligned with the rule's `k` fields at the end: rule
+field `i` is stored field `nf - k + i` when that is an index. Every other rule field, and every
+field in mode C, is read from an index argument through the new `Rule.fieldIndex` (one entry per
+rule field, `some j` = the argument at position `j` before the major), and is bottom if `none`.
+A binder that is not a rule field is read from its first literal occurrence among the arguments,
+as before. `SemSig.Coherent` and the statements of `Sound.lean` are unchanged.
+
 ## 2. The domain (ShapeModel/Domain.lean, ShapeModel/ShapeTyping.lean)
 
 Carneiro's depth-indexed finite shapes, with:
@@ -80,7 +111,8 @@ Carneiro's depth-indexed finite shapes, with:
   the parameters (a Pi telescope over the fields). Order, compatibility and join are
   componentwise (same name, same levels, same constructor names in the same order).
 * `ctor (c : Name) (fields : List S)`: constructor shapes store the *fields only* (not the
-  parameters). `ctor'` collapses a structure constructor (`isStruct c`) with all-bot fields
+  parameters); "fields" are the last `nfields` arguments of the split chosen by the signature
+  (D6). `ctor'` collapses a structure constructor (`isStruct c`) with all-bot fields
   to `bot` (validates `structEta`, `unitLike`).
 * Shape typing is parametrised by `class ShapeParams` (`isStruct : Name → Bool`,
   `famProp : Name → List SLvl → Bool`, "this rigid former is a proposition at these levels";
@@ -115,10 +147,11 @@ require the produced table to be typed at an approximation of the head's type
   Matching reads the bound variables from the argument shapes and:
   * mode AB (major's family not a proposition at the levels): the major shape is
     `ctor' c fs`; this includes the bottom major of a structure (`fs` all bottom), which is
-    what `structEta` forces;
+    what `structEta` forces; the rule's fields are aligned with `fs` at the end, and those
+    not stored are read through `Rule.fieldIndex` (D6);
   * mode C (major's family a proposition with one constructor): the major is ignored (proof
-    irrelevance makes it invisible); fields that occur literally as an index argument are
-    read from that index argument, the others are bottom. This is read-through
+    irrelevance makes it invisible); each field is read from the index argument given by
+    `Rule.fieldIndex`, and is bottom if there is none. This is read-through
     (PHASE1_SPIKE.md section 3.1); the recursor's typing filter keeps it typed.
 * `proj S i e`: the `i`-th field of a `ctor` shape of `S`'s constructor; bottom otherwise.
 

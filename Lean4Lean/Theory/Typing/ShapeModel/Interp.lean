@@ -22,8 +22,8 @@ fields); `rigid` (a constant that is not a constructor and heads no rule gives a
 a constructor table bounded by the constructor types instantiated at the parameter arguments,
 `ctsBound`); and the rule clauses `rule` (no major), `ruleAB` (the major's family is not a
 proposition: the major shape is above `ctor' c fs` and the rule binders are read from the
-arguments and from `fs`) and `ruleC` (the major's family is a proposition with one constructor:
-the major is ignored), each followed by the interpretation of the right-hand side under the
+arguments and from `fs`, aligned at the end) and `ruleC` (the major's family is a proposition with
+one constructor: the major is ignored and its fields are read from index arguments), each followed by the interpretation of the right-hand side under the
 valuation `ruleVal` read off the match.
 
 Main results: `Interp.mono`, `Interp.mono_l`, `Interp.lift`/`unlift`, `Interp.closed`,
@@ -55,6 +55,16 @@ Design decisions and deviations from the milestone specification, with rationale
   eta forces for typed arguments.
 * The rule clause is split into three constructors `rule`, `ruleAB`, `ruleC` (one per mode).
   In `ruleAB` the major is the head of `rargs` (the arguments are stored reversed).
+* Rule matching does not depend on the constructor's parameter/field split agreeing with the
+  rule's (a constructor can be registered with several splits, and a native rule's field count
+  is tied to the constructor's arity only up to definitional equality; `PHASE1_NOTES.md`, D6).
+  In `ruleAB` the stored fields `fs` have the constructor's stored count
+  (`fs.length = SemSig.nfields mj.ctor`), not the rule's `mj.fields.length`. `ruleVal` aligns the
+  `k` rule fields with the `nf` stored fields at the end: rule field `i` is stored field
+  `nf - k + i` when `k ≤ i + nf`; otherwise, and for every field in mode C, it is read from the
+  argument at position `r.fieldIndex[i]` (`some j`), else bottom. A binder that is not a rule
+  field is read from its first literal occurrence among the arguments (`lookupVar`), else
+  bottom; a binder occurring several times among the fields takes its first occurrence.
 * "`T'` instantiated at the first `k'.nparams` argument shapes" is `ctsBound T' args k'.nparams`:
   the codomain table of the Pi shape `T'` applied successively (`WShape.piApp`, bottom on a
   non-Pi shape; `TShape.piApp` works at a common depth), and bottom with fewer arguments.
@@ -233,18 +243,39 @@ def lookupVar (b : Nat) : List (Option Nat) → List TShape → TShape
   | none :: vs, _ :: as => lookupVar b vs as
   | _, _ => .bot
 
-/-- The shape of the first field that is the variable `b` (`d` if there is none). -/
-def lookupField (b : Nat) (d : TShape) : List Nat → List TShape → TShape
-  | b' :: bs, f :: fs => if b' = b then f else lookupField b d bs fs
-  | _, _ => d
+/-- The position of the first occurrence of `b` in a list of binders. -/
+def fieldPos (b : Nat) : List Nat → Option Nat
+  | [] => none
+  | b' :: bs => if b' = b then some 0 else (fieldPos b bs).map (· + 1)
+
+/-- Rule field `i` read from an index argument through `r.fieldIndex` (bottom if `none`, or if
+the position is out of range). -/
+def indexField (r : Rule) (args : List TShape) (i : Nat) : TShape :=
+  match r.fieldIndex[i]? with
+  | some (some j) => args.getD j .bot
+  | _ => .bot
+
+/-- Rule field `i` (of `k` rule fields). In mode AB (`fs? = some fs`, the stored fields of the
+major) the fields are aligned at the end: rule field `i` is stored field `fs.length - k + i` if
+that is an index (`k ≤ i + fs.length`), and is otherwise read through `r.fieldIndex`. In mode C
+(`fs? = none`) every field is read through `r.fieldIndex`. -/
+def ruleField (r : Rule) (args : List TShape) (fs? : Option (List TShape)) (k i : Nat) : TShape :=
+  match fs? with
+  | some fs => if k ≤ i + fs.length then fs.getD (i + fs.length - k) .bot else indexField r args i
+  | none => indexField r args i
 
 /-- The valuation of the binders of a rule read off the arguments `args` (before the major) and,
-in mode AB, the fields `fs` of the major. -/
+in mode AB, the stored fields `fs` of the major. A binder `b < r.nbind` that is a rule field
+(first occurrence `i` in `mj.fields`) takes `ruleField`; any other binder takes its first literal
+occurrence in `r.vars` (`lookupVar`), else bottom. -/
 def ruleVal (r : Rule) (args : List TShape) (fs? : Option (List TShape)) : Valuation := fun b =>
   if b < r.nbind then
-    match r.major, fs? with
-    | some mj, some fs => lookupField b (lookupVar b r.vars args) mj.fields fs
-    | _, _ => lookupVar b r.vars args
+    match r.major with
+    | some mj =>
+      match fieldPos b mj.fields with
+      | some i => ruleField r args fs? mj.fields.length i
+      | none => lookupVar b r.vars args
+    | none => lookupVar b r.vars args
   else .bot
 
 @[simp] theorem lookupVar_nil : lookupVar b vs [] = .bot := by
@@ -262,16 +293,19 @@ theorem lookupVar_mono {args args' : List TShape} (h : args.Forall₂ (· ≤ ·
       · exact h1
       · exact ih
 
-theorem lookupField_mono {fs fs' : List TShape} (hd : d ≤ d') (h : fs.Forall₂ (· ≤ ·) fs') :
-    lookupField b d bs fs ≤ lookupField b d' bs fs' := by
-  induction h generalizing bs with
-  | nil => cases bs <;> exact hd
-  | cons h1 _ ih =>
-    rcases bs with _ | ⟨b', bs⟩
-    · exact hd
-    · simp only [lookupField]; split
-      · exact h1
-      · exact ih
+theorem getD_bot_mono {args args' : List TShape} (h : args.Forall₂ (· ≤ ·) args') :
+    args.getD j .bot ≤ args'.getD j .bot := by
+  induction h generalizing j with
+  | nil => exact .rfl
+  | cons h1 _ ih => cases j with
+    | zero => exact h1
+    | succ j => exact ih
+
+theorem indexField_mono {args args' : List TShape} (h : args.Forall₂ (· ≤ ·) args') :
+    indexField r args i ≤ indexField r args' i := by
+  simp only [indexField]; split
+  · exact getD_bot_mono h
+  · exact .rfl
 
 theorem ruleVal_mono {args args' : List TShape} (h : args.Forall₂ (· ≤ ·) args')
     {fs? fs?' : Option (List TShape)}
@@ -279,11 +313,16 @@ theorem ruleVal_mono {args args' : List TShape} (h : args.Forall₂ (· ≤ ·) 
       fs.Forall₂ (· ≤ ·) fs') :
     (ruleVal r args fs?).LE (ruleVal r args' fs?') := by
   intro b; simp only [ruleVal]; split
-  · rcases hf with ⟨rfl, rfl⟩ | ⟨fs, fs', rfl, rfl, hf⟩ <;> cases r.major
-    · exact lookupVar_mono h
-    · exact lookupVar_mono h
-    · exact lookupVar_mono h
-    · exact lookupField_mono (lookupVar_mono h) hf
+  · cases r.major with
+    | none => exact lookupVar_mono h
+    | some mj =>
+      simp only; split
+      · rcases hf with ⟨rfl, rfl⟩ | ⟨fs, fs', rfl, rfl, hf⟩
+        · exact indexField_mono h
+        · simp only [ruleField, hf.length_eq]; split
+          · exact getD_bot_mono hf
+          · exact indexField_mono h
+      · exact lookupVar_mono h
   · exact .rfl
 
 end
@@ -328,7 +367,7 @@ inductive Const (R : Valuation → TShape → VExpr → Prop) (h : Head) (ls : L
   | ruleAB {rargs : List (WShape (n+1))} {a : WShape (n+1)} {fs : List (WShape n)} :
     SemSig.rules r → r.head = h → ls.length = r.uvars → r.major = some mj →
     SemSig.ctor mj.ctor = some ci → SemSig.famProp ci.family (mj.lvls ls) = false →
-    rargs.length = r.vars.length → fs.length = mj.fields.length →
+    rargs.length = r.vars.length → fs.length = SemSig.nfields mj.ctor →
     WShape.ctor' mj.ctor fs ≤ a →
     R (ruleVal r (rargs.reverse.map (·.T)) (some (fs.map (·.T)))) m (r.rhs.instL ls) →
     Const R h ls (a :: rargs) m
