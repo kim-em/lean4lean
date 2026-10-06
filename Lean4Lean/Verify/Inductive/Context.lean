@@ -2566,6 +2566,16 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.forallE_align (henv : env.WF)
   obtain ⟨b₀, hb₀⟩ := hbody.defeqDFC henv hctx
   exact ⟨d₀, b₀, hd₀, hd₀T, hu, hb₀, hbody.uniq henv hctx hb₀⟩
 
+/-- A checker-context typing of a translated term transfers back to the
+scope translation of the same term. -/
+theorem _root_.Lean4Lean.VEnv.HasType.alignBack (henv : env.WF)
+    (h : VLCtx.IsDefEq env Us.length scope chk)
+    (hn : TrExprS env Us scope e a) (h₀ : TrExprS env Us chk e b)
+    (ht : env.HasType Us.length chk.toCtx b T) :
+    env.HasType Us.length scope.toCtx a T := by
+  have ht' := ht.defeqDFC henv.ordered (h.defeqCtx.symm henv.ordered)
+  exact ht'.defeqU_l henv h.wf.toCtx (hn.uniq henv h h₀).symm
+
 /-- Extend an alignment by a free-variable binder whose two domains are
 definitionally equal. -/
 theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
