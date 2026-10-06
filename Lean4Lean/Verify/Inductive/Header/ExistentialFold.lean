@@ -85,6 +85,10 @@ theorem laterLoopInd
       rw [← hvenv, ← hlparams]
       exact Hchecked.payload Hc
     let Htraversal' := Htraversal.next hidx payload
+    -- The telescope is opened in the header checker context.
+    let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+        (Hc.headerCheck stats) stats depth := { Hsuffix with }
+    let Hc := Hc.headerCheck stats
     apply checkInductiveTypes.loopType.laterHeader.accumulateContextWF
       hconsume (baseEnv := baseEnv) (baseUs := baseUs)
       (depth := depth)
@@ -181,6 +185,8 @@ theorem firstLoopInd
   intro checkedType Hchecked _Haccumulator normalized _hbelow htype
   let payload := Hchecked.payload Hc
   let Htraversal' := Htraversal.next hnonempty payload
+  -- The telescope is opened in the header checker context.
+  let Hc := Hc.headerCheck stats
   have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
       Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
     checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams

@@ -124,16 +124,19 @@ theorem checkClosedType.rawSourceTranslationWF (Hc : ContextWF c) :
     (AddInductive.checkClosedType name type c).WF fun checkedType =>
       Nonempty (CheckedSourceHeaderTranslation Hc name type checkedType) := by
   change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
-    (monadLift (TypeChecker.checkType type) : AddInductive.M Expr) c).WF _
+    (monadLift (TypeChecker.checkType type) : AddInductive.M Expr)
+      { c with checkLCtx := {} }).WF _
   have Hclosed : (c.env.checkNoMVarNoFVar name type).WF
       (fun _ => type.FVarsIn fun _ => False) := by
     intro _ Hresult
     exact checkNoMVarNoFVar.closed Hresult
   exact Hclosed.bind fun _ hclosed =>
-    (checkTypeInContext.WF Hc
+    (checkTypeInContext.WF (Hc.withCheckLCtx {} LocalContext.empty_mapWF .empty)
       (hclosed.mono fun _ h => False.elim h)).mono
       fun checkedType Hchecked => by
     rcases Hchecked with ⟨runtimeTarget, checkedTarget, Htyping⟩
+    change TrTyping Hc.venv c.lparams Hc.mlctx.vlctx type checkedType
+      runtimeTarget checkedTarget at Htyping
     have hsourceClosed : Closed type 0 := by
       simpa [Hc.mlctx.noBV] using Htyping.2.1.closed
     have hsourceFVars :
@@ -200,13 +203,16 @@ theorem stepPrefix.accumulatesRawHeaders
               indConsts := stats.indConsts.push
                 (.const indTypes[dIdx].name stats.levels) }
             AddInductive.checkInductiveTypes.loopInd nparams indTypes
-              (dIdx + 1) stats k) c).WF Q) :
+              (dIdx + 1) stats k) (headerCheckContext c stats)).WF Q) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
   rw [AddInductive.checkInductiveTypes.loopInd]
   rw [dif_pos hidx]
   change (AddInductive.checkClosedType indTypes[dIdx].name indTypes[dIdx].type c >>=
     fun _ => ((do
-      let normalized ← TypeChecker.whnf indTypes[dIdx].type
+      let normalized ← AddInductive.withCheckLCtx {}
+        (TypeChecker.whnf indTypes[dIdx].type)
+      AddInductive.withCheckLCtx
+        (← AddInductive.paramCheckLCtx stats stats.params.size) do
       AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
         c.fuel.inductiveFuel (fun type stats nindices => show AddInductive.M _ from do
           let type ← TypeChecker.ensureSort type
@@ -228,11 +234,14 @@ theorem stepPrefix.accumulatesRawHeaders
   exact (checkClosedType.rawSourceTranslationWF Hc).bind
     fun checkedType hchecked => by
       rcases hchecked with ⟨Hchecked⟩
-      exact (whnfInContext.scopeWF Hc Hchecked.typing.2.1).bind
-        fun normalized hnormalized =>
-          Hloop checkedType Hchecked
-            (Hprefix.snoc indTypes[dIdx] (Hchecked.payload Hc))
-            normalized hnormalized.1 hnormalized.2
+      exact (whnfInContext.scopeWF
+        (Hc.withCheckLCtx {} LocalContext.empty_mapWF .empty)
+        Hchecked.typing.2.1).bind fun normalized hnormalized =>
+          AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => by
+            subst hL
+            exact Hloop checkedType Hchecked
+              (Hprefix.snoc indTypes[dIdx] (Hchecked.payload Hc))
+              normalized hnormalized.1 hnormalized.2
 
 end checkInductiveTypes.loopInd
 
@@ -296,11 +305,13 @@ theorem firstHeader.accumulateContextWF
           (nindices := 0) (fuel := fuel) (k := k) (Q := Q)
           Hc hi hempty Hcache Hdom hbody
         intro body' _hbodyEq normalized hnormalized Hcache'
-        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+        let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
         apply ih (c := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi })
           (stats := { stats with
             params := stats.params.push (.fvar ⟨c.ngen.curr⟩) })
@@ -325,11 +336,13 @@ theorem firstHeader.accumulateContextWF
           (nindices := nindices) (fuel := fuel) (k := k) (Q := Q)
           Hc hi Hcache Hdom hbody
         intro body' _hbodyEq normalized hnormalized Hcache'
-        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+        let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
         apply ih (c := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi })
           (current := body') (i := i) (nindices := nindices + 1)
           (Hc := Hc')
@@ -391,11 +404,13 @@ theorem indices.accumulateContextWF
         (i := nparams) (nindices := nindices) (fuel := fuel)
         (k := k) (Q := Q) Hc (by omega) Hdom hbody
       intro body' _hbodyEq normalized hnormalized
-      let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+      let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
         Hdom.consumed Hdom.isType
       apply ih (c := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
             dom.consumeTypeAnnotationsVerified bi })
         (current := body') (nindices := nindices + 1) (Hc := Hc')
       · change Hc.venv = baseEnv

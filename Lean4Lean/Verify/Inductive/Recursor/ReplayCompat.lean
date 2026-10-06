@@ -87,19 +87,23 @@ theorem RecursorFieldDecisions.freshBindings
         ⟨FreshBoundFVarArray.empty root⟩⟩
   | @nonrecursive c name dom body bi bu u positions H _ ih =>
       rcases ih with ⟨Hc, HrootCurrent, ⟨Hbindings⟩⟩
-      let Hnext := Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi
-      let Hstep := BindingContextLE.withLocalDecl c Hc name
+      let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
+          dom.consumeTypeAnnotationsVerified bi
+      let Hstep := BindingContextLE.withCheckedLocalDecl
+          (base := ctorFieldCheck c stats bu) c Hc name
         dom.consumeTypeAnnotationsVerified bi
       exact ⟨Hnext, HrootCurrent.trans Hstep,
-        ⟨Hbindings.pushCurrent Hc HrootCurrent name
+        ⟨Hbindings.pushCurrentChecked Hc HrootCurrent name
           dom.consumeTypeAnnotationsVerified bi⟩⟩
   | @recursive c name dom body bi bu u positions target H _ ih =>
       rcases ih with ⟨Hc, HrootCurrent, ⟨Hbindings⟩⟩
-      let Hnext := Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi
-      let Hstep := BindingContextLE.withLocalDecl c Hc name
+      let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
+          dom.consumeTypeAnnotationsVerified bi
+      let Hstep := BindingContextLE.withCheckedLocalDecl
+          (base := ctorFieldCheck c stats bu) c Hc name
         dom.consumeTypeAnnotationsVerified bi
       exact ⟨Hnext, HrootCurrent.trans Hstep,
-        ⟨Hbindings.pushCurrent Hc HrootCurrent name
+        ⟨Hbindings.pushCurrentChecked Hc HrootCurrent name
           dom.consumeTypeAnnotationsVerified bi⟩⟩
 
 /-- A complete retained field-decision trace canonically opens the original
@@ -128,8 +132,10 @@ theorem RecursorFieldDecisions.fieldOpening
           ⟨ConstructorFieldOpening.empty source⟩⟩
     | @nonrecursive c name dom body bi bu u positions Hprev _ ih =>
         rcases ih with ⟨Hc, HrootCurrent, Hbindings, ⟨Hopening⟩⟩
-        let Hnext := Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi
-        let Hstep := BindingContextLE.withLocalDecl c Hc name
+        let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
+          dom.consumeTypeAnnotationsVerified bi
+        let Hstep := BindingContextLE.withCheckedLocalDecl
+          (base := ctorFieldCheck c stats bu) c Hc name
           dom.consumeTypeAnnotationsVerified bi
         have hopenFvars : Hopening.fvars = Hbindings.fvars :=
           Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
@@ -151,13 +157,15 @@ theorem RecursorFieldDecisions.fieldOpening
             rwa [← hopenFvars]
           · exact Hc.current_not_mem (HrootCurrent hroot)
         exact ⟨Hnext, HrootCurrent.trans Hstep,
-          Hbindings.pushCurrent Hc HrootCurrent name
+          Hbindings.pushCurrentChecked Hc HrootCurrent name
             dom.consumeTypeAnnotationsVerified bi,
           ⟨Hopening.push hcurrentFresh hbodyFresh⟩⟩
     | @recursive c name dom body bi bu u positions target Hprev _ ih =>
         rcases ih with ⟨Hc, HrootCurrent, Hbindings, ⟨Hopening⟩⟩
-        let Hnext := Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi
-        let Hstep := BindingContextLE.withLocalDecl c Hc name
+        let Hnext := Hc.withCheckedLocalDecl (base := ctorFieldCheck c stats bu) name
+          dom.consumeTypeAnnotationsVerified bi
+        let Hstep := BindingContextLE.withCheckedLocalDecl
+          (base := ctorFieldCheck c stats bu) c Hc name
           dom.consumeTypeAnnotationsVerified bi
         have hopenFvars : Hopening.fvars = Hbindings.fvars :=
           Hopening.fvars_eq_bound Hbindings.toBoundFVarArray
@@ -179,7 +187,7 @@ theorem RecursorFieldDecisions.fieldOpening
             rwa [← hopenFvars]
           · exact Hc.current_not_mem (HrootCurrent hroot)
         exact ⟨Hnext, HrootCurrent.trans Hstep,
-          Hbindings.pushCurrent Hc HrootCurrent name
+          Hbindings.pushCurrentChecked Hc HrootCurrent name
             dom.consumeTypeAnnotationsVerified bi,
           ⟨Hopening.push hcurrentFresh hbodyFresh⟩⟩
   rcases go H with ⟨_, _, _, Hopening⟩
@@ -441,10 +449,12 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           have HnextCopy := Hnext
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
-          let HleftNext := HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi
-          let HrightNext := HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi
+          let HleftNext := (HleftWF.withLocalDecl leftName
+            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (ctorFieldCheck left stats leftAll)
+          let HrightNext := (HrightWF.withLocalDecl rightName
+            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
           rw [hleftRun, hrightRun] at hclass
@@ -476,10 +486,12 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           have HnextCopy := Hnext
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
-          let HleftNext := HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi
-          let HrightNext := HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi
+          let HleftNext := (HleftWF.withLocalDecl leftName
+            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (ctorFieldCheck left stats leftAll)
+          let HrightNext := (HrightWF.withLocalDecl rightName
+            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
           rw [hleftRun, hrightRun] at hclass
@@ -515,10 +527,12 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           have HnextCopy := Hnext
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
-          let HleftNext := HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi
-          let HrightNext := HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi
+          let HleftNext := (HleftWF.withLocalDecl leftName
+            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (ctorFieldCheck left stats leftAll)
+          let HrightNext := (HrightWF.withLocalDecl rightName
+            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
           rw [hleftRun, hrightRun] at hclass
@@ -554,10 +568,12 @@ theorem RecursorFieldDecisions.alphaAlignmentOfSizeEq
           have HnextCopy := Hnext
           rcases HnextCopy with
             ⟨_, _, _, _, HnextContext, _, _⟩
-          let HleftNext := HleftWF.withLocalDecl leftName
-            leftDomain.consumeTypeAnnotationsVerified leftBi
-          let HrightNext := HrightWF.withLocalDecl rightName
-            rightDomain.consumeTypeAnnotationsVerified rightBi
+          let HleftNext := (HleftWF.withLocalDecl leftName
+            leftDomain.consumeTypeAnnotationsVerified leftBi).withCheckLCtx
+            (ctorFieldCheck left stats leftAll)
+          let HrightNext := (HrightWF.withLocalDecl rightName
+            rightDomain.consumeTypeAnnotationsVerified rightBi).withCheckLCtx
+            (ctorFieldCheck right stats rightAll)
           have hclass := hclassify HleftNext HrightNext HnextContext
             Hterminal.forall_domain
           rw [hleftRun, hrightRun] at hclass
@@ -795,7 +811,7 @@ theorem RecursorFieldDecisions.recursiveFieldDeclarationAt
   exact ⟨fv, index, name, type, bi, kind,
     hselected.trans hfield, hfield, hdecl⟩
 
-/-- The retained initial `inferType` run is not opaque metadata: for a free
+/-- The retained initial `getType` read is not opaque metadata: for a free
 variable it computes exactly the type stored in the production local
 context.  This is the first half of the loop replay boundary; subsequent
 alpha comparison may therefore start from the two selected constructor-field
@@ -805,63 +821,9 @@ theorem RecursorLoopUArgsInput.inferredType_eq_localDecl
     (hfind : root.lctx.find? fv = some decl) :
     H.inferredType = decl.type := by
   have hrun := H.inference
-  change ((((TypeChecker.Methods.withFuel root.fuel.recDepth).inferType
-      (.fvar fv) true)
-        { env := root.env, lctx := root.lctx, safety := root.safety,
-          lparams := root.typeCheckerLParams.getD root.lparams,
-          fuel := root.fuel }).run' {}) =
-    .ok H.inferredType at hrun
-  cases hdepth : root.fuel.recDepth with
-  | zero =>
-      rw [hdepth] at hrun
-      simp [TypeChecker.Methods.withFuel, StateT.run, StateT.run',
-        Functor.map, StateT.map, Except.map, MonadExcept.throw,
-        instMonadExceptOfMonadExceptOf, ReaderT.instMonadExceptOf,
-        StateT.instMonadExceptOf, instMonadExceptOfExcept, throwThe,
-        MonadExceptOf.throw, liftM, monadLift, MonadLiftT.monadLift,
-        MonadLift.monadLift, instMonadLiftTOfMonadLift, instMonadLiftT,
-        ReaderT.instMonadLift, StateT.instMonadLift, StateT.lift] at hrun
-  | succ depth =>
-      rw [hdepth] at hrun
-      simp only [TypeChecker.Methods.withFuel] at hrun
-      have hloose : (.fvar fv : Expr).hasLooseBVars = false := by
-        simp [Expr.hasLooseBVars, Expr.looseBVarRange']
-      unfold TypeChecker.Inner.inferType' at hrun
-      simp only [hloose, Bool.false_eq_true, ↓reduceIte] at hrun
-      simp [TypeChecker.Inner.inferFVar, ReaderT.bind, ReaderT.read,
-        StateT.bind, StateT.get, StateT.modifyGet, _root_.modify, StateT.run',
-        MonadState.get, MonadState.modifyGet, MonadStateOf.get,
-        MonadStateOf.modifyGet, getThe, modifyGetThe,
-        instMonadStateOfMonadStateOf, instMonadStateOfOfMonadLift,
-        ReaderT.instMonadLift, instMonadStateOfStateTOfMonad,
-        MonadLiftT.monadLift, MonadLift.monadLift,
-        liftM, monadLift,
-        instMonadLiftTOfMonadLift, instMonadLiftT,
-        StateT.instMonadLift, StateT.lift] at hrun
-      simp only [Bind.bind, Monad.toBind, ReaderT.instMonad, ReaderT.bind,
-        StateT.instMonad, StateT.bind, StateT.get, StateT.modifyGet,
-        StateT.lift, Except.instMonad, Except.bind, Except.pure] at hrun
-      simp only [Pure.pure, Functor.map, Applicative.toPure,
-        Applicative.toFunctor, Monad.toApplicative, Except.instMonad,
-        Except.pure, Except.map] at hrun
-      simp [ReaderT.pure, ReaderT.bind, ReaderT.read, StateT.pure,
-        StateT.bind, StateT.lift, StateT.map, StateT.modifyGet,
-        readThe, MonadReaderOf.read, instMonadReaderOfOfMonadLift,
-        instMonadReaderOfReaderTOfMonad, liftM, monadLift,
-        MonadLiftT.monadLift, MonadLift.monadLift,
-        instMonadLiftTOfMonadLift, instMonadLiftT,
-        ReaderT.instMonadLift, ReaderT.read] at hrun
-      simp only [Bind.bind, Monad.toBind, ReaderT.instMonad, ReaderT.bind,
-        ReaderT.read, StateT.instMonad, StateT.bind, StateT.lift,
-        StateT.map, StateT.modifyGet, Except.instMonad, Except.bind,
-        Except.map] at hrun
-      simp only [ReaderT.read, Pure.pure, Functor.map,
-        Applicative.toPure, Applicative.toFunctor, Monad.toApplicative,
-        StateT.instMonad, StateT.pure, Except.instMonad, Except.pure,
-        Except.map, MonadReader.read, instMonadReaderOfMonadReaderOf,
-        readThe, MonadReaderOf.read, instMonadReaderOfReaderTOfMonad] at hrun
-      simp [LocalContext.get!, hfind] at hrun
-      exact hrun.symm
+  change Except.ok (root.lctx.get! fv).type = .ok H.inferredType at hrun
+  simp only [LocalContext.get!, hfind, Except.ok.injEq] at hrun
+  exact hrun.symm
 
 /-- A retained loop input can always be closed over a caller-selected outer
 binder list without losing its connection to the exact production
@@ -880,13 +842,13 @@ theorem RecursorLoopUArgsInput.normalizedType_eq_of_inferred_forall
     H.normalizedType = H.inferredType := by
   have hnormal := H.normalization
   rw [hinferred] at hnormal ⊢
-  change TypeChecker.M.run root.env root.safety root.lctx
+  change TypeChecker.M.run root.env root.safety (loopUArgsCheckLCtx root field)
       (root.typeCheckerLParams.getD root.lparams)
       root.fuel (TypeChecker.whnf (.forallE name domain body bi)) =
     .ok H.normalizedType at hnormal
   unfold TypeChecker.M.run at hnormal
   generalize hrun : TypeChecker.whnf (.forallE name domain body bi)
-      { env := root.env, lctx := root.lctx, safety := root.safety,
+      { env := root.env, lctx := loopUArgsCheckLCtx root field, safety := root.safety,
         lparams := root.typeCheckerLParams.getD root.lparams,
         fuel := root.fuel }
       ({} : TypeChecker.State) = result at hnormal
@@ -896,7 +858,7 @@ theorem RecursorLoopUArgsInput.normalizedType_eq_of_inferred_forall
   | ok result =>
       rcases result with ⟨normalized, outState⟩
       have hresult := TypeChecker.whnf_forall_result_eq
-        { env := root.env, lctx := root.lctx, safety := root.safety,
+        { env := root.env, lctx := loopUArgsCheckLCtx root field, safety := root.safety,
           lparams := root.typeCheckerLParams.getD root.lparams,
           fuel := root.fuel }
         ({} : TypeChecker.State) outState name domain body normalized bi hrun

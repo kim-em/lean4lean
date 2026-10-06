@@ -346,6 +346,217 @@ theorem TypeChecker.MLCtx.vlctx_take_fvars
         List.cons.injEq]
       exact ⟨trivial, ih tail (Nat.le_of_succ_le_succ hn)⟩
 
+/-! ### The inductive checker's narrow checker context
+
+`AddInductive.Context.checkLCtx` is the local context seen by embedded
+typechecker runs.  It is always a sub-context of the main context
+(`LocalContext.SubContextOf`).  Until every lifted run is verified directly in
+its narrow scope, the main-context lift lemmas transfer a narrow run to the
+main context through the named hypothesis `CheckerSubContextLocality`. -/
+
+/-- Every declaration of `l` occurs in `l'` with the same content, up to its
+position index. -/
+def _root_.Lean.LocalContext.SubContextOf (l l' : LocalContext) : Prop :=
+  ∀ fv d, l.find? fv = some d →
+    ∃ d', l'.find? fv = some d' ∧ d'.setIndex 0 = d.setIndex 0
+
+theorem _root_.Lean.LocalContext.find?_empty' (fv : FVarId) :
+    ({} : LocalContext).find? fv = none := by
+  show PersistentHashMap.find? PersistentHashMap.empty fv = none
+  rw [PersistentHashMap.WF.empty.find?_eq, PersistentHashMap.toList'_empty]
+  rfl
+
+theorem _root_.Lean.LocalContext.SubContextOf.empty {l' : LocalContext} :
+    ({} : LocalContext).SubContextOf l' := by
+  intro fv d h
+  rw [LocalContext.find?_empty'] at h
+  cases h
+
+theorem _root_.Lean.LocalContext.empty_mapWF :
+    ({} : LocalContext).fvarIdToDecl.WF :=
+  LocalContext.WF.map_wf .nil
+
+theorem _root_.Lean.LocalContext.find?_mkLocalDecl
+    {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty : Expr}
+    {bi : BinderInfo} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
+    (l.mkLocalDecl fv name ty bi kind).find? fv' =
+      if fv == fv' then some (.cdecl l.decls.size fv name ty bi kind)
+      else l.find? fv' := by
+  simp only [LocalContext.mkLocalDecl, LocalContext.find?]
+  exact hwf.find?_insert
+
+theorem _root_.Lean.LocalContext.find?_mkLetDecl
+    {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty val : Expr}
+    {nonDep : Bool} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
+    (l.mkLetDecl fv name ty val nonDep kind).find? fv' =
+      if fv == fv' then some (.ldecl l.decls.size fv name ty val nonDep kind)
+      else l.find? fv' := by
+  simp only [LocalContext.mkLetDecl, LocalContext.find?]
+  exact hwf.find?_insert
+
+theorem _root_.Lean.LocalContext.mkLocalDecl_mapWF
+    {l : LocalContext} {fv : FVarId} {name : Name} {ty : Expr}
+    {bi : BinderInfo} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
+    (l.mkLocalDecl fv name ty bi kind).fvarIdToDecl.WF := by
+  simp only [LocalContext.mkLocalDecl]
+  exact hwf.insert
+
+theorem _root_.Lean.LocalContext.mkLetDecl_mapWF
+    {l : LocalContext} {fv : FVarId} {name : Name} {ty val : Expr}
+    {nonDep : Bool} {kind : LocalDeclKind} (hwf : l.fvarIdToDecl.WF) :
+    (l.mkLetDecl fv name ty val nonDep kind).fvarIdToDecl.WF := by
+  simp only [LocalContext.mkLetDecl]
+  exact hwf.insert
+
+/-- Extending only the larger context by a fresh declaration keeps a
+sub-context. -/
+theorem _root_.Lean.LocalContext.SubContextOf.mkLocalDecl_right
+    {l l' : LocalContext} {fv : FVarId} {name : Name} {ty : Expr}
+    {bi : BinderInfo} {kind : LocalDeclKind} (h : l.SubContextOf l')
+    (hwf : l'.fvarIdToDecl.WF) (hfresh : l'.find? fv = none) :
+    l.SubContextOf (l'.mkLocalDecl fv name ty bi kind) := by
+  intro fv' d hd
+  rcases h fv' d hd with ⟨d', hd', heq⟩
+  refine ⟨d', ?_, heq⟩
+  rw [LocalContext.find?_mkLocalDecl hwf]
+  have hne : (fv == fv') = false := by
+    cases hb : fv == fv'
+    · rfl
+    · have : fv = fv' := LawfulBEq.eq_of_beq hb
+      subst this
+      rw [hfresh] at hd'
+      cases hd'
+  rw [hne]
+  exact hd'
+
+/-- Opening the same fresh declaration in both contexts keeps a
+sub-context. -/
+theorem _root_.Lean.LocalContext.SubContextOf.mkLocalDecl_both
+    {l l' : LocalContext} {fv : FVarId} {name : Name} {ty : Expr}
+    {bi : BinderInfo} {kind : LocalDeclKind} (h : l.SubContextOf l')
+    (hwf : l.fvarIdToDecl.WF) (hwf' : l'.fvarIdToDecl.WF) :
+    (l.mkLocalDecl fv name ty bi kind).SubContextOf
+      (l'.mkLocalDecl fv name ty bi kind) := by
+  intro fv' d hd
+  rw [LocalContext.find?_mkLocalDecl hwf] at hd
+  rw [LocalContext.find?_mkLocalDecl hwf']
+  cases hb : fv == fv' with
+  | true =>
+    rw [hb] at hd
+    cases hd
+    exact ⟨_, rfl, rfl⟩
+  | false =>
+    rw [hb] at hd
+    rw [if_neg (by simp)]
+    exact h fv' d hd
+
+theorem _root_.Lean.LocalContext.SubContextOf.refl (l : LocalContext) :
+    l.SubContextOf l := fun _ d h => ⟨d, h, rfl⟩
+
+/-- A declaration found under `fv` in a well-formed context is stored under
+its own identifier. -/
+theorem _root_.Lean.LocalContext.WF.find?_fvarId {l : LocalContext}
+    (hwf : l.WF) (h : l.find? fv = some d) : d.fvarId = fv := by
+  rw [hwf.find?_eq_find?_toList] at h
+  have hp := _root_.List.find?_some h
+  simp only [beq_iff_eq] at hp
+  exact hp.symm
+
+/-- `restrictTo` copies declarations of a well-formed context, so it is a
+sub-context of it. -/
+theorem _root_.Lean.LocalContext.restrictTo_spec {l : LocalContext}
+    (hwf : l.WF) (fvars : List FVarId) :
+    (l.restrictTo fvars).fvarIdToDecl.WF ∧
+      (l.restrictTo fvars).SubContextOf l := by
+  unfold LocalContext.restrictTo
+  suffices ∀ (acc : LocalContext), acc.fvarIdToDecl.WF → acc.SubContextOf l →
+      (fvars.foldl (fun acc fv =>
+        match l.find? fv with
+        | some (.cdecl _ fv name type bi kind) => acc.mkLocalDecl fv name type bi kind
+        | some (.ldecl _ fv name type value nonDep kind) =>
+          acc.mkLetDecl fv name type value nonDep kind
+        | none => acc) acc).fvarIdToDecl.WF ∧
+      (fvars.foldl (fun acc fv =>
+        match l.find? fv with
+        | some (.cdecl _ fv name type bi kind) => acc.mkLocalDecl fv name type bi kind
+        | some (.ldecl _ fv name type value nonDep kind) =>
+          acc.mkLetDecl fv name type value nonDep kind
+        | none => acc) acc).SubContextOf l from
+    this {} LocalContext.empty_mapWF .empty
+  induction fvars with
+  | nil => intro acc h1 h2; exact ⟨h1, h2⟩
+  | cons fv fvars ih =>
+    intro acc hacc hsub
+    simp only [List.foldl_cons]
+    apply ih
+    · split
+      · exact LocalContext.mkLocalDecl_mapWF hacc
+      · exact LocalContext.mkLetDecl_mapWF hacc
+      · exact hacc
+    · split
+      · rename_i i fv' name type bi kind hfind
+        have hid := hwf.find?_fvarId hfind
+        simp only [LocalDecl.fvarId] at hid
+        subst hid
+        intro x d hd
+        rw [LocalContext.find?_mkLocalDecl hacc] at hd
+        split at hd
+        · rename_i hx
+          have hx : _ = x := LawfulBEq.eq_of_beq hx
+          subst hx
+          cases hd
+          exact ⟨_, hfind, rfl⟩
+        · exact hsub x d hd
+      · rename_i i fv' name type value nonDep kind hfind
+        have hid := hwf.find?_fvarId hfind
+        simp only [LocalDecl.fvarId] at hid
+        subst hid
+        intro x d hd
+        rw [LocalContext.find?_mkLetDecl hacc] at hd
+        split at hd
+        · rename_i hx
+          have hx : _ = x := LawfulBEq.eq_of_beq hx
+          subst hx
+          cases hd
+          exact ⟨_, hfind, rfl⟩
+        · exact hsub x d hd
+      · exact hsub
+
+/-- The embedded typechecker entry points lifted by `AddInductive`. -/
+inductive CheckerEntry : {α : Type} → TypeChecker.M α → Prop
+  | whnf (e : Expr) : CheckerEntry (TypeChecker.whnf e)
+  | inferType (e : Expr) (inferOnly : Bool) :
+      CheckerEntry (TypeChecker.inferType e inferOnly)
+  | isDefEq (e₁ e₂ : Expr) : CheckerEntry (TypeChecker.isDefEq e₁ e₂)
+  | ensureSort (e e₀ : Expr) : CheckerEntry (TypeChecker.ensureSort e e₀)
+  | ensureType (e : Expr) (inferOnly : Bool) :
+      CheckerEntry (TypeChecker.ensureType e inferOnly)
+
+/-- **Named hypothesis.**  Locality of a fresh embedded checker run, in the
+sub-context direction: if a lifted entry point succeeds in a sub-context of a
+well-formed context of plain local declarations, it succeeds with the same
+value in the full context.
+
+This is argued, not proved: a fresh run reads the local context only through
+`find?` on free variables (`inferFVar`, `whnfFVar`, let-variable tests) and
+through `mkForall`/`mkLambda` over its own fresh binders, never globally.
+A lookup that misses in the sub-context either fails the run or behaves as
+for an opaque local declaration, which is what every declaration of the full
+context is.  See `docs/inductives/STRENGTHENING.md`.  The hypothesis is
+transitional: it is only used to keep the main-context lift lemmas, and it
+disappears once every lifted run is verified in its narrow checker
+context. -/
+def CheckerSubContextLocality : Prop :=
+  ∀ {α : Type} {x : TypeChecker.M α}, CheckerEntry x →
+    ∀ (env : Environment) (safety : DefinitionSafety)
+      (lctx lctx' : LocalContext) (lparams : List Name) (fuel : FuelConfig)
+      (a : α),
+      lctx.fvarIdToDecl.WF → lctx.SubContextOf lctx' → lctx'.WF →
+      (∀ d ∈ lctx'.toList, ∃ index fv name type bi kind,
+        d = .cdecl index fv name type bi kind) →
+      TypeChecker.M.run env safety lctx lparams fuel x = .ok a →
+      TypeChecker.M.run env safety lctx' lparams fuel x = .ok a
+
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
@@ -358,6 +569,9 @@ structure ContextWF (c : AddInductive.Context) where
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  checkMapWF : c.checkLCtx.fvarIdToDecl.WF
+  checkSub : c.checkLCtx.SubContextOf c.lctx
+  locality : CheckerSubContextLocality
 
 def initialContext (env : Environment) (lparams : List Name)
     (safety : DefinitionSafety) (allowPrimitive : Bool) (fuel : FuelConfig) :
@@ -366,7 +580,8 @@ def initialContext (env : Environment) (lparams : List Name)
 
 def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (safety : DefinitionSafety) (lparams : List Name)
-    (allowPrimitive : Bool) (fuel : FuelConfig) :
+    (allowPrimitive : Bool) (fuel : FuelConfig)
+    (hloc : CheckerSubContextLocality) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
@@ -380,6 +595,9 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   ngen_prefix := rfl
   indFresh := nofun
   kernelFresh := nofun
+  checkMapWF := LocalContext.empty_mapWF
+  checkSub := .empty
+  locality := hloc
 
 /-- Retain the local checker state while moving to a production and abstract
 environment pair known to represent the same extension. -/
@@ -397,6 +615,9 @@ def ContextWF.withEnv (H : ContextWF c)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub
+  locality := H.locality
 
 theorem ContextWF.current_not_mem (H : ContextWF c) :
     ⟨c.ngen.curr⟩ ∉ H.mlctx.vlctx.fvars := fun hmem =>
@@ -406,6 +627,54 @@ theorem ContextWF.kernel_reserves_current (H : ContextWF c) :
     ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
   apply NameGenerator.Reserves.num_of_prefix_ne
   simp [H.ngen_prefix]
+
+theorem ContextWF.lctxWF (H : ContextWF c) : c.lctx.WF :=
+  H.lctx_eq ▸ H.mlctx_wf.tr.1
+
+theorem ContextWF.current_fresh (H : ContextWF c) :
+    c.lctx.find? ⟨c.ngen.curr⟩ = none := by
+  rw [← H.lctx_eq]
+  exact H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem
+
+theorem ContextWF.lctxCDecls (H : ContextWF c) :
+    ∀ d ∈ c.lctx.toList, ∃ index fv name type bi kind,
+      d = .cdecl index fv name type bi kind := by
+  intro d hd
+  apply H.onlyLams d
+  rw [← H.mlctx_wf.toList_eq, H.lctx_eq]
+  exact hd
+
+/-- A context rebuilt from declarations of the main context is a valid
+checker context. -/
+theorem ContextWF.restrictTo (H : ContextWF c) (fvars : List FVarId) :
+    (c.lctx.restrictTo fvars).fvarIdToDecl.WF ∧
+      (c.lctx.restrictTo fvars).SubContextOf c.lctx :=
+  LocalContext.restrictTo_spec H.lctxWF fvars
+
+/-- Replace the checker context by any valid sub-context of the main
+context. -/
+def ContextWF.withCheckLCtx (H : ContextWF c) (l : LocalContext)
+    (hwf : l.fvarIdToDecl.WF) (hsub : l.SubContextOf c.lctx) :
+    ContextWF { c with checkLCtx := l } where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  checkMapWF := hwf
+  checkSub := hsub
+  locality := H.locality
+
+@[simp] theorem ContextWF.withCheckLCtx_venv (H : ContextWF c) (l hwf hsub) :
+    (H.withCheckLCtx l hwf hsub).venv = H.venv := rfl
+
+@[simp] theorem ContextWF.withCheckLCtx_mlctx (H : ContextWF c) (l hwf hsub) :
+    (H.withCheckLCtx l hwf hsub).mlctx = H.mlctx := rfl
 
 def ContextWF.withLocalDecl (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -441,6 +710,132 @@ def ContextWF.withLocalDecl (H : ContextWF c)
     rcases hmem with rfl | hmem
     · exact H.kernel_reserves_current
     · exact H.kernelFresh _ hmem
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub.mkLocalDecl_right H.lctxWF.map_wf H.current_fresh
+  locality := H.locality
+
+/-- Bind at the reader level of the inductive-checker monad. -/
+theorem AddInductive.M.WF_bind {x : AddInductive.M α} {f : α → AddInductive.M β}
+    {c : AddInductive.Context} {P : α → Prop} {Q : β → Prop}
+    (h1 : (x c).WF P) (h2 : ∀ a, P a → (f a c).WF Q) :
+    ((x >>= f) c).WF Q :=
+  Except.WF.bind h1 h2
+
+@[simp] theorem AddInductive.withCheckLCtx_apply (l : LocalContext)
+    (x : AddInductive.M α) (c : AddInductive.Context) :
+    AddInductive.withCheckLCtx l x c = x { c with checkLCtx := l } := rfl
+
+theorem AddInductive.readContext.WF {c : AddInductive.Context} :
+    ((readThe AddInductive.Context : AddInductive.M AddInductive.Context) c).WF
+      (c = ·) := by
+  rintro _ ⟨⟩
+  rfl
+
+theorem AddInductive.getLCtx.WF {c : AddInductive.Context} :
+    ((getLCtx : AddInductive.M LocalContext) c).WF (c.lctx = ·) := by
+  rintro _ ⟨⟩
+  rfl
+
+theorem AddInductive.getType.run (e : Expr) (c : AddInductive.Context) :
+    AddInductive.getType e c = .ok (c.lctx.get! e.fvarId!).type := rfl
+
+/-- The checker base of a constructor field in the recursor first pass: the
+parameters and the fields opened before it. -/
+abbrev ctorFieldCheck (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) (bu : Array Expr) : LocalContext :=
+  c.lctx.restrictTo ((stats.params ++ bu).toList.map (·.fvarId!))
+
+/-- The free variables of the first `n` parameters. -/
+abbrev paramCheckFVars (stats : AddInductive.InductiveStats) (n : Nat) :
+    List FVarId :=
+  (stats.params.toList.take n).map (·.fvarId!)
+
+/-- The executable parameter snapshot is the main context restricted to the
+first `n` parameters. -/
+theorem AddInductive.paramCheckLCtx.WF {stats : AddInductive.InductiveStats}
+    {n : Nat} {c : AddInductive.Context} :
+    (AddInductive.paramCheckLCtx stats n c).WF
+      (· = c.lctx.restrictTo (paramCheckFVars stats n)) := by
+  rintro _ ⟨⟩
+  rfl
+
+/-- The context in which a header or recursor index telescope is opened: the
+checker context holds exactly the parameters. -/
+abbrev headerCheckContext (c : AddInductive.Context)
+    (stats : AddInductive.InductiveStats) : AddInductive.Context :=
+  { c with checkLCtx := c.lctx.restrictTo (paramCheckFVars stats stats.params.size) }
+
+/-- The context of a run under the parameter snapshot `n`. -/
+def ContextWF.paramCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats)
+    (n : Nat) :
+    ContextWF { c with checkLCtx := c.lctx.restrictTo (paramCheckFVars stats n) } :=
+  Hc.withCheckLCtx _ (Hc.restrictTo _).1 (Hc.restrictTo _).2
+
+/-- Open a binder in both the main and the checker context.  The semantic
+context records the main context; the checker context stays a sub-context of
+it. -/
+def ContextWF.withCheckedLocalDecl (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    ContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
+  venv := H.venv
+  checking := H.checking
+  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
+  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  onlyLams := H.onlyLams.vlam
+  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
+  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
+  checkMapWF := LocalContext.mkLocalDecl_mapWF H.checkMapWF
+  checkSub := H.checkSub.mkLocalDecl_both H.checkMapWF H.lctxWF.map_wf
+  locality := H.locality
+
+/-- Open a binder in the main context and on top of `base` in the checker
+context. -/
+def ContextWF.withCheckedLocalDeclOn (H : ContextWF c) (base : LocalContext)
+    (hwf : base.fvarIdToDecl.WF) (hsub : base.SubContextOf c.lctx)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    ContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
+  venv := H.venv
+  checking := H.checking
+  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
+  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  onlyLams := H.onlyLams.vlam
+  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
+  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
+  checkMapWF := LocalContext.mkLocalDecl_mapWF hwf
+  checkSub := hsub.mkLocalDecl_both hwf H.lctxWF.map_wf
+  locality := H.locality
+
+theorem ContextWF.withCheckedLocalDecl_venv (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv =
+      H.venv := rfl
+
+theorem ContextWF.withCheckedLocalDecl_mlctx (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx =
+      (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx := rfl
+
+theorem ContextWF.withCheckedLocalDecl_toCtx (H : ContextWF c)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
+      ty' :: H.mlctx.vlctx.toCtx := rfl
 
 theorem ContextWF.withLocalDecl_venv (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -479,6 +874,9 @@ structure RecursorContextWF (c : AddInductive.Context)
   indFresh : ∀ fv ∈ mlctx.vlctx.fvars, c.ngen.Reserves fv
   kernelFresh : ∀ fv ∈ mlctx.vlctx.fvars,
     ({} : TypeChecker.State).ngen.Reserves fv
+  checkMapWF : c.checkLCtx.fvarIdToDecl.WF
+  checkSub : c.checkLCtx.SubContextOf c.lctx
+  locality : CheckerSubContextLocality
 
 /-- Rebase a recursor-local context across an abstract-only extension while
 leaving the executable reader state unchanged. -/
@@ -497,6 +895,9 @@ def RecursorContextWF.monoEnv
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub
+  locality := H.locality
 
 /-- An ordinary verified context is already a recursor context when no
 universe rebasing is required. -/
@@ -514,6 +915,9 @@ def ContextWF.toRecursorContextWF (H : ContextWF c) :
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub
+  locality := H.locality
 
 /-- Reinterpret an already verified executable local context after prepending
 one fresh recursor universe parameter.  Concrete declarations and free-variable
@@ -546,7 +950,10 @@ def ContextWF.prependRecursorLevelParam
       exact H.indFresh fv (hfv ▸ hmem)
     kernelFresh := by
       intro fv hmem
-      exact H.kernelFresh fv (hfv ▸ hmem) }
+      exact H.kernelFresh fv (hfv ▸ hmem)
+    checkMapWF := H.checkMapWF
+    checkSub := H.checkSub
+    locality := H.locality }
 
 @[simp] theorem ContextWF.prependRecursorLevelParam_venv
     (H : ContextWF c) (hfresh : fresh ∉ c.lparams) :
@@ -567,6 +974,56 @@ theorem RecursorContextWF.kernel_reserves_current
     ({} : TypeChecker.State).ngen.Reserves ⟨c.ngen.curr⟩ := by
   apply NameGenerator.Reserves.num_of_prefix_ne
   simp [H.ngen_prefix]
+
+theorem RecursorContextWF.lctxWF (H : RecursorContextWF c recLparams) :
+    c.lctx.WF :=
+  H.lctx_eq ▸ H.mlctx_wf.tr.1
+
+theorem RecursorContextWF.current_fresh (H : RecursorContextWF c recLparams) :
+    c.lctx.find? ⟨c.ngen.curr⟩ = none := by
+  rw [← H.lctx_eq]
+  exact H.mlctx_wf.tr.find?_eq_none.2 H.current_not_mem
+
+theorem RecursorContextWF.lctxCDecls (H : RecursorContextWF c recLparams) :
+    ∀ d ∈ c.lctx.toList, ∃ index fv name type bi kind,
+      d = .cdecl index fv name type bi kind := by
+  intro d hd
+  apply H.onlyLams d
+  rw [← H.mlctx_wf.toList_eq, H.lctx_eq]
+  exact hd
+
+theorem RecursorContextWF.restrictTo (H : RecursorContextWF c recLparams)
+    (fvars : List FVarId) :
+    (c.lctx.restrictTo fvars).fvarIdToDecl.WF ∧
+      (c.lctx.restrictTo fvars).SubContextOf c.lctx :=
+  LocalContext.restrictTo_spec H.lctxWF fvars
+
+def RecursorContextWF.withCheckLCtx (H : RecursorContextWF c recLparams)
+    (l : LocalContext) (hwf : l.fvarIdToDecl.WF)
+    (hsub : l.SubContextOf c.lctx) :
+    RecursorContextWF { c with checkLCtx := l } recLparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := H.mlctx
+  mlctx_wf := H.mlctx_wf
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  lparams_origin := H.lparams_origin
+  onlyLams := H.onlyLams
+  lctx_eq := H.lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := H.indFresh
+  kernelFresh := H.kernelFresh
+  checkMapWF := hwf
+  checkSub := hsub
+  locality := H.locality
+
+@[simp] theorem RecursorContextWF.withCheckLCtx_venv
+    (H : RecursorContextWF c recLparams) (l hwf hsub) :
+    (H.withCheckLCtx l hwf hsub).venv = H.venv := rfl
+
+@[simp] theorem RecursorContextWF.withCheckLCtx_mlctx
+    (H : RecursorContextWF c recLparams) (l hwf hsub) :
+    (H.withCheckLCtx l hwf hsub).mlctx = H.mlctx := rfl
 
 /-- Extend a universe-rebased recursor context by one semantically checked
 raw local declaration. -/
@@ -606,6 +1063,105 @@ def RecursorContextWF.withLocalDecl
     rcases hmem with rfl | hmem
     · exact H.kernel_reserves_current
     · exact H.kernelFresh _ hmem
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub.mkLocalDecl_right H.lctxWF.map_wf H.current_fresh
+  locality := H.locality
+
+/-- `ContextWF` for `headerCheckContext`. -/
+def ContextWF.headerCheck (Hc : ContextWF c) (stats : AddInductive.InductiveStats) :
+    ContextWF (headerCheckContext c stats) :=
+  Hc.paramCheck stats stats.params.size
+
+@[simp] theorem ContextWF.paramCheck_venv (Hc : ContextWF c) (stats n) :
+    (Hc.paramCheck stats n).venv = Hc.venv := rfl
+
+@[simp] theorem ContextWF.paramCheck_mlctx (Hc : ContextWF c) (stats n) :
+    (Hc.paramCheck stats n).mlctx = Hc.mlctx := rfl
+
+@[simp] theorem ContextWF.headerCheck_venv (Hc : ContextWF c) (stats) :
+    (Hc.headerCheck stats).venv = Hc.venv := rfl
+
+@[simp] theorem ContextWF.headerCheck_mlctx (Hc : ContextWF c) (stats) :
+    (Hc.headerCheck stats).mlctx = Hc.mlctx := rfl
+
+def RecursorContextWF.paramCheck (Hc : RecursorContextWF c recLparams)
+    (stats : AddInductive.InductiveStats) (n : Nat) :
+    RecursorContextWF
+      { c with checkLCtx := c.lctx.restrictTo (paramCheckFVars stats n) }
+      recLparams :=
+  Hc.withCheckLCtx _ (Hc.restrictTo _).1 (Hc.restrictTo _).2
+
+/-- Open a binder in both the main and the checker context of a recursor
+frame. -/
+def RecursorContextWF.withCheckedLocalDecl
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    RecursorContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      recLparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
+  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  lparams_origin := H.lparams_origin
+  onlyLams := H.onlyLams.vlam
+  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
+  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
+  checkMapWF := LocalContext.mkLocalDecl_mapWF H.checkMapWF
+  checkSub := H.checkSub.mkLocalDecl_both H.checkMapWF H.lctxWF.map_wf
+  locality := H.locality
+
+def RecursorContextWF.withCheckedLocalDeclOn
+    (H : RecursorContextWF c recLparams) (base : LocalContext)
+    (hwf : base.fvarIdToDecl.WF) (hsub : base.SubContextOf c.lctx)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    RecursorContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      recLparams where
+  venv := H.venv
+  checking := H.checking
+  mlctx := .vlam ⟨c.ngen.curr⟩ name ty ty' bi H.mlctx
+  mlctx_wf := (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx_wf
+  typeCheckerLParams_eq := H.typeCheckerLParams_eq
+  lparams_origin := H.lparams_origin
+  onlyLams := H.onlyLams.vlam
+  lctx_eq := (H.withLocalDecl (name := name) (bi := bi) htr hty).lctx_eq
+  ngen_prefix := H.ngen_prefix
+  indFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).indFresh
+  kernelFresh := (H.withLocalDecl (name := name) (bi := bi) htr hty).kernelFresh
+  checkMapWF := LocalContext.mkLocalDecl_mapWF hwf
+  checkSub := hsub.mkLocalDecl_both hwf H.lctxWF.map_wf
+  locality := H.locality
+
+@[simp] theorem RecursorContextWF.withCheckedLocalDecl_venv
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv =
+      H.venv := rfl
+
+theorem RecursorContextWF.withCheckedLocalDecl_mlctx
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx =
+      (H.withLocalDecl (name := name) (bi := bi) htr hty).mlctx := rfl
+
+@[simp] theorem RecursorContextWF.withCheckedLocalDecl_toCtx
+    (H : RecursorContextWF c recLparams)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx.toCtx =
+      ty' :: H.mlctx.vlctx.toCtx := rfl
 
 @[simp] theorem RecursorContextWF.withLocalDecl_venv
     (H : RecursorContextWF c recLparams)
@@ -804,6 +1360,29 @@ def BindingContextWF.withLocalDecl (H : BindingContextWF c)
         subst fv
         exact H.current_not_mem hmem
 
+/-- The operational binder invariant ignores the checker context. -/
+theorem BindingContextWF.withCheckLCtx (H : BindingContextWF c) (l : LocalContext) :
+    BindingContextWF { c with checkLCtx := l } where
+  wf := H.wf
+  onlyLams := H.onlyLams
+  ngen_prefix := H.ngen_prefix
+  fresh := H.fresh
+  findCDecl := H.findCDecl
+
+theorem BindingContextWF.withCheckedLocalDecl (H : BindingContextWF c)
+    {base : LocalContext}
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BindingContextWF { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } :=
+  let H' := H.withLocalDecl name ty bi
+  { wf := H'.wf
+    onlyLams := H'.onlyLams
+    ngen_prefix := H'.ngen_prefix
+    fresh := H'.fresh
+    findCDecl := H'.findCDecl }
+
 theorem withLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
@@ -826,6 +1405,81 @@ theorem withLocalDecl.recursorWF {k : Expr → AddInductive.M α}
     (Lean4Lean.withLocalDecl name bi ty k c).WF Q := by
   have _R' := R.withLocalDecl (name := name) (bi := bi) htr hty
   exact Hk
+
+theorem withCheckedLocalDecl.WF {k : Expr → AddInductive.M α} (Hc : ContextWF c)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
+    (Hk : (k (.fvar ⟨c.ngen.curr⟩)
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+        checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+    (AddInductive.withCheckedLocalDecl name bi ty k c).WF Q := by
+  have _Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
+  exact Hk
+
+theorem withCheckedLocalDecl.recursorWF {k : Expr → AddInductive.M α}
+    (R : RecursorContextWF c recLparams)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+    (Hk : (k (.fvar ⟨c.ngen.curr⟩)
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+        checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+    (AddInductive.withCheckedLocalDecl name bi ty k c).WF Q := by
+  have _R' := R.withCheckedLocalDecl (name := name) (bi := bi) htr hty
+  exact Hk
+
+@[simp] theorem RecursorContextWF.withCheckedLocalDeclOn_venv
+    (H : RecursorContextWF c recLparams) (base hwf hsub)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDeclOn (name := name) (bi := bi) base hwf hsub htr hty).venv =
+      H.venv := rfl
+
+@[simp] theorem RecursorContextWF.withCheckedLocalDeclOn_toCtx
+    (H : RecursorContextWF c recLparams) (base hwf hsub)
+    (htr : TrExprS H.venv recLparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType recLparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDeclOn (name := name) (bi := bi) base hwf hsub htr
+      hty).mlctx.vlctx.toCtx = ty' :: H.mlctx.vlctx.toCtx := rfl
+
+theorem ContextWF.withCheckedLocalDeclOn_venv
+    (H : ContextWF c) (base hwf hsub)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDeclOn (name := name) (bi := bi) base hwf hsub htr hty).venv =
+      H.venv := rfl
+
+theorem ContextWF.withCheckedLocalDeclOn_toCtx
+    (H : ContextWF c) (base hwf hsub)
+    (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
+    (hty : H.venv.IsType c.lparams.length H.mlctx.vlctx.toCtx ty') :
+    (H.withCheckedLocalDeclOn (name := name) (bi := bi) base hwf hsub htr
+      hty).mlctx.vlctx.toCtx = ty' :: H.mlctx.vlctx.toCtx := rfl
+
+theorem withCheckedLocalDeclOn.WF {k : Expr → AddInductive.M α}
+    {c : AddInductive.Context} {base : LocalContext}
+    (Hk : (k (.fvar ⟨c.ngen.curr⟩)
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+        checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+    (AddInductive.withCheckedLocalDeclOn base name bi ty k c).WF Q := Hk
+
+/-- The checker context of the parameters and the fields opened so far
+remains a valid checker context beneath the next field binder. -/
+theorem ContextWF.restrictTo_beneath (H : ContextWF c) (fvars : List FVarId) :
+    (c.lctx.restrictTo fvars).SubContextOf
+      (c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi) :=
+  (H.restrictTo fvars).2.mkLocalDecl_right H.lctxWF.map_wf H.current_fresh
+
+theorem RecursorContextWF.restrictTo_beneath (H : RecursorContextWF c recLparams)
+    (fvars : List FVarId) :
+    (c.lctx.restrictTo fvars).SubContextOf
+      (c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi) :=
+  (H.restrictTo fvars).2.mkLocalDecl_right H.lctxWF.map_wf H.current_fresh
 
 /-- Invert the syntax-directed part of a translated forall while retaining the
 definitional equality introduced by normalization.  Header and constructor
@@ -1368,14 +2022,35 @@ def ContextWF.typeChecker (H : ContextWF c) : TypeChecker.VContext :=
     H.typeChecker.lctx = c.lctx := by
   simp [ContextWF.typeChecker, TypeChecker.VContext.mkCheckingValidMLC, H.lctx_eq]
 
-/-- Reuse a verified typechecker computation inside `AddInductive.M`. -/
+/-- Transfer a lifted entry point from the checker context to the main
+context, through the transitional `CheckerSubContextLocality` hypothesis. -/
+theorem ContextWF.runOfMain {x : TypeChecker.M α} (Hc : ContextWF c)
+    (hx : CheckerEntry x) (lparams : List Name)
+    (H : (TypeChecker.M.run c.env c.safety c.lctx lparams c.fuel x).WF Q) :
+    (TypeChecker.M.run c.env c.safety c.checkLCtx lparams c.fuel x).WF Q :=
+  fun a ha => H a (Hc.locality hx _ _ _ _ _ _ a Hc.checkMapWF Hc.checkSub
+    Hc.lctxWF Hc.lctxCDecls ha)
+
+theorem RecursorContextWF.runOfMain {x : TypeChecker.M α}
+    (Hc : RecursorContextWF c recLparams)
+    (hx : CheckerEntry x) (lparams : List Name)
+    (H : (TypeChecker.M.run c.env c.safety c.lctx lparams c.fuel x).WF Q) :
+    (TypeChecker.M.run c.env c.safety c.checkLCtx lparams c.fuel x).WF Q :=
+  fun a ha => H a (Hc.locality hx _ _ _ _ _ _ a Hc.checkMapWF Hc.checkSub
+    Hc.lctxWF Hc.lctxCDecls ha)
+
+/-- Reuse a verified typechecker computation inside `AddInductive.M`.  The
+run happens in the checker context; its main-context postcondition is
+transferred by `ContextWF.runOfMain`. -/
 theorem liftTypeChecker.WF {x : TypeChecker.M α} (Hc : ContextWF c)
+    (hx : CheckerEntry x)
     (Hx : TypeChecker.M.WF Hc.typeChecker {} x fun a _ => Q a) :
     ((monadLift x : AddInductive.M α) c).WF Q := by
-  change (TypeChecker.M.run c.env c.safety c.lctx
+  change (TypeChecker.M.run c.env c.safety c.checkLCtx
     (c.typeCheckerLParams.getD c.lparams) c.fuel x).WF Q
   rw [Hc.typeCheckerLParams_eq]
   simp only [Option.getD_none]
+  refine Hc.runOfMain hx _ ?_
   rw [← Hc.lctx_eq]
   exact TypeChecker.M.WF.runCheckingValidMLC Hc.kernelFresh Hx
 
@@ -1383,13 +2058,13 @@ theorem checkTypeInContext.WF (Hc : ContextWF c)
     (hfvars : e.FVarsIn (· ∈ Hc.mlctx.vlctx.fvars)) :
     ((monadLift (TypeChecker.checkType e) : AddInductive.M Expr) c).WF fun ty =>
       ∃ e' ty', TrTyping Hc.venv c.lparams Hc.mlctx.vlctx e ty e' ty' :=
-  liftTypeChecker.WF Hc (TypeChecker.checkType.WF hfvars)
+  liftTypeChecker.WF Hc (.inferType e false) (TypeChecker.checkType.WF hfvars)
 
 theorem whnfInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
-  liftTypeChecker.WF Hc <|
+  liftTypeChecker.WF Hc (.whnf e) <|
     (TypeChecker.whnf.WF he).mono fun _ _ _ h => h.2
 
 /-- `whnf` preserves every admissible free-variable scope of its input, in
@@ -1402,7 +2077,7 @@ theorem whnfInContext.scopeWF (Hc : ContextWF c)
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       FVarsBelow Hc.mlctx.vlctx e e₁ ∧
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
-  liftTypeChecker.WF Hc
+  liftTypeChecker.WF Hc (.whnf e)
     ((TypeChecker.Inner.whnf.WF he).run)
 
 /-- Interpret typechecker verification under the recursor's universe
@@ -1428,10 +2103,11 @@ theorem whnfInRecursorContext.scopeWF
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       FVarsBelow Hc.mlctx.vlctx e e₁ ∧
       TrExpr Hc.venv recLparams Hc.mlctx.vlctx e₁ e' := by
-  change (TypeChecker.M.run c.env c.safety c.lctx
+  change (TypeChecker.M.run c.env c.safety c.checkLCtx
     (c.typeCheckerLParams.getD c.lparams) c.fuel
     (TypeChecker.whnf e)).WF _
   rw [Hc.typeCheckerLParams_eq]
+  refine Hc.runOfMain (.whnf e) _ ?_
   rw [← Hc.lctx_eq]
   have Hx : TypeChecker.M.WF Hc.typeChecker {}
       (TypeChecker.whnf e) (fun e₁ _ =>
@@ -1452,9 +2128,10 @@ theorem inferTypeFVarInRecursorContext.WF
         AddInductive.M Expr) c).WF fun ty =>
       ∃ ty', TrTyping Hc.venv recLparams Hc.mlctx.vlctx
         (.fvar fv) ty e' ty' := by
-  change (TypeChecker.M.run c.env c.safety c.lctx
+  change (TypeChecker.M.run c.env c.safety c.checkLCtx
     (c.typeCheckerLParams.getD c.lparams) c.fuel
     (TypeChecker.inferType (.fvar fv))).WF _
+  refine Hc.runOfMain (.inferType (.fvar fv) true) _ ?_
   rw [inferTypeFVar_lparams_compat c.env c.safety c.lctx
     (c.typeCheckerLParams.getD c.lparams) recLparams c.fuel fv]
   rw [← Hc.lctx_eq]
@@ -1466,6 +2143,39 @@ theorem inferTypeFVarInRecursorContext.WF
   exact TypeChecker.M.WF.runCheckingValidMLC
     (lparams := recLparams) (fuel := c.fuel)
     Hc.kernelFresh Hx
+
+/-- `getType` of a translated free variable returns its declared type, which
+types the variable in the main context.  This replaces checker inference of
+the variable's type (`inferFVar` returns the same declaration type). -/
+theorem getTypeFVarInRecursorContext.WF
+    (Hc : RecursorContextWF c recLparams)
+    (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx (.fvar fv) e') :
+    (AddInductive.getType (.fvar fv) c).WF fun ty =>
+      ∃ ty', TrTyping Hc.venv recLparams Hc.mlctx.vlctx
+        (.fvar fv) ty e' ty' := by
+  have hmem : fv ∈ Hc.mlctx.vlctx.fvars := he.fvarsIn
+  rcases (Hc.mlctx_wf.tr.find?_eq_some (fv := fv)).2 hmem with ⟨decl, hfind⟩
+  have hdeclMem : decl ∈ Hc.mlctx.lctx.toList := by
+    rw [Hc.mlctx_wf.tr.1.find?_eq_find?_toList] at hfind
+    exact List.mem_of_find?_eq_some hfind
+  have hfv : decl.fvarId = fv := Hc.mlctx_wf.tr.1.find?_fvarId hfind
+  rcases Hc.mlctx_wf.tr.find?_of_mem Hc.checking.tr.wf hdeclMem with
+    ⟨e, A, hlookup, _, hbelow, _, hA⟩
+  rw [hfv] at hlookup hbelow
+  have hfind' : c.lctx.find? fv = some decl := by
+    rw [← Hc.lctx_eq]; exact hfind
+  intro ty hty
+  have htyEq : ty = decl.type := by
+    change Except.ok (c.lctx.get! fv).type = Except.ok ty at hty
+    simp only [LocalContext.get!, hfind', Except.ok.injEq] at hty
+    exact hty.symm
+  subst htyEq
+  cases he with
+  | fvar hlookup' =>
+    rw [hlookup] at hlookup'
+    cases hlookup'
+    exact ⟨A, hbelow, .fvar hlookup, hA,
+      Hc.mlctx_wf.tr.wf.find?_wf Hc.checking.tr.wf hlookup⟩
 
 /-- Descend normalization of a closed source header from the full generated
 recursor context to the empty semantic scope.  Earlier mutual-family frames
@@ -1542,7 +2252,7 @@ theorem ensureSortInContext.WF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF fun e₁ =>
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u :=
-  liftTypeChecker.WF Hc (TypeChecker.ensureSort.WF he)
+  liftTypeChecker.WF Hc (.ensureSort e e₀) (TypeChecker.ensureSort.WF he)
 
 theorem ensureSortInContext.scopeWF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e') :
@@ -1554,7 +2264,7 @@ theorem ensureSortInContext.scopeWF (Hc : ContextWF c)
   apply liftTypeChecker.WF (Q := fun e₁ =>
     Hc.typeChecker.FVarsBelow e e₁ ∧
       Hc.typeChecker.TrExpr e₁ e' ∧
-      ∃ u, e₁ = .sort u) Hc
+      ∃ u, e₁ = .sort u) Hc (.ensureSort e e₀)
   simpa only [TypeChecker.ensureSort] using
     (TypeChecker.Inner.ensureSortCore.WF he).run.mono
       (fun _ _ _ h => And.intro h.2.2 (And.intro h.2.1 h.1))
@@ -1565,14 +2275,14 @@ theorem ensureTypeInContext.WF (Hc : ContextWF c)
       ∃ e'', TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e'' ∧
         ∃ u u', sort = .sort u ∧ VLevel.ofLevel c.lparams u = some u' ∧
           Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx e'' (.sort u') :=
-  liftTypeChecker.WF Hc (TypeChecker.ensureType.WF he)
+  liftTypeChecker.WF Hc (.ensureType e true) (TypeChecker.ensureType.WF he)
 
 theorem isDefEqInContext.WF (Hc : ContextWF c)
     (he₁ : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e₁ e₁')
     (he₂ : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e₂ e₂') :
     ((monadLift (TypeChecker.isDefEq e₁ e₂) : AddInductive.M Bool) c).WF fun b =>
       b → Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx e₁' e₂' :=
-  liftTypeChecker.WF Hc (TypeChecker.isDefEq.WF he₁ he₂)
+  liftTypeChecker.WF Hc (.isDefEq e₁ e₂) (TypeChecker.isDefEq.WF he₁ he₂)
 
 theorem checkNoMVarNoFVar.closed
     (H : Kernel.Environment.checkNoMVarNoFVar env name e = .ok ()) :
@@ -1615,7 +2325,7 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
         TrTyping Hc.venv c.lparams Hc.mlctx.vlctx
           type checkedType type' checkedType' := by
   change (c.env.checkNoMVarNoFVar name type >>= fun _ =>
-    TypeChecker.M.run c.env c.safety c.lctx
+    TypeChecker.M.run c.env c.safety {}
       (c.typeCheckerLParams.getD c.lparams) c.fuel
       (TypeChecker.checkType type)).WF _
   have hno : (c.env.checkNoMVarNoFVar name type).WF
@@ -1623,7 +2333,8 @@ theorem checkClosedType.WF (Hc : ContextWF c) :
     intro _ h
     exact checkNoMVarNoFVar.closed (env := c.env) (name := name) h
   exact hno.bind fun _ hclosed =>
-    checkTypeInContext.WF Hc (hclosed.mono fun _ h => False.elim h)
+    checkTypeInContext.WF (Hc.withCheckLCtx {} LocalContext.empty_mapWF .empty)
+      (hclosed.mono fun _ h => False.elim h)
 
 /-- Verified boundary for the extra closed generated-recursor check. Unlike
 `checkClosedType`, this runs with an empty local context and the recursor's

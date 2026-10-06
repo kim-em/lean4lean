@@ -71,6 +71,35 @@ theorem BindingContextLE.withLocalDecl
   allowPrimitive_eq := rfl
   fuel_eq := rfl
 
+/-- Variant of `BindingContextLE.withLocalDecl` for a binder opened in both contexts. -/
+theorem BindingContextLE.withCheckedLocalDecl
+    {base : LocalContext}
+    (c : AddInductive.Context) (Hc : BindingContextWF c)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BindingContextLE c { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } where
+  fvars := by
+    intro fv hfv
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    exact Or.inr hfv
+  declarations := by
+    intro fv hfv
+    simp only [LocalContext.mkLocalDecl, LocalContext.find?,
+      Hc.wf.map_wf.find?_insert]
+    rw [if_neg]
+    intro heq
+    have : fv = ⟨c.ngen.curr⟩ := (LawfulBEq.eq_of_beq heq).symm
+    subst fv
+    exact Hc.current_not_mem hfv
+  env_eq := rfl
+  lparams_eq := rfl
+  safety_eq := rfl
+  allowPrimitive_eq := rfl
+  fuel_eq := rfl
+
 /-- An executable recursor-context extension together with its exact semantic
 free-variable weakening.  `BindingContextLE` is enough for looking up raw
 local declarations, but it does not determine how translated de Bruijn
@@ -112,6 +141,19 @@ def RecursorContextExtension.withLocalDecl
     RecursorContextExtension R
       (R.withLocalDecl (name := name) (bi := bi) htr hty) where
   contextLE := BindingContextLE.withLocalDecl c R.toBindingContextWF
+    name ty bi
+  venv_eq := rfl
+  shift := (.refl : Lift).skipN 1
+  lift := .skip_fvar _ _ .refl
+
+/-- Variant of `RecursorContextExtension.withLocalDecl` for a binder opened in both contexts. -/
+def RecursorContextExtension.withCheckedLocalDecl
+    (R : RecursorContextWF c recLparams)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    RecursorContextExtension R
+      (R.withCheckedLocalDecl (name := name) (bi := bi) htr hty) where
+  contextLE := BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF
     name ty bi
   venv_eq := rfl
   shift := (.refl : Lift).skipN 1
@@ -197,6 +239,22 @@ def BoundFVarArray.weaken
       List.map_cons, LocalDecl.fvarId, List.mem_cons]
     exact Or.inr (H.members fv hfv)
 
+/-- Variant of `BoundFVarArray.weaken` for a binder opened in both contexts. -/
+def BoundFVarArray.weakenChecked
+    {base : LocalContext}
+    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BoundFVarArray { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
+  fvars := H.fvars
+  expressions := H.expressions
+  members := by
+    intro fv hfv
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    exact Or.inr (H.members fv hfv)
+
 def BoundFVarArray.mono
     (H : BoundFVarArray c xs) (hle : BindingContextLE c c') :
     BoundFVarArray c' xs where
@@ -217,6 +275,31 @@ def BoundFVarArray.pushCurrent
     BoundFVarArray { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  fvars := H.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]
+  expressions := calc
+    xs.push (.fvar ⟨c.ngen.curr⟩) =
+        ((H.fvars.map Expr.fvar).toArray).push (.fvar ⟨c.ngen.curr⟩) :=
+      congrArg (fun ys => ys.push (.fvar ⟨c.ngen.curr⟩)) H.expressions
+    _ = ((H.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]).map Expr.fvar).toArray := by
+      simp
+  members := by
+    intro fv hfv
+    simp only [List.mem_append, List.mem_singleton] at hfv
+    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+      List.map_cons, LocalDecl.fvarId, List.mem_cons]
+    rcases hfv with hfv | rfl
+    · exact Or.inr (H.members fv hfv)
+    · exact Or.inl rfl
+
+/-- Variant of `BoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
+def BoundFVarArray.pushCurrentChecked
+    {base : LocalContext}
+    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BoundFVarArray { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
       (xs.push (.fvar ⟨c.ngen.curr⟩)) where
   fvars := H.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)]
   expressions := calc
@@ -362,6 +445,38 @@ def FreshBoundFVarArray.pushCurrent
     · intro hroot
       exact Hc.current_not_mem (Hroot hroot)
 
+/-- Variant of `FreshBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
+def FreshBoundFVarArray.pushCurrentChecked
+    {base : LocalContext}
+    (H : FreshBoundFVarArray root c xs)
+    (Hc : BindingContextWF c) (Hroot : BindingContextLE root c)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    FreshBoundFVarArray root { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  toBoundFVarArray := H.toBoundFVarArray.pushCurrentChecked (base := base) name ty bi
+  nodup := by
+    rw [show (H.toBoundFVarArray.pushCurrentChecked (base := base) name ty bi).fvars =
+      H.toBoundFVarArray.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] from rfl]
+    apply List.nodup_append.mpr
+    refine ⟨H.nodup, by simp, ?_⟩
+    intro fv hfv fv' hfv'
+    simp only [List.mem_singleton] at hfv'
+    subst fv'
+    exact fun heq => Hc.current_not_mem <| heq ▸
+      H.toBoundFVarArray.members fv hfv
+  fresh := by
+    intro fv hfv
+    change fv ∈ H.toBoundFVarArray.fvars ++
+      [(⟨c.ngen.curr⟩ : FVarId)] at hfv
+    simp only [List.mem_append, List.mem_singleton] at hfv
+    rcases hfv with hfv | rfl
+    · exact H.fresh fv hfv
+    · intro hroot
+      exact Hc.current_not_mem (Hroot hroot)
+
 def FreshBoundFVarArray.rebaseRoot
     (H : FreshBoundFVarArray root c xs)
     (hle : BindingContextLE root' root) :
@@ -408,15 +523,42 @@ def RecentBoundFVarArray.pushCurrent {root c : AddInductive.Context}
   contextLE := H.contextLE.trans <|
     BindingContextLE.withLocalDecl c Hc.toBindingContextWF name ty bi
   size_le := by
-    simpa only [Array.size_push, ContextWF.withLocalDecl,
+    simpa only [Array.size_push, ContextWF.withLocalDecl, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
   reverse_eq := by
     simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, ContextWF.withLocalDecl,
+      List.singleton_append, Array.size_push, ContextWF.withLocalDecl, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.fvarRevList, List.map_cons] using
         congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
   drop_eq := by
-    simpa only [Array.size_push, ContextWF.withLocalDecl,
+    simpa only [Array.size_push, ContextWF.withLocalDecl, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.dropN] using H.drop_eq
+
+/-- Variant of `RecentBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
+def RecentBoundFVarArray.pushCurrentChecked {root c : AddInductive.Context}
+    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
+    (H : RecentBoundFVarArray Hroot Hc xs)
+    (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
+    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
+    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
+    RecentBoundFVarArray Hroot
+      (ContextWF.withCheckedLocalDecl (c := c) (name := name) (ty := ty)
+        (ty' := ty') (bi := bi) (H := Hc) htr hty)
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrentChecked
+    Hc.toBindingContextWF H.contextLE name ty bi
+  contextLE := H.contextLE.trans <|
+    BindingContextLE.withCheckedLocalDecl c Hc.toBindingContextWF name ty bi
+  size_le := by
+    simpa only [Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
+  reverse_eq := by
+    simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
+      List.singleton_append, Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.fvarRevList, List.map_cons] using
+        congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
+  drop_eq := by
+    simpa only [Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
 def RecentBoundFVarArray.recursorSizeLE {root c : AddInductive.Context}
@@ -471,6 +613,26 @@ structure RecursorRecentBoundFVarArray
     (R.mlctx.fvarRevList xs.size size_le).map Expr.fvar
   drop_eq : R.mlctx.dropN xs.size size_le = Rroot.mlctx
 
+/-- A recent suffix rooted at a checker-context variant of `Rroot` is rooted
+at `Rroot` itself: the root's checker context plays no role. -/
+def RecursorRecentBoundFVarArray.ofCheckRoot
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    {l : LocalContext} {hwf : l.fvarIdToDecl.WF} {hsub : l.SubContextOf root.lctx}
+    (H : RecursorRecentBoundFVarArray (Rroot.withCheckLCtx l hwf hsub) R xs) :
+    RecursorRecentBoundFVarArray Rroot R xs where
+  toBoundFVarArray := H.toBoundFVarArray
+  nodup := H.nodup
+  fresh := H.fresh
+  contextLE := ⟨H.contextLE.fvars, H.contextLE.declarations, H.contextLE.env_eq,
+    H.contextLE.lparams_eq, H.contextLE.safety_eq, H.contextLE.allowPrimitive_eq,
+    H.contextLE.fuel_eq⟩
+  venv_eq := H.venv_eq
+  size_le := H.size_le
+  reverse_eq := H.reverse_eq
+  drop_eq := H.drop_eq
+
 def RecursorRecentBoundFVarArray.empty
     (R : RecursorContextWF c recLparams) :
     RecursorRecentBoundFVarArray R R #[] where
@@ -498,15 +660,76 @@ def RecursorRecentBoundFVarArray.pushCurrent
     BindingContextLE.withLocalDecl c R.toBindingContextWF name ty bi
   venv_eq := H.venv_eq
   size_le := by
-    simpa only [Array.size_push, RecursorContextWF.withLocalDecl,
+    simpa only [Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
   reverse_eq := by
     simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, RecursorContextWF.withLocalDecl,
+      List.singleton_append, Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.fvarRevList, List.map_cons] using
         congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
   drop_eq := by
-    simpa only [Array.size_push, RecursorContextWF.withLocalDecl,
+    simpa only [Array.size_push, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.dropN] using H.drop_eq
+
+/-- Variant of `RecursorRecentBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
+def RecursorRecentBoundFVarArray.pushCurrentChecked
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    RecursorRecentBoundFVarArray Rroot
+      (R.withCheckedLocalDecl (name := name) (bi := bi) htr hty)
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrentChecked
+    R.toBindingContextWF H.contextLE name ty bi
+  contextLE := H.contextLE.trans <|
+    BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF name ty bi
+  venv_eq := H.venv_eq
+  size_le := by
+    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
+  reverse_eq := by
+    simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
+      List.singleton_append, Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.fvarRevList, List.map_cons] using
+        congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
+  drop_eq := by
+    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.dropN] using H.drop_eq
+
+/-- Variant of `RecursorRecentBoundFVarArray.pushCurrent` for a binder opened
+on an explicit checker base. -/
+def RecursorRecentBoundFVarArray.pushCurrentOn
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
+    (base : LocalContext) (hwf : base.fvarIdToDecl.WF)
+    (hsub : base.SubContextOf c.lctx)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    RecursorRecentBoundFVarArray Rroot
+      (R.withCheckedLocalDeclOn (name := name) (bi := bi) base hwf hsub htr hty)
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
+  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrentChecked
+    R.toBindingContextWF H.contextLE name ty bi
+  contextLE := H.contextLE.trans <|
+    BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF name ty bi
+  venv_eq := H.venv_eq
+  size_le := by
+    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
+  reverse_eq := by
+    simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
+      List.singleton_append, Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
+      TypeChecker.MLCtx.fvarRevList, List.map_cons] using
+        congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
+  drop_eq := by
+    simpa only [Array.size_push, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
 
 /-- An exact consecutive recursor suffix induces the semantic context
@@ -1037,7 +1260,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
               _htyped _hfieldBound _hpositive bodyFull' _hbodyFullEq
               hopenedFull
-            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.NarrowRuntimeScope
@@ -1057,7 +1280,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               rw [Expr.instantiate1_eq]
               exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
             have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
-            let Hfields' := Hfields.pushCurrent name
+            let Hfields' := Hfields.pushCurrentChecked name
               dom.consumeTypeAnnotationsVerified consumedDom bi
               Hdom.consumed Hdom.isType
             have hopenFvars : Hopening.fvars =
@@ -1088,7 +1311,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               Hc hparamAt Hdom hbodyFull ?_
             intro _fieldType _fieldLevel _fieldLevel' _hfield _hlevel
               _htyped _hfieldBound bodyFull' _hbodyFullEq hopenedFull
-            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.NarrowRuntimeScope
@@ -1108,7 +1331,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
               rw [Expr.instantiate1_eq]
               exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
             have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
-            let Hfields' := Hfields.pushCurrent name
+            let Hfields' := Hfields.pushCurrentChecked name
               dom.consumeTypeAnnotationsVerified consumedDom bi
               Hdom.consumed Hdom.isType
             have hopenFvars : Hopening.fvars =
@@ -1550,14 +1773,18 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         ⟨consumedDom, Hdom⟩
       rcases Hdom.body R hbody with
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
-      refine withLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
-        R Hdom.consumed Hdom.isType ?_
+      refine AddInductive.M.WF_bind AddInductive.getLCtx.WF fun _ hlctx => ?_
+      subst hlctx
+      refine withCheckedLocalDeclOn.WF (name := name) (bi := bi) (Q := Q) ?_
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotationsVerified bi
+        checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
           dom.consumeTypeAnnotationsVerified bi }
       let R' : RecursorContextWF c' recLparams :=
-        R.withLocalDecl (name := name) (bi := bi)
+        R.withCheckedLocalDeclOn (name := name) (bi := bi)
+          (ctorFieldCheck c stats bu) (R.restrictTo _).1 (R.restrictTo _).2
           Hdom.consumed Hdom.isType
       have Hstats' := Hstats.withFVar R'.checking.tr.wf
         R'.mlctx_wf.tr.wf
@@ -1622,8 +1849,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         have happ := VEnv.HasType.app happliedFnType hargType
         have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
         apply happ.defeqU_r R'.checking.tr.wf R'.mlctx_wf.tr.wf.toCtx
-        simpa only [R', RecursorContextWF.withLocalDecl_venv,
-          RecursorContextWF.withLocalDecl_toCtx, VExpr.instN_bvar0] using
+        simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+          RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VExpr.instN_bvar0] using
             hbodyEq'
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
@@ -1635,16 +1862,16 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           VLCtx.IsDefEq.cons
             (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun
             (.vlam Hdom.source_defeq.choose_spec)
-        simpa only [R', RecursorContextWF.withLocalDecl_venv,
-          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+        simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+          RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
           hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
       have hbodyEq' := Hdom.bodyDefEqConsumed R _hbodyEq
       have hconsumedBodyType : R'.venv.IsType recLparams.length
           R'.mlctx.vlctx.toCtx consumedBody := by
         apply hsourceBodyType.defeqU_l R'.checking.tr.wf
           R'.mlctx_wf.tr.wf.toCtx
-        simpa only [R', RecursorContextWF.withLocalDecl_venv,
-          RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+        simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+          RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using hbodyEq'
       let HdomainCtx : VLCtx.IsDefEq R.venv recLparams.length
           ((none, .vlam sourceDom) :: R.mlctx.vlctx)
           ((none, .vlam consumedDom) :: R.mlctx.vlctx) :=
@@ -1686,15 +1913,16 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           (R.mlctx.mkForall' bu.size Hrecent.size_le
             (.forallE consumedDom consumedBody)) :=
         ⟨.sort closedLevel, HclosedConsumed⟩
-      let Hrecent' := Hrecent.pushCurrent name dom.consumeTypeAnnotationsVerified
-        consumedDom bi Hdom.consumed Hdom.isType
+      let Hrecent' := Hrecent.pushCurrentOn name dom.consumeTypeAnnotationsVerified
+        consumedDom bi (ctorFieldCheck c stats bu) (R.restrictTo _).1
+        (R.restrictTo _).2 Hdom.consumed Hdom.isType
       have HclosedConsumedRoot : Rroot.venv.IsDefEqU recLparams.length
           Rroot.mlctx.vlctx.toCtx
           (R.mlctx.mkForall' bu.size Hrecent.size_le typeTarget)
           (R'.mlctx.mkForall' (bu.push (.fvar ⟨c.ngen.curr⟩)).size
             Hrecent'.size_le consumedBody) := by
         simpa only [Hrecent.venv_eq, Hrecent.drop_eq, R',
-          RecursorContextWF.withLocalDecl, Array.size_push,
+          RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn, Array.size_push,
           TypeChecker.MLCtx.mkForall'] using HclosedConsumedU
       have hrootType' : Rroot.venv.IsDefEqU recLparams.length
           Rroot.mlctx.vlctx.toCtx rootTypeTarget
@@ -1702,7 +1930,11 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             Hrecent'.size_le consumedBody) :=
         hrootType.trans Rroot.checking.tr.wf
           Rroot.mlctx_wf.tr.wf.toCtx HclosedConsumedRoot
-      have Hclass := isRecArg.refinesRecursor R' Hstats' hconsume
+      -- `isRecArg` runs in the checker context saved before the field binder.
+      have Hclass := isRecArg.refinesRecursor
+        ((R.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType).withCheckLCtx
+          (ctorFieldCheck c stats bu) (R.restrictTo _).1 (R.restrictTo_beneath _))
+        Hstats' hconsume
         hlit hctx'
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
       have hopenFvars : Hopening.fvars =
@@ -1769,9 +2001,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             change dep ∈ Hopening.fvars ++ [⟨c.ngen.curr⟩]
             exact List.mem_append_left _ hfield)
         · exact Or.inr hparam
-      have HclassExact : (AddInductive.isRecArg stats dom c').WF
+      have HclassExact : (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu }).WF
           (fun selected =>
-            AddInductive.isRecArg stats dom c' = .ok selected ∧
+            AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu } = .ok selected ∧
               ∀ target, selected = some target →
                 ∃ htarget : target < decl.types.length,
                 decl.RecursiveArgAtTarget R'.venv recLparams.length

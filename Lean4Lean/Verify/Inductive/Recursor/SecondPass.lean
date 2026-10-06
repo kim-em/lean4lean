@@ -753,33 +753,28 @@ theorem resultBindings {alpha : Type}
           (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
         exact ih Hc Hbu Hu Hselected Hroot
       | none =>
-        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotationsVerified
-          (fun arg => do
-            let bu := bu.push arg
-            let u := if (← AddInductive.isRecArg stats dom).isSome then
-              u.push arg else u
-            AddInductive.mkRecInfos.loopCtorArgs.loop stats k
-              (body.instantiate1 arg) (i + 1) bu u fuel) c).WF Q
-        unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
-          AddInductive.instMonadLocalNameGeneratorM
-          AddInductive.instMonadWithReaderOfLocalContextM
         let c' : AddInductive.Context := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
             dom.consumeTypeAnnotationsVerified bi }
-        change (AddInductive.isRecArg stats dom c' >>= fun selected =>
+        change (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu } >>= fun selected =>
           AddInductive.mkRecInfos.loopCtorArgs.loop stats
             k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
             (bu.push (.fvar ⟨c.ngen.curr⟩))
             (if selected.isSome then u.push (.fvar ⟨c.ngen.curr⟩) else u)
             fuel c') |>.WF Q
-        have hclass : (AddInductive.isRecArg stats dom c').WF
+        have hclass : (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu }).WF
             (fun _ => True) := by
           intro _ _
           trivial
         refine hclass.bind fun selected _ => ?_
-        let Hc' := Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi
-        let hstep := BindingContextLE.withLocalDecl c Hc name
+        let Hc' := (Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi).withCheckLCtx
+          ((ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi)
+        let hstep := BindingContextLE.withCheckedLocalDecl
+          (base := ctorFieldCheck c stats bu) c Hc name
           dom.consumeTypeAnnotationsVerified bi
         cases selected with
         | none =>
@@ -789,8 +784,8 @@ theorem resultBindings {alpha : Type}
               (List.sublist_append_left bu.toList
                 [.fvar ⟨c.ngen.curr⟩])
           exact ih Hc'
-            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
-            (Hu.weaken name dom.consumeTypeAnnotationsVerified bi)
+            (Hbu.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+            (Hu.weakenChecked name dom.consumeTypeAnnotationsVerified bi)
             hselected'
             (Hroot.trans hstep)
         | some target =>
@@ -799,8 +794,8 @@ theorem resultBindings {alpha : Type}
             simpa using
               Hselected.append_right [.fvar ⟨c.ngen.curr⟩]
           exact ih Hc'
-            (Hbu.pushCurrent Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
-            (Hu.pushCurrent Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+            (Hbu.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
+            (Hu.pushCurrentChecked Hc Hroot name dom.consumeTypeAnnotationsVerified bi)
             hselected'
             (Hroot.trans hstep)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
@@ -2141,12 +2136,10 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     (hfield : TrExprS R.venv recLparams R.mlctx.vlctx
       (.fvar fv) fieldTarget)
     {rootScope : FVarId → Prop}
-    (hinferredScope : ((monadLift (TypeChecker.inferType (.fvar fv)) :
-      AddInductive.M Expr) c).WF fun ty => ty.FVarsIn rootScope)
+    (hinferredScope : (AddInductive.getType (.fvar fv) c).WF fun ty => ty.FVarsIn rootScope)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
     (hscopeUniverses : R.typeChecker.UniverseScope c.lparams rootScope ∧
-      ∀ ty, ((monadLift (TypeChecker.inferType (.fvar fv)) :
-        AddInductive.M Expr) c) = .ok ty → ty.levelParamsIn c.lparams = true)
+      ∀ ty, (AddInductive.getType (.fvar fv) c) = .ok ty → ty.levelParamsIn c.lparams = true)
     (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
     (hrecords : recInfos.size = stats.indConsts.size)
     (Happ : ∀ {current : AddInductive.Context}
@@ -2526,11 +2519,11 @@ theorem inductionHypothesisTypeOrigin
               (.fvar fv) result.2 :=
   inductionHypothesisTypeOriginOfInferredScope fv stats recInfos c R Hstats hconsume hlit
     hctx hfield
-    ((inferTypeFVarInRecursorContext.WF R hfield).mono fun _ ⟨_, hbelow, _, _, _⟩ =>
+    ((getTypeFVarInRecursorContext.WF R hfield).mono fun _ ⟨_, hbelow, _, _, _⟩ =>
       hbelow rootScope hrootUp (by simpa only [FVarsIn] using hfieldScope))
     hrootUp
     ⟨hrootUniverses, fun ty hty =>
-      inferTypeFVarInRecursorContext.levelsWF R hfield ty hty c.lparams rootScope
+      getTypeFVarInRecursorContext.levelsWF R hfield ty hty c.lparams rootScope
         hrootUniverses rfl (by simpa only [FVarsIn] using hfieldScope)⟩
     Hmotives hrecords Happ
 
@@ -2635,7 +2628,9 @@ theorem resultSemanticsOfMotiveApplications
     (inductionHypothesisTypeOriginOfInferredScope fv stats recInfos next
       Rnext HstatsNext hconsume
         (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
-        ((inferTypeFVarRun.WF next fv).mono fun _ ⟨decl, hfind, hty⟩ => by
+        ((getTypeFVarRun.WF next fv (by
+            rcases Rnext.findCDecl HfieldAt.fvarsIn with ⟨_, _, _, _, _, h⟩
+            exact ⟨_, h⟩)).mono fun _ ⟨decl, hfind, hty⟩ => by
           subst hty
           have hfvRoot : fv ∈ c.lctx.fvars := by
             rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
@@ -2647,7 +2642,9 @@ theorem resultSemanticsOfMotiveApplications
           rw [Hprior.contextLE.lparams_eq]
           exact Hprior.universeScope (sharpInContext j) (hsharpUniverses j),
          fun ty hty => by
-          obtain ⟨decl, hfind, rfl⟩ := inferTypeFVarRun.WF next fv ty hty
+          obtain ⟨decl, hfind, rfl⟩ := getTypeFVarRun.WF next fv (by
+            rcases Rnext.findCDecl HfieldAt.fvarsIn with ⟨_, _, _, _, _, h⟩
+            exact ⟨_, h⟩) ty hty
           have hfvRoot : fv ∈ c.lctx.fvars := by
             rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
             simpa only [FVarsIn] using Hfield.fvarsIn

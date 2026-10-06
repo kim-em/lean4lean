@@ -307,7 +307,8 @@ theorem addInductiveDeclaration.finalResultWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
-    (HsourcesB : VerifyInductive.SourceBVarClosed types) :
+    (HsourcesB : VerifyInductive.SourceBVarClosed types)
+    (hloc : VerifyInductive.CheckerSubContextLocality) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (VerifyInductive.InductiveFinalResult outEnv ves lparams
@@ -319,7 +320,7 @@ theorem addInductiveDeclaration.finalResultWF
   cases allowPrimitive with
   | false =>
     exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
-      env lparams nparams types isUnsafe fuel ves wf HsourcesB
+      env lparams nparams types isUnsafe fuel ves wf HsourcesB hloc
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -327,7 +328,7 @@ theorem addInductiveDeclaration.finalResultWF
         nparams types isUnsafe).mp hallow
     exact
       VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf Hprimitive
+        env lparams nparams types isUnsafe fuel ves wf Hprimitive hloc
 
 /-- Traditional environment-preservation theorem for the complete inductive
 declaration dispatch.  This is unconditional: it is derived from the
@@ -336,7 +337,8 @@ source-facing specification. -/
 theorem addInductiveDeclaration.finalPreservesWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig) :
+    (isUnsafe : Bool) (fuel : FuelConfig)
+    (hloc : VerifyInductive.CheckerSubContextLocality) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -354,10 +356,11 @@ theorem addInductiveDeclaration.finalPreservesWF
     by_cases haux : res.aux2nested.size = 0
     · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF
         env lparams nparams types isUnsafe fuel res ves wf Hlower.toResult haux
+          hloc
     · exact
         (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           env lparams nparams types isUnsafe fuel res ves wf Hsources Hlower
-            haux).mono fun _ ⟨H⟩ => H.modelExtension
+            haux hloc).mono fun _ ⟨H⟩ => H.modelExtension
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -365,7 +368,7 @@ theorem addInductiveDeclaration.finalPreservesWF
         nparams types isUnsafe).mp hallow
     exact
       (VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf Hprimitive).mono
+        env lparams nparams types isUnsafe fuel ves wf Hprimitive hloc).mono
         fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
@@ -450,11 +453,15 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
 
 /-- Declaration forms admitted to the generic environment theorem.  Checked
 inductive declarations carry no declaration-specific semantic premise;
-ordinary, primitive, and nested evidence is reconstructed from execution. -/
+ordinary, primitive, and nested evidence is reconstructed from execution.
+They do carry the global named hypothesis `CheckerSubContextLocality`: the
+inductive checker runs embedded typechecker calls in a narrow checker
+context, and the main-context lift lemmas transfer those runs to the full
+context through this (argued, not yet proved) locality principle. -/
 def _root_.Lean.Declaration.IsModelled
     (env : Environment) (ves : VEnvs) : Declaration → Prop
   | .quotDecl => False
-  | .inductDecl _ _ _ _ => True
+  | .inductDecl _ _ _ _ => VerifyInductive.CheckerSubContextLocality
   | _ => True
 
 /-- Successful checked addition of a currently modeled declaration preserves
@@ -473,7 +480,7 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   | mutualDefnDecl vs => exact addMutual.WF wf vs
   | inductDecl lparams nparams types isUnsafe =>
     exact addInductiveDeclaration.finalPreservesWF wf
-      lparams nparams types isUnsafe {}
+      lparams nparams types isUnsafe {} hdecl
 
 /-- Every already-modeled declaration form preserves the canonical `Eq`
 invariant needed by the subsequent quotient and inductive boundaries. -/

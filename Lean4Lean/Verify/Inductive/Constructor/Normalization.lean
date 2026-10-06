@@ -130,7 +130,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
               AddInductive.checkPositivity.loop stats ctor idx body fuel)
             Hc hocc' hdomOcc' Hdom hbodyFull ?_
           intro bodyFull' _hbodyFullEq hopenedFull
-          let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType
           have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
@@ -255,7 +255,7 @@ theorem checkConstructors.loopCtor.uniformTailWF
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
             ⟨domainLevel, hdomain⟩
-          let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType
           let Hruntime' : checkInductiveTypes.loopType.NarrowRuntimeScope
               Hc'.venv c.lparams
@@ -279,7 +279,12 @@ theorem checkConstructors.loopCtor.uniformTailWF
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) bodyFull') :
               (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
-                { c with ngen := c.ngen.next, lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name dom.consumeTypeAnnotationsVerified bi }).WF (fun _ =>
+                { c with
+                  ngen := c.ngen.next
+                  lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+                    dom.consumeTypeAnnotationsVerified bi
+                  checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
+                    dom.consumeTypeAnnotationsVerified bi }).WF (fun _ =>
                   decl.UniformCtorTail Hc.venv target levels scope.toCtx depth
                     (.forallE narrowDom narrowBody)) := by
             have Htail := ih Hc' Hruntime' Hstats' hparamNext hlit hlevels hopenedNarrow

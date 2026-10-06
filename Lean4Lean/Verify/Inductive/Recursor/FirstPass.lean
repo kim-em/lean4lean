@@ -672,7 +672,7 @@ def CheckedRecursorHeaderAt.withAmbient
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
-    let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
     CheckedRecursorHeaderAt Hc' stats decl (depth + 1) source familyIdx := by
   dsimp only
   exact {
@@ -2056,11 +2056,11 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
   rcases Helim.sortType (env := Rmajor.venv) (Δ := Rmajor.mlctx.vlctx) with
     ⟨sortLevel, hsort, hsortType⟩
   have hone : 1 ≤ Rmajor.mlctx.length := by
-    dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+    dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
     simp
   have hmajorRecent : #[major].toList.reverse =
       (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
-    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl]
+    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
     simp
   have hmajorClosed := Rmajor.mkForallRecent hsort hsortType 1 hone #[major]
     hmajorRecent
@@ -2073,7 +2073,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
           (AddInductive.getRecLevelParams elimLevel c'.lparams).length
           Rindices.mlctx.vlctx.toCtx
           (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)) := by
-    simpa only [majorBody, Rmajor, RecursorContextWF.withLocalDecl,
+    simpa only [majorBody, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using hmajorClosed
   let hindicesSize := Hrecent.recursorSizeLE Helim
   have hindicesRecent : indices.toList.reverse =
@@ -2155,7 +2155,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
         TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
       have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
           [majorTarget] := by
-        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
         simp only [MLCtxForallDomains, List.nil_append]
       rw [hmajorDomains]
       rfl
@@ -2181,7 +2181,7 @@ theorem CheckedRecursorHeaderAt.completedInitialRecursorFrame
         TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
       have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
           [majorTarget] := by
-        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
         simp only [MLCtxForallDomains, List.nil_append]
       rw [hmajorDomains]
       rfl
@@ -2263,11 +2263,11 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
   rcases Helim.sortType (env := Rmajor.venv) (Δ := Rmajor.mlctx.vlctx) with
     ⟨sortLevel, hsort, hsortType⟩
   have hone : 1 ≤ Rmajor.mlctx.length := by
-    dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+    dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
     simp
   have hmajorRecent : #[major].toList.reverse =
       (Rmajor.mlctx.fvarRevList 1 hone).map Expr.fvar := by
-    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl]
+    dsimp only [major, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
     simp
   have hmajorClosed := Rmajor.mkForallRecent hsort hsortType 1 hone #[major]
     hmajorRecent
@@ -2280,7 +2280,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
           (AddInductive.getRecLevelParams elimLevel base.lparams).length
           Rindices.mlctx.vlctx.toCtx
           (Rmajor.mlctx.mkForall' 1 hone (.sort sortLevel)) := by
-    simpa only [majorBody, Rmajor, RecursorContextWF.withLocalDecl,
+    simpa only [majorBody, Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using hmajorClosed
   let hindicesSize := Hrecent.size_le
   have hindicesRecent : indices.toList.reverse =
@@ -2363,7 +2363,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
         TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
       have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
           [majorTarget] := by
-        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
         simp only [MLCtxForallDomains, List.nil_append]
       rw [hmajorDomains]
       rfl
@@ -2381,7 +2381,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorFrame
         TypeChecker.MLCtx.mkForall'_eq_wrapForalls]
       have hmajorDomains : MLCtxForallDomains Rmajor.mlctx 1 hone =
           [majorTarget] := by
-        dsimp only [Rmajor, RecursorContextWF.withLocalDecl]
+        dsimp only [Rmajor, RecursorContextWF.withLocalDecl, RecursorContextWF.withCheckedLocalDecl, RecursorContextWF.withCheckedLocalDeclOn]
         simp only [MLCtxForallDomains, List.nil_append]
       rw [hmajorDomains]
       rfl
@@ -2598,23 +2598,22 @@ theorem continueWithBindings {alpha : Type}
         rw [AddInductive.mkRecInfos.loopArgs1]
         by_cases hparam : i < stats.params.size
         · rw [if_pos hparam]
-          have hwhnf :
-              ((monadLift (TypeChecker.whnf
-                (body.instantiate1 stats.params[i]!)) :
-                AddInductive.M Expr) c).WF (fun _ => True) := by
-            intro _ _
-            trivial
-          exact hwhnf.bind fun next _ =>
+          refine AddInductive.M.WF_bind (P := fun _ => True)
+            (fun _ _ => trivial) fun _ _ => ?_
+          refine AddInductive.M.WF_bind (P := fun _ => True)
+            (fun _ _ => trivial) fun next _ => ?_
+          exact
             continueWithBindings stats k Hk next (i + 1) indices originTypes
               fuel c Hc Hindices Horigins Hroot
         · rw [if_neg hparam]
-          unfold Lean4Lean.withLocalDecl
+          unfold AddInductive.withCheckedLocalDecl
             MonadLocalNameGenerator.withFreshId
             AddInductive.instMonadLocalNameGeneratorM
-            AddInductive.instMonadWithReaderOfLocalContextM
           let c' : AddInductive.Context := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }
           change ((monadLift (TypeChecker.whnf
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
@@ -2631,11 +2630,11 @@ theorem continueWithBindings {alpha : Type}
             continueWithBindings stats k Hk next i
               (indices.push (.fvar ⟨c.ngen.curr⟩))
               (originTypes.push dom.consumeTypeAnnotationsVerified) fuel c'
-              (Hc.withLocalDecl name dom.consumeTypeAnnotationsVerified bi)
-              (Hindices.pushCurrent Hc Hroot name
+              (Hc.withCheckedLocalDecl name dom.consumeTypeAnnotationsVerified bi)
+              (Hindices.pushCurrentChecked Hc Hroot name
                 dom.consumeTypeAnnotationsVerified bi)
-              (Horigins.pushCurrent Hc name dom.consumeTypeAnnotationsVerified bi)
-              (Hroot.trans <| BindingContextLE.withLocalDecl c Hc name
+              (Horigins.pushCurrentChecked Hc name dom.consumeTypeAnnotationsVerified bi)
+              (Hroot.trans <| BindingContextLE.withCheckedLocalDecl c Hc name
                 dom.consumeTypeAnnotationsVerified bi)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -2690,9 +2689,9 @@ theorem continueIndexSemantics {alpha : Type}
           ⟨consumedDom, Hdom⟩
         rcases Hdom.body Hc hbody with
           ⟨consumedBody, hbodyConsumed, hbodyEq⟩
-        refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+        refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
           Hc Hdom.consumed Hdom.isType ?_
-        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+        let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
         let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
           .skip_fvar _ _ .refl
@@ -2728,16 +2727,16 @@ theorem continueIndexSemantics {alpha : Type}
             (.vlam hsourceDefEq)
         have hsourceBodyType : Hc'.venv.IsType c.lparams.length
             Hc'.mlctx.vlctx.toCtx sourceBody := by
-          simpa only [Hc', ContextWF.withLocalDecl_venv,
-            ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+          simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
+            ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
             hbodyType.defeqDFC Hc.checking.tr.wf.ordered hctx.defeqCtx
         have hbodyEq' := Hdom.bodyDefEqConsumed Hc hbodyEq
         have hconsumedBodyType : Hc'.venv.IsType c.lparams.length
             Hc'.mlctx.vlctx.toCtx consumedBody := by
           apply hsourceBodyType.defeqU_l Hc'.checking.tr.wf
             Hc'.mlctx_wf.tr.wf.toCtx
-          simpa only [Hc', ContextWF.withLocalDecl_venv,
-            ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+          simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
+            ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using hbodyEq'
         have hwhnf := whnfInContext.WF Hc' hopened
         exact hwhnf.bind fun next hnext =>
           continueIndexSemantics stats k hconsume Hk next consumedBody i
@@ -2842,9 +2841,9 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
             ⟨consumedDom, Hdom⟩
           rcases Hdom.body Hc hbodyFull with
             ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
-          refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+          refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
             Hc Hdom.consumed Hdom.isType ?_
-          let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType
           let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
             .skip_fvar _ _ .refl
@@ -2881,16 +2880,16 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
               (.vlam Hdom.source_defeq.choose_spec)
           have hsourceBodyType : Hc'.venv.IsType c.lparams.length
               Hc'.mlctx.vlctx.toCtx fullBody := by
-            simpa only [Hc', ContextWF.withLocalDecl_venv,
-              ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+            simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
+              ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
               hbodyFullType.defeqDFC Hc.checking.tr.wf.ordered hctx.defeqCtx
           have hbodyEq' := Hdom.bodyDefEqConsumed Hc _hbodyEq
           have hconsumedBodyType : Hc'.venv.IsType c.lparams.length
               Hc'.mlctx.vlctx.toCtx consumedBody := by
             apply hsourceBodyType.defeqU_l Hc'.checking.tr.wf
               Hc'.mlctx_wf.tr.wf.toCtx
-            simpa only [Hc', ContextWF.withLocalDecl_venv,
-              ContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+            simpa only [Hc', ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
+              ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using hbodyEq'
           have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn htypeFVars.1)).1
@@ -3040,7 +3039,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
               (by simp [hindexCount])
               (by simpa [hcanonical] using canonicalIndexVars_succ nindices)
               (Horigins.push Hdom name bi)
-              (Hrecent.pushCurrent name dom.consumeTypeAnnotationsVerified consumedDom
+              (Hrecent.pushCurrentChecked name dom.consumeTypeAnnotationsVerified consumedDom
                 bi Hdom.consumed Hdom.isType)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -3177,8 +3176,12 @@ theorem continueCheckedSemantics {alpha : Type}
                 hparams huvars hctx hshape
                 htypeNarrow' htypeFull with
               ⟨bodyTarget, hopened, hopenedType⟩
-            have hwhnf := whnfInContext.scopeWF Hc hopened
-            exact hwhnf.bind fun next hnext => by
+            refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF
+              fun _ hL => ?_
+            subst hL
+            have hwhnf := whnfInContext.scopeWF (Hc.paramCheck stats (i + 1))
+              hopened
+            exact AddInductive.M.WF_bind hwhnf fun next hnext => by
               have hnarrowMatch := Hcurrent.currentDomainDefEq Hsynthesis
                 hi hparams huvars hctx hshape
               have hindices : Hsynthesis.indices = [] :=
@@ -3364,11 +3367,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             ⟨consumedDom, Hdom⟩
           rcases Hdom.body R hbodyFull with
             ⟨consumedBody, hbodyConsumed, hbodyEq⟩
-          refine withLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
+          refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
             R Hdom.consumed Hdom.isType ?_
-          let R' := R.withLocalDecl (name := name) (bi := bi)
+          let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType
-          let Hsuffix' := Hsuffix.withAmbient (name := name) (bi := bi)
+          let Hsuffix' := Hsuffix.withAmbientChecked (name := name) (bi := bi)
             Hdom.consumed Hdom.isType
           let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
             .skip_fvar _ _ .refl
@@ -3412,8 +3415,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           have hsourceBodyType : R'.venv.IsType
               (AddInductive.getRecLevelParams elimLevel base.lparams).length
               R'.mlctx.vlctx.toCtx fullBody := by
-            simpa only [R', RecursorContextWF.withLocalDecl_venv,
-              RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+            simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+              RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
               hbodyFullType.defeqDFC R.checking.tr.wf.ordered hctx.defeqCtx
           have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
           have hconsumedBodyType : R'.venv.IsType
@@ -3421,8 +3424,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               R'.mlctx.vlctx.toCtx consumedBody := by
             apply hsourceBodyType.defeqU_l R'.checking.tr.wf
               R'.mlctx_wf.tr.wf.toCtx
-            simpa only [R', RecursorContextWF.withLocalDecl_venv,
-              RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+            simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+              RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
               hbodyEq'
           have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
@@ -3648,11 +3651,11 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               (by simp [hindexCount])
               (by simpa [hcanonical] using
                 canonicalIndexVars_succ nindices)
-              (Horigins.pushCurrent R.toBindingContextWF name
+              (Horigins.pushCurrentChecked R.toBindingContextWF name
                 dom.consumeTypeAnnotationsVerified bi)
-              (HoriginTypes.push (name := name) (bi := bi)
+              (HoriginTypes.pushChecked (name := name) (bi := bi)
                 Hdom.consumed Hdom.isType)
-              (Hrecent.pushCurrent name dom.consumeTypeAnnotationsVerified consumedDom
+              (Hrecent.pushCurrentChecked name dom.consumeTypeAnnotationsVerified consumedDom
                 bi Hdom.consumed Hdom.isType)
       | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
         | proj =>
@@ -3777,9 +3780,13 @@ theorem continueRecursorParameterSemantics {alpha : Type}
             rcases parameterStepOfCheckedRecursorHeader H Helim R Hcurrent
                 Hsynthesis hi henv hctx htypeNarrow' htypeFull with
               ⟨bodyTarget, hopened, hopenedType⟩
+            refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF
+              fun _ hL => ?_
+            subst hL
             have hnormalize :=
-              whnfInRecursorContext.scopeWF R hopened
-            have hnormalizeLevels := whnfInRecursorContext.levelsWF R hopened
+              whnfInRecursorContext.scopeWF (R.paramCheck stats (i + 1)) hopened
+            have hnormalizeLevels :=
+              whnfInRecursorContext.levelsWF (R.paramCheck stats (i + 1)) hopened
             have hparamMem : Hcurrent.fv ∈ Hsuffix.parameterDecls.fvars := by
               rw [Hcurrent.parameterDecls]
               simp
@@ -4001,14 +4008,27 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
       ∀ indices fuel,
         indices = #[] →
         (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
-          indices fuel k current).WF Q)
+          indices fuel k (headerCheckContext current stats)).WF Q)
     (fuel : Nat) :
     ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr)
-      current >>= fun normalized =>
-        AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k
+      { current with checkLCtx := {} } >>= fun normalized =>
+        (AddInductive.paramCheckLCtx stats stats.params.size >>= fun L =>
+          AddInductive.withCheckLCtx L
+            (AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k))
           current).WF Q := by
-  have hstart := H.startRecursorHeaderSemantics Helim R henv
+  -- The closed header is normalized in the empty checker context.
+  have hstart := H.startRecursorHeaderSemantics Helim
+    (R.withCheckLCtx {} LocalContext.empty_mapWF .empty) henv
   exact hstart.bind fun normalized ⟨hnormalizedU, hnormalized⟩ => by
+    refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+    subst hL
+    rw [AddInductive.withCheckLCtx_apply]
+    -- The telescope is opened on top of the parameters.
+    let R₀ := R
+    let Hsuffix : RecursorParameterContextSuffix
+        (R.paramCheck stats stats.params.size) stats runtimeDepth :=
+      { Hsuffix with }
+    let R := R.paramCheck stats stats.params.size
     rcases hnormalized.2 with
       ⟨narrowTarget, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
@@ -4167,8 +4187,10 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
       (k indices next).WF Q)
     (fuel : Nat) :
     ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr)
-      current >>= fun normalized =>
-        AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k
+      { current with checkLCtx := {} } >>= fun normalized =>
+        (AddInductive.paramCheckLCtx stats stats.params.size >>= fun L =>
+          AddInductive.withCheckLCtx L
+            (AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k))
           current).WF Q := by
   have hparamScope : R.typeChecker.UniverseScope base.lparams
       (· ∈ Hsuffix.parameterDecls.fvars) := by
@@ -4189,16 +4211,20 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     have hindices : Hsynthesis.indices = [] :=
       List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
     simpa [hindices] using Hsynthesis.scopeCtx.symm
+  -- The index telescope is opened on top of the parameters.
+  let RL := R.paramCheck stats stats.params.size
+  let HsuffixL : RecursorParameterContextSuffix RL stats runtimeDepth :=
+    { Hsuffix with }
   refine continueRecursorIndexSynthesisSemantics
-    (rootParameterDecls := Hsuffix.parameterDecls) stats k H Helim R
-    hconsume ?_ R henv Hsuffix rfl type fullTarget narrowTarget
+    (rootParameterDecls := Hsuffix.parameterDecls) stats k H Helim RL
+    hconsume ?_ RL henv HsuffixL rfl type fullTarget narrowTarget
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis
     hcanonicalParams rfl HnarrowStats
     Hstats Hruntime hfront htypeNarrow htypeFVars htypeU hparamScope
     htypeFull htypeFullType .nil .nil
-    rfl rfl (BoundFVarTypeOrigins.empty current)
-    (RecursorTranslatedOriginTypes.empty R)
-    (RecursorRecentBoundFVarArray.empty R)
+    rfl rfl (BoundFVarTypeOrigins.empty _)
+    (RecursorTranslatedOriginTypes.empty RL)
+    (RecursorRecentBoundFVarArray.empty RL)
   intro next nextDepth Rnext henvNext HsuffixNext hparameterDecls type'
     fullTarget' narrowTarget' scope nindices indices originTypes indexTargets
     Hsynthesis' hcanonical' hscopeBase HnarrowStats' Hstats' Hruntime' hfront'
@@ -4208,7 +4234,7 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
   exact Hk Rnext henvNext HsuffixNext hparameterDecls Hsynthesis' hcanonical'
     hscopeBase HnarrowStats' Hstats' Hruntime' hfront' htypeNarrow'
     htypeFVars' htypeFull' htypeFullType' Hindices HnarrowIndices hindexCount
-    hcanonical Horigins HoriginTypes Hrecent
+    hcanonical Horigins HoriginTypes Hrecent.ofCheckRoot
     (Hrecent.indexUniverses hscopeU' HnarrowIndices)
 
 /-- Package-facing entry to checked recursor replay.  All family selection,

@@ -43,10 +43,11 @@ theorem whnfInRecursorContext.levelsWF
     (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e') :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       Hc.typeChecker.LevelsBelow e e₁ := by
-  change (TypeChecker.M.run c.env c.safety c.lctx
+  change (TypeChecker.M.run c.env c.safety c.checkLCtx
     (c.typeCheckerLParams.getD c.lparams) c.fuel
     (TypeChecker.whnf e)).WF _
   rw [Hc.typeCheckerLParams_eq]
+  refine Hc.runOfMain (.whnf e) _ ?_
   rw [← Hc.lctx_eq]
   have Hx : TypeChecker.M.WF Hc.typeChecker {}
       (TypeChecker.whnf e) (fun e₁ _ => Hc.typeChecker.LevelsBelow e e₁) :=

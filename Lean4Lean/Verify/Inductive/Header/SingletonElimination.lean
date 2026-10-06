@@ -218,7 +218,7 @@ theorem LargeEliminationTrace.singletonTelescope
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
         obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
-        let Hnext := Hc.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
@@ -261,7 +261,7 @@ theorem LargeEliminationTrace.singletonTelescope
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
         obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
-        let Hnext := Hc.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
@@ -307,7 +307,7 @@ theorem LargeEliminationTrace.singletonTelescope
       cases hfullForall with
       | forallE hfullDomType _ hfullDom hfullBody =>
         obtain ⟨consumed, Hdom⟩ := consumeTypeAnnotationsCompat c Hc hfullDom hfullDomType
-        let Hnext := Hc.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+        let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow

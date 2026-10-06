@@ -288,18 +288,15 @@ theorem AddInductive.checkConstructors.checkedWF
           H.headers.params stats indTypes c.lparams
           H.materialized.parameterScope := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    H.context H.translation.types H.translation.typesAdded H.materialized
+    (H.context.paramCheck stats stats.params.size) H.translation.types H.translation.typesAdded H.materialized
     H.headerParams hconsume hlit hunsafe H.materialized.universeBound hlparams
   rw [AddInductive.checkConstructors]
-  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
-    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
-      { c with env := outEnv }).WF _
-  change (((liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } >>= fun _ =>
-      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-        { c with env := outEnv }).WF _)
-  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } = .ok outEnv from rfl]
+  refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
+    fun _ _ => ?_
+  -- Constructors are checked on top of the parameters.
+  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+  subst hL
+  rw [AddInductive.withCheckLCtx_apply]
   exact Hloops
 
 /-- The same executable constructor check also retains the canonical owner
@@ -315,27 +312,26 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
     (AddInductive.checkConstructors indTypes stats isUnsafe
       { c with env := outEnv }).WF fun _ =>
         CheckedConstructorOwnerNormalForms stats indTypes := by
-  let Hsuffix := H.materialized.parameterSuffix
+  let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      (H.context.paramCheck stats stats.params.size) stats depth :=
+    { H.materialized.parameterSuffix with }
   let Hstats :=
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized
   have Hloops := checkConstructors.loopTypes.ownerNormalFormsWF
     (Q := fun _ => CheckedConstructorOwnerNormalForms stats indTypes)
     (isUnsafe := isUnsafe)
-    H.context H.translation.types
+    (H.context.paramCheck stats stats.params.size) H.translation.types
     (ConstructorOwnerNormalFormRows.empty stats indTypes)
     Hsuffix Hstats hconsume hlit
     (fun Hrows => Hrows.complete)
   rw [AddInductive.checkConstructors]
-  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
-    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
-      { c with env := outEnv }).WF _
-  change (((liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } >>= fun _ =>
-      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-        { c with env := outEnv }).WF _)
-  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } = .ok outEnv from rfl]
+  refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
+    fun _ _ => ?_
+  -- Constructors are checked on top of the parameters.
+  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+  subst hL
+  rw [AddInductive.withCheckLCtx_apply]
   exact Hloops
 
 theorem AddInductive.checkConstructors.headersWF
@@ -2228,18 +2224,15 @@ theorem AddInductive.checkConstructors.WF
       (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
       H.sourceTypes
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    H.context Hheaders H.typesInstalled H.materialized H.headerParams
+    (H.context.paramCheck stats stats.params.size) Hheaders H.typesInstalled H.materialized H.headerParams
     hconsume hlit hunsafe H.materialized.universeBound hlparams
   rw [AddInductive.checkConstructors]
-  change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
-    AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
-      { c with env := outEnv }).WF _
-  change (((liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } >>= fun _ =>
-      AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-        { c with env := outEnv }).WF _)
-  rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
-    { c with env := outEnv } = .ok outEnv from rfl]
+  refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
+    fun _ _ => ?_
+  -- Constructors are checked on top of the parameters.
+  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+  subst hL
+  rw [AddInductive.withCheckLCtx_apply]
   exact Hloops.mono fun _ Hchecked => ⟨H.formation Hchecked⟩
 
 /-- The exact executable prefix used by `AddInductive.run`, through mutual

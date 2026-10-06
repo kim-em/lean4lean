@@ -14,70 +14,16 @@ executable infers the field's type by local-context lookup, so its syntactic
 scope is read off the stored metacontext declaration rather than through the
 abstract `FVarsBelow` contract, which cannot exclude the field itself. -/
 
-/-- The executable type inference of a free variable returns its declared
-local type. -/
-theorem inferTypeFVarRun.WF (c : AddInductive.Context) (fv : FVarId) :
-    ((monadLift (TypeChecker.inferType (.fvar fv)) : AddInductive.M Expr) c).WF
+/-- `getType` of a free variable returns its declared local type. -/
+theorem getTypeFVarRun.WF (c : AddInductive.Context) (fv : FVarId)
+    (hmem : ∃ decl, c.lctx.find? fv = some decl) :
+    (AddInductive.getType (.fvar fv) c).WF
       fun ty => ∃ decl, c.lctx.find? fv = some decl ∧ ty = decl.type := by
-  change (TypeChecker.M.run c.env c.safety c.lctx
-    (c.typeCheckerLParams.getD c.lparams) c.fuel
-    (TypeChecker.inferType (.fvar fv))).WF _
-  change ((((TypeChecker.Methods.withFuel c.fuel.recDepth).inferType
-      (.fvar fv) true)
-        { env := c.env, lctx := c.lctx, safety := c.safety,
-          lparams := c.typeCheckerLParams.getD c.lparams, fuel := c.fuel }).run' {}).WF _
-  cases hdepth : c.fuel.recDepth with
-  | zero =>
-      intro a h
-      simp [TypeChecker.Methods.withFuel, StateT.run', throw, throwThe,
-        MonadExceptOf.throw, Functor.map, StateT.map, Except.map,
-        liftM, StateT.lift, Bind.bind, StateT.bind, Except.bind,
-        monadLift, MonadLift.monadLift, ReaderT.instMonadLift] at h
-  | succ depth =>
-      simp only [TypeChecker.Methods.withFuel]
-      have hloose : (.fvar fv : Expr).hasLooseBVars = false := by
-        simp [Expr.hasLooseBVars, Expr.looseBVarRange']
-      unfold TypeChecker.Inner.inferType'
-      simp only [hloose, Bool.false_eq_true, ↓reduceIte]
-      intro a h
-      simp [TypeChecker.Inner.inferFVar, ReaderT.bind, ReaderT.read,
-        StateT.bind, StateT.get, StateT.modifyGet, _root_.modify, StateT.run',
-        MonadState.get, MonadState.modifyGet, MonadStateOf.get,
-        MonadStateOf.modifyGet, getThe, modifyGetThe,
-        instMonadStateOfMonadStateOf, instMonadStateOfOfMonadLift,
-        ReaderT.instMonadLift, instMonadStateOfStateTOfMonad,
-        MonadLiftT.monadLift, MonadLift.monadLift,
-        liftM, monadLift,
-        instMonadLiftTOfMonadLift, instMonadLiftT,
-        StateT.instMonadLift, StateT.lift] at h
-      simp only [Bind.bind, Monad.toBind, ReaderT.instMonad, ReaderT.bind,
-        StateT.instMonad, StateT.bind, StateT.get, StateT.modifyGet,
-        StateT.lift, Except.instMonad, Except.bind, Except.pure] at h
-      simp only [Pure.pure, Functor.map, Applicative.toPure,
-        Applicative.toFunctor, Monad.toApplicative, Except.instMonad,
-        Except.pure, Except.map] at h
-      simp [ReaderT.pure, ReaderT.bind, ReaderT.read, StateT.pure,
-        StateT.bind, StateT.lift, StateT.map, StateT.modifyGet,
-        readThe, MonadReaderOf.read, instMonadReaderOfOfMonadLift,
-        instMonadReaderOfReaderTOfMonad, liftM, monadLift,
-        MonadLiftT.monadLift, MonadLift.monadLift,
-        instMonadLiftTOfMonadLift, instMonadLiftT,
-        ReaderT.instMonadLift, ReaderT.read] at h
-      simp only [Bind.bind, Monad.toBind, ReaderT.instMonad, ReaderT.bind,
-        ReaderT.read, StateT.instMonad, StateT.bind, StateT.lift,
-        StateT.map, StateT.modifyGet, Except.instMonad, Except.bind,
-        Except.map] at h
-      simp only [ReaderT.read, Pure.pure, Functor.map,
-        Applicative.toPure, Applicative.toFunctor, Monad.toApplicative,
-        StateT.instMonad, StateT.pure, Except.instMonad, Except.pure,
-        Except.map, MonadReader.read, instMonadReaderOfMonadReaderOf,
-        readThe, MonadReaderOf.read, instMonadReaderOfReaderTOfMonad] at h
-      cases hfind : c.lctx.find? fv with
-      | none =>
-          simp [hfind, throw, throwThe, MonadExceptOf.throw] at h
-      | some decl =>
-          simp [hfind] at h
-          exact ⟨decl, rfl, h.symm⟩
+  rcases hmem with ⟨decl, hfind⟩
+  intro ty hty
+  change Except.ok (c.lctx.get! fv).type = Except.ok ty at hty
+  simp only [LocalContext.get!, hfind, Except.ok.injEq] at hty
+  exact ⟨decl, hfind, hty.symm⟩
 
 
 theorem IsFVarUpSet.deps_of_mem {P : FVarId → Prop} {fv : FVarId} {deps : List FVarId}

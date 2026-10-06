@@ -202,8 +202,8 @@ theorem CompletedRecursorConstruction.elimLevelDecision
     H.elimLevel = .zero ∨
     ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
-        LargeEliminationTrace stats { c with env := ctorEnv }
-          ctor.type 0 #[]) := by
+        LargeEliminationTrace stats
+          { c with env := ctorEnv, checkLCtx := {} } ctor.type 0 #[]) := by
   by_cases hzero : H.elimLevel = .zero
   · exact .inr (.inl hzero)
   rcases AddInductive.isLargeEliminator.shape_of_checked
@@ -236,7 +236,8 @@ theorem CompletedRecursorConstruction.consumedSingletonElimination
     (hls : ∀ level ∈ levels, level.WF U)
     (Hsingleton : ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
-        LargeEliminationTrace stats { c with env := ctorEnv } ctor.type 0 #[])) :
+        LargeEliminationTrace stats { c with env := ctorEnv, checkLCtx := {} }
+          ctor.type 0 #[])) :
     s.SingletonElimination R.headerVEnv U levels := by
   obtain ⟨ind, hind, hctors⟩ := Hsingleton
   have hsourceCtorCount := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length R.core
@@ -286,7 +287,8 @@ theorem CompletedRecursorConstruction.consumedSingletonElimination
   have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
   obtain ⟨arity, hspine⟩ := hspine
-  have Hheader := SourceConstructorReplay.singletonFieldsInScope hreplay R.context rfl
+  have Hheader := SourceConstructorReplay.singletonFieldsInScope hreplay
+    (R.context.withCheckLCtx {} LocalContext.empty_mapWF .empty) rfl
     (R.installation.constructorLE.trans R.ctorLE) hheader hscope
     R.core.uvars htrace hspine
   -- Field-by-field comparison of the consumed and header telescopes.

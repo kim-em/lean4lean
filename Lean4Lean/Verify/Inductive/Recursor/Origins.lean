@@ -154,6 +154,42 @@ def RecursorTranslatedOriginTypes.push
           R.checking.tr.wf.ordered W.toCtx
       · exact hty.weakN R.checking.tr.wf.ordered W.toCtx }
 
+/-- Variant of `RecursorTranslatedOriginTypes.push` for a binder opened in both contexts. -/
+def RecursorTranslatedOriginTypes.pushChecked
+    {c : AddInductive.Context} {recLparams : List Name}
+    {R : RecursorContextWF c recLparams} {origins : Array Expr}
+    {ty : Expr} {ty' : VExpr} {name : Name} {bi : BinderInfo}
+    (H : RecursorTranslatedOriginTypes R origins)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    let R' := R.withCheckedLocalDecl (c := c) (recLparams := recLparams)
+      (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
+    RecursorTranslatedOriginTypes R' (origins.push ty) := by
+  dsimp only
+  let R' := R.withCheckedLocalDecl (c := c) (recLparams := recLparams)
+    (ty := ty) (ty' := ty') (name := name) (bi := bi) htr hty
+  let W : VLCtx.FVLift R.mlctx.vlctx R'.mlctx.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  let liftedTargets := H.targets.map fun target => target.liftN 1 0
+  exact {
+    targets := liftedTargets ++ [ty'.liftN 1 0]
+    translated := by
+      rw [Array.toList_push]
+      apply checkPositivityStep.forall₂_append
+      · apply checkPositivityStep.forall₂_map_right H.translated
+        intro source target Hsource
+        exact Hsource.weakFV R.checking.tr.wf.ordered W R'.mlctx_wf.tr.wf
+      · exact .cons
+          (htr.weakFV R.checking.tr.wf.ordered W R'.mlctx_wf.tr.wf) .nil
+    isType := by
+      intro target htarget
+      simp only [liftedTargets, List.mem_append, List.mem_map,
+        List.mem_singleton] at htarget
+      rcases htarget with ⟨oldTarget, hold, rfl⟩ | rfl
+      · exact (H.isType oldTarget hold).weakN
+          R.checking.tr.wf.ordered W.toCtx
+      · exact hty.weakN R.checking.tr.wf.ordered W.toCtx }
+
 /-- Weaken an origin-type row across the exact consecutive index suffix
 opened since `Rroot`. -/
 def RecursorTranslatedOriginTypes.weakenRecent
@@ -258,6 +294,19 @@ def FreshBoundFVarArray.weaken
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
   toBoundFVarArray := H.toBoundFVarArray.weaken name ty bi
+  nodup := H.nodup
+  fresh := H.fresh
+
+/-- Variant of `FreshBoundFVarArray.weaken` for a binder opened in both contexts. -/
+def FreshBoundFVarArray.weakenChecked
+    {base : LocalContext}
+    (H : FreshBoundFVarArray root c xs)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    FreshBoundFVarArray root { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
+  toBoundFVarArray := H.toBoundFVarArray.weakenChecked (base := base) name ty bi
   nodup := H.nodup
   fresh := H.fresh
 
@@ -450,11 +499,11 @@ def TranslatedOriginTypes.push
     (H : TranslatedOriginTypes Hc origins)
     (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
     (name : Name) (bi : BinderInfo) :
-    let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
       Hdom.consumed Hdom.isType
     TranslatedOriginTypes Hc' (origins.push dom.consumeTypeAnnotationsVerified) := by
   dsimp only
-  let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
     Hdom.consumed Hdom.isType
   let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
@@ -539,6 +588,70 @@ def BoundFVarTypeOrigins.pushCurrent
   let hstep := BindingContextLE.withLocalDecl c Hc name ty bi
   refine {
     bound := H.bound.pushCurrent name ty bi
+    size_eq := by simpa using H.size_eq
+    declaration := ?_ }
+  intro i hi
+  by_cases hilast : i = xs.size
+  · subst i
+    let D : BoundFVarDeclarationAt c'
+        (xs.push (.fvar ⟨c.ngen.curr⟩)) xs.size := {
+      inBounds := by simpa
+      fvar := ⟨c.ngen.curr⟩
+      expression := by simp
+      member := by
+        simp only [c', LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+          List.map_cons, LocalDecl.fvarId, List.mem_cons]
+        exact Or.inl trivial
+      index := c.lctx.decls.size
+      userName := name
+      type := ty
+      binderInfo := bi
+      kind := .default
+      declaration := by
+        simp [c', LocalContext.mkLocalDecl, LocalContext.find?,
+          Hc.wf.map_wf.find?_insert] }
+    refine ⟨D, ?_⟩
+    change ty = (origins.push ty)[xs.size]!
+    rw [show xs.size = origins.size from H.size_eq.symm]
+    simp
+  · have hiOld : i < xs.size := by
+      have : i < xs.size + 1 := by simpa using hi
+      omega
+    rcases H.declaration i hiOld with ⟨D, htype⟩
+    refine ⟨(D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, ?_⟩
+    have hsizes := H.size_eq
+    have hiOrigins : i < origins.size := by omega
+    change D.type = (origins.push ty)[i]!
+    rw [Array.getElem!_eq_getD] at htype ⊢
+    unfold Array.getD at htype ⊢
+    rw [dif_pos hiOrigins] at htype
+    have hiPush : i < (origins.push ty).size := by
+      simp only [Array.size_push]
+      omega
+    rw [dif_pos hiPush]
+    have heq : (origins.push ty)[i]'hiPush = origins[i]'hiOrigins :=
+      Array.getElem_push_lt hiOrigins
+    exact htype.trans heq.symm
+
+/-- Variant of `BoundFVarTypeOrigins.pushCurrent` for a binder opened in both contexts. -/
+def BoundFVarTypeOrigins.pushCurrentChecked
+    {base : LocalContext}
+    (H : BoundFVarTypeOrigins c xs origins)
+    (Hc : BindingContextWF c)
+    (name : Name) (ty : Expr) (bi : BinderInfo) :
+    BoundFVarTypeOrigins
+      { c with
+        ngen := c.ngen.next
+        lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+        checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+      (xs.push (.fvar ⟨c.ngen.curr⟩)) (origins.push ty) := by
+  let c' : AddInductive.Context := { c with
+    ngen := c.ngen.next
+    lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+    checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
+  let hstep := BindingContextLE.withCheckedLocalDecl (base := base) c Hc name ty bi
+  refine {
+    bound := H.bound.pushCurrentChecked (base := base) name ty bi
     size_eq := by simpa using H.size_eq
     declaration := ?_ }
   intro i hi
@@ -803,6 +916,12 @@ structure RecursorLoopUArgsTrace where
   motive : Expr
   indices : Array Expr
 
+/-- The checker context in which `loopUArgs` normalizes the type of the
+recursive field `field`: the checker entries before the field. -/
+def loopUArgsCheckLCtx (c : AddInductive.Context) (field : Expr) :
+    LocalContext :=
+  c.lctx.restrictTo (c.checkLCtx.getFVarIds.toList.takeWhile (· != field.fvarId!))
+
 /-- Exact executable input of one `loopUArgs` traversal.  Retaining both
 reader runs prevents later replay arguments from silently choosing an
 unrelated normalized field domain.  `closedNormalized` is the canonical
@@ -811,11 +930,10 @@ structure RecursorLoopUArgsInput
     (root : AddInductive.Context) (field : Expr) where
   inferredType : Expr
   normalizedType : Expr
-  inference :
-    (monadLift (TypeChecker.inferType field) : AddInductive.M Expr) root =
-      .ok inferredType
+  inference : AddInductive.getType field root = .ok inferredType
   normalization :
-    (monadLift (TypeChecker.whnf inferredType) : AddInductive.M Expr) root =
+    (monadLift (TypeChecker.whnf inferredType) : AddInductive.M Expr)
+      { root with checkLCtx := loopUArgsCheckLCtx root field } =
       .ok normalizedType
 
 /-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
@@ -825,7 +943,9 @@ and every intervening WHNF call. -/
 inductive RecursorLoopUArgsPrefix
     (root : AddInductive.Context) (source : Expr) :
     AddInductive.Context → Expr → Array Expr → Prop
-  | root : RecursorLoopUArgsPrefix root source root source #[]
+  | root (l : LocalContext) (hwf : l.fvarIdToDecl.WF)
+      (hsub : l.SubContextOf root.lctx) :
+      RecursorLoopUArgsPrefix root source { root with checkLCtx := l } source #[]
   | push
       {current next : AddInductive.Context} {args : Array Expr}
       {name : Name} {domain body normalized : Expr} {bi : BinderInfo}
@@ -834,6 +954,8 @@ inductive RecursorLoopUArgsPrefix
       (next_eq : next = { current with
         ngen := current.ngen.next
         lctx := current.lctx.mkLocalDecl ⟨current.ngen.curr⟩ name
+          domain.consumeTypeAnnotationsVerified bi
+        checkLCtx := current.checkLCtx.mkLocalDecl ⟨current.ngen.curr⟩ name
           domain.consumeTypeAnnotationsVerified bi })
       (normalization :
         (monadLift (TypeChecker.whnf
@@ -841,6 +963,18 @@ inductive RecursorLoopUArgsPrefix
             AddInductive.M Expr) next = .ok normalized) :
       RecursorLoopUArgsPrefix root source next normalized
         (args.push (.fvar ⟨current.ngen.curr⟩))
+
+/-- A trace rooted at a checker-context variant of `root` is rooted at
+`root`: the root's checker context plays no role. -/
+theorem RecursorLoopUArgsPrefix.ofCheckRoot {root : AddInductive.Context}
+    {l : LocalContext} {source : Expr} {current : AddInductive.Context}
+    {exposed : Expr} {args : Array Expr}
+    (H : RecursorLoopUArgsPrefix { root with checkLCtx := l } source current
+      exposed args) :
+    RecursorLoopUArgsPrefix root source current exposed args := by
+  induction H with
+  | root l' hwf hsub => exact .root l' hwf hsub
+  | push _ next_eq normalization ih => exact .push ih next_eq normalization
 
 def RecursorLoopUArgsInput.closedNormalized
     (H : RecursorLoopUArgsInput root field)

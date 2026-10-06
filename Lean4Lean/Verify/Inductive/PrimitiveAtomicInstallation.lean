@@ -26,6 +26,9 @@ structure StagedContextWF (c : AddInductive.Context) where
   indFresh : forall fv, fv ∈ mlctx.vlctx.fvars -> c.ngen.Reserves fv
   kernelFresh : forall fv, fv ∈ mlctx.vlctx.fvars ->
     ({} : TypeChecker.State).ngen.Reserves fv
+  checkMapWF : c.checkLCtx.fvarIdToDecl.WF
+  checkSub : c.checkLCtx.SubContextOf c.lctx
+  locality : CheckerSubContextLocality
   /-- The open projection-walk corner, carried to the restored checker context. -/
   projectionCorner : ProjectionWalkCorner
 
@@ -41,6 +44,9 @@ def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub
+  locality := H.locality
 
 /-- Move a staged local context across a production/abstract environment
 extension.  Unlike `ContextWF.withEnv`, this operation intentionally needs no
@@ -60,6 +66,9 @@ def StagedContextWF.withEnv (H : StagedContextWF c)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub
+  locality := H.locality
 
 /-- Restore the ordinary checker context exactly at an atomic completion
 point.  Callers must provide the global facts that are deliberately absent
@@ -96,6 +105,9 @@ def StagedContextWF.complete (H : StagedContextWF c)
   ngen_prefix := H.ngen_prefix
   indFresh := H.indFresh
   kernelFresh := H.kernelFresh
+  checkMapWF := H.checkMapWF
+  checkSub := H.checkSub
+  locality := H.locality
 
 /-- Production and abstract constants installed in lockstep without requiring
 their names to be nonprimitive.  This is a staging relation only: unlike

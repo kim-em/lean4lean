@@ -37,19 +37,21 @@ theorem RecInfoMinorHypothesisTypeOrigin.universeSupport
   have hinference := O.loopInput.inference
   have hnormalization := O.loopInput.normalization
   subst hfv
+  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root (.fvar fv))
+    (Rroot.restrictTo _).1 (Rroot.restrictTo _).2
   obtain ⟨inferredTarget, hbelow, _, hinferredTr, hfieldTyping⟩ :=
-    inferTypeFVarInRecursorContext.WF Rroot hfield _ hinference
+    getTypeFVarInRecursorContext.WF Rroot hfield _ hinference
   have hfieldP : (Expr.fvar fv).FVarsIn P := by simpa [FVarsIn] using hfvP
   have hinferredU : O.loopInput.inferredType.levelParamsIn Us = true :=
-    inferTypeFVarInRecursorContext.levelsWF Rroot hfield _ hinference Us P hscope rfl hfieldP
+    getTypeFVarInRecursorContext.levelsWF Rroot hfield _ hinference Us P hscope rfl hfieldP
   have hinferredP : O.loopInput.inferredType.FVarsIn P := hbelow P hscope.1 hfieldP
   have hinferredType : Rroot.venv.IsType recLparams.length
       Rroot.mlctx.vlctx.toCtx inferredTarget :=
     hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
   obtain ⟨hnormalizedBelow, hnormalizedTr⟩ :=
-    whnfInRecursorContext.scopeWF Rroot hinferredTr _ hnormalization
+    whnfInRecursorContext.scopeWF RF hinferredTr _ hnormalization
   have hnormalizedU : O.loopInput.normalizedType.levelParamsIn Us = true :=
-    whnfInRecursorContext.levelsWF Rroot hinferredTr _ hnormalization Us P hscope
+    whnfInRecursorContext.levelsWF RF hinferredTr _ hnormalization Us P hscope
       hinferredU hinferredP
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP

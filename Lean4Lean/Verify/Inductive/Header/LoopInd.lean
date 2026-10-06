@@ -1069,13 +1069,17 @@ theorem stepPrefix.WF
             indConsts := stats.indConsts.push
               (.const indTypes[dIdx].name stats.levels) }
           AddInductive.checkInductiveTypes.loopInd nparams indTypes
-            (dIdx + 1) stats k) c).WF Q) :
+            (dIdx + 1) stats k)
+            (headerCheckContext c stats)).WF Q) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
   rw [AddInductive.checkInductiveTypes.loopInd]
   rw [dif_pos hidx]
   change (AddInductive.checkClosedType indTypes[dIdx].name indTypes[dIdx].type c >>=
     fun _ => ((do
-      let normalized ← TypeChecker.whnf indTypes[dIdx].type
+      let normalized ← AddInductive.withCheckLCtx {}
+        (TypeChecker.whnf indTypes[dIdx].type)
+      AddInductive.withCheckLCtx
+        (← AddInductive.paramCheckLCtx stats stats.params.size) do
       AddInductive.checkInductiveTypes.loopType nparams stats normalized 0 0
         c.fuel.inductiveFuel (fun type stats nindices => show AddInductive.M _ from do
           let type ← TypeChecker.ensureSort type
@@ -1095,10 +1099,13 @@ theorem stepPrefix.WF
             (dIdx + 1) stats k)) : AddInductive.M _) c).WF Q
   exact (checkClosedType.WF Hc).bind fun checkedType hchecked => by
     rcases hchecked with ⟨type', checkedType', hchecked⟩
-    exact (whnfInContext.scopeWF Hc hchecked.2.1).bind
+    exact (whnfInContext.scopeWF
+      (Hc.withCheckLCtx {} LocalContext.empty_mapWF .empty) hchecked.2.1).bind
       fun normalized hnormalized =>
-      Hloop checkedType type' checkedType' hchecked normalized
-        hnormalized.1 hnormalized.2
+      AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => by
+        subst hL
+        exact Hloop checkedType type' checkedType' hchecked normalized
+          hnormalized.1 hnormalized.2
 
 /-- Metadata-free declaration-facing header step.  This is the entry point
 used before `checkInductiveTypes` has recovered enough information to build a
@@ -1142,7 +1149,8 @@ theorem stepPrefix.refinesSkeleton
               indConsts := stats.indConsts.push
                 (.const indTypes[dIdx].name stats.levels) }
             AddInductive.checkInductiveTypes.loopInd nparams indTypes
-              (dIdx + 1) stats k) c).WF Q) :
+              (dIdx + 1) stats k)
+            (headerCheckContext c stats)).WF Q) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
   have htarget : dIdx < skeleton.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length Hdecl]
@@ -1211,6 +1219,8 @@ theorem firstStep.initializesPrefix
     symm
     simpa [List.getElem?_eq_getElem hskeletonIdx] using htarget
   subst target
+  -- The telescope is opened in the header checker context.
+  let Hc := Hc.headerCheck stats
   rcases initialHeaderSynthesisState Hc hctx Htarget hchecked hnormalized with
     ⟨normalized', hnormalized', ⟨Hsynthesis⟩⟩
   have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
@@ -1223,7 +1233,7 @@ theorem firstStep.initializesPrefix
     (Us := c.lparams) (target := skeleton.types[0])
     (nparams := skeleton.nparams) (stats := stats)
     (type := normalized) (current := normalized') (i := 0)
-    (nindices := 0) (c := c)
+    (nindices := 0) (c := headerCheckContext c stats)
     (k := fun type stats nindices => show AddInductive.M α from do
       let type ← TypeChecker.ensureSort type
       let mut stats := stats
@@ -1335,6 +1345,15 @@ theorem laterStep.extendsPrefix
     symm
     simpa [List.getElem?_eq_getElem hskeletonIdx] using htarget
   subst target
+  -- The telescope is opened in the header checker context.
+  let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+      (Hc.headerCheck stats) stats depth := { Hsuffix with }
+  let Hambient : checkInductiveTypes.loopType.AmbientParamContext
+      (Hc.headerCheck stats) commonParams depth := { Hambient with }
+  let Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+      (Hc.headerCheck stats).venv c.lparams (Hc.headerCheck stats).mlctx.vlctx
+      stats skeleton.nparams depth := Hcache
+  let Hc := Hc.headerCheck stats
   have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized := by
     have hsourceNoFVars : FVarsIn (fun _ => False)
         indTypes[dIdx].type :=
@@ -1445,9 +1464,9 @@ theorem laterStep.extendsPrefix
             · exact Hsuffix'''.reindex (by simp [updatedStats])
             · exact Hprefix'
             · exact Hambient''')
-        hconsume Hc rfl rfl rfl rfl (by simpa using Hcache)
-        (by simpa using Hsuffix)
-        (by simpa using Hambient) ⟨Hprefix, Hdecl⟩ Hsynthesis''
+        hconsume Hc rfl rfl rfl rfl (by simpa [Hc] using Hcache)
+        (by simpa [Hc] using Hsuffix)
+        (by simpa [Hc] using Hambient) ⟨Hprefix, Hdecl⟩ Hsynthesis''
         hparamsBoundary
         Hruntime
         htypeNarrow'' htypeFVars'' htypeFull'')
@@ -1865,11 +1884,11 @@ def MaterializedHeaderResult.withAmbient
       stats decl depth)
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
-    let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
     MaterializedHeaderResult Hc'.venv c.lparams Hc'.mlctx.vlctx
       stats decl (depth + 1) := by
   dsimp only
-  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
   let Hsuffix' := H.parameterSuffix.withIndex Hc
     (name := name) (bi := bi) htr hty
   let entry : Option (FVarId × List FVarId) × VLocalDecl :=
@@ -2084,7 +2103,8 @@ theorem stepPrefix.refinesTrInduct
               indConsts := stats.indConsts.push
                 (.const indTypes[dIdx].name stats.levels) }
             AddInductive.checkInductiveTypes.loopInd nparams indTypes
-              (dIdx + 1) stats k) c).WF Q) :
+              (dIdx + 1) stats k)
+            (headerCheckContext c stats)).WF Q) :
     (AddInductive.checkInductiveTypes.loopInd nparams indTypes dIdx stats k c).WF Q := by
   have htarget : dIdx < decl.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDecl.types_length Hdecl]

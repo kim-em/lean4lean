@@ -85,28 +85,11 @@ theorem AddInductive.semanticFormationCoreWF
                   Hheaders.headers.params stats indTypes c.lparams
                   Hheaders.materialized.parameterScope /\
                 CheckedConstructorOwnerNormalForms stats indTypes := by
-      rw [AddInductive.checkConstructors]
-      change (((liftM TypeChecker.getEnv : AddInductive.M _) >>= fun _ =>
-        AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0)
-          { c with env := headerEnv }).WF _
-      change (((liftM TypeChecker.getEnv : AddInductive.M _)
-        { c with env := headerEnv } >>= fun _ =>
-          AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-            { c with env := headerEnv }).WF _)
-      rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
-        { c with env := headerEnv } = .ok headerEnv from rfl]
-      intro checkedOut hcheckedOut
+      intro checkedOut hfull
+      have hcheckedOut : AddInductive.checkConstructors.loopTypes indTypes stats
+          isUnsafe 0 { headerCheckContext c stats with env := headerEnv } = .ok checkedOut :=
+        hfull
       rcases Hloop checkedOut hcheckedOut with ⟨decl, ⟨Hheaders⟩⟩
-      have hfull : AddInductive.checkConstructors indTypes stats isUnsafe
-          { c with env := headerEnv } = .ok checkedOut := by
-        rw [AddInductive.checkConstructors]
-        change ((liftM TypeChecker.getEnv : AddInductive.M _)
-          { c with env := headerEnv } >>= fun _ =>
-            AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-              { c with env := headerEnv }) = .ok checkedOut
-        rw [show (liftM TypeChecker.getEnv : AddInductive.M _)
-          { c with env := headerEnv } = .ok headerEnv from rfl]
-        exact hcheckedOut
       have hlitInstalled := Hheaders.materializedAvailableLiteralDisjoint
       have Hchecked := AddInductive.checkConstructors.checkedWF Hheaders
         hconsume hlitInstalled

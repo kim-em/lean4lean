@@ -344,14 +344,17 @@ theorem parameter.sourceWF
   rw [hparamAt]
   change (AddInductive.getType param c >>= fun paramTy =>
     ((do
-      unless ← TypeChecker.isDefEq dom paramTy do
+      unless ← AddInductive.withCheckLCtx (← AddInductive.paramCheckLCtx stats i)
+          (TypeChecker.isDefEq dom paramTy) do
         throw <| .other
           s!"arg #{i + 1} of '{ctor}' does not match inductive datatype parameters"
       AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
         (body.instantiate1 param) (i + 1) fuel) : AddInductive.M _) c).WF Q
   refine hget.bind fun paramTy' hparamTyEq => ?_
   subst paramTy'
-  refine (isDefEqInContext.WF Hc hdom hparamTy).bind fun equal hequal => ?_
+  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
+  subst hL
+  refine (isDefEqInContext.WF (Hc.paramCheck stats i) hdom hparamTy).bind fun equal hequal => ?_
   cases equal
   · change (Except.error _).WF Q
     exact Except.WF.throw
@@ -380,9 +383,9 @@ theorem safeField.sourceWF
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withLocalDecl (name := name) (bi := bi)
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
         (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
@@ -390,6 +393,8 @@ theorem safeField.sourceWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }).WF Q) :
     (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
@@ -405,7 +410,7 @@ theorem safeField.sourceWF
         is too big for the corresponding inductive datatype"
     if !false then
       AddInductive.checkPositivity stats dom ctor i
-    withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg =>
+    AddInductive.withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg =>
       AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
@@ -414,12 +419,12 @@ theorem safeField.sourceWF
   · rw [if_pos hbound]
     refine Hpos.bind fun _ hpos => ?_
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+    refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
           (body.instantiate1 arg) (i + 1) fuel)
       Hc Hdom.consumed Hdom.isType ?_
-    let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
       Hdom.consumed Hdom.isType
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbody''
@@ -446,9 +451,9 @@ theorem unsafeField.sourceWF
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withLocalDecl (name := name) (bi := bi)
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
         (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
@@ -456,6 +461,8 @@ theorem unsafeField.sourceWF
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }).WF Q) :
     (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
@@ -471,7 +478,7 @@ theorem unsafeField.sourceWF
         is too big for the corresponding inductive datatype"
     if !true then
       AddInductive.checkPositivity stats dom ctor i
-    withLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg =>
+    AddInductive.withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg =>
       AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
         (body.instantiate1 arg) (i + 1) fuel) : AddInductive.M Unit) c |>.WF Q
   by_cases hbound :
@@ -479,12 +486,12 @@ theorem unsafeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-    refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+    refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
           (body.instantiate1 arg) (i + 1) fuel)
       Hc Hdom.consumed Hdom.isType ?_
-    let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
       Hdom.consumed Hdom.isType
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbody''
@@ -755,11 +762,11 @@ theorem ValidAppStatsWF.withLocalDecl
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
     ValidAppStatsWF
-      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv
       c.lparams
-      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
       stats decl (depth + 1) := by
-  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
   have W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 := by
     change VLCtx.FVLift Hc.mlctx.vlctx
       ((some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty') ::
@@ -934,11 +941,11 @@ theorem ValidAppStatsPrefix.withLocalDecl
     (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
     (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
     ValidAppStatsPrefix
-      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).venv
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv
       c.lparams
-      (Hc.withLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
       stats decl (depth + 1) done := by
-  let Hc' := Hc.withLocalDecl (name := name) (bi := bi) htr hty
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
   let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   have hparams : List.Forall₂
@@ -1038,7 +1045,7 @@ def HeaderRuntimeCertificate.withIndex
     (hsource : ∃ u, Hc.venv.IsDefEq c.lparams.length
       Hc.mlctx.vlctx.toCtx sourceTy ty' (.sort u)) :
     HeaderRuntimeCertificate
-      (Hc.withLocalDecl (name := name) (bi := bi) htr hty)
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty)
       decl params stats (depth + 1) done where
   headers := H.headers
   applicationStats := H.applicationStats.withLocalDecl Hc htr hty
@@ -1807,10 +1814,11 @@ private theorem loop_continueWith
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotationsVerified bi
+        checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
           dom.consumeTypeAnnotationsVerified bi }
-      unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
+      unfold AddInductive.withCheckedLocalDecl MonadLocalNameGenerator.withFreshId
         AddInductive.instMonadLocalNameGeneratorM
-        AddInductive.instMonadWithReaderOfLocalContextM
       change ((monadLift (TypeChecker.whnf
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
           AddInductive.M Expr) c' >>= fun normalized =>
@@ -1837,21 +1845,20 @@ theorem continueWith
     (Hk : ∀ uiTy xs c, (k uiTy xs c).WF Q) :
     (AddInductive.mkRecInfos.loopUArgs ui k c).WF Q := by
   unfold AddInductive.mkRecInfos.loopUArgs
-  have hinfer :
-      ((monadLift (TypeChecker.inferType ui) : AddInductive.M Expr) c).WF
-        (fun _ => True) := by
-    intro _ _
-    trivial
-  refine hinfer.bind fun inferred _ => ?_
+  let c' : AddInductive.Context := { c with
+    checkLCtx := c.lctx.restrictTo
+      (c.checkLCtx.getFVarIds.toList.takeWhile (· != ui.fvarId!)) }
+  change ((monadLift (TypeChecker.whnf (c.lctx.get! ui.fvarId!).type) :
+      AddInductive.M Expr) c' >>= fun normalized =>
+    AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
+      c.fuel.inductiveFuel c').WF Q
   have hwhnf :
-      ((monadLift (TypeChecker.whnf inferred) : AddInductive.M Expr) c).WF
-        (fun _ => True) := by
+      ((monadLift (TypeChecker.whnf (c.lctx.get! ui.fvarId!).type) :
+        AddInductive.M Expr) c').WF (fun _ => True) := by
     intro _ _
     trivial
-  refine hwhnf.bind fun normalized _ => ?_
-  change (AddInductive.mkRecInfos.loopUArgs.loop k normalized #[]
-    c.fuel.inductiveFuel c).WF Q
-  exact loop_continueWith k Hk _ _ _ _
+  exact hwhnf.bind fun normalized _ =>
+    loop_continueWith k Hk _ _ _ _
 
 end mkRecInfos.loopUArgs
 
@@ -2825,25 +2832,27 @@ theorem forallE.sourceWF
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-      TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+      TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType).venv c.lparams
-        (Hc.withLocalDecl (name := name) (bi := bi)
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType).mlctx.vlctx
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
       (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
             dom.consumeTypeAnnotationsVerified bi }).WF Q) :
     (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
       ctor idx recur c).WF Q := by
   rw [AddInductive.checkPositivityStep]
   rw [if_neg (by simp [hocc]), if_neg (by simp [hdomOcc])]
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-  refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
+  refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
     Hc Hdom.consumed Hdom.isType ?_
-  let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
     Hdom.consumed Hdom.isType
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     Hdom.consumed Hdom.isType hbody''
@@ -2870,15 +2879,17 @@ theorem forallE.refines
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-      TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+      TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType).venv c.lparams
-        (Hc.withLocalDecl (name := name) (bi := bi)
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType).mlctx.vlctx
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
       (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }).WF
         (fun _ => decl.Positive Hc.venv
           (consumedDom' :: Hc.mlctx.vlctx.toCtx) (depth + 1) body'')) :
@@ -2960,9 +2971,9 @@ theorem safeField.refines
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withLocalDecl (name := name) (bi := bi)
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
         (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
@@ -2970,6 +2981,8 @@ theorem safeField.refines
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }).WF
           (fun _ => decl.CtorTailWF Hc.venv target
             (consumedDom' :: ctorCtx) (depth + 1) body'')) :
@@ -3025,9 +3038,9 @@ theorem unsafeField.refines
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withLocalDecl (name := name) (bi := bi)
+        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withLocalDecl (name := name) (bi := bi)
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
         (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
@@ -3035,6 +3048,8 @@ theorem unsafeField.refines
           { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }).WF
           (fun _ => decl.CtorTailWF Hc.venv target
             (consumedDom' :: ctorCtx) (depth + 1) body'')) :
@@ -3119,7 +3134,7 @@ theorem tailRefines
             (hdom.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
           exact safeField.refines Hc hparamAt Hdom hbody Hstats.uvars rfl
             Hpos hbound fun _ _ _ _ _ _ _ _ body'' _ hopened => by
-              let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+              let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
                 Hdom.consumed Hdom.isType
               have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
                 Hc Hdom.consumed Hdom.isType
@@ -3131,7 +3146,7 @@ theorem tailRefines
         | true =>
           exact unsafeField.refines Hc hparamAt Hdom hbody Hstats.uvars rfl
             (hunsafe rfl) hbound fun _ _ _ _ _ _ _ body'' _ hopened => by
-              let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+              let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
                 Hdom.consumed Hdom.isType
               have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
                 Hc Hdom.consumed Hdom.isType
@@ -3247,7 +3262,7 @@ theorem refines
         exact finish <| checkPositivityStep.forallE.refines Hc Hstats.consts
           hlit hctx hocc' hdomOcc' Hdom Hstats.uvars hbody
           fun body'' hbodyEq hopened => by
-            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType
             have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
               Hc Hdom.consumed Hdom.isType
@@ -3353,7 +3368,7 @@ theorem refinesNarrow
               AddInductive.checkPositivity.loop stats ctor idx body fuel)
             Hc hocc' hdomOcc' Hdom hbodyFull ?_
           intro bodyFull' _hbodyFullEq hopenedFull
-          let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+          let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
             Hdom.consumed Hdom.isType
           have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp

@@ -50,14 +50,14 @@ theorem refines
       | forallE hdomType _ hdom hbody =>
         rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
         rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-        refine withLocalDecl.WF (name := name) (bi := bi)
+        refine withCheckedLocalDecl.WF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget Hc.venv decl.uvars
               (decl.types[target]'htarget).name
               Hc.mlctx.vlctx.toCtx depth type')
           Hc Hdom.consumed Hdom.isType ?_
-        let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+        let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
         have hopened := Hc.instantiateFresh (name := name) (bi := bi)
           Hdom.consumed Hdom.isType hbody''
@@ -147,27 +147,19 @@ theorem selectedSublist {α : Type}
           (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
         exact ih hselected
       | none =>
-        change (Lean4Lean.withLocalDecl name bi dom.consumeTypeAnnotationsVerified
-          (fun arg => do
-            let bu := bu.push arg
-            let u := if (← AddInductive.isRecArg stats dom).isSome then
-              u.push arg else u
-            AddInductive.mkRecInfos.loopCtorArgs.loop stats k
-              (body.instantiate1 arg) (i + 1) bu u fuel) c).WF Q
-        unfold Lean4Lean.withLocalDecl MonadLocalNameGenerator.withFreshId
-          AddInductive.instMonadLocalNameGeneratorM
-          AddInductive.instMonadWithReaderOfLocalContextM
         let c' : AddInductive.Context := { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
             dom.consumeTypeAnnotationsVerified bi }
-        change (AddInductive.isRecArg stats dom c' >>= fun selected =>
+        change (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu } >>= fun selected =>
           AddInductive.mkRecInfos.loopCtorArgs.loop stats
             k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
             (bu.push (.fvar ⟨c.ngen.curr⟩))
             (if selected.isSome then u.push (.fvar ⟨c.ngen.curr⟩) else u)
             fuel c') |>.WF Q
-        have hclass : (AddInductive.isRecArg stats dom c').WF (fun _ => True) := by
+        have hclass : (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu }).WF (fun _ => True) := by
           intro _ _
           trivial
         refine hclass.bind fun selected _ => ?_
@@ -992,9 +984,11 @@ theorem recursiveDomains {α : Type}
         ⟨sourceDom', sourceBody', hdom, hbody, hdomType, _, _⟩
       rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
       rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
-      refine withLocalDecl.WF (name := name) (bi := bi) (Q := Q)
-        Hc Hdom.consumed Hdom.isType ?_
-      let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+      refine AddInductive.M.WF_bind AddInductive.getLCtx.WF fun _ hlctx => ?_
+      subst hlctx
+      refine withCheckedLocalDeclOn.WF (name := name) (bi := bi) (Q := Q) ?_
+      let Hc' := Hc.withCheckedLocalDeclOn (name := name) (bi := bi)
+        (ctorFieldCheck c stats bu) (Hc.restrictTo _).1 (Hc.restrictTo _).2
         Hdom.consumed Hdom.isType
       have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
         Hc Hdom.consumed Hdom.isType
@@ -1025,7 +1019,11 @@ theorem recursiveDomains {α : Type}
             VLocalDecl.value, VLocalDecl.type])
       have hopened := Hc.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbody''
-      have Hclass := isRecArg.refines Hc' Hstats' hconsume hlit hctx'
+      -- `isRecArg` runs in the checker context saved before the field binder.
+      have Hclass := isRecArg.refines
+        ((Hc.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType).withCheckLCtx
+          (ctorFieldCheck c stats bu) (Hc.restrictTo _).1 (Hc.restrictTo_beneath _))
+        Hstats' hconsume hlit hctx'
         (hdomWeak.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
       refine Hclass.bind fun selected hselected => ?_
       cases selected with
@@ -1120,22 +1118,20 @@ theorem continueWith {α : Type}
         rw [AddInductive.mkRecInfos.loopArgs1]
         by_cases hparam : i < stats.params.size
         · rw [if_pos hparam]
-          have hwhnf :
-              ((monadLift (TypeChecker.whnf
-                (body.instantiate1 stats.params[i]!)) :
-                AddInductive.M Expr) c).WF (fun _ => True) := by
-            intro _ _
-            trivial
-          exact hwhnf.bind fun next _ =>
-            continueWith stats k Hk next (i + 1) indices fuel c
+          refine AddInductive.M.WF_bind (P := fun _ => True)
+            (fun _ _ => trivial) fun _ _ => ?_
+          refine AddInductive.M.WF_bind (P := fun _ => True)
+            (fun _ _ => trivial) fun next _ => ?_
+          exact continueWith stats k Hk next (i + 1) indices fuel c
         · rw [if_neg hparam]
-          unfold Lean4Lean.withLocalDecl
+          unfold AddInductive.withCheckedLocalDecl
             MonadLocalNameGenerator.withFreshId
             AddInductive.instMonadLocalNameGeneratorM
-            AddInductive.instMonadWithReaderOfLocalContextM
           let c' : AddInductive.Context := { c with
             ngen := c.ngen.next
             lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+              dom.consumeTypeAnnotationsVerified bi
+            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
               dom.consumeTypeAnnotationsVerified bi }
           change ((monadLift (TypeChecker.whnf
             (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))) :
@@ -1174,6 +1170,16 @@ theorem withLocalDecl.continueRaw
     AddInductive.instMonadLocalNameGeneratorM
     AddInductive.instMonadWithReaderOfLocalContextM
   exact H
+
+/-- Structural opening of a binder visible to both contexts. -/
+theorem withCheckedLocalDecl.continueRaw
+    {α : Type} {Q : α → Prop} {k : Expr → AddInductive.M α}
+    {c : AddInductive.Context} {name : Name} {bi : BinderInfo} {ty : Expr}
+    (H : (k (.fvar ⟨c.ngen.curr⟩) { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
+      checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }).WF Q) :
+    (AddInductive.withCheckedLocalDecl name bi ty k c).WF Q := H
 
 /-- `Except.WF.bind` lifted across the reader layer used by the executable
 inductive checker. Keeping the reader bind visible avoids repeatedly
@@ -1220,12 +1226,8 @@ theorem resultCount
       rfl
     refine readerBind.WF (x := readThe AddInductive.Context) hread fun ctx hctx => ?_
     subst ctx
-    have hwhnf :
-        ((monadLift (TypeChecker.whnf indTypes[dIdx].type) :
-          AddInductive.M Expr) c).WF (fun _ => True) := by
-      intro _ _
-      trivial
-    refine hwhnf.bind fun type _ => ?_
+    refine readerBind.WF (Q := fun _ => True) (fun _ _ => trivial) fun type _ => ?_
+    refine readerBind.WF (Q := fun _ => True) (fun _ _ => trivial) fun _ _ => ?_
     apply mkRecInfos.loopArgs1.continueWith stats
     intro indices cIndices
     by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
@@ -2781,7 +2783,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
               Hc hparamAt Hdom hbodyFull Hboth ?_
             intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped
               hfieldBound hpositive bodyFull' _hbodyFullEq hopenedFull
-            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.NarrowRuntimeScope
@@ -2872,7 +2874,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
               Hc hparamAt Hdom hbodyFull ?_
             intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped
               hfieldBound bodyFull' _hbodyFullEq hopenedFull
-            let Hc' := Hc.withLocalDecl (name := name) (bi := bi)
+            let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
               Hdom.consumed Hdom.isType
             let Hruntime' :
                 checkInductiveTypes.loopType.NarrowRuntimeScope

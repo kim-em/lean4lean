@@ -41,7 +41,7 @@ theorem AddInductive.isLargeEliminator.shape_of_checked
       indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
         AddInductive.isLargeEliminator.loop stats ctor.type 0 #[]
-          c.fuel.inductiveFuel c = .ok true) := by
+          c.fuel.inductiveFuel { c with checkLCtx := {} } = .ok true) := by
   by_cases hnonzero : stats.isNotZero = true
   · exact .inl hnonzero
   right
@@ -69,7 +69,8 @@ theorem AddInductive.isLargeEliminator.shape_of_checked
           exact .inr ⟨ctor, rfl, by
             simpa [hctors, bind, ReaderT.bind, readThe, read,
               MonadReaderOf.read, ReaderT.read, Except.bind, pure,
-              Except.pure, ReaderT.pure] using H⟩
+              Except.pure, ReaderT.pure, AddInductive.withCheckLCtx_apply]
+              using H⟩
         | cons ctor' ctors => simp [hctors, pure, ReaderT.pure, Except.pure] at H
 
 /-- The nonzero shortcut is justified by the same result universe checked
@@ -113,6 +114,8 @@ def eliminationFieldContext (c : AddInductive.Context) (name : Name)
   { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+      dom.consumeTypeAnnotationsVerified bi
+    checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
       dom.consumeTypeAnnotationsVerified bi }
 
 /-- Finite trace of the singleton decision. Each field is either certified
@@ -197,7 +200,7 @@ theorem ContextWF.ConsumedDomain.proof_of_largeEliminationCheck
       (eliminationFieldContext c name dom bi) = .ok result)
     (Hzero : result.sortLevel!.isAlwaysZero = true) :
     Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx consumed' (.sort .zero) := by
-  let Hnext := Hc.withLocalDecl (name := name) (bi := bi)
+  let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
     Hdom.consumed Hdom.isType
   have W : VLCtx.FVLift Hc.mlctx.vlctx Hnext.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl

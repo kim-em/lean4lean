@@ -72,6 +72,10 @@ theorem laterLoopIndChecked
           baseEnv baseUs indTypes (dIdx + 1) := by
         apply Htraversal.next hidx Hchecked.target
         simpa [hvenv, hlparams] using Htarget
+      -- The telescope is opened in the header checker context.
+      let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+          (Hc.headerCheck stats) stats depth := { Hsuffix with }
+      let Hc := Hc.headerCheck stats
       apply checkInductiveTypes.loopType.laterHeader.accumulateContextWF
         hconsume (baseEnv := baseEnv) (baseUs := baseUs)
         (depth := depth)
@@ -117,7 +121,11 @@ theorem laterLoopIndChecked
               nindices indTypes[dIdx].name)
         Hc hvenv hlparams hnonempty Hsuffix hparams Hchecked.source
         hbelow htype
-    · cases hfuel : c.fuel.inductiveFuel with
+    · -- The telescope is opened in the header checker context.
+      let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+          (Hc.headerCheck stats) stats depth := { Hsuffix with }
+      let Hc := Hc.headerCheck stats
+      cases hfuel : c.fuel.inductiveFuel with
       | zero => exact checkInductiveTypes.loopType.zero.WF
       | succ fuel =>
         by_cases hzero : 0 = nparams
@@ -211,6 +219,8 @@ theorem firstLoopIndChecked
     let Htraversal' : MaterializedSourceHeaderTraversal
         Hc.venv c.lparams indTypes 1 :=
       Htraversal.next hnonempty Hchecked.target Htarget
+    -- The telescope is opened in the header checker context.
+    let Hc := Hc.headerCheck stats
     have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
         Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
       checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams
@@ -273,7 +283,9 @@ theorem firstLoopIndChecked
           dsimp [Hsuffix,
             checkInductiveTypes.loopType.ParameterContextSuffix.empty]⟩)
       htype
-  · cases hfuel : c.fuel.inductiveFuel with
+  · -- The telescope is opened in the header checker context.
+    let Hc := Hc.headerCheck stats
+    cases hfuel : c.fuel.inductiveFuel with
     | zero => exact checkInductiveTypes.loopType.zero.WF
     | succ fuel =>
       by_cases hzero : 0 = nparams

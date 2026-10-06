@@ -347,7 +347,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun headerEnv =>
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
-          { c with env := headerEnv }).WF fun _ =>
+          { headerCheckContext c stats with env := headerEnv }).WF fun _ =>
             ∃ decl, Nonempty (DeclaredHeadersResult c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv) := by
   let HheaderMaterialized := Hsemantic.materializedResult
@@ -370,11 +370,17 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
     have hlitInstalled : checkPositivityStep.AvailableLiteralDisjoint
         Hinstalled.context.venv stats.indConsts :=
       Hinstalled.materializedAvailableLiteralDisjoint HheaderMaterialized
+    let HcL := Hinstalled.context.paramCheck stats stats.params.size
+    have hlitL : checkPositivityStep.AvailableLiteralDisjoint
+        HcL.venv stats.indConsts := hlitInstalled
+    have htypesAddedL : Hc.venv.addConstVals
+        (Hsemantic.headerDecl isUnsafe).typeConstants = some HcL.venv :=
+      htypesAdded
     have Hconstructors :=
       checkConstructors.loopTypes.assemblesSemanticHeadersExact
-        Hinstalled.context Hinstalled.contextMLCtx htypesAdded
-        HheaderMaterialized hheaderParams hcommonParams hconsume
-          hlitInstalled
+        (c := headerCheckContext c stats) (Hc := Hc.headerCheck stats)
+        HcL Hinstalled.contextMLCtx htypesAddedL
+        HheaderMaterialized hheaderParams hcommonParams hconsume hlitL
     exact (Hconstructors hlparams).mono fun _ Hassembled => by
       rcases Hassembled with ⟨Hassembled⟩
       have hindicesAssembled : stats.nindices.toList =

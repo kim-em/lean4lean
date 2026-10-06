@@ -32,7 +32,8 @@ private theorem fieldUniverseSupport_push
     (hdom : dom.levelParamsIn params = true) :
     FieldUniverseSupport params { c with
       ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name dom bi }
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name dom bi
+      checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name dom bi }
       (fields.push (.fvar ⟨c.ngen.curr⟩)) := by
   intro e he
   simp only [Array.mem_push] at he
@@ -131,9 +132,10 @@ theorem inferTypeFVarInRecursorContext.levelsWF
     ((monadLift (TypeChecker.inferType (.fvar fv)) :
         AddInductive.M Expr) c).WF fun ty =>
       Hc.typeChecker.LevelsBelow (.fvar fv) ty := by
-  change (TypeChecker.M.run c.env c.safety c.lctx
+  change (TypeChecker.M.run c.env c.safety c.checkLCtx
     (c.typeCheckerLParams.getD c.lparams) c.fuel
     (TypeChecker.inferType (.fvar fv))).WF _
+  refine Hc.runOfMain (.inferType (.fvar fv) true) _ ?_
   rw [inferTypeFVar_lparams_compat c.env c.safety c.lctx
     (c.typeCheckerLParams.getD c.lparams) recLparams c.fuel fv]
   rw [← Hc.lctx_eq]
@@ -144,6 +146,25 @@ theorem inferTypeFVarInRecursorContext.levelsWF
   exact TypeChecker.M.WF.runCheckingValidMLC
     (lparams := recLparams) (fuel := c.fuel)
     Hc.kernelFresh Hx
+
+/-- `getType` of a translated free variable returns its declared type, which
+lies in every universe scope of the variable. -/
+theorem getTypeFVarInRecursorContext.levelsWF
+    (Hc : RecursorContextWF c recLparams)
+    (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx (.fvar fv) e') :
+    (AddInductive.getType (.fvar fv) c).WF fun ty =>
+      Hc.typeChecker.LevelsBelow (.fvar fv) ty := by
+  intro ty hty
+  have hmem : fv ∈ Hc.mlctx.vlctx.fvars := he.fvarsIn
+  rcases (Hc.mlctx_wf.tr.find?_eq_some (fv := fv)).2 hmem with ⟨decl, hfind⟩
+  have hfind' : c.lctx.find? fv = some decl := by
+    rw [← Hc.lctx_eq]; exact hfind
+  have htyEq : ty = decl.type := by
+    change Except.ok (c.lctx.get! fv).type = Except.ok ty at hty
+    simp only [LocalContext.get!, hfind', Except.ok.injEq] at hty
+    exact hty.symm
+  subst htyEq
+  exact fun Us P hs _ hP => (hs.2 _ _ hP hfind).1
 
 /-! ### The `loopUArgs` traversal -/
 
@@ -172,7 +193,9 @@ theorem RecursorLoopUArgsPrefix.universeSupport
       exposed.levelParamsIn Us = true ∧ exposed.FVarsIn P' ∧
       ∀ a ∈ args.toList, ∃ fv, a = .fvar fv ∧ P' fv := by
   induction trace with
-  | root => exact ⟨Rroot, P, _, hsource, hsourceType, hscope, hsourceU, hsourceP, by simp⟩
+  | root l hwf hsub =>
+    exact ⟨Rroot.withCheckLCtx l hwf hsub, P, _, hsource, hsourceType, hscope,
+      hsourceU, hsourceP, by simp⟩
   | @push current next args name domain body normalized bi _previous next_eq
       normalization ih =>
     obtain ⟨R, P', T, htype, htypeType, hsc, hU, hP, hargs⟩ := ih
@@ -182,7 +205,7 @@ theorem RecursorLoopUArgsPrefix.universeSupport
     rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
     rcases Hdom.body R hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
     let x : FVarId := ⟨current.ngen.curr⟩
-    let R' := R.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+    let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
     have hopened := R.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbodyConsumed
     simp only [Expr.levelParamsIn, Bool.and_eq_true] at hU
@@ -230,15 +253,15 @@ theorem RecursorLoopUArgsPrefix.universeSupport
         VLCtx.IsDefEq.cons
           (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) nofun
           (.vlam Hdom.source_defeq.choose_spec)
-      simpa only [R', RecursorContextWF.withLocalDecl_venv,
-        RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using
+      simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+        RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using
         hbodyType.defeqDFC R.checking.tr.wf.ordered hctxEq.defeqCtx
     have hconsumedBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx consumedBody := by
       apply hsourceBodyType.defeqU_l R'.checking.tr.wf
         R'.mlctx_wf.tr.wf.toCtx
-      simpa only [R', RecursorContextWF.withLocalDecl_venv,
-        RecursorContextWF.withLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
+      simpa only [R', RecursorContextWF.withLocalDecl_venv, RecursorContextWF.withCheckedLocalDecl_venv, RecursorContextWF.withCheckedLocalDeclOn_venv,
+        RecursorContextWF.withLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDecl_toCtx, RecursorContextWF.withCheckedLocalDeclOn_toCtx, VLCtx.toCtx] using hbodyEq'
     refine ⟨R', P'', consumedBody, hscopeRun.2, hconsumedBodyType, hsc',
       hlevelRun Us P'' hsc' hinstU hinstP, hscopeRun.1 P'' hsc'.1 hinstP, ?_⟩
     intro a ha
@@ -285,14 +308,16 @@ theorem RecursorLoopUArgsInput.callUniverses
     (current.lctx.mkForall args (.sort .zero)).levelParamsIn Us = true ∧
       ∀ e ∈ (exposed.getAppArgs[n:] : Array Expr).toList, e.levelParamsIn Us = true := by
   obtain ⟨inferredTarget, _, _, hinferredTr, hfieldTyping⟩ :=
-    inferTypeFVarInRecursorContext.WF Rroot hfield _ Hinput.inference
+    getTypeFVarInRecursorContext.WF Rroot hfield _ Hinput.inference
+  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root (.fvar fv))
+    (Rroot.restrictTo _).1 (Rroot.restrictTo _).2
   have hinferredType : Rroot.venv.IsType recLparams.length
       Rroot.mlctx.vlctx.toCtx inferredTarget :=
     hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
   obtain ⟨hnormalizedBelow, hnormalizedTr⟩ :=
-    whnfInRecursorContext.scopeWF Rroot hinferredTr _ Hinput.normalization
+    whnfInRecursorContext.scopeWF RF hinferredTr _ Hinput.normalization
   have hnormalizedU : Hinput.normalizedType.levelParamsIn Us = true :=
-    whnfInRecursorContext.levelsWF Rroot hinferredTr _ Hinput.normalization Us P hscope
+    whnfInRecursorContext.levelsWF RF hinferredTr _ Hinput.normalization Us P hscope
       hinferredU hinferredP
   have hnormalizedP : Hinput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP

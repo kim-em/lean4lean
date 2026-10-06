@@ -69,6 +69,9 @@ theorem firstStep.initializesSemanticAccumulator
       change TrSourceConst Hc.venv c.lparams indTypes[0].name
         indTypes[0].type Hchecked.target
       exact Htarget
+    -- The telescope is opened in the header checker context.
+    let HcBase := Hc
+    let Hc := Hc.headerCheck stats
     rcases initialHeaderSynthesisState Hc hctx
         (target := sourceSkeleton) HtargetSkeleton
         Hchecked.typing htype with
@@ -84,7 +87,7 @@ theorem firstStep.initializesSemanticAccumulator
       (Us := c.lparams) (target := sourceSkeleton)
       (nparams := nparams) (stats := stats)
       (type := .forallE name dom body bi) (current := normalized')
-      (i := 0) (nindices := 0) (c := c)
+      (i := 0) (nindices := 0) (c := headerCheckContext c stats)
       (k := fun type stats nindices => show AddInductive.M alpha from do
         let type ← TypeChecker.ensureSort type
         let mut stats := stats
@@ -113,7 +116,8 @@ theorem firstStep.initializesSemanticAccumulator
         · intro resultSort resultLevel hofLevel Hheader Hambient
           have Htranslation : TrSourceConst Hc'.venv c'.lparams
               indTypes[0].name indTypes[0].type Hchecked.target := by
-            simpa [hvenv', hlparams'] using Htarget
+            have hvenvBase : HcBase.venv = Hc'.venv := hvenv'
+            simpa [← hvenvBase, hlparams'] using Htarget
           let Hsemantic :=
             checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.first
               indTypes[0] Hchecked.target nindices' resultLevel
@@ -129,7 +133,9 @@ theorem firstStep.initializesSemanticAccumulator
         intro _
         exact ⟨List.eq_nil_of_length_eq_zero Hsynthesis.indexCount, rfl⟩)
       hnormalized'
-  · cases hfuel : c.fuel.inductiveFuel with
+  · -- The telescope is opened in the header checker context.
+    let Hc := Hc.headerCheck stats
+    cases hfuel : c.fuel.inductiveFuel with
     | zero => exact checkInductiveTypes.loopType.zero.WF
     | succ fuel =>
       by_cases hzero : 0 = nparams
@@ -155,7 +161,7 @@ theorem firstStep.initializesSemanticAccumulator
           (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) htype'
         have hnormalizedEq' : Hc.venv.IsDefEqU c.lparams.length []
             normalized' current := by
-          simpa [hctx, VLCtx.toCtx] using hnormalizedEq
+          simpa [Hc, hctx, VLCtx.toCtx] using hnormalizedEq
         have htargetCurrentU := hheader.toU.trans Hc.checking.tr.wf
           (by trivial) hnormalizedEq'
         have htargetType : Hc.venv.IsType c.lparams.length []
@@ -172,11 +178,11 @@ theorem firstStep.initializesSemanticAccumulator
           rcases TrExpr.sort_result Hc.checking.tr.wf
               Hc.mlctx_wf.tr.wf.toCtx hsorted with
             ⟨_, _, hcurrent⟩
-          simpa [hctx, VLCtx.toCtx] using (show Hc.venv.IsType c.lparams.length
+          simpa [Hc, hctx, VLCtx.toCtx] using (show Hc.venv.IsType c.lparams.length
             Hc.mlctx.vlctx.toCtx current from ⟨_, hcurrent.hasType.1⟩)
         have hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
             [] Hc.mlctx.vlctx.toCtx := by
-          simpa [hctx, VLCtx.toCtx] using (VEnv.IsDefEqCtx.refl
+          simpa [Hc, hctx, VLCtx.toCtx] using (VEnv.IsDefEqCtx.refl
             (env := Hc.venv) (U := c.lparams.length)
             (by trivial : OnCtx ([] : List VExpr)
               (Hc.venv.IsType c.lparams.length)))
@@ -188,7 +194,7 @@ theorem firstStep.initializesSemanticAccumulator
         let Hsemantic :=
           checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.first
             indTypes[0] Hchecked.target 0 resultLevel Htarget
-            (by simpa [sourceSkeleton] using Hheader)
+            (by simpa [Hc, sourceSkeleton] using Hheader)
         have Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
             Hc.venv c.lparams Hc.mlctx.vlctx stats 0 0 :=
           checkInductiveTypes.loopType.ParameterCachePrefix.empty hparams
@@ -368,6 +374,15 @@ theorem laterStep.extendsSemanticAccumulator
       change TrSourceConst Hc.venv c.lparams indTypes[dIdx].name
         indTypes[dIdx].type Hchecked.target
       exact Htarget
+    -- The telescope is opened in the header checker context.
+    let Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+        (Hc.headerCheck stats).venv c.lparams (Hc.headerCheck stats).mlctx.vlctx
+        stats nparams depth := Hcache
+    let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+        (Hc.headerCheck stats) stats depth := { Hsuffix with }
+    let Hambient : checkInductiveTypes.loopType.AmbientParamContext
+        (Hc.headerCheck stats) commonParams depth := { Hambient with }
+    let Hc := Hc.headerCheck stats
     rcases initialLaterHeaderSynthesisState Hc HtargetSkeleton
         Hchecked.typing hnormalized hnormalizedNoFVars with
       ⟨narrowCurrent, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
@@ -486,8 +501,8 @@ theorem laterStep.extendsSemanticAccumulator
                 _ = Hsemantic.metadata ++
                     [(nindices'', resultLevel)] := by rw [hmetadataPrior]
             · exact Hambient'')
-          hconsume Hc rfl rfl rfl rfl (by simpa using Hcache)
-          (by simpa using Hsuffix) (by simpa using Hambient)
+          hconsume Hc rfl rfl rfl rfl (by simpa [Hc] using Hcache)
+          (by simpa [Hc] using Hsuffix) (by simpa [Hc] using Hambient)
           ⟨Hsemantic, rfl, Htarget, rfl⟩ Hsynthesis' hparamsBoundary Hruntime
           htypeNarrow' htypeFVars' htypeFull')
       hparams (by omega) Hscope
@@ -499,7 +514,16 @@ theorem laterStep.extendsSemanticAccumulator
         rw [Hsuffix.parameterDecls_length, hsize])
       Hsynthesis hnormalizedNarrow
       (by simpa [VLCtx.fvars] using hnormalizedNoFVars) hnormalized
-  · cases hfuel : c.fuel.inductiveFuel with
+  · -- The telescope is opened in the header checker context.
+    let Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
+        (Hc.headerCheck stats).venv c.lparams (Hc.headerCheck stats).mlctx.vlctx
+        stats nparams depth := Hcache
+    let Hambient : checkInductiveTypes.loopType.AmbientParamContext
+        (Hc.headerCheck stats) commonParams depth := { Hambient with }
+    let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
+        (Hc.headerCheck stats) stats depth := { Hsuffix with }
+    let Hc := Hc.headerCheck stats
+    cases hfuel : c.fuel.inductiveFuel with
     | zero => exact checkInductiveTypes.loopType.zero.WF
     | succ fuel =>
       by_cases hzero : 0 = nparams

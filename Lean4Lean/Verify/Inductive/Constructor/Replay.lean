@@ -1078,6 +1078,31 @@ def RecursorParameterContextSuffix.withAmbient
     narrowParams := H.narrowParams
     sources := H.sources }
 
+/-- Variant of `RecursorParameterContextSuffix.withAmbient` for a binder opened in both contexts. -/
+def RecursorParameterContextSuffix.withAmbientChecked
+    {c : AddInductive.Context}
+    {R : RecursorContextWF c recLparams}
+    (H : RecursorParameterContextSuffix R stats depth)
+    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
+    let R' := @RecursorContextWF.withCheckedLocalDecl c recLparams ty ty' name bi
+      R htr hty
+    RecursorParameterContextSuffix R' stats (depth + 1) := by
+  dsimp only
+  let entry : Option (FVarId × List FVarId) × VLocalDecl :=
+    (some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty')
+  exact {
+    ambientDecls := entry :: H.ambientDecls
+    parameterDecls := H.parameterDecls
+    context := by
+      change entry :: R.mlctx.vlctx =
+        (entry :: H.ambientDecls) ++ H.parameterDecls
+      simpa only [List.cons_append] using congrArg (entry :: ·) H.context
+    prefixLength := by simp [H.prefixLength]
+    cached := H.cached
+    narrowParams := H.narrowParams
+    sources := H.sources }
+
 theorem RecursorParameterContextSuffix.parameterDecls_length
     (H : RecursorParameterContextSuffix R stats depth) :
     H.parameterDecls.length = stats.params.size := by
@@ -2346,14 +2371,14 @@ theorem refinesRecursor
         rcases hconsume c recLparams R hdom hdomType with
           ⟨consumedDom', Hdom⟩
         rcases Hdom.body R hbody with ⟨body'', hbody'', hbodyEq⟩
-        refine withLocalDecl.recursorWF (name := name) (bi := bi)
+        refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth type')
           R Hdom.consumed Hdom.isType ?_
-        let R' := R.withLocalDecl (name := name) (bi := bi)
+        let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
           Hdom.consumed Hdom.isType
         have hopened := R.instantiateFresh (name := name) (bi := bi)
           Hdom.consumed Hdom.isType hbody''
@@ -2458,26 +2483,34 @@ inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
   | nonrecursive :
       RecursorFieldDecisions stats root source c
         (.forallE name dom body bi) bu u positions →
+      -- `isRecArg` runs in the checker context of the earlier fields.
       AddInductive.isRecArg stats dom { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi } = .ok none →
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := ctorFieldCheck c stats bu } = .ok none →
       RecursorFieldDecisions stats root source { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
             dom.consumeTypeAnnotationsVerified bi }
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         (bu.push (.fvar ⟨c.ngen.curr⟩)) u positions
   | recursive :
       RecursorFieldDecisions stats root source c
         (.forallE name dom body bi) bu u positions →
+      -- `isRecArg` runs in the checker context of the earlier fields.
       AddInductive.isRecArg stats dom { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi } = .ok (some target) →
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := ctorFieldCheck c stats bu } = .ok (some target) →
       RecursorFieldDecisions stats root source { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+            dom.consumeTypeAnnotationsVerified bi
+          checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
             dom.consumeTypeAnnotationsVerified bi }
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         (bu.push (.fvar ⟨c.ngen.curr⟩))

@@ -72,14 +72,18 @@ theorem recursiveDomainsRecursor {alpha : Type}
         ⟨consumedDom, Hdom⟩
       rcases Hdom.body R hbody with
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
-      refine withLocalDecl.recursorWF (name := name) (bi := bi) (Q := Q)
-        R Hdom.consumed Hdom.isType ?_
+      refine AddInductive.M.WF_bind AddInductive.getLCtx.WF fun _ hlctx => ?_
+      subst hlctx
+      refine withCheckedLocalDeclOn.WF (name := name) (bi := bi) (Q := Q) ?_
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotationsVerified bi
+        checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
           dom.consumeTypeAnnotationsVerified bi }
       let R' : RecursorContextWF c' recLparams :=
-        R.withLocalDecl (name := name) (bi := bi)
+        R.withCheckedLocalDeclOn (name := name) (bi := bi)
+          (ctorFieldCheck c stats bu) (R.restrictTo _).1 (R.restrictTo _).2
           Hdom.consumed Hdom.isType
       have Hstats' := Hstats.withFVar R'.checking.tr.wf
         R'.mlctx_wf.tr.wf
@@ -109,7 +113,11 @@ theorem recursiveDomainsRecursor {alpha : Type}
             VLocalDecl.value, VLocalDecl.type])
       have hopened := R.instantiateFresh (name := name) (bi := bi)
         Hdom.consumed Hdom.isType hbodyConsumed
-      have Hclass := isRecArg.refinesRecursor R' Hstats' hconsume
+      -- `isRecArg` runs in the checker context saved before the field binder.
+      have Hclass := isRecArg.refinesRecursor
+        ((R.withLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType).withCheckLCtx
+          (ctorFieldCheck c stats bu) (R.restrictTo _).1 (R.restrictTo_beneath _))
+        Hstats' hconsume
         hlit hctx'
         (hdomWeak.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
       refine Hclass.bind fun selected hselected => ?_

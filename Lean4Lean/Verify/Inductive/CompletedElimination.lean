@@ -69,8 +69,8 @@ theorem CompletedRecursorPhasesResult.eliminationDecision
     H.elimLevel = .zero ∨
     ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
-        LargeEliminationTrace stats { c with env := ctorEnv }
-          ctor.type 0 #[]) := by
+        LargeEliminationTrace stats
+          { c with env := ctorEnv, checkLCtx := {} } ctor.type 0 #[]) := by
   by_cases hzero : H.elimLevel = .zero
   · exact .inr (.inl hzero)
   rcases AddInductive.isLargeEliminator.shape_of_checked
@@ -195,7 +195,8 @@ theorem CompletedConstructorPhases.singletonElimination
     (hls : ∀ level ∈ levels, level.WF U)
     (Hsingleton : ∃ ind, indTypes = #[ind] ∧
       (ind.ctors = [] ∨ ∃ ctor, ind.ctors = [ctor] ∧
-        LargeEliminationTrace stats { c with env := ctorEnv } ctor.type 0 #[])) :
+        LargeEliminationTrace stats { c with env := ctorEnv, checkLCtx := {} }
+          ctor.type 0 #[])) :
     R.sourceSignature.SingletonElimination R.headerVEnv U levels := by
   obtain ⟨ind, hind, hctors⟩ := Hsingleton
   have hfcount : R.sourceSignature.families.size = decl.types.length := by
@@ -234,7 +235,8 @@ theorem CompletedConstructorPhases.singletonElimination
       have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
       simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
       obtain ⟨arity, hspine⟩ := hspine
-      have hfields := hreplay.singletonFields R.context rfl
+      have hfields := hreplay.singletonFields
+        (R.context.withCheckLCtx {} LocalContext.empty_mapWF .empty) rfl
         (R.installation.constructorLE.trans R.ctorLE) hheader hscope hparams
         R.core.uvars htrace hspine i hi
       rcases hfields with hproof | hindex
