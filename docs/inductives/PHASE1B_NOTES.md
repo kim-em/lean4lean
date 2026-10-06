@@ -477,7 +477,50 @@ and in the major's head).
   conjunction induction of section 5; no strengthening, no `HasCanonicalEq`.
   `TypeChain`/`SpineArgsEq` moved to `Typing/TypeChain.lean` (D7: the injectivity
   development must not import `HeadInversion.lean`).
-* [plan] Semantic layer M0-M5 (section 9.3).
+* [Lean] Semantic layer M0-M2 (rule-free environments): `HeadInjectivity/Model/{Classes,Obs,
+  Interp,Sound,Extract}.lean`. `theorem Model.sound (henv : env.Ordered) (hΔ : OnCtx Δ
+  (env.IsType U)) (hnr : env.NoRules) (H : env.IsDefEqStrong U Γ t t' T) : SoundAt env U Δ Γ t
+  t' T` and `theorem VEnv.WF.headInjectivityCore_of_noRules (henv : env.WF) (hnr :
+  env.NoRules) : env.HeadInjectivityCore` (no sorry; axioms propext, Classical.choice,
+  Quot.sound). Imports only the uniqueness-free base.
+* [plan] M3-M5 (section 9.3).
+
+### 10.1 Deviations of the M0-M2 formalisation from section 9.1
+
+* **Valuations are anchored** (`Interp.lean`): a valuation is an anchor substitution `σ`
+  (from `Γ` into `Δ`) together with observation sets `S : Nat → Ob → Prop`; classes are
+  computed from the anchor (`TyCls Δ (A.subst σ)`, `ElCls Δ D (a.subst σ)`), and a key
+  `(c, K)` extends the anchor by a representative `x ∈ c`. Reason: with classes taken as
+  unions over representatives, the substitution lemma (`Obs ρ (t.inst a)` against the
+  extended valuation) holds only when the domain class `D` of every `app` observation met
+  inside `t` is the type class of the argument, which is the typing invariant, i.e.
+  soundness itself. With anchors the substitution lemma (`Obs.subst_iff`, `Obs.inst_iff`)
+  is syntactic. The union-over-representatives classes are still defined (`clsOf`,
+  `tyClsOf`) and agree with the anchored ones at anchored typed valuations
+  (`clsOf_anchored`, `tyClsOf_anchored`).
+* **Soundness relates two related anchors** (`SoundAt`): for `Ctx.SubstEq Δ σ σ' Γ` and
+  shared observation sets, `Obs σ S t ⊆ ↑Obs σ' S t'` and back, plus the typing invariant
+  for both sides. Reason: `beta` must replace the key's representative by the actual
+  argument (they are only definitionally equal), which is representative invariance; with
+  two anchors in the motive it is an instance of the induction hypothesis. Variables read
+  their observations from `S`, never from the anchor, so the `bvar` case is trivial.
+* `TyCls`/`ElCls` are `A = B ∨ TransGen link` rather than `EqvGen` (equivalent: links are
+  symmetric). `TypedOb` has no value-class parameter and `rigidArgOb` is omitted (only the
+  key typing of `rigidArgOb` needed the value class; M2 does not need `rigidArgOb`).
+  `piCod c C` carries no key list. `Covers K' K` ("every key of `K` is subsumed by one of
+  `K'`") is the notes' `K ⊑ K'`. `Ob.Le` has a `refl` constructor and compares key lists
+  through an explicit choice function (no nested inductive occurrence); transitivity is
+  proved jointly as pre- and post-composition.
+* The constant clause's filter reads the observations of `ci.type.instL ls` at the fixed
+  valuation `(id, ∅)` (the type is closed; `Obs.closed_iff` shows the valuation is
+  irrelevant there), so the structural lemmas need no closedness. No separate level
+  invariance lemma: `constDF` uses the induction hypothesis of its `[]` type premise, and
+  `sortDF`/`constDF` compare levels only through `VLevel.eval`.
+* Extraction (`Extract.lean`): `former_args` reads the domain classes of the left spine
+  observation off the syntactic telescope (`tele_spine`): the spine observation passes the
+  constant's filter, so it is typed at observations of `wrapForalls doms (sort w)`, whose
+  `piDom`/`piCodOb` observations force each key's domain class to be the class of the
+  instantiated telescope domain.
 
 (updated as the work proceeds)
 
