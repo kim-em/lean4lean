@@ -344,14 +344,22 @@ theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Mode
       (Model.forall₂_imp (fun k a ⟨h1, _, X, hX, h2⟩ => ⟨h1, X, h2 ▸ .self, hX⟩) hkeys) hk'
     rwa [VExpr.subst_id, ← eT] at this
 
-/-- **Stage A1** (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): chain-level head
-injectivity for well-formed environments whose rules are all definitions' delta rules and
-which have no projections or eliminators. -/
-theorem WF.headInjectivityCore_of_defsOnly {env : VEnv} (henv : env.WF) (hdo : env.DefsOnly) :
+/-- **Stage A2** (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): chain-level head
+injectivity for well-formed environments whose rules are definitions' delta rules and the
+quotient rule (with the quotient constants of `addQuot`), and which have no projections or
+eliminators. -/
+theorem WF.headInjectivityCore_of_defsQuot {env : VEnv} (henv : env.WF) (hdq : env.DefsQuot) :
     env.HeadInjectivityCore :=
   henv.headInjectivityCore_of_sound fun hΔ H =>
-    Model.sound henv.ordered hΔ hdo henv.defRules
-      (fun _ ⟨_, hdf, hm⟩ => VEnv.nativeHeadRigid_iff.1 (henv.native_constructor_rigid hdf hm)) H
+    Model.sound henv.ordered hΔ hdq henv.defRules
+      (fun _ ⟨_, hdf, hm⟩ => VEnv.nativeHeadRigid_iff.1 (henv.native_constructor_rigid hdf hm))
+      (fun _ ⟨_, hdf, hm⟩ => henv.native_constructor_result_rigid hdf hm) H
+
+/-- **Stage A1**: chain-level head injectivity for well-formed environments whose rules are
+all definitions' delta rules and which have no projections or eliminators. -/
+theorem WF.headInjectivityCore_of_defsOnly {env : VEnv} (henv : env.WF) (hdo : env.DefsOnly) :
+    env.HeadInjectivityCore :=
+  henv.headInjectivityCore_of_defsQuot hdo.defsQuot
 
 /-- **Chain-level head injectivity for rule-free environments** (milestone M2 of
 `docs/inductives/PHASE1B_NOTES.md`, section 9.3). -/

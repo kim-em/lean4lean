@@ -491,7 +491,17 @@ and in the major's head).
   `VEnv.WF.defRules` (`Rules/Definitions.lean`): delta rules are unique per constant,
   exclude every other rule headed by it, and carry the constant's type. Axioms propext,
   Classical.choice, Quot.sound.
-* [plan] Stages A2-E (section 10.2).
+* [Lean] Stage A2: `theorem VEnv.WF.headInjectivityCore_of_defsQuot (henv : env.WF) (hdq :
+  env.DefsQuot) : env.HeadInjectivityCore` (every rule a delta rule or the quotient rule, the
+  quotient constants those of `addQuot`, no projections, no eliminators). The quotient rule
+  is an instance of the generic pattern-rule theorem `Model.sound_pat`
+  (`Model/RuleSound.lean`), which is stated for any rule with a constructor major given its
+  syntactic facts (pattern, binder coverage, `HeadFam`, rule uniqueness per head and
+  constructor, propositional major-only fields in mode C); `Model/QuotRule.lean` proves
+  those facts for `quotDefEq` (both modes occur: `Quot` at a level that is identically zero
+  is a proposition). Infrastructure: `Model/Tele.lean` (typed key telescopes), `Model/HTS.lean`
+  (semantic typing derivations, the spine lemma), `Model/RuleLemmas.lean`.
+* [plan] Stages B-E (section 10.2).
 
 ### 10.1 Deviations of the M0-M2 formalisation from section 9.1
 

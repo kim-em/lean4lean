@@ -110,6 +110,14 @@ theorem wrap_of_obs_mkApps {σ : VExpr.Subst} {S : ObSets} :
     obtain ⟨D, c, K, K', h1, h2, _, _⟩ := Obs.app_iff.1 h'
     exact ⟨(D, c, K) :: keys, .cons h2 hk, h1⟩
 
+theorem typedAt_sort_iff : TypedAt env U Δ σ S (.sort l) o ↔ TypedOb env U Δ o [.sort l.eval] := by
+  constructor
+  · rintro ⟨τs, h1, h2⟩
+    exact h2.mono fun τ hτ => by rw [Obs.sort_mem (h1 τ hτ)]; exact List.mem_singleton_self _
+  · intro h
+    refine ⟨_, fun τ hτ => ?_, h⟩
+    rw [List.mem_singleton] at hτ; subst hτ; exact .sort
+
 /-- Observations of a Pi type at one typed key. -/
 theorem pi_list {σ : VExpr.Subst} {S : ObSets} {K τk τc : List Ob}
     (hc : TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) c) (hy : c y)

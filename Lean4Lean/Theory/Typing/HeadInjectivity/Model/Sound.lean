@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.RuleSound
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.QuotRule
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
 /-! # Soundness of the observation model for rule-free environments (milestone M2)
@@ -52,6 +52,23 @@ structure DefsOnly (env : VEnv) : Prop where
 theorem NoRules.defsOnly {env : VEnv} (h : env.NoRules) : env.DefsOnly :=
   ⟨fun df hdf => absurd hdf (h.defeqs df), h.projections, h.eliminators⟩
 
+/-- Stage A2 (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): every rule is the delta rule
+of a definition or the quotient rule, the latter with the quotient constants installed by
+`addQuot`, and there are no projections or eliminators. -/
+structure DefsQuot (env : VEnv) : Prop where
+  defeqs : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq
+  quot : env.defeqs quotDefEq → Model.QuotConsts env
+  projections : ∀ n p, ¬ env.projections n p
+  eliminators : ∀ b s, ¬ env.eliminators b s
+
+theorem DefsOnly.defsQuot {env : VEnv} (h : env.DefsOnly) : env.DefsQuot where
+  defeqs df hdf := .inl (h.defeqs df hdf)
+  quot hq := by
+    obtain ⟨_, _, e⟩ := h.defeqs _ hq
+    exact absurd (Model.quotDefEq_lhs.symm.trans e) VExpr.wrapLams_mkApps_snoc_ne_const
+  projections := h.projections
+  eliminators := h.eliminators
+
 namespace Model
 
 
@@ -72,14 +89,6 @@ theorem imax_eval_zero {a b : Nat} (h : Lean.Nat.imax a b = 0) : b = 0 := by
   · assumption
   · rename_i hb
     exact absurd h (Nat.ne_of_gt (Nat.lt_of_lt_of_le (Nat.pos_of_ne_zero hb) (Nat.le_max_right a b)))
-
-theorem typedAt_sort_iff : TypedAt env U Δ σ S (.sort l) o ↔ TypedOb env U Δ o [.sort l.eval] := by
-  constructor
-  · rintro ⟨τs, h1, h2⟩
-    exact h2.mono fun τ hτ => by rw [Obs.sort_mem (h1 τ hτ)]; exact List.mem_singleton_self _
-  · intro h
-    refine ⟨_, fun τ hτ => ?_, h⟩
-    rw [List.mem_singleton] at hτ; subst hτ; exact .sort
 
 /-- Observations typed at a Pi type are `app` observations. -/
 theorem typed_pi_app (H : TypedOb env U Δ o τs) (hτ : ∀ τ ∈ τs, Obs' σ S (.forallE A B) τ) :
@@ -300,8 +309,9 @@ theorem sound_forallEDF (hAA : env.IsDefEqStrong U Γ A A' (.sort u))
       exact .piCodOb (List.mem_singleton_self _) (typedAt_sort_iff.1 this) imax0
 
 /-- **Soundness** of the observation model for rule-free environments. -/
-theorem sound (hdo : env.DefsOnly) (hdr : env.DefRules)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (H : env.IsDefEqStrong U Γ t t' T) :
+theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
+    (H : env.IsDefEqStrong U Γ t t' T) :
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T := by
   induction H with
   | bvar hL _ hA ihA =>
@@ -547,9 +557,22 @@ theorem sound (hdo : env.DefsOnly) (hdr : env.DefRules)
       fun o h => (e1 o h).elim, fun o h => (e2 o h).elim⟩
   | @extra df ls u Γ hdf hlw hlen _ _ _ _ _ _ _ _ _ ihL ihR =>
     refine ⟨?_, ihL.2.1, ihR.2.1⟩
+    rcases hdo.defeqs df hdf with ⟨n, ls₀, hlhs⟩ | rfl
+    rotate_left
+    · -- the quotient rule
+      have hq := hdo.quot hdf
+      have hcis : IsCtor env ``Quot.mk := ⟨quotDefEq, hdf, quotDefEq_ctorMajor⟩
+      have hrigQ : env.Rigid ``Quot := by
+        obtain ⟨ci, hci, F, ls', hF, -, hrig⟩ := hcres _ hcis
+        cases hq.2.1.symm.trans hci
+        cases hF; exact hrig
+      have hcl := henv.closed.2 hdf
+      exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
+        (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 (quot_headFam hq hrigQ) hcis (hctor _ hcis)
+        hctor hdr (quot_uniq hdo.defeqs) (quot_pf henv hΔ hq hlw) ⟨ihL.1, ihL.2.1⟩
+        ⟨ihR.1, ihR.2.1⟩
     replace ihR := ihR.1
     intro σ σ' S W tv tv'
-    obtain ⟨n, ls₀, hlhs⟩ := hdo.defeqs df hdf
     obtain ⟨rfl, hci⟩ := hdr.const df hdf n ls₀ hlhs
     have elhs : df.lhs.instL ls = .const n ls := by
       rw [hlhs]; simp only [VExpr.instL, VLevel.inst_map_id hlen]
