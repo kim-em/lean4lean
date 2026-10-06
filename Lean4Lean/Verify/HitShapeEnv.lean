@@ -280,15 +280,14 @@ theorem getAppFn_of_not_hit {e : Expr} (H : HitShape heads params ls e)
   rw [← e.mkAppList_getAppArgsList] at H
   exact (H.mkAppList_inv fun c us h => hnot c us (by simpa using h)).1
 
-theorem getElem!_of_forall {args : Array Expr} (hd : `_inhabitedExprDummy ∉ heads)
-    (ha : ∀ a ∈ args, HitShape heads params ls a)
-    (i : Nat) : HitShape heads params ls (args[i]!) := by
-  by_cases h : i < args.size
-  · rw [getElem!_pos args i h]; exact ha _ (Array.getElem_mem h)
-  · rw [getElem!_neg args i h]; exact .const hd
+theorem getElem!_of_lt {args : Array Expr} (ha : ∀ a ∈ args, HitShape heads params ls a)
+    {i : Nat} (h : i < args.size) : HitShape heads params ls (args[i]!) := by
+  rw [getElem!_pos args i h]; exact ha _ (Array.getElem_mem h)
 
 open private mkAppRangeAux from Lean.Expr in
-theorem mkAppRange {f : Expr} {args : Array Expr} (hd : `_inhabitedExprDummy ∉ heads)
+/-- `mkAppRange f i j args` with `j ≤ args.size` reads only in-range arguments (so never the
+default expression of an out-of-range `args[k]!`). -/
+theorem mkAppRange {f : Expr} {args : Array Expr} (hj : j ≤ args.size)
     (hf : HitShape heads params ls f)
     (ha : ∀ a ∈ args, HitShape heads params ls a) :
     HitShape heads params ls (mkAppRange f i j args) := by
@@ -298,22 +297,23 @@ theorem mkAppRange {f : Expr} {args : Array Expr} (hd : `_inhabitedExprDummy ∉
   intro k; induction k with
   | zero => intro i f h hf; rw [mkAppRangeAux.eq_def]; split <;> [omega; exact hf]
   | succ k ih =>
-    intro i f h hf; rw [mkAppRangeAux.eq_def]; split <;> [skip; exact hf]
-    exact ih _ _ (by omega) (.app hf (getElem!_of_forall hd ha _))
+    intro i f h hf; rw [mkAppRangeAux.eq_def]; split <;> [rename_i hij; exact hf]
+    exact ih _ _ (by omega) (.app hf (getElem!_of_lt ha (by omega)))
 
 open private mkAppRevRangeAux from Lean.Expr in
-theorem mkAppRevRange {f : Expr} {args : Array Expr} (hd : `_inhabitedExprDummy ∉ heads)
+/-- `mkAppRevRange f i j args` with `j ≤ args.size` reads only in-range arguments. -/
+theorem mkAppRevRange {f : Expr} {args : Array Expr} (hj : j ≤ args.size)
     (hf : HitShape heads params ls f)
     (ha : ∀ a ∈ args, HitShape heads params ls a) :
     HitShape heads params ls (mkAppRevRange f i j args) := by
   unfold Lean.Expr.mkAppRevRange
-  suffices ∀ k j f, j - i = k → HitShape heads params ls f →
-      HitShape heads params ls (mkAppRevRangeAux args i f j) from this _ _ _ rfl hf
+  suffices ∀ k j f, j - i = k → j ≤ args.size → HitShape heads params ls f →
+      HitShape heads params ls (mkAppRevRangeAux args i f j) from this _ _ _ rfl hj hf
   intro k; induction k with
-  | zero => intro j f h hf; rw [mkAppRevRangeAux.eq_def]; split <;> [exact hf; omega]
+  | zero => intro j f h _ hf; rw [mkAppRevRangeAux.eq_def]; split <;> [exact hf; omega]
   | succ k ih =>
-    intro j f h hf; rw [mkAppRevRangeAux.eq_def]; split <;> [exact hf; skip]
-    exact ih _ _ (by omega) (.app hf (getElem!_of_forall hd ha _))
+    intro j f h hj hf; rw [mkAppRevRangeAux.eq_def]; split <;> [exact hf; rename_i hij]
+    exact ih _ _ (by omega) (by omega) (.app hf (getElem!_of_lt ha (by omega)))
 
 theorem mkAppRevList {f : Expr} {args : List Expr} (hf : HitShape heads params ls f)
     (hargs : ∀ a ∈ args, HitShape heads params ls a) :
@@ -495,12 +495,23 @@ open Lean
 
 /-! ### The environment condition -/
 
-/-- Names of the constants that the checker builds on its own: literal types and constructor
-expansions, the boolean results of `Nat` predicates, and the name of the default expression
-(`(default : Expr)`, read by out-of-range `args[i]!`). -/
+/-- Names of the primitive constants that the checker builds on its own: the literal type `Nat`,
+the constructors of `Nat` literal expansion, the heads `String.ofList` and `Char.ofNat` of string
+literal expansion, and the boolean results of `Nat` predicates. All of them are reserved
+(`Kernel.Environment.primitives`), so an ordinary declaration never introduces them. -/
 def hitPrimNames : List Name :=
-  [``Nat, ``Nat.zero, ``Nat.succ, ``String, ``String.ofList, ``Char, ``Char.ofNat, ``List.nil,
-    ``List.cons, ``Bool.true, ``Bool.false, `_inhabitedExprDummy]
+  [``Nat, ``Nat.zero, ``Nat.succ, ``String.ofList, ``Char.ofNat, ``Bool.true, ``Bool.false]
+
+/-- The other constants of string literals: the literal type `String` and the constants `Char`,
+`List.nil`, `List.cons` of the expansion. They are not reserved, but they are only produced from a
+string literal, which only translates when `Char.ofNat` and `String.ofList` exist
+(`VEnv.ContainsLits`). -/
+def hitStrNames : List Name := [``String, ``Char, ``List.nil, ``List.cons]
+
+/-- The environment supports string literals: `Char.ofNat` and `String.ofList` are declared (the
+kernel-environment form of `VEnv.ContainsLits (.strVal _)`). -/
+def StrLitsDeclared (env : Lean.Kernel.Environment) : Prop :=
+  (∃ ci, env.find? ``Char.ofNat = some ci) ∧ ∃ ci, env.find? ``String.ofList = some ci
 
 /-- A projection on the structure `s` is compatible with the head set: neither `s` nor any
 constructor of `s` is a head. (Lowering never renames projections, so projections on auxiliary
@@ -526,10 +537,14 @@ of the main families), `nparams` parameters and hit levels `ls`.
   structure-eta expansions build constructor applications from the major premise's type).
 * Projection nodes in the environment respect `projHitOK` (no projections on heads or on
   families with head constructors).
-* The constants that the checker introduces itself are not heads. -/
+* The constants that the checker introduces itself are not heads: the reserved ones
+  (`hitPrimNames`) always, the remaining constants of string literals (`hitStrNames`) as soon as
+  the environment supports string literals (`StrLitsDeclared`), which is the only situation in
+  which the checker produces them. -/
 structure EnvHitShape (env : Lean.Kernel.Environment) (heads : List Name) (nparams : Nat)
     (ls : List Level) : Prop where
   prims : ∀ n ∈ hitPrimNames, n ∉ heads
+  strs : StrLitsDeclared env → ∀ n ∈ hitStrNames, n ∉ heads
   type_avoids : ∀ {n ci}, env.find? n = some ci → n ∉ heads → ci.type.AvoidsConsts heads
   value_avoids : ∀ {n ci v}, env.find? n = some ci → ci.deltaValue? = some v →
     v.AvoidsConsts heads
@@ -550,8 +565,9 @@ structure EnvHitShape (env : Lean.Kernel.Environment) (heads : List Name) (npara
 theorem EnvHitShape.prim {env heads nparams ls} (H : EnvHitShape env heads nparams ls)
     {n : Name} (h : n ∈ hitPrimNames := by simp [hitPrimNames]) : n ∉ heads := H.prims n h
 
-theorem EnvHitShape.dummy {env heads nparams ls} (H : EnvHitShape env heads nparams ls) :
-    `_inhabitedExprDummy ∉ heads := H.prim
+theorem EnvHitShape.str {env heads nparams ls} (H : EnvHitShape env heads nparams ls)
+    (hs : StrLitsDeclared env) {n : Name} (h : n ∈ hitStrNames := by simp [hitStrNames]) :
+    n ∉ heads := H.strs hs n h
 
 theorem EnvHitShape.not_delta {env heads nparams ls} (H : EnvHitShape env heads nparams ls)
     {n ci} (h : env.find? n = some ci) (hn : n ∈ heads) : ci.deltaValue? = none := by
@@ -676,16 +692,16 @@ theorem mkAppRevList (hf : HitOK env heads As ls f)
     ProjsOK.mkAppRevList_iff.2 ⟨hf.2, fun a h => (hargs a h).2⟩⟩
 
 omit hp in
-theorem mkAppRange (hd : `_inhabitedExprDummy ∉ heads) {args : Array Expr}
+theorem mkAppRange {args : Array Expr} (hj : j ≤ args.size)
     (hf : HitOK env heads As ls f) (hargs : ∀ a ∈ args, HitOK env heads As ls a) :
     HitOK env heads As ls (Lean.mkAppRange f i j args) :=
-  ⟨hf.1.mkAppRange hd fun a h => (hargs a h).1, hf.2.mkAppRange fun a h => (hargs a h).2⟩
+  ⟨hf.1.mkAppRange hj fun a h => (hargs a h).1, hf.2.mkAppRange fun a h => (hargs a h).2⟩
 
 omit hp in
-theorem mkAppRevRange (hd : `_inhabitedExprDummy ∉ heads) {args : Array Expr}
+theorem mkAppRevRange {args : Array Expr} (hj : j ≤ args.size)
     (hf : HitOK env heads As ls f) (hargs : ∀ a ∈ args, HitOK env heads As ls a) :
     HitOK env heads As ls (f.mkAppRevRange i j args) :=
-  ⟨hf.1.mkAppRevRange hd fun a h => (hargs a h).1, hf.2.mkAppRevRange fun a h => (hargs a h).2⟩
+  ⟨hf.1.mkAppRevRange hj fun a h => (hargs a h).1, hf.2.mkAppRevRange fun a h => (hargs a h).2⟩
 
 omit hp in
 theorem of_avoids {e : Expr} (H : e.AvoidsConsts heads) (hp : e.ProjsOK (projHitOK env heads)) :
@@ -818,14 +834,15 @@ theorem natLitToConstructor {nparams} (H : EnvHitShape env heads nparams ls) :
   | zero => exact .const H.prim
   | succ n => exact .app (.const H.prim) .lit
 
-theorem strLitToConstructor {nparams} (H : EnvHitShape env heads nparams ls) :
-    (Expr.strLitToConstructor s).HitOK env heads As ls := by
+theorem strLitToConstructor {nparams} (H : EnvHitShape env heads nparams ls)
+    (hs : StrLitsDeclared env) : (Expr.strLitToConstructor s).HitOK env heads As ls := by
   simp only [Expr.strLitToConstructor]
   refine .app (.const H.prim) ?_
   induction s.toList with
-  | nil => exact .app (.const H.prim) (.const H.prim)
+  | nil => exact .app (.const (H.str hs)) (.const (H.str hs))
   | cons a l ih =>
-    exact .app (.app (.app (.const H.prim) (.const H.prim)) (.app (.const H.prim) .lit)) ih
+    exact .app (.app (.app (.const (H.str hs)) (.const (H.str hs))) (.app (.const H.prim) .lit))
+      ih
 
 end Lean.Expr.HitOK
 

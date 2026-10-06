@@ -642,6 +642,13 @@ structure HitScopeAt (E : Environment) (Δ : VLCtx) (lctx : LocalContext) (pfx :
   decls : ∀ fv decl, P fv → lctx.find? fv = some decl →
     decl.type.HitOK E heads As ls ∧ ∀ v, decl.value? true = some v → v.HitOK E heads As ls
 
+/-- A translated string literal means the environment supports string literals. -/
+theorem VContext.strLitsDeclared (c : VContext) (h : c.venv.ContainsLits (.strVal str)) :
+    StrLitsDeclared c.env :=
+  let ⟨_, h1, _⟩ := c.trenv.find?_iff.2 h.1
+  let ⟨_, h2, _⟩ := c.trenv.find?_iff.2 h.2
+  ⟨⟨_, h1⟩, ⟨_, h2⟩⟩
+
 /-- `HitScopeAt` at the environment and local context of `c`. -/
 abbrev VContext.HitScope (c : VContext) (pfx : Name) (heads : List Name) (As : List Expr)
     (ls : List Level) (P : FVarId → Prop) : Prop :=

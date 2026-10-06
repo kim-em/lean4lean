@@ -9,9 +9,8 @@ import Lean4Lean.Verify.Inductive.Nested.RestoredBlockAssembly
 restoration environment from a premise `Hshapes` about every fresh recursor
 of that environment. This file discharges `Hshapes` for the exact nested run,
 from the hit shape of the lowered recursor types given by
-`NestedValidatedRunResult.recursorHitShape'`, whose only hypothesis besides the
-run is `hprims` (no main constructor is named like a constant the type checker
-builds on its own).
+`NestedValidatedRunResult.recursorHitShape'`, which needs nothing besides the
+run.
 
 The fresh recursors of the stripped environment are exactly the rule-free
 copies of the restoration steps' recursors. For each of them:
@@ -219,7 +218,6 @@ theorem NestedValidatedRunResult.restoredMajorHead {ves : VEnvs}
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {r : Restoration} {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
     {auxLevels : List Level}
     (A : RestorationMapAgreement r result E.loweredEnv auxRec targetEnv Us auxLevels)
@@ -300,7 +298,7 @@ theorem NestedValidatedRunResult.restoredMajorHead {ves : VEnvs}
   by_cases hmem : fam ∈ r.heads.map (·.auxiliary)
   · obtain ⟨nested, hnested⟩ := hfamKey' hmem
     obtain ⟨I0, lsI, hnestedFn⟩ := hnestedHead fam nested hnested
-    have Hshape := (E.recursorHitShape' wf Hsources hprims owner Hstep).1
+    have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).1
     rw [← hheads] at Hshape
     obtain ⟨HbodyShape, hsize, -⟩ := Hopen.hitShape_of_lowered Htel Hshape
     have HdomShape := HbodyShape.binderAt Hbody
@@ -732,7 +730,6 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -792,7 +789,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
   rw [← E.recursorNames_order hnonempty, List.forall₂_map_left_iff] at Hall
   refine Lean4Lean.List.Forall₂.imp ?_ Hall
   rintro owner w ⟨s, t, Hstep, Hw⟩
-  have Hshape := (E.recursorHitShape' wf Hsources hprims owner Hstep).1
+  have Hshape := (E.recursorHitShape' wf Hsources owner Hstep).1
   rw [← hheads] at Hshape
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
@@ -808,7 +805,6 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -867,7 +863,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
           nested.getAppFn = .const Hstep.restored.newInfo.getMajorInduct ls := by
   let r := compilationRestoration sourceDecl auxiliaries
   let g := E.production.production.completed.canonicalGeneration
-  have Hentries := E.restoredRecursorEntries_of_steps wf Hsources hprims hadded Haux Hexpansion hnodup
+  have Hentries := E.restoredRecursorEntries_of_steps wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hctorNames hctors hnonempty Hall
   obtain ⟨w, hw, hrec, s', t', Hstep', hwname, hwuvars, Htr⟩ :=
     Lean4Lean.List.Forall₂.forall_exists_l Hentries owner (List.mem_finRange owner)
@@ -951,7 +947,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
       obtain ⟨a, ha, haeq⟩ := List.mem_map.mp hname
       obtain ⟨nested, hnested⟩ := D.familyLookup a ha
       exact ⟨nested, haeq ▸ hnested⟩
-  obtain ⟨hi', domain, c, ls, Hbinder, hc, hdisj⟩ := E.restoredMajorHead wf Hsources hprims
+  obtain ⟨hi', domain, c, ls, Hbinder, hc, hdisj⟩ := E.restoredMajorHead wf Hsources
     (D.agreement finalVEnv lparams) hheads hparamsSize D.paramsFVars hnestedHead owner Hstep
     hfamRec hfamKey
   have Htr' : TrExprS (envCtors.addProjections sourceDecl.projectionEntries)
@@ -1031,7 +1027,7 @@ theorem NestedFormationAssembly.sourceConstructorNames
 /-! ### Validity of the stripped environment of the exact run -/
 
 /-- **Validity of the stripped-rule restoration environment** of the exact
-nested run, from `hprims` (the hypothesis of `recursorHitShape'`) and the
+nested run, from the hit shape of `recursorHitShape'` and the
 executable fact that lowering recorded a nested occurrence (`hnested`, the
 condition under which `addInductiveAfterLowering` restores at all). The
 remaining arguments are those of `finalValidOfStaged_of_shapes`, together
@@ -1046,7 +1042,6 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     (hnested : result.aux2nested.size ≠ 0)
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams' depth : Nat} {isUnsafe' : Bool}
@@ -1185,7 +1180,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
   subst hrec
   rw [← E.recursorNames_order hnonempty] at hold
   obtain ⟨owner, -, rfl⟩ := List.mem_map.mp hold
-  obtain ⟨Hshape, hi, hhead⟩ := E.strippedRecursorOfStep wf Hsources hprims hadded Haux Hexpansion hnodup
+  obtain ⟨Hshape, hi, hhead⟩ := E.strippedRecursorOfStep wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hctorNames hctors hnonempty Hall hfinal
     (E.one_lt_familiesSize hnested) hnestedHead owner Hstep
   refine ⟨Hshape.alignmentCore, Hshape.kLike _, ?_⟩

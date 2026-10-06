@@ -7,8 +7,8 @@ import Lean4Lean.Verify.Inductive.Nested.FinalShapes
 
 `NestedValidatedRunResult.assemblyNative` asks for a
 `NestedFinalAssemblyCertificate` whose production is the run's.
-`NestedValidatedRunResult.assemblyNative_of_hprims` assembles one from the
-run, given `hprims` and two named hypotheses:
+`NestedValidatedRunResult.assemblyNative_of_run` assembles one from the
+run, given two named hypotheses:
 
 * `Hrules`, the rule junction: a final assembly shape whose rule lists realize
   the executable restored rules (`RestoredRuleRealization`) in its own final
@@ -522,7 +522,6 @@ theorem NestedValidatedRunResult.compilationData_of_tables
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -575,12 +574,12 @@ theorem NestedValidatedRunResult.compilationData_of_tables
   have hP := E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
   obtain ⟨-, -, hnames, hheadNames, hcertified, -, hwellFormed, hscoped, hdirect, -⟩ := hP
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
-  have hrecursors := E.restoredRecursors_of_hitShape C hC wf Hsources hprims hadded Haux Hexpansion
+  have hrecursors := E.restoredRecursors_of_hitShape C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   have hheads : r.heads.map (·.auxiliary) = E.auxHeads := by
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
-  have hequations := E.restoredEquations_of_hitShape C wf Hsources hprims hheads hparamsSize D hscoped
+  have hequations := E.restoredEquations_of_hitShape C wf Hsources hheads hparamsSize D hscoped
     hrealization
   have htotal := E.normalizedTotal_of wf Hsources hheadNames
   have HsourceCtors := E.sourceConstructors_of_evidence wf hadded henvTypes Haux Hexpansion
@@ -616,7 +615,6 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -652,7 +650,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
       (List.finRange
         E.production.production.completed.generationSignature.families.size)
       C.recursorEntries := by
-  have Hentries := E.restoredRecursorEntries_of_hitShape C hC wf Hsources hprims hadded Haux Hexpansion
+  have Hentries := E.restoredRecursorEntries_of_hitShape C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   rw [← C.recursorValues, List.forall₂_map_right_iff] at Hentries
   have hnames := E.recursorNames_order C.sourceNonempty
@@ -686,7 +684,6 @@ theorem NestedValidatedRunResult.restoredMajorInduct
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
@@ -767,7 +764,7 @@ theorem NestedValidatedRunResult.restoredMajorInduct
     intro name nested h
     obtain ⟨I, ls, -, h1, -⟩ := E.auxNestedHead wf Hsources h
     exact ⟨I, ls, h1⟩
-  obtain ⟨hi', domain, c, ls, Hbinder, hc, hdisj⟩ := E.restoredMajorHead wf Hsources hprims
+  obtain ⟨hi', domain, c, ls, Hbinder, hc, hdisj⟩ := E.restoredMajorHead wf Hsources
     (D.agreement VEnv.empty lparams) hheads hparamsSize D.paramsFVars hnestedHead owner Hstep
     hfamRec hfamKey
   have hmi : Hstep.restored.newInfo.getMajorInduct = c := by
@@ -1135,7 +1132,7 @@ private theorem names_of_trTypes {env envTypes : VEnv} {lparams : List Name} :
 /-- **Final assembly certificate of a validated nested run**, modulo the rule
 junction `Hrules` and the recursor provenance `Hprovenance` (see the module
 docstring). -/
-theorem NestedValidatedRunResult.assemblyNative_of_hprims
+theorem NestedValidatedRunResult.assemblyNative_of_run
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -1144,7 +1141,6 @@ theorem NestedValidatedRunResult.assemblyNative_of_hprims
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     (Hrules : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -1187,7 +1183,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_hprims
   have Hprov := Hprovenance auxiliaries D C hC hfreshFinal HCrules
   have hrealization : E.RestoredRulesRealization (compilationRestoration sourceDecl auxiliaries)
       (C.primaryRules ++ C.auxiliaryRules) := ⟨C.finalBaseVEnv, hfreshFinal, HCrules⟩
-  obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hprims hadded
+  obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
     henvTypes Haux Hexpansion hparamsSize D Hrestoring HauxRestoring hrealization
   have hnodup :
       (familyNames E.production.loweredDecl.types ++
@@ -1219,7 +1215,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_hprims
     have Hcore := E.nativeSource.core
     rw [E.nativeSourceDecl_eq] at Hcore
     exact names_of_trTypes Hcore.types
-  have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hprims hadded Haux Hexpansion hnodup
+  have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf
   have Hentries : List.Forall₂
       (RestoredRecursorEntryRealization E.production.compilationInstance
@@ -1243,7 +1239,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_hprims
       head Hctor
     refine E.restoredRecursorRealization_of_step D hnames owner Hstep hle hrec Hw
       ⟨head, hhead, ?_, hlevels, hargs, happ, Hrules'⟩
-    rw [E.restoredMajorInduct wf Hsources hprims Haux Hexpansion hnodup hparamsSize D hscoped
+    rw [E.restoredMajorInduct wf Hsources Haux Hexpansion hnodup hparamsSize D hscoped
       owner Hstep, hheadName]
   exact ⟨⟨{ toNestedFinalAssemblyShape := C
             realization := ⟨⟨_, _, _, _, Hdata, Hcertified, Hentries⟩⟩

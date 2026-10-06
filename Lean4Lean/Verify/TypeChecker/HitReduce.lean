@@ -19,7 +19,8 @@ variable {c : VContext} {s : VState}
 
 /-! ### Quotient reduction -/
 
-theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
+theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS e e')
+    (hp : s.ngen.namePrefix = pfx) (hpos : argPos < mkPos) :
     RecM.WF c s (quotReduceRecCont e whnf mkPos argPos) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
   unfold quotReduceRecCont
@@ -41,12 +42,11 @@ theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS
     have hm := hmh heads As ls P hs (hall _ (Array.getElem_mem _)) (hP.of_mem_getAppArgsList (by
       rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _))
     refine .app ?_ (hm.of_mem_getAppArgsList hp' (by simp [Expr.getAppArgsList]))
-    by_cases h : argPos < e.getAppArgs.size
-    · rw [getElem!_pos e.getAppArgs argPos h]; exact hall _ (Array.getElem_mem h)
-    · rw [getElem!_neg e.getAppArgs argPos h]; exact .const hs.env.dummy
+    have h : argPos < e.getAppArgs.size := Nat.lt_trans hpos h5
+    rw [getElem!_pos e.getAppArgs argPos h]; exact hall _ (Array.getElem_mem h)
   split
   · exact .pure fun _ h heads As ls P hs hl hP => Option.some.inj h ▸
-      .mkAppRange hs.env.dummy (main heads As ls P hs hl hP)
+      .mkAppRange (Nat.le_refl _) (main heads As ls P hs hl hP)
         fun a h => hl.of_mem_getAppArgs hs.params.fvars h
   · exact .pure fun _ h heads As ls P hs hl hP => Option.some.inj h ▸ main heads As ls P hs hl hP
 
@@ -55,9 +55,9 @@ theorem quotReduceRec.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx
   unfold quotReduceRec
   split <;> [skip; exact .pure nofun]
   split
-  · exact quotReduceRecCont.WF_hit he hp
+  · exact quotReduceRecCont.WF_hit he hp (by decide)
   split
-  · exact quotReduceRecCont.WF_hit he hp
+  · exact quotReduceRecCont.WF_hit he hp (by decide)
   exact .pure nofun
 
 /-! ### Inductive recursor reduction -/
@@ -69,6 +69,7 @@ theorem inductiveReduceRecTail.hitOK {info : RecursorVal} {recFn : Name} {ls : L
     {e major₂ : Expr} {heads As lv} {nparams} (H : EnvHitShape c.env heads nparams lv)
     (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv)
     (hinfo : c.env.find? recFn = some (.recInfo info))
+    (hfirst : info.getFirstIndexIdx ≤ e.getAppArgs.size)
     (hl : e.HitOK c.env heads As lv) (hm : major₂.HitOK c.env heads As lv) :
     ∀ r, inductiveReduceRecTail info ls e.getAppArgs major₂ = some r →
       r.HitOK c.env heads As lv := by
@@ -86,8 +87,9 @@ theorem inductiveReduceRecTail.hitOK {info : RecursorVal} {recFn : Name} {ls : L
   have hargs := fun a (h : a ∈ e.getAppArgs) => hl.of_mem_getAppArgs hAs h
   have hmargs := fun a (h : a ∈ major₂.getAppArgs) => hm.of_mem_getAppArgs hAs h
   split at hr <;> cases hr
-  · exact .mkAppRange H.dummy (.mkAppRange H.dummy (.mkAppRange H.dummy hrhs hargs) hmargs) hargs
-  · exact .mkAppRange H.dummy (.mkAppRange H.dummy hrhs hargs) hmargs
+  · exact .mkAppRange (Nat.le_refl _)
+      (.mkAppRange (Nat.le_refl _) (.mkAppRange hfirst hrhs hargs) hmargs) hargs
+  · exact .mkAppRange (Nat.le_refl _) (.mkAppRange hfirst hrhs hargs) hmargs
 
 theorem getFirstCtor_eq_some {env : Environment} (h : getFirstCtor env I = some name) :
     ∃ v, env.find? I = some (.inductInfo v) ∧ name ∈ v.ctors := by
@@ -123,7 +125,7 @@ theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (h
   have hid : ∀ {x : Expr}, x = major → c.HitBelow pfx major x := by rintro _ rfl; exact .rfl
   split <;> [rename_i I lsI hAfn; exact .pure (hid rfl)]
   split <;> [exact .pure (hid rfl); rename_i hI]
-  split <;> [exact .pure (hid rfl); skip]
+  split <;> [exact .pure (hid rfl); rename_i hnum]
   split <;> [exact .pure (hid rfl); skip]
   split <;> [rename_i newCtorApp hnull; exact .pure (hid rfl)]
   simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI
@@ -134,7 +136,13 @@ theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (h
     rw [hAfn] at hfn'; cases hfn'
     obtain ⟨v, hv, hname⟩ := getFirstCtor_eq_some hfirst
     rw [hI] at hv
-    refine .mkAppRange hs.env.dummy (.const ((hs.env.rec_major hrec).2 v hv name hname)) fun a h =>
+    have hsize : info.numParams ≤ A.getAppArgs.size := by
+      simp only [bne_iff_ne, ne_eq, Classical.not_not] at hnum
+      have hsz : A.getAppArgs.size = A.getAppNumArgs := by
+        rw [← Array.length_toList, Expr.getAppArgs_toList_rev, Expr.getAppNumArgs_eq,
+          List.length_reverse]
+      omega
+    refine .mkAppRange hsize (.const ((hs.env.rec_major hrec).2 v hv name hname)) fun a h =>
       hAok.of_mem_getAppArgs hs.params.fvars h
   refine RecM.Res.bind fun _ => RecM.Res.bind fun b => ?_
   split
@@ -145,7 +153,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
     (h : expandEtaStruct env eType e = r) :
     r = e ∨ ∃ I ls sInfo ctor mkInfo, eType.getAppFn = .const I ls ∧
       env.find? I = some (.inductInfo sInfo) ∧ sInfo.ctors.head? = some ctor ∧
-      env.find? ctor = some (.ctorInfo mkInfo) ∧
+      env.find? ctor = some (.ctorInfo mkInfo) ∧ eType.getAppArgs.size = mkInfo.numParams ∧
       r = (List.range mkInfo.numFields).foldl (fun result i => .app result (.proj I i e))
         (mkAppRange (.const ctor ls) 0 mkInfo.numParams eType.getAppArgs) := by
   subst h
@@ -156,8 +164,8 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
   split <;> [rename_i ctor hc; exact .inl rfl]
   split <;> [rename_i mkInfo hm; exact .inl rfl]
   split <;> [exact .inl rfl; skip]
-  split <;> [exact .inl rfl; skip]
-  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, rfl⟩
+  split <;> [exact .inl rfl; rename_i hsize]
+  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hsize, rfl⟩
 
 /-- The structure-eta expansion built by `toCtorWhenStruct` is in hit shape. -/
 theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
@@ -181,10 +189,10 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
     have ⟨hInot, hctors⟩ := hs.env.rec_major hrec
     rcases expandEtaStruct_eq (env := c.env) (eType := A) (e := w) rfl with h | h
     · rw [h]; exact hl
-    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, -, hr⟩ := h
+    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, -, hsize, hr⟩ := h
     rw [hAfn] at hfn; cases hfn
     rw [hr, foldl_app_proj]
-    refine .mkAppList (.mkAppRange hs.env.dummy
+    refine .mkAppList (.mkAppRange (Nat.le_of_eq hsize.symm)
       (.const (hctors sInfo hsI ctor (List.mem_of_head? hctor))) fun a h =>
         hAok.of_mem_getAppArgs hs.params.fvars h) fun a ha => ?_
     simp only [List.mem_map] at ha
@@ -225,7 +233,8 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
       ∀ e₁, inductiveReduceRecTail info ls e.getAppArgs major₂ = some e₁ →
         c.HitBelow pfx e e₁ := by
     intro major₂ hfv hh e₁ h heads As lv P hs hl hP
-    exact inductiveReduceRecTail.hitOK hs.env hs.params.fvars hinfo hl
+    exact inductiveReduceRecTail.hitOK hs.env hs.params.fvars hinfo
+      (by simp only [RecursorVal.getMajorIdx, RecursorVal.getFirstIndexIdx] at hmaj ⊢; omega) hl
       (hh heads As lv P hs (hl.of_mem_getAppArgsList hs.params.fvars hmem)
         (hP.of_mem_getAppArgsList hmem)) e₁ h
   -- after the K conversion
@@ -243,12 +252,13 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
         (fun _ _ _ => FVarsIn.natLitToConstructor))) ?_ e₁ h
       exact fun heads As lv P hs _ _ => .natLitToConstructor hs.env
     · rename_i str _
-      cases hwS with | lit _ hlit => ?_
+      cases hwS with | lit hcl hlit => ?_
       refine RecM.Post.bind (whnf.WF_fhit hlit hp₂) fun major₂ _ _ ⟨⟨hfv₂, _⟩, hh₂⟩ => ?_
       refine RecM.Post.pure fun e₁ h => htail _ (hfv₁.trans (hfvw.trans
         ((FVarsBelow.trans (e₂ := .strLitToConstructor str)
           (fun _ _ _ => FVarsIn.strLitToConstructor) hfv₂)))) ?_ e₁ h
-      exact fun heads As lv P hs _ _ => hh₂ heads As lv P hs (.strLitToConstructor hs.env)
+      exact fun heads As lv P hs _ _ => hh₂ heads As lv P hs
+        (.strLitToConstructor hs.env (c.strLitsDeclared hcl))
         FVarsIn.strLitToConstructor
     · refine RecM.Post.bind ((toCtorWhenStruct.WF_all hwS).and_post
         (toCtorWhenStruct.Post_hit hinfo hwS hp₂)) fun major₂ _ _ ⟨⟨⟨hfv₂, _⟩, _⟩, hh₂⟩ => ?_
@@ -337,7 +347,7 @@ theorem unfoldDefinition.WF_hit :
       refine .pure ?_
       intro out hout heads As lv P hs hl _
       cases Option.some.inj hout
-      exact .mkAppRevRange hs.env.dummy (hresult _ rfl heads As lv _ hs.env) fun a h =>
+      exact .mkAppRevRange (Nat.le_refl _) (hresult _ rfl heads As lv _ hs.env) fun a h =>
         hl.of_mem_getAppArgsRevList hs.params.fvars (by
           rw [← Expr.getAppRevArgs_toList]; exact Array.mem_toList_iff.2 h)
   · exact unfoldDefinitionCore.WF_hit.mono fun _ _ _ H e' h heads As lv P hs _ _ =>
