@@ -215,7 +215,7 @@ theorem WF.projectionRigid {env : VEnv} (H : env.WF)
   intro ds env H
   induction H with
   | empty => intro _ _ hinfo; cases hinfo
-  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih
   | @decl d env' ds env hdecl hbase ih =>
     have hordered := (show env.WF from ⟨ds, hbase⟩).ordered
     cases hdecl with

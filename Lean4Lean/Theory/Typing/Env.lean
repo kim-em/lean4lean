@@ -54,7 +54,10 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   owner slot, including nested auxiliaries, for all later environments.
   The schema projects only out of structures registered at this point
   (`CaseSchema.ProjNamesRegistered`), hence never out of a name that is not
-  an installed constant. -/
+  an installed constant. Every structure already registered over one of its
+  original families has, in the schema, exactly its registered constructor
+  (`CaseSchema.StructCompat`): otherwise a schema could add constructors to a
+  registered structure, which structure eta makes inconsistent. -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →
@@ -66,6 +69,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
       env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
       schema.ProjNamesRegistered env key) →
     schema.Fresh env key →
+    schema.StructCompat env →
     VEnv.WF' ds (env.addEliminator key schema)
   | inductProjections {base envTypes envCtors : VEnv}
       {decl : VInductDecl} {block : VInductBlock} :
@@ -96,12 +100,13 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
       env.constants value.name = some value.toVConstant)
     (hequations : env.defeqs = base.defeqs)
     (hprojs : schema.ProjNamesRegistered env key)
-    (hfresh : schema.Fresh env key) :
+    (hfresh : schema.Fresh env key)
+    (hcompat : schema.StructCompat env) :
     (env.addEliminator key schema).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases henv with ⟨ds, henv⟩
   exact ⟨ds, .inductEliminators hbase henv hle hformed hkey
-    ⟨hconstants, hequations, hprojs⟩ hfresh⟩
+    ⟨hconstants, hequations, hprojs⟩ hfresh hcompat⟩
 
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete

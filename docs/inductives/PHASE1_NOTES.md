@@ -97,6 +97,28 @@ rule field, `some j` = the argument at position `j` before the major), and is bo
 A binder that is not a rule field is read from its first literal occurrence among the arguments,
 as before. `SemSig.Coherent` and the statements of `Sound.lean` are unchanged.
 
+D10 (specification fix). `VEnv.WF'.inductEliminators` did not compare a new schema with the
+structures already registered by `inductProjections` over the same constants, so a schema could
+add constructors to a registered structure, and well-formed environments were inconsistent.
+Counterexample: register `structure Unit : Type` with constructor `Unit.mk`, add an axiom
+`other : Unit`, and register a schema (compiled in the empty base) for
+`inductive Unit : Type | mk | other`. The generic equations give `elim C a b Unit.mk ≡ a` and
+`elim C a b other ≡ b`, while `unitLike` gives `Unit.mk ≡ other`; with `C := fun _ => Type`,
+`a := Prop`, `b := Prop → Prop` this derives `Prop ≡ (Prop → Prop)`. The constructor now has the
+premise `schema.StructCompat env` (`Theory/Inductive/CaseFormation.lean`): every
+`env.projections s info` with `schema.originalFamilies[owner.val]? = some s` has
+`(schema.view owner).constructors.toList.map (·.name) = [info.ctorName]`. This is a correction,
+not a weakening of the specification: the old premises admit inconsistent environments, so no
+sound checker could refine them as intended, and the new premise holds at every actual producer.
+At `CheckingEnv.Valid.registerCases` and `Certified.register_after_constructors` it is proved
+(`CaseSchema.Certified.structCompat`): a structure of the same declaration has exactly that
+declaration's single constructor, and a structure of the base is not an original family, since
+those are fresh in the base. `registerCases` gained the hypothesis
+`entries = block.projections` (it has no callers); `addDecl.WF_of_canonicalEq` is unchanged.
+The global invariant `SchemaStructCompat env` holds in every well-formed environment
+(`VEnv.WF.schemaStructCompat`, `Theory/Typing/SchemaStructCompat.lean`), since every later
+projection names a constant that is fresh when it is registered.
+
 ## 2. The domain (ShapeModel/Domain.lean, ShapeModel/ShapeTyping.lean)
 
 Carneiro's depth-indexed finite shapes, with:

@@ -52,7 +52,7 @@ theorem NativeRegistryHistory.quotient
       have oldLookup := compilation.installEntries_previous installed registered.lift lookup
       rw [absent] at oldLookup
       cases oldLookup
-  | eliminators _ _ _ _ _ _ _ ih =>
+  | eliminators _ _ _ _ _ _ _ _ ih =>
     obtain ⟨registered, absent⟩ := ih member
     exact ⟨registered.mono VEnv.addEliminator_le, absent⟩
   | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
