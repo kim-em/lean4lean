@@ -1,0 +1,535 @@
+import Lean4Lean.Verify.Inductive.Nested.CompilationDataAssembly
+import Lean4Lean.Theory.Typing.CaseSourceSort
+import Lean4Lean.Theory.Typing.CaseMotiveCoherence
+import Lean4Lean.Theory.Typing.CaseReduction
+import Lean4Lean.Theory.Typing.Injectivity
+
+/-! The auxiliary-family header correspondence of a validated nested run.
+
+For every lowered auxiliary family, the normalized signature's index count,
+result level, header telescope and constructor names/universes agree with the
+direct specialization of its certified container.  The constructor-type
+restoration conjunct is taken as a hypothesis. -/
+
+namespace Lean4Lean
+
+open Lean hiding Environment Exception
+open Kernel
+open InductiveSignature
+
+namespace VerifyInductive
+
+/-! ### Syntactic specialization -/
+
+theorem VExpr.instantiateForallPrefix_wrapForalls :
+    ∀ (args pre : List VExpr) (body : VExpr), pre.length = args.length →
+      VExpr.instantiateForallPrefix (VExpr.wrapForalls pre body) args =
+        body.instOuter args
+  | [], [], _, _ => rfl
+  | [], _ :: _, _, h => by simp at h
+  | _ :: _, [], _, h => by simp at h
+  | a :: as, d :: ds, body, h => by
+    have hlen : ds.length = as.length := by simpa using h
+    change VExpr.instantiateForallPrefix
+      ((VExpr.wrapForalls ds body).inst a) as = _
+    rw [VExpr.wrapForalls_inst,
+      VExpr.instantiateForallPrefix_wrapForalls as _ _ (by simpa using hlen)]
+    simp [hlen]
+
+theorem specializeType_eq_instantiateForallPrefix {type specialized : VExpr}
+    {args : List VExpr} (H : specializeType type args = some specialized) :
+    specialized = VExpr.instantiateForallPrefix type args := by
+  unfold specializeType at H
+  cases htake : type.takeForalls args.length with
+  | none => simp [htake] at H
+  | some out =>
+    rcases out with ⟨pre, body⟩
+    simp only [htake, bind, Option.bind_some, pure, Option.some.injEq] at H
+    subst H
+    obtain ⟨rfl, hlen⟩ := VExpr.takeForalls_rebuild htake
+    rw [VExpr.instantiateForallPrefix_wrapForalls _ _ _ hlen,
+      VEnv.instantiateParams_eq_instOuter]
+
+theorem ContainerSpecialization.directFamily_fields
+    {a : ContainerSpecialization} {U : Nat} {params : List VExpr}
+    {direct : VInductiveType} (H : a.directFamily U params = some direct) :
+    direct.type = VExpr.wrapForalls params
+        (VExpr.instantiateForallPrefix (a.source.type.instL a.levels) a.arguments) ∧
+      direct.numIndices = a.source.numIndices ∧
+      direct.resultLevel = a.source.resultLevel.inst a.levels := by
+  unfold ContainerSpecialization.directFamily at H
+  simp only [bind, Option.bind_eq_some_iff] at H
+  obtain ⟨type, htype, ctors, _, he⟩ := H
+  cases Option.some.inj he
+  exact ⟨by rw [specializeType_eq_instantiateForallPrefix htype], rfl, rfl⟩
+
+
+/-! ### Installed containers -/
+
+private theorem install_base_le' {base installed : VEnv} {block : VInductBlock}
+    (H : VInductBlock.install base block = some installed) : base ≤ installed := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
+  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
+    VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+
+private theorem install_type_lookup' {base installed : VEnv} {block : VInductBlock}
+    {value : VConstVal}
+    (H : VInductBlock.install base block = some installed)
+    (hvalue : value ∈ block.types) :
+    installed.constants value.name = some value.toVConstant := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
+  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
+    (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants
+      (VEnv.addConstVals_get ht hvalue)
+
+/-- An installed container's families are present in the ambient environment,
+are well-formed headers at the container's universe arity, and carry the
+normalized type shape of their recorded index count and result level. -/
+theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.familyFacts {env : VEnv} {decl : VInductDecl}
+    (H : VEnv.InstalledInductCertificate env decl) :
+    ∃ params, ∀ type ∈ decl.types,
+      env.constants type.name = some type.toVConstant ∧
+      type.uvars = decl.uvars ∧
+      type.toVConstant.WF env ∧
+      decl.TypeShape env params type := by
+  cases H with
+  | @intro _ _ base block installed hsource hformation hcompile _ hinstall hle =>
+    have hbase : base ≤ env := (install_base_le' hinstall).trans hle
+    have hparams : ∃ base', base' ≤ env ∧ VInductDecl.SourceParameterWF base' decl := by
+      cases hformation with
+      | ordinary hwf => exact ⟨base, hbase, hwf.sourceParameterWF⟩
+      | nested hnested hle' =>
+        cases hnested with
+        | intro _ _ hparams _ _ _ _ => exact ⟨_, hle'.trans hbase, hparams⟩
+    obtain ⟨base', hbase', params, _, _, hshapes, _, _⟩ := hparams
+    obtain ⟨_, _, huvars, _, _, _, _, _, hheaders, _⟩ := hsource
+    refine ⟨params, fun type htype => ⟨?_, huvars type htype,
+      (hheaders type htype).mono hbase, typeShape_mono hbase' (hshapes type htype)⟩⟩
+    apply hle.constants
+    apply install_type_lookup' hinstall
+    rw [hcompile.compiled.source_type_constants]
+    exact List.mem_map.mpr ⟨type, htype, rfl⟩
+
+/-! ### Telescopes ending in sorts -/
+
+/-- Definitionally equal forall telescopes ending in sorts have the same
+length (forall/sort injectivity). -/
+theorem VEnv.IsDefEqU.wrapForalls_sort_length {env : VEnv} {U : Nat}
+    (henv : env.WF) :
+    ∀ {Γ ds₁ ds₂ : List VExpr} {u v : VLevel}, OnCtx Γ (env.IsType U) →
+      env.IsDefEqU U Γ (VExpr.wrapForalls ds₁ (.sort u))
+        (VExpr.wrapForalls ds₂ (.sort v)) →
+      ds₁.length = ds₂.length
+  | _, [], [], _, _, _, _ => rfl
+  | _, [], _ :: _, _, _, hΓ, H =>
+    False.elim (Lean4Lean.VEnv.IsDefEqU.sort_forallE_inv henv hΓ H)
+  | _, _ :: _, [], _, _, hΓ, H =>
+    False.elim (Lean4Lean.VEnv.IsDefEqU.sort_forallE_inv henv hΓ H.symm)
+  | Γ, d :: ds, _ :: ds', _, _, hΓ, H => by
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := Lean4Lean.VEnv.IsDefEqU.forallE_inv henv hΓ H
+    have hctx : OnCtx (d :: Γ) (env.IsType U) := ⟨hΓ, _, hd.hasType.1⟩
+    simpa using VEnv.IsDefEqU.wrapForalls_sort_length henv hctx ⟨_, hb⟩
+
+/-- Applying a head whose type is a telescope ending in a sort to some
+arguments, at a type which is again a telescope ending in a sort, consumes
+exactly the difference of the two telescopes and preserves the sort level. -/
+theorem VEnv.HasType.mkApps_sort_telescope {env : VEnv} {U : Nat} (henv : env.WF)
+    {Γ : List VExpr} (hΓ : OnCtx Γ (env.IsType U))
+    {E : List VExpr} {v : VLevel} :
+    ∀ {f : VExpr} {D args : List VExpr} {u : VLevel},
+      env.HasType U Γ f (VExpr.wrapForalls D (.sort u)) →
+      env.HasType U Γ (VExpr.mkApps f args) (VExpr.wrapForalls E (.sort v)) →
+      args.length + E.length = D.length ∧ u ≈ v
+  | f, D, [], u, hf, ht => by
+    have hdef := hf.uniqU henv hΓ ht
+    exact ⟨by simpa using (VEnv.IsDefEqU.wrapForalls_sort_length henv hΓ hdef).symm,
+      Lean4Lean.VEnv.IsDefEqU.wrapForalls_sort_level henv hΓ hdef⟩
+  | f, D, arg :: args, u, hf, ht => by
+    have hfa : VExpr.WF env U Γ (.app f arg) :=
+      VExpr.WF.of_mkApps henv.ordered hΓ (f := .app f arg) ⟨_, ht⟩
+    rcases hfa.app_inv henv.ordered hΓ with ⟨A, B, hfun, harg⟩
+    cases D with
+    | nil =>
+      exact (Lean4Lean.VEnv.IsDefEqU.sort_forallE_inv henv hΓ
+        (hf.uniqU henv hΓ hfun)).elim
+    | cons domain domains =>
+      rcases Lean4Lean.VEnv.IsDefEqU.forallE_inv henv hΓ (hf.uniqU henv hΓ hfun) with
+        ⟨⟨_, hd⟩, _⟩
+      have ha := harg.defeqU_r henv hΓ ⟨_, hd.symm⟩
+      have hfa' := hf.app ha
+      change env.HasType U Γ (.app f arg)
+        ((VExpr.wrapForalls domains (.sort u)).inst arg) at hfa'
+      rw [VExpr.wrapForalls_inst] at hfa'
+      have hrest := VEnv.HasType.mkApps_sort_telescope henv hΓ hfa' ht
+      refine ⟨?_, hrest.2⟩
+      have h1 := hrest.1
+      simp only [VExpr.instDomains_length] at h1
+      simp only [List.length_cons]
+      omega
+
+/-! ### One auxiliary family -/
+
+/-- Header data of one auxiliary family: the normalized family `n`, modelled
+on the lowered family `t`, which expands the generated family `g`, which is
+the specialization `a` whose direct family is `d`. -/
+theorem auxiliaryFamily_header
+    {base envTypes : VEnv} {paramCtx params headerParams : List VExpr}
+    {decl lowered : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    {a : ContainerSpecialization} {g t n d : VInductiveType}
+    (henv : envTypes.WF) (hle : base ≤ envTypes)
+    (hev : AuxiliarySpecializationEvidence base envTypes paramCtx decl a g)
+    (hexp : VInductDecl.NestedTypeExpansion base decl leaf g t)
+    (hshape : lowered.TypeShape base headerParams t)
+    (huvars : lowered.uvars = decl.uvars) (hnparams : lowered.nparams = decl.nparams)
+    (hparams : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse paramCtx)
+    (hd : a.directFamily decl.uvars params = some d)
+    (hni : n.numIndices = t.numIndices) (hrl : n.resultLevel ≈ t.resultLevel) :
+    n.numIndices = d.numIndices ∧ n.resultLevel ≈ d.resultLevel ∧
+    (∃ domains body level exprType, level ≈ n.resultLevel ∧
+      envTypes.IsDefEq decl.uvars [] d.type
+        (VExpr.wrapForalls domains body) exprType ∧
+      envTypes.IsDefEq decl.uvars domains.reverse body (.sort level)
+        (.sort (.succ level))) := by
+  obtain ⟨hdType, hdIndices, hdLevel⟩ :=
+    ContainerSpecialization.directFamily_fields hd
+  obtain ⟨sp, hspLen, hspCtx, hspWF, htyping, hgType, _⟩ := hev.application
+  generalize hR : VExpr.instantiateForallPrefix (a.source.type.instL a.levels)
+    a.arguments = R at htyping hgType hdType
+  have hRtype : envTypes.IsType decl.uvars sp.reverse R :=
+    htyping.isType henv.ordered hspWF
+  -- the lowered family's normalized header
+  rcases hshape with ⟨Nt, own, after, idx, res, exprT, hN, htake₁, htake₂, _, hres⟩
+  obtain ⟨rfl, hownLen⟩ := VExpr.takeForalls_rebuild htake₁
+  obtain ⟨rfl, hidxLen⟩ := VExpr.takeForalls_rebuild htake₂
+  rw [huvars] at hN hres
+  replace hN := hN.mono hle
+  replace hres := hres.mono hle
+  have hspOwn : sp.length = own.length := by rw [hspLen, hownLen, hnparams]
+  have hT : envTypes.IsDefEqU decl.uvars [] (VExpr.wrapForalls sp R)
+      (VExpr.wrapForalls (own ++ idx) res) := by
+    rw [VExpr.wrapForalls_append]
+    exact (hgType.symm.trans henv trivial
+      ((hexp.type.mono hle).trans henv trivial ⟨_, hN⟩))
+  have hspWF' : OnCtx (sp.reverse ++ []) (envTypes.IsType decl.uvars) := by
+    simpa using hspWF
+  have hTtype : envTypes.IsType decl.uvars [] (VExpr.wrapForalls sp R) :=
+    VEnv.IsType.wrapForalls hspWF' (by simpa using hRtype)
+  have hres' : envTypes.IsDefEq decl.uvars (own ++ idx).reverse res
+      (.sort t.resultLevel) (.sort (.succ t.resultLevel)) := by
+    simpa [List.reverse_append] using hres
+  obtain ⟨_, hT'⟩ := hT
+  have hTsort := Lean4Lean.VEnv.IsDefEq.close_sort_header henv hTtype hT' hres'
+  rw [VExpr.wrapForalls_append] at hTsort
+  have hRsort : envTypes.IsDefEqU decl.uvars sp.reverse R
+      (VExpr.wrapForalls idx (.sort t.resultLevel)) := by
+    simpa using VEnv.IsDefEqU.wrapForalls_residual henv (ctx := []) trivial hspOwn hTsort
+  -- the container's normalized header, specialised
+  obtain ⟨cparams, hcfacts⟩ := hev.installed.familyFacts
+  have hsrcMem : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
+  obtain ⟨hconst, hcuvars, hcWF, hcshape⟩ := hcfacts a.source hsrcMem
+  rcases hcshape with ⟨Nc, ownc, afterc, idxc, resc, exprC, hNc, htakec₁, htakec₂, _, hresc⟩
+  obtain ⟨rfl, hownc⟩ := VExpr.takeForalls_rebuild htakec₁
+  obtain ⟨rfl, hidxc⟩ := VExpr.takeForalls_rebuild htakec₂
+  have hcWF' : envTypes.IsType a.container.uvars [] a.source.type := by
+    have h := hcWF.mono hle
+    change envTypes.IsType a.source.uvars [] a.source.type at h
+    rwa [hcuvars] at h
+  have hresc' : envTypes.IsDefEq a.container.uvars (ownc ++ idxc).reverse resc
+      (.sort a.source.resultLevel) (.sort (.succ a.source.resultLevel)) := by
+    simpa [List.reverse_append] using hresc.mono hle
+  have hNc' : envTypes.IsDefEq a.container.uvars [] a.source.type
+      (VExpr.wrapForalls (ownc ++ idxc) resc) exprC := by
+    rw [VExpr.wrapForalls_append]; exact hNc.mono hle
+  have hcsort := Lean4Lean.VEnv.IsDefEq.close_sort_header henv hcWF' hNc' hresc'
+  have hconstType : envTypes.HasType decl.uvars sp.reverse
+      (.const a.source.name a.levels)
+      (VExpr.wrapForalls ((ownc ++ idxc).map (·.instL a.levels))
+        (.sort (a.source.resultLevel.inst a.levels))) := by
+    have hc := Lean4Lean.VEnv.HasType.const (Γ := sp.reverse) (hle.constants hconst)
+      hev.levelsWF (by rw [hev.levelsLength]; exact hcuvars.symm)
+    have he := (hcsort.instL hev.levelsWF).weak0 henv.ordered (Γ := sp.reverse)
+    simpa only [VExpr.instL_wrapForalls, VExpr.instL] using hc.defeqU_r henv hspWF he
+  have happ := htyping.defeqU_r henv hspWF hRsort
+  obtain ⟨hlen, hlevel⟩ := VEnv.HasType.mkApps_sort_telescope henv hspWF hconstType happ
+  simp only [List.length_map, List.length_append] at hlen
+  have hidxEq : t.numIndices = a.source.numIndices := by
+    rw [← hidxLen, ← hidxc]
+    rw [hev.argumentsLength, ← hownc] at hlen
+    omega
+  refine ⟨by rw [hni, hidxEq, hdIndices], ?_, ?_⟩
+  · rw [hdLevel]; exact hrl.trans hlevel.symm
+  · have hctx : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse sp.reverse :=
+      VEnv.IsDefEqCtx.transEmpty henv hparams (hspCtx.symm henv.ordered)
+    obtain ⟨w, hw⟩ := hRtype
+    have hclose := VEnv.IsDefEqCtx.closeWrapForalls [] params.reverse sp.reverse
+      (by simpa using hctx)
+      (by rw [List.append_nil]; exact hw.defeqDFC henv.ordered (hctx.symm henv.ordered))
+    simp only [List.reverse_reverse] at hclose
+    have hfull : envTypes.IsDefEqU decl.uvars [] d.type
+        (VExpr.wrapForalls (own ++ idx) res) := by
+      rw [hdType]
+      exact hclose.trans henv trivial ⟨_, hT'⟩
+    obtain ⟨A, hA⟩ := hfull
+    exact ⟨own ++ idx, res, t.resultLevel, A, hrl.symm, hA, hres'⟩
+
+/-! ### The auxiliary suffix -/
+
+private theorem forall₂_drop' {R : α → β → Prop} :
+    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
+      List.Forall₂ R (l.drop k) (r.drop k)
+  | _, _, .nil, _ => by simp
+  | _, _, .cons h t, 0 => by simpa using List.Forall₂.cons h t
+  | _, _, .cons _ t, k + 1 => by
+    simp only [List.drop_succ_cons]
+    exact forall₂_drop' t k
+
+private theorem forall₂_of_map_eq' {f : α → γ} {g : β → γ} :
+    ∀ {l : List α} {r : List β}, l.map f = r.map g →
+      List.Forall₂ (fun a b => f a = g b) l r
+  | [], [], _ => .nil
+  | [], _ :: _, h => by simp at h
+  | _ :: _, [], h => by simp at h
+  | _ :: _, _ :: _, h => by
+    simp only [List.map_cons, List.cons.injEq] at h
+    exact .cons h.1 (forall₂_of_map_eq' h.2)
+
+private theorem nestedConstructorExpansions_names'
+    {leaf : Nat → VExpr → VExpr → Prop} {nparams : Nat}
+    {sourceCtors targetCtors : List VConstVal}
+    (H : List.Forall₂ (VInductDecl.NestedConstructorExpansion leaf nparams)
+      sourceCtors targetCtors) :
+    targetCtors.map (·.name) = sourceCtors.map (·.name) := by
+  induction H with
+  | nil => rfl
+  | cons hhead _ ih => simp only [List.map_cons, ih, hhead.name]
+
+/-- The `auxiliaryFamilies` relation of `NestedCompilationPending`, for any
+specialization list with exact lowering evidence, given the restoration of the
+auxiliary constructor types. -/
+theorem auxiliaryFamilies_of_evidence
+    {base envTypes : VEnv} {paramCtx params headerParams : List VExpr}
+    {decl lowered : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    {r : Restoration} {auxiliaries : List ContainerSpecialization}
+    {generated targets normalized direct : List VInductiveType}
+    (henv : envTypes.WF) (hle : base ≤ envTypes)
+    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence base envTypes paramCtx decl)
+      auxiliaries generated)
+    (Hexp : List.Forall₂ (VInductDecl.NestedTypeExpansion base decl leaf)
+      generated targets)
+    (HM : List.Forall₂ (fun n t : VInductiveType =>
+        n.numIndices = t.numIndices ∧ n.resultLevel ≈ t.resultLevel ∧
+        n.ctors.map VConstVal.name = t.ctors.map VConstVal.name)
+      normalized targets)
+    (Hshape : ∀ t ∈ targets, lowered.TypeShape base headerParams t)
+    (huvars : lowered.uvars = decl.uvars) (hnparams : lowered.nparams = decl.nparams)
+    (hparams : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse paramCtx)
+    (hctorUvars : ∀ n ∈ normalized, ∀ c ∈ n.ctors, c.uvars = decl.uvars)
+    (hmapM : auxiliaries.mapM (fun a => a.directFamily decl.uvars params) = some direct)
+    (Hrestores : List.Forall₂ (fun normalized family : VInductiveType =>
+        List.Forall₂ (fun normalized ctor : VConstVal =>
+          RestoresType r envTypes decl.uvars normalized.type ctor.type)
+          normalized.ctors family.ctors)
+      normalized direct) :
+    List.Forall₂ (fun normalized family : VInductiveType =>
+        normalized.numIndices = family.numIndices ∧
+        normalized.resultLevel ≈ family.resultLevel ∧
+        (∃ domains body level exprType, level ≈ normalized.resultLevel ∧
+          envTypes.IsDefEq decl.uvars [] family.type
+            (VExpr.wrapForalls domains body) exprType ∧
+          envTypes.IsDefEq decl.uvars domains.reverse body (.sort level)
+            (.sort (.succ level))) ∧
+        List.Forall₂ (fun normalized ctor : VConstVal =>
+          normalized.name = ctor.name ∧ normalized.uvars = ctor.uvars ∧
+          RestoresType r envTypes decl.uvars normalized.type ctor.type)
+          normalized.ctors family.ctors)
+      normalized direct := by
+  induction Haux generalizing targets normalized direct with
+  | nil =>
+    cases Hexp
+    cases HM
+    simp only [List.mapM_nil, pure, Option.some.injEq] at hmapM
+    subst hmapM
+    exact .nil
+  | @cons a g auxs gens hev _ ih =>
+    cases Hexp with
+    | @cons _ t _ ts hexp hexps =>
+    cases HM with
+    | @cons n _ ns _ hM hMs =>
+    simp only [List.mapM_cons, bind, Option.bind_eq_some_iff, pure,
+      Option.some.injEq] at hmapM
+    obtain ⟨d, hd, ds, hds, rfl⟩ := hmapM
+    cases Hrestores with
+    | cons hR hRs =>
+    refine .cons ?_ (ih hexps hMs (fun t ht => Hshape t (List.mem_cons_of_mem _ ht))
+      (fun n hn => hctorUvars n (List.mem_cons_of_mem _ hn)) hds hRs)
+    obtain ⟨h1, h2, h3⟩ := auxiliaryFamily_header henv hle hev hexp
+      (Hshape t List.mem_cons_self) huvars hnparams hparams hd hM.1 hM.2.1
+    refine ⟨h1, h2, h3, ?_⟩
+    obtain ⟨d', hd', hshape⟩ := a.directFamily_isSome decl.uvars params
+      hev.familyForallPrefix (fun _ h => hev.ctorForallPrefix h)
+    rw [hd] at hd'
+    cases hd'
+    have hnames : n.ctors.map VConstVal.name = d.ctors.map VConstVal.name := by
+      rw [hM.2.2, nestedConstructorExpansions_names' hexp.constructors,
+        hev.generatedCtorNames, hshape.ctorNames]
+    refine Lean4Lean.List.Forall₂.imp ?_ (Lean4Lean.List.Forall₂.and_mem
+      (Lean4Lean.List.Forall₂.and (forall₂_of_map_eq' hnames) hR))
+    rintro nc c ⟨⟨hname, hRT⟩, hnc, hc⟩
+    exact ⟨hname, (hctorUvars n List.mem_cons_self nc hnc).trans
+      (hshape.ctorUvars c hc).symm, hRT⟩
+
+private theorem familyNames_drop_sublist' (types : List VInductiveType) (n : Nat) :
+    (familyNames (types.drop n)).Sublist (familyNames types) := by
+  induction n generalizing types with
+  | zero => simp
+  | succ n ih =>
+    cases types with
+    | nil => simp
+    | cons t ts =>
+      simp only [List.drop_succ_cons, familyNames, List.flatMap_cons]
+      exact (ih ts).trans (List.sublist_append_right _ _)
+
+/-- The facts of `containerSpecializationFacts`, together with the
+`auxiliaryFamilies` field of `NestedCompilationPending` for the same
+specializations, modulo the restoration of the auxiliary constructor types. -/
+theorem NestedValidatedRunResult.auxiliaryFamilies_of
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
+      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+        sourceDecl.typeConstants = some envTypes ∧
+      envTypes.WF ∧
+      auxiliaries.map (·.auxiliary) =
+        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
+          (·.name) ∧
+      auxiliaries.flatMap (·.headNames) =
+        familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+      CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
+        auxiliaries ∧
+      (∀ params : List VExpr,
+        VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
+          E.production.headers.commonParameterContext →
+        ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
+      VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
+        (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+        E.production.headers.commonParameterContext ∧
+      (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
+        E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
+      (compilationRestoration sourceDecl auxiliaries).Scoped ∧
+      (∀ (U : Nat) (params : List VExpr), ∃ direct,
+        auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
+        List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
+      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
+        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
+          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
+            (a.constructorName ctor)) ∧
+      (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
+        ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
+          name) ∧
+      ((∀ envTypes direct,
+        (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+          sourceDecl.typeConstants = some envTypes →
+        auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars
+          E.production.compilationSignature.params) = some direct →
+        List.Forall₂ (fun normalized family : VInductiveType =>
+            List.Forall₂ (fun normalized ctor : VConstVal =>
+              RestoresType (compilationRestoration sourceDecl auxiliaries) envTypes
+                sourceDecl.uvars normalized.type ctor.type)
+              normalized.ctors family.ctors)
+          (E.production.compilationSignature.declaration.types.drop
+            sourceDecl.types.length) direct) →
+       ∀ envTypes direct,
+        (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+          sourceDecl.typeConstants = some envTypes →
+        auxiliaries.mapM (fun a => a.directFamily sourceDecl.uvars
+          E.production.compilationSignature.params) = some direct →
+        List.Forall₂ (fun normalized family : VInductiveType =>
+            normalized.numIndices = family.numIndices ∧
+            normalized.resultLevel ≈ family.resultLevel ∧
+            (∃ domains body level exprType, level ≈ normalized.resultLevel ∧
+              envTypes.IsDefEq sourceDecl.uvars [] family.type
+                (VExpr.wrapForalls domains body) exprType ∧
+              envTypes.IsDefEq sourceDecl.uvars domains.reverse body (.sort level)
+                (.sort (.succ level))) ∧
+            List.Forall₂ (fun normalized ctor : VConstVal =>
+              normalized.name = ctor.name ∧ normalized.uvars = ctor.uvars ∧
+              RestoresType (compilationRestoration sourceDecl auxiliaries) envTypes
+                sourceDecl.uvars normalized.type ctor.type)
+              normalized.ctors family.ctors)
+          (E.production.compilationSignature.declaration.types.drop
+            sourceDecl.types.length) direct) := by
+  rcases E.containerSpecializations wf Hsources with
+    ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
+      hnodup, hctorNames, hrecursors⟩
+  have hsuffixNodup :
+      (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ++
+        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
+          (fun t => t.name.str "rec")).Nodup :=
+    hnodup.sublist ((familyNames_drop_sublist' _ _).append
+      ((List.drop_sublist _ _).map _))
+  have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
+      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      E.production.headers.commonParameterContext := by
+    rw [List.reverse_reverse,
+      ConstructorPhasesResult.completed_parameterScope_toCtx]
+    exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
+      (E.commonParameterContext_refl wf)
+  refine ⟨envTypes, auxiliaries, hadded, henvTypes,
+    auxiliarySpecializations_names Haux Hexpansion,
+    auxiliarySpecializations_headNames Haux Hexpansion,
+    auxiliarySpecializations_certified Haux,
+    fun params hparams => auxiliarySpecializations_wellFormed Haux henvTypes params hparams,
+    hlink, auxiliarySpecializations_wellFormed Haux henvTypes _ hlink,
+    auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup,
+    fun U params => auxiliarySpecializations_directFamilies Haux U params,
+    hctorNames, hrecursors, ?_⟩
+  intro Hrestores envTypes' direct htypes' hmapM
+  have henvEq : envTypes' = envTypes := Option.some.inj (htypes'.symm.trans hadded)
+  subst envTypes'
+  have hinit : E.production.initialEnv =
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+  have Hmodels : E.production.compilationSignature.Models
+      (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
+    have h := E.production.loweredConstruction.consumedGeneration.models
+    change E.production.compilationSignature.Models E.production.initialEnv
+      E.production.loweredDecl at h
+    rwa [hinit] at h
+  have hsourceUvars : sourceDecl.uvars = E.production.c.lparams.length := by
+    have h := E.nativeSource.core.uvars
+    rw [E.nativeSourceDecl_eq] at h
+    rw [h, E.production_c, E.productionContext_lparams]
+  have hloweredUvars : E.production.loweredDecl.uvars = sourceDecl.uvars :=
+    E.production.constructors.core.uvars.trans hsourceUvars.symm
+  have hloweredNparams : E.production.loweredDecl.nparams = sourceDecl.nparams := by
+    have h := E.nativeSource.core.nparams
+    rw [E.nativeSourceDecl_eq] at h
+    rw [h, E.production.constructors.core.nparams, E.production_nparams]
+  have hparams : E.production.compilationSignature.params =
+      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+    E.production.loweredConstruction.consumedGeneration.params
+  refine auxiliaryFamilies_of_evidence (base := ves.venv (if isUnsafe then .unsafe else .safe))
+    (headerParams := E.production.headers.headers.params)
+    henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars
+    hloweredNparams (hparams ▸ hlink) ?_ hmapM (Hrestores envTypes direct htypes' hmapM)
+  · exact Lean4Lean.List.Forall₂.imp (fun _ _ h => ⟨h.2.2.1, h.2.2.2.1, h.2.2.2.2⟩)
+      (forall₂_drop' Hmodels.families sourceDecl.types.length)
+  · intro t ht
+    have h := E.production.headers.headers.typeShapes t (List.mem_of_mem_drop ht)
+    generalize E.production.headers.headers.params = hp at h ⊢
+    rwa [hinit] at h
+  · intro n hn c hc
+    rw [E.production.compilationSignature.declaration_ctor_uvars n
+      (List.mem_of_mem_drop hn) c hc, Hmodels.uvars, hloweredUvars]
+
+end VerifyInductive
+end Lean4Lean
