@@ -3592,6 +3592,44 @@ theorem MatchedCaseStep.transport (hΓ : OnCtx Γ (env.IsType univs))
   · rw [hlv]; exact Lean4Lean.List.Forall₂.trans (fun _ _ _ h h' => h.trans h') hcl H.ctorLevels_eq
   · rw [hlv]
     exact (he.symm.trans henv hΓ H.guard).trans henv hΓ (H.source.lhs_congr henv hΓ hlen hargs)
+omit [Params] in
+theorem mkApps_elim_eq_cases (he : VExpr.mkApps (.elim n o ls) vs = e) :
+    (vs = [] ∧ e = .elim n o ls) ∨
+      ∃ vs₀ x, vs = vs₀ ++ [x] ∧ e = .app (VExpr.mkApps (.elim n o ls) vs₀) x := by
+  rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
+  · exact .inl ⟨rfl, he.symm⟩
+  · exact .inr ⟨vs₀, x, rfl, by rw [← he, mkApps_snoc]⟩
+
+/-- Collapse eta expansions inside an eliminator spine in function position. -/
+theorem EtaPar.collapse_elim (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EtaPar Γ (VExpr.mkApps (.elim h o ls) vs) F)
+    (ht : Γ ⊢ VExpr.mkApps (.elim h o ls) vs : .forallE X Y) :
+    ∃ vs', List.Forall₂ (EtaPar Γ) vs vs' ∧
+      ∀ y, ReflTransGen (ParRed Γ) (.app F y) (.app (VExpr.mkApps (.elim h o ls) vs') y) := by
+  generalize hsrc : VExpr.mkApps (.elim h o ls) vs = src at H ht
+  induction H generalizing vs X Y with
+  | @app _ f f' x x' hf hx ih₁ _ =>
+    rcases mkApps_elim_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he
+    · cases he
+      obtain ⟨_, _, tf, _⟩ := ht.app_inv henv hΓ
+      obtain ⟨vs₀', h₀, hy⟩ := ih₁ hΓ rfl tf
+      refine ⟨vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), fun y => ?_⟩
+      rw [mkApps_snoc]
+      exact ParRedS.app (hy x') .rfl
+  | funEta H₀ HA hty ih =>
+    subst hsrc
+    obtain ⟨vs', h', hy⟩ := ih hΓ rfl ht
+    exact ⟨vs', h', fun y => ReflTransGen.trans (.tail .rfl (ParRed.eta_beta _)) (hy y)⟩
+  | structEta H₀ _ _ hl _ _ hs _ =>
+    subst hsrc
+    exact (pi_not_struct hΓ hl ht hs).elim
+  | elim =>
+    rcases mkApps_elim_eq_cases hsrc with ⟨rfl, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he; exact ⟨[], .nil, fun _ => .rfl⟩
+    · cases he
+  | bvar | sort | const | proj | lam | forallE =>
+    rcases mkApps_elim_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
 end EtaTools
 
 
