@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.Formation
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 
 /-! Source-universe normalization of checked positive constructor fields.
 The output retains the exact recursive-head universe spine. Uniformity of that

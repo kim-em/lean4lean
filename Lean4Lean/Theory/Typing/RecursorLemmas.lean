@@ -423,6 +423,43 @@ structure VConstructorShape (env : VEnv) (ctorName : Name)
   doms_length : doms.length = nparams + nfields
   indices_length : indices.length = nindices
 
+/-- A typed application whose head has a syntactic telescope ending in a type headed by a
+rigid constant has supplied exactly that telescope when the application itself has a type
+headed by the same rigid constant. This is `HasType.mkApps_sort_arity` with the rigid-head
+against Pi separation `IsDefEqU.rigidApp_forallE_inv` in place of `sort_forallE_inv`. -/
+theorem VEnv.HasType.mkApps_rigid_arity (henv : VEnv.WF env)
+    {Γ : List VExpr} (hΓ : OnCtx Γ (env.IsType U)) (hrigid : env.Rigid c)
+    {f : VExpr} {domains args xs familyArgs : List VExpr} {ls levels : List VLevel}
+    (hf : env.HasType U Γ f (VExpr.wrapForalls domains (VExpr.mkApps (.const c ls) xs)))
+    (ht : env.HasType U Γ (VExpr.mkApps f args) (VExpr.mkApps (.const c levels) familyArgs)) :
+    args.length = domains.length := by
+  induction args generalizing f domains xs with
+  | nil =>
+    cases domains with
+    | nil => rfl
+    | cons domain domains =>
+      have ⟨_, hT⟩ := ht.isType henv.ordered hΓ
+      exact (VEnv.IsDefEqU.rigidApp_forallE_inv henv hΓ hrigid hT
+        (hf.uniqU henv hΓ ht).symm).elim
+  | cons arg args ih =>
+    have hfa : VExpr.WF env U Γ (.app f arg) :=
+      VExpr.WF.of_mkApps henv.ordered hΓ (f := .app f arg) ⟨_, ht⟩
+    rcases hfa.app_inv henv.ordered hΓ with ⟨A, B, hfun, harg⟩
+    cases domains with
+    | nil =>
+      have ⟨_, hT⟩ := hf.isType henv.ordered hΓ
+      exact (VEnv.IsDefEqU.rigidApp_forallE_inv henv hΓ hrigid hT
+        (hf.uniqU henv hΓ hfun)).elim
+    | cons domain domains =>
+      rcases (hf.uniqU henv hΓ hfun).forallE_inv henv hΓ with ⟨⟨_, hd⟩, _⟩
+      have ha := harg.defeqU_r henv hΓ ⟨_, hd.symm⟩
+      have hfa' := hf.app ha
+      change env.HasType U Γ (.app f arg)
+        ((VExpr.wrapForalls domains (VExpr.mkApps (.const c ls) xs)).inst arg) at hfa'
+      rw [VExpr.wrapForalls_inst, VExpr.inst_mkApps] at hfa'
+      have hlen := ih hfa' ht
+      simpa [VExpr.instDomains] using hlen
+
 /-- A constructor whose application has its inductive family as type is fully
 applied. This is a typing inversion obligation, not a runtime arity check.
 In particular, the parameter count here belongs to the constructor, not to a
@@ -434,7 +471,13 @@ theorem VConstructorShape.saturated_of_hasType (henv : VEnv.WF env)
     (ht : env.HasType U Γ (VExpr.mkApps (.const ctorName cls) args)
       (VExpr.mkApps (.const indName levels) familyArgs)) :
     args.length = nparams + nfields := by
-  sorry
+  have hhead : VExpr.WF env U Γ (.const ctorName cls) :=
+    VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
+  obtain ⟨ci, hci, hcls, hlen⟩ := hhead.const_inv henv.ordered hΓ
+  cases H.const.symm.trans hci
+  have hc := VEnv.HasType.const (Γ := Γ) H.const hcls hlen
+  rw [H.type_eq, VExpr.instL_wrapForalls, VExpr.instL_mkApps] at hc
+  simpa [H.doms_length] using VEnv.HasType.mkApps_rigid_arity henv hΓ hrigid hc ht
 
 /-- A stored iota pattern with explicit constructor-parameter specialization.
 The recursor and its rules share `ctorParams`; these expressions are lifted

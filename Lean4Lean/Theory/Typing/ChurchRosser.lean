@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.LevelEquiv
 import Lean4Lean.Theory.Typing.Pattern
 import Lean4Lean.Theory.Typing.Strong
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.NativeOrigin
 import Lean4Lean.Theory.Typing.NativeConstructorRigidity
