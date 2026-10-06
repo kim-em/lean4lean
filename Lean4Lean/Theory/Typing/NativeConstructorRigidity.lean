@@ -63,18 +63,177 @@ private theorem VDefEq.HasConstructorMajor.unique {df : VDefEq}
   simp only [VExpr.getAppFnArgs_mkApps_head] at hh
   exact (VExpr.const.inj hh).1
 
+/-- The codomain of a syntactic forall telescope. -/
+def VExpr.forallResult : VExpr → VExpr
+  | .forallE _ body => body.forallResult
+  | e => e
+
+theorem VExpr.forallResult_wrapForalls (doms : List VExpr) (body : VExpr) :
+    (VExpr.wrapForalls doms body).forallResult = body.forallResult := by
+  induction doms with
+  | nil => rfl
+  | cons d ds ih => exact ih
+
+theorem VExpr.forallResult_of_head {e : VExpr} (h : e.getAppFnArgs.1 = .const c ls) :
+    e.forallResult = e := by
+  cases e with
+  | forallE => simp [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] at h
+  | _ => rfl
+
+/-- Every source constructor of a compiled declaration returns an application
+of one of the declaration's own families. -/
+theorem CompiledInductive.ctor_result (H : CompiledInductive env source block) :
+    ∀ type ∈ source.types, ∀ ctor ∈ type.ctors, ∃ ls,
+      ctor.type.forallResult.getAppFnArgs.1 = .const type.name ls := by
+  exact CompiledInductive.rec
+    (motive_1 := fun _ source _ _ => ∀ type ∈ source.types, ∀ ctor ∈ type.ctors,
+      ∃ ls, ctor.type.forallResult.getAppFnArgs.1 = .const type.name ls)
+    (motive_2 := fun _ _ _ => True)
+    (fun hdata _ _ type htype ctor hc => by
+      obtain ⟨_, _, _, _, _, hraw⟩ := hdata.sourceParameters
+      obtain ⟨doms, result, heq, _, _, hhead⟩ := hraw type htype ctor hc
+      have h2 := hhead
+      rw [← VExpr.forallResult_of_head hhead, ← VExpr.forallResult_wrapForalls doms, ← heq] at h2
+      exact ⟨_, h2⟩)
+    (fun _ _ _ ih => ih) trivial (fun _ _ _ _ _ _ _ => trivial) H
+
+theorem CompiledInductive.types_eq (H : CompiledInductive env source block) :
+    block.types = source.typeConstants := by
+  exact CompiledInductive.rec
+    (motive_1 := fun _ source block _ => block.types = source.typeConstants)
+    (motive_2 := fun _ _ _ => True)
+    (fun hdata _ _ => hdata.types) (fun _ _ _ ih => ih)
+    trivial (fun _ _ _ _ _ _ _ => trivial) H
+
+theorem CompiledInductive.ctors_eq (H : CompiledInductive env source block) :
+    block.ctors = source.constructorConstants := by
+  exact CompiledInductive.rec
+    (motive_1 := fun _ source block _ => block.ctors = source.constructorConstants)
+    (motive_2 := fun _ _ _ => True)
+    (fun hdata _ _ => hdata.ctors) (fun _ _ _ ih => ih)
+    trivial (fun _ _ _ _ _ _ _ => trivial) H
+
+theorem VInductBlock.install_ctor_lookup (H : VInductBlock.install base block = some installed)
+    (hvalue : value ∈ block.ctors) : installed.constants value.name = some value.toVConstant := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
+  exact (VEnv.addProjections_le.trans <|
+    (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants (VEnv.addConstVals_get hc hvalue)
+
+/-- Constructors of certified containers are installed with their exact
+declared types, which return applications of their own container family. -/
+theorem CertifiedSpecializations.container_ctor (H : CertifiedSpecializations env auxiliaries) :
+    ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
+      env.constants ctor.name = some ctor.toVConstant ∧
+      ∃ ls, ctor.type.forallResult.getAppFnArgs.1 = .const a.source.name ls := by
+  exact CertifiedSpecializations.rec
+    (motive_1 := fun _ _ _ _ => True)
+    (motive_2 := fun env auxiliaries _ => ∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
+      env.constants ctor.name = some ctor.toVConstant ∧
+      ∃ ls, ctor.type.forallResult.getAppFnArgs.1 = .const a.source.name ls)
+    (fun _ _ _ => trivial) (fun _ _ _ _ => trivial) (by simp)
+    (fun hcompile _ hinstall hle _ _ ih => by
+      intro a ha ctor hctor
+      rcases List.mem_cons.mp ha with rfl | ha
+      · have hsrc : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
+        have hc : ctor ∈ a.container.constructorConstants :=
+          List.mem_flatMap.mpr ⟨a.source, hsrc, hctor⟩
+        refine ⟨hle.constants (VInductBlock.install_ctor_lookup hinstall ?_),
+          hcompile.ctor_result a.source hsrc ctor hctor⟩
+        rw [hcompile.ctors_eq]; exact hc
+      · exact ih a ha ctor hctor)
+    H
+
+/-- The family head selected by a generated case rule is either an original
+family or the family of a certified container constructor whose native
+equation is already installed in the base environment. -/
+theorem InductiveSignature.CaseSchema.Certified.family_head_origin
+    {schema : InductiveSignature.CaseSchema}
+    {owner : Fin schema.signature.families.size} {rule : InductiveSignature.CaseSchema.AppliedRule}
+    (H : schema.Certified base source sourceBlock) (hgen : schema.Generates key owner rule) :
+    schema.restoration.headName schema.signature.families[owner].name ∈ schema.originalFamilies ∨
+    ∃ (ctor : VConstVal) (equation : VDefEq), base.defeqs equation ∧
+      equation.HasConstructorMajor ctor.name ∧
+      base.constants ctor.name = some ctor.toVConstant ∧
+      ∃ ls, ctor.type.forallResult.getAppFnArgs.1 =
+        .const (schema.restoration.headName schema.signature.families[owner].name) ls := by
+  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hr, hnames⟩ := H
+  obtain ⟨rules, hrules, hmem, _⟩ := hgen
+  obtain ⟨index, _⟩ := equation_origin hrules hmem
+  obtain ⟨ctor, hctor, hown, _⟩ := view_constructor_origin index
+  obtain ⟨position, hposition, hget⟩ := List.mem_iff_getElem.mp hctor
+  let original : Fin schema.signature.constructors.size := ⟨position, by simpa using hposition⟩
+  have hoeq : schema.signature.constructors[original] = ctor := by
+    simpa only [original, Fin.getElem_fin, Array.getElem_toList] using hget
+  obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := hdata.correspondence
+  obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l
+    hfamilies _ (schema.signature.declarationFamily_mem owner)
+  have hname : schema.signature.families[owner].name = family.name := hrel.name
+  rw [hr, hname]
+  rcases List.mem_append.mp hfamily with hsrc | hdir
+  · left
+    have hfn : family.name ∈ familyNames source.types :=
+      List.mem_flatMap.mpr ⟨family, hsrc, List.mem_cons_self⟩
+    rw [hdata.headName_source hfn, hnames]
+    exact List.mem_map.mpr ⟨family, hsrc, rfl⟩
+  · right
+    obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
+      (List.mapM_eq_some.mp hdirect) family hdir
+    obtain ⟨spec, hspec, hsa, hst⟩ : ∃ spec ∈ (compilationRestoration source auxiliaries).heads,
+        spec.auxiliary = a.auxiliary ∧ spec.target = a.source.name :=
+      ⟨_, List.mem_flatMap.mpr ⟨a, ha, by
+        unfold ContainerSpecialization.heads; exact List.mem_cons_self⟩, rfl, rfl⟩
+    have hhead : (compilationRestoration source auxiliaries).headName family.name =
+        a.source.name := by
+      rw [ContainerSpecialization.directFamily_name hdf, ← hsa, ← hst]
+      exact Restoration.headName_of_mem hdata.restorationScoped hspec
+    rw [hhead]
+    have hown' : schema.signature.constructors[original].owner = owner := by rw [hoeq]; exact hown
+    have hdc := schema.signature.declarationCtor_family original
+    rw [hown'] at hdc
+    have hlen := Lean4Lean.List.Forall₂.length_eq hrel.constructors
+    have hpos : 0 < family.ctors.length := by
+      rw [← hlen]; exact List.length_pos_of_mem hdc
+    have hnames' := directFamily_restored_constructor_names hdata ha hdf
+    have hpos' : 0 < a.source.ctors.length := by
+      have := congrArg List.length hnames'
+      simp only [List.length_map] at this
+      omega
+    obtain ⟨cctor, hcctor⟩ := List.exists_mem_of_length_pos hpos'
+    obtain ⟨equation, hdefeq, fn, levels, args, hmaj⟩ :=
+      hprior.constructor_equation a ha cctor hcctor
+    obtain ⟨hconst, hres⟩ := hprior.container_ctor a ha cctor hcctor
+    exact ⟨cctor, equation, hdefeq, ⟨fn, levels, args, hmaj⟩, hconst, hres⟩
+
 namespace VEnv
 
 /-- Native equation majors, registered case constructors, and original
 families retain declared constants at which no native equation computes. -/
+def CtorResultRigid (env : VEnv) (name : Name) : Prop :=
+  ∃ ci, env.constants name = some ci ∧ ∃ F ls, ci.type.forallResult.getAppFnArgs.1 = .const F ls ∧
+    (∃ ciF, env.constants F = some ciF) ∧ env.Rigid F
+
 private def ConstructorHistory (env : VEnv) : Prop :=
   (∀ equation, env.defeqs equation → ∀ name, equation.HasConstructorMajor name →
-    (∃ ci, env.constants name = some ci) ∧ env.Rigid name) ∧
+    (∃ ci, env.constants name = some ci) ∧ env.Rigid name ∧ env.CtorResultRigid name) ∧
   (∀ key schema, env.eliminators key schema →
     ∀ (owner : Fin schema.signature.families.size) rule, schema.Generates key owner rule →
     (∃ ci, env.constants rule.application.ctorName = some ci) ∧ env.Rigid rule.application.ctorName) ∧
   (∀ key schema, env.eliminators key schema → ∀ name ∈ schema.originalFamilies,
-    (∃ ci, env.constants name = some ci) ∧ env.Rigid name)
+    (∃ ci, env.constants name = some ci) ∧ env.Rigid name) ∧
+  (∀ key schema, env.eliminators key schema →
+    ∀ (owner : Fin schema.signature.families.size) rule, schema.Generates key owner rule →
+    (∃ ci, env.constants (schema.restoration.headName schema.signature.families[owner].name) =
+      some ci) ∧
+    env.Rigid (schema.restoration.headName schema.signature.families[owner].name))
+
+private theorem CtorResultRigid.mono {env env' : VEnv} (H : env.CtorResultRigid name)
+    (hle : env ≤ env')
+    (hr : ∀ {n}, (∃ ci, env.constants n = some ci) → env.Rigid n → env'.Rigid n) :
+    env'.CtorResultRigid name := by
+  obtain ⟨ci, hci, F, ls, hF, ⟨ciF, hciF⟩, hrF⟩ := H
+  exact ⟨ci, hle.constants hci, F, ls, hF, ⟨ciF, hle.constants hciF⟩, hr ⟨ciF, hciF⟩ hrF⟩
 
 private theorem ConstructorHistory.transport {env env' : VEnv}
     (H : ConstructorHistory env) (hle : env ≤ env')
@@ -84,16 +243,21 @@ private theorem ConstructorHistory.transport {env env' : VEnv}
       ((∃ ci, env'.constants name = some ci) ∧ env'.Rigid name) := by
     rintro ⟨⟨ci, hci⟩, hr⟩
     exact ⟨⟨ci, hle.1 hci⟩, by simpa only [Rigid, hdf] using hr⟩
-  refine ⟨?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_⟩
   · intro equation he name hn
     rw [hdf] at he
-    exact move (H.1 equation he name hn)
+    obtain ⟨h1, h2, h3⟩ := H.1 equation he name hn
+    exact ⟨(move ⟨h1, h2⟩).1, (move ⟨h1, h2⟩).2,
+      h3.mono hle fun hc hr => (move ⟨hc, hr⟩).2⟩
   · intro key schema hs owner rule hr
     rw [helim] at hs
     exact move (H.2.1 key schema hs owner rule hr)
   · intro key schema hs name hn
     rw [helim] at hs
-    exact move (H.2.2 key schema hs name hn)
+    exact move (H.2.2.1 key schema hs name hn)
+  · intro key schema hs owner rule hr
+    rw [helim] at hs
+    exact move (H.2.2.2 key schema hs owner rule hr)
 
 private theorem ConstructorHistory.addConst {env env' : VEnv}
     (H : ConstructorHistory env) (hadd : env.addConst name ci = some env') :
@@ -125,7 +289,7 @@ private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefE
     (hhead : ∀ df ∈ rules, ∀ name levels,
       df.lhs.stripLams.getAppFnArgs.1 = .const name levels → pre.constants name = none)
     (hmajor : ∀ df ∈ rules, ∀ name, df.HasConstructorMajor name →
-      (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name) :
+      (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name ∧ pre.CtorResultRigid name) :
     ConstructorHistory (env.addDefEqRules rules) := by
   have hconstants : (env.addDefEqRules rules).constants = env.constants :=
     VEnv.addDefEqRules_constants _ _
@@ -143,18 +307,28 @@ private theorem ConstructorHistory.addRules {pre env : VEnv} {rules : List VDefE
       contradiction
     · rw [hdf] at ho
       exact hr df ho levels hh
-  refine ⟨?_, ?_, ?_⟩
+  have hle' : pre ≤ env.addDefEqRules rules := hle.trans VEnv.addDefEqRules_le
+  have moveT {name} (h : (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name ∧
+      pre.CtorResultRigid name) :
+      (∃ ci, (env.addDefEqRules rules).constants name = some ci) ∧
+        (env.addDefEqRules rules).Rigid name ∧ (env.addDefEqRules rules).CtorResultRigid name :=
+    ⟨(move ⟨h.1, h.2.1⟩).1, (move ⟨h.1, h.2.1⟩).2,
+      h.2.2.mono hle' fun hc hr => (move ⟨hc, hr⟩).2⟩
+  refine ⟨?_, ?_, ?_, ?_⟩
   · intro df hd name hn
     rcases defeqs_addRules.mp hd with hm | ho
-    · exact move (hmajor df hm name hn)
+    · exact moveT (hmajor df hm name hn)
     · rw [hdf] at ho
-      exact move (H.1 df ho name hn)
+      exact moveT (H.1 df ho name hn)
   · intro key schema hs owner rule hr
     rw [heliminators] at hs
     exact move (H.2.1 key schema hs owner rule hr)
   · intro key schema hs name hn
     rw [heliminators] at hs
-    exact move (H.2.2 key schema hs name hn)
+    exact move (H.2.2.1 key schema hs name hn)
+  · intro key schema hs owner rule hr
+    rw [heliminators] at hs
+    exact move (H.2.2.2 key schema hs owner rule hr)
 
 private theorem ConstructorHistory.compileRules {pre env : VEnv}
     {recursors : List VConstVal} {rules : List VDefEq}
@@ -162,7 +336,7 @@ private theorem ConstructorHistory.compileRules {pre env : VEnv}
     (hheads : ∀ df ∈ rules, ∃ recursor ∈ recursors, ∃ levels,
       df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels)
     (hmajor : ∀ df ∈ rules, ∀ name, df.HasConstructorMajor name →
-      (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name) :
+      (∃ ci, pre.constants name = some ci) ∧ pre.Rigid name ∧ pre.CtorResultRigid name) :
     ConstructorHistory (env.addDefEqRules rules) := by
   apply H.addRules (VEnv.addConstVals_le hrecs) (VEnv.addConstVals_defeqs hrecs)
     (VEnv.addConstVals_eliminators hrecs) _ hmajor
@@ -251,8 +425,12 @@ private theorem ConstructorHistory.addQuot {env env' : VEnv}
     subst name
     have hrigid := hordered.rigid_of_absent
       (absent_of_le (VEnv.addConst_le h1) (addConst_fresh h2))
-    exact ⟨⟨quotMkConst, VEnv.addConst_self h2⟩,
-      rigid_of_defeqs_eq ((VEnv.addConst_defeqs h2).trans (VEnv.addConst_defeqs h1)) hrigid⟩
+    have hquot := hordered.rigid_of_absent (addConst_fresh h1)
+    have hdf2 := (VEnv.addConst_defeqs h2).trans (VEnv.addConst_defeqs h1)
+    exact ⟨⟨quotMkConst, VEnv.addConst_self h2⟩, rigid_of_defeqs_eq hdf2 hrigid,
+      quotMkConst, VEnv.addConst_self h2, ``Quot, _, rfl,
+      ⟨quotConst, (VEnv.addConst_le h2).constants (VEnv.addConst_self h1)⟩,
+      rigid_of_defeqs_eq hdf2 hquot⟩
 
 private theorem ConstructorHistory.register {base env : VEnv}
     {schema : InductiveSignature.CaseSchema}
@@ -263,7 +441,7 @@ private theorem ConstructorHistory.register {base env : VEnv}
       env.constants value.name = some value.toVConstant)
     (hdf : env.defeqs = base.defeqs) :
     ConstructorHistory (env.addEliminator key schema) := by
-  refine ⟨?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_⟩
   · exact Henv.1
   · intro k s hs owner rule hr
     rcases hs with ⟨rfl, rfl⟩ | hs
@@ -276,7 +454,7 @@ private theorem ConstructorHistory.register {base env : VEnv}
         refine ⟨⟨ctor.toVConstant, ?_⟩, ?_⟩
         · exact hconstants ctor (List.mem_append_right _ (by rwa [hdata.ctors]))
         · exact rigid_of_defeqs_eq hdf (hbase.rigid_of_absent hfresh)
-      · obtain ⟨⟨ci, hci⟩, hrigid⟩ := Hbase.1 prior hp _ hpm
+      · obtain ⟨⟨ci, hci⟩, hrigid, -⟩ := Hbase.1 prior hp _ hpm
         exact ⟨⟨ci, hle.constants hci⟩, rigid_of_defeqs_eq hdf hrigid⟩
     · exact Henv.2.1 k s hs owner rule hr
   · intro k s hs name hn
@@ -292,7 +470,28 @@ private theorem ConstructorHistory.register {base env : VEnv}
       apply List.mem_append_left
       rw [hdata.types]
       exact List.mem_map.mpr ⟨family, hfamily, rfl⟩
-    · exact Henv.2.2 k s hs name hn
+    · exact Henv.2.2.1 k s hs name hn
+  · intro k s hs owner rule hr
+    rcases hs with ⟨rfl, rfl⟩ | hs
+    · rcases hcert.family_head_origin hr with horig | ⟨cctor, equation, hdefeq, hmaj, hconst, ls, hres⟩
+      · obtain ⟨expanded, g, auxiliaries, hdata, _, _, hnames⟩ := hcert
+        rw [hnames] at horig
+        obtain ⟨family, hfamily, hfn⟩ := List.mem_map.mp horig
+        rw [← hfn]
+        obtain ⟨types, ctors, ht, _⟩ := hdata.sourceWF.2.2.2.2
+        have hfresh := VEnv.addConstVals_names_fresh ht family.toVConstVal
+          (List.mem_map.mpr ⟨family, hfamily, rfl⟩)
+        refine ⟨⟨family.toVConstant, hconstants family.toVConstVal ?_⟩,
+          rigid_of_defeqs_eq hdf (hbase.rigid_of_absent hfresh)⟩
+        apply List.mem_append_left
+        rw [hdata.types]
+        exact List.mem_map.mpr ⟨family, hfamily, rfl⟩
+      · obtain ⟨-, -, ci, hci, F, ls', hF, ⟨ciF, hciF⟩, hFr⟩ := Hbase.1 equation hdefeq _ hmaj
+        rw [hconst] at hci
+        cases hci
+        obtain rfl := (VExpr.const.inj (hF.symm.trans hres)).1
+        exact ⟨⟨ciF, hle.constants hciF⟩, rigid_of_defeqs_eq hdf hFr⟩
+    · exact Henv.2.2.2 k s hs owner rule hr
 
 private theorem ConstructorHistory.addInduct
     (H : ConstructorHistory env) (hordered : env.Ordered)
@@ -326,21 +525,35 @@ private theorem ConstructorHistory.addInduct
       have hfresh := VEnv.addConstVals_names_fresh hctors ctor hc
       have hr := hordered.rigid_of_absent
         (absent_of_le (VEnv.addConstVals_le htypes) hfresh)
-      exact ⟨⟨ctor.toVConstant, by
-        simpa only [VEnv.addProjections_constants] using VEnv.addConstVals_get hctors hc⟩,
-        rigid_of_defeqs_eq hdf hr⟩
+      have hci : (envCtors.addProjections block.projections).constants ctor.name =
+          some ctor.toVConstant := by
+        simpa only [VEnv.addProjections_constants] using VEnv.addConstVals_get hctors hc
+      obtain ⟨type, htype, hct⟩ := List.mem_flatMap.mp hctor
+      obtain ⟨ls, hres⟩ := hcompile.compiled.ctor_result type htype ctor hct
+      have ht : type.toVConstVal ∈ block.types := by
+        rw [hcompile.compiled.types_eq]; exact List.mem_map.mpr ⟨type, htype, rfl⟩
+      have hTfresh := VEnv.addConstVals_names_fresh htypes _ ht
+      have hTr := hordered.rigid_of_absent hTfresh
+      have hTc : (envCtors.addProjections block.projections).constants type.name =
+          some type.toVConstVal.toVConstant := by
+        have := VEnv.addConstVals_get htypes ht
+        simpa only [VEnv.addProjections_constants] using (VEnv.addConstVals_le hctors).constants this
+      exact ⟨⟨ctor.toVConstant, hci⟩, rigid_of_defeqs_eq hdf hr,
+        ctor.toVConstant, hci, type.name, ls, hres, ⟨_, hTc⟩, rigid_of_defeqs_eq hdf hTr⟩
     · have heq := hmajor.unique horigin
       rw [← heq] at hpriorMajor
-      obtain ⟨⟨ci, hci⟩, hr⟩ := H.1 prior hprior name hpriorMajor
-      exact ⟨⟨ci, hle.constants hci⟩, rigid_of_defeqs_eq hdf hr⟩
+      obtain ⟨⟨ci, hci⟩, hr, hres⟩ := H.1 prior hprior name hpriorMajor
+      exact ⟨⟨ci, hle.constants hci⟩, rigid_of_defeqs_eq hdf hr,
+        hres.mono hle fun _ hr => rigid_of_defeqs_eq hdf hr⟩
 
 private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHistory env := by
   suffices h : ∀ {ds env}, VEnv.WF' ds env → ConstructorHistory env from h H.choose_spec
   intro ds env H
   induction H with
   | empty =>
-    refine ⟨?_, ?_, ?_⟩
+    refine ⟨?_, ?_, ?_, ?_⟩
     · intro _ h; cases h
+    · intro _ _ h; cases h
     · intro _ _ h; cases h
     · intro _ _ h; cases h
   | @decl d env' ds env hdecl hbase ih =>
@@ -375,14 +588,30 @@ not a primitive projection entry or a general monotonicity assumption. -/
 theorem WF.case_original_family_rigid {env : VEnv} (H : env.WF)
     (hregistered : env.eliminators key schema)
     (hfamily : name ∈ schema.originalFamilies) : env.NativeHeadRigid name :=
-  nativeHeadRigid_iff.mpr ((H.constructorHistory.2.2 _ _ hregistered _ hfamily).2)
+  nativeHeadRigid_iff.mpr ((H.constructorHistory.2.2.1 _ _ hregistered _ hfamily).2)
+
+/-- The family head of every registered case owner that generates a rule is
+a rigid constant. -/
+theorem WF.case_family_head_rigid {env : VEnv} (H : env.WF)
+    (hregistered : env.eliminators block schema)
+    {owner : Fin schema.signature.families.size}
+    (hgenerated : schema.Generates block owner rule) :
+    env.Rigid (schema.restoration.headName schema.signature.families[owner].name) :=
+  (H.constructorHistory.2.2.2 _ _ hregistered _ _ hgenerated).2
 
 /-- The major constructor of every installed native iota equation remains
 rigid throughout all subsequent declarations. -/
 theorem WF.native_constructor_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
     env.NativeHeadRigid name :=
-  nativeHeadRigid_iff.mpr ((H.constructorHistory.1 _ hinstalled _ hmajor).2)
+  nativeHeadRigid_iff.mpr ((H.constructorHistory.1 _ hinstalled _ hmajor).2.1)
+
+/-- The constructor major of every installed equation returns an application
+of a rigid family constant. -/
+theorem WF.native_constructor_result_rigid {env : VEnv} (H : env.WF)
+    (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
+    env.CtorResultRigid name :=
+  (H.constructorHistory.1 _ hinstalled _ hmajor).2.2
 
 end VEnv
 end Lean4Lean

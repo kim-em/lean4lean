@@ -1160,6 +1160,38 @@ local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
 
+/-- The constructor major of a matched generated case redex is never a
+function: its type is an application of the registered family head, which is
+rigid. -/
+theorem MatchedCaseStep.major_not_pi {E : VEnv} {U : Nat} (hE : E.WF)
+    (hΓ : OnCtx Γ (E.IsType U)) (H : MatchedCaseStep E U Γ rule actual) :
+    ¬ E.HasType U Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
+      actual.ctorArguments) (.forallE A B) := by
+  intro hpi
+  have hsource := H.source
+  generalize hpacked : actual.levels = packed at hsource
+  cases hsource with
+  | @iota block levels target arguments schema owner rule hl hg hc hp hleft hright ha =>
+    obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := hE.eliminator_origin hl
+    have harity := hcert.arguments_length hbase hg
+    obtain ⟨hb, ho⟩ := hg.owned
+    have hab : actual.block = block := H.block_eq.trans hb
+    have hao : actual.owner = owner.val := H.owner_eq.trans ho
+    have ht : VExpr.WF E U Γ (VExpr.mkApps
+        (.elim block owner.val (target :: levels))
+        (actual.arguments ++ [VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
+          actual.ctorArguments])) := by
+      obtain ⟨type, hguard⟩ := H.guard
+      refine ⟨type, ?_⟩
+      simpa only [HasType, InductiveSignature.CaseSchema.Application.expr, VExpr.mkApps,
+        List.foldl_append, List.foldl_cons, List.foldl_nil, hab, hao, hpacked] using
+        hguard.hasType.1
+    obtain ⟨familyArgs, hmajor⟩ := HasType.caseMajor_type hE hΓ hl
+      (H.arguments_length.trans harity) ht
+    have hrigid := hE.case_family_head_rigid hl hg
+    have ⟨_, hsort⟩ := hmajor.isType hE.ordered hΓ
+    exact IsDefEqU.rigidApp_forallE_inv hE hΓ hrigid hsort (hmajor.uniqU hE hΓ hpi)
+
 /-- Separation facts at the major premise of a matched native iota or
 generated case redex. They are properties of the installed recursors and
 their checks: the major lives in an inductive family, so it is never a
@@ -1177,11 +1209,6 @@ class HeadSeparation : Prop where
   proof_major : OnCtx Γ (env.IsType univs) → Pat p r → p.Matches (.app F M) m1 m2 →
     r.2.OK (IsDefEqU env univs Γ) m1 m2 → Γ ⊢ .app F M : T →
     Γ ⊢ M : P → Γ ⊢ P : .sort .zero → Γ ⊢ T : .sort .zero
-  /-- The constructor major of a matched generated case redex is not a
-  function (rigid-family/Pi separation at the case major). -/
-  case_not_pi : OnCtx Γ (env.IsType univs) → MatchedCaseStep env univs Γ rule actual →
-    ¬ Γ ⊢ VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments :
-      .forallE A B
 
 omit [Params] in
 theorem lift'_mkApps (fn : VExpr) (args : List VExpr) (ρ : Lift) :
@@ -1728,7 +1755,7 @@ theorem SpineTransport.schema [HeadSeparation]
     obtain ⟨_, hcc⟩ := schema_mkApps_head_type hΓ hty
     have hMℓ' := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
     have hpi := hty.defeqU_l henv hΓ (hMℓ'.defeq hΓ)
-    exact HeadSeparation.case_not_pi hΓ hmℓ (by simpa [CaseApplicationMap] using hpi)
+    exact MatchedCaseStep.major_not_pi henv hΓ hmℓ (by simpa [CaseApplicationMap] using hpi)
 
 theorem ParRed.spineTransport [HeadSeparation] (H : ParRed Γ e e') : ∀ n, SpineTransport Γ e e' n := by
   induction H with
