@@ -770,6 +770,12 @@ inside this project's scope without solving open base metatheory:
    generated equation's well-formedness from the lowered recursor environment
    through a restoration substitution extended with the recursor renaming).
    Agents: `hrestoredWF_of` and the `assemblyNative` wiring with `hnested`.
+   **Wiring done (a24fc27):** `assemblyNative` lives in
+   Nested/AssemblyNative.lean, takes `hnested`, and
+   `assemblyNative_of_restoredWF (E) (wf) (Hsources) (hnested) (HrestoredWF)`
+   is proved by composition; the final body will be
+   `assemblyNative_of_restoredWF E wf Hsources hnested (E.hrestoredWF_of wf Hsources)`
+   once `hrestoredWF_of` lands (agent running).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
