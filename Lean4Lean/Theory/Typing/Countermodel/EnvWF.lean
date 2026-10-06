@@ -262,7 +262,7 @@ theorem admissible : sp.inst.Admissible ET where
   levels_wf := by simp [inst]
   target_wf := by simp [inst, VLevel.WF]
   elimination := by
-    refine .inr (.inr ⟨rfl, by simp [sig], ?_⟩)
+    refine .inr (.inr ⟨⟨rfl, by simp [sig], ?_⟩, 0, rfl, by simp [inst]⟩)
     intro ctor hctor i hi
     simp only [sig] at hctor
     rcases List.mem_singleton.1 hctor with rfl
