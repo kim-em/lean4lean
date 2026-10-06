@@ -666,8 +666,18 @@ inside this project's scope without solving open base metatheory:
    executable (`RecursorRule` has only `ctor`, `nfields`, `rhs`) and are
    supplied by the certificate's own rule choice (`RestoredRulesRealization`),
    which `assemblyNative` must realize with the restored generated lhs/type.
-   In flight: `assemblyNative_of_whnf` (origins worktree), `WhnfHitShapeFacts`
-   discharge (hitshape worktree), final shapes.
+   **`finalValidOfStaged` closed (4a1e2e6):** `finalValidOfStaged_of_hitShape`
+   (Nested/FinalShapes.lean) reads the restored recursor shapes off the
+   staged block and the restoration traces (more than one family from
+   `aux2nested.size ≠ 0`, available at the dispatch site), modulo
+   `HitShapeInputs` (discharged on the origins branch) and
+   `WhnfHitShapeFacts`. The checker-level whnf fact is proved on the
+   hitshape branch only at the larger head set `E.hitHeads` (auxiliary names
+   plus main constructors) with the projection condition `ProjsOK`
+   (`WhnfHitOKFacts`, modulo `hprims`: no main constructor named like a
+   checker-built constant); the `RecursorHitShape` chain is being reworked to
+   run at that head set and shrink back. In flight: that rework,
+   `assemblyNative_of_whnf` (origins worktree).
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
