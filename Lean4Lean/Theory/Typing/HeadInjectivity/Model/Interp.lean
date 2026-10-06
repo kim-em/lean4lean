@@ -92,18 +92,21 @@ def CtorEnd (n : Name) (ℓs : List (List Nat → Nat)) (keys : List Key) (r : O
   (∃ i, ∃ h : i < keys.length, r = .ctorArg i (keys[i]).2.1) ∨
   (∃ i, ∃ h : i < keys.length, ∃ k ∈ (keys[i]).2.2, r = .ctorArgOb i (keys.take i) k)
 
-/-- The sort, at the rule levels `ls`, of the family of the major constructor `ctor` (applied
-at the pattern levels `lsC`): the family's type is a telescope ending in a sort. -/
-def MajorSort (env : VEnv) (ctor : Name) (lsC ls : List VLevel) (ℓ : List Nat → Nat) : Prop :=
-  ∃ cc I lsI ci ds w, env.constants ctor = some cc ∧
-    cc.type.forallResult.getAppFnArgs.1 = .const I lsI ∧ env.constants I = some ci ∧
-    ci.type = .wrapForalls ds (.sort w) ∧
-    ℓ = (w.inst (lsI.map (·.inst (lsC.map (·.inst ls))))).eval
+/-- The sort, at the levels `ls`, of the family of the `k`-th domain (the major premise) of
+the type of the rule head `n`: the head's type is a telescope of `k+1` domains whose last is an
+application of a family `I`, itself typed by a telescope ending in a sort. -/
+def MajorSort (env : VEnv) (n : Name) (k : Nat) (ls : List VLevel) (ℓ : List Nat → Nat) :
+    Prop :=
+  ∃ ci dsH RH I lsI iargs cI dsI w, env.constants n = some ci ∧
+    ci.type = .wrapForalls dsH RH ∧ dsH.length = k + 1 ∧
+    dsH[k]? = some (.mkApps (.const I lsI) iargs) ∧ env.constants I = some cI ∧
+    cI.type = .wrapForalls dsI (.sort w) ∧ dsI.length = iargs.length ∧
+    ℓ = (w.inst (lsI.map (·.inst ls))).eval
 
-/-- The mode of a rule at the levels `ls`: `mC = true` (mode C, the major is ignored) exactly
-when the major's family is a proposition at those levels. -/
-def RuleMode (env : VEnv) (ctor : Name) (lsC ls : List VLevel) (mC : Bool) : Prop :=
-  ∃ ℓ, MajorSort env ctor lsC ls ℓ ∧ (mC = true ↔ ℓ = fun _ => 0)
+/-- The mode of a rule with head `n` and major index `k` at the levels `ls`: `mC = true`
+(mode C, the major is ignored) exactly when the major's family is a proposition there. -/
+def RuleMode (env : VEnv) (n : Name) (k : Nat) (ls : List VLevel) (mC : Bool) : Prop :=
+  ∃ ℓ, MajorSort env n k ls ℓ ∧ (mC = true ↔ ℓ = fun _ => 0)
 
 /-- The type of the binder `x` (de Bruijn index in the body) of a rule whose binder
 domains are `doms` (outermost first), at the levels `ls`. -/
@@ -182,7 +185,7 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     df.rhs = .wrapLams doms body →
     env.constants n = some ci → (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) o) τs → lkeys.length = lead.length →
-    RuleMode env ctor lsC ls mC →
+    RuleMode env n lead.length ls mC →
     (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) →
     RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' →
     Obs τ S' (body.instL ls) o →
@@ -268,7 +271,7 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
       df.rhs = .wrapLams doms body ∧
       env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) p) τs ∧ lkeys.length = lead.length ∧
-      RuleMode env ctor lsC ls mC ∧
+      RuleMode env n lead.length ls mC ∧
       (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∧
       RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' ∧
       Obs' τ S' (body.instL ls) p) := by
@@ -599,13 +602,12 @@ theorem forall₂_inst_congr {ls ls' : List VLevel} (h : List.Forall₂ (· ≈ 
   | [] => .nil
   | a :: l => .cons (VLevel.inst_congr rfl h) (forall₂_inst_congr h l)
 
-theorem _root_.Lean4Lean.VEnv.Model.RuleMode.lvEq {cn : Name} (h : RuleMode env cn lsC ls mC)
-    (hls : List.Forall₂ (· ≈ ·) ls ls') : RuleMode env cn lsC ls' mC := by
-  obtain ⟨ℓ, ⟨cc, I, lsI, ci, ds, w, h1, h2, h3, h4, rfl⟩, h5⟩ := h
-  refine ⟨_, ⟨cc, I, lsI, ci, ds, w, h1, h2, h3, h4, rfl⟩, ?_⟩
-  have : (w.inst (lsI.map (·.inst (lsC.map (·.inst ls))))).eval =
-      (w.inst (lsI.map (·.inst (lsC.map (·.inst ls'))))).eval :=
-    VLevel.inst_congr rfl (forall₂_inst_congr (forall₂_inst_congr hls lsC) lsI)
+theorem _root_.Lean4Lean.VEnv.Model.RuleMode.lvEq (h : RuleMode env n k ls mC)
+    (hls : List.Forall₂ (· ≈ ·) ls ls') : RuleMode env n k ls' mC := by
+  obtain ⟨ℓ, ⟨ci, dsH, RH, I, lsI, iargs, cI, dsI, w, h1, h2, h3, h4, h5, h6, h7, rfl⟩, h8⟩ := h
+  refine ⟨_, ⟨ci, dsH, RH, I, lsI, iargs, cI, dsI, w, h1, h2, h3, h4, h5, h6, h7, rfl⟩, ?_⟩
+  have : (w.inst (lsI.map (·.inst ls))).eval = (w.inst (lsI.map (·.inst ls'))).eval :=
+    VLevel.inst_congr rfl (forall₂_inst_congr hls lsI)
   rwa [← this]
 
 theorem _root_.Lean4Lean.VEnv.Model.RuleBind.lvEq
