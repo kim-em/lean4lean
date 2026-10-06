@@ -20,7 +20,7 @@ half of `VEnv.HeadInversion` (`headSeparation_of_shapeModel`).
 * `headModel_of_shapeModel` (with `headModel_of_shapeModel_compositional`) and
   `headSeparation_of_shapeModel`.
 
-The facts about the environment used beyond `SemSig.EnvFacts` are collected in
+The facts about the environment used beyond `SemSig.EnvFactsIn env env` are collected in
 `SemSig.HeadFacts`; see the docstring of each field.
 
 Deviations from the milestone specification:
@@ -137,8 +137,8 @@ end
 /-! ### The facts about the environment read by the head classification -/
 
 /-- The facts about the environment `env` and the semantic signature that the head
-classification reads, besides `SemSig.EnvFacts`. Each is a property of real environments, to be
-proved when the signature is built. -/
+classification reads, besides `SemSig.EnvFactsIn env env`. Each is a property of real
+environments, to be proved when the signature is built. -/
 structure SemSig.HeadFacts [S : SemSig] (env : VEnv) : Prop where
   /-- A constant heading a computation rule of the signature is not rigid in the environment
   (rigidity, `VEnv.Rigid`, only looks at the definitional rules `env.defeqs`; the signature's
@@ -245,16 +245,17 @@ theorem forall₂_wbot (ρ : Valuation) :
 
 /-- Transport an approximation of an instance of a constant type along a derivation of its
 type in the empty context. -/
-theorem interp_instL_of_defeq (henv : env.Ordered) (hEF : SemSig.EnvFacts env)
-    (hextra : ∀ df, env.defeqs df → ExtraValid env df) (helim : ElimValid env)
+theorem interp_instL_of_defeq (henv : env.Ordered) (hEF : SemSig.EnvFactsIn env env)
+    (hextra : ∀ df, env.defeqs df → ExtraValid env df) (helim : ElimValidIn env env)
     (hD : env.IsDefEq U₀ [] X Y T) (hls : ∀ l ∈ ls, l.WF U)
     (H : Interp env .nil m (X.instL ls)) : Interp env .nil m (Y.instL ls) :=
   (sound_nil henv hEF hextra helim (hD.instL hls (U' := U)) trivial m).1 H
 
 /-- A rigid former applied to arguments and typed at a sort has a rigid head recording the
 former and its evaluated levels. -/
-theorem head_rigid (henv : env.Ordered) (hEF : SemSig.EnvFacts env) (hHF : SemSig.HeadFacts env)
-    (hextra : ∀ df, env.defeqs df → ExtraValid env df) (helim : ElimValid env)
+theorem head_rigid (henv : env.Ordered) (hEF : SemSig.EnvFactsIn env env)
+    (hHF : SemSig.HeadFacts env)
+    (hextra : ∀ df, env.defeqs df → ExtraValid env df) (helim : ElimValidIn env env)
     (hΓ : OnCtx Γ (env.IsType U)) (hc : env.Rigid c)
     (H : env.HasType U Γ (.mkApps (.const c ls) args) (.sort u)) :
     head (fun m => Interp env .nil m (.mkApps (.const c ls) args)) =
@@ -315,9 +316,9 @@ theorem head_rigid (henv : env.Ordered) (hEF : SemSig.EnvFacts env) (hHF : SemSi
 
 /-- The shape model, read at the base valuation, is a `HeadModel`: the denotation of `e` is the
 set of its approximations under `Valuation.nil`. -/
-def headModel_of_shapeModel (henv : env.Ordered) (hEF : SemSig.EnvFacts env)
+def headModel_of_shapeModel (henv : env.Ordered) (hEF : SemSig.EnvFactsIn env env)
     (hHF : SemSig.HeadFacts env) (hextra : ∀ df, env.defeqs df → ExtraValid env df)
-    (helim : ElimValid env) : HeadModel env where
+    (helim : ElimValidIn env env) : HeadModel env where
   D := TShape → Prop
   den _ _ e := fun m => Interp env .nil m e
   sound hΓ H := funext fun m => propext (sound_nil henv hEF hextra helim H hΓ m)
@@ -327,9 +328,11 @@ def headModel_of_shapeModel (henv : env.Ordered) (hEF : SemSig.EnvFacts env)
   head_rigid hΓ hc H := head_rigid henv hEF hHF hextra helim hΓ hc H
 
 /-- The shape model is compositional in application. -/
-theorem headModel_of_shapeModel_compositional (henv : env.Ordered) (hEF : SemSig.EnvFacts env)
+theorem headModel_of_shapeModel_compositional (henv : env.Ordered)
+    (hEF : SemSig.EnvFactsIn env env)
     (hHF : SemSig.HeadFacts env) (hextra : ∀ df, env.defeqs df → ExtraValid env df)
-    (helim : ElimValid env) : (headModel_of_shapeModel henv hEF hHF hextra helim).Compositional where
+    (helim : ElimValidIn env env) :
+    (headModel_of_shapeModel henv hEF hHF hextra helim).Compositional where
   app {U Γ f f' a a'} hf ha := by
     have hf : ∀ x, Interp env .nil x f ↔ Interp env .nil x f' := fun x =>
       Iff.of_eq (congrFun hf x)
@@ -344,14 +347,14 @@ theorem headModel_of_shapeModel_compositional (henv : env.Ordered) (hEF : SemSig
       | exact .app ((hf _).2 h1) ((ha _).2 h2) h3
 
 /-- **Separation from the shape model.** -/
-theorem headSeparation_of_shapeModel (henv : env.Ordered) (hEF : SemSig.EnvFacts env)
+theorem headSeparation_of_shapeModel (henv : env.Ordered) (hEF : SemSig.EnvFactsIn env env)
     (hHF : SemSig.HeadFacts env) (hextra : ∀ df, env.defeqs df → ExtraValid env df)
-    (helim : ElimValid env) : env.HeadSeparation :=
+    (helim : ElimValidIn env env) : env.HeadSeparation :=
   (headModel_of_shapeModel henv hEF hHF hextra helim).separation
 
-theorem headSeparation_of_shapeModel_of_wf (henv : env.WF) (hEF : SemSig.EnvFacts env)
+theorem headSeparation_of_shapeModel_of_wf (henv : env.WF) (hEF : SemSig.EnvFactsIn env env)
     (hHF : SemSig.HeadFacts env) (hextra : ∀ df, env.defeqs df → ExtraValid env df)
-    (helim : ElimValid env) : env.HeadSeparation :=
+    (helim : ElimValidIn env env) : env.HeadSeparation :=
   headSeparation_of_shapeModel henv.ordered hEF hHF hextra helim
 
 end

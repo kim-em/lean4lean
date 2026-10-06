@@ -22,8 +22,9 @@ fields); `rigid` (a constant that is not a constructor and heads no rule gives a
 a constructor table bounded by the constructor types instantiated at the parameter arguments,
 `ctsBound`); and the rule clauses `rule` (no major), `ruleAB` (the major's family is not a
 proposition: the major shape is above `ctor' c fs` and the rule binders are read from the
-arguments and from `fs`, aligned at the end) and `ruleC` (the major's family is a proposition with
-one constructor: the major is ignored and its fields are read from index arguments), each followed by the interpretation of the right-hand side under the
+arguments and from `fs`, aligned at the end) and `ruleC` (the major's family is a proposition and
+every rule of the head has this major constructor: the major is ignored and its fields are read
+from index arguments), each followed by the interpretation of the right-hand side under the
 valuation `ruleVal` read off the match.
 
 Main results: `Interp.mono`, `Interp.mono_l`, `Interp.lift`/`unlift`, `Interp.closed`,
@@ -65,6 +66,10 @@ Design decisions and deviations from the milestone specification, with rationale
   argument at position `r.fieldIndex[i]` (`some j`), else bottom. A binder that is not a rule
   field is read from its first literal occurrence among the arguments (`lookupVar`), else
   bottom; a binder occurring several times among the fields takes its first occurrence.
+* `ruleC` requires every rule of the head to have the major constructor `mj.ctor` (not that the
+  major's family has the single constructor `mj.ctor`): an eliminator registration may add
+  constructors to a native singleton family, and what `compat_join` needs is that the head has
+  no rule for another constructor (`PHASE1_NOTES.md`, D7).
 * "`T'` instantiated at the first `k'.nparams` argument shapes" is `ctsBound T' args k'.nparams`:
   the codomain table of the Pi shape `T'` applied successively (`WShape.piApp`, bottom on a
   non-Pi shape; `TShape.piApp` works at a common depth), and bottom with fewer arguments.
@@ -374,7 +379,8 @@ inductive Const (R : Valuation → TShape → VExpr → Prop) (h : Head) (ls : L
   | ruleC {rargs : List (WShape n)} :
     SemSig.rules r → r.head = h → ls.length = r.uvars → r.major = some mj →
     SemSig.ctor mj.ctor = some ci → SemSig.famProp ci.family (mj.lvls ls) = true →
-    SemSig.famCtors ci.family = [mj.ctor] → rargs.length = r.vars.length + 1 →
+    (∀ r', SemSig.rules r' → r'.head = h → r'.major.map (·.ctor) = some mj.ctor) →
+    rargs.length = r.vars.length + 1 →
     R (ruleVal r (rargs.reverse.map (·.T)) none) m (r.rhs.instL ls) → Const R h ls rargs m
 
 /-- `Interp ρ m e`: the shape `m` approximates the expression `e` under the valuation `ρ`. -/
@@ -1164,9 +1170,8 @@ theorem Const.compat_join_aux (hR₃ : RelMono R₃)
       rw [hfam, RuleMajor.lvls_eq_of_equiv hlev, f6] at e6; cases e6
     | ruleC f1 f2 f3 f4 f5 f6 f7 f8 f9 =>
       have hh := e2.trans f2.symm
-      have hfam := (SemSig.Coherent.major_family e1 f1 hh e4 f4 e5 f5).1
-      have e7' := e7; rw [hfam, f7] at e7'
-      cases SemSig.Coherent.major_ctor_eq e1 f1 hh e4 f4 (List.cons.inj e7').1.symm
+      have e7' := f7 r₁ e1 e2; rw [e4] at e7'
+      cases SemSig.Coherent.major_ctor_eq e1 f1 hh e4 f4 (Option.some.inj e7')
       have hJ1 := forall₂_rev_T (WShape.le_zipWith_join hc).1
       have hJ2 := forall₂_rev_T (WShape.le_zipWith_join hc).2
       have ⟨cx, rJ⟩ := ruleJ (ruleVal_mono hJ1 (.inl ⟨rfl, rfl⟩))
