@@ -388,6 +388,33 @@ declarations; validation must not assume correctness of its own artifact.
    must justify the generated recursive calls (descent along the positive
    constructor structure), which the specification alone does not establish.
 
+   **Third correction (2026-10-06, decided with Kim after an Astra opinion).**
+   `Models.families` required each family's signature type `∀ params indices,
+   Sort l` to be definitionally the declared type in the source environment.
+   For the consumed families (whose indices must be the recursor pass's, since
+   the generated motive types are built from them syntactically) this is the
+   same obstruction once more: the recursor pass computes the index telescope
+   by `whnf` in a context interleaving earlier families' indices, majors and
+   motives, and the header phase records its telescope only existentially.
+   Decision: drop the definitional conjunct from `Models.families` and add
+   `InductiveSignature.FamilyTypesWF` beside `RecursiveTypesWF` in `Compiles`
+   (recursor-declaration environment): the parameter-and-index telescope is a
+   well-formed context and each family applied to it has type
+   `Sort resultLevel`. Derivable for the consumed families from
+   `sourceIndexDomains` and `sourceIndices_motive` without strengthening. Lost:
+   exact agreement of each index domain with the declared one in its own
+   prefix (domains that become equal only under a later binder). The nested
+   restoration correspondence (`RestoresFamily.type`) and the K-like
+   alignment (`kOfRealization`) consumed the definitional form and are
+   rederived from source formation evidence; the restoration clause is
+   weakened to "the source header is some telescope ending in the recorded
+   sort". Pattern behind all three corrections: a clause tying a telescope
+   computed by the recursor pass's `whnf` definitionally to header data in a
+   clean context is not provable with the current foundations; provable are
+   header-phase facts about the declared data in their own scope and
+   well-formedness of the generated types in the recursor-declaration
+   environment. Work on branch `agent/family-types` in a separate worktree.
+
    **Former statement of the risk.** `Compiles` (`Recursor/Realization.lean`,
    `CompilationRealization.generated`) requires `s.Models env decl` for the
    signature whose recursors and equations are installed, and
