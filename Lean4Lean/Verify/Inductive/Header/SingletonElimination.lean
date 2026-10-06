@@ -178,7 +178,8 @@ def checkInductiveTypes.loopType.NarrowRuntimeScope.empty (Hc : ContextWF c) :
     upset := by simpa using IsFVarUpSet.suffixFVars [] Hc.mlctx.vlctx (by simpa using Hc.mlctx_wf.tr.wf)
     noBV := rfl
     noIndConsts := fun _ => nofun
-    sources := .nil }
+    sources := .nil
+    wf := trivial }
 
 /-- Pending index requirements remain attached to their actual named field
 through the exact binder opening performed by the executable check. -/
@@ -228,7 +229,7 @@ theorem LargeEliminationTrace.singletonTelescope
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
-        let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
+        let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
@@ -278,7 +279,7 @@ theorem LargeEliminationTrace.singletonTelescope
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
-        let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
+        let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf
@@ -334,7 +335,7 @@ theorem LargeEliminationTrace.singletonTelescope
         have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
-        let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
+        let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain hdomType
         have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
           Hdom Hdom₀ hdomNarrow hdomType hdeps
         have hscopeWF := halign'.wf

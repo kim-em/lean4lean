@@ -1286,7 +1286,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
-                hdomNarrow hdomain
+                hdomNarrow hdomain hdomNarrowType
             have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
               Hdom Hdom₀ hdomNarrow hdomNarrowType hdeps
             have hscopeWF := halign'.wf
@@ -1340,7 +1340,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
-                hdomNarrow hdomain
+                hdomNarrow hdomain hdomNarrowType
             have halign' := Hc.alignedBinder (name := name) (bi := bi) halign
               Hdom Hdom₀ hdomNarrow hdomNarrowType hdeps
             have hscopeWF := halign'.wf
