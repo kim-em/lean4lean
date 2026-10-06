@@ -357,13 +357,13 @@ theorem CaseStep.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
     refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
     intro i hi hd
     have hi' : i < arguments.length := by simpa using hi
-    have hs : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
+    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
       simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi')] using (hdomains i hd).instL
     have hty := (ha.2 i hi' hd).weakN henv.ordered W
-    rw [instantiateParams_liftN hs] at hty
+    rw [instantiateParams_liftN hcl] at hty
     simpa only [List.getElem_map, List.map_take] using hty
 
-theorem CaseStep.weakN_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U))
+theorem CaseStep.weakN_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
     (W : Ctx.LiftN n k Γ Γ')
     (H : CaseStep env U Γ' rule levels (arguments.map fun e => e.liftN n k)) :
     CaseStep env U Γ rule levels arguments := by
@@ -371,20 +371,20 @@ theorem CaseStep.weakN_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U))
     fun _ hi => H.domains_closed hi
   cases H with
   | @iota block levels target _ schema owner rule hl hg hc hp ht hr ha =>
-    have ht' := (HasType.weakN_iff henv hΓ W (e := rule.equation.lhs.instL (target :: levels))
+    have ht' := (HasType.weakN_iff henv hs hΓ W (e := rule.equation.lhs.instL (target :: levels))
       (A := rule.equation.type.instL (target :: levels))).1
       (by simpa only [hc.1.instL.liftN_eq (Nat.zero_le _),
         hc.2.2.instL.liftN_eq (Nat.zero_le _)] using ht)
-    have hr' := (HasType.weakN_iff henv hΓ W (e := rule.equation.rhs.instL (target :: levels))
+    have hr' := (HasType.weakN_iff henv hs hΓ W (e := rule.equation.rhs.instL (target :: levels))
       (A := rule.equation.type.instL (target :: levels))).1
       (by simpa only [hc.2.1.instL.liftN_eq (Nat.zero_le _),
         hc.2.2.instL.liftN_eq (Nat.zero_le _)] using hr)
     refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
     intro i hi hd
-    have hs : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
+    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
       simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi)] using (hdomains i hd).instL
-    apply (HasType.weakN_iff henv hΓ W).1
-    rw [instantiateParams_liftN hs]
+    apply (HasType.weakN_iff henv hs hΓ W).1
+    rw [instantiateParams_liftN hcl]
     have hty := ha.2 i (by simpa using hi) hd
     rw [List.getElem_map] at hty
     simpa only [List.map_take] using hty
@@ -403,13 +403,13 @@ theorem CaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
     intro i hi hd
     have hi' : i < arguments.length := by simpa using hi
-    have hs : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
+    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
       simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi')] using (hdomains i hd).instL
     have hty := (ha.2 i hi' hd).weak' henv.ordered W
-    rw [instantiateParams_lift' hs ρ] at hty
+    rw [instantiateParams_lift' hcl ρ] at hty
     simpa only [List.getElem_map, List.map_take] using hty
 
-theorem CaseStep.weak'_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U))
+theorem CaseStep.weak'_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
     (W : Ctx.Lift' ρ Γ Γ')
     (H : CaseStep env U Γ' rule levels (arguments.map fun e => e.lift' ρ)) :
     CaseStep env U Γ rule levels arguments := by
@@ -417,20 +417,20 @@ theorem CaseStep.weak'_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U))
     fun _ hi => H.domains_closed hi
   cases H with
   | @iota block levels target _ schema owner rule hl hg hc hp ht hr ha =>
-    have ht' := (HasType.weak'_iff henv hΓ W (e := rule.equation.lhs.instL (target :: levels))
+    have ht' := (HasType.weak'_iff henv hs hΓ W (e := rule.equation.lhs.instL (target :: levels))
       (A := rule.equation.type.instL (target :: levels))).1
       (by simpa only [hc.1.instL.lift'_eq .zero,
         hc.2.2.instL.lift'_eq .zero] using ht)
-    have hr' := (HasType.weak'_iff henv hΓ W (e := rule.equation.rhs.instL (target :: levels))
+    have hr' := (HasType.weak'_iff henv hs hΓ W (e := rule.equation.rhs.instL (target :: levels))
       (A := rule.equation.type.instL (target :: levels))).1
       (by simpa only [hc.2.1.instL.lift'_eq .zero,
         hc.2.2.instL.lift'_eq .zero] using hr)
     refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
     intro i hi hd
-    have hs : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
+    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
       simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi)] using (hdomains i hd).instL
-    apply (HasType.weak'_iff henv hΓ W).1
-    rw [instantiateParams_lift' hs ρ]
+    apply (HasType.weak'_iff henv hs hΓ W).1
+    rw [instantiateParams_lift' hcl ρ]
     have hty := ha.2 i (by simpa using hi) hd
     rw [List.getElem_map] at hty
     simpa only [List.map_take] using hty
@@ -449,10 +449,10 @@ theorem CaseStep.instN (henv : env.WF) (hvalue : env.HasType U Γ₀ value value
     refine .iota hl hg hc hp ht' hr' ⟨by simpa using ha.1, ?_⟩
     intro i hi hd
     have hi' : i < arguments.length := by simpa using hi
-    have hs : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
+    have hcl : (rule.body.domains[i].instL (target :: levels)).ClosedN (arguments.take i).length := by
       simpa [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi')] using (hdomains i hd).instL
     have hty := (ha.2 i hi' hd).instN henv.ordered W hvalue
-    rw [instantiateParams_instN hs] at hty
+    rw [instantiateParams_instN hcl] at hty
     simpa only [List.getElem_map, List.map_take] using hty
 
 /-- Matching keeps a fixed abstract head, constructor and arities. The
@@ -542,12 +542,12 @@ theorem MatchedCaseStep.weakN (henv : env.WF) (W : Ctx.LiftN n k Γ Γ')
     simpa only [case_application_liftN, case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_liftN H.source.closed.1.instL] using h
 
-theorem MatchedCaseStep.weakN_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U))
+theorem MatchedCaseStep.weakN_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
     (W : Ctx.LiftN n k Γ Γ')
     (H : MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.liftN n k)) :
     MatchedCaseStep env U Γ rule actual where
   source := by
-    apply CaseStep.weakN_inv henv hΓ W
+    apply CaseStep.weakN_inv henv hs hΓ W
     simpa only [case_capture_map, case_application_map_levels] using H.source
   block_eq := H.block_eq
   owner_eq := H.owner_eq
@@ -559,7 +559,7 @@ theorem MatchedCaseStep.weakN_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U
   guard := by
     have hc : rule.body.lhs.ClosedN (rule.capture actual).length := by
       simpa only [case_capture_map, List.length_map] using H.source.closed.1
-    apply (IsDefEqU.weakN_iff henv hΓ W).1
+    apply (IsDefEqU.weakN_iff henv hs hΓ W).1
     simpa only [case_application_liftN, case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_liftN hc.instL] using H.guard
 
@@ -579,12 +579,12 @@ theorem MatchedCaseStep.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     simpa only [case_application_lift', case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_lift' H.source.closed.1.instL ρ] using h
 
-theorem MatchedCaseStep.weak'_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U))
+theorem MatchedCaseStep.weak'_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env U))
     (W : Ctx.Lift' ρ Γ Γ')
     (H : MatchedCaseStep env U Γ' rule (CaseApplicationMap actual fun e => e.lift' ρ)) :
     MatchedCaseStep env U Γ rule actual where
   source := by
-    apply CaseStep.weak'_inv henv hΓ W
+    apply CaseStep.weak'_inv henv hs hΓ W
     simpa only [case_capture_map, case_application_map_levels] using H.source
   block_eq := H.block_eq
   owner_eq := H.owner_eq
@@ -596,7 +596,7 @@ theorem MatchedCaseStep.weak'_inv (henv : env.WF) (hΓ : OnCtx Γ' (IsType env U
   guard := by
     have hc : rule.body.lhs.ClosedN (rule.capture actual).length := by
       simpa only [case_capture_map, List.length_map] using H.source.closed.1
-    apply (IsDefEqU.weak'_iff henv hΓ W).1
+    apply (IsDefEqU.weak'_iff henv hs hΓ W).1
     simpa only [case_application_lift', case_capture_map, case_application_map_levels, AppliedRule.lhs,
       instantiateParams_lift' hc.instL ρ] using H.guard
 
@@ -1005,14 +1005,14 @@ theorem AppliedSchemaReduction.weak' (henv : env.WF) (W : Ctx.Lift' ρ Γ Γ')
     simpa only [case_application_lift', case_capture_map, case_application_map_levels,
       AppliedRule.rhs, instantiateParams_lift' hm.source.closed.2.1.instL ρ] using h
 
-theorem AppliedSchemaReduction.weak'_inv (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U))
+theorem AppliedSchemaReduction.weak'_inv (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U))
     (W : Ctx.Lift' ρ Γ Γ') (H : AppliedSchemaReduction env U Γ' (lhs.lift' ρ) rhs') :
     ∃ rhs, AppliedSchemaReduction env U Γ lhs rhs ∧ rhs' = rhs.lift' ρ := by
   generalize he : lhs.lift' ρ = source at H
   cases H with
   | iota hm =>
     obtain ⟨actual, rfl, rfl⟩ := case_application_lift'_inv he.symm
-    have hm' := hm.weak'_inv henv hΓ W
+    have hm' := hm.weak'_inv henv hs hΓ W
     refine ⟨_, .iota hm', ?_⟩
     simp only [case_capture_map, case_application_map_levels, AppliedRule.rhs,
       instantiateParams_lift' hm'.source.closed.2.1.instL ρ]

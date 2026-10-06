@@ -245,7 +245,7 @@ theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
       have hc : Closed body := by
         refine Closed.of_closed_looseBVarRange hbody.closed ?_
         simpa [Expr.hasLooseBVars] using hnl
-      obtain ⟨b₀, hb₀, hWeq⟩ := hbody.weakBV_inv₁ c.Ewf ⟨c.Δwf, nofun, hd⟩ hc
+      obtain ⟨b₀, hb₀, hWeq⟩ := hbody.weakBV_inv₁ c.Ewf c.strengthening ⟨c.Δwf, nofun, hd⟩ hc
       refine cont _ ?_ (fun P hP hfvt _ => (hbe P hP hfvt).2)
         fun Us P hsc hlt hfvt _ _ => (hbl Us P hsc hlt hfvt).2
       rw [hWeq, VExpr.inst_lift]; exact hb₀

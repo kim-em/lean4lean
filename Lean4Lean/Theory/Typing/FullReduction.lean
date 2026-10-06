@@ -429,11 +429,11 @@ theorem NormalEq.fullStep_proof (hΓ : OnCtx Γ (env.IsType univs))
 
 /-- The added function expansion is already one of the structural normal
 eta equalities, so it is compatible with every normal-equality derivation. -/
-theorem NormalEq.fullStep_funEta (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEq.fullStep_funEta (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (ht : HasType env univs Γ right (.forallE domain body)) :
     ∃ output, FullReduction Γ left output ∧
       NormalEq Γ output (.lam domain (.app right.lift (.bvar 0))) := by
-  exact ⟨_, .rfl, H.trans hΓ (.etaR ht (.refl (.app (ht.weak henv) (.bvar .zero))))⟩
+  exact ⟨_, .rfl, H.trans hs hΓ (.etaR ht (.refl (.app (ht.weak henv) (.bvar .zero))))⟩
 
 /-- Once normal equality has exposed the constructor argument spines,
 projection computation selects the same pair of normally equal fields. -/
@@ -525,7 +525,7 @@ theorem NormalEq.fullStep_quotDelta_args (hΓ : OnCtx Γ (env.IsType univs))
 /-- Normal equality respects full reduction. The remaining proof obligations
 are application-head and primitive projection exposure; constant unfolding
 and the explicit function and structure eta cases are proved. -/
-theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEq.fullStep (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (R : FullStep Γ right result) :
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   classical
@@ -537,14 +537,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.sortDF hl hr he).parRed hΓ h
+      obtain ⟨out, hs, hn⟩ := (NormalEq.sortDF hl hr he).parRed hs hΓ h
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.sortDF hl hr he).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.sortDF hl hr he).fullStep_funEta hΓ hfun
+      exact (NormalEq.sortDF hl hr he).fullStep_funEta hs hΓ hfun
     | delta h => exact False.elim (VExpr.mkApps_ne_sort (by intros; intro h; cases h) _ hs.symm)
     | quotDelta h => exact False.elim (VExpr.mkApps_ne_sort (by intros; intro h; cases h) _ hs.symm)
     | app => cases hs
@@ -557,14 +557,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.lamDF l1 l2 l3).parRed hΓ h
+      obtain ⟨out, hs, hn⟩ := (NormalEq.lamDF l1 l2 l3).parRed hs hΓ h
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.lamDF l1 l2 l3).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.lamDF l1 l2 l3).fullStep_funEta hΓ hfun
+      exact (NormalEq.lamDF l1 l2 l3).fullStep_funEta hs hΓ hfun
     | lam r1 r2 =>
       cases hs
       have hΓ' : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, l1.hasType.1⟩
@@ -585,14 +585,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.forallEDF l1 l2 l3 l4).parRed hΓ h
+      obtain ⟨out, hs, hn⟩ := (NormalEq.forallEDF l1 l2 l3 l4).parRed hs hΓ h
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.forallEDF l1 l2 l3 l4).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.forallEDF l1 l2 l3 l4).fullStep_funEta hΓ hfun
+      exact (NormalEq.forallEDF l1 l2 l3 l4).fullStep_funEta hs hΓ hfun
     | forallE r1 r2 =>
       cases hs
       obtain ⟨_, a1, a2⟩ := ih1 hΓ r1
@@ -615,14 +615,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.appDF l1 l2 l3 l4 l5 l6).parRed hΓ h
+      obtain ⟨out, hs, hn⟩ := (NormalEq.appDF l1 l2 l3 l4 l5 l6).parRed hs hΓ h
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_funEta hΓ hfun
+      exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).fullStep_funEta hs hΓ hfun
     | app r1 r2 =>
       cases hs
       obtain ⟨_, a1, a2⟩ := ih1 hΓ r1
@@ -655,14 +655,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core h =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.projDF lproj lMajor).parRed hΓ h
+      obtain ⟨out, hs, hn⟩ := (NormalEq.projDF lproj lMajor).parRed hs hΓ h
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.projDF lproj lMajor).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.projDF lproj lMajor).fullStep_funEta hΓ hfun
+      exact (NormalEq.projDF lproj lMajor).fullStep_funEta hs hΓ hfun
     | proj rMajor =>
       cases hs
       obtain ⟨_, majorRed, majorNormal⟩ := ihMajor hΓ rMajor
@@ -688,14 +688,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core r =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.elimDF h heq).parRed hΓ r
+      obtain ⟨out, hs, hn⟩ := (NormalEq.elimDF h heq).parRed hs hΓ r
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.elimDF h heq).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.elimDF h heq).fullStep_funEta hΓ hfun
+      exact (NormalEq.elimDF h heq).fullStep_funEta hs hΓ hfun
     | delta h => exact False.elim (mkApps_ne_elim (by intros; intro h; cases h) _ hs.symm)
     | quotDelta h => exact False.elim (mkApps_ne_elim (by intros; intro h; cases h) _ hs.symm)
     | proj => cases hs
@@ -708,14 +708,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core r =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.constDF hc hl hr hlen heq).parRed hΓ r
+      obtain ⟨out, hs, hn⟩ := (NormalEq.constDF hc hl hr hlen heq).parRed hs hΓ r
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.constDF hc hl hr hlen heq).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.constDF hc hl hr hlen heq).fullStep_funEta hΓ hfun
+      exact (NormalEq.constDF hc hl hr hlen heq).fullStep_funEta hs hΓ hfun
     | delta h =>
       obtain ⟨rfl, rfl, rfl⟩ := const_eq_mkApps hs
       exact NormalEq.fullStep_delta_levels hΓ h hl
@@ -739,14 +739,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     cases R with
     | core r =>
       cases hs
-      obtain ⟨out, hs, hn⟩ := (NormalEq.etaR ht he).parRed hΓ r
+      obtain ⟨out, hs, hn⟩ := (NormalEq.etaR ht he).parRed hs hΓ r
       exact ⟨out, hs.full, hn⟩
     | structEta h1 h2 h3 h4 h5 =>
       cases hs
       exact (NormalEq.etaR ht he).fullStep_structEta hΓ h1 h2 h3 h4 h5
     | funEta hfun =>
       cases hs
-      exact (NormalEq.etaR ht he).fullStep_funEta hΓ hfun
+      exact (NormalEq.etaR ht he).fullStep_funEta hs hΓ hfun
     | lam rd rb =>
       cases hs
       obtain ⟨⟨_, hA⟩, _, _⟩ := (ht.isType henv hΓ).choose_spec.forallE_inv henv
@@ -761,14 +761,14 @@ theorem NormalEq.fullStep (hΓ : OnCtx Γ (env.IsType univs))
     | app => cases hs
     | forallE => cases hs
 
-theorem NormalEq.fullReduction (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEq.fullReduction (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (R : FullReduction Γ right result) :
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   induction R with
   | rfl => exact ⟨_, .rfl, H⟩
   | tail _ step ih =>
     obtain ⟨mid, hmid, heq⟩ := ih
-    obtain ⟨out, hout, heq'⟩ := heq.fullStep hΓ step
+    obtain ⟨out, hout, heq'⟩ := heq.fullStep hs hΓ step
     exact ⟨out, hmid.trans hout, heq'⟩
 
 /-- Structure expansion commutes with an entire full development by
@@ -848,7 +848,7 @@ theorem FullStep.strip (hΓ : OnCtx Γ (env.IsType univs))
 /-- Full confluence follows from the global strip property and transport
 through normal equality; no termination or local-confluence inference is
 used. -/
-theorem FullReduction.church_rosser (hΓ : OnCtx Γ (env.IsType univs))
+theorem FullReduction.church_rosser (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType univs))
     (ht : HasType env univs Γ source type)
     (left : FullReduction Γ source l) (right : FullReduction Γ source r) :
     ∃ l' r', FullReduction Γ l l' ∧ FullReduction Γ r r' ∧ NormalEq Γ l' r' := by
@@ -857,8 +857,8 @@ theorem FullReduction.church_rosser (hΓ : OnCtx Γ (env.IsType univs))
   | tail before step ih =>
     obtain ⟨l', r', hl, hr, heq⟩ := ih
     obtain ⟨l'', r'', hl'', hr'', heq'⟩ := step.strip hΓ (FullReduction.hasType hΓ before ht) hl
-    obtain ⟨out, hout, heqOut⟩ := (heq.symm hΓ).fullReduction hΓ hr''
-    exact ⟨l'', out, hl'', hr.trans hout, heq'.trans hΓ (heqOut.symm hΓ)⟩
+    obtain ⟨out, hout, heqOut⟩ := (heq.symm hΓ).fullReduction hs hΓ hr''
+    exact ⟨l'', out, hl'', hr.trans hout, heq'.trans hs hΓ (heqOut.symm hΓ)⟩
 
 /-- Every installed equation joins in the full presentation at each scoped
 universe packing. The terminal comparison permits proof irrelevance: quotient

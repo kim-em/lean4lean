@@ -320,6 +320,12 @@ structure VContext extends Context where
   safePrimitives : env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
   trenv : CheckingEnv safety env venv
+  /-- The abstract environment the checker runs in validates context
+  strengthening of definitional equality (`VEnv.Strengthening`).  This is an
+  explicit assumption, not a consequence of `venv.WF`: it fails for some
+  well-formed environments, and it is not inherited by extensions, so every
+  environment the checker is run against must supply it separately. -/
+  strengthening : venv.Strengthening
   /-- Every visible singleton family whose constructor is present aligns with
   the abstract projection registry.  This is what projection inference reads. -/
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
@@ -1021,9 +1027,9 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
-      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf c.strengthening wf'.trctx.wf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
-      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf c.strengthening wf'.trctx.wf
   have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
       LevelsCache.WF (c.withMLC m) ic :=
     H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlam h) (wf.trctx.find?_eq_none.1 h1')
@@ -1084,9 +1090,9 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
   refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
-      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf c.strengthening wf'.trctx.wf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
-      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf c.strengthening wf'.trctx.wf
   have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
       LevelsCache.WF (c.withMLC m) ic :=
     H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlam h) (wf.trctx.find?_eq_none.1 h1')
@@ -1148,9 +1154,9 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   refine ⟨s', hs1, le.trans hs2, ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
-      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+      InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf c.strengthening wf'.trctx.wf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
-      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+      WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf c.strengthening wf'.trctx.wf
   have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
       LevelsCache.WF (c.withMLC m) ic :=
     H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlet h) (wf.trctx.find?_eq_none.1 h1')

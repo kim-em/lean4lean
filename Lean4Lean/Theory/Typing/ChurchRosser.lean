@@ -478,7 +478,7 @@ theorem NormalEq.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ
     A'::Γ ⊢ e1 ≡ₚ e2 := defeqDFC hΓ (.succ .zero W) H
 
 private theorem HasType.proj_weakN_iff
-    (henv : VEnv.WF env) (hΓ' : OnCtx Γ' (env.IsType U))
+    (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U))
     (W : Ctx.LiftN n k Γ Γ') :
     env.HasType U Γ'
         (.proj typeName index (major.liftN n k))
@@ -486,9 +486,9 @@ private theorem HasType.proj_weakN_iff
       env.HasType U Γ (.proj typeName index major) resultType := by
   simpa only [VExpr.liftN] using
     (HasType.weakN_iff
-      (e := .proj typeName index major) (A := resultType) henv hΓ' W)
+      (e := .proj typeName index major) (A := resultType) henv hs hΓ' W)
 
-variable! (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
 theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
     (H : Γ₁ ⊢ e1.liftN n k ≡ₚ e2.liftN n k) : Γ ⊢ e1 ≡ₚ e2 := by
   generalize eq1 : e1.liftN n k = e1' at H
@@ -498,13 +498,13 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
     cases e1 <;> cases eq1
     cases e2 <;> cases eq2
     have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have ⟨_, h'⟩ := (IsDefEqU.weakN_iff (e1 := .elim _ _ _) (e2 := .elim _ _ _) henv hΓ₂ W).1
+    have ⟨_, h'⟩ := (IsDefEqU.weakN_iff (e1 := .elim _ _ _) (e2 := .elim _ _ _) henv hs hΓ₂ W).1
       ⟨_, h.defeqDFC henv W₂⟩
     exact .elimDF h' heq
   | refl h =>
     cases eq2; cases liftN_inj.1 eq1
     have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have ⟨_, h'⟩ := (IsDefEqU.weakN_iff henv hΓ₂ W).1 ⟨_, h.defeqDFC henv W₂⟩
+    have ⟨_, h'⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂ W).1 ⟨_, h.defeqDFC henv W₂⟩
     exact .refl h'
   | sortDF h1 h2 h3 =>
     cases e1 <;> cases eq1
@@ -522,14 +522,14 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
     replace h3 := h3.defeqDFC henv W₂
     replace h4 := h4.defeqDFC henv W₂
     have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have hΓ := hΓ₂.weakN_inv henv W
+    have hΓ := hΓ₂.weakN_inv henv hs W
     have ⟨_, _, l1, l2⟩ :=
-      let ⟨_, h⟩ := (VExpr.WF.weakN_iff henv hΓ₂ W (e := .app ..)).1 ⟨_, h1.app h3⟩
+      let ⟨_, h⟩ := (VExpr.WF.weakN_iff henv hs hΓ₂ W (e := .app ..)).1 ⟨_, h1.app h3⟩
       HasType.app_inv henv hΓ h
     have ⟨_, _, r1, r2⟩ :=
-      let ⟨_, h⟩ := (VExpr.WF.weakN_iff henv hΓ₂ W (e := .app ..)).1 ⟨_, h2.app h4⟩
+      let ⟨_, h⟩ := (VExpr.WF.weakN_iff henv hs hΓ₂ W (e := .app ..)).1 ⟨_, h2.app h4⟩
       HasType.app_inv henv hΓ h
-    have := (IsDefEqU.weakN_iff henv hΓ₂ W).1
+    have := (IsDefEqU.weakN_iff henv hs hΓ₂ W).1
       (.trans henv hΓ₂ ((l1.weakN henv W).uniqU henv hΓ₂ h1) (h2.uniqU henv hΓ₂ (r1.weakN henv W)))
     have ⟨⟨_, h5⟩, _⟩ := this.forallE_inv henv hΓ
     exact .appDF (l1.defeqU_r henv hΓ this) r1
@@ -543,13 +543,13 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
       have hΓ₂ := (W₂.symm henv).isType' hΓ₀
       have hproj' := hproj.defeqDFC henv W₂
       have ⟨_, hnatural⟩ :=
-        (VExpr.WF.weakN_iff (e := .proj _ _ _) henv hΓ₂ W).1 ⟨_, hproj'⟩
+        (VExpr.WF.weakN_iff (e := .proj _ _ _) henv hs hΓ₂ W).1 ⟨_, hproj'⟩
       exact .projDF hnatural (ihMajor W W₂ rfl rfl)
   | lamDF h1 h2 _ ih1 =>
     cases e1 <;> cases eq1
     cases e2 <;> cases eq2
     have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have := (IsDefEq.weakN_iff (A := .sort ..) henv hΓ₂ W).1 <|
+    have := (IsDefEq.weakN_iff (A := .sort ..) henv hs hΓ₂ W).1 <|
       .defeqDFC henv W₂ (h2.symm.trans h1)
     exact .lamDF this this.hasType.1 (ih1 W.succ (W₂.succ h2) rfl rfl)
   | forallEDF h1 _ h3 _ ih1 ih2 =>
@@ -557,8 +557,8 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
     cases e2 <;> cases eq2
     have hΓ₂' := ((W₂.succ h1).symm henv).isType' hΓ₀
     have h3' := h3.defeqDFC henv (W₂.succ h1)
-    replace h4 := (IsDefEq.weakN_iff (A := .sort ..) henv hΓ₂' W.succ).1 h3'
-    have := (HasType.weakN_iff (A := .sort ..) henv hΓ₂'.1 W).1 <|
+    replace h4 := (IsDefEq.weakN_iff (A := .sort ..) henv hs hΓ₂' W.succ).1 h3'
+    have := (HasType.weakN_iff (A := .sort ..) henv hs hΓ₂'.1 W).1 <|
       .defeqDFC henv W₂ h1.hasType.2
     exact .forallEDF this (ih1 W W₂ rfl rfl) h4 (ih2 W.succ (W₂.succ h1) rfl rfl)
   | etaL h1 _ ih =>
@@ -574,9 +574,9 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
       ← show liftN n (.bvar 0) (k+1) = bvar 0 by simp [liftN],
       ← liftN] at this
     have hΓ₂' := ((W₂.succ hA).symm henv).isType' hΓ₀
-    have ⟨C, hC⟩ := (IsDefEqU.weakN_iff henv hΓ₂' W.succ).1 ⟨_, this⟩
+    have ⟨C, hC⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂' W.succ).1 ⟨_, this⟩
     have ⟨_, hu⟩ := this.uniq henv hΓ₂' (hC.weakN henv W.succ)
-    have := (IsDefEq.weakN_iff (A := .forallE ..) henv hΓ₂'.1 W).1 <|
+    have := (IsDefEq.weakN_iff (A := .forallE ..) henv hs hΓ₂'.1 W).1 <|
       IsDefEq.defeq (.forallEDF hA' hu) h1'
     refine .etaL this (ih W.succ (W₂.succ hA) rfl (by simp [liftN, lift_liftN']))
   | etaR h1 _ ih =>
@@ -592,9 +592,9 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
       ← show liftN n (.bvar 0) (k+1) = bvar 0 by simp [liftN],
       ← liftN] at this
     have hΓ₂' := ((W₂.succ hA).symm henv).isType' hΓ₀
-    have ⟨C, hC⟩ := (IsDefEqU.weakN_iff henv hΓ₂' W.succ).1 ⟨_, this⟩
+    have ⟨C, hC⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂' W.succ).1 ⟨_, this⟩
     have ⟨_, hu⟩ := this.uniq henv hΓ₂' (hC.weakN henv W.succ)
-    have := (IsDefEq.weakN_iff (A := .forallE ..) henv hΓ₂'.1 W).1 <|
+    have := (IsDefEq.weakN_iff (A := .forallE ..) henv hs hΓ₂'.1 W).1 <|
       IsDefEq.defeq (.forallEDF hA' hu) h1'
     refine .etaR this (ih W.succ (W₂.succ hA) (by simp [liftN, lift_liftN']) rfl)
   | proofIrrel h1 h2 h3 =>
@@ -603,17 +603,17 @@ theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx e
     have h2' := h2.defeqDFC henv W₂
     have h3' := h3.defeqDFC henv W₂
     have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have ⟨_, h⟩ := (IsDefEqU.weakN_iff henv hΓ₂ W).1 ⟨_, h2'⟩
+    have ⟨_, h⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂ W).1 ⟨_, h2'⟩
     have ⟨_, hw⟩ := h2'.uniq henv hΓ₂ (h.weakN henv W)
     exact .proofIrrel
-      ((HasType.weakN_iff henv hΓ₂ (A := .sort ..) W).1 (h1'.defeqU_l henv hΓ₂ ⟨_, hw⟩))
-      ((HasType.weakN_iff henv hΓ₂ W).1 (hw.defeq h2'))
-      ((HasType.weakN_iff henv hΓ₂ W).1 (hw.defeq h3'))
+      ((HasType.weakN_iff henv hs hΓ₂ (A := .sort ..) W).1 (h1'.defeqU_l henv hΓ₂ ⟨_, hw⟩))
+      ((HasType.weakN_iff henv hs hΓ₂ W).1 (hw.defeq h2'))
+      ((HasType.weakN_iff henv hs hΓ₂ W).1 (hw.defeq h3'))
 
-variable! (hΓ' : OnCtx Γ' (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ' : OnCtx Γ' (IsType env univs)) in
 theorem NormalEq.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
     Γ' ⊢ e1.liftN n k ≡ₚ e2.liftN n k ↔ Γ ⊢ e1 ≡ₚ e2 :=
-  ⟨fun H => H.weakN_inv_DFC hΓ' W .zero, fun H => H.weakN W⟩
+  ⟨fun H => H.weakN_inv_DFC hs hΓ' W .zero, fun H => H.weakN W⟩
 
 private def meas : VExpr → Nat
   | .app f a
@@ -627,7 +627,7 @@ omit [Params] in private theorem meas_liftN : meas (e.liftN n k) = meas e := by
 omit [Params] in private theorem meas_lift : meas e.lift = meas e := meas_liftN
 
 attribute [local simp] meas meas_lift in
-theorem NormalEq.trans (hΓ : OnCtx Γ (IsType env univs)) :
+theorem NormalEq.trans (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) :
     Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e2 ≡ₚ e3 → Γ ⊢ e1 ≡ₚ e3
   | .elimDF l1 l2, .elimDF r1 r2 =>
     .elimDF (l1.trans_l henv hΓ r1) (l2.trans (fun _ _ _ h1 => h1.trans) r2)
@@ -636,28 +636,28 @@ theorem NormalEq.trans (hΓ : OnCtx Γ (IsType env univs)) :
     .constDF l1 l2 r3 l4 (l5.trans (fun _ _ _ h1 => h1.trans) r5)
   | .appDF l1 l2 l3 l4 l5 l6, .appDF r1 r2 r3 r4 r5 r6 =>
     .appDF l1 ((r1.uniqU henv hΓ l2).defeqDF henv hΓ r2) l3
-      ((r3.uniqU henv hΓ l4).defeqDF henv hΓ r4) (l5.trans hΓ r5) (l6.trans hΓ r6)
+      ((r3.uniqU henv hΓ l4).defeqDF henv hΓ r4) (l5.trans hs hΓ r5) (l6.trans hs hΓ r6)
   | .projDF l1 l2, .projDF _ r2 =>
-    .projDF l1 (l2.trans hΓ r2)
+    .projDF l1 (l2.trans hs hΓ r2)
   | .lamDF l1 l2 l3, .lamDF r1 r2 r3 =>
     have aa := r1.trans_r henv hΓ l2.symm
-    .lamDF l1 (aa.symm.trans_l henv hΓ r2) (l3.trans ⟨hΓ, _, l1.hasType.1⟩ (r3.defeq_l hΓ aa))
+    .lamDF l1 (aa.symm.trans_l henv hΓ r2) (l3.trans hs ⟨hΓ, _, l1.hasType.1⟩ (r3.defeq_l hΓ aa))
   | .forallEDF l1 l2 l3 l4, .forallEDF r1 r2 r3 r4 =>
     have r4' := r4.defeq_l hΓ (.trans_l henv hΓ (.transU_l henv hΓ r1 (l2.defeq hΓ).symm) l1.symm)
-    .forallEDF l1 (l2.trans hΓ r2) l3 (l4.trans ⟨hΓ, _, l1.hasType.1⟩ r4')
+    .forallEDF l1 (l2.trans hs hΓ r2) l3 (l4.trans hs ⟨hΓ, _, l1.hasType.1⟩ r4')
   | .etaR l1 ih, .lamDF r1 r2 r3 =>
     have ⟨_, _, hB⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
     have eq := r1.symm.trans r2
     .etaR (IsDefEq.defeq (.forallEDF eq hB) l1) <|
-      (ih.defeq_l hΓ eq).trans ⟨hΓ, _, r2.hasType.2⟩ (r3.defeq_l hΓ r2)
+      (ih.defeq_l hΓ eq).trans hs ⟨hΓ, _, r2.hasType.2⟩ (r3.defeq_l hΓ r2)
   | .lamDF l1 l2 l3, .etaL r1 ih =>
     have ⟨_, _, hB⟩ := let ⟨_, h⟩ := r1.isType henv hΓ; h.forallE_inv henv
     have eq := l2.symm.trans l1
     .etaL (IsDefEq.defeq (.forallEDF eq hB) r1) <|
-      (l3.defeq_l hΓ l1).trans ⟨hΓ, _, l1.hasType.2⟩ (ih.defeq_l hΓ eq)
+      (l3.defeq_l hΓ l1).trans hs ⟨hΓ, _, l1.hasType.2⟩ (ih.defeq_l hΓ eq)
   | H1@(.etaR l1 ihl), .etaL r1 ihr => by
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
-    have := ihl.trans (by exact ⟨hΓ, _, hA⟩) ihr
+    have := ihl.trans hs (by exact ⟨hΓ, _, hA⟩) ihr
     generalize eq : e1.lift = e1' at this
     cases this with first | cases eq | cases liftN_inj.1 eq
     | refl h => exact .refl r1
@@ -667,19 +667,19 @@ theorem NormalEq.trans (hΓ : OnCtx Γ (IsType env univs)) :
         (.defeqU_l henv hΓ ⟨_, .eta r1⟩ (.lam hA h3))
       have hw := let ⟨_, h⟩ := hA.isType henv hΓ; h.sort_inv henv
       exact ⟨_, .sortDF ⟨hw, ⟨⟩⟩ ⟨⟩ rfl⟩
-    | appDF _ _ _ _ ih => exact (NormalEq.weakN_iff (by exact ⟨hΓ, _, hA⟩) .one).1 ih
+    | appDF _ _ _ _ ih => exact (NormalEq.weakN_iff hs (by exact ⟨hΓ, _, hA⟩) .one).1 ih
   | .refl h, H2 => H2
   | .proofIrrel l1 l2 l3, H2 => .proofIrrel l1 l2 (.defeqU_l henv hΓ (H2.defeq hΓ) l3)
   | .etaL l1 ih, H2 => by
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
-    refine .etaL (.defeqU_l henv hΓ (H2.defeq hΓ) l1) (ih.trans ⟨hΓ, _, hA⟩ ?_)
+    refine .etaL (.defeqU_l henv hΓ (H2.defeq hΓ) l1) (ih.trans hs ⟨hΓ, _, hA⟩ ?_)
     exact .appDF (l1.weakN henv .one)
       ((l1.defeqU_l henv hΓ (H2.defeq hΓ)).weakN henv .one) (.bvar .zero) (.bvar .zero)
       (.weakN .one H2) (.refl (.bvar .zero))
   | H1, .refl _ => H1
   | H1, .etaR r1 ih => by
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := r1.isType henv hΓ; h.forallE_inv henv
-    refine .etaR (.defeqU_l henv hΓ (H1.defeq hΓ).symm r1) (.trans ⟨hΓ, _, hA⟩ ?_ ih)
+    refine .etaR (.defeqU_l henv hΓ (H1.defeq hΓ).symm r1) (.trans hs ⟨hΓ, _, hA⟩ ?_ ih)
     refine .appDF ((r1.defeqU_l henv hΓ (H1.defeq hΓ).symm).weakN henv .one)
       (r1.weakN henv .one) (.bvar .zero) (.bvar .zero)
       (.weakN .one H1) (.refl (.bvar .zero))
@@ -1159,7 +1159,7 @@ theorem HasType.matches_inv {p : Pattern} {m1 m2} (H : Γ ⊢ e : A)
     have ⟨_, _, hf, ha⟩ := H.app_inv henv hΓ
     rintro (_|h) <;> [exact ⟨_, ha⟩; exact ih1 hf h]
 
-variable! (hΓ : OnCtx Γ' (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env univs)) in
 theorem ParRed.weakN_inv (W : Ctx.LiftN n k Γ Γ')
     (h : Γ' ⊢ e1.liftN n k : A) (H : Γ' ⊢ e1.liftN n k ≫ e2') :
     ∃ e2, Γ ⊢ e1 ≫ e2 ∧ e2' = e2.liftN n k := by
@@ -1204,7 +1204,7 @@ theorem ParRed.weakN_inv (W : Ctx.LiftN n k Γ Γ')
     exact ⟨_, .beta a1 b1, (liftN_inst_hi ..).symm⟩
   | @schema Γ' args rule actual hm hl hred ih =>
     obtain ⟨original, rfl, rfl⟩ := case_application_liftN_inv eq.symm
-    have hm' := hm.weakN_inv henv hΓ W
+    have hm' := hm.weakN_inv henv hs hΓ W
     have hlen : args.length = (rule.capture original).length := by
       simpa only [case_capture_map, List.length_map] using hl
     have recargs : ∀ i : Fin (rule.capture original).length,
@@ -1241,7 +1241,7 @@ theorem ParRed.weakN_inv (W : Ctx.LiftN n k Γ Γ')
       refine ⟨_, .extra h1 a1 (h3.map fun _ _ h => ?_) a2,
         .trans (by congr; funext; apply a4) r.1.apply_liftN.symm⟩
       rw [(funext a3 : m2 = _), ← Pattern.RHS.apply_liftN, ← Pattern.RHS.apply_liftN] at h
-      exact (IsDefEqU.weakN_iff henv hΓ W).1 h
+      exact (IsDefEqU.weakN_iff henv hs hΓ W).1 h
     clear h1 h3 r
     induction h2 generalizing e1 A with
     | const => cases e1 <;> cases eq; exact ⟨_, nofun, .const, nofun, nofun, nofun⟩
@@ -1441,7 +1441,7 @@ theorem ParRed.schema_app_triangle
   have hi'' : i < (rule.capture actual).length := by simpa [outputs] using hi
   simpa [outputs] using (recargs ⟨i, hi''⟩).choose_spec.2
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e ⋙ o) :
     ∃ o', Γ ⊢ e' ≫ o' ∧ Γ ⊢ o' ≡ₚ o := by
   induction e using VExpr.brecOn generalizing Γ A e' o with | _ e e_ih => ?_
@@ -1552,7 +1552,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       | lam rA re =>
         refine have hΓ' := ⟨hΓ, _, lA⟩; let ⟨_, p2, n2⟩ := he hΓ' le re l1; ?_
         refine ⟨_, .beta (p2.defeqDFC hΓ (.succ .zero (rA.defeq hΓ lA)) (re.hasType hΓ' le)) p3, ?_⟩
-        refine .trans hΓ
+        refine .trans hs hΓ
           (.instN_r hΓ' (p3.hasType hΓ (ra.hasType hΓ la')) n3 .zero
             (p2.hasType hΓ' (re.hasType hΓ' le)))
           (.instN (l2.toParRed.hasType hΓ la') .zero n2)
@@ -1561,7 +1561,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       refine have hΓ' := ⟨hΓ, _, lA⟩; let ⟨_, p2, n2⟩ := he hΓ' le re l1; ?_
       let ⟨_, p3, n3⟩ := ha hΓ la ra l2
       refine ⟨_, .instN p3 (ra.hasType hΓ la') .zero p2, ?_⟩
-      refine .trans hΓ
+      refine .trans hs hΓ
         (.instN_r hΓ' (p3.hasType hΓ (ra.hasType hΓ la')) n3 .zero
           (p2.hasType hΓ' (re.hasType hΓ' le)))
         (.instN (l2.toParRed.hasType hΓ la') .zero n2)
@@ -1644,14 +1644,14 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
         have ⟨g2, r1, r2⟩ := ih none hΓ Ha (r4 none) e_ih2
         exact ⟨(·.elim g2 g1), (·.casesOn r1 l1), (·.casesOn r2 l2)⟩
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.church_rosser (H : Γ ⊢ e : A)
     (H1 : Γ ⊢ e ≫ e₁) (H2 : Γ ⊢ e ≫ e₂) :
       ∃ e₁' e₂', Γ ⊢ e₁ ≫ e₁' ∧ Γ ⊢ e₂ ≫ e₂' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
   let ⟨e', h'⟩ := CParRed.exists hΓ H
-  let ⟨_, l1, l2⟩ := H1.triangle hΓ H h'
-  let ⟨_, r1, r2⟩ := H2.triangle hΓ H h'
-  exact ⟨_, _, l1, r1, l2.trans hΓ (r2.symm hΓ)⟩
+  let ⟨_, l1, l2⟩ := H1.triangle hs hΓ H h'
+  let ⟨_, r1, r2⟩ := H2.triangle hs hΓ H h'
+  exact ⟨_, _, l1, r1, l2.trans hs hΓ (r2.symm hΓ)⟩
 
 def ParRedS (Γ : List VExpr) : VExpr → VExpr → Prop := ReflTransGen (ParRed Γ)
 local notation:65 Γ " ⊢ " e1 " ≫* " e2:36 => ParRedS Γ e1 e2
@@ -1775,7 +1775,7 @@ theorem ParRedExt.isApp {l : ParRedExt} (H : l.apply (.app f a) = e') : IsApp e'
     · rename_i h1; cases h1 ▸ H; trivial
   | _ => subst H; trivial
 
-variable! (hΓ : OnCtx (A::Γ) (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx (A::Γ) (IsType env univs)) in
 theorem hasType_app_bvar0
     (H : A :: Γ ⊢ e.lift.app (bvar 0) : B) : ∃ B', Γ ⊢ e : .forallE A B' := by
   have ⟨_, _, c1, c2⟩ := H.app_inv henv hΓ
@@ -1787,11 +1787,11 @@ theorem hasType_app_bvar0
   have := c1.eta
   rw [show A.lift.lam (e.lift.lift.app (bvar 0)) = (A.lam (e.lift.app (bvar 0))).lift by
     simp [VExpr.liftN, liftN'_liftN_lo, liftN_liftN]] at this
-  have ⟨_, f1⟩ := (IsDefEqU.weakN_iff henv hΓ .one).1 ⟨_, this⟩
+  have ⟨_, f1⟩ := (IsDefEqU.weakN_iff henv hs hΓ .one).1 ⟨_, this⟩
   have ⟨⟨_, f2⟩, _, f3⟩ := f1.hasType.1.lam_inv henv hΓ.1
   exact ⟨_, (HasType.lam f2 f3).defeqU_l henv hΓ.1 ⟨_, f1⟩⟩
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRedExt.parRed_beta :
     Γ ⊢ f ≡ₚ lam A e' → ∀ {a B}, Γ ⊢ f.app a : B → ∃ e, Γ ⊢ f.app a ≫* e ∧ Γ ⊢ e ≡ₚ e'.inst a := by
   refine (?_ : _ ∧ ∀ (l : ParRedExt), l.depth ≤ Γ.length →
@@ -1847,7 +1847,7 @@ theorem ParRedExt.parRed_beta :
       simp [instN_bvar0] at h ⊢; exact .refl (h.hasType hΓ H)
     | lift l =>
       let A::Γ := Γ
-      have ⟨_, a1⟩ := (IsDefEqU.weakN_iff henv hΓ .one).1 ⟨_, H⟩
+      have ⟨_, a1⟩ := (IsDefEqU.weakN_iff henv hs hΓ .one).1 ⟨_, H⟩
       have ⟨_, a2, a3⟩ := ih _ (by simp [meas]) hΓ.1 l (by simpa [depth] using W) a1 rfl
       exact ⟨_, .weakN .one a2, .weakN .one a3⟩
     | app l =>
@@ -1878,7 +1878,7 @@ theorem ParRedExt.parRed_beta :
       have ⟨⟨_, u1⟩, _, u2⟩ := a1.defeqU_l henv hΓ (a5.defeq hΓ)
         |>.uniqU henv hΓ (c1.lam c2) |>.forallE_inv henv hΓ
       have ⟨_, b1, b2⟩ := (f_ih.1.1 hΓ).1 a5 (.app a1 a3)
-      replace b2 := b2.trans hΓ <|
+      replace b2 := b2.trans hs hΓ <|
         .instN_r (by exact ⟨hΓ, _, c1⟩) (.defeqU_r henv hΓ ⟨_, u1⟩ a3) a6 .zero c2
       have := congrArg (liftN n) (instN_bvar0 e' 0)
       simp [liftN_inst_hi, liftN'_liftN', liftN] at this
@@ -1893,7 +1893,7 @@ theorem ParRedExt.parRed_beta :
     refine have hΓ' := ⟨hΓ, _, hA⟩
       have ⟨_, b1, b2⟩ := (f_ih.2.1 hΓ').2 (app l) (by exact Nat.succ_le_succ W) a2; ?_
     have ⟨_, c1⟩ := b2.defeq hΓ'
-    let ⟨_, b3⟩ := hasType_app_bvar0 hΓ' c1.hasType.2
+    let ⟨_, b3⟩ := hasType_app_bvar0 hs hΓ' c1.hasType.2
     exact ⟨_, .lam .rfl b1, .etaL b3 b2⟩
   | @proofIrrel _ p _ _ a1 a2 a3 =>
     subst eq; refine ⟨_, .rfl, .proofIrrel a1 a2 ?_⟩
@@ -1907,14 +1907,14 @@ theorem ParRedExt.parRed_beta :
       exact .defeqU_l henv hΓ ⟨_, this⟩ a3
     | lift l ih =>
       let A::Γ := Γ
-      have ⟨_, b1⟩ := (IsDefEqU.weakN_iff henv hΓ .one).1 ⟨_, a3⟩
+      have ⟨_, b1⟩ := (IsDefEqU.weakN_iff henv hs hΓ .one).1 ⟨_, a3⟩
       have u1 := a3.uniqU henv hΓ (b1.weak henv)
-      have := (HasType.weakN_iff henv hΓ (A := sort _) .one).1 (a1.defeqU_l henv hΓ u1)
+      have := (HasType.weakN_iff henv hs hΓ (A := sort _) .one).1 (a1.defeqU_l henv hΓ u1)
       have := ih hΓ.1 (Nat.le_of_succ_le_succ W) this b1
       exact .defeqU_r henv hΓ u1.symm (this.weak henv)
     | app l ih =>
       let A::Γ := Γ
-      let ⟨_, b1⟩ := hasType_app_bvar0 hΓ a3
+      let ⟨_, b1⟩ := hasType_app_bvar0 hs hΓ a3
       have H := a3.uniqU henv hΓ (HasType.app (b1.weak henv) (.bvar .zero))
       simp [instN_bvar0] at H
       have ⟨⟨_, b2⟩, _, b3⟩ := have ⟨_, b2⟩ := b1.isType henv hΓ.1; b2.forallE_inv henv
@@ -2165,7 +2165,7 @@ theorem NormalEq.headParallel (H : Γ ⊢ e₁ ≡ₚ e₂)
     ∃ e₁', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
   sorry
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e₂') :
     ∃ e₁', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
   induction H1 generalizing e₂' with
@@ -2197,9 +2197,9 @@ theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e�
       let ⟨⟨_, u1⟩, _, u2⟩ := ((d1.lam d2).uniqU henv hΓ l2).forallE_inv henv hΓ
       refine have hΓ' := (by exact ⟨hΓ, _, d1⟩); have d2 := r1.hasType hΓ' (u2.defeq d2); ?_
       replace l3 := b1.hasType hΓ (u1.symm.defeq l3)
-      let ⟨_, h1, h2⟩ := ParRedExt.parRed_beta hΓ a2
+      let ⟨_, h1, h2⟩ := ParRedExt.parRed_beta hs hΓ a2
         (.app (.defeqU_l henv hΓ (a2.defeq hΓ).symm (d1.lam d2)) l3)
-      exact ⟨_, .trans (a1.app b1) h1, h2.trans hΓ (.instN_r hΓ' l3 b2 .zero d2)⟩
+      exact ⟨_, .trans (a1.app b1) h1, h2.trans hs hΓ (.instN_r hΓ' l3 b2 .zero d2)⟩
     | extra r1 r2 r3 r4 =>
       exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).headParallel hΓ (.native r1 r2 r3 r4)
     | schema hm hl hr =>
@@ -2251,7 +2251,7 @@ theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e�
         · exact ⟨_, h1, .lamDF (h2.of_r henv hΓ hA).symm (r1.defeq hΓ hA) a2⟩
         · have := a2.etaR (h.hasType hΓ l1)
           have ⟨_, a3⟩ := a2.defeq hΓ'
-          exact ⟨_, h, this.trans hΓ (.lamDF hA (r1.defeq hΓ hA) (.refl a3.hasType.2))⟩
+          exact ⟨_, h, this.trans hs hΓ (.lamDF hA (r1.defeq hΓ hA) (.refl a3.hasType.2))⟩
       generalize eq : e.lift.app (.bvar 0) = e' at a1
       clear l2 ih1 a2
       induction a1 generalizing e with subst eq
@@ -2264,12 +2264,12 @@ theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e�
       generalize eq : e'.lift = e1 at a1
       rcases a1.app_bvar_cases with ⟨_, b1, rfl⟩ | ⟨_, _, _, he, b1, rfl⟩
       ·
-        cases eq; obtain ⟨_, b1', rfl⟩ := b1.weakN_inv hΓ' .one ((h.hasType hΓ l1).weak henv)
+        cases eq; obtain ⟨_, b1', rfl⟩ := b1.weakN_inv hs hΓ' .one ((h.hasType hΓ l1).weak henv)
         exact .inr ⟨_, .tail h b1', rfl⟩
       · rw [he] at eq
         cases e' <;> cases eq
         have ⟨⟨_, c1⟩, _, c2⟩ := (h.hasType hΓ l1).lam_inv henv hΓ
-        obtain ⟨_, b1', rfl⟩ := b1.weakN_inv
+        obtain ⟨_, b1', rfl⟩ := b1.weakN_inv hs
           (by exact ⟨hΓ', _, c1.weak henv⟩) (.succ .one) (c2.weakN henv (.succ .one))
         rw [instN_bvar0]
         have l1' := h.hasType hΓ l1
@@ -2279,14 +2279,14 @@ theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e�
     | extra _ r2 => cases r2
   | proofIrrel l1 l2 l3 => exact ⟨_, .rfl, .proofIrrel l1 l2 (H2.hasType hΓ l3)⟩
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem NormalEq.parRedS (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫* e₂') :
     ∃ e₁', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
   induction H2 with
   | rfl => exact ⟨_, .rfl, H1⟩
   | tail h1 h2 ih =>
     let ⟨_, a1, a2⟩ := ih
-    let ⟨_, b1, b2⟩ := a2.parRed hΓ h2
+    let ⟨_, b1, b2⟩ := a2.parRed hs hΓ h2
     exact ⟨_, .trans a1 b1, b2⟩
 
 local notation:65 Γ " ⊢ " e1 " ≫≪ " e2:36 => CRDefEq Γ e1 e2
@@ -2295,7 +2295,7 @@ def CRDefEq (Γ : List VExpr) (e₁ e₂ : VExpr) : Prop :=
   (∃ A, Γ ⊢ e₁ : A) ∧ (∃ A, Γ ⊢ e₂ : A) ∧
   ∃ e₁' e₂', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₂ ≫* e₂' ∧ Γ ⊢ e₁' ≡ₚ e₂'
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRedS.church_rosser  (H : Γ ⊢ e : A)
     (H1 : Γ ⊢ e ≫* e₁) (H2 : Γ ⊢ e ≫* e₂) : Γ ⊢ e₁ ≫≪ e₂ := by
   refine ⟨⟨_, H1.hasType hΓ H⟩, ⟨_, H2.hasType hΓ H⟩, ?_⟩
@@ -2310,11 +2310,11 @@ theorem ParRedS.church_rosser  (H : Γ ⊢ e : A)
       | rfl => exact ⟨_, _, H2, .rfl, .refl (H2.hasType hΓ H)⟩
       | tail h1 h2 ih =>
         have ⟨_, _, a1, a2, a3⟩ := ih
-        have ⟨_, _, b1, b2, b3⟩ := a1.church_rosser hΓ (ParRedS.hasType hΓ h1 H) h2
-        have ⟨_, c1, c2⟩ := (a3.symm hΓ).parRed hΓ b1
-        exact ⟨_, _, b2, .trans a2 c1, (c2.trans hΓ b3).symm hΓ⟩
-    have ⟨_, c1, c2⟩ := a3.parRed hΓ b1
-    exact ⟨_, _, .trans a1 c1, b2, c2.trans hΓ b3⟩
+        have ⟨_, _, b1, b2, b3⟩ := a1.church_rosser hs hΓ (ParRedS.hasType hΓ h1 H) h2
+        have ⟨_, c1, c2⟩ := (a3.symm hΓ).parRed hs hΓ b1
+        exact ⟨_, _, b2, .trans a2 c1, (c2.trans hs hΓ b3).symm hΓ⟩
+    have ⟨_, c1, c2⟩ := a3.parRed hs hΓ b1
+    exact ⟨_, _, .trans a1 c1, b2, c2.trans hs hΓ b3⟩
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem CRDefEq.normalEq (H : Γ ⊢ e₁ ≡ₚ e₂) : Γ ⊢ e₁ ≫≪ e₂ :=
@@ -2332,10 +2332,10 @@ variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem CRDefEq.symm : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₁
   | ⟨h1, h2, _, _, h3, h4, h5⟩ => ⟨h2, h1, _, _, h4, h3, h5.symm hΓ⟩
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
 theorem CRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ → Γ ⊢ e₁ ≫≪ e₃
   | ⟨l1, ⟨_, l2⟩, _, _, l3, l4, l5⟩, ⟨_, r2, _, _, r3, r4, r5⟩ => by
-    let ⟨_, _, _, _, m1, m2, m3⟩ := l4.church_rosser hΓ l2 r3
-    let ⟨_, a1, a2⟩ := l5.parRedS hΓ m1
-    let ⟨_, b1, b2⟩ := (r5.symm hΓ).parRedS hΓ m2
-    exact ⟨l1, r2, _, _, .trans l3 a1, .trans r4 b1, a2.trans hΓ <| m3.trans hΓ (b2.symm hΓ)⟩
+    let ⟨_, _, _, _, m1, m2, m3⟩ := l4.church_rosser hs hΓ l2 r3
+    let ⟨_, a1, a2⟩ := l5.parRedS hs hΓ m1
+    let ⟨_, b1, b2⟩ := (r5.symm hΓ).parRedS hs hΓ m2
+    exact ⟨l1, r2, _, _, .trans l3 a1, .trans r4 b1, a2.trans hs hΓ <| m3.trans hs hΓ (b2.symm hΓ)⟩

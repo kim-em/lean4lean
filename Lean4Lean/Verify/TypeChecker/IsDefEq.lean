@@ -64,7 +64,7 @@ theorem isDefEqLambda.WF {c : VContext} {s : VState}
           (bᵢ.instantiateList fvs 1).instantiate1' e = bᵢ.instantiateList fvs 1 := by
         rw [Expr.instantiate1'_eq_self]; rw [Expr.instantiateList'_eq_self] <;> simp [*]
       rw [eq h rfl, ← eq (e := .fvar v) h rfl]
-      let ⟨_, H⟩ := this.weakFV_inv c.Ewf (.skip_fvar _ _ .refl) (.refl c.Ewf hΔ)
+      let ⟨_, H⟩ := this.weakFV_inv c.Ewf c.strengthening (.skip_fvar _ _ .refl) (.refl c.Ewf hΔ)
         (m.noBV ▸ this.closed) (by rw [eq h rfl]; exact a3.fvarsIn)
       refine ⟨_, H, this.uniq c'.Ewf (.refl c'.Ewf hΔ) <| H.weakFV c'.Ewf (.skip_fvar _ _ .refl) hΔ⟩
     let ⟨_, a4, a5⟩ := this h.1 a3'
@@ -134,7 +134,7 @@ theorem isDefEqForall.WF {c : VContext} {s : VState}
           (bᵢ.instantiateList fvs 1).instantiate1' e = bᵢ.instantiateList fvs 1 := by
         rw [Expr.instantiate1'_eq_self]; rw [Expr.instantiateList'_eq_self] <;> simp [*]
       rw [eq h rfl, ← eq (e := .fvar v) h rfl]
-      let ⟨_, H⟩ := this.weakFV_inv c.Ewf (.skip_fvar _ _ .refl) (.refl c.Ewf hΔ)
+      let ⟨_, H⟩ := this.weakFV_inv c.Ewf c.strengthening (.skip_fvar _ _ .refl) (.refl c.Ewf hΔ)
         (m.noBV ▸ this.closed) (by rw [eq h rfl]; exact a3.fvarsIn)
       refine ⟨_, H, this.uniq c'.Ewf (.refl c'.Ewf hΔ) <| H.weakFV c'.Ewf (.skip_fvar _ _ .refl) hΔ⟩
     let ⟨_, a4, a5⟩ := this h.1 a3'
@@ -161,7 +161,7 @@ theorem quickIsDefEq.WF {c : VContext} {s : VState}
     have ⟨ewf, _, h1⟩ := EquivManager.isEquiv.WF ewf hm
     refine let vs' := { s with toState := s' }; ⟨vs', rfl, .rfl, { wf with ectx := ?_ }, ?_⟩
     · exact ⟨_, _, a1, a2, ewf, a4⟩
-    · intro h; apply (VEnv.IsDefEqU.weak'_iff c.Ewf a1 a2.toCtx).1
+    · intro h; apply (VEnv.IsDefEqU.weak'_iff c.Ewf c.strengthening a1 a2.toCtx).1
       exact (h1 h).uniq c.Ewf (a2.bvars_eq.trans c.mlctx.noBV)
         a1 (he₁.weakFV' c.Ewf a2 a1) (he₂.weakFV' c.Ewf a2 a1)
   split <;> [exact .pure fun _ => h ‹_›; split]

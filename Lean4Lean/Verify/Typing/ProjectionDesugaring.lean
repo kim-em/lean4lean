@@ -229,12 +229,12 @@ private theorem skips_mkApps_arguments {fn : VExpr} {args : List VExpr}
 scope. Every implicit argument is recovered from that same program spine. -/
 theorem weakN_inv
     (H : ProjectionDesugaring env U Γ' name index (major.liftN n k) (target.liftN n k))
-    (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ') :
+    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ') :
     ProjectionDesugaring env U Γ name index major target := by
   generalize he : target.liftN n k = raw at H
   cases H with
   | @intro block programs fieldSorts levels params indices schema owner program
-      hr ho hf hg hs hlu hfu hw hp hn hi hm ht =>
+      hr ho hf hg hsel hlu hfu hw hp hn hi hm ht =>
     have hskips : (VExpr.mkApps (program.value.instL (fieldSorts ++ levels))
         (params ++ indices ++ [major.liftN n k])).Skips n k := he ▸ .liftN
     have hargs := skips_mkApps_arguments hskips
@@ -256,19 +256,19 @@ theorem weakN_inv
         exact hargs _ (List.mem_append_left _ (List.mem_append_right _ (List.getElem_mem h₂)))
     have hsource : env.HasType U Γ major
         (VExpr.mkApps (.const name levels) (params' ++ indices')) := by
-      apply (VEnv.HasType.weakN_iff henv hΓ W).mp
+      apply (VEnv.HasType.weakN_iff henv hs hΓ W).mp
       simpa only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append, hparams, hindices] using hm
-    have hc := (program_closed hg hs).instL (ls := fieldSorts ++ levels)
+    have hc := (program_closed hg hsel).instL (ls := fieldSorts ++ levels)
     have heq : VExpr.mkApps (program.value.instL (fieldSorts ++ levels))
         (params' ++ indices' ++ [major]) = target := by
       apply (VExpr.liftN_inj (n := n) (k := k)).mp
       simpa only [VExpr.liftN_mkApps, hc.liftN_eq (Nat.zero_le _), List.map_append,
         List.map_cons, List.map_nil, hparams, hindices] using he.symm
     have htarget : VExpr.WF env U Γ target := by
-      apply (VEnv.IsDefEqU.weakN_iff henv hΓ W).mp
+      apply (VEnv.IsDefEqU.weakN_iff henv hs hΓ W).mp
       rwa [he]
     rw [← heq] at htarget ⊢
-    exact .intro hr ho hf hg hs hlu hfu hw hp (by simpa [params'] using hn)
+    exact .intro hr ho hf hg hsel hlu hfu hw hp (by simpa [params'] using hn)
       (by simpa [indices'] using hi) hsource htarget
 
 private theorem lift'_mkApps (fn : VExpr) (args : List VExpr) :
@@ -295,7 +295,7 @@ theorem weak' (H : ProjectionDesugaring env U Γ name index major target)
 single-cutoff inverse while retaining the exact generated occurrence. -/
 theorem weak'_inv
     (H : ProjectionDesugaring env U Γ' name index (major.lift' ρ) (target.lift' ρ))
-    (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ') :
+    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ') :
     ProjectionDesugaring env U Γ name index major target := by
   generalize hd : ρ.depth = count
   induction count generalizing ρ Γ' with
@@ -305,7 +305,7 @@ theorem weak'_inv
     obtain ⟨middle, W₁, W₂⟩ := W.of_cons_skip
     rw [Lift.consN_skip_eq, VExpr.lift'_comp, VExpr.lift'_comp,
       ← Lift.skipN_one, VExpr.lift'_consN_skipN, VExpr.lift'_consN_skipN] at H
-    exact ih (H.weakN_inv henv hΓ W₂) (hΓ.weakN_inv henv W₂) W₁ Lift.depth_consN
+    exact ih (H.weakN_inv henv hs hΓ W₂) (hΓ.weakN_inv henv hs W₂) W₁ Lift.depth_consN
 
 theorem instN (H : ProjectionDesugaring env U Γ₁ name index major target)
     (henv : env.Ordered) (W : Ctx.InstN Γ₀ value valueType k Γ₁ Γ)

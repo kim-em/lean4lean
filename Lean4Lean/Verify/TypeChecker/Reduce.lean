@@ -214,7 +214,7 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
     · rw [← hnp]; exact List.getElem?_eq_getElem _
     · exact Lean4Lean.List.forall₂_getElem hargs _ h1 _
   -- typing of the field
-  have hfieldTy := VEnv.VProjectionInfo.field_typing_of_ctorApp c.Ewf c.Δwf.toCtx hinfo hwf hctor
+  have hfieldTy := VEnv.VProjectionInfo.field_typing_of_ctorApp c.Ewf c.strengthening c.Δwf.toCtx hinfo hwf hctor
     hshape hvalid hhead hdn hdu hle i hproj'.hasType.2 hlenArgs hk'
   have hiota := VEnv.IsDefEq.projIota hinfo hproj'.hasType.2 hk' hfieldTy
   refine ⟨?_, e₁', he₁', ⟨_, (hproj'.trans hiota).symm⟩⟩

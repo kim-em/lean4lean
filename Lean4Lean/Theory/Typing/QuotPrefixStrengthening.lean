@@ -40,7 +40,7 @@ open VExpr InductiveSignature.NativeRecursorData
 open private case_lift'_mkApps from Lean4Lean.Theory.Typing.CaseReduction
 
 theorem QuotDeltaRule.weak'_inv {levels : List VLevel}
-    (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ')
+    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ')
     (H : QuotDeltaRule env U Γ' levels (arguments.map (·.lift' ρ)) rhs) :
     ∃ smallRhs, QuotDeltaRule env U Γ levels arguments smallRhs ∧ rhs = smallRhs.lift' ρ := by
   cases H with
@@ -50,17 +50,17 @@ theorem QuotDeltaRule.weak'_inv {levels : List VLevel}
     cases he
     have hreplay : NativePrefixReplay env U Γ
         (mkApps (.const ``Quot.lift levels) arguments) small := by
-      apply NativePrefixReplay.weak'_inv henv hΓ W
+      apply NativePrefixReplay.weak'_inv henv hs hΓ W
       simpa only [case_lift'_mkApps, VExpr.lift'] using replay
     exact ⟨small.rhs, .intro hr hw hz hsmall hreplay,
       PrefixProgram.rename_rhs (hreplay.templateScope henv).2.1⟩
 
 theorem QuotDeltaRule.weakN_inv {levels : List VLevel}
-    (henv : env.WF) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ')
+    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ')
     (H : QuotDeltaRule env U Γ' levels (arguments.map (·.liftN n k)) rhs) :
     ∃ smallRhs, QuotDeltaRule env U Γ levels arguments smallRhs ∧ rhs = smallRhs.liftN n k := by
   simpa only [lift'_consN_skipN] using
-    QuotDeltaRule.weak'_inv henv hΓ (Ctx.liftN_iff_lift'.mp W)
+    QuotDeltaRule.weak'_inv henv hs hΓ (Ctx.liftN_iff_lift'.mp W)
       (by simpa only [lift'_consN_skipN] using H)
 
 end Lean4Lean.VEnv
