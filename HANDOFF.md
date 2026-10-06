@@ -825,6 +825,18 @@ inside this project's scope without solving open base metatheory:
    projection fields (auxiliary via the syntactic specialization of restored
    auxiliary constructor types from the lowering trace), compose
    `hrestoredWF_of` with no gaps, and replace the `assemblyNative` sorry.
+   **NESTED JUNCTION CLOSED (6f16a42).** `assemblyNative :=
+   assemblyNative_of_restoredWF E wf Hsources hnested (E.hrestoredWF_of wf
+   Hsources)`; the transport is the context-carrying
+   `RestorationRenamingOnCtx`; auxiliary projection transport via the
+   constructor shape up to level equivalence now recorded in the lowering
+   traces (`BuiltConstructorTranslation.directAuxiliary`,
+   `FinalLoweredGeneratedFamilyNativeSource.constructorShapes`,
+   `AuxiliarySpecializationEvidence.constructorShapes`). Full build (695
+   jobs), tests, fresh `Init.Prelude`/`Init.Core` replays and the audit
+   self-test pass; `grep sorry` under Verify and Inductive is empty; the
+   audit reports "10 distinct proof obligations remain" (the base ones).
+   `scripts/inductive-audit-inventory.json` no longer lists `assemblyNative`.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
