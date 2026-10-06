@@ -1791,6 +1791,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (htype₀ : TrExprS R.venv recLparams B.m.vlctx t typeTarget₀)
     (hchkFields : 0 < bu.size →
       R.chk.fvarList = (stats.params ++ bu).toList.map (·.fvarId!))
+    {baseV : VLCtx}
+    (hagreeB : ∃ hn : bu.size ≤ B.m.length,
+      MLCtxTopAgree R.mlctx B.m bu.size ∧ (B.m.dropN bu.size hn).vlctx = baseV)
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
@@ -1846,11 +1849,15 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx appliedTarget' typeTarget' →
       (0 < bu'.size →
         Rcurrent.chk.fvarList = (stats.params ++ bu').toList.map (·.fvarId!)) →
+      (∃ M : TypeChecker.MLCtx, M.WF Rcurrent.venv recLparams ∧
+        ∃ hn : bu'.size ≤ M.length,
+          MLCtxTopAgree Rcurrent.mlctx M bu'.size ∧
+            (M.dropN bu'.size hn).vlctx = baseV) →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
       t i bu u fuel c).WF Q := by
   induction fuel generalizing c t i bu u depth typeTarget typeTarget₀ fields
-      positions args appliedTarget with
+      positions args appliedTarget B with
   | zero =>
     intro _ h
     simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
@@ -2051,6 +2058,13 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         Hdom.consumed Hdom.isType hcons₀ hconsT₀
       have hB' := R.fieldBaseNext_fvarList (name := name) (bi := bi) B hB
         Hdom.consumed Hdom.isType hcons₀ hconsT₀
+      have hagreeB' : ∃ hn : (bu.push (.fvar ⟨c.ngen.curr⟩)).size ≤ B'.m.length,
+          MLCtxTopAgree R'.mlctx B'.m (bu.push (.fvar ⟨c.ngen.curr⟩)).size ∧
+            (B'.m.dropN (bu.push (.fvar ⟨c.ngen.curr⟩)).size hn).vlctx = baseV := by
+        have h := MLCtxTopAgree.stepDrop ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotationsVerified consumedDom consumedDom₀ bi hagreeB
+        simp only [Array.size_push]
+        exact h
       have hopened₀ : TrExprS R.venv recLparams B'.m.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' :=
         RB.narrow.instantiateFresh (name := name) (bi := bi)
@@ -2134,7 +2148,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
-          (fun _ => hB')
+          (fun _ => hB') hagreeB'
           hconsumedBodyType (.nonrecursive hfields)
           (.nonrecursive hdecisions hselected.1) hargsWeak Hrecent'
           Hopening' hrootType' hnextUp happlied' happliedType'
@@ -2156,7 +2170,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           simpa using checkPositivityStep.forall₂_append
             hargsWeak (.cons harg .nil)
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
-          (fun _ => hB')
+          (fun _ => hB') hagreeB'
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl)
           (.recursive hdecisions hselected.1) hargs' Hrecent'
@@ -2165,7 +2179,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         | proj =>
       exact Hk R rfl htype htypeType hfields hdecisions hargs Hrecent
         Hopening hrootType (Hopening.currentFVarsIn hsourceScope) hcurrentUp
-        happlied happliedType hchkFields
+        happlied happliedType hchkFields ⟨B.m, B.wf, hagreeB⟩
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -2231,6 +2245,10 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         Rcurrent.mlctx.vlctx.toCtx appliedTarget' typeTarget' →
       (0 < bu'.size →
         Rcurrent.chk.fvarList = (stats.params ++ bu').toList.map (·.fvarId!)) →
+      (∃ M : TypeChecker.MLCtx, M.WF Rcurrent.venv recLparams ∧
+        ∃ hn : bu'.size ≤ M.length,
+          MLCtxTopAgree Rcurrent.mlctx M bu'.size ∧
+            (M.dropN bu'.size hn).vlctx = Hsuffix.parameterDecls) →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   let inputContext := c
@@ -2258,6 +2276,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       stats head k R R Hstats (Nat.le_refl _) hconsume hlit hctx
       htail Hsuffix.fieldBase Hsuffix.fieldBase_fvarList
       (by rw [Hsuffix.fieldBase_vlctx]; exact htail₀) (fun h => by simp at h)
+      ⟨Nat.zero_le _, .zero _ _, Hsuffix.fieldBase_vlctx⟩
       htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
       hrootType

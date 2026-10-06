@@ -3483,6 +3483,12 @@ structure BoundGeneratedRecursorRule.Semantics
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨
       fv ∈ ExprArrayFVarIds stats.params) context.mlctx.vlctx
+  /-- The fields were also opened in the checker context, directly above the
+  parameter declarations. -/
+  fieldCheck : ∃ M : TypeChecker.MLCtx, M.WF context.venv recLparams ∧
+    ∃ hn : H.allArgs.size ≤ M.length,
+      MLCtxTopAgree context.mlctx M H.allArgs.size ∧
+        (M.dropN H.allArgs.size hn).vlctx = parameterSuffix.parameterDecls
   context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
