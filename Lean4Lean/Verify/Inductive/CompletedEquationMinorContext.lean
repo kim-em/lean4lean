@@ -12,6 +12,250 @@ namespace VerifyInductive
 
 open checkInductiveTypes.loopType
 
+/-- Instantiating an abstracted free variable with itself restores the
+expression. -/
+theorem Expr.instantiate1'_abstract1_self (v : FVarId) :
+    ∀ (e : Expr) (k : Nat), (e.abstract1 v k).instantiate1' (.fvar v) k = e
+  | .bvar i, k => by
+    simp only [Expr.abstract1, Expr.instantiate1']
+    by_cases h : i < k
+    · simp [h]
+    · have h1 : ¬ i + 1 < k := by omega
+      have h2 : i + 1 ≠ k := by omega
+      simp [h, h1, h2]
+  | .fvar w, k => by
+    by_cases h : v = w
+    · subst h
+      simp [Expr.abstract1, Expr.instantiate1', Expr.liftLooseBVars']
+    · have : (v == w) = false := by simpa using h
+      simp [Expr.abstract1, Expr.instantiate1', this]
+  | .mdata m e, k => by
+    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v e k]
+  | .proj s i e, k => by
+    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v e k]
+  | .app f a, k => by
+    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v f k,
+      Expr.instantiate1'_abstract1_self v a k]
+  | .lam n t b bi, k => by
+    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v t k,
+      Expr.instantiate1'_abstract1_self v b (k + 1)]
+  | .forallE n t b bi, k => by
+    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v t k,
+      Expr.instantiate1'_abstract1_self v b (k + 1)]
+  | .letE n t val b bi, k => by
+    simp [Expr.abstract1, Expr.instantiate1', Expr.instantiate1'_abstract1_self v t k,
+      Expr.instantiate1'_abstract1_self v val k,
+      Expr.instantiate1'_abstract1_self v b (k + 1)]
+  | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => by
+    simp [Expr.abstract1, Expr.instantiate1']
+
+/-- The annotation-only `inferImplicit` pass can be erased from the concrete
+side of a forall telescope translation. -/
+theorem Expr.ForallTelescopeTypeTranslation.of_inferImplicit
+    {env : VEnv} {Us : List Name} :
+    ∀ {Δ : VLCtx} {e : Expr} {n : Nat} {e' : VExpr} (numParams : Nat)
+      (considerRange : Bool),
+      Expr.ForallTelescopeTypeTranslation env Us Δ
+        (e.inferImplicit numParams considerRange) n e' →
+      Expr.ForallTelescopeTypeTranslation env Us Δ e n e'
+  | Δ, e, n, e', 0, cr, H => by simpa [Expr.inferImplicit] using H
+  | Δ, e, n, e', numParams + 1, cr, H => by
+    cases e with
+    | forallE name dom body bi =>
+      simp only [Expr.inferImplicit] at H
+      cases H with
+      | nil Htr Htype => exact .nil (TrExprS.of_inferImplicit (numParams := numParams + 1)
+          (considerRange := cr) (by simpa [Expr.inferImplicit] using Htr)) Htype
+      | cons Hdom HdomType Hbody =>
+        exact .cons Hdom HdomType
+          (Expr.ForallTelescopeTypeTranslation.of_inferImplicit numParams cr Hbody)
+    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
+      | proj => simpa [Expr.inferImplicit] using H
+
+/-- Instantiate an abstracted binder of a forall telescope translation with
+its free variable. -/
+theorem Expr.ForallTelescopeTypeTranslation.instantiateFVar
+    {env : VEnv} {Us : List Name}
+    {Δ₀ : VLCtx} {v₀ : FVarId} {d₀ : VLocalDecl} (hfresh : v₀ ∉ Δ₀.fvars) :
+    ∀ {dk k : Nat} {Δ₁ Δ : VLCtx} {e : Expr} {n : Nat} {e' : VExpr},
+      VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ →
+      Expr.ForallTelescopeTypeTranslation env Us Δ e n e' →
+      Expr.ForallTelescopeTypeTranslation env Us Δ₁
+        (e.instantiate1' (.fvar v₀) dk) n e'
+  | _, _, _, _, _, _, _, W, .nil Htr Htype =>
+    .nil (TrExprS.instantiateFVar W hfresh Htr) (W.toCtx ▸ Htype)
+  | _, _, _, _, _, _, _, W, .cons Hdom HdomType Hbody => by
+    simp only [Expr.instantiate1']
+    exact .cons (TrExprS.instantiateFVar W hfresh Hdom) (W.toCtx ▸ HdomType)
+      (Expr.ForallTelescopeTypeTranslation.instantiateFVar hfresh W.succ Hbody)
+
+
+/-- Peel the outermost binder of a local-context forall. -/
+theorem LocalContext.mkForall_cons_cdecl {lctx : LocalContext}
+    {x : FVarId} {xs : List FVarId} {b : Expr}
+    {idx : Nat} {n : Name} {ty : Expr} {bi : BinderInfo} {kind : LocalDeclKind}
+    (hx : lctx.find? x = some (.cdecl idx x n ty bi kind))
+    (hxs : ∀ y ∈ xs, ∃ d, lctx.find? y = some d)
+    (nd : (x :: xs).Nodup) (hb : Closed b) (hclosed : LocalContext.LctxClosed lctx) :
+    lctx.mkForall ((x :: xs).map Expr.fvar).toArray b =
+      .forallE n ty ((lctx.mkForall (xs.map Expr.fvar).toArray b).abstract1 x) bi := by
+  have hex : ∀ y ∈ x :: xs, ∃ d, lctx.find? y = some d := by
+    intro y hy
+    rcases List.mem_cons.mp hy with rfl | hy
+    · exact ⟨_, hx⟩
+    · exact hxs y hy
+  rw [LocalContext.mkForall, LocalContext.mkBinding_eq' hex nd hb hclosed.declsClosed,
+    LocalContext.mkBindingList_cons hxs nd, LocalContext.mkForall,
+    LocalContext.mkBinding_eq' hxs (List.nodup_cons.mp nd).2 hb hclosed.declsClosed]
+  simp [LocalContext.mkBindingList1, hx]
+
+/-- Nested local-context foralls over disjoint lists combine. -/
+theorem LocalContext.mkForall_mkForall {lctx : LocalContext}
+    {xs ys : List FVarId} {b : Expr}
+    (hex : ∀ y ∈ xs ++ ys, ∃ d, lctx.find? y = some d)
+    (nd : (xs ++ ys).Nodup) (hb : Closed b) (hclosed : LocalContext.LctxClosed lctx) :
+    lctx.mkForall (xs.map Expr.fvar).toArray
+        (lctx.mkForall (ys.map Expr.fvar).toArray b) =
+      lctx.mkForall ((xs ++ ys).map Expr.fvar).toArray b := by
+  have hexY : ∀ y ∈ ys, ∃ d, lctx.find? y = some d :=
+    fun y hy => hex y (List.mem_append_right _ hy)
+  have hexX : ∀ y ∈ xs, ∃ d, lctx.find? y = some d :=
+    fun y hy => hex y (List.mem_append_left _ hy)
+  have ndY := (List.nodup_append.mp nd).2.1
+  have ndX := (List.nodup_append.mp nd).1
+  obtain ⟨hinner, hinnerClosed⟩ := LocalContext.mkBindingListN_eq_mkBindingList
+    (isLambda := false) hexY ndY hb hclosed.declsClosed
+  have hinner' : lctx.mkForall (ys.map Expr.fvar).toArray b =
+      LocalContext.mkBindingList false lctx ys b := by
+    rw [LocalContext.mkForall, LocalContext.mkBinding_eqN]
+    exact hinner
+  rw [hinner', LocalContext.mkForall,
+    LocalContext.mkBinding_eq' hexX ndX hinnerClosed hclosed.declsClosed,
+    LocalContext.mkForall, LocalContext.mkBinding_eq' hex nd hb hclosed.declsClosed,
+    LocalContext.mkBindingList_append hex nd]
+
+/-- A dependency-selected prefix of an all-lambda context, built from a
+closed translation of the forall over that prefix.  Each retained domain is
+the corresponding domain of the closed translation with its binders
+instantiated by the selected free variables, so no runtime translation is
+restricted. -/
+theorem MLCtxOnlyLams.closedTelescopeScope
+    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
+    (H : MLCtxOnlyLams c) (henv : env.WF) (Hwf : c.WF env Us)
+    (outer rest : List FVarId) (body : Expr)
+    (hdecls : ∀ fv ∈ outer ++ rest, ∃ d, c.lctx.find? fv = some d)
+    (hnodup : (outer ++ rest).Nodup) (hbody : Closed body)
+    (hfilter : c.vlctx.fvars.filter (· ∈ outer) = outer.reverse)
+    (hup : IsFVarUpSet (· ∈ outer) c.vlctx)
+    {tgt : VExpr}
+    (HT : Expr.ForallTelescopeTypeTranslation env Us []
+      (c.lctx.mkForall ((outer ++ rest).map Expr.fvar).toArray body)
+      (outer.length + rest.length) tgt) :
+    ∃ scope, ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+      scope.fvars = outer.reverse ∧
+      Hscope.shift = fvarSelectionLift c.vlctx.fvars (· ∈ outer) ∧
+      (∀ body', Hscope.sources.closeSource body' =
+        c.lctx.mkForall (outer.map Expr.fvar).toArray body') ∧
+      ∃ t', Expr.ForallTelescopeTypeTranslation env Us scope
+          (c.lctx.mkForall (rest.map Expr.fvar).toArray body) rest.length t' ∧
+        tgt = VExpr.wrapForalls scope.toCtx.reverse t' := by
+  have hclosedL : LocalContext.LctxClosed c.lctx := Hwf.tr.lctxClosed
+  let E : Nat → Expr := fun m =>
+    c.lctx.mkForall (((outer.drop m) ++ rest).map Expr.fvar).toArray body
+  let Good : VLCtx → Prop := fun ts =>
+    ∃ m, m ≤ outer.length ∧ ts.fvars = (outer.take m).reverse ∧
+      ∃ t', Expr.ForallTelescopeTypeTranslation env Us ts (E m)
+          (outer.length - m + rest.length) t' ∧
+        tgt = VExpr.wrapForalls ts.toCtx.reverse t'
+  have hgood0 : Good [] :=
+    ⟨0, Nat.zero_le _, by simp, tgt, by simpa [E] using HT,
+      by simp [VExpr.wrapForalls, VLCtx.toCtx]⟩
+  have oracle : ∀ (ts : VLCtx) (fv : FVarId) (type : Expr),
+      Good ts → (fv :: ts.fvars) <:+ outer.reverse →
+      (∃ idx name bi kind,
+        c.lctx.find? fv = some (.cdecl idx fv name type bi kind)) →
+      FVarsIn (· ∈ ts.fvars) type → Closed type →
+      ∃ t, TrExprS env Us ts type t ∧
+        env.IsType Us.length ts.toCtx t ∧
+        Good ((some (fv, type.fvarsList), .vlam t) :: ts) := by
+    intro ts fv type hgood hsuf hdecl _ _
+    obtain ⟨m, hm, hfvs, t', HE, htgt⟩ := hgood
+    obtain ⟨idx, name, bi, kind, hfind⟩ := hdecl
+    have hpre : outer.take m ++ [fv] <+: outer := by
+      rw [hfvs] at hsuf
+      have : ((outer.take m) ++ [fv]).reverse <:+ outer.reverse := by
+        simpa using hsuf
+      exact List.reverse_suffix.mp this
+    have hlenpre := hpre.length_le
+    simp only [List.length_append, List.length_take, List.length_singleton] at hlenpre
+    have hmlt : m < outer.length := by omega
+    have hget : outer[m]'hmlt = fv := by
+      have h := hpre.getElem (i := m) (by simp [Nat.min_eq_left hm])
+      rw [← h]
+      simp [List.getElem_append_right, Nat.min_eq_left hm]
+    have hdrop : outer.drop m = fv :: outer.drop (m + 1) := by
+      rw [List.drop_eq_getElem_cons hmlt, hget]
+    have hnd' : (fv :: (outer.drop (m + 1) ++ rest)).Nodup := by
+      rw [← List.cons_append, ← hdrop]
+      exact (List.drop_sublist m outer).append (List.Sublist.refl rest)
+        |>.nodup hnodup
+    have hxs : ∀ y ∈ outer.drop (m + 1) ++ rest, ∃ d, c.lctx.find? y = some d := by
+      intro y hy
+      apply hdecls
+      rcases List.mem_append.mp hy with hy | hy
+      · exact List.mem_append_left _ (List.mem_of_mem_drop hy)
+      · exact List.mem_append_right _ hy
+    have hpeel : E m = .forallE name type ((E (m + 1)).abstract1 fv) bi := by
+      simp only [E]
+      rw [hdrop, List.cons_append]
+      exact LocalContext.mkForall_cons_cdecl hfind hxs hnd' hbody hclosedL
+    have hcount : outer.length - m + rest.length =
+        (outer.length - (m + 1) + rest.length) + 1 := by omega
+    rw [hpeel, hcount] at HE
+    cases HE with
+    | @cons _ _ dom' _ _ t'' _ _ Hdom HdomType Hbody =>
+    have hfresh : fv ∉ ts.fvars := by
+      rw [hfvs]
+      intro hmem
+      have hmem' := List.mem_reverse.mp hmem
+      have hsplit : outer = outer.take m ++ fv :: outer.drop (m + 1) := by
+        rw [← hdrop, List.take_append_drop]
+      have hndOuter : outer.Nodup :=
+        (List.sublist_append_left outer rest).nodup hnodup
+      rw [hsplit] at hndOuter
+      exact (List.nodup_append.mp hndOuter).2.2 fv hmem' fv (by simp) rfl
+    have W : VLCtx.Abstract ts fv (.vlam dom') 0 0
+        ((some (fv, type.fvarsList), .vlam dom') :: ts)
+        ((none, .vlam dom') :: ts) := .zero
+    have Hnext := Expr.ForallTelescopeTypeTranslation.instantiateFVar
+      hfresh W Hbody
+    rw [Expr.instantiate1'_abstract1_self] at Hnext
+    refine ⟨dom', Hdom, HdomType, m + 1, hmlt, ?_, t'', Hnext, ?_⟩
+    · simp only [VLCtx.fvars_cons_some, hfvs]
+      rw [List.take_succ_eq_append_getElem hmlt, hget]
+      simp
+    · rw [htgt]
+      simp [VLCtx.toCtx, VExpr.wrapForalls_append, VExpr.wrapForalls]
+  have hL : c.vlctx.fvars.filter (· ∈ outer) <:+ outer.reverse := by
+    rw [hfilter]
+    exact List.suffix_refl _
+  obtain ⟨scope, Hscope, hscopeFVars, hshift, _hdeclsScope, hclose,
+      m, hm, hfvm, t', HE, htgt⟩ :=
+    MLCtxOnlyLams.narrowFVarsSourceOracle H henv Hwf (· ∈ outer) hup Good hgood0 hL
+      (Lctx := c.lctx) (fun _ _ h => h) oracle
+  have hscopeOuter : scope.fvars = outer.reverse := hscopeFVars.trans hfilter
+  have hmEq : m = outer.length := by
+    have h := congrArg List.length (hfvm.symm.trans hscopeOuter)
+    simp at h
+    omega
+  subst hmEq
+  refine ⟨scope, Hscope, hscopeOuter, hshift, ?_, t', ?_, htgt⟩
+  · intro body'
+    rw [hclose body', hscopeOuter, List.reverse_reverse]
+  · have hdl : outer.drop outer.length = [] := List.drop_length
+    simp only [E, hdl, List.nil_append, Nat.sub_self, Nat.zero_add] at HE
+    exact HE
+
 /-- The generated recursor and the independently replayed canonical motive
 share the same parameter context.  This is the first direct bridge from the
 five-group executable telescope to the permutation-free semantic telescope;

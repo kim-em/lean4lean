@@ -2676,6 +2676,57 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
 
 end ScopeAlignment
 
+/-- Inverse of `TrExprS.abstract`: a bound variable standing for an abstracted
+free variable may be instantiated back with that free variable. -/
+theorem _root_.Lean4Lean.TrExprS.instantiateFVar {env : VEnv} {Us : List Name}
+    {Δ₀ : VLCtx} {v₀ : FVarId} {d₀ : VLocalDecl} {dk k : Nat} {Δ₁ Δ : VLCtx}
+    (W : VLCtx.Abstract Δ₀ v₀ d₀ dk k Δ₁ Δ) (hfresh : v₀ ∉ Δ₀.fvars)
+    {e : Expr} {e' : VExpr} (H : TrExprS env Us Δ e e') :
+    TrExprS env Us Δ₁ (e.instantiate1' (.fvar v₀) dk) e' := by
+  induction H generalizing dk k Δ₁ with
+  | @bvar _ _ _ i h1 =>
+    have h := W.find? (v := .inl i) (by nofun)
+    simp only at h
+    rw [h] at h1
+    simp only [Expr.instantiate1']
+    by_cases hi : i < dk
+    · rw [if_pos hi] at h1 ⊢
+      exact .bvar h1
+    · rw [if_neg hi] at h1 ⊢
+      by_cases hd : i = dk
+      · rw [if_pos hd] at h1 ⊢
+        simpa [Expr.liftLooseBVars'] using (TrExprS.fvar h1 : TrExprS env Us Δ₁ _ _)
+      · rw [if_neg hd] at h1 ⊢
+        exact .bvar h1
+  | @fvar _ _ _ fv h1 =>
+    have hne : fv ≠ v₀ := by
+      intro heq
+      apply hfresh
+      have hmem := VLCtx.find?_eq_some.1 ⟨_, h1⟩
+      rw [W.fvars_eq.2, heq] at hmem
+      exact hmem
+    have h := W.find? (v := .inr fv) (by simpa using hne)
+    simp only at h
+    rw [h] at h1
+    simp only [Expr.instantiate1']
+    exact .fvar h1
+  | sort h1 => exact .sort h1
+  | const h1 h2 h3 => exact .const h1 h2 h3
+  | app h1 h2 _ _ ih1 ih2 =>
+    exact .app (W.toCtx ▸ h1) (W.toCtx ▸ h2) (ih1 W) (ih2 W)
+  | lam h1 _ _ ih1 ih2 => exact .lam (W.toCtx ▸ h1) (ih1 W) (ih2 W.succ)
+  | forallE h1 h2 _ _ ih1 ih2 =>
+    exact .forallE (W.toCtx ▸ h1) (W.toCtx ▸ h2) (ih1 W) (ih2 W.succ)
+  | letE h1 _ _ _ ih1 ih2 ih3 =>
+    exact .letE (W.toCtx ▸ h1) (ih1 W) (ih2 W) (ih3 W.succ)
+  | lit h1 _ ih =>
+    have := ih W
+    rw [Expr.instantiate1'_eq_self Closed.toConstructor.looseBVarRange_le] at this
+    simp only [Expr.instantiate1']
+    exact .lit h1 this
+  | mdata _ ih => exact .mdata (ih W)
+  | proj _ h2 ih => exact .proj (ih W) (W.toCtx ▸ h2)
+
 /-- Two executable contexts agree on their `n` most recent declarations: the
 same named lambdas with the same source domains, possibly translated
 differently.  This relates a main context to the checker context of the same

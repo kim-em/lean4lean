@@ -1541,6 +1541,190 @@ theorem MLCtxOnlyLams.narrowFVarsSource
   | @vlet fv name type value type' value' tail ih =>
     exact H.vlet_false.elim
 
+theorem MLCtxOnlyLams.narrowFVarsSourceOracle
+    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
+    (H : MLCtxOnlyLams c)
+    (henv : env.WF)
+    (Hwf : c.WF env Us)
+    (P : FVarId → Prop) [DecidablePred P]
+    (hup : IsFVarUpSet P c.vlctx)
+    (Good : VLCtx → Prop) (hgood : Good [])
+    {Lsel : List FVarId}
+    (hL : c.vlctx.fvars.filter P <:+ Lsel)
+    {Lctx : LocalContext}
+    (hsubL : ∀ fv d, c.lctx.find? fv = some d → Lctx.find? fv = some d)
+    (oracle : ∀ (tailScope : VLCtx) (fv : FVarId) (type : Expr),
+      Good tailScope → (fv :: tailScope.fvars) <:+ Lsel →
+      (∃ idx name bi kind,
+        Lctx.find? fv = some (.cdecl idx fv name type bi kind)) →
+      FVarsIn (· ∈ tailScope.fvars) type → Closed type →
+      ∃ t, TrExprS env Us tailScope type t ∧
+        env.IsType Us.length tailScope.toCtx t ∧
+        Good ((some (fv, type.fvarsList), .vlam t) :: tailScope)) :
+    ∃ scope,
+      ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
+        scope.fvars = c.vlctx.fvars.filter P ∧
+        Hscope.shift = fvarSelectionLift c.vlctx.fvars P ∧
+        (∀ fv ∈ scope.fvars, ∃ decl,
+          c.lctx.find? fv = some decl) ∧
+        (∀ body,
+          Hscope.sources.closeSource body =
+            c.lctx.mkForall
+              (scope.fvars.reverse.map Expr.fvar).toArray body) ∧
+        Good scope := by
+  induction c with
+  | nil =>
+    refine ⟨[], .nil, rfl, rfl, ?_, ?_, hgood⟩
+    · intro fv hfv
+      simp at hfv
+    · intro body
+      change body = ({} : LocalContext).mkForall #[] body
+      exact (LocalContext.mkForall_empty {} body).symm
+  | @vlam fv name type type' bi tail ih =>
+    have HruntimeWF := Hwf.tr.wf
+    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
+    have hLtail : tail.vlctx.fvars.filter P <:+ Lsel := by
+      refine List.IsSuffix.trans ?_ hL
+      simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some, List.filter_cons]
+      split
+      · exact List.suffix_cons _ _
+      · exact List.suffix_refl _
+    have hsubLtail : ∀ fv' d, tail.lctx.find? fv' = some d →
+        Lctx.find? fv' = some d := by
+      intro fv' d hfind
+      apply hsubL
+      simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+        LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+      rw [if_neg]
+      · exact hfind
+      · intro heq
+        have heq' : fv = fv' := beq_iff_eq.mp heq
+        rw [heq'] at hfresh
+        rw [hfind] at hfresh
+        contradiction
+    rcases ih H.tail_vlam HtailWF hup.1 hLtail hsubLtail with
+      ⟨tailScope, HtailScope, htailScopeFVars,
+        htailShift, htailDecls, htailClose, htailGood⟩
+    by_cases hP : P fv
+    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
+        intro dep hdep
+        rw [htailScopeFVars]
+        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
+          simpa using hup.2 hP dep hdep⟩
+      have hclosed : Closed type 0 := by
+        have h := Htype.closed
+        rw [tail.noBV] at h
+        exact h
+      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
+        apply fvarsIn_iff.mpr
+        refine ⟨hdeps, ?_⟩
+        exact Htype.fvarsIn.mono fun _ _ => trivial
+      have hsuf : (fv :: tailScope.fvars) <:+ Lsel := by
+        refine List.IsSuffix.trans ?_ hL
+        rw [htailScopeFVars]
+        simp only [TypeChecker.MLCtx.vlctx, VLCtx.fvars_cons_some,
+          List.filter_cons]
+        have hPb : decide (P fv) = true := by simpa using hP
+        simp [hP]
+      have hdeclL : ∃ idx name' bi' kind,
+          Lctx.find? fv = some (.cdecl idx fv name' type bi' kind) := by
+        refine ⟨tail.lctx.decls.size, name, bi, .default, hsubL fv _ ?_⟩
+        simp [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+          LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+      rcases oracle tailScope fv type htailGood hsuf hdeclL htypeFVars hclosed with
+        ⟨narrowType, HnarrowType, HnarrowIsType, hnextGood⟩
+      have Hweak : TrExprS env Us HtailScope.expanded type
+          (narrowType.lift' HtailScope.shift) := by
+        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
+          HtailScope.context.wf
+      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
+      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
+          type' :=
+        HtypeType.defeqDFC henv.ordered
+          (HtailScope.context.symm henv.ordered).defeqCtx
+      rcases HtargetType with ⟨u, HtargetType⟩
+      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
+          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
+        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
+        HnarrowType Hdomain HnarrowIsType
+      have hnextFVars : ∀ body,
+          Hnext.sources.closeSource body =
+            HtailScope.sources.closeSource
+              (.forallE name type (body.abstractN [fv]) bi) := by
+        intro body
+        rfl
+      have holdDecls : ∀ other ∈ tailScope.fvars.reverse,
+          ∃ decl, tail.lctx.find? other = some decl := by
+        intro other hother
+        exact htailDecls other (List.mem_reverse.mp hother)
+      have holdNodup : tailScope.fvars.reverse.Nodup :=
+        List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_, hnextGood⟩
+      · change HtailScope.shift.cons = _
+        rw [htailShift]
+        simp [fvarSelectionLift, hP]
+      · intro other hother
+        change other ∈ fv :: tailScope.fvars at hother
+        simp only [List.mem_cons] at hother
+        rcases hother with rfl | hother
+        · refine ⟨.cdecl tail.lctx.decls.size other name type bi .default,
+            ?_⟩
+          simp [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+        · rcases htailDecls other hother with ⟨decl, hlookup⟩
+          refine ⟨decl, ?_⟩
+          simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+          rw [if_neg]
+          · exact hlookup
+          · intro heq
+            have heq' : fv = other := beq_iff_eq.mp heq
+            rw [heq'] at hfresh
+            rw [hlookup] at hfresh
+            contradiction
+      · intro body
+        have Happ := LocalContext.mkForall_append_fresh
+          HtailWF.tr.1 hfresh holdDecls holdNodup
+          (body := body) (name := name) (type := type) (bi := bi)
+        rw [hnextFVars body, htailClose]
+        simpa [Hnext, TypeChecker.MLCtx.lctx, List.reverse_cons]
+          using Happ.symm
+    · have hskip : fv ∉ tailScope.fvars := by
+        rw [htailScopeFVars]
+        simp [hP]
+      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
+      have hnextFVars : ∀ body,
+          Hnext.sources.closeSource body =
+            HtailScope.sources.closeSource body := by
+        intro body
+        rfl
+      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_, htailGood⟩
+      · change HtailScope.shift.skip = _
+        rw [htailShift]
+        simp [fvarSelectionLift, hP]
+      · intro other hother
+        change other ∈ tailScope.fvars at hother
+        rcases htailDecls other hother with ⟨decl, hlookup⟩
+        refine ⟨decl, ?_⟩
+        simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
+          LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
+        rw [if_neg]
+        · exact hlookup
+        · intro heq
+          have heq' : fv = other := beq_iff_eq.mp heq
+          exact hskip (heq' ▸ hother)
+      · intro body
+        have Hskip := LocalContext.mkForall_skip_fresh
+          HtailWF.tr.1 hfresh
+          (selected := tailScope.fvars.reverse) (body := body)
+          (name := name) (type := type) (bi := bi)
+          (by simpa using hskip)
+        rw [hnextFVars body, htailClose]
+        simpa [Hnext, TypeChecker.MLCtx.lctx] using Hskip.symm
+  | @vlet fv name type value type' value' tail ih =>
+    exact H.vlet_false.elim
+
 /-- In a duplicate-free ambient list, filtering for the members of an
 ordered sublist recovers that sublist exactly. -/
 theorem List.filter_mem_eq_of_sublist_nodup
