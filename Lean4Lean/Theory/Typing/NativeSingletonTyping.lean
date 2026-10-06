@@ -968,7 +968,134 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
     rw [List.take_append_of_le_length (by simp [harity]), List.take_of_length_le (by simp [harity]),
       hMajEq, ← hl, instOuter_bvarRange_apps (f := .const s.families[owner].name g.levels) trivial] at this
     exact this
-  sorry
+  have hPcl := OnCtx.closed_reverse henv.ordered hP
+  have hF : OnCtx ((insertBinders (g.sFields c) 1).reverse ++
+      VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero) :: g.params.reverse)
+      (env.IsType g.uvars) := by
+    have := hMinInv.1
+    rw [List.reverse_append, List.append_assoc] at this
+    exact OnCtx.of_append this
+  have hfields := minorFields_inst henv hP hM0 hF hFcl
+  have hindices : ∀ k, k ≤ (g.sIndices owner).length →
+      OnCtx (g.params ++ (g.sIndices owner).take k).reverse (env.IsType g.uvars) := by
+    intro k _
+    have e : (g.params ++ (g.sIndices owner).take k) ++
+        ((g.sIndices owner).drop k ++ [g.sMajor owner]) =
+        g.params ++ g.sIndices owner ++ [g.sMajor owner] := by
+      rw [List.append_assoc, ← List.append_assoc ((g.sIndices owner).take k),
+        List.take_append_drop, ← List.append_assoc]
+    rw [← e, List.reverse_append] at hidx
+    exact OnCtx.of_append hidx
+  have hslot : ∀ i k, (g.singletonCast owner c sorts).slot.getD i none = some k →
+      ∃ hi : i < (g.sFields c).length,
+        fieldSlot (g.sCtorIndices c) (g.sFields c).length i = some k := by
+    intro i k h
+    rw [singletonCast_slot] at h
+    split at h
+    · exact ⟨‹_›, h⟩
+    · cases h
+  refine {
+    typed := {
+      scope := ⟨hFcl, hIcl, fun i k h => ?_⟩
+      params_closed := hPcl
+      fieldsCtx := fun i hi => (hfields i hi).1
+      indicesCtx := hindices
+      fieldSort := fun i hi => ?_
+      slotSort := fun i k h hk => ?_
+      sortWF := hsortWF }
+    family_closed := trivial
+    ctor_closed := trivial
+    elimHead_closed := hhead.closedN henv.ordered trivial
+    majorTy_typed := ?_
+    ctorIndices_length := harity
+    ctorIndices_typed := hCItel
+    ctor_typed := ?_
+    slot_literal := fun l k h => ?_
+    elim := fun M b hM hb => ?_ }
+  · obtain ⟨_, hk⟩ := hslot i k h
+    obtain ⟨hkCI, _⟩ := fieldSlot_spec hk
+    simpa [singletonCast, harity] using hkCI
+  · have hi' : i < (g.sFields c).length := hi
+    show env.HasType _ _ _ (.sort (CastSpec.fieldSort _ i))
+    unfold CastSpec.fieldSort
+    rw [singletonCast_slot, if_pos hi']
+    cases hfs : fieldSlot (g.sCtorIndices c) (g.sFields c).length i with
+    | none => exact hprop i hi' hfs
+    | some k => exact hsorts i hi' k hfs
+  · -- a data field's sort is the sort of its index slot (uniqueness of types)
+    obtain ⟨hi, hfs⟩ := hslot i k h
+    obtain ⟨hkCI, hCIk⟩ := fieldSlot_spec hfs
+    have hk' : k < (g.sIndices owner).length := hk
+    show env.HasType _ (g.params ++ (g.sIndices owner).take k).reverse (g.sIndices owner)[k]
+      (.sort (sorts.getD i .zero))
+    have hctxk := hindices (k + 1) hk'
+    rw [List.take_succ_eq_append_getElem hk', ← List.append_assoc, List.reverse_append] at hctxk
+    obtain ⟨hctxk', uk, hIk⟩ := hctxk
+    -- the index domain at the constructor's indices
+    have hpre : TelInst env g.uvars (g.params ++ g.sFields c).reverse
+        (g.params ++ (g.sIndices owner).take k)
+        (bvarRange g.params.length (g.params.length + (g.sFields c).length) ++
+          (g.sCtorIndices c).take k) := by
+      have e : g.params ++ g.sIndices owner =
+          (g.params ++ (g.sIndices owner).take k) ++ (g.sIndices owner).drop k := by
+        rw [List.append_assoc, List.take_append_drop]
+      rw [e] at hCItel
+      have := hCItel.take
+      rwa [List.length_append, List.length_take, Nat.min_eq_left (Nat.le_of_lt hk'),
+        List.take_append, List.take_of_length_le (l := bvarRange _ _) (by simp),
+        bvarRange_length, Nat.add_sub_cancel_left] at this
+    have hIinst := IsDefEq.closed_instOuter_congr henv hctxF hctxk' hIk hpre.1 hpre.1
+      (fun j hj _ hd => hpre.2 j hj hd)
+    simp only [VExpr.instOuter_sort] at hIinst
+    have hent := hCItel.getD (j := g.params.length + k) (by simp; omega)
+    rw [getD_append_right' (by simp), getD_append_right' (by simp)] at hent
+    simp only [bvarRange_length, Nat.add_sub_cancel_left] at hent
+    rw [getD_of_lt hkCI, hCIk, getD_of_lt hk'] at hent
+    rw [List.take_append, List.take_of_length_le (l := bvarRange _ _) (by simp), bvarRange_length,
+      Nat.add_sub_cancel_left] at hent
+    -- the field variable at its declared type
+    have hlk := Lookup.reverse_append (g.params ++ g.sFields c) [] (g.params.length + i)
+      (by simp; omega)
+    rw [List.append_nil, List.getElem_append_right (by simp)] at hlk
+    simp only [List.length_append, Nat.add_sub_cancel_left] at hlk
+    have hvar : env.HasType g.uvars (g.params ++ g.sFields c).reverse
+        (.bvar ((g.sFields c).length - 1 - i))
+        (((g.sFields c)[i]).liftN ((g.sFields c).length - i)) := by
+      have e1 : g.params.length + (g.sFields c).length - 1 - (g.params.length + i) =
+          (g.sFields c).length - 1 - i := by omega
+      have e2 : g.params.length + (g.sFields c).length - (g.params.length + i) =
+          (g.sFields c).length - i := by omega
+      rw [e1, e2] at hlk
+      exact .bvar hlk
+    have hU := IsDefEq.uniqU henv hctxF hvar hent
+    have hFs := hsorts i hi k hfs
+    have hW : Ctx.LiftN ((g.sFields c).length - i) 0 (g.params ++ (g.sFields c).take i).reverse
+        (g.params ++ g.sFields c).reverse := by
+      have e : (g.params ++ g.sFields c).reverse =
+          ((g.sFields c).drop i).reverse ++ (g.params ++ (g.sFields c).take i).reverse := by
+        conv => lhs; rw [← List.take_append_drop i (g.sFields c)]
+        rw [← List.append_assoc, List.reverse_append]
+      rw [e]
+      exact Ctx.LiftN.zero _ (by simp)
+    have hFs' := hFs.weakN henv.ordered hW
+    simp only [VLevel.WF, VExpr.liftN] at hFs'
+    have heq := sort_agree henv hctxF hFs' hIinst hU
+    have hukwf := (hIk.isType henv.ordered hctxk').sort_inv henv.ordered
+    exact .defeqDF (.sortDF hukwf (hsortWF i) (show _ ≈ _ from Eq.symm heq)) hIk
+  · have e : PropElim.majorTy (g.singletonCast owner c sorts) g.params
+        (g.singletonElim owner c h) = g.sMajor owner := by
+      simp only [PropElim.majorTy, singletonElim, singletonCast]
+      rw [← CastSpec.bvarRange_split, hMajEq]
+    rw [e]; exact hmajor
+  · have e : PropElim.ctorApp (g.singletonCast owner c sorts) g.params
+        (g.singletonElim owner c h) = g.sCtorApp c := by
+      simp [PropElim.ctorApp, sCtorApp, singletonElim, singletonCast, hPlen]
+    rw [e]; exact hctorT
+  · obtain ⟨_, hfs⟩ := hslot l k h
+    obtain ⟨hk, he⟩ := fieldSlot_spec hfs
+    show (g.sCtorIndices c).getD k default = .bvar ((g.sFields c).length - 1 - l)
+    rw [getD_of_lt hk, he]
+  · sorry
 
 end Instance
 end InductiveSignature
