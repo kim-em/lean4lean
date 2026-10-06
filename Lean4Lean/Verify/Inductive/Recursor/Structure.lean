@@ -1186,24 +1186,6 @@ theorem readerBind.WF
     ((x >>= f) c).WF R := by
   exact Hx.bind Hf
 
-
-theorem checkIndexUniverses.WF (indices : Array Expr) (c : AddInductive.Context) :
-    (AddInductive.mkRecInfos.checkIndexUniverses indices c).WF fun _ =>
-      (c.lctx.mkForall indices (.sort .zero)).levelParamsIn c.lparams = true := by
-  rw [AddInductive.mkRecInfos.checkIndexUniverses]
-  have hread : ((readThe AddInductive.Context :
-      AddInductive.M AddInductive.Context) c).WF (fun ctx => ctx = c) := by
-    intro ctx h
-    cases h
-    rfl
-  refine readerBind.WF (x := readThe AddInductive.Context) hread fun ctx hctx => ?_
-  subst ctx
-  by_cases hscope : (c.lctx.mkForall indices (.sort .zero)).levelParamsIn c.lparams = true
-  · rw [if_pos hscope]
-    exact Except.WF.pure hscope
-  · rw [if_neg hscope]
-    exact Except.WF.throw
-
 namespace mkRecInfos.loopInd1
 
 /-- The first recursor pass appends exactly one `RecInfo` (motive, indices,
@@ -1248,7 +1230,6 @@ theorem resultCount
     intro indices cIndices
     by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
     · rw [if_pos harity]
-      refine (checkIndexUniverses.WF indices cIndices).bind fun _ _ => ?_
       apply withLocalDecl.continueRaw
       let cMajor : AddInductive.Context := { cIndices with
         ngen := cIndices.ngen.next

@@ -1733,7 +1733,13 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
       c.typeCheckerLParams
       (some <| AddInductive.getRecLevelParams elimLevel c.lparams))
     rfl (RecInfoArities.empty stats)
-    RecInfoMinorsEmpty.empty RecInfoBlueprintCounts.empty ?_
+    RecInfoMinorsEmpty.empty RecInfoBlueprintCounts.empty
+    (ParameterUniverseSupport.of_contextWF (root := { c with
+        env := outEnv
+        typeCheckerLParams := some <|
+          AddInductive.getRecLevelParams elimLevel c.lparams })
+      Hbase (R.materialized.parameterSuffix (Hc := Hbase)).paramsBound
+      rfl rfl (BindingContextLE.refl _)) ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut hparameterDeclsOut
     HstatsOut
     Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes

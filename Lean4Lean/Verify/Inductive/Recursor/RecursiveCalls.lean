@@ -65,7 +65,6 @@ theorem resultBindings {alpha : Type} {Q : alpha → Prop}
     · intro indices originTypes cIndices HcIndices Hindices HindexOrigins hIndices
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · rw [if_pos harity]
-        refine (checkIndexUniverses.WF indices cIndices).bind fun _ _ => ?_
         let majorTy :=
           (mkAppN (mkAppN stats.indConsts[dIdx]! stats.params)
             indices).consumeTypeAnnotationsVerified
@@ -197,6 +196,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Harities : RecInfoArities stats recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos)
     (Hblueprints : RecInfoBlueprintCounts recInfos)
+    (hparamU : ParameterUniverseSupport current stats.params)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx
@@ -245,7 +245,6 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       unless indices.size == stats.nindices[dIdx]! do
         throw <| .other
           "recursor index arity does not match checked inductive header"
-      AddInductive.mkRecInfos.checkIndexUniverses indices
       let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
       withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
       let lctx ← getLCtx
@@ -261,7 +260,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[]
         current.fuel.inductiveFuel loopK current).WF Q
     refine Hheader.startRecursorSemantics Helim R hconsume henv
-      Hsuffix (HparamsCtx dIdx hidx) Hstats
+      Hsuffix (HparamsCtx dIdx hidx) Hstats hparamU Hroot.lparams_eq
       loopK ?_ current.fuel.inductiveFuel
     · intro cIndices nextDepth Rindices henvIndices HsuffixIndices
         hparameterDecls type
@@ -269,11 +268,10 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         indexTargets Hsynthesis hcanonicalParams hscopeBase HnarrowStats HstatsIndices Hruntime
         hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
         HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
-        Hrecent
+        Hrecent hindexUniverses
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · simp only [loopK]
         rw [if_pos harity]
-        refine (checkIndexUniverses.WF indices cIndices).bind fun _ hindexUniverses => ?_
         rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
@@ -856,9 +854,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
                 (HmotiveExtension.shift.consN 0)
           resultLevel := Hframe.resultLevel
           indexUniverses := by
-            change (cMotive.lctx.mkForall indices (.sort .zero)).levelParamsIn cMotive.lparams = true
+            change (cMotive.lctx.mkForall indices (.sort .zero)).levelParamsIn
+              cIndices.lparams = true
             rw [HindexOrigins.bound.mkForall_mono
-              (HmajorExtension.contextLE.trans HmotiveExtension.contextLE)]
+              (HmajorExtension.contextLE.trans HmotiveExtension.contextLE),
+              (Hroot.trans hIndices).lparams_eq]
             exact hindexUniverses
           motiveClosedScope :=
             (Rindices.mlctx.dropN indices.size hclosedSize).vlctx
@@ -1001,7 +1001,14 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             have hnew : indices.size = stats.nindices[dIdx]! := by
               simpa using harity
             simpa [hprogress] using hnew)
-          Hempty.push Hblueprints.pushEmpty ?_
+          Hempty.push Hblueprints.pushEmpty
+          (hparamU.mono Hparams <| hIndices.trans <|
+            (BindingContextLE.withLocalDecl cIndices
+              Rindices.toBindingContextWF `t majorTy .default).trans <|
+              BindingContextLE.withLocalDecl cMajor
+                (Rindices.toBindingContextWF.withLocalDecl
+                  `t majorTy .default)
+                motiveName motiveTy.consumeTypeAnnotationsVerified .default) ?_
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.majorTypes.push majorTy)
           exact HmajorAtMotive

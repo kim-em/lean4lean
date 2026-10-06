@@ -455,13 +455,6 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
       else
         k indices
 
-/-- Generated indices belong to the source declaration's universe scope.
-The recursor's additional elimination universe is reserved for its motive. -/
-def checkIndexUniverses (indices : Array Expr) : M Unit := do
-  let ctx ← readThe Context
-  unless (ctx.lctx.mkForall indices (.sort .zero)).levelParamsIn ctx.lparams do
-    throw <| .other "recursor indices use undeclared universe parameters"
-
 variable (stats : InductiveStats) (indTypes : Array InductiveType) (elimLevel : Level) in
 def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α) : M α := do
   if _h : dIdx < indTypes.size then
@@ -469,7 +462,6 @@ def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α
     loopArgs1 stats (← whnf indTypes[dIdx].type) 0 #[] ctx.fuel.inductiveFuel fun indices => do
     unless indices.size == stats.nindices[dIdx]! do
       throw <| .other "recursor index arity does not match checked inductive header"
-    checkIndexUniverses indices
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
     withLocalDecl `t .default tTy.consumeTypeAnnotationsVerified fun major => do
     let lctx ← getLCtx

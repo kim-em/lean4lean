@@ -295,9 +295,9 @@ declarations; validation must not assume correctness of its own artifact.
    source Expr does not mention `u`. The arg domains and exposed indices are
    `whnf` outputs of the field types, which never mention `u`, but the
    checker proves no universe-parameter support for `whnf` (only
-   `unfoldDefinition.WF_levelParams` exists; `checkIndexUniverses` is a
-   runtime check for the index telescopes, a divergence from C++ flagged in
-   obstacle 4). A runtime guard for the argument telescopes is excluded by the
+   `unfoldDefinition.WF_levelParams` existed; the index telescopes were then
+   covered by a runtime check `checkIndexUniverses`, since removed, see
+   below). A runtime guard for the argument telescopes is excluded by the
    no-new-rejections rule. Plan (study 2026-10-06, estimate 1.5k to 2.2k
    lines over 7 to 10 files of `Verify/TypeChecker`): add to `VState.WF` and
    `Methods.WF` a hereditary universe-support invariant (results of
@@ -313,8 +313,20 @@ declarations; validation must not assume correctness of its own artifact.
    Projection,InferType}.lean`, `Verify/ExprUniverses.lean`); no pending
    lemmas. The bridge to the recursor pass (`ArgumentUniverses`, the
    hypothesis of `consumedGeneration_of`) is in progress
-   (`Recursor/ArgumentUniverses.lean`). Removing `checkIndexUniverses` is a
-   follow-up (obstacle 4).
+   (`Recursor/ArgumentUniverses.lean`). **`checkIndexUniverses` removed
+   (2026-10-06):** `loopInd1` no longer checks that the index telescope
+   mentions only the declaration's universe parameters, matching C++. The
+   fact is proved instead: `continueRecursorParameterSemantics` and
+   `continueRecursorIndexSynthesisSemantics` (`Recursor/FirstPass.lean`)
+   carry `type.levelParamsIn base.lparams` and a universe scope for the narrow
+   scope through every `whnf`/`withLocalDecl` step (`whnfInRecursorContext.levelsWF`,
+   `UniverseScope.cons`), seeded by the header translation and by
+   `ParameterUniverseSupport` (now a hypothesis of
+   `mkRecInfos.loopInd1.resultSemantics`), and
+   `RecursorRecentBoundFVarArray.indexUniverses` closes the telescope; this
+   discharges the `indexUniverses` field of the origin rows. The universe-scope
+   lemmas the first pass needs moved from `Recursor/LoopUniverses.lean` to
+   `Recursor/UniverseScope.lean`.
    **Assembly (2026-10-06).** `consumedGeneration_of H HU HF : Nonempty
    H.ConsumedGeneration` (`Recursor/ConsumedGenerationAssembly.lean`,
    `CanonicalConstruction.lean`) is proved from `recursorTelescope_hypothesisUnlift`
@@ -623,6 +635,8 @@ inside this project's scope without solving open base metatheory:
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against
    `origin/master`) against Lean-accepted declarations beyond `Init`/`Std`.
+   `checkIndexUniverses` is gone (its fact is now proved, see the universe
+   un-shift entry under item 7 above).
 5. **Audit discipline.** `scripts/check-inductive-audit.py` roots
    `full_church_rosser`, `headParallel`, and `NormalEq.fullStep` are outside
    the `addDecl.WF` cone; decide whether they remain goals.

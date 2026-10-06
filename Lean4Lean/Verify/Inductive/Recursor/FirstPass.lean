@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Recursor.Origins
+import Lean4Lean.Verify.Inductive.Recursor.UniverseScope
 import Lean4Lean.Verify.Typing.EnvironmentRestriction
 
 namespace Lean4Lean
@@ -591,6 +591,7 @@ theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
     (henv : R.venv = Hc.venv) :
     ((monadLift (TypeChecker.whnf source.type) :
         AddInductive.M Expr) c').WF fun normalized =>
+      normalized.levelParamsIn c.lparams = true ∧
       FVarsBelow R.mlctx.vlctx source.type normalized ∧
       ∃ normalizedTarget,
         TrExprS R.venv
@@ -615,28 +616,32 @@ theorem CheckedRecursorHeaderAt.startRecursorHeaderSemantics
   have hsource := htarget.weakFV R.checking.tr.wf.ordered W
     R.mlctx_wf.tr.wf
   have hnormalize := whnfInRecursorContext.scopeWF R hsource
-  exact hnormalize.mono fun normalized hnormalized => by
-    have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
-      htarget.fvarsIn.mono fun fv hfv => by
-        simpa [VLCtx.fvars] using hfv
-    have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
-      have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
-        R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)
-      simpa [VLCtx.fvars] using hsuffix
-    have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized :=
-      hnormalized.1 _ hfalseUpSet hsourceNoFVars
-    rcases R.initialClosedHeaderDefEq htarget hsource hnormalized.2
-        hnormalizedNoFVars with
-      ⟨normalizedTarget, hnormalizedTarget, hheader⟩
-    have hnormalizedType : R.venv.IsType recLparams.length []
-        normalizedTarget :=
-      htargetType.defeqU_l R.checking.tr.wf (by trivial) hheader
-    rcases htargetType with ⟨targetLevel, htargetHasType⟩
-    have hheaderTyped := hheader.of_l R.checking.tr.wf (by trivial)
-      htargetHasType
-    exact ⟨hnormalized.1, normalizedTarget, hnormalizedTarget,
-      ⟨checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
-        ⟨targetLevel, htargetHasType⟩ hnormalizedType hheaderTyped⟩⟩
+  have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
+    htarget.fvarsIn.mono fun fv hfv => by
+      simpa [VLCtx.fvars] using hfv
+  have hfalseUpSet : IsFVarUpSet (fun _ => False) R.mlctx.vlctx := by
+    have hsuffix := IsFVarUpSet.suffixFVars ([] : VLCtx)
+      R.mlctx.vlctx (by simpa using R.mlctx_wf.tr.wf)
+    simpa [VLCtx.fvars] using hsuffix
+  have hlevels := whnfInRecursorContext.levelsWF R hsource
+  refine (hlevels.and hnormalize).mono fun normalized ⟨hnormalizedLevels, hnormalized⟩ => ?_
+  refine ⟨hnormalizedLevels c.lparams (fun _ => False)
+    ⟨hfalseUpSet, fun _ _ h => h.elim⟩
+    H.sourceTranslation.type.levelParamsIn hsourceNoFVars, ?_⟩
+  have hnormalizedNoFVars : FVarsIn (fun _ => False) normalized :=
+    hnormalized.1 _ hfalseUpSet hsourceNoFVars
+  rcases R.initialClosedHeaderDefEq htarget hsource hnormalized.2
+      hnormalizedNoFVars with
+    ⟨normalizedTarget, hnormalizedTarget, hheader⟩
+  have hnormalizedType : R.venv.IsType recLparams.length []
+      normalizedTarget :=
+    htargetType.defeqU_l R.checking.tr.wf (by trivial) hheader
+  rcases htargetType with ⟨targetLevel, htargetHasType⟩
+  have hheaderTyped := hheader.of_l R.checking.tr.wf (by trivial)
+    htargetHasType
+  exact ⟨hnormalized.1, normalizedTarget, hnormalizedTarget,
+    ⟨checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate.empty
+      ⟨targetLevel, htargetHasType⟩ hnormalizedType hheaderTyped⟩⟩
 
 theorem CheckedRecursorHeaderAt.target_mem
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
@@ -3266,6 +3271,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
       FVarsIn (· ∈ scope.fvars) type →
+      type.levelParamsIn base.lparams = true →
+      R.typeChecker.UniverseScope base.lparams (· ∈ scope.fvars) →
       TrExpr R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx type fullTarget →
@@ -3313,6 +3320,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
       FVarsIn (· ∈ scope.fvars) type →
+      type.levelParamsIn base.lparams = true →
+      R.typeChecker.UniverseScope base.lparams (· ∈ scope.fvars) →
       TrExpr R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx type fullTarget →
@@ -3332,14 +3341,14 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
       RecursorRecentBoundFVarArray Rroot R indices →
       (AddInductive.mkRecInfos.loopArgs1 stats type stats.params.size
         indices fuel k current).WF Q
-  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, _, _, _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | current, runtimeDepth, R, henv, Hsuffix, hparameterDecls, type,
       fullTarget, narrowTarget,
       scope, nindices, indices, originTypes, indexTargets, fuel + 1, Hsynthesis,
       hcanonicalParams, hscopeBase, HnarrowStats, Hstats, Hruntime, hfront, htypeNarrow,
-      htypeFVars, htypeFull,
+      htypeFVars, htypeU, hscopeU, htypeFull,
       htypeFullType, Hindices, HnarrowIndices, hindexCount, hcanonical,
       Horigins, HoriginTypes, Hrecent => by
       cases type with
@@ -3489,8 +3498,57 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               exact List.mem_cons_of_mem _ hfv).instantiate1
             rw [VLCtx.fvars_cons_some]
             exact List.mem_cons_self
+          let x : FVarId := ⟨current.ngen.curr⟩
+          have hdomBodyU : dom.levelParamsIn base.lparams = true ∧
+              body.levelParamsIn base.lparams = true := by
+            simpa [Expr.levelParamsIn] using htypeU
+          have hscopeU' : R'.typeChecker.UniverseScope base.lparams
+              (· ∈ VLCtx.fvars ((some (⟨current.ngen.curr⟩,
+                dom.consumeTypeAnnotationsVerified.fvarsList),
+                .vlam indexType) :: scope)) := by
+            have hcons : R'.typeChecker.UniverseScope base.lparams
+                (fun fv => fv = x ∨ fv ∈ scope.fvars) := by
+              refine TypeChecker.VContext.UniverseScope.cons (x := x)
+                (deps := dom.consumeTypeAnnotationsVerified.fvarsList)
+                (d := .vlam consumedDom) rfl ?_ R.current_not_mem hscopeU
+                hdeps ?_
+              · intro fv hne
+                change (TypeChecker.MLCtx.vlam x name
+                  dom.consumeTypeAnnotationsVerified consumedDom bi
+                  R.mlctx).lctx.find? fv = R.mlctx.lctx.find? fv
+                have hwf : (TypeChecker.MLCtx.vlam x name
+                    dom.consumeTypeAnnotationsVerified consumedDom bi
+                    R.mlctx).WF R.venv
+                    (AddInductive.getRecLevelParams elimLevel base.lparams) :=
+                  R'.mlctx_wf
+                rw [hwf.find?_eq, R.mlctx_wf.find?_eq]
+                have hbeq : (fv == x) = false := by simpa using hne
+                simp [TypeChecker.MLCtx.decls, LocalDecl.fvarId, hbeq]
+              · intro decl hdecl
+                have hself := R'.mlctx_wf.find?_vlam_self
+                change (TypeChecker.MLCtx.vlam x name
+                  dom.consumeTypeAnnotationsVerified consumedDom bi
+                  R.mlctx).lctx.find? x = some decl at hdecl
+                rw [hself] at hdecl
+                cases hdecl
+                exact ⟨Expr.levelParamsIn_consumeTypeAnnotationsVerified
+                  hdomBodyU.1, fun v hv => by simp [LocalDecl.value?] at hv⟩
+            have hP : (fun fv => fv = x ∨ fv ∈ scope.fvars) =
+                (· ∈ VLCtx.fvars ((some (⟨current.ngen.curr⟩,
+                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  .vlam indexType) :: scope)) := by
+              funext fv
+              simp [VLCtx.fvars_cons_some, x]
+            exact hP ▸ hcons
+          have hopenedU :
+              (body.instantiate1 (.fvar ⟨current.ngen.curr⟩)).levelParamsIn
+                base.lparams = true := by
+            rw [Expr.instantiate1_eq]
+            exact Expr.levelParamsIn_instantiate1 hdomBodyU.2 rfl
           have hnormalize := whnfInRecursorContext.scopeWF R' hopened
-          exact hnormalize.bind fun next hnext => by
+          have hnormalizeLevels := whnfInRecursorContext.levelsWF R' hopened
+          exact (hnormalize.and hnormalizeLevels).bind
+            fun next ⟨hnext, hnextLevels⟩ => by
             have hnormalizedFVars := hnext.1 _ Hruntime'.upset hopenedFVars
             rcases hnext.2 with
               ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
@@ -3586,6 +3644,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                   Hsynthesis'.indices
                 rw [hfront, hfrontIndices])
               hnextNarrow hnormalizedFVars
+              (hnextLevels _ _ hscopeU' hopenedU hopenedFVars) hscopeU'
               ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
               hconsumedBodyType Hindices' HnarrowIndices'
               (by simp [hindexCount])
@@ -3602,7 +3661,8 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
           simpa [AddInductive.mkRecInfos.loopArgs1] using
             Hk R henv Hsuffix hparameterDecls Hsynthesis hcanonicalParams
               hscopeBase HnarrowStats Hstats Hruntime
-              hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
+              hfront htypeNarrow htypeFVars htypeU hscopeU htypeFull
+              htypeFullType Hindices
               HnarrowIndices hindexCount hcanonical Horigins HoriginTypes Hrecent
 termination_by
   current runtimeDepth R henv Hsuffix hparameterDecls type fullTarget narrowTarget scope
@@ -3632,6 +3692,8 @@ theorem continueRecursorParameterSemantics {alpha : Type}
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
       stats decl runtimeDepth)
+    (hparamScope : R.typeChecker.UniverseScope base.lparams
+      (· ∈ Hsuffix.parameterDecls.fvars))
     (Hk : ∀ {type : Expr} {fullTarget narrowTarget : VExpr},
       (Hsynthesis :
         checkInductiveTypes.loopType.NarrowHeaderSynthesisCertificate
@@ -3649,6 +3711,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls type narrowTarget →
       FVarsIn (· ∈ Hsuffix.parameterDecls.fvars) type →
+      type.levelParamsIn base.lparams = true →
       TrExpr R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx type fullTarget →
@@ -3672,6 +3735,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         scope type narrowTarget →
       FVarsIn (· ∈ scope.fvars) type →
+      type.levelParamsIn base.lparams = true →
       TrExpr R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx type fullTarget →
@@ -3681,12 +3745,13 @@ theorem continueRecursorParameterSemantics {alpha : Type}
       indices = #[] →
       (AddInductive.mkRecInfos.loopArgs1 stats type i indices fuel
         k current).WF Q
-  | _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _ => by
+  | _, _, _, _, _, _, 0, _, _, _, _, _, _, _, _, _, _, _ => by
       intro _ h
       simp [AddInductive.mkRecInfos.loopArgs1] at h
   | type, fullTarget, narrowTarget, scope, i, indices, fuel + 1,
       hbound, Hscope, hscopeEq, hcompleteScope, Hsynthesis,
-      htypeNarrow, htypeFVars, htypeFull, htypeFullType, hindicesEmpty => by
+      htypeNarrow, htypeFVars, htypeU, htypeFull, htypeFullType,
+      hindicesEmpty => by
       by_cases hdone : stats.params.size ≤ i
       · have hieq : i = stats.params.size := by omega
         subst i
@@ -3698,7 +3763,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
             change [] = Hsynthesis.indices
             exact (List.eq_nil_of_length_eq_zero
               Hsynthesis.indexCount).symm)
-          htypeNarrow htypeFVars htypeFull
+          htypeNarrow htypeFVars htypeU htypeFull
           htypeFullType indices (fuel + 1) hindicesEmpty
       · have hi : i < stats.params.size := by omega
         cases type with
@@ -3716,7 +3781,28 @@ theorem continueRecursorParameterSemantics {alpha : Type}
               ⟨bodyTarget, hopened, hopenedType⟩
             have hnormalize :=
               whnfInRecursorContext.scopeWF R hopened
-            exact hnormalize.bind fun next hnext => by
+            have hnormalizeLevels := whnfInRecursorContext.levelsWF R hopened
+            have hparamMem : Hcurrent.fv ∈ Hsuffix.parameterDecls.fvars := by
+              rw [Hcurrent.parameterDecls]
+              simp
+            have holderMem : ∀ fv, fv ∈ Hcurrent.older.fvars →
+                fv ∈ Hsuffix.parameterDecls.fvars := by
+              intro fv hfv
+              rw [Hcurrent.parameterDecls]
+              simp [hfv]
+            have hopenedU : (body.instantiate1 stats.params[i]!).levelParamsIn
+                base.lparams = true := by
+              rw [Hcurrent.parameter, Expr.instantiate1_eq]
+              have hbodyU : body.levelParamsIn base.lparams = true := by
+                simp only [Expr.levelParamsIn, Bool.and_eq_true] at htypeU
+                exact htypeU.2
+              exact Expr.levelParamsIn_instantiate1 hbodyU rfl
+            have hopenedP : FVarsIn (· ∈ Hsuffix.parameterDecls.fvars)
+                (body.instantiate1 stats.params[i]!) := by
+              rw [Hcurrent.parameter, Expr.instantiate1_eq]
+              exact (htypeFVars.2.mono holderMem).instantiate1 hparamMem
+            exact (hnormalize.and hnormalizeLevels).bind
+              fun next ⟨hnext, hnextLevels⟩ => by
               have hnarrowMatch := H.recursorCurrentDomainDefEq Helim
                 Hcurrent Hsynthesis hi henv hctx
               have hindices : Hsynthesis.indices = [] :=
@@ -3735,7 +3821,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
                     hnormalizedNarrow, hbodyEq⟩ with
                 ⟨nextNarrow, hnextNarrow, ⟨Hsynthesis'⟩⟩
               exact continueRecursorParameterSemantics stats k H Helim R
-                henv Hsuffix hctx Hstats Hk next bodyTarget
+                henv Hsuffix hctx Hstats hparamScope Hk next bodyTarget
                 nextNarrow
                 ((some (Hcurrent.fv, Hcurrent.deps),
                   .vlam Hcurrent.paramType) :: Hcurrent.older)
@@ -3745,7 +3831,9 @@ theorem continueRecursorParameterSemantics {alpha : Type}
                   (Hbody.next hlt hnext.1) hlt)
                 (fun heq => Hcurrent.completedScope heq)
                 Hsynthesis' hnextNarrow
-                (Hbody.consumedFVars hnext.1) hnext.2 hopenedType
+                (Hbody.consumedFVars hnext.1)
+                (hnextLevels _ _ hparamScope hopenedU hopenedP)
+                hnext.2 hopenedType
                 hindicesEmpty
         | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
           | proj =>
@@ -3885,6 +3973,8 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
       stats decl runtimeDepth)
+    (hparamScope : R.typeChecker.UniverseScope base.lparams
+      (· ∈ Hsuffix.parameterDecls.fvars))
     (k : Array Expr → AddInductive.M alpha)
     (Hk : ∀ {type : Expr} {fullTarget narrowTarget : VExpr},
       (Hsynthesis :
@@ -3903,6 +3993,7 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         Hsuffix.parameterDecls type narrowTarget →
       FVarsIn (· ∈ Hsuffix.parameterDecls.fvars) type →
+      type.levelParamsIn base.lparams = true →
       TrExpr R.venv
         (AddInductive.getRecLevelParams elimLevel base.lparams)
         R.mlctx.vlctx type fullTarget →
@@ -3919,7 +4010,7 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
         AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k
           current).WF Q := by
   have hstart := H.startRecursorHeaderSemantics Helim R henv
-  exact hstart.bind fun normalized hnormalized => by
+  exact hstart.bind fun normalized ⟨hnormalizedU, hnormalized⟩ => by
     rcases hnormalized.2 with
       ⟨narrowTarget, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     have hsourceNoFVars : FVarsIn (fun _ => False) source.type :=
@@ -3959,12 +4050,47 @@ theorem CheckedRecursorHeaderAt.startRecursorParameterSemantics
       exact (List.eq_nil_of_length_eq_zero (by
         rw [Hsuffix.parameterDecls_length, ← hzero])).symm
     exact continueRecursorParameterSemantics stats k H Helim R henv
-      Hsuffix hctx Hstats Hk normalized
+      Hsuffix hctx Hstats hparamScope Hk normalized
       (narrowTarget.liftN R.mlctx.vlctx.toCtx.length 0) narrowTarget [] 0
       #[] fuel (by omega) Hscope hscopeEq hcompleteScope Hsynthesis
       hnormalizedNarrow
-      (by simpa [VLCtx.fvars] using hnormalizedNoFVars)
+      (by simpa [VLCtx.fvars] using hnormalizedNoFVars) hnormalizedU
       hnormalizedFull hnormalizedFullType rfl
+
+/-- The index telescope opened by `loopArgs1` mentions only `Us` when its
+declarations lie in a universe scope of the narrow index scope. -/
+theorem _root_.Lean4Lean.VerifyInductive.RecursorRecentBoundFVarArray.indexUniverses
+    {root c : AddInductive.Context} {recLparams : List Name}
+    {Rroot : RecursorContextWF root recLparams}
+    {R : RecursorContextWF c recLparams} {xs : Array Expr}
+    (H : RecursorRecentBoundFVarArray Rroot R xs)
+    {Us : List Name} {scope : VLCtx} {targets : List VExpr}
+    (hscope : R.typeChecker.UniverseScope Us (· ∈ scope.fvars))
+    (Hxs : List.Forall₂ (TrExprS R.venv recLparams scope) xs.toList targets) :
+    (c.lctx.mkForall xs (.sort .zero)).levelParamsIn Us = true := by
+  refine H.toBoundFVarArray.mkForall_levelParamsIn R.toBindingContextWF H.nodup ?_
+    (by simp [Expr.levelParamsIn, Level.paramsIn])
+  intro x hx decl hdecl
+  have hxArg : Expr.fvar x ∈ xs.toList := by
+    rw [H.expressions]
+    simpa using hx
+  have hexists : ∀ {l : List Expr} {ts : List VExpr},
+      List.Forall₂ (TrExprS R.venv recLparams scope) l ts →
+      Expr.fvar x ∈ l → ∃ t, TrExprS R.venv recLparams scope (.fvar x) t := by
+    intro l ts h hmem
+    induction h with
+    | nil => simp at hmem
+    | cons hab _ ih =>
+      rcases List.mem_cons.mp hmem with heq | hmem
+      · exact ⟨_, heq ▸ hab⟩
+      · exact ih hmem
+  obtain ⟨_, ht⟩ := hexists Hxs hxArg
+  have hxScope : x ∈ scope.fvars := by simpa [FVarsIn] using ht.fvarsIn
+  have hdecl' : R.typeChecker.lctx'.find? x = some decl := by
+    change R.mlctx.lctx.find? x = some decl
+    rw [R.lctx_eq]
+    exact hdecl
+  exact (hscope.2 x decl hxScope hdecl').1
 
 /-- Complete parameter and genuine-index replay under one recursor-universe
 context.  The continuation is reached with the exact retained parameter
@@ -3987,6 +4113,8 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     (Hstats : RecursorValidAppStatsWF R.venv
       (AddInductive.getRecLevelParams elimLevel base.lparams) R.mlctx.vlctx
       stats decl runtimeDepth)
+    (hparamU : ParameterUniverseSupport current stats.params)
+    (hlparams : current.lparams = base.lparams)
     (k : Array Expr → AddInductive.M alpha)
     (Hk : ∀ {next : AddInductive.Context} {nextDepth : Nat}
       (Rnext : RecursorContextWF next
@@ -4037,16 +4165,25 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
       BoundFVarTypeOrigins next indices originTypes →
       RecursorTranslatedOriginTypes Rnext originTypes →
       RecursorRecentBoundFVarArray R Rnext indices →
+      (next.lctx.mkForall indices (.sort .zero)).levelParamsIn base.lparams = true →
       (k indices next).WF Q)
     (fuel : Nat) :
     ((monadLift (TypeChecker.whnf source.type) : AddInductive.M Expr)
       current >>= fun normalized =>
         AddInductive.mkRecInfos.loopArgs1 stats normalized 0 #[] fuel k
           current).WF Q := by
+  have hparamScope : R.typeChecker.UniverseScope base.lparams
+      (· ∈ Hsuffix.parameterDecls.fvars) := by
+    refine R.universeScope_of_types Hsuffix.runtimeScope.upset ?_
+    intro fv hfv decl hfind
+    rw [← hlparams]
+    refine hparamU fv ?_ decl hfind
+    rw [Hsuffix.parameterDecls_fvars] at hfv
+    exact List.mem_reverse.mp hfv
   refine H.startRecursorParameterSemantics Helim R henv Hsuffix hctx
-    Hstats k ?_ fuel
+    Hstats hparamScope k ?_ fuel
   intro type fullTarget narrowTarget Hsynthesis HnarrowStats Hruntime hfront
-    htypeNarrow htypeFVars htypeFull htypeFullType indices remaining
+    htypeNarrow htypeFVars htypeU htypeFull htypeFullType indices remaining
     hindicesEmpty
   subst indices
   have hcanonicalParams : Hsynthesis.params.reverse =
@@ -4054,14 +4191,27 @@ theorem CheckedRecursorHeaderAt.startRecursorSemantics
     have hindices : Hsynthesis.indices = [] :=
       List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
     simpa [hindices] using Hsynthesis.scopeCtx.symm
-  exact continueRecursorIndexSynthesisSemantics stats k H Helim R
-    hconsume Hk R henv Hsuffix rfl type fullTarget narrowTarget
+  refine continueRecursorIndexSynthesisSemantics
+    (rootParameterDecls := Hsuffix.parameterDecls) stats k H Helim R
+    hconsume ?_ R henv Hsuffix rfl type fullTarget narrowTarget
     Hsuffix.parameterDecls 0 #[] #[] [] remaining Hsynthesis
     hcanonicalParams rfl HnarrowStats
-    Hstats Hruntime hfront htypeNarrow htypeFVars htypeFull htypeFullType .nil .nil
+    Hstats Hruntime hfront htypeNarrow htypeFVars htypeU hparamScope
+    htypeFull htypeFullType .nil .nil
     rfl rfl (BoundFVarTypeOrigins.empty current)
     (RecursorTranslatedOriginTypes.empty R)
     (RecursorRecentBoundFVarArray.empty R)
+  intro next nextDepth Rnext henvNext HsuffixNext hparameterDecls type'
+    fullTarget' narrowTarget' scope nindices indices originTypes indexTargets
+    Hsynthesis' hcanonical' hscopeBase HnarrowStats' Hstats' Hruntime' hfront'
+    htypeNarrow' htypeFVars' _htypeU' hscopeU' htypeFull' htypeFullType'
+    Hindices HnarrowIndices hindexCount hcanonical Horigins HoriginTypes
+    Hrecent
+  exact Hk Rnext henvNext HsuffixNext hparameterDecls Hsynthesis' hcanonical'
+    hscopeBase HnarrowStats' Hstats' Hruntime' hfront' htypeNarrow'
+    htypeFVars' htypeFull' htypeFullType' Hindices HnarrowIndices hindexCount
+    hcanonical Horigins HoriginTypes Hrecent
+    (Hrecent.indexUniverses hscopeU' HnarrowIndices)
 
 /-- Package-facing entry to checked recursor replay.  All family selection,
 parameter-cache, universe, and source-translation premises are projected from

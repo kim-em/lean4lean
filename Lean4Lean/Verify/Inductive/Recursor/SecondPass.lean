@@ -130,10 +130,6 @@ theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
     exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
       hpriorSize, S⟩
 
-theorem _root_.Except.WF.and {ε α : Type} {x : Except ε α} {Q R : α → Prop}
-    (h1 : x.WF Q) (h2 : x.WF R) : x.WF fun a => Q a ∧ R a :=
-  fun a h => ⟨h1 a h, h2 a h⟩
-
 theorem List.mem_take_idxOf_succ {α : Type} [BEq α] [LawfulBEq α]
     {l : List α} {a : α} (h : a ∈ l) :
     a ∈ l.take (l.idxOf a + 1) := by
