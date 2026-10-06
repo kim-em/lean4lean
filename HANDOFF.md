@@ -780,7 +780,14 @@ inside this project's scope without solving open base metatheory:
    eliminating the Prop structure into Prop recovers `P v`, but no syntactic
    inhabitant of the data field exists, so it is being threaded as an
    explicit hypothesis to the top-level theorems on the E1 branch. E1 is
-   therefore not hypothesis-free either.
+   therefore not hypothesis-free either. Done as `ProjectionWalkCorner`
+   (`Verify/Typing/ProjectionCorner.lean`, commit 02ea245 on the E1 branch),
+   quantified over every well-formed environment; being converted from a
+   `VEnvs.WF` field (which would hide it) into an explicit argument of the
+   top-level theorems. With it, no constant under the checker, Primitive,
+   ConditionallyTyped or EquivManager depends on `weakN_iff`; `addAxiom`,
+   `addDefinition`, `addTheorem`, `addOpaque`, `addMutual` are clean; the
+   inductive side (25 sites) remains.
    **E3 status (2026-10-06): complete on `agent/verify-inductives-e3`**
    (commits 7c544ac..717fc23, pushed): `VEnv.Strengthening` replaces the
    `weakN_iff` sorry; threaded through the Theory consumers, a new
