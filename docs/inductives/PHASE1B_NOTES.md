@@ -501,7 +501,18 @@ and in the major's head).
   those facts for `quotDefEq` (both modes occur: `Quot` at a level that is identically zero
   is a proposition). Infrastructure: `Model/Tele.lean` (typed key telescopes), `Model/HTS.lean`
   (semantic typing derivations, the spine lemma), `Model/RuleLemmas.lean`.
-* [plan] Stages B-E (section 10.2).
+* [plan] Stages B-E (section 10.2). Handoff for stage B (native recursors, mode AB): each
+  compilation equation must be shown to satisfy the hypotheses of `Model.sound_pat`:
+  pattern and coverage (`Instance.equation_patShape_strong`), `df.uvars = g.uvars` for
+  `hlsP`, `HeadFam` (the installed recursor's type is the restored `Instance.recursorType`,
+  a telescope of `majorOffset + 1` domains whose last is an application of the restored
+  family head; see `NativeRecursorData.recursorType_major` and
+  `NativeRecursorRegistered.family_head_rigid` in `Typing/NativeMajorFamily.lean`, which
+  cannot be imported (it imports `ProjectionLemmas` → `Injectivity`) and must be re-derived),
+  the constructor's family (`WF.native_constructor_result_rigid`), uniqueness per head and
+  constructor (`NativeRecursorRegistered.constructor_index_unique` pattern, plus head
+  freshness as in `Rules/Definitions.lean`), and the exclusion of mode C (stage B hypothesis).
+  Pitfall: `lead.length = majorOffset` needs `ctor.indices.length = family.indices.length`.
 
 ### 10.1 Deviations of the M0-M2 formalisation from section 9.1
 
