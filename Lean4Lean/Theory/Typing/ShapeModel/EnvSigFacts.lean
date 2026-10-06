@@ -156,6 +156,31 @@ theorem sig_elimType (H : env.WF) (hreg : env.eliminators b schema)
   obtain ⟨hreg', ho, hT'⟩ := Classical.choose_spec (Classical.choose_spec hex)
   exact congrArg some (key _ _ hreg' ho hT')
 
+theorem sig_elimType_spec (h : sigElimType env b o = some T) :
+    ∃ (schema : CaseSchema) (ho : o < schema.signature.families.size),
+      env.eliminators b schema ∧ schema.genericType ⟨o, ho⟩ = some T := by
+  unfold sigElimType at h
+  split at h
+  · rename_i hex
+    cases h
+    obtain ⟨hreg, ho, hT⟩ := Classical.choose_spec (Classical.choose_spec hex)
+    exact ⟨_, ho, hreg, hT⟩
+  · cases h
+
+theorem sig_structCtor_spec (h : sigStructCtor env s = some c) :
+    ∃ info, env.projections s info ∧ info.ctorName = c := by
+  unfold sigStructCtor at h
+  split at h
+  · rename_i hex
+    cases h
+    exact ⟨_, Classical.choose_spec hex, rfl⟩
+  · cases h
+
+theorem sig_isStruct_iff : sigIsStruct env c = true ↔
+    ∃ s info, env.projections s info ∧ info.ctorName = c ∧ info.nindices = 0 := by
+  unfold sigIsStruct
+  exact @decide_eq_true_iff _ (Classical.propDecidable _)
+
 /-! ## Assembly -/
 
 /-- The semantic field `famTypeSem` of `StructFacts` for the signature of `env`. -/

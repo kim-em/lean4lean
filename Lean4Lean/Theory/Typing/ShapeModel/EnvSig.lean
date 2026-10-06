@@ -5,7 +5,36 @@ import Lean4Lean.Theory.Typing.SchemaStructCompat
 /-!
 # The semantic signature of a well-formed environment (M4b)
 
-`envSig env : SemSig` reads the shape model's semantic signature off a well-formed environment.
+`envSig env : SemSig` reads the shape model's semantic signature off a well-formed environment
+(decision D6 of `docs/inductives/PHASE1_NOTES.md`):
+
+* `ctor c = some ⟨I, np, nf⟩` for every constructor `c` (`IsCtor`: the constructor table of the
+  first registrations, which covers native installations including container constructors,
+  structure registrations, eliminator registrations and `Quot.mk`, plus the major of every
+  generic eliminator equation that is not a recorded family), with `I` the head constant of the
+  body of `c`'s type telescope, `np = structNp env c` (the registered structure's parameter
+  count, unique by `projection_of_ctorName`, else `0`) and `np + nf` the telescope length.
+* `famCtors I`: the duplicate-free list of all `c` with `ctor c = some ⟨I, ..⟩`, filtered from a
+  list of all declared constants (`EnvSigFinite.lean`).
+* `famLevel I`: the result level of the first registration (`famOf`).
+* `isStruct`, `structCtor`, `elimType` as in the specification (`EnvSigFacts.lean`).
+* `rules`: the decomposition (`majorRule`, `defRule`, `EnvSigSyntax.lean`) of every definition
+  equation, the quotient equation, every native iota equation (field count from its recursor
+  data) and every generic equation of a registered schema (field count = arguments of the
+  right body). Correspondence: `EnvSigOrigin.lean`.
+
+Results: `envSig_coherent` (`EnvSigCoherent.lean`), `envSig_envFactsIn` (`EnvSigFacts.lean`).
+Deviations, with reasons:
+* Both need `SchemaStructCompat env` (`Theory/Typing/SchemaStructCompat.lean`): without it a
+  schema can add constructors to a registered structure, `famCtors s = [info.ctorName]` and
+  `Coherent.struct_unique` fail, and the environment is inconsistent (counterexample in that
+  file).
+* `StructFacts.famTypeSem` is a hypothesis of `envSig_envFactsIn` (`FamTypeSem`); its source,
+  the open derivation form `structFamType`, is proved here. The closed derivation form would
+  need uniqueness of typing.
+* Schema majors that are recorded families are not constructors (`IsCtor`). This keeps
+  registered structures from being constructors (`StructFacts.famNotCtor`) without head
+  inversion. In a consistent environment no such major exists.
 -/
 
 namespace Lean4Lean.ShapeModel
