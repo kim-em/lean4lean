@@ -81,7 +81,19 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   the inductive-side locality theorem (9k to 16k lines), which was parked by
   decision. Decision (2026-10-06): continue route (b) as planned (singleton
   eta, then the certificate calculus); revisit only if the pilot shows it is
-  unworkable.
+  unworkable. **Pilot (paper, `STRENGTHENING_NOTES.md` §3.3):** strengthening
+  a larger-context witness (`FullReduction` + `NormalEqN`) by induction on
+  the index closes proof irrelevance, refl/sort/const/elim, forallE levels,
+  common-mode lam/eta, head-forced spines, projections and eta at
+  application heads. Failing pieces: own-mode lam/forallE domain premises
+  (fixable by a "deep" `NormalEqN` with index-counted domain premises), and
+  the irreducible core: reduction steps whose check is a conversion not
+  forced by typing (`DeltaPar.delta`/`quotDelta` with K/singleton alignment
+  checks; canonical choice of eta domains / struct-eta params). Design:
+  delta/quotDelta steps carry an alignment WITNESS instead of an `IsDefEq`
+  check; completeness reworks only the delta-level parts of
+  `LevelledReduction` (about 63 lemmas) and the deep `NormalEqN`, not the
+  whole confluence development. Far smaller than the 20k to 40k estimate.
 
 ## Intended result
 
