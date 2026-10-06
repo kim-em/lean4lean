@@ -907,6 +907,12 @@ end DefRel
 section Disjoint
 
 omit [Params] in
+theorem eq_nil_or_snoc' (l : List α) : l = [] ∨ ∃ L b, l = L ++ [b] := by
+  rcases List.eq_nil_or_concat l with h | ⟨L, b, h⟩
+  · exact .inl h
+  · exact .inr ⟨L, b, by simpa using h⟩
+
+omit [Params] in
 theorem mkApps_snoc (f : VExpr) (l : List VExpr) (b : VExpr) :
     VExpr.mkApps f (l ++ [b]) = .app (VExpr.mkApps f l) b := by
   induction l generalizing f with
@@ -2906,6 +2912,107 @@ theorem DeltaPar.peak_spine (hΓ : OnCtx Γ (env.IsType univs))
     rcases Nat.le_total k₁ k₂ with hk | hk
     · exact ⟨_, ⟨_, pb, cb.trans (DeltaPar.side_extend hΓ hk hrE₁ hrE₂)⟩, ⟨_, pc, cc⟩⟩
     · exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc.trans (DeltaPar.side_extend hΓ hk hrE₂ hrE₁)⟩⟩
+
+omit [Params] in
+theorem mkApps_const_ne_proj : VExpr.mkApps (.const n ls) args ≠ .proj s i m := by
+  rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+  · intro h; cases h
+  · rw [mkApps_snoc]; intro h; cases h
+
+theorem Join2.symm (H : Join2 Γ b c) : Join2 Γ c b :=
+  let ⟨d, h1, h2⟩ := H; ⟨d, h2, h1⟩
+
+theorem DeltaPar.peak_cong_iota (hΓ : OnCtx Γ (env.IsType univs))
+    (IH : DDBelow (sizeOf (VExpr.proj family index (VExpr.mkApps (.const info.ctorName ls) args))))
+    (ha : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName ls) args) : A)
+    (hm₁ : DeltaPar Γ (VExpr.mkApps (.const info.ctorName ls) args) m₁)
+    (hlen : args.length = args₂.length)
+    (hargs : ∀ i (hi : i < args.length) (hi' : i < args₂.length), DeltaPar Γ args[i] args₂[i])
+    (hl : env.projections family info)
+    (hs : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName ls) args₂) : fieldType)
+    (hi : args₂[info.nparams + index]? = some field) (ht : Γ ⊢ field : fieldType) :
+    Join2 Γ (.proj family index m₁) field := by
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
+  obtain ⟨args₁, rfl, h₁⟩ := DeltaPar.rigid_spine (projection_ctor_rigid hl) hm₁
+  have h₂ := forall₂_of_getElem hlen hargs
+  have hb := (DeltaPar.full (.proj hm₁)).hasType hΓ ha
+  have hc := (DeltaPar.full (.projIota hlen hargs hl hs hi ht)).hasType hΓ ha
+  have targs := HasType.mkApps_args_typed hΓ lm.hasType.2
+  obtain ⟨B, C, E, hB, hBE, hC, hCE⟩ := DeltaPar.join_args hΓ IH
+    (fun _ hx => by have := sizeOf_mkApps_arg (f := .const info.ctorName ls) hx; simp; omega)
+    targs h₁ h₂
+  have targs₁ := forall₂_typed_of_deltaPar hΓ targs h₁
+  have targs₂ := forall₂_typed_of_deltaPar hΓ targs h₂
+  have d₁ := forall₂_deltaPar_defeq hΓ targs h₁
+  have d₂ := forall₂_deltaPar_defeq hΓ targs h₂
+  have dB := forall₂_deltaPar_defeq hΓ targs₁ hB
+  have d₂B : List.Forall₂ (IsDefEqU env univs Γ) args₂ B :=
+    forall₂_defeq_trans hΓ (forall₂_defeq_trans hΓ (forall₂_defeq_symm d₂) d₁) dB
+  obtain ⟨bk, hbk, ebk⟩ := forall₂_getElem?_left d₂B hi
+  obtain ⟨ek, hek, cbk⟩ := forall₂_getElem?_left hBE hbk
+  obtain ⟨ck, hck, pck⟩ := forall₂_getElem?_left hC hi
+  obtain ⟨ek', hek', cck⟩ := forall₂_getElem?_left hCE hck
+  cases hek.symm.trans hek'
+  have hcong : DeltaPar Γ (.proj family index (VExpr.mkApps (.const info.ctorName ls) args₁))
+      (.proj family index (VExpr.mkApps (.const info.ctorName ls) B)) :=
+    .proj (DeltaPar.mkApps_args hB)
+  have hT := (DeltaPar.full hcong).hasType hΓ hb
+  have hbkT := hc.defeqU_l henv hΓ ebk
+  have ⟨hl₂, hx₂⟩ := getElem_of_forall₂ hB
+  exact ⟨ek, ⟨bk, .projIota hl₂ hx₂ hl hT hbk hbkT, cbk⟩, ⟨ck, pck, cck⟩⟩
+
+theorem DeltaPar.peak_iota (hΓ : OnCtx Γ (env.IsType univs))
+    (IH : DDBelow (sizeOf (VExpr.proj family index (VExpr.mkApps (.const info.ctorName ls) args))))
+    (ha : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName ls) args) : A)
+    (hlen : args.length = args₁.length)
+    (hargs : ∀ i (hi : i < args.length) (hi' : i < args₁.length), DeltaPar Γ args[i] args₁[i])
+    (hl : env.projections family info)
+    (hs : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName ls) args₁) : fieldType)
+    (hi : args₁[info.nparams + index]? = some field) (ht : Γ ⊢ field : fieldType)
+    (H2 : DeltaPar Γ (.proj family index (VExpr.mkApps (.const info.ctorName ls) args)) c) :
+    Join2 Γ field c := by
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
+  generalize hE : VExpr.proj family index (VExpr.mkApps (.const info.ctorName ls) args) = E at H2
+  cases H2 with
+  | proj hm₂ =>
+    cases hE
+    exact (DeltaPar.peak_cong_iota hΓ IH ha hm₂ hlen hargs hl hs hi ht).symm
+  | projIota hlen' hargs' hl' hs' hi' ht' =>
+    injection hE with hf hidx hM
+    subst hf hidx
+    obtain ⟨hc', rfl, rfl⟩ := mkApps_const_inj hM
+    cases henv.ordered.projections_unique hl hl'
+    have targs := HasType.mkApps_args_typed hΓ lm.hasType.2
+    have h₁ := forall₂_of_getElem hlen hargs
+    have h₂ := forall₂_of_getElem hlen' hargs'
+    obtain ⟨x, hx, hx₁⟩ := forall₂_getElem?_right h₁ hi
+    obtain ⟨y, hy, hy₂⟩ := forall₂_getElem?_left h₂ hx
+    rw [hi'] at hy
+    cases hy
+    have hxmem : x ∈ args := List.mem_of_getElem? hx
+    exact IH (by have := sizeOf_mkApps_arg (f := .const info.ctorName ls) hxmem; simp; omega)
+      hΓ hx₁ hy₂ (targs x hxmem).choose_spec
+  | delta => exact absurd hE.symm mkApps_const_ne_proj
+  | quotDelta => exact absurd hE.symm mkApps_const_ne_proj
+  | _ => cases hE
+
+theorem DeltaPar.app_inv_head (hh : ∀ c ls, h ≠ .const c ls) (hh' : ∀ f x, h ≠ .app f x)
+    (H : DeltaPar Γ (.app (VExpr.mkApps h as) x) out) :
+    ∃ f' x', out = .app f' x' ∧ DeltaPar Γ (VExpr.mkApps h as) f' ∧ DeltaPar Γ x x' := by
+  generalize hE : VExpr.app (VExpr.mkApps h as) x = E at H
+  have hhead : ∀ c ls args, VExpr.mkApps (.const c ls) args ≠ E := by
+    intro c ls args he
+    have := congrArg (fun e => (VExpr.getAppFnArgs e).1) (he.trans hE.symm)
+    rw [← mkApps_snoc] at this
+    simp only [InductiveSignature.spine_mkApps_exact (VExpr.const c ls) _ rfl] at this
+    rw [InductiveSignature.spine_mkApps_exact h _ (by
+      cases h <;> first | rfl | exact absurd rfl (hh' _ _))] at this
+    exact hh _ _ this.symm
+  cases H with
+  | app hf hx => cases hE; exact ⟨_, _, rfl, hf, hx⟩
+  | delta => exact (hhead _ _ _ rfl).elim
+  | quotDelta => exact (hhead _ _ _ rfl).elim
+  | _ => cases hE
 end Join2Tools
 
 section Levels
