@@ -1,5 +1,7 @@
 import Lean4Lean.Theory.Typing.ConcretePatterns
 import Lean4Lean.Theory.Typing.FullChurchRosser
+import Lean4Lean.Theory.Typing.NativeEquationCoverage
+import Lean4Lean.Theory.Typing.QuotEquationCoverage
 
 /-! The `Params` instance of a well-formed environment, built from its
 canonical registry. The structure-major and native soundness facts are passed
@@ -73,5 +75,63 @@ open InductiveSignature CanonicalDataHead
   pat_struct_major h hΓ hl hs hlen := structMajor h hΓ hl hs hlen
   pat_iota_params h hl hcc hm hm' hps hps' := iotaParams h hl hcc hm hm' hps hps'
   schema_struct_major hm hΓ hl hs := schemaStruct hm hΓ hl hs
+
+
+section
+variable [Params]
+open Params
+
+private theorem NativeReductionTrace.of_definition
+    (hpat : ∀ {p r}, DefinitionPattern registry p r → Pat p r)
+    (H : NativeReductionTrace env univs (DefinitionPattern registry) Γ left right) :
+    NativeReductionTrace env univs Pat Γ left right := by
+  induction H with
+  | refl => exact .refl
+  | trans _ _ ih ih' => exact .trans ih ih'
+  | native hp hm hc => exact .native (hpat hp) hm hc
+  | schema h => exact .schema h
+  | beta => exact .beta
+  | app _ _ ih ih' => exact .app ih ih'
+  | lam _ ih => exact .lam ih
+
+/-- Coverage of every installed equation from the canonical registry, given
+coverage of the native equations at the specializations that the native
+iota guard rejects. -/
+theorem equation_covered_of_registry {registry : Registry} {declarations : List VDecl}
+    (contract : registry.EnvironmentContract env declarations)
+    (hdef : ∀ {p r}, DefinitionPattern registry.definitions p r → Pat p r)
+    (hquot : registry.quotient = true → Pat quotPattern (quotPatternRHS, quotPatternCheck))
+    (hnat : ∀ {p r}, NativeIotaPattern env recursorData p r → Pat p r)
+    (hdata : recursorData = registry.natives)
+    (hzero : ∀ {Γ : List VExpr} {data : NativeRecursorData}
+      {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
+      {levels : List VLevel}, OnCtx Γ (env.IsType univs) →
+      registry.natives data.name = some data → NativeRecursorRegistered env data →
+      data.schema.signature.constructors[index].owner = data.owner →
+      data.equation index = some equation →
+      (∀ level ∈ levels, level.WF univs) → levels.length = equation.uvars →
+      data.largeTarget = true →
+      (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero →
+      ∃ left right, FullReduction Γ (equation.lhs.instL levels) left ∧
+        FullReduction Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right)
+    (hΓ : OnCtx Γ (env.IsType univs)) (hdf : env.defeqs equation)
+    (hw : ∀ level ∈ levels, level.WF univs) (hl : levels.length = equation.uvars) :
+    ∃ left right, FullReduction Γ (equation.lhs.instL levels) left ∧
+      FullReduction Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
+  rcases contract.equations equation hdf with
+    ⟨value, lookup, registered, rfl⟩ | ⟨registered, enabled, _, _, rfl⟩ |
+    ⟨data, lookup, _, registered, index, owner, generated⟩
+  · have htrace := (DefinitionPattern.equation_trace (U := univs) (Γ := Γ) lookup
+      ((contract.definitions _ _ lookup).1.closed henv) hl).of_definition hdef
+    exact ⟨_, _, htrace.parRedS.full, .rfl,
+      .refl (IsDefEq.extra (Γ := Γ) hdf hw hl).hasType.2⟩
+  · exact registered.equation_covered hΓ (hquot enabled) hw hl
+  · by_cases hguard : data.largeTarget = true ∧
+        (data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero
+    · exact hzero hΓ lookup registered owner generated hw hl hguard.1 hguard.2
+    · refine registered.equation_join hΓ hnat (by rw [hdata]; exact lookup) owner generated hw hl ?_
+      exact fun h1 h2 => hguard ⟨h1, h2⟩
+
+end
 
 end Lean4Lean.VEnv
