@@ -241,7 +241,8 @@ theorem _root_.Lean4Lean.Pattern.Matches.hasType {p : Pattern} {e : VExpr} {m1 m
     exact a.rec (ih1 hf) (ih2 ha)
 
 set_option hygiene false
-local notation:65 Γ " ⊢ " e1 " ≡ₚ[" n "] " e2:30 => NormalEqN n Γ e1 e2
+local notation:65 Γ " ⊢ " e1 " ≡ₚ{" b "}[" n "] " e2:30 => NormalEqN b n Γ e1 e2
+local notation:65 Γ " ⊢ " e1 " ≡ₚ[" n "] " e2:30 => NormalEqN true n Γ e1 e2
 
 /-- Normal equality indexed by a bound on the size of the comparison. Leaves
 charge zero, congruences charge one plus their premises, and the three eta
@@ -250,39 +251,39 @@ preserve the bound. Transitivity recurses on the sum of the bounds; this is
 what lets the extensionality constructor `etaBoth` compose with an arbitrary
 comparison (removing eta costs two, expanding the other side costs one)
 without any inverse weakening. -/
-inductive NormalEqN : Nat → List VExpr → VExpr → VExpr → Prop where
-  | refl : Γ ⊢ e : A → Γ ⊢ e ≡ₚ[0] e
-  | sortDF : l₁.WF univs → l₂.WF univs → l₁ ≈ l₂ → Γ ⊢ .sort l₁ ≡ₚ[0] .sort l₂
+inductive NormalEqN : Bool → Nat → List VExpr → VExpr → VExpr → Prop where
+  | refl : Γ ⊢ e : A → Γ ⊢ e ≡ₚ{b}[0] e
+  | sortDF : l₁.WF univs → l₂.WF univs → l₁ ≈ l₂ → Γ ⊢ .sort l₁ ≡ₚ{b}[0] .sort l₂
   | constDF :
     env.constants c = some ci →
     (∀ l ∈ ls, l.WF univs) →
     (∀ l ∈ ls', l.WF univs) →
     ls.length = ci.uvars →
     List.Forall₂ (· ≈ ·) ls ls' →
-    Γ ⊢ .const c ls ≡ₚ[0] .const c ls'
+    Γ ⊢ .const c ls ≡ₚ{b}[0] .const c ls'
   /-- Universe congruence at a disjoint abstract eliminator head. The typing
   witness certifies the selected schema; this rule introduces no computation. -/
   | elimDF :
     Γ ⊢ .elim block owner levels ≡ .elim block owner levels' : A →
     List.Forall₂ (· ≈ ·) levels levels' →
-    Γ ⊢ .elim block owner levels ≡ₚ[0] .elim block owner levels'
+    Γ ⊢ .elim block owner levels ≡ₚ{b}[0] .elim block owner levels'
   | appDF :
     Γ ⊢ f₁ : .forallE A B → Γ ⊢ f₂ : .forallE A B →
     Γ ⊢ a₁ : A → Γ ⊢ a₂ : A →
-    Γ ⊢ f₁ ≡ₚ[n₁] f₂ → Γ ⊢ a₁ ≡ₚ[n₂] a₂ →
-    Γ ⊢ .app f₁ a₁ ≡ₚ[n₁ + n₂ + 1] .app f₂ a₂
+    Γ ⊢ f₁ ≡ₚ{b}[n₁] f₂ → Γ ⊢ a₁ ≡ₚ{b}[n₂] a₂ →
+    Γ ⊢ .app f₁ a₁ ≡ₚ{b}[n₁ + n₂ + 1] .app f₂ a₂
   | projDF :
     Γ ⊢ .proj typeName index major : resultType →
-    Γ ⊢ major ≡ₚ[n] major' →
-    Γ ⊢ .proj typeName index major ≡ₚ[n + 1] .proj typeName index major'
+    Γ ⊢ major ≡ₚ{b}[n] major' →
+    Γ ⊢ .proj typeName index major ≡ₚ{b}[n + 1] .proj typeName index major'
   | lamDF :
     Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A ≡ A₂ : .sort u →
-    A::Γ ⊢ body₁ ≡ₚ[n] body₂ →
-    Γ ⊢ .lam A₁ body₁ ≡ₚ[n + 1] .lam A₂ body₂
+    A::Γ ⊢ body₁ ≡ₚ{b}[n] body₂ →
+    Γ ⊢ .lam A₁ body₁ ≡ₚ{b}[n + 1] .lam A₂ body₂
   | forallEDF :
-    Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A₁ ≡ₚ[n₁] A₂ →
-    A::Γ ⊢ B₁ : .sort v → A::Γ ⊢ B₁ ≡ₚ[n₂] B₂ →
-    Γ ⊢ .forallE A₁ B₁ ≡ₚ[n₁ + n₂ + 1] .forallE A₂ B₂
+    Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A₁ ≡ₚ{b}[n₁] A₂ →
+    A::Γ ⊢ B₁ : .sort v → A::Γ ⊢ B₁ ≡ₚ{b}[n₂] B₂ →
+    Γ ⊢ .forallE A₁ B₁ ≡ₚ{b}[n₁ + n₂ + 1] .forallE A₂ B₂
   | etaL :
     Γ ⊢ e' : .forallE A B →
     A::Γ ⊢ e ≡ₚ[n] .app e'.lift (.bvar 0) →
@@ -299,10 +300,17 @@ inductive NormalEqN : Nat → List VExpr → VExpr → VExpr → Prop where
     Γ ⊢ e ≡ₚ[n + 2] e'
   | proofIrrel :
     Γ ⊢ p : .sort .zero → Γ ⊢ h : p → Γ ⊢ h' : p →
-    Γ ⊢ h ≡ₚ[0] h'
+    Γ ⊢ h ≡ₚ{b}[0] h'
 
 /-- Normal equality: some bounded comparison derivation exists. -/
-def NormalEq (Γ : List VExpr) (e1 e2 : VExpr) : Prop := ∃ n, NormalEqN n Γ e1 e2
+def NormalEq (Γ : List VExpr) (e1 e2 : VExpr) : Prop := ∃ n, NormalEqN true n Γ e1 e2
+
+/-- Normal equality with (`b = true`) or without (`b = false`) eta. -/
+def NormalEqF (b : Bool) (Γ : List VExpr) (e1 e2 : VExpr) : Prop := ∃ n, NormalEqN b n Γ e1 e2
+
+/-- Normal equality without eta: structural congruence up to universe levels and
+proof irrelevance. -/
+abbrev NormalEq₀ := NormalEqF false
 
 local notation:65 Γ " ⊢ " e1 " ≡ₚ " e2:30 => NormalEq Γ e1 e2
 
@@ -344,8 +352,62 @@ theorem NormalEq.etaBoth (h1 : Γ ⊢ e : .forallE A B) (h2 : Γ ⊢ e' : .foral
 theorem NormalEq.proofIrrel (h1 : Γ ⊢ p : .sort .zero) (h2 : Γ ⊢ h : p) (h3 : Γ ⊢ h' : p) :
     Γ ⊢ h ≡ₚ h' := ⟨_, .proofIrrel h1 h2 h3⟩
 
+
+theorem NormalEqF.refl (h : Γ ⊢ e : A) : NormalEqF b Γ e e := ⟨_, .refl h⟩
+theorem NormalEqF.sortDF (h1 : l₁.WF univs) (h2 : l₂.WF univs) (h3 : l₁ ≈ l₂) :
+    NormalEqF b Γ (.sort l₁) (.sort l₂) := ⟨_, .sortDF h1 h2 h3⟩
+theorem NormalEqF.constDF (h1 : env.constants c = some ci) (h2 : ∀ l ∈ ls, l.WF univs)
+    (h3 : ∀ l ∈ ls', l.WF univs) (h4 : ls.length = ci.uvars)
+    (h5 : List.Forall₂ (· ≈ ·) ls ls') : NormalEqF b Γ (.const c ls) (.const c ls') :=
+  ⟨_, .constDF h1 h2 h3 h4 h5⟩
+theorem NormalEqF.elimDF (h1 : Γ ⊢ .elim block owner levels ≡ .elim block owner levels' : A)
+    (h2 : List.Forall₂ (· ≈ ·) levels levels') :
+    NormalEqF b Γ (.elim block owner levels) (.elim block owner levels') := ⟨_, .elimDF h1 h2⟩
+theorem NormalEqF.appDF (h1 : Γ ⊢ f₁ : .forallE A B) (h2 : Γ ⊢ f₂ : .forallE A B)
+    (h3 : Γ ⊢ a₁ : A) (h4 : Γ ⊢ a₂ : A) :
+    NormalEqF b Γ f₁ f₂ → NormalEqF b Γ a₁ a₂ → NormalEqF b Γ (.app f₁ a₁) (.app f₂ a₂)
+  | ⟨_, h5⟩, ⟨_, h6⟩ => ⟨_, .appDF h1 h2 h3 h4 h5 h6⟩
+theorem NormalEqF.projDF (h1 : Γ ⊢ .proj typeName index major : resultType) :
+    NormalEqF b Γ major major' →
+      NormalEqF b Γ (.proj typeName index major) (.proj typeName index major')
+  | ⟨_, h2⟩ => ⟨_, .projDF h1 h2⟩
+theorem NormalEqF.lamDF (h1 : Γ ⊢ A ≡ A₁ : .sort u) (h2 : Γ ⊢ A ≡ A₂ : .sort u) :
+    NormalEqF b (A::Γ) body₁ body₂ → NormalEqF b Γ (.lam A₁ body₁) (.lam A₂ body₂)
+  | ⟨_, h3⟩ => ⟨_, .lamDF h1 h2 h3⟩
+theorem NormalEqF.forallEDF (h1 : Γ ⊢ A ≡ A₁ : .sort u) :
+    NormalEqF b Γ A₁ A₂ → A::Γ ⊢ B₁ : .sort v → NormalEqF b (A::Γ) B₁ B₂ →
+    NormalEqF b Γ (.forallE A₁ B₁) (.forallE A₂ B₂)
+  | ⟨_, h2⟩, h3, ⟨_, h4⟩ => ⟨_, .forallEDF h1 h2 h3 h4⟩
+theorem NormalEqF.etaL (h1 : Γ ⊢ e' : .forallE A B) :
+    NormalEqF true (A::Γ) e (.app e'.lift (.bvar 0)) → NormalEqF true Γ (.lam A e) e'
+  | ⟨_, h2⟩ => ⟨_, .etaL h1 h2⟩
+theorem NormalEqF.etaR (h1 : Γ ⊢ e' : .forallE A B) :
+    NormalEqF true (A::Γ) (.app e'.lift (.bvar 0)) e → NormalEqF true Γ e' (.lam A e)
+  | ⟨_, h2⟩ => ⟨_, .etaR h1 h2⟩
+theorem NormalEqF.etaBoth (h1 : Γ ⊢ e : .forallE A B) (h2 : Γ ⊢ e' : .forallE A B) :
+    NormalEqF true (A::Γ) (.app e.lift (.bvar 0)) (.app e'.lift (.bvar 0)) →
+      NormalEqF true Γ e e'
+  | ⟨_, h3⟩ => ⟨_, .etaBoth h1 h2 h3⟩
+theorem NormalEqF.proofIrrel (h1 : Γ ⊢ p : .sort .zero) (h2 : Γ ⊢ h : p) (h3 : Γ ⊢ h' : p) :
+    NormalEqF b Γ h h' := ⟨_, .proofIrrel h1 h2 h3⟩
+
+theorem NormalEqN.toTrue (H : Γ ⊢ e1 ≡ₚ{b}[n] e2) : Γ ⊢ e1 ≡ₚ[n] e2 := by
+  induction H with
+  | refl h => exact .refl h
+  | sortDF h1 h2 h3 => exact .sortDF h1 h2 h3
+  | constDF h1 h2 h3 h4 h5 => exact .constDF h1 h2 h3 h4 h5
+  | elimDF h1 h2 => exact .elimDF h1 h2
+  | appDF h1 h2 h3 h4 _ _ ih1 ih2 => exact .appDF h1 h2 h3 h4 ih1 ih2
+  | projDF h1 _ ih => exact .projDF h1 ih
+  | lamDF h1 h2 _ ih => exact .lamDF h1 h2 ih
+  | forallEDF h1 _ h3 _ ih1 ih2 => exact .forallEDF h1 ih1 h3 ih2
+  | etaL h1 _ ih => exact .etaL h1 ih
+  | etaR h1 _ ih => exact .etaR h1 ih
+  | etaBoth h1 h2 _ ih => exact .etaBoth h1 h2 ih
+  | proofIrrel h1 h2 h3 => exact .proofIrrel h1 h2 h3
+
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEqN.defeq (H : Γ ⊢ e1 ≡ₚ[n] e2) : Γ ⊢ e1 ≡ e2 := by
+theorem NormalEqN.defeq (H : Γ ⊢ e1 ≡ₚ{b}[n] e2) : Γ ⊢ e1 ≡ e2 := by
   induction H with
   | elimDF h _ => exact ⟨_, h⟩
   | refl h => exact ⟨_, h⟩
@@ -390,7 +452,14 @@ theorem NormalEq.defeq : Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e1 ≡ e2
   | ⟨_, H⟩ => H.defeq hΓ
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEqN.symm (H : Γ ⊢ e1 ≡ₚ[n] e2) : Γ ⊢ e2 ≡ₚ[n] e1 := by
+theorem NormalEqF.defeq : NormalEqF b Γ e1 e2 → Γ ⊢ e1 ≡ e2
+  | ⟨_, H⟩ => H.defeq hΓ
+
+theorem NormalEqF.toNormalEq : NormalEqF b Γ e1 e2 → Γ ⊢ e1 ≡ₚ e2
+  | ⟨_, H⟩ => ⟨_, H.toTrue⟩
+
+variable! (hΓ : OnCtx Γ (env.IsType univs)) in
+theorem NormalEqN.symm (H : Γ ⊢ e1 ≡ₚ{b}[n] e2) : Γ ⊢ e2 ≡ₚ{b}[n] e1 := by
   induction H with
   | elimDF h heq => exact .elimDF h.symm (heq.flip.imp fun _ _ h => h.symm)
   | refl h => exact .refl h
@@ -421,8 +490,12 @@ variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem NormalEq.symm : Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e2 ≡ₚ e1
   | ⟨_, H⟩ => ⟨_, H.symm hΓ⟩
 
-theorem NormalEqN.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≡ₚ[m] e2) :
-    Γ' ⊢ e1.liftN n k ≡ₚ[m] e2.liftN n k := by
+variable! (hΓ : OnCtx Γ (env.IsType univs)) in
+theorem NormalEqF.symm : NormalEqF b Γ e1 e2 → NormalEqF b Γ e2 e1
+  | ⟨_, H⟩ => ⟨_, H.symm hΓ⟩
+
+theorem NormalEqN.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≡ₚ{b}[m] e2) :
+    Γ' ⊢ e1.liftN n k ≡ₚ{b}[m] e2.liftN n k := by
   induction H generalizing k Γ' with
   | elimDF h heq => exact .elimDF (h.weakN henv W) heq
   | refl h => exact .refl (h.weakN henv W)
@@ -456,9 +529,13 @@ theorem NormalEq.weakN (W : Ctx.LiftN n k Γ Γ') : Γ ⊢ e1 ≡ₚ e2 →
     Γ' ⊢ e1.liftN n k ≡ₚ e2.liftN n k
   | ⟨_, H⟩ => ⟨_, H.weakN W⟩
 
+theorem NormalEqF.weakN (W : Ctx.LiftN n k Γ Γ') : NormalEqF b Γ e1 e2 →
+    NormalEqF b Γ' (e1.liftN n k) (e2.liftN n k)
+  | ⟨_, H⟩ => ⟨_, H.weakN W⟩
+
 variable! (h₀ : Γ₀ ⊢ e₀ : A₀) in
-theorem NormalEqN.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e1 ≡ₚ[m] e2) :
-    Γ ⊢ e1.inst e₀ k ≡ₚ[m] e2.inst e₀ k := by
+theorem NormalEqN.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e1 ≡ₚ{b}[m] e2) :
+    Γ ⊢ e1.inst e₀ k ≡ₚ{b}[m] e2.inst e₀ k := by
   induction H generalizing Γ k with
   | elimDF h heq => exact .elimDF (h.instN henv h₀ W) heq
   | refl h => exact .refl (h.instN henv W h₀)
@@ -486,6 +563,11 @@ theorem NormalEqN.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ �
 variable! (h₀ : Γ₀ ⊢ e₀ : A₀) in
 theorem NormalEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) : Γ₁ ⊢ e1 ≡ₚ e2 →
     Γ ⊢ e1.inst e₀ k ≡ₚ e2.inst e₀ k
+  | ⟨_, H⟩ => ⟨_, H.instN h₀ W⟩
+
+variable! (h₀ : Γ₀ ⊢ e₀ : A₀) in
+theorem NormalEqF.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) : NormalEqF b Γ₁ e1 e2 →
+    NormalEqF b Γ (e1.inst e₀ k) (e2.inst e₀ k)
   | ⟨_, H⟩ => ⟨_, H.instN h₀ W⟩
 
 variable! (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (h₀ : Γ₀ ⊢ e₀ : A₀) (H' : Γ₀ ⊢ e₀ ≡ₚ e₀') in
@@ -538,7 +620,7 @@ theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ �
 
 variable! (H₀ : OnCtx Γ₀ (IsType env univs)) in
 theorem NormalEqN.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
-    (H : Γ₁ ⊢ e1 ≡ₚ[m] e2) : Γ₂ ⊢ e1 ≡ₚ[m] e2 := by
+    (H : Γ₁ ⊢ e1 ≡ₚ{b}[m] e2) : Γ₂ ⊢ e1 ≡ₚ{b}[m] e2 := by
   induction H generalizing Γ₂ with
   | elimDF h heq => exact .elimDF (h.defeqDFC henv W) heq
   | refl h => refine .refl (.defeqDFC henv W h)
@@ -572,16 +654,25 @@ theorem NormalEq.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂) :
     Γ₁ ⊢ e1 ≡ₚ e2 → Γ₂ ⊢ e1 ≡ₚ e2
   | ⟨_, H⟩ => ⟨_, H.defeqDFC H₀ W⟩
 
+variable! (H₀ : OnCtx Γ₀ (IsType env univs)) in
+theorem NormalEqF.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂) :
+    NormalEqF b Γ₁ e1 e2 → NormalEqF b Γ₂ e1 e2
+  | ⟨_, H⟩ => ⟨_, H.defeqDFC H₀ W⟩
+
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem NormalEqN.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ[m] e2) :
-    A'::Γ ⊢ e1 ≡ₚ[m] e2 := defeqDFC hΓ (.succ .zero W) H
+theorem NormalEqN.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ{b}[m] e2) :
+    A'::Γ ⊢ e1 ≡ₚ{b}[m] e2 := defeqDFC hΓ (.succ .zero W) H
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem NormalEq.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ e2) :
     A'::Γ ⊢ e1 ≡ₚ e2 := defeqDFC hΓ (.succ .zero W) H
 
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
+theorem NormalEqF.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : NormalEqF b (A::Γ) e1 e2) :
+    NormalEqF b (A'::Γ) e1 e2 := NormalEqF.defeqDFC hΓ (.succ .zero W) H
+
 theorem NormalEqN.trans (hΓ : OnCtx Γ (IsType env univs)) :
-    Γ ⊢ e1 ≡ₚ[n₁] e2 → Γ ⊢ e2 ≡ₚ[n₂] e3 → Γ ⊢ e1 ≡ₚ e3
+    Γ ⊢ e1 ≡ₚ{b}[n₁] e2 → Γ ⊢ e2 ≡ₚ{b}[n₂] e3 → NormalEqF b Γ e1 e3
   | .elimDF l1 l2, .elimDF r1 r2 =>
     .elimDF (l1.trans_l henv hΓ r1) (l2.trans (fun _ _ _ h1 => h1.trans) r2)
   | .sortDF l1 _ l3, .sortDF r1 r2 r3 => .sortDF l1 r2 (l3.trans r3)
@@ -644,6 +735,10 @@ termination_by n₁ + n₂
 
 theorem NormalEq.trans (hΓ : OnCtx Γ (IsType env univs)) :
     Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e2 ≡ₚ e3 → Γ ⊢ e1 ≡ₚ e3
+  | ⟨_, H1⟩, ⟨_, H2⟩ => H1.trans hΓ H2
+
+theorem NormalEqF.trans (hΓ : OnCtx Γ (IsType env univs)) :
+    NormalEqF b Γ e1 e2 → NormalEqF b Γ e2 e3 → NormalEqF b Γ e1 e3
   | ⟨_, H1⟩, ⟨_, H2⟩ => H1.trans hΓ H2
 
 open Pattern.RHS in
