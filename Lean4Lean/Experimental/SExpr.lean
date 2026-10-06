@@ -1115,7 +1115,13 @@ theorem WithLift.weak'
 theorem IsDefEqLift.weak' : Ctx.Lift' ρ Γ Δ → Γ ⊢ e1 ≡ e2 :↑ A →
     Δ ⊢ e1.lift' ρ ≡ e2.lift' ρ :↑ A.lift' ρ := WithLift.weak' IsDefEq.weak'
 
-theorem IsDefEqLift.subst : Ctx.Subst HasType Δ σ Γ → Γ ⊢ e1 ≡ e2 :↑ A →
+/-- Substitution for `IsDefEqLift`. The original statement took an arbitrary `HasType` for the
+substitution, and is false (with `HasType := fun _ _ _ => True` any substitution qualifies);
+it now takes an `IsDefEq`-typed substitution. It remains unproved: `IsDefEqLift` quantifies
+over all ways of writing the substituted terms as weakenings, so this needs a strengthening
+lemma for `IsDefEq` (from `Δ ⊢ x.lift' ρ ≡ y.lift' ρ : z.lift' ρ` to `Δ' ⊢ x ≡ y : z`), which
+the prototype does not have. -/
+theorem IsDefEqLift.subst : Ctx.Subst (· ⊢ · : ·) Δ σ Γ → Γ ⊢ e1 ≡ e2 :↑ A →
     Δ ⊢ e1.subst σ ≡ e2.subst σ :↑ A.subst σ := sorry
 
 theorem WithLift.weak'_inv (W : Ctx.Lift' ρ Γ Δ)
@@ -1241,9 +1247,24 @@ theorem _root_.Lean4Lean.Pattern.Check.defeqsS_map {F : SExpr → SExpr} {p : Pa
       Pattern.RHS.applyS_map happ hfix]
   | nonzero _ rest ih => exact ih
 
-/-- Transport of the side conditions of a pattern step along a map `F` of expressions that
-commutes with application and fixes closed constants (lifting or substitution), given that
-`F` maps the check judgments of `Γ` to those of `Δ`. -/
+/-- Transport of the checks of a pattern step along a map `F` of expressions that commutes
+with application and fixes closed constants (lifting or substitution), given that `F` maps
+the defeq judgments of `Γ` to those of `Δ`. -/
+theorem Pattern.Check.checks_map {F G : SExpr → SExpr} {p : Pattern} {ck : p.Check} {m1 m2}
+    (happ : ∀ f a, F (.app f a) = .app (F f) (F a))
+    (hfix : ∀ c : VExpr, c.Closed → ∀ ls, F (.instL ls (.mk c)) = .instL ls (.mk c))
+    (hdf : ∀ {a b A}, Γ ⊢ a ≡ b : A → Δ ⊢ F a ≡ F b : G A)
+    (h3 : (dfs : List _).map (·.2) = ck.defeqsS m1 m2)
+    (h4 : ∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) :
+    ∃ dfs' : List _, dfs'.map (·.2) = ck.defeqsS m1 (F ∘ m2) ∧
+      ∀ a b A, (A, a, b) ∈ dfs' → Δ ⊢ a ≡ b : A := by
+  refine ⟨dfs.map fun x => (G x.1, F x.2.1, F x.2.2), ?_, ?_⟩
+  · rw [← Pattern.Check.defeqsS_map happ (hfix · · m1), ← h3, List.map_map, List.map_map]; rfl
+  · intro a b A hm
+    obtain ⟨⟨A', a', b'⟩, hm', eq⟩ := List.mem_map.1 hm
+    cases eq; exact hdf (h4 _ _ _ hm')
+
+/-- Transport of a pattern step along a map `F` as in `Pattern.Check.checks_map`. -/
 theorem WHRed.extra_map {F G : SExpr → SExpr}
     (happ : ∀ f a, F (.app f a) = .app (F f) (F a)) (hc : ∀ c ls, F (.const c ls) = .const c ls)
     (hfix : ∀ c : VExpr, c.Closed → ∀ ls, F (.instL ls (.mk c)) = .instL ls (.mk c))
@@ -1252,11 +1273,8 @@ theorem WHRed.extra_map {F G : SExpr → SExpr}
     (h4 : ∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) :
     Δ ⊢ F e ⤳ F (r.1.applyS m1 m2) := by
   rw [Pattern.RHS.applyS_map happ (hfix · · m1)]
-  refine .extra h1 (h2.map happ hc) (dfs := dfs.map fun x => (G x.1, F x.2.1, F x.2.2)) ?_ ?_
-  · rw [← Pattern.Check.defeqsS_map happ (hfix · · m1), ← h3, List.map_map, List.map_map]; rfl
-  · intro a b A hm
-    obtain ⟨⟨A', a', b'⟩, hm', eq⟩ := List.mem_map.1 hm
-    cases eq; exact hdf (h4 _ _ _ hm')
+  have ⟨_, h3', h4'⟩ := Pattern.Check.checks_map happ hfix hdf h3 h4
+  exact .extra h1 (h2.map happ hc) h3' h4'
 
 /-- Substitution into a weak-head step. The original statement took an arbitrary `HasType` for
 the substitution and is false for checked patterns (the substituted checks need not hold); it
@@ -1277,6 +1295,9 @@ theorem WHRed.weak' (W : Ctx.Lift' ρ Γ Γ') :
     WHRed.extra_map (F := (·.lift' ρ)) (fun _ _ => rfl) (fun _ _ => rfl)
       (fun _ h _ => h.mkS.instL.lift'_eq .zero) (·.weak' W) h1 h2 h3 h4
 
+/-- Inversion of a weak-head step out of a weakened term. The `extra` (pattern step) case is
+unproved: the checks of the step hold in the larger context `Γ'` and are needed in `Γ`, which
+is a strengthening property of `IsDefEq` that the prototype does not have. -/
 theorem WHRed.weakU_inv (W : Ctx.Lift' ρ Γ Γ') (H : Γ' ⊢ e1.lift' ρ ⤳ e2') :
     ∃ e2, e2' = e2.lift' ρ ∧ Γ ⊢ e1 ⤳ e2 := by
   generalize he : e1.lift' ρ = e1' at H
@@ -1348,6 +1369,13 @@ theorem WHRedS.subst (W : Ctx.Subst (· ⊢ · : ·) Δ σ Γ) (H : Γ ⊢ e1 �
   | rfl => exact .rfl
   | tail _ h2 ih => exact .tail ih (h2.subst W)
 
+/-- Soundness of weak-head reduction. Unproved, and not provable from the current `Params`:
+pattern steps (`WHRed.extra`) range over the whole registry `Pat`, but `Params` only says that
+every stored rule is an instance of a pattern (`Params.PatternRegistry`), not that every
+registered pattern step is a valid `IsDefEq` (that was the commented-out `pat_wf` field); a
+registry with a pattern rewriting `c` to an unrelated `d` makes it false [not formalized].
+The beta case also needs typing inversion for applications and abstractions, i.e. the
+validity theory behind `IsDefEq.strong`. -/
 theorem WHRedS.defeq (H : Γ ⊢ e1 ⤳* e2) (he : Γ ⊢ e1 : A) : Γ ⊢ e1 ≡ e2 : A := sorry
 
 theorem WHRedS.weak' (W : Ctx.Lift' ρ Γ Δ) (H : Γ ⊢ e1 ⤳* e2) :
@@ -1409,7 +1437,26 @@ theorem ParRed.weak' (W : Ctx.Lift' ρ Γ Γ') :
   | .lam h1 h2 => .lam (h1.weak' W) (h2.weak' W.cons)
   | .forallE h1 h2 => .forallE (h1.weak' W) (h2.weak' W.cons)
   | .beta h1 h2 => by rw [SExpr.lift'_inst_hi]; exact (h1.weak' W.cons).beta (h2.weak' W)
-  | .extra h1 h2 h3 h4 h5 => sorry
+  | .extra h1 h2 h3 h4 h5 => by
+    rw [Pattern.RHS.applyS_map (F := (·.lift' ρ)) (fun _ _ => rfl)
+      (fun _ h => h.mkS.instL.lift'_eq .zero)]
+    have ⟨_, h3', h4'⟩ := Pattern.Check.checks_map (F := (·.lift' ρ)) (fun _ _ => rfl)
+      (fun _ h _ => h.mkS.instL.lift'_eq .zero) (·.weak' W) h3 h4
+    exact .extra h1 (h2.map (F := (·.lift' ρ)) (fun _ _ => rfl) (fun _ _ => rfl)) h3' h4'
+      fun a => (h5 a).weak' W
+
+theorem ParRed.refl : ∀ {e Γ}, Γ ⊢ e ≫ e
+  | .bvar _, _ => .bvar
+  | .sort _, _ => .sort
+  | .const .., _ => .const
+  | .app .., _ => .app .refl .refl
+  | .lam .., _ => .lam .refl .refl
+  | .forallE .., _ => .forallE .refl .refl
+
+theorem WHRed.parRed : Γ ⊢ e ⤳ e' → Γ ⊢ e ≫ e'
+  | .app h => .app h.parRed .refl
+  | .beta => .beta .refl .refl
+  | .extra h1 h2 h3 h4 => .extra h1 h2 h3 h4 fun _ => .refl
 
 def ParRedS (Γ : List SExpr) : SExpr → SExpr → Prop := ReflTransGen (ParRed Γ)
 scoped notation:65 Γ " ⊢ " e1 " ≫* " e2:36 => ParRedS Γ e1 e2
@@ -1431,6 +1478,8 @@ inductive InferType : List SExpr → SExpr → SExpr → Prop where
   | forallE : Γ ⊢ A ▷ U → Γ ⊢ U ⤳* .sort u →
     A::Γ ⊢ B ▷ V → A::Γ ⊢ V ⤳* .sort v → Γ ⊢ .forallE A B ▷ .sort (.imax u v)
 
+/-- Soundness of type inference. Unproved: the `app` and `forallE` cases go through
+`WHRedS.defeq` (see there), the `app` case also needs validity (`IsDefEq.strong`). -/
 theorem InferType.hasType (H : Γ ⊢ e ▷ A) : Γ ⊢ e : A := sorry
 
 theorem InferType.determ (H1 : Γ ⊢ e ▷ A) (H2 : Γ ⊢ e ▷ A') : A = A' := by
@@ -1499,9 +1548,9 @@ theorem InferType.subst (W : Ctx.Subst InferType Δ σ Γ) (W' : Ctx.Subst (· �
   | const h1 h2 =>
     rw [(henv.closedC h1).mkS.instL.subst_eq .zero]
     exact .const h1 h2
-  | app h1 h2 h3 ih => exact subst_inst ▸ .app (ih W W') (h2.subst W') (h3.subst W)
+  | app h1 h2 h3 ih => exact subst_inst ▸ .app (ih W W') (h2.subst W') (h3.subst W')
   | lam h1 h2 ih =>
-    exact .lam (h1.subst W) (ih (W.lift .bvar fun W h => h.weak' W) W'.liftD)
+    exact .lam (h1.subst W') (ih (W.lift .bvar fun W h => h.weak' W) W'.liftD)
   | forallE h1 h2 h3 h4 ih1 ih2 =>
     exact .forallE (ih1 W W') (h2.subst W') (ih2 (W.lift .bvar fun W h => h.weak' W) W'.liftD)
       (h4.subst W'.liftD)
@@ -1512,6 +1561,7 @@ theorem InferType.inst (H₀ : Γ ⊢ a ▷ A₀) (H₀' : Γ ⊢ a : A₀) (H :
 def InferTypeS (Γ : List SExpr) (e A : SExpr) := ∃ A', Γ ⊢ e ▷ A' ∧ Γ ⊢ A' ⤳* A
 scoped notation:65 Γ " ⊢ " e1 " ▷* " e2:36 => InferTypeS Γ e1 e2
 
+/-- Unproved: needs `InferType.hasType` and `WHRedS.defeq` at the inferred type. -/
 theorem InferTypeS.hasType : Γ ⊢ e ▷* A → Γ ⊢ e : A := sorry
 
 theorem WHRedS.inferType
@@ -1527,7 +1577,10 @@ theorem WHRedS.inferType
     | rfl => cases W2 _ l1
     | head r1 r2 => cases l1.determ r1; exact ih r2 W2
 
-theorem WHRedS.parRedS (H : Γ ⊢ e ⤳* e') : Γ ⊢ e ≫* e' := sorry
+theorem WHRedS.parRedS (H : Γ ⊢ e ⤳* e') : Γ ⊢ e ≫* e' := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h2 ih => exact .tail ih h2.parRed
 
 theorem InferTypeS.determ
     (H1 : Γ ⊢ e ▷* A) (W1 : WHNF Γ A)
@@ -1593,6 +1646,9 @@ theorem NormalEq.defeq (H : Γ ⊢ e1 ≡ₚ e2 : A) : Γ ⊢ e1 ≡ e2 : A := b
   | proofIrrel h1 h2 h3 => exact .proofIrrel h1 h2 h3
   | defeqDF h1 _ ih => exact .defeqDF h1 ih
 
+/-- Symmetry of `NormalEq`. The `appDF` case is unproved: it must convert from `B.inst a₂` to
+`B.inst a₁`, which needs the codomain `B` to be typed (validity, `IsDefEq.strong`) and a
+substitution of definitionally equal arguments (`IsDefEq.subst`). -/
 theorem NormalEq.symm (H : Γ ⊢ e1 ≡ₚ e2 : A) : Γ ⊢ e2 ≡ₚ e1 : A := by
   induction H with
   | refl h => exact .refl h
@@ -1608,7 +1664,7 @@ theorem NormalEq.weak' (W : Ctx.Lift' ρ Γ Γ') (H : Γ ⊢ e1 ≡ₚ e2 : A) :
     Γ' ⊢ e1.lift' ρ ≡ₚ e2.lift' ρ : A.lift' ρ := by
   induction H generalizing Γ' ρ with
   | refl h => exact .refl (h.weak' W)
-  | appDF h1 h2 ih1 ih2 => exact .defeqDF sorry (u := sorry) <| .appDF (ih1 W) (ih2 W)
+  | appDF h1 h2 ih1 ih2 => exact SExpr.lift'_inst_hi .. ▸ .appDF (ih1 W) (ih2 W)
   | lamDF h1 h2 h3 _ ih2 => exact .lamDF (h1.weak' W) (h2.weak' W) (h3.weak' W.cons) (ih2 W.cons)
   | forallEDF h1 h2 _ _ ih1 ih2 => exact .forallEDF (h1.weak' W) (h2.weak' W) (ih1 W) (ih2 W.cons)
   | etaL h1 h2 h3 _ ih =>
@@ -1639,6 +1695,8 @@ theorem CRDefEq.defeq : Γ ⊢ e₁ ≫≪ e₂ : A → Γ ⊢ e₁ ≡ e₂ : A
 theorem CRDefEq.symm : Γ ⊢ e₁ ≫≪ e₂ : A → Γ ⊢ e₂ ≫≪ e₁ : A
   | ⟨h1, _, _, h3, h4, h5⟩ => ⟨h1.symm, _, _, h4, h3, h5.symm⟩
 
+/-- Transitivity of `CRDefEq`. Unproved: it needs confluence (Church-Rosser) of `ParRed`
+modulo `NormalEq`, which the prototype does not have. -/
 theorem CRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ : A → Γ ⊢ e₂ ≫≪ e₃ : A → Γ ⊢ e₁ ≫≪ e₃ : A
   | ⟨l1, _, _, l3, l4, l5⟩, ⟨r1, _, _, r3, r4, r5⟩ => sorry
 
@@ -1661,12 +1719,11 @@ theorem CRDefEqLift.left (H : Γ ⊢ e1 ≫≪ e2 :↑ A) : Γ ⊢ e1 :↑ A := 
 nonrec theorem CRDefEqLift.refl (H : Γ ⊢ e :↑ A) : Γ ⊢ e ≫≪ e :↑ A :=
   .refl (.refl <| H.left' · · ·)
 
-theorem InferType.whRed (H1 : Γ ⊢ e ⤳ e') (H2 : Γ ⊢ e ▷ A) : Γ ⊢ e' ▷ A := by
-  induction H1 generalizing A with
-  | app h1 ih => let .app r1 r2 r3 := H2; exact .app (ih r1) r2 r3
-  | beta =>
-    let .app a1 a2 a3 := H2
-    let .lam b1 b2 := a1
-    cases WHNF.forallE.whRedS a2
-    exact .inst sorry sorry b2
-  | extra => sorry
+/-! The prototype stated `InferType.whRed : Γ ⊢ e ⤳ e' → Γ ⊢ e ▷ A → Γ ⊢ e' ▷ A` here, with a
+placeholder proof. It is false, so it has been removed (it had no users). Inferred types are
+syntactic and `InferType` is deterministic (`InferType.determ`), while a beta step can replace
+a variable by an argument whose inferred type is only *convertible* to the binder type:
+`(fun x : A => x) a ▷ A` (the `app` rule checks `a :↑ A`), but after the step `a ▷ A₀` for the
+syntactic `A₀` inferred for `a`, e.g. `a := .sort 0` with `A₀ = .sort 1` and
+`A := .app (.lam (.sort 2) (.bvar 0)) (.sort 1)`. Pattern steps have the same problem. A
+correct statement needs inferred types up to conversion. -/
