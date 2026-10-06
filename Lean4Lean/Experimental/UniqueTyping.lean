@@ -6,6 +6,9 @@ We work over `SExpr.IsDefEq` (a.k.a. `=W`), which has a heterogeneous
 transitivity rule `trans'` allowing the middle term to live at a different
 sort. Using `sort_inv` and `forallE_inv` from `ShapeLogRelAdequacy`, we
 prove type uniqueness up to defeq, without needing stratified judgments.
+Everything that goes through `sort_inv`/`forallE_inv` inherits their hypotheses: the
+pattern-registry assumption `[Params.PatternRegistry]` and adequacy at constants in every
+context, `∀ Γ, LR.ConstAdequate Γ` (false for checked patterns; see `LR.ConstAdequate`).
 
 From this we derive `uniq_sort` and admit a no-`trans'` variant `IsDefEq'`. -/
 
@@ -89,7 +92,8 @@ theorem HasTypeS.toStructural (h : HasTypeS Γ e A b) :
 
 /-- Type uniqueness up to defeq: any two derivations of `e` give defeq-equivalent
 types. The middle `b` parameters are arbitrary. -/
-theorem HasTypeS.uniq {Γ : List SExpr} {e A B : SExpr} {b₁ b₂ : Bool}
+theorem HasTypeS.uniq [Params.PatternRegistry] (hc : ∀ Γ, LR.ConstAdequate Γ)
+    {Γ : List SExpr} {e A B : SExpr} {b₁ b₂ : Bool}
     (H1 : HasTypeS Γ e A b₁) (H2 : HasTypeS Γ e B b₂) :
     ∃ u, Γ ⊢ A ≡ B : .sort u := by
   induction H1 generalizing B b₂ with
@@ -111,7 +115,7 @@ theorem HasTypeS.uniq {Γ : List SExpr} {e A B : SExpr} {b₁ b₂ : Bool}
     obtain ⟨_, H2_s, transport⟩ := H2.toStructural
     let .app h_f' _ := H2_s
     obtain ⟨_, h_pi_eq⟩ := ih_f h_f'
-    obtain ⟨_, _, h_A_eq, h_B_eq⟩ := SExpr.forallE_inv h_pi_eq
+    obtain ⟨_, _, h_A_eq, h_B_eq⟩ := SExpr.forallE_inv (hc _) h_pi_eq
     have W : Ctx.SubstEq Γ' (.one a) (.one a) (A :: Γ') :=
       .cons .nil h_A_eq.hasType.1 (by simpa using h_a.hasType)
     exact transport (h_B_eq.subst W)
@@ -125,8 +129,8 @@ theorem HasTypeS.uniq {Γ : List SExpr} {e A B : SExpr} {b₁ b₂ : Bool}
     let .forallE h_A' h_b' := H2_s
     obtain ⟨_, h_A_eq⟩ := ih_A h_A'
     obtain ⟨_, h_b_eq⟩ := ih_b h_b'
-    cases SExpr.sort_inv h_A_eq
-    cases SExpr.sort_inv h_b_eq
+    cases SExpr.sort_inv (hc _) h_A_eq
+    cases SExpr.sort_inv (hc _) h_b_eq
     exact transport .sort
   | base _ ih_s => exact ih_s H2
   | defeq d _ ihe =>
@@ -135,7 +139,8 @@ theorem HasTypeS.uniq {Γ : List SExpr} {e A B : SExpr} {b₁ b₂ : Bool}
 
 /-- Bridge from `IsDefEq` to `HasTypeS`. To be filled in once `IsDefEqStrong`
 is beefed up with the bundled witnesses needed by minimal `HasTypeS`. -/
-theorem IsDefEq.toHasTypeS {Γ : List SExpr} {e₁ e₂ A : SExpr}
+theorem IsDefEq.toHasTypeS [Params.PatternRegistry] (hc : ∀ Γ, LR.ConstAdequate Γ)
+    {Γ : List SExpr} {e₁ e₂ A : SExpr}
     (h : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊨ e₁ : A ∧ Γ ⊨ e₂ : A := by
   replace h := h.strong
   induction h with
@@ -144,8 +149,8 @@ theorem IsDefEq.toHasTypeS {Γ : List SExpr} {e₁ e₂ A : SExpr}
   | symm _ ih => exact ⟨ih.2, ih.1⟩
   | trans _ _ _ _ ih1 ih2 => exact ⟨ih1.1, ih2.2⟩
   | trans' _ _ ih1 ih2 =>
-    obtain ⟨_, eq⟩ := ih1.2.uniq ih2.1
-    cases SExpr.sort_inv eq
+    obtain ⟨_, eq⟩ := ih1.2.uniq hc ih2.1
+    cases SExpr.sort_inv (hc _) eq
     exact ⟨ih1.1, ih2.2⟩
   | sort => exact ⟨.base .sort', .base .sort'⟩
   | const h1 h2 _ _ _ ih_T =>
@@ -171,12 +176,13 @@ theorem IsDefEq.toHasTypeS {Γ : List SExpr} {e₁ e₂ A : SExpr}
 
 /-- Sort uniqueness: if a middle term has two `sort`-types via defeq witnesses,
 the two sort levels coincide. -/
-theorem IsDefEq.uniq_sort {Γ : List SExpr} {e₁ e₂ e₃ : SExpr} {u v : SLevel}
+theorem IsDefEq.uniq_sort [Params.PatternRegistry] (hc : ∀ Γ, LR.ConstAdequate Γ)
+    {Γ : List SExpr} {e₁ e₂ e₃ : SExpr} {u v : SLevel}
     (h1 : Γ ⊢ e₁ ≡ e₂ : .sort u) (h2 : Γ ⊢ e₂ ≡ e₃ : .sort v) : u = v := by
-  have ⟨_, h_e2_u⟩ := h1.toHasTypeS
-  have ⟨h_e2_v, _⟩ := h2.toHasTypeS
-  obtain ⟨_, eq⟩ := h_e2_u.uniq h_e2_v
-  exact SExpr.sort_inv eq
+  have ⟨_, h_e2_u⟩ := h1.toHasTypeS hc
+  have ⟨h_e2_v, _⟩ := h2.toHasTypeS hc
+  obtain ⟨_, eq⟩ := h_e2_u.uniq hc h_e2_v
+  exact SExpr.sort_inv (hc _) eq
 
 /-! ## `IsDefEq'`: defeq without heterogeneous `trans'`
 
@@ -239,13 +245,14 @@ theorem IsDefEq'.toIsDefEq {Γ : List SExpr} {e₁ e₂ A : SExpr}
 
 /-- Backward direction: every `IsDefEq` derivation translates to `IsDefEq'`.
 The `trans'` case uses `uniq_sort` to merge sort levels. -/
-theorem IsDefEq.toIsDefEq' {Γ : List SExpr} {e₁ e₂ A : SExpr}
+theorem IsDefEq.toIsDefEq' [Params.PatternRegistry] (hc : ∀ Γ, LR.ConstAdequate Γ)
+    {Γ : List SExpr} {e₁ e₂ A : SExpr}
     (h : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢' e₁ ≡ e₂ : A := by
   induction h with
   | bvar h => exact .bvar h
   | symm _ ih => exact .symm ih
   | trans _ _ ih1 ih2 => exact .trans ih1 ih2
-  | trans' h1 h2 ih1 ih2 => cases h1.uniq_sort h2; exact .trans ih1 ih2
+  | trans' h1 h2 ih1 ih2 => cases h1.uniq_sort hc h2; exact .trans ih1 ih2
   | sort => exact .sort
   | const h1 h2 => exact .const h1 h2
   | appDF _ _ ih1 ih2 => exact .appDF ih1 ih2
@@ -258,9 +265,10 @@ theorem IsDefEq.toIsDefEq' {Γ : List SExpr} {e₁ e₂ A : SExpr}
   | extra h1 h2 => exact .extra h1 h2
 
 /-- `IsDefEq` and `IsDefEq'` are equivalent. -/
-theorem IsDefEq.iff_isDefEq' {Γ : List SExpr} {e₁ e₂ A : SExpr} :
+theorem IsDefEq.iff_isDefEq' [Params.PatternRegistry] (hc : ∀ Γ, LR.ConstAdequate Γ)
+    {Γ : List SExpr} {e₁ e₂ A : SExpr} :
     Γ ⊢ e₁ ≡ e₂ : A ↔ Γ ⊢' e₁ ≡ e₂ : A :=
-  ⟨IsDefEq.toIsDefEq', IsDefEq'.toIsDefEq⟩
+  ⟨IsDefEq.toIsDefEq' hc, IsDefEq'.toIsDefEq⟩
 
 end SExpr
 end Lean4Lean
