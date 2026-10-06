@@ -4,6 +4,18 @@ Current account, 2026-10-05, branch `agent/verify-inductives`.
 This is the single maintained handoff. Update it in place. The source and the
 checked theorem types take precedence over this account.
 
+## Standing goal (2026-10-06)
+
+`docs/inductives/GOAL.md` holds the `/goal` statement. Kim's instruction: do
+not stop to ask questions; get the entire thing done; follow Mario's plan
+(the shape logical relation of `Experimental/ShapeLogRel*`). Decisions taken
+under that instruction on 2026-10-06: the canonical-`Eq` formulation (former
+E3) is merged into this branch as the mainline (`addDecl.WF_of_canonicalEq`);
+E1 (scoped caches) is parked at 14d38a5 and will not be resumed; the
+countermodel is parked at its conditional theorem; the Experimental CI
+failure is to be fixed properly as part of porting Mario's prototype. Open
+proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
+
 ## Intended result
 
 Finish the executable Lean4Lean inductive checker's refinement of an
