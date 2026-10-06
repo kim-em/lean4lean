@@ -373,6 +373,116 @@ theorem minorHyps_inst (henv : env.WF) {P F Hs D : List VExpr}
     rw [List.take_succ_eq_append_getElem hjlt, ← List.append_assoc, ← List.append_assoc]
     exact TelInst.append_one ht ha
 
+theorem lifted_instOuter {e : VExpr} {X Y inh : List VExpr} {M : VExpr}
+    (he : e.ClosedN (X.length + Y.length)) :
+    ((e.liftN inh.length).liftN 1 (Y.length + inh.length)).instOuter (X ++ [M] ++ Y ++ inh) =
+      e.instOuter (X ++ Y) := by
+  have h1 := VExpr.liftN_instOuter_drop (e := e.liftN inh.length) (X := X) (Y := [M])
+    (Z := Y ++ inh) (by
+      have := he.liftN (n := inh.length) (j := 0)
+      simpa [Nat.add_assoc] using this)
+  simp only [List.length_singleton, List.length_append, List.append_assoc] at h1 ⊢
+  rw [h1]
+  have h2 := VExpr.liftN_instOuter_drop (e := e) (X := X ++ Y) (Y := inh) (Z := []) (by simpa using he)
+  simpa using h2
+
+/-- The minor premise's conclusion, with the motive instantiated and the induction
+hypotheses inhabited: the constructor's result indices and the constructor application
+instantiate the motive's telescope over the parameter and field variables. -/
+theorem minorBody_inst (henv : env.WF) {P F Hs D CI : List VExpr} {ctorApp : VExpr}
+    (hP : OnCtx P.reverse (env.IsType U))
+    (hM0 : env.HasType U P.reverse (VExpr.wrapLams D VExpr.trueTy)
+      (VExpr.wrapForalls D (.sort .zero)))
+    (hall : OnCtx (P ++ [VExpr.wrapForalls D (.sort .zero)] ++ insertBinders F 1 ++ Hs).reverse
+      (env.IsType U))
+    (hFcl : ∀ i (h : i < F.length), (F[i]).ClosedN (P.length + i))
+    (hshape : ∀ j (hj : j < Hs.length) (args : List VExpr),
+      args.length = P.length + 1 + F.length + j →
+      args[P.length]? = some ((VExpr.wrapLams D VExpr.trueTy).liftN F.length) →
+      ∃ B xs, (Hs[j]).instOuter args =
+        VExpr.wrapForalls B (VExpr.mkApps
+          ((VExpr.wrapLams D VExpr.trueTy).liftN (F.length + B.length)) xs))
+    (hbody : env.IsType U (P ++ [VExpr.wrapForalls D (.sort .zero)] ++ insertBinders F 1 ++ Hs).reverse
+      (VExpr.mkApps (.bvar (F.length + Hs.length))
+        (CI.map (fun e => (e.liftN Hs.length).liftN 1 (F.length + Hs.length)) ++
+          [(ctorApp.liftN Hs.length).liftN 1 (F.length + Hs.length)])))
+    (hCIcl : ∀ e ∈ CI, e.ClosedN (P.length + F.length))
+    (hccl : ctorApp.ClosedN (P.length + F.length)) :
+    OnCtx (P ++ F).reverse (env.IsType U) ∧
+    TelInst env U (P ++ F).reverse (P ++ D)
+      (bvarRange P.length (P.length + F.length) ++ CI ++ [ctorApp]) := by
+  obtain ⟨hctx, inh, hl, htel⟩ := minorHyps_inst henv hP hM0 hall hFcl hshape
+  refine ⟨hctx, ?_⟩
+  obtain ⟨u, hb⟩ := hbody
+  have hinst := IsDefEq.closed_instOuter_congr henv hctx hall hb htel.1 htel.1
+    (fun j hj _ hd => htel.2 j hj hd)
+  simp only [VExpr.instOuter_sort, VExpr.instOuter_mkApps, List.map_append, List.map_map,
+    List.map_cons, List.map_nil, Function.comp_def] at hinst
+  have hlen : (bvarRange P.length (P.length + F.length) ++
+      [(VExpr.wrapLams D VExpr.trueTy).liftN F.length] ++ bvarRange F.length F.length ++ inh).length =
+      P.length + 1 + F.length + Hs.length := by simp [hl]; omega
+  rw [VExpr.instOuter_bvar _ (by omega)] at hinst
+  have hhead : (bvarRange P.length (P.length + F.length) ++
+      [(VExpr.wrapLams D VExpr.trueTy).liftN F.length] ++ bvarRange F.length F.length ++ inh)[
+        (bvarRange P.length (P.length + F.length) ++
+      [(VExpr.wrapLams D VExpr.trueTy).liftN F.length] ++ bvarRange F.length F.length ++ inh).length
+        - 1 - (F.length + Hs.length)]'(by omega) = (VExpr.wrapLams D VExpr.trueTy).liftN F.length := by
+    simp only [hlen]
+    rw [List.getElem_append_left (by simp; omega), List.getElem_append_left (by simp; omega),
+      List.getElem_append_right (by simp; omega)]
+    simp
+  rw [hhead] at hinst
+  have hlift : ∀ e : VExpr, e.ClosedN (P.length + F.length) →
+      ((e.liftN Hs.length).liftN 1 (F.length + Hs.length)).instOuter
+        (bvarRange P.length (P.length + F.length) ++
+          [(VExpr.wrapLams D VExpr.trueTy).liftN F.length] ++ bvarRange F.length F.length ++ inh) = e := by
+    intro e he
+    have := lifted_instOuter (e := e) (X := bvarRange P.length (P.length + F.length))
+      (Y := bvarRange F.length F.length) (inh := inh)
+      (M := (VExpr.wrapLams D VExpr.trueTy).liftN F.length) (by simpa using he)
+    simp only [bvarRange_length, hl] at this
+    rw [this, ← CastSpec.bvarRange_split, VExpr.instOuter_range_bvar' _ _ _ he (Nat.le_refl _),
+      Nat.sub_self, VExpr.liftN_zero]
+  rw [hlift _ hccl, List.map_congr_left (fun e he => hlift e (hCIcl e he)), List.map_id'] at hinst
+  -- the instantiated motive's type
+  have hMotcl : ∀ j (h : j < (P ++ D).length), ((P ++ D)[j]).ClosedN j := by
+    have h := (IsType.wrapForalls_inv henv hP (hM0.isType henv.ordered hP)).1
+    exact OnCtx.closed_reverse henv.ordered (by simpa using h)
+  have hW : Ctx.LiftN F.length 0 P.reverse (P ++ F).reverse := by
+    simpa using Ctx.LiftN.zero (n := F.length) F.reverse (Γ := P.reverse) (by simp)
+  have hM := hM0.weakN henv.ordered hW
+  rw [liftN_wrapForalls] at hM
+  simp only [VExpr.liftN] at hM
+  have harity := HasType.mkApps_sort_arity henv hctx hM hinst
+  obtain ⟨hargs, _⟩ := HasType.mkApps_wrapForalls henv hctx hM ⟨_, hinst⟩ harity
+  rw [List.append_assoc]
+  refine TelInst.append ?_ (by simpa using harity) ?_
+  · have h' : TelInst env U (P ++ F).reverse
+        (P ++ ([VExpr.wrapForalls D (.sort .zero)] ++ insertBinders F 1 ++ Hs))
+        (bvarRange P.length (P.length + F.length) ++
+          ([(VExpr.wrapLams D VExpr.trueTy).liftN F.length] ++ bvarRange F.length F.length ++ inh)) := by
+      simpa only [List.append_assoc] using htel
+    have := TelInst.take h'
+    rwa [List.take_append_of_le_length (by simp), List.take_of_length_le (by simp)] at this
+  · intro j hj
+    have hlenD : (CI ++ [ctorApp]).length = D.length := by simpa using harity
+    have hj' : j < (CI ++ [ctorApp]).length := by omega
+    have hjm : j < (D.mapIdx fun l d => d.liftN F.length l).length := by simpa using hj
+    have := hargs j hj' hjm
+    rw [List.getElem_mapIdx] at this
+    have hDcl : (D[j]).ClosedN (P.length + j) := by
+      have := hMotcl (P.length + j) (by simp; omega)
+      rw [List.getElem_append_right (by simp)] at this
+      simpa only [Nat.add_sub_cancel_left] using this
+    have htl : ((CI ++ [ctorApp]).take j).length = j := by
+      rw [List.length_take]; omega
+    have e := liftN_instOuter_params (P := P.length) (X := D[j])
+      (args := (CI ++ [ctorApp]).take j) (by rw [htl]; exact hDcl) F.length
+    rw [htl] at e
+    rw [e] at this
+    rw [getD_of_lt hj', getD_of_lt hj]
+    exact this
+
 end VEnv
 
 end Lean4Lean
