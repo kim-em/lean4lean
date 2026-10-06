@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.InductiveLemmas
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 
 /-!
 # Chained parameter agreement for registered projections

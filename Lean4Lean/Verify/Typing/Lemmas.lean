@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Typing.PrimSpec
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.NativeCaptureTransport
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
 
 namespace Lean4Lean

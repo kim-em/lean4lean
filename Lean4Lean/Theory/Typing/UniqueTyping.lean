@@ -1,8 +1,13 @@
-import Lean4Lean.Theory.Typing.Injectivity
+import Lean4Lean.Theory.Typing.HeadInversion
 import Lean4Lean.Theory.Typing.Pattern
 import Lean4Lean.Theory.CanonicalEq
 
-/-! # Unique typing and its consequences. -/
+/-! # Unique typing and its consequences.
+
+Uniqueness of types is derived from the base obligation `VEnv.WF.headInversion`, without
+height stratification: first up to a `TypeChain` (`HasTypeStrong.uniq_chain`), by plain
+induction on the first typing, and then collapsed to a single definitional equality
+(`TypeChain.collapse`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -11,130 +16,123 @@ variable {env : VEnv} {U : Nat}
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env U Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2 " : " A:36 => IsDefEq env U Γ e1 e2 A
 
-theorem IsDefEq.uniq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
-    (h1 : Γ ⊢ e₁ ≡ e₂ : A) (h2 : Γ ⊢ e₂ ≡ e₃ : B) : ∃ u, Γ ⊢ A ≡ B : .sort u := by
-  suffices ∀ {e A B b n₁ n₂ n}, n₁ ≤ n → n₂ ≤ n →
-      env.HasTypeStratified U Γ e A b n₁ → env.HasTypeStratified U Γ e B b n₂ →
-      ∃ u, Γ ⊢ A ≡ B : .sort u ∧ ∃ v, u ≈ v ∧
-        env.HasTypeStratified U Γ A (.sort u) true (n-1) ∧
-        env.HasTypeStratified U Γ B (.sort v) true (n-1) from
-    let ⟨n₁, h1⟩ := (h1.strong henv hΓ).hasType'.2.stratify
-    let ⟨n₂, h2⟩ := (h2.strong henv hΓ).hasType'.1.stratify
-    have ⟨_, h, _⟩ := this (Nat.le_max_left ..) (Nat.le_max_right ..) h1 h2
-    ⟨_, h⟩
-  clear h1 h2; intro e A B b n₁ n₂ n le₁ le₂ H1
-  induction n using WellFounded.induction Nat.lt_wfRel.2
-    generalizing n₁ n₂ Γ e A B b with | _ n IH
-  induction H1 generalizing B n₂ n with
-  | bvar a1 a2 =>
-    intro (.bvar b1 b2); cases a1.uniq b1
-    exact ⟨_, b2.hasType, _, rfl, b2.mono (by omega), b2.mono (by omega)⟩
-  | sort' a1 a2 a3 =>
-    intro (.sort' b1 b2 b3)
-    have := VLevel.succ_congr (b3.symm.trans a3)
-    exact ⟨_, .symm <| .sortDF b2 a2 this, _, VLevel.succ_congr this,
-      .base <| .sort' a2 b2 this.symm, .base <| .sort' b2 a2 this⟩
-  | const a1 a2 a3 a4 =>
-    intro (.const b1 b2 b3 b4); cases a1.symm.trans b1
-    replace le₁ := Nat.sub_le_sub_right le₁ 1
-    exact ⟨_, a4.hasType, _, rfl, a4.mono le₁, a4.mono le₁⟩
-  | @elim block type levels target Γ typeLevel n₁ schema owner a1 a2 a3 a4 a5 =>
-    intro H2
-    generalize he : VExpr.elim block owner.val (target :: levels) = expression at H2
-    cases H2 with
-    | @elim block' type' levels' target' _ _ _ schema' owner' b1 b2 b3 b4 b5 =>
+/-- The type assigned by a strong typing is itself a type. -/
+theorem HasTypeStrong.isType (H : env.HasTypeStrong U Γ e A b) : env.IsType U Γ A := by
+  induction H with
+  | bvar _ _ h => exact ⟨_, h.hasType⟩
+  | sort' _ h2 _ => exact ⟨_, .sort h2⟩
+  | const _ _ _ _ _ h => exact ⟨_, h.hasType⟩
+  | elim _ _ _ _ _ h => exact ⟨_, h.hasType⟩
+  | app _ _ _ _ _ _ _ h => exact ⟨_, h.hasType⟩
+  | proj _ _ _ _ _ _ _ h => exact ⟨_, h.hasType⟩
+  | lam _ _ _ _ _ h => exact ⟨_, h.hasType⟩
+  | forallE h1 h2 _ _ => exact ⟨_, .sort (l := .imax _ _) ⟨h1, h2⟩⟩
+  | base _ ih => exact ih
+  | defeq _ _ _ h _ => exact ⟨_, h.hasType⟩
+
+/-- To relate a type to every type of `e`, it suffices to relate it to the
+syntax-directed ones: conversions on the second typing are appended as links. -/
+theorem HasTypeStrong.chain_peel
+    (H : ∀ {B}, env.HasTypeStrong U Γ e B false → env.TypeChain U Γ A B)
+    (h2 : env.HasTypeStrong U Γ e B b) : env.TypeChain U Γ A B := by
+  cases b with
+  | false => exact H h2
+  | true =>
+    generalize hb : true = b at h2
+    induction h2 with
+    | base h => exact H h
+    | defeq _ h1 _ _ _ _ _ ih => exact (ih H rfl).tail h1.defeq
+    | _ => cases hb
+
+/-- Uniqueness of types up to a chain of sort-typed definitional equalities. The proof is
+a plain induction on the first typing; the head inversions of `HeadInversion` replace the
+stratified inversion lemmas. -/
+theorem HasTypeStrong.uniq_chain (henv : env.WF) (hinv : env.HeadInversion)
+    (hΓ : OnCtx Γ (env.IsType U))
+    (h1 : env.HasTypeStrong U Γ e A b₁) (h2 : env.HasTypeStrong U Γ e B b₂) :
+    env.TypeChain U Γ A B := by
+  induction h1 generalizing B b₂ with
+  | base _ ih => exact ih hΓ h2
+  | defeq _ hAB _ _ _ _ _ ih => exact TypeChain.head hAB.defeq.symm (ih hΓ h2)
+  | bvar a1 _ a3 =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | bvar b1 _ _ => cases a1.uniq b1; exact .refl a3.hasType
+  | sort' _ a2 a3 =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | sort' _ b2 b3 => exact .single (.sortDF a2 b2 (VLevel.succ_congr (a3.symm.trans b3)))
+  | const a1 _ _ _ _ a6 =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | const b1 _ _ _ _ _ => cases a1.symm.trans b1; exact .refl a6.hasType
+  | @elim block type levels target Γ typeLevel schema owner a1 a2 _ _ _ a6 =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    generalize he : VExpr.elim block owner.val (target :: levels) = expression at h2
+    cases h2 with
+    | @elim block' type' levels' target' _ _ schema' owner' b1 b2 _ _ _ _ =>
       obtain ⟨hblock, howner, hlevels⟩ := VExpr.elim.inj he
       subst block'
       cases henv.eliminators_unique a1 b1
       cases Fin.ext howner
       obtain ⟨rfl, rfl⟩ := List.cons.inj hlevels
       cases Option.some.inj (a2.symm.trans b2)
-      replace le₁ := Nat.sub_le_sub_right le₁ 1
-      exact ⟨_, a5.hasType, _, rfl, a5.mono le₁, a5.mono le₁⟩
+      exact .refl a6.hasType
     | bvar | sort' | const | app | proj | lam | forallE => cases he
-  | app _ a2 a3 a4 _ a6 a7 _ _ ih3 =>
-    intro (.app _ _ b3 b4 b5 _ b7)
-    have ⟨_, c1, _, _, c3, c4⟩ := ih3 n IH hΓ (Nat.le_of_succ_le le₁) (Nat.le_of_succ_le le₂) b5
-    have ⟨_, _, d3, d4, d5⟩ := IsDefEqU.forallE_inv_stratified henv hΓ ⟨_, c1⟩ c3 c4
-    let n+1 := n
-    replace le₁ := Nat.le_of_succ_le_succ le₁
-    replace le₂ := Nat.le_of_succ_le_succ le₂
-    have e1 := have ⟨_, h⟩ := a3.hasType.isType henv hΓ; h.sort_inv henv
-    refine have hΓ₁ := ⟨hΓ, _, a3.hasType⟩
-      have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ₁ le₁ (Nat.le_refl _) a4 d4; ?_
-    have e3 := IsDefEqU.sort_inv henv hΓ₁ ⟨_, h⟩
-    have e4 := have ⟨_, h⟩ := d4.hasType.isType henv hΓ₁; h.sort_inv henv
-    refine have hΓ₂ := ⟨hΓ, _, b3.hasType⟩
-      have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ₂ le₂ (Nat.le_refl _) b4 d5; ?_
-    have e5 := IsDefEqU.sort_inv henv hΓ₂ ⟨_, h⟩
-    exact ⟨_, .defeqDF (.sortDF e4 a2 e3.symm) (d3.instN henv a6.hasType .zero), _,
-      e3.trans e5.symm, a7.mono le₁, b7.mono le₂⟩
-  | proj a1 a2 a3 a4 a5 a6 _ a8 a9 a10 a11 _ _ ih2 =>
-    intro (.proj b1 b2 b3 b4 b5 b6 _ b8 b9 b10 b11 _)
-    have ⟨_, c1, _, _, _⟩ := ih2 n IH hΓ (Nat.le_of_succ_le le₁) (Nat.le_of_succ_le le₂) b10
-    let n+1 := n
-    replace le₁ := Nat.le_of_succ_le_succ le₁
-    replace le₂ := Nat.le_of_succ_le_succ le₂
-    cases henv.ordered.projections_unique a1 b1
-    have ⟨d1, d2⟩ := IsDefEqU.fieldType_inv_stratified henv hΓ a1 a2 a3 a4 a5 a6
-      a9.hasType.1 b2 b3 b4 b5 b6 b9.hasType.1 a11
-      ⟨_, a9.trans (IsDefEq.defeqDF c1.symm b9).symm⟩ ⟨_, c1⟩ a8 b8
-    exact ⟨_, d1, _, d2, a8.mono le₁, b8.mono le₂⟩
-  | lam a1 a2 _ a4 _ _ ih3 =>
-    intro (.lam b1 b2 b3 b4)
-    have ⟨_, c1, _, c2, c3, c4⟩ := ih3 n IH ⟨hΓ, _, a1.hasType⟩
-      (Nat.le_of_succ_le le₁) (Nat.le_of_succ_le le₂) b3
-    let n+1 := n
-    replace le₁ := Nat.le_of_succ_le_succ le₁
-    replace le₂ := Nat.le_of_succ_le_succ le₂
-    have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ le₁ le₂ a1 b1
-    have e1 := IsDefEqU.sort_inv henv hΓ ⟨_, h⟩
-    refine have hΓ' := ⟨hΓ, _, a1.hasType⟩
-      have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ' le₁ (Nat.le_refl _) a2 c3; ?_
-    have f1 := h.sort_inv_l henv; have f2 := h.sort_inv_r henv
-    have e2 := IsDefEqU.sort_inv henv hΓ' ⟨_, h⟩
-    have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ' le₂ (Nat.le_refl _) b2 c4
-    have e3 := IsDefEqU.sort_inv henv hΓ' ⟨_, h⟩
-    exact ⟨_, .forallEDF a1.hasType (.defeqDF (.symm <| .sortDF f1 f2 e2) c1),
-      _, VLevel.imax_congr e1 (e2.trans <| c2.trans e3.symm), a4.mono le₁, b4.mono le₂⟩
-  | forallE a1 a2 a3 a4 =>
-    intro (.forallE b1 b2 b3 b4)
-    let n+1 := n
-    replace le₁ := Nat.le_of_succ_le_succ le₁
-    replace le₂ := Nat.le_of_succ_le_succ le₂
-    have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ le₁ le₂ a3 b3
-    have e1 := IsDefEqU.sort_inv henv hΓ ⟨_, h⟩
-    refine have hΓ' := ⟨hΓ, _, a3.hasType⟩
-      have ⟨_, h, _⟩ := IH _ (Nat.lt_succ_self _) hΓ' le₁ le₂ a4 b4; ?_
-    have e2 := IsDefEqU.sort_inv henv hΓ' ⟨_, h⟩
-    have := VLevel.imax_congr e1 e2
-    exact ⟨_, .sortDF ⟨a1, a2⟩ ⟨b1, b2⟩ this, _, rfl,
-      .base <| .sort' ⟨a1, a2⟩ ⟨a1, a2⟩ rfl, .base <| .sort' ⟨b1, b2⟩ ⟨a1, a2⟩ this.symm⟩
-  | @base Γ e A n₁ a1 ih =>
-    intro H2
-    replace ih {n'} le := @ih n' (fun y h1 => IH y (Nat.lt_of_lt_of_le h1 le)) hΓ
-    generalize eq : true = b at H2
-    induction H2 with cases eq
-    | @base _ _  _ n' b1 => exact ih (Nat.le_refl _) le₁ le₂ b1
-    | @defeq Γ B' B u n' _ b1 b2 b3 b4 b5 _ _ ih' =>
-      have ⟨u₁, c1, u₂, c2, c3, c4⟩ := ih' a1 hΓ (Nat.le_of_succ_le le₂) ih rfl
-      let n+1 := n
-      replace le₂ := Nat.le_of_succ_le_succ le₂
-      have ⟨v₁, d1, v₂, _⟩ := IH _ (Nat.lt_succ_self _) hΓ le₂ (Nat.le_refl _) b3 c4
-      have e1 := IsDefEqU.sort_inv henv hΓ ⟨_, d1⟩
-      have e2 := have ⟨_, h⟩ := c3.hasType.isType henv hΓ; h.sort_inv henv
-      have eq : u₁ ≈ u := c2.trans e1.symm
-      exact ⟨_, c1.trans (.defeqDF (.symm <| .sortDF e2 b1 eq) b2), _, eq, c3, b4.mono le₂⟩
-  | @defeq Γ A' A u n' _ a1 a2 a3 a4 a5 ih1 ih2 ih' =>
-    intro H2
-    have ⟨_, c1, u₂, c2, c3, c4⟩ := ih' _ IH hΓ (Nat.le_of_succ_le le₁) le₂ H2
-    let n+1 := n
-    replace le₁ := Nat.le_of_succ_le_succ le₁
-    have ⟨_, d1, _, _⟩ := IH _ (Nat.lt_succ_self _) hΓ le₁ (Nat.le_refl _) a3 c3
-    have e1 := IsDefEqU.sort_inv henv hΓ ⟨_, d1⟩
-    have e2 := have ⟨_, h⟩ := c3.hasType.isType henv hΓ; h.sort_inv henv
-    have eq : u ≈ u₂ := e1.trans c2
-    exact ⟨_, a2.symm.trans (.defeqDF (.symm <| .sortDF a1 e2 e1) c1), _, eq, a4.mono le₁, c4⟩
+  | app _ _ _ _ _ _ a7 _ _ _ _ ih6 _ _ =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | app _ _ _ _ _ b6 _ _ =>
+      have ⟨_, _, hB⟩ := hinv.forallE_forallE hΓ (ih6 hΓ b6)
+      exact .single (hB.instN henv.ordered a7.hasType .zero)
+  | lam _ _ a3 _ _ _ _ _ ih5 _ =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | lam _ _ _ _ b5 _ =>
+      exact (ih5 ⟨hΓ, _, a3.hasType⟩ b5).map (f := VExpr.forallE _)
+        fun h => ⟨_, .forallEDF a3.hasType h⟩
+  | forallE a1 a2 a3 _ ih3 ih4 =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | forallE b1 b2 b3 b4 =>
+      have e1 := hinv.sort_sort hΓ (ih3 hΓ b3)
+      have hΓ' : OnCtx (_ :: _) (env.IsType U) := ⟨hΓ, _, a3.hasType⟩
+      have e2 := hinv.sort_sort hΓ' (ih4 hΓ' b4)
+      exact .single (.sortDF (l := .imax _ _) (l' := .imax _ _) ⟨a1, a2⟩ ⟨b1, b2⟩
+        (VLevel.imax_congr e1 e2))
+  | proj a1 a2 a3 a4 a5 a6 _ a8 a9 _ a11 a12 _ ih10 =>
+    refine HasTypeStrong.chain_peel (fun h2 => ?_) h2
+    cases h2 with
+    | proj b1 b2 b3 b4 b5 b6 _ b8 b9 b10 _ b12 =>
+      cases henv.ordered.projections_unique a1 b1
+      have hmajor := ih10 hΓ b10
+      have hsource := a9.defeq.trans (hmajor.symm.defeqDF b9.defeq).symm
+      exact hinv.proj_fieldType hΓ a1 a11 a2 a3 a4 a5 a6 a8.hasType a12
+        b2 b3 b4 b5 b6 b8.hasType b12 hsource hmajor
+
+/-- A chain starting at a type of sort `u` collapses to one definitional equality at
+`sort u`: each link is retyped at `sort u` using `uniq_chain` on its left endpoint and
+`sort_sort`. -/
+theorem TypeChain.collapse (henv : env.WF) (hinv : env.HeadInversion)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : env.TypeChain U Γ A B)
+    (hA : env.HasType U Γ A (.sort u)) : env.IsDefEq U Γ A B (.sort u) := by
+  have retype {X Y w} (hX : env.HasType U Γ X (.sort u))
+      (h : env.IsDefEq U Γ X Y (.sort w)) : env.IsDefEq U Γ X Y (.sort u) := by
+    have s1 := (hX.strong henv.ordered hΓ).hasType'.1
+    have s2 := (h.strong henv.ordered hΓ).hasType'.1
+    have e := hinv.sort_sort hΓ (s2.uniq_chain henv hinv hΓ s1)
+    exact .defeqDF (.sortDF (h.sort_r henv.ordered hΓ) (hX.sort_r henv.ordered hΓ) e) h
+  induction H with
+  | single h => let ⟨_, h⟩ := h; exact retype hA h
+  | tail _ h ih => let ⟨_, h⟩ := h; exact ih.trans (retype ih.hasType.2 h)
+
+theorem IsDefEq.uniq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (h1 : Γ ⊢ e₁ ≡ e₂ : A) (h2 : Γ ⊢ e₂ ≡ e₃ : B) : ∃ u, Γ ⊢ A ≡ B : .sort u := by
+  have hinv := henv.headInversion
+  have H := HasTypeStrong.uniq_chain henv hinv hΓ
+    (h1.strong henv.ordered hΓ).hasType'.2 (h2.strong henv.ordered hΓ).hasType'.1
+  have ⟨_, hA⟩ := h1.isType henv.ordered hΓ
+  exact ⟨_, H.collapse henv hinv hΓ hA⟩
 
 theorem IsDefEq.uniqU (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (h1 : env.IsDefEq U Γ e₁ e₂ A) (h2 : env.IsDefEq U Γ e₂ e₃ B) :

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 
 /-!
 # Instantiating constructor telescopes
