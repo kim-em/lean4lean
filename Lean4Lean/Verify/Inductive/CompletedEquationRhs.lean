@@ -985,9 +985,9 @@ theorem
 /-- A well-formed canonical application of the selected minor to the fixed
 equation fields forces those fields to agree with the installed field
 telescope.  The selected minor is stored outside the equation fields, so its
-lookup typing is first recognized as a common weakening of the still-open
-installed telescope; `canonicalApplicationContext_of_weakened` then performs
-the dependent binder-by-binder inversion. -/
+declared type is read off directly by a variable lookup in the outer
+telescope; `canonicalApplicationContext` then performs the dependent
+binder-by-binder inversion. -/
 theorem
     CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalMinorFieldContextOfApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1020,23 +1020,9 @@ theorem
       OnCtx (abstractForallContext equationDomains []).toCtx
         (H.outVEnv.IsType
           (AddInductive.getRecLevelParams H.elimLevel c.lparams).length))
-    (Hminor :
-      let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-      let minorIdx := recursorMinorOffset indTypes owner + i
-      let inserted := T.motives ++ T.minors
-      let equationFieldDomains :=
-        (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
-      let equationDomains :=
-        H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
-          equationFieldDomains
-      let later := T.minors.drop (minorIdx + 1)
-      let minorVar := equationFieldDomains.length + later.length
-      H.outVEnv.HasType Us.length
-        (abstractForallContext equationDomains []).toCtx
-        (.bvar minorVar)
-        ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
-          targetResidual).liftN
-            (later.length + 1 + equationFieldDomains.length) 0))
+    (hminorType :
+      T.minors[recursorMinorOffset indTypes owner + i]! = VExpr.wrapForalls
+        (fieldDomains ++ hypothesisDomains) targetResidual)
     (Happlication :
       let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
       let minorIdx := recursorMinorOffset indTypes owner + i
@@ -1078,8 +1064,9 @@ theorem
           (recursorCanonicalVars equationFieldDomains.length))
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual) := by
-  dsimp only at Hctx Hminor Happlication ⊢
+  dsimp only at Hctx Happlication ⊢
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let minorIdx := recursorMinorOffset indTypes owner + i
   let inserted := T.motives ++ T.minors
   let equationFieldDomains :=
     (liftContextPrefix inserted.length B.fieldDomains.reverse).reverse
@@ -1104,16 +1091,40 @@ theorem
         equationFieldDomains.reverse ++ outer := by
     simp [abstractForallContext_toCtx, equationFieldDomains, outer,
       List.reverse_append, List.append_assoc, VLCtx.toCtx]
-  rw [hctxShape] at Hctx Hminor Happlication
-  have htypeShape :
-      ((VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
-          targetResidual).liftN
-        (later.length + 1 + equationFieldDomains.length) 0) =
-      ((VExpr.wrapForalls installedEquationFields
+  rw [hctxShape] at Hctx Happlication
+  have htermShape :
+      (VExpr.bvar later.length).liftN equationFieldDomains.length 0 =
+        .bvar (equationFieldDomains.length + later.length) := by
+    simp [VExpr.liftN, Nat.add_comm]
+  rw [← htermShape] at Happlication
+  -- The selected minor is a variable of `outer`; its declared type is the
+  -- installed minor type, so its typing there is a direct lookup.
+  have hminor : minorIdx < T.minors.length := by
+    rw [T.minors_length]
+    exact A.rule.minor_valid
+  have hlater : later.length = T.minors.length - 1 - minorIdx := by
+    simp only [later, List.length_drop]
+    omega
+  have Hlookup := Lookup.reverse_append T.minors
+    (T.motives.reverse ++ H.parameterSuffix.parameterDecls.toCtx)
+    minorIdx hminor
+  have houter : outer = T.minors.reverse ++
+      (T.motives.reverse ++ H.parameterSuffix.parameterDecls.toCtx) := by
+    simp [outer, inserted, List.reverse_append, List.append_assoc]
+  have hminorGet : T.minors[minorIdx] = VExpr.wrapForalls
+      (fieldDomains ++ hypothesisDomains) targetResidual := by
+    rw [← hminorType, List.getElem!_eq_getElem?_getD,
+      List.getElem?_eq_getElem hminor]
+    rfl
+  have hshiftEq : T.minors.length - minorIdx = later.length + 1 := by
+    omega
+  rw [← houter, ← hlater, hminorGet, hshiftEq] at Hlookup
+  have hbaseShape :
+      (VExpr.wrapForalls (fieldDomains ++ hypothesisDomains)
+          targetResidual).liftN (later.length + 1) =
+        VExpr.wrapForalls installedEquationFields
           (VExpr.wrapForalls installedEquationHypotheses
-            installedEquationResidual)).liftN
-        equationFieldDomains.length 0) := by
-    rw [← VExpr.liftN_liftN]
+            installedEquationResidual) := by
     rw [VExpr.liftN_wrapForalls]
     simp only [Nat.zero_add]
     have hprefix : liftContextPrefixAt (later.length + 1) 0
@@ -1123,28 +1134,19 @@ theorem
     rw [hprefix]
     rw [liftContextPrefix_reverse_append]
     simp [shift, installedEquationFields, installedEquationHypotheses,
-      installedEquationResidual, VExpr.wrapForalls_append,
-      equationFieldDomains, Nat.add_assoc]
-  rw [htypeShape] at Hminor
-  have htermShape :
-      (VExpr.bvar later.length).liftN equationFieldDomains.length 0 =
-        .bvar (equationFieldDomains.length + later.length) := by
-    simp [VExpr.liftN, Nat.add_comm]
-  rw [← htermShape] at Hminor Happlication
-  have HfieldContext :=
-    VEnv.HasType.canonicalApplicationContext_of_weakened
-    H.outVEnvWF equationFieldDomains installedEquationFields outer Hctx
-      Hminor (by simpa [installedEquationFields] using hequationLength)
-      Happlication
-  have W : Ctx.LiftN equationFieldDomains.length 0 outer
-      (equationFieldDomains.reverse ++ outer) := by
-    exact Ctx.LiftN.zero equationFieldDomains.reverse (by simp)
+      installedEquationResidual, VExpr.wrapForalls_append]
+  rw [hbaseShape] at Hlookup
   have HminorBase : H.outVEnv.HasType Us.length outer
       (.bvar later.length)
       (VExpr.wrapForalls installedEquationFields
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual)) :=
-    (VEnv.HasType.weakN_iff H.outVEnvWF Hctx W).mp Hminor
+    .bvar Hlookup
+  have HfieldContext :=
+    VEnv.HasType.canonicalApplicationContext
+    H.outVEnvWF equationFieldDomains installedEquationFields outer Hctx
+      HminorBase (by simpa [installedEquationFields] using hequationLength)
+      Happlication
   have HminorBase' : H.outVEnv.HasType Us.length outer
       (.bvar later.length)
       (VExpr.wrapForalls
@@ -1344,7 +1346,7 @@ theorem
       Nat.add_assoc] using HfixedApplication
   have HinstalledFields :=
     A.finalCanonicalMinorFieldContextOfApplication B T fieldDomains
-      hypothesisDomains targetResidual hfields HfixedContext Hminor
+      hypothesisDomains targetResidual hfields HfixedContext hminorType
       HapplicationWF
   have HinstalledTyping : H.outVEnv.HasType Us.length
       (abstractForallContext equationDomains []).toCtx

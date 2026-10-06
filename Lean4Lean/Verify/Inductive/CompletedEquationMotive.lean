@@ -279,58 +279,6 @@ theorem
     T.ownerMotiveBvarTypingAtOffset hownerMotive,
     T.resultShape hownerMotive⟩
 
-/-- End-to-end first-binder consequence of the owner-motive application
-frame.  This is the induction base for aligning the complete dependent
-index/major suffix: the first generated suffix declaration is convertible to
-the first motive domain after weakening across later motives and minors. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalOwnerMotiveFirstDomainAlignment
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
-        (H.generated.entry owner howner).info.type H.entries[owner].2.type
-        stats.params.size (H.recInfos.map (·.motive)).size
-        (H.recInfos.flatMap (·.minors)).size
-        H.recInfos[owner]!.indices.size owner,
-      ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner
-          H.recInfos[owner]! H.elimLevel,
-        VEnv.IsDefEqCtx H.outVEnv Us.length []
-            T.params.reverse S.canonical.params.reverse ∧
-        ∃ motiveDomains resultLevel generatedFirst generatedRest
-            motiveFirst motiveRest,
-          motiveDomains.length = H.recInfos[owner]!.indices.size + 1 ∧
-          T.motives[owner]! =
-            VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
-          T.indices ++ T.major = generatedFirst :: generatedRest ∧
-          motiveDomains = motiveFirst :: motiveRest ∧
-          H.outVEnv.IsDefEqU Us.length
-            (T.params ++ T.motives ++ T.minors).reverse generatedFirst
-            (motiveFirst.liftN
-              ((T.motives.drop (owner + 1) ++ T.minors).length + 1) 0) := by
-  dsimp only
-  rcases H.finalOwnerMotiveTelescopeShapeAt owner howner with
-    ⟨T, S, hparameters, motiveDomains, resultLevel,
-      hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
-  have hownerRecInfo : owner < H.recInfos.size := by
-    simpa [H.generated.length] using howner
-  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
-    simpa using hownerRecInfo
-  rcases T.ownerMotiveFirstDomainDefEq H.outVEnvWF hownerMotive
-      motiveDomains resultLevel hmotive hdomainLength with
-    ⟨generatedFirst, generatedRest, motiveFirst, motiveRest,
-      hsuffix, hmotiveDomains, Hdomain⟩
-  exact ⟨T, S, hparameters, motiveDomains, resultLevel,
-    generatedFirst, generatedRest, motiveFirst, motiveRest,
-    hdomainLength, hmotive, hsuffix, hmotiveDomains, Hdomain⟩
 
 /-- Final all-binder owner-suffix alignment.  This is the completed bridge
 from the five-group executable recursor telescope to the independently

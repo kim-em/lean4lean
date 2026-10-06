@@ -153,6 +153,17 @@ theorem TrExprS.weakBV_inv_lift (W : VLCtx.BVLift Δ Δ' dn dk n k)
     have t' := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx (e := .proj _ _ s₀)).1 t
     exact ⟨_, .proj hs₀ (.direct m' t'), rfl⟩
 
+/-- Forward replacement for `TrExprS.weakBV_inv_lift`: when the source already
+has a translation `t₀` in the smaller context, every translation of its lift
+in the lifted context is the lift of `t₀`.  Unlike the inverse direction this
+needs no typing strengthening, only `weakBV` and syntactic uniqueness. -/
+theorem TrExprS.weakBV_lift_eq (henv : VEnv.Ordered env)
+    (W : VLCtx.BVLift Δ Δ' dn dk n k)
+    (H₀ : TrExprS env Us Δ e t₀)
+    (H : TrExprS env Us Δ' (e.liftLooseBVars' dk dn) T) :
+    T = t₀.liftN n k :=
+  H.uniqueS (H₀.weakBV henv W)
+
 end Lean4Lean
 
 namespace Lean4Lean.VerifyInductive

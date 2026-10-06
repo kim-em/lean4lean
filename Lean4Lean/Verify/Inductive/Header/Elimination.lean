@@ -205,10 +205,21 @@ theorem ContextWF.ConsumedDomain.proof_of_largeEliminationCheck
   have Hprop := ensureTypeInContext.proof_of_isAlwaysZero Hnext Hraw Hrun Hzero
   have Wctx : Ctx.LiftN 1 0 Hc.mlctx.vlctx.toCtx
       Hnext.mlctx.vlctx.toCtx := .zero [consumed'] rfl
+  -- `source'` is already a type in the field-prefix context; uniqueness of
+  -- typing beneath the new binder identifies its sort with `Prop`.
+  rcases Hdom.source_defeq with ⟨u, Hu⟩
+  have Hsrc : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
+      source' (.sort u) := Hu.hasType.1
+  have Hweak := Hsrc.weakN Hc.checking.tr.wf.ordered Wctx
+  have Hsort : Hc.venv.IsDefEqU c.lparams.length Hnext.mlctx.vlctx.toCtx
+      (.sort u) (.sort .zero) :=
+    VEnv.IsDefEq.uniqU Hc.checking.tr.wf Hnext.mlctx_wf.tr.wf.toCtx Hweak Hprop
+  have hu : u ≈ .zero :=
+    VEnv.IsDefEqU.sort_inv Hc.checking.tr.wf Hnext.mlctx_wf.tr.wf.toCtx Hsort
+  rcases Hsrc.isType Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx with ⟨_, HsortTy⟩
   have Hbase : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
       source' (.sort .zero) :=
-    (VEnv.HasType.weakN_iff Hc.checking.tr.wf Hnext.mlctx_wf.tr.wf.toCtx Wctx).mp Hprop
-  rcases Hdom.source_defeq with ⟨u, Hu⟩
+    .defeqDF (.sortDF (HsortTy.sort_inv Hc.checking.tr.wf.ordered) trivial hu) Hsrc
   exact Hbase.defeqU_l Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx ⟨_, Hu⟩
 
 

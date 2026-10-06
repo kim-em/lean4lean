@@ -1662,45 +1662,6 @@ theorem RecursorLaterParameterScope.nextOlder
   simpa only [currentEntry] using
     List.append_inj_right hdecomp hprefixLength
 
-/-- Descend a successful executable parameter-domain comparison to the exact
-already-consumed recursor parameter suffix. -/
-theorem RecursorLaterParameterScope.domainDefEq
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams}
-    {Hsuffix : RecursorParameterContextSuffix R stats depth}
-    {name : Name} {dom body : Expr} {bi : BinderInfo}
-    {dom' paramTy' : VExpr}
-    (H : RecursorLaterParameterScope Hsuffix i
-      (.forallE name dom body bi))
-    (hdom : TrExprS R.venv recLparams R.mlctx.vlctx dom dom')
-    (hparamTyEq : paramTy' = H.paramType.lift.liftN
-      (VLCtx.toCtx H.added).length 0)
-    (heq : R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
-      dom' paramTy') :
-    ∃ sourceDom',
-      TrExprS R.venv recLparams H.older dom sourceDom' ∧
-      R.venv.IsDefEqU recLparams.length H.older.toCtx
-        sourceDom' H.paramType := by
-  rcases H.domainTranslation hdom with ⟨sourceDom', hsourceDom⟩
-  have hweak := hsourceDom.weakFV R.checking.tr.wf.ordered
-    H.olderLift R.mlctx_wf.tr.wf
-  have htranslated : R.venv.IsDefEqU recLparams.length
-      R.mlctx.vlctx.toCtx dom'
-      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0) :=
-    hdom.uniq R.checking.tr.wf
-      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hweak
-  rw [hparamTyEq] at heq
-  have hfull := htranslated.symm.trans R.checking.tr.wf
-    R.mlctx_wf.tr.wf.toCtx heq
-  have hfull' : R.venv.IsDefEqU recLparams.length
-      R.mlctx.vlctx.toCtx
-      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0)
-      (H.paramType.liftN (VLCtx.toCtx H.added).length.succ 0) := by
-    simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
-      using hfull
-  exact ⟨sourceDom', hsourceDom,
-    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
-      R.mlctx_wf.tr.wf.toCtx H.olderLift.toCtx).1 hfull'⟩
 
 /-- Reconstruct the source binder after substituting its cached concrete
 parameter in a universe-rebased recursor context, retaining the equality back

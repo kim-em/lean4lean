@@ -3,20 +3,6 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-theorem TrExprS.dropFVarPrefix_typed
-    (henv : env.WF) (hscope : (added ++ suffix).WF env Us.length)
-    (hnoBV : (added ++ suffix).NoBV)
-    (H : TrExprS env Us (added ++ suffix) source target)
-    (Htype : env.IsType Us.length (added ++ suffix).toCtx target)
-    (hfvars : FVarsIn (· ∈ suffix.fvars) source) :
-    ∃ target', TrExprS env Us suffix source target' ∧ env.IsType Us.length suffix.toCtx target' := by
-  obtain ⟨target', Hnew⟩ := TrExprS.dropFVarPrefix henv hscope hnoBV H hfvars
-  let W := (VLCtx.FVLift.to_append suffix (VLCtx.NoBV.leftOfAppend added suffix hnoBV)).toFVLift'
-  have Hweak := Hnew.weakFV' henv.ordered W hscope
-  have Heq := Hweak.uniq henv (.refl henv hscope) H
-  obtain ⟨level, HweakType⟩ := Htype.defeqU_l henv hscope.toCtx Heq.symm
-  exact ⟨target', Hnew, level,
-    (VEnv.HasType.weak'_iff henv hscope.toCtx W.toCtx).1 HweakType⟩
 
 theorem RecInfoMinorSemanticSource.constructorSourceFVars
     {root : AddInductive.Context} {Rroot : RecursorContextWF root recLparams}
@@ -38,22 +24,6 @@ theorem RecInfoMinorSemanticSource.constructorSourceFVars
       simpa [HS.fieldsRecent.fvarRevList_eq] using Hbody)
   simpa [HS.parameterSuffix.parameterDecls_fvars] using Hfv
 
-theorem RecInfoMinorSemanticSource.constructorTranslationAtSuffix
-    {root : AddInductive.Context} {Rroot : RecursorContextWF root recLparams}
-    {S : RecInfoMinorTypeShape} (HS : RecInfoMinorSemanticSource Rroot S) :
-    ∃ target, TrExprS HS.rootWF.venv recLparams HS.parameterSuffix.parameterDecls
-      (HS.traversal.terminalContext.lctx.mkForall S.fields HS.traversal.terminal) target ∧
-      HS.rootWF.venv.IsType recLparams.length HS.parameterSuffix.parameterDecls.toCtx target := by
-  obtain ⟨Htr, Htype⟩ := HS.fieldsRecent.mkForallExact HS.terminalTranslation HS.terminalType
-  rw [HS.parameterSuffix.context] at Htr Htype
-  have Hwf : (HS.parameterSuffix.ambientDecls ++ HS.parameterSuffix.parameterDecls).WF
-      HS.rootWF.venv recLparams.length := by
-    rw [← HS.parameterSuffix.context]
-    exact HS.rootWF.mlctx_wf.tr.wf
-  have HnoBV : (HS.parameterSuffix.ambientDecls ++ HS.parameterSuffix.parameterDecls).NoBV := by
-    rw [← HS.parameterSuffix.context]
-    exact HS.rootWF.mlctx.noBV
-  exact TrExprS.dropFVarPrefix_typed HS.rootWF.checking.tr.wf Hwf HnoBV Htr Htype HS.constructorSourceFVars
 
 /-- Retarget a complete source telescope to a separately selected strict
 translation of the same domain prefix, transporting the residual by typed
@@ -113,33 +83,6 @@ theorem CompletedRecursorConstruction.constructorSourceUniverses
   let Hbound := HS.semantic.fieldsRecent.toBoundFVarArray.mono Hext
   simpa using Hfull.mkForall Hbound Hsupport.1
 
-theorem CompletedRecursorConstruction.consumedConstructorAtParameters
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
-    (owner : Nat) (howner : owner < H.recInfos.size)
-    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
-      (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
-    let S := H.origins.minorShapes owner howner localIndex hlocal
-    ∃ target,
-      TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-        (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [])
-        ((H.localContext.lctx.mkForall S.fields HS.semantic.traversal.terminal).abstractList H.params.fvars) target ∧
-      H.recursorWF.venv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-        H.parameterSuffix.parameterDecls.toCtx target := by
-  obtain ⟨target, Htr, Htype⟩ := HS.semantic.constructorTranslationAtSuffix
-  have hrootEnv : H.recursorWF.venv = HS.semantic.rootWF.venv :=
-    HS.semantic.extension.venv_eq.trans
-      (HS.semantic.hypothesesRecent.venv_eq.trans HS.semantic.fieldsRecent.venv_eq)
-  rw [← hrootEnv, HS.parameterDecls_eq] at Htr Htype
-  have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
-  have hsource := HS.semantic.fieldsRecent.toBoundFVarArray.mkForall_mono Hext HS.semantic.traversal.terminal
-  rw [← hsource] at Htr
-  have houter := H.bindings.outerNodup H.params H.noAlias
-  have hparams := (List.nodup_append.mp (List.nodup_append.mp houter).1).1
-  have Habstract := H.parameterSuffix.abstractParameters H.params hparams (domains := []) (by
-    simpa [abstractForallContext] using Htr)
-  exact ⟨target, by simpa using Habstract, Htype⟩
 
 private theorem recursorLevels_zero
     (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
