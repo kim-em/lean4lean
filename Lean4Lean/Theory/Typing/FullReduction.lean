@@ -1177,16 +1177,6 @@ class HeadSeparation : Prop where
   proof_major : OnCtx Γ (env.IsType univs) → Pat p r → p.Matches (.app F M) m1 m2 →
     r.2.OK (IsDefEqU env univs Γ) m1 m2 → Γ ⊢ .app F M : T →
     Γ ⊢ M : P → Γ ⊢ P : .sort .zero → Γ ⊢ T : .sort .zero
-  /-- A rigid-headed application is never definitionally a Pi type
-  (the missing injectivity-class separation, `IsDefEqU.rigidApp_forallE_inv`). -/
-  rigid_not_pi : OnCtx Γ (env.IsType univs) → env.Rigid c →
-    ¬ Γ ⊢ VExpr.mkApps (.const c ls) args ≡ .forallE A B
-  /-- Distinct rigid heads are never definitionally equal types. (The
-  restriction to types matters: two proofs headed by distinct rigid
-  constants are equal by proof irrelevance.) -/
-  rigid_ne : OnCtx Γ (env.IsType univs) → env.Rigid c → env.Rigid c' → c ≠ c' →
-    ¬ env.IsDefEq univs Γ (VExpr.mkApps (.const c ls) args)
-      (VExpr.mkApps (.const c' ls') args') (.sort u)
   /-- The constructor major of a matched generated case redex is not a
   function (rigid-family/Pi separation at the case major). -/
   case_not_pi : OnCtx Γ (env.IsType univs) → MatchedCaseStep env univs Γ rule actual →
@@ -1877,7 +1867,8 @@ theorem NormalEqN.fullStep_projIota [HeadSeparation] (hΓ : OnCtx Γ (env.IsType
     have hsp := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
     have hpi := hty.defeqU_l henv hΓ (hsp.defeq hΓ)
     have hfam := hmT.defeqU_l henv hΓ (lMajor.defeq hΓ)
-    exact HeadSeparation.rigid_not_pi hΓ (henv.projectionRigid hinfo)
+    have ⟨_, hsort⟩ := hmajor.hasType.2.isType henv hΓ
+    exact IsDefEqU.rigidApp_forallE_inv henv hΓ (henv.projectionRigid hinfo) hsort
       (hfam.uniqU henv hΓ hpi)
 
 end RigidRule
@@ -2215,8 +2206,8 @@ theorem FullStep.strip [HeadSeparation] (hΓ : OnCtx Γ (env.IsType univs))
           ht.proj_inv henv hΓ
         have hu := hmaj.hasType.2.uniqU henv hΓ hs
         have ⟨_, hsort⟩ := hmaj.hasType.2.isType henv hΓ
-        exact HeadSeparation.rigid_ne hΓ (henv.projectionRigid hinfo)
-          (henv.projectionRigid hl) hfamily (hu.of_l henv hΓ hsort)
+        exact IsDefEqU.rigidApp_ne henv hΓ (henv.projectionRigid hinfo)
+          (henv.projectionRigid hl) hfamily hsort hu
     | _ => sorry
   | _ => sorry
 
