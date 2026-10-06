@@ -194,6 +194,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (Hempty : RecInfoMinorsEmpty recInfos)
     (Hblueprints : RecInfoBlueprintCounts recInfos)
     (hparamU : ParameterUniverseSupport current stats.params)
+    (HindexTraces : RecInfoIndexTraces stats indTypes current recInfos)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx
@@ -222,6 +223,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       RecInfoBlueprintCounts out →
       BindingContextLE base outCtx →
       out.size = recInfos.size + (indTypes.size - dIdx) →
+      RecInfoIndexTraces stats indTypes outCtx out →
       (k out outCtx).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel dIdx
       recInfos k current).WF Q := by
@@ -267,7 +269,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         indexTargets Hsynthesis hcanonicalParams hscopeBase HnarrowStats HstatsIndices Hruntime
         hfront htypeNarrow htypeFVars htypeFull htypeFullType Hindices
         HnarrowIndices hindexCount hcanonical HindexOrigins HindexTypes
-        Hrecent hindexUniverses
+        Hrecent hindexUniverses HindexTrace
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · simp only [loopK]
         rw [if_pos harity]
@@ -976,6 +978,13 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         let Htelescopes' :=
           (Htelescopes.mono HrootExtension).push nextInfo
             HseedAt Hseed' HseedParams
+        have HindexTraces' : RecInfoIndexTraces stats indTypes cMotive
+            (recInfos.push nextInfo) := by
+          refine (HindexTraces.mono hAllFrames).push nextInfo (type := type) ?_
+          have hsrc : indTypes[recInfos.size]!.type = indTypes[dIdx].type := by
+            rw [hprogress, getElem!_pos indTypes dIdx hidx]
+          rw [hsrc]
+          exact HindexTrace.mono (hMajorFrame.trans hMotiveFrame)
         refine resultSemantics Hbase stats indTypes elimLevel Helim Hheaders
           hconsume (dIdx + 1)
           (recInfos.push {
@@ -1007,7 +1016,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
               BindingContextLE.withLocalDecl cMajor
                 (Rindices.toBindingContextWF.withLocalDecl
                   `t majorTy .default)
-                motiveName motiveTy.consumeTypeAnnotationsVerified .default) ?_
+                motiveName motiveTy.consumeTypeAnnotationsVerified .default)
+          HindexTraces' ?_
         · change RecursorTranslatedOriginTypes Rmotive
             (Horigins.majorTypes.push majorTy)
           exact HmajorAtMotive
@@ -1039,13 +1049,13 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
             HtelescopesOut HindexRowsOut
             HparamsOut HnoAliasOut HorderOut HaritiesOut HemptyOut
-            HblueprintsOut HrootOut houtSize
+            HblueprintsOut HrootOut houtSize HindexTracesOut
           apply Hk out Rout henvOut HsuffixOut
             (hparameterDeclsOut.trans hparameterDeclsMotive)
             HstatsOut HbindingsOut
             HoriginsOut HmajorOut HmajorShapesOut HmotiveOut HmotiveShapesOut
             HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
-            HaritiesOut HemptyOut HblueprintsOut HrootOut
+            HaritiesOut HemptyOut HblueprintsOut HrootOut ?_ HindexTracesOut
           simp only [Array.size_push] at houtSize
           omega
       · simp only [loopK]
@@ -1054,7 +1064,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
   · rw [dif_neg hidx]
     exact Hk recInfos R henv Hsuffix rfl Hstats Hbindings Horigins HmajorTypes
       HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexTypeRows Hparams HnoAlias
-      Horder Harities Hempty Hblueprints Hroot (by omega)
+      Horder Harities Hempty Hblueprints Hroot (by omega) HindexTraces
 termination_by indTypes.size - dIdx
 
 end mkRecInfos.loopInd1
@@ -1966,10 +1976,13 @@ def RecInfoHypothesisTypeOrigins.pushCurrent
       (D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep, htype⟩
 
 /-- The call-blueprint row produced beside a hypothesis prefix, indexed by
-the same producer witnesses as `RecInfoHypothesisTypeOrigins`. -/
+the same producer witnesses as `RecInfoHypothesisTypeOrigins`.  `rooted`
+additionally retains the recursor-context certificate of each call's
+`loopUArgs` root and the up-set `rootScope` in it. -/
 structure RecInfoHypothesisCallBlueprintOrigins
     (H : RecInfoHypothesisTypeOrigins stats recInfos fieldRoot c
       fields hypotheses)
+    (rootScope : FVarId → Prop)
     (calls : Array AddInductive.RecCallBlueprint) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
@@ -1989,22 +2002,46 @@ structure RecInfoHypothesisCallBlueprintOrigins
               (mkAppN (.bvar O.args.size)
                 O.exposedType.getAppArgs[stats.params.size:]).app
                   (mkAppN fields[j]! O.args) }
+  rooted : ∀ j (hj : j < hypotheses.size),
+    ∃ root sourceType,
+      ∃ (recLparams : List Name) (Rroot : RecursorContextWF root recLparams)
+        (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root
+          fields[j]! sourceType)
+        (D : BoundFVarDeclarationAt c hypotheses j),
+        BindingContextLE fieldRoot root ∧
+        IsFVarUpSet rootScope Rroot.mlctx.vlctx ∧
+        D.type = sourceType.consumeTypeAnnotationsVerified ∧
+        calls[j]! = {
+          major := fields[j]!
+          args := O.args
+          lctx := O.current.lctx
+          targetTypeIdx := O.ownerIdx
+          targetIndices := O.exposedType.getAppArgs[stats.params.size:]
+          template := O.current.lctx.mkLambda O.args <|
+            (mkAppN (.bvar O.args.size)
+              O.exposedType.getAppArgs[stats.params.size:]).app
+                (mkAppN fields[j]! O.args) }
 
 theorem RecInfoHypothesisCallBlueprintOrigins.empty
-    (H : RecInfoHypothesisTypeOrigins stats recInfos c c fields #[]) :
-    RecInfoHypothesisCallBlueprintOrigins H #[] where
+    (H : RecInfoHypothesisTypeOrigins stats recInfos c c fields #[])
+    (rootScope : FVarId → Prop) :
+    RecInfoHypothesisCallBlueprintOrigins H rootScope #[] where
   size_eq := rfl
   entry j hj := by simp at hj
+  rooted j hj := by simp at hj
 
 theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
     {H : RecInfoHypothesisTypeOrigins stats recInfos fieldRoot c
       fields hypotheses}
+    {rootScope : FVarId → Prop}
     {calls : Array AddInductive.RecCallBlueprint}
-    (Hcalls : RecInfoHypothesisCallBlueprintOrigins H calls)
+    (Hcalls : RecInfoHypothesisCallBlueprintOrigins H rootScope calls)
     (Hc : BindingContextWF c)
     (name : Name) (sourceType : Expr) (bi : BinderInfo)
     (hnext : hypotheses.size < fields.size)
     (Hroot : BindingContextLE fieldRoot root)
+    {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
+    (hup : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
     (O : RecInfoHypothesisTypeOrigin stats recInfos root
       fields[hypotheses.size]! sourceType)
     (call : AddInductive.RecCallBlueprint)
@@ -2019,58 +2056,78 @@ theorem RecInfoHypothesisCallBlueprintOrigins.pushCurrent
           O.exposedType.getAppArgs[stats.params.size:]).app
             (mkAppN fields[hypotheses.size]! O.args) }) :
     RecInfoHypothesisCallBlueprintOrigins
-      (H.pushCurrent Hc name sourceType bi hnext Hroot ⟨O⟩)
+      (H.pushCurrent Hc name sourceType bi hnext Hroot ⟨O⟩) rootScope
       (calls.push call) := by
   let ty := sourceType.consumeTypeAnnotationsVerified
   let c' : AddInductive.Context := { c with
     ngen := c.ngen.next
     lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi }
   let hstep := BindingContextLE.withLocalDecl c Hc name ty bi
+  let D : BoundFVarDeclarationAt c'
+      (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) hypotheses.size := {
+    inBounds := by simp
+    fvar := ⟨c.ngen.curr⟩
+    expression := by simp
+    member := by
+      simp only [c', LocalContext.fvars, LocalContext.mkLocalDecl_toList,
+        List.map_cons, LocalDecl.fvarId, List.mem_cons]
+      exact Or.inl trivial
+    index := c.lctx.decls.size
+    userName := name
+    type := ty
+    binderInfo := bi
+    kind := .default
+    declaration := by
+      simp [c', LocalContext.mkLocalDecl, LocalContext.find?,
+        Hc.wf.map_wf.find?_insert] }
+  have hlast : (calls.push call)[hypotheses.size]! = call := by
+    rw [show hypotheses.size = calls.size from Hcalls.size_eq.symm]
+    simp
+  have hpush : ∀ j, j < hypotheses.size → (calls.push call)[j]! = calls[j]! := by
+    intro j hjOld
+    have hjCalls : j < calls.size := by rw [Hcalls.size_eq]; exact hjOld
+    simp only [Array.getElem!_eq_getD]
+    unfold Array.getD
+    rw [dif_pos (by simp; omega), dif_pos hjCalls]
+    exact Array.getElem_push_lt hjCalls
   refine {
     size_eq := by simpa using congrArg Nat.succ Hcalls.size_eq
-    entry := ?_ }
-  intro j hj
-  by_cases hilast : j = hypotheses.size
-  · subst j
-    let D : BoundFVarDeclarationAt c'
-        (hypotheses.push (.fvar ⟨c.ngen.curr⟩)) hypotheses.size := {
-      inBounds := by simp
-      fvar := ⟨c.ngen.curr⟩
-      expression := by simp
-      member := by
-        simp only [c', LocalContext.fvars, LocalContext.mkLocalDecl_toList,
-          List.map_cons, LocalDecl.fvarId, List.mem_cons]
-        exact Or.inl trivial
-      index := c.lctx.decls.size
-      userName := name
-      type := ty
-      binderInfo := bi
-      kind := .default
-      declaration := by
-        simp [c', LocalContext.mkLocalDecl, LocalContext.find?,
-          Hc.wf.map_wf.find?_insert] }
-    refine ⟨root, sourceType, O.toMinor, D, Hroot, rfl, ?_⟩
-    have hlast : (calls.push call)[hypotheses.size]! = call := by
-      rw [show hypotheses.size = calls.size from Hcalls.size_eq.symm]
-      simp
-    rw [hlast, hcall]
-    rfl
-  · have hjOld : j < hypotheses.size := by
-      have : j < hypotheses.size + 1 := by simpa using hj
-      omega
-    rcases Hcalls.entry j hjOld with
-      ⟨oldRoot, oldType, Oold, D, HoldRoot, htype, hcallOld⟩
-    refine ⟨oldRoot, oldType, Oold,
-      (D.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep,
-      HoldRoot, htype, ?_⟩
-    have hjCalls : j < calls.size := by rw [Hcalls.size_eq]; exact hjOld
-    have hpush : (calls.push call)[j]! = calls[j]! := by
-      simp only [Array.getElem!_eq_getD]
-      unfold Array.getD
-      rw [dif_pos (by simp; omega), dif_pos hjCalls]
-      exact Array.getElem_push_lt hjCalls
-    rw [hpush]
-    exact hcallOld
+    entry := ?_
+    rooted := ?_ }
+  · intro j hj
+    by_cases hilast : j = hypotheses.size
+    · subst j
+      refine ⟨root, sourceType, O.toMinor, D, Hroot, rfl, ?_⟩
+      rw [hlast, hcall]
+      rfl
+    · have hjOld : j < hypotheses.size := by
+        have : j < hypotheses.size + 1 := by simpa using hj
+        omega
+      rcases Hcalls.entry j hjOld with
+        ⟨oldRoot, oldType, Oold, Dold, HoldRoot, htype, hcallOld⟩
+      refine ⟨oldRoot, oldType, Oold,
+        (Dold.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep,
+        HoldRoot, htype, ?_⟩
+      rw [hpush j hjOld]
+      exact hcallOld
+  · intro j hj
+    by_cases hilast : j = hypotheses.size
+    · subst j
+      refine ⟨root, sourceType, recLparams, Rroot, O.toMinor, D, Hroot, hup,
+        rfl, ?_⟩
+      rw [hlast, hcall]
+      rfl
+    · have hjOld : j < hypotheses.size := by
+        have : j < hypotheses.size + 1 := by simpa using hj
+        omega
+      rcases Hcalls.rooted j hjOld with
+        ⟨oldRoot, oldType, oldLparams, Rold, Oold, Dold, HoldRoot, hupOld,
+          htype, hcallOld⟩
+      refine ⟨oldRoot, oldType, oldLparams, Rold, Oold,
+        (Dold.pushArray (.fvar ⟨c.ngen.curr⟩)).mono hstep,
+        HoldRoot, hupOld, htype, ?_⟩
+      rw [hpush j hjOld]
+      exact hcallOld
 
 /-- Close a semantically typed motive application over the exact
 higher-order suffix traversed by `loopUArgs`.  This is the pointwise bridge

@@ -1501,6 +1501,7 @@ structure RecInfoCallBlueprintOrigins
     {sourceFullContext : AddInductive.Context}
     (origins : RecInfoMinorHypothesisTypeOrigins
       sourceFullContext fields hypotheses)
+    (allFields : Array Expr)
     (calls : Array AddInductive.RecCallBlueprint) : Prop where
   size_eq : calls.size = hypotheses.size
   entry : ∀ j (hj : j < hypotheses.size),
@@ -1521,6 +1522,33 @@ structure RecInfoCallBlueprintOrigins
               (mkAppN (.bvar O.args.size)
                 O.exposedType.getAppArgs[origins.stats.params.size:]).app
                   (mkAppN fields[j]! O.args) }
+  /-- The same producer witnesses as `entry`, additionally retaining the
+  recursor-context certificate of each call's `loopUArgs` root and the
+  up-set of the constructor fields (`allFields`) and common parameters in
+  it.  These are what a per-call `whnf` fact needs along the retained
+  `RecursorLoopUArgsPrefix`. -/
+  rooted : ∀ j (hj : j < hypotheses.size),
+    ∃ originRoot sourceType,
+      ∃ (recLparams : List Name)
+        (Rorigin : RecursorContextWF originRoot recLparams)
+        (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos
+          originRoot fields[j]! sourceType)
+        (D : BoundFVarDeclarationAt sourceFullContext hypotheses j),
+        BindingContextLE origins.fieldRoot originRoot ∧
+        IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds allFields ∨
+          fv ∈ ExprArrayFVarIds origins.stats.params) Rorigin.mlctx.vlctx ∧
+        D.type = sourceType.consumeTypeAnnotationsVerified ∧
+        calls[j]! = {
+          major := fields[j]!
+          args := O.args
+          lctx := O.current.lctx
+          targetTypeIdx := O.ownerIdx
+          targetIndices :=
+            O.exposedType.getAppArgs[origins.stats.params.size:]
+          template := O.current.lctx.mkLambda O.args <|
+            (mkAppN (.bvar O.args.size)
+              O.exposedType.getAppArgs[origins.stats.params.size:]).app
+                (mkAppN fields[j]! O.args) }
 
 /-- One executable rule blueprint is the exact product of its retained minor
 source shape. -/
@@ -1539,7 +1567,7 @@ def RecInfoRuleBlueprintOriginAt
         (AddInductive.getIIndices stats traversal.terminal).1 ∧
       B.targetIndices =
         (AddInductive.getIIndices stats traversal.terminal).2 ∧
-      RecInfoCallBlueprintOrigins origins B.recursiveCalls
+      RecInfoCallBlueprintOrigins origins S.fields B.recursiveCalls
 
 /-- Owner- and minor-indexed alignment between the executable rule blueprint
 rows and the independently retained first-pass minor origins.  A rule builder
@@ -4248,11 +4276,171 @@ def RecInfoTypeOrigins.addMinor
           hiTypes hdi]
       rw [horigin] at hj
       exact H.minorShapes i hiOld j hj
+/-! ### Retained `loopArgs1` traces
+
+`mkRecInfos.loopInd1` normalizes each family header with `whnf` and opens its
+parameter and index binders with `mkRecInfos.loopArgs1`, normalizing every
+instantiated body again.  The index declarations of the recursor context are
+domains of these `whnf` outputs.  The certificates below retain each such call
+together with the recursor-context certificate of the context it ran in, so
+that facts about the lifted `whnf` (for example preservation of a syntactic
+shape) apply along the trace. -/
+
+/-- One retained lifted `whnf` call of the recursor pass, run in a context
+`ctx` below `final`.  `P` is a free-variable up-set of the semantic context
+containing the input's free variables; its members satisfy `Q` and are
+variables of `ctx`. -/
+def RecursorWhnfCallAt (final : AddInductive.Context) (Q : FVarId → Prop)
+    (input output : Expr) : Prop :=
+  ∃ (ctx : AddInductive.Context) (recLparams : List Name)
+    (Rc : RecursorContextWF ctx recLparams) (P : FVarId → Prop)
+    (target : VExpr),
+    BindingContextLE ctx final ∧
+    TrExprS Rc.venv recLparams Rc.mlctx.vlctx input target ∧
+    IsFVarUpSet P Rc.mlctx.vlctx ∧
+    (∀ fv, P fv → Q fv ∧ fv ∈ ctx.lctx.fvars) ∧
+    input.FVarsIn P ∧
+    (monadLift (TypeChecker.whnf input) : AddInductive.M Expr) ctx = .ok output
+
+theorem RecursorWhnfCallAt.mono {final final' : AddInductive.Context}
+    {Q Q' : FVarId → Prop} {input output : Expr}
+    (H : RecursorWhnfCallAt final Q input output)
+    (hle : BindingContextLE final final') (hQ : ∀ fv, Q fv → Q' fv) :
+    RecursorWhnfCallAt final' Q' input output := by
+  obtain ⟨ctx, recLparams, Rc, P, target, hctx, htr, hup, hP, hin, hrun⟩ := H
+  exact ⟨ctx, recLparams, Rc, P, target, hctx.trans hle, htr, hup,
+    fun fv h => ⟨hQ fv (hP fv h).1, (hP fv h).2⟩, hin, hrun⟩
+
+/-- Exact successful prefix of `whnf header >>= loopArgs1 stats · 0 #[]`:
+the header normalization, the parameter steps (instantiating the cached
+parameters `stats.params`) and the index steps (opening a fresh index
+variable `x`, declared in `final` with the annotation-consumed domain). The
+`Nat` index is the number of parameters consumed, the `Expr` the current
+normalized type and the array the opened indices. -/
+inductive RecursorIndexTrace (stats : AddInductive.InductiveStats)
+    (final : AddInductive.Context) (header : Expr) :
+    Nat → Expr → Array Expr → Prop
+  | start {normalized : Expr}
+      (call : RecursorWhnfCallAt final (fun _ => False) header normalized) :
+      RecursorIndexTrace stats final header 0 normalized #[]
+  | param {i : Nat} {name : Name} {dom body normalized : Expr}
+      {bi : BinderInfo}
+      (previous : RecursorIndexTrace stats final header i
+        (.forallE name dom body bi) #[])
+      (hi : i < stats.params.size)
+      (call : RecursorWhnfCallAt final
+        (fun fv => fv ∈ ExprArrayFVarIds stats.params)
+        (body.instantiate1 stats.params[i]!) normalized) :
+      RecursorIndexTrace stats final header (i + 1) normalized #[]
+  | index {indices : Array Expr} {name : Name} {dom body normalized : Expr}
+      {bi : BinderInfo} {x : FVarId}
+      (previous : RecursorIndexTrace stats final header stats.params.size
+        (.forallE name dom body bi) indices)
+      (member : x ∈ final.lctx.fvars)
+      (declaration : ∃ index userName binderInfo kind,
+        final.lctx.find? x = some (.cdecl index x userName
+          dom.consumeTypeAnnotationsVerified binderInfo kind))
+      (call : RecursorWhnfCallAt final
+        (fun fv => fv ∈ ExprArrayFVarIds stats.params ∨
+          fv ∈ ExprArrayFVarIds (indices.push (.fvar x)))
+        (body.instantiate1 (.fvar x)) normalized) :
+      RecursorIndexTrace stats final header stats.params.size normalized
+        (indices.push (.fvar x))
+
+theorem RecursorIndexTrace.mono {stats : AddInductive.InductiveStats}
+    {final final' : AddInductive.Context} {header : Expr}
+    (hle : BindingContextLE final final') {i : Nat} {type : Expr}
+    {indices : Array Expr}
+    (H : RecursorIndexTrace stats final header i type indices) :
+    RecursorIndexTrace stats final' header i type indices := by
+  induction H with
+  | start call => exact .start (call.mono hle fun _ h => h)
+  | param _ hi call ih => exact .param ih hi (call.mono hle fun _ h => h)
+  | index _ member declaration call ih =>
+    obtain ⟨index, userName, binderInfo, kind, hfind⟩ := declaration
+    refine .index ih (hle.fvars member)
+      ⟨index, userName, binderInfo, kind, ?_⟩ (call.mono hle fun _ h => h)
+    rw [hle.declarations _ member]
+    exact hfind
+
+/-- Every family's index telescope was opened by a retained `loopArgs1`
+trace starting at the family header `indTypes[i].type`. -/
+def RecInfoIndexTraces (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType) (c : AddInductive.Context)
+    (recInfos : Array AddInductive.RecInfo) : Prop :=
+  ∀ i, i < recInfos.size → ∃ type,
+    RecursorIndexTrace stats c indTypes[i]!.type stats.params.size type
+      recInfos[i]!.indices
+
+theorem RecInfoIndexTraces.empty {stats : AddInductive.InductiveStats}
+    {indTypes : Array InductiveType} {c : AddInductive.Context} :
+    RecInfoIndexTraces stats indTypes c #[] := by
+  intro i hi
+  simp at hi
+
+theorem RecInfoIndexTraces.mono {stats : AddInductive.InductiveStats}
+    {indTypes : Array InductiveType} {c c' : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    (H : RecInfoIndexTraces stats indTypes c recInfos)
+    (hle : BindingContextLE c c') :
+    RecInfoIndexTraces stats indTypes c' recInfos := by
+  intro i hi
+  obtain ⟨type, T⟩ := H i hi
+  exact ⟨type, T.mono hle⟩
+
+theorem RecInfoIndexTraces.push {stats : AddInductive.InductiveStats}
+    {indTypes : Array InductiveType} {c : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    (H : RecInfoIndexTraces stats indTypes c recInfos)
+    (info : AddInductive.RecInfo) {type : Expr}
+    (T : RecursorIndexTrace stats c indTypes[recInfos.size]!.type
+      stats.params.size type info.indices) :
+    RecInfoIndexTraces stats indTypes c (recInfos.push info) := by
+  intro i hi
+  by_cases hlast : i = recInfos.size
+  · subst i
+    refine ⟨type, ?_⟩
+    simpa using T
+  · have hold : i < recInfos.size := by
+      simp only [Array.size_push] at hi
+      omega
+    have hget : (recInfos.push info)[i]! = recInfos[i]! := by
+      rw [getElem!_pos _ i hi, getElem!_pos _ i hold]
+      exact Array.getElem_push_lt hold
+    rw [hget]
+    exact H i hold
+
+/-- The traces only see the index arrays of the records. -/
+theorem RecInfoIndexTraces.congr {stats : AddInductive.InductiveStats}
+    {indTypes : Array InductiveType} {c : AddInductive.Context}
+    {left right : Array AddInductive.RecInfo}
+    (H : RecInfoIndexTraces stats indTypes c left)
+    (hsize : left.size = right.size)
+    (hindices : ∀ i, i < left.size → left[i]!.indices = right[i]!.indices) :
+    RecInfoIndexTraces stats indTypes c right := by
+  intro i hi
+  have hi' : i < left.size := by omega
+  rw [← hindices i hi']
+  exact H i hi'
+
+theorem RecInfoIndexTraces.modifyMinors {stats : AddInductive.InductiveStats}
+    {indTypes : Array InductiveType} {c : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    (H : RecInfoIndexTraces stats indTypes c recInfos)
+    (dIdx : Nat) (f : Array Expr → Array Expr) :
+    RecInfoIndexTraces stats indTypes c (recInfos.modify dIdx fun info =>
+      { info with minors := f info.minors }) := by
+  refine H.congr (by simp) fun i hi => ?_
+  by_cases hdi : dIdx = i
+  · subst i
+    rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hi]
+  · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi hdi]
+
 /-- Every retained minor shape names the concrete constructor list of its
 owning source family.  This is the final cross-pass provenance invariant:
 the second `mkRecInfos` traversal and rule generation may allocate different
 locals, but they replay the same owner-indexed constructor arrays. -/
-def RecInfoMinorSourceAlignment
+def RecInfoMinorSourceRows
     (stats : AddInductive.InductiveStats)
     (indTypes : Array InductiveType)
     (H : RecInfoTypeOrigins c recInfos) : Prop :=
@@ -4283,6 +4471,26 @@ def RecInfoMinorSourceAlignment
           BindingContextLE traversal.rootContext c ∧
           BindingContextLE traversal.terminalContext c ∧
           BindingContextLE S.sourceFullContext c
+
+/-- The cross-pass source alignment of a completed recursor construction: the
+minor rows (`RecInfoMinorSourceRows`) together with the retained `loopArgs1`
+traces of every family's index telescope (`RecInfoIndexTraces`). -/
+def RecInfoMinorSourceAlignment
+    (stats : AddInductive.InductiveStats)
+    (indTypes : Array InductiveType)
+    (H : RecInfoTypeOrigins c recInfos) : Prop :=
+  RecInfoMinorSourceRows stats indTypes H ∧
+    RecInfoIndexTraces stats indTypes c recInfos
+
+theorem RecInfoMinorSourceAlignment.rows
+    {H : RecInfoTypeOrigins c recInfos}
+    (A : RecInfoMinorSourceAlignment stats indTypes H) :
+    RecInfoMinorSourceRows stats indTypes H := A.1
+
+theorem RecInfoMinorSourceAlignment.traces
+    {H : RecInfoTypeOrigins c recInfos}
+    (A : RecInfoMinorSourceAlignment stats indTypes H) :
+    RecInfoIndexTraces stats indTypes c recInfos := A.2
 
 /-- Semantic counterpart of `RecInfoMinorSourceAlignment` for one retained
 minor.  The structural alignment remembers that the source context embeds in
@@ -4790,22 +4998,22 @@ theorem RecInfoMinorSemanticAlignment.addMinor
             parameterDecls) from
         ⟨HS.mono (Hext.trans Hstep)⟩)
 
-theorem RecInfoMinorSourceAlignment.ofEmpty
+theorem RecInfoMinorSourceRows.ofEmpty
     (H : RecInfoTypeOrigins c recInfos)
     (Hempty : RecInfoMinorsEmpty recInfos) :
-    RecInfoMinorSourceAlignment stats indTypes H := by
+    RecInfoMinorSourceRows stats indTypes H := by
   intro owner howner _ localIndex hlocal
   have hsize := (H.minors owner howner).size_eq
   rw [Hempty owner howner] at hsize
   omega
 
-theorem RecInfoMinorSourceAlignment.mono
+theorem RecInfoMinorSourceRows.mono
     {c c' : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
     {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment stats indTypes H)
+    (A : RecInfoMinorSourceRows stats indTypes H)
     (hle : BindingContextLE c c') :
-    RecInfoMinorSourceAlignment stats indTypes (H.mono hle) := by
+    RecInfoMinorSourceRows stats indTypes (H.mono hle) := by
   intro owner howner hsourceOwner localIndex hlocal
   rcases A owner howner hsourceOwner localIndex hlocal with
     ⟨horigin, hindex, hsource, hhypothesisOrigins,
@@ -4819,11 +5027,11 @@ theorem RecInfoMinorSourceAlignment.mono
     hroot.trans hle,
     hterminal.trans hle, hsourceContext.trans hle⟩
 
-theorem RecInfoMinorSourceAlignment.addMinor
+theorem RecInfoMinorSourceRows.addMinor
     {c cMinorTy : AddInductive.Context}
     {recInfos : Array AddInductive.RecInfo}
     {H : RecInfoTypeOrigins c recInfos}
-    (A : RecInfoMinorSourceAlignment stats indTypes H)
+    (A : RecInfoMinorSourceRows stats indTypes H)
     (dIdx : Nat) (hidx : dIdx < recInfos.size)
     (hsourceIdx : dIdx < indTypes.size)
     (hle : BindingContextLE c cMinorTy)
@@ -4855,7 +5063,7 @@ theorem RecInfoMinorSourceAlignment.addMinor
       BindingContextLE traversal.rootContext cMinorTy ∧
       BindingContextLE traversal.terminalContext cMinorTy ∧
       BindingContextLE Hshape.sourceFullContext cMinorTy) :
-    RecInfoMinorSourceAlignment stats indTypes
+    RecInfoMinorSourceRows stats indTypes
       (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
         Hshape HshapePosition) := by
   let cMinor : AddInductive.Context := { cMinorTy with
@@ -5037,6 +5245,67 @@ theorem RecInfoMinorSourceAlignment.addMinor
       mkRecInfos.loopCtors.getElemBang_modify_ne H.minorTypes dIdx owner
         (fun types => types.push minorTy) hownerTypes hdi] using
       Aextended owner hownerOld hsourceOwner localIndex hlocalOld
+
+theorem RecInfoMinorSourceAlignment.ofEmpty
+    (H : RecInfoTypeOrigins c recInfos)
+    (Hempty : RecInfoMinorsEmpty recInfos)
+    (Htraces : RecInfoIndexTraces stats indTypes c recInfos) :
+    RecInfoMinorSourceAlignment stats indTypes H :=
+  ⟨RecInfoMinorSourceRows.ofEmpty H Hempty, Htraces⟩
+
+theorem RecInfoMinorSourceAlignment.mono
+    {c c' : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    {H : RecInfoTypeOrigins c recInfos}
+    (A : RecInfoMinorSourceAlignment stats indTypes H)
+    (hle : BindingContextLE c c') :
+    RecInfoMinorSourceAlignment stats indTypes (H.mono hle) :=
+  ⟨A.rows.mono hle, A.traces.mono hle⟩
+
+theorem RecInfoMinorSourceAlignment.addMinor
+    {c cMinorTy : AddInductive.Context}
+    {recInfos : Array AddInductive.RecInfo}
+    {H : RecInfoTypeOrigins c recInfos}
+    (A : RecInfoMinorSourceAlignment stats indTypes H)
+    (dIdx : Nat) (hidx : dIdx < recInfos.size)
+    (hsourceIdx : dIdx < indTypes.size)
+    (hle : BindingContextLE c cMinorTy)
+    (HcMinorTy : BindingContextWF cMinorTy)
+    (minorName : Name) (minorTy : Expr) (minorBi : BinderInfo)
+    (Hshape : RecInfoMinorTypeShape)
+    (HshapePosition :
+      Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
+      Hshape.origin = minorTy)
+    (hsource : Hshape.sourceConstructors = indTypes[dIdx]!.ctors)
+    (hhypothesisOrigins : Hshape.HasHypothesisTypeOrigins stats recInfos)
+    (htraversal : ∃ traversal,
+      Hshape.traversal = some traversal ∧
+      traversal.constructor = Hshape.constructor ∧
+      traversal.fields = Hshape.fields ∧
+      traversal.recursiveFields = Hshape.recursiveFields ∧
+      traversal.stats = stats ∧
+      AddInductive.isValidIndApp? stats traversal.terminal = some
+        (AddInductive.getIIndices stats traversal.terminal).1 ∧
+      Hshape.motiveApp = (
+        let (motiveOwner, indices) :=
+          AddInductive.getIIndices stats traversal.terminal
+        Expr.app
+          (mkAppN recInfos[motiveOwner]!.motive indices)
+          (mkAppN
+            (mkAppN (.const Hshape.constructor.name stats.levels)
+              stats.params)
+            Hshape.fields)) ∧
+      BindingContextLE traversal.rootContext cMinorTy ∧
+      BindingContextLE traversal.terminalContext cMinorTy ∧
+      BindingContextLE Hshape.sourceFullContext cMinorTy) :
+    RecInfoMinorSourceAlignment stats indTypes
+      (H.addMinor dIdx hidx hle HcMinorTy minorName minorTy minorBi
+        Hshape HshapePosition) :=
+  ⟨A.rows.addMinor dIdx hidx hsourceIdx hle HcMinorTy minorName minorTy
+      minorBi Hshape HshapePosition hsource hhypothesisOrigins htraversal,
+    (A.traces.mono (hle.trans (BindingContextLE.withLocalDecl cMinorTy
+      HcMinorTy minorName minorTy minorBi))).modifyMinors dIdx
+      (fun minors => minors.push (.fvar ⟨cMinorTy.ngen.curr⟩))⟩
 
 private def recInfoMinorIds (info : AddInductive.RecInfo) : List FVarId :=
   ExprArrayFVarIds info.minors

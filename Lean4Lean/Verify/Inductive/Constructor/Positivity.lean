@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Header.LoopInd
+import Lean4Lean.Verify.ExprHitShape
 
 namespace Lean4Lean
 
@@ -2093,34 +2094,8 @@ Literal expansion and projection translation are explicit side conditions:
 literals introduce old primitive constants, while `TrProj` is still an
 independent typing boundary in the existing model. -/
 
-/-- Source-syntax absence of a set of constants.  This is deliberately an
-inductive judgment rather than a Boolean fold: the literal case records the
-expanded constructor syntax that `TrExprS.lit` actually translates. -/
-inductive _root_.Lean.Expr.AvoidsConsts (names : List Name) : Expr → Prop
-  | bvar (i) : AvoidsConsts names (.bvar i)
-  | fvar (fv) : AvoidsConsts names (.fvar fv)
-  | mvar (mv) : AvoidsConsts names (.mvar mv)
-  | sort (u) : AvoidsConsts names (.sort u)
-  | const (name levels) (fresh : name ∉ names) :
-      AvoidsConsts names (.const name levels)
-  | app (fn arg) : AvoidsConsts names fn → AvoidsConsts names arg →
-      AvoidsConsts names (.app fn arg)
-  | lam (name dom body bi) :
-      AvoidsConsts names dom → AvoidsConsts names body →
-      AvoidsConsts names (.lam name dom body bi)
-  | forallE (name dom body bi) :
-      AvoidsConsts names dom → AvoidsConsts names body →
-      AvoidsConsts names (.forallE name dom body bi)
-  | letE (name type value body nondep) :
-      AvoidsConsts names type → AvoidsConsts names value →
-      AvoidsConsts names body →
-      AvoidsConsts names (.letE name type value body nondep)
-  | lit (value) : AvoidsConsts names value.toConstructor →
-      AvoidsConsts names (.lit value)
-  | mdata (data body) : AvoidsConsts names body →
-      AvoidsConsts names (.mdata data body)
-  | proj (structName idx body) : AvoidsConsts names body →
-      AvoidsConsts names (.proj structName idx body)
+/- `Expr.AvoidsConsts` (source-syntax absence of a set of constants) is defined in
+`Lean4Lean/Verify/ExprHitShape.lean`. -/
 
 /-- Closing a free variable cannot introduce a constant name. -/
 theorem _root_.Lean.Expr.AvoidsConsts.abstract1

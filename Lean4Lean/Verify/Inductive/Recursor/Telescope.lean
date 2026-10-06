@@ -5479,6 +5479,15 @@ theorem BindingContextLE.refl (c : AddInductive.Context) :
     BindingContextLE c c :=
   ⟨fun _ => id, fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
 
+/-- Changing only the checker context keeps the binding context. -/
+theorem BindingContextLE.checkLCtx (c : AddInductive.Context) (l : LocalContext) :
+    BindingContextLE { c with checkLCtx := l } c :=
+  ⟨fun _ => id, fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
+
+theorem BindingContextLE.checkLCtx' (c : AddInductive.Context) (l : LocalContext) :
+    BindingContextLE c { c with checkLCtx := l } :=
+  ⟨fun _ => id, fun _ _ => rfl, rfl, rfl, rfl, rfl, rfl⟩
+
 theorem BindingContextLE.trans
     (H₁ : BindingContextLE c₁ c₂) (H₂ : BindingContextLE c₂ c₃) :
     BindingContextLE c₁ c₃ :=

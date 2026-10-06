@@ -398,22 +398,31 @@ theorem falseLeafLiftCompat :
   intro _ _ _ _ _ Hfalse
   exact False.elim Hfalse
 
-/-- The absolute nested leaf can be lifted below the common-parameter
-prefix.  The stronger cutoff premise is essential: the corresponding global
-`cutoff ≤ depth` statement is false. -/
-theorem VExpr.NestedExprExpansion.liftAbsolute
-    (H : VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
-      depth input output)
-    (cutoff : Nat) (Hcutoff : source.nparams + cutoff ≤ depth) :
-    VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+/-- Compatibility of a leaf relation with entering one additional concrete
+binder below a fixed prefix of `np` binders (the common parameters). -/
+def NestedExpansionLeafLiftAbove (np : Nat)
+    (leaf : Nat → VExpr → VExpr → Prop) : Prop :=
+  ∀ {depth source target} (cutoff : Nat),
+    np + cutoff ≤ depth →
+    leaf depth source target →
+    leaf (depth + 1) (source.liftN 1 cutoff) (target.liftN 1 cutoff)
+
+theorem nestedAuxiliarySourceAbsolute_liftAbove :
+    NestedExpansionLeafLiftAbove source.nparams
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated) :=
+  fun cutoff Hcutoff Hleaf =>
+    VInductDecl.NestedAuxiliarySourceAbsolute.liftFieldDepth Hleaf cutoff Hcutoff
+
+/-- An expansion whose leaves lift below a prefix of `np` binders can be
+lifted below that prefix. -/
+theorem VExpr.NestedExprExpansion.liftAbove
+    {leaf : Nat → VExpr → VExpr → Prop} (Hlift : NestedExpansionLeafLiftAbove np leaf)
+    (H : VExpr.NestedExprExpansion leaf depth input output)
+    (cutoff : Nat) (Hcutoff : np + cutoff ≤ depth) :
+    VExpr.NestedExprExpansion leaf
       (depth + 1) (input.liftN 1 cutoff) (output.liftN 1 cutoff) := by
   induction H generalizing cutoff with
-  | hit Hleaf =>
-    exact .hit
-      (VInductDecl.NestedAuxiliarySourceAbsolute.liftFieldDepth Hleaf cutoff
-        Hcutoff)
+  | hit Hleaf => exact .hit (Hlift cutoff Hcutoff Hleaf)
   | bvar => exact VExpr.NestedExprExpansion.refl _ _ _
   | sort => exact .sort
   | const => exact .const
@@ -435,16 +444,25 @@ theorem VExpr.NestedExprExpansion.liftAbsolute
       VExpr.NestedExprExpansion.forallE (ihDomain cutoff Hcutoff)
         (ihBody (cutoff + 1) (by omega))
 
-theorem NestedExpansionLookupCtx.vlamAbsolute
-    (Hctx : NestedExpansionLookupCtx
+/-- The absolute nested leaf can be lifted below the common-parameter
+prefix.  The stronger cutoff premise is essential: the corresponding global
+`cutoff ≤ depth` statement is false. -/
+theorem VExpr.NestedExprExpansion.liftAbsolute
+    (H : VExpr.NestedExprExpansion
       (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
-      depth sourceCtx targetCtx)
-    (Hbase : source.nparams ≤ depth)
-    (Htype : VExpr.NestedExprExpansion
+      depth input output)
+    (cutoff : Nat) (Hcutoff : source.nparams + cutoff ≤ depth) :
+    VExpr.NestedExprExpansion
       (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
-      depth sourceType targetType) :
-    NestedExpansionLookupCtx
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      (depth + 1) (input.liftN 1 cutoff) (output.liftN 1 cutoff) :=
+  VExpr.NestedExprExpansion.liftAbove nestedAuxiliarySourceAbsolute_liftAbove H cutoff Hcutoff
+
+theorem NestedExpansionLookupCtx.vlamAbove
+    {leaf : Nat → VExpr → VExpr → Prop} (Hlift : NestedExpansionLeafLiftAbove np leaf)
+    (Hctx : NestedExpansionLookupCtx leaf depth sourceCtx targetCtx)
+    (Hbase : np ≤ depth)
+    (Htype : VExpr.NestedExprExpansion leaf depth sourceType targetType) :
+    NestedExpansionLookupCtx leaf
       (depth + 1) ((ofv, .vlam sourceType) :: sourceCtx)
         ((ofv, .vlam targetType) :: targetCtx) := by
   intro var sourceValue sourceValueType targetValue targetValueType Hsource Htarget
@@ -463,8 +481,22 @@ theorem NestedExpansionLookupCtx.vlamAbsolute
     rcases Hsource with ⟨sourceValue', sourceType', Hsource', rfl, rfl⟩
     rcases Htarget with ⟨targetValue', targetType', Htarget', rfl, rfl⟩
     simpa [VLocalDecl.depth] using
-      (VExpr.NestedExprExpansion.liftAbsolute (Hctx Hsource' Htarget') 0
+      (VExpr.NestedExprExpansion.liftAbove Hlift (Hctx Hsource' Htarget') 0
         (by simpa using Hbase))
+
+theorem NestedExpansionLookupCtx.vlamAbsolute
+    (Hctx : NestedExpansionLookupCtx
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      depth sourceCtx targetCtx)
+    (Hbase : source.nparams ≤ depth)
+    (Htype : VExpr.NestedExprExpansion
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      depth sourceType targetType) :
+    NestedExpansionLookupCtx
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      (depth + 1) ((ofv, .vlam sourceType) :: sourceCtx)
+        ((ofv, .vlam targetType) :: targetCtx) :=
+  Hctx.vlamAbove nestedAuxiliarySourceAbsolute_liftAbove Hbase Htype
 
 theorem NestedExpansionLookupCtx.vlet
     (Hctx : NestedExpansionLookupCtx leaf depth sourceCtx targetCtx)
@@ -741,15 +773,17 @@ theorem TrExprS.forall₂_abstractExpansionRelational
         (ih HtargetTail)
 
 /-- Relational translation projection at an absolute constructor depth. -/
-theorem TrExprS.abstractExpansionAbsolute
+theorem TrExprS.abstractExpansionAbove
+    {source : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hlift : NestedExpansionLeafLiftAbove source.nparams leaf)
     (Hctx : NestedExpansionLookupCtx
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      leaf
       depth sourceCtx targetCtx)
     (Hbase : source.nparams ≤ depth)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx expr sourceTarget)
     (Htarget : TrExprS targetVEnv lparams targetCtx expr targetTarget) :
     VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      leaf
       depth sourceTarget targetTarget := by
   induction Hsource generalizing targetCtx targetTarget depth with
   | bvar HsourceLookup =>
@@ -777,13 +811,13 @@ theorem TrExprS.abstractExpansionAbsolute
     | lam _ HtargetDomain HtargetBody =>
       have Hdomain := ihDomain Hctx Hbase HtargetDomain
       exact .lam Hdomain
-        (ihBody (Hctx.vlamAbsolute Hbase Hdomain) (by omega) HtargetBody)
+        (ihBody (Hctx.vlamAbove Hlift Hbase Hdomain) (by omega) HtargetBody)
   | forallE _ _ HsourceDomain HsourceBody ihDomain ihBody =>
     cases Htarget with
     | forallE _ _ HtargetDomain HtargetBody =>
       have Hdomain := ihDomain Hctx Hbase HtargetDomain
       exact .forallE Hdomain
-        (ihBody (Hctx.vlamAbsolute Hbase Hdomain) (by omega) HtargetBody)
+        (ihBody (Hctx.vlamAbove Hlift Hbase Hdomain) (by omega) HtargetBody)
   | letE _ HsourceType HsourceValue HsourceBody ihType ihValue ihBody =>
     cases Htarget with
     | letE _ HtargetType HtargetValue HtargetBody =>
@@ -803,6 +837,45 @@ theorem TrExprS.abstractExpansionAbsolute
       cases HtargetProj
       exact .proj (ih Hctx Hbase HtargetBody)
 
+/-- `abstractExpansionAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
+theorem TrExprS.abstractExpansionAbsolute
+    (Hctx : NestedExpansionLookupCtx
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      depth sourceCtx targetCtx)
+    (Hbase : source.nparams ≤ depth)
+    (Hsource : TrExprS sourceVEnv lparams sourceCtx expr sourceTarget)
+    (Htarget : TrExprS targetVEnv lparams targetCtx expr targetTarget) :
+    VExpr.NestedExprExpansion
+      (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
+      depth sourceTarget targetTarget :=
+  TrExprS.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+    Hctx Hbase Hsource Htarget
+
+theorem TrExprS.forall₂_abstractExpansionAbove
+    {source : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hlift : NestedExpansionLeafLiftAbove source.nparams leaf)
+    (Hctx : NestedExpansionLookupCtx
+      leaf
+      depth sourceCtx targetCtx)
+    (Hbase : source.nparams ≤ depth)
+    (Hsource : List.Forall₂ (TrExprS sourceVEnv lparams sourceCtx)
+      concrete sourceTargets)
+    (Htarget : List.Forall₂ (TrExprS targetVEnv lparams targetCtx)
+      concrete targetTargets) :
+    List.Forall₂ (VExpr.NestedExprExpansion
+      leaf depth)
+      sourceTargets targetTargets := by
+  induction Hsource generalizing targetTargets with
+  | nil =>
+    cases Htarget
+    exact .nil
+  | cons HsourceHead _ ih =>
+    cases Htarget with
+    | cons HtargetHead HtargetTail =>
+      exact .cons
+        (TrExprS.abstractExpansionAbove Hlift Hctx Hbase HsourceHead HtargetHead)
+        (ih HtargetTail)
+
 theorem TrExprS.forall₂_abstractExpansionAbsolute
     (Hctx : NestedExpansionLookupCtx
       (VInductDecl.NestedAuxiliarySourceAbsolute env source generated)
@@ -814,17 +887,9 @@ theorem TrExprS.forall₂_abstractExpansionAbsolute
       concrete targetTargets) :
     List.Forall₂ (VExpr.NestedExprExpansion
       (VInductDecl.NestedAuxiliarySourceAbsolute env source generated) depth)
-      sourceTargets targetTargets := by
-  induction Hsource generalizing targetTargets with
-  | nil =>
-    cases Htarget
-    exact .nil
-  | cons HsourceHead _ ih =>
-    cases Htarget with
-    | cons HtargetHead HtargetTail =>
-      exact .cons
-        (TrExprS.abstractExpansionAbsolute Hctx Hbase HsourceHead HtargetHead)
-        (ih HtargetTail)
+      sourceTargets targetTargets :=
+  TrExprS.forall₂_abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+    Hctx Hbase Hsource Htarget
 
 /-- Pointwise expansion of an application spine lifts to expansion of the
 whole application.  The accumulator-general form follows the actual
@@ -1744,10 +1809,14 @@ theorem NestedExprMapping.abstractExpansionRelational
 lookups are supplied by the leaf-free opened telescope; once traversal enters
 constructor fields, lookup lifting is justified only below the common
 parameter prefix. -/
-theorem NestedExprMapping.abstractExpansionAbsolute
+theorem NestedExprMapping.abstractExpansionAbove
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    {lvls₀ : List Level}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
     (H : NestedExprMapping prodEnv lctx params As result input state out)
+    (hlvls : state.lvls = lvls₀)
     (Hctx : NestedExpansionLookupCtx
-      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      leaf
       depth sourceCtx targetCtx)
     (Hbase : sourceDecl.nparams ≤ depth)
     (Hselection : LocalForallSelection lctx As)
@@ -1763,7 +1832,7 @@ theorem NestedExprMapping.abstractExpansionAbsolute
       NestedReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
-        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+        leaf
         depth sourceCtx targetCtx →
       (selection : LocalForallSelection lctx As) →
       selection.fvars.Nodup →
@@ -1774,18 +1843,19 @@ theorem NestedExprMapping.abstractExpansionAbsolute
       input.FVarsIn (· ∈ selection.fvars) →
       TrExprS sourceVEnv lparams sourceCtx input sourceTarget →
       TrExprS targetVEnv lparams targetCtx output targetTarget →
-      VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated
+      state.lvls = lvls₀ →
+      leaf
         depth sourceTarget targetTarget)
     (Hsource : TrExprS sourceVEnv lparams sourceCtx input sourceTarget)
     (Htarget : TrExprS targetVEnv lparams targetCtx out.1 targetTarget) :
     VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      leaf
       depth sourceTarget targetTarget := by
   induction H generalizing sourceCtx targetCtx sourceTarget targetTarget depth
       fieldDepth with
   | hit Hnode =>
       exact .hit (Hhit Hnode Hctx Hselection HselectionNodup Harity Hdepth
-        HsourceParams Hparams Hscope Hsource Htarget)
+        HsourceParams Hparams Hscope Hsource Htarget hlvls)
   | bvar =>
     cases Hsource with
     | bvar HsourceLookup =>
@@ -1825,10 +1895,10 @@ theorem NestedExprMapping.abstractExpansionAbsolute
       cases Htarget' with
       | app _ _ HtargetFn HtargetArg =>
         exact .app
-          (ihFn Hctx Hbase Hdepth HsourceParams Hparams Hscope.1 HsourceFn
+          (ihFn hlvls Hctx Hbase Hdepth HsourceParams Hparams Hscope.1 HsourceFn
             HtargetFn)
-          (ihArg Hctx Hbase Hdepth HsourceParams Hparams Hscope.2 HsourceArg
-            HtargetArg)
+          (ihArg (Hfn.lvls.trans hlvls) Hctx Hbase Hdepth HsourceParams Hparams
+            Hscope.2 HsourceArg HtargetArg)
   | @lam name dom body bi state dom' domState body' outState Hnode Hdom
       Hbody ihDom ihBody =>
     have Htarget' : TrExprS targetVEnv lparams targetCtx
@@ -1839,10 +1909,11 @@ theorem NestedExprMapping.abstractExpansionAbsolute
       cases Htarget' with
       | lam _ HtargetDom HtargetBody =>
         simp only [Lean4Lean.FVarsIn] at Hscope
-        have HdomExpansion := ihDom Hctx Hbase Hdepth HsourceParams Hparams
+        have HdomExpansion := ihDom hlvls Hctx Hbase Hdepth HsourceParams Hparams
           Hscope.1 HsourceDom HtargetDom
         exact .lam HdomExpansion
-          (ihBody (Hctx.vlamAbsolute Hbase HdomExpansion) (by omega) (by omega)
+          (ihBody (Hdom.lvls.trans hlvls) (Hctx.vlamAbove Hlift Hbase HdomExpansion)
+            (by omega) (by omega)
             HsourceParams.vlam Hparams.vlam Hscope.2 HsourceBody HtargetBody)
   | @forallE name dom body bi state dom' domState body' outState Hnode Hdom
       Hbody ihDom ihBody =>
@@ -1854,10 +1925,11 @@ theorem NestedExprMapping.abstractExpansionAbsolute
       cases Htarget' with
       | forallE _ _ HtargetDom HtargetBody =>
         simp only [Lean4Lean.FVarsIn] at Hscope
-        have HdomExpansion := ihDom Hctx Hbase Hdepth HsourceParams Hparams
+        have HdomExpansion := ihDom hlvls Hctx Hbase Hdepth HsourceParams Hparams
           Hscope.1 HsourceDom HtargetDom
         exact .forallE HdomExpansion
-          (ihBody (Hctx.vlamAbsolute Hbase HdomExpansion) (by omega) (by omega)
+          (ihBody (Hdom.lvls.trans hlvls) (Hctx.vlamAbove Hlift Hbase HdomExpansion)
+            (by omega) (by omega)
             HsourceParams.vlam Hparams.vlam Hscope.2 HsourceBody HtargetBody)
   | @letE name type value body nondep state type' typeState value'
       valueState body' outState Hnode Htype Hvalue Hbody ihType ihValue ihBody =>
@@ -1869,11 +1941,12 @@ theorem NestedExprMapping.abstractExpansionAbsolute
       cases Htarget' with
       | letE _ HtargetType HtargetValue HtargetBody =>
         simp only [Lean4Lean.FVarsIn] at Hscope
-        have HtypeExpansion := ihType Hctx Hbase Hdepth HsourceParams Hparams
+        have HtypeExpansion := ihType hlvls Hctx Hbase Hdepth HsourceParams Hparams
           Hscope.1 HsourceType HtargetType
-        have HvalueExpansion := ihValue Hctx Hbase Hdepth HsourceParams Hparams
-          Hscope.2.1 HsourceValue HtargetValue
-        exact ihBody (Hctx.vlet HvalueExpansion) Hbase Hdepth
+        have HvalueExpansion := ihValue (Htype.lvls.trans hlvls) Hctx Hbase Hdepth
+          HsourceParams Hparams Hscope.2.1 HsourceValue HtargetValue
+        exact ihBody (Hvalue.lvls.trans (Htype.lvls.trans hlvls))
+          (Hctx.vlet HvalueExpansion) Hbase Hdepth
           HsourceParams.vlet Hparams.vlet Hscope.2.2 HsourceBody HtargetBody
   | @mdata data body state body' outState Hnode Hbody ihBody =>
     have Htarget' : TrExprS targetVEnv lparams targetCtx (.mdata data body')
@@ -1882,7 +1955,7 @@ theorem NestedExprMapping.abstractExpansionAbsolute
     | mdata HsourceBody =>
       cases Htarget' with
       | mdata HtargetBody =>
-        exact ihBody Hctx Hbase Hdepth HsourceParams Hparams Hscope HsourceBody
+        exact ihBody hlvls Hctx Hbase Hdepth HsourceParams Hparams Hscope HsourceBody
           HtargetBody
   | @proj structName index body state body' outState Hnode Hbody ihBody =>
     have Htarget' : TrExprS targetVEnv lparams targetCtx
@@ -1895,8 +1968,52 @@ theorem NestedExprMapping.abstractExpansionAbsolute
         cases HsourceProj
         cases HtargetProj
         exact .proj
-          (ihBody Hctx Hbase Hdepth HsourceParams Hparams Hscope HsourceBody
+          (ihBody hlvls Hctx Hbase Hdepth HsourceParams Hparams Hscope HsourceBody
             HtargetBody)
+
+/-- `abstractExpansionAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
+theorem NestedExprMapping.abstractExpansionAbsolute
+    (H : NestedExprMapping prodEnv lctx params As result input state out)
+    (Hctx : NestedExpansionLookupCtx
+      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      depth sourceCtx targetCtx)
+    (Hbase : sourceDecl.nparams ≤ depth)
+    (Hselection : LocalForallSelection lctx As)
+    (HselectionNodup : Hselection.fvars.Nodup)
+    (Harity : As.size = params.size)
+    (Hdepth : depth = Hselection.fvars.length + fieldDepth)
+    (HsourceParams : SelectedParameterTargets Hselection.fvars fieldDepth
+      sourceCtx)
+    (Hparams : SelectedParameterTargets Hselection.fvars fieldDepth targetCtx)
+    (Hscope : input.FVarsIn (· ∈ Hselection.fvars))
+    (Hhit : ∀ {input state output nextState finalState depth fieldDepth
+        sourceTarget targetTarget sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx params As input state output
+        nextState result finalState →
+      NestedExpansionLookupCtx
+        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+        depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceVEnv lparams sourceCtx input sourceTarget →
+      TrExprS targetVEnv lparams targetCtx output targetTarget →
+      VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated
+        depth sourceTarget targetTarget)
+    (Hsource : TrExprS sourceVEnv lparams sourceCtx input sourceTarget)
+    (Htarget : TrExprS targetVEnv lparams targetCtx out.1 targetTarget) :
+    VExpr.NestedExprExpansion
+      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      depth sourceTarget targetTarget :=
+  NestedExprMapping.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+    H rfl Hctx Hbase Hselection HselectionNodup Harity Hdepth HsourceParams Hparams Hscope
+    (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
+      Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
+    Hsource Htarget
 
 /-- Closing and reopening with the same duplicate-free fvar list is the
 identity.  This is the transparent list-facing cancellation theorem needed
@@ -1958,9 +2075,13 @@ source opening, the rebuilt target telescope, and the shared translated
 forall prefix determine the same opened residuals used by the operational
 mapping; the expression traversal can therefore be projected without an
 additional constructor-level semantic premise. -/
-theorem LoweredConstructorMapping.abstractExpansion
+theorem LoweredConstructorMapping.abstractExpansionAbove
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    {lvls₀ : List Level}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
     (Hmapping : LoweredConstructorMapping prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
+    (hlvls : state.lvls = lvls₀)
     (Hsource : TrSourceConstRaw sourceVEnv lparams sourceConcrete.name
       sourceConcrete.type sourceTarget)
     (Htarget : TrSourceConst targetVEnv lparams targetConcrete.name
@@ -1977,7 +2098,7 @@ theorem LoweredConstructorMapping.abstractExpansion
       NestedReplacementFinalTrace prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
-        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+        leaf
         depth sourceCtx targetCtx →
       (selection : LocalForallSelection lctx As) →
       selection.fvars.Nodup →
@@ -1988,11 +2109,12 @@ theorem LoweredConstructorMapping.abstractExpansion
       input.FVarsIn (· ∈ selection.fvars) →
       TrExprS sourceVEnv lparams sourceCtx input sourceValue →
       TrExprS targetVEnv lparams targetCtx output targetValue →
-      VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated
+      state.lvls = lvls₀ →
+      leaf
         depth sourceValue targetValue)
     :
     VInductDecl.NestedConstructorExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      leaf
       nparams sourceTarget targetTarget := by
   rcases Hmapping.mapped with
     ⟨lctx, tail, As, lowered, openedState, Hopening, _hlctxWF, Hselection,
@@ -2038,7 +2160,7 @@ theorem LoweredConstructorMapping.abstractExpansion
     rw [htargetResidual, htargetTelescopeResidual]
     exact Expr.reopenFVarsAt_self hnodup lowered 0
   have Hresidual : VExpr.NestedExprExpansion
-      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      leaf
       nparams Hopened.sourceResidualTarget Hopened.targetResidualTarget := by
     have HsourceResidualTranslation : TrExprS sourceVEnv lparams
         Hopened.sourceCtx tail Hopened.sourceResidualTarget := by
@@ -2046,9 +2168,10 @@ theorem LoweredConstructorMapping.abstractExpansion
     have HtargetResidualTranslation : TrExprS targetVEnv lparams
         Hopened.targetCtx lowered Hopened.targetResidualTarget := by
       simpa [htargetOpened] using Hopened.targetTranslation
-    have Hresidual' := Hbody.abstractExpansionAbsolute
+    have Hresidual' := Hbody.abstractExpansionAbove Hlift
       (sourceTarget := Hopened.sourceResidualTarget)
       (targetTarget := Hopened.targetResidualTarget)
+      (Hbody.lvls.symm.trans (Hmapping.lvls.trans hlvls))
       (NestedExpansionLookupCtx.ofFalse Hopened.contexts)
       (by simpa [hnparams]) Hselection hnodup
       (hsize.trans hparamsSize.symm)
@@ -2071,9 +2194,114 @@ theorem LoweredConstructorMapping.abstractExpansion
     type := Hopened.closeMap _
       (fun Hfalse => False.elim Hfalse) (by simpa using Hresidual) }
 
+/-- `abstractExpansionAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
+theorem LoweredConstructorMapping.abstractExpansion
+    (Hmapping : LoweredConstructorMapping prodEnv params nparams result
+      sourceConcrete state (targetConcrete, nextState))
+    (Hsource : TrSourceConstRaw sourceVEnv lparams sourceConcrete.name
+      sourceConcrete.type sourceTarget)
+    (Htarget : TrSourceConst targetVEnv lparams targetConcrete.name
+      targetConcrete.type targetTarget)
+    (HsourceEnvWF : sourceVEnv.WF)
+    (HtargetEnvWF : targetVEnv.WF)
+    (hparamsSize : params.size = nparams)
+    (hnparams : nparams = sourceDecl.nparams)
+    (HsourceClosed : sourceConcrete.type.FVarsIn fun _ => False)
+    (HsourceBVar : Closed sourceConcrete.type)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx params As input state output
+        nextState result finalState →
+      NestedExpansionLookupCtx
+        (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+        depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceVEnv lparams sourceCtx input sourceValue →
+      TrExprS targetVEnv lparams targetCtx output targetValue →
+      VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated
+        depth sourceValue targetValue)
+    :
+    VInductDecl.NestedConstructorExpansion
+      (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
+      nparams sourceTarget targetTarget :=
+  LoweredConstructorMapping.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+    Hmapping rfl Hsource Htarget HsourceEnvWF HtargetEnvWF hparamsSize hnparams HsourceClosed
+    HsourceBVar (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
+      Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
+
 /-- State threading is irrelevant after every exact constructor step has
 been projected: source and lowered translation lists become an ordered
 constructor expansion. -/
+theorem LoweredConstructorMappings.abstractExpansionsAbove
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    {lvls₀ : List Level}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
+    (Hmapping : LoweredConstructorMappings prodEnv params nparams result
+      sources state out)
+    (hlvls : state.lvls = lvls₀)
+    (Hsource : List.Forall₂ (fun source target =>
+      TrSourceConstRaw sourceVEnv lparams source.name source.type target)
+      sources sourceTargets)
+    (Htarget : List.Forall₂ (fun source target =>
+      TrSourceConst targetVEnv lparams source.name source.type target)
+      out.1 targetTargets)
+    (Hclosed : ∀ source ∈ sources,
+      source.type.FVarsIn fun _ => False)
+    (HbClosed : ∀ source ∈ sources, Closed source.type)
+    (HsourceEnvWF : sourceVEnv.WF)
+    (HtargetEnvWF : targetVEnv.WF)
+    (hparamsSize : params.size = nparams)
+    (hnparams : nparams = sourceDecl.nparams)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx params As input state output
+        nextState result finalState →
+      NestedExpansionLookupCtx
+        leaf
+        depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceVEnv lparams sourceCtx input sourceValue →
+      TrExprS targetVEnv lparams targetCtx output targetValue →
+      state.lvls = lvls₀ →
+      leaf
+        depth sourceValue targetValue)
+    :
+    List.Forall₂ (VInductDecl.NestedConstructorExpansion
+      leaf
+      nparams) sourceTargets targetTargets := by
+  induction Hmapping generalizing sourceTargets targetTargets with
+  | nil =>
+    cases Hsource
+    cases Htarget
+    exact .nil
+  | cons Hhead Htail ih =>
+    cases Hsource with
+    | cons HsourceHead HsourceTail =>
+      cases Htarget with
+      | cons HtargetHead HtargetTail =>
+        exact .cons
+          (Hhead.abstractExpansionAbove Hlift hlvls HsourceHead HtargetHead HsourceEnvWF
+            HtargetEnvWF hparamsSize hnparams (Hclosed _ (by simp))
+            (HbClosed _ (by simp)) Hhit)
+          (ih (Hhead.lvls.trans hlvls) HsourceTail HtargetTail (fun source hsource =>
+            Hclosed source (by simp [hsource])) (fun source hsource =>
+            HbClosed source (by simp [hsource])))
+
+/-- `abstractExpansionsAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
 theorem LoweredConstructorMappings.abstractExpansions
     (Hmapping : LoweredConstructorMappings prodEnv params nparams result
       sources state out)
@@ -2112,24 +2340,11 @@ theorem LoweredConstructorMappings.abstractExpansions
     :
     List.Forall₂ (VInductDecl.NestedConstructorExpansion
       (VInductDecl.NestedAuxiliarySourceAbsolute baseVEnv sourceDecl generated)
-      nparams) sourceTargets targetTargets := by
-  induction Hmapping generalizing sourceTargets targetTargets with
-  | nil =>
-    cases Hsource
-    cases Htarget
-    exact .nil
-  | cons Hhead Htail ih =>
-    cases Hsource with
-    | cons HsourceHead HsourceTail =>
-      cases Htarget with
-      | cons HtargetHead HtargetTail =>
-        exact .cons
-          (Hhead.abstractExpansion HsourceHead HtargetHead HsourceEnvWF
-            HtargetEnvWF hparamsSize hnparams (Hclosed _ (by simp))
-            (HbClosed _ (by simp)) Hhit)
-          (ih HsourceTail HtargetTail (fun source hsource =>
-            Hclosed source (by simp [hsource])) (fun source hsource =>
-            HbClosed source (by simp [hsource])))
+      nparams) sourceTargets targetTargets :=
+  LoweredConstructorMappings.abstractExpansionsAbove nestedAuxiliarySourceAbsolute_liftAbove
+    Hmapping rfl Hsource Htarget Hclosed HbClosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams
+    (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
+      Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
 
 /-- The constructor-independent fields of one nested family expansion.  This
 small carrier lets the exact lowering provenance discharge family metadata
@@ -2174,6 +2389,65 @@ theorem LoweredInductiveMapping.abstractHeaderExpansion
 
 /-- Family-level projection packages the exact header with the ordered
 constructor traversal. -/
+theorem LoweredInductiveMapping.abstractExpansionAbove
+    {decl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    {lvls₀ : List Level}
+    (Hlift : NestedExpansionLeafLiftAbove decl.nparams leaf)
+    (Hmapping : LoweredInductiveMapping prodEnv params nparams result
+      sourceConcrete state (targetConcrete, nextState))
+    (hlvls : state.lvls = lvls₀)
+    (Hsource : TrInductiveTypeHeaders headerVEnv sourceVEnv lparams sourceConcrete
+      sourceTarget)
+    (Htarget : TrInductiveType headerVEnv targetVEnv lparams targetConcrete
+      targetTarget)
+    (Hheader : NestedTypeExpansionHeader headerVEnv decl sourceTarget
+      targetTarget)
+    (Hclosed : InductiveConstructorsClosed sourceConcrete)
+    (HsourceEnvWF : sourceVEnv.WF)
+    (HtargetEnvWF : targetVEnv.WF)
+    (hparamsSize : params.size = nparams)
+    (hnparams : nparams = decl.nparams)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx params As input state output
+        nextState result finalState →
+      NestedExpansionLookupCtx
+        leaf
+        depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceVEnv lparams sourceCtx input sourceValue →
+      TrExprS targetVEnv lparams targetCtx output targetValue →
+      state.lvls = lvls₀ →
+      leaf
+        depth sourceValue targetValue)
+    :
+    VInductDecl.NestedTypeExpansion headerVEnv decl
+      leaf
+      sourceTarget targetTarget where
+  name := Hheader.name
+  uvars := Hheader.uvars
+  type := Hheader.type
+  numIndices := Hheader.numIndices
+  resultLevel := Hheader.resultLevel
+  constructors := by
+    have HbClosed : ∀ source ∈ sourceConcrete.ctors, Closed source.type := by
+      intro source hs
+      rcases Lean4Lean.List.Forall₂.forall_exists_l Hsource.ctors source hs with
+        ⟨target, _htarget, Htr⟩
+      have h := Htr.type.closed
+      simpa [VLCtx.bvars] using h
+    simpa only [hnparams] using
+      Hmapping.constructors.abstractExpansionsAbove Hlift hlvls Hsource.ctors Htarget.ctors
+        Hclosed HbClosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams Hhit
+
+/-- `abstractExpansionAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
 theorem LoweredInductiveMapping.abstractExpansion
     (Hmapping : LoweredInductiveMapping prodEnv params nparams result
       sourceConcrete state (targetConcrete, nextState))
@@ -2210,22 +2484,11 @@ theorem LoweredInductiveMapping.abstractExpansion
     :
     VInductDecl.NestedTypeExpansion headerVEnv decl
       (VInductDecl.NestedAuxiliarySourceAbsolute headerVEnv decl generated)
-      sourceTarget targetTarget where
-  name := Hheader.name
-  uvars := Hheader.uvars
-  type := Hheader.type
-  numIndices := Hheader.numIndices
-  resultLevel := Hheader.resultLevel
-  constructors := by
-    have HbClosed : ∀ source ∈ sourceConcrete.ctors, Closed source.type := by
-      intro source hs
-      rcases Lean4Lean.List.Forall₂.forall_exists_l Hsource.ctors source hs with
-        ⟨target, _htarget, Htr⟩
-      have h := Htr.type.closed
-      simpa [VLCtx.bvars] using h
-    simpa only [hnparams] using
-      Hmapping.constructors.abstractExpansions Hsource.ctors Htarget.ctors
-        Hclosed HbClosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams Hhit
+      sourceTarget targetTarget :=
+  LoweredInductiveMapping.abstractExpansionAbove nestedAuxiliarySourceAbsolute_liftAbove
+    Hmapping rfl Hsource Htarget Hheader Hclosed HsourceEnvWF HtargetEnvWF hparamsSize hnparams
+    (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
+      Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
 
 /-- Exact original-prefix specialization.  The source family remains at its
 original queue position; the independent source and production translations,
@@ -2580,6 +2843,128 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractExpansion
 /-- Complete original-prefix specialization.  All family and constructor
 ordering is now obtained from exact positional translations and the
 state-threaded lowering mapping. -/
+theorem NestedLoweringResultClosed.originalExpansionAtFreshAboveLvls
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
+      isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
+    (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
+      isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hsyntax : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (henv : sourceVEnv.WF)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+        output nextState result finalState →
+      NestedExpansionLookupCtx
+        leaf depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = result.params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceEnvTypes lparams sourceCtx input sourceValue →
+      TrExprS targetEnvTypes lparams targetCtx output targetValue →
+      state.lvls = initialState.lvls →
+      leaf
+        depth sourceValue targetValue)
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
+    ∃ hsourceDecl : familyIdx < sourceDecl.types.length,
+      ∃ htargetDecl : familyIdx < loweredDecl.types.length,
+      VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
+        leaf
+        (sourceDecl.types[familyIdx]'hsourceDecl)
+        (loweredDecl.types[familyIdx]'htargetDecl) := by
+  rcases H.originalHeaderExpansionAtFresh Hsource Htarget Hmetadata hempty henv
+      familyIdx hfamily with ⟨hsourceDecl, htargetDecl, Hheader⟩
+  have hresult : familyIdx < result.types.length :=
+    Nat.lt_of_lt_of_le hfamily H.toResult.sourceTypes_length_le
+  have hjInitial : familyIdx <
+      ({ initialState with
+        newTypes := sourceTypes.toArray }).newTypes.size := by
+    simpa using hfamily
+  rcases H with ⟨finalState, Hrun, Hcache, Hparams⟩
+  rcases Hrun.finalMappingAtInitialAlignedLvls
+      (Hrun.resultNamesNodupOfEmpty (by simpa using hempty)) hjInitial with
+    ⟨params, stepState, targetConcrete, loweredState, hresultParams,
+      _hsize, Hmapping, htarget, hstepLvls⟩
+  subst hresultParams
+  have H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result :=
+    ⟨finalState, Hrun, Hcache, Hparams⟩
+  obtain ⟨_hresult, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+  have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
+    Hsource familyIdx hfamily hsourceDecl
+  have HtargetType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
+    Htarget familyIdx hresult htargetDecl
+  rw [htargetEq] at HtargetType
+  have HsourceTypesWF : sourceEnvTypes.WF :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource henv
+  have HtargetTypesWF : targetEnvTypes.WF :=
+    Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget henv
+  have hparamsSize : result.params.size = nparams := by
+    rcases H with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
+    exact Hrun.resultParamsSize
+  exact ⟨hsourceDecl, htargetDecl,
+    Hmapping.abstractExpansionAbove Hlift hstepLvls
+      (Lean4Lean.VerifyInductive.TrInductiveType.headers HsourceType)
+      HtargetType Hheader
+      (Hsyntax.getElem familyIdx hfamily).constructors.closed
+      HsourceTypesWF HtargetTypesWF hparamsSize Hsource.nparams.symm Hhit⟩
+
+/-- `originalExpansionAtFreshAboveLvls` without the universe-argument premise. -/
+theorem NestedLoweringResultClosed.originalExpansionAtFreshAbove
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
+      isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
+    (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
+      isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hsyntax : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (henv : sourceVEnv.WF)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+        output nextState result finalState →
+      NestedExpansionLookupCtx
+        leaf depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = result.params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceEnvTypes lparams sourceCtx input sourceValue →
+      TrExprS targetEnvTypes lparams targetCtx output targetValue →
+      leaf
+        depth sourceValue targetValue)
+    (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
+    ∃ hsourceDecl : familyIdx < sourceDecl.types.length,
+      ∃ htargetDecl : familyIdx < loweredDecl.types.length,
+      VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
+        leaf
+        (sourceDecl.types[familyIdx]'hsourceDecl)
+        (loweredDecl.types[familyIdx]'htargetDecl) :=
+  H.originalExpansionAtFreshAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty henv
+    (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
+      Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt) familyIdx hfamily
+
+/-- `originalExpansionAtFreshAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
 theorem NestedLoweringResultClosed.originalExpansionAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
@@ -2619,37 +3004,117 @@ theorem NestedLoweringResultClosed.originalExpansionAtFresh
         (VInductDecl.NestedAuxiliarySourceAbsolute sourceVEnv sourceDecl
           generated)
         (sourceDecl.types[familyIdx]'hsourceDecl)
-        (loweredDecl.types[familyIdx]'htargetDecl) := by
-  rcases H.originalHeaderExpansionAtFresh Hsource Htarget Hmetadata hempty henv
-      familyIdx hfamily with ⟨hsourceDecl, htargetDecl, Hheader⟩
-  have hresult : familyIdx < result.types.length :=
-    Nat.lt_of_lt_of_le hfamily H.toResult.sourceTypes_length_le
-  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
-    ⟨_fvars, stepState, targetConcrete, loweredState, _hparams, _hnodup,
-      _hsize, Hmapping, htarget⟩
-  obtain ⟨_hresult, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
-  have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
-    Hsource familyIdx hfamily hsourceDecl
-  have HtargetType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
-    Htarget familyIdx hresult htargetDecl
-  rw [htargetEq] at HtargetType
-  have HsourceTypesWF : sourceEnvTypes.WF :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource henv
-  have HtargetTypesWF : targetEnvTypes.WF :=
-    Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget henv
-  have hparamsSize : result.params.size = nparams := by
-    rcases H with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
-    exact Hrun.resultParamsSize
-  exact ⟨hsourceDecl, htargetDecl,
-    Hmapping.abstractExpansion
-      (Lean4Lean.VerifyInductive.TrInductiveType.headers HsourceType)
-      HtargetType Hheader
-      (Hsyntax.getElem familyIdx hfamily).constructors.closed
-      HsourceTypesWF HtargetTypesWF hparamsSize Hsource.nparams.symm Hhit⟩
+        (loweredDecl.types[familyIdx]'htargetDecl) :=
+  NestedLoweringResultClosed.originalExpansionAtFreshAbove
+    nestedAuxiliarySourceAbsolute_liftAbove
+    H Hsource Htarget Hmetadata Hsyntax hempty henv Hhit familyIdx hfamily
 
 /-- Ordered expansion of the complete original source prefix.  This is the
 list-valued formation payload for the initial queue; no positional choice is
 left to the caller. -/
+theorem NestedLoweringResultClosed.originalExpansionsAboveLvls
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
+      isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
+    (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
+      isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hsyntax : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (henv : sourceVEnv.WF)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+        output nextState result finalState →
+      NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = result.params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceEnvTypes lparams sourceCtx input sourceValue →
+      TrExprS targetEnvTypes lparams targetCtx output targetValue →
+      state.lvls = initialState.lvls →
+      leaf depth sourceValue targetValue)
+    :
+    List.Forall₂
+      (VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
+        leaf)
+      sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) := by
+  have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
+  have htargetLength : loweredDecl.types.length = result.types.length :=
+    (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Htarget).symm
+  have hprefix : sourceDecl.types.length ≤ loweredDecl.types.length := by
+    rw [hsourceLength, htargetLength]
+    exact H.toResult.sourceTypes_length_le
+  apply List.forall₂_of_getElem (by simp [hprefix])
+  intro familyIdx hsourceDecl htargetDecl
+  have hfamily : familyIdx < sourceTypes.length := by
+    simpa [hsourceLength] using hsourceDecl
+  have htargetFull : familyIdx < loweredDecl.types.length :=
+    Nat.lt_of_lt_of_le hsourceDecl hprefix
+  have htargetEq :
+      (loweredDecl.types.take sourceDecl.types.length)[familyIdx] =
+        loweredDecl.types[familyIdx] := by
+    simp only [List.getElem_take]
+  rcases H.originalExpansionAtFreshAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty
+      henv Hhit familyIdx hfamily
+      with ⟨hsourceDecl', htargetDecl', Hfamily⟩
+  have hsourceProof : hsourceDecl' = hsourceDecl := Subsingleton.elim _ _
+  have htargetProof : htargetDecl' = htargetFull := Subsingleton.elim _ _
+  subst hsourceDecl'
+  subst htargetDecl'
+  simpa only [htargetEq] using Hfamily
+
+/-- `originalExpansionsAboveLvls` without the universe-argument premise. -/
+theorem NestedLoweringResultClosed.originalExpansionsAbove
+    {sourceDecl : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
+    (Hlift : NestedExpansionLeafLiftAbove sourceDecl.nparams leaf)
+    {initialState : Lean4Lean.ElimNestedInductive.State}
+    (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+      { initialState with newTypes := sourceTypes.toArray } result)
+    (Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
+      isUnsafe sourceDecl sourceEnvTypes sourceEnvCtors)
+    (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
+      isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
+    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
+    (Hsyntax : SourceSyntaxChecks sourceTypes)
+    (hempty : initialState.nestedAux = #[])
+    (henv : sourceVEnv.WF)
+    (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
+        {input state output nextState finalState depth fieldDepth sourceValue
+          targetValue sourceCtx targetCtx},
+      NestedReplacementFinalTrace prodEnv lctx result.params As input state
+        output nextState result finalState →
+      NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
+      (selection : LocalForallSelection lctx As) →
+      selection.fvars.Nodup →
+      As.size = result.params.size →
+      depth = selection.fvars.length + fieldDepth →
+      SelectedParameterTargets selection.fvars fieldDepth sourceCtx →
+      SelectedParameterTargets selection.fvars fieldDepth targetCtx →
+      input.FVarsIn (· ∈ selection.fvars) →
+      TrExprS sourceEnvTypes lparams sourceCtx input sourceValue →
+      TrExprS targetEnvTypes lparams targetCtx output targetValue →
+      leaf depth sourceValue targetValue)
+    :
+    List.Forall₂
+      (VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
+        leaf)
+      sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) :=
+  H.originalExpansionsAboveLvls Hlift Hsource Htarget Hmetadata Hsyntax hempty henv
+    (fun Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt _ =>
+      Hhit Htrace Hctx' sel nd ar dp hs ht hsc hsrc htgt)
+
+/-- `originalExpansionsAbove` at the formation leaf `NestedAuxiliarySourceAbsolute`. -/
 theorem NestedLoweringResultClosed.originalExpansions
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
@@ -2670,32 +3135,10 @@ theorem NestedLoweringResultClosed.originalExpansions
       (VInductDecl.NestedTypeExpansion sourceVEnv sourceDecl
         (VInductDecl.NestedAuxiliarySourceAbsolute sourceVEnv sourceDecl
           generated))
-      sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) := by
-  have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
-  have htargetLength : loweredDecl.types.length = result.types.length :=
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Htarget).symm
-  have hprefix : sourceDecl.types.length ≤ loweredDecl.types.length := by
-    rw [hsourceLength, htargetLength]
-    exact H.toResult.sourceTypes_length_le
-  apply List.forall₂_of_getElem (by simp [hprefix])
-  intro familyIdx hsourceDecl htargetDecl
-  have hfamily : familyIdx < sourceTypes.length := by
-    simpa [hsourceLength] using hsourceDecl
-  have htargetFull : familyIdx < loweredDecl.types.length :=
-    Nat.lt_of_lt_of_le hsourceDecl hprefix
-  have htargetEq :
-      (loweredDecl.types.take sourceDecl.types.length)[familyIdx] =
-        loweredDecl.types[familyIdx] := by
-    simp only [List.getElem_take]
-  rcases H.originalExpansionAtFresh Hsource Htarget Hmetadata Hsyntax hempty
-      henv generated Hhit familyIdx hfamily
-      with ⟨hsourceDecl', htargetDecl', Hfamily⟩
-  have hsourceProof : hsourceDecl' = hsourceDecl := Subsingleton.elim _ _
-  have htargetProof : htargetDecl' = htargetFull := Subsingleton.elim _ _
-  subst hsourceDecl'
-  subst htargetDecl'
-  simpa only [htargetEq] using Hfamily
+      sourceDecl.types (loweredDecl.types.take sourceDecl.types.length) :=
+  NestedLoweringResultClosed.originalExpansionsAbove
+    nestedAuxiliarySourceAbsolute_liftAbove
+    H Hsource Htarget Hmetadata Hsyntax hempty henv Hhit
 
 /-- The trace-local source translation retained for the dynamically generated
 suffix.  This is deliberately weaker than a formation provider: at each exact

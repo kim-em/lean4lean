@@ -380,6 +380,7 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams } cOut ->
       recInfos.size = indTypes.size ->
+      RecInfoIndexTraces stats indTypes cOut recInfos ->
       (k recInfos cOut).WF Q) :
     (AddInductive.mkRecInfos.loopInd1 stats indTypes elimLevel 0 #[] k
       { c with
@@ -444,11 +445,11 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
         env := ctorEnv
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams })
-      Hbase HparamsBase rfl rfl (BindingContextLE.refl _)) ?_
+      Hbase HparamsBase rfl rfl (BindingContextLE.refl _)) RecInfoIndexTraces.empty ?_
   intro cOut outDepth recInfos Rout henvOut HsuffixOut hparameterDeclsOut
     HstatsOut Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes
     HmotiveShapes Htelescopes HindexRows HparamsOut HnoAlias Horder Harities
-    Hempty Hblueprints Hroot hsize
+    Hempty Hblueprints Hroot hsize HindexTraces
   have Hroot' : BindingContextLE { c with
       env := ctorEnv
       typeCheckerLParams := some <|
@@ -459,7 +460,7 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
   apply Hk recInfos Rout henvOut HsuffixOut hparameterDeclsOut HstatsOut
     Hbindings Horigins HmajorTypes HmajorShapes HmotiveTypes HmotiveShapes (by
       simpa [hparameterDeclsOut] using Htelescopes) HindexRows HparamsOut
-    HnoAlias Horder Harities Hempty Hblueprints Hroot'
+    HnoAlias Horder Harities Hempty Hblueprints Hroot' ?_ HindexTraces
   simpa using hsize
 
 theorem CompletedConstructorPhases.mkRecInfosWF
@@ -527,7 +528,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
     HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
     HmotiveShapesFrames HtelescopesFrames HindexRowsFrames HparamsFrames
     HnoAliasFrames HorderFrames HaritiesFrames HemptyFrames
-    HblueprintCountsFrames HrootFrames hsizeFrames
+    HblueprintCountsFrames HrootFrames hsizeFrames HindexTracesFrames
   have hrecordsFrames : recInfos.size = stats.indConsts.size := by
     calc
       recInfos.size = indTypes.size := hsizeFrames
@@ -549,7 +550,8 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       HblueprintCountsFrames)
     (RecInfoRuleBlueprintSemanticOrigins.ofEmpty Rframes decl HoriginsFrames
       HemptyFrames HblueprintCountsFrames elimLevel)
-    (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames)
+    (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames
+      HindexTracesFrames)
     (RecInfoMinorSemanticAlignment.ofEmpty
       (parameterDecls := HsuffixFrames.parameterDecls)
       Rframes HoriginsFrames HemptyFrames)

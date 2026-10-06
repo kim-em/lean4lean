@@ -106,7 +106,7 @@ theorem CompletedRecursorConstruction.constructorConsumedSource
   have hclosed := HS.semantic.traversal.decisions.consumeForallTypes
     HS.semantic.rootWF.toBindingContextWF hsource hsourceBVar
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, _, hvalid, _⟩ :=
-    H.minorSources owner howner (by rwa [← H.sourceFamilyCount]) localIndex hlocal
+    H.minorSources.rows owner howner (by rwa [← H.sourceFamilyCount]) localIndex hlocal
   have heq : traversal = HS.semantic.traversal :=
     Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
   rw [heq] at hvalid
