@@ -145,6 +145,66 @@ theorem CertifiedSpecializations.container_ctor (H : CertifiedSpecializations en
       · exact ih a ha ctor hctor)
     H
 
+/-- The family head of a constructor's owner is either an original family,
+which then contains the restored constructor, or the family of a certified
+container constructor whose native equation is already installed in the
+base environment. -/
+theorem InductiveSignature.CompilationData.family_head_origin
+    {s : InductiveSignature} {g : s.Instance}
+    (hdata : InductiveSignature.CompilationData base source expanded s g auxiliaries block)
+    (hprior : CertifiedSpecializations base auxiliaries) (index : Fin s.constructors.size) :
+    (∃ family ∈ source.types, s.families[s.constructors[index].owner].name = family.name ∧
+      (InductiveSignature.compilationRestoration source auxiliaries).headName family.name =
+        family.name ∧
+      ∃ fc ∈ family.ctors, (InductiveSignature.compilationRestoration source auxiliaries).headName
+        s.constructors[index].name = fc.name) ∨
+    ∃ (ctor : VConstVal) (equation : VDefEq), base.defeqs equation ∧
+      equation.HasConstructorMajor ctor.name ∧
+      base.constants ctor.name = some ctor.toVConstant ∧
+      ∃ ls, ctor.type.forallResult.getAppFnArgs.1 =
+        .const ((InductiveSignature.compilationRestoration source auxiliaries).headName
+          s.families[s.constructors[index].owner].name) ls := by
+  open InductiveSignature in
+  obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := hdata.correspondence
+  obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l
+    hfamilies _ (s.declarationFamily_mem s.constructors[index].owner)
+  have hname : s.families[s.constructors[index].owner].name = family.name := hrel.name
+  have hdc := s.declarationCtor_family index
+  obtain ⟨fc, hfc, hrelctor⟩ := Lean4Lean.List.Forall₂.forall_exists_l hrel.constructors _ hdc
+  rcases List.mem_append.mp hfamily with hsrc | hdir
+  · left
+    have hfn : family.name ∈ familyNames source.types :=
+      List.mem_flatMap.mpr ⟨family, hsrc, List.mem_cons_self⟩
+    have hcn : fc.name ∈ familyNames source.types :=
+      List.mem_flatMap.mpr ⟨family, hsrc, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨fc, hfc, rfl⟩)⟩
+    have hcname : s.constructors[index].name = fc.name := hrelctor.1
+    refine ⟨family, hsrc, hname, hdata.headName_source hfn, fc, hfc, ?_⟩
+    rw [hcname]; exact hdata.headName_source hcn
+  · right
+    rw [hname]
+    obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
+      (List.mapM_eq_some.mp hdirect) family hdir
+    obtain ⟨spec, hspec, hsa, hst⟩ : ∃ spec ∈ (compilationRestoration source auxiliaries).heads,
+        spec.auxiliary = a.auxiliary ∧ spec.target = a.source.name :=
+      ⟨_, List.mem_flatMap.mpr ⟨a, ha, by
+        unfold ContainerSpecialization.heads; exact List.mem_cons_self⟩, rfl, rfl⟩
+    have hhead : (compilationRestoration source auxiliaries).headName family.name =
+        a.source.name := by
+      rw [ContainerSpecialization.directFamily_name hdf, ← hsa, ← hst]
+      exact Restoration.headName_of_mem hdata.restorationScoped hspec
+    rw [hhead]
+    have hpos : 0 < family.ctors.length := List.length_pos_of_mem hfc
+    have hnames' := CaseSchema.directFamily_restored_constructor_names hdata ha hdf
+    have hpos' : 0 < a.source.ctors.length := by
+      have := congrArg List.length hnames'
+      simp only [List.length_map] at this
+      omega
+    obtain ⟨cctor, hcctor⟩ := List.exists_mem_of_length_pos hpos'
+    obtain ⟨equation, hdefeq, fn, levels, args, hmaj⟩ :=
+      hprior.constructor_equation a ha cctor hcctor
+    obtain ⟨hconst, hres⟩ := hprior.container_ctor a ha cctor hcctor
+    exact ⟨cctor, equation, hdefeq, ⟨fn, levels, args, hmaj⟩, hconst, hres⟩
+
 /-- The family head selected by a generated case rule is either an original
 family or the family of a certified container constructor whose native
 equation is already installed in the base environment. -/
@@ -166,45 +226,14 @@ theorem InductiveSignature.CaseSchema.Certified.family_head_origin
   let original : Fin schema.signature.constructors.size := ⟨position, by simpa using hposition⟩
   have hoeq : schema.signature.constructors[original] = ctor := by
     simpa only [original, Fin.getElem_fin, Array.getElem_toList] using hget
-  obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := hdata.correspondence
-  obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l
-    hfamilies _ (schema.signature.declarationFamily_mem owner)
-  have hname : schema.signature.families[owner].name = family.name := hrel.name
-  rw [hr, hname]
-  rcases List.mem_append.mp hfamily with hsrc | hdir
+  have hown' : schema.signature.constructors[original].owner = owner := by rw [hoeq]; exact hown
+  rw [hr, ← hown']
+  rcases hdata.family_head_origin hprior original with
+    ⟨family, hsrc, hfn, hhn, _⟩ | h
   · left
-    have hfn : family.name ∈ familyNames source.types :=
-      List.mem_flatMap.mpr ⟨family, hsrc, List.mem_cons_self⟩
-    rw [hdata.headName_source hfn, hnames]
+    rw [hfn, hhn, hnames]
     exact List.mem_map.mpr ⟨family, hsrc, rfl⟩
-  · right
-    obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
-      (List.mapM_eq_some.mp hdirect) family hdir
-    obtain ⟨spec, hspec, hsa, hst⟩ : ∃ spec ∈ (compilationRestoration source auxiliaries).heads,
-        spec.auxiliary = a.auxiliary ∧ spec.target = a.source.name :=
-      ⟨_, List.mem_flatMap.mpr ⟨a, ha, by
-        unfold ContainerSpecialization.heads; exact List.mem_cons_self⟩, rfl, rfl⟩
-    have hhead : (compilationRestoration source auxiliaries).headName family.name =
-        a.source.name := by
-      rw [ContainerSpecialization.directFamily_name hdf, ← hsa, ← hst]
-      exact Restoration.headName_of_mem hdata.restorationScoped hspec
-    rw [hhead]
-    have hown' : schema.signature.constructors[original].owner = owner := by rw [hoeq]; exact hown
-    have hdc := schema.signature.declarationCtor_family original
-    rw [hown'] at hdc
-    have hlen := Lean4Lean.List.Forall₂.length_eq hrel.constructors
-    have hpos : 0 < family.ctors.length := by
-      rw [← hlen]; exact List.length_pos_of_mem hdc
-    have hnames' := directFamily_restored_constructor_names hdata ha hdf
-    have hpos' : 0 < a.source.ctors.length := by
-      have := congrArg List.length hnames'
-      simp only [List.length_map] at this
-      omega
-    obtain ⟨cctor, hcctor⟩ := List.exists_mem_of_length_pos hpos'
-    obtain ⟨equation, hdefeq, fn, levels, args, hmaj⟩ :=
-      hprior.constructor_equation a ha cctor hcctor
-    obtain ⟨hconst, hres⟩ := hprior.container_ctor a ha cctor hcctor
-    exact ⟨cctor, equation, hdefeq, ⟨fn, levels, args, hmaj⟩, hconst, hres⟩
+  · exact .inr h
 
 namespace VEnv
 

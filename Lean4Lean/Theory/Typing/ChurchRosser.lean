@@ -49,6 +49,8 @@ class Params where
   Both large-elimination paths exclude zero-source computation here. -/
   pat_recursor : Pat (SimplePattern.iota recursor major ctor fields).toPattern r →
     (∃ data, NativeRecursorRegistered env data ∧ data.name = recursor ∧ data.majorOffset = major ∧ recursorData recursor = some data ∧
+      (∃ index : Fin data.schema.signature.constructors.size,
+        data.schema.signature.constructors[index].owner = data.owner) ∧
       (data.largeTarget = true → ∃ rest,
         r.2 = .nonzero (data.schema.sourceLevel data.owner data.levels) rest)) ∨
     (QuotRegistered env ∧ recursor = ``Quot.lift ∧ major = 5 ∧ ctor = ``Quot.mk ∧ fields = 3 ∧

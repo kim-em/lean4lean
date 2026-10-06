@@ -8,6 +8,7 @@ import Lean4Lean.Theory.Typing.NativePrefixSpecialization
 import Lean4Lean.Theory.Typing.ProjectionIndexBound
 import Lean4Lean.Theory.Typing.ProjectionProofResult
 import Lean4Lean.Theory.Typing.PatternCaptures
+import Lean4Lean.Theory.Typing.NativeMajorFamily
 
 /-! The native/schema parallel calculus is the core of this presentation.
 Checked singleton and quotient prefixes extend it with declaration-generated
@@ -1192,6 +1193,48 @@ theorem MatchedCaseStep.major_not_pi {E : VEnv} {U : Nat} (hE : E.WF)
     have ⟨_, hsort⟩ := hmajor.isType hE.ordered hΓ
     exact IsDefEqU.rigidApp_forallE_inv hE hΓ hrigid hsort (hmajor.uniqU hE hΓ hpi)
 
+/-- The major of a matched native iota redex is never a function. -/
+theorem Params.major_not_pi (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
+    (hm : p.Matches (.app F M) m1 m2) (ht : HasType env univs Γ (.app F M) T) :
+    ¬ HasType env univs Γ M (.forallE A B) := by
+  obtain ⟨sp, rfl⟩ := Params.pat_simple hp
+  cases sp with
+  | defn c => cases hm
+  | iota rc mr cc kc =>
+    obtain ⟨F', M', lsc, g1, g2, hF, hM, hFe, hMe⟩ :
+        ∃ F' M' lsc g1 g2, ((Pattern.const rc).varN mr).Matches F' m1 g1 ∧
+          ((Pattern.const cc).varN kc).Matches M' lsc g2 ∧ F = F' ∧ M = M' := by
+      cases hm with | app hF hM => exact ⟨_, _, _, _, _, hF, hM, rfl, rfl⟩
+    subst hFe hMe
+    have hFeq := hF.const_arguments
+    have hMeq := hM.const_arguments
+    rcases Params.pat_recursor hp with
+      ⟨data, hreg, hname, hoff, _, ⟨index, hown⟩, _⟩ |
+      ⟨hr, rfl, rfl, rfl, rfl, _⟩
+    · subst hname
+      rw [hFeq] at ht
+      exact NativeRecursorRegistered.major_not_pi henv hΓ hreg index hown ht
+        (by simp [Pattern.argumentRHS_length, hoff])
+    · intro hpi
+      rw [hFeq] at ht
+      generalize hxs : List.map _ _ = xs at ht
+      have hxl : xs.length = 5 := by rw [← hxs]; simp [Pattern.argumentRHS_length]
+      match xs, hxl with
+      | [a, b, c, d, e], _ =>
+      have hWF : VExpr.WF env univs Γ
+          (VExpr.mkApps (.const ``Quot.lift m1) [a, b, c, d, e, M]) := ⟨_, ht⟩
+      obtain ⟨_, hc⟩ := VExpr.WF.of_mkApps henv.ordered hΓ hWF
+      obtain ⟨ci, hci, hw, hl⟩ := HasType.const_inv henv.ordered hΓ hc
+      rw [hr.lift] at hci
+      cases hci
+      change m1.length = 2 at hl
+      obtain ⟨u, v, rfl⟩ : ∃ u v, m1 = [u, v] := by
+        rcases m1 with _ | ⟨u, _ | ⟨v, _ | _⟩⟩ <;> simp_all
+      have hM := QuotRegistered.major_type henv hΓ hr (hw u (by simp)) (hw v (by simp)) hWF
+      have ⟨_, hsort⟩ := hM.isType henv.ordered hΓ
+      exact IsDefEqU.rigidApp_forallE_inv henv hΓ (hr.quot_rigid henv) hsort
+        (hM.uniqU henv hΓ hpi)
+
 /-- Separation facts at the major premise of a matched native iota or
 generated case redex. They are properties of the installed recursors and
 their checks: the major lives in an inductive family, so it is never a
@@ -1199,11 +1242,6 @@ function, and a native proof major only matches when the recursor's motive
 is propositional (the generated-case analogue of the latter is proved, see
 `MatchedCaseStep.result_prop_of_major_proof`). -/
 class HeadSeparation : Prop where
-  /-- The major premise of a matched native redex is not a function. This is
-  an instance of rigid-family/Pi separation (an injectivity-class fact). -/
-  not_pi : OnCtx Γ (env.IsType univs) → Pat p r → p.Matches (.app F M) m1 m2 →
-    r.2.OK (IsDefEqU env univs Γ) m1 m2 → Γ ⊢ .app F M : T →
-    ¬ Γ ⊢ M : .forallE A B
   /-- A matched native redex with a proof major is itself a proof. Small
   eliminators target Prop; large ones carry a nonzero source-level check. -/
   proof_major : OnCtx Γ (env.IsType univs) → Pat p r → p.Matches (.app F M) m1 m2 →
@@ -1588,7 +1626,7 @@ theorem SpineTransport.native_iota [HeadSeparation]
       obtain ⟨_, hcc⟩ := schema_mkApps_head_type hΓ hty
       have hMℓ' := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
       have hpi := hty.defeqU_l henv hΓ (hMℓ'.defeq hΓ)
-      exact HeadSeparation.not_pi hΓ hp hEℓ hcℓ hEt hpi
+      exact Params.major_not_pi hΓ hp hEℓ hEt hpi
   have fire' : ∀ {ρ Γ' ls₁ vs₁ M₁ T Tℓ}, OnCtx Γ' (env.IsType univs) → Ctx.Lift' ρ Γ Γ' →
       List.Forall₂ (· ≈ ·) ls₁ m1 → List.Forall₂ (NormalEq Γ') vs₁ (vsF.map (·.lift' ρ)) →
       NormalEq Γ' M₁ ((VExpr.mkApps (.const cc lsc) fsM).lift' ρ) →
