@@ -741,6 +741,19 @@ inside this project's scope without solving open base metatheory:
    (`Nested/FinalModelDispatch.lean`) and must be threaded into
    `assemblyNative`'s signature at wiring time. Remaining for the nested
    junction: `HruleShape` and the `HauxRecNames` residue.
+   **Collision finding (bb40f64, Nested/AuxRecNames.lean):** in the
+   pathological case of a source family named `_nested.i.x` with a container
+   constructor `J.x.rec_k`, the auxiliary constructor name EQUALS the renamed
+   recursor name `Main.rec_k`, so freshness of all restorable names in the
+   final base environment is false; the restoration itself still agrees with
+   the executable (the aux constructor is restored before the renamed
+   recursor is interpreted). The commutation is generalized to freshness
+   outside an avoided set `X` plus input-side `HitTrailAvoids`/
+   `LamPrefixAvoids`; the assembly interface is being switched to these
+   modulo forms, with the residue `LoweredRulesAvoid E heads X` (lowered
+   rules' hit trailing arguments and parameter domains avoid the renamed
+   names) to be discharged from the checker's hit-shape invariant (aux
+   constructor names never occur in index expressions or parameter domains).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
