@@ -207,7 +207,7 @@ theorem ContextWF.ConsumedDomain.proof_of_largeEliminationCheck
       Hnext.mlctx.vlctx.toCtx := .zero [consumed'] rfl
   have Hbase : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
       source' (.sort .zero) :=
-    (VEnv.HasType.weakN_iff Hc.checking.tr.wf Hnext.mlctx_wf.tr.wf.toCtx Wctx).mp Hprop
+    (VEnv.HasType.weakN_iff Hc.checking.tr.wf Hc.strengthening Hnext.mlctx_wf.tr.wf.toCtx Wctx).mp Hprop
   rcases Hdom.source_defeq with ⟨u, Hu⟩
   exact Hbase.defeqU_l Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx ⟨_, Hu⟩
 

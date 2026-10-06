@@ -139,7 +139,7 @@ theorem checkClosedType.rawSourceTranslationWF (Hc : ContextWF c) :
     have hsourceFVars :
         type.FVarsIn (fun fv => fv ∈ VLCtx.fvars ([] : VLCtx)) := by
       simpa [VLCtx.fvars] using hclosed
-    rcases Htyping.2.1.weakFV'_inv Hc.checking.tr.wf
+    rcases Htyping.2.1.weakFV'_inv Hc.checking.tr.wf Hc.strengthening
         (VLCtx.FVLift'.from_nil Hc.mlctx.noBV)
         (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
         hsourceClosed hsourceFVars with ⟨typeTarget, HtypeTarget⟩

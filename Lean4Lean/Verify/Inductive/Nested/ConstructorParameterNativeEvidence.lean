@@ -153,7 +153,7 @@ theorem NestedExactFinalRunResult.nativeRestoredConstructorParameterDomains
       sourceTypes[familyIdx].ctors[ctorIdx].type 0
       sourceTypes[familyIdx].ctors[ctorIdx].type [] [] := .zero
   rcases HopeningResult.validateRestoredConstructorPrefix E.production.stats
-      hvalidationValid hresultLCtxWF hresultFresh .nil rfl trivial nofun
+      hvalidationValid hs hresultLCtxWF hresultFresh .nil rfl trivial nofun
       HfirstTranslation HconstructorTranslation HprefixZero hparameterRun with
     ⟨parameterMLCtx, constructorTail, constructorSourceDomains,
       nativeFamilyDomains, nativeFamilyTail, hparameterLCtx,

@@ -820,7 +820,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
                   (canonicalMajor.lift' Hruntime.shift) := by
                 simpa [hcanonicalMajor] using HmajorExpanded
               have HcanonicalNarrow :=
-                (VEnv.IsType.weak'_iff Rindices.checking.tr.wf
+                (VEnv.IsType.weak'_iff Rindices.checking.tr.wf Rindices.strengthening
                   Hruntime.context.wf.toCtx Hruntime.lift.toCtx).1
                     HcanonicalExpanded
               simpa [Rmotive, Rmajor, Hsynthesis.scopeCtx,

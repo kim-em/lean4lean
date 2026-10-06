@@ -636,6 +636,54 @@ structure TrInductDeclConstructors (envTypes : VEnv) (lparams : List Name)
       source.ctors target.ctors)
     types decl.types
 
+/-- Context strengthening (`VEnv.Strengthening`) of every abstract
+environment in which the verified checker runs while the mutual inductive
+declaration `types` is checked and installed on top of `env`:
+
+* `env` itself (header, constructor and auxiliary checks);
+* `env` extended by the translated type headers (constructor checking);
+* that environment extended by the translated constructors (the atomic
+  primitive formation path checks there before adding projections), and
+  extended in addition by the projection entries of the abstract declaration
+  (recursor generation and the remaining checks of the declaration);
+* that environment extended by the generated recursor constants, before their
+  computation rules are added (the proofs about the generated equations work
+  in this environment).  The recursors are only pinned to be constants
+  whose addition keeps the environment well formed: they are added as
+  axioms, without definitional equalities.
+
+`VEnv.Strengthening` is not monotone, so each of these environments is
+listed separately.  The environments are pinned by the abstract translation
+of this declaration (`TrSourceConst`/`TrInductDeclCore`), so this is a
+hypothesis about this declaration only, not about arbitrary extensions. -/
+structure InductiveStrengthening (env : VEnv) (lparams : List Name)
+    (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool) : Prop where
+  base : env.Strengthening
+  headers : ∀ targets envTypes,
+    List.Forall₂ (fun source target =>
+      TrSourceConst env lparams source.name source.type target) types targets →
+    env.addConstVals targets = some envTypes → envTypes.Strengthening
+  constructors : ∀ decl envTypes envCtors,
+    TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors →
+    (envCtors.addProjections decl.projectionEntries).Strengthening
+  constructorsUnprojected : ∀ decl envTypes envCtors,
+    TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors →
+    envCtors.Strengthening
+  recursors : ∀ decl envTypes envCtors,
+    TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors →
+    ∀ recursors envRecursors,
+      (envCtors.addProjections decl.projectionEntries).addConstVals recursors =
+        some envRecursors →
+      envRecursors.WF → envRecursors.Strengthening
+
+theorem InductiveStrengthening.headersOf
+    (h : InductiveStrengthening env lparams nparams types isUnsafe)
+    (H : TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes) :
+    envTypes.Strengthening :=
+  h.headers decl.typeConstants envTypes
+    (List.forall₂_map_right_iff.mpr (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.header) H.types))
+    H.typesAdded
+
 theorem TrInductDecl.core
     (H : TrInductDecl env lparams nparams types isUnsafe decl) :
     ∃ envTypes envCtors,

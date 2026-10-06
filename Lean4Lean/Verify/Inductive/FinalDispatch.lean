@@ -25,7 +25,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
       isUnsafe false fuel res).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
-  exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
+  exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF (hstrs := hstrs)
     env lparams nparams sourceTypes isUnsafe fuel res ves wf Hsources HsourcesB
     Hlower haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>

@@ -527,14 +527,16 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : PrimitiveConstructorCorePhasesResult H outEnv, True := by
   exact (AddInductive.checkConstructors.primitiveCoreWF H Hshape).bind
     fun _ Hchecked =>
-      (AddInductive.declareConstructors.primitiveWF H Hshape
+      (AddInductive.declareConstructors.primitiveWF (hstrs := hstrs) H Hshape
         Hchecked.1.checked hvisible).mono fun outEnv Hdeclared => by
           rcases Hdeclared with ⟨Hdeclared, _⟩
           let Hformation : FormationCertificate sourceEnv decl := {
@@ -543,7 +545,8 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             typesInstalled := H.translation.typesAdded
             constructorParameters := Hchecked.1.parameterShapes
               H.context.checking.wf H.translation.types
-              (H.materialized.runtimeScope.scopeWF H.context.checking.wf)
+              (H.materialized.runtimeScope.scopeWF H.context.checking.wf
+                (hstrs.headersOf H.translation))
               (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
                 H.materialized).params_size
               H.materialized.uvars.symm (by
@@ -552,7 +555,8 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
             constructors := Hchecked.1.checked.formation
             rawShapes := Hchecked.1.rawShapes H.context.checking.wf
               H.translation.types
-              (H.materialized.runtimeScope.scopeWF H.context.checking.wf)
+              (H.materialized.runtimeScope.scopeWF H.context.checking.wf
+                (hstrs.headersOf H.translation))
               (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
                 H.materialized).params_size }
           exact ⟨{
@@ -573,12 +577,14 @@ theorem AddInductive.primitiveConstructorPhases.WF
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
         ∃ _ : PrimitiveConstructorPhasesResult H outEnv, True := by
-  exact (AddInductive.primitiveConstructorCorePhases.WF H Hshape hvisible).mono
+  exact (AddInductive.primitiveConstructorCorePhases.WF (hstrs := hstrs) H Hshape hvisible).mono
     fun _ Hcore => by
       rcases Hcore with ⟨R, _⟩
       exact ⟨R.complete, trivial⟩

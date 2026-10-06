@@ -524,7 +524,7 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
       (.sort cachedLevel) := by
     simpa [hexpected] using hcached
   exact ⟨_, hnext'.trans_r R.checking.tr.wf
-    (Hscope.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf).1.toCtx
+    (Hscope.lift.wf R.checking.tr.wf R.strengthening R.mlctx_wf.tr.wf).1.toCtx
     hcached'⟩
 
 @[simp] theorem CheckedRecursorHeaderAt.recursorTargetSkeleton_zero
@@ -2476,7 +2476,7 @@ theorem parameterStepOfCheckedHeader
     have hdomainToNarrow := hdomFull.uniq Hc.checking.tr.wf
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hdomWeak
     have hmatchFull :=
-      (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+      (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf Hc.strengthening
         Hc.mlctx_wf.tr.wf.toCtx Hscope.olderLift.toCtx).2 hnarrowMatch
     have hresult := hdomainToNarrow.trans Hc.checking.tr.wf
       Hc.mlctx_wf.tr.wf.toCtx hmatchFull
@@ -2566,7 +2566,7 @@ theorem parameterStepOfCheckedRecursorHeader
     have hdomainToNarrow := hdomFull.uniq R.checking.tr.wf
       (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hdomWeak
     have hmatchFull :=
-      (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
+      (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf R.strengthening
         R.mlctx_wf.tr.wf.toCtx Hscope.olderLift.toCtx).2 hnarrowMatch
     have hresult := hdomainToNarrow.trans R.checking.tr.wf
       R.mlctx_wf.tr.wf.toCtx hmatchFull
@@ -2907,7 +2907,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
               hdomNarrow hdomain
-          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
           let Wnarrow : VLCtx.FVLift scope
               ((some (⟨c.ngen.curr⟩,
                 dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -2969,7 +2969,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
             have hnormalizedClosed : Closed next 0 := by
               have := hnormalizedFull.closed
               simpa [Hc'.mlctx.noBV] using this
-            rcases Hruntime'.restrictEq Hc'.checking.tr.wf
+            rcases Hruntime'.restrictEq Hc'.checking.tr.wf Hc'.strengthening
                 hnormalizedFull hnormalizedClosed hnormalizedFVars with
               ⟨normalizedNarrow, hnormalizedNarrow, hnormalizedEq⟩
             have hopenedWeak : TrExprS Hc'.venv c.lparams
@@ -2997,7 +2997,7 @@ theorem continueIndexSynthesisSemantics {alpha : Type}
               (Hruntime'.context.defeqCtx.symm Hc'.checking.tr.wf.ordered)
             have hnarrow : Hc'.venv.IsDefEqU c.lparams.length
                 (indexType :: scope.toCtx) narrowBody normalizedNarrow :=
-              (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf
+              (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf Hc'.strengthening
                 Hruntime'.context.wf.toCtx Hruntime'.lift.toCtx).1 hexpanded
             have hdomainNarrow : ∃ sourceDom',
                 TrExprS Hc'.venv c.lparams scope dom sourceDom' ∧
@@ -3185,7 +3185,7 @@ theorem continueCheckedSemantics {alpha : Type}
                 hi hparams huvars hctx hshape
               have hindices : Hsynthesis.indices = [] :=
                 List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-              have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf
+              have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf Hc.strengthening
                 Hc.mlctx_wf.tr.wf
               let Hbody :
                   checkInductiveTypes.loopType.LaterParameterScope
@@ -3441,7 +3441,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
                 R'.mlctx.vlctx :=
             Hruntime.withIndex R'.mlctx_wf.tr.wf hdeps name bi dom
               hdomNarrow hdomain
-          have hscopeWF := Hruntime'.scopeWF R'.checking.tr.wf
+          have hscopeWF := Hruntime'.scopeWF R'.checking.tr.wf R'.strengthening
           let Wnarrow : VLCtx.FVLift scope
               ((some (⟨current.ngen.curr⟩,
                 dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -3555,7 +3555,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             have hnormalizedClosed : Closed next 0 := by
               have := hnormalizedFull.closed
               simpa [R'.mlctx.noBV] using this
-            rcases Hruntime'.restrictEq R'.checking.tr.wf
+            rcases Hruntime'.restrictEq R'.checking.tr.wf R'.strengthening
                 hnormalizedFull hnormalizedClosed hnormalizedFVars with
               ⟨normalizedNarrow, hnormalizedNarrow, hnormalizedEq⟩
             have hopenedWeak : TrExprS R'.venv
@@ -3587,7 +3587,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
             have hnarrow : R'.venv.IsDefEqU
                 (AddInductive.getRecLevelParams elimLevel base.lparams).length
                 (indexType :: scope.toCtx) narrowBody normalizedNarrow :=
-              (VEnv.IsDefEqU.weak'_iff R'.checking.tr.wf
+              (VEnv.IsDefEqU.weak'_iff R'.checking.tr.wf R'.strengthening
                 Hruntime'.context.wf.toCtx Hruntime'.lift.toCtx).1 hexpanded
             have hdomainNarrow : ∃ sourceDom',
                 TrExprS R'.venv
@@ -3807,7 +3807,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
                 Hcurrent Hsynthesis hi henv hctx
               have hindices : Hsynthesis.indices = [] :=
                 List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-              have hcurrentWF := Hcurrent.lift.wf R.checking.tr.wf
+              have hcurrentWF := Hcurrent.lift.wf R.checking.tr.wf R.strengthening
                 R.mlctx_wf.tr.wf
               let Hbody : RecursorLaterParameterScope Hsuffix i body :=
                 { Hcurrent with fvars := Hcurrent.fvars.2 }

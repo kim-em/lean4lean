@@ -48,7 +48,9 @@ theorem AddInductive.semanticFormationCoreWF
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -59,7 +61,7 @@ theorem AddInductive.semanticFormationCoreWF
           isUnsafe depth Hc.venv indTypes headerEnv,
         ∃ _ : ConstructorPhasesResult Hheaders outEnv, True := by
   have HheadersAndLoop :=
-    AddInductive.declareInductiveTypes.semanticConstructorsWF
+    AddInductive.declareInductiveTypes.semanticConstructorsWF (hstrs := hstrs)
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
       hconsume hlparams
@@ -128,7 +130,7 @@ theorem AddInductive.semanticFormationCoreWF
       Hcheck.bind fun _ Hchecked => by
       rcases Hchecked with ⟨decl, Hheaders, Hchecked, Howners⟩
       exact (AddInductive.declareConstructors.WF Hheaders
-        Hchecked hvisible hnprimCtors).mono fun outEnv Hdeclared => by
+        Hchecked hstrs hvisible hnprimCtors).mono fun outEnv Hdeclared => by
           rcases Hdeclared with ⟨Hdeclared, _⟩
           let R : ConstructorPhasesResult Hheaders outEnv := {
             checked := Hchecked.checked

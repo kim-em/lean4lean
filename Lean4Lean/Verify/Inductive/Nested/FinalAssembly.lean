@@ -1129,7 +1129,12 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
     (hallowFalse : allowPrimitive = false)
     (Hlower : NestedLoweringResultClosed env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
-    (hnested : res.aux2nested.size ≠ 0) :
+    (hnested : res.aux2nested.size ≠ 0)
+    (hstrsSource : InductiveStrengthening Hc.venv lparams nparams
+      sourceTypes isUnsafe)
+    (hstrsLowered : InductiveStrengthening Hc.venv lparams nparams res.types
+      ((nestedAddInductiveContext env lparams isUnsafe allowPrimitive
+        fuel).safety != .safe)) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe allowPrimitive fuel res).WF fun outEnv =>
         ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
@@ -1145,7 +1150,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
             Hc'.venv sourceDecl lparams nparams isUnsafe
               (if isUnsafe then .unsafe else .safe) outEnv) := by
   let c := nestedAddInductiveContext env lparams isUnsafe allowPrimitive fuel
-  have Hrun := AddInductive.run.semanticSourceAlignedWF
+  have Hrun := AddInductive.run.semanticSourceAlignedWF (hstrs := hstrsLowered)
     (types := res.types) nparams res.aux2nested.size Hc (by
       simpa [c, nestedAddInductiveContext] using Hclosed) hctx hnonempty
       HnotPartial
@@ -1196,6 +1201,11 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       simpa using Hlower'
     rcases HlowerInitial.sourceHeaderPrefix R.core rfl with
       ⟨sourceTypesVEnv, HsourceTypesAdded, HsourceHeaders⟩
+    have hsSourceTypes : sourceTypesVEnv.Strengthening := by
+      have h := hstrsSource
+      rw [← hvenv', ← hlparams'] at h
+      exact h.headers _ _ (List.forall₂_map_right_iff.mpr HsourceHeaders)
+        HsourceTypesAdded
     have hsourceTypesWF : sourceTypesVEnv.WF := by
       apply VEnv.WF.addConstVals Hc'.checking.tr.wf _ HsourceTypesAdded
       intro ci hci
@@ -1256,7 +1266,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       (initialState := { lvls := lparams.map .param, newTypes := #[] })
       Hc' Hprod HlowerInitial' Hc'.checking.tr.map_wf lparams
       (if isUnsafe then .unsafe else .safe) allowPrimitive fuel
-      sourceTypesVEnv HheaderValid auxiliaryMLCtx
+      sourceTypesVEnv hsSourceTypes HheaderValid auxiliaryMLCtx
       (by simpa only [hlparams'] using hauxiliaryWF)
       hauxiliaryLctx hauxiliaryFresh
     have Hrestore :
@@ -1308,7 +1318,10 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       have hproducerUnsafe : (c.safety != .safe) = isUnsafe := by
         simp [c, nestedAddInductiveContext]
         cases isUnsafe <;> decide
-      have Hnative := HlowerInitial'.nativeSourceCore Hc' Hprod Hsources
+      have hstrsSource' : InductiveStrengthening Hc'.venv c'.lparams nparams
+          sourceTypes (c.safety != .safe) := by
+        rw [hvenv', hlparams', hproducerUnsafe]; exact hstrsSource
+      have Hnative := HlowerInitial'.nativeSourceCore (hstrsSource := hstrsSource') Hc' Hprod Hsources
         Howners' rfl Htrace' Hvalidation' HheaderValidation' Hparameters'
         hvisible
       have Hnative' : Nonempty (NativeNestedSourceCoreResult Hc'.venv lparams

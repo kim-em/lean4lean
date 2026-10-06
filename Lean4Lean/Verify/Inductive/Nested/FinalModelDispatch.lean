@@ -113,7 +113,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
   have hnonempty : 0 < res.types.toArray.size :=
     HlowerInitial.resultTypesSizePos
   have Hrun :=
-    Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF
+    Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF (hstrsLowered := hstrsLowered) (hstrsSource := hstrsSource)
       env lparams nparams sourceTypes isUnsafe false fuel res
       Hc' wf.inductivesClosed wf.constructorOwners hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)

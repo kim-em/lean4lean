@@ -1223,7 +1223,9 @@ theorem AddInductive.formationCore.closedWF
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -1241,14 +1243,14 @@ theorem AddInductive.formationCore.closedWF
     rw [Array.size_eq_length_toList, Hmaterialized.indices, List.length_map]
     exact htypesLength.symm
   have Hheaders := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
-    Hmaterialized hvisible hnprimTypes
+    hstrs Hmaterialized hvisible hnprimTypes
   have HheadersClosed := declareInductiveTypes_headersAndClosure stats
     numParams indTypes numNested isUnsafe c Hheaders
     Hc.checking.tr.map_wf Hclosed hsize
   apply formationCoreAndClosure stats numParams indTypes numNested isUnsafe c
     HheadersClosed
   intro headerEnv Hheader
-  exact AddInductive.constructorPhases.WF Hheader hconsume
+  exact AddInductive.constructorPhases.WF (hstrs := hstrs) Hheader hconsume
     Hheader.materializedAvailableLiteralDisjoint
     hunsafe hvisible hnprimCtors hlparams
 

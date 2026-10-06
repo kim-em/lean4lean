@@ -4484,7 +4484,7 @@ theorem RecInfoMinorSemanticSource.parameterTranslationAtSuffix
       HS.parameterSuffix.parameterDecls).NoBV := by
     rw [← HS.parameterSuffix.context]
     exact HS.rootWF.mlctx.noBV
-  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf
+  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf HS.rootWF.strengthening
     Hwf HnoBV Htr HS.parameterScope
 
 /-- Compare the replayed unconsumed telescope with the exact consumed target

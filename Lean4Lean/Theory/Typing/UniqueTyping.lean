@@ -205,7 +205,7 @@ constants can break it, so strengthening of an environment says nothing about
 its extensions.  Every environment in which the verified type checker runs
 must therefore be assumed to satisfy it separately. -/
 def Strengthening (env : VEnv) : Prop :=
-  ∀ {U n k Γ Γ' e1 e2}, Ctx.LiftN n k Γ Γ' → OnCtx Γ' (env.IsType U) →
+  ∀ ⦃U n k Γ Γ' e1 e2⦄, Ctx.LiftN n k Γ Γ' → OnCtx Γ' (env.IsType U) →
     env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) → env.IsDefEqU U Γ e1 e2
 
 variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) in

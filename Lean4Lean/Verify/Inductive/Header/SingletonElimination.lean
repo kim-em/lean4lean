@@ -223,7 +223,7 @@ theorem LargeEliminationTrace.singletonTelescope
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf
+        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf Hnext.strengthening
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
@@ -266,7 +266,7 @@ theorem LargeEliminationTrace.singletonTelescope
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf
+        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf Hnext.strengthening
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody
@@ -285,7 +285,7 @@ theorem LargeEliminationTrace.singletonTelescope
         · have hconsumed := Hdom.proof_of_largeEliminationCheck Hc hcheck hzero
           obtain ⟨u, hu⟩ := Hdom.source_defeq
           have hsource := hconsumed.defeqU_l Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx ⟨_, hu.symm⟩
-          exact .inr (.inl (Hruntime.hasTypeOfFull Hc.checking.tr.wf hdomNarrow hfullDom hsource))
+          exact .inr (.inl (Hruntime.hasTypeOfFull Hc.checking.tr.wf Hc.strengthening hdomNarrow hfullDom hsource))
         · intro fv hfv index type hfind
           apply ResultBVar.under
           have hfvMem : fv ∈ scope.fvars := VLCtx.find?_eq_some.mp ⟨_, hfind⟩
@@ -312,7 +312,7 @@ theorem LargeEliminationTrace.singletonTelescope
           (fvarsIn_iff.mp (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
         obtain ⟨domainLevel, hdomain⟩ := Hruntime.consumedDomain Hc Hdom hdomNarrow
         let Hruntime' := Hruntime.withIndex Hnext.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf
+        have hscopeWF := Hruntime'.scopeWF Hnext.checking.tr.wf Hnext.strengthening
         have hopened := hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
         rw [← Expr.instantiate1_eq] at hopened
         obtain ⟨fullBody, hfullBody', _⟩ := Hdom.body Hc hfullBody

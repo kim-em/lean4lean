@@ -1455,7 +1455,7 @@ theorem RestoredPrimaryOperationalFamilySemantics.primaryIotaFamilyOfValidation
       Hstep.restored.recursor.oldInfo.rules := List.getElem_mem hold
   have Hexact :=
     validateRestoredRecursorRules.primaryValidatedExactRule_of_run Hvalid
-      Hrun htype Hstep.restored.recursor.lookup hsourceRule
+      hs Hrun htype Hstep.restored.recursor.lookup hsourceRule
   dsimp only at Hexact
   rw [← Hstep.restored.recursor.restored.produced] at Hexact
   have HnewRule : Hstep.restored.recursor.restored.newInfo.rules[i] =
@@ -2916,7 +2916,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfValidation
   rcases H.primaryOperationalFamilyAlignmentAtFresh Hc Hprod hempty
       familyIdx hfamily hentry Hstep with ⟨A⟩
   have Htel := A.recursor.restoredForallTelescope
-  rcases validateRestoredRecursorTypes.translation_of_run Hvalid Hrun
+  rcases validateRestoredRecursorTypes.translation_of_run Hvalid hs Hrun
       (List.getElem_mem hfamily)
       Hstep.restored.recursor.lookup with ⟨targetType, Htr, Htype⟩
   rw [← Hstep.restored.recursor.restored.produced] at Htr Htype
@@ -2939,14 +2939,14 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfValidation
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
     (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
-    (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
+    (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors) (hs : envCtors.Strengthening)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
       loweredEnv validationLparams c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (hrec : oldRecName ∈ auxRecNames) :
     Nonempty (RestoredAuxiliaryRecursorStep c.safety envCtors envCtors
       Hstep) := by
-  rcases validateRestoredRecursorTypes.auxiliaryTranslation_of_run Hvalid Hrun
+  rcases validateRestoredRecursorTypes.auxiliaryTranslation_of_run Hvalid hs Hrun
       hrec Hstep.lookup with ⟨targetType, Htranslation, Htype⟩
   rw [← Hstep.restored.produced] at Htranslation Htype
   have Hmetadata := Hprod.restoredPrimaryRecursorMetadata A.ownerIdx
@@ -2996,7 +2996,7 @@ theorem RestoredPrimaryOperationalFamilyAlignment.ruleTypingOfValidation
   have htype : sourceTypes[familyIdx] ∈ sourceTypes :=
     List.getElem_mem hfamily
   have Htyping := validateRestoredRecursorRules.primaryTranslation_of_run
-    Hvalid Hrun htype Hstep.restored.recursor.lookup
+    Hvalid hs Hrun htype Hstep.restored.recursor.lookup
       (rule := Hstep.restored.recursor.restored.newInfo.rules[i]) (by
         simpa only [← Hstep.restored.recursor.restored.produced] using
           hmember)
@@ -3015,7 +3015,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.ruleTypingOfValidation
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
     (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
-    (Hvalid : CheckingEnv.Valid c.safety restoredEnv targetVEnv)
+    (Hvalid : CheckingEnv.Valid c.safety restoredEnv targetVEnv) (hs : targetVEnv.Strengthening)
     (Hrun : Lean4Lean.validateRestoredRecursorRules.run restoredEnv loweredEnv
       validationLparams c.safety validationFuel result auxRec allIndNames
       validationTypes auxRecNames = .ok ())
@@ -3027,7 +3027,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.ruleTypingOfValidation
   have hmember : Hstep.restored.newInfo.rules[i] ∈
       Hstep.restored.newInfo.rules := List.getElem_mem hnew
   have Htyping := validateRestoredRecursorRules.auxiliaryTranslation_of_run
-    Hvalid Hrun hrec Hstep.lookup
+    Hvalid hs Hrun hrec Hstep.lookup
       (rule := Hstep.restored.newInfo.rules[i]) (by
         simpa only [← Hstep.restored.produced] using hmember)
   simpa only [← Hstep.restored.produced] using Htyping
@@ -3048,7 +3048,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.rulesOfValidation
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
     (_A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
-    (Hvalid : CheckingEnv.Valid c.safety validationEnv targetVEnv)
+    (Hvalid : CheckingEnv.Valid c.safety validationEnv targetVEnv) (hs : targetVEnv.Strengthening)
     (Hrun : Lean4Lean.validateRestoredRecursorRules.run validationEnv
       loweredEnv validationLparams c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
@@ -3077,7 +3077,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.rulesOfValidation
         abstractRule.rhs.GuardedRuleRhs restoredRecursorNames := by
     intro concreteRule hconcrete
     rcases validateRestoredRecursorRules.auxiliaryValidatedAbstractRule_of_run
-        Hvalid Hrun hrec Hstep.lookup hconcrete with
+        Hvalid hs Hrun hrec Hstep.lookup hconcrete with
       ⟨_lhs, _lhsInferred, abstractRule, _Hbuild, _Hrhs, _Hlhs, _Htype,
         _Huvars, ⟨Hwf⟩, Hguard⟩
     exact ⟨abstractRule, Hwf, Hguard⟩
@@ -3128,7 +3128,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfValidation
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
     (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
-    (HtypeValid : CheckingEnv.Valid c.safety validationEnv recursorEnv)
+    (HtypeValid : CheckingEnv.Valid c.safety validationEnv recursorEnv) (hs : recursorEnv.Strengthening)
     (HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
       loweredEnv validationLparams c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
@@ -3145,9 +3145,9 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfValidation
     (priorRecursors : List VConstVal) :
     Nonempty (RestoredAuxiliaryStepFinalEvidence decl block main c.safety
       recursorEnv recursorEnv ruleVEnv Hstep priorRecursors) := by
-  rcases A.recursorStepOfValidation HtypeValid HtypeRun hrec with
+  rcases A.recursorStepOfValidation HtypeValid hs HtypeRun hrec with
     ⟨Hrecursor⟩
-  rcases A.rulesOfValidation HruleValid HruleRun hrec with
+  rcases A.rulesOfValidation HruleValid hs HruleRun hrec with
     ⟨rules, Hlength, HrulesWF, HrulesGuarded⟩
   let Hsemantics : RestoredAuxiliaryStepShape decl block main c.safety
       recursorEnv Hstep priorRecursors := {
@@ -3183,7 +3183,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfRecursorTrace
     (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
     (Hrecursor : RestoredAuxiliaryRecursorStep c.safety recursorEnv
       recursorEnv Hstep)
-    (HruleValid : CheckingEnv.Valid c.safety ruleEnv ruleVEnv)
+    (HruleValid : CheckingEnv.Valid c.safety ruleEnv ruleVEnv) (hs : ruleVEnv.Strengthening)
     (HruleRun : Lean4Lean.validateRestoredRecursorRules.run ruleEnv loweredEnv
       validationLparams c.safety validationFuel result auxRec allIndNames
       validationTypes auxRecNames = .ok ())
@@ -3197,7 +3197,7 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.finalEvidenceOfRecursorTrace
     Nonempty { E : RestoredAuxiliaryStepFinalEvidence decl block main
         c.safety recursorEnv recursorEnv ruleVEnv Hstep priorRecursors //
       E.semantics.recursor = Hrecursor.recursor } := by
-  rcases A.rulesOfValidation HruleValid HruleRun hrec with
+  rcases A.rulesOfValidation HruleValid hs HruleRun hrec with
     ⟨rules, Hlength, HrulesWF, HrulesGuarded⟩
   let Hsemantics : RestoredAuxiliaryStepShape decl block main c.safety
       recursorEnv Hstep priorRecursors := {
@@ -3283,7 +3283,7 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfValidation
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
     (H : RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htrace)
-    (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
+    (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors) (hs : envCtors.Strengthening)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
       loweredEnv validationLparams c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
@@ -3294,7 +3294,7 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfValidation
   induction H generalizing priorRecursors with
   | nil sourceEnv => exact ⟨priorRecursors, .nil sourceEnv priorRecursors⟩
   | @cons oldRecName stepSource middleEnv tail targetEnv Hstep Htail A Hrest ih =>
-      rcases A.recursorStepOfValidation Hvalid Hrun
+      rcases A.recursorStepOfValidation Hvalid hs Hrun
           (Hnames oldRecName (by simp)) with ⟨Hhead⟩
       have HtailNames : ∀ name ∈ tail, name ∈ auxRecNames := by
         intro name hname
@@ -3370,7 +3370,7 @@ noncomputable def RestoredAuxiliaryRecursorTrace.finalEvidenceOfRuleValidation
     (Hrecursors : RestoredAuxiliaryRecursorTrace c.safety recursorEnv
       recursorEnv Htrace priorRecursors finalRecursors)
     (Halignment : RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htrace)
-    (HruleValid : CheckingEnv.Valid c.safety ruleEnv ruleVEnv)
+    (HruleValid : CheckingEnv.Valid c.safety ruleEnv ruleVEnv) (hs : ruleVEnv.Strengthening)
     (HruleRun : Lean4Lean.validateRestoredRecursorRules.run ruleEnv loweredEnv
       validationLparams c.safety validationFuel result auxRec allIndNames
       validationTypes auxRecNames = .ok ())
@@ -3408,7 +3408,7 @@ noncomputable def RestoredAuxiliaryRecursorTrace.finalEvidenceOfRuleValidation
       | cons _ _ A Arest =>
           let HstepResult := Classical.choice
             (A.finalEvidenceOfRecursorTrace (decl := decl) (main := main)
-              Hhead HruleValid HruleRun (Hmembers _ (by simp)) Hnames
+              Hhead HruleValid hs HruleRun (Hmembers _ (by simp)) Hnames
                 priorRecursors)
           let HstepFinal := HstepResult.val
           have hrecursor := HstepResult.property
@@ -3419,7 +3419,7 @@ noncomputable def RestoredAuxiliaryRecursorTrace.finalEvidenceOfRuleValidation
             rw [hrecursor]
             exact Hrest
           rcases Hrest'.finalEvidenceOfRuleValidation Arest HruleValid
-              HruleRun (fun name hname => Hmembers name (by simp [hname]))
+              hs HruleRun (fun name hname => Hmembers name (by simp [hname]))
               Hnames decl main
               (priorRules ++ HstepFinal.semantics.rules) with
             ⟨finalRules, Hsemantic, Hfinal⟩
@@ -3447,7 +3447,7 @@ theorem RestoredNestedDeclarationsResult.finalAuxiliaryEvidenceOfValidation
       H.auxiliaries)
     (Hrecursors : RestoredAuxiliaryRecursorTrace c.safety recursorEnv
       recursorEnv H.auxiliaries [] auxiliaryRecursors)
-    (HruleValid : CheckingEnv.Valid c.safety ruleEnv ruleVEnv)
+    (HruleValid : CheckingEnv.Valid c.safety ruleEnv ruleVEnv) (hs : ruleVEnv.Strengthening)
     (HruleRun : Lean4Lean.validateRestoredRecursorRules.run ruleEnv loweredEnv
       validationLparams c.safety validationFuel result auxRec allIndNames
       sourceTypes auxRecNames = .ok ())
@@ -3464,7 +3464,7 @@ theorem RestoredNestedDeclarationsResult.finalAuxiliaryEvidenceOfValidation
         primaryRecursors auxiliaryRecursors primaryRules auxiliaryRules
           recursorEnv ruleVEnv := by
   rcases Hrecursors.finalEvidenceOfRuleValidation Halignment HruleValid
-      HruleRun (fun _ h => h) Hnames decl main [] with
+      hs HruleRun (fun _ h => h) Hnames decl main [] with
     ⟨auxiliaryRules, Hsemantic, Hwf⟩
   let block' := canonicalRestoredBlock decl primaryRecursors
     auxiliaryRecursors primaryRules auxiliaryRules
@@ -4144,7 +4144,7 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
       have Halignment := Hrestored.generatedAlignmentTraceOfProduction
         Hlower Hc Hprod hempty
       rcases Hrestored.finalAuxiliaryEvidenceOfValidation Halignment
-          HauxiliaryRecursors HruleValid HruleRun sourceDecl main sourceVEnv
+          HauxiliaryRecursors HruleValid hs HruleRun sourceDecl main sourceVEnv
           primaryRecursors primaryRules Hnames with
         ⟨auxiliaryRules, Hauxiliary⟩
       have HauxiliarySemantics : RestoredAuxiliaryShapeTrace sourceDecl
@@ -4580,7 +4580,7 @@ theorem NestedValidatedRunResult.nativeSourceParameterWF
       sourceTypes[familyIdx].ctors[ctorIdx].type 0
       sourceTypes[familyIdx].ctors[ctorIdx].type [] [] := .zero
   rcases HopeningResult.validateRestoredConstructorPrefix P.stats
-      E.nativeSource.headerValidationValid hresultLCtxWF hresultFresh .nil rfl
+      E.nativeSource.headerValidationValid hs hresultLCtxWF hresultFresh .nil rfl
       trivial nofun HfirstTranslation HsourceCtor.type HprefixZero
       hparameterRun with
     ⟨parameterMLCtx, constructorTail, constructorSourceDomains,

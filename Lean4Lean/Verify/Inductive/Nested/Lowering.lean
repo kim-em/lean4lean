@@ -17,13 +17,13 @@ provides both the source translation and the abstract typing derivation; later
 stages must transport the same statement through the common-parameter local
 context. -/
 theorem checkType_closed.WF
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (hclosed : e.FVarsIn fun _ => False) :
     (TypeChecker.M.run env safety {} lparams fuel (TypeChecker.checkType e)).WF
       fun ty => ∃ e' ty', TrTyping venv lparams [] e ty e' ty' := by
   have hfvars : e.FVarsIn fun fv => fv ∈ VLCtx.fvars ([] : VLCtx) :=
     hclosed.mono fun _ h => False.elim h
-  exact TypeChecker.M.WF.runCheckingValid
+  exact TypeChecker.M.WF.runCheckingValid (hs := hs)
     (wf := hvalid) (lparams := lparams) (fuel := fuel)
     (TypeChecker.checkType.WF hfvars)
 
@@ -281,7 +281,7 @@ private theorem checkNestedAuxiliaryList.WF
 typing postcondition, assuming the restored environment and parameter local
 context already refine their abstract counterparts. -/
 theorem validateNestedAuxiliaries.WF
-    (hvalid : CheckingEnv.Valid safety env venv)
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
@@ -298,10 +298,10 @@ theorem validateNestedAuxiliaries.WF
         let type ← TypeChecker.checkType e
         _ ← TypeChecker.ensureSort type e)).WF _
   rw [Std.TreeMap.forM_eq_forM, Std.TreeMap.forM_eq_forM_toList]
-  refine TypeChecker.M.WF.runCheckingValidMLC
+  refine TypeChecker.M.WF.runCheckingValidMLC (hs := hs)
     (wf := hvalid) (mlctx_wf := hmlctx) hfresh ?_
   refine (checkNestedAuxiliaryList.WF
-    (c := TypeChecker.VContext.mkCheckingValidMLC hvalid mlctx hmlctx fuel)
+    (c := TypeChecker.VContext.mkCheckingValidMLC hvalid hs mlctx hmlctx fuel)
     (s := {}) res.aux2nested.toList ?_).mono ?_
   · intro item hitem
     apply hfvars item.1 item.2

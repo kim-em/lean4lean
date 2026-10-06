@@ -46,7 +46,9 @@ theorem AddInductive.runWithStats.semanticWF
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       (SemanticRunWithStatsResult c stats nparams depth indTypes isUnsafe
         sourceEnv) := by
@@ -60,7 +62,7 @@ theorem AddInductive.runWithStats.semanticWF
         R.declared.context.venv stats.indConsts := by
       rw [R.declared.contextVEnv]
       exact hlitCtors.addProjections _
-    exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
+    exact (R.recursorPhasesWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
             isUnsafe sourceEnv outEnv
@@ -112,13 +114,15 @@ theorem AddInductive.runWithStats.semanticClosedWF
     (hnprimRecursors : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       (SemanticRunWithStatsResult c stats nparams depth indTypes isUnsafe
         Hc.venv) := by
-  apply AddInductive.runWithStats.semanticWF (hsourceSafety := hsourceSafety) stats nparams indTypes numNested
+  apply AddInductive.runWithStats.semanticWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) stats nparams indTypes numNested
     isUnsafe c depth Hc.venv
-  · exact AddInductive.semanticFormationCoreClosedWF Hsemantic hlevels
+  · exact AddInductive.semanticFormationCoreClosedWF (hstrs := hstrs) Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon hnotzero Hclosed hvisible hnprimTypes
       Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams
@@ -210,7 +214,9 @@ theorem AddInductive.run.semanticSourceAlignedWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticInductiveRunResultSourceAligned c Hc.venv nparams
         types numNested) := by
@@ -246,7 +252,10 @@ theorem AddInductive.run.semanticSourceAlignedWF
       exact hnodup
     have hnotPartial : c'.safety ≠ .partial := by
       simpa [hsafety] using HnotPartial
-    exact (AddInductive.runWithStats.semanticClosedWF
+    have hstrs' : InductiveStrengthening Hc'.venv c'.lparams nparams
+        types.toArray.toList (c.safety != .safe) := by
+      rw [hvenv, hlparams]; exact hstrs
+    exact (AddInductive.runWithStats.semanticClosedWF (hstrs := hstrs')
       (hsourceSafety := by rw [hsafety]) Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon hnotzero Hclosed' hvisible I.freshTypes
@@ -273,10 +282,12 @@ theorem AddInductive.run.semanticWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticInductiveRunResult c nparams types numNested) := by
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.semanticSourceAlignedWF (hstrs := hstrs) nparams numNested Hc
     Hclosed hctx hnonempty HnotPartial
     (fun Hc' _hallowPrimitive _hfuel Hsemantic =>
       Hinputs Hc' Hsemantic)).mono fun _ Hresult => by

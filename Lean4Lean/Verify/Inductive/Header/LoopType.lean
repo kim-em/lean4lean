@@ -729,35 +729,35 @@ def NarrowRuntimeScope.retargetRuntime
 
 theorem NarrowRuntimeScope.scopeWF
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF) :
+    (henv : env.WF) (hs : env.Strengthening) :
     scope.WF env Us.length :=
-  H.lift.wf henv H.context.wf
+  H.lift.wf henv hs H.context.wf
 
 /-- Restrict a translated concrete expression to its semantic header scope.
 The source-side free-variable premise is the deliberate ownership boundary:
 ambient declarations retained by the executable loop may not occur. -/
 theorem NarrowRuntimeScope.restrict
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (htr : TrExprS env Us runtime e e')
     (hclosed : Closed e 0)
     (hfvars : FVarsIn (· ∈ scope.fvars) e) :
     ∃ e', TrExprS env Us scope e e' := by
-  exact htr.weakFV'_inv henv H.lift
+  exact htr.weakFV'_inv henv hs H.lift
     (H.context.symm henv.ordered) hclosed hfvars
 
 /-- Restriction together with the definitional equality obtained by
 weakening the narrowed translation back into the executable context. -/
 theorem NarrowRuntimeScope.restrictEq
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (htr : TrExprS env Us runtime e e')
     (hclosed : Closed e 0)
     (hfvars : FVarsIn (· ∈ scope.fvars) e) :
     ∃ narrow', TrExprS env Us scope e narrow' ∧
       env.IsDefEqU Us.length runtime.toCtx e'
         (narrow'.lift' H.shift) := by
-  rcases H.restrict henv htr hclosed hfvars with ⟨narrow', hnarrow⟩
+  rcases H.restrict henv hs htr hclosed hfvars with ⟨narrow', hnarrow⟩
   have hweak : TrExprS env Us H.expanded e
       (narrow'.lift' H.shift) := by
     simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
@@ -787,7 +787,7 @@ after executable WHNF: restrict the normalized source translation, compare
 both weakened targets in the runtime context, then cancel the weakening. -/
 theorem NarrowRuntimeScope.restrictTrExpr
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hnarrow : TrExprS env Us scope input narrowTarget)
     (hfullInput : TrExpr env Us runtime input fullTarget)
     (hfullResult : TrExpr env Us runtime result fullTarget)
@@ -795,7 +795,7 @@ theorem NarrowRuntimeScope.restrictTrExpr
     (hfvars : FVarsIn (· ∈ scope.fvars) result) :
     TrExpr env Us scope result narrowTarget := by
   rcases hfullResult with ⟨resultFull, hresultFull, hresultTarget⟩
-  rcases H.restrictEq henv hresultFull hclosed hfvars with
+  rcases H.restrictEq henv hs hresultFull hclosed hfvars with
     ⟨resultNarrow, hresultNarrow, hresultLift⟩
   have htargetLift := H.fullTargetEq henv hnarrow hfullInput
   have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
@@ -807,7 +807,7 @@ theorem NarrowRuntimeScope.restrictTrExpr
     (H.context.defeqCtx.symm henv.ordered)
   have hnarrowEq : env.IsDefEqU Us.length scope.toCtx
       resultNarrow narrowTarget :=
-    (VEnv.IsDefEqU.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+    (VEnv.IsDefEqU.weak'_iff henv hs H.context.wf.toCtx H.lift.toCtx).1
       hexpanded
   exact ⟨resultNarrow, hresultNarrow, hnarrowEq⟩
 
@@ -815,7 +815,7 @@ theorem NarrowRuntimeScope.restrictTrExpr
 back to its independently translated target in the narrow scope. -/
 theorem NarrowRuntimeScope.hasTypeOfFull
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hnarrow : TrExprS env Us scope e narrow')
     (hfull : TrExprS env Us runtime e full')
     (htype : env.HasType Us.length runtime.toCtx full' (.sort u)) :
@@ -826,7 +826,7 @@ theorem NarrowRuntimeScope.hasTypeOfFull
   have hliftTyped := htype.defeqU_l henv hruntimeWF htarget.symm
   have hexpanded := hliftTyped.defeqDFC henv.ordered
     (H.context.defeqCtx.symm henv.ordered)
-  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+  exact (VEnv.HasType.weak'_iff henv hs H.context.wf.toCtx H.lift.toCtx).1
     hexpanded
 
 /-- Transfer a full-runtime typing judgment when both the term and its type
@@ -835,7 +835,7 @@ the dependent counterpart of `hasTypeOfFull`: inverse weakening is applied
 only after both sides have been aligned with their full-runtime targets. -/
 theorem NarrowRuntimeScope.hasTypeOfFullPair
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hnarrowTerm : TrExprS env Us scope term termNarrow)
     (hnarrowType : TrExprS env Us scope type typeNarrow)
     (hfullTerm : TrExprS env Us runtime term termFull)
@@ -851,7 +851,7 @@ theorem NarrowRuntimeScope.hasTypeOfFullPair
   have hliftTyped' := hliftTyped.defeqU_r henv hruntimeWF htypeTarget.symm
   have hexpanded := hliftTyped'.defeqDFC henv.ordered
     (H.context.defeqCtx.symm henv.ordered)
-  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+  exact (VEnv.HasType.weak'_iff henv hs H.context.wf.toCtx H.lift.toCtx).1
     hexpanded
 
 /-- Weaken a translated type from the independent header scope into the
@@ -925,7 +925,7 @@ residual, so uniqueness in the runtime context followed by inverse weakening
 provides the narrow result equality. -/
 theorem NarrowRuntimeScope.resultSort
     (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hnarrow : TrExprS env Us scope e narrow')
     (hfull : TrExpr env Us runtime e full')
     (hsort : TrExpr env Us runtime (.sort level) full') :
@@ -934,7 +934,7 @@ theorem NarrowRuntimeScope.resultSort
   have hclosed : Closed (.sort level) 0 := trivial
   have hfvars : FVarsIn (· ∈ scope.fvars) (.sort level) := by
     simpa [FVarsIn] using hsortFull.fvarsIn
-  rcases H.restrictEq henv hsortFull hclosed hfvars with
+  rcases H.restrictEq henv hs hsortFull hclosed hfvars with
     ⟨sortNarrow, hsortNarrow, hsortLift⟩
   have htarget := H.fullTargetEq henv hnarrow hfull
   have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
@@ -946,7 +946,7 @@ theorem NarrowRuntimeScope.resultSort
     (H.context.defeqCtx.symm henv.ordered)
   have hnarrowEq : env.IsDefEqU Us.length scope.toCtx
       sortNarrow narrow' :=
-    (VEnv.IsDefEqU.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+    (VEnv.IsDefEqU.weak'_iff henv hs H.context.wf.toCtx H.lift.toCtx).1
       hexpanded
   exact ⟨sortNarrow, hsortNarrow, hnarrowEq⟩
 
@@ -1049,8 +1049,8 @@ def FVarNarrowScope.retargetRuntime
 
 theorem FVarNarrowScope.scopeWF
     (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF) : scope.WF env Us.length :=
-  H.lift.wf henv H.context.wf
+    (henv : env.WF) (hs : env.Strengthening) : scope.WF env Us.length :=
+  H.lift.wf henv hs H.context.wf
 
 theorem FVarNarrowScope.fvars_length
     (H : FVarNarrowScope env Us scope runtime) :
@@ -1116,12 +1116,12 @@ theorem TrLCtx'.isFVarUpSet
 
 theorem FVarNarrowScope.restrict
     (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (htr : TrExprS env Us runtime source target)
     (hclosed : Closed source 0)
     (hfvars : FVarsIn (· ∈ scope.fvars) source) :
     ∃ target', TrExprS env Us scope source target' := by
-  exact htr.weakFV'_inv henv H.lift
+  exact htr.weakFV'_inv henv hs H.lift
     (H.context.symm henv.ordered) hclosed hfvars
 
 /-- Restrict a translation to a non-contiguous dependency-closed scope and
@@ -1130,14 +1130,14 @@ executable context.  This is the non-contiguous counterpart of
 `NarrowRuntimeScope.restrictEq`. -/
 theorem FVarNarrowScope.restrictEq
     (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (htr : TrExprS env Us runtime e e')
     (hclosed : Closed e 0)
     (hfvars : FVarsIn (· ∈ scope.fvars) e) :
     ∃ narrow', TrExprS env Us scope e narrow' ∧
       env.IsDefEqU Us.length runtime.toCtx e'
         (narrow'.lift' H.shift) := by
-  rcases H.restrict henv htr hclosed hfvars with ⟨narrow', hnarrow⟩
+  rcases H.restrict henv hs htr hclosed hfvars with ⟨narrow', hnarrow⟩
   have hweak : TrExprS env Us H.expanded e
       (narrow'.lift' H.shift) := by
     simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
@@ -1163,7 +1163,7 @@ theorem FVarNarrowScope.fullTargetEq
 dependency-selected free-variable scope. -/
 theorem FVarNarrowScope.hasTypeOfFull
     (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hnarrow : TrExprS env Us scope e narrow')
     (hfull : TrExprS env Us runtime e full')
     (htype : env.HasType Us.length runtime.toCtx full' (.sort u)) :
@@ -1174,14 +1174,14 @@ theorem FVarNarrowScope.hasTypeOfFull
   have hliftTyped := htype.defeqU_l henv hruntimeWF htarget.symm
   have hexpanded := hliftTyped.defeqDFC henv.ordered
     (H.context.defeqCtx.symm henv.ordered)
-  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+  exact (VEnv.HasType.weak'_iff henv hs H.context.wf.toCtx H.lift.toCtx).1
     hexpanded
 
 /-- Transfer a dependent runtime typing judgment when both the term and its
 type were reconstructed in the same non-contiguous selected scope. -/
 theorem FVarNarrowScope.hasTypeOfFullPair
     (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (hnarrowTerm : TrExprS env Us scope term termNarrow)
     (hnarrowType : TrExprS env Us scope type typeNarrow)
     (hfullTerm : TrExprS env Us runtime term termFull)
@@ -1197,7 +1197,7 @@ theorem FVarNarrowScope.hasTypeOfFullPair
   have hliftTyped' := hliftTyped.defeqU_r henv hruntimeWF htypeTarget.symm
   have hexpanded := hliftTyped'.defeqDFC henv.ordered
     (H.context.defeqCtx.symm henv.ordered)
-  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
+  exact (VEnv.HasType.weak'_iff henv hs H.context.wf.toCtx H.lift.toCtx).1
     hexpanded
 
 /-- Retain one newly introduced named lambda.  Its semantic domain is
@@ -1278,7 +1278,7 @@ translated in the already narrowed tail; skipped declarations remain only
 in the comparison context. -/
 theorem narrowFVars
     (H : MLCtxOnlyLams c)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hwf : c.WF env Us)
     (P : FVarId → Prop) [DecidablePred P]
     (hup : IsFVarUpSet P c.vlctx) :
@@ -1305,7 +1305,7 @@ theorem narrowFVars
         apply fvarsIn_iff.mpr
         refine ⟨hdeps, ?_⟩
         exact Htype.fvarsIn.mono fun _ _ => trivial
-      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+      rcases HtailScope.restrict henv hs Htype hclosed htypeFVars with
         ⟨narrowType, HnarrowType⟩
       have Hweak : TrExprS env Us HtailScope.expanded type
           (narrowType.lift' HtailScope.shift) := by
@@ -1411,7 +1411,7 @@ variables. -/
 theorem MLCtxOnlyLams.narrowFVarsSource
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
     (H : MLCtxOnlyLams c)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hwf : c.WF env Us)
     (P : FVarId → Prop) [DecidablePred P]
     (hup : IsFVarUpSet P c.vlctx) :
@@ -1453,7 +1453,7 @@ theorem MLCtxOnlyLams.narrowFVarsSource
         apply fvarsIn_iff.mpr
         refine ⟨hdeps, ?_⟩
         exact Htype.fvarsIn.mono fun _ _ => trivial
-      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+      rcases HtailScope.restrict henv hs Htype hclosed htypeFVars with
         ⟨narrowType, HnarrowType⟩
       have Hweak : TrExprS env Us HtailScope.expanded type
           (narrowType.lift' HtailScope.shift) := by
@@ -1481,7 +1481,7 @@ theorem MLCtxOnlyLams.narrowFVarsSource
         intro other hother
         exact htailDecls other (List.mem_reverse.mp hother)
       have holdNodup : tailScope.fvars.reverse.Nodup :=
-        List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
+        List.nodup_reverse.mpr (HtailScope.scopeWF henv hs).fvars_nodup
       refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
       · change HtailScope.shift.cons = _
         rw [htailShift]
@@ -1592,7 +1592,7 @@ theorem NarrowRuntimeScope.independentSourceScope
             Hc.mlctx.lctx.mkForall
               (sourceScope.fvars.reverse.map Expr.fvar).toArray body := by
   rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-      Hc.checking.tr.wf Hc.mlctx_wf
+      Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf
       (· ∈ scope.fvars) H.upset with
     ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
       hsourceClosure⟩
@@ -2520,7 +2520,7 @@ theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
     {source : VInductiveTypeSkeleton} {commonParams : List VExpr}
     (H : NarrowHeaderSynthesisCertificate env Us source scope current
       nparams nindices)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hruntime : NarrowRuntimeScope env Us scope runtime)
     (Hsource : FVarNarrowScope env Us sourceScope runtime)
     (hsourceFVars : sourceScope.fvars = scope.fvars)
@@ -2548,7 +2548,7 @@ theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
       sourceClosure := hsourceClosure
       semanticScope := scope
       semanticSources := Hruntime.sources
-      semanticScopeWF := Hruntime.scopeWF henv
+      semanticScopeWF := Hruntime.scopeWF henv hs
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
@@ -2575,7 +2575,7 @@ theorem NarrowHeaderSynthesisCertificate.synthesizedHeaderWithParams
       sourceClosure := hsourceClosure
       semanticScope := scope
       semanticSources := Hruntime.sources
-      semanticScopeWF := Hruntime.scopeWF henv
+      semanticScopeWF := Hruntime.scopeWF henv hs
       ownParams := H.params
       indices := H.indices
       parameterCount := H.parameterCount
@@ -2633,7 +2633,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
     rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
+        Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf
         (· ∈ Hc.mlctx.vlctx.fvars) hup with
       ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
         hsourceClosure⟩
@@ -2674,7 +2674,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
     rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
+        Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf
         (· ∈ Hc.mlctx.vlctx.fvars) hup with
       ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
         hsourceClosure⟩
@@ -2755,7 +2755,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
     rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
+        Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf
         (· ∈ Hc.mlctx.vlctx.fvars) hup with
       ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
         hsourceClosure⟩
@@ -2796,7 +2796,7 @@ theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
     have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
       (by simpa using Hc.mlctx_wf.tr.wf)
     rcases MLCtxOnlyLams.narrowFVarsSource Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf
+        Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf
         (· ∈ Hc.mlctx.vlctx.fvars) hup with
       ⟨sourceScope, Hsource, hsourceFVars, _hshift, _hdecls,
         hsourceClosure⟩
@@ -3571,7 +3571,7 @@ theorem LaterParameterScope.ownParameterDefEq
   rcases H.parameterDefEq hi hparamsLength hctx with
     ⟨cachedLevel, hcommonCached⟩
   have holderWF :=
-    (H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1
+    (H.lift.wf Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf.tr.wf).1
   exact ⟨cachedLevel, hcommonOwn'.symm.trans_r Hc.checking.tr.wf
     holderWF.toCtx hcommonCached⟩
 
@@ -3638,7 +3638,7 @@ theorem LaterParameterScope.currentDomainDefEq
       expectedDomain Hscope.paramType (.sort cachedLevel) := by
     simpa [hexpected] using hcached
   exact ⟨_, hnext'.trans_r Hc.checking.tr.wf
-    (Hscope.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1.toCtx hcached'⟩
+    (Hscope.lift.wf Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf.tr.wf).1.toCtx hcached'⟩
 
 theorem LaterParameterScope.older_eq_nil
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -3789,7 +3789,7 @@ theorem LaterParameterScope.domainTranslation
   have hclosed : Closed dom 0 := by
     have := hdom.closed
     simpa [Hc.mlctx.noBV] using this
-  exact hdom.weakFV_inv Hc.checking.tr.wf H.olderLift
+  exact hdom.weakFV_inv Hc.checking.tr.wf Hc.strengthening H.olderLift
     (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hclosed H.fvars.1
 
 /-- Recover every premise needed by the executable cached-parameter branch
@@ -3888,7 +3888,7 @@ theorem LaterParameterScope.domainDefEq
     simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
       using hfull
   exact ⟨sourceDom', hsourceDom,
-    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf Hc.strengthening
       Hc.mlctx_wf.tr.wf.toCtx
       H.olderLift.toCtx).1 hfull'⟩
 
@@ -4005,7 +4005,7 @@ theorem LaterParameterScope.uninstantiateEq
   have hopened' : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
       (body.instantiate1' (.fvar H.fv)) body' := by
     simpa [Expr.instantiate1_eq, H.parameter] using hopened
-  have hsuffixWF := H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+  have hsuffixWF := H.lift.wf Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf.tr.wf
   have hfresh : H.fv ∉ H.older.fvars :=
     (hsuffixWF.2.1 H.fv H.deps rfl).1
   have hsourceFresh : FVarsIn (· ≠ H.fv) body :=
@@ -4015,7 +4015,7 @@ theorem LaterParameterScope.uninstantiateEq
   have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
     have := hopened'.closed
     simpa [Hc.mlctx.noBV] using this
-  exact hopened'.uninstantiateAfterWeakFV_eq Hc.checking.tr.wf H.lift
+  exact hopened'.uninstantiateAfterWeakFV_eq Hc.checking.tr.wf Hc.strengthening H.lift
     (.refl Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf)
     hopenedClosed H.openedFVars hsourceFresh
 
@@ -4074,7 +4074,7 @@ theorem LaterParameterScope.normalizedBody
   have hnormalizedClosed : Closed normalized 0 := by
     have := hnormalizedFull.closed
     simpa [Hc.mlctx.noBV] using this
-  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf H.lift
+  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf Hc.strengthening H.lift
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
       hnormalizedClosed hnormalizedFVars with
     ⟨normalized', hnormalized'⟩
@@ -4093,7 +4093,7 @@ theorem LaterParameterScope.normalizedBody
       (VLCtx.toCtx
         ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
       sourceBody' normalized' :=
-    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
+    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf Hc.strengthening
       Hc.mlctx_wf.tr.wf.toCtx H.lift.toCtx).1 hfull
   exact ⟨sourceBody', normalized', hsourceBody, hnormalized',
     by simpa [VLCtx.toCtx] using hnarrow⟩
@@ -5224,7 +5224,7 @@ theorem laterParameterSynthesisWF
           _habstract normalized hbelow hnormalized htransition hnext
         have hindices : Hsynthesis.indices = [] :=
           List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-        have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf
+        have hcurrentWF := Hcurrent.lift.wf Hc.checking.tr.wf Hc.strengthening
           Hc.mlctx_wf.tr.wf
         rcases Hsynthesis.consumeParameter Hc.checking.tr.wf hindices
             htypeNarrow hcurrentWF hdomain htransition with
@@ -5349,7 +5349,7 @@ theorem laterIndexSynthesisWF
             Hc'.mlctx.vlctx :=
           Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
             hdomNarrow hdomain
-        have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+        have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
         have hopenedNarrow : TrExprS Hc'.venv c.lparams
             ((some (⟨c.ngen.curr⟩,
               dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -5376,7 +5376,7 @@ theorem laterIndexSynthesisWF
           have hnoBV : Hc'.mlctx.vlctx.bvars = 0 := Hc'.mlctx.noBV
           rw [hnoBV] at this
           exact this
-        rcases Hruntime'.restrictEq Hc'.checking.tr.wf
+        rcases Hruntime'.restrictEq Hc'.checking.tr.wf Hc'.strengthening
             hnormalizedFull hnormalizedClosed hnormalizedFVars with
           ⟨normalizedNarrow, hnormalizedNarrow, hnormalizedEq⟩
         have hopenedWeak : TrExprS Hc'.venv c.lparams Hruntime'.expanded
@@ -5407,7 +5407,7 @@ theorem laterIndexSynthesisWF
         have hnarrow : Hc'.venv.IsDefEqU c.lparams.length
             (indexType :: scope.toCtx)
             narrowBody normalizedNarrow :=
-          (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf
+          (VEnv.IsDefEqU.weak'_iff Hc'.checking.tr.wf Hc'.strengthening
               Hruntime'.context.wf.toCtx Hruntime'.lift.toCtx).1 hexpanded
         have hdomainNarrow : ∃ sourceDom',
             TrExprS Hc'.venv c.lparams scope dom sourceDom' ∧

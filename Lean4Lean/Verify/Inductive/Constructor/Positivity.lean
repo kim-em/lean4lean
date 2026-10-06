@@ -3306,7 +3306,7 @@ theorem refinesNarrow
     have hinputFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
         type fullType :=
       ⟨sourceFull, hsourceFull, hsourceTarget⟩
-    rcases Hruntime.restrictTrExpr Hc.checking.tr.wf htypeNarrow
+    rcases Hruntime.restrictTrExpr Hc.checking.tr.wf Hc.strengthening htypeNarrow
         hinputFull hnormalizedFull hnormalizedClosed hnormalizedFVars with
       ⟨exposed, hexposed, hexposedEq⟩
     rcases hexposedEq.symm with ⟨exprType, htypeExposed⟩
@@ -3369,7 +3369,7 @@ theorem refinesNarrow
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
               hdomNarrow hdomain
-          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
                 dom.consumeTypeAnnotationsVerified.fvarsList),

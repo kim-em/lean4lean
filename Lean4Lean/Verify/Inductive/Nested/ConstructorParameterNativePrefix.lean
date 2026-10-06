@@ -68,7 +68,7 @@ theorem NestedParamOpening.validateRestoredConstructorPrefix
     (stats : AddInductive.InductiveStats)
     (Hopen : NestedParamOpening lctx opened familyType n
       fullLCtx familyTail fullParams)
-    (hvalid : CheckingEnv.Valid safety prodEnv env)
+    (hvalid : CheckingEnv.Valid safety prodEnv env) (hs : env.Strengthening)
     (hfullWF : fullLCtx.WF)
     (hfullFresh : ∀ fv ∈ fullLCtx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv)
@@ -154,7 +154,7 @@ theorem NestedParamOpening.validateRestoredConstructorPrefix
                 | true =>
                   have hcompare : env.IsDefEqU Us.length mlctx.vlctx.toCtx
                       ctorDomainTarget familyDomainTarget := by
-                    have Hcheck := TypeChecker.M.WF.runCheckingValidMLC
+                    have Hcheck := TypeChecker.M.WF.runCheckingValidMLC (hs := hs)
                       (fuel := typeCheckerFuel) (wf := hvalid)
                       (mlctx_wf := hmlctxWF) hcurrentFresh
                       (TypeChecker.isDefEq.WF HctorDomain HfamilyDomain)

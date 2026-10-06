@@ -65,7 +65,7 @@ def checkHeader (env : Environment) (safety : DefinitionSafety)
   TypeChecker.M.run env safety {} lparams fuel (TypeChecker.checkType type)
 
 theorem checkHeader.WF
-    (hvalid : CheckingEnv.Valid safety env venv) :
+    (hvalid : CheckingEnv.Valid safety env venv) (hs : venv.Strengthening) :
     (checkHeader env safety lparams fuel name type).WF (fun checkedType =>
       ∃ type' checkedType',
         TrTyping venv lparams [] type checkedType type' checkedType') := by
@@ -75,7 +75,7 @@ theorem checkHeader.WF
     intro _ h
     exact checkNoMVarNoFVar.closed (env := env) (name := name) h
   exact hno.bind fun _ hclosed =>
-    checkType_closed.WF (lparams := lparams) (fuel := fuel) hvalid hclosed
+    checkType_closed.WF (lparams := lparams) (fuel := fuel) hvalid hs hclosed
 
 end VerifyInductive
 end Lean4Lean

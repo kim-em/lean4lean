@@ -352,7 +352,7 @@ theorem addInductiveDeclaration.finalPreservesWF
       (VerifyInductive.VEnvs.WF.environmentTypesClosed wf)
     intro res Hsources Hlower
     by_cases haux : res.aux2nested.size = 0
-    · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF
+    · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF (hstrs := hstrs)
         env lparams nparams types isUnsafe fuel res ves wf Hlower.toResult haux
     · exact
         (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF

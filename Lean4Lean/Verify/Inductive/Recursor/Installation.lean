@@ -169,7 +169,7 @@ The resulting `NarrowRuntimeScope` remembers the whole recent prefix in its
 weakening. -/
 theorem MLCtxLamPrefix.extendNarrowRuntimeScope
     (H : MLCtxLamPrefix runtime n domains)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hwf : runtime.WF env Us)
     (Hbase : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
       baseScope (runtime.dropN n H.le).vlctx)
@@ -228,7 +228,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScope
       apply fvarsIn_iff.mpr
       refine ⟨hdeps, ?_⟩
       exact Htype.fvarsIn.mono fun _ _ => trivial
-    rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+    rcases HtailScope.restrict henv hs Htype hclosed htypeFVars with
       ⟨narrowType, HnarrowType⟩
     have Hweak : TrExprS env Us HtailScope.expanded type
         (narrowType.lift' HtailScope.shift) := by
@@ -264,7 +264,7 @@ retains the literal named semantic declarations introduced by the source
 checker. -/
 theorem MLCtxLamPrefix.extendFVarNarrowScope
     (H : MLCtxLamPrefix runtime n domains)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hwf : runtime.WF env Us)
     (Hbase : checkInductiveTypes.loopType.FVarNarrowScope env Us
       baseScope (runtime.dropN n H.le).vlctx)
@@ -338,7 +338,7 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
       apply fvarsIn_iff.mpr
       refine ⟨hdeps, ?_⟩
       exact Htype.fvarsIn.mono fun _ _ => trivial
-    rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+    rcases HtailScope.restrict henv hs Htype hclosed htypeFVars with
       ⟨narrowType, HnarrowType⟩
     have Hweak : TrExprS env Us HtailScope.expanded type
         (narrowType.lift' HtailScope.shift) := by
@@ -372,7 +372,7 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
       simp [liftForallDomains, htailDomains, List.reverse_append,
         List.append_assoc]
     · intro body target Hbody HbodyType
-      have HnextWF := Hnext.scopeWF henv
+      have HnextWF := Hnext.scopeWF henv hs
       have HdomainType : env.IsType Us.length tailScope.toCtx narrowType := by
         simpa [Hnext,
           checkInductiveTypes.loopType.FVarNarrowScope.withIndex,
@@ -412,7 +412,7 @@ translation.  Replaying an arbitrary translated residual packages exactly
 that missing evidence as a translated forall telescope. -/
 theorem MLCtxLamPrefix.extendNarrowRuntimeScopeForallReplay
     (H : MLCtxLamPrefix runtime n domains)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (Hwf : runtime.WF env Us)
     (Hbase : checkInductiveTypes.loopType.NarrowRuntimeScope env Us
       baseScope (runtime.dropN n H.le).vlctx)
@@ -482,7 +482,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeForallReplay
       apply fvarsIn_iff.mpr
       refine ⟨hdeps, ?_⟩
       exact Htype.fvarsIn.mono fun _ _ => trivial
-    rcases HtailScope.restrict henv Htype hclosed htypeFVars with
+    rcases HtailScope.restrict henv hs Htype hclosed htypeFVars with
       ⟨narrowType, HnarrowType⟩
     have Hweak : TrExprS env Us HtailScope.expanded type
         (narrowType.lift' HtailScope.shift) := by
@@ -509,7 +509,7 @@ theorem MLCtxLamPrefix.extendNarrowRuntimeScopeForallReplay
       rw [htailFront]
       simp [List.append_assoc]
     · intro body target Hbody HbodyType
-      have HnextWF := Hnext.scopeWF henv
+      have HnextWF := Hnext.scopeWF henv hs
       have HdomainType : env.IsType Us.length tailScope.toCtx narrowType := by
         simpa [Hnext,
           checkInductiveTypes.loopType.NarrowRuntimeScope.withIndex,
@@ -2157,7 +2157,7 @@ theorem AddInductive.declareRecursors.bindingWF
     {currentVEnv : VEnv}
     (k : Bool)
     (hk : KTargetCheck stats indTypes k)
-    (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
+    (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv) (hs : currentVEnv.Strengthening)
     (Hcontext : BindingContextWF c)
     (Hcard : RecursorCardinalityCertificate stats recInfos decl)
     (Hdecl : TrInductDeclCore sourceEnv c.lparams nparams
@@ -2200,7 +2200,7 @@ theorem AddInductive.declareRecursors.bindingWF
             stats indTypes recInfos := by
     simpa using
       (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
-        Hvalid hnotPartial stats indTypes elimLevel recInfos
+        Hvalid hs hnotPartial stats indTypes elimLevel recInfos
         (recInfos.flatMap (·.minors)).size
         (recInfos.map (·.motive)).size
         (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
@@ -2236,7 +2236,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
     {currentVEnv : VEnv} {recLparams : List Name} {depth : Nat}
     (k : Bool)
     (hk : KTargetCheck stats indTypes k)
-    (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv)
+    (Hvalid : CheckingEnv.Valid c.safety c.env currentVEnv) (hs : currentVEnv.Strengthening)
     (Hcontext : BindingContextWF c)
     (R : RecursorContextWF c recLparams)
     (Hstats : RecursorValidAppStatsWF R.venv recLparams R.mlctx.vlctx
@@ -2316,7 +2316,7 @@ theorem AddInductive.declareRecursors.bindingSemanticWFOfTargets
               stats indTypes recInfos := by
       simpa using
         (AddInductive.declareRecursors.checkRecursorTypes.recursorTypeTranslationsWF
-          Hvalid hnotPartial stats indTypes elimLevel recInfos
+          Hvalid hs hnotPartial stats indTypes elimLevel recInfos
           (recInfos.flatMap (·.minors)).size
           (recInfos.map (·.motive)).size
           (indTypes.map (·.name)).toList c.lctx k (c.safety != .safe)
@@ -2384,7 +2384,7 @@ theorem AddInductive.declareRecursors.WF
           AddConstants c.safety c.env Hcontext.venv entries outEnv
             outVEnv :=
   AddInductive.declareRecursors.bindingWF k hk Hcontext.checking
-    Hcontext.toBindingContextWF Hcard Hdecl Rowners Hbindings Horigins
+    Hcontext.strengthening Hcontext.toBindingContextWF Hcard Hdecl Rowners Hbindings Horigins
     Hblueprints HminorSources HminorSemantics Hparams hnoalias hcounts
     hnotPartial
     hnprim

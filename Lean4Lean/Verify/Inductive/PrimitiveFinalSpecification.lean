@@ -61,7 +61,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) := by
-  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
+  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF (hstrs := hstrs)
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
     HnotPartial
   exact Hrun.mono fun outEnv Hresult => by

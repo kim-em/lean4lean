@@ -1133,7 +1133,7 @@ theorem
   rw [← htermShape] at Hminor Happlication
   have HfieldContext :=
     VEnv.HasType.canonicalApplicationContext_of_weakened
-    H.outVEnvWF equationFieldDomains installedEquationFields outer Hctx
+    H.outVEnvWF H.outStrengthening equationFieldDomains installedEquationFields outer Hctx
       Hminor (by simpa [installedEquationFields] using hequationLength)
       Happlication
   have W : Ctx.LiftN equationFieldDomains.length 0 outer
@@ -1144,7 +1144,7 @@ theorem
       (VExpr.wrapForalls installedEquationFields
         (VExpr.wrapForalls installedEquationHypotheses
           installedEquationResidual)) :=
-    (VEnv.HasType.weakN_iff H.outVEnvWF Hctx W).mp Hminor
+    (VEnv.HasType.weakN_iff H.outVEnvWF H.outStrengthening Hctx W).mp Hminor
   have HminorBase' : H.outVEnv.HasType Us.length outer
       (.bvar later.length)
       (VExpr.wrapForalls

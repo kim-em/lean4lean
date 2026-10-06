@@ -43,7 +43,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalEnvironmentEqReadyOr
       ContextWF.initial wf .safe lparams true fuel
   have hsource : Hc.venv = ves.venv .safe := rfl
   have hctx : Hc.mlctx.vlctx = [] := rfl
-  have Hrun := AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
+  have Hrun := AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF (hstrs := hstrs)
     (c := c) (ves := ves) nparams 0 Hc wf' hsource hEq Hshape'
     hctx hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering

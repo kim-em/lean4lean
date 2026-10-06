@@ -129,7 +129,9 @@ theorem AddInductive.run.semanticFinalModelWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety := by
@@ -137,7 +139,7 @@ theorem AddInductive.run.semanticFinalModelWF
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.semanticSourceAlignedWF (hstrs := hstrs) nparams numNested Hc
     Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.extend wf hsource HnotPartial hnonempty
 
@@ -164,7 +166,9 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
@@ -175,7 +179,7 @@ theorem AddInductive.run.semanticFinalSpecificationModelWF
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.semanticSourceAlignedWF (hstrs := hstrs) nparams numNested Hc
     Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       exact Hrun.extendWithSpecification wf hsource HnotPartial hnonempty
 
@@ -204,7 +208,9 @@ theorem AddInductive.run.semanticFinalWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety := by
@@ -212,7 +218,7 @@ theorem AddInductive.run.semanticFinalWF
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.semanticSourceAlignedWF (hstrs := hstrs) nparams numNested Hc
     Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.extendOfQuotReady wf hEq hsource HnotPartial hnonempty
 
@@ -241,7 +247,9 @@ theorem AddInductive.run.semanticFinalSpecificationWF
           Hc'.venv c'.lparams nparams commonParams commonLevel
             types.toArray.toList) →
       SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
+        types.toArray (c.safety != .safe) Hc')
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types (c.safety != .safe)) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
@@ -252,7 +260,7 @@ theorem AddInductive.run.semanticFinalSpecificationWF
     cases htypes : types with
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
+  exact (AddInductive.run.semanticSourceAlignedWF (hstrs := hstrs) nparams numNested Hc
     Hclosed hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       rcases Hrun.extendWithSpecification wf hsource HnotPartial hnonempty with
         ⟨ves', wf', hle, Hspec⟩

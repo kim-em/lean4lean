@@ -15,7 +15,7 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open TypeChecker
 
-theorem TypeChecker.MLCtx.restrictUpSet {env : VEnv} {Us : List Name} (henv : env.WF)
+theorem TypeChecker.MLCtx.restrictUpSet {env : VEnv} {Us : List Name} (henv : env.WF) (hs : env.Strengthening)
     (P : FVarId → Prop) :
     ∀ (c : MLCtx), c.WF env Us → VerifyInductive.MLCtxOnlyLams c → IsFVarUpSet P c.vlctx →
     ∃ (Δ : VLCtx) (n : Lift), VLCtx.FVLift' Δ c.vlctx 0 n 0 ∧
@@ -31,7 +31,7 @@ theorem TypeChecker.MLCtx.restrictUpSet {env : VEnv} {Us : List Name} (henv : en
     obtain ⟨hwfc, _, htr, _⟩ := hwf
     have honlyc : VerifyInductive.MLCtxOnlyLams c := fun d hd => honly d (by simp [MLCtx.decls, hd])
     have hupc : IsFVarUpSet P c.vlctx := hup.1
-    obtain ⟨Δ, n, W, hfvars, hlams⟩ := restrictUpSet henv P c hwfc honlyc hupc
+    obtain ⟨Δ, n, W, hfvars, hlams⟩ := restrictUpSet henv hs P c hwfc honlyc hupc
     have hvwf : VLCtx.WF env Us.length c.vlctx := hwfc.tr.wf
     by_cases hP : P fv
     · have hdeps : ∀ fv' ∈ ty.fvarsList, P fv' := hup.2 hP
@@ -42,7 +42,7 @@ theorem TypeChecker.MLCtx.restrictUpSet {env : VEnv} {Us : List Name} (henv : en
       have hc : Closed ty 0 := by
         have h := htr.closed
         rwa [c.noBV] at h
-      obtain ⟨ty₀, htr₀⟩ := htr.weakFV'_inv henv W (.refl henv.ordered hvwf) hc hv
+      obtain ⟨ty₀, htr₀⟩ := htr.weakFV'_inv henv hs W (.refl henv.ordered hvwf) hc hv
       have hlift := htr₀.weakFV' henv W hvwf
       have hty' : ty' = ty₀.lift' n := by simpa using htr.uniqueS hlift
       refine ⟨(some (fv, ty.fvarsList), .vlam ty₀) :: Δ, .consN n 1, ?_, ?_, ?_⟩
@@ -95,7 +95,7 @@ theorem TrExprS.closeAllLams {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Exp
 /-- Restriction to an up-set as a typechecker context: the kept declarations
 keep their concrete types, and their abstract types are the strengthened
 translations in the restricted tail. -/
-theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv : env.WF)
+theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv : env.WF) (hs : env.Strengthening)
     (P : FVarId → Prop) :
     ∀ (c : MLCtx), c.WF env Us → VerifyInductive.MLCtxOnlyLams c → IsFVarUpSet P c.vlctx →
     ∃ (c' : MLCtx) (n : Lift), c'.WF env Us ∧ VerifyInductive.MLCtxOnlyLams c' ∧
@@ -115,7 +115,7 @@ theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv :
     obtain ⟨hwfc, _, htr, _⟩ := hwf
     have honlyc : VerifyInductive.MLCtxOnlyLams c := honly.tail_vlam
     have hupc : IsFVarUpSet P c.vlctx := hup.1
-    obtain ⟨c', n, hwf', honly', W, hfvars, hfind⟩ := restrictUpSetCtx henv P c hwfc honlyc hupc
+    obtain ⟨c', n, hwf', honly', W, hfvars, hfind⟩ := restrictUpSetCtx henv hs P c hwfc honlyc hupc
     have hvwf : VLCtx.WF env Us.length c.vlctx := hwfc.tr.wf
     have hnotin : fv ∉ c.vlctx.fvars := (hwfBig.2.1 fv ty.fvarsList rfl).1
     have hnotin' : fv ∉ c'.vlctx.fvars := fun h => hnotin ((hfvars fv).1 h).1
@@ -128,14 +128,14 @@ theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv :
       have hc : Closed ty 0 := by
         have h := htr.closed
         rwa [c.noBV] at h
-      obtain ⟨ty₀, htr₀⟩ := htr.weakFV'_inv henv W (.refl henv.ordered hvwf) hc hv
+      obtain ⟨ty₀, htr₀⟩ := htr.weakFV'_inv henv hs W (.refl henv.ordered hvwf) hc hv
       have hlift := htr₀.weakFV' henv W hvwf
       have hty' : ty' = ty₀.lift' n := by simpa using htr.uniqueS hlift
       have W' : VLCtx.FVLift' ((some (fv, ty.fvarsList), .vlam ty₀) :: c'.vlctx)
           (MLCtx.vlam fv name ty ty' bi c).vlctx 0 (.consN n 1) 0 := by
         have W'' := W.cons_fvar (fv, ty.fvarsList) (.vlam ty₀) hdepsIn
         simpa [VLocalDecl.lift', VLocalDecl.depth, hty'] using W''
-      have hwfSmall := W'.wf henv hwfBig
+      have hwfSmall := W'.wf henv hs hwfBig
       have hfind' : c'.lctx.find? fv = none :=
         hwf'.tr.find?_eq_none.2 fun h => hnotin ((hfvars fv).1 h).1
       refine ⟨.vlam fv name ty ty₀ bi c', .consN n 1, ⟨hwf', hfind', htr₀, hwfSmall.2.2⟩,

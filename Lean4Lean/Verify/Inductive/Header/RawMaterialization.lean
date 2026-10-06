@@ -222,7 +222,7 @@ theorem CheckedSourceHeaderTranslation.checkedTerminal
     hruntimeType.defeqU_l Hc.checking.tr.wf
       Hc.mlctx_wf.tr.wf.toCtx hruntimeTarget
   have htargetType : Hc.venv.IsType c.lparams.length [] H.target.type :=
-    (VEnv.IsType.weakN_iff Hc.checking.tr.wf
+    (VEnv.IsType.weakN_iff Hc.checking.tr.wf Hc.strengthening
       Hc.mlctx_wf.tr.wf.toCtx W.toCtx).1 htargetLifted
   refine ⟨resultLevel, hofLevel, {
     uvars := H.source.uvars

@@ -73,7 +73,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
     have hinputFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
         type fullType :=
       ⟨sourceFull, hsourceFull, hsourceTarget⟩
-    rcases Hruntime.restrictTrExpr Hc.checking.tr.wf htypeNarrow
+    rcases Hruntime.restrictTrExpr Hc.checking.tr.wf Hc.strengthening htypeNarrow
         hinputFull hnormalizedFull hnormalizedClosed hnormalizedFVars with
       ⟨exposed, hexposed, hexposedEq⟩
     rcases hexposedEq.symm with ⟨exprType, htypeExposed⟩
@@ -90,7 +90,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
             decl.UniformFieldNormalForm levels depth result) :=
       Hstep.mono fun _ ⟨result, hresult, hshape⟩ =>
         ⟨result, VEnv.IsDefEqU.trans Hc.checking.tr.wf
-          (by simpa [Hstats.uvars] using (Hruntime.scopeWF Hc.checking.tr.wf).toCtx)
+          (by simpa [Hstats.uvars] using (Hruntime.scopeWF Hc.checking.tr.wf Hc.strengthening).toCtx)
           (by simpa [Hstats.uvars] using
             (show Hc.venv.IsDefEqU c.lparams.length scope.toCtx narrowType exposed from
               ⟨exprType, htypeExposed⟩)) hresult, hshape⟩
@@ -98,7 +98,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
     · apply finish
       exact checkPositivityStep.noOccurrence.WF hocc
         ⟨exposed, (by simpa [Hstats.uvars] using
-          (VEnv.IsDefEqU.refl (TrExprS.wf Hc.checking.tr.wf.ordered (Hruntime.scopeWF Hc.checking.tr.wf) hexposed))),
+          (VEnv.IsDefEqU.refl (TrExprS.wf Hc.checking.tr.wf.ordered (Hruntime.scopeWF Hc.checking.tr.wf Hc.strengthening) hexposed))),
           .inl (checkPositivityStep.TrExprS.noIndOccAvailable Hstats.consts.names hlit
             (Hruntime.noIndConsts (decl.types.map (·.name))) hexposed hocc)⟩
     have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
@@ -146,7 +146,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
               hdomNarrow hdomain
-          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
                 dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -168,7 +168,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
             have hbodyctx : OnCtx (narrowDom :: scope.toCtx)
                 (Hc.venv.IsType decl.uvars) := by
               refine ⟨?_, _, hdomTyped'⟩
-              simpa [Hstats.uvars] using (Hruntime.scopeWF Hc.checking.tr.wf).toCtx
+              simpa [Hstats.uvars] using (Hruntime.scopeWF Hc.checking.tr.wf Hc.strengthening).toCtx
             have hresult' : Hc.venv.IsDefEqU decl.uvars
                 (narrowDom :: scope.toCtx) narrowBody result := hresult
             exact ⟨.forallE narrowDom result,
@@ -184,7 +184,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
         apply finish
         exact checkPositivityStep.validApplication.WF hocc' hforall hvalid
           ⟨exposed, (by simpa [Hstats.uvars] using
-            (VEnv.IsDefEqU.refl (TrExprS.wf Hc.checking.tr.wf.ordered (Hruntime.scopeWF Hc.checking.tr.wf) hexposed))),
+            (VEnv.IsDefEqU.refl (TrExprS.wf Hc.checking.tr.wf.ordered (Hruntime.scopeWF Hc.checking.tr.wf Hc.strengthening) hexposed))),
             checkPositivityStep.isValidIndApp?.uniformNormalForm Hstats hexposed
               hvalid hlevels hlit (Hruntime.noIndConsts (decl.types.map (·.name)))⟩
 
@@ -262,7 +262,7 @@ theorem checkConstructors.loopCtor.uniformTailWF
               ((some (⟨c.ngen.curr⟩, dom.consumeTypeAnnotationsVerified.fvarsList),
                 .vlam narrowDom) :: scope) Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom hdomNarrow hdomain
-          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩, dom.consumeTypeAnnotationsVerified.fvarsList),
                 .vlam narrowDom) :: scope)

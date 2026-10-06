@@ -525,12 +525,14 @@ theorem AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
+    (HnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types isUnsafe) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\ EqReadyOrAbsent outEnv ves' /\
         forall safety, ves.venv safety <= ves'.venv safety := by
-  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
+  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF (hstrs := hstrs)
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
@@ -550,12 +552,14 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
+    (HnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      types isUnsafe) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
         ves'.WF outEnv /\
         forall safety, ves.venv safety <= ves'.venv safety := by
-  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
+  have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF (hstrs := hstrs)
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
