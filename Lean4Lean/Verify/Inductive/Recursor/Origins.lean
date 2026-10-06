@@ -4409,16 +4409,17 @@ def RecursorWhnfCallAt (final : AddInductive.Context) (Q : FVarId → Prop)
     IsFVarUpSet P Rc.mlctx.vlctx ∧
     (∀ fv, P fv → Q fv ∧ fv ∈ ctx.lctx.fvars) ∧
     input.FVarsIn P ∧
-    (monadLift (TypeChecker.whnf input) : AddInductive.M Expr) ctx = .ok output
+    (monadLift (TypeChecker.whnf input) : AddInductive.M Expr) ctx = .ok output ∧
+    ∃ target₀, TrExprS Rc.venv recLparams Rc.chk.vlctx input target₀
 
 theorem RecursorWhnfCallAt.mono {final final' : AddInductive.Context}
     {Q Q' : FVarId → Prop} {input output : Expr}
     (H : RecursorWhnfCallAt final Q input output)
     (hle : BindingContextLE final final') (hQ : ∀ fv, Q fv → Q' fv) :
     RecursorWhnfCallAt final' Q' input output := by
-  obtain ⟨ctx, recLparams, Rc, P, target, hctx, htr, hup, hP, hin, hrun⟩ := H
+  obtain ⟨ctx, recLparams, Rc, P, target, hctx, htr, hup, hP, hin, hrun, htr₀⟩ := H
   exact ⟨ctx, recLparams, Rc, P, target, hctx.trans hle, htr, hup,
-    fun fv h => ⟨hQ fv (hP fv h).1, (hP fv h).2⟩, hin, hrun⟩
+    fun fv h => ⟨hQ fv (hP fv h).1, (hP fv h).2⟩, hin, hrun, htr₀⟩
 
 /-- Exact successful prefix of `whnf header >>= loopArgs1 stats · 0 #[]`:
 the header normalization, the parameter steps (instantiating the cached

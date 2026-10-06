@@ -1254,6 +1254,7 @@ theorem whnfInRecursorContext.hitOK
     {c : AddInductive.Context} {recLparams : List Name}
     (Hc : RecursorContextWF c recLparams) {e : Expr} {e' : VExpr}
     (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e')
+    {e₀ : VExpr} (hn : TrExprS Hc.venv recLparams Hc.chk.vlctx e e₀)
     {heads : List Name} {As : List Expr} {ls : List Level} {P : FVarId → Prop}
     (henv : EnvHitShape c.env heads As.length ls)
     (hAs : TypeChecker.HitParams `_kernel_fresh As)
@@ -1261,20 +1262,35 @@ theorem whnfInRecursorContext.hitOK
     (hin : e.HitOK c.env heads As ls) (hP : FVarsIn P e) :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       e₁.HitOK c.env heads As ls := by
-  change (TypeChecker.M.run c.env c.safety c.checkLCtx
-    (c.typeCheckerLParams.getD c.lparams) c.fuel
-    (TypeChecker.whnf e)).WF _
-  rw [Hc.typeCheckerLParams_eq]
-  refine Hc.runOfMain (.whnf e) _ ?_
-  rw [← Hc.lctx_eq]
-  have hs : Hc.typeChecker.HitScope `_kernel_fresh heads As ls P :=
-    ⟨henv, hAs, hscope.1, hscope.2⟩
-  have Hx : TypeChecker.M.WF Hc.typeChecker {}
+  -- the run is verified in the checker context, whose hit scope is the part
+  -- of `P` among the checker variables
+  let P₀ : FVarId → Prop := fun fv => P fv ∧ fv ∈ Hc.chk.vlctx.fvars
+  have hs : Hc.checkTC.HitScope `_kernel_fresh heads As ls P₀ := by
+    refine ⟨henv, hAs, IsFVarUpSet.and _ (Hc.check.embed.isFVarUpSet hscope.1)
+      (IsFVarUpSet.fvars Hc.check.wf.tr.wf.fvwf), ?_⟩
+    intro fv d ⟨hPfv, _⟩ hfind
+    change Hc.chk.lctx.find? fv = some d at hfind
+    rw [Hc.check.lctx_eq] at hfind
+    obtain ⟨d', hd', hdeq⟩ := Hc.check.sub fv d hfind
+    have hmain : Hc.mlctx.lctx.find? fv = some d' := by rw [Hc.lctx_eq]; exact hd'
+    have h' := hscope.2 fv d' hPfv hmain
+    have e1 : ∀ x : LocalDecl, (x.setIndex 0).type = x.type := by
+      intro x; cases x <;> rfl
+    have e2 : ∀ x : LocalDecl, (x.setIndex 0).value? true = x.value? true := by
+      intro x; cases x with
+      | cdecl => rfl
+      | ldecl _ _ _ _ _ nd => cases nd <;> rfl
+    have htype : d'.type = d.type := by rw [← e1 d', hdeq, e1 d]
+    have hvalue : d'.value? true = d.value? true := by rw [← e2 d', hdeq, e2 d]
+    exact ⟨htype ▸ h'.1, fun v hv => h'.2 v (hvalue ▸ hv)⟩
+  have hP₀ : FVarsIn P₀ e := by
+    have hc := (fvarsIn_iff.mp hn.fvarsIn).1
+    exact fvarsIn_iff.mpr ⟨fun fv hfv => ⟨(fvarsIn_iff.mp hP).1 fv hfv, hc fv hfv⟩,
+      (fvarsIn_iff.mp hP).2⟩
+  have Hx : TypeChecker.M.WF Hc.checkTC {}
       (TypeChecker.whnf e) (fun e₁ _ => e₁.HitOK c.env heads As ls) :=
-    (TypeChecker.whnf.hitShape he).mono fun e₁ _ _ h => h.2 heads As ls P hs hin hP
-  exact TypeChecker.M.WF.runCheckingValidMLC
-    (lparams := recLparams) (fuel := c.fuel)
-    Hc.kernelFresh Hx
+    (TypeChecker.whnf.hitShape hn).mono fun e₁ _ _ h => h.2 heads As ls P₀ hs hin hP₀
+  exact liftTypeChecker.recursorWF Hc Hx
 
 end VerifyInductive
 end Lean4Lean
@@ -1291,9 +1307,10 @@ theorem WhnfHitOKFacts.of_env {heads : List Name} {params : List Expr} {ls : Lis
     {env : Environment} (henv : EnvHitShape env heads params.length ls)
     (hparams : TypeChecker.HitParams `_kernel_fresh params) :
     WhnfHitOKFacts heads params ls env where
-  whnf Hc _ _ _ _ hc he hscope hP hin hrun := by
+  whnf Hc _ _ _ _ hc he hn hscope hP hin hrun := by
     subst hc
-    exact whnfInRecursorContext.hitOK Hc he henv hparams hscope hin hP _ hrun
+    obtain ⟨_, hn⟩ := hn
+    exact whnfInRecursorContext.hitOK Hc he hn henv hparams hscope hin hP _ hrun
 
 section Run
 
