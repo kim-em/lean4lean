@@ -483,6 +483,61 @@ theorem minorBody_inst (henv : env.WF) {P F Hs D CI : List VExpr} {ctorApp : VEx
     rw [getD_of_lt hj', getD_of_lt hj]
     exact this
 
+theorem instDomains_append (A B : List VExpr) (a : VExpr) (k : Nat) :
+    VExpr.instDomains (A ++ B) a k = VExpr.instDomains A a k ++ VExpr.instDomains B a (k + A.length) := by
+  induction A generalizing k with
+  | nil => simp [VExpr.instDomains]
+  | cons d ds ih => simp [VExpr.instDomains, ih, Nat.add_assoc, Nat.add_comm 1]
+
+theorem instDomains_insertBinders (F : List VExpr) (a : VExpr) :
+    VExpr.instDomains (insertBinders F 1) a 0 = F := by
+  apply List.ext_getElem
+  · simp
+  · intro i h1 h2
+    rw [VExpr.instDomains_getElem _ _ _ _ (by simpa using h2), getElem_insertBinders (by simpa using h2)]
+    simpa using VExpr.inst_liftN (k := i) F[i] a
+
+/-- The minor premise built from a branch over the fields: the induction hypotheses are
+abstracted and unused. -/
+theorem HasType.minorOf (henv : env.WF) {P F Hs CI : List VExpr} {Mot ctorApp M b : VExpr}
+    (hP : OnCtx P.reverse (env.IsType U))
+    (hMin : env.IsType U (Mot :: P.reverse)
+      (VExpr.wrapForalls (insertBinders F 1 ++ Hs)
+        (VExpr.mkApps (.bvar (F.length + Hs.length))
+          (CI.map (fun e => (e.liftN Hs.length).liftN 1 (F.length + Hs.length)) ++
+            [(ctorApp.liftN Hs.length).liftN 1 (F.length + Hs.length)]))))
+    (hM : env.HasType U P.reverse M Mot)
+    (hb : env.HasType U (P ++ F).reverse b (VExpr.mkApps (M.liftN F.length) (CI ++ [ctorApp]))) :
+    env.HasType U P.reverse
+      (VExpr.wrapLams (VExpr.instDomains (insertBinders F 1 ++ Hs) M 0) (b.liftN Hs.length))
+      ((VExpr.wrapForalls (insertBinders F 1 ++ Hs)
+        (VExpr.mkApps (.bvar (F.length + Hs.length))
+          (CI.map (fun e => (e.liftN Hs.length).liftN 1 (F.length + Hs.length)) ++
+            [(ctorApp.liftN Hs.length).liftN 1 (F.length + Hs.length)]))).inst M 0) := by
+  have h1 := IsType.instN henv.ordered .zero hMin hM
+  rw [VExpr.wrapForalls_inst] at h1 ⊢
+  obtain ⟨hctx, _⟩ := IsType.wrapForalls_inv henv hP h1
+  apply HasType.wrapLams_of hctx
+  have hbody : (VExpr.mkApps (.bvar (F.length + Hs.length))
+          (CI.map (fun e => (e.liftN Hs.length).liftN 1 (F.length + Hs.length)) ++
+            [(ctorApp.liftN Hs.length).liftN 1 (F.length + Hs.length)])).inst M
+        (0 + (insertBinders F 1 ++ Hs).length) =
+      (VExpr.mkApps (M.liftN F.length) (CI ++ [ctorApp])).liftN Hs.length := by
+    simp only [VExpr.inst_mkApps, VExpr.liftN_mkApps, List.length_append, InductiveSignature.Instance.length_insertBinders,
+      Nat.zero_add, List.map_append, List.map_map, Function.comp_def, List.map_cons, List.map_nil,
+      VExpr.inst_liftN]
+    congr 1
+    simp [VExpr.inst, VExpr.instVar, VExpr.liftN_liftN, Nat.add_comm]
+  rw [hbody]
+  rw [instDomains_append, instDomains_insertBinders] at hctx ⊢
+  have hW : Ctx.LiftN Hs.length 0 (P ++ F).reverse
+      ((VExpr.instDomains Hs M (0 + (insertBinders F 1).length)).reverse ++ (F.reverse ++ P.reverse)) := by
+    have := Ctx.LiftN.zero (n := Hs.length) (VExpr.instDomains Hs M (0 + (insertBinders F 1).length)).reverse
+      (Γ := (P ++ F).reverse) (by simp)
+    simpa using this
+  have := hb.weakN henv.ordered hW
+  simpa [List.reverse_append, List.append_assoc] using this
+
 end VEnv
 
 end Lean4Lean
