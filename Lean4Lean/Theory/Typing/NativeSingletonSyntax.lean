@@ -117,4 +117,163 @@ theorem singletonElim_levels (owner : Fin s.families.size) (c : Constructor s.fa
     | cons hx _ ih => intro k; exact .cons (EqUpToLevels.instN hM hx) (ih (k + 1))
 
 end InductiveSignature.Instance
+namespace CastSpec
+
+theorem instL_instL (S : CastSpec) (ls ls' : List VLevel) :
+    (S.instL ls).instL ls' = S.instL (ls.map (·.inst ls')) := by
+  cases S
+  simp [CastSpec.instL, List.map_map, Function.comp_def, VExpr.instL_instL, VLevel.inst_inst]
+
+theorem getD_sorts_map (l : List VLevel) (ls : List VLevel) (i : Nat) :
+    (l.map (·.inst ls)).getD i .zero = (l.getD i .zero).inst ls := by
+  simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
+  cases l[i]? <;> simp [VLevel.inst]
+
+theorem rel_instL (S : CastSpec) (ls : List VLevel) :
+    Rel (fun x y => y = x.instL ls) (fun u v => v = u.inst ls) S (S.instL ls) where
+  fields := forall₂_instL_of
+  indices := forall₂_instL_of
+  slot := rfl
+  sorts i := by simp only [CastSpec.instL]; exact getD_sorts_map _ _ _
+
+theorem rel_levels (S : CastSpec) {U : Nat} {ls ls' : List VLevel}
+    (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
+    Rel (EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) (S.instL ls) (S.instL ls') where
+  fields := by
+    simp only [CastSpec.instL]
+    generalize S.fields = l
+    induction l with
+    | nil => exact .nil
+    | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih
+  indices := by
+    simp only [CastSpec.instL]
+    generalize S.indices = l
+    induction l with
+    | nil => exact .nil
+    | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih
+  slot := rfl
+  sorts i := by
+    simp only [CastSpec.instL, getD_sorts_map]
+    exact ⟨VLevel.WF.inst hls, VLevel.WF.inst hls', VLevel.inst_congr rfl heq⟩
+
+end CastSpec
+
+namespace InductiveSignature.NativeRecursorData
+variable {env : VEnv} {data : NativeRecursorData}
+
+theorem castSpec_instL (ls packed : List VLevel) :
+    data.castSpec env (ls.map (·.inst packed)) = (data.castSpec env ls).map (·.instL packed) := by
+  simp only [castSpec, Option.map_map]
+  congr 1
+  funext S
+  simp [CastSpec.instL_instL]
+
+theorem propParams_instL (ls packed : List VLevel) :
+    data.propParams (ls.map (·.inst packed)) = (data.propParams ls).map (·.instL packed) := by
+  simp [propParams, List.map_map, Function.comp_def, VExpr.instL_instL]
+
+theorem set_zero_map (ls packed : List VLevel) (k : Nat) :
+    (ls.map (·.inst packed)).set k .zero = (ls.set k .zero).map (·.inst packed) := by
+  rw [List.map_set]; rfl
+
+theorem propElim_instL {ls : List VLevel} {E : PropElim} (hE : data.propElim ls = some E)
+    (packed : List VLevel) :
+    ∃ E', data.propElim (ls.map (·.inst packed)) = some E' ∧
+      PropElim.Rel (fun x y => y = x.instL packed) E E' := by
+  unfold propElim at hE ⊢
+  simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff,
+    Option.some.injEq] at hE
+  obtain ⟨k, hk, i, hi, rfl⟩ := hE
+  refine ⟨(data.nativeInstance.specialize 0 ((ls.map (·.inst packed)).set k .zero)).singletonElim
+    data.owner data.schema.signature.constructors[i]
+    (.const data.name ((ls.map (·.inst packed)).set k .zero)), by simp [hk, hi], ?_⟩
+  rw [set_zero_map, ← Instance.specialize_specialize]
+  exact Instance.singletonElim_instL _ _ _ _ 0 packed
+
+theorem forall₂_set {R : α → α → Prop} (hd : R d d) :
+    ∀ {l l' : List α}, List.Forall₂ R l l' → ∀ k, List.Forall₂ R (l.set k d) (l'.set k d)
+  | _, _, .nil, _ => .nil
+  | _, _, .cons h t, 0 => .cons hd t
+  | _, _, .cons h t, k + 1 => .cons h (forall₂_set hd t k)
+
+theorem wf_set {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U) (k : Nat) :
+    ∀ l ∈ ls.set k .zero, l.WF U := by
+  intro l hl
+  rcases List.mem_or_eq_of_mem_set hl with h | rfl
+  · exact hls l h
+  · simp [VLevel.WF]
+
+theorem propElim_levels {ls ls' : List VLevel} {E : PropElim} (hE : data.propElim ls = some E)
+    (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
+    ∃ E', data.propElim ls' = some E' ∧ PropElim.Rel (EqUpToLevels U) E E' := by
+  unfold propElim at hE ⊢
+  simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff,
+    Option.some.injEq] at hE
+  obtain ⟨k, hk, i, hi, rfl⟩ := hE
+  refine ⟨(data.nativeInstance.specialize 0 (ls'.set k .zero)).singletonElim
+    data.owner data.schema.signature.constructors[i]
+    (.const data.name (ls'.set k .zero)), by simp [hk, hi], ?_⟩
+  have h0 := wf_set hls k
+  have h0' := wf_set hls' k
+  have hset := forall₂_set (R := (· ≈ ·)) (d := VLevel.zero) rfl heq k
+  exact Instance.singletonElim_levels _ _ _ h0 h0' hset (.const h0 h0' hset)
+
+theorem castSpec_levels {ls ls' : List VLevel} {S : CastSpec}
+    (hS : data.castSpec env ls = some S)
+    (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
+    ∃ S', data.castSpec env ls' = some S' ∧
+      CastSpec.Rel (EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) S S' := by
+  unfold castSpec at hS ⊢
+  obtain ⟨G, hG, rfl⟩ := Option.map_eq_some_iff.1 hS
+  exact ⟨_, by simp [hG], CastSpec.rel_levels G hls hls' heq⟩
+
+theorem propParams_levels {ls ls' : List VLevel}
+    (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
+    List.Forall₂ (EqUpToLevels U) (data.propParams ls) (data.propParams ls') := by
+  simp only [propParams]
+  generalize data.nativeInstance.params = l
+  induction l with
+  | nil => exact .nil
+  | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih
+
+/-- The reconstruction at instantiated universes is the instantiated reconstruction. -/
+theorem occ_instL {ls packed : List VLevel} {S : CastSpec} {E : PropElim}
+    (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E) :
+    data.castSpec env (ls.map (·.inst packed)) = some (S.instL packed) ∧
+    data.propParams (ls.map (·.inst packed)) = (data.propParams ls).map (·.instL packed) ∧
+    ∃ E', data.propElim (ls.map (·.inst packed)) = some E' ∧
+      ∀ ps idx m i,
+        PropElim.occ (S.instL packed) ((data.propParams ls).map (·.instL packed)) E'
+            (ps.map (·.instL packed)) (idx.map (·.instL packed)) (m.instL packed) i =
+          ((PropElim.occ S (data.propParams ls) E ps idx m i).1.map (·.instL packed),
+            (PropElim.occ S (data.propParams ls) E ps idx m i).2.map (·.instL packed)) := by
+  refine ⟨by rw [castSpec_instL, hS]; rfl, propParams_instL _ _, ?_⟩
+  obtain ⟨E', hE', hrel⟩ := propElim_instL hE packed
+  refine ⟨E', hE', fun ps idx m i => ?_⟩
+  have := PropElim.occ_rel (SynRel.instL packed) (CastSpec.rel_instL S packed)
+    forall₂_instL_of hrel (params := data.propParams ls) (ps := ps) (idx := idx) (m := m) (m' := m.instL packed)
+    forall₂_instL_of forall₂_instL_of rfl i
+  rw [← forall₂_instL this.1, ← forall₂_instL this.2]
+
+/-- The reconstruction at equivalent universes, from arguments equal up to levels, is equal
+up to levels. -/
+theorem occ_levels {ls ls' : List VLevel} {S : CastSpec} {E : PropElim}
+    (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E)
+    (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
+    ∃ S' E', data.castSpec env ls' = some S' ∧ data.propElim ls' = some E' ∧
+      S'.fields.length = S.fields.length ∧
+      ∀ {ps ps' idx idx' m m'}, List.Forall₂ (EqUpToLevels U) ps ps' →
+        List.Forall₂ (EqUpToLevels U) idx idx' → EqUpToLevels U m m' → ∀ i,
+        List.Forall₂ (EqUpToLevels U) (PropElim.occ S (data.propParams ls) E ps idx m i).1
+            (PropElim.occ S' (data.propParams ls') E' ps' idx' m' i).1 ∧
+          List.Forall₂ (EqUpToLevels U) (PropElim.occ S (data.propParams ls) E ps idx m i).2
+            (PropElim.occ S' (data.propParams ls') E' ps' idx' m' i).2 := by
+  obtain ⟨S', hS', hSrel⟩ := castSpec_levels hS hls hls' heq
+  obtain ⟨E', hE', hErel⟩ := propElim_levels hE hls hls' heq
+  refine ⟨S', E', hS', hE', hSrel.fields_length.symm, fun hps hidx hm i => ?_⟩
+  exact PropElim.occ_rel (SynRel.levels U) hSrel (propParams_levels hls hls' heq) hErel
+    hps hidx hm i
+
+end InductiveSignature.NativeRecursorData
+
 end Lean4Lean
