@@ -423,4 +423,13 @@ transfer the typing witnesses), `sortDF`/`constDF` (levels only through `eval`).
 
 ## 10. Status
 
+* [Lean] Syntactic layer done: `HeadInjectivity/{Core,Congruence,FieldType,Uniqueness,Fields}.lean`,
+  `theorem VEnv.HeadInjectivityCore.toHeadInjectivity (henv : env.WF) (core :
+  env.HeadInjectivityCore) : env.HeadInjectivity` (no sorry; axioms propext, Classical.choice,
+  Quot.sound). `proj_fieldType` (hardest case 3) is proved there from the core by the
+  conjunction induction of section 5; no strengthening, no `HasCanonicalEq`.
+  `TypeChain`/`SpineArgsEq` moved to `Typing/TypeChain.lean` (D7: the injectivity
+  development must not import `HeadInversion.lean`).
+* [plan] Semantic layer M0-M5 (section 9.3).
+
 (updated as the work proceeds)
