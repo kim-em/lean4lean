@@ -924,6 +924,18 @@ inside this project's scope without solving open base metatheory:
    on this branch (non-exhaustive matches after `VExpr` gained `elim`/`proj`).
    **`headInversion` is therefore an open metatheoretic problem**
    (consistent with the Lean4Lean paper retracting the uniqueness proofs).
+   **CI note:** the step "Build Lean4Lean.Experimental" has failed on this
+   branch since 368a34ca (`VExpr.elim`/`proj`, `Pattern.elim`,
+   `Check.nonzero`, six strong-typing rules). c1e990a7 adds the missing
+   match arms to `Experimental/SExpr.lean` (and partly `NormalEq.lean`), so
+   SExpr and its seven dependents build; still failing: `NormalEq.lean`'s
+   `proj` case of `instN_r` (the file's abstract `Typing` has no `proj_inv`;
+   header says "TODO: remove, now part of ChurchRosser"),
+   `ParallelReduction.lean` (imports it), `Stratified.lean:85` and
+   `StratifiedUntyped.lean:67` (inductions over strong typing lacking the six
+   new rules: real obligations). Options: exclude those files from the
+   `Lean4Lean.Experimental` glob, port the ChurchRosser fixes, or allow
+   sorries there. Decision for Kim; none affects `addDecl.WF`.
    **Church-Rosser step 1 (branch `agent/verify-inductives-cr`, b70dd16b,
    pushed):** `NormalEq` re-indexed by a Nat bound (`NormalEqN`, `etaBoth`;
    eta/eta transitivity closes without inverse weakening); every
