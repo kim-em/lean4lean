@@ -448,6 +448,149 @@ theorem EtaPar.instN (W : Ctx.InstN Γ₀ a₁ A₀ k Γ₁ Γ) (hΓ₁ : OnCtx 
 
 end Basic
 
+
+section EtaMirror
+
+theorem NormalEqF.structExpand_congr (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqF η Γ e₁ e₂) (hps : List.Forall₂ (NormalEqF η Γ) ps₁ ps₂)
+    (ht : Γ ⊢ structExpand family info levels ps₁ e₁ : T) :
+    NormalEqF η Γ (structExpand family info levels ps₁ e₁)
+      (structExpand family info levels ps₂ e₂) := by
+  unfold VEnv.structExpand at ht ⊢
+  obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
+  have hfields : List.Forall₂ (NormalEqF η Γ)
+      ((List.range info.numFields).map fun index => .proj family index e₁)
+      ((List.range info.numFields).map fun index => .proj family index e₂) := by
+    apply List.forall₂_of_getElem (by simp)
+    intro i hi hi'
+    have himem : i ∈ List.range info.numFields := by simpa using hi
+    obtain ⟨_, h⟩ := schema_mkApps_arg_type hΓ ht
+      (List.mem_append_right _ (List.mem_map.mpr ⟨i, himem, rfl⟩))
+    simpa only [List.getElem_map, List.getElem_range] using NormalEqF.projDF h H
+  exact NormalEqF.mkApps_spine hΓ (.refl hhead) (case_forall₂_append hps hfields) ht
+
+theorem structExpand_params_typed (hΓ : OnCtx Γ (env.IsType univs))
+    (ht : Γ ⊢ structExpand family info levels ps e : T) : ∀ p ∈ ps, ∃ A, Γ ⊢ p : A :=
+  fun _ hp => schema_mkApps_arg_type hΓ ht (List.mem_append_left _ hp)
+
+/-- Typing transports along a normally equal expanded term. -/
+theorem structExpand_typed_of_normal (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqF η Γ e₁ e₂) (ht : Γ ⊢ structExpand family info levels ps e₂ : T) :
+    Γ ⊢ structExpand family info levels ps e₁ : T :=
+  ht.defeqU_l henv hΓ (NormalEqF.defeq hΓ (NormalEqF.structExpand_congr hΓ (H.symm hΓ)
+    (NormalEqF.forall₂_refl (structExpand_params_typed hΓ ht)) ht))
+
+/-- The normal equality of two eta bodies at the same domain. -/
+theorem NormalEqF.etaBody (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqF η Γ e₁ e₂) (h1 : Γ ⊢ e₁ : .forallE D B) (h2 : Γ ⊢ e₂ : .forallE D B)
+    (hD : Γ ⊢ D ≡ D₁ : .sort u) (hD' : Γ ⊢ D ≡ D₂ : .sort u) :
+    NormalEqF η Γ (.lam D₁ (.app e₁.lift (.bvar 0))) (.lam D₂ (.app e₂.lift (.bvar 0))) :=
+  NormalEqF.lamDF hD hD' (NormalEqF.appDF (h1.weak henv) (h2.weak henv) (.bvar .zero)
+    (.bvar .zero) (H.weakN .one) (.refl (.bvar .zero)))
+
+theorem EtaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EtaPar Γ a b) (hc : NormalEq₀ Γ c a) (ha : Γ ⊢ a : A) :
+    ∃ c', EtaPar Γ c c' ∧ NormalEq₀ Γ c' b := by
+  induction H generalizing c A with
+  | bvar | sort | const | elim => exact ⟨c, .rfl, hc⟩
+  | @app _ f f' x x' h1 h2 ih1 ih2 =>
+    have hb := (EtaPar.full hΓ (.app h1 h2) ha).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.app f x = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .app h1 h2, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((EtaPar.full hΓ (.app h1 h2) l3).hasType hΓ l3)⟩
+    | appDF l1 l2 l3 l4 l5 l6 =>
+      cases hR
+      obtain ⟨F, hF, eF⟩ := ih1 hΓ ⟨_, l5⟩ l2
+      obtain ⟨X, hX, eX⟩ := ih2 hΓ ⟨_, l6⟩ l4
+      exact ⟨_, .app hF hX, .appDF ((EtaPar.full hΓ hF l1).hasType hΓ l1)
+        ((EtaPar.full hΓ h1 l2).hasType hΓ l2) ((EtaPar.full hΓ hX l3).hasType hΓ l3)
+        ((EtaPar.full hΓ h2 l4).hasType hΓ l4) eF eX⟩
+    | sortDF | constDF | elimDF | projDF | lamDF | forallEDF => cases hR
+  | @proj _ m m' family index h1 ih =>
+    have hb := (EtaPar.full hΓ (.proj h1) ha).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.proj family index m = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .proj h1, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((EtaPar.full hΓ (.proj h1) l3).hasType hΓ l3)⟩
+    | projDF l1 l2 =>
+      cases hR
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hm, _, _⟩ := ha.proj_inv henv hΓ
+      obtain ⟨M, hM, eM⟩ := ih hΓ ⟨_, l2⟩ hm.hasType.2
+      exact ⟨_, .proj hM, .projDF ((EtaPar.full hΓ (.proj hM) l1).hasType hΓ l1) eM⟩
+    | sortDF | constDF | elimDF | appDF | lamDF | forallEDF => cases hR
+  | @lam _ D D' t t' h1 h2 ih1 ih2 =>
+    have hb := (EtaPar.full hΓ (.lam h1 h2) ha).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.lam D t = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .lam h1 h2, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((EtaPar.full hΓ (.lam h1 h2) l3).hasType hΓ l3)⟩
+    | lamDF l1 l2 l3 =>
+      cases hR
+      obtain ⟨⟨_, hD⟩, _, ht⟩ := ha.lam_inv henv hΓ
+      have hΓ' : OnCtx (D :: _) (env.IsType univs) := ⟨hΓ, _, hD⟩
+      have l3' := l3.defeqDFC hΓ (.succ .zero l2)
+      obtain ⟨T, hT, eT⟩ := ih2 hΓ' ⟨_, l3'⟩ ht
+      have hDD₁ := l2.symm.trans l1
+      have ht₁ := ((NormalEqN.defeq hΓ' l3').of_r henv hΓ' ht).hasType.1
+      refine ⟨_, .lam .rfl (hT.defeqDFC hΓ (.succ .zero hDD₁) ht₁), ?_⟩
+      have hD2 := l2.hasType.2
+      have hDD' := (EtaPar.full hΓ h1 hD2).defeq hΓ hD2
+      exact .lamDF hDD₁ hDD' eT
+    | sortDF | constDF | elimDF | appDF | projDF | forallEDF => cases hR
+  | @forallE _ D D' t t' h1 h2 ih1 ih2 =>
+    have hb := (EtaPar.full hΓ (.forallE h1 h2) ha).hasType hΓ ha
+    obtain ⟨n, hc⟩ := hc
+    generalize hR : VExpr.forallE D t = R at hc
+    cases hc with
+    | refl _ => subst hR; exact ⟨_, .forallE h1 h2, .refl hb⟩
+    | proofIrrel l1 l2 l3 =>
+      subst hR
+      exact ⟨c, .rfl, .proofIrrel l1 l2 ((EtaPar.full hΓ (.forallE h1 h2) l3).hasType hΓ l3)⟩
+    | forallEDF l1 l2 l3 l4 =>
+      cases hR
+      obtain ⟨⟨_, hD⟩, _, ht⟩ := ha.forallE_inv henv
+      obtain ⟨D₁', hD₁, eD⟩ := ih1 hΓ ⟨_, l2⟩ hD
+      have hΓ' : OnCtx (D :: _) (env.IsType univs) := ⟨hΓ, _, hD⟩
+      have W' := l1.transU_l henv hΓ (NormalEqN.defeq hΓ l2)
+      have l4' := l4.defeqDFC hΓ (.succ .zero W')
+      obtain ⟨T, hT, eT⟩ := ih2 hΓ' ⟨_, l4'⟩ ht
+      have l3'' := l3.defeqDFC henv (.succ .zero W')
+      have hA₁ := l1.hasType.2
+      have hD₁T := (EtaPar.full hΓ hD₁ hA₁).defeq hΓ hA₁
+      refine ⟨_, .forallE hD₁ (hT.defeqDFC hΓ (.succ .zero (W'.symm.trans l1)) l3''), ?_⟩
+      have hT1 := (EtaPar.full hΓ' hT l3'').hasType hΓ' l3''
+      exact .forallEDF (W'.symm.trans (l1.trans hD₁T)) eD hT1 eT
+    | sortDF | constDF | elimDF | appDF | projDF | lamDF => cases hR
+  | funEta H1 HA ht ih ihA =>
+    obtain ⟨c₀, hc₀, ec₀⟩ := ih hΓ hc ht
+    have hcT := ht.defeqU_l henv hΓ (NormalEqF.defeq hΓ hc).symm
+    refine ⟨_, .funEta hc₀ HA hcT, ?_⟩
+    have ⟨⟨_, hD⟩, _⟩ := let ⟨_, h⟩ := ht.isType henv hΓ; h.forallE_inv henv
+    have hDD := (EtaPar.full hΓ HA hD).defeq hΓ hD
+    exact NormalEqF.etaBody hΓ ec₀ ((EtaPar.full hΓ hc₀ hcT).hasType hΓ hcT)
+      ((EtaPar.full hΓ H1 ht).hasType hΓ ht) hDD hDD
+  | structEta H1 hlen hps hl hp hi hs hexp ih ihp =>
+    obtain ⟨c₀, hc₀, ec₀⟩ := ih hΓ hc hs
+    have hcS := hs.defeqU_l henv hΓ (NormalEqF.defeq hΓ hc).symm
+    have hcexp := structExpand_typed_of_normal hΓ hc hexp
+    have hstep := EtaPar.structEta hc₀ hlen hps hl hp hi hcS hcexp
+    refine ⟨_, hstep, ?_⟩
+    have ht' := (EtaPar.full hΓ hstep hcS).hasType hΓ hcS
+    exact NormalEqF.structExpand_congr hΓ ec₀
+      (NormalEqF.forall₂_refl (structExpand_params_typed hΓ ht')) ht'
+
+end EtaMirror
+
 section Levels
 
 /-- The untyped level relations. -/
@@ -553,9 +696,6 @@ theorem DeltaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
     (H : DeltaPar Γ a b) (hc : NormalEq₀ Γ c a) (ha : Γ ⊢ a : A) :
     ∃ c', DeltaPar Γ c c' ∧ NormalEq₀ Γ c' b := sorry
 
-theorem EtaPar.normalEq₀_mirror (hΓ : OnCtx Γ (env.IsType univs))
-    (H : EtaPar Γ a b) (hc : NormalEq₀ Γ c a) (ha : Γ ⊢ a : A) :
-    ∃ c', EtaPar Γ c c' ∧ NormalEq₀ Γ c' b := sorry
 
 theorem DeltaPar.peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : DeltaPar Γ a b) (H2 : DeltaPar Γ a c) (ha : Γ ⊢ a : A) :
