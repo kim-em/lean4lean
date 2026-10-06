@@ -757,6 +757,7 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
       outState.nestedAux = state.nestedAux →
       outState.nextIdx = state.nextIdx →
       outState.ngen.namePrefix = state.ngen.namePrefix →
+      outState.lvls = state.lvls →
       (k outLctx tail outParams env outState).WF Q) :
     (Lean4Lean.ElimNestedInductive.withParams.loop
       k lctx type params n env state).WF Q := by
@@ -764,7 +765,7 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
   | zero =>
     simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
       Hk lctx type params state .done Hctx (Hparams.toSelection Hctx)
-        Hparams.nodup rfl rfl rfl rfl
+        Hparams.nodup rfl rfl rfl rfl rfl
   | succ n ih =>
     cases type with
     | forallE name dom body bi =>
@@ -777,11 +778,11 @@ private theorem nestedWithParamsLoop_refinesSelected {α : Type}
         (Hctx := Hctx.withLocalDecl name dom bi)
         (Hparams := Hparams.push Hctx name dom bi)
       intro outLctx tail outParams outState Hresult HresultCtx Hselection
-        hnodup hnewTypes hnestedAux hnextIdx hprefix
+        hnodup hnewTypes hnestedAux hnextIdx hprefix hlvls
       exact Hk outLctx tail outParams outState (.step Hresult) HresultCtx
         Hselection hnodup (by simpa using hnewTypes) (by simpa using hnestedAux)
         (by simpa using hnextIdx)
-        (by simpa [NameGenerator.next] using hprefix)
+        (by simpa [NameGenerator.next] using hprefix) (by simpa using hlvls)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
 
@@ -804,6 +805,7 @@ private theorem nestedWithParamsLoop_refinesClosing {α : Type}
       outState.nestedAux = state.nestedAux →
       outState.nextIdx = state.nextIdx →
       outState.ngen.namePrefix = state.ngen.namePrefix →
+      outState.lvls = state.lvls →
       (k outLctx tail outParams env outState).WF Q) :
     (Lean4Lean.ElimNestedInductive.withParams.loop
       k lctx type params n env state).WF Q := by
@@ -811,7 +813,7 @@ private theorem nestedWithParamsLoop_refinesClosing {α : Type}
   | zero =>
     simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
       Hk lctx type params state .done Hclosing Htype rfl rfl rfl
-        rfl
+        rfl rfl
   | succ n ih =>
     cases type with
     | forallE name dom body bi =>
@@ -838,11 +840,11 @@ private theorem nestedWithParamsLoop_refinesClosing {α : Type}
         simp
       apply ih (Hclosing := HnextClosing) (Htype := HnextType)
       intro outLctx tail outParams outState Hresult HresultClosing Htail
-        hnewTypes hnestedAux hnextIdx hprefix
+        hnewTypes hnestedAux hnextIdx hprefix hlvls
       exact Hk outLctx tail outParams outState (.step Hresult)
         HresultClosing Htail (by simpa using hnewTypes)
         (by simpa using hnestedAux) (by simpa using hnextIdx)
-        (by simpa [NameGenerator.next] using hprefix)
+        (by simpa [NameGenerator.next] using hprefix) (by simpa using hlvls)
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
 
@@ -861,6 +863,7 @@ theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
       outState.nestedAux = state.nestedAux →
       outState.nextIdx = state.nextIdx →
       outState.ngen.namePrefix = state.ngen.namePrefix →
+      outState.lvls = state.lvls →
       (k lctx tail params env outState).WF Q) :
     (Lean4Lean.ElimNestedInductive.withParams
       type nparams k env state).WF Q := by
@@ -882,6 +885,7 @@ theorem ElimNestedInductive.withParams.refinesClosing {α : Type}
       outState.nestedAux = state.nestedAux →
       outState.nextIdx = state.nextIdx →
       outState.ngen.namePrefix = state.ngen.namePrefix →
+      outState.lvls = state.lvls →
       (k lctx tail params env outState).WF Q) :
     (Lean4Lean.ElimNestedInductive.withParams
       type nparams k env state).WF Q := by

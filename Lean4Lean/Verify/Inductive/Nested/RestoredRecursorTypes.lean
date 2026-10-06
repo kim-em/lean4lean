@@ -162,8 +162,8 @@ parameter telescope of the lowered recursor type discharged. For every
 generated owner and every executable restoration step at the owner's
 lowered recursor name, any translation `t` of the restored recursor type is
 exactly the abstract restoration of the owner's canonical generated recursor
-type, given the closed-form readiness of the lowered type's parameter
-residual and the readiness of its parameter domains. -/
+type, given the hit shape of the lowered type (`Expr.HitShapeTele`) and the
+freshness of the restorable names in the target environment. -/
 theorem NestedValidatedRunResult.restoredRecursorTypes'
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -189,13 +189,12 @@ theorem NestedValidatedRunResult.restoredRecursorTypes'
           (sourceTypes.map (·.name))
           (E.production.production.completed.canonicalGeneration.recursorName owner)
           stepSource stepTarget),
-        (∀ suffix, Expr.ForallTelescope Hstep.oldInfo.type result.nparams suffix →
-          LoweredRestoreReady (auxiliaries.flatMap (·.headNames)) result.nparams
-            (compilationRestoration sourceDecl auxiliaries).restorableNames
-            (lparams.map Level.param) 0 suffix) →
-        ForallDomainsReady (compilationRestoration sourceDecl auxiliaries).restorableNames
-          result.nparams Hstep.oldInfo.type →
+        Expr.HitShapeTele
+          ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
+          result.nparams (lparams.map Level.param) Hstep.oldInfo.type →
         ∀ (targetEnv : VEnv) (t : VExpr),
+          (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+            targetEnv.constants n = none) →
           TrExprS targetEnv Hstep.restored.newInfo.levelParams []
             Hstep.restored.newInfo.type t →
           (compilationRestoration sourceDecl auxiliaries).expr
@@ -205,26 +204,16 @@ theorem NestedValidatedRunResult.restoredRecursorTypes'
     ⟨envTypes, auxiliaries, hadded, _, hnames, _, hcertified, _, hscoped, _,
       hparamsSize, D, A⟩
   refine ⟨envTypes, auxiliaries, hadded, hnames, hcertified, hscoped, ?_⟩
-  intro owner stepSource stepTarget Hstep Hlowered Hdomains targetEnv t Ht
+  intro owner stepSource stepTarget Hstep Hshape targetEnv t Hfresh Ht
   have Hs := E.loweredRecursorTypeTranslation owner Hstep
   rcases E.loweredRecursorParameterTelescope owner Hstep with ⟨suffix, Htel⟩
   have hclosed : Closed Hstep.oldInfo.type := by
     simpa [VLCtx.bvars] using Hs.closed
   have Hinput : Hstep.oldInfo.type.FVarsIn fun _ => False :=
     Hs.fvarsIn.mono fun _ h => by simp [VLCtx.fvars] at h
-  have Hready : ∀ Hopen : NestedRestorationOpening result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
-      Hstep.oldInfo.type Hstep.restored.newInfo.type,
-      RestoreReady result E.loweredEnv Hopen.params
-        (compilationRestoration sourceDecl auxiliaries).restorableNames
-        (lparams.map Level.param) Hopen.body ∧ Closed Hopen.restoredBody := by
-    intro Hopen
-    refine ⟨Hopen.restoreReady_of_lowered (A targetEnv Hstep.oldInfo.levelParams) Htel
-      ?_, Hopen.restoredBody_closed D Htel hclosed⟩
-    rw [compilationRestoration_heads_auxiliary]
-    exact Hlowered suffix Htel
-  exact Hstep.restored.restoration.typeRestorationCommutes hparamsSize
-    (A targetEnv _) Hready Htel Hdomains Hinput hclosed Hs Ht
+  exact Hstep.restored.restoration.typeRestorationCommutes' hparamsSize
+    (A targetEnv _) hscoped.argumentsClosed Hfresh Hshape
+    (fun Hopen => Hopen.restoredBody_closed D Htel hclosed) Htel Hinput hclosed Hs Ht
 
 /-- The executable recursor name of a generated entry, as recorded by
 `RestoredAuxiliaryGeneratedStepAlignment.oldRecName_eq`, is the canonical
@@ -276,8 +265,9 @@ open _root_.Lean4Lean.InductiveSignature in
 visible in a checking environment whose name, universe parameters and type
 are those of an executable restoration step at a generated owner's lowered
 recursor name (for instance the rule-stripped copy of the restored recursor
-in `finalValidOfStaged_of_shapes`), modulo the two syntactic readiness
-conditions on the lowered recursor type. -/
+in `finalValidOfStaged_of_shapes`), given the hit shape of the lowered
+recursor type and the freshness of the restorable names in the checking
+environment. -/
 theorem NestedValidatedRunResult.restoredRecursorTypeConstants
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -303,14 +293,13 @@ theorem NestedValidatedRunResult.restoredRecursorTypeConstants
           (sourceTypes.map (·.name))
           (E.production.production.completed.canonicalGeneration.recursorName owner)
           stepSource stepTarget),
-        (∀ suffix, Expr.ForallTelescope Hstep.oldInfo.type result.nparams suffix →
-          LoweredRestoreReady (auxiliaries.flatMap (·.headNames)) result.nparams
-            (compilationRestoration sourceDecl auxiliaries).restorableNames
-            (lparams.map Level.param) 0 suffix) →
-        ForallDomainsReady (compilationRestoration sourceDecl auxiliaries).restorableNames
-          result.nparams Hstep.oldInfo.type →
+        Expr.HitShapeTele
+          ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
+          result.nparams (lparams.map Level.param) Hstep.oldInfo.type →
         ∀ {checkSafety : DefinitionSafety} {env : Environment} {venv : VEnv},
           CheckingEnv checkSafety env venv →
+          (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+            venv.constants n = none) →
           ∀ (rec : RecursorVal), env.find? rec.name = some (.recInfo rec) →
           rec.levelParams = Hstep.restored.newInfo.levelParams →
           rec.type = Hstep.restored.newInfo.type →
@@ -322,11 +311,11 @@ theorem NestedValidatedRunResult.restoredRecursorTypeConstants
   rcases E.restoredRecursorTypes' wf Hsources with
     ⟨envTypes, auxiliaries, hadded, hnames, hcertified, hscoped, H⟩
   refine ⟨envTypes, auxiliaries, hadded, hnames, hcertified, hscoped, ?_⟩
-  intro owner stepSource stepTarget Hstep Hlowered Hdomains checkSafety env venv
-    Htr rec hfind hlevels htype hsafety
+  intro owner stepSource stepTarget Hstep Hshape checkSafety env venv
+    Htr Hfresh rec hfind hlevels htype hsafety
   rcases Htr.recursorConstant hfind hsafety with ⟨type, hconst, Ht⟩
   rw [hlevels, htype] at Ht
-  exact ⟨type, H owner Hstep Hlowered Hdomains venv type Ht, hconst⟩
+  exact ⟨type, H owner Hstep Hshape venv type Hfresh Ht, hconst⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -634,6 +634,40 @@ inside this project's scope without solving open base metatheory:
    discharging those syntactic hypotheses, `Theory/Inductive/RestorationDefEq.lean`
    (restoration preserves `IsDefEq`; constructor `RestoresType`), and the
    auxiliary family header conjuncts.
+   **Later (2026-10-06):** the readiness predicates were false for inputs with
+   `let`/`proj`; replaced by `Expr.HitShape` (Nested/HitShape.lean: every
+   auxiliary head applied to the parameter variables at the declaration's
+   universe parameters) with commutation from hit shape plus the translation
+   of the restored output in an auxiliary-free environment
+   (`RestorationCommutationHit.lean`). Committed since: beta subject
+   reduction, eliminator schema avoidance, source and auxiliary constructor
+   restoration (restoring expansion leaves, lowering levels recorded in the
+   traces), auxiliary family headers, `CompilationData` assembly
+   (`CompilationDataConstructors.lean`), restored recursors field
+   (`RestoredBlockAssembly.lean`), hit-shape provenance of generated
+   recursor types and rule rhs (`RecursorHitShape.lean`, modulo
+   `HitShapeInputs` and `WhnfHitShapeFacts`), run-level inputs and totality
+   (`HitShapeInputs.lean`). In flight: retained `loopArgs1`/call-root traces
+   (`indexDomains`, `callRoots`; branch `agent/verify-inductives-origins`),
+   whnf/inferType hit-shape preservation (`agent/verify-inductives-hitshape`:
+   `whnf.hitShape`, `inferType.hitShape` proved via new `VState.WF`/`Methods.WF`
+   cache invariants; `EnvHitShape` instance for the lowered environment and
+   the `WhnfHitShapeFacts` discharge pending), restored equations identity,
+   and `Hshapes`/`finalValidOfStaged`.
+   **Later still (2026-10-06):** `HitShapeInputs` fully discharged on
+   `agent/verify-inductives-origins` (retained `loopArgs1` traces
+   `RecursorIndexTrace`/`RecInfoIndexTraces` inside `RecInfoMinorSourceAlignment`,
+   rooted call origins `RecInfoCallBlueprintOrigins.rooted`; family headers
+   avoid the auxiliary names because `buildAuxiliary` never lowers headers:
+   `LoweredInductiveMapping.type`), so `recursorHitShape` needs only `W`.
+   Restored equations (`RestoredEquations.lean`): rule right-hand sides are
+   identified with the restoration of the generator's equations through the
+   lambda-telescope commutation; lhs and type cannot be read off the
+   executable (`RecursorRule` has only `ctor`, `nfields`, `rhs`) and are
+   supplied by the certificate's own rule choice (`RestoredRulesRealization`),
+   which `assemblyNative` must realize with the restored generated lhs/type.
+   In flight: `assemblyNative_of_whnf` (origins worktree), `WhnfHitShapeFacts`
+   discharge (hitshape worktree), final shapes.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
@@ -703,6 +737,84 @@ inside this project's scope without solving open base metatheory:
    consumed translation, `restrictUpSetCtx`, `weakBV_inv_lift`) need either
    producer changes keeping a narrow-context run or a locality theorem for
    fresh checker runs. Estimated total 3k to 12k lines depending on route.
+   **Decision (Kim, 2026-10-06): try both routes in parallel and keep the one
+   that reaches the end.** E1 is developed on branch
+   `agent/verify-inductives-e1` (worktree `../lean4lean-e1`): scoped caches
+   and `EquivManager`, binder always opened in `isDefEqLambda`/`isDefEqForall`,
+   Primitive gadget pieces re-checked in the empty context; success criteria
+   are a full build with no `weakN_iff`-family use under the checker, Primitive
+   and `ConditionallyTyped`, the cache-scope experiment now rejected by the
+   Lean4Lean checker, and fresh `Init.Prelude`/`Init.Core` replays with
+   timings against the unmodified branch. E3 is developed on
+   `agent/verify-inductives-e3` (worktree `../lean4lean-e3`): `VEnv.Strengthening`
+   replaces the sorry as an explicit hypothesis threaded to `addDecl.WF`,
+   quantified over exactly the intermediate environments each declaration kind
+   uses (the output environment's strengthening is never claimed). The nested
+   junction work continues on `agent/verify-inductives` and is merged into
+   the surviving route afterwards.
+   **E1 status (2026-10-06):** checker cluster done on `agent/verify-inductives-e1`
+   (commits be54d43, 000dbcc, 758bb60): `State.leaveScope` restores the infer,
+   whnf, failure caches and the `EquivManager` at every `withFreshId` scope
+   (keeps `ngen`, `unfold`); `isDefEqLambda`/`isDefEqForall` always open a
+   binder; `Condition.check` re-checks the gadget pieces at `[]`;
+   `unfoldNatWellFounded` re-checks `F` in the outer context. No
+   `weakN_iff`-family use remains under `Verify/TypeChecker`,
+   `ConditionallyTyped`, `Primitive`; the checker still reaches `weakN_iff`
+   only through `VExpr.WF.of_occurs`, `VIotaRuleShape.args_typing`,
+   `TrExprS.weakBV_inv₁` (class (b), being repaired) and the inductive side.
+   The cache-scope experiment is now rejected by the Lean4Lean checker.
+   Replays check the same declaration counts; cost: `Init.Core` unchanged,
+   `Init.Data.List.Lemmas` +21%, `Std.Data.HashMap.Lemmas` 26.6 s to 49.0 s
+   (+84%), inherent to discarding in-scope cache entries.
+   **E1 Theory routes (2026-10-06):** `VExpr.WF.of_occurs` replaced by
+   `of_occurs_lift` (keeps the enclosing binders), `VIotaRuleShape` gained
+   `rec_doms`/`ctor_doms` proved at every producer, the projection walk
+   substitutes the projection for non-dependent fields. One corner remains:
+   a Prop structure with an earlier non-dependent DATA field (the C++
+   `infer_proj` skips the binder without a sort check): the proof must
+   translate the later field's type without the data binder. The general
+   statement `ProjectionFieldCorner` is FALSE (Astra: add `D : Type`,
+   `out : D → P v`, `z : SI`, `f : SJ → Prop` to the countermodel context;
+   under `d : D`, `out d : P v` makes `f z` typable). The restricted
+   obligation (registered telescope, typed major) is plausible, since
+   eliminating the Prop structure into Prop recovers `P v`, but no syntactic
+   inhabitant of the data field exists, so it is being threaded as an
+   explicit hypothesis to the top-level theorems on the E1 branch. E1 is
+   therefore not hypothesis-free either.
+   **E3 status (2026-10-06): complete on `agent/verify-inductives-e3`**
+   (commits 7c544ac..717fc23, pushed): `VEnv.Strengthening` replaces the
+   `weakN_iff` sorry; threaded through the Theory consumers, a new
+   `VContext.strengthening` field, `ContextWF`/`RecursorContextWF`, and
+   result structures. `addDecl.WF` gains `(hs : decl.Strengthening ves env)`
+   with `Declaration.Strengthening` per kind: axiom/theorem/opaque: the
+   checking environment; definition: the safe environment, or the unsafe one
+   plus the definition as an axiom; mutual: headers environment and its
+   extension by the translated headers; quot: nothing; inductive:
+   `InductiveStrengthening` of the source declaration and of the executable's
+   nested lowering result, each covering the base, plus type headers, plus
+   constructors, plus projection entries, plus the recursor constants added
+   as axioms. Full build, tests and fresh `Init.Prelude`/`Init.Core` replays
+   pass; executable unchanged. Four legacy theorems outside the `addDecl.WF`
+   cone take a coarser hypothesis quantified over every `ContextWF` with the
+   same Lean environment. The output environment's strengthening is never
+   claimed. Comparison so far: E3 reached its end (weaker but honest
+   statement); E1 has the checker cluster and Theory routes done, carries a
+   restricted projection-corner hypothesis, an executable divergence, a
+   replay slowdown, and the inductive-side narrow-context change (4.5k to 9k
+   lines) still ahead.
+   **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
+   79 strengthening uses under `Verify/Inductive` strengthen fresh checker
+   runs from the nested context of `Inductive/Add.lean` (later families run
+   inside earlier families' indices; constructor and recursor phases inside
+   stale header indices; later constructors under earlier minors). Chosen
+   repair (P): a second local context `checkLCtx` seen only by the lifted
+   checker calls (parameters, indices, fields, argument binders in both
+   contexts; majors, motives, minors, hypotheses only in the main one), with
+   snapshots per parameter and per field; estimated 4.5k to 9k lines of churn
+   (much deletion), versus 9k to 16k for a fresh-run locality theorem (L).
+   (P) is a second executable departure, invisible if (L) holds (argued, not
+   proved). Scoping reports copied to `docs/inductives/WEAKN_SCOPE.md` and
+   `docs/inductives/RESTORE_READINESS.md`.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against
