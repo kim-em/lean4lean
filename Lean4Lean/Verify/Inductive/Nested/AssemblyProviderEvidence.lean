@@ -5092,21 +5092,6 @@ theorem NestedValidatedRunResult.assemblyShapeNative
   rcases E.assemblyShapeNativeValid wf Hsources hnested with ⟨⟨C, hC, -⟩⟩
   exact ⟨⟨C, hC⟩⟩
 
-/-- The canonical equations and concrete recursor evidence are selected from
-this complete successful run. This theorem does not upgrade arbitrary legacy
-rule batches or accept a caller-supplied compilation callback. -/
-theorem NestedValidatedRunResult.assemblyNative
-    {ves : VEnvs}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    Nonempty { C : NestedFinalAssemblyCertificate E.restoration
-        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-        nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
-      C.production = E.production } := by
-  sorry
-
 /-- Attach the three operational facts supplied by lowering/restoration and
 obtain the certificate-facing producer aggregate. -/
 theorem NestedFinalAssemblyShapeSemanticEvidence.producerEvidence
