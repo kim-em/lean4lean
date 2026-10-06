@@ -52,6 +52,7 @@
     "Lean4Lean.VEnv.IsDefEqU.sort_forallE_inv",
     "Lean4Lean.VEnv.IsDefEqU.sort_inv",
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
+    "Lean4Lean.VEnv.strengthening_of_canonicalEq",
     "Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalConsumedGeneration",
     "Lean4Lean.VerifyInductive.CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation",
     "Lean4Lean.VEnv.NormalEq.headParallel",

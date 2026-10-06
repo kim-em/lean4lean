@@ -15,6 +15,7 @@ is checked there, so that it can refer to itself); otherwise the safe model. -/
 def VEnvs.DefinitionStrengthening (ves : VEnvs) (v : DefinitionVal) : Prop :=
   (v.safety = .unsafe → (ves.venv .unsafe).Strengthening ∧
     ∀ ci venv', TrConstVal .unsafe (ves.venv .unsafe) (.defnInfo v) ci →
+      ci.toVConstant.WF (ves.venv .unsafe) →
       (ves.venv .unsafe).addConst v.name ci.toVConstant = some venv' →
       venv'.Strengthening) ∧
   (v.safety ≠ .unsafe → (ves.venv .safe).Strengthening)
@@ -94,7 +95,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       fun _ _ htr' hci' hadd' old =>
         .axiom htr' (by rwa [← old.map_wf.find?'_eq_find?]) hci' hadd' old
     have hadd := (hstepA .unsafe).2.2
-    have hsA : (vesA.venv .unsafe).Strengthening := hsU.2 ci0 _ htr hadd
+    have hsA : (vesA.venv .unsafe).Strengthening := hsU.2 ci0 _ htr hwfc hadd
     refine checkBodyCore.WF (wfA.toVEnvAt .unsafe) hsA (.defnDecl v)
       v.levelParams v.type v.value ci0.type (htr.1.2.2.mono (VEnv.addConst_le hadd)) h
       |>.run1 _ hsA |>.bind fun _ h3 => ?_
@@ -560,3 +561,129 @@ theorem addDecl.WFCanonicalEq
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
   (addDecl.WF wf decl hdecl hs).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', hEq.mono hle, hle⟩
+
+/-! ### Discharging `Declaration.Strengthening` from canonical equality -/
+
+/-- Canonical equality (`VEnv.HasCanonicalEq`) at every safety level. -/
+def VEnvs.HasCanonicalEq (ves : VEnvs) : Prop :=
+  ∀ safety, (ves.venv safety).HasCanonicalEq
+
+theorem VEnvs.HasCanonicalEq.mono {ves ves' : VEnvs} (h : ves.HasCanonicalEq)
+    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety) : ves'.HasCanonicalEq :=
+  fun safety => (h safety).mono (hle safety)
+
+/-- `HasCanonicalEq` contains the `Eq` clause of `CanonicalEqEnvs`. -/
+theorem VEnvs.HasCanonicalEq.canonicalEqEnvs {ves : VEnvs} (h : ves.HasCanonicalEq) :
+    VerifyInductive.CanonicalEqEnvs ves :=
+  fun safety => (h safety).quotReady
+
+private theorem VEnv.addConsts_eq_addConstVals' {env : VEnv} {cis : List VDefVal} :
+    env.addConsts cis = env.addConstVals (cis.map (·.toVConstVal)) := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih =>
+    simp only [VEnv.addConsts, List.foldlM_cons, List.map_cons, VEnv.addConstVals]
+    cases env.addConst ci.name ci.toVConstant with
+    | none => rfl
+    | some middle => exact ih (env := middle)
+
+/-- Strengthening of every environment in which an inductive declaration is
+checked, from the well-formedness and canonical equality of the base
+environment.  Each stage is a `≤`-extension of `env` (so it contains canonical
+`Eq`), and is well formed: headers and constructors are added as well-typed
+axioms, and the projection and recursor stages carry their own
+well-formedness premise. -/
+theorem InductiveStrengthening.ofCanonicalEq {env : VEnv} (henv : env.WF)
+    (heq : env.HasCanonicalEq) :
+    InductiveStrengthening env lparams nparams types isUnsafe where
+  base := VEnv.strengthening_of_canonicalEq henv heq
+  headers _targets _envTypes H hadd :=
+    VEnv.strengthening_of_canonicalEq
+      (VEnv.WF.addConstVals henv
+        (fun ci hci => by
+          obtain ⟨_, _, h⟩ := Lean4Lean.List.Forall₂.forall_exists_r H ci hci
+          exact h.wf) hadd)
+      (heq.mono (VEnv.addConstVals_le hadd))
+  constructors _decl _envTypes _envCtors H hwf :=
+    VEnv.strengthening_of_canonicalEq hwf
+      (heq.mono (VEnv.LE.trans (VEnv.addConstVals_le H.typesAdded)
+        (VEnv.LE.trans (VEnv.addConstVals_le H.ctorsAdded) VEnv.addProjections_le)))
+  constructorsUnprojected _decl _envTypes _envCtors H :=
+    VEnv.strengthening_of_canonicalEq
+      (VerifyInductive.TrInductDeclCore.envCtorsWF H henv)
+      (heq.mono (VEnv.LE.trans (VEnv.addConstVals_le H.typesAdded)
+        (VEnv.addConstVals_le H.ctorsAdded)))
+  recursors _decl _envTypes _envCtors H _recursors _envRecursors hadd hwf :=
+    VEnv.strengthening_of_canonicalEq hwf
+      (heq.mono (VEnv.LE.trans (VEnv.addConstVals_le H.typesAdded)
+        (VEnv.LE.trans (VEnv.addConstVals_le H.ctorsAdded)
+          (VEnv.LE.trans VEnv.addProjections_le (VEnv.addConstVals_le hadd)))))
+
+/-- The hypothesis `Declaration.Strengthening` of `addDecl.WF` holds whenever
+every safety-indexed abstract environment contains canonical equality, given
+the conjecture `VEnv.strengthening_of_canonicalEq`. -/
+theorem _root_.Lean.Declaration.strengthening_of_canonicalEq {env : Environment}
+    {ves : VEnvs} (wf : ves.WF env) (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) :
+    ∀ decl : Declaration, decl.Strengthening ves env
+  | .axiomDecl _ => VEnv.strengthening_of_canonicalEq (wf.tr (safety := _)).wf (heq _)
+  | .defnDecl v => by
+    refine ⟨fun _ => ⟨VEnv.strengthening_of_canonicalEq (wf.tr (safety := _)).wf (heq _),
+      fun ci venv' htr hci hadd => ?_⟩,
+      fun _ => VEnv.strengthening_of_canonicalEq (wf.tr (safety := _)).wf (heq _)⟩
+    have hadd' : (ves.venv .unsafe).addConstVals [ci] = some venv' := by
+      simp only [VEnv.addConstVals, ← htr.2]
+      simp [ConstantInfo.name, ConstantInfo.toConstantVal, hadd]
+    exact VEnv.strengthening_of_canonicalEq
+      (VEnv.WF.addConstVals (wf.tr (safety := _)).wf (by simpa using hci) hadd')
+      ((heq _).mono (VEnv.addConst_le hadd))
+  | .thmDecl _ => VEnv.strengthening_of_canonicalEq (wf.tr (safety := _)).wf (heq _)
+  | .opaqueDecl _ => VEnv.strengthening_of_canonicalEq (wf.tr (safety := _)).wf (heq _)
+  | .quotDecl => trivial
+  | .mutualDefnDecl [] => trivial
+  | .mutualDefnDecl (_ :: _) => by
+    refine ⟨VEnv.strengthening_of_canonicalEq (wf.tr (safety := _)).wf (heq _),
+      fun cis base hhdr hadd => ?_⟩
+    rw [VEnv.addConsts_eq_addConstVals'] at hadd
+    refine VEnv.strengthening_of_canonicalEq
+      (VEnv.WF.addConstVals (wf.tr (safety := _)).wf (fun ci hci => ?_) hadd)
+      ((heq _).mono (VEnv.addConstVals_le hadd))
+    obtain ⟨ci', hci', rfl⟩ := List.mem_map.1 hci
+    obtain ⟨_, _, h⟩ := Lean4Lean.List.Forall₂.forall_exists_r hhdr ci' hci'
+    exact h.2.1
+  | .inductDecl .. =>
+    ⟨InductiveStrengthening.ofCanonicalEq (wf.tr (safety := _)).wf (heq _),
+      fun _ _ => InductiveStrengthening.ofCanonicalEq (wf.tr (safety := _)).wf (heq _)⟩
+
+/-- `addDecl.WF` with its per-declaration strengthening hypothesis discharged
+from canonical equality in the input environments, via the conjecture
+`VEnv.strengthening_of_canonicalEq`. -/
+theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  addDecl.WF wf decl hdecl (Declaration.strengthening_of_canonicalEq wf heq decl)
+
+/-- Iterable form of `addDecl.WF_of_canonicalEq`: canonical equality is
+preserved by the output environments, so the theorem applies again to the
+next declaration of a replay. -/
+theorem addDecl.WFHasCanonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (heq : ves.HasCanonicalEq) (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ves'.HasCanonicalEq ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  (addDecl.WF_of_canonicalEq wf heq decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
+    ⟨ves', wf', heq.mono hle, hle⟩
+
+/-- `addDecl.WFCanonicalEq` with its strengthening hypothesis discharged from
+canonical equality; the `CanonicalEqEnvs` invariant follows from
+`HasCanonicalEq`. -/
+theorem addDecl.WFCanonicalEq_of_canonicalEq {env : Environment} {ves : VEnvs}
+    (wf : ves.WF env) (heq : ves.HasCanonicalEq)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧
+        VerifyInductive.CanonicalEqEnvs ves' ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  addDecl.WFCanonicalEq wf heq.canonicalEqEnvs decl hdecl
+    (Declaration.strengthening_of_canonicalEq wf heq decl)

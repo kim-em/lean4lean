@@ -645,7 +645,10 @@ declaration `types` is checked and installed on top of `env`:
 * that environment extended by the translated constructors (the atomic
   primitive formation path checks there before adding projections), and
   extended in addition by the projection entries of the abstract declaration
-  (recursor generation and the remaining checks of the declaration);
+  (recursor generation and the remaining checks of the declaration), when
+  that environment is well formed (the checker establishes this before it
+  runs there; the projection metadata of an arbitrary translation need not
+  be well formed);
 * that environment extended by the generated recursor constants, before their
   computation rules are added (the proofs about the generated equations work
   in this environment).  The recursors are only pinned to be constants
@@ -665,6 +668,7 @@ structure InductiveStrengthening (env : VEnv) (lparams : List Name)
     env.addConstVals targets = some envTypes → envTypes.Strengthening
   constructors : ∀ decl envTypes envCtors,
     TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors →
+    (envCtors.addProjections decl.projectionEntries).WF →
     (envCtors.addProjections decl.projectionEntries).Strengthening
   constructorsUnprojected : ∀ decl envTypes envCtors,
     TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors →

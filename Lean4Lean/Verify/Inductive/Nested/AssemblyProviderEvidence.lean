@@ -4749,9 +4749,6 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       (main :: rest) P.isUnsafe := by
     rw [hinitial, hlparams, hnparams, hisUnsafe]
     exact E.sourceStrengthening
-  have hsType : (E.nativeSource.envCtors.addProjections
-      sourceDecl.projectionEntries).Strengthening :=
-    hstrsP.constructors sourceDecl _ _ Hcore
   have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
     exact Eq.mp
       (congrArg (fun decl => MaterializedInductivePrefix decl P.loweredDecl)
@@ -4824,6 +4821,9 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     exact HV.validProjected Hlower HcP Hprod Hcore Hmetadata Hsources Harity
       hempty Hrestored hvalidCore HbaseValid.projectionRegistry
       HbaseValid.recursors HbaseValid.quot hprojectedWF
+  have hsType : (E.nativeSource.envCtors.addProjections
+      sourceDecl.projectionEntries).Strengthening :=
+    hstrsP.constructors sourceDecl _ _ Hcore HtypeValid.tr.wf
   have HtypeRun : Lean4Lean.validateRestoredRecursorTypes.run
       E.validationEnv E.loweredEnv P.c.lparams P.c.safety
       E.validationFuel result

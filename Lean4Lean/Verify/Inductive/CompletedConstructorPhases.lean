@@ -537,7 +537,7 @@ def PrimitiveConstructorPhasesResult.completed
   sourceContextVEnv := H.sourceContextVEnv
   sourceMaterialized := H.sourceMaterialized
   context := R.declared.context.withEnv R.projectedChecking
-    (hstrs.constructors decl _ _ R.core) (by
+    (hstrs.constructors decl _ _ R.core R.projectedChecking.tr.wf) (by
     rw [R.declared.contextVEnv]
     exact VEnv.addProjections_le)
   headerMLCtx := H.context.mlctx

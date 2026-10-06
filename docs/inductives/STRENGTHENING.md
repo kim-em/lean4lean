@@ -282,3 +282,16 @@ environment containing canonical equality is an open conjecture (no
 alternative `Eq`-only or `Acc` counterexample is known). The cache-scope
 experiment (`CacheScopeExperiment.lean`) runs in an environment without `Eq`
 and shows a scope-sensitive implementation phenomenon, not an inconsistency.
+
+The top-level form of this hypothesis is now the conjecture
+`VEnv.strengthening_of_canonicalEq` (`Theory/Typing/UniqueTyping.lean`, an
+open proof registered in the audit inventory): every well-formed environment with
+`VEnv.HasCanonicalEq` (`Theory/CanonicalEq.lean`: `Eq`, `Eq.refl`, `Eq.rec`
+with their prelude types and the `Eq.rec` iota rule) satisfies
+`VEnv.Strengthening`. `addDecl.WF_of_canonicalEq` (`Verify/Environment.lean`)
+derives `Declaration.Strengthening` from canonical `Eq` in the input models,
+and `addDecl.WFHasCanonicalEq` preserves it for the next declaration. To make
+every listed environment well formed, the unsafe-definition clause of
+`VEnvs.DefinitionStrengthening` and the projection clause of
+`InductiveStrengthening` now also assume the well-formedness that the checker
+establishes before running there.

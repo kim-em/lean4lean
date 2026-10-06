@@ -1099,7 +1099,7 @@ theorem AddInductive.declareConstructors.WF
     exact ⟨{
       toDeclaredConstructorsCore := D
       context := H.context.withEnv hvalid
-        (hstrs.constructors decl H.context.venv venvCtors core)
+        (hstrs.constructors decl H.context.venv venvCtors core hprojectedWF)
         (Hinstalled.le.trans VEnv.addProjections_le)
       contextVEnv := rfl
       contextMLCtx := rfl }, trivial⟩
