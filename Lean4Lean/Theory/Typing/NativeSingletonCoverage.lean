@@ -90,6 +90,98 @@ theorem singleton_shape (H : NativeRecursorRegistered env data)
       rw [hfr, List.filter_cons_of_pos (by simpa [Fin.getElem_fin] using howner), List.filter_nil]
     simp only [hfr]
 
+/-- The syntax of the installed equation of a registered native singleton,
+at a universe specialization where its source is `Prop`, in terms of its
+extraction data. -/
+theorem singleton_equation_syntax (H : NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel ls ≈ .zero)
+    (hlen : ls.length = data.uvars)
+    {index : Fin data.schema.signature.constructors.size}
+    (howner : data.schema.signature.constructors[index].owner = data.owner)
+    {S : CastSpec} {E : PropElim}
+    (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E) :
+    ∃ D lb rb tb X, data.equation index = some ⟨data.uvars, wrapLams D lb, wrapLams D rb,
+        wrapForalls D tb⟩ ∧
+      data.singletonEquation = data.equation index ∧
+      CaseSchema.EquationBody.extract (wrapLams D lb) (wrapLams D rb) (wrapForalls D tb) =
+        some ⟨D, lb, rb, tb⟩ ∧
+      D.map (·.instL ls) = data.propParams ls ++ X ++ insertBinders S.fields 2 ∧ X.length = 2 ∧
+      lb.instL ls = .app
+        (mkApps (.const data.name ls) (vars data.indexOffset S.fields.length ++
+          E.ctorIndices.map (·.liftN 2 S.fields.length)))
+        (mkApps E.ctor (vars (data.propParams ls).length (2 + S.fields.length) ++
+          vars S.fields.length 0)) ∧
+      data.indexOffset = (data.propParams ls).length + 2 ∧
+      data.recursorType = some (data.nativeInstance.recursorType data.owner) := by
+  obtain ⟨k, hk, hfam, hcs, hres, hS0, hE0, hP, hgl, hseq⟩ :=
+    singleton_shape H hlarge hzero hlen howner
+  rw [hS0] at hS; cases Option.some.inj hS
+  rw [hE0] at hE; cases Option.some.inj hE
+  have F := singletonFacts H hlarge hzero
+  let s := data.schema.signature
+  let c := s.constructors[index]
+  let g := data.nativeInstance
+  have hextra : s.families.size + s.constructors.size = 2 := by simp [s, hfam, hcs]
+  have hlev : data.levels.map (·.inst (ls.set k .zero)) = data.levels.map (·.inst ls) := hgl
+  refine ⟨g.params ++ g.motives ++ g.minors ++
+      insertBinders ((s.fieldTypes c).map (·.instL g.levels)) (s.families.size + s.constructors.size),
+    mkApps (g.recursorHead .native c.owner)
+      (vars (s.params.length + (s.families.size + s.constructors.size)) c.fields.length ++
+        c.indices.map (fun e => (e.instL g.levels).liftN (s.families.size + s.constructors.size)
+          c.fields.length) ++
+        [g.constructorApp c (s.families.size + s.constructors.size) 0]),
+    ?rb, ?tb, (g.motives ++ g.minors).map (·.instL ls), ?h1, ?h2, ?h3, ?h4, ?h5, ?h6, ?h7, ?h8⟩
+  case h1 =>
+    unfold NativeRecursorData.equation
+    rw [hres, Restoration.equation_empty]
+    rfl
+  case h2 => exact hseq
+  case h3 => exact extract_wrap_const (by exact VExpr.getAppFnArgs_mkApps_head _ _) _
+  case h4 =>
+    have hpar : g.params.map (·.instL ls) =
+        (data.nativeInstance.specialize 0 (ls.set k .zero)).params := by
+      simp only [Instance.params, Instance.specialize, g, nativeInstance, List.map_map,
+        Function.comp_def, VExpr.instL_instL, hlev]
+    have hins : (insertBinders ((s.fieldTypes c).map (·.instL g.levels))
+        (s.families.size + s.constructors.size)).map (·.instL ls) =
+        insertBinders ((data.nativeInstance.specialize 0 (ls.set k .zero)).singletonCast data.owner
+          data.schema.signature.constructors[index]
+          ((data.genericSorts env data.schema.signature.constructors[index]).map (·.inst ls))).fields 2 := by
+      rw [hextra]
+      simp only [insertBinders, Instance.singletonCast, Instance.sFields, List.map_map,
+        Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL, hgl, List.zipIdx_map]
+      simp [g, nativeInstance, c, s, Function.comp_def, VExpr.instL_instL, hgl, Instance.specialize]
+    rw [hP]
+    simp only [List.map_append, List.append_assoc, hpar, hins]
+  case h5 => simp [Instance.motives, Instance.minors, s, hfam, hcs]
+  case h7 =>
+    rw [hP]; simp [indexOffset, numParams, Instance.params, Instance.specialize, hfam, hcs]
+  case h8 =>
+    unfold NativeRecursorData.recursorType
+    rw [hres, Restoration.expr_empty]
+  case h6 =>
+    have hnf : ((data.nativeInstance.specialize 0 (ls.set k .zero)).singletonCast data.owner
+        data.schema.signature.constructors[index]
+        ((data.genericSorts env data.schema.signature.constructors[index]).map (·.inst ls))).fields.length =
+        c.fields.length := by
+      simp [Instance.singletonCast, Instance.sFields, InductiveSignature.fieldTypes, c, s]
+    have hnp : (data.propParams ls).length = s.params.length := by
+      rw [hP]; simp [Instance.params, s]
+    have hname : g.recursorName c.owner = data.name := by
+      have := congrArg (fun o : Fin _ => (data.schema.signature.families[o]).name.str "rec") howner
+      simpa [g, nativeInstance, NativeRecursorData.name, hres, Restoration.recursorName, c, s] using this
+    have hio : data.indexOffset = s.params.length + (s.families.size + s.constructors.size) := by
+      simp [indexOffset, numParams, Nat.add_assoc, s]
+    rw [hnf, hnp, hio, hextra]
+    simp only [VEnv.mkApps_snoc, VExpr.instL, VExpr.instL_mkApps, List.map_append, Instance.recursorHead,
+      hname, VEnv.vars_instL, List.map_map, Function.comp_def, VExpr.instL_liftN, VExpr.instL_instL,
+      Instance.constructorApp, Instance.singletonElim, Instance.sCtorIndices]
+    have hu : (VLevel.params g.uvars).map (VLevel.inst ls) = ls := VLevel.inst_map_id hlen
+    have hgl' : (data.nativeInstance.specialize 0 (ls.set k .zero)).levels =
+        g.levels.map (VLevel.inst ls) := hgl
+    rw [hu, hgl']
+    rfl
+
 end Lean4Lean.InductiveSignature.NativeRecursorData
 
 namespace Lean4Lean.VEnv
