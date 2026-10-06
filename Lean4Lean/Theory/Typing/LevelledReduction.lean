@@ -20,6 +20,47 @@ Eta expansion sits above beta. An expansion in the function position of a
 redex blocks that redex, and the other side of the peak can only recover it by
 a beta step followed by the original contraction, so the expansion side must
 be allowed any number of lower steps.
+
+## Why `FullStep.funEta` is not restricted to non-head positions
+
+The alternative design keeps `FullStep` strongly closed by forbidding function
+eta expansion in the function position of an application. The transports of
+computation through normal equality need exactly those expansions:
+`NormalEqN.beta_aux` (in `FullReduction`) matches a beta step on one side of a
+normal equality whose eta derivation ends in `etaBoth`, by expanding the other
+side with `FullStep.funEta`; through the `appDF` case that side is the function
+of an application. `NormalEq.parRed` and `NormalEq.fullStep`, and hence
+`FullReduction.church_rosser` and `IsDefEq.full_church_rosser`, depend on these
+transports. Restricting `funEta` would have meant redesigning them, whereas the
+levelled route keeps `FullStep` and its transports unchanged.
+
+## Local diagrams
+
+`levelled_joinable` (in `Lean4Lean.Theory.LevelledConfluence`) needs, for every
+level, a same-level peak lemma and a peak lemma against each lower level:
+
+* level 0: `NormalEq₀` is an equivalence, so its peaks close trivially;
+* level 1: `ParRed.church_rosser` for `NormalEqF false`;
+* level 2: `DeltaPar.peak` and `DeltaPar.parRed_peak`;
+* level 3: `EtaPar.peak`, `EtaPar.deltaPar_peak` and `EtaPar.parRed_peak`;
+* each level against level 0 by the `normalEq₀_mirror` lemmas.
+
+The eta lemmas proceed by induction on the size of the source. A root eta
+expansion on one side is peeled off with `Join3.fun_left` or
+`Join3.struct_left`, and a root computation on the other side meets an eta
+expansion of its head or major, which the `collapse_*` lemmas undo with a beta
+or projection step at a lower level.
+
+## Assumptions on `Params`
+
+The prefix computation lemmas use the `Params` fields `pat_const_native`,
+`recursorData_quot`, `pat_ctor_rigid`, `projection_ctor_rigid`,
+`pat_struct_major`, `pat_iota_params` and `schema_struct_major`. They state that
+registered definition patterns do not overlap native and quotient prefix
+unfolding, that constructors are rigid, and that native iota and case rules at
+a structure constructor read its fields and not its parameters. Without them, a
+pattern could overlap a native unfolding at the same head, and a structure eta
+expansion of a major could not be undone by projection.
 -/
 
 namespace Lean4Lean.VEnv
