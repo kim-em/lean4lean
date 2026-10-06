@@ -80,6 +80,65 @@ theorem _root_.Lean4Lean.VExpr.Subst.lift_comp_cons {τ σ : VExpr.Subst} :
 /-- The finite set of a list of observations. -/
 def listSet (K : List Ob) : Ob → Prop := fun k => k ∈ K
 
+/-! ## Constructors and rules -/
+
+/-- `c` is a constructor: the major premise of an installed rule is headed by `c`. -/
+def IsCtor (env : VEnv) (c : Name) : Prop := ∃ df, env.defeqs df ∧ df.HasConstructorMajor c
+
+/-- The innermost observations of a constructor spine after the keys `keys`: the head, an
+argument class, or an argument observation (with the keys of the earlier arguments). -/
+def CtorEnd (n : Name) (ℓs : List (List Nat → Nat)) (keys : List Key) (r : Ob) : Prop :=
+  r = .ctorHead n ℓs keys.length ∨
+  (∃ i, ∃ h : i < keys.length, r = .ctorArg i (keys[i]).2.1) ∨
+  (∃ i, ∃ h : i < keys.length, ∃ k ∈ (keys[i]).2.2, r = .ctorArgOb i (keys.take i) k)
+
+/-- The sort, at the rule levels `ls`, of the family of the major constructor `ctor` (applied
+at the pattern levels `lsC`): the family's type is a telescope ending in a sort. -/
+def MajorSort (env : VEnv) (ctor : Name) (lsC ls : List VLevel) (ℓ : List Nat → Nat) : Prop :=
+  ∃ cc I lsI ci ds w, env.constants ctor = some cc ∧
+    cc.type.forallResult.getAppFnArgs.1 = .const I lsI ∧ env.constants I = some ci ∧
+    ci.type = .wrapForalls ds (.sort w) ∧
+    ℓ = (w.inst (lsI.map (·.inst (lsC.map (·.inst ls))))).eval
+
+/-- The mode of a rule at the levels `ls`: `mC = true` (mode C, the major is ignored) exactly
+when the major's family is a proposition at those levels. -/
+def RuleMode (env : VEnv) (ctor : Name) (lsC ls : List VLevel) (mC : Bool) : Prop :=
+  ∃ ℓ, MajorSort env ctor lsC ls ℓ ∧ (mC = true ↔ ℓ = fun _ => 0)
+
+/-- The type of the binder `x` (de Bruijn index in the body) of a rule whose binder
+domains are `doms` (outermost first), at the levels `ls`. -/
+def binderTy (doms : List VExpr) (ls : List VLevel) (x : Nat) : VExpr :=
+  ((doms.reverse.getD x default).liftN (x+1)).instL ls
+
+section
+variable (env : VEnv) (U : Nat) (Δ : List VExpr)
+
+/-- The binding of a rule's variables from the keys of a head chain (section 10.2 of the
+notes): a variable occurring bare among the leading arguments takes the key at its first
+occurrence; otherwise it is the `j`-th field of the major and is read, in mode AB, from the
+constructor observations `Km` of the major key, and in mode C it is any term of its type,
+which is a proposition, with no observations. The anchor `τ` takes a member of each class;
+classes are required to be typed at the variable's type. -/
+def RuleBind (doms : List VExpr) (ls : List VLevel) (lead : List VExpr) (msLen : Nat)
+    (fs : List Nat) (mC : Bool) (keys : List Key) (Km : List Ob) (τ : VExpr.Subst)
+    (S' : Nat → Ob → Prop) : Prop :=
+  ∀ x < doms.length,
+    (∃ i : Nat, ∃ k : Key, lead[i]? = some (VExpr.bvar x) ∧ (∀ j < i, lead[j]? ≠ some (VExpr.bvar x)) ∧
+      keys[i]? = some k ∧
+      TypedElCls env U Δ (TyCls env U Δ ((binderTy doms ls x).subst τ)) k.2.1 ∧ k.2.1 (τ x) ∧
+      S' x = listSet k.2.2) ∨
+    ((∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) ∧ ∃ j : Nat, fs[j]? = some x ∧
+      ((mC = false ∧ ∃ c, .ctorArg (msLen + j) c ∈ Km ∧
+          TypedElCls env U Δ (TyCls env U Δ ((binderTy doms ls x).subst τ)) c ∧ c (τ x) ∧
+          S' x = fun k => ∃ pre, .ctorArgOb (msLen + j) pre k ∈ Km) ∨
+       (mC = true ∧
+          (∃ X, TyCls env U Δ ((binderTy doms ls x).subst τ) X ∧ env.HasType U Δ (τ x) X) ∧
+          (∃ P, TyCls env U Δ ((binderTy doms ls x).subst τ) P ∧
+            env.HasType U Δ P (.sort .zero)) ∧
+          S' x = fun _ => False)))
+
+end
+
 section
 variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 
@@ -109,6 +168,25 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
   | delta : env.defeqs df → df.lhs = .const n (VLevel.params df.uvars) →
     env.constants n = some ci → (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ o τs → Obs .id .empty (df.rhs.instL ls) o → Obs σ S (.const n ls) o
+  /-- A constructor has its constructor spine observations, filtered by typing. -/
+  | ctor : IsCtor env n → env.constants n = some ci →
+    (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
+    TypedOb env U Δ (wrap keys r) τs → CtorEnd n (ls.map (·.eval)) keys r →
+    Obs σ S (.const n ls) (wrap keys r)
+  /-- The rule clause (section 10.2 of the notes): a head chain whose keys bind the rule's
+  variables has the observations of the rule's right-hand side body at that binding,
+  filtered by typing at the head's type. -/
+  | rule : env.defeqs df →
+    df.lhs = .wrapLams doms (.mkApps (.const n lsP)
+      (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])) →
+    df.rhs = .wrapLams doms body →
+    env.constants n = some ci → (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
+    TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) o) τs → lkeys.length = lead.length →
+    RuleMode env ctor lsC ls mC →
+    (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) →
+    RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' →
+    Obs τ S' (body.instL ls) o →
+    Obs σ S (.const n ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
 
 /-- `o` is typed at a list of observations of `T`. -/
 def TypedAt (σ : VExpr.Subst) (S : ObSets) (T : VExpr) (o : Ob) : Prop :=
@@ -179,14 +257,41 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
       TypedOb env U Δ (wrap keys r) τs ∧ RigidEnd n (ls.map (·.eval)) keys r) ∨
     (∃ df ci τs, env.defeqs df ∧ df.lhs = .const n (VLevel.params df.uvars) ∧
       env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
-      TypedOb env U Δ o τs ∧ Obs' .id .empty (df.rhs.instL ls) o) := by
+      TypedOb env U Δ o τs ∧ Obs' .id .empty (df.rhs.instL ls) o) ∨
+    (∃ ci τs keys r, o = wrap keys r ∧ IsCtor env n ∧ env.constants n = some ci ∧
+      (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
+      TypedOb env U Δ (wrap keys r) τs ∧ CtorEnd n (ls.map (·.eval)) keys r) ∨
+    (∃ df doms lsP lead ctor lsC ms fs body ci τs lkeys Dm cm Km p mC τ S',
+      o = wrap (lkeys ++ [(Dm, cm, Km)]) p ∧ env.defeqs df ∧
+      df.lhs = .wrapLams doms (.mkApps (.const n lsP)
+        (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])) ∧
+      df.rhs = .wrapLams doms body ∧
+      env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
+      TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) p) τs ∧ lkeys.length = lead.length ∧
+      RuleMode env ctor lsC ls mC ∧
+      (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∧
+      RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' ∧
+      Obs' τ S' (body.instL ls) p) := by
   constructor
   · intro h; cases h with
     | const h0 h1 h2 h3 h4 => exact .inl ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩
-    | delta h1 h2 h3 h4 h5 h6 => exact .inr ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩
-  · rintro (⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ | ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩)
+    | delta h1 h2 h3 h4 h5 h6 => exact .inr (.inl ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩)
+    | ctor h0 h1 h2 h3 h4 => exact .inr (.inr (.inl ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩))
+    | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 =>
+      exact .inr (.inr (.inr ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
+        rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩))
+  · rintro (⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ | ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩ |
+      ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ |
+      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
+        rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩)
     · exact .const h0 h1 h2 h3 h4
     · exact .delta h1 h2 h3 h4 h5 h6
+    · exact .ctor h0 h1 h2 h3 h4
+    · exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11
+
+/-- The observations of a constant do not depend on the valuation. -/
+theorem const_indep : Obs' σ S (.const n ls) o ↔ Obs' σ' S' (.const n ls) o := by
+  rw [const_iff, const_iff]
 
 theorem elim_iff : Obs' σ S (.elim b i ls) o ↔ False := ⟨nofun, nofun⟩
 
@@ -219,7 +324,7 @@ theorem lift'_iff {t : VExpr} {ρ : Lift} {σ : VExpr.Subst} {S : ObSets} {o : O
   induction t generalizing ρ σ S o with
   | bvar i => simp only [VExpr.lift', bvar_iff]; rfl
   | sort => simp only [VExpr.lift', sort_iff]
-  | const => simp only [VExpr.lift', const_iff]
+  | const => exact const_indep
   | elim => simp only [VExpr.lift', elim_iff]
   | proj => simp only [VExpr.lift', proj_iff]
   | app f a ihf iha =>
@@ -249,7 +354,7 @@ theorem subst_iff {t : VExpr} {τ σ : VExpr.Subst} {S : ObSets} {o : Ob} :
   induction t generalizing τ σ S o with
   | bvar i => simp only [VExpr.subst, bvar_iff]
   | sort => simp only [VExpr.subst, sort_iff]
-  | const => simp only [VExpr.subst, const_iff]
+  | const => exact const_indep
   | elim => simp only [VExpr.subst, elim_iff]
   | proj => simp only [VExpr.subst, proj_iff]
   | app f a ihf iha =>
@@ -297,6 +402,8 @@ theorem mono (h : Obs' σ S t o) (hS : ∀ i o, S i o → S' i o) : Obs' σ S' t
   | app _ h2 _ h4 ih1 ih3 => exact .app (ih1 hS) h2 (fun k hk => ih3 k hk hS) h4
   | const h0 h1 h2 h3 h4 => exact .const h0 h1 h2 h3 h4
   | delta h1 h2 h3 h4 h5 h6 => exact .delta h1 h2 h3 h4 h5 h6
+  | ctor h0 h1 h2 h3 h4 => exact .ctor h0 h1 h2 h3 h4
+  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 => exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11
 
 /-- Monotonicity up to subsumption: if every observation of `S` is subsumed by one of
 `S'`, every observation under `S` is subsumed by one under `S'`. -/
@@ -333,6 +440,9 @@ theorem mono_le (h : Obs' σ S t o) (hS : ∀ i o, S i o → ∃ o', S' i o' ∧
     exact ⟨y, .app h1' h2 hK1 (Covers.trans hK2 (h4.trans hK₀)), ly⟩
   | const h0 h1 h2 h3 h4 => exact ⟨_, .const h0 h1 h2 h3 h4, .refl⟩
   | delta h1 h2 h3 h4 h5 h6 => exact ⟨_, .delta h1 h2 h3 h4 h5 h6, .refl⟩
+  | ctor h0 h1 h2 h3 h4 => exact ⟨_, .ctor h0 h1 h2 h3 h4, .refl⟩
+  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 =>
+    exact ⟨_, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11, .refl⟩
 
 /-- Merge finitely many finite witnesses into one. -/
 theorem collect {α : Type} {Q : Ob → Prop} {P : List Ob → α → Prop}
@@ -412,6 +522,9 @@ theorem compact (h : Obs' σ S t o) (n : Nat) :
     · exact hK₂ k hk
   | const h0 h1 h2 h3 h4 => exact ⟨[], nofun, .const h0 h1 h2 h3 h4⟩
   | delta h1 h2 h3 h4 h5 h6 => exact ⟨[], nofun, .delta h1 h2 h3 h4 h5 h6⟩
+  | ctor h0 h1 h2 h3 h4 => exact ⟨[], nofun, .ctor h0 h1 h2 h3 h4⟩
+  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 =>
+    exact ⟨[], nofun, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11⟩
 
 /-- Compactness at the bound variable of an instantiation. -/
 theorem compact0 {S : ObSets} {X : Ob → Prop} (h : Obs' σ (S.cons X) t o) :
@@ -442,7 +555,7 @@ theorem closed_iff {t : VExpr} (ht : t.ClosedN k) (hσ : ∀ i < k, σ i = σ' i
   induction t generalizing k σ σ' S S' o with
   | bvar i => simp only [bvar_iff, hS i ht]
   | sort => simp only [sort_iff]
-  | const => simp only [const_iff]
+  | const => exact const_indep
   | elim => simp only [elim_iff]
   | proj => simp only [proj_iff]
   | app f a ihf iha =>
@@ -480,6 +593,32 @@ theorem _root_.Lean4Lean.VEnv.Model.map_eval_eq {ls ls' : List VLevel}
   induction h with
   | nil => rfl
   | cons h _ ih => simp only [List.map_cons, ih]; exact congrArg (· :: _) h
+
+theorem forall₂_inst_congr {ls ls' : List VLevel} (h : List.Forall₂ (· ≈ ·) ls ls') :
+    ∀ (l : List VLevel), List.Forall₂ (· ≈ ·) (l.map (·.inst ls)) (l.map (·.inst ls'))
+  | [] => .nil
+  | a :: l => .cons (VLevel.inst_congr rfl h) (forall₂_inst_congr h l)
+
+theorem _root_.Lean4Lean.VEnv.Model.RuleMode.lvEq {cn : Name} (h : RuleMode env cn lsC ls mC)
+    (hls : List.Forall₂ (· ≈ ·) ls ls') : RuleMode env cn lsC ls' mC := by
+  obtain ⟨ℓ, ⟨cc, I, lsI, ci, ds, w, h1, h2, h3, h4, rfl⟩, h5⟩ := h
+  refine ⟨_, ⟨cc, I, lsI, ci, ds, w, h1, h2, h3, h4, rfl⟩, ?_⟩
+  have : (w.inst (lsI.map (·.inst (lsC.map (·.inst ls))))).eval =
+      (w.inst (lsI.map (·.inst (lsC.map (·.inst ls'))))).eval :=
+    VLevel.inst_congr rfl (forall₂_inst_congr (forall₂_inst_congr hls lsC) lsI)
+  rwa [← this]
+
+theorem _root_.Lean4Lean.VEnv.Model.RuleBind.lvEq
+    (h : RuleBind env U Δ doms ls lead msLen fs mC keys Km τ S')
+    (w1 : ∀ l ∈ ls, l.WF U) (w2 : ∀ l ∈ ls', l.WF U) (hls : List.Forall₂ (· ≈ ·) ls ls') :
+    RuleBind env U Δ doms ls' lead msLen fs mC keys Km τ S' := by
+  intro x hx
+  have e : TyCls env U Δ ((binderTy doms ls x).subst τ) =
+      TyCls env U Δ ((binderTy doms ls' x).subst τ) :=
+    TyCls.eq_of_lvEq ((LvEq.instL _ w1 w2 hls).subst τ)
+  have := h x hx
+  rw [e] at this
+  exact this
 
 /-- **Level invariance**: the observations of a term are those of its level variants
 (classes are saturated by `LvEq`, levels are observed through `VLevel.eval`). -/
@@ -528,6 +667,18 @@ theorem lvEq (h : Obs' σ S t o) (ht : LvEq U t t') : Obs' σ S t' o := by
     | const w1 w2 w3 =>
       exact .const h0 h1 (fun τ hτ => ih2 τ hτ (.instL _ w1 w2 w3)) h3
         (map_eval_eq w3 ▸ h4)
+  | ctor h0 h1 _ h3 h4 ih2 =>
+    cases ht with
+    | refl => exact .ctor h0 h1 (fun τ hτ => ih2 τ hτ .refl) h3 h4
+    | const w1 w2 w3 =>
+      exact .ctor h0 h1 (fun τ hτ => ih2 τ hτ (.instL _ w1 w2 w3)) h3
+        (map_eval_eq w3 ▸ h4)
+  | rule h1 h2 h3 h4 _ h6 h7 h8 h9 h10 _ ih5 ih11 =>
+    cases ht with
+    | refl => exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ .refl) h6 h7 h8 h9 h10 (ih11 .refl)
+    | const w1 w2 w3 =>
+      exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ (.instL _ w1 w2 w3)) h6 h7
+        (h8.lvEq w3) h9 (h10.lvEq w1 w2 w3) (ih11 (.instL _ w1 w2 w3))
   | delta h1 h2 h3 _ h5 _ ih4 ih6 =>
     cases ht with
     | refl => exact .delta h1 h2 h3 (fun τ hτ => ih4 τ hτ .refl) h5 (ih6 .refl)
@@ -569,6 +720,37 @@ theorem TV.cons (h : TV env U Δ Γ σ S) (hK : ∀ k ∈ K, TypedAt env U Δ σ
   cases hL with
   | zero => exact (hK o ho).lift_cons
   | succ hL => exact (h _ _ hL o ho).lift_cons
+
+/-! ## Constants -/
+
+/-- Every observation of a constant passes its typing filter. -/
+theorem Obs.const_typed (h : Obs' σ S (.const n ls) o) (hci : env.constants n = some ci) :
+    TypedAt env U Δ .id .empty (ci.type.instL ls) o := by
+  rcases Obs.const_iff.1 h with ⟨ci', τs, _, _, rfl, _, hci', hτ, hty, _⟩ |
+    ⟨_, ci', τs, _, _, hci', hτ, hty, _⟩ | ⟨ci', τs, _, _, rfl, _, hci', hτ, hty, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, rfl, _, _, _, hci', hτ, hty, _⟩ <;>
+    cases hci.symm.trans hci' <;> exact ⟨τs, hτ, hty⟩
+
+/-- Observations of a constant transfer to equivalent levels, given that the observations
+of its type transfer. -/
+theorem Obs.const_levels (h : Obs' σ S (.const n ls) o)
+    (hT : ∀ ci, env.constants n = some ci →
+      Ob.Sub (Obs' .id .empty (ci.type.instL ls)) (Obs' .id .empty (ci.type.instL ls')))
+    (w1 : ∀ l ∈ ls, l.WF U) (w2 : ∀ l ∈ ls', l.WF U) (hls : List.Forall₂ (· ≈ ·) ls ls') :
+    Obs' σ' S' (.const n ls') o := by
+  have tr : ∀ ci τs o, env.constants n = some ci →
+      (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) → TypedOb env U Δ o τs →
+      ∃ τs', (∀ τ ∈ τs', Obs' .id .empty (ci.type.instL ls') τ) ∧ TypedOb env U Δ o τs' :=
+    fun ci τs o hci hτ hty => TypedAt.mono_le ⟨τs, hτ, hty⟩ (hT ci hci)
+  rcases Obs.const_iff.1 h with ⟨ci, τs, _, _, rfl, h0, hci, hτ, hty, hr⟩ |
+    ⟨_, ci, τs, h1, h2, hci, hτ, hty, hv⟩ | ⟨ci, τs, _, _, rfl, h0, hci, hτ, hty, hr⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, hci, hτ, hty,
+      h7, h8, h9, h10, h11⟩ <;> obtain ⟨τs', h1', h2'⟩ := tr ci τs _ hci hτ hty
+  · exact .const h0 hci h1' h2' (map_eval_eq hls ▸ hr)
+  · exact .delta h1 h2 hci h1' h2' (hv.lvEq (.instL _ w1 w2 hls))
+  · exact .ctor h0 hci h1' h2' (map_eval_eq hls ▸ hr)
+  · exact .rule h1 h2 h3 hci h1' h2' h7 (h8.lvEq hls) h9 (h10.lvEq w1 w2 hls)
+      (h11.lvEq (.instL _ w1 w2 hls))
 
 end Model
 end VEnv

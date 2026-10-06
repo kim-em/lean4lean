@@ -341,6 +341,12 @@ theorem TypedElCls.mem (hc : TypedElCls env U Δ (TyCls env U Δ X₀) c) (hy : 
   obtain ⟨a, X, hX, ha, rfl⟩ := hc
   exact ⟨a, ElCls.collapse henv hΔ ha hX hy, rfl, (ElCls.eq_of_mem hy).symm⟩
 
+/-- Two members of a typed element class at `TyCls Δ X₀` are equal at `X₀`. -/
+theorem TypedElCls.defeq (hc : TypedElCls env U Δ (TyCls env U Δ X₀) c) (hy : c y) (hz : c z) :
+    env.IsDefEq U Δ y z X₀ := by
+  obtain ⟨a, X, hX, ha, rfl⟩ := hc
+  exact (ElCls.collapse henv hΔ ha hX hy).symm.trans (ElCls.collapse henv hΔ ha hX hz)
+
 theorem TypedElCls.hasType (hc : TypedElCls env U Δ (TyCls env U Δ X₀) c) (hy : c y) :
     env.HasType U Δ y X₀ :=
   let ⟨_, h, _⟩ := hc.mem henv hΔ hy; h.hasType.2

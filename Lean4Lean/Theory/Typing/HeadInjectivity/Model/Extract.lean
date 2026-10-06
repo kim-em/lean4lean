@@ -79,18 +79,6 @@ theorem forall₂_equiv_of_map_eval :
     simp only [List.map_cons, List.cons.injEq] at h
     exact .cons h.1 (forall₂_equiv_of_map_eval h.2)
 
-theorem mkApps_concat (f : VExpr) (as : List VExpr) (a : VExpr) :
-    VExpr.mkApps f (as ++ [a]) = .app (VExpr.mkApps f as) a := by
-  simp [VExpr.mkApps, List.foldl_append]
-
-theorem mkApps_const_inv (h : e = VExpr.mkApps (.const c ls) args) :
-    (args = [] ∧ e = .const c ls) ∨
-      ∃ as a, args = as ++ [a] ∧ e = .app (VExpr.mkApps (.const c ls) as) a := by
-  rcases List.eq_nil_or_concat args with rfl | ⟨as, a, rfl⟩
-  · exact .inl ⟨rfl, h⟩
-  · refine .inr ⟨as, a, by simp, ?_⟩
-    rw [h, List.concat_eq_append, mkApps_concat]
-
 theorem instL_wrapForalls' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
     (VExpr.wrapForalls ds body).instL ls =
       VExpr.wrapForalls (ds.map (·.instL ls)) (body.instL ls) := by
@@ -111,7 +99,7 @@ context): the hypothesis of the extraction, supplied by `Model.sound` under the 
 of each stage. -/
 def SoundEnv (env : VEnv) : Prop :=
   ∀ {U Δ Γ t t' T}, OnCtx Δ (env.IsType U) → env.IsDefEqStrong U Γ t t' T →
-    SoundAt env U Δ Γ t t' T
+    SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T
 
 /-- Soundness at the identity valuation. -/
 theorem sound_id (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
@@ -119,7 +107,7 @@ theorem sound_id (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.
     Ob.Sub (OI env U Γ t) (OI env U Γ t') ∧ Ob.Sub (OI env U Γ t') (OI env U Γ t) ∧
     (∀ o, OI env U Γ t o → TypedAt env U Γ VExpr.Subst.id ObSets.empty T o) ∧
     (∀ o, OI env U Γ t' o → TypedAt env U Γ VExpr.Subst.id ObSets.empty T o) :=
-  hnr hΓ H .id .id .empty (Ctx.SubstEq.id henv hΓ) TV.empty TV.empty
+  (hnr hΓ H).1 .id .id .empty (Ctx.SubstEq.id henv hΓ) TV.empty TV.empty
 
 /-- A chain of sort-typed equalities includes the observations of its left end in those of
 its right end (up to subsumption). -/
@@ -185,59 +173,25 @@ theorem forallE_chain (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ 
 
 /-! ## Rigid spines -/
 
-/-- Unwinding a spine observation of the head along the arguments. -/
-theorem obs_mkApps_of_wrap {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} :
-    ∀ {keys : List Key} {args : List VExpr} {f : VExpr} {o : Ob},
-    List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1 (a.subst σ) ∧
-      ∀ x ∈ k.2.2, Obs env U Δ σ S a x) keys args →
-    Obs env U Δ σ S f (wrap keys o) → Obs env U Δ σ S (VExpr.mkApps f args) o
-  | _, _, _, _, .nil, h => h
-  | _ :: _, a :: as, f, o, .cons ⟨h1, h2⟩ H, h => by
-    rw [wrap_cons] at h
-    show Obs env U Δ σ S (VExpr.mkApps (.app f a) as) o
-    exact obs_mkApps_of_wrap H (.app h h1 h2 Covers.refl)
-
-/-- An observation of an application spine comes from a spine observation of its head. -/
-theorem wrap_of_obs_mkApps {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} :
-    ∀ {args : List VExpr} {f : VExpr} {o : Ob}, Obs env U Δ σ S (VExpr.mkApps f args) o →
-    ∃ keys : List Key, List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1 (a.subst σ))
-      keys args ∧ Obs env U Δ σ S f (wrap keys o)
-  | [], _, _, h => ⟨[], .nil, h⟩
-  | a :: as, f, o, h => by
-    obtain ⟨keys, hk, h'⟩ := wrap_of_obs_mkApps (args := as) (f := .app f a) h
-    obtain ⟨D, c, K, K', h1, h2, _, _⟩ := Obs.app_iff.1 h'
-    exact ⟨(D, c, K) :: keys, .cons h2 hk, h1⟩
-
-/-- The spine observations of a constant end in its own rigid observations. -/
+/-- The spine observations of a rigid constant ending in a rigid observation are its own rigid
+observations. -/
 theorem const_wrap_inv {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
-    (hrig : env.Rigid n) (h : Obs env U Δ σ S (.const n ls) (wrap keys o)) (ho : o.NotApp) :
+    (hrig : env.Rigid n) (h : Obs env U Δ σ S (.const n ls) (wrap keys o))
+    (ho : (∃ n' ℓs m, o = .rigid n' ℓs m) ∨ ∃ i c, o = .rigidArg i c) :
     RigidEnd n (ls.map (·.eval)) keys o := by
+  have hna : o.NotApp := by rcases ho with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;> trivial
   rcases Obs.const_iff.1 h with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, _, hdf, hlhs, _⟩
-  · obtain ⟨rfl, rfl⟩ := wrap_inj e ho hr.notApp
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr.notApp
     exact hr
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
-
-/-- Observations of a Pi type at one typed key. -/
-theorem pi_list {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {K τk τc : List Ob}
-    (hc : TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) c) (hy : c y)
-    (hτk : ∀ τ ∈ τk, Obs env U Δ σ S A τ) (hkk : ∀ k ∈ K, TypedOb env U Δ k τk)
-    (hτc : ∀ τ ∈ τc, Obs env U Δ (σ.cons y) (S.cons (listSet K)) B τ) :
-    ∃ τs, (∀ τ ∈ τs, Obs env U Δ σ S (.forallE A B) τ) ∧
-      ∀ o, TypedOb env U Δ o τc →
-        TypedOb env U Δ (.app (TyCls env U Δ (A.subst σ)) c K o) τs := by
-  refine ⟨.piDom (TyCls env U Δ (A.subst σ)) :: (τk.map .piDomOb ++ τc.map (.piCodOb c K)),
-    ?_, fun o ho => ?_⟩
-  · intro τ hτ
-    simp only [List.mem_cons, List.mem_append, List.mem_map] at hτ
-    rcases hτ with rfl | ⟨x, hx, rfl⟩ | ⟨x, hx, rfl⟩
-    · exact .piDom
-    · exact .piDomOb (hτk x hx)
-    · exact .piCodOb hc hτk hkk hy (hτc x hx)
-  · refine .app (τd := τk) (τc := τc) (List.mem_cons_self ..) (fun x hx => ?_) hkk hc
-      (fun x hx => ⟨K, ?_, Covers.refl⟩) ho
-    · exact List.mem_cons_of_mem _ (List.mem_append_left _ (List.mem_map_of_mem hx))
-    · exact List.mem_cons_of_mem _ (List.mem_append_right _ (List.mem_map_of_mem hx))
+  · have hrn : r.NotApp := by
+      rcases hr with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial
+    obtain ⟨rfl, rfl⟩ := wrap_inj e hna hrn
+    rcases ho with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;>
+      rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
+  · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig df hdf lsP)
 
 /-- The keys of a left spine: each argument class is the class of the argument at the
 domain class, which is the type class of a type of the argument, and the key observations
@@ -247,62 +201,53 @@ def KeyedArgs (env : VEnv) (U : Nat) (Γ : List VExpr) (keys : List Key) (args :
   List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 a ∧
     (∀ x ∈ k.2.2, OI env U Γ a x) ∧ ∃ X, env.HasType U Γ a X ∧ k.1 = TyCls env U Γ X) keys args
 
-/-- **Typed spine observations**: for a strongly typed spine `mkApps (const c ls) args : T`
-and observations `τs` of `T`, there are keys for the arguments such that every observation
-typed at `τs`, wrapped in the keys, is typed at observations of the constant's type (so,
-for a rigid end, it passes the filter of the constant clause). -/
-theorem spine_typed (henv : env.Ordered) (hnr : SoundEnv env)
-    (H : env.HasTypeStrong U Γ e T b) : OnCtx Γ (env.IsType U) →
-    ∀ args, e = VExpr.mkApps (.const c ls) args → ∀ τs, (∀ τ ∈ τs, OI env U Γ T τ) →
+/-- **Typed spine observations** (from the spine lemma): for a sort-typed spine
+`mkApps (const c ls) args : sort u`, there are keys for the arguments such that every
+observation typed at `[sort u]`, wrapped in the keys, is typed at observations of the
+constant's type, and `u` is the sort of `c` at its syntactic telescope (`RigidSort`). -/
+theorem spine_data (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
+    (hu : env.IsDefEq U Γ (.mkApps (.const c ls) args) (.mkApps (.const c ls) args) (.sort u)) :
     ∃ ci keys, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
-      ∀ o, TypedOb env U Γ o τs →
+      (∀ o, TypedOb env U Γ o [.sort u.eval] →
         ∃ τs₀, (∀ τ ∈ τs₀, OI env U Γ (ci.type.instL ls) τ) ∧
-          TypedOb env U Γ (wrap keys o) τs₀ := by
-  induction H with
-  | bvar | sort' | elim | proj | lam | forallE =>
-    intro _ args he; rcases mkApps_const_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
-  | const hci hls =>
-    intro _ args he τs hτs
-    rcases mkApps_const_inv he with ⟨rfl, h⟩ | ⟨_, _, _, h⟩
-    · cases h; exact ⟨_, [], hci, hls, .nil, fun o ho => ⟨τs, hτs, ho⟩⟩
-    · cases h
-  | @app Γ A u B v f a _ _ _ _ _ _ ha _ _ _ _ ihf _ _ =>
-    intro hΓ args he τs hτs
-    rcases mkApps_const_inv he with ⟨_, h⟩ | ⟨as, a₀, rfl, h⟩
-    · cases h
-    injection h with hf ha0
-    subst ha0
-    have haw : env.HasType U Γ a A := ha.refl.defeq
-    have Ha := sound_id henv hnr hΓ ha.refl
-    have hτ' : ∀ τ ∈ τs, Obs env U Γ (VExpr.Subst.id.cons (a.subst .id))
-        (ObSets.empty.cons (OI env U Γ a)) B τ := fun τ hτ => Obs.inst_iff.1 (hτs τ hτ)
-    obtain ⟨K, hK, hKτ⟩ := Obs.collect (Q := OI env U Γ a)
-      (P := fun K τ => Obs env U Γ (VExpr.Subst.id.cons (a.subst .id))
-        (ObSets.empty.cons (listSet K)) B τ)
-      (fun _ _ _ hKK h => h.mono fun i o h => by
-        cases i with
-        | zero => exact hKK _ h
-        | succ i => exact h)
-      fun τ hτ => (hτ' τ hτ).compact0
-    obtain ⟨τk, hτk, hkk⟩ := TypedAt.merge fun k hk => Ha.2.2.1 k (hK k hk)
-    have hc : TypedElCls env U Γ (TyCls env U Γ (A.subst .id))
-        (ElCls env U Γ (TyCls env U Γ (A.subst .id)) (a.subst .id)) := by
-      simp only [VExpr.subst_id]; exact .of_hasType haw
-    obtain ⟨τPi, hτPi, hwrap⟩ := pi_list hc ElCls.self hτk hkk hKτ
-    simp only [VExpr.subst_id] at hwrap
-    obtain ⟨ci, keys₀, hci, hls, hkeys, hQ⟩ := ihf hΓ as hf τPi hτPi
-    refine ⟨ci, keys₀ ++ [(TyCls env U Γ A, ElCls env U Γ (TyCls env U Γ A) a, K)], hci, hls,
-      forall₂_append_single hkeys ⟨rfl, hK, A, haw, rfl⟩, fun o ho => ?_⟩
-    rw [wrap_append]
-    exact hQ _ (hwrap o ho)
-  | defeq _ hAB _ _ _ _ _ ih =>
-    intro hΓ args heq τs hτs
-    have hS := (sound_id henv hnr hΓ hAB).2.1
-    obtain ⟨τs', h1, h2⟩ := exists_list_cover (L := τs) (R := fun y x => y ≼ x)
-      fun τ hτ => hS τ (hτs τ hτ)
-    obtain ⟨ci, keys, hci, hls, hk, hQ⟩ := ih hΓ args heq τs' h1
-    exact ⟨ci, keys, hci, hls, hk, fun o ho => hQ o (ho.strengthen h2)⟩
-  | base _ ih => exact ih
+          TypedOb env U Γ (wrap keys o) τs₀) ∧
+      RigidSort env c (ls.map (·.eval)) args.length u.eval := by
+  have H := (hnr hΓ (hu.strong henv hΓ)).2.1
+  obtain ⟨ci, info, hci, hls, ⟨u₀, hT, -⟩, hinfo, -, P1, P2, -⟩ :=
+    H.spine henv hΓ rfl (Ctx.SubstEq.id henv hΓ) TV.empty (args.map fun _ => [])
+      (by
+        clear H hu
+        induction args with
+        | nil => exact .nil
+        | cons a as ih => exact .cons nofun ih)
+      [.sort u.eval] fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort
+  have hlen : info.length = args.length := List.Forall₂.length_eq hinfo
+  refine ⟨ci, info.map (·.1), hci, hls, ?_, P1, ?_⟩
+  · clear P1 P2 hlen H hu hT
+    induction hinfo with
+    | nil => exact .nil
+    | @cons ka a _ _ h _ ih =>
+      obtain ⟨h1, h2, h3, _, h5⟩ := h
+      refine .cons ⟨by rw [h1, VExpr.subst_id], h2, ka.2, h5.1.defeq.hasType.1, ?_⟩ ih
+      rw [h3, VExpr.subst_id]
+  · intro ci' ds w hci' hty hds
+    cases hci.symm.trans hci'
+    have eT : ci.type.instL ls =
+        VExpr.wrapForalls (ds.map (·.instL ls)) (.sort (w.inst ls)) := by
+      rw [hty, instL_wrapForalls']; rfl
+    rw [eT] at hT
+    have hpi := hT.piSD (ds := ds.map (·.instL ls))
+    obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 (.piDom fun _ => False) (.piDom (List.mem_singleton_self _))
+    rw [eT] at hτ₀
+    obtain ⟨σ', S', hk, -⟩ := tele_unwind henv hΓ hpi .nil TV.empty
+      (by simp [hlen, hds]) hty₀ hτ₀
+    have := tele_obs hk (x := .sort (w.inst ls).eval) .sort
+    rw [← eT] at this
+    obtain ⟨x', hx', l⟩ := P2 _ this
+    rw [l.sort_inv] at hx'
+    have := Obs.sort_mem hx'
+    injection this with this
+    rw [← this, VLevel.eval_inst_eq_evalAt]
 
 /-- The analysis of a chain between two rigid spines: same head, same levels, and each
 right argument in the class of the corresponding left argument (at the left spine's keys,
@@ -316,16 +261,14 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
       c = c' ∧ ls.map (·.eval) = ls'.map (·.eval) ∧
       List.Forall₂ (fun (k : Key) a' => k.2.1 a') keys args' := by
   obtain ⟨u, hu⟩ := h.isType_l
-  have Hs := (hu.strong henv hΓ).hasType'.1
-  obtain ⟨ci, keys, hci, hls, hkeys, hQ⟩ := spine_typed henv hnr Hs hΓ args rfl
-    [.sort u.eval] fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort
+  obtain ⟨ci, keys, hci, hls, hkeys, hQ, hRS⟩ := spine_data henv hnr hΓ hu
   have hk' : List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 (a.subst .id) ∧
       ∀ x ∈ k.2.2, OI env U Γ a x) keys args :=
     forall₂_imp (fun k a ⟨h1, h2, _⟩ => ⟨by rw [VExpr.subst_id]; exact h1, h2⟩) hkeys
   have hsort : ∀ r, RigidEnd c (ls.map (·.eval)) keys r → TypedOb env U Γ r [.sort u.eval] := by
     intro r hr
     rcases hr with rfl | ⟨_, _, rfl⟩
-    · exact .rigid (List.mem_singleton_self _)
+    · exact .rigid (List.mem_singleton_self _) (List.Forall₂.length_eq hkeys ▸ hRS)
     · exact .rigidArg (List.mem_singleton_self _)
   have hL : ∀ r, RigidEnd c (ls.map (·.eval)) keys r →
       OI env U Γ (.mkApps (.const c ls) args) r := by
@@ -343,7 +286,10 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
       · exact l.rigidArg_inv
     subst this
     obtain ⟨keys', hk, hw⟩ := wrap_of_obs_mkApps ho
-    exact ⟨keys', hk, const_wrap_inv hrig' hw hr.notApp⟩
+    exact ⟨keys', hk, const_wrap_inv hrig' hw (by
+      rcases hr with rfl | ⟨_, _, rfl⟩
+      · exact .inl ⟨_, _, _, rfl⟩
+      · exact .inr ⟨_, _, rfl⟩)⟩
   have hlen := List.Forall₂.length_eq hkeys
   obtain ⟨keys', hk1, hr1⟩ := hR _ (.inl rfl)
   rcases hr1 with e | ⟨_, _, e⟩
@@ -435,7 +381,8 @@ which have no projections or eliminators. -/
 theorem WF.headInjectivityCore_of_defsOnly {env : VEnv} (henv : env.WF) (hdo : env.DefsOnly) :
     env.HeadInjectivityCore :=
   henv.headInjectivityCore_of_sound fun hΔ H =>
-    Model.sound henv.ordered hΔ hdo henv.defRules H
+    Model.sound henv.ordered hΔ hdo henv.defRules
+      (fun _ ⟨_, hdf, hm⟩ => VEnv.nativeHeadRigid_iff.1 (henv.native_constructor_rigid hdf hm)) H
 
 /-- **Chain-level head injectivity for rule-free environments** (milestone M2 of
 `docs/inductives/PHASE1B_NOTES.md`, section 9.3). -/

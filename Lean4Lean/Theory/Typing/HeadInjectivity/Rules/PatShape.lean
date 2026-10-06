@@ -47,6 +47,40 @@ theorem VExpr.wrapLams_mkApps_snoc_ne_const {ds as : List VExpr} {f a : VExpr} :
       List.foldl_cons, List.foldl_nil]
     nofun
 
+theorem VExpr.getAppFnArgs_go_mkApps (f : VExpr) :
+    ∀ (args acc : List VExpr), VExpr.getAppFnArgs.go (VExpr.mkApps f args) acc =
+      VExpr.getAppFnArgs.go f (args ++ acc)
+  | [], _ => rfl
+  | a :: as, acc => by
+    rw [show VExpr.mkApps f (a :: as) = VExpr.mkApps (.app f a) as from rfl,
+      VExpr.getAppFnArgs_go_mkApps _ as acc]
+    rfl
+
+theorem VExpr.stripLams_wrapLams (ds : List VExpr) (e : VExpr) :
+    (VExpr.wrapLams ds e).stripLams = e.stripLams := by
+  induction ds with
+  | nil => rfl
+  | cons d ds ih => exact ih
+
+/-- The head of a lambda-wrapped constant spine. -/
+theorem VExpr.stripLams_wrapLams_mkApps_head {ds args : List VExpr} :
+    (VExpr.wrapLams ds (VExpr.mkApps (.const n ls) args)).stripLams.getAppFnArgs.1 =
+      .const n ls := by
+  rw [VExpr.stripLams_wrapLams]
+  cases args with
+  | nil => rfl
+  | cons a as =>
+    rw [show VExpr.mkApps (.const n ls) (a :: as) = VExpr.mkApps (.app (.const n ls) a) as
+      from rfl]
+    have : ∀ (f : VExpr) (as : List VExpr),
+        (VExpr.mkApps (.app f a) as).stripLams = VExpr.mkApps (.app f a) as := by
+      intro f as
+      induction as generalizing f a with
+      | nil => rfl
+      | cons b bs ih => exact ih _ _
+    rw [this, VExpr.getAppFnArgs, VExpr.getAppFnArgs_go_mkApps]
+    rfl
+
 namespace InductiveSignature
 
 /-- The head that restoration produces from a generated recursor head: native
