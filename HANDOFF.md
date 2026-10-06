@@ -52,6 +52,19 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   and the projection-walk substitution (drags in the corner machinery); so
   `args_typing`/`iota`/`iota_body` still take `hs`. Patch saved at
   `/tmp/l4l-e1b-partial-port.patch` (volatile).
+  **Spec correction decided (2026-10-06):** `Instance.Admissible`/`Compiles`
+  constrained a recursor's target universe only by `target_wf`, so the
+  specification admitted recursors Lean never produces (a large-eliminating
+  singleton whose only recursor has motive universe `succ u`), under which
+  proof fields cannot be extracted at all (no elimination into Prop, no
+  cumulativity), `FullEquationCoverage` fails, and strengthening with
+  canonical `Eq` is in doubt. The target universe is now required to be
+  either `≈ zero` or a universe parameter not occurring in the declaration's
+  levels, exactly the shape `getElimLevel` produces; realizability is
+  preserved (CompletedElimination.lean / ConsumedAdmissible.lean instantiate
+  the target from it). This corrects the specification to Lean's
+  constructions; it weakens no theorem. The strengthening agent implements
+  it; the confluence instance relies on it.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
