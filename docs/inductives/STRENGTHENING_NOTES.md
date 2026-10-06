@@ -486,3 +486,57 @@ No proof organisation of this conversion-elimination theorem that avoids a
 normalization-like argument is known, nor any argument that one cannot exist. Lean's
 theory does not normalize. So at this point route (b) rests on an open metatheorem;
 the remaining work is not merely large.
+
+## Assessment: the restricted projection-walk corner (`ProjectionWalkCorner`, branch -e1)
+
+Statement (Verify/Typing/ProjectionCorner.lean on agent/verify-inductives-e1). There is a
+structure `S` with a typed major `e' : S params idx` in `Δ`. The projection walk reaches
+the binder `∀ D, body'` for a field `j` whose projection fails the guard: `S` may be in
+`Prop` and `D` is not. A closed source `body` translates to `body'` under `d : D`. The
+claim is that it translates without the binder, to the unlifted residual.
+
+**Without a term of `D`, the restriction gives no measure.** The typing derivation of
+`body` under `d` may route conversions through arbitrary `d`-dependent intermediates.
+Examples are `(fun _ => T) d`, and proofs `out d : P v` that feed singleton or
+proof-irrelevance computation, as in the countermodel. The major does give, in `Δ`, every
+*closed* proposition that is provable from `d`: eliminate `S` into `Prop` with a constant
+motive and use the field in the minor. That is a semantic fact. It does not bound the
+intermediate syntax of a declarative derivation. Rebuilding the derivation in `Δ` is
+therefore the same conversion-elimination problem as in the general case (Part 3 status
+above), restricted only in which binder is removed. For the extreme instance `S := Nonempty D`
+the corner *is* strengthening across `d : D` under the hypothesis `Nonempty D`.
+
+**With canonical `Nonempty` and `Classical.choice`, the corner is provable now, by
+substitution, without certificates.** Both are declared in `Init.Prelude`
+(`class inductive Nonempty (α : Sort u) : Prop | intro (val : α)` at line 792,
+`axiom Classical.choice {α : Sort u} : Nonempty α → α` at line 818). So every environment
+that replays the prelude, and so contains canonical `Eq`, contains them too.
+Construction in `Δ`:
+
+1. Eliminate `S` into `Prop`: use `S`'s registered native recursor with target universe 0,
+   the motive `fun x => Nonempty D[x]` (where `D[x]` is the walked binder type with `e'`
+   replaced by `x`), and the minor `fun fields => Nonempty.intro field_j`. This gives
+   `hne : Nonempty D`. The minor is typed because in the constructor branch the projections
+   in `D[mk ps fields]` reduce by `projIota` to the fields. `IsType D` in `Δ` ensures that
+   `D` mentions only projections that pass the guard, that is proof fields when `S` is in
+   `Prop`.
+2. Take `d₀ := @Classical.choice D hne : D` in `Δ`.
+3. Substitute `d := d₀` in the translation and typing derivation of `body` under the binder.
+   Since `body` is closed, its translation `body'` does not mention `d`, so
+   `body'[d₀] = b₀` with `body' = b₀.lift`. This needs a substitution lemma for `TrExprS`
+   at a bound variable instantiated by a typed term. Instantiation lemmas for free
+   variables exist (`TrExprS.instantiateFVar` and relatives).
+
+What this costs: a hypothesis `VEnv.HasCanonicalChoice` (the exact types of `Nonempty`,
+`Nonempty.intro`, the recursor `Nonempty.rec`, and `Classical.choice`, as installed by the
+prelude replay), stated like `HasCanonicalEq` and discharged where `HasCanonicalEq` is.
+Adding it to `addDecl.WF_of_canonicalEq` changes the top-level hypotheses, so it is a lead
+decision.
+
+The construction above is about 1-2k lines. Most of it is typing the elimination of `S`
+into `Prop` with a projection-bearing motive, plus the `TrExprS` substitution lemma.
+
+`Classical.choice` does not similarly reduce *general* strengthening. Removing `q : Q`
+needs `Nonempty Q` in the smaller context, which is not available. Substituting
+`q := choice h` only replaces the binder by the `Prop` hypothesis `h : Nonempty Q`, and
+that is strengthening again.
