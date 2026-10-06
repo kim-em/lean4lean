@@ -27,7 +27,13 @@ inductive Head
   | elim (block : Name) (owner : Nat)
   deriving DecidableEq
 
-/-- Constructor data: the inductive family it builds, and its numbers of parameters and fields. -/
+/-- Constructor data: the inductive family it builds, and the split of a saturated application
+into `nparams + nfields` arguments. Constructor shapes of the constructor store the last
+`nfields` arguments. `nparams` is the structure's parameter count when the constructor is a
+registered structure constructor (so that `ctor'` collapse and projections read the declared
+fields), and may be `0` otherwise (the shape stores every argument). Rule matching does not
+depend on this split agreeing with the split of any rule (`ruleVal` in `Interp.lean` aligns the
+rule's fields with the stored ones at the end). -/
 structure CtorInfo where
   family : Name
   nparams : Nat
@@ -38,7 +44,8 @@ structure RuleMajor where
   ctor : Name
   /-- the major constructor's universe levels, over the rule's universe params -/
   levels : List VLevel
-  /-- de Bruijn indices (under the rule binders) of its trailing field variables, in order -/
+  /-- de Bruijn indices (under the rule binders) of its trailing field variables, in order
+  (the rule's own field count, which need not be the constructor's stored `nfields`) -/
   fields : List Nat
 
 /-- A computation rule `fun Ds => head args ≡ fun Ds => rhs`, pre-decomposed. -/
@@ -50,6 +57,11 @@ structure Rule where
   vars : List (Option Nat)
   /-- the last argument, if the rule has one (definitions have none) -/
   major : Option RuleMajor
+  /-- one entry per field of the major (per entry of `major.fields`, in order): `some j` iff the
+  field can be read from the argument at position `j` (counted like `vars`, among the arguments
+  before the major); used for fields that are not stored in the major's constructor shape
+  (always, for a proposition major) -/
+  fieldIndex : List (Option Nat)
   /-- right-hand body, under the `nbind` binders -/
   rhs : VExpr
 
