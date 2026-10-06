@@ -841,6 +841,12 @@ inside this project's scope without solving open base metatheory:
    self-test pass; `grep sorry` under Verify and Inductive is empty; the
    audit reports "10 distinct proof obligations remain" (the base ones).
    `scripts/inductive-audit-inventory.json` no longer lists `assemblyNative`.
+   **E3 re-merged with the closed main (94cfc7a, pushed):** one conflict in
+   `AssemblyProviderEvidence.lean`; `RuleShape.lean` needed
+   `finalBaseVEnv_strengthening` (from `E.sourceStrengthening.recursors`);
+   full build, tests, `Init.Core` replay and audit pass; `addDecl.WF`
+   unchanged; the nine base declarations (13 sorry sites) are the only open
+   proofs there. E1 per-phase work (steps 3 to 6) continues on its branch.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
