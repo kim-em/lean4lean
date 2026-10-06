@@ -732,6 +732,19 @@ inside this project's scope without solving open base metatheory:
    Replays check the same declaration counts; cost: `Init.Core` unchanged,
    `Init.Data.List.Lemmas` +21%, `Std.Data.HashMap.Lemmas` 26.6 s to 49.0 s
    (+84%), inherent to discarding in-scope cache entries.
+   **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
+   79 strengthening uses under `Verify/Inductive` strengthen fresh checker
+   runs from the nested context of `Inductive/Add.lean` (later families run
+   inside earlier families' indices; constructor and recursor phases inside
+   stale header indices; later constructors under earlier minors). Chosen
+   repair (P): a second local context `checkLCtx` seen only by the lifted
+   checker calls (parameters, indices, fields, argument binders in both
+   contexts; majors, motives, minors, hypotheses only in the main one), with
+   snapshots per parameter and per field; estimated 4.5k to 9k lines of churn
+   (much deletion), versus 9k to 16k for a fresh-run locality theorem (L).
+   (P) is a second executable departure, invisible if (L) holds (argued, not
+   proved). Scoping reports copied to `docs/inductives/WEAKN_SCOPE.md` and
+   `docs/inductives/RESTORE_READINESS.md`.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against
