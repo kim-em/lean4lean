@@ -210,6 +210,30 @@ theorem target_subst {S : CastSpec} (H : S.Scoped pa.length) (hia : ia.length = 
   rw [← (tel_subst H hia τ j).2]
   simp [List.map_map, Function.comp_def, liftN_subst_liftN']
 
+/-- The value of field `l` once the cast binders are instantiated, given the instantiated
+values `σ` of the earlier fields and the argument `tl` supplied for field `l`'s binder. -/
+def valHat (pa ia : List VExpr) (l : Nat) (σ : List VExpr) (tl : VExpr) : VExpr :=
+  match S.slot.getD l none with
+  | some k =>
+    VExpr.typeCast (S.sorts.getD l .zero)
+      ((S.indices.getD k default).instOuter (pa ++ ia.take k))
+      ((S.fields.getD l default).instOuter (pa ++ σ)) tl (ia.getD k default)
+  | none => tl
+
+/-- The domain of field `l`'s binder once the earlier binders are instantiated. -/
+def domHat (pa ia : List VExpr) (l : Nat) (σ : List VExpr) : VExpr :=
+  match S.slot.getD l none with
+  | some k =>
+    VExpr.eqApp (.succ (S.sorts.getD l .zero)) (.sort (S.sorts.getD l .zero))
+      ((S.indices.getD k default).instOuter (pa ++ ia.take k))
+      ((S.fields.getD l default).instOuter (pa ++ σ))
+  | none => (S.fields.getD l default).instOuter (pa ++ σ)
+
+/-- The instantiated cast substitution. -/
+def substHat (pa ia : List VExpr) : Nat → List VExpr → List VExpr
+  | 0, _ => []
+  | i + 1, t => substHat pa ia i (t.take i) ++ [S.valHat pa ia i (substHat pa ia i (t.take i)) (t.getD i default)]
+
 end CastSpec
 
 namespace VEnv
@@ -304,6 +328,18 @@ theorem liftN_instOuter_params {X : VExpr} {args : List VExpr} (hX : X.ClosedN (
   · rw [liftVar_le (Nat.le_of_not_gt hik), VExpr.Subst.ofList_ge _ (by omega),
       VExpr.Subst.ofList_lt _ (by simp; omega), List.getElem_append_left (by simp; omega),
       bvarRange_getElem _ _ _ (by simp; omega)]
+    congr 1; simp; omega
+
+theorem liftN_instOuter_take (v : VExpr) (t : List VExpr) (k : Nat) (hk : k ≤ t.length) :
+    (v.liftN k).instOuter t = v.instOuter (t.take (t.length - k)) := by
+  rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst, VExpr.liftN_eq_subst, VExpr.subst_subst]
+  congr 1
+  funext x
+  simp only [VExpr.Subst.comp, VExpr.Subst.shift, VExpr.subst_bvar]
+  by_cases hx : x + k < t.length
+  · rw [VExpr.Subst.ofList_lt _ hx, VExpr.Subst.ofList_lt _ (by simp; omega), List.getElem_take]
+    congr 1; simp; omega
+  · rw [VExpr.Subst.ofList_ge _ (by omega), VExpr.Subst.ofList_ge _ (by simp; omega)]
     congr 1; simp; omega
 
 theorem instOuter_closed0 {e : VExpr} (h : e.ClosedN 0) (args : List VExpr) :
@@ -1047,6 +1083,135 @@ theorem tel_branch_target (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSp
   simp only [List.length_reverse, hdl] at hfvar'
   rw [← hFeq] at hfvar'
   exact hcongr.symm.defeq hfvar'
+
+theorem typeCast_instOuter (u X Y e x) (t : List VExpr) :
+    (VExpr.typeCast u X Y e x).instOuter t =
+      VExpr.typeCast u (X.instOuter t) (Y.instOuter t) (e.instOuter t) (x.instOuter t) := by
+  simp only [VExpr.instOuter_eq_subst, VExpr.typeCast_subst]
+
+theorem eqApp_instOuter (w α a b) (t : List VExpr) :
+    (VExpr.eqApp w α a b).instOuter t =
+      VExpr.eqApp w (α.instOuter t) (a.instOuter t) (b.instOuter t) := by
+  simp only [VExpr.instOuter_eq_subst, VExpr.eqApp_subst]
+
+theorem liftN_instOuter_self (x : VExpr) (t : List VExpr) : (x.liftN t.length).instOuter t = x := by
+  rw [VExpr.instOuter_eq_subst]; exact VExpr.instOuter_eq_subst_aux x t
+
+theorem liftN_instOuter_len {x : VExpr} {t : List VExpr} (h : t.length = k) :
+    (x.liftN k).instOuter t = x := by subst h; exact liftN_instOuter_self x t
+
+/-- Instantiating the cast binders of the substitution. -/
+theorem tel_instOuter {S : CastSpec} (H : S.Scoped pa.length) (hia : ia.length = S.indices.length) :
+    ∀ i (t : List VExpr), t.length = i →
+      (S.tel pa ia i).2.map (fun x : VExpr => x.instOuter t) = S.substHat pa ia i t := by
+  intro i
+  induction i with
+  | zero => intro t _; simp [tel, substHat]
+  | succ i ih =>
+    intro t ht
+    have hti : (t.take i).length = i := by simp; omega
+    have hσl := (S.tel_length pa ia i).2
+    simp only [tel, substHat, List.map_append, List.map_map, List.map_cons, List.map_nil]
+    have hlift : (S.tel pa ia i).2.map ((fun x : VExpr => x.instOuter t) ∘ (·.lift)) =
+        (S.tel pa ia i).2.map (fun x : VExpr => x.instOuter (t.take i)) := by
+      apply List.map_congr_left; intro x _
+      simp only [Function.comp]
+      rw [show x.lift = x.liftN 1 from rfl, liftN_instOuter_take _ _ _ (by omega), ht,
+        Nat.add_sub_cancel]
+    rw [hlift, ih _ hti]
+    congr 2
+    have hpai : (pa.map (fun x : VExpr => x.liftN i)).map (fun x : VExpr => x.instOuter (t.take i)) = pa := by
+      simp only [List.map_map]
+      conv => rhs; rw [← List.map_id pa]
+      apply List.map_congr_left; intro x _
+      simp only [Function.comp, id]; exact liftN_instOuter_len hti
+    unfold step valHat
+    cases hs : S.slot.getD i none with
+    | none =>
+      simp only
+      rw [VExpr.instOuter_bvar _ (by omega), getD_of_lt (by omega)]
+      congr 1; omega
+    | some k =>
+      have hk := H.slot_lt i k hs
+      simp only
+      rw [typeCast_instOuter]
+      have hX := H.indices_getD k
+      have hY := H.fields_getD i
+      congr 1
+      · rw [show ∀ x : VExpr, x.lift = x.liftN 1 from fun _ => rfl, liftN_instOuter_take _ _ _ (by omega),
+          ht, Nat.add_sub_cancel, VExpr.instOuter_instOuter _ _ _ (by
+            simpa [hia, Nat.min_eq_left (Nat.le_of_lt hk)] using hX),
+          List.map_append, hpai, List.map_map]
+        congr 2
+        conv => rhs; rw [← List.map_id (ia.take k)]
+        apply List.map_congr_left; intro x _
+        simp only [Function.comp, id]; exact liftN_instOuter_len hti
+      · rw [show ∀ x : VExpr, x.lift = x.liftN 1 from fun _ => rfl, liftN_instOuter_take _ _ _ (by omega),
+          ht, Nat.add_sub_cancel, VExpr.instOuter_instOuter _ _ _ (by simpa [hσl] using hY),
+          List.map_append, hpai, ih _ hti]
+      · rw [VExpr.instOuter_bvar _ (by omega), getD_of_lt (by omega)]
+        congr 1; omega
+      · exact liftN_instOuter_len ht
+
+theorem tel_dom_getD (S : CastSpec) (pa ia : List VExpr) :
+    ∀ i l, l < i → (S.tel pa ia i).1.getD l default = (S.step pa ia l (S.tel pa ia l).2).1 := by
+  intro i
+  induction i with
+  | zero => intro l h; omega
+  | succ i ih =>
+    intro l hl
+    simp only [tel]
+    rcases Nat.lt_or_ge l i with h | h
+    · rw [getD_append_left' (by rw [(S.tel_length pa ia i).1]; exact h), ih l h]
+    · have : l = i := by omega
+      subst this
+      rw [getD_append_right' (by rw [(S.tel_length pa ia l).1]; exact Nat.le_refl _), (S.tel_length pa ia l).1,
+        Nat.sub_self]
+      rfl
+
+theorem tel_dom_instOuter {S : CastSpec} (H : S.Scoped pa.length) (hia : ia.length = S.indices.length)
+    (i l : Nat) (hl : l < i) (t : List VExpr) (ht : t.length = l) :
+    ((S.tel pa ia i).1.getD l default).instOuter t = S.domHat pa ia l (S.substHat pa ia l t) := by
+  rw [S.tel_dom_getD pa ia i l hl]
+  have hσl := (S.tel_length pa ia l).2
+  have hpai : (pa.map (fun x : VExpr => x.liftN l)).map (fun x : VExpr => x.instOuter t) = pa := by
+    simp only [List.map_map]
+    conv => rhs; rw [← List.map_id pa]
+    apply List.map_congr_left; intro x _
+    simp only [Function.comp, id]; exact liftN_instOuter_len ht
+  have hY : ((S.fields.getD l default).instOuter (pa.map (fun x : VExpr => x.liftN l) ++
+      (S.tel pa ia l).2)).instOuter t =
+      (S.fields.getD l default).instOuter (pa ++ S.substHat pa ia l t) := by
+    rw [VExpr.instOuter_instOuter _ _ _ (by simpa [hσl] using H.fields_getD l), List.map_append, hpai,
+      tel_instOuter H hia l t ht]
+  unfold step domHat
+  cases hs : S.slot.getD l none with
+  | none => exact hY
+  | some k =>
+    have hk := H.slot_lt l k hs
+    simp only
+    rw [eqApp_instOuter, hY, VExpr.instOuter_sort]
+    congr 1
+    rw [VExpr.instOuter_instOuter _ _ _ (by
+      simpa [hia, Nat.min_eq_left (Nat.le_of_lt hk)] using H.indices_getD k), List.map_append, hpai,
+      List.map_map]
+    congr 2
+    conv => rhs; rw [← List.map_id (ia.take k)]
+    apply List.map_congr_left; intro x _
+    simp only [Function.comp, id]; exact liftN_instOuter_len ht
+
+theorem target_instOuter {S : CastSpec} (H : S.Scoped pa.length) (hia : ia.length = S.indices.length)
+    (j : Nat) (t : List VExpr) (ht : t.length = j) :
+    (S.target pa ia j).instOuter t = (S.fields.getD j default).instOuter (pa ++ S.substHat pa ia j t) := by
+  have hσl := (S.tel_length pa ia j).2
+  unfold target
+  rw [VExpr.instOuter_instOuter _ _ _ (by simpa [hσl] using H.fields_getD j), List.map_append,
+    tel_instOuter H hia j t ht]
+  congr 2
+  simp only [List.map_map]
+  conv => rhs; rw [← List.map_id pa]
+  apply List.map_congr_left; intro x _
+  simp only [Function.comp, id]; exact liftN_instOuter_len ht
 
 end CastSpec
 
