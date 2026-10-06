@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.FullReduction
 import Lean4Lean.Theory.Typing.PrefixRuleCongruence
 import Lean4Lean.Theory.Typing.PrefixSupply
+import Lean4Lean.Theory.Typing.CanonicalRegistryMetadata
 import Lean4Lean.Theory.LevelledConfluence
 
 /-! # Levelled parallel relations for the full presentation
@@ -3212,6 +3213,20 @@ theorem EtaPar.root_fun (hΓ : OnCtx Γ (env.IsType univs)) (HD : EtaPar Γ D D'
   have hl := Below.weakN (Γ' := D' :: Γ) .one hchain
   exact Below.lam hΓ .rfl (Below.app hΓ' hl .rfl tbody) hb
 
+theorem Below.expand (hΓ : OnCtx Γ (env.IsType univs))
+    (hchain : ReflTransGen (Below Γ n) b₀ d₀)
+    (hb : Γ ⊢ structExpand family info levels ps' b₀ : T) :
+    ReflTransGen (Below Γ n) (structExpand family info levels ps' b₀)
+        (structExpand family info levels ps' d₀) := by
+  unfold VEnv.structExpand at hb ⊢
+  refine Below.mkApps hΓ .rfl (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_) hb
+  apply List.forall₂_of_getElem (by simp)
+  intro j hj hj'
+  have hjmem : j ∈ List.range info.numFields := by simpa using hj
+  obtain ⟨_, hpj⟩ := schema_mkApps_arg_type hΓ hb
+    (List.mem_append_right _ (List.mem_map.mpr ⟨j, hjmem, rfl⟩))
+  simpa only [List.getElem_map, List.getElem_range] using Below.proj hΓ hchain hpj
+
 theorem EtaPar.root_struct (hΓ : OnCtx Γ (env.IsType univs))
     (hl : env.projections family info) (hp : ps.length = info.nparams) (hi : info.nindices = 0)
     (hlen : ps.length = ps'.length)
@@ -3356,6 +3371,87 @@ theorem EtaPar.collapse_proj (hΓ : OnCtx Γ (env.IsType univs))
   | const =>
     rcases mkApps_const_eq_cases hsrc with ⟨rfl, he⟩ | ⟨vs₀, x₀, rfl, he⟩
     · cases he; exact ⟨[], .nil, .rfl⟩
+    · cases he
+  | bvar | sort | elim | proj | lam | forallE =>
+    rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
+
+/-- Project every field of a saturated structure constructor application. -/
+theorem DeltaPar.project_fields (hΓ : OnCtx Γ (env.IsType univs))
+    (hl : env.projections family info)
+    (hlen : ps₀.length = info.nparams + info.numFields)
+    (ht : Γ ⊢ structExpand family info levels ps (VExpr.mkApps (.const info.ctorName lsc) ps₀) : T) :
+    DeltaPar Γ (structExpand family info levels ps (VExpr.mkApps (.const info.ctorName lsc) ps₀))
+      (VExpr.mkApps (.const info.ctorName levels) (ps ++ ps₀.drop info.nparams)) := by
+  unfold structExpand at ht ⊢
+  refine DeltaPar.mkApps_args (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_)
+  apply List.forall₂_of_getElem (by simp; omega)
+  intro j hj hj'
+  have hjmem : j ∈ List.range info.numFields := by simpa using hj
+  obtain ⟨_, hpj⟩ := schema_mkApps_arg_type hΓ ht
+    (List.mem_append_right _ (List.mem_map.mpr ⟨j, hjmem, rfl⟩))
+  have hjn : j < info.numFields := by simpa using hj
+  have hget : ps₀[info.nparams + j]? = some (ps₀.drop info.nparams)[j] := by
+    rw [List.getElem_drop]; exact List.getElem?_eq_getElem (by omega)
+  simp only [List.getElem_map, List.getElem_range]
+  exact .projIota rfl (fun _ _ _ => .rfl) hl hpj hget
+    (HasType.projIota_field hΓ hl hpj hlen hget)
+
+/-- Collapse eta expansions of a constructor major of a native iota pattern. -/
+theorem EtaPar.collapse_major
+    {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
+      (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check}
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
+    (H : EtaPar Γ (VExpr.mkApps (.const cc lsc) fs) M')
+    (ht : Γ ⊢ VExpr.mkApps (.const cc lsc) fs : T)
+    (hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const cc lsc) fs : .forallE D B)
+    (hlen : fs.length = kc) :
+    ∃ fs₀ lsc' ps₀, List.Forall₂ (EtaPar Γ) fs fs₀ ∧
+      ReflTransGen (Below Γ 3) M' (VExpr.mkApps (.const cc lsc') ps₀) ∧
+      ((lsc' = lsc ∧ ps₀ = fs₀) ∨
+        ∃ family info, env.projections family info ∧ cc = info.ctorName ∧
+          kc = info.nparams + info.numFields ∧ ps₀.length = kc ∧
+          ps₀.drop info.nparams = fs₀.drop info.nparams) := by
+  generalize hsrc : VExpr.mkApps (.const cc lsc) fs = src at H ht hnotpi
+  induction H generalizing fs T with
+  | @app _ f f' x x' hf hx _ _ =>
+    rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he
+    · cases he
+      obtain ⟨_, _, tf, _⟩ := ht.app_inv henv hΓ
+      obtain ⟨vs₀', h₀, hy⟩ := EtaPar.collapse_spine hΓ hf tf
+      refine ⟨vs₀' ++ [x'], lsc, vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), ?_,
+        .inl ⟨rfl, rfl⟩⟩
+      rw [mkApps_snoc]
+      exact Below.ofParRedS (hy x') (by decide)
+  | funEta H₀ HA hty ih =>
+    subst hsrc
+    exact (hnotpi _ _ hty).elim
+  | @structEta _ M M₀ fam info levels ps ps' H₀ hlen' hps hl hp' hi hs hexp ih =>
+    subst hsrc
+    obtain ⟨hcc, hkc⟩ := pat_struct_major hp hl hs hlen
+    obtain ⟨fs₀, lsc'', ps₀', hfs, c₀, hdisj⟩ := ih hΓ hlen rfl hs hnotpi
+    have hps₀len : ps₀'.length = info.nparams + info.numFields := by
+      rcases hdisj with ⟨_, rfl⟩ | ⟨_, _, _, _, _, h, _⟩
+      · rw [← Lean4Lean.List.Forall₂.length_eq hfs, hlen, hkc]
+      · rw [h, hkc]
+    have hstep := EtaPar.structEta H₀ hlen' hps hl hp' hi hs hexp
+    have hb := (EtaPar.full hΓ hstep hs).hasType hΓ hs
+    have c₁ := Below.expand hΓ c₀ hb
+    have hb₁ := Below.hasType hΓ c₁ hb
+    subst hcc
+    have hδ := DeltaPar.project_fields hΓ hl hps₀len hb₁
+    have hpl : ps'.length = info.nparams := hlen'.symm.trans hp'
+    refine ⟨fs₀, levels, ps' ++ ps₀'.drop info.nparams, hfs, c₁.tail ⟨2, by decide, hδ⟩,
+      .inr ⟨fam, info, hl, rfl, hkc, by simp; omega, ?_⟩⟩
+    rw [List.drop_left' hpl]
+    rcases hdisj with ⟨_, rfl⟩ | ⟨fam₂, info₂, hl₂, hc₂, _, _, h⟩
+    · rfl
+    · obtain ⟨-, rfl⟩ := henv.ordered.projectionConstructor_family hl hl₂ hc₂
+      exact h
+  | const =>
+    rcases mkApps_const_eq_cases hsrc with ⟨rfl, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he; exact ⟨[], lsc, [], .nil, .rfl, .inl ⟨rfl, rfl⟩⟩
     · cases he
   | bvar | sort | elim | proj | lam | forallE =>
     rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
