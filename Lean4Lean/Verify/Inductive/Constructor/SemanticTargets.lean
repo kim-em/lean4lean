@@ -31,6 +31,8 @@ theorem accumulatesSemanticTargets
       Hc.venv c.lparams Hc.mlctx.vlctx stats
         (Hsemantic.headerDecl isUnsafe) depth)
     (hheaderParams : Hmaterialized.headers.params = commonParams)
+    (halign : VLCtx.IsDefEq Hheader.venv c.lparams.length
+      Hmaterialized.parameterScope Hheader.chk.vlctx)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hheader.venv stats.indConsts)
@@ -100,7 +102,11 @@ theorem accumulatesSemanticTargets
     have HcheckedSemantic := checkConstructors.loopCtor.refinesCtorShape
       (isUnsafe := isUnsafe)
       (fuel := { c with env := headerEnv }.fuel.inductiveFuel)
-      Hheader Hsuffix Hstats hparamsCtx
+      Hheader Hsuffix Hstats
+      (by simpa [Hsuffix, Hmaterialized', HmaterializedMono,
+        checkInductiveTypes.loopInd.MaterializedHeaderResult.parameterSuffix]
+        using halign)
+      hparamsCtx
       Hchecked.source Hchecked.typing htarget rfl htargetUvars
       htargetLookup htargetWF htargetShape hconsume hlit
       (fun h => by simpa [checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator.headerDecl]
@@ -130,6 +136,8 @@ theorem assemblesSemanticHeadersExact
       Hc.venv c.lparams Hc.mlctx.vlctx stats
         (Hsemantic.headerDecl isUnsafe) depth)
     (hheaderParams : Hmaterialized.headers.params = commonParams)
+    (halign : VLCtx.IsDefEq Hheader.venv c.lparams.length
+      Hmaterialized.parameterScope Hheader.chk.vlctx)
     (hcommonParams : commonParams.length = nparams)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
@@ -144,7 +152,7 @@ theorem assemblesSemanticHeadersExact
     (Q := fun _ => Nonempty (AssembledSemanticHeadersOf Hc.venv
       Hheader.venv c.lparams nparams indTypes.toList isUnsafe
         commonParams commonLevel Hsemantic))
-    Hheader hmlctx htypesAdded Hmaterialized hheaderParams
+    Hheader hmlctx htypesAdded Hmaterialized hheaderParams halign
     hconsume hlit hlparams
   intro Hrows
   exact AssembledSemanticHeaders.ofTargetsExact Hsemantic Hrows hcommonParams

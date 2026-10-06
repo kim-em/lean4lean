@@ -243,6 +243,8 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       checkInductiveTypes.loopInd.MaterializedHeaderResult
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
     (hparams : Hmaterialized.headers.params = params)
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length
+      Hmaterialized.parameterScope Hc.chk.vlctx)
     (hconsume : ConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint
       Hc.venv stats.indConsts)
@@ -300,7 +302,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       rw [← hparams]
       exact Hmaterialized.headers.typeShapes _ (List.getElem_mem htarget)
     have Hchecked := checkConstructors.loopCtor.refinesCtorShape
-      (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats hparamsCtx
+      (fuel := c.fuel.inductiveFuel) Hc Hsuffix Hstats halign hparamsCtx
       Hctor hchecked htarget rfl htargetUvars htargetLookup htargetWF
       htargetShape hconsume hlit hunsafe (hbound targetIdx htarget) hlevels
     exact Hchecked.mono fun _ Hresult => by
@@ -1084,9 +1086,11 @@ def RecursorParameterContextSuffix.withAmbientChecked
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth)
     (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty') :
-    let R' := @RecursorContextWF.withCheckedLocalDecl c recLparams ty ty' name bi
-      R htr hty
+    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
+    (htr₀ : TrExprS R.venv recLparams R.chk.vlctx ty ty₀)
+    (hty₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx ty₀) :
+    let R' := @RecursorContextWF.withCheckedLocalDecl c recLparams ty ty' ty₀ name bi
+      R htr hty htr₀ hty₀
     RecursorParameterContextSuffix R' stats (depth + 1) := by
   dsimp only
   let entry : Option (FVarId × List FVarId) × VLocalDecl :=
@@ -2342,22 +2346,23 @@ theorem refinesRecursor
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (htype : TrExpr R.venv recLparams R.mlctx.vlctx type type') :
+    (htype : TrExpr R.venv recLparams R.mlctx.vlctx type type')
+    (htype₀ : TrExprS R.venv recLparams R.chk.vlctx type type₀) :
     (AddInductive.isRecArg.loop stats type fuel c).WF
       (fun result => ∀ target, result = some target →
         ∃ htarget : target < decl.types.length,
         decl.RecursiveArgAtTarget R.venv recLparams.length
           (decl.types[target]'htarget).name
           R.mlctx.vlctx.toCtx depth type') := by
-  induction fuel generalizing c type type' depth with
+  induction fuel generalizing c type type' type₀ depth with
   | zero =>
     intro _ h
     simp [AddInductive.isRecArg.loop] at h
   | succ fuel ih =>
     rcases htype with ⟨sourceSyntax, hsource, hsourceEq⟩
     rw [AddInductive.isRecArg.loop]
-    refine (whnfInRecursorContext.scopeWF R hsource).bind
-      fun normalized hnormalized => ?_
+    refine (whnfInRecursorContext.dualWF R hsource htype₀).bind
+      fun normalized ⟨hnormalized, _, hnormalized₀⟩ => ?_
     rcases hnormalized.2 with ⟨exposed, hexposed, hexposedEq⟩
     have hsourceExposed :=
       (hexposedEq.trans R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
@@ -2371,17 +2376,24 @@ theorem refinesRecursor
         rcases hconsume c recLparams R hdom hdomType with
           ⟨consumedDom', Hdom⟩
         rcases Hdom.body R hbody with ⟨body'', hbody'', hbodyEq⟩
+        rcases TrExpr.forallE_source hnormalized₀ with
+          ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
+        rcases hconsume _ recLparams R.narrow hdom₀ hdom₀Type with
+          ⟨consumedDom₀, Hdom₀⟩
+        rcases Hdom₀.body R.narrow hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
         refine withCheckedLocalDecl.recursorWF (name := name) (bi := bi)
           (Q := fun result => ∀ target, result = some target →
             ∃ htarget : target < decl.types.length,
             decl.RecursiveArgAtTarget R.venv recLparams.length
               (decl.types[target]'htarget).name
               R.mlctx.vlctx.toCtx depth type')
-          R Hdom.consumed Hdom.isType ?_
+          R Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
         let R' := R.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
         have hopened := R.instantiateFresh (name := name) (bi := bi)
           Hdom.consumed Hdom.isType hbody''
+        have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+          Hdom₀.consumed Hdom₀.isType hbody₀''
         have Hstats' := Hstats.withFVar R'.checking.tr.wf
           R'.mlctx_wf.tr.wf
         have hctx' : checkPositivityStep.VLCtx.NoIndConsts
@@ -2389,7 +2401,7 @@ theorem refinesRecursor
           apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
           rfl
         have Hrec := ih R' Hstats' hlit hctx'
-          (hopened.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf)
+          (hopened.trExpr R'.checking.tr.wf R'.mlctx_wf.tr.wf) hopened₀
         exact Hrec.mono fun result hrec target htarget => by
           rcases hrec target htarget with ⟨htarget, hrecursive⟩
           rcases Hdom.source_defeq with ⟨domLevel, hdomEq⟩
@@ -2425,7 +2437,8 @@ theorem isRecArg.refinesRecursor
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : checkPositivityStep.VLCtx.NoIndConsts
       (decl.types.map (·.name)) R.mlctx.vlctx)
-    (htype : TrExpr R.venv recLparams R.mlctx.vlctx type type') :
+    (htype : TrExpr R.venv recLparams R.mlctx.vlctx type type')
+    (htype₀ : TrExprS R.venv recLparams R.chk.vlctx type type₀) :
     (AddInductive.isRecArg stats type c).WF
       (fun result => ∀ target, result = some target →
         ∃ htarget : target < decl.types.length,
@@ -2441,7 +2454,7 @@ theorem isRecArg.refinesRecursor
   refine hread.bind fun _ h => ?_
   subst h
   exact isRecArg.loop.refinesRecursor R Hstats hconsume hlit hctx
-    htype
+    htype htype₀
 
 /-- Recursive-domain metadata interpreted at an explicit universe arity.
 This is the second-pass analogue of `RecursorRecursiveDomain`; it is needed
