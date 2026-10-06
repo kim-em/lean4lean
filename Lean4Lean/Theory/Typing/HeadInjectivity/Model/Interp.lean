@@ -72,7 +72,7 @@ theorem _root_.Lean4Lean.VExpr.Subst.lift_comp_cons {τ σ : VExpr.Subst} :
     τ.lift.comp (σ.cons x) = (τ.comp σ).cons x := by
   funext i; cases i with
   | zero => rfl
-  | succ i => simp [VExpr.Subst.comp, VExpr.Subst.lift, VExpr.Subst.cons, VExpr.lift_subst_cons]
+  | succ i => simp [VExpr.Subst.comp, VExpr.Subst.lift, VExpr.Subst.cons]
 
 /-- The finite set of a list of observations. -/
 def listSet (K : List Ob) : Ob → Prop := fun k => k ∈ K
