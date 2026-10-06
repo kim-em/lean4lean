@@ -3,6 +3,7 @@ import Lean4Lean.Theory.Typing.NativeRecursorRegistration
 import Lean4Lean.Theory.Inductive.SingletonCompilation
 import Lean4Lean.Theory.Typing.CaseSourceSort
 import Lean4Lean.Theory.Typing.NativeMajorFamily
+import Lean4Lean.Theory.Typing.NativeSingletonTyping
 
 /-! # Singleton extraction for a registered native recursor
 
@@ -116,6 +117,132 @@ theorem singletonFacts (H : NativeRecursorRegistered env data) (hlarge : data.la
     exact ⟨domains, level, by simpa [Restoration.headName, Restoration.headLevels,
       Restoration.recursorName] using hH, hlevel⟩
   · rw [hl]; exact hadm.levels_length
+
+/-- Universe instantiation of a cast specification. -/
+def _root_.Lean4Lean.CastSpec.instL (S : CastSpec) (ls : List VLevel) : CastSpec where
+  fields := S.fields.map (·.instL ls)
+  indices := S.indices.map (·.instL ls)
+  slot := S.slot
+  sorts := S.sorts.map (·.inst ls)
+
+/-- The free elimination universe parameter. -/
+def targetParam (data : NativeRecursorData) : Option Nat :=
+  match data.target with
+  | .param k => some k
+  | _ => none
+
+/-- The owner's unique constructor. -/
+def singletonCtor (data : NativeRecursorData) : Option (Fin data.schema.signature.constructors.size) :=
+  match (List.finRange data.schema.signature.constructors.size).filter
+      (fun i => data.schema.signature.constructors[i].owner == data.owner) with
+  | [i] => some i
+  | _ => none
+
+/-- The sorts of the data fields, chosen at the generic universes. Proof fields get `Prop`. -/
+noncomputable def genericSorts (env : VEnv) (data : NativeRecursorData)
+    (c : Constructor data.schema.signature.families.size) : List VLevel :=
+  (List.range (data.nativeInstance.sFields c).length).map fun i =>
+    match fieldSlot (data.nativeInstance.sCtorIndices c) (data.nativeInstance.sFields c).length i with
+    | some _ => Classical.epsilon fun u =>
+      env.HasType data.uvars
+        (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take i).reverse
+        ((data.nativeInstance.sFields c).getD i default) (.sort u)
+    | none => .zero
+
+/-- The cast specification at the generic universes. -/
+noncomputable def castSpecGeneric (env : VEnv) (data : NativeRecursorData) : Option CastSpec := do
+  let i ← data.singletonCtor
+  let c := data.schema.signature.constructors[i]
+  return data.nativeInstance.singletonCast data.owner c (data.genericSorts env c)
+
+/-- The cast specification at an occurrence's universes: the generic one, instantiated. -/
+noncomputable def castSpec (env : VEnv) (data : NativeRecursorData) (packed : List VLevel) :
+    Option CastSpec :=
+  (data.castSpecGeneric env).map (·.instL packed)
+
+/-- The parameter telescope at an occurrence's universes. -/
+def propParams (data : NativeRecursorData) (packed : List VLevel) : List VExpr :=
+  data.nativeInstance.params.map (·.instL packed)
+
+/-- Elimination into `Prop` through the native recursor itself, at an occurrence's universes
+with the free elimination universe set to zero. -/
+def propElim (data : NativeRecursorData) (packed : List VLevel) : Option PropElim := do
+  let k ← data.targetParam
+  let i ← data.singletonCtor
+  return (data.nativeInstance.specialize 0 (packed.set k .zero)).singletonElim data.owner
+    data.schema.signature.constructors[i] (.const data.name (packed.set k .zero))
+
+theorem propElim_wf (henv : env.WF) (H : NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
+    (hpk : ∀ l ∈ packed, l.WF U) (hlen : packed.length = data.uvars)
+    (hctor : ∃ i : Fin data.schema.signature.constructors.size,
+      data.schema.signature.constructors[i].owner = data.owner) :
+    ∃ S E, data.castSpec env packed = some S ∧ data.propElim packed = some E ∧
+      PropElim.WF S (data.propParams packed) E env U := by
+  have F := singletonFacts H hlarge hzero
+  obtain ⟨k, hk, hkU, hfree⟩ := F.free
+  obtain ⟨i, hi⟩ := hctor
+  have hcs : data.schema.signature.constructors.size = 1 := by
+    have := F.constructors; have := i.isLt; omega
+  have hfam := F.families
+  have htp : data.targetParam = some k := by simp [targetParam, hk]
+  have hsc : data.singletonCtor = some i := by
+    unfold singletonCtor
+    have hfr : List.finRange data.schema.signature.constructors.size = [i] := by
+      apply List.ext_getElem (by simp [hcs])
+      intro n h1 h2
+      simp only [List.length_finRange, hcs] at h1
+      simp only [List.getElem_finRange, List.getElem_singleton]
+      ext; simp; omega
+    rw [hfr, List.filter_cons_of_pos (by simpa [Fin.getElem_fin] using hi), List.filter_nil]
+  have hls0 : ∀ l ∈ packed.set k .zero, l.WF U := by
+    intro l hl
+    rcases List.mem_or_eq_of_mem_set hl with h | rfl
+    · exact hpk l h
+    · simp [VLevel.WF]
+  have hlev : data.levels.map (·.inst (packed.set k .zero)) = data.levels.map (·.inst packed) :=
+    List.map_congr_left fun l hl => hfree l hl packed .zero
+  -- the instance at the occurrence, eliminating into `Prop`
+  let gp := data.nativeInstance.specialize U (packed.set k .zero)
+  have hgpl : gp.levels = data.levels.map (·.inst packed) := hlev
+  have htarget : gp.targetLevel = .zero := by
+    show (data.target).inst (packed.set k .zero) = .zero
+    rw [hk]
+    simp [VLevel.inst, List.getD_eq_getElem?_getD, List.getElem?_set_self, hlen, hkU]
+  have hhead : env.HasType U [] (.const data.name (packed.set k .zero))
+      (gp.recursorType data.owner) := by
+    have := HasType.const (env := env) (Γ := []) F.recursor hls0 (by simp [hlen])
+    rwa [Instance.recursorType_specialize _ U] at this
+  obtain ⟨c, hc⟩ : ∃ c, data.schema.signature.constructors[i] = c := ⟨_, rfl⟩
+  have hown : c.owner = data.owner := hc ▸ hi
+  have hFeq : (data.nativeInstance.sFields c).map (·.instL packed) = gp.sFields c := by
+    simp [gp, Instance.sFields, Instance.specialize, nativeInstance, List.map_map,
+      Function.comp_def, VExpr.instL_instL, hlev]
+  have hIeq : (data.nativeInstance.sIndices data.owner).map (·.instL packed) =
+      gp.sIndices data.owner := by
+    simp [gp, Instance.sIndices, Instance.specialize, nativeInstance, List.map_map,
+      Function.comp_def, VExpr.instL_instL, hlev]
+  have hCIeq : (data.nativeInstance.sCtorIndices c).map (·.instL packed) = gp.sCtorIndices c := by
+    simp [gp, Instance.sCtorIndices, Instance.specialize, nativeInstance, List.map_map,
+      Function.comp_def, VExpr.instL_instL, hlev]
+  have hPeq : data.propParams packed = gp.params := by
+    simp [gp, propParams, Instance.params, Instance.specialize, nativeInstance, List.map_map,
+      Function.comp_def, VExpr.instL_instL, hlev]
+  have hS : data.castSpec env packed = some (gp.singletonCast data.owner c
+      ((data.genericSorts env c).map (·.inst packed))) := by
+    simp only [castSpec, castSpecGeneric, hsc, hc, Option.bind_eq_bind, Option.bind_some,
+      Option.pure_def, Option.map_some]
+    simp only [CastSpec.instL, Instance.singletonCast, Option.some.injEq, CastSpec.mk.injEq]
+    refine ⟨hFeq, hIeq, ?_, trivial⟩
+    rw [← hFeq, ← hCIeq, List.length_map]
+    congr 1; funext j; exact (fieldSlot_instL _ _ _ _).symm
+  have hE : data.propElim packed = some (gp.singletonElim data.owner c
+      (.const data.name (packed.set k .zero))) := by
+    simp only [propElim, htp, hsc, hc, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
+    rfl
+  refine ⟨_, _, hS, hE, ?_⟩
+  rw [hPeq]
+  sorry
 
 end InductiveSignature.NativeRecursorData
 end Lean4Lean
