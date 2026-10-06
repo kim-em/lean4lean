@@ -186,6 +186,22 @@ whose large-elimination criterion is the same syntactic test (lean4lean's
 closed proofs of `False` (e.g. via a non-positive Prop or a looping unsafe definition),
 which only make every proposition inhabited in `Γ`, making strengthening easier.
 
+### 1.9a Addendum (found while building the reconstruction): recursor universes
+
+Section 1.2 assumes the family can be eliminated into `Prop`. Lean's kernel always gives a
+large-eliminating family a recursor whose motive universe is a fresh parameter, which can
+be instantiated at zero. The formal `Instance.Admissible` constrains the target only by
+well-formedness, so `VEnv.WF` admits a large singleton whose *only* recursor has motive
+universe `succ (param 0)`. Then no proof field is extractable: the recursor's results
+live in `Sort (u+1)` (no cumulativity), and `Eq.rec` needs an `Eq` proof, which only `refl`
+provides. In the countermodel with such recursors and canonical `Eq`, `SI ≡ SJ` holds in
+`Γ, q` and no derivation in `Γ` is apparent; the groupoid separation no longer applies
+(`Eq.rec` into `F` cannot be natural on the `ℤ/3` loops), so this is an open candidate,
+not a refutation. It does not concern environments built by the checker
+(`getElimLevel` returns a fresh `.param`). Decision proposed to the coordinator: tighten the
+generative specification so that a target is `≈ zero` or a parameter not occurring in the
+instance's levels; meanwhile the native bridge takes that shape as an explicit hypothesis.
+
 ### 1.10 Summary table
 
 | Mechanism | Outcome with canonical `Eq` | Evidence |
