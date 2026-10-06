@@ -49,6 +49,8 @@ class Params where
   Both large-elimination paths exclude zero-source computation here. -/
   pat_recursor : Pat (SimplePattern.iota recursor major ctor fields).toPattern r →
     (∃ data, NativeRecursorRegistered env data ∧ data.name = recursor ∧ data.majorOffset = major ∧ recursorData recursor = some data ∧
+      (∃ index : Fin data.schema.signature.constructors.size,
+        data.schema.signature.constructors[index].owner = data.owner) ∧
       (data.largeTarget = true → ∃ rest,
         r.2 = .nonzero (data.schema.sourceLevel data.owner data.levels) rest)) ∨
     (QuotRegistered env ∧ recursor = ``Quot.lift ∧ major = 5 ∧ ctor = ``Quot.mk ∧ fields = 3 ∧
@@ -239,55 +241,111 @@ theorem _root_.Lean4Lean.Pattern.Matches.hasType {p : Pattern} {e : VExpr} {m1 m
     exact a.rec (ih1 hf) (ih2 ha)
 
 set_option hygiene false
-local notation:65 Γ " ⊢ " e1 " ≡ₚ " e2:30 => NormalEq Γ e1 e2
+local notation:65 Γ " ⊢ " e1 " ≡ₚ[" n "] " e2:30 => NormalEqN n Γ e1 e2
 
-inductive NormalEq : List VExpr → VExpr → VExpr → Prop where
-  | refl : Γ ⊢ e : A → Γ ⊢ e ≡ₚ e
-  | sortDF : l₁.WF univs → l₂.WF univs → l₁ ≈ l₂ → Γ ⊢ .sort l₁ ≡ₚ .sort l₂
+/-- Normal equality indexed by a bound on the size of the comparison. Leaves
+charge zero, congruences charge one plus their premises, and the three eta
+constructors charge two. Weakening, substitution and context conversion
+preserve the bound. Transitivity recurses on the sum of the bounds; this is
+what lets the extensionality constructor `etaBoth` compose with an arbitrary
+comparison (removing eta costs two, expanding the other side costs one)
+without any inverse weakening. -/
+inductive NormalEqN : Nat → List VExpr → VExpr → VExpr → Prop where
+  | refl : Γ ⊢ e : A → Γ ⊢ e ≡ₚ[0] e
+  | sortDF : l₁.WF univs → l₂.WF univs → l₁ ≈ l₂ → Γ ⊢ .sort l₁ ≡ₚ[0] .sort l₂
   | constDF :
     env.constants c = some ci →
     (∀ l ∈ ls, l.WF univs) →
     (∀ l ∈ ls', l.WF univs) →
     ls.length = ci.uvars →
     List.Forall₂ (· ≈ ·) ls ls' →
-    Γ ⊢ .const c ls ≡ₚ .const c ls'
+    Γ ⊢ .const c ls ≡ₚ[0] .const c ls'
   /-- Universe congruence at a disjoint abstract eliminator head. The typing
   witness certifies the selected schema; this rule introduces no computation. -/
   | elimDF :
     Γ ⊢ .elim block owner levels ≡ .elim block owner levels' : A →
     List.Forall₂ (· ≈ ·) levels levels' →
-    Γ ⊢ .elim block owner levels ≡ₚ .elim block owner levels'
+    Γ ⊢ .elim block owner levels ≡ₚ[0] .elim block owner levels'
   | appDF :
     Γ ⊢ f₁ : .forallE A B → Γ ⊢ f₂ : .forallE A B →
     Γ ⊢ a₁ : A → Γ ⊢ a₂ : A →
-    Γ ⊢ f₁ ≡ₚ f₂ → Γ ⊢ a₁ ≡ₚ a₂ →
-    Γ ⊢ .app f₁ a₁ ≡ₚ .app f₂ a₂
+    Γ ⊢ f₁ ≡ₚ[n₁] f₂ → Γ ⊢ a₁ ≡ₚ[n₂] a₂ →
+    Γ ⊢ .app f₁ a₁ ≡ₚ[n₁ + n₂ + 1] .app f₂ a₂
   | projDF :
     Γ ⊢ .proj typeName index major : resultType →
-    Γ ⊢ major ≡ₚ major' →
-    Γ ⊢ .proj typeName index major ≡ₚ .proj typeName index major'
+    Γ ⊢ major ≡ₚ[n] major' →
+    Γ ⊢ .proj typeName index major ≡ₚ[n + 1] .proj typeName index major'
   | lamDF :
     Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A ≡ A₂ : .sort u →
-    A::Γ ⊢ body₁ ≡ₚ body₂ →
-    Γ ⊢ .lam A₁ body₁ ≡ₚ .lam A₂ body₂
+    A::Γ ⊢ body₁ ≡ₚ[n] body₂ →
+    Γ ⊢ .lam A₁ body₁ ≡ₚ[n + 1] .lam A₂ body₂
   | forallEDF :
-    Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A₁ ≡ₚ A₂ →
-    A::Γ ⊢ B₁ : .sort v → A::Γ ⊢ B₁ ≡ₚ B₂ →
-    Γ ⊢ .forallE A₁ B₁ ≡ₚ .forallE A₂ B₂
+    Γ ⊢ A ≡ A₁ : .sort u → Γ ⊢ A₁ ≡ₚ[n₁] A₂ →
+    A::Γ ⊢ B₁ : .sort v → A::Γ ⊢ B₁ ≡ₚ[n₂] B₂ →
+    Γ ⊢ .forallE A₁ B₁ ≡ₚ[n₁ + n₂ + 1] .forallE A₂ B₂
   | etaL :
     Γ ⊢ e' : .forallE A B →
-    A::Γ ⊢ e ≡ₚ .app e'.lift (.bvar 0) →
-    Γ ⊢ .lam A e ≡ₚ e'
+    A::Γ ⊢ e ≡ₚ[n] .app e'.lift (.bvar 0) →
+    Γ ⊢ .lam A e ≡ₚ[n + 2] e'
   | etaR :
     Γ ⊢ e' : .forallE A B →
-    A::Γ ⊢ .app e'.lift (.bvar 0) ≡ₚ e →
-    Γ ⊢ e' ≡ₚ .lam A e
+    A::Γ ⊢ .app e'.lift (.bvar 0) ≡ₚ[n] e →
+    Γ ⊢ e' ≡ₚ[n + 2] .lam A e
+  /-- Extensionality: two functions are normally equal when their
+  applications to a fresh variable are. -/
+  | etaBoth :
+    Γ ⊢ e : .forallE A B → Γ ⊢ e' : .forallE A B →
+    A::Γ ⊢ .app e.lift (.bvar 0) ≡ₚ[n] .app e'.lift (.bvar 0) →
+    Γ ⊢ e ≡ₚ[n + 2] e'
   | proofIrrel :
     Γ ⊢ p : .sort .zero → Γ ⊢ h : p → Γ ⊢ h' : p →
-    Γ ⊢ h ≡ₚ h'
+    Γ ⊢ h ≡ₚ[0] h'
+
+/-- Normal equality: some bounded comparison derivation exists. -/
+def NormalEq (Γ : List VExpr) (e1 e2 : VExpr) : Prop := ∃ n, NormalEqN n Γ e1 e2
+
+local notation:65 Γ " ⊢ " e1 " ≡ₚ " e2:30 => NormalEq Γ e1 e2
+
+theorem NormalEqN.normalEq (H : Γ ⊢ e1 ≡ₚ[n] e2) : Γ ⊢ e1 ≡ₚ e2 := ⟨_, H⟩
+
+theorem NormalEq.refl (h : Γ ⊢ e : A) : Γ ⊢ e ≡ₚ e := ⟨_, .refl h⟩
+theorem NormalEq.sortDF (h1 : l₁.WF univs) (h2 : l₂.WF univs) (h3 : l₁ ≈ l₂) :
+    Γ ⊢ .sort l₁ ≡ₚ .sort l₂ := ⟨_, .sortDF h1 h2 h3⟩
+theorem NormalEq.constDF (h1 : env.constants c = some ci) (h2 : ∀ l ∈ ls, l.WF univs)
+    (h3 : ∀ l ∈ ls', l.WF univs) (h4 : ls.length = ci.uvars)
+    (h5 : List.Forall₂ (· ≈ ·) ls ls') : Γ ⊢ .const c ls ≡ₚ .const c ls' :=
+  ⟨_, .constDF h1 h2 h3 h4 h5⟩
+theorem NormalEq.elimDF (h1 : Γ ⊢ .elim block owner levels ≡ .elim block owner levels' : A)
+    (h2 : List.Forall₂ (· ≈ ·) levels levels') :
+    Γ ⊢ .elim block owner levels ≡ₚ .elim block owner levels' := ⟨_, .elimDF h1 h2⟩
+theorem NormalEq.appDF (h1 : Γ ⊢ f₁ : .forallE A B) (h2 : Γ ⊢ f₂ : .forallE A B)
+    (h3 : Γ ⊢ a₁ : A) (h4 : Γ ⊢ a₂ : A) :
+    Γ ⊢ f₁ ≡ₚ f₂ → Γ ⊢ a₁ ≡ₚ a₂ → Γ ⊢ .app f₁ a₁ ≡ₚ .app f₂ a₂
+  | ⟨_, h5⟩, ⟨_, h6⟩ => ⟨_, .appDF h1 h2 h3 h4 h5 h6⟩
+theorem NormalEq.projDF (h1 : Γ ⊢ .proj typeName index major : resultType) :
+    Γ ⊢ major ≡ₚ major' → Γ ⊢ .proj typeName index major ≡ₚ .proj typeName index major'
+  | ⟨_, h2⟩ => ⟨_, .projDF h1 h2⟩
+theorem NormalEq.lamDF (h1 : Γ ⊢ A ≡ A₁ : .sort u) (h2 : Γ ⊢ A ≡ A₂ : .sort u) :
+    A::Γ ⊢ body₁ ≡ₚ body₂ → Γ ⊢ .lam A₁ body₁ ≡ₚ .lam A₂ body₂
+  | ⟨_, h3⟩ => ⟨_, .lamDF h1 h2 h3⟩
+theorem NormalEq.forallEDF (h1 : Γ ⊢ A ≡ A₁ : .sort u) :
+    Γ ⊢ A₁ ≡ₚ A₂ → A::Γ ⊢ B₁ : .sort v → A::Γ ⊢ B₁ ≡ₚ B₂ →
+    Γ ⊢ .forallE A₁ B₁ ≡ₚ .forallE A₂ B₂
+  | ⟨_, h2⟩, h3, ⟨_, h4⟩ => ⟨_, .forallEDF h1 h2 h3 h4⟩
+theorem NormalEq.etaL (h1 : Γ ⊢ e' : .forallE A B) :
+    A::Γ ⊢ e ≡ₚ .app e'.lift (.bvar 0) → Γ ⊢ .lam A e ≡ₚ e'
+  | ⟨_, h2⟩ => ⟨_, .etaL h1 h2⟩
+theorem NormalEq.etaR (h1 : Γ ⊢ e' : .forallE A B) :
+    A::Γ ⊢ .app e'.lift (.bvar 0) ≡ₚ e → Γ ⊢ e' ≡ₚ .lam A e
+  | ⟨_, h2⟩ => ⟨_, .etaR h1 h2⟩
+theorem NormalEq.etaBoth (h1 : Γ ⊢ e : .forallE A B) (h2 : Γ ⊢ e' : .forallE A B) :
+    A::Γ ⊢ .app e.lift (.bvar 0) ≡ₚ .app e'.lift (.bvar 0) → Γ ⊢ e ≡ₚ e'
+  | ⟨_, h3⟩ => ⟨_, .etaBoth h1 h2 h3⟩
+theorem NormalEq.proofIrrel (h1 : Γ ⊢ p : .sort .zero) (h2 : Γ ⊢ h : p) (h3 : Γ ⊢ h' : p) :
+    Γ ⊢ h ≡ₚ h' := ⟨_, .proofIrrel h1 h2 h3⟩
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.defeq (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e1 ≡ e2 := by
+theorem NormalEqN.defeq (H : Γ ⊢ e1 ≡ₚ[n] e2) : Γ ⊢ e1 ≡ e2 := by
   induction H with
   | elimDF h _ => exact ⟨_, h⟩
   | refl h => exact ⟨_, h⟩
@@ -319,10 +377,20 @@ theorem NormalEq.defeq (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e1 ≡ e2 := by
     have ⟨⟨_, hA⟩, _⟩ := AB.forallE_inv henv
     refine have hΓ' := ⟨hΓ, _, hA.hasType.1⟩; have ⟨_, he⟩ := ih hΓ'; ?_
     exact ⟨_, .transU_l henv hΓ (.symm (.eta h1)) ⟨_, .lamDF hA he⟩⟩
+  | etaBoth h1 h2 _ ih =>
+    have ⟨_, AB⟩ := h1.isType henv hΓ
+    have ⟨⟨_, hA⟩, _⟩ := AB.forallE_inv henv
+    refine have hΓ' := ⟨hΓ, _, hA.hasType.1⟩; have ⟨_, he⟩ := ih hΓ'; ?_
+    exact ⟨_, .transU_l henv hΓ (.symm (.eta h1))
+      ⟨_, .transU_r henv hΓ ⟨_, .lamDF hA he⟩ (.eta h2)⟩⟩
   | proofIrrel h1 h2 h3 => exact ⟨_, .proofIrrel h1 h2 h3⟩
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.symm (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e2 ≡ₚ e1 := by
+theorem NormalEq.defeq : Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e1 ≡ e2
+  | ⟨_, H⟩ => H.defeq hΓ
+
+variable! (hΓ : OnCtx Γ (env.IsType univs)) in
+theorem NormalEqN.symm (H : Γ ⊢ e1 ≡ₚ[n] e2) : Γ ⊢ e2 ≡ₚ[n] e1 := by
   induction H with
   | elimDF h heq => exact .elimDF h.symm (heq.flip.imp fun _ _ h => h.symm)
   | refl h => exact .refl h
@@ -331,7 +399,7 @@ theorem NormalEq.symm (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e2 ≡ₚ e1 := by
     exact .constDF h1 h3 h2 (h5.length_eq.symm.trans h4) (h5.flip.imp (fun _ _ h => h.symm))
   | appDF h1 h2 h3 h4 _ _ ih1 ih2 => exact .appDF h2 h1 h4 h3 (ih1 hΓ) (ih2 hΓ)
   | projDF hproj hMajor ihMajor =>
-    have ⟨_, whole⟩ := (NormalEq.projDF hproj hMajor).defeq hΓ
+    have ⟨_, whole⟩ := (NormalEqN.projDF hproj hMajor).defeq hΓ
     exact .projDF whole.hasType.2 (ihMajor hΓ)
   | lamDF h1 h2 h3 ih1 => exact .lamDF h2 h1 (ih1 ⟨hΓ, _, h1.hasType.1⟩)
   | forallEDF h1 h2 h4 h5 ih1 ih2 =>
@@ -344,10 +412,17 @@ theorem NormalEq.symm (H : Γ ⊢ e1 ≡ₚ e2) : Γ ⊢ e2 ≡ₚ e1 := by
   | etaR h1 _ ih =>
     have ⟨_, AB⟩ := h1.isType henv hΓ
     exact .etaL h1 (ih ⟨hΓ, (AB.forallE_inv henv).1⟩)
+  | etaBoth h1 h2 _ ih =>
+    have ⟨_, AB⟩ := h1.isType henv hΓ
+    exact .etaBoth h2 h1 (ih ⟨hΓ, (AB.forallE_inv henv).1⟩)
   | proofIrrel h1 h2 h3 => exact .proofIrrel h1 h3 h2
 
-theorem NormalEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≡ₚ e2) :
-    Γ' ⊢ e1.liftN n k ≡ₚ e2.liftN n k := by
+variable! (hΓ : OnCtx Γ (env.IsType univs)) in
+theorem NormalEq.symm : Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e2 ≡ₚ e1
+  | ⟨_, H⟩ => ⟨_, H.symm hΓ⟩
+
+theorem NormalEqN.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≡ₚ[m] e2) :
+    Γ' ⊢ e1.liftN n k ≡ₚ[m] e2.liftN n k := by
   induction H generalizing k Γ' with
   | elimDF h heq => exact .elimDF (h.weakN henv W) heq
   | refl h => exact .refl (h.weakN henv W)
@@ -370,12 +445,20 @@ theorem NormalEq.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e1 ≡ₚ e2) :
     refine .etaR (h1.weakN henv W) ?_
     have := ih W.succ
     simp [liftN] at this; rwa [lift_liftN']
+  | etaBoth h1 h2 _ ih =>
+    refine .etaBoth (h1.weakN henv W) (h2.weakN henv W) ?_
+    have := ih W.succ
+    simp [liftN] at this; rwa [lift_liftN', lift_liftN']
   | proofIrrel h1 h2 h3 =>
     exact .proofIrrel (h1.weakN henv W) (h2.weakN henv W) (h3.weakN henv W)
 
+theorem NormalEq.weakN (W : Ctx.LiftN n k Γ Γ') : Γ ⊢ e1 ≡ₚ e2 →
+    Γ' ⊢ e1.liftN n k ≡ₚ e2.liftN n k
+  | ⟨_, H⟩ => ⟨_, H.weakN W⟩
+
 variable! (h₀ : Γ₀ ⊢ e₀ : A₀) in
-theorem NormalEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e1 ≡ₚ e2) :
-    Γ ⊢ e1.inst e₀ k ≡ₚ e2.inst e₀ k := by
+theorem NormalEqN.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e1 ≡ₚ[m] e2) :
+    Γ ⊢ e1.inst e₀ k ≡ₚ[m] e2.inst e₀ k := by
   induction H generalizing Γ k with
   | elimDF h heq => exact .elimDF (h.instN henv h₀ W) heq
   | refl h => exact .refl (h.instN henv W h₀)
@@ -395,7 +478,15 @@ theorem NormalEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢
   | etaR h1 _ ih =>
     refine .etaR (h1.instN henv W h₀) ?_
     simpa [inst, lift_instN_lo] using ih W.succ
+  | etaBoth h1 h2 _ ih =>
+    refine .etaBoth (h1.instN henv W h₀) (h2.instN henv W h₀) ?_
+    simpa [inst, lift_instN_lo] using ih W.succ
   | proofIrrel h1 h2 h3 => exact .proofIrrel (h1.instN henv W h₀) (h2.instN henv W h₀) (h3.instN henv W h₀)
+
+variable! (h₀ : Γ₀ ⊢ e₀ : A₀) in
+theorem NormalEq.instN (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) : Γ₁ ⊢ e1 ≡ₚ e2 →
+    Γ ⊢ e1.inst e₀ k ≡ₚ e2.inst e₀ k
+  | ⟨_, H⟩ => ⟨_, H.instN h₀ W⟩
 
 variable! (hΓ₁ : OnCtx Γ₁ (env.IsType univs)) (h₀ : Γ₀ ⊢ e₀ : A₀) (H' : Γ₀ ⊢ e₀ ≡ₚ e₀') in
 theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ ⊢ e : A) :
@@ -446,8 +537,8 @@ theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Γ₁ �
       (ih2 (by exact ⟨hΓ₁, _, h1⟩) W.succ h2)
 
 variable! (H₀ : OnCtx Γ₀ (IsType env univs)) in
-theorem NormalEq.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
-    (H : Γ₁ ⊢ e1 ≡ₚ e2) : Γ₂ ⊢ e1 ≡ₚ e2 := by
+theorem NormalEqN.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
+    (H : Γ₁ ⊢ e1 ≡ₚ[m] e2) : Γ₂ ⊢ e1 ≡ₚ[m] e2 := by
   induction H generalizing Γ₂ with
   | elimDF h heq => exact .elimDF (h.defeqDFC henv W) heq
   | refl h => refine .refl (.defeqDFC henv W h)
@@ -469,166 +560,28 @@ theorem NormalEq.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
   | etaR h1 _ ih =>
     have ⟨⟨_, h2⟩, _⟩ := let ⟨_, h⟩ := h1.isType henv (W.isType' H₀); h.forallE_inv henv
     refine .etaR (.defeqDFC henv W h1) (ih (W.succ h2))
+  | etaBoth h1 h1' _ ih =>
+    have ⟨⟨_, h2⟩, _⟩ := let ⟨_, h⟩ := h1.isType henv (W.isType' H₀); h.forallE_inv henv
+    refine .etaBoth (.defeqDFC henv W h1) (.defeqDFC henv W h1') (ih (W.succ h2))
   | proofIrrel h1 h2 h3 =>
     exact .proofIrrel (.defeqDFC henv W h1)
       (.defeqDFC henv W h2) (.defeqDFC henv W h3)
+
+variable! (H₀ : OnCtx Γ₀ (IsType env univs)) in
+theorem NormalEq.defeqDFC (W : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂) :
+    Γ₁ ⊢ e1 ≡ₚ e2 → Γ₂ ⊢ e1 ≡ₚ e2
+  | ⟨_, H⟩ => ⟨_, H.defeqDFC H₀ W⟩
+
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
+theorem NormalEqN.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ[m] e2) :
+    A'::Γ ⊢ e1 ≡ₚ[m] e2 := defeqDFC hΓ (.succ .zero W) H
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem NormalEq.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ e2) :
     A'::Γ ⊢ e1 ≡ₚ e2 := defeqDFC hΓ (.succ .zero W) H
 
-private theorem HasType.proj_weakN_iff
-    (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U))
-    (W : Ctx.LiftN n k Γ Γ') :
-    env.HasType U Γ'
-        (.proj typeName index (major.liftN n k))
-        (resultType.liftN n k) ↔
-      env.HasType U Γ (.proj typeName index major) resultType := by
-  simpa only [VExpr.liftN] using
-    (HasType.weakN_iff
-      (e := .proj typeName index major) (A := resultType) henv hs hΓ' W)
-
-variable! (hs : env.Strengthening) (hΓ₀ : OnCtx Γ₀ (IsType env univs)) in
-theorem NormalEq.weakN_inv_DFC (W : Ctx.LiftN n k Γ Γ₂) (W₂ : IsDefEqCtx env univs Γ₀ Γ₁ Γ₂)
-    (H : Γ₁ ⊢ e1.liftN n k ≡ₚ e2.liftN n k) : Γ ⊢ e1 ≡ₚ e2 := by
-  generalize eq1 : e1.liftN n k = e1' at H
-  generalize eq2 : e2.liftN n k = e2' at H
-  induction H generalizing Γ Γ₂ e1 e2 k with
-  | elimDF h heq =>
-    cases e1 <;> cases eq1
-    cases e2 <;> cases eq2
-    have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have ⟨_, h'⟩ := (IsDefEqU.weakN_iff (e1 := .elim _ _ _) (e2 := .elim _ _ _) henv hs hΓ₂ W).1
-      ⟨_, h.defeqDFC henv W₂⟩
-    exact .elimDF h' heq
-  | refl h =>
-    cases eq2; cases liftN_inj.1 eq1
-    have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have ⟨_, h'⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂ W).1 ⟨_, h.defeqDFC henv W₂⟩
-    exact .refl h'
-  | sortDF h1 h2 h3 =>
-    cases e1 <;> cases eq1
-    cases e2 <;> cases eq2
-    exact .sortDF h1 h2 h3
-  | constDF h1 h2 h3 h4 h5 =>
-    cases e1 <;> cases eq1
-    cases e2 <;> cases eq2
-    exact .constDF h1 h2 h3 h4 h5
-  | appDF h1 h2 h3 h4 _ _ ih1 ih2 =>
-    cases e1 <;> cases eq1
-    cases e2 <;> cases eq2
-    replace h1 := h1.defeqDFC henv W₂
-    replace h2 := h2.defeqDFC henv W₂
-    replace h3 := h3.defeqDFC henv W₂
-    replace h4 := h4.defeqDFC henv W₂
-    have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have hΓ := hΓ₂.weakN_inv henv hs W
-    have ⟨_, _, l1, l2⟩ :=
-      let ⟨_, h⟩ := (VExpr.WF.weakN_iff henv hs hΓ₂ W (e := .app ..)).1 ⟨_, h1.app h3⟩
-      HasType.app_inv henv hΓ h
-    have ⟨_, _, r1, r2⟩ :=
-      let ⟨_, h⟩ := (VExpr.WF.weakN_iff henv hs hΓ₂ W (e := .app ..)).1 ⟨_, h2.app h4⟩
-      HasType.app_inv henv hΓ h
-    have := (IsDefEqU.weakN_iff henv hs hΓ₂ W).1
-      (.trans henv hΓ₂ ((l1.weakN henv W).uniqU henv hΓ₂ h1) (h2.uniqU henv hΓ₂ (r1.weakN henv W)))
-    have ⟨⟨_, h5⟩, _⟩ := this.forallE_inv henv hΓ
-    exact .appDF (l1.defeqU_r henv hΓ this) r1
-      (l2.defeqU_r henv hΓ ⟨_, h5⟩) r2 (ih1 W W₂ rfl rfl) (ih2 W W₂ rfl rfl)
-  | projDF hproj _ ihMajor =>
-    cases e1 with
-    | bvar | sort | const | elim | app | lam | forallE => cases eq1
-    | proj sourceName sourceIndex sourceMajor =>
-      cases eq1
-      cases e2 <;> cases eq2
-      have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-      have hproj' := hproj.defeqDFC henv W₂
-      have ⟨_, hnatural⟩ :=
-        (VExpr.WF.weakN_iff (e := .proj _ _ _) henv hs hΓ₂ W).1 ⟨_, hproj'⟩
-      exact .projDF hnatural (ihMajor W W₂ rfl rfl)
-  | lamDF h1 h2 _ ih1 =>
-    cases e1 <;> cases eq1
-    cases e2 <;> cases eq2
-    have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have := (IsDefEq.weakN_iff (A := .sort ..) henv hs hΓ₂ W).1 <|
-      .defeqDFC henv W₂ (h2.symm.trans h1)
-    exact .lamDF this this.hasType.1 (ih1 W.succ (W₂.succ h2) rfl rfl)
-  | forallEDF h1 _ h3 _ ih1 ih2 =>
-    cases e1 <;> cases eq1
-    cases e2 <;> cases eq2
-    have hΓ₂' := ((W₂.succ h1).symm henv).isType' hΓ₀
-    have h3' := h3.defeqDFC henv (W₂.succ h1)
-    replace h4 := (IsDefEq.weakN_iff (A := .sort ..) henv hs hΓ₂' W.succ).1 h3'
-    have := (HasType.weakN_iff (A := .sort ..) henv hs hΓ₂'.1 W).1 <|
-      .defeqDFC henv W₂ h1.hasType.2
-    exact .forallEDF this (ih1 W W₂ rfl rfl) h4 (ih2 W.succ (W₂.succ h1) rfl rfl)
-  | etaL h1 _ ih =>
-    cases e1 <;> cases eq1
-    subst eq2
-    have hΓ₁ := W₂.isType' hΓ₀
-    have ⟨⟨_, hA⟩, _, hB⟩ := let ⟨_, h⟩ := h1.isType henv hΓ₁; h.forallE_inv henv
-    have h1' := h1.defeqDFC henv W₂
-    have hA' := hA.defeqDFC henv W₂
-    have hB' := hB.defeqDFC henv (W₂.succ hA)
-    have := (h1'.weakN henv .one).app (.bvar .zero)
-    rw [instN_bvar0, ← lift, lift_liftN',
-      ← show liftN n (.bvar 0) (k+1) = bvar 0 by simp [liftN],
-      ← liftN] at this
-    have hΓ₂' := ((W₂.succ hA).symm henv).isType' hΓ₀
-    have ⟨C, hC⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂' W.succ).1 ⟨_, this⟩
-    have ⟨_, hu⟩ := this.uniq henv hΓ₂' (hC.weakN henv W.succ)
-    have := (IsDefEq.weakN_iff (A := .forallE ..) henv hs hΓ₂'.1 W).1 <|
-      IsDefEq.defeq (.forallEDF hA' hu) h1'
-    refine .etaL this (ih W.succ (W₂.succ hA) rfl (by simp [liftN, lift_liftN']))
-  | etaR h1 _ ih =>
-    subst eq1
-    cases e2 <;> cases eq2
-    have hΓ₁ := W₂.isType' hΓ₀
-    have ⟨⟨_, hA⟩, _, hB⟩ := let ⟨_, h⟩ := h1.isType henv hΓ₁; h.forallE_inv henv
-    have h1' := h1.defeqDFC henv W₂
-    have hA' := hA.defeqDFC henv W₂
-    have hB' := hB.defeqDFC henv (W₂.succ hA)
-    have := (h1'.weakN henv .one).app (.bvar .zero)
-    rw [instN_bvar0, ← lift, lift_liftN',
-      ← show liftN n (.bvar 0) (k+1) = bvar 0 by simp [liftN],
-      ← liftN] at this
-    have hΓ₂' := ((W₂.succ hA).symm henv).isType' hΓ₀
-    have ⟨C, hC⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂' W.succ).1 ⟨_, this⟩
-    have ⟨_, hu⟩ := this.uniq henv hΓ₂' (hC.weakN henv W.succ)
-    have := (IsDefEq.weakN_iff (A := .forallE ..) henv hs hΓ₂'.1 W).1 <|
-      IsDefEq.defeq (.forallEDF hA' hu) h1'
-    refine .etaR this (ih W.succ (W₂.succ hA) (by simp [liftN, lift_liftN']) rfl)
-  | proofIrrel h1 h2 h3 =>
-    subst eq1; subst eq2
-    have h1' := h1.defeqDFC henv W₂
-    have h2' := h2.defeqDFC henv W₂
-    have h3' := h3.defeqDFC henv W₂
-    have hΓ₂ := (W₂.symm henv).isType' hΓ₀
-    have ⟨_, h⟩ := (IsDefEqU.weakN_iff henv hs hΓ₂ W).1 ⟨_, h2'⟩
-    have ⟨_, hw⟩ := h2'.uniq henv hΓ₂ (h.weakN henv W)
-    exact .proofIrrel
-      ((HasType.weakN_iff henv hs hΓ₂ (A := .sort ..) W).1 (h1'.defeqU_l henv hΓ₂ ⟨_, hw⟩))
-      ((HasType.weakN_iff henv hs hΓ₂ W).1 (hw.defeq h2'))
-      ((HasType.weakN_iff henv hs hΓ₂ W).1 (hw.defeq h3'))
-
-variable! (hs : env.Strengthening) (hΓ' : OnCtx Γ' (IsType env univs)) in
-theorem NormalEq.weakN_iff (W : Ctx.LiftN n k Γ Γ') :
-    Γ' ⊢ e1.liftN n k ≡ₚ e2.liftN n k ↔ Γ ⊢ e1 ≡ₚ e2 :=
-  ⟨fun H => H.weakN_inv_DFC hs hΓ' W .zero, fun H => H.weakN W⟩
-
-private def meas : VExpr → Nat
-  | .app f a
-  | .forallE f a => meas f + meas a + 1
-  | .proj _ _ e => meas e + 1
-  | .bvar _ | .const .. | .elim .. | .sort _ => 0
-  | .lam A e => meas A + meas e + 3
-
-omit [Params] in private theorem meas_liftN : meas (e.liftN n k) = meas e := by
-  induction e generalizing k <;> simp [*, meas, liftN]
-omit [Params] in private theorem meas_lift : meas e.lift = meas e := meas_liftN
-
-attribute [local simp] meas meas_lift in
-theorem NormalEq.trans (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) :
-    Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e2 ≡ₚ e3 → Γ ⊢ e1 ≡ₚ e3
+theorem NormalEqN.trans (hΓ : OnCtx Γ (IsType env univs)) :
+    Γ ⊢ e1 ≡ₚ[n₁] e2 → Γ ⊢ e2 ≡ₚ[n₂] e3 → Γ ⊢ e1 ≡ₚ e3
   | .elimDF l1 l2, .elimDF r1 r2 =>
     .elimDF (l1.trans_l henv hΓ r1) (l2.trans (fun _ _ _ h1 => h1.trans) r2)
   | .sortDF l1 _ l3, .sortDF r1 r2 r3 => .sortDF l1 r2 (l3.trans r3)
@@ -636,55 +589,62 @@ theorem NormalEq.trans (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univ
     .constDF l1 l2 r3 l4 (l5.trans (fun _ _ _ h1 => h1.trans) r5)
   | .appDF l1 l2 l3 l4 l5 l6, .appDF r1 r2 r3 r4 r5 r6 =>
     .appDF l1 ((r1.uniqU henv hΓ l2).defeqDF henv hΓ r2) l3
-      ((r3.uniqU henv hΓ l4).defeqDF henv hΓ r4) (l5.trans hs hΓ r5) (l6.trans hs hΓ r6)
+      ((r3.uniqU henv hΓ l4).defeqDF henv hΓ r4) (l5.trans hΓ r5) (l6.trans hΓ r6)
   | .projDF l1 l2, .projDF _ r2 =>
-    .projDF l1 (l2.trans hs hΓ r2)
+    .projDF l1 (l2.trans hΓ r2)
   | .lamDF l1 l2 l3, .lamDF r1 r2 r3 =>
     have aa := r1.trans_r henv hΓ l2.symm
-    .lamDF l1 (aa.symm.trans_l henv hΓ r2) (l3.trans hs ⟨hΓ, _, l1.hasType.1⟩ (r3.defeq_l hΓ aa))
+    .lamDF l1 (aa.symm.trans_l henv hΓ r2) (l3.trans ⟨hΓ, _, l1.hasType.1⟩ (r3.defeq_l hΓ aa))
   | .forallEDF l1 l2 l3 l4, .forallEDF r1 r2 r3 r4 =>
     have r4' := r4.defeq_l hΓ (.trans_l henv hΓ (.transU_l henv hΓ r1 (l2.defeq hΓ).symm) l1.symm)
-    .forallEDF l1 (l2.trans hs hΓ r2) l3 (l4.trans hs ⟨hΓ, _, l1.hasType.1⟩ r4')
+    .forallEDF l1 (l2.trans hΓ r2) l3 (l4.trans ⟨hΓ, _, l1.hasType.1⟩ r4')
   | .etaR l1 ih, .lamDF r1 r2 r3 =>
     have ⟨_, _, hB⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
     have eq := r1.symm.trans r2
     .etaR (IsDefEq.defeq (.forallEDF eq hB) l1) <|
-      (ih.defeq_l hΓ eq).trans hs ⟨hΓ, _, r2.hasType.2⟩ (r3.defeq_l hΓ r2)
+      (ih.defeq_l hΓ eq).trans ⟨hΓ, _, r2.hasType.2⟩ (r3.defeq_l hΓ r2)
   | .lamDF l1 l2 l3, .etaL r1 ih =>
     have ⟨_, _, hB⟩ := let ⟨_, h⟩ := r1.isType henv hΓ; h.forallE_inv henv
     have eq := l2.symm.trans l1
     .etaL (IsDefEq.defeq (.forallEDF eq hB) r1) <|
-      (l3.defeq_l hΓ l1).trans hs ⟨hΓ, _, l1.hasType.2⟩ (ih.defeq_l hΓ eq)
-  | H1@(.etaR l1 ihl), .etaL r1 ihr => by
+      (l3.defeq_l hΓ l1).trans ⟨hΓ, _, l1.hasType.2⟩ (ih.defeq_l hΓ eq)
+  | H1@(.etaR l1 ihl), H2@(.etaL r1 ihr) => by
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
-    have := ihl.trans hs (by exact ⟨hΓ, _, hA⟩) ihr
-    generalize eq : e1.lift = e1' at this
-    cases this with first | cases eq | cases liftN_inj.1 eq
-    | refl h => exact .refl r1
-    | proofIrrel h1 h2 h3 =>
-      refine .proofIrrel (IsDefEqU.defeqDF henv hΓ ?_ (HasType.forallE hA h1))
-        (.defeqU_l henv hΓ ⟨_, .eta l1⟩ (.lam hA h2))
-        (.defeqU_l henv hΓ ⟨_, .eta r1⟩ (.lam hA h3))
-      have hw := let ⟨_, h⟩ := hA.isType henv hΓ; h.sort_inv henv
-      exact ⟨_, .sortDF ⟨hw, ⟨⟩⟩ ⟨⟩ rfl⟩
-    | appDF _ _ _ _ ih => exact (NormalEq.weakN_iff hs (by exact ⟨hΓ, _, hA⟩) .one).1 ih
-  | .refl h, H2 => H2
+    have hd := (H1.defeq hΓ).trans henv hΓ (H2.defeq hΓ)
+    exact .etaBoth l1 (.defeqU_l henv hΓ hd l1) (ihl.trans (by exact ⟨hΓ, _, hA⟩) ihr)
+  | .refl _, H2 => ⟨_, H2⟩
   | .proofIrrel l1 l2 l3, H2 => .proofIrrel l1 l2 (.defeqU_l henv hΓ (H2.defeq hΓ) l3)
   | .etaL l1 ih, H2 => by
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
-    refine .etaL (.defeqU_l henv hΓ (H2.defeq hΓ) l1) (ih.trans hs ⟨hΓ, _, hA⟩ ?_)
-    exact .appDF (l1.weakN henv .one)
+    have h2 := NormalEqN.appDF (l1.weakN henv .one)
       ((l1.defeqU_l henv hΓ (H2.defeq hΓ)).weakN henv .one) (.bvar .zero) (.bvar .zero)
       (.weakN .one H2) (.refl (.bvar .zero))
-  | H1, .refl _ => H1
+    exact .etaL (.defeqU_l henv hΓ (H2.defeq hΓ) l1) (ih.trans ⟨hΓ, _, hA⟩ h2)
+  | .etaBoth l1 l2 ih, H2 => by
+    have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
+    have h2 := NormalEqN.appDF (l2.weakN henv .one)
+      ((l2.defeqU_l henv hΓ (H2.defeq hΓ)).weakN henv .one) (.bvar .zero) (.bvar .zero)
+      (.weakN .one H2) (.refl (.bvar .zero))
+    exact .etaBoth l1 (.defeqU_l henv hΓ (H2.defeq hΓ) l2) (ih.trans ⟨hΓ, _, hA⟩ h2)
+  | H1, .refl _ => ⟨_, H1⟩
   | H1, .etaR r1 ih => by
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := r1.isType henv hΓ; h.forallE_inv henv
-    refine .etaR (.defeqU_l henv hΓ (H1.defeq hΓ).symm r1) (.trans hs ⟨hΓ, _, hA⟩ ?_ ih)
-    refine .appDF ((r1.defeqU_l henv hΓ (H1.defeq hΓ).symm).weakN henv .one)
+    have h1 := NormalEqN.appDF ((r1.defeqU_l henv hΓ (H1.defeq hΓ).symm).weakN henv .one)
       (r1.weakN henv .one) (.bvar .zero) (.bvar .zero)
       (.weakN .one H1) (.refl (.bvar .zero))
+    exact .etaR (.defeqU_l henv hΓ (H1.defeq hΓ).symm r1) (h1.trans ⟨hΓ, _, hA⟩ ih)
+  | H1, .etaBoth r1 r2 ih => by
+    have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := r1.isType henv hΓ; h.forallE_inv henv
+    have h1 := NormalEqN.appDF ((r1.defeqU_l henv hΓ (H1.defeq hΓ).symm).weakN henv .one)
+      (r1.weakN henv .one) (.bvar .zero) (.bvar .zero)
+      (.weakN .one H1) (.refl (.bvar .zero))
+    exact .etaBoth (.defeqU_l henv hΓ (H1.defeq hΓ).symm r1) r2 (h1.trans ⟨hΓ, _, hA⟩ ih)
   | H1, .proofIrrel h1 h2 h3 => .proofIrrel h1 (.defeqU_l henv hΓ (H1.defeq hΓ).symm h2) h3
-termination_by meas e1 + meas e2 + meas e3
+termination_by n₁ + n₂
+
+theorem NormalEq.trans (hΓ : OnCtx Γ (IsType env univs)) :
+    Γ ⊢ e1 ≡ₚ e2 → Γ ⊢ e2 ≡ₚ e3 → Γ ⊢ e1 ≡ₚ e3
+  | ⟨_, H1⟩, ⟨_, H2⟩ => H1.trans hΓ H2
 
 open Pattern.RHS in
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
@@ -1159,105 +1119,6 @@ theorem HasType.matches_inv {p : Pattern} {m1 m2} (H : Γ ⊢ e : A)
     have ⟨_, _, hf, ha⟩ := H.app_inv henv hΓ
     rintro (_|h) <;> [exact ⟨_, ha⟩; exact ih1 hf h]
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ' (IsType env univs)) in
-theorem ParRed.weakN_inv (W : Ctx.LiftN n k Γ Γ')
-    (h : Γ' ⊢ e1.liftN n k : A) (H : Γ' ⊢ e1.liftN n k ≫ e2') :
-    ∃ e2, Γ ⊢ e1 ≫ e2 ∧ e2' = e2.liftN n k := by
-  generalize eq : e1.liftN n k = e1' at H
-  induction H generalizing e1 Γ k A with
-  | bvar => cases e1 <;> cases eq; exact ⟨_, .bvar, rfl⟩
-  | sort => cases e1 <;> cases eq; exact ⟨_, .sort, rfl⟩
-  | const => cases e1 <;> cases eq; exact ⟨_, .const, rfl⟩
-  | elim => cases e1 <;> cases eq; exact ⟨_, .elim, rfl⟩
-  | app h1 h2 ih1 ih2 =>
-    cases e1 <;> cases eq
-    have ⟨_, _, hf, ha⟩ := h.app_inv henv hΓ
-    obtain ⟨_, a1, rfl⟩ := ih1 hΓ W hf rfl
-    obtain ⟨_, b1, rfl⟩ := ih2 hΓ W ha rfl
-    exact ⟨_, .app a1 b1, rfl⟩
-  | proj hMajor ihMajor =>
-    cases e1 <;> cases eq
-    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ :=
-      h.proj_inv henv hΓ
-    obtain ⟨_, majorRed, rfl⟩ := ihMajor hΓ W hmajor.hasType.2 rfl
-    exact ⟨_, .proj majorRed, rfl⟩
-  | lam h1 h2 ih1 ih2 =>
-    cases e1 <;> cases eq
-    have ⟨⟨_, hA⟩, _, he⟩ := h.lam_inv henv hΓ
-    obtain ⟨_, a1, rfl⟩ := ih1 hΓ W hA rfl
-    obtain ⟨_, b1, rfl⟩ := ih2 (by exact ⟨hΓ, _, hA⟩) W.succ he rfl
-    exact ⟨_, .lam a1 b1, rfl⟩
-  | forallE h1 h2 ih1 ih2 =>
-    cases e1 <;> cases eq
-    have ⟨⟨_, hA⟩, _, hB⟩ := h.forallE_inv henv
-    obtain ⟨_, a1, rfl⟩ := ih1 hΓ W hA rfl
-    obtain ⟨_, b1, rfl⟩ := ih2 (by exact ⟨hΓ, _, hA⟩) W.succ hB rfl
-    exact ⟨_, .forallE a1 b1, rfl⟩
-  | beta h1 h2 ih1 ih2 =>
-    cases e1 <;> injection eq
-    rename_i f a eq eq2; cases eq2
-    cases f <;> cases eq
-    have ⟨_, _, hf, ha⟩ := h.app_inv henv hΓ
-    have ⟨⟨_, hA⟩, _, hb⟩ := hf.lam_inv henv hΓ
-    obtain ⟨_, a1, rfl⟩ := ih1 (by exact ⟨hΓ, _, hA⟩) W.succ hb rfl
-    obtain ⟨_, b1, rfl⟩ := ih2 hΓ W ha rfl
-    exact ⟨_, .beta a1 b1, (liftN_inst_hi ..).symm⟩
-  | @schema Γ' args rule actual hm hl hred ih =>
-    obtain ⟨original, rfl, rfl⟩ := case_application_liftN_inv eq.symm
-    have hm' := hm.weakN_inv henv hs hΓ W
-    have hlen : args.length = (rule.capture original).length := by
-      simpa only [case_capture_map, List.length_map] using hl
-    have recargs : ∀ i : Fin (rule.capture original).length,
-        ∃ out, Γ ⊢ (rule.capture original)[i.val] ≫ out ∧
-          args[i]'(by omega) = out.liftN n k := by
-      intro i
-      have hi : i.val < (rule.capture (CaseApplicationMap original fun e => e.liftN n k)).length := by
-        simpa only [case_capture_map, List.length_map] using i.isLt
-      obtain ⟨ty, hty⟩ := hm.capture_typed (List.getElem_mem hi)
-      have hty' : Γ' ⊢ ((rule.capture original)[i.val]).liftN n k : ty := by
-        simpa only [case_capture_map, List.getElem_map] using hty
-      exact ih i hi hΓ W hty' (by simp only [case_capture_map, List.getElem_map])
-    classical
-    let outputs := List.ofFn fun i => (recargs i).choose
-    refine ⟨rule.rhs original.levels outputs, .schema hm' (by simp [outputs]) ?_, ?_⟩
-    · intro i hi
-      simpa [outputs] using (recargs ⟨i, hi⟩).choose_spec.1
-    · have hargs : args = outputs.map fun e => e.liftN n k := by
-        apply List.ext_getElem
-        · simpa [outputs] using hlen
-        · intro i hi hi'
-          have hi'' : i < (rule.capture original).length := by simpa [outputs] using hi'
-          simpa [outputs] using (recargs ⟨i, hi''⟩).choose_spec.2
-      have hc : rule.body.rhs.ClosedN outputs.length := by
-        simpa [outputs] using hm'.source.closed.2.1
-      simp only [case_application_map_levels, hargs, InductiveSignature.CaseSchema.AppliedRule.rhs,
-        instantiateParams_liftN hc.instL]
-  | @extra p r e m1 m2 Γ' m2' h1 h2 h3 h4 ih =>
-    suffices ∃ m3 m3' : _ → _, p.Matches e1 m1 m3 ∧
-        (∀ a, Γ ⊢ m3 a ≫ m3' a) ∧
-        (∀ a, m2 a = (m3 a).liftN n k) ∧
-        (∀ a, m2' a = (m3' a).liftN n k) by
-      let ⟨m3, m3', a1, a2, a3, a4⟩ := this
-      refine ⟨_, .extra h1 a1 (h3.map fun _ _ h => ?_) a2,
-        .trans (by congr; funext; apply a4) r.1.apply_liftN.symm⟩
-      rw [(funext a3 : m2 = _), ← Pattern.RHS.apply_liftN, ← Pattern.RHS.apply_liftN] at h
-      exact (IsDefEqU.weakN_iff henv hs hΓ W).1 h
-    clear h1 h3 r
-    induction h2 generalizing e1 A with
-    | const => cases e1 <;> cases eq; exact ⟨_, nofun, .const, nofun, nofun, nofun⟩
-    | elim => cases e1 <;> cases eq; exact ⟨_, nofun, .elim, nofun, nofun, nofun⟩
-    | var h1 ih1 =>
-      cases e1 <;> cases eq
-      have ⟨_, _, hf, ha⟩ := h.app_inv henv hΓ
-      have ⟨_, _, a1, a2, a3, a4⟩ := ih1 (h4 <| some ·) (ih <| some ·) hf rfl
-      have ⟨_, b2, b4⟩ := ih none hΓ W ha rfl
-      exact ⟨_, Option.rec _ _, .var a1, Option.rec b2 a2, Option.rec rfl a3, Option.rec b4 a4⟩
-    | app h1 h2 ih1 ih2 =>
-      cases e1 <;> cases eq
-      have ⟨_, _, hf, ha⟩ := h.app_inv henv hΓ
-      have ⟨_, _, a1, a2, a3, a4⟩ := ih1 (h4 <| .inl ·) (ih <| .inl ·) hf rfl
-      have ⟨_, _, b1, b2, b3, b4⟩ := ih2 (h4 <| .inr ·) (ih <| .inr ·) ha rfl
-      exact ⟨_, Sum.rec _ _, .app a1 b1, Sum.rec a2 b2, Sum.rec a3 b3, Sum.rec a4 b4⟩
 
 theorem CParRed.toParRed (H : Γ ⊢ e ⋙ e') : Γ ⊢ e ≫ e' := by
   induction H with
@@ -1441,7 +1302,7 @@ theorem ParRed.schema_app_triangle
   have hi'' : i < (rule.capture actual).length := by simpa [outputs] using hi
   simpa [outputs] using (recargs ⟨i, hi''⟩).choose_spec.2
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e ⋙ o) :
     ∃ o', Γ ⊢ e' ≫ o' ∧ Γ ⊢ o' ≡ₚ o := by
   induction e using VExpr.brecOn generalizing Γ A e' o with | _ e e_ih => ?_
@@ -1552,7 +1413,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       | lam rA re =>
         refine have hΓ' := ⟨hΓ, _, lA⟩; let ⟨_, p2, n2⟩ := he hΓ' le re l1; ?_
         refine ⟨_, .beta (p2.defeqDFC hΓ (.succ .zero (rA.defeq hΓ lA)) (re.hasType hΓ' le)) p3, ?_⟩
-        refine .trans hs hΓ
+        refine .trans hΓ
           (.instN_r hΓ' (p3.hasType hΓ (ra.hasType hΓ la')) n3 .zero
             (p2.hasType hΓ' (re.hasType hΓ' le)))
           (.instN (l2.toParRed.hasType hΓ la') .zero n2)
@@ -1561,7 +1422,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       refine have hΓ' := ⟨hΓ, _, lA⟩; let ⟨_, p2, n2⟩ := he hΓ' le re l1; ?_
       let ⟨_, p3, n3⟩ := ha hΓ la ra l2
       refine ⟨_, .instN p3 (ra.hasType hΓ la') .zero p2, ?_⟩
-      refine .trans hs hΓ
+      refine .trans hΓ
         (.instN_r hΓ' (p3.hasType hΓ (ra.hasType hΓ la')) n3 .zero
           (p2.hasType hΓ' (re.hasType hΓ' le)))
         (.instN (l2.toParRed.hasType hΓ la') .zero n2)
@@ -1644,14 +1505,14 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
         have ⟨g2, r1, r2⟩ := ih none hΓ Ha (r4 none) e_ih2
         exact ⟨(·.elim g2 g1), (·.casesOn r1 l1), (·.casesOn r2 l2)⟩
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRed.church_rosser (H : Γ ⊢ e : A)
     (H1 : Γ ⊢ e ≫ e₁) (H2 : Γ ⊢ e ≫ e₂) :
       ∃ e₁' e₂', Γ ⊢ e₁ ≫ e₁' ∧ Γ ⊢ e₂ ≫ e₂' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
   let ⟨e', h'⟩ := CParRed.exists hΓ H
-  let ⟨_, l1, l2⟩ := H1.triangle hs hΓ H h'
-  let ⟨_, r1, r2⟩ := H2.triangle hs hΓ H h'
-  exact ⟨_, _, l1, r1, l2.trans hs hΓ (r2.symm hΓ)⟩
+  let ⟨_, l1, l2⟩ := H1.triangle hΓ H h'
+  let ⟨_, r1, r2⟩ := H2.triangle hΓ H h'
+  exact ⟨_, _, l1, r1, l2.trans hΓ (r2.symm hΓ)⟩
 
 def ParRedS (Γ : List VExpr) : VExpr → VExpr → Prop := ReflTransGen (ParRed Γ)
 local notation:65 Γ " ⊢ " e1 " ≫* " e2:36 => ParRedS Γ e1 e2
@@ -1744,189 +1605,6 @@ theorem ParRedS.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e ≫* e') :
   induction H with
   | rfl =>  exact .rfl
   | tail _ h ih => exact .tail ih (.weakN W h)
-
-inductive ParRedExt : Type where
-  | base : ParRedExt
-  | lift : ParRedExt → ParRedExt
-  | app : ParRedExt → ParRedExt
-
-def ParRedExt.depth : ParRedExt → Nat
-  | .base => 0
-  | .lift l
-  | .app l => l.depth + 1
-
-def ParRedExt.apply : ParRedExt → VExpr → VExpr
-  | .base, e => e
-  | .lift l, e => (l.apply e).lift
-  | .app l, e => (l.apply e).lift.app (.bvar 0)
-
-def ParRedExt.meas : ParRedExt → Nat
-  | .base => 0
-  | .lift l => l.meas + 1
-  | .app l => l.meas + 2
-
-def IsApp := fun | VExpr.app .. => True | _ => False
-
-omit [Params] in
-theorem ParRedExt.isApp {l : ParRedExt} (H : l.apply (.app f a) = e') : IsApp e' := by
-  induction l generalizing e' with simp [apply] at H
-  | lift l ih =>
-    specialize ih rfl; unfold IsApp at ih; split at ih <;> cases ih <;>
-    · rename_i h1; cases h1 ▸ H; trivial
-  | _ => subst H; trivial
-
-variable! (hs : env.Strengthening) (hΓ : OnCtx (A::Γ) (IsType env univs)) in
-theorem hasType_app_bvar0
-    (H : A :: Γ ⊢ e.lift.app (bvar 0) : B) : ∃ B', Γ ⊢ e : .forallE A B' := by
-  have ⟨_, _, c1, c2⟩ := H.app_inv henv hΓ
-  replace c1 :=
-    have ⟨_, d1⟩ := c1.isType henv hΓ
-    have ⟨_, _, d3⟩ := d1.forallE_inv henv
-    have ⟨_, d4⟩ := c2.uniq henv hΓ (.bvar .zero)
-    HasType.defeqU_r henv hΓ ⟨_, d4.forallEDF d3⟩ c1
-  have := c1.eta
-  rw [show A.lift.lam (e.lift.lift.app (bvar 0)) = (A.lam (e.lift.app (bvar 0))).lift by
-    simp [VExpr.liftN, liftN'_liftN_lo, liftN_liftN]] at this
-  have ⟨_, f1⟩ := (IsDefEqU.weakN_iff henv hs hΓ .one).1 ⟨_, this⟩
-  have ⟨⟨_, f2⟩, _, f3⟩ := f1.hasType.1.lam_inv henv hΓ.1
-  exact ⟨_, (HasType.lam f2 f3).defeqU_l henv hΓ.1 ⟨_, f1⟩⟩
-
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
-theorem ParRedExt.parRed_beta :
-    Γ ⊢ f ≡ₚ lam A e' → ∀ {a B}, Γ ⊢ f.app a : B → ∃ e, Γ ⊢ f.app a ≫* e ∧ Γ ⊢ e ≡ₚ e'.inst a := by
-  refine (?_ : _ ∧ ∀ (l : ParRedExt), l.depth ≤ Γ.length →
-    Γ ⊢ f ≡ₚ l.apply ((lam A e').lift.app (bvar 0)) → ∃ e, Γ ⊢ f ≫* e ∧ Γ ⊢ e ≡ₚ l.apply e').1
-  induction f using VExpr.brecOn generalizing Γ A e' with | _ f f_ih => ?_
-  revert f_ih; change let motive := ?_; ∀ _: f.below (motive := motive), _; intro motive f_ih
-  refine ⟨fun h1 a B h2 => ?_, fun l W h1 => ?_⟩
-  · cases h1 with
-    | @refl _ _ B H =>
-      clear f_ih motive
-      exact have h := .beta .rfl .rfl; ⟨_, .tail .rfl h, .refl (h.hasType hΓ h2)⟩
-    | lamDF a1 a2 a3 =>
-      have ⟨_, _, H1, H2⟩ := h2.app_inv henv hΓ
-      have ⟨⟨_, H3⟩, _, H4⟩ := H1.lam_inv henv hΓ
-      have ⟨⟨_, u1⟩, u2⟩ := ((H3.lam H4).uniqU henv hΓ H1).forallE_inv henv hΓ
-      exact ⟨_, .tail .rfl <| .beta .rfl .rfl,
-        .instN (.defeq (.symm <| .trans_l henv hΓ a1 u1) H2) .zero a3⟩
-    | @etaL _ _ A' _ _ a1 a2 =>
-      have ⟨⟨_, hA⟩, _, hB⟩ := have ⟨_, h⟩ := a1.isType henv hΓ; h.forallE_inv henv
-      have ⟨⟨_, c1⟩, _, c2⟩ := a1.lam_inv henv hΓ
-      have ⟨_, d1, d2⟩ := (f_ih.2.1 <| by exact ⟨hΓ, _, hA⟩).2 .base (Nat.zero_le _) a2
-      have ⟨_, _, c3, c4⟩ := h2.app_inv henv hΓ
-      have ⟨⟨_, c1⟩, _, c2⟩ := c3.lam_inv henv hΓ
-      have ⟨⟨_, u1⟩, u2⟩ := ((c1.lam c2).uniqU henv hΓ c3).forallE_inv henv hΓ
-      exact ⟨_, .tail (ParRedS.app (.lam .rfl d1) .rfl) <| .beta .rfl .rfl,
-        .instN (.defeq u1.symm c4) .zero d2⟩
-    | etaR a1 a2 =>
-      have ⟨_, _, H1, H2⟩ := h2.app_inv henv hΓ
-      have ⟨⟨_, u1⟩, u2⟩ := (H1.uniqU henv hΓ a1).forallE_inv henv hΓ
-      have := a2.instN (.defeq u1 H2) .zero
-      simp [inst, inst_lift] at this
-      exact ⟨_, .rfl, this⟩
-    | proofIrrel a1 a2 a3 =>
-      have ⟨_, _, H1, H2⟩ := h2.app_inv henv hΓ
-      have hf := a2.uniqU henv hΓ H1; have := a1.defeqU_l henv hΓ hf
-      have ⟨⟨_, b1⟩, _, b2⟩ := this.forallE_inv henv
-      have := ((b1.forallE b2).uniqU henv hΓ this).sort_inv henv hΓ
-      have b3 := let ⟨_, h⟩ := b2.isType henv (by exact ⟨hΓ, _, b1⟩); h.sort_inv henv
-      have b2 := IsDefEq.defeq (.sortDF b3 (by trivial) (VLevel.imax_eq_zero.1 this)) b2
-      have ⟨⟨_, c1⟩, _, c2⟩ := a3.lam_inv henv hΓ
-      have ⟨⟨_, u1⟩, _, u2⟩ := ((c1.lam c2).uniqU henv hΓ a3).trans henv hΓ hf |>.forallE_inv henv hΓ
-      exact ⟨_, .rfl, .proofIrrel (b2.instN henv .zero H2) (H1.app H2)
-        ((u2.defeq c2).instN henv .zero (u1.symm.defeq H2))⟩
-  generalize eq : l.apply .. = s at h1
-  cases h1 with
-  | @refl _ _ B H =>
-    subst eq; clear f_ih motive
-    generalize ls : l.meas = n
-    induction n using Nat.strongRecOn generalizing l Γ B with | _ _ ih; subst ls
-    cases l with
-    | base =>
-      refine have h := .beta .rfl .rfl; ⟨_, .tail .rfl h, ?_⟩
-      simp [instN_bvar0] at h ⊢; exact .refl (h.hasType hΓ H)
-    | lift l =>
-      let A::Γ := Γ
-      have ⟨_, a1⟩ := (IsDefEqU.weakN_iff henv hs hΓ .one).1 ⟨_, H⟩
-      have ⟨_, a2, a3⟩ := ih _ (by simp [meas]) hΓ.1 l (by simpa [depth] using W) a1 rfl
-      exact ⟨_, .weakN .one a2, .weakN .one a3⟩
-    | app l =>
-      let A::Γ := Γ
-      have ⟨_, _, H1, H2⟩ := H.app_inv henv hΓ
-      have ⟨_, a1, a2⟩ := ih _ (by simp [meas]) hΓ (lift l) W H1 rfl
-      have := a1.hasType hΓ H1
-      exact ⟨_, .app a1 .rfl, .appDF this (this.defeqU_l henv hΓ (a2.defeq hΓ)) H2 H2 a2 (.refl H2)⟩
-  | @appDF _ _ A' B' f' _ a' a1 a2 a3 a4 a5 a6 =>
-    obtain ⟨n, rfl, ⟨rfl, h⟩ | ⟨l', W', rfl, h⟩⟩ : ∃ n, a' = bvar n ∧
-        (f' = (A.lam e').liftN (n+1) ∧ l.apply e' = liftN n e' ∨
-        ∃ l', l'.depth ≤ l.depth ∧
-          f' = apply l' ((A.lam e').lift.app (bvar 0)) ∧
-          l.apply e' = (l'.apply e').app (bvar n)) := by
-      clear W a2 a4 a5 a6
-      induction l generalizing f' a' with
-      | base => cases eq; exact ⟨_, rfl, .inl ⟨rfl, by simp [apply]⟩⟩
-      | lift l ih =>
-        simp [apply] at eq
-        generalize eq' : apply .. = s at eq; cases s <;> cases eq
-        obtain ⟨n, rfl, ⟨rfl, h⟩ | ⟨l', W', rfl, h⟩⟩ := ih eq'
-        · refine ⟨_, rfl, .inl ⟨by simp [liftN_liftN], ?_⟩⟩
-          have := congrArg VExpr.lift h
-          simpa [lift_inst_hi, liftN'_liftN']
-        · exact ⟨_, rfl, .inr ⟨lift _, Nat.succ_le_succ W', rfl, congrArg VExpr.lift h⟩⟩
-      | app l ih => cases eq; exact ⟨_, rfl, .inr ⟨lift _, Nat.le_refl _, rfl, rfl⟩⟩
-    · have ⟨⟨_, c1⟩, _, c2⟩ := (a1.defeqU_l henv hΓ (a5.defeq hΓ)).lam_inv henv hΓ
-      have ⟨⟨_, u1⟩, _, u2⟩ := a1.defeqU_l henv hΓ (a5.defeq hΓ)
-        |>.uniqU henv hΓ (c1.lam c2) |>.forallE_inv henv hΓ
-      have ⟨_, b1, b2⟩ := (f_ih.1.1 hΓ).1 a5 (.app a1 a3)
-      replace b2 := b2.trans hs hΓ <|
-        .instN_r (by exact ⟨hΓ, _, c1⟩) (.defeqU_r henv hΓ ⟨_, u1⟩ a3) a6 .zero c2
-      have := congrArg (liftN n) (instN_bvar0 e' 0)
-      simp [liftN_inst_hi, liftN'_liftN', liftN] at this
-      rw [Nat.add_comm, this, ← h] at b2
-      exact ⟨_, b1, b2⟩
-    · have ⟨_, b1, b2⟩ := (f_ih.1.1 hΓ).2 l' (Nat.le_trans W' W) a5
-      rw [h]; have := b1.hasType hΓ a1
-      exact ⟨_, .app b1 .rfl, .appDF this (.defeqU_l henv hΓ (b2.defeq hΓ) this) a3 a4 b2 a6⟩
-  | @etaL _ _ A' _ _ a1 a2 =>
-    subst eq
-    have ⟨⟨_, hA⟩, _, hB⟩ := have ⟨_, h⟩ := a1.isType henv hΓ; h.forallE_inv henv
-    refine have hΓ' := ⟨hΓ, _, hA⟩
-      have ⟨_, b1, b2⟩ := (f_ih.2.1 hΓ').2 (app l) (by exact Nat.succ_le_succ W) a2; ?_
-    have ⟨_, c1⟩ := b2.defeq hΓ'
-    let ⟨_, b3⟩ := hasType_app_bvar0 hs hΓ' c1.hasType.2
-    exact ⟨_, .lam .rfl b1, .etaL b3 b2⟩
-  | @proofIrrel _ p _ _ a1 a2 a3 =>
-    subst eq; refine ⟨_, .rfl, .proofIrrel a1 a2 ?_⟩
-    clear a2; induction l generalizing Γ p with
-    | base =>
-      have ⟨_, _, b1, b2⟩ := a3.app_inv henv hΓ
-      have ⟨⟨_, b3⟩, _, b4⟩ := b1.lam_inv henv hΓ
-      have ⟨⟨_, u1⟩, _, u2⟩ := ((b3.lam b4).uniqU henv hΓ b1).forallE_inv henv hΓ
-      have := b4.beta (u1.symm.defeq b2)
-      simp [instN_bvar0] at this
-      exact .defeqU_l henv hΓ ⟨_, this⟩ a3
-    | lift l ih =>
-      let A::Γ := Γ
-      have ⟨_, b1⟩ := (IsDefEqU.weakN_iff henv hs hΓ .one).1 ⟨_, a3⟩
-      have u1 := a3.uniqU henv hΓ (b1.weak henv)
-      have := (HasType.weakN_iff henv hs hΓ (A := sort _) .one).1 (a1.defeqU_l henv hΓ u1)
-      have := ih hΓ.1 (Nat.le_of_succ_le_succ W) this b1
-      exact .defeqU_r henv hΓ u1.symm (this.weak henv)
-    | app l ih =>
-      let A::Γ := Γ
-      let ⟨_, b1⟩ := hasType_app_bvar0 hs hΓ a3
-      have H := a3.uniqU henv hΓ (HasType.app (b1.weak henv) (.bvar .zero))
-      simp [instN_bvar0] at H
-      have ⟨⟨_, b2⟩, _, b3⟩ := have ⟨_, b2⟩ := b1.isType henv hΓ.1; b2.forallE_inv henv
-      have wf := let ⟨_, h⟩ := b2.isType henv hΓ.1; h.sort_inv henv
-      have := b2.forallE (.defeqU_l henv hΓ H a1)
-      have := IsDefEq.defeq (.sortDF (by exact ⟨wf, ⟨⟩⟩) (by trivial) VLevel.imax_zero) this
-      have := ih hΓ.1 (Nat.le_of_succ_le_succ W) this b1
-      have := HasType.app (this.weak henv) (.bvar .zero)
-      simp [instN_bvar0] at this
-      exact .defeqU_r henv hΓ H.symm this
-  | _ => cases l.isApp eq
-
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem NormalEq.instantiate_variables_parRedS (H : VariableApplications body)
@@ -2154,188 +1832,3 @@ theorem NormalEq.schema_parallel_of_major_proof
     .schema hmatch hlen hargs
   exact ⟨left, .rfl, .proofIrrel hresultProp hleft (hred.hasType hΓ hresult)⟩
 
-/- Outstanding head-computation compatibility: expose native or registered
-schema computation through normal equality, including eta expansion and proof
-irrelevance, and transport the parallel developments of captured arguments.
-This is a proof obligation for the concrete reduction relation, not an added
-assumption on its callers. -/
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem NormalEq.headParallel (H : Γ ⊢ e₁ ≡ₚ e₂)
-    (Hhead : HeadParallelReduction Γ e₂ e₂') :
-    ∃ e₁', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
-  sorry
-
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
-theorem NormalEq.parRed (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫ e₂') :
-    ∃ e₁', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
-  induction H1 generalizing e₂' with
-  | refl l1 => exact ⟨_, .tail .rfl H2, .refl (H2.hasType hΓ l1)⟩
-  | sortDF l1 l2 l3 =>
-    cases H2 with
-    | sort => exact ⟨_, .tail .rfl .sort, .sortDF l1 l2 l3⟩
-    | extra r1 r2 => cases r2
-  | elimDF h heq =>
-    cases H2 with
-    | elim => exact ⟨_, .rfl, .elimDF h heq⟩
-    | extra hp hm => exact False.elim (Params.pat_not_elim hp hm)
-  | constDF l1 l2 l3 l4 l5 =>
-    cases H2 with
-    | const => exact ⟨_, .tail .rfl .const, .constDF l1 l2 l3 l4 l5⟩
-    | extra r1 r2 r3 r4 =>
-      exact NormalEq.const_native_parallel hΓ l1 l2 l3 l4 l5 r1 r2 r3 r4
-  | @appDF Γ f A B f₂ a b l1 l2 l3 l4 l5 l6 ih1 ih2 =>
-    cases H2 with
-    | app r1 r2 =>
-      let ⟨_, a1, a2⟩ := ih1 hΓ r1
-      let ⟨_, b1, b2⟩ := ih2 hΓ r2
-      exact ⟨_, .app a1 b1,
-        .appDF (a1.hasType hΓ l1) (r1.hasType hΓ l2) (b1.hasType hΓ l3) (r2.hasType hΓ l4) a2 b2⟩
-    | @beta A _ e e' _ b' r1 r2 =>
-      let ⟨f', a1, a2⟩ := ih1 hΓ (.lam .rfl r1)
-      let ⟨a', b1, b2⟩ := ih2 hΓ r2
-      let ⟨⟨_, d1⟩, _, d2⟩ := l2.lam_inv henv hΓ
-      let ⟨⟨_, u1⟩, _, u2⟩ := ((d1.lam d2).uniqU henv hΓ l2).forallE_inv henv hΓ
-      refine have hΓ' := (by exact ⟨hΓ, _, d1⟩); have d2 := r1.hasType hΓ' (u2.defeq d2); ?_
-      replace l3 := b1.hasType hΓ (u1.symm.defeq l3)
-      let ⟨_, h1, h2⟩ := ParRedExt.parRed_beta hs hΓ a2
-        (.app (.defeqU_l henv hΓ (a2.defeq hΓ).symm (d1.lam d2)) l3)
-      exact ⟨_, .trans (a1.app b1) h1, h2.trans hs hΓ (.instN_r hΓ' l3 b2 .zero d2)⟩
-    | extra r1 r2 r3 r4 =>
-      exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).headParallel hΓ (.native r1 r2 r3 r4)
-    | schema hm hl hr =>
-      exact (NormalEq.appDF l1 l2 l3 l4 l5 l6).headParallel hΓ (.schema hm hl hr)
-  | projDF lproj lMajor ihMajor =>
-    cases H2 with
-    | proj rMajor =>
-      let ⟨_, majorRed, majorNormal⟩ := ihMajor hΓ rMajor
-      have reducedAtLeft := majorRed.proj.hasType hΓ lproj
-      exact ⟨_, majorRed.proj, .projDF reducedAtLeft majorNormal⟩
-    | extra _ hmatch => cases hmatch
-  | lamDF l1 l2 l3 ih1 =>
-    cases H2 with
-    | lam r1 r2 =>
-      refine have hΓ' := (by exact ⟨hΓ, _, l1.hasType.1⟩); have ⟨_, h1⟩ := l3.defeq hΓ'; ?_
-      have h2 := h1.hasType.1.defeqU_l henv hΓ' (l3.defeq hΓ')
-      replace r2 := r2.defeqDFC hΓ (.succ .zero l2.symm) <| .defeqDFC henv (.succ .zero l2) h2
-      let ⟨_, b1, b2⟩ := ih1 hΓ' r2
-      exact ⟨_, .lam .rfl (b1.defeqDFC hΓ (.succ .zero l1) h1.hasType.1),
-        .lamDF l1 (.trans l2 (r1.defeq hΓ (.defeqU_l henv hΓ ⟨_, l2⟩ l1.hasType.1))) b2⟩
-    | extra _ r2 => cases r2
-  | forallEDF l1 l2 l3 l4 ih1 ih2 =>
-    cases H2 with
-    | forallE r1 r2 =>
-      let ⟨_, a1, a2⟩ := ih1 hΓ r1
-      refine have hΓ' := (by exact ⟨hΓ, _, l1.hasType.1⟩)
-        have h2 := l3.defeqU_l henv hΓ' (l4.defeq hΓ'); ?_
-      have W := l1.transU_l henv hΓ (l2.defeq hΓ)
-      replace r2 := r2.defeqDFC hΓ (.succ .zero W.symm) <| .defeqDFC henv (.succ .zero W) h2
-      let ⟨_, b1, b2⟩ := ih2 hΓ' r2
-      have := r1.defeq hΓ (.defeqU_l henv hΓ ⟨_, W⟩ l1.hasType.1)
-      exact ⟨_, .forallE a1 (b1.defeqDFC hΓ (.succ .zero l1) l3),
-        .forallEDF (.transU_l henv hΓ (W.trans this) (a2.defeq hΓ).symm) a2 (b1.hasType hΓ' l3) b2⟩
-    | extra _ r2 => cases r2
-  | etaL l1 l2 ih1 =>
-    have ⟨⟨_, hA⟩, _, hB⟩ := have ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
-    refine have hΓ' := by exact ⟨hΓ, _, hA⟩
-      let ⟨_, a1, a2⟩ := ih1 hΓ' (.app (.weakN .one H2) .bvar); ?_
-    exact ⟨_, .lam .rfl a1, .etaL (H2.hasType hΓ l1) a2⟩
-  | @etaR Γ e A _ _ l1 l2 ih1 =>
-    cases H2 with
-    | lam r1 r2 =>
-      have ⟨⟨_, hA⟩, _, hB⟩ := have ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
-      refine have hΓ' := (by exact ⟨hΓ, _, hA⟩); let ⟨t, a1, a2⟩ := ih1 hΓ' r2; ?_
-      suffices
-          (∃ A', Γ ⊢ e ≫* A'.lam t ∧ Γ ⊢ A' ≡ A) ∨
-          (∃ e', Γ ⊢ e ≫* e' ∧ t = .app (.lift e') (.bvar 0)) by
-        obtain ⟨_, h1, h2⟩ | ⟨_, h, rfl⟩ := this
-        · exact ⟨_, h1, .lamDF (h2.of_r henv hΓ hA).symm (r1.defeq hΓ hA) a2⟩
-        · have := a2.etaR (h.hasType hΓ l1)
-          have ⟨_, a3⟩ := a2.defeq hΓ'
-          exact ⟨_, h, this.trans hs hΓ (.lamDF hA (r1.defeq hΓ hA) (.refl a3.hasType.2))⟩
-      generalize eq : e.lift.app (.bvar 0) = e' at a1
-      clear l2 ih1 a2
-      induction a1 generalizing e with subst eq
-      | rfl => exact .inr ⟨_, .rfl, rfl⟩ | tail _ a1 ih
-      obtain ⟨_, h1, h2⟩ | ⟨e', h, rfl⟩ := ih l1 rfl
-      · have h2' := h2.of_r henv hΓ hA
-        have ⟨⟨_, d1⟩, _, d2⟩ := (h1.hasType hΓ l1).lam_inv henv hΓ
-        exact .inl ⟨_, h1.tail <| .lam .rfl (a1.defeqDFC hΓ (.succ .zero h2'.symm)
-          (.defeqDFC henv (.succ .zero h2') d2)), h2⟩
-      generalize eq : e'.lift = e1 at a1
-      rcases a1.app_bvar_cases with ⟨_, b1, rfl⟩ | ⟨_, _, _, he, b1, rfl⟩
-      ·
-        cases eq; obtain ⟨_, b1', rfl⟩ := b1.weakN_inv hs hΓ' .one ((h.hasType hΓ l1).weak henv)
-        exact .inr ⟨_, .tail h b1', rfl⟩
-      · rw [he] at eq
-        cases e' <;> cases eq
-        have ⟨⟨_, c1⟩, _, c2⟩ := (h.hasType hΓ l1).lam_inv henv hΓ
-        obtain ⟨_, b1', rfl⟩ := b1.weakN_inv hs
-          (by exact ⟨hΓ', _, c1.weak henv⟩) (.succ .one) (c2.weakN henv (.succ .one))
-        rw [instN_bvar0]
-        have l1' := h.hasType hΓ l1
-        have ⟨⟨_, d1⟩, _, d2⟩ := l1'.lam_inv henv hΓ
-        have ⟨⟨_, u1⟩, _, u2⟩ := ((d1.lam d2).uniqU henv hΓ l1').forallE_inv henv hΓ
-        exact .inl ⟨_, .tail h <| .lam .rfl b1', _, u1⟩
-    | extra _ r2 => cases r2
-  | proofIrrel l1 l2 l3 => exact ⟨_, .rfl, .proofIrrel l1 l2 (H2.hasType hΓ l3)⟩
-
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
-theorem NormalEq.parRedS (H1 : Γ ⊢ e₁ ≡ₚ e₂) (H2 : Γ ⊢ e₂ ≫* e₂') :
-    ∃ e₁', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
-  induction H2 with
-  | rfl => exact ⟨_, .rfl, H1⟩
-  | tail h1 h2 ih =>
-    let ⟨_, a1, a2⟩ := ih
-    let ⟨_, b1, b2⟩ := a2.parRed hs hΓ h2
-    exact ⟨_, .trans a1 b1, b2⟩
-
-local notation:65 Γ " ⊢ " e1 " ≫≪ " e2:36 => CRDefEq Γ e1 e2
-
-def CRDefEq (Γ : List VExpr) (e₁ e₂ : VExpr) : Prop :=
-  (∃ A, Γ ⊢ e₁ : A) ∧ (∃ A, Γ ⊢ e₂ : A) ∧
-  ∃ e₁' e₂', Γ ⊢ e₁ ≫* e₁' ∧ Γ ⊢ e₂ ≫* e₂' ∧ Γ ⊢ e₁' ≡ₚ e₂'
-
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
-theorem ParRedS.church_rosser  (H : Γ ⊢ e : A)
-    (H1 : Γ ⊢ e ≫* e₁) (H2 : Γ ⊢ e ≫* e₂) : Γ ⊢ e₁ ≫≪ e₂ := by
-  refine ⟨⟨_, H1.hasType hΓ H⟩, ⟨_, H2.hasType hΓ H⟩, ?_⟩
-  induction H2 with
-  | rfl => exact ⟨_, _, .rfl, H1, .refl (H1.hasType hΓ H)⟩
-  | @tail b c h1 H2 ih =>
-    replace H := ParRedS.hasType hΓ h1 H
-    have ⟨_, A2, a1, a2, a3⟩ := ih
-    have ⟨_, _, b1, b2, b3⟩ :
-        ∃ e₁' e₂', Γ ⊢ A2 ≫ e₁' ∧ Γ ⊢ c ≫* e₂' ∧ Γ ⊢ e₁' ≡ₚ e₂' := by
-      clear a3; induction a2 with
-      | rfl => exact ⟨_, _, H2, .rfl, .refl (H2.hasType hΓ H)⟩
-      | tail h1 h2 ih =>
-        have ⟨_, _, a1, a2, a3⟩ := ih
-        have ⟨_, _, b1, b2, b3⟩ := a1.church_rosser hs hΓ (ParRedS.hasType hΓ h1 H) h2
-        have ⟨_, c1, c2⟩ := (a3.symm hΓ).parRed hs hΓ b1
-        exact ⟨_, _, b2, .trans a2 c1, (c2.trans hs hΓ b3).symm hΓ⟩
-    have ⟨_, c1, c2⟩ := a3.parRed hs hΓ b1
-    exact ⟨_, _, .trans a1 c1, b2, c2.trans hs hΓ b3⟩
-
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem CRDefEq.normalEq (H : Γ ⊢ e₁ ≡ₚ e₂) : Γ ⊢ e₁ ≫≪ e₂ :=
-  let ⟨_, h⟩ := H.defeq hΓ; ⟨⟨_, h.hasType.1⟩, ⟨_, h.hasType.2⟩, _, _, .rfl, .rfl, H⟩
-
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem CRDefEq.refl (H : Γ ⊢ e : A) : Γ ⊢ e ≫≪ e := .normalEq hΓ (.refl H)
-
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem CRDefEq.defeq : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₁ ≡ e₂
-  | ⟨⟨_, h1⟩, ⟨_, h2⟩, _, _, h3, h4, h5⟩ =>
-    ⟨_, .trans_l henv hΓ (h3.defeq hΓ h1) <| .transU_r henv hΓ (h5.defeq hΓ) (h4.defeq hΓ h2).symm⟩
-
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem CRDefEq.symm : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₁
-  | ⟨h1, h2, _, _, h3, h4, h5⟩ => ⟨h2, h1, _, _, h4, h3, h5.symm hΓ⟩
-
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
-theorem CRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ → Γ ⊢ e₁ ≫≪ e₃
-  | ⟨l1, ⟨_, l2⟩, _, _, l3, l4, l5⟩, ⟨_, r2, _, _, r3, r4, r5⟩ => by
-    let ⟨_, _, _, _, m1, m2, m3⟩ := l4.church_rosser hs hΓ l2 r3
-    let ⟨_, a1, a2⟩ := l5.parRedS hs hΓ m1
-    let ⟨_, b1, b2⟩ := (r5.symm hΓ).parRedS hs hΓ m2
-    exact ⟨l1, r2, _, _, .trans l3 a1, .trans r4 b1, a2.trans hs hΓ <| m3.trans hs hΓ (b2.symm hΓ)⟩

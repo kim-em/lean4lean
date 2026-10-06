@@ -954,6 +954,29 @@ inside this project's scope without solving open base metatheory:
    steps do not reduce subterms; needs a fully parallel full-step relation
    with its own substitution lemma and the critical-pair analysis (native
    iota against native prefix unfolding at the same head). Next task.
+   **Church-Rosser step 2 (d0470e04, pushed): `HeadSeparation` is gone;
+   every field is a theorem** (`rigid_not_pi`/`rigid_ne` from Phase 0;
+   `MatchedCaseStep.major_not_pi` via a new declaration-history invariant
+   `VEnv.CtorResultRigid` and `WF.case_family_head_rigid`;
+   `Params.major_not_pi` and `Params.major_proof` via
+   `NativeRecursorRegistered.family_head_rigid`/`result_sort`/
+   `major_not_proof` (new `Theory/Typing/NativeMajorFamily.lean`);
+   `Params.pat_recursor` now records that an iota pattern's owner has a
+   constructor). The native-iota-vs-prefix-unfolding critical pair does not
+   exist (incompatible universe guards). `strip` obstacle: `FullStep.funEta`
+   at head position breaks the one-step local property (counterexample
+   `app (Nat.rec z s) Nat.zero`; the peak closes in two steps, so `strip` is
+   not refuted). Decision (2026-10-06): restrict `funEta` to non-head
+   positions (internal proof device; fall back to decreasing diagrams if the
+   completeness direction needs head eta). After step 2, `addDecl.WF` depends
+   only on `weakN_iff` (hypothesis on E3) and `headInversion`.
+   **Milestone (main at 27510ecd):** full build, tests (150 jobs), fresh
+   `Init.Core` replay (3953) and audit self-test pass after the Phase 0 and
+   spike merges; five sorry warnings (`headInversion`, `weakN_iff`,
+   `headParallel`, `fullStep`, `strip`), the last three closed on the cr
+   branch pending merge. **Merged (0525770b):** main's open proofs are now
+   exactly `headInversion`, `weakN_iff` (hypothesis on E3), `strip`
+   (in progress on the cr branch).
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in

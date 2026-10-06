@@ -246,34 +246,33 @@ private theorem ContainerSpecialization.directFamily_resultLevel
   cases Option.some.inj he
   rfl
 
-namespace CaseSchema
-
 /-- A restored case family's native head has a telescope ending in the
 specialized source sort. Both original families and certified containers are
 justified by their actual native header constants. -/
-theorem Certified.family_head_type {schema : CaseSchema}
-    (H : schema.Certified base source sourceBlock)
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.family_head_type
+    {s : InductiveSignature} {g : Instance s}
+    (hdata : CompilationData base source expanded s g auxiliaries sourceBlock)
+    (hprior : CertifiedSpecializations base auxiliaries)
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) (hle : base ≤ env)
     (hconstants : ∀ family ∈ source.types,
       env.constants family.name = some family.toVConstant)
-    (owner : Fin schema.signature.families.size)
+    (owner : Fin s.families.size)
     (hlevels : ∀ level ∈ levels, level.WF U)
-    (hlen : levels.length = schema.signature.uvars) :
+    (hlen : levels.length = s.uvars) :
     ∃ domains level,
       env.HasType U Γ
-        (.const (schema.restoration.headName schema.signature.families[owner].name)
-          (schema.restoration.headLevels schema.signature.families[owner].name levels))
-        (VExpr.wrapForalls domains (.sort level)) ∧ level ≈ schema.sourceLevel owner levels := by
-  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hr, _⟩ := H
+        (.const ((compilationRestoration source auxiliaries).headName s.families[owner].name)
+          ((compilationRestoration source auxiliaries).headLevels s.families[owner].name levels))
+        (VExpr.wrapForalls domains (.sort level)) ∧ level ≈ s.families[owner].resultLevel.inst levels := by
   obtain ⟨envTypes, direct, htypes, hdirect, hargs, hfamilies⟩ := hdata.correspondence
   have htypesLE := VEnv.addConstVals_le_target hle htypes (by
     intro value hvalue
     obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hvalue
     exact hconstants family hfamily)
   obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l
-    hfamilies _ (schema.signature.declarationFamily_mem owner)
-  have hname : schema.signature.families[owner].name = family.name := hrel.name
-  have hsourceUvars : schema.signature.uvars = source.uvars := hdata.model.uvars.trans hdata.uvars
+    hfamilies _ (s.declarationFamily_mem owner)
+  have hname : s.families[owner].name = family.name := hrel.name
+  have hsourceUvars : s.uvars = source.uvars := hdata.model.uvars.trans hdata.uvars
   rcases List.mem_append.mp hfamily with hfamily | hfamily
   · have hfamilyName : family.name ∈ familyNames source.types :=
       List.mem_flatMap.mpr ⟨family, hfamily, List.mem_cons_self⟩
@@ -288,9 +287,8 @@ theorem Certified.family_head_type {schema : CaseSchema}
       (hbody.mono htypesLE)
     have htyped := VEnv.constant_normalized_header henv hΓ (hconstants family hfamily)
       hheader hlevels (hlen.trans (hsourceUvars.trans huvars.symm))
-    rw [hr, hname, hdata.headName_source hfamilyName, hdata.headLevels_source hfamilyName]
+    rw [hname, hdata.headName_source hfamilyName, hdata.headLevels_source hfamilyName]
     refine ⟨_, _, htyped, ?_⟩
-    change level.inst levels ≈ schema.signature.families[owner].resultLevel.inst levels
     exact VLevel.inst_congr_l (by simpa only [declarationFamily] using hlevel)
   · obtain ⟨a, ha, hfamily⟩ := Lean4Lean.List.Forall₂.forall_exists_r
       (List.mapM_eq_some.mp hdirect) family hfamily
@@ -313,16 +311,37 @@ theorem Certified.family_head_type {schema : CaseSchema}
       simpa only [List.length_map, hfamilyUvars] using (hargs a ha).2.2.1
     have htyped := VEnv.constant_normalized_header henv hΓ (hle.constants hlookup)
       hheader hnativeWF hnativeLength
-    rw [hr, hname, hfamilyName, hhead, hheadLevels]
+    rw [hname, hfamilyName, hhead, hheadLevels]
     refine ⟨_, _, htyped, ?_⟩
-    change level.inst (a.levels.map (·.inst levels)) ≈
-      schema.signature.families[owner].resultLevel.inst levels
-    have hsourceLevel : schema.signature.families[owner].resultLevel ≈
+    have hsourceLevel : s.families[owner].resultLevel ≈
         a.source.resultLevel.inst a.levels := by
       simpa only [hfamilyLevel, declarationFamily] using hrel.resultLevel
     exact (VLevel.inst_congr_l hlevel).trans (by
       rw [← VLevel.inst_inst]
       exact (VLevel.inst_congr_l hsourceLevel).symm)
+
+
+namespace CaseSchema
+
+/-- A restored case family's native head has a telescope ending in the
+specialized source sort. Both original families and certified containers are
+justified by their actual native header constants. -/
+theorem Certified.family_head_type {schema : CaseSchema}
+    (H : schema.Certified base source sourceBlock)
+    (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) (hle : base ≤ env)
+    (hconstants : ∀ family ∈ source.types,
+      env.constants family.name = some family.toVConstant)
+    (owner : Fin schema.signature.families.size)
+    (hlevels : ∀ level ∈ levels, level.WF U)
+    (hlen : levels.length = schema.signature.uvars) :
+    ∃ domains level,
+      env.HasType U Γ
+        (.const (schema.restoration.headName schema.signature.families[owner].name)
+          (schema.restoration.headLevels schema.signature.families[owner].name levels))
+        (VExpr.wrapForalls domains (.sort level)) ∧ level ≈ schema.sourceLevel owner levels := by
+  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hr, _⟩ := H
+  rw [hr]
+  exact hdata.family_head_type hprior henv hΓ hle hconstants owner hlevels hlen
 
 end CaseSchema
 end Lean4Lean.InductiveSignature

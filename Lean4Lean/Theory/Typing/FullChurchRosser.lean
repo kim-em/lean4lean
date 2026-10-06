@@ -28,15 +28,15 @@ variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem FullCRDefEq.symm : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₁
   | ⟨h1, h2, _, _, h3, h4, h5⟩ => ⟨h2, h1, _, _, h4, h3, h5.symm hΓ⟩
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem FullCRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ → Γ ⊢ e₁ ≫≪ e₃
   | ⟨l1, ⟨_, l2⟩, _, _, l3, l4, l5⟩, ⟨_, r2, _, _, r3, r4, r5⟩ => by
-    obtain ⟨_, _, m1, m2, m3⟩ := l4.church_rosser hs hΓ l2 r3
-    obtain ⟨_, a1, a2⟩ := l5.fullReduction hs hΓ m1
-    obtain ⟨_, b1, b2⟩ := (r5.symm hΓ).fullReduction hs hΓ m2
-    exact ⟨l1, r2, _, _, l3.trans a1, r4.trans b1, a2.trans hs hΓ (m3.trans hs hΓ (b2.symm hΓ))⟩
+    obtain ⟨_, _, m1, m2, m3⟩ := l4.church_rosser hΓ l2 r3
+    obtain ⟨_, a1, a2⟩ := l5.fullReduction hΓ m1
+    obtain ⟨_, b1, b2⟩ := (r5.symm hΓ).fullReduction hΓ m2
+    exact ⟨l1, r2, _, _, l3.trans a1, r4.trans b1, a2.trans hΓ (m3.trans hΓ (b2.symm hΓ))⟩
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem IsDefEq.church_rosser [FullEquationCoverage]
     (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := by
   have mk {Γ e₁ e₂ A e₁' e₂'} (H : Γ ⊢ e₁ ≡ e₂ : A)
@@ -55,7 +55,7 @@ theorem IsDefEq.church_rosser [FullEquationCoverage]
     exact mk (.elimIota hl hg hm hc hp ht hr) (.tail .rfl (.core hred)) .rfl (.refl hr)
   | bvar h => exact .refl hΓ (.bvar h)
   | symm _ ih => exact (ih hΓ).symm hΓ
-  | trans _ _ ih1 ih2 => exact (ih1 hΓ).trans hs hΓ (ih2 hΓ)
+  | trans _ _ ih1 ih2 => exact (ih1 hΓ).trans hΓ (ih2 hΓ)
   | sortDF h1 h2 h3 => exact .normalEq hΓ (.sortDF h1 h2 h3)
   | constDF h1 h2 h3 h4 h5 => exact .normalEq hΓ (.constDF h1 h2 h3 h4 h5)
   | appDF h1 h2 ih1 ih2 =>
@@ -66,7 +66,7 @@ theorem IsDefEq.church_rosser [FullEquationCoverage]
         (b1.hasType hΓ h2.hasType.1) (b2.hasType hΓ h2.hasType.2) a3 b3
   | projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping
       hLeft hRight hclosed hguard ihField ihLeft ihRight =>
-    have majorCR := (ihLeft hΓ).symm hΓ |>.trans hs hΓ (ihRight hΓ)
+    have majorCR := (ihLeft hΓ).symm hΓ |>.trans hΓ (ihRight hΓ)
     obtain ⟨-, -, _, _, majorLeft, majorRight, majorNormal⟩ := majorCR
     have original := IsDefEq.projDF hinfo hlevels huvars hparams hindices hfield
       hfieldTyping hLeft hRight hclosed hguard
@@ -113,8 +113,8 @@ theorem IsDefEq.church_rosser [FullEquationCoverage]
     simp only [hf, List.range_zero, List.map_nil, List.append_nil] at stepLeft stepRight
     exact mk (.unitLike hl hp hi hf hs ht) (.tail .rfl stepLeft) (.tail .rfl stepRight) (.refl hc)
 
-variable! (hs : env.Strengthening) (hΓ : OnCtx Γ (IsType env univs)) in
+variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem IsDefEq.full_church_rosser [FullEquationCoverage]
-    (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := H.church_rosser hs hΓ
+    (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := H.church_rosser hΓ
 
 end Lean4Lean.VEnv
