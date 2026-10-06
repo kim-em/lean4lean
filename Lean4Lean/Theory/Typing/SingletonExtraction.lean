@@ -232,6 +232,106 @@ theorem HasType.closed_instOuter (henv : env.WF)
   exact IsDefEq.instOuter_telescope henv (doms := doms) (args := args)
     H' hargs.1 hargs.2
 
+theorem getD_of_lt {l : List α} {d : α} (h : i < l.length) : l.getD i d = l[i] := by
+  simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]
+
+theorem getD_append_left' {l₁ l₂ : List α} {d : α} (h : i < l₁.length) :
+    (l₁ ++ l₂).getD i d = l₁.getD i d := by
+  simp [List.getD_eq_getElem?_getD, List.getElem?_append_left h]
+
+theorem getD_append_right' {l₁ l₂ : List α} {d : α} (h : l₁.length ≤ i) :
+    (l₁ ++ l₂).getD i d = l₂.getD (i - l₁.length) d := by
+  simp [List.getD_eq_getElem?_getD, List.getElem?_append_right h]
+
+theorem _root_.Lean4Lean.VExpr.Subst.ofList_snoc_tail (args : List VExpr) (a : VExpr) :
+    (VExpr.Subst.ofList (args ++ [a])).tail = VExpr.Subst.ofList args := by
+  funext k
+  simp only [VExpr.Subst.tail, VExpr.Subst.ofList, List.length_append, List.length_singleton]
+  by_cases hk : k < args.length
+  · rw [dif_pos (by omega), dif_pos hk, List.getElem_append_left (by omega)]
+    congr 1; omega
+  · rw [dif_neg (by omega), dif_neg hk]; congr 1; omega
+
+theorem _root_.Lean4Lean.VExpr.Subst.ofList_snoc_head (args : List VExpr) (a : VExpr) :
+    (VExpr.Subst.ofList (args ++ [a])).head = a := by
+  simp [VExpr.Subst.head, VExpr.Subst.ofList]
+
+theorem snoc_induction {α} {P : List α → Prop} (nil : P [])
+    (snoc : ∀ l a, P l → P (l ++ [a])) : ∀ l, P l := by
+  intro l
+  rw [← List.reverse_reverse l]
+  induction l.reverse with
+  | nil => simpa using nil
+  | cons a t ih => simpa using snoc _ a ih
+
+/-- Pointwise definitionally equal arguments along a closed telescope form a
+substitution between its context and the target context. -/
+theorem substEq_ofTel :
+    ∀ {doms args args' : List VExpr}, OnCtx doms.reverse (env.IsType U) →
+      args.length = doms.length → args'.length = doms.length →
+      (∀ j (hj : j < args.length) (hj' : j < args'.length) (hd : j < doms.length),
+        env.IsDefEq U Γ args[j] args'[j] (doms[j].instOuter (args.take j))) →
+      Ctx.SubstEq env U Γ (VExpr.Subst.ofList args) (VExpr.Subst.ofList args') doms.reverse := by
+  intro doms
+  induction doms using snoc_induction with
+  | nil => intro _ _ _ _ _ _; exact .nil
+  | snoc ds d ih =>
+    intro args args' hctx hl hl' hpt
+    obtain ⟨as, a, rfl⟩ : ∃ as a, args = as ++ [a] := by
+      rcases List.eq_nil_or_concat args with h | ⟨as, a, h⟩
+      · subst h; simp at hl
+      · exact ⟨as, a, by simpa using h⟩
+    obtain ⟨bs, b, rfl⟩ : ∃ bs b, args' = bs ++ [b] := by
+      rcases List.eq_nil_or_concat args' with h | ⟨bs, b, h⟩
+      · subst h; simp at hl'
+      · exact ⟨bs, b, by simpa using h⟩
+    simp only [List.length_append, List.length_singleton, Nat.add_right_cancel_iff] at hl hl'
+    simp only [List.reverse_append, List.reverse_cons, List.reverse_nil, List.nil_append,
+      List.singleton_append] at hctx ⊢
+    obtain ⟨hctx', _, hd⟩ := hctx
+    refine .cons ?_ hd ?_
+    · rw [VExpr.Subst.ofList_snoc_tail, VExpr.Subst.ofList_snoc_tail]
+      exact ih hctx' hl hl' fun j hj hj' hd' => by
+        have := hpt j (by simp; omega) (by simp; omega) (by simp; omega)
+        rwa [List.getElem_append_left hj, List.getElem_append_left hj',
+          List.getElem_append_left hd', List.take_append_of_le_length (Nat.le_of_lt hj)] at this
+    · rw [VExpr.Subst.ofList_snoc_head, VExpr.Subst.ofList_snoc_head,
+        VExpr.Subst.ofList_snoc_tail, ← VExpr.instOuter_eq_subst]
+      have := hpt as.length (by simp) (by simp; omega) (by simp; omega)
+      rw [List.getElem_append_right (Nat.le_refl _), List.getElem_append_right (by omega),
+        List.getElem_append_right (by omega), List.take_left'] at this
+      · simpa [hl, hl'] using this
+      all_goals simp [hl, hl']
+
+/-- Congruence of instantiation at pointwise definitionally equal arguments. -/
+theorem IsDefEq.closed_instOuter_congr (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    {doms : List VExpr} (hΔ : OnCtx doms.reverse (env.IsType U))
+    (H : env.IsDefEq U doms.reverse X X' T)
+    (hl : args.length = doms.length) (hl' : args'.length = doms.length)
+    (hpt : ∀ j (hj : j < args.length) (hj' : j < args'.length) (hd : j < doms.length),
+      env.IsDefEq U Γ args[j] args'[j] (doms[j].instOuter (args.take j))) :
+    env.IsDefEq U Γ (X.instOuter args) (X'.instOuter args') (T.instOuter args) := by
+  have W := substEq_ofTel hΔ hl hl' hpt
+  have := IsDefEq.substDF henv.ordered hΔ hΓ W H
+  simpa only [VExpr.instOuter_eq_subst] using this
+
+theorem IsDefEq.closed_instOuter_congr' (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+    {doms : List VExpr} (hΔ : OnCtx doms.reverse (env.IsType U))
+    (H : env.IsDefEq U doms.reverse X X' T)
+    (hl : args.length = doms.length) (hl' : args'.length = doms.length)
+    (hpt : ∀ j, j < doms.length →
+      env.IsDefEq U Γ (args.getD j default) (args'.getD j default)
+        ((doms.getD j default).instOuter (args.take j))) :
+    env.IsDefEq U Γ (X.instOuter args) (X'.instOuter args') (T.instOuter args) :=
+  IsDefEq.closed_instOuter_congr henv hΓ hΔ H hl hl' fun j hj hj' hd => by
+    have := hpt j hd
+    rwa [getD_of_lt hj, getD_of_lt hj', getD_of_lt hd] at this
+
+theorem TelInst.getD (H : TelInst env U Γ doms args) (hj : j < doms.length) :
+    env.HasType U Γ (args.getD j default) ((doms.getD j default).instOuter (args.take j)) := by
+  rw [getD_of_lt (H.1 ▸ hj), getD_of_lt hj]
+  exact H.2 j (H.1 ▸ hj) hj
+
 theorem TelInst.nil : TelInst env U Γ [] [] := ⟨rfl, fun _ h => by simp at h⟩
 
 theorem TelInst.append_one (H : TelInst env U Γ doms args)
@@ -269,6 +369,15 @@ theorem TelInst.weak (henv : env.Ordered) (D : List VExpr)
   rw [VExpr.liftN_instOuter _ _ (by simpa [Nat.min_eq_left (Nat.le_of_lt hj)] using hcl j hj')] at h
   simpa [List.map_take] using h
 
+/-- The variables of a closed telescope's own context instantiate it. -/
+theorem TelInst.ident (Γ : List VExpr) (hcl : ∀ j (h : j < doms.length), (doms[j]).ClosedN j) :
+    TelInst env U (doms.reverse ++ Γ) doms (bvarRange doms.length doms.length) := by
+  refine ⟨by simp, fun j hj hj' => ?_⟩
+  simp only [bvarRange_length] at hj
+  rw [bvarRange_getElem _ _ _ hj, bvarRange_take _ _ _ (Nat.le_of_lt hj),
+    VExpr.instOuter_range_bvar' _ _ _ (hcl j hj') (Nat.le_of_lt hj)]
+  exact .bvar (Lookup.reverse_append doms Γ j hj')
+
 end VEnv
 
 namespace CastSpec
@@ -304,9 +413,6 @@ theorem Typed.prefix_closed {S : CastSpec} (T : S.Typed env U params)
   · rw [List.getElem_append_right (Nat.le_of_not_gt hj)]
     have := hrest (j - params.length) (by simp at h; omega)
     rwa [Nat.add_sub_cancel' (Nat.le_of_not_gt hj)] at this
-
-theorem getD_of_lt {l : List α} {d : α} (h : i < l.length) : l.getD i d = l[i] := by
-  simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]
 
 /-- The cast telescope is well formed and its substitution is a typed instance of the
 field telescope, at any providers typed as parameter and index instances. -/
@@ -449,6 +555,264 @@ theorem tel_typed (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec}
       rw [show ((ia[k]'(hialen ▸ hk)).liftN i).lift = (ia[k]'(hialen ▸ hk)).liftN (i + 1) from
         liftN_liftN ..] at hx
       exact HasType.typeCast henv.ordered heq hu (by simpa [VEnv.HasType, VExpr.liftN] using hX') hY' he hx
+
+theorem getD_lift_append {σ : List VExpr} {val : VExpr} (h : l < σ.length) :
+    (σ.map (fun x : VExpr => x.lift) ++ [val]).getD l default = (σ.getD l default).lift := by
+  rw [List.getD_eq_getElem?_getD, List.getElem?_append_left (by simpa using h)]
+  simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]
+
+theorem getD_lift_append_last {σ : List VExpr} {val : VExpr} :
+    (σ.map (fun x : VExpr => x.lift) ++ [val]).getD σ.length default = val := by
+  simp [List.getD_eq_getElem?_getD]
+
+theorem take_lift_append {σ : List VExpr} {val : VExpr} (h : l ≤ σ.length) :
+    (σ.map (fun x : VExpr => x.lift) ++ [val]).take l = (σ.take l).map (fun x : VExpr => x.lift) := by
+  rw [List.take_append_of_le_length (by simpa using h), List.map_take]
+
+theorem bvarRange_split (P r : Nat) :
+    bvarRange (P + r) (P + r) = bvarRange P (P + r) ++ bvarRange r r := by
+  apply List.ext_getElem
+  · simp
+  · intro j h1 h2
+    simp only [bvarRange_length] at h1
+    by_cases hj : j < P
+    · rw [List.getElem_append_left (by simpa using hj), bvarRange_getElem _ _ _ h1,
+        bvarRange_getElem _ _ _ hj]
+    · rw [List.getElem_append_right (by simpa using Nat.le_of_not_gt hj), bvarRange_getElem _ _ _ h1]
+      simp only [bvarRange_length]
+      rw [bvarRange_getElem _ _ _ (by omega)]
+      congr 1; omega
+
+/-- In the constructor branch, where the providers are the parameter variables and the
+constructor's own indices, every cast computes: the cast substitution is the field
+variables (`K`). -/
+theorem tel_branch (henv : env.WF) (heq : env.HasCanonicalEq) {S : CastSpec}
+    (T : S.Typed env U params)
+    (hci : TelInst env U (params ++ S.fields).reverse (params ++ S.indices)
+      (bvarRange params.length (params.length + S.fields.length) ++ ci))
+    (hcil : ci.length = S.indices.length)
+    (hlit : ∀ l k, S.slot.getD l none = some k →
+      ci.getD k default = .bvar (S.fields.length - 1 - l)) :
+    ∀ i, i ≤ S.fields.length → ∀ l, l < i →
+      env.IsDefEq U
+        ((S.tel (bvarRange params.length (params.length + S.fields.length)) ci i).1.reverse ++
+          (params ++ S.fields).reverse)
+        ((S.tel (bvarRange params.length (params.length + S.fields.length)) ci i).2.getD l default)
+        (((bvarRange S.fields.length S.fields.length).getD l default).liftN i)
+        ((S.fields.getD l default).instOuter
+          ((bvarRange params.length (params.length + S.fields.length)).map
+              (fun x : VExpr => x.liftN i) ++
+            (S.tel (bvarRange params.length (params.length + S.fields.length)) ci i).2.take l)) := by
+  generalize hP : params.length = P at *
+  have hΔ : OnCtx (params ++ S.fields).reverse (env.IsType U) := by
+    simpa using T.fieldsCtx S.fields.length (Nat.le_refl _)
+  have hfcl : ∀ j (h : j < (params ++ S.fields).length), ((params ++ S.fields)[j]).ClosedN j :=
+    T.prefix_closed (fun l h => T.scope.fields l h)
+  have hid := TelInst.ident (env := env) (U := U) [] hfcl
+  simp only [List.append_nil, List.length_append, hP, bvarRange_split] at hid
+  have hpa : TelInst env U (params ++ S.fields).reverse params (bvarRange P (P + S.fields.length)) := by
+    have := hid.take (doms := params) (more := S.fields)
+    simpa [hP] using this
+  have htyped := tel_typed henv heq T hΔ hpa (by simpa using hci) hcil
+  intro i
+  induction i with
+  | zero => intro _ l hl; omega
+  | succ i ih =>
+    intro hi l hl
+    have hi' : i < S.fields.length := by omega
+    obtain ⟨hctx, hinst⟩ := htyped i (by omega)
+    have IH := ih (by omega)
+    obtain ⟨hdl, hσl⟩ := S.tel_length (bvarRange P (P + S.fields.length)) ci i
+    generalize hdoms : (S.tel (bvarRange P (P + S.fields.length)) ci i).1 = doms at hctx hinst hdl IH
+    generalize hσ : (S.tel (bvarRange P (P + S.fields.length)) ci i).2 = σ at hinst hσl IH
+    have htel : S.tel (bvarRange P (P + S.fields.length)) ci (i + 1) =
+        (doms ++ [(S.step (bvarRange P (P + S.fields.length)) ci i σ).1],
+          σ.map (·.lift) ++ [(S.step (bvarRange P (P + S.fields.length)) ci i σ).2]) := by
+      simp [tel, hdoms, hσ]
+    simp only [htel]
+    have hctxEq : (doms ++ [(S.step (bvarRange P (P + S.fields.length)) ci i σ).1]).reverse ++
+        (params ++ S.fields).reverse =
+        (S.step (bvarRange P (P + S.fields.length)) ci i σ).1 :: (doms.reverse ++ (params ++ S.fields).reverse) := by
+      simp
+    rw [hctxEq]
+    have hplift : (bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN (i + 1)) =
+        ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i)).map (·.lift) := by
+      simp [List.map_map, Function.comp_def, liftN_liftN]
+    rcases Nat.lt_or_ge l i with hli | hli
+    · -- an old entry, weakened beneath the new binder
+      have h := (IH l hli).weak henv.ordered
+        (B := (S.step (bvarRange P (P + S.fields.length)) ci i σ).1)
+      rw [getD_lift_append (by omega), take_lift_append (by omega), hplift, ← List.map_append,
+        ← VExpr.liftN_instOuter]
+      · simpa [VExpr.lift, liftN_liftN] using h
+      · have := T.scope.fields_getD l
+        rw [hP] at this
+        simpa [hσl, Nat.min_eq_left (Nat.le_of_lt hli)] using this
+    · have hil : i = l := by omega
+      subst hil
+      have hr1 : i < (bvarRange S.fields.length S.fields.length).length := by simp; omega
+      rw [← hσl, getD_lift_append_last, take_lift_append (Nat.le_refl _), List.take_length, hσl, hplift,
+        ← List.map_append, ← VExpr.liftN_instOuter _ _ (by
+          have := T.scope.fields_getD (List.length σ); rw [hP] at this; simpa [hσl] using this)]
+      have hfv : (bvarRange S.fields.length S.fields.length).getD i default =
+          .bvar (S.fields.length - 1 - i) := by
+        rw [getD_of_lt hr1, bvarRange_getElem _ _ _ (by omega)]
+      rw [hfv]
+      -- the declared type of field `i` at the cast substitution
+      have hY : env.HasType U (doms.reverse ++ (params ++ S.fields).reverse)
+          ((S.fields.getD i default).instOuter
+            ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ))
+          (.sort (S.fieldSort i)) := by
+        rw [getD_of_lt hi']
+        simpa using HasType.closed_instOuter henv (T.fieldsCtx i (Nat.le_of_lt hi'))
+          (T.fieldSort i hi') hinst
+      -- the field variable, typed at its declared type in the base context
+      have hfvar : env.HasType U (params ++ S.fields).reverse (.bvar (S.fields.length - 1 - i))
+          (S.fields[i].instOuter (bvarRange P (P + S.fields.length) ++
+            (bvarRange S.fields.length S.fields.length).take i)) := by
+        have := hid.getD (j := P + i) (by simp [hP]; omega)
+        rw [getD_append_right' (by simp only [List.length_append, bvarRange_length, hP]; omega),
+          getD_append_right' (by simp only [List.length_append, bvarRange_length, hP]; omega),
+          List.take_append,
+          List.take_of_length_le (by simp only [List.length_append, bvarRange_length, hP]; omega)] at this
+        simp only [hP, bvarRange_length, Nat.add_sub_cancel_left] at this
+        rw [getD_of_lt hr1, getD_of_lt hi', bvarRange_getElem _ _ _ (by omega)] at this
+        exact this
+      -- the cast substitution agrees with the field variables so far
+      have hcongr : env.IsDefEq U (doms.reverse ++ (params ++ S.fields).reverse)
+          ((S.fields.getD i default).instOuter
+            ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ))
+          (S.fields[i].instOuter
+            ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+              ((bvarRange S.fields.length S.fields.length).take i).map (fun x : VExpr => x.liftN i)))
+          (.sort (S.fieldSort i)) := by
+        rw [getD_of_lt hi']
+        have hl : ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ).length =
+            (params ++ S.fields.take i).length := by simp [hσl, hP]; try omega
+        have hl' : ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+            ((bvarRange S.fields.length S.fields.length).take i).map (fun x : VExpr => x.liftN i)).length =
+            (params ++ S.fields.take i).length := by simp [hP]; try omega
+        have := IsDefEq.closed_instOuter_congr' henv hctx (T.fieldsCtx i (Nat.le_of_lt hi'))
+          (T.fieldSort i hi') hl hl' (fun j hd => by
+            have hlenP : ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i)).length = P := by
+              simp
+            by_cases hjP : j < P
+            · rw [getD_append_left' (by rw [hlenP]; omega), getD_append_left' (by rw [hlenP]; omega)]
+              have := hinst.getD hd
+              rwa [getD_append_left' (by rw [hlenP]; omega)] at this
+            · have hm : j - P < i := by simp [hP] at hd; omega
+              rw [getD_append_right' (by rw [hlenP]; omega), getD_append_right' (by rw [hlenP]; omega), hlenP]
+              have e1 : (params ++ S.fields.take i).getD j default = S.fields.getD (j - P) default := by
+                rw [getD_append_right' (by omega), hP, getD_of_lt (by simp; omega),
+                  getD_of_lt (by omega), List.getElem_take]
+              have e2 : (((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i)) ++ σ).take j =
+                  (bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ.take (j - P) := by
+                rw [List.take_append, List.take_of_length_le (by rw [hlenP]; omega), hlenP]
+              have e3 : (((bvarRange S.fields.length S.fields.length).take i).map
+                  (fun x : VExpr => x.liftN i)).getD (j - P) default =
+                  ((bvarRange S.fields.length S.fields.length).getD (j - P) default).liftN i := by
+                rw [getD_of_lt (by simp; omega), getD_of_lt (by simp; omega), List.getElem_map,
+                  List.getElem_take]
+              rw [e1, e2, e3]
+              exact IH (j - P) hm)
+        simpa using this
+      have hFeq : S.fields[i].instOuter
+            ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+              ((bvarRange S.fields.length S.fields.length).take i).map (fun x : VExpr => x.liftN i)) =
+          (S.fields[i].instOuter (bvarRange P (P + S.fields.length) ++
+            (bvarRange S.fields.length S.fields.length).take i)).liftN i := by
+        rw [VExpr.liftN_instOuter _ _ (by
+          have := T.scope.fields i hi'; rw [hP] at this; simpa [Nat.min_eq_left (by omega : i ≤ S.fields.length)] using this),
+          List.map_append]
+      have hfvar' := hfvar.weakN henv.ordered (Ctx.LiftN.zero doms.reverse)
+      simp only [List.length_reverse, hdl] at hfvar'
+      rw [← hFeq] at hfvar'
+      have hfvY := hcongr.symm.defeq hfvar'
+      have hY1 := hY.weak henv.ordered (B := (S.step (bvarRange P (P + S.fields.length)) ci i σ).1)
+      have hfv1 := hfvY.weak henv.ordered (B := (S.step (bvarRange P (P + S.fields.length)) ci i σ).1)
+      rw [show ((VExpr.bvar (S.fields.length - 1 - i)).liftN i).lift =
+          (VExpr.bvar (S.fields.length - 1 - i)).liftN (i + 1) from liftN_liftN ..] at hfv1
+      cases hs : S.slot.getD i none with
+      | none =>
+        have hsort : S.fieldSort i = .zero := by unfold fieldSort; rw [hs]
+        have hstep : S.step (bvarRange P (P + S.fields.length)) ci i σ =
+            ((S.fields.getD i default).instOuter
+              ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ), .bvar 0) := by
+          unfold step; rw [hs]
+        rw [hsort] at hY1
+        rw [hstep] at hY1 hfv1 ⊢
+        exact .proofIrrel (by simpa [VExpr.liftN] using hY1) (.bvar .zero) hfv1
+      | some k =>
+        have hk := T.scope.slot_lt i k hs
+        have hsort : S.fieldSort i = S.sorts.getD i .zero := by unfold fieldSort; rw [hs]
+        rw [hsort] at hY hY1 hcongr
+        have hu := T.sortWF i
+        have hlitk := hlit i k hs
+        -- the index slot type, at the base and at depth `i`
+        have hcik : env.HasType U (params ++ S.fields).reverse (ci.getD k default)
+            (S.indices[k].instOuter (bvarRange P (P + S.fields.length) ++ ci.take k)) := by
+          have := hci.getD (j := P + k) (by simp [hP]; omega)
+          rw [getD_append_right' (by simp [hP]), getD_append_right' (by simp [hP]),
+            List.take_append, List.take_of_length_le (by simp)] at this
+          simp only [hP, bvarRange_length, Nat.add_sub_cancel_left, Nat.sub_self, List.take_zero,
+            List.append_nil] at this
+          rwa [getD_of_lt hk] at this
+        have hX0 : env.HasType U (params ++ S.fields).reverse
+            (S.indices[k].instOuter (bvarRange P (P + S.fields.length) ++ ci.take k))
+            (.sort (S.sorts.getD i .zero)) := by
+          have hsplit : params ++ S.indices = (params ++ S.indices.take k) ++ S.indices.drop k := by
+            simp [List.append_assoc]
+          have hc := hci
+          rw [hsplit] at hc
+          have := HasType.closed_instOuter henv (T.indicesCtx k (Nat.le_of_lt hk))
+            (T.slotSort i k hs hk) hc.take
+          simpa [List.take_append, hP, List.take_of_length_le, hcil, Nat.min_eq_left (Nat.le_of_lt hk)]
+            using this
+        have hXlift : (S.indices[k].instOuter (bvarRange P (P + S.fields.length) ++ ci.take k)).liftN i =
+            (S.indices.getD k default).instOuter
+              ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+                (ci.take k).map (fun x : VExpr => x.liftN i)) := by
+          rw [getD_of_lt hk, VExpr.liftN_instOuter _ _ (by
+            have := T.scope.indices k hk; rw [hP] at this
+            simpa [hcil, Nat.min_eq_left (Nat.le_of_lt hk)] using this), List.map_append]
+        have hX := hX0.weakN henv.ordered (Ctx.LiftN.zero doms.reverse)
+        have hxX := hcik.weakN henv.ordered (Ctx.LiftN.zero doms.reverse)
+        simp only [List.length_reverse, hdl, hXlift] at hX hxX
+        rw [hlitk] at hxX
+        generalize hXdef : (S.indices.getD k default).instOuter
+            ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++
+              (ci.take k).map (fun x : VExpr => x.liftN i)) = X at hX hxX
+        generalize hYdef : (S.fields.getD i default).instOuter
+            ((bvarRange P (P + S.fields.length)).map (fun x : VExpr => x.liftN i) ++ σ) = Y
+          at hY hY1 hcongr hfvY hfv1 ⊢
+        -- `X ≡ Y`: both type the same field variable
+        obtain ⟨_, hXY'⟩ := IsDefEq.uniq henv hctx hxX hfvY
+        have hXY : env.IsDefEq U (doms.reverse ++ (params ++ S.fields).reverse) X Y
+            (.sort (S.sorts.getD i .zero)) := hX.trans_l henv hctx hXY'
+        have hstep : S.step (bvarRange P (P + S.fields.length)) ci i σ =
+            (VExpr.eqApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X Y,
+              VExpr.typeCast (S.sorts.getD i .zero) X.lift Y.lift (.bvar 0)
+                ((ci.getD k default).liftN (i + 1))) := by
+          unfold step; rw [hs]; simp only [hXdef, hYdef]
+        rw [hstep, hlitk] at hY1 hfv1 ⊢
+        have hsu : (VLevel.succ (S.sorts.getD i .zero)).WF U := hu
+        have hdom := HasType.eqApp heq hsu (.sort hu) hX hY
+        have hΓ' : OnCtx (VExpr.eqApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X Y ::
+            (doms.reverse ++ (params ++ S.fields).reverse)) (env.IsType U) := ⟨hctx, _, hdom⟩
+        have he : env.HasType U (VExpr.eqApp (.succ (S.sorts.getD i .zero))
+            (.sort (S.sorts.getD i .zero)) X Y :: (doms.reverse ++ (params ++ S.fields).reverse)) (.bvar 0)
+            (VExpr.eqApp (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X.lift Y.lift) := by
+          have := IsDefEq.bvar (env := env) (uvars := U) (Lookup.zero (ty := VExpr.eqApp
+            (.succ (S.sorts.getD i .zero)) (.sort (S.sorts.getD i .zero)) X Y)
+            (Γ := doms.reverse ++ (params ++ S.fields).reverse))
+          simpa [VEnv.HasType, VExpr.eqApp, VExpr.liftN] using this
+        have hXY1 := hXY.weak henv.ordered (B := VExpr.eqApp (.succ (S.sorts.getD i .zero))
+            (.sort (S.sorts.getD i .zero)) X Y)
+        have hx1 := hxX.weak henv.ordered (B := VExpr.eqApp (.succ (S.sorts.getD i .zero))
+            (.sort (S.sorts.getD i .zero)) X Y)
+        rw [show ((VExpr.bvar (S.fields.length - 1 - i)).liftN i).lift =
+          (VExpr.bvar (S.fields.length - 1 - i)).liftN (i + 1) from liftN_liftN ..] at hx1
+        exact IsDefEq.typeCast_refl henv heq hu hΓ' (by simpa [VExpr.liftN] using hXY1) he hx1
 
 end CastSpec
 end Lean4Lean
