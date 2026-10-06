@@ -2914,6 +2914,12 @@ theorem DeltaPar.peak_spine (hΓ : OnCtx Γ (env.IsType univs))
     · exact ⟨_, ⟨_, pb, cb⟩, ⟨_, pc, cc.trans (DeltaPar.side_extend hΓ hk hrE₂ hrE₁)⟩⟩
 
 omit [Params] in
+theorem mkApps_const_ne_forallE : VExpr.mkApps (.const n ls) args ≠ .forallE A t := by
+  rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+  · intro h; cases h
+  · rw [mkApps_snoc]; intro h; cases h
+
+omit [Params] in
 theorem mkApps_const_ne_proj : VExpr.mkApps (.const n ls) args ≠ .proj s i m := by
   rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
   · intro h; cases h
@@ -3013,6 +3019,112 @@ theorem DeltaPar.app_inv_head (hh : ∀ c ls, h ≠ .const c ls) (hh' : ∀ f x,
   | delta => exact (hhead _ _ _ rfl).elim
   | quotDelta => exact (hhead _ _ _ rfl).elim
   | _ => cases hE
+
+theorem DeltaPar.forallE_inv (H : DeltaPar Γ (.forallE A t) X) :
+    ∃ A' t', DeltaPar Γ A A' ∧ DeltaPar (A :: Γ) t t' ∧ X = .forallE A' t' := by
+  generalize he : VExpr.forallE A t = src at H
+  cases H with
+  | forallE h1 h2 => cases he; exact ⟨_, _, h1, h2, rfl⟩
+  | delta => exact absurd he.symm mkApps_const_ne_forallE
+  | quotDelta => exact absurd he.symm mkApps_const_ne_forallE
+  | _ => cases he
+
+theorem DeltaPar.atom_inv (hh : ∀ c ls, h ≠ .const c ls) (hh₁ : ∀ f x, h ≠ .app f x)
+    (hh₂ : ∀ s i m, h ≠ .proj s i m) (hh₃ : ∀ A t, h ≠ .lam A t) (hh₄ : ∀ A t, h ≠ .forallE A t)
+    (H : DeltaPar Γ h X) : X = h := by
+  cases H with
+  | bvar | sort | const | elim => rfl
+  | app => exact absurd rfl (hh₁ _ _)
+  | proj => exact absurd rfl (hh₂ _ _ _)
+  | lam => exact absurd rfl (hh₃ _ _)
+  | forallE => exact absurd rfl (hh₄ _ _)
+  | @delta _ name ls rhs args args' _ _ _ =>
+    rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+    · exact absurd rfl (hh _ _)
+    · exact absurd (mkApps_snoc ..) (hh₁ _ _)
+  | @quotDelta _ ls rhs args args' _ _ _ =>
+    rcases eq_nil_or_snoc' args with rfl | ⟨l, a, rfl⟩
+    · exact absurd rfl (hh _ _)
+    · exact absurd (mkApps_snoc ..) (hh₁ _ _)
+  | projIota => exact absurd rfl (hh₂ _ _ _)
+
+theorem DeltaPar.peak_aux : ∀ n, DDBelow n := by
+  intro n
+  induction n with
+  | zero => intro _ _ _ _ _ h; omega
+  | succ n ih =>
+  intro Γ a b c A hsz hΓ H1 H2 ha
+  have hb := (DeltaPar.full H1).hasType hΓ ha
+  have hc := (DeltaPar.full H2).hasType hΓ ha
+  by_cases hprop : Γ ⊢ A : .sort .zero
+  · exact ⟨c, ⟨b, .rfl, .tail .rfl ⟨0, by decide, .proofIrrel hprop hb hc⟩⟩, ⟨c, .rfl, .rfl⟩⟩
+  have IH : DDBelow (sizeOf a) := fun h => ih (by omega)
+  obtain ⟨h, as, rfl, hh⟩ := exists_spine a
+  rcases eq_nil_or_snoc' as with rfl | ⟨as₀, x, rfl⟩
+  · change Γ ⊢ h : A at ha
+    change DeltaPar Γ h b at H1
+    change DeltaPar Γ h c at H2
+    change DDBelow (sizeOf h) at IH
+    cases h with
+    | const name ls => exact DeltaPar.peak_spine (args := []) hΓ IH ha H1 H2
+    | app => exact absurd rfl (hh _ _)
+    | proj s i m =>
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
+      generalize hE : VExpr.proj s i m = E at H1
+      cases H1 with
+      | proj hm₁ =>
+        cases hE
+        generalize hE₂ : VExpr.proj s i m = E₂ at H2
+        cases H2 with
+        | proj hm₂ =>
+          cases hE₂
+          exact Join2.proj hΓ (IH (by simp; omega) hΓ hm₁ hm₂ lm.hasType.2) hb hc
+        | projIota hlen hargs hl hs hi ht =>
+          injection hE₂ with hf hidx hM
+          subst hf hidx hM
+          exact DeltaPar.peak_cong_iota hΓ IH ha hm₁ hlen hargs hl hs hi ht
+        | delta => exact absurd hE₂.symm mkApps_const_ne_proj
+        | quotDelta => exact absurd hE₂.symm mkApps_const_ne_proj
+        | _ => cases hE₂
+      | projIota hlen hargs hl hs hi ht =>
+        injection hE with hf hidx hM
+        subst hf hidx hM
+        exact DeltaPar.peak_iota hΓ IH ha hlen hargs hl hs hi ht H2
+      | delta => exact absurd hE.symm mkApps_const_ne_proj
+      | quotDelta => exact absurd hE.symm mkApps_const_ne_proj
+      | _ => cases hE
+    | lam D t =>
+      obtain ⟨⟨_, tD⟩, _, tt⟩ := ha.lam_inv henv hΓ
+      have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
+      obtain ⟨D₁, t₁, hD₁, ht₁, rfl⟩ := DeltaPar.lam_inv H1
+      obtain ⟨D₂, t₂, hD₂, ht₂, rfl⟩ := DeltaPar.lam_inv H2
+      exact Join2.lam hΓ tD (IH (by simp; omega) hΓ hD₁ hD₂ tD) (IH (by simp; omega) hΓ' ht₁ ht₂ tt)
+        ((DeltaPar.full hD₁).defeq hΓ tD) ((DeltaPar.full hD₂).defeq hΓ tD)
+        ((DeltaPar.full ht₁).hasType hΓ' tt) ((DeltaPar.full ht₂).hasType hΓ' tt) hb hc
+    | forallE D t =>
+      obtain ⟨⟨_, tD⟩, _, tt⟩ := ha.forallE_inv henv
+      have hΓ' : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
+      obtain ⟨D₁, t₁, hD₁, ht₁, rfl⟩ := DeltaPar.forallE_inv H1
+      obtain ⟨D₂, t₂, hD₂, ht₂, rfl⟩ := DeltaPar.forallE_inv H2
+      exact Join2.forallE hΓ tD (IH (by simp; omega) hΓ hD₁ hD₂ tD)
+        (IH (by simp; omega) hΓ' ht₁ ht₂ tt)
+        ((DeltaPar.full hD₁).defeq hΓ tD) ((DeltaPar.full hD₂).defeq hΓ tD)
+        ((DeltaPar.full ht₁).hasType hΓ' tt) ((DeltaPar.full ht₂).hasType hΓ' tt) hb hc
+    | bvar | sort | elim =>
+      rw [DeltaPar.atom_inv (by intros; intro h; cases h) (by intros; intro h; cases h)
+        (by intros; intro h; cases h) (by intros; intro h; cases h) (by intros; intro h; cases h) H1,
+        DeltaPar.atom_inv (by intros; intro h; cases h) (by intros; intro h; cases h)
+        (by intros; intro h; cases h) (by intros; intro h; cases h) (by intros; intro h; cases h) H2]
+      exact ⟨_, ⟨_, .rfl, .rfl⟩, ⟨_, .rfl, .rfl⟩⟩
+  · by_cases hconst : ∃ c ls, h = .const c ls
+    · obtain ⟨c, ls, rfl⟩ := hconst
+      exact DeltaPar.peak_spine hΓ IH ha H1 H2
+    · have hnc : ∀ c ls, h ≠ .const c ls := fun c ls he => hconst ⟨c, ls, he⟩
+      rw [mkApps_snoc] at ha H1 H2 IH
+      obtain ⟨_, _, tf, tx⟩ := ha.app_inv henv hΓ
+      obtain ⟨f₁, x₁, rfl, hf₁, hx₁⟩ := DeltaPar.app_inv_head hnc hh H1
+      obtain ⟨f₂, x₂, rfl, hf₂, hx₂⟩ := DeltaPar.app_inv_head hnc hh H2
+      exact Join2.app hΓ (IH (by simp; omega) hΓ hf₁ hf₂ tf) (IH (by simp; omega) hΓ hx₁ hx₂ tx) hb hc
 end Join2Tools
 
 section Levels
@@ -3044,7 +3156,8 @@ theorem levelZero_joinable (hΓ : OnCtx Γ (env.IsType univs)) :
 theorem DeltaPar.peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : DeltaPar Γ a b) (H2 : DeltaPar Γ a c) (ha : Γ ⊢ a : A) :
     ∃ d, (∃ b₁, DeltaPar Γ b b₁ ∧ ReflTransGen (Below Γ 2) b₁ d) ∧
-      (∃ c₁, DeltaPar Γ c c₁ ∧ ReflTransGen (Below Γ 2) c₁ d) := sorry
+      (∃ c₁, DeltaPar Γ c c₁ ∧ ReflTransGen (Below Γ 2) c₁ d) :=
+  DeltaPar.peak_aux _ (Nat.lt_succ_self _) hΓ H1 H2 ha
 
 theorem DeltaPar.parRed_peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : DeltaPar Γ a b) (H2 : ParRed Γ a c) (ha : Γ ⊢ a : A) :
