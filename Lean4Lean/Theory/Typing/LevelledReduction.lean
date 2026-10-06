@@ -3183,6 +3183,47 @@ end Join2Tools
 
 section EtaTools
 
+/-- A saturated structure constructor application has its structure type at
+its own parameters and levels. -/
+theorem HasType.ctorApp_type (hΓ : OnCtx Γ (env.IsType univs))
+    (hinfo : env.projections S info)
+    (H : Γ ⊢ VExpr.mkApps (.const info.ctorName ls) args : T)
+    (hlen : args.length = info.nparams + info.numFields) :
+    ∃ idx, Γ ⊢ T ≡ VExpr.mkApps (.const S ls) (args.take info.nparams ++ idx) := by
+  obtain ⟨decl, type, ctor, _, _, hname, _, huvars, hnparams, _, _, hctorName, hctorType,
+    _, hwf, _, Hraw, _⟩ := henv.ordered.projectionShape hinfo
+  obtain ⟨doms, result, hshape, hle, hvalid, hhead, harity⟩ := Hraw.forallArity
+  subst hname
+  have hctor := henv.ordered.projectionConstructor hinfo
+  rw [hctorType] at hshape harity
+  have hlen' : args.length = doms.length := by
+    rw [hlen, VProjectionInfo.numFields, harity]; omega
+  have ⟨ci, hci, hls', hlenl⟩ :=
+    (VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, H⟩).elim fun _ h => HasType.const_inv henv.ordered hΓ h
+  rw [hctor] at hci
+  cases Option.some.inj hci
+  have hconst : Γ ⊢ .const info.ctorName ls : info.ctorType.instL ls := HasType.const hctor hls' hlenl
+  have hT : (info.ctorType.instL ls).takeForalls args.length =
+      some (doms.map (·.instL ls), result.instL ls) := by
+    rw [hshape, VExpr.instL_wrapForalls,
+      show args.length = (doms.map (·.instL ls)).length by simp [hlen']]
+    exact VExpr.takeForalls_wrapForalls _ _
+  obtain ⟨res, Hw, hres⟩ := HasType.mkApps_telescope henv hΓ hconst ⟨_, H⟩ hT
+  have hresEq : res = (result.instL ls).instOuter args := by
+    have := Hw
+    rw [hshape, VExpr.instL_wrapForalls] at this
+    exact this.wrapForalls_eq (by simp [hlen'])
+  have hhead' : (result.instL ls).getAppFnArgs.1 = .const type.name ls := by
+    rw [VExpr.getAppFnArgs_instL]
+    show (result.getAppFnArgs.1.instL ls) = _
+    rw [hhead]
+    have hl : ls.length = decl.uvars := by rw [huvars]; exact hlenl
+    simp [VExpr.instL, VLevel.params_map_inst ls hl]
+  obtain ⟨idx, hresEq', -⟩ := (hvalid.instL ls).instOuter hhead' args (by omega)
+  rw [hresEq', hnparams] at hresEq
+  subst hresEq
+  exact ⟨idx, H.uniqU henv hΓ hres⟩
+
 /-- The selected field of a saturated structure constructor application has the
 type of its projection. -/
 theorem HasType.projIota_field (hΓ : OnCtx Γ (env.IsType univs))
