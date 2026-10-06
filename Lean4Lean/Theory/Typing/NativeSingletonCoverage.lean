@@ -128,6 +128,31 @@ theorem TelInst.instOuter_args {env : VEnv} {U : Nat} (henv : env.WF)
   simpa [List.map_take] using h
 
 
+theorem InstForallsC.supplyType_eq {env : VEnv} {U : Nat} {Γ : List VExpr} {T : VExpr}
+    {args : List VExpr} {res : VExpr} (H : InstForallsC env U Γ T args res) :
+    NativeRecursorData.supplyType args T = some res := by
+  induction H with
+  | nil => rfl
+  | cons _ _ ih => exact ih
+
+theorem instOuter_vars_lift {X : VExpr} {n k : Nat} (hX : X.ClosedN n) :
+    X.instOuter (vars n k) = X.liftN k := by
+  rw [vars_eq_bvarRange, instOuter_range_bvar' _ _ _ hX (by omega), Nat.add_sub_cancel_left]
+
+section
+variable [Params]
+open Params
+
+theorem FullReduction.wrapLams' {domains : List VExpr} {body body' : VExpr} {Γ : List VExpr}
+    (H : FullReduction (domains.reverse ++ Γ) body body') :
+    FullReduction Γ (VExpr.wrapLams domains body) (VExpr.wrapLams domains body') := by
+  induction domains generalizing Γ with
+  | nil => exact H
+  | cons d ds ih =>
+    exact FullReduction.lam .rfl (ih (Γ := d :: Γ) (by simpa using H))
+
+end
+
 section Literal
 variable {env : VEnv} {U : Nat} {S : CastSpec} {P : List VExpr} {E : PropElim}
 
@@ -248,6 +273,59 @@ theorem _root_.Lean4Lean.PropElim.WF.literal_occ (henv : env.WF) (heq : env.HasC
     S.fields.length (Nat.le_refl _)
   rw [List.take_length] at h2
   exact ⟨h2, h3, PropElim.singleton_eta P henv heq W hΔ hpsl hargs hf halign hidx⟩
+
+theorem _root_.Lean4Lean.PropElim.WF.majorTy_instOuter (W : E.WF S P env U) {ps idx : List VExpr}
+    (hpsl : ps.length = P.length) (hidx : idx.length = S.indices.length) :
+    (PropElim.majorTy S P E).instOuter (ps ++ idx) = VExpr.mkApps E.family (ps ++ idx) := by
+  unfold PropElim.majorTy
+  exact PropElim.mkApps_instOuter_heads W.family_closed _ _ [] _ _ hpsl hidx
+
+theorem TelInst.drop_mid {Γ A M B a m b : List VExpr}
+    (H : TelInst env U Γ (A ++ M ++ B.mapIdx (fun l d => d.liftN M.length l)) (a ++ m ++ b))
+    (ha : a.length = A.length) (hm : m.length = M.length)
+    (hcl : ∀ k (h : k < B.length), (B[k]).ClosedN (A.length + k)) :
+    TelInst env U Γ (A ++ B) (a ++ b) := by
+  have hbl : b.length = B.length := by have := H.1; simp at this; omega
+  have HA : TelInst env U Γ A a := by
+    have h := (show TelInst env U Γ (A ++ (M ++ B.mapIdx (fun l d => d.liftN M.length l)))
+      (a ++ (m ++ b)) by simpa only [List.append_assoc] using H).take
+    rwa [← ha, List.take_left] at h
+  refine HA.append hbl fun j hj => ?_
+  have h := TelInst.getD_mid (A := A ++ M) (a := a ++ m) (B := B.mapIdx (fun l d => d.liftN M.length l))
+    (b := b) (C := []) (c := []) (by simpa using H) (by simp [ha, hm])
+    (by simp [hbl]) (j := j) (by simpa using hj)
+  have hX : (B.getD j default).ClosedN (A.length + j) := by
+    rw [getD_of_lt hj]; exact hcl j hj
+  have htl : (b.take j).length = j := by simp; omega
+  have hsk := instOuter_liftN_skip (X := B.getD j default) (A := a ++ m) (B := b.take j)
+    (P := A.length) (r := M.length) (by rw [htl]; exact hX) (by simp [ha, hm])
+  rw [htl, List.take_left' ha] at hsk
+  rw [getD_of_lt (l := B.mapIdx (fun l d => d.liftN M.length l)) (by simpa using hj),
+    List.getElem_mapIdx, ← getD_of_lt hj, hsk] at h
+  exact h
+
+theorem _root_.Lean4Lean.PropElim.occ_getD_prefix (ps idx : List VExpr) (m : VExpr) {l : Nat} :
+    ∀ n, l < n → (PropElim.occ S P E ps idx m n).2.getD l default =
+      (PropElim.occ S P E ps idx m (l + 1)).2.getD l default := by
+  intro n hn
+  induction n with
+  | zero => omega
+  | succ n ih =>
+    by_cases hl : l = n
+    · subst hl; rfl
+    · rw [← ih (by omega)]
+      have hlen := (PropElim.occ_length S P E ps idx m n).2
+      simp only [PropElim.occ]
+      split <;> rw [getD_append_left' (by omega)]
+
+theorem _root_.Lean4Lean.PropElim.occ_getD_data (ps idx : List VExpr) (m : VExpr) {l k n : Nat}
+    (hs : S.slot.getD l none = some k) (hl : l < n) :
+    (PropElim.occ S P E ps idx m n).2.getD l default = idx.getD k default := by
+  rw [PropElim.occ_getD_prefix ps idx m n hl]
+  have hlen := (PropElim.occ_length S P E ps idx m l).2
+  simp only [PropElim.occ, hs]
+  rw [getD_append_right' (by omega), hlen, Nat.sub_self]
+  rfl
 
 end Literal
 
