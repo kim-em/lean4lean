@@ -1,4 +1,6 @@
 import Lean4Lean.Theory.Typing.SingletonExtraction
+import Lean4Lean.Theory.Typing.RestorationLevelCongruence
+import Lean4Lean.Theory.Inductive.RestorationNaturality
 
 /-! # Syntactic congruence of singleton extraction
 
@@ -113,6 +115,89 @@ theorem typeCast (hu : RL u u') (hX : R X X') (hY : R Y Y') (he : R e e') (hx : 
       (H.bvar 1)))) hx) hY) he
 
 end SynRel
+
+
+theorem _root_.Lean4Lean.VExpr.instL_instOuter (X : VExpr) (args : List VExpr) (ls : List VLevel) :
+    (X.instOuter args).instL ls = (X.instL ls).instOuter (args.map (·.instL ls)) := by
+  rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst, VExpr.instL_subst]
+  congr 1
+  funext i
+  simp only [VExpr.Subst.ofList, List.length_map]
+  split
+  · simp
+  · simp [VExpr.instL]
+
+theorem forall₂_instL {l l' : List VExpr} {ls : List VLevel}
+    (h : List.Forall₂ (fun x y => y = x.instL ls) l l') : l' = l.map (·.instL ls) := by
+  induction h with
+  | nil => rfl
+  | cons h _ ih => simp [h, ih]
+
+theorem forall₂_instL_of {l : List VExpr} {ls : List VLevel} :
+    List.Forall₂ (fun x y => y = x.instL ls) l (l.map (·.instL ls)) := by
+  induction l with
+  | nil => exact .nil
+  | cons _ _ ih => exact .cons rfl ih
+
+theorem forall₂_getElem {R : α → β → Prop} :
+    ∀ {l l'}, List.Forall₂ R l l' → ∀ i (h : i < l.length) (h' : i < l'.length), R l[i] l'[i]
+  | _, _, .cons h _, 0, _, _ => h
+  | _, _, .cons _ t, i + 1, h, h' => forall₂_getElem t i (by simpa using h) (by simpa using h')
+
+theorem forall₂_levels {U : Nat} :
+    ∀ {ls ls' : List VLevel}, List.Forall₂ (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) ls ls' →
+      (∀ l ∈ ls, l.WF U) ∧ (∀ l ∈ ls', l.WF U) ∧ List.Forall₂ (· ≈ ·) ls ls'
+  | _, _, .nil => ⟨by simp, by simp, .nil⟩
+  | _, _, .cons h t => by
+    obtain ⟨h1, h2, h3⟩ := forall₂_levels t
+    exact ⟨List.forall_mem_cons.2 ⟨h.1, h1⟩, List.forall_mem_cons.2 ⟨h.2.1, h2⟩, .cons h.2.2 h3⟩
+
+/-- Universe instantiation as a syntactic congruence. -/
+theorem SynRel.instL (ls : List VLevel) :
+    SynRel (fun x y => y = x.instL ls) (fun u v => v = u.inst ls) where
+  bvar _ := rfl
+  sort h := by subst h; rfl
+  const h := by
+    have : _ = _ := forall₂_map_iff_aux h
+    subst this; rfl
+  app h1 h2 := by subst h1 h2; rfl
+  lam h1 h2 := by subst h1 h2; rfl
+  forallE h1 h2 := by subst h1 h2; rfl
+  liftN n k h := by subst h; simp
+  instOuter h ha := by
+    have ha := forall₂_instL ha
+    subst h ha
+    exact (VExpr.instL_instOuter ..).symm
+  zero := rfl
+  succ h := by subst h; rfl
+where
+  forall₂_map_iff_aux {l l' : List VLevel} {ls : List VLevel}
+      (h : List.Forall₂ (fun u v => v = u.inst ls) l l') : l' = l.map (·.inst ls) := by
+    induction h with
+    | nil => rfl
+    | cons h _ ih => simp [h, ih]
+
+/-- Equality up to equivalent well-formed universe levels as a syntactic congruence. -/
+theorem SynRel.levels (U : Nat) :
+    SynRel (VEnv.EqUpToLevels U) (fun u v => u.WF U ∧ v.WF U ∧ u ≈ v) where
+  bvar _ := .bvar
+  sort h := .sort h.1 h.2.1 h.2.2
+  const h := let ⟨h1, h2, h3⟩ := forall₂_levels h; .const h1 h2 h3
+  app h1 h2 := .app h1 h2
+  lam h1 h2 := .lam h1 h2
+  forallE h1 h2 := .forallE h1 h2
+  liftN n k h := h.weakN
+  instOuter h ha := by
+    rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst]
+    apply h.subst_args
+    intro i
+    have hlen := Lean4Lean.List.Forall₂.length_eq ha
+    simp only [VExpr.Subst.ofList, ← hlen]
+    split
+    · exact forall₂_getElem ha _ (by omega) (by omega)
+    · exact .bvar
+  zero := ⟨by simp [VLevel.WF], by simp [VLevel.WF], rfl⟩
+  succ h := ⟨h.1, h.2.1, VLevel.succ_congr h.2.2⟩
 
 namespace CastSpec
 
