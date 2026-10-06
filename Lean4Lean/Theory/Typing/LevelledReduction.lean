@@ -3889,7 +3889,7 @@ theorem EtaPar.parRed_iota
   have hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const cc lsc) fsM : .forallE D B :=
     fun _ _ hpi => Params.major_not_pi hΓ hp hm₀ ha hpi
   obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major hΓ
-    (fun hl hs => pat_struct_major hp hl hs hfsLen) hM tM hnotpi hfsLen
+    (fun hl hs => pat_struct_major hp hΓ hl hs hfsLen) hM tM hnotpi hfsLen
   have hb := (EtaPar.full hΓ (.app hF hM) ha).hasType hΓ ha
   have c₁ : ReflTransGen (Below Γ 3) (.app F' M') (.app (VExpr.mkApps (.const rc m1) vs') M') :=
     Below.ofParRedS (hy M') (by decide)
@@ -4044,7 +4044,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
       actual.ctorArguments : .forallE D B := fun _ _ h => MatchedCaseStep.major_not_pi henv hΓ hm h
   obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major
     (kc := actual.ctorArguments.length) hΓ
-    (fun hl' hs => let ⟨h1, h2, _⟩ := schema_struct_major hm hl' hs; ⟨h1, h2⟩) hM tM hnotpi rfl
+    (fun hl' hs => let ⟨h1, h2, _⟩ := schema_struct_major hm hΓ hl' hs; ⟨h1, h2⟩) hM tM hnotpi rfl
   have hb := (EtaPar.full hΓ (.app hF hM) ha').hasType hΓ ha'
   have c₁ : ReflTransGen (Below Γ 3) (.app F' M')
       (.app (VExpr.mkApps (.elim actual.block actual.owner actual.levels) args') M') :=
@@ -4065,7 +4065,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     refine case_forall₂_append (forall₂_take hargs' _) ?_
     rcases hdisj with ⟨_, rfl⟩ | ⟨fam, info, _, hl', hcc, hkc, hlen₀, hdrop, hs'⟩
     · exact forall₂_drop hfs₀ _
-    · obtain ⟨_, _, hnf⟩ := schema_struct_major hm hl' hs'
+    · obtain ⟨_, _, hnf⟩ := schema_struct_major hm hΓ hl' hs'
       have hk : len - nF = info.nparams + (len - nF - info.nparams) := by
         simp only [len, nF]; omega
       have hd : ps₀.drop (len - nF) = fs₀.drop (len - nF) := by

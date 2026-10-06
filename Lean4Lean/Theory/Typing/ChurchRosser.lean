@@ -79,7 +79,7 @@ class Params where
   /-- A native iota major of structure type is a saturated application of the
   structure's constructor. -/
   pat_struct_major : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
-    env.projections family info →
+    OnCtx Γ (env.IsType univs) → env.projections family info →
     HasType env univs Γ (VExpr.mkApps (.const cc lsc) fs) (VExpr.mkApps (.const family ls) ps) →
     fs.length = kc → cc = info.ctorName ∧ kc = info.nparams + info.numFields
   /-- Native iota computation at a structure constructor reads only its fields,
@@ -104,7 +104,8 @@ class Params where
           df m1 (Sum.elim g1 g') r.2)
   /-- A case major of structure type is a saturated application of the structure's
   constructor, and the case rule captures only its fields. -/
-  schema_struct_major : MatchedCaseStep env univs Γ rule actual → env.projections family info →
+  schema_struct_major : MatchedCaseStep env univs Γ rule actual → OnCtx Γ (env.IsType univs) →
+    env.projections family info →
     HasType env univs Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments)
       (VExpr.mkApps (.const family ls) ps) →
     actual.ctorName = info.ctorName ∧
