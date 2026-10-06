@@ -569,8 +569,8 @@ inside this project's scope without solving open base metatheory:
    `checkInductiveSources`, which would be a divergence from C++ on
    malformed input and would let `SourceSyntaxChecks` carry the fact).
 2. **Close the three refinement junctions.** `canonicalConsumedGeneration`
-   is closed (item 7). Next: `canonicalCompletedRuleTranslation`, then
-   `assemblyNative`. Scoping (2026-10-06): the rule junction must produce
+   and `canonicalCompletedRuleTranslation` are closed (item 7). Remaining:
+   `assemblyNative` and `finalValidOfStaged` (nested). Scoping (2026-10-06): the rule junction must produce
    `rules = g.equations` syntactically, so each generated rule is identified
    with `Instance.equation` component by component: outer domains from the
    checked type (`canonicalTargets`), field domains from `minorFieldsTemplate`,
@@ -607,8 +607,11 @@ inside this project's scope without solving open base metatheory:
    translation of the rule rhs, being discharged from the equation frame),
    `RuleTranslationAssembly.lean` (`completedRuleTranslation_of (Hrhs :
    H.RuleRhsTranslations) : Nonempty (CompletedRuleTranslationResult H)`).
-   Closing the sorry at `CompletedEquationAssembly.lean:278` additionally needs
-   the theorem moved downstream of the assembly file (import order). Nested
+   **Closed (2026-10-06):** `canonicalCompletedRuleTranslation` (moved to
+   `CompletedRuleTranslation.lean`) `:= H.completedRuleTranslation_of
+   H.ruleRhsTranslations`, no hypotheses; full build, tests, audit self-test
+   and fresh `Init.Prelude`/`Init.Core` replays pass. Reachable sorries: the
+   ten base obligations plus `assemblyNative` and `finalValidOfStaged`. Nested
    components committed: `Nested/ContainerSpecializations.lean`
    (specializations, certified, scoped, direct families, well-formed for the
    consumed parameters, constructor renaming), `Nested/RestorationCommutation.lean`
