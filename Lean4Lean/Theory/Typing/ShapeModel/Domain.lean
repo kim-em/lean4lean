@@ -59,6 +59,9 @@ class ShapeParams where
   isStruct : Name → Bool
   /-- The rigid type former `c` is a proposition at these evaluated levels. -/
   famProp : Name → List SLvl → Bool
+  /-- The number of fields of the constructor `c`: a constructor shape is only typed (at a
+  rigid former) when it has exactly this many fields. -/
+  nfields : Name → Nat
 
 inductive Shape0 : Type where
   | bot : Shape0
