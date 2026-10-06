@@ -3439,10 +3439,10 @@ theorem DeltaPar.project_fields (hΓ : OnCtx Γ (env.IsType univs))
 
 /-- Collapse eta expansions of a constructor major of a native iota pattern. -/
 theorem EtaPar.collapse_major
-    {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
-      (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check}
     (hΓ : OnCtx Γ (env.IsType univs))
-    (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
+    (hstruct : ∀ {family info ls ps}, env.projections family info →
+      Γ ⊢ VExpr.mkApps (.const cc lsc) fs : VExpr.mkApps (.const family ls) ps →
+      cc = info.ctorName ∧ kc = info.nparams + info.numFields)
     (H : EtaPar Γ (VExpr.mkApps (.const cc lsc) fs) M')
     (ht : Γ ⊢ VExpr.mkApps (.const cc lsc) fs : T)
     (hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const cc lsc) fs : .forallE D B)
@@ -3450,10 +3450,11 @@ theorem EtaPar.collapse_major
     ∃ fs₀ lsc' ps₀, List.Forall₂ (EtaPar Γ) fs fs₀ ∧
       ReflTransGen (Below Γ 3) M' (VExpr.mkApps (.const cc lsc') ps₀) ∧
       ((lsc' = lsc ∧ ps₀ = fs₀) ∨
-        ∃ family info, env.projections family info ∧ cc = info.ctorName ∧
+        ∃ family info ps, env.projections family info ∧ cc = info.ctorName ∧
           kc = info.nparams + info.numFields ∧ ps₀.length = kc ∧
-          ps₀.drop info.nparams = fs₀.drop info.nparams) := by
-  generalize hsrc : VExpr.mkApps (.const cc lsc) fs = src at H ht hnotpi
+          ps₀.drop info.nparams = fs₀.drop info.nparams ∧
+          Γ ⊢ VExpr.mkApps (.const cc lsc) fs : VExpr.mkApps (.const family lsc') ps) := by
+  generalize hsrc : VExpr.mkApps (.const cc lsc) fs = src at H ht hnotpi hstruct
   induction H generalizing fs T with
   | @app _ f f' x x' hf hx _ _ =>
     rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, rfl, he⟩
@@ -3470,10 +3471,10 @@ theorem EtaPar.collapse_major
     exact (hnotpi _ _ hty).elim
   | @structEta _ M M₀ fam info levels ps ps' H₀ hlen' hps hl hp' hi hs hexp ih =>
     subst hsrc
-    obtain ⟨hcc, hkc⟩ := pat_struct_major hp hl hs hlen
-    obtain ⟨fs₀, lsc'', ps₀', hfs, c₀, hdisj⟩ := ih hΓ hlen rfl hs hnotpi
+    obtain ⟨hcc, hkc⟩ := hstruct hl hs
+    obtain ⟨fs₀, lsc'', ps₀', hfs, c₀, hdisj⟩ := ih hΓ hlen rfl hs hnotpi hstruct
     have hps₀len : ps₀'.length = info.nparams + info.numFields := by
-      rcases hdisj with ⟨_, rfl⟩ | ⟨_, _, _, _, _, h, _⟩
+      rcases hdisj with ⟨_, rfl⟩ | ⟨_, _, _, _, _, _, h, _⟩
       · rw [← Lean4Lean.List.Forall₂.length_eq hfs, hlen, hkc]
       · rw [h, hkc]
     have hstep := EtaPar.structEta H₀ hlen' hps hl hp' hi hs hexp
@@ -3484,9 +3485,9 @@ theorem EtaPar.collapse_major
     have hδ := DeltaPar.project_fields hΓ hl hps₀len hb₁
     have hpl : ps'.length = info.nparams := hlen'.symm.trans hp'
     refine ⟨fs₀, levels, ps' ++ ps₀'.drop info.nparams, hfs, c₁.tail ⟨2, by decide, hδ⟩,
-      .inr ⟨fam, info, hl, rfl, hkc, by simp; omega, ?_⟩⟩
+      .inr ⟨fam, info, ps, hl, rfl, hkc, by simp; omega, ?_, hs⟩⟩
     rw [List.drop_left' hpl]
-    rcases hdisj with ⟨_, rfl⟩ | ⟨fam₂, info₂, hl₂, hc₂, _, _, h⟩
+    rcases hdisj with ⟨_, rfl⟩ | ⟨fam₂, info₂, _, hl₂, hc₂, _, _, h, _⟩
     · rfl
     · obtain ⟨-, rfl⟩ := henv.ordered.projectionConstructor_family hl hl₂ hc₂
       exact h
@@ -3562,6 +3563,35 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_of_values :
     have hv : (fun x => Option.elim x (vals none) fun a => vals (some a)) = vals := by
       funext x; cases x <;> rfl
     exact hv ▸ this
+
+theorem MatchedCaseStep.transport (hΓ : OnCtx Γ (env.IsType univs))
+    (H : MatchedCaseStep env univs Γ rule actual)
+    {actual' : InductiveSignature.CaseSchema.Application}
+    (hb : actual'.block = actual.block) (ho : actual'.owner = actual.owner)
+    (hlv : actual'.levels = actual.levels) (hc : actual'.ctorName = actual.ctorName)
+    (hcl : List.Forall₂ (· ≈ ·) actual'.ctorLevels actual.ctorLevels)
+    (hal : actual'.arguments.length = actual.arguments.length)
+    (hcal : actual'.ctorArguments.length = actual.ctorArguments.length)
+    (hcap : List.Forall₂ (IsDefEqU env univs Γ) (rule.capture actual) (rule.capture actual'))
+    (he : IsDefEqU env univs Γ actual.expr actual'.expr) :
+    MatchedCaseStep env univs Γ rule actual' := by
+  have hlen := (Lean4Lean.List.Forall₂.length_eq hcap).symm
+  have hargs := fun (i : Nat) hi hi' => case_forall₂_get (i := i) hcap hi hi'
+  refine {
+    source := ?_
+    block_eq := hb.trans H.block_eq
+    owner_eq := ho.trans H.owner_eq
+    ctor_eq := hc.trans H.ctor_eq
+    arguments_length := hal.trans H.arguments_length
+    ctorArguments_length := hcal.trans H.ctorArguments_length
+    levels_eq := ?_
+    ctorLevels_eq := ?_
+    guard := ?_ }
+  · rw [hlv]; exact H.source.congr henv hΓ hlen hargs
+  · rw [hlv]; exact H.levels_eq
+  · rw [hlv]; exact Lean4Lean.List.Forall₂.trans (fun _ _ _ h h' => h.trans h') hcl H.ctorLevels_eq
+  · rw [hlv]
+    exact (he.symm.trans henv hΓ H.guard).trans henv hΓ (H.source.lhs_congr henv hΓ hlen hargs)
 end EtaTools
 
 
@@ -3778,7 +3808,8 @@ theorem EtaPar.parRed_iota
   obtain ⟨vs', hvs', hy⟩ := EtaPar.collapse_spine hΓ hF tF
   have hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const cc lsc) fsM : .forallE D B :=
     fun _ _ hpi => Params.major_not_pi hΓ hp hm₀ ha hpi
-  obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major hΓ hp hM tM hnotpi hfsLen
+  obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major hΓ
+    (fun hl hs => pat_struct_major hp hl hs hfsLen) hM tM hnotpi hfsLen
   have hb := (EtaPar.full hΓ (.app hF hM) ha).hasType hΓ ha
   have c₁ : ReflTransGen (Below Γ 3) (.app F' M') (.app (VExpr.mkApps (.const rc m1) vs') M') :=
     Below.ofParRedS (hy M') (by decide)
@@ -3817,7 +3848,7 @@ theorem EtaPar.parRed_iota
   obtain ⟨_, _, tF₂, tM₂⟩ := tb₂.app_inv henv hΓ
   have cF := Below.mkApps hΓ (f := .const rc m1) .rfl cvs tF₂
   refine ⟨_, ?_, EtaPar.congrRel.apply_rhs r.1 eD⟩
-  rcases hdisj with ⟨rfl, rfl⟩ | ⟨fam, info, hl, hcc, hkc, hlen₀, hdrop⟩
+  rcases hdisj with ⟨rfl, rfl⟩ | ⟨fam, info, _, hl, hcc, hkc, hlen₀, hdrop, _⟩
   · have cM₂ := Below.mkApps hΓ (f := .const cc _) .rfl cfs tM₂
     have hmD := Pattern.Matches.app hvsD hfsD
     rw [hDsum] at hmD
