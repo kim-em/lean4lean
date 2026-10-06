@@ -350,9 +350,9 @@ theorem TypeChecker.MLCtx.vlctx_take_fvars
 
 `AddInductive.Context.checkLCtx` is the local context seen by embedded
 typechecker runs.  It is always a sub-context of the main context
-(`LocalContext.SubContextOf`).  Until every lifted run is verified directly in
-its narrow scope, the main-context lift lemmas transfer a narrow run to the
-main context through the named hypothesis `CheckerSubContextLocality`. -/
+(`LocalContext.SubContextOf`), described semantically by a `CheckBase`: every
+lifted run is verified in the checker context, and its facts are transferred
+to the main context by weakening. -/
 
 /-- Every declaration of `l` occurs in `l'` with the same content, up to its
 position index. -/

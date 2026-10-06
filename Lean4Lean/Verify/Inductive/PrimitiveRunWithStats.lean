@@ -157,61 +157,6 @@ def VerifiedPrimitiveInductiveRunResult
       types.toArray.toList ≠ [] ∧
       Nonempty (CompletedRecursorPhasesResult R outEnv)
 
-/-- Front-end materialization followed by the verified atomic primitive
-branch.  Primitive recognition is transported through the exact level-
-parameter equality produced by `checkInductiveTypes`; this is the first
-declaration-facing seam at which the false freshness premises disappear. -/
-theorem AddInductive.run.primitiveClosedWF
-    (numNested : Nat)
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
-      types.toArray.toList (c.safety != .safe) skeleton envTypes)
-    (Hshape : PrimitiveInductiveShape c.lparams skeleton.nparams
-      types.toArray.toList (c.safety != .safe))
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
-    (AddInductive.run skeleton.nparams types numNested c).WF
-      (VerifiedPrimitiveInductiveRunResult c skeleton envTypes types
-        numNested) := by
-  have Hduplicates :
-      (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
-        fun _ => c.lparams.Nodup :=
-    Kernel.Environment.checkDuplicatedUnivParams.WF c.lparams
-  have Hcombined := Hduplicates.bind fun _ hnodup => by
-    apply Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.checkInductiveTypes.materialize
-      (fun stats => AddInductive.runWithStats stats skeleton.nparams
-        types.toArray numNested (c.safety != .safe))
-      (VerifiedPrimitiveInductiveRunResult c skeleton envTypes types
-        numNested) Hc Hdecl hctx hnonempty
-      Lean4Lean.consumeTypeAnnotationsCompat
-    intro c' stats decl depth Hc' henvEq hsafetyEq hlparamsEq Hdecl'
-      Hmaterialized
-    have Hclosed' : MutualInductivesClosed c'.env := by
-      simpa [henvEq] using Hclosed
-    have HnotPartial' : c'.safety ≠ .partial := by
-      simpa [hsafetyEq] using HnotPartial
-    have hvisible : c'.safety ≤
-        (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
-      rw [hsafetyEq]
-      cases hsafety : c.safety <;> simp_all
-    have Hshape' : PrimitiveInductiveShape c'.lparams skeleton.nparams
-        types.toArray.toList (c.safety != .safe) := by
-      simpa [hlparamsEq] using Hshape
-    have hlparamsNodup : c'.lparams.Nodup := by
-      simpa [hlparamsEq] using hnodup
-    exact (AddInductive.runWithStats.primitiveClosedWF
-      (hsourceSafety := by rw [hsafetyEq]) Hc' Hclosed' Hdecl'
-      Hmaterialized Hshape' hvisible hlparamsNodup
-      HnotPartial').mono fun outEnv Hout => by
-        rcases Hout with ⟨ctorEnv, R, Hrecursors⟩
-        exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,
-          ctorEnv, R, by
-            simpa using List.ne_nil_of_length_pos
-              (by simpa using hnonempty : 0 < types.length),
-          Hrecursors⟩
-  simpa [AddInductive.run] using Hcombined
 
 end VerifyInductive
 end Lean4Lean

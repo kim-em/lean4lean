@@ -307,8 +307,7 @@ theorem addInductiveDeclaration.finalResultWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
-    (HsourcesB : VerifyInductive.SourceBVarClosed types)
-    (hloc : VerifyInductive.CheckerSubContextLocality) :
+    (HsourcesB : VerifyInductive.SourceBVarClosed types) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (VerifyInductive.InductiveFinalResult outEnv ves lparams
@@ -320,7 +319,7 @@ theorem addInductiveDeclaration.finalResultWF
   cases allowPrimitive with
   | false =>
     exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
-      env lparams nparams types isUnsafe fuel ves wf hcorner HsourcesB hloc
+      env lparams nparams types isUnsafe fuel ves wf hcorner HsourcesB
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -328,7 +327,7 @@ theorem addInductiveDeclaration.finalResultWF
         nparams types isUnsafe).mp hallow
     exact
       VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf hcorner Hprimitive hloc
+        env lparams nparams types isUnsafe fuel ves wf hcorner Hprimitive
 
 /-- Traditional environment-preservation theorem for the complete inductive
 declaration dispatch.  This is unconditional: it is derived from the
@@ -337,8 +336,7 @@ source-facing specification. -/
 theorem addInductiveDeclaration.finalPreservesWF
     {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
-    (isUnsafe : Bool) (fuel : FuelConfig)
-    (hloc : VerifyInductive.CheckerSubContextLocality) :
+    (isUnsafe : Bool) (fuel : FuelConfig) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WF outEnv ∧
@@ -356,11 +354,10 @@ theorem addInductiveDeclaration.finalPreservesWF
     by_cases haux : res.aux2nested.size = 0
     · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF
         env lparams nparams types isUnsafe fuel res ves wf hcorner Hlower.toResult haux
-          hloc
     · exact
         (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
           env lparams nparams types isUnsafe fuel res ves wf hcorner Hsources Hlower
-            haux hloc).mono fun _ ⟨H⟩ => H.modelExtension
+            haux).mono fun _ ⟨H⟩ => H.modelExtension
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -368,7 +365,7 @@ theorem addInductiveDeclaration.finalPreservesWF
         nparams types isUnsafe).mp hallow
     exact
       (VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf hcorner Hprimitive hloc).mono
+        env lparams nparams types isUnsafe fuel ves wf hcorner Hprimitive).mono
         fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
@@ -455,9 +452,8 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env) (hcorne
 /-- Declaration forms admitted to the generic environment theorem.  Checked
 inductive declarations carry no declaration-specific semantic premise;
 ordinary, primitive, and nested evidence is reconstructed from execution.
-The open hypotheses of the checker (`ProjectionWalkCorner`,
-`CheckerSubContextLocality`) are explicit arguments of the theorems below, not
-part of this predicate. -/
+The open hypothesis of the checker (`ProjectionWalkCorner`) is an explicit
+argument of the theorems below, not part of this predicate. -/
 def _root_.Lean.Declaration.IsModelled
     (env : Environment) (ves : VEnvs) : Declaration → Prop
   | .quotDecl => False
@@ -466,7 +462,7 @@ def _root_.Lean.Declaration.IsModelled
 /-- Successful checked addition of a currently modeled declaration preserves
 well-formedness and extends every safety-indexed abstract environment. -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (hcorner : ProjectionWalkCorner) (hloc : VerifyInductive.CheckerSubContextLocality)
+    (hcorner : ProjectionWalkCorner)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
@@ -480,18 +476,18 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
   | mutualDefnDecl vs => exact addMutual.WF wf hcorner vs
   | inductDecl lparams nparams types isUnsafe =>
     exact addInductiveDeclaration.finalPreservesWF wf hcorner
-      lparams nparams types isUnsafe {} hloc
+      lparams nparams types isUnsafe {}
 
 /-- Every already-modeled declaration form preserves the canonical `Eq`
 invariant needed by the subsequent quotient and inductive boundaries. -/
 theorem addDecl.WFCanonicalEq
     {env : Environment} {ves : VEnvs}
     (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
-    (hloc : VerifyInductive.CheckerSubContextLocality) (hEq : VerifyInductive.CanonicalEqEnvs ves)
+    (hEq : VerifyInductive.CanonicalEqEnvs ves)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧
         VerifyInductive.CanonicalEqEnvs ves' ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf hcorner hloc decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
+  (addDecl.WF wf hcorner decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', hEq.mono hle, hle⟩

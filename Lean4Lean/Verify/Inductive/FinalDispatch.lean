@@ -20,15 +20,14 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
-    (haux : res.aux2nested.size = 0)
-    (hloc : CheckerSubContextLocality) :
+    (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     env lparams nparams sourceTypes isUnsafe fuel res ves wf hcorner Hsources HsourcesB
-    Hlower haux hloc).mono
+    Hlower haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨InductiveFinalResult.ofModel ves' wf' hle Hspec⟩
 
@@ -41,8 +40,7 @@ theorem Environment.addInductiveAfterLowering.primitiveInductiveFinalResultWF
     (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
-    (haux : res.aux2nested.size = 0)
-    (hloc : CheckerSubContextLocality) :
+    (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       true fuel res).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
@@ -52,7 +50,7 @@ theorem Environment.addInductiveAfterLowering.primitiveInductiveFinalResultWF
   exact
     (Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel res ves wf hcorner Hshape
-      htypes haux hloc).mono
+      htypes haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
@@ -66,8 +64,7 @@ theorem Environment.addInductive.primitiveInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloc : CheckerSubContextLocality) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true
       fuel).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
@@ -76,7 +73,7 @@ theorem Environment.addInductive.primitiveInductiveFinalResultWF
   subst isUnsafe
   exact
     (Environment.addInductive.primitiveFinalSpecificationModelWF
-      env lparams nparams types false fuel ves wf hcorner Hshape hloc).mono
+      env lparams nparams types false fuel ves wf hcorner Hshape).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
@@ -90,8 +87,7 @@ theorem addInductiveDeclaration.primitiveInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
-    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
-    (hloc : CheckerSubContextLocality) :
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
@@ -100,7 +96,7 @@ theorem addInductiveDeclaration.primitiveInductiveFinalResultWF
   subst isUnsafe
   exact
     (addInductiveDeclaration.primitiveFinalSpecificationModelWF
-      env lparams nparams types false fuel ves wf hcorner Hshape hloc).mono
+      env lparams nparams types false fuel ves wf hcorner Hshape).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
@@ -119,8 +115,7 @@ theorem Environment.addInductive.inductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
-    (HsourcesB : SourceBVarClosed types)
-    (hloc : CheckerSubContextLocality) :
+    (HsourcesB : SourceBVarClosed types) :
     (Environment.addInductive env lparams nparams types isUnsafe false
       fuel).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
@@ -134,11 +129,10 @@ theorem Environment.addInductive.inductiveFinalResultWF
   by_cases haux : res.aux2nested.size = 0
   · exact Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
       env lparams nparams types isUnsafe fuel res ves wf hcorner Hsources HsourcesB
-      Hlower.toResult haux hloc
+      Hlower.toResult haux
   · exact
       Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
         env lparams nparams types isUnsafe fuel res ves wf hcorner Hsources Hlower haux
-        hloc
 
 /-- Checked `addDecl` composition for the non-primitive branch. Primitive
 recognition is synchronized by the exact executable precheck equality;
@@ -149,14 +143,13 @@ theorem addInductiveDeclaration.inductiveFinalResultWF
     (ves : VEnvs) (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
     (HsourcesB : SourceBVarClosed types)
     (hcheck : Primitive.checkInductive env lparams nparams types
-      isUnsafe = .ok false)
-      (hloc : CheckerSubContextLocality) :
+      isUnsafe = .ok false) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         Nonempty (InductiveFinalResult outEnv ves lparams nparams types
           isUnsafe) := by
   have Hrun := Environment.addInductive.inductiveFinalResultWF env lparams
-    nparams types isUnsafe fuel ves wf hcorner HsourcesB hloc
+    nparams types isUnsafe fuel ves wf hcorner HsourcesB
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 
 end VerifyInductive

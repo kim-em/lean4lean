@@ -207,45 +207,6 @@ theorem Kernel.Environment.checkDuplicatedUnivParams.WF
     · simpa [Kernel.Environment.checkDuplicatedUnivParams, hmem] using
         ih.mono fun _ htail => List.nodup_cons.mpr ⟨hmem, htail⟩
 
-/-- Front-end composition for `AddInductive.run`: the executable header
-analysis materializes an independent declaration before the post-analysis
-installer is invoked. This theorem deliberately leaves the latter callback
-parametric, so environment conservation and formation assumptions are visible
-at their exact boundary. -/
-theorem AddInductive.run.materialize
-    (numNested : Nat) (Q : Environment → Prop)
-    (Hc : ContextWF c)
-    (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
-      types.toArray.toList (c.safety != .safe) skeleton envTypes)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (Hfinish : ∀ {c' : AddInductive.Context}
-      {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-      {depth : Nat},
-      (Hc' : ContextWF c') →
-      c'.env = c.env →
-      c'.safety = c.safety →
-      TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
-        types.toArray.toList (c.safety != .safe) decl envTypes →
-      checkInductiveTypes.loopInd.MaterializedHeaderResult
-        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth →
-      c'.lparams.Nodup →
-      (AddInductive.runWithStats stats skeleton.nparams types.toArray
-        numNested (c.safety != .safe) c').WF Q) :
-    (AddInductive.run skeleton.nparams types numNested c).WF Q := by
-  have Hduplicates :
-      (Kernel.Environment.checkDuplicatedUnivParams c.lparams).WF
-        fun _ => c.lparams.Nodup :=
-    Kernel.Environment.checkDuplicatedUnivParams.WF c.lparams
-  have Hcombined := Hduplicates.bind fun _ hnodup => by
-    apply Lean4Lean.VerifyInductive.checkInductiveTypes.loopInd.checkInductiveTypes.materialize
-      (fun stats => AddInductive.runWithStats stats skeleton.nparams
-        types.toArray numNested (c.safety != .safe)) Q Hc Hdecl hctx hnonempty
-      Lean4Lean.consumeTypeAnnotationsCompat
-    intro c' stats decl depth Hc' henvEq hsafetyEq hlparamsEq Hdecl' Hmaterialized
-    apply Hfinish Hc' henvEq hsafetyEq Hdecl' Hmaterialized
-    simpa [hlparamsEq] using hnodup
-  simpa [AddInductive.run] using Hcombined
 
 /-- The explicit semantic/freshness inputs needed to verify one set of
 statistics materialized by `checkInductiveTypes`. Keeping this bundle indexed
@@ -328,50 +289,6 @@ def VerifiedInductiveRunResult
       types.toArray.toList ≠ [] ∧
       Nonempty (RecursorPhasesResult R outEnv)
 
-theorem AddInductive.run.closedWF
-    (numNested : Nat)
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
-      types.toArray.toList (c.safety != .safe) skeleton envTypes)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (Hinputs : ∀ {c' : AddInductive.Context}
-      {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-      {depth : Nat}
-      (Hc' : ContextWF c')
-      (Hdecl' : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
-        types.toArray.toList (c.safety != .safe) decl envTypes)
-      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
-        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth),
-      RunWithStatsVerificationInputs c' stats decl skeleton.nparams depth
-        numNested types.toArray (c.safety != .safe) Hc' Hdecl'
-        Hmaterialized) :
-    (AddInductive.run skeleton.nparams types numNested c).WF
-      (VerifiedInductiveRunResult c skeleton envTypes types numNested) := by
-  apply AddInductive.run.materialize numNested
-    (VerifiedInductiveRunResult c skeleton envTypes types numNested)
-    Hc Hdecl hctx hnonempty
-  intro c' stats decl depth Hc' henvEq hsafetyEq Hdecl' Hmaterialized
-    hlparamsNodup
-  have Hclosed' : MutualInductivesClosed c'.env := by
-    simpa [henvEq] using Hclosed
-  have HnotPartial' : c'.safety ≠ .partial := by
-    simpa [hsafetyEq] using HnotPartial
-  have hvisible : c'.safety ≤
-      (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
-    rw [hsafetyEq]
-    cases hsafety : c.safety <;> simp_all
-  exact ((Hinputs Hc' Hdecl' Hmaterialized).verify (hsourceSafety := by rw [hsafetyEq]) Hclosed' hvisible
-    HnotPartial' hlparamsNodup).mono
-    fun outEnv Hout => by
-      rcases Hout with ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
-      exact ⟨c', stats, decl, depth, Hc', Hdecl', Hmaterialized,
-        headerEnv, ctorEnv, Hheaders, R, by
-          simpa using List.ne_nil_of_length_pos
-            (by simpa using hnonempty : 0 < types.length),
-        Hrecursors⟩
 
 /-- Close a successful ordinary declaration run from the exact generated
 rule translations retained per mutual-family owner. -/
@@ -416,36 +333,6 @@ theorem VerifiedInductiveRunResult.addInductCanonical
     Hheaders R Hrecursors
   exact Hrecursors.canonicalOrdinaryRuleTranslation
 
-/-- End-to-end refinement theorem for the executable ordinary installer.
-The postcondition exposes the independently materialized declaration and an
-abstract `VEnv.AddInduct` derivation; generated rules are not an input. -/
-theorem AddInductive.run.closedAddInductWF
-    (numNested : Nat)
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (Hdecl : TrInductDeclSkeletonHeaders Hc.venv c.lparams skeleton.nparams
-      types.toArray.toList (c.safety != .safe) skeleton envTypes)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (Hinputs : ∀ {c' : AddInductive.Context}
-      {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-      {depth : Nat}
-      (Hc' : ContextWF c')
-      (Hdecl' : TrInductDeclHeaders Hc'.venv c'.lparams skeleton.nparams
-        types.toArray.toList (c.safety != .safe) decl envTypes)
-      (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
-        Hc'.venv c'.lparams Hc'.mlctx.vlctx stats decl depth),
-      RunWithStatsVerificationInputs c' stats decl skeleton.nparams depth
-        numNested types.toArray (c.safety != .safe) Hc' Hdecl'
-        Hmaterialized) :
-    (AddInductive.run skeleton.nparams types numNested c).WF fun outEnv =>
-      ∃ c' : AddInductive.Context, ∃ Hc' : ContextWF c',
-        ∃ decl : VInductDecl, ∃ finalVEnv : VEnv,
-          VEnv.AddInduct Hc'.venv decl finalVEnv := by
-  exact (AddInductive.run.closedWF numNested Hc Hclosed Hdecl hctx hnonempty
-    HnotPartial Hinputs).mono fun _ Hrun =>
-      Hrun.addInductCanonical
 
 theorem VerifiedInductiveRunResult.addInductOfOrdinaryCompilation
     (Hrun : VerifiedInductiveRunResult source skeleton envTypes types
