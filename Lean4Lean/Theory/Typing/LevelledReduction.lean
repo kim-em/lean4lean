@@ -3455,6 +3455,47 @@ theorem EtaPar.collapse_major
     · cases he
   | bvar | sort | elim | proj | lam | forallE =>
     rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
+
+omit [Params] in
+theorem _root_.Lean4Lean.Pattern.Matches.constVarN_forall₂ {R : VExpr → VExpr → Prop} :
+    ∀ (k : Nat) {vs vs' : List VExpr} {ls ls' : List VLevel} {m m'},
+      ((Pattern.const c).varN k).Matches (VExpr.mkApps (.const c ls) vs) ls m →
+      ((Pattern.const c).varN k).Matches (VExpr.mkApps (.const c ls') vs') ls' m' →
+      (∀ a, R (m a) (m' a)) → List.Forall₂ R vs vs'
+  | 0, vs, vs', ls, ls', m, m', H, H', _ => by
+    generalize hE : VExpr.mkApps (.const c ls) vs = E at H
+    generalize hE' : VExpr.mkApps (.const c ls') vs' = E' at H'
+    cases H; cases H'
+    rcases eq_nil_or_snoc' vs with rfl | ⟨_, _, rfl⟩
+    · rcases eq_nil_or_snoc' vs' with rfl | ⟨_, _, rfl⟩
+      · exact .nil
+      · rw [mkApps_snoc] at hE'; cases hE'
+    · rw [mkApps_snoc] at hE; cases hE
+  | k + 1, vs, vs', ls, ls', m, m', H, H', hR => by
+    generalize hE : VExpr.mkApps (.const c ls) vs = E at H
+    generalize hE' : VExpr.mkApps (.const c ls') vs' = E' at H'
+    cases H with
+    | var H₀ =>
+      cases H' with
+      | var H₀' =>
+        obtain ⟨vs₀, rfl, rfl⟩ := RigidHead.const.mkApps_eq_app hE
+        obtain ⟨vs₀', rfl, rfl⟩ := RigidHead.const.mkApps_eq_app hE'
+        exact case_forall₂_append
+          (Pattern.Matches.constVarN_forall₂ k H₀ H₀' fun a => hR (some a)) (.cons (hR none) .nil)
+
+omit [Params] in
+theorem _root_.Lean4Lean.Pattern.Matches.constVarN_exists :
+    ∀ (k : Nat) {vs : List VExpr} {ls : List VLevel}, vs.length = k →
+      ∃ m, ((Pattern.const c).varN k).Matches (VExpr.mkApps (.const c ls) vs) ls m
+  | 0, vs, ls, h => by
+    cases List.length_eq_zero_iff.mp h
+    exact ⟨_, .const⟩
+  | k + 1, vs, ls, h => by
+    rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
+    · simp at h
+    · obtain ⟨m, hm⟩ := Pattern.Matches.constVarN_exists k (vs := vs₀) (ls := ls) (by simpa using h)
+      rw [mkApps_snoc]
+      exact ⟨_, .var hm⟩
 end EtaTools
 
 
