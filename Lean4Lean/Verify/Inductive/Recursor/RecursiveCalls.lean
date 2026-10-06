@@ -797,33 +797,43 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
                 (recursorCanonicalVars Hsynthesis.indices.length)
               let canonicalBody := VExpr.forallE canonicalMajor
                 (.sort Hframe.resultLevel)
-              have hcanonicalMajor :
-                  canonicalMajor.lift' Hruntime.shift =
-                    Hframe.majorSourceTarget := by
-                simpa [canonicalBody, canonicalMajor, canonicalFamily,
-                  VExpr.liftN] using
-                  hcanonicalMotiveBody
-              have HmajorSource : Rindices.venv.IsType
+              have Hfamily :=
+                (Hheader.completedRecursorNarrowFamilyApplication Helim
+                  Rindices Hsynthesis HnarrowStats HnarrowIndices
+                  hindexCount hcanonical harity henvIndices).2.2
+              have hp : Hsynthesis.params.length = decl.nparams :=
+                Hsynthesis.parameterCount.trans Hheader.parameterCount
+              have hn : Hsynthesis.indices.length =
+                  Hheader.target.numIndices := by
+                have hguard : indices.size = stats.nindices[dIdx]! := by
+                  simpa using harity
+                have hfam : stats.nindices[dIdx]! =
+                    Hheader.target.numIndices := by
+                  simp [Array.getElem!_eq_getD, Hheader.indexCount]
+                rw [Hsynthesis.indexCount]
+                omega
+              have hsplit := VExpr.mkApps_canonical_add
+                (.const Hheader.target.name
+                  (Hheader.recursorAbstractLevels Helim))
+                Hsynthesis.params.length Hsynthesis.indices.length
+              have HcanonicalNarrow : Rindices.venv.IsType
                   (AddInductive.getRecLevelParams elimLevel
-                    base.lparams).length
-                  Rindices.mlctx.vlctx.toCtx Hframe.majorSourceTarget :=
-                Hframe.majorType.defeqU_l Rindices.checking.tr.wf
-                  Rindices.mlctx_wf.tr.wf.toCtx
-                  Hframe.majorSourceDefEq.symm
-              have HmajorExpanded := HmajorSource.defeqDFC
-                Rindices.checking.tr.wf.ordered
-                (Hruntime.context.defeqCtx.symm
-                  Rindices.checking.tr.wf.ordered)
-              have HcanonicalExpanded : Rindices.venv.IsType
-                  (AddInductive.getRecLevelParams elimLevel
-                    base.lparams).length
-                  Hruntime.expanded.toCtx
-                  (canonicalMajor.lift' Hruntime.shift) := by
-                simpa [hcanonicalMajor] using HmajorExpanded
-              have HcanonicalNarrow :=
-                (VEnv.IsType.weak'_iff Rindices.checking.tr.wf
-                  Hruntime.context.wf.toCtx Hruntime.lift.toCtx).1
-                    HcanonicalExpanded
+                    base.lparams).length scope.toCtx canonicalMajor := by
+                have hcv : mkRecInfos.loopArgs1.canonicalIndexVars
+                    (decl.nparams + Hheader.target.numIndices) =
+                    recursorCanonicalVars
+                      (Hsynthesis.params.length + Hsynthesis.indices.length) := by
+                  rw [hp, hn]; rfl
+                have hsplit' : VExpr.mkApps
+                    (.const Hheader.target.name
+                      (Hheader.recursorAbstractLevels Helim))
+                    (recursorCanonicalVars
+                      (Hsynthesis.params.length + Hsynthesis.indices.length)) =
+                    canonicalMajor := by
+                  simpa [canonicalMajor, canonicalFamily, VExpr.liftN] using
+                    hsplit
+                rw [hcv, hsplit'] at Hfamily
+                exact Hfamily
               simpa [Rmotive, Rmajor, Hsynthesis.scopeCtx,
                 canonicalMajor, canonicalFamily] using HcanonicalNarrow
             telescope := by
