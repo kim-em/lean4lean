@@ -261,3 +261,15 @@ context only through `find?` on free variables reachable from its inputs and
 their declarations, plus its own fresh binders: it never reads the context
 globally. This locality argument is not formalized; binders whose checker
 context changed are marked "checker context narrowed" in the source.
+
+On the proof side, `ContextWF` (and its recursor and staged variants) records
+that `checkLCtx` is a well-formed sub-context of the main context. The
+main-context lift lemmas (`liftTypeChecker.WF`, `whnfInContext.WF`, ...)
+keep their statements: they transfer a run in the checker context to the main
+context through the named hypothesis `CheckerSubContextLocality`
+(`Lean4Lean/Verify/Inductive/Context.lean`), the sub-context direction of
+the locality argument above. It is carried from the top as the `inductDecl`
+case of `Declaration.IsModelled`. The hypothesis is transitional: once every
+lifted run is verified directly in its narrow checker context (whose
+semantic context is then the narrow one), the main-context facts follow by
+weakening and the hypothesis can be dropped.
