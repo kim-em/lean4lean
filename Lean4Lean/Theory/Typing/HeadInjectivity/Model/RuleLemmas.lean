@@ -277,10 +277,10 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
   refine ⟨keys, hk, ?_⟩
   rcases Obs.const_iff.1 hw with ⟨_, _, keys', r', e, _, _, _, _, hr'⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r', e, _, _, _, _, hr'⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr'.notApp
     rcases hr with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>
-      rcases hr' with h | ⟨_, _, h⟩ <;> cases h
+      rcases hr' with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
   · have hrn : r'.NotApp := by
       rcases hr' with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial
@@ -346,39 +346,17 @@ section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
 
-/-- The sort of a semantically typed rigid spine is the sort of its head's telescope, and the
-spine has its rigid head observation. -/
+/-- A semantically typed rigid spine has its rigid head observation, at its sort. -/
 theorem spine_rigid_obs (H : HTS env U Δ Γ (.mkApps (.const c ls) args) (.sort u))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) (hrig : env.Rigid c) :
-    RigidSort env c (ls.map (·.eval)) args.length u.eval ∧
-      Obs' σ S (.mkApps (.const c ls) args) (.rigid c (ls.map (·.eval)) args.length) := by
-  obtain ⟨ci, info, hci, hls, ⟨u₀, hT, -⟩, hinfo, -, P1, P2, -⟩ :=
+    Obs' σ S (.mkApps (.const c ls) args) (.rigid c (ls.map (·.eval)) args.length u.eval) := by
+  obtain ⟨ci, info, hci, hls, -, hinfo, -, P1, -, -⟩ :=
     H.spine henv hΔ rfl W tv (args.map fun _ => []) (forall₂_nil_lists args)
       [.sort u.eval] fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort
   have hlen : info.length = args.length := List.Forall₂.length_eq hinfo
-  have RS : RigidSort env c (ls.map (·.eval)) args.length u.eval := by
-    intro ci' ds w hci' hty hds
-    cases hci.symm.trans hci'
-    have eT : ci.type.instL ls =
-        VExpr.wrapForalls (ds.map (·.instL ls)) (.sort (w.inst ls)) := by
-      rw [hty, instL_wrapForalls'']; rfl
-    rw [eT] at hT
-    have hpi := hT.piSD (ds := ds.map (·.instL ls))
-    obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 (.piDom fun _ => False) (.piDom (List.mem_singleton_self _))
-    rw [eT] at hτ₀
-    obtain ⟨σ', S', hk, -⟩ := tele_unwind henv hΔ hpi .nil TV.empty
-      (by simp [hlen, hds]) hty₀ hτ₀
-    have := tele_obs hk (x := .sort (w.inst ls).eval) .sort
-    rw [← eT] at this
-    obtain ⟨x', hx', l⟩ := P2 _ this
-    rw [l.sort_inv] at hx'
-    have := Obs.sort_mem hx'
-    injection this with this
-    rw [← this, VLevel.eval_inst_eq_evalAt]
-  refine ⟨RS, ?_⟩
   have hr : RigidEnd c (ls.map (·.eval)) (info.map (·.1))
-      (.rigid c (ls.map (·.eval)) args.length) := .inl (by simp [hlen])
-  obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 _ (.rigid (List.mem_singleton_self _) RS)
+      (.rigid c (ls.map (·.eval)) args.length u.eval) := .inl ⟨u.eval, by simp [hlen]⟩
+  obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 _ (.rigid (List.mem_singleton_self _))
   exact obs_mkApps_of_wrap (KeyData.forall₂_keys hinfo) (.const hrig hci hτ₀ hty₀ hr)
 
 end

@@ -56,16 +56,6 @@ inductive PiSD : List VExpr → List VExpr → VExpr → Prop
 
 end
 
-/-- The observation of a Pi telescope recording the codomain observation `x` at the keys. -/
-def piCodChain (keys : List Key) (x : Ob) : Ob := keys.foldr (fun k x => .piCodOb k.2.1 k.2.2 x) x
-
-@[simp] theorem piCodChain_nil : piCodChain [] x = x := rfl
-@[simp] theorem piCodChain_cons :
-    piCodChain (k :: ks) x = .piCodOb k.2.1 k.2.2 (piCodChain ks x) := rfl
-
-theorem piCodChain_append : piCodChain (ks ++ ks') x = piCodChain ks (piCodChain ks' x) := by
-  simp [piCodChain, List.foldr_append]
-
 variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ

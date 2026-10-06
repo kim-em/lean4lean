@@ -146,19 +146,19 @@ theorem forallE_chain (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ 
 observations. -/
 theorem const_wrap_inv {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
     (hrig : env.Rigid n) (h : Obs env U Δ σ S (.const n ls) (wrap keys o))
-    (ho : (∃ n' ℓs m, o = .rigid n' ℓs m) ∨ ∃ i c, o = .rigidArg i c) :
+    (ho : (∃ n' ℓs m s, o = .rigid n' ℓs m s) ∨ ∃ i c, o = .rigidArg i c) :
     RigidEnd n (ls.map (·.eval)) keys o := by
-  have hna : o.NotApp := by rcases ho with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;> trivial
+  have hna : o.NotApp := by rcases ho with ⟨_, _, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;> trivial
   rcases Obs.const_iff.1 h with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr.notApp
     exact hr
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
   · have hrn : r.NotApp := by
       rcases hr with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial
     obtain ⟨rfl, rfl⟩ := wrap_inj e hna hrn
-    rcases ho with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;>
+    rcases ho with ⟨_, _, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;>
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig df hdf lsP)
 
@@ -173,14 +173,13 @@ def KeyedArgs (env : VEnv) (U : Nat) (Γ : List VExpr) (keys : List Key) (args :
 /-- **Typed spine observations** (from the spine lemma): for a sort-typed spine
 `mkApps (const c ls) args : sort u`, there are keys for the arguments such that every
 observation typed at `[sort u]`, wrapped in the keys, is typed at observations of the
-constant's type, and `u` is the sort of `c` at its syntactic telescope (`RigidSort`). -/
+constant's type. -/
 theorem spine_data (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (hu : env.IsDefEq U Γ (.mkApps (.const c ls) args) (.mkApps (.const c ls) args) (.sort u)) :
     ∃ ci keys, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
       (∀ o, TypedOb env U Γ o [.sort u.eval] →
         ∃ τs₀, (∀ τ ∈ τs₀, OI env U Γ (ci.type.instL ls) τ) ∧
-          TypedOb env U Γ (wrap keys o) τs₀) ∧
-      RigidSort env c (ls.map (·.eval)) args.length u.eval := by
+          TypedOb env U Γ (wrap keys o) τs₀) := by
   have H := (hnr hΓ (hu.strong henv hΓ)).2.1
   obtain ⟨ci, info, hci, hls, ⟨u₀, hT, -⟩, hinfo, -, P1, P2, -⟩ :=
     H.spine henv hΓ rfl (Ctx.SubstEq.id henv hΓ) TV.empty (args.map fun _ => [])
@@ -191,7 +190,7 @@ theorem spine_data (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (en
         | cons a as ih => exact .cons nofun ih)
       [.sort u.eval] fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort
   have hlen : info.length = args.length := List.Forall₂.length_eq hinfo
-  refine ⟨ci, info.map (·.1), hci, hls, ?_, P1, ?_⟩
+  refine ⟨ci, info.map (·.1), hci, hls, ?_, P1⟩
   · clear P1 P2 hlen H hu hT
     induction hinfo with
     | nil => exact .nil
@@ -199,24 +198,6 @@ theorem spine_data (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (en
       obtain ⟨h1, h2, h3, _, h5⟩ := h
       refine .cons ⟨by rw [h1, VExpr.subst_id], h2, ka.2, h5.1.defeq.hasType.1, ?_⟩ ih
       rw [h3, VExpr.subst_id]
-  · intro ci' ds w hci' hty hds
-    cases hci.symm.trans hci'
-    have eT : ci.type.instL ls =
-        VExpr.wrapForalls (ds.map (·.instL ls)) (.sort (w.inst ls)) := by
-      rw [hty, instL_wrapForalls']; rfl
-    rw [eT] at hT
-    have hpi := hT.piSD (ds := ds.map (·.instL ls))
-    obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 (.piDom fun _ => False) (.piDom (List.mem_singleton_self _))
-    rw [eT] at hτ₀
-    obtain ⟨σ', S', hk, -⟩ := tele_unwind henv hΓ hpi .nil TV.empty
-      (by simp [hlen, hds]) hty₀ hτ₀
-    have := tele_obs hk (x := .sort (w.inst ls).eval) .sort
-    rw [← eT] at this
-    obtain ⟨x', hx', l⟩ := P2 _ this
-    rw [l.sort_inv] at hx'
-    have := Obs.sort_mem hx'
-    injection this with this
-    rw [← this, VLevel.eval_inst_eq_evalAt]
 
 /-- The analysis of a chain between two rigid spines: same head, same levels, and each
 right argument in the class of the corresponding left argument (at the left spine's keys,
@@ -224,27 +205,32 @@ whose spine observation is typed at the observations of the head's type). -/
 theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (hrig : env.Rigid c) (hrig' : env.Rigid c')
     (h : env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c' ls') args')) :
-    ∃ ci keys, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
+    ∃ ci keys u, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
       (∃ τs₀, (∀ τ ∈ τs₀, OI env U Γ (ci.type.instL ls) τ) ∧
-        TypedOb env U Γ (wrap keys (.rigid c (ls.map (·.eval)) keys.length)) τs₀) ∧
+        TypedOb env U Γ (wrap keys (.rigid c (ls.map (·.eval)) keys.length u)) τs₀) ∧
       c = c' ∧ ls.map (·.eval) = ls'.map (·.eval) ∧
       List.Forall₂ (fun (k : Key) a' => k.2.1 a') keys args' := by
   obtain ⟨u, hu⟩ := h.isType_l
-  obtain ⟨ci, keys, hci, hls, hkeys, hQ, hRS⟩ := spine_data henv hnr hΓ hu
+  obtain ⟨ci, keys, hci, hls, hkeys, hQ⟩ := spine_data henv hnr hΓ hu
   have hk' : List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 (a.subst .id) ∧
       ∀ x ∈ k.2.2, OI env U Γ a x) keys args :=
     forall₂_imp (fun k a ⟨h1, h2, _⟩ => ⟨by rw [VExpr.subst_id]; exact h1, h2⟩) hkeys
-  have hsort : ∀ r, RigidEnd c (ls.map (·.eval)) keys r → TypedOb env U Γ r [.sort u.eval] := by
+  let LeftEnd : Ob → Prop := fun r => r = .rigid c (ls.map (·.eval)) keys.length u.eval ∨
+    ∃ i, ∃ h : i < keys.length, r = .rigidArg i (keys[i]).2.1
+  have hle : ∀ r, LeftEnd r → RigidEnd c (ls.map (·.eval)) keys r := by
+    intro r hr; rcases hr with rfl | h
+    · exact .inl ⟨_, rfl⟩
+    · exact .inr h
+  have hsort : ∀ r, LeftEnd r → TypedOb env U Γ r [.sort u.eval] := by
     intro r hr
     rcases hr with rfl | ⟨_, _, rfl⟩
-    · exact .rigid (List.mem_singleton_self _) (List.Forall₂.length_eq hkeys ▸ hRS)
+    · exact .rigid (List.mem_singleton_self _)
     · exact .rigidArg (List.mem_singleton_self _)
-  have hL : ∀ r, RigidEnd c (ls.map (·.eval)) keys r →
-      OI env U Γ (.mkApps (.const c ls) args) r := by
+  have hL : ∀ r, LeftEnd r → OI env U Γ (.mkApps (.const c ls) args) r := by
     intro r hr
     obtain ⟨τs₀, h1, h2⟩ := hQ r (hsort r hr)
-    exact obs_mkApps_of_wrap hk' (.const hrig hci h1 h2 hr)
-  have hR : ∀ r, RigidEnd c (ls.map (·.eval)) keys r → ∃ keys' : List Key,
+    exact obs_mkApps_of_wrap hk' (.const hrig hci h1 h2 (hle r hr))
+  have hR : ∀ r, LeftEnd r → ∃ keys' : List Key,
       List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 (a.subst .id)) keys' args' ∧
       RigidEnd c' (ls'.map (·.eval)) keys' r := by
     intro r hr
@@ -257,16 +243,16 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
     obtain ⟨keys', hk, hw⟩ := wrap_of_obs_mkApps ho
     exact ⟨keys', hk, const_wrap_inv hrig' hw (by
       rcases hr with rfl | ⟨_, _, rfl⟩
-      · exact .inl ⟨_, _, _, rfl⟩
+      · exact .inl ⟨_, _, _, _, rfl⟩
       · exact .inr ⟨_, _, rfl⟩)⟩
   have hlen := List.Forall₂.length_eq hkeys
   obtain ⟨keys', hk1, hr1⟩ := hR _ (.inl rfl)
-  rcases hr1 with e | ⟨_, _, e⟩
+  rcases hr1 with ⟨_, e⟩ | ⟨_, _, e⟩
   · injection e with ec eℓ en
-    refine ⟨ci, keys, hci, hls, hkeys, hQ _ (hsort _ (.inl rfl)), ec, eℓ, ?_⟩
+    refine ⟨ci, keys, u.eval, hci, hls, hkeys, hQ _ (hsort _ (.inl rfl)), ec, eℓ, ?_⟩
     refine forall₂_of_getElem (by rw [en, List.Forall₂.length_eq hk1]) fun i h₁ h₂ => ?_
     obtain ⟨keys'', hk2, hr2⟩ := hR _ (.inr ⟨i, h₁, rfl⟩)
-    rcases hr2 with e | ⟨j, hj, e⟩
+    rcases hr2 with ⟨_, e⟩ | ⟨j, hj, e⟩
     · cases e
     · injection e with eij ecl
       subst eij
@@ -324,14 +310,14 @@ theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Mode
   sort_sort hΓ h := Model.sort_sort henv.ordered hnr hΓ h
   forallE_chain hΓ h := Model.forallE_chain henv.ordered hnr hΓ h
   rigid_rigid hΓ hrig hrig' h := by
-    obtain ⟨_, keys, _, _, hkeys, _, ec, eℓ, hk'⟩ :=
+    obtain ⟨_, keys, _, _, _, hkeys, _, ec, eℓ, hk'⟩ :=
       Model.rigid_analysis henv.ordered hnr hΓ hrig hrig' h
     refine ⟨ec, Model.forall₂_equiv_of_map_eval eℓ,
       Model.forall₂_zip (fun k a a' ⟨h1, _, X, hX, h2⟩ h3 => ?_) hkeys hk'⟩
     rw [h1, h2] at h3
     exact ⟨X, Model.ElCls.collapse henv.ordered hΓ hX .self h3⟩
   former_args {U Γ c ci doms w ls ls' args args'} hΓ hrig hci hty h := by
-    obtain ⟨ci', keys, hci', hls, hkeys, ⟨τs₀, hτs₀, hty₀⟩, _, _, hk'⟩ :=
+    obtain ⟨ci', keys, _, hci', hls, hkeys, ⟨τs₀, hτs₀, hty₀⟩, _, _, hk'⟩ :=
       Model.rigid_analysis henv.ordered hnr hΓ hrig hrig h
     cases hci.symm.trans hci'
     have eT : ci.type.instL ls =

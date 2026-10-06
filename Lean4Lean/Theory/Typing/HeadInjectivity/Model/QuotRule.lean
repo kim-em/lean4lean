@@ -63,11 +63,6 @@ theorem quotConst_type : quotConst.type =
     .wrapForalls [.sort (.param 0), .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))]
       (.sort (.param 0)) := rfl
 
-theorem quot_headFam (hq : QuotConsts env) (hrig : env.Rigid ``Quot) :
-    HeadFam env ``Quot.lift quotLead.length ``Quot.mk :=
-  ⟨_, _, _, _, _, _, _, _, _, hq.2.2, quotLiftConst_type, rfl, rfl, hq.1, quotConst_type, rfl,
-    hrig, _, _, hq.2.1, rfl⟩
-
 theorem wrapForalls_inj_len : ∀ {ds ds' : List VExpr} {b b' : VExpr}, ds.length = ds'.length →
     VExpr.wrapForalls ds b = VExpr.wrapForalls ds' b' → ds = ds' ∧ b = b'
   | [], [], _, _, _, h => ⟨rfl, h⟩
@@ -77,23 +72,23 @@ theorem wrapForalls_inj_len : ∀ {ds ds' : List VExpr} {b b' : VExpr}, ds.lengt
     obtain ⟨rfl, rfl⟩ := wrapForalls_inj_len (Nat.succ.inj hl) h2
     exact ⟨by rw [h1], rfl⟩
 
-theorem MajorSort.unique (h1 : MajorSort env n k ls ℓ₁) (h2 : MajorSort env n k ls ℓ₂) :
-    ℓ₁ = ℓ₂ := by
-  obtain ⟨ci, dsH, RH, I, lsI, iargs, cI, dsI, w, hci, eH, hl, hk, hI, hIty, hIl, rfl⟩ := h1
-  obtain ⟨ci', dsH', RH', I', lsI', iargs', cI', dsI', w', hci', eH', hl', hk', hI', hIty', hIl',
-    rfl⟩ := h2
-  cases hci.symm.trans hci'
-  obtain ⟨rfl, -⟩ := wrapForalls_inj_len (hl.trans hl'.symm) (eH.symm.trans eH')
-  rw [hk] at hk'; injection hk' with hk'
-  obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hk'
-  cases hI.symm.trans hI'
-  obtain ⟨-, e⟩ := wrapForalls_inj_len (hIl.trans hIl'.symm) (hIty.symm.trans hIty')
-  injection e with e; subst e; rfl
-
-theorem quot_majorSort (hq : QuotConsts env) :
-    MajorSort env ``Quot.lift quotLead.length ls ((VLevel.param 0).inst ls).eval :=
-  ⟨_, _, _, _, _, _, _, _, _, hq.2.2, quotLiftConst_type, rfl, rfl, hq.1, quotConst_type, rfl,
-    by simp [VLevel.inst]⟩
+/-- The innermost observation of a typed chain at a telescope ending in a sort is typed at
+that sort only. -/
+theorem chain_terminal_sort : ∀ {ds : List VExpr} {keys : List Key} {o : Ob} {τs : List Ob},
+    keys.length = ds.length → TypedOb env U Δ (wrap keys o) τs →
+    (∀ τ ∈ τs, ∃ σ S, Obs' σ S (.wrapForalls ds (.sort w)) τ) →
+    ∃ τc, (∀ τ ∈ τc, τ = .sort w.eval) ∧ TypedOb env U Δ o τc
+  | [], [], o, τs, _, ho, hτ => ⟨τs, fun τ h => let ⟨_, _, h⟩ := hτ τ h; Obs.sort_mem h, ho⟩
+  | A :: ds, k :: keys, o, τs, hl, ho, hτ => by
+    obtain ⟨D, c, K⟩ := k
+    simp only [wrap_cons] at ho
+    cases ho with
+    | @app _ τd _ _ _ τc _ hD hd hkt hc hcod hty' =>
+      refine chain_terminal_sort (Nat.succ.inj hl) hty' fun x hx => ?_
+      obtain ⟨K₀, hm, -⟩ := hcod x hx
+      obtain ⟨σ, S, h⟩ := hτ _ hm
+      obtain ⟨-, -, z, -, hxR⟩ := Obs.piCodOb_mem h
+      exact ⟨_, _, hxR⟩
 
 theorem quot_lead_x (hx : x < quotDoms.length)
     (hnb : ∀ i : Nat, quotLead[i]? ≠ some (VExpr.bvar x)) : x = 0 := by
@@ -110,24 +105,63 @@ theorem quot_binderTy0 : binderTy quotDoms ls 0 = .bvar 5 := rfl
 
 theorem quot_binderTy5 : binderTy quotDoms ls 5 = .sort ((VLevel.param 0).inst ls) := rfl
 
-section
-variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
-include henv hΔ
+theorem tele_obs_inv : ∀ {ds : List VExpr} {keys : List Key} {σ : VExpr.Subst} {S : ObSets}
+    {x : Ob}, keys.length = ds.length →
+    Obs' σ S (.wrapForalls ds R) (piCodChain keys x) → ∃ σ' S', Obs' σ' S' R x
+  | [], [], σ, S, _, _, h => ⟨σ, S, h⟩
+  | _ :: _, _ :: _, _, _, _, hl, h => by
+    obtain ⟨-, -, _, -, h⟩ := Obs.piCodOb_mem h
+    exact tele_obs_inv (Nat.succ.inj hl) h
+
+/-- The quotient rule in mode C: the zero-sort rigid observation of `Quot α r` at the major
+domain forces `Quot`'s level to vanish at `ls`, so the field `a` is a proof. -/
+theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : List Key}
+    (hkl : keys.length = quotLead.length)
+    (h : Obs' .id .empty (quotLiftConst.type.instL ls) (piCodChain keys
+      (.piDomOb (.rigid ``Quot (([VLevel.param 0].map (·.inst ls)).map (·.eval)) 2 fun _ => 0)))) :
+    ((VLevel.param 0).inst ls).eval = fun _ => 0 := by
+  have eT : quotLiftConst.type.instL ls = .wrapForalls ((quotLiftDoms.take 5).map (·.instL ls))
+      (.forallE ((VExpr.mkApps (.const ``Quot [.param 0]) [.bvar 4, .bvar 3]).instL ls)
+        ((VExpr.bvar 3).instL ls)) := rfl
+  rw [eT] at h
+  obtain ⟨σ', S', h⟩ := tele_obs_inv (by simpa [quotLead, quotLiftDoms] using hkl) h
+  have h := Obs.piDomOb_mem h
+  simp only [VExpr.instL_mkApps, VExpr.instL] at h
+  obtain ⟨keys', -, hc⟩ := wrap_of_obs_mkApps h
+  rcases Obs.const_iff.1 hc with ⟨ci, τs, keys'', r, e, -, hci, hτ, hty, hr⟩ |
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys'', r, e, -, -, -, -, hr⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e trivial hr.notApp
+    cases hq.1.symm.trans hci
+    have hlen : keys'.length = 2 := by
+      rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩
+      · injection h with _ _ h; exact h.symm
+      · cases h
+    obtain ⟨τc, hτc, hty'⟩ := chain_terminal_sort (ds := [.sort ((VLevel.param 0).inst ls),
+        .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))]) (w := (VLevel.param 0).inst ls)
+      (by simpa using hlen) hty fun τ hτ' => ⟨_, _, hτ τ hτ'⟩
+    cases hty' with
+    | rigid h1 =>
+      have := hτc _ h1
+      injection this with this
+      exact this.symm
+  · exact absurd (by rw [hlhs]; rfl) (hrigQ df hdf _)
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e trivial (by
+      rcases hr with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial)
+    rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
+  · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrigQ df hdf lsP)
 
 /-- In mode C (the quotient is a proposition at `ls`), the field `a` is a proof. -/
-theorem quot_pf (hq : QuotConsts env) (hlsw : ∀ l ∈ ls, l.WF U) :
-    RuleMode env ``Quot.lift quotLead.length ls true → ∀ x < quotDoms.length,
+theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).eval = fun _ => 0) :
+    ∀ x < quotDoms.length,
       (∀ i : Nat, quotLead[i]? ≠ some (VExpr.bvar x)) →
       ∀ v vS, Ctx.SubstEq env U Δ v v ((quotDoms.map (·.instL ls)).reverse ++ Γ) →
         TV env U Δ ((quotDoms.map (·.instL ls)).reverse ++ Γ) v vS →
         (∃ P, TyCls env U Δ ((binderTy quotDoms ls x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
         ∀ τ, Obs' v vS (binderTy quotDoms ls x) τ → TypedOb env U Δ τ [.sort fun _ => 0] := by
-  intro hmode x hx hnb v vS Wv tvv
+  intro x hx hnb v vS Wv tvv
   obtain rfl := quot_lead_x hx hnb
-  obtain ⟨ℓ, hms, hℓ⟩ := hmode
-  have e0 : ((VLevel.param 0).inst ls).eval = fun _ => 0 := by
-    rw [hms.unique (quot_majorSort hq)] at hℓ; exact hℓ.1 rfl
   have hL := lookup_binderTy (Γ := Γ) (ls := ls) (doms := quotDoms) (x := 5) (by decide)
   rw [quot_binderTy5] at hL
   have hv5 := (Wv.lookup hL).hasType.1
@@ -141,10 +175,23 @@ theorem quot_pf (hq : QuotConsts env) (hlsw : ∀ l ∈ ls, l.WF U) :
   rw [e0] at this
   exact this
 
-end
+/-- The quotient rule is the only rule headed by `Quot.lift`, in an environment whose rules
+are delta rules or the quotient rule. -/
+theorem quot_single (hdr : env.DefRules) (hqd : env.defeqs quotDefEq)
+    (hrules : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq) :
+    ∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' →
+      df' = quotDefEq := by
+  intro df' ls' hdf hh
+  rcases hrules df' hdf with ⟨n, ls, h⟩ | rfl
+  · exfalso
+    have hn : n = ``Quot.lift := by rw [h] at hh; injection hh
+    subst hn
+    have := hdr.excl df' quotDefEq hdf hqd _ ls [.param 0, .param 1] h rfl
+    rw [← this] at h
+    exact absurd (quotDefEq_lhs.symm.trans h) VExpr.wrapLams_mkApps_snoc_ne_const
+  · rfl
 
-/-- Uniqueness of the quotient rule for its head, in an environment whose rules are
-delta rules or the quotient rule. -/
+/-- Uniqueness of the quotient rule for its head and constructor. -/
 theorem quot_uniq (hrules : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq) :
     ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
@@ -152,9 +199,7 @@ theorem quot_uniq (hrules : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const
       df'.lhs = .wrapLams doms' (.mkApps (.const ``Quot.lift lsP')
         (lead' ++ [.mkApps (.const ctor' lsC') (ms' ++ fs'.map .bvar)])) →
       df'.rhs = .wrapLams doms' body' →
-      lead'.length = quotLead.length ∧
-        ((ctor' = ``Quot.mk ∨ RuleMode env ``Quot.lift quotLead.length ls true) →
-          df' = quotDefEq) := by
+      lead'.length = quotLead.length ∧ (ctor' = ``Quot.mk → df' = quotDefEq) := by
   intro df' doms' lsP' lead' ctor' lsC' ms' fs' body' hdf hl _
   rcases hrules df' hdf with ⟨_, _, h⟩ | rfl
   · exact absurd (hl.symm.trans h) VExpr.wrapLams_mkApps_snoc_ne_const

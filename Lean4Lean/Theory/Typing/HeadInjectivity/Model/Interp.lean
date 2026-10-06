@@ -92,21 +92,15 @@ def CtorEnd (n : Name) (ℓs : List (List Nat → Nat)) (keys : List Key) (r : O
   (∃ i, ∃ h : i < keys.length, r = .ctorArg i (keys[i]).2.1) ∨
   (∃ i, ∃ h : i < keys.length, ∃ k ∈ (keys[i]).2.2, r = .ctorArgOb i (keys.take i) k)
 
-/-- The sort, at the levels `ls`, of the family of the `k`-th domain (the major premise) of
-the type of the rule head `n`: the head's type is a telescope of `k+1` domains whose last is an
-application of a family `I`, itself typed by a telescope ending in a sort. -/
-def MajorSort (env : VEnv) (n : Name) (k : Nat) (ls : List VLevel) (ℓ : List Nat → Nat) :
-    Prop :=
-  ∃ ci dsH RH I lsI iargs cI dsI w, env.constants n = some ci ∧
-    ci.type = .wrapForalls dsH RH ∧ dsH.length = k + 1 ∧
-    dsH[k]? = some (.mkApps (.const I lsI) iargs) ∧ env.constants I = some cI ∧
-    cI.type = .wrapForalls dsI (.sort w) ∧ dsI.length = iargs.length ∧
-    ℓ = (w.inst (lsI.map (·.inst ls))).eval
+/-- The observation of a Pi telescope recording the codomain observation `x` at the keys. -/
+def piCodChain (keys : List Key) (x : Ob) : Ob := keys.foldr (fun k x => .piCodOb k.2.1 k.2.2 x) x
 
-/-- The mode of a rule with head `n` and major index `k` at the levels `ls`: `mC = true`
-(mode C, the major is ignored) exactly when the major's family is a proposition there. -/
-def RuleMode (env : VEnv) (n : Name) (k : Nat) (ls : List VLevel) (mC : Bool) : Prop :=
-  ∃ ℓ, MajorSort env n k ls ℓ ∧ (mC = true ↔ ℓ = fun _ => 0)
+@[simp] theorem piCodChain_nil : piCodChain [] x = x := rfl
+@[simp] theorem piCodChain_cons :
+    piCodChain (k :: ks) x = .piCodOb k.2.1 k.2.2 (piCodChain ks x) := rfl
+
+theorem piCodChain_append : piCodChain (ks ++ ks') x = piCodChain ks (piCodChain ks' x) := by
+  simp [piCodChain, List.foldr_append]
 
 /-- The type of the binder `x` (de Bruijn index in the body) of a rule whose binder
 domains are `doms` (outermost first), at the levels `ls`. -/
@@ -185,7 +179,10 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     df.rhs = .wrapLams doms body →
     env.constants n = some ci → (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) o) τs → lkeys.length = lead.length →
-    RuleMode env n lead.length ls mC →
+    (mC = true → ∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' →
+        df' = df) →
+    (mC = true → Obs .id .empty (ci.type.instL ls)
+        (piCodChain lkeys (.piDomOb (.rigid I ℓsI mI fun _ => 0)))) →
     (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) →
     RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' →
     Obs τ S' (body.instL ls) o →
@@ -264,14 +261,17 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
     (∃ ci τs keys r, o = wrap keys r ∧ IsCtor env n ∧ env.constants n = some ci ∧
       (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (wrap keys r) τs ∧ CtorEnd n (ls.map (·.eval)) keys r) ∨
-    (∃ df doms lsP lead ctor lsC ms fs body ci τs lkeys Dm cm Km p mC τ S',
+    (∃ df doms lsP lead ctor lsC ms fs body ci τs lkeys Dm cm Km p mC τ S' I ℓsI mI,
       o = wrap (lkeys ++ [(Dm, cm, Km)]) p ∧ env.defeqs df ∧
       df.lhs = .wrapLams doms (.mkApps (.const n lsP)
         (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])) ∧
       df.rhs = .wrapLams doms body ∧
       env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) p) τs ∧ lkeys.length = lead.length ∧
-      RuleMode env n lead.length ls mC ∧
+      (mC = true → ∀ df' ls', env.defeqs df' →
+          df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' = df) ∧
+      (mC = true → Obs' .id .empty (ci.type.instL ls)
+          (piCodChain lkeys (.piDomOb (.rigid I ℓsI mI fun _ => 0)))) ∧
       (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∧
       RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' ∧
       Obs' τ S' (body.instL ls) p) := by
@@ -280,17 +280,17 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
     | const h0 h1 h2 h3 h4 => exact .inl ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩
     | delta h1 h2 h3 h4 h5 h6 => exact .inr (.inl ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩)
     | ctor h0 h1 h2 h3 h4 => exact .inr (.inr (.inl ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩))
-    | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 =>
-      exact .inr (.inr (.inr ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
-        rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩))
+    | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+      exact .inr (.inr (.inr ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
+        rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩))
   · rintro (⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ | ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩ |
       ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ |
-      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
-        rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩)
+      ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
+        rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩)
     · exact .const h0 h1 h2 h3 h4
     · exact .delta h1 h2 h3 h4 h5 h6
     · exact .ctor h0 h1 h2 h3 h4
-    · exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11
+    · exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
 
 /-- The observations of a constant do not depend on the valuation. -/
 theorem const_indep : Obs' σ S (.const n ls) o ↔ Obs' σ' S' (.const n ls) o := by
@@ -406,7 +406,7 @@ theorem mono (h : Obs' σ S t o) (hS : ∀ i o, S i o → S' i o) : Obs' σ S' t
   | const h0 h1 h2 h3 h4 => exact .const h0 h1 h2 h3 h4
   | delta h1 h2 h3 h4 h5 h6 => exact .delta h1 h2 h3 h4 h5 h6
   | ctor h0 h1 h2 h3 h4 => exact .ctor h0 h1 h2 h3 h4
-  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 => exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11
+  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 => exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
 
 /-- Monotonicity up to subsumption: if every observation of `S` is subsumed by one of
 `S'`, every observation under `S` is subsumed by one under `S'`. -/
@@ -444,8 +444,8 @@ theorem mono_le (h : Obs' σ S t o) (hS : ∀ i o, S i o → ∃ o', S' i o' ∧
   | const h0 h1 h2 h3 h4 => exact ⟨_, .const h0 h1 h2 h3 h4, .refl⟩
   | delta h1 h2 h3 h4 h5 h6 => exact ⟨_, .delta h1 h2 h3 h4 h5 h6, .refl⟩
   | ctor h0 h1 h2 h3 h4 => exact ⟨_, .ctor h0 h1 h2 h3 h4, .refl⟩
-  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 =>
-    exact ⟨_, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11, .refl⟩
+  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact ⟨_, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12, .refl⟩
 
 /-- Merge finitely many finite witnesses into one. -/
 theorem collect {α : Type} {Q : Ob → Prop} {P : List Ob → α → Prop}
@@ -526,8 +526,8 @@ theorem compact (h : Obs' σ S t o) (n : Nat) :
   | const h0 h1 h2 h3 h4 => exact ⟨[], nofun, .const h0 h1 h2 h3 h4⟩
   | delta h1 h2 h3 h4 h5 h6 => exact ⟨[], nofun, .delta h1 h2 h3 h4 h5 h6⟩
   | ctor h0 h1 h2 h3 h4 => exact ⟨[], nofun, .ctor h0 h1 h2 h3 h4⟩
-  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 =>
-    exact ⟨[], nofun, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11⟩
+  | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact ⟨[], nofun, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12⟩
 
 /-- Compactness at the bound variable of an instantiation. -/
 theorem compact0 {S : ObSets} {X : Ob → Prop} (h : Obs' σ (S.cons X) t o) :
@@ -602,14 +602,6 @@ theorem forall₂_inst_congr {ls ls' : List VLevel} (h : List.Forall₂ (· ≈ 
   | [] => .nil
   | a :: l => .cons (VLevel.inst_congr rfl h) (forall₂_inst_congr h l)
 
-theorem _root_.Lean4Lean.VEnv.Model.RuleMode.lvEq (h : RuleMode env n k ls mC)
-    (hls : List.Forall₂ (· ≈ ·) ls ls') : RuleMode env n k ls' mC := by
-  obtain ⟨ℓ, ⟨ci, dsH, RH, I, lsI, iargs, cI, dsI, w, h1, h2, h3, h4, h5, h6, h7, rfl⟩, h8⟩ := h
-  refine ⟨_, ⟨ci, dsH, RH, I, lsI, iargs, cI, dsI, w, h1, h2, h3, h4, h5, h6, h7, rfl⟩, ?_⟩
-  have : (w.inst (lsI.map (·.inst ls))).eval = (w.inst (lsI.map (·.inst ls'))).eval :=
-    VLevel.inst_congr rfl (forall₂_inst_congr hls lsI)
-  rwa [← this]
-
 theorem _root_.Lean4Lean.VEnv.Model.RuleBind.lvEq
     (h : RuleBind env U Δ doms ls lead msLen fs mC keys Km τ S')
     (w1 : ∀ l ∈ ls, l.WF U) (w2 : ∀ l ∈ ls', l.WF U) (hls : List.Forall₂ (· ≈ ·) ls ls') :
@@ -675,12 +667,14 @@ theorem lvEq (h : Obs' σ S t o) (ht : LvEq U t t') : Obs' σ S t' o := by
     | const w1 w2 w3 =>
       exact .ctor h0 h1 (fun τ hτ => ih2 τ hτ (.instL _ w1 w2 w3)) h3
         (map_eval_eq w3 ▸ h4)
-  | rule h1 h2 h3 h4 _ h6 h7 h8 h9 h10 _ ih5 ih11 =>
+  | rule h1 h2 h3 h4 _ h6 h7 h8 _ h10 h11 _ ih5 ih9 ih12 =>
     cases ht with
-    | refl => exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ .refl) h6 h7 h8 h9 h10 (ih11 .refl)
+    | refl =>
+      exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ .refl) h6 h7 h8 (fun e => ih9 e .refl) h10
+        h11 (ih12 .refl)
     | const w1 w2 w3 =>
-      exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ (.instL _ w1 w2 w3)) h6 h7
-        (h8.lvEq w3) h9 (h10.lvEq w1 w2 w3) (ih11 (.instL _ w1 w2 w3))
+      exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ (.instL _ w1 w2 w3)) h6 h7 h8
+        (fun e => ih9 e (.instL _ w1 w2 w3)) h10 (h11.lvEq w1 w2 w3) (ih12 (.instL _ w1 w2 w3))
   | delta h1 h2 h3 _ h5 _ ih4 ih6 =>
     cases ht with
     | refl => exact .delta h1 h2 h3 (fun τ hτ => ih4 τ hτ .refl) h5 (ih6 .refl)
@@ -730,7 +724,8 @@ theorem Obs.const_typed (h : Obs' σ S (.const n ls) o) (hci : env.constants n =
     TypedAt env U Δ .id .empty (ci.type.instL ls) o := by
   rcases Obs.const_iff.1 h with ⟨ci', τs, _, _, rfl, _, hci', hτ, hty, _⟩ |
     ⟨_, ci', τs, _, _, hci', hτ, hty, _⟩ | ⟨ci', τs, _, _, rfl, _, hci', hτ, hty, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, rfl, _, _, _, hci', hτ, hty, _⟩ <;>
+    ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, _, _, _, rfl, _, _, _, hci', hτ,
+      hty, _⟩ <;>
     cases hci.symm.trans hci' <;> exact ⟨τs, hτ, hty⟩
 
 /-- Observations of a constant transfer to equivalent levels, given that the observations
@@ -746,13 +741,13 @@ theorem Obs.const_levels (h : Obs' σ S (.const n ls) o)
     fun ci τs o hci hτ hty => TypedAt.mono_le ⟨τs, hτ, hty⟩ (hT ci hci)
   rcases Obs.const_iff.1 h with ⟨ci, τs, _, _, rfl, h0, hci, hτ, hty, hr⟩ |
     ⟨_, ci, τs, h1, h2, hci, hτ, hty, hv⟩ | ⟨ci, τs, _, _, rfl, h0, hci, hτ, hty, hr⟩ |
-    ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, hci, hτ, hty,
-      h7, h8, h9, h10, h11⟩ <;> obtain ⟨τs', h1', h2'⟩ := tr ci τs _ hci hτ hty
+    ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, hci,
+      hτ, hty, h7, h8, h9, h10, h11, h12⟩ <;> obtain ⟨τs', h1', h2'⟩ := tr ci τs _ hci hτ hty
   · exact .const h0 hci h1' h2' (map_eval_eq hls ▸ hr)
   · exact .delta h1 h2 hci h1' h2' (hv.lvEq (.instL _ w1 w2 hls))
   · exact .ctor h0 hci h1' h2' (map_eval_eq hls ▸ hr)
-  · exact .rule h1 h2 h3 hci h1' h2' h7 (h8.lvEq hls) h9 (h10.lvEq w1 w2 hls)
-      (h11.lvEq (.instL _ w1 w2 hls))
+  · exact .rule h1 h2 h3 hci h1' h2' h7 h8 (fun e => (h9 e).lvEq (.instL _ w1 w2 hls)) h10
+      (h11.lvEq w1 w2 hls) (h12.lvEq (.instL _ w1 w2 hls))
 
 end Model
 end VEnv

@@ -712,7 +712,7 @@ sort of the major's family to the elimination restriction recorded at compilatio
 needed: K-like rules (no fields), the quotient (its field's type is a binder whose own type
 is the syntactic `Sort u`), and every mode AB rule.
 
-D10 (rigid observations carry their sort; semantic modes) [plan]. `Ob.rigid n ℓs m s`
+D10 (rigid observations carry their sort; semantic modes) [Lean, superseding the `RigidSort`/`NonProp`/`MajorSort` parts of 10.2]. `Ob.rigid n ℓs m s`
 records the sort `s` of the rigid spine, typed exactly at `.sort s` (no `RigidSort`); the
 constructor indicator becomes `rigid I ℓs m s ∈ τs ∧ CtorFam c I ∧ s ≠ 0`, which gives proof
 irrelevance with no syntactic reading of family types. The rule clause decides mode C by a
@@ -721,7 +721,12 @@ condition on `env.defeqs`) and the major domain of the head's type at the clause
 has a rigid observation of sort zero (an `Obs` premise, monotone and level invariant). Mode AB
 needs no mode condition (constructor observations in the major key exist only for
 non-propositions). In the soundness proof the two modes are separated by the derivation sort
-of the major domain (spine lemma P2). Extraction no longer needs `RigidSort`.
+of the major domain (spine lemma P2). Extraction no longer needs `RigidSort`. In Lean: the
+rule clause carries `mC = true → (single rule for the head)` and `mC = true → Obs id ∅
+(head type) (piCodChain lkeys (piDomOb (rigid I ℓs m 0)))`; `Model.sound_pat` takes the head's
+major family data explicitly and a hypothesis `hC` giving, from that zero-sort observation,
+single-rule-ness and the propositional typing of the major-only fields (`QuotRule.lean`
+proves it for the quotient from `Quot`'s syntactic type, `quot_C_level`).
 
 D11 (staged soundness) [plan]. Soundness is proved by induction along the declaration
 history: a predicate `RuleValid env' df` collects the *semantic* facts of a rule that come

@@ -98,7 +98,7 @@ theorem typed_pi_app (H : TypedOb env U Δ o τs) (hτ : ∀ τ ∈ τs, Obs' σ
   | sort h | piDom h | piDomOb h | piCod h | piCodOb h | rigid h | rigidArg h | rigidArgOb h =>
     nomatch hτ _ h
   | ctorHead h | ctorArg h | ctorArgOb h =>
-    obtain ⟨_, _, _, h, _⟩ := h; nomatch hτ _ h
+    obtain ⟨_, _, _, _, h, _⟩ := h; nomatch hτ _ h
 
 /-- Enlarging the keys of a typed `app` observation by typed keys keeps it typed. -/
 theorem TypedOb.app_enlarge (H : TypedOb env U Δ (.app D c K₁ p) τs) (hKK : Covers K K₁)
@@ -568,9 +568,11 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
         cases hF; exact hrig
       have hcl := henv.closed.2 hdf
       exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
-        (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 (quot_headFam hq hrigQ) hcis (hctor _ hcis)
-        hctor hdr (quot_uniq hdo.defeqs) (quot_pf henv hΔ hq hlw) ⟨ihL.1, ihL.2.1⟩
-        ⟨ihR.1, ihR.2.1⟩
+        (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 hq.2.2 quotLiftConst_type rfl rfl hrigQ
+        ⟨_, _, hq.2.1, rfl⟩ hcis (hctor _ hcis) hctor hdr (quot_uniq hdo.defeqs)
+        (fun keys hkl hobs => ⟨quot_single hdr hdf hdo.defeqs,
+          quot_pf hlw (quot_C_level hq hrigQ hkl hobs)⟩)
+        ⟨ihL.1, ihL.2.1⟩ ⟨ihR.1, ihR.2.1⟩
     replace ihR := ihR.1
     intro σ σ' S W tv tv'
     obtain ⟨rfl, hci⟩ := hdr.const df hdf n ls₀ hlhs
@@ -584,7 +586,8 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
     refine ⟨fun o h => ?_, fun o h => ?_, fun o h => ?_, IHR.2.2.1⟩
     · rcases Obs.const_iff.1 h with ⟨_, _, _, _, _, hrig, _⟩ |
         ⟨df', ci', τs, hdf', hlhs', hci', hτ, hty, hv⟩ | ⟨_, _, _, _, _, hc, _⟩ |
-        ⟨df', doms, lsP, lead, ctor, lsC, ms, fs, _, _, _, _, _, _, _, _, _, _, _, _, hdf', hl', _⟩
+        ⟨df', doms, lsP, lead, ctor, lsC, ms, fs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf',
+          hl', _⟩
       · exact absurd hrig notRigid
       · cases hdr.excl df df' hdf hdf' n _ _ hlhs (by rw [hlhs']; rfl)
         exact ⟨o, (Obs.closed_iff_id hrcl).2 hv, .refl⟩

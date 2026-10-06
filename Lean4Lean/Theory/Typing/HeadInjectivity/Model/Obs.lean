@@ -41,7 +41,9 @@ inductive Ob where
   | piCod (c C : VExpr → Prop)
   | piCodOb (c : VExpr → Prop) (K : List Ob) (o : Ob)
   | app (D c : VExpr → Prop) (K : List Ob) (o : Ob)
-  | rigid (n : Name) (ℓs : List (List Nat → Nat)) (nargs : Nat)
+  /-- A rigid spine of the constant `n` at levels `ℓs` with `nargs` arguments, of sort `s`
+  (decision D10 of the notes, section 10.3). -/
+  | rigid (n : Name) (ℓs : List (List Nat → Nat)) (nargs : Nat) (s : List Nat → Nat)
   | rigidArg (i : Nat) (c : VExpr → Prop)
   /-- The `i`-th argument of a rigid spine has the observation `o`. -/
   | rigidArgOb (i : Nat) (o : Ob)
@@ -182,7 +184,7 @@ theorem Sub.of_imp (h : ∀ o, X o → Y o) : Sub X Y := fun o ho => ⟨o, h o h
 theorem Le.sort_inv (h : o ≼ .sort ℓ) : o = .sort ℓ := by cases h; rfl
 theorem Le.piDom_inv (h : o ≼ .piDom D) : o = .piDom D := by cases h; rfl
 theorem Le.piCod_inv (h : o ≼ .piCod c C) : o = .piCod c C := by cases h; rfl
-theorem Le.rigid_inv (h : o ≼ .rigid n ℓs m) : o = .rigid n ℓs m := by cases h; rfl
+theorem Le.rigid_inv (h : o ≼ .rigid n ℓs m s) : o = .rigid n ℓs m s := by cases h; rfl
 theorem Le.rigidArg_inv (h : o ≼ .rigidArg i c) : o = .rigidArg i c := by cases h; rfl
 theorem Le.ctorHead_inv (h : o ≼ .ctorHead c ℓs n) : o = .ctorHead c ℓs n := by cases h; rfl
 theorem Le.ctorArg_inv (h : o ≼ .ctorArg i c) : o = .ctorArg i c := by cases h; rfl
@@ -254,7 +256,7 @@ theorem wrap_append : wrap (ks ++ ks') o = wrap ks (wrap ks' o) := by
 
 /-- The innermost observations of a rigid spine after the keys `keys`. -/
 def RigidEnd (n : Name) (ℓs : List (List Nat → Nat)) (keys : List Key) (r : Ob) : Prop :=
-  r = .rigid n ℓs keys.length ∨ ∃ i, ∃ h : i < keys.length, r = .rigidArg i (keys[i]).2.1
+  (∃ s, r = .rigid n ℓs keys.length s) ∨ ∃ i, ∃ h : i < keys.length, r = .rigidArg i (keys[i]).2.1
 
 /-- An observation that is not an `app` observation. -/
 def Ob.NotApp : Ob → Prop
@@ -262,7 +264,7 @@ def Ob.NotApp : Ob → Prop
   | _ => True
 
 theorem RigidEnd.notApp (h : RigidEnd n ℓs keys r) : r.NotApp := by
-  rcases h with rfl | ⟨_, _, rfl⟩ <;> trivial
+  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ <;> trivial
 
 /-- Spines of non-`app` endpoints are determined by the wrapped observation. -/
 theorem wrap_inj {ks ks' : List Key} (h : wrap ks o = wrap ks' o') (ho : o.NotApp)
@@ -294,26 +296,14 @@ theorem _root_.Lean4Lean.VLevel.eval_inst_eq_evalAt (w : VLevel) (ls : List VLev
 section
 variable (env : VEnv)
 
-/-- `ℓ` is the sort of the constant `n` applied to `m` arguments at the evaluated levels
-`ℓs`, whenever the type of `n` is syntactically an `m`-telescope ending in a sort. -/
-def RigidSort (n : Name) (ℓs : List (List Nat → Nat)) (m : Nat) (ℓ : List Nat → Nat) : Prop :=
-  ∀ ci ds w, env.constants n = some ci → ci.type = .wrapForalls ds (.sort w) →
-    ds.length = m → ℓ = w.evalAt ℓs
-
-/-- The constant `n` applied to `m` arguments at the levels `ℓs` is not a proposition: its
-type is an `m`-telescope ending in a sort that is not identically zero at `ℓs`. -/
-def NonProp (n : Name) (ℓs : List (List Nat → Nat)) (m : Nat) : Prop :=
-  ∃ ci ds w, env.constants n = some ci ∧ ci.type = .wrapForalls ds (.sort w) ∧
-    ds.length = m ∧ w.evalAt ℓs ≠ fun _ => 0
-
 /-- The type of the constant `c` returns an application of the constant `I`. -/
 def CtorFam (c I : Name) : Prop :=
   ∃ ci ls, env.constants c = some ci ∧ ci.type.forallResult.getAppFnArgs.1 = .const I ls
 
 /-- The family indicator for the constructor `c` in the type observations `τs`: a rigid
-observation of `c`'s family, which is not a proposition at its levels. -/
+observation of `c`'s family whose sort is not zero. -/
 def CtorTyped (c : Name) (τs : List Ob) : Prop :=
-  ∃ I ℓs m, .rigid I ℓs m ∈ τs ∧ CtorFam env c I ∧ NonProp env I ℓs m
+  ∃ I ℓs m s, .rigid I ℓs m s ∈ τs ∧ CtorFam env c I ∧ s ≠ fun _ => 0
 
 end
 
@@ -336,7 +326,7 @@ inductive TypedOb : Ob → List Ob → Prop
   | app : .piDom D ∈ τs → (∀ x ∈ τd, .piDomOb x ∈ τs) → (∀ k ∈ K, TypedOb k τd) →
     TypedElCls env U Δ D c → (∀ x ∈ τc, ∃ K₀, .piCodOb c K₀ x ∈ τs ∧ Covers K K₀) →
     TypedOb o τc → TypedOb (.app D c K o) τs
-  | rigid : .sort ℓ ∈ τs → RigidSort env n ℓs m ℓ → TypedOb (.rigid n ℓs m) τs
+  | rigid : .sort s ∈ τs → TypedOb (.rigid n ℓs m s) τs
   | rigidArg : .sort ℓ ∈ τs → TypedOb (.rigidArg i c) τs
   | rigidArgOb : .sort ℓ ∈ τs → TypedOb (.rigidArgOb i o) τs
   | ctorHead : CtorTyped env c τs → TypedOb (.ctorHead c ℓs m) τs
@@ -356,16 +346,16 @@ theorem TypedOb.strengthen (H : TypedOb env U Δ o τs) (h : Covers τs' τs) :
   | piDomOb h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .piDomOb h2
   | piCod h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .piCod h2
   | piCodOb h1 h3 h4 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .piCodOb h2 h3 h4
-  | rigid h1 h3 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigid h2 h3
+  | rigid h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigid h2
   | ctorHead h1 =>
-    obtain ⟨I, ℓs, m, h1, h3, h4⟩ := h1
-    obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorHead ⟨I, ℓs, m, h2, h3, h4⟩
+    obtain ⟨I, ℓs, m, s, h1, h3, h4⟩ := h1
+    obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorHead ⟨I, ℓs, m, s, h2, h3, h4⟩
   | ctorArg h1 =>
-    obtain ⟨I, ℓs, m, h1, h3, h4⟩ := h1
-    obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorArg ⟨I, ℓs, m, h2, h3, h4⟩
+    obtain ⟨I, ℓs, m, s, h1, h3, h4⟩ := h1
+    obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorArg ⟨I, ℓs, m, s, h2, h3, h4⟩
   | ctorArgOb h1 =>
-    obtain ⟨I, ℓs, m, h1, h3, h4⟩ := h1
-    obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorArgOb ⟨I, ℓs, m, h2, h3, h4⟩
+    obtain ⟨I, ℓs, m, s, h1, h3, h4⟩ := h1
+    obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorArgOb ⟨I, ℓs, m, s, h2, h3, h4⟩
   | rigidArg h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArg h2
   | rigidArgOb h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArgOb h2
   | @app _ τd K _ c τc _ hD hd _ hc hcod _ ihk iho =>
@@ -409,11 +399,11 @@ theorem TypedOb.not_prop (H : TypedOb env U Δ o τs)
   | rigidArgOb h1 =>
     exact (h _ h1).not_sort_zero
   | ctorHead h1 | ctorArg h1 | ctorArgOb h1 =>
-    obtain ⟨I, ℓs, m, h1, -, ci, ds, w, hci, hty, hlen, hne⟩ := h1
+    obtain ⟨I, ℓs, m, s, h1, -, hne⟩ := h1
     cases h _ h1 with
-    | rigid h2 h3 =>
-      simp only [List.mem_singleton, Ob.sort.injEq] at h2; subst h2
-      exact hne (h3 ci ds w hci hty hlen).symm
+    | rigid h2 =>
+      simp only [List.mem_singleton, Ob.sort.injEq] at h2
+      exact hne h2
   | app _ _ _ _ hcod _ _ iho =>
     refine iho fun x hx => ?_
     have ⟨_, h3, _⟩ := hcod x hx

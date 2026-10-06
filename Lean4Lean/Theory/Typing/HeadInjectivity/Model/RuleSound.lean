@@ -19,14 +19,12 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 local notation "Obs'" => Obs env U Δ
 
 /-- The family of the major domain of the head's type (section 10.2): the head's type is a
-telescope of `k+1` domains whose last is an application of a rigid family `I`, the family's
-type is a telescope ending in a sort, and the constructor `ctor` returns `I`. -/
+telescope of `k+1` domains whose last is an application of a rigid family `I`, which the
+constructor `ctor` returns. -/
 def HeadFam (env : VEnv) (n : Name) (k : Nat) (ctor : Name) : Prop :=
-  ∃ ci dsH RH I lsI iargs cI dsI w, env.constants n = some ci ∧
+  ∃ ci dsH RH I lsI iargs, env.constants n = some ci ∧
     ci.type = .wrapForalls dsH RH ∧ dsH.length = k + 1 ∧
-    dsH[k]? = some (.mkApps (.const I lsI) iargs) ∧ env.constants I = some cI ∧
-    cI.type = .wrapForalls dsI (.sort w) ∧ dsI.length = iargs.length ∧ env.Rigid I ∧
-    CtorFam env ctor I
+    dsH[k]? = some (.mkApps (.const I lsI) iargs) ∧ env.Rigid I ∧ CtorFam env ctor I
 
 theorem wrapForalls_append (a b : List VExpr) (R : VExpr) :
     VExpr.wrapForalls (a ++ b) R = VExpr.wrapForalls a (VExpr.wrapForalls b R) := by
@@ -194,8 +192,8 @@ theorem major_indicator {ci : VConstant} {ls : List VLevel} {uH : VLevel}
     {keys : List Key} (hkeys : keys.length = k + 1)
     (hτ₀ : ∀ τ ∈ τ₀, Obs' .id .empty (ci.type.instL ls) τ)
     (hty : TypedOb env U Δ (wrap keys o) τ₀) :
-    Obs' .id .empty (ci.type.instL ls) (piCodChain (keys.take k)
-      (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length))) := by
+    ∃ u : VLevel, Obs' .id .empty (ci.type.instL ls) (piCodChain (keys.take k)
+      (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval))) := by
   have eT : ci.type.instL ls = .wrapForalls (dsH.map (·.instL ls)) (RH.instL ls) := by
     rw [eH, instL_wrapForalls'']
   have hk' : k < dsH.length := by omega
@@ -219,14 +217,15 @@ theorem major_indicator {ci : VConstant} {ls : List VLevel} {uH : VLevel}
   obtain ⟨u, hA, -⟩ := HTS.tele_dom (pre := (dsH.take k).map (·.instL ls)) (post := [])
     (by simpa using hT)
   simp only [VExpr.instL, List.append_nil] at hA W₁ tv₁
-  have hr := (spine_rigid_obs henv hΔ hA W₁ tv₁ hIrig).2
+  have hr := spine_rigid_obs henv hΔ hA W₁ tv₁ hIrig
   simp only [List.length_map] at hr
   have hd : Obs' σ₁ S₁ (.wrapForalls [(VExpr.mkApps (.const I lsI) iargs).instL ls] (RH.instL ls))
-      (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length)) := by
+      (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval)) := by
     simp only [VExpr.wrapForalls, List.foldr_cons, List.foldr_nil, VExpr.instL_mkApps,
       VExpr.instL]
     exact Obs.piDomOb hr
   have := tele_obs hk1 hd
+  refine ⟨u, ?_⟩
   rw [hsplit, wrapForalls_append]
   exact this
 
@@ -311,11 +310,19 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hr : df.rhs = .wrapLams doms body)
     (hcov : ∀ x < doms.length, VExpr.bvar x ∈ lead ∨ x ∈ fs)
     (hlsP : lsP.map (·.inst ls) = ls)
-    (hhead : HeadFam env n lead.length ctor)
+    {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel}
+    {iargs : List VExpr}
+    (hci : env.constants n = some ci) (eH : ci.type = .wrapForalls dsH RH)
+    (hlenH : dsH.length = lead.length + 1)
+    (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
+    (hcf : CtorFam env ctor I)
     (hcis : IsCtor env ctor)
-    (hpf : RuleMode env n lead.length ls true → ∀ x < doms.length,
-      (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) →
-      ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
+    (hC : ∀ keys : List Key, keys.length = lead.length →
+      Obs' .id .empty (ci.type.instL ls) (piCodChain keys
+        (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
+      (∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' = df) ∧
+      ∀ x < doms.length, (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) →
+        ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
         TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
         (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
@@ -343,25 +350,21 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
       (ms.map (·.instL ls) ++ fs.map .bvar)])
   rw [List.map_append] at hKs
-  obtain ⟨ci, info, hci, -, ⟨uH, hHT, -⟩, hinfo, hKsi, P1, -, dP2⟩ :=
+  obtain ⟨ci₀, info, hci₀, -, ⟨uH, hHT, -⟩, hinfo, hKsi, P1, -, dP2⟩ :=
     hX.spine henv hΔ rfl Wv tvv _ hKs τc hτc
+  cases hci.symm.trans hci₀
   obtain ⟨infoL, kaM, rfl, hinfoL, hkaM⟩ := forall₂_split hinfo
   obtain ⟨KsL, KsM, eKs, hKsiL, -⟩ := forall₂_split' hKsi
   obtain ⟨rfl, -⟩ := List.append_inj' eKs rfl
   obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 p hpty
-  obtain ⟨ci', dsH, RH, I, lsI, iargs, cI, dsI, w, hci', eH, hlenH, hkH, hI, hIty, hIlen, hIrig,
-    hcf⟩ := hhead
-  cases hci.symm.trans hci'
   have hlenL : infoL.length = lead.length := by
     have := List.Forall₂.length_eq hinfoL; simpa using this
-  have hind := major_indicator henv hΔ hHT eH hlenH hkH hIrig
+  obtain ⟨u, hind⟩ := major_indicator henv hΔ hHT eH hlenH hkH hIrig
     (keys := (infoL ++ [kaM]).map (·.1)) (by simp [hlenL]) hτ₀ hty₀
   rw [show ((infoL ++ [kaM]).map (·.1)).take lead.length = infoL.map (·.1) by
     simp [List.map_append, hlenL]] at hind
   obtain ⟨xr, hxr, lr⟩ := dP2 infoL kaM [] rfl _ hind
   rw [lr.rigid_inv] at hxr
-  have hMS : MajorSort env n lead.length ls ((w.inst (lsI.map (·.inst ls))).eval) :=
-    ⟨ci, dsH, RH, I, lsI, iargs, cI, dsI, w, hci, eH, hlenH, hkH, hI, hIty, hIlen, rfl⟩
   have firstOcc : ∀ x : Nat, (∃ i : Nat, lead[i]? = some (VExpr.bvar x)) →
       ∃ i : Nat, lead[i]? = some (VExpr.bvar x) ∧ ∀ j < i, lead[j]? ≠ some (VExpr.bvar x) := by
     intro x ⟨i₀, hi₀⟩
@@ -385,26 +388,30 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
           (ms.map (·.instL ls) ++ fs.map .bvar)]) →
       (∀ τ ∈ τ₀', Obs' .id .empty (ci.type.instL ls) τ) →
       TypedOb env U Δ (wrap ((infoL' ++ [kaM']).map (·.1)) p) τ₀' →
-      RuleMode env n lead.length ls mC →
+      (mC = true → ∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' →
+        df' = df) →
+      (mC = true → Obs' .id .empty (ci.type.instL ls) (piCodChain (infoL'.map (·.1))
+        (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0)))) →
       (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ kaM'.1.2.2) →
       RuleBind env U Δ doms ls lead ms.length fs mC (infoL'.map (·.1)) kaM'.1.2.2 v S' →
       (∀ x o, vS x o → S' x o) →
       Obs' σ S (.wrapLams (doms.map (·.instL ls)) (.mkApps (.const n ls)
         (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
           (ms.map (·.instL ls) ++ fs.map .bvar)]))) (wrap lk p) := by
-    intro infoL' kaM' S' mC τ₀' hinfo' hτ₀' hty₀' hmode hhd hbind hS'
+    intro infoL' kaM' S' mC τ₀' hinfo' hτ₀' hty₀' hsingle hmobs hhd hbind hS'
     have hlen' : infoL'.length = lead.length := by
       have := List.Forall₂.length_eq hinfo'; simpa using this
     have hc := Obs.rule (σ := v) (S := vS) (Dm := kaM'.1.1) (cm := kaM'.1.2.1) (Km := kaM'.1.2.2)
       (lkeys := infoL'.map (·.1)) hdf hl hr hci hτ₀' (by simpa using hty₀') (by simp [hlen'])
-      hmode hhd hbind (hp.mono hS')
+      hsingle hmobs hhd hbind (hp.mono hS')
     have hXo := obs_mkApps_of_wrap (KeyData.forall₂_keys hinfo') (by simpa using hc)
     exact Obs.wrapLams_iff.2 ⟨lk, v, vS, p, hk, rfl, hXo⟩
-  by_cases hm : (w.inst (lsI.map (·.inst ls))).eval = fun _ => 0
+  by_cases hm : u.eval = fun _ => 0
   · -- mode C: the major is ignored, its only own fields are proofs
-    have hmode : RuleMode env n lead.length ls true := ⟨_, hMS, by simp [hm]⟩
-    refine finish infoL kaM vS true τ₀ (forall₂_append_single' hinfoL hkaM) hτ₀ hty₀ hmode
-      nofun ?_ fun _ _ h => h
+    rw [hm] at hind
+    obtain ⟨hsingle, hpf⟩ := hC _ (by simp [hlenL]) hind
+    refine finish infoL kaM vS true τ₀ (forall₂_append_single' hinfoL hkaM) hτ₀ hty₀
+      (fun _ => hsingle) (fun _ => hind) nofun ?_ fun _ _ h => h
     intro x hx
     by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
     · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
@@ -415,7 +422,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
         exact hb ⟨i, List.getElem?_eq_some_iff.2 ⟨hi, e⟩⟩
       obtain ⟨j, hj⟩ := fieldIdx x hxf
-      obtain ⟨hP, hprop⟩ := hpf hmode x hx hnb v vS Wv tvv
+      obtain ⟨hP, hprop⟩ := hpf x hx hnb v vS Wv tvv
       have hL := lookup_binderTy (Γ := Γ) (ls := ls) hx
       refine .inr ⟨hnb, j, hj, .inr ⟨rfl, ⟨_, .self, (Wv.lookup hL).hasType.1⟩, hP, ?_⟩⟩
       funext k; apply propext; constructor
@@ -424,23 +431,23 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         exact htk.not_prop fun τ hτ => hprop τ (hτs' τ hτ)
       · nofun
   · -- mode AB: the major's constructor observations
-    have hmode : RuleMode env n lead.length ls false := ⟨_, hMS, by simp [hm]⟩
     obtain ⟨-, -, -, hHTSm, -⟩ := hkaM
     have hKc := argDemand_ok (env := env) (U := U) (Δ := Δ) (nd := doms.length) hLx v
       (ms.map (·.instL ls) ++ fs.map .bvar)
     obtain ⟨cc, cinfo, hcc, -, -, hcinfo, hcKs, cP1, -, -⟩ :=
       hHTSm.spine henv hΔ rfl Wv tvv _ hKc
-        [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length]
+        [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval]
         (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hxr)
-    have hCT : CtorTyped env ctor [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length] :=
-      ⟨I, _, _, List.mem_singleton_self _, hcf, cI, dsI, w, hI, hIty, hIlen, by
-        rw [← VLevel.eval_inst_eq_evalAt]; exact hm⟩
+    have hCT : CtorTyped env ctor
+        [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] :=
+      ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm⟩
     have hcobs : ∀ r ∈ ctorObs ctor ((lsC.map (·.inst ls)).map (·.eval)) (cinfo.map (·.1)),
         Obs' v vS (.mkApps (.const ctor (lsC.map (·.inst ls)))
           (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
       intro r hr
       have hend := ctorObs_end hr
-      have hrty : TypedOb env U Δ r [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length] := by
+      have hrty : TypedOb env U Δ r
+          [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] := by
         rcases hend with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩
         · exact .ctorHead hCT
         · exact .ctorArg hCT
@@ -471,7 +478,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
       else vS x
     have hfsj : ∀ x, x ∈ fs → fs[fs.idxOf x]? = some x := fun x hx =>
       List.getElem?_eq_some_iff.2 ⟨List.idxOf_lt_length_of_mem hx, List.getElem_idxOf _⟩
-    refine finish infoL2 kaM2 S' false τ₀2 hinfo2 hτ₀2 hty₀2 hmode
+    refine finish infoL2 kaM2 S' false τ₀2 hinfo2 hτ₀2 hty₀2 nofun nofun
       (fun _ => ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩) ?_ ?_
     · intro x hx
       by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
@@ -518,8 +525,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
       df'.lhs = .wrapLams doms' (.mkApps (.const n lsP')
         (lead' ++ [.mkApps (.const ctor' lsC') (ms' ++ fs'.map .bvar)])) →
       df'.rhs = .wrapLams doms' body' →
-      lead'.length = lead.length ∧
-        ((ctor' = ctor ∨ RuleMode env n lead.length ls true) → df' = df))
+      lead'.length = lead.length ∧ (ctor' = ctor → df' = df))
     (hRH : HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
     (hR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
@@ -537,7 +543,8 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
   rcases Obs.const_iff.1 hc with ⟨_, _, _, _, _, hrig, _⟩ | ⟨df', _, _, hdf', hlhs', _⟩ |
     ⟨_, _, _, _, _, hcn, _⟩ |
     ⟨df'', doms'', lsP'', lead'', ctor'', lsC'', ms'', fs'', body'', ci, τs, lkeys, Dm, cm, Km,
-      p'', mC, τ, S'', e, hdf'', hl'', hr'', -, -, -, hlen'', hmode, hhd, hbind, hbody⟩
+      p'', mC, τ, S'', I', ℓsI', mI', e, hdf'', hl'', hr'', -, -, -, hlen'', hsingle, -, hhd,
+      hbind, hbody⟩
   · exact absurd headOf (hrig df hdf lsP)
   · have := hdr.excl df' df hdf' hdf n _ lsP hlhs' headOf
     subst this
@@ -554,11 +561,10 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
   obtain ⟨-, hKmcov⟩ := hkM
   -- the clause's rule is the given one
   have hdf_eq : df'' = df := by
-    apply huq
     cases mC with
-    | true => exact .inr (by rw [← hleadlen]; exact hmode)
+    | true => exact (hsingle rfl df lsP hdf headOf).symm
     | false =>
-      refine .inl ?_
+      apply huq
       obtain ⟨ℓs, hmem⟩ := hhd rfl
       obtain ⟨y, hy, ly⟩ := hKmcov _ hmem
       rw [ly.ctorHead_inv] at hy
@@ -710,13 +716,18 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
 /-- **Soundness of a pattern rule.** -/
 theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : List VExpr}
     {ctor : Name} {lsC : List VLevel} {fs : List Nat} {body : VExpr} {ls : List VLevel}
+    {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel}
+    {iargs : List VExpr}
     (hdf : env.defeqs df)
     (hl : df.lhs = .wrapLams doms (.mkApps (.const n lsP)
       (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])))
     (hr : df.rhs = .wrapLams doms body)
     (hcov : ∀ x < doms.length, VExpr.bvar x ∈ lead ∨ x ∈ fs)
     (hlsP : lsP.map (·.inst ls) = ls) (hlcl : df.lhs.ClosedN) (hrcl : df.rhs.ClosedN)
-    (hhead : HeadFam env n lead.length ctor)
+    (hci : env.constants n = some ci) (eH : ci.type = .wrapForalls dsH RH)
+    (hlenH : dsH.length = lead.length + 1)
+    (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
+    (hcf : CtorFam env ctor I)
     (hcis : IsCtor env ctor) (hcrig : env.Rigid ctor)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hdr : env.DefRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
@@ -725,11 +736,13 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
       df'.lhs = .wrapLams doms' (.mkApps (.const n lsP')
         (lead' ++ [.mkApps (.const ctor' lsC') (ms' ++ fs'.map .bvar)])) →
       df'.rhs = .wrapLams doms' body' →
-      lead'.length = lead.length ∧
-        ((ctor' = ctor ∨ RuleMode env n lead.length ls true) → df' = df))
-    (hpf : RuleMode env n lead.length ls true → ∀ x < doms.length,
-      (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) →
-      ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
+      lead'.length = lead.length ∧ (ctor' = ctor → df' = df))
+    (hC : ∀ keys : List Key, keys.length = lead.length →
+      Obs' .id .empty (ci.type.instL ls) (piCodChain keys
+        (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
+      (∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' = df) ∧
+      ∀ x < doms.length, (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) →
+        ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
         TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
         (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
@@ -748,8 +761,8 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
   · obtain ⟨o', h1, l⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hdr huniq
       ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
-  · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hhead hcis hpf ihL.2 ihR.1
-      W' tv' o h
+  · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hci eH hlenH hkH hIrig hcf
+      hcis hC ihL.2 ihR.1 W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 end
