@@ -100,8 +100,11 @@ theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv :
     ∀ (c : MLCtx), c.WF env Us → VerifyInductive.MLCtxOnlyLams c → IsFVarUpSet P c.vlctx →
     ∃ (c' : MLCtx) (n : Lift), c'.WF env Us ∧ VerifyInductive.MLCtxOnlyLams c' ∧
       VLCtx.FVLift' c'.vlctx c.vlctx 0 n 0 ∧
-      (∀ fv, fv ∈ c'.vlctx.fvars ↔ fv ∈ c.vlctx.fvars ∧ P fv)
-  | .nil, _, _, _ => ⟨.nil, .refl, trivial, VerifyInductive.MLCtxOnlyLams.nil, .refl, by simp⟩
+      (∀ fv, fv ∈ c'.vlctx.fvars ↔ fv ∈ c.vlctx.fvars ∧ P fv) ∧
+      (∀ fv decl', c'.lctx.find? fv = some decl' →
+        ∃ decl, c.lctx.find? fv = some decl ∧ decl.type = decl'.type)
+  | .nil, _, _, _ => ⟨.nil, .refl, trivial, VerifyInductive.MLCtxOnlyLams.nil, .refl, by simp,
+      fun _ _ h => ⟨_, h, rfl⟩⟩
   | .vlet id name ty v ty' v' c, _, honly, _ => by
     exfalso
     obtain ⟨_, _, _, _, _, _, h⟩ :=
@@ -112,9 +115,10 @@ theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv :
     obtain ⟨hwfc, _, htr, _⟩ := hwf
     have honlyc : VerifyInductive.MLCtxOnlyLams c := honly.tail_vlam
     have hupc : IsFVarUpSet P c.vlctx := hup.1
-    obtain ⟨c', n, hwf', honly', W, hfvars⟩ := restrictUpSetCtx henv P c hwfc honlyc hupc
+    obtain ⟨c', n, hwf', honly', W, hfvars, hfind⟩ := restrictUpSetCtx henv P c hwfc honlyc hupc
     have hvwf : VLCtx.WF env Us.length c.vlctx := hwfc.tr.wf
     have hnotin : fv ∉ c.vlctx.fvars := (hwfBig.2.1 fv ty.fvarsList rfl).1
+    have hnotin' : fv ∉ c'.vlctx.fvars := fun h => hnotin ((hfvars fv).1 h).1
     by_cases hP : P fv
     · have hdeps : ∀ fv' ∈ ty.fvarsList, P fv' := hup.2 hP
       have hdepsIn : ty.fvarsList ⊆ c'.vlctx.fvars := fun fv' h =>
@@ -135,17 +139,35 @@ theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv :
       have hfind' : c'.lctx.find? fv = none :=
         hwf'.tr.find?_eq_none.2 fun h => hnotin ((hfvars fv).1 h).1
       refine ⟨.vlam fv name ty ty₀ bi c', .consN n 1, ⟨hwf', hfind', htr₀, hwfSmall.2.2⟩,
-        honly'.vlam, W', ?_⟩
-      intro x
-      simp only [MLCtx.vlctx, VLCtx.fvars_cons_some, List.mem_cons]
-      constructor
-      · rintro (rfl | hx)
-        · exact ⟨Or.inl rfl, hP⟩
-        · exact ⟨Or.inr ((hfvars x).1 hx).1, ((hfvars x).1 hx).2⟩
-      · rintro ⟨rfl | hx, hPx⟩
-        · exact Or.inl rfl
-        · exact Or.inr ((hfvars x).2 ⟨hx, hPx⟩)
-    · refine ⟨c', n.skipN 1, hwf', honly', ?_, ?_⟩
+        honly'.vlam, W', ?_, ?_⟩
+      · intro x
+        simp only [MLCtx.vlctx, VLCtx.fvars_cons_some, List.mem_cons]
+        constructor
+        · rintro (rfl | hx)
+          · exact ⟨Or.inl rfl, hP⟩
+          · exact ⟨Or.inr ((hfvars x).1 hx).1, ((hfvars x).1 hx).2⟩
+        · rintro ⟨rfl | hx, hPx⟩
+          · exact Or.inl rfl
+          · exact Or.inr ((hfvars x).2 ⟨hx, hPx⟩)
+      · intro x decl' hx
+        by_cases hxfv : x = fv
+        · subst hxfv
+          simp only [MLCtx.lctx, LocalContext.mkLocalDecl, LocalContext.find?,
+            hwf'.tr.1.map_wf.find?_insert, BEq.rfl, ↓reduceIte, Option.some.injEq] at hx
+          refine ⟨.cdecl c.lctx.decls.size x name ty bi .default, ?_, ?_⟩
+          · simp only [MLCtx.lctx, LocalContext.mkLocalDecl, LocalContext.find?,
+              hwfc.tr.1.map_wf.find?_insert, BEq.rfl, ↓reduceIte]
+          · rw [← hx]
+            rfl
+        · have hne : (fv == x) = false := by simpa using (Ne.symm hxfv)
+          simp only [MLCtx.lctx, LocalContext.mkLocalDecl, LocalContext.find?,
+            hwf'.tr.1.map_wf.find?_insert, hne, Bool.false_eq_true, ↓reduceIte] at hx
+          obtain ⟨decl, hdecl, hty⟩ := hfind x decl' hx
+          refine ⟨decl, ?_, hty⟩
+          simp only [MLCtx.lctx, LocalContext.mkLocalDecl, LocalContext.find?,
+            hwfc.tr.1.map_wf.find?_insert, hne, Bool.false_eq_true, ↓reduceIte]
+          exact hdecl
+    · refine ⟨c', n.skipN 1, hwf', honly', ?_, ?_, ?_⟩
       · simpa [VLocalDecl.depth] using W.skip_fvar (fv, ty.fvarsList) (.vlam ty')
       · intro x
         simp only [MLCtx.vlctx, VLCtx.fvars_cons_some, List.mem_cons]
@@ -155,5 +177,14 @@ theorem TypeChecker.MLCtx.restrictUpSetCtx {env : VEnv} {Us : List Name} (henv :
         · rintro ⟨rfl | hx, hPx⟩
           · exact absurd hPx hP
           · exact (hfvars x).2 ⟨hx, hPx⟩
+      · intro x decl' hx
+        obtain ⟨decl, hdecl, hty⟩ := hfind x decl' hx
+        have hxmem : x ∈ c'.vlctx.fvars := (hwf'.tr.find?_eq_some).1 ⟨decl', hx⟩
+        have hxfv : x ≠ fv := fun h => hnotin' (h ▸ hxmem)
+        have hne : (fv == x) = false := by simpa using (Ne.symm hxfv)
+        refine ⟨decl, ?_, hty⟩
+        simp only [MLCtx.lctx, LocalContext.mkLocalDecl, LocalContext.find?,
+          hwfc.tr.1.map_wf.find?_insert, hne, Bool.false_eq_true, ↓reduceIte]
+        exact hdecl
 
 end Lean4Lean
