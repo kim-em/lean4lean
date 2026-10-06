@@ -272,6 +272,56 @@ Then `TypeChain.collapse` (as in `UniqueTyping.lean`) turns chains into single l
   model is the glued model with classes forgotten, and the separation half can be taken from
   either. Recorded so the two branches can be merged into one model.
 
-## 7. Status
+## 7. Second review of route G (Astra, /tmp transcript summarised here)
+
+Astra found no counterexample to chain-level injectivity and judged the syntactic layer
+(section 5) viable; it raised the following points, all adopted:
+
+* R1 (`Box`): with `structure Box where A : Type`, `Box.rec (motive := fun _ => Type)
+  (fun A => A → A) (Box.mk X) ≡ X → X`, but `Box.mk X` has the all-bottom `sctor`, i.e.
+  `bot`. So **iota for an eta structure must not match the major's shape**: it reads every
+  field as the glued value `(class of proj S j major, field shape or bot)`, the class taken
+  from the major's syntax (representative-independent because the projections of a
+  structure with large elimination are typable: either the result level is never zero, or
+  all fields are proofs, section 2.3). Adopted.
+* R2: function and codomain tables need an explicit "absent entry" (an absent key means no
+  information), and the "for every typed key" clause must keep `Interp` positive: key typing
+  is an independent predicate (class typing is declarative, shape typing structural), as in
+  Carneiro's prototype. Adopted.
+* R3: the typing filter needs a **reconstruction lemma**: in a derivable iota or K instance,
+  every approximation of the minor extends to one typed at the target type, because the
+  source and target result types have equal interpretations by the index subderivations. The
+  filtered denotation is the downward closure of the typed raw read-through approximations.
+  Adopted as an explicit lemma.
+* R4: an empty proof-field class does not give a typed valuation, so read-through at an
+  uninhabited proof field yields `bot` (no typed key exists). Section 4.2 is corrected
+  accordingly: such read-throughs stay bottom; soundness only needs the derivable case,
+  where the class is the class of the actual proof field.
+* R5 (extraction): the Pi observation at the weakening valuation only gives the domain
+  classes in `A :: Γ`, which would need inverse weakening. Use two observations: the domain
+  class at the identity valuation (`Δ = Γ`) gives `TypeChain Γ A A'`; then the codomain at
+  the weakening valuation with the fresh-variable key (typed at both lifted domains by the
+  first chain) gives `TypeChain (A :: Γ) B B'`. Adopted (section 3 is to be read this way).
+* R6: representative invariance of classes is a purely syntactic lemma for anchored
+  (coherently typed) valuations, proved before soundness; argument classes at a semantic
+  domain `D` need the typing invariant identifying `D` with the syntactic domain class.
+  Adopted.
+* R7 (Lemma C): ordinary induction exposes uniqueness only for immediate premises, so the
+  induction carries the conjunction (uniqueness, occurrence congruence) for every strong
+  derivation; non-template premises are kept as typing evidence. Adopted (this is the
+  motive used in `HeadInjectivity/Uniqueness.lean`).
+* R8: abstract schema permission (`CaseSchema.lean`) never authorises singleton elimination
+  into `Type` from a source whose level may be zero, so mode-C read-through concerns native
+  recursors (and canonical `Eq.rec`) only.
+
+## 8. Coordination with Phase 1a
+
+The glued model contains Phase 1a's model (forget the classes). Building the model once,
+with classes, would deliver both halves. The Phase 1a worker was not reachable from this
+branch (no registered endpoint), so this is recorded here and in the final report. This
+branch builds its own model under `HeadInjectivity/Model/`, following Phase 1a's design
+(`PHASE1_NOTES.md` on `agent/verify-inductives-headinv`) wherever classes are irrelevant.
+
+## 9. Status
 
 (updated as the work proceeds)
