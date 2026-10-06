@@ -825,6 +825,23 @@ inside this project's scope without solving open base metatheory:
    (P) is a second executable departure, invisible if (L) holds (argued, not
    proved). Scoping reports copied to `docs/inductives/WEAKN_SCOPE.md` and
    `docs/inductives/RESTORE_READINESS.md`.
+3b. **Base sorries (scoped 2026-10-06, `docs/inductives/BASE_SORRIES.md`).**
+   None is provable with moderate effort. Injectivity (5) follows from
+   confluence in principle but not from the current ChurchRosser development
+   (circular: it uses `uniqU`, `forallE_inv`, `sort_inv`, `weakN_iff`); a
+   non-circular route is a stratified induction on typing height with new
+   head-separation lemmas, roughly 5k to 10k lines. `RecursorLemmas:437`
+   needs a rigid-head-versus-Pi separation lemma (then about 60 lines).
+   `ChurchRosser:2166` is `NormalEq.headParallel` (not the eta/eta case);
+   the eta/eta case of `NormalEq.trans` uses the false `weakN_iff` through
+   `NormalEq.weakN_inv_DFC` and can be replaced only by re-indexing
+   `NormalEq` with a Nat bound and an `etaBoth` constructor (about 550 new
+   lines plus 800 to 1500 of consumer edits). FullReduction's six sorries
+   need spine exposure, two separation lemmas and the full strip proof.
+   Branch `agent/verify-inductives-base` (commit 9db09de) narrows the
+   projection-iota sorry to the `appDF | etaL` cases. Decision for Kim:
+   keep these as documented base conjectures (the branch's standing stance)
+   or fund the confluence programme.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against
