@@ -1823,6 +1823,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (hB : B.m.fvarList = (stats.params ++ bu).toList.map (·.fvarId!))
     {typeTarget₀ : VExpr}
     (htype₀ : TrExprS R.venv recLparams B.m.vlctx t typeTarget₀)
+    (hchkFields : 0 < bu.size →
+      R.chk.fvarList = (stats.params ++ bu).toList.map (·.fvarId!))
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
     (hfields : RecursorFieldSelectionsAt R.venv decl recLparams.length
@@ -1876,6 +1878,8 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         (mkAppN head bu') appliedTarget' →
       Rcurrent.venv.HasType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx appliedTarget' typeTarget' →
+      (0 < bu'.size →
+        Rcurrent.chk.fvarList = (stats.params ++ bu').toList.map (·.fvarId!)) →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
       t i bu u fuel c).WF Q := by
@@ -2164,6 +2168,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       cases selected with
       | none =>
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
+          (fun _ => hB')
           hconsumedBodyType (.nonrecursive hfields)
           (.nonrecursive hdecisions hselected.1) hargsWeak Hrecent'
           Hopening' hrootType' hnextUp happlied' happliedType'
@@ -2185,6 +2190,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           simpa using checkPositivityStep.forall₂_append
             hargsWeak (.cons harg .nil)
         exact ih R' Hstats' (by omega) hlit hctx' hopened B' hB' hopened₀
+          (fun _ => hB')
           hconsumedBodyType
           (.recursive hfields (cert := cert) rfl)
           (.recursive hdecisions hselected.1) hargs' Hrecent'
@@ -2193,7 +2199,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         | proj =>
       exact Hk R rfl htype htypeType hfields hdecisions hargs Hrecent
         Hopening hrootType (Hopening.currentFVarsIn hsourceScope) hcurrentUp
-        happlied happliedType
+        happlied happliedType hchkFields
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -2257,6 +2263,8 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         (mkAppN head bu') appliedTarget' →
       Rcurrent.venv.HasType recLparams.length
         Rcurrent.mlctx.vlctx.toCtx appliedTarget' typeTarget' →
+      (0 < bu'.size →
+        Rcurrent.chk.fvarList = (stats.params ++ bu').toList.map (·.fvarId!)) →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   let inputContext := c
@@ -2283,7 +2291,7 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     exact mkRecInfos.loopCtorArgs.loop.recursiveDomainsRecursorRecent
       stats head k R R Hstats (Nat.le_refl _) hconsume hlit hctx
       htail Hsuffix.fieldBase Hsuffix.fieldBase_fvarList
-      (by rw [Hsuffix.fieldBase_vlctx]; exact htail₀)
+      (by rw [Hsuffix.fieldBase_vlctx]; exact htail₀) (fun h => by simp at h)
       htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)
       hrootType

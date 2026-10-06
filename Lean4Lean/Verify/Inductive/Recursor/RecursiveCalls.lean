@@ -1491,11 +1491,8 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
     (prior : Array Expr)
     (hpriorFVars : ∃ k, prior.toList.map (·.fvarId!) =
         ((c.checkLCtx.toList.map (·.fvarId)).reverse).take k ∧
-      ((c.checkLCtx.toList.map (·.fvarId)).reverse)[k]? = some fv)
-    (BF : R.Base (loopUArgsCheckLCtx c prior))
-    {fieldType₀ : VExpr}
-    (hfieldType₀ : TrExprS R.venv recLparams BF.m.vlctx
-      (c.lctx.get! fv).type fieldType₀)
+      ((c.checkLCtx.toList.map (·.fvarId)).reverse)[k]? =
+        some (Expr.fvar fv).fvarId!)
     {P : FVarId → Prop}
     (hinferredScopeRun : (AddInductive.getType (.fvar fv) c).WF fun ty => ty.FVarsIn P)
     (hrootUp : IsFVarUpSet P R.mlctx.vlctx)
@@ -1563,6 +1560,8 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
   -- Normalization and the argument telescope run in the checker context of
   -- the parameters and the fields before `fv`.
   let F := loopUArgsCheckLCtx c prior
+  obtain ⟨jF, hjF, fieldType₀, hlctxF, hfieldType₀, _⟩ := R.priorBase hpriorFVars
+  let BF : R.Base F := (R.check.below jF hjF).cast hlctxF
   let RF := R.withCheckLCtx F BF
   rw [AddInductive.withCheckLCtx_apply]
   have hinferred₀ : TrExprS RF.venv recLparams RF.chk.vlctx inferred fieldType₀ := by
