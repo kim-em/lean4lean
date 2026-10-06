@@ -594,7 +594,30 @@ inside this project's scope without solving open base metatheory:
    a substitution lemma (restoration preserves `IsDefEq`) for the constructor
    correspondence; the auxiliary families' `resultLevel`/`indices` comparison
    rests on the Injectivity base sorries. Estimate 4k to 6k lines beyond the
-   rule junction. Record of what the first junction used: the `params` and `motives`
+   rule junction.
+   **Progress (2026-10-06, later):** rule junction components committed:
+   `GeneratedRecursorEntry.rules_eq`/`rulesLiteral` (literal blueprint builds),
+   `consumedGeneration_shapeTranslations` (`Recursor/ConsumedShapeTranslations.lean`;
+   `consumedGeneration` is now the explicit construction), `RecursorMetadataRealization`
+   (`RecursorMetadataRealization.lean`, every `RecursorRealization` field but `rules`),
+   `EquationWF.lean` (`equationsWF` modulo `GeneratorBodyTranslations`),
+   `RuleLhsTranslation.lean` (lhs/type bodies, closedness),
+   `RuleTranslation.lean` (`TrExprSyn`: untyped translation with unique targets;
+   `ruleRhsSyn` hypothesis-free; `ruleRhsTranslation` needs any typed closed
+   translation of the rule rhs, being discharged from the equation frame),
+   `RuleTranslationAssembly.lean` (`completedRuleTranslation_of (Hrhs :
+   H.RuleRhsTranslations) : Nonempty (CompletedRuleTranslationResult H)`).
+   Closing the sorry at `CompletedEquationAssembly.lean:278` additionally needs
+   the theorem moved downstream of the assembly file (import order). Nested
+   components committed: `Nested/ContainerSpecializations.lean`
+   (specializations, certified, scoped, direct families, well-formed for the
+   consumed parameters, constructor renaming), `Nested/RestorationCommutation.lean`
+   (`restoreNested` vs `Restoration.expr` under `RestorationMapAgreement` and
+   `RestoreReady`), `Nested/StrippedValidity.lean`
+   (`finalValidOfStaged_of_shapes`). In progress: `Nested/RestorationAgreement.lean`
+   (instantiating the agreement and `RestoreReady` for the run) and
+   `Nested/RestoredRecursorShape.lean` (restored `VRecursorShape`).
+   Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
    `recursorTelescope_minor`, the field-domain identification
