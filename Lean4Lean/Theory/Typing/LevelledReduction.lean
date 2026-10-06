@@ -4235,6 +4235,210 @@ theorem Join3.struct_left (hΓ : OnCtx Γ (env.IsType univs)) (J : Join3 Γ b₀
   have tc₁ := (EtaPar.full hΓ sc hc).hasType hΓ hc
   exact ⟨_, ⟨_, sb, Below.expand hΓ cb tb₁⟩, ⟨_, sc, Below.expand hΓ cc tc₁⟩⟩
 
+theorem Join3.app (hΓ : OnCtx Γ (env.IsType univs)) (hf : Join3 Γ f₁ f₂) (hx : Join3 Γ x₁ x₂)
+    (h₁ : Γ ⊢ .app f₁ x₁ : T) (h₂ : Γ ⊢ .app f₂ x₂ : T) : Join3 Γ (.app f₁ x₁) (.app f₂ x₂) := by
+  obtain ⟨df, ⟨F₁, pF₁, cF₁⟩, ⟨F₂, pF₂, cF₂⟩⟩ := hf
+  obtain ⟨dx, ⟨X₁, pX₁, cX₁⟩, ⟨X₂, pX₂, cX₂⟩⟩ := hx
+  have s₁ : EtaPar Γ (.app f₁ x₁) (.app F₁ X₁) := .app pF₁ pX₁
+  have s₂ : EtaPar Γ (.app f₂ x₂) (.app F₂ X₂) := .app pF₂ pX₂
+  exact ⟨_, ⟨_, s₁, Below.app hΓ cF₁ cX₁ ((EtaPar.full hΓ s₁ h₁).hasType hΓ h₁)⟩,
+    ⟨_, s₂, Below.app hΓ cF₂ cX₂ ((EtaPar.full hΓ s₂ h₂).hasType hΓ h₂)⟩⟩
+
+theorem Join3.proj (hΓ : OnCtx Γ (env.IsType univs)) (hm : Join3 Γ m₁ m₂)
+    (h₁ : Γ ⊢ .proj s i m₁ : T) (h₂ : Γ ⊢ .proj s i m₂ : T) :
+    Join3 Γ (.proj s i m₁) (.proj s i m₂) := by
+  obtain ⟨dm, ⟨M₁, pM₁, cM₁⟩, ⟨M₂, pM₂, cM₂⟩⟩ := hm
+  have s₁ : EtaPar Γ (.proj s i m₁) (.proj s i M₁) := .proj pM₁
+  have s₂ : EtaPar Γ (.proj s i m₂) (.proj s i M₂) := .proj pM₂
+  exact ⟨_, ⟨_, s₁, Below.proj hΓ cM₁ ((EtaPar.full hΓ s₁ h₁).hasType hΓ h₁)⟩,
+    ⟨_, s₂, Below.proj hΓ cM₂ ((EtaPar.full hΓ s₂ h₂).hasType hΓ h₂)⟩⟩
+
+
+theorem Join3.lam (hΓ : OnCtx Γ (env.IsType univs)) (tD : Γ ⊢ D : .sort u)
+    (hD : Join3 Γ D₁ D₂) (ht : Join3 (D :: Γ) t₁ t₂)
+    (e₁ : Γ ⊢ D ≡ D₁ : .sort u) (e₂ : Γ ⊢ D ≡ D₂ : .sort u)
+    (tt₁ : D :: Γ ⊢ t₁ : B₁) (tt₂ : D :: Γ ⊢ t₂ : B₂)
+    (h₁ : Γ ⊢ .lam D₁ t₁ : T₁) (h₂ : Γ ⊢ .lam D₂ t₂ : T₂) :
+    Join3 Γ (.lam D₁ t₁) (.lam D₂ t₂) := by
+  obtain ⟨dD, ⟨X₁, pX₁, cX₁⟩, ⟨X₂, pX₂, cX₂⟩⟩ := hD
+  obtain ⟨dt, ⟨S₁, pS₁, cS₁⟩, ⟨S₂, pS₂, cS₂⟩⟩ := ht
+  have hΓD : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
+  have tS₁ := (EtaPar.full hΓD pS₁ tt₁).hasType hΓD tt₁
+  have tS₂ := (EtaPar.full hΓD pS₂ tt₂).hasType hΓD tt₂
+  have eX₁ := e₁.trans ((EtaPar.full hΓ pX₁ e₁.hasType.2).defeq hΓ e₁.hasType.2)
+  have eX₂ := e₂.trans ((EtaPar.full hΓ pX₂ e₂.hasType.2).defeq hΓ e₂.hasType.2)
+  have s₁ : EtaPar Γ (.lam D₁ t₁) (.lam X₁ S₁) := .lam pX₁ (pS₁.defeqDFC hΓ (.succ .zero e₁) tt₁)
+  have s₂ : EtaPar Γ (.lam D₂ t₂) (.lam X₂ S₂) := .lam pX₂ (pS₂.defeqDFC hΓ (.succ .zero e₂) tt₂)
+  exact ⟨_, ⟨_, s₁, Below.lam hΓ cX₁ (Below.defeqDFC hΓ (.succ .zero eX₁) cS₁ tS₁)
+      ((EtaPar.full hΓ s₁ h₁).hasType hΓ h₁)⟩,
+    ⟨_, s₂, Below.lam hΓ cX₂ (Below.defeqDFC hΓ (.succ .zero eX₂) cS₂ tS₂)
+      ((EtaPar.full hΓ s₂ h₂).hasType hΓ h₂)⟩⟩
+
+theorem Join3.forallE (hΓ : OnCtx Γ (env.IsType univs)) (tD : Γ ⊢ D : .sort u)
+    (hD : Join3 Γ D₁ D₂) (ht : Join3 (D :: Γ) t₁ t₂)
+    (e₁ : Γ ⊢ D ≡ D₁ : .sort u) (e₂ : Γ ⊢ D ≡ D₂ : .sort u)
+    (tt₁ : D :: Γ ⊢ t₁ : B₁) (tt₂ : D :: Γ ⊢ t₂ : B₂)
+    (h₁ : Γ ⊢ .forallE D₁ t₁ : T₁) (h₂ : Γ ⊢ .forallE D₂ t₂ : T₂) :
+    Join3 Γ (.forallE D₁ t₁) (.forallE D₂ t₂) := by
+  obtain ⟨dD, ⟨X₁, pX₁, cX₁⟩, ⟨X₂, pX₂, cX₂⟩⟩ := hD
+  obtain ⟨dt, ⟨S₁, pS₁, cS₁⟩, ⟨S₂, pS₂, cS₂⟩⟩ := ht
+  have hΓD : OnCtx (D :: Γ) (env.IsType univs) := ⟨hΓ, _, tD⟩
+  have tS₁ := (EtaPar.full hΓD pS₁ tt₁).hasType hΓD tt₁
+  have tS₂ := (EtaPar.full hΓD pS₂ tt₂).hasType hΓD tt₂
+  have eX₁ := e₁.trans ((EtaPar.full hΓ pX₁ e₁.hasType.2).defeq hΓ e₁.hasType.2)
+  have eX₂ := e₂.trans ((EtaPar.full hΓ pX₂ e₂.hasType.2).defeq hΓ e₂.hasType.2)
+  have s₁ : EtaPar Γ (.forallE D₁ t₁) (.forallE X₁ S₁) :=
+    .forallE pX₁ (pS₁.defeqDFC hΓ (.succ .zero e₁) tt₁)
+  have s₂ : EtaPar Γ (.forallE D₂ t₂) (.forallE X₂ S₂) :=
+    .forallE pX₂ (pS₂.defeqDFC hΓ (.succ .zero e₂) tt₂)
+  exact ⟨_, ⟨_, s₁, Below.forallE hΓ cX₁ (Below.defeqDFC hΓ (.succ .zero eX₁) cS₁ tS₁)
+      ((EtaPar.full hΓ s₁ h₁).hasType hΓ h₁)⟩,
+    ⟨_, s₂, Below.forallE hΓ cX₂ (Below.defeqDFC hΓ (.succ .zero eX₂) cS₂ tS₂)
+      ((EtaPar.full hΓ s₂ h₂).hasType hΓ h₂)⟩⟩
+
+
+/-- Peaks of parallel eta steps below a size. -/
+abbrev EEBelow (s : Nat) : Prop :=
+  ∀ {Γ a b c A}, sizeOf a < s → OnCtx Γ (env.IsType univs) → EtaPar Γ a b → EtaPar Γ a c →
+    Γ ⊢ a : A → Join3 Γ b c
+
+theorem EtaPar.peak_app (hΓ : OnCtx Γ (env.IsType univs)) (IH : EEBelow (sizeOf (VExpr.app f x)))
+    (hF : EtaPar Γ f f₁) (hX : EtaPar Γ x x₁) (H2 : EtaPar Γ (.app f x) c)
+    (ha : Γ ⊢ .app f x : A) : Join3 Γ (.app f₁ x₁) c := by
+  have HB : EtaPar Γ (.app f x) (.app f₁ x₁) := .app hF hX
+  generalize hE : VExpr.app f x = E at H2 ha IH HB
+  induction H2 generalizing A with
+  | app hf₂ hx₂ =>
+    cases hE
+    obtain ⟨_, _, tf, tx⟩ := ha.app_inv henv hΓ
+    exact Join3.app hΓ (IH (by simp; omega) hΓ hF hf₂ tf) (IH (by simp; omega) hΓ hX hx₂ tx)
+      ((EtaPar.full hΓ HB ha).hasType hΓ ha) ((EtaPar.full hΓ (.app hf₂ hx₂) ha).hasType hΓ ha)
+  | funEta H₀ HD hty ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.funEta H₀ HD hty) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hty
+    have hj := ih hΓ hF hX rfl ha IH HB
+    exact (Join3.fun_left hΓ hj.symm HD hb' hc).symm
+  | structEta H₀ hlen hps hl hp hi hs hexp ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.structEta H₀ hlen hps hl hp hi hs hexp) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hs
+    have hbexp := (FullReduction.structExpand (EtaPar.full hΓ HB ha)).hasType hΓ hexp
+    have hj := ih hΓ hF hX rfl ha IH HB
+    exact (Join3.struct_left hΓ hj.symm hl hp hi hlen hps hb' hbexp hc).symm
+  | _ => cases hE
+
+theorem EtaPar.peak_proj (hΓ : OnCtx Γ (env.IsType univs))
+    (IH : EEBelow (sizeOf (VExpr.proj s i m)))
+    (hM : EtaPar Γ m m₁) (H2 : EtaPar Γ (.proj s i m) c)
+    (ha : Γ ⊢ .proj s i m : A) : Join3 Γ (.proj s i m₁) c := by
+  have HB : EtaPar Γ (.proj s i m) (.proj s i m₁) := .proj hM
+  generalize hE : VExpr.proj s i m = E at H2 ha IH HB
+  induction H2 generalizing A with
+  | proj hm₂ =>
+    cases hE
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
+    exact Join3.proj hΓ (IH (by simp; omega) hΓ hM hm₂ lm.hasType.2)
+      ((EtaPar.full hΓ HB ha).hasType hΓ ha) ((EtaPar.full hΓ (.proj hm₂) ha).hasType hΓ ha)
+  | funEta H₀ HD hty ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.funEta H₀ HD hty) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hty
+    have hj := ih hΓ hM rfl ha IH HB
+    exact (Join3.fun_left hΓ hj.symm HD hb' hc).symm
+  | structEta H₀ hlen hps hl hp hi hs hexp ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.structEta H₀ hlen hps hl hp hi hs hexp) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hs
+    have hbexp := (FullReduction.structExpand (EtaPar.full hΓ HB ha)).hasType hΓ hexp
+    have hj := ih hΓ hM rfl ha IH HB
+    exact (Join3.struct_left hΓ hj.symm hl hp hi hlen hps hb' hbexp hc).symm
+  | _ => cases hE
+
+theorem EtaPar.peak_lam (hΓ : OnCtx Γ (env.IsType univs))
+    (IH : EEBelow (sizeOf (VExpr.lam D t)))
+    (hD : EtaPar Γ D D₁) (ht : EtaPar (D :: Γ) t t₁) (H2 : EtaPar Γ (.lam D t) c)
+    (ha : Γ ⊢ .lam D t : A) : Join3 Γ (.lam D₁ t₁) c := by
+  have HB : EtaPar Γ (.lam D t) (.lam D₁ t₁) := .lam hD ht
+  generalize hE : VExpr.lam D t = E at H2 ha IH HB
+  induction H2 generalizing A with
+  | lam hD₂ ht₂ =>
+    cases hE
+    obtain ⟨⟨_, tD⟩, _, tt⟩ := ha.lam_inv henv hΓ
+    have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, tD⟩
+    exact Join3.lam hΓ tD (IH (by simp; omega) hΓ hD hD₂ tD) (IH (by simp; omega) hΓ' ht ht₂ tt)
+      ((EtaPar.full hΓ hD tD).defeq hΓ tD) ((EtaPar.full hΓ hD₂ tD).defeq hΓ tD)
+      ((EtaPar.full hΓ' ht tt).hasType hΓ' tt) ((EtaPar.full hΓ' ht₂ tt).hasType hΓ' tt)
+      ((EtaPar.full hΓ HB ha).hasType hΓ ha) ((EtaPar.full hΓ (.lam hD₂ ht₂) ha).hasType hΓ ha)
+  | funEta H₀ HD hty ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.funEta H₀ HD hty) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hty
+    have hj := ih hΓ hD ht rfl ha IH HB
+    exact (Join3.fun_left hΓ hj.symm HD hb' hc).symm
+  | structEta H₀ hlen hps hl hp hi hs hexp ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.structEta H₀ hlen hps hl hp hi hs hexp) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hs
+    have hbexp := (FullReduction.structExpand (EtaPar.full hΓ HB ha)).hasType hΓ hexp
+    have hj := ih hΓ hD ht rfl ha IH HB
+    exact (Join3.struct_left hΓ hj.symm hl hp hi hlen hps hb' hbexp hc).symm
+  | _ => cases hE
+
+theorem EtaPar.peak_forallE (hΓ : OnCtx Γ (env.IsType univs))
+    (IH : EEBelow (sizeOf (VExpr.forallE D t)))
+    (hD : EtaPar Γ D D₁) (ht : EtaPar (D :: Γ) t t₁) (H2 : EtaPar Γ (.forallE D t) c)
+    (ha : Γ ⊢ .forallE D t : A) : Join3 Γ (.forallE D₁ t₁) c := by
+  have HB : EtaPar Γ (.forallE D t) (.forallE D₁ t₁) := .forallE hD ht
+  generalize hE : VExpr.forallE D t = E at H2 ha IH HB
+  induction H2 generalizing A with
+  | forallE hD₂ ht₂ =>
+    cases hE
+    obtain ⟨⟨_, tD⟩, _, tt⟩ := ha.forallE_inv henv
+    have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, tD⟩
+    exact Join3.forallE hΓ tD (IH (by simp; omega) hΓ hD hD₂ tD) (IH (by simp; omega) hΓ' ht ht₂ tt)
+      ((EtaPar.full hΓ hD tD).defeq hΓ tD) ((EtaPar.full hΓ hD₂ tD).defeq hΓ tD)
+      ((EtaPar.full hΓ' ht tt).hasType hΓ' tt) ((EtaPar.full hΓ' ht₂ tt).hasType hΓ' tt)
+      ((EtaPar.full hΓ HB ha).hasType hΓ ha) ((EtaPar.full hΓ (.forallE hD₂ ht₂) ha).hasType hΓ ha)
+  | funEta H₀ HD hty ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.funEta H₀ HD hty) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hty
+    have hj := ih hΓ hD ht rfl ha IH HB
+    exact (Join3.fun_left hΓ hj.symm HD hb' hc).symm
+  | structEta H₀ hlen hps hl hp hi hs hexp ih =>
+    subst hE
+    have hc := (EtaPar.full hΓ (.structEta H₀ hlen hps hl hp hi hs hexp) ha).hasType hΓ ha
+    have hb' := (EtaPar.full hΓ HB ha).hasType hΓ hs
+    have hbexp := (FullReduction.structExpand (EtaPar.full hΓ HB ha)).hasType hΓ hexp
+    have hj := ih hΓ hD ht rfl ha IH HB
+    exact (Join3.struct_left hΓ hj.symm hl hp hi hlen hps hb' hbexp hc).symm
+  | _ => cases hE
+
+theorem EtaPar.peak_aux : ∀ n, EEBelow n := by
+  intro n
+  induction n with
+  | zero => intro _ _ _ _ _ h; omega
+  | succ n ih =>
+  intro Γ a b c A hsz hΓ H H2 ha
+  have IH : EEBelow (sizeOf a) := fun h => ih (by omega)
+  clear ih hsz
+  induction H generalizing c A with
+  | bvar | sort | const | elim => exact ⟨c, ⟨c, H2, .rfl⟩, ⟨c, .rfl, .rfl⟩⟩
+  | app hF hX _ _ => exact EtaPar.peak_app hΓ IH hF hX H2 ha
+  | proj hM _ => exact EtaPar.peak_proj hΓ IH hM H2 ha
+  | lam hD ht _ _ => exact EtaPar.peak_lam hΓ IH hD ht H2 ha
+  | forallE hD ht _ _ => exact EtaPar.peak_forallE hΓ IH hD ht H2 ha
+  | funEta H₀ HD hty ih =>
+    have hb := (EtaPar.full hΓ (.funEta H₀ HD hty) ha).hasType hΓ ha
+    have hc := (EtaPar.full hΓ H2 ha).hasType hΓ hty
+    exact Join3.fun_left hΓ (ih hΓ H2 ha IH) HD hc hb
+  | structEta H₀ hlen hps hl hp hi hs hexp ih =>
+    have hb := (EtaPar.full hΓ (.structEta H₀ hlen hps hl hp hi hs hexp) ha).hasType hΓ ha
+    have hc := (EtaPar.full hΓ H2 ha).hasType hΓ hs
+    have hcexp := (FullReduction.structExpand (EtaPar.full hΓ H2 ha)).hasType hΓ hexp
+    exact Join3.struct_left hΓ (ih hΓ H2 ha IH) hl hp hi hlen hps hc hcexp hb
+
 end EtaPeak
 
 section Levels
@@ -4279,7 +4483,8 @@ theorem DeltaPar.parRed_peak (hΓ : OnCtx Γ (env.IsType univs))
 theorem EtaPar.peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : EtaPar Γ a b) (H2 : EtaPar Γ a c) (ha : Γ ⊢ a : A) :
     ∃ d, (∃ b₁, EtaPar Γ b b₁ ∧ ReflTransGen (Below Γ 3) b₁ d) ∧
-      (∃ c₁, EtaPar Γ c c₁ ∧ ReflTransGen (Below Γ 3) c₁ d) := sorry
+      (∃ c₁, EtaPar Γ c c₁ ∧ ReflTransGen (Below Γ 3) c₁ d) :=
+  EtaPar.peak_aux _ (Nat.lt_succ_self _) hΓ H1 H2 ha
 
 theorem EtaPar.parRed_peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : EtaPar Γ a b) (H2 : ParRed Γ a c) (ha : Γ ⊢ a : A) :
