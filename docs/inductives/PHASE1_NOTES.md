@@ -38,6 +38,34 @@ unit-like, level equivalence, and its `const` typing goes through `CtorBundle`; 
 `Theory/` lets `HeadInversion.lean` import it; it imports only the uniqueness-free base
 (no `UniqueTyping`, `Injectivity`, `ChurchRosser`, `FullReduction`, `HeadReduction`).
 
+D4 (explicit hypotheses in the `SExpr` prototype). Under the standing rule (no axioms beyond
+`Verify/Axioms.lean`, no hidden conjectures), the adequacy path of
+`Experimental/{SExpr,ShapeLogRel,ShapeLogRelAdequacy,UniqueTyping}.lean` now has no axiom and
+no `sorry`; `#print axioms LR.adequacy` gives `propext`, `Classical.choice`, `Quot.sound`.
+Every unproved obligation is a named hypothesis instead:
+* The global axiom `Params.extra_pat` is the field of the `Prop`-valued class
+  `Params.PatternRegistry` (same content). It cannot be a field of `Params` itself because it
+  mentions `IsDefEq`, which is defined from `Params`.
+* The `const` case of `LR.adequacy` is the explicit hypothesis `LR.ConstAdequate Γ₀` (the case
+  itself, as a `Prop`). It is false for checked patterns (`PHASE1_SPIKE.md`, section 3), and we
+  expect it to fail also for unchecked patterns that match a constructor argument, because the
+  relation at an `indTy` shape is `True`.
+* `IsDefEq.strong` and the two-sided `IsDefEq.subst` were false as stated: they had no
+  context well-formedness hypothesis, and `Params` does not relate `env` to the `SExpr` typing
+  judgment. They now take `⊢ Γ` and the assumption class `Params.TypedEnv` (constant types,
+  constructor telescopes as `CtorBundle`s, and stored rules are strongly typed in the empty
+  context); `Params.ctor_ty` follows from it. Adequacy is proved for strong derivations
+  (`LR.adequacy'`, without `TypedEnv`) and, through `IsDefEq.strong`, for `IsDefEq`
+  derivations; the corollaries and `UniqueTyping` take `⊢ Γ`, `TypedEnv` and
+  `∀ Γ, LR.ConstAdequate Γ`.
+* `Ctx.SubstEq`'s base case is now an arbitrary weakening (the identity base made
+  `Ctx.SubstEq.lift` false), and its binder types carry strong derivations, from which the
+  two-sided substitution `IsDefEqStrong.substEq` follows without assumptions.
+The seven `SExpr.lean` declarations still unproved are off the adequacy path; each docstring
+says why (strengthening, registry soundness, confluence, or validity in a judgment without a
+context hypothesis). The false and unused `InferType.whRed` was removed, with the
+counterexample in a comment.
+
 ## 2. The domain (ShapeModel/Domain.lean, ShapeModel/ShapeTyping.lean)
 
 Carneiro's depth-indexed finite shapes, with:
