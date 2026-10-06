@@ -3496,6 +3496,31 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_exists :
     · obtain ⟨m, hm⟩ := Pattern.Matches.constVarN_exists k (vs := vs₀) (ls := ls) (by simpa using h)
       rw [mkApps_snoc]
       exact ⟨_, .var hm⟩
+
+omit [Params] in
+theorem _root_.Lean4Lean.Pattern.Matches.constVarN_of_values :
+    ∀ (k : Nat) (vals : ((Pattern.const c).varN k).Path → VExpr),
+      ((Pattern.const c).varN k).Matches
+        (VExpr.mkApps (.const c ls) (((Pattern.const c).argumentRHS k).map (·.apply ls vals))) ls vals
+  | 0, vals => by
+    have : vals = nofun := funext fun a => nomatch a
+    subst this; exact .const
+  | k + 1, vals => by
+    have ih := Pattern.Matches.constVarN_of_values (ls := ls) k (fun a => vals (some a))
+    have hmap : (((Pattern.const c).argumentRHS (k + 1)).map (·.apply ls vals)) =
+        (((Pattern.const c).argumentRHS k).map (·.apply ls (fun a => vals (some a)))) ++
+          [vals none] := by
+      simp only [Pattern.argumentRHS, List.map_append, List.map_map, List.map_cons, List.map_nil,
+        Function.comp_def, Pattern.RHS.apply]
+      congr 1
+      apply List.map_congr_left
+      intro x _
+      exact Pattern.RHS.mapPaths_apply _ _
+    rw [hmap, mkApps_snoc]
+    have := Pattern.Matches.var (a' := vals none) ih
+    have hv : (fun x => Option.elim x (vals none) fun a => vals (some a)) = vals := by
+      funext x; cases x <;> rfl
+    exact hv ▸ this
 end EtaTools
 
 
@@ -3672,6 +3697,122 @@ theorem EtaPar.deltaPar_aux : ∀ n, EDBelow n := by
     obtain ⟨h1, h2⟩ := EtaPar.root_struct hΓ hl hp hi hlen hps hc hcexp c₀ e₀ hb
     exact ⟨_, h1, h2⟩
 end EtaDelta
+
+
+section EtaParRed
+
+/-- Peaks of eta expansion against parallel reduction, below a size. -/
+abbrev EPBelow (s : Nat) : Prop :=
+  ∀ {Γ a b c A}, sizeOf a < s → OnCtx Γ (env.IsType univs) → EtaPar Γ a b → ParRed Γ a c →
+    Γ ⊢ a : A → ∃ d, ReflTransGen (Below Γ 3) b d ∧ EtaPar Γ c d
+
+omit [Params] in
+theorem forall₂_rtg_refl {R : α → α → Prop} : ∀ (l : List α), List.Forall₂ (ReflTransGen R) l l
+  | [] => .nil
+  | _ :: l => .cons .rfl (forall₂_rtg_refl l)
+
+theorem EtaPar.parRed_iota
+    {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
+      (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check}
+    (hΓ : OnCtx Γ (env.IsType univs)) (IH : EPBelow (sizeOf e))
+    (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
+    (hm : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Matches e m1 m2)
+    (hck : r.2.OK (IsDefEqU env univs Γ) m1 m2) (hargs : ∀ v, ParRed Γ (m2 v) (m2' v))
+    (hF : EtaPar Γ F F') (hM : EtaPar Γ M M') (he : e = .app F M) (ha : Γ ⊢ e : A) :
+    ∃ d, ReflTransGen (Below Γ 3) (.app F' M') d ∧ EtaPar Γ (r.1.apply m1 m2') d := by
+  classical
+  have hm₀ := hm
+  subst he
+  obtain ⟨g1, g2, lsc, hF₀, hM₀, rfl⟩ :
+      ∃ g1 g2 lsc, ((Pattern.const rc).varN mr).Matches F m1 g1 ∧
+        ((Pattern.const cc).varN kc).Matches M lsc g2 ∧ m2 = Sum.elim g1 g2 := by
+    cases hm with | app hF hM => exact ⟨_, _, _, hF, hM, rfl⟩
+  obtain ⟨vsF, rfl⟩ : ∃ vs, F = VExpr.mkApps (.const rc m1) vs := ⟨_, hF₀.const_arguments⟩
+  obtain ⟨fsM, rfl⟩ : ∃ fs, M = VExpr.mkApps (.const cc lsc) fs := ⟨_, hM₀.const_arguments⟩
+  have hfsLen : fsM.length = kc := by
+    obtain ⟨-, -, h⟩ := mkApps_const_inj hM₀.const_arguments
+    rw [h]; simp [Pattern.argumentRHS_length]
+  obtain ⟨_, _, tF, tM⟩ := ha.app_inv henv hΓ
+  -- collapse the function spine and the major
+  obtain ⟨vs', hvs', hy⟩ := EtaPar.collapse_spine hΓ hF tF
+  have hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const cc lsc) fsM : .forallE D B :=
+    fun _ _ hpi => Params.major_not_pi hΓ hp hm₀ ha hpi
+  obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major hΓ hp hM tM hnotpi hfsLen
+  have hb := (EtaPar.full hΓ (.app hF hM) ha).hasType hΓ ha
+  have c₁ : ReflTransGen (Below Γ 3) (.app F' M') (.app (VExpr.mkApps (.const rc m1) vs') M') :=
+    Below.ofParRedS (hy M') (by decide)
+  have tb₁ := Below.hasType hΓ c₁ hb
+  have c₂ := Below.app hΓ .rfl cM tb₁
+  have tb₂ := Below.hasType hΓ c₂ tb₁
+  -- the values of the eta side, and the induction hypothesis on every value
+  obtain ⟨g1', hg1', hr1⟩ := Pattern.Matches.constVarN_transport (R := fun x y => EtaPar Γ y x)
+    mr hF₀ (Lean4Lean.List.Forall₂.flip hvs') (ls' := m1)
+  obtain ⟨g2₀, hg2₀, hr2⟩ := Pattern.Matches.constVarN_transport (R := fun x y => EtaPar Γ y x)
+    kc hM₀ (Lean4Lean.List.Forall₂.flip hfs₀) (ls' := lsc)
+  have hrel : ∀ v, EtaPar Γ (Sum.elim g1 g2 v) (Sum.elim g1' g2₀ v) := by
+    intro v; cases v with
+    | inl v => exact hr1 v
+    | inr v => exact hr2 v
+  have htv : ∀ v, ∃ T, Γ ⊢ Sum.elim g1 g2 v : T := fun v => hm₀.hasType hΓ ha v
+  have hj : ∀ v, ∃ d, ReflTransGen (Below Γ 3) (Sum.elim g1' g2₀ v) d ∧ EtaPar Γ (m2' v) d :=
+    fun v => IH (hm₀.sizeOf_lt v) hΓ (hrel v) (hargs v) (htv v).choose_spec
+  let D := fun v => (hj v).choose
+  have cD : ∀ v, ReflTransGen (Below Γ 3) (Sum.elim g1' g2₀ v) (D v) :=
+    fun v => (hj v).choose_spec.1
+  have eD : ∀ v, EtaPar Γ (m2' v) (D v) := fun v => (hj v).choose_spec.2
+  -- lists of the joined values
+  have hvsD := Pattern.Matches.constVarN_of_values (c := rc) (ls := m1) mr (fun v => D (.inl v))
+  have hfsD := Pattern.Matches.constVarN_of_values (c := cc) (ls := lsc) kc (fun v => D (.inr v))
+  have cvs := Pattern.Matches.constVarN_forall₂ mr hg1' hvsD fun v => cD (.inl v)
+  have cfs := Pattern.Matches.constVarN_forall₂ kc hg2₀ hfsD fun v => cD (.inr v)
+  have hDsum : (Sum.elim (fun v => D (.inl v)) (fun v => D (.inr v))) = D := by
+    funext v; cases v <;> rfl
+  have hdef : ∀ v, IsDefEqU env univs Γ (Sum.elim g1 g2 v) (D v) := fun v =>
+    ⟨_, ((EtaPar.full hΓ (hrel v) (htv v).choose_spec).defeq hΓ (htv v).choose_spec).trans
+      (Below.defeq hΓ (cD v) ((EtaPar.full hΓ (hrel v) (htv v).choose_spec).hasType hΓ
+        (htv v).choose_spec))⟩
+  have hckD := Pattern.Check.OK.defeq_values hΓ
+    (p := Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) (m' := D) hdef hck
+  obtain ⟨_, _, tF₂, tM₂⟩ := tb₂.app_inv henv hΓ
+  have cF := Below.mkApps hΓ (f := .const rc m1) .rfl cvs tF₂
+  refine ⟨_, ?_, EtaPar.congrRel.apply_rhs r.1 eD⟩
+  rcases hdisj with ⟨rfl, rfl⟩ | ⟨fam, info, hl, hcc, hkc, hlen₀, hdrop⟩
+  · have cM₂ := Below.mkApps hΓ (f := .const cc _) .rfl cfs tM₂
+    have hmD := Pattern.Matches.app hvsD hfsD
+    rw [hDsum] at hmD
+    have hfire := ParRed.extra (Γ := Γ) hp hmD hckD (fun _ => .rfl)
+    exact (c₁.trans c₂).trans ((Below.app hΓ cF cM₂ tb₂).tail ⟨1, by decide, hfire⟩)
+  · subst hcc
+    have hnp : info.nparams ≤ kc := by omega
+    have hfsDlen : (((Pattern.const info.ctorName).argumentRHS kc).map
+        (·.apply lsc (fun v => D (.inr v)))).length = kc := by simp [Pattern.argumentRHS_length]
+    let fsD := ((Pattern.const info.ctorName).argumentRHS kc).map (·.apply lsc (fun v => D (.inr v)))
+    have hfsDlen' : fsD.length = kc := hfsDlen
+    have cps : List.Forall₂ (ReflTransGen (Below Γ 3)) ps₀ (ps₀.take info.nparams ++ fsD.drop info.nparams) := by
+      have := case_forall₂_append (forall₂_rtg_refl (ps₀.take info.nparams))
+        (show List.Forall₂ (ReflTransGen (Below Γ 3)) (ps₀.drop info.nparams) (fsD.drop info.nparams) by
+          rw [hdrop]; exact forall₂_drop cfs _)
+      rwa [List.take_append_drop] at this
+    have cM₂ := Below.mkApps hΓ (f := .const info.ctorName lsc') .rfl cps tM₂
+    obtain ⟨gP, hgP⟩ := Pattern.Matches.constVarN_exists (c := info.ctorName) kc
+      (vs := ps₀.take info.nparams ++ fsD.drop info.nparams) (ls := lsc')
+      (by simp only [List.length_append, List.length_take, List.length_drop, hfsDlen', hlen₀]; omega)
+    have hfsD' : ((Pattern.const info.ctorName).varN kc).Matches
+        (VExpr.mkApps (.const info.ctorName lsc) (fsD.take info.nparams ++ fsD.drop info.nparams))
+        lsc (fun v => D (.inr v)) := by
+      rw [List.take_append_drop]; exact hfsD
+    obtain ⟨happ, hchk⟩ := pat_iota_params hp hl rfl hfsD' hgP
+      (by simp only [List.length_take, hfsDlen']; omega)
+      (by simp only [List.length_take, hlen₀]; omega)
+    have hmD := Pattern.Matches.app hvsD hgP
+    have hfire := ParRed.extra (Γ := Γ) hp hmD
+      (hchk m1 (fun v => D (.inl v)) _ (by rw [hDsum]; exact hckD)) (fun _ => .rfl)
+    have heq := happ m1 (fun v => D (.inl v))
+    rw [hDsum] at heq
+    rw [heq]
+    exact (c₁.trans c₂).trans ((Below.app hΓ cF cM₂ tb₂).tail ⟨1, by decide, hfire⟩)
+
+end EtaParRed
 
 section Levels
 
