@@ -830,6 +830,24 @@ inside this project's scope without solving open base metatheory:
    ConditionallyTyped or EquivManager depends on `weakN_iff`; `addAxiom`,
    `addDefinition`, `addTheorem`, `addOpaque`, `addMutual` are clean; the
    inductive side (25 sites) remains.
+   **E1 inductive side, steps 0 to 2 done (45d7f7e, pushed):** Step 0 local
+   fixes and deletions of unused false lemmas; Step 1 executable: a second
+   local context `Context.checkLCtx` seen only by the lifted checker calls
+   (18 binders marked "checker context narrowed"; parameters, indices,
+   fields, positivity/`isRecArg`/`loopUArgs` binders in both contexts;
+   majors, motives, minors, hypotheses only in the main one; closed header
+   `whnf` and `isLargeEliminator` under `{}`); replays match baseline counts
+   (`Init.Prelude` 1975, `Init.Core` 3953, `List.Basic` 5521, `Array.Basic`
+   7894, `Format.Basic` 7084), 2 to 17% slower. Step 2 plumbing: `ContextWF`
+   /`RecursorContextWF`/`StagedContextWF` gain `checkMapWF`, `checkSub` and a
+   TRANSITIONAL hypothesis `CheckerSubContextLocality` (a successful lifted
+   checker run in the narrow context succeeds with the same value in the
+   full context), because the main-context lift lemmas cannot be weakened
+   corollaries of narrow ones until Steps 3 to 6 make every lifted run
+   narrow. It had been hidden in `Declaration.IsModelled`; being made an
+   explicit argument of the top-level theorems together with
+   `ProjectionWalkCorner`. Steps 3 to 6 (per-phase narrow-scope proofs)
+   remain.
    **E3 status (2026-10-06): complete on `agent/verify-inductives-e3`**
    (commits 7c544ac..717fc23, pushed): `VEnv.Strengthening` replaces the
    `weakN_iff` sorry; threaded through the Theory consumers, a new
