@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.CompilationDataConstructors
 import Lean4Lean.Verify.Inductive.Nested.RestoredRecursorTypes
-import Lean4Lean.Verify.Inductive.Nested.RecursorHitShape
+import Lean4Lean.Verify.Inductive.Nested.WhnfHitShape
 
 /-! Restored recursor list of the canonical restored block of a validated
 nested run.
@@ -799,10 +799,8 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -877,7 +875,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
   rw [List.forall₂_map_left_iff] at Hall
   refine Lean4Lean.List.Forall₂.imp ?_ Hall
   rintro owner w ⟨s, t, Hstep, Hw⟩
-  have Hshape := (E.recursorHitShape I W owner Hstep).1
+  have Hshape := (E.recursorHitShape' wf Hsources hprims owner Hstep).1
   rw [← hheads] at Hshape
   exact ⟨E.restoredRecursor_of_step hparamsSize D hscoped owner Hstep rfl Hshape
     Hfresh Hw, s, t, Hstep, Hw⟩
@@ -887,8 +885,8 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
 /-- **The `recursors` field of `NestedCompilationPending`.** For the
 specializations of `restorationTablesRestoringAll`, the restored generated
 recursor list of the lowered declaration is exactly the recursor list of the
-canonical restored block, given the hit-shape provenance hypotheses `I` and
-`W` of `NestedValidatedRunResult.recursorHitShape`. -/
+canonical restored block, given `hprims`, the only hypothesis of
+`NestedValidatedRunResult.recursorHitShape'` beyond the run. -/
 theorem NestedValidatedRunResult.restoredRecursors_of_hitShape
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -901,10 +899,8 @@ theorem NestedValidatedRunResult.restoredRecursors_of_hitShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -929,7 +925,7 @@ theorem NestedValidatedRunResult.restoredRecursors_of_hitShape
       some (canonicalRestoredBlock sourceDecl C.primaryRecursors
         C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).recursors := by
   have Hrec := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1)
-    (E.restoredRecursorEntries_of_hitShape C hC I W hadded Haux Hexpansion hnodup
+    (E.restoredRecursorEntries_of_hitShape C hC wf Hsources hprims hadded Haux Hexpansion hnodup
       hparamsSize D hscoped)
   show List.mapM _ ((List.finRange _).map _) = _
   rw [List.mapM_map]
@@ -968,10 +964,8 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1011,7 +1005,7 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
       Hstep.restored.newInfo.numMinors =
         E.production.production.completed.generationSignature.constructors.size := by
   intro owner s t Hstep
-  have Hentries := E.restoredRecursorEntries_of_hitShape C hC I W hadded Haux Hexpansion
+  have Hentries := E.restoredRecursorEntries_of_hitShape C hC wf Hsources hprims hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   obtain ⟨w, hw, hrec, s', t', Hstep', hwname, hwuvars, -⟩ :=
     Lean4Lean.List.Forall₂.forall_exists_l Hentries owner (List.mem_finRange owner)
@@ -1052,10 +1046,8 @@ theorem NestedValidatedRunResult.restoredRecursorShapeInputs_of_hitShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1105,7 +1097,7 @@ theorem NestedValidatedRunResult.restoredRecursorShapeInputs_of_hitShape
         (compilationRestoration sourceDecl auxiliaries) C.finalBaseVEnv owner
         { Hstep.restored.newInfo with rules := [] } := by
   intro owner s t Hstep hk hspecialization
-  obtain ⟨htype, hp, hi, hm, hn⟩ := E.restoredRecursorShapeFields C hC I W hadded Haux
+  obtain ⟨htype, hp, hi, hm, hn⟩ := E.restoredRecursorShapeFields C hC wf Hsources hprims hadded Haux
     Hexpansion hnodup hparamsSize D hscoped owner Hstep
   exact ⟨htype, hp, hi, hm, hn, hk, hspecialization⟩
 
@@ -1454,8 +1446,8 @@ theorem NestedValidatedRunResult.recursorName_not_head
 provenance.** For the specializations of `restorationTablesRestoringAll`:
 
 * the restored generated recursor list is the recursor list of the canonical
-  restored block (`restoredRecursors_of_hitShape`), unconditionally given the
-  hit-shape hypotheses `I` and `W`;
+  restored block (`restoredRecursors_of_hitShape`), unconditionally given
+  `hprims` (see `recursorHitShape'`);
 * given totality of restoration on the normalized constructor types
   (`normalizedTotal`, the hypothesis of `compilationData_of_pending'`),
   restoration is defined on every generated equation, and the canonical
@@ -1483,10 +1475,7 @@ theorem NestedValidatedRunResult.compilationData_of_hitShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env) :
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames) :
     ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
@@ -1556,7 +1545,7 @@ theorem NestedValidatedRunResult.compilationData_of_hitShape
   have hP := E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
   obtain ⟨-, -, hnames, hheadNames, -, -, hwellFormed, hscoped, hdirect, -⟩ := hP
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
-  have hrecursors := E.restoredRecursors_of_hitShape C hC I W hadded Haux Hexpansion
+  have hrecursors := E.restoredRecursors_of_hitShape C hC wf Hsources hprims hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   refine ⟨envTypes, auxiliaries,
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D ⟨hrecursors, ?_⟩⟩

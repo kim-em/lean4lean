@@ -1115,7 +1115,7 @@ theorem CompletedRecursorConstruction.ruleRhsTypedOfResidual (H : CompletedRecur
     at Hsame HL
   have hsourceOwner : o < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
-    H.minorSources o ho hsourceOwner i hlocal
+    H.minorSources.rows o ho hsourceOwner i hlocal
   have hdeclF : ∀ fv ∈ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars,
       ∃ index name type bi kind,
         (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx.find? fv =
@@ -1319,7 +1319,7 @@ theorem CompletedRecursorConstruction.ruleRhsSyn (H : CompletedRecursorConstruct
   -- the field telescope
   have hsourceOwner : o < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
-    H.minorSources o ho hsourceOwner i hlocal
+    H.minorSources.rows o ho hsourceOwner i hlocal
   have hdeclF : ∀ fv ∈ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars,
       ∃ index name type bi kind,
         (H.origins.minorShapes o ho i hlocal).sourceFullContext.lctx.find? fv =
