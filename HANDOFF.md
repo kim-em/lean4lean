@@ -766,6 +766,21 @@ inside this project's scope without solving open base metatheory:
    Replays check the same declaration counts; cost: `Init.Core` unchanged,
    `Init.Data.List.Lemmas` +21%, `Std.Data.HashMap.Lemmas` 26.6 s to 49.0 s
    (+84%), inherent to discarding in-scope cache entries.
+   **E1 Theory routes (2026-10-06):** `VExpr.WF.of_occurs` replaced by
+   `of_occurs_lift` (keeps the enclosing binders), `VIotaRuleShape` gained
+   `rec_doms`/`ctor_doms` proved at every producer, the projection walk
+   substitutes the projection for non-dependent fields. One corner remains:
+   a Prop structure with an earlier non-dependent DATA field (the C++
+   `infer_proj` skips the binder without a sort check): the proof must
+   translate the later field's type without the data binder. The general
+   statement `ProjectionFieldCorner` is FALSE (Astra: add `D : Type`,
+   `out : D → P v`, `z : SI`, `f : SJ → Prop` to the countermodel context;
+   under `d : D`, `out d : P v` makes `f z` typable). The restricted
+   obligation (registered telescope, typed major) is plausible, since
+   eliminating the Prop structure into Prop recovers `P v`, but no syntactic
+   inhabitant of the data field exists, so it is being threaded as an
+   explicit hypothesis to the top-level theorems on the E1 branch. E1 is
+   therefore not hypothesis-free either.
    **E1 inductive side (design, 2026-10-06, `docs/inductives/E1_INDUCTIVE_DESIGN.md`):**
    79 strengthening uses under `Verify/Inductive` strengthen fresh checker
    runs from the nested context of `Inductive/Add.lean` (later families run
