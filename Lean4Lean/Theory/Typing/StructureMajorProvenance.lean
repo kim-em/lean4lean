@@ -21,7 +21,7 @@ set_option linter.unusedSectionVars false
 
 variable {env : VEnv}
 
-theorem VExpr.forall_telescope (e : VExpr) :
+theorem _root_.Lean4Lean.VExpr.forallResult_telescope (e : VExpr) :
     ∃ doms, e = VExpr.wrapForalls doms e.forallResult ∧ doms.length = e.forallArity := by
   induction e with
   | forallE d b _ ih =>
@@ -30,14 +30,6 @@ theorem VExpr.forall_telescope (e : VExpr) :
       change VExpr.forallE d b = VExpr.forallE d (VExpr.wrapForalls doms b.forallResult)
       rw [← he], by simp [VExpr.forallArity, hl]⟩
   | _ => exact ⟨[], rfl, rfl⟩
-
-theorem VExpr.mkApps_getAppFnArgs (e : VExpr) :
-    VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
-  suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1
-      (VExpr.getAppFnArgs.go e args).2 = VExpr.mkApps e args from this []
-  induction e with
-  | app fn arg ih _ => intro args; exact ih (arg :: args)
-  | _ => intro args; rfl
 
 private theorem instL_wrapForalls' (ds : List VExpr) (body : VExpr) (packed : List VLevel) :
     (VExpr.wrapForalls ds body).instL packed =
@@ -99,11 +91,13 @@ theorem WF.installed_major_struct (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)
   rw [hci] at hci'
   cases hci'
   have hc := HasType.const (Γ := Γ) hci hlw hlen
-  obtain ⟨doms, hdoms, hdomsLen⟩ := VExpr.forall_telescope ci.type
+  obtain ⟨doms, hdoms, hdomsLen⟩ := VExpr.forallResult_telescope ci.type
   have hresEq : ci.type.forallResult =
       VExpr.mkApps (.const F lsF) ci.type.forallResult.getAppFnArgs.2 := by
-    conv => lhs; rw [← VExpr.mkApps_getAppFnArgs ci.type.forallResult]
-    rw [hres]
+    have h := VExpr.mkApps_getAppFnArgs_eq ci.type.forallResult
+    change VExpr.mkApps ci.type.forallResult.getAppFnArgs.1 ci.type.forallResult.getAppFnArgs.2 = _ at h
+    rw [hres] at h
+    exact h.symm
   rw [hdoms, hresEq, instL_wrapForalls', VExpr.instL_mkApps] at hc
   obtain ⟨hfs, hFfam⟩ := HasType.mkApps_rigid_family henv hΓ hrigidF (henv.projectionRigid hl) hc hs
   subst hFfam
@@ -147,7 +141,7 @@ theorem WF'.quot_no_projection (H : VEnv.WF' ds env) :
         exact .inl hp
       | quot _ hadd =>
         simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-          Option.pure_def, Option.some.injEq] at hadd
+          Option.some.injEq] at hadd
         obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := hadd
         have h : (d.addDefEq quotDefEq).projections = env.projections :=
           (VEnv.addConst_projections hd).trans <| (VEnv.addConst_projections hc).trans <|
@@ -173,7 +167,7 @@ theorem WF'.quot_no_projection (H : VEnv.WF' ds env) :
       | quot _ hadd =>
         refine ⟨.of_addQuot hadd, fun info hp => ?_⟩
         simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
-          Option.pure_def, Option.some.injEq] at hadd
+          Option.some.injEq] at hadd
         obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := hadd
         have h : (d.addDefEq quotDefEq).projections = env.projections :=
           (VEnv.addConst_projections hd).trans <| (VEnv.addConst_projections hc).trans <|
