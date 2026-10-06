@@ -926,6 +926,10 @@ theorem Ctx.Subst.one (bvar : ∀ {i A}, Lookup Γ i A → HasType Γ (.bvar i) 
     (H : HasType Γ e A) : Ctx.Subst HasType Γ (.one e) (A::Γ) :=
   .cons (.id bvar) (by simpa)
 
+theorem Ctx.Subst.liftD (W : Ctx.Subst (· ⊢ · : ·) Γ₀ σ Γ) :
+    Ctx.Subst (· ⊢ · : ·) (A.subst σ :: Γ₀) σ.lift (A :: Γ) :=
+  W.lift .bvar fun W h => h.weak' W
+
 /-- A weakening `ρ : Γ → Γ₀` is a substitution for `IsDefEq`. -/
 theorem Ctx.Subst.ofLift (W : Ctx.Lift' ρ Γ Γ₀) : Ctx.Subst (· ⊢ · : ·) Γ₀ ρ.toSubst Γ :=
   Ctx.Subst.bvar_comp (f := ρ.liftVar) fun h => by
@@ -936,9 +940,6 @@ theorem Ctx.Subst.ofLift (W : Ctx.Lift' ρ Γ Γ₀) : Ctx.Subst (· ⊢ · : ·
 substitution on both sides). -/
 theorem IsDefEq.subst' (W : Ctx.Subst (· ⊢ · : ·) Γ₀ σ Γ) (H : Γ ⊢ e1 ≡ e2 : A) :
     Γ₀ ⊢ e1.subst σ ≡ e2.subst σ : A.subst σ := by
-  have lift {Γ₀ Γ σ A} (W : Ctx.Subst (· ⊢ · : ·) Γ₀ σ Γ) :
-      Ctx.Subst (· ⊢ · : ·) (A.subst σ :: Γ₀) σ.lift (A :: Γ) :=
-    W.lift .bvar fun W h => h.weak' W
   induction H generalizing Γ₀ σ with
   | bvar h => exact W.lookup h
   | symm _ ih => exact .symm (ih W)
@@ -947,10 +948,10 @@ theorem IsDefEq.subst' (W : Ctx.Subst (· ⊢ · : ·) Γ₀ σ Γ) (H : Γ ⊢ 
   | sort => exact .sort
   | const h1 h2 => rw [(henv.closedC h1).mkS.instL.subst_eq .zero]; exact .const h1 h2
   | appDF _ _ ih1 ih2 => exact subst_inst ▸ .appDF (ih1 W) (ih2 W)
-  | lamDF _ _ ih1 ih2 => exact .lamDF (ih1 W) (ih2 (lift W))
-  | forallEDF _ _ ih1 ih2 => exact .forallEDF (ih1 W) (ih2 (lift W))
+  | lamDF _ _ ih1 ih2 => exact .lamDF (ih1 W) (ih2 W.liftD)
+  | forallEDF _ _ ih1 ih2 => exact .forallEDF (ih1 W) (ih2 W.liftD)
   | defeqDF _ _ ih1 ih2 => exact .defeqDF (ih1 W) (ih2 W)
-  | beta _ _ ih1 ih2 => rw [subst_inst, subst_inst]; exact .beta (ih1 (lift W)) (ih2 W)
+  | beta _ _ ih1 ih2 => rw [subst_inst, subst_inst]; exact .beta (ih1 W.liftD) (ih2 W)
   | @eta _ e A' B' _ ih =>
     have : (SExpr.lift e).subst σ.lift = (e.subst σ).lift := by
       rw [lift_subst, show σ.lift.tail = σ.lift_r (.skip .refl) by
@@ -1182,17 +1183,99 @@ inductive WHRed (Γ : List SExpr) : SExpr → SExpr → Prop where
   | extra : Pat p r → p.MatchesS e m1 m2 → (dfs : List _).map (·.2) = r.2.defeqsS m1 m2 →
     (∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) → Γ ⊢ e ⤳ r.1.applyS m1 m2
 
-theorem WHRed.subst (W : Ctx.Subst HasType Δ σ Γ) :
+theorem _root_.Lean4Lean.Pattern.MatchesS.map {F : SExpr → SExpr} {p : Pattern} {e m1 m2}
+    (happ : ∀ f a, F (.app f a) = .app (F f) (F a)) (hc : ∀ c ls, F (.const c ls) = .const c ls)
+    (H : p.MatchesS e m1 m2) : p.MatchesS (F e) m1 (F ∘ m2) := by
+  induction H with
+  | @const c ls =>
+    have : (F ∘ (nofun : Pattern.Path (.const c) → SExpr)) = nofun := funext fun x => nomatch x
+    rw [hc, this]; exact .const
+  | @var _ _ _ _ a' _ ih =>
+    rw [happ]; refine cast ?_ (ih.var (a' := F a')); congr 1; funext x; cases x <;> rfl
+  | app _ _ ih1 ih2 =>
+    rw [happ]; refine cast ?_ (ih1.app ih2); congr 1; funext x; cases x <;> rfl
+
+theorem _root_.Lean4Lean.Pattern.MatchesS.determ {p : Pattern} {e m1 m2 m1' m2'}
+    (h1 : p.MatchesS e m1 m2) (h2 : p.MatchesS e m1' m2') : m1 = m1' ∧ m2 = m2' := by
+  induction h1 generalizing m1' with
+  | const => let .const := h2; simp
+  | app l1 l2 ih1 ih2 => let .app r1 r2 := h2; simp [ih1 r1, ih2 r2]; rfl
+  | var l1 ih1 => let .var r1 := h2; simp [ih1 r1]
+
+theorem _root_.Lean4Lean.Pattern.MatchesS.inter {p q : Pattern} {e m1 m2 m3 m4}
+    (hp : p.MatchesS e m1 m2) (hq : q.MatchesS e m3 m4) :
+    ∃ r m1 m2, p.inter q = some r ∧ r.MatchesS e m1 m2 := by
+  induction hp generalizing q m3 m4 <;> cases hq <;> simp [Pattern.inter]
+  · case const.const => exact ⟨_, _, .const⟩
+  · case var.var ih _ _ ih' =>
+    have ⟨rf, mf1, mf2, hf1, hf2⟩ := ih ih'
+    exact ⟨_, ⟨_, hf1, rfl⟩, _, _, .var hf2⟩
+  · case var.app ihf _ _ _ _ _ ha2 ihf' =>
+    have ⟨rf, mf1, mf2, hf1, hf2⟩ := ihf ihf'
+    exact ⟨_, ⟨_, hf1, rfl⟩, _, _, .app hf2 ha2⟩
+  · case app.var ha2 ihf _ _ _ ihf' =>
+    have ⟨rf, mf1, mf2, hf1, hf2⟩ := ihf ihf'
+    exact ⟨_, ⟨_, hf1, rfl⟩, _, _, .app hf2 ha2⟩
+  · case app.app ihf iha _ _ _ _ _ iha' ihf' =>
+    have ⟨rf, mf1, mf2, hf1, hf2⟩ := ihf ihf'
+    have ⟨ra, ma1, ma2, ha1, ha2⟩ := iha iha'
+    exact ⟨_, ⟨_, hf1, _, ha1, rfl⟩, _, _, .app hf2 ha2⟩
+
+theorem _root_.Lean4Lean.Pattern.RHS.applyS_map {F : SExpr → SExpr} {p : Pattern} {m1 m2}
+    (happ : ∀ f a, F (.app f a) = .app (F f) (F a))
+    (hfix : ∀ c : VExpr, c.Closed → F (.instL m1 (.mk c)) = .instL m1 (.mk c)) (r : p.RHS) :
+    F (r.applyS m1 m2) = r.applyS m1 (F ∘ m2) := by
+  induction r with
+  | fixed c h => exact hfix c h
+  | var => rfl
+  | app f a ih1 ih2 => simp only [Pattern.RHS.applyS, happ, ih1, ih2]
+
+theorem _root_.Lean4Lean.Pattern.Check.defeqsS_map {F : SExpr → SExpr} {p : Pattern} {m1 m2}
+    (happ : ∀ f a, F (.app f a) = .app (F f) (F a))
+    (hfix : ∀ c : VExpr, c.Closed → F (.instL m1 (.mk c)) = .instL m1 (.mk c)) (ck : p.Check) :
+    (ck.defeqsS m1 m2).map (fun x => (F x.1, F x.2)) = ck.defeqsS m1 (F ∘ m2) := by
+  induction ck with
+  | true => rfl
+  | defeq a b rest ih =>
+    simp only [Pattern.Check.defeqsS, List.map_cons, ih,
+      Pattern.RHS.applyS_map happ hfix]
+  | nonzero _ rest ih => exact ih
+
+/-- Transport of the side conditions of a pattern step along a map `F` of expressions that
+commutes with application and fixes closed constants (lifting or substitution), given that
+`F` maps the check judgments of `Γ` to those of `Δ`. -/
+theorem WHRed.extra_map {F G : SExpr → SExpr}
+    (happ : ∀ f a, F (.app f a) = .app (F f) (F a)) (hc : ∀ c ls, F (.const c ls) = .const c ls)
+    (hfix : ∀ c : VExpr, c.Closed → ∀ ls, F (.instL ls (.mk c)) = .instL ls (.mk c))
+    (hdf : ∀ {a b A}, Γ ⊢ a ≡ b : A → Δ ⊢ F a ≡ F b : G A)
+    (h1 : Pat p r) (h2 : p.MatchesS e m1 m2) (h3 : (dfs : List _).map (·.2) = r.2.defeqsS m1 m2)
+    (h4 : ∀ a b A, (A, a, b) ∈ dfs → Γ ⊢ a ≡ b : A) :
+    Δ ⊢ F e ⤳ F (r.1.applyS m1 m2) := by
+  rw [Pattern.RHS.applyS_map happ (hfix · · m1)]
+  refine .extra h1 (h2.map happ hc) (dfs := dfs.map fun x => (G x.1, F x.2.1, F x.2.2)) ?_ ?_
+  · rw [← Pattern.Check.defeqsS_map happ (hfix · · m1), ← h3, List.map_map, List.map_map]; rfl
+  · intro a b A hm
+    obtain ⟨⟨A', a', b'⟩, hm', eq⟩ := List.mem_map.1 hm
+    cases eq; exact hdf (h4 _ _ _ hm')
+
+/-- Substitution into a weak-head step. The original statement took an arbitrary `HasType` for
+the substitution and is false for checked patterns (the substituted checks need not hold); it
+needs an `IsDefEq`-typed substitution. -/
+theorem WHRed.subst (W : Ctx.Subst (· ⊢ · : ·) Δ σ Γ) :
     Γ ⊢ e1 ⤳ e2 → Δ ⊢ e1.subst σ ⤳ e2.subst σ
   | .app h1 => .app (h1.subst W)
   | .beta => subst_inst ▸ .beta
-  | .extra h1 h2 h3 h4 => sorry
+  | .extra h1 h2 h3 h4 =>
+    WHRed.extra_map (F := (·.subst σ)) (fun _ _ => rfl) (fun _ _ => rfl)
+      (fun _ h _ => h.mkS.instL.subst_eq .zero) (·.subst' W) h1 h2 h3 h4
 
 theorem WHRed.weak' (W : Ctx.Lift' ρ Γ Γ') :
     Γ ⊢ e1 ⤳ e2 → Γ' ⊢ e1.lift' ρ ⤳ e2.lift' ρ
   | .app h1 => .app (h1.weak' W)
   | .beta => by rw [SExpr.lift'_inst_hi]; exact .beta
-  | .extra h1 h2 h3 h4 => sorry
+  | .extra h1 h2 h3 h4 =>
+    WHRed.extra_map (F := (·.lift' ρ)) (fun _ _ => rfl) (fun _ _ => rfl)
+      (fun _ h _ => h.mkS.instL.lift'_eq .zero) (·.weak' W) h1 h2 h3 h4
 
 theorem WHRed.weakU_inv (W : Ctx.Lift' ρ Γ Γ') (H : Γ' ⊢ e1.lift' ρ ⤳ e2') :
     ∃ e2, e2' = e2.lift' ρ ∧ Γ ⊢ e1 ⤳ e2 := by
@@ -1210,28 +1293,56 @@ theorem WHNF.lam : WHNF Γ (.lam A e) := nofun
 theorem WHNF.sort : WHNF Γ (.sort A) := nofun
 theorem WHNF.forallE : WHNF Γ (.forallE A B) := nofun
 
+/-- A term matching a proper subpattern of a registered pattern is weak-head normal. -/
+theorem WHNF.subpattern (h1 : Pat p r) (h2 : Subpattern q p) (h3 : q ≠ p)
+    (h4 : q.MatchesS e m1 m2) : WHNF Γ e := by
+  intro e' H
+  induction H generalizing q m1 m2 with
+  | app _ ih =>
+    cases h4 with
+    | var h4 =>
+      refine ih (.trans (.varL .refl) h2) ?_ h4
+      rintro rfl; cases h2.antisymm (.varL .refl)
+    | app h4 _ =>
+      refine ih (.trans (.appL .refl) h2) ?_ h4
+      rintro rfl; cases h2.antisymm (.appL .refl)
+  | beta => cases h4 with | var h => nomatch h | app h _ => nomatch h
+  | extra r1 r2 =>
+    have ⟨_, _, _, a1, _⟩ := r2.inter h4
+    have h := pat_uniq h1 r1 h2 a1
+    exact h3 (h.2.1.symm.trans h.1.symm)
+
 theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = e₂ := by
   induction H1 generalizing e₂ with
   | app l1 ih =>
     cases H2 with
     | app r1 => cases ih r1; rfl
     | beta => cases WHNF.lam _ l1
-    | extra => sorry
+    | extra r1 r2 =>
+      cases r2 with
+      | var r3 => cases WHNF.subpattern r1 (.varL .refl) (by intro h; cases h) r3 _ l1
+      | app r3 _ => cases WHNF.subpattern r1 (.appL .refl) (by intro h; cases h) r3 _ l1
   | beta =>
     cases H2 with
     | app r1 => cases WHNF.lam _ r1
     | beta => rfl
-    | extra _ r2 => sorry
-  | extra _ l2 =>
+    | extra _ r2 => cases r2 with | var h => nomatch h | app h _ => nomatch h
+  | extra l1 l2 =>
     cases H2 with
-    | beta => sorry
-    | app => sorry
-    | extra _ r2 => sorry
+    | beta => cases l2 with | var h => nomatch h | app h _ => nomatch h
+    | app r1 =>
+      cases l2 with
+      | var l3 => cases WHNF.subpattern l1 (.varL .refl) (by intro h; cases h) l3 _ r1
+      | app l3 _ => cases WHNF.subpattern l1 (.appL .refl) (by intro h; cases h) l3 _ r1
+    | extra r1 r2 =>
+      have ⟨_, _, _, a1, _⟩ := r2.inter l2
+      obtain ⟨rfl, -, ⟨⟩⟩ := pat_uniq l1 r1 .refl a1
+      obtain ⟨rfl, rfl⟩ := l2.determ r2; rfl
 
 def WHRedS (Γ : List SExpr) : SExpr → SExpr → Prop := ReflTransGen (WHRed Γ)
 scoped notation:65 Γ " ⊢ " e1 " ⤳* " e2:36 => WHRedS Γ e1 e2
 
-theorem WHRedS.subst (W : Ctx.Subst HasType Δ σ Γ) (H : Γ ⊢ e1 ⤳* e2) :
+theorem WHRedS.subst (W : Ctx.Subst (· ⊢ · : ·) Δ σ Γ) (H : Γ ⊢ e1 ⤳* e2) :
     Δ ⊢ e1.subst σ ⤳* e2.subst σ := by
   induction H with
   | rfl => exact .rfl
@@ -1373,11 +1484,14 @@ theorem InferType.weak'_inv (W : Ctx.Lift' ρ Γ Δ) (H : Δ ⊢ e.lift' ρ ▷ 
   obtain ⟨_, h1, h2⟩ := H.weakU_inv W
   exact SExpr.lift'_inj.1 h1 ▸ h2
 
-theorem InferType.subst (W : Ctx.Subst InferType Δ σ Γ)
+/-- Substitution into type inference. Besides the `InferType`-typed substitution `W`, the
+weak-head reductions in the derivation need the substitution to be `IsDefEq`-typed (`W'`), for
+the checks of pattern steps (see `WHRed.subst`). -/
+theorem InferType.subst (W : Ctx.Subst InferType Δ σ Γ) (W' : Ctx.Subst (· ⊢ · : ·) Δ σ Γ)
     (H : Γ ⊢ e ▷ A) : Δ ⊢ e.subst σ ▷ A.subst σ := by
   induction H generalizing Δ σ with
   | @bvar Γ i A h =>
-    simp [SExpr.subst]
+    clear W'; simp [SExpr.subst]
     induction W generalizing i A with | nil | @cons Γ σ B W h' ih <;> cases h
     case zero => rw [SExpr.lift, SExpr.subst_lift']; exact h'
     case succ i C h => rw [SExpr.lift, SExpr.subst_lift']; exact ih h
@@ -1385,13 +1499,15 @@ theorem InferType.subst (W : Ctx.Subst InferType Δ σ Γ)
   | const h1 h2 =>
     rw [(henv.closedC h1).mkS.instL.subst_eq .zero]
     exact .const h1 h2
-  | app h1 h2 h3 ih => exact subst_inst ▸ .app (ih W) (h2.subst W) (h3.subst W)
-  | lam h1 h2 ih => exact .lam (h1.subst W) (ih (W.lift .bvar fun W h => h.weak' W))
+  | app h1 h2 h3 ih => exact subst_inst ▸ .app (ih W W') (h2.subst W') (h3.subst W)
+  | lam h1 h2 ih =>
+    exact .lam (h1.subst W) (ih (W.lift .bvar fun W h => h.weak' W) W'.liftD)
   | forallE h1 h2 h3 h4 ih1 ih2 =>
-    exact .forallE (ih1 W) (h2.subst W) (ih2 (W.lift .bvar fun W h => h.weak' W)) (h4.subst (W.lift .bvar fun W h => h.weak' W))
+    exact .forallE (ih1 W W') (h2.subst W') (ih2 (W.lift .bvar fun W h => h.weak' W) W'.liftD)
+      (h4.subst W'.liftD)
 
-theorem InferType.inst (H₀ : Γ ⊢ a ▷ A₀) (H : A₀::Γ ⊢ e ▷ A) :
-    Γ ⊢ e.inst a ▷ A.inst a := .subst (.one .bvar H₀) H
+theorem InferType.inst (H₀ : Γ ⊢ a ▷ A₀) (H₀' : Γ ⊢ a : A₀) (H : A₀::Γ ⊢ e ▷ A) :
+    Γ ⊢ e.inst a ▷ A.inst a := .subst (.one .bvar H₀) (.one .bvar H₀') H
 
 def InferTypeS (Γ : List SExpr) (e A : SExpr) := ∃ A', Γ ⊢ e ▷ A' ∧ Γ ⊢ A' ⤳* A
 scoped notation:65 Γ " ⊢ " e1 " ▷* " e2:36 => InferTypeS Γ e1 e2
@@ -1552,5 +1668,5 @@ theorem InferType.whRed (H1 : Γ ⊢ e ⤳ e') (H2 : Γ ⊢ e ▷ A) : Γ ⊢ e'
     let .app a1 a2 a3 := H2
     let .lam b1 b2 := a1
     cases WHNF.forallE.whRedS a2
-    exact .inst sorry b2
+    exact .inst sorry sorry b2
   | extra => sorry
