@@ -489,21 +489,63 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
     cases hr
     exact main
 
+/-- The final phase of inductive recursor reduction stays in every universe scope containing the
+recursor application and the converted major premise: the rule's right-hand side mentions only the
+recursor's universe parameters, which are instantiated by the levels of the application. -/
+theorem inductiveReduceRecTail.levelParamsIn {info : RecursorVal} {recFn : Name}
+    {ls : List Level} (he : c.TrExprS e e') (hfn : e.getAppFn = .const recFn ls)
+    (hinfo : c.env.find? recFn = some (.recInfo info))
+    (hl : e.levelParamsIn Us = true) (hm : major₂.levelParamsIn Us = true) :
+    ∀ r, inductiveReduceRecTail info ls e.getAppArgs major₂ = some r →
+      r.levelParamsIn Us = true := by
+  intro r hr
+  unfold inductiveReduceRecTail at hr
+  simp only [bind, Option.bind] at hr
+  split at hr <;> [rename_i rule hrule; cases hr]
+  unfold getRecRuleFor at hrule
+  split at hrule <;> [rename_i fn lsc hmfn; cases hrule]
+  have hmem := List.mem_of_find?_eq_some hrule
+  split at hr <;> [cases hr; rename_i hsizeM]
+  split at hr <;> [cases hr; rename_i hlsLen]
+  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsizeM hlsLen
+  -- the rule's right-hand side
+  have hfullS : c.TrExprS ((Expr.const recFn ls).mkAppList e.getAppArgsList) e' := by
+    rwa [← hfn, e.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hfullS
+  have .const hlc _ _ := stk.tr
+  obtain ⟨hname, hsafe, -, -⟩ := c.trenv.find?_uniq hinfo hlc
+  have hname' : info.name = recFn := hname
+  subst hname'
+  have hfindC : c.env.constants.find? info.name = some (.recInfo info) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  obtain ⟨⟨_, _, _, _, _, hrules⟩, -⟩ := c.recursorRules hfindC hsafe
+  obtain ⟨_, _, hrhs, -⟩ := hrules rule hmem
+  have hls : ∀ l ∈ ls, l.paramsIn Us = true := by
+    have := Expr.levelParamsIn_getAppFn hl
+    rw [hfn] at this; simpa [Expr.levelParamsIn] using this
+  have hrhsl := Expr.levelParamsIn_instantiateLevelParams hrhs.levelParamsIn hls hlsLen.symm
+  have hargs := fun a (h : a ∈ e.getAppArgs) => Expr.levelParamsIn_of_mem_getAppArgs hl h
+  have hmargs := fun a (h : a ∈ major₂.getAppArgs) => Expr.levelParamsIn_of_mem_getAppArgs hm h
+  split at hr <;> cases hr
+  · exact Expr.levelParamsIn_mkAppRange (Expr.levelParamsIn_mkAppRange
+      (Expr.levelParamsIn_mkAppRange hrhsl hargs) hmargs) hargs
+  · exact Expr.levelParamsIn_mkAppRange (Expr.levelParamsIn_mkAppRange hrhsl hargs) hmargs
+
 /-- Converting the major premise of a K-like recursor to the nullary constructor application
 yields a definitionally equal term, by proof irrelevance. -/
-theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
+theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
     (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
       ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
     (he : c.TrExprS major m') :
     RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
-      c.FVarsBelow major r ∧ c.TrExpr r m' := by
+      (c.FVarsBelow major r ∧ c.TrExpr r m') ∧ c.LevelsBelow major r := by
   have hid : ∀ {s : VState}, RecM.WF c s (pure major) fun r _ =>
-      c.FVarsBelow major r ∧ c.TrExpr r m' :=
-    .pure ⟨.rfl, he.trExpr c.Ewf c.Δwf⟩
+      (c.FVarsBelow major r ∧ c.TrExpr r m') ∧ c.LevelsBelow major r :=
+    .pure ⟨⟨.rfl, he.trExpr c.Ewf c.Δwf⟩, .rfl⟩
   unfold toCtorWhenK
   split <;> [skip; exact absurd hk ‹_›]
-  refine (inferType.WF he).bind fun T _ _ ⟨T', hfvT, _, hTS, hT'⟩ => ?_
-  refine (whnf.WF hTS).bind fun A _ _ ⟨hfvA, A', hAS, hAdefeq⟩ => ?_
+  refine (inferType.WF_below he).bind fun T _ _ ⟨⟨T', hfvT, _, hTS, hT'⟩, hlT⟩ => ?_
+  refine (whnf.WF_below hTS).bind fun A _ _ ⟨hfvA, hlA, A', hAS, hAdefeq⟩ => ?_
   split <;> [rename_i I lsI hAfn; exact hid]
   split <;> [exact hid; rename_i hI]
   split <;> [exact hid; rename_i hnargs]
@@ -598,7 +640,7 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
   refine (isDefEq.WF hAS hNS).bind fun b _ _ hb => ?_
   split <;> [rename_i hbt; exact hid]
   have hb := hb hbt
-  refine .pure ⟨?_, ?_⟩
+  refine .pure ⟨⟨?_, ?_⟩, ?_⟩
   · intro P hP hfe
     have hfA : FVarsIn P A := hfvA P hP (hfvT P hP hfe)
     rw [FVarsIn.mkAppList]
@@ -613,6 +655,21 @@ theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : in
     have hmI : c.HasType m' (VExpr.mkApps (.const info.getMajorInduct lsI') AA') :=
       hT'.defeqU_r c.Ewf c.Δwf (hAdefeq.symm.trans c.Ewf c.Δwf hAA)
     exact ⟨_, (VEnv.IsDefEq.proofIrrel hIsort hmI hnewI).symm⟩
+  · intro Us P hs hl hP
+    have hA := hlA Us P hs (hlT Us P hs hl hP) (hfvT P hs.1 hP)
+    refine Expr.levelParamsIn_mkAppList ?_ fun a ha =>
+      Expr.levelParamsIn_of_mem_getAppArgsList hA (List.mem_of_mem_take ha)
+    have := Expr.levelParamsIn_getAppFn hA
+    rw [hAfn] at this; simpa [Expr.levelParamsIn] using this
+
+theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
+    (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
+      ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
+    (he : c.TrExprS major m') :
+    RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
+      c.FVarsBelow major r ∧ c.TrExpr r m' :=
+  (toCtorWhenK.WF_all hk hK he).mono fun _ _ _ h => h.1
+
 theorem _root_.Lean.Expr.isConstOf_eq_true {e : Expr} {n : Name} (h : e.isConstOf n = true) :
     ∃ ls, e = .const n ls := by
   cases e <;> simp [Expr.isConstOf] at h
@@ -626,18 +683,18 @@ theorem foldl_app_proj (r : Expr) (n : Name) (e : Expr) (l : List Nat) :
 
 /-- Converting a term of structure type to its constructor applied to its projections yields a
 definitionally equal term, by structure eta. -/
-theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
+theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
-      c.FVarsBelow w r ∧ c.TrExpr r w' := by
+      (c.FVarsBelow w r ∧ c.TrExpr r w') ∧ c.LevelsBelow w r := by
   have hid : ∀ {s : VState}, RecM.WF c s (pure w) fun r _ =>
-      c.FVarsBelow w r ∧ c.TrExpr r w' :=
-    .pure ⟨.rfl, he.trExpr c.Ewf c.Δwf⟩
+      (c.FVarsBelow w r ∧ c.TrExpr r w') ∧ c.LevelsBelow w r :=
+    .pure ⟨⟨.rfl, he.trExpr c.Ewf c.Δwf⟩, .rfl⟩
   unfold toCtorWhenStruct
   split <;> [exact hid; rename_i hguard]
   have hnonrec : c.env.isNonRecStructure n = true := by
     revert hguard; cases c.env.isNonRecStructure n <;> simp
-  refine (inferType.WF he).bind fun T _ _ ⟨T', hfvT, _, hTS, hT'⟩ => ?_
-  refine (whnf.WF hTS).bind fun A _ _ ⟨hfvA, A', hAS, hAdefeq⟩ => ?_
+  refine (inferType.WF_below he).bind fun T _ _ ⟨⟨T', hfvT, _, hTS, hT'⟩, hlT⟩ => ?_
+  refine (whnf.WF_below hTS).bind fun A _ _ ⟨hfvA, hlA, A', hAS, hAdefeq⟩ => ?_
   split <;> [exact hid; rename_i hisConst]
   have hisConst' : A.getAppFn.isConstOf n = true := by simpa using hisConst
   obtain ⟨lsI, hAfn⟩ := Expr.isConstOf_eq_true hisConst'
@@ -811,22 +868,37 @@ theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     simp only [List.getElem_map, List.getElem_range]
     simp only [List.length_map, List.length_range] at hi
     exact .proj he (.direct ⟨_, htS⟩ ⟨_, hprojT i hi⟩)
-  refine .pure ⟨?_, ⟨_, hexpS, ⟨_, heta⟩⟩⟩
-  intro P hP hfe
-  have hfA : FVarsIn P A := hfvA P hP (hfvT P hP hfe)
-  rw [FVarsIn.mkAppList]
-  refine ⟨?_, fun a ha => ?_⟩
-  · have := hfA
-    rw [← A.mkAppList_getAppArgsList, hAfn, FVarsIn.mkAppList] at this
-    exact this.1
-  · simp only [List.mem_append, List.mem_map, List.mem_range] at ha
-    rcases ha with ha | ⟨i, -, rfl⟩
-    · exact hfA.of_mem_getAppArgsList ha
-    · exact hfe
+  refine .pure ⟨⟨?_, ⟨_, hexpS, ⟨_, heta⟩⟩⟩, ?_⟩
+  · intro P hP hfe
+    have hfA : FVarsIn P A := hfvA P hP (hfvT P hP hfe)
+    rw [FVarsIn.mkAppList]
+    refine ⟨?_, fun a ha => ?_⟩
+    · have := hfA
+      rw [← A.mkAppList_getAppArgsList, hAfn, FVarsIn.mkAppList] at this
+      exact this.1
+    · simp only [List.mem_append, List.mem_map, List.mem_range] at ha
+      rcases ha with ha | ⟨i, -, rfl⟩
+      · exact hfA.of_mem_getAppArgsList ha
+      · exact hfe
+  · intro Us P hs hl hP
+    have hA := hlA Us P hs (hlT Us P hs hl hP) (hfvT P hs.1 hP)
+    refine Expr.levelParamsIn_mkAppList ?_ fun a ha => ?_
+    · have := Expr.levelParamsIn_getAppFn hA
+      rw [hAfn] at this; simpa [Expr.levelParamsIn] using this
+    · simp only [List.mem_append, List.mem_map, List.mem_range] at ha
+      rcases ha with ha | ⟨i, -, rfl⟩
+      · exact Expr.levelParamsIn_of_mem_getAppArgsList hA ha
+      · exact hl
+
+theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
+    RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
+      c.FVarsBelow w r ∧ c.TrExpr r w' :=
+  (toCtorWhenStruct.WF_all he).mono fun _ _ _ h => h.1
+
 /-- Inductive recursor reduction refines the stored rules. -/
-theorem inductiveReduceRec.WF (he : c.TrExprS e e') :
+theorem inductiveReduceRec.WF_all (he : c.TrExprS e e') :
     RecM.WF c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe _ =>
-      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
+      ∀ e₁, oe = some e₁ → (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.LevelsBelow e e₁ := by
   unfold inductiveReduceRec
   split <;> [rename_i recFn ls hfn; exact .pure nofun]
   split <;> [rename_i info hinfo; exact .pure nofun]
@@ -854,41 +926,108 @@ theorem inductiveReduceRec.WF (he : c.TrExprS e e') :
   have htail : ∀ {s : VState} (major₂ : Expr),
       c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ →
       c.TrExpr major₂ (args'[info.getMajorIdx]'hmaj') →
+      c.LevelsBelow e.getAppArgs[info.getMajorIdx] major₂ →
       RecM.WF c s (pure (inductiveReduceRecTail info ls e.getAppArgs major₂)) fun oe _ =>
-        ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
-    fun major₂ hfv hm => .pure (inductiveReduceRecTail.WF he hfn hinfo hls hargs hfull hmaj hfv hm)
+        ∀ e₁, oe = some e₁ → (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.LevelsBelow e e₁ := by
+    refine fun major₂ hfv hm hlv => .pure fun e₁ h => ⟨inductiveReduceRecTail.WF he hfn hinfo hls
+      hargs hfull hmaj hfv hm e₁ h, fun Us P hs hl hP => ?_⟩
+    have hmem : e.getAppArgs[info.getMajorIdx] ∈ e.getAppArgsList := by
+      rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _
+    exact inductiveReduceRecTail.levelParamsIn he hfn hinfo hl
+      (hlv Us P hs (Expr.levelParamsIn_of_mem_getAppArgsList hl hmem)
+        (hP.of_mem_getAppArgsList hmem)) e₁ h
   -- after the K conversion
   have hjp : ∀ {s : VState} (m₁ : Expr),
       c.FVarsBelow e.getAppArgs[info.getMajorIdx] m₁ →
       c.TrExpr m₁ (args'[info.getMajorIdx]'hmaj') →
+      c.LevelsBelow e.getAppArgs[info.getMajorIdx] m₁ →
       RecM.WF c s (jpMatch () m₁) fun oe _ =>
-        ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := by
-    intro s m₁ hfv₁ hm₁
+        ∀ e₁, oe = some e₁ → (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.LevelsBelow e e₁ := by
+    intro s m₁ hfv₁ hm₁ hlv₁
     simp only [jpMatch, jpTail]
     have ⟨m₁', hm₁S, hm₁defeq⟩ := hm₁
-    refine (whnf.WF hm₁S).bind fun w _ _ ⟨hfvw, w', hwS, hwdefeq⟩ => ?_
+    refine (whnf.WF_below hm₁S).bind fun w _ _ ⟨hfvw, hlvw, w', hwS, hwdefeq⟩ => ?_
     have hchain : ∀ {major₂ : Expr}, c.FVarsBelow w major₂ → c.TrExpr major₂ w' →
         c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ ∧
         c.TrExpr major₂ (args'[info.getMajorIdx]'hmaj') :=
       fun h1 h2 => ⟨hfv₁.trans (hfvw.trans h1),
         (h2.defeq c.Ewf c.Δwf hwdefeq).defeq c.Ewf c.Δwf hm₁defeq⟩
+    have hlchain : ∀ {major₂ : Expr}, c.FVarsBelow w major₂ → c.LevelsBelow w major₂ →
+        c.LevelsBelow e.getAppArgs[info.getMajorIdx] major₂ :=
+      fun h1 h2 => (hlv₁.trans hfv₁ hlvw).trans (hfv₁.trans hfvw) h2
     split
     · rename_i n
       cases hwS with | lit _ hlit => ?_
       exact htail _ (hchain (fun _ _ _ => FVarsIn.natLitToConstructor) (hlit.trExpr c.Ewf c.Δwf)).1
         (hchain (fun _ _ _ => FVarsIn.natLitToConstructor) (hlit.trExpr c.Ewf c.Δwf)).2
+        (hlchain (fun _ _ _ => FVarsIn.natLitToConstructor)
+          fun _ _ _ _ _ => Expr.levelParamsIn_natLitToConstructor)
     · rename_i str _
       cases hwS with | lit _ hlit => ?_
-      refine (whnf.WF hlit).bind fun major₂ _ _ ⟨hfv₂, hm₂⟩ => ?_
+      refine (whnf.WF_below hlit).bind fun major₂ _ _ ⟨hfv₂, hlv₂, hm₂⟩ => ?_
       have hfv₂' : c.FVarsBelow (.lit (.strVal str)) major₂ :=
         FVarsBelow.trans (e₂ := .strLitToConstructor str)
           (fun _ _ _ => FVarsIn.strLitToConstructor) hfv₂
-      exact htail _ (hchain hfv₂' hm₂).1 (hchain hfv₂' hm₂).2
-    · refine (toCtorWhenStruct.WF hwS).bind fun major₂ _ _ ⟨hfv₂, hm₂⟩ => ?_
-      exact htail _ (hchain hfv₂ hm₂).1 (hchain hfv₂ hm₂).2
+      have hlv₂' : c.LevelsBelow (.lit (.strVal str)) major₂ := fun Us P hs _ _ =>
+        hlv₂ Us P hs Expr.levelParamsIn_strLitToConstructor FVarsIn.strLitToConstructor
+      exact htail _ (hchain hfv₂' hm₂).1 (hchain hfv₂' hm₂).2 (hlchain hfv₂' hlv₂')
+    · refine (toCtorWhenStruct.WF_all hwS).bind fun major₂ _ _ ⟨⟨hfv₂, hm₂⟩, hlv₂⟩ => ?_
+      exact htail _ (hchain hfv₂ hm₂).1 (hchain hfv₂ hm₂).2 (hlchain hfv₂ hlv₂)
   split
-  · exact (toCtorWhenK.WF ‹_› (hK ‹_›) (hget _ hmaj)).bind fun m₁ _ _ ⟨h1, h2⟩ => hjp m₁ h1 h2
-  · exact hjp _ .rfl ((hget _ hmaj).trExpr c.Ewf c.Δwf)
+  · exact (toCtorWhenK.WF_all ‹_› (hK ‹_›) (hget _ hmaj)).bind
+      fun m₁ _ _ ⟨⟨h1, h2⟩, h3⟩ => hjp m₁ h1 h2 h3
+  · exact hjp _ .rfl ((hget _ hmaj).trExpr c.Ewf c.Δwf) .rfl
+
+theorem inductiveReduceRec.WF (he : c.TrExprS e e') :
+    RecM.WF c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
+  (inductiveReduceRec.WF_all he).mono fun _ _ _ H e₁ h => (H e₁ h).1
+
+theorem TrExprS.getAppArgs_get (he : c.TrExprS e e') (i) (hi : i < e.getAppArgs.size) :
+    ∃ a', c.TrExprS e.getAppArgs[i] a' := by
+  have ⟨_, stk⟩ := AppStack.build (e.mkAppList_getAppArgsList ▸ he)
+  have ⟨args', hargs, _⟩ := stk.translatedArguments
+  exact ⟨_, (AppStack.argsGet hargs).2 i hi⟩
+
+/-- Quotient reduction stays in every universe scope of the eliminator application: the result
+is assembled from its arguments and the reduced `Quot.mk` application. -/
+theorem quotReduceRecCont.WF_levels (he : c.TrExprS e e') :
+    RecM.WF c s (quotReduceRecCont e whnf mkPos argPos) fun oe _ =>
+      ∀ e₁, oe = some e₁ → c.LevelsBelow e e₁ := by
+  unfold quotReduceRecCont
+  extract_lets args
+  have hargs_eq : args = e.getAppArgs := rfl
+  simp only [hargs_eq]
+  split <;> [rename_i h5; exact .pure nofun]
+  have ⟨_, ha⟩ := TrExprS.getAppArgs_get he _ h5
+  refine (whnf.WF_below ha).bind fun mk _ _ ⟨_, hml, _⟩ => ?_
+  split <;> [exact .pure nofun; rename_i hnot]
+  have hisApp : mk.isAppOfArity ``Quot.mk 3 = true := by simpa using hnot
+  obtain ⟨lsm, a1, a2, a3, rfl⟩ := Expr.isAppOfArity_three_eq_true hisApp
+  simp only [Expr.appArg!]
+  have main : ∀ Us P, c.UniverseScope Us P → e.levelParamsIn Us = true → FVarsIn P e →
+      (Expr.app e.getAppArgs[argPos]! a3).levelParamsIn Us = true := by
+    intro Us P hs hl hP
+    have hall := fun a (h : a ∈ e.getAppArgs) => Expr.levelParamsIn_of_mem_getAppArgs hl h
+    have hm := hml Us P hs (hall _ (Array.getElem_mem _)) (hP.of_mem_getAppArgsList (by
+      rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _))
+    simp only [Expr.levelParamsIn, Bool.and_eq_true] at hm ⊢
+    exact ⟨Expr.levelParamsIn_getElem!_of_forall hall _, hm.2⟩
+  split
+  · exact .pure fun _ h Us P hs hl hP => Option.some.inj h ▸
+      Expr.levelParamsIn_mkAppRange (main Us P hs hl hP)
+        fun a h => Expr.levelParamsIn_of_mem_getAppArgs hl h
+  · exact .pure fun _ h Us P hs hl hP => Option.some.inj h ▸ main Us P hs hl hP
+
+theorem quotReduceRec.WF_levels (he : c.TrExprS e e') :
+    RecM.WF c s (quotReduceRec e whnf) fun oe _ => ∀ e₁, oe = some e₁ → c.LevelsBelow e e₁ := by
+  unfold quotReduceRec
+  split <;> [skip; exact .pure nofun]
+  split
+  · exact quotReduceRecCont.WF_levels he
+  split
+  · exact quotReduceRecCont.WF_levels he
+  exact .pure nofun
 
 end Inner
 end TypeChecker

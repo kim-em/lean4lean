@@ -87,7 +87,10 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
       whnf _ := .throw
       whnfCore_forallE _ := .throw
       whnf_forallE _ := .throw
-      inferType _ _ := .throw }
+      inferType _ _ := .throw
+      whnfCore_levels _ := .throw
+      whnf_levels _ := .throw
+      inferType_levels _ _ := .throw }
   | n + 1 =>
     have := withFuel.WF (n := n)
     { isDefEqCore h1 h2 := isDefEqCore'.WF h1 h2 _ this
@@ -95,7 +98,10 @@ theorem Methods.withFuel.WF : ∀ {n}, (withFuel n).WF
       whnf h1 := (whnf'.WF h1 _ this).mono fun _ _ _ h => ⟨h.1, h.2.1⟩
       whnfCore_forallE h1 := (whnfCore'.WF h1 _ this).mono fun _ _ _ h => h.2.2 _ _ rfl
       whnf_forallE h1 := (whnf'.WF h1 _ this).mono fun _ _ _ h => h.2.2 _ _ rfl
-      inferType h1 h2 := inferType'.WF h1 h2 _ this }
+      inferType h1 h2 := inferType'.WF h1 h2 _ this
+      whnfCore_levels h1 := whnfCore'.WF_levels h1 _ this
+      whnf_levels h1 := whnf'.WF_levels h1 _ this
+      inferType_levels h1 h2 := inferType'.WF_levels h1 h2 _ this }
 
 theorem RecM.WF.run {x : RecM α} (H : x.WF c s Q) : (RecM.run x).WF c s Q :=
   H _ Methods.withFuel.WF
@@ -172,6 +178,10 @@ theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv :
   whnfCore_wf := .empty
   whnf_wf := .empty
   unfold_wf _ := by simp
+  inferTypeI_levels := .empty
+  inferTypeC_levels := .empty
+  whnfCore_levels := .empty
+  whnf_levels := .empty
 
 theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
@@ -191,6 +201,10 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
   whnfCore_wf := .empty
   whnf_wf := .empty
   unfold_wf _ := by simp
+  inferTypeI_levels := .empty
+  inferTypeC_levels := .empty
+  whnfCore_levels := .empty
+  whnf_levels := .empty
 
 theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -215,6 +229,10 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   whnfCore_wf := .empty
   whnf_wf := .empty
   unfold_wf _ := by simp
+  inferTypeI_levels := .empty
+  inferTypeC_levels := .empty
+  whnfCore_levels := .empty
+  whnf_levels := .empty
 
 theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig} :

@@ -4,6 +4,7 @@ import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
+import Lean4Lean.Verify.Typing.UniverseSupport
 
 namespace Except
 
@@ -293,6 +294,26 @@ theorem MLCtx.dropN_fvars_subset {c : MLCtx} (n hn) : (c.dropN n hn).vlctx.fvars
 theorem MLCtx.noBV (c : MLCtx) : c.vlctx.NoBV := by
   induction c <;> trivial
 
+theorem MLCtx.WF.decls_size {c : MLCtx} (wf : c.WF env Us) :
+    c.lctx.decls.size = c.length := by
+  rw [← wf.tr.1.decls_wf.toList'_length]
+  induction c with
+  | nil => rfl
+  | vlam _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLocalDecl, ih wf.1]
+  | vlet _ _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLetDecl, ih wf.1]
+
+theorem MLCtx.WF.toList_eq {c : MLCtx} (wf : c.WF env Us) :
+    c.lctx.toList = c.decls := by
+  simp [LocalContext.toList]
+  induction c with
+  | nil => rfl
+  | vlam _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLocalDecl, decls, ih wf.1, wf.1.decls_size]
+  | vlet _ _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLetDecl, decls, ih wf.1, wf.1.decls_size]
+
+theorem MLCtx.WF.find?_eq {c : MLCtx} (wf : c.WF env Us) :
+    c.lctx.find? x = c.decls.find? (x == ·.fvarId) := by
+  simp [wf.tr.1.find?_eq_find?_toList, wf.toList_eq]
+
 structure VContext extends Context where
   venv : VEnv
   hasPrimitives : VEnv.HasPrimitives venv
@@ -569,6 +590,29 @@ def UnfoldCache.WF (c : VContext) (m : ExprMap Expr) : Prop :=
   ∀ ⦃e e' : Expr⦄, m[e]? = some e' → ∃ n ls ci, e = .const n ls ∧
       c.env.find? n = some ci ∧ e' = Inner.instantiateDeltaValue ci ls
 
+/-- The declarations of the up-set `P` of the local context mention only the universe
+parameters `Us`: both their types and, for let-declarations, their values. These are read off the
+concrete local context. -/
+def VContext.UniverseScope (c : VContext) (Us : List Name) (P : FVarId → Prop) : Prop :=
+  IsFVarUpSet P c.vlctx ∧ ∀ fv decl, P fv → c.lctx'.find? fv = some decl →
+    decl.type.levelParamsIn Us = true ∧
+    ∀ v, decl.value? true = some v → v.levelParamsIn Us = true
+
+/-- `e₁` mentions only the universe parameters `Us` whenever `e` does and all free variables of
+`e` lie in a universe scope `P` of the context. This is the universe-parameter analogue of
+`FVarsBelow`. -/
+def VContext.LevelsBelow (c : VContext) (e e₁ : Expr) : Prop :=
+  ∀ Us P, c.UniverseScope Us P → e.levelParamsIn Us = true → FVarsIn P e →
+    e₁.levelParamsIn Us = true
+
+/-- The universe-support invariant of a cache whose values are computed from their keys (the
+`whnfCore`, `whnf` and `inferType` caches): conditional on the key living in the current context,
+the value stays in every universe scope the key does. -/
+def LevelsCache.WF (c : VContext) (m : InferCache) : Prop :=
+  ∀ ⦃e e₁ : Expr⦄, m[e]? = some e₁ → FVarsIn (· ∈ c.vlctx.fvars) e → c.LevelsBelow e e₁
+
+theorem LevelsCache.WF.empty : LevelsCache.WF c {} := fun _ => by simp
+
 class VState.WF (c : VContext) (s : VState) where
   trctx : c.TrLCtx
   ngen_wf : ∀ fv ∈ c.vlctx.fvars, s.ngen.Reserves fv
@@ -579,6 +623,10 @@ class VState.WF (c : VContext) (s : VState) where
   whnfCore_wf : WHNFCache.WF c s s.whnfCoreCache
   whnf_wf : WHNFCache.WF c s s.whnfCache
   unfold_wf : UnfoldCache.WF c s.unfold
+  inferTypeI_levels : LevelsCache.WF c s.inferTypeI
+  inferTypeC_levels : LevelsCache.WF c s.inferTypeC
+  whnfCore_levels : LevelsCache.WF c s.whnfCoreCache
+  whnf_levels : LevelsCache.WF c s.whnfCache
 
 theorem VState.WF.find?_eq_none {id}
     (wf : VState.WF c s) (H : ¬s.ngen.Reserves id) : c.lctx'.find? id = none :=
@@ -663,6 +711,16 @@ structure Methods.WF (m : Methods) where
   inferType : e.FVarsIn (· ∈ c.vlctx.fvars) →
     (inferOnly = true → ∃ e', c.TrExprS e e') →
     (m.inferType e inferOnly).WF c s fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty'
+  /-- `whnfCore` stays in every universe scope of its input. -/
+  whnfCore_levels : c.TrExprS e e' →
+    (m.whnfCore e cheapProj).WF c s fun e₁ _ => c.LevelsBelow e e₁
+  /-- `whnf` stays in every universe scope of its input. -/
+  whnf_levels : c.TrExprS e e' →
+    (m.whnf e).WF c s fun e₁ _ => c.LevelsBelow e e₁
+  /-- The inferred type stays in every universe scope of the input, in both modes. -/
+  inferType_levels : e.FVarsIn (· ∈ c.vlctx.fvars) →
+    (inferOnly = true → ∃ e', c.TrExprS e e') →
+    (m.inferType e inferOnly).WF c s fun ty _ => c.LevelsBelow e ty
 
 def RecM.WF (c : VContext) (s : VState) (x : RecM α) (Q : α → VState → Prop) : Prop :=
   ∀ m, m.WF → M.WF c s (x m) Q
@@ -693,6 +751,18 @@ theorem RecM.WF.pure {c : VContext} {s : VState} {Q} (H : Q a s) : (pure a : Rec
 theorem RecM.WF.and {c : VContext} {s : VState} {x : RecM α} {Q R}
     (h1 : x.WF c s Q) (h2 : x.WF c s R) : x.WF c s fun a s => Q a s ∧ R a s :=
   fun m wf => (h1 m wf).and (h2 m wf)
+
+/-- Combine a family of postconditions, each established under its own hypothesis, with an
+unconditional one (which supplies the state invariant when no hypothesis holds). -/
+theorem RecM.WF.and_forall {c : VContext} {s : VState} {x : RecM α} {Q : α → VState → Prop}
+    {H : ι → Prop} {R : ι → α → Prop}
+    (h0 : x.WF c s Q) (h : ∀ i, H i → x.WF c s fun a _ => R i a) :
+    x.WF c s fun a s => Q a s ∧ ∀ i, H i → R i a := by
+  intro m mwf wf a s' e
+  obtain ⟨⟨vs⟩, rfl, le, wf', q⟩ := h0 m mwf wf a s' e
+  refine ⟨_, rfl, le, wf', q, fun i hi => ?_⟩
+  obtain ⟨⟨vs''⟩, eq, -, -, r⟩ := h i hi m mwf wf a _ e
+  cases eq; exact r
 
 theorem RecM.WF.map {c : VContext} {s : VState} {x : RecM α} {f : α → β} {Q R}
     (h1 : x.WF c s Q) (h2 : ∀ a s', s ≤ s' → Q a s' → R (f a) s') : (f <$> x).WF c s R := by
@@ -787,6 +857,124 @@ untouched, so judgements stated at `c` and at `c.withMLC m` are interchangeable.
 @[simp] theorem VContext.withMLC_quot (c : VContext) (m) [c.MLCWF m] :
     (c.withMLC m).quot = c.quot := rfl
 
+theorem MLCtx.WF.find?_vlam {m : MLCtx} (wf : (m.vlam x name ty ty' bi).WF env Us)
+    (h : fv ≠ x) : (m.vlam x name ty ty' bi).lctx.find? fv = m.lctx.find? fv := by
+  rw [wf.find?_eq, wf.1.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId, h]
+
+theorem MLCtx.WF.find?_vlet {m : MLCtx} (wf : (m.vlet x name ty v ty' v').WF env Us)
+    (h : fv ≠ x) : (m.vlet x name ty v ty' v').lctx.find? fv = m.lctx.find? fv := by
+  rw [wf.find?_eq, wf.1.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId, h]
+
+@[simp] theorem _root_.Lean.LocalDecl.value?_ldecl_true :
+    (LocalDecl.ldecl i fv n t v nd k).value? true = some v := by
+  cases nd <;> rfl
+
+theorem MLCtx.WF.find?_vlam_self {m : MLCtx} (wf : (m.vlam x name ty ty' bi).WF env Us) :
+    (m.vlam x name ty ty' bi).lctx.find? x = some (.cdecl m.length x name ty bi .default) := by
+  rw [wf.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId]
+
+theorem MLCtx.WF.find?_vlet_self {m : MLCtx} (wf : (m.vlet x name ty v ty' v').WF env Us) :
+    (m.vlet x name ty v ty' v').lctx.find? x =
+      some (.ldecl m.length x name ty v false default) := by
+  rw [wf.find?_eq]; simp [decls, List.find?_cons, LocalDecl.fvarId]
+
+/-- Extending a universe scope by one declaration in scope, keeping the predicate. -/
+theorem VContext.UniverseScope.cons_same {c c' : VContext}
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (H : c.UniverseScope Us P) (hup : IsFVarUpSet P c'.vlctx)
+    (hdecl : ∀ decl, c'.lctx'.find? x = some decl → decl.type.levelParamsIn Us = true ∧
+      ∀ v, decl.value? true = some v → v.levelParamsIn Us = true) :
+    c'.UniverseScope Us P := by
+  refine ⟨hup, fun fv decl hP hd => ?_⟩
+  by_cases h : fv = x
+  · subst h; exact hdecl _ hd
+  · exact H.2 fv decl hP (hfind fv h ▸ hd)
+
+theorem _root_.Lean4Lean.FVarsIn.appFn (h : FVarsIn P e) : FVarsIn P e.getAppFn := by
+  rw [← e.mkAppRevList_getAppArgsRevList, FVarsIn.appRevList] at h; exact h.1
+
+theorem VContext.LevelsBelow.rfl {c : VContext} : c.LevelsBelow e e := fun _ _ _ h _ => h
+
+theorem VContext.LevelsBelow.trans {c : VContext} (H1 : c.LevelsBelow e₁ e₂)
+    (F1 : c.FVarsBelow e₁ e₂) (H2 : c.LevelsBelow e₂ e₃) : c.LevelsBelow e₁ e₃ :=
+  fun Us P hs h1 f1 => H2 Us P hs (H1 Us P hs h1 f1) (F1 P hs.1 f1)
+
+theorem VContext.LevelsBelow.eqv {c : VContext} (H : c.LevelsBelow e₁ e₂)
+    (eq : e₁ == e₁') (eq' : e₂ == e₂') : c.LevelsBelow e₁' e₂' := by
+  intro Us P hs h1 f1
+  rw [← Expr.levelParamsIn_eqv eq']
+  exact H Us P hs (by rwa [Expr.levelParamsIn_eqv eq]) (.eqv (BEq.symm eq) f1)
+
+theorem LevelsCache.WF.insert {c : VContext} (H : LevelsCache.WF c m)
+    (h : c.LevelsBelow e e₁) : LevelsCache.WF c (m.insert e e₁) := by
+  intro k v hk hf
+  rw [Std.HashMap.getElem?_insert] at hk; split at hk
+  · cases hk; rename_i eq; exact h.eqv eq BEq.rfl
+  · exact H hk hf
+
+/-- A universe scope of a context extended by one declaration restricts to one of the context. -/
+theorem VContext.UniverseScope.tail {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hnone : c.lctx'.find? x = none)
+    (H : c'.UniverseScope Us P) : c.UniverseScope Us P := by
+  have h1 := H.1; rw [hΔ] at h1
+  refine ⟨h1.1, fun fv decl hP hd => H.2 fv decl hP ?_⟩
+  rw [hfind fv (by rintro rfl; simp [hnone] at hd)]; exact hd
+
+/-- A universe scope of a context, cut down to the variables of the context, is a universe scope
+of the context extended by one fresh declaration. -/
+theorem VContext.UniverseScope.cons_restrict {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : c.UniverseScope Us P) :
+    c'.UniverseScope Us (fun fv => P fv ∧ fv ∈ c.vlctx.fvars) := by
+  refine ⟨?_, fun fv decl hP hd => H.2 fv decl hP.1 ?_⟩
+  · rw [hΔ]; exact ⟨(IsFVarUpSet.and_fvars c.Δwf.fvwf).1 H.1, fun h => (hid h.2).elim⟩
+  · rwa [← hfind fv (by rintro rfl; exact hid hP.2)]
+
+/-- A universe scope extends to a declaration whose type, value and dependencies are in scope. -/
+theorem VContext.UniverseScope.cons {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : c.UniverseScope Us P) (hdeps : ∀ fv ∈ deps, P fv)
+    (hdecl : ∀ decl, c'.lctx'.find? x = some decl → decl.type.levelParamsIn Us = true ∧
+      ∀ v, decl.value? true = some v → v.levelParamsIn Us = true) :
+    c'.UniverseScope Us (fun fv => fv = x ∨ P fv) := by
+  refine ⟨?_, fun fv decl hP hd => ?_⟩
+  · rw [hΔ]
+    refine ⟨(IsFVarUpSet.congr c.Δwf.fvwf fun fv h => ?_).1 H.1, fun _ fv h => .inr (hdeps fv h)⟩
+    exact ⟨.inr, fun | .inl rfl => (hid h).elim | .inr h => h⟩
+  · by_cases h : fv = x
+    · subst h; exact hdecl _ hd
+    · exact H.2 fv decl (hP.resolve_left h) (hfind fv h ▸ hd)
+
+theorem LevelsCache.WF.fresh {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hnone : c.lctx'.find? x = none)
+    (hres : ∀ ⦃e e₁ : Expr⦄, m[e]? = some e₁ → FVarsIn R e) (hR : ¬R x)
+    (H : LevelsCache.WF c m) : LevelsCache.WF c' m := by
+  intro e e₁ h hf Us P hs hl hP
+  refine H h ?_ Us P (hs.tail hΔ hfind hnone) hl hP
+  refine hf.mp (fun fv h1 h2 => ?_) (hres h)
+  rw [hΔ] at h1; simp at h1
+  rcases h1 with rfl | h1
+  · exact (hR h2).elim
+  · exact h1
+
+theorem LevelsCache.WF.weakN_inv {c c' : VContext}
+    (hΔ : c'.vlctx = (some (x, deps), d) :: c.vlctx)
+    (hfind : ∀ fv, fv ≠ x → c'.lctx'.find? fv = c.lctx'.find? fv)
+    (hid : x ∉ c.vlctx.fvars)
+    (H : LevelsCache.WF c' m) : LevelsCache.WF c m := by
+  intro e e₁ h hf Us P hs hl hP
+  refine H h (hf.mono fun fv h => ?_) Us _ (hs.cons_restrict hΔ hfind hid) hl
+    (hP.mp (fun _ a b => ⟨a, b⟩) hf)
+  rw [hΔ]; simp [h]
+
 def VState.next (s : VState) : VState := { s with ngen := s.ngen.next }
 
 protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
@@ -811,6 +999,10 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
     have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
       fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
+    have hlc {ic : InferCache}
+        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+        (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
+      H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
     { ngen_wf := by
         simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
       ectx := by
@@ -821,13 +1013,20 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
             fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
         rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hty.fvarsList.trans a2.fvars_sublist.subset⟩
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf }
+      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
+      inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
+      inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
+      whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
+      whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels }
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
       InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
       WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+  have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
+      LevelsCache.WF (c.withMLC m) ic :=
+    H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlam h) (wf.trctx.find?_eq_none.1 h1')
   let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
   exact {
     ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
@@ -835,6 +1034,8 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     trctx := wf.trctx
     inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
     whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
+    inferTypeI_levels := hlc wf'.inferTypeI_levels, inferTypeC_levels := hlc wf'.inferTypeC_levels
+    whnfCore_levels := hlc wf'.whnfCore_levels, whnf_levels := hlc wf'.whnf_levels
   }
 
 /-- The `M`-level twin of `RecM.WF.withLocalDecl`. The primitive checker probes its
@@ -861,6 +1062,10 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
       fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
     have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
       fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
+    have hlc {ic : InferCache}
+        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+        (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
+      H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
     { ngen_wf := by
         simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
       ectx := by
@@ -871,13 +1076,20 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
             fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
         rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hty.fvarsList.trans a2.fvars_sublist.subset⟩
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf }
+      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
+      inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
+      inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
+      whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
+      whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels }
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
   refine have le' := le.trans hs2; ⟨s', hs1, le', ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
       InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
       WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+  have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
+      LevelsCache.WF (c.withMLC m) ic :=
+    H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlam h) (wf.trctx.find?_eq_none.1 h1')
   let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
   exact {
     ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
@@ -885,6 +1097,8 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     trctx := wf.trctx
     inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
     whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
+    inferTypeI_levels := hlc wf'.inferTypeI_levels, inferTypeC_levels := hlc wf'.inferTypeC_levels
+    whnfCore_levels := hlc wf'.whnfCore_levels, whnf_levels := hlc wf'.whnf_levels
   }
 
 protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
@@ -911,6 +1125,10 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
       fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
     have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
       fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
+    have hlc {ic : InferCache}
+        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+        (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
+      H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
     { ngen_wf := by
         simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
       ectx := by
@@ -922,13 +1140,20 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
             fun _ h => by obtain _ | ⟨_, h⟩ := h <;> [exact h0; exact (a4 _ h).mono le]⟩
         rintro _ _ ⟨⟩; exact ⟨mt (a4 _) h1, hv.trans a2.fvars_sublist.subset⟩
       trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf }
+      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
+      inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
+      inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
+      whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
+      whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels }
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   refine ⟨s', hs1, le.trans hs2, ?_, hs4⟩
   have hic {ic} (H : InferCache.WF (c.withMLC m') s' ic) :
       InferCache.WF (c.withMLC m) s' ic := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
   have hwc {wc} (H : WHNFCache.WF (c.withMLC m') s' wc) :
       WHNFCache.WF (c.withMLC m) s' wc := fun _ _ h => (H h).weakN_inv c.Ewf wf'.trctx.wf
+  have hlc {ic : InferCache} (H : LevelsCache.WF (c.withMLC m') ic) :
+      LevelsCache.WF (c.withMLC m) ic :=
+    H.weakN_inv rfl (fun _ h => cwf'.1.find?_vlet h) (wf.trctx.find?_eq_none.1 h1')
   let ⟨_, _, a1, a2, a3⟩ := wf'.ectx
   exact {
     ngen_wf := (by simpa [VContext.withMLC] using wf'.ngen_wf :).2
@@ -936,6 +1161,8 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
     trctx := wf.trctx
     inferTypeI_wf := hic wf'.inferTypeI_wf, inferTypeC_wf := hic wf'.inferTypeC_wf
     whnfCore_wf := hwc wf'.whnfCore_wf, whnf_wf := hwc wf'.whnf_wf, unfold_wf := wf'.unfold_wf
+    inferTypeI_levels := hlc wf'.inferTypeI_levels, inferTypeC_levels := hlc wf'.inferTypeC_levels
+    whnfCore_levels := hlc wf'.whnfCore_levels, whnf_levels := hlc wf'.whnf_levels
   }
 
 @[simp] def MLCtx.mkForall (c : MLCtx) (n) (hn : n ≤ c.length) (e : Expr) : Expr :=
@@ -956,6 +1183,12 @@ def AllAbove (Δ : VLCtx) (P : FVarId → Prop) (fv : FVarId) : Prop := fv ∈ �
 
 theorem AllAbove.wf (H : Δ.FVWF) : IsFVarUpSet (AllAbove Δ P) Δ ↔ IsFVarUpSet P Δ :=
   IsFVarUpSet.congr H fun _ h => by simp [h, AllAbove]
+
+/-- A universe scope is still one when relaxed to every variable outside the context. -/
+theorem VContext.UniverseScope.allAbove {c : VContext} (H : c.UniverseScope Us P) :
+    c.UniverseScope Us (AllAbove c.vlctx P) :=
+  ⟨(AllAbove.wf c.Δwf.fvwf).2 H.1, fun fv decl hP hd =>
+    H.2 fv decl (hP (c.trlctx.find?_eq_some.1 ⟨_, hd⟩)) hd⟩
 
 @[simp] def MLCtx.mkForall' (c : MLCtx) (n) (hn : n ≤ c.length) (e : VExpr) : VExpr :=
   match n, c, hn, e with
@@ -1188,26 +1421,6 @@ theorem MLCtx.WF.fvars_nodup : ∀ {c : MLCtx}, c.WF env Us → c.vlctx.fvars.No
 theorem MLCtx.WF.fvarRevList_nodup {c : MLCtx} (wf : c.WF env Us)
     (n hn) : (c.fvarRevList n hn).Nodup :=
   c.fvarRevList_prefix.sublist.nodup wf.fvars_nodup
-
-theorem MLCtx.WF.decls_size {c : MLCtx} (wf : c.WF env Us) :
-    c.lctx.decls.size = c.length := by
-  rw [← wf.tr.1.decls_wf.toList'_length]
-  induction c with
-  | nil => rfl
-  | vlam _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLocalDecl, ih wf.1]
-  | vlet _ _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLetDecl, ih wf.1]
-
-theorem MLCtx.WF.toList_eq {c : MLCtx} (wf : c.WF env Us) :
-    c.lctx.toList = c.decls := by
-  simp [LocalContext.toList]
-  induction c with
-  | nil => rfl
-  | vlam _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLocalDecl, decls, ih wf.1, wf.1.decls_size]
-  | vlet _ _ _ _ _ _ _ ih => simp [lctx, LocalContext.mkLetDecl, decls, ih wf.1, wf.1.decls_size]
-
-theorem MLCtx.WF.find?_eq {c : MLCtx} (wf : c.WF env Us) :
-    c.lctx.find? x = c.decls.find? (x == ·.fvarId) := by
-  simp [wf.tr.1.find?_eq_find?_toList, wf.toList_eq]
 
 inductive MLCtx.PartialForall : MLCtx → Nat → List FVarId → Expr → Prop where
   | nil : PartialForall c 0 [] e
@@ -1446,6 +1659,59 @@ theorem whnfCore.WF' {c : VContext} {s : VState} (he : c.TrExprS e e') :
       ⟨h1, h2, fun _ _ _ => h3⟩
   · exact (whnfCore.WF he).mono fun _ _ _ ⟨h1, h2⟩ =>
       ⟨h1, h2, fun _ _ hAB => (h ⟨_, _, hAB⟩).elim⟩
+
+theorem whnfCore.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => c.LevelsBelow e e₁ :=
+  fun _ wf => wf.whnfCore_levels he
+
+theorem whnf.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnf e) fun e₁ _ => c.LevelsBelow e e₁ :=
+  fun _ wf => wf.whnf_levels he
+
+theorem inferType.WF_levels' {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+    (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
+    RecM.WF c s (inferType e inferOnly) fun ty _ => c.LevelsBelow e ty :=
+  fun _ wf => wf.inferType_levels h1 hinf
+
+theorem inferType.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (inferType e inferOnly) fun ty _ => c.LevelsBelow e ty :=
+  inferType.WF_levels' he.fvarsIn fun _ => ⟨_, he⟩
+
+/-- `whnfCore` with its universe-parameter support. -/
+theorem whnfCore.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
+      c.FVarsBelow e e₁ ∧ c.LevelsBelow e e₁ ∧ c.TrExpr e₁ e' :=
+  ((whnfCore.WF he).and (whnfCore.WF_levels he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ => ⟨h1, h3, h2⟩
+
+/-- All three `whnfCore` clauses with its universe-parameter support. -/
+theorem whnfCore.WF_below' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnfCore e cheapProj) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
+      (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow e e₁ :=
+  (whnfCore.WF' he).and (whnfCore.WF_levels he)
+
+/-- `whnf` with its universe-parameter support. -/
+theorem whnf.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.LevelsBelow e e₁ ∧ c.TrExpr e₁ e' :=
+  ((whnf.WF he).and (whnf.WF_levels he)).mono fun _ _ _ ⟨⟨h1, h2⟩, h3⟩ => ⟨h1, h3, h2⟩
+
+/-- All three `whnf` clauses with its universe-parameter support. -/
+theorem whnf.WF_below' {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (whnf e) fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧
+      (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow e e₁ :=
+  (whnf.WF' he).and (whnf.WF_levels he)
+
+/-- `inferType` with its universe-parameter support. -/
+theorem inferType.WF_below' {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
+    (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
+    RecM.WF c s (inferType e inferOnly) fun ty _ =>
+      (∃ e' ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty :=
+  (inferType.WF' h1 hinf).and (inferType.WF_levels' h1 hinf)
+
+/-- `inferType` with its universe-parameter support. -/
+theorem inferType.WF_below {c : VContext} {s : VState} (he : c.TrExprS e e') :
+    RecM.WF c s (inferType e inferOnly) fun ty _ =>
+      (∃ ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty :=
+  (inferType.WF he).and (inferType.WF_levels he)
 
 /-- An expression translating to a `forallE` is neither an application nor a constant. -/
 theorem _root_.Lean4Lean.TrExprS.forallE_shape
