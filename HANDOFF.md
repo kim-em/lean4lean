@@ -807,7 +807,14 @@ inside this project's scope without solving open base metatheory:
    the certificate** `CaseSchema.Certified` with "schemas project only out of
    structures registered at registration time" (a new producer obligation,
    provable from translation; no theorem is weakened), derive field 1 from it
-   and freshness. Agent running.
+   and freshness. **Done (next commit after 7e5cdaa):** the fact lives in the
+   data `VEnv.WF'.inductEliminators` carries (`CaseSchema.ProjNamesRegistered
+   env key`, Theory/Inductive/CaseFormation.lean), since `Certified` knows only
+   the base environment; `WF.eliminatorsProjNamesRegistered` by induction on
+   `WF'`; `eliminatorProjNames_of` and `restoredEquationGaps_of'` (no `Helim`).
+   Note: no producer in the verified pipeline registers eliminator schemas
+   (`inductEliminators` has no caller), so the strengthening creates no new
+   proof obligation today; the two registration lemmas take it as a premise.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
