@@ -874,6 +874,81 @@ theorem singletonCast_slot (owner : Fin s.families.size) (c : Constructor s.fami
   · rename_i h
     simp [List.getD_eq_getElem?_getD, List.getElem?_range, h]
 
+theorem singleton_fieldsCtx {env : VEnv} (henv : env.WF) (hfam : s.families.size = 1)
+    (hcs : s.constructors.size = 1) (owner : Fin s.families.size)
+    (index : Fin s.constructors.size) {c : Constructor s.families.size}
+    (hc : s.constructors[index] = c) (hown : c.owner = owner)
+    (htarget : g.targetLevel = .zero)
+    {h : VExpr} (hhead : env.HasType g.uvars [] h (g.recursorType owner))
+    (harity : (g.sCtorIndices c).length = (g.sIndices owner).length) :
+    ∀ i, i ≤ (g.sFields c).length →
+      OnCtx (g.params ++ (g.sFields c).take i).reverse (env.IsType g.uvars) := by
+  have hPlen : g.params.length = s.params.length := by simp [params]
+  have hown0 : c.owner.val = 0 := by
+    have := c.owner.isLt; omega
+  have hrec := g.recursorType_shape hfam hcs owner index
+  rw [hc] at hrec
+  rw [g.motive_shape owner htarget, g.minor_shape hfam _ hown0, g.major_lift owner,
+    g.constructorApp_shape] at hrec
+  have H : env.IsType g.uvars [] (g.recursorType owner) := hhead.isType henv.ordered trivial
+  rw [hrec] at H
+  have hpeel := (IsType.wrapForalls_inv henv (Γ := []) trivial H).1
+  have hpeel2 : OnCtx ((insertBinders (g.sIndices owner) 2 ++
+      [(g.sMajor owner).liftN 2 (g.sIndices owner).length]).reverse ++
+      (VExpr.wrapForalls (insertBinders (g.sFields c) 1 ++ g.sHyps c)
+        (VExpr.mkApps (.bvar ((g.sFields c).length + (g.sHyps c).length))
+          ((g.sCtorIndices c).map (fun e => (e.liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)) ++
+            [((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)])) ::
+        VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero) ::
+        g.params.reverse)) (env.IsType g.uvars) := by
+    simpa [List.reverse_append, List.append_assoc] using hpeel
+  obtain ⟨hMotCtx, hMinT⟩ := OnCtx.of_append hpeel2
+  have ⟨hP, hMotT⟩ := hMotCtx
+  have hMotInv := IsType.wrapForalls_inv henv hP hMotT
+  have hidx : OnCtx (g.params ++ g.sIndices owner ++ [g.sMajor owner]).reverse
+      (env.IsType g.uvars) := by
+    simpa [List.append_assoc] using hMotInv.1
+  have hM0 := HasType.wrapLams_of hMotInv.1 (HasType.trueTy (env := env) (U := g.uvars))
+  have hMinInv := IsType.wrapForalls_inv henv hMotCtx hMinT
+  have hall : OnCtx (g.params ++ [VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero)] ++
+      insertBinders (g.sFields c) 1 ++ g.sHyps c).reverse (env.IsType g.uvars) := by
+    simpa [List.append_assoc] using hMinInv.1
+  have hbody : env.IsType g.uvars (g.params ++
+      [VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero)] ++
+      insertBinders (g.sFields c) 1 ++ g.sHyps c).reverse
+      (VExpr.mkApps (.bvar ((g.sFields c).length + (g.sHyps c).length))
+          ((g.sCtorIndices c).map (fun e => (e.liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)) ++
+            [((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)])) := by
+    simpa [List.append_assoc] using hMinInv.2
+  have hIcl : ∀ k (hk : k < (g.sIndices owner).length),
+      ((g.sIndices owner)[k]).ClosedN (g.params.length + k) := by
+    intro k hk
+    have := OnCtx.closed_reverse henv.ordered hidx (g.params.length + k) (by simp; omega)
+    rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by simp)] at this
+    simpa using this
+  have hallcl := OnCtx.closed_reverse henv.ordered hall
+  have hFcl : ∀ i (hi : i < (g.sFields c).length),
+      ((g.sFields c)[i]).ClosedN (g.params.length + i) := by
+    intro i hi
+    have := hallcl (g.params.length + 1 + i) (by simp; omega)
+    rw [List.getElem_append_left (by simp; omega), List.getElem_append_right (by simp),
+      getElem_insertBinders (by simp; omega)] at this
+    simp only [List.length_append, List.length_singleton,
+      show g.params.length + 1 + i - (g.params.length + 1) = i by omega] at this
+    exact VExpr.ClosedN.of_liftN (k := g.params.length + i) (by simpa [Nat.add_right_comm] using this)
+      (by omega)
+  have hF : OnCtx ((insertBinders (g.sFields c) 1).reverse ++
+      VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero) :: g.params.reverse)
+      (env.IsType g.uvars) := by
+    have := hMinInv.1
+    rw [List.reverse_append, List.append_assoc] at this
+    exact OnCtx.of_append this
+  exact fun i hi => (minorFields_inst henv hP hM0 hF hFcl i hi).1
+
 theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 1)
     (hcs : s.constructors.size = 1) (owner : Fin s.families.size)
     (index : Fin s.constructors.size) {c : Constructor s.families.size}
@@ -881,8 +956,9 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
     (htarget : g.targetLevel = .zero)
     {h : VExpr} (hhead : env.HasType g.uvars [] h (g.recursorType owner))
     (harity : (g.sCtorIndices c).length = (g.sIndices owner).length)
-    (hmajor : env.HasType g.uvars (g.params ++ g.sIndices owner).reverse (g.sMajor owner)
-      (.sort .zero))
+    (hfamHead : ∀ {Γ}, OnCtx Γ (env.IsType g.uvars) → ∃ domains level,
+      env.HasType g.uvars Γ (.const s.families[owner].name g.levels)
+        (VExpr.wrapForalls domains (.sort level)) ∧ level ≈ .zero)
     {sorts : List VLevel}
     (hprop : ∀ i (hi : i < (g.sFields c).length),
       fieldSlot (g.sCtorIndices c) (g.sFields c).length i =
@@ -1134,7 +1210,17 @@ theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 
         (g.singletonElim owner c h) = g.sMajor owner := by
       simp only [PropElim.majorTy, singletonElim, singletonCast]
       rw [← CastSpec.bvarRange_split, hMajEq]
-    rw [e]; exact hmajor
+    rw [e]
+    have hidx' : OnCtx (g.sMajor owner :: (g.params ++ g.sIndices owner).reverse)
+        (env.IsType g.uvars) := by simpa using hidx
+    obtain ⟨hctxPI, u, hu⟩ := hidx'
+    obtain ⟨domains, level, hH, hlev⟩ := hfamHead hctxPI
+    rw [hMajEq] at hu ⊢
+    have hlen := HasType.mkApps_sort_arity henv hctxPI hH hu
+    have hT := (HasType.mkApps_wrapForalls henv hctxPI hH ⟨_, hu⟩ hlen).2
+    simp only [VExpr.instOuter_sort] at hT
+    have hlwf := (hT.isType henv.ordered hctxPI).sort_inv henv.ordered
+    exact .defeqDF (.sortDF hlwf (by simp [VLevel.WF]) hlev) hT
   · have e : PropElim.ctorApp (g.singletonCast owner c sorts) g.params
         (g.singletonElim owner c h) = g.sCtorApp c := by
       simp [PropElim.ctorApp, sCtorApp, singletonElim, singletonCast, hPlen]
