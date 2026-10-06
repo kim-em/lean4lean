@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.LoweredConstructorRestoration
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryFamilyCorrespondence
+import Lean4Lean.Verify.Inductive.Nested.AuxiliaryConstructorRestoration
 
 /-! Constructor restoration and `CompilationData` of a validated nested run,
 for the specializations of `NestedValidatedRunResult.restorationTablesRestoring`.
@@ -14,13 +15,14 @@ constructor restoration and of the auxiliary family correspondence are the
 tails of `loweredConstructors_of` and `auxiliaryFamilies_of`, instantiated at
 that list.
 
-What remains open for `NestedCompilationPending`:
+The universe-level premise of `loweredConstructors_of` (`ConstLevelsAt`) is
+`NestedValidatedRunResult.loweredConstructorLevels_heads`, and the
+restoration of the auxiliary constructor types is
+`NestedValidatedRunResult.auxiliaryConstructors_of_evidence`. What remains
+open for `NestedCompilationPending` (`compilationData_of_pending'`):
 
-* the universe-level premise of `loweredConstructors_of` (`ConstLevelsAt`),
 * `normalizedTotal`: restoration is defined on the normalized constructor
-  types of the source families,
-* the restoration of the auxiliary constructor types (`RestoresType` against
-  the direct specializations),
+  types (of the source and of the auxiliary families),
 * the restored recursor and equation lists. -/
 
 namespace Lean4Lean
@@ -495,8 +497,9 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
 
 /-- **`CompilationData` of a validated nested run, modulo the remaining
 pending facts.** For the specializations of `restorationTablesRestoring`, the
-`sourceConstructors` field of `NestedCompilationPending` is reduced to the
-universe-level premise and `normalizedTotal` (`sourceConstructors_of'`), the
+`sourceConstructors` field of `NestedCompilationPending` is reduced to
+`normalizedTotal` (`sourceConstructors_of'`, with the universe-level premise
+discharged by `loweredConstructorLevels_heads`), the
 `auxiliaryFamilies` field to the restoration of the auxiliary constructor
 types, and the `recursors` and `equations` fields are taken verbatim. -/
 theorem NestedValidatedRunResult.compilationData_of_pending
@@ -540,12 +543,7 @@ theorem NestedValidatedRunResult.compilationData_of_pending
       (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
         ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
           name) ∧
-      ((∀ lowered ∈ E.production.loweredDecl.types.take sourceDecl.types.length,
-          ∀ lc ∈ lowered.ctors,
-            lc.type.ConstLevelsAt
-              ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
-              (VLevel.params sourceDecl.uvars)) →
-        (∀ normalized ∈ E.production.compilationSignature.declaration.types.take
+      ((∀ normalized ∈ E.production.compilationSignature.declaration.types.take
             sourceDecl.types.length,
           ∀ ctor ∈ normalized.ctors, ∃ restored,
             (compilationRestoration sourceDecl auxiliaries).expr ctor.type = some restored) →
@@ -586,10 +584,11 @@ theorem NestedValidatedRunResult.compilationData_of_pending
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
   have ⟨hfresh, hrecFresh⟩ := restorableNames_fresh_split hfreshAll
   have hP := E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
-  obtain ⟨-, -, hnames, -, -, -, hwellFormed, hscoped, hdirect, -⟩ := hP
+  obtain ⟨-, -, hnames, hheadNames, -, -, hwellFormed, hscoped, hdirect, -⟩ := hP
+  have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
   refine ⟨envTypes, auxiliaries,
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D ?_⟩
-  intro hlevels htotal hauxRestores hrecursors hequations
+  intro htotal hauxRestores hrecursors hequations
   exact ⟨E.compilationData_of_specializations C hC hadded hnames hwellFormed hscoped
     hdirect
     { sourceConstructors :=
@@ -599,6 +598,103 @@ theorem NestedValidatedRunResult.compilationData_of_pending
             hlevels, htotal⟩
       auxiliaryFamilies :=
         E.auxiliaryFamiliesField_of_evidence wf hadded henvTypes Haux Hexpansion hauxRestores
+      recursors := hrecursors
+      equations := hequations }⟩
+
+/-- **`CompilationData` of a validated nested run, modulo totality of
+restoration on the normalized constructor types and the restored recursor
+and equation lists.** For the specializations of
+`restorationTablesRestoringAll`, the `sourceConstructors` field of
+`NestedCompilationPending` is `sourceConstructors_of_evidence` (with the
+universe-level premise discharged by `loweredConstructorLevels_heads`), and
+the constructor restoration of the `auxiliaryFamilies` field is
+`auxiliaryConstructors_of_evidence`. -/
+theorem NestedValidatedRunResult.compilationData_of_pending'
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (C : NestedFinalAssemblyShape E.restoration
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (hC : C.production = E.production) :
+    ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
+      (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+        sourceDecl.typeConstants = some envTypes ∧
+      envTypes.WF ∧
+      auxiliaries.map (·.auxiliary) =
+        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
+          (·.name) ∧
+      auxiliaries.flatMap (·.headNames) =
+        familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+      CertifiedSpecializations (ves.venv (if isUnsafe then .unsafe else .safe))
+        auxiliaries ∧
+      (∀ params : List VExpr,
+        VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
+          E.production.headers.commonParameterContext →
+        ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
+      (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
+        E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
+      (compilationRestoration sourceDecl auxiliaries).Scoped ∧
+      (∀ (U : Nat) (params : List VExpr), ∃ direct,
+        auxiliaries.mapM (fun a => a.directFamily U params) = some direct ∧
+        List.Forall₂ (DirectFamilyShape U) auxiliaries direct) ∧
+      (∀ a ∈ auxiliaries, ∀ ctor ∈ a.source.ctors,
+        result.restoreCtorName E.loweredEnv (a.constructorName ctor) =
+          (compilationRestoration sourceDecl auxiliaries).restoredHeadName
+            (a.constructorName ctor)) ∧
+      (∀ name, (compilationRestoration sourceDecl auxiliaries).recursorName name =
+        ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.find? name).getD
+          name) ∧
+      ((∀ normalized ∈ E.production.compilationSignature.declaration.types,
+          ∀ ctor ∈ normalized.ctors, ∃ restored,
+            (compilationRestoration sourceDecl auxiliaries).expr ctor.type = some restored) →
+        E.production.compilationInstance.restoredRecursors
+            (compilationRestoration sourceDecl auxiliaries) =
+          some (canonicalRestoredBlock sourceDecl C.primaryRecursors
+            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).recursors →
+        E.production.compilationInstance.restoredEquations
+            (compilationRestoration sourceDecl auxiliaries) =
+          some (canonicalRestoredBlock sourceDecl C.primaryRecursors
+            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).rules →
+        Nonempty (CompilationData (ves.venv (if isUnsafe then .unsafe else .safe))
+          sourceDecl E.production.loweredDecl E.production.compilationSignature
+          E.production.compilationInstance auxiliaries
+          (canonicalRestoredBlock sourceDecl C.primaryRecursors
+            C.auxiliaryRecursors C.primaryRules C.auxiliaryRules))) := by
+  have hnodup :
+      (familyNames E.production.loweredDecl.types ++
+        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+    rcases E.containerSpecializations wf Hsources with
+      ⟨_, _, _, _, _, _, _, h, _⟩
+    exact h
+  rcases E.restorationTablesRestoringAll wf Hsources with
+    ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
+      _hparamsSize, D, Hrestoring, HauxRestoring⟩
+  have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
+  have ⟨hfresh, hrecFresh⟩ := restorableNames_fresh_split hfreshAll
+  have hP := E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
+  obtain ⟨-, -, hnames, hheadNames, -, -, hwellFormed, hscoped, hdirect, -⟩ := hP
+  have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
+  refine ⟨envTypes, auxiliaries,
+    E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D ?_⟩
+  intro htotal hrecursors hequations
+  exact ⟨E.compilationData_of_specializations C hC hadded hnames hwellFormed hscoped
+    hdirect
+    { sourceConstructors :=
+        E.sourceConstructors_of_evidence wf hadded henvTypes Haux Hexpansion hnodup
+          hfresh hrecFresh
+          ⟨E.loweredConstructors_of_evidence hadded henvTypes hfreshAll Hrestoring
+            hlevels,
+            fun n hn => htotal n (List.mem_of_mem_take hn)⟩
+      auxiliaryFamilies :=
+        E.auxiliaryFamiliesField_of_evidence wf hadded henvTypes Haux Hexpansion
+          (E.auxiliaryConstructors_of_evidence wf Hsources hadded henvTypes Haux Hexpansion
+            HauxRestoring hnodup (fun n hn => htotal n (List.mem_of_mem_drop hn)))
       recursors := hrecursors
       equations := hequations }⟩
 
