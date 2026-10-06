@@ -704,6 +704,18 @@ inside this project's scope without solving open base metatheory:
    not to be heads (discharged by freshness), and the out-of-range dummy must
    be shown unreachable on successful runs. In progress on the hitshape
    worktree.
+   **`assemblyNative_of_hprims` (Nested/AssemblyNativeWhnf.lean, merged
+   89776a7):** the nested final assembly certificate from `wf`, `Hsources`,
+   `hprims` and two named hypotheses: `Hrules` (a shape `C` whose rules
+   realize `RestoredRulesRealization`: the validator's rule lhs is its own
+   build and the rule type is the checker's inferred type, neither
+   syntactically `r.expr` of the generated equation; plus freshness of the
+   restorable names in `C.finalBaseVEnv`) and `Hprovenance`
+   (`InductiveRecursorProvenance` of the restored recursors with their rules;
+   open core: `VConstructorShape` of every restored rule's constructor,
+   container constructors included). Agents on both. `CompilationData`
+   including `recursiveTypesWF`, `CertifiedSpecializations` and
+   `RestoredCompilationRealization` are proved from the run.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
