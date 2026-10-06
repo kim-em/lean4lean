@@ -678,6 +678,10 @@ inside this project's scope without solving open base metatheory:
    checker-built constant); the `RecursorHitShape` chain is being reworked to
    run at that head set and shrink back. In flight: that rework,
    `assemblyNative_of_whnf` (origins worktree).
+   **Milestone (2026-10-06, main at 9cc9c8e):** full `lake build` (676 jobs),
+   `lake build Lean4Lean.Tests`, fresh `Init.Prelude` (1975) and `Init.Core`
+   (3953) replays pass; audit self-test passes. Reachable sorries: the ten
+   base obligations and `assemblyNative` only.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
