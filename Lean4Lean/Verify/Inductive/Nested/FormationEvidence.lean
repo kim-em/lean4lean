@@ -66,6 +66,8 @@ structure GeneratedFamilyInstalledContainer
     some container.types[familyIdx].toVConstant
   familyTranslation : TrConstant .unsafe venv
     (.inductInfo H.sourceInfo) container.types[familyIdx].toVConstant
+  /-- The concrete family's safety flag is the container declaration's. -/
+  containerUnsafe : H.sourceInfo.isUnsafe = container.isUnsafe
 
 /-- Persistent installed-inductive provenance turns every generated-family
 lookup made by nested lowering into an exact prior-container certificate.
@@ -112,7 +114,8 @@ theorem GeneratedFamilyWitness.installedContainer
     constructors := P.alignment.constructors
     constructorName := ?_
     familyLookup := ?_
-    familyTranslation := ?_ }⟩
+    familyTranslation := ?_
+    containerUnsafe := P.alignment.isUnsafe }⟩
   exact P.alignment.name
   intro i hi
   have hfamily := P.alignment.familyIdx_lt
@@ -172,7 +175,8 @@ theorem GeneratedFamilyWitness.installedContainerOfAbstractLookup
     constructors := P.alignment.constructors
     constructorName := ?_
     familyLookup := habstractLookup
-    familyTranslation := ?_ }⟩
+    familyTranslation := ?_
+    containerUnsafe := P.alignment.isUnsafe }⟩
   · intro i hi
     have htarget : i <
         (P.decl.types[P.familyIdx]'P.alignment.familyIdx_lt).ctors.length := by

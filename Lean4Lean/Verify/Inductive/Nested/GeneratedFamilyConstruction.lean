@@ -258,7 +258,8 @@ def GeneratedFamilyInstalledContainer.mono
   constructorName := C.constructorName
   familyLookup := hle.constants C.familyLookup
   familyTranslation := ⟨C.familyTranslation.1, C.familyTranslation.2.1,
-    C.familyTranslation.2.2.mono hle⟩ }
+    C.familyTranslation.2.2.mono hle⟩
+  containerUnsafe := C.containerUnsafe }
 
 /-- Universe arity of a selected installed constructor, from the same finite
 source derivation. -/

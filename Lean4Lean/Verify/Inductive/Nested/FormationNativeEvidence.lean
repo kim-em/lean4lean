@@ -689,6 +689,11 @@ structure FinalLoweredGeneratedFamilyNativeSource
   baseArgs : List VExpr
   levels : List VLevel
   installed : VEnv.InstalledInductCertificate sourceTypesVEnv container
+  /-- The same container is already installed below the pre-header
+  observer, as required by `CertifiedSpecializations`. -/
+  installedBase : VEnv.InstalledInductCertificate baseVEnv container
+  /-- The concrete looked-up family's safety flag is the container's. -/
+  containerUnsafe : H.generated.sourceInfo.isUnsafe = container.isUnsafe
   familyMember : containerFamily ∈ container.types
   containerName : containerFamily.name = H.generated.sourceName
   sourceParamsLength : sourceParams.length = nparams
@@ -1192,6 +1197,8 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     installed := by
       simpa only [Ctypes, GeneratedFamilyInstalledContainer.mono]
         using Ctypes.installed
+    installedBase := C.installed
+    containerUnsafe := C.containerUnsafe
     familyMember := List.getElem_mem C.familyIdx_lt
     containerName := (C.lookupName.trans C.familyName).symm
     sourceParamsLength := hsourceParamsLength
