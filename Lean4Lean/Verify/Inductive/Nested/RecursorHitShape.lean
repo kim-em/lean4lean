@@ -307,6 +307,7 @@ structure WhnfHitOKFacts (heads : List Name) (params : List Expr) (ls : List Lev
       {target : VExpr},
     c.env = env →
     TrExprS Hc.venv recLparams Hc.mlctx.vlctx e target →
+    (∃ target₀, TrExprS Hc.venv recLparams Hc.chk.vlctx e target₀) →
     Hc.HitOKScope env heads params ls P →
     e.FVarsIn P → e.HitOK env heads params ls →
     (monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c = .ok e' →
@@ -324,16 +325,19 @@ theorem RecursorLoopUArgsPrefix.hitShape
     (W : WhnfHitOKFacts heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    {root : AddInductive.Context} {source : Expr}
+    {root : AddInductive.Context} {l : LocalContext} {source : Expr}
     {current : AddInductive.Context} {exposed : Expr} {args : Array Expr}
-    (trace : RecursorLoopUArgsPrefix root source current exposed args)
+    (trace : RecursorLoopUArgsPrefix root l source current exposed args)
     (henv : root.env = env)
-    {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
+    {recLparams : List Name}
+    (Rroot : RecursorContextWF { root with checkLCtx := l } recLparams)
     {P : FVarId → Prop} (hscope : Rroot.HitOKScope env heads params ls P)
     {sourceTarget : VExpr}
     (hsource : TrExpr Rroot.venv recLparams Rroot.mlctx.vlctx source sourceTarget)
     (hsourceType : Rroot.venv.IsType recLparams.length Rroot.mlctx.vlctx.toCtx
       sourceTarget)
+    {sourceTarget₀ : VExpr}
+    (hsource₀ : TrExpr Rroot.venv recLparams Rroot.chk.vlctx source sourceTarget₀)
     (hsourceH : source.HitOK env heads params ls) (hsourceP : source.FVarsIn P) :
     ∃ (Rcurrent : RecursorContextWF current recLparams) (P' : FVarId → Prop)
       (T : VExpr),
@@ -342,23 +346,32 @@ theorem RecursorLoopUArgsPrefix.hitShape
       Rcurrent.HitOKScope env heads params ls P' ∧
       exposed.HitOK env heads params ls ∧ exposed.FVarsIn P' ∧
       current.env = env ∧
-      ∀ a ∈ args.toList, ∃ fv, a = .fvar fv ∧ P' fv := by
+      (∀ a ∈ args.toList, ∃ fv, a = .fvar fv ∧ P' fv) ∧
+      ∃ T₀, TrExpr Rcurrent.venv recLparams Rcurrent.chk.vlctx exposed T₀ := by
   induction trace with
-  | root l hwf hsub =>
-    exact ⟨Rroot.withCheckLCtx l hwf hsub, P, _, hsource, hsourceType, hscope, hsourceH,
-      hsourceP, henv, by simp⟩
+  | root =>
+    exact ⟨Rroot, P, _, hsource, hsourceType, hscope, hsourceH,
+      hsourceP, henv, by simp, _, hsource₀⟩
   | @push current next args name domain body normalized bi _previous next_eq
       normalization ih =>
-    obtain ⟨R, P', T, htype, htypeType, hsc, hH, hP, hcenv, hargs⟩ := ih
+    obtain ⟨R, P', T, htype, htypeType, hsc, hH, hP, hcenv, hargs, T₀, htype₀⟩ := ih
     subst next_eq
     rcases TrExpr.forallE_source htype with
       ⟨sourceDom, sourceBody, hdom, hbody, hdomType, hbodyType, hforallEq⟩
     rcases hconsume current recLparams R hdom hdomType with ⟨consumedDom, Hdom⟩
     rcases Hdom.body R hbody with ⟨consumedBody, hbodyConsumed, hbodyEq⟩
+    rcases TrExpr.forallE_source htype₀ with
+      ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
+    rcases hconsume _ recLparams R.narrow hdom₀ hdom₀Type with
+      ⟨consumedDom₀, Hdom₀⟩
+    rcases Hdom₀.body R.narrow hbodyN₀ with ⟨consumedBody₀, hbodyConsumed₀, _⟩
     let x : FVarId := ⟨current.ngen.curr⟩
     let R' := R.withCheckedLocalDecl (name := name) (bi := bi) Hdom.consumed Hdom.isType
+      Hdom₀.consumed Hdom₀.isType
     have hopened := R.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbodyConsumed
+    have hopened₀ := R.narrow.instantiateFresh (name := name) (bi := bi)
+      Hdom₀.consumed Hdom₀.isType hbodyConsumed₀
     obtain ⟨hdomH, hbodyH⟩ := hH.forallE_inv
     have hdomP : domain.FVarsIn P' := hP.1
     have hbodyP : body.FVarsIn P' := hP.2
@@ -399,9 +412,11 @@ theorem RecursorLoopUArgsPrefix.hitShape
       rw [Expr.instantiate1_eq]
       exact (hbodyP.mono fun _ h => Or.inr h).instantiate1 (by
         simp [FVarsIn])
-    have hscopeRun := (whnfInRecursorContext.scopeWF R' hopened) normalized normalization
+    have hdualRun := (whnfInRecursorContext.dualWF R' hopened hopened₀) normalized
+      normalization
+    have hscopeRun := hdualRun.1
     have hnormH : normalized.HitOK env heads params ls :=
-      W.whnf R' hcenv hopened hsc' hinstP hinstH normalization
+      W.whnf R' hcenv hopened ⟨_, hopened₀⟩ hsc' hinstP hinstH normalization
     have hbodyEq' := Hdom.bodyDefEqConsumed R hbodyEq
     have hsourceBodyType : R'.venv.IsType recLparams.length
         R'.mlctx.vlctx.toCtx sourceBody := by
@@ -421,7 +436,7 @@ theorem RecursorLoopUArgsPrefix.hitShape
       simpa only [R', RecursorContextWF.withCheckedLocalDecl_venv,
         RecursorContextWF.withCheckedLocalDecl_toCtx, VLCtx.toCtx] using hbodyEq'
     refine ⟨R', P'', consumedBody, hscopeRun.2, hconsumedBodyType, hsc',
-      hnormH, hscopeRun.1 P'' hsc'.1 hinstP, hcenv, ?_⟩
+      hnormH, hscopeRun.1 P'' hsc'.1 hinstP, hcenv, ?_, _, hdualRun.2.2⟩
     intro a ha
     simp only [Array.toList_push, List.mem_append, List.mem_singleton] at ha
     rcases ha with ha | rfl
@@ -474,8 +489,15 @@ theorem RecInfoMinorHypothesisTypeOrigin.hitShape
     rw [AddInductive.getType.run] at h
     simp only [LocalContext.get!, Expr.fvarId!, hdecl, Except.ok.injEq] at h
     exact h.symm
-  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root (.fvar fv))
-    (Rroot.restrictTo _).1 (Rroot.restrictTo _).2
+  obtain ⟨jF, hjF, ty₀, hlctxF, htr₀, _⟩ := O.loopInput.checkBase Rroot
+  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root O.loopInput.prior)
+    ((Rroot.check.below jF hjF).cast hlctxF)
+  have hinferredEq : O.loopInput.inferredType = (root.lctx.get! fv).type := by
+    have h := hinference.symm.trans (AddInductive.getType.run (.fvar fv) root)
+    exact Except.ok.inj h
+  have hinferred₀ : TrExprS RF.venv recLparams RF.chk.vlctx
+      O.loopInput.inferredType ty₀ := by
+    rw [hinferredEq]; exact htr₀
   have hdeclH : (LocalDecl.cdecl index fv dname dtype dbi dkind).HitOK env heads params ls :=
     hscope.2 fv _ hfvP (by rw [Rroot.lctx_eq]; exact hdecl)
   have hinferredH : O.loopInput.inferredType.HitOK env heads params ls := by
@@ -486,15 +508,16 @@ theorem RecInfoMinorHypothesisTypeOrigin.hitShape
   have hinferredType : Rroot.venv.IsType recLparams.length
       Rroot.mlctx.vlctx.toCtx inferredTarget :=
     hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
-  obtain ⟨hnormalizedBelow, hnormalizedTr⟩ :=
-    whnfInRecursorContext.scopeWF RF hinferredTr _ hnormalization
+  obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
+    whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ hnormalization
   have hnormalizedH : O.loopInput.normalizedType.HitOK env heads params ls :=
-    W.whnf RF henv hinferredTr hscope hinferredP hinferredH hnormalization
+    W.whnf RF henv hinferredTr ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
+      hnormalization
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
     hnormalizedBelow P hscope.1 hinferredP
-  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedH, _, _, hargs⟩ :=
-    O.loopTrace.hitShape W hp recursorConsumeTypeAnnotationsCompat henv Rroot hscope
-      hnormalizedTr hinferredType hnormalizedH hnormalizedP
+  obtain ⟨Rcurrent, P', _, _, _, hsc', hexposedH, _, _, hargs, _⟩ :=
+    O.loopTrace.hitShape W hp recursorConsumeTypeAnnotationsCompat henv RF hscope
+      hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   have hargDecls : ∀ x ∈ O.arguments_bound.fvars, ∀ decl,
       O.current.lctx.find? x = some decl → decl.HitShape heads params ls := by
     intro x hx decl hdecl
@@ -538,8 +561,8 @@ theorem RecursorWhnfCallAt.hitShape
       d.HitOK env heads params ls)
     (hin : input.HitOK env heads params ls) :
     output.HitOK env heads params ls := by
-  obtain ⟨ctx, recLparams, Rc, P, target, hle, htr, hup, hP, hinP, hrun⟩ := H
-  refine W.whnf Rc (hle.env_eq.symm.trans henv) htr
+  obtain ⟨ctx, recLparams, Rc, P, target, hle, htr, hup, hP, hinP, hrun, htr₀⟩ := H
+  refine W.whnf Rc (hle.env_eq.symm.trans henv) htr htr₀
     ⟨hup, fun fv decl hPfv hfind => ?_⟩ hinP hin hrun
   rw [Rc.lctx_eq] at hfind
   obtain ⟨hQfv, hmem⟩ := hP fv hPfv

@@ -678,7 +678,9 @@ theorem CheckedRecursorHeaderAt.headerWhnfCall
     simpa [VLCtx.fvars] using hsuffix
   intro normalized hrun
   exact ⟨c', recLparams, R, fun _ => False, _, BindingContextLE.refl c',
-    hsource, hfalseUpSet, fun _ h => h.elim, hsourceNoFVars, hrun⟩
+    hsource, hfalseUpSet, fun _ h => h.elim, hsourceNoFVars, hrun, _,
+    htarget.weakFV R.checking.tr.wf.ordered
+      (VLCtx.FVLift.from_nil R.chk.noBV) R.check.wf.tr.wf⟩
 
 theorem CheckedRecursorHeaderAt.target_mem
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
@@ -3144,7 +3146,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               ⟨c', _, R', _, _, BindingContextLE.refl c', hopened,
                 Hruntime'.upset, fun fv hfv =>
                   ⟨hscopeFVars' fv hfv, hQmem fv (hscopeFVars' fv hfv)⟩,
-                hopenedFVars, hrun⟩
+                hopenedFVars, hrun, _, hopened₀⟩
             have Htrace' : RecursorIndexTrace stats c' source.type
                 stats.params.size next (indices.push (.fvar x)) :=
               .index (Htrace.mono hstep)
@@ -3382,7 +3384,7 @@ theorem continueRecursorParameterSemantics {alpha : Type}
                   (body.instantiate1 stats.params[i]!) next := by
                 refine ⟨_, _, Ri, (· ∈ Hsuffix.parameterDecls.fvars), _,
                   BindingContextLE.checkLCtx current _, hopened, hparamScope.1,
-                  fun fv hfv => ?_, hopenedP, hrun⟩
+                  fun fv hfv => ?_, hopenedP, hrun, _, hopened₀⟩
                 have hparam : fv ∈ ExprArrayFVarIds stats.params := by
                   rw [Hsuffix.parameterDecls_fvars] at hfv
                   exact List.mem_reverse.mp hfv
