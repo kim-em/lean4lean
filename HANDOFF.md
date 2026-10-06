@@ -914,6 +914,19 @@ inside this project's scope without solving open base metatheory:
    checked: that the replay of `Init.Prelude` installs exactly the stored
    forms (universe order of `Eq.rec`, rule shape), and an `EqBootstrapShape`
    `nparams = 1` vs real `Eq` (2 params, 1 index) mismatch.
+   **Realizability (a1ea806a on E3, pushed):** the stored forms match the
+   real `Init.Prelude` declaration exactly (universe order `[u, u_1]`;
+   `Verify/Inductive/EqCanonicalForms.lean` proves any translation of the
+   production expressions equals the stored terms; `Compiles.eqRecRules`
+   derives the stored rule from the recursor type;
+   `addDecl.eqBootstrapHasCanonicalEq` shows the bootstrap run of `Eq`
+   yields `HasCanonicalEq` provided the installed `Eq.rec` has the
+   production type (`IsProductionEqRec`, an executable fact checked by the
+   new test `Lean4Lean/Tests/CanonicalEq.lean`, not provable from the theory
+   since the recursor construction uses extern `Expr` operations). The
+   `EqBootstrapShape` `nparams = 1` was a real bug making the bootstrap
+   theorems vacuous for the real `Eq`; fixed to 2 with the two-parameter
+   lowering proof redone; no executable change.
    **Decision (Kim, 2026-10-06): the final theorem may assume the environment
    contains canonical `Eq`.** So the strengthening obligation is stated as
    the base conjecture `strengthening_of_canonicalEq : env.WF →
