@@ -325,7 +325,8 @@ theorem invalidResult.WF
 type comparison is converted directly into abstract body instantiation. -/
 theorem parameter.sourceWF
     (Hc : ContextWF c) (hparamAt : stats.params[i]? = some param)
-    (hget : (AddInductive.getType param c).WF (fun ty => ty = paramTy))
+    (hget : (AddInductive.getType param c).WF
+      (fun ty => ty = paramTy ∧ ty = paramTyN))
     (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam dom') :: Hc.mlctx.vlctx) body body')
@@ -337,7 +338,7 @@ theorem parameter.sourceWF
     (hfv : paramCheckFVars stats i = (Hc.mlctx.dropN j hj).fvarList)
     (hdom₀ : TrExprS Hc.venv c.lparams (Hc.mlctx.dropN j hj).vlctx dom dom₀)
     (hparamTy₀ : TrExprS Hc.venv c.lparams (Hc.mlctx.dropN j hj).vlctx
-      paramTy paramTy₀)
+      paramTyN paramTy₀)
     (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
         dom' paramTy' →
       Hc.venv.IsDefEqU c.lparams.length (Hc.mlctx.dropN j hj).vlctx.toCtx
@@ -358,8 +359,9 @@ theorem parameter.sourceWF
           s!"arg #{i + 1} of '{ctor}' does not match inductive datatype parameters"
       AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
         (body.instantiate1 param) (i + 1) fuel) : AddInductive.M _) c).WF Q
-  refine hget.bind fun paramTy' hparamTyEq => ?_
+  refine hget.bind fun paramTy' ⟨hparamTyEq, hparamTyEqN⟩ => ?_
   subst paramTy'
+  subst hparamTyEqN
   refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
   subst hL
   let Hci := Hc.paramCheck stats i j hj hfv
