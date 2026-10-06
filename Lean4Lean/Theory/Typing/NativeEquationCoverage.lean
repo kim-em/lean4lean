@@ -341,6 +341,25 @@ theorem NativeRecursorRegistered.equation_parRedS {data : NativeRecursorData}
     VExpr.liftN_zero]
   exact .rfl
 
+
+/-- Coverage of a native equation at a guarded universe specialization. -/
+theorem NativeRecursorRegistered.equation_join {data : NativeRecursorData}
+    {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
+    {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
+    (hpat : ∀ {p r}, NativeIotaPattern env recursorData p r → Pat p r)
+    (hlookup : recursorData data.name = some data) (H : NativeRecursorRegistered env data)
+    (howner : data.schema.signature.constructors[index].owner = data.owner)
+    (hgen : data.equation index = some equation)
+    (hw : ∀ level ∈ levels, level.WF univs) (hlen : levels.length = equation.uvars)
+    (hguard : data.largeTarget = true →
+      ¬((data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero)) :
+    ∃ left right, FullReduction Γ (equation.lhs.instL levels) left ∧
+      FullReduction Γ (equation.rhs.instL levels) right ∧ NormalEq Γ left right := by
+  have hlen' : levels.length = data.uvars := hlen.trans (H.equation_uvars hgen)
+  have hred := (H.equation_parRedS (Γ := Γ) hpat hlookup howner hgen hlen' hguard).full
+  have hex := IsDefEq.extra (Γ := Γ) (H.equation_present hgen) hw hlen
+  exact ⟨_, _, hred, .rfl, .refl hex.hasType.2⟩
+
 end
 
 end Lean4Lean.VEnv
