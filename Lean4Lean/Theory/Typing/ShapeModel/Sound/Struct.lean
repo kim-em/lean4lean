@@ -249,7 +249,7 @@ theorem InterpTyped.proofIrrel (H : InterpTyped env ρ m M A)
   exact a1.trans (b4'.proofIrrel hl (b4'.mono_r b1 a4))
 
 theorem StrongSoundCore.proj_inv (H : StrongSoundCore env Γ (.proj s i e) T) :
-    ∃ info levels params indexArgs fieldLevel, env.projections s info ∧
+    ∃ info levels params indexArgs fieldLevel, SemSig.StructFacts env s info ∧
       StrongSound env Γ e (VExpr.mkApps (.const s levels) (params ++ indexArgs)) ∧
       StrongSound env Γ T (.sort fieldLevel) ∧
       ((info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero) := by
@@ -325,14 +325,12 @@ theorem Struct.unit (hF : SemSig.StructFacts env s info) (h0 : info.nindices = 0
   obtain ⟨_, h, _⟩ := wf (hF.isStruct h0); cases h
 
 /-- The projection computation rule, pointwise. -/
-theorem Struct.iota (hEF : SemSig.EnvFacts env) (hproj : env.projections s info)
+theorem Struct.iota (hcl : ConstClosed env) (hF : SemSig.StructFacts env s info)
     (W : Valuation.Fits env Γ₀ Γ ρ)
     (hL : StrongSound env Γ (.proj s i (VExpr.mkApps (.const info.ctorName ls) args)) A)
     (hf : StrongSound env Γ field A) (hfield : args[info.nparams + i]? = some field) :
     Interp env ρ m (.proj s i (VExpr.mkApps (.const info.ctorName ls) args)) ↔
       Interp env ρ m field := by
-  have hF := hEF.proj hproj
-  have hcl : ConstClosed env := fun h => hEF.constClosed h
   obtain ⟨hai, hfe⟩ := List.getElem?_eq_some_iff.1 hfield
   constructor
   · intro H
@@ -357,8 +355,7 @@ theorem Struct.iota (hEF : SemSig.EnvFacts env) (hproj : env.projections s info)
   · intro H
     by_cases hm : m ≤ .bot; · exact .mono hm .bot
     obtain ⟨_, coreL, hA'⟩ := hL
-    obtain ⟨info', levels', params', idx', fl, hproj', hM, hA'fl, hguard⟩ := coreL.proj_inv
-    have hF' := hEF.proj hproj'
+    obtain ⟨info', levels', params', idx', fl, hF', hM, hA'fl, hguard⟩ := coreL.proj_inv
     have hcn : info'.ctorName = info.ctorName :=
       Option.some.inj (hF'.structCtor.symm.trans hF.structCtor)
     have hrl : info'.resultLevel = info.resultLevel :=

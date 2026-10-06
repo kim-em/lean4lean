@@ -339,6 +339,44 @@ theorem Interp.sound_forallE
       · exact (TShape.HasType.def le₂ (Nat.zero_le k)).1 heb'
       · exact .bot' .sort_type
 
+/-! ### Structure facts -/
+
+/-- The facts linking a structure `s` with projection data `info` to the semantic signature and
+to the environment `env`. -/
+structure SemSig.StructFacts [S : SemSig] (env : VEnv) (s : Name) (info : VProjectionInfo) :
+    Prop where
+  /-- `proj s i` reads the fields of the structure constructor. -/
+  structCtor : S.structCtor s = some info.ctorName
+  /-- The structure constructor builds `s`, with the declared numbers of parameters and fields. -/
+  ctor : S.ctor info.ctorName = some ⟨s, info.nparams, info.numFields⟩
+  /-- The structure constructor is the only constructor of `s`. -/
+  famCtors : S.famCtors s = [info.ctorName]
+  /-- A structure without indices has eta (its constructor collapses). -/
+  isStruct : info.nindices = 0 → S.isStruct info.ctorName = true
+  /-- The structure constructor is declared with the type recorded in the projection data. -/
+  ctorConst : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩
+  /-- The constructor type is a telescope over the parameters and fields ending in `s` applied
+  to the parameters (as bound variables) and to index expressions. -/
+  ctorType : ∃ (Ds idx : List VExpr), Ds.length = info.nparams + info.numFields ∧ idx.length = info.nindices ∧
+    info.ctorType = Ds.foldr .forallE (VExpr.mkApps (.const s (VLevel.params info.uvars))
+      ((List.range info.nparams).map (fun j => .bvar (info.nparams + info.numFields - 1 - j)) ++
+        idx))
+  /-- `s` is not a constructor. -/
+  famNotCtor : S.ctor s = none
+  /-- `s` heads no computation rule. -/
+  famNoRule : ∀ r, S.rules r → r.head ≠ .const s
+  /-- The sort level of `s`. -/
+  famLevel : S.famLevel s = some info.resultLevel
+  /-- The type of `s` has, at every instance of its universe parameters, the approximations of
+  a telescope over the parameters and indices ending in its sort. (A real environment only
+  guarantees that the declared type is *definitionally* such a telescope, e.g.
+  `def T : Type 1 := Type` followed by a structure `S : T`; this semantic form follows from such
+  a derivation by soundness.) -/
+  famTypeSem : ∃ ci, ∃ Ds : List VExpr, env.constants s = some ci ∧ ci.uvars = info.uvars ∧
+    Ds.length = info.nparams + info.nindices ∧
+    ∀ ls, ls.length = info.uvars → ∀ m, Interp env .nil m (ci.type.instL ls) ↔
+      Interp env .nil m (VExpr.instL ls (Ds.foldr VExpr.forallE (VExpr.sort info.resultLevel)))
+
 /-! ### Semantic judgments -/
 
 variable (env) in
@@ -361,7 +399,9 @@ inductive StrongSound : List VExpr → VExpr → VExpr → Prop where
 
 /-- The structural part of a semantic typing record: for applications, constants, Pi types and
 projections it records the semantic typing of the immediate subterms, as used by the
-realization of constructor applications (`Spine.lean`). -/
+realization of constructor applications (`Spine.lean`). The projection case records the
+structure facts of the projected structure (rather than its registration in `env`), so that
+soundness only needs these facts for the projections of the derivation environment. -/
 inductive StrongSoundCore : List VExpr → VExpr → VExpr → Prop where
   | bvar : StrongSoundCore Γ (.bvar i) A
   | sort : StrongSoundCore Γ (.sort l) A
@@ -371,7 +411,7 @@ inductive StrongSoundCore : List VExpr → VExpr → VExpr → Prop where
   | elim : StrongSoundCore Γ (.elim b o ls) A
   | app : StrongSound Γ f (.forallE A B) → StrongSound Γ a A →
     StrongSoundCore Γ (.app f a) (B.inst a)
-  | proj : env.projections s info →
+  | proj : SemSig.StructFacts env s info →
     StrongSound Γ e (VExpr.mkApps (.const s levels) (params ++ indexArgs)) →
     StrongSound Γ fieldType (.sort fieldLevel) →
     ((info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero) →

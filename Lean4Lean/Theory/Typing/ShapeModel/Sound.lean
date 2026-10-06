@@ -12,13 +12,19 @@ coherent semantic signature `S`. Corollary at the base valuation: `sound_nil`.
 
 The hypotheses, to be discharged for real environments by later milestones:
 * `SemSig.Coherent` (from the interpretation, `Signature.lean`);
-* `S.EnvFacts env` (`Sound/Ctor.lean`): constant types are closed, eliminator generic types are
-  the signature's `elimType`, and the structure facts `SemSig.StructFacts` for every registered
-  projection;
+* `S.EnvFactsIn E env` (`Sound/Ctor.lean`): constant types of `env` are closed, the generic
+  types of the eliminators of `E` are the signature's `elimType`, and the structure facts
+  `SemSig.StructFacts` (`Sound/Basic.lean`) hold for every projection registered in `E`;
 * closedness of the rules of `E` (`∀ df, E.defeqs df → df.lhs.Closed ∧ df.rhs.Closed`), used to
   move the validity of a rule from the empty context to `Γ`;
-* `ExtraValid env df` for every rule of `E` and `ElimValid env`: the validity of the computation
-  rules in the model. These are the only places where computation rules enter.
+* `ExtraValid env df` for every rule of `E` and `ElimValidIn E env`: the validity of the
+  computation rules of `E` in the model. These are the only places where computation rules
+  enter.
+Only `ConstClosed env` is asked of all of `env`; everything else is asked only of the
+derivation environment `E`, so that soundness for derivations in an earlier environment of a
+`VEnv.WF'` chain needs no facts about the later declarations
+(`docs/inductives/PHASE1_NOTES.md`, D9). `StrongSoundEq.of_isDefEqStrong_global` is the form
+with the facts asked of all of `env` (`SemSig.EnvFacts env`, `ElimValid env`).
 
 The port follows `Lean4Lean/Experimental/ShapeLogRel.lean` (`LE_Interp.strongSound`). The
 structural record `StrongSoundCore` (`Sound/Basic.lean`) has informative cases only for
@@ -36,12 +42,12 @@ Deviations from the milestone specification, with rationale:
 * `ElimValid` takes the semantic records of its premises in an arbitrary context `Γ` (the premises
   of `elimIota` are typed in `Γ`, not in the empty context); its conclusion is in the empty
   context, which is equivalent for the closed rule instances (`SoundEq.of_closed`).
-* `SemSig.StructFacts` (the projection part of `S.EnvFacts`) records, besides the facts listed in
-  the specification, that the structure constructor is declared with the projection data's
-  constructor type, that this type is a telescope over the parameters and fields ending in the
-  structure applied to the parameter variables and index expressions, and that the structure
-  itself is a rigid former (not a constructor, heading no rule) whose type is a telescope ending
-  in its sort `S.famLevel`. These are used to realize constructor applications as constructor
+* `SemSig.StructFacts` (the projection part of `S.EnvFactsIn E env`) records, besides the facts
+  listed in the specification, that the structure constructor is declared with the projection
+  data's constructor type, that this type is a telescope over the parameters and fields ending in
+  the structure applied to the parameter variables and index expressions, and that the structure
+  itself is a rigid former (not a constructor, heading no rule) whose type has the
+  approximations of a telescope ending in its sort `S.famLevel` (`famTypeSem`; D8). These are used to realize constructor applications as constructor
   shapes typed at a rigid shape of the structure (`Ctor.realize`). The projection guard
   (`IsNeverZero ∨ fieldLevel ≈ 0`) is not needed for the typing of projections; it is used by
   the projection computation rule, through the structural record of the projection.
@@ -67,21 +73,27 @@ def ExtraValid [SemSig] (df : VDefEq) : Prop :=
     StrongSound env [] (df.rhs.instL ls) (df.type.instL ls) →
     SoundEq env [] (df.lhs.instL ls) (df.rhs.instL ls)
 
-variable (env) in
-/-- Validity of the eliminator computation rules in the model: for every instance of the
-`elimIota` rule whose type, left-hand side and right-hand side have semantic typing records
-(the premises of `elimIota`), both sides have the same approximations. -/
-def ElimValid [SemSig] : Prop :=
+/-- Validity of the computation rules of the eliminators of `E` in the model of `env`: for every
+instance of the `elimIota` rule of an eliminator of `E` whose type, left-hand side and right-hand
+side have semantic typing records (the premises of `elimIota`), both sides have the same
+approximations. -/
+def ElimValidIn [SemSig] (E env : VEnv) : Prop :=
   ∀ {block : Name} {schema : InductiveSignature.CaseSchema}
     {owner : Fin schema.signature.families.size} {rules : List VDefEq} {df : VDefEq}
     {U : Nat} {levels : List VLevel} {target : VLevel} {Γ : List VExpr} {typeLevel : VLevel},
-    env.eliminators block schema → schema.genericEquations block owner = some rules →
+    E.eliminators block schema → schema.genericEquations block owner = some rules →
     df ∈ rules → InductiveSignature.CaseSchema.RuleClosed df →
     schema.Permission U owner levels target →
     StrongSound env Γ (df.type.instL (target :: levels)) (.sort typeLevel) →
     StrongSound env Γ (df.lhs.instL (target :: levels)) (df.type.instL (target :: levels)) →
     StrongSound env Γ (df.rhs.instL (target :: levels)) (df.type.instL (target :: levels)) →
     SoundEq env [] (df.lhs.instL (target :: levels)) (df.rhs.instL (target :: levels))
+
+/-- Validity of the computation rules of every eliminator of `env`. -/
+abbrev ElimValid [SemSig] (env : VEnv) : Prop := ElimValidIn env env
+
+theorem ElimValidIn.mono [SemSig] {E E' env : VEnv} (hle : E ≤ E') (h : ElimValidIn E' env) :
+    ElimValidIn E env := fun hb => h (hle.eliminators hb)
 
 /-- Closed terms with the same approximations at the base valuation of the empty context have
 the same approximations under every valuation. -/
@@ -243,10 +255,12 @@ theorem StrongSoundEq.eta (ih1 : StrongSoundEq env Γ A A (.sort u))
   exact ⟨fun _ _ W _ => Interp.eta_sound W hlamTy ih4.left.sound, ⟨hlamTy, .lam, .rfl⟩,
     ih4.left⟩
 
-/-- Soundness of the shape model for every strong derivation. -/
-theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env) (hEF : SemSig.EnvFacts env)
+/-- Soundness of the shape model for every strong derivation in `E ≤ env`. The facts about the
+eliminators, projections and definitional rules are only asked for those of `E`. -/
+theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env)
+    (hEF : SemSig.EnvFactsIn E env)
     (hEcl : ∀ df, E.defeqs df → df.lhs.Closed ∧ df.rhs.Closed)
-    (hextra : ∀ df, E.defeqs df → ExtraValid env df) (helim : ElimValid env)
+    (hextra : ∀ df, E.defeqs df → ExtraValid env df) (helim : ElimValidIn E env)
     (H : E.IsDefEqStrong U Γ M N A) : StrongSoundEq env Γ M N A := by
   have hcl : ConstClosed env := fun h => hEF.constClosed h
   induction H with
@@ -269,7 +283,7 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env) (hEF : SemSi
       exact ⟨_, _, b3, .const b1 b2 .rfl b4 b5 b6 b7,
         (Interp.closed_iff (hcl hc).instL).1 b5, b4⟩
   | elimDF h1 h2 h3 h4 h5 h6 h7 _ ih =>
-    have he := hEF.elimType (hle.eliminators h1) h2 h3
+    have he := hEF.elimType h1 h2 h3
     refine .ofLeft (fun _ _ _ _ =>
       ⟨(·.lvlEqv (.elim h6)), (·.lvlEqv (.elim (levels_equiv_symm h6)))⟩) ?_ .elim .rfl .elim .rfl
     intro _ ρ W m H
@@ -288,8 +302,7 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env) (hEF : SemSi
     · exact .app ((ih3.sound W).1 h1) ((ih4.sound W).1 h2) h3
     · exact .app ((ih3.sound W).2 h1) ((ih4.sound W).2 h2) h3
   | projDF h1 h2 h3 h4 h5 h6 h7 _ _ _ hclosed hguard ihField ihLeft ihRight =>
-    have hp := hle.projections h1
-    have hF := hEF.proj hp
+    have hF := hEF.proj h1
     have hmm := ihLeft.sound.symm.trans ihRight.sound
     refine .ofLeft (fun _ _ W m => by
       constructor <;> intro H <;> cases H with
@@ -297,8 +310,8 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env) (hEF : SemSi
       | proj a1 a2 a3 a4 =>
         first
         | exact .proj a1 ((hmm W).1 a2) a3 a4
-        | exact .proj a1 ((hmm W).2 a2) a3 a4) ?_ (.proj hp ihLeft.right ihField.left hguard) .rfl
-      (.proj hp ihRight.right ihField.left hguard) .rfl
+        | exact .proj a1 ((hmm W).2 a2) a3 a4) ?_ (.proj hF ihLeft.right ihField.left hguard) .rfl
+      (.proj hF ihRight.right ihField.left hguard) .rfl
     exact fun _ _ W m H => Proj.typed hcl hF h6 h3 h4 (ihLeft.right.sound W) (ihLeft.sound W).2 H
   | lamDF h1 h2 _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 =>
     refine StrongSoundEq.mk' .lam .rfl .lam .rfl fun _ _ W m => ?_
@@ -338,24 +351,33 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env) (hEF : SemSi
       ih4.left, ih5.left⟩
   | elimIota h1 h2 h3 h4 h5 h6 _ _ _ ihT ihL ihR =>
     exact ⟨.of_closed h4.1.instL h4.2.1.instL
-      (helim (hle.eliminators h1) h2 h3 h4 h5 ihT.left ihL.left ihR.left), ihL.left, ihR.left⟩
+      (helim h1 h2 h3 h4 h5 ihT.left ihL.left ihR.left), ihL.left, ihR.left⟩
   | projIota h1 _ h3 _ ih1 ih2 =>
-    exact ⟨fun _ _ W _ => Struct.iota hEF (hle.projections h1) W ih1.left ih2.left h3,
+    exact ⟨fun _ _ W _ => Struct.iota hcl (hEF.proj h1) W ih1.left ih2.left h3,
       ih1.left, ih2.left⟩
   | structEta h1 h2 h3 _ _ ih1 ih2 =>
-    exact ⟨fun _ _ W _ => Struct.eta hcl (hEF.proj (hle.projections h1)) h3 h2 W ih1.left ih2.left,
+    exact ⟨fun _ _ W _ => Struct.eta hcl (hEF.proj h1) h3 h2 W ih1.left ih2.left,
       ih2.left, ih1.left⟩
   | unitLike h1 h2 h3 h4 _ _ ih1 ih2 =>
-    have hF := hEF.proj (hle.projections h1)
+    have hF := hEF.proj h1
     exact ⟨fun _ _ W _ =>
       ⟨fun h => .mono (Struct.unit hF h3 h4 (ih1.left.sound W) h) .bot,
         fun h => .mono (Struct.unit hF h3 h4 (ih2.left.sound W) h) .bot⟩, ih1.left, ih2.left⟩
 
+/-- `StrongSoundEq.of_isDefEqStrong` with the facts asked for every eliminator and projection of
+`env` (the form before the hypotheses were restricted to the derivation environment). -/
+theorem StrongSoundEq.of_isDefEqStrong_global {E : VEnv} (hle : E ≤ env)
+    (hEF : SemSig.EnvFacts env)
+    (hEcl : ∀ df, E.defeqs df → df.lhs.Closed ∧ df.rhs.Closed)
+    (hextra : ∀ df, E.defeqs df → ExtraValid env df) (helim : ElimValid env)
+    (H : E.IsDefEqStrong U Γ M N A) : StrongSoundEq env Γ M N A :=
+  .of_isDefEqStrong hle (hEF.mono hle) hEcl hextra (helim.mono hle) H
+
 /-- Soundness at the base valuation: in an ordered environment, definitionally equal terms in a
 well-formed context have the same approximations under `Valuation.nil` (which fits `Γ` with
 base context `Γ` itself). -/
-theorem sound_nil (henv : VEnv.Ordered env) (hEF : SemSig.EnvFacts env)
-    (hextra : ∀ df, env.defeqs df → ExtraValid env df) (helim : ElimValid env)
+theorem sound_nil (henv : VEnv.Ordered env) (hEF : SemSig.EnvFactsIn env env)
+    (hextra : ∀ df, env.defeqs df → ExtraValid env df) (helim : ElimValidIn env env)
     (H : VEnv.IsDefEq env U Γ M N A) (hΓ : OnCtx Γ (env.IsType U)) :
     ∀ m, Interp env .nil m M ↔ Interp env .nil m N := fun _ =>
   (StrongSoundEq.of_isDefEqStrong VEnv.LE.rfl hEF
