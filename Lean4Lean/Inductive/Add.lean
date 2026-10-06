@@ -118,6 +118,15 @@ def getType (fvar : Expr) : M Expr :=
       lctx := c.lctx.mkLocalDecl ⟨id⟩ name ty bi
       checkLCtx := c.checkLCtx.mkLocalDecl ⟨id⟩ name ty bi }) <| k <| .fvar ⟨id⟩
 
+/-- Open a binder in the main context and, in the checker context, on top of
+`base` (which replaces the current checker context). -/
+@[inline] def withCheckedLocalDeclOn (base : LocalContext) (name : Name)
+    (bi : BinderInfo) (ty : Expr) (k : Expr → M α) : M α :=
+  withFreshId fun id =>
+    withReader (fun c => { c with
+      lctx := c.lctx.mkLocalDecl ⟨id⟩ name ty bi
+      checkLCtx := base.mkLocalDecl ⟨id⟩ name ty bi }) <| k <| .fvar ⟨id⟩
+
 /-- Rebuild a local context from the declarations of `lctx` for `fvars`, in
 order.  Free variables without a declaration are skipped. -/
 def _root_.Lean.LocalContext.restrictTo (lctx : LocalContext) (fvars : List FVarId) :
@@ -548,8 +557,11 @@ where
         loop (body.instantiate1 param) (i + 1) bu u fuel
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        let fieldCheck := (← readThe Context).checkLCtx
-        withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
+        -- The field is checked on top of the parameters and earlier fields.
+        let fieldCheck := (← getLCtx).restrictTo
+          ((stats.params ++ bu).toList.map (·.fvarId!))
+        withCheckedLocalDeclOn fieldCheck name bi dom.consumeTypeAnnotationsVerified
+          fun arg => do
         let bu := bu.push arg
         let u := if (← withCheckLCtx fieldCheck (isRecArg stats dom)).isSome then
           u.push arg else u
@@ -629,9 +641,7 @@ termination_by u.size - i
 variable (stats : InductiveStats) (indTypeName : Name) (dIdx : Nat) in
 def loopCtors (recInfos : Array RecInfo)
     (ctors : List Constructor) (k : Array RecInfo → M α) : M α := match ctors with
-  | ctor::ctors => do
-    -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
+  | ctor::ctors =>
     loopCtorArgs stats ctor.type fun t bu u => do
     let (itIdx, itIndices) := getIIndices stats t
     let introApp := mkAppN (mkAppN (.const ctor.name stats.levels) stats.params) bu
