@@ -65,6 +65,8 @@ def rule : VDefEq where
   rhs := VExpr.wrapLams sp.ruleDomains ruleRhsBody
   type := VExpr.wrapForalls sp.ruleDomains sp.ruleTypeBody
 
+theorem equations_eq : sp.inst.equations = [sp.rule] := rfl
+
 end FamSpec
 
 /-! ## Typing combinators -/
