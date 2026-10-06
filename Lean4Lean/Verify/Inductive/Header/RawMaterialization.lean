@@ -187,51 +187,34 @@ end checkInductiveTypes.loopType
 
 namespace checkInductiveTypes.loopInd
 
-/-- At the terminal `loopType` continuation, `ensureSort` proves the
-contextual translation of the closed source header is a type.  Weakening the
-raw empty-context target into that runtime context, using translation
-uniqueness, and then inverting the weakening recovers target well-formedness
-in the original environment.  This is the non-forall/zero-remaining-arity
-half of raw header materialization. -/
+/-- At the terminal `loopType` continuation the checker context is empty, so
+the narrow `ensureSort` result and the closed normal-form translation live in
+the same empty context.  Uniqueness of translation then shows the raw target
+is a type, which is the non-forall/zero-remaining-arity half of raw header
+materialization. -/
 theorem CheckedSourceHeaderTranslation.checkedTerminal
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : InductiveType} {checkedType : Expr}
+    {normalized : Expr} {type₀ : VExpr}
     (H : CheckedSourceHeaderTranslation Hc source.name source.type
       checkedType)
-    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      (.sort resultSort) H.runtimeTarget) :
+    (hclosed : TrExpr Hc.venv c.lparams [] normalized H.target.type)
+    (htype₀ : TrExprS Hc.venv c.lparams [] normalized type₀)
+    (hsort : TrExpr Hc.venv c.lparams [] (.sort resultSort) type₀) :
     ∃ resultLevel,
       VLevel.ofLevel c.lparams resultSort = some resultLevel ∧
       TrSourceConst Hc.venv c.lparams source.name source.type H.target := by
-  rcases TrExpr.sort_result Hc.checking.tr.wf
-      Hc.mlctx_wf.tr.wf.toCtx hsort with
-    ⟨resultLevel, hofLevel, hruntimeSorted⟩
-  have hruntimeType : Hc.venv.IsType c.lparams.length
-      Hc.mlctx.vlctx.toCtx H.runtimeTarget :=
-    ⟨_, hruntimeSorted.hasType.1⟩
-  let W : VLCtx.FVLift [] Hc.mlctx.vlctx 0
-      Hc.mlctx.vlctx.toCtx.length 0 :=
-    VLCtx.FVLift.from_nil Hc.mlctx.noBV
-  have htargetWeak := H.source.type.weakFV
-    Hc.checking.tr.wf.ordered W Hc.mlctx_wf.tr.wf
-  have hruntimeTarget := H.typing.2.1.uniq Hc.checking.tr.wf
-    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) htargetWeak
-  have htargetLifted : Hc.venv.IsType c.lparams.length
-      Hc.mlctx.vlctx.toCtx
-      (H.target.type.liftN Hc.mlctx.vlctx.toCtx.length 0) :=
-    hruntimeType.defeqU_l Hc.checking.tr.wf
-      Hc.mlctx_wf.tr.wf.toCtx hruntimeTarget
-  have htargetType : Hc.venv.IsType c.lparams.length [] H.target.type :=
-    (VEnv.IsType.weakN_iff Hc.checking.tr.wf
-      Hc.mlctx_wf.tr.wf.toCtx W.toCtx).1 htargetLifted
-  refine ⟨resultLevel, hofLevel, {
-    uvars := H.source.uvars
-    name := H.source.name
-    type := H.source.type
-    wf := ?_ }⟩
-  change Hc.venv.IsType H.target.uvars [] H.target.type
-  rw [H.source.uvars]
-  exact htargetType
+  rcases TrExpr.sort_result (Δ := []) Hc.checking.tr.wf (by trivial) hsort with
+    ⟨resultLevel, hofLevel, hsorted⟩
+  rcases hclosed with ⟨closed, hclosedS, hclosedEq⟩
+  have hclosedType := hclosedS.uniq Hc.checking.tr.wf
+    (.refl Hc.checking.tr.wf (by trivial)) htype₀
+  have hdefeq : Hc.venv.IsDefEqU c.lparams.length [] H.target.type type₀ :=
+    hclosedEq.symm.trans Hc.checking.tr.wf (by trivial) hclosedType
+  have htarget := TrSourceConstRaw.checkedOfDefEqType H.source
+    Hc.checking.tr.wf hdefeq
+    ⟨_, hsorted.hasType.1⟩
+  exact ⟨resultLevel, hofLevel, htarget⟩
 
 /-- A forall-headed first normal form is already type-valued by strict
 translation, so its raw existential target can initialize the existing
@@ -258,28 +241,22 @@ theorem CheckedSourceHeaderTranslation.checkedFirstForall
     H.source Hc.checking.tr.wf
     hdefeq.toU hforall'
 
-/-- Later forall-headed normal forms are first narrowed to the empty source
-scope; their strict translation then upgrades the corresponding raw target
-without importing ambient indices from earlier mutual headers. -/
+/-- Later forall-headed normal forms are translated in the empty checker
+context by the closed `whnf`; their strict translation then upgrades the
+corresponding raw target without importing ambient indices from earlier
+mutual headers. -/
 theorem CheckedSourceHeaderTranslation.checkedLaterForall
     {c : AddInductive.Context} {Hc : ContextWF c}
     {source : InductiveType} {checkedType : Expr}
     (H : CheckedSourceHeaderTranslation Hc source.name source.type
       checkedType)
-    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      (.forallE binderName domain body binderInfo) H.runtimeTarget)
-    (hfvars : FVarsIn (fun _ => False)
-      (.forallE binderName domain body binderInfo)) :
+    (hclosed : TrExpr Hc.venv c.lparams []
+      (.forallE binderName domain body binderInfo) H.target.type) :
     TrSourceConst Hc.venv c.lparams source.name source.type H.target := by
-  let target : VInductiveTypeSkeleton := {
-    toVConstVal := H.target
-    ctors := [] }
-  rcases initialLaterHeaderDefEqOfTranslation Hc
-      (target := target) H.source H.typing.2.1 hnormalized hfvars with
-    ⟨normalized, hforall, hdefeq⟩
+  rcases hclosed with ⟨normalized, hforall, hdefeq⟩
   exact Lean4Lean.VerifyInductive.TrSourceConstRaw.checkedOfForallTranslation
     H.source Hc.checking.tr.wf
-    hdefeq hforall
+    hdefeq.symm hforall
 
 end checkInductiveTypes.loopInd
 end VerifyInductive

@@ -3430,6 +3430,81 @@ theorem ParameterContextSuffix.bottom
   congr 1
   omega
 
+theorem ParameterContextSuffix.depth_le
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    depth ≤ Hc.mlctx.length := by
+  rw [H.mlctx_length]; omega
+
+theorem ParameterContextSuffix.headerFVars
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    paramCheckFVars stats stats.params.size =
+      (Hc.mlctx.dropN depth H.depth_le).fvarList := by
+  have h := (H.bottom stats.params.size (Nat.le_refl _)).2
+  simp only [Nat.sub_self, Nat.add_zero] at h
+  exact h
+
+theorem ParameterContextSuffix.headerVLCtx
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    (Hc.mlctx.dropN depth H.depth_le).vlctx = H.parameterDecls := by
+  have h := (H.bottom stats.params.size (Nat.le_refl _)).1
+  simp only [Nat.sub_self, Nat.add_zero, List.drop_zero] at h
+  exact h
+
+/-- The header checker context of a parameter suffix: the checker context
+holds exactly the cached parameters, which are the bottom of the main
+context. -/
+def ParameterContextSuffix.headerCheck
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    ContextWF (headerCheckContext c stats) :=
+  Hc.headerCheck stats depth H.depth_le H.headerFVars
+
+@[simp] theorem ParameterContextSuffix.headerCheck_venv
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    H.headerCheck.venv = Hc.venv := rfl
+
+@[simp] theorem ParameterContextSuffix.headerCheck_mlctx
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    H.headerCheck.mlctx = Hc.mlctx := rfl
+
+theorem ParameterContextSuffix.headerCheck_chk_vlctx
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    H.headerCheck.chk.vlctx = H.parameterDecls := H.headerVLCtx
+
+/-- The same suffix, over the header checker context. -/
+def ParameterContextSuffix.toHeaderCheck
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    ParameterContextSuffix H.headerCheck stats depth := { H with }
+
+/-- In the header checker context the parameter declarations are aligned
+with the checker context. -/
+theorem ParameterContextSuffix.headerCheck_paramAligned
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth : Nat}
+    (H : ParameterContextSuffix Hc stats depth) :
+    VLCtx.IsDefEq Hc.venv c.lparams.length H.parameterDecls
+      H.headerCheck.chk.vlctx := by
+  rw [H.headerCheck_chk_vlctx]
+  have hwf := H.headerCheck.check.wf.tr.wf
+  change VLCtx.WF Hc.venv c.lparams.length H.headerCheck.chk.vlctx at hwf
+  rw [H.headerCheck_chk_vlctx] at hwf
+  exact .refl Hc.checking.tr.wf hwf
+
 /-- Narrow concrete scope immediately before consuming cached parameter `i`.
 Only parameters already consumed by this later header may occur; ambient
 indices and the current-or-future cached parameters are excluded. -/
