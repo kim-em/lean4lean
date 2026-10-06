@@ -41,7 +41,18 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   with singleton eta. Astra design review requested.
 - `lean4lean-base`, branch `agent/verify-inductives-base`: obligation (b):
   falsification study of strengthening with canonical `Eq`, singleton eta,
-  conversion certificates.
+  conversion certificates. **Study verdict (d4beac49): no refutation found;
+  `strengthening_of_canonicalEq` kept unchanged.** Every attack reduces to
+  (1) singleton eta (data fields read from literal index slots, proof fields
+  extracted from the major by the family's recursor with casts along
+  type-level `Eq`; no `HEq` needed), (2) quotient eta at Prop, or (3)
+  conversion checks between binder-free terms handled recursively. Removed
+  data binders never matter (the major of any redex is a binder-free subterm
+  present in the smaller context). `Eq` is genuinely needed only when a data
+  slot's generic index type differs from the field type (the countermodel).
+  Kernel-checked evidence: `docs/inductives/StrengtheningFalsification.lean`;
+  write-up `docs/inductives/STRENGTHENING_NOTES.md` (on that branch).
+  Continuing with singleton eta and the certificate calculus.
 
 ## Intended result
 
