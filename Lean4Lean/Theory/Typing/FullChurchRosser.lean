@@ -29,7 +29,7 @@ theorem FullCRDefEq.symm : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₁
   | ⟨h1, h2, _, _, h3, h4, h5⟩ => ⟨h2, h1, _, _, h4, h3, h5.symm hΓ⟩
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem FullCRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ → Γ ⊢ e₁ ≫≪ e₃
+theorem FullCRDefEq.trans [MajorSeparation] : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ → Γ ⊢ e₁ ≫≪ e₃
   | ⟨l1, ⟨_, l2⟩, _, _, l3, l4, l5⟩, ⟨_, r2, _, _, r3, r4, r5⟩ => by
     obtain ⟨_, _, m1, m2, m3⟩ := l4.church_rosser hΓ l2 r3
     obtain ⟨_, a1, a2⟩ := l5.fullReduction hΓ m1
@@ -37,7 +37,7 @@ theorem FullCRDefEq.trans : Γ ⊢ e₁ ≫≪ e₂ → Γ ⊢ e₂ ≫≪ e₃ 
     exact ⟨l1, r2, _, _, l3.trans a1, r4.trans b1, a2.trans hΓ (m3.trans hΓ (b2.symm hΓ))⟩
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem IsDefEq.church_rosser [FullEquationCoverage]
+theorem IsDefEq.church_rosser [FullEquationCoverage] [MajorSeparation]
     (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := by
   have mk {Γ e₁ e₂ A e₁' e₂'} (H : Γ ⊢ e₁ ≡ e₂ : A)
       (h1 : Γ ⊢ e₁ ≫* e₁') (h2 : Γ ⊢ e₂ ≫* e₂') (h3 : Γ ⊢ e₁' ≡ₚ e₂') : Γ ⊢ e₁≫≪ e₂ :=
@@ -114,7 +114,7 @@ theorem IsDefEq.church_rosser [FullEquationCoverage]
     exact mk (.unitLike hl hp hi hf hs ht) (.tail .rfl stepLeft) (.tail .rfl stepRight) (.refl hc)
 
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem IsDefEq.full_church_rosser [FullEquationCoverage]
+theorem IsDefEq.full_church_rosser [FullEquationCoverage] [MajorSeparation]
     (H : Γ ⊢ e₁ ≡ e₂ : A) : Γ ⊢ e₁ ≫≪ e₂ := H.church_rosser hΓ
 
 end Lean4Lean.VEnv
