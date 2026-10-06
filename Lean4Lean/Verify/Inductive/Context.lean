@@ -740,6 +740,68 @@ def _root_.Lean4Lean.TypeChecker.MLCtx.fvarList : TypeChecker.MLCtx → List FVa
   | .vlam id _ _ _ _ c => c.fvarList ++ [id]
   | .vlet id _ _ _ _ _ c => c.fvarList ++ [id]
 
+theorem _root_.Lean4Lean.TypeChecker.MLCtx.fvarList_length (m : TypeChecker.MLCtx) :
+    m.fvarList.length = m.length := by
+  induction m <;> simp_all [TypeChecker.MLCtx.fvarList]
+
+theorem _root_.Lean4Lean.TypeChecker.MLCtx.decls_fvarId (m : TypeChecker.MLCtx) :
+    m.decls.map (·.fvarId) = m.fvarList.reverse := by
+  induction m <;> simp_all [TypeChecker.MLCtx.fvarList, TypeChecker.MLCtx.decls,
+    LocalDecl.fvarId]
+
+theorem _root_.Lean4Lean.TypeChecker.MLCtx.fvarList_dropN :
+    ∀ (m : TypeChecker.MLCtx) (j : Nat) (hj : j ≤ m.length),
+      (m.dropN j hj).fvarList = m.fvarList.take (m.length - j)
+  | m, 0, _ => by
+    simp [TypeChecker.MLCtx.dropN, ← m.fvarList_length]
+  | .nil, _ + 1, h => by simp at h
+  | .vlam id _ _ _ _ c, j + 1, h => by
+    have hc : j ≤ c.length := Nat.le_of_succ_le_succ h
+    simp only [TypeChecker.MLCtx.dropN, TypeChecker.MLCtx.fvarList,
+      TypeChecker.MLCtx.length]
+    rw [TypeChecker.MLCtx.fvarList_dropN c j hc, List.take_append_of_le_length
+      (by rw [c.fvarList_length]; omega)]
+    congr 1; omega
+  | .vlet id _ _ _ _ _ c, j + 1, h => by
+    have hc : j ≤ c.length := Nat.le_of_succ_le_succ h
+    simp only [TypeChecker.MLCtx.dropN, TypeChecker.MLCtx.fvarList,
+      TypeChecker.MLCtx.length]
+    rw [TypeChecker.MLCtx.fvarList_dropN c j hc, List.take_append_of_le_length
+      (by rw [c.fvarList_length]; omega)]
+    congr 1; omega
+
+/-- The entry of a lambda-only `MLCtx` holding its `k`-th free variable, and
+the context of the entries before it. -/
+theorem _root_.Lean4Lean.TypeChecker.MLCtx.dropN_of_fvarList_getElem? :
+    ∀ (m : TypeChecker.MLCtx), MLCtxOnlyLams m → ∀ {k : Nat} {fv : FVarId},
+      m.fvarList[k]? = some fv →
+      ∃ (j : Nat) (hj : j + 1 ≤ m.length) (name : Name) (ty : Expr) (ty' : VExpr)
+        (bi : BinderInfo),
+        m.dropN j (Nat.le_of_succ_le hj) =
+          .vlam fv name ty ty' bi (m.dropN (j + 1) hj) ∧
+        m.fvarList.take k = (m.dropN (j + 1) hj).fvarList
+  | .nil, _, _, _, h => by simp [TypeChecker.MLCtx.fvarList] at h
+  | .vlet .., honly, _, _, _ => honly.vlet_false.elim
+  | .vlam id name ty ty' bi c, honly, k, fv, h => by
+    simp only [TypeChecker.MLCtx.fvarList] at h
+    by_cases hk : k < c.fvarList.length
+    · rw [List.getElem?_append_left hk] at h
+      obtain ⟨j, hj, name', ty₁, ty₁', bi', heq, htake⟩ :=
+        TypeChecker.MLCtx.dropN_of_fvarList_getElem? c honly.tail_vlam h
+      refine ⟨j + 1, by simp; omega, name', ty₁, ty₁', bi', heq, ?_⟩
+      simp only [TypeChecker.MLCtx.fvarList]
+      rw [List.take_append_of_le_length (by omega)]
+      exact htake
+    · rw [List.getElem?_append_right (by omega)] at h
+      have hk' : k = c.fvarList.length := by
+        have := List.getElem?_eq_some_iff.mp h
+        simp at this; omega
+      subst hk'
+      simp at h
+      subst h
+      refine ⟨0, by simp, name, ty, ty', bi, rfl, ?_⟩
+      simp [TypeChecker.MLCtx.fvarList]
+
 /-- Rebuilding a context from the declarations of a larger one, for the free
 variables of a lambda-only `MLCtx` whose declarations it contains, gives back
 that `MLCtx`'s local context. -/
