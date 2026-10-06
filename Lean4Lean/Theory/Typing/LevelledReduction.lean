@@ -1079,16 +1079,17 @@ theorem Params.no_match_delta_prefix (hdata : recursorData name = some data) (hp
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
     rw [← mkApps_snoc] at he
     obtain ⟨rfl, -, rfl⟩ := mkApps_const_inj he
-    rcases pat_recursor hp with ⟨data', _, _, hmo, hrd, _⟩ | ⟨_, hq, _⟩
+    rcases pat_recursor hp with ⟨data', _, _, hmo, hrd, _⟩ | ⟨hqr, hq, _⟩
     · rw [hrd] at hdata
       cases hdata
       simp only [List.length_append, List.length_singleton] at hlen
       omega
     · subst hq
-      rw [recursorData_quot] at hdata
+      rw [recursorData_quot hqr] at hdata
       cases hdata
 
-theorem Params.no_match_quot_prefix (hp : Pat p r) (hlen : pre.length ≤ 5)
+theorem Params.no_match_quot_prefix (hqr : QuotRegistered env) (hp : Pat p r)
+    (hlen : pre.length ≤ 5)
     (hm : p.Matches (VExpr.mkApps (.const ``Quot.lift ls) pre) lv vals) : False := by
   obtain ⟨sp, rfl⟩ := Params.pat_simple hp
   cases sp with
@@ -1096,13 +1097,13 @@ theorem Params.no_match_quot_prefix (hp : Pat p r) (hlen : pre.length ≤ 5)
     generalize he : VExpr.mkApps (.const ``Quot.lift ls) pre = E at hm
     cases hm
     obtain ⟨rfl, -, -⟩ := mkApps_const_inj (as' := []) he
-    exact (pat_const_native hp).2 rfl
+    exact (pat_const_native hp).2 hqr rfl
   | iota rc mr cc kc =>
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
     rw [← mkApps_snoc] at he
     obtain ⟨rfl, -, rfl⟩ := mkApps_const_inj he
     rcases pat_recursor hp with ⟨data', _, _, _, hrd, _⟩ | ⟨_, _, hmr, _⟩
-    · rw [recursorData_quot] at hrd
+    · rw [recursorData_quot hqr] at hrd
       cases hrd
     · simp only [List.length_append, List.length_singleton] at hlen
       omega
@@ -1122,7 +1123,7 @@ theorem Params.iota_no_delta
       rw [hr] at hck
       exact hck.1 hz
     · subst hq
-      rw [recursorData_quot] at hl
+      rw [recursorData_quot (by assumption)] at hl
       cases hl
 
 /-- The nonzero guard of quotient iota excludes quotient prefix unfolding. -/
@@ -1134,7 +1135,7 @@ theorem Params.iota_no_quotDelta
   | intro _ _ hz _ _ =>
     rcases pat_recursor (recursor := ``Quot.lift) (major := mr) (ctor := cc) (fields := kc) hp with
       ⟨data', _, _, _, hrd, _, _⟩ | ⟨_, _, _, _, _, rest, hr⟩
-    · rw [recursorData_quot] at hrd
+    · rw [recursorData_quot (by assumption)] at hrd
       cases hrd
     · rw [hr] at hck
       apply hck.1
@@ -2360,7 +2361,7 @@ theorem DeltaPar.parRed_diamond_aux : ∀ n, DPDiaBelow n := by
   | @quotDelta _ ls rhs args args' hlen hargs hr =>
     have hle : args.length ≤ 5 := hlen ▸ hr.length_le
     obtain ⟨argsP, rfl, hP⟩ := ParRed.const_spine_of args.length
-      (fun hp hpre hm => Params.no_match_quot_prefix hp (by omega) hm) (Nat.le_refl _) H2
+      (fun hp hpre hm => Params.no_match_quot_prefix hr.registered hp (by omega) hm) (Nat.le_refl _) H2
     obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
       (fun _ hx => sizeOf_mkApps_arg hx) (HasType.mkApps_args_typed hΓ ha)
       (forall₂_of_getElem hlen hargs) hP
@@ -2716,8 +2717,8 @@ theorem SpineRule.unique (H : SpineRule Γ name ls xs rhs) (H' : SpineRule Γ na
     rhs = rhs' := by
   rcases H with H | ⟨rfl, H⟩ <;> rcases H' with H' | ⟨h, H'⟩
   · exact H.unique H'
-  · subst h; obtain ⟨_, hd, _⟩ := H.length_le; rw [recursorData_quot] at hd; cases hd
-  · obtain ⟨_, hd, _⟩ := H'.length_le; rw [recursorData_quot] at hd; cases hd
+  · subst h; obtain ⟨_, hd, _⟩ := H.length_le; rw [recursorData_quot H'.registered] at hd; cases hd
+  · obtain ⟨_, hd, _⟩ := H'.length_le; rw [recursorData_quot H.registered] at hd; cases hd
   · exact H.unique H'
 
 theorem SpineRule.defeq (hΓ : OnCtx Γ (env.IsType univs)) (H : SpineRule Γ name ls xs rhs) :
@@ -2753,8 +2754,8 @@ theorem SpineRule.supply_many (H₁ : SpineRule Γ name ls xs r₁)
     ReflTransGen (ParRed Γ) (VExpr.mkApps r₁ more) r₂ := by
   rcases H₁ with H₁ | ⟨rfl, H₁⟩ <;> rcases H₂ with H₂ | ⟨h, H₂⟩
   · exact H₁.supply_many H₂
-  · subst h; obtain ⟨_, hd, _⟩ := H₁.length_le; rw [recursorData_quot] at hd; cases hd
-  · obtain ⟨_, hd, _⟩ := H₂.length_le; rw [recursorData_quot] at hd; cases hd
+  · subst h; obtain ⟨_, hd, _⟩ := H₁.length_le; rw [recursorData_quot H₂.registered] at hd; cases hd
+  · obtain ⟨_, hd, _⟩ := H₂.length_le; rw [recursorData_quot H₁.registered] at hd; cases hd
   · exact H₁.supply_many H₂
 
 /-- Two developments each extended by one parallel prefix step meet after

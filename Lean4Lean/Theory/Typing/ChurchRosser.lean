@@ -66,10 +66,11 @@ class Params where
   pat_app_uniq : Pat p r → Pat p' r' → Subpattern (.app p₁ p₂) p →
     Subpattern (.app p₁' p₂') p' → Subpattern p₃ p₁ → Subpattern p₃' p₂' → p₃.inter p₃' = none
   /-- Definition patterns unfold definitions, never a native recursor or the
-  quotient lift, whose prefixes compute by native and quotient prefix unfolding. -/
-  pat_const_native : Pat (.const c) r → recursorData c = none ∧ c ≠ ``Quot.lift
-  /-- The quotient lift is not a registered native recursor. -/
-  recursorData_quot : recursorData ``Quot.lift = none
+  registered quotient lift, whose prefixes compute by native and quotient prefix
+  unfolding. Without the quotient declaration, `Quot.lift` is an ordinary name. -/
+  pat_const_native : Pat (.const c) r → recursorData c = none ∧ (QuotRegistered env → c ≠ ``Quot.lift)
+  /-- The registered quotient lift is not a native recursor. -/
+  recursorData_quot : QuotRegistered env → recursorData ``Quot.lift = none
   /-- The constructor of a native iota pattern carries no computation of its own. -/
   pat_ctor_rigid : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
     env.NativeHeadRigid cc
