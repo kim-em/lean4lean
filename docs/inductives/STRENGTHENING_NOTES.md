@@ -200,7 +200,7 @@ provides. In the countermodel with such recursors and canonical `Eq`, `SI ≡ SJ
 not a refutation. It does not concern environments built by the checker
 (`getElimLevel` returns a fresh `.param`). Decision proposed to the coordinator: tighten the
 generative specification so that a target is `≈ zero` or a parameter not occurring in the
-instance's levels; meanwhile the native bridge takes that shape as an explicit hypothesis.
+instance's levels; meanwhile the native extraction takes that shape as an explicit hypothesis.
 
 ### 1.10 Summary table
 
@@ -367,7 +367,7 @@ i.e. obligation (a)):
   a typed field instance equal to it field by field;
 * `PropElim.singleton_eta`: `m ≡ mk ps (reconstructed fields)`.
 
-The bridge from a registered native recursor to `PropElim.WF` (no `sorry`; the only
+From a registered native recursor to `PropElim.WF` (no `sorry`; the only
 `sorry` dependency is `VEnv.WF.headInversion`):
 
 * `Lean4Lean/Theory/Inductive/InstanceSpecialize.lean`: `Instance.specialize` and
@@ -384,7 +384,7 @@ The bridge from a registered native recursor to `PropElim.WF` (no `sorry`; the o
   sort of a data field equals the sort of its index slot, by uniqueness of types
   (`sort_agree`). `Instance.singletonElim_wf` assembles `PropElim.WF` for any instance
   with elimination universe zero.
-* `Lean4Lean/Theory/Typing/NativeSingletonBridge.lean`: `SingletonFacts`
+* `Lean4Lean/Theory/Typing/NativeSingletonPropElim.lean`: `SingletonFacts`
   (`singletonFacts`), the definitions `castSpec`, `castSpecGeneric`, `propElim`,
   `propParams`, `genericSorts`, and `NativeRecursorData.propElim_wf`. The occurrence's
   specification is by definition the universe instantiation of the generic one. The data
