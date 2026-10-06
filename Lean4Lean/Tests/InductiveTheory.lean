@@ -251,7 +251,10 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       subst ctor
       rfl
   · exact ⟨rfl, nofun, by trivial, Or.inr (Or.inl (by rfl))⟩
-  · intro index j hj
+  · refine ⟨enumCtorsEnv, ?_, ?_⟩
+    · simp [enumDecl, enumType, enumCtor, enumTypesEnv, enumCtorsEnv,
+        VInductDecl.constructorConstants, VEnv.addConstVals, VEnv.addConst]
+    intro index j hj
     rcases index with ⟨_ | k, hk⟩
     · have h0 : (InductiveSignature.Instance.recursiveFields
           enumSignature.constructors[(⟨0, hk⟩ : Fin enumSignature.constructors.size)]).length = 0 := rfl

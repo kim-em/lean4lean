@@ -86,7 +86,9 @@ structure CompilationRealization (env : VEnv) (decl : VInductDecl)
   generated : ∃ (s : InductiveSignature) (g : Instance s) (envTypes : VEnv),
     s.Models env decl ∧
     env.addConstVals decl.typeConstants = some envTypes ∧
-    g.Admissible envTypes ∧ g.RecursiveTypesWF envTypes ∧
+    g.Admissible envTypes ∧
+    (∃ envCtors, envTypes.addConstVals decl.constructorConstants = some envCtors ∧
+      g.RecursiveTypesWF (envCtors.addProjections decl.projectionEntries)) ∧
     (∀ owner, g.recursorName owner = s.families[owner].name.str "rec") ∧
     block.recursors = g.recursors ∧ block.rules = g.equations ∧
     List.Forall₂ (RecursorEntryRealization g venv)
@@ -140,14 +142,17 @@ theorem CompilationRealization.monoTarget
 /-- Replaying the same declaration in a larger source model preserves the
 joint witness, provided its source headers can still be installed. -/
 theorem CompilationRealization.monoSource
-    {env env' envTypes' : VEnv}
+    {env env' envTypes' envCtors' : VEnv}
     (H : CompilationRealization env decl block venv entries) (hle : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
+    (htypes : env'.addConstVals decl.typeConstants = some envTypes')
+    (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
     CompilationRealization env' decl block venv entries := by
-  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrec, hrest⟩
+  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, ⟨envCtors, hc, hrec⟩, hrest⟩
+  have htypesLE := VEnv.addConstVals_mono hle ht htypes
   exact ⟨s, g, envTypes', hm.mono hle htypes, htypes,
-    ha.mono (VEnv.addConstVals_mono hle ht htypes),
-    hrec.mono (VEnv.addConstVals_mono hle ht htypes), hrest⟩
+    ha.mono htypesLE,
+    ⟨envCtors', hctors, hrec.mono (VEnv.addProjections_mono
+      (VEnv.addConstVals_mono htypesLE hc hctors))⟩, hrest⟩
 
 end InductiveSignature
 end Lean4Lean

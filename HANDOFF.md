@@ -234,8 +234,11 @@ declarations; validation must not assume correctness of its own artifact.
    context to any up-set of its free variables (`MLCtx.restrictUpSetCtx`:
    the result is a well-formed `MLCtx` whose declarations carry the
    strengthened translations, with the `FVLift'` witness; uses
-   `TrExprS.weakFV'_inv`, which does not depend on `weakN_iff`) and closes
-   such a context into abstract binders (`TrExprS.closeAllLams`). The
+   `TrExprS.weakFV'_inv`, which **does** depend on the false `weakN_iff`
+   through `VExpr.WF.weak'_iff` and `HasType.weak'_iff` at
+   `Verify/Typing/Lemmas.lean:1316-1354`; an earlier version of this note
+   claimed otherwise) and closes such a context into abstract binders
+   (`TrExprS.closeAllLams`). The
    remaining program for the minors, independent of item 8's resolution:
    for hypothesis `j` take the semantic call row
    (`RecInfoHypothesisCallSemanticOrigins` → `SemanticBoundGeneratedRecursiveCall`,
@@ -251,28 +254,39 @@ declarations; validation must not assume correctness of its own artifact.
    passes' telescopes are related through `replayTrace_eq_blueprint`). With
    item 8 resolved by (c), only `Instance.RecursiveTypesWF` for the actual
    instance then remains, by inversion of the retained type check.
-   **Next concrete task (analysed 2026-10-05, not started).** The scope
-   sharpening is the only non-mechanical step. The semantic rows record
-   `rootScope := (∈ fieldsRecent.fvars ∨ ∈ params)` for every hypothesis of a
-   minor (`RecInfoRuleBlueprintSemanticOriginAt`, `SecondPass.lean`), but
-   `Recursive.binders` of field `f` must be scoped over parameters and
-   fields *before* `f` only (`Instance.hypothesis` lifts them over the `nf -
-   f` remaining fields). The producer `loopUBlueprints` soundness
-   (`SecondPass.lean` around lines 1815 to 2080) threads one `rootScope`
-   through `RecInfoHypothesisCallSemanticOrigins.pushCurrent` and the `Hvi`
-   contract; the underlying `mkRecInfos.loopUArgs.loop.resultSemantics`
-   (`RecursiveCalls.lean` around line 1262) is already parametric in the
-   up-set `P` and takes `htypeScope`/`hcurrentUp`. So: make the per-call row
-   carry a per-field scope `(∈ params ∨ ∈ fieldsRecent.fvars.take position)`
-   where `position` is the field's index among all fields
-   (`RecursorFieldDecisions.selected_at` relates recursive fields to
-   positions), prove the two inputs the loop theorem needs from
-   `fieldParameterUp` and `VLCtx.WF` (a kept field's dependencies lie in its
-   tail, hence in earlier fields and parameters; the field's own type has the
-   same scope), and keep the existing coarse `rootScope` facts for the
-   equation layer, which consumes them widely. Then restrict the row's
-   context with `MLCtx.restrictUpSetCtx`, define the shapes, and close the
-   minor group as described above.
+   **Done (2026-10-06): per-field rows and the inversion tools.** The
+   first-pass producer now retains, from the same executable run, a second
+   semantic row per induction hypothesis whose root scope is
+   `RecursorFieldPrefixScope`: the parameters and the constructor fields
+   strictly before the recursive field (`RecInfoHypothesisCallSemanticOriginsAt`,
+   stored as the last conjunct of `RecInfoRuleBlueprintSemanticOriginAt`,
+   `SecondPass.lean`; the coarse row is unchanged for the equation layer).
+   The field's own declared type is scoped by reading the stored metacontext
+   declaration (`Recursor/FieldTypeScope.lean`: the executable's
+   `inferType (.fvar fv)` is a local-context lookup, and an all-lambda
+   `MLCtx` records the dependencies of a declared type on its own entry;
+   `MLCtx.recentTypeScope`, `RecursorRecentBoundFVarArray.fieldTypeScope`),
+   so `resultRecursiveDomainOfInferredScope`/`inductionHypothesisTypeOriginOfInferredScope`
+   take the inferred type's scope as a hypothesis (the original forms are
+   wrappers). The sharpened up-set is `IsFVarUpSet.sharpenPrefix`.
+   `recursorTelescope_hypothesisDomains` extends the hypothesis-shape
+   inversion with the translation of each binder domain `A[i]` (of the
+   literal `i`-th domain of the blueprint telescope, `argDomains`).
+   `Recursor/TelescopeUniqueness.lean` closes an all-lambda metacontext entry
+   by entry (`MLCtx.lamTypes_telescope`, `lamTypes_find?`), identifies two
+   abstract telescopes translating the same sources
+   (`TrExprS.telescope_unique`), and pins the universe un-shift
+   (`TrExprS.chooseOriginalUniverses_eq`, from `SourceUniverses.lean`'s
+   `chooseOriginalUniverses`). `MLCtx.restrictUpSetCtx` now also preserves
+   declaration types. Remaining for the minor group: restrict the per-field
+   row (`SemanticBoundGeneratedRecursiveCall.restrictToFieldPrefix`,
+   `Recursor/RecursiveShapeRow.lean`, in progress), identify its parameter
+   and field domains with `parameterDecls` and `sourceFields` by
+   `telescope_unique`, weaken the restricted translations into the generator
+   context (`insertBeforeInner`) and identify with
+   `recursorTelescope_hypothesisDomains`/`_hypothesisShape` by `uniqueS`
+   (`replayTrace_eq_blueprint` relates the row to the blueprint origin), then
+   un-shift universes and assemble the consumed signature.
    Correction of an earlier plan: the junction
    signature cannot be `R.sourceSignature`. Its field types translate the raw
    constructor telescope, while the production minors bind their fields with
@@ -302,6 +316,34 @@ declarations; validation must not assume correctness of its own artifact.
    recorded as a lemma. Mario should review the clause with the rest of the
    signature specification. The paragraph below records the obstruction that
    motivated the change.
+
+   **Correction (2026-10-06, decided with Kim after second opinions from an
+   Opus agent and from the Astra model through Codex).** The claim that the
+   instance-level definitional-equality clause "follows from the retained
+   type check by inversion" was wrong: inversion of `IsType [] recursorType`
+   yields typing facts only in the context extended by the hypothesis
+   binders, and moving a definitional equality with lifted endpoints down to
+   `hypothesisContext` is exactly the strengthening that
+   `docs/inductives/STRENGTHENING.md` refutes; the first-pass facts need the
+   same strengthening from the large stale context; reduction traces are not
+   retained by `whnf.WF` and the theory's reduction relations are typed, so a
+   trace route would be a new foundation. The clause is therefore restated as
+   well-formedness of each generated induction hypothesis in its own context,
+   `Instance.RecursiveTypesWF g env := ∀ index j hj, env.IsType g.uvars
+   (g.hypothesisContext …) (g.hypothesis …)`, required in `Compiles` and
+   `CompilationRealization` at the environment in which the recursors are
+   declared (family headers, constructors, and the declaration's projection
+   entries, which is `R.context.venv`), since binder peeling keeps the
+   environment; it is derived from `IsType [] (g.recursorType owner)` by
+   `Theory/Inductive/HypothesisTyping.lean` without new sorries. Planned
+   follow-up (option (C)): a small-scope positivity clause in `Models`,
+   existential over a source-free telescope and indices with the same target,
+   from the header-phase evidence (the old small-context clause existentially);
+   its evidence (`uniformNormalFormNarrow` via `restrictTrExpr`) also rests on
+   the `weakN_iff` admission, so it is a specification improvement, not a
+   repair of strengthening. Both opinions noted that the defeq form in
+   `hypothesisContext` would not have pinned the shape well either, because
+   later fields in that context may be proofs.
 
    **Former statement of the risk.** `Compiles` (`Recursor/Realization.lean`,
    `CompilationRealization.generated`) requires `s.Models env decl` for the
@@ -362,10 +404,17 @@ inside this project's scope without solving open base metatheory:
   (`sort_inv`, `forallE_inv`, `sort_forallE_inv`, `rigidApp_inv`,
   `fieldType_inv_stratified`); `saturated_of_hasType` needs a rigid-head vs
   Pi separation lemma of the same class and is effectively base-layer.
-- `weakN_iff` is false and must be replaced; the repair of 63 consumers needs
-  a redesign (typing/defeq transport justified by actual inhabitants or a
-  context-restricted invariant for the checker's cache), which is upstream
-  work as well.
+- `weakN_iff` is false and must be replaced; about 72 textual uses of the
+  `weakN_iff`/`weak'_iff`/`OnCtx.*_inv` family under `Verify` (2026-10-06
+  count) depend on it, including `TrExprS.weakFV'_inv` (hence
+  `MLCtx.restrictUpSetCtx` and the whole shape-definition program of item 7),
+  `ConditionallyWHNF.weakN_inv` (the checker's cache invariant) and the
+  header phase's `restrictTrExpr`. The repair needs a redesign (typing/defeq
+  transport justified by actual inhabitants or a context-restricted invariant
+  for the checker's cache), which is upstream work as well. What the
+  consumers actually need is mostly existential well-formedness
+  strengthening and strengthening at sort types, which the countermodel does
+  not refute.
 - The three core refinement junctions (`canonicalConsumedGeneration`,
   `canonicalCompletedRuleTranslation`, `assemblyNative`) are each a
   `Nonempty` of a large certificate structure assembling thousands of lines of

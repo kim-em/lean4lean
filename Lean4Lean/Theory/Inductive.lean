@@ -104,10 +104,10 @@ theorem VInductDecl.OrdinaryShape.mono
       holdRules⟩ }
 
 theorem InductiveSignature.Instance.RecursiveTypesWF.mono {s : InductiveSignature}
-    {g : InductiveSignature.Instance s} {envTypes envTypes' : VEnv}
-    (H : g.RecursiveTypesWF envTypes) (hle : envTypes ≤ envTypes') :
-    g.RecursiveTypesWF envTypes' :=
-  fun index j hj type he => VEnv.IsDefEqU.mono hle (H index j hj type he)
+    {g : InductiveSignature.Instance s} {env env' : VEnv}
+    (H : g.RecursiveTypesWF env) (hle : env ≤ env') :
+    g.RecursiveTypesWF env' :=
+  fun index j hj => (H index j hj).mono hle
 
 theorem InductiveSignature.Models.mono
     {s : InductiveSignature} {env env' envTypes' : VEnv} {decl : VInductDecl}
@@ -145,14 +145,18 @@ theorem InductiveSignature.Instance.Admissible.mono
     exact (hfields ctor hctor i hi).imp (fun h => h.mono henv) id
 
 theorem InductiveSignature.Compiles.mono
-    {env env' envTypes' : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    {env env' envTypes' envCtors' : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (H : Compiles env decl block) (henv : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes') :
+    (htypes : env'.addConstVals decl.typeConstants = some envTypes')
+    (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
     Compiles env' decl block := by
-  rcases H.generated with ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, hrec, hrest⟩
+  rcases H.generated with
+    ⟨s, g, envTypes, hmodel, htypesOld, hadmissible, ⟨envCtors, hctorsOld, hrec⟩, hrest⟩
+  have htypesLE := VEnv.addConstVals_mono henv htypesOld htypes
   exact ⟨s, g, envTypes', hmodel.mono henv htypes, htypes,
-    hadmissible.mono (VEnv.addConstVals_mono henv htypesOld htypes),
-    hrec.mono (VEnv.addConstVals_mono henv htypesOld htypes), hrest⟩
+    hadmissible.mono htypesLE,
+    ⟨envCtors', hctors, hrec.mono (VEnv.addProjections_mono
+      (VEnv.addConstVals_mono htypesLE hctorsOld hctors))⟩, hrest⟩
 
 theorem VInductDecl.OrdinaryCompilation.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}
@@ -160,11 +164,13 @@ theorem VInductDecl.OrdinaryCompilation.mono
     (H : decl.OrdinaryCompilation env block) :
     decl.OrdinaryCompilation env' block := by
   have hfinite := H.finite.mono henv Hblock
-  rcases Hblock with ⟨envTypes, envCtors, envRecursors, htypes, hrest⟩
-  refine { H.toOrdinaryShape.mono henv ⟨envTypes, envCtors, envRecursors, htypes, hrest⟩ with
-    canonical := H.canonical.mono (envTypes' := envTypes) henv ?_
+  rcases Hblock with ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrest⟩
+  refine { H.toOrdinaryShape.mono henv
+      ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrest⟩ with
+    canonical := H.canonical.mono (envTypes' := envTypes) (envCtors' := envCtors) henv ?_ ?_
     finite := hfinite }
-  simpa [H.types] using htypes
+  · simpa [H.types] using htypes
+  · simpa [H.ctors] using hctors
 
 theorem VInductDecl.CompilesTo.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}

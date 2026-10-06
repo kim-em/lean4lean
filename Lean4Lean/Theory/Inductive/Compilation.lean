@@ -159,9 +159,10 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   admissible : ∃ envExpandedTypes,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     g.Admissible envExpandedTypes
-  recursiveTypesWF : ∃ envExpandedTypes,
+  recursiveTypesWF : ∃ envExpandedTypes envExpandedCtors,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
-    g.RecursiveTypesWF envExpandedTypes
+    envExpandedTypes.addConstVals expanded.constructorConstants = some envExpandedCtors ∧
+    g.RecursiveTypesWF (envExpandedCtors.addProjections expanded.projectionEntries)
   recursorNames : ∀ owner, g.recursorName owner = s.families[owner].name.str "rec"
   generatedNames : ((expanded.typeConstants ++ expanded.constructorConstants ++
     g.recursors).map (·.name)).Nodup
@@ -261,7 +262,7 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     restorationScoped := ?_
     correspondence := ?_
     admissible := ⟨envTypes, hadded, Hadmissible⟩
-    recursiveTypesWF := ⟨envTypes, hadded, Hrec⟩
+    recursiveTypesWF := let ⟨envCtors, hc, hwf⟩ := Hrec; ⟨envTypes, envCtors, hadded, hc, hwf⟩
     recursorNames := hrecNames
     generatedNames := ?_
     recursorsFresh := ?_

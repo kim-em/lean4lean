@@ -105,6 +105,13 @@ theorem hypothesisContext_onCtx_of_recursorType {s : InductiveSignature} (g : In
     OnCtx (g.hypothesisContext s.constructors[index] index.val j) (env.IsType g.uvars) :=
   (hypothesis_onCtx_of_recursorType g henv owner H index j hj).1
 
+/-- The recursive-field clause of the generative specification holds in any
+environment in which some generated recursor type is well-formed. -/
+theorem recursiveTypesWF_of_recursorType {s : InductiveSignature} (g : Instance s)
+    {env : VEnv} (henv : env.WF) (owner : Fin s.families.size)
+    (H : env.IsType g.uvars [] (g.recursorType owner)) : g.RecursiveTypesWF env :=
+  hypothesis_isType_of_recursorType g henv owner H
+
 end Instance
 end InductiveSignature
 end Lean4Lean
