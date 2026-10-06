@@ -3179,6 +3179,112 @@ theorem DeltaPar.peak_aux : ∀ n, DDBelow n := by
       exact Join2.app hΓ (IH (by simp; omega) hΓ hf₁ hf₂ tf) (IH (by simp; omega) hΓ hx₁ hx₂ tx) hb hc
 end Join2Tools
 
+
+section EtaTools
+
+theorem EtaPar.root_fun (hΓ : OnCtx Γ (env.IsType univs)) (HD : EtaPar Γ D D')
+    (hc : Γ ⊢ c : .forallE D B) (hchain : ReflTransGen (Below Γ n) b₀ d₀)
+    (hcd : EtaPar Γ c d₀) (hb : Γ ⊢ .lam D' (.app b₀.lift (.bvar 0)) : T) :
+    ReflTransGen (Below Γ n) (.lam D' (.app b₀.lift (.bvar 0))) (.lam D' (.app d₀.lift (.bvar 0))) ∧
+      EtaPar Γ c (.lam D' (.app d₀.lift (.bvar 0))) := by
+  refine ⟨?_, .funEta hcd HD hc⟩
+  obtain ⟨⟨_, tD'⟩, _, tbody⟩ := hb.lam_inv henv hΓ
+  have hΓ' : OnCtx (D' :: Γ) (env.IsType univs) := ⟨hΓ, _, tD'⟩
+  have hl := Below.weakN (Γ' := D' :: Γ) .one hchain
+  exact Below.lam hΓ .rfl (Below.app hΓ' hl .rfl tbody) hb
+
+theorem EtaPar.root_struct (hΓ : OnCtx Γ (env.IsType univs))
+    (hl : env.projections family info) (hp : ps.length = info.nparams) (hi : info.nindices = 0)
+    (hlen : ps.length = ps'.length)
+    (hps : ∀ i (h : i < ps.length) (h' : i < ps'.length), EtaPar Γ ps[i] ps'[i])
+    (hc : Γ ⊢ c : VExpr.mkApps (.const family levels) ps)
+    (hcexp : Γ ⊢ structExpand family info levels ps c : VExpr.mkApps (.const family levels) ps)
+    (hchain : ReflTransGen (Below Γ n) b₀ d₀) (hcd : EtaPar Γ c d₀)
+    (hb : Γ ⊢ structExpand family info levels ps' b₀ : T) :
+    ReflTransGen (Below Γ n) (structExpand family info levels ps' b₀)
+        (structExpand family info levels ps' d₀) ∧
+      EtaPar Γ c (structExpand family info levels ps' d₀) := by
+  refine ⟨?_, .structEta hcd hlen hps hl hp hi hc hcexp⟩
+  unfold structExpand at hb ⊢
+  refine Below.mkApps hΓ .rfl (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_) hb
+  apply List.forall₂_of_getElem (by simp)
+  intro j hj hj'
+  have hjmem : j ∈ List.range info.numFields := by simpa using hj
+  obtain ⟨_, hpj⟩ := schema_mkApps_arg_type hΓ hb
+    (List.mem_append_right _ (List.mem_map.mpr ⟨j, hjmem, rfl⟩))
+  simpa only [List.getElem_map, List.getElem_range] using Below.proj hΓ hchain hpj
+
+theorem pi_not_struct (hΓ : OnCtx Γ (env.IsType univs)) (hl : env.projections family info)
+    (h1 : Γ ⊢ e : .forallE D B) (h2 : Γ ⊢ e : VExpr.mkApps (.const family levels) ps) : False := by
+  have hu := h2.uniqU henv hΓ h1
+  obtain ⟨_, hsort⟩ := h2.isType henv hΓ
+  exact IsDefEqU.rigidApp_forallE_inv henv hΓ (henv.projectionRigid hl) hsort hu
+
+theorem ParRed.eta_beta (y : VExpr) :
+    ParRed Γ (.app (.lam A (.app e.lift (.bvar 0))) y) (.app e y) := by
+  have := ParRed.beta (Γ := Γ) (A := A) (e₁ := .app e.lift (.bvar 0))
+    (e₁' := .app e.lift (.bvar 0)) (e₂ := y) (e₂' := y) .rfl .rfl
+  simpa [VExpr.inst, VExpr.inst_lift] using this
+
+/-- Collapse eta expansions of a lambda in function position by beta. -/
+theorem EtaPar.collapse_lam (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EtaPar Γ (.lam D t) F) (ht : Γ ⊢ .lam D t : T) :
+    ∃ D' t', EtaPar Γ D D' ∧ EtaPar (D :: Γ) t t' ∧
+      ∀ y, ReflTransGen (ParRed Γ) (.app F y) (.app (.lam D' t') y) := by
+  generalize hsrc : VExpr.lam D t = src at H ht
+  induction H with
+  | lam hD ht' => cases hsrc; exact ⟨_, _, hD, ht', fun _ => .rfl⟩
+  | funEta H₀ HA hty ih =>
+    subst hsrc
+    obtain ⟨D', t', hD, ht', hy⟩ := ih hΓ rfl ht
+    exact ⟨D', t', hD, ht', fun y => ReflTransGen.trans (.tail .rfl (ParRed.eta_beta _)) (hy y)⟩
+  | structEta H₀ _ _ hl _ _ hs _ =>
+    subst hsrc
+    have ⟨⟨_, hD⟩, _, hb⟩ := ht.lam_inv henv hΓ
+    exact (pi_not_struct hΓ hl (HasType.lam hD hb) hs).elim
+  | _ => cases hsrc
+
+
+omit [Params] in
+theorem mkApps_const_eq_cases (he : VExpr.mkApps (.const n ls) vs = e) :
+    (vs = [] ∧ e = .const n ls) ∨
+      ∃ vs₀ x, vs = vs₀ ++ [x] ∧ e = .app (VExpr.mkApps (.const n ls) vs₀) x := by
+  rcases eq_nil_or_snoc' vs with rfl | ⟨vs₀, x, rfl⟩
+  · exact .inl ⟨rfl, he.symm⟩
+  · exact .inr ⟨vs₀, x, rfl, by rw [← he, mkApps_snoc]⟩
+
+/-- Collapse eta expansions inside a constant spine in function position. -/
+theorem EtaPar.collapse_spine (hΓ : OnCtx Γ (env.IsType univs))
+    (H : EtaPar Γ (VExpr.mkApps (.const h ls) vs) F)
+    (ht : Γ ⊢ VExpr.mkApps (.const h ls) vs : .forallE X Y) :
+    ∃ vs', List.Forall₂ (EtaPar Γ) vs vs' ∧
+      ∀ y, ReflTransGen (ParRed Γ) (.app F y) (.app (VExpr.mkApps (.const h ls) vs') y) := by
+  generalize hsrc : VExpr.mkApps (.const h ls) vs = src at H ht
+  induction H generalizing vs X Y with
+  | @app _ f f' x x' hf hx ih₁ _ =>
+    rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he
+    · cases he
+      obtain ⟨_, _, tf, _⟩ := ht.app_inv henv hΓ
+      obtain ⟨vs₀', h₀, hy⟩ := ih₁ hΓ rfl tf
+      refine ⟨vs₀' ++ [x'], case_forall₂_append h₀ (.cons hx .nil), fun y => ?_⟩
+      rw [mkApps_snoc]
+      exact ParRedS.app (hy x') .rfl
+  | funEta H₀ HA hty ih =>
+    subst hsrc
+    obtain ⟨vs', h', hy⟩ := ih hΓ rfl ht
+    exact ⟨vs', h', fun y => ReflTransGen.trans (.tail .rfl (ParRed.eta_beta _)) (hy y)⟩
+  | structEta H₀ _ _ hl _ _ hs _ =>
+    subst hsrc
+    exact (pi_not_struct hΓ hl ht hs).elim
+  | const =>
+    rcases mkApps_const_eq_cases hsrc with ⟨rfl, he⟩ | ⟨vs₀, x₀, rfl, he⟩
+    · cases he; exact ⟨[], .nil, fun _ => .rfl⟩
+    · cases he
+  | bvar | sort | elim | proj | lam | forallE =>
+    rcases mkApps_const_eq_cases hsrc with ⟨_, he⟩ | ⟨vs₀, x₀, _, he⟩ <;> cases he
+end EtaTools
+
 section Levels
 
 /-! ### Local diagrams -/
