@@ -1539,6 +1539,13 @@ structure GeneratedRecursorEntry
     (AddInductive.getRecLevels elimLevel stats.levels)
     indTypes[ownerIdx]!.ctors (recursorMinorOffset indTypes ownerIdx)
     info.rules
+  /-- The installed rules are literally the builds of the blueprints retained
+  by `mkRecInfos`, in the recursor-construction local context. -/
+  rules_eq : info.rules =
+    recInfos[ownerIdx]!.ruleBlueprints.toList.map fun blueprint =>
+      blueprint.build indTypes stats (recInfos.map (·.motive))
+        (recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels elimLevel stats.levels) c.lctx
 
 def GeneratedRecursorEntry.ofRecursorInfo
     (safety : DefinitionSafety) (env : VEnv) (lparams : List Name)
@@ -1562,7 +1569,12 @@ def GeneratedRecursorEntry.ofRecursorInfo
       (recInfos.map (·.motive)) (recInfos.flatMap (·.minors))
       (AddInductive.getRecLevels elimLevel stats.levels)
       indTypes[ownerIdx]!.ctors (recursorMinorOffset indTypes ownerIdx)
-      rules) :
+      rules)
+    (hrulesEq : rules =
+      recInfos[ownerIdx]!.ruleBlueprints.toList.map fun blueprint =>
+        blueprint.build indTypes stats (recInfos.map (·.motive))
+          (recInfos.flatMap (·.minors))
+          (AddInductive.getRecLevels elimLevel stats.levels) c.lctx) :
     GeneratedRecursorEntry safety env lparams elimLevel c stats indTypes
       recInfos ownerIdx
       (.recInfo (AddInductive.declareRecursors.recursorInfo stats indTypes
@@ -1587,6 +1599,7 @@ def GeneratedRecursorEntry.ofRecursorInfo
     simpa [AddInductive.declareRecursors.recursorInfo] using hnumMinors
   type := rfl
   rules := Hrules
+  rules_eq := hrulesEq
 
 /-- Reviewable output invariant for the complete production recursor loop. -/
 structure GeneratedRecursors

@@ -1838,7 +1838,7 @@ theorem AddInductive.declareRecursors.loop.WF
                 numMotives all hnumMinors hnumMotives k isUnsafe dIdx
                 generated.1 recursor hisUnsafe hall hk
                 HtrSource
-                Hgenerated
+                Hgenerated hrules.1
             have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
                 lparams elimLevel c stats indTypes recInfos dIdx
                 (entry :: entries) := by
@@ -2072,7 +2072,7 @@ theorem AddInductive.declareRecursors.loop.semanticWF
                 numMotives all hnumMinors hnumMotives k isUnsafe dIdx
                 generated.1 recursor hisUnsafe hall hk
                 HtrSource
-                Hgenerated.bound
+                Hgenerated.bound hrules.1
             have Hrange' : GeneratedRecursorsRange c.safety sourceVEnv
                 lparams elimLevel c stats indTypes recInfos dIdx
                 (entry :: entries) := by

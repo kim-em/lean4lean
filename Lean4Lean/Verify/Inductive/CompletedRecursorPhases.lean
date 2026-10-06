@@ -70,6 +70,50 @@ theorem CompletedRecursorPhasesResult.generated_k
   (H.generated.entry owner howner).kChecked.unique H.kTargetChecked
     H.localContext
 
+/-- The installed recursor rules are literally the builds of the blueprints
+retained by `mkRecInfos`, as `declareRecursors.loop` constructs them through
+`mkRecRulesFromBlueprints` in the recursor-construction local context. -/
+theorem CompletedRecursorPhasesResult.generated_rules_eq
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    (H.generated.entry owner howner).info.rules =
+      H.recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
+        blueprint.build indTypes stats (H.recInfos.map (·.motive))
+          (H.recInfos.flatMap (·.minors))
+          (AddInductive.getRecLevels H.elimLevel stats.levels)
+          H.localContext.lctx :=
+  (H.generated.entry owner howner).rules_eq
+
+/-- Each installed recursor has exactly one rule per retained blueprint. -/
+theorem CompletedRecursorPhasesResult.generated_rules_length
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length) :
+    (H.generated.entry owner howner).info.rules.length =
+      H.recInfos[owner]!.ruleBlueprints.size := by
+  rw [H.generated_rules_eq owner howner]
+  simp
+
+/-- Rule-wise form of `generated_rules_eq`. -/
+theorem CompletedRecursorPhasesResult.rulesLiteral
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (owner : Nat) (howner : owner < H.entries.length)
+    (i : Nat) (hi : i < (H.generated.entry owner howner).info.rules.length) :
+    (H.generated.entry owner howner).info.rules[i] =
+      (H.recInfos[owner]!.ruleBlueprints[i]!).build indTypes stats
+        (H.recInfos.map (·.motive)) (H.recInfos.flatMap (·.minors))
+        (AddInductive.getRecLevels H.elimLevel stats.levels)
+        H.localContext.lctx := by
+  have hsize := H.generated_rules_length owner howner
+  have hi' : i < H.recInfos[owner]!.ruleBlueprints.size := hsize ▸ hi
+  simp only [H.generated_rules_eq owner howner, List.getElem_map,
+    Array.getElem_toList, getElem!_pos H.recInfos[owner]!.ruleBlueprints i hi']
+
 /-- The recursor safety metadata agrees with the source declaration because
 both flags originate in the same declaration checking context. -/
 theorem CompletedRecursorPhasesResult.generated_isUnsafe
