@@ -77,9 +77,16 @@ noncomputable def SemSig.famProp [S : SemSig] (c : Name) (lvls : List SLvl) : Bo
   | some l => decide (SLvl.IsZero fun v => l.eval (lvls.map (· v)))
   | none => true
 
+/-- The number of fields of a constructor (`0` for a non-constructor). -/
+def SemSig.nfields [S : SemSig] (c : Name) : Nat :=
+  match S.ctor c with
+  | some ci => ci.nfields
+  | none => 0
+
 noncomputable instance SemSig.shapeParams [S : SemSig] : ShapeParams where
   isStruct := S.isStruct
   famProp := SemSig.famProp
+  nfields := SemSig.nfields
 
 /-- The evaluated universe levels of the major constructor of a rule, at the levels `ls`. -/
 def RuleMajor.lvls (mj : RuleMajor) (ls : List VLevel) : List SLvl :=

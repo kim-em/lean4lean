@@ -26,7 +26,7 @@ theorem WShape.typed_le_rigid {m a : WShape n} {l : List (WShape K)} {t : List (
     (h1 : m.HasType a) (h2 : a.T ≤ (WShape.rigid s lvls l t).T) (h3 : ¬m.T ≤ .bot) :
     ∃ M, n ≤ M + 1 ∧ K ≤ M ∧ ∃ c₀, ∃ fs₀ : List (WShape M), ∃ wf, ∃ T₀ : WShape M, ∃ T₁,
       m.lift (M+1) = WShape.ctor c₀ fs₀ wf ∧ SemSig.famProp s lvls = false ∧
-      WShape.Fits fs₀ T₀ ∧ T₀.T ≤ T₁.T ∧ (c₀, T₁) ∈ t := by
+      WShape.Fits fs₀ T₀ ∧ fs₀.length = SemSig.nfields c₀ ∧ T₀.T ≤ T₁.T ∧ (c₀, T₁) ∈ t := by
   obtain ⟨M, hn, hK⟩ : ∃ M, n ≤ M + 1 ∧ K ≤ M := ⟨max n K, by omega, Nat.le_max_right ..⟩
   have h1' := (WShape.HasType.lift hn).2 h1
   have h2' := (TShape.LE.def (m := M + 1) hn (Nat.succ_le_succ hK)).1 h2
@@ -44,7 +44,7 @@ theorem WShape.typed_le_rigid {m a : WShape n} {l : List (WShape K)} {t : List (
   obtain ⟨T₁', hc', hle⟩ := ctorTy?_rel ht hc
   rw [ctorTy?_ctsMap] at hc'
   obtain ⟨T₁, hc₁, rfl⟩ := Option.map_eq_some_iff.1 hc'
-  exact ⟨M, hn, hK, c₀, fs₀, wf, T₀, T₁, e', hp, hfit,
+  exact ⟨M, hn, hK, c₀, fs₀, wf, T₀, T₁, e', hp, hfit.1, hfit.2,
     hle.T.trans (TShape.lift_eqv (a := T₁.T) hK).1, ctorTy?_mem hc₁⟩
 
 /-- Applying an approximation of a Pi type to an approximation of an argument approximates the
@@ -169,7 +169,7 @@ theorem Proj.typed (hcl : ConstClosed env) (hF : SemSig.StructFacts env s info)
     hb | ⟨_, g, hg⟩ | ⟨K, rargs, cts, hents, -, hle, hargs⟩
   · exact absurd (TShape.HasType.bot_r' hb hty.T) hnb
   · exact absurd (WShape.typed_le_lam' hty hg) hnb
-  obtain ⟨M, hn, hK, c₀, fs₀, wf, T₀, T₁, he, -, hfit, hT01, hmem⟩ :=
+  obtain ⟨M, hn, hK, c₀, fs₀, wf, T₀, T₁, he, -, hfit, -, hT01, hmem⟩ :=
     WShape.typed_le_rigid hty hle hnb
   have hm₁' : (WShape.ctor c₀ fs₀ wf).T ≤ m₁.T ∧ m₁.T ≤ (WShape.ctor c₀ fs₀ wf).T := by
     rw [← he]; exact ⟨(TShape.lift_eqv (a := m₁.T) hn).1, (TShape.lift_eqv (a := m₁.T) hn).2⟩

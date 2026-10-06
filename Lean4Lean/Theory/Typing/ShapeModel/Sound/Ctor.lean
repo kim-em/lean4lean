@@ -379,6 +379,9 @@ theorem Ctor.realize (hcl : ConstClosed env) (hF : SemSig.StructFacts env s info
   have hmty : (WShape.ctor' info.ctorName fs).T.HasType Rfinal.T :=
     TShape.HasType.ctor' hcts hfp (by simp [cts, ctorTy?]; rfl)
       (WShape.fits_nestPi (fun p hp => hps3 p (List.mem_of_mem_drop hp)) hFN)
+      (by
+        show _ = SemSig.nfields _
+        simp [SemSig.nfields, hF.ctor, fs, psF, hlps])
   have hC : Const env (Interp env) (.const info.ctorName) ls keysN.reverse
       (WShape.ctor' info.ctorName fs).T := by
     refine Const.ctor rfl hF.ctor (by simp [keysN, hlps]) ?_
