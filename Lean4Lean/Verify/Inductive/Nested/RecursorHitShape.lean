@@ -31,7 +31,7 @@ The hits come from three sources.
   `Expr.HitShape.mkAppN_const_params` treats both cases uniformly.
 * (b) Constructor field domains (minor premises and rule field lambdas): the field loop does
   no `whnf`, so each declared field type is the consumed domain of the lowered constructor
-  type after instantiating its parameters (`RecursorParamPrefix.hitShape`,
+  type after instantiating its parameters (`RecursorParamPrefix.hitOK`,
   `RecursorFieldDecisions.fieldDeclsSatisfy` in `Recursor/FieldDeclarationTypes.lean`).
   The lowered constructor types themselves are parameter telescopes in hit shape by
   `LoweredConstructorMapping.hitShapeTele` (from `NestedExprMapping.hitShape`).
@@ -42,6 +42,14 @@ The hits come from three sources.
   `RecInfoMinorHypothesisTypeOrigin.hitShape`, rooted by
   `RecInfoCallBlueprintOrigins.rooted`), all from the single hypothesis
   `WhnfHitOKFacts` on the lifted `whnf` calls.
+
+The `whnf` regions are tracked under `Expr.HitOK` (hit shape together with the
+projection condition `ProjsOK (projHitOK env heads)`) rather than plain hit
+shape, since that is the invariant the type checker preserves; the head set is
+arbitrary here. For a nested run the chain is instantiated at the checker's
+head set `E.hitHeads` (auxiliary heads and main constructors) and shrunk back
+to the auxiliary heads (`NestedValidatedRunResult.recursorHitShape'` in
+`Nested/WhnfHitShape.lean`).
 
 Remaining hypotheses are collected in `CompletedRecursorConstruction.HitShapeInputs`; see
 its docstring. -/
@@ -1444,11 +1452,13 @@ exact validated nested run.** For every generated owner and every executable
 restoration step at the owner's lowered recursor name, the stored recursor type
 and every stored rule right-hand side are closed parameter telescopes of
 `result.nparams` binders whose body is in bound-variable hit shape for the
-auxiliary heads at the levels `lparams.map Level.param`.
+heads `heads` at the levels `lparams.map Level.param`.
 
 Hypotheses: `W` (the `whnf` hit-shape preservation fact, see
 `WhnfHitOKFacts`) and `I` (the non-`whnf` provenance, see
-`CompletedRecursorConstruction.HitShapeInputs`). -/
+`CompletedRecursorConstruction.HitShapeInputs`). Both are discharged at
+`heads := E.hitHeads` in `Nested/WhnfHitShape.lean`
+(`NestedValidatedRunResult.recursorHitShape'`). -/
 theorem NestedValidatedRunResult.recursorHitShape
     {heads : List Name}
     (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs heads)

@@ -1260,6 +1260,28 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
   rw [E.recursorPassEnv, hlen]
   exact E.envHitShape wf Hsources hprims
 
+/-- **`hprims` from the source environment.** Main constructor names are
+fresh in the source environment (`hitHeads_fresh`), so `hprims` holds as soon
+as every checker-built name is declared there, except `_inhabitedExprDummy`
+(the `Inhabited Expr` default used by out-of-range `args[i]!`), which is not a
+constant of any environment and is excluded separately. Every environment
+containing `Init.Prelude` declares the other names of `hitPrimNames`. -/
+theorem NestedValidatedRunResult.hprims_of_present
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv)
+    (hpresent : ∀ n ∈ hitPrimNames, n ≠ `_inhabitedExprDummy →
+      ∃ ci, sourceProdEnv.find? n = some ci)
+    (hdummy : `_inhabitedExprDummy ∉ E.mainCtorNames) :
+    ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames := by
+  intro n hn hmem
+  by_cases hd : n = `_inhabitedExprDummy
+  · exact hdummy (hd ▸ hmem)
+  · obtain ⟨ci, hci⟩ := hpresent n hn hd
+    rw [E.hitHeads_fresh wf n (List.mem_append_right _ hmem)] at hci
+    cases hci
+
 /-- **The non-`whnf` hit-shape inputs of an exact validated nested run**, at the
 head set `E.hitHeads`, with the projection condition at the environment of the
 recursor pass, derived from the run alone:
