@@ -817,6 +817,130 @@ theorem major_lift (owner : Fin s.families.size) :
   rw [vars_map_liftN_hi _ _ _ _ (Nat.le_refl _), vars_map_liftN_lo _ _ _ _ (by omega)]
   simp [VExpr.liftN, Nat.add_comm]
 
+/-- The cast specification of a singleton family at the instance's universes. -/
+def singletonCast (owner : Fin s.families.size) (c : Constructor s.families.size)
+    (sorts : List VLevel) : CastSpec where
+  fields := g.sFields c
+  indices := g.sIndices owner
+  slot := (List.range (g.sFields c).length).map
+    (fieldSlot (g.sCtorIndices c) (g.sFields c).length)
+  sorts := sorts
+
+/-- The elimination into `Prop` of a singleton family through its recursor `h` at motive
+universe zero; the minor premise abstracts the unused induction hypotheses. -/
+def singletonElim (owner : Fin s.families.size) (c : Constructor s.families.size)
+    (h : VExpr) : PropElim where
+  family := .const s.families[owner].name g.levels
+  ctor := .const c.name g.levels
+  ctorIndices := g.sCtorIndices c
+  elimHead := h
+  minorOf M b := VExpr.wrapLams
+    (VExpr.instDomains (insertBinders (g.sFields c) 1 ++ g.sHyps c) M 0)
+    (b.liftN (g.sHyps c).length)
+
+theorem singletonCast_slot (owner : Fin s.families.size) (c : Constructor s.families.size)
+    (sorts : List VLevel) (i : Nat) :
+    (g.singletonCast owner c sorts).slot.getD i none =
+      if i < (g.sFields c).length then fieldSlot (g.sCtorIndices c) (g.sFields c).length i
+      else none := by
+  simp only [singletonCast]
+  split
+  · rw [getD_of_lt (by simpa)]; simp
+  · rename_i h
+    simp [List.getD_eq_getElem?_getD, List.getElem?_range, h]
+
+theorem singletonElim_wf {env : VEnv} (henv : env.WF) (hfam : s.families.size = 1)
+    (hcs : s.constructors.size = 1) (owner : Fin s.families.size)
+    (index : Fin s.constructors.size) {c : Constructor s.families.size}
+    (hc : s.constructors[index] = c) (hown : c.owner = owner)
+    (htarget : g.targetLevel = .zero)
+    {h : VExpr} (hhead : env.HasType g.uvars [] h (g.recursorType owner))
+    (harity : (g.sCtorIndices c).length = (g.sIndices owner).length)
+    (hIcl : ∀ k (hk : k < (g.sIndices owner).length),
+      ((g.sIndices owner)[k]).ClosedN (g.params.length + k))
+    (hFcl : ∀ i (hi : i < (g.sFields c).length),
+      ((g.sFields c)[i]).ClosedN (g.params.length + i))
+    (hCIcl : ∀ e ∈ g.sCtorIndices c,
+      e.ClosedN (g.params.length + (g.sFields c).length))
+    (hmajor : env.HasType g.uvars (g.params ++ g.sIndices owner).reverse (g.sMajor owner)
+      (.sort .zero))
+    {sorts : List VLevel}
+    (hprop : ∀ i (hi : i < (g.sFields c).length),
+      fieldSlot (g.sCtorIndices c) (g.sFields c).length i =
+        none →
+      env.HasType g.uvars (g.params ++ (g.sFields c).take i).reverse
+        (g.sFields c)[i] (.sort .zero))
+    (hsorts : ∀ i (hi : i < (g.sFields c).length) k,
+      fieldSlot (g.sCtorIndices c) (g.sFields c).length i =
+        some k →
+      env.HasType g.uvars (g.params ++ (g.sFields c).take i).reverse
+        (g.sFields c)[i] (.sort (sorts.getD i .zero)))
+    (hsortWF : ∀ i, (sorts.getD i .zero).WF g.uvars) :
+    PropElim.WF (g.singletonCast owner c sorts) g.params
+      (g.singletonElim owner c h) env g.uvars := by
+  have hPlen : g.params.length = s.params.length := by simp [params]
+  have hown0 : c.owner.val = 0 := by
+    have := c.owner.isLt; omega
+  have hrec := g.recursorType_shape hfam hcs owner index
+  rw [hc] at hrec
+  rw [g.motive_shape owner htarget, g.minor_shape hfam _ hown0, g.major_lift owner,
+    g.constructorApp_shape] at hrec
+  have H : env.IsType g.uvars [] (g.recursorType owner) := hhead.isType henv.ordered trivial
+  rw [hrec] at H
+  have hpeel := (IsType.wrapForalls_inv henv (Γ := []) trivial H).1
+  have hpeel2 : OnCtx ((insertBinders (g.sIndices owner) 2 ++
+      [(g.sMajor owner).liftN 2 (g.sIndices owner).length]).reverse ++
+      (VExpr.wrapForalls (insertBinders (g.sFields c) 1 ++ g.sHyps c)
+        (VExpr.mkApps (.bvar ((g.sFields c).length + (g.sHyps c).length))
+          ((g.sCtorIndices c).map (fun e => (e.liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)) ++
+            [((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)])) ::
+        VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero) ::
+        g.params.reverse)) (env.IsType g.uvars) := by
+    simpa [List.reverse_append, List.append_assoc] using hpeel
+  obtain ⟨hMotCtx, hMinT⟩ := OnCtx.of_append hpeel2
+  have ⟨hP, hMotT⟩ := hMotCtx
+  have hMotInv := IsType.wrapForalls_inv henv hP hMotT
+  have hidx : OnCtx (g.params ++ g.sIndices owner ++ [g.sMajor owner]).reverse
+      (env.IsType g.uvars) := by
+    simpa [List.append_assoc] using hMotInv.1
+  have hM0 := HasType.wrapLams_of hMotInv.1 (HasType.trueTy (env := env) (U := g.uvars))
+  have hMinInv := IsType.wrapForalls_inv henv hMotCtx hMinT
+  have hall : OnCtx (g.params ++ [VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero)] ++
+      insertBinders (g.sFields c) 1 ++ g.sHyps c).reverse (env.IsType g.uvars) := by
+    simpa [List.append_assoc] using hMinInv.1
+  have hbody : env.IsType g.uvars (g.params ++
+      [VExpr.wrapForalls (g.sIndices owner ++ [g.sMajor owner]) (.sort .zero)] ++
+      insertBinders (g.sFields c) 1 ++ g.sHyps c).reverse
+      (VExpr.mkApps (.bvar ((g.sFields c).length + (g.sHyps c).length))
+          ((g.sCtorIndices c).map (fun e => (e.liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)) ++
+            [((g.sCtorApp c).liftN (g.sHyps c).length).liftN 1
+              ((g.sFields c).length + (g.sHyps c).length)])) := by
+    simpa [List.append_assoc] using hMinInv.2
+  have hshape : ∀ j (hj : j < (g.sHyps c).length) (args : List VExpr),
+      args.length = g.params.length + 1 + (g.sFields c).length + j →
+      args[g.params.length]? = some
+        ((VExpr.wrapLams (g.sIndices owner ++ [g.sMajor owner]) VExpr.trueTy).liftN
+          (g.sFields c).length) →
+      ∃ B xs, ((g.sHyps c)[j]).instOuter args =
+        VExpr.wrapForalls B (VExpr.mkApps
+          ((VExpr.wrapLams (g.sIndices owner ++ [g.sMajor owner]) VExpr.trueTy).liftN
+            ((g.sFields c).length + B.length)) xs) := by
+    intro j hj args hl ha
+    rw [hPlen] at hl ha
+    exact g.hypothesis_shape hfam c j hj args _ hl ha
+  have hccl : (g.sCtorApp c).ClosedN (g.params.length + (g.sFields c).length) := by
+    apply ClosedN.mkApps_closed (show (VExpr.const c.name g.levels).ClosedN _ from trivial)
+    intro a ha
+    simp only [bvarRange, List.mem_map, List.mem_range] at ha
+    obtain ⟨j, hj, rfl⟩ := ha
+    show _ < _
+    omega
+  obtain ⟨hctxF, hmb⟩ := minorBody_inst henv hP hM0 hall hFcl hshape hbody hCIcl hccl
+  sorry
+
 end Instance
 end InductiveSignature
 end Lean4Lean
