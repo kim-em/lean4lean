@@ -674,8 +674,7 @@ inside this project's scope without solving open base metatheory:
    `WhnfHitShapeFacts`. The checker-level whnf fact is proved on the
    hitshape branch only at the larger head set `E.hitHeads` (auxiliary names
    plus main constructors) with the projection condition `ProjsOK`
-   (`WhnfHitOKFacts`, modulo `hprims`: no main constructor named like a
-   checker-built constant); the `RecursorHitShape` chain is being reworked to
+   (`WhnfHitOKFacts`); the `RecursorHitShape` chain is being reworked to
    run at that head set and shrink back. In flight: that rework,
    `assemblyNative_of_whnf` (origins worktree).
    **Milestone (2026-10-06, main at 9cc9c8e):** full `lake build` (676 jobs),
@@ -683,26 +682,29 @@ inside this project's scope without solving open base metatheory:
    (3953) replays pass; audit self-test passes. Reachable sorries: the ten
    base obligations and `assemblyNative` only.
    **Hit-shape chain complete on `agent/verify-inductives-hitshape` (cb54cf6,
-   pushed; being merged into main):** `recursorHitShape' E wf Hsources hprims`
+   pushed; being merged into main):** `recursorHitShape' E wf Hsources`
    gives `HitShapeTele E.auxHeads …` of every owner's generated recursor type
    and rule rhs with no `W`/`I`; the chain runs at `E.hitHeads` (auxiliary
    names plus main constructors) under `HitOK` (hit shape plus `ProjsOK`),
-   and shrinks back. The single remaining hypothesis is
-   `hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames` (no main constructor is
-   named like a constant the checker builds itself: `String.mk`, `List.nil`,
-   `List.cons`, `Char.ofNat`, `Nat.zero`, `Nat.succ`, `_inhabitedExprDummy`,
-   …); `hprims_of_present` reduces it to "those names are already constants
-   of the source environment (true after `Init.Prelude`) and no constructor is
-   named `_inhabitedExprDummy`". Removing it needs a rework of the checker's
-   `EnvHitShape.prims` field (showing literal expansion and the out-of-range
-   dummy never reach a successful recursor-pass output). **Decision for Kim:**
-   carry `hprims` as an explicit hypothesis of the nested theorem (hence of
-   `addDecl.WF` for nested inductives) or fund the rework.
+   and shrinks back. **No hypothesis beyond the run** (the former `hprims`
+   is gone): `EnvHitShape` now has `prims : ∀ n ∈ hitPrimNames, n ∉ heads`
+   with `hitPrimNames` the reserved names `Nat`, `Nat.zero`, `Nat.succ`,
+   `String.ofList`, `Char.ofNat`, `Bool.true`, `Bool.false` (discharged by
+   `nonprimitive_familyNames`: every installed name passed `checkName`
+   without primitive permission), and `strs : StrLitsDeclared env → ∀ n ∈
+   hitStrNames, n ∉ heads` for `String`, `Char`, `List.nil`, `List.cons`
+   (string-literal sites carry `ContainsLits`; at run level `Char.ofNat`
+   and `String.ofList` are then old constants and `HasPrimitives` of the
+   source model makes the four names old, hence not fresh heads). The
+   `_inhabitedExprDummy` default is gone from the invariant: every
+   `mkAppRange`/`mkAppRevRange`/`[i]!` site of the checker is in range
+   (executable guards: `toCtorWhenK` arity check, `expandEtaStruct` size
+   check, quotient `argPos < mkPos < size`, recursor major index in range).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
    `assemblyOfFormationNative`/`assemblyShapeNative`
-   (Nested/AssemblyProviderEvidence.lean) now take `(wf) (Hsources) (hprims)`
+   (Nested/AssemblyProviderEvidence.lean) now take `(wf) (Hsources)`
    in place of `(I) (W)` and use `recursorHitShape'`.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the

@@ -1389,16 +1389,20 @@ theorem inferType'.WF_all
         inferTypeI_levels := wf.inferTypeI_levels.insert HL
         inferTypeI_hit := wf.inferTypeI_hit.insert HH' }
   have hlit {l} : c.LevelsBelow (.lit l) l.type := fun _ _ _ _ _ => Literal.levelParamsIn_type
-  have hlitH {l : Literal} : c.HitTyBelow pfx (.lit l) (mkConst l.typeName) := by
-    refine ⟨fun heads As ls P hs _ _ => .const (hs.env.prim ?_), nofun⟩
-    cases l <;> simp [Literal.typeName, hitPrimNames]
+  have hlitH {l : Literal} (hl : c.venv.ContainsLits l) :
+      c.HitTyBelow pfx (.lit l) (mkConst l.typeName) := by
+    refine ⟨fun heads As ls P hs _ _ => ?_, nofun⟩
+    cases l with
+    | natVal => exact .const (hs.env.prim (by simp [Literal.typeName, hitPrimNames]))
+    | strVal =>
+      exact .const (hs.env.str (c.strLitsDeclared hl) (by simp [Literal.typeName, hitStrNames]))
   have hle {s'} (le : s ≤ s') : s'.ngen.namePrefix = pfx := VState.LE.namePrefix_eq hpfx le
   split
   · extract_lets G1; split <;> [split; skip]
     · refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun _ _ le h => ?_
       have ⟨_, h, _⟩ := c.trenv.find? h <|
         (c.safePrimitives h (literal_is_primitive (.inl rfl))).1 ▸ DefinitionSafety.le_safe
-      exact hF (hle le) (infer_literal ⟨_, h⟩) hlit fun _ => hlitH
+      exact hF (hle le) (infer_literal ⟨_, h⟩) hlit fun _ => hlitH ⟨_, h⟩
     · refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun _ _ le h1 => ?_
       refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun _ _ le' h2 => ?_
       have ⟨_, h1, _⟩ := c.trenv.find? h1 <|
@@ -1406,11 +1410,11 @@ theorem inferType'.WF_all
       have ⟨_, h2, _⟩ := c.trenv.find? h2 <|
         (c.safePrimitives h2 (literal_is_primitive (.inr (.inr rfl)))).1 ▸ DefinitionSafety.le_safe
       exact hF (hle (le.trans le')) (infer_literal ⟨⟨_, h1⟩, ⟨_, h2⟩⟩) hlit
-        fun _ => hlitH
+        fun _ => hlitH ⟨⟨_, h1⟩, ⟨_, h2⟩⟩
     · rename_i h; have ⟨_, h⟩ := hinf (by simpa using h)
       have := h.lit_has_type
       simp [G1]; exact hF hpfx (infer_literal this) hlit fun _ => by
-        rw [← Literal.mkConst_typeName]; exact hlitH
+        rw [← Literal.mkConst_typeName]; exact hlitH this
   · refine (inferType'.WF_all (by exact h1) ?_).bind
       fun _ _ le ⟨⟨⟨_, _, hb, h1, h⟩, hl⟩, hh⟩ => ?_
     · exact fun h => let ⟨_, .mdata h⟩ := hinf h; ⟨_, h⟩

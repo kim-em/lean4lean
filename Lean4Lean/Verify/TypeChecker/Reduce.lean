@@ -332,11 +332,11 @@ theorem reduceProjCore.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
   unfold reduceProjCore
   extract_lets jp
   split
-  · have .lit _ hlit := he
+  · have .lit hcl hlit := he
     exact (whnf.WF_hit hlit hp).bind fun c₁ _ _ h1 =>
       reduceProjCoreCont.WF_hit.mono fun _ _ _ H e₁ heq heads As ls P hs _ _ =>
         H e₁ heq hs.params.fvars (h1 heads As ls P hs
-          (.strLitToConstructor hs.env) FVarsIn.strLitToConstructor)
+          (.strLitToConstructor hs.env (c.strLitsDeclared hcl)) FVarsIn.strLitToConstructor)
   · exact (RecM.WF.pure (Q := fun c₁ _ => c₁ = e) rfl).bind fun c₁ _ _ h =>
       h ▸ reduceProjCoreCont.WF_hit.mono fun _ _ _ H e₁ heq _ _ _ _ hs hl _ =>
         H e₁ heq hs.params.fvars hl

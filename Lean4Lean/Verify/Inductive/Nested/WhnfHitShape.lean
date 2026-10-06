@@ -30,7 +30,7 @@ exact validated nested run.
   `CompletedRecursorConstruction.HitShapeInputs` at `E.hitHeads`.
 * `NestedValidatedRunResult.recursorHitShape'`: the hit shape of the lowered
   recursor types and rule right-hand sides at the auxiliary heads, from the run
-  and `hprims` alone.
+  alone.
 
 The provenance chain of `Nested/RecursorHitShape.lean` runs at `E.hitHeads`
 rather than at the auxiliary heads, with the projection condition on inputs
@@ -488,6 +488,17 @@ theorem ConstructorTypeEntries.entryInfo
     · obtain ⟨owner, howner, ctor, hctor, k, he⟩ := ih htail
       exact ⟨owner, List.mem_cons_of_mem _ howner, ctor, hctor, k, he⟩
 
+theorem AddConstants.entryNonprimitive
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    {entry : ConstantInfo × VConstVal} (hentry : entry ∈ entries) :
+    ¬ Kernel.Environment.primitives.contains entry.1.name := by
+  induction H with
+  | nil => simp at hentry
+  | cons _ hnprim _ _ _ _ _ ih =>
+    rcases List.mem_cons.1 hentry with rfl | htail
+    · exact hnprim
+    · exact ih htail
+
 variable {outEnv : Environment} (P : NestedInstalledProduction outEnv)
 
 /-- **Lookups in the constructor-phase environment** (where the recursor pass
@@ -541,7 +552,50 @@ theorem NestedInstalledProduction.fresh_familyNames (hwf : P.c.env.constants.WF)
       have := P.headers.installed.preservesSourceFind hwf h0
       rw [hfreshH] at this; cases this
 
+/-- Every family and constructor name of the installed declaration passed the
+installation's `checkName` without primitive permission, so it is not a
+reserved primitive name. -/
+theorem NestedInstalledProduction.nonprimitive_familyNames
+    {n : Name} (hn : n ∈ InductiveSignature.familyNames P.loweredDecl.types) :
+    ¬ Kernel.Environment.primitives.contains n := by
+  obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
+  rcases List.mem_cons.1 hn with rfl | hctor
+  · have hv : t.toVConstVal ∈ P.headers.entries.map Prod.snd := by
+      rw [P.headers.values]; exact List.mem_map_of_mem ht
+    obtain ⟨⟨ci, v⟩, hentry, rfl⟩ := List.mem_map.1 hv
+    have hname := P.headers.installed.entryNames hentry
+    have := P.headers.installed.entryNonprimitive hentry
+    simpa [hname] using this
+  · obtain ⟨c, hc, rfl⟩ := List.mem_map.1 hctor
+    have hv : c ∈ P.constructors.declared.entries.map Prod.snd := by
+      rw [P.constructors.declared.values]
+      exact List.mem_flatMap.2 ⟨t, ht, hc⟩
+    obtain ⟨⟨ci, v⟩, hentry, rfl⟩ := List.mem_map.1 hv
+    have hname := P.constructors.declared.installed.entryNames hentry
+    have := P.constructors.declared.installed.entryNonprimitive hentry
+    simpa [hname] using this
+
+/-- A constant of the constructor-phase environment that is not an old
+constant was installed by the run, hence is not a reserved primitive name. -/
+theorem NestedInstalledProduction.ctorEnv_new_nonprimitive (hwf : P.c.env.constants.WF)
+    {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci)
+    (hold : P.c.env.find? n = none) :
+    ¬ Kernel.Environment.primitives.contains n := by
+  have hwfH := P.headers.installed.targetMapWF hwf
+  rcases P.constructors.declared.installed.entryOrigin hwfH h with hH | ⟨entry, hentry, hname, -⟩
+  · rcases P.headers.installed.entryOrigin hwf hH with h0 | ⟨entry, hentry, hname, -⟩
+    · rw [hold] at h0; cases h0
+    · rw [hname]; exact P.headers.installed.entryNonprimitive hentry
+  · rw [hname]; exact P.constructors.declared.installed.entryNonprimitive hentry
+
 end Production
+
+/-- The checker's own primitive constants are reserved names. -/
+theorem hitPrimNames_primitive : ∀ n ∈ hitPrimNames, Kernel.Environment.primitives.contains n := by
+  intro n hn
+  simp only [hitPrimNames, List.mem_cons, List.not_mem_nil, or_false] at hn
+  simp only [Kernel.Environment.primitives, NameSet.ofList]
+  rcases hn with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp +decide [NameSet.contains]
 
 /-! ### The head set of a nested run -/
 
@@ -1018,19 +1072,20 @@ run, for the head set `E.hitHeads` (auxiliary families and constructors, and
 the main constructors), `nparams` parameters and the declaration's level
 parameters.
 
-The only hypothesis, `hprims`, says that no main constructor is named like
-one of the constants the checker builds on its own (`hitPrimNames`: `Nat`,
-`String`, `List.cons`, `_inhabitedExprDummy`, ...). The auxiliary heads lie in
-the reserved `_nested` namespace and need no such hypothesis; for the main
-constructors only the names in `Kernel.Environment.primitives` are excluded
-by the installation (`String`, `Char`, `List.nil`, `List.cons` and
-`_inhabitedExprDummy` are not). -/
+The constants the checker builds on its own are not heads: the reserved ones
+(`hitPrimNames`) because every head was installed by a `checkName` without
+primitive permission (`NestedInstalledProduction.nonprimitive_familyNames`);
+the other string-literal constants (`hitStrNames`) because, once the
+environment declares `Char.ofNat` and `String.ofList`, these two are old
+constants (they are reserved, so the run did not install them), and then
+`HasPrimitives` of the source model forces `String`, `Char`, `List.nil` and
+`List.cons` to be old constants as well, while every head is fresh
+(`hitHeads_fresh`). -/
 theorem NestedValidatedRunResult.envHitShape
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     EnvHitShape E.production.ctorEnv E.hitHeads nparams (lparams.map Level.param) := by
   have hfresh := E.hitHeads_fresh wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
@@ -1050,7 +1105,6 @@ theorem NestedValidatedRunResult.envHitShape
     rwa [E.productionEnv, E.productionLParams] at this
   have hfreshN : ∀ {n ci}, sourceProdEnv.find? n = some ci → n ∉ E.hitHeads :=
     fun h hn => by rw [hfresh _ hn] at h; cases h
-  obtain ⟨-, -, -, -, -, hreserved, -, -⟩ := E.auxHeadsFacts wf Hsources
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hheaderV : E.production.headers.context.venv.Ordered :=
     E.production.headers.context.checking.tr.wf.ordered
@@ -1062,6 +1116,7 @@ theorem NestedValidatedRunResult.envHitShape
     exact ⟨info, h⟩
   refine {
     prims := ?prims
+    strs := ?strs
     type_avoids := ?type_avoids
     value_avoids := ?value_avoids
     rules_avoid := ?rules_avoid
@@ -1073,12 +1128,37 @@ theorem NestedValidatedRunResult.envHitShape
     rules_projs := ?rules_projs }
   case prims =>
     intro n hn hmem
-    rcases List.mem_append.1 hmem with hmem | hmem
-    · have hpre := hreserved n hmem
-      simp only [hitPrimNames, List.mem_cons, List.not_mem_nil, or_false] at hn
-      rcases hn with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
-        exact absurd hpre (by decide)
-    · exact hprims n hn hmem
+    exact E.production.nonprimitive_familyNames (E.hitHeads_subset hmem)
+      (hitPrimNames_primitive n hn)
+  case strs =>
+    rintro ⟨⟨ci₁, h₁⟩, ⟨ci₂, h₂⟩⟩ n hn hmem
+    have hold : ∀ {p ci}, Kernel.Environment.primitives.contains p →
+        E.production.ctorEnv.find? p = some ci → ∃ ci', sourceProdEnv.find? p = some ci' := by
+      intro p ci hp h
+      cases h0 : sourceProdEnv.find? p with
+      | some ci' => exact ⟨ci', rfl⟩
+      | none =>
+        refine absurd hp (E.production.ctorEnv_new_nonprimitive hwfP h ?_)
+        rw [E.productionEnv]; exact h0
+    obtain ⟨_, hc₁⟩ := hold (hitPrimNames_primitive _ (by simp [hitPrimNames])) h₁
+    obtain ⟨_, hc₂⟩ := hold (hitPrimNames_primitive _ (by simp [hitPrimNames])) h₂
+    have htr := wf.tr (safety := .unsafe)
+    obtain ⟨_, hv₁, -⟩ := htr.find? hc₁ DefinitionSafety.unsafe_le
+    obtain ⟨_, hv₂, -⟩ := htr.find? hc₂ DefinitionSafety.unsafe_le
+    have hord : (ves.venv .unsafe).Ordered := htr.wf.ordered
+    have hprimU : (ves.venv .unsafe).HasPrimitives := wf.hasPrimitives (safety := .unsafe)
+    have hlits : (ves.venv .unsafe).ContainsLits (.strVal "") := ⟨⟨_, hv₁⟩, ⟨_, hv₂⟩⟩
+    have hcontains : (ves.venv .unsafe).contains n := by
+      simp only [hitStrNames, List.mem_cons, List.not_mem_nil, or_false] at hn
+      rcases hn with rfl | hn
+      · obtain ⟨_, H⟩ := (TrExprS.trLiteral hord hprimU (.strVal "") hlits
+          (Us := []) (Δ := [])).2.isType hord trivial
+        obtain ⟨_, h1, -⟩ := H.const_inv hord trivial
+        exact ⟨_, h1⟩
+      · exact unreservedLiteralConstructorsOfStringOfList hprimU hord hlits.2 n
+          (by simpa [checkPositivityStep.unreservedLiteralConstructorNames] using hn)
+    obtain ⟨_, hfind, -⟩ := htr.find?_iff.2 hcontains
+    rw [hfresh n hmem] at hfind; cases hfind
   case type_avoids =>
     intro n ci h hn
     rcases horigin h with hold | ⟨indType, hmem, info, rfl, rfl, htype, -⟩ |
@@ -1249,8 +1329,7 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     WhnfHitOKFacts E.hitHeads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env := by
   refine .of_env ?_ E.paramsHitParams
@@ -1258,29 +1337,7 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
     obtain ⟨_, Hrun, _, _⟩ := E.lowering
     rw [Array.length_toList, E.statsParamsSize, Hrun.resultNParams]
   rw [E.recursorPassEnv, hlen]
-  exact E.envHitShape wf Hsources hprims
-
-/-- **`hprims` from the source environment.** Main constructor names are
-fresh in the source environment (`hitHeads_fresh`), so `hprims` holds as soon
-as every checker-built name is declared there, except `_inhabitedExprDummy`
-(the `Inhabited Expr` default used by out-of-range `args[i]!`), which is not a
-constant of any environment and is excluded separately. Every environment
-containing `Init.Prelude` declares the other names of `hitPrimNames`. -/
-theorem NestedValidatedRunResult.hprims_of_present
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
-      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
-      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv)
-    (hpresent : ∀ n ∈ hitPrimNames, n ≠ `_inhabitedExprDummy →
-      ∃ ci, sourceProdEnv.find? n = some ci)
-    (hdummy : `_inhabitedExprDummy ∉ E.mainCtorNames) :
-    ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames := by
-  intro n hn hmem
-  by_cases hd : n = `_inhabitedExprDummy
-  · exact hdummy (hd ▸ hmem)
-  · obtain ⟨ci, hci⟩ := hpresent n hn hd
-    rw [E.hitHeads_fresh wf n (List.mem_append_right _ hmem)] at hci
-    cases hci
+  exact E.envHitShape wf Hsources
 
 /-- **The non-`whnf` hit-shape inputs of an exact validated nested run**, at the
 head set `E.hitHeads`, with the projection condition at the environment of the
@@ -1365,7 +1422,6 @@ theorem NestedValidatedRunResult.recursorHitShape_hitHeads
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     (owner : Fin E.production.production.completed.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
@@ -1376,7 +1432,7 @@ theorem NestedValidatedRunResult.recursorHitShape_hitHeads
         Hstep.oldInfo.type ∧
       ∀ rule ∈ Hstep.oldInfo.rules,
         Expr.HitShapeTele E.hitHeads result.nparams (lparams.map Level.param) rule.rhs :=
-  E.recursorHitShape (E.hitShapeInputs_of wf Hsources) (E.whnfHitOKFacts wf Hsources hprims)
+  E.recursorHitShape (E.hitShapeInputs_of wf Hsources) (E.whnfHitOKFacts wf Hsources)
     owner Hstep
 
 /-- **Hit shape of the lowered recursor type and rule right-hand sides of an
@@ -1389,15 +1445,12 @@ bound-variable hit shape for the auxiliary heads at the levels
 
 The proof runs the provenance chain at the checker's head set `E.hitHeads`
 (`recursorHitShape_hitHeads`) and drops the main constructors with
-`HitShapeTele.shrink`. The only hypothesis besides the run, `hprims`, is the
-one of `envHitShape`: no main constructor is named like a constant the type
-checker builds on its own. -/
+`HitShapeTele.shrink`. -/
 theorem NestedValidatedRunResult.recursorHitShape'
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     (owner : Fin E.production.production.completed.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
@@ -1408,7 +1461,7 @@ theorem NestedValidatedRunResult.recursorHitShape'
         Hstep.oldInfo.type ∧
       ∀ rule ∈ Hstep.oldInfo.rules,
         Expr.HitShapeTele E.auxHeads result.nparams (lparams.map Level.param) rule.rhs := by
-  obtain ⟨htype, hrules⟩ := E.recursorHitShape_hitHeads wf Hsources hprims owner Hstep
+  obtain ⟨htype, hrules⟩ := E.recursorHitShape_hitHeads wf Hsources owner Hstep
   exact ⟨htype.shrink E.auxHeads_subset_hitHeads,
     fun rule hrule => (hrules rule hrule).shrink E.auxHeads_subset_hitHeads⟩
 
