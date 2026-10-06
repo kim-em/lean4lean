@@ -671,6 +671,38 @@ inside this project's scope without solving open base metatheory:
    recursor-comparison scratch (regenerating `Acc`, `iterates`, nested types
    through `Lean4Lean.addDecl`) as the executable oracle.
 3. **Replace `weakN_iff` and repair consumers**; coordinate with upstream.
+   **Scoping (2026-10-06, `/tmp`-free summary):** a dependency walk of the
+   built oleans found 3445 constants depending on `IsDefEqU.weakN_iff`, 1523
+   of them in the cone of `addDecl.WF`, through every declaration kind: the
+   checker-cache invariants `ConditionallyHasType.weakN_inv` /
+   `ConditionallyWHNF.weakN_inv` (`Verify/Typing/ConditionallyTyped.lean`)
+   used when `withLocalDecl`/`withLetDecl` leave a scope, and the
+   `EquivManager` invariant `VState.WF.ectx` used by `quickIsDefEq.WF`. The
+   weaker fallbacks (existential `VExpr.WF` strengthening, `IsType`
+   strengthening, strengthening at sorts, `TrExprS.weakFV'_inv`) are refuted
+   as well: `(fun x : SJ => x) z` with `z : SI` is typed under `q` and, by
+   `app_inv`, uniqueness and `forallE_inv`, typing it without `q` would give
+   `SI ≡ SJ`. Only two use sites are pure weakening. **Executable evidence
+   (`docs/inductives/CacheScopeExperiment.lean`):** both the C++ kernel and
+   the Lean4Lean checker accept a closed definition whose typing needs
+   `SI ≡ SJ` in the empty context, provided an earlier `let` binding forces
+   the comparison chain under a binder `q : P v` first; without that binding
+   both reject it. So the implemented conversion is not local to the context
+   and no invariant of the form "cache entries are derivable in the current
+   context" holds for the current executable; `addDecl.WF` as stated is
+   false for it (assuming the countermodel). Options for Kim: E1 change the
+   executable (save and restore caches and the `EquivManager` around binder
+   scopes, always open a binder in `isDefEqLambda`/`isDefEqForall`, re-check
+   a few Primitive gadget pieces in the empty context; statement of
+   `addDecl.WF` unchanged; departs from C++ exactly on declarations whose
+   acceptance needs a conversion established under a binder and reused
+   outside it; performance to measure); E3 add an environment-level
+   strengthening hypothesis to `addDecl.WF` (restricts the theorem; false
+   for some Lean-valid environments). E2 (prove executable locality) is
+   impossible given the experiment. Inductive-side consumers (header phase,
+   consumed translation, `restrictUpSetCtx`, `weakBV_inv_lift`) need either
+   producer changes keeping a narrow-context run or a locality theorem for
+   fresh checker runs. Estimated total 3k to 12k lines depending on route.
 4. **Executable hygiene**: literal cost in `guardedIotaCheck`, the `Std`
    replay slowdown, and a review of every runtime rejection added in
    `Inductive/Add.lean` (grep `throw <| .other` in the diff against
