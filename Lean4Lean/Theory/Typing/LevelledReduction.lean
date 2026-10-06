@@ -4178,6 +4178,65 @@ theorem EtaPar.parRed_aux : ∀ n, EPBelow n := by
     exact ⟨_, h1, h2⟩
 end EtaParRed
 
+
+section EtaPeak
+
+/-- Two eta developments each extended by one parallel eta step meet after lower steps. -/
+def Join3 (Γ : List VExpr) (b c : VExpr) : Prop :=
+  ∃ d, (∃ b₁, EtaPar Γ b b₁ ∧ ReflTransGen (Below Γ 3) b₁ d) ∧
+    (∃ c₁, EtaPar Γ c c₁ ∧ ReflTransGen (Below Γ 3) c₁ d)
+
+theorem Join3.symm (H : Join3 Γ b c) : Join3 Γ c b := let ⟨d, h1, h2⟩ := H; ⟨d, h2, h1⟩
+
+theorem EtaPar.mkApps_args (H : List.Forall₂ (EtaPar Γ) args args') :
+    EtaPar Γ (VExpr.mkApps f args) (VExpr.mkApps f args') := EtaPar.congrRel.mkApps .rfl H
+
+theorem EtaPar.expand_congr (H : EtaPar Γ e e') :
+    EtaPar Γ (structExpand family info levels ps e) (structExpand family info levels ps e') := by
+  unfold structExpand
+  refine EtaPar.mkApps_args (case_forall₂_append (List.Forall₂.rfl fun _ _ => .rfl) ?_)
+  apply List.forall₂_of_getElem (by simp)
+  intro j _ _
+  simpa only [List.getElem_map, List.getElem_range] using EtaPar.proj H
+
+theorem Below.etaBody (hΓ : OnCtx Γ (env.IsType univs))
+    (hchain : ReflTransGen (Below Γ n) b₀ d₀) (hb : Γ ⊢ .lam D' (.app b₀.lift (.bvar 0)) : T) :
+    ReflTransGen (Below Γ n) (.lam D' (.app b₀.lift (.bvar 0))) (.lam D' (.app d₀.lift (.bvar 0))) := by
+  obtain ⟨⟨_, tD'⟩, _, tbody⟩ := hb.lam_inv henv hΓ
+  have hΓ' : OnCtx (D' :: Γ) (env.IsType univs) := ⟨hΓ, _, tD'⟩
+  exact Below.lam hΓ .rfl (Below.app hΓ' (Below.weakN (Γ' := D' :: Γ) .one hchain) .rfl tbody) hb
+
+theorem Join3.fun_left (hΓ : OnCtx Γ (env.IsType univs)) (J : Join3 Γ b₀ c)
+    (HD : EtaPar Γ D D') (hc : Γ ⊢ c : .forallE D B)
+    (hb : Γ ⊢ .lam D' (.app b₀.lift (.bvar 0)) : T) :
+    Join3 Γ (.lam D' (.app b₀.lift (.bvar 0))) c := by
+  obtain ⟨d₀, ⟨b₁, pb, cb⟩, ⟨c₁, pc, cc⟩⟩ := J
+  have sb : EtaPar Γ (.lam D' (.app b₀.lift (.bvar 0))) (.lam D' (.app b₁.lift (.bvar 0))) :=
+    .lam .rfl (.app (pb.weakN .one) .rfl)
+  have tb₁ := (EtaPar.full hΓ sb hb).hasType hΓ hb
+  have tc := (EtaPar.full hΓ pc hc).hasType hΓ hc
+  have sc : EtaPar Γ c (.lam D' (.app c₁.lift (.bvar 0))) := .funEta pc HD hc
+  have tc₁ := (EtaPar.full hΓ sc hc).hasType hΓ hc
+  exact ⟨_, ⟨_, sb, Below.etaBody hΓ cb tb₁⟩, ⟨_, sc, Below.etaBody hΓ cc tc₁⟩⟩
+
+theorem Join3.struct_left (hΓ : OnCtx Γ (env.IsType univs)) (J : Join3 Γ b₀ c)
+    (hl : env.projections family info) (hp : ps.length = info.nparams) (hi : info.nindices = 0)
+    (hlen : ps.length = ps'.length)
+    (hps : ∀ i (h : i < ps.length) (h' : i < ps'.length), EtaPar Γ ps[i] ps'[i])
+    (hc : Γ ⊢ c : VExpr.mkApps (.const family levels) ps)
+    (hcexp : Γ ⊢ structExpand family info levels ps c : VExpr.mkApps (.const family levels) ps)
+    (hb : Γ ⊢ structExpand family info levels ps' b₀ : T) :
+    Join3 Γ (structExpand family info levels ps' b₀) c := by
+  obtain ⟨d₀, ⟨b₁, pb, cb⟩, ⟨c₁, pc, cc⟩⟩ := J
+  have sb := EtaPar.expand_congr (family := family) (info := info) (levels := levels) (ps := ps') pb
+  have tb₁ := (EtaPar.full hΓ sb hb).hasType hΓ hb
+  have sc : EtaPar Γ c (structExpand family info levels ps' c₁) :=
+    .structEta pc hlen hps hl hp hi hc hcexp
+  have tc₁ := (EtaPar.full hΓ sc hc).hasType hΓ hc
+  exact ⟨_, ⟨_, sb, Below.expand hΓ cb tb₁⟩, ⟨_, sc, Below.expand hΓ cc tc₁⟩⟩
+
+end EtaPeak
+
 section Levels
 
 /-! ### Local diagrams -/
