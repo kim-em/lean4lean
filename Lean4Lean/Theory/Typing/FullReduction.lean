@@ -1177,6 +1177,10 @@ class MajorSeparation : Prop where
   proof_major : OnCtx Γ (env.IsType univs) → Pat p r → p.Matches (.app F M) m1 m2 →
     r.2.OK (IsDefEqU env univs Γ) m1 m2 → Γ ⊢ .app F M : T →
     Γ ⊢ M : P → Γ ⊢ P : .sort .zero → Γ ⊢ T : .sort .zero
+  /-- A rigid-headed application is never definitionally a Pi type
+  (the missing injectivity-class separation, `IsDefEqU.rigidApp_forallE_inv`). -/
+  rigid_not_pi : OnCtx Γ (env.IsType univs) → env.Rigid c →
+    ¬ Γ ⊢ VExpr.mkApps (.const c ls) args ≡ .forallE A B
   /-- The constructor major of a matched generated case redex is not a
   function (rigid-family/Pi separation at the case major). -/
   case_not_pi : OnCtx Γ (env.IsType univs) → MatchedCaseStep env univs Γ rule actual →
@@ -1764,18 +1768,128 @@ theorem NormalEq.parRedS [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs)) (
 
 end SpineTransport2
 
+section RigidRule
+
+local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
+local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
+
+theorem eqUpToLevels_rfl (hΓ : OnCtx Γ (env.IsType univs)) (h : Γ ⊢ e : A) :
+    EqUpToLevels univs e e :=
+  (EqUpToLevels.refl (CtxStrong.strong henv.ordered hΓ).levelWF (IsDefEq.strong henv.ordered hΓ h)).1
+
+theorem eqUpToLevels_forall₂_rfl (hΓ : OnCtx Γ (env.IsType univs)) :
+    ∀ {l : List VExpr}, (∀ a ∈ l, ∃ A, Γ ⊢ a : A) → List.Forall₂ (EqUpToLevels univs) l l
+  | [], _ => .nil
+  | _ :: _, H =>
+    let ⟨_, h⟩ := H _ (List.mem_cons_self ..)
+    .cons (eqUpToLevels_rfl hΓ h) (eqUpToLevels_forall₂_rfl hΓ fun b hb => H b (List.mem_cons_of_mem _ hb))
+
+/-- Transport along a constant-headed computation rule (native prefix
+unfolding or quotient lifting) through normal equality, by spine exposure.
+An eta-expanded left side recurses at a smaller comparison bound on the
+rule applied to the fresh variable. -/
+theorem NormalEqN.fullStep_rigidRule {name : Name}
+    (Rule : List VExpr → List VLevel → List VExpr → VExpr → Prop)
+    (step : ∀ {Γ ls args rhs}, Rule Γ ls args rhs →
+      FullStep Γ (VExpr.mkApps (.const name ls) args) rhs)
+    (defeq : ∀ {Γ ls args rhs}, OnCtx Γ (env.IsType univs) → Rule Γ ls args rhs →
+      Γ ⊢ VExpr.mkApps (.const name ls) args ≡ rhs)
+    (congr : ∀ {Γ ls ls' args args' rhs}, OnCtx Γ (env.IsType univs) → Rule Γ ls args rhs →
+      List.Forall₂ (· ≈ ·) ls ls' → (∀ l ∈ ls', l.WF univs) →
+      List.Forall₂ (NormalEq Γ) args args' → (∀ a ∈ args', ∃ A, Γ ⊢ a : A) →
+      ∃ rhs', Rule Γ ls' args' rhs' ∧ NormalEq Γ rhs' rhs)
+    (ih : ∀ m < n, ∀ {Γ x y z}, OnCtx Γ (env.IsType univs) → NormalEqN m Γ x y →
+      FullStep Γ y z → ∃ X, FullReduction Γ x X ∧ NormalEq Γ X z)
+    (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEqN n Γ x (VExpr.mkApps (.const name ls) args)) (hr : Rule Γ ls args rhs) :
+    ∃ X, FullReduction Γ x X ∧ NormalEq Γ X rhs := by
+  have ⟨_, hd⟩ := H.defeq hΓ
+  have hx := hd.hasType.1
+  have hrhs := hd.hasType.2.defeqU_l henv hΓ (defeq hΓ hr)
+  rcases NormalEqN.spine_expose hΓ .const n H (bs := []) .nil hx with
+    hprop | ⟨h', args', he, hred, hargs⟩ | ⟨A, g, m, targs₁, B, hm, hred, hg, hrel, hty⟩
+  · exact ⟨_, .rfl, .proofIrrel hprop hx hrhs⟩
+  · obtain ⟨ls', rfl, hls⟩ : ∃ ls', h' = .const name ls' ∧ List.Forall₂ (· ≈ ·) ls' ls := by
+      cases he with | const h => exact ⟨_, rfl, h⟩
+    simp only [List.append_nil] at hargs
+    have hT' := FullReduction.hasType hΓ hred hx
+    obtain ⟨_, hh⟩ := schema_mkApps_head_type hΓ hT'
+    obtain ⟨_, _, hw', _⟩ := hh.const_inv henv hΓ
+    obtain ⟨rhs', hr', hn⟩ := congr hΓ hr
+      (Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls)) hw'
+      (Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)
+        (Lean4Lean.List.Forall₂.flip hargs))
+      (fun a ha => schema_mkApps_arg_type hΓ hT' ha)
+    exact ⟨_, hred.tail (step hr'), hn⟩
+  · simp only [List.append_nil] at hrel
+    have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := hty.isType henv hΓ; h.forallE_inv henv
+    have hΓ' : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
+    obtain ⟨rhs₁, hr₁, hn₁⟩ := congr hΓ hr (levels_equiv_rfl ls)
+      (let ⟨_, h⟩ := schema_mkApps_head_type hΓ hd.hasType.2
+       let ⟨_, _, hw, _⟩ := h.const_inv henv hΓ; hw)
+      (Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)
+        (Lean4Lean.List.Forall₂.flip hrel))
+      (fun a ha => schema_mkApps_arg_type hΓ hty ha)
+    have hR' : FullStep (A :: Γ) (.app (VExpr.mkApps (.const name ls) targs₁).lift (.bvar 0))
+        (.app rhs₁.lift (.bvar 0)) := .app (FullStep.weakN .one (step hr₁)) .rfl
+    obtain ⟨Y, hY, hn⟩ := ih m hm hΓ' hg hR'
+    have hrhs₁ := hty.defeqU_l henv hΓ (defeq hΓ hr₁)
+    exact ⟨_, hred.trans (FullReduction.lam .rfl hY), (NormalEq.etaL hrhs₁ hn).trans hΓ hn₁⟩
+
+theorem NormalEqN.fullStep_projIota [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
+    (lproj : Γ ⊢ .proj family index major : resultType)
+    (lMajor : NormalEqN k Γ major (VExpr.mkApps (.const info.ctorName levels) args))
+    (hl : env.projections family info)
+    (hproj : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName levels) args) : fieldType)
+    (hget : args[info.nparams + index]? = some field) (hfield : Γ ⊢ field : fieldType) :
+    ∃ X, FullReduction Γ (.proj family index major) X ∧ NormalEq Γ X field := by
+  obtain ⟨info', levels', params, indexArgs, sourceMajor, fieldType', fieldLevel,
+    hinfo, hlevels, huvars, hparams, hindices, hfieldTy, hfieldTyping,
+    hmajor, hclosed, hguard⟩ := lproj.proj_inv henv hΓ
+  have hmT := hmajor.hasType.2
+  have hnormal := NormalEq.projDF lproj ⟨_, lMajor⟩
+  have hright := ((hnormal.defeq hΓ).of_l henv hΓ lproj).hasType.2
+  have hfield' : Γ ⊢ field : resultType :=
+    HasType.defeqU_r henv hΓ (hproj.uniqU henv hΓ hright) hfield
+  rcases NormalEqN.spine_expose hΓ .const k lMajor (bs := []) .nil hmT with
+    hprop | ⟨h', args', he, hred, hargs⟩ | ⟨A, g, m, targs₁, B, _, _, _, hrel, hty⟩
+  · have hprop' := lproj.proj_result_prop_of_major_proof henv hΓ hprop hmT
+    have hout := (FullStep.projIota hl hproj hget hfield).hasType hΓ hright
+    exact ⟨_, .rfl, .proofIrrel hprop' lproj hout⟩
+  · obtain ⟨ls', rfl, -⟩ : ∃ ls', h' = .const info.ctorName ls' ∧
+        List.Forall₂ (· ≈ ·) ls' levels := by
+      cases he with | const h => exact ⟨_, rfl, h⟩
+    simp only [List.append_nil] at hargs
+    have hred' : FullReduction Γ (.proj family index major)
+        (.proj family index (VExpr.mkApps (.const info.ctorName ls') args')) := hred.proj
+    obtain ⟨field₀, hf, hn⟩ := NormalEq.fullStep_projIota_spine hΓ hl
+      (hred'.hasType hΓ lproj) hargs hget hfield'
+    exact ⟨_, hred'.trans hf, hn⟩
+  · exfalso
+    simp only [List.append_nil] at hrel
+    obtain ⟨_, hcc⟩ := schema_mkApps_head_type hΓ hty
+    have hsp := NormalEq.mkApps_spine hΓ (NormalEq.refl hcc) hrel hty
+    have hpi := hty.defeqU_l henv hΓ (hsp.defeq hΓ)
+    have hfam := hmT.defeqU_l henv hΓ (lMajor.defeq hΓ)
+    exact MajorSeparation.rigid_not_pi hΓ (henv.projectionRigid hinfo)
+      (hfam.uniqU henv hΓ hpi)
+
+end RigidRule
+
 /-- Normal equality respects full reduction. The remaining proof obligations
 are application-head and primitive projection exposure; constant unfolding
 and the explicit function and structure eta cases are proved. -/
-theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NormalEq Γ left right) (R : FullStep Γ right result) :
+theorem NormalEqN.fullStep [MajorSeparation] : ∀ n {Γ left right result},
+    OnCtx Γ (env.IsType univs) → NormalEqN n Γ left right → FullStep Γ right result →
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   classical
-  obtain ⟨_, H⟩ := H
-  induction H generalizing result with
+  intro n
+  induction n using Nat.strongRecOn with | _ n ihn => ?_
+  intro Γ left right result hΓ H R
+  cases H with
   | refl h => exact ⟨_, .tail .rfl R, .refl (R.hasType hΓ h)⟩
   | proofIrrel hp hl hr => exact ⟨_, .rfl, .proofIrrel hp hl (R.hasType hΓ hr)⟩
-  | @sortDF l₁ l₂ Γ hl hr he =>
+  | @sortDF l₁ l₂ _ hl hr he =>
     generalize hs : VExpr.sort l₂ = source at R
     cases R with
     | core h =>
@@ -1794,7 +1908,7 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     | projIota => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @lamDF Γ A A₁ u A₂ _ body₁ body₂ l1 l2 l3 ih1 =>
+  | @lamDF _ A A₁ u A₂ _ body₁ body₂ l1 l2 l3 =>
     generalize hs : VExpr.lam A₂ body₂ = source at R
     cases R with
     | core h =>
@@ -1812,7 +1926,7 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
       obtain ⟨_, h1⟩ := l3.defeq hΓ'
       have h2 := h1.hasType.1.defeqU_l henv hΓ' (l3.defeq hΓ')
       replace r2 := r2.defeqDFC hΓ (.succ .zero l2.symm) <| .defeqDFC henv (.succ .zero l2) h2
-      obtain ⟨_, b1, b2⟩ := ih1 hΓ' r2
+      obtain ⟨_, b1, b2⟩ := ihn _ (by omega) hΓ' l3 r2
       exact ⟨_, .lam .rfl (b1.defeqDFC hΓ (.succ .zero l1) h1.hasType.1),
         .lamDF l1 (.trans l2 (r1.defeq hΓ (.defeqU_l henv hΓ ⟨_, l2⟩ l1.hasType.1))) b2⟩
     | delta h => exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hs.symm)
@@ -1821,7 +1935,7 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     | proj => cases hs
     | projIota => cases hs
     | forallE => cases hs
-  | @forallEDF Γ A A₁ u _ A₂ B₁ v _ B₂ l1 l2 l3 l4 ih1 ih2 =>
+  | @forallEDF _ A A₁ u _ A₂ B₁ v _ B₂ l1 l2 l3 l4 =>
     generalize hs : VExpr.forallE A₂ B₂ = source at R
     cases R with
     | core h =>
@@ -1835,12 +1949,12 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
       exact (NormalEqN.forallEDF l1 l2 l3 l4).normalEq.fullStep_funEta hΓ hfun
     | forallE r1 r2 =>
       cases hs
-      obtain ⟨_, a1, a2⟩ := ih1 hΓ r1
+      obtain ⟨_, a1, a2⟩ := ihn _ (by omega) hΓ l2 r1
       have hΓ' : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, l1.hasType.1⟩
       have h2 := l3.defeqU_l henv hΓ' (l4.defeq hΓ')
       have W := l1.transU_l henv hΓ (l2.defeq hΓ)
       replace r2 := r2.defeqDFC hΓ (.succ .zero W.symm) <| .defeqDFC henv (.succ .zero W) h2
-      obtain ⟨_, b1, b2⟩ := ih2 hΓ' r2
+      obtain ⟨_, b1, b2⟩ := ihn _ (by omega) hΓ' l4 r2
       have := r1.defeq hΓ (.defeqU_l henv hΓ ⟨_, W⟩ l1.hasType.1)
       exact ⟨_, .forallE a1 (b1.defeqDFC hΓ (.succ .zero l1) l3),
         .forallEDF (.transU_l henv hΓ (W.trans this) (a2.defeq hΓ).symm) a2 (b1.hasType hΓ' l3) b2⟩
@@ -1850,7 +1964,7 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     | proj => cases hs
     | projIota => cases hs
     | lam => cases hs
-  | @appDF Γ f A B f₂ a b _ _ l1 l2 l3 l4 l5 l6 ih1 ih2 =>
+  | @appDF _ f A B f₂ a b _ _ l1 l2 l3 l4 l5 l6 =>
     generalize hs : VExpr.app f₂ b = source at R
     cases R with
     | core h =>
@@ -1864,32 +1978,42 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
       exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_funEta hΓ hfun
     | app r1 r2 =>
       cases hs
-      obtain ⟨_, a1, a2⟩ := ih1 hΓ r1
-      obtain ⟨_, b1, b2⟩ := ih2 hΓ r2
+      obtain ⟨_, a1, a2⟩ := ihn _ (by omega) hΓ l5 r1
+      obtain ⟨_, b1, b2⟩ := ihn _ (by omega) hΓ l6 r2
       exact ⟨_, .app a1 b1,
         .appDF (a1.hasType hΓ l1) (r1.hasType hΓ l2)
           (b1.hasType hΓ l3) (r2.hasType hΓ l4) a2 b2⟩
     | delta h =>
-      have rr := FullStep.delta h
-      rw [← hs] at rr
-      by_cases hp : ∃ proposition, HasType env univs Γ (VExpr.app f₂ b) proposition ∧
-          HasType env univs Γ proposition (.sort .zero)
-      · obtain ⟨proposition, ht, hp⟩ := hp
-        exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_proof hΓ rr ht hp
-      · sorry
+      have H' : NormalEqN _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
+      exact NormalEqN.fullStep_rigidRule
+        (fun Γ ls args rhs => NativeDeltaRule env univs recursorData Γ _ ls args rhs)
+        (fun h => .delta h) (fun hΓ h => NativeDeltaRule.defeq henv hΓ h)
+        (fun hΓ h hls hw hargs hT => by
+          obtain ⟨rhs₁, hr₁, hn₁⟩ := NativeDeltaRule.congr_normal hΓ h hargs
+          obtain ⟨rhs₂, hr₂, hu⟩ := NativeDeltaRule.congr_levels henv hΓ hr₁ hw hls
+            (eqUpToLevels_forall₂_rfl hΓ hT)
+          have ht₁ := (Exists.choose_spec (NativeDeltaRule.defeq henv hΓ hr₁)).hasType.2
+          exact ⟨rhs₂, hr₂, ((NormalEq.of_levelEquiv hΓ (.of_eqUpToLevels hu) ht₁).symm hΓ).trans
+            hΓ (hn₁.symm hΓ)⟩)
+        (fun m hm => ihn m (by omega)) hΓ H' h
     | quotDelta h =>
-      have rr := FullStep.quotDelta h
-      rw [← hs] at rr
-      by_cases hp : ∃ proposition, HasType env univs Γ (VExpr.app f₂ b) proposition ∧
-          HasType env univs Γ proposition (.sort .zero)
-      · obtain ⟨proposition, ht, hp⟩ := hp
-        exact (NormalEqN.appDF l1 l2 l3 l4 l5 l6).normalEq.fullStep_proof hΓ rr ht hp
-      · sorry
+      have H' : NormalEqN _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
+      exact NormalEqN.fullStep_rigidRule
+        (fun Γ ls args rhs => QuotDeltaRule env univs Γ ls args rhs)
+        (fun h => .quotDelta h) (fun hΓ h => QuotDeltaRule.defeq henv hΓ h)
+        (fun hΓ h hls hw hargs hT => by
+          obtain ⟨rhs₁, hr₁, hn₁⟩ := QuotDeltaRule.congr_normal hΓ h hargs
+          obtain ⟨rhs₂, hr₂, hu⟩ := QuotDeltaRule.congr_levels henv hΓ hr₁ hw hls
+            (eqUpToLevels_forall₂_rfl hΓ hT)
+          have ht₁ := (Exists.choose_spec (QuotDeltaRule.defeq henv hΓ hr₁)).hasType.2
+          exact ⟨rhs₂, hr₂, ((NormalEq.of_levelEquiv hΓ (.of_eqUpToLevels hu) ht₁).symm hΓ).trans
+            hΓ (hn₁.symm hΓ)⟩)
+        (fun m hm => ihn m (by omega)) hΓ H' h
     | proj => cases hs
     | projIota => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @projDF Γ family index major resultType _ major' lproj lMajor ihMajor =>
+  | @projDF _ family index major resultType _ major' lproj lMajor =>
     generalize hs : VExpr.proj family index major' = source at R
     cases R with
     | core h =>
@@ -1903,25 +2027,18 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
       exact (NormalEqN.projDF lproj lMajor).normalEq.fullStep_funEta hΓ hfun
     | proj rMajor =>
       cases hs
-      obtain ⟨_, majorRed, majorNormal⟩ := ihMajor hΓ rMajor
+      obtain ⟨_, majorRed, majorNormal⟩ := ihn _ (by omega) hΓ lMajor rMajor
       have reducedAtLeft := majorRed.proj.hasType hΓ lproj
       exact ⟨_, majorRed.proj, .projDF reducedAtLeft majorNormal⟩
     | delta h => exact False.elim (mkApps_ne_proj (by intros; intro h; cases h) _ hs.symm)
     | quotDelta h => exact False.elim (mkApps_ne_proj (by intros; intro h; cases h) _ hs.symm)
     | projIota hl hproj hget hfield =>
-      cases lMajor with
-      | proofIrrel hp hm hm' =>
-        cases hs
-        have hprop := lproj.proj_result_prop_of_major_proof henv hΓ hp hm
-        have hnormal := NormalEq.projDF lproj (.proofIrrel hp hm hm')
-        have hright := ((hnormal.defeq hΓ).of_l henv hΓ lproj).hasType.2
-        have hout := (FullStep.projIota hl hproj hget hfield).hasType hΓ hright
-        exact ⟨_, .rfl, .proofIrrel hprop lproj hout⟩
-      | _ => sorry
+      cases hs
+      exact NormalEqN.fullStep_projIota hΓ lproj lMajor hl hproj hget hfield
     | app => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @elimDF Γ block owner levels levels' A h heq =>
+  | @elimDF _ block owner levels levels' A h heq =>
     generalize hs : VExpr.elim block owner levels' = source at R
     cases R with
     | core r =>
@@ -1940,7 +2057,7 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     | app => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @constDF c ci ls ls' Γ hc hl hr hlen heq =>
+  | @constDF c ci ls ls' _ hc hl hr hlen heq =>
     generalize hs : VExpr.const c ls' = source at R
     cases R with
     | core r =>
@@ -1965,18 +2082,18 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     | app => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | etaL ht he ih =>
+  | etaL ht he =>
     have ⟨⟨_, hA⟩, _, _⟩ := (ht.isType henv hΓ).choose_spec.forallE_inv henv
     have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, hA⟩
-    obtain ⟨_, hr, hn⟩ := ih hΓ' (.app (R.weakN .one) .rfl)
+    obtain ⟨_, hr, hn⟩ := ihn _ (by omega) hΓ' he (.app (R.weakN .one) .rfl)
     exact ⟨_, .lam .rfl hr, .etaL (R.hasType hΓ ht) hn⟩
-  | etaBoth hl hr' _ ih =>
+  | etaBoth hl hr' hb =>
     have ⟨⟨_, hA⟩, _, _⟩ := (hl.isType henv hΓ).choose_spec.forallE_inv henv
     have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, hA⟩
-    obtain ⟨_, hr, hn⟩ := ih hΓ' (.app (R.weakN .one) .rfl)
+    obtain ⟨_, hr, hn⟩ := ihn _ (by omega) hΓ' hb (.app (R.weakN .one) .rfl)
     exact ⟨_, (ReflTransGen.tail .rfl (.funEta hl)).trans (FullReduction.lam .rfl hr),
       .etaL (R.hasType hΓ hr') hn⟩
-  | @etaR Γ e A B _ body ht he ih =>
+  | @etaR _ e A B _ body ht he =>
     generalize hs : VExpr.lam A body = source at R
     cases R with
     | core r =>
@@ -1992,7 +2109,7 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
       cases hs
       obtain ⟨⟨_, hA⟩, _, _⟩ := (ht.isType henv hΓ).choose_spec.forallE_inv henv
       have hΓ' : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
-      obtain ⟨out, hr, hn⟩ := ih hΓ' rb
+      obtain ⟨out, hr, hn⟩ := ihn _ (by omega) hΓ' he rb
       exact ⟨_, (ReflTransGen.tail .rfl (.funEta ht)).trans (FullReduction.lam .rfl hr),
         .lamDF hA (rd.defeq hΓ hA) hn⟩
     | delta h => exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hs.symm)
@@ -2001,6 +2118,11 @@ theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     | projIota => cases hs
     | app => cases hs
     | forallE => cases hs
+
+theorem NormalEq.fullStep [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NormalEq Γ left right) (R : FullStep Γ right result) :
+    ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result :=
+  let ⟨n, H⟩ := H; NormalEqN.fullStep n hΓ H R
 
 theorem NormalEq.fullReduction [MajorSeparation] (hΓ : OnCtx Γ (env.IsType univs))
     (H : NormalEq Γ left right) (R : FullReduction Γ right result) :
