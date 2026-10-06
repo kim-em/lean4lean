@@ -4643,10 +4643,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     (wf : ves.WF sourceProdEnv)
     (hsourceVEnv : sourceVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
     (hsafetyEq : safety = if isUnsafe then .unsafe else .safe)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     (hnested : result.aux2nested.size ≠ 0)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
@@ -4837,7 +4834,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
       finalBaseVEnv :=
-    E.finalValidOfStaged_of_hitShape wf Hsources I W hnested Hlower HcP Hprod Hcore
+    E.finalValidOfStaged_of_hitShape wf Hsources hprims hnested Hlower HcP Hprod Hcore
       Hmetadata Harity hempty Hrestored replay.fresh canonical replay.productionOrder
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
@@ -4922,10 +4919,7 @@ theorem NestedValidatedRunResult.assemblyShapeNative
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
-      E.auxHeads)
-    (W : WhnfHitShapeFacts E.auxHeads E.production.stats.params.toList
-      (lparams.map Level.param) E.production.production.localContext.env)
+    (hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames)
     (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { C : NestedFinalAssemblyShape E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -5058,7 +5052,7 @@ theorem NestedValidatedRunResult.assemblyShapeNative
       exact NestedFormationAssembly.expanded_eq_of_envTransport hinitial.symm
         HformationP
     exact hexpanded.trans rfl
-  exact E.assemblyOfFormationNative wf rfl rfl I W hnested Hsources wf.constructorOwners
+  exact E.assemblyOfFormationNative wf rfl rfl hprims hnested Hsources wf.constructorOwners
     (by cases isUnsafe <;> decide) Hformation (by
       simpa only [safety] using hformationExpanded)
 

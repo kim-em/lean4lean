@@ -698,6 +698,12 @@ inside this project's scope without solving open base metatheory:
    dummy never reach a successful recursor-pass output). **Decision for Kim:**
    carry `hprims` as an explicit hypothesis of the nested theorem (hence of
    `addDecl.WF` for nested inductives) or fund the rework.
+   **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
+   `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
+   `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
+   `assemblyOfFormationNative`/`assemblyShapeNative`
+   (Nested/AssemblyProviderEvidence.lean) now take `(wf) (Hsources) (hprims)`
+   in place of `(I) (W)` and use `recursorHitShape'`.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
