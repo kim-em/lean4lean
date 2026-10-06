@@ -866,6 +866,26 @@ inside this project's scope without solving open base metatheory:
    environment contains canonical `Eq`"; (iv) the base obligations
    (confluence, injectivity, strengthening with `Eq`) are on the critical
    path, not optional.
+   **Base-obligations design (2026-10-06, `docs/inductives/BASE_OBLIGATIONS_DESIGN.md`):**
+   Injectivity cannot be derived from the current confluence development
+   (circular: confluence uses `uniq` about 130 times, `uniq` uses
+   Injectivity); height-stratified induction is not well-founded (the `defeq`
+   constructor takes unstratified `IsDefEq`); normalization is FALSE for this
+   calculus (Abel–Coquand 2020; `def T := T` loops), so normalization-based
+   literature does not apply. Non-circular route: a semantic layer
+   (Coquand–Huber adequacy over finite shapes, prototyped by Mario in
+   `Experimental/ShapeLogRel*`) proving ONE theorem `VEnv.WF.headInversion`
+   (sort/sort, forallE/forallE, rigid/rigid with argument equality, three
+   separations), from which uniqueness and all inversions follow. Phases:
+   0 (1.5k to 2.5k lines, low risk): `HeadInversion` structure,
+   `uniq_chain`/`TypeChain.collapse`, the five Injectivity lemmas,
+   `saturated_of_hasType` and two separations, all from `headInversion` (six
+   cone sorries collapse to one believed-true base theorem); 1 (15k to 25k,
+   high risk, coordinate with Mario): the semantic layer, which likely needs
+   canonical `Eq`; 2 (6k to 10k): confluence completion assuming
+   `headInversion`; 3 (8k to 15k, open): strengthening with `Eq` via a
+   conversion-certificate calculus, after a 1k to 3k falsification study.
+   Total 35k to 55k lines. Phase 0 started.
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
