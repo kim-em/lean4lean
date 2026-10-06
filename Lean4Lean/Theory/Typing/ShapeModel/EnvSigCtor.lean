@@ -69,13 +69,13 @@ theorem IsCtor.shape (H : env.WF) (h : IsCtor env c) : ∃ k, CtorShape env c k 
   rcases h with h | h
   · obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp h
     exact ⟨k, ctorOf_shape H hk⟩
-  · exact h.shape H
+  · exact h.1.shape H
 
 theorem IsCtor.rigid (H : env.WF) (h : IsCtor env c) : env.Rigid c := by
   rcases h with h | h
   · obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp h
     exact (ctorOf_rigid H hk).1
-  · exact h.rigid H
+  · exact h.1.rigid H
 
 theorem sigCtor_spec (h : sigCtor env c = some ci) :
     IsCtor env c ∧ ∃ cv, env.constants c = some cv ∧ familyOfType cv.type = some ci.family ∧
