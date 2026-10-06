@@ -2675,6 +2675,15 @@ inductive MLCtxTopAgree : TypeChecker.MLCtx → TypeChecker.MLCtx → Nat → Pr
       (fv name ty t₁ t₂ bi) :
       MLCtxTopAgree (.vlam fv name ty t₁ bi a) (.vlam fv name ty t₂ bi b) (n + 1)
 
+theorem MLCtxTopAgree.stepDropEq {a b M : TypeChecker.MLCtx} {n : Nat}
+    (fv name ty t₁ t₂ bi)
+    (h : ∃ hn : n ≤ b.length, MLCtxTopAgree a b n ∧ b.dropN n hn = M) :
+    ∃ hn : n + 1 ≤ (TypeChecker.MLCtx.vlam fv name ty t₂ bi b).length,
+      MLCtxTopAgree (.vlam fv name ty t₁ bi a) (.vlam fv name ty t₂ bi b) (n + 1) ∧
+        (TypeChecker.MLCtx.vlam fv name ty t₂ bi b).dropN (n + 1) hn = M := by
+  obtain ⟨hn, hag, hd⟩ := h
+  exact ⟨by simpa using hn, hag.vlam fv name ty t₁ t₂ bi, by simpa using hd⟩
+
 theorem MLCtxTopAgree.stepDrop {a b : TypeChecker.MLCtx} {n : Nat} {V : VLCtx}
     (fv name ty t₁ t₂ bi)
     (h : ∃ hn : n ≤ b.length, MLCtxTopAgree a b n ∧ (b.dropN n hn).vlctx = V) :

@@ -131,9 +131,12 @@ theorem
             A.semantics.fieldsRecent.fvars.reverse ++ parameterDecls.fvars ∧
         fieldScope.drop HfieldScope.frontSourceDomains.length =
             parameterDecls ∧
-        ∃ fieldDomains,
+        (∃ fieldDomains,
           fieldDomains.length = A.rule.allArgs.size ∧
-          HfieldScope.frontSourceDomains = fieldDomains := by
+          HfieldScope.frontSourceDomains = fieldDomains) ∧
+        (0 < A.rule.allArgs.size →
+          VLCtx.IsDefEq A.semantics.fieldRootContext.venv Us.length
+            fieldScope A.semantics.context.chk.vlctx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls := A.semantics.parameterSuffix.parameterDecls
   let Hparameter := A.semantics.parameterSuffix.runtimeScope
@@ -168,7 +171,7 @@ theorem
     intro fv _
     rw [hfieldRev, A.semantics.parameterSuffix.parameterDecls_fvars]
     simp [parameterDecls]
-  obtain ⟨M, hMwf, hnM, hagree, hdrop⟩ := A.semantics.fieldCheck
+  obtain ⟨M, hMwf, hchkM, hnM, hagree, hdrop⟩ := A.semantics.fieldCheck
   have hMwf' : M.WF A.semantics.fieldRootContext.venv Us := by
     simpa only [Us, A.semantics.fieldsRecent.venv_eq] using hMwf
   have hbaseAlign : VLCtx.IsDefEq A.semantics.fieldRootContext.venv Us.length
@@ -179,7 +182,7 @@ theorem
       A.semantics.fieldRootContext.checking.tr.wf HfieldWF HfieldBase
         HfieldUp hMwf' hnM hagree hbaseAlign with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
-      ⟨fieldDomains, hfieldDomains, hfieldFront⟩, _halign⟩
+      ⟨fieldDomains, hfieldDomains, hfieldFront⟩, halign⟩
   have hbase : fieldScope.drop HfieldScope.frontSourceDomains.length =
       parameterDecls := by
     simpa [HfieldBase, Hparameter,
@@ -194,7 +197,8 @@ theorem
       checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix]
       using hfieldFront
   exact ⟨fieldScope, HfieldScope, by simpa [hfieldRev] using
-    hfieldScopeFVars, hbase, fieldDomains, hfieldDomains, hfront⟩
+    hfieldScopeFVars, hbase, ⟨fieldDomains, hfieldDomains, hfront⟩,
+    fun hpos => by rw [hchkM hpos]; exact halign⟩
 
 /-- Every field-or-parameter variable selected by a generated recursive
 call belongs to the completed rule-semantic context. -/
