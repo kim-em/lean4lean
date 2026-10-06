@@ -333,8 +333,15 @@ theorem parameter.sourceWF
     (hparam : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx param param')
     (hparamType : Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
       param' paramTy')
+    (j : Nat) (hj : j ≤ Hc.mlctx.length)
+    (hfv : paramCheckFVars stats i = (Hc.mlctx.dropN j hj).fvarList)
+    (hdom₀ : TrExprS Hc.venv c.lparams (Hc.mlctx.dropN j hj).vlctx dom dom₀)
+    (hparamTy₀ : TrExprS Hc.venv c.lparams (Hc.mlctx.dropN j hj).vlctx
+      paramTy paramTy₀)
     (Hrec : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
         dom' paramTy' →
+      Hc.venv.IsDefEqU c.lparams.length (Hc.mlctx.dropN j hj).vlctx.toCtx
+        dom₀ paramTy₀ →
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
         (body.instantiate1 param) (body'.inst param') →
       (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
@@ -355,13 +362,16 @@ theorem parameter.sourceWF
   subst paramTy'
   refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
   subst hL
-  refine (isDefEqInContext.WF (Hc.paramCheck stats i) hdom hparamTy).bind fun equal hequal => ?_
+  let Hci := Hc.paramCheck stats i j hj hfv
+  refine (isDefEqInContext.narrowWF Hci hdom₀ hparamTy₀).bind fun equal hequal => ?_
   cases equal
   · change (Except.error _).WF Q
     exact Except.WF.throw
-  · have heq := hequal rfl
+  · have heq₀ := hequal rfl
+    have heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx dom' paramTy' :=
+      Hci.check.embed.isDefEqU Hc.checking.tr.wf hdom₀ hparamTy₀ hdom hparamTy heq₀
     have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
-    exact Hrec heq hopened
+    exact Hrec heq heq₀ hopened
 
 /-- Safe constructor-field branch.  Successful field typing, the executable
 universe bound, positivity, annotation transport, and fresh body opening are
@@ -372,23 +382,35 @@ theorem safeField.sourceWF
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF (fun _ => Pos))
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
         fieldType' (.sort fieldLevel') →
+      ∀ fieldType₀, TrExprS Hc.venv c.lparams Hc.chk.vlctx dom fieldType₀ →
+      Hc.venv.HasType c.lparams.length Hc.chk.vlctx.toCtx
+        fieldType₀ (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       Pos →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+      ∀ body₀'',
+        Hc.venv.IsDefEqU c.lparams.length
+          (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀'' →
+        TrExprS Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+        TrExprS Hc.venv c.lparams
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' →
         (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
           { c with
@@ -401,9 +423,10 @@ theorem safeField.sourceWF
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtor]
   rw [hparamAt]
-  refine (ensureTypeInContext.WF Hc Hdom.source).bind fun fieldSort hfield => ?_
-  rcases hfield with ⟨fieldType', hfieldType, fieldLevel, fieldLevel', rfl,
-    hfieldLevel, hfieldHasType⟩
+  refine (ensureTypeInContext.dualWF Hc Hdom.source Hdom₀.source).bind
+    fun fieldSort hfield => ?_
+  rcases hfield with ⟨fieldLevel, fieldLevel', rfl, hfieldLevel, hfieldHasType,
+    fieldType₀, hfieldType₀, hfieldHasType₀⟩
   change ((do
     unless stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel! do
@@ -420,17 +443,19 @@ theorem safeField.sourceWF
   · rw [if_pos hbound]
     refine Hpos.bind fun _ hpos => ?_
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+    rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
           (body.instantiate1 arg) (i + 1) fuel)
-      Hc Hdom.consumed Hdom.isType ?_
-    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType
+      Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbody''
-    exact Hrec fieldType' fieldLevel fieldLevel' hfieldType hfieldLevel
-      hfieldHasType hbound hpos body'' hbodyEq hopened
+    have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+      Hdom₀.consumed Hdom₀.isType hbody₀''
+    exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
+      hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound hpos body'' hbodyEq
+      body₀'' hbodyEq₀ hopened hopened₀
   · rw [if_neg hbound]
     change (Except.error _).WF Q
     exact Except.WF.throw
@@ -442,21 +467,33 @@ theorem unsafeField.sourceWF
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ fieldType' fieldLevel fieldLevel',
       TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
       VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
       Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
         fieldType' (.sort fieldLevel') →
+      ∀ fieldType₀, TrExprS Hc.venv c.lparams Hc.chk.vlctx dom fieldType₀ →
+      Hc.venv.HasType c.lparams.length Hc.chk.vlctx.toCtx
+        fieldType₀ (.sort fieldLevel') →
       (stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
       ∀ body'',
         Hc.venv.IsDefEqU c.lparams.length
           (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
+      ∀ body₀'',
+        Hc.venv.IsDefEqU c.lparams.length
+          (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀'' →
+        TrExprS Hc.venv c.lparams
           (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+        TrExprS Hc.venv c.lparams
+          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' →
         (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
           (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
           { c with
@@ -469,9 +506,10 @@ theorem unsafeField.sourceWF
       (.forallE name dom body bi) i (fuel + 1) c).WF Q := by
   rw [AddInductive.checkConstructors.loopCtor]
   rw [hparamAt]
-  refine (ensureTypeInContext.WF Hc Hdom.source).bind fun fieldSort hfield => ?_
-  rcases hfield with ⟨fieldType', hfieldType, fieldLevel, fieldLevel', rfl,
-    hfieldLevel, hfieldHasType⟩
+  refine (ensureTypeInContext.dualWF Hc Hdom.source Hdom₀.source).bind
+    fun fieldSort hfield => ?_
+  rcases hfield with ⟨fieldLevel, fieldLevel', rfl, hfieldLevel, hfieldHasType,
+    fieldType₀, hfieldType₀, hfieldHasType₀⟩
   change ((do
     unless stats.resultLevel.isAlwaysZero ||
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel! do
@@ -487,17 +525,19 @@ theorem unsafeField.sourceWF
         stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true
   · rw [if_pos hbound]
     rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+    rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
     refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
       (k := fun arg =>
         AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
           (body.instantiate1 arg) (i + 1) fuel)
-      Hc Hdom.consumed Hdom.isType ?_
-    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType
+      Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
     have hopened := Hc.instantiateFresh (name := name) (bi := bi)
       Hdom.consumed Hdom.isType hbody''
-    exact Hrec fieldType' fieldLevel fieldLevel' hfieldType hfieldLevel
-      hfieldHasType hbound body'' hbodyEq hopened
+    have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+      Hdom₀.consumed Hdom₀.isType hbody₀''
+    exact Hrec _ fieldLevel fieldLevel' Hdom.source hfieldLevel
+      hfieldHasType fieldType₀ hfieldType₀ hfieldHasType₀ hbound body'' hbodyEq
+      body₀'' hbodyEq₀ hopened hopened₀
   · rw [if_neg hbound]
     change (Except.error _).WF Q
     exact Except.WF.throw
@@ -756,39 +796,6 @@ theorem forall₂_map_right
   congr 2
   omega
 
-theorem ValidAppStatsWF.withLocalDecl
-    (Hc : ContextWF c)
-    (H : ValidAppStatsWF Hc.venv c.lparams Hc.mlctx.vlctx
-      stats decl depth)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
-    ValidAppStatsWF
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv
-      c.lparams
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
-      stats decl (depth + 1) := by
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
-  have W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 := by
-    change VLCtx.FVLift Hc.mlctx.vlctx
-      ((some (⟨c.ngen.curr⟩, ty.fvarsList), .vlam ty') ::
-        Hc.mlctx.vlctx) 0 1 0
-    exact .skip_fvar _ _ .refl
-  have hparams := forall₂_map_right
-    (f := fun e => VExpr.liftN 1 e 0)
-    (S := TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
-    H.params fun h =>
-      h.weakFV Hc'.checking.tr.wf W Hc'.mlctx_wf.tr.wf
-  refine {
-    levels := H.levels
-    uvars := H.uvars
-    consts := H.consts
-    indices := H.indices
-    params := ?_
-    paramFVars := H.paramFVars }
-  change List.Forall₂ (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
-    stats.params.toList (decl.paramVars (depth + 1))
-  rw [← VInductDecl.paramVars_liftN]
-  exact hparams
 
 /-- Extend application statistics in an independently tracked semantic scope.
 Unlike `withLocalDecl`, this theorem does not require the executable context
@@ -935,34 +942,6 @@ def ValidAppStatsPrefix.beforeFirst
   params := Hcache.complete
   paramFVars := Hcache.paramFVars
 
-theorem ValidAppStatsPrefix.withLocalDecl
-    (Hc : ContextWF c)
-    (H : ValidAppStatsPrefix Hc.venv c.lparams Hc.mlctx.vlctx
-      stats decl depth done)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
-    ValidAppStatsPrefix
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).venv
-      c.lparams
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty).mlctx.vlctx
-      stats decl (depth + 1) done := by
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty
-  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
-    .skip_fvar _ _ .refl
-  have hparams : List.Forall₂
-      (TrExprS Hc'.venv c.lparams Hc'.mlctx.vlctx)
-      stats.params.toList (decl.paramVars (depth + 1)) := by
-    rw [← VInductDecl.paramVars_liftN]
-    exact forall₂_map_right H.params fun h =>
-      h.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf
-  exact {
-    covered := H.covered
-    levels := H.levels
-    uvars := H.uvars
-    consts := H.consts
-    indices := H.indices
-    params := hparams
-    paramFVars := H.paramFVars }
 
 theorem ValidAppStatsPrefix.push
     (H : ValidAppStatsPrefix env Us Δ stats decl depth done)
@@ -1038,19 +1017,6 @@ structure HeaderRuntimeCertificate (Hc : ContextWF c)
     Hc.mlctx.vlctx stats decl depth done
   ambient : checkInductiveTypes.loopType.AmbientParamContext Hc params depth
 
-def HeaderRuntimeCertificate.withIndex
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : HeaderRuntimeCertificate Hc decl params stats depth done)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty')
-    (hsource : ∃ u, Hc.venv.IsDefEq c.lparams.length
-      Hc.mlctx.vlctx.toCtx sourceTy ty' (.sort u)) :
-    HeaderRuntimeCertificate
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi) htr hty)
-      decl params stats (depth + 1) done where
-  headers := H.headers
-  applicationStats := H.applicationStats.withLocalDecl Hc htr hty
-  ambient := H.ambient.withIndex htr hty hsource
 
 def HeaderRuntimeCertificate.first
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1100,126 +1066,6 @@ def HeaderRuntimeCertificate.later
   applicationStats := H.applicationStats.push hindex hname hnindices
   ambient := H.ambient
 
-theorem HeaderRuntimeCertificate.firstResultWF
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {decl : VInductDecl} {target : VInductiveType}
-    {params indices : List VExpr}
-    {normalized afterParams result exprType : VExpr}
-    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
-    (Q : α → Prop)
-    (Hcache : checkInductiveTypes.loopType.ParameterCachePrefix
-      Hc.venv c.lparams Hc.mlctx.vlctx stats decl.nparams indices.length)
-    (hlevels : stats.levels.length = decl.uvars)
-    (huvars : c.lparams.length = decl.uvars)
-    (hconsts : stats.indConsts = #[])
-    (hindices : stats.nindices = #[])
-    (hempty : stats.indConsts.isEmpty = true)
-    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
-    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      (indices.reverse ++ params.reverse) Hc.mlctx.vlctx.toCtx)
-    (hheader : Hc.venv.IsDefEq decl.uvars []
-      target.type normalized exprType)
-    (hparamsTake : normalized.takeForalls decl.nparams =
-      some (params, afterParams))
-    (hindicesTake : afterParams.takeForalls target.numIndices =
-      some (indices, result))
-    (hlevel : ∀ resultSort resultLevel,
-      VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      resultLevel = target.resultLevel)
-    (hindex : 0 < decl.types.length)
-    (htarget : decl.types[0] = target)
-    (hname : indName = decl.types[0].name)
-    (hnindices : nindices = decl.types[0].numIndices)
-    (Hrec : ∀ resultSort,
-      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
-      HeaderRuntimeCertificate Hc decl params
-        (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
-          true nindices indName)
-        indices.length 1 →
-      (AddInductive.checkInductiveTypes.loopInd nparams indTypes 1
-        (checkInductiveTypes.loopInd.updatedStats stats c.lctx resultSort
-          true nindices indName) k c).WF Q) :
-    ((fun type stats nindices => show AddInductive.M α from do
-      let type ← TypeChecker.ensureSort type
-      let mut stats := stats
-      let resultLevel := type.sortLevel!
-      if stats.indConsts.isEmpty then
-        let lctx := (← read).lctx
-        stats := { stats with
-          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
-      else if !resultLevel.isEquiv stats.resultLevel then
-        throw <| .other "mutually inductive types must live in the same universe"
-      stats := { stats with
-        nindices := stats.nindices.push nindices
-        indConsts := stats.indConsts.push (.const indName stats.levels) }
-      AddInductive.checkInductiveTypes.loopInd nparams indTypes 1 stats k)
-      type stats nindices c).WF Q := by
-  apply checkInductiveTypes.loopInd.firstResult.refinesRuntimeState
-    (dIdx := 0) k Q Hc hempty htype huvars hctxEq hheader hparamsTake
-      hindicesTake hlevel
-  intro resultSort hofLevel _hshape _hambient
-  exact Hrec resultSort hofLevel
-    (HeaderRuntimeCertificate.first Hcache hlevels huvars hconsts hindices
-      hindex htarget hname hnindices hofLevel
-      hctxEq _hshape)
-
-theorem HeaderRuntimeCertificate.laterResultWF
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {decl : VInductDecl} {target : VInductiveType}
-    {params ownParams indices : List VExpr}
-    {normalized afterParams result exprType : VExpr}
-    {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
-    (Q : α → Prop)
-    (H : HeaderRuntimeCertificate Hc decl params stats depth dIdx)
-    (hnonempty : stats.indConsts.isEmpty = false)
-    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type result)
-    (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      (indices.reverse ++ ownParams.reverse) Hc.mlctx.vlctx.toCtx)
-    (hheader : Hc.venv.IsDefEq decl.uvars []
-      target.type normalized exprType)
-    (hparamsTake : normalized.takeForalls decl.nparams =
-      some (ownParams, afterParams))
-    (hindicesTake : afterParams.takeForalls target.numIndices =
-      some (indices, result))
-    (hparams : decl.ParamsDefEq Hc.venv params ownParams)
-    (hlevel : ∀ resultSort resultLevel,
-      VLevel.ofLevel c.lparams resultSort = some resultLevel →
-      resultLevel = target.resultLevel)
-    (hindex : dIdx < decl.types.length)
-    (htarget : decl.types[dIdx] = target)
-    (hname : indName = decl.types[dIdx].name)
-    (hnindices : nindices = decl.types[dIdx].numIndices)
-    (Hrec : ∀ resultSort,
-      resultSort.isEquiv stats.resultLevel = true →
-      VLevel.ofLevel c.lparams resultSort = some target.resultLevel →
-      HeaderRuntimeCertificate Hc decl params
-        (checkInductiveTypes.loopInd.updatedStats stats stats.lctx resultSort
-          false nindices indName)
-        depth (dIdx + 1) →
-      (AddInductive.checkInductiveTypes.loopInd nparams indTypes (dIdx + 1)
-        (checkInductiveTypes.loopInd.updatedStats stats stats.lctx resultSort
-          false nindices indName) k c).WF Q) :
-    ((fun type stats nindices => show AddInductive.M α from do
-      let type ← TypeChecker.ensureSort type
-      let mut stats := stats
-      let resultLevel := type.sortLevel!
-      if stats.indConsts.isEmpty then
-        let lctx := (← read).lctx
-        stats := { stats with
-          lctx, resultLevel, isNotZero := resultLevel.isNeverZero }
-      else if !resultLevel.isEquiv stats.resultLevel then
-        throw <| .other "mutually inductive types must live in the same universe"
-      stats := { stats with
-        nindices := stats.nindices.push nindices
-        indConsts := stats.indConsts.push (.const indName stats.levels) }
-      AddInductive.checkInductiveTypes.loopInd nparams indTypes
-        (dIdx + 1) stats k) type stats nindices c).WF Q := by
-  apply checkInductiveTypes.loopInd.laterResult.refines k Q Hc hnonempty
-    htype huvars hctxEq hheader hparamsTake hindicesTake hparams hlevel
-  intro resultSort hguard hofLevel hshape
-  exact Hrec resultSort hguard hofLevel
-    (H.later hindex htarget hname hnindices hguard hofLevel hshape)
 
 def HeaderRuntimeCertificate.complete
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -2804,14 +2650,23 @@ theorem forallE.sourceWF
     (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
     (hbody : TrExprS Hc.venv c.lparams
       ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hbody₀ : TrExprS Hc.venv c.lparams
+      ((none, .vlam sourceDom₀) :: Hc.chk.vlctx) body sourceBody₀)
     (Hrec : ∀ body'',
       Hc.venv.IsDefEqU c.lparams.length
         (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-      TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).venv c.lparams
+      ∀ body₀'',
+      Hc.venv.IsDefEqU c.lparams.length
+        (sourceDom₀ :: Hc.chk.vlctx.toCtx) sourceBody₀ body₀'' →
+      TrExprS Hc.venv c.lparams
         (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).mlctx.vlctx
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).mlctx.vlctx
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
+      TrExprS Hc.venv c.lparams
+        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+          Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx
+        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body₀'' →
       (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         { c with
           ngen := c.ngen.next
@@ -2824,67 +2679,16 @@ theorem forallE.sourceWF
   rw [AddInductive.checkPositivityStep]
   rw [if_neg (by simp [hocc]), if_neg (by simp [hdomOcc])]
   rcases Hdom.body Hc hbody with ⟨body'', hbody'', hbodyEq⟩
+  rcases Hdom₀.body Hc.narrow hbody₀ with ⟨body₀'', hbody₀'', hbodyEq₀⟩
   refine withCheckedLocalDecl.WF (name := name) (bi := bi) (Q := Q)
     (k := fun arg => recur (body.instantiate1 arg))
-    Hc Hdom.consumed Hdom.isType ?_
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType
+    Hc Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType ?_
   have hopened := Hc.instantiateFresh (name := name) (bi := bi)
     Hdom.consumed Hdom.isType hbody''
-  exact Hrec body'' hbodyEq hopened
+  have hopened₀ := Hc.narrow.instantiateFresh (name := name) (bi := bi)
+    Hdom₀.consumed Hdom₀.isType hbody₀''
+  exact Hrec body'' hbodyEq body₀'' hbodyEq₀ hopened hopened₀
 
-/-- The successful higher-order branch refines the declarative `forallE`
-positivity rule.  The recursive checker runs in the consumed-annotation local
-context, while its certificate is deliberately stated for the original
-source-domain/body translation used by the independent specification. -/
-theorem forallE.refines
-    {decl : VInductDecl} {depth : Nat}
-    (Hc : ContextWF c)
-    (hconsts : IndConstArray stats.levels stats.indConsts
-      (decl.types.map (·.name)))
-    (hlit : AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (hocc : AddInductive.hasIndOcc stats.indConsts
-      (.forallE name dom body bi) = true)
-    (hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = false)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (huvars : c.lparams.length = decl.uvars)
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (Hrec : ∀ body'',
-      Hc.venv.IsDefEqU c.lparams.length
-        (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-      TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).venv c.lparams
-        (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-          Hdom.consumed Hdom.isType).mlctx.vlctx
-        (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
-      (recur (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
-        { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF
-        (fun _ => decl.Positive Hc.venv
-          (consumedDom' :: Hc.mlctx.vlctx.toCtx) (depth + 1) body'')) :
-    (AddInductive.checkPositivityStep stats (.forallE name dom body bi)
-      ctor idx recur c).WF
-      (fun _ => decl.SyntacticallyPositive Hc.venv Hc.mlctx.vlctx.toCtx depth
-        (.forallE sourceDom' sourceBody')) := by
-  have hdomNo := checkPositivityStep.TrExprS.noIndOccAvailable hconsts.names hlit
-    hctx Hdom.source hdomOcc
-  refine forallE.sourceWF (Q := fun _ => decl.SyntacticallyPositive Hc.venv
-      Hc.mlctx.vlctx.toCtx depth (.forallE sourceDom' sourceBody'))
-      (recur := recur) (ctor := ctor)
-      (idx := idx) Hc hocc hdomOcc Hdom hbody ?_
-  intro body'' hbodyEq hopened
-  exact (Hrec body'' hbodyEq hopened).mono fun _ hpositive => by
-    rcases Hdom.source_defeq with ⟨domLevel, hdomEq⟩
-    rcases hbodyEq with ⟨bodyType, hbodyEq⟩
-    exact .forallE hdomNo
-      (by simpa [huvars] using hdomEq)
-      (by simpa [huvars] using hbodyEq) hpositive
 
 end checkPositivityStep
 
@@ -2916,227 +2720,6 @@ theorem result.refines
         Hstats hi htr hvalid (Or.inr rfl) hlit hctx)
       hdefeq)
 
-/-- Semantic wrapper for a safe constructor field.  The low-level traversal
-supplies source typing and annotation transport; this theorem packages those
-facts as the declarative `CtorTailWF.field` rule. -/
-theorem safeField.refines
-    {decl : VInductDecl} {target : VInductiveType}
-    {ctorCtx : List VExpr} {depth : Nat}
-    (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx = ctorCtx)
-    (Hpos : (AddInductive.checkPositivity stats dom ctor i c).WF
-      (fun _ => decl.Positive Hc.venv ctorCtx depth sourceDom'))
-    (Hbound : ∀ fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
-    (Hrec : ∀ fieldType' fieldLevel fieldLevel',
-      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
-        fieldType' (.sort fieldLevel') →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      decl.Positive Hc.venv ctorCtx depth sourceDom' →
-      ∀ body'',
-        Hc.venv.IsDefEqU c.lparams.length
-          (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
-          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
-        (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
-          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
-          { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF
-          (fun _ => decl.CtorTailWF Hc.venv target
-            (consumedDom' :: ctorCtx) (depth + 1) body'')) :
-    (AddInductive.checkConstructors.loopCtor stats false ctor targetIdx
-      (.forallE name dom body bi) i (fuel + 1) c).WF
-      (fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
-        (.forallE sourceDom' sourceBody')) := by
-  refine safeField.sourceWF
-    (Q := fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
-      (.forallE sourceDom' sourceBody'))
-    (Pos := decl.Positive Hc.venv ctorCtx depth sourceDom')
-    (targetIdx := targetIdx) (fuel := fuel) (name := name) (bi := bi)
-    Hc hparamAt Hdom hbody Hpos ?_
-  intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped hbound
-    hpositive body'' hbodyEq hopened
-  have hdomainEq := Hdom.source.uniq Hc.checking.tr.wf
-    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hfield
-  have hsourceTyped := htyped.defeqU_l Hc.checking.tr.wf
-    Hc.mlctx_wf.tr.wf.toCtx hdomainEq.symm
-  exact (Hrec fieldType' fieldLevel fieldLevel' hfield hlevel htyped
-    hbound hpositive body'' hbodyEq hopened).mono fun _ htail =>
-    by
-      rcases Hdom.source_defeq with ⟨checkedLevel, hdomEq⟩
-      rcases hbodyEq with ⟨bodyType, hbodyEq⟩
-      exact .field (by simpa [huvars, hctxEq] using hsourceTyped)
-        (Hbound fieldLevel fieldLevel' hlevel hbound)
-        (Or.inr hpositive)
-        (by simpa [huvars, hctxEq] using hdomEq)
-        (by simpa [huvars, hctxEq] using hbodyEq) htail
-
-theorem unsafeField.refines
-    {decl : VInductDecl} {target : VInductiveType}
-    {ctorCtx : List VExpr} {depth : Nat}
-    (Hc : ContextWF c) (hparamAt : stats.params[i]? = none)
-    (Hdom : Hc.ConsumedDomain dom sourceDom' consumedDom')
-    (hbody : TrExprS Hc.venv c.lparams
-      ((none, .vlam sourceDom') :: Hc.mlctx.vlctx) body sourceBody')
-    (huvars : c.lparams.length = decl.uvars)
-    (hctxEq : Hc.mlctx.vlctx.toCtx = ctorCtx)
-    (hunsafe : decl.isUnsafe = true)
-    (Hbound : ∀ fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
-    (Hrec : ∀ fieldType' fieldLevel fieldLevel',
-      TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom fieldType' →
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx
-        fieldType' (.sort fieldLevel') →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      ∀ body'',
-        Hc.venv.IsDefEqU c.lparams.length
-          (sourceDom' :: Hc.mlctx.vlctx.toCtx) sourceBody' body'' →
-        TrExprS (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).venv c.lparams
-          (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType).mlctx.vlctx
-          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) body'' →
-        (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
-          (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1) fuel
-          { c with
-            ngen := c.ngen.next
-            lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi
-            checkLCtx := c.checkLCtx.mkLocalDecl ⟨c.ngen.curr⟩ name
-              dom.consumeTypeAnnotationsVerified bi }).WF
-          (fun _ => decl.CtorTailWF Hc.venv target
-            (consumedDom' :: ctorCtx) (depth + 1) body'')) :
-    (AddInductive.checkConstructors.loopCtor stats true ctor targetIdx
-      (.forallE name dom body bi) i (fuel + 1) c).WF
-      (fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
-        (.forallE sourceDom' sourceBody')) := by
-  refine unsafeField.sourceWF
-    (Q := fun _ => decl.CtorTailWF Hc.venv target ctorCtx depth
-      (.forallE sourceDom' sourceBody'))
-    (targetIdx := targetIdx) (fuel := fuel) (name := name) (bi := bi)
-    Hc hparamAt Hdom hbody ?_
-  intro fieldType' fieldLevel fieldLevel' hfield hlevel htyped hbound
-    body'' hbodyEq hopened
-  have hdomainEq := Hdom.source.uniq Hc.checking.tr.wf
-    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hfield
-  have hsourceTyped := htyped.defeqU_l Hc.checking.tr.wf
-    Hc.mlctx_wf.tr.wf.toCtx hdomainEq.symm
-  exact (Hrec fieldType' fieldLevel fieldLevel' hfield hlevel htyped
-    hbound body'' hbodyEq hopened).mono fun _ htail =>
-    by
-      rcases Hdom.source_defeq with ⟨checkedLevel, hdomEq⟩
-      rcases hbodyEq with ⟨bodyType, hbodyEq⟩
-      exact .field (by simpa [huvars, hctxEq] using hsourceTyped)
-        (Hbound fieldLevel fieldLevel' hlevel hbound)
-        (Or.inl hunsafe)
-        (by simpa [huvars, hctxEq] using hdomEq)
-        (by simpa [huvars, hctxEq] using hbodyEq) htail
-
-/-- Starting after the common constructor parameters, the complete executable
-constructor-tail traversal builds `CtorTailWF`.  The remaining level-order
-premise is isolated explicitly until `Level.geq` is connected to `VLevel.LE`. -/
-theorem tailRefines
-    {decl : VInductDecl} {target : VInductiveType}
-    {depth : Nat} {type' : VExpr}
-    (Hc : ContextWF c)
-    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
-      Hc.mlctx.vlctx stats decl depth)
-    (hi : targetIdx < decl.types.length)
-    (htarget : decl.types[targetIdx] = target)
-    (hparamAt : stats.params[i]? = none)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hbound : ∀ fieldLevel fieldLevel',
-      VLevel.ofLevel c.lparams fieldLevel = some fieldLevel' →
-      (stats.resultLevel.isAlwaysZero ||
-        stats.resultLevel.geq' (Expr.sort fieldLevel).sortLevel!) = true →
-      target.resultLevel ≈ .zero ∨ fieldLevel' ≤ target.resultLevel)
-    (hpositivity : ∀ {c : AddInductive.Context} {depth posIdx : Nat}
-      {type : Expr} {type' : VExpr} (Hc : ContextWF c),
-      checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
-        Hc.mlctx.vlctx stats decl depth →
-      checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts →
-      checkPositivityStep.VLCtx.NoIndConsts
-        (decl.types.map (·.name)) Hc.mlctx.vlctx →
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type' →
-      (AddInductive.checkPositivity stats type ctor posIdx c).WF
-        (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type'))
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type') :
-    (AddInductive.checkConstructors.loopCtor stats isUnsafe ctor targetIdx
-      type i fuel c).WF
-      (fun _ => decl.CtorTailWF Hc.venv target Hc.mlctx.vlctx.toCtx
-        depth type') := by
-  induction fuel generalizing c type type' depth i with
-  | zero => exact zero.WF
-  | succ fuel ih =>
-    by_cases hforall : ∃ name dom body bi,
-        type = .forallE name dom body bi
-    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
-      cases htr with
-      | forallE hdomType _ hdom hbody =>
-        rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
-        have hparamNext : stats.params[i + 1]? = none := by
-          rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
-          omega
-        cases isUnsafe with
-        | false =>
-          have Hpos := hpositivity (posIdx := i) Hc Hstats hlit hctx
-            (hdom.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
-          exact safeField.refines Hc hparamAt Hdom hbody Hstats.uvars rfl
-            Hpos hbound fun _ _ _ _ _ _ _ _ body'' _ hopened => by
-              let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-                Hdom.consumed Hdom.isType
-              have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
-                Hc Hdom.consumed Hdom.isType
-              have hctx' : checkPositivityStep.VLCtx.NoIndConsts
-                  (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
-                apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
-                rfl
-              exact ih Hc' Hstats' hparamNext hlit hctx' hbound hopened
-        | true =>
-          exact unsafeField.refines Hc hparamAt Hdom hbody Hstats.uvars rfl
-            (hunsafe rfl) hbound fun _ _ _ _ _ _ _ body'' _ hopened => by
-              let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-                Hdom.consumed Hdom.isType
-              have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
-                Hc Hdom.consumed Hdom.isType
-              have hctx' : checkPositivityStep.VLCtx.NoIndConsts
-                  (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
-                apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
-                rfl
-              exact ih Hc' Hstats' hparamNext hlit hctx' hbound hopened
-    · cases hvalid : AddInductive.isValidIndAppIdx stats type targetIdx
-      · exact invalidResult.WF hforall hvalid
-      · rcases htr.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf with
-          ⟨exprType, htype⟩
-        subst target
-        exact result.refines Hstats hi htr hforall hvalid hlit hctx
-          (by simpa [Hstats.uvars] using htype)
 
 end checkConstructors.loopCtor
 
@@ -3147,18 +2730,6 @@ theorem zero.WF :
   intro _ h
   simp [AddInductive.checkPositivity.loop] at h
 
-theorem succ.WF
-    (Hc : ContextWF c)
-    (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
-    (Hstep : ∀ normalized,
-      TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
-      (AddInductive.checkPositivityStep stats normalized ctor idx
-        (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
-        c).WF Q) :
-    (AddInductive.checkPositivity.loop stats ctor idx type (fuel + 1) c).WF Q := by
-  rw [AddInductive.checkPositivity.loop]
-  exact (whnfInContext.WF Hc htype).bind fun normalized hnormalized =>
-    Hstep normalized hnormalized
 
 /-- Positivity's WHNF step with the concrete free-variable preservation fact
 retained for refinements whose semantic scope is narrower than the executable
@@ -3166,94 +2737,20 @@ local context. -/
 theorem succ.scopeWF
     (Hc : ContextWF c)
     (htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
+    (htype₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx type type₀)
     (Hstep : ∀ normalized,
       FVarsBelow Hc.mlctx.vlctx type normalized →
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx normalized type' →
+      FVarsBelow Hc.chk.vlctx type normalized →
+      TrExpr Hc.venv c.lparams Hc.chk.vlctx normalized type₀ →
       (AddInductive.checkPositivityStep stats normalized ctor idx
         (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
         c).WF Q) :
     (AddInductive.checkPositivity.loop stats ctor idx type (fuel + 1) c).WF Q := by
   rw [AddInductive.checkPositivity.loop]
-  exact (whnfInContext.scopeWF Hc htype).bind
-    fun normalized hnormalized => Hstep normalized hnormalized.1 hnormalized.2
+  exact (whnfInContext.dualWF Hc htype htype₀).bind
+    fun normalized ⟨⟨h1, h2⟩, h3, h4⟩ => Hstep normalized h1 h2 h3 h4
 
-/-- The complete recursive positivity traversal refines the independent
-declarative judgment.  In particular, every recursive call under a higher-
-order binder performs and records its own WHNF/definitional-equality step. -/
-theorem refines
-    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
-    (Hc : ContextWF c)
-    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
-      Hc.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
-    (AddInductive.checkPositivity.loop stats ctor idx type fuel c).WF
-      (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
-  induction fuel generalizing c type type' depth with
-  | zero => exact zero.WF
-  | succ fuel ih =>
-    rcases htype with ⟨sourceSyntax, hsource, hsourceEq⟩
-    refine succ.WF Hc hsource ?_
-    intro normalized hnormalized
-    rcases hnormalized with ⟨exposed, hexposed, hexposedEq⟩
-    have hsourceExposed :=
-      (hexposedEq.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
-        hsourceEq).symm
-    rcases hsourceExposed with ⟨exprType, hsourceExposed⟩
-    have finish
-        (Hstep : (AddInductive.checkPositivityStep stats normalized ctor idx
-          (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
-          c).WF (fun _ =>
-            decl.SyntacticallyPositive Hc.venv Hc.mlctx.vlctx.toCtx
-              depth exposed)) :
-        (AddInductive.checkPositivityStep stats normalized ctor idx
-          (fun body => AddInductive.checkPositivity.loop stats ctor idx body fuel)
-          c).WF (fun _ =>
-            decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') :=
-      Hstep.mono fun _ hpositive =>
-        .unfold (by simpa [Hstats.uvars] using hsourceExposed) hpositive
-    by_cases hocc : AddInductive.hasIndOcc stats.indConsts normalized = false
-    · exact finish <| checkPositivityStep.noOccurrence.refines
-        Hstats.consts hlit hctx hexposed hocc
-    have hocc' : AddInductive.hasIndOcc stats.indConsts normalized = true := by
-      cases h : AddInductive.hasIndOcc stats.indConsts normalized
-      · exact False.elim (hocc h)
-      · rfl
-    by_cases hforall : ∃ name dom body bi,
-        normalized = .forallE name dom body bi
-    · rcases hforall with ⟨name, dom, body, bi, rfl⟩
-      by_cases hdomOcc : AddInductive.hasIndOcc stats.indConsts dom = true
-      · exact checkPositivityStep.negativeDomain.WF hocc' hdomOcc
-      have hdomOcc' : AddInductive.hasIndOcc stats.indConsts dom = false := by
-        cases h : AddInductive.hasIndOcc stats.indConsts dom
-        · rfl
-        · exact False.elim (hdomOcc h)
-      cases hexposed with
-      | forallE hdomType _ hdom hbody =>
-        rcases hconsume c Hc hdom hdomType with ⟨consumedDom', Hdom⟩
-        exact finish <| checkPositivityStep.forallE.refines Hc Hstats.consts
-          hlit hctx hocc' hdomOcc' Hdom Hstats.uvars hbody
-          fun body'' hbodyEq hopened => by
-            let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-              Hdom.consumed Hdom.isType
-            have Hstats' := Hstats.withLocalDecl (name := name) (bi := bi)
-              Hc Hdom.consumed Hdom.isType
-            have hctx' : checkPositivityStep.VLCtx.NoIndConsts
-                (decl.types.map (·.name)) Hc'.mlctx.vlctx := by
-              apply checkPositivityStep.VLCtx.NoIndConsts.cons hctx
-              rfl
-            exact ih Hc' Hstats' hlit hctx'
-              (hopened.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
-    ·
-      cases hvalid : AddInductive.isValidIndApp? stats normalized with
-      | none =>
-        exact checkPositivityStep.invalidApplication.WF hocc' hforall hvalid
-      | some target =>
-        exact finish <| checkPositivityStep.validApplication.sourceRefines
-          Hstats hexposed hlit hctx hocc' hforall hvalid
 
 /-- Positivity refinement for constructor checking after mutual headers have
 left ambient declarations in the executable context.  The concrete checker
@@ -3266,6 +2763,7 @@ theorem refinesNarrow
     (Hc : ContextWF c)
     (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
     (hconsume : ConsumeTypeAnnotationsCompat)
@@ -3277,27 +2775,16 @@ theorem refinesNarrow
   induction fuel generalizing c type scope narrowType fullType depth with
   | zero => exact zero.WF
   | succ fuel ih =>
-    rcases htypeFull with ⟨sourceFull, hsourceFull, hsourceTarget⟩
-    refine succ.scopeWF Hc hsourceFull ?_
-    intro normalized hbelow hnormalized
+    have henv := Hc.checking.tr.wf
+    rcases htypeFull with ⟨sourceFull, hsourceFull, _hsourceTarget⟩
+    obtain ⟨type₀, htype₀, _⟩ := htypeNarrow.alignTo henv halign
+    refine succ.scopeWF Hc hsourceFull htype₀ ?_
+    intro normalized hbelow hnormalized _hbelow₀ hnormalized₀
     have hnormalizedFVars : FVarsIn (· ∈ scope.fvars) normalized :=
       hbelow _ Hruntime.upset htypeNarrow.fvarsIn
     rcases hnormalized with
-      ⟨exposedFull, hexposedFull, hexposedTarget⟩
-    have hnormalizedClosed : Closed normalized 0 := by
-      have hclosed := hexposedFull.closed
-      rw [Hc.mlctx.noBV] at hclosed
-      exact hclosed
-    have hnormalizedFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-        normalized fullType :=
-      ⟨exposedFull, hexposedFull,
-        hexposedTarget.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
-          hsourceTarget⟩
-    have hinputFull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-        type fullType :=
-      ⟨sourceFull, hsourceFull, hsourceTarget⟩
-    rcases Hruntime.restrictTrExpr Hc.checking.tr.wf htypeNarrow
-        hinputFull hnormalizedFull hnormalizedClosed hnormalizedFVars with
+      ⟨exposedFull, hexposedFull, _hexposedTarget⟩
+    rcases TrExpr.alignBack henv halign htypeNarrow htype₀ hnormalized₀ with
       ⟨exposed, hexposed, hexposedEq⟩
     rcases hexposedEq.symm with ⟨exprType, htypeExposed⟩
     have finish
@@ -3336,15 +2823,19 @@ theorem refinesNarrow
             hdomFullType _ hdomFull hbodyFull =>
           rcases hconsume c Hc hdomFull hdomFullType with
             ⟨consumedDom, Hdom⟩
+          rcases halign.forallE_align henv hdomNarrow hdomNarrowType hbodyNarrow with
+            ⟨dom₀, body₀, hdom₀, hdom₀Type, hdomU, hbody₀, _⟩
+          rcases hconsume _ Hc.narrow hdom₀ hdom₀Type with
+            ⟨consumedDom₀, Hdom₀⟩
           refine finish <| checkPositivityStep.forallE.sourceWF
             (Q := fun _ => decl.SyntacticallyPositive Hc.venv
               scope.toCtx depth (.forallE _ _))
             (recur := fun body =>
               AddInductive.checkPositivity.loop stats ctor idx body fuel)
-            Hc hocc' hdomOcc' Hdom hbodyFull ?_
-          intro bodyFull' _hbodyFullEq hopenedFull
+            Hc hocc' hdomOcc' Hdom hbodyFull Hdom₀ hbody₀ ?_
+          intro bodyFull' _hbodyFullEq body₀' _hbody₀Eq hopenedFull _hopened₀
           let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-            Hdom.consumed Hdom.isType
+            Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
           have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hnormalizedFVars.1)).1
@@ -3359,7 +2850,26 @@ theorem refinesNarrow
                 Hc'.mlctx.vlctx :=
             Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
               hdomNarrow hdomain
-          have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+          -- the narrow domain against the checker's consumed domain
+          have hscopeΓ := halign.wf.toCtx
+          have hctxSym := halign.defeqCtx.symm henv.ordered
+          rcases Hdom₀.source_defeq with ⟨u₀, hsc₀⟩
+          have hsc₀' := hsc₀.defeqDFC henv.ordered hctxSym
+          have hdomC : Hc.venv.IsDefEqU c.lparams.length scope.toCtx
+              narrowDom consumedDom₀ :=
+            hdomU.trans henv hscopeΓ ⟨_, hsc₀'⟩
+          rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
+          have hfresh : (⟨c.ngen.curr⟩ : FVarId) ∉ scope.fvars := by
+            intro hmem
+            rw [halign.fvars] at hmem
+            exact Hc.current_not_mem (Hc.check.embed.fvars_subset hmem)
+          have halign' : VLCtx.IsDefEq Hc'.venv c.lparams.length
+              ((some (⟨c.ngen.curr⟩,
+                dom.consumeTypeAnnotationsVerified.fvarsList),
+                .vlam narrowDom) :: scope) Hc'.chk.vlctx :=
+            halign.consAligned hfresh hdeps
+              (hdomC.of_l henv hscopeΓ hdomTyped)
+          have hscopeWF := halign'.wf
           have hopenedNarrow : TrExprS Hc'.venv c.lparams
               ((some (⟨c.ngen.curr⟩,
                 dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -3368,10 +2878,9 @@ theorem refinesNarrow
             rw [Expr.instantiate1_eq]
             exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
           have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
-          have Hrec := ih Hc' Hruntime' Hstats' hlit hopenedNarrow
+          have Hrec := ih Hc' Hruntime' halign' Hstats' hlit hopenedNarrow
             (hopenedFull.trExpr Hc'.checking.tr.wf Hc'.mlctx_wf.tr.wf)
           exact Hrec.mono fun _ hpositive => by
-            rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
             rcases hbodyNarrowType with ⟨bodyLevel, hbodyTyped⟩
             change Hc.venv.IsDefEq c.lparams.length scope.toCtx
               narrowDom narrowDom (.sort domLevel) at hdomTyped
@@ -3409,21 +2918,6 @@ theorem checkPositivity.WF
   subst h
   exact Hloop
 
-/-- Public positivity refinement, including the production fuel lookup. -/
-theorem checkPositivity.refines
-    {decl : VInductDecl} {depth : Nat} {type' : VExpr}
-    (Hc : ContextWF c)
-    (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
-      Hc.mlctx.vlctx stats decl depth)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint Hc.venv stats.indConsts)
-    (hctx : checkPositivityStep.VLCtx.NoIndConsts
-      (decl.types.map (·.name)) Hc.mlctx.vlctx)
-    (htype : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx type type') :
-    (AddInductive.checkPositivity stats type ctor idx c).WF
-      (fun _ => decl.Positive Hc.venv Hc.mlctx.vlctx.toCtx depth type') := by
-  apply checkPositivity.WF
-  exact checkPositivity.loop.refines Hc Hstats hconsume hlit hctx htype
 
 /-- Public narrow-scope positivity refinement, including the production fuel
 lookup used by constructor checking. -/
@@ -3433,6 +2927,7 @@ theorem checkPositivity.refinesNarrow
     (Hc : ContextWF c)
     (Hruntime : checkInductiveTypes.loopType.NarrowRuntimeScope
       Hc.venv c.lparams scope Hc.mlctx.vlctx)
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
     (Hstats : checkPositivityStep.ValidAppStatsWF Hc.venv c.lparams
       scope stats decl depth)
     (hconsume : ConsumeTypeAnnotationsCompat)
@@ -3442,7 +2937,7 @@ theorem checkPositivity.refinesNarrow
     (AddInductive.checkPositivity stats type ctor idx c).WF
       (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowType) := by
   apply checkPositivity.WF
-  exact checkPositivity.loop.refinesNarrow Hc Hruntime Hstats hconsume
+  exact checkPositivity.loop.refinesNarrow Hc Hruntime halign Hstats hconsume
     hlit htypeNarrow htypeFull
 
 
