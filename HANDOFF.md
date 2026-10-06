@@ -974,7 +974,9 @@ inside this project's scope without solving open base metatheory:
    `Init.Core` replay (3953) and audit self-test pass after the Phase 0 and
    spike merges; five sorry warnings (`headInversion`, `weakN_iff`,
    `headParallel`, `fullStep`, `strip`), the last three closed on the cr
-   branch pending merge.
+   branch pending merge. **Merged (0525770b):** main's open proofs are now
+   exactly `headInversion`, `weakN_iff` (hypothesis on E3), `strip`
+   (in progress on the cr branch).
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
