@@ -75,6 +75,39 @@ class Params where
     env.NativeHeadRigid cc
   /-- Structure constructors carry no computation of their own. -/
   projection_ctor_rigid : env.projections family info → env.NativeHeadRigid info.ctorName
+  /-- A native iota major of structure type is a saturated application of the
+  structure's constructor. -/
+  pat_struct_major : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
+    env.projections family info →
+    HasType env univs Γ (VExpr.mkApps (.const cc lsc) fs) (VExpr.mkApps (.const family ls) ps) →
+    fs.length = kc → cc = info.ctorName ∧ kc = info.nparams + info.numFields
+  /-- Native iota computation at a structure constructor reads only its fields,
+  not its parameters. -/
+  pat_iota_params {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
+      (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check} :
+    Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
+    env.projections family info → cc = info.ctorName →
+    ((Pattern.const cc).varN kc).Matches (VExpr.mkApps (.const cc lsc) (ps ++ fields)) lsc g →
+    ((Pattern.const cc).varN kc).Matches (VExpr.mkApps (.const cc lsc') (ps' ++ fields)) lsc' g' →
+    ps.length = info.nparams → ps'.length = info.nparams →
+    (∀ (m1 : List VLevel) (g1 : ((Pattern.const rc).varN mr).Path → VExpr),
+      Pattern.RHS.apply (p := .app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc))
+          m1 (Sum.elim g1 g) r.1 =
+        Pattern.RHS.apply (p := .app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc))
+          m1 (Sum.elim g1 g') r.1) ∧
+    (∀ (m1 : List VLevel) (g1 : ((Pattern.const rc).varN mr).Path → VExpr)
+      (df : VExpr → VExpr → Prop),
+      Pattern.Check.OK (p := .app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc))
+          df m1 (Sum.elim g1 g) r.2 →
+        Pattern.Check.OK (p := .app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc))
+          df m1 (Sum.elim g1 g') r.2)
+  /-- A case major of structure type is a saturated application of the structure's
+  constructor, and the case rule captures only its fields. -/
+  schema_struct_major : MatchedCaseStep env univs Γ rule actual → env.projections family info →
+    HasType env univs Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments)
+      (VExpr.mkApps (.const family ls) ps) →
+    actual.ctorName = info.ctorName ∧
+      actual.ctorArguments.length = info.nparams + info.numFields ∧ rule.numFields ≤ info.numFields
 variable [Params]
 open Params
 
