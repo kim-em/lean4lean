@@ -2476,8 +2476,7 @@ theorem parameterStepOfCheckedHeader
     have hdomainToNarrow := hdomFull.uniq Hc.checking.tr.wf
       (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hdomWeak
     have hmatchFull :=
-      (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
-        Hc.mlctx_wf.tr.wf.toCtx Hscope.olderLift.toCtx).2 hnarrowMatch
+      VEnv.IsDefEqU.weakN Hc.checking.tr.wf.ordered Hscope.olderLift.toCtx hnarrowMatch
     have hresult := hdomainToNarrow.trans Hc.checking.tr.wf
       Hc.mlctx_wf.tr.wf.toCtx hmatchFull
     rw [hparamTyEq]
@@ -2566,8 +2565,7 @@ theorem parameterStepOfCheckedRecursorHeader
     have hdomainToNarrow := hdomFull.uniq R.checking.tr.wf
       (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hdomWeak
     have hmatchFull :=
-      (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
-        R.mlctx_wf.tr.wf.toCtx Hscope.olderLift.toCtx).2 hnarrowMatch
+      VEnv.IsDefEqU.weakN R.checking.tr.wf.ordered Hscope.olderLift.toCtx hnarrowMatch
     have hresult := hdomainToNarrow.trans R.checking.tr.wf
       R.mlctx_wf.tr.wf.toCtx hmatchFull
     rw [hparamTyEq]
