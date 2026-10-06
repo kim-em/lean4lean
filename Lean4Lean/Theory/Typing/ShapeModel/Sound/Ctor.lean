@@ -3,10 +3,10 @@ import Lean4Lean.Theory.Typing.ShapeModel.Sound.Spine
 /-!
 # Soundness of the shape model: structures
 
-The facts about structures (types with registered projections) that the soundness proof reads
-from the semantic signature and the environment (`SemSig.StructFacts`, `SemSig.EnvFacts`), the
-realization of a structure constructor applied to arguments as a constructor shape
-(`Ctor.realize`), and the typing of projections (`Proj.typed`).
+The facts about the environment that the soundness proof reads (`SemSig.EnvFactsIn`, with the
+structure facts `SemSig.StructFacts` of `Sound/Basic.lean`), the realization of a structure
+constructor applied to arguments as a constructor shape (`Ctor.realize`), and the typing of
+projections (`Proj.typed`).
 -/
 
 namespace Lean4Lean.ShapeModel
@@ -16,47 +16,28 @@ set_option linter.unusedSectionVars false
 
 noncomputable section
 
-/-- The facts linking a structure `s` with projection data `info` to the semantic signature and
-to the environment `env`. -/
-structure SemSig.StructFacts [S : SemSig] (env : VEnv) (s : Name) (info : VProjectionInfo) :
-    Prop where
-  /-- `proj s i` reads the fields of the structure constructor. -/
-  structCtor : S.structCtor s = some info.ctorName
-  /-- The structure constructor builds `s`, with the declared numbers of parameters and fields. -/
-  ctor : S.ctor info.ctorName = some ⟨s, info.nparams, info.numFields⟩
-  /-- The structure constructor is the only constructor of `s`. -/
-  famCtors : S.famCtors s = [info.ctorName]
-  /-- A structure without indices has eta (its constructor collapses). -/
-  isStruct : info.nindices = 0 → S.isStruct info.ctorName = true
-  /-- The structure constructor is declared with the type recorded in the projection data. -/
-  ctorConst : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩
-  /-- The constructor type is a telescope over the parameters and fields ending in `s` applied
-  to the parameters (as bound variables) and to index expressions. -/
-  ctorType : ∃ (Ds idx : List VExpr), Ds.length = info.nparams + info.numFields ∧ idx.length = info.nindices ∧
-    info.ctorType = Ds.foldr .forallE (VExpr.mkApps (.const s (VLevel.params info.uvars))
-      ((List.range info.nparams).map (fun j => .bvar (info.nparams + info.numFields - 1 - j)) ++
-        idx))
-  /-- `s` is not a constructor. -/
-  famNotCtor : S.ctor s = none
-  /-- `s` heads no computation rule. -/
-  famNoRule : ∀ r, S.rules r → r.head ≠ .const s
-  /-- The sort level of `s`. -/
-  famLevel : S.famLevel s = some info.resultLevel
-  /-- The type of `s` is a telescope over the parameters and indices ending in its sort. -/
-  famType : ∃ Ds : List VExpr, Ds.length = info.nparams + info.nindices ∧
-    env.constants s = some ⟨info.uvars, Ds.foldr .forallE (.sort info.resultLevel)⟩
-
-/-- The facts about the environment `env` that the soundness proof reads, besides the
-validity of its computation rules (`ExtraValid`, `ElimValid`). -/
-structure SemSig.EnvFacts [S : SemSig] (env : VEnv) : Prop where
+/-- The facts about the environment `env` that the soundness proof reads for derivations in an
+environment `E ≤ env`, besides the validity of the computation rules (`ExtraValid`,
+`ElimValidIn`). Constant types are closed in all of `env`; the eliminator types and the
+structure facts are only asked for the eliminators and projections registered in `E`. -/
+structure SemSig.EnvFactsIn [S : SemSig] (E env : VEnv) : Prop where
   /-- Constant types are closed. -/
   constClosed : ConstClosed env
-  /-- The generic type of an eliminator is its type in the signature. -/
-  elimType : ∀ {b schema owner T}, env.eliminators b schema →
+  /-- The generic type of an eliminator of `E` is its type in the signature. -/
+  elimType : ∀ {b schema owner T}, E.eliminators b schema →
     InductiveSignature.CaseSchema.genericType schema owner = some T → T.Closed →
     S.elimType b owner.val = some T
-  /-- Structures. -/
-  proj : ∀ {s info}, env.projections s info → S.StructFacts env s info
+  /-- Structures registered in `E`. -/
+  proj : ∀ {s info}, E.projections s info → S.StructFacts env s info
+
+/-- The facts of `SemSig.EnvFactsIn` for every eliminator and projection of `env` itself. -/
+abbrev SemSig.EnvFacts [SemSig] (env : VEnv) : Prop := SemSig.EnvFactsIn env env
+
+theorem SemSig.EnvFactsIn.mono [SemSig] {E E' env : VEnv} (hle : E ≤ E')
+    (h : SemSig.EnvFactsIn E' env) : SemSig.EnvFactsIn E env where
+  constClosed := h.constClosed
+  elimType hb := h.elimType (hle.eliminators hb)
+  proj hp := h.proj (hle.projections hp)
 
 variable {env : VEnv} [SemSig] [SemSig.Coherent]
 
@@ -293,7 +274,8 @@ theorem Ctor.realize (hcl : ConstClosed env) (hF : SemSig.StructFacts env s info
   have hpbvl : pbv.length = info.nparams := by simp [pbv]
   have hidxl : idxl.length = info.nindices := by simp [idxl, hidx]
   -- the sort of the structure at the levels is the sort of the constructor's result type
-  obtain ⟨Dsf, hDsf, hsc⟩ := hF.famType
+  obtain ⟨cis, Dsf, hsc, -, hDsf, hfamT⟩ := hF.famTypeSem
+  have hcis := hcl hsc
   have hBr : StrongSound env Γ' (VExpr.mkApps (.const s ls) (pbv ++ idxl).reverse.reverse)
       (.sort v) := by rwa [List.reverse_reverse]
   let xsI := keys.take info.nparams ++ List.replicate info.nindices TShape.bot
@@ -305,13 +287,16 @@ theorem Ctor.realize (hcl : ConstClosed env) (hF : SemSig.StructFacts env s info
   have hstl : VExpr.instL ls (Dsf.foldr .forallE (.sort info.resultLevel)) =
       (Dsf.map (·.instL ls)).foldr .forallE (.sort (info.resultLevel.inst ls)) := by
     rw [VExpr.instL_foldr_forallE]; rfl
-  simp only [hstl] at hqI4
+  -- move to the semantic telescope of the structure's type (at the base valuation)
+  have hqI4' := (hfamT ls hlsl _).1 ((Interp.closed_iff hcis.instL).1 hqI4)
+  simp only [hstl] at hqI4'
   obtain ⟨htelI, -⟩ := Interp.nest_inv (by
     rw [List.length_map, List.length_reverse, hDsf, hqI2.length_eq, List.length_reverse,
-      List.length_append, hpbvl, hidxl]) hqI4
+      List.length_append, hpbvl, hidxl]) hqI4'
   have hsortI := Interp.nest_intro htelI (fun p hp => hqI3 p (List.mem_reverse.1 hp))
-    (R := TShape.sort (info.resultLevel.inst ls).eval) (ρ := ρ') Interp.sort'
+    (R := TShape.sort (info.resultLevel.inst ls).eval) (ρ := .nil) Interp.sort'
   rw [← hstl] at hsortI
+  have hsortI := (Interp.closed_iff (ρ' := ρ') hcis.instL).1 ((hfamT ls hlsl _).2 hsortI)
   have hlev : (info.resultLevel.inst ls).eval = v.eval :=
     TShape.sort_le_sort (Spine.ofPi W' hBr hsc hqI2 hsortI).le_sort
   -- the rigid shape of the structure, with the constructor entry built from the keys
