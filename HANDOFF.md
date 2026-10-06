@@ -754,6 +754,13 @@ inside this project's scope without solving open base metatheory:
    rules' hit trailing arguments and parameter domains avoid the renamed
    names) to be discharged from the checker's hit-shape invariant (aux
    constructor names never occur in index expressions or parameter domains).
+   **Done (next commit after 24cf282):** `assemblyNative_of_run` (now in
+   Nested/RuleJunction.lean) takes `Hrules`/`Hprovenance` in the modulo
+   forms; `hprovenance_of (E) (wf) (Hsources) (hnested)` and
+   `hrules_of (E) (wf) (Hsources) (HruleShape)` discharge them;
+   `loweredRulesAvoid_renamed` closes the residue. **`HruleShape` is the only
+   remaining premise of the nested assembly** (agent running on
+   Nested/RuleShape.lean).
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
