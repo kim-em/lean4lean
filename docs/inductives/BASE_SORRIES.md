@@ -292,20 +292,24 @@ In FullReduction.lean:
   `NormalEqN.fullStep_projIota`. The three `NormalEq.fullStep` sorries and
   the distinct-family case of `FullStep.strip` are closed.
 
-These use the hypothesis class `HeadSeparation` (assumed by
-`NormalEq.parRed`, `NormalEq.fullStep`, `FullReduction.church_rosser`,
-`FullStep.strip` and `IsDefEq.full_church_rosser`):
+After the Phase 0 merge these separation facts are theorems (commits
+f14b82d8, efb7f95b, fb9b570b), and no class hypothesis remains:
 
-* `not_pi`, `proof_major`: the major of a matched native iota redex is not
-  a function, and a proof major forces a propositional result (native
-  recursor typing; small targets are propositional, large ones carry a
-  nonzero source-level check).
-* `case_not_pi`: the constructor major of a matched generated case redex is
-  not a function (the proof-major case is already proved there).
-* `rigid_not_pi`: a rigid-headed application is never a Pi type (the
-  missing `IsDefEqU.rigidApp_forallE_inv`).
-* `rigid_ne`: distinct rigid heads are never equal types (stated at a sort;
-  proofs with distinct rigid heads are equal by proof irrelevance).
+* rigid head against Pi and distinct rigid heads: `IsDefEqU.rigidApp_forallE_inv`,
+  `IsDefEqU.rigidApp_ne` (from `VEnv.WF.headInversion`).
+* case majors: `MatchedCaseStep.major_not_pi`, from the declaration-history
+  invariant extended with `VEnv.CtorResultRigid` (the constructor major of
+  every installed native equation returns a rigid family) and
+  `WF.case_family_head_rigid` (the family head of every registered case owner
+  with a rule is rigid; containers are traced through their installed
+  equations).
+* native majors: `Params.major_not_pi` (major domain of the restored recursor
+  type, `NativeRecursorRegistered.family_head_rigid`; quotient major `Quot`).
+  `Params.pat_recursor` now also records that an iota pattern's owner has a
+  constructor.
+* proof majors: `Params.major_proof`; small eliminators by
+  `NativeRecursorRegistered.result_sort`, large ones by the nonzero
+  source-level check and `NativeRecursorRegistered.major_not_proof`.
 
 Remaining: `FullStep.strip` for the core, delta, quotient, projection iota
 and congruence steps. Strip follows from a local property D' (for two steps
@@ -323,3 +327,32 @@ the same recursor head.
 `sort_inv`, `forallE_inv_stratified`, `sort_forallE_inv` and
 `fieldType_inv_stratified`; `IsDefEq.full_church_rosser` on these and
 `FullStep.strip`; neither depends on `IsDefEqU.weakN_iff`.
+
+## 6. FullStep.strip: obstacle to the single-step local property
+
+`FullStep.strip` (core, delta, quotient, projection-iota and congruence
+steps) remains open. The proposed route, a fully parallel relation P with
+FullStep ⊆ P ⊆ FullReduction whose peaks close "in at most one step each",
+fails because `FullStep.funEta` may expand the function of an application.
+Counterexample: in an environment with `Nat`, let `f := Nat.rec (motive :=
+fun _ => Nat) z s` with `z : Nat` a variable, and `t := app f Nat.zero`.
+Then `t → z` by native iota, and `t → app (lam Nat (app f.lift #0)) Nat.zero`
+by `FullStep.app (FullStep.funEta _) FullStep.rfl`. Every one-step reduct of
+the latter (parallel beta reduces the body before substitution, so iota cannot
+fire) is an application or a lambda, and `z` only reduces to itself; no such
+pair is `NormalEq` (`Nat` is not a proposition). The peak closes in two steps
+(beta, then iota), so strip itself is not refuted. But neither the symmetric
+diamond nor Huet's strongly-closed form (one side at most one step) holds, for
+any parallel relation whose beta step substitutes after reducing.
+
+Native iota and native prefix unfolding do not overlap: `NativeDeltaRule`
+requires a large target with source level equivalent to zero, while the native
+iota guard for large targets requires the source level to be nonzero.
+
+Possible routes, none tried yet:
+(a) restrict `funEta` to non-head positions and make the transports keep
+    eta expansions out of head positions, as `SpineTransport` does;
+(b) add a continuing beta rule to the parallel relation
+    (`app (lam A b) a ⇒ X` when `b.inst a ⇒ X`), whose diamond needs an
+    induction measure not yet found because substitution enlarges derivations;
+(c) decreasing diagrams with the eta-expansion steps labelled above beta.
