@@ -251,6 +251,91 @@ theorem TrExprS.unshiftFixed_telescope
   exact key binders.length (Nat.le_refl _) d (by rw [List.take_of_length_le (Nat.le_refl _)]; exact hd)
 
 
+/-- A recursor-universe translation of declaration-universe syntax, returned
+to the declaration's universes: the target and the context are un-shifted by
+`recursorUnshiftLevels`. -/
+theorem TrExprS.unshift
+    {env : VEnv} {Us : List Name} {elim : Level}
+    (ha : AddInductive.AdmissibleElimLevel Us elim)
+    {Δ : VLCtx} {e : Expr} {e' : VExpr}
+    (hsrc : e.levelParamsIn Us = true)
+    (Htr : TrExprS env (AddInductive.getRecLevelParams elim Us) Δ e e') :
+    TrExprS env Us (Δ.instL (recursorUnshiftLevels Us.length elim)) e
+      (e'.instL (recursorUnshiftLevels Us.length elim)) := by
+  cases elim with
+  | zero =>
+    simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at Htr ⊢
+    have H1 := TrExprS.substLevelParamsCore_of_levels (F := Level.param)
+      (ls := VLevel.params Us.length) (fun level hlevel => VLevel.params_wf hlevel)
+      (fun u u' hu => by
+        simpa [Level.substParams_id, VLevel.inst_id (VLevel.WF.of_ofLevel hu)] using hu) Htr
+    rwa [Expr.instantiateLevelParamsCore_id] at H1
+  | param fresh =>
+    have hfresh : fresh ∉ Us := by
+      simpa [AddInductive.AdmissibleElimLevel] using ha
+    simp only [recursorUnshiftLevels, AddInductive.getRecLevelParams] at Htr ⊢
+    have H1 := TrExprS.substLevelParamsCore_of_levels (Us := Us) (F := recursorDropLevel fresh)
+      (ls := recursorDropLevels Us.length) recursorDropLevels_wf
+      (fun _ _ hu => ofLevel_dropFresh hu) Htr
+    rwa [levelParamsIn_fixed_dropFresh hsrc hfresh] at H1
+  | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
+
+theorem TrExprS.unshift_forall₂
+    {env : VEnv} {Us : List Name} {elim : Level}
+    (ha : AddInductive.AdmissibleElimLevel Us elim) {Δ : VLCtx}
+    {srcs : List Expr} {targets : List VExpr}
+    (hsrc : ∀ e ∈ srcs, e.levelParamsIn Us = true)
+    (Htr : List.Forall₂ (TrExprS env (AddInductive.getRecLevelParams elim Us) Δ) srcs targets) :
+    List.Forall₂ (TrExprS env Us (Δ.instL (recursorUnshiftLevels Us.length elim))) srcs
+      (targets.map (VExpr.instL (recursorUnshiftLevels Us.length elim))) := by
+  induction Htr with
+  | nil => exact .nil
+  | cons hab _ ih =>
+    exact .cons (TrExprS.unshift ha (hsrc _ (by simp)) hab)
+      (ih fun e he => hsrc e (by simp [he]))
+
+theorem recursorUnshiftLevels_abstract
+    (ha : AddInductive.AdmissibleElimLevel Us elim) :
+    (recursorDeclarationAbstractLevels Us ha).map
+        (VLevel.inst (recursorUnshiftLevels Us.length elim)) = VLevel.params Us.length := by
+  cases elim with
+  | zero =>
+    rw [recursorDeclarationAbstractLevels_eq_zero ha rfl]
+    simp only [recursorUnshiftLevels]
+    rw [VLevel.inst_map_id VLevel.params_length]
+  | param fresh =>
+    rw [recursorDeclarationAbstractLevels_eq_param ha rfl]
+    simp only [recursorUnshiftLevels]
+    rw [recursorDropLevels_prependShift]
+  | succ | max | imax | mvar => simp [AddInductive.AdmissibleElimLevel] at ha
+
+theorem List.map_unshift_abstract
+    (ha : AddInductive.AdmissibleElimLevel Us elim) {xs : List VExpr}
+    (h : ∀ x ∈ xs, x.LevelWF Us.length) :
+    (xs.map (VExpr.instL (recursorDeclarationAbstractLevels Us ha))).map
+      (VExpr.instL (recursorUnshiftLevels Us.length elim)) = xs := by
+  rw [List.map_map]
+  conv => rhs; rw [← List.map_id xs]
+  apply List.map_congr_left
+  intro x hx
+  simp only [Function.comp_apply, id]
+  rw [VExpr.instL_instL, recursorUnshiftLevels_abstract ha, (h x hx).instL_id]
+
+theorem OnCtx.levelWF_of_isType {env : VEnv} {U : Nat} :
+    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → OnCtx Γ (fun _ A => A.LevelWF U)
+  | [], _ => trivial
+  | _ :: _, H => ⟨OnCtx.levelWF_of_isType H.1,
+      (Classical.choose_spec H.2).levelWF (OnCtx.levelWF_of_isType H.1) |>.1⟩
+
+theorem OnCtx.levelWF_mem {env : VEnv} {U : Nat} :
+    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → ∀ x ∈ Γ, x.LevelWF U
+  | [], _, _, hx => by simp at hx
+  | _ :: _, H, x, hx => by
+    rcases List.mem_cons.mp hx with rfl | hx
+    · exact ((Classical.choose_spec H.2).levelWF (OnCtx.levelWF_of_isType H.1)).1
+    · exact OnCtx.levelWF_mem H.1 x hx
+
+
 /-! ### Marking recursive fields -/
 
 theorem List.filterMap_congr_of_mem {α β : Type _} {f g : α → Option β} :
@@ -459,6 +544,50 @@ theorem InductiveSignature.Instance.hypothesis_eq_form {s : InductiveSignature}
       hypothesisForm g.levels ctor.fields.length s.families.size prior j pos r.target.val
         r.binders r.indices := rfl
 
+/-- The declaration-universe sources of the `j`-th recursive shape
+`(pos, target, binders, indices)` of a minor, stated against the retained
+blueprint call `C` of that induction hypothesis (the call from which
+`RecRuleBlueprint.build` produces the installed rule's recursive value).
+
+* the shape's target and arity are those of `C`, and `C`'s template is the
+  closure of its own fields;
+* `binders[i]` translates, at the declaration's universes, in
+  `parameters ++ sourceFields.take pos ++ binders.take i`, the `i`-th literal
+  domain of `C`'s argument telescope `C.lctx.mkForall C.args (.sort .zero)`
+  (already closed over the earlier arguments, so its loose variables
+  `0, …, i - 1` are those arguments), closed over the fields before `pos` at
+  depth `i` and the parameters at depth `pos + i`;
+* the indices translate `C.targetIndices` closed over the arguments
+  (`abstractN (ExprArrayFVarIds C.args)`), then over the fields before `pos`
+  and the parameters at depths `C.args.size` and `pos + C.args.size`, in
+  `parameters ++ sourceFields.take pos ++ binders`. -/
+def CompletedRecursorConstruction.RecursiveShapeSources
+    (H : CompletedRecursorConstruction R)
+    (mowner : Nat) (hmowner : mowner < H.recInfos.size)
+    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
+    (j pos target : Nat) (binders indices : List VExpr) : Prop :=
+  let S := H.origins.minorShapes mowner hmowner localIndex hlocal
+  let C := H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!
+  let base := R.parameterScope.toCtx.reverse ++
+    (H.sourceFields mowner hmowner localIndex hlocal).take pos
+  let fvs := S.fields_bound.fvars.take pos
+  j < (H.recInfos[mowner]!.ruleBlueprints[localIndex]!).recursiveCalls.size ∧
+  target = C.targetTypeIdx ∧
+  binders.length = C.args.size ∧
+  C.major = S.recursiveFields[j]! ∧
+  C.template = C.lctx.mkLambda C.args
+    ((mkAppN (.bvar C.args.size) C.targetIndices).app (mkAppN C.major C.args)) ∧
+  (∀ i (hi : i < binders.length),
+    TrExprS R.context.venv c.lparams (abstractForallContext (base ++ binders.take i) [])
+      (((Expr.forallDomainList C.args.size (C.lctx.mkForall C.args (.sort .zero)))[i]!.abstractList
+        fvs i).abstractList H.params.fvars (pos + i))
+      (binders[i]'hi)) ∧
+  List.Forall₂ (TrExprS R.context.venv c.lparams (abstractForallContext (base ++ binders) []))
+    (C.targetIndices.toList.map fun e =>
+      ((e.abstractN (ExprArrayFVarIds C.args)).abstractList fvs C.args.size).abstractList
+        H.params.fvars (pos + C.args.size))
+    indices
+
 /-- `recursorTelescope_hypothesisUnlift`, returned to the declaration's
 universes: the `j`-th induction hypothesis of a flat minor slot is the
 generator's hypothesis for some declaration-universe binders and indices. -/
@@ -490,10 +619,12 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisHeader
         t < H.recInfos.size ∧
         S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[pos]'hpos) ∧
         hyps[j]'(by rw [hhyps]; exact hj) =
-          hypothesisForm L S.fields.size nmot minorIdx j pos t binders indices := by
+          hypothesisForm L S.fields.size nmot minorIdx j pos t binders indices ∧
+        H.RecursiveShapeSources mowner hmowner localIndex hlocal j pos t binders indices := by
   intro S L nmot fields hyps res hhyps hminorEq j hj
   obtain ⟨origins, root, sourceType, O, pos, hpos, binders, indices, horig, _hstats, _hmotives,
-    hfield, hblen, howner', heq, Hbinders, Hindices, hcallArgs, hcallLctx, hcallIdx⟩ :=
+    hfield, hblen, howner', heq, Hbinders, Hindices, hcallArgs, hcallLctx, hcallIdx, hcallT,
+    hcallMajor, hcallTemplate, hdomEq, hfvIds⟩ :=
     H.recursorTelescope_hypothesisUnlift howner T minorIdx D₀ mowner hmowner localIndex hlocal hD
       hyps res hhyps hminorEq j hj
   have hjCalls : j < (H.recInfos[mowner]!.ruleBlueprints[localIndex]!).recursiveCalls.size := by
@@ -516,26 +647,71 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisHeader
       exact unshiftFixed_instL H.elimLevelAdmissible x
     · obtain ⟨x, _, rfl⟩ := List.mem_map.mp (List.mem_of_mem_take hd)
       exact unshiftFixed_instL H.elimLevelAdmissible x
-  have hbinders : ∀ d ∈ binders, UnshiftFixed L Q d := by
-    refine TrExprS.unshiftFixed_telescope H.elimLevelAdmissible hbase ?_ Hbinders
+  have hsrcB : ∀ i, i < binders.length →
+      ((O.argDomains[i]!.abstractList (S.fields_bound.fvars.take pos) i).abstractList
+        H.params.fvars (pos + i)).levelParamsIn c.lparams = true := by
     intro i hi
     simp only [Expr.levelParamsIn_abstractList]
     have hi' : i < O.argDomains.length := by rw [O.argDomains_length]; omega
     rw [getElem!_pos O.argDomains i hi']
     exact hdomU _ (List.getElem_mem hi')
+  have hsrcI : ∀ e ∈ ((O.exposedType.getAppArgs[origins.stats.params.size:] : Array Expr).toList.map
+      fun e => ((e.abstractN O.arguments_bound.fvars).abstractList
+        (S.fields_bound.fvars.take pos) O.args.size).abstractList H.params.fvars
+          (pos + O.args.size)), e.levelParamsIn c.lparams = true := by
+    intro e he
+    obtain ⟨e₀, he₀, rfl⟩ := List.mem_map.mp he
+    simp only [Expr.levelParamsIn_abstractList, Expr.levelParamsIn_abstractN]
+    exact hidxU e₀ he₀
+  have hbinders : ∀ d ∈ binders, UnshiftFixed L Q d :=
+    TrExprS.unshiftFixed_telescope H.elimLevelAdmissible hbase hsrcB Hbinders
   have hindices : ∀ d ∈ indices, UnshiftFixed L Q d := by
-    refine TrExprS.unshiftFixed_forall₂ H.elimLevelAdmissible ?_ ?_ Hindices
-    · apply unshiftFixed_context
-      intro x hx
-      rcases List.mem_append.mp hx with hx | hx
-      · exact hbase x hx
-      · exact hbinders x hx
-    · intro e he
-      obtain ⟨e₀, he₀, rfl⟩ := List.mem_map.mp he
-      simp only [Expr.levelParamsIn_abstractList, Expr.levelParamsIn_abstractN]
-      exact hidxU e₀ he₀
+    refine TrExprS.unshiftFixed_forall₂ H.elimLevelAdmissible ?_ hsrcI Hindices
+    apply unshiftFixed_context
+    intro x hx
+    rcases List.mem_append.mp hx with hx | hx
+    · exact hbase x hx
+    · exact hbinders x hx
+  -- The declaration-universe sources, against the retained call.
+  have henvR : R.context.venv.WF := R.context.checking.tr.wf
+  have hP : OnCtx R.parameterScope.toCtx (R.context.venv.IsType c.lparams.length) := by
+    simpa [VLCtx.toCtx] using R.sourceAnonymousParameterWF.toCtx
+  have hFctx := (VEnv.IsType.wrapForalls_inv henvR.ordered hP
+    (H.sourceFields_replay mowner hmowner localIndex hlocal).2.1).1
+  have hwf := OnCtx.levelWF_mem hFctx
+  have hPwf : ∀ x ∈ R.parameterScope.toCtx.reverse, x.LevelWF c.lparams.length :=
+    fun x hx => hwf x (List.mem_append_right _ (List.mem_reverse.mp hx))
+  have hFwf : ∀ x ∈ (H.sourceFields mowner hmowner localIndex hlocal).take pos,
+      x.LevelWF c.lparams.length :=
+    fun x hx => hwf x (List.mem_append_left _ (List.mem_reverse.mpr (List.mem_of_mem_take hx)))
+  have hctx : ∀ X : List VExpr,
+      (abstractForallContext (H.parameterSuffix.parameterDecls.toCtx.reverse ++
+        ((H.sourceFields mowner hmowner localIndex hlocal).map (VExpr.instL L)).take pos ++ X)
+          []).instL Q =
+      abstractForallContext (R.parameterScope.toCtx.reverse ++
+        (H.sourceFields mowner hmowner localIndex hlocal).take pos ++ X.map (VExpr.instL Q)) [] := by
+    intro X
+    rw [VLCtx.instL_abstractForallContext_nil, H.parameterDomains, ← List.map_take,
+      List.map_append, List.map_append, List.map_unshift_abstract H.elimLevelAdmissible hPwf,
+      List.map_unshift_abstract H.elimLevelAdmissible hFwf]
+  have Hsources : H.RecursiveShapeSources mowner hmowner localIndex hlocal j pos O.ownerIdx
+      (binders.map (VExpr.instL Q)) (indices.map (VExpr.instL Q)) := by
+    dsimp only [RecursiveShapeSources]
+    refine ⟨hjCalls, hcallT.symm, by rw [List.length_map, hblen, hcallArgs], hcallMajor, ?_, ?_, ?_⟩
+    · rw [hcallTemplate, hcallLctx, hcallArgs, hcallIdx, hcallMajor]
+    · intro i hi
+      have hi' : i < binders.length := by simpa using hi
+      have h := TrExprS.unshift H.elimLevelAdmissible (hsrcB i hi') (Hbinders i hi')
+      rw [hctx, List.map_take] at h
+      simp only [List.getElem_map]
+      rw [hcallArgs, hcallLctx, ← hdomEq]
+      exact h
+    · have h := TrExprS.unshift_forall₂ H.elimLevelAdmissible hsrcI Hindices
+      rw [hctx] at h
+      rw [hcallArgs, hcallIdx, hfvIds]
+      exact h
   refine ⟨pos, hpos, O.ownerIdx, binders.map (VExpr.instL Q), indices.map (VExpr.instL Q),
-    howner', hfield, ?_⟩
+    howner', hfield, ?_, Hsources⟩
   rw [heq]
   have hfixB : (binders.map (VExpr.instL Q)).map (VExpr.instL L) = binders := by
     conv => rhs; rw [← List.map_id binders]
@@ -867,7 +1043,12 @@ def CompletedRecursorConstruction.MinorShapeSpec
         BindingContextLE origins.fieldRoot root ∧
         _D.type = sourceType.consumeTypeAnnotationsVerified ∧
         shapes[j].2.target.val = O.ownerIdx ∧
-        shapes[j].2.binders.length = O.args.size)
+        shapes[j].2.binders.length = O.args.size) ∧
+  (∀ j (hj : j < shapes.length),
+    ∃ hpos : shapes[j].1 < S.fields_bound.fvars.length,
+      S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[shapes[j].1]'hpos) ∧
+      H.RecursiveShapeSources mowner hmowner localIndex hlocal j shapes[j].1
+        shapes[j].2.target.val shapes[j].2.binders shapes[j].2.indices)
 
 theorem CompletedRecursorConstruction.minorShapes_exist
     (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
@@ -896,6 +1077,8 @@ theorem CompletedRecursorConstruction.minorShapes_exist
         S.recursiveFields[j]! = .fvar (S.fields_bound.fvars[x.1]'hpos) ∧
         hyps[j] = hypothesisForm L S.fields.size nmot minorIdx j x.1 x.2.target.val
           x.2.binders x.2.indices ∧
+        H.RecursiveShapeSources mowner hmowner localIndex hlocal j x.1 x.2.target.val
+          x.2.binders x.2.indices ∧
         ∃ root sourceType,
           ∃ O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos
             root S.recursiveFields[j]! sourceType,
@@ -905,7 +1088,7 @@ theorem CompletedRecursorConstruction.minorShapes_exist
             x.2.target.val = O.ownerIdx ∧ x.2.binders.length = O.args.size
   have hP : ∀ j, j < S.hypotheses.size → ∃ x, P j x := by
     intro j hj
-    obtain ⟨pos, hpos, t, binders, indices, ht, hfield, hform⟩ :=
+    obtain ⟨pos, hpos, t, binders, indices, ht, hfield, hform, hsources⟩ :=
       H.recursorTelescope_hypothesisHeader HU hmowner T minorIdx D₀ mowner hmowner localIndex
         hlocal hD hyps _ hhyps hminorEq j hj
     obtain ⟨root, sourceType, hLE, ⟨O⟩, D, hDtype⟩ := origins.entry j hj
@@ -917,11 +1100,11 @@ theorem CompletedRecursorConstruction.minorShapes_exist
     have hnmot : nmot = H.recInfos.size := by simp [nmot]
     have htO : t = O.ownerIdx := by omega
     have ht' : t < H.consumedFamilies.size := by rw [H.consumedFamilies_size]; exact ht
-    refine ⟨(pos, ⟨binders, ⟨t, ht'⟩, indices⟩), fun _ => ⟨hpos, hfield, hform, root, sourceType,
-      O, D, hLE, hDtype, htO, hlen.symm.trans hA⟩⟩
+    refine ⟨(pos, ⟨binders, ⟨t, ht'⟩, indices⟩), fun _ => ⟨hpos, hfield, hform, hsources, root,
+      sourceType, O, D, hLE, hDtype, htO, hlen.symm.trans hA⟩⟩
   obtain ⟨shapes, hlen, hshapes⟩ := exists_list_of_forall_lt hP
   have hlenH : shapes.length = hyps.length := by rw [hlen, hhyps]
-  refine ⟨shapes, ?_, hlen, ?_, ?_⟩
+  refine ⟨shapes, ?_, hlen, ?_, ?_, ?_⟩
   · intro traversal' htrav'
     have htt : traversal' = traversal := Option.some.inj (htrav'.symm.trans htrav)
     subst htt
@@ -966,8 +1149,11 @@ theorem CompletedRecursorConstruction.minorShapes_exist
   · intro origins' horig' j hj
     have hoo : origins' = origins := Option.some.inj (horig'.symm.trans horig)
     subst hoo
-    obtain ⟨_, _, _, hrest⟩ := hshapes j hj (by omega)
+    obtain ⟨_, _, _, _, hrest⟩ := hshapes j hj (by omega)
     exact hrest
+  · intro j hj
+    obtain ⟨hpos, hfield, _, hsources, _⟩ := hshapes j hj (by omega)
+    exact ⟨hpos, hfield, hsources⟩
 
 
 /-! ### The consumed signature -/

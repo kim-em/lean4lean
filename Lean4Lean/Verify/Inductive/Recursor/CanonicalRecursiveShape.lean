@@ -592,7 +592,18 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
         (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).lctx =
           O.current.lctx ∧
         (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetIndices =
-          O.exposedType.getAppArgs[origins.stats.params.size:] := by
+          O.exposedType.getAppArgs[origins.stats.params.size:] ∧
+        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetTypeIdx =
+          O.ownerIdx ∧
+        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).major =
+          S.recursiveFields[j]! ∧
+        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template =
+          O.current.lctx.mkLambda O.args
+            ((mkAppN (.bvar O.args.size) O.exposedType.getAppArgs[origins.stats.params.size:]).app
+              (mkAppN S.recursiveFields[j]! O.args)) ∧
+        O.argDomains =
+          Expr.forallDomainList O.args.size (O.current.lctx.mkForall O.args (.sort .zero)) ∧
+        ExprArrayFVarIds O.args = O.arguments_bound.fvars := by
   intro S sourceFields nmot fields hyps res hhyps hminorEq j hj
   -- The retained rows for this minor.
   obtain ⟨-, -, -, -, -, origins₁, -, horig₁, -, -, Hcalls⟩ :=
@@ -913,7 +924,8 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
     congr 1
     omega
   refine ⟨origins₁, originRoot, sourceType, O, pos, hpos, B0, indices, horig, hstats, hmotives,
-    hfield, hB0na, howner', ?_, ?_, ?_, by rw [hcall], by rw [hcall], by rw [hcall]⟩
+    hfield, hB0na, howner', ?_, ?_, ?_, by rw [hcall], by rw [hcall], by rw [hcall], by rw [hcall],
+    by rw [hcall], by rw [hcall], hdom, O.arguments_bound.toBoundFVarArray.exprArrayFVarIds⟩
   · rw [hEq, hIeq, hAeq]
     simp only [hunder, hB0na]
     rfl

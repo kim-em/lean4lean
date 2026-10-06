@@ -147,23 +147,24 @@ theorem CompletedRecursorConstruction.consumedSignature_origins
   · intro j hj
     have hj' : j < (H.consumedShapes HU owner howner localIndex hlocal).length := by
       rw [hrec] at hj; exact hj
-    obtain ⟨root, sourceType, O, D, hLE, hD, htarget, hbinders⟩ := hspec.2.2.2 origins horig j hj'
+    obtain ⟨root, sourceType, O, D, hLE, hD, htarget, hbinders⟩ := hspec.2.2.2.1 origins horig j hj'
     refine ⟨root, sourceType, O, D, hLE, hD, ?_, ?_⟩
     · rw [← htarget]
       exact congrArg (fun x => x.2.target.val) (List.getElem_of_eq hrec hj)
     · rw [← hbinders]
       exact congrArg (fun x => x.2.binders.length) (List.getElem_of_eq hrec hj)
 
-/-- The junction, under the universe support of the hypothesis arguments. -/
-theorem CompletedRecursorConstruction.consumedGeneration_of
+/-- The junction, under the universe support of the hypothesis arguments: the
+explicit generation witness whose signature is `H.consumedSignature HU`. -/
+noncomputable def CompletedRecursorConstruction.consumedGenerationOf
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
-    Nonempty H.ConsumedGeneration := by
+    H.ConsumedGeneration := by
   have D := H.consumedSignatureData HU
   have hfamCount : (H.consumedSignature HU).families.size = indTypes.size := by
     simp [H.consumedFamilies_size, H.sourceFamilyCount]
-  refine ⟨{
+  refine {
     signature := H.consumedSignature HU
     generation := H.consumedInstance (H.consumedSignature HU)
     models := D.models
@@ -185,7 +186,7 @@ theorem CompletedRecursorConstruction.consumedGeneration_of
     types := H.consumedSignature_types HU
     recursiveTypesWF := H.consumedSignature_recursiveTypesWF HU
     familyTypesWF := H.consumedFamilyTypesWF rfl rfl
-    sourceOrigins := ?_ }⟩
+    sourceOrigins := ?_ }
   · intro owner howner
     have howner' : owner < H.recInfos.size := by
       simpa [H.consumedFamilies_size] using howner
@@ -223,11 +224,32 @@ theorem CompletedRecursorConstruction.canonicalConsumedGeneration
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : CompletedRecursorConstruction R) : Nonempty H.ConsumedGeneration :=
-  H.consumedGeneration_of H.argumentUniverses
+  ⟨H.consumedGenerationOf H.argumentUniverses⟩
 
+theorem CompletedRecursorConstruction.consumedGeneration_of
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
+    Nonempty H.ConsumedGeneration :=
+  ⟨H.consumedGenerationOf HU⟩
+
+/-- The generation witness: the explicit construction `consumedGenerationOf`
+(not a choice from `canonicalConsumedGeneration`), so that its signature is
+definitionally `H.consumedSignature H.argumentUniverses` and the facts
+retained by the construction (for instance
+`consumedGeneration_shapeTranslations`) are available about it. -/
 noncomputable def CompletedRecursorConstruction.consumedGeneration
     (H : CompletedRecursorConstruction R) : H.ConsumedGeneration :=
-  Classical.choice H.canonicalConsumedGeneration
+  H.consumedGenerationOf H.argumentUniverses
+
+theorem CompletedRecursorConstruction.consumedGeneration_signature
+    (H : CompletedRecursorConstruction R) :
+    H.consumedGeneration.signature = H.consumedSignature H.argumentUniverses := rfl
+
+theorem CompletedRecursorConstruction.consumedGeneration_generation
+    (H : CompletedRecursorConstruction R) :
+    H.consumedGeneration.generation =
+      H.consumedInstance (H.consumedSignature H.argumentUniverses) := rfl
 
 noncomputable def CompletedRecursorConstruction.generationSignature
     (H : CompletedRecursorConstruction R) : InductiveSignature := H.consumedGeneration.signature
