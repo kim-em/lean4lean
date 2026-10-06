@@ -554,6 +554,98 @@ theorem _root_.Lean4Lean.Pattern.Check.OK.defeq_values (hΓ : OnCtx Γ (env.IsTy
 
 end Relations
 
+
+section DefRel
+
+theorem IsDefEq.proj_congr (hΓ : OnCtx Γ (env.IsType univs))
+    (he : Γ ⊢ .proj s i m : A) (hm : Γ ⊢ m ≡ m') : Γ ⊢ .proj s i m ≡ .proj s i m' : A := by
+  obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType, fieldLevel,
+    hinfo, hlevels, huvars, hparams, hindices, hfield, hfieldTyping,
+    hmajor, hclosed, hguard⟩ := he.proj_inv henv hΓ
+  have majorEq := hm.of_l henv hΓ hmajor.hasType.2
+  have projected := IsDefEq.projDF hinfo hlevels huvars hparams hindices hfield hfieldTyping
+    hmajor (hmajor.trans majorEq) hclosed hguard
+  have ⟨_, typeToA⟩ := projected.hasType.1.uniq henv hΓ he
+  exact .defeqDF typeToA projected
+
+theorem IsDefEq.subst_args {e : VExpr} {σ σ' : VExpr.Subst} (hΓ : OnCtx Γ (env.IsType univs))
+    (hs : ∀ i, σ i = σ' i ∨ IsDefEqU env univs Γ (σ i) (σ' i))
+    (ht : Γ ⊢ e.subst σ : T) : Γ ⊢ e.subst σ ≡ e.subst σ' : T := by
+  induction e generalizing Γ σ σ' T with
+  | bvar i =>
+    rcases hs i with he | he
+    · rw [VExpr.subst, VExpr.subst, ← he]; exact ht
+    · exact he.of_l henv hΓ ht
+  | sort | const | elim => exact ht
+  | app fn arg ihf iha =>
+    obtain ⟨_, _, hf, ha⟩ := ht.app_inv henv hΓ
+    exact IsDefEq.trans_l henv hΓ ht (.appDF (ihf hΓ hs hf) (iha hΓ hs ha))
+  | proj family index major ih =>
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hmajor, _, _⟩ := ht.proj_inv henv hΓ
+    exact IsDefEq.proj_congr hΓ ht ⟨_, ih hΓ hs hmajor.hasType.2⟩
+  | lam domain body ihd ihb =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := ht.lam_inv henv hΓ
+    have hctx : OnCtx (domain.subst σ :: Γ) (env.IsType univs) := ⟨hΓ, _, hd⟩
+    refine IsDefEq.trans_l henv hΓ ht (.lamDF (ihd hΓ hs hd) (ihb hctx ?_ hb))
+    intro i
+    cases i with
+    | zero => exact .inl (Eq.refl _)
+    | succ i =>
+      rcases hs i with he | he
+      · exact .inl (congrArg VExpr.lift he)
+      · exact .inr (he.weakN henv.ordered .one)
+  | forallE domain body ihd ihb =>
+    obtain ⟨⟨_, hd⟩, _, hb⟩ := ht.forallE_inv henv
+    have hctx : OnCtx (domain.subst σ :: Γ) (env.IsType univs) := ⟨hΓ, _, hd⟩
+    refine IsDefEq.trans_l henv hΓ ht (.forallEDF (ihd hΓ hs hd) (ihb hctx ?_ hb))
+    intro i
+    cases i with
+    | zero => exact .inl (Eq.refl _)
+    | succ i =>
+      rcases hs i with he | he
+      · exact .inl (congrArg VExpr.lift he)
+      · exact .inr (he.weakN henv.ordered .one)
+
+theorem IsDefEqU.mkApps_args (hΓ : OnCtx Γ (env.IsType univs)) (hf : Γ ⊢ f ≡ f')
+    (hs : List.Forall₂ (IsDefEqU env univs Γ) as as') (ht : Γ ⊢ VExpr.mkApps f as : T) :
+    Γ ⊢ VExpr.mkApps f as ≡ VExpr.mkApps f' as' := by
+  induction hs generalizing f f' with
+  | nil => exact hf
+  | cons h _ ih =>
+    obtain ⟨_, happ⟩ := schema_mkApps_head_type hΓ (fn := .app f _) ht
+    obtain ⟨_, _, hft, hat⟩ := happ.app_inv henv hΓ
+    exact ih ⟨_, .appDF (hf.of_l henv hΓ hft) (h.of_l henv hΓ hat)⟩ ht
+
+/-- Definitional equality as an argument relation. -/
+theorem defeqU_argRel : ArgRel (fun Γ a b => IsDefEqU env univs Γ a b) where
+  refl _ h := ⟨_, h⟩
+  weakN W h := h.weakN henv.ordered W
+  defeq hΓ h ha := h.of_l henv hΓ ha
+  mkApps hΓ hf hs ht := IsDefEqU.mkApps_args hΓ hf hs ht
+  instantiateParams {Γ cs cs' e T} hΓ hs ht := by
+    refine ⟨_, IsDefEq.subst_args hΓ ?_ ht⟩
+    intro i
+    have hlen := Lean4Lean.List.Forall₂.length_eq hs
+    simp only [← hlen]
+    split
+    · rename_i hi
+      exact .inr (Lean4Lean.List.forall₂_getElem hs _ (by omega) (by omega))
+    · exact .inl (Eq.refl _)
+
+theorem NativeDeltaRule.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
+    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
+    (ha : List.Forall₂ (IsDefEqU env univs Γ) args args') :
+    ∃ rhs', NativeDeltaRule env univs recursorData Γ name levels args' rhs' :=
+  let ⟨rhs', h, _⟩ := H.congr_rel defeqU_argRel hΓ ha; ⟨rhs', h⟩
+
+theorem QuotDeltaRule.congr_defeq (hΓ : OnCtx Γ (env.IsType univs))
+    (H : QuotDeltaRule env univs Γ levels args rhs)
+    (ha : List.Forall₂ (IsDefEqU env univs Γ) args args') :
+    ∃ rhs', QuotDeltaRule env univs Γ levels args' rhs' :=
+  let ⟨rhs', h, _⟩ := H.congr_rel defeqU_argRel hΓ ha; ⟨rhs', h⟩
+
+end DefRel
+
 section Disjoint
 
 omit [Params] in
