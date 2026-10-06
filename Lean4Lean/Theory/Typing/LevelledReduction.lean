@@ -3922,6 +3922,78 @@ theorem EtaPar.parRed_iota
     rw [heq]
     exact (c₁.trans c₂).trans ((Below.app hΓ cF cM₂ tb₂).tail ⟨1, by decide, hfire⟩)
 
+
+theorem EtaPar.parRed_join_args (hΓ : OnCtx Γ (env.IsType univs)) (IH : EPBelow s)
+    (hsub : ∀ x ∈ args, sizeOf x < s) (htyped : ∀ x ∈ args, ∃ T, Γ ⊢ x : T)
+    (h₁ : List.Forall₂ (EtaPar Γ) args argsB) (h₂ : List.Forall₂ (ParRed Γ) args args') :
+    ∃ D, List.Forall₂ (ReflTransGen (Below Γ 3)) argsB D ∧ List.Forall₂ (EtaPar Γ) args' D := by
+  obtain ⟨us, vs, hus, hvs, heq⟩ := List.Forall₂.exists_join (U := Eq) h₁ h₂
+    fun x _ _ hx p q => by
+      obtain ⟨d, h1, h2⟩ := IH (hsub x hx) hΓ p q (htyped x hx).choose_spec
+      exact ⟨d, d, h1, h2, rfl⟩
+  cases forall₂_eq_imp heq
+  exact ⟨us, hus, hvs⟩
+
+omit [Params] in
+theorem take_append_of_cases {l₁ l₂ : List α} (hle : l₁.length ≤ p) (h : l₁.length = p ∨ l₂ = []) :
+    (l₁ ++ l₂).take p = l₁ := by
+  rcases h with h | rfl
+  · subst h; simp
+  · simp only [List.append_nil]; exact List.take_of_length_le hle
+
+omit [Params] in
+theorem drop_append_of_cases {l₁ l₂ : List α} (hle : l₁.length ≤ q) (h : l₁.length = q ∨ l₂ = []) :
+    (l₁ ++ l₂).drop q = l₂ := by
+  rcases h with h | rfl
+  · subst h; simp
+  · simp only [List.append_nil]; exact List.drop_eq_nil_of_le hle
+
+omit [Params] in
+/-- Replace the captured positions of two argument lists by related values. -/
+theorem capture_replace {R : α → α → Prop} (hrefl : ∀ x, R x x) {A C D : List α} {p q : Nat}
+    (H : List.Forall₂ R (A.take p ++ C.drop q) D) :
+    ∃ A' C', A'.take p ++ C'.drop q = D ∧ List.Forall₂ R A A' ∧ List.Forall₂ R C C' ∧
+      A'.length = A.length ∧ C'.length = C.length := by
+  have hD := List.take_append_drop (A.take p).length D
+  rw [← hD] at H
+  obtain ⟨H1, H2⟩ := Lean4Lean.List.forall₂_append_split H
+    (by have := Lean4Lean.List.Forall₂.length_eq H; simp at this ⊢; omega)
+  have hl1 := Lean4Lean.List.Forall₂.length_eq H1
+  have hl2 := Lean4Lean.List.Forall₂.length_eq H2
+  have h1 := hl1; have h2 := hl2
+  simp only [List.length_take, List.length_drop] at h1 h2
+  refine ⟨D.take (A.take p).length ++ A.drop p, C.take q ++ D.drop (A.take p).length, ?_, ?_, ?_, ?_, ?_⟩
+  · rw [take_append_of_cases (by simp only [List.length_take]; omega) (by
+        by_cases hp : p ≤ A.length
+        · exact .inl (by simp only [List.length_take]; omega)
+        · exact .inr (List.drop_eq_nil_of_le (by omega))),
+      drop_append_of_cases (by simp only [List.length_take]; omega) (by
+        by_cases hq : q ≤ C.length
+        · exact .inl (by simp only [List.length_take]; omega)
+        · exact .inr (List.eq_nil_of_length_eq_zero (by
+            simp only [List.length_drop, List.length_take]; omega)))]
+    exact hD
+  · have := case_forall₂_append H1
+      (List.Forall₂.rfl fun x _ => hrefl x : List.Forall₂ R (A.drop p) (A.drop p))
+    rwa [List.take_append_drop] at this
+  · have := case_forall₂_append
+      (List.Forall₂.rfl fun x _ => hrefl x : List.Forall₂ R (C.take q) (C.take q)) H2
+    rwa [List.take_append_drop] at this
+  · simp only [List.length_append, List.length_take, List.length_drop]; omega
+  · simp only [List.length_append, List.length_take, List.length_drop]; omega
+
+theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
+    {actual : InductiveSignature.CaseSchema.Application}
+    (hΓ : OnCtx Γ (env.IsType univs)) (IH : EPBelow (sizeOf actual.expr))
+    (hm : MatchedCaseStep env univs Γ rule actual)
+    (hl : arguments.length = (rule.capture actual).length)
+    (hr : ∀ i (hi : i < (rule.capture actual).length),
+      ParRed Γ (rule.capture actual)[i] (arguments[i]'(by omega)))
+    (hF : EtaPar Γ (VExpr.mkApps (.elim actual.block actual.owner actual.levels) actual.arguments) F')
+    (hM : EtaPar Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments) M')
+    (ha : Γ ⊢ actual.expr : A) :
+    ∃ d, ReflTransGen (Below Γ 3) (.app F' M') d ∧ EtaPar Γ (rule.rhs actual.levels arguments) d := by
+  sorry
 end EtaParRed
 
 section Levels
