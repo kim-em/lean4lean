@@ -797,6 +797,17 @@ inside this project's scope without solving open base metatheory:
    but `projDF` carries no context well-formedness) and `auxiliary`
    (projection entries of auxiliary structure-like families versus their
    containers' registered projections). Agent running on both.
+   **Projection-name fields (35998dc):** fields 2 to 4 proved (translated
+   terms project only out of registered structures; `ProjsOK` of the
+   generated recursor types at the full head set; every piece of a generated
+   equation occurs in a recursor type). Field 1 (eliminator schemas of
+   EARLIER blocks) is not derivable from `VEnv.WF`: a schema may contain
+   `.proj _nested.k …` from that block's own auxiliary structure families and
+   the current block may reuse the name. **Decision (2026-10-06): strengthen
+   the certificate** `CaseSchema.Certified` with "schemas project only out of
+   structures registered at registration time" (a new producer obligation,
+   provable from translation; no theorem is weakened), derive field 1 from it
+   and freshness. Agent running.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
