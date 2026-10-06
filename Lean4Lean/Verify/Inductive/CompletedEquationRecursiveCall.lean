@@ -510,7 +510,8 @@ def CompletedRecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame
     context := Hruntime.context
     upset := Hruntime.upset
     noBV := Hruntime.noBV
-    declarations := Hdeclarations }
+    declarations := Hdeclarations
+    wf := Hruntime.wf }
 
 /-- Extend the exact cached field core through the producer's skipped prior
 hypotheses and then through this call's retained higher-order locals.  The

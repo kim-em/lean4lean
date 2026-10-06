@@ -356,8 +356,11 @@ theorem MLCtxLamPrefix.extendFVarNarrowScope
     have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
         (narrowType.lift' HtailScope.shift) type' (.sort u) :=
       HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+    have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
+      (VEnv.IsType.weak'_iff henv HtailScope.context.wf.toCtx
+        HtailScope.lift.toCtx).1 ⟨u, Hdomain.hasType.1⟩
     let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
-      HnarrowType Hdomain
+      HnarrowType Hdomain HnarrowIsType
     refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_,
       ?_, ?_, ?_⟩
     · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]

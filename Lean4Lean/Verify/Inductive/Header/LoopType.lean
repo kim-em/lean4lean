@@ -1014,6 +1014,7 @@ structure FVarNarrowScope (env : VEnv) (Us : List Name)
       entry = (some (fv, deps), .vlam type))
     scope.fvars scope
   sources : FVarNarrowSources env Us scope
+  wf : scope.WF env Us.length
 
 def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
     (H : FVarNarrowScope env Us scope runtime) :
@@ -1026,6 +1027,7 @@ def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
   noBV := H.noBV
   declarations := H.declarations
   sources := H.sources.mono henv
+  wf := H.wf.mono henv
 
 /-- Retarget only the executable context while preserving every data
 projection of a dependency-selected scope definitionally. -/
@@ -1041,11 +1043,12 @@ def FVarNarrowScope.retargetRuntime
   noBV := H.noBV
   declarations := H.declarations
   sources := H.sources
+  wf := H.wf
 
 theorem FVarNarrowScope.scopeWF
     (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF) : scope.WF env Us.length :=
-  H.lift.wf henv H.context.wf
+    (_henv : env.WF) : scope.WF env Us.length :=
+  H.wf
 
 theorem FVarNarrowScope.fvars_length
     (H : FVarNarrowScope env Us scope runtime) :
@@ -1092,6 +1095,7 @@ def FVarNarrowScope.nil : FVarNarrowScope env Us [] [] where
   noBV := rfl
   declarations := .nil
   sources := .nil
+  wf := trivial
 
 /-- A translated local context is dependency-closed for `P` whenever every
 selected concrete declaration records only dependencies satisfying `P`. -/
@@ -1185,7 +1189,8 @@ def FVarNarrowScope.withIndex
     (sourceType : Expr)
     (hsource : TrExprS env Us scope sourceType indexType)
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
-      (indexType.lift' H.shift) runtimeType (.sort u)) :
+      (indexType.lift' H.shift) runtimeType (.sort u))
+    (htype : env.IsType Us.length scope.toCtx indexType) :
     FVarNarrowScope env Us
       ((some (fv, deps), .vlam indexType) :: scope)
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
@@ -1213,6 +1218,14 @@ def FVarNarrowScope.withIndex
   noBV := H.noBV
   declarations := .cons ⟨deps, indexType, rfl⟩ H.declarations
   sources := .cons H.sources sourceName sourceBinderInfo sourceType hsource
+  wf := by
+    refine ⟨H.wf, ?_, htype⟩
+    rintro _ _ ⟨⟩
+    refine ⟨fun hmem => ?_, hdeps⟩
+    have hsub : scope.fvars ⊆ runtime.fvars := by
+      rw [← H.context.fvars]
+      exact H.lift.fvars_sublist.subset
+    exact (hnewRuntime.2.1 _ _ rfl).1 (hsub hmem)
 
 /-- Skip one newly introduced named lambda while preserving a previously
 selected, possibly non-contiguous semantic scope. -/
@@ -1244,6 +1257,8 @@ def FVarNarrowScope.skipIndex
   noBV := H.noBV
   declarations := H.declarations
   sources := H.sources
+  wf := H.wf
+
 
 /-- Narrow an executable all-lambda context to exactly the free variables
 selected by a dependency-closed predicate.  Retained source domains are
@@ -1293,8 +1308,11 @@ theorem narrowFVars
       have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
           (narrowType.lift' HtailScope.shift) type' (.sort u) :=
         HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+      have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
+        (VEnv.IsType.weak'_iff henv HtailScope.context.wf.toCtx
+          HtailScope.lift.toCtx).1 ⟨u, Hdomain.hasType.1⟩
       let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
-        HnarrowType Hdomain
+        HnarrowType Hdomain HnarrowIsType
       exact ⟨_, Hnext, by
         simp [Hnext, htailScopeFVars, hP]⟩
     · have hskip : fv ∉ tailScope.fvars := by
@@ -1441,8 +1459,11 @@ theorem MLCtxOnlyLams.narrowFVarsSource
       have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
           (narrowType.lift' HtailScope.shift) type' (.sort u) :=
         HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
+      have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
+        (VEnv.IsType.weak'_iff henv HtailScope.context.wf.toCtx
+          HtailScope.lift.toCtx).1 ⟨u, Hdomain.hasType.1⟩
       let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
-        HnarrowType Hdomain
+        HnarrowType Hdomain HnarrowIsType
       have hnextFVars : ∀ body,
           Hnext.sources.closeSource body =
             HtailScope.sources.closeSource

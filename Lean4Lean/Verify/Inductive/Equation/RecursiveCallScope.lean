@@ -30,6 +30,7 @@ structure FVarNarrowCore (env : VEnv) (Us : List Name)
     (fun fv entry => ∃ deps type,
       entry = (some (fv, deps), .vlam type))
     scope.fvars scope
+  wf : scope.WF env Us.length
 
 def FVarNarrowCore.mono {env env' : VEnv} (henv : env ≤ env')
     (H : FVarNarrowCore env Us scope runtime) :
@@ -41,6 +42,7 @@ def FVarNarrowCore.mono {env env' : VEnv} (henv : env ≤ env')
   upset := H.upset
   noBV := H.noBV
   declarations := H.declarations
+  wf := H.wf.mono henv
 
 def FVarNarrowScope.toCore
     (H : FVarNarrowScope env Us scope runtime) :
@@ -52,6 +54,7 @@ def FVarNarrowScope.toCore
   upset := H.upset
   noBV := H.noBV
   declarations := H.declarations
+  wf := H.wf
 
 def FVarNarrowCore.retargetRuntime
     (H : FVarNarrowCore env Us scope runtime) (h : runtime = runtime') :
@@ -63,10 +66,11 @@ def FVarNarrowCore.retargetRuntime
   upset := by cases h; exact H.upset
   noBV := H.noBV
   declarations := H.declarations
+  wf := H.wf
 
 theorem FVarNarrowCore.scopeWF
-    (H : FVarNarrowCore env Us scope runtime) (henv : env.WF) :
-    scope.WF env Us.length := H.lift.wf henv H.context.wf
+    (H : FVarNarrowCore env Us scope runtime) (_henv : env.WF) :
+    scope.WF env Us.length := H.wf
 
 theorem FVarNarrowCore.fvars_length
     (H : FVarNarrowCore env Us scope runtime) :
@@ -231,7 +235,8 @@ def FVarNarrowCore.withIndex
       ((some (fv, deps), .vlam runtimeType) :: runtime))
     (hdeps : deps ⊆ scope.fvars)
     (hdomain : env.IsDefEq Us.length H.expanded.toCtx
-      (indexType.lift' H.shift) runtimeType (.sort u)) :
+      (indexType.lift' H.shift) runtimeType (.sort u))
+    (htype : env.IsType Us.length scope.toCtx indexType) :
     FVarNarrowCore env Us
       ((some (fv, deps), .vlam indexType) :: scope)
       ((some (fv, deps), .vlam runtimeType) :: runtime) where
@@ -258,6 +263,14 @@ def FVarNarrowCore.withIndex
       exact List.mem_cons_of_mem _ (hdeps hdep)
   noBV := H.noBV
   declarations := .cons ⟨deps, indexType, rfl⟩ H.declarations
+  wf := by
+    refine ⟨H.wf, ?_, htype⟩
+    rintro _ _ ⟨⟩
+    refine ⟨fun hmem => ?_, hdeps⟩
+    have hsub : scope.fvars ⊆ runtime.fvars := by
+      rw [← H.context.fvars]
+      exact H.lift.fvars_sublist.subset
+    exact (hnewRuntime.2.1 _ _ rfl).1 (hsub hmem)
 
 def FVarNarrowCore.skipIndex
     (H : FVarNarrowCore env Us scope runtime) (henv : env.WF)
@@ -285,6 +298,7 @@ def FVarNarrowCore.skipIndex
     exact False.elim (hskip hmem)
   noBV := H.noBV
   declarations := H.declarations
+  wf := H.wf
 
 end checkInductiveTypes.loopType
 
@@ -398,7 +412,10 @@ theorem MLCtxLamPrefix.extendFVarNarrowCore
     have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
         (narrowType.lift' HtailScope.shift) type' (.sort u) :=
       HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
-    let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain
+    have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
+      (VEnv.IsType.weak'_iff henv HtailScope.context.wf.toCtx
+        HtailScope.lift.toCtx).1 ⟨u, Hdomain.hasType.1⟩
+    let Hnext := HtailScope.withIndex HruntimeWF hdeps Hdomain HnarrowIsType
     refine ⟨_, Hnext, ?_, ?_, tailDomains ++ [narrowType], ?_, ?_,
       ?_, ?_⟩
     · simp [htailScopeFVars, TypeChecker.MLCtx.fvarRevList]
@@ -411,11 +428,8 @@ theorem MLCtxLamPrefix.extendFVarNarrowCore
       rw [htailShift]
       simp [Lift.consN]
     · intro body target Hbody HbodyType
-      have HnextWF := Hnext.scopeWF henv
-      have HdomainType : env.IsType Us.length tailScope.toCtx narrowType := by
-        simpa [Hnext,
-          checkInductiveTypes.loopType.FVarNarrowCore.withIndex,
-          VLocalDecl.WF] using HnextWF.2.2
+      have HdomainType : env.IsType Us.length tailScope.toCtx narrowType :=
+        HnarrowIsType
       have W : VLCtx.Abstract tailScope fv (.vlam narrowType) 0 0
           ((some (fv, type.fvarsList), .vlam narrowType) :: tailScope)
           ((none, .vlam narrowType) :: tailScope) := .zero
