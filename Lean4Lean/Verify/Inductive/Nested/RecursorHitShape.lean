@@ -62,33 +62,13 @@ namespace HitShape
 
 variable {heads : List Name} {params : List Expr} {ls : List Level}
 
-/-- Every application argument of a shaped expression is shaped, provided the
-parameters are free variables: at a hit the arguments are the parameters and
-shaped trailing arguments, and otherwise the spine is traversed structurally. -/
-theorem of_mem_getAppArgsList {e : Expr} (H : HitShape heads params ls e)
-    (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
-    ∀ a ∈ e.getAppArgsList, HitShape heads params ls a := by
-  by_cases hhit : ∃ c us, e.getAppFn = .const c us ∧ c ∈ heads
-  · obtain ⟨c, us, hfn, hc⟩ := hhit
-    obtain ⟨-, rest, hargs, hrest⟩ := H.getAppFn_const_hit_inv hfn hc
-    rw [hargs]
-    intro a ha
-    rcases List.mem_append.1 ha with ha | ha
-    · obtain ⟨fv, rfl⟩ := hp a ha
-      exact .fvar fv
-    · exact hrest a ha
-  · have H' : HitShape heads params ls (e.getAppFn.mkAppList e.getAppArgsList) := by
-      rw [Expr.mkAppList_getAppArgsList]; exact H
-    refine (H'.mkAppList_inv fun c us h hc => hhit ⟨c, us, ?_, hc⟩).2
-    rwa [getAppFn_getAppFn] at h
-
 /-- The trailing arguments `e.getAppArgs[n:]` of a shaped expression are shaped. -/
 theorem getAppArgs_slice {e : Expr} (H : HitShape heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (n : Nat) :
     ∀ a ∈ (e.getAppArgs[n:] : Array Expr).toList, HitShape heads params ls a := by
   intro a ha
   rw [Lean4Lean.VerifyInductive.Expr.getAppArgs_slice_toList] at ha
-  exact H.of_mem_getAppArgsList hp a (List.mem_of_mem_drop ha)
+  exact H.of_mem_getAppArgsList hp (List.mem_of_mem_drop ha)
 
 /-- `consumeTypeAnnotationsVerified` returns a subterm reached through
 application arguments, so it preserves shape. -/
@@ -97,10 +77,10 @@ theorem consumeTypeAnnotationsVerified {e : Expr} (H : HitShape heads params ls 
     HitShape heads params ls e.consumeTypeAnnotationsVerified := by
   fun_induction Expr.consumeTypeAnnotationsVerified e
   case case1 name us type v _ ih =>
-    exact ih (H.of_mem_getAppArgsList hp type (by simp [getAppArgsList]))
+    exact ih (H.of_mem_getAppArgsList hp (a := type) (by simp [getAppArgsList]))
   case case2 => exact H
   case case3 name us type _ ih =>
-    exact ih (H.of_mem_getAppArgsList hp type (by simp [getAppArgsList]))
+    exact ih (H.of_mem_getAppArgsList hp (a := type) (by simp [getAppArgsList]))
   case case4 => exact H
   case case5 => exact H
 
@@ -162,19 +142,6 @@ end HitShape
 namespace HitShapeB
 
 variable {heads : List Name} {n : Nat} {ls : List Level}
-
-theorem forallE_inv {d : Nat} {nm : Name} {t b : Expr} {bi : BinderInfo}
-    (H : HitShapeB heads n ls d (.forallE nm t b bi)) :
-    HitShapeB heads n ls d t ∧ HitShapeB heads n ls (d + 1) b := by
-  generalize he : Expr.forallE nm t b bi = e at H
-  cases H with
-  | forallE ht hb => cases he; exact ⟨ht, hb⟩
-  | hitHead =>
-    exfalso
-    have := congrArg Expr.getAppFn he
-    rw [getAppFn_mkAppList''] at this
-    simp [getAppFn] at this
-  | _ => cases he
 
 theorem inferImplicit {d : Nat} {e : Expr} (H : HitShapeB heads n ls d e)
     (k : Nat) (f : Bool) : HitShapeB heads n ls d (e.inferImplicit k f) := by
