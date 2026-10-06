@@ -21,7 +21,7 @@ environment (`RestoresType.of_models_constructor'`).
 The facts not derived from the run are collected in
 `NestedConstructorRestorationGaps`. This module does not import
 `Nested.RestorationAgreement`: it cannot be imported together with
-`Nested.CompilationDataAssembly`, since `Restoration.expr_wrapForalls` is
+`Nested.CompilationDataAssembly`, since `Restoration.expr_wrapForalls` was
 declared both in `Nested.RestorationCommutation` and in
 `Nested.RestoredRecursorShape`.
 -/

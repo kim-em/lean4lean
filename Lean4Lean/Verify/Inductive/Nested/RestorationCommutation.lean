@@ -90,7 +90,7 @@ theorem Restoration.expr_of_not_contains (r : Restoration) {e : VExpr}
     (H : e.containsAnyConst r.restorableNames = false) : r.expr e = some e :=
   Restoration.expr.go_of_not_contains r H []
 
-theorem Restoration.expr_wrapForalls (r : Restoration) {domains : List VExpr}
+theorem Restoration.expr_wrapForalls_of_clean (r : Restoration) {domains : List VExpr}
     (hdomains : ∀ d ∈ domains, d.containsAnyConst r.restorableNames = false)
     {body body' : VExpr} (hbody : r.expr body = some body') :
     r.expr (VExpr.wrapForalls domains body) = some (VExpr.wrapForalls domains body') := by
@@ -1082,7 +1082,7 @@ theorem NestedRestorationOpening.restorationCommutes
   have Hsame := Hopen.sameForallPrefix Htel (FVarsIn_to_FVarIdsIn Hinput) hclosed
   rcases Hsame.translatedDomains_eq Hdomains .nil Hs Ht hDs hDt with ⟨hD, hfree⟩
   subst hD
-  exact Restoration.expr_wrapForalls r hfree Hbody
+  exact Restoration.expr_wrapForalls_of_clean r hfree Hbody
 
 /-- `restoreNested` form of `NestedRestorationOpening.restorationCommutes`.
 The side conditions on the opened body are quantified over the opening,
