@@ -2001,11 +2001,14 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     (Rroot : RecursorContextWF root recLparams)
     (R : RecursorContextWF current recLparams)
     (rootScope : FVarId → Prop)
+    (rootScopeInContext : ∀ fv, rootScope fv → fv ∈ Rroot.mlctx.vlctx.fvars)
+    (hrootUp : IsFVarUpSet rootScope Rroot.mlctx.vlctx)
     (i : Nat) (v : Array Expr)
     (calls : Array AddInductive.RecCallBlueprint)
     (Hrecent : RecursorRecentBoundFVarArray Rroot R v)
     (Horigins : RecInfoHypothesisTypeOrigins stats recInfos root current u v)
-    (HcallOrigins : RecInfoHypothesisCallBlueprintOrigins Horigins calls)
+    (HcallOrigins : RecInfoHypothesisCallBlueprintOrigins Horigins rootScope
+      calls)
     (HcallSemantics : RecInfoHypothesisCallSemanticOrigins Rroot decl depth
       stats (recInfos.map (·.motive)) rootScope u v calls)
     (fieldScope : Nat → FVarId → Prop)
@@ -2067,7 +2070,7 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
       RecursorRecentBoundFVarArray Rroot Rout values →
       (HoutOrigins : RecInfoHypothesisTypeOrigins
         stats recInfos root out u values) →
-      RecInfoHypothesisCallBlueprintOrigins HoutOrigins outCalls →
+      RecInfoHypothesisCallBlueprintOrigins HoutOrigins rootScope outCalls →
       RecInfoHypothesisCallSemanticOrigins Rroot decl depth stats
         (recInfos.map (·.motive)) rootScope u values outCalls →
       RecInfoHypothesisCallSemanticOriginsAt Rroot decl depth stats
@@ -2100,14 +2103,15 @@ theorem resultSemanticBindings {alpha : Type} {Q : alpha → Prop}
     let R' := R.withLocalDecl (name := vName) (bi := .default)
       HviTr HviType
     refine resultSemanticBindings stats u recInfos k Rroot R' rootScope
-      (v.size + 1)
+      rootScopeInContext hrootUp (v.size + 1)
       (v.push (.fvar ⟨current.ngen.curr⟩)) (calls.push call)
       (Hrecent.pushCurrent vName viTy.consumeTypeAnnotationsVerified viTarget
         .default HviTr HviType)
       (Horigins.pushCurrent R.toBindingContextWF vName viTy .default
         hnext Hrecent.contextLE ⟨O⟩)
       (HcallOrigins.pushCurrent R.toBindingContextWF vName viTy .default
-        hnext Hrecent.contextLE O call hcall)
+        hnext Hrecent.contextLE R (Hrecent.upsetRoot rootScopeInContext hrootUp)
+        O call hcall)
       (HcallSemantics.pushCurrent hnext Hrecent call HcallSemantic)
       fieldScope
       (HsharpSemantics.pushCurrent hnext Hrecent call HsharpSemantic)
@@ -2582,7 +2586,7 @@ theorem resultSemanticsOfMotiveApplications
       RecursorRecentBoundFVarArray R Rout values →
       (HoutOrigins : RecInfoHypothesisTypeOrigins
         stats recInfos c out u values) →
-      RecInfoHypothesisCallBlueprintOrigins HoutOrigins calls →
+      RecInfoHypothesisCallBlueprintOrigins HoutOrigins rootScope calls →
       RecInfoHypothesisCallSemanticOrigins R decl depth stats
         (recInfos.map (·.motive)) rootScope u values calls →
       RecInfoHypothesisCallSemanticOriginsAt R decl depth stats
@@ -2592,11 +2596,12 @@ theorem resultSemanticsOfMotiveApplications
       (k values calls out).WF Q) :
     (AddInductive.mkRecInfos.loopUBlueprints stats u recInfos 0 #[] #[]
       k c).WF Q := by
-  refine resultSemanticBindings stats u recInfos k R R rootScope 0 #[] #[]
+  refine resultSemanticBindings stats u recInfos k R R rootScope
+    rootScopeInContext hrootUp 0 #[] #[]
     (RecursorRecentBoundFVarArray.empty R)
     (RecInfoHypothesisTypeOrigins.empty stats recInfos c u)
     (RecInfoHypothesisCallBlueprintOrigins.empty
-      (RecInfoHypothesisTypeOrigins.empty stats recInfos c u))
+      (RecInfoHypothesisTypeOrigins.empty stats recInfos c u) rootScope)
     (RecInfoHypothesisCallSemanticOrigins.empty R decl depth stats
       (recInfos.map (·.motive)) rootScope u)
     fieldScope
@@ -2737,7 +2742,7 @@ theorem resultSemanticsOfMotiveTelescopes
       RecursorRecentBoundFVarArray R Rout values →
       (HoutOrigins : RecInfoHypothesisTypeOrigins
         stats recInfos c out u values) →
-      RecInfoHypothesisCallBlueprintOrigins HoutOrigins calls →
+      RecInfoHypothesisCallBlueprintOrigins HoutOrigins rootScope calls →
       RecInfoHypothesisCallSemanticOrigins R decl depth stats
         (recInfos.map (·.motive)) rootScope u values calls →
       RecInfoHypothesisCallSemanticOriginsAt R decl depth stats
@@ -3149,11 +3154,11 @@ theorem RecInfoMinorSemanticAlignment.rebaseCore
   simpa [RecInfoTypeOrigins.rebaseCore] using
     A owner howner' localIndex hlocal
 
-theorem RecInfoMinorSourceAlignment.rebaseCore
+theorem RecInfoMinorSourceRows.rebaseCore
     (O : RecInfoTypeOrigins c left)
-    (A : RecInfoMinorSourceAlignment stats indTypes O)
+    (A : RecInfoMinorSourceRows stats indTypes O)
     (H : RecInfoCoreEq left right) :
-    RecInfoMinorSourceAlignment stats indTypes (O.rebaseCore H) := by
+    RecInfoMinorSourceRows stats indTypes (O.rebaseCore H) := by
   intro owner howner hsourceOwner localIndex hlocal
   have howner' : owner < left.size := by simpa [H.size_eq] using howner
   rcases A owner howner' hsourceOwner localIndex hlocal with
@@ -3176,6 +3181,14 @@ theorem RecInfoMinorSourceAlignment.rebaseCore
         (O.minorShapes owner howner' localIndex hlocal).fields)
   rw [← H.motive_eq_all]
   simpa only [hindices] using hmotive
+
+theorem RecInfoMinorSourceAlignment.rebaseCore
+    (O : RecInfoTypeOrigins c left)
+    (A : RecInfoMinorSourceAlignment stats indTypes O)
+    (H : RecInfoCoreEq left right) :
+    RecInfoMinorSourceAlignment stats indTypes (O.rebaseCore H) :=
+  ⟨RecInfoMinorSourceRows.rebaseCore O A.rows H,
+    A.traces.congr H.size_eq H.indices_eq⟩
 
 theorem modifyMinorAndBlueprint_coreEq
     (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
@@ -4532,14 +4545,27 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
         ⟨originRoot, sourceType, HoriginRoot, ⟨O⟩, D, htype⟩
       exact ⟨originRoot, sourceType, HoriginRoot, ⟨O.toMinor⟩, D, htype⟩ }
   have HcompletedCalls :
-      RecInfoCallBlueprintOrigins HcompletedOrigins calls := by
+      RecInfoCallBlueprintOrigins HcompletedOrigins allFields calls := by
     refine {
       size_eq := HhypothesisCallOrigins.size_eq
-      entry := ?_ }
-    intro j hj
-    rcases HhypothesisCallOrigins.entry j hj with
-      ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
-    exact ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
+      entry := ?_
+      rooted := ?_ }
+    · intro j hj
+      rcases HhypothesisCallOrigins.entry j hj with
+        ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
+      exact ⟨originRoot, sourceType, O, D, HoriginRoot, htype, hcall⟩
+    · intro j hj
+      rcases HhypothesisCallOrigins.rooted j hj with
+        ⟨originRoot, sourceType, recL, Rorigin, O, D, HoriginRoot, hup,
+          htype, hcall⟩
+      refine ⟨originRoot, sourceType, recL, Rorigin, O, D, HoriginRoot, ?_,
+        htype, hcall⟩
+      have hids : ExprArrayFVarIds allFields = HfieldsRecent.fvars :=
+        HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray.exprArrayFVarIds
+      show IsFVarUpSet (fun fv => fv ∈ ExprArrayFVarIds allFields ∨
+        fv ∈ ExprArrayFVarIds stats.params) Rorigin.mlctx.vlctx
+      rw [hids]
+      exact hup
   refine continueMinorSemantics (Q := Q) stats indTypes dIdx recInfos
     (ctor.name.replacePrefix indTypeName .anonymous)
     (outCtx.lctx.mkForall allFields

@@ -634,6 +634,26 @@ inside this project's scope without solving open base metatheory:
    discharging those syntactic hypotheses, `Theory/Inductive/RestorationDefEq.lean`
    (restoration preserves `IsDefEq`; constructor `RestoresType`), and the
    auxiliary family header conjuncts.
+   **Later (2026-10-06):** the readiness predicates were false for inputs with
+   `let`/`proj`; replaced by `Expr.HitShape` (Nested/HitShape.lean: every
+   auxiliary head applied to the parameter variables at the declaration's
+   universe parameters) with commutation from hit shape plus the translation
+   of the restored output in an auxiliary-free environment
+   (`RestorationCommutationHit.lean`). Committed since: beta subject
+   reduction, eliminator schema avoidance, source and auxiliary constructor
+   restoration (restoring expansion leaves, lowering levels recorded in the
+   traces), auxiliary family headers, `CompilationData` assembly
+   (`CompilationDataConstructors.lean`), restored recursors field
+   (`RestoredBlockAssembly.lean`), hit-shape provenance of generated
+   recursor types and rule rhs (`RecursorHitShape.lean`, modulo
+   `HitShapeInputs` and `WhnfHitShapeFacts`), run-level inputs and totality
+   (`HitShapeInputs.lean`). In flight: retained `loopArgs1`/call-root traces
+   (`indexDomains`, `callRoots`; branch `agent/verify-inductives-origins`),
+   whnf/inferType hit-shape preservation (`agent/verify-inductives-hitshape`:
+   `whnf.hitShape`, `inferType.hitShape` proved via new `VState.WF`/`Methods.WF`
+   cache invariants; `EnvHitShape` instance for the lowered environment and
+   the `WhnfHitShapeFacts` discharge pending), restored equations identity,
+   and `Hshapes`/`finalValidOfStaged`.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation

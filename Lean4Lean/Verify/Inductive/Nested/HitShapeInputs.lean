@@ -12,10 +12,11 @@ constructors):
 * `NestedValidatedRunResult.auxHeadsFacts`: the auxiliary heads are fresh in
   the source environment (and after the source headers are added), lie in the
   reserved `_nested` namespace, and contain every key of `aux2nested`.
-* `NestedValidatedRunResult.hitShapeInputs_of`: the fields `paramDecls`,
-  `constructorTypes` and `recursorNames` of
-  `CompletedRecursorConstruction.HitShapeInputs`, with `indexDomains` and
-  `callRoots` as hypotheses.
+* `NestedValidatedRunResult.hitShapeInputs_of`: all fields of
+  `CompletedRecursorConstruction.HitShapeInputs`.
+  - `familyHeaders` (`NestedValidatedRunResult.familyHeadersAvoid`): headers
+    are not lowered, and both source and auxiliary headers are translated in
+    the source environment, where the heads are fresh.
   - `paramDecls` (`CompletedRecursorConstruction.paramDecls_of_fresh`): the
     parameters are declarations of the source context, translated in the
     source environment where the heads are fresh (`TrExprS.sourceAvoidsFresh`).
@@ -791,7 +792,7 @@ theorem CompletedRecursorConstruction.minorSourceHitArity
       (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.terminal).abstractList
         H.params.fvars).HitArity heads stats.params.size stats.levels.length := by
   have hsourceOwner := H.sourceOwner howner
-  have hsrc := H.minorSources owner howner hsourceOwner localIndex hlocal
+  have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hfresh := H.blueprints.fields_outer_fresh owner howner localIndex hlocal
   generalize H.sourceMinorSemantics owner howner localIndex hlocal = HS
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hfresh HS ⊢
@@ -974,10 +975,11 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ i (hi : i < result.types.length), ∃ source stepState loweredState,
       (∀ ctor ∈ source.ctors, ctor.type.AvoidsConsts E.auxHeads) ∧
+      source.type.AvoidsConsts E.auxHeads ∧
       stepState.lvls = lparams.map Level.param ∧
       LoweredInductiveMapping sourceProdEnv result.params nparams result source stepState
         (result.types[i], loweredState) := by
-  obtain ⟨envTypes, hadded, _henvTypes, hfreshTypes, _hfreshSrc, _hreserved, _hkeys,
+  obtain ⟨envTypes, hadded, _henvTypes, hfreshTypes, hfreshSrc, _hreserved, _hkeys,
     _hnodup⟩ := E.auxHeadsFacts wf Hsources
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.production
@@ -1053,15 +1055,18 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
     TrInductDeclCore.types_length Htarget
   have hinitLvls : initialState.lvls = lparams.map Level.param := by
     simp only [initialState, hlparams]
+  have hfreshInit : ∀ name ∈ E.auxHeads, P.initialEnv.constants name = none := by
+    rw [hinitial]; exact hfreshSrc
   suffices key : ∀ i (hi : i < result.types.length), ∃ source stepState loweredState,
       (∀ ctor ∈ source.ctors, ctor.type.AvoidsConsts E.auxHeads) ∧
+      source.type.AvoidsConsts E.auxHeads ∧
       stepState.lvls = lparams.map Level.param ∧
       LoweredInductiveMapping P.c.env result.params P.nparams result source stepState
         (result.types[i], loweredState) by
     intro i hi
-    obtain ⟨source, st, ls, h1, h2, M⟩ := key i hi
+    obtain ⟨source, st, ls, h1, h0, h2, M⟩ := key i hi
     rw [henv, hnparams] at M
-    exact ⟨source, st, ls, h1, h2, M⟩
+    exact ⟨source, st, ls, h1, h0, h2, M⟩
   intro i hi
   by_cases hsrc : i < sourceTypes.length
   · have hj : i < ({ initialState with newTypes := sourceTypes.toArray }).newTypes.size := by
@@ -1075,11 +1080,13 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
       rw [List.getElem?_eq_getElem hi] at htarget
       exact (Option.some.inj htarget).symm
     subst htargetEq
-    refine ⟨_, stepState, loweredState, ?_, hstepLvls.trans hinitLvls, Hmapping⟩
-    intro ctor hctor
     have hsrcDecl : i < sourceDecl.types.length := by
       rw [← TrInductDeclCore.types_length Hsource]; exact hsrc
     have HT := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource i hsrc hsrcDecl
+    refine ⟨_, stepState, loweredState, ?_,
+      checkPositivityStep.TrExprS.sourceAvoidsFresh hfreshInit HT.header.type,
+      hstepLvls.trans hinitLvls, Hmapping⟩
+    intro ctor hctor
     have hctor' : ctor ∈ sourceTypes[i].ctors := by simpa using hctor
     obtain ⟨ctor', -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_l HT.ctors ctor hctor'
     exact checkPositivityStep.TrExprS.sourceAvoidsFresh hfreshN hC.type
@@ -1094,7 +1101,9 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
     have hlv : Horigin.stepState.lvls = lparams.map Level.param :=
       ((Horigin.lowered.nestedAuxLE.lvls.symm.trans Horigin.later.lvls.symm).trans
         Hrun.lvls).trans hinitLvls
-    refine ⟨Horigin.source, Horigin.stepState, Horigin.loweredState, ?_, hlv, M⟩
+    refine ⟨Horigin.source, Horigin.stepState, Horigin.loweredState, ?_,
+      checkPositivityStep.TrExprS.sourceAvoidsFresh hfreshInit
+        Nsource.payload.translation.header.type, hlv, M⟩
     intro ctor hctor
     obtain ⟨ctor', -, hC⟩ := Lean4Lean.List.Forall₂.forall_exists_l
       Nsource.payload.translation.ctors ctor hctor
@@ -1126,17 +1135,44 @@ theorem NestedValidatedRunResult.constructorTypesHitShape
   have hget : result.types.toArray[i]! = result.types[i] := by
     simp [getElem!_pos result.types.toArray i hi]
   rw [hget] at hctor
-  obtain ⟨source, st, ls, havoid, hlv, M⟩ := hmaps i hi'
+  obtain ⟨source, st, ls, havoid, -, hlv, M⟩ := hmaps i hi'
   obtain ⟨src, hsrc, before, after, hbefore, Mc⟩ := M.constructors.forall_mem ctor hctor
   exact Mc.hitShapeTele hkeys (havoid src hsrc) (hbefore.trans hlv)
 
+/-- **Family headers of an exact validated nested run avoid the auxiliary
+heads.** The lowering leaves every header unchanged
+(`LoweredInductiveMapping.type`): source headers are translated in the source
+environment, and an auxiliary header (`buildAuxiliary`: the parameter
+telescope over the container type instantiated at the raw nested arguments)
+is translated there too (`FinalLoweredGeneratedFamilySource.translation`), and
+the auxiliary names are fresh in that environment. -/
+theorem NestedValidatedRunResult.familyHeadersAvoid
+    {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
+    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
+    {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
+    {isUnsafe : Bool} {outEnv : Environment}
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    ∀ i, i < E.production.indTypes.size →
+      (E.production.indTypes[i]!.type).AvoidsConsts E.auxHeads := by
+  have hmaps := E.loweredFamilyMappings wf Hsources
+  rw [E.production_indTypes]
+  intro i hi
+  have hi' : i < result.types.length := by simpa using hi
+  have hget : result.types.toArray[i]! = result.types[i] := by
+    simp [getElem!_pos result.types.toArray i hi]
+  rw [hget]
+  obtain ⟨source, st, ls, -, havoid, -, M⟩ := hmaps i hi'
+  rw [M.type]
+  exact havoid
+
 /-! ### The hit-shape inputs of a run -/
 
-/-- **The non-`whnf` hit-shape inputs of an exact validated nested run**, at the
-run's auxiliary heads. `paramDecls`, `constructorTypes` and `recursorNames`
-are derived from the run; the index domains (`hindex`) and the call-root
-retention (`hroots`) are taken as hypotheses (they are discharged
-separately). -/
+/-- **The hit-shape inputs of an exact validated nested run**, at the run's
+auxiliary heads, derived from the run alone. Together with the `whnf`
+hypothesis `W` this gives `NestedValidatedRunResult.recursorHitShape`. -/
 theorem NestedValidatedRunResult.hitShapeInputs_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -1145,23 +1181,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hindex : ∀ i (_ : i < E.production.production.completed.recInfos.size) j,
-      j < (E.production.production.completed.origins.indexTypes[i]!).size →
-      ((E.production.production.completed.origins.indexTypes[i]!)[j]!).HitShape
-        E.auxHeads E.production.stats.params.toList E.production.stats.levels)
-    (hroots : ∀ owner (howner : owner < E.production.production.completed.recInfos.size)
-        localIndex
-        (hlocal : localIndex <
-          E.production.production.completed.origins.minorTypes[owner]!.size) origins,
-      (E.production.production.completed.origins.minorShapes owner howner localIndex
-          hlocal).hypothesis_type_origins = some origins →
-      RecInfoCallBlueprintOriginsRooted E.production.stats
-        (AddInductive.getRecLevelParams E.production.production.completed.elimLevel
-          E.production.c.lparams)
-        (E.production.production.completed.origins.minorShapes owner howner localIndex
-          hlocal) origins
-        E.production.production.completed.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
       E.auxHeads := by
   obtain ⟨-, -, -, -, hfreshSrc, -, -, hnodup⟩ := E.auxHeadsFacts wf Hsources
@@ -1171,12 +1191,11 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     paramDecls :=
       E.production.production.completed.toCompletedRecursorConstruction.paramDecls_of_fresh
         hfresh
-    indexDomains := hindex
+    familyHeaders := E.familyHeadersAvoid wf Hsources
     constructorTypes := E.constructorTypesHitShape wf Hsources
     recursorNames :=
       E.production.production.completed.toCompletedRecursorConstruction.recursorNames_not_mem
-        (fun _ hh => familyNames_drop_subset hh) hnodup
-    callRoots := hroots }
+        (fun _ hh => familyNames_drop_subset hh) hnodup }
 
 /-! ### Totality of restoration on the normalized constructor types -/
 

@@ -204,7 +204,7 @@ theorem CompletedRecursorPhasesResult.kShape
       rfl
     rw [hget]
     obtain ⟨-, hlocalIdx, hsrcCtors, -, traversal, htrav, hcons, -, -, hstats, -⟩ :=
-      H.minorSources 0 h0 (by omega) 0 hlocal
+      H.minorSources.rows 0 h0 (by omega) 0 hlocal
     have htravEq : traversal = O.traversal :=
       Option.some.inj (htrav.symm.trans O.traversal_eq)
     have hSctor : (H.origins.minorShapes 0 h0 0 hlocal).constructor = ctor := by

@@ -1061,7 +1061,7 @@ theorem CompletedRecursorConstruction.minorShapes_exist
   let minorIdx := recursorMinorOffset indTypes mowner + localIndex
   have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, hHas, traversal, htrav, _, hfieldsT, hrecT, _, _, _, _, _, _⟩ :=
-    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+    H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
   obtain ⟨origins, horig, _hstats, hmotives⟩ :=
     S.hypothesisTypeOrigins_exists stats H.recInfos hHas
   obtain ⟨D₀, hD⟩ := H.flatMinorDeclaration mowner hmowner localIndex hlocal
@@ -1263,7 +1263,7 @@ theorem CompletedRecursorConstruction.consumedConstructorAt_recursiveFields
       H.consumedShapes HU owner howner localIndex hlocal := by
   have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, traversal, htrav, _, hfieldsT, _, _, _, _, _, _, _⟩ :=
-    H.minorSources owner howner hsourceOwner localIndex hlocal
+    H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hspec := H.consumedShapes_spec HU owner howner localIndex hlocal
   have hpos := hspec.1 traversal htrav
   apply InductiveSignature.recursiveFields_markFields _ _ _ rfl

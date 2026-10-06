@@ -104,7 +104,8 @@ theorem RecInfoCallBlueprintOrigins.boundGeneratedCalls
     {origins : RecInfoMinorHypothesisTypeOrigins sourceFullContext
       recursiveFields hypotheses}
     {calls : Array AddInductive.RecCallBlueprint}
-    (H : RecInfoCallBlueprintOrigins origins calls)
+    {allFields : Array Expr}
+    (H : RecInfoCallBlueprintOrigins origins allFields calls)
     (hfieldRoot : origins.fieldRoot = fieldRoot)
     (hsize : hypotheses.size = recursiveFields.size)
     (indTypes : Array InductiveType) (minors : Array Expr)
@@ -172,7 +173,7 @@ structure RetainedBlueprintBoundRule
   callOrigins : ∃ origins : RecInfoMinorHypothesisTypeOrigins
       S.sourceFullContext S.recursiveFields S.hypotheses,
     S.hypothesis_type_origins = some origins ∧
-      RecInfoCallBlueprintOrigins origins B.recursiveCalls
+      RecInfoCallBlueprintOrigins origins S.fields B.recursiveCalls
 
 theorem RecInfoRuleBlueprintOriginAt.boundGeneratedRule
     {stats : AddInductive.InductiveStats}
@@ -309,7 +310,7 @@ theorem RecInfoRuleBlueprintOrigins.entryConstructor
     ∃ ctor, indTypes[owner]!.ctors[localIndex]? = some ctor ∧
       B.ctor = ctor.name := by
   have Hentry := H.entry owner howner localIndex hlocal
-  have Hsource := Hsources owner howner hsourceOwner localIndex hlocal
+  have Hsource := Hsources.rows owner howner hsourceOwner localIndex hlocal
   dsimp only
   refine ⟨Horigins.minorShapes owner howner localIndex hlocal |>.constructor,
     ?_, Hentry.1⟩
@@ -1226,7 +1227,7 @@ theorem RecInfoRuleBlueprintOrigins.boundGeneratedRules
   have Horigin : RecInfoRuleBlueprintOriginAt stats S
       recInfos[owner]!.minors[localIndex]! B :=
     H.entry owner hownerRec localIndex hshapeLocal
-  have Hsource := Hsources owner hownerRec howner localIndex hshapeLocal
+  have Hsource := Hsources.rows owner hownerRec howner localIndex hshapeLocal
   have hlocalMinor : localIndex < recInfos[owner]!.minors.size := by
     rw [← (Horigins.minors owner hownerRec).size_eq]
     exact hshapeLocal
@@ -1381,7 +1382,7 @@ theorem RecInfoRuleBlueprintOrigins.semanticBoundGeneratedRules
     have Horigin : RecInfoRuleBlueprintOriginAt stats S
         recInfos[owner]!.minors[localIndex]! B :=
       H.entry owner hownerRec localIndex hshapeLocal
-    have Hsource := Hsources owner hownerRec howner localIndex hshapeLocal
+    have Hsource := Hsources.rows owner hownerRec howner localIndex hshapeLocal
     have hlocalMinor : localIndex < recInfos[owner]!.minors.size := by
       rw [← (Horigins.minors owner hownerRec).size_eq]
       exact hshapeLocal
