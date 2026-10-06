@@ -1856,6 +1856,17 @@ theorem ConstructorPhasesResult.mkRecInfosWF
     HmajorTypesFrames HmajorShapesFrames
     HmotiveTypesFrames HmotiveShapesFrames HtelescopesFrames
     HindexRowsFrames HparamsFrames HnoAliasFrames HorderFrames HrootFrames
+    (ParameterUniverseSupport.of_contextWF (root := { c with
+        env := outEnv
+        typeCheckerLParams := some <|
+          AddInductive.getRecLevelParams elimLevel c.lparams })
+      R.declared.context
+      (R.materialized.parameterSuffix (Hc := R.declared.context)).paramsBound
+      rfl rfl HrootFrames)
+    (fun familyIdx hfamily ctor hctor tail Hprefix => by
+      rw [HrootFrames.lparams_eq]
+      exact R.constructorTails.levelParamsIn familyIdx hfamily ctor hctor tail
+        Hprefix)
     hsizeFrames
     hrecordsFrames HaritiesFrames ?_ ?_ ?_ ?_
   · intro i hi

@@ -5,6 +5,8 @@ import Lean4Lean.Verify.Inductive.Recursor.CanonicalMotiveGroup
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorModel
 import Lean4Lean.Verify.Inductive.ConsumedTranslation
 import Lean4Lean.Verify.Inductive.Recursor.ConsumedGenerationAssembly
+import Lean4Lean.Verify.Inductive.Recursor.ArgumentUniverses
+import Lean4Lean.Verify.Inductive.Recursor.FamilyTypes
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -73,6 +75,7 @@ structure CompletedRecursorConstruction.ConsumedGeneration
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       (generation.recursorType ⟨owner, howner⟩)
   recursiveTypesWF : generation.RecursiveTypesWF R.context.venv
+  familyTypesWF : signature.FamilyTypesWF R.context.venv decl.uvars
   sourceOrigins : ∀ owner (howner : owner < H.recInfos.size)
     localIndex (hlocal : localIndex < H.origins.minorTypes[owner]!.size),
     ∃ index : Fin signature.constructors.size,
@@ -151,13 +154,11 @@ theorem CompletedRecursorConstruction.consumedSignature_origins
     · rw [← hbinders]
       exact congrArg (fun x => x.2.binders.length) (List.getElem_of_eq hrec hj)
 
-/-- The junction, under the universe support of the hypothesis arguments
-and the consumed family headers. -/
+/-- The junction, under the universe support of the hypothesis arguments. -/
 theorem CompletedRecursorConstruction.consumedGeneration_of
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
-    (HF : H.ConsumedFamilyTypes) :
+    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
     Nonempty H.ConsumedGeneration := by
   have D := H.consumedSignatureData HU
   have hfamCount : (H.consumedSignature HU).families.size = indTypes.size := by
@@ -165,7 +166,7 @@ theorem CompletedRecursorConstruction.consumedGeneration_of
   refine ⟨{
     signature := H.consumedSignature HU
     generation := H.consumedInstance (H.consumedSignature HU)
-    models := D.models_of_familyTypes HF
+    models := D.models
     params := rfl
     families := rfl
     admissible := H.consumedInstance_admissible D.uvars D.params D.families D.size
@@ -183,6 +184,7 @@ theorem CompletedRecursorConstruction.consumedGeneration_of
     minorTranslation := H.consumedSignature_minorTranslation HU
     types := H.consumedSignature_types HU
     recursiveTypesWF := H.consumedSignature_recursiveTypesWF HU
+    familyTypesWF := H.consumedFamilyTypesWF rfl rfl
     sourceOrigins := ?_ }⟩
   · intro owner howner
     have howner' : owner < H.recInfos.size := by
@@ -220,8 +222,8 @@ than recovered from an independently chosen raw formation normal form. -/
 theorem CompletedRecursorConstruction.canonicalConsumedGeneration
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) : Nonempty H.ConsumedGeneration := by
-  sorry
+    (H : CompletedRecursorConstruction R) : Nonempty H.ConsumedGeneration :=
+  H.consumedGeneration_of H.argumentUniverses
 
 noncomputable def CompletedRecursorConstruction.consumedGeneration
     (H : CompletedRecursorConstruction R) : H.ConsumedGeneration :=

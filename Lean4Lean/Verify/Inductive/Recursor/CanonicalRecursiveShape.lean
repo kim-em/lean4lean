@@ -500,24 +500,6 @@ theorem RecInfoMinorTypeShape.recursiveField_pos (S : RecInfoMinorTypeShape)
   exact h2 _ hp S.fields_bound.expressions
 
 
-theorem Expr.getAppArgs_slice_toList (e : Expr) (n : Nat) :
-    ((e.getAppArgs[n:] : Array Expr)).toList = e.getAppArgsList.drop n := by
-  rw [← Expr.getAppArgs_toList]
-  let suffix := e.getAppArgs.toSubarray n
-  calc
-    (Std.Slice.toArray suffix).toList = suffix.toList := by
-      exact (congrArg Array.toList
-        (Subarray.toArray_eq_sliceToArray (s := suffix)).symm).trans
-          Subarray.toList_toArray
-    _ = e.getAppArgs.toList.drop n := by
-      rw [List.drop_eq_drop_min]
-      simp only [suffix, Subarray.toList_eq, Array.array_toSubarray,
-        Array.start_toSubarray, Array.stop_toSubarray, Nat.min_self,
-        Array.toList_extract, List.extract_eq_take_drop,
-        Array.length_toList]
-      apply List.take_of_length_le
-      simp
-
 theorem OnCtx.reverse_append_take {P : List VExpr → VExpr → Prop} {l₁ l₂ : List VExpr}
     (h : OnCtx (l₁ ++ l₂).reverse P) (i : Nat) : OnCtx (l₁ ++ l₂.take i).reverse P := by
   have : (l₁ ++ l₂).reverse = (l₂.drop i).reverse ++ (l₁ ++ l₂.take i).reverse := by
@@ -605,7 +587,12 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
             ((e.abstractN O.arguments_bound.fvars).abstractList
               (S.fields_bound.fvars.take pos) O.args.size).abstractList H.params.fvars
                 (pos + O.args.size))
-          indices := by
+          indices ∧
+        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).args = O.args ∧
+        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).lctx =
+          O.current.lctx ∧
+        (H.recInfos[mowner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetIndices =
+          O.exposedType.getAppArgs[origins.stats.params.size:] := by
   intro S sourceFields nmot fields hyps res hhyps hminorEq j hj
   -- The retained rows for this minor.
   obtain ⟨-, -, -, -, -, origins₁, -, horig₁, -, -, Hcalls⟩ :=
@@ -926,7 +913,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
     congr 1
     omega
   refine ⟨origins₁, originRoot, sourceType, O, pos, hpos, B0, indices, horig, hstats, hmotives,
-    hfield, hB0na, howner', ?_, ?_, ?_⟩
+    hfield, hB0na, howner', ?_, ?_, ?_, by rw [hcall], by rw [hcall], by rw [hcall]⟩
   · rw [hEq, hIeq, hAeq]
     simp only [hunder, hB0na]
     rfl

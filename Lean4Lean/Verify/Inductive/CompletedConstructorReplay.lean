@@ -550,7 +550,19 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       Rframes HoriginsFrames HemptyFrames)
     HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
     HmotiveShapesFrames HtelescopesFrames HindexRowsFrames HparamsFrames
-    HnoAliasFrames HorderFrames HrootFrames hsizeFrames hrecordsFrames
+    HnoAliasFrames HorderFrames HrootFrames
+    (ParameterUniverseSupport.of_contextWF (root := { c with
+        env := ctorEnv
+        typeCheckerLParams := some <|
+          AddInductive.getRecLevelParams elimLevel c.lparams })
+      R.context
+      (R.materializedFinal.parameterSuffix (Hc := R.context)).paramsBound
+      rfl rfl HrootFrames)
+    (fun familyIdx hfamily ctor hctor tail Hprefix => by
+      rw [HrootFrames.lparams_eq]
+      exact R.constructorTails.levelParamsIn familyIdx hfamily ctor hctor tail
+        Hprefix)
+    hsizeFrames hrecordsFrames
     HaritiesFrames ?_ ?_ ?_ ?_
   · intro i hi
     omega

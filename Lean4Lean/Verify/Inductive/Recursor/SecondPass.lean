@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Recursor.Rules
 import Lean4Lean.Verify.Inductive.Recursor.FieldTypeScope
+import Lean4Lean.Verify.Inductive.Recursor.LoopUniverses
 
 namespace Lean4Lean
 
@@ -51,6 +52,10 @@ structure RecInfoCallBlueprintSemanticOrigin
         ∀ fieldBinders,
           S.generated.replayTrace fieldBinders =
             recCallBlueprintReplayTrace call motives fieldBinders
+  /-- The retained argument telescope and exposed indices mention only the
+  declaration's universe parameters. -/
+  universes : (call.lctx.mkForall call.args (.sort .zero)).levelParamsIn root.lparams = true ∧
+    ∀ e ∈ call.targetIndices.toList, e.levelParamsIn root.lparams = true
 
 /-- Array alignment for the semantic call certificates emitted by
 `loopUBlueprints`.  Entry `j` is rooted after exactly the `j` earlier
@@ -2143,6 +2148,9 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     (hinferredScope : ((monadLift (TypeChecker.inferType (.fvar fv)) :
       AddInductive.M Expr) c).WF fun ty => ty.FVarsIn rootScope)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (hscopeUniverses : R.typeChecker.UniverseScope c.lparams rootScope ∧
+      ∀ ty, ((monadLift (TypeChecker.inferType (.fvar fv)) :
+        AddInductive.M Expr) c) = .ok ty → ty.levelParamsIn c.lparams = true)
     (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
     (hrecords : recInfos.size = stats.indConsts.size)
     (Happ : ∀ {current : AddInductive.Context}
@@ -2330,9 +2338,14 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     refine Except.WF.pure
       ⟨consumedTarget, Hconsumed.consumed, Hconsumed.isType, O, rfl, rfl, ?_⟩
     intro domain hfieldTyping htargetDecl hrecursive
+    have hcallUniverses := Hinput.callUniverses hconsume Htrace R hscopeUniverses.1
+      hfield (hscopeUniverses.2 _ Hinput.inference)
+      (hinferredScope _ Hinput.inference) Hargs.toFreshBoundFVarArray
+      Rcurrent.toBindingContextWF stats.params.size
     refine {
       owner_lt := by simpa using htarget
-      semantic := ?_ }
+      semantic := ?_
+      universes := hcallUniverses }
     intro indTypes minors lvls
     let call : AddInductive.RecCallBlueprint := {
       major := .fvar fv
@@ -2445,6 +2458,7 @@ theorem inductionHypothesisTypeOrigin
     {rootScope : FVarId → Prop}
     (hfieldScope : rootScope fv)
     (hrootUp : IsFVarUpSet rootScope R.mlctx.vlctx)
+    (hrootUniverses : R.typeChecker.UniverseScope c.lparams rootScope)
     (Hmotives : BoundFVarArray c (recInfos.map (·.motive)))
     (hrecords : recInfos.size = stats.indConsts.size)
     (Happ : ∀ {current : AddInductive.Context}
@@ -2518,7 +2532,11 @@ theorem inductionHypothesisTypeOrigin
     hctx hfield
     ((inferTypeFVarInRecursorContext.WF R hfield).mono fun _ ⟨_, hbelow, _, _, _⟩ =>
       hbelow rootScope hrootUp (by simpa only [FVarsIn] using hfieldScope))
-    hrootUp Hmotives hrecords Happ
+    hrootUp
+    ⟨hrootUniverses, fun ty hty =>
+      inferTypeFVarInRecursorContext.levelsWF R hfield ty hty c.lparams rootScope
+        hrootUniverses rfl (by simpa only [FVarsIn] using hfieldScope)⟩
+    Hmotives hrecords Happ
 
 /-- Close the retained-blueprint hypothesis loop from the independently
 verified motive applications.  The additional output is produced by the same
@@ -2550,6 +2568,10 @@ theorem resultSemanticsOfMotiveApplications
       ∀ decl, c.lctx.find? fv = some decl → decl.type.FVarsIn (fieldScope j))
     (sharpInContext : ∀ j fv, fieldScope j fv → fv ∈ R.mlctx.vlctx.fvars)
     (hsharpUp : ∀ j, IsFVarUpSet (fieldScope j) R.mlctx.vlctx)
+    (hrootUniverses : R.typeChecker.UniverseScope c.lparams rootScope)
+    (hsharpUniverses : ∀ j, R.typeChecker.UniverseScope c.lparams (fieldScope j))
+    (hfieldUniverses : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv →
+      ∀ decl, c.lctx.find? fv = some decl → decl.type.levelParamsIn c.lparams = true)
     (Happlications : RecInfoMotiveApplications R stats decl recInfos
       elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
@@ -2609,6 +2631,9 @@ theorem resultSemanticsOfMotiveApplications
       Rnext HstatsNext hconsume
         (by simpa only [Hprior.venv_eq] using hlit) hctxNext HfieldAt
         hfieldScope (Hprior.upsetRoot rootScopeInContext hrootUp)
+        (by
+          rw [Hprior.contextLE.lparams_eq]
+          exact Hprior.universeScope rootScopeInContext hrootUniverses)
         (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
         ?happCoarse)
     (inductionHypothesisTypeOriginOfInferredScope fv stats recInfos next
@@ -2622,6 +2647,17 @@ theorem resultSemanticsOfMotiveApplications
           rw [Hprior.contextLE.declarations fv hfvRoot] at hfind
           exact HfieldsSharp j hj fv hfieldEq decl hfind)
         (Hprior.upsetRoot (sharpInContext j) (hsharpUp j))
+        ⟨by
+          rw [Hprior.contextLE.lparams_eq]
+          exact Hprior.universeScope (sharpInContext j) (hsharpUniverses j),
+         fun ty hty => by
+          obtain ⟨decl, hfind, rfl⟩ := inferTypeFVarRun.WF next fv ty hty
+          have hfvRoot : fv ∈ c.lctx.fvars := by
+            rw [← R.lctx_eq, R.mlctx_wf.tr.fvars_eq]
+            simpa only [FVarsIn] using Hfield.fvarsIn
+          rw [Hprior.contextLE.declarations fv hfvRoot] at hfind
+          rw [Hprior.contextLE.lparams_eq]
+          exact hfieldUniverses j hj fv hfieldEq decl hfind⟩
         (Hbindings.motives.mono Hprior.contextExtension.contextLE) hrecords
         ?happSharp)) ?combine
   case combine =>
@@ -2687,6 +2723,10 @@ theorem resultSemanticsOfMotiveTelescopes
       ∀ decl, c.lctx.find? fv = some decl → decl.type.FVarsIn (fieldScope j))
     (sharpInContext : ∀ j fv, fieldScope j fv → fv ∈ R.mlctx.vlctx.fvars)
     (hsharpUp : ∀ j, IsFVarUpSet (fieldScope j) R.mlctx.vlctx)
+    (hrootUniverses : R.typeChecker.UniverseScope c.lparams rootScope)
+    (hsharpUniverses : ∀ j, R.typeChecker.UniverseScope c.lparams (fieldScope j))
+    (hfieldUniverses : ∀ j (hj : j < u.size) fv, u[j] = .fvar fv →
+      ∀ decl, c.lctx.find? fv = some decl → decl.type.levelParamsIn c.lparams = true)
     (Htelescopes : RecInfoMotiveTelescopes R stats decl parameterCtx recInfos
       elimLevel)
     (Hbindings : RecInfoBindings c recInfos)
@@ -2714,6 +2754,7 @@ theorem resultSemanticsOfMotiveTelescopes
   resultSemanticsOfMotiveApplications stats u recInfos k R rootScope Hstats
     hconsume hlit hctx Hfields rootScopeInContext hrootUp
     fieldScope HfieldsSharp sharpInContext hsharpUp
+    hrootUniverses hsharpUniverses hfieldUniverses
     Htelescopes.applications Hbindings
     Horigins Hshape hrecords Hk
 
@@ -3982,6 +4023,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
     (hprefix : RecursorParamPrefix stats 0 ctor.type tail)
     (htailScope : tail.FVarsIn
       (fun fv => fv ∈ ExprArrayFVarIds stats.params))
+    (hparamUniverses : ParameterUniverseSupport c stats.params)
+    (htailUniverses : tail.levelParamsIn c.lparams = true)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
     (hlit : checkPositivityStep.AvailableLiteralDisjoint R.venv stats.indConsts)
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) R.mlctx.vlctx)
@@ -4210,6 +4253,88 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   let HtelescopesArgs := Htelescopes.mono HextArgs
   let producerScope : FVarId → Prop := fun fv =>
     fv ∈ HfieldsRecent.fvars ∨ fv ∈ ExprArrayFVarIds stats.params
+  have hproducerUp : IsFVarUpSet producerScope Rargs.mlctx.vlctx := by
+    dsimp only [producerScope]
+    rw [Hopening.fvars_eq_bound
+      HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+    exact _HfieldParameterUp
+  have hsharpUp : ∀ j : Nat, IsFVarUpSet
+      (RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
+        recursiveFields[j]!) Rargs.mlctx.vlctx := by
+    intro j
+    rw [Hopening.fvars_eq_bound
+      HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
+    have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
+      Rargs.mlctx allFields.size HfieldsRecent.size_le
+    rw [HfieldsRecent.drop_eq] at hsplit
+    have hprefix : VLCtx.fvars (Rargs.mlctx.vlctx.take allFields.size) =
+        HfieldsRecent.fvars.reverse := by
+      rw [TypeChecker.MLCtx.vlctx_take_fvars]
+      exact HfieldsRecent.fvarRevList_eq
+    have hwf : VLCtx.FVWF
+        (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
+      rw [← hsplit]
+      exact Rargs.mlctx_wf.tr.wf.fvwf
+    have hfresh : ∀ fv ∈ HfieldsRecent.fvars,
+        ¬ fv ∈ ExprArrayFVarIds stats.params := by
+      intro fv hfv hparam
+      apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfv
+      apply Hparams.members
+      rw [← Hparams.exprArrayFVarIds]
+      exact hparam
+    have hup : IsFVarUpSet
+        (fun fv => fv ∈ HfieldsRecent.fvars ∨
+          fv ∈ ExprArrayFVarIds stats.params)
+        (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
+      rw [← hsplit]
+      exact _HfieldParameterUp
+    have hsharp := IsFVarUpSet.sharpenPrefix _ _ _ hwf hprefix hfresh hup
+      (HfieldsRecent.fvars.idxOf (recursorFVarId recursiveFields[j]!))
+    rw [← hsplit] at hsharp
+    exact hsharp
+  have hfieldSupport :=
+    (Hdecisions.levelParamsIn R.toBindingContextWF htailUniverses).2
+  have hparamSupport := hparamUniverses.mono Hparams HextArgs.contextLE
+  have hlparams : current.lparams = c.lparams := HextArgs.contextLE.lparams_eq
+  have hfieldTypes : ∀ fv, fv ∈ HfieldsRecent.fvars → ∀ decl,
+      current.lctx.find? fv = some decl →
+        decl.type.levelParamsIn current.lparams = true := by
+    intro fv hfv decl hfind
+    have he : Expr.fvar fv ∈ allFields := by
+      rw [HfieldsRecent.expressions]
+      simpa using hfv
+    obtain ⟨fv', index, name, type, bi, kind, heq, hfind', htype⟩ :=
+      hfieldSupport _ he
+    cases heq
+    rw [hfind'] at hfind
+    cases hfind
+    rw [hlparams]
+    exact htype
+  have hproducerUniverses :
+      Rargs.typeChecker.UniverseScope current.lparams producerScope := by
+    refine Rargs.universeScope_of_types hproducerUp ?_
+    rintro fv (hfv | hfv) decl hfind
+    · exact hfieldTypes fv hfv decl hfind
+    · exact hparamSupport fv hfv decl hfind
+  have hsharpUniverses : ∀ j : Nat, Rargs.typeChecker.UniverseScope current.lparams
+      (RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
+        recursiveFields[j]!) := by
+    intro j
+    refine Rargs.universeScope_of_types (hsharpUp j) ?_
+    rintro fv (hfv | hfv) decl hfind
+    · exact hfieldTypes fv (List.mem_of_mem_take hfv) decl hfind
+    · exact hparamSupport fv hfv decl hfind
+  have hfieldUniverses : ∀ j (hj : j < recursiveFields.size) fv,
+      recursiveFields[j] = .fvar fv → ∀ decl,
+        current.lctx.find? fv = some decl →
+          decl.type.levelParamsIn current.lparams = true := by
+    intro j hj fv hfv decl hfind
+    have hallExpr : Expr.fvar fv ∈ allFields.toList := by
+      apply Hselections.toSource.selectedSublist.subset
+      rw [← hfv]
+      exact Array.getElem_mem_toList hj
+    rw [HfieldsRecent.expressions] at hallExpr
+    exact hfieldTypes fv (by simpa using hallExpr) decl hfind
   apply mkRecInfos.loopUBlueprints.resultSemanticsOfMotiveTelescopes (Q := Q)
     stats recursiveFields recInfos finish Rargs producerScope HstatsArgs hconsume
       (by simpa only [HfieldsRecent.venv_eq] using hlit)
@@ -4239,11 +4364,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           have hmem := HextArgs.contextLE (Hparams.members fv hp)
           rw [← Rargs.lctx_eq, Rargs.mlctx_wf.tr.fvars_eq] at hmem
           exact hmem)
-      (by
-        dsimp only [producerScope]
-        rw [Hopening.fvars_eq_bound
-          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
-        exact _HfieldParameterUp)
+      hproducerUp
       (fun j => RecursorFieldPrefixScope stats.params HfieldsRecent.fvars
         recursiveFields[j]!)
       (by
@@ -4280,38 +4401,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           have hmem := HextArgs.contextLE (Hparams.members fv hp)
           rw [← Rargs.lctx_eq, Rargs.mlctx_wf.tr.fvars_eq] at hmem
           exact hmem)
-      (by
-        intro j
-        rw [Hopening.fvars_eq_bound
-          HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
-        have hsplit := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
-          Rargs.mlctx allFields.size HfieldsRecent.size_le
-        rw [HfieldsRecent.drop_eq] at hsplit
-        have hprefix : VLCtx.fvars (Rargs.mlctx.vlctx.take allFields.size) =
-            HfieldsRecent.fvars.reverse := by
-          rw [TypeChecker.MLCtx.vlctx_take_fvars]
-          exact HfieldsRecent.fvarRevList_eq
-        have hwf : VLCtx.FVWF
-            (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
-          rw [← hsplit]
-          exact Rargs.mlctx_wf.tr.wf.fvwf
-        have hfresh : ∀ fv ∈ HfieldsRecent.fvars,
-            ¬ fv ∈ ExprArrayFVarIds stats.params := by
-          intro fv hfv hparam
-          apply HfieldsRecent.toFreshBoundFVarArray.fresh fv hfv
-          apply Hparams.members
-          rw [← Hparams.exprArrayFVarIds]
-          exact hparam
-        have hup : IsFVarUpSet
-            (fun fv => fv ∈ HfieldsRecent.fvars ∨
-              fv ∈ ExprArrayFVarIds stats.params)
-            (Rargs.mlctx.vlctx.take allFields.size ++ R.mlctx.vlctx) := by
-          rw [← hsplit]
-          exact _HfieldParameterUp
-        have hsharp := IsFVarUpSet.sharpenPrefix _ _ _ hwf hprefix hfresh hup
-          (HfieldsRecent.fvars.idxOf (recursorFVarId recursiveFields[j]!))
-        rw [← hsplit] at hsharp
-        exact hsharp)
+      hsharpUp
+      hproducerUniverses hsharpUniverses hfieldUniverses
       HtelescopesArgs HbindingsArgs HoriginsArgs HmotiveShapesArgs hrecords
   intro outCtx Rout hypotheses calls HhypothesesRecent HhypothesisOrigins
     HhypothesisCallOrigins HhypothesisCallSemantics HhypothesisCallSharpSemantics
@@ -4721,6 +4812,10 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
+    (hparamUniverses : ParameterUniverseSupport c stats.params)
+    (htailUniverses : ∀ ctor ∈ ctors, ∀ tail,
+      RecursorParamPrefix stats 0 ctor.type tail →
+        tail.levelParamsIn c.lparams = true)
     (hidx : dIdx < recInfos.size)
     (hsourceIdx : dIdx < indTypes.size)
     (hminorIndex : recInfos[dIdx]!.minors.size = sourceIndex)
@@ -4812,13 +4907,15 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         ctor tail sourceConstructors sourceIndex hsourceConstructor hsourceFamily
         (fun next => AddInductive.mkRecInfos.loopCtors stats indTypeName
           dIdx next ctors k)
-        R Hsuffix Hstats Hprefix HtailScope hconsume hlit hctx Htail
+        R Hsuffix Hstats Hprefix HtailScope hparamUniverses
+        (htailUniverses ctor (by simp) tail Hprefix)
+        hconsume hlit hctx Htail
         HtailType Hintro HintroType Hbindings Horigins Hblueprints
         HblueprintSemantics HminorSources
         HminorSemantics HmajorTypes
         HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows
-        Hparams HnoAlias Horder Hroot hidx hsourceIdx horiginIndex Harities
-        Hlater hrecords Hnormal ?_
+        Hparams HnoAlias Horder (BindingContextLE.refl c) hidx hsourceIdx
+        horiginIndex Harities Hlater hrecords Hnormal ?_
       intro nextCtx nextDepth next Rnext henvNext HsuffixNext
         hparameterDeclsNext HstatsNext hctxNext HbindingsNext HoriginsNext
         HblueprintsNext HblueprintSemanticsNext HminorSourcesNext HminorSemanticsNext
@@ -4833,7 +4930,12 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         HmajorTypesNext
         HmajorShapesNext HmotiveTypesNext
         HmotiveShapesNext HtelescopesNext HindexRowsNext HparamsNext
-        HnoAliasNext HorderNext HrootNext ?_ ?_ HaritiesNext ?_ ?_ ?_ ?_
+        HnoAliasNext HorderNext (Hroot.trans HrootNext)
+        (hparamUniverses.mono Hparams HrootNext)
+        (fun ctor' hctor' tail' Hprefix' => by
+          rw [HrootNext.lparams_eq]
+          exact htailUniverses ctor' (by simp [hctor']) tail' Hprefix')
+        ?_ ?_ HaritiesNext ?_ ?_ ?_ ?_
       · simpa [hsizeNext] using hidx
       · rw [hcountNext, hminorIndex]
       · intro i hdi hiNext
@@ -5195,6 +5297,11 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
     (HnoAlias : Hbindings.NoAlias Hparams)
     (Horder : RecInfoOuterOrder R Hparams Hbindings)
     (Hroot : BindingContextLE root c)
+    (hparamUniverses : ParameterUniverseSupport c stats.params)
+    (htailUniverses : ∀ familyIdx (hfamily : familyIdx < indTypes.size),
+      ∀ ctor ∈ indTypes[familyIdx].ctors, ∀ tail,
+        RecursorParamPrefix stats 0 ctor.type tail →
+          tail.levelParamsIn c.lparams = true)
     (hsize : recInfos.size = indTypes.size)
     (hrecords : recInfos.size = stats.indConsts.size)
     (Harities : RecInfoArities stats recInfos)
@@ -5270,7 +5377,8 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       Horigins Hblueprints HblueprintSemantics HminorSources HminorSemantics
       HmajorTypes HmajorShapes
       HmotiveTypes HmotiveShapes
-      Htelescopes HindexRows Hparams HnoAlias Horder Hroot
+      Htelescopes HindexRows Hparams HnoAlias Horder (BindingContextLE.refl c)
+      hparamUniverses (htailUniverses dIdx hfamily)
       (by simpa [hsize] using hfamily)
       hfamily
       (by
@@ -5295,7 +5403,12 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         HblueprintSemanticsOut HminorSourcesOut
         HminorSemanticsOut HmajorTypesOut
         HmajorShapesOut HmotiveTypesOut HmotiveShapesOut HtelescopesOut
-        HindexRowsOut HparamsOut HnoAliasOut HorderOut HrootOut ?_ ?_
+        HindexRowsOut HparamsOut HnoAliasOut HorderOut (Hroot.trans HrootOut)
+        (hparamUniverses.mono Hparams HrootOut)
+        (fun familyIdx hfamilyIdx ctor hctor tail Hprefix => by
+          rw [HrootOut.lparams_eq]
+          exact htailUniverses familyIdx hfamilyIdx ctor hctor tail Hprefix)
+        ?_ ?_
         HaritiesOut
         ?_ ?_ ?_ ?_
       · exact houtSize.trans hsize

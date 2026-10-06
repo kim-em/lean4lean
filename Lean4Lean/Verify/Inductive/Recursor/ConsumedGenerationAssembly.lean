@@ -377,24 +377,67 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
   {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-/-- The argument domains and exposed indices of every induction hypothesis,
-as retained by the blueprint origins, mention only the declaration's universe
-parameters (never the fresh elimination universe). Discharged by the universe
-support invariant of the type checker (in progress). -/
+/-- The argument telescope and the exposed indices of every recursive call
+retained by the rule blueprints mention only the declaration's universe
+parameters (never the fresh elimination universe).  The blueprint producer
+retains this fact in each semantic call row
+(`RecInfoCallBlueprintSemanticOrigin.universes`); see
+`CompletedRecursorConstruction.argumentUniverses`. -/
 def CompletedRecursorConstruction.ArgumentUniverses (H : CompletedRecursorConstruction R) : Prop :=
-  ∀ owner (howner : owner < H.recInfos.size) localIndex
-    (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (origins : RecInfoMinorHypothesisTypeOrigins
-      (H.origins.minorShapes owner howner localIndex hlocal).sourceFullContext
-      (H.origins.minorShapes owner howner localIndex hlocal).recursiveFields
-      (H.origins.minorShapes owner howner localIndex hlocal).hypotheses),
-    (H.origins.minorShapes owner howner localIndex hlocal).hypothesis_type_origins = some origins →
-    ∀ (j : Nat) (root : AddInductive.Context) (sourceType : Expr)
-      (O : RecInfoMinorHypothesisTypeOrigin origins.stats origins.recInfos root
-        ((H.origins.minorShapes owner howner localIndex hlocal).recursiveFields[j]!) sourceType),
-      (∀ d ∈ O.argDomains, d.levelParamsIn c.lparams = true) ∧
-      (∀ e ∈ (O.exposedType.getAppArgs[origins.stats.params.size:] : Array Expr).toList,
-        e.levelParamsIn c.lparams = true)
+  ∀ owner (_howner : owner < H.recInfos.size) localIndex
+    (_hlocal : localIndex < H.origins.minorTypes[owner]!.size),
+    let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
+    ∀ j < B.recursiveCalls.size,
+      (B.recursiveCalls[j]!.lctx.mkForall B.recursiveCalls[j]!.args
+          (.sort .zero)).levelParamsIn c.lparams = true ∧
+        ∀ e ∈ B.recursiveCalls[j]!.targetIndices.toList, e.levelParamsIn c.lparams = true
+
+theorem Expr.forallDomainList_levelParamsIn {Us : List Name} :
+    ∀ (n : Nat) {e : Expr}, e.levelParamsIn Us = true →
+      ∀ d ∈ Expr.forallDomainList n e, d.levelParamsIn Us = true
+  | 0, _, _ => by simp [Expr.forallDomainList]
+  | n + 1, e, h => by
+    cases e with
+    | forallE name dom body bi =>
+      simp only [Expr.levelParamsIn, Bool.and_eq_true] at h
+      intro d hd
+      simp only [Expr.forallDomainList, List.mem_cons] at hd
+      rcases hd with rfl | hd
+      · exact h.1
+      · exact Expr.forallDomainList_levelParamsIn n h.2 d hd
+    | _ => simp [Expr.forallDomainList]
+
+/-- The argument domains of a first-pass induction-hypothesis origin mention
+only `Us` when its argument telescope and exposed indices do. -/
+theorem RecInfoMinorHypothesisTypeOrigin.argDomains_levelParamsIn
+    {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
+    {root : AddInductive.Context} {field type : Expr}
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type) {Us : List Name}
+    (htel : (O.current.lctx.mkForall O.args (.sort .zero)).levelParamsIn Us = true)
+    (hidx : ∀ e ∈ (O.exposedType.getAppArgs[stats.params.size:] : Array Expr).toList,
+      e.levelParamsIn Us = true) :
+    ∀ d ∈ O.argDomains, d.levelParamsIn Us = true := by
+  have hargTypes := O.arguments_bound.toBoundFVarArray.mkForall_levelParamsIn_types
+    O.current_wf O.arguments_bound.nodup htel
+  obtain ⟨fv, hfv, _⟩ := O.field_fvar
+  have hmotiveApp : (Expr.app
+      (mkAppN recInfos[O.ownerIdx]!.motive O.exposedType.getAppArgs[stats.params.size:])
+      (mkAppN field O.args)).levelParamsIn Us = true := by
+    obtain ⟨m, hm, _⟩ := O.motive_is_fvar
+    subst hfv
+    simp only [Expr.levelParamsIn, Bool.and_eq_true, Expr.mkAppN_eq_mkAppList]
+    refine ⟨Expr.levelParamsIn_mkAppList (by rw [hm]; rfl) hidx,
+      Expr.levelParamsIn_mkAppList rfl ?_⟩
+    intro a ha
+    rw [O.arguments_bound.expressions] at ha
+    simp only [List.toList_toArray, List.mem_map] at ha
+    obtain ⟨y, _, rfl⟩ := ha
+    rfl
+  have htypeU : type.levelParamsIn Us = true := by
+    rw [O.type_eq]
+    exact O.arguments_bound.toBoundFVarArray.mkForall_levelParamsIn O.current_wf
+      O.arguments_bound.nodup hargTypes hmotiveApp
+  exact Expr.forallDomainList_levelParamsIn _ htypeU
 
 /-- The generator's induction hypothesis (`InductiveSignature.Instance.hypothesis`)
 as a function of the raw recursive-shape data. -/
@@ -450,10 +493,18 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisHeader
           hypothesisForm L S.fields.size nmot minorIdx j pos t binders indices := by
   intro S L nmot fields hyps res hhyps hminorEq j hj
   obtain ⟨origins, root, sourceType, O, pos, hpos, binders, indices, horig, _hstats, _hmotives,
-    hfield, hblen, howner', heq, Hbinders, Hindices⟩ :=
+    hfield, hblen, howner', heq, Hbinders, Hindices, hcallArgs, hcallLctx, hcallIdx⟩ :=
     H.recursorTelescope_hypothesisUnlift howner T minorIdx D₀ mowner hmowner localIndex hlocal hD
       hyps res hhyps hminorEq j hj
-  obtain ⟨hdomU, hidxU⟩ := HU mowner hmowner localIndex hlocal origins horig j root sourceType O
+  have hjCalls : j < (H.recInfos[mowner]!.ruleBlueprints[localIndex]!).recursiveCalls.size := by
+    obtain ⟨-, -, -, -, -, _, -, -, -, -, Hcalls⟩ :=
+      H.blueprints.entry mowner hmowner localIndex hlocal
+    rw [Hcalls.size_eq]
+    exact hj
+  obtain ⟨htelU, hidxU⟩ := HU mowner hmowner localIndex hlocal j hjCalls
+  rw [hcallLctx, hcallArgs] at htelU
+  rw [hcallIdx] at hidxU
+  have hdomU := O.argDomains_levelParamsIn htelU hidxU
   let Q := recursorUnshiftLevels c.lparams.length H.elimLevel
   have hbase : ∀ d ∈ H.parameterSuffix.parameterDecls.toCtx.reverse ++
       ((H.sourceFields mowner hmowner localIndex hlocal).map (VExpr.instL L)).take pos,
