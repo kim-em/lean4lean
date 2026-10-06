@@ -875,6 +875,13 @@ inside this project's scope without solving open base metatheory:
    no longer on the critical path (feasibility report only). Critical path:
    the base obligations (confluence programme started on branch
    `agent/verify-inductives-cr`).
+   Refutation feasibility (`docs/inductives/COUNTERMODEL_FEASIBILITY.md`): a
+   machine-checked groupoid countermodel would be 10k to 18k lines (the model
+   must cover every rule of `VEnv.IsDefEq`; no proof-irrelevant model can
+   separate the endpoints); the reviewer judges the unrestricted statement
+   false and strengthening with canonical `Eq` plausibly true but unproved
+   (a proof would need normalization or confluence for typed proof
+   irrelevance with iota and K). Not pursued further.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
