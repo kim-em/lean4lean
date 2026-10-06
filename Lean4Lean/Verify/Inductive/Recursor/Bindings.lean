@@ -1791,9 +1791,11 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
     (htype₀ : TrExprS R.venv recLparams B.m.vlctx t typeTarget₀)
     (hchkFields : 0 < bu.size →
       R.chk.fvarList = (stats.params ++ bu).toList.map (·.fvarId!))
-    {baseV : VLCtx}
+    {baseV : VLCtx} {root₀ : VExpr}
     (hagreeB : ∃ hn : bu.size ≤ B.m.length,
-      MLCtxTopAgree R.mlctx B.m bu.size ∧ (B.m.dropN bu.size hn).vlctx = baseV)
+      MLCtxTopAgree R.mlctx B.m bu.size ∧ (B.m.dropN bu.size hn).vlctx = baseV ∧
+        R.venv.IsDefEqU recLparams.length baseV.toCtx root₀
+          (B.m.mkForall' bu.size hn typeTarget₀))
     (hchkB : 0 < bu.size → R.chk = B.m)
     (htypeType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx typeTarget)
@@ -1854,7 +1856,10 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         (0 < bu'.size → Rcurrent.chk = M) ∧
         ∃ hn : bu'.size ≤ M.length,
           MLCtxTopAgree Rcurrent.mlctx M bu'.size ∧
-            (M.dropN bu'.size hn).vlctx = baseV) →
+            (M.dropN bu'.size hn).vlctx = baseV ∧
+            ∃ t₀', TrExprS Rcurrent.venv recLparams M.vlctx t' t₀' ∧
+              Rcurrent.venv.IsDefEqU recLparams.length baseV.toCtx root₀
+                (M.mkForall' bu'.size hn t₀')) →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
       t i bu u fuel c).WF Q := by
@@ -1881,10 +1886,10 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         ⟨consumedBody, hbodyConsumed, _hbodyEq⟩
       let RB := R.withCheckLCtx _ B
       rcases TrExpr.forallE_source (htype₀.trExpr R.checking.tr.wf B.wf.tr.wf) with
-        ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, _, _⟩
+        ⟨dom₀, bodyN₀, hdom₀, hbodyN₀, hdom₀Type, hbodyN₀Type, hforallEq₀⟩
       rcases hconsume _ recLparams RB.narrow hdom₀ hdom₀Type with
         ⟨consumedDom₀, Hdom₀⟩
-      rcases Hdom₀.body RB.narrow hbodyN₀ with ⟨body₀'', hbody₀'', _⟩
+      rcases Hdom₀.body RB.narrow hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
           dom.consumeTypeAnnotationsVerified consumedDom₀ := Hdom₀.consumed
       have hconsT₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx
@@ -2060,11 +2065,50 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         Hdom.consumed Hdom.isType hcons₀ hconsT₀
       have hB' := R.fieldBaseNext_fvarList (name := name) (bi := bi) B hB
         Hdom.consumed Hdom.isType hcons₀ hconsT₀
+      have hagreeB₁ : ∃ hn : bu.size ≤ B.m.length,
+          MLCtxTopAgree R.mlctx B.m bu.size ∧
+            (B.m.dropN bu.size hn).vlctx = baseV ∧
+            R.venv.IsDefEqU recLparams.length baseV.toCtx root₀
+              (B.m.mkForall' bu.size hn (.forallE consumedDom₀ body₀'')) := by
+        obtain ⟨hnB, hagB, hdropB, hrootB⟩ := hagreeB
+        refine ⟨hnB, hagB, hdropB, ?_⟩
+        have hbodyEq₀ := Hdom₀.bodyDefEqConsumed RB.narrow hbody₀Eq
+        let HdomainCtx₀ : VLCtx.IsDefEq R.venv recLparams.length
+            ((none, .vlam dom₀) :: B.m.vlctx)
+            ((none, .vlam consumedDom₀) :: B.m.vlctx) :=
+          .cons (.refl R.checking.tr.wf B.wf.tr.wf) nofun
+            (.vlam Hdom₀.source_defeq.choose_spec)
+        have HbodyAtSourceU₀ : R.venv.IsDefEqU recLparams.length
+            (dom₀ :: B.m.vlctx.toCtx) bodyN₀ body₀'' := by
+          have h := hbodyEq₀.defeqDFC R.checking.tr.wf
+            ((HdomainCtx₀.symm R.checking.tr.wf.ordered).defeqCtx)
+          simpa [VLCtx.toCtx] using h
+        rcases hbodyN₀Type with ⟨bodyLevel₀, HbodyType₀⟩
+        have HbodyAtSource₀ : R.venv.IsDefEq recLparams.length
+            (dom₀ :: B.m.vlctx.toCtx) bodyN₀ body₀'' (.sort bodyLevel₀) :=
+          HbodyAtSourceU₀.of_l R.checking.tr.wf
+            ⟨B.wf.tr.wf.toCtx, hdom₀Type⟩ HbodyType₀
+        have HforallDF := VEnv.IsDefEq.forallEDF
+          Hdom₀.source_defeq.choose_spec HbodyAtSource₀
+        have HtypeConsumed₀ : R.venv.IsDefEqU recLparams.length
+            B.m.vlctx.toCtx typeTarget₀ (.forallE consumedDom₀ body₀'') :=
+          hforallEq₀.symm.trans R.checking.tr.wf B.wf.tr.wf.toCtx ⟨_, HforallDF⟩
+        have HtypeConsumedAtSort₀ :=
+          HtypeConsumed₀.of_r R.checking.tr.wf B.wf.tr.wf.toCtx
+            HforallDF.hasType.2
+        rcases B.wf.mkForall'_congr HtypeConsumedAtSort₀ bu.size hnB with
+          ⟨closedLevel₀, Hclosed₀⟩
+        rw [hdropB] at Hclosed₀
+        exact hrootB.trans R.checking.tr.wf
+          (by rw [← hdropB]; exact (B.wf.dropN bu.size hnB).tr.wf.toCtx)
+          ⟨_, Hclosed₀⟩
       have hagreeB' : ∃ hn : (bu.push (.fvar ⟨c.ngen.curr⟩)).size ≤ B'.m.length,
           MLCtxTopAgree R'.mlctx B'.m (bu.push (.fvar ⟨c.ngen.curr⟩)).size ∧
-            (B'.m.dropN (bu.push (.fvar ⟨c.ngen.curr⟩)).size hn).vlctx = baseV := by
-        have h := MLCtxTopAgree.stepDrop ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified consumedDom consumedDom₀ bi hagreeB
+            (B'.m.dropN (bu.push (.fvar ⟨c.ngen.curr⟩)).size hn).vlctx = baseV ∧
+            R'.venv.IsDefEqU recLparams.length baseV.toCtx root₀
+              (B'.m.mkForall' (bu.push (.fvar ⟨c.ngen.curr⟩)).size hn body₀'') := by
+        have h := MLCtxTopAgree.stepDropForall ⟨c.ngen.curr⟩ name
+          dom.consumeTypeAnnotationsVerified consumedDom consumedDom₀ bi hagreeB₁
         simp only [Array.size_push]
         exact h
       have hopened₀ : TrExprS R.venv recLparams B'.m.vlctx
@@ -2181,7 +2225,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         | proj =>
       exact Hk R rfl htype htypeType hfields hdecisions hargs Hrecent
         Hopening hrootType (Hopening.currentFVarsIn hsourceScope) hcurrentUp
-        happlied happliedType hchkFields ⟨B.m, B.wf, hchkB, hagreeB⟩
+        happlied happliedType hchkFields ⟨B.m, B.wf, hchkB, by
+          obtain ⟨hnB, hagB, hdropB, hrootB⟩ := hagreeB
+          exact ⟨hnB, hagB, hdropB, typeTarget₀, htype₀, hrootB⟩⟩
 
 end mkRecInfos.loopCtorArgs.loop
 
@@ -2206,6 +2252,8 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
     {sdepth : Nat} (Hsuffix : RecursorParameterContextSuffix R stats sdepth)
     {tailTarget₀ : VExpr}
     (htail₀ : TrExprS R.venv recLparams Hsuffix.parameterDecls tail tailTarget₀)
+    (htail₀Type : R.venv.IsType recLparams.length
+      Hsuffix.parameterDecls.toCtx tailTarget₀)
     (htailType : R.venv.IsType recLparams.length
       R.mlctx.vlctx.toCtx tailTarget)
     {P : FVarId → Prop}
@@ -2251,7 +2299,11 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
         (0 < bu'.size → Rcurrent.chk = M) ∧
         ∃ hn : bu'.size ≤ M.length,
           MLCtxTopAgree Rcurrent.mlctx M bu'.size ∧
-            (M.dropN bu'.size hn).vlctx = Hsuffix.parameterDecls) →
+            (M.dropN bu'.size hn).vlctx = Hsuffix.parameterDecls ∧
+            ∃ t₀', TrExprS Rcurrent.venv recLparams M.vlctx t' t₀' ∧
+              Rcurrent.venv.IsDefEqU recLparams.length
+                Hsuffix.parameterDecls.toCtx tailTarget₀
+                (M.mkForall' bu'.size hn t₀')) →
       (k t' bu' u' current).WF Q) :
     (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
   let inputContext := c
@@ -2279,7 +2331,9 @@ theorem mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent {alpha : Type}
       stats head k R R Hstats (Nat.le_refl _) hconsume hlit hctx
       htail Hsuffix.fieldBase Hsuffix.fieldBase_fvarList
       (by rw [Hsuffix.fieldBase_vlctx]; exact htail₀) (fun h => by simp at h)
-      ⟨Nat.zero_le _, .zero _ _, Hsuffix.fieldBase_vlctx⟩
+      ⟨Nat.zero_le _, .zero _ _, Hsuffix.fieldBase_vlctx, by
+        rcases htail₀Type with ⟨level₀, Htype₀⟩
+        exact ⟨.sort level₀, Htype₀⟩⟩
       (fun h => by simp at h)
       htailType .nil .nil .nil (RecursorRecentBoundFVarArray.empty R)
       (ConstructorFieldOpening.empty tail)

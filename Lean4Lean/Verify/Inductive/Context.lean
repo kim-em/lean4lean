@@ -2764,6 +2764,21 @@ theorem MLCtxTopAgree.stepDrop {a b : TypeChecker.MLCtx} {n : Nat} {V : VLCtx}
   obtain ⟨hn, hag, hd⟩ := h
   exact ⟨by simpa using hn, hag.vlam fv name ty t₁ t₂ bi, by simpa using hd⟩
 
+/-- `stepDrop`, additionally carrying the closure of the checker translation
+of the current telescope back to the base context. -/
+theorem MLCtxTopAgree.stepDropForall {env : VEnv} {U : Nat}
+    {a b : TypeChecker.MLCtx} {n : Nat} {V : VLCtx} {T₀ X : VExpr}
+    (fv name ty t₁ t₂ bi)
+    (h : ∃ hn : n ≤ b.length, MLCtxTopAgree a b n ∧ (b.dropN n hn).vlctx = V ∧
+      env.IsDefEqU U V.toCtx T₀ (b.mkForall' n hn (.forallE t₂ X))) :
+    ∃ hn : n + 1 ≤ (TypeChecker.MLCtx.vlam fv name ty t₂ bi b).length,
+      MLCtxTopAgree (.vlam fv name ty t₁ bi a) (.vlam fv name ty t₂ bi b) (n + 1) ∧
+        ((TypeChecker.MLCtx.vlam fv name ty t₂ bi b).dropN (n + 1) hn).vlctx = V ∧
+        env.IsDefEqU U V.toCtx T₀
+          ((TypeChecker.MLCtx.vlam fv name ty t₂ bi b).mkForall' (n + 1) hn X) := by
+  obtain ⟨hn, hag, hd, he⟩ := h
+  exact ⟨by simpa using hn, hag.vlam fv name ty t₁ t₂ bi, by simpa using hd,
+    by simpa using he⟩
 
 /-- Opening a binder in both contexts extends a scope aligned with the
 checker context by the scope translation of the binder's domain. -/

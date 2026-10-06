@@ -343,7 +343,14 @@ structure RecInfoRuleFieldSemanticSource
     (0 < S.fields.size → terminalWF.chk = M) ∧
     ∃ hn : S.fields.size ≤ M.length,
       MLCtxTopAgree terminalWF.mlctx M S.fields.size ∧
-        (M.dropN S.fields.size hn).vlctx = parameterSuffix.parameterDecls
+        (M.dropN S.fields.size hn).vlctx = parameterSuffix.parameterDecls ∧
+        ∃ T₀, TrExprS rootWF.venv recLparams parameterSuffix.parameterDecls
+          traversal.parameterTail T₀ ∧
+        ∃ t₀', TrExprS terminalWF.venv recLparams M.vlctx
+          traversal.terminal t₀' ∧
+          terminalWF.venv.IsDefEqU recLparams.length
+            parameterSuffix.parameterDecls.toCtx T₀
+            (M.mkForall' S.fields.size hn t₀')
   terminalTarget : VExpr
   terminalTranslation : TrExprS terminalWF.venv recLparams
     terminalWF.mlctx.vlctx traversal.terminal terminalTarget
@@ -2934,7 +2941,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
   apply mkRecInfos.loopCtorArgs.recursiveDomainsRecursorRecent (Q := Q)
     stats ctor.type tail
       (mkAppN (.const ctor.name stats.levels) stats.params)
-      process c R Hstats hprefix hconsume hlit hctx htail Hsuffix htail₀
+      process c R Hstats hprefix hconsume hlit hctx htail Hsuffix htail₀ htail₀Ty
       htailType htailScope Hsuffix.parameterFVarsUp Hintro HintroType
   intro current Rargs terminal terminalTarget appliedTarget allFields
     recursiveFields fields positions args HterminalNonforall Hterminal
@@ -3541,7 +3548,11 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
             rw [Hopening.fvars_eq_bound
               HfieldsRecent.toFreshBoundFVarArray.toBoundFVarArray] at _HfieldParameterUp
             exact _HfieldParameterUp
-          fieldCheck := hfieldCheck
+          fieldCheck := by
+            obtain ⟨M, hMwf, hchkM, hnM, hagM, hdropM, t₀', ht₀', hroot₀⟩ :=
+              hfieldCheck
+            exact ⟨M, hMwf, hchkM, hnM, hagM, hdropM, _, htail₀, t₀', ht₀',
+              hroot₀⟩
           terminalTarget := terminalTarget
           terminalTranslation := Hterminal
           terminalType := HterminalType

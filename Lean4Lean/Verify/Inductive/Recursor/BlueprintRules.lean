@@ -532,7 +532,13 @@ structure RetainedGeneratedRuleSemantics
     (0 < allArgs.size → context.chk = M) ∧
     ∃ hn : allArgs.size ≤ M.length,
       MLCtxTopAgree context.mlctx M allArgs.size ∧
-        (M.dropN allArgs.size hn).vlctx = parameterSuffix.parameterDecls
+        (M.dropN allArgs.size hn).vlctx = parameterSuffix.parameterDecls ∧
+        ∃ T₀, TrExprS fieldRootContext.venv recLparams
+          parameterSuffix.parameterDecls parameterTail T₀ ∧
+        ∃ t₀', TrExprS context.venv recLparams M.vlctx target t₀' ∧
+          context.venv.IsDefEqU recLparams.length
+            parameterSuffix.parameterDecls.toCtx T₀
+            (M.mkForall' allArgs.size hn t₀')
   context_venv : context.venv = Rroot.venv
   validStats : RecursorValidAppStatsWF context.venv recLparams
     context.mlctx.vlctx stats decl depth
