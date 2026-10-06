@@ -235,6 +235,30 @@ theorem HasType.closed_instOuter (henv : env.WF)
 theorem getD_of_lt {l : List α} {d : α} (h : i < l.length) : l.getD i d = l[i] := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h]
 
+theorem subst_liftN_lift (σ : VExpr.Subst) : ∀ l, σ.lift.liftN l = σ.liftN (l + 1)
+  | 0 => rfl
+  | l + 1 => by simp only [VExpr.Subst.liftN, subst_liftN_lift σ l]
+
+theorem subst_wrapForalls (τ : VExpr.Subst) :
+    ∀ (doms : List VExpr) (B : VExpr), (VExpr.wrapForalls doms B).subst τ =
+      VExpr.wrapForalls (doms.mapIdx fun l d => d.subst (τ.liftN l)) (B.subst (τ.liftN doms.length))
+  | [], B => rfl
+  | d :: ds, B => by
+    show VExpr.forallE (d.subst τ) ((VExpr.wrapForalls ds B).subst τ.lift) = _
+    rw [subst_wrapForalls τ.lift ds B]
+    simp only [List.mapIdx_cons, subst_liftN_lift, List.length_cons]
+    rfl
+
+theorem subst_wrapLams (τ : VExpr.Subst) :
+    ∀ (doms : List VExpr) (B : VExpr), (VExpr.wrapLams doms B).subst τ =
+      VExpr.wrapLams (doms.mapIdx fun l d => d.subst (τ.liftN l)) (B.subst (τ.liftN doms.length))
+  | [], B => rfl
+  | d :: ds, B => by
+    show VExpr.lam (d.subst τ) ((VExpr.wrapLams ds B).subst τ.lift) = _
+    rw [subst_wrapLams τ.lift ds B]
+    simp only [List.mapIdx_cons, subst_liftN_lift, List.length_cons]
+    rfl
+
 theorem getD_append_left' {l₁ l₂ : List α} {d : α} (h : i < l₁.length) :
     (l₁ ++ l₂).getD i d = l₁.getD i d := by
   simp [List.getD_eq_getElem?_getD, List.getElem?_append_left h]
@@ -331,6 +355,28 @@ theorem TelInst.getD (H : TelInst env U Γ doms args) (hj : j < doms.length) :
     env.HasType U Γ (args.getD j default) ((doms.getD j default).instOuter (args.take j)) := by
   rw [getD_of_lt (H.1 ▸ hj), getD_of_lt hj]
   exact H.2 j (H.1 ▸ hj) hj
+
+theorem HasType.wrapLams_of :
+    ∀ {doms : List VExpr} {Γ : List VExpr} {body T : VExpr},
+      OnCtx (doms.reverse ++ Γ) (env.IsType U) → env.HasType U (doms.reverse ++ Γ) body T →
+      env.HasType U Γ (VExpr.wrapLams doms body) (VExpr.wrapForalls doms T)
+  | [], _, _, _, _, h => h
+  | d :: ds, Γ, body, T, hctx, h => by
+    simp only [List.reverse_cons, List.append_assoc, List.singleton_append] at hctx h
+    have ⟨_, _, hd⟩ := OnCtx.of_append (Γ' := ds.reverse) hctx
+    exact .lam hd (HasType.wrapLams_of hctx h)
+
+theorem HasType.wrapForalls_prop (henv : env.Ordered) :
+    ∀ {doms : List VExpr} {Γ : List VExpr} {B : VExpr},
+      OnCtx (doms.reverse ++ Γ) (env.IsType U) → env.HasType U (doms.reverse ++ Γ) B (.sort .zero) →
+      env.HasType U Γ (VExpr.wrapForalls doms B) (.sort .zero)
+  | [], _, _, _, h => h
+  | d :: ds, Γ, B, hctx, h => by
+    simp only [List.reverse_cons, List.append_assoc, List.singleton_append] at hctx h
+    have ⟨hΓ, _, hd⟩ := OnCtx.of_append (Γ' := ds.reverse) hctx
+    have hf := HasType.forallE hd (HasType.wrapForalls_prop henv hctx h)
+    have hu := (hd.isType henv hΓ).sort_inv henv
+    exact .defeqDF (.sortDF (by simp [VLevel.WF]; exact hu) (by simp [VLevel.WF]) VLevel.imax_zero) hf
 
 theorem TelInst.nil : TelInst env U Γ [] [] := ⟨rfl, fun _ h => by simp at h⟩
 
