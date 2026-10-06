@@ -558,7 +558,31 @@ inside this project's scope without solving open base metatheory:
    malformed input and would let `SourceSyntaxChecks` carry the fact).
 2. **Close the three refinement junctions.** `canonicalConsumedGeneration`
    is closed (item 7). Next: `canonicalCompletedRuleTranslation`, then
-   `assemblyNative`. Record of what the first junction used: the `params` and `motives`
+   `assemblyNative`. Scoping (2026-10-06): the rule junction must produce
+   `rules = g.equations` syntactically, so each generated rule is identified
+   with `Instance.equation` component by component: outer domains from the
+   checked type (`canonicalTargets`), field domains from `minorFieldsTemplate`,
+   the right-hand side built constructively from the small-context shape
+   translations exported by the first junction (weakened into the equation
+   context, never derived from minor or recursor contexts, which would be
+   strengthening), the left-hand side and type from
+   `sourceConstructorIndices_replay` after universe rebase, typing of the
+   equations transported from the equation layer's defeq-aligned residuals,
+   recursor metadata from the generated entries (`getMajorInduct`,
+   `KTargetCheck`), and the literal identity `info.rules = blueprints.map build`
+   carried from the producer (dropped today before
+   `CompletedRecursorPhasesResult`). Estimate 2k to 4k lines. The nested
+   sorries: `finalValidOfStaged` needs executable-vs-abstract restoration
+   commutation (`restoreNested` against `Restoration.expr`,
+   `ContainerSpecialization` built from the lowering, name/order agreement),
+   a rule-free restored recursor realization and `RecursorEnvCoherent.extend`
+   for the stripped map; `assemblyNative` additionally needs the rule junction's
+   content restored (`CompilationData.equations`, `RestoredRuleRealization`,
+   provenance), `CertifiedSpecializations` from the installed containers, and
+   a substitution lemma (restoration preserves `IsDefEq`) for the constructor
+   correspondence; the auxiliary families' `resultLevel`/`indices` comparison
+   rests on the Injectivity base sorries. Estimate 4k to 6k lines beyond the
+   rule junction. Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
    `recursorTelescope_minor`, the field-domain identification
