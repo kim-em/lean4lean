@@ -184,7 +184,9 @@ theorem AddInductive.semanticFormationCoreClosedWF
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams nparams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -195,7 +197,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
           isUnsafe depth Hc.venv indTypes headerEnv,
         ∃ _ : ConstructorPhasesResult Hheaders outEnv,
           MutualInductivesClosed outEnv := by
-  have Hformation := AddInductive.semanticFormationCoreWF Hsemantic
+  have Hformation := AddInductive.semanticFormationCoreWF (hstrs := hstrs) Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams
     hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
     hconsume hnprimCtors hlparams

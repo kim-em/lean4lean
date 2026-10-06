@@ -115,7 +115,9 @@ theorem AddInductive.runWithStats.WF
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       fun outEnv => ∃ headerEnv ctorEnv,
         ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
@@ -132,7 +134,7 @@ theorem AddInductive.runWithStats.WF
           R.declared.context.venv stats.indConsts := by
         rw [R.declared.contextVEnv]
         exact hlitCtors.addProjections _
-      exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit
+      exact (R.recursorPhasesWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) hclosed hlparams hlit
         hnotPartial hnprim).mono
           fun outEnv Hrecursors =>
             show ∃ headerEnv ctorEnv,
@@ -173,16 +175,18 @@ theorem AddInductive.runWithStats.closedWF
     (hnprimRecursors : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe c).WF
       fun outEnv => ∃ headerEnv ctorEnv,
         ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
           depth Hc.venv indTypes headerEnv,
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.WF (hsourceSafety := hsourceSafety) stats numParams indTypes numNested
+  apply AddInductive.runWithStats.WF (hstrs := hstrs) (hsourceSafety := hsourceSafety) stats numParams indTypes numNested
     isUnsafe c
-  · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
+  · exact AddInductive.formationCore.closedWF (hstrs := hstrs) Hc Hclosed Hdecl Hmaterialized
       hvisible hnprimTypes hconsume hunsafe hnprimCtors hlparams
   · exact hlparams
   · exact hnotPartial
@@ -272,18 +276,25 @@ structure RunWithStatsVerificationInputs
     ∀ owner (howner : owner < indTypes.size),
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
+  /-- The intermediate environments of this run validate context
+  strengthening. -/
+  strengthening : InductiveStrengthening Hc.venv c.lparams numParams
+    indTypes.toList isUnsafe
 
 /-- On the ordinary declaration path, primitive-name freshness is automatic:
 the three freshness fields are only queried when `allowPrimitive = true`.
 This constructor keeps the finite `Bool`/`Nat` bootstrap branch out of the
 general verification inputs instead of asking callers for false premises. -/
 theorem RunWithStatsVerificationInputs.ofAllowPrimitiveFalse
-    (hallow : c.allowPrimitive = false) :
+    (hallow : c.allowPrimitive = false)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     RunWithStatsVerificationInputs c stats decl numParams depth numNested
       indTypes isUnsafe Hc Hdecl Hmaterialized where
   freshTypes htrue := by simp_all
   freshConstructorConstants htrue := by simp_all
   freshRecursors htrue := by simp_all
+  strengthening := hstrs
 
 theorem RunWithStatsVerificationInputs.verify
     (H : RunWithStatsVerificationInputs c stats decl numParams depth
@@ -300,7 +311,7 @@ theorem RunWithStatsVerificationInputs.verify
           depth Hc.venv indTypes headerEnv,
         ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
           Nonempty (RecursorPhasesResult R outEnv) :=
-  fun hlparams => AddInductive.runWithStats.closedWF (hsourceSafety := hsourceSafety) Hc Hclosed Hdecl
+  fun hlparams => AddInductive.runWithStats.closedWF (hstrs := H.strengthening) (hsourceSafety := hsourceSafety) Hc Hclosed Hdecl
     Hmaterialized hvisible H.freshTypes
     Lean4Lean.consumeTypeAnnotationsCompat
     hlparams

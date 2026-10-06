@@ -134,6 +134,7 @@ private theorem installRestoredSourceFamilies
     (HsourceAdded : sourceVEnv.addConstVals
       ((loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
+    (hsSourceTypes : sourceTypesVEnv.Strengthening)
     (HvalidationValid : CheckingEnv.Valid c.safety auxiliaryHeaderEnv
       sourceTypesVEnv)
     (HparameterRun :
@@ -179,7 +180,7 @@ private theorem installRestoredSourceFamilies
           rcases List.mem_iff_getElem.mp hsourceGlobal with
             ⟨familyIdx, hfamily, hsourceEq⟩
           cases hsourceEq
-          rcases Hlower.sourceConstructorSemanticsAtFreshOfValidation Hc
+          rcases Hlower.sourceConstructorSemanticsAtFreshOfValidation (hsSourceTypes := hsSourceTypes) Hc
               Hprod Hsources Howners HsourceHeaders HsourceAdded
               HvalidationValid HparameterRun hempty familyIdx hfamily
               Hstep with ⟨constructors, Hconstructors⟩
@@ -265,12 +266,17 @@ theorem NestedLoweringResultClosed.nativeSourceCore
       Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hstrsSource : InductiveStrengthening sourceVEnv c.lparams nparams
+      sourceTypes isUnsafe) :
     Nonempty (NativeNestedSourceCoreResult sourceVEnv c.lparams nparams
       sourceTypes isUnsafe loweredDecl c.safety constructorValidationEnv
         auxiliaryHeaderEnv) := by
   rcases Hlower.sourceHeaderPrefix R.core hempty with
     ⟨sourceTypesVEnv, HsourceAdded, HsourceHeaders⟩
+  have hsSourceTypes : sourceTypesVEnv.Strengthening :=
+    hstrsSource.headers _ _ (List.forall₂_map_right_iff.mpr HsourceHeaders)
+      HsourceAdded
   rcases HheaderValidation.validOfLowering Hlower Hc Hprod hempty
       hvisible with
     ⟨headerVEnv, HheaderAdded, HheaderValid⟩
@@ -282,7 +288,7 @@ theorem NestedLoweringResultClosed.nativeSourceCore
   have HconstructorTrace := HconstructorValidation.constructors
   rw [hheaderProdEnv] at HconstructorTrace
   rcases installRestoredSourceFamilies Hlower Hc Hprod Hsources Howners
-      HsourceHeaders HsourceAdded HheaderValid HparameterRun hempty
+      HsourceHeaders HsourceAdded hsSourceTypes HheaderValid HparameterRun hempty
       Hrestoration.inductives HconstructorTrace
       HsourceHeaders (fun source hsource => hsource) HheaderValid.toValidCore
       VEnv.LE.rfl with

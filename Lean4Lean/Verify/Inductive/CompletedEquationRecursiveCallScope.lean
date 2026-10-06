@@ -169,7 +169,7 @@ theorem
     rw [hfieldRev, A.semantics.parameterSuffix.parameterDecls_fvars]
     simp [parameterDecls]
   rcases HfieldPrefix.extendNarrowRuntimeScope
-      A.semantics.fieldRootContext.checking.tr.wf HfieldWF HfieldBase
+      A.semantics.fieldRootContext.checking.tr.wf A.semantics.fieldRootContext.strengthening HfieldWF HfieldBase
         HfieldUp with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       fieldDomains, hfieldDomains, hfieldFront⟩
@@ -279,7 +279,7 @@ theorem
     fv ∈ ExprArrayFVarIds stats.params
   rcases checkInductiveTypes.loopType.narrowFVars
       F.originContext.onlyLams F.originContext.checking.tr.wf
-      F.originContext.mlctx_wf P F.originRootUp with
+      F.originContext.strengthening F.originContext.mlctx_wf P F.originRootUp with
     ⟨scope, Hscope, hscope⟩
   have henv : F.originContext.venv ≤ H.outVEnv := by
     have horigin : F.originContext.venv = H.recursorWF.venv :=
@@ -502,7 +502,7 @@ theorem
     rw [F.root_scope, hlocalRev]
     simp only [List.mem_append, List.mem_reverse]
     exact or_congr Iff.rfl (hPbase fv)
-  rcases HlocalPrefix.extendFVarNarrowScope H.outVEnvWF HlocalWF
+  rcases HlocalPrefix.extendFVarNarrowScope H.outVEnvWF H.outStrengthening HlocalWF
       HlocalBase HlocalUp with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocalDomains,
       hcontext, hshift, _hexpanded, Hreplay⟩
@@ -671,7 +671,7 @@ theorem
         have h := Hindex.closed
         rw [F.semantic.current_context.mlctx.noBV] at h
         exact h
-      rcases Hscope.restrictEq H.outVEnvWF Hindex hclosed HsourceNarrow with
+      rcases Hscope.restrictEq H.outVEnvWF H.outStrengthening Hindex hclosed HsourceNarrow with
         ⟨narrowTarget, HnarrowTarget, HtargetEq⟩
       have htailSubset : sources ⊆ sourceIndices := by
         intro other hother

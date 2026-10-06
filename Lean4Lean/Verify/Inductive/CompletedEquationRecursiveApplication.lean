@@ -126,7 +126,7 @@ theorem
         (scope.take Hscope.frontSourceDomains.length)).Nodup :=
     (VLCtx.fvars_take_sublist scope
       Hscope.frontSourceDomains.length).nodup
-        (Hscope.scopeWF H.outVEnvWF).fvars_nodup
+        (Hscope.scopeWF H.outVEnvWF H.outStrengthening).fvars_nodup
   have hclosedFVarsNodup :
       (A.rule.all_args_bound.fvars ++
         F.semantic.generated.arguments_bound.fvars).Nodup := by
@@ -549,7 +549,7 @@ theorem
     exact hbase
   let HfieldRuntime := B.runtime.mono hfieldBase
   have HfieldTemplate := HfieldRuntime.abstractFront
-    H.outVEnvWF B.scope_base HlocalTemplate
+    H.outVEnvWF H.outStrengthening B.scope_base HlocalTemplate
   have hfieldFVars :
       (VLCtx.fvars
         (B.fieldScope.take HfieldRuntime.frontSourceDomains.length)).reverse =
@@ -1455,7 +1455,7 @@ theorem
       selectedOwner < (H.recInfos.map (·.motive)).size := by
     simpa using hownerRecInfo
   have Hsuffix := F.telescope.ownerMotiveSuffixContext H.outVEnvWF
-    hownerMotive motiveDomains resultLevel hmotive hdomainLength
+    H.outStrengthening hownerMotive motiveDomains resultLevel hmotive hdomainLength
   exact ⟨S, hparameters, motiveDomains, resultLevel,
     hdomainLength, hmotive, Hsuffix⟩
 

@@ -18,13 +18,13 @@ theorem ConditionallyTyped.mono (H : ngen₁ ≤ ngen₂) :
   | ⟨h1, h2, h3⟩ => ⟨h1, h2.mono fun _ h => h.mono H, h3⟩
 
 theorem ConditionallyTyped.weakN_inv
-    (henv : VEnv.WF env) (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
+    (henv : VEnv.WF env) (hs : env.Strengthening) (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
     (H : ConditionallyTyped ngen env Us ((some fv, d) :: Δ) e) :
     ConditionallyTyped ngen env Us Δ e := by
   refine ⟨H.1, H.2.1, fun H2 => ?_⟩
   have := H.2.2
   have ⟨e', h⟩ := H.2.2 H2.fvars_cons
-  exact TrExprS.weakFV_inv henv (.skip_fvar _ _ .refl) (.refl henv hΔ) h H.1 H2
+  exact TrExprS.weakFV_inv henv hs (.skip_fvar _ _ .refl) (.refl henv hΔ) h H.1 H2
 
 theorem ConditionallyTyped.fresh
     (henv : Ordered env) (hΔ : VLCtx.WF env Us.length ((some (⟨ngen.curr⟩, deps), d) :: Δ))
@@ -56,22 +56,22 @@ theorem ConditionallyHasType.mono (H : ngen₁ ≤ ngen₂) :
   | ⟨c1, f1, c2, f2, h'⟩ => ⟨c1, f1.mono fun _ h => h.mono H, c2, f2.mono fun _ h => h.mono H, h'⟩
 
 theorem ConditionallyHasType.weakN_inv
-    (henv : VEnv.WF env) (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
+    (henv : VEnv.WF env) (hs : env.Strengthening) (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
     (H : ConditionallyHasType ngen env Us ((some fv, d) :: Δ) e A) :
     ConditionallyHasType ngen env Us Δ e A := by
   have ⟨c1, f1, c2, f2, H⟩ := H
   refine ⟨c1, f1, c2, f2, fun H4 => ?_⟩
   have ⟨e', A', h1, h2, h3, h4⟩ := H H4.fvars_cons
   have W : VLCtx.FVLift Δ ((some fv, d) :: Δ) 0 (0 + d.depth) 0 := .skip_fvar _ _ .refl
-  have ⟨e'', he⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h2 c1 H4
+  have ⟨e'', he⟩ := TrExprS.weakFV_inv henv hs W (.refl henv hΔ) h2 c1 H4
   have ee := h2.uniq henv (.refl henv hΔ) <| he.weakFV henv W hΔ
   have := hΔ.2.1 _ _ rfl
   have : IsFVarUpSet (· ∈ VLCtx.fvars Δ) ((some fv, d) :: Δ) :=
     ⟨.fvars hΔ.1.fvwf, (hΔ.2.1 _ _ rfl).1.elim⟩
-  have ⟨_, hA⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h3 c2 <| h1 _ this H4
+  have ⟨_, hA⟩ := TrExprS.weakFV_inv henv hs W (.refl henv hΔ) h3 c2 <| h1 _ this H4
   have AA := h3.uniq henv (.refl henv hΔ) <| hA.weakFV henv W hΔ
   have h4 := h4.defeqU_r henv hΔ.toCtx AA |>.defeqU_l henv hΔ.toCtx ee
-  have h4 := (HasType.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
+  have h4 := (HasType.weakN_iff henv hs hΔ.toCtx W.toCtx).1 h4
   refine ⟨_, _, fun P hP he' => ?_, he, hA, h4⟩
   exact h1 _
     ⟨(IsFVarUpSet.and_fvars hΔ.1.fvwf).1 hP, fun h => (hΔ.2.1 _ _ rfl).1.elim h.2⟩
@@ -126,22 +126,22 @@ theorem ConditionallyWHNF.mono (H : ngen₁ ≤ ngen₂) :
   | ⟨c1, f1, c2, f2, h'⟩ => ⟨c1, f1.mono fun _ h => h.mono H, c2, f2.mono fun _ h => h.mono H, h'⟩
 
 theorem ConditionallyWHNF.weakN_inv
-    (henv : VEnv.WF env) (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
+    (henv : VEnv.WF env) (hs : env.Strengthening) (hΔ : VLCtx.WF env Us.length ((some fv, d) :: Δ))
     (H : ConditionallyWHNF ngen env Us ((some fv, d) :: Δ) e e₁) :
     ConditionallyWHNF ngen env Us Δ e e₁ := by
   have ⟨c1, f1, c2, f2, H⟩ := H
   refine ⟨c1, f1, c2, f2, fun H4 => ?_⟩
   have ⟨e', h1, h2, ⟨_, h3, h4⟩, h5⟩ := H H4.fvars_cons
   have W : VLCtx.FVLift Δ ((some fv, d) :: Δ) 0 (0 + d.depth) 0 := .skip_fvar _ _ .refl
-  have ⟨e'', he⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h2 c1 H4
+  have ⟨e'', he⟩ := TrExprS.weakFV_inv henv hs W (.refl henv hΔ) h2 c1 H4
   have ee := h2.uniq henv (.refl henv hΔ) <| he.weakFV henv W hΔ
   have := hΔ.2.1 _ _ rfl
   have : IsFVarUpSet (· ∈ VLCtx.fvars Δ) ((some fv, d) :: Δ) :=
     ⟨.fvars hΔ.1.fvwf, (hΔ.2.1 _ _ rfl).1.elim⟩
-  have ⟨_, he₁⟩ := TrExprS.weakFV_inv henv W (.refl henv hΔ) h3 c2 <| h1 _ this H4
+  have ⟨_, he₁⟩ := TrExprS.weakFV_inv henv hs W (.refl henv hΔ) h3 c2 <| h1 _ this H4
   have ee₁ := h3.uniq henv (.refl henv hΔ) <| he₁.weakFV henv W hΔ
   have h4 := ee₁.symm.trans henv hΔ.toCtx h4 |>.trans henv hΔ.toCtx ee
-  have h4 := (IsDefEqU.weakN_iff henv hΔ.toCtx W.toCtx).1 h4
+  have h4 := (IsDefEqU.weakN_iff henv hs hΔ.toCtx W.toCtx).1 h4
   refine ⟨_, fun P hP he' => ?_, he, ⟨_, he₁, h4⟩, h5⟩
   · exact h1 _
       ⟨(IsFVarUpSet.and_fvars hΔ.1.fvwf).1 hP, fun h => (hΔ.2.1 _ _ rfl).1.elim h.2⟩

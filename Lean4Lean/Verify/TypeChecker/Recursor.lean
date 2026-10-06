@@ -169,7 +169,7 @@ theorem quotReduceRecCont.lift.WF (he : c.TrExprS e e') {ls : List Level}
     rw [← hsplit]; exact hfull.wf c.Ewf c.Δwf
   have hmajor : c.IsDefEqU args'[5] (VExpr.mkApps (.const ``Quot.mk lsm') ([a1', a2'] ++ [a3'])) :=
     hmkdefeq.symm
-  have hiota := VIotaRuleShape.iota_body c.Ewf c.Δwf.toCtx hq.liftRecursorShape
+  have hiota := VIotaRuleShape.iota_body c.Ewf c.strengthening c.Δwf.toCtx hq.liftRecursorShape
     hq.mkConstructorShape hq.liftRuleShape hq.rigid rfl hls'w hls'len (pre := args'.take 5)
     (by simp; omega) hwf hlsm'len hlsm'w rfl rfl hmajor
   have hbody : ((hq.liftRuleShape.rhsBody.instL ls').instOuter
@@ -412,7 +412,7 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
       (VExpr.mkApps (.const info.name ls') (args'.take info.getMajorIdx ++
         (args'[info.getMajorIdx]'(by omega)) :: args'.drop (info.getMajorIdx + 1))) := by
     rw [← hsplit]; exact hfull.wf c.Ewf c.Δwf
-  have hiota := Hrule.iota c.Ewf c.Δwf.toCtx Hrec Hctor hrigid hIL hls'w hls'len
+  have hiota := Hrule.iota c.Ewf c.strengthening c.Δwf.toCtx Hrec Hctor hrigid hIL hls'w hls'len
     (pre := args'.take info.getMajorIdx)
     (by simp [RecursorVal.getMajorIdx]; omega) hwf hlsc'len hlsc'w
     (by simp; omega) (by simp; omega) hmajor

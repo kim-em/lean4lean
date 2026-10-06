@@ -105,7 +105,7 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
     (H.toRecursorContext Helim).parameterDecls.toCtx =
       H.parameterDecls.toCtx.map (VExpr.instL (recursorDeclarationAbstractLevels c.lparams Helim)) := by
-  have Hwf := (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix Hc H).scopeWF Hc.checking.tr.wf
+  have Hwf := (checkInductiveTypes.loopType.NarrowRuntimeScope.ofParameterSuffix Hc H).scopeWF Hc.checking.tr.wf Hc.strengthening
   have hid := ctx_instL_id Hwf.toCtx
   cases elimLevel with
   | zero => exact hid.symm

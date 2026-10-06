@@ -18,6 +18,7 @@ theorem RecursorMotiveTelescopeSeed.consumedTranslation
       Rroot.venv.IsDefEqU recLparams.length S.motiveSourceScope.toCtx
         target S.canonical.motiveType := by
   have henv := Rroot.checking.tr.wf
+  have hs := Rroot.strengthening
   have W := S.motiveSourceLift
   have Hcontext := S.motiveSourceContext
   have hbvars : VLCtx.bvars S.motiveClosedScope = 0 := by
@@ -28,7 +29,7 @@ theorem RecursorMotiveTelescopeSeed.consumedTranslation
       _ = 0 := S.motiveSourceNoBV
   have hclosed := S.motiveClosedTr.closed
   rw [hbvars] at hclosed
-  rcases S.motiveClosedTr.weakFV'_inv henv W
+  rcases S.motiveClosedTr.weakFV'_inv henv hs W
       (Hcontext.symm henv.ordered) hclosed S.motiveSourceFVars with
     ⟨target, Hnarrow⟩
   have Hweak := Hnarrow.weakFV' henv.ordered W Hcontext.wf
@@ -39,13 +40,13 @@ theorem RecursorMotiveTelescopeSeed.consumedTranslation
   obtain ⟨level, HweakType⟩ := HweakType
   have HnarrowType : Rroot.venv.IsType recLparams.length S.motiveSourceScope.toCtx target := by
     refine ⟨level, ?_⟩
-    exact (VEnv.HasType.weak'_iff henv Hcontext.wf.toCtx W.toCtx).1 HweakType
+    exact (VEnv.HasType.weak'_iff henv hs Hcontext.wf.toCtx W.toCtx).1 HweakType
   have HcanonicalExpanded := S.motiveClosedCanonicalDefEq.defeqDFC
     henv.ordered (Hcontext.defeqCtx.symm henv.ordered)
   have HweakCanonical := Htarget.trans henv Hcontext.wf.toCtx HcanonicalExpanded
   rw [← S.motiveClosedCanonicalEq] at HweakCanonical
   have Hcanonical :=
-    (VEnv.IsDefEqU.weak'_iff henv Hcontext.wf.toCtx W.toCtx).1 HweakCanonical
+    (VEnv.IsDefEqU.weak'_iff henv hs Hcontext.wf.toCtx W.toCtx).1 HweakCanonical
   exact ⟨target, Hnarrow, HnarrowType, Hcanonical⟩
 
 /-- Translate a completed motive over the block's one cached parameter
@@ -69,6 +70,7 @@ theorem CompletedRecursorConstruction.consumedMotiveAtParameters
           (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
           H.parameterSuffix.parameterDecls.toCtx target S.canonical.motiveType := by
   have henv := H.recursorWF.checking.tr.wf
+  have hs := H.recursorWF.strengthening
   obtain ⟨S, hparams⟩ := H.motiveTelescopes.seed owner howner
   rw [← H.parameterDecls] at hparams
   obtain ⟨narrowTarget, Hnarrow, HnarrowType, Hcanonical⟩ := S.consumedTranslation
@@ -100,7 +102,7 @@ theorem CompletedRecursorConstruction.consumedMotiveAtParameters
         cases Expr.fvar.inj hparam
         exact ⟨deps, type, hentry⟩) Hcached
     simpa [hparameterFVars] using Hdecls'
-  have hscopeWF := S.motiveSourceLift.wf henv S.motiveSourceContext.wf
+  have hscopeWF := S.motiveSourceLift.wf henv hs S.motiveSourceContext.wf
   have hparamsNodup : H.params.fvars.reverse.Nodup := by
     have h := hscopeWF.fvars_nodup
     rwa [S.motiveSourceParameterScope, hparameterScopeFVars, hparameterFVars] at h

@@ -81,7 +81,9 @@ theorem AddInductive.formationCore.primitiveClosedWF
     (Hshape : PrimitiveInductiveShape c.lparams numParams indTypes.toList
       isUnsafe)
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -97,7 +99,7 @@ theorem AddInductive.formationCore.primitiveClosedWF
       (numNested := numNested) Hdecl Hmaterialized hvisible
   exact Hheaders.bind fun headerEnv Hheader => by
     rcases Hheader with ⟨Hheader, hclosedHeader⟩
-    exact (AddInductive.primitiveConstructorPhases.WF Hheader Hshape
+    exact (AddInductive.primitiveConstructorPhases.WF (hstrs := hstrs) Hheader Hshape
       hvisible).mono fun outEnv Hresult => by
         rcases Hresult with ⟨R, _⟩
         exact ⟨headerEnv, Hheader, R, R.declared.closesMutuals hclosedHeader⟩
@@ -120,16 +122,18 @@ theorem AddInductive.runWithStats.primitiveClosedWF
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hlparams : c.lparams.Nodup)
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
-    (hnotPartial : c.safety ≠ .partial) :
+    (hnotPartial : c.safety ≠ .partial)
+    (hstrs : InductiveStrengthening Hc.venv c.lparams numParams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
       c).WF fun outEnv =>
         ∃ ctorEnv,
         ∃ R : CompletedConstructorPhases c stats decl numParams isUnsafe
             depth Hc.venv indTypes ctorEnv,
           Nonempty (CompletedRecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.completedPrimitiveWF (hsourceSafety := hsourceSafety) stats numParams
+  apply AddInductive.runWithStats.completedPrimitiveWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) stats numParams
     indTypes numNested isUnsafe c
-  · exact AddInductive.formationCore.primitiveClosedWF Hc Hclosed Hdecl
+  · exact AddInductive.formationCore.primitiveClosedWF (hstrs := hstrs) Hc Hclosed Hdecl
       Hmaterialized Hshape hvisible
   · exact hlparams
   · exact Hshape.materializedLiteralDisjoint Hdecl Hmaterialized
@@ -171,7 +175,11 @@ theorem AddInductive.run.primitiveClosedWF
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
+    (HnotPartial : c.safety ≠ .partial)
+    (hstrs : ∀ {c' : AddInductive.Context} (Hc' : ContextWF c'),
+      c'.env = c.env → c'.lparams = c.lparams →
+      InductiveStrengthening Hc'.venv c'.lparams skeleton.nparams
+        types.toArray.toList (c.safety != .safe)) :
     (AddInductive.run skeleton.nparams types numNested c).WF
       (VerifiedPrimitiveInductiveRunResult c skeleton envTypes types
         numNested) := by
@@ -202,6 +210,7 @@ theorem AddInductive.run.primitiveClosedWF
     have hlparamsNodup : c'.lparams.Nodup := by
       simpa [hlparamsEq] using hnodup
     exact (AddInductive.runWithStats.primitiveClosedWF
+      (hstrs := hstrs Hc' henvEq hlparamsEq)
       (hsourceSafety := by rw [hsafetyEq]) Hc' Hclosed' Hdecl'
       Hmaterialized Hshape' hvisible hlparamsNodup
       HnotPartial').mono fun outEnv Hout => by

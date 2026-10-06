@@ -62,7 +62,7 @@ scope is syntactically identical to the other. -/
 theorem NormalizedHeaderSourceTelescope.restrictSourceAndSemantic
     (H : NormalizedHeaderSourceTelescope env Us commonParams
       nparams nindices)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (sourceExpr : Expr)
     (htr : TrExprS env Us H.runtime sourceExpr runtimeTarget)
     (hclosed : Closed sourceExpr 0)
@@ -74,7 +74,7 @@ theorem NormalizedHeaderSourceTelescope.restrictSourceAndSemantic
       TrExprS env Us semanticScope sourceExpr semanticTarget ∧
       VEnv.IsDefEqCtx env Us.length []
         (H.indices.reverse ++ H.ownParams.reverse) semanticScope.toCtx := by
-  have Hsource := H.source.restrict henv htr hclosed hfvars
+  have Hsource := H.source.restrict henv hs htr hclosed hfvars
   refine ⟨Hsource, ?_⟩
   cases H.alignment with
   | full sourceFVars semanticContext =>
@@ -84,11 +84,11 @@ theorem NormalizedHeaderSourceTelescope.restrictSourceAndSemantic
       hfvars.mono fun fv hfv => by
         rw [← sourceFVars]
         exact hfv
-    rcases semantic.restrict henv htr hclosed hfvarsSemantic with
+    rcases semantic.restrict henv hs htr hclosed hfvarsSemantic with
       ⟨semanticTarget, Hsemantic⟩
     have Hcontext : VEnv.IsDefEqCtx env Us.length []
         (H.indices.reverse ++ H.ownParams.reverse) semanticScope.toCtx := by
-      have Hrefl := VEnv.IsDefEqCtx.refl (semantic.scopeWF henv).toCtx
+      have Hrefl := VEnv.IsDefEqCtx.refl (semantic.scopeWF henv hs).toCtx
       simpa [semanticContext] using Hrefl
     exact ⟨semanticScope, semanticTarget, sourceFVars, Hsemantic, Hcontext⟩
 

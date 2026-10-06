@@ -1744,7 +1744,7 @@ typing-uniqueness equation. -/
 theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstDomainDefEq
     (T : GeneratedRecursorTelescopeTranslation env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (howner : ownerIdx < numMotives)
     (motiveDomains : List VExpr) (resultLevel : VLevel)
     (hmotive : T.motives[ownerIdx]! =
@@ -1802,7 +1802,7 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveFirstDomainDefEq
     simpa [domains, List.reverse_append] using
       (Ctx.LiftN.zero suffix.reverse (h := by simp) (Γ := outer.reverse))
   have Htypes'' :=
-    (VEnv.IsDefEqU.weakN_iff henv Hctx W).mp (by
+    (VEnv.IsDefEqU.weakN_iff henv hs Hctx W).mp (by
       simpa [hsuffixLength] using Htypes')
   exact ⟨generatedFirst, generatedRest, motiveFirst, motiveRest,
     hsuffix, hmotiveDomains, Htypes''⟩
@@ -1814,7 +1814,7 @@ application inversion compares the two completed contexts. -/
 theorem GeneratedRecursorTelescopeTranslation.ownerMotiveSuffixContext
     (T : GeneratedRecursorTelescopeTranslation env Us source target
       numParams numMotives numMinors numIndices ownerIdx)
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (howner : ownerIdx < numMotives)
     (motiveDomains : List VExpr) (resultLevel : VLevel)
     (hmotive : T.motives[ownerIdx]! =
@@ -1884,7 +1884,7 @@ theorem GeneratedRecursorTelescopeTranslation.ownerMotiveSuffixContext
       hoffset'] using HresultWF
   have hexpectedLength : suffix.length = expected.length := by
     simp [expected, hsuffixLength, hlength]
-  exact VEnv.HasType.canonicalApplicationContext henv suffix expected
+  exact VEnv.HasType.canonicalApplicationContext henv hs suffix expected
     outer.reverse Hctx Hfn hexpectedLength Happs
 
 /-- Remove the parameter/motive/minor prefix from the retained structural

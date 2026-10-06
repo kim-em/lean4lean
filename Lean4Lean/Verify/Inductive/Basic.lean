@@ -1181,7 +1181,7 @@ application after the unapplied dependent suffix is removed from the local
 context. -/
 theorem VExpr.WF.mkApps_canonical_prefix
     {fn : VExpr}
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (actual : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (H : VExpr.WF env uvars (actual.reverse ++ outer)
@@ -1216,7 +1216,7 @@ theorem VExpr.WF.mkApps_canonical_prefix
       (Ctx.LiftN.zero remaining.reverse
         (h := by simp)
         (Γ := (actual.take initialCount).reverse ++ outer))
-  exact (VExpr.WF.weakN_iff henv (by
+  exact (VExpr.WF.weakN_iff henv hs (by
     simpa [List.reverse_append, List.append_assoc] using hctxSplit) W).mp
       (by simpa using Hpartial)
 
@@ -1289,7 +1289,7 @@ telescope rather than a sort.  The proof grows the conversion from the
 oldest binder outward, using partial-application typing at each step. -/
 theorem VEnv.HasType.canonicalApplicationContext
     {fn body : VExpr}
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (actual expected : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (hfn : env.HasType uvars outer fn
@@ -1354,7 +1354,7 @@ theorem VEnv.HasType.canonicalApplicationContext
           (.forallE expectedDomain.lift expectedBody) := by
         simpa [VExpr.wrapForalls, VExpr.lift, VExpr.liftN,
           expectedBody] using HpartialWeak
-      have HnextWF₀ := VExpr.WF.mkApps_canonical_prefix henv actual outer
+      have HnextWF₀ := VExpr.WF.mkApps_canonical_prefix henv hs actual outer
         hctx happs (initialCount + 1) (by omega)
       have HnextWF : VExpr.WF env uvars (actualDomain :: actualCtx)
           (VExpr.mkApps (partialApp.liftN 1 0)
@@ -1414,7 +1414,7 @@ theorem VEnv.HasType.canonicalApplicationContext
           (.bvar 0) actualDomain.lift :=
         VEnv.HasType.bvar Lookup.zero
       have HdomainWeak := HactualArg.uniqU henv hactualCtx HexpectedArg
-      have HdomainU := (VEnv.IsDefEqU.weakN_iff henv hactualCtx
+      have HdomainU := (VEnv.IsDefEqU.weakN_iff henv hs hactualCtx
         (Ctx.LiftN.one (A := actualDomain))).mp (by
           simpa [VExpr.lift] using HdomainWeak)
       rcases (hactualCtx.2) with ⟨domainLevel, HactualType⟩
@@ -1445,7 +1445,7 @@ frame come from different executable passes: only their ambient dependent
 contexts must be related; the canonical application term is unchanged. -/
 theorem VEnv.HasType.canonicalApplicationContext_of_defeqCtx
     {fn body : VExpr}
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (actual expected : List VExpr) (outer applicationCtx : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (hfn : env.HasType uvars outer fn
@@ -1463,7 +1463,7 @@ theorem VEnv.HasType.canonicalApplicationContext_of_defeqCtx
       (VExpr.mkApps (fn.liftN actual.length 0)
         (recursorCanonicalVars actual.length)) applicationType :=
     Happlication.defeqDFC henv.ordered happlicationCtx
-  exact VEnv.HasType.canonicalApplicationContext henv actual expected outer
+  exact VEnv.HasType.canonicalApplicationContext henv hs actual expected outer
     hctx hfn hlength ⟨applicationType, Htransported⟩
 
 /-- Version of `canonicalApplicationContext` for a function already weakened
@@ -1473,7 +1473,7 @@ weakening recovers its declared telescope, after which canonical-application
 inversion compares the actual equation fields with the installed fields. -/
 theorem VEnv.HasType.canonicalApplicationContext_of_weakened
     {fn body : VExpr}
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (actual expected : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (hfn : env.HasType uvars (actual.reverse ++ outer)
@@ -1490,8 +1490,8 @@ theorem VEnv.HasType.canonicalApplicationContext_of_weakened
     exact Ctx.LiftN.zero actual.reverse (by simp)
   have hfnBase : env.HasType uvars outer fn
       (VExpr.wrapForalls expected body) :=
-    (VEnv.HasType.weakN_iff henv hctx W).mp hfn
-  exact VEnv.HasType.canonicalApplicationContext henv actual expected outer
+    (VEnv.HasType.weakN_iff henv hs hctx W).mp hfn
+  exact VEnv.HasType.canonicalApplicationContext henv hs actual expected outer
     hctx hfnBase hlength happs
 
 /-- Applying every binder of a well-typed forall telescope ending in a sort

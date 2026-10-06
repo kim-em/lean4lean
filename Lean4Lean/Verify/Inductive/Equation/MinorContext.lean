@@ -713,7 +713,7 @@ theorem
     H.bindings.flatMinors.fvars
   rcases MLCtxOnlyLams.narrowFVarsSource
       H.recursorWF.onlyLams
-      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
+      H.recursorWF.checking.tr.wf H.recursorWF.strengthening H.recursorWF.mlctx_wf
       (fun fv => fv ∈ outerBinders) A.finalOuterPrefixUp with
     ⟨scope, Hscope, hscopeFiltered, hscopeShift,
       _hscopeDecls, hscopeSource⟩
@@ -837,7 +837,7 @@ theorem
     H.bindings.flatMinors.fvars.take minorIdx
   rcases checkInductiveTypes.loopType.narrowFVars
       H.recursorWF.onlyLams
-      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
+      H.recursorWF.checking.tr.wf H.recursorWF.strengthening H.recursorWF.mlctx_wf
       (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
     ⟨scope, Hscope, hscope⟩
   exact ⟨scope, Hscope, hscope.trans A.finalSelectedMinorFilteredFVars⟩
@@ -907,7 +907,7 @@ theorem
     ⟨T, D, O, S, Hdomain, HdomainType⟩
   rcases MLCtxOnlyLams.narrowFVarsSource
       H.recursorWF.onlyLams
-      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
+      H.recursorWF.checking.tr.wf H.recursorWF.strengthening H.recursorWF.mlctx_wf
       (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
     ⟨scope, Hscope, hscopeFiltered, hscopeShift,
       _hscopeDecls, hscopeSource⟩
@@ -947,13 +947,13 @@ theorem
     · rw [hscope]
       exact List.mem_reverse.mpr hfv
     · exact False.elim hfalse
-  rcases HscopeOut.restrict H.outVEnvWF HruntimeOut hclosed HtypeScope with
+  rcases HscopeOut.restrict H.outVEnvWF H.outStrengthening HruntimeOut hclosed HtypeScope with
     ⟨narrowTarget, Hnarrow⟩
-  have Hclosed := HscopeOut.abstractAll H.outVEnvWF Hnarrow
+  have Hclosed := HscopeOut.abstractAll H.outVEnvWF H.outStrengthening Hnarrow
   rw [hscope, List.reverse_reverse] at Hclosed
   exact ⟨T, D, O, S, scope, HscopeOut, narrowTarget, hscope,
     hscopeShift, hscopeSourceOut, Hnarrow, Hclosed,
-    HscopeOut.abstractAllWF H.outVEnvWF, Hdomain, HdomainType⟩
+    HscopeOut.abstractAllWF H.outVEnvWF H.outStrengthening, Hdomain, HdomainType⟩
 
 /-- Reconstruct the complete source telescope of the exact selected prefix.
 Its abstract domains are precisely the non-contiguous narrowed context and
@@ -1019,9 +1019,9 @@ theorem
     ⟨T, _D, _O, _S, scope, Hscope, _narrowTarget, hscope,
       hscopeShift, hscopeSource, _Hnarrow, _Hclosed, _HscopeWF,
       _Hdomain, _HdomainType⟩
-  rcases Hscope.closedSortTranslation H.outVEnvWF with
+  rcases Hscope.closedSortTranslation H.outVEnvWF H.outStrengthening with
     ⟨Hprefix, HprefixType⟩
-  have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF
+  have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF H.outStrengthening
   have hminor : minorIdx < T.minors.length := by
     rw [T.minors_length]
     exact A.rule.minor_valid
@@ -1478,9 +1478,9 @@ theorem
   rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
   rcases A.finalOuterNarrowScope with
     ⟨scope, Hscope, hscope, hscopeShift, hscopeSource⟩
-  rcases Hscope.closedSortTranslation H.outVEnvWF with
+  rcases Hscope.closedSortTranslation H.outVEnvWF H.outStrengthening with
     ⟨Hprefix, _HprefixType⟩
-  have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF
+  have HprefixTelescope := Hscope.closedSortTelescope H.outVEnvWF H.outStrengthening
   let fullDomains := T.params ++ T.motives ++ T.minors ++
     T.indices ++ T.major
   let outerDomains := T.params ++ T.motives ++ T.minors
@@ -1611,12 +1611,12 @@ theorem
     exact List.mem_append_left _ (List.mem_append_left _ (by
       rw [← H.params.exprArrayFVarIds]
       exact hfv))
-  rcases Houter.restrict H.outVEnvWF Hruntime hclosed HtailFVars with
+  rcases Houter.restrict H.outVEnvWF H.outStrengthening Hruntime hclosed HtailFVars with
     ⟨outerTarget, HouterTail⟩
   rcases HruntimeType with ⟨u, HruntimeType⟩
   have HouterType : H.outVEnv.HasType Us.length outerScope.toCtx
       outerTarget (.sort u) :=
-    Houter.hasTypeOfFull H.outVEnvWF HouterTail Hruntime HruntimeType
+    Houter.hasTypeOfFull H.outVEnvWF H.outStrengthening HouterTail Hruntime HruntimeType
   have Htyped := Expr.ForallTelescopeTypeTranslation.ofTrExprS
     A.semantics.fieldOpening.telescope HouterTail
       (⟨u, HouterType⟩ : H.outVEnv.IsType Us.length

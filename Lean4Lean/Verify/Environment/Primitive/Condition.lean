@@ -537,7 +537,7 @@ context; they come down by `weakN_iff`, which needs the subterm closed, so close
 in the same induction. The types those side conditions carry are *not* preserved, and need not
 be -- `TrExprS` quantifies them existentially, so re-deriving some type at the narrower context
 is enough, which `app_inv`/`lam_inv` do from the node's own well-formedness. -/
-theorem TrExprS.ofClosed {env : VEnv} {Us : List Name} (henv : VEnv.WF env) {Δ : VLCtx} :
+theorem TrExprS.ofClosed {env : VEnv} {Us : List Name} (henv : VEnv.WF env) (hs : env.Strengthening) {Δ : VLCtx} :
     ∀ {Δ₀ : VLCtx} {e : Expr} {e' : VExpr}, TrExprS env Us Δ₀ e e' →
       ∀ {pre : VLCtx}, Δ₀ = pre ++ Δ →
       noProj e → Closed e pre.bvars → FVarsIn (fun _ => False) e →
@@ -550,25 +550,25 @@ theorem TrExprS.ofClosed {env : VEnv} {Us : List Name} (henv : VEnv.WF env) {Δ 
   have narrow : ∀ {pre : VLCtx}, CtxClosed pre.toCtx →
       OnCtx (pre ++ Δ).toCtx (env.IsType Us.length) →
       OnCtx pre.toCtx (env.IsType Us.length) := fun hcc hΔ =>
-    OnCtx.weakN_inv henv (Ctx.LiftN.right hcc Δ.toCtx) (by simpa using hΔ)
+    OnCtx.weakN_inv henv hs (Ctx.LiftN.right hcc Δ.toCtx) (by simpa using hΔ)
   have wfT : ∀ {pre : VLCtx} {x : VExpr}, CtxClosed pre.toCtx → x.ClosedN pre.toCtx.length →
       OnCtx (pre ++ Δ).toCtx (env.IsType Us.length) →
       VExpr.WF env Us.length (pre ++ Δ).toCtx x → VExpr.WF env Us.length pre.toCtx x := by
     intro pre x hcc hcl hΔ hwf
-    refine (VExpr.WF.weakN_iff henv (by simpa using hΔ) (Ctx.LiftN.right hcc Δ.toCtx)).1 ?_
+    refine (VExpr.WF.weakN_iff henv hs (by simpa using hΔ) (Ctx.LiftN.right hcc Δ.toCtx)).1 ?_
     rw [hcl.liftN_eq (Nat.le_refl _)]; simpa using hwf
   have isTypeT : ∀ {pre : VLCtx} {A : VExpr}, CtxClosed pre.toCtx → A.ClosedN pre.toCtx.length →
       OnCtx (pre ++ Δ).toCtx (env.IsType Us.length) →
       env.IsType Us.length (pre ++ Δ).toCtx A → env.IsType Us.length pre.toCtx A := by
     intro pre A hcc hcl hΔ h
-    refine (VEnv.IsType.weakN_iff henv (by simpa using hΔ) (Ctx.LiftN.right hcc Δ.toCtx)).1 ?_
+    refine (VEnv.IsType.weakN_iff henv hs (by simpa using hΔ) (Ctx.LiftN.right hcc Δ.toCtx)).1 ?_
     rw [hcl.liftN_eq (Nat.le_refl _)]; simpa using h
   have hasTypeT : ∀ {pre : VLCtx} {x A : VExpr}, CtxClosed pre.toCtx →
       x.ClosedN pre.toCtx.length → A.ClosedN pre.toCtx.length →
       OnCtx (pre ++ Δ).toCtx (env.IsType Us.length) →
       env.HasType Us.length (pre ++ Δ).toCtx x A → env.HasType Us.length pre.toCtx x A := by
     intro pre x A hcc hcx hcA hΔ h
-    refine (VEnv.HasType.weakN_iff henv (by simpa using hΔ) (Ctx.LiftN.right hcc Δ.toCtx)).1 ?_
+    refine (VEnv.HasType.weakN_iff henv hs (by simpa using hΔ) (Ctx.LiftN.right hcc Δ.toCtx)).1 ?_
     rw [hcx.liftN_eq (Nat.le_refl _), hcA.liftN_eq (Nat.le_refl _)]; simpa using h
   have isWF : ∀ {Γ : List VExpr} {A}, env.IsType Us.length Γ A →
       VExpr.WF env Us.length Γ A := fun ⟨_, h⟩ => ⟨_, h⟩
@@ -2276,7 +2276,7 @@ theorem Condition.check.gadget_pieces {c : VContext} {prop asBool proof : Expr} 
       (hΔ : OnCtx Δ₀.toCtx (c.venv.IsType c.lparams.length))
       (hwf : VExpr.WF c.venv c.lparams.length Δ₀.toCtx u) :
       u.ClosedN ∧ TrExprS c.venv c.lparams [] x u :=
-    TrExprS.ofClosed (Δ := Δ₀) c.Ewf (pre := []) hu rfl (CondOK.noProj hx)
+    TrExprS.ofClosed (Δ := Δ₀) c.Ewf c.strengthening (pre := []) hu rfl (CondOK.noProj hx)
       (CondOK.closed hx) (CondOK.fvarsIn hx) trivial
       (by intro v x A hv; simp [VLCtx.find?] at hv) (by simpa using hΔ) (by simpa using hwf)
   have htypeT : c.venv.HasType c.lparams.length [] w.type'

@@ -97,6 +97,7 @@ theorem SemanticBoundGeneratedRecursiveCall.restrictToFieldPrefix
         Sc.generated.exposedType exposedTarget' := by
   let Rc := Sc.current_context
   have henv : Rc.venv.WF := Rc.checking.tr.wf
+  have hs := Rc.strengthening
   have hidx : Hfields.fvars.idxOf Hfields.fvars[pos] = pos :=
     List.Nodup.idxOf_getElem Hfields.nodup pos hpos
   have hroot : ∀ fv, Sc.rootScope fv ↔
@@ -105,7 +106,7 @@ theorem SemanticBoundGeneratedRecursiveCall.restrictToFieldPrefix
     rw [hscope]
     simp only [RecursorFieldPrefixScope, recursorFVarId, hidx]
   obtain ⟨c', n, hwf', honly', W, hfvars, hfind⟩ :=
-    TypeChecker.MLCtx.restrictUpSetCtx henv _ Rc.mlctx Rc.mlctx_wf Rc.onlyLams
+    TypeChecker.MLCtx.restrictUpSetCtx henv hs _ Rc.mlctx Rc.mlctx_wf Rc.onlyLams
       Sc.current_scope_up
   -- the full context decomposition
   have hfull : Rc.mlctx.vlctx.fvars = Sc.recent.fvars.reverse ++ (Hprior.fvars.reverse ++
@@ -144,7 +145,7 @@ theorem SemanticBoundGeneratedRecursiveCall.restrictToFieldPrefix
   have hv : Sc.generated.exposedType.FVarsIn (· ∈ c'.vlctx.fvars) :=
     Sc.exposed_scope.mono fun fv h => by rw [hc'fvars]; exact (hPT fv).1 h
   obtain ⟨e', he'⟩ :=
-    Sc.exposed_translation.weakFV'_inv henv W (.refl henv.ordered hvwf) hc hv
+    Sc.exposed_translation.weakFV'_inv henv hs W (.refl henv.ordered hvwf) hc hv
   -- (iii) the parameter suffix carries exactly the cached parameter domains
   let nP := stats.params.size
   have hPmlen : (ExprArrayFVarIds stats.params).length = nP := by simp [ExprArrayFVarIds, nP]

@@ -32,7 +32,9 @@ theorem AddInductive.runWithStats.completedWF
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       fun outEnv =>
         ∃ ctorEnv,
@@ -42,7 +44,7 @@ theorem AddInductive.runWithStats.completedWF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
     rcases Hresult with ⟨R, hclosed⟩
-    exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit.available
+    exact (R.recursorPhasesWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) hclosed hlparams hlit.available
       hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show ∃ ctorEnv,
@@ -76,14 +78,16 @@ theorem AddInductive.runWithStats.completedOrdinaryWF
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       fun outEnv =>
         ∃ ctorEnv,
         ∃ R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
             sourceEnv indTypes ctorEnv,
           Nonempty (CompletedRecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.completedWF (hsourceSafety := hsourceSafety) stats nparams indTypes
+  apply AddInductive.runWithStats.completedWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) stats nparams indTypes
     numNested isUnsafe c
   · exact Hformation.mono fun ctorEnv Hresult => by
       rcases Hresult with ⟨_headerEnv, _Hheaders, R, hclosed⟩
@@ -117,18 +121,20 @@ theorem AddInductive.runWithStats.completedPrimitiveWF
     (hnprim : c.allowPrimitive = true →
       ∀ owner (howner : owner < indTypes.size),
       ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
+        (Lean.mkRecName indTypes[owner]!.name))
+    (hstrs : InductiveStrengthening sourceEnv c.lparams nparams
+      indTypes.toList isUnsafe) :
     (AddInductive.runWithStats stats nparams indTypes numNested isUnsafe c).WF
       fun outEnv =>
         ∃ ctorEnv,
         ∃ R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
             sourceEnv indTypes ctorEnv,
           Nonempty (CompletedRecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.completedWF (hsourceSafety := hsourceSafety) stats nparams indTypes
+  apply AddInductive.runWithStats.completedWF (hstrs := hstrs) (hsourceSafety := hsourceSafety) stats nparams indTypes
     numNested isUnsafe c
   · exact Hformation.mono fun ctorEnv Hresult => by
       rcases Hresult with ⟨_headerEnv, _Hheaders, R, hclosed⟩
-      exact ⟨R.completed, hclosed⟩
+      exact ⟨R.completed hstrs, hclosed⟩
   · exact hlparams
   · exact hlit
   · exact hnotPartial

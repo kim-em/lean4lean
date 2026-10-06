@@ -2706,7 +2706,7 @@ theorem NestedLoweringRun.resultAuxNamesFresh
 theorem NestedLoweringRun.validateNestedAuxiliariesWF
     (H : NestedLoweringRun sourceEnv loweringFuel nparams sourceTypes
       initialState (res, finalState))
-    (hvalid : CheckingEnv.Valid safety restoredEnv venv)
+    (hvalid : CheckingEnv.Valid safety restoredEnv venv) (hs : venv.Strengthening)
     (mlctx : TypeChecker.MLCtx) (hmlctx : mlctx.WF venv lparams)
     (hlctx : mlctx.lctx = res.lctx)
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
@@ -2715,7 +2715,7 @@ theorem NestedLoweringRun.validateNestedAuxiliariesWF
     (Lean4Lean.validateNestedAuxiliaries restoredEnv lparams safety fuel
       res).WF fun _ =>
         ValidatedNestedAuxiliaries venv lparams mlctx.vlctx res := by
-  apply validateNestedAuxiliaries.WF hvalid mlctx hmlctx hlctx hfresh
+  apply validateNestedAuxiliaries.WF hvalid hs mlctx hmlctx hlctx hfresh
   intro name nested hfind
   exact H.resultAuxFVarsIn Hcache name nested hfind
 

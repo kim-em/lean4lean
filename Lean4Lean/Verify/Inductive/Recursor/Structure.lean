@@ -2329,7 +2329,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
           have hconsumedWF : VLCtx.WF Hc.venv c.lparams.length
               ((some (Hcurrent.fv, Hcurrent.deps),
                 .vlam Hcurrent.paramType) :: Hcurrent.older) :=
-            Hcurrent.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
+            Hcurrent.lift.wf Hc.checking.tr.wf Hc.strengthening Hc.mlctx_wf.tr.wf
           have htypeNarrow' : TrExprS Hc.venv c.lparams Hcurrent.older
               (.forallE name dom body bi) (.forallE narrowDom narrowBody) :=
             .forallE hdomNarrowType hbodyNarrowType
@@ -2695,7 +2695,7 @@ theorem checkConstructors.loopCtor.earlyParameterResult.WF
       List.mem_of_getElem? hsourceArg
     have hargScope := Hscope.fvars.getAppArgsList hmem
     rw [harg] at hargScope
-    have hsuffixWF := Hscope.lift.wf Hc.checking.tr.wf
+    have hsuffixWF := Hscope.lift.wf Hc.checking.tr.wf Hc.strengthening
       Hc.mlctx_wf.tr.wf
     have hfresh : Hscope.fv ∉ Hscope.older.fvars :=
       (hsuffixWF.2.1 Hscope.fv Hscope.deps rfl).1
@@ -2792,7 +2792,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
                 hdomNarrow hdomain
-            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
                   dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -2840,7 +2840,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                   rw [hlen]
                   exact hvalid
               have hfieldNarrow := Hruntime.hasTypeOfFull
-                Hc.checking.tr.wf hdomNarrow hfield htyped
+                Hc.checking.tr.wf Hc.strengthening hdomNarrow hfield htyped
               have hfieldEq := hfieldNarrow
               change Hc.venv.IsDefEq c.lparams.length scope.toCtx
                 narrowDom narrowDom (.sort fieldLevel') at hfieldEq
@@ -2883,7 +2883,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
                 hdomNarrow hdomain
-            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf
+            have hscopeWF := Hruntime'.scopeWF Hc'.checking.tr.wf Hc'.strengthening
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
                   dom.consumeTypeAnnotationsVerified.fvarsList),
@@ -2931,7 +2931,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
                   rw [hlen]
                   exact hvalid
               have hfieldNarrow := Hruntime.hasTypeOfFull
-                Hc.checking.tr.wf hdomNarrow hfield htyped
+                Hc.checking.tr.wf Hc.strengthening hdomNarrow hfield htyped
               have hfieldEq := hfieldNarrow
               change Hc.venv.IsDefEq c.lparams.length scope.toCtx
                 narrowDom narrowDom (.sort fieldLevel') at hfieldEq
@@ -2958,13 +2958,13 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
     · cases hvalid : AddInductive.isValidIndAppIdx stats type targetIdx
       · exact checkConstructors.loopCtor.invalidResult.WF hforall hvalid
       · rcases htrNarrow.wf Hc.checking.tr.wf
-          (Hruntime.scopeWF Hc.checking.tr.wf) with ⟨exprType, htype⟩
+          (Hruntime.scopeWF Hc.checking.tr.wf Hc.strengthening) with ⟨exprType, htype⟩
         have hisType := checkPositivityStep.isValidIndAppIdx.isType
           Hstats hi htrNarrow hvalid (by simpa [htarget] using htargetUvars)
           (by simpa [htarget] using htargetLookup)
           (by simpa [htarget] using htargetWF)
           (by simpa [htarget] using htargetShape)
-          Hc.checking.tr.wf (Hruntime.scopeWF Hc.checking.tr.wf)
+          Hc.checking.tr.wf (Hruntime.scopeWF Hc.checking.tr.wf Hc.strengthening)
         have Hshape := checkConstructors.loopCtor.result.refines
           (c := c) (fuel := fuel) (i := i) (ctor := ctor)
           (isUnsafe := isUnsafe) Hstats hi htrNarrow

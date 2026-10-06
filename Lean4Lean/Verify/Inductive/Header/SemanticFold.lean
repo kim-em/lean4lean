@@ -265,7 +265,7 @@ theorem laterResult.snocsSemanticNarrow
   have hsourceFull' : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
       type sourceFull :=
     hsourceFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
-  have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf
+  have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf Hc.strengthening
     htypeNarrow hsourceFull' hsorted
   rcases TrExpr.sort_source hsortedNarrow with
     ⟨resultLevel, hofLevel, _hresult⟩
@@ -273,7 +273,7 @@ theorem laterResult.snocsSemanticNarrow
     ⟨sourceScope, HsourceScope, hsourceScopeFVars, hsourceClosure⟩
   have hheader := Hsynthesis.synthesizedHeaderWithParams
     (uvars := c.lparams.length) (commonParams := commonParams)
-    Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
+    Hc.checking.tr.wf Hc.strengthening Hruntime HsourceScope hsourceScopeFVars
       Hc.mlctx.lctx hsourceClosure rfl hparams hofLevel hsortedNarrow
   have hlevel : resultLevel ≈ commonLevel :=
     Level.isEquiv_wf hguard hofLevel hcommon
@@ -540,7 +540,7 @@ theorem laterStep.extendsSemanticAccumulator
         have hfull : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
             normalized current := htype.trExpr Hc.checking.tr.wf
               Hc.mlctx_wf.tr.wf
-        have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf
+        have hsortedNarrow := Hruntime.resultSort Hc.checking.tr.wf Hc.strengthening
           hnormalizedNarrow hfull hsorted
         rcases Hruntime.independentSourceScope with
           ⟨sourceScope, HsourceScope, hsourceScopeFVars,
@@ -554,7 +554,7 @@ theorem laterStep.extendsSemanticAccumulator
           exact .refl (by trivial)
         have Hheader := Hsynthesis.synthesizedHeaderWithParams
           (uvars := c.lparams.length) (commonParams := commonParams)
-          Hc.checking.tr.wf Hruntime HsourceScope hsourceScopeFVars
+          Hc.checking.tr.wf Hc.strengthening Hruntime HsourceScope hsourceScopeFVars
           Hc.mlctx.lctx hsourceClosure rfl hparamEq hofLevel
           hsortedNarrow
         have Hheader' : checkInductiveTypes.loopType.SynthesizedHeader
