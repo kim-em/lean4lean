@@ -532,9 +532,18 @@ theorem FVLift.to_append (suffix : VLCtx) : ∀ {added : VLCtx},
   | (some _, .vlet _ _) :: added, H =>
       .skip_fvar _ _ (to_append suffix (added := added) H)
 
-variable! (henv : VEnv.WF env) in
-theorem FVLift.wf (W : FVLift Δ Δ' dk n k) (hΔ' : Δ'.WF env U) : Δ.WF env U :=
-  W.toFVLift'.wf henv hΔ'
+theorem FVLift.wf_of_zero (W : FVLift Δ Δ' dk n k) (h0 : dk = 0)
+    (hΔ' : Δ'.WF env U) : Δ.WF env U := by
+  induction W with
+  | refl => exact hΔ'
+  | skip_fvar _ _ _ ih => exact ih h0 hΔ'.1
+  | cons_bvar _ _ _ => exact absurd h0 (Nat.succ_ne_zero _)
+
+/-- Dropping a free-variable prefix with no bound variables above it keeps
+well-formedness: the retained context is literally a tail. -/
+theorem FVLift.wf (_henv : VEnv.WF env) (W : FVLift Δ Δ' 0 n 0)
+    (hΔ' : Δ'.WF env U) : Δ.WF env U :=
+  W.wf_of_zero rfl hΔ'
 
 theorem FVLift.fvars_suffix (W : FVLift Δ Δ' dk n k) : Δ.fvars <:+ Δ'.fvars := by
   induction W with
