@@ -688,3 +688,47 @@ congruence; `elimDF`/`constDF` level invariance through eval and `Obs.lvEq`.
 **Extraction**: `rigid_rigid`/`former_args` are stated for `env.Rigid` heads, whose
 observations are the rigid ones only (the constructor clause adds no `rigid`/`rigidArg`
 observations, the delta and rule clauses need a rule headed by the constant).
+
+### 10.3 Findings at the start of stage B, and redesigns D10, D11
+
+Finding 1 (non-syntactic family types). `VInductDecl.TypeShape` (Theory/InductiveShape.lean)
+only requires a family's type to be *definitionally* equal to a telescope ending in a sort;
+the stored type need not be syntactically `wrapForalls ds (sort w)`. The M1/A2 predicates
+`RigidSort`, `NonProp`, `MajorSort` read the sort syntactically, so for such a family the
+constructor indicator `NonProp` is false, constructor observations are never typed, the
+rule clause never fires in mode AB, and `extra` at its iota rules is unsound in the model.
+Constructor types, by contrast, are syntactic (`RawCtorShape`), and generated recursor
+types are syntactic (`Instance.recursorType`, preserved by restoration).
+
+Finding 2 (declarative versus semantic propositions). Inside the soundness induction the
+model only knows the *derivation* sorts of types (the sorts in the `HTS` derivations of the
+premises). Facts established when a block was compiled (a family's result level, the
+propositional typing of a singleton's proof fields, small elimination for multi-constructor
+propositions) are derivations in an earlier environment and are not sub-derivations of the
+current node. Relating the two needs sort uniqueness, i.e. the result being proved. Where it
+is needed: (a) mode C at a singleton with proof fields (the right-to-left direction must show
+that the actual lambda keys of proof fields have no observations), (b) relating the semantic
+sort of the major's family to the elimination restriction recorded at compilation. Not
+needed: K-like rules (no fields), the quotient (its field's type is a binder whose own type
+is the syntactic `Sort u`), and every mode AB rule.
+
+D10 (rigid observations carry their sort; semantic modes) [plan]. `Ob.rigid n ℓs m s`
+records the sort `s` of the rigid spine, typed exactly at `.sort s` (no `RigidSort`); the
+constructor indicator becomes `rigid I ℓs m s ∈ τs ∧ CtorFam c I ∧ s ≠ 0`, which gives proof
+irrelevance with no syntactic reading of family types. The rule clause decides mode C by a
+positive semantic condition: the head is the only rule head of its kind (a declarative
+condition on `env.defeqs`) and the major domain of the head's type at the clause's key prefix
+has a rigid observation of sort zero (an `Obs` premise, monotone and level invariant). Mode AB
+needs no mode condition (constructor observations in the major key exist only for
+non-propositions). In the soundness proof the two modes are separated by the derivation sort
+of the major domain (spine lemma P2). Extraction no longer needs `RigidSort`.
+
+D11 (staged soundness) [plan]. Soundness is proved by induction along the declaration
+history: a predicate `RuleValid env' df` collects the *semantic* facts of a rule that come
+from its compilation (field types of a singleton's proof fields have only sort-zero type
+observations; the semantic sort of the major family equals the recorded result level), and
+`RuleValid env' df` for the rules added by one declaration is proved from the soundness, in
+the model of the final environment `env'`, of the derivations of the environment before that
+declaration (they are derivations of `env'` by monotonicity, and their rule cases only involve
+earlier rules, whose validity is the induction hypothesis). `Model.sound` then takes
+`∀ df ∈ E.defeqs, RuleValid env' df` for derivations of a prefix `E ≤ env'`.
