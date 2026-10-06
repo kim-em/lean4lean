@@ -56,21 +56,8 @@ structure HeadModel (env : VEnv) where
     env.HasType U Γ (.mkApps (.const c ls) args) (.sort u) →
     head (den U Γ (.mkApps (.const c ls) args)) = .rigid c (ls.map (·.eval))
 
-/-- The separation half of `VEnv.HeadInversion`. The first five fields are verbatim fields
-of `HeadInversion` (with `rigid_heads` the head/level conjuncts of `rigid_rigid`). -/
-structure HeadSeparation (env : VEnv) : Prop where
-  sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
-    env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v
-  sort_forallE : ∀ {U Γ u A B}, OnCtx Γ (env.IsType U) →
-    ¬env.TypeChain U Γ (.sort u) (.forallE A B)
-  sort_rigid : ∀ {U Γ c u ls args}, OnCtx Γ (env.IsType U) → env.Rigid c →
-    ¬env.TypeChain U Γ (.sort u) (.mkApps (.const c ls) args)
-  forallE_rigid : ∀ {U Γ c A B ls args}, OnCtx Γ (env.IsType U) → env.Rigid c →
-    ¬env.TypeChain U Γ (.forallE A B) (.mkApps (.const c ls) args)
-  rigid_heads : ∀ {U Γ c c' ls ls' args args'}, OnCtx Γ (env.IsType U) →
-    env.Rigid c → env.Rigid c' →
-    env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c' ls') args') →
-    c = c' ∧ List.Forall₂ (· ≈ ·) ls ls'
+/-! The separation half of `VEnv.HeadInversion` is `VEnv.HeadSeparation`
+(Theory/Typing/HeadInversion.lean). -/
 
 namespace HeadModel
 variable {env : VEnv} (M : HeadModel env)
