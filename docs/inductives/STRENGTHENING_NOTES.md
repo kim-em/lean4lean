@@ -446,3 +446,43 @@ together with certified conversion, as Astra recommends.
 The mainline strip (`LevelledReduction`, decreasing diagrams over levels 0–3) is the
 template: its diagram analysis carries over verbatim; what changes is every place where
 a premise is produced, which must now produce a certificate.
+
+## Part 3 status (2026-10-06): the missing metatheorem
+
+Two further design reviews were recorded in `STRENGTHENING_ASTRA_REVIEW2.md`
+(architecture) and `STRENGTHENING_ASTRA_REVIEW3.md` (termination of certified
+transitivity).
+
+The certificate route needs the following theorem. Let `Synth`, `NEq` and `Conv` be a
+certified typing / normal equality / join calculus for (at least) the fragment
+Π, λ, application, sorts, constants, untyped β, typed η, typed proof irrelevance. Each of
+them contains only subterms, synthesized types and reducts of its endpoints, so it has
+no transitivity constructor. The theorem says: for these relations transitivity is
+admissible, `Conv Δ a b → Conv Δ b c → Conv Δ a c`.
+
+Every organisation tried so far has a circular dependency.
+
+* Transitivity needs NEq to be transported along β, which is a heterogeneous
+  substitution of NEq into NEq.
+* That substitution passes through the typing evidence embedded in the
+  proof-irrelevance and η leaves, so it needs substitution for `Synth`/`Check`.
+* Substitution for `Synth` needs conversion composition already at the variable case:
+  `Synth x S`, `Conv S A`, `Conv A T[x]` must give `Conv S T[x]`. The arguments of this
+  composition are outputs of earlier calls, not sub-certificates of the inputs, and
+  substitution duplicates certificates, so their size grows.
+* Checking at a common type removes the proof-irrelevance case. It does not remove the
+  substitution case.
+* Allowing chains of conversions inside `Check` breaks strengthening, because the
+  middle types may mention the removed binder.
+* Neither universe level, derivation height, nor β-peak structure gives a decreasing
+  measure (see the review).
+
+Siles and Herbelin's typed parallel reduction (PTS, β only) does not transfer directly.
+Their auxiliary calculus allows exactly the intermediate syntax that the support
+discipline forbids, and they never translate back into support-preserving
+certificates.
+
+No proof organisation of this conversion-elimination theorem that avoids a
+normalization-like argument is known, nor any argument that one cannot exist. Lean's
+theory does not normalize. So at this point route (b) rests on an open metatheorem;
+the remaining work is not merely large.
