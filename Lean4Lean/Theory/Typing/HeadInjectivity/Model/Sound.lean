@@ -167,6 +167,24 @@ theorem SoundAt.sub_A (ih : SoundAt env U Δ Γ A A' T) (W : Ctx.SubstEq env U �
     (tv : TV env U Δ Γ σ S) (tv' : TV env U Δ Γ σ' S) :
     Ob.Sub (Obs' σ S A) (Obs' σ' S A') := (ih σ σ' S W tv tv').1
 
+/-- **Validity of a rule** (decision D11 of the notes, section 10.3): the `extra` case of
+soundness for `df` in the model of `env`, given the soundness and semantic typing of its typing
+premises. -/
+def RuleValid (env : VEnv) (df : VDefEq) : Prop :=
+  ∀ {U : Nat} {Δ Γ : List VExpr} {ls : List VLevel} {u : VLevel}, OnCtx Δ (env.IsType U) →
+    (∀ l ∈ ls, l.WF U) → ls.length = df.uvars →
+    env.IsDefEqStrong U [] (df.type.instL ls) (df.type.instL ls) (.sort u) →
+    SoundAt env U Δ [] (df.type.instL ls) (df.type.instL ls) (.sort u) ∧
+      HTS env U Δ [] (df.type.instL ls) (.sort u) →
+    env.IsDefEqStrong U Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls) →
+    SoundAt env U Δ Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls) ∧
+      HTS env U Δ Γ (df.lhs.instL ls) (df.type.instL ls) →
+    env.IsDefEqStrong U Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) →
+    SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) ∧
+      HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls) →
+    SoundAt env U Δ Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls)
+
+
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
@@ -308,13 +326,77 @@ theorem sound_forallEDF (hAA : env.IsDefEqStrong U Γ A A' (.sort u))
       have := (ihB _ _ _ W' (tv.cons hK1) (tv'.cons hK2)).2.2.2 p hp
       exact .piCodOb (List.mem_singleton_self _) (typedAt_sort_iff.1 this) imax0
 
-/-- **Soundness** of the observation model for rule-free environments. -/
-theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
+end
+
+/-- Delta rules are valid. -/
+theorem RuleValid.delta (henv : env.Ordered) (hdr : env.DefRules)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hdf : env.defeqs df)
+    (hlhs : df.lhs = .const n ls₀) : RuleValid env df := by
+  intro U Δ Γ ls u hΔ hlw hlen _ _ _ ihL _ ihR
+  replace ihR := ihR.1
+  intro σ σ' S W tv tv'
+  obtain ⟨rfl, hci⟩ := hdr.const df hdf n ls₀ hlhs
+  have elhs : df.lhs.instL ls = .const n ls := by
+    rw [hlhs]; simp only [VExpr.instL, VLevel.inst_map_id hlen]
+  rw [elhs]
+  have hrcl : (df.rhs.instL ls).ClosedN := ((henv.closed.2 hdf).2.1).instL
+  have htcl : (df.type.instL ls).ClosedN := ((henv.closed.2 hdf).1.2).instL
+  have IHR := ihR σ' σ' S (SubstEq.right henv hΔ W) tv' tv'
+  have notRigid : ¬ env.Rigid n := fun hrig => hrig df hdf _ (by rw [hlhs]; rfl)
+  refine ⟨fun o h => ?_, fun o h => ?_, fun o h => ?_, IHR.2.2.1⟩
+  · rcases Obs.const_iff.1 h with ⟨_, _, _, _, _, hrig, _⟩ |
+      ⟨df', ci', τs, hdf', hlhs', hci', hτ, hty, hv⟩ | ⟨_, _, _, _, _, hc, _⟩ |
+      ⟨df', doms, lsP, lead, ctor, lsC, ms, fs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf',
+        hl', _⟩
+    · exact absurd hrig notRigid
+    · cases hdr.excl df df' hdf hdf' n _ _ hlhs (by rw [hlhs']; rfl)
+      exact ⟨o, (Obs.closed_iff_id hrcl).2 hv, .refl⟩
+    · exact absurd (hctor n hc) notRigid
+    · cases hdr.excl df df' hdf hdf' n _ lsP hlhs (by
+        rw [hl']; exact VExpr.stripLams_wrapLams_mkApps_head)
+      rw [hlhs] at hl'
+      exact absurd hl'.symm VExpr.wrapLams_mkApps_snoc_ne_const
+  · obtain ⟨τs, hτ, hty⟩ := IHR.2.2.1 o h
+    exact ⟨o, .delta hdf (by rw [hlhs]) hci (ci := ⟨df.uvars, df.type⟩)
+      (fun τ hτ' => (Obs.closed_iff_id htcl).1 (hτ τ hτ')) hty
+      ((Obs.closed_iff_id hrcl).1 h), .refl⟩
+  · obtain ⟨τs, hτ, hty⟩ := h.const_typed hci
+    exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id htcl).2 (hτ τ hτ'), hty⟩
+
+/-- The quotient rule is valid, in an environment whose rules are delta rules or the quotient
+rule. -/
+theorem RuleValid.quot (henv : env.Ordered) (hdo : env.DefsQuot) (hdr : env.DefRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
-    (H : env.IsDefEqStrong U Γ t t' T) :
+    (hdf : env.defeqs quotDefEq) : RuleValid env quotDefEq := by
+  intro U Δ Γ ls u hΔ hlw hlen _ _ _ ihL _ ihR
+  have hq := hdo.quot hdf
+  have hcis : IsCtor env ``Quot.mk := ⟨quotDefEq, hdf, quotDefEq_ctorMajor⟩
+  have hrigQ : env.Rigid ``Quot := by
+    obtain ⟨ci, hci, F, ls', hF, -, hrig⟩ := hcres _ hcis
+    cases hq.2.1.symm.trans hci
+    cases hF; exact hrig
+  have hcl := henv.closed.2 hdf
+  exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
+    (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 hq.2.2 quotLiftConst_type rfl rfl hrigQ
+    ⟨_, _, hq.2.1, rfl⟩ hcis (hctor _ hcis) hctor hdr (quot_uniq hdo.defeqs)
+    (fun keys hkl hobs => ⟨quot_single hdr hdf hdo.defeqs,
+      quot_pf hlw (quot_C_level hq hrigQ hkl hobs)⟩)
+    ihL ihR
+
+
+section
+variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
+include henv hΔ
+
+/-- **Soundness** of the observation model for the derivations of an environment `E ≤ env`
+whose rules are valid in the model of `env`, carrying semantic typing derivations. -/
+theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → RuleValid env df)
+    (hnp : ∀ n p, ¬ E.projections n p) (hne : ∀ b s, ¬ E.eliminators b s)
+    (H : E.IsDefEqStrong U Γ t t' T) :
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T := by
   induction H with
   | bvar hL _ hA ihA =>
+    replace hA := hA.mono hle
     exact ⟨sound_bvar henv hΔ hL, .bvar hL ⟨hA, ihA.1⟩, .bvar hL ⟨hA, ihA.1⟩⟩
   | symm _ ih => exact ⟨ih.1.symm henv hΔ, ih.2.2, ih.2.1⟩
   | trans _ _ ih1 ih2 => exact ⟨ih1.1.trans henv hΔ ih2.1, ih1.2.1, ih2.2.2⟩
@@ -328,6 +410,9 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
     · rw [Obs.sort_mem h]; exact typedAt_sort_iff.2 (.sort (List.mem_singleton_self _))
     · rw [Obs.sort_mem h, ← e]; exact typedAt_sort_iff.2 (.sort (List.mem_singleton_self _))
   | @constDF c ci ls ls' u Γ hci hlw hlw' hlen hls _ h7 h8 ih0 ih8 =>
+    replace hci := hle.constants hci
+    replace h7 := h7.mono hle
+    replace h8 := h8.mono hle
     refine ⟨?_, .const hci hlw hlen ih0.2.1 ⟨h7.hasType.1, ih0.1.refl_l henv hΔ⟩,
       .conv (.const hci hlw' ((Lean4Lean.List.Forall₂.length_eq hls).symm.trans hlen) ih0.2.2
         ⟨h7.hasType.2, ih0.1.refl_r henv hΔ⟩) ⟨h8.symm, ih8.1.symm henv hΔ⟩⟩
@@ -348,14 +433,23 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id (hcl ls)).2 (h1 τ hτ'), h2⟩
     · obtain ⟨τs, h1, h2⟩ := (h.const_typed hci).mono_le IH0.2.1
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id (hcl ls)).2 (h1 τ hτ'), h2⟩
-  | elimDF h1 => exact absurd h1 (hdo.eliminators _ _)
+  | elimDF h1 => exact absurd h1 (hne _ _)
   | @appDF Γ A u B v f f' a a' _ _ hA hB hf ha hBB ihA ihB ihf iha ihBB =>
+    replace hA := hA.mono hle
+    replace hB := hB.mono hle
+    replace ha := ha.mono hle
+    replace hBB := hBB.mono hle
     exact ⟨sound_appDF henv hΔ hA ha ihB.1 ihf.1 iha.1 ihBB.1,
       .app ⟨hA, ihA.1⟩ ⟨hB, ihB.1⟩ ihf.2.1 iha.2.1 ⟨ha.hasType.1, iha.1.refl_l henv hΔ⟩,
       .conv (.app ⟨hA, ihA.1⟩ ⟨hB, ihB.1⟩ ihf.2.2 iha.2.2 ⟨ha.hasType.2, iha.1.refl_r henv hΔ⟩)
         ⟨hBB.symm, ihBB.1.symm henv hΔ⟩⟩
-  | projDF h1 => exact absurd h1 (hdo.projections _ _)
+  | projDF h1 => exact absurd h1 (hnp _ _)
   | @lamDF Γ A A' u B v body body' h1 h2 hAA hB hB' hb hb' ihA ihB ihB' ihb ihb' =>
+    replace hAA := hAA.mono hle
+    replace hB := hB.mono hle
+    replace hB' := hB'.mono hle
+    replace hb := hb.mono hle
+    replace hb' := hb'.mono hle
     refine ⟨?_, .lam ihA.2.1 ⟨hAA.hasType.1, ihA.1.refl_l henv hΔ⟩ ihb.2.1
         ⟨hb.hasType.1, ihb.1.refl_l henv hΔ⟩ ⟨hB, ihB.1⟩,
       .conv (.lam ihA.2.2 ⟨hAA.hasType.2, ihA.1.refl_r henv hΔ⟩ ihb'.2.2
@@ -408,12 +502,16 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
       rw [← eD, eD']
       exact lam_typed (hc'.congr_D eD') hK2 hy hp'
   | @forallEDF Γ A A' u B B' v hu hv hAA hBB hBB' ihA ihB ihB' =>
+    replace hAA := hAA.mono hle
+    replace hBB := hBB.mono hle
+    replace hBB' := hBB'.mono hle
     exact ⟨sound_forallEDF henv hΔ hAA hBB ihA.1 ihB.1,
       .forallE ihA.2.1 ⟨hAA.hasType.1, ihA.1.refl_l henv hΔ⟩ ihB.2.1
         ⟨hBB.hasType.1, ihB.1.refl_l henv hΔ⟩,
       .forallE ihA.2.2 ⟨hAA.hasType.2, ihA.1.refl_r henv hΔ⟩ ihB'.2.2
         ⟨hBB'.hasType.2, ihB'.1.refl_r henv hΔ⟩⟩
   | defeqDF _ hAB _ ihAB ihe =>
+    replace hAB := hAB.mono hle
     refine ⟨?_, .conv ihe.2.1 ⟨hAB, ihAB.1⟩, .conv ihe.2.2 ⟨hAB, ihAB.1⟩⟩
     replace ihAB := ihAB.1
     replace ihe := ihe.1
@@ -424,6 +522,9 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
       fun o h => (IH.2.2.2 o h).mono_le
         (ihAB σ' σ' S (SubstEq.right henv hΔ W) tv' tv').1⟩
   | @beta Γ A u B v e e' _ _ hA _ he he' _ _ ihA ihB ihe ihe' _ ihee' =>
+    replace hA := hA.mono hle
+    replace he := he.mono hle
+    replace he' := he'.mono hle
     refine ⟨?_, .beta_lhs, ihee'.2.1⟩
     replace ihA := ihA.1
     replace ihB := ihB.1
@@ -475,6 +576,12 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
       exact lam_typed hc hKσ hy ((ihe _ _ _ W' (tv.cons hKσ) (tv.cons hKσ)).2.2.1 p hp)
     · exact (ihee' σ' σ' S W'' tv' tv').2.2.1 o h
   | @eta Γ A u B v e h1 h2 hA hB hB' he he' hA' ihA ihB ihB' ihe ihe' ihA' =>
+    replace hA := hA.mono hle
+    replace hB := hB.mono hle
+    replace hB' := hB'.mono hle
+    replace he := he.mono hle
+    replace he' := he'.mono hle
+    replace hA' := hA'.mono hle
     have e0 : (B.liftN 1 1).inst (.bvar 0) = B := VExpr.instN_bvar0 B 0
     have hb0 : env.IsDefEqStrong U (A :: Γ) (.bvar 0) (.bvar 0) A.lift := .bvar .zero h1 hA'
     have hbody : HTS env U Δ (A :: Γ) (.app e.lift (.bvar 0)) B := by
@@ -555,57 +662,13 @@ theorem sound (hdo : env.DefsQuot) (hdr : env.DefRules)
       exact h2.not_prop fun τ hτ => typedAt_sort_iff.1 (IHp.2.2.2 τ (h1 τ hτ))
     exact ⟨fun o h => (e1 o h).elim, fun o h => (e2 o h).elim,
       fun o h => (e1 o h).elim, fun o h => (e2 o h).elim⟩
-  | @extra df ls u Γ hdf hlw hlen _ _ _ _ _ _ _ _ _ ihL ihR =>
-    refine ⟨?_, ihL.2.1, ihR.2.1⟩
-    rcases hdo.defeqs df hdf with ⟨n, ls₀, hlhs⟩ | rfl
-    rotate_left
-    · -- the quotient rule
-      have hq := hdo.quot hdf
-      have hcis : IsCtor env ``Quot.mk := ⟨quotDefEq, hdf, quotDefEq_ctorMajor⟩
-      have hrigQ : env.Rigid ``Quot := by
-        obtain ⟨ci, hci, F, ls', hF, -, hrig⟩ := hcres _ hcis
-        cases hq.2.1.symm.trans hci
-        cases hF; exact hrig
-      have hcl := henv.closed.2 hdf
-      exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
-        (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 hq.2.2 quotLiftConst_type rfl rfl hrigQ
-        ⟨_, _, hq.2.1, rfl⟩ hcis (hctor _ hcis) hctor hdr (quot_uniq hdo.defeqs)
-        (fun keys hkl hobs => ⟨quot_single hdr hdf hdo.defeqs,
-          quot_pf hlw (quot_C_level hq hrigQ hkl hobs)⟩)
-        ⟨ihL.1, ihL.2.1⟩ ⟨ihR.1, ihR.2.1⟩
-    replace ihR := ihR.1
-    intro σ σ' S W tv tv'
-    obtain ⟨rfl, hci⟩ := hdr.const df hdf n ls₀ hlhs
-    have elhs : df.lhs.instL ls = .const n ls := by
-      rw [hlhs]; simp only [VExpr.instL, VLevel.inst_map_id hlen]
-    rw [elhs]
-    have hrcl : (df.rhs.instL ls).ClosedN := ((henv.closed.2 hdf).2.1).instL
-    have htcl : (df.type.instL ls).ClosedN := ((henv.closed.2 hdf).1.2).instL
-    have IHR := ihR σ' σ' S (SubstEq.right henv hΔ W) tv' tv'
-    have notRigid : ¬ env.Rigid n := fun hrig => hrig df hdf _ (by rw [hlhs]; rfl)
-    refine ⟨fun o h => ?_, fun o h => ?_, fun o h => ?_, IHR.2.2.1⟩
-    · rcases Obs.const_iff.1 h with ⟨_, _, _, _, _, hrig, _⟩ |
-        ⟨df', ci', τs, hdf', hlhs', hci', hτ, hty, hv⟩ | ⟨_, _, _, _, _, hc, _⟩ |
-        ⟨df', doms, lsP, lead, ctor, lsC, ms, fs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf',
-          hl', _⟩
-      · exact absurd hrig notRigid
-      · cases hdr.excl df df' hdf hdf' n _ _ hlhs (by rw [hlhs']; rfl)
-        exact ⟨o, (Obs.closed_iff_id hrcl).2 hv, .refl⟩
-      · exact absurd (hctor n hc) notRigid
-      · cases hdr.excl df df' hdf hdf' n _ lsP hlhs (by
-          rw [hl']; exact VExpr.stripLams_wrapLams_mkApps_head)
-        rw [hlhs] at hl'
-        exact absurd hl'.symm VExpr.wrapLams_mkApps_snoc_ne_const
-    · obtain ⟨τs, hτ, hty⟩ := IHR.2.2.1 o h
-      exact ⟨o, .delta hdf (by rw [hlhs]) hci (ci := ⟨df.uvars, df.type⟩)
-        (fun τ hτ' => (Obs.closed_iff_id htcl).1 (hτ τ hτ')) hty
-        ((Obs.closed_iff_id hrcl).1 h), .refl⟩
-    · obtain ⟨τs, hτ, hty⟩ := h.const_typed hci
-      exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id htcl).2 (hτ τ hτ'), hty⟩
-  | elimIota h1 => exact absurd h1 (hdo.eliminators _ _)
-  | projIota h1 => exact absurd h1 (hdo.projections _ _)
-  | structEta h1 => exact absurd h1 (hdo.projections _ _)
-  | unitLike h1 => exact absurd h1 (hdo.projections _ _)
+  | @extra df ls u Γ hdf hlw hlen hu ht0 _ _ hl hr iht0 _ _ ihl ihr =>
+    exact ⟨hvalid df hdf hΔ hlw hlen (ht0.mono hle) ⟨iht0.1, iht0.2.1⟩ (hl.mono hle)
+      ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩, ihl.2.1, ihr.2.1⟩
+  | elimIota h1 => exact absurd h1 (hne _ _)
+  | projIota h1 => exact absurd h1 (hnp _ _)
+  | structEta h1 => exact absurd h1 (hnp _ _)
+  | unitLike h1 => exact absurd h1 (hnp _ _)
 
 end
 
