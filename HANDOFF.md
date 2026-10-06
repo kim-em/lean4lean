@@ -654,6 +654,20 @@ inside this project's scope without solving open base metatheory:
    cache invariants; `EnvHitShape` instance for the lowered environment and
    the `WhnfHitShapeFacts` discharge pending), restored equations identity,
    and `Hshapes`/`finalValidOfStaged`.
+   **Later still (2026-10-06):** `HitShapeInputs` fully discharged on
+   `agent/verify-inductives-origins` (retained `loopArgs1` traces
+   `RecursorIndexTrace`/`RecInfoIndexTraces` inside `RecInfoMinorSourceAlignment`,
+   rooted call origins `RecInfoCallBlueprintOrigins.rooted`; family headers
+   avoid the auxiliary names because `buildAuxiliary` never lowers headers:
+   `LoweredInductiveMapping.type`), so `recursorHitShape` needs only `W`.
+   Restored equations (`RestoredEquations.lean`): rule right-hand sides are
+   identified with the restoration of the generator's equations through the
+   lambda-telescope commutation; lhs and type cannot be read off the
+   executable (`RecursorRule` has only `ctor`, `nfields`, `rhs`) and are
+   supplied by the certificate's own rule choice (`RestoredRulesRealization`),
+   which `assemblyNative` must realize with the restored generated lhs/type.
+   In flight: `assemblyNative_of_whnf` (origins worktree), `WhnfHitShapeFacts`
+   discharge (hitshape worktree), final shapes.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
