@@ -682,6 +682,22 @@ inside this project's scope without solving open base metatheory:
    `lake build Lean4Lean.Tests`, fresh `Init.Prelude` (1975) and `Init.Core`
    (3953) replays pass; audit self-test passes. Reachable sorries: the ten
    base obligations and `assemblyNative` only.
+   **Hit-shape chain complete on `agent/verify-inductives-hitshape` (cb54cf6,
+   pushed; being merged into main):** `recursorHitShape' E wf Hsources hprims`
+   gives `HitShapeTele E.auxHeads …` of every owner's generated recursor type
+   and rule rhs with no `W`/`I`; the chain runs at `E.hitHeads` (auxiliary
+   names plus main constructors) under `HitOK` (hit shape plus `ProjsOK`),
+   and shrinks back. The single remaining hypothesis is
+   `hprims : ∀ n ∈ hitPrimNames, n ∉ E.mainCtorNames` (no main constructor is
+   named like a constant the checker builds itself: `String.mk`, `List.nil`,
+   `List.cons`, `Char.ofNat`, `Nat.zero`, `Nat.succ`, `_inhabitedExprDummy`,
+   …); `hprims_of_present` reduces it to "those names are already constants
+   of the source environment (true after `Init.Prelude`) and no constructor is
+   named `_inhabitedExprDummy`". Removing it needs a rework of the checker's
+   `EnvHitShape.prims` field (showing literal expansion and the out-of-range
+   dummy never reach a successful recursor-pass output). **Decision for Kim:**
+   carry `hprims` as an explicit hypothesis of the nested theorem (hence of
+   `addDecl.WF` for nested inductives) or fund the rework.
    Record of what the first junction used: the `params` and `motives`
    groups (`recursorTelescope_params`, `recursorTelescope_motives`), the
    field-domain template `minorFieldsTemplate`, the per-minor translation
