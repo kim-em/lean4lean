@@ -278,7 +278,9 @@ theorem VLCtx.AllVLam.find?_bvar {Δ : VLCtx} {v : Nat ⊕ FVarId} {e A : VExpr}
       exact ⟨_, rfl⟩
 
 /-- The syntactic fragment of generated recursor types and rule right-hand
-sides: no `let`, literals, projections, metadata, or metavariables. -/
+sides: no `let`, projections, or metavariables. Literals (through their
+constructor expansion, which is what `TrExprS.lit` translates) and metadata
+are included: their translations are syntactically determined. -/
 inductive RestoreFragment : Expr → Prop
   | bvar (i : Nat) : RestoreFragment (.bvar i)
   | fvar (fv : FVarId) : RestoreFragment (.fvar fv)
@@ -289,6 +291,37 @@ inductive RestoreFragment : Expr → Prop
       RestoreFragment (.lam name dom body bi)
   | forallE : RestoreFragment dom → RestoreFragment body →
       RestoreFragment (.forallE name dom body bi)
+  | lit (l : Literal) : RestoreFragment l.toConstructor → RestoreFragment (.lit l)
+  | mdata : RestoreFragment body → RestoreFragment (.mdata data body)
+
+theorem RestoreFragment.natLitToConstructor :
+    ∀ n, RestoreFragment (Expr.natLitToConstructor n)
+  | 0 => by
+    simp only [Expr.natLitToConstructor, Expr.natZero]
+    exact .const _ _
+  | n + 1 => by
+    simp only [Expr.natLitToConstructor, Expr.natSucc]
+    exact .app (.const _ _) (.lit _ (natLitToConstructor n))
+
+theorem RestoreFragment.strLitToConstructor (string : String) :
+    RestoreFragment (Expr.strLitToConstructor string) := by
+  simp only [Expr.strLitToConstructor]
+  apply RestoreFragment.app (.const _ _)
+  induction string.toList with
+  | nil => exact .app (.const _ _) (.const _ _)
+  | cons char chars ih =>
+    simp only [List.foldr_cons]
+    exact .app
+      (.app (.app (.const _ _) (.const _ _))
+        (.app (.const _ _) (.lit _ (natLitToConstructor char.toNat))))
+      ih
+
+/-- Every literal lies in the fragment. -/
+theorem RestoreFragment.literal (l : Literal) : RestoreFragment (.lit l) := by
+  apply RestoreFragment.lit
+  cases l with
+  | natVal n => exact .natLitToConstructor n
+  | strVal s => exact .strLitToConstructor s
 
 /-- In the fragment, translation is syntactic: it depends on neither the
 environment nor the binder types, only on the variable naming. -/
@@ -323,6 +356,12 @@ theorem RestoreFragment.translation_eq (Hf : RestoreFragment e)
     cases H₁ with | forallE _ _ hd₁ hb₁ => cases H₂ with | forallE _ _ hd₂ hb₂ =>
     cases ihd Hshape hd₁ hd₂
     rw [ihb (.cons Hshape) hb₁ hb₂]
+  | lit _ _ ih =>
+    cases H₁ with | lit _ h₁ => cases H₂ with | lit _ h₂ =>
+    exact ih Hshape h₁ h₂
+  | mdata _ ih =>
+    cases H₁ with | mdata h₁ => cases H₂ with | mdata h₂ =>
+    exact ih Hshape h₁ h₂
 
 theorem RestoreFragment.translations_eq {es : List Expr}
     (Hf : ∀ e ∈ es, RestoreFragment e) (Hshape : VLCtx.VLamShape Δ₁ Δ₂)
@@ -364,6 +403,14 @@ theorem RestoreFragment.translation_containsAnyConst (Hf : RestoreFragment e)
     cases H with | forallE _ _ hd hb =>
     cases Havoid with | forallE _ _ _ _ Hd Hb =>
     simp [VExpr.containsAnyConst, ihd hΔ Hd hd, ihb (hΔ.cons _ _) Hb hb]
+  | lit _ _ ih =>
+    cases H with | lit _ h =>
+    cases Havoid with | lit _ Ha =>
+    exact ih hΔ Ha h
+  | mdata _ ih =>
+    cases H with | mdata h =>
+    cases Havoid with | mdata _ _ Ha =>
+    exact ih hΔ Ha h
 
 
 theorem restoreNestedNode_eq_none_of_restoreHead
@@ -475,7 +522,10 @@ restoration `r` (intended: `compilationRestoration source auxiliaries`).
   executable's parameter count, the auxiliary constant's universe arity, and
   the executable replacement head translates to the specialization applied
   to the translated parameters, at the levels `auxLevels` (on the lowered
-  side, `lparams.map .param`). -/
+  side, `lparams.map .param`). The translation clause is only required for
+  the opened parameters of a matched node: free variables, exactly
+  `result.nparams` of them (the executable instantiation is sequential, so
+  it is not a simultaneous substitution for open arguments). -/
 structure RestorationMapAgreement (r : Restoration)
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
     (auxRec : NameMap Name) (targetEnv : VEnv) (Us : List Name)
@@ -492,6 +542,7 @@ structure RestorationMapAgreement (r : Restoration)
         h.uvars = levels.length ∧
         ∀ (Δ : VLCtx) (params : List VExpr) (v : VExpr),
           VLCtx.AllVLam Δ →
+          (∀ a ∈ As.toList, ∃ fv, a = .fvar fv) → As.size = result.nparams →
           List.Forall₂ (TrExprS targetEnv Us Δ) As.toList params →
           TrExprS targetEnv Us Δ H v →
           v = VExpr.mkApps (.const h.target (h.levels.map (·.inst levels)))
@@ -522,6 +573,9 @@ inductive RestoreReady (result : Lean4Lean.ElimNestedInductive.Result)
   | bvar (i : Nat) : RestoreReady result env As names auxLevels (.bvar i)
   | fvar (fv : FVarId) : RestoreReady result env As names auxLevels (.fvar fv)
   | sort (u : Level) : RestoreReady result env As names auxLevels (.sort u)
+  | lit (l : Literal) (hf : RestoreFragment (.lit l))
+      (ha : (Expr.lit l).AvoidsConsts names) :
+      RestoreReady result env As names auxLevels (.lit l)
   | const (c : Name) (ls : List Level) (h : restoreHead result env As c = none) :
       RestoreReady result env As names auxLevels (.const c ls)
   | app {fn arg : Expr}
@@ -555,6 +609,7 @@ theorem RestoreReady.fragment
   | bvar => exact .bvar _
   | fvar => exact .fvar _
   | sort => exact .sort _
+  | lit _ hf => exact hf
   | const => exact .const _ _
   | app _ _ _ ihf iha => exact .app ihf iha
   | lam _ _ ihd ihb => exact .lam ihd ihb
@@ -635,7 +690,11 @@ theorem ExprReplacement.restorationCommutes
       have htake := forall₂_take result.nparams hL'
       rw [hparams] at htake
       exact Hshape.transfer_fvars HAs htake
-    have hHvEq := hsem Δt _ Hv Hshape.right hP hHv
+    have hAsSize : As.size = result.nparams := by
+      have h := congrArg List.length hparams
+      simp only [List.length_take, Array.length_toList] at h
+      omega
+    have hHvEq := hsem Δt _ Hv Hshape.right HAs hAsSize hP hHv
     have hR'Eq : R' = L'.drop result.nparams :=
       (RestoreFragment.translations_eq
         (fun a ha => (hargs a (List.mem_of_mem_drop ha)).1) Hshape
@@ -690,6 +749,18 @@ theorem ExprReplacement.restorationCommutes
       subst heq
       have hc := (RestoreFragment.sort u).translation_containsAnyConst (names := r.restorableNames) Hshape.left
         (.sort u) Hs
+      exact ⟨by simpa [VExpr.mkApps] using Restoration.expr.go_of_not_contains r hc [],
+        fun _ args => Restoration.expr.go_of_not_contains r hc args⟩
+  | lit l hf ha =>
+    have hnn : result.restoreNestedNode env As auxRec (.lit l) = none :=
+      restoreNestedNode_eq_none_of_restoreHead result env As auxRec _
+        (by intro _ _ h; cases h) (by intro _ _ h; simp [Expr.getAppFn] at h)
+    cases Hrep with
+    | hit hhit => rw [hnn] at hhit; cases hhit
+    | lit _ =>
+      have heq := hf.translation_eq Hshape Hs Ht
+      subst heq
+      have hc := hf.translation_containsAnyConst Hshape.left ha Hs
       exact ⟨by simpa [VExpr.mkApps] using Restoration.expr.go_of_not_contains r hc [],
         fun _ args => Restoration.expr.go_of_not_contains r hc args⟩
   | const c ls hnone =>
