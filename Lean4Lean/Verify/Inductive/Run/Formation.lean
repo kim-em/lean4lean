@@ -288,8 +288,10 @@ theorem AddInductive.checkConstructors.checkedWF
           H.headers.params stats indTypes c.lparams
           H.materialized.parameterScope := by
   have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    (H.context.paramCheck stats stats.params.size) H.translation.types H.translation.typesAdded H.materialized
-    H.headerParams hconsume hlit hunsafe H.materialized.universeBound hlparams
+    H.materialized.parameterSuffix.headerCheck H.translation.types
+    H.translation.typesAdded H.materialized
+    H.headerParams H.materialized.parameterSuffix.headerCheck_paramAligned
+    hconsume hlit hunsafe H.materialized.universeBound hlparams
   rw [AddInductive.checkConstructors]
   refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
     fun _ _ => ?_
@@ -313,17 +315,18 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
       { c with env := outEnv }).WF fun _ =>
         CheckedConstructorOwnerNormalForms stats indTypes := by
   let Hsuffix : checkInductiveTypes.loopType.ParameterContextSuffix
-      (H.context.paramCheck stats stats.params.size) stats depth :=
-    { H.materialized.parameterSuffix with }
+      H.materialized.parameterSuffix.headerCheck stats depth :=
+    H.materialized.parameterSuffix.toHeaderCheck
   let Hstats :=
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized
   have Hloops := checkConstructors.loopTypes.ownerNormalFormsWF
     (Q := fun _ => CheckedConstructorOwnerNormalForms stats indTypes)
     (isUnsafe := isUnsafe)
-    (H.context.paramCheck stats stats.params.size) H.translation.types
+    H.materialized.parameterSuffix.headerCheck H.translation.types
     (ConstructorOwnerNormalFormRows.empty stats indTypes)
-    Hsuffix Hstats hconsume hlit
+    Hsuffix Hstats H.materialized.parameterSuffix.headerCheck_paramAligned
+    hconsume hlit
     (fun Hrows => Hrows.complete)
   rw [AddInductive.checkConstructors]
   refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
@@ -868,7 +871,6 @@ theorem DeclaredConstructorsCore.constructorSemantics
   · rcases hctorOrigin with ⟨entry, hentry, _hname, hvalue⟩
     exact False.elim (D.nonInductive entry hentry familyInfo
       hvalue.symm)
-
 
 
 theorem AddInductive.declareConstructors.WF
@@ -1756,243 +1758,6 @@ theorem ConstructorPhasesResult.loopInd1SemanticWF
     HnoAlias Horder Harities Hempty Hblueprints Hroot' ?_ HindexTraces
   simpa using hsize
 
-/-- The verified header cache supplies the exact retained parameter binders
-needed by recursor-info generation, while the constructor phases supply its
-independent declaration/cardinality input. -/
-theorem ConstructorPhasesResult.mkRecInfosWF
-    {alpha : Type} {Q : alpha → Prop}
-    {c : AddInductive.Context}
-    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
-    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
-    (elimLevel : Level)
-    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
-    (hlparams : c.lparams.Nodup)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint
-      R.declared.context.venv stats.indConsts)
-    (k : Array AddInductive.RecInfo → AddInductive.M alpha)
-    (Hk : ∀ {cOut : AddInductive.Context} {outDepth : Nat}
-      (recInfos : Array AddInductive.RecInfo)
-      (Rout : RecursorContextWF cOut
-        (AddInductive.getRecLevelParams elimLevel c.lparams)),
-      Rout.venv = R.declared.context.venv →
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
-      HsuffixOut.parameterDecls =
-        (R.materialized.parameterSuffix.toRecursorContext
-          Helim).parameterDecls →
-      RecursorValidAppStatsWF Rout.venv
-        (AddInductive.getRecLevelParams elimLevel c.lparams)
-        Rout.mlctx.vlctx stats decl outDepth →
-      VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
-      (Hbindings : RecInfoBindings cOut recInfos) →
-      (Horigins : RecInfoTypeOrigins cOut recInfos) →
-      RecInfoRuleBlueprintOrigins stats recInfos Horigins →
-      RecInfoRuleBlueprintSemanticOrigins Rout decl stats recInfos elimLevel
-        HsuffixOut.parameterDecls Horigins →
-      RecInfoMinorSourceAlignment stats indTypes Horigins →
-      RecInfoMinorSemanticAlignment Rout Horigins
-        HsuffixOut.parameterDecls →
-      RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
-      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
-      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl
-        (R.materialized.parameterSuffix.toRecursorContext
-          Helim).parameterDecls.toCtx recInfos elimLevel →
-      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
-      (Hparams : BoundFVarArray cOut stats.params) →
-      Hbindings.NoAlias Hparams →
-      RecInfoOuterOrder Rout Hparams Hbindings →
-      RecInfoArities stats recInfos →
-      (∀ i, i < recInfos.size →
-        recInfos[i]!.minors.size = indTypes[i]!.ctors.length) →
-      RecursorCardinalityCertificate stats recInfos decl →
-      BindingContextLE { c with
-        env := outEnv
-        typeCheckerLParams := some <|
-          AddInductive.getRecLevelParams elimLevel c.lparams } cOut →
-      (k recInfos cOut).WF Q) :
-    (AddInductive.mkRecInfos stats indTypes elimLevel k
-      { c with
-        env := outEnv
-        typeCheckerLParams := some <|
-          AddInductive.getRecLevelParams elimLevel c.lparams }).WF Q := by
-  unfold AddInductive.mkRecInfos
-  refine R.loopInd1SemanticWF elimLevel Helim hlparams hconsume
-    (fun recInfos =>
-      AddInductive.mkRecInfos.loopInd2 stats indTypes 0 recInfos k) ?_
-  intro cFrames frameDepth recInfos Rframes henvFrames HsuffixFrames
-    hparameterDeclsFrames HstatsFrames HbindingsFrames HoriginsFrames
-    HmajorTypesFrames HmajorShapesFrames HmotiveTypesFrames
-    HmotiveShapesFrames HtelescopesFrames HindexRowsFrames HparamsFrames
-    HnoAliasFrames HorderFrames HaritiesFrames HemptyFrames
-    HblueprintCountsFrames HrootFrames hsizeFrames HindexTracesFrames
-  have hrecordsFrames : recInfos.size = stats.indConsts.size := by
-    calc
-      recInfos.size = indTypes.size := hsizeFrames
-      _ = indTypes.toList.length := by simp
-      _ = decl.types.length :=
-        Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
-      _ = stats.indConsts.size := HstatsFrames.types_size.symm
-  refine mkRecInfos.loopInd2.resultSemantics (root := { c with
-      env := outEnv
-      typeCheckerLParams := some <|
-        AddInductive.getRecLevelParams elimLevel c.lparams })
-    (Q := Q) stats indTypes 0 recInfos k Rframes HsuffixFrames
-    HstatsFrames hconsume
-      (by simpa only [henvFrames] using hlit)
-    (checkInductiveTypes.loopType.MLCtxOnlyLams.noIndConsts
-      Rframes.onlyLams)
-    HbindingsFrames HoriginsFrames
-    (RecInfoRuleBlueprintOrigins.ofEmpty HoriginsFrames HemptyFrames
-      HblueprintCountsFrames)
-    (RecInfoRuleBlueprintSemanticOrigins.ofEmpty Rframes decl HoriginsFrames
-      HemptyFrames HblueprintCountsFrames elimLevel)
-    (RecInfoMinorSourceAlignment.ofEmpty HoriginsFrames HemptyFrames
-      HindexTracesFrames)
-    (RecInfoMinorSemanticAlignment.ofEmpty
-      (parameterDecls := HsuffixFrames.parameterDecls)
-      Rframes HoriginsFrames HemptyFrames)
-    HmajorTypesFrames HmajorShapesFrames
-    HmotiveTypesFrames HmotiveShapesFrames HtelescopesFrames
-    HindexRowsFrames HparamsFrames HnoAliasFrames HorderFrames HrootFrames
-    (ParameterUniverseSupport.of_contextWF (root := { c with
-        env := outEnv
-        typeCheckerLParams := some <|
-          AddInductive.getRecLevelParams elimLevel c.lparams })
-      R.declared.context
-      (R.materialized.parameterSuffix (Hc := R.declared.context)).paramsBound
-      rfl rfl HrootFrames)
-    (fun familyIdx hfamily ctor hctor tail Hprefix => by
-      rw [HrootFrames.lparams_eq]
-      exact R.constructorTails.levelParamsIn familyIdx hfamily ctor hctor tail
-        Hprefix)
-    hsizeFrames
-    hrecordsFrames HaritiesFrames ?_ ?_ ?_ ?_
-  · intro i hi
-    omega
-  · intro i _ hi
-    exact HemptyFrames i hi
-  · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
-      hparameterDeclsCurrent familyIdx hfamily ctor hctor
-    rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
-    rcases R.checkedConstructorRuntimeSeedAt elimLevel Helim hlparams
-        Rcurrent (henvCurrent.trans henvFrames) HsuffixCurrent
-        (hparameterDeclsCurrent.trans hparameterDeclsFrames) familyIdx
-        hfamily ctorIdx hctorIdx with
-      ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars,
-        Htail, HtailType, Hintro, HintroType⟩
-    exact ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars, Htail,
-      HtailType, Hintro, HintroType⟩
-  · intro cOut outDepth out Rout henvOut HsuffixOut hparameterDeclsOut
-      HstatsOut hctxOut HbindingsOut HoriginsOut HblueprintsOut
-      HblueprintSemanticsOut HminorSourcesOut HminorSemanticsOut houtSize houtCounts
-      HmajorTypesOut HmajorShapesOut HmotiveTypesOut HmotiveShapesOut
-      HtelescopesOut HindexRowsOut HparamsOut HnoAliasOut HorderOut
-      HaritiesOut HrootOut
-    exact Hk out Rout (henvOut.trans henvFrames) HsuffixOut
-      (hparameterDeclsOut.trans hparameterDeclsFrames) HstatsOut
-      hctxOut HbindingsOut HoriginsOut HblueprintsOut HblueprintSemanticsOut HminorSourcesOut
-      HminorSemanticsOut
-      HmajorTypesOut HmajorShapesOut
-      HmotiveTypesOut HmotiveShapesOut HtelescopesOut HindexRowsOut
-      HparamsOut HnoAliasOut HorderOut HaritiesOut houtCounts
-      (RecursorCardinalityCertificate.ofResult R.core H.materialized
-        houtSize houtCounts HaritiesOut)
-      HrootOut
-
-/-- Exact `run` prefix immediately after constructor installation.  The
-eliminator-level search is semantically relevant only through the level it
-returns; `mkRecInfosWF` validates every successful choice uniformly. -/
-theorem ConstructorPhasesResult.getElimLevelMkRecInfosWF
-    {alpha : Type} {Q : alpha → Prop}
-    {c : AddInductive.Context}
-    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
-    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
-    (hlparams : c.lparams.Nodup)
-    (hconsume : RecursorConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint
-      R.declared.context.venv stats.indConsts)
-    (k : Level → Bool → Array AddInductive.RecInfo → AddInductive.M alpha)
-    (Hk : ∀ elimLevel,
-      (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) →
-      AddInductive.getElimLevel stats indTypes { c with env := outEnv } =
-        .ok elimLevel →
-      ∀ kTarget, KTargetCheck stats indTypes kTarget →
-      ∀ {cOut : AddInductive.Context} {outDepth : Nat}
-      (recInfos : Array AddInductive.RecInfo)
-      (Rout : RecursorContextWF cOut
-        (AddInductive.getRecLevelParams elimLevel c.lparams)),
-      Rout.venv = R.declared.context.venv →
-      (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) →
-      HsuffixOut.parameterDecls =
-        (R.materialized.parameterSuffix.toRecursorContext
-          Helim).parameterDecls →
-      RecursorValidAppStatsWF Rout.venv
-        (AddInductive.getRecLevelParams elimLevel c.lparams)
-        Rout.mlctx.vlctx stats decl outDepth →
-      VLCtx.NoIndConsts (decl.types.map (·.name)) Rout.mlctx.vlctx →
-      (Hbindings : RecInfoBindings cOut recInfos) →
-      (Horigins : RecInfoTypeOrigins cOut recInfos) →
-      RecInfoRuleBlueprintOrigins stats recInfos Horigins →
-      RecInfoRuleBlueprintSemanticOrigins Rout decl stats recInfos elimLevel
-        HsuffixOut.parameterDecls Horigins →
-      RecInfoMinorSourceAlignment stats indTypes Horigins →
-      RecInfoMinorSemanticAlignment Rout Horigins
-        HsuffixOut.parameterDecls →
-      RecursorTranslatedOriginTypes Rout Horigins.majorTypes →
-      RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes →
-      RecursorTranslatedOriginTypes Rout Horigins.motiveTypes →
-      RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel →
-      RecInfoMotiveTelescopes Rout stats decl
-        (R.materialized.parameterSuffix.toRecursorContext
-          Helim).parameterDecls.toCtx recInfos elimLevel →
-      RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes →
-      (Hparams : BoundFVarArray cOut stats.params) →
-      Hbindings.NoAlias Hparams →
-      RecInfoOuterOrder Rout Hparams Hbindings →
-      RecInfoArities stats recInfos →
-      (∀ i, i < recInfos.size →
-        recInfos[i]!.minors.size = indTypes[i]!.ctors.length) →
-      RecursorCardinalityCertificate stats recInfos decl →
-      BindingContextLE { c with
-        env := outEnv
-        typeCheckerLParams := some <|
-          AddInductive.getRecLevelParams elimLevel c.lparams } cOut →
-      (k elimLevel kTarget recInfos cOut).WF Q) :
-    ((AddInductive.getElimLevel stats indTypes >>= fun elimLevel =>
-      AddInductive.withTypeCheckerLParams
-        (AddInductive.getRecLevelParams elimLevel c.lparams) do
-        let kTarget ← AddInductive.isKTarget stats indTypes
-        AddInductive.mkRecInfos stats indTypes elimLevel
-          (k elimLevel kTarget)) { c with env := outEnv }).WF Q := by
-  have Helim : (AddInductive.getElimLevel stats indTypes
-      { c with env := outEnv }).WF (fun level =>
-        AddInductive.AdmissibleElimLevel c.lparams level ∧
-        AddInductive.getElimLevel stats indTypes { c with env := outEnv } =
-          .ok level) := by
-    intro level hrun
-    exact ⟨AddInductive.getElimLevel.WF stats indTypes { c with env := outEnv } level hrun, hrun⟩
-  exact Helim.bind fun elimLevel ⟨hElim, hElimRun⟩ => by
-    simp only [AddInductive.withTypeCheckerLParams, withReader,
-      MonadWithReaderOf.withReader]
-    exact (show (AddInductive.isKTarget stats indTypes
-      { c with
-        env := outEnv
-        typeCheckerLParams := some <|
-          AddInductive.getRecLevelParams elimLevel c.lparams }).WF
-        (KTargetCheck stats indTypes) from
-          AddInductive.isKTarget.checkedWF stats indTypes _).bind fun kTarget hk =>
-      R.mkRecInfosWF elimLevel hElim hlparams hconsume hlit
-        (k elimLevel kTarget) (Hk elimLevel hElim hElimRun kTarget hk)
 
 /-- The executable constructor check and declaration folds jointly establish
 the independent formation judgment and the complete pointwise source/core
@@ -2209,33 +1974,6 @@ def DeclaredTypesResult.formation
     (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
       H.materialized).params_size
 
-theorem AddInductive.checkConstructors.WF
-    (H : DeclaredTypesResult c stats decl depth sourceEnv indTypes outEnv)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlit : checkPositivityStep.AvailableLiteralDisjoint
-      H.context.venv stats.indConsts)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hlparams : c.lparams.Nodup) :
-    (AddInductive.checkConstructors indTypes stats isUnsafe
-      { c with env := outEnv }).WF fun _ =>
-        Nonempty (FormationCertificate sourceEnv decl) := by
-  have Hheaders : List.Forall₂
-      (TrInductiveTypeHeaders sourceEnv H.context.venv c.lparams)
-      indTypes.toList decl.types :=
-    Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => Lean4Lean.VerifyInductive.TrInductiveType.headers h)
-      H.sourceTypes
-  have Hloops := checkConstructors.loopTypes.refinesMaterialized
-    (H.context.paramCheck stats stats.params.size) Hheaders H.typesInstalled H.materialized H.headerParams
-    hconsume hlit hunsafe H.materialized.universeBound hlparams
-  rw [AddInductive.checkConstructors]
-  refine AddInductive.M.WF_bind (P := fun _ => True) (fun _ _ => trivial)
-    fun _ _ => ?_
-  -- Constructors are checked on top of the parameters.
-  refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
-  subst hL
-  rw [AddInductive.withCheckLCtx_apply]
-  exact Hloops.mono fun _ Hchecked => ⟨H.formation Hchecked⟩
 
 /-- The exact executable prefix used by `AddInductive.run`, through mutual
 header installation and constructor checking, refines `FormationWF`. -/
