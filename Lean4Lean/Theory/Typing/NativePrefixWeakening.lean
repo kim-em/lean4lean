@@ -103,10 +103,10 @@ theorem NativeDeltaRule.weak' {name : Name} {levels : List VLevel} (henv : env.W
       cases hh : data.recursorType with
       | some type => exact ⟨type, rfl⟩
       | none =>
-        unfold prefixProgram at hg
+        unfold singletonProgram at hg
         split at hg <;> simp [hh] at hg
     obtain ⟨type, htype⟩ := hex
-    have hg' := prefixProgram_lift' htype (hr.recursorType_closed henv htype) hg (ρ := ρ)
+    have hg' := singletonProgram_lift' henv hr ht hz htype (hr.recursorType_closed henv htype) hg (ρ := ρ)
     have replay' := replay.weak' henv W
     rw [native_mkApps_lift'] at replay'
     rw [← PrefixProgram.rename_rhs (replay.templateScope henv).2.1]

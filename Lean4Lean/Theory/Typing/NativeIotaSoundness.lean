@@ -246,7 +246,7 @@ theorem _root_.Lean4Lean.VExpr.wrapLams_inj :
     simp only [VExpr.lam.injEq] at h'
     rw [h'.1, VExpr.wrapLams_inj h'.2 (by simpa using hl)]
 
-theorem _root_.Lean4Lean.VExpr.ClosedN.wrapForalls_inv :
+theorem _root_.Lean4Lean.VExpr.ClosedN.wrapForalls_inv_getElem :
     ∀ {ds : List VExpr} {b : VExpr} {k : Nat}, (VExpr.wrapForalls ds b).ClosedN k →
       ∀ i (hi : i < ds.length), ds[i].ClosedN (k + i)
   | [], _, _, _, i, hi => by simp at hi
@@ -255,7 +255,7 @@ theorem _root_.Lean4Lean.VExpr.ClosedN.wrapForalls_inv :
     cases i with
     | zero => simpa using h'.1
     | succ i =>
-      have := VExpr.ClosedN.wrapForalls_inv h'.2 i (by simpa using hi)
+      have := VExpr.ClosedN.wrapForalls_inv_getElem h'.2 i (by simpa using hi)
       simpa [Nat.add_assoc, Nat.add_comm 1] using this
 
 theorem _root_.Lean4Lean.VExpr.ClosedN.wrapForalls_body :
@@ -909,7 +909,7 @@ theorem NativeRecursorRegistered.iota_core {data : NativeRecursorData} (henv : e
       (by simp [hctorShape.doms_length]; omega) key.2 i hi
     have hclosed : ((Rd[data.schema.signature.params.length + i]'(by omega)).instL
         (g.levels.map (·.inst ls))).ClosedN (P.length + (fields.take i).length) := by
-      have := VExpr.ClosedN.wrapForalls_inv hRC (data.schema.signature.params.length + i)
+      have := VExpr.ClosedN.wrapForalls_inv_getElem hRC (data.schema.signature.params.length + i)
         (by omega)
       simp only [List.length_take, Nat.min_eq_left (Nat.le_of_lt hi), hPl, Nat.zero_add] at this ⊢
       exact this.instL

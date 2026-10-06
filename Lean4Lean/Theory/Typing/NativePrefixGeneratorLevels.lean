@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.NativePrefixLevelCongruence
 import Lean4Lean.Theory.Inductive.QuotPrefixProgram
 import Lean4Lean.Theory.Typing.SingletonReconstructionLevelCongruence
+import Lean4Lean.Theory.Typing.NativeSingletonProgram
 
 namespace Lean4Lean.InductiveSignature.NativeRecursorData
 open VEnv VExpr
@@ -245,6 +246,44 @@ theorem prefixProgram_levels {data : NativeRecursorData} {levels levels' : List 
   have hecaptures := levels_append (levels_take hall data.indexOffset) hfieldApps
   dsimp only [remaining] at hconstructor'
   simp only [bind, htype, hsupply', htake', hconstructor', hsource', hfields'', hequation, hbody, Option.bind_some]
+  have hcaplen := Lean4Lean.List.Forall₂.length_eq hecaptures
+  dsimp only [remaining] at hcaplen
+  rw [← hcaplen, if_neg hcaptures]
+  exact ⟨_, rfl, ⟨hdoms, hresult, heconstructor, rfl, rfl, hecaptures, he, hl'⟩⟩
+
+theorem singletonProgram_levels {data : NativeRecursorData} {levels levels' : List VLevel}
+    {env : VEnv} (hr : NativeRecursorRegistered env data)
+    (hl : ∀ level ∈ levels, level.WF U) (hl' : ∀ level ∈ levels', level.WF U)
+    (he : List.Forall₂ (· ≈ ·) levels levels')
+    (ha : List.Forall₂ (EqUpToLevels U) args args')
+    (H : data.singletonProgram env U levels args = some program) :
+    ∃ program', data.singletonProgram env U levels' args' = some program' ∧
+      PrefixProgram.LevelEquiv U program program' := by
+  have hlen := Lean4Lean.List.Forall₂.length_eq he
+  have hargslen := Lean4Lean.List.Forall₂.length_eq ha
+  unfold singletonProgram at H ⊢
+  simp only [← hlen, ← hargslen]
+  split at H <;> try contradiction
+  rename_i hguard
+  rw [if_neg hguard]
+  have hguard' := hguard
+  simp at hguard'
+  simp only [bind, Option.bind_eq_some_iff] at H
+  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+    ⟨constructor, fields⟩, hrecon, equation, hequation, body, hbody, H⟩ := H
+  split at H <;> try contradiction
+  rename_i hcaptures
+  cases H
+  obtain ⟨residual', hsupply', hres⟩ := supplyType_levels ha
+    (EqUpToLevels.instL_expr _ hl hl' he) hsupply
+  obtain ⟨domains', result', htake', hdoms, hresult⟩ := takeForalls_levels hres htake
+  let remaining := data.majorOffset + 1 - args.length
+  have hall := levels_append (levels_lift ha remaining) (levels_vars (U := U) remaining 0)
+  obtain ⟨constructor', fields', hrecon', heconstructor, hefields⟩ :=
+    singletonRecon_levels hl hl' he hall hrecon
+  have hecaptures := levels_append (levels_take hall data.indexOffset) hefields
+  dsimp only [remaining] at hrecon'
+  simp only [bind, htype, hsupply', htake', hrecon', hequation, hbody, Option.bind_some]
   have hcaplen := Lean4Lean.List.Forall₂.length_eq hecaptures
   dsimp only [remaining] at hcaplen
   rw [← hcaplen, if_neg hcaptures]

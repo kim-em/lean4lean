@@ -1013,13 +1013,6 @@ theorem mkApps_snoc (f : VExpr) (l : List VExpr) (b : VExpr) :
   | nil => rfl
   | cons a l ih => exact ih (.app f a)
 
-omit [Params] in
-theorem snoc_induction {P : List α → Prop} (nil : P []) (snoc : ∀ l a, P l → P (l ++ [a]))
-    (l : List α) : P l := by
-  rw [← List.reverse_reverse l]
-  induction l.reverse with
-  | nil => exact nil
-  | cons a l ih => rw [List.reverse_cons]; exact snoc _ _ ih
 
 
 theorem NativeDeltaRule.not_rigid
@@ -1028,7 +1021,7 @@ theorem NativeDeltaRule.not_rigid
   intro hrig
   cases H with
   | @intro data program hl hreg hname _ _ _ hg _ =>
-    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.NativeRecursorData.prefixProgram_spec hg
+    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.NativeRecursorData.singletonProgram_spec hg
     have hinst := hreg.singletonEquation hse
     unfold InductiveSignature.NativeRecursorData.singletonEquation at hse
     dsimp only at hse
@@ -2107,7 +2100,7 @@ theorem NativeDeltaRule.length_le (H : NativeDeltaRule env univs recursorData Γ
     ∃ data, recursorData name = some data ∧ args.length ≤ data.majorOffset := by
   cases H with
   | @intro data program hl _ _ _ _ _ hg _ =>
-    exact ⟨data, hl, (InductiveSignature.NativeRecursorData.prefixProgram_spec hg).1⟩
+    exact ⟨data, hl, (InductiveSignature.NativeRecursorData.singletonProgram_spec hg).1⟩
 
 theorem QuotDeltaRule.length_le (H : QuotDeltaRule env univs Γ ls args rhs) : args.length ≤ 5 := by
   cases H with
@@ -2439,10 +2432,12 @@ theorem ParRedS.mkApps_head (hf : ReflTransGen (ParRed Γ) f f') (args : List VE
   | rfl => exact .rfl
   | tail _ h ih => exact ih.tail (ParRed.mkApps_head h args)
 
-theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData} :
+theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
+    {packed : List VLevel} (hr : NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero) :
     ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
-      data.prefixProgram univs levels xs = some p →
-      data.prefixProgram univs levels (xs ++ more) = some q →
+      data.singletonProgram env univs levels xs = some p →
+      data.singletonProgram env univs levels (xs ++ more) = some q →
       p.equationBody.rhs.ClosedN p.captures.length →
       ReflTransGen (ParRed Γ) (VExpr.mkApps p.rhs more) q.rhs
   | [], xs, p, q, hp, hq, _ => by
@@ -2450,13 +2445,13 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
     cases hp.symm.trans hq
     exact .rfl
   | m :: rest, xs, p, q, hp, hq, hclosed => by
-    have hbound := (InductiveSignature.NativeRecursorData.prefixProgram_spec hq).1
-    obtain ⟨p₁, hp₁⟩ := InductiveSignature.NativeRecursorData.prefixProgram_anyArity hp
+    have hbound := (InductiveSignature.NativeRecursorData.singletonProgram_spec hq).1
+    obtain ⟨p₁, hp₁⟩ := InductiveSignature.NativeRecursorData.singletonProgram_anyArity hp
       (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
     obtain ⟨d, body, he, hb⟩ :=
-      InductiveSignature.NativeRecursorData.prefixProgram_supply_one hp hp₁ hclosed
-    have hspec := InductiveSignature.NativeRecursorData.prefixProgram_spec hp
-    have hspec₁ := InductiveSignature.NativeRecursorData.prefixProgram_spec hp₁
+      InductiveSignature.NativeRecursorData.singletonProgram_supply_one henv hr hlarge hzero hp hp₁ hclosed
+    have hspec := InductiveSignature.NativeRecursorData.singletonProgram_spec hp
+    have hspec₁ := InductiveSignature.NativeRecursorData.singletonProgram_spec hp₁
     have heq : p.equation = p₁.equation :=
       Option.some.inj (hspec.2.2.2.2.1.symm.trans hspec₁.2.2.2.2.1)
     have hbody : p.equationBody = p₁.equationBody := by
@@ -2466,9 +2461,9 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
       exact Option.some.inj (h1.symm.trans h2)
     have hclosed₁ : p₁.equationBody.rhs.ClosedN p₁.captures.length := by
       rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
-    have hq' : data.prefixProgram univs levels ((xs ++ [m]) ++ rest) = some q := by
+    have hq' : data.singletonProgram env univs levels ((xs ++ [m]) ++ rest) = some q := by
       simpa using hq
-    have ih := prefixProgram_supply_many (Γ := Γ) rest hp₁ hq' hclosed₁
+    have ih := prefixProgram_supply_many (Γ := Γ) hr hlarge hzero rest hp₁ hq' hclosed₁
     refine ReflTransGen.trans (.tail .rfl ?_) ih
     show ParRed Γ (VExpr.mkApps (.app p.rhs m) rest) _
     rw [he, ← hb]
@@ -2479,11 +2474,11 @@ theorem NativeDeltaRule.supply_many
     (H₂ : NativeDeltaRule env univs recursorData Γ name levels (xs ++ more) rhs₂) :
     ReflTransGen (ParRed Γ) (VExpr.mkApps rhs₁ more) rhs₂ := by
   cases H₁ with
-  | @intro data p hl _ _ _ _ _ hp replay =>
+  | @intro data p hl hr _ hlarge _ hz hp replay =>
     cases H₂ with
     | @intro data' q hl' _ _ _ _ _ hq _ =>
       cases hl.symm.trans hl'
-      exact prefixProgram_supply_many more hp hq (replay.templateScope henv).2.1
+      exact prefixProgram_supply_many hr hlarge hz more hp hq (replay.templateScope henv).2.1
 
 theorem quot_supply_many {levels : List VLevel} :
     ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
