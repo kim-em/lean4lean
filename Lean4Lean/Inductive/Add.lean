@@ -161,8 +161,8 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
           unless ← withCheckLCtx (← paramCheckLCtx stats i) (isDefEq dom paramTy) do
             throw <| .other "parameters of all inductive datatypes must match"
           let type := body.instantiate1 param
-          withCheckLCtx (← paramCheckLCtx stats (i + 1)) do
-          loopType nparams stats (← whnf type) (i + 1) nindices fuel k
+          let type ← withCheckLCtx (← paramCheckLCtx stats (i + 1)) (whnf type)
+          loopType nparams stats type (i + 1) nindices fuel k
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
         withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
@@ -181,8 +181,11 @@ def loopInd (nparams : Nat) (indTypes : Array InductiveType)
     _ ← checkClosedType indType.name type
     let fuel := (← readThe Context).fuel.inductiveFuel
     -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withCheckLCtx {} do
-    loopType nparams stats (← whnf type) 0 0 fuel fun type stats nindices => show M α from do
+    -- The closed header is normalized in the empty context, and the telescope
+    -- is opened on top of the parameters (none yet for the first family).
+    let type ← withCheckLCtx {} (whnf type)
+    withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
+    loopType nparams stats type 0 0 fuel fun type stats nindices => show M α from do
     let type ← ensureSort type
     let mut stats := stats
     let resultLevel := type.sortLevel!
@@ -498,8 +501,9 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
     if let .forallE name dom body bi := type then
       if i < stats.params.size then
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-        withCheckLCtx (← paramCheckLCtx stats (i + 1)) do
-        loopArgs1 stats (← whnf <| body.instantiate1 stats.params[i]!) (i + 1) indices fuel k
+        let type ← withCheckLCtx (← paramCheckLCtx stats (i + 1))
+          (whnf <| body.instantiate1 stats.params[i]!)
+        loopArgs1 stats type (i + 1) indices fuel k
       else
         -- checker context narrowed; see docs/inductives/STRENGTHENING.md
         withCheckedLocalDecl name bi dom.consumeTypeAnnotationsVerified fun arg => do
@@ -515,8 +519,9 @@ def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α
   if _h : dIdx < indTypes.size then
     let ctx ← readThe Context
     -- checker context narrowed; see docs/inductives/STRENGTHENING.md
-    withCheckLCtx {} do
-    loopArgs1 stats (← whnf indTypes[dIdx].type) 0 #[] ctx.fuel.inductiveFuel fun indices => do
+    let type ← withCheckLCtx {} (whnf indTypes[dIdx].type)
+    withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
+    loopArgs1 stats type 0 #[] ctx.fuel.inductiveFuel fun indices => do
     unless indices.size == stats.nindices[dIdx]! do
       throw <| .other "recursor index arity does not match checked inductive header"
     let tTy := mkAppN (mkAppN stats.indConsts[dIdx]! stats.params) indices
