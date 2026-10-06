@@ -778,7 +778,7 @@ theorem NestedValidatedRunResult.ctorTypes_headType
     have howner' : owner ∈ result.types := by
       rw [E.production_indTypes] at howner; simpa using howner
     obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.1 howner'
-    obtain ⟨source, st, ls, havoid, hlv, M⟩ := hmaps i hi
+    obtain ⟨source, st, ls, havoid, -, hlv, M⟩ := hmaps i hi
     obtain ⟨src, hsrc, before, after, hbefore, Mc⟩ := M.constructors.forall_mem ctor hctor
     exact Mc.headType hkeys (havoid src hsrc) (hbefore.trans hlv)
   -- the constructor type avoids the main constructor names
