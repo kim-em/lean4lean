@@ -815,6 +815,16 @@ inside this project's scope without solving open base metatheory:
    Note: no producer in the verified pipeline registers eliminator schemas
    (`inductEliminators` has no caller), so the strengthening creates no new
    proof obligation today; the two registration lemmas take it as a premise.
+   **Projection transport (28b72e3, Nested/ProjectionTransportGap.lean):**
+   `primaryFields` proved syntactically modulo beta conversion in arbitrary
+   contexts; the context-free `auxiliary` transport is unprovable in
+   arbitrary contexts (counterexample in the module docstring: `projDF`
+   carries no context well-formedness); the fix is the context-carrying
+   `RenamingReplacementOnCtx`/`ProjectionTransportOnCtx` provided there. Final
+   agent: switch `RestoredEquationWF` to the OnCtx transport, prove both
+   projection fields (auxiliary via the syntactic specialization of restored
+   auxiliary constructor types from the lowering trace), compose
+   `hrestoredWF_of` with no gaps, and replace the `assemblyNative` sorry.
    **Merged into main (2026-10-06):** `finalValidOfStaged_of_hitShape`,
    `restoredMajorHead`, `restoredRecursorEntries_of_steps`,
    `strippedRecursorOfStep` (Nested/FinalShapes.lean) and
