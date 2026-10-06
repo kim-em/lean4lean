@@ -27,8 +27,19 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   because `NormalEqN.beta_aux` needs head eta. Caveat being fixed: the
   development is parametric in `class Params` (seven new fields) and
   `class FullEquationCoverage`, which have no instance; the agent is now
-  constructing both for every `VEnv.WF env` to give an unconditional
-  `VEnv.WF.church_rosser`. **Merged into the mainline (71addb9b..277edf4d,
+  constructing both. **Finding (strengthening agent): `FullEquationCoverage`
+  is FALSE for arbitrary WF environments**, refuted by the formalised
+  countermodel `envCM`: native iota of a large-eliminating Prop family is
+  excluded from `ParRed` (source level 0), its only computation is the
+  native delta rule, whose `NativePrefixReplay` needs `captures_typed`, and
+  the `Eq`-free proof-field selectors are ill-typed at generic indices
+  whenever a data slot's generic index type differs from the field type; so
+  the singleton equation cannot be joined and confluence of `VEnv.IsDefEq`
+  fails without canonical `Eq` (consistent with the countermodel). Decision:
+  the unconditional theorem is `VEnv.WF.church_rosser (henv) (heq :
+  env.HasCanonicalEq)`, with `NativePrefixProgram`'s proof-field selectors
+  replaced by `Eq`-cast extraction terms (built by the strengthening agent's
+  singleton-eta work; the two agents coordinate directly). **Merged into the mainline (71addb9b..277edf4d,
   pushed):** the one strengthening-dependent lemma underneath confluence
   (`VProjectionInfo.field_typing_of_ctorApp`, via the false
   `VExpr.WF.of_occurs`) was replaced by the E1 branch's strengthening-free
