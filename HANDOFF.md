@@ -970,6 +970,11 @@ inside this project's scope without solving open base metatheory:
    positions (internal proof device; fall back to decreasing diagrams if the
    completeness direction needs head eta). After step 2, `addDecl.WF` depends
    only on `weakN_iff` (hypothesis on E3) and `headInversion`.
+   **Milestone (main at 27510ecd):** full build, tests (150 jobs), fresh
+   `Init.Core` replay (3953) and audit self-test pass after the Phase 0 and
+   spike merges; five sorry warnings (`headInversion`, `weakN_iff`,
+   `headParallel`, `fullStep`, `strip`), the last three closed on the cr
+   branch pending merge.
    **E3 canonical-`Eq` wrapper done (c4ebdf45, pushed):**
    `Theory/CanonicalEq.lean` defines `VEnv.HasCanonicalEq` (constants `Eq`,
    `Eq.refl`, `Eq.rec` with explicit `VExpr` types and the `Eq.rec` rule in
