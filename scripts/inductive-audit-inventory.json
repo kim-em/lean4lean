@@ -45,12 +45,7 @@
     "_private.Lean4Lean.Verify.Expr.0.Lean.Expr.mkData_flags._native.bv_decide.ax_1_12"
   ],
   "openProofs": [
-    "Lean4Lean.VConstructorShape.saturated_of_hasType",
-    "Lean4Lean.VEnv.IsDefEqU.fieldType_inv_stratified",
-    "Lean4Lean.VEnv.IsDefEqU.forallE_inv_stratified",
-    "Lean4Lean.VEnv.IsDefEqU.rigidApp_inv",
-    "Lean4Lean.VEnv.IsDefEqU.sort_forallE_inv",
-    "Lean4Lean.VEnv.IsDefEqU.sort_inv",
+    "Lean4Lean.VEnv.WF.headInversion",
     "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
     "Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalConsumedGeneration",
     "Lean4Lean.VerifyInductive.CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation",

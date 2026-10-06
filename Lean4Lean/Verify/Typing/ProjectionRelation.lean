@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Typing.Projection
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Theory.Typing.Strong
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 
 namespace Lean4Lean
 

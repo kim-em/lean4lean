@@ -369,6 +369,18 @@ structure HeadInversion (env : VEnv) : Prop where
 theorem _root_.Lean4Lean.VEnv.WF.headInversion (henv : env.WF) : env.HeadInversion := sorry
 ```
 
+As implemented (`Theory/Typing/HeadInversion.lean`), the structure has one more field,
+`proj_fieldType`: two typings of one projection select `TypeChain`-related field types,
+given both projections' typing data, sources related at the first major type, and the two
+major types related by a chain. The proj case of `uniq_chain` cannot be derived from
+`rigid_rigid`/`former_args` by substitution: the field type instantiates every earlier
+field binder by a projection of the major, including binders the selected field does not
+mention, and under the `projDF` guard the projection of a data field out of a structure
+that may live in `Prop` is untypable. So neither `substDF` nor repeated `instDF` applies,
+dropping the unused binder needs strengthening, and the occurrence-directed
+`fieldTemplateCongruence` needs uniqueness at arbitrary subterms of the field type, which
+is circular inside the uniqueness induction. `former_args` is not used by Phase 0.
+
 Plumbing decision. If Phase 1 needs `HasCanonicalEq` (2.4), either add `heq` here
 and thread it through about 100 Injectivity consumers, or bundle `env.WF ∧
 env.HasCanonicalEq` into the environment predicate that `Verify` already carries.
