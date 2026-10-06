@@ -131,9 +131,6 @@ theorem CompletedRecursorPhasesResult.generationInstance_admissible
       rfl
     · exact .inr (.inr hsingleton)
 
-open _root_.Lean4Lean.InductiveSignature in
-
-
 /-- Admissibility belongs to the same consumed signature selected before
 installation, including the actual singleton decision and universe policy. -/
 theorem CompletedRecursorPhasesResult.canonicalGeneration_admissible
