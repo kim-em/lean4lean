@@ -92,11 +92,12 @@ argument remains valid for nonunique projection desugarings. -/
 theorem ensureTypeInContext.proof_of_isAlwaysZero
     (Hc : ContextWF c)
     (Htype : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx type type')
+    (Htype₀ : TrExprS Hc.venv c.lparams Hc.chk.vlctx type type₀)
     (Hrun : (monadLift (TypeChecker.ensureType type) : AddInductive.M Expr) c =
       .ok result)
     (Hzero : result.sortLevel!.isAlwaysZero = true) :
     Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx type' (.sort .zero) := by
-  rcases ensureTypeInContext.WF Hc Htype result Hrun with
+  rcases ensureTypeInContext.WF Hc Htype Htype₀ result Hrun with
     ⟨type'', Htype'', u, u', rfl, Hu, Htyped⟩
   have Heq := Htype''.uniq Hc.checking.tr.wf
     (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) Htype
@@ -196,16 +197,22 @@ the original field-prefix context rather than beneath the newly opened field. -/
 theorem ContextWF.ConsumedDomain.proof_of_largeEliminationCheck
     {c : AddInductive.Context} {name : Name} {bi : BinderInfo}
     (Hc : ContextWF c) (Hdom : Hc.ConsumedDomain dom source' consumed')
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom source₀ consumed₀)
     (Hrun : (monadLift (TypeChecker.ensureType dom) : AddInductive.M Expr)
       (eliminationFieldContext c name dom bi) = .ok result)
     (Hzero : result.sortLevel!.isAlwaysZero = true) :
     Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx consumed' (.sort .zero) := by
   let Hnext := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType
+    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
   have W : VLCtx.FVLift Hc.mlctx.vlctx Hnext.mlctx.vlctx 0 1 0 :=
     .skip_fvar _ _ .refl
   have Hraw := Hdom.source.weakFV Hc.checking.tr.wf.ordered W Hnext.mlctx_wf.tr.wf
-  have Hprop := ensureTypeInContext.proof_of_isAlwaysZero Hnext Hraw Hrun Hzero
+  have W₀ : VLCtx.FVLift Hc.chk.vlctx Hnext.chk.vlctx 0 1 0 :=
+    .skip_fvar _ _ .refl
+  have Hraw₀ := Hdom₀.source.weakFV Hc.checking.tr.wf.ordered W₀
+    Hnext.check.wf.tr.wf
+  have Hprop := ensureTypeInContext.proof_of_isAlwaysZero Hnext Hraw Hraw₀
+    Hrun Hzero
   have Wctx : Ctx.LiftN 1 0 Hc.mlctx.vlctx.toCtx
       Hnext.mlctx.vlctx.toCtx := .zero [consumed'] rfl
   -- `source'` is already a type in the field-prefix context; uniqueness of
