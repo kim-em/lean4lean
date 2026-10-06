@@ -2307,56 +2307,6 @@ theorem FullReduction.funEta_strip (hΓ : OnCtx Γ (env.IsType univs))
   exact ⟨_, _, .lam .rfl (.app lifted .rfl), .tail .rfl (.funEta hright),
     .refl (IsDefEq.eta hright).hasType.1⟩
 
-/-- The required global strip property. One arbitrary full step must commute
-with an entire finite development. Local sequence joinability would not be
-sufficient to derive this statement in a calculus without termination. -/
-theorem FullStep.strip (hΓ : OnCtx Γ (env.IsType univs))
-    (ht : HasType env univs Γ source type)
-    (step : FullStep Γ source left) (development : FullReduction Γ source right) :
-    ∃ left' right', FullReduction Γ left left' ∧ FullReduction Γ right right' ∧
-      NormalEq Γ left' right' := by
-  classical
-  by_cases hprop : HasType env univs Γ type (.sort .zero)
-  · exact ⟨_, _, .rfl, .rfl,
-      .proofIrrel hprop (step.hasType hΓ ht) (development.hasType hΓ ht)⟩
-  cases step with
-  | funEta hfun => exact FullReduction.funEta_strip hΓ hfun development
-  | structEta hl hp hi hs hc =>
-    exact FullReduction.structEta_strip hΓ hl hp hi hs hc development
-  | @proj Γ major major' family index hmajor =>
-    cases hmajor with
-    | @structEta other info _ _ levels params hl hp hi hs hc =>
-      by_cases hfamily : family = other
-      · subst other
-        have hcancel := FullReduction.proj_structEta_cancel hΓ hl hp hi
-          (ht.proj_index_lt henv hΓ hl) hs hc ht
-        exact ⟨_, _, hcancel.trans development, .rfl,
-          .refl (development.hasType hΓ ht)⟩
-      · exfalso
-        obtain ⟨info', _, _, _, _, _, _, hinfo, _, _, _, _, _, _, hmaj, _, _⟩ :=
-          ht.proj_inv henv hΓ
-        have hu := hmaj.hasType.2.uniqU henv hΓ hs
-        have ⟨_, hsort⟩ := hmaj.hasType.2.isType henv hΓ
-        exact IsDefEqU.rigidApp_ne henv hΓ (henv.projectionRigid hinfo)
-          (henv.projectionRigid hl) hfamily hsort hu
-    | _ => sorry
-  | _ => sorry
-
-/-- Full confluence follows from the global strip property and transport
-through normal equality; no termination or local-confluence inference is
-used. -/
-theorem FullReduction.church_rosser (hΓ : OnCtx Γ (env.IsType univs))
-    (ht : HasType env univs Γ source type)
-    (left : FullReduction Γ source l) (right : FullReduction Γ source r) :
-    ∃ l' r', FullReduction Γ l l' ∧ FullReduction Γ r r' ∧ NormalEq Γ l' r' := by
-  induction left with
-  | rfl => exact ⟨_, _, right, .rfl, .refl (right.hasType hΓ ht)⟩
-  | tail before step ih =>
-    obtain ⟨l', r', hl, hr, heq⟩ := ih
-    obtain ⟨l'', r'', hl'', hr'', heq'⟩ := step.strip hΓ (FullReduction.hasType hΓ before ht) hl
-    obtain ⟨out, hout, heqOut⟩ := (heq.symm hΓ).fullReduction hΓ hr''
-    exact ⟨l'', out, hl'', hr.trans hout, heq'.trans hΓ (heqOut.symm hΓ)⟩
-
 /-- Every installed equation joins in the full presentation at each scoped
 universe packing. The terminal comparison permits proof irrelevance: quotient
 reconstruction can return a generated proof selector that is normally equal

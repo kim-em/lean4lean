@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.FullReduction
+import Lean4Lean.Theory.Typing.LevelledReduction
 import Lean4Lean.Theory.Typing.UnitLikeConstructor
 
 namespace Lean4Lean.VEnv
