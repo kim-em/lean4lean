@@ -330,6 +330,11 @@ structure RecInfoRuleFieldSemanticSource
     traversal.parameterTail parameterTarget
   parameterType : rootWF.venv.IsType recLparams.length
     rootWF.mlctx.vlctx.toCtx parameterTarget
+  /-- The constructor tail, translated in the parameter declarations alone. -/
+  parameterTranslation₀ : ∃ t, TrExprS rootWF.venv recLparams
+      parameterSuffix.parameterDecls traversal.parameterTail t ∧
+    rootWF.venv.IsType recLparams.length
+      parameterSuffix.parameterDecls.toCtx t
   fieldOpening : ConstructorFieldOpening traversal.parameterTail
     traversal.terminal S.fields
   fieldParameterUp : IsFVarUpSet (fun fv => fv ∈ fieldsRecent.fvars ∨
@@ -2799,6 +2804,8 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
       R.mlctx.vlctx.toCtx tailTarget)
     {tailTarget₀ : VExpr}
     (htail₀ : TrExprS R.venv recLparams Hsuffix.parameterDecls tail tailTarget₀)
+    (htail₀Ty : R.venv.IsType recLparams.length Hsuffix.parameterDecls.toCtx
+      tailTarget₀)
     {introTarget : VExpr}
     (Hintro : TrExprS R.venv recLparams R.mlctx.vlctx
       (mkAppN (.const ctor.name stats.levels) stats.params) introTarget)
@@ -3527,6 +3534,7 @@ theorem oneConstructorSemantics {alpha : Type} {Q : alpha → Prop}
           parameterTail_params := htailScope
           parameterTranslation := htail
           parameterType := htailType
+          parameterTranslation₀ := ⟨_, htail₀, htail₀Ty⟩
           fieldOpening := Hopening
           fieldParameterUp := by
             rw [Hopening.fvars_eq_bound
@@ -3639,7 +3647,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         Rcurrent.venv.HasType recLparams.length
           Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget ∧
         ∃ tailTarget₀, TrExprS Rcurrent.venv recLparams
-          HsuffixCurrent.parameterDecls tail tailTarget₀)
+          HsuffixCurrent.parameterDecls tail tailTarget₀ ∧
+          Rcurrent.venv.IsType recLparams.length
+            HsuffixCurrent.parameterDecls.toCtx tailTarget₀)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams),
@@ -3698,7 +3708,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         exact hminorIndex
       rcases Hseed R rfl Hsuffix rfl ctor (by simp) with
         ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailScope, Htail,
-          HtailType, Hintro, HintroType, tailTarget₀, Htail₀⟩
+          HtailType, Hintro, HintroType, tailTarget₀, Htail₀, Htail₀Ty⟩
       rw [AddInductive.mkRecInfos.loopCtors]
       refine oneConstructorSemantics (Q := Q) stats indTypes indTypeName dIdx recInfos
         ctor tail sourceConstructors sourceIndex hsourceConstructor hsourceFamily
@@ -3707,7 +3717,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         R Hsuffix Hstats Hprefix HtailScope hparamUniverses
         (htailUniverses ctor (by simp) tail Hprefix)
         hconsume hlit hctx Htail
-        HtailType Htail₀ Hintro HintroType Hbindings Horigins Hblueprints
+        HtailType Htail₀ Htail₀Ty Hintro HintroType Hbindings Horigins Hblueprints
         HblueprintSemantics HminorSources
         HminorSemantics HmajorTypes
         HmajorShapes HmotiveTypes HmotiveShapes Htelescopes HindexRows
@@ -3854,7 +3864,9 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
         Rcurrent.venv.HasType recLparams.length
           Rcurrent.mlctx.vlctx.toCtx introTarget tailTarget ∧
         ∃ tailTarget₀, TrExprS Rcurrent.venv recLparams
-          HsuffixCurrent.parameterDecls tail tailTarget₀)
+          HsuffixCurrent.parameterDecls tail tailTarget₀ ∧
+          Rcurrent.venv.IsType recLparams.length
+            HsuffixCurrent.parameterDecls.toCtx tailTarget₀)
     (Hk : ∀ {outCtx : AddInductive.Context} {outDepth : Nat}
       (out : Array AddInductive.RecInfo)
       (Rout : RecursorContextWF outCtx recLparams),

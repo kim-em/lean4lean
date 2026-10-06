@@ -3479,6 +3479,10 @@ structure BoundGeneratedRecursorRule.Semantics
     fieldRootContext.mlctx.vlctx parameterTail parameterTarget
   parameterType : fieldRootContext.venv.IsType recLparams.length
     fieldRootContext.mlctx.vlctx.toCtx parameterTarget
+  parameterTranslation₀ : ∃ t, TrExprS fieldRootContext.venv recLparams
+      parameterSuffix.parameterDecls parameterTail t ∧
+    fieldRootContext.venv.IsType recLparams.length
+      parameterSuffix.parameterDecls.toCtx t
   fieldOpening : ConstructorFieldOpening parameterTail H.target H.allArgs
   fieldParameterUp : IsFVarUpSet (fun fv =>
     fv ∈ fieldsRecent.fvars ∨
