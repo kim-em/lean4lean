@@ -480,3 +480,13 @@ and in the major's head).
 * [plan] Semantic layer M0-M5 (section 9.3).
 
 (updated as the work proceeds)
+
+* [Lean] Rule pattern shape (9.4) done: `HeadInjectivity/Rules/{PatShape,Coverage}.lean`
+  define `PatArgs`/`VDefEq.PatShape` and prove `VEnv.WF.defeq_patShape` (every installed
+  rule is a definition `const c ls ≡ closed value` or `PatShape (const c ls)`; also
+  `defeq_patShape_const`) and `VEnv.WF.genericEquation_patShape` (generic case equations,
+  head `elim block owner (param 0 :: genericLevels)`), both from the general
+  `Instance.equation_patShape` (any head mode, any restoration whose heads consume at most
+  the common parameters and do not rename the recursor head). Rule origin is recomputed by
+  `VEnv.WF'.defeq_origin` because `NativeRegistryOfWF` transitively imports `ChurchRosser`
+  and `HeadInversion`. No sorry; axioms propext, Classical.choice, Quot.sound.
