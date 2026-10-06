@@ -242,6 +242,85 @@ theorem propElim_wf (henv : env.WF) (H : NativeRecursorRegistered env data)
     rfl
   refine ⟨_, _, hS, hE, ?_⟩
   rw [hPeq]
+  have hmem : c ∈ data.schema.signature.constructors.toList := hc ▸ Array.getElem_mem_toList ..
+  have hnf : (gp.sFields c).length = c.fields.length := by
+    simp [Instance.sFields, fieldTypes]
+  have hnfG : (data.nativeInstance.sFields c).length = c.fields.length := by
+    simp [Instance.sFields, fieldTypes]
+  have harity : (gp.sCtorIndices c).length = (gp.sIndices data.owner).length := by
+    have := F.arity c hmem
+    simp [Instance.sCtorIndices, Instance.sIndices, this, hown]
+  have hlw : ∀ l ∈ gp.levels, l.WF U := by
+    rw [hgpl]
+    intro l hl
+    obtain ⟨l', _, rfl⟩ := List.mem_map.1 hl
+    exact VLevel.WF.inst hpk
+  have hfamHead : ∀ {Γ}, OnCtx Γ (env.IsType gp.uvars) → ∃ domains level,
+      env.HasType gp.uvars Γ (.const data.schema.signature.families[data.owner].name gp.levels)
+        (VExpr.wrapForalls domains (.sort level)) ∧ level ≈ .zero := by
+    intro Γ hΓ
+    obtain ⟨domains, level, hH, hlv⟩ := F.familyHead henv hΓ hlw
+      (by rw [hgpl, List.length_map]; exact F.uvars)
+    refine ⟨domains, level, hH, ?_⟩
+    have e : data.schema.signature.families[data.owner].resultLevel.inst gp.levels =
+        data.sourceLevel packed := by
+      rw [hgpl]
+      simp [sourceLevel, CaseSchema.sourceLevel, VLevel.inst_inst]
+    rw [e] at hlv
+    exact Eq.trans hlv hzero
+  -- the generic instance, eliminating into `Prop`, for the choice of the data fields' sorts
+  let gG := data.nativeInstance.specialize data.uvars ((VLevel.params data.uvars).set k .zero)
+  have hgGl : gG.levels = data.levels := by
+    show data.levels.map (·.inst ((VLevel.params data.uvars).set k .zero)) = data.levels
+    conv => rhs; rw [← List.map_id data.levels]
+    apply List.map_congr_left
+    intro l hl
+    rw [hfree l hl, VLevel.inst_id (F.levels_wf l hl)]
+    rfl
+  have hlsG : ∀ l ∈ (VLevel.params data.uvars).set k .zero, l.WF data.uvars := by
+    intro l hl
+    rcases List.mem_or_eq_of_mem_set hl with h | rfl
+    · exact VLevel.params_wf h
+    · simp [VLevel.WF]
+  have htargetG : gG.targetLevel = .zero := by
+    show (data.target).inst ((VLevel.params data.uvars).set k .zero) = .zero
+    rw [hk]
+    simp [VLevel.inst, List.getD_eq_getElem?_getD, hkU]
+  have hheadG : env.HasType gG.uvars [] (.const data.name ((VLevel.params data.uvars).set k .zero))
+      (gG.recursorType data.owner) := by
+    have := HasType.const (env := env) (Γ := []) F.recursor hlsG (by simp)
+    rwa [Instance.recursorType_specialize _ data.uvars] at this
+  have hFG : gG.sFields c = data.nativeInstance.sFields c := by
+    simp only [Instance.sFields, hgGl]; rfl
+  have hPG : gG.params = data.nativeInstance.params := by
+    simp only [Instance.params, hgGl]; rfl
+  have harityG : (gG.sCtorIndices c).length = (gG.sIndices data.owner).length := by
+    have := F.arity c hmem
+    simp [Instance.sCtorIndices, Instance.sIndices, this, hown]
+  have hctxG := gG.singleton_fieldsCtx henv hfam hcs data.owner i hc hown htargetG hheadG harityG
+  rw [hFG, hPG] at hctxG
+  have hspec : ∀ j (hj : j < (data.nativeInstance.sFields c).length) k',
+      fieldSlot (data.nativeInstance.sCtorIndices c) (data.nativeInstance.sFields c).length j =
+        some k' →
+      env.HasType data.uvars
+        (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take j).reverse
+        (data.nativeInstance.sFields c)[j] (.sort ((data.genericSorts env c).getD j .zero)) := by
+    intro j hj k' hslot
+    have hget : (data.genericSorts env c).getD j .zero = Classical.epsilon fun u =>
+        env.HasType data.uvars
+          (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take j).reverse
+          ((data.nativeInstance.sFields c).getD j default) (.sort u) := by
+      simp [genericSorts, List.getD_eq_getElem?_getD, List.getElem?_range hj, hslot]
+    have hex : ∃ u, env.HasType data.uvars
+        (data.nativeInstance.params ++ (data.nativeInstance.sFields c).take j).reverse
+        ((data.nativeInstance.sFields c).getD j default) (.sort u) := by
+      have := hctxG (j + 1) hj
+      rw [List.take_succ_eq_append_getElem hj, ← List.append_assoc, List.reverse_append] at this
+      obtain ⟨_, u, hu⟩ := this
+      exact ⟨u, by rw [getD_of_lt hj]; exact hu⟩
+    have := Classical.epsilon_spec hex
+    rw [hget, ← getD_of_lt (d := default) hj]
+    exact this
   sorry
 
 end InductiveSignature.NativeRecursorData
