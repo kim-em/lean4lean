@@ -28,7 +28,7 @@ theorem ctor_of_struct_family (H : env.WF) (hC : SchemaStructCompat env)
     cases hfam
     have hmem := (famOf_mem_ctors H (famOf_projection H hproj)).mpr ⟨k, hk, rfl⟩
     simpa using hmem
-  rcases hc with h | ⟨key, schema, hreg, owner, rules, df, fn, ls, args, hgen, hdf, hm⟩
+  rcases hc with h | ⟨⟨key, schema, hreg, owner, rules, df, fn, ls, args, hgen, hdf, hm⟩, -⟩
   · exact fromTable h
   · rcases generic_major_origin H hreg hgen hdf hm with h | ⟨ho, hmem⟩
     · exact fromTable h
@@ -40,9 +40,8 @@ theorem forall₂_equiv_refl : ∀ l : List VLevel, List.Forall₂ (· ≈ ·) l
   | [] => .nil
   | _ :: l => .cons (VLevel.equiv_def'.2 rfl) (forall₂_equiv_refl l)
 
-theorem EnvRule.head_not_ctor (H : env.WF) (hc : IsCtor env c) (hr : EnvRule env r) :
+theorem EnvRule.head_not_rigid (H : env.WF) (hrig : env.Rigid c) (hr : EnvRule env r) :
     r.head ≠ .const c := by
-  have hrig := hc.rigid H
   have HT := envTables_inv H
   intro hh
   rcases hr with ⟨v, hv, _, rfl⟩ | ⟨hq, _, rfl⟩ | ⟨df, hdf, data, hd, index, ho, hg, rfl⟩ |
@@ -87,7 +86,7 @@ theorem envSig_coherent (H : env.WF) (hC : SchemaStructCompat env) :
     · rfl
     · rw [hm₁] at hn₁; cases hn₁
   · intro c ci r hci hr
-    exact EnvRule.head_not_ctor H (sigCtor_spec hci).1 hr
+    exact EnvRule.head_not_rigid H ((sigCtor_spec hci).1.rigid H) hr
   · intro c ci c' ci' hs hci hci' hfam
     change sigIsStruct env c = true at hs
     obtain ⟨s, info, hproj, rfl, _⟩ := @of_decide_eq_true _ (Classical.propDecidable _) hs

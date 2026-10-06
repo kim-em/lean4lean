@@ -32,8 +32,12 @@ def SchemaMajor (c : Name) : Prop :=
 
 /-- The constructors of the signature: the constructor table of the first registrations
 (native installations including container constructors, structure registrations, eliminator
-registrations, `Quot.mk`) and the majors of all generic eliminator equations. -/
-def IsCtor (c : Name) : Prop := ctorOf env c ≠ none ∨ SchemaMajor env c
+registrations, `Quot.mk`) and the majors of all generic eliminator equations that are not
+recorded families. (A recorded family that is the major of a generic equation would be both a
+type former and a constructor; this cannot happen in a consistent environment, but excluding it
+syntactically keeps registered structures from being constructors without appealing to head
+inversion.) -/
+def IsCtor (c : Name) : Prop := ctorOf env c ≠ none ∨ (SchemaMajor env c ∧ famOf env c = none)
 
 /-- The constructor data of the signature. -/
 def sigCtor (c : Name) : Option CtorInfo :=
