@@ -701,6 +701,17 @@ theorem trTyping (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.len
   have huty := ((hty.weakFV' henv.ordered W hΔ').uniq henv hD hty₁).defeqDFC henv.ordered hD.defeqCtx
   exact (hh.defeqU_l henv hΔ.toCtx hu).defeqU_r henv hΔ.toCtx huty
 
+/-- Transfer narrow typehood to the main context along a main translation. -/
+theorem isType (henv : VEnv.WF env) {Us : List Name} (H : ChkEmbeds env Us.length Δc Δ)
+    (hn : TrExprS env Us Δc e e₀) (he : TrExprS env Us Δ e e')
+    (h : env.IsType Us.length Δc.toCtx e₀) : env.IsType Us.length Δ.toCtx e' := by
+  obtain ⟨Δ', n, W, hD⟩ := H
+  have hΔ := (hD.symm henv.ordered).wf
+  have hh := (h.weak' henv.ordered W.toCtx).defeqDFC henv.ordered hD.defeqCtx
+  have hu := ((hn.weakFV' henv.ordered W hD.wf).uniq henv hD he).defeqDFC
+    henv.ordered hD.defeqCtx
+  exact hh.defeqU_l henv hΔ.toCtx hu
+
 theorem fvarsBelow (H : ChkEmbeds env U Δc Δ) (h : FVarsBelow Δc e e₁) :
     FVarsBelow Δ e e₁ :=
   fun P hP hin => h P (H.isFVarUpSet hP) hin

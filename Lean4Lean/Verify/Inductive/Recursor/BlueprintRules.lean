@@ -658,6 +658,12 @@ theorem RetainedGeneratedRuleSemantics.toSemantics
 /-- Exact paired first- and second-pass provenance for one recursive call.
 Both witnesses come from the retained rule blueprint; `replay` is therefore
 derived producer evidence rather than an alpha-compatibility premise. -/
+theorem RecursorContextWF.chk_cast {c c' : AddInductive.Context}
+    {U : List Name} (h : c = c') (R : RecursorContextWF c U) :
+    (h ▸ R).chk = R.chk := by
+  subst h
+  rfl
+
 structure BoundGeneratedRecursorRule.ProducerCallReplayAt
     {recInfos : Array AddInductive.RecInfo}
     (H : BoundGeneratedRecursorRule indTypes stats motives minors lvls
@@ -686,6 +692,7 @@ structure BoundGeneratedRecursorRule.ProducerCallReplayAt
   priorHypotheses : Array Expr
   originRecent : RecursorRecentBoundFVarArray S.context originContext
     priorHypotheses
+  originCheck : originContext.chk = S.context.chk
   priorHypotheses_size : priorHypotheses.size = j
   callDepth : Nat
   semantic : SemanticBoundGeneratedRecursiveCall indTypes stats
@@ -986,7 +993,7 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
         hsourceDeclaration, hcall⟩
     rcases Hcalls.entry j hjHypotheses with
       ⟨originRoot, Rorigin, priorHypotheses, Hrecent,
-        hpriorSize, _hchkO, ⟨HcallSemantic⟩⟩
+        hpriorSize, hchkO, ⟨HcallSemantic⟩⟩
     rcases HcallSemantic.semantic indTypes
         (recInfos.flatMap (·.minors)) lvls with
       ⟨Scall, hscope, Hmotive, hsemanticReplay⟩
@@ -1084,6 +1091,9 @@ theorem RetainedBlueprintBoundRule.semanticsOfProducer
           exact RecursorRecentBoundFVarArray.castRoot hroot.symm HrecentC
         rw [hsemanticContext]
         exact HrecentCast
+      originCheck := by
+        rw [hsemanticContext, RecursorContextWF.chk_cast]
+        exact hchkO
       priorHypotheses_size := hpriorSize
       callDepth := depth + j
       semantic := Scall'

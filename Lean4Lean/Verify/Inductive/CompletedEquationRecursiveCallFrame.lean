@@ -49,6 +49,7 @@ structure
   priorHypotheses : Array Expr
   originRecent : RecursorRecentBoundFVarArray A.semantics.context
     originContext priorHypotheses
+  originCheck : originContext.chk = A.semantics.context.chk
   priorHypotheses_size : priorHypotheses.size = j
   callDepth : Nat
   semantic : SemanticBoundGeneratedRecursiveCall indTypes stats
@@ -141,6 +142,7 @@ theorem
     originContext := Rorigin
     priorHypotheses := P.priorHypotheses
     originRecent := P.originRecent
+    originCheck := P.originCheck
     priorHypotheses_size := P.priorHypotheses_size
     callDepth := P.callDepth
     semantic := S
