@@ -16,6 +16,44 @@ countermodel is parked at its conditional theorem; the Experimental CI
 failure is to be fixed properly as part of porting Mario's prototype. Open
 proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
 
+Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
+`~/worktrees/lean4lean/`):
+- `lean4lean-cr`, branch `agent/verify-inductives-cr`: **`FullStep.strip`,
+  `FullReduction.church_rosser`, `IsDefEq.full_church_rosser` PROVED
+  (88430392, pushed)** by decreasing diagrams over a four-level split of
+  `FullStep` (0 normal equality without eta, 1 parallel reduction, 2 parallel
+  prefix/projection computation, 3 parallel eta expansion;
+  `Theory/Typing/LevelledReduction.lean`); `funEta` stays unrestricted
+  because `NormalEqN.beta_aux` needs head eta. Caveat being fixed: the
+  development is parametric in `class Params` (seven new fields) and
+  `class FullEquationCoverage`, which have no instance; the agent is now
+  constructing both for every `VEnv.WF env` to give an unconditional
+  `VEnv.WF.church_rosser`.
+- `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
+  Mario's Experimental prototype to this branch's `VExpr` (fixing the
+  Experimental CI build), a sound shape model for the full calculus, the
+  separation half of `HeadInversion`; split the conjecture so only
+  `headInjectivity` remains.
+- `lean4lean-e3` (re-pointed), branch `agent/verify-inductives-headinj`:
+  Phase 1b: the injectivity half (`forallE_forallE`, argument part of
+  `rigid_rigid`, `former_args`, `proj_fieldType`); design candidates:
+  cast-pushing inside the relation, neutral eliminators, type-level relation
+  with singleton eta. Astra design review requested.
+- `lean4lean-base`, branch `agent/verify-inductives-base`: obligation (b):
+  falsification study of strengthening with canonical `Eq`, singleton eta,
+  conversion certificates. **Study verdict (d4beac49): no refutation found;
+  `strengthening_of_canonicalEq` kept unchanged.** Every attack reduces to
+  (1) singleton eta (data fields read from literal index slots, proof fields
+  extracted from the major by the family's recursor with casts along
+  type-level `Eq`; no `HEq` needed), (2) quotient eta at Prop, or (3)
+  conversion checks between binder-free terms handled recursively. Removed
+  data binders never matter (the major of any redex is a binder-free subterm
+  present in the smaller context). `Eq` is genuinely needed only when a data
+  slot's generic index type differs from the field type (the countermodel).
+  Kernel-checked evidence: `docs/inductives/StrengtheningFalsification.lean`;
+  write-up `docs/inductives/STRENGTHENING_NOTES.md` (on that branch).
+  Continuing with singleton eta and the certificate calculus.
+
 ## Intended result
 
 Finish the executable Lean4Lean inductive checker's refinement of an

@@ -575,10 +575,10 @@ the spine); the second handles a function normally equal to a lambda. Eta
 expansion of the left side is a `FullStep.funEta` step. -/
 private theorem NormalEqN.beta_aux (n : Nat) :
     (∀ {Γ A e a bs x T}, OnCtx Γ (env.IsType univs) →
-      NormalEqN n Γ x (VExpr.mkApps (.app (.lam A e) a) bs) → Γ ⊢ x : T →
+      NormalEqN true n Γ x (VExpr.mkApps (.app (.lam A e) a) bs) → Γ ⊢ x : T →
       ∃ X, FullReduction Γ x X ∧ NormalEq Γ X (VExpr.mkApps (e.inst a) bs)) ∧
     (∀ {Γ A e f c T}, OnCtx Γ (env.IsType univs) →
-      NormalEqN n Γ f (.lam A e) → Γ ⊢ .app f c : T →
+      NormalEqN true n Γ f (.lam A e) → Γ ⊢ .app f c : T →
       ∃ X, FullReduction Γ (.app f c) X ∧ NormalEq Γ X (e.inst c)) := by
   induction n using Nat.strongRecOn with | _ n ih => ?_
   refine ⟨fun {Γ A e a bs x T} hΓ H hx => ?_, fun {Γ A e f c T} hΓ H hfc => ?_⟩
@@ -736,20 +736,24 @@ theorem inst_lift_spine (h : VExpr) (targs : List VExpr) (b : VExpr) :
       VExpr.mkApps h (targs ++ [b]) := by
   rw [mkApps_concat]; simp only [VExpr.inst, VExpr.inst_lift]; simp [VExpr.instVar]
 
-theorem NormalEq.forall₂_refl (H : ∀ a ∈ l, ∃ A, Γ ⊢ a : A) : List.Forall₂ (NormalEq Γ) l l := by
+theorem NormalEqF.forall₂_refl (H : ∀ a ∈ l, ∃ A, Γ ⊢ a : A) : List.Forall₂ (NormalEqF η Γ) l l := by
   induction l with
   | nil => exact .nil
   | cons a l ih =>
     obtain ⟨_, h⟩ := H a (List.mem_cons_self ..)
     exact .cons (.refl h) (ih fun b hb => H b (List.mem_cons_of_mem _ hb))
 
-theorem NormalEq.forall₂_trans (hΓ : OnCtx Γ (env.IsType univs))
-    (H1 : List.Forall₂ (NormalEq Γ) l₁ l₂) (H2 : List.Forall₂ (NormalEq Γ) l₂ l₃) :
-    List.Forall₂ (NormalEq Γ) l₁ l₃ :=
+alias NormalEq.forall₂_refl := NormalEqF.forall₂_refl
+
+theorem NormalEqF.forall₂_trans (hΓ : OnCtx Γ (env.IsType univs))
+    (H1 : List.Forall₂ (NormalEqF η Γ) l₁ l₂) (H2 : List.Forall₂ (NormalEqF η Γ) l₂ l₃) :
+    List.Forall₂ (NormalEqF η Γ) l₁ l₃ :=
   Lean4Lean.List.Forall₂.trans (fun _ _ _ h h' => h.trans hΓ h') H1 H2
 
-theorem NormalEq.forall₂_typed_right (hΓ : OnCtx Γ (env.IsType univs))
-    (H : List.Forall₂ (NormalEq Γ) l₁ l₂) : ∀ a ∈ l₂, ∃ A, Γ ⊢ a : A := by
+alias NormalEq.forall₂_trans := NormalEqF.forall₂_trans
+
+theorem NormalEqF.forall₂_typed_right (hΓ : OnCtx Γ (env.IsType univs))
+    (H : List.Forall₂ (NormalEqF η Γ) l₁ l₂) : ∀ a ∈ l₂, ∃ A, Γ ⊢ a : A := by
   induction H with
   | nil => simp
   | cons h _ ih =>
@@ -757,6 +761,8 @@ theorem NormalEq.forall₂_typed_right (hΓ : OnCtx Γ (env.IsType univs))
     rcases List.mem_cons.mp ha with rfl | ha
     · obtain ⟨_, h⟩ := h.defeq hΓ; exact ⟨_, h.hasType.2⟩
     · exact ih a ha
+
+alias NormalEq.forall₂_typed_right := NormalEqF.forall₂_typed_right
 
 /-- An application spine headed by a proof is a proof. -/
 theorem HasType.mkApps_proof (hΓ : OnCtx Γ (env.IsType univs))
@@ -781,13 +787,13 @@ reduces to a spine with an equivalent head and normally equal arguments, or
 reduces to a lambda whose body is a bounded comparison with the eta
 expansion of such a spine. -/
 theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHead h) :
-    ∀ n {x targs bs bs' T}, NormalEqN n Γ x (VExpr.mkApps h targs) →
+    ∀ n {x targs bs bs' T}, NormalEqN true n Γ x (VExpr.mkApps h targs) →
       List.Forall₂ (NormalEq Γ) bs bs' → Γ ⊢ VExpr.mkApps x bs : T →
       (Γ ⊢ T : .sort .zero) ∨
       (∃ h' targs', HeadEquiv h' h ∧ FullReduction Γ (VExpr.mkApps x bs) (VExpr.mkApps h' targs') ∧
         List.Forall₂ (NormalEq Γ) targs' (targs ++ bs')) ∨
       (∃ A g m targs₁ B, m < n ∧ FullReduction Γ (VExpr.mkApps x bs) (.lam A g) ∧
-        NormalEqN m (A :: Γ) g (.app (VExpr.mkApps h targs₁).lift (.bvar 0)) ∧
+        NormalEqN true m (A :: Γ) g (.app (VExpr.mkApps h targs₁).lift (.bvar 0)) ∧
         List.Forall₂ (NormalEq Γ) targs₁ (targs ++ bs') ∧
         Γ ⊢ VExpr.mkApps h targs₁ : .forallE A B) := by
   intro n
@@ -797,7 +803,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
   have htargsTyped : ∀ a ∈ targs, ∃ A, Γ ⊢ a : A := by
     obtain ⟨_, hd⟩ := H.defeq hΓ
     exact fun a ha => schema_mkApps_arg_type hΓ hd.hasType.2 ha
-  have hrefl := NormalEq.forall₂_refl htargsTyped
+  have hrefl := NormalEqF.forall₂_refl (η := true) htargsTyped
   generalize hR : VExpr.mkApps h targs = R at H
   cases H with
   | refl _ =>
@@ -845,7 +851,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
       have hb' := l2.instN (u1.symm.defeq hbt) .zero
       rw [inst_lift_spine] at hb'
       have hbs₁ : List.Forall₂ (NormalEq Γ) bs₀' bs₀' :=
-        NormalEq.forall₂_refl fun a ha => hbs' a (List.mem_cons_of_mem _ ha)
+        NormalEqF.forall₂_refl (η := true) fun a ha => hbs' a (List.mem_cons_of_mem _ ha)
       have hfix : List.Forall₂ (NormalEq Γ) ((targs ++ [b]) ++ bs₀') (targs ++ b' :: bs₀') := by
         rw [List.append_assoc, List.singleton_append]
         exact case_forall₂_append hrefl (.cons hb hbs₁)
@@ -869,7 +875,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
       simp only [VExpr.instVar, Nat.lt_irrefl, if_false, VExpr.liftN_zero] at hb'
       rw [← mkApps_concat] at hb'
       have hbs₁ : List.Forall₂ (NormalEq Γ) bs₀' bs₀' :=
-        NormalEq.forall₂_refl fun a ha => hbs' a (List.mem_cons_of_mem _ ha)
+        NormalEqF.forall₂_refl (η := true) fun a ha => hbs' a (List.mem_cons_of_mem _ ha)
       have hfix : List.Forall₂ (NormalEq Γ) ((targs ++ [b]) ++ bs₀') (targs ++ b' :: bs₀') := by
         rw [List.append_assoc, List.singleton_append]
         exact case_forall₂_append hrefl (.cons hb hbs₁)
@@ -926,7 +932,7 @@ comparison derivations of bound `n`. Eta comparisons extend the spine by a
 fresh variable under a renaming, which is why both are quantified. -/
 def SpineTransport (Γ : List VExpr) (e e' : VExpr) (n : Nat) : Prop :=
   ∀ {ρ Γ' bs x}, OnCtx Γ' (env.IsType univs) → Ctx.Lift' ρ Γ Γ' →
-    NormalEqN n Γ' x (VExpr.mkApps (e.lift' ρ) bs) →
+    NormalEqN true n Γ' x (VExpr.mkApps (e.lift' ρ) bs) →
     ∃ X, FullReduction Γ' x X ∧ NormalEq Γ' X (VExpr.mkApps (e'.lift' ρ) bs)
 
 private theorem forall₂_rfl_full : ∀ (bs : List VExpr), List.Forall₂ (FullReduction Γ) bs bs
@@ -958,7 +964,7 @@ theorem SpineTransport.proofIrrel_case (hΓ : OnCtx Γ' (env.IsType univs))
 theorem SpineTransport.etaL_case (hΓ : OnCtx Γ' (env.IsType univs))
     (hstep : ParRed Γ e e') (W : Ctx.Lift' ρ Γ Γ') (ih : SpineTransport Γ e e' m)
     (l1 : Γ' ⊢ VExpr.mkApps (e.lift' ρ) bs : .forallE A B)
-    (l2 : NormalEqN m (A :: Γ') g (.app (VExpr.mkApps (e.lift' ρ) bs).lift (.bvar 0))) :
+    (l2 : NormalEqN true m (A :: Γ') g (.app (VExpr.mkApps (e.lift' ρ) bs).lift (.bvar 0))) :
     ∃ X, FullReduction Γ' (.lam A g) X ∧ NormalEq Γ' X (VExpr.mkApps (e'.lift' ρ) bs) := by
   have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
   rw [lift_mkApps_lift'] at l2
@@ -969,7 +975,7 @@ theorem SpineTransport.etaL_case (hΓ : OnCtx Γ' (env.IsType univs))
 theorem SpineTransport.etaBoth_case (hΓ : OnCtx Γ' (env.IsType univs))
     (hstep : ParRed Γ e e') (W : Ctx.Lift' ρ Γ Γ') (ih : SpineTransport Γ e e' m)
     (l1 : Γ' ⊢ x : .forallE A B) (l2 : Γ' ⊢ VExpr.mkApps (e.lift' ρ) bs : .forallE A B)
-    (l3 : NormalEqN m (A :: Γ') (.app x.lift (.bvar 0))
+    (l3 : NormalEqN true m (A :: Γ') (.app x.lift (.bvar 0))
       (.app (VExpr.mkApps (e.lift' ρ) bs).lift (.bvar 0))) :
     ∃ X, FullReduction Γ' x X ∧ NormalEq Γ' X (VExpr.mkApps (e'.lift' ρ) bs) := by
   have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := l1.isType henv hΓ; h.forallE_inv henv
@@ -984,7 +990,7 @@ irrelevance are handled uniformly; `hbase` treats the bare step. -/
 theorem SpineTransport.induct (hstep : ParRed Γ e e')
     (hbase : ∀ n, (∀ m < n, SpineTransport Γ e e' m) →
       ∀ {ρ Γ' x}, OnCtx Γ' (env.IsType univs) → Ctx.Lift' ρ Γ Γ' →
-      NormalEqN n Γ' x (e.lift' ρ) →
+      NormalEqN true n Γ' x (e.lift' ρ) →
       ∃ X, FullReduction Γ' x X ∧ NormalEq Γ' X (e'.lift' ρ)) :
     ∀ n, SpineTransport Γ e e' n := by
   intro n
@@ -1357,13 +1363,13 @@ theorem FullReduction.apply_rhs {p : Pattern} (r : p.RHS) {m3 m4 : p.Path → VE
   | var a => exact H a
   | app _ _ ihf iha => exact .app ihf iha
 
-theorem NormalEq.apply_congr (hΓ : OnCtx Γ (env.IsType univs)) {p : Pattern} (r : p.RHS)
+theorem NormalEqF.apply_congr (hΓ : OnCtx Γ (env.IsType univs)) {p : Pattern} (r : p.RHS)
     {m3 m2 : p.Path → VExpr}
     (hls : List.Forall₂ (· ≈ ·) ls₁ ls) (hw₁ : ∀ l ∈ ls₁, l.WF univs) (hw : ∀ l ∈ ls, l.WF univs)
-    (hv : ∀ a, NormalEq Γ (m3 a) (m2 a)) (ht : Γ ⊢ r.apply ls₁ m3 : A) :
-    NormalEq Γ (r.apply ls₁ m3) (r.apply ls m2) := by
+    (hv : ∀ a, NormalEqF η Γ (m3 a) (m2 a)) (ht : Γ ⊢ r.apply ls₁ m3 : A) :
+    NormalEqF η Γ (r.apply ls₁ m3) (r.apply ls m2) := by
   induction r generalizing A with
-  | fixed c hc => exact NormalEq.of_levelEquiv hΓ (.instL_expr c hw₁ hw hls) ht
+  | fixed c hc => exact NormalEqF.of_levelEquiv hΓ (.instL_expr c hw₁ hw hls) ht
   | var a => exact hv a
   | app f a ihf iha =>
     simp only [Pattern.RHS.apply] at ht ⊢
@@ -1372,19 +1378,21 @@ theorem NormalEq.apply_congr (hΓ : OnCtx Γ (env.IsType univs)) {p : Pattern} (
     exact .appDF h1 ((n1.defeq hΓ).of_l henv hΓ h1).hasType.2 h2
       ((n2.defeq hΓ).of_l henv hΓ h2).hasType.2 n1 n2
 
+alias NormalEq.apply_congr := NormalEqF.apply_congr
+
 theorem _root_.Lean4Lean.Pattern.Check.OK.normal_congr (hΓ : OnCtx Γ (env.IsType univs)) {p : Pattern}
     {ck : p.Check} {m2 m3 : p.Path → VExpr}
     (H : ck.OK (IsDefEqU env univs Γ) ls m2)
     (hls : List.Forall₂ (· ≈ ·) ls ls₁) (hw : ∀ l ∈ ls, l.WF univs) (hw₁ : ∀ l ∈ ls₁, l.WF univs)
-    (hv : ∀ a, NormalEq Γ (m2 a) (m3 a)) : ck.OK (IsDefEqU env univs Γ) ls₁ m3 := by
+    (hv : ∀ a, NormalEqF η Γ (m2 a) (m3 a)) : ck.OK (IsDefEqU env univs Γ) ls₁ m3 := by
   induction ck with
   | true => trivial
   | nonzero level rest ih =>
     exact ⟨fun hz => H.1 ((VLevel.inst_congr rfl hls).trans hz), ih H.2⟩
   | defeq x y rest ih =>
     obtain ⟨⟨_, hd⟩, hr⟩ := H
-    have hx := NormalEq.apply_congr hΓ x hls hw hw₁ hv hd.hasType.1
-    have hy := NormalEq.apply_congr hΓ y hls hw hw₁ hv hd.hasType.2
+    have hx := NormalEqF.apply_congr hΓ x hls hw hw₁ hv hd.hasType.1
+    have hy := NormalEqF.apply_congr hΓ y hls hw hw₁ hv hd.hasType.2
     exact ⟨(hx.defeq hΓ).symm.trans henv hΓ (IsDefEqU.trans henv hΓ ⟨_, hd⟩ (hy.defeq hΓ)),
       ih hr⟩
 
@@ -1481,7 +1489,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
       NormalEq Γ' M₁ (M.lift' ρ) →
       Γ' ⊢ (VExpr.app (VExpr.mkApps (hd ls₀) vs)
         M).lift' ρ : Tℓ →
-      NormalEqN n Γ' x (VExpr.mkApps (.app (VExpr.mkApps (hd ls₁) vs₁) M₁) bs) →
+      NormalEqN true n Γ' x (VExpr.mkApps (.app (VExpr.mkApps (hd ls₁) vs₁) M₁) bs) →
       ∃ X, FullReduction Γ' x X ∧
         NormalEq Γ' X (VExpr.mkApps (tgt.lift' ρ) bs) := by
     intro n
@@ -1495,7 +1503,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
     have hbsT : ∀ a ∈ bs, ∃ A, Γ' ⊢ a : A := fun a ha => schema_mkApps_arg_type hΓ hRt ha
     have hspR := FullReduction.mkApps hX₀r (forall₂_rfl_full (Γ := Γ') bs)
     have hspT := FullReduction.hasType hΓ hspR hRt
-    have hspN := NormalEq.mkApps_spine hΓ hX₀n (NormalEq.forall₂_refl hbsT) hspT
+    have hspN := NormalEq.mkApps_spine hΓ hX₀n (NormalEqF.forall₂_refl (η := true) hbsT) hspT
     have htyT : ∀ {P}, Γ' ⊢ VExpr.mkApps (.app (VExpr.mkApps (hd ls₁) vs₁) M₁) bs : P →
         Γ' ⊢ VExpr.mkApps (tgt.lift' ρ) bs : P := fun h =>
       (FullReduction.hasType hΓ hspR h).defeqU_l henv hΓ (hspN.defeq hΓ)
@@ -1531,7 +1539,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
       rw [← lift_mkApps_lift'] at hn
       exact ⟨_, (ReflTransGen.tail .rfl (.funEta l1)).trans (FullReduction.lam .rfl hY),
         .etaL (htyT l2) hn⟩
-    | @appDF _ x1 _ _ _ x2 _ _ _ l1 l2 l3 l4 l5 l6 =>
+    | @appDF _ x1 _ _ _ x2 _ _ _ _ l1 l2 l3 l4 l5 l6 =>
       rcases eq_nil_or_snoc bs with rfl | ⟨bs₀, b, rfl⟩
       · cases hRR
         have hxT := hxd.hasType.1
@@ -1575,7 +1583,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
   simp only [VExpr.lift', lift'_mkApps, hlift] at hEt' H
   obtain ⟨_, _, hFt, hMt⟩ := hEt'.app_inv henv hΓ
   exact main n hΓ W (levels_equiv_rfl ls₀)
-    (NormalEq.forall₂_refl fun a ha => schema_mkApps_arg_type hΓ hFt ha) (.refl hMt) hEt H
+    (NormalEqF.forall₂_refl (η := true) fun a ha => schema_mkApps_arg_type hΓ hFt ha) (.refl hMt) hEt H
 
 
 theorem SpineTransport.native_iota
@@ -1665,7 +1673,7 @@ theorem SpineTransport.native_iota
           NormalEq Γ' Y ((m2' a).lift' ρ) := by
         intro a
         obtain ⟨ka, Ha⟩ := hrel3 a
-        have Ha' : NormalEqN ka Γ' (Sum.elim m3₁ m3₂ a)
+        have Ha' : NormalEqN true ka Γ' (Sum.elim m3₁ m3₂ a)
             (VExpr.mkApps ((Sum.elim g1 g2 a).lift' ρ) []) := by cases a <;> exact Ha
         have hgoal := ih a ka hΓ W Ha'
         simpa only [VExpr.mkApps, List.foldl] using hgoal
@@ -1818,7 +1826,7 @@ theorem SpineTransport.schema
       Lean4Lean.List.Forall₂.imp (fun _ _ h => h.symm) (Lean4Lean.List.Forall₂.flip hls₂)
     have hL : VExpr.LEquiv univs actualℓ.expr actual''.expr :=
       .app (levelEquiv_mkApps (.elim hlsSymm hw₁) _) (levelEquiv_mkApps (.const hls₂Symm hw₂) _)
-    have he' := (NormalEq.of_levelEquiv hΓ hL hEℓ).defeq hΓ
+    have he' := (NormalEq.of_levelEquiv (η := true) hΓ hL hEℓ).defeq hΓ
     have hm' := hmℓ.congr_levels henv hΓ hw₁ hlsSymm hls₂Symm he'
     have hspine : CaseApplicationRelated (NormalEq Γ') actual₃ actual'' :=
       ⟨rfl, rfl, rfl, rfl, rfl, hvs, hcs⟩
@@ -1917,10 +1925,10 @@ theorem NormalEqN.fullStep_rigidRule {name : Name}
       List.Forall₂ (· ≈ ·) ls ls' → (∀ l ∈ ls', l.WF univs) →
       List.Forall₂ (NormalEq Γ) args args' → (∀ a ∈ args', ∃ A, Γ ⊢ a : A) →
       ∃ rhs', Rule Γ ls' args' rhs' ∧ NormalEq Γ rhs' rhs)
-    (ih : ∀ m < n, ∀ {Γ x y z}, OnCtx Γ (env.IsType univs) → NormalEqN m Γ x y →
+    (ih : ∀ m < n, ∀ {Γ x y z}, OnCtx Γ (env.IsType univs) → NormalEqN true m Γ x y →
       FullStep Γ y z → ∃ X, FullReduction Γ x X ∧ NormalEq Γ X z)
     (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NormalEqN n Γ x (VExpr.mkApps (.const name ls) args)) (hr : Rule Γ ls args rhs) :
+    (H : NormalEqN true n Γ x (VExpr.mkApps (.const name ls) args)) (hr : Rule Γ ls args rhs) :
     ∃ X, FullReduction Γ x X ∧ NormalEq Γ X rhs := by
   have ⟨_, hd⟩ := H.defeq hΓ
   have hx := hd.hasType.1
@@ -1957,7 +1965,7 @@ theorem NormalEqN.fullStep_rigidRule {name : Name}
 
 theorem NormalEqN.fullStep_projIota (hΓ : OnCtx Γ (env.IsType univs))
     (lproj : Γ ⊢ .proj family index major : resultType)
-    (lMajor : NormalEqN k Γ major (VExpr.mkApps (.const info.ctorName levels) args))
+    (lMajor : NormalEqN true k Γ major (VExpr.mkApps (.const info.ctorName levels) args))
     (hl : env.projections family info)
     (hproj : Γ ⊢ .proj family index (VExpr.mkApps (.const info.ctorName levels) args) : fieldType)
     (hget : args[info.nparams + index]? = some field) (hfield : Γ ⊢ field : fieldType) :
@@ -2000,7 +2008,7 @@ end RigidRule
 are application-head and primitive projection exposure; constant unfolding
 and the explicit function and structure eta cases are proved. -/
 theorem NormalEqN.fullStep : ∀ n {Γ left right result},
-    OnCtx Γ (env.IsType univs) → NormalEqN n Γ left right → FullStep Γ right result →
+    OnCtx Γ (env.IsType univs) → NormalEqN true n Γ left right → FullStep Γ right result →
     ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
   classical
   intro n
@@ -2009,7 +2017,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
   cases H with
   | refl h => exact ⟨_, .tail .rfl R, .refl (R.hasType hΓ h)⟩
   | proofIrrel hp hl hr => exact ⟨_, .rfl, .proofIrrel hp hl (R.hasType hΓ hr)⟩
-  | @sortDF l₁ l₂ _ hl hr he =>
+  | @sortDF l₁ l₂ _ _ hl hr he =>
     generalize hs : VExpr.sort l₂ = source at R
     cases R with
     | core h =>
@@ -2028,7 +2036,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | projIota => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @lamDF _ A A₁ u A₂ _ body₁ body₂ l1 l2 l3 =>
+  | @lamDF _ A A₁ u A₂ _ _ body₁ body₂ l1 l2 l3 =>
     generalize hs : VExpr.lam A₂ body₂ = source at R
     cases R with
     | core h =>
@@ -2055,7 +2063,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | proj => cases hs
     | projIota => cases hs
     | forallE => cases hs
-  | @forallEDF _ A A₁ u _ A₂ B₁ v _ B₂ l1 l2 l3 l4 =>
+  | @forallEDF _ A A₁ u _ _ A₂ B₁ v _ B₂ l1 l2 l3 l4 =>
     generalize hs : VExpr.forallE A₂ B₂ = source at R
     cases R with
     | core h =>
@@ -2084,7 +2092,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | proj => cases hs
     | projIota => cases hs
     | lam => cases hs
-  | @appDF _ f A B f₂ a b _ _ l1 l2 l3 l4 l5 l6 =>
+  | @appDF _ f A B f₂ a b _ _ _ l1 l2 l3 l4 l5 l6 =>
     generalize hs : VExpr.app f₂ b = source at R
     cases R with
     | core h =>
@@ -2104,7 +2112,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
         .appDF (a1.hasType hΓ l1) (r1.hasType hΓ l2)
           (b1.hasType hΓ l3) (r2.hasType hΓ l4) a2 b2⟩
     | delta h =>
-      have H' : NormalEqN _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
+      have H' : NormalEqN true _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
       exact NormalEqN.fullStep_rigidRule
         (fun Γ ls args rhs => NativeDeltaRule env univs recursorData Γ _ ls args rhs)
         (fun h => .delta h) (fun hΓ h => NativeDeltaRule.defeq henv hΓ h)
@@ -2117,7 +2125,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
             hΓ (hn₁.symm hΓ)⟩)
         (fun m hm => ihn m (by omega)) hΓ H' h
     | quotDelta h =>
-      have H' : NormalEqN _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
+      have H' : NormalEqN true _ Γ (.app f a) _ := hs ▸ NormalEqN.appDF l1 l2 l3 l4 l5 l6
       exact NormalEqN.fullStep_rigidRule
         (fun Γ ls args rhs => QuotDeltaRule env univs Γ ls args rhs)
         (fun h => .quotDelta h) (fun hΓ h => QuotDeltaRule.defeq henv hΓ h)
@@ -2133,7 +2141,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | projIota => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @projDF _ family index major resultType _ major' lproj lMajor =>
+  | @projDF _ family index major resultType _ _ major' lproj lMajor =>
     generalize hs : VExpr.proj family index major' = source at R
     cases R with
     | core h =>
@@ -2158,7 +2166,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | app => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @elimDF _ block owner levels levels' A h heq =>
+  | @elimDF _ block owner levels levels' A _ h heq =>
     generalize hs : VExpr.elim block owner levels' = source at R
     cases R with
     | core r =>
@@ -2177,7 +2185,7 @@ theorem NormalEqN.fullStep : ∀ n {Γ left right result},
     | app => cases hs
     | lam => cases hs
     | forallE => cases hs
-  | @constDF c ci ls ls' _ hc hl hr hlen heq =>
+  | @constDF c ci ls ls' _ _ hc hl hr hlen heq =>
     generalize hs : VExpr.const c ls' = source at R
     cases R with
     | core r =>
@@ -2298,56 +2306,6 @@ theorem FullReduction.funEta_strip (hΓ : OnCtx Γ (env.IsType univs))
   have hright := development.hasType hΓ ht
   exact ⟨_, _, .lam .rfl (.app lifted .rfl), .tail .rfl (.funEta hright),
     .refl (IsDefEq.eta hright).hasType.1⟩
-
-/-- The required global strip property. One arbitrary full step must commute
-with an entire finite development. Local sequence joinability would not be
-sufficient to derive this statement in a calculus without termination. -/
-theorem FullStep.strip (hΓ : OnCtx Γ (env.IsType univs))
-    (ht : HasType env univs Γ source type)
-    (step : FullStep Γ source left) (development : FullReduction Γ source right) :
-    ∃ left' right', FullReduction Γ left left' ∧ FullReduction Γ right right' ∧
-      NormalEq Γ left' right' := by
-  classical
-  by_cases hprop : HasType env univs Γ type (.sort .zero)
-  · exact ⟨_, _, .rfl, .rfl,
-      .proofIrrel hprop (step.hasType hΓ ht) (development.hasType hΓ ht)⟩
-  cases step with
-  | funEta hfun => exact FullReduction.funEta_strip hΓ hfun development
-  | structEta hl hp hi hs hc =>
-    exact FullReduction.structEta_strip hΓ hl hp hi hs hc development
-  | @proj Γ major major' family index hmajor =>
-    cases hmajor with
-    | @structEta other info _ _ levels params hl hp hi hs hc =>
-      by_cases hfamily : family = other
-      · subst other
-        have hcancel := FullReduction.proj_structEta_cancel hΓ hl hp hi
-          (ht.proj_index_lt henv hΓ hl) hs hc ht
-        exact ⟨_, _, hcancel.trans development, .rfl,
-          .refl (development.hasType hΓ ht)⟩
-      · exfalso
-        obtain ⟨info', _, _, _, _, _, _, hinfo, _, _, _, _, _, _, hmaj, _, _⟩ :=
-          ht.proj_inv henv hΓ
-        have hu := hmaj.hasType.2.uniqU henv hΓ hs
-        have ⟨_, hsort⟩ := hmaj.hasType.2.isType henv hΓ
-        exact IsDefEqU.rigidApp_ne henv hΓ (henv.projectionRigid hinfo)
-          (henv.projectionRigid hl) hfamily hsort hu
-    | _ => sorry
-  | _ => sorry
-
-/-- Full confluence follows from the global strip property and transport
-through normal equality; no termination or local-confluence inference is
-used. -/
-theorem FullReduction.church_rosser (hΓ : OnCtx Γ (env.IsType univs))
-    (ht : HasType env univs Γ source type)
-    (left : FullReduction Γ source l) (right : FullReduction Γ source r) :
-    ∃ l' r', FullReduction Γ l l' ∧ FullReduction Γ r r' ∧ NormalEq Γ l' r' := by
-  induction left with
-  | rfl => exact ⟨_, _, right, .rfl, .refl (right.hasType hΓ ht)⟩
-  | tail before step ih =>
-    obtain ⟨l', r', hl, hr, heq⟩ := ih
-    obtain ⟨l'', r'', hl'', hr'', heq'⟩ := step.strip hΓ (FullReduction.hasType hΓ before ht) hl
-    obtain ⟨out, hout, heqOut⟩ := (heq.symm hΓ).fullReduction hΓ hr''
-    exact ⟨l'', out, hl'', hr.trans hout, heq'.trans hΓ (heqOut.symm hΓ)⟩
 
 /-- Every installed equation joins in the full presentation at each scoped
 universe packing. The terminal comparison permits proof irrelevance: quotient
