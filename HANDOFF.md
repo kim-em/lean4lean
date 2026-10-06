@@ -64,7 +64,21 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   preserved (CompletedElimination.lean / ConsumedAdmissible.lean instantiate
   the target from it). This corrects the specification to Lean's
   constructions; it weakens no theorem. The strengthening agent implements
-  it; the confluence instance relies on it.
+  it; the confluence instance relies on it. **Done (base branch to
+  aac10d3c; mainline merged cc06211d as ec8b9270):** `Instance.FreeTarget`,
+  the singleton branch of `Admissible.elimination`, realization
+  `recursorDeclarationAbstractLevels_freeTarget`; abstract singleton eta
+  (`SingletonExtraction.lean`: `value_typed`, `occ_typed`, `singleton_eta`,
+  `occ_subst`); the native bridge `NativeRecursorData.propElim_wf` (a
+  registered native recursor with a large target, at an occurrence whose
+  source sort is Prop, gives `PropElim.WF`; the eliminator is the recursor
+  with its free target set to 0, motive instantiated at
+  `fun _ => ∀ p : Prop, p → p`), plus `occ_instL`, `occ_levels`,
+  closedness lemmas without `HasCanonicalEq`, handed to the confluence
+  integration. Only sorry dependency: `headInversion`. Next for (b): the
+  certificate calculus (rule-level design first, Astra review of admissible
+  transitivity); honest size estimate comparable to the confluence stack
+  (about 29k lines).
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
