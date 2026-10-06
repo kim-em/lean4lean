@@ -2578,6 +2578,35 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.consAligned
 
 end ScopeAlignment
 
+/-- Opening a binder in both contexts extends a scope aligned with the
+checker context by the scope translation of the binder's domain. -/
+theorem ContextWF.alignedBinder (Hc : ContextWF c)
+    (halign : VLCtx.IsDefEq Hc.venv c.lparams.length scope Hc.chk.vlctx)
+    (Hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
+    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀)
+    (hdomNarrow : TrExprS Hc.venv c.lparams scope dom narrowDom)
+    (hdomNarrowType : Hc.venv.IsType c.lparams.length scope.toCtx narrowDom)
+    (hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars) :
+    VLCtx.IsDefEq Hc.venv c.lparams.length
+      ((some (⟨c.ngen.curr⟩, dom.consumeTypeAnnotationsVerified.fvarsList),
+        .vlam narrowDom) :: scope)
+      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
+        Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType).chk.vlctx := by
+  have henv := Hc.checking.tr.wf
+  have hscopeΓ := halign.wf.toCtx
+  have hdomU := hdomNarrow.uniq henv halign Hdom₀.source
+  rcases Hdom₀.source_defeq with ⟨u₀, hsc₀⟩
+  have hsc₀' := hsc₀.defeqDFC henv.ordered (halign.defeqCtx.symm henv.ordered)
+  have hdomC : Hc.venv.IsDefEqU c.lparams.length scope.toCtx
+      narrowDom consumedDom₀ :=
+    hdomU.trans henv hscopeΓ ⟨_, hsc₀'⟩
+  rcases hdomNarrowType with ⟨domLevel, hdomTyped⟩
+  have hfresh : (⟨c.ngen.curr⟩ : FVarId) ∉ scope.fvars := by
+    intro hmem
+    rw [halign.fvars] at hmem
+    exact Hc.current_not_mem (Hc.check.embed.fvars_subset hmem)
+  exact halign.consAligned hfresh hdeps (hdomC.of_l henv hscopeΓ hdomTyped)
+
 /-- The checker context agrees with the main context, up to definitional
 equality of the recorded binder types. -/
 def ContextWF.Aligned (H : ContextWF c) : Prop :=
