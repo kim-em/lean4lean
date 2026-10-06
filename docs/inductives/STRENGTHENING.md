@@ -234,3 +234,30 @@ Commands for the design evidence:
 lake env lean docs/inductives/SingletonStrengthening.lean
 lake env lean docs/inductives/SingletonStrengtheningModel.lean
 ```
+
+## The inductive checker's narrow checker context
+
+`AddInductive.Context` carries two local contexts. The main `lctx` holds every
+binder the inductive checker opens and is the one read by `getType`,
+`mkForall`, `mkLambda` and the generated recursor telescopes. The second,
+`checkLCtx`, is the only context embedded `TypeChecker` runs see (the
+`MonadLift` instance in `Lean4Lean/Inductive/Add.lean`). Parameters, header
+indices, constructor fields, positivity and recursive-argument binders,
+recursor indices and higher-order argument binders are opened in both
+(`withCheckedLocalDecl`). Majors, motives, minors and induction hypotheses
+are opened only in the main context. Closed inputs are checked under `{}`,
+cached parameter steps under the first `i` parameters, constructor and
+recursor field telescopes on top of all parameters, and each recursive
+field's argument telescope under the fields before it.
+
+The point is that every checker fact is then produced in the narrow scope
+its verification needs, so no fact has to be strengthened out of a larger
+context (the unrestricted strengthening challenged above). Facts about the
+main context follow by weakening, which is valid.
+
+Fidelity: the C++ kernel keeps one growing local context and shows each
+call all of it. The results agree because a checker run consults the local
+context only through `find?` on free variables reachable from its inputs and
+their declarations, plus its own fresh binders: it never reads the context
+globally. This locality argument is not formalized; binders whose checker
+context changed are marked "checker context narrowed" in the source.
