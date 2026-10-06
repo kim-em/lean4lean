@@ -929,45 +929,5 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
   exact ⟨canonical.validCoreOfFreshPermutation Hactual hperm hvalidSource.toValidCore,
     howners, hregistry⟩
 
-/-- Full validation of the stripped-rule environment must be derived from the
-actual lowering and recursor-generation traces. A generic restored constant
-map does not justify the restored recursors' major types or K metadata. -/
-theorem RestoredNestedDeclarationsResult.finalValidOfStaged
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
-    {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
-      depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
-    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
-      isUnsafe sourceDecl envTypes envCtors)
-    (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
-    (Hsources : SourceSyntaxChecks sourceTypes)
-    (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
-    (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
-      auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
-      ((), outEnv))
-    (Hactual : FreshConstantTrace c.env actualEntries outEnv)
-    (canonical : StagedBlock c.safety c.env sourceVEnv types ctors recursors
-      sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
-    (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
-    (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
-    (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
-    (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
-    CheckingEnv.Valid c.safety
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
-      finalVEnv := by
-  obtain ⟨hcore, howners, hregistry⟩ :=
-    Hrestored.finalLocalValidOfStaged Hlower Hc Hprod Hsource Hmetadata Hsources
-      Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
-  sorry
-
 end VerifyInductive
 end Lean4Lean

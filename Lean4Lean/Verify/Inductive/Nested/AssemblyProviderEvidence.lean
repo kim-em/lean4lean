@@ -6,6 +6,7 @@ import Lean4Lean.Verify.Inductive.Nested.FormationNativeEvidence
 import Lean4Lean.Verify.Inductive.Nested.RecursorSemantics
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterValidationRun
 import Lean4Lean.Verify.Inductive.Nested.ValidationEnvironmentRegistry
+import Lean4Lean.Verify.Inductive.Nested.FinalShapes
 
 namespace Lean4Lean
 
@@ -4047,7 +4048,8 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (hunsafeEq : sourceDecl.isUnsafe = isUnsafe)
     (hsourceNonempty : sourceTypes ≠ []) :
     Nonempty { C : NestedFinalAssemblyShape Hrestored sourceVEnv
-        sourceDecl c.lparams nparams isUnsafe c.safety // C.production = P } := by
+        sourceDecl c.lparams nparams isUnsafe c.safety //
+      C.production = P ∧ CheckingEnv.Valid c.safety ruleEnv C.finalBaseVEnv } := by
   subst P
   have HsourceCons : ∃ main rest, sourceTypes = main :: rest := by
     cases htypes : sourceTypes with
@@ -4203,7 +4205,7 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
       exact ⟨⟨Remainder.certificate HsourceCanonical HprimaryCanonical
         replay.typeValues replay.constructorValues Hformation
         hformationExpanded Hmetadata huvars hnumParams hunsafeEq htypesSource
-        hsourceNonempty, rfl⟩⟩
+        hsourceNonempty, rfl, HruleValid⟩⟩
 
 /- Work-in-progress adapter retained outside the active declarations while
 the dependent production record is reindexed as one aggregate rather than by
@@ -4636,8 +4638,13 @@ dependent indices, then transport the completed certificate once to the
 public indices.  Transporting only the finished aggregate avoids splitting
 the dependent header/constructor/recursor phase chain apart. -/
 private theorem NestedValidatedRunResult.assemblyOfFormationNative
+    {ves : VEnvs} {sourceVEnv : VEnv} {safety : DefinitionSafety}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
+    (wf : ves.WF sourceProdEnv)
+    (hsourceVEnv : sourceVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
+    (hsafetyEq : safety = if isUnsafe then .unsafe else .safe)
+    (hnested : result.aux2nested.size ≠ 0)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
     (hvisible : safety ≤
@@ -4646,7 +4653,15 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl) :
     Nonempty { C : NestedFinalAssemblyShape E.restoration sourceVEnv
         sourceDecl lparams nparams isUnsafe safety //
-      C.production = E.production } := by
+      C.production = E.production ∧
+        CheckingEnv.Valid safety
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
+          C.finalBaseVEnv } := by
+  subst hsourceVEnv hsafetyEq
+  have hctorNames := Hformation.sourceConstructorNames hformationExpanded
   let P := E.production
   have hc : P.c = E.productionContext := E.production_c
   have henv : P.c.env = sourceProdEnv :=
@@ -4654,11 +4669,12 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
   have hlparams : P.c.lparams = lparams :=
     (congrArg AddInductive.Context.lparams hc).trans
       E.productionContext_lparams
-  have hsafety : P.c.safety = safety :=
+  have hsafety : P.c.safety = if isUnsafe then .unsafe else .safe :=
     (congrArg AddInductive.Context.safety hc).trans
       E.productionContext_safety
   have hnparams : P.nparams = nparams := E.production_nparams
-  have hinitial : P.initialEnv = sourceVEnv := E.production_initialEnv
+  have hinitial : P.initialEnv = ves.venv (if isUnsafe then .unsafe else .safe) :=
+    E.production_initialEnv
   have hindTypes : P.indTypes = result.types.toArray := E.production_indTypes
   have hisUnsafe : P.isUnsafe = isUnsafe := by
     exact E.production_isUnsafe_source
@@ -4824,11 +4840,12 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
       finalBaseVEnv :=
-    Hrestored.finalValidOfStaged Hlower HcP Hprod Hcore Hmetadata Hsources Harity
-      hempty replay.fresh canonical replay.productionOrder
+    E.finalValidOfStaged_of_hitShape wf Hsources hnested Hlower HcP Hprod Hcore
+      Hmetadata Harity hempty Hrestored replay.fresh canonical replay.productionOrder
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
-      HbaseValid
+      HbaseValid henv hinitial hctorNames Hsource HauxiliaryRecursors
+      replay.recursorValues
   have HruleRun : Lean4Lean.validateRestoredRecursorRules.run
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames
@@ -4870,7 +4887,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       Hcore Hmetadata HownersP hempty P' hP' Hrestored primaryRecursors
       auxiliaryRecursors Hsource HauxiliaryRecursors replay canonical
       HruleValid HruleRun HformationP hformationExpandedP huvars hnumParams
-      hunsafeEq (by simp) with ⟨⟨C, hproduction⟩⟩
+      hunsafeEq (by simp) with ⟨⟨C, hproduction, hCvalid⟩⟩
   have hproductionOriginal : C.production = P := by
     calc
       C.production = P' := hproduction
@@ -4880,7 +4897,14 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
             result.types.toArray hindTypes
   let CertificateAt := fun q : Sigma RestorationAt =>
     Nonempty { C : NestedFinalAssemblyShape q.2 P.initialEnv sourceDecl
-        P.c.lparams P.nparams P.isUnsafe P.c.safety // C.production = P }
+        P.c.lparams P.nparams P.isUnsafe P.c.safety //
+      C.production = P ∧
+        CheckingEnv.Valid P.c.safety
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
+          C.finalBaseVEnv }
   have hp : (⟨P.c.env, Hrestored⟩ : Sigma RestorationAt) =
       ⟨sourceProdEnv, E.restoration⟩ := by
     apply Sigma.ext henv
@@ -4889,7 +4913,7 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
     rw [eq_mpr_eq_cast]
     exact cast_heq _ _
   have Hcertificate : CertificateAt ⟨P.c.env, Hrestored⟩ :=
-    ⟨⟨C, hproductionOriginal⟩⟩
+    ⟨⟨C, hproductionOriginal, hCvalid⟩⟩
   have HcertificateOriginal : CertificateAt
       ⟨sourceProdEnv, E.restoration⟩ :=
     Eq.mp (congrArg CertificateAt hp) Hcertificate
@@ -4901,17 +4925,26 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
 formation comes from the installed constructor phases; source parameter
 formation comes from the literal restored-parameter validator; and the full
 ordered nested expansion comes from the producer-owned generated registry.
-No declaration-specific evidence is accepted from the caller. -/
-theorem NestedValidatedRunResult.assemblyShapeNative
+No declaration-specific evidence is accepted from the caller. The stripped
+output environment checked by the rule validator is valid in the shape's
+final abstract environment. -/
+theorem NestedValidatedRunResult.assemblyShapeNativeValid
     {ves : VEnvs}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hnested : result.aux2nested.size ≠ 0) :
     Nonempty { C : NestedFinalAssemblyShape E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
-      C.production = E.production } := by
+      C.production = E.production ∧
+        CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
+          (Lean4Lean.stripRecursorRules outEnv
+            (Lean4Lean.restoredRecursorNames
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
+          C.finalBaseVEnv } := by
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.production
   have hc : P.c = E.productionContext := E.production_c
@@ -5039,24 +5072,25 @@ theorem NestedValidatedRunResult.assemblyShapeNative
       exact NestedFormationAssembly.expanded_eq_of_envTransport hinitial.symm
         HformationP
     exact hexpanded.trans rfl
-  exact E.assemblyOfFormationNative Hsources wf.constructorOwners
+  exact E.assemblyOfFormationNative wf rfl rfl hnested Hsources wf.constructorOwners
     (by cases isUnsafe <;> decide) Hformation (by
       simpa only [safety] using hformationExpanded)
 
-/-- The canonical equations and concrete recursor evidence are selected from
-this complete successful run. This theorem does not upgrade arbitrary legacy
-rule batches or accept a caller-supplied compilation callback. -/
-theorem NestedValidatedRunResult.assemblyNative
+/-- `assemblyShapeNativeValid` without the validity of the stripped output
+environment in the shape's final abstract environment. -/
+theorem NestedValidatedRunResult.assemblyShapeNative
     {ves : VEnvs}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    Nonempty { C : NestedFinalAssemblyCertificate E.restoration
+    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (hnested : result.aux2nested.size ≠ 0) :
+    Nonempty { C : NestedFinalAssemblyShape E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.production = E.production } := by
-  sorry
+  rcases E.assemblyShapeNativeValid wf Hsources hnested with ⟨⟨C, hC, -⟩⟩
+  exact ⟨⟨C, hC⟩⟩
 
 /-- Attach the three operational facts supplied by lowering/restoration and
 obtain the certificate-facing producer aggregate. -/

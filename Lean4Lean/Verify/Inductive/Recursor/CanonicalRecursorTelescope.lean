@@ -375,7 +375,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_minorFields
   have Hminor := H.recursorTelescope_minor howner T minorIdx D
   have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨horigin, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
-    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+    H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
   let HS := H.sourceMinorSemantics mowner hmowner localIndex hlocal
   have hsource : D.type = S.sourceType := by
     rw [hD, ← horigin, ← S.consumed_eq, HS.semantic.sourceType_consumeTypeAnnotations_eq_self]
@@ -460,7 +460,7 @@ theorem CompletedRecursorConstruction.minorMotiveAppForm
   intro S HS
   have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, _, _, hmotiveApp, _, _, _⟩ :=
-    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+    H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
   have heq : traversal = HS.semantic.traversal :=
     Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
   subst heq
@@ -582,7 +582,7 @@ theorem CompletedRecursorConstruction.minorResidualSource
   have hstats : HS.semantic.traversal.stats = stats := by
     have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
     obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, hst, _, _, _, _, _⟩ :=
-      H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+      H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
     have heq : traversal = HS.semantic.traversal :=
       Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
     rw [← heq]
@@ -934,7 +934,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_minorIndices
   intro S HS fields ys hyps idx hhyps Hidx
   have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨_, _, _, _, traversal, htraversal, _, _, _, hst, _, _, _, _, hsourceLE⟩ :=
-    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+    H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
   have heqT : traversal = HS.semantic.traversal :=
     Option.some.inj (htraversal.symm.trans HS.semantic.traversal_eq)
   subst heqT
@@ -1109,7 +1109,7 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisSlot
   have Hminor := H.recursorTelescope_minor howner T minorIdx D₀
   have hsourceOwner : mowner < indTypes.size := by rwa [← H.sourceFamilyCount]
   obtain ⟨horigin, _, _, _, _, _, _, _, _, _, _, _, _, _, hsourceLE⟩ :=
-    H.minorSources mowner hmowner hsourceOwner localIndex hlocal
+    H.minorSources.rows mowner hmowner hsourceOwner localIndex hlocal
   have hsource : D₀.type = S.origin := hD.trans horigin.symm
   rw [hsource, hminorEq, ← VExpr.wrapForalls_append] at Hminor
   have hclosedD : Closed D.type := by

@@ -58,7 +58,7 @@ theorem CompletedRecursorConstruction.minorSourceReplay
   let S := H.origins.minorShapes owner howner localIndex hlocal
   obtain ⟨_, hlocalIndex, hsource, _, traversal, htraversal,
     hconstructor, _, _, hstats, hvalid, _⟩ :=
-    H.minorSources owner howner hsourceOwner localIndex hlocal
+    H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hselected := S.sourceConstructor
   change S.localIndex = localIndex at hlocalIndex
   change S.sourceConstructors = indTypes[owner]!.ctors at hsource
