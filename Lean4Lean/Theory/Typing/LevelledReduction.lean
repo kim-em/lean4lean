@@ -4083,6 +4083,99 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
   refine ⟨_, ((c₁.trans c₂).trans c₃).tail ⟨1, by decide, hfire⟩, ?_⟩
   simp only [InductiveSignature.CaseSchema.AppliedRule.rhs]
   exact EtaPar.congrRel.instantiateParams_args eD
+
+theorem EtaPar.parRed_aux : ∀ n, EPBelow n := by
+  intro n
+  induction n with
+  | zero => intro _ _ _ _ _ h; omega
+  | succ n ih =>
+  intro Γ a b c A hsz hΓ H H2 ha
+  have IH : EPBelow (sizeOf a) := fun h => ih (by omega)
+  clear ih hsz
+  induction H generalizing c A with
+  | bvar | sort | const | elim =>
+    exact ⟨c, .tail .rfl ⟨1, by decide, H2⟩, .rfl⟩
+  | @app _ f f' x x' hF hX _ _ =>
+    have hb := (EtaPar.full hΓ (.app hF hX) ha).hasType hΓ ha
+    cases H2 with
+    | app hf hx =>
+      obtain ⟨_, _, tf, tx⟩ := ha.app_inv henv hΓ
+      obtain ⟨df, cf, ef⟩ := IH (by simp; omega) hΓ hF hf tf
+      obtain ⟨dx, cx, ex⟩ := IH (by simp; omega) hΓ hX hx tx
+      exact ⟨_, Below.app hΓ cf cx hb, .app ef ex⟩
+    | beta ht hu =>
+      obtain ⟨_, _, tf, tx⟩ := ha.app_inv henv hΓ
+      have ⟨⟨_, tD⟩, _, tt⟩ := tf.lam_inv henv hΓ
+      have ⟨⟨_, hw⟩, _⟩ := (tf.uniqU henv hΓ (HasType.lam tD tt)).forallE_inv henv hΓ
+      have tx' := hw.defeq tx
+      have hΓ' : OnCtx (_ :: _) (env.IsType univs) := ⟨hΓ, _, tD⟩
+      obtain ⟨D', t', hD', ht', hy⟩ := EtaPar.collapse_lam hΓ hF tf
+      obtain ⟨dt, ct, et⟩ := IH (by simp; omega) hΓ' ht' ht tt
+      obtain ⟨dx, cx, ex⟩ := IH (by simp; omega) hΓ hX hu tx'
+      have c₁ : ReflTransGen (Below _ 3) (.app f' x') (.app (.lam D' t') x') :=
+        Below.ofParRedS (hy x') (by decide)
+      have tt' := (EtaPar.full hΓ' ht' tt).hasType hΓ' tt
+      have tx'' := (EtaPar.full hΓ hX tx').hasType hΓ tx'
+      have c₂ := Below.inst0 hΓ ct cx tt' tx''
+      refine ⟨_, (c₁.tail ⟨1, by decide, (ParRed.beta .rfl .rfl : ParRed _ _ (t'.inst x'))⟩).trans c₂, ?_⟩
+      exact EtaPar.instN .zero hΓ' ex (hu.hasType hΓ tx') et (ht.hasType hΓ' tt)
+    | extra hp hm hck hargs =>
+      obtain ⟨sp, rfl⟩ := Params.pat_simple hp
+      cases sp with
+      | defn => cases hm
+      | iota rc mr cc kc => exact EtaPar.parRed_iota hΓ IH hp hm hck hargs hF hX rfl ha
+    | schema hm hl hr => exact EtaPar.parRed_schema hΓ IH hm hl hr hF hX ha
+  | @proj _ m m' family index hM _ =>
+    have hb := (EtaPar.full hΓ (.proj hM) ha).hasType hΓ ha
+    cases H2 with
+    | proj hm =>
+      obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, lm, _, _⟩ := ha.proj_inv henv hΓ
+      obtain ⟨dm, cm, em⟩ := IH (by simp; omega) hΓ hM hm lm.hasType.2
+      exact ⟨_, Below.proj hΓ cm hb, .proj em⟩
+    | extra _ hm => cases hm
+  | @lam _ D D' t t' hD ht _ _ =>
+    have hb := (EtaPar.full hΓ (.lam hD ht) ha).hasType hΓ ha
+    cases H2 with
+    | lam hD₂ ht₂ =>
+      obtain ⟨⟨_, tD⟩, _, tt⟩ := ha.lam_inv henv hΓ
+      have hΓ' : OnCtx (D :: _) (env.IsType univs) := ⟨hΓ, _, tD⟩
+      obtain ⟨dD, cD, eD⟩ := IH (by simp; omega) hΓ hD hD₂ tD
+      obtain ⟨dt, ct, et⟩ := IH (by simp; omega) hΓ' ht ht₂ tt
+      have hDD' := (EtaPar.full hΓ hD tD).defeq hΓ tD
+      have hDD₂ := hD₂.defeq hΓ tD
+      have tt' := (EtaPar.full hΓ' ht tt).hasType hΓ' tt
+      have tt₂ := ht₂.hasType hΓ' tt
+      exact ⟨_, Below.lam hΓ cD (Below.defeqDFC hΓ (.succ .zero hDD') ct tt') hb,
+        .lam eD (et.defeqDFC hΓ (.succ .zero hDD₂) tt₂)⟩
+    | extra _ hm => cases hm
+  | @forallE _ D D' t t' hD ht _ _ =>
+    have hb := (EtaPar.full hΓ (.forallE hD ht) ha).hasType hΓ ha
+    cases H2 with
+    | forallE hD₂ ht₂ =>
+      obtain ⟨⟨_, tD⟩, _, tt⟩ := ha.forallE_inv henv
+      have hΓ' : OnCtx (D :: _) (env.IsType univs) := ⟨hΓ, _, tD⟩
+      obtain ⟨dD, cD, eD⟩ := IH (by simp; omega) hΓ hD hD₂ tD
+      obtain ⟨dt, ct, et⟩ := IH (by simp; omega) hΓ' ht ht₂ tt
+      have hDD' := (EtaPar.full hΓ hD tD).defeq hΓ tD
+      have hDD₂ := hD₂.defeq hΓ tD
+      have tt' := (EtaPar.full hΓ' ht tt).hasType hΓ' tt
+      have tt₂ := ht₂.hasType hΓ' tt
+      exact ⟨_, Below.forallE hΓ cD (Below.defeqDFC hΓ (.succ .zero hDD') ct tt') hb,
+        .forallE eD (et.defeqDFC hΓ (.succ .zero hDD₂) tt₂)⟩
+    | extra _ hm => cases hm
+  | funEta H₀ HD hty ih =>
+    obtain ⟨d₀, c₀, e₀⟩ := ih hΓ H2 ha IH
+    have hc := H2.hasType hΓ hty
+    have hb := (EtaPar.full hΓ (.funEta H₀ HD hty) ha).hasType hΓ ha
+    obtain ⟨h1, h2⟩ := EtaPar.root_fun hΓ HD hc c₀ e₀ hb
+    exact ⟨_, h1, h2⟩
+  | structEta H₀ hlen hps hl hp hi hs hexp ih =>
+    obtain ⟨d₀, c₀, e₀⟩ := ih hΓ H2 ha IH
+    have hc := H2.hasType hΓ hs
+    have hcexp := (FullReduction.structExpand (.tail .rfl (.core H2))).hasType hΓ hexp
+    have hb := (EtaPar.full hΓ (.structEta H₀ hlen hps hl hp hi hs hexp) ha).hasType hΓ ha
+    obtain ⟨h1, h2⟩ := EtaPar.root_struct hΓ hl hp hi hlen hps hc hcexp c₀ e₀ hb
+    exact ⟨_, h1, h2⟩
 end EtaParRed
 
 section Levels
@@ -4132,7 +4225,9 @@ theorem EtaPar.peak (hΓ : OnCtx Γ (env.IsType univs))
 theorem EtaPar.parRed_peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : EtaPar Γ a b) (H2 : ParRed Γ a c) (ha : Γ ⊢ a : A) :
     ∃ d, ReflTransGen (Below Γ 3) b d ∧
-      (∃ c₁, EtaPar Γ c c₁ ∧ ReflTransGen (Below Γ 3) c₁ d) := sorry
+      (∃ c₁, EtaPar Γ c c₁ ∧ ReflTransGen (Below Γ 3) c₁ d) := by
+  obtain ⟨d, h1, h2⟩ := EtaPar.parRed_aux _ (Nat.lt_succ_self _) hΓ H1 H2 ha
+  exact ⟨d, h1, d, h2, .rfl⟩
 
 theorem EtaPar.deltaPar_peak (hΓ : OnCtx Γ (env.IsType univs))
     (H1 : EtaPar Γ a b) (H2 : DeltaPar Γ a c) (ha : Γ ⊢ a : A) :
