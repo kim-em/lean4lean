@@ -142,30 +142,29 @@ restricted. -/
 theorem MLCtxOnlyLams.closedTelescopeScope
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
     (H : MLCtxOnlyLams c) (henv : env.WF) (Hwf : c.WF env Us)
-    (outer rest : List FVarId) (body : Expr)
-    (hdecls : ∀ fv ∈ outer ++ rest, ∃ d, c.lctx.find? fv = some d)
-    (hnodup : (outer ++ rest).Nodup) (hbody : Closed body)
+    (outer : List FVarId) (body : Expr) (k : Nat)
+    (hdecls : ∀ fv ∈ outer, ∃ d, c.lctx.find? fv = some d)
+    (hnodup : outer.Nodup) (hbody : Closed body)
     (hfilter : c.vlctx.fvars.filter (· ∈ outer) = outer.reverse)
     (hup : IsFVarUpSet (· ∈ outer) c.vlctx)
     {tgt : VExpr}
     (HT : Expr.ForallTelescopeTypeTranslation env Us []
-      (c.lctx.mkForall ((outer ++ rest).map Expr.fvar).toArray body)
-      (outer.length + rest.length) tgt) :
+      (c.lctx.mkForall (outer.map Expr.fvar).toArray body)
+      (outer.length + k) tgt) :
     ∃ scope, ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
       scope.fvars = outer.reverse ∧
       Hscope.shift = fvarSelectionLift c.vlctx.fvars (· ∈ outer) ∧
       (∀ body', Hscope.sources.closeSource body' =
         c.lctx.mkForall (outer.map Expr.fvar).toArray body') ∧
-      ∃ t', Expr.ForallTelescopeTypeTranslation env Us scope
-          (c.lctx.mkForall (rest.map Expr.fvar).toArray body) rest.length t' ∧
+      ∃ t', Expr.ForallTelescopeTypeTranslation env Us scope body k t' ∧
         tgt = VExpr.wrapForalls scope.toCtx.reverse t' := by
   have hclosedL : LocalContext.LctxClosed c.lctx := Hwf.tr.lctxClosed
   let E : Nat → Expr := fun m =>
-    c.lctx.mkForall (((outer.drop m) ++ rest).map Expr.fvar).toArray body
+    c.lctx.mkForall ((outer.drop m).map Expr.fvar).toArray body
   let Good : VLCtx → Prop := fun ts =>
     ∃ m, m ≤ outer.length ∧ ts.fvars = (outer.take m).reverse ∧
       ∃ t', Expr.ForallTelescopeTypeTranslation env Us ts (E m)
-          (outer.length - m + rest.length) t' ∧
+          (outer.length - m + k) t' ∧
         tgt = VExpr.wrapForalls ts.toCtx.reverse t'
   have hgood0 : Good [] :=
     ⟨0, Nat.zero_le _, by simp, tgt, by simpa [E] using HT,
@@ -195,22 +194,17 @@ theorem MLCtxOnlyLams.closedTelescopeScope
       simp [List.getElem_append_right, Nat.min_eq_left hm]
     have hdrop : outer.drop m = fv :: outer.drop (m + 1) := by
       rw [List.drop_eq_getElem_cons hmlt, hget]
-    have hnd' : (fv :: (outer.drop (m + 1) ++ rest)).Nodup := by
-      rw [← List.cons_append, ← hdrop]
-      exact (List.drop_sublist m outer).append (List.Sublist.refl rest)
-        |>.nodup hnodup
-    have hxs : ∀ y ∈ outer.drop (m + 1) ++ rest, ∃ d, c.lctx.find? y = some d := by
-      intro y hy
-      apply hdecls
-      rcases List.mem_append.mp hy with hy | hy
-      · exact List.mem_append_left _ (List.mem_of_mem_drop hy)
-      · exact List.mem_append_right _ hy
+    have hnd' : (fv :: outer.drop (m + 1)).Nodup := by
+      rw [← hdrop]
+      exact (List.drop_sublist m outer).nodup hnodup
+    have hxs : ∀ y ∈ outer.drop (m + 1), ∃ d, c.lctx.find? y = some d :=
+      fun y hy => hdecls y (List.mem_of_mem_drop hy)
     have hpeel : E m = .forallE name type ((E (m + 1)).abstract1 fv) bi := by
       simp only [E]
-      rw [hdrop, List.cons_append]
+      rw [hdrop]
       exact LocalContext.mkForall_cons_cdecl hfind hxs hnd' hbody hclosedL
-    have hcount : outer.length - m + rest.length =
-        (outer.length - (m + 1) + rest.length) + 1 := by omega
+    have hcount : outer.length - m + k =
+        (outer.length - (m + 1) + k) + 1 := by omega
     rw [hpeel, hcount] at HE
     cases HE with
     | @cons _ _ dom' _ _ t'' _ _ Hdom HdomType Hbody =>
@@ -220,8 +214,7 @@ theorem MLCtxOnlyLams.closedTelescopeScope
       have hmem' := List.mem_reverse.mp hmem
       have hsplit : outer = outer.take m ++ fv :: outer.drop (m + 1) := by
         rw [← hdrop, List.take_append_drop]
-      have hndOuter : outer.Nodup :=
-        (List.sublist_append_left outer rest).nodup hnodup
+      have hndOuter := hnodup
       rw [hsplit] at hndOuter
       exact (List.nodup_append.mp hndOuter).2.2 fv hmem' fv (by simp) rfl
     have W : VLCtx.Abstract ts fv (.vlam dom') 0 0
@@ -253,8 +246,8 @@ theorem MLCtxOnlyLams.closedTelescopeScope
   · intro body'
     rw [hclose body', hscopeOuter, List.reverse_reverse]
   · have hdl : outer.drop outer.length = [] := List.drop_length
-    simp only [E, hdl, List.nil_append, Nat.sub_self, Nat.zero_add] at HE
-    exact HE
+    simp only [E, hdl, List.map_nil, Nat.sub_self, Nat.zero_add] at HE
+    simpa [LocalContext.mkForall_empty] using HE
 
 /-- The generated recursor and the independently replayed canonical motive
 share the same parameter context.  This is the first direct bridge from the
@@ -909,6 +902,280 @@ theorem
       simp
     _ = outerBinders.reverse := hfiltered
 
+theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
+    ∀ (fvs : List FVarId), Closed (Expr.mkAppList f (fvs.map Expr.fvar))
+  | [] => hf
+  | fv :: fvs => by
+    simp only [List.map_cons, Expr.mkAppList]
+    exact Expr.closed_mkAppList_fvars (f := .app f (.fvar fv)) ⟨hf, trivial⟩ fvs
+
+/-- The complete parameter/motive/minor scope of the recursor context, built
+from the closed translation of the generated recursor type rather than by
+restricting runtime translations. -/
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalPrefixClosedScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) (k : Nat)
+    (hk : k ≤ (H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars).length)
+    (hup : IsFVarUpSet (· ∈ (H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars).take k) H.recursorWF.mlctx.vlctx) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+        scope.fvars = (outerBinders.take k).reverse ∧
+        Hscope.shift = fvarSelectionLift
+          H.recursorWF.mlctx.vlctx.fvars (· ∈ outerBinders.take k) ∧
+        (∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              ((outerBinders.take k).map Expr.fvar).toArray body) ∧
+        Closed (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+          (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+            (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+              H.recInfos[owner]!.major))) ∧
+        ∃ t', Expr.ForallTelescopeTypeTranslation H.outVEnv Us scope
+          (H.localContext.lctx.mkForall ((outerBinders.drop k).map Expr.fvar).toArray
+            (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+              (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+                (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+                  H.recInfos[owner]!.major))))
+          (outerBinders.length - k + (H.recInfos[owner]!.indices.size + 1)) t' := by
+  dsimp only
+  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  have hrec : owner < H.recInfos.size := by
+    simpa [H.generated.length] using howner
+  let E := H.generated.entry owner howner
+  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
+    rw [H.recursorEnv]
+    exact H.installed.le
+  have Hwf : H.recursorWF.mlctx.WF H.outVEnv Us :=
+    H.recursorWF.mlctx_wf.mono hbase
+  have hlctx : H.recursorWF.mlctx.lctx = H.localContext.lctx :=
+    H.recursorWF.lctx_eq
+  have hclosedL : LocalContext.LctxClosed H.localContext.lctx := by
+    rw [← hlctx]
+    exact Hwf.tr.lctxClosed
+  -- every generated binder has a declaration
+  have hmemDecl : ∀ fv, fv ∈ H.localContext.lctx.fvars →
+      ∃ d, H.localContext.lctx.find? fv = some d := by
+    intro fv hfv
+    rw [← hlctx] at hfv ⊢
+    rw [Hwf.tr.fvars_eq] at hfv
+    exact Hwf.tr.find?_eq_some.2 hfv
+  -- the inner residual of the recursor type is closed
+  let idxB := H.bindings.indices owner hrec
+  let majB := H.bindings.major owner hrec
+  have hall := H.noAlias
+  have hidxNodup : idxB.fvars.Nodup := by
+    have hsub1 : idxB.fvars <+ H.bindings.flatIndices.fvars := by
+      apply List.sublist_flatten_of_mem
+      simp only [List.mem_ofFn]
+      exact ⟨⟨owner, hrec⟩, rfl⟩
+    have hsub2 : H.bindings.flatIndices.fvars <+ H.bindings.allFvars H.params := by
+      unfold RecInfoBindings.allFvars
+      rw [H.bindings.flatIndices.exprArrayFVarIds]
+      exact (List.sublist_append_left _ _).trans <|
+        (List.sublist_append_right _ _).trans <|
+        (List.sublist_append_right _ _).trans
+          (List.sublist_append_right _ _)
+    exact (hsub1.trans hsub2).nodup hall
+  have hmajNodup : majB.fvars.Nodup := by
+    have hlen := majB.length_fvars
+    match h : majB.fvars, hlen with
+    | [_], _ => simp
+  have hbodyClosed : Closed (Expr.app
+      (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+      H.recInfos[owner]!.major) := by
+    rcases H.bindings.motives.getElem_eq_fvar owner (by simpa using hrec) with
+      ⟨hmlt, hmotive⟩
+    rcases majB.getElem_eq_fvar 0 (by simp) with ⟨hmjlt, hmajor⟩
+    have hmot : H.recInfos[owner]!.motive =
+        .fvar (H.bindings.motives.fvars[owner]'hmlt) := by
+      simpa [getElem!_pos H.recInfos owner hrec] using hmotive
+    have hmaj : H.recInfos[owner]!.major = .fvar (majB.fvars[0]'hmjlt) := by
+      simpa using hmajor
+    refine ⟨?_, by rw [hmaj]; trivial⟩
+    rw [hmot, Expr.mkAppN_eq_mkAppList, idxB.expressions]
+    simpa using Expr.closed_mkAppList_fvars
+      (f := .fvar (H.bindings.motives.fvars[owner]'hmlt)) trivial idxB.fvars
+  have hidxDecl : ∀ fv ∈ idxB.fvars, ∃ d, H.localContext.lctx.find? fv = some d :=
+    fun fv hfv => hmemDecl fv (idxB.members fv hfv)
+  have hmajDecl : ∀ fv ∈ majB.fvars, ∃ d, H.localContext.lctx.find? fv = some d :=
+    fun fv hfv => hmemDecl fv (majB.members fv hfv)
+  have hinnerClosed : Closed (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+        H.recInfos[owner]!.major)) := by
+    rw [majB.expressions, LocalContext.mkForall]
+    exact LocalContext.mkBinding_closed hmajDecl hmajNodup hbodyClosed
+      hclosedL.declsClosed
+  have hBClosed : Closed (H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+      (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+        (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+          H.recInfos[owner]!.major))) := by
+    have h := LocalContext.mkBinding_closed (isLambda := false)
+      hidxDecl hidxNodup hinnerClosed hclosedL.declsClosed
+    have key : ∀ (xs : Array Expr) (fvs : List FVarId) (inner : Expr),
+        xs = (fvs.map Expr.fvar).toArray →
+        Closed (H.localContext.lctx.mkForall ⟨fvs.map Expr.fvar⟩ inner) →
+        Closed (H.localContext.lctx.mkForall xs inner) := by
+      intro xs fvs inner h hc
+      subst h
+      exact hc
+    exact key _ _ _ idxB.expressions h
+  -- the generated recursor type, as one forall over the outer binders
+  have houterNodup : outerBinders.Nodup := H.bindings.outerNodup H.params H.noAlias
+  have houterDecl : ∀ fv ∈ outerBinders, ∃ d, H.localContext.lctx.find? fv = some d := by
+    intro fv hfv
+    apply hmemDecl
+    have hmem : fv ∈ H.recursorWF.mlctx.vlctx.fvars :=
+      H.outerOrder.subset (List.mem_reverse.mpr hfv)
+    rw [← hlctx, Hwf.tr.fvars_eq]
+    exact hmem
+  have HT := T.typed
+  rw [E.type] at HT
+  have HT' := Expr.ForallTelescopeTypeTranslation.of_inferImplicit 1000 false HT
+  have hcount : stats.params.size + (H.recInfos.map (·.motive)).size +
+      (H.recInfos.flatMap (·.minors)).size + H.recInfos[owner]!.indices.size + 1 =
+      outerBinders.length + (H.recInfos[owner]!.indices.size + 1) := by
+    simp only [outerBinders, List.length_append, H.params.length_fvars,
+      H.bindings.motives.length_fvars, H.bindings.flatMinors.length_fvars]
+    omega
+  rw [hcount] at HT'
+  rw [H.params.expressions, H.bindings.motives.expressions,
+    H.bindings.flatMinors.expressions] at HT'
+  let Bexpr := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
+    (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]
+      (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
+        H.recInfos[owner]!.major))
+  have hMN : ∀ fv ∈ H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars,
+      ∃ d, H.localContext.lctx.find? fv = some d := by
+    intro fv hfv
+    apply houterDecl
+    simp only [outerBinders, List.mem_append] at hfv ⊢
+    rcases hfv with h | h
+    · exact Or.inl (Or.inr h)
+    · exact Or.inr h
+  have hMNnd : (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars).Nodup := by
+    have h := houterNodup
+    simp only [outerBinders, List.append_assoc] at h
+    exact (List.nodup_append.mp h).2.1
+  have hmm := LocalContext.mkForall_mkForall (lctx := H.localContext.lctx)
+    (xs := H.bindings.motives.fvars) (ys := H.bindings.flatMinors.fvars)
+    (b := Bexpr) hMN hMNnd hBClosed hclosedL
+  rw [hmm] at HT'
+  have hpm := LocalContext.mkForall_mkForall (lctx := H.localContext.lctx)
+    (xs := H.params.fvars)
+    (ys := H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars)
+    (b := Bexpr)
+    (fun fv hfv => houterDecl fv (by
+      simpa [outerBinders, List.append_assoc] using hfv))
+    (by simpa [outerBinders, List.append_assoc] using houterNodup)
+    hBClosed hclosedL
+  rw [hpm, ← List.append_assoc] at HT'
+  rw [← hlctx] at HT'
+  -- split the outer binders at the selected prefix
+  have hsplitL : outerBinders = outerBinders.take k ++ outerBinders.drop k :=
+    (List.take_append_drop k outerBinders).symm
+  have hdropNodup : (outerBinders.drop k).Nodup :=
+    (List.drop_sublist k outerBinders).nodup houterNodup
+  have hdropDecl : ∀ fv ∈ outerBinders.drop k,
+      ∃ d, H.localContext.lctx.find? fv = some d :=
+    fun fv hfv => houterDecl fv (List.mem_of_mem_drop hfv)
+  have hrestClosed : Closed (H.localContext.lctx.mkForall
+      ((outerBinders.drop k).map Expr.fvar).toArray Bexpr) := by
+    rw [LocalContext.mkForall]
+    exact LocalContext.mkBinding_closed hdropDecl hdropNodup hBClosed
+      hclosedL.declsClosed
+  have htd := LocalContext.mkForall_mkForall (lctx := H.localContext.lctx)
+    (xs := outerBinders.take k) (ys := outerBinders.drop k) (b := Bexpr)
+    (fun fv hfv => houterDecl fv (by rw [← hsplitL] at hfv; exact hfv))
+    (by rw [← hsplitL]; exact houterNodup) hBClosed hclosedL
+  rw [← hsplitL] at htd
+  rw [← hlctx] at htd
+  rw [← htd] at HT'
+  have hselNodup : (outerBinders.take k).Nodup :=
+    (List.take_sublist k outerBinders).nodup houterNodup
+  have hselDecl : ∀ fv ∈ outerBinders.take k,
+      ∃ d, H.recursorWF.mlctx.lctx.find? fv = some d := by
+    intro fv hfv
+    rw [hlctx]
+    exact houterDecl fv (List.mem_of_mem_take hfv)
+  have hfilter : H.recursorWF.mlctx.vlctx.fvars.filter
+      (· ∈ outerBinders.take k) = (outerBinders.take k).reverse := by
+    have hsub : (outerBinders.take k).reverse <+ H.recursorWF.mlctx.vlctx.fvars :=
+      ((List.take_sublist k outerBinders).reverse).trans H.outerOrder
+    have h := checkInductiveTypes.loopType.List.filter_mem_eq_of_sublist_nodup hsub
+      Hwf.tr.wf.fvars_nodup
+    rw [← h]
+    apply List.filter_congr
+    intro fv _
+    simp
+  have hcountK : outerBinders.length + (H.recInfos[owner]!.indices.size + 1) =
+      (outerBinders.take k).length +
+        (outerBinders.length - k + (H.recInfos[owner]!.indices.size + 1)) := by
+    simp only [List.length_take, Nat.min_eq_left hk]
+    omega
+  rw [hcountK] at HT'
+  obtain ⟨scope, Hscope, hscope, hshift, hclose, t', HE, _⟩ :=
+    MLCtxOnlyLams.closedTelescopeScope H.recursorWF.onlyLams H.outVEnvWF Hwf
+      (outerBinders.take k) _ _ hselDecl hselNodup
+      (by rw [hlctx]; exact hrestClosed) hfilter hup HT'
+  refine ⟨scope, Hscope, hscope, hshift, ?_, hBClosed, t', ?_⟩
+  · intro body
+    rw [hclose body, hlctx]
+  · rw [hlctx] at HE
+    exact HE
+
+theorem
+    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalOuterClosedScope
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    {H : CompletedRecursorPhasesResult R outEnv}
+    {owner : Nat} {howner : owner < H.entries.length}
+    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
+    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
+    let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+      H.bindings.flatMinors.fvars
+    ∃ scope,
+      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
+          H.outVEnv Us scope H.recursorWF.mlctx.vlctx,
+        scope.fvars = outerBinders.reverse ∧
+        Hscope.shift = fvarSelectionLift
+          H.recursorWF.mlctx.vlctx.fvars (· ∈ outerBinders) ∧
+        ∀ body,
+          Hscope.sources.closeSource body =
+            H.localContext.lctx.mkForall
+              (outerBinders.map Expr.fvar).toArray body := by
+  dsimp only
+  have hup := A.finalOuterPrefixUp
+  obtain ⟨scope, Hscope, hscope, hshift, hclose, _, _⟩ :=
+    A.finalPrefixClosedScope
+      (H.params.fvars ++ H.bindings.motives.fvars ++
+        H.bindings.flatMinors.fvars).length (Nat.le_refl _)
+      (by rw [List.take_length]; exact hup)
+  simp only [List.take_length] at hscope hshift hclose
+  exact ⟨scope, Hscope, hscope, hshift, hclose⟩
+
 /-- Narrow the interleaved executable context to the complete generated
 parameter/motive/minor scope, retaining both its exact operational lift and
 its concrete source closure.  This is the semantic counterpart of the full
@@ -938,33 +1205,7 @@ theorem
           Hscope.sources.closeSource body =
             H.localContext.lctx.mkForall
               (outerBinders.map Expr.fvar).toArray body := by
-  dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-    H.bindings.flatMinors.fvars
-  rcases MLCtxOnlyLams.narrowFVarsSource
-      H.recursorWF.onlyLams
-      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
-      (fun fv => fv ∈ outerBinders) A.finalOuterPrefixUp with
-    ⟨scope, Hscope, hscopeFiltered, hscopeShift,
-      _hscopeDecls, hscopeSource⟩
-  have hscope : scope.fvars = outerBinders.reverse :=
-    hscopeFiltered.trans A.finalOuterFilteredFVars
-  have hbase : H.recursorWF.venv ≤ H.outVEnv := by
-    rw [H.recursorEnv]
-    exact H.installed.le
-  let HscopeOut := Hscope.mono hbase
-  have hscopeSourceOut : ∀ body,
-      HscopeOut.sources.closeSource body =
-        H.localContext.lctx.mkForall
-          (outerBinders.map Expr.fvar).toArray body := by
-    intro body
-    have hsource := hscopeSource body
-    rw [hscope, List.reverse_reverse] at hsource
-    change (Hscope.sources.mono hbase).closeSource body = _
-    rw [checkInductiveTypes.loopType.FVarNarrowSources.closeSource_mono]
-    simpa [H.recursorWF.lctx_eq] using hsource
-  exact ⟨scope, HscopeOut, hscope, hscopeShift, hscopeSourceOut⟩
+  exact A.finalOuterClosedScope
 
 /-- Chronological strengthening of `finalSelectedMinorPrefixUp`: the exact
 selected prefix occurs, newest first, inside the executable recursor
@@ -1132,55 +1373,69 @@ theorem
     H.bindings.flatMinors.fvars.take minorIdx
   rcases A.finalSelectedMinorDomain with
     ⟨T, D, O, S, Hdomain, HdomainType⟩
-  rcases MLCtxOnlyLams.narrowFVarsSource
-      H.recursorWF.onlyLams
-      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
-      (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
-    ⟨scope, Hscope, hscopeFiltered, hscopeShift,
-      _hscopeDecls, hscopeSource⟩
-  have hscope : scope.fvars = sourceBinders.reverse :=
-    hscopeFiltered.trans A.finalSelectedMinorFilteredFVars
+  let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
+    H.bindings.flatMinors.fvars
+  have hminorLt : minorIdx < H.bindings.flatMinors.fvars.length := by
+    rw [H.bindings.flatMinors.length_fvars]
+    exact D.inBounds
+  let k := H.params.fvars.length + H.bindings.motives.fvars.length + minorIdx
+  have hk : k ≤ outerBinders.length := by
+    simp only [k, outerBinders, List.length_append]
+    omega
+  have htake : outerBinders.take k = sourceBinders := by
+    simp only [k, outerBinders, sourceBinders, List.append_assoc]
+    rw [Nat.add_assoc, List.take_length_add_append, List.take_length_add_append]
+  have hminorFv : H.bindings.flatMinors.fvars[minorIdx]'hminorLt = D.fvar := by
+    rcases H.bindings.flatMinors.getElem_eq_fvar minorIdx D.inBounds with
+      ⟨_, hget⟩
+    have h := D.expression
+    rw [hget] at h
+    exact Expr.fvar.inj h
+  have hdropEq : outerBinders.drop k =
+      D.fvar :: H.bindings.flatMinors.fvars.drop (minorIdx + 1) := by
+    simp only [k, outerBinders, List.append_assoc]
+    rw [Nat.add_assoc, List.drop_length_add_append, List.drop_length_add_append,
+      List.drop_eq_getElem_cons hminorLt, hminorFv]
+  have hup := A.finalSelectedMinorPrefixUp
+  obtain ⟨scope, Hscope, hscope, hscopeShift, hscopeSource, hBClosed, t', HE⟩ :=
+    A.finalPrefixClosedScope k hk (by rw [htake]; exact hup)
+  rw [htake] at hscope hscopeShift hscopeSource
+  rw [hdropEq] at HE
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le
-  let HscopeOut := Hscope.mono hbase
-  have hscopeSourceOut : ∀ body,
-      HscopeOut.sources.closeSource body =
-        H.localContext.lctx.mkForall
-          (sourceBinders.map Expr.fvar).toArray body := by
-    intro body
-    have hsource := hscopeSource body
-    rw [hscope, List.reverse_reverse] at hsource
-    change (Hscope.sources.mono hbase).closeSource body = _
-    rw [checkInductiveTypes.loopType.FVarNarrowSources.closeSource_mono]
-    simpa [H.recursorWF.lctx_eq] using hsource
-  rcases H.recursorWF.translatedDeclarationType D with
-    ⟨runtimeTarget, Hruntime⟩
-  have HruntimeOut := Hruntime.mono hbase
-  have hclosed : Closed D.type 0 := by
-    have h := Hruntime.closed
-    rw [H.recursorWF.mlctx.noBV] at h
-    exact h
-  have HabstractClosed :
-      (D.type.abstractList sourceBinders).FVarsIn (fun _ => False) := by
-    apply Hdomain.fvarsIn.mono
+  have hclosedL : LocalContext.LctxClosed H.localContext.lctx := by
+    rw [← H.recursorWF.lctx_eq]
+    exact (H.recursorWF.mlctx_wf.mono hbase).tr.lctxClosed
+  have hrestDecl : ∀ fv ∈ H.bindings.flatMinors.fvars.drop (minorIdx + 1),
+      ∃ d, H.localContext.lctx.find? fv = some d := by
     intro fv hfv
-    simpa using hfv
-  have HtypeScope : D.type.FVarsIn (· ∈ scope.fvars) := by
-    have Hraw := FVarsIn.of_abstractList HabstractClosed
-    apply Hraw.mono
-    intro fv hfv
-    rcases hfv with hfv | hfalse
-    · rw [hscope]
-      exact List.mem_reverse.mpr hfv
-    · exact False.elim hfalse
-  rcases HscopeOut.restrict H.outVEnvWF HruntimeOut hclosed HtypeScope with
-    ⟨narrowTarget, Hnarrow⟩
-  have Hclosed := HscopeOut.abstractAll H.outVEnvWF Hnarrow
+    have hmem : fv ∈ H.recursorWF.mlctx.vlctx.fvars := by
+      apply H.outerOrder.subset
+      apply List.mem_reverse.mpr
+      exact List.mem_append_right _ (List.mem_of_mem_drop hfv)
+    rw [← H.recursorWF.lctx_eq]
+    exact H.recursorWF.mlctx_wf.tr.find?_eq_some.2 hmem
+  have hconsNodup : (D.fvar :: H.bindings.flatMinors.fvars.drop (minorIdx + 1)).Nodup := by
+    rw [← hdropEq]
+    exact (List.drop_sublist k outerBinders).nodup
+      (H.bindings.outerNodup H.params H.noAlias)
+  rw [LocalContext.mkForall_cons_cdecl D.declaration hrestDecl hconsNodup hBClosed
+    hclosedL] at HE
+  have hcount : outerBinders.length - k + (H.recInfos[owner]!.indices.size + 1) =
+      (outerBinders.length - k - 1 + (H.recInfos[owner]!.indices.size + 1)) + 1 := by
+    have : k < outerBinders.length := by
+      simp only [k, outerBinders, List.length_append]
+      omega
+    omega
+  rw [hcount] at HE
+  cases HE with
+  | cons Hnarrow _ _ =>
+  have Hclosed := Hscope.abstractAll H.outVEnvWF Hnarrow
   rw [hscope, List.reverse_reverse] at Hclosed
-  exact ⟨T, D, O, S, scope, HscopeOut, narrowTarget, hscope,
-    hscopeShift, hscopeSourceOut, Hnarrow, Hclosed,
-    HscopeOut.abstractAllWF H.outVEnvWF, Hdomain, HdomainType⟩
+  exact ⟨T, D, O, S, scope, Hscope, _, hscope,
+    hscopeShift, hscopeSource, Hnarrow, Hclosed,
+    Hscope.abstractAllWF H.outVEnvWF, Hdomain, HdomainType⟩
 
 /-- Reconstruct the complete source telescope of the exact selected prefix.
 Its abstract domains are precisely the non-contiguous narrowed context and
