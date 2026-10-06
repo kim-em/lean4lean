@@ -380,8 +380,8 @@ theorem VEnv.WF'.tables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
     | quot _ hadd => exact ⟨_, hT.addQuot henv henv' hadd, fun _ => rfl⟩
     | induct _ hadd =>
       cases hadd with
-      | intro _ hcompile _ hinstall =>
-        obtain ⟨T', hext, hT'⟩ := hT.install henv hcompile hinstall
+      | intro _ hcompile hblock hinstall =>
+        obtain ⟨T', hext, hT'⟩ := hT.install henv hcompile hblock hinstall
         exact ⟨T', hT', hq' hext.quot (by simp)⟩
   | inductEliminators hbase _ hle hcert _ hconsts _ _ ih =>
     obtain ⟨T, hT, hq⟩ := ih

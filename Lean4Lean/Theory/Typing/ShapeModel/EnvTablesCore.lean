@@ -214,19 +214,20 @@ def NativeEvidence (env : VEnv) (T : Tables) (data : NativeRecursorData) : Prop 
     data.schema.restoration = compilationRestoration source auxiliaries ∧
     data.schema.originalFamilies = source.types.map (·.name) ∧
     block.install installBase = some installed ∧ installed ≤ env ∧
+    installBase.WF ∧ VInductBlock.WF installBase block ∧
     ∀ type ∈ source.types, type.ctors ≠ [] → T.fam type.name = some (famView source type)
 
 theorem NativeEvidence.mono (H : NativeEvidence env T data) (hle : env ≤ env')
     (hT : T.Extends T') : NativeEvidence env' T' data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
-    h1, h2, h3, h4, h5, h6, h7, h8⟩ := H
+    h1, h2, h3, h4, h5, h6, h7, h9, h10, h8⟩ := H
   exact ⟨base, installBase, source, expanded, auxiliaries, block, installed,
-    h1, h2, h3, h4, h5, h6, h7.trans hle, fun type ht hc => hT.fam (h8 type ht hc)⟩
+    h1, h2, h3, h4, h5, h6, h7.trans hle, h9, h10, fun type ht hc => hT.fam (h8 type ht hc)⟩
 
 theorem NativeEvidence.registered (H : NativeEvidence env T data) :
     NativeRecursorRegistered env data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
-    h1, h2, h3, h4, h5, h6, h7, _⟩ := H
+    h1, h2, h3, h4, h5, h6, h7, _, _, _⟩ := H
   exact ⟨base, installBase, source, expanded, data.nativeInstance, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, rfl, rfl, rfl, h6, h7⟩
 
