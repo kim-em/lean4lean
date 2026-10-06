@@ -6077,7 +6077,7 @@ theorem LR.SubstWF.fits : LR.SubstWF Γ₀ σ σ' Γ ρ → ρ.Fits Γ₀ Γ
   | .cons W h1 h2 h3 _ _ => .cons W.fits h1 h2 h3
 
 theorem LR.SubstWF.toSubstEq : LR.SubstWF Γ₀ σ σ' Γ ρ → Ctx.SubstEq Γ₀ σ σ' Γ
-  | .id => .nil
+  | .id => .id
   | .cons W _ _ _ hA h0 => .cons W.toSubstEq hA h0.1
 
 theorem LR.SubstWF.left (W : LR.SubstWF Γ₀ σ σ' Γ ρ) : LR.SubstWF Γ₀ σ σ Γ ρ := by

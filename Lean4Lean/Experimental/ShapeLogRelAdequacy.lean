@@ -299,7 +299,7 @@ theorem LR.adequacy [Params.PatternRegistry] (hc : LR.ConstAdequate Γ₀) (H : 
     have hTypA : Γ₀ ⊢ A.subst σ : .sort u :=
       HA.defeq.hasType.1.subst W.left.toSubstEq
     have hTypB : A.subst σ :: Γ₀ ⊢ B.subst σ.lift : .sort v :=
-      HB.defeq.subst (W.left.toSubstEq.lift hTypA)
+      HB.defeq.subst (W.left.toSubstEq.lift HA.defeq.hasType.1)
     have hA1 := hA.forallE_inv.1
     have ⟨_, a', _, le_n, le_a, hA', hSort, hmem'⟩ :=
       (LE_Interp.sound HA.defeq W.left.fits).2 hA1 |>.out
@@ -360,7 +360,7 @@ theorem LR.adequacy [Params.PatternRegistry] (hc : LR.ConstAdequate Γ₀) (H : 
       have ⟨_, a', _, le_n, le_a, hA', hSort, hmem'⟩ :=
         (LE_Interp.sound HA.defeq W.left.fits).2 hA1 |>.out
       have HAAσ := HA.defeq.subst W.left.toSubstEq
-      have S' := W.toSubstEq.lift HAAσ.hasType.1)
+      have S' := W.toSubstEq.lift HA.defeq.hasType.1)
     · have HAσ := HA.defeq.hasType.1.subst W.toSubstEq
       have HA'σ := HA.defeq.hasType.2.subst W.toSubstEq
       constructor
