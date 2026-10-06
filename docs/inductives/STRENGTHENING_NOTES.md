@@ -231,7 +231,7 @@ What remains open is not a candidate counterexample but the proof: a calculus in
   *same* context `Γ`.
 * Uniqueness of types, Π- and rigid-head injectivity, sort inversion, through
   `VEnv.WF.headInversion` (obligation (a)).
-* Singleton eta with canonical `Eq` (Part 2, not yet formalized).
+* Singleton eta with canonical `Eq` (Part 2; formalized, see below).
 
 The remaining sorries of the project are `VEnv.WF.headInversion` and
 `VEnv.strengthening_of_canonicalEq`.
@@ -367,12 +367,34 @@ i.e. obligation (a)):
   a typed field instance equal to it field by field;
 * `PropElim.singleton_eta`: `m ≡ mk ps (reconstructed fields)`.
 
-Remaining for Part 2: the bridge from a registered native recursor
-(`NativeRecursorData`, large target, zero source level) to `PropElim.WF`
-(`elim` from the restored recursor type at motive level zero, `minorOf` adding the
-induction-hypothesis binders). Integration into `NativePrefixProgram` (replacing the
-`Eq`-free proof selectors, which are ill typed for families such as the countermodel's)
-is coordinated with the confluence branch.
+The bridge from a registered native recursor to `PropElim.WF` (no `sorry`; the only
+`sorry` dependency is `VEnv.WF.headInversion`):
+
+* `Lean4Lean/Theory/Inductive/InstanceSpecialize.lean`: `Instance.specialize` and
+  `recursorType_specialize`. Instantiating a generated recursor type's universes gives
+  the recursor type of the specialized instance.
+* `Lean4Lean/Theory/Typing/NativeSingletonTyping.lean`: the telescopes of a singleton
+  family are typed from the recursor type alone. The family and constructor headers are
+  only related to the normalized telescopes up to definitional equality in larger
+  contexts, so they cannot supply this typing. The motive is instantiated at
+  `fun is m => ∀ p : Prop, p → p` (`trueTy`). Every induction hypothesis is then
+  inhabited (`HasType.inhabit_trueFamily`). Instantiating the minor premise's context
+  gives the field telescope's typing (`minorFields_inst`, `minorHyps_inst`), and the
+  constructor's result indices typed along the index telescope (`minorBody_inst`). The
+  sort of a data field equals the sort of its index slot, by uniqueness of types
+  (`sort_agree`). `Instance.singletonElim_wf` assembles `PropElim.WF` for any instance
+  with elimination universe zero.
+* `Lean4Lean/Theory/Typing/NativeSingletonBridge.lean`: `SingletonFacts`
+  (`singletonFacts`), the definitions `castSpec`, `castSpecGeneric`, `propElim`,
+  `propParams`, `genericSorts`, and `NativeRecursorData.propElim_wf`. The occurrence's
+  specification is by definition the universe instantiation of the generic one. The data
+  sorts are chosen with `Classical.epsilon` at the generic universes. The eliminator is
+  the native recursor itself, with its free elimination universe (`Instance.FreeTarget`)
+  set to zero.
+
+The integration into `NativePrefixProgram` is done on the confluence branch. It replaces
+the `Eq`-free proof selectors, which are ill typed for families such as the
+countermodel's.
 
 ## Part 3 design: the conversion-certificate calculus
 
