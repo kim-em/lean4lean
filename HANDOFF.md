@@ -120,6 +120,20 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   `Nonempty`/`choice`, `decl.IsModelled`, with `headInversion` the only
   remaining conjecture; GOAL.md item (3) is to be updated accordingly when
   that lands.
+  Corner implementation status: `VEnv.HasCanonicalChoice`
+  (Theory/CanonicalChoice.lean, without `Nonempty.rec`, with `mono`) and
+  `TrExprS.weakBV_inv₁_inhabited` (Verify/Typing/InhabitedStrengthening.lean:
+  strengthening across one binder whose type is inhabited by a typed term
+  below, by substitution) are built on the base branch. The corner theorem
+  needs, beyond `HasCanonicalChoice`: a registered native recursor of `S`
+  (without it the statement is false: `inductProjections` registers
+  projections with no eliminator), `info.nindices = 0` (true at the call site:
+  projection inference accepts only structure-like families), and
+  temporarily `families.size = 1` (to be generalized to mutual/nested
+  structures via the restored recursor with constant motives). E1 discharges
+  the recursor premise at every call site, including the transient
+  types+constructors window (generated terms only; a block-family
+  projection could arise there only via structure eta in `isDefEq`).
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
