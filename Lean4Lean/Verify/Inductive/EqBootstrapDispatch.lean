@@ -24,6 +24,13 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
   rcases Hshape with
     ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
       rfl, rfl, rfl, rfl⟩
+  have hheaderInstantiate (fv : FVarId) :
+      (Expr.forallE lhsName (.bvar 0)
+        (.forallE rhsName (.bvar 1) (.sort .zero) .default) .default).instantiate1'
+          (.fvar fv) =
+        Expr.forallE lhsName (.fvar fv)
+          (.forallE rhsName (.fvar fv) (.sort .zero) .default) .default := by
+    rfl
   have hctorInstantiate (fv : FVarId) :
       (Expr.forallE reflValueName (.bvar 0)
         (.app (.app (.app (.const ``Eq [.param u]) (.bvar 1)) (.bvar 0))
@@ -32,42 +39,60 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
           (.app (.app (.app (.const ``Eq [.param u]) (.fvar fv)) (.bvar 0))
             (.bvar 0)) .default := by
     rfl
-  have hclose (id : FVarId) :
-      (({} : LocalContext).mkLocalDecl id reflAlphaName
-          (.sort (.param u)) .implicit).mkForall #[.fvar id]
-          (.forallE reflValueName (.fvar id)
-            (.app (.app (.app (.const ``Eq [.param u]) (.fvar id))
-              (.bvar 0)) (.bvar 0)) .default) =
+  have hctorBodyInstantiate (fv fv' : FVarId) :
+      (Expr.app (.app (.app (.const ``Eq [.param u]) (.fvar fv)) (.bvar 0))
+          (.bvar 0)).instantiate1' (.fvar fv') =
+        Expr.app (.app (.app (.const ``Eq [.param u]) (.fvar fv)) (.fvar fv'))
+          (.fvar fv') := by
+    rfl
+  have hclose (id id' : FVarId) (hne : id ≠ id') :
+      ((({} : LocalContext).mkLocalDecl id reflAlphaName
+          (.sort (.param u)) .implicit).mkLocalDecl id' reflValueName
+          (.fvar id) .default).mkForall #[.fvar id, .fvar id']
+          (.app (.app (.app (.const ``Eq [.param u]) (.fvar id)) (.fvar id'))
+            (.fvar id')) =
         eqBootstrapReflType u reflAlphaName reflValueName := by
-    let lctx := ({} : LocalContext).mkLocalDecl id reflAlphaName
+    let lctx0 := ({} : LocalContext).mkLocalDecl id reflAlphaName
       (.sort (.param u)) .implicit
+    let lctx := lctx0.mkLocalDecl id' reflValueName (.fvar id) .default
     have hmapWF : ({} : PersistentHashMap FVarId LocalDecl).WF := .empty
     have hid : lctx.find? id = some (.cdecl 0 id reflAlphaName
         (.sort (.param u)) .implicit .default) := by
-      simp only [lctx, LocalContext.mkLocalDecl, LocalContext.find?]
-      rw [hmapWF.find?_insert]
+      simp only [lctx, lctx0, LocalContext.mkLocalDecl, LocalContext.find?]
+      rw [hmapWF.insert.find?_insert, hmapWF.find?_insert]
+      simp [Ne.symm hne]
+    have hid' : lctx.find? id' = some (.cdecl 1 id' reflValueName
+        (.fvar id) .default .default) := by
+      simp only [lctx, lctx0, LocalContext.mkLocalDecl, LocalContext.find?]
+      rw [hmapWF.insert.find?_insert]
       simp
-    have hfind : ∀ x ∈ [id], ∃ decl, lctx.find? x = some decl := by
+    have hfind : ∀ x ∈ [id, id'], ∃ decl, lctx.find? x = some decl := by
       intro x hx
-      simp only [List.mem_singleton] at hx
-      subst x
-      exact ⟨_, hid⟩
+      simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false] at hx
+      rcases hx with rfl | rfl
+      · exact ⟨_, hid⟩
+      · exact ⟨_, hid'⟩
+    have hnd : [id, id'].Nodup := by simp [hne]
     rw [LocalContext.mkForall]
     change LocalContext.mkBinding false _
-      ⟨[id].map Expr.fvar⟩ _ = _
-    rw [LocalContext.mkBinding_eq' hfind (by simp) (by simp [Lean4Lean.Closed])
+      ⟨[id, id'].map Expr.fvar⟩ _ = _
+    rw [LocalContext.mkBinding_eq' hfind hnd (by simp [Lean4Lean.Closed])
       (fun x hx d hd => by
-        simp only [List.mem_singleton] at hx
-        subst hx
-        rw [hid] at hd
-        cases hd
-        trivial)]
-    rw [LocalContext.mkBindingList_eq_fold hfind (by simp)]
-    simp [LocalContext.mkBindingList1, hid, Expr.abstract1,
-      eqBootstrapReflType]
+        simp only [List.mem_cons, List.mem_singleton, List.not_mem_nil,
+          or_false] at hx
+        rcases hx with rfl | rfl
+        · rw [hid] at hd
+          cases hd
+          trivial
+        · rw [hid'] at hd
+          cases hd
+          trivial)]
+    rw [LocalContext.mkBindingList_eq_fold hfind hnd]
+    simp [LocalContext.mkBindingList1, hid, hid', Expr.abstract1,
+      eqBootstrapReflType, Ne.symm hne, hne]
   cases fuel with
   | zero =>
-    simp [eqBootstrapType, eqBootstrapReflType, hAbsent, Lean.mkFreshId,
+    simp [eqBootstrapType, eqBootstrapReflType, hheaderInstantiate, hAbsent, Lean.mkFreshId,
       getNGen, setNGen, StateT.run', ElimNestedInductive.run,
       ElimNestedInductive.withParams, ElimNestedInductive.withParams.loop,
       ElimNestedInductive.run.loop, MonadExcept.throw,
@@ -89,7 +114,8 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
   | succ fuel =>
     cases fuel with
     | zero =>
-      simp [eqBootstrapType, eqBootstrapReflType, hctorInstantiate, hAbsent, Lean.mkFreshId,
+      simp [eqBootstrapType, eqBootstrapReflType, hheaderInstantiate, hctorInstantiate,
+        hctorBodyInstantiate, hAbsent, Lean.mkFreshId,
         getNGen, setNGen, StateT.run', ElimNestedInductive.run,
         ElimNestedInductive.run.loop, ElimNestedInductive.withParams,
         ElimNestedInductive.withParams.loop,
@@ -117,7 +143,8 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
         Expr.replaceNoCacheT, Expr.isApp, Expr.getAppFn,
         Expr.getAppArgs] at hout
     | succ fuel =>
-      simp [eqBootstrapType, eqBootstrapReflType, hctorInstantiate, hAbsent, Lean.mkFreshId,
+      simp [eqBootstrapType, eqBootstrapReflType, hheaderInstantiate, hctorInstantiate,
+        hctorBodyInstantiate, hAbsent, Lean.mkFreshId,
         getNGen, setNGen, StateT.run', ElimNestedInductive.run,
         ElimNestedInductive.run.loop, ElimNestedInductive.withParams,
         ElimNestedInductive.withParams.loop,
@@ -149,7 +176,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
         simpa [Expr.abstractN_nil] using Expr.abstractN_eq e []
       simp [eqBootstrapType, eqBootstrapReflType, habstract]
       constructor
-      · exact hclose _
+      · exact hclose _ _ (by simp [NameGenerator.curr, NameGenerator.next])
       · rfl
 
 /-- Predicate-transformer form of the exact `Eq` lowering no-op. -/
@@ -165,8 +192,9 @@ theorem ElimNestedInductive.run'.eqBootstrapNoopWF
     Hshape hAbsent hout
 
 /-- The exact bootstrap `Eq` syntax is necessarily dispatched through the
-ordinary branch: it has one universe parameter and one inductive parameter,
-whereas primitive Bool/Nat recognition requires both lists to be empty. -/
+ordinary branch: it has one universe parameter and two inductive parameters
+(`α` and the left endpoint), whereas primitive Bool/Nat recognition requires
+both lists to be empty. -/
 theorem checkPrimitiveInductive_eq_false_of_eqBootstrapShape
     (env : Environment)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
@@ -193,7 +221,9 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult sourceEnv source.lparams
-        nparams types (source.safety != .safe) (ves'.venv .safe)) := by
+        nparams types (source.safety != .safe) (ves'.venv .safe)) ∧
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hnonempty : types ≠ [] := by
     rcases Hshape with
       ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
@@ -214,8 +244,8 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
   rcases Hphases.extendSafeEqBootstrap wf' hAbsent' hcSafety' hcVEnv
-      Hshape' with ⟨ves', wf', hEq', hle, Hspec⟩
-  refine ⟨ves', wf', hEq', hle, ?_⟩
+      Hshape' with ⟨ves', wf', hEq', hle, Hspec, hcanonical⟩
+  refine ⟨ves', wf', hEq', hle, ?_, hcanonical⟩
   simpa only [hlparams, hsource] using Hspec
 
 /-- Complete `AddInductive.run` refinement for the exact bootstrap `Eq`
@@ -250,7 +280,9 @@ theorem AddInductive.run.eqBootstrapFinalWF
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         Nonempty (InductiveSpecificationResult Hc.venv c.lparams
-          nparams types (c.safety != .safe) (ves'.venv .safe)) := by
+          nparams types (c.safety != .safe) (ves'.venv .safe)) ∧
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hsize : 0 < types.toArray.size := by
     rcases Hshape with
       ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
@@ -280,7 +312,9 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
       ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
-            nparams types false (ves'.venv .safe)) := by
+            nparams types false (ves'.venv .safe)) ∧
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hisUnsafe : isUnsafe = false := by
     rcases Hshape with
       ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
@@ -319,12 +353,12 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
   unfold Environment.addInductiveAfterLowering
   rw [haux]
   simpa [c, initialContext] using Hrun.mono fun _ h => by
-    rcases h with ⟨ves', wf', hEq', hle, Hspec⟩
+    rcases h with ⟨ves', wf', hEq', hle, Hspec, hcanonical⟩
     have Hspec' : Nonempty (InductiveSpecificationResult
         (ves.venv .safe) lparams nparams types false (ves'.venv .safe)) := by
       rw [hsource] at Hspec
       simpa [c, initialContext, htypes] using Hspec
-    exact ⟨ves', wf', EqReadyOrAbsent.ofCanonical hEq', hle, Hspec'⟩
+    exact ⟨ves', wf', EqReadyOrAbsent.ofCanonical hEq', hle, Hspec', hcanonical⟩
 
 /-- End-to-end production `addInductive` boundary for the ordinary bootstrap
 `Eq` declaration.  Source checks and the exact lowering no-op are composed
@@ -342,7 +376,9 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
-            nparams types false (ves'.venv .safe)) := by
+            nparams types false (ves'.venv .safe)) ∧
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have hAbsentFind : env.find? ``Eq = none := by
     rw [Lean.Kernel.Environment.find?,
       (wf.tr (safety := .safe)).map_wf.find?'_eq_find?]
@@ -375,7 +411,9 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
         ∃ ves' : VEnvs, ves'.WF outEnv ∧ EqReadyOrAbsent outEnv ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult (ves.venv .safe) lparams
-            nparams types false (ves'.venv .safe)) := by
+            nparams types false (ves'.venv .safe)) ∧
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
     lparams nparams types isUnsafe fuel ves wf hAbsent Hshape hstrs
   have hcheck := checkPrimitiveInductive_eq_false_of_eqBootstrapShape env Hshape
