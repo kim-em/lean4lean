@@ -135,7 +135,34 @@ theorem instantiateProjectionParameters.WF {c : VContext} {args : Array Expr}
   (instantiateProjectionParameters.WF_all hT hle hlen hargs hty).mono
     fun _ _ _ H t ht => (H t ht).1
 
-theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
+/-- The open corner of the projection telescope walk. The walk keeps a field binder whose body has
+no loose bound variables without substituting anything for it, so the body, translated under the
+binder, must be translated without it. When the field's projection is typable (its domain has a
+sort satisfying the guard `G`) the projection inhabits the binder and substitution does this. The
+remaining case is a structure that may be a proposition (`maybePropType`, so `G` is not trivial)
+with a field whose domain has no sort satisfying `G`, typically a data field of a `Prop` structure,
+whose projection is not typable. The executable, like the C++ kernel's `infer_proj`, accepts such
+a non-dependent field. This premise states, for exactly those binders, that a closed body
+translated under the binder translates without it.
+
+It is an instance of context strengthening across a binder with no available inhabitant. General
+strengthening of this kind is refuted by the two-family model in
+`docs/inductives/STRENGTHENING.md`. Here the binder is a field of a structure whose major is in
+context, so every proposition derivable from the field is also derivable from the major by
+elimination into `Prop`; that is why the premise is expected to hold, but no proof is known. -/
+def ProjectionFieldCorner (c : VContext) (G : VLevel → Prop) (D : VExpr) : Prop :=
+  c.IsType D → (∀ u, c.HasType D (.sort u) → ¬ G u) →
+  ∀ {body : Expr} {body' : VExpr},
+    TrExprS c.venv c.lparams ((none, .vlam D) :: c.vlctx) body body' → Closed body →
+    ∃ b₀, c.TrExprS body b₀ ∧ body' = b₀.lift
+
+/-- The projection-corner premise, discharged by the legacy context-strengthening lemma
+`TrExprS.weakBV_inv₁`. This is the only remaining use of strengthening in the projection walk. -/
+theorem ProjectionFieldCorner.ofWeakBVInv {c : VContext} : ProjectionFieldCorner c G D :=
+  fun hd _ _ _ h hc => h.weakBV_inv₁ c.Ewf ⟨c.Δwf, nofun, hd⟩ hc
+
+/-- The projection telescope walk, with the open corner `ProjectionFieldCorner` as a premise. -/
+theorem instantiateProjectionFields.WF_all_of_corner {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u) :
     ∀ {remaining : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr} {position : Nat},
@@ -144,6 +171,8 @@ theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
       c.HasType ((ds[m]'(by omega)).instOuter (projs st e' position m)) (.sort u) → G u →
       c.HasType (.proj st (position + m) e')
         ((ds[m]'(by omega)).instOuter (projs st e' position m))) →
+    (maybePropType = true → ∀ m (hm : m < remaining),
+      ProjectionFieldCorner c G ((ds[m]'(by omega)).instOuter (projs st e' position m))) →
     (instantiateProjectionFields st struct maybePropType type position remaining).WF c s
       fun r _ => ∀ t, r = some t → ((∃ R,
         VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
@@ -155,11 +184,11 @@ theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
   intro remaining
   induction remaining with
   | zero =>
-    intro s type ds b position hT _ _
+    intro s type ds b position hT _ _ _
     exact .pure fun t ht => by
       cases ht; exact ⟨⟨⟨_, rfl, hT⟩, fun _ _ h _ => h⟩, fun _ _ _ h _ _ _ => h⟩
   | succ remaining ih =>
-    intro s type ds b position hT hle hproj
+    intro s type ds b position hT hle hproj hcorner
     cases ds with | nil => simp at hle | cons d ds' => ?_
     have hT' : c.TrExprS type (.forallE d (VExpr.wrapForalls ds' b)) := hT
     unfold instantiateProjectionFields
@@ -188,16 +217,23 @@ theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
             struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true := by
       intro s type' hT'' hfv' hlv'
       rw [VExpr.wrapForalls_inst] at hT''
-      refine (ih hT'' (by simpa using Nat.le_of_succ_le_succ hle) ?_).mono fun r _ _ H t ht => ?_
-      · intro m hm u
-        have hm' : m < ds'.length := by simp at hle; omega
-        have E : ((VExpr.instDomains ds' (.proj st position e') 0)[m]'(by simpa using hm')).instOuter
+      have E : ∀ m (hm' : m < ds'.length),
+          ((VExpr.instDomains ds' (.proj st position e') 0)[m]'(by simpa using hm')).instOuter
               (projs st e' (position + 1) m) =
             (ds'[m]'hm').instOuter (projs st e' position (m + 1)) := by
-          rw [VExpr.instDomains_getElem _ _ _ _ hm', projs_succ,
-            VExpr.instOuter_cons, projs_length, Nat.zero_add]
-        rw [E, show position + 1 + m = position + (m + 1) by omega]
+        intro m hm'
+        rw [VExpr.instDomains_getElem _ _ _ _ hm', projs_succ,
+          VExpr.instOuter_cons, projs_length, Nat.zero_add]
+      refine (ih hT'' (by simpa using Nat.le_of_succ_le_succ hle) ?_ ?_).mono
+        fun r _ _ H t ht => ?_
+      · intro m hm u
+        have hm' : m < ds'.length := by simp at hle; omega
+        rw [E m hm', show position + 1 + m = position + (m + 1) by omega]
         exact hproj (m + 1) (Nat.succ_lt_succ hm) u
+      · intro hmp m hm
+        have hm' : m < ds'.length := by simp at hle; omega
+        rw [E m hm']
+        exact hcorner hmp (m + 1) (Nat.succ_lt_succ hm)
       · obtain ⟨⟨⟨R, hR, hR'⟩, hfv⟩, hlv⟩ := H t ht
         refine ⟨⟨⟨R, ?_, hR'⟩, fun P hP hfvt hfvs => hfv P hP (hfv' P hP hfvt hfvs) hfvs⟩,
           fun Us P hsc hlt hfvt hls hfvs =>
@@ -240,15 +276,49 @@ theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
       · rename_i hmp
         have ⟨u, hu⟩ := hd
         exact main (hp0 u hu (hG (by simpa using hmp) u))
-    · -- the body does not depend on the field: its translation is a lift
+    · -- the body does not depend on the field
       rename_i hnl
-      have hc : Closed body := by
-        refine Closed.of_closed_looseBVarRange hbody.closed ?_
-        simpa [Expr.hasLooseBVars] using hnl
-      obtain ⟨b₀, hb₀, hWeq⟩ := hbody.weakBV_inv₁ c.Ewf ⟨c.Δwf, nofun, hd⟩ hc
+      have hlr : body.looseBVarRange' ≤ 0 := by simpa [Expr.hasLooseBVars] using hnl
       refine cont _ ?_ (fun P hP hfvt _ => (hbe P hP hfvt).2)
         fun Us P hsc hlt hfvt _ _ => (hbl Us P hsc hlt hfvt).2
-      rw [hWeq, VExpr.inst_lift]; exact hb₀
+      by_cases hGd : ∃ u, c.HasType d (.sort u) ∧ G u
+      · -- the projection inhabits the field's domain: substitute it, which leaves the body fixed
+        obtain ⟨u, hu, hGu⟩ := hGd
+        have hp := hp0 u hu hGu
+        have hp_tr : c.TrExprS (.proj st position struct) (.proj st position e') :=
+          .proj he (.direct hmaj ⟨_, hp⟩)
+        have hinst := hbody.inst c.Ewf.ordered hp hp_tr
+        rwa [Expr.instantiate1'_eq_self hlr] at hinst
+      · -- the open corner: a field whose projection is not typable
+        have hmp : maybePropType = true := by
+          cases h : maybePropType
+          · have ⟨u, hu⟩ := hd
+            exact absurd ⟨u, hu, hG h u⟩ hGd
+          · rfl
+        have hc : Closed body := Closed.of_closed_looseBVarRange hbody.closed hlr
+        obtain ⟨b₀, hb₀, hWeq⟩ := hcorner hmp 0 (Nat.succ_pos _) (by simpa using hd)
+          (fun u hu hGu => hGd ⟨u, by simpa using hu, hGu⟩) (by simpa using hbody) hc
+        rw [hWeq, VExpr.inst_lift]; exact hb₀
+
+theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
+    (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
+    (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u)
+    {remaining : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr} {position : Nat}
+    (hT : c.TrExprS type (VExpr.wrapForalls ds b)) (hle : remaining ≤ ds.length)
+    (hproj : ∀ m (hm : m < remaining) u,
+      c.HasType ((ds[m]'(by omega)).instOuter (projs st e' position m)) (.sort u) → G u →
+      c.HasType (.proj st (position + m) e')
+        ((ds[m]'(by omega)).instOuter (projs st e' position m))) :
+    (instantiateProjectionFields st struct maybePropType type position remaining).WF c s
+      fun r _ => ∀ t, r = some t → ((∃ R,
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
+          (projs st e' position remaining) = some R ∧
+        c.TrExprS t R) ∧
+      ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
+      ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+        struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true :=
+  instantiateProjectionFields.WF_all_of_corner he hmaj hG0 hG hT hle hproj
+    fun _ _ _ => ProjectionFieldCorner.ofWeakBVInv
 
 theorem instantiateProjectionFields.WF {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
