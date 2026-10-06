@@ -129,4 +129,218 @@ theorem NativeRecursorRegistered.equation_shape {data : NativeRecursorData}
     rfl
   · rw [hlen, hdomlen, hnp]
 
+
+theorem NativeRecursorRegistered.constructor_indices_length {data : NativeRecursorData}
+    (H : NativeRecursorRegistered env data) (index : Fin data.schema.signature.constructors.size) :
+    data.schema.signature.constructors[index].indices.length =
+      data.schema.signature.families[data.schema.signature.constructors[index].owner].indices.length := by
+  obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
+    hdata, _⟩ := H
+  exact hdata.model.constructorArity _ (by simpa using Array.getElem_mem index.isLt)
+
+
+theorem vars_eq_bvarRange' (n : Nat) : vars n 0 = VExpr.bvarRange n n := by
+  apply List.ext_getElem
+  · simp [vars, VExpr.bvarRange]
+  · intro i hi hi'
+    simp [vars, VExpr.bvarRange] at hi hi' ⊢
+
+theorem vars_instL (n k : Nat) (ls : List VLevel) : (vars n k).map (VExpr.instL ls) = vars n k := by
+  simp [vars, List.map_map, Function.comp_def, VExpr.instL]
+
+theorem closedN_wrapLams_body {domains : List VExpr} {body : VExpr}
+    (h : (VExpr.wrapLams domains body).ClosedN k) : body.ClosedN (k + domains.length) := by
+  induction domains generalizing k with
+  | nil => exact h
+  | cons domain domains ih =>
+    have := ih (show (VExpr.wrapLams domains body).ClosedN (k + 1) from h.2)
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this
+
+section
+variable [Params]
+open Params
+
+theorem ParRedS.wrapLams' (H : ParRedS (domains.reverse ++ Γ) body body') :
+    ParRedS Γ (VExpr.wrapLams domains body) (VExpr.wrapLams domains body') := by
+  induction H with
+  | rfl => exact .rfl
+  | tail _ h ih => exact .tail ih (ParRed.wrapLams h)
+
+theorem ParRed.mkApps_left' (H : ParRed Γ f f') : ParRed Γ (VExpr.mkApps f as) (VExpr.mkApps f' as) := by
+  induction as generalizing f f' with
+  | nil => exact H
+  | cons a as ih => exact ih (.app H .rfl)
+
+theorem ParRedS.mkApps_wrapLams : ∀ {args doms : List VExpr} {body : VExpr},
+    args.length = doms.length →
+    ParRedS Γ (VExpr.mkApps (VExpr.wrapLams doms body) args) (body.instOuter args)
+  | [], [], _, _ => .rfl
+  | a :: as, d :: ds, body, hlen => by
+    have hlen' : as.length = ds.length := by simpa using hlen
+    have hstep : ParRed Γ (VExpr.mkApps (VExpr.wrapLams (d :: ds) body) (a :: as))
+        (VExpr.mkApps ((VExpr.wrapLams ds body).inst a) as) :=
+      ParRed.mkApps_left' (.beta .rfl .rfl)
+    have ih := ParRedS.mkApps_wrapLams (Γ := Γ) (args := as) (doms := VExpr.instDomains ds a 0)
+      (body := body.inst a ds.length) (by simpa [VExpr.instDomains] using hlen')
+    rw [VExpr.wrapLams_inst] at hstep
+    simp only [Nat.zero_add] at hstep
+    rw [VExpr.instOuter_cons, hlen']
+    exact (ReflTransGen.tail .rfl hstep).trans ih
+  | [], _ :: _, _, h => by simp at h
+  | _ :: _, [], _, h => by simp at h
+
+end
+
+
+theorem _root_.Lean4Lean.Pattern.argumentRHS_apply_levels (p : Pattern) (n : Nat)
+    (l l' : List VLevel) (g : (p.varN n).Path → VExpr) :
+    (p.argumentRHS n).map (·.apply l g) = (p.argumentRHS n).map (·.apply l' g) := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    have hm : ∀ (lv : List VLevel), (p.argumentRHS n).map
+        (fun x => Pattern.RHS.apply lv g (Pattern.RHS.mapPaths some x)) =
+        (p.argumentRHS n).map (fun x => x.apply lv (g ∘ some)) :=
+      fun lv => List.map_congr_left (fun x _ => Pattern.RHS.mapPaths_apply _ _)
+    simp only [Pattern.argumentRHS, List.map_append, List.map_map, Function.comp_def,
+      List.map_cons, List.map_nil, Pattern.RHS.apply]
+    rw [hm l, hm l', ih]
+
+theorem stripLams_wrapLams_app (domains : List VExpr) (f a : VExpr) :
+    (VExpr.wrapLams domains (.app f a)).stripLams = .app f a := by
+  induction domains with
+  | nil => rfl
+  | cons _ _ ih => exact ih
+
+section
+variable [Params]
+open Params
+
+/-- An installed native equation reduces by its own native iota pattern at
+every universe specialization that passes the large-elimination guard. -/
+theorem NativeRecursorRegistered.equation_parRedS {data : NativeRecursorData}
+    {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
+    {levels : List VLevel}
+    (hpat : ∀ {p r}, NativeIotaPattern env recursorData p r → Pat p r)
+    (hlookup : recursorData data.name = some data) (H : NativeRecursorRegistered env data)
+    (howner : data.schema.signature.constructors[index].owner = data.owner)
+    (hgen : data.equation index = some equation)
+    (hlen : levels.length = data.uvars)
+    (hguard : data.largeTarget = true →
+      ¬((data.schema.sourceLevel data.owner data.levels).inst levels ≈ .zero)) :
+    ParRedS Γ (equation.lhs.instL levels) (equation.rhs.instL levels) := by
+  obtain ⟨domains, idx, cl, cp, rb, tb, hl, hr, -, hdl, hidx⟩ := H.equation_shape howner hgen
+  have hclosed := H.equation_closed henv hgen
+  have hcl := hclosed.2.1
+  rw [hr] at hcl
+  have hrb := closedN_wrapLams_body hcl
+  simp only [Nat.zero_add] at hrb
+  let nf := data.schema.signature.constructors[index].fields.length
+  let io := data.indexOffset
+  let cc := data.ruleConstructor index
+  let pre := vars io nf ++ idx.map (VExpr.instL levels)
+  let cargs := cp.map (VExpr.instL levels) ++ vars nf 0
+  have hhead : (VLevel.params data.uvars).map (VLevel.inst levels) = levels :=
+    VLevel.inst_map_id hlen
+  have hbody : (VExpr.app
+      (VExpr.mkApps (.const data.name (VLevel.params data.uvars)) (vars io nf ++ idx))
+      (VExpr.mkApps (.const cc cl) (cp ++ vars nf 0))).instL levels =
+      .app (VExpr.mkApps (.const data.name levels) pre)
+        (VExpr.mkApps (.const cc (cl.map (·.inst levels))) cargs) := by
+    simp only [VExpr.instL, VExpr.instL_mkApps, List.map_append, vars_instL, hhead, pre, cargs]
+  have hpre : pre.length = data.majorOffset := by
+    have hi := H.constructor_indices_length index
+    simp only [howner] at hi
+    simp only [pre, List.length_append, List.length_map, hidx, hi, vars, List.length_reverse,
+      List.length_range, io, NativeRecursorData.majorOffset, NativeRecursorData.numIndices]
+  have hmajorArgs : NativeRecursorData.ruleMajorArguments equation = cp ++ vars nf 0 := by
+    unfold NativeRecursorData.ruleMajorArguments
+    rw [hl]
+    rw [stripLams_wrapLams_app, ← mkApps_snoc,
+      InductiveSignature.spine_mkApps_exact (.const data.name (VLevel.params data.uvars)) _ rfl]
+    simp only [List.getLast?_append, List.getLast?_singleton, Option.some_or, Option.getD_some]
+    rw [InductiveSignature.spine_mkApps_exact (.const cc cl) _ rfl]
+  have hcargs : cargs.length = (NativeRecursorData.ruleMajorArguments equation).length := by
+    simp [cargs, hmajorArgs]
+  obtain ⟨g1, hg1⟩ := Pattern.Matches.constVarN_exists (c := data.name) data.majorOffset
+    (vs := pre) (ls := levels) hpre
+  obtain ⟨g2, hg2⟩ := Pattern.Matches.constVarN_exists (c := cc)
+    (NativeRecursorData.ruleMajorArguments equation).length (vs := cargs)
+    (ls := cl.map (·.inst levels)) hcargs
+  have hm : (data.rulePattern index equation).Matches
+      (.app (VExpr.mkApps (.const data.name levels) pre)
+        (VExpr.mkApps (.const cc (cl.map (·.inst levels))) cargs)) levels (Sum.elim g1 g2) :=
+    .app hg1 hg2
+  have hp := hpat (NativeIotaPattern.intro henv H hlookup howner hgen)
+  have hck : ∀ df, Pattern.Check.OK (p := data.rulePattern index equation) df levels (Sum.elim g1 g2)
+      (data.ruleCheck index equation) := by
+    intro df
+    unfold NativeRecursorData.ruleCheck
+    split
+    · exact ⟨hguard (by assumption), trivial⟩
+    · trivial
+  let Δ := (domains.map (VExpr.instL levels)).reverse ++ Γ
+  have step := ParRed.extra (Γ := Δ) hp hm (hck _) (fun _ => .rfl)
+  have hpreEq := (mkApps_const_inj hg1.const_arguments).2.2
+  have hcEq := (mkApps_const_inj hg2.const_arguments).2.2
+  have hcapt : (NativeRecursorData.ruleCaptures data index equation).map
+      (fun (x : (data.rulePattern index equation).RHS) =>
+          Pattern.RHS.apply (p := data.rulePattern index equation) levels (Sum.elim g1 g2) x) =
+      vars (io + nf) 0 := by
+    unfold NativeRecursorData.ruleCaptures
+    rw [List.map_append, List.map_map, List.map_map]
+    have e1 : ∀ l : List ((Pattern.const data.name).varN data.majorOffset).RHS,
+        l.map ((fun (x : (data.rulePattern index equation).RHS) =>
+          Pattern.RHS.apply (p := data.rulePattern index equation) levels (Sum.elim g1 g2) x) ∘
+          Pattern.RHS.mapPaths Sum.inl) = l.map (fun x => x.apply levels g1) :=
+      fun l => List.map_congr_left (fun x _ => Pattern.RHS.mapPaths_apply _ _)
+    have e2 : ∀ l : List ((Pattern.const cc).varN
+          (NativeRecursorData.ruleMajorArguments equation).length).RHS,
+        l.map ((fun (x : (data.rulePattern index equation).RHS) =>
+          Pattern.RHS.apply (p := data.rulePattern index equation) levels (Sum.elim g1 g2) x) ∘
+          Pattern.RHS.mapPaths Sum.inr) = l.map (fun x => x.apply levels g2) :=
+      fun l => List.map_congr_left (fun x _ => Pattern.RHS.mapPaths_apply _ _)
+    rw [e1, e2]
+    have h1 : (((Pattern.const data.name).argumentRHS data.majorOffset).take data.indexOffset).map
+        (fun x => x.apply levels g1) = vars io nf := by
+      rw [List.map_take, ← hpreEq]
+      simp only [pre, io]
+      exact List.take_left' (by simp [vars])
+    have h2 : (((Pattern.const cc).argumentRHS (NativeRecursorData.ruleMajorArguments equation).length).drop
+        ((NativeRecursorData.ruleMajorArguments equation).length -
+          data.schema.signature.constructors[index].fields.length)).map
+        (fun x => x.apply levels g2) = vars nf 0 := by
+      rw [List.map_drop, Pattern.argumentRHS_apply_levels (l' := cl.map (·.inst levels)),
+        ← hcEq]
+      simp only [cargs, hmajorArgs, List.length_append]
+      rw [show cp.length + (vars nf 0).length - nf = (cp.map (VExpr.instL levels)).length by
+        simp [vars]]
+      exact List.drop_left
+    rw [h1, h2, vars_join']
+  have happly : Pattern.RHS.apply (p := data.rulePattern index equation) levels (Sum.elim g1 g2)
+      (data.ruleRHS index equation hclosed.2.1) =
+      VExpr.mkApps (equation.rhs.instL levels) (vars (io + nf) 0) := by
+    unfold NativeRecursorData.ruleRHS
+    refine (Pattern.RHS.applyArgs_apply (p := data.rulePattern index equation) _ _).trans ?_
+    rw [hcapt]
+    rfl
+  rw [hl, hr, VExpr.instL_wrapLams, VExpr.instL_wrapLams]
+  apply ParRedS.wrapLams'
+  change ParRedS Δ _ _
+  rw [hbody]
+  refine (ReflTransGen.tail .rfl step).trans ?_
+  change ParRedS Δ (Pattern.RHS.apply (p := data.rulePattern index equation) levels
+    (Sum.elim g1 g2) (data.ruleRHS index equation hclosed.2.1)) _
+  rw [happly, hr, VExpr.instL_wrapLams]
+  have hn : (vars (io + nf) 0).length = (domains.map (VExpr.instL levels)).length := by
+    simp [vars, hdl, io, nf]
+  refine (ParRedS.mkApps_wrapLams hn).trans ?_
+  have hrb' : (rb.instL levels).ClosedN (io + nf) := by
+    have := hrb.instL (ls := levels); rwa [hdl] at this
+  rw [vars_eq_bvarRange', VExpr.instOuter_range_bvar' _ _ _ hrb' (Nat.le_refl _), Nat.sub_self,
+    VExpr.liftN_zero]
+  exact .rfl
+
+end
+
 end Lean4Lean.VEnv
