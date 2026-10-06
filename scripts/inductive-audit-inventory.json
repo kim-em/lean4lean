@@ -46,7 +46,6 @@
   ],
   "openProofs": [
     "Lean4Lean.VEnv.WF.headInversion",
-    "Lean4Lean.VEnv.IsDefEqU.weakN_iff",
     "Lean4Lean.VEnv.strengthening_of_canonicalEq",
     "Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalConsumedGeneration",
     "Lean4Lean.VerifyInductive.CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation",
