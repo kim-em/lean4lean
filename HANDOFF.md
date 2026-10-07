@@ -245,7 +245,14 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   agent proves `corner_inhabit_elim_indexed` under it (branch
   agent/verify-inductives-corner-indexed off E1 463c99d4). Integration
   note: mainline `NativeIotaRestoration.lean` vs E1 `RestorationShapes`
-  relocate the same lemmas; keep one copy at merge.
+  relocate the same lemmas; keep one copy at merge. **Indexed corner
+  proved (branch agent/verify-inductives-corner-indexed d06d106a, off E1
+  463c99d4, pushed):** `VEnv.corner_inhabit_elim_indexed`
+  (Theory/Typing/ProjectionCornerIndexed*.lean), the indexed analogue of
+  `corner_inhabit_elim` under the restored header-agreement hypothesis on
+  the registered schema (restored params/indices `RP`, `RI`; declared type
+  of `S` ≡ `wrapForalls (RP ++ RI) (sort resultLevel)` in the empty
+  context); sorry dependency only `headInversion`. E1 supplies the clause.
   **Mainline fast-forwarded to base 9cc2be01 (pushed):** realizability of
   `HasCanonicalChoice` (Verify/Inductive/ChoiceCanonicalForms.lean,
   Verify/CanonicalChoiceRealization.lean `VEnvs.WF.hasCanonicalChoice`,
