@@ -113,7 +113,8 @@ theorem Rigid.realize (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
     (hent : ∀ p ∈ cts, CtorEntry env (Interp env) ls (as.map (·.T)) p)
     (hcts : WShape.CtsTypes cts) :
     (l.inst ls).eval = v.eval ∧
-      Interp env ρ (WShape.rigid I (ls.map (·.eval)) as cts).T (VExpr.mkApps (.const I ls) args) := by
+      Interp env ρ (WShape.rigid I (ls.map (·.eval)) as cts).T (VExpr.mkApps (.const I ls) args) ∧
+      (WShape.rigid I (ls.map (·.eval)) as cts).T.HasType (TShape.sort v.eval) := by
   have hn := famSem_args_length hcl hsem W hTy
   subst hn
   have hTy' : StrongSound env Γ (VExpr.mkApps (.const I ls) args.reverse.reverse) (.sort v) := by
@@ -148,7 +149,8 @@ theorem Rigid.realize (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
     · rw [List.reverse_reverse]; exact TShape.LE.rfl
   have := Spine.realize hcl W hmty Interp.sort' hTy'
     (List.Forall₂.reverse.2 hargs) hCI
-  rwa [List.reverse_reverse] at this
+  rw [List.reverse_reverse] at this
+  exact ⟨this, hmty⟩
 
 theorem ctorTy?_table {α : Type} {c : Name} {T d : α} :
     ∀ {l : List Name}, c ∈ l → ctorTy? c (l.map fun c' => (c', if c' = c then T else d)) = some T
@@ -233,7 +235,7 @@ theorem Ctor.realize0 (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
     · obtain ⟨ci', k', h1, h2⟩ := hfc c' hc'
       refine ⟨ci', k', TShape.bot, h1, h2, .bot, ?_⟩
       simp only [if_neg he]; exact TShape.bot_le'
-  obtain ⟨hlev, hRI⟩ := Rigid.realize hcl W' hnc hnr hl hsem hB (as := asI)
+  obtain ⟨hlev, hRI, -⟩ := Rigid.realize hcl W' hnc hnr hl hsem hB (as := asI)
     (List.forall₂_of_getElem (by simp [asI]) fun i _ _ => by simp only [asI, List.getElem_map]; exact .bot)
     (by simp [cts, List.map_map, Function.comp_def]) hent hcts
   have hRT : Interp env ρ (WShape.rigid I (ls.map (·.eval)) asI cts).T T :=
