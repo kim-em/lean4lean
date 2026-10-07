@@ -44,12 +44,15 @@ inductive Registry.EquationOrigin (registry : Registry) (env : VEnv) (equation :
 provenance of each surviving native and completeness for primitive metadata. -/
 structure Registry.EnvironmentContract (registry : Registry) (env : VEnv)
     (declarations : List VDecl) : Prop where
+  history : env.WF' declarations
   scope : registry.Scoped
   definitions : ∀ name value, registry.definitions name = some value →
     DefinitionRegistered env value ∧ value.name = name
   natives : ∀ name data, registry.natives name = some data →
     NativeRecursorRegistered env data ∧ data.name = name ∧
       Nonempty (NativeDeclarationOrigin env declarations data)
+  nativeNotDefinition : ∀ name data, registry.natives name = some data →
+    registry.definitions name = none
   projections : ∀ name info, registry.projections name = some info ↔ env.projections name info
   structures : ∀ name entry, registry.structureConstructors name = some entry ↔
     env.projections entry.typeName entry.info ∧ entry.info.ctorName = name
@@ -91,9 +94,12 @@ theorem _root_.Lean4Lean.VEnv.WF'.canonicalRegistry
     intro enabled
     exact (history.quotient (of_decide_eq_true enabled)).1
   refine ⟨registry, {
+    history := formed
     scope := fromHistory_scoped history
     definitions := definitions
     natives := ?_
+    nativeNotDefinition := fun _ _ lookup =>
+      raw.removeEmptyNatives_notDefinition formedEnv definitions nativeSound lookup
     projections := ?_
     structures := ?_
     caseLookup := ?_

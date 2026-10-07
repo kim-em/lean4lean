@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Typing.NativeSingletonProgram
 import Lean4Lean.Theory.Typing.NativePrefixSubstitution
 
 namespace Lean4Lean.InductiveSignature
@@ -100,6 +101,55 @@ theorem prefixProgram_sameArity {data : NativeRecursorData} {levels : List VLeve
   simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hconstructor', hsource,
     hfields, hequation, hbody]
   simp only [List.length_append, List.length_map, List.length_take, hargs] at hcaptures ⊢
+  rw [if_neg hcaptures]
+  exact ⟨_, rfl⟩
+
+theorem singletonProgram_sameArity {data : NativeRecursorData} {levels : List VLevel} {env : VEnv}
+    (H : data.singletonProgram env U levels args = some program) (hargs : args'.length = args.length) :
+    ∃ program', data.singletonProgram env U levels args' = some program' := by
+  have hbound := (singletonProgram_spec H).1
+  unfold singletonProgram at H ⊢
+  simp only [hargs]
+  split at H <;> try contradiction
+  rename_i hguard
+  rw [if_neg hguard]
+  simp only [bind, Option.bind_eq_some_iff] at H
+  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+    ⟨constructor, fields⟩, hrecon, equation, hequation, body, hbody, H⟩ := H
+  split at H <;> try contradiction
+  rename_i hcaptures
+  obtain ⟨doms, tail, hshape, hlen⟩ := recursorType_telescope htype
+  have hbound' : args'.length ≤ (doms.map (VExpr.instL levels)).length := by simp; omega
+  obtain ⟨residual', domains', result', hsupply', hshape', hlen'⟩ :=
+    supplyType_wrapForalls_exists (body := tail.instL levels) hbound'
+  simp only [bind, htype, Option.bind_some]
+  rw [hshape, VExpr.instL_wrapForalls]
+  simp only [hsupply', Option.bind_some, hshape']
+  have hlen'' : domains'.length = data.majorOffset + 1 - args.length := by
+    simpa only [List.length_map, hlen, hargs] using hlen'
+  have htake' := takeForalls_wrapForalls domains' result'
+  rw [hlen''] at htake'
+  have hrecon' : ∃ p, data.singletonRecon env levels
+      (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+        vars (data.majorOffset + 1 - args.length) 0) = some p := by
+    have h := singletonRecon_isSome env data levels
+      (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+        vars (data.majorOffset + 1 - args.length) 0)
+      (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+        vars (data.majorOffset + 1 - args.length) 0)
+    rw [hrecon] at h
+    cases hg : data.singletonRecon env levels
+        (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+          vars (data.majorOffset + 1 - args.length) 0) with
+    | none => rw [hg] at h; cases h
+    | some p => exact ⟨p, rfl⟩
+  obtain ⟨⟨ctor', fields'⟩, hrecon'⟩ := hrecon'
+  obtain ⟨S1, hS1, hl1⟩ := singletonRecon_fields_length hrecon
+  obtain ⟨S2, hS2, hl2⟩ := singletonRecon_fields_length hrecon'
+  cases hS1.symm.trans hS2
+  simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hrecon',
+    hequation, hbody]
+  simp only [List.length_append, List.length_map, List.length_take, hargs, hl1, hl2] at hcaptures ⊢
   rw [if_neg hcaptures]
   exact ⟨_, rfl⟩
 

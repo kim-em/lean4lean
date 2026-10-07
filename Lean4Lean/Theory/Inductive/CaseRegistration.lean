@@ -121,7 +121,7 @@ theorem VEnv.WF.eliminatorsProjNamesRegistered {env : VEnv} (H : env.WF) :
     exact (ih hlookup).mono VEnv.addProjections_le
   | inductEliminators _ _ _ _ _ hc _ _ ih =>
     rcases hlookup with ⟨rfl, rfl⟩ | hlookup
-    · exact hc.2.2.mono VEnv.addEliminator_le
+    · exact hc.2.2.1.mono VEnv.addEliminator_le
     · exact (ih hlookup).mono VEnv.addEliminator_le
 
 namespace InductiveSignature.CaseSchema
@@ -191,9 +191,22 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     exact htypesWF family hfamily
   have hfresh := (H.fresh hbase hkey).of_registry_eq
     ((VEnv.addConstVals_eliminators hctors).trans (VEnv.addConstVals_eliminators htypes))
+  have hcoherent : source.ProjectionsCoherent envCtors := by
+    intro type htype info hinfo
+    exfalso
+    rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hinfo
+    obtain ⟨ci, hci⟩ := hbase.ordered.projectionConstant hinfo
+    obtain ⟨expanded, g, auxiliaries, hdata, _, _⟩ := H
+    have hmem : type.toVConstVal ∈ block.types := by
+      rw [hdata.types]; exact List.mem_map.mpr ⟨type, htype, rfl⟩
+    have hfresh := VEnv.addConstVals_names_fresh htypes _ hmem
+    change base.constants type.name = none at hfresh
+    rw [hfresh] at hci
+    cases hci
   apply hbase.inductEliminators hctorsWF
     ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) H hkey _
-    ((VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)) hprojs hfresh
+    ((VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)) hprojs
+    hcoherent hfresh
   intro value hvalue
   rcases List.mem_append.mp hvalue with hvalue | hvalue
   · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hvalue)

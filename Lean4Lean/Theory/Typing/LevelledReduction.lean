@@ -1013,13 +1013,6 @@ theorem mkApps_snoc (f : VExpr) (l : List VExpr) (b : VExpr) :
   | nil => rfl
   | cons a l ih => exact ih (.app f a)
 
-omit [Params] in
-theorem snoc_induction {P : List α → Prop} (nil : P []) (snoc : ∀ l a, P l → P (l ++ [a]))
-    (l : List α) : P l := by
-  rw [← List.reverse_reverse l]
-  induction l.reverse with
-  | nil => exact nil
-  | cons a l ih => rw [List.reverse_cons]; exact snoc _ _ ih
 
 
 theorem NativeDeltaRule.not_rigid
@@ -1028,7 +1021,7 @@ theorem NativeDeltaRule.not_rigid
   intro hrig
   cases H with
   | @intro data program hl hreg hname _ _ _ hg _ =>
-    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.NativeRecursorData.prefixProgram_spec hg
+    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.NativeRecursorData.singletonProgram_spec hg
     have hinst := hreg.singletonEquation hse
     unfold InductiveSignature.NativeRecursorData.singletonEquation at hse
     dsimp only at hse
@@ -1079,16 +1072,17 @@ theorem Params.no_match_delta_prefix (hdata : recursorData name = some data) (hp
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
     rw [← mkApps_snoc] at he
     obtain ⟨rfl, -, rfl⟩ := mkApps_const_inj he
-    rcases pat_recursor hp with ⟨data', _, _, hmo, hrd, _⟩ | ⟨_, hq, _⟩
+    rcases pat_recursor hp with ⟨data', _, _, hmo, hrd, _⟩ | ⟨hqr, hq, _⟩
     · rw [hrd] at hdata
       cases hdata
       simp only [List.length_append, List.length_singleton] at hlen
       omega
     · subst hq
-      rw [recursorData_quot] at hdata
+      rw [recursorData_quot hqr] at hdata
       cases hdata
 
-theorem Params.no_match_quot_prefix (hp : Pat p r) (hlen : pre.length ≤ 5)
+theorem Params.no_match_quot_prefix (hqr : QuotRegistered env) (hp : Pat p r)
+    (hlen : pre.length ≤ 5)
     (hm : p.Matches (VExpr.mkApps (.const ``Quot.lift ls) pre) lv vals) : False := by
   obtain ⟨sp, rfl⟩ := Params.pat_simple hp
   cases sp with
@@ -1096,13 +1090,13 @@ theorem Params.no_match_quot_prefix (hp : Pat p r) (hlen : pre.length ≤ 5)
     generalize he : VExpr.mkApps (.const ``Quot.lift ls) pre = E at hm
     cases hm
     obtain ⟨rfl, -, -⟩ := mkApps_const_inj (as' := []) he
-    exact (pat_const_native hp).2 rfl
+    exact (pat_const_native hp).2 hqr rfl
   | iota rc mr cc kc =>
     obtain ⟨vs, M, he, hvs⟩ := iota_matches_spine hm
     rw [← mkApps_snoc] at he
     obtain ⟨rfl, -, rfl⟩ := mkApps_const_inj he
     rcases pat_recursor hp with ⟨data', _, _, _, hrd, _⟩ | ⟨_, _, hmr, _⟩
-    · rw [recursorData_quot] at hrd
+    · rw [recursorData_quot hqr] at hrd
       cases hrd
     · simp only [List.length_append, List.length_singleton] at hlen
       omega
@@ -1122,7 +1116,7 @@ theorem Params.iota_no_delta
       rw [hr] at hck
       exact hck.1 hz
     · subst hq
-      rw [recursorData_quot] at hl
+      rw [recursorData_quot (by assumption)] at hl
       cases hl
 
 /-- The nonzero guard of quotient iota excludes quotient prefix unfolding. -/
@@ -1134,7 +1128,7 @@ theorem Params.iota_no_quotDelta
   | intro _ _ hz _ _ =>
     rcases pat_recursor (recursor := ``Quot.lift) (major := mr) (ctor := cc) (fields := kc) hp with
       ⟨data', _, _, _, hrd, _, _⟩ | ⟨_, _, _, _, _, rest, hr⟩
-    · rw [recursorData_quot] at hrd
+    · rw [recursorData_quot (by assumption)] at hrd
       cases hrd
     · rw [hr] at hck
       apply hck.1
@@ -2106,7 +2100,7 @@ theorem NativeDeltaRule.length_le (H : NativeDeltaRule env univs recursorData Γ
     ∃ data, recursorData name = some data ∧ args.length ≤ data.majorOffset := by
   cases H with
   | @intro data program hl _ _ _ _ _ hg _ =>
-    exact ⟨data, hl, (InductiveSignature.NativeRecursorData.prefixProgram_spec hg).1⟩
+    exact ⟨data, hl, (InductiveSignature.NativeRecursorData.singletonProgram_spec hg).1⟩
 
 theorem QuotDeltaRule.length_le (H : QuotDeltaRule env univs Γ ls args rhs) : args.length ≤ 5 := by
   cases H with
@@ -2360,7 +2354,7 @@ theorem DeltaPar.parRed_diamond_aux : ∀ n, DPDiaBelow n := by
   | @quotDelta _ ls rhs args args' hlen hargs hr =>
     have hle : args.length ≤ 5 := hlen ▸ hr.length_le
     obtain ⟨argsP, rfl, hP⟩ := ParRed.const_spine_of args.length
-      (fun hp hpre hm => Params.no_match_quot_prefix hp (by omega) hm) (Nat.le_refl _) H2
+      (fun hp hpre hm => Params.no_match_quot_prefix hr.registered hp (by omega) hm) (Nat.le_refl _) H2
     obtain ⟨D₁, D₂, pD₁, pD₂, eD⟩ := DeltaPar.parRed_args hΓ IH ha
       (fun _ hx => sizeOf_mkApps_arg hx) (HasType.mkApps_args_typed hΓ ha)
       (forall₂_of_getElem hlen hargs) hP
@@ -2438,10 +2432,12 @@ theorem ParRedS.mkApps_head (hf : ReflTransGen (ParRed Γ) f f') (args : List VE
   | rfl => exact .rfl
   | tail _ h ih => exact ih.tail (ParRed.mkApps_head h args)
 
-theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData} :
+theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
+    {packed : List VLevel} (hr : NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero) :
     ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
-      data.prefixProgram univs levels xs = some p →
-      data.prefixProgram univs levels (xs ++ more) = some q →
+      data.singletonProgram env univs levels xs = some p →
+      data.singletonProgram env univs levels (xs ++ more) = some q →
       p.equationBody.rhs.ClosedN p.captures.length →
       ReflTransGen (ParRed Γ) (VExpr.mkApps p.rhs more) q.rhs
   | [], xs, p, q, hp, hq, _ => by
@@ -2449,13 +2445,13 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
     cases hp.symm.trans hq
     exact .rfl
   | m :: rest, xs, p, q, hp, hq, hclosed => by
-    have hbound := (InductiveSignature.NativeRecursorData.prefixProgram_spec hq).1
-    obtain ⟨p₁, hp₁⟩ := InductiveSignature.NativeRecursorData.prefixProgram_anyArity hp
+    have hbound := (InductiveSignature.NativeRecursorData.singletonProgram_spec hq).1
+    obtain ⟨p₁, hp₁⟩ := InductiveSignature.NativeRecursorData.singletonProgram_anyArity hp
       (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
     obtain ⟨d, body, he, hb⟩ :=
-      InductiveSignature.NativeRecursorData.prefixProgram_supply_one hp hp₁ hclosed
-    have hspec := InductiveSignature.NativeRecursorData.prefixProgram_spec hp
-    have hspec₁ := InductiveSignature.NativeRecursorData.prefixProgram_spec hp₁
+      InductiveSignature.NativeRecursorData.singletonProgram_supply_one henv hr hlarge hzero hp hp₁ hclosed
+    have hspec := InductiveSignature.NativeRecursorData.singletonProgram_spec hp
+    have hspec₁ := InductiveSignature.NativeRecursorData.singletonProgram_spec hp₁
     have heq : p.equation = p₁.equation :=
       Option.some.inj (hspec.2.2.2.2.1.symm.trans hspec₁.2.2.2.2.1)
     have hbody : p.equationBody = p₁.equationBody := by
@@ -2465,9 +2461,9 @@ theorem prefixProgram_supply_many {data : InductiveSignature.NativeRecursorData}
       exact Option.some.inj (h1.symm.trans h2)
     have hclosed₁ : p₁.equationBody.rhs.ClosedN p₁.captures.length := by
       rw [hspec₁.2.2.2.2.2.2, ← hbody, ← hspec.2.2.2.2.2.2]; exact hclosed
-    have hq' : data.prefixProgram univs levels ((xs ++ [m]) ++ rest) = some q := by
+    have hq' : data.singletonProgram env univs levels ((xs ++ [m]) ++ rest) = some q := by
       simpa using hq
-    have ih := prefixProgram_supply_many (Γ := Γ) rest hp₁ hq' hclosed₁
+    have ih := prefixProgram_supply_many (Γ := Γ) hr hlarge hzero rest hp₁ hq' hclosed₁
     refine ReflTransGen.trans (.tail .rfl ?_) ih
     show ParRed Γ (VExpr.mkApps (.app p.rhs m) rest) _
     rw [he, ← hb]
@@ -2478,11 +2474,11 @@ theorem NativeDeltaRule.supply_many
     (H₂ : NativeDeltaRule env univs recursorData Γ name levels (xs ++ more) rhs₂) :
     ReflTransGen (ParRed Γ) (VExpr.mkApps rhs₁ more) rhs₂ := by
   cases H₁ with
-  | @intro data p hl _ _ _ _ _ hp replay =>
+  | @intro data p hl hr _ hlarge _ hz hp replay =>
     cases H₂ with
     | @intro data' q hl' _ _ _ _ _ hq _ =>
       cases hl.symm.trans hl'
-      exact prefixProgram_supply_many more hp hq (replay.templateScope henv).2.1
+      exact prefixProgram_supply_many hr hlarge hz more hp hq (replay.templateScope henv).2.1
 
 theorem quot_supply_many {levels : List VLevel} :
     ∀ (more : List VExpr) {xs : List VExpr} {p q : InductiveSignature.NativeRecursorData.PrefixProgram},
@@ -2716,8 +2712,8 @@ theorem SpineRule.unique (H : SpineRule Γ name ls xs rhs) (H' : SpineRule Γ na
     rhs = rhs' := by
   rcases H with H | ⟨rfl, H⟩ <;> rcases H' with H' | ⟨h, H'⟩
   · exact H.unique H'
-  · subst h; obtain ⟨_, hd, _⟩ := H.length_le; rw [recursorData_quot] at hd; cases hd
-  · obtain ⟨_, hd, _⟩ := H'.length_le; rw [recursorData_quot] at hd; cases hd
+  · subst h; obtain ⟨_, hd, _⟩ := H.length_le; rw [recursorData_quot H'.registered] at hd; cases hd
+  · obtain ⟨_, hd, _⟩ := H'.length_le; rw [recursorData_quot H.registered] at hd; cases hd
   · exact H.unique H'
 
 theorem SpineRule.defeq (hΓ : OnCtx Γ (env.IsType univs)) (H : SpineRule Γ name ls xs rhs) :
@@ -2753,8 +2749,8 @@ theorem SpineRule.supply_many (H₁ : SpineRule Γ name ls xs r₁)
     ReflTransGen (ParRed Γ) (VExpr.mkApps r₁ more) r₂ := by
   rcases H₁ with H₁ | ⟨rfl, H₁⟩ <;> rcases H₂ with H₂ | ⟨h, H₂⟩
   · exact H₁.supply_many H₂
-  · subst h; obtain ⟨_, hd, _⟩ := H₁.length_le; rw [recursorData_quot] at hd; cases hd
-  · obtain ⟨_, hd, _⟩ := H₂.length_le; rw [recursorData_quot] at hd; cases hd
+  · subst h; obtain ⟨_, hd, _⟩ := H₁.length_le; rw [recursorData_quot H₂.registered] at hd; cases hd
+  · obtain ⟨_, hd, _⟩ := H₂.length_le; rw [recursorData_quot H₁.registered] at hd; cases hd
   · exact H₁.supply_many H₂
 
 /-- Two developments each extended by one parallel prefix step meet after
@@ -3888,7 +3884,7 @@ theorem EtaPar.parRed_iota
   have hnotpi : ∀ D B, ¬ Γ ⊢ VExpr.mkApps (.const cc lsc) fsM : .forallE D B :=
     fun _ _ hpi => Params.major_not_pi hΓ hp hm₀ ha hpi
   obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major hΓ
-    (fun hl hs => pat_struct_major hp hl hs hfsLen) hM tM hnotpi hfsLen
+    (fun hl hs => pat_struct_major hp hΓ hl hs hfsLen) hM tM hnotpi hfsLen
   have hb := (EtaPar.full hΓ (.app hF hM) ha).hasType hΓ ha
   have c₁ : ReflTransGen (Below Γ 3) (.app F' M') (.app (VExpr.mkApps (.const rc m1) vs') M') :=
     Below.ofParRedS (hy M') (by decide)
@@ -4043,7 +4039,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
       actual.ctorArguments : .forallE D B := fun _ _ h => MatchedCaseStep.major_not_pi henv hΓ hm h
   obtain ⟨fs₀, lsc', ps₀, hfs₀, cM, hdisj⟩ := EtaPar.collapse_major
     (kc := actual.ctorArguments.length) hΓ
-    (fun hl' hs => let ⟨h1, h2, _⟩ := schema_struct_major hm hl' hs; ⟨h1, h2⟩) hM tM hnotpi rfl
+    (fun hl' hs => let ⟨h1, h2, _⟩ := schema_struct_major hm hΓ hl' hs; ⟨h1, h2⟩) hM tM hnotpi rfl
   have hb := (EtaPar.full hΓ (.app hF hM) ha').hasType hΓ ha'
   have c₁ : ReflTransGen (Below Γ 3) (.app F' M')
       (.app (VExpr.mkApps (.elim actual.block actual.owner actual.levels) args') M') :=
@@ -4064,7 +4060,7 @@ theorem EtaPar.parRed_schema {rule : InductiveSignature.CaseSchema.AppliedRule}
     refine case_forall₂_append (forall₂_take hargs' _) ?_
     rcases hdisj with ⟨_, rfl⟩ | ⟨fam, info, _, hl', hcc, hkc, hlen₀, hdrop, hs'⟩
     · exact forall₂_drop hfs₀ _
-    · obtain ⟨_, _, hnf⟩ := schema_struct_major hm hl' hs'
+    · obtain ⟨_, _, hnf⟩ := schema_struct_major hm hΓ hl' hs'
       have hk : len - nF = info.nparams + (len - nF - info.nparams) := by
         simp only [len, nF]; omega
       have hd : ps₀.drop (len - nF) = fs₀.drop (len - nF) := by

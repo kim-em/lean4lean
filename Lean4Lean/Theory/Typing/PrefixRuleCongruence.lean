@@ -185,58 +185,12 @@ theorem ArgRel.forall₂_defeq (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs)
 theorem NativePrefixReplay.rel_components (I : ArgRel R) {data : NativeRecursorData}
     {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
     (H : NativePrefixReplay env univs Γ (mkApps (.const data.name levels) args) program)
-    (hg : data.prefixProgram univs levels args = some program)
-    (hg' : data.prefixProgram univs levels args' = some program')
+    (hg : data.singletonProgram env univs levels args = some program)
+    (hg' : data.singletonProgram env univs levels args' = some program')
     (ha : List.Forall₂ (R Γ) args args') :
     List.Forall₂ (R (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
-      R (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
-  obtain ⟨source, fields, hsource, hfields, hlen, hctor, hcapture⟩ := prefixProgram_layout hg
-  obtain ⟨source', fields', hsource', hfields', hlen', hctor', hcapture'⟩ := prefixProgram_layout hg'
-  have he := Option.some.inj (hsource.symm.trans hsource')
-  subst source'
-  have he := Option.some.inj (hfields.symm.trans hfields')
-  subst fields'
-  have halen := Lean4Lean.List.Forall₂.length_eq ha
-  have hn : 0 < program.domains.length := List.length_pos_iff.mpr H.remaining_nonempty
-  have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
-  have W : Ctx.LiftN (data.majorOffset + 1 - args.length) 0 Γ (program.domains.reverse ++ Γ) :=
-    .zero _ (by simpa only [List.length_reverse] using hlen)
-  have hall : List.Forall₂ (R (program.domains.reverse ++ Γ))
-      (data.prefixArguments args) (data.prefixArguments args') := by
-    unfold prefixArguments
-    rw [← halen]
-    apply rel_append
-    · apply List.forall₂_map_left_iff.mpr
-      apply List.forall₂_map_right_iff.mpr
-      exact Lean4Lean.List.Forall₂.imp (fun _ _ h => I.weakN W h) ha
-    · exact rel_vars I hctx (by simp only [List.length_append, List.length_reverse]; omega)
-  have hprojection : List.Forall₂ (R (program.domains.reverse ++ Γ))
-      (data.prefixProjectionArguments args) (data.prefixProjectionArguments args') :=
-    rel_append (rel_append (rel_take hall _) (rel_take (rel_drop hall _) _))
-      (.cons (I.refl hctx (.bvar (Lookup.ofLt (by
-        simp only [List.length_append, List.length_reverse]; omega)).2)) .nil)
-  have hfieldApplications : List.Forall₂ (R (program.domains.reverse ++ Γ))
-      (fields.map (fun field => mkApps field.value (data.prefixProjectionArguments args)))
-      (fields.map (fun field => mkApps field.value (data.prefixProjectionArguments args'))) := by
-    apply List.forall₂_map_left_iff.mpr
-    apply List.forall₂_map_right_iff.mpr
-    apply Lean4Lean.List.Forall₂.rfl
-    intro field hfield
-    have hmem : mkApps field.value (data.prefixProjectionArguments args) ∈ program.captures := by
-      rw [hcapture]
-      exact List.mem_append_right _ (List.mem_map.mpr ⟨field, hfield, rfl⟩)
-    obtain ⟨i, hi, he⟩ := List.getElem_of_mem hmem
-    have ht := H.captures_typed i hi (by rw [← H.captures_length]; exact hi)
-    rw [he] at ht
-    obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.ordered hctx (show VExpr.WF env univs _ _ from ⟨_, ht⟩)
-    exact I.mkApps hctx (I.refl hctx hfn) hprojection ht
-  constructor
-  · rw [hcapture, hcapture']
-    exact rel_append (rel_take hall _) hfieldApplications
-  · obtain ⟨proposition, hp, hm, hc⟩ := H.major_prop
-    rw [hctor] at hc
-    rw [hctor, hctor']
-    exact I.instantiateParams hctx (rel_append (rel_take hall _) hfieldApplications) hc
+      R (program.domains.reverse ++ Γ) program.constructor program'.constructor :=
+  H.singleton_rel_components I.refl I.weakN I.mkApps I.instantiateParams henv hΓ hg hg' ha
 
 theorem NativeSpineMatch.instOuter_defeq {name : Name} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
@@ -407,15 +361,15 @@ theorem NativeDeltaRule.congr_rel (I : ArgRel R) {name : Name} {levels : List VL
         R (ds.reverse ++ Γ) body body' := by
   cases H with
   | @intro data program hlookup hregistered hname hlarge hw hz hg replay =>
-    obtain ⟨program', hg'⟩ := prefixProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
-    obtain ⟨_, _, hl, _, he, hb, _⟩ := prefixProgram_spec hg
-    obtain ⟨_, _, hl', _, he', hb', _⟩ := prefixProgram_spec hg'
+    obtain ⟨program', hg'⟩ := singletonProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
+    obtain ⟨_, _, hl, _, he, hb, _⟩ := singletonProgram_spec hg
+    obtain ⟨_, _, hl', _, he', hb', _⟩ := singletonProgram_spec hg'
     have heq : program.equation = program'.equation := Option.some.inj (he.symm.trans he')
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
-    obtain ⟨_, _, _, _, hlen, _, _⟩ := prefixProgram_layout hg
-    obtain ⟨_, _, _, _, hlen', _, _⟩ := prefixProgram_layout hg'
+    obtain ⟨_, _, _, _, hlen, _, _⟩ := singletonProgram_layout hg
+    obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonProgram_layout hg'
     have hlength : program.domains.length = program'.domains.length := by
       rw [hlen, hlen', Lean4Lean.List.Forall₂.length_eq ha]
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩

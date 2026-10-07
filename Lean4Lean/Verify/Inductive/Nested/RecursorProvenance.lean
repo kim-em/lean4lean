@@ -346,14 +346,9 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
     (heq : r.equation (g.equation index) = some df)
     (hdef : env.defeqs df)
     (henv₀ : VEnv.WF env₀) (hle : env₀ ≤ env) (hconsts : ∀ n, env.constants n = env₀.constants n)
-    (hwf : df.WF env₀)
     (hrecType : ∃ type, r.expr (g.recursorType s.constructors[index].owner) = some type ∧
       env₀.constants (r.recursorName (g.recursorName s.constructors[index].owner)) =
         some ⟨g.uvars, type⟩)
-    {indName : Name}
-    (Hrec : VRecursorShape env₀ (r.recursorName (g.recursorName s.constructors[index].owner))
-      g.uvars s.params.length params.length s.families.size s.constructors.size
-      s.families[s.constructors[index].owner].indices.length indName levels params)
     (hindices : s.constructors[index].indices.length =
       s.families[s.constructors[index].owner].indices.length)
     (hnotHead : r.heads.find?
@@ -1613,7 +1608,7 @@ theorem NestedValidatedRunResult.hprovenance_of
     rw [h33, ← RR.ctor] at Hfd
     obtain ⟨I⟩ := Restoration.restored_iota_shape E.production.compilationInstance
       (compilationRestoration sourceDecl auxiliaries) index heq hdef hfinalWF
-      VEnv.addDefEqRules_le (fun _ => by simp) (hrulesWF df hdfMem) hrecType Hrec
+      VEnv.addDefEqRules_le (fun _ => by simp) hrecType
       hindices hnotHead RR.constructorApplication
       (fun h hh => (Hdata.restorationScoped.2.2.1 h hh).2) ⟨RP, RF, hRP, hRF, Hfd⟩
     obtain ⟨head2, hhead2, fields, ⟨hctorShape⟩⟩ := Hdata.restoredConstructorShape Hcertified

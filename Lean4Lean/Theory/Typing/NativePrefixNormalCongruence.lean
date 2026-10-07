@@ -293,15 +293,15 @@ theorem NativeDeltaRule.congr_normal {name : Name} {levels : List VLevel}
     ∃ rhs', NativeDeltaRule env univs registry Γ name levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
   cases H with
   | @intro data program hlookup hregistered hname hlarge hw hz hg replay =>
-    obtain ⟨program', hg'⟩ := prefixProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
-    obtain ⟨_, _, hl, _, he, hb, _⟩ := prefixProgram_spec hg
-    obtain ⟨_, _, hl', _, he', hb', _⟩ := prefixProgram_spec hg'
+    obtain ⟨program', hg'⟩ := singletonProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
+    obtain ⟨_, _, hl, _, he, hb, _⟩ := singletonProgram_spec hg
+    obtain ⟨_, _, hl', _, he', hb', _⟩ := singletonProgram_spec hg'
     have heq : program.equation = program'.equation := Option.some.inj (he.symm.trans he')
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
-    obtain ⟨_, _, _, _, hlen, _, _⟩ := prefixProgram_layout hg
-    obtain ⟨_, _, _, _, hlen', _, _⟩ := prefixProgram_layout hg'
+    obtain ⟨_, _, _, _, hlen, _, _⟩ := singletonProgram_layout hg
+    obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonProgram_layout hg'
     have hlength : program.domains.length = program'.domains.length := by
       rw [hlen, hlen', Lean4Lean.List.Forall₂.length_eq ha]
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
@@ -312,7 +312,10 @@ theorem NativeDeltaRule.congr_normal {name : Name} {levels : List VLevel}
           ⟨_, ((hs.defeq hΓ).of_l henv hΓ replay.source_typed).hasType.2⟩))
     have replayData : NativePrefixReplay env univs Γ (mkApps (.const data.name levels) args) program := by
       simpa only [hname] using replay
-    obtain ⟨hcaptures, hctor⟩ := replayData.normal_components hΓ hg hg' ha
+    obtain ⟨hcaptures, hctor⟩ := replayData.singleton_rel_components (R := NormalEqF η)
+      (fun _ h => .refl h) (fun W h => h.weakN W)
+      (fun hΓ hf hs ht => NormalEqF.mkApps_spine hΓ hf hs ht)
+      (fun hΓ hs ht => NormalEqF.instantiateParams_args hΓ hs ht) henv hΓ hg hg' ha
     have hnative := hregistered.singletonEquation_body_head he hb
     obtain ⟨replay', hnormal⟩ := replay.congr_normal hΓ hlength heq hbody (hl.trans hl'.symm)
       ha hcaptures hctor (by simpa only [hname] using hsource) hnative
