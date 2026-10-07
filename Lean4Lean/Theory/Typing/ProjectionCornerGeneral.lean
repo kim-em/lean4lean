@@ -104,6 +104,51 @@ theorem constructorApp_shape_gen (c : Constructor s.families.size) (extra below 
     simp only [VExpr.liftN, liftVar]
     split <;> split <;> (congr 1; omega)
 
+/-- The induction hypotheses of a minor premise at position `prior`. -/
+def priorHyps (c : Constructor s.families.size) (prior : Nat) : List VExpr :=
+  (recursiveFields c).zipIdx.map fun ((field, r), i) => g.hypothesis c prior i field r
+
+/-- A minor premise of a constructor without indices. -/
+theorem minor_noIndices (c : Constructor s.families.size) (prior : Nat) (hCI : c.indices = []) :
+    g.minor c prior =
+      VExpr.wrapForalls (insertBinders (g.sFields c) (s.families.size + prior) ++ g.priorHyps c prior)
+        (VExpr.mkApps (.bvar ((g.sFields c).length + (g.priorHyps c prior).length +
+            (prior + (s.families.size - 1 - c.owner.val))))
+          [((g.sCtorApp c).liftN (g.priorHyps c prior).length).liftN (s.families.size + prior)
+            ((g.sFields c).length + (g.priorHyps c prior).length)]) := by
+  have hft : (s.fieldTypes c).length = c.fields.length := by simp [fieldTypes]
+  rw [← g.constructorApp_shape_gen]
+  simp only [minor, hCI, List.map_nil, List.nil_append, priorHyps, sFields]
+  congr 3
+  simp only [List.length_map, List.length_zipIdx]
+  omega
+
+theorem ofList_motive {a : List VExpr} {nP n p o : Nat} (ha : a.length = nP + n + p)
+    (ho : o < n) {N L : Nat} (hL : L = N) :
+    VExpr.Subst.ofList a (N + p + (n - 1 - o) - L) = a[nP + o]'(by omega) := by
+  subst hL
+  rw [VExpr.Subst.ofList_lt _ (by omega)]
+  congr 1; omega
+
+/-- A minor premise instantiated at the parameters, the motives and the earlier minors ends in
+the motive argument of its constructor's family. -/
+theorem minor_instOuter_motive (c : Constructor s.families.size) (prior : Nat)
+    (a : List VExpr) (ha : a.length = s.params.length + s.families.size + prior) :
+    ∃ B xs, (g.minor c prior).instOuter a =
+      VExpr.wrapForalls B (VExpr.mkApps
+        ((a[s.params.length + c.owner.val]'(by have := c.owner.isLt; omega)).liftN B.length)
+        xs) := by
+  have ho := c.owner.isLt
+  have hft : (s.fieldTypes c).length = c.fields.length := by simp [fieldTypes]
+  unfold minor
+  simp only []
+  rw [VExpr.instOuter_eq_subst, VExpr.subst_wrapForalls, VExpr.subst_mkApps, VExpr.subst_bvar,
+    VExpr.Subst.liftN_apply, if_neg (by simp [hft]; omega)]
+  rw [ofList_motive ha ho]
+  · exact ⟨_, _, congrArg (VExpr.wrapForalls _)
+      (congrArg (fun f => VExpr.mkApps f _) (congrArg (fun k => VExpr.liftN k _) (by simp)))⟩
+  · simp [hft]
+
 end InductiveSignature.Instance
 
 theorem List.forall₂_exists_of_mem {R : α → β → Prop} :
@@ -192,6 +237,46 @@ end InductiveSignature.NativeRecursorData
 
 namespace VEnv
 variable {env : VEnv} {U : Nat}
+
+/-- A telescope instance with prescribed arguments at some positions, built one argument at a
+time. -/
+theorem TelInst.exists_build (henv : env.WF) {Γ doms : List VExpr}
+    (hdoms : OnCtx doms.reverse (env.IsType U)) (f : Nat → Option VExpr)
+    (h : ∀ t (ht : t < doms.length) (a : List VExpr), a.length = t →
+      TelInst env U Γ (doms.take t) a →
+      (∀ t' x, t' < t → f t' = some x → a[t']? = some x) →
+      env.IsType U Γ (doms[t].instOuter a) →
+      ∃ x, env.HasType U Γ x (doms[t].instOuter a) ∧ ∀ y, f t = some y → x = y) :
+    ∃ args, TelInst env U Γ doms args ∧
+      ∀ t x, t < doms.length → f t = some x → args[t]? = some x := by
+  have key : ∀ t, t ≤ doms.length → ∃ a, a.length = t ∧ TelInst env U Γ (doms.take t) a ∧
+      ∀ t' x, t' < t → f t' = some x → a[t']? = some x := by
+    intro t
+    induction t with
+    | zero => intro _; exact ⟨[], rfl, by simpa using TelInst.nil, fun _ _ h => by omega⟩
+    | succ t ih =>
+      intro ht
+      have ht' : t < doms.length := by omega
+      obtain ⟨a, hal, H, hf⟩ := ih (by omega)
+      have hc := OnCtx.getElem_reverse_append (Γ := []) (by simpa using hdoms) t ht'
+      simp only [List.append_nil] at hc
+      obtain ⟨hpre, u, hdt⟩ := hc
+      have hI : env.IsType U Γ (doms[t].instOuter a) :=
+        ⟨u, by simpa using HasType.closed_instOuter henv hpre hdt H⟩
+      obtain ⟨x, hx, hxf⟩ := h t ht' a hal H hf hI
+      refine ⟨a ++ [x], by simp [hal], ?_, ?_⟩
+      · rw [List.take_succ_eq_append_getElem ht']
+        exact TelInst.append_one H hx
+      · intro t' y ht'' hy
+        by_cases hlt : t' < t
+        · rw [List.getElem?_append_left (by omega)]; exact hf t' y hlt hy
+        · have : t' = t := by omega
+          subst this
+          rw [List.getElem?_append_right (by omega), hal, Nat.sub_self]
+          simp [hxf y hy]
+  obtain ⟨a, hal, H, hf⟩ := key doms.length (Nat.le_refl _)
+  rw [List.take_length] at H
+  exact ⟨a, H, fun t x ht hx => hf t x ht hx⟩
 
 /-- Arguments of a closed telescope are typed along it when each is typed at its instantiated
 domain, given the earlier ones. -/
