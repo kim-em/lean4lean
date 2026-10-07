@@ -899,3 +899,59 @@ Estimated size: comparable to stages B, D and E together. The D11 induction (`WF
 and `HeadsClosed` need no change of structure: projections are registered by `induct`
 (with the block) and by `inductProjections`, and the semantic projection facts are proved at
 those steps from the induction hypothesis, like `FamSort`.
+
+### 10.6 Stage C: why the plan of 10.5 is incomplete, and redesign D12
+
+Findings (stage C agent, before any Lean change):
+
+1. **Typing of field observations is not a property of single observations.** The type of
+   field `j` depends on the *observations* of the earlier fields (e.g. `x : B b` with `B` a
+   parameter function, or `if b then Nat → Nat else Bool`). With field-local observations
+   `fieldOb j k` (which `structEta` forces: a variable `e : S ps` has an arbitrary finite typed
+   observation set, and `mk ps (proj 0 e) …` must reproduce it from its projections), the
+   typing of `k` needs the whole observation set of the value. 10.5 puts that typing in a
+   filter of the `proj` clause; but then `structEta` (right to left) needs every field
+   observation of an arbitrary typed `e` to pass the filter, which is again a set-level
+   property, and the filter needs the *parameters' observation sets*, which `proj S j e` does
+   not know (parameters are not arguments of `proj`). Recording parameter keys or earlier-field
+   contexts in the observation fails `structEta` left to right (the reconstruction combines
+   field observations of different observations of `e`; atomic `≼` has no conjunction).
+2. **Claim world versus anchor world.** A valuation's observation sets may "claim" things its
+   anchors do not satisfy (`x : Option Unit` anchored at `none` with the claim `ctorHead some`).
+   Rule clauses then compute in the claim world. For non-projection families this is harmless,
+   because every typing condition that mentions a class (Pi domains) is read from the type at
+   the actual anchors. For structures it is not: `proj 1 (Option.rec d f x)` with
+   `structure T where (A : Type) (g : A → Nat)` gets `g`'s observation from the claim world
+   (domain class `Bool`) while its declared type `proj 0 t → Nat` has the anchor-world domain
+   class. Concretely, the typing invariant of `projDF` is false unless field typing is checked
+   *against the value's own class* in the rule clause filters.
+3. **Projections of constructor spines are not declaratively linked to the fields** without
+   typing facts for the projections (`proj i (mk ps fs) ≡ fs_i` needs `proj i (mk ps fs)` typed,
+   i.e. the field types typed, i.e. the parameters typed along the constructor telescope). In a
+   never-zero structure these facts are derivable, the parameter typing coming from the model
+   (the rigid observation of `S ls ps` is typed at the family's type, whose observations are
+   those of its normalized telescope by the soundness of `TypeShape` in an earlier environment).
+
+Design D12 (being implemented):
+
+* `TypedOb` gains the **value class** `cv` (the original 9.1 parameter): `TypedOb cv o τs`.
+  `app` results are typed at `appCls cv c C` (`piCod c C ∈ τs`), keys at their own class `c`.
+  `TypedAt σ S t T o` uses `cv := ElCls (TyCls (T.subst σ)) (t.subst σ)`.
+* Field observations `fieldOb S j L k` (field `j` has `k`; `L` lists observations of the earlier
+  fields, the typing context), compared by `≼` ignoring `L`. Typed only at a rigid `S`
+  observation of never-zero sort, at the *type observations* `fieldTy S j FL τ` / `fieldDom S j FL D`
+  of the family application (the field domain's observations at the parameters of the type's
+  spine and at earlier fields keyed by `FL`), where `FL`'s classes are the projections
+  `projCls S i cv D_i` of the value class, and the context's own observations are typed
+  (so typing is inherited by the canonical witnesses below).
+* **Backing** `Bk`: an observation set contains, with `fieldOb S j L k`, the canonical witnesses
+  `fieldOb S i (L.take i) y` (`y ∈ L[i]`), hereditarily through `app` (same key), `fieldOb`
+  (same context) and `ctorArgOb`. `Bk` is structural (keys in clauses are required backed;
+  filters keep witnesses because a typed field observation types its witnesses), so
+  `Obs σ S t` is backed for backed valuations. Finite key lists are closed under witnesses
+  (witnesses are smaller observations).
+* `proj S j e` observes `k` iff `e` has `fieldOb S j _ k`: no filter. `projDF` is congruence; its
+  typing uses `Bk` (contexts are actual) and the projection lemmas (anchors `proj i w`).
+* Constructors of projection-registered families produce only `fieldOb` chains (and their rigid
+  chains); rule clauses on such families use the eta binding mode (fields bound from `fieldOb`
+  observations, anchored at `proj j m`), which subsumes mode C for them.
