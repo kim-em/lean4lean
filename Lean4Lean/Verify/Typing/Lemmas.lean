@@ -352,12 +352,6 @@ inductive VLocalDecl.IsDefEq : VLocalDecl → VLocalDecl → Prop
 theorem VLocalDecl.lift'_comp {d : VLocalDecl} : d.lift' (.comp l₁ l₂) = (d.lift' l₁).lift' l₂ := by
   cases d <;> simp [VLocalDecl.lift', VExpr.lift'_comp]
 
-variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ' : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ') in
-theorem VLocalDecl.weakN_iff : VLocalDecl.WF env U Γ' (d.liftN n k) ↔ VLocalDecl.WF env U Γ d :=
-  match d with
-  | .vlam .. => IsType.weakN_iff henv hs hΓ' W
-  | .vlet .. => HasType.weakN_iff henv hs hΓ' W
-
 namespace VLCtx
 
 variable! (henv : Ordered env) in
@@ -557,15 +551,6 @@ theorem BVLift.toCtx (W : BVLift Δ Δ' dn dk n k) : Ctx.LiftN n k Δ.toCtx Δ'.
     match d with
     | .vlet .. => exact ih
     | .vlam A => exact .succ ih
-
-variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
-theorem BVLift.wf (W : BVLift Δ Δ' dn dk n k) (hΔ' : Δ'.WF env U) : Δ.WF env U := by
-  induction W with
-  | refl => exact hΔ'
-  | skip _ _ ih => exact ih hΔ'.1
-  | cons _ W ih =>
-    let ⟨hΔ', _, h2⟩ := hΔ'
-    exact ⟨ih hΔ', nofun, (VLocalDecl.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h2⟩
 
 theorem BVLift.fvars_eq (W : BVLift Δ Δ' dn dk n k) : Δ.fvars = Δ'.fvars := by
   induction W with
