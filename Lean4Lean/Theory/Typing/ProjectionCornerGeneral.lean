@@ -86,10 +86,9 @@ theorem motive_liftN (family : Family) (k : Nat) :
 
 /-- The constructor application of a minor premise, beneath its hypotheses and `extra`
 binders between the parameters and the fields. -/
-theorem constructorApp_shape_gen (c : Constructor s.families.size) (extra : Nat) :
-    g.constructorApp c extra (g.sHyps c).length =
-      ((g.sCtorApp c).liftN (g.sHyps c).length).liftN extra
-        ((g.sFields c).length + (g.sHyps c).length) := by
+theorem constructorApp_shape_gen (c : Constructor s.families.size) (extra below : Nat) :
+    g.constructorApp c extra below =
+      ((g.sCtorApp c).liftN below).liftN extra ((g.sFields c).length + below) := by
   have hnf : (g.sFields c).length = c.fields.length := by simp [sFields, fieldTypes]
   simp only [constructorApp, sCtorApp, VExpr.liftN_mkApps, hnf]
   have hv := VEnv.vars_eq_bvarRange c.fields.length 0
@@ -106,6 +105,90 @@ theorem constructorApp_shape_gen (c : Constructor s.families.size) (extra : Nat)
     split <;> split <;> (congr 1; omega)
 
 end InductiveSignature.Instance
+
+theorem List.forall₂_exists_of_mem {R : α → β → Prop} :
+    ∀ {l : List α} {l' : List β}, List.Forall₂ R l l' → ∀ {x}, x ∈ l → ∃ y ∈ l', R x y
+  | _, _, .cons h _, _, .head _ => ⟨_, .head _, h⟩
+  | _, _, .cons _ t, _, .tail _ hx =>
+    let ⟨y, hy, hr⟩ := List.forall₂_exists_of_mem t hx
+    ⟨y, .tail _ hy, hr⟩
+
+namespace InductiveSignature.NativeRecursorData
+
+/-- The recursor of a declaration without nested auxiliaries is installed with its generated
+type, and each of its constructors is, in the empty context, definitionally the installed
+constructor of the same name. -/
+theorem NativeRecursorRegistered.unnested {env : VEnv} {data : NativeRecursorData}
+    (H : VEnv.NativeRecursorRegistered env data)
+    (hrest : data.schema.restoration = {})
+    (i : Fin data.schema.signature.constructors.size)
+    {ctorName : Name} {ctor : VConstant}
+    (hname : data.schema.signature.constructors[i].name = ctorName)
+    (hctor : env.constants ctorName = some ctor) :
+    env.constants data.name =
+      some ⟨data.uvars, data.nativeInstance.recursorType data.owner⟩ ∧
+    ctor.uvars = data.schema.signature.uvars ∧
+    ∃ envTypes, envTypes ≤ env ∧ envTypes.IsDefEqU data.schema.signature.uvars []
+      (data.schema.signature.constructorType data.schema.signature.constructors[i]) ctor.type := by
+  have Hcopy := H
+  obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
+    hdata, _, hbase, hr, _, hu, hl, ht, hi, he⟩ := H
+  refine ⟨?_, ?_⟩
+  · have hgen : data.recursorType = some (data.nativeInstance.recursorType data.owner) := by
+      simp [recursorType, hrest]
+    exact Hcopy.recursorType hgen
+  have haux : auxiliaries = [] := by
+    have h := congrArg Restoration.recursors (hr.symm.trans hrest)
+    simp only [compilationRestoration, List.map_eq_nil_iff, List.zipIdx_eq_nil_iff] at h
+    exact h
+  subst haux
+  obtain ⟨envTypes, direct, hadd, hdirect, _, hcorr⟩ := hdata.correspondence
+  have hdir : direct = [] := by simpa using hdirect.symm
+  subst hdir
+  simp only [List.append_nil] at hcorr
+  rw [show compilationRestoration source [] = {} from rfl] at hcorr
+  -- the normalized family of the constructor and its source family
+  obtain ⟨c, hc⟩ : ∃ c, data.schema.signature.constructors[i] = c := ⟨_, rfl⟩
+  have hcmem : c ∈ data.schema.signature.constructors.toList := hc ▸ Array.getElem_mem_toList ..
+  have hfmem : data.schema.signature.families[c.owner] ∈ data.schema.signature.families.toList :=
+    Array.getElem_mem_toList ..
+  obtain ⟨T, hT, hTc⟩ : ∃ T ∈ data.schema.signature.declaration.types,
+      ({ name := c.name, uvars := data.schema.signature.uvars,
+         type := data.schema.signature.constructorType c } : VConstVal) ∈ T.ctors := by
+    refine ⟨_, List.mem_map.2 ⟨(data.schema.signature.families[c.owner], c.owner.val),
+      ?_, rfl⟩, ?_⟩
+    · rw [List.mem_zipIdx_iff_getElem?]
+      simp
+    · simp only [List.mem_filterMap]
+      exact ⟨c, hcmem, by simp⟩
+  obtain ⟨src, hsrc, hRF⟩ := List.forall₂_exists_of_mem hcorr hT
+  obtain ⟨srcC, hsrcC, hcn, hcu, restored, hres, hdef⟩ :=
+    List.forall₂_exists_of_mem hRF.constructors hTc
+  simp only [Restoration.expr_empty, Option.some.injEq] at hres
+  subst hres
+  have hinstC : env.constants srcC.name = some srcC.toVConstant := by
+    refine he.constants (VInductBlock.install_ctor_lookup hi ?_)
+    rw [hdata.ctors, VInductDecl.constructorConstants]
+    exact List.mem_flatMap.2 ⟨src, hsrc, hsrcC⟩
+  have hsame : srcC.name = ctorName := by rw [← hcn, ← hname, hc]
+  rw [hsame, hctor] at hinstC
+  cases Option.some.inj hinstC
+  refine ⟨by simpa using hcu.symm, envTypes, ?_, ?_⟩
+  · have hinst := hi
+    simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.pure_def, Option.some.injEq] at hinst
+    obtain ⟨e1, he1, e2, he2, e3, he3, rfl⟩ := hinst
+    have hle1 : e1 ≤ env := (VEnv.addConstVals_le he2).trans
+      (VEnv.addProjections_le.trans ((VEnv.addConstVals_le he3).trans
+        (VEnv.addDefEqRules_le.trans he)))
+    rw [hdata.types] at he1
+    exact (VEnv.addConstVals_mono hbase hadd he1).trans hle1
+  · have : source.uvars = data.schema.signature.uvars := by
+      rw [← hdata.uvars, hdata.model.uvars]
+    rw [← this, hc]
+    simpa using hdef
+
+end InductiveSignature.NativeRecursorData
 
 namespace VEnv
 variable {env : VEnv} {U : Nat}
