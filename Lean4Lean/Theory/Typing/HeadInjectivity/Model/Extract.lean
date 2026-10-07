@@ -343,7 +343,8 @@ theorem WF.headInjectivityCore_of_defsQuot {env : VEnv} (henv : env.WF) (hdq : e
   have hvalid : ∀ df, env.defeqs df → Model.RuleValid env df := fun df hdf => by
     rcases hdq.defeqs df hdf with ⟨n, ls, h⟩ | rfl
     · exact Model.RuleValid.delta henv.ordered henv.defRules hctor hdf h
-    · exact Model.RuleValid.quot henv.ordered hdq henv.defRules hctor hcres hdf
+    · exact Model.RuleValid.quot henv.ordered (hdq.quot hdf)
+        (Model.quot_single henv.defRules hdf hdq.defeqs) henv.defRules hctor hcres hdf
   exact henv.headInjectivityCore_of_sound fun hΔ H =>
     Model.sound henv.ordered hΔ .rfl hvalid hdq.projections hdq.eliminators H
 

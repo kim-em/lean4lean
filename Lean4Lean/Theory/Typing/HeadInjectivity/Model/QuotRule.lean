@@ -206,6 +206,23 @@ theorem quot_uniq (hrules : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const
   · obtain ⟨-, -, -, h, -⟩ := wrapLams_pat_inj (hl.symm.trans quotDefEq_lhs)
     exact ⟨by rw [h], fun _ => rfl⟩
 
+/-- Uniqueness of the quotient rule for its head and constructor, from its uniqueness per
+head. -/
+theorem quot_uniq' (hqu : ∀ df' ls', env.defeqs df' →
+      df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' → df' = quotDefEq) :
+    ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
+      (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
+      env.defeqs df' →
+      df'.lhs = .wrapLams doms' (.mkApps (.const ``Quot.lift lsP')
+        (lead' ++ [.mkApps (.const ctor' lsC') (ms' ++ fs'.map .bvar)])) →
+      df'.rhs = .wrapLams doms' body' →
+      lead'.length = quotLead.length ∧ (ctor' = ``Quot.mk → df' = quotDefEq) := by
+  intro df' doms' lsP' lead' ctor' lsC' ms' fs' body' hdf hl _
+  have := hqu df' lsP' hdf (by rw [hl]; exact VExpr.stripLams_wrapLams_mkApps_head)
+  subst this
+  obtain ⟨-, -, -, h, -⟩ := wrapLams_pat_inj (hl.symm.trans quotDefEq_lhs)
+  exact ⟨by rw [h], fun _ => rfl⟩
+
 end Model
 end VEnv
 end Lean4Lean

@@ -365,11 +365,13 @@ theorem RuleValid.delta (henv : env.Ordered) (hdr : env.DefRules)
 
 /-- The quotient rule is valid, in an environment whose rules are delta rules or the quotient
 rule. -/
-theorem RuleValid.quot (henv : env.Ordered) (hdo : env.DefsQuot) (hdr : env.DefRules)
+theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
+    (hqu : ∀ df' ls', env.defeqs df' →
+      df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' → df' = quotDefEq)
+    (hdr : env.DefRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
     (hdf : env.defeqs quotDefEq) : RuleValid env quotDefEq := by
   intro U Δ Γ ls u hΔ hlw hlen _ _ _ ihL _ ihR
-  have hq := hdo.quot hdf
   have hcis : IsCtor env ``Quot.mk := ⟨quotDefEq, hdf, quotDefEq_ctorMajor⟩
   have hrigQ : env.Rigid ``Quot := by
     obtain ⟨ci, hci, F, ls', hF, -, hrig⟩ := hcres _ hcis
@@ -378,8 +380,8 @@ theorem RuleValid.quot (henv : env.Ordered) (hdo : env.DefsQuot) (hdr : env.DefR
   have hcl := henv.closed.2 hdf
   exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
     (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 hq.2.2 quotLiftConst_type rfl rfl hrigQ
-    ⟨_, _, hq.2.1, rfl⟩ hcis (hctor _ hcis) hctor hdr (quot_uniq hdo.defeqs)
-    (fun keys hkl hobs => ⟨quot_single hdr hdf hdo.defeqs,
+    ⟨_, _, hq.2.1, rfl⟩ hcis (hctor _ hcis) hctor hdr (quot_uniq' hqu)
+    (fun keys hkl hobs => ⟨hqu,
       quot_pf hlw (quot_C_level hq hrigQ hkl hobs)⟩)
     ihL ihR
 
