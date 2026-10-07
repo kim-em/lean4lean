@@ -132,8 +132,15 @@ theorem CompilationData.native_syntax {base : VEnv} {src exp : VInductDecl}
         (∃ a ∈ aux, src.types.length ≤ s.constructors[j].owner.val ∧
           aux[s.constructors[j].owner.val - src.types.length]? = some a ∧ Fn = a.source.name ∧
           lvF = a.levels.map (·.inst g.levels) ∧ lv = a.levels.map (·.inst g.levels) ∧
-          ∃ cv ∈ a.source.ctors, cv.name = c)) := by
-  obtain ⟨Ds, idx, major, R, Es, hl, hr, ht, hDs, hidx, hmaj, hmot, hEs⟩ :=
+          ∃ cv ∈ a.source.ctors, cv.name = c)) ∧
+      List.Forall₂ (fun d d' => (compilationRestoration src aux).expr d = some d')
+        (g.params ++ g.motives ++ g.minors ++
+          insertBinders ((s.fieldTypes s.constructors[j]).map (·.instL g.levels))
+            (s.families.size + s.constructors.size)) Ds ∧
+      (s.constructors[j].indices.map fun e => (e.instL g.levels).liftN
+        (s.families.size + s.constructors.size) s.constructors[j].fields.length).mapM
+          (compilationRestoration src aux).expr = some idx := by
+  obtain ⟨Ds, idx, major, R, Es, hl, hr, ht, hDs, hidx, hmaj, hmot, hEs, hDsR, hidxR⟩ :=
     restored_equation_syntax g _ .native j hg (CompilationData.native_head hdata _)
   obtain ⟨Ds', idx', major', hl', -, hcases⟩ := CompilationData.major_cases hdata j hg
   have hinj := ruleBody_inj (hl.symm.trans hl')
@@ -151,7 +158,8 @@ theorem CompilationData.native_syntax {base : VEnv} {src exp : VInductDecl}
   · rcases hcases with ⟨F', hF', hF'o, cv, hcv, hcn, rfl⟩ | ⟨a, -, hlo, hao, -⟩
     · rw [hFo] at hF'o; cases hF'o
       refine ⟨Ds, idx, R, Es, doms₀, TbH, _, _, _, _, _, _, hl, hr, ht, hDs, hidx.trans hca, hmot,
-        hEs, hTh, hdoms, by simp [vars_length'], .inl ⟨F, hF, hFo, rfl, rfl, rfl, cv, hcv, rfl⟩⟩
+        hEs, hTh, hdoms, by simp [vars_length'], .inl ⟨F, hF, hFo, rfl, rfl, rfl, cv, hcv, rfl⟩,
+        hDsR, hidxR⟩
     · exfalso
       have := List.getElem?_eq_none_iff.mpr hlo
       rw [this] at hFo; cases hFo
@@ -161,6 +169,6 @@ theorem CompilationData.native_syntax {base : VEnv} {src exp : VInductDecl}
       rw [this] at hF'o; cases hF'o
     · rw [hao] at hao'; cases hao'
       refine ⟨Ds, idx, R, Es, doms₀, TbH, _, _, _, _, _, _, hl, hr, ht, hDs, hidx.trans hca, hmot,
-        hEs, hTh, hdoms, by simp, .inr ⟨a, ha, hlo, hao, rfl, rfl, rfl, cv, hcv, rfl⟩⟩
+        hEs, hTh, hdoms, by simp, .inr ⟨a, ha, hlo, hao, rfl, rfl, rfl, cv, hcv, rfl⟩, hDsR, hidxR⟩
 
 end Lean4Lean.ShapeModel

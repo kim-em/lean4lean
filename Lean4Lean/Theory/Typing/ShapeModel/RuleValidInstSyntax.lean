@@ -105,7 +105,13 @@ theorem restored_equation_syntax {s : InductiveSignature} (g : Instance s) (r : 
       (∃ hm : s.params.length + s.constructors[index].owner.val < Ds.length,
         Ds[s.params.length + s.constructors[index].owner.val] =
           VExpr.wrapForalls Es (.sort g.targetLevel)) ∧
-      Es.length = s.families[s.constructors[index].owner].indices.length + 1 := by
+      Es.length = s.families[s.constructors[index].owner].indices.length + 1 ∧
+      List.Forall₂ (fun d d' => r.expr d = some d') (g.params ++ g.motives ++ g.minors ++
+        insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
+          (s.families.size + s.constructors.size)) Ds ∧
+      (s.constructors[index].indices.map fun e => (e.instL g.levels).liftN
+        (s.families.size + s.constructors.size) s.constructors[index].fields.length).mapM r.expr =
+        some idx := by
   obtain ⟨hl, hr, ht⟩ := Restoration.equation_parts h
   obtain ⟨Ds, lB, hlD, hDs, hlB⟩ := restoration_wrapLams_forall₂ hl
   obtain ⟨Ds₂, R, hrD, hDs₂, -⟩ := restoration_wrapLams_forall₂ hr
@@ -157,6 +163,7 @@ theorem restored_equation_syntax {s : InductiveSignature} (g : Instance s) (r : 
     simpa using this.symm
   · exact hEs
   · have := Lean4Lean.List.Forall₂.length_eq hEsrel
+    refine ⟨?_, hDs, hidx⟩
     rw [← this]; simp [insertBinders]
 
 theorem forall₂_snoc_inv'' {R : α → β → Prop} :
