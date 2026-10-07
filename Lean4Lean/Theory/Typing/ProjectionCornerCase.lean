@@ -300,14 +300,16 @@ theorem caseView_recursorType_isType (henv : env.WF)
         ⟨info.ctorName, ⟨0, by simp [caseView]⟩, RF.map Field.external, []⟩) info.ctorType) :
     env.IsType U []
       ((⟨U, ls, .zero, fun _ => default⟩ : Instance (caseView uvars isUnsafe fam info.ctorName
-        RP RF)).recursorType ⟨0, by simp [caseView]⟩) := by
+        RP RF)).recursorType ⟨0, by simp [caseView]⟩) ∧
+    info.nparams + RF.length = info.ctorType.forallArity := by
   let sv := caseView uvars isUnsafe fam info.ctorName RP RF
   let gp : Instance sv := ⟨U, ls, .zero, fun _ => default⟩
   let c' : Constructor sv.families.size :=
     ⟨info.ctorName, ⟨0, by simp [sv, caseView]⟩, RF.map Field.external, []⟩
   have hR := gp.ordinary_recursorType (s := sv) rfl rfl ⟨0, by simp [sv, caseView]⟩
     ⟨0, by simp [sv, caseView]⟩ (c := c') rfl rfl rfl hI rfl
-  change env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseView]⟩)
+  change env.IsType U [] (gp.recursorType ⟨0, by simp [sv, caseView]⟩) ∧
+    info.nparams + RF.length = info.ctorType.forallArity
   rw [hR]
   -- notation
   have hF : sv.fieldTypes c' = RF := fieldTypes_external _ rfl
@@ -330,7 +332,7 @@ theorem caseView_recursorType_isType (henv : env.WF)
     congr 2
     exact List.length_map ..
   -- the registered constructor
-  obtain ⟨decl, type, ctor, -, -, -, -, hdu, hdn, -, -, -, hctorType, -, hwf, -, -, -⟩ :=
+  obtain ⟨decl, type, ctor, -, -, htname, -, hdu, hdn, -, -, -, hctorType, -, hwf, -, Hraw, -⟩ :=
     Ordered.projectionShape henv.ordered hinfo
   have hctorT : env.IsType U [] (info.ctorType.instL ls) := by
     have h := hwf.instL (ls := ls) hls
@@ -440,6 +442,20 @@ theorem caseView_recursorType_isType (henv : env.WF)
     rw [VExpr.instOuter_range_bvar' _ _ _ hRcl (Nat.le_refl _), Nat.sub_self,
       VExpr.liftN_zero] at h3
     exact h3
+  have harity : info.nparams + RF.length = info.ctorType.forallArity := by
+    obtain ⟨doms, result, hshape0, -, -, hhead0, harity0⟩ := Hraw.forallArity
+    rw [hctorType] at hshape0 harity0
+    rw [harity0]
+    have h1 : env.HasType U (P ++ F).reverse (.const info.ctorName ls)
+        (info.ctorType.instL ls) := .const (Ordered.projectionConstructor henv.ordered hinfo)
+          hls hlslen
+    have hh : (VExpr.getAppFnArgs.go result []).1 =
+        .const type.name (VLevel.params decl.uvars) := hhead0
+    rw [hshape0, VExpr.instL_wrapForalls, ← VExpr.mkApps_getAppFnArgs_eq result, hh,
+      htname, VExpr.instL_mkApps, VExpr.instL] at h1
+    have h := VEnv.HasType.mkApps_rigid_arity henv hctxPF (henv.projectionRigid hinfo) h1 hCtor
+    simp only [bvarRange_length, List.length_map] at h
+    rw [← h]; simp [P, F, hnp]
   -- the minor premise
   have hFctx : OnCtx ((insertBinders F 1).reverse ++ [MotT] ++ P.reverse) (env.IsType U) :=
     OnCtx.insert_binders henv.ordered (X := [MotT])
@@ -517,7 +533,7 @@ theorem caseView_recursorType_isType (henv : env.WF)
         (Lookup.zero (ty := Maj.liftN 2) (Γ := Min :: MotT :: P.reverse))
       simpa [VExpr.lift, VExpr.liftN_liftN] using this
     exact ⟨_, HasType.app h2 h0⟩
-  exact IsType.wrapForalls_of hctx hbody
+  exact ⟨IsType.wrapForalls_of hctx hbody, harity⟩
 
 end VEnv
 end Lean4Lean
