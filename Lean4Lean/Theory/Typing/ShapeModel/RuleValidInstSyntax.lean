@@ -159,4 +159,40 @@ theorem restored_equation_syntax {s : InductiveSignature} (g : Instance s) (r : 
   · have := Lean4Lean.List.Forall₂.length_eq hEsrel
     rw [← this]; simp [insertBinders]
 
+theorem forall₂_snoc_inv'' {R : α → β → Prop} :
+    ∀ {l₀ : List α} {x : α} {l : List β}, List.Forall₂ R (l₀ ++ [x]) l →
+    ∃ l₀' x', l = l₀' ++ [x'] ∧ List.Forall₂ R l₀ l₀' ∧ R x x'
+  | [], _, _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
+  | _ :: _, _, _, .cons h t =>
+    let ⟨l₀', x', e, t', h'⟩ := forall₂_snoc_inv'' t
+    ⟨_ :: l₀', x', by rw [e]; rfl, .cons h t', h'⟩
+
+/-- The syntax of a restored generated recursor type: a Pi telescope whose last domain is the
+restored family application of the owner. -/
+theorem restored_recursorType_syntax {s : InductiveSignature} (g : Instance s) (r : Restoration)
+    (o : Fin s.families.size) {Th : VExpr} (h : r.expr (g.recursorType o) = some Th) :
+    ∃ (doms₀ : List VExpr) (TbH majorDom : VExpr),
+      Th = VExpr.wrapForalls (doms₀ ++ [majorDom]) TbH ∧
+      doms₀.length = s.params.length + (s.families.size + s.constructors.size) +
+        s.families[o].indices.length ∧
+      r.expr (g.familyApp o (vars s.params.length
+        (s.families.size + s.constructors.size + s.families[o].indices.length))
+        (vars s.families[o].indices.length 0)) = some majorDom := by
+  obtain ⟨doms, TbH, rfl, hrel, -⟩ := restoration_wrapForalls_forall₂ h
+  obtain ⟨doms₀, majorDom, rfl, hpre, hmaj⟩ : ∃ doms₀ majorDom, doms = doms₀ ++ [majorDom] ∧
+      List.Forall₂ (fun d d' => r.expr d = some d') (g.params ++ g.motives ++ g.minors ++
+        insertBinders (s.families[o].indices.map (·.instL g.levels))
+          (s.families.size + s.constructors.size)) doms₀ ∧
+      r.expr (g.familyApp o (vars s.params.length
+        (s.families.size + s.constructors.size + s.families[o].indices.length))
+        (vars s.families[o].indices.length 0)) = some majorDom := by
+    obtain ⟨doms₀, majorDom, rfl, h1, h2⟩ := forall₂_snoc_inv'' hrel
+    refine ⟨doms₀, majorDom, rfl, h1, ?_⟩
+    simpa [insertBinders] using h2
+  refine ⟨doms₀, TbH, majorDom, rfl, ?_, ?_⟩
+  · have := Lean4Lean.List.Forall₂.length_eq hpre
+    rw [← this]
+    simp [Instance.params, Instance.motives, Instance.minors, insertBinders]; omega
+  · exact hmaj
+
 end Lean4Lean.ShapeModel
