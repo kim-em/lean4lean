@@ -116,6 +116,8 @@ theorem Valuation.Fits.unlift {Ms Rest : List VExpr} :
     obtain ⟨a', h1', h2', h3'⟩ := h1 (Interp.liftN_iff.2 ha)
     exact ⟨a', h1', Interp.liftN_iff.1 h2', h3'⟩
 
+end
+
 theorem OnCtx.instL' {E : VEnv} {U U' : Nat} {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U') :
     ∀ {Γ : List VExpr}, OnCtx Γ (E.IsType U) → OnCtx (Γ.map (·.instL ls)) (E.IsType U')
   | [], _ => trivial
@@ -125,8 +127,6 @@ theorem OnCtx.append_right' {P : List VExpr → VExpr → Prop} :
     ∀ {xs ys : List VExpr}, OnCtx (xs ++ ys) P → OnCtx ys P
   | [], _, h => h
   | _ :: xs, _, h => OnCtx.append_right' (xs := xs) h.1
-
-end
 
 theorem Good.of_parts {E E' : VEnv} (h : Good env E) (hd : ∀ df, E'.defeqs df → E.defeqs df)
     (he : ∀ {b s}, E'.eliminators b s → E.eliminators b s)
