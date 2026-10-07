@@ -217,5 +217,50 @@ theorem CompilationData.ctor_inj {s : InductiveSignature} {g : Instance s}
     simp only [Fin.getElem_fin] at this
     simp [this]
 
+/-- The installed constructor of an ordinary compilation returns its owner's family. -/
+theorem CompilationData.ordinary_ctor {s : InductiveSignature} {g : Instance s}
+    (H : CompilationData env source expanded s g [] block) (index : Fin s.constructors.size) :
+    ∃ fc ∈ source.constructorConstants, fc.name = s.constructors[index].name ∧
+      ∃ ls, fc.type.forallResult.getAppFnArgs.1 =
+        .const s.families[s.constructors[index].owner].name ls := by
+  obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := H.correspondence
+  have hd : direct = [] := by simpa using hdirect.symm
+  subst hd
+  obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l
+    hfamilies _ (s.declarationFamily_mem s.constructors[index].owner)
+  rw [List.append_nil] at hfamily
+  have hname : s.families[s.constructors[index].owner].name = family.name := hrel.name
+  obtain ⟨fc, hfc, hrelctor⟩ := Lean4Lean.List.Forall₂.forall_exists_l hrel.constructors _
+    (s.declarationCtor_family index)
+  obtain ⟨_, _, _, _, _, hraw⟩ := H.sourceParameters
+  obtain ⟨doms, result, heq, _, _, hhead⟩ := hraw family hfamily fc hfc
+  refine ⟨fc, List.mem_flatMap.mpr ⟨family, hfamily, hfc⟩, hrelctor.1.symm, ?_⟩
+  rw [hname]
+  have h2 := hhead
+  rw [← VExpr.forallResult_of_head hhead, ← VExpr.forallResult_wrapForalls doms, ← heq] at h2
+  exact ⟨_, h2⟩
+
+theorem CompilationData.ordinary_expanded_types {s : InductiveSignature} {g : Instance s}
+    (H : CompilationData env source expanded s g [] block) :
+    expanded.typeConstants = source.typeConstants := by
+  obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := H.correspondence
+  have hd : direct = [] := by simpa using hdirect.symm
+  subst hd
+  have h1 := Lean4Lean.List.Forall₂.length_eq hfamilies
+  have h2 := Lean4Lean.List.Forall₂.length_eq H.model.families
+  rw [H.headerPrefix, List.take_of_length_le]
+  simp only [VInductDecl.typeConstants, List.length_map] at h1 h2 ⊢
+  simp at h1
+  omega
+
 end InductiveSignature
+
+theorem VInductBlock.install_recursor_lookup (H : VInductBlock.install base block = some installed)
+    (hvalue : value ∈ block.recursors) :
+    installed.constants value.name = some value.toVConstant := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
+  exact VEnv.addDefEqRules_le.constants (VEnv.addConstVals_get hr hvalue)
+
 end Lean4Lean

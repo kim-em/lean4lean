@@ -1,20 +1,23 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NativeSem
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NativeOrdinary
 
-/-! # Validity of ordinary native recursor rules (stage B)
+/-! # Validity of ordinary native recursor rules (stages B and D)
 
 `RuleValid.native`: a generated equation of a finite compilation without container
 specializations is valid in the model of a well-formed environment, given
 
-* that every native rule batch of the environment comes from such a compilation whose
-  elimination is admissible by non-zero family sorts or by a target sort that is zero
-  (`OrdinaryNative`, the stage B scope);
-* in the case of non-zero family sorts, that the major's family has only its recorded result
-  sort at the ends of the chain observations of its type (`FamSort`, a semantic fact proved
-  from the soundness of an earlier environment, D11).
+* that the rules headed by its recursor are exactly its block's equations (`HeadExcl`);
+* that the major's family has only its recorded result sort at the ends of the chain
+  observations of its type (`FamSort`, a semantic fact proved from the soundness of an earlier
+  environment, D11);
+* for singleton elimination, that the fields not determined by an index are proof binders
+  (`ProofBinder`, also from earlier soundness).
 
-In the first case the rule is an instance of `sound_pat` whose mode C hypothesis is vacuous;
-in the second its right-hand side has no observations (`sound_pat_empty`). -/
+The proof splits on the admissibility of the elimination: with family sorts that are never
+zero the rule is an instance of `sound_pat` whose mode C hypothesis is contradictory
+(`native_C_absurd`); with a zero target sort its right-hand side has no observations
+(`sound_pat_empty`); with singleton elimination it is an instance of `sound_pat` in mode C
+(the rule is the only one of its head, the major-only fields are proof binders). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -33,15 +36,26 @@ def FamSort (env : VEnv) (I : Name) (l : VLevel) : Prop :=
     (∀ l ∈ lsI, l.WF U) →
     Obs env U Δ .id .empty (ci.type.instL lsI) (piCodChain ks (.sort z)) → z = (l.inst lsI).eval
 
-/-- Stage B scope: every native rule batch present in the environment comes from a compilation
-without container specializations, whose elimination is admissible by non-zero family sorts
-or by a zero target sort. -/
+/-- Scope of stages B and D: every native rule batch present in the environment comes from a
+compilation without container specializations. -/
 def OrdinaryNative (env : VEnv) : Prop :=
   ∀ {base : VEnv} {source expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
     {aux : List ContainerSpecialization} {block : VInductBlock},
     CompilationData base source expanded s g aux block → ∀ df ∈ block.rules, env.defeqs df →
-    aux = [] ∧ ((∀ fam ∈ s.families.toList, (fam.resultLevel.inst g.levels).IsNeverZero) ∨
-      g.targetLevel ≈ .zero)
+    aux = []
+
+/-- Every rule of `env` headed by `n` belongs to `rs`. -/
+def HeadExcl (env : VEnv) (n : Name) (rs : List VDefEq) : Prop :=
+  ∀ df', env.defeqs df' → ∀ ls', df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' ∈ rs
+
+/-- The binder `x` of `doms` is a proof binder: at every typed valuation its type is
+definitionally a proposition and all its observations are typed at `Sort 0`. -/
+def ProofBinder (env : VEnv) (U : Nat) (Δ : List VExpr) (doms : List VExpr) (ls : List VLevel)
+    (x : Nat) (Γ : List VExpr) : Prop :=
+  ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
+    TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
+    (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧ env.HasType U Δ P (.sort .zero)) ∧
+    ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ → TypedOb env U Δ τ [.sort fun _ => 0]
 
 theorem eqLead_length_owner {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block) (index : Fin s.constructors.size) :
@@ -51,9 +65,9 @@ theorem eqLead_length_owner {s : InductiveSignature} {g : Instance s}
   rw [g.eqLead_length, h]
 
 /-- Uniqueness of an ordinary native rule per head and constructor. -/
-theorem native_uniq {s : InductiveSignature} {g : Instance s} (hsh : env.SameHead)
-    (hon : OrdinaryNative env) (index : Fin s.constructors.size)
-    (hdf : env.defeqs (g.equation index)) :
+theorem native_uniq {s : InductiveSignature} {g : Instance s}
+    (C : CompilationData base source expanded s g [] block) (index : Fin s.constructors.size)
+    (hex : HeadExcl env (g.recursorName s.constructors[index].owner) block.rules) :
     ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       env.defeqs df' →
@@ -63,40 +77,16 @@ theorem native_uniq {s : InductiveSignature} {g : Instance s} (hsh : env.SameHea
       lead'.length = (g.eqLead index).length ∧
         (ctor' = s.constructors[index].name → df' = g.equation index) := by
   intro df' doms' lsP' lead' ctor' lsC' ms' fs' body' hdf' hl' _
-  have hl := g.equation_lhs_eq index
-  obtain ⟨rs, hrs, hm, hm'⟩ := hsh _ _ hdf hdf' _ _ _
-    (by rw [hl]; exact VExpr.stripLams_wrapLams_mkApps_head)
-    (by rw [hl']; exact VExpr.stripLams_wrapLams_mkApps_head)
-  cases hrs with
-  | «mutual» cis =>
-    obtain ⟨ci, -, e⟩ := List.mem_map.1 hm
-    have := congrArg VDefEq.lhs e
-    rw [hl] at this
-    exact absurd this.symm VExpr.wrapLams_mkApps_snoc_ne_const
-  | quot =>
-    rw [List.mem_singleton] at hm hm'
-    rw [← hm] at hm'
-    subst hm'
-    obtain ⟨-, -, -, h, -⟩ := wrapLams_pat_inj (hl'.symm.trans hl)
-    exact ⟨by rw [h], fun _ => rfl⟩
-  | @native _ _ _ s' g' aux' block' C' =>
-    obtain ⟨rfl, -⟩ := hon C' _ hm hdf
-    rw [C'.ordinary_rules] at hm hm'
-    obtain ⟨i', -, ei⟩ := List.mem_map.1 hm
-    obtain ⟨j', -, ej⟩ := List.mem_map.1 hm'
-    have hli := g'.equation_lhs_eq i'
-    have hlj := g'.equation_lhs_eq j'
-    rw [ei] at hli; rw [ej] at hlj
-    obtain ⟨-, n1, -, l1, a1⟩ := wrapLams_pat_inj (hl.symm.trans hli)
-    obtain ⟨-, n2, -, l2, a2⟩ := wrapLams_pat_inj (hl'.symm.trans hlj)
-    obtain ⟨c1, -, -⟩ := mkApps_const_inj a1
-    obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
-    have ho := C'.recursorName_inj (n1.symm.trans n2)
-    refine ⟨?_, fun hc => ?_⟩
-    · rw [l1, l2, eqLead_length_owner C', eqLead_length_owner C']; simp only [ho]
-    · have := C'.ctor_inj ho (c1.symm.trans (hc.symm.trans c2))
-      subst this
-      exact ej.symm.trans ei
+  have hm := hex df' hdf' lsP' (by rw [hl']; exact VExpr.stripLams_wrapLams_mkApps_head)
+  rw [C.ordinary_rules] at hm
+  obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
+  obtain ⟨-, n2, -, l2, a2⟩ := wrapLams_pat_inj (hl'.symm.trans (g.equation_lhs_eq j))
+  obtain ⟨c2, -, -⟩ := mkApps_const_inj a2
+  have ho := C.recursorName_inj n2
+  refine ⟨?_, fun hc => ?_⟩
+  · rw [l2, eqLead_length_owner C, eqLead_length_owner C]; simp only [ho]
+  · have := C.ctor_inj ho.symm (c2.symm.trans hc)
+    subst this; rfl
 
 /-- Inversion at a rigid constant: a rigid observation of its spine comes from the `const`
 clause. -/
@@ -202,16 +192,22 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
   rw [h, instL_wrapForalls'']
   rfl
 
-/-- **Validity of an ordinary native recursor rule** (stage B). -/
+/-- **Validity of an ordinary native recursor rule** (stages B and D). -/
 theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
-    (henv : env.Ordered) (hdr : env.DefRules) (hsh : env.SameHead) (hon : OrdinaryNative env)
+    (henv : env.Ordered) (hdr : env.DefRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
     (C : CompilationData base source expanded s g [] block)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
     (index : Fin s.constructors.size) (hdf : env.defeqs (g.equation index))
-    (hfs : (∀ fam ∈ s.families.toList, (fam.resultLevel.inst g.levels).IsNeverZero) →
-      FamSort env s.families[s.constructors[index].owner].name
-        s.families[s.constructors[index].owner].resultLevel) :
+    (hex : HeadExcl env (g.recursorName s.constructors[index].owner) block.rules)
+    (hfs : FamSort env s.families[s.constructors[index].owner].name
+        s.families[s.constructors[index].owner].resultLevel)
+    (hPF : ∀ envE, base.addConstVals expanded.typeConstants = some envE →
+      s.SingletonElimination envE g.uvars g.levels →
+      ∀ U Δ Γ ls, OnCtx Δ (env.IsType U) → (∀ l ∈ ls, l.WF U) → ls.length = g.uvars →
+      ∀ i < s.constructors[index].fields.length,
+        VExpr.bvar (s.constructors[index].fields.length - 1 - i) ∉ s.constructors[index].indices →
+        ProofBinder env U Δ (g.eqDoms index) ls (s.constructors[index].fields.length - 1 - i) Γ) :
     RuleValid env (g.equation index) := by
   intro U Δ Γ ls u hΔ hlw hlen _ ihT _ ihL _ ihR
   have hl := g.equation_lhs_eq index
@@ -239,13 +235,10 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   cases hF
   have hcf : CtorFam env s.constructors[index].name s.families[s.constructors[index].owner].name :=
     ⟨_, _, hci', hfch⟩
-  have huniq := native_uniq hsh hon index hdf
-  have hmem : g.equation index ∈ block.rules := by
-    rw [C.ordinary_rules]; exact List.mem_map.2 ⟨_, List.mem_finRange _, rfl⟩
-  obtain ⟨-, hadm⟩ := hon C _ hmem hdf
-  rcases hadm with hnz | hsmall
+  have huniq := native_uniq C index hex
+  obtain ⟨envE, hE, hadm⟩ := C.admissible
+  rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
-    have hfs : FamSort env _ _ := hfs hnz
     have hnz' := hnz s.families[s.constructors[index].owner]
       (Array.mem_toList_iff.2 (Array.getElem_mem s.constructors[index].owner.isLt))
     exact sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
@@ -274,6 +267,37 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
       (funext fun v => by
         rw [VLevel.eval_inst]; exact (VLevel.equiv_def.1 hsmall _).trans rfl)
       ihR.1 W tv o
+  · -- singleton elimination: mode C with propositional major-only fields
+    refine sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH
+      hkH hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
+      (fun keys hkl hobs => ⟨fun df' ls' hdf' hh => ?_, fun x hx hnl v vS Wv tvv => ?_⟩) ihL ihR
+    · have hm := hex df' hdf' ls' hh
+      rw [C.ordinary_rules] at hm
+      obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
+      have h1 := hsing.2.1
+      have : j = index := Fin.ext (by have := j.isLt; have := index.isLt; omega)
+      rw [this]
+    · have notLead : VExpr.bvar x ∉ g.eqLead index := fun hy => by
+        obtain ⟨i, hi, e⟩ := List.getElem_of_mem hy
+        exact hnl i (List.getElem?_eq_some_iff.2 ⟨hi, e⟩)
+      have hdl := g.eqDoms_length index
+      have hxf : x < s.constructors[index].fields.length := by
+        refine Nat.lt_of_not_le fun h => notLead (List.mem_append_left _ (mem_vars' h ?_))
+        omega
+      have hidx : VExpr.bvar (s.constructors[index].fields.length - 1 -
+          (s.constructors[index].fields.length - 1 - x)) ∉ s.constructors[index].indices := by
+        rw [show s.constructors[index].fields.length - 1 -
+          (s.constructors[index].fields.length - 1 - x) = x by omega]
+        intro hm
+        apply notLead
+        refine List.mem_append_right _ (List.mem_map.2 ⟨_, hm, ?_⟩)
+        have hxf' := hxf
+        simp only [Fin.getElem_fin] at hxf'
+        simp [VExpr.instL, VExpr.liftN, liftVar, hxf']
+      have := hPF envE hE hsing U Δ Γ ls hΔ hlw hlen
+        (s.constructors[index].fields.length - 1 - x) (by omega) hidx v vS Wv tvv
+      rwa [show s.constructors[index].fields.length - 1 -
+        (s.constructors[index].fields.length - 1 - x) = x by omega] at this
 
 end Model
 end VEnv
