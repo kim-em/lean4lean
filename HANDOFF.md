@@ -216,6 +216,13 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   EliminatorAvoidance, coherence, the confluence `Params` fields reaching
   constructor shapes) adapted on E1; then (A) proceeds with the case-only
   certificate plus an `elimDF` typability lemma for the case type.
+  **Mainline fast-forwarded to base 9cc2be01 (pushed):** realizability of
+  `HasCanonicalChoice` (Verify/Inductive/ChoiceCanonicalForms.lean,
+  Verify/CanonicalChoiceRealization.lean `VEnvs.WF.hasCanonicalChoice`,
+  Tests/CanonicalChoice.lean), and Theory no longer imports Verify (the 41
+  declarations `NativeIotaSoundness` used moved into
+  Theory/Inductive/NativeIotaRestoration.lean with proofs unchanged). Full
+  build (745 jobs) and tests (346) green.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
