@@ -24,6 +24,15 @@ a registered structure and structure eta derived `Prop ≡ (Prop → Prop)`.
 The premise is proved at its producers, and `VEnv.WF.schemaStructCompat`
 gives the global invariant `SchemaStructCompat env`.
 
+Phase 1a (2026-10-07, branch `agent/verify-inductives-headinv`,
+`docs/inductives/PHASE1_NOTES.md`): `VEnv.WF.headInversion` is now assembled
+from the proved `VEnv.WF.headSeparation` (a sound shape model of the full
+calculus, `Theory/Typing/ShapeModel/`, axioms `propext`, `Classical.choice`,
+`Quot.sound`) and the strictly smaller remaining conjecture
+`VEnv.WF.headInjectivity` (`forallE_forallE`, `rigid_args`, `former_args`,
+`proj_fieldType`). The open proofs are therefore `headInjectivity`,
+`strengthening_of_canonicalEq`, `FullStep.strip`.
+
 ## Intended result
 
 Finish the executable Lean4Lean inductive checker's refinement of an
