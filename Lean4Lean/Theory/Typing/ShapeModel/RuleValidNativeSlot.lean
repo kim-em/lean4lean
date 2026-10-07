@@ -14,24 +14,23 @@ prefixes of parameter expressions of the two have the same length.
 namespace Lean4Lean.ShapeModel
 open Lean4Lean InductiveSignature
 
-theorem CompilationData.familyApp_cases {base : VEnv} {src exp : VInductDecl}
+theorem CompilationData.familyHead_cases {base : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CompilationData base src exp s g aux block)
-    (o : Fin s.families.size) {e m : Nat} {out : VExpr}
-    (h : (compilationRestoration src aux).expr
-      (g.familyApp o (vars s.params.length (e + m)) (vars m 0)) = some out) :
+    (o : Fin s.families.size) {G : List VLevel} {e m : Nat} {out : VExpr}
+    (h : (compilationRestoration src aux).expr (VExpr.mkApps (.const s.families[o].name G)
+      (vars s.params.length (e + m) ++ vars m 0)) = some out) :
     (∃ F ∈ src.types, src.types[o.val]? = some F ∧
-      out = VExpr.mkApps (.const F.name g.levels) (vars s.params.length (e + m) ++ vars m 0)) ∨
+      out = VExpr.mkApps (.const F.name G) (vars s.params.length (e + m) ++ vars m 0)) ∨
     (∃ a ∈ aux, src.types.length ≤ o.val ∧ aux[o.val - src.types.length]? = some a ∧
-      out = VExpr.mkApps (.const a.source.name (a.levels.map (·.inst g.levels)))
-        (a.arguments.map (fun arg => instantiateParams (arg.instL g.levels)
+      out = VExpr.mkApps (.const a.source.name (a.levels.map (·.inst G)))
+        (a.arguments.map (fun arg => instantiateParams (arg.instL G)
           (vars s.params.length (e + m))) ++ vars m 0)) := by
   let r := compilationRestoration src aux
   have hparams : ∀ h ∈ r.heads, h.nparams = s.params.length := by
     intro h hh
     rw [compilationRestoration_nparams h hh, ← hdata.nparams, ← hdata.model.nparams]
-  have hout := restored_ctorApp (e := e) hparams (by
-    simpa only [Instance.familyApp, InductiveSignature.familyApp] using h)
+  have hout := restored_ctorApp (e := e) hparams h
   by_cases ho : o.val < src.types.length
   · obtain ⟨hname, -, -⟩ := CompilationData.source_slot hdata o ho
     have hF := List.getElem_mem (l := src.types) ho
@@ -78,6 +77,21 @@ theorem CompilationData.familyApp_cases {base : VEnv} {src exp : VInductDecl}
       have := List.eq_of_mem_of_nodup_map hdata.restorationScoped.1 hspec hhead hsa
       subst this
       rfl
+
+theorem CompilationData.familyApp_cases {base : VEnv} {src exp : VInductDecl}
+    {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
+    {block : VInductBlock} (hdata : CompilationData base src exp s g aux block)
+    (o : Fin s.families.size) {e m : Nat} {out : VExpr}
+    (h : (compilationRestoration src aux).expr
+      (g.familyApp o (vars s.params.length (e + m)) (vars m 0)) = some out) :
+    (∃ F ∈ src.types, src.types[o.val]? = some F ∧
+      out = VExpr.mkApps (.const F.name g.levels) (vars s.params.length (e + m) ++ vars m 0)) ∨
+    (∃ a ∈ aux, src.types.length ≤ o.val ∧ aux[o.val - src.types.length]? = some a ∧
+      out = VExpr.mkApps (.const a.source.name (a.levels.map (·.inst g.levels)))
+        (a.arguments.map (fun arg => instantiateParams (arg.instL g.levels)
+          (vars s.params.length (e + m))) ++ vars m 0)) :=
+  CompilationData.familyHead_cases hdata o (by
+    simpa only [Instance.familyApp, InductiveSignature.familyApp] using h)
 
 theorem CompilationData.native_head {base : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}

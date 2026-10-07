@@ -173,7 +173,7 @@ theorem native_extraValid {E E' cbase : VEnv} {T : Tables} {decl expanded : VInd
       have hown : s.families[s.constructors[j].owner] ∈ s.families.toList :=
         Array.getElem_mem_toList ..
       rw [hcif] at hfamd hsem
-      have := famProp_false_of_neverZero H hfamd hsem hsemL hkuv (hnz _ hown) hlevel c
+      have := famProp_false_of_neverZero H hfamd hsem hsemL hkuv (VLevel.IsNeverZero.inst' (hnz _ hown) ls) hlevel c
         (List.range s.constructors[j].fields.length).reverse (ls := ls)
       rw [hcif] at hfp
       rw [this] at hfp; cases hfp

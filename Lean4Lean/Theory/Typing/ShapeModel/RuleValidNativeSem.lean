@@ -37,14 +37,18 @@ theorem container_famSem (H : env.WF) {E cbase : VEnv} (hgood : Good env E) (hE 
   exact ⟨_, famSem_of_typeShape H hgood hle hE ((hshape _ hsrc).mono hbE)
     (hdata'.sourceWF.2.2.1 _ hsrc) hc⟩
 
-/-- A family whose sort at the instance levels `lv` is equivalent to a never-zero level is not a
-proposition at any further instance. -/
+theorem VLevel.IsNeverZero.inst' {X : VLevel} (h : X.IsNeverZero) (ls : List VLevel) :
+    (X.inst ls).IsNeverZero := fun ns => by rw [VLevel.eval_inst]; exact h _
+
+/-- A family whose sort at the instance levels `lv` is equivalent to a level that is never zero
+at the further instance `ls` is not a proposition at that instance. -/
 theorem famProp_false_of_neverZero (H : env.WF) {I : Name} {d : FamData}
     (hfamd : famOf env I = some d)
     (hsem : letI := envSig env; FamSem env I d.resultLevel n)
     {L : VLevel} (hL : letI := envSig env; FamSem env I L n')
     {lv ls : List VLevel} (hlen : ∃ ci, env.constants I = some ci ∧ lv.length = ci.uvars)
-    {X : VLevel} (hnz : X.IsNeverZero) (hX : X ≈ L.inst lv) (c : Name) (fs : List Nat) :
+    {X : VLevel} (hnz : (X.inst ls).IsNeverZero) (hX : X ≈ L.inst lv) (c : Name)
+    (fs : List Nat) :
     letI := envSig env; SemSig.famProp I (RuleMajor.lvls ⟨c, lv, fs⟩ ls) = false := by
   letI := envSig env
   haveI := envSig_coherent_of_wf H
@@ -60,7 +64,7 @@ theorem famProp_false_of_neverZero (H : env.WF) {I : Name} {d : FamData}
     rw [VLevel.eval_inst]; simp [RuleMajor.lvls, List.map_map, Function.comp_def]
   rw [e1, congrFun heval [], ← VLevel.inst_inst] at h0
   have e2 := VLevel.equiv_def.1 (VLevel.inst_congr_l (ls := ls) hX) []
-  rw [← e2, VLevel.eval_inst] at h0
+  rw [← e2] at h0
   exact hnz _ h0
 
 theorem directFamily_resultLevel' {a : ContainerSpecialization} {U : Nat} {params : List VExpr}
