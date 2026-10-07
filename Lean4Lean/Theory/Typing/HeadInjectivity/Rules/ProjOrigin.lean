@@ -79,7 +79,7 @@ def VEnv.ProjOrigin (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
     info.uvars = decl.uvars ∧ info.nparams = decl.nparams ∧ info.nindices = type.numIndices ∧
     info.resultLevel = type.resultLevel ∧ info.ctorName = ctor.name ∧ info.ctorType = ctor.type ∧
     ctor.uvars = decl.uvars ∧ envTypes.IsType decl.uvars [] ctor.type ∧
-    decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup
+    decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup ∧ decl.SourceParameterWF base
 
 theorem VEnv.ProjOrigin.mono {env env' : VEnv} (hle : env ≤ env') :
     env.ProjOrigin S info → env'.ProjOrigin S info
@@ -94,7 +94,7 @@ theorem VEnv.ProjOrigin.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
     (hctorsWF : ∀ ctor ∈ decl.constructorConstants, ctor.toVConstant.WF envTypes)
     (huvars : ∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars)
     (hshape : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor)
-    (hnodup : decl.sourceNames.Nodup)
+    (hnodup : decl.sourceNames.Nodup) (hspw : decl.SourceParameterWF base)
     {entry : VProjectionEntry} (hentry : entry ∈ decl.projectionEntries) :
     env.ProjOrigin entry.typeName entry.info := by
   obtain ⟨type, htype, ctor, hctors, rfl⟩ := VInductDecl.projectionEntries_origin hentry
@@ -109,7 +109,7 @@ theorem VEnv.ProjOrigin.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
   have hord : envTypes.Ordered :=
     (show base.WF from ⟨dsb, hbase⟩).ordered.addConstVals htypesWF htypes
   exact ⟨base, envTypes, dsb, decl, type, ctor, hbase, htypes, hle, hord, htype, hctors, rfl, rfl, rfl,
-    rfl, rfl, rfl, rfl, hu, hwf, hshape type htype ctor hmem, hnodup⟩
+    rfl, rfl, rfl, rfl, hu, hwf, hshape type htype ctor hmem, hnodup, hspw⟩
 
 /-- **The origin of every projection entry** in the declaration history. -/
 theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
@@ -154,14 +154,14 @@ theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
             ((VEnv.addConstVals_le hctors).trans <| VEnv.addProjections_le.trans <|
               (VEnv.addConstVals_le hrecs).trans VEnv.addDefEqRules_le)
             (typeConstants_wf hdeclWF.1.originalTypes) (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1 hparams.rawCtorShape
-            hcompile.sourceNames hentry
+            hcompile.sourceNames hparams hentry
         · rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hold
           exact (ih hold).mono hle
   | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     intro S info hp
     rw [VEnv.addEliminator_projections] at hp
     exact (ih hp).mono VEnv.addEliminator_le
-  | inductProjections hbase _ hsource htypesWF hconstructorUvars hctorsWF _ hshape htypesSource
+  | inductProjections hbase _ hsource htypesWF hconstructorUvars hctorsWF hspw hshape htypesSource
       _ hprojections htypes hctors _ ihCtors =>
     intro S info hp
     rw [VEnv.addProjections_iff] at hp
@@ -171,7 +171,7 @@ theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
       rw [htypesSource] at htypes'
       exact VEnv.ProjOrigin.ofEntry hbase htypes'
         ((VEnv.addConstVals_le hctors).trans VEnv.addProjections_le)
-        (typeConstants_wf htypesWF) hctorsWF hconstructorUvars hshape hsource hentry
+        (typeConstants_wf htypesWF) hctorsWF hconstructorUvars hshape hsource hspw hentry
     · exact (ihCtors hold).mono VEnv.addProjections_le
 
 end Lean4Lean
@@ -202,7 +202,7 @@ theorem VEnv.ProjOrigin.ctorType_shape {env : VEnv} (h : env.ProjOrigin S info) 
               (fun i => .bvar (doms.length - info.nparams + i)) ++ idx)) ∧
       info.nparams ≤ doms.length ∧ idx.length = info.nindices := by
   obtain ⟨-, -, -, decl, type, ctor, -, -, -, -, htype, -, rfl, hu, hnp, hni, -, -, hct, -, -, hraw,
-    hnodup⟩ := h
+    hnodup, -⟩ := h
   obtain ⟨doms, result, heq, hle, ⟨type', hmem', htarget, levels, hfn, -, hargs, htake⟩, hhead⟩ :=
     hraw
   have hname : type.name = type'.name := by
