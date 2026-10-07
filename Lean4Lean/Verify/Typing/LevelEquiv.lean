@@ -6,8 +6,6 @@ import Lean4Lean.Verify.Typing.Lemmas
 
 * `TrExprS.instL_lequiv`: the translation of a level-instantiated expression is `LEquiv` to the
   syntactic level instantiation of the translation of the original.
-* `TrExprS.weakBV_inv`: an expression closed below the inserted bound variables translates to
-  a lift (the converse of `TrExprS.weakBV`).
 -/
 
 namespace Lean4Lean
@@ -167,73 +165,6 @@ theorem VLCtx.BVLift.find?_exists (W : VLCtx.BVLift Δ Δ' dn dk n k)
       obtain ⟨_, _, h, -⟩ := h
       have ⟨⟨e, A⟩, h'⟩ := ih (v := .inr fv) nofun ⟨_, h⟩
       exact ⟨(e.liftN d.depth, A.liftN d.depth), by simp [VLCtx.find?, VLCtx.next, bind, h']⟩
-
-variable! (henv : VEnv.WF env) (hs : env.Strengthening) in
-theorem TrExprS.weakBV_inv (W : VLCtx.BVLift Δ Δ' dn dk n k) (hΔ' : Δ'.WF env Us.length)
-    (H : TrExprS env Us Δ' e e') (hc : Closed e dk) :
-    ∃ e₀, TrExprS env Us Δ e e₀ ∧ e' = e₀.liftN n k := by
-  induction H generalizing Δ dk k with
-  | @bvar _ _ _ i h1 =>
-    have hi : i < dk := hc
-    have ⟨⟨e₀, A₀⟩, h2⟩ := W.find?_exists (v := .inl i) (by rintro _ ⟨⟩; exact hi) ⟨_, h1⟩
-    have h3 := W.find? h2
-    rw [show VLCtx.liftVar dn dk (.inl i) = .inl i by simp [VLCtx.liftVar, hi]] at h3
-    cases h1.symm.trans h3
-    exact ⟨_, .bvar h2, rfl⟩
-  | @fvar _ _ _ fv h1 =>
-    have ⟨⟨e₀, A₀⟩, h2⟩ := W.find?_exists (v := .inr fv) nofun ⟨_, h1⟩
-    have h3 := W.find? h2
-    cases h1.symm.trans h3
-    exact ⟨_, .fvar h2, rfl⟩
-  | sort h1 => exact ⟨_, .sort h1, rfl⟩
-  | const h1 h2 h3 => exact ⟨_, .const h1 h2 h3, rfl⟩
-  | app h1 h2 _ _ ih1 ih2 =>
-    obtain ⟨f₀, hf₀, rfl⟩ := ih1 W hΔ' hc.1
-    obtain ⟨a₀, ha₀, rfl⟩ := ih2 W hΔ' hc.2
-    have := (VExpr.WF.weakN_iff henv hs hΔ'.toCtx W.toCtx (e := .app f₀ a₀)).1 ⟨_, h1.app h2⟩
-    have ⟨_, _, h3, h4⟩ := this.app_inv henv.ordered (W.wf henv hs hΔ').toCtx
-    exact ⟨_, .app h3 h4 hf₀ ha₀, rfl⟩
-  | lam h1 _ _ ih1 ih2 =>
-    obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' hc.1
-    have h1' := (IsType.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h1
-    have hΔ'' : VLCtx.WF env Us.length ((none, .vlam (ty₀.liftN n k)) :: _) := ⟨hΔ', nofun, h1⟩
-    obtain ⟨body₀, hbody₀, rfl⟩ := ih2 (W.cons (.vlam ty₀)) hΔ'' hc.2
-    exact ⟨_, .lam h1' hty₀ hbody₀, rfl⟩
-  | forallE h1 h2 _ _ ih1 ih2 =>
-    obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' hc.1
-    have h1' := (IsType.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h1
-    have hΔ'' : VLCtx.WF env Us.length ((none, .vlam (ty₀.liftN n k)) :: _) := ⟨hΔ', nofun, h1⟩
-    obtain ⟨body₀, hbody₀, rfl⟩ := ih2 (W.cons (.vlam ty₀)) hΔ'' hc.2
-    have hΓ'' : OnCtx (ty₀.liftN n k :: _) (env.IsType Us.length) := ⟨hΔ'.toCtx, h1⟩
-    have h2' := (IsType.weakN_iff henv hs hΓ'' (W.cons (.vlam ty₀)).toCtx).1 h2
-    exact ⟨_, .forallE h1' h2' hty₀ hbody₀, rfl⟩
-  | letE h1 _ _ _ ih1 ih2 ih3 =>
-    obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' hc.1
-    obtain ⟨val₀, hval₀, rfl⟩ := ih2 W hΔ' hc.2.1
-    have h1' := (HasType.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 h1
-    have hΔ'' : VLCtx.WF env Us.length ((none, .vlet (ty₀.liftN n k) (val₀.liftN n k)) :: _) :=
-      ⟨hΔ', nofun, h1⟩
-    obtain ⟨body₀, hbody₀, rfl⟩ := ih3 (W.cons (.vlet ty₀ val₀)) hΔ'' hc.2.2
-    exact ⟨_, .letE h1' hty₀ hval₀ hbody₀, rfl⟩
-  | lit h1 _ ih =>
-    obtain ⟨_, h, rfl⟩ := ih W hΔ' Closed.toConstructor
-    exact ⟨_, .lit h1 h, rfl⟩
-  | mdata _ ih =>
-    obtain ⟨_, h, rfl⟩ := ih W hΔ' hc
-    exact ⟨_, .mdata h, rfl⟩
-  | proj _ hp ih =>
-    obtain ⟨s₀, hs₀, rfl⟩ := ih W hΔ' hc
-    cases hp with | direct m t
-    have m' := (VExpr.WF.weakN_iff henv hs hΔ'.toCtx W.toCtx).1 m
-    have t' := (VExpr.WF.weakN_iff henv hs hΔ'.toCtx W.toCtx (e := .proj _ _ s₀)).1 t
-    exact ⟨_, .proj hs₀ (.direct m' t'), rfl⟩
-
-/-- A body under one bound variable that is closed translates to a lift. -/
-theorem TrExprS.weakBV_inv₁ (henv : VEnv.WF env) (hs : env.Strengthening)
-    (hΔ : VLCtx.WF env Us.length ((none, .vlam A) :: Δ))
-    (H : TrExprS env Us ((none, .vlam A) :: Δ) e e') (hc : Closed e) :
-    ∃ e₀, TrExprS env Us Δ e e₀ ∧ e' = e₀.lift :=
-  H.weakBV_inv henv hs (.skip (.vlam A) .refl) hΔ hc
 
 theorem Closed.of_closed_looseBVarRange {e : Expr} {k j : Nat}
     (hc : Closed e k) (hb : e.looseBVarRange' ≤ j) : Closed e j := by

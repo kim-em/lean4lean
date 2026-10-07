@@ -225,52 +225,6 @@ private theorem skips_mkApps_arguments {fn : VExpr} {args : List VExpr}
     · exact VExpr.skips_iff.mpr (VExpr.skips_iff.mp happ).2
     · exact ih h a ha
 
-/-- Inverse weakening of an occurrence whose whole generated program is in
-scope. Every implicit argument is recovered from that same program spine. -/
-theorem weakN_inv
-    (H : ProjectionDesugaring env U Γ' name index (major.liftN n k) (target.liftN n k))
-    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.LiftN n k Γ Γ') :
-    ProjectionDesugaring env U Γ name index major target := by
-  generalize he : target.liftN n k = raw at H
-  cases H with
-  | @intro block programs fieldSorts levels params indices schema owner program
-      hr ho hf hg hsel hlu hfu hw hp hn hi hm ht =>
-    have hskips : (VExpr.mkApps (program.value.instL (fieldSorts ++ levels))
-        (params ++ indices ++ [major.liftN n k])).Skips n k := he ▸ .liftN
-    have hargs := skips_mkApps_arguments hskips
-    let params' := params.map fun e => e.unliftN n k
-    let indices' := indices.map fun e => e.unliftN n k
-    have hparams : params'.map (fun e => e.liftN n k) = params := by
-      simp only [params', List.map_map]
-      apply List.ext_getElem
-      · simp
-      · intro i h₁ h₂
-        simp only [List.getElem_map]
-        exact hargs _ (List.mem_append_left _ (List.mem_append_left _ (List.getElem_mem h₂)))
-    have hindices : indices'.map (fun e => e.liftN n k) = indices := by
-      simp only [indices', List.map_map]
-      apply List.ext_getElem
-      · simp
-      · intro i h₁ h₂
-        simp only [List.getElem_map]
-        exact hargs _ (List.mem_append_left _ (List.mem_append_right _ (List.getElem_mem h₂)))
-    have hsource : env.HasType U Γ major
-        (VExpr.mkApps (.const name levels) (params' ++ indices')) := by
-      apply (VEnv.HasType.weakN_iff henv hs hΓ W).mp
-      simpa only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append, hparams, hindices] using hm
-    have hc := (program_closed hg hsel).instL (ls := fieldSorts ++ levels)
-    have heq : VExpr.mkApps (program.value.instL (fieldSorts ++ levels))
-        (params' ++ indices' ++ [major]) = target := by
-      apply (VExpr.liftN_inj (n := n) (k := k)).mp
-      simpa only [VExpr.liftN_mkApps, hc.liftN_eq (Nat.zero_le _), List.map_append,
-        List.map_cons, List.map_nil, hparams, hindices] using he.symm
-    have htarget : VExpr.WF env U Γ target := by
-      apply (VEnv.IsDefEqU.weakN_iff henv hs hΓ W).mp
-      rwa [he]
-    rw [← heq] at htarget ⊢
-    exact .intro hr ho hf hg hsel hlu hfu hw hp (by simpa [params'] using hn)
-      (by simpa [indices'] using hi) hsource htarget
-
 private theorem lift'_mkApps (fn : VExpr) (args : List VExpr) :
     (VExpr.mkApps fn args).lift' ρ = VExpr.mkApps (fn.lift' ρ) (args.map (·.lift' ρ)) := by
   induction args generalizing fn with
@@ -290,22 +244,6 @@ theorem weak' (H : ProjectionDesugaring env U Γ name index major target)
       List.map_nil, hc.lift'_eq Lift.Fixes.zero] at hm' ht' ⊢
     exact .intro hr ho hf hg hs hlu hfu hw hp (by simpa using hn)
       (by simpa using hi) hm' ht'
-
-/-- Inverse transport for arbitrary binder insertions, reduced to the proved
-single-cutoff inverse while retaining the exact generated occurrence. -/
-theorem weak'_inv
-    (H : ProjectionDesugaring env U Γ' name index (major.lift' ρ) (target.lift' ρ))
-    (henv : env.WF) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) (W : Ctx.Lift' ρ Γ Γ') :
-    ProjectionDesugaring env U Γ name index major target := by
-  generalize hd : ρ.depth = count
-  induction count generalizing ρ Γ' with
-  | zero => simpa only [VExpr.lift'_depth_zero hd, W.depth_zero hd] using H
-  | succ count ih =>
-    obtain ⟨ρ, k, rfl, rfl⟩ := Lift.depth_succ hd
-    obtain ⟨middle, W₁, W₂⟩ := W.of_cons_skip
-    rw [Lift.consN_skip_eq, VExpr.lift'_comp, VExpr.lift'_comp,
-      ← Lift.skipN_one, VExpr.lift'_consN_skipN, VExpr.lift'_consN_skipN] at H
-    exact ih (H.weakN_inv henv hs hΓ W₂) (hΓ.weakN_inv henv hs W₂) W₁ Lift.depth_consN
 
 theorem instN (H : ProjectionDesugaring env U Γ₁ name index major target)
     (henv : env.Ordered) (W : Ctx.InstN Γ₀ value valueType k Γ₁ Γ)
