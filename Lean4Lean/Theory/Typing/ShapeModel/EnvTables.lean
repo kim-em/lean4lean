@@ -1,13 +1,13 @@
-import Lean4Lean.Theory.Typing.ShapeModel.EnvTablesRegistration
+import Lean4Lean.Theory.Typing.ShapeModel.EnvTablesHist
 
 /-!
 # Environment tables for the shape model (M4a, T1 (a), (b), (d), (e), T4, T5 (a)-(c))
 
-For a well-formed environment, `ctorOf env` and `famOf env` are chosen from the history tables of
-`EnvTablesRegistration.lean` (`VEnv.WF.tables`). They record, for every family, its *first*
-registration: native installation (families with at least one constructor), structure
-registration, eliminator registration (when none of its names was recorded before) or the
-quotient.
+For a well-formed environment, `ctorOf env` and `famOf env` are chosen from the tables built along
+one of its histories (`HistTables`, `EnvTablesHist.lean`). They record, for every family, its
+*first* registration: native installation (families with at least one constructor), structure
+registration, eliminator registration (family by family, for a family none of whose names was
+recorded before) or the quotient.
 
 ## Why first registrations
 
@@ -29,16 +29,20 @@ open VEnv InductiveSignature
 
 variable {env : VEnv}
 
-/-- The tables chosen for an environment (empty if it has none). -/
+/-- The tables chosen for an environment: tables built along one of its histories
+(`HistTables`, `EnvTablesHist.lean`; empty if it has none). -/
 noncomputable def envTables (env : VEnv) : Tables := by
   classical
-  exact if h : ∃ T : Tables, T.Inv env then Classical.choose h else Tables.empty
+  exact if h : ∃ T : Tables, HistTables env T then Classical.choose h else Tables.empty
 
-theorem envTables_inv (H : env.WF) : (envTables env).Inv env := by
+theorem envTables_hist (H : env.WF) : HistTables env (envTables env) := by
   classical
-  have h := VEnv.WF.tables H
+  have h := VEnv.WF'.histTables H.choose_spec
   simp only [envTables, dif_pos h]
   exact Classical.choose_spec h
+
+theorem envTables_inv (H : env.WF) : (envTables env).Inv env :=
+  (envTables_hist H).inv.1
 
 /-- The constructor table. -/
 noncomputable def ctorOf (env : VEnv) : Name → Option CtorData := (envTables env).ctor

@@ -474,12 +474,17 @@ theorem installEntries_some {old : Name → Option NativeRecursorData}
     have := List.find?_eq_none.mp hf d hd
     simp [hn] at this
 
-theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
+/-- Native installation with the chosen compilation data (`Tables.Inv.install` chooses it). -/
+theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     (H : T.Inv env) (henv : env.WF)
     (hcomp : decl.CompilesTo env block) (hblock : VInductBlock.WF env block)
-    (hinstall : block.install env = some env') :
-    ∃ T', T.Extends T' ∧ T'.Inv env' := by
-  obtain ⟨cbase, expanded, s, g, aux, hcle, hdata, hprior⟩ := hcomp.compiled.compilationOrigin
+    (hinstall : block.install env = some env')
+    {cbase : VEnv} {expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
+    {aux : List ContainerSpecialization} (hcle : cbase ≤ env)
+    (hdata : CompilationData cbase decl expanded s g aux block)
+    (hprior : CertifiedSpecializations cbase aux) :
+    T.Extends (T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)) ∧
+      (T.addNative decl (NativeRecursorData.compilationEntries default decl s aux g)).Inv env' := by
   let entries := NativeRecursorData.compilationEntries default decl s aux g
   let T' := T.addNative decl entries
   have hle := install_le hinstall
@@ -612,7 +617,7 @@ theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
       .rfl, henv, hblock, hfamT'⟩
     rw [hinstance]
     exact hdata
-  refine ⟨T', hext, fun {n v} hv => ?_, fun {n data} hd => ?_, fun hq => ?_, fun {n} hn => ?_,
+  refine ⟨hext, fun {n v} hv => ?_, fun {n data} hd => ?_, fun hq => ?_, fun {n} hn => ?_,
     hviews0.addViews hok, fun {df} hdf => ?_, fun {s' info} hp => ?_⟩
   · obtain ⟨h1, h2, h3⟩ := H.defs hv
     exact ⟨h1, hle.constants h2, hle.defeqs h3⟩
@@ -651,5 +656,13 @@ theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
         rfl
     · obtain ⟨h1, h2⟩ := H.projections hold
       exact ⟨addView_of_old h1, addView_of_old h2⟩
+
+theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
+    (H : T.Inv env) (henv : env.WF)
+    (hcomp : decl.CompilesTo env block) (hblock : VInductBlock.WF env block)
+    (hinstall : block.install env = some env') :
+    ∃ T', T.Extends T' ∧ T'.Inv env' := by
+  obtain ⟨cbase, expanded, s, g, aux, hcle, hdata, hprior⟩ := hcomp.compiled.compilationOrigin
+  exact ⟨_, H.install' henv hcomp hblock hinstall hcle hdata hprior⟩
 
 end Lean4Lean.ShapeModel

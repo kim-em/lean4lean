@@ -5,8 +5,8 @@ import Lean4Lean.Theory.Typing.ShapeModel.EnvTablesCore
 
 Every `VEnv.WF'` history has tables satisfying `Tables.Inv`. Families are recorded at their
 first registration: native installation (families with at least one constructor), structure
-registration (`inductProjections`), eliminator registration (when none of its names is already
-recorded) and the quotient.
+registration (`inductProjections`), eliminator registration (family by family, for a family none
+of whose names is already recorded) and the quotient.
 -/
 
 namespace Lean4Lean.ShapeModel
