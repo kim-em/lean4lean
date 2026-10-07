@@ -46,7 +46,6 @@
   ],
   "openProofs": [
     "Lean4Lean.VEnv.WF.headInjectivity",
-    "Lean4Lean.VEnv.strengthening_of_canonicalEq",
-    "Lean4Lean.VEnv.FullStep.strip"
+    "Lean4Lean.VEnv.strengthening_of_canonicalEq"
   ]
 }

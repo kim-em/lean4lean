@@ -142,10 +142,10 @@ theorem NativeDeltaRule.weak'_inv {name : Name} {levels : List VLevel}
       cases hh : data.recursorType with
       | some type => exact ⟨type, rfl⟩
       | none =>
-        unfold prefixProgram at hg
+        unfold singletonProgram at hg
         split at hg <;> simp [hh] at hg
     obtain ⟨type, htype⟩ := hex
-    rw [prefixProgram_rename htype (hr.recursorType_closed henv htype)] at hg
+    rw [singletonProgram_rename henv hr ht hz htype (hr.recursorType_closed henv htype)] at hg
     obtain ⟨small, hsmall, he⟩ := Option.map_eq_some_iff.mp hg
     cases he
     have hreplay : NativePrefixReplay env U Γ

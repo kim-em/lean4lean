@@ -63,7 +63,7 @@ theorem native_singleton (H : env.WF) {data : NativeRecursorData}
       have := (hnz _ hmem).of_equiv hprop []
       exact absurd rfl this
     · exact absurd ht htarget
-    · exact hsing
+    · exact hsing.1
   -- one family: no auxiliaries, and the expanded headers are the source headers
   obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := hdata.correspondence
   have hlenFam := Lean4Lean.List.Forall₂.length_eq hfamilies

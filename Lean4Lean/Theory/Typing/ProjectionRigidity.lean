@@ -47,7 +47,7 @@ theorem Ordered.rigid_of_absent (henv : env.Ordered)
   contradiction
 
 private def ProjectionRigid (env : VEnv) : Prop :=
-  ∀ name info, env.projections name info → env.Rigid name
+  ∀ name info, env.projections name info → env.Rigid name ∧ env.Rigid info.ctorName
 
 private theorem addConst_defeqs_eq {env env' : VEnv}
     (H : env.addConst name ci = some env') : env'.defeqs = env.defeqs := by
@@ -84,6 +84,7 @@ private theorem ProjectionRigid.register
     {base envTypes envCtors : VEnv} {decl : VInductDecl} {block : VInductBlock}
     (hbase : base.Ordered) (hctors : ProjectionRigid envCtors)
     (htypesSource : block.types = decl.typeConstants)
+    (hctorsSource : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
     (htypes : base.addConstVals block.types = some envTypes)
     (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors) :
@@ -98,23 +99,38 @@ private theorem ProjectionRigid.register
       rw [htypesSource]
       exact List.mem_map.mpr ⟨type, htype, rfl⟩)
     have hrigid := hbase.rigid_of_absent hfresh
-    simpa only [VEnv.Rigid, VEnv.addProjections_defeqs,
-      addConstVals_defeqs_eq hctorsAdded, addConstVals_defeqs_eq htypes] using hrigid
+    have hc : ctor ∈ block.ctors := by
+      rw [hctorsSource]
+      exact List.mem_flatMap.mpr ⟨type, htype, by rw [hctor]; exact List.mem_singleton_self _⟩
+    have hfreshC := VEnv.addConstVals_names_fresh hctorsAdded ctor hc
+    have habsent : base.constants ctor.name = none := by
+      cases h : base.constants ctor.name with
+      | none => rfl
+      | some c => rw [(VEnv.addConstVals_le htypes).constants h] at hfreshC; cases hfreshC
+    have hrigidC := hbase.rigid_of_absent habsent
+    simp only [VEnv.Rigid, VEnv.addProjections_defeqs,
+      addConstVals_defeqs_eq hctorsAdded, addConstVals_defeqs_eq htypes]
+    exact ⟨hrigid, hrigidC⟩
   · simpa only [VEnv.Rigid, VEnv.addProjections_defeqs] using hctors name info hold
 
 private theorem ProjectionRigid.addRules {env : VEnv} {rules : List VDefEq}
     (H : ProjectionRigid env)
     (hnew : ∀ rule ∈ rules, ∀ name info, env.projections name info →
-      ∀ levels, rule.lhs.stripLams.getAppFnArgs.1 ≠ .const name levels) :
+      ∀ levels, rule.lhs.stripLams.getAppFnArgs.1 ≠ .const name levels ∧
+        rule.lhs.stripLams.getAppFnArgs.1 ≠ .const info.ctorName levels) :
     ProjectionRigid (env.addDefEqRules rules) := by
   induction rules generalizing env with
   | nil => exact H
   | cons rule rules ih =>
     apply ih (env := env.addDefEq rule)
-    · intro name info hinfo df hdf levels
-      rcases hdf with rfl | hdf
-      · exact hnew df (by simp) name info hinfo levels
-      · exact H name info hinfo df hdf levels
+    · intro name info hinfo
+      refine ⟨fun df hdf levels => ?_, fun df hdf levels => ?_⟩
+      · rcases hdf with rfl | hdf
+        · exact (hnew df (by simp) name info hinfo levels).1
+        · exact (H name info hinfo).1 df hdf levels
+      · rcases hdf with rfl | hdf
+        · exact (hnew df (by simp) name info hinfo levels).2
+        · exact (H name info hinfo).2 df hdf levels
     · intro df hdf name info hinfo levels
       exact hnew df (by simp [hdf]) name info hinfo levels
 
@@ -125,14 +141,21 @@ private theorem ProjectionRigid.compileRules {pre recEnv : VEnv} {block : VInduc
       df.lhs.stripLams.getAppFnArgs.1 = .const recursor.name levels) :
     ProjectionRigid (recEnv.addDefEqRules block.rules) := by
   apply (H.addConstVals hrecs).addRules
-  intro df hdf name info hinfo levels hhead
+  intro df hdf name info hinfo levels
   rw [VEnv.addConstVals_projections hrecs] at hinfo
-  rcases hordered.projectionConstant hinfo with ⟨ci, hci⟩
   rcases hheads df hdf with ⟨recursor, hrecursor, ls, hrecHead⟩
-  have hn : recursor.name = name := (VExpr.const.inj (hrecHead.symm.trans hhead)).1
   have hfresh := VEnv.addConstVals_names_fresh hrecs recursor hrecursor
-  rw [hn, hci] at hfresh
-  contradiction
+  constructor
+  · intro hhead
+    rcases hordered.projectionConstant hinfo with ⟨ci, hci⟩
+    have hn : recursor.name = name := (VExpr.const.inj (hrecHead.symm.trans hhead)).1
+    rw [hn, hci] at hfresh
+    contradiction
+  · intro hhead
+    have hci := hordered.projectionConstructor hinfo
+    have hn : recursor.name = info.ctorName := (VExpr.const.inj (hrecHead.symm.trans hhead)).1
+    rw [hn, hci] at hfresh
+    contradiction
 
 private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl}
     (H : ProjectionRigid base) (hbase : base.Ordered)
@@ -149,7 +172,7 @@ private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl
       hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at (by rwa [hcompile.types] at htypes))
       hparams hparams.rawCtorShape hcompile.types hcompile.ctors hcompile.projections htypes hctors
     have hpreRigid := (H.addConstVals htypes).addConstVals hctors
-    have hpreRegistered := hpreRigid.register hbase hcompile.types hcompile.projections htypes hctors
+    have hpreRegistered := hpreRigid.register hbase hcompile.types hcompile.ctors hcompile.projections htypes hctors
     have hresult := hpreRegistered.compileRules hpreOrdered hrecs hcompile.compiled.equation_head_owned
     simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
     cases hinstall
@@ -204,14 +227,12 @@ private theorem ProjectionRigid.addQuot {env env' : VEnv}
   refine ⟨{ name := ``Quot.lift, toVConstant := quotLiftConst }, by simp [constants], [.param 0, .param 1], ?_⟩
   rfl
 
-/-- Registered structure heads remain rigid through every declaration
-extension. Canonical recursor ownership excludes new inductive equations;
-constant freshness excludes definitions and the quotient equation. -/
-theorem WF.projectionRigid {env : VEnv} (H : env.WF)
-    {name : Name} {info : VProjectionInfo} (hinfo : env.projections name info) :
-    env.Rigid name := by
-  suffices h : ∀ {ds env}, VEnv.WF' ds env → ProjectionRigid env from
-    h H.choose_spec name info hinfo
+/-- Registered structure heads and their constructors remain rigid through
+every declaration extension. Canonical recursor ownership excludes new
+inductive equations; constant freshness excludes definitions and the quotient
+equation. -/
+private theorem WF.projectionRigid_both {env : VEnv} (H : env.WF) : ProjectionRigid env := by
+  suffices h : ∀ {ds env}, VEnv.WF' ds env → ProjectionRigid env from h H.choose_spec
   intro ds env H
   induction H with
   | empty => intro _ _ hinfo; cases hinfo
@@ -231,7 +252,19 @@ theorem WF.projectionRigid {env : VEnv} (H : env.WF)
       hbase hctorsWF hsource htypesWF hconstructorUvars hctorsTyped hparams hshape htypesSource
       hctorsSource hprojections htypes hctors ihBase ihCtors =>
     exact ihCtors.register (show base.WF from ⟨baseDecls, hbase⟩).ordered
-      htypesSource hprojections htypes hctors
+      htypesSource hctorsSource hprojections htypes hctors
+
+/-- Registered structure heads remain rigid through every declaration
+extension. -/
+theorem WF.projectionRigid {env : VEnv} (H : env.WF)
+    {name : Name} {info : VProjectionInfo} (hinfo : env.projections name info) :
+    env.Rigid name := (H.projectionRigid_both name info hinfo).1
+
+/-- The constructor of a registered structure is rigid: no installed equation
+computes at its head. -/
+theorem WF.projectionCtorRigid {env : VEnv} (H : env.WF)
+    {name : Name} {info : VProjectionInfo} (hinfo : env.projections name info) :
+    env.Rigid info.ctorName := (H.projectionRigid_both name info hinfo).2
 
 end VEnv
 end Lean4Lean

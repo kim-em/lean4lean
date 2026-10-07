@@ -172,6 +172,52 @@ theorem prefixProgram_inst {data : NativeRecursorData} {nativeType : VExpr}
   simp only [List.map_append, List.map_take, List.map_drop, List.map_cons,
     List.map_nil, hzero, List.map_map, Function.comp_def]
 
+theorem singletonProgram_inst {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
+    {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
+    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
+    (H : data.singletonProgram env U levels args = some program) :
+    data.singletonProgram env U levels (args.map (·.inst arg k)) = some (program.instN arg k) := by
+  unfold singletonProgram at H ⊢
+  simp only [List.length_map]
+  split at H <;> try contradiction
+  rename_i hguard
+  rw [if_neg hguard]
+  simp only [bind, htype, Option.bind_some, Option.bind_eq_some_iff] at H
+  obtain ⟨residual, hsupply, ⟨domains, result⟩, htake, ⟨constructor, fields⟩, hrecon,
+    equation, hequation, body, hbody, H⟩ := H
+  split at H <;> try contradiction
+  rename_i hcaptureCount
+  cases H
+  have hlen := takeForalls_length htake
+  have hsupply' := supplyType_inst (arg := arg) (k := k) hsupply
+  rw [(hclosed.instL (ls := levels)).instN_eq (Nat.zero_le _)] at hsupply'
+  have htake' := takeForalls_instDomains (arg := arg) (k := k) htake
+  have hn : args.length ≤ data.majorOffset := by
+    by_cases hn : args.length ≤ data.majorOffset
+    · exact hn
+    · exact (hguard (by simp [show data.majorOffset < args.length by omega])).elim
+  let remaining := data.majorOffset + 1 - args.length
+  have hall :
+      (args.map (·.inst arg k)).map (·.liftN remaining) ++ vars remaining 0 =
+      (args.map (·.liftN remaining) ++ vars remaining 0).map (·.inst arg (k + remaining)) := by
+    simp only [List.map_append, List.map_map, Function.comp_def, vars_inst_above,
+      liftN_instN_lo _ _ _ _ _ (Nat.zero_le _), Nat.add_comm remaining k]
+  have hvarslen (n j : Nat) : (vars n j).length = n := by simp [vars]
+  have hallLen : (args.map (·.liftN remaining) ++ vars remaining 0).length = data.majorOffset + 1 := by
+    simp only [List.length_append, List.length_map, hvarslen]; omega
+  have hrecon' := singletonRecon_inst (a := arg) (K := k + remaining) henv hr hlarge hzero hallLen (by omega) hrecon
+  rw [← hall] at hrecon'
+  dsimp only [remaining] at hrecon'
+  simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody,
+    List.length_map, List.length_append, List.length_take, hvarslen] at hcaptureCount ⊢
+  rw [if_neg hcaptureCount]
+  simp only [Option.pure_def, Option.some.injEq, PrefixProgram.instN, PrefixProgram.mk.injEq,
+    hlen, and_true, true_and]
+  dsimp only [remaining] at hall
+  rw [hall]
+  simp only [List.map_append, List.map_take]
+
 end Lean4Lean.InductiveSignature.NativeRecursorData
 
 namespace Lean4Lean.VEnv
@@ -260,10 +306,10 @@ theorem NativeDeltaRule.instN {name : Name} {levels : List VLevel}
       cases hh : data.recursorType with
       | some type => exact ⟨type, rfl⟩
       | none =>
-        unfold prefixProgram at hg
+        unfold singletonProgram at hg
         split at hg <;> simp [hh] at hg
     obtain ⟨type, htype⟩ := hex
-    have hg' := prefixProgram_inst htype (hr.recursorType_closed henv htype) hg (arg := arg) (k := k)
+    have hg' := singletonProgram_inst henv hr ht hz htype (hr.recursorType_closed henv htype) hg (arg := arg) (k := k)
     have replay' := replay.instN henv W harg
     simp only [inst_mkApps, VExpr.inst] at replay'
     rw [← PrefixProgram.rhs_instN program (replay.templateScope henv).2.1]

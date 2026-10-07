@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.NativeRecursorRegistration
-import Lean4Lean.Theory.Inductive.NativePrefixProgram
+import Lean4Lean.Theory.Typing.NativeSingletonProgram
 import Lean4Lean.Theory.Typing.NativePrefixTyping
 import Lean4Lean.Theory.Typing.VariableTransport
 import Batteries.Tactic.OpenPrivate
@@ -54,7 +54,7 @@ inductive NativeDeltaRule (env : VEnv) (U : Nat)
       registry name = some data → NativeRecursorRegistered env data → data.name = name →
       data.largeTarget = true → (∀ level ∈ levels, level.WF U) →
       data.sourceLevel levels ≈ .zero →
-      data.prefixProgram U levels arguments = some program →
+      data.singletonProgram env U levels arguments = some program →
       NativePrefixReplay env U Γ (VExpr.mkApps (.const name levels) arguments) program →
       NativeDeltaRule env U registry Γ name levels arguments program.rhs
 
@@ -67,7 +67,7 @@ theorem NativeDeltaRule.unique
   cases H with | intro hl _ _ _ _ _ hg _ =>
     cases H' with | intro hl' _ _ _ _ _ hg' _ =>
       cases Option.some.inj (hl.symm.trans hl')
-      cases NativeRecursorData.prefixProgram_unique hg hg'
+      cases NativeRecursorData.singletonProgram_unique hg hg'
       rfl
 
 /-- Construct a checked delta occurrence from its substantive typing checks.
@@ -78,7 +78,7 @@ theorem NativeDeltaRule.ofGenerated {data : NativeRecursorData}
     (hlookup : registry name = some data) (hregistered : NativeRecursorRegistered env data)
     (hname : data.name = name) (hlarge : data.largeTarget = true)
     (hlevels : ∀ level ∈ levels, level.WF U) (hprop : data.sourceLevel levels ≈ .zero)
-    (hgen : data.prefixProgram U levels arguments = some program)
+    (hgen : data.singletonProgram env U levels arguments = some program)
     (hsource : HasType env U Γ (VExpr.mkApps (.const name levels) arguments) program.type)
     (hcaptures : ∀ j (hj : j < program.captures.length)
         (hd : j < program.equationBody.domains.length),
@@ -93,7 +93,7 @@ theorem NativeDeltaRule.ofGenerated {data : NativeRecursorData}
         (VExpr.mkApps (.const name levels) arguments)).lift program.constructor)
       ((program.equationBody.lhs.instL program.levels).instOuter program.captures)) :
     NativeDeltaRule env U registry Γ name levels arguments program.rhs := by
-  obtain ⟨_, hn, hls, hlen, heq, hbody, hargs⟩ := NativeRecursorData.prefixProgram_spec hgen
+  obtain ⟨_, hn, hls, hlen, heq, hbody, hargs⟩ := NativeRecursorData.singletonProgram_spec hgen
   exact .intro hlookup hregistered hname hlarge hlevels hprop hgen {
     source_typed := hsource
     remaining_nonempty := hn

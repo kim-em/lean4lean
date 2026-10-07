@@ -253,7 +253,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     refine ⟨hg.extend (fun df h => .inl h) (fun h => ?_) (fun h => .inl h), hfam'⟩
     rcases VEnv.addEliminator_iff.mp h with ⟨rfl, rfl⟩ | h
     · exact .inr (generic_elimOK H hg henv hle hbase hle₀ ⟨expanded, g, aux, hdata, ‹_›, ‹_›, hnames⟩
-        hkey hconsts hfresh hcompat hT hext hfam' hfrz)
+        hkey ⟨hconsts.1, hconsts.2.1, hconsts.2.2.1⟩ hfresh hcompat hT hext hfam' hfrz)
     · exact .inl h
   | @proj base envTypes envCtors T₀ decl block hH hbase hctorsWF hsource htypesWF hcu hctorsWF'
       hparams hshape htypesSource hctorsSource hprojections htypes hctors ih =>

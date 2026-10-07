@@ -219,7 +219,7 @@ example : ¬ unspecializedInstance.Admissible env := by
     simp [unspecializedInstance, VLevel.inst, VLevel.eval] at hn
   · have hz := congrFun hz []
     simp [unspecializedInstance, VLevel.eval] at hz
-  · have hsize := hs.2.1
+  · have hsize := hs.1.2.1
     change 2 ≤ 1 at hsize
     omega
 

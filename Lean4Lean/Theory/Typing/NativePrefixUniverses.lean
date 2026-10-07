@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.SingletonReconstructionUniverses
 import Lean4Lean.Theory.Inductive.NativePrefixProgram
+import Lean4Lean.Theory.Typing.NativeSingletonProgram
 
 /-! Specializing occurrence universes in the actual native prefix program.
 The stored equation and parsed equation body remain the installed templates. -/
@@ -129,5 +130,42 @@ theorem prefixProgram_instL {data : NativeRecursorData} {program : PrefixProgram
   simp only [List.map_append, List.map_take, List.map_drop, List.map_map,
     Function.comp_def, VExpr.instL_mkApps, ProjectionFunction.instL,
     List.map_cons, List.map_nil, VExpr.instL]
+
+theorem singletonProgram_instL {data : NativeRecursorData} {program : PrefixProgram} {env : VEnv}
+    (hr : VEnv.NativeRecursorRegistered env data)
+    (H : data.singletonProgram env U levels args = some program) :
+    data.singletonProgram env U' (levels.map (·.inst packed)) (args.map (VExpr.instL packed)) =
+      some (program.instL packed) := by
+  unfold singletonProgram at H ⊢
+  simp only [List.length_map]
+  split at H <;> try contradiction
+  rename_i hguard
+  rw [if_neg hguard]
+  simp only [bind, Option.bind_eq_some_iff] at H
+  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+    ⟨constructor, fields⟩, hrecon, equation, hequation, body, hbody, H⟩ := H
+  split at H <;> try contradiction
+  rename_i hcaptures
+  cases H
+  have hsupply' := supplyType_instL (packed := packed) hsupply
+  rw [VExpr.instL_instL] at hsupply'
+  have htake' := takeForalls_instL (packed := packed) htake
+  have hvars (n k : Nat) : (vars n k).map (VExpr.instL packed) = vars n k := by
+    simp [vars, List.map_map, Function.comp_def, VExpr.instL]
+  let remaining := data.majorOffset + 1 - args.length
+  have hall : (args.map (VExpr.instL packed)).map (·.liftN remaining) ++ vars remaining 0 =
+      (args.map (·.liftN remaining) ++ vars remaining 0).map (VExpr.instL packed) := by
+    simp only [List.map_append, List.map_map, Function.comp_def, VExpr.instL_liftN, hvars]
+  have hrecon' := singletonRecon_instL (packed := packed) hrecon
+  rw [← hall] at hrecon'
+  dsimp only [remaining] at hrecon'
+  simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody]
+  simp only [List.length_append, List.length_map, List.length_take] at hcaptures ⊢
+  rw [if_neg hcaptures]
+  simp only [Option.pure_def, Option.some.injEq, PrefixProgram.instL,
+    PrefixProgram.mk.injEq, and_true, true_and]
+  dsimp only [remaining] at hall
+  rw [hall]
+  simp only [List.map_append, List.map_take]
 
 end Lean4Lean.InductiveSignature.NativeRecursorData

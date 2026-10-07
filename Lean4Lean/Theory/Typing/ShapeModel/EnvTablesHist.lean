@@ -51,7 +51,7 @@ inductive HistTables : VEnv → Tables → Prop
     source.types.head?.map (·.name) = some key →
     ((∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-      schema.ProjNamesRegistered env key) →
+      schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env) →
     schema.Fresh env key → schema.StructCompat env →
     HistTables (env.addEliminator key schema) (T.addSchema env source)
   | proj {base envTypes envCtors : VEnv} {T : Tables} {decl : VInductDecl}
@@ -115,8 +115,8 @@ theorem HistTables.inv (H : HistTables env T) : T.Inv env ∧ env.WF := by
       ⟨_, .decl (.induct hdecl (.intro hdecl hcomp hblock hinstall)) hds⟩⟩
   | elim _ hbase henv hle hcert hkey hconsts hfresh hcompat ih =>
     exact ⟨(ih.1.eliminator hbase hle hcert hconsts.1 hconsts.2.1).2,
-      VEnv.WF.inductEliminators hbase henv hle hcert hkey hconsts.1 hconsts.2.1 hconsts.2.2
-        hfresh hcompat⟩
+      VEnv.WF.inductEliminators hbase henv hle hcert hkey hconsts.1 hconsts.2.1 hconsts.2.2.1
+        hconsts.2.2.2 hfresh hcompat⟩
   | proj _ hbase hctorsWF hsource htypesWF hconstructorUvars hctorsWF' hparams hshape
       htypesSource hctorsSource hprojections htypes hctors ih =>
     have henv' := VEnv.WF.inductProjections hbase hctorsWF hsource htypesWF hconstructorUvars
