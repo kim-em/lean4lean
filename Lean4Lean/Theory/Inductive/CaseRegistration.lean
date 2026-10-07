@@ -72,7 +72,7 @@ theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) (hname : name ∈ schema.originalFamilies) :
     ∃ value, env.constants name = some value := by
   obtain ⟨base, source, block, _, _, hformed, _, hconstants⟩ := H.eliminator_origin hlookup
-  obtain ⟨expanded, g, auxiliaries, hdata, _, _, hnames⟩ := hformed
+  obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := hformed
   rw [hnames] at hname
   obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hname
   refine ⟨family.toVConstant, hconstants family.toVConstVal ?_⟩
@@ -83,7 +83,7 @@ theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)
 theorem VEnv.WF.eliminator_key_mem {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) : key ∈ schema.originalFamilies := by
   obtain ⟨base, source, block, _, _, hformed, hkey, _⟩ := H.eliminator_origin hlookup
-  obtain ⟨expanded, g, auxiliaries, _, _, _, hnames⟩ := hformed
+  obtain ⟨expanded, auxiliaries, _, _, _, hnames, hdisj⟩ := hformed
   rw [hnames]
   cases htypes : source.types with
   | nil => simp [htypes] at hkey
@@ -132,7 +132,7 @@ certificate from the verifier. -/
 theorem Certified.fresh {schema : CaseSchema} {base : VEnv}
     (H : schema.Certified base source block) (hbase : base.WF)
     (hkey : source.types.head?.map (·.name) = some key) : schema.Fresh base key := by
-  obtain ⟨expanded, g, auxiliaries, hdata, _, _, hnames⟩ := H
+  obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := H
   obtain ⟨types, ctors, htypes, _, _, _⟩ := hdata.sourceWF.2.2.2.2
   have hnew : ∀ name ∈ schema.originalFamilies, base.constants name = none := by
     intro name hname
@@ -178,7 +178,7 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     (hprojs : schema.ProjNamesRegistered envCtors key) :
     (envCtors.addEliminator key schema).WF := by
   have hctorsWF : envCtors.WF := by
-    obtain ⟨expanded, g, auxiliaries, hdata, _, _⟩ := H
+    obtain ⟨expanded, auxiliaries, hdata, _, _⟩ := H
     obtain ⟨types, ctors, ht, hc, htypesWF, hctorsWF⟩ := hdata.sourceWF.2.2.2.2
     rw [hdata.types] at htypes
     rw [htypes] at ht
@@ -196,7 +196,7 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     exfalso
     rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hinfo
     obtain ⟨ci, hci⟩ := hbase.ordered.projectionConstant hinfo
-    obtain ⟨expanded, g, auxiliaries, hdata, _, _⟩ := H
+    obtain ⟨expanded, auxiliaries, hdata, _, _⟩ := H
     have hmem : type.toVConstVal ∈ block.types := by
       rw [hdata.types]; exact List.mem_map.mpr ⟨type, htype, rfl⟩
     have hfresh := VEnv.addConstVals_names_fresh htypes _ hmem

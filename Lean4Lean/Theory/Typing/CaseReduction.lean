@@ -103,7 +103,7 @@ theorem CaseStep.of_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     CaseStep env U Γ rule (target :: levels) arguments := by
   obtain ⟨base, source, compiled, _, _, hcert, _, _⟩ :=
     henv.eliminator_origin hlookup
-  obtain ⟨expanded, g, auxiliaries, hdata, _, hrestoration, _⟩ := hcert
+  obtain ⟨expanded, auxiliaries, hdata, _, hrestoration, _⟩ := hcert
   have hscope : schema.restoration.Scoped := by
     simpa only [hrestoration] using hdata.restorationScoped
   obtain ⟨level, hformation⟩ := hformation

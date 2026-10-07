@@ -56,8 +56,9 @@ theorem Instance.restored_equation_major {s : InductiveSignature} {g : Instance 
 
 /-- A restored constructor belongs either to the original declaration or to
 one of the earlier containers selected by the finite specialization trace. -/
-theorem CompilationData.constructor_name_origin {s : InductiveSignature} {g : Instance s}
-    (H : CompilationData env source expanded s g auxiliaries block)
+theorem CaseCompilationData.constructor_name_origin {s : InductiveSignature}
+    (H : CaseCompilationData env source expanded s auxiliaries block)
+    (hdisj : RecursorNamesFresh env source expanded auxiliaries)
     (index : Fin s.constructors.size) :
     (∃ ctor ∈ source.constructorConstants,
       (compilationRestoration source auxiliaries).headName s.constructors[index].name = ctor.name) ∨
@@ -73,7 +74,7 @@ theorem CompilationData.constructor_name_origin {s : InductiveSignature} {g : In
   · left
     refine ⟨ctor, List.mem_flatMap.mpr ⟨family, hfamily, hctor⟩, ?_⟩
     rw [hname]
-    apply H.headName_source
+    apply H.headName_source hdisj
     exact List.mem_flatMap.mpr ⟨family, hfamily, List.mem_cons_of_mem _
       (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
   · right
@@ -85,5 +86,14 @@ theorem CompilationData.constructor_name_origin {s : InductiveSignature} {g : In
       exact List.mem_map.mpr ⟨ctor, hctor, rfl⟩
     obtain ⟨original, horiginal, hrestored⟩ := List.mem_map.mp hm
     exact ⟨a, ha, original, horiginal, by rw [hname]; exact hrestored.symm⟩
+
+theorem CompilationData.constructor_name_origin {s : InductiveSignature} {g : Instance s}
+    (H : CompilationData env source expanded s g auxiliaries block)
+    (index : Fin s.constructors.size) :
+    (∃ ctor ∈ source.constructorConstants,
+      (compilationRestoration source auxiliaries).headName s.constructors[index].name = ctor.name) ∨
+    (∃ a ∈ auxiliaries, ∃ ctor ∈ a.source.ctors,
+      (compilationRestoration source auxiliaries).headName s.constructors[index].name = ctor.name) :=
+  H.toCaseCompilationData.constructor_name_origin H.recursorNamesFresh index
 
 end Lean4Lean.InductiveSignature

@@ -519,3 +519,20 @@ verified pipeline calls it).
 * `NativeIotaPattern.sound` uses `VIotaRuleShape.iota_of_args`, a
   strengthening-free variant of `VIotaRuleShape.iota` (which still takes
   `VEnv.Strengthening` for its Verify callers).
+
+### Case-only registration certificate (2026-10-07, E1)
+
+`VEnv.WF'.inductEliminators` now takes `CaseSchema.Certified` in a case-only
+form: `CaseCompilationData` (formation, model, restoration correspondence and
+scoping, installed source constants, `FamilyTypesWF`) plus
+`RecursorNamesFresh` (the restoration's auxiliary recursor names are fresh and
+not declaration names), together with the existing `ProjNamesRegistered` and
+`ProjectionsCoherent` conjuncts. The previous premise reused the full
+`CompilationData` by convenience; the eliminator rules depend only on the
+schema data the case part fixes, so this corrects the specification to what
+the eliminator semantics needs and weakens no theorem. `CompilationData` now
+extends `CaseCompilationData`; every consumer of `Certified` (eliminator
+origin, avoidance, coherence, the `Params` fields through
+`family_head_origin`/`family_head_type`) reads only case fields. It lets E1
+register a declaration's case schema at the constructor boundary, which the
+projection-walk corner needs during the recursor phase.

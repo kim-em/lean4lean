@@ -47,7 +47,7 @@ theorem NativeRecursorRegistered.constructor_index_unique
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, hprior, _, hr, hf, _⟩ := H
   have hc : data.schema.Certified base source block :=
-    ⟨expanded, g, auxiliaries, hdata, hprior, hr, hf⟩
+    ⟨expanded, auxiliaries, hdata.toCaseCompilationData, hprior, hr, hf, hdata.recursorNamesFresh⟩
   exact hc.constructor_index_unique hi hj hn
 
 end Lean4Lean.VEnv

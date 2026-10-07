@@ -28,7 +28,7 @@ private theorem EliminatorsCoherent.extend (H : env.EliminatorsCoherent) (hle : 
   rcases hproj _ info hp with hp | hfresh
   · exact hcoh type htype info hp
   · exfalso
-    obtain ⟨expanded, g, auxiliaries, hdata, _⟩ := hcert
+    obtain ⟨expanded, auxiliaries, hdata, _⟩ := hcert
     have hmem : type.toVConstVal ∈ block.types ++ block.ctors := by
       apply List.mem_append_left
       rw [hdata.types]; exact List.mem_map.mpr ⟨type, htype, rfl⟩

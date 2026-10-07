@@ -176,8 +176,7 @@ theorem CompilationData.heads_nparams {s : InductiveSignature} {g : Instance s}
 
 /-- The origin of a signature constructor: an original constructor, or a
 constructor of a certified container through its auxiliary name. -/
-theorem CompilationData.constructor_origin {s : InductiveSignature} {g : Instance s}
-    (H : CompilationData env source expanded s g auxiliaries block)
+theorem CaseCompilationData.constructor_origin {s : InductiveSignature} (H : CaseCompilationData env source expanded s auxiliaries block)
     (index : Fin s.constructors.size) :
     (∃ type ∈ source.types, ∃ ctor ∈ type.ctors, s.constructors[index].name = ctor.name) ∨
     (∃ a ∈ auxiliaries, ∃ ctor ∈ a.source.ctors,

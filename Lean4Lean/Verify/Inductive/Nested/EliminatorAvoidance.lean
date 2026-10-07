@@ -592,7 +592,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     EliminatorsAvoidConsts env names := by
   intro block schema hlookup
   obtain ⟨base, source, blk, hbase, hle, hcert, _, hconst⟩ := henv.eliminator_origin hlookup
-  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hres, _⟩ := hcert
+  obtain ⟨expanded, auxiliaries, hdata, hprior, hres, _, hrfresh⟩ := hcert
   have hbaseOrd : base.Ordered := hbase.ordered
   have hbaseFresh : ∀ n ∈ names, base.constants n = none :=
     fun n hn => hle.constants_eq_none_left (hfresh n hn)
@@ -617,7 +617,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     intro n hn hmem
     exact hsrcPresent n hn (hfresh n hmem)
   -- the expanded environments
-  obtain ⟨envET, envEC, hET, hEC, _, hfam⟩ := hdata.recursiveTypesWF
+  obtain ⟨envET, envEC, hET, hEC, hfam⟩ := hdata.familyTypesWF
   obtain ⟨_, _, _, _, envET', envEC', hET', hEC', htWF, hcWF⟩ := hdata.expandedWF
   have : envET' = envET := Option.some.inj (hET'.symm.trans hET)
   subst this
@@ -647,10 +647,6 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     rcases List.mem_append.mp hn with hn | hn
     · exact Or.inl hn
     · exact Or.inr (hheadNames ▸ hn)
-  have hRrec : ∀ n ∈ R, n ∈ g.recursors.map (·.name) := by
-    intro n hn
-    obtain ⟨pair, hpair, rfl⟩ := List.mem_map.mp hn
-    exact hdata.recursor_source_mem hpair
   have hexpTC : ∀ n ∈ expanded.typeConstants.map (·.name) ++
       expanded.constructorConstants.map (·.name), n ∈ familyNames expanded.types := by
     intro n hn
@@ -682,14 +678,10 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
         · rcases hexpNames n (hexpTC n he) with hs | hh
           · exact hsrcNot n hs hnN
           · simp [hh] at hnH
-      · have hrec := hRrec n hn
+      · obtain ⟨hb', -, he'⟩ := hrfresh n hn
         rcases horigin with hb | he
-        · obtain ⟨rec, hrecMem, rfl⟩ := List.mem_map.mp hrec
-          exact hb (hdata.recursorsFresh rec hrecMem)
-        · have hnd := hdata.generatedNames
-          rw [List.map_append, List.map_append] at hnd
-          have := (List.nodup_append.mp hnd).2.2
-          exact this n (by simpa only [List.map_append] using he) n hrec rfl
+        · exact hb hb'
+        · exact he' (by simpa only [VInductDecl.sourceNames, List.map_append] using he)
   have hLconst : ∀ {n}, envEC'.constants n ≠ none → L.contains n = false := by
     intro n hn
     apply Bool.eq_false_iff.mpr

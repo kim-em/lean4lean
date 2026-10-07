@@ -67,7 +67,18 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   (`CaseSchema.ProjNamesRegistered`), hence never out of a name that is not
   an installed constant, and the projections already registered for its
   families are those of the certified declaration
-  (`VInductDecl.ProjectionsCoherent`). -/
+  (`VInductDecl.ProjectionsCoherent`).
+
+  The certificate `CaseSchema.Certified` is the case part of a compilation
+  (`CaseCompilationData`: formation, model, restoration correspondence and
+  scoping, installed source constants, family typing) together with freshness
+  of the restoration's auxiliary recursor names. It used to be a full
+  `CompilationData`, by convenience; the eliminator rules `elimDF`/`elimIota`
+  read only the schema data fixed by the case part, never the generated native
+  recursors, their equations, their elimination universe or the typing of
+  their induction hypotheses. The weaker premise lets a declaration register
+  its case schema at the constructor boundary, before its native recursors are
+  generated and checked; no theorem is weakened. -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →

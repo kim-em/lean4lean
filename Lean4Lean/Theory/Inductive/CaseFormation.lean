@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Theory.Inductive.CaseSchema
+import Lean4Lean.Theory.Inductive.CompilationNames
 
 /-! The schema registry uses the same finite compilation evidence as native
 inductive installation. No case types or equations are supplied by a caller.
@@ -62,14 +63,18 @@ def ofCompilation (source : VInductDecl) (signature : InductiveSignature)
 
 /-- Retain the normalized signature and exact restoration of one finite
 compilation. Concrete recursor checking is not needed to register its abstract
-case schemas once the source constructors and expanded formation are checked. -/
+case schemas once the source constructors and expanded formation are checked:
+the certificate is the case part `CaseCompilationData` of a compilation, which
+fixes everything the eliminator rules read and nothing about the generated
+native recursors. -/
 def Certified (schema : CaseSchema) (base : VEnv)
     (source : VInductDecl) (block : VInductBlock) : Prop :=
-  ∃ expanded, ∃ (g : Instance schema.signature), ∃ auxiliaries,
-    CompilationData base source expanded schema.signature g auxiliaries block ∧
+  ∃ expanded, ∃ auxiliaries,
+    CaseCompilationData base source expanded schema.signature auxiliaries block ∧
     CertifiedSpecializations base auxiliaries ∧
     schema.restoration = compilationRestoration source auxiliaries ∧
-    schema.originalFamilies = source.types.map (·.name)
+    schema.originalFamilies = source.types.map (·.name) ∧
+    RecursorNamesFresh base source expanded auxiliaries
 
 /-- Keys and native-family ownership are both fresh. Lowering auxiliaries do
 not reserve native names: they are identified by their block and owner slot. -/
@@ -83,17 +88,18 @@ theorem ofCompilation_certified
     (H : CompilationData base source expanded s g auxiliaries block)
     (hprior : CertifiedSpecializations base auxiliaries) :
     (ofCompilation source s auxiliaries).Certified base source block :=
-  ⟨expanded, g, auxiliaries, H, hprior, rfl, rfl⟩
+  ⟨expanded, auxiliaries, H.toCaseCompilationData, hprior, rfl, rfl, H.recursorNamesFresh⟩
 
-theorem Certified.compiled {schema : CaseSchema}
-    (H : schema.Certified base source block) :
-    CompiledInductive base source block := by
-  rcases H with ⟨expanded, g, auxiliaries, hdata, hprior, _⟩
-  exact .intro hdata hprior
+theorem ofCaseCompilation_certified {s : InductiveSignature}
+    (H : CaseCompilationData base source expanded s auxiliaries block)
+    (hprior : CertifiedSpecializations base auxiliaries)
+    (hdisj : RecursorNamesFresh base source expanded auxiliaries) :
+    (ofCompilation source s auxiliaries).Certified base source block :=
+  ⟨expanded, auxiliaries, H, hprior, rfl, rfl, hdisj⟩
 
 theorem Certified.originalFamilies_nodup {schema : CaseSchema}
     (H : schema.Certified base source block) : schema.originalFamilies.Nodup := by
-  rcases H with ⟨expanded, g, auxiliaries, hdata, _, _, hnames⟩
+  rcases H with ⟨expanded, auxiliaries, hdata, _, _, hnames, _⟩
   rw [hnames]
   exact source.typeNames_nodup hdata.sourceWF.2.1
 
