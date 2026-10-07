@@ -31,8 +31,8 @@ local notation "Obs'" => Obs env U Δ
 /-- The constant `I` has only the sort `l` at the ends of the chain observations of its type,
 at every instantiation. -/
 def FamSort (env : VEnv) (I : Name) (l : VLevel) : Prop :=
-  ∀ {U : Nat} {Δ : List VExpr} {ci : VConstant} {lsI : List VLevel} {ks : List Key}
-    {z : List Nat → Nat}, OnCtx Δ (env.IsType U) → env.constants I = some ci →
+  ∀ (U : Nat) (Δ : List VExpr) (ci : VConstant) (lsI : List VLevel) (ks : List Key)
+    (z : List Nat → Nat), OnCtx Δ (env.IsType U) → env.constants I = some ci →
     (∀ l ∈ lsI, l.WF U) →
     Obs env U Δ .id .empty (ci.type.instL lsI) (piCodChain ks (.sort z)) → z = (l.inst lsI).eval
 
@@ -141,7 +141,42 @@ theorem native_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLe
   obtain ⟨keys', -, hc⟩ := wrap_of_obs_mkApps h
   obtain ⟨ci, τs, hci, hτs, hty⟩ := const_rigid_inv hIrig hc
   obtain ⟨ks, -, hks⟩ := typed_wrap_rigid hty
-  have e := hfs hΔ hci hlsI (hτs _ hks)
+  have e := hfs _ _ _ _ _ _ hΔ hci hlsI (hτs _ hks)
+  have e0 := congrFun e []
+  rw [← VLevel.inst_inst, VLevel.eval_inst] at e0
+  exact hnz _ e0.symm
+
+/-- Mode C is impossible at a head whose major family has a result sort that is never zero
+(general form: the major domain is any rigid spine with a `FamSort`). -/
+theorem C_absurd_gen {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name}
+    {lsI : List VLevel} {iargs : List VExpr} {k : Nat} {L : VLevel} {ls : List VLevel}
+    {keys : List Key} {m : Nat}
+    (hΔ : OnCtx Δ (env.IsType U)) (hlw : ∀ l ∈ ls, l.WF U)
+    (eH : ci.type = .wrapForalls dsH RH) (hlen : dsH.length = k + 1)
+    (hkH : dsH[k]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
+    (hfs : FamSort env I L) (hnz : (L.inst lsI).IsNeverZero) (hkl : keys.length = k)
+    (h : Obs' .id .empty (ci.type.instL ls) (piCodChain keys
+      (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) m fun _ => 0)))) : False := by
+  have hlsI : ∀ l ∈ lsI.map (·.inst ls), l.WF U := by
+    intro l hl
+    obtain ⟨l', -, rfl⟩ := List.mem_map.1 hl
+    exact VLevel.WF.inst hlw
+  have hsplit : dsH = dsH.take k ++ [.mkApps (.const I lsI) iargs] := by
+    conv => lhs; rw [← List.take_append_drop k dsH]
+    congr 1
+    rw [List.drop_eq_getElem_cons (by omega), List.drop_eq_nil_of_le (by omega)]
+    rw [List.getElem?_eq_getElem (by omega)] at hkH
+    injection hkH with hkH; rw [hkH]
+  rw [eH, hsplit, instL_wrapForalls'', List.map_append, wrapForalls_append] at h
+  obtain ⟨σ', S', h⟩ := tele_obs_inv (by simp; omega) h
+  simp only [List.map_cons, List.map_nil, VExpr.wrapForalls, List.foldr_cons,
+    List.foldr_nil] at h
+  have h := Obs.piDomOb_mem h
+  simp only [VExpr.instL_mkApps, VExpr.instL] at h
+  obtain ⟨keys', -, hc⟩ := wrap_of_obs_mkApps h
+  obtain ⟨ci', τs, hci, hτs, hty⟩ := const_rigid_inv hIrig hc
+  obtain ⟨ks, -, hks⟩ := typed_wrap_rigid hty
+  have e := hfs _ _ _ _ _ _ hΔ hci hlsI (hτs _ hks)
   have e0 := congrFun e []
   rw [← VLevel.inst_inst, VLevel.eval_inst] at e0
   exact hnz _ e0.symm
