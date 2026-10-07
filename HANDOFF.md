@@ -260,6 +260,18 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   declarations `NativeIotaSoundness` used moved into
   Theory/Inductive/NativeIotaRestoration.lean with proofs unchanged). Full
   build (745 jobs) and tests (346) green.
+  **Restart (2026-10-07 late):** the lead's process exited and `/tmp` was
+  wiped; the E1 and Phase 1b agents stopped mid-step and the integration dry
+  run (`/tmp/l4l-integrate`) was lost (its findings survive in
+  `docs/inductives/E1_MERGE_RECIPE.md` and `E1_MERGE_PARTIAL.diff`). E1 was
+  relaunched in `lean4lean-e1` from its uncommitted state (installation
+  restructuring across 15 files plus the new
+  `Verify/Inductive/ConstructorBoundary.lean`, which computes the source
+  signature at the constructor boundary so the case eliminator is certified
+  before projections and native recursors); Phase 1b was relaunched in
+  `lean4lean-e3` from its uncommitted `HTS.proj` extension. Both agents
+  may spawn their own helper subagents on `-<topic>` branches; scratch
+  worktrees now live under `~/worktrees/lean4lean/`, not `/tmp`.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: **Phase 1a
   COMPLETE (84bf90d3; being merged into the mainline):** `lake build
   Lean4Lean.Experimental` passes (NormalEq, ParallelReduction, Stratified,
