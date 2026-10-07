@@ -66,10 +66,11 @@ class Params where
   pat_app_uniq : Pat p r → Pat p' r' → Subpattern (.app p₁ p₂) p →
     Subpattern (.app p₁' p₂') p' → Subpattern p₃ p₁ → Subpattern p₃' p₂' → p₃.inter p₃' = none
   /-- Definition patterns unfold definitions, never a native recursor or the
-  quotient lift, whose prefixes compute by native and quotient prefix unfolding. -/
-  pat_const_native : Pat (.const c) r → recursorData c = none ∧ c ≠ ``Quot.lift
-  /-- The quotient lift is not a registered native recursor. -/
-  recursorData_quot : recursorData ``Quot.lift = none
+  registered quotient lift, whose prefixes compute by native and quotient prefix
+  unfolding. Without the quotient declaration, `Quot.lift` is an ordinary name. -/
+  pat_const_native : Pat (.const c) r → recursorData c = none ∧ (QuotRegistered env → c ≠ ``Quot.lift)
+  /-- The registered quotient lift is not a native recursor. -/
+  recursorData_quot : QuotRegistered env → recursorData ``Quot.lift = none
   /-- The constructor of a native iota pattern carries no computation of its own. -/
   pat_ctor_rigid : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
     env.NativeHeadRigid cc
@@ -78,7 +79,7 @@ class Params where
   /-- A native iota major of structure type is a saturated application of the
   structure's constructor. -/
   pat_struct_major : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
-    env.projections family info →
+    OnCtx Γ (env.IsType univs) → env.projections family info →
     HasType env univs Γ (VExpr.mkApps (.const cc lsc) fs) (VExpr.mkApps (.const family ls) ps) →
     fs.length = kc → cc = info.ctorName ∧ kc = info.nparams + info.numFields
   /-- Native iota computation at a structure constructor reads only its fields,
@@ -103,7 +104,8 @@ class Params where
           df m1 (Sum.elim g1 g') r.2)
   /-- A case major of structure type is a saturated application of the structure's
   constructor, and the case rule captures only its fields. -/
-  schema_struct_major : MatchedCaseStep env univs Γ rule actual → env.projections family info →
+  schema_struct_major : MatchedCaseStep env univs Γ rule actual → OnCtx Γ (env.IsType univs) →
+    env.projections family info →
     HasType env univs Γ (VExpr.mkApps (.const actual.ctorName actual.ctorLevels) actual.ctorArguments)
       (VExpr.mkApps (.const family ls) ps) →
     actual.ctorName = info.ctorName ∧

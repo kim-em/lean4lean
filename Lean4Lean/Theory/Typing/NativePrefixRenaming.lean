@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.SingletonReconstructionLemmas
 import Lean4Lean.Theory.Inductive.NativePrefixProgram
+import Lean4Lean.Theory.Typing.NativeSingletonProgram
 import Lean4Lean.Theory.Typing.NativePrefixTyping
 
 /-! Term renaming of the actual native prefix generator and its remaining
@@ -232,6 +233,126 @@ theorem prefixProgram_rename {data : NativeRecursorData} {nativeType : VExpr}
     rw [h] at hh
     cases he : data.prefixProgram U levels (args.map (·.lift' ρ)) <;> simp_all
   | some program => exact prefixProgram_lift' htype hclosed h
+
+theorem singletonProgram_lift' {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
+    {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
+    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
+    (H : data.singletonProgram env U levels args = some program) :
+    data.singletonProgram env U levels (args.map (·.lift' ρ)) = some (program.rename ρ) := by
+  unfold singletonProgram at H ⊢
+  simp only [List.length_map]
+  split at H <;> try contradiction
+  rename_i hguard
+  rw [if_neg hguard]
+  simp only [bind, htype, Option.bind_some, Option.bind_eq_some_iff] at H
+  obtain ⟨residual, hsupply, ⟨domains, result⟩, htake, ⟨constructor, fields⟩, hrecon,
+    equation, hequation, body, hbody, H⟩ := H
+  split at H <;> try contradiction
+  rename_i hcaptureCount
+  cases H
+  have hlen := takeForalls_length htake
+  have hsupply' := supplyType_lift' (ρ := ρ) hsupply
+  rw [(hclosed.instL (ls := levels)).lift'_eq Lift.Fixes.zero] at hsupply'
+  have htake' := takeForalls_lift' (ρ := ρ) htake
+  have hn : args.length ≤ data.majorOffset := by
+    by_cases hn : args.length ≤ data.majorOffset
+    · exact hn
+    · exact (hguard (by simp [show data.majorOffset < args.length by omega])).elim
+  let remaining := data.majorOffset + 1 - args.length
+  have hall :
+      (args.map (·.lift' ρ)).map (·.liftN remaining) ++ vars remaining 0 =
+      (args.map (·.liftN remaining) ++ vars remaining 0).map (·.lift' (ρ.consN remaining)) := by
+    simp only [List.map_append, List.map_map, Function.comp_def,
+      liftN_lift'_consN, vars_lift'_consN]
+  have hallLen : (args.map (·.liftN remaining) ++ vars remaining 0).length = data.majorOffset + 1 := by
+    simp only [List.length_append, List.length_map, vars_length]; omega
+  have hrecon' := singletonRecon_lift' (ρ := ρ) (n := remaining) henv hr hlarge hzero hallLen (by omega) hrecon
+  rw [← hall] at hrecon'
+  dsimp only [remaining] at hrecon'
+  simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody,
+    List.length_map, List.length_append, List.length_take, vars_length] at hcaptureCount ⊢
+  rw [if_neg hcaptureCount]
+  simp only [Option.pure_def, Option.some.injEq, PrefixProgram.rename, PrefixProgram.mk.injEq,
+    hlen, and_true, true_and]
+  dsimp only [remaining] at hall
+  rw [hall]
+  simp only [List.map_append, List.map_take]
+
+/-- Lifting does not turn a rejected singleton prefix into a generated one. -/
+theorem singletonProgram_isSome_lift' {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
+    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed) :
+    (data.singletonProgram env U levels (args.map (·.lift' ρ))).isSome =
+      (data.singletonProgram env U levels args).isSome := by
+  have hsupply := supplyType_rename args (nativeType.instL levels) ρ
+  rw [(hclosed.instL (ls := levels)).lift'_eq Lift.Fixes.zero] at hsupply
+  unfold singletonProgram
+  simp only [List.length_map]
+  split
+  · rfl
+  · simp only [bind, htype, Option.bind_some, hsupply]
+    cases hs : supplyType args (nativeType.instL levels) with
+    | none => rfl
+    | some residual =>
+      simp only [Option.map_some, Option.bind_some, takeForalls_rename]
+      cases ht : takeForalls (data.majorOffset + 1 - args.length) residual with
+      | none => rfl
+      | some pair =>
+        obtain ⟨domains, result⟩ := pair
+        simp only [Option.map_some, Option.bind_some]
+        have hsome := singletonRecon_isSome env data levels
+          ((args.map (·.lift' ρ)).map (·.liftN (data.majorOffset + 1 - args.length)) ++
+            vars (data.majorOffset + 1 - args.length) 0)
+          (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+            vars (data.majorOffset + 1 - args.length) 0)
+        cases h1 : data.singletonRecon env levels
+            ((args.map (·.lift' ρ)).map (·.liftN (data.majorOffset + 1 - args.length)) ++
+              vars (data.majorOffset + 1 - args.length) 0) with
+        | none =>
+          rw [h1] at hsome
+          cases h2 : data.singletonRecon env levels
+            (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+              vars (data.majorOffset + 1 - args.length) 0) with
+          | none => rfl
+          | some _ => rw [h2] at hsome; cases hsome
+        | some p1 =>
+          rw [h1] at hsome
+          cases h2 : data.singletonRecon env levels
+            (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
+              vars (data.majorOffset + 1 - args.length) 0) with
+          | none => rw [h2] at hsome; cases hsome
+          | some p2 =>
+            obtain ⟨c1, f1⟩ := p1
+            obtain ⟨c2, f2⟩ := p2
+            simp only [Option.bind_some]
+            obtain ⟨S1, hS1, hl1⟩ := singletonRecon_fields_length h1
+            obtain ⟨S2, hS2, hl2⟩ := singletonRecon_fields_length h2
+            cases hS1.symm.trans hS2
+            cases data.singletonEquation with
+            | none => rfl
+            | some equation =>
+              simp only [Option.bind_some]
+              cases EquationBody.extract equation.lhs equation.rhs equation.type with
+              | none => rfl
+              | some body =>
+                simp only [Option.bind_some, List.length_append, List.length_map,
+                  List.length_take, hl1, hl2]
+                split <;> (try split) <;> first | rfl | (exfalso; omega) | simp_all
+
+/-- Both successful output and failure commute with occurrence renaming. -/
+theorem singletonProgram_rename {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
+    {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)
+    (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
+    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed) :
+    data.singletonProgram env U levels (args.map (·.lift' ρ)) =
+      (data.singletonProgram env U levels args).map (·.rename ρ) := by
+  cases h : data.singletonProgram env U levels args with
+  | none =>
+    have hh := singletonProgram_isSome_lift' (env := env) (U := U) (levels := levels) (args := args)
+      (ρ := ρ) htype hclosed
+    rw [h] at hh
+    cases he : data.singletonProgram env U levels (args.map (·.lift' ρ)) <;> simp_all
+  | some program => exact singletonProgram_lift' henv hr hlarge hzero htype hclosed h
 
 theorem wrapLams_renameDomains (domains : List VExpr) (body : VExpr) (ρ : Lift) :
     (wrapLams domains body).lift' ρ =

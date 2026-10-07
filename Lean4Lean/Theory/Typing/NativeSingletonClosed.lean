@@ -13,13 +13,13 @@ set_option linter.unusedSimpArgs false
 namespace Lean4Lean
 open VExpr VEnv
 
-theorem VExpr.ClosedN.wrapForalls_inv : ∀ {doms : List VExpr} {body : VExpr} {n : Nat},
+theorem VExpr.ClosedN.wrapForalls_inv_singleton : ∀ {doms : List VExpr} {body : VExpr} {n : Nat},
     (VExpr.wrapForalls doms body).ClosedN n →
       (∀ i (h : i < doms.length), (doms[i]).ClosedN (n + i)) ∧ body.ClosedN (n + doms.length)
   | [], _, _, h => ⟨by simp, h⟩
   | d :: ds, body, n, h => by
     obtain ⟨hd, hb⟩ := h
-    obtain ⟨h1, h2⟩ := VExpr.ClosedN.wrapForalls_inv (doms := ds) (n := n + 1) hb
+    obtain ⟨h1, h2⟩ := VExpr.ClosedN.wrapForalls_inv_singleton (doms := ds) (n := n + 1) hb
     refine ⟨fun i hi => ?_, by simpa [Nat.add_assoc, Nat.add_comm 1] using h2⟩
     cases i with
     | zero => simpa using hd
@@ -78,7 +78,7 @@ theorem propElim_closed (henv : env.WF) (H : NativeRecursorRegistered env data)
   rw [hc, gp.motive_shape data.owner htarget, gp.minor_shape hfam c hown0, gp.major_lift,
     gp.constructorApp_shape] at hrec
   rw [hrec] at hclosed
-  obtain ⟨hdoms, _⟩ := VExpr.ClosedN.wrapForalls_inv hclosed
+  obtain ⟨hdoms, _⟩ := VExpr.ClosedN.wrapForalls_inv_singleton hclosed
   have hPlen : gp.params.length = data.nativeInstance.params.length := by
     simp [Instance.params, Instance.specialize, nativeInstance]
   -- parameters
@@ -93,13 +93,13 @@ theorem propElim_closed (henv : env.WF) (H : NativeRecursorRegistered env data)
   rw [List.getElem_append_left (by simp), List.getElem_append_left (by simp),
     List.getElem_append_left (by simp), List.getElem_append_right (by simp)] at hMot
   simp only [Nat.zero_add, Nat.sub_self, List.getElem_singleton] at hMot
-  obtain ⟨hIM, _⟩ := VExpr.ClosedN.wrapForalls_inv hMot
+  obtain ⟨hIM, _⟩ := VExpr.ClosedN.wrapForalls_inv_singleton hMot
   have hMin := hdoms (gp.params.length + 1) (by simp)
   rw [List.getElem_append_left (by simp), List.getElem_append_left (by simp),
     List.getElem_append_right (by simp)] at hMin
   simp only [Nat.zero_add, List.length_append, List.length_singleton, Nat.sub_self,
     List.getElem_singleton] at hMin
-  obtain ⟨hD, hbody⟩ := VExpr.ClosedN.wrapForalls_inv hMin
+  obtain ⟨hD, hbody⟩ := VExpr.ClosedN.wrapForalls_inv_singleton hMin
   -- closedness of the specialized telescopes
   have hI : ∀ k (h : k < (gp.sIndices data.owner).length),
       ((gp.sIndices data.owner)[k]).ClosedN (gp.params.length + k) := by

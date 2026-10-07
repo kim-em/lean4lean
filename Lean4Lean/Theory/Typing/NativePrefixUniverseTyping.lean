@@ -82,7 +82,7 @@ theorem NativeDeltaRule.instL {levels packed : List VLevel}
       (levels.map (·.inst packed)) (args.map (VExpr.instL packed)) (rhs.instL packed) := by
   cases H with
   | intro hl hr hn hlarge hlevels hz hg replay =>
-    have hg' := prefixProgram_instL hg hw
+    have hg' := singletonProgram_instL (U' := U') (packed := packed) hr hg
     have replay' := replay.instL hw
     simp only [VExpr.instL_mkApps, VExpr.instL] at replay'
     rw [← PrefixProgram.rhs_instL]

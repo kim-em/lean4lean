@@ -31,6 +31,10 @@ inductive QuotDeltaRule (env : VEnv) (U : Nat) (Γ : List VExpr) :
       NativePrefixReplay env U Γ (VExpr.mkApps (.const ``Quot.lift levels) arguments) program →
       QuotDeltaRule env U Γ levels arguments program.rhs
 
+theorem QuotDeltaRule.registered (H : QuotDeltaRule env U Γ levels arguments rhs) :
+    QuotRegistered env := by
+  cases H with | intro hr _ _ _ _ => exact hr
+
 /-- The quotient generator and registration discharge every structural
 replay check; only the occurrence's ordinary typing checks remain. -/
 theorem QuotDeltaRule.ofGenerated
