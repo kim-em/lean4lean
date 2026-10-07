@@ -64,7 +64,22 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   preserved (CompletedElimination.lean / ConsumedAdmissible.lean instantiate
   the target from it). This corrects the specification to Lean's
   constructions; it weakens no theorem. The strengthening agent implements
-  it; the confluence instance relies on it. **Done (base branch to
+  it; the confluence instance relies on it. **Confluence instance proved
+  (cr branch 0d0c2531, `Theory/Typing/WFParams.lean`):** `WF.church_rosser
+  (henv) (heq : HasCanonicalEq) (hcoh : EliminatorsCoherent) (hΓ) (H)`,
+  joinability under `FullReduction` up to `NormalEq`, with the concrete
+  `Params` instance `WF.params` built from the canonical registry
+  (definition unfoldings, quotient rule when declared, native iota rules),
+  every field proved; coverage from `WF.equationCoverage` +
+  `WF.singletonCoverage` (`NativeSingletonProgram`/`NativeSingletonCoverage`,
+  needing `heq`); only sorry dependency `headInversion`.
+  `EliminatorsCoherent` was needed because `VEnv.WF` let a structure's
+  projections and an eliminator schema come from different declarations
+  (unit-like equality then breaks confluence); **decision (2026-10-07): make
+  coherence part of `inductEliminators`** (spec correction; no pipeline
+  producer registers schemas), so the theorem takes only `henv`, `heq`.
+  Note: `NativeIotaSoundness.lean` makes Theory import Verify for the first
+  time (no cycle; follow-up to relocate). **Done (base branch to
   aac10d3c; mainline merged cc06211d as ec8b9270):** `Instance.FreeTarget`,
   the singleton branch of `Admissible.elimination`, realization
   `recursorDeclarationAbstractLevels_freeTarget`; abstract singleton eta
