@@ -222,7 +222,14 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   separation half of `HeadInversion`; split the conjecture so only
   `headInjectivity` remains.
 - `lean4lean-e3` (re-pointed), branch `agent/verify-inductives-headinj`:
-  Phase 1b: the injectivity half (`forallE_forallE`, argument part of
+  **Milestone (2026-10-07, branch agent/verify-inductives-headinj-proj
+  e8e8e90d, merging into headinj): all eight `HeadInversion` fields are
+  proved in the projection-free scope** (`ProjFree`): the Phase 1b
+  injectivity core plus `WF.headSeparation_of_sound`/`headSeparationModel`
+  (HeadInjectivity/Model/Separation.lean) from the glued model; remaining is
+  stage C (projections: `projOrigin`, `ctorTypeSound`, `ctorTypePiSD` done;
+  the four projection soundness cases in progress), after which `ProjFree`
+  drops and `headInversion` is proved. Phase 1b: the injectivity half (`forallE_forallE`, argument part of
   `rigid_rigid`, `former_args`, `proj_fieldType`); design candidates:
   cast-pushing inside the relation, neutral eliminators, type-level relation
   with singleton eta. Astra design review requested.
