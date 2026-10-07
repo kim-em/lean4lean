@@ -410,7 +410,8 @@ inductive StrongSoundCore : List VExpr → VExpr → VExpr → Prop where
   | const : env.constants c = some ci → ls.length = ci.uvars →
     StrongSound Γ (ci.type.instL ls) (.sort u) →
     StrongSoundCore Γ (.const c ls) (ci.type.instL ls)
-  | elim : SemSig.elimType b o = some T → T.Closed → StrongSoundCore Γ (.elim b o ls) (T.instL ls)
+  | elim : SemSig.elimType b o = some T → T.Closed → StrongSound Γ (T.instL ls) (.sort u) →
+    StrongSoundCore Γ (.elim b o ls) (T.instL ls)
   | app : StrongSound Γ f (.forallE A B) → StrongSound Γ a A →
     StrongSoundCore Γ (.app f a) (B.inst a)
   | proj : SemSig.StructFacts env s info →

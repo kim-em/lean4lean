@@ -300,8 +300,8 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env)
   | elimDF h1 h2 h3 h4 h5 h6 h7 _ ih =>
     have he := hEF.elimType h1 h2 h3
     refine .ofLeft (fun _ _ _ _ =>
-      ⟨(·.lvlEqv (.elim h6)), (·.lvlEqv (.elim (levels_equiv_symm h6)))⟩) ?_ (.elim he h3) .rfl
-      (.elim he h3) (fun _ _ _ _ => Interp.instL_equiv (levels_equiv_symm h6))
+      ⟨(·.lvlEqv (.elim h6)), (·.lvlEqv (.elim (levels_equiv_symm h6)))⟩) ?_ (.elim he h3 ih.left) .rfl
+      (.elim he h3 ih.right) (fun _ _ _ _ => Interp.instL_equiv (levels_equiv_symm h6))
     intro _ ρ W m H
     cases H with
     | bot => exact .bot
