@@ -955,3 +955,40 @@ Design D12 (being implemented):
 * Constructors of projection-registered families produce only `fieldOb` chains (and their rigid
   chains); rule clauses on such families use the eta binding mode (fields bound from `fieldOb`
   observations, anchored at `proj j m`), which subsumes mode C for them.
+
+### 10.7 Stage C completion plan (2026-10-07, resumed lead)
+
+State at resumption: D12 infrastructure in place (`fieldOb`/`fieldTy`/`fieldDom`, backing,
+`projCtor`/`famTy`/`famDom`/`proj` clauses, `proj_obs_typed`, `tele_wind`, `tele_compact`,
+`spine_tele`, `ctor_projCls`, `paramBridge`, `familyTele_data`, `ctorTypePiSD`), `HTS.proj`.
+Remaining, with the decisions taken (recorded as D15-D17 in `PHASE1_NOTES.md`):
+
+1. **Projection validity (D15).** `Model.ProjValid env S info` (`Model/ProjValid.lean`): static
+   facts (`ProjStatic`, proved for WF environments) and soundness, in the model of `env`, of the
+   types environment of the entry's origin (`ProjOriginAt`). `Model.sound` takes
+   `∀ n p, E.projections n p → ProjValid env n p` instead of excluding projections; the D11
+   history induction proves it at the step that registers the entry (its types environment is
+   earlier in the history).
+2. **Field observations of constructor spines** (`ctor_field_obs`): for a never-zero entry, every
+   observation `k` of field `j` of a semantically typed spine `mk ps fs` gives an observation
+   `fieldOb S j L k` of the spine. Built from `spine_tele`, `tele_compact` and `tele_wind`; the
+   family-header observations of the codomain come from the soundness of the recorded header
+   conversion (`familyTele_data`, `paramBridge`).
+3. **Soundness cases.** `projDF`: congruence plus `proj_obs_typed`. `projIota`: left to right by
+   inversion of the spine's observations (only the `projCtor` clause produces `fieldOb`), right to
+   left by `ctor_field_obs` (never-zero) or proof irrelevance (the guard's `fl ≈ 0`). `structEta`:
+   typed observations at a projection family are field observations; left to right by inversion,
+   right to left by `ctor_field_obs` on `mk ps (proj e)`. `unitLike`: no typed observations.
+4. **Rules whose major family is projection-registered (D16).** Constructor spines of such
+   families have no `ctorHead`/`ctorArg` observations (structure eta forbids them), so the rule
+   clause gains a binding mode for them: a field variable at major position `q ≥ nparams` not
+   occurring in the leading arguments is anchored in the class of `proj S (q - nparams) m`
+   (`m` in the major key's class) with the observations `{k | fieldOb S (q - nparams) _ k ∈ Km}`,
+   when the entry is never zero at the constructor's levels; the proof binding (any term of a
+   propositional type, no observations) is allowed in every mode. The rule is identified by the
+   family of the head type's major domain (a syntactic clause premise) instead of a `ctorHead`
+   observation. Native rules: never-zero families use the projection binding, small elimination
+   empties the right-hand side, singleton elimination uses the proof binding (`ProofBinder`).
+   Generic case equations: never-zero or small (case permission).
+5. **History induction** (`WF'.ruleValid` extended to projections), `ProjFree` dropped,
+   `VEnv.WF.headInjectivity` and `VEnv.WF.headInversion` proved.
