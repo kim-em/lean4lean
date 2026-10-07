@@ -87,10 +87,11 @@ private theorem ProjectionRigid.register
     (hctorsSource : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
     (htypes : base.addConstVals block.types = some envTypes)
-    (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors) :
-    ProjectionRigid (envCtors.addProjections block.projections) := by
+    (hctorsAdded : envTypes.addConstVals block.ctors = some envCtors)
+    {es : List (Name × InductiveSignature.CaseSchema)} :
+    ProjectionRigid ((envCtors.addEliminators es).addProjections block.projections) := by
   intro name info hinfo
-  rw [VEnv.addProjections_iff] at hinfo
+  rw [VEnv.addProjections_iff, VEnv.addEliminators_projections] at hinfo
   rcases hinfo with ⟨entry, hentry, rfl, rfl⟩ | hold
   · rw [hprojections] at hentry
     rcases VInductDecl.projectionEntries_origin hentry with
@@ -108,10 +109,10 @@ private theorem ProjectionRigid.register
       | none => rfl
       | some c => rw [(VEnv.addConstVals_le htypes).constants h] at hfreshC; cases hfreshC
     have hrigidC := hbase.rigid_of_absent habsent
-    simp only [VEnv.Rigid, VEnv.addProjections_defeqs,
+    simp only [VEnv.Rigid, VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs,
       addConstVals_defeqs_eq hctorsAdded, addConstVals_defeqs_eq htypes]
     exact ⟨hrigid, hrigidC⟩
-  · simpa only [VEnv.Rigid, VEnv.addProjections_defeqs] using hctors name info hold
+  · simpa only [VEnv.Rigid, VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using hctors name info hold
 
 private theorem ProjectionRigid.addRules {env : VEnv} {rules : List VDefEq}
     (H : ProjectionRigid env)
@@ -162,17 +163,17 @@ private theorem ProjectionRigid.addInduct {base env' : VEnv} {decl : VInductDecl
     (hdecl : decl.WF base) (hadd : VEnv.AddInduct base decl env') :
     ProjectionRigid env' := by
   cases hadd with
-  | intro _ hcompile hblock hinstall =>
+  | @intro block _ _ hcompile hblock _ hinstall =>
     rcases hblock with ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs,
       htypesWF, hctorsWF, hrecsWF, hrulesWF⟩
     have henvTypes := hbase.addConstVals htypesWF htypes
     have henvCtors := henvTypes.addConstVals hctorsWF hctors
     have hparams := hdecl.sourceParameterWF (by rwa [hcompile.types] at htypes)
-    have hpreOrdered := Ordered.inductProjections hbase henvCtors hcompile.sourceNames hdecl.1.originalTypes
+    have hpreOrdered := Ordered.inductProjections (es := block.eliminators) hbase henvCtors hcompile.sourceNames hdecl.1.originalTypes
       hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at (by rwa [hcompile.types] at htypes))
       hparams hparams.rawCtorShape hcompile.types hcompile.ctors hcompile.projections htypes hctors
     have hpreRigid := (H.addConstVals htypes).addConstVals hctors
-    have hpreRegistered := hpreRigid.register hbase hcompile.types hcompile.ctors hcompile.projections htypes hctors
+    have hpreRegistered := hpreRigid.register (es := block.eliminators) hbase hcompile.types hcompile.ctors hcompile.projections htypes hctors
     have hresult := hpreRegistered.compileRules hpreOrdered hrecs hcompile.compiled.equation_head_owned
     simp [VInductBlock.install, htypes, hctors, hrecs] at hinstall
     cases hinstall
@@ -249,9 +250,13 @@ private theorem WF.projectionRigid_both {env : VEnv} (H : env.WF) : ProjectionRi
     | quot _ hadd => exact ih.addQuot hordered hadd
     | induct hdecl hadd => exact ih.addInduct hordered hdecl hadd
   | @inductProjections baseDecls ds base envTypes envCtors decl block
-      hbase hctorsWF hsource htypesWF hconstructorUvars hctorsTyped hparams hshape htypesSource
+      hbase hctorsWF _ hsource htypesWF hconstructorUvars hctorsTyped hparams hshape htypesSource
       hctorsSource hprojections htypes hctors ihBase ihCtors =>
-    exact ihCtors.register (show base.WF from ⟨baseDecls, hbase⟩).ordered
+    have hrigid : ProjectionRigid envCtors := by
+      intro name info hinfo
+      have := ihCtors name info (by simpa using hinfo)
+      simpa only [VEnv.Rigid, VEnv.addEliminators_defeqs] using this
+    exact hrigid.register (show base.WF from ⟨baseDecls, hbase⟩).ordered
       htypesSource hctorsSource hprojections htypes hctors
 
 /-- Registered structure heads remain rigid through every declaration

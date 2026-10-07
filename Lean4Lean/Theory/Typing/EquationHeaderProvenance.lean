@@ -71,8 +71,8 @@ theorem Ordered.equationHeaderOrigin (ordered : env.Ordered) (present : env.defe
     obtain ⟨origin⟩ := ih present
     exact ⟨origin.extend VEnv.addEliminator_le⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    obtain ⟨origin⟩ := ih (by simpa only [VEnv.addProjections_defeqs] using present)
-    exact ⟨origin.extend VEnv.addProjections_le⟩
+    obtain ⟨origin⟩ := ih (by simpa only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using present)
+    exact ⟨origin.extend VEnv.addEliminators_addProjections_le⟩
 
 /-- Pointwise native registration suffices to recover the actual earlier
 rule source for the selected singleton equation. It supplies no unrelated

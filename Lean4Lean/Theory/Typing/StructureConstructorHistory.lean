@@ -136,22 +136,23 @@ private theorem definition_no_major (hm : (VDefVal.toDefEq value).HasConstructor
 private theorem StructureCtorCoherent.addInduct (H : StructureCtorCoherent env)
     (henv : env.Ordered) (hadd : env.AddInduct decl env') : StructureCtorCoherent env' := by
   cases hadd with
-  | @intro block installed hdecl hcompile hblock hinstall =>
+  | @intro block installed hdecl hcompile hblock _ hinstall =>
     simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at hinstall
     obtain ⟨envTypes, htypes, envCtors, hctors, envRecs, hrecs, rfl⟩ := hinstall
     have hle : env ≤ (envRecs.addDefEqRules block.rules) :=
       (((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)).trans
-        (VEnv.addProjections_le.trans (VEnv.addConstVals_le hrecs))).trans VEnv.addDefEqRules_le
+        (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hrecs))).trans VEnv.addDefEqRules_le
     have hdf : envRecs.defeqs = env.defeqs :=
       (VEnv.addConstVals_defeqs hrecs).trans <| (VEnv.addProjections_defeqs _ _).trans <|
+        VEnv.addEliminators_defeqs.trans <|
         (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
     have hproj : ∀ F info, (envRecs.addDefEqRules block.rules).projections F info →
         (∃ entry ∈ block.projections, F = entry.typeName ∧ info = entry.info) ∨
           env.projections F info := by
       intro F info hp
       rw [VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hrecs,
-        VEnv.addProjections_iff, VEnv.addConstVals_projections hctors,
+        VEnv.addProjections_iff, VEnv.addEliminators_projections, VEnv.addConstVals_projections hctors,
         VEnv.addConstVals_projections htypes] at hp
       exact hp
     have hfreshEntry : ∀ entry ∈ block.projections, env.constants entry.typeName = none ∧
@@ -186,7 +187,7 @@ private theorem StructureCtorCoherent.addInduct (H : StructureCtorCoherent env)
             some ctor.toVConstant := by
           have hc : ctor ∈ block.ctors := by rw [hcompile.ctors]; exact hctorMem
           have := VEnv.addConstVals_get hctors hc
-          exact ((VEnv.addProjections_le.trans (VEnv.addConstVals_le hrecs)).trans
+          exact ((VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hrecs)).trans
             VEnv.addDefEqRules_le).constants this
         obtain ⟨ci, ls', hci, hh⟩ := hr
         rw [hcLookup] at hci
@@ -298,12 +299,12 @@ theorem WF'.structureCtorCoherent (H : VEnv.WF' ds env) : StructureCtorCoherent 
     intro F info hp eq c hd hm hr
     exact ih F info hp eq c hd hm ⟨hr.choose, hr.choose_spec.choose, hr.choose_spec.choose_spec⟩
   | @inductProjections baseDecls ds base envTypes envCtors decl block
-      hbase _ hsource _ _ _ _ _ htypesSource _ hprojections htypes hctors ihBase ihCtors =>
+      hbase _ _ hsource _ _ _ _ _ htypesSource _ hprojections htypes hctors ihBase ihCtors =>
     have hbaseOrdered := (show base.WF from ⟨baseDecls, hbase⟩).ordered
-    have hle : base ≤ envCtors.addProjections block.projections :=
-      (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans VEnv.addProjections_le)
-    have hdf : (envCtors.addProjections block.projections).defeqs = base.defeqs :=
-      (VEnv.addProjections_defeqs _ _).trans <|
+    have hle : base ≤ (envCtors.addEliminators block.eliminators).addProjections block.projections :=
+      (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans VEnv.addEliminators_addProjections_le)
+    have hdf : ((envCtors.addEliminators block.eliminators).addProjections block.projections).defeqs = base.defeqs :=
+      (VEnv.addProjections_defeqs _ _).trans <| VEnv.addEliminators_defeqs.trans <|
         (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
     intro F info hp eq c hd hm hr
     rw [VEnv.addProjections_iff] at hp

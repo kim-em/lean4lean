@@ -197,9 +197,11 @@ theorem current_old (origin : NativeDeclarationOrigin env declarations data)
   | true =>
     obtain ⟨recursor, member, same⟩ := List.any_eq_true.mp selected
     have fresh := VEnv.addConstVals_names_fresh origin.stage.typing.addRecursors recursor member
-    have baseLE : origin.stage.base ≤ origin.stage.typing.constructors.addProjections origin.stage.block.projections :=
+    have baseLE : origin.stage.base ≤ (origin.stage.typing.constructors.addEliminators
+        origin.stage.block.eliminators).addProjections origin.stage.block.projections :=
       (VEnv.addConstVals_le origin.stage.typing.addTypes).trans
-        ((VEnv.addConstVals_le origin.stage.typing.addConstructors).trans VEnv.addProjections_le)
+        ((VEnv.addConstVals_le origin.stage.typing.addConstructors).trans
+          VEnv.addEliminators_addProjections_le)
     have contradiction := baseLE.constants lookup
     have eqName : recursor.name = name := by simpa only [beq_iff_eq] using same
     rw [← eqName, fresh] at contradiction
@@ -223,6 +225,7 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
       (original : source.WF base)
       (compiled : source.CompilesTo base block)
       (formed : block.WF base)
+      (eliminatorsWF : VInductBlock.EliminatorsWF base source block)
       (installed : block.install base = some extended)
       (compilation : CompilationData compilationBase source expanded signature generated auxiliaries block)
       (specializations : CertifiedSpecializations compilationBase auxiliaries)
@@ -243,8 +246,11 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
       NativeRegistryHistory (env.addEliminator key schema) declarations table
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option NativeRecursorData} {source : VInductDecl} {block : VInductBlock}
-      (previous : NativeRegistryHistory envCtors declarations table)
+      (previous : NativeRegistryHistory (envCtors.addEliminators block.eliminators)
+        declarations table)
       (baseHistory : base.WF' baseDeclarations)
+      (covered : ∃ key schema, block.eliminators = [(key, schema)] ∧
+        schema.Certified base source block ∧ source.types.head?.map (·.name) = some key)
       (sourceNames : source.sourceNames.Nodup)
       (typeHeadersWF : ∀ type ∈ source.types, type.toVConstant.WF base)
       (constructorUvars : ∀ ctor ∈ source.constructorConstants, ctor.uvars = source.uvars)
@@ -256,7 +262,8 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
       (projections : block.projections = source.projectionEntries)
       (addTypes : base.addConstVals block.types = some envTypes)
       (addConstructors : envTypes.addConstVals block.ctors = some envCtors) :
-      NativeRegistryHistory (envCtors.addProjections block.projections) declarations table
+      NativeRegistryHistory ((envCtors.addEliminators block.eliminators).addProjections
+        block.projections) declarations table
 
 namespace NativeRegistryHistory
 
@@ -264,12 +271,12 @@ theorem history (H : NativeRegistryHistory env declarations table) : env.WF' dec
   induction H with
   | empty => exact .empty
   | decl _ declaration ih => exact .decl declaration ih
-  | native _ original compiled formed installed _ _ _ ih =>
-    exact .decl (.induct original (.intro original compiled formed installed)) ih
+  | native _ original compiled formed eliminatorsWF installed _ _ _ ih =>
+    exact .decl (.induct original (.intro original compiled formed eliminatorsWF installed)) ih
   | eliminators _ baseHistory hle formed keyEq constants fresh ih =>
     exact .inductEliminators baseHistory ih hle formed keyEq constants fresh
-  | projections _ baseHistory sourceNames typeHeadersWF constructorUvars constructorsWF parameters shape types constructors projections addTypes addConstructors ih =>
-    exact .inductProjections baseHistory ih sourceNames typeHeadersWF constructorUvars constructorsWF
+  | projections _ baseHistory covered sourceNames typeHeadersWF constructorUvars constructorsWF parameters shape types constructors projections addTypes addConstructors ih =>
+    exact .inductProjections baseHistory ih covered sourceNames typeHeadersWF constructorUvars constructorsWF
       parameters shape types constructors projections addTypes addConstructors
 
 /-- Lookup follows the concrete list installation, retaining exactly one
@@ -284,18 +291,20 @@ theorem origin (H : NativeRegistryHistory env declarations table)
     obtain ⟨same, ⟨origin⟩⟩ := ih lookup
     exact ⟨same, ⟨origin.later declaration⟩⟩
   | @native base extended compilationBase declarations table source expanded block signature generated auxiliaries key
-      previous original compiled formed installed compilation specializations compilationBelow ih =>
+      previous original compiled formed eliminatorsWF installed compilation specializations
+      compilationBelow ih =>
     unfold installEntries at lookup
     cases found : (compilationEntries key source signature auxiliaries generated).find?
         (fun value => value.name == name) with
     | none =>
       obtain ⟨same, ⟨origin⟩⟩ := ih (by simpa only [found, Option.orElse_none] using lookup)
-      exact ⟨same, ⟨origin.later (.induct original (.intro original compiled formed installed))⟩⟩
+      exact ⟨same, ⟨origin.later (.induct original
+        (.intro original compiled formed eliminatorsWF installed))⟩⟩
     | some selected =>
       simp only [found, Option.orElse_some, Option.some.injEq] at lookup
       subst selected
       obtain ⟨stages⟩ := VInductBlock.TypingStages.ofInstallation
-        ⟨declarations, previous.history⟩ original compiled formed installed
+        ⟨declarations, previous.history⟩ original compiled formed eliminatorsWF installed
       refine ⟨by simpa only [beq_iff_eq] using List.find?_some found, ⟨{
         source := source
         stage := ⟨base, extended, block, declarations, previous.history,
@@ -315,7 +324,7 @@ theorem origin (H : NativeRegistryHistory env declarations table)
   | eliminators _ _ _ _ _ _ _ ih =>
     obtain ⟨same, ⟨origin⟩⟩ := ih lookup
     exact ⟨same, ⟨origin.metadata VEnv.addEliminator_le⟩⟩
-  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨same, ⟨origin⟩⟩ := ih lookup
     exact ⟨same, ⟨origin.metadata VEnv.addProjections_le⟩⟩
 

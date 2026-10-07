@@ -284,7 +284,7 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     | none => rfl
     | some value =>
       have hv := hle.constants he
-      simp only [VEnv.addProjections_constants] at hf
+      simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hf
       rw [hv] at hf
       contradiction
   apply CompiledInductive.intro (expanded := source) (s := s) (g := g)
@@ -325,3 +325,47 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
   · simp [hrestore, hrules]
 
 end Lean4Lean
+
+namespace Lean4Lean.InductiveSignature
+
+/-- The case part of an ordinary compilation (no auxiliaries), from the source and formation
+judgments, a model of the declaration, and the family typing of the signature. -/
+theorem CaseCompilationData.ofOrdinary {env : VEnv} {source : VInductDecl}
+    {s : InductiveSignature} {block : VInductBlock} {envTypes envCtors : VEnv}
+    (Hsource : VInductDecl.SourceWF env source)
+    (Hformation : VInductDecl.FormationWF env source)
+    (Hmodel : s.Models env source)
+    (hadded : env.addConstVals source.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)
+    (hfam : s.FamilyTypesWF (envCtors.addProjections source.projectionEntries) source.uvars)
+    (htypes : block.types = source.typeConstants)
+    (hctors : block.ctors = source.constructorConstants)
+    (hprojections : block.projections = source.projectionEntries) :
+    CaseCompilationData env source source s [] block where
+  sourceWF := Hsource
+  sourceParameters := Hformation.sourceParameterWF
+  expandedWF := Hsource
+  headerPrefix := (List.take_of_length_le (by simp [VInductDecl.typeConstants])).symm
+  expandedFormation := Hformation
+  model := Hmodel
+  uvars := rfl
+  nparams := rfl
+  safety := rfl
+  restorationScoped := by
+    simp [show compilationRestoration source [] = {} from rfl, Restoration.Scoped]
+  correspondence := by
+    refine ⟨envTypes, [], hadded, rfl, ?_, ?_⟩
+    · simp
+    · simpa only [show compilationRestoration source [] = {} from rfl, List.append_nil] using
+        Hmodel.restores_empty Hformation.sourceParameterWF hadded
+  familyTypesWF := ⟨envTypes, envCtors, hadded, hctorsAdded, hfam⟩
+  types := htypes
+  ctors := hctors
+  projections := hprojections
+
+theorem recursorNamesFresh_nil {env : VEnv} {source expanded : VInductDecl} :
+    RecursorNamesFresh env source expanded [] := by
+  intro n hn
+  simp [compilationRestoration] at hn
+
+end Lean4Lean.InductiveSignature

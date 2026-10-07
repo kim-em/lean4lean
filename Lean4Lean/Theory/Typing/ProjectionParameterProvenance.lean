@@ -115,9 +115,9 @@ theorem Ordered.projectionParameterOrigin (ordered : env.Ordered)
   | eliminator _ ih =>
     obtain ⟨origin⟩ := ih registered
     exact ⟨origin.extend VEnv.addEliminator_le⟩
-  | @inductProjections base types ctors decl block baseOrdered ctorsOrdered names typeHeadersWF
+  | @inductProjections base types ctors decl block _es baseOrdered ctorsOrdered names typeHeadersWF
       ctorUvars ctorWF parameters raw types_eq ctors_eq projections_eq addTypes addCtors ihBase ihCtors =>
-    rw [VEnv.addProjections_iff] at registered
+    rw [VEnv.addProjections_iff, VEnv.addEliminators_projections] at registered
     rcases registered with fresh | previous
     · obtain ⟨entry, member, rfl, rfl⟩ := fresh
       rw [projections_eq] at member
@@ -136,8 +136,8 @@ theorem Ordered.projectionParameterOrigin (ordered : env.Ordered)
       have familyInBlock : family.toVConstVal ∈ block.types := by
         rw [types_eq]
         exact List.mem_map.mpr ⟨family, familyMember, rfl⟩
-      have below : types ≤ ctors.addProjections block.projections :=
-        (VEnv.addConstVals_le addCtors).trans VEnv.addProjections_le
+      have below : types ≤ (ctors.addEliminators _es).addProjections block.projections :=
+        (VEnv.addConstVals_le addCtors).trans VEnv.addEliminators_addProjections_le
       exact ⟨{
         base := base, types := types, baseOrdered := baseOrdered, typesOrdered := typesOrdered
         declaration := decl, family := family, constructor := ctor, familyMember := familyMember
@@ -147,9 +147,10 @@ theorem Ordered.projectionParameterOrigin (ordered : env.Ordered)
         parameters := parameters, addTypes := types_eq ▸ addTypes
         typesBelow := below
         constructorFresh := VEnv.addConstVals_names_fresh addCtors ctor ctorInBlock
-        constructorPresent := VEnv.addProjections_le.constants (VEnv.addConstVals_get addCtors ctorInBlock)
+        constructorPresent := VEnv.addEliminators_addProjections_le.constants
+          (VEnv.addConstVals_get addCtors ctorInBlock)
         familyPresent := below.constants (VEnv.addConstVals_get addTypes familyInBlock) }⟩
     · obtain ⟨origin⟩ := ihCtors previous
-      exact ⟨origin.extend VEnv.addProjections_le⟩
+      exact ⟨origin.extend VEnv.addEliminators_addProjections_le⟩
 
 end Lean4Lean.VEnv

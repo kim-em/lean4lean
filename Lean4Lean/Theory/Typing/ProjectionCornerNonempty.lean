@@ -218,7 +218,7 @@ theorem NativeRecursorRegistered.ordinary (H : NativeRecursorRegistered env data
       Option.pure_def, Option.some.injEq] at hinst
     obtain ⟨e1, he1, e2, he2, e3, he3, rfl⟩ := hinst
     have hle1 : e1 ≤ env := (VEnv.addConstVals_le he2).trans
-      (VEnv.addProjections_le.trans ((VEnv.addConstVals_le he3).trans
+      (VEnv.addEliminators_addProjections_le.trans ((VEnv.addConstVals_le he3).trans
         (VEnv.addDefEqRules_le.trans he)))
     rw [hdata.types] at he1
     exact (VEnv.addConstVals_mono hbase hadd he1).trans hle1

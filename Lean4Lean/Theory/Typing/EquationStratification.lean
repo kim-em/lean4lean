@@ -154,7 +154,7 @@ theorem Ordered.equationStratification (ordered : env.Ordered) :
     exact ⟨strata.extend VEnv.addEliminator_le rfl⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨strata⟩ := ih
-    exact ⟨strata.extend VEnv.addProjections_le (VEnv.addProjections_defeqs ..)⟩
+    exact ⟨strata.extend VEnv.addEliminators_addProjections_le (by simp)⟩
 
 /-- The internal query grammar may fix this packet once from the unchanged
 final `Ordered` assumption. No common native-history hypothesis is added. -/

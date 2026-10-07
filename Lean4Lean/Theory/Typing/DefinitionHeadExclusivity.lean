@@ -53,7 +53,7 @@ private theorem declaration_old_equation
         VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at hdf
   | induct _ ha =>
     cases ha with
-    | intro _ hcompile _ hi =>
+    | intro _ hcompile _ _ hi =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at hi
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hi
@@ -65,8 +65,8 @@ private theorem declaration_old_equation
         have hf := VEnv.addConstVals_names_fresh hr rec hrec
         rw [hn] at hf
         exact (exclude (((VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)).trans
-          VEnv.addProjections_le) hf).elim
-      · rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+          VEnv.addEliminators_addProjections_le) hf).elim
+      · rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hdf
 
 private theorem declaration_new_definition_head
@@ -128,8 +128,8 @@ theorem WF'.definition_head_exclusive (H : env.WF' declarations)
       have hn : value.name = name := by simpa using List.find?_some hf
       exact declaration_new_definition_head (VEnv.WF.ordered ⟨_, henv⟩) hd
         (List.mem_of_find?_eq_some hf) hdf (hn ▸ hhead)
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    exact ih hlookup (by simpa only [VEnv.addProjections_defeqs] using hdf) hhead
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    exact ih hlookup (by simpa only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using hdf) hhead
   | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih hlookup hdf hhead
 
 /-- The public registration witness inherits head exclusivity from the

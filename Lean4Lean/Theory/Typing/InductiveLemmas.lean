@@ -46,7 +46,7 @@ theorem VInductBlock.WF.ordered (H : VInductBlock.WF env block)
   have htypes' : env.addConstVals decl.typeConstants = some envTypes := by
     rwa [hcompile.types] at htypes
   have hparams := hdecl.sourceParameterWF htypes'
-  have h3 := Ordered.inductProjections henv h2 hcompile.sourceNames hdecl.1.originalTypes
+  have h3 := Ordered.inductProjections (es := block.eliminators) henv h2 hcompile.sourceNames hdecl.1.originalTypes
     hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at htypes') hparams
     hparams.rawCtorShape
     hcompile.types hcompile.ctors
@@ -104,10 +104,11 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
     exact ⟨decl, type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
       hindices, hlevel, hctorName, hctorType, hle.constants hlookup, hwf.mono hle,
       ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
-  | @inductProjections base envTypes envCtors decl block
+  | @inductProjections base envTypes envCtors decl block _es
       hbase hctorsOrdered hsource htypesWF hconstructorUvars hctorsWF hparams hshape
       htypesSource hctorsSource hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hproj
+    simp only [VEnv.addEliminators_projections] at hproj
     rcases hproj with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
       rw [hprojections] at hentry
@@ -119,19 +120,19 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
       have hctorConst : ctor ∈ decl.constructorConstants := by
         simp only [VInductDecl.constructorConstants, List.mem_flatMap]
         exact ⟨type, htype, hctorMem⟩
-      have hle : envTypes ≤ envCtors.addProjections block.projections :=
-        (VEnv.addConstVals_le hctors).trans VEnv.addProjections_le
-      have hbaseLe : base ≤ envCtors.addProjections block.projections :=
+      have hle : envTypes ≤ (envCtors.addEliminators _es).addProjections block.projections :=
+        (VEnv.addConstVals_le hctors).trans VEnv.addEliminators_addProjections_le
+      have hbaseLe : base ≤ (envCtors.addEliminators _es).addProjections block.projections :=
         (VEnv.addConstVals_le htypes).trans hle
       have htypeValue : type.toVConstVal ∈ block.types := by
         rw [htypesSource]
         exact List.mem_map.mpr ⟨type, htype, rfl⟩
       have hlookup := hle.constants (VEnv.addConstVals_get htypes htypeValue)
       have huvars := hconstructorUvars ctor hctorConst
-      have hwf : (envCtors.addProjections block.projections).IsType
+      have hwf : ((envCtors.addEliminators _es).addProjections block.projections).IsType
           decl.uvars [] ctor.type := by
         have := (hctorsWF ctor hctorConst).mono hle
-        change (envCtors.addProjections block.projections).IsType
+        change ((envCtors.addEliminators _es).addProjections block.projections).IsType
           ctor.uvars [] ctor.type at this
         rwa [huvars] at this
       have htypes' : base.addConstVals decl.typeConstants = some envTypes := by
@@ -146,8 +147,8 @@ theorem Ordered.projectionShape {env : VEnv} (H : Ordered env)
     · rcases ihCtors hold with ⟨decl', type, ctor, htype, hctor, hname, hctorUvars,
         huvars, hnparams, hindices, hlevel, hctorName, hctorType, hlookup, hwf,
         ⟨params, Hshape, Hparams⟩, Hraw, hnodup⟩
-      have hle : envCtors ≤ envCtors.addProjections block.projections :=
-        VEnv.addProjections_le
+      have hle : envCtors ≤ (envCtors.addEliminators _es).addProjections block.projections :=
+        VEnv.addEliminators_addProjections_le
       exact ⟨decl', type, ctor, htype, hctor, hname, hctorUvars, huvars, hnparams,
         hindices, hlevel, hctorName, hctorType, hle.constants hlookup,
         hwf.mono hle, ⟨params, Hshape.mono hle, Hparams.mono hle⟩, Hraw, hnodup⟩
@@ -172,5 +173,5 @@ theorem Ordered.projectionShape_numFields {env : VEnv} (H : Ordered env)
 theorem addInduct_WF (henv : Ordered env) (hdecl : VInductDecl.WF env decl)
     (henv' : VEnv.AddInduct env decl env') : Ordered env' := by
   cases henv' with
-  | intro _ hcompile hblock hinstall =>
+  | intro _ hcompile hblock _ hinstall =>
     exact VInductBlock.WF.ordered hblock hdecl hcompile henv hinstall

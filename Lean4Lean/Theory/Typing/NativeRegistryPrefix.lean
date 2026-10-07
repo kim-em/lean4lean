@@ -21,11 +21,13 @@ inductive Prefix {base : VEnv} {before : List VDecl} {old : Name → Option Nati
       {previous : NativeRegistryHistory base declarations table}
       (continuation : Prefix first previous)
       (original : source.WF base) (compiled : source.CompilesTo base block)
-      (formed : block.WF base) (installed : block.install base = some extended)
+      (formed : block.WF base) (eliminatorsWF : VInductBlock.EliminatorsWF base source block)
+      (installed : block.install base = some extended)
       (compilation : CompilationData compilationBase source expanded signature generated auxiliaries block)
       (specializations : CertifiedSpecializations compilationBase auxiliaries)
       (compilationBelow : compilationBase ≤ base) :
-      Prefix first (.native previous original compiled formed installed compilation specializations compilationBelow (key := key))
+      Prefix first (.native previous original compiled formed eliminatorsWF installed compilation
+        specializations compilationBelow (key := key))
   | eliminators {env base : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option NativeRecursorData} {source : VInductDecl} {block : VInductBlock}
       {schema : CaseSchema} {key : Name} {previous : NativeRegistryHistory env declarations table}
@@ -39,8 +41,10 @@ inductive Prefix {base : VEnv} {before : List VDecl} {old : Name → Option Nati
       Prefix first (.eliminators previous baseHistory hle formed keyEq constants fresh)
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option NativeRecursorData} {source : VInductDecl} {block : VInductBlock}
-      {previous : NativeRegistryHistory envCtors declarations table}
+      {previous : NativeRegistryHistory (envCtors.addEliminators block.eliminators) declarations table}
       (continuation : Prefix first previous) (baseHistory : base.WF' baseDeclarations)
+      (covered : ∃ key schema, block.eliminators = [(key, schema)] ∧
+        schema.Certified base source block ∧ source.types.head?.map (·.name) = some key)
       (sourceNames : source.sourceNames.Nodup)
       (typeHeadersWF : ∀ type ∈ source.types, type.toVConstant.WF base)
       (constructorUvars : ∀ ctor ∈ source.constructorConstants, ctor.uvars = source.uvars)
@@ -51,7 +55,8 @@ inductive Prefix {base : VEnv} {before : List VDecl} {old : Name → Option Nati
       (projections : block.projections = source.projectionEntries)
       (addTypes : base.addConstVals block.types = some envTypes)
       (addConstructors : envTypes.addConstVals block.ctors = some envCtors) :
-      Prefix first (.projections previous baseHistory sourceNames typeHeadersWF constructorUvars constructorsWF
+      Prefix first (.projections previous baseHistory covered sourceNames typeHeadersWF constructorUvars
+        constructorsWF
         parameters shape types constructors projections addTypes addConstructors)
 
 namespace Prefix
@@ -63,19 +68,20 @@ theorem le (continuation : Prefix first last) : base ≤ env := by
   induction continuation with
   | refl => exact .rfl
   | decl _ declaration ih => exact ih.trans (declaration_le declaration)
-  | native _ original compiled formed installed _ _ _ ih =>
-    exact ih.trans (declaration_le (.induct original (.intro original compiled formed installed)))
+  | native _ original compiled formed eliminatorsWF installed _ _ _ ih =>
+    exact ih.trans (declaration_le (.induct original
+      (.intro original compiled formed eliminatorsWF installed)))
   | eliminators _ _ _ _ _ _ _ ih => exact ih.trans VEnv.addEliminator_le
-  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih.trans VEnv.addProjections_le
+  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih.trans VEnv.addProjections_le
 
 theorem declarations_eq (continuation : Prefix first last) : ∃ added, declarations = added ++ before := by
   induction continuation with
   | refl => exact ⟨[], rfl⟩
-  | decl _ _ ih | native _ _ _ _ _ _ _ _ ih =>
+  | decl _ _ ih | native _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨added, rfl⟩ := ih
     exact ⟨_ :: added, rfl⟩
   | eliminators _ _ _ _ _ _ _ ih => exact ih
-  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih
+  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih
 
 theorem length_le (continuation : Prefix first last) : before.length ≤ declarations.length := by
   obtain ⟨added, rfl⟩ := continuation.declarations_eq
@@ -87,10 +93,10 @@ theorem previous_lookup (continuation : Prefix first last) {name : Name}
   induction continuation with
   | refl => exact lookup
   | decl _ _ ih => exact ih lookup
-  | native continuation original compiled formed installed compilation _ _ ih =>
+  | native continuation original compiled formed _ installed compilation _ _ ih =>
     exact ih (compilation.installEntries_previous installed (continuation.le.constants present) lookup)
   | eliminators _ _ _ _ _ _ _ ih => exact ih lookup
-  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih lookup
+  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih lookup
 
 /-- Transport only the final-history frame. The original header and its
 compilation remain definitionally identical. -/

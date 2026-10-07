@@ -846,7 +846,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
   rw [hC] at hctorNames
   have Hfresh : ∀ n ∈ r.restorableNames, trEnv.constants n = none := by
     intro n hn
-    simp only [trEnv, VEnv.addProjections_constants]
+    simp only [trEnv, VEnv.addEliminators_constants, VEnv.addProjections_constants]
     exact E.restorableNames_fresh_ctors hadded Haux Hexpansion hnodup hctorNames
       hctorsAdded n hn
   have hheads : r.heads.map (·.auxiliary) = E.auxHeads := by
@@ -1223,7 +1223,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations_rules
     E.production.production.completed.canonicalRecursors
   rw [hrecursorValues] at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
-  simp only [VEnv.addProjections_constants] at hrecursorsFresh
+  simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.production.compilationInstance.recursors,
       E.production.constructors.completed.ctorVEnv.constants recursor.name = none :=
     hrecursorsFresh.2

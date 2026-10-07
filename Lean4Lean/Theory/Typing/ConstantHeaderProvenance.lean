@@ -73,7 +73,7 @@ theorem Ordered.constantDomain (formed : env.Ordered) : Nonempty (ConstantDomain
     exact ⟨domain.extend rfl⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨domain⟩ := ih
-    exact ⟨domain.extend (VEnv.addProjections_constants ..)⟩
+    exact ⟨domain.extend (by simp)⟩
 
 noncomputable def Ordered.constantCount (formed : env.Ordered) : Nat :=
   (Classical.choice formed.constantDomain).names.length
@@ -159,8 +159,8 @@ theorem Ordered.constantHeaderOrigin (formed : env.Ordered)
     obtain ⟨origin⟩ := ih lookup
     exact ⟨origin.extend VEnv.addEliminator_le⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    obtain ⟨origin⟩ := ih (by simpa only [VEnv.addProjections_constants] using lookup)
-    exact ⟨origin.extend VEnv.addProjections_le⟩
+    obtain ⟨origin⟩ := ih (by simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using lookup)
+    exact ⟨origin.extend VEnv.addEliminators_addProjections_le⟩
 
 /-- No lookup can appear except from the old environment or a literal
 member of the installed block. -/

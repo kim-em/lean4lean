@@ -534,7 +534,7 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
     split <;> simp_all; exact h2.1
   | defeq _ ih => exact ih
   | projections _ ih =>
-    simpa only [VEnv.addProjections_constants] using ih
+    simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using ih
   | eliminators _ ih => exact ih
   | mapExt _ _ heq ih =>
     rw [← heq]
@@ -631,7 +631,7 @@ theorem Aligned.find? (H : Aligned safety C venv)
   | projections h1 ih =>
     rename_i entries
     rcases ih h with ⟨ci', hci', htr⟩
-    exact ⟨ci', by simpa only [VEnv.addProjections_constants] using hci',
+    exact ⟨ci', by simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using hci',
       htr.mono (VEnv.addProjections_le (entries := entries))⟩
   | eliminators _ ih =>
     rcases ih h with ⟨ci', hci', htr⟩
@@ -659,7 +659,7 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
   | defeq h1 ih => let ⟨h1, h2⟩ := ih h hs; exact ⟨h1, h2.mono VEnv.addDefEq_le⟩
   | projections h1 ih =>
     rename_i entries
-    rcases ih h (by simpa only [VEnv.addProjections_constants] using hs) with
+    rcases ih h (by simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using hs) with
       ⟨hname, htr⟩
     exact ⟨hname, htr.mono
       (VEnv.addProjections_le (env := _) (entries := entries))⟩

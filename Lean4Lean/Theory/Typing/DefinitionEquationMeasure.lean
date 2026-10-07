@@ -80,7 +80,7 @@ theorem Ordered.equationDomain (formed : env.Ordered) : Nonempty (EquationDomain
     exact ⟨domain.extend rfl⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨domain⟩ := ih
-    exact ⟨domain.extend (VEnv.addProjections_defeqs ..)⟩
+    exact ⟨domain.extend (by simp)⟩
 
 noncomputable def Ordered.equationCount (formed : env.Ordered) : Nat :=
   (Classical.choice formed.equationDomain).rules.length

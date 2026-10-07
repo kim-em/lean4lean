@@ -37,12 +37,12 @@ private theorem declaration_le (H : VDecl.WF env declaration extended) : env ≤
       (VEnv.addConst_le hc)).trans (VEnv.addConst_le hd)).trans VEnv.addDefEq_le
   | induct _ ha =>
     cases ha with
-    | intro _ _ _ hi =>
+    | intro _ _ _ _ hi =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at hi
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hi
       exact (((VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)).trans
-        (VEnv.addProjections_le.trans (VEnv.addConstVals_le hr))).trans VEnv.addDefEqRules_le
+        (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hr))).trans VEnv.addDefEqRules_le
 
 private theorem definitionRegistry_decl
     (H : VDecl.WF env declaration extended)
@@ -117,7 +117,7 @@ private theorem declaration_constEquation_origin
         VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at hdf)
   | induct _ ha =>
     cases ha with
-    | intro _ hcompile _ hi =>
+    | intro _ hcompile _ _ hi =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
         Option.pure_def, Option.some.injEq] at hi
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hi
@@ -126,7 +126,7 @@ private theorem declaration_constEquation_origin
       · obtain ⟨_, ⟨fn, us, args, hmajor⟩, _⟩ := hcompile.compiled.equation_major_origin equation hmem
         rw [hhead] at hmajor
         cases hmajor
-      · exact .inr (by rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+      · exact .inr (by rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
           VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hdf)
 
 /-- Every entry of the history-derived table is an actual installed
@@ -138,7 +138,7 @@ theorem WF'.definitionRegistry_registered (H : env.WF' declarations)
   | empty => cases hlookup
   | decl hd _ ih =>
     exact definitionRegistry_decl hd (fun _ _ h => ih h) hlookup
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨hr, hn⟩ := ih hlookup
     exact ⟨hr.mono VEnv.addProjections_le, hn⟩
   | inductEliminators _ _ _ _ _ _ _ _ ih =>
@@ -157,7 +157,7 @@ theorem WF'.definitionRegistry_complete (H : env.WF' declarations)
     · exact definitionRegistry_decl_new hd hvalue
     · have hold := ih hdecl
       exact definitionRegistry_decl_preserves hd (henv.definitionRegistry_registered hold).1 hold
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih hdecl
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih hdecl
   | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih hdecl
 
 /-- The history itself produces each definition's concrete equation trace;
@@ -187,8 +187,8 @@ theorem WF'.definitionRegistry_of_constantEquation (H : env.WF' declarations)
       have hr := henv.definitionRegistry_registered hlookup
       rw [← hr.2] at hlookup ⊢
       exact ⟨value, definitionRegistry_decl_preserves hd hr.1 hlookup, heq⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    exact ih (by simpa only [VEnv.addProjections_defeqs] using hdf) hhead
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    exact ih (by simpa only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using hdf) hhead
   | inductEliminators _ _ _ _ _ _ _ _ ih =>
     exact ih hdf hhead
 

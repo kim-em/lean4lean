@@ -239,7 +239,7 @@ theorem VInductBlock.install_le' (H : VInductBlock.install base block = some ins
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
   exact (((VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)).trans
-    (VEnv.addProjections_le.trans (VEnv.addConstVals_le hr))).trans VEnv.addDefEqRules_le
+    (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hr))).trans VEnv.addDefEqRules_le
 
 theorem VInductBlock.install_projection (H : VInductBlock.install base block = some installed)
     (hentry : entry ∈ block.projections) : installed.projections entry.typeName entry.info := by

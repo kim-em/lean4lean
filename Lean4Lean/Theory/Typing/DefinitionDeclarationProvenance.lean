@@ -250,7 +250,7 @@ theorem WF'.definitionOrigin {env : VEnv} {declarations : List VDecl}
       subst selected
       obtain ⟨stage⟩ := DefinitionTypingStage.ofDeclaration original (List.mem_of_find?_eq_some found)
       exact ⟨⟨base, installed, declarations, history, declaration, stage, [], rfl, .rfl⟩⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨origin⟩ := ih lookup
     exact ⟨origin.metadata VEnv.addProjections_le⟩
   | inductEliminators _ _ _ _ _ _ _ _ ih =>

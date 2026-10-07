@@ -26,7 +26,8 @@ namespace FamSpec
 structure InductHyps (sp : FamSpec) (Eb ET EC ER EA : VEnv) : Prop where
   hT : Eb.addConstVals sp.decl.typeConstants = some ET
   hC : ET.addConstVals sp.decl.constructorConstants = some EC
-  hR : (EC.addProjections sp.decl.projectionEntries).addConstVals sp.block.recursors = some ER
+  hR : ((EC.addEliminators sp.block.eliminators).addProjections sp.decl.projectionEntries).addConstVals
+    sp.block.recursors = some ER
   hA : VInductBlock.install Eb sp.block = some EA
   bB : Base Eb
   bT : Base ET
@@ -302,7 +303,7 @@ theorem blockWF : VInductBlock.WF Eb sp.block := by
   · intro ci hci
     simp [block, recursors_eq] at hci
     subst hci
-    exact recType_wf H.bC H.mC H.fC H.cC
+    exact (recType_wf H.bC H.mC H.fC H.cC).mono (VEnv.addProjections_mono VEnv.addEliminators_le)
   · intro df hdf
     simp [block, equations_eq] at hdf
     subst hdf
@@ -314,9 +315,26 @@ theorem compiledInductive : CompiledInductive Eb sp.decl sp.block :=
 
 theorem declWF : sp.decl.WF Eb := ⟨sourceWF H, .ordinary (formationWF H)⟩
 
+theorem eliminatorsWF : VInductBlock.EliminatorsWF Eb sp.decl sp.block := by
+  refine ⟨ET, EC, H.hT, H.hC, sp.fam, _, rfl, ?_, rfl, ?_⟩
+  · exact CaseSchema.ofCaseCompilation_certified
+      (CaseCompilationData.ofOrdinary (sourceWF H) (formationWF H) (models H) H.hT H.hC
+        (familyTypesWF H) rfl rfl rfl) .nil recursorNamesFresh_nil
+  · apply CaseSchema.projNamesRegistered_of_projFree
+    · intro owner
+      have h0 : owner = ⟨0, by simp [sig, CaseSchema.ofCompilation]⟩ :=
+        Fin.ext (by have := owner.isLt; simp [sig, CaseSchema.ofCompilation] at this; omega)
+      subst h0
+      rfl
+    · intro owner
+      have h0 : owner = ⟨0, by simp [sig, CaseSchema.ofCompilation]⟩ :=
+        Fin.ext (by have := owner.isLt; simp [sig, CaseSchema.ofCompilation] at this; omega)
+      subst h0
+      rfl
+
 theorem induct_wf : VDecl.WF Eb (.induct sp.decl) EA :=
   .induct (declWF H) (.intro (declWF H)
-    (.ordinary ⟨ordinaryShape H, compiles H, compiledInductive H⟩) (blockWF H) H.hA)
+    (.ordinary ⟨ordinaryShape H, compiles H, compiledInductive H⟩) (blockWF H) (eliminatorsWF H) H.hA)
 
 end FamSpec
 end Lean4Lean.Countermodel
@@ -337,11 +355,13 @@ def axR : VConstVal := { name := nR, uvars := 0, type := typeMap }
 def ETI : VEnv := (E6.addConstVals specI.decl.typeConstants).getD .empty
 def ECI : VEnv := (ETI.addConstVals specI.decl.constructorConstants).getD .empty
 def ERI : VEnv :=
-  ((ECI.addProjections specI.decl.projectionEntries).addConstVals specI.block.recursors).getD .empty
+  (((ECI.addEliminators specI.block.eliminators).addProjections specI.decl.projectionEntries).addConstVals
+    specI.block.recursors).getD .empty
 def ETJ : VEnv := (E7.addConstVals specJ.decl.typeConstants).getD .empty
 def ECJ : VEnv := (ETJ.addConstVals specJ.decl.constructorConstants).getD .empty
 def ERJ : VEnv :=
-  ((ECJ.addProjections specJ.decl.projectionEntries).addConstVals specJ.block.recursors).getD .empty
+  (((ECJ.addEliminators specJ.block.eliminators).addProjections specJ.decl.projectionEntries).addConstVals
+    specJ.block.recursors).getD .empty
 
 theorem hypsI : specI.InductHyps E6 ETI ECI ERI E7 where
   hT := rfl

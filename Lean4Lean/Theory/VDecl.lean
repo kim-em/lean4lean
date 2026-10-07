@@ -123,14 +123,14 @@ theorem addProjections_addConst
     (env.addProjections entries).addConst name constant =
       (env.addConst name constant).map (·.addProjections entries) := by
   unfold VEnv.addConst
-  simp only [VEnv.addProjections_constants]
+  simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants]
   split
   · rfl
   · simp only [Option.map_some]
     congr 1
     apply VEnv.ext
-    · simp only [VEnv.addProjections_constants]
-    · simp only [VEnv.addProjections_defeqs]
+    · simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants]
+    · simp only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs]
     · funext projectionName projectionInfo
       apply propext
       simp only [VEnv.addProjections_iff]
@@ -155,6 +155,7 @@ end VEnv
 def VInductBlock.install (env : VEnv) (block : VInductBlock) : Option VEnv := do
   let env ← env.addConstVals block.types
   let env ← env.addConstVals block.ctors
+  let env := env.addEliminators block.eliminators
   let env := env.addProjections block.projections
   let env ← env.addConstVals block.recursors
   return env.addDefEqRules block.rules

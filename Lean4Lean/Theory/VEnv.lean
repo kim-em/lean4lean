@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.ProjectionData
 import Lean4Lean.Theory.Inductive.CaseSchema
+import Lean4Lean.Theory.InductBlock
 
 namespace Lean4Lean
 
@@ -54,6 +55,41 @@ def VEnv.addEliminator (env : VEnv) (block : Name)
 
 @[simp] theorem VEnv.addEliminator_projections {env : VEnv} :
     (env.addEliminator block schema).projections = env.projections := rfl
+
+/-- Register a list of case-eliminator schemas, in order. -/
+def VEnv.addEliminators : VEnv → List (Name × InductiveSignature.CaseSchema) → VEnv
+  | env, [] => env
+  | env, (block, schema) :: rest => (env.addEliminator block schema).addEliminators rest
+
+theorem VEnv.addEliminators_iff {env : VEnv} {es : List (Name × InductiveSignature.CaseSchema)} :
+    (env.addEliminators es).eliminators name value ↔
+      (name, value) ∈ es ∨ env.eliminators name value := by
+  induction es generalizing env with
+  | nil => simp [VEnv.addEliminators]
+  | cons e es ih =>
+    obtain ⟨block, schema⟩ := e
+    rw [VEnv.addEliminators, ih]
+    simp only [List.mem_cons, Prod.mk.injEq, VEnv.addEliminator_iff, or_assoc, or_left_comm]
+
+@[simp] theorem VEnv.addEliminators_constants {env : VEnv} {es} :
+    (env.addEliminators es).constants = env.constants := by
+  induction es generalizing env with
+  | nil => rfl
+  | cons e es ih => exact ih
+
+@[simp] theorem VEnv.addEliminators_defeqs {env : VEnv} {es} :
+    (env.addEliminators es).defeqs = env.defeqs := by
+  induction es generalizing env with
+  | nil => rfl
+  | cons e es ih => exact ih
+
+@[simp] theorem VEnv.addEliminators_projections {env : VEnv} {es} :
+    (env.addEliminators es).projections = env.projections := by
+  induction es generalizing env with
+  | nil => rfl
+  | cons e es ih => exact ih
+
+@[simp] theorem VEnv.addEliminators_nil {env : VEnv} : env.addEliminators [] = env := rfl
 
 theorem VEnv.addEliminator_self {env : VEnv} :
     (env.addEliminator block schema).eliminators block schema := .inl ⟨rfl, rfl⟩
@@ -128,6 +164,17 @@ theorem VEnv.empty_le (env : VEnv) : VEnv.empty ≤ env :=
 theorem VEnv.addEliminator_le {env : VEnv} : env ≤ env.addEliminator block schema :=
   ⟨id, id, id, Or.inr⟩
 
+theorem VEnv.addEliminators_le {env : VEnv} {es} : env ≤ env.addEliminators es :=
+  ⟨by simp, by simp, by simp, fun h => VEnv.addEliminators_iff.mpr (Or.inr h)⟩
+
+theorem VEnv.addEliminators_mono {env₁ env₂ : VEnv} {es} (H : env₁ ≤ env₂) :
+    env₁.addEliminators es ≤ env₂.addEliminators es where
+  constants h := by simpa using H.constants (by simpa using h)
+  defeqs h := by simpa using H.defeqs (by simpa using h)
+  projections h := by simpa using H.projections (by simpa using h)
+  eliminators := fun h => VEnv.addEliminators_iff.mpr
+    ((VEnv.addEliminators_iff.mp h).imp_right H.eliminators)
+
 theorem VEnv.addEliminator_mono {env₁ env₂ : VEnv} (H : env₁ ≤ env₂) :
     env₁.addEliminator block schema ≤ env₂.addEliminator block schema where
   constants := H.constants
@@ -190,6 +237,11 @@ theorem VEnv.addProjections_le {env : VEnv} {entries : List VProjectionEntry} :
   induction entries generalizing env with
   | nil => exact .rfl
   | cons entry entries ih => exact addProjection_le.trans ih
+
+/-- The constructor stage is below the stage with the block's eliminators and projections. -/
+theorem VEnv.addEliminators_addProjections_le {env : VEnv} {es}
+    {entries : List VProjectionEntry} : env ≤ (env.addEliminators es).addProjections entries :=
+  addEliminators_le.trans addProjections_le
 
 theorem VEnv.addProjection_mono {env₁ env₂ : VEnv} {entry : VProjectionEntry}
     (H : env₁ ≤ env₂) :

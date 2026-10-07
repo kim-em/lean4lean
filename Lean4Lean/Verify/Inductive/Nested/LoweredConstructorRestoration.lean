@@ -153,7 +153,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh
     E.production.production.completed.canonicalRecursors
   rw [hrecursorValues] at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
-  simp only [VEnv.addProjections_constants] at hrecursorsFresh
+  simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.production.compilationInstance.recursors,
       E.production.constructors.completed.ctorVEnv.constants recursor.name = none :=
     hrecursorsFresh.2

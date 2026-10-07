@@ -32,12 +32,34 @@ private theorem declaration_le (H : VDecl.WF env decl env') : env ≤ env' := by
       (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
   | induct _ h =>
     cases h with
-    | intro _ _ _ h =>
-      simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-        Option.pure_def, Option.some.injEq] at h
-      obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := h
-      exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-        VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+    | intro _ _ _ _ h => exact VInductBlock.install_base_le h
+
+theorem VDecl.WF.le (H : VDecl.WF env decl env') : env ≤ env' := declaration_le H
+
+namespace VEnv.InductRegistration
+
+theorem le (R : VEnv.InductRegistration env decl key schema env') : env ≤ env' := by
+  obtain ⟨_, _, _, _, _, _, hinstall, _⟩ := R
+  exact VInductBlock.install_base_le hinstall
+
+/-- The registered block's families and constructors are installed. -/
+theorem constants (R : VEnv.InductRegistration env decl key schema env') :
+    ∃ block : VInductBlock, schema.Certified env decl block ∧
+      decl.types.head?.map (·.name) = some key ∧
+      ∀ value ∈ block.types ++ block.ctors, env'.constants value.name = some value.toVConstant := by
+  obtain ⟨block, envTypes, envCtors, _, _, _, hinstall, ht, hc, _, hcert, hkey, _⟩ := R
+  refine ⟨block, hcert, hkey, fun value hv => ?_⟩
+  have hle := VInductBlock.install_ctors_le hinstall ht hc
+  rcases List.mem_append.mp hv with hv | hv
+  · exact hle.constants ((VEnv.addConstVals_le hc).constants (VEnv.addConstVals_get ht hv))
+  · exact hle.constants (VEnv.addConstVals_get hc hv)
+
+theorem projNames (R : VEnv.InductRegistration env decl key schema env') :
+    schema.ProjNamesRegistered env' key := by
+  obtain ⟨block, envTypes, envCtors, _, _, _, hinstall, ht, hc, _, _, _, hprojs⟩ := R
+  exact hprojs.mono (VInductBlock.install_ctors_le hinstall ht hc)
+
+end VEnv.InductRegistration
 
 /-- Every registry entry retains its independent formation derivation and
 the exact source constants justified when it was registered. -/
@@ -51,12 +73,14 @@ theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
   rcases H with ⟨ds, H⟩
   induction H with
   | empty => cases hlookup
-  | decl h _ ih =>
-    rw [h.eliminators] at hlookup
+  | decl h hds ih =>
+    rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
+    · obtain ⟨block, hcert, hkey, hc⟩ := R.constants
+      exact ⟨_, source, block, ⟨_, hds⟩, R.le, hcert, hkey, hc⟩
     obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
     exact ⟨base, source, block, hb, hle.trans (declaration_le h), hf, hk,
       fun value hv => (declaration_le h).constants (hc value hv)⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
     obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
     exact ⟨base, source, block, hb, hle.trans VEnv.addProjections_le, hf, hk,
@@ -91,19 +115,6 @@ theorem VEnv.WF.eliminator_key_mem {env : VEnv} (H : env.WF)
     simp only [htypes, List.head?_cons, Option.map_some, Option.some.injEq] at hkey
     simp [← hkey]
 
-/-- Native projection metadata determines one abstract symbol, including
-its owner slot, even when the two translations start with separate witnesses. -/
-theorem VEnv.WF.eliminator_slot_unique {env : VEnv} {leftIndex rightIndex : Nat} (H : env.WF)
-    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
-    (hleftName : left.originalFamilies[leftIndex]? = some name)
-    (hrightName : right.originalFamilies[rightIndex]? = some name) :
-    leftKey = rightKey ∧ left = right ∧ leftIndex = rightIndex := by
-  obtain ⟨rfl, rfl⟩ := H.eliminators_owner_unique hleft hright
-    (List.mem_of_getElem? hleftName) (List.mem_of_getElem? hrightName)
-  refine ⟨rfl, rfl, (List.getElem?_inj ?_ (H.eliminators_originalFamilies_nodup hleft)).mp
-    (hleftName.trans hrightName.symm)⟩
-  exact (List.getElem?_eq_some_iff.mp hleftName).1
-
 /-- Every registered case schema projects only out of structures registered in
 the environment: the fact certified at registration, transported along the
 later extensions. -/
@@ -114,9 +125,10 @@ theorem VEnv.WF.eliminatorsProjNamesRegistered {env : VEnv} (H : env.WF) :
   induction H with
   | empty => cases hlookup
   | decl h _ ih =>
-    rw [h.eliminators] at hlookup
+    rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
+    · exact R.projNames
     exact (ih hlookup).mono (declaration_le h)
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     simp only [VEnv.addProjections_eliminators] at hlookup
     exact (ih hlookup).mono VEnv.addProjections_le
   | inductEliminators _ _ _ _ _ hc _ _ ih =>
@@ -167,6 +179,122 @@ theorem Fresh.of_registry_eq {schema : CaseSchema} {base env : VEnv}
   rw [heq]
   exact H
 
+end InductiveSignature.CaseSchema
+
+namespace VEnv.InductRegistration
+open InductiveSignature
+
+theorem fresh (R : VEnv.InductRegistration env decl key schema env') (henv : env.WF) :
+    schema.Fresh env key := by
+  obtain ⟨block, _, _, _, _, _, _, _, _, _, hcert, hkey, _⟩ := R
+  exact hcert.fresh henv hkey
+
+/-- One declaration step registers one eliminator. -/
+theorem unique (R : VEnv.InductRegistration env decl key schema env') (henv : env.WF)
+    (R' : VEnv.InductRegistration env decl' key' schema' env') :
+    key = key' ∧ schema = schema' := by
+  have hfresh := R.fresh henv
+  obtain ⟨block', _, _, _, _, _, hinstall', _, _, hE', _⟩ := R'
+  obtain ⟨block, _, _, _, _, _, hinstall, _, _, hE, _⟩ := R
+  have h1 : env'.eliminators key schema := by
+    rw [VInductBlock.install_eliminators_iff hinstall, hE]; simp
+  rw [VInductBlock.install_eliminators_iff hinstall', hE'] at h1
+  rcases h1 with h1 | h1
+  · simp only [List.mem_singleton, Prod.mk.injEq] at h1; exact h1
+  · exact (hfresh.1 _ h1).elim
+
+end VEnv.InductRegistration
+
+/-- Fresh registration fixes a schema for every abstract block key. -/
+theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
+    (hleft : env.eliminators key left) (hright : env.eliminators key right) :
+    left = right := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hleft
+  | decl h hds ih =>
+    have henv : VEnv.WF _ := ⟨_, hds⟩
+    rcases h.eliminators_iff.mp hleft with ⟨source, rfl, R⟩ | hleft <;>
+      rcases h.eliminators_iff.mp hright with ⟨source', hs, R'⟩ | hright
+    · cases hs; exact (R.unique henv R').2
+    · exact ((R.fresh henv).1 _ hright).elim
+    · exact ((R'.fresh henv).1 _ hleft).elim
+    · exact ih hleft hright
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hleft hright
+    exact ih hleft hright
+  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+    rcases hleft with ⟨rfl, rfl⟩ | hleft
+    · rcases hright with ⟨_, rfl⟩ | hright
+      · rfl
+      · exact (hfresh.1 _ hright).elim
+    · rcases hright with ⟨rfl, rfl⟩ | hright
+      · exact (hfresh.1 _ hleft).elim
+      · exact ih hleft hright
+
+theorem VEnv.WF.eliminators_originalFamilies_nodup (H : VEnv.WF env)
+    (hlookup : env.eliminators key schema) : schema.originalFamilies.Nodup := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hlookup
+  | decl h _ ih =>
+    rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
+    · obtain ⟨block, hcert, -⟩ := R.constants
+      exact hcert.originalFamilies_nodup
+    exact ih hlookup
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hlookup
+    exact ih hlookup
+  | inductEliminators _ _ _ hformed _ _ _ _ ih =>
+    rcases hlookup with ⟨_, rfl⟩ | hlookup
+    · exact hformed.originalFamilies_nodup
+    · exact ih hlookup
+
+/-- A native family has one registered block and schema. In particular,
+typed projection translation cannot choose another block's owner slot. -/
+theorem VEnv.WF.eliminators_owner_unique (H : VEnv.WF env)
+    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
+    (hnameLeft : name ∈ left.originalFamilies)
+    (hnameRight : name ∈ right.originalFamilies) : leftKey = rightKey ∧ left = right := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hleft
+  | decl h hds ih =>
+    have henv : VEnv.WF _ := ⟨_, hds⟩
+    rcases h.eliminators_iff.mp hleft with ⟨source, rfl, R⟩ | hleft <;>
+      rcases h.eliminators_iff.mp hright with ⟨source', hs, R'⟩ | hright
+    · cases hs; exact R.unique henv R'
+    · exact ((R.fresh henv).2 _ _ hright hnameLeft hnameRight).elim
+    · exact ((R'.fresh henv).2 _ _ hleft hnameRight hnameLeft).elim
+    · exact ih hleft hright
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hleft hright
+    exact ih hleft hright
+  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
+    rcases hleft with ⟨rfl, rfl⟩ | hleft
+    · rcases hright with ⟨rfl, rfl⟩ | hright
+      · exact ⟨rfl, rfl⟩
+      · exact (hfresh.2 _ _ hright hnameLeft hnameRight).elim
+    · rcases hright with ⟨rfl, rfl⟩ | hright
+      · exact (hfresh.2 _ _ hleft hnameRight hnameLeft).elim
+      · exact ih hleft hright
+
+
+/-- Native projection metadata determines one abstract symbol, including
+its owner slot, even when the two translations start with separate witnesses. -/
+theorem VEnv.WF.eliminator_slot_unique {env : VEnv} {leftIndex rightIndex : Nat} (H : env.WF)
+    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
+    (hleftName : left.originalFamilies[leftIndex]? = some name)
+    (hrightName : right.originalFamilies[rightIndex]? = some name) :
+    leftKey = rightKey ∧ left = right ∧ leftIndex = rightIndex := by
+  obtain ⟨rfl, rfl⟩ := H.eliminators_owner_unique hleft hright
+    (List.mem_of_getElem? hleftName) (List.mem_of_getElem? hrightName)
+  refine ⟨rfl, rfl, (List.getElem?_inj ?_ (H.eliminators_originalFamilies_nodup hleft)).mp
+    (hleftName.trans hrightName.symm)⟩
+  exact (List.getElem?_eq_some_iff.mp hleftName).1
+
+namespace InductiveSignature.CaseSchema
+
 /-- Register all case schemas immediately after source headers and
 constructors. The finite formation witness suffices; generated concrete
 recursors and their equations have not been installed or assumed correct. -/
@@ -213,5 +341,135 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
   · exact VEnv.addConstVals_get hctors hvalue
 
 end InductiveSignature.CaseSchema
+
+namespace VInductBlock
+open InductiveSignature
+
+/-- The constructor stage of a block with its certified eliminators is well formed. -/
+theorem EliminatorsWF.elimWF {base envTypes envCtors : VEnv} {decl : VInductDecl}
+    {block : VInductBlock} (H : VInductBlock.EliminatorsWF base decl block) (hbase : base.WF)
+    (htypes : base.addConstVals block.types = some envTypes)
+    (hctors : envTypes.addConstVals block.ctors = some envCtors) :
+    (envCtors.addEliminators block.eliminators).WF := by
+  obtain ⟨envTypes', envCtors', ht', hc', key, schema, hE, hcert, hkey, hprojs⟩ := H
+  cases htypes.symm.trans ht'
+  cases hctors.symm.trans hc'
+  rw [hE]
+  exact hcert.register_after_constructors hbase hkey htypes hctors hprojs
+
+/-- Every projection entry of a certified block names a family of its eliminator. -/
+theorem EliminatorsWF.covered {base : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (H : VInductBlock.EliminatorsWF base decl block)
+    (hprojections : block.projections = decl.projectionEntries) :
+    ∀ entry ∈ block.projections, ∃ key schema, (key, schema) ∈ block.eliminators ∧
+      entry.typeName ∈ schema.originalFamilies := by
+  obtain ⟨_, _, _, _, key, schema, hE, hcert, _⟩ := H
+  intro entry hentry
+  rw [hprojections] at hentry
+  obtain ⟨type, htype, ctor, _, rfl⟩ := VInductDecl.projectionEntries_origin hentry
+  obtain ⟨_, _, _, _, _, hnames, _⟩ := hcert
+  refine ⟨key, schema, by rw [hE]; simp, ?_⟩
+  rw [hnames]
+  exact List.mem_map.mpr ⟨type, htype, rfl⟩
+
+/-- The projection stage of a certified block is well formed. -/
+theorem EliminatorsWF.projectionsWF {base envTypes envCtors : VEnv} {decl : VInductDecl}
+    {block : VInductBlock} (H : VInductBlock.EliminatorsWF base decl block) (hbase : base.WF)
+    (hdecl : decl.WF base) (hcompile : decl.CompilesTo base block)
+    (htypes : base.addConstVals block.types = some envTypes)
+    (hctors : envTypes.addConstVals block.ctors = some envCtors) :
+    ((envCtors.addEliminators block.eliminators).addProjections block.projections).WF := by
+  have ht' : base.addConstVals decl.typeConstants = some envTypes := by
+    simpa only [hcompile.types] using htypes
+  have parameters := hdecl.sourceParameterWF ht'
+  exact VEnv.WF.inductProjections hbase (H.elimWF hbase htypes hctors)
+    (by
+      obtain ⟨_, _, _, _, key, schema, hE, hcert, hkey, _⟩ := H
+      exact ⟨key, schema, hE, hcert, hkey⟩)
+    hcompile.sourceNames hdecl.1.originalTypes hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at ht')
+    parameters parameters.rawCtorShape hcompile.types hcompile.ctors
+    hcompile.projections htypes hctors
+
+end VInductBlock
+end Lean4Lean
+
+namespace Lean4Lean
+open InductiveSignature
+
+theorem VInductBlock.install_projections_iff {env env' : VEnv} {block : VInductBlock}
+    (H : VInductBlock.install env block = some env') :
+    env'.projections name info ↔
+      (∃ entry ∈ block.projections, name = entry.typeName ∧ info = entry.info) ∨
+        env.projections name info := by
+  obtain ⟨_, _, _, ht, hc, hr, rfl⟩ := VInductBlock.install_stages H
+  rw [VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hr, VEnv.addProjections_iff,
+    VEnv.addEliminators_projections, VEnv.addConstVals_projections hc,
+    VEnv.addConstVals_projections ht]
+
+/-- A certified eliminator covers each projection entry of its block. -/
+private theorem covered_of_certified {decl : VInductDecl} {block : VInductBlock}
+    {schema : CaseSchema} {base : VEnv} (hcert : schema.Certified base decl block)
+    (hprojections : block.projections = decl.projectionEntries)
+    {entry : VProjectionEntry} (hentry : entry ∈ block.projections) :
+    entry.typeName ∈ schema.originalFamilies := by
+  rw [hprojections] at hentry
+  obtain ⟨type, htype, ctor, _, rfl⟩ := VInductDecl.projectionEntries_origin hentry
+  obtain ⟨_, _, _, _, _, hnames, _⟩ := hcert
+  rw [hnames]
+  exact List.mem_map.mpr ⟨type, htype, rfl⟩
+
+/-- **Every registered structure has a registered case eliminator.** Projections are only
+registered together with, and after, the certified case eliminator of their declaration. -/
+theorem VEnv.WF.projections_eliminated {env : VEnv} (H : env.WF)
+    (hp : env.projections name info) :
+    ∃ key schema, env.eliminators key schema ∧ name ∈ schema.originalFamilies := by
+  rcases H with ⟨ds, H⟩
+  induction H generalizing name info with
+  | empty => cases hp
+  | decl h _ ih =>
+    have hle := VDecl.WF.le h
+    cases h with
+    | «axiom» _ hadd | «opaque» _ hadd =>
+      rw [VEnv.addConst_projections hadd] at hp
+      obtain ⟨k, s, hs, hn⟩ := ih hp
+      exact ⟨k, s, hle.eliminators hs, hn⟩
+    | «def» _ hadd =>
+      obtain ⟨k, s, hs, hn⟩ := ih (by
+        have hp' := hp
+        simp only [VEnv.addDefEq] at hp'
+        rwa [VEnv.addConst_projections hadd] at hp')
+      exact ⟨k, s, hle.eliminators hs, hn⟩
+    | «example» => exact ih hp
+    | mutualDef _ hadd _ =>
+      rw [VEnv.addDefEqs_projections, VEnv.addConsts_projections hadd] at hp
+      obtain ⟨k, s, hs, hn⟩ := ih hp
+      exact ⟨k, s, hle.eliminators hs, hn⟩
+    | quot _ hadd =>
+      rw [VEnv.addQuot_projections hadd] at hp
+      obtain ⟨k, s, hs, hn⟩ := ih hp
+      exact ⟨k, s, hle.eliminators hs, hn⟩
+    | induct _ hadd =>
+      cases hadd with
+      | intro _ hcompile _ helim hinstall =>
+        rcases (VInductBlock.install_projections_iff hinstall).mp hp with
+          ⟨entry, hentry, rfl, rfl⟩ | hold
+        · obtain ⟨_, _, _, _, key, schema, hE, hcert, _⟩ := helim
+          refine ⟨key, schema, ?_, covered_of_certified hcert hcompile.projections hentry⟩
+          rw [VInductBlock.install_eliminators_iff hinstall, hE]
+          simp
+        · obtain ⟨k, s, hs, hn⟩ := ih hold
+          exact ⟨k, s, hle.eliminators hs, hn⟩
+  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+    obtain ⟨k, s, hs, hn⟩ := ih hp
+    exact ⟨k, s, .inr hs, hn⟩
+  | inductProjections _ _ hcert _ _ _ _ _ _ _ _ hprojections _ _ _ ih =>
+    rw [VEnv.addProjections_iff] at hp
+    rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hold
+    · obtain ⟨key, schema, hE, hcertS, _⟩ := hcert
+      refine ⟨key, schema, ?_, covered_of_certified hcertS hprojections hentry⟩
+      rw [VEnv.addProjections_eliminators, VEnv.addEliminators_iff, hE]
+      simp
+    · obtain ⟨k, s, hs, hn⟩ := ih hold
+      exact ⟨k, s, by rw [VEnv.addProjections_eliminators]; exact hs, hn⟩
 
 end Lean4Lean
