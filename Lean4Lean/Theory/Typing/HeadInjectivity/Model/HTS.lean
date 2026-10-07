@@ -31,7 +31,7 @@ inductive HTS : List VExpr → VExpr → VExpr → Prop
   | bvar : Lookup Γ i A → SD env U Δ Γ A A (.sort u) → HTS Γ (.bvar i) A
   | other : (∀ c ls args, e ≠ .mkApps (.const c ls) args) →
     (∀ b o ls args, e ≠ .mkApps (.elim b o ls) args) → (∀ A b, e ≠ .lam A b) →
-    (∀ A B, e ≠ .forallE A B) → (∀ i, e ≠ .bvar i) → HTS Γ e T
+    (∀ A B, e ≠ .forallE A B) → (∀ i, e ≠ .bvar i) → (∀ n i e', e ≠ .proj n i e') → HTS Γ e T
   | const : env.constants c = some ci → (∀ l ∈ ls, l.WF U) → ls.length = ci.uvars →
     HTS [] (ci.type.instL ls) (.sort u) →
     SD env U Δ [] (ci.type.instL ls) (ci.type.instL ls) (.sort u) →
@@ -51,6 +51,14 @@ inductive HTS : List VExpr → VExpr → VExpr → Prop
   | forallE : HTS Γ A (.sort u) → SD env U Δ Γ A A (.sort u) → HTS (A :: Γ) B (.sort v) →
     SD env U Δ (A :: Γ) B B (.sort v) → HTS Γ (.forallE A B) (.sort (.imax u v))
   | conv : HTS Γ e A → SD env U Δ Γ A B (.sort u) → HTS Γ e B
+  /-- A projection, with the premises of `IsDefEqStrong.projDF` (stage C). -/
+  | proj : env.projections S info → (∀ l ∈ ls, l.WF U) → ls.length = info.uvars →
+    ps.length = info.nparams → idx.length = info.nindices →
+    info.fieldType S ls ps j e' = some F → SD env U Δ Γ F F (.sort fl) →
+    HTS Γ e (.mkApps (.const S ls) (ps ++ idx)) →
+    SD env U Δ Γ e' e (.mkApps (.const S ls) (ps ++ idx)) →
+    ((info.resultLevel.inst ls).IsNeverZero ∨ fl ≈ .zero) →
+    HTS Γ (.proj S j e) F
 
 /-- Soundness of the domains of a telescope. -/
 inductive DomsSD : List VExpr → List VExpr → Prop
@@ -104,12 +112,7 @@ theorem mkApps_const_ne_forallE : VExpr.mkApps (.const c ls) args ≠ .forallE A
 theorem HTS.sort' : HTS env U Δ Γ (.sort l) T :=
   .other (fun _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
     (fun _ _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
-    nofun nofun nofun
-
-theorem HTS.proj' : HTS env U Δ Γ (.proj n i e) T :=
-  .other (fun _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
-    (fun _ _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
-    nofun nofun nofun
+    nofun nofun nofun nofun
 
 theorem HTS.beta_lhs : HTS env U Δ Γ (.app (.lam A e) e') T :=
   .other (fun _ _ _ h => by
@@ -120,7 +123,7 @@ theorem HTS.beta_lhs : HTS env U Δ Γ (.app (.lam A e) e') T :=
       rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩
       · cases h
       · injection h with h; exact mkApps_elim_ne_lam h.symm)
-    nofun nofun nofun
+    nofun nofun nofun nofun
 
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
@@ -253,7 +256,7 @@ theorem HTS.bvar_chain (H : HTS env U Δ Γ e T) (he : e = .bvar i) :
   induction H with
   | bvar hL => cases he; exact ⟨_, hL, .inl rfl⟩
   | other _ _ _ _ h => exact absurd he (h _)
-  | const | elim | app | lam | forallE => cases he
+  | const | elim | app | lam | forallE | proj => cases he
   | conv _ hAB ih =>
     obtain ⟨A, hL, h⟩ := ih he
     refine ⟨A, hL, .inr ?_⟩
@@ -268,7 +271,7 @@ theorem HTS.forallE_inv (H : HTS env U Δ Γ e T) (he : e = .forallE A B) :
   induction H with
   | forallE h1 h2 h3 h4 => cases he; exact ⟨_, _, h1, h2, h3, h4⟩
   | other _ _ _ h => exact absurd he (h _ _)
-  | bvar | const | elim | app | lam => cases he
+  | bvar | const | elim | app | lam | proj => cases he
   | conv _ _ ih => exact ih he
 
 /-- A Pi telescope in a semantically typed derivation has sound domains and codomains. -/
@@ -290,7 +293,7 @@ theorem HTS.lam_inv (H : HTS env U Δ Γ e P) (he : e = .lam A b) :
   | lam h1 h2 h3 h4 h5 =>
     cases he; exact ⟨_, _, _, h1, h2, h3, h4, h5, fun _ _ _ _ => Ob.Sub.refl, .inl rfl⟩
   | other _ _ h => exact absurd he (h _ _)
-  | bvar | const | elim | app | forallE => cases he
+  | bvar | const | elim | app | forallE | proj => cases he
   | conv _ hAB ih =>
     obtain ⟨B, u, v, h1, h2, h3, h4, h5, h6, h7⟩ := ih he
     refine ⟨B, u, v, h1, h2, h3, h4, h5, fun σ S W tv =>
@@ -372,6 +375,9 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
     · exact absurd he.symm mkApps_const_ne_forallE
     · exact absurd he.symm mkApps_elim_ne_forallE
+  | proj =>
+    rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>
+      (rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
   | const hci hls _ hT hsd =>
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨_, _, _, he'⟩
     · subst he'

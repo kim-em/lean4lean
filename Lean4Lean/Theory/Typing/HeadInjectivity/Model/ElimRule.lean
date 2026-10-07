@@ -62,7 +62,7 @@ theorem HTS.elim_head : ∀ {Γ e T}, HTS env U Δ Γ e T → ∀ {b o ls args},
   | other _ h' => intro b o ls args he; exact absurd he (h' _ _ _ _)
   | lam => intro b o ls args he; exact absurd he.symm mkApps_elim_ne_lam
   | forallE => intro b o ls args he; exact absurd he.symm mkApps_elim_ne_forallE
-  | const =>
+  | const | proj =>
     intro b o ls args he
     rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
   | elim hb ht =>
