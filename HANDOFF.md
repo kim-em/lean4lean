@@ -189,6 +189,20 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   The final theorem will then assume canonical `Eq` and canonical
   `Nonempty`/`Classical.choice`, with `headInversion` the sole conjecture;
   GOAL.md item (3) will be updated when E1 lands.
+  **E1 at 94283b09:** `strengthening_of_canonicalEq` deleted (inventory
+  lists only `headInversion`); `VEnv.Strengthening` kept as a definition
+  used by the countermodel. Corner discharge design (`E1_INDUCTIVE_DESIGN.md`
+  §5.1): the transient window is easy except `checkRecursorTypes`, whose
+  full `checkType` could let `tryEtaStructCore` build `.proj S i t` for a
+  block structure; **decision (2026-10-07): option (A), register the
+  abstract case eliminator at the constructor boundary via
+  `CheckingEnv.Valid.registerCases`** (executable unchanged; every
+  registered structure has a registered eliminator by construction, inside
+  and outside the window; the corner is inhabited through
+  `.elim key owner (.zero :: levels)` with `schema.genericType`, which also
+  covers mutual and nested blocks, so the native-bundle generalization is
+  dropped). The strengthening agent is redirected to the head-inversion
+  effort; route (b)'s prototype is parked after a write-up for Mario.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
