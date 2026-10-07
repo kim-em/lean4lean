@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.RestorationCommutation
 import Lean4Lean.Verify.Inductive.Nested.RestoredRecursorShape
 import Lean4Lean.Verify.Inductive.Nested.FormationExpansionTrace
 import Lean4Lean.Verify.Typing.ConstSupport
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 /-! Nested expansions whose leaves are inverted by a restoration table.
 
@@ -190,52 +191,6 @@ private theorem specialization_liftN' {h : HeadSpecialization}
     apply VEnv.instantiateParams_liftN
     simpa only [List.length_take, Nat.min_eq_left hlen] using (hc e he).instL
 
-/-- Restoration commutes with lifting when every head's specialization
-arguments are scoped by its parameters. -/
-theorem Restoration.expr_liftN (r : Restoration)
-    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
-    (e : VExpr) (n k : Nat) :
-    (r.expr e).map (·.liftN n k) = r.expr (e.liftN n k) := by
-  suffices ∀ args, (Restoration.expr.go r e args).map (·.liftN n k) =
-      Restoration.expr.go r (e.liftN n k) (args.map (·.liftN n k)) from this []
-  induction e generalizing k with
-  | app fn arg ihf iha =>
-    intro args
-    simp only [VExpr.liftN, Restoration.expr.go]
-    have ha := iha k []
-    simp only [List.map_nil] at ha
-    rw [← ha]
-    cases Restoration.expr.go r arg [] <;>
-      simp only [Option.map_none, Option.map_some, bind, Option.bind_none,
-        Option.bind_some, Option.map_none]
-    exact ihf k (_ :: args)
-  | const name levels =>
-    intro args
-    simp only [VExpr.liftN, Restoration.expr.go]
-    split
-    · rename_i spec hs
-      exact specialization_liftN' (hc spec (List.mem_of_find?_eq_some hs)) _ _ _ _
-    · simp only [Option.map_some, VExpr.liftN_mkApps, VExpr.liftN]
-  | bvar | sort | elim =>
-    intro args
-    simp only [Restoration.expr.go, VExpr.liftN, Option.map_some, VExpr.liftN_mkApps]
-  | lam domain body ihd ihb | forallE domain body ihd ihb =>
-    intro args
-    simp only [VExpr.liftN, Restoration.expr.go]
-    have hd := ihd k []
-    have hb := ihb (k + 1) []
-    simp only [List.map_nil] at hd hb
-    rw [← hd, ← hb]
-    cases Restoration.expr.go r domain [] <;> cases Restoration.expr.go r body [] <;>
-      simp [VExpr.liftN_mkApps, VExpr.liftN]
-  | proj name i major ih =>
-    intro args
-    simp only [VExpr.liftN, Restoration.expr.go]
-    have hm := ih k []
-    simp only [List.map_nil] at hm
-    rw [← hm]
-    cases Restoration.expr.go r major [] <;>
-      simp [VExpr.liftN_mkApps, VExpr.liftN]
 
 /-- Restoring leaves are stable under every binder lift. -/
 theorem Restoration.restoringLeaf_liftAbove (r : Restoration)

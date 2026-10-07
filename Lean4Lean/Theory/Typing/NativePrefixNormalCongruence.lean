@@ -32,7 +32,7 @@ private theorem normal_drop {R : α → β → Prop} (H : List.Forall₂ R a b) 
     | zero => exact .cons h hs
     | succ n => exact ih n
 
-private theorem normal_vars (hn : n ≤ Γ.length) : List.Forall₂ (NormalEq Γ) (vars n 0) (vars n 0) := by
+private theorem normal_vars (hn : n ≤ Γ.length) : List.Forall₂ (NormalEqF η Γ) (vars n 0) (vars n 0) := by
   apply Lean4Lean.List.Forall₂.rfl
   intro e he
   simp only [vars, List.mem_map, List.mem_reverse, List.mem_range] at he
@@ -44,9 +44,9 @@ theorem NativePrefixReplay.normal_components {data : NativeRecursorData}
     (H : NativePrefixReplay env univs Γ (mkApps (.const data.name levels) args) program)
     (hg : data.prefixProgram univs levels args = some program)
     (hg' : data.prefixProgram univs levels args' = some program')
-    (ha : List.Forall₂ (NormalEq Γ) args args') :
-    List.Forall₂ (NormalEq (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
-      NormalEq (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
+    (ha : List.Forall₂ (NormalEqF η Γ) args args') :
+    List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
+      NormalEqF η (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
   obtain ⟨source, fields, hsource, hfields, hlen, hctor, hcapture⟩ := prefixProgram_layout hg
   obtain ⟨source', fields', hsource', hfields', hlen', hctor', hcapture'⟩ := prefixProgram_layout hg'
   have he := Option.some.inj (hsource.symm.trans hsource')
@@ -58,7 +58,7 @@ theorem NativePrefixReplay.normal_components {data : NativeRecursorData}
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
   have W : Ctx.LiftN (data.majorOffset + 1 - args.length) 0 Γ (program.domains.reverse ++ Γ) :=
     .zero _ (by simpa only [List.length_reverse] using hlen)
-  have hall : List.Forall₂ (NormalEq (program.domains.reverse ++ Γ))
+  have hall : List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ))
       (data.prefixArguments args) (data.prefixArguments args') := by
     unfold prefixArguments
     rw [← halen]
@@ -67,11 +67,11 @@ theorem NativePrefixReplay.normal_components {data : NativeRecursorData}
       apply List.forall₂_map_right_iff.mpr
       exact Lean4Lean.List.Forall₂.imp (fun _ _ h => h.weakN W) ha
     · exact normal_vars (by simp only [List.length_append, List.length_reverse]; omega)
-  have hprojection : List.Forall₂ (NormalEq (program.domains.reverse ++ Γ))
+  have hprojection : List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ))
       (data.prefixProjectionArguments args) (data.prefixProjectionArguments args') :=
     normal_append (normal_append (normal_take hall _) (normal_take (normal_drop hall _) _))
       (.cons (.refl (.bvar (Lookup.ofLt (by simp only [List.length_append, List.length_reverse]; omega)).2)) .nil)
-  have hfieldApplications : List.Forall₂ (NormalEq (program.domains.reverse ++ Γ))
+  have hfieldApplications : List.Forall₂ (NormalEqF η (program.domains.reverse ++ Γ))
       (fields.map (fun field => mkApps field.value (data.prefixProjectionArguments args)))
       (fields.map (fun field => mkApps field.value (data.prefixProjectionArguments args'))) := by
     apply List.forall₂_map_left_iff.mpr
@@ -85,14 +85,14 @@ theorem NativePrefixReplay.normal_components {data : NativeRecursorData}
     have ht := H.captures_typed i hi (by rw [← H.captures_length]; exact hi)
     rw [he] at ht
     obtain ⟨_, hfn⟩ := VExpr.WF.of_mkApps henv.ordered hctx (show VExpr.WF env univs _ _ from ⟨_, ht⟩)
-    exact NormalEq.mkApps_spine hctx (.refl hfn) hprojection ht
+    exact NormalEqF.mkApps_spine hctx (.refl hfn) hprojection ht
   constructor
   · rw [hcapture, hcapture']
     exact normal_append (normal_take hall _) hfieldApplications
   · obtain ⟨proposition, hp, hm, hc⟩ := H.major_prop
     rw [hctor] at hc
     rw [hctor, hctor']
-    exact NormalEq.instantiateParams_args hctx (normal_append (normal_take hall _) hfieldApplications) hc
+    exact NormalEqF.instantiateParams_args hctx (normal_append (normal_take hall _) hfieldApplications) hc
 
 
 omit [Params] in
@@ -147,7 +147,7 @@ theorem NativeSpineMatch.trans (hΓ : OnCtx Γ (env.IsType univs))
 
 theorem NativeSpineMatch.instOuter_normal {name : Name} {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
     (hhead : e = mkApps (.const name levels) templates)
-    (hc : List.Forall₂ (NormalEq Γ) captures captures')
+    (hc : List.Forall₂ (NormalEqF η Γ) captures captures')
     (ht : HasType env univs Γ (e.instOuter captures) type) :
     NativeSpineMatch env univs Γ (e.instOuter captures) (e.instOuter captures') := by
   subst e
@@ -165,14 +165,14 @@ theorem NativeSpineMatch.instOuter_normal {name : Name} {levels : List VLevel} (
   have hA : HasType env univs Γ (InductiveSignature.instantiateParams template captures) A := by
     rw [instantiateParams_eq_instOuter]
     exact hA
-  simpa only [instantiateParams_eq_instOuter] using (NormalEq.instantiateParams_args hΓ hc hA).defeq hΓ
+  simpa only [instantiateParams_eq_instOuter] using (NormalEqF.instantiateParams_args hΓ hc hA).defeq hΓ
 
 
 private theorem native_eta_match {domains : List VExpr} (hpos : 0 < domains.length) (hΓ : OnCtx Γ (env.IsType univs))
     {name : Name} {levels : List VLevel}
     (hlevels : ∀ l ∈ levels, l.WF univs)
-    (hargs : List.Forall₂ (NormalEq Γ) args args')
-    (hctor : NormalEq (domains.reverse ++ Γ) ctor ctor')
+    (hargs : List.Forall₂ (NormalEqF η Γ) args args')
+    (hctor : NormalEqF η (domains.reverse ++ Γ) ctor ctor')
     (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType univs)) :
     NativeSpineMatch env univs (domains.reverse ++ Γ)
       (.app (nativeEtaBody (domains.length - 1) (mkApps (.const name levels) args)).lift ctor)
@@ -214,15 +214,15 @@ theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
     (hlen : p.domains.length = p'.domains.length)
     (heq : p.equation = p'.equation) (hbody : p.equationBody = p'.equationBody)
     (hlevels : p.levels = p'.levels)
-    (ha : List.Forall₂ (NormalEq Γ) args args')
-    (hcaptures : List.Forall₂ (NormalEq (p.domains.reverse ++ Γ)) p.captures p'.captures)
-    (hctor : NormalEq (p.domains.reverse ++ Γ) p.constructor p'.constructor)
+    (ha : List.Forall₂ (NormalEqF η Γ) args args')
+    (hcaptures : List.Forall₂ (NormalEqF η (p.domains.reverse ++ Γ)) p.captures p'.captures)
+    (hctor : NormalEqF η (p.domains.reverse ++ Γ) p.constructor p'.constructor)
     (hsource : HasType env univs Γ (mkApps (.const name levels) args') p'.type)
     (hhead : ∃ n ls as, p.equationBody.lhs = mkApps (.const n ls) as) :
     NativePrefixReplay env univs Γ (mkApps (.const name levels) args') p' ∧
-      NormalEq Γ p.rhs p'.rhs := by
+      NormalEqF η Γ p.rhs p'.rhs := by
   obtain ⟨_, hh⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, H.source_typed⟩
-  have hs := NormalEq.mkApps_spine hΓ (.refl hh) ha H.source_typed
+  have hs := NormalEqF.mkApps_spine hΓ (.refl hh) ha H.source_typed
   have htypes := (((hs.defeq hΓ).of_l henv hΓ H.source_typed).hasType.2).uniqU henv hΓ hsource
   have hctx := (IsType.wrapForalls_inv henv hΓ (H.source_typed.isType henv hΓ)).1
   have W := IsDefEqU.wrapForalls_context henv hΓ (.zero : IsDefEqCtx env univs Γ Γ Γ) hlen htypes
@@ -258,7 +258,7 @@ theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
       have hd₀ : j < p.equationBody.domains.length := by simpa only [hbody] using hd
       have hold := H.captures_typed j hj₀ hd₀
       obtain ⟨u, hdom⟩ := hold.isType henv hctx
-      have hn := NormalEq.instantiateParams_args
+      have hn := NormalEqF.instantiateParams_args
         (e := p.equationBody.domains[j].instL p.levels) hctx (normal_take hcaptures j)
         (by simpa only [instantiateParams_eq_instOuter] using hdom)
       have ht := ((Lean4Lean.List.forall₂_getElem hcaptures j hj₀ hj).defeq hctx).of_l henv hctx hold
@@ -277,42 +277,45 @@ theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
       have hright := NativeSpineMatch.instOuter_normal hctx
         (by rw [hhead, instL_mkApps]; rfl) hcaptures hiota.hasType.1
       exact (hleft.symm.trans hctx H.native_lhs).trans hctx hright
-  · have hn := NormalEq.instantiateParams_args
+  · have hn := NormalEqF.instantiateParams_args
       (e := p.equationBody.rhs.instL p.levels) hctx hcaptures
       (by simpa only [instantiateParams_eq_instOuter] using hiota.hasType.2)
     unfold PrefixProgram.rhs
     rw [← hbody, ← hlevels]
-    exact NormalEq.wrapLams_congr hΓ hlen htypes hn
+    exact NormalEqF.wrapLams_congr hΓ hlen htypes hn
 
 /-- The actual installed native program transports along normal equality of
 its supplied arguments; no new capture or index-alignment certificate is needed. -/
 theorem NativeDeltaRule.congr_normal {name : Name} {levels : List VLevel}
     (hΓ : OnCtx Γ (env.IsType univs))
     (H : NativeDeltaRule env univs registry Γ name levels args rhs)
-    (ha : List.Forall₂ (NormalEq Γ) args args') :
-    ∃ rhs', NativeDeltaRule env univs registry Γ name levels args' rhs' ∧ NormalEq Γ rhs rhs' := by
+    (ha : List.Forall₂ (NormalEqF η Γ) args args') :
+    ∃ rhs', NativeDeltaRule env univs registry Γ name levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
   cases H with
   | @intro data program hlookup hregistered hname hlarge hw hz hg replay =>
-    obtain ⟨program', hg'⟩ := prefixProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
-    obtain ⟨_, _, hl, _, he, hb, _⟩ := prefixProgram_spec hg
-    obtain ⟨_, _, hl', _, he', hb', _⟩ := prefixProgram_spec hg'
+    obtain ⟨program', hg'⟩ := singletonProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
+    obtain ⟨_, _, hl, _, he, hb, _⟩ := singletonProgram_spec hg
+    obtain ⟨_, _, hl', _, he', hb', _⟩ := singletonProgram_spec hg'
     have heq : program.equation = program'.equation := Option.some.inj (he.symm.trans he')
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
-    obtain ⟨_, _, _, _, hlen, _, _⟩ := prefixProgram_layout hg
-    obtain ⟨_, _, _, _, hlen', _, _⟩ := prefixProgram_layout hg'
+    obtain ⟨_, _, _, _, hlen, _, _⟩ := singletonProgram_layout hg
+    obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonProgram_layout hg'
     have hlength : program.domains.length = program'.domains.length := by
       rw [hlen, hlen', Lean4Lean.List.Forall₂.length_eq ha]
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
-    have hs := NormalEq.mkApps_spine hΓ (.refl hhead) ha replay.source_typed
+    have hs := NormalEqF.mkApps_spine hΓ (.refl hhead) ha replay.source_typed
     have hsource := hregistered.prefixType henv hΓ hw hg'
       (by simpa only [hname] using
         (show VExpr.WF env univs Γ _ from
           ⟨_, ((hs.defeq hΓ).of_l henv hΓ replay.source_typed).hasType.2⟩))
     have replayData : NativePrefixReplay env univs Γ (mkApps (.const data.name levels) args) program := by
       simpa only [hname] using replay
-    obtain ⟨hcaptures, hctor⟩ := replayData.normal_components hΓ hg hg' ha
+    obtain ⟨hcaptures, hctor⟩ := replayData.singleton_rel_components (R := NormalEqF η)
+      (fun _ h => .refl h) (fun W h => h.weakN W)
+      (fun hΓ hf hs ht => NormalEqF.mkApps_spine hΓ hf hs ht)
+      (fun hΓ hs ht => NormalEqF.instantiateParams_args hΓ hs ht) henv hΓ hg hg' ha
     have hnative := hregistered.singletonEquation_body_head he hb
     obtain ⟨replay', hnormal⟩ := replay.congr_normal hΓ hlength heq hbody (hl.trans hl'.symm)
       ha hcaptures hctor (by simpa only [hname] using hsource) hnative

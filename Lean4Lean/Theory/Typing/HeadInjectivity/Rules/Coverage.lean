@@ -112,7 +112,7 @@ theorem VEnv.WF'.defeq_origin {env : VEnv} (H : env.WF' ds) {df : VDefEq}
         · exact ih (by
             rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
               VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hdf)
-  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih hdf
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih hdf
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     exact ih (by simpa only [VEnv.addProjections_defeqs] using hdf)
 

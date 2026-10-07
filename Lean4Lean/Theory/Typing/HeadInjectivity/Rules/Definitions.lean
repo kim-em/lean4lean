@@ -206,7 +206,7 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
           have := (addConstVals_le hc).constants ((addConstVals_le ht).constants h')
           simp only [VEnv.addProjections_constants] at hfresh
           rw [this] at hfresh; cases hfresh
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     exact ⟨fun df hdf n ls h => ih.const df hdf n ls h,
       fun df df' hdf hdf' => ih.excl df df' hdf hdf'⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>

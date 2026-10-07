@@ -141,7 +141,7 @@ theorem WF'.definitionRegistry_registered (H : env.WF' declarations)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨hr, hn⟩ := ih hlookup
     exact ⟨hr.mono VEnv.addProjections_le, hn⟩
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨hr, hn⟩ := ih hlookup
     exact ⟨hr.mono VEnv.addEliminator_le, hn⟩
 
@@ -158,7 +158,7 @@ theorem WF'.definitionRegistry_complete (H : env.WF' declarations)
     · have hold := ih hdecl
       exact definitionRegistry_decl_preserves hd (henv.definitionRegistry_registered hold).1 hold
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih hdecl
-  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih hdecl
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih hdecl
 
 /-- The history itself produces each definition's concrete equation trace;
 no caller supplies a reduction-coverage assertion. -/
@@ -189,7 +189,7 @@ theorem WF'.definitionRegistry_of_constantEquation (H : env.WF' declarations)
       exact ⟨value, definitionRegistry_decl_preserves hd hr.1 hlookup, heq⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     exact ih (by simpa only [VEnv.addProjections_defeqs] using hdf) hhead
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     exact ih hdf hhead
 
 /-- Bare-constant equation coverage is therefore produced for every

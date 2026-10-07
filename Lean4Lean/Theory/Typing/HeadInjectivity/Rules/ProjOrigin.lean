@@ -157,7 +157,7 @@ theorem VEnv.WF'.projOrigin {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
             hcompile.sourceNames hentry
         · rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hold
           exact (ih hold).mono hle
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     intro S info hp
     rw [VEnv.addEliminator_projections] at hp
     exact (ih hp).mono VEnv.addEliminator_le

@@ -142,10 +142,10 @@ theorem InductiveSignature.Instance.Admissible.mono
     {s : InductiveSignature} {g : s.Instance} {env env' : VEnv}
     (H : g.Admissible env) (henv : env ≤ env') : g.Admissible env' := by
   refine { H with elimination := ?_ }
-  rcases H.elimination with h | h | ⟨hn, hc, hfields⟩
+  rcases H.elimination with h | h | ⟨⟨hn, hc, hfields⟩, hfree⟩
   · exact .inl h
   · exact .inr (.inl h)
-  · refine .inr (.inr ⟨hn, hc, ?_⟩)
+  · refine .inr (.inr ⟨⟨hn, hc, ?_⟩, hfree⟩)
     intro ctor hctor i hi
     exact (hfields ctor hctor i hi).imp (fun h => h.mono henv) id
 

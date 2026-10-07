@@ -7,10 +7,10 @@ variable [Params]
 /-- Normal equality is preserved by a simultaneous substitution. Unchanged
 entries need no separate typing witness; the actual substituted term supplies
 one whenever such an entry occurs. -/
-theorem NormalEq.subst_args {e : VExpr} {σ σ' : VExpr.Subst} (hΓ : OnCtx Γ (env.IsType univs))
-    (hs : ∀ i, σ i = σ' i ∨ NormalEq Γ (σ i) (σ' i))
+theorem NormalEqF.subst_args {e : VExpr} {σ σ' : VExpr.Subst} (hΓ : OnCtx Γ (env.IsType univs))
+    (hs : ∀ i, σ i = σ' i ∨ NormalEqF η Γ (σ i) (σ' i))
     (ht : HasType env univs Γ (e.subst σ) type) :
-    NormalEq Γ (e.subst σ) (e.subst σ') := by
+    NormalEqF η Γ (e.subst σ) (e.subst σ') := by
   induction e generalizing Γ σ σ' type with
   | bvar i =>
     rcases hs i with he | he
@@ -53,12 +53,12 @@ theorem NormalEq.subst_args {e : VExpr} {σ σ' : VExpr.Subst} (hΓ : OnCtx Γ (
       · exact .inr (he.weakN .one)
 
 
-theorem NormalEq.instantiateParams_args (hΓ : OnCtx Γ (env.IsType univs))
-    (hs : List.Forall₂ (NormalEq Γ) args args')
+theorem NormalEqF.instantiateParams_args (hΓ : OnCtx Γ (env.IsType univs))
+    (hs : List.Forall₂ (NormalEqF η Γ) args args')
     (ht : HasType env univs Γ (InductiveSignature.instantiateParams e args) type) :
-    NormalEq Γ (InductiveSignature.instantiateParams e args)
+    NormalEqF η Γ (InductiveSignature.instantiateParams e args)
       (InductiveSignature.instantiateParams e args') := by
-  apply NormalEq.subst_args hΓ ?_ ht
+  apply NormalEqF.subst_args hΓ ?_ ht
   intro i
   have hlen := Lean4Lean.List.Forall₂.length_eq hs
   simp only [← hlen]
@@ -67,11 +67,11 @@ theorem NormalEq.instantiateParams_args (hΓ : OnCtx Γ (env.IsType univs))
     exact .inr (Lean4Lean.List.forall₂_getElem hs _ (by omega) (by omega))
   · exact .inl rfl
 
-theorem NormalEq.wrapLams_congr (hΓ : OnCtx Γ (env.IsType univs))
+theorem NormalEqF.wrapLams_congr (hΓ : OnCtx Γ (env.IsType univs))
     (hlen : domains.length = domains'.length)
     (ht : IsDefEqU env univs Γ (wrapForalls domains result) (wrapForalls domains' result'))
-    (hb : NormalEq (domains.reverse ++ Γ) body body') :
-    NormalEq Γ (wrapLams domains body) (wrapLams domains' body') := by
+    (hb : NormalEqF η (domains.reverse ++ Γ) body body') :
+    NormalEqF η Γ (wrapLams domains body) (wrapLams domains' body') := by
   induction domains generalizing Γ domains' with
   | nil =>
     have he : domains' = [] := List.eq_nil_of_length_eq_zero hlen.symm
@@ -83,7 +83,7 @@ theorem NormalEq.wrapLams_congr (hΓ : OnCtx Γ (env.IsType univs))
     | cons d' ds' =>
       obtain ⟨⟨u, hd⟩, _, hrest⟩ := ht.forallE_inv henv hΓ
       have hctx : OnCtx (d :: Γ) (env.IsType univs) := ⟨hΓ, _, hd.hasType.1⟩
-      apply NormalEq.lamDF hd.hasType.1 hd
+      apply NormalEqF.lamDF hd.hasType.1 hd
       apply ih hctx (by simpa only [List.length_cons, Nat.add_right_cancel_iff] using hlen) ⟨_, hrest⟩
       simpa only [List.reverse_cons, List.append_assoc, List.singleton_append] using hb
 
@@ -105,5 +105,9 @@ theorem IsDefEqU.wrapForalls_context {env : VEnv} (henv : env.WF) (hΓ : OnCtx �
       obtain ⟨⟨u, hd⟩, _, hrest⟩ := ht.forallE_inv henv (W.isType' hΓ)
       have hh := ih (.succ W hd) (by simpa only [List.length_cons, Nat.add_right_cancel_iff] using hlen) ⟨_, hrest⟩
       simpa only [List.reverse_cons, List.append_assoc, List.singleton_append] using hh
+
+alias NormalEq.subst_args := NormalEqF.subst_args
+alias NormalEq.instantiateParams_args := NormalEqF.instantiateParams_args
+alias NormalEq.wrapLams_congr := NormalEqF.wrapLams_congr
 
 end Lean4Lean.VEnv

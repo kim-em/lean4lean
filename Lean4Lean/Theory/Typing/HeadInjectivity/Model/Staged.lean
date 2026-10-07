@@ -418,7 +418,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
                     VEnv.addConstVals_eliminators hc, VEnv.addConstVals_eliminators ht] at h) hdoms
                 (singleton_field_typing hER hEE hsing index hi hidx) hΔ hlw)
         · exact @ih' hcl0 df hdf
-  | @inductEliminators _ _ key base env source block schema _ hW hble hcert _ hcond _ _ ih =>
+  | @inductEliminators _ _ key base env source block schema _ hW hble hcert _ hcond _ hsc _ ih =>
     intro hle hcl
     have hle0 : env ≤ envF :=
       (show env ≤ env.addEliminator key schema from ⟨id, id, id, fun h => .inr h⟩).trans hle

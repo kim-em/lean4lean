@@ -41,10 +41,10 @@ theorem NativeRecursorRegistered.prefixType {data : NativeRecursorData}
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (H : NativeRecursorRegistered env data)
     (hlevels : ∀ level ∈ levels, level.WF U)
-    (hg : data.prefixProgram U levels args = some program)
+    (hg : data.singletonProgram env U levels args = some program)
     (ht : VExpr.WF env U Γ (mkApps (.const data.name levels) args)) :
     env.HasType U Γ (mkApps (.const data.name levels) args) program.type := by
-  unfold prefixProgram at hg
+  unfold singletonProgram at hg
   dsimp only at hg
   split at hg <;> try contradiction
   rename_i hguard
@@ -52,7 +52,7 @@ theorem NativeRecursorRegistered.prefixType {data : NativeRecursorData}
   have hlen : levels.length = data.uvars := hguard.1
   simp only [bind, Option.bind_eq_some_iff] at hg
   obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
-    constructor, _, source, _, fields, _, equation, _, body, _, hg⟩ := hg
+    ⟨constructor, fields⟩, _, equation, _, body, _, hg⟩ := hg
   split at hg <;> try contradiction
   cases hg
   have hf : env.HasType U Γ (.const data.name levels) (nativeType.instL levels) :=
@@ -77,10 +77,10 @@ theorem NativeDeltaRule.abstract {name : Name} {levels : List VLevel}
       cases hh : data.recursorType with
       | some type => exact ⟨type, rfl⟩
       | none =>
-        unfold prefixProgram at hg
+        unfold singletonProgram at hg
         split at hg <;> simp [hh] at hg
     obtain ⟨type, htype⟩ := hex
-    obtain ⟨domain, hearly⟩ := prefixProgram_open_inv htype (hr.recursorType_closed henv htype) hg
+    obtain ⟨domain, hearly⟩ := singletonProgram_open_inv htype (hr.recursorType_closed henv htype) hg
     have hsource := hr.prefixType henv hΓ hw hearly
       (by simpa only [hn] using (show VExpr.WF env U Γ _ from ⟨_, hfn⟩))
     simp only [hn] at hsource

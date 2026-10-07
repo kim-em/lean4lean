@@ -337,7 +337,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     · have hm := hex df' hdf' ls' hh
       rw [C.ordinary_rules] at hm
       obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
-      have h1 := hsing.2.1
+      have h1 := hsing.1.2.1
       have : j = index := Fin.ext (by have := j.isLt; have := index.isLt; omega)
       rw [this]
     · have notLead : VExpr.bvar x ∉ g.eqLead index := fun hy => by
@@ -357,7 +357,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
         have hxf' := hxf
         simp only [Fin.getElem_fin] at hxf'
         simp [VExpr.instL, VExpr.liftN, liftVar, hxf']
-      have := hPF envE hE hsing U Δ Γ ls hΔ hlw hlen
+      have := hPF envE hE hsing.1 U Δ Γ ls hΔ hlw hlen
         (s.constructors[index].fields.length - 1 - x) (by omega) hidx v vS Wv tvv
       rwa [show s.constructors[index].fields.length - 1 -
         (s.constructors[index].fields.length - 1 - x) = x by omega] at this

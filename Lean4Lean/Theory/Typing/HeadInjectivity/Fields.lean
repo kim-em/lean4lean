@@ -20,7 +20,7 @@ theorem HeadInjectivityCore.toHeadInjectivity {env : VEnv} (henv : env.WF)
     have ⟨v, hBv⟩ := hBt
     have hΓ' : OnCtx (A :: Γ) (env.IsType U) := ⟨hΓ, hAt⟩
     exact ⟨⟨u, hA.collapse' henv core hΓ hAu⟩, ⟨v, hB.collapse' henv core hΓ' hBv⟩⟩
-  rigid_args hΓ hc hc' H := (core.rigid_rigid hΓ hc hc' H).2.2
+  rigid_args hΓ hc H := (core.rigid_rigid hΓ hc hc H).2.2
   former_args := core.former_args
   proj_fieldType {U Γ typeName info index
       levels₁ params₁ indexArgs₁ sourceMajor₁ fieldType₁ fieldLevel₁

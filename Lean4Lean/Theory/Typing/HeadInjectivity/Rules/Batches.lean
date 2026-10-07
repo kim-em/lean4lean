@@ -122,7 +122,7 @@ theorem WF'.sameHead {env : VEnv} (H : env.WF' ds) : env.SameHead := by
           have := (addConstVals_le hc).constants ((addConstVals_le ht).constants h')
           simp only [VEnv.addProjections_constants] at hfresh
           rw [this] at hfresh; cases hfresh
-  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     intro df df' hdf hdf'
     exact ih df df' (by simpa using hdf) (by simpa using hdf')

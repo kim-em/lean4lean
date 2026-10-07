@@ -235,7 +235,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
         rw [VLevel.eval_inst]; exact (VLevel.equiv_def.1 hsmall _).trans rfl)
       ihR.1 W tv o
   · -- singleton elimination does not occur for nested compilations
-    exact absurd hsing.1 (by have := C.nested_families haux; omega)
+    exact absurd hsing.1.1 (by have := C.nested_families haux; omega)
 
 end Model
 end VEnv
