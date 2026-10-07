@@ -27,6 +27,17 @@ theorem quot_famSem (hq : QuotInstalled env) :
     rfl, fun ls _ m => ?_⟩
   exact Iff.rfl
 
+/-- The structure facts of a registered projection follow from the semantic header of its
+recorded family. -/
+theorem famTypeSem_of_famSem (H : env.WF) (hp : env.projections s info)
+    (hsem : letI := envSig env; FamSem env s info.resultLevel (info.nparams + info.nindices)) :
+    FamTypeSem env s info := by
+  letI := envSig env
+  obtain ⟨ci, Ds, hci, hlen, hiff⟩ := hsem
+  obtain ⟨ci', hci', huv, -⟩ := famOf_shape H (famOf_projection H hp)
+  cases hci.symm.trans hci'
+  exact ⟨ci, Ds, hci, huv, hlen, fun ls hls m => hiff ls (by rw [hls, huv]) m⟩
+
 /-- A family with a semantic header is not a constructor of the signature. -/
 theorem fam_not_ctor (H : env.WF)
     (hsem : letI := envSig env; FamSem env I l n) (hk : sigCtor env I = some k) : False := by
