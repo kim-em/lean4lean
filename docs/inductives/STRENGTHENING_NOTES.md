@@ -446,3 +446,192 @@ together with certified conversion, as Astra recommends.
 The mainline strip (`LevelledReduction`, decreasing diagrams over levels 0–3) is the
 template: its diagram analysis carries over verbatim; what changes is every place where
 a premise is produced, which must now produce a certificate.
+
+## Part 3 status (2026-10-06): the missing metatheorem
+
+Two further design reviews were recorded in `STRENGTHENING_ASTRA_REVIEW2.md`
+(architecture) and `STRENGTHENING_ASTRA_REVIEW3.md` (termination of certified
+transitivity).
+
+The certificate route needs the following theorem. Let `Synth`, `NEq` and `Conv` be a
+certified typing / normal equality / join calculus for (at least) the fragment
+Π, λ, application, sorts, constants, untyped β, typed η, typed proof irrelevance. Each of
+them contains only subterms, synthesized types and reducts of its endpoints, so it has
+no transitivity constructor. The theorem says: for these relations transitivity is
+admissible, `Conv Δ a b → Conv Δ b c → Conv Δ a c`.
+
+Every organisation tried so far has a circular dependency.
+
+* Transitivity needs NEq to be transported along β, which is a heterogeneous
+  substitution of NEq into NEq.
+* That substitution passes through the typing evidence embedded in the
+  proof-irrelevance and η leaves, so it needs substitution for `Synth`/`Check`.
+* Substitution for `Synth` needs conversion composition already at the variable case:
+  `Synth x S`, `Conv S A`, `Conv A T[x]` must give `Conv S T[x]`. The arguments of this
+  composition are outputs of earlier calls, not sub-certificates of the inputs, and
+  substitution duplicates certificates, so their size grows.
+* Checking at a common type removes the proof-irrelevance case. It does not remove the
+  substitution case.
+* Allowing chains of conversions inside `Check` breaks strengthening, because the
+  middle types may mention the removed binder.
+* Neither universe level, derivation height, nor β-peak structure gives a decreasing
+  measure (see the review).
+
+Siles and Herbelin's typed parallel reduction (PTS, β only) does not transfer directly.
+Their auxiliary calculus allows exactly the intermediate syntax that the support
+discipline forbids, and they never translate back into support-preserving
+certificates.
+
+No proof organisation of this conversion-elimination theorem that avoids a
+normalization-like argument is known, nor any argument that one cannot exist. Lean's
+theory does not normalize. So at this point route (b) rests on an open metatheorem;
+the remaining work is not merely large.
+
+## Assessment: the restricted projection-walk corner (`ProjectionWalkCorner`, branch -e1)
+
+Statement (Verify/Typing/ProjectionCorner.lean on agent/verify-inductives-e1). There is a
+structure `S` with a typed major `e' : S params idx` in `Δ`. The projection walk reaches
+the binder `∀ D, body'` for a field `j` whose projection fails the guard: `S` may be in
+`Prop` and `D` is not. A closed source `body` translates to `body'` under `d : D`. The
+claim is that it translates without the binder, to the unlifted residual.
+
+**Without a term of `D`, the restriction gives no measure.** The typing derivation of
+`body` under `d` may route conversions through arbitrary `d`-dependent intermediates.
+Examples are `(fun _ => T) d`, and proofs `out d : P v` that feed singleton or
+proof-irrelevance computation, as in the countermodel. The major does give, in `Δ`, every
+*closed* proposition that is provable from `d`: eliminate `S` into `Prop` with a constant
+motive and use the field in the minor. That is a semantic fact. It does not bound the
+intermediate syntax of a declarative derivation. Rebuilding the derivation in `Δ` is
+therefore the same conversion-elimination problem as in the general case (Part 3 status
+above), restricted only in which binder is removed. For the extreme instance `S := Nonempty D`
+the corner *is* strengthening across `d : D` under the hypothesis `Nonempty D`.
+
+**With canonical `Nonempty` and `Classical.choice`, the corner is provable now, by
+substitution, without certificates.** Both are declared in `Init.Prelude`
+(`class inductive Nonempty (α : Sort u) : Prop | intro (val : α)` at line 792,
+`axiom Classical.choice {α : Sort u} : Nonempty α → α` at line 818). So every environment
+that replays the prelude, and so contains canonical `Eq`, contains them too.
+Construction in `Δ`:
+
+1. Eliminate `S` into `Prop`: use `S`'s registered native recursor with target universe 0,
+   the motive `fun x => Nonempty D[x]` (where `D[x]` is the walked binder type with `e'`
+   replaced by `x`), and the minor `fun fields => Nonempty.intro field_j`. This gives
+   `hne : Nonempty D`. The minor is typed because in the constructor branch the projections
+   in `D[mk ps fields]` reduce by `projIota` to the fields. `IsType D` in `Δ` ensures that
+   `D` mentions only projections that pass the guard, that is proof fields when `S` is in
+   `Prop`.
+2. Take `d₀ := @Classical.choice D hne : D` in `Δ`.
+3. Substitute `d := d₀` in the translation and typing derivation of `body` under the binder.
+   Since `body` is closed, its translation `body'` does not mention `d`, so
+   `body'[d₀] = b₀` with `body' = b₀.lift`. This needs a substitution lemma for `TrExprS`
+   at a bound variable instantiated by a typed term. Instantiation lemmas for free
+   variables exist (`TrExprS.instantiateFVar` and relatives).
+
+What this costs: a hypothesis `VEnv.HasCanonicalChoice` (the exact types of `Nonempty`,
+`Nonempty.intro`, the recursor `Nonempty.rec`, and `Classical.choice`, as installed by the
+prelude replay), stated like `HasCanonicalEq` and discharged where `HasCanonicalEq` is.
+Adding it to `addDecl.WF_of_canonicalEq` changes the top-level hypotheses, so it is a lead
+decision.
+
+The construction above is about 1-2k lines. Most of it is typing the elimination of `S`
+into `Prop` with a projection-bearing motive, plus the `TrExprS` substitution lemma.
+
+`Classical.choice` does not similarly reduce *general* strengthening. Removing `q : Q`
+needs `Nonempty Q` in the smaller context, which is not available. Substituting
+`q := choice h` only replaces the binder by the `Prop` hypothesis `h : Nonempty Q`, and
+that is strengthening again.
+
+### Implementation status (2026-10-07): ordinary case proved
+
+The corner is proved for ordinary structures, that is one family and one constructor, without
+nested auxiliaries.
+
+- `VEnv.corner_inhabit` (`Theory/Typing/ProjectionCornerElim.lean`): at a typed major of `S`,
+  the binder `D` reached by the walk past a field that fails the guard has an inhabitant in
+  `Δ`.
+- `projectionWalkCorner_of_choice` (`Verify/Typing/ProjectionCornerChoice.lean`) has exactly the
+  conclusion of `ProjectionWalkCorner` for one environment. Its two extra hypotheses are
+  `venv.HasCanonicalChoice` and `venv.StructurePropRecursor Us.length S info ls`.
+
+The construction differs from the sketch above in one point: the motive does not abstract the
+major. It is the constant `fun _ => Nonempty X`, where `X` is the walked binder at the actual
+major `e'` and is level-equivalent to `D`. Everything is built in `Δ`, after instantiating the
+recursor's parameters at the actual parameters:
+
+- `minor_instOuter` computes the instantiated minor premise as a substitution.
+- The field variable's type is `X` lifted, by `VProjectionInfo.field_of_walk` at the major
+  `e'` lifted past the fields. The projections that `X` uses are proof fields, equal to the
+  corresponding field variables by proof irrelevance.
+- The constructor application is typed along the source constructor telescope. This uses the
+  context equality between the signature's telescope and the source constructor's, which
+  comes from `NativeRecursorRegistered.ordinary`.
+
+No `TrExprS` induction is needed beyond `weakBV_inv₁_inhabited`.
+
+`StructurePropRecursor` bundles the following facts:
+- the registered native recursor data;
+- the one-family and one-constructor sizes;
+- the family name and its empty indices;
+- the constructor name;
+- the parameter count;
+- the field count `nparams + fields = ctorType.forallArity`;
+- universe levels `ls0` with `data.target.inst ls0 = 0`, whose family levels are equivalent to
+  `ls`.
+
+The last three cannot be derived from `NativeRecursorRegistered` alone:
+- `Instance.Admissible` does not tie `g.levels` to the source universes;
+- the field count follows only from the literal constructor tail, a Verify-level fact, or from
+  head inversion.
+
+They are for the call site (E1).
+
+`#print axioms VEnv.corner_inhabit` shows `sorryAx`. It comes only through unique typing
+(`IsDefEq.uniqU`), which depends on the open `headInversion` and `strengthening_of_canonicalEq`
+sorries, like every other use of uniqueness in the branch.
+
+## Parked (2026-10-07): state of the obstacle, for Mario
+
+Route (b), declarative strengthening `VEnv.strengthening_of_canonicalEq`, is parked. It is no
+longer on the critical path. The E1 cone contains no `Strengthening` hypothesis, and the
+projection-walk corner, the one place E1 needed a restricted form, is now discharged by
+substitution of an inhabitant (above). The certificate-calculus prototype (option 1) was
+never started.
+
+The state of the obstacle, in one place:
+
+1. **What is proved.**
+   - Strengthening holds wherever the removed binder is inhabited in the smaller context:
+     `TrExprS.weakBV_inv_inhabited`, `Verify/Typing/InhabitedStrengthening.lean`. The proof
+     is substitution followed by cancelling the lift, with no hypothesis on the environment.
+   - Confluence of the canonical reduction in a fixed context is available.
+   - Singleton eta has a formal, abstract-layer proof (Part 2).
+   - The unrestricted statement is false in a two-family model (`STRENGTHENING.md`), so any
+     proof has to use something specific to Lean's environments.
+
+2. **What is missing.** A conversion-elimination theorem for a support-preserving
+   ("certified") presentation of definitional equality. Statement: in the fragment of Π, λ,
+   application, sorts, constants, untyped β, typed η and typed proof irrelevance,
+   transitivity of the join relation `Conv` is admissible when `Conv` contains only subterms,
+   synthesized types and reducts of its endpoints. From that theorem, strengthening follows
+   by induction on certificates. A derivation in the smaller context exists because no
+   certificate mentions syntax outside its endpoints.
+
+3. **Why it is stuck** (Part 3 status above). Each candidate organisation is circular:
+   - transitivity needs NEq to be transported along β;
+   - transport is substitution through the typing evidence in the proof-irrelevance and η
+     leaves;
+   - substitution for `Synth` needs `Conv` composition at the variable case, on outputs
+     rather than sub-certificates.
+
+   The candidate measures fail as follows:
+   - universe level fails because proof irrelevance is level-blind;
+   - derivation height fails because substitution duplicates certificates;
+   - β-peak count fails because η-expansion creates new peaks.
+
+   Siles and Herbelin's typed parallel reduction covers β-only PTS. Its auxiliary calculus
+   is exactly what the support discipline forbids.
+
+4. **The open question for Mario.** Is there a proof of admissible transitivity, or of
+   strengthening, for λΠ with typed η and definitional proof irrelevance that does not go
+   through normalization? Alternatively, is there a counterexample in a non-normalizing
+   extension? Either answer settles route (b). In the meantime nothing in E1 depends on it.
