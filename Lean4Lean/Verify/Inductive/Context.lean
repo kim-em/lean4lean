@@ -1012,6 +1012,7 @@ end CheckBase
 structure ContextWF (c : AddInductive.Context) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
+
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv c.lparams
   typeCheckerLParams_eq : c.typeCheckerLParams = none
@@ -1388,6 +1389,7 @@ structure RecursorContextWF (c : AddInductive.Context)
     (recLparams : List Name) where
   venv : VEnv
   checking : CheckingEnv.Valid c.safety c.env venv
+
   mlctx : TypeChecker.MLCtx
   mlctx_wf : mlctx.WF venv recLparams
   typeCheckerLParams_eq : c.typeCheckerLParams = some recLparams
@@ -3243,77 +3245,6 @@ theorem getTypeFVarInRecursorContext.WF
     cases hlookup'
     exact ⟨A, hbelow, .fvar hlookup, hA,
       Hc.mlctx_wf.tr.wf.find?_wf Hc.checking.tr.wf hlookup⟩
-
-/-- Descend normalization of a closed source header from the full generated
-recursor context to the empty semantic scope.  Earlier mutual-family frames
-may occur in `R.mlctx`, but neither the source header nor its normal form owns
-any of their free variables. -/
-theorem RecursorContextWF.initialClosedHeaderDefEq
-    {c : AddInductive.Context}
-    (R : RecursorContextWF c recLparams)
-    (htarget : TrExprS R.venv recLparams [] source target)
-    (hsource : TrExprS R.venv recLparams R.mlctx.vlctx
-      source sourceTarget)
-    (hnormalized : TrExpr R.venv recLparams R.mlctx.vlctx
-      normalized sourceTarget)
-    (hfvars : FVarsIn (fun _ => False) normalized) :
-    ∃ normalizedTarget,
-      TrExprS R.venv recLparams [] normalized normalizedTarget ∧
-      R.venv.IsDefEqU recLparams.length [] target normalizedTarget := by
-  rcases hnormalized with
-    ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
-  let W : VLCtx.FVLift [] R.mlctx.vlctx 0
-      R.mlctx.vlctx.toCtx.length 0 :=
-    VLCtx.FVLift.from_nil R.mlctx.noBV
-  have hnormalizedClosed : Closed normalized 0 := by
-    have hclosed := hnormalizedFull.closed
-    simpa [R.mlctx.noBV] using hclosed
-  have hnormalizedNoFVars :
-      FVarsIn (fun fv => fv ∈ VLCtx.fvars []) normalized := by
-    simpa [VLCtx.fvars] using hfvars
-  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf W
-      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
-      hnormalizedClosed hnormalizedNoFVars with
-    ⟨normalizedTarget, hnormalizedTarget⟩
-  have hsourceNoFVars : FVarsIn (fun _ => False) source :=
-    htarget.fvarsIn.mono fun fv hfv => by
-      simpa [VLCtx.fvars] using hfv
-  have hsourceClosed : Closed source 0 := by
-    have hclosed := hsource.closed
-    simpa [R.mlctx.noBV] using hclosed
-  have hsourceNoFVars' :
-      FVarsIn (fun fv => fv ∈ VLCtx.fvars []) source := by
-    simpa [VLCtx.fvars] using hsourceNoFVars
-  rcases hsource.weakFV_inv R.checking.tr.wf W
-      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
-      hsourceClosed hsourceNoFVars' with
-    ⟨sourceTarget', hsourceTarget'⟩
-  have hnormalizedWeak := hnormalizedTarget.weakFV
-    R.checking.tr.wf.ordered W R.mlctx_wf.tr.wf
-  have hsourceWeak := hsourceTarget'.weakFV
-    R.checking.tr.wf.ordered W R.mlctx_wf.tr.wf
-  have hnormalizedUniq := hnormalizedFull.uniq R.checking.tr.wf
-    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hnormalizedWeak
-  have hsourceUniq := hsource.uniq R.checking.tr.wf
-    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hsourceWeak
-  have hfull : R.venv.IsDefEqU recLparams.length
-      R.mlctx.vlctx.toCtx
-      (normalizedTarget.liftN R.mlctx.vlctx.toCtx.length 0)
-      (sourceTarget'.liftN R.mlctx.vlctx.toCtx.length 0) :=
-    hnormalizedUniq.symm.trans R.checking.tr.wf
-      R.mlctx_wf.tr.wf.toCtx
-      (hnormalizeEq.trans R.checking.tr.wf
-        R.mlctx_wf.tr.wf.toCtx hsourceUniq)
-  have hempty : R.venv.IsDefEqU recLparams.length []
-      normalizedTarget sourceTarget' :=
-    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
-      R.mlctx_wf.tr.wf.toCtx W.toCtx).1 hfull
-  have htargetEq : R.venv.IsDefEqU recLparams.length []
-      target sourceTarget' :=
-    htarget.uniq R.checking.tr.wf
-      (.refl R.checking.tr.wf (by trivial)) hsourceTarget'
-  exact ⟨normalizedTarget, hnormalizedTarget,
-    htargetEq.trans R.checking.tr.wf (by trivial) hempty.symm⟩
 
 theorem ensureSortInContext.narrowScopeWF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e') :

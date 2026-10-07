@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 
 /-!
 # Instantiating constructor telescopes
@@ -40,7 +40,7 @@ theorem InstForallsC.toInstForalls (H : InstForallsC env U Γ T args res) :
   | cons ha _ ih => exact .cons ha ih
 
 /-- The walk is congruent under definitional equality of the telescope and of the arguments. -/
-theorem InstForalls.defeq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+theorem InstForalls.defeq (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ (env.IsType U))
     (H : InstForalls env U Γ T args res) (H' : InstForalls env U Γ T' args' res')
     (hT : env.IsDefEqU U Γ T T') (hargs : List.Forall₂ (env.IsDefEqU U Γ) args args') :
     env.IsDefEqU U Γ res res' := by
@@ -70,7 +70,7 @@ theorem InstForalls.defeq (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     | @vacuous _ _ _ A' _ H' =>
       have ⟨⟨_, hA⟩, _, hB⟩ := hT.forallE_inv henv hΓ
       have hΓ' : OnCtx (A :: Γ) (env.IsType U) := ⟨hΓ, _, hA.hasType.1⟩
-      have := (IsDefEqU.weakN_iff henv hΓ' (.one (A := A))).1 ⟨_, hB⟩
+      have := (IsDefEqU.weakN_iff henv hs hΓ' (.one (A := A))).1 ⟨_, hB⟩
       exact ih H' this hargs
 
 end VEnv
@@ -182,7 +182,7 @@ theorem HasType.mkApps_telescope (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsTyp
 
 /-- If a body with a free occurrence of `bvar k` is well formed after substituting `a` for that
 variable, then `a` itself is well formed in the context below the `k` binders. -/
-theorem _root_.Lean4Lean.VExpr.WF.of_inst_occurs (henv : VEnv.WF env) {a : VExpr} :
+theorem _root_.Lean4Lean.VExpr.WF.of_inst_occurs (henv : VEnv.WF env) (hs : env.Strengthening) {a : VExpr} :
     ∀ (B : VExpr) (Δ : List VExpr), OnCtx (Δ ++ Γ) (env.IsType U) →
       VExpr.WF env U (Δ ++ Γ) (B.inst a Δ.length) → ¬ B.Skips' 1 Δ.length →
       VExpr.WF env U Γ a := by
@@ -194,7 +194,7 @@ theorem _root_.Lean4Lean.VExpr.WF.of_inst_occurs (henv : VEnv.WF env) {a : VExpr
     obtain ⟨h1, h2⟩ := hocc
     obtain rfl : i = Δ.length := Nat.le_antisymm (Nat.lt_succ_iff.1 h1) h2
     simp only [VExpr.inst, VExpr.instVar, Nat.lt_irrefl, if_false, if_true] at H
-    exact (IsDefEqU.weakN_iff henv hΓ' (.zero Δ)).1 H
+    exact (IsDefEqU.weakN_iff henv hs hΓ' (.zero Δ)).1 H
   | sort | const | elim => exact fun _ _ _ hocc => (hocc trivial).elim
   | app f x ihf ihx =>
     intro Δ hΓ' H hocc

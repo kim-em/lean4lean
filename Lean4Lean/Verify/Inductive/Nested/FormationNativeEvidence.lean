@@ -731,6 +731,17 @@ structure FinalLoweredGeneratedFamilyNativeSource
     (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length sourceParams
       baseArgs levels containerFamily payload.source)
     containerFamily.ctors payload.source.ctors
+  /-- Each generated constructor type is syntactically the parameter closure
+  of the container constructor type instantiated at the specialization
+  arguments, up to the level equivalence (`VExpr.LEquiv`) between the
+  translation of a level-instantiated expression and the level instantiation
+  of its translation. -/
+  constructorShapes : List.Forall₂
+    (fun ctor target => ∃ instCtorType : VExpr,
+      VExpr.LEquiv lparams.length instCtorType (ctor.type.instL levels) ∧
+      target.type = VExpr.wrapForalls sourceParams
+        (VExpr.instantiateForallPrefix instCtorType baseArgs))
+    containerFamily.ctors payload.source.ctors
 
 /-- The generated family installed by the ordinary header pass is
 indexless.  This is not metadata copied from the concrete auxiliary (which
@@ -1075,7 +1086,14 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
           auxiliaryFamily
           ((Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors[i]'(by
             simpa [Ctypes, GeneratedFamilyInstalledContainer.mono,
-              ← C.constructors] using hi)) targetCtor := by
+              ← C.constructors] using hi)) targetCtor ∧
+        ∃ instCtorType : VExpr,
+          VExpr.LEquiv lparams.length instCtorType
+            (((Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors[i]'(by
+              simpa [Ctypes, GeneratedFamilyInstalledContainer.mono,
+                ← C.constructors] using hi)).type.instL levels) ∧
+          targetCtor.type = VExpr.wrapForalls sourceParams
+            (VExpr.instantiateForallPrefix instCtorType baseArgs) := by
     intro i hi
     rcases C.builtConstructorTranslation wf i hi with ⟨Bbase⟩
     let B : Ctypes.BuiltConstructorTranslation (ves := largerVes) i hi := by
@@ -1131,7 +1149,25 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     · intro i hcontainer htargets
       have hi : i < Horigin.generated.sourceInfo.ctors.length := by
         simpa [← hlength] using hcontainer
-      simpa [targets, targetCtor] using (HtargetCtor ⟨i, hi⟩).2
+      simpa [targets, targetCtor] using (HtargetCtor ⟨i, hi⟩).2.1
+  have HconstructorShapes : List.Forall₂
+      (fun ctor target => ∃ instCtorType : VExpr,
+        VExpr.LEquiv lparams.length instCtorType (ctor.type.instL levels) ∧
+        target.type = VExpr.wrapForalls sourceParams
+          (VExpr.instantiateForallPrefix instCtorType baseArgs))
+      (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors
+      targets := by
+    have hlength :
+        (Ctypes.container.types[Ctypes.familyIdx]'Ctypes.familyIdx_lt).ctors.length =
+          Horigin.generated.sourceInfo.ctors.length := by
+      simpa [Ctypes, GeneratedFamilyInstalledContainer.mono] using
+        C.constructors.symm
+    apply List.forall₂_of_getElem
+    · simp [targets, hlength]
+    · intro i hcontainer htargets
+      have hi : i < Horigin.generated.sourceInfo.ctors.length := by
+        simpa [← hlength] using hcontainer
+      simpa [targets, targetCtor] using (HtargetCtor ⟨i, hi⟩).2.2
   have hsourceName : Horigin.source.name = Horigin.generated.auxName :=
     (congrArg InductiveType.name Horigin.generated.family_eq).trans
       Horigin.generated.built.name
@@ -1253,7 +1289,10 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
       simpa only [containerFamily, Ctypes,
         GeneratedFamilyInstalledContainer.mono] using HfamilyAppsIsType
     constructors := by
-      simpa [payload, source, containerFamily] using HdirectConstructors' }, rfl⟩
+      simpa [payload, source, containerFamily] using HdirectConstructors'
+    constructorShapes := by
+      simpa only [payload, source, containerFamily, Ctypes,
+        GeneratedFamilyInstalledContainer.mono] using HconstructorShapes }, rfl⟩
 
 /-- Every family header installed by the current ordinary production was
 absent from its source production environment.  This is the producer-facing

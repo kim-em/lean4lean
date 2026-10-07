@@ -10,6 +10,39 @@ open Kernel
 
 namespace VerifyInductive
 
+/-- Context strengthening (`VEnv.Strengthening`) of every abstract environment
+in which the verified checker runs while `Environment.addInductive` checks and
+installs the mutual inductive declaration `types` on top of the abstract
+environment `venv` (the model of `env` at the declaration's safety level):
+
+* `source`: the intermediate environments of the declaration itself
+  (`InductiveStrengthening`).  These are used by the ordinary path through
+  the lowering result below, and by the nested path for the restored source
+  declaration (header, constructor-parameter, recursor-type and recursor-rule
+  validation);
+* `lowered`: the intermediate environments of the declaration produced by
+  nested-inductive lowering, for the lowering result actually computed by the
+  executable (`NestedLoweringResult` is the trace of
+  `ElimNestedInductive.run`).  Without nested occurrences this is the source
+  declaration again.
+
+This is a hypothesis about this declaration only: every environment it
+mentions is pinned by the abstract translation of the source or lowered
+declaration. -/
+structure InductiveDeclStrengthening (venv : VEnv) (env : Environment)
+    (lparams : List Name) (nparams : Nat) (types : List InductiveType)
+    (isUnsafe : Bool) (fuel : FuelConfig) : Prop where
+  source : InductiveStrengthening venv lparams nparams types isUnsafe
+  lowered : ∀ res, NestedLoweringResult env fuel.inductiveFuel nparams types
+      { lvls := lparams.map .param, newTypes := types.toArray } res →
+    InductiveStrengthening venv lparams nparams res.types isUnsafe
+
+/-- The safety flag the executable passes to the post-lowering run agrees with
+the source `isUnsafe` flag. -/
+theorem inductiveSafety_ne_safe (isUnsafe : Bool) :
+    ((if isUnsafe then DefinitionSafety.unsafe else .safe) != .safe) = isUnsafe := by
+  cases isUnsafe <;> rfl
+
 /-- Uniform final result for the ordinary, non-nested post-lowering branch. -/
 theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     (env : Environment) (lparams : List Name) (nparams : Nat)

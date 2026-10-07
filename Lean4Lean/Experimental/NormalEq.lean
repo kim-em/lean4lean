@@ -145,6 +145,8 @@ theorem Pattern.Matches.hasType {p : Pattern} {e : VExpr} {m1 m2}
     (H : p.Matches e m1 m2) (H2 : TY.HasType Γ e V) (a) : ∃ A, TY.HasType Γ (m2 a) A := by
   induction H generalizing V with
   | const => cases a
+  -- added for the elim/proj constructors of this branch
+  | elim => cases a
   | var _ ih =>
     have ⟨_, _, hf, ha⟩ := TY.app_inv H2
     exact a.rec ⟨_, ha⟩ (ih hf)
@@ -297,6 +299,8 @@ theorem NormalEq.instN_r (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : Typing.
   | const =>
     let ⟨_, h1, h2, h3⟩ := TY.const_inv H
     exact .refl (TY.const h1 h2 h3)
+  -- added for the elim/proj constructors of this branch
+  | elim => exact .refl (H.instN W h₀)
   | app fn arg ih1 ih2 =>
     let ⟨_, _, h1, h2⟩ := TY.app_inv H
     specialize ih1 W h1; have hf := h1.instN W h₀
@@ -440,6 +444,10 @@ private def meas : VExpr → Nat
   | .app f a
   | .forallE f a => meas f + meas a + 1
   | .bvar _ | .const .. | .sort _ => 0
+  -- added for the elim/proj constructors of this branch
+  | .elim .. => 0
+  -- added for the elim/proj constructors of this branch
+  | .proj _ _ e => meas e + 1
   | .lam A e => meas A + meas e + 3
 
 private theorem meas_liftN : meas (e.liftN n k) = meas e := by

@@ -143,51 +143,6 @@ theorem AddInductive.runWithStats.WF
             from ⟨headerEnv, ctorEnv, Hheaders, R, Hrecursors⟩
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
 
-/-- End-to-end post-analysis verifier specialized with the verified
-header/constructor formation pipeline.  Generated recursor types are checked
-by the executable pipeline itself, leaving only its production freshness and
-formation side conditions. -/
-theorem AddInductive.runWithStats.closedWF
-    {envTypes : VEnv}
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
-      indTypes.toList isUnsafe decl envTypes)
-    (Hmaterialized :
-      checkInductiveTypes.loopInd.MaterializedHeaderResult
-        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
-    (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
-      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-        isUnsafe c.lparams).toList,
-      ¬ Kernel.Environment.primitives.contains info.name)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlparams : c.lparams.Nodup)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hnprimCtors : c.allowPrimitive = true →
-      ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name)
-    {hsourceSafety : isUnsafe = (c.safety != .safe)}
-    (hnotPartial : c.safety ≠ .partial)
-    (hnprimRecursors : c.allowPrimitive = true →
-      ∀ owner (howner : owner < indTypes.size),
-      ¬ Kernel.Environment.primitives.contains
-        (Lean.mkRecName indTypes[owner]!.name)) :
-    (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe c).WF
-      fun outEnv => ∃ headerEnv ctorEnv,
-        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
-          depth Hc.venv indTypes headerEnv,
-        ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
-          Nonempty (RecursorPhasesResult R outEnv) := by
-  apply AddInductive.runWithStats.WF (hsourceSafety := hsourceSafety) stats numParams indTypes numNested
-    isUnsafe c
-  · exact AddInductive.formationCore.closedWF Hc Hclosed Hdecl Hmaterialized
-      hvisible hnprimTypes hconsume hunsafe hnprimCtors hlparams
-  · exact hlparams
-  · exact hnotPartial
-  · exact hnprimRecursors
-
 /-- The production universe-parameter guard succeeds only for a duplicate-free
 parameter list. -/
 theorem Kernel.Environment.checkDuplicatedUnivParams.WF
@@ -234,6 +189,7 @@ structure RunWithStatsVerificationInputs
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
 
+
 /-- On the ordinary declaration path, primitive-name freshness is automatic:
 the three freshness fields are only queried when `allowPrimitive = true`.
 This constructor keeps the finite `Bool`/`Nat` bootstrap branch out of the
@@ -245,29 +201,6 @@ theorem RunWithStatsVerificationInputs.ofAllowPrimitiveFalse
   freshTypes htrue := by simp_all
   freshConstructorConstants htrue := by simp_all
   freshRecursors htrue := by simp_all
-
-theorem RunWithStatsVerificationInputs.verify
-    (H : RunWithStatsVerificationInputs c stats decl numParams depth
-      numNested indTypes isUnsafe Hc Hdecl Hmaterialized)
-    (Hclosed : MutualInductivesClosed c.env)
-    (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    {hsourceSafety : isUnsafe = (c.safety != .safe)}
-    (hnotPartial : c.safety ≠ .partial) :
-    c.lparams.Nodup →
-    (AddInductive.runWithStats stats numParams indTypes numNested isUnsafe
-      c).WF fun outEnv => ∃ headerEnv ctorEnv,
-        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
-          depth Hc.venv indTypes headerEnv,
-        ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
-          Nonempty (RecursorPhasesResult R outEnv) :=
-  fun hlparams => AddInductive.runWithStats.closedWF (hsourceSafety := hsourceSafety) Hc Hclosed Hdecl
-    Hmaterialized hvisible H.freshTypes
-    Lean4Lean.consumeTypeAnnotationsCompat
-    hlparams
-    (fun h => Hdecl.isUnsafe.trans h)
-    H.freshConstructorConstants hnotPartial
-    H.freshRecursors
 
 /-- Declaration-facing successful result of the complete ordinary executable
 checker, including the independently materialized declaration and the exact

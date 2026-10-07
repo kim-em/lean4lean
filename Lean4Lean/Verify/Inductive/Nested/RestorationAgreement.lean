@@ -755,7 +755,8 @@ theorem FinalLoweredGeneratedFamilyNativeSource.linkedSpecialization
     levelsWF := by rw [huvars]; exact N.levelsWF
     safety := hsafety
     familyForallPrefix := hfamilyPrefix
-    application := ?_ }
+    application := ?_
+    constructorShapes := ?_ }
   · intro arg harg
     rw [hnparams, ← N.sourceParamsLength]
     exact N.baseArgsClosed arg harg
@@ -769,6 +770,9 @@ theorem FinalLoweredGeneratedFamilyNativeSource.linkedSpecialization
       exact N.familyType
     · rw [hsource, huvars]
       exact N.constructors
+  · refine ⟨N.sourceParams, N.sourceParamsLength.trans hnparams.symm, ?_⟩
+    rw [hsource, huvars]
+    exact N.constructorShapes
 
 /-- The container application recorded for a generated family, abstracted
 over the final lowering parameters, is the native source's container

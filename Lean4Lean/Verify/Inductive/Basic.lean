@@ -1181,7 +1181,7 @@ application after the unapplied dependent suffix is removed from the local
 context. -/
 theorem VExpr.WF.mkApps_canonical_prefix
     {fn : VExpr}
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (actual : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (H : VExpr.WF env uvars (actual.reverse ++ outer)
@@ -1216,7 +1216,7 @@ theorem VExpr.WF.mkApps_canonical_prefix
       (Ctx.LiftN.zero remaining.reverse
         (h := by simp)
         (Γ := (actual.take initialCount).reverse ++ outer))
-  exact (VExpr.WF.weakN_iff henv (by
+  exact (VExpr.WF.weakN_iff henv hs (by
     simpa [List.reverse_append, List.append_assoc] using hctxSplit) W).mp
       (by simpa using Hpartial)
 
@@ -1289,7 +1289,7 @@ telescope rather than a sort.  The proof grows the conversion from the
 oldest binder outward, using partial-application typing at each step. -/
 theorem VEnv.HasType.canonicalApplicationContext
     {fn body : VExpr}
-    (henv : env.WF)
+    (henv : env.WF) (hs : env.Strengthening)
     (actual expected : List VExpr) (outer : List VExpr)
     (hctx : OnCtx (actual.reverse ++ outer) (env.IsType uvars))
     (hfn : env.HasType uvars outer fn
@@ -1354,7 +1354,7 @@ theorem VEnv.HasType.canonicalApplicationContext
           (.forallE expectedDomain.lift expectedBody) := by
         simpa [VExpr.wrapForalls, VExpr.lift, VExpr.liftN,
           expectedBody] using HpartialWeak
-      have HnextWF₀ := VExpr.WF.mkApps_canonical_prefix henv actual outer
+      have HnextWF₀ := VExpr.WF.mkApps_canonical_prefix henv hs actual outer
         hctx happs (initialCount + 1) (by omega)
       have HnextWF : VExpr.WF env uvars (actualDomain :: actualCtx)
           (VExpr.mkApps (partialApp.liftN 1 0)
@@ -1414,7 +1414,7 @@ theorem VEnv.HasType.canonicalApplicationContext
           (.bvar 0) actualDomain.lift :=
         VEnv.HasType.bvar Lookup.zero
       have HdomainWeak := HactualArg.uniqU henv hactualCtx HexpectedArg
-      have HdomainU := (VEnv.IsDefEqU.weakN_iff henv hactualCtx
+      have HdomainU := (VEnv.IsDefEqU.weakN_iff henv hs hactualCtx
         (Ctx.LiftN.one (A := actualDomain))).mp (by
           simpa [VExpr.lift] using HdomainWeak)
       rcases (hactualCtx.2) with ⟨domainLevel, HactualType⟩
@@ -1438,11 +1438,11 @@ theorem VEnv.HasType.canonicalApplicationContext
   rw [List.take_length, hexpectedTakeAll] at H
   exact H
 
-
-/-- Applying every binder of a well-typed forall telescope ending in a sort
-produces another type.  Argument typing is recovered from the independently
-known well-typed application and transported to the specified telescope by
-uniqueness and forall injectivity. -/
+/-- Transport a canonical application from an independently reconstructed
+argument context before inverting its declared forall telescope.  Keeping
+the transport separate is useful when the application and the equation
+frame come from different executable passes: only their ambient dependent
+contexts must be related; the canonical application term is unchanged. -/
 theorem VEnv.HasType.mkApps_isType
     (henv : env.WF) (hctx : OnCtx ctx (env.IsType uvars))
     (hfn : env.HasType uvars ctx fn fnType)

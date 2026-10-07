@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MARKER = "INDUCTIVE_AUDIT "
 ROOTS = {
     "Lean4Lean.addDecl.WF",
+    "Lean4Lean.addDecl.WF_of_canonicalEq",
+    "Lean4Lean.addDecl.WFHasCanonicalEq",
+    "Lean4Lean.addDecl.WFCanonicalEq_of_canonicalEq",
     "Lean4Lean.VEnv.QuotRegistered.witness_app",
     "Lean4Lean.VEnv.QuotDeltaRule.defeq",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF",
@@ -22,7 +25,7 @@ ROOTS = {
     "Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF",
     "Lean4Lean.TypeChecker.whnf.WF",
     "Lean4Lean.TypeChecker.Inner.reduceRecursor.WF",
-    "Lean4Lean.VEnv.NormalEq.headParallel",
+    "Lean4Lean.VEnv.NormalEq.parRed",
     "Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalTypeTranslations",
     "Lean4Lean.VEnv.NativeDeltaRule.defeq",
     "Lean4Lean.VEnv.IsDefEq.full_church_rosser",

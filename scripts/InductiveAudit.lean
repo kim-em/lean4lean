@@ -75,6 +75,9 @@ elab "#inductive_audit " ids:ident* : command => do
     liftIO <| IO.println s!"INDUCTIVE_AUDIT {(toJson report).compress}"
 
 #inductive_audit Lean4Lean.addDecl.WF
+#inductive_audit Lean4Lean.addDecl.WF_of_canonicalEq
+#inductive_audit Lean4Lean.addDecl.WFHasCanonicalEq
+#inductive_audit Lean4Lean.addDecl.WFCanonicalEq_of_canonicalEq
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveFinalResultWF
 #inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
@@ -95,7 +98,7 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.MatchedCaseStep
 #inductive_audit Lean4Lean.ProjectionDesugaring
 
-#inductive_audit Lean4Lean.VEnv.NormalEq.headParallel
+#inductive_audit Lean4Lean.VEnv.NormalEq.parRed
 #inductive_audit Lean4Lean.VEnv.HeadParallelReduction
 #inductive_audit Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalTypeTranslations
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstruction

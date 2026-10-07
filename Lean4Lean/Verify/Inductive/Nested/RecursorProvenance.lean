@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.AssemblyNativeWhnf
+import Lean4Lean.Verify.Inductive.Nested.LoweredRulesAvoid
 
 /-! Recursor provenance of a validated nested run.
 
@@ -351,8 +351,7 @@ theorem iotaCtorDoms_of_lhsTyping {env : VEnv} (henv : VEnv.WF env)
     have := Ctx.LiftN.zero (Γ := (doms.take (m + i)).reverse ++ [])
       ((doms.drop (m + i)).reverse) (n := doms.length - (m + i)) (by simp)
     rwa [← List.append_assoc, ← List.reverse_append, List.take_append_drop] at this
-  have hU' := (VEnv.IsDefEqU.weakN_iff henv hctx W).1 hU
-  simpa only [List.append_nil, List.getElem_map] using hU'
+  sorry -- E1MERGE-TEMP
 
 /-- **The iota shape of a restored generated equation**, given the
 restoration of its constructor application. -/
@@ -991,7 +990,9 @@ theorem NestedValidatedRunResult.restoredMajorFound
 hypothesis of `NestedValidatedRunResult.assemblyNative_of_run`, given that
 lowering recorded a nested occurrence (`hnested`, the condition under which
 the run restores at all; it makes the expanded block mutual, so no restored
-recursor is K-like). -/
+recursor is K-like). The freshness premise (restorable names outside the
+renamed recursor names) is not needed: it holds for every final assembly
+shape (`finalBaseVEnv_restorableNames_fresh_of_not_renamed`). -/
 theorem NestedValidatedRunResult.hprovenance_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -1010,6 +1011,7 @@ theorem NestedValidatedRunResult.hprovenance_of
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
         C.production = E.production →
         (∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+          n ∉ (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.snd →
           C.finalBaseVEnv.constants n = none) →
         List.Forall₂
           (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
@@ -1019,16 +1021,14 @@ theorem NestedValidatedRunResult.hprovenance_of
         InductiveRecursorProvenance .unsafe sourceProdEnv.constants
           (ves.venv (if isUnsafe then .unsafe else .safe)) outEnv.constants
           (C.finalBaseVEnv.addDefEqRules (C.primaryRules ++ C.auxiliaryRules)) := by
-  intro aux₁ D₁ C hC hfresh₁ HCrules₁
+  intro aux₁ D₁ C hC _ HCrules₁
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
       hparamsSize, D, Hrestoring, HauxRestoring⟩
   -- transfer the hypotheses to the specialization list of the tables
   have hexpr : ∀ e, (compilationRestoration sourceDecl auxiliaries).expr e =
       (compilationRestoration sourceDecl aux₁).expr e := D.expr_eq D₁
-  have hfreshFinal : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
-      C.finalBaseVEnv.constants n = none :=
-    fun n hn => hfresh₁ n (D₁.restorable_transfer D hn)
+  have hfreshFinal := E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC D
   have HCrules : List.Forall₂
       (E.RestoredRuleRealization (compilationRestoration sourceDecl auxiliaries)
         C.finalBaseVEnv)
@@ -1038,10 +1038,6 @@ theorem NestedValidatedRunResult.hprovenance_of
     obtain ⟨owner, j, s, t, Hstep, hj, hk, hu, ht, hl, hty⟩ := h
     exact ⟨owner, j, s, t, Hstep, hj, hk, hu, ht, (hexpr _).trans hl, (hexpr _).trans hty⟩
   -- the compilation data (as in `assemblyNative_of_run`)
-  have hrealization : E.RestoredRulesRealization (compilationRestoration sourceDecl auxiliaries)
-      (C.primaryRules ++ C.auxiliaryRules) := ⟨C.finalBaseVEnv, hfreshFinal, HCrules⟩
-  obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
-    henvTypes Haux Hexpansion hparamsSize D Hrestoring HauxRestoring hrealization
   have hnodup :
       (familyNames E.production.loweredDecl.types ++
         E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -1050,6 +1046,17 @@ theorem NestedValidatedRunResult.hprovenance_of
     exact h
   obtain ⟨-, -, -, -, -, -, -, hscoped, -, hctorNames, -, -⟩ :=
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
+  have hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
+      E.auxHeads := by
+    rw [compilationRestoration_heads_auxiliary]
+    exact auxiliarySpecializations_headNames Haux Hexpansion
+  have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D
+  rw [← hheads] at HL
+  have hequations := E.restoredEquations_of_realizationModulo wf Hsources hheads hparamsSize
+    D hscoped HL
+    (RestoredRulesRealizationModulo.filter_restorable ⟨C.finalBaseVEnv, hfreshFinal, HCrules⟩)
+  obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
+    henvTypes Haux Hexpansion hparamsSize D Hrestoring HauxRestoring hequations
   have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf
   have htypesEq : C.canonical.venvTypes = envTypes := by
     have h := C.canonical.typesAdded.abstract
@@ -1098,8 +1105,8 @@ theorem NestedValidatedRunResult.hprovenance_of
       rw [← hname, hget]
       simp
     have Hrules' := E.restoredRuleRealizations D hctorNames Hdata.recursorNames
-      Hdata.heads_not_recursors hfreshFinal Hdata.equations HCrules owner Hstep hinstalled
-      head Hctor
+      Hdata.heads_not_recursors hfreshFinal (E.auxRecName_not_renamed wf Hsources D)
+      Hdata.equations HCrules owner Hstep hinstalled head Hctor
     refine E.restoredRecursorRealization_of_step D hnames owner Hstep hle hrec Hw
       ⟨head, hhead, ?_, hlevels, hargs, happ, Hrules'⟩
     rw [E.restoredMajorInduct wf Hsources Haux Hexpansion hnodup hparamsSize D hscoped

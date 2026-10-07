@@ -863,7 +863,12 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
       VInductDecl.DirectAuxConstructor (ves.venv safety) lparams.length
         parameterDomains baseArgs abstractLevels containerFamily
           auxiliaryFamily
-        (containerFamily.ctors[i]'B.abstractIdx_lt) target := by
+        (containerFamily.ctors[i]'B.abstractIdx_lt) target ∧
+      ∃ instCtorType : VExpr,
+        VExpr.LEquiv lparams.length instCtorType
+          ((containerFamily.ctors[i]'B.abstractIdx_lt).type.instL abstractLevels) ∧
+        target.type = VExpr.wrapForalls parameterDomains
+          (VExpr.instantiateForallPrefix instCtorType baseArgs) := by
   dsimp only
   let containerFamily := C.container.types[C.familyIdx]'C.familyIdx_lt
   let abstractCtor := containerFamily.ctors[i]'B.abstractIdx_lt
@@ -1078,7 +1083,7 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
     name := (concrete.ctors[i]'hconcreteCtor).name
     type := VExpr.wrapForalls parameterDomains
       (VExpr.applyForallType instCtorType baseArgs) }
-  refine ⟨target, ?_, ?_⟩
+  refine ⟨target, ?_, ?_, instCtorType, ?_, ?_⟩
   · exact {
       uvars := rfl
       name := rfl
@@ -1099,6 +1104,9 @@ theorem GeneratedFamilyInstalledContainer.BuiltConstructorTranslation.directAuxi
           rw [C.constructorName i hi, C.lookupName, C.familyName]
     · simpa [target, VConstVal.directAuxiliary,
         VExpr.applyForallType_eq_instantiateForallPrefix] using HdirectType
+  · exact TrExprS.instL_lequiv_of Hlevels hsourceLevelLength B.sourceTranslation.2.2
+      (by simpa [VLCtx.instL] using VLCtx.LEquiv.nil) HinstTranslation₀
+  · simp [target, VExpr.applyForallType_eq_instantiateForallPrefix]
 
 /-- Assemble all generated constructor targets in the builder's literal
 order.  Pointwise targets are chosen from the exact environment lookup and
@@ -1172,10 +1180,12 @@ theorem GeneratedFamilyInstalledContainer.directAuxiliaryConstructors
             using hi)) target := by
     intro i hi
     rcases C.builtConstructorTranslation wf i hi with ⟨B⟩
-    simpa only [containerFamily, auxiliaryFamily] using
+    obtain ⟨t, h1, h2, -⟩ :=
       B.directAuxiliary C henv lparams parameterDomains baseArgs
         abstractLevels Hlevels Hbase hdomains hparams familyTarget Hfamily
           HfamilyApps hlevelsLength numIndices resultLevel
+    exact ⟨t, by simpa only [containerFamily, auxiliaryFamily] using h1,
+      by simpa only [containerFamily, auxiliaryFamily] using h2⟩
   let target (i : Fin H.sourceInfo.ctors.length) : VConstVal :=
     Classical.choose (Hpoint i i.isLt)
   have Htarget (i : Fin H.sourceInfo.ctors.length) :=

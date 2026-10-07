@@ -237,7 +237,8 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
       (formed : schema.Certified base source block)
       (keyEq : source.types.head?.map (·.name) = some key)
       (constants : (∀ value ∈ block.types ++ block.ctors,
-        env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs)
+        env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
+        schema.ProjNamesRegistered env key)
       (fresh : schema.Fresh env key) :
       NativeRegistryHistory (env.addEliminator key schema) declarations table
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
