@@ -30,8 +30,8 @@ def SoundAt (Γ : List VExpr) (t t' T : VExpr) : Prop :=
   ∀ σ σ' S, Ctx.SubstEq env U Δ σ σ' Γ → TV env U Δ Γ σ S → TV env U Δ Γ σ' S →
     Ob.Sub (Obs env U Δ σ S t) (Obs env U Δ σ' S t') ∧
     Ob.Sub (Obs env U Δ σ' S t') (Obs env U Δ σ S t) ∧
-    (∀ o, Obs env U Δ σ S t o → TypedAt env U Δ σ S T o) ∧
-    (∀ o, Obs env U Δ σ' S t' o → TypedAt env U Δ σ' S T o)
+    (∀ o, Obs env U Δ σ S t o → TypedAt env U Δ (vcls env U Δ σ t T) σ S T o) ∧
+    (∀ o, Obs env U Δ σ' S t' o → TypedAt env U Δ (vcls env U Δ σ' t' T) σ' S T o)
 
 /-- A strong derivation together with its soundness. -/
 def SD (Γ : List VExpr) (t t' T : VExpr) : Prop :=
@@ -43,7 +43,7 @@ inductive TeleKeys : VExpr.Subst → ObSets → List VExpr → List Key → VExp
     Prop
   | nil : TeleKeys σ S [] [] σ S
   | cons : TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) c → c y →
-    (∀ k ∈ K, TypedAt env U Δ σ S A k) →
+    (∀ k ∈ K, TypedAt env U Δ c σ S A k) →
     TeleKeys (σ.cons y) (S.cons (listSet K)) ds keys σ' S' →
     TeleKeys σ S (A :: ds) ((TyCls env U Δ (A.subst σ), c, K) :: keys) σ' S'
 
@@ -108,7 +108,8 @@ theorem wrap_of_obs_mkApps {σ : VExpr.Subst} {S : ObSets} :
     obtain ⟨D, c, K, K', h1, h2, _, _⟩ := Obs.app_iff.1 h'
     exact ⟨(D, c, K) :: keys, .cons h2 hk, h1⟩
 
-theorem typedAt_sort_iff : TypedAt env U Δ σ S (.sort l) o ↔ TypedOb env U Δ o [.sort l.eval] := by
+theorem typedAt_sort_iff : TypedAt env U Δ cv σ S (.sort l) o ↔
+    TypedOb env U Δ cv o [.sort l.eval] := by
   constructor
   · rintro ⟨τs, h1, h2⟩
     exact h2.mono fun τ hτ => by rw [Obs.sort_mem (h1 τ hτ)]; exact List.mem_singleton_self _
@@ -119,23 +120,27 @@ theorem typedAt_sort_iff : TypedAt env U Δ σ S (.sort l) o ↔ TypedOb env U �
 /-- Observations of a Pi type at one typed key. -/
 theorem pi_list {σ : VExpr.Subst} {S : ObSets} {K τk τc : List Ob}
     (hc : TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) c) (hy : c y)
-    (hτk : ∀ τ ∈ τk, Obs' σ S A τ) (hkk : ∀ k ∈ K, TypedOb env U Δ k τk)
+    (hτk : ∀ τ ∈ τk, Obs' σ S A τ) (hkk : ∀ k ∈ K, TypedOb env U Δ c k τk)
     (hτc : ∀ τ ∈ τc, Obs' (σ.cons y) (S.cons (listSet K)) B τ) :
     ∃ τs, (∀ τ ∈ τs, Obs' σ S (.forallE A B) τ) ∧
-      ∀ o, TypedOb env U Δ o τc →
-        TypedOb env U Δ (.app (TyCls env U Δ (A.subst σ)) c K o) τs := by
-  refine ⟨.piDom (TyCls env U Δ (A.subst σ)) :: (τk.map .piDomOb ++ τc.map (.piCodOb c K)),
-    ?_, fun o ho => ?_⟩
+      ∀ cv o, TypedOb env U Δ (appCls env U Δ cv c (TyCls env U Δ (B.subst (σ.cons y)))) o τc →
+        TypedOb env U Δ cv (.app (TyCls env U Δ (A.subst σ)) c K o) τs := by
+  refine ⟨.piDom (TyCls env U Δ (A.subst σ)) ::
+    .piCod c (TyCls env U Δ (B.subst (σ.cons y))) :: (τk.map .piDomOb ++ τc.map (.piCodOb c K)),
+    ?_, fun cv o ho => ?_⟩
   · intro τ hτ
     simp only [List.mem_cons, List.mem_append, List.mem_map] at hτ
-    rcases hτ with rfl | ⟨x, hx, rfl⟩ | ⟨x, hx, rfl⟩
+    rcases hτ with rfl | rfl | ⟨x, hx, rfl⟩ | ⟨x, hx, rfl⟩
     · exact .piDom
+    · exact .piCod hc hy
     · exact .piDomOb (hτk x hx)
     · exact .piCodOb hc hτk hkk hy (hτc x hx)
   · refine .app (τd := τk) (τc := τc) (List.mem_cons_self ..) (fun x hx => ?_) hkk hc
-      (fun x hx => ⟨K, ?_, Covers.refl⟩) ho
-    · exact List.mem_cons_of_mem _ (List.mem_append_left _ (List.mem_map_of_mem hx))
-    · exact List.mem_cons_of_mem _ (List.mem_append_right _ (List.mem_map_of_mem hx))
+      (List.mem_cons_of_mem _ (List.mem_cons_self ..)) (fun x hx => ⟨K, ?_, Covers.refl⟩) ho
+    · exact List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+        (List.mem_append_left _ (List.mem_map_of_mem hx)))
+    · exact List.mem_cons_of_mem _ (List.mem_cons_of_mem _
+        (List.mem_append_right _ (List.mem_map_of_mem hx)))
 
 /-- Codomain observations at typed keys are observations of the Pi telescope. -/
 theorem tele_obs (h : TeleKeys env U Δ σ S ds keys σ' S') (hx : Obs' σ' S' R x) :
@@ -145,19 +150,6 @@ theorem tele_obs (h : TeleKeys env U Δ σ S ds keys σ' S') (hx : Obs' σ' S' R
   | cons hc hy hK _ ih =>
     obtain ⟨τs, h1, h2⟩ := TypedAt.merge hK
     exact .piCodOb hc h1 h2 hy (ih hx)
-
-/-- Observations typed at codomain observations at typed keys give chains typed at
-observations of the Pi telescope. -/
-theorem tele_typed (h : TeleKeys env U Δ σ S ds keys σ' S') (hτ : ∀ τ ∈ τc, Obs' σ' S' R τ)
-    (ho : TypedOb env U Δ o τc) :
-    ∃ τs, (∀ τ ∈ τs, Obs' σ S (.wrapForalls ds R) τ) ∧ TypedOb env U Δ (wrap keys o) τs := by
-  induction h generalizing τc o with
-  | nil => exact ⟨τc, hτ, ho⟩
-  | cons hc hy hK _ ih =>
-    obtain ⟨τs', h1, h2⟩ := ih hτ ho
-    obtain ⟨τk, hτk, hkk⟩ := TypedAt.merge hK
-    obtain ⟨τs, h3, h4⟩ := pi_list hc hy hτk hkk h1
-    exact ⟨τs, h3, h4 _ h2⟩
 
 /-- Observations of a lambda telescope. -/
 theorem Obs.wrapLams_iff : Obs' σ S (.wrapLams ds b) o ↔
@@ -183,6 +175,13 @@ section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
 
+/-- Keys typed at their class extend a typed valuation by any member of the class. -/
+theorem TV.cons_cls (tv : TV env U Δ Γ σ S)
+    (hc : TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) c) (hy : c y)
+    (hK : ∀ k ∈ K, TypedAt env U Δ c σ S A k) :
+    TV env U Δ (A :: Γ) (σ.cons y) (S.cons (listSet K)) :=
+  tv.cons fun k hk => (hK k hk).congr_cls (let ⟨_, _, _, e⟩ := hc.mem henv hΔ hy; e)
+
 /-- The extension of a typed valuation along typed keys is typed. -/
 theorem TeleKeys.typed (h : TeleKeys env U Δ σ S ds keys σ' S')
     (hds : PiSD env U Δ Γ ds R) (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
@@ -192,33 +191,42 @@ theorem TeleKeys.typed (h : TeleKeys env U Δ σ S ds keys σ' S')
   | cons hc hy hK _ ih =>
     cases hds with
     | cons hA _ hds =>
-      have := ih hds (.cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy)) (tv.cons hK)
+      have := ih hds (.cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy))
+        (tv.cons_cls henv hΔ hc hy hK)
       simpa [List.reverse_cons, List.append_assoc] using this
 
 /-- One step of unwinding: an `app` observation typed at observations of a Pi type has its
-key typed at the domain, and its result typed at codomain observations at the extension by
-any member `y` of the key class. -/
-theorem pi_step (hA : env.HasType U Γ A (.sort u))
+key typed at the domain, and its result typed, at the class of the applications, at codomain
+observations at the extension by any member `y` of the key class. -/
+theorem pi_step (hA : env.HasType U Γ A (.sort u)) (hB' : env.HasType U (A :: Γ) B (.sort v))
     (hB : SoundAt env U Δ (A :: Γ) B B (.sort v)) (W : Ctx.SubstEq env U Δ σ σ Γ)
-    (tv : TV env U Δ Γ σ S) (ho : TypedOb env U Δ (.app D c K o) τs)
+    (tv : TV env U Δ Γ σ S) (ho : TypedOb env U Δ cv (.app D c K o) τs)
     (hτ : ∀ τ ∈ τs, Obs' σ S (.forallE A B) τ) (hy : c y) :
     D = TyCls env U Δ (A.subst σ) ∧ TypedElCls env U Δ D c ∧
-      (∀ k ∈ K, TypedAt env U Δ σ S A k) ∧
-      ∃ τc, (∀ τ ∈ τc, Obs' (σ.cons y) (S.cons (listSet K)) B τ) ∧ TypedOb env U Δ o τc := by
+      (∀ k ∈ K, TypedAt env U Δ c σ S A k) ∧
+      ∃ τc, (∀ τ ∈ τc, Obs' (σ.cons y) (S.cons (listSet K)) B τ) ∧
+        TypedOb env U Δ (appCls env U Δ cv c (TyCls env U Δ (B.subst (σ.cons y)))) o τc := by
   cases ho with
-  | @app _ τd _ _ _ τc _ hD hd hkt hc hcod hty' =>
+  | @app _ τd _ _ _ τc _ C _ hD hd hkt hc hC hcod hty' =>
     have eD := Obs.piDom_mem (hτ _ hD); subst eD
     have hτd : ∀ x ∈ τd, Obs' σ S A x := fun x hx => Obs.piDomOb_mem (hτ _ (hd x hx))
-    have hKA : ∀ k ∈ K, TypedAt env U Δ σ S A k := fun k hk => ⟨τd, hτd, hkt k hk⟩
+    have hKA : ∀ k ∈ K, TypedAt env U Δ c σ S A k := fun k hk => ⟨τd, hτd, hkt k hk⟩
     refine ⟨rfl, hc, hKA, ?_⟩
+    have eC : C = TyCls env U Δ (B.subst (σ.cons y)) := by
+      obtain ⟨-, z, hz, rfl⟩ := Obs.piCod_mem (hτ _ hC)
+      have W' : Ctx.SubstEq env U Δ (σ.cons z) (σ.cons y) (A :: Γ) :=
+        .cons W hA (hc.defeq henv hΔ hz hy)
+      exact TyCls.eq_of_defeq (hB'.substDF henv W'.wf hΔ W')
+    subst eC
     have : ∀ x ∈ τc, ∃ x', Obs' (σ.cons y) (S.cons (listSet K)) B x' ∧ x' ≼ x := by
       intro x hx
       obtain ⟨K₀, hm, hKK⟩ := hcod x hx
       obtain ⟨_, ⟨τk, hτk, hkk⟩, z, hz, hxR⟩ := Obs.piCodOb_mem (hτ _ hm)
       have W' : Ctx.SubstEq env U Δ (σ.cons z) (σ.cons y) (A :: Γ) :=
         .cons W hA (hc.defeq henv hΔ hz hy)
-      have hK₀ : ∀ k ∈ K₀, TypedAt env U Δ σ S A k := fun k hk => ⟨τk, hτk, hkk k hk⟩
-      obtain ⟨x₁, hx₁, l₁⟩ := (hB _ _ _ W' (tv.cons hK₀) (tv.cons hK₀)).1 x hxR
+      have hK₀ : ∀ k ∈ K₀, TypedAt env U Δ c σ S A k := fun k hk => ⟨τk, hτk, hkk k hk⟩
+      obtain ⟨x₁, hx₁, l₁⟩ := (hB _ _ _ W' (tv.cons_cls henv hΔ hc hz hK₀)
+        (tv.cons_cls henv hΔ hc hy hK₀)).1 x hxR
       obtain ⟨x₂, hx₂, l₂⟩ := hx₁.mono_le (S' := S.cons (listSet K)) fun i o h => by
         cases i with
         | zero => obtain ⟨k', hk', l⟩ := hKK o h; exact ⟨k', hk', l⟩
@@ -228,17 +236,18 @@ theorem pi_step (hA : env.HasType U Γ A (.sort u))
     exact ⟨τc', h1, hty'.strengthen h2⟩
 
 /-- **Unwinding**: a chain of `app` observations typed at observations of a Pi telescope
-(with sound codomains) has typed keys, and its innermost observation is typed at codomain
-observations at the extended valuation. -/
+(with sound codomains) has typed keys, and its innermost observation is typed (at some class)
+at codomain observations at the extended valuation. -/
 theorem tele_unwind (hds : PiSD env U Δ Γ ds R) (W : Ctx.SubstEq env U Δ σ σ Γ)
     (tv : TV env U Δ Γ σ S) (hlen : keys.length = ds.length)
-    (ho : TypedOb env U Δ (wrap keys o) τs) (hτ : ∀ τ ∈ τs, Obs' σ S (.wrapForalls ds R) τ) :
+    (ho : TypedOb env U Δ cv (wrap keys o) τs)
+    (hτ : ∀ τ ∈ τs, Obs' σ S (.wrapForalls ds R) τ) :
     ∃ σ' S', TeleKeys env U Δ σ S ds keys σ' S' ∧
-      ∃ τc, (∀ τ ∈ τc, Obs' σ' S' R τ) ∧ TypedOb env U Δ o τc := by
-  induction hds generalizing σ S keys τs with
+      ∃ τc cv', (∀ τ ∈ τc, Obs' σ' S' R τ) ∧ TypedOb env U Δ cv' o τc := by
+  induction hds generalizing σ S keys τs cv with
   | nil =>
     cases keys with
-    | nil => exact ⟨σ, S, .nil, τs, hτ, ho⟩
+    | nil => exact ⟨σ, S, .nil, τs, cv, hτ, ho⟩
     | cons => cases hlen
   | @cons Γ A u ds R v hA hR hds ih =>
     cases keys with
@@ -249,11 +258,12 @@ theorem tele_unwind (hds : PiSD env U Δ Γ ds R) (W : Ctx.SubstEq env U Δ σ �
       have hc : TypedElCls env U Δ D c := by cases ho with | app _ _ _ hc => exact hc
       obtain ⟨y, hy⟩ := hc.nonempty
       obtain ⟨rfl, hc, hKA, τc, h1, h2⟩ :=
-        pi_step henv hΔ hA.1.defeq.hasType.1 hR.2 W tv ho hτ hy
+        pi_step henv hΔ hA.1.defeq.hasType.1 hR.1.defeq.hasType.1 hR.2 W tv ho hτ hy
       have W'' : Ctx.SubstEq env U Δ (σ.cons y) (σ.cons y) (A :: Γ) :=
         .cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy)
-      obtain ⟨σ', S', hT, τc'', h3, h4⟩ := ih W'' (tv.cons hKA) (Nat.succ.inj hlen) h2 h1
-      exact ⟨σ', S', .cons hc hy hKA hT, τc'', h3, h4⟩
+      obtain ⟨σ', S', hT, τc'', cv'', h3, h4⟩ :=
+        ih W'' (tv.cons_cls henv hΔ hc hy hKA) (Nat.succ.inj hlen) h2 h1
+      exact ⟨σ', S', .cons hc hy hKA hT, τc'', cv'', h3, h4⟩
 
 end
 

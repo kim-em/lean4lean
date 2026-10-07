@@ -47,7 +47,7 @@ def ProofBinder (env : VEnv) (U : Nat) (Δ : List VExpr) (doms : List VExpr) (ls
   ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
     TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
     (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧ env.HasType U Δ P (.sort .zero)) ∧
-    ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ → TypedOb env U Δ τ [.sort fun _ => 0]
+    ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ → ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0]
 
 theorem eqLead_length_owner {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block) (index : Fin s.constructors.size) :
@@ -85,7 +85,8 @@ clause. -/
 theorem const_rigid_inv {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
     (hrig : env.Rigid n) (h : Obs' σ S (.const n ls) (wrap keys (.rigid n' ℓs m z))) :
     ∃ ci τs, env.constants n = some ci ∧ (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
-      TypedOb env U Δ (wrap keys (.rigid n' ℓs m z)) τs := by
+      TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls))
+        (wrap keys (.rigid n' ℓs m z)) τs := by
   rcases Obs.const_iff.1 h with ⟨ci, τs, keys', r, e, _, hci, hτs, hty, hr⟩ |
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
@@ -306,7 +307,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
       hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
       (fun keys hkl hobs => absurd (by rw [eH] at hobs; exact hobs)
         (fun h => native_C_absurd hΔ hlw hrigF hfs hnz' (by rw [hlenH, hkl]) h))
-      ihL ihR
+      ihL ihR (.extra hdf hlw hlen)
   · -- small elimination: the right-hand side has no observations
     obtain ⟨mds, emds, lmds⟩ := motive_binderTy g index ls
     have hcl' : ((g.equation index).type.instL ls).ClosedN := hcl.1.2.instL
@@ -332,6 +333,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     refine sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH
       hkH hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
       (fun keys hkl hobs => ⟨fun df' ls' hdf' hh => ?_, fun x hx hnl v vS Wv tvv => ?_⟩) ihL ihR
+      (.extra hdf hlw hlen)
     · have hm := hex df' hdf' ls' hh
       rw [C.ordinary_rules] at hm
       obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm

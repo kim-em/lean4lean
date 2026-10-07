@@ -32,7 +32,7 @@ theorem major_indicator_gen {Th : VExpr} {ls : List VLevel} {uH : VLevel} {Γ0 :
     (hk : dsH[k]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     {keys : List Key} (hkeys : keys.length = k + 1)
     (hτ₀ : ∀ τ ∈ τ₀, Obs' .id .empty Th τ)
-    (hty : TypedOb env U Δ (wrap keys o) τ₀) :
+    (hty : TypedOb env U Δ cv (wrap keys o) τ₀) :
     ∃ u : VLevel, Obs' .id .empty Th (piCodChain (keys.take k)
       (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval))) := by
   have hk' : k < dsH.length := by omega
@@ -152,12 +152,14 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
       False)
     (hL : HTS env U Δ Γ (df.lhs.instL ls) (df.type.instL ls))
     (hR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
+    (heq : env.IsDefEq U Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
     Ob.Sub (Obs' σ S (df.rhs.instL ls)) (Obs' σ S (df.lhs.instL ls)) := by
   obtain ⟨eL, eR⟩ := pat_instL_elim hl hr hlsP
   intro o ho
   refine ⟨o, ?_, .refl⟩
   obtain ⟨τs, hτs, hty⟩ := (hR σ σ S W tv tv).2.2.1 o ho
+  rw [← vcls_defeq henv hΔ W heq, eL] at hty
   rw [eR] at ho
   obtain ⟨lk, v, vS, p, hk, rfl, hp⟩ := Obs.wrapLams_iff.1 ho
   rw [eL] at hL ⊢
@@ -216,7 +218,8 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
         (infoL' ++ [kaM']) (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
           (ms.map (·.instL ls) ++ fs.map .bvar)]) →
       (∀ τ ∈ τ₀', Obs' .id .empty (type.instL ls) τ) →
-      TypedOb env U Δ (wrap ((infoL' ++ [kaM']).map (·.1)) p) τ₀' →
+      TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (type.instL ls)) (.elim b owner.val ls))
+        (wrap ((infoL' ++ [kaM']).map (·.1)) p) τ₀' →
       (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ kaM'.1.2.2) →
       RuleBind env U Δ doms ls lead ms.length fs false (infoL'.map (·.1)) kaM'.1.2.2 v S' →
       (∀ x o, vS x o → S' x o) →
@@ -250,7 +253,8 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
           (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
       intro r hr
       have hend := ctorObs_end hr
-      have hrty : TypedOb env U Δ r
+      have hrty : TypedOb env U Δ (vcls env U Δ v (.mkApps (.const ctor (lsC.map (·.inst ls)))
+          (ms.map (·.instL ls) ++ fs.map .bvar)) kaM.2) r
           [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] := by
         rcases hend with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩
         · exact .ctorHead hCT
@@ -543,7 +547,8 @@ theorem sound_pat_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.Cas
     (ihL : SoundAt env U Δ Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls) ∧
       HTS env U Δ Γ (df.lhs.instL ls) (df.type.instL ls))
     (ihR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) ∧
-      HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls)) :
+      HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
+    (heq : env.IsDefEq U Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls)) :
     SoundAt env U Δ Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) := by
   intro σ σ' S W tv tv'
   have W' := SubstEq.right henv hΔ W
@@ -555,7 +560,7 @@ theorem sound_pat_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.Cas
       huniq ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP htype eH
-      hlenH hkH hIrig hcf hcis hC ihL.2 ihR.1 W' tv' o h
+      hlenH hkH hIrig hcf hcis hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 /-- Soundness of an eliminator rule whose right-hand side has no observations. -/

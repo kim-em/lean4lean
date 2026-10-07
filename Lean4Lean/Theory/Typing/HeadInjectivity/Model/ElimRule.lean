@@ -70,7 +70,7 @@ theorem HTS.elim_head : ∀ {Γ e T}, HTS env U Δ Γ e T → ∀ {b o ls args},
     rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩
     · cases h; exact ⟨_, _, _, hb, rfl, ht⟩
     · cases h
-  | app _ _ _ _ _ ihf =>
+  | app _ _ _ _ _ _ ihf =>
     intro b o ls args he
     rcases mkApps_inv he with ⟨_, h⟩ | ⟨as, a, rfl, h⟩
     · cases h
@@ -122,7 +122,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       ((L.inst (schema.restoration.headLevels schema.signature.families[owner].name
         schema.genericLevels)).inst (target :: levels)).IsNeverZero) :
     ElimValid env owner df := by
-  intro U Δ Γ levels target tl hΔ hrc hperm _ ihT _ ihL _ ihR
+  intro U Δ Γ levels target tl hΔ hrc hperm _ ihT hLd ihL hRd ihR
   have hnodup := hcert.constructor_names_nodup owner
   obtain ⟨expanded, g0, aux, C, hprior, hrr, -⟩ := hcert
   obtain ⟨j, hres⟩ := CaseSchema.equation_origin hrules hmem
@@ -273,6 +273,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       hkH hIrig hcf hcis hcrig huniq
       (fun keys hkl hobs => C_absurd_gen hΔ hlw eT hlenH hkH hIrig hfs
         (hnzL levels target hperm.length hnz) hkl hobs) ihL ihR
+      (.elimIota hb hrules hmem hrc hperm hLd.defeq hRd.defeq)
   · obtain ⟨args', hargs, rfl⟩ := Restoration.expr_bvar_mkApps hT'
     obtain ⟨x, hx, hxget⟩ := mapM_reverse_getElem? hds (eqDoms_reverse_motive _ j)
     have hm := motive_eq (schema.specialize owner schema.genericUvars schema.genericLevels

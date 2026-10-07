@@ -191,7 +191,7 @@ theorem major_indicator {ci : VConstant} {ls : List VLevel} {uH : VLevel}
     (hk : dsH[k]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     {keys : List Key} (hkeys : keys.length = k + 1)
     (hτ₀ : ∀ τ ∈ τ₀, Obs' .id .empty (ci.type.instL ls) τ)
-    (hty : TypedOb env U Δ (wrap keys o) τ₀) :
+    (hty : TypedOb env U Δ cv (wrap keys o) τ₀) :
     ∃ u : VLevel, Obs' .id .empty (ci.type.instL ls) (piCodChain (keys.take k)
       (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval))) := by
   have eT : ci.type.instL ls = .wrapForalls (dsH.map (·.instL ls)) (RH.instL ls) := by
@@ -326,15 +326,18 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
         (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
-        ∀ τ, Obs' v vS (binderTy doms ls x) τ → TypedOb env U Δ τ [.sort fun _ => 0])
+        ∀ τ, Obs' v vS (binderTy doms ls x) τ → ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0])
     (hL : HTS env U Δ Γ (df.lhs.instL ls) (df.type.instL ls))
     (hR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
+    (heq : env.IsDefEq U Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
     Ob.Sub (Obs' σ S (df.rhs.instL ls)) (Obs' σ S (df.lhs.instL ls)) := by
   obtain ⟨eL, eR⟩ := pat_instL hl hr hlsP
   intro o ho
   refine ⟨o, ?_, .refl⟩
   obtain ⟨τs, hτs, hty⟩ := (hR σ σ S W tv tv).2.2.1 o ho
+  rw [← vcls_defeq henv hΔ W heq] at hty
+  rw [eL] at hty
   rw [eR] at ho
   obtain ⟨lk, v, vS, p, hk, rfl, hp⟩ := Obs.wrapLams_iff.1 ho
   rw [eL] at hL ⊢
@@ -387,7 +390,8 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         (infoL' ++ [kaM']) (lead.map (·.instL ls) ++ [.mkApps (.const ctor (lsC.map (·.inst ls)))
           (ms.map (·.instL ls) ++ fs.map .bvar)]) →
       (∀ τ ∈ τ₀', Obs' .id .empty (ci.type.instL ls) τ) →
-      TypedOb env U Δ (wrap ((infoL' ++ [kaM']).map (·.1)) p) τ₀' →
+      TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls))
+        (wrap ((infoL' ++ [kaM']).map (·.1)) p) τ₀' →
       (mC = true → ∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' →
         df' = df) →
       (mC = true → Obs' .id .empty (ci.type.instL ls) (piCodChain (infoL'.map (·.1))
@@ -446,7 +450,8 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
           (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
       intro r hr
       have hend := ctorObs_end hr
-      have hrty : TypedOb env U Δ r
+      have hrty : TypedOb env U Δ (vcls env U Δ v (.mkApps (.const ctor (lsC.map (·.inst ls)))
+          (ms.map (·.instL ls) ++ fs.map .bvar)) kaM.2) r
           [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] := by
         rcases hend with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩
         · exact .ctorHead hCT
@@ -746,11 +751,12 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
         TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
         (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
-        ∀ τ, Obs' v vS (binderTy doms ls x) τ → TypedOb env U Δ τ [.sort fun _ => 0])
+        ∀ τ, Obs' v vS (binderTy doms ls x) τ → ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0])
     (ihL : SoundAt env U Δ Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls) ∧
       HTS env U Δ Γ (df.lhs.instL ls) (df.type.instL ls))
     (ihR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) ∧
-      HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls)) :
+      HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
+    (heq : env.IsDefEq U Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls)) :
     SoundAt env U Δ Γ (df.lhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) := by
   intro σ σ' S W tv tv'
   have W' := SubstEq.right henv hΔ W
@@ -762,7 +768,7 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
       ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hci eH hlenH hkH hIrig hcf
-      hcis hC ihL.2 ihR.1 W' tv' o h
+      hcis hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 end

@@ -310,36 +310,45 @@ end
 section
 variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 
-/-- `TypedOb o τs`: the observation `o` of a value is typed at the observations `τs` of its
-type. Sorts are typed at their successor; type observations at some sort, a codomain
-observation at a level that vanishes whenever the Pi's level does (so that observations of
-propositions are typed at `sort 0` only); an `app` observation needs the Pi's domain class,
-its keys typed at observations of the domain, its argument class typed, and its result
-typed at observations of the codomain instance at a key list it covers. -/
-inductive TypedOb : Ob → List Ob → Prop
-  | sort : .sort (fun ns => ℓ ns + 1) ∈ τs → TypedOb (.sort ℓ) τs
-  | piDom : .sort ℓ ∈ τs → TypedOb (.piDom D) τs
-  | piDomOb : .sort ℓ ∈ τs → TypedOb (.piDomOb o) τs
-  | piCod : .sort ℓ ∈ τs → TypedOb (.piCod c C) τs
-  | piCodOb : .sort ℓ ∈ τs → TypedOb o [.sort ℓ'] → (∀ ns, ℓ ns = 0 → ℓ' ns = 0) →
-    TypedOb (.piCodOb c K o) τs
-  | app : .piDom D ∈ τs → (∀ x ∈ τd, .piDomOb x ∈ τs) → (∀ k ∈ K, TypedOb k τd) →
-    TypedElCls env U Δ D c → (∀ x ∈ τc, ∃ K₀, .piCodOb c K₀ x ∈ τs ∧ Covers K K₀) →
-    TypedOb o τc → TypedOb (.app D c K o) τs
-  | rigid : .sort s ∈ τs → TypedOb (.rigid n ℓs m s) τs
-  | rigidArg : .sort ℓ ∈ τs → TypedOb (.rigidArg i c) τs
-  | rigidArgOb : .sort ℓ ∈ τs → TypedOb (.rigidArgOb i o) τs
-  | ctorHead : CtorTyped env c τs → TypedOb (.ctorHead c ℓs m) τs
-  | ctorArg : CtorTyped env c τs → TypedOb (.ctorArg i cls) τs
-  | ctorArgOb : CtorTyped env c τs → TypedOb (.ctorArgOb i pre o) τs
+/-- The applications of members of `cv` to members of `c`, closed in the element class at
+`C`: the value class of the result of applying a value of class `cv` to an argument of class
+`c`, when the codomain at that argument has type class `C` (decision D12 of the notes). -/
+def appCls (cv c C : VExpr → Prop) : VExpr → Prop :=
+  fun z => ∃ w y, cv w ∧ c y ∧ ElCls env U Δ C (.app w y) z
+
+/-- `TypedOb cv o τs`: the observation `o` of a value of class `cv` is typed at the observations
+`τs` of its type. Sorts are typed at their successor; type observations at some sort, a
+codomain observation at a level that vanishes whenever the Pi's level does (so that
+observations of propositions are typed at `sort 0` only); an `app` observation needs the Pi's
+domain class, its keys typed (at their own class) at observations of the domain, its argument
+class typed, and its result typed, at the class of the applications (`appCls`, the codomain
+class read from `piCod`), at observations of the codomain instance at a key list it covers.
+The value class is used by field observations (stage C, decision D12). -/
+inductive TypedOb : (VExpr → Prop) → Ob → List Ob → Prop
+  | sort : .sort (fun ns => ℓ ns + 1) ∈ τs → TypedOb cv (.sort ℓ) τs
+  | piDom : .sort ℓ ∈ τs → TypedOb cv (.piDom D) τs
+  | piDomOb : .sort ℓ ∈ τs → TypedOb cv (.piDomOb o) τs
+  | piCod : .sort ℓ ∈ τs → TypedOb cv (.piCod c C) τs
+  | piCodOb : .sort ℓ ∈ τs → TypedOb cv' o [.sort ℓ'] → (∀ ns, ℓ ns = 0 → ℓ' ns = 0) →
+    TypedOb cv (.piCodOb c K o) τs
+  | app : .piDom D ∈ τs → (∀ x ∈ τd, .piDomOb x ∈ τs) → (∀ k ∈ K, TypedOb c k τd) →
+    TypedElCls env U Δ D c → .piCod c C ∈ τs →
+    (∀ x ∈ τc, ∃ K₀, .piCodOb c K₀ x ∈ τs ∧ Covers K K₀) →
+    TypedOb (appCls env U Δ cv c C) o τc → TypedOb cv (.app D c K o) τs
+  | rigid : .sort s ∈ τs → TypedOb cv (.rigid n ℓs m s) τs
+  | rigidArg : .sort ℓ ∈ τs → TypedOb cv (.rigidArg i c) τs
+  | rigidArgOb : .sort ℓ ∈ τs → TypedOb cv (.rigidArgOb i o) τs
+  | ctorHead : CtorTyped env c τs → TypedOb cv (.ctorHead c ℓs m) τs
+  | ctorArg : CtorTyped env c τs → TypedOb cv (.ctorArg i cls) τs
+  | ctorArgOb : CtorTyped env c τs → TypedOb cv (.ctorArgOb i pre o) τs
 
 end
 
 variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 /-- Typing is stable under replacing the type observations by stronger ones. -/
-theorem TypedOb.strengthen (H : TypedOb env U Δ o τs) (h : Covers τs' τs) :
-    TypedOb env U Δ o τs' := by
+theorem TypedOb.strengthen (H : TypedOb env U Δ cv o τs) (h : Covers τs' τs) :
+    TypedOb env U Δ cv o τs' := by
   induction H generalizing τs' with
   | sort h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .sort h2
   | piDom h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .piDom h2
@@ -358,8 +367,9 @@ theorem TypedOb.strengthen (H : TypedOb env U Δ o τs) (h : Covers τs' τs) :
     obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorArgOb ⟨I, ℓs, m, s, h2, h3, h4⟩
   | rigidArg h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArg h2
   | rigidArgOb h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArgOb h2
-  | @app _ τd K _ c τc _ hD hd _ hc hcod _ ihk iho =>
+  | @app _ τd K c _ τc _ C _ hD hd _ hc hC hcod _ ihk iho =>
     have ⟨_, h2, l⟩ := h _ hD; cases l.piDom_inv
+    have ⟨_, hC', lC⟩ := h _ hC; cases lC.piCod_inv
     have ⟨τd', hd1, hd2⟩ := exists_list_cover (L := τd) (P := fun y => Ob.piDomOb y ∈ τs')
       (R := fun y x => y ≼ x) fun x hx => by
         have ⟨_, h3, l⟩ := h _ (hd x hx)
@@ -371,46 +381,48 @@ theorem TypedOb.strengthen (H : TypedOb env U Δ o τs) (h : Covers τs' τs) :
         have ⟨_, h4, l⟩ := h _ h3
         have ⟨K₁, y, e, hK₁, l'⟩ := l.piCodOb_inv; subst e
         exact ⟨y, ⟨K₁, h4, hK.trans hK₁⟩, l'⟩
-    exact .app h2 hd1 (fun k hk => ihk k hk hd2) hc hc1 (iho hc2)
+    exact .app h2 hd1 (fun k hk => ihk k hk hd2) hc hC' hc1 (iho hc2)
 
-theorem TypedOb.mono (H : TypedOb env U Δ o τs) (h : ∀ τ ∈ τs, τ ∈ τs') :
-    TypedOb env U Δ o τs' := H.strengthen (.of_subset h)
+theorem TypedOb.mono (H : TypedOb env U Δ cv o τs) (h : ∀ τ ∈ τs, τ ∈ τs') :
+    TypedOb env U Δ cv o τs' := H.strengthen (.of_subset h)
 
 /-- The observation of the zero level. -/
 abbrev zeroF : List Nat → Nat := fun _ => 0
 
-theorem TypedOb.not_sort_zero (H : TypedOb env U Δ (.sort ℓ) [.sort zeroF]) : False := by
+theorem TypedOb.not_sort_zero (H : TypedOb env U Δ cv (.sort ℓ) [.sort zeroF]) : False := by
   cases H with
   | sort h =>
     simp only [List.mem_singleton, Ob.sort.injEq] at h
     exact Nat.succ_ne_zero _ (congrFun h [])
 
-theorem TypedOb.sort_congr (H : TypedOb env U Δ o [.sort ℓ]) (e : ∀ ns, ℓ ns = ℓ' ns) :
-    TypedOb env U Δ o [.sort ℓ'] := by
+theorem TypedOb.sort_congr (H : TypedOb env U Δ cv o [.sort ℓ]) (e : ∀ ns, ℓ ns = ℓ' ns) :
+    TypedOb env U Δ cv o [.sort ℓ'] := by
   have : ℓ = ℓ' := funext e
   subst this; exact H
 
 /-- **Proof irrelevance, semantically**: nothing is typed at a list of observations each of
 which is typed at `[sort 0]`. -/
-theorem TypedOb.not_prop (H : TypedOb env U Δ o τs)
-    (h : ∀ τ ∈ τs, TypedOb env U Δ τ [.sort zeroF]) : False := by
+theorem TypedOb.not_prop (H : TypedOb env U Δ cv o τs)
+    (h : ∀ τ ∈ τs, ∃ cv', TypedOb env U Δ cv' τ [.sort zeroF]) : False := by
   induction H with
   | sort h1 | piDom h1 | piDomOb h1 | piCod h1 | piCodOb h1 | rigid h1 | rigidArg h1
   | rigidArgOb h1 =>
-    exact (h _ h1).not_sort_zero
+    obtain ⟨_, h⟩ := h _ h1; exact h.not_sort_zero
   | ctorHead h1 | ctorArg h1 | ctorArgOb h1 =>
     obtain ⟨I, ℓs, m, s, h1, -, hne⟩ := h1
-    cases h _ h1 with
+    obtain ⟨_, h⟩ := h _ h1
+    cases h with
     | rigid h2 =>
       simp only [List.mem_singleton, Ob.sort.injEq] at h2
       exact hne h2
-  | app _ _ _ _ hcod _ _ iho =>
+  | app _ _ _ _ _ hcod _ _ iho =>
     refine iho fun x hx => ?_
     have ⟨_, h3, _⟩ := hcod x hx
-    cases h _ h3 with
+    obtain ⟨_, h⟩ := h _ h3
+    cases h with
     | piCodOb h4 h5 h6 =>
       simp only [List.mem_singleton, Ob.sort.injEq] at h4; subst h4
-      exact h5.sort_congr fun ns => h6 ns rfl
+      exact ⟨_, h5.sort_congr fun ns => h6 ns rfl⟩
 
 end Model
 end VEnv

@@ -70,7 +70,7 @@ theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}
   have W := Wv.prefix (hL.mono (IsType.mono hEF))
   have tv := TV.prefix tvv
   refine ⟨⟨_, Or.inl rfl, (hd'.mono hEF).subst henvF W hΔ⟩, fun τ hτ => ?_⟩
-  exact typedAt_sort_iff.1 ((S v v vS W tv tv).2.2.1 τ hτ)
+  exact ⟨_, typedAt_sort_iff.1 ((S v v vS W tv tv).2.2.1 τ hτ)⟩
 
 end Model
 

@@ -206,7 +206,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
       hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
       (fun keys hkl hobs => absurd hobs fun h =>
         C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
-      ihL ihR
+      ihL ihR (.extra hdf hlw hlen)
   · -- small elimination: the right-hand side has no observations
     obtain ⟨args', hargs, rfl⟩ := Restoration.expr_bvar_mkApps hT'
     obtain ⟨x, hx, hxget⟩ := mapM_reverse_getElem? hds (eqDoms_reverse_motive g index)

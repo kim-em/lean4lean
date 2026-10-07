@@ -75,15 +75,15 @@ theorem wrapForalls_inj_len : ∀ {ds ds' : List VExpr} {b b' : VExpr}, ds.lengt
 /-- The innermost observation of a typed chain at a telescope ending in a sort is typed at
 that sort only. -/
 theorem chain_terminal_sort : ∀ {ds : List VExpr} {keys : List Key} {o : Ob} {τs : List Ob},
-    keys.length = ds.length → TypedOb env U Δ (wrap keys o) τs →
+    keys.length = ds.length → TypedOb env U Δ cv (wrap keys o) τs →
     (∀ τ ∈ τs, ∃ σ S, Obs' σ S (.wrapForalls ds (.sort w)) τ) →
-    ∃ τc, (∀ τ ∈ τc, τ = .sort w.eval) ∧ TypedOb env U Δ o τc
-  | [], [], o, τs, _, ho, hτ => ⟨τs, fun τ h => let ⟨_, _, h⟩ := hτ τ h; Obs.sort_mem h, ho⟩
+    ∃ τc cv', (∀ τ ∈ τc, τ = .sort w.eval) ∧ TypedOb env U Δ cv' o τc
+  | [], [], o, τs, _, ho, hτ => ⟨τs, _, fun τ h => let ⟨_, _, h⟩ := hτ τ h; Obs.sort_mem h, ho⟩
   | A :: ds, k :: keys, o, τs, hl, ho, hτ => by
     obtain ⟨D, c, K⟩ := k
     simp only [wrap_cons] at ho
     cases ho with
-    | @app _ τd _ _ _ τc _ hD hd hkt hc hcod hty' =>
+    | app hD hd hkt hc hC hcod hty' =>
       refine chain_terminal_sort (Nat.succ.inj hl) hty' fun x hx => ?_
       obtain ⟨K₀, hm, -⟩ := hcod x hx
       obtain ⟨σ, S, h⟩ := hτ _ hm
@@ -137,7 +137,7 @@ theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : Li
       rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩
       · injection h with _ _ h; exact h.symm
       · cases h
-    obtain ⟨τc, hτc, hty'⟩ := chain_terminal_sort (ds := [.sort ((VLevel.param 0).inst ls),
+    obtain ⟨τc, _, hτc, hty'⟩ := chain_terminal_sort (ds := [.sort ((VLevel.param 0).inst ls),
         .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))]) (w := (VLevel.param 0).inst ls)
       (by simpa using hlen) hty fun τ hτ' => ⟨_, _, hτ τ hτ'⟩
     cases hty' with
@@ -159,7 +159,7 @@ theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).e
         TV env U Δ ((quotDoms.map (·.instL ls)).reverse ++ Γ) v vS →
         (∃ P, TyCls env U Δ ((binderTy quotDoms ls x).subst v) P ∧
           env.HasType U Δ P (.sort .zero)) ∧
-        ∀ τ, Obs' v vS (binderTy quotDoms ls x) τ → TypedOb env U Δ τ [.sort fun _ => 0] := by
+        ∀ τ, Obs' v vS (binderTy quotDoms ls x) τ → ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0] := by
   intro x hx hnb v vS Wv tvv
   obtain rfl := quot_lead_x hx hnb
   have hL := lookup_binderTy (Γ := Γ) (ls := ls) (doms := quotDoms) (x := 5) (by decide)
@@ -173,7 +173,7 @@ theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).e
   have := tvv 5 _ hL τ (Obs.bvar_iff.1 hτ)
   have := typedAt_sort_iff.1 this
   rw [e0] at this
-  exact this
+  exact ⟨_, this⟩
 
 /-- The quotient rule is the only rule headed by `Quot.lift`, in an environment whose rules
 are delta rules or the quotient rule. -/

@@ -43,7 +43,8 @@ inductive HTS : List VExpr → VExpr → VExpr → Prop
     SD env U Δ Γ (type.instL ls) (type.instL ls) (.sort u) →
     HTS Γ (.elim b owner.val ls) (type.instL ls)
   | app : SD env U Δ Γ A A (.sort u) → SD env U Δ (A :: Γ) B B (.sort v) →
-    HTS Γ f (.forallE A B) → HTS Γ a A → SD env U Δ Γ a a A → HTS Γ (.app f a) (B.inst a)
+    HTS Γ f (.forallE A B) → env.HasType U Γ f (.forallE A B) → HTS Γ a A → SD env U Δ Γ a a A →
+    HTS Γ (.app f a) (B.inst a)
   | lam : HTS Γ A (.sort u) → SD env U Δ Γ A A (.sort u) → HTS (A :: Γ) b B →
     SD env U Δ (A :: Γ) b b B → SD env U Δ (A :: Γ) B B (.sort v) →
     HTS Γ (.lam A b) (.forallE A B)
@@ -61,6 +62,22 @@ end
 variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
+
+theorem _root_.Lean4Lean.VExpr.inst_subst_cons {B a : VExpr} {σ : VExpr.Subst} :
+    (B.inst a).subst σ = B.subst (σ.cons (a.subst σ)) := by
+  rw [VExpr.inst_eq, VExpr.subst_subst]
+  congr 1; funext i; cases i <;> rfl
+
+theorem _root_.Lean4Lean.VExpr.subst_lift_inst {e a : VExpr} {σ : VExpr.Subst} :
+    (e.subst σ.lift).inst a = e.subst (σ.cons a) := by
+  rw [VExpr.inst_eq, VExpr.subst_subst]
+  congr 1; funext i; cases i with
+  | zero => rfl
+  | succ i => simp [VExpr.Subst.comp, VExpr.Subst.lift, VExpr.Subst.cons]
+
+theorem vcls_tail {σ : VExpr.Subst} {A : VExpr} :
+    vcls env U Δ σ (.bvar (i+1)) A.lift = vcls env U Δ σ.tail (.bvar i) A := by
+  simp only [vcls, VExpr.lift_subst]; rfl
 
 theorem PiSD.doms : PiSD env U Δ Γ ds R → DomsSD env U Δ Γ ds
   | .nil => .nil
@@ -134,7 +151,8 @@ theorem TeleKeys.typed' (h : TeleKeys env U Δ σ S ds keys σ' S')
   | cons hc hy hK _ ih =>
     cases hds with
     | cons hA hds =>
-      have := ih hds (.cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy)) (tv.cons hK)
+      have := ih hds (.cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy))
+        (tv.cons_cls henv hΔ hc hy hK)
       simpa [List.reverse_cons, List.append_assoc] using this
 
 /-- Type observations transfer along a sound type equality, at one valuation. -/
@@ -142,6 +160,90 @@ theorem SD.sub (h : SD env U Δ Γ A B (.sort u)) (W : Ctx.SubstEq env U Δ σ �
     (tv : TV env U Δ Γ σ S) :
     Ob.Sub (Obs' σ S A) (Obs' σ S B) ∧ Ob.Sub (Obs' σ S B) (Obs' σ S A) :=
   let h := h.2 σ σ S W tv tv; ⟨h.1, h.2.1⟩
+
+/-- The value class of an application is the class of the applications of the members of the
+function's class to the members of the argument's class. -/
+theorem vcls_app (W : Ctx.SubstEq env U Δ σ σ Γ) (hf : env.HasType U Γ f (.forallE A B))
+    (ha : env.HasType U Γ a A) :
+    vcls env U Δ σ (.app f a) (B.inst a) =
+      appCls env U Δ (vcls env U Δ σ f (.forallE A B))
+        (ElCls env U Δ (TyCls env U Δ (A.subst σ)) (a.subst σ))
+        (TyCls env U Δ (B.subst (σ.cons (a.subst σ)))) := by
+  have hf' := hf.substDF henv W.wf hΔ W
+  have ha' := ha.substDF henv W.wf hΔ W
+  unfold vcls
+  rw [VExpr.inst_subst_cons]
+  show ElCls env U Δ _ (.app (f.subst σ) (a.subst σ)) = _
+  funext z; apply propext; constructor
+  · intro hz; exact ⟨_, _, ElCls.self, ElCls.self, hz⟩
+  · rintro ⟨w, y, hw, hy, hz⟩
+    have hfw := ElCls.collapse henv hΔ hf' TyCls.self hw
+    have hay := ElCls.collapse henv hΔ ha' TyCls.self hy
+    have happ : env.IsDefEq U Δ (.app (f.subst σ) (a.subst σ)) (.app w y)
+        (B.subst (σ.cons (a.subst σ))) := by
+      have := IsDefEq.appDF hfw hay
+      rwa [← VExpr.subst_inst, VExpr.inst_subst_cons] at this
+    rw [ElCls.eq_of_defeq TyCls.self happ]; exact hz
+
+/-- Type classes along a type chain agree under a typed substitution. -/
+theorem TypeChain.tyCls_subst' (W : Ctx.SubstEq env U Δ v v Γ) (h : env.TypeChain U Γ X Y) :
+    TyCls env U Δ (X.subst v) = TyCls env U Δ (Y.subst v) := by
+  induction h with
+  | single h => let ⟨_, h⟩ := h; exact TyCls.eq_of_defeq (h.substDF henv W.wf hΔ W)
+  | tail _ h ih => let ⟨_, h⟩ := h; exact ih.trans (TyCls.eq_of_defeq (h.substDF henv W.wf hΔ W))
+
+/-- The value class of the application of a lambda to a member of a typed class is the class
+of the instantiated body (beta). -/
+theorem vcls_beta (W : Ctx.SubstEq env U Δ σ σ Γ) (hA : env.HasType U Γ A (.sort u))
+    (hb : env.HasType U (A :: Γ) b B)
+    (hc : TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) c) (hy : c y) :
+    appCls env U Δ (vcls env U Δ σ (.lam A b) (.forallE A B)) c
+        (TyCls env U Δ (B.subst (σ.cons y))) = vcls env U Δ (σ.cons y) b B := by
+  have hyA := hc.hasType henv hΔ hy
+  have hA' := hA.substDF henv W.wf hΔ W
+  have W1 : Ctx.SubstEq env U (A.subst σ :: Δ) σ.lift σ.lift (A :: Γ) := W.lift henv hA
+  have hb' := hb.substDF henv W1.wf (show OnCtx (A.subst σ :: Δ) (env.IsType U) from ⟨hΔ, _, hA'⟩) W1
+  have hlam : env.HasType U Δ ((VExpr.lam A b).subst σ) ((VExpr.forallE A B).subst σ) :=
+    IsDefEq.lamDF hA' hb'
+  have hbeta : env.IsDefEq U Δ (.app ((VExpr.lam A b).subst σ) y) (b.subst (σ.cons y))
+      (B.subst (σ.cons y)) := by
+    have := IsDefEq.beta hb' hyA
+    rwa [VExpr.subst_lift_inst, VExpr.subst_lift_inst] at this
+  unfold vcls
+  funext z; apply propext; constructor
+  · rintro ⟨w, y', hw, hy', hz⟩
+    have hlw := ElCls.collapse henv hΔ hlam TyCls.self hw
+    have hyy := hc.defeq henv hΔ hy hy'
+    have happ : env.IsDefEq U Δ (.app ((VExpr.lam A b).subst σ) y) (.app w y')
+        (B.subst (σ.cons y)) := by
+      have := IsDefEq.appDF hlw hyy
+      rwa [VExpr.subst_lift_inst] at this
+    rw [ElCls.eq_of_defeq TyCls.self (hbeta.symm.trans happ)]; exact hz
+  · intro hz
+    refine ⟨_, _, ElCls.self, hy, ?_⟩
+    rw [ElCls.eq_of_defeq TyCls.self hbeta]; exact hz
+
+/-- Value classes agree at related anchors. -/
+theorem vcls_substEq (W : Ctx.SubstEq env U Δ σ σ' Γ) (ht : env.HasType U Γ t T) :
+    vcls env U Δ σ t T = vcls env U Δ σ' t T := by
+  obtain ⟨u, hT⟩ := ht.isType henv W.wf
+  unfold vcls
+  rw [ElCls.eq_of_defeq TyCls.self (ht.substDF henv W.wf hΔ W),
+    TyCls.eq_of_defeq (hT.substDF henv W.wf hΔ W)]
+
+/-- Value classes of definitionally equal terms agree. -/
+theorem vcls_defeq (W : Ctx.SubstEq env U Δ σ σ Γ) (h : env.IsDefEq U Γ t t' T) :
+    vcls env U Δ σ t T = vcls env U Δ σ t' T := by
+  unfold vcls; exact ElCls.eq_of_defeq TyCls.self (h.substDF henv W.wf hΔ W)
+
+theorem vcls_closed {e T : VExpr} (he : e.ClosedN) (hT : T.ClosedN) :
+    vcls env U Δ σ e T = ElCls env U Δ (TyCls env U Δ T) e := by
+  simp only [vcls, he.subst_eq .zero, hT.subst_eq .zero]
+
+/-- Value classes at definitionally equal types agree. -/
+theorem vcls_conv (W : Ctx.SubstEq env U Δ σ σ Γ) (h : env.IsDefEq U Γ T T' (.sort u)) :
+    vcls env U Δ σ e T = vcls env U Δ σ e T' := by
+  simp only [vcls, TyCls.eq_of_defeq (h.substDF henv W.wf hΔ W)]
 
 end
 
@@ -181,17 +283,21 @@ theorem HTS.lam_inv (H : HTS env U Δ Γ e P) (he : e = .lam A b) :
     ∃ B u v, HTS env U Δ Γ A (.sort u) ∧ SD env U Δ Γ A A (.sort u) ∧
       HTS env U Δ (A :: Γ) b B ∧ SD env U Δ (A :: Γ) b b B ∧
       SD env U Δ (A :: Γ) B B (.sort v) ∧
-      ∀ σ S, Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S →
-        Ob.Sub (Obs' σ S P) (Obs' σ S (.forallE A B)) := by
+      (∀ σ S, Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S →
+        Ob.Sub (Obs' σ S P) (Obs' σ S (.forallE A B))) ∧
+      (P = .forallE A B ∨ env.TypeChain U Γ (.forallE A B) P) := by
   induction H with
   | lam h1 h2 h3 h4 h5 =>
-    cases he; exact ⟨_, _, _, h1, h2, h3, h4, h5, fun _ _ _ _ => Ob.Sub.refl⟩
+    cases he; exact ⟨_, _, _, h1, h2, h3, h4, h5, fun _ _ _ _ => Ob.Sub.refl, .inl rfl⟩
   | other _ _ h => exact absurd he (h _ _)
   | bvar | const | elim | app | forallE => cases he
   | conv _ hAB ih =>
-    obtain ⟨B, u, v, h1, h2, h3, h4, h5, h6⟩ := ih he
-    exact ⟨B, u, v, h1, h2, h3, h4, h5, fun σ S W tv =>
-      ((hAB.2 σ σ S W tv tv).2.1).trans (h6 σ S W tv)⟩
+    obtain ⟨B, u, v, h1, h2, h3, h4, h5, h6, h7⟩ := ih he
+    refine ⟨B, u, v, h1, h2, h3, h4, h5, fun σ S W tv =>
+      ((hAB.2 σ σ S W tv tv).2.1).trans (h6 σ S W tv), .inr ?_⟩
+    rcases h7 with rfl | h7
+    · exact TypeChain.single hAB.1.defeq
+    · exact TypeChain.tail h7 hAB.1.defeq
 
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
@@ -240,8 +346,9 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
           ∃ u, HTS env U Δ Γ Th (.sort u) ∧ SD env U Δ Γ Th Th (.sort u))) ∧
       List.Forall₂ (KeyData env U Δ Γ σ S) info args ∧
       List.Forall₂ (fun K (ka : Key × VExpr) => ∀ x ∈ K, x ∈ ka.1.2.2) Ks info ∧
-      (∀ o, TypedOb env U Δ o τs → ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (Th) τ) ∧
-        TypedOb env U Δ (wrap (info.map (·.1)) o) τ₀) ∧
+      (∀ o, TypedOb env U Δ (vcls env U Δ σ e T) o τs →
+        ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (Th) τ) ∧
+        TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ Th) hd) (wrap (info.map (·.1)) o) τ₀) ∧
       (∀ x, Obs' .id .empty (Th) (piCodChain (info.map (·.1)) x) →
         ∃ x', Obs' σ S T x' ∧ x' ≼ x) ∧
       (∀ pre ka post, info = pre ++ ka :: post → ∀ x,
@@ -271,7 +378,8 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       refine ⟨_, [], .inl ⟨_, _, _, rfl, hci, hls, rfl⟩, (henv.closedC hci).instL,
         .inl ⟨_, hT, hsd⟩,
         .nil, .nil, fun o ho => ⟨τs, fun τ hτ =>
-          (Obs.closed_iff_id (henv.closedC hci).instL).1 (hτs τ hτ), ho⟩,
+          (Obs.closed_iff_id (henv.closedC hci).instL).1 (hτs τ hτ),
+          vcls_closed henv hΔ (e := .const _ _) trivial (henv.closedC hci).instL ▸ ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id (henv.closedC hci).instL).2 hx, .refl⟩,
         fun pre ka post h => ?_⟩
       cases pre <;> cases h
@@ -282,11 +390,12 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       cases hKs
       refine ⟨_, [], .inr ⟨_, _, _, _, _, rfl, hb, htype, hcl0, hls, rfl⟩, hcl0.instL,
         .inr ⟨⟨_, _, _, rfl⟩, _, hT, hsd⟩, .nil, .nil,
-        fun o ho => ⟨τs, fun τ hτ => (Obs.closed_iff_id hcl0.instL).1 (hτs τ hτ), ho⟩,
+        fun o ho => ⟨τs, fun τ hτ => (Obs.closed_iff_id hcl0.instL).1 (hτs τ hτ),
+          vcls_closed henv hΔ (e := .elim _ _ _) trivial hcl0.instL ▸ ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id hcl0.instL).2 hx, .refl⟩, fun pre ka post h => ?_⟩
       cases pre <;> cases h
     · cases he'
-  | @app _ A u B v f a hA hB _ _ hsa ihf _ =>
+  | @app _ A u B v f a hA hB _ hfty _ hsa ihf _ =>
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨as, a', rfl, he'⟩
     · rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> cases he'
     injection he' with hf ha; subst ha
@@ -325,7 +434,8 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       ⟨rfl, hK, rfl, by assumption, hsa⟩,
       forall₂_append_single' hKsi (fun x hx => List.mem_append_left _ hx), fun o ho => ?_,
       fun x hx => ?_, fun pre ka post h => ?_⟩
-    · obtain ⟨τ₀, h1, h2⟩ := P1 _ (hwrap o ho)
+    · rw [vcls_app henv hΔ W hfty hsa.1.defeq.hasType.1] at ho
+      obtain ⟨τ₀, h1, h2⟩ := P1 _ (hwrap _ o ho)
       refine ⟨τ₀, h1, ?_⟩
       simpa [List.map_append, wrap_append] using h2
     · rw [List.map_append, piCodChain_append] at hx
@@ -336,8 +446,11 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
         (ElCls.collapse henv hΔ haσ .self hz).symm
       have W' : Ctx.SubstEq env U Δ (σ.cons z) (σ.cons (a.subst σ)) (A :: _) :=
         .cons W hA.1.defeq.hasType.1 hza
-      have hK₁ : ∀ k ∈ K₁, TypedAt env U Δ σ S A k := fun k hk => ⟨τk', hτk', hkk' k hk⟩
-      obtain ⟨y₁, hy₁, l₁⟩ := (hB.2 _ _ _ W' (tv.cons hK₁) (tv.cons hK₁)).1 _ hyB
+      have hK₁ : ∀ k ∈ K₁, TypedAt env U Δ (ElCls env U Δ (TyCls env U Δ (A.subst σ)) (a.subst σ))
+          σ S A k := fun k hk => ⟨τk', hτk', hkk' k hk⟩
+      have hcA := TypedElCls.of_hasType haσ
+      obtain ⟨y₁, hy₁, l₁⟩ := (hB.2 _ _ _ W' (tv.cons_cls henv hΔ hcA hz hK₁)
+        (tv.cons_cls henv hΔ hcA ElCls.self hK₁)).1 _ hyB
       obtain ⟨y₂, hy₂, l₂⟩ := hy₁.mono_le (S' := S.cons (Obs' σ S a)) fun i o h => by
         cases i with
         | zero =>
@@ -361,8 +474,8 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     have hs := SD.sub henv hΔ hAB W tv
     obtain ⟨τs', h1, h2⟩ := exists_list_cover fun τ hτ => hs.2 τ (hτs τ hτ)
     obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ := ih he W tv Ks hKs τs' h1
-    refine ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, fun o ho => P1 o (ho.strengthen h2),
-      fun x hx => ?_, dP2⟩
+    refine ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, fun o ho =>
+      P1 o (((vcls_conv henv hΔ W hAB.1.defeq).symm ▸ ho).strengthen h2), fun x hx => ?_, dP2⟩
     obtain ⟨x₁, hx₁, l₁⟩ := P2 x hx
     obtain ⟨x₂, hx₂, l₂⟩ := hs.1 x₁ hx₁
     exact ⟨x₂, hx₂, l₂.trans l₁⟩
@@ -377,8 +490,10 @@ theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.cons
         SD env U Δ [] (ci.type.instL ls) (ci.type.instL ls) (.sort u)) ∧
       List.Forall₂ (KeyData env U Δ Γ σ S) info args ∧
       List.Forall₂ (fun K (ka : Key × VExpr) => ∀ x ∈ K, x ∈ ka.1.2.2) Ks info ∧
-      (∀ o, TypedOb env U Δ o τs → ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (ci.type.instL ls) τ) ∧
-        TypedOb env U Δ (wrap (info.map (·.1)) o) τ₀) ∧
+      (∀ o, TypedOb env U Δ (vcls env U Δ σ e T) o τs →
+        ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (ci.type.instL ls) τ) ∧
+        TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const c ls))
+          (wrap (info.map (·.1)) o) τ₀) ∧
       (∀ x, Obs' .id .empty (ci.type.instL ls) (piCodChain (info.map (·.1)) x) →
         ∃ x', Obs' σ S T x' ∧ x' ≼ x) ∧
       (∀ pre ka post, info = pre ++ ka :: post → ∀ x,
@@ -401,9 +516,9 @@ theorem HTS.lamSpine {ds : List VExpr} :
     ∀ {Γ e P X σ S σ' S' keys o τs}, HTS env U Δ Γ e P → e = .wrapLams ds X →
     Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S →
     TeleKeys env U Δ σ S ds keys σ' S' →
-    (∀ τ ∈ τs, Obs' σ S P τ) → TypedOb env U Δ (wrap keys o) τs →
+    (∀ τ ∈ τs, Obs' σ S P τ) → TypedOb env U Δ (vcls env U Δ σ e P) (wrap keys o) τs →
     ∃ T', HTS env U Δ (ds.reverse ++ Γ) X T' ∧ DomsSD env U Δ Γ ds ∧
-      ∃ τc, (∀ τ ∈ τc, Obs' σ' S' T' τ) ∧ TypedOb env U Δ o τc := by
+      ∃ τc, (∀ τ ∈ τc, Obs' σ' S' T' τ) ∧ TypedOb env U Δ (vcls env U Δ σ' X T') o τc := by
   induction ds with
   | nil =>
     intro Γ e P X σ S σ' S' keys o τs H he W tv hk hτs ho
@@ -411,16 +526,27 @@ theorem HTS.lamSpine {ds : List VExpr} :
     exact ⟨P, H, .nil, τs, hτs, ho⟩
   | cons A ds ih =>
     intro Γ e P X σ S σ' S' keys o τs H he W tv hk hτs ho
-    obtain ⟨B, u, v, _, hA, hb, _, hB, hsub⟩ := H.lam_inv he
+    obtain ⟨B, u, v, _, hA, hb, hsb, hB, hsub, hch⟩ := H.lam_inv he
+    subst he
     cases hk with
     | @cons c y K _ _ _ _ _ _ _ hc hy hK hk =>
       obtain ⟨τs', h1, h2⟩ := exists_list_cover fun τ hτ => hsub σ S W tv τ (hτs τ hτ)
       simp only [wrap_cons] at ho
+      have ecls : vcls env U Δ σ (.wrapLams (A :: ds) X) P =
+          vcls env U Δ σ (.lam A (.wrapLams ds X)) (.forallE A B) := by
+        rcases hch with rfl | hch
+        · rfl
+        · unfold vcls; rw [← TypeChain.tyCls_subst' henv hΔ W hch]; rfl
+      rw [ecls] at ho
       obtain ⟨-, -, -, τc, h3, h4⟩ :=
-        pi_step henv hΔ hA.1.defeq.hasType.1 hB.2 W tv (ho.strengthen h2) h1 hy
+        pi_step henv hΔ hA.1.defeq.hasType.1 hB.1.defeq.hasType.1 hB.2 W tv (ho.strengthen h2)
+          h1 hy
+      have eb := vcls_beta henv hΔ W hA.1.defeq.hasType.1 hsb.1.defeq.hasType.1 hc hy
+        (b := .wrapLams ds X)
+      rw [eb] at h4
       obtain ⟨T', hT', hds, τc', h5, h6⟩ := ih hb rfl
         (Ctx.SubstEq.cons (σ := σ.cons y) (σ' := σ.cons y) W hA.1.defeq.hasType.1
-          (hc.hasType henv hΔ hy)) (tv.cons hK) hk h3 h4
+          (hc.hasType henv hΔ hy)) (tv.cons_cls henv hΔ hc hy hK) hk h3 h4
       refine ⟨T', ?_, .cons hA hds, τc', h5, h6⟩
       simpa [List.reverse_cons, List.append_assoc] using hT'
 

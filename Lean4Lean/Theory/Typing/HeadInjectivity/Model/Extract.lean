@@ -74,8 +74,10 @@ def SoundEnv (env : VEnv) : Prop :=
 theorem sound_id (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (H : env.IsDefEqStrong U Γ t t' T) :
     Ob.Sub (OI env U Γ t) (OI env U Γ t') ∧ Ob.Sub (OI env U Γ t') (OI env U Γ t) ∧
-    (∀ o, OI env U Γ t o → TypedAt env U Γ VExpr.Subst.id ObSets.empty T o) ∧
-    (∀ o, OI env U Γ t' o → TypedAt env U Γ VExpr.Subst.id ObSets.empty T o) :=
+    (∀ o, OI env U Γ t o →
+      TypedAt env U Γ (vcls env U Γ .id t T) VExpr.Subst.id ObSets.empty T o) ∧
+    (∀ o, OI env U Γ t' o →
+      TypedAt env U Γ (vcls env U Γ .id t' T) VExpr.Subst.id ObSets.empty T o) :=
   (hnr hΓ H).1 .id .id .empty (Ctx.SubstEq.id henv hΓ) TV.empty TV.empty
 
 /-- A chain of sort-typed equalities includes the observations of its left end in those of
@@ -177,9 +179,11 @@ constant's type. -/
 theorem spine_data (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (hu : env.IsDefEq U Γ (.mkApps (.const c ls) args) (.mkApps (.const c ls) args) (.sort u)) :
     ∃ ci keys, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
-      (∀ o, TypedOb env U Γ o [.sort u.eval] →
+      (∀ o, TypedOb env U Γ (vcls env U Γ .id (.mkApps (.const c ls) args) (.sort u)) o
+          [.sort u.eval] →
         ∃ τs₀, (∀ τ ∈ τs₀, OI env U Γ (ci.type.instL ls) τ) ∧
-          TypedOb env U Γ (wrap keys o) τs₀) := by
+          TypedOb env U Γ (ElCls env U Γ (TyCls env U Γ (ci.type.instL ls)) (.const c ls))
+            (wrap keys o) τs₀) := by
   have H := (hnr hΓ (hu.strong henv hΓ)).2.1
   obtain ⟨ci, info, hci, hls, ⟨u₀, hT, -⟩, hinfo, -, P1, P2, -⟩ :=
     H.spine henv hΓ rfl (Ctx.SubstEq.id henv hΓ) TV.empty (args.map fun _ => [])
@@ -207,7 +211,8 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
     (h : env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c' ls') args')) :
     ∃ ci keys u, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ KeyedArgs env U Γ keys args ∧
       (∃ τs₀, (∀ τ ∈ τs₀, OI env U Γ (ci.type.instL ls) τ) ∧
-        TypedOb env U Γ (wrap keys (.rigid c (ls.map (·.eval)) keys.length u)) τs₀) ∧
+        TypedOb env U Γ (ElCls env U Γ (TyCls env U Γ (ci.type.instL ls)) (.const c ls))
+          (wrap keys (.rigid c (ls.map (·.eval)) keys.length u)) τs₀) ∧
       c = c' ∧ ls.map (·.eval) = ls'.map (·.eval) ∧
       List.Forall₂ (fun (k : Key) a' => k.2.1 a') keys args' := by
   obtain ⟨u, hu⟩ := h.isType_l
@@ -221,7 +226,9 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
     intro r hr; rcases hr with rfl | h
     · exact .inl ⟨_, rfl⟩
     · exact .inr h
-  have hsort : ∀ r, LeftEnd r → TypedOb env U Γ r [.sort u.eval] := by
+  have hsort : ∀ r, LeftEnd r →
+      TypedOb env U Γ (vcls env U Γ .id (.mkApps (.const c ls) args) (.sort u)) r
+        [.sort u.eval] := by
     intro r hr
     rcases hr with rfl | ⟨_, _, rfl⟩
     · exact .rigid (List.mem_singleton_self _)
@@ -269,7 +276,7 @@ theorem tele_spine (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) :
     Ctx.SubstEq env U Γ σ σ Γ' → env.IsType U Γ' (VExpr.wrapForalls ds (.sort w)) →
     (∀ τ ∈ τs, ∃ σ'' S'', Ctx.SubstEq env U Γ σ'' σ Γ' ∧
       Obs env U Γ σ'' S'' (VExpr.wrapForalls ds (.sort w)) τ) →
-    TypedOb env U Γ (wrap keys o) τs →
+    TypedOb env U Γ cv (wrap keys o) τs →
     List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 a ∧
       ∃ X, k.1 X ∧ env.HasType U Γ a X) keys args →
     List.Forall₂ (fun (k : Key) a' => k.2.1 a') keys args' →
@@ -278,7 +285,7 @@ theorem tele_spine (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) :
   | ⟨D, c, K⟩ :: keys, ds, w, Γ', σ, _, _, τs, o, W, hT, hτs, hty,
       .cons ⟨hc, X, hX, ha⟩ H1, .cons ha' H2 => by
     cases hty with
-    | app hD _ _ _ hcod hty' =>
+    | app hD _ _ _ _ hcod hty' =>
       obtain ⟨σ'', S'', W'', hobs⟩ := hτs _ hD
       cases ds with
       | nil => cases Obs.sort_mem hobs

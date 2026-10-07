@@ -151,12 +151,14 @@ theorem Obs.lift_iff_tail {t : VExpr} :
   exact Obs.lift_cons_iff
 
 theorem TypedAt.lift_iff_tail {T : VExpr} :
-    TypedAt env U Δ σ S T.lift o ↔ TypedAt env U Δ σ.tail S.tail T o := by
+    TypedAt env U Δ cv σ S T.lift o ↔ TypedAt env U Δ cv σ.tail S.tail T o := by
   unfold TypedAt; simp only [Obs.lift_iff_tail]
 
 theorem TV.tail (h : TV env U Δ (A :: Γ) σ S) : TV env U Δ Γ σ.tail S.tail := by
   intro i B hL o ho
-  exact TypedAt.lift_iff_tail.1 (h (i+1) _ hL.succ o ho)
+  have := h (i+1) _ hL.succ o ho
+  rw [vcls_tail] at this
+  exact TypedAt.lift_iff_tail.1 this
 
 /-- Contexts `L ++ Γ` whose entries in `L` (innermost first) are sound. -/
 inductive CtxSD (env : VEnv) (U : Nat) (Δ Γ : List VExpr) : List VExpr → Prop
@@ -184,15 +186,21 @@ theorem TV.transfer : ∀ {L : List VExpr} {τ v : VExpr.Subst} {S : ObSets},
     subst this; exact tv
   | A :: L, τ, v, S, .cons hA hL, W, he, tv => by
     cases W with
-    | cons W _ _ =>
+    | cons W hA0 hhd =>
       have ih := TV.transfer hL W (fun x hx => he (x+1) (by simp; omega)) tv.tail
       intro i B hLk o ho
       cases hLk with
       | zero =>
+        have W' : Ctx.SubstEq env U Δ τ v (A :: (L ++ Γ)) := .cons W hA0 hhd
+        have ecls := vcls_substEq henv hΔ W' (IsDefEq.bvar (Lookup.zero (ty := A)))
         have h1 := TypedAt.lift_iff_tail.1 (tv 0 _ .zero o ho)
+        rw [ecls]
         refine TypedAt.lift_iff_tail.2 (h1.mono_le ?_)
         exact (hA.2 _ _ _ (SubstEq.symm henv hΔ W) tv.tail ih).1
-      | succ hLk => exact TypedAt.lift_iff_tail.2 (ih _ _ hLk o ho)
+      | succ hLk =>
+        rw [vcls_tail]
+        have := ih _ _ hLk o ho
+        exact TypedAt.lift_iff_tail.2 this
 
 /-- Related substitutions from pointwise equalities on a context prefix, agreeing outside. -/
 theorem SubstEq.of_heads : ∀ {L : List VExpr} {τ v : VExpr.Subst},

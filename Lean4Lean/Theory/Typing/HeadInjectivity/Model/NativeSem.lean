@@ -27,7 +27,7 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 local notation "Obs'" => Obs env U Δ
 
 theorem typed_wrap_rigid : ∀ {keys : List Key} {τs : List Ob},
-    TypedOb env U Δ (wrap keys (.rigid n ℓs m s)) τs →
+    TypedOb env U Δ cv (wrap keys (.rigid n ℓs m s)) τs →
     ∃ ks : List Key, ks.length = keys.length ∧ piCodChain ks (.sort s) ∈ τs
   | [], τs, h => by
     cases h with
@@ -36,7 +36,7 @@ theorem typed_wrap_rigid : ∀ {keys : List Key} {τs : List Ob},
     obtain ⟨D, c, K⟩ := k
     simp only [wrap_cons] at h
     cases h with
-    | @app _ _ _ _ _ τc _ _ _ _ _ hcod hty =>
+    | app _ _ _ _ _ hcod hty =>
       obtain ⟨ks, hl, hm⟩ := typed_wrap_rigid hty
       obtain ⟨K₀, hK₀, -⟩ := hcod _ hm
       exact ⟨(D, c, K₀) :: ks, by simp [hl], hK₀⟩
@@ -86,9 +86,9 @@ theorem motive_tele_empty {doms args mds : List VExpr} {T X : VExpr} {m : Nat} {
     (hT : HTS env U Δ [] (.wrapForalls doms T) X) (eT : T = .mkApps (.bvar m) args)
     (hm : Lookup doms.reverse m (.wrapForalls mds (.sort w))) (hlen : mds.length = args.length)
     (hw : w.eval = fun _ => 0) (hlk : lk.length = doms.length)
-    (ho : TypedOb env U Δ (wrap lk p) τs)
+    (ho : TypedOb env U Δ cv (wrap lk p) τs)
     (hτs : ∀ τ ∈ τs, Obs' .id .empty (.wrapForalls doms T) τ) : False := by
-  obtain ⟨σ', S', hk, τc, hτc, hp⟩ := tele_unwind henv hΔ hT.piSD .nil TV.empty hlk ho hτs
+  obtain ⟨σ', S', hk, τc, _, hτc, hp⟩ := tele_unwind henv hΔ hT.piSD .nil TV.empty hlk ho hτs
   obtain ⟨-, tv'⟩ := hk.typed' henv hΔ hT.piSD.doms .nil TV.empty
   rw [List.append_nil] at tv'
   refine hp.not_prop fun τ hτ => ?_
@@ -96,9 +96,9 @@ theorem motive_tele_empty {doms args mds : List VExpr} {T X : VExpr} {m : Nat} {
   rw [eT] at h
   obtain ⟨keys, hkeys, hb⟩ := wrap_of_obs_mkApps h
   obtain ⟨τs', h1, h2⟩ := tv' m _ hm _ (Obs.bvar_iff.1 hb)
-  obtain ⟨τc', h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
+  obtain ⟨τc', _, h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
     (by rw [hlen]; exact List.Forall₂.length_eq hkeys) h2 (fun τ hτ => ⟨_, _, h1 τ hτ⟩)
-  refine h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩
+  refine ⟨_, h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩⟩
   rw [h3 k hk, hw]; exact .refl
 
 /-- `motive_tele_empty` in a context with a typed valuation. -/
@@ -108,18 +108,18 @@ theorem motive_tele_empty_ctx {doms args mds : List VExpr} {T X : VExpr} {m : Na
     (tv : TV env U Δ Γ σ S) (eT : T = .mkApps (.bvar m) args)
     (hm : Lookup doms.reverse m (.wrapForalls mds (.sort w))) (hlen : mds.length = args.length)
     (hw : w.eval = fun _ => 0) (hlk : lk.length = doms.length)
-    (ho : TypedOb env U Δ (wrap lk p) τs)
+    (ho : TypedOb env U Δ cv (wrap lk p) τs)
     (hτs : ∀ τ ∈ τs, Obs' σ S (.wrapForalls doms T) τ) : False := by
-  obtain ⟨σ', S', hk, τc, hτc, hp⟩ := tele_unwind henv hΔ hT.piSD W tv hlk ho hτs
+  obtain ⟨σ', S', hk, τc, _, hτc, hp⟩ := tele_unwind henv hΔ hT.piSD W tv hlk ho hτs
   obtain ⟨-, tv'⟩ := hk.typed' henv hΔ hT.piSD.doms W tv
   refine hp.not_prop fun τ hτ => ?_
   have h := hτc τ hτ
   rw [eT] at h
   obtain ⟨keys, hkeys, hb⟩ := wrap_of_obs_mkApps h
   obtain ⟨τs', h1, h2⟩ := tv' m _ (Lookup.append_left' hm) _ (Obs.bvar_iff.1 hb)
-  obtain ⟨τc', h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
+  obtain ⟨τc', _, h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
     (by rw [hlen]; exact List.Forall₂.length_eq hkeys) h2 (fun τ hτ => ⟨_, _, h1 τ hτ⟩)
-  refine h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩
+  refine ⟨_, h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩⟩
   rw [h3 k hk, hw]; exact .refl
 
 /-- The right-hand side of a rule whose type is a telescope over a motive into a
