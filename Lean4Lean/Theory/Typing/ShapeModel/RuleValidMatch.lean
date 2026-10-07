@@ -602,11 +602,11 @@ theorem majorRule_sound (hcl : ConstClosed env) (hr : SemSig.rules r) (hh : r.he
     (hfil : r.fieldIndex.length = nf)
     (hci : SemSig.ctor c = some ci) (hlen : idx'.length = idx.length)
     {Ds : List VExpr} (hDs : Ds.length = npre + nf) (hRcl : (R.instL ls).ClosedN (npre + nf))
-    (hL : StrongSound env [] (VExpr.wrapLams Ds (VExpr.mkApps (h.toExpr ls)
+    (hL : StrongSound env Γ (VExpr.wrapLams Ds (VExpr.mkApps (h.toExpr ls)
       (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)]))) T)
-    (hR : StrongSound env [] (VExpr.wrapLams Ds (R.instL ls)) T)
-    (hσ : ∀ σ B, KeysFit env .nil Ds σ → Valuation.Fits env [] Ds.reverse σ →
-      StrongSound env Ds.reverse (VExpr.mkApps (h.toExpr ls)
+    (hR : StrongSound env Γ (VExpr.wrapLams Ds (R.instL ls)) T)
+    (hσ : ∀ σ B, KeysFit env .nil Ds σ → Valuation.Fits env Γ (Ds.reverse ++ Γ) σ →
+      StrongSound env (Ds.reverse ++ Γ) (VExpr.mkApps (h.toExpr ls)
         (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)])) B →
       FieldReads env σ r (vars npre nf ++ idx') nf ∧
       (SemSig.famProp ci.family (RuleMajor.lvls ⟨c, lv, (List.range nf).reverse⟩ ls) = false →
@@ -622,7 +622,6 @@ theorem majorRule_sound (hcl : ConstClosed env) (hr : SemSig.rules r) (hh : r.he
       (VExpr.wrapLams Ds (R.instL ls)) := by
   refine SoundEq.nil_of (Interp.wrapLams_congr fun σ K m => ?_)
   obtain ⟨B₁, B₂, W, h₁, h₂, hB⟩ := body_records .nil K hL hR fun _ => .rfl
-  simp only [List.append_nil] at W h₁ h₂
   obtain ⟨hidx, hAB, hC⟩ := hσ σ B₁ K W h₁
   exact ⟨body_sub hr hh hnb hrv hmaj hrhs hci hlen hidx,
     body_sup hcl hr hh huv hnb hrv hmaj hrhs hfil hci hlen hidx W h₁ h₂ hB hRcl hAB hC⟩
