@@ -170,6 +170,108 @@ theorem source_family_recorded (H : env.WF) {E base : VEnv} {T : Tables}
       have hsig := sigCtor_of_shape (c := F.name) (.inl (by rw [hk']; simp)) (ctorOf_shape' H hk')
       exact fam_not_ctor H hsemF hsig
 
+/-- The semantic facts of the major of a generic equation and of its family slot. -/
+theorem generic_slot_sem (H : env.WF) {E base : VEnv} {T : Tables}
+    {source expanded : VInductDecl} {block : VInductBlock} {schema : CaseSchema} {key : Name}
+    {g0 : Instance schema.signature} {aux : List ContainerSpecialization}
+    (hgood : Good env E) (hEW : E.WF) (hle : E.addEliminator key schema ≤ env)
+    (hbase : base.WF) (hbl : base ≤ E)
+    (hdata : CompilationData base source expanded schema.signature g0 aux block)
+    (hprior : CertifiedSpecializations base aux)
+    (hr : schema.restoration = compilationRestoration source aux)
+    (hnames : schema.originalFamilies = source.types.map (·.name))
+    (hconsts : ∀ value ∈ block.types ++ block.ctors,
+      E.constants value.name = some value.toVConstant) (hdf : E.defeqs = base.defeqs)
+    (hT : T.Inv E) (hext : (T.addSchema E source).Extends (envTables env))
+    (hfam : ∀ I d, (T.addSchema E source).fam I = some d →
+      letI := envSig env; FamSem env I d.resultLevel (d.nparams + d.nindices))
+    (hfrz : ∀ c, SchemaCtorReserved (E.addEliminator key schema) c →
+      (T.addSchema E source).fam c = none → (envTables env).fam c = none)
+    (own : Fin schema.signature.families.size) {G : List VLevel}
+    (hG : G.length = schema.signature.uvars) {c Fn : Name} {lv : List VLevel}
+    (hslot : (∃ F ∈ source.types, source.types[own.val]? = some F ∧ Fn = F.name ∧
+          lv = G ∧ ∃ cv ∈ F.ctors, cv.name = c) ∨
+        (∃ a ∈ aux, source.types.length ≤ own.val ∧
+          aux[own.val - source.types.length]? = some a ∧ Fn = a.source.name ∧
+          lv = a.levels.map (·.inst G) ∧ ∃ cv ∈ a.source.ctors, cv.name = c))
+    (hSM : SchemaMajor env c) :
+    letI := envSig env
+    ∃ ci d, sigCtor env c = some ci ∧ famOf env ci.family = some d ∧
+      FamSem env ci.family d.resultLevel (d.nparams + d.nindices) ∧
+      (∀ {s info}, env.projections s info → info.ctorName = c → FamTypeSem env s info) ∧
+      (∃ ciF, env.constants ci.family = some ciF ∧ lv.length = ciF.uvars) ∧
+      (∃ dF, famOf env Fn = some dF) ∧
+      ∃ L n, FamSem env ci.family L n ∧ schema.signature.families[own].resultLevel.inst G ≈ L.inst lv := by
+  letI := envSig env
+  have hcert : schema.Certified base source block :=
+    ⟨expanded, g0, aux, hdata, hprior, hr, hnames⟩
+  have hleE : E ≤ env := VEnv.addEliminator_le.trans hle
+  have hel := hT.eliminator (key := key) hbase hbl hcert hconsts hdf
+  have hsuv : schema.signature.uvars = source.uvars := by rw [hdata.model.uvars, hdata.uvars]
+  rcases hslot with ⟨F, hF, hFo, rfl, rfl, cv, hcv, rfl⟩ |
+    ⟨a, ha, hlo, hao, rfl, rfl, cv, hcv, rfl⟩
+  · obtain ⟨hcvE, hshape⟩ := source_ctor_shape hcert hconsts hF hcv
+    have hcvenv := hleE.constants hcvE
+    have hfF : familyOfType cv.type = some F.name := (hshape.mono hleE).familyOfType hcvenv
+    obtain ⟨d, hTF⟩ := source_family_recorded H hgood hEW hle hbl hcert hconsts hT hext hfam hF
+    have hFd : famOf env F.name = some d := hext.fam hTF
+    have hsemd := hfam _ _ hTF
+    have hFconst : env.constants F.name = some F.toVConstant :=
+      hleE.constants (hconsts F.toVConstVal (List.mem_append_left _ (by
+        rw [hdata.types]; exact List.mem_map.mpr ⟨F, hF, rfl⟩)))
+    have hrigF : env.Rigid F.name := VEnv.nativeHeadRigid_iff.mp
+      (VEnv.WF.case_original_family_rigid H (hle.eliminators VEnv.addEliminator_self)
+        (by rw [hnames]; exact List.mem_map.mpr ⟨F, hF, rfl⟩))
+    have hIs : IsCtor env cv.name := by
+      cases hTc : (T.addSchema E source).ctor cv.name with
+      | some k => exact .inl (by rw [show ctorOf env cv.name = some k from hext.ctor hTc]; simp)
+      | none =>
+        refine .inr ⟨hSM, ?_⟩
+        show (envTables env).fam cv.name = none
+        refine hfrz _ ⟨key, schema, VEnv.addEliminator_self,
+          (Certified.mem_schemaCtorNames hcert).mpr ⟨cv, List.mem_flatMap.mpr ⟨F, hF, hcv⟩, rfl⟩⟩ ?_
+        cases hTcf : (T.addSchema E source).fam cv.name with
+        | none => rfl
+        | some d' =>
+          exfalso
+          obtain ⟨ci, doms, idx, hci, -, ht, -⟩ := hshape.mono hleE
+          rw [hcvenv] at hci; cases hci
+          exact famSem_absurd H (hfam _ _ hTcf) hcvenv ht hrigF
+    obtain ⟨ci, hci, hcf, hstr⟩ := ctor_facts_of_family H hcvenv hfF hIs hFd hsemd
+    obtain ⟨params, _, _, hTypeShape, _, _⟩ := hdata.sourceParameters
+    have hsemF := famSem_of_typeShape H hgood hleE hEW.ordered ((hTypeShape F hF).mono hbl)
+      (hdata.sourceWF.2.2.1 F hF) hFconst
+    refine ⟨ci, d, hci, hcf ▸ hFd, hcf ▸ hsemd, hstr,
+      ⟨F.toVConstant, hcf ▸ hFconst, by rw [hG, hsuv]; exact (hdata.sourceWF.2.2.1 F hF).symm⟩,
+      ⟨d, hFd⟩, F.resultLevel, _, hcf ▸ hsemF, ?_⟩
+    obtain ⟨hlt, hFeq⟩ := List.getElem?_eq_some_iff.mp hFo
+    obtain ⟨_, direct', _, hdirect', hlt', hres⟩ := CompilationData.family_slot hdata own
+    rw [List.getElem_append_left hlt, hFeq] at hres
+    exact VLevel.inst_congr_l hres.resultLevel
+  · have hTc := container_ctor hT hprior hbl ha hcv
+    have hTc' := hel.1.ctor hTc
+    obtain ⟨d, hd, -⟩ := (hT.views.ctor hTc).2
+    obtain ⟨ci, d', hci, hcf, hfamd, hsem, hstr⟩ := major_facts H hel.2 hext hfam hTc'
+    obtain ⟨n, hsemL⟩ := container_famSem H hgood hEW.ordered hleE hbl hprior ha
+    obtain ⟨dd, hdd, hddu, -⟩ := ctorOf_famOf H (hext.ctor hTc')
+    obtain ⟨ciF, hciF, hciFu, -⟩ := famOf_shape H hdd
+    obtain ⟨_, _, _, _, hwf, _⟩ := hdata.correspondence
+    refine ⟨ci, d', hci, hfamd, hsem, hstr, ⟨ciF, hcf ▸ hciF, ?_⟩,
+      ⟨_, hext.fam (hel.1.fam hd)⟩, a.source.resultLevel, n, hcf ▸ hsemL, ?_⟩
+    · rw [hciFu, hddu]; simp [ctorView, (hwf a ha).2.2.1]
+    · obtain ⟨_, direct', _, hdirect', hlt', hres⟩ := CompilationData.family_slot hdata own
+      rw [List.getElem_append_right hlo] at hres
+      have hrel' := List.mapM_eq_some.mp hdirect'
+      have hjb : own.val - source.types.length < aux.length :=
+        (List.getElem?_eq_some_iff.mp hao).1
+      obtain ⟨hjb', hdf'⟩ := forall₂_getElem_exists hrel' _ hjb
+      have haeq : aux[own.val - source.types.length] = a := (List.getElem?_eq_some_iff.mp hao).2
+      rw [haeq] at hdf'
+      have h1 := hres.resultLevel
+      rw [directFamily_resultLevel' hdf'] at h1
+      refine (VLevel.inst_congr_l h1).trans ?_
+      rw [VLevel.inst_inst]
+
 end
 
 end Lean4Lean.ShapeModel
