@@ -187,6 +187,20 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' →
     Obs τ S' (body.instL ls) o →
     Obs σ S (.const n ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
+  /-- The eliminator rule clause (stage E): the rule clause for a generic case equation of a
+  registered schema, in mode AB only (case schemas have no singleton elimination). -/
+  | elimRule {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators b schema → schema.genericEquations b owner = some rules → df ∈ rules →
+    df.lhs = .wrapLams doms (.mkApps (.elim b owner.val lsP)
+      (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])) →
+    df.rhs = .wrapLams doms body →
+    schema.genericType owner = some type → (∀ τ ∈ τs, Obs .id .empty (type.instL ls) τ) →
+    TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) o) τs → lkeys.length = lead.length →
+    (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) →
+    RuleBind env U Δ doms ls lead ms.length fs false lkeys Km τ S' →
+    Obs τ S' (body.instL ls) o →
+    Obs σ S (.elim b owner.val ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
 
 /-- `o` is typed at a list of observations of `T`. -/
 def TypedAt (σ : VExpr.Subst) (S : ObSets) (T : VExpr) (o : Ob) : Prop :=
@@ -296,7 +310,31 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
 theorem const_indep : Obs' σ S (.const n ls) o ↔ Obs' σ' S' (.const n ls) o := by
   rw [const_iff, const_iff]
 
-theorem elim_iff : Obs' σ S (.elim b i ls) o ↔ False := ⟨nofun, nofun⟩
+theorem elim_iff : Obs' σ S (.elim b i ls) o ↔
+    ∃ (schema : InductiveSignature.CaseSchema) (owner : Fin schema.signature.families.size),
+      ∃ rules df doms lsP lead ctor lsC ms fs body type τs lkeys Dm cm Km p τ S',
+      i = owner.val ∧ o = wrap (lkeys ++ [(Dm, cm, Km)]) p ∧ env.eliminators b schema ∧
+      schema.genericEquations b owner = some rules ∧ df ∈ rules ∧
+      df.lhs = .wrapLams doms (.mkApps (.elim b owner.val lsP)
+        (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])) ∧
+      df.rhs = .wrapLams doms body ∧
+      schema.genericType owner = some type ∧ (∀ τ ∈ τs, Obs' .id .empty (type.instL ls) τ) ∧
+      TypedOb env U Δ (wrap (lkeys ++ [(Dm, cm, Km)]) p) τs ∧ lkeys.length = lead.length ∧
+      (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∧
+      RuleBind env U Δ doms ls lead ms.length fs false lkeys Km τ S' ∧
+      Obs' τ S' (body.instL ls) p := by
+  constructor
+  · intro h; cases h with
+    | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+      exact ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, rfl, h1, h2, h3,
+        h4, h5, h6, h7, h8, h9, h10, h11, h12⟩
+  · rintro ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, rfl, h1, h2, h3,
+      h4, h5, h6, h7, h8, h9, h10, h11, h12⟩
+    exact .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
+
+/-- The observations of an eliminator do not depend on the valuation. -/
+theorem elim_indep : Obs' σ S (.elim b i ls) o ↔ Obs' σ' S' (.elim b i ls) o := by
+  rw [elim_iff, elim_iff]
 
 theorem proj_iff : Obs' σ S (.proj n i e) o ↔ False := ⟨nofun, nofun⟩
 
@@ -328,7 +366,7 @@ theorem lift'_iff {t : VExpr} {ρ : Lift} {σ : VExpr.Subst} {S : ObSets} {o : O
   | bvar i => simp only [VExpr.lift', bvar_iff]; rfl
   | sort => simp only [VExpr.lift', sort_iff]
   | const => exact const_indep
-  | elim => simp only [VExpr.lift', elim_iff]
+  | elim => exact elim_indep
   | proj => simp only [VExpr.lift', proj_iff]
   | app f a ihf iha =>
     simp only [VExpr.lift', app_iff, ihf, iha, VExpr.subst_lift']
@@ -358,7 +396,7 @@ theorem subst_iff {t : VExpr} {τ σ : VExpr.Subst} {S : ObSets} {o : Ob} :
   | bvar i => simp only [VExpr.subst, bvar_iff]
   | sort => simp only [VExpr.subst, sort_iff]
   | const => exact const_indep
-  | elim => simp only [VExpr.subst, elim_iff]
+  | elim => exact elim_indep
   | proj => simp only [VExpr.subst, proj_iff]
   | app f a ihf iha =>
     simp only [VExpr.subst, app_iff, ihf, iha, VExpr.subst_subst]
@@ -407,6 +445,8 @@ theorem mono (h : Obs' σ S t o) (hS : ∀ i o, S i o → S' i o) : Obs' σ S' t
   | delta h1 h2 h3 h4 h5 h6 => exact .delta h1 h2 h3 h4 h5 h6
   | ctor h0 h1 h2 h3 h4 => exact .ctor h0 h1 h2 h3 h4
   | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 => exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
+  | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
 
 /-- Monotonicity up to subsumption: if every observation of `S` is subsumed by one of
 `S'`, every observation under `S` is subsumed by one under `S'`. -/
@@ -446,6 +486,8 @@ theorem mono_le (h : Obs' σ S t o) (hS : ∀ i o, S i o → ∃ o', S' i o' ∧
   | ctor h0 h1 h2 h3 h4 => exact ⟨_, .ctor h0 h1 h2 h3 h4, .refl⟩
   | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
     exact ⟨_, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12, .refl⟩
+  | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact ⟨_, .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12, .refl⟩
 
 /-- Merge finitely many finite witnesses into one. -/
 theorem collect {α : Type} {Q : Ob → Prop} {P : List Ob → α → Prop}
@@ -528,6 +570,8 @@ theorem compact (h : Obs' σ S t o) (n : Nat) :
   | ctor h0 h1 h2 h3 h4 => exact ⟨[], nofun, .ctor h0 h1 h2 h3 h4⟩
   | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
     exact ⟨[], nofun, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12⟩
+  | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact ⟨[], nofun, .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12⟩
 
 /-- Compactness at the bound variable of an instantiation. -/
 theorem compact0 {S : ObSets} {X : Ob → Prop} (h : Obs' σ (S.cons X) t o) :
@@ -675,6 +719,13 @@ theorem lvEq (h : Obs' σ S t o) (ht : LvEq U t t') : Obs' σ S t' o := by
     | const w1 w2 w3 =>
       exact .rule h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ (.instL _ w1 w2 w3)) h6 h7 h8
         (fun e => ih9 e (.instL _ w1 w2 w3)) h10 (h11.lvEq w1 w2 w3) (ih12 (.instL _ w1 w2 w3))
+  | elimRule h1 h2 h3 h4 h5 h6 _ h8 h9 h10 h11 _ ih7 ih12 =>
+    cases ht with
+    | refl =>
+      exact .elimRule h1 h2 h3 h4 h5 h6 (fun τ hτ => ih7 τ hτ .refl) h8 h9 h10 h11 (ih12 .refl)
+    | elim w1 w2 w3 =>
+      exact .elimRule h1 h2 h3 h4 h5 h6 (fun τ hτ => ih7 τ hτ (.instL _ w1 w2 w3)) h8 h9 h10
+        (h11.lvEq w1 w2 w3) (ih12 (.instL _ w1 w2 w3))
   | delta h1 h2 h3 _ h5 _ ih4 ih6 =>
     cases ht with
     | refl => exact .delta h1 h2 h3 (fun τ hτ => ih4 τ hτ .refl) h5 (ih6 .refl)
