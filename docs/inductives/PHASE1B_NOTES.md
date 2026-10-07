@@ -833,15 +833,22 @@ the eliminator rule clause.
 * E6 the D11 induction's `inductEliminators` step; `FamSort` for the schema's families from the
   certified compilation.
 
-Progress on stage E (handoff): E1-E4 are in Lean. `HTS.elim` (head type typed in the
-derivation's context, since `elimDF`/`elim` give no closed-context derivation, and context
-strengthening is not available), `HTS.spineH` (spine lemma for constant and eliminator heads),
-`Obs.elimRule`/`Obs.elim_iff`/`Obs.elim_indep`, `ElimValid`/`ElimsValid` and the `elimDF`/
-`elimIota` cases of `Model.sound` (which now takes `ElimsValid env E` instead of the absence of
-eliminators), and `Model/ElimRuleSound.lean` (`sound_pat_elim`, `sound_pat_elim_empty`,
-`major_indicator_gen`). Remaining: E5 (the syntactic facts of generic case equations: the
-restored abstract equations of the per-owner view `schema.specialize owner …`, the restored
-generic type and its major domain, uniqueness per `(block, owner)` from
-`CaseSchema.Certified.constructor_names_nodup`, `FamSort` for the view's family with
-`C_absurd_gen` weakened to never-zero at the instantiated levels) and E6 (the
-`inductEliminators` step of `WF'.ruleValid`, which must then carry `ElimsValid envF env`).
+[Lean] Stage E is complete: `theorem VEnv.WF.headInjectivityCore_of_projFree (henv : env.WF)
+(hB : env.ProjFree) : env.HeadInjectivityCore` (`Model/Staged.lean`); `ProjFree` is the absence
+of projections only. Axioms propext, Classical.choice, Quot.sound. Pieces: `HTS.elim` and
+`HTS.spineH` (E1); `Obs.elimRule` (E2); `ElimValid`/`ElimsValid` and the `elimDF`/`elimIota`
+cases of `Model.sound` (E3); `Model/ElimRuleSound.lean` (E4); `Model/ElimRule.lean`
+(`ElimValid.of_certified`, from the restored abstract equations of the owner's view, E5);
+the `inductEliminators` step of `WF'.ruleValid`, which now proves validity of the rules and of
+the eliminator rules of every environment of the history (E6). Design changes made on the
+way: `HTS.elim` types the head in the derivation's context (`elimDF` has no closed-context
+premise and context strengthening is unavailable), so the spine lemma returns the head's type
+derivation in `[]` or in the derivation's context and `major_indicator_gen` reads the family
+indicator at a typed valuation of that context; `IsCtor` now also holds for constructors of
+generated case rules (`IsCaseCtor`), since a block registered for case analysis need not have
+installed native rules (structures installed by `inductProjections`), and constructor
+observations are what the eliminator rule clause binds fields from; `ElimValid` carries
+`RuleClosed`; `C_absurd_gen` takes never-zero at the instantiated levels; `HeadsClosed.of_decl`
+separates the downward preservation of `HeadsClosed`.
+
+Remaining: stage C (projections: `projDF`, `projIota`, `structEta`, `unitLike`), see 10.2.
