@@ -540,3 +540,51 @@ into `Prop` with a projection-bearing motive, plus the `TrExprS` substitution le
 needs `Nonempty Q` in the smaller context, which is not available. Substituting
 `q := choice h` only replaces the binder by the `Prop` hypothesis `h : Nonempty Q`, and
 that is strengthening again.
+
+### Implementation status (2026-10-07): ordinary case proved
+
+The corner is proved for ordinary structures, that is one family and one constructor, without
+nested auxiliaries.
+
+- `VEnv.corner_inhabit` (`Theory/Typing/ProjectionCornerElim.lean`): at a typed major of `S`,
+  the binder `D` reached by the walk past a field that fails the guard has an inhabitant in
+  `Δ`.
+- `projectionWalkCorner_of_choice` (`Verify/Typing/ProjectionCornerChoice.lean`) has exactly the
+  conclusion of `ProjectionWalkCorner` for one environment. Its two extra hypotheses are
+  `venv.HasCanonicalChoice` and `venv.StructurePropRecursor Us.length S info ls`.
+
+The construction differs from the sketch above in one point: the motive does not abstract the
+major. It is the constant `fun _ => Nonempty X`, where `X` is the walked binder at the actual
+major `e'` and is level-equivalent to `D`. Everything is built in `Δ`, after instantiating the
+recursor's parameters at the actual parameters:
+
+- `minor_instOuter` computes the instantiated minor premise as a substitution.
+- The field variable's type is `X` lifted, by `VProjectionInfo.field_of_walk` at the major
+  `e'` lifted past the fields. The projections that `X` uses are proof fields, equal to the
+  corresponding field variables by proof irrelevance.
+- The constructor application is typed along the source constructor telescope. This uses the
+  context equality between the signature's telescope and the source constructor's, which
+  comes from `NativeRecursorRegistered.ordinary`.
+
+No `TrExprS` induction is needed beyond `weakBV_inv₁_inhabited`.
+
+`StructurePropRecursor` bundles the following facts:
+- the registered native recursor data;
+- the one-family and one-constructor sizes;
+- the family name and its empty indices;
+- the constructor name;
+- the parameter count;
+- the field count `nparams + fields = ctorType.forallArity`;
+- universe levels `ls0` with `data.target.inst ls0 = 0`, whose family levels are equivalent to
+  `ls`.
+
+The last three cannot be derived from `NativeRecursorRegistered` alone:
+- `Instance.Admissible` does not tie `g.levels` to the source universes;
+- the field count follows only from the literal constructor tail, a Verify-level fact, or from
+  head inversion.
+
+They are for the call site (E1).
+
+`#print axioms VEnv.corner_inhabit` shows `sorryAx`. It comes only through unique typing
+(`IsDefEq.uniqU`), which depends on the open `headInversion` and `strengthening_of_canonicalEq`
+sorries, like every other use of uniqueness in the branch.
