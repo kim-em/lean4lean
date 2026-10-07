@@ -201,34 +201,11 @@ some well-formed environments (the two-dependent-singleton countermodel in
 `docs/inductives/STRENGTHENING.md`, which uses singleton `Prop` families with
 large elimination).  It is also not monotone in the environment: adding
 constants can break it, so strengthening of an environment says nothing about
-its extensions.  Every environment in which the verified type checker runs
-must therefore be assumed to satisfy it separately. -/
+its extensions.  The verified type checker does not assume it: it appears
+only as a hypothesis of conditional Theory lemmas and in the countermodel. -/
 def Strengthening (env : VEnv) : Prop :=
   ∀ ⦃U n k Γ Γ' e1 e2⦄, Ctx.LiftN n k Γ Γ' → OnCtx Γ' (env.IsType U) →
     env.IsDefEqU U Γ' (e1.liftN n k) (e2.liftN n k) → env.IsDefEqU U Γ e1 e2
-
-/-- **Conjecture** (open proof): context strengthening of definitional
-equality holds in every well-formed environment containing Lean's canonical
-equality (`VEnv.HasCanonicalEq`: `Eq`, `Eq.refl`, `Eq.rec` and its iota rule,
-exactly as installed by the replay of `Init.Prelude`).
-
-This replaces the former unconditional inverse direction of
-`IsDefEqU.weakN_iff`, which is refuted in general: the two-dependent-singleton
-countermodel of `docs/inductives/STRENGTHENING.md` is a well-formed environment
-without `Eq` in which strengthening fails.  That countermodel collapses in the
-presence of canonical `Eq` (STRENGTHENING.md, section "Scope of the
-countermodel: canonical equality"): with `Eq.rec`, the proof field of the
-singleton family is recoverable from any inhabitant in the smaller context, so
-the separating point is unavailable.  No counterexample with canonical `Eq` is
-known.
-
-This is a conjecture of the same standing as the Injectivity obligations
-(`Theory/Typing/Injectivity.lean`): a metatheoretic property of the typing
-judgment that is believed but not proved.  It discharges the per-declaration
-hypothesis `Declaration.Strengthening` of `addDecl.WF` for every environment
-that contains canonical `Eq` (`addDecl.WF_of_canonicalEq`). -/
-theorem strengthening_of_canonicalEq (henv : VEnv.WF env) (heq : env.HasCanonicalEq) :
-    env.Strengthening := sorry
 
 variable! (henv : VEnv.WF env) (hs : env.Strengthening) (hΓ : OnCtx Γ' (env.IsType U)) in
 /-- Inverse weakening for definitional equality.  The `.2` direction is the
