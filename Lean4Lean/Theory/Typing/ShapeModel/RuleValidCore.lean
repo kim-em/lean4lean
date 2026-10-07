@@ -242,7 +242,7 @@ theorem Head.realize_nil {h : Head} (hcl : ConstClosed env) (W : Valuation.Fits 
       fun _ _ _ h => h
   | elim b o =>
     cases hcore with
-    | elim h1 h2 =>
+    | elim h1 h2 _ =>
       exact .elim h1 .rfl mty ((Interp.closed_iff h2.instL).1 ((hT W).2 ha)) hC fun _ _ _ h => h
 
 /-- Realization of a head spine (`Spine.realize` for constant and eliminator heads): a table of
@@ -333,7 +333,7 @@ theorem HeadType.core_eq {h : Head} (hTh : HeadType env h ls Th)
     cases h1.symm.trans h1'; rfl
   | elim b o =>
     obtain ⟨T', h1, rfl⟩ := hTh
-    cases H with | elim h1' _ => cases h1.symm.trans h1'; rfl
+    cases H with | elim h1' _ _ => cases h1.symm.trans h1'; rfl
 
 /-- `Spine.ofPi` for constant and eliminator heads. -/
 theorem Spine.ofPi_head {h : Head} (W : Valuation.Fits env Γ₀ Γ ρ)
