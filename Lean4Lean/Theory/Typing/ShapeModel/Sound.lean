@@ -226,7 +226,7 @@ theorem Interp.beta_sound (W : Valuation.Fits env Γ₀ Γ ρ) (he' : SoundTy en
       exact (TShape.LE.lift_l hk.2.1).2 h
 
 theorem StrongSoundEq.beta (ih1 : StrongSoundEq env Γ A A (.sort u))
-    (ih3 : StrongSoundEq env (A::Γ) e e B) (ih4 : StrongSoundEq env Γ e' e' A)
+    (ih2 : StrongSoundEq env (A::Γ) B B (.sort v)) (ih3 : StrongSoundEq env (A::Γ) e e B) (ih4 : StrongSoundEq env Γ e' e' A)
     (ih6 : StrongSoundEq env Γ (e.inst e') (e.inst e') (B.inst e')) :
     StrongSoundEq env Γ (.app (.lam A e) e') (e.inst e') (B.inst e') := by
   have hs : SoundEq env Γ (.app (.lam A e) e') (e.inst e') := fun _ _ W _ =>
@@ -234,7 +234,7 @@ theorem StrongSoundEq.beta (ih1 : StrongSoundEq env Γ A A (.sort u))
   have hlam : StrongSound env Γ (.lam A e) (.forallE A B) :=
     ⟨fun _ _ W _ h => Interp.sound_lam (InterpTyped.hsort (ih1.left.sound W))
       (fun h1 h2 => ih3.left.sound (W.cons (InterpTyped.hsort (ih1.left.sound W)) h1 h2)) h,
-      .lam, .rfl⟩
+      .lam ih1.left ih2.left ih3.left, .rfl⟩
   exact ⟨hs, ⟨ih6.left.sound.defeq_l hs.symm, .app hlam ih4.left, .rfl⟩, ih6.left⟩
 
 theorem StrongSoundEq.eta (ih1 : StrongSoundEq env Γ A A (.sort u))
@@ -242,18 +242,33 @@ theorem StrongSoundEq.eta (ih1 : StrongSoundEq env Γ A A (.sort u))
     (ih4 : StrongSoundEq env Γ e e (.forallE A B))
     (ih5 : StrongSoundEq env (A::Γ) e.lift e.lift (.forallE A.lift (B.liftN 1 1))) :
     StrongSoundEq env Γ (.lam A (.app e.lift (.bvar 0))) e (.forallE A B) := by
+  have hbodyTy : SoundTy env (A::Γ) (.app e.lift (.bvar 0)) B := fun _ ρ W' _ hb => by
+    have hB : ∀ {b}, Interp env ρ b ((B.liftN 1 1).inst (.bvar 0)) →
+        InterpTyped env ρ b ((B.liftN 1 1).inst (.bvar 0)) (.sort v) := by
+      rw [VExpr.inst_liftN_bvar]; exact ih2.left.sound W'
+    have := Interp.sound_app (ih5.left.sound W') (InterpTyped.hsort hB) hb
+    rwa [VExpr.inst_liftN_bvar] at this
+  have hbody : StrongSound env (A::Γ) (.app e.lift (.bvar 0)) B := by
+    refine ⟨hbodyTy, .app ih5.left ⟨SoundTy.bvar .zero, .bvar, .rfl⟩, ?_⟩
+    rw [VExpr.inst_liftN_bvar]; exact .rfl
   have hlamTy : SoundTy env Γ (.lam A (.app e.lift (.bvar 0))) (.forallE A B) :=
     fun _ ρ W _ h => by
       refine Interp.sound_lam (InterpTyped.hsort (ih1.left.sound W))
         (fun {a x} ha hx {m'} hb => ?_) h
-      have W' := W.cons (InterpTyped.hsort (ih1.left.sound W)) ha hx
-      have hB : ∀ {b}, Interp env (ρ.push x) b ((B.liftN 1 1).inst (.bvar 0)) →
-          InterpTyped env (ρ.push x) b ((B.liftN 1 1).inst (.bvar 0)) (.sort v) := by
-        rw [VExpr.inst_liftN_bvar]; exact ih2.left.sound W'
-      have := Interp.sound_app (ih5.left.sound W') (InterpTyped.hsort hB) hb
-      rwa [VExpr.inst_liftN_bvar] at this
-  exact ⟨fun _ _ W _ => Interp.eta_sound W hlamTy ih4.left.sound, ⟨hlamTy, .lam, .rfl⟩,
-    ih4.left⟩
+      exact hbodyTy (W.cons (InterpTyped.hsort (ih1.left.sound W)) ha hx) hb
+  exact ⟨fun _ _ W _ => Interp.eta_sound W hlamTy ih4.left.sound,
+    ⟨hlamTy, .lam ih1.left ih2.left hbody, .rfl⟩, ih4.left⟩
+
+/-- A Pi type has the approximations of the Pi type over a domain with the same
+approximations. -/
+theorem SoundEq.forallE_dom (h : SoundEq env Γ A A') : SoundEq env Γ (.forallE A B) (.forallE A' B) :=
+  fun _ _ W _ => by
+    constructor <;> intro H <;> cases H with
+    | bot => exact .bot
+    | forallE h1 h2 h3 h4 h5 =>
+      first
+      | exact .forallE ((h W).1 h1) ((h W).1 h2) h3 h4 h5
+      | exact .forallE ((h W).2 h1) ((h W).2 h2) h3 h4 h5
 
 /-- Soundness of the shape model for every strong derivation in `E ≤ env`. The facts about the
 eliminators, projections and definitional rules are only asked for those of `E`. -/
@@ -285,7 +300,8 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env)
   | elimDF h1 h2 h3 h4 h5 h6 h7 _ ih =>
     have he := hEF.elimType h1 h2 h3
     refine .ofLeft (fun _ _ _ _ =>
-      ⟨(·.lvlEqv (.elim h6)), (·.lvlEqv (.elim (levels_equiv_symm h6)))⟩) ?_ .elim .rfl .elim .rfl
+      ⟨(·.lvlEqv (.elim h6)), (·.lvlEqv (.elim (levels_equiv_symm h6)))⟩) ?_ (.elim he h3) .rfl
+      (.elim he h3) (fun _ _ _ _ => Interp.instL_equiv (levels_equiv_symm h6))
     intro _ ρ W m H
     cases H with
     | bot => exact .bot
@@ -314,7 +330,8 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env)
       (.proj hF ihRight.right ihField.left hguard) .rfl
     exact fun _ _ W m H => Proj.typed hcl hF h6 h3 h4 (ihLeft.right.sound W) (ihLeft.sound W).2 H
   | lamDF h1 h2 _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 =>
-    refine StrongSoundEq.mk' .lam .rfl .lam .rfl fun _ _ W m => ?_
+    refine StrongSoundEq.mk' (.lam ih1.left ih2.left ih4.left) .rfl
+      (.lam ih1.right ih3.left ih5.right) (SoundEq.forallE_dom ih1.sound.symm) fun _ _ W m => ?_
     by_cases hm : m ≤ TShape.bot; · exact TShape.le_bot'.1 hm ▸ Interp.sound_bot
     refine ⟨⟨fun h => ?_, fun h => ?_⟩, Interp.sound_lam (InterpTyped.hsort (ih1.left.sound W))
       fun h1 h2 => ih4.left.sound (W.cons (InterpTyped.hsort (ih1.left.sound W)) h1 h2)⟩ <;>
@@ -338,7 +355,7 @@ theorem StrongSoundEq.of_isDefEqStrong {E : VEnv} (hle : E ≤ env)
       exact (ih2.sound (W.cons (InterpTyped.hsort (ih1.left.sound W))
         ((ih1.sound W).2 h2) h.T)).2 (h4 _ h)
   | defeqDF h1 _ _ ih1 ih2 => exact ⟨ih2.sound, ih2.left.defeq_r ih1.sound, ih2.right.defeq_r ih1.sound⟩
-  | beta h1 h2 _ _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 ih6 => exact .beta ih1 ih3 ih4 ih6
+  | beta h1 h2 _ _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 ih6 => exact .beta ih1 ih2 ih3 ih4 ih6
   | eta h1 h2 _ _ _ _ _ _ ih1 ih2 ih3 ih4 ih5 ih6 => exact .eta ih1 ih2 ih4 ih5
   | proofIrrel _ _ _ ih1 ih2 ih3 =>
     refine ⟨fun _ ρ W m => ?_, ih2.left, ih3.left⟩

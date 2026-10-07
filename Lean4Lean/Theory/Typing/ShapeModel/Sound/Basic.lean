@@ -397,9 +397,11 @@ a structural record (`StrongSoundCore`) at a type with the same approximations a
 inductive StrongSound : List VExpr → VExpr → VExpr → Prop where
   | mk : SoundTy env Γ M A → StrongSoundCore Γ M A' → SoundEq env Γ A' A → StrongSound Γ M A
 
-/-- The structural part of a semantic typing record: for applications, constants, Pi types and
-projections it records the semantic typing of the immediate subterms, as used by the
-realization of constructor applications (`Spine.lean`). The projection case records the
+/-- The structural part of a semantic typing record: for applications, constants, eliminators,
+Pi types, lambdas and projections it records the semantic typing of the immediate subterms (for
+an eliminator, its generic type), as used by the realization of constructor applications
+(`Spine.lean`) and by the validity of computation rules (`RuleValid*.lean`, which inverts the
+lambda telescopes of rules). The projection case records the
 structure facts of the projected structure (rather than its registration in `env`), so that
 soundness only needs these facts for the projections of the derivation environment. -/
 inductive StrongSoundCore : List VExpr → VExpr → VExpr → Prop where
@@ -408,7 +410,7 @@ inductive StrongSoundCore : List VExpr → VExpr → VExpr → Prop where
   | const : env.constants c = some ci → ls.length = ci.uvars →
     StrongSound Γ (ci.type.instL ls) (.sort u) →
     StrongSoundCore Γ (.const c ls) (ci.type.instL ls)
-  | elim : StrongSoundCore Γ (.elim b o ls) A
+  | elim : SemSig.elimType b o = some T → T.Closed → StrongSoundCore Γ (.elim b o ls) (T.instL ls)
   | app : StrongSound Γ f (.forallE A B) → StrongSound Γ a A →
     StrongSoundCore Γ (.app f a) (B.inst a)
   | proj : SemSig.StructFacts env s info →
@@ -416,7 +418,8 @@ inductive StrongSoundCore : List VExpr → VExpr → VExpr → Prop where
     StrongSound Γ fieldType (.sort fieldLevel) →
     ((info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero) →
     StrongSoundCore Γ (.proj s i e) fieldType
-  | lam : StrongSoundCore Γ (.lam A e) B
+  | lam : StrongSound Γ A (.sort u) → StrongSound (A::Γ) B (.sort v) → StrongSound (A::Γ) e B →
+    StrongSoundCore Γ (.lam A e) (.forallE A B)
   | forallE : StrongSound Γ A (.sort u) → StrongSound (A::Γ) B (.sort v) →
     StrongSoundCore Γ (.forallE A B) (.sort (.imax u v))
 end
