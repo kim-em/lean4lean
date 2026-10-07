@@ -529,20 +529,6 @@ theorem
         checkInductiveTypes.loopType.FVarNarrowCore.retargetRuntime] using
         Hreplay Hbody HbodyType, hembLocal⟩
 
-theorem TrExprS.getAppArgsList_translations {env : VEnv} {Us : List Name}
-    {Δ : VLCtx} {e : Expr} {t : VExpr} (H : TrExprS env Us Δ e t) :
-    ∃ args', List.Forall₂ (TrExprS env Us Δ) e.getAppArgsList args' := by
-  rw [← Expr.mkAppList_getAppArgsList e] at H
-  obtain ⟨_, args', _, hargs, _⟩ := checkPositivityStep.TrExprS.mkAppList_inv H
-  exact ⟨args', hargs⟩
-
-theorem _root_.List.Forall₂.drop_both {α β : Type} {R : α → β → Prop} :
-    ∀ {l : List α} {l' : List β}, List.Forall₂ R l l' → ∀ n : Nat,
-      List.Forall₂ R (l.drop n) (l'.drop n)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => .cons h t
-  | _, _, .cons _ t, n + 1 => t.drop_both n
-
 theorem checkInductiveTypes.loopType.FVarNarrowCore.fullTargetEqs
     (H : checkInductiveTypes.loopType.FVarNarrowCore env Us scope runtime)
     (henv : env.WF) :
