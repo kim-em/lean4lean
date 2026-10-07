@@ -316,7 +316,7 @@ theorem compiledInductive : CompiledInductive Eb sp.decl sp.block :=
 theorem declWF : sp.decl.WF Eb := ⟨sourceWF H, .ordinary (formationWF H)⟩
 
 theorem eliminatorsWF : VInductBlock.EliminatorsWF Eb sp.decl sp.block := by
-  refine ⟨ET, EC, H.hT, H.hC, sp.fam, _, rfl, ?_, rfl, ?_, ?_⟩
+  refine ⟨ET, EC, H.hT, H.hC, .inr ⟨sp.fam, _, rfl, ?_, rfl, ?_, ?_⟩⟩
   · exact CaseSchema.ofCaseCompilation_certified
       (CaseCompilationData.ofOrdinary (sourceWF H) (formationWF H) (models H) H.hT H.hC
         (familyTypesWF H) rfl rfl rfl) .nil recursorNamesFresh_nil

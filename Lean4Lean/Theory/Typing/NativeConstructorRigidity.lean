@@ -540,7 +540,7 @@ private theorem ConstructorHistory.addInduct
   cases hadd with
   | @intro block installed hdecl hcompile hblock helim hinstall =>
     obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩ := hblock
-    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs, -⟩ := helim
+    obtain ⟨eT, eC, hT', hC', helim⟩ := helim
     cases htypes.symm.trans hT'
     cases hctors.symm.trans hC'
     have hcanonical : VInductBlock.install env block =
@@ -551,14 +551,17 @@ private theorem ConstructorHistory.addInduct
     subst env'
     have hdf0 : envCtors.defeqs = env.defeqs :=
       (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
-    have hreg := H.register ((H.addConstVals htypes).addConstVals hctors) hordered
-      ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) hcert
-      (fun value hv => by
-        rcases List.mem_append.mp hv with hv | hv
-        · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hv)
-        · exact VEnv.addConstVals_get hctors hv) hdf0 (key := key)
     have hpre := (show ConstructorHistory (envCtors.addEliminators block.eliminators) by
-      rw [hE]; exact hreg).addProjections (entries := block.projections)
+      rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, -⟩
+      · rw [hE]; exact (H.addConstVals htypes).addConstVals hctors
+      · rw [hE]
+        exact H.register ((H.addConstVals htypes).addConstVals hctors) hordered
+          ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) hcert
+          (fun value hv => by
+            rcases List.mem_append.mp hv with hv | hv
+            · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hv)
+            · exact VEnv.addConstVals_get hctors hv) hdf0 (key := key)).addProjections
+      (entries := block.projections)
     have hle : env ≤ (envCtors.addEliminators block.eliminators).addProjections block.projections :=
       (VEnv.addConstVals_le htypes).trans <|
         (VEnv.addConstVals_le hctors).trans VEnv.addEliminators_addProjections_le
