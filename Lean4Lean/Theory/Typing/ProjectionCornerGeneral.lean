@@ -73,6 +73,16 @@ end VExpr
 namespace InductiveSignature.Instance
 variable {s : InductiveSignature} (g : Instance s)
 
+/-- The binder domains of the first motive of a family. -/
+def motiveDoms (family : Family) : List VExpr :=
+  insertBinders (family.indices.map (·.instL g.levels)) 0 ++
+    [VExpr.mkApps (.const family.name g.levels)
+      (vars s.params.length (0 + (insertBinders (family.indices.map (·.instL g.levels)) 0).length) ++
+        vars (insertBinders (family.indices.map (·.instL g.levels)) 0).length 0)]
+
+theorem motive_zero (family : Family) :
+    g.motive family 0 = VExpr.wrapForalls (g.motiveDoms family) (.sort g.targetLevel) := rfl
+
 /-- A motive is the first motive's shape lifted past the earlier motives. -/
 theorem motive_liftN (family : Family) (k : Nat) :
     g.motive family k = (g.motive family 0).liftN k := by
