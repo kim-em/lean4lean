@@ -26,3 +26,23 @@ The partial diff is `E1_MERGE_PARTIAL.diff`.
 - First remaining build error after these: `Theory/Inductive/CaseRegistration.lean:186`
   (auto-merged), `rw [hnames …]` where `hnames` is no longer an equation
   (an E1/mainline change to the names field). Not yet resolved.
+
+## Update (dry run continued)
+
+- `CaseRegistration.lean:186`: `Certified.structCompat`'s pattern becomes
+  `⟨expanded, auxiliaries, hdata, _, _, hnames, _⟩` (E1's `Certified` dropped
+  `g` and added `RecursorNamesFresh` last); every field it reads is in
+  `CaseCompilationData`.
+- ShapeModel destructures `Certified` the old way
+  (`⟨expanded, g, aux, hdata, hprior, hr, hnames⟩`) in about 15 places:
+  EnvTablesRegistration, EnvSchemaMajors, EnvHeaderArity, EnvSigSchema,
+  RuleValidGeneric(Syntax/Sem), RuleValidHistory, EnvSchemaTypes; mechanical.
+- Real obstacle: `CaseSchema.Certified.genericType_closed` (EnvSchemaTypes.lean,
+  `WF.eliminator_genericType_closed`) restores the generic case type by
+  restoring the native recursor (`hdata.recursors`), absent from the case-only
+  certificate; family index domains do not restore from `CaseCompilationData`.
+  Decision: E1 adds the clause `∀ owner, ∃ RI, indices.mapM restoration.expr =
+  some RI` (with the original-family header agreement folded in), which also
+  discharges the indexed corner's `hhdr`.
+- Scratch worktree with the partial resolution: /tmp/l4l-integrate (detached
+  at 463c99d4, MERGE_HEAD f72c08fd, uncommitted).
