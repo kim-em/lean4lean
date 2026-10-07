@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.HeadInversion
+import Lean4Lean.Theory.Typing.HeadInversionDefs
 
 /-! # Separation from a sound model: the `HeadModel` interface
 
@@ -9,7 +9,7 @@ expected head class to sorts, Pi types and saturated rigid applications (`HeadMo
 This file holds the interface; it was introduced by the Phase 1 spike
 (`Experimental/Spike/HeadModel.lean`, `Experimental/Spike/ReadThrough.lean`) and moved here so
 that the shape model (`Theory/Typing/ShapeModel/Head.lean`) can instantiate it
-(`ShapeModel.headModel_of_shapeModel`). It imports only `HeadInversion.lean`.
+(`ShapeModel.headModel_of_shapeModel`). It imports only `HeadInversionDefs.lean`.
 
 No `sorry` and no axioms. -/
 

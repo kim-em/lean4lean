@@ -1,11 +1,14 @@
-import Lean4Lean.Theory.Typing.EnvLemmas
-import Lean4Lean.Theory.Typing.Strong
-import Lean4Lean.Theory.Typing.ProjectionRigidity
+import Lean4Lean.Theory.Typing.HeadInversionDefs
+import Lean4Lean.Theory.Typing.ShapeModel.RuleValidHistory
 
 /-! # Head inversion for types: the base obligation of the inversion layer
 
-This file imports only the uniqueness-free base (`Lemmas`, `Strong`, `EnvLemmas`,
-`ProjectionRigidity`). It must not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
+The statements (`HeadInversion`, `HeadSeparation`, `HeadInjectivity`) and the chain lemmas are in
+`HeadInversionDefs.lean`. The separation half is proved for every well-formed environment by the
+shape model (`ShapeModel.headSeparation_of_wf`, `Theory/Typing/ShapeModel/RuleValidHistory.lean`);
+the injectivity half is the remaining conjecture.
+
+This file and the shape model do not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
 `FullReduction` or `HeadReduction`: the conjecture `VEnv.WF.headInversion` stated here is
 the single semantic obligation from which uniqueness of types (`IsDefEq.uniq`) and every
 inversion lemma in `Injectivity.lean` are derived.
@@ -15,146 +18,10 @@ See `docs/inductives/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
 namespace Lean4Lean
 namespace VEnv
 
-/-- Nonempty chains of definitional equalities, each link typed at some sort.
-
-This is the closure of type-level definitional equality under heterogeneous
-transitivity: consecutive links may be typed at different sorts. Without uniqueness of
-types two links cannot be composed into one, so uniqueness is first proved up to such a
-chain (`HasTypeStrong.uniq_chain`) and then collapsed (`TypeChain.collapse`). -/
-def TypeChain (env : VEnv) (U : Nat) (Γ : List VExpr) : VExpr → VExpr → Prop :=
-  Relation.TransGen fun A B => ∃ u, env.IsDefEq U Γ A B (.sort u)
-
-/-- Arguments related pointwise at the domains of a Pi telescope, each domain
-instantiated by the left arguments already consumed. -/
-inductive SpineArgsEq (env : VEnv) (U : Nat) (Γ : List VExpr) :
-    VExpr → List VExpr → List VExpr → Prop
-  | nil : SpineArgsEq env U Γ T [] []
-  | cons : env.IsDefEq U Γ a a' A → SpineArgsEq env U Γ (B.inst a) as as' →
-      SpineArgsEq env U Γ (.forallE A B) (a :: as) (a' :: as')
-
-/-- Head inversion for types: what the semantic layer delivers.
-
-Every field speaks about `TypeChain`s, that is about types related by definitional
-equalities each typed at a sort. "Typed at a sort" is essential: rigid heads are not
-injective at term level (`Or.inl h ≡ Or.inr h'` by proof irrelevance, `S.mk (proj e) ≡ e`
-by `structEta`), but at the type level they are.
-
-The fields `sort_sort` through `forallE_rigid` are the statements of the design document.
-The last field, `proj_fieldType`, is an addition: it is the projection case of uniqueness
-of types, stated without uniqueness. It is not derivable from `rigid_rigid` and
-`former_args` by substitution in this calculus, for the following reason. A projection's
-field type is the constructor telescope instantiated by the parameters and by the
-projections of the major onto all *earlier* fields, including fields that the selected
-field type does not mention. To compare two such instantiations by a typed simultaneous
-substitution (`IsDefEq.substDF`) or by repeated `IsDefEq.instDF`, every earlier projection
-must be typed. Under the `projDF` guard `resultLevel.IsNeverZero ∨ fieldLevel ≈ 0` the
-projection of a data field out of a structure that may live in `Prop` is untypable, so the
-substitution is not typed whenever such a field precedes the selected one, even if the
-selected field type does not depend on it. Removing the unused binder instead needs
-strengthening, which is not available (`docs/inductives/STRENGTHENING.md`). The
-occurrence-directed alternative, `fieldTemplateCongruence` in
-`FieldFormationCongruence.lean`, only compares typed occurrences but needs uniqueness of
-types (`AssignedTypeCompatibility`) at arbitrary subterms of the field type, which is
-circular inside the induction proving uniqueness. So the projection case is part of the
-semantic obligation. -/
-structure HeadInversion (env : VEnv) : Prop where
-  sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
-    env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v
-  forallE_forallE : ∀ {U Γ A B A' B'}, OnCtx Γ (env.IsType U) →
-    env.TypeChain U Γ (.forallE A B) (.forallE A' B') →
-    (∃ u, env.IsDefEq U Γ A A' (.sort u)) ∧ ∃ v, env.IsDefEq U (A :: Γ) B B' (.sort v)
-  rigid_rigid : ∀ {U Γ c c' ls ls' args args'}, OnCtx Γ (env.IsType U) →
-    env.Rigid c → env.Rigid c' →
-    env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c' ls') args') →
-    c = c' ∧ List.Forall₂ (· ≈ ·) ls ls' ∧ List.Forall₂ (env.IsDefEqU U Γ) args args'
-  former_args : ∀ {U Γ c ci doms w ls ls' args args'}, OnCtx Γ (env.IsType U) →
-    env.Rigid c → env.constants c = some ci → ci.type = .wrapForalls doms (.sort w) →
-    env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c ls') args') →
-    SpineArgsEq env U Γ (ci.type.instL ls) args args'
-  sort_forallE : ∀ {U Γ u A B}, OnCtx Γ (env.IsType U) →
-    ¬env.TypeChain U Γ (.sort u) (.forallE A B)
-  sort_rigid : ∀ {U Γ c u ls args}, OnCtx Γ (env.IsType U) → env.Rigid c →
-    ¬env.TypeChain U Γ (.sort u) (.mkApps (.const c ls) args)
-  forallE_rigid : ∀ {U Γ c A B ls args}, OnCtx Γ (env.IsType U) → env.Rigid c →
-    ¬env.TypeChain U Γ (.forallE A B) (.mkApps (.const c ls) args)
-  /-- Two typings of one projection select chain-related field types, given the data of
-  both projection typings, sources related at the first major type, and the two major
-  types related by a chain. -/
-  proj_fieldType : ∀ {U Γ typeName info index
-      levels₁ params₁ indexArgs₁ sourceMajor₁ fieldType₁ fieldLevel₁
-      levels₂ params₂ indexArgs₂ sourceMajor₂ fieldType₂ fieldLevel₂},
-    OnCtx Γ (env.IsType U) → env.projections typeName info → info.ctorType.Closed →
-    (∀ l ∈ levels₁, l.WF U) → levels₁.length = info.uvars →
-    params₁.length = info.nparams → indexArgs₁.length = info.nindices →
-    info.fieldType typeName levels₁ params₁ index sourceMajor₁ = some fieldType₁ →
-    env.HasType U Γ fieldType₁ (.sort fieldLevel₁) →
-    (info.resultLevel.inst levels₁).IsNeverZero ∨ fieldLevel₁ ≈ .zero →
-    (∀ l ∈ levels₂, l.WF U) → levels₂.length = info.uvars →
-    params₂.length = info.nparams → indexArgs₂.length = info.nindices →
-    info.fieldType typeName levels₂ params₂ index sourceMajor₂ = some fieldType₂ →
-    env.HasType U Γ fieldType₂ (.sort fieldLevel₂) →
-    (info.resultLevel.inst levels₂).IsNeverZero ∨ fieldLevel₂ ≈ .zero →
-    env.IsDefEq U Γ sourceMajor₁ sourceMajor₂
-      (.mkApps (.const typeName levels₁) (params₁ ++ indexArgs₁)) →
-    env.TypeChain U Γ (.mkApps (.const typeName levels₁) (params₁ ++ indexArgs₁))
-      (.mkApps (.const typeName levels₂) (params₂ ++ indexArgs₂)) →
-    env.TypeChain U Γ fieldType₁ fieldType₂
-
-/-- The separation half of `HeadInversion`: chains cannot connect types with different head
-classes, and equal rigid heads have equivalent universe levels. It is proved from a sound
-denotational model of the calculus (`Theory/Typing/ShapeModel/`), with no adequacy theorem. -/
-structure HeadSeparation (env : VEnv) : Prop where
-  sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
-    env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v
-  sort_forallE : ∀ {U Γ u A B}, OnCtx Γ (env.IsType U) →
-    ¬env.TypeChain U Γ (.sort u) (.forallE A B)
-  sort_rigid : ∀ {U Γ c u ls args}, OnCtx Γ (env.IsType U) → env.Rigid c →
-    ¬env.TypeChain U Γ (.sort u) (.mkApps (.const c ls) args)
-  forallE_rigid : ∀ {U Γ c A B ls args}, OnCtx Γ (env.IsType U) → env.Rigid c →
-    ¬env.TypeChain U Γ (.forallE A B) (.mkApps (.const c ls) args)
-  rigid_heads : ∀ {U Γ c c' ls ls' args args'}, OnCtx Γ (env.IsType U) →
-    env.Rigid c → env.Rigid c' →
-    env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c' ls') args') →
-    c = c' ∧ List.Forall₂ (· ≈ ·) ls ls'
-
-/-- The injectivity half of `HeadInversion`: the fields that produce declarative derivations
-between components. `rigid_args` is the argument conjunct of `rigid_rigid`, stated for a
-single head (the head and level conjuncts are `HeadSeparation.rigid_heads`). -/
-structure HeadInjectivity (env : VEnv) : Prop where
-  forallE_forallE : ∀ {U Γ A B A' B'}, OnCtx Γ (env.IsType U) →
-    env.TypeChain U Γ (.forallE A B) (.forallE A' B') →
-    (∃ u, env.IsDefEq U Γ A A' (.sort u)) ∧ ∃ v, env.IsDefEq U (A :: Γ) B B' (.sort v)
-  rigid_args : ∀ {U Γ c ls ls' args args'}, OnCtx Γ (env.IsType U) →
-    env.Rigid c →
-    env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c ls') args') →
-    List.Forall₂ (env.IsDefEqU U Γ) args args'
-  former_args : ∀ {U Γ c ci doms w ls ls' args args'}, OnCtx Γ (env.IsType U) →
-    env.Rigid c → env.constants c = some ci → ci.type = .wrapForalls doms (.sort w) →
-    env.TypeChain U Γ (.mkApps (.const c ls) args) (.mkApps (.const c ls') args') →
-    SpineArgsEq env U Γ (ci.type.instL ls) args args'
-  proj_fieldType : ∀ {U Γ typeName info index
-      levels₁ params₁ indexArgs₁ sourceMajor₁ fieldType₁ fieldLevel₁
-      levels₂ params₂ indexArgs₂ sourceMajor₂ fieldType₂ fieldLevel₂},
-    OnCtx Γ (env.IsType U) → env.projections typeName info → info.ctorType.Closed →
-    (∀ l ∈ levels₁, l.WF U) → levels₁.length = info.uvars →
-    params₁.length = info.nparams → indexArgs₁.length = info.nindices →
-    info.fieldType typeName levels₁ params₁ index sourceMajor₁ = some fieldType₁ →
-    env.HasType U Γ fieldType₁ (.sort fieldLevel₁) →
-    (info.resultLevel.inst levels₁).IsNeverZero ∨ fieldLevel₁ ≈ .zero →
-    (∀ l ∈ levels₂, l.WF U) → levels₂.length = info.uvars →
-    params₂.length = info.nparams → indexArgs₂.length = info.nindices →
-    info.fieldType typeName levels₂ params₂ index sourceMajor₂ = some fieldType₂ →
-    env.HasType U Γ fieldType₂ (.sort fieldLevel₂) →
-    (info.resultLevel.inst levels₂).IsNeverZero ∨ fieldLevel₂ ≈ .zero →
-    env.IsDefEq U Γ sourceMajor₁ sourceMajor₂
-      (.mkApps (.const typeName levels₁) (params₁ ++ indexArgs₁)) →
-    env.TypeChain U Γ (.mkApps (.const typeName levels₁) (params₁ ++ indexArgs₁))
-      (.mkApps (.const typeName levels₂) (params₂ ++ indexArgs₂)) →
-    env.TypeChain U Γ fieldType₁ fieldType₂
-
 /-- Separation for every well-formed environment, from the shape model. -/
 theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :
-    env.HeadSeparation := sorry
+    env.HeadSeparation :=
+  ShapeModel.headSeparation_of_wf henv
 
 /-- The remaining semantic obligation of the inversion layer: injectivity of type heads.
 
@@ -185,77 +52,6 @@ theorem _root_.Lean4Lean.VEnv.WF.headInversion {env : VEnv} (henv : env.WF) :
     sort_rigid := hs.sort_rigid
     forallE_rigid := hs.forallE_rigid
     proj_fieldType := hi.proj_fieldType }
-
-/-! ## Chain lemmas
-
-Chains inherit the structural operations of `IsDefEq` link by link; none of these
-lemmas uses uniqueness. -/
-
-section
-variable {env : VEnv} {U : Nat} {Γ : List VExpr}
-
-theorem TypeChain.single (h : env.IsDefEq U Γ A B (.sort u)) : env.TypeChain U Γ A B :=
-  Relation.TransGen.single ⟨_, h⟩
-
-theorem TypeChain.refl (h : env.HasType U Γ A (.sort u)) : env.TypeChain U Γ A A :=
-  .single h
-
-theorem TypeChain.trans (h1 : env.TypeChain U Γ A B) (h2 : env.TypeChain U Γ B C) :
-    env.TypeChain U Γ A C := Relation.TransGen.trans h1 h2
-
-theorem TypeChain.symm (h : env.TypeChain U Γ A B) : env.TypeChain U Γ B A := by
-  induction h with
-  | single h => let ⟨_, h⟩ := h; exact .single h.symm
-  | tail _ h ih => let ⟨_, h⟩ := h; exact (TypeChain.single h.symm).trans ih
-
-theorem TypeChain.head (h1 : env.IsDefEq U Γ A B (.sort u)) (h2 : env.TypeChain U Γ B C) :
-    env.TypeChain U Γ A C := (TypeChain.single h1).trans h2
-
-theorem TypeChain.tail (h1 : env.TypeChain U Γ A B) (h2 : env.IsDefEq U Γ B C (.sort u)) :
-    env.TypeChain U Γ A C := h1.trans (.single h2)
-
-/-- Map every link of a chain through a function on single links. -/
-theorem TypeChain.map {env' : VEnv} {U' : Nat} {Γ' : List VExpr} {f : VExpr → VExpr}
-    (hf : ∀ {A B u}, env.IsDefEq U Γ A B (.sort u) →
-      ∃ v, env'.IsDefEq U' Γ' (f A) (f B) (.sort v))
-    (h : env.TypeChain U Γ A B) : env'.TypeChain U' Γ' (f A) (f B) := by
-  induction h with
-  | single h => let ⟨_, h⟩ := h; exact Relation.TransGen.single (hf h)
-  | tail _ h ih => let ⟨_, h⟩ := h; exact Relation.TransGen.tail ih (hf h)
-
-/-- Transport a definitional equality along a chain, one `defeqDF` step per link. -/
-theorem TypeChain.defeqDF (H : env.TypeChain U Γ A B) (h : env.IsDefEq U Γ e₁ e₂ A) :
-    env.IsDefEq U Γ e₁ e₂ B := by
-  induction H with
-  | single h' => let ⟨_, h'⟩ := h'; exact .defeqDF h' h
-  | tail _ h' ih => let ⟨_, h'⟩ := h'; exact .defeqDF h' ih
-
-/-- The left endpoint of a chain is a type. -/
-theorem TypeChain.isType_l (H : env.TypeChain U Γ A B) : env.IsType U Γ A := by
-  induction H with
-  | single h => let ⟨_, h⟩ := h; exact ⟨_, h.hasType.1⟩
-  | tail _ _ ih => exact ih
-
-/-- The right endpoint of a chain is a type. -/
-theorem TypeChain.isType_r (H : env.TypeChain U Γ A B) : env.IsType U Γ B := by
-  induction H with
-  | single h => let ⟨_, h⟩ := h; exact ⟨_, h.hasType.2⟩
-  | tail _ h _ => let ⟨_, h⟩ := h; exact ⟨_, h.hasType.2⟩
-
-theorem TypeChain.weakN (henv : env.Ordered) (W : Ctx.LiftN n k Γ Γ')
-    (H : env.TypeChain U Γ A B) : env.TypeChain U Γ' (A.liftN n k) (B.liftN n k) :=
-  H.map fun h => ⟨_, h.weakN henv W⟩
-
-theorem TypeChain.instN (henv : env.Ordered) (h₀ : env.HasType U Γ₀ e₀ A₀)
-    (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ) (H : env.TypeChain U Γ₁ A B) :
-    env.TypeChain U Γ (A.inst e₀ k) (B.inst e₀ k) :=
-  H.map fun h => ⟨_, h.instN henv h₀ W⟩
-
-theorem TypeChain.defeqDFC (henv : env.Ordered) (h1 : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
-    (H : env.TypeChain U Γ₁ A B) : env.TypeChain U Γ₂ A B :=
-  H.map (f := id) fun h => ⟨_, h.defeqDFC henv h1⟩
-
-end
 
 end VEnv
 end Lean4Lean
