@@ -48,6 +48,41 @@ theorem KeysFit.lookup {Ds : List VExpr} (K : KeysFit env ρ Ds σ) :
       refine ⟨ρ', a', ?_, by simpa using h2⟩
       rwa [show (D :: Ds).length - 1 - (i + 1) = Ds.length - 1 - i by simp; omega]
 
+/-- A key of a telescope valuation is typed at an approximation of its domain, under the
+valuation of the earlier keys (the valuation `σ` shifted past the later keys). -/
+theorem KeysFit.lookup' {Ds : List VExpr} (K : KeysFit env ρ Ds σ) :
+    ∀ i (hi : i < Ds.length), ∃ a, (σ (Ds.length - 1 - i)).HasType a ∧
+      Interp env (fun j => σ (j + (Ds.length - i))) a Ds[i] := by
+  have hlen : ∀ {Ds : List VExpr} {ρ σ : Valuation}, KeysFit env ρ Ds σ →
+      ∀ j, σ (Ds.length + j) = ρ j := by
+    intro Ds ρ σ K
+    induction K with
+    | nil => intro j; simp
+    | @cons ρ D Ds σ a x _ _ _ ih =>
+      intro j
+      rw [List.length_cons, show Ds.length + 1 + j = Ds.length + (j + 1) by omega, ih]
+      rfl
+  induction K with
+  | nil => intro i hi; cases hi
+  | @cons ρ D Ds σ a x ha hx K ih =>
+    intro i hi
+    cases i with
+    | zero =>
+      refine ⟨a, ?_, ?_⟩
+      · rw [show (D :: Ds).length - 1 - 0 = Ds.length + 0 by simp, hlen K]
+        exact hx
+      · have : (fun j => σ (j + ((D :: Ds).length - 0))) = ρ := by
+          funext j
+          rw [show j + ((D :: Ds).length - 0) = Ds.length + (j + 1) by simp; omega, hlen K]
+          rfl
+        rw [this]; exact ha
+    | succ i =>
+      obtain ⟨a', h1, h2⟩ := ih i (by simpa using hi)
+      refine ⟨a', ?_, ?_⟩
+      · rwa [show (D :: Ds).length - 1 - (i + 1) = Ds.length - 1 - i by simp; omega]
+      · rw [show (D :: Ds).length - (i + 1) = Ds.length - i by simp]
+        simpa using h2
+
 /-- The invariant of an application of a key typed at a telescope ending in a sort. -/
 def TypedAt (env : VEnv) [SemSig] (t : TShape) (B : VExpr) : Prop :=
   t ≤ .bot ∨ ∃ (y z : TShape) (ρ' : Valuation), t ≤ y ∧ y.HasType z ∧ Interp env ρ' z B
