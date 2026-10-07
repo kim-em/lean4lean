@@ -172,6 +172,23 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   (`headInversion`). Next: Verify-level `projectionWalkCorner_of_choice`,
   then the generalization to several families; E1 supplies the bundle at
   the call sites from a proved pipeline invariant.
+  **E1 status (c54b258d, pushed):** mainline merged; the last narrow-scope
+  site closed (`recursorTelescope_hypothesisUnlift` from the producer's
+  checker contexts); the nested `ctor_doms` proof made strengthening-free
+  (`CompilationData.restoredConstructorFieldDomains`); the unused
+  strengthening-dependent Verify lemmas deleted; `CheckerSubContextLocality`
+  gone. Top-level theorem on E1: `addDecl.WF_of_canonicalEq (wf) (hcorner :
+  ProjectionWalkCorner) (heq) (decl) (hdecl)`; the cone (40182 constants)
+  contains no `Strengthening` and no `weakN_iff`-family lemma; the only
+  sorry in it is `headInversion`. Remaining on E1: discharge `hcorner`
+  (proved registry invariant + the transient-window `ProjsOK` extension +
+  the base branch's Verify-level corner under `HasCanonicalChoice`).
+  **Decision (2026-10-07): E1 is the leading route and becomes the mainline
+  once `hcorner` is discharged**; the declarative-strengthening route (b)
+  is an open research problem and continues only as a documented prototype.
+  The final theorem will then assume canonical `Eq` and canonical
+  `Nonempty`/`Classical.choice`, with `headInversion` the sole conjecture;
+  GOAL.md item (3) will be updated when E1 lands.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
