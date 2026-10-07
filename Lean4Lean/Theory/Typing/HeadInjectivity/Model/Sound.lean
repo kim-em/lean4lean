@@ -392,7 +392,8 @@ theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
 def ElimValid (env : VEnv) {schema : InductiveSignature.CaseSchema}
     (owner : Fin schema.signature.families.size) (df : VDefEq) : Prop :=
   ∀ (U : Nat) (Δ Γ : List VExpr) (levels : List VLevel) (target tl : VLevel),
-    OnCtx Δ (env.IsType U) → schema.Permission U owner levels target →
+    OnCtx Δ (env.IsType U) → InductiveSignature.CaseSchema.RuleClosed df →
+    schema.Permission U owner levels target →
     env.IsDefEqStrong U Γ (df.type.instL (target :: levels)) (df.type.instL (target :: levels))
       (.sort tl) →
     SoundAt env U Δ Γ (df.type.instL (target :: levels)) (df.type.instL (target :: levels))
@@ -752,8 +753,8 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
   | @extra df ls u Γ hdf hlw hlen hu ht0 _ _ hl hr iht0 _ _ ihl ihr =>
     exact ⟨hvalid df hdf _ _ _ _ _ hΔ hlw hlen (ht0.mono hle) ⟨iht0.1, iht0.2.1⟩ (hl.mono hle)
       ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩, ihl.2.1, ihr.2.1⟩
-  | elimIota hb hrules hmem _ hperm _ ht0 hl hr iht0 ihl ihr =>
-    exact ⟨hEV.valid _ _ _ _ _ hb hrules hmem _ _ _ _ _ _ hΔ hperm (ht0.mono hle)
+  | elimIota hb hrules hmem hrc hperm _ ht0 hl hr iht0 ihl ihr =>
+    exact ⟨hEV.valid _ _ _ _ _ hb hrules hmem _ _ _ _ _ _ hΔ hrc hperm (ht0.mono hle)
       ⟨iht0.1, iht0.2.1⟩ (hl.mono hle) ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩,
       ihl.2.1, ihr.2.1⟩
   | projIota h1 => exact absurd h1 (hnp _ _)

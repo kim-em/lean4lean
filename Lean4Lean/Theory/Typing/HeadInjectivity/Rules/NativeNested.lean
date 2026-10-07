@@ -149,6 +149,54 @@ theorem restored_equation {r : Restoration} {df : VDefEq}
   · rw [el, ← hout, vars_zero']; rfl
   · exact hT'
 
+/-- **Shape of a restored generated equation in abstract mode** (generic case equations). -/
+theorem restored_equation_abstract {r : Restoration} {df : VDefEq} (blk : Name) (first : Nat)
+    (hparams : ∀ h ∈ r.heads, h.nparams ≤ s.params.length)
+    (he : r.equation (g.equation index (.abstract blk first)) = some df) :
+    ∃ ds' idx' lsC' ms' body' T',
+      (g.eqDoms index).mapM r.expr = some ds' ∧
+      (g.eqIndices index).mapM r.expr = some idx' ∧
+      df.lhs = .wrapLams ds' (.mkApps (.elim blk (first + s.constructors[index].owner.val)
+          (g.targetLevel :: g.levels))
+        ((vars (s.params.length + (s.families.size + s.constructors.size))
+          s.constructors[index].fields.length ++ idx') ++
+          [.mkApps (.const (r.headName s.constructors[index].name) lsC')
+            (ms' ++ (eqFs index).map .bvar)])) ∧
+      df.rhs = .wrapLams ds' body' ∧
+      df.type = .wrapForalls ds' T' ∧
+      r.expr (.mkApps (.bvar (s.constructors[index].fields.length + s.constructors.size +
+        (s.families.size - 1 - s.constructors[index].owner.val)))
+        (g.eqIndices index ++ [g.constructorApp s.constructors[index]
+          (s.families.size + s.constructors.size) 0])) = some T' ∧
+      df.uvars = g.uvars := by
+  obtain ⟨hl, hr, ht⟩ := Restoration.equation_parts he
+  have huv : df.uvars = g.uvars := by
+    simp only [Restoration.equation, bind, Option.bind_eq_some_iff] at he
+    obtain ⟨_, _, _, _, _, _, h⟩ := he
+    cases h; rfl
+  obtain ⟨ds', l, hds, hl', el⟩ := Restoration.expr_wrapLams (ds := g.eqDoms index) hl
+  obtain ⟨ds2, body', hds2, -, er⟩ := Restoration.expr_wrapLams (ds := g.eqDoms index) hr
+  obtain ⟨ds3, T', hds3, hT', et⟩ := Restoration.expr_wrapForalls (ds := g.eqDoms index) ht
+  cases hds.symm.trans hds2
+  cases hds.symm.trans hds3
+  -- the left-hand side body
+  change Restoration.expr.go r (VExpr.mkApps _ _) [] = _ at hl'
+  rw [restoration_mkApps] at hl'
+  simp only [List.mapM_append, Restoration.vars_mapM, bind, Option.bind_eq_some_iff,
+    List.append_nil] at hl'
+  obtain ⟨a, ⟨a1, ⟨_, h1, idx', hi, h2⟩, a3, hm, h3⟩, hout⟩ := hl'
+  cases Option.some.inj h1
+  cases Option.some.inj h2
+  cases Option.some.inj h3
+  simp only [List.mapM_cons, List.mapM_nil, bind, Option.bind_eq_some_iff, pure,
+    Option.some.injEq] at hm
+  obtain ⟨major', hmajor, _, rfl, rfl⟩ := hm
+  simp only [recursorHead, Restoration.expr.go, Option.some.injEq] at hout
+  obtain ⟨lsC', ms', rfl⟩ := Restoration.ctorApp hparams hmajor
+  refine ⟨ds', idx', lsC', ms', body', T', hds, hi, ?_, er, et, ?_, huv⟩
+  · rw [el, ← hout, vars_zero']; rfl
+  · exact hT'
+
 end Instance
 
 /-- The restored constructor of a generated equation returns the restored family of its
