@@ -501,37 +501,45 @@ and in the major's head).
   those facts for `quotDefEq` (both modes occur: `Quot` at a level that is identically zero
   is a proposition). Infrastructure: `Model/Tele.lean` (typed key telescopes), `Model/HTS.lean`
   (semantic typing derivations, the spine lemma), `Model/RuleLemmas.lean`.
-* [Lean] Stage B (D11 implemented): `theorem VEnv.WF.headInjectivityCore_of_stageB (henv :
-  env.WF) (hB : env.StageB) : env.HeadInjectivityCore` (`Model/Staged.lean`), where `StageB`
-  is: no projections, no eliminators, and `Model.OrdinaryNative env` (every native rule batch
-  present comes from a compilation with `auxiliaries = []` whose elimination is admissible by
-  `∀ family, (resultLevel.inst g.levels).IsNeverZero` or by `targetLevel ≈ 0`; i.e. no
-  container specializations and no singleton large elimination). `StageB` subsumes `DefsQuot`.
-  Axioms propext, Classical.choice, Quot.sound. Structure:
+* [Lean] Stages B and D for compilations without container specializations (D11
+  implemented): `theorem VEnv.WF.headInjectivityCore_of_ordinary (henv : env.WF) (hB :
+  env.OrdinaryScope) : env.HeadInjectivityCore` (`Model/Staged.lean`). `OrdinaryScope`: no
+  projections, no eliminators, and `Model.OrdinaryNative env` (every compilation generating a
+  rule present in `env` has `auxiliaries = []`). All elimination modes are covered: data
+  families, elimination into `Prop`, singleton large elimination and K-like rules. It subsumes
+  `DefsQuot`. Axioms propext, Classical.choice, Quot.sound. Structure:
   - `RuleValid` now has explicit binders (implicit ones were instantiated eagerly by `exact`).
-  - `Rules/Batches.lean`: `VEnv.WF.sameHead`, rules with a common head constant lie in one
-    declaration's batch (delta rules, the quotient rule, or one compilation's equations).
   - `Rules/NativeOrdinary.lean`: for `auxiliaries = []` the restoration is `{}`; the pattern
     decomposition of `g.equation index` (`eqDoms`, `eqLead`, `eqMs`, `eqFs`), coverage, the
     recursor type `wrapForalls (g.recDoms owner) RH` with its major domain
-    `mkApps (const family g.levels) _`, recursor-name and constructor injectivity, and the
-    installed constructor's family (`CompilationData.ordinary_ctor`).
+    `mkApps (const family g.levels) _`, recursor-name and constructor injectivity, the
+    installed constructor's family (`CompilationData.ordinary_ctor`), and
+    `expanded.typeConstants = source.typeConstants`.
   - `Model/NativeSem.lean`: `family_sort` (observation chains of a type soundly equal to a
     telescope ending in `Sort l` end in `l`), `motive_tele_empty`/`rhs_empty_motive` (a rule
     whose type is a telescope over a motive into `Prop` has a right-hand side without
     observations), `sound_pat_empty`.
-  - `Model/NativeRule.lean`: `FamSort env I l` (the semantic fact), `native_uniq`,
+  - `Model/NativeRule.lean`: `FamSort env I l`, `HeadExcl`, `ProofBinder`, `native_uniq`,
     `native_C_absurd` (mode C is impossible when the family sort is never zero), and
-    `RuleValid.native`: never-zero families via `sound_pat` with a vacuous `hC`, small
-    elimination via `sound_pat_empty`. `RuleValid.quot` now takes `QuotConsts` and uniqueness
-    per head instead of `DefsQuot` (`quot_unique_head`: native recursor names end in `rec`).
+    `RuleValid.native`, split on `Instance.Admissible.elimination`: never-zero families via
+    `sound_pat` with a contradictory `hC`; small elimination via `sound_pat_empty`; singleton
+    elimination via `sound_pat` in mode C. `RuleValid.quot` takes `QuotConsts` and uniqueness
+    per head instead of `DefsQuot`.
+  - `Model/Singleton.lean`: `proofBinder_of` (a binder typed at `Sort 0` in an earlier
+    environment with valid rules is a `ProofBinder`) and `singleton_field_typing` (the field
+    typings of `SingletonElimination`, weakened past the motives and minors and the later
+    fields, type the equation's field binders at `Sort 0` in the environment in which the
+    block's rules are typed).
   - `Model/Staged.lean`: `Model.famSort` proves `FamSort` for an ordinary family from
-    `RestoresFamily.type` (the declared type is definitionally a telescope ending in a sort
-    equivalent to the recorded result level): the derivation lives in the environment with the
-    family headers added to the environment before the declaration, which is ordered and
-    whose rules are valid by the induction hypothesis, so `Model.sound` applies to it in the
-    model of the final environment (Finding 1 resolved for ordinary families).
-    `VEnv.WF'.ruleValid` is the D11 induction over the declaration history.
+    `RestoresFamily.type` (Finding 1 resolved for ordinary families): the derivation lives in
+    the environment with the family headers added to the environment before the declaration,
+    which is ordered and whose rules are valid by the induction hypothesis, so `Model.sound`
+    applies to it in the model of the final environment. `VEnv.WF'.ruleValid` is the D11
+    induction over the declaration history; it carries `HeadsClosed envF env` (no later
+    declaration of `envF` adds a rule headed by a constant of `env`), which gives uniqueness
+    per head for the compilation that actually installed the rule. (A first version used
+    `Rules/Batches.lean`, `VEnv.WF.sameHead`, whose batch witness need not be the installing
+    compilation; it is kept but no longer used.)
 * [plan] Stages B-E (section 10.2). Handoff for stage B (native recursors, mode AB): each
   compilation equation must be shown to satisfy the hypotheses of `Model.sound_pat`:
   pattern and coverage (`Instance.equation_patShape_strong`), `df.uvars = g.uvars` for
