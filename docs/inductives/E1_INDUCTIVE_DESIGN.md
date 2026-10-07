@@ -388,3 +388,33 @@ Risk: steps 2-6 touch the producer proofs (about 35k lines in Header/, Construct
 Recursor/{FirstPass,SecondPass,RecursiveCalls,Bindings}). Containment: keep the old main-context
 wrapper statements as corollaries, so that only the sites listed above and their narrow-input
 threading change.
+
+## 5. The projection-walk corner on E1 (2026-10-07)
+
+The base branch proves the corner from canonical choice (`VEnv.corner_inhabit`, commit c1e4b892;
+the Verify-level `projectionWalkCorner_of_choice` is in progress). Its per-call premise is
+`StructurePropRecursor env U S info ls`: a registered native recursor `data` whose owner family is
+`S` with no indices, whose constructor is `info.ctorName` with `info.nparams` parameters and the
+walk's field count, together with universe levels `ls0` (WF, `ls0.length = data.uvars`,
+`data.target.inst ls0 = .zero`, `data.levels.map (·.inst ls0) ≈ ls`); temporarily also one family
+and one constructor. Plan for E1:
+
+1. Replace the `VContext.projectionCorner : ProjectionWalkCorner` field by `venv.HasCanonicalEq`,
+   `venv.HasCanonicalChoice` (hypotheses from the top) and a proved registry fact
+   `∀ S info ls, venv.projections S info → ... → StructurePropRecursor venv U S info ls`.
+2. The registry fact is not a consequence of `VEnv.Ordered`: the constructor `inductProjections`
+   registers projection entries before the block's recursors exist. It is therefore a pipeline
+   invariant of `VEnvs.WF` (projection entries, constructors and recursors of a declaration all come
+   from the same `CompilationData`, and `NativeRecursorRegistered` is monotone), proved at each
+   `addDecl` kind.
+3. Transient window. During the recursor phase the context environment is
+   `venvCtors.addProjections decl.projectionEntries` (block projections registered, recursors not).
+   No user term there contains `.proj S` for a block family `S`: every constructor type was checked
+   while the block had no constructors, so `inferProj` on `S` failed there. The only producer is
+   `tryEtaStructCore` (via `isDefEq`), which builds `.proj S i t` and may infer its type through
+   proof irrelevance. Either an invariant shows that `isDefEq` in this phase never compares a
+   constructor application of a block structure with a term it is not syntactically equal to
+   (an extension of the `Expr.ProjsOK` invariant of `TypeChecker/HitShape.lean` to block
+   structures), or the registry fact is restricted to structures outside the current block and the
+   window contexts carry the extended `ProjsOK` invariant. Changing the executable order is not an
+   option (the C++ kernel declares the constructors before generating recursors).

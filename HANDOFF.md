@@ -16,6 +16,30 @@ countermodel is parked at its conditional theorem; the Experimental CI
 failure is to be fixed properly as part of porting Mario's prototype. Open
 proofs: `headInversion`, `strengthening_of_canonicalEq`, `FullStep.strip`.
 
+**E1 branch status (2026-10-07, `agent/verify-inductives-e1`, un-parked by the
+coordinator; mainline merged at 345fc7ee).** `addDecl.WF_of_canonicalEq`
+on E1 takes `(wf : ves.WF env) (hcorner : ProjectionWalkCorner) (heq)
+(decl) (hdecl)`; its dependency cone (40182 constants, walk with
+`/tmp/l4l-e1d/walk/Walk.lean`) contains no `VEnv.Strengthening`, no
+`weakN_iff`-family lemma and no sorry other than `VEnv.WF.headInversion`;
+the only open hypothesis is `ProjectionWalkCorner`. No Verify site consumes
+`hs`; the mainline's `hs` threading is removed on E1, and the unused
+strengthening-dependent Verify lemmas (`VLocalDecl.weakN_iff`, `BVLift.wf`,
+`TrExprS.weakBV_inv(₁)`, `ProjectionDesugaring.weakN_inv`/`weak'_inv`,
+`mkApps_canonical_prefix`, `canonicalApplicationContext`,
+`InductiveStrengthening`, `InductiveDeclStrengthening`) are deleted.
+Decisions: the last narrow-scope site (`recursorTelescope_hypothesisUnlift`)
+takes its small translations from the producer's checker contexts (field
+checker cut before the recursive field; call-local checker above it) and
+uses forward `weakBV` plus uniqueness; restored nested iota rules get
+`VIotaRuleShape.ctor_doms` from the `RestoresType` constructor
+correspondence (forall injectivity, then the container specialization),
+`CompilationData.restoredConstructorFieldDomains`. `CheckerSubContextLocality`
+no longer exists. Full build, `Lean4Lean.Tests`, replays (`Init.Prelude`
+1975, `Init.Core` 3953) and the audit pass. Remaining on E1: replace
+`hcorner` by the base branch's `projectionWalkCorner_of_choice` (plan in
+`docs/inductives/E1_INDUCTIVE_DESIGN.md` section 5).
+
 Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
 `~/worktrees/lean4lean/`):
 - `lean4lean-cr`, branch `agent/verify-inductives-cr`: **`FullStep.strip`,
