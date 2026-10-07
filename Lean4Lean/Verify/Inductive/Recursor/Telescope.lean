@@ -5308,6 +5308,67 @@ theorem BindingContextLE.rebaseTypeCheckerLParams
   ⟨H.fvars, H.declarations, H.env_eq, H.lparams_eq, H.safety_eq,
     H.allowPrimitive_eq, H.fuel_eq⟩
 
+theorem MLCtxTopAgree.mkForall_eq {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (ha : n ≤ a.length) (hb : n ≤ b.length)
+    (e : Expr) : a.mkForall n ha e = b.mkForall n hb e := by
+  induction H generalizing e with
+  | zero => simp
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    simp only [TypeChecker.MLCtx.mkForall]
+    exact ih _ _ _
+
+theorem MLCtxTopAgree.forallTelescope {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (hb : n ≤ b.length) :
+    ∀ {W : Expr} {k : Nat} {rW : Expr}, Expr.ForallTelescope W k rW →
+      ∃ r, Expr.ForallTelescope (b.mkForall n hb W) (n + k) r := by
+  induction H with
+  | zero => intro W k rW HW; exact ⟨rW, by simpa using HW⟩
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    intro W k rW HW
+    simp only [TypeChecker.MLCtx.mkForall]
+    have Habs := HW.abstract1 fv 0
+    have Hcons : Expr.ForallTelescope
+        (.forallE name ty (W.abstract1 fv) bi) (k + 1)
+        (rW.abstract1 fv (0 + k)) := .cons Habs
+    obtain ⟨r, Hr⟩ := ih (Nat.le_of_succ_le_succ hb) Hcons
+    exact ⟨r, by simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using Hr⟩
+
+theorem MLCtxTopAgree.binderAt_shift {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (hb : n ≤ b.length) :
+    ∀ {j : Nat} {d : Expr}, ∃ d', ∀ W : Expr, Expr.ForallBinderAt W j d →
+      Expr.ForallBinderAt (b.mkForall n hb W) (n + j) d' := by
+  induction H with
+  | zero => intro j d; exact ⟨d, fun W h => by simpa using h⟩
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    intro j d
+    obtain ⟨d', Hd'⟩ := ih (Nat.le_of_succ_le_succ hb)
+      (j := j + 1) (d := d.abstract1 fv j)
+    refine ⟨d', fun W HW => ?_⟩
+    simp only [TypeChecker.MLCtx.mkForall]
+    have Habs := HW.abstract1 fv 0
+    have Hthere : Expr.ForallBinderAt
+        (.forallE name ty (W.abstract1 fv) bi) (j + 1) (d.abstract1 fv j) := by
+      simpa using Expr.ForallBinderAt.there (name := name)
+        (outerDomain := ty) (bi := bi) Habs
+    have := Hd' _ Hthere
+    simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using this
+
+theorem MLCtxTopAgree.binderAt_indep {a b : TypeChecker.MLCtx} {n : Nat}
+    (H : MLCtxTopAgree a b n) (hb : n ≤ b.length) :
+    ∀ i < n, ∃ d, ∀ W : Expr, Expr.ForallBinderAt (b.mkForall n hb W) i d := by
+  induction H with
+  | zero => intro i hi; omega
+  | vlam h fv name ty t₁ t₂ bi ih =>
+    intro i hi
+    simp only [TypeChecker.MLCtx.mkForall]
+    rcases Nat.lt_succ_iff_lt_or_eq.mp hi with hi | rfl
+    · obtain ⟨d, Hd⟩ := ih (Nat.le_of_succ_le_succ hb) i hi
+      exact ⟨d, fun W => Hd _⟩
+    · obtain ⟨d', Hd'⟩ := MLCtxTopAgree.binderAt_shift h
+        (Nat.le_of_succ_le_succ hb) (j := 0) (d := ty)
+      refine ⟨d', fun W => ?_⟩
+      simpa using Hd' _ (Expr.ForallBinderAt.here (name := name)
+        (domain := ty) (body := W.abstract1 fv) (bi := bi))
 
 end VerifyInductive
 end Lean4Lean
