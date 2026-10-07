@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CompilationLemmas
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 /-! Generated ordinary recursor and iota shapes.
 
 The operational shape contracts follow from the independent generator's
@@ -19,14 +20,6 @@ theorem Instance.equation_head {s : InductiveSignature} (g : Instance s)
     (fun _ h => by cases h) ?_ (Restoration.expr_empty (g.equation index).lhs)
   exact VExpr.getAppFnArgs_mkApps_head _ _
 
-theorem vars_eq_bvarRange (n below : Nat) :
-    vars n below = VExpr.bvarRange n (n + below) := by
-  apply List.ext_getElem
-  · simp [vars, VExpr.bvarRange]
-  · intro i hi hi'
-    simp [vars, VExpr.bvarRange] at hi hi' ⊢
-    congr 1
-    omega
 
 /-- The generated telescope has exactly the major-family shape consumed by
 the recursor reducer, with ordinary uniform constructor parameters. -/

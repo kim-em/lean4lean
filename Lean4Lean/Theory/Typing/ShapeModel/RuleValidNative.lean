@@ -197,7 +197,7 @@ theorem native_extraValid {E E' cbase : VEnv} {T : Tables} {decl expanded : VInd
           cases Option.some.inj hd'
           have hjv : index'.val = j.val := by
             have h1 : index'.val < s.constructors.size := index'.isLt
-            have h2 := hsing.2.1
+            have h2 := hsing.1.2.1
             have h3 := j.isLt
             omega
           have hj' : (⟨index'.val, index'.isLt⟩ : Fin s.constructors.size) = j := Fin.ext hjv
@@ -217,7 +217,7 @@ theorem native_extraValid {E E' cbase : VEnv} {T : Tables} {decl expanded : VInd
           rfl
         · simp [majorRule] at hh'
       · rw [heq, hDs, Nat.add_sub_cancel] at hn
-        exact native_singleton_unread H hgood hEW hle hblock hinstall hcle hdata hX hsing
+        exact native_singleton_unread H hgood hEW hle hblock hinstall hcle hdata hX hsing.1
           hadm.levels_wf j hDsR hidxR ls _ _ σ W i hi hn
 
 end

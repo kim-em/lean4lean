@@ -27,7 +27,8 @@ theorem CheckingEnv.Valid.registerCases
     (hctors : envTypes.addConstVals block.ctors = some envCtors)
     (hentries : entries = block.projections)
     (hprojs : (CaseSchema.ofCompilation source s auxiliaries).ProjNamesRegistered
-      (envCtors.addProjections entries) key) :
+      (envCtors.addProjections entries) key)
+    (hcoherent : source.ProjectionsCoherent (envCtors.addProjections entries)) :
     CheckingEnv.Valid safety concrete
       ((envCtors.addProjections entries).addEliminator key
         (CaseSchema.ofCompilation source s auxiliaries)) := by
@@ -44,7 +45,7 @@ theorem CheckingEnv.Valid.registerCases
   apply H.addEliminator
   apply hbase.inductEliminators H.tr.wf
     (((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)).trans
-      VEnv.addProjections_le) hformed hkey _ hequations hprojs hfresh
+      VEnv.addProjections_le) hformed hkey _ hequations hprojs hcoherent hfresh
     (hentries ▸ hformed.structCompat hbase htypes hctors)
   intro value hvalue
   apply VEnv.addProjections_le.constants
