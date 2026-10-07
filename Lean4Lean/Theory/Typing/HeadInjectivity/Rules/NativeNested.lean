@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.NativeOrdinary
+import Lean4Lean.Theory.Inductive.RestorationHead
 
 /-! # Syntax of restored native recursor equations (nested compilations)
 
@@ -295,5 +296,91 @@ theorem CompilationData.restored_ctor_inj {s : InductiveSignature} {g : Instance
     simp only [Fin.getElem_fin] at this
     simp [this]
 
+theorem ContainerSpecialization.directFamily_resultLevel {a : ContainerSpecialization}
+    {params : List VExpr} (H : a.directFamily U params = some direct) :
+    direct.resultLevel = a.source.resultLevel.inst a.levels := by
+  simp only [ContainerSpecialization.directFamily, bind, Option.bind_eq_some_iff, pure,
+    Option.some.injEq] at H
+  obtain ⟨_, _, _, _, rfl⟩ := H
+  rfl
+
+/-- The restored head of a family: an original family (with its correspondence), or the
+container family of a specialization. -/
+theorem CompilationData.family_origin {s : InductiveSignature} {g : Instance s}
+    (H : CompilationData base source expanded s g aux block) (o : Fin s.families.size) :
+    (∃ envTypes family, base.addConstVals source.typeConstants = some envTypes ∧
+      family ∈ source.types ∧
+      RestoresFamily (compilationRestoration source aux) envTypes source.uvars
+        (s.declarationFamily o) family ∧
+      (compilationRestoration source aux).headName s.families[o].name = family.name ∧
+      ∀ lv, (compilationRestoration source aux).headLevels s.families[o].name lv = lv) ∨
+    (∃ a ∈ aux, (compilationRestoration source aux).headName s.families[o].name = a.source.name ∧
+      (∀ lv, (compilationRestoration source aux).headLevels s.families[o].name lv =
+        a.levels.map (·.inst lv)) ∧
+      s.families[o].resultLevel ≈ a.source.resultLevel.inst a.levels) := by
+  obtain ⟨envTypes, direct, htypes, hdirect, _, hfamilies⟩ := H.correspondence
+  obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l
+    hfamilies _ (s.declarationFamily_mem o)
+  have hname : s.families[o].name = family.name := hrel.name
+  rcases List.mem_append.mp hfamily with hsrc | hdir
+  · left
+    have hfn : family.name ∈ familyNames source.types :=
+      List.mem_flatMap.mpr ⟨family, hsrc, List.mem_cons_self⟩
+    refine ⟨envTypes, family, htypes, hsrc, hrel, ?_, fun lv => ?_⟩
+    · rw [hname]; exact H.headName_source hfn
+    · rw [hname]; exact H.headLevels_source hfn
+  · right
+    obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
+      (List.mapM_eq_some.mp hdirect) family hdir
+    obtain ⟨spec, hspec, hsa, hst, hsl⟩ : ∃ spec ∈ (compilationRestoration source aux).heads,
+        spec.auxiliary = a.auxiliary ∧ spec.target = a.source.name ∧ spec.levels = a.levels :=
+      ⟨_, List.mem_flatMap.mpr ⟨a, ha, by
+        unfold ContainerSpecialization.heads; exact List.mem_cons_self⟩, rfl, rfl, rfl⟩
+    have hfa : s.families[o].name = a.auxiliary := hname.trans
+      (ContainerSpecialization.directFamily_name hdf)
+    refine ⟨a, ha, ?_, fun lv => ?_, ?_⟩
+    · rw [hfa, ← hsa, ← hst]; exact Restoration.headName_of_mem H.restorationScoped hspec
+    · rw [hfa, ← hsa, ← hsl]; exact Restoration.headLevels_of_mem H.restorationScoped hspec
+    · have := hrel.resultLevel
+      rw [ContainerSpecialization.directFamily_resultLevel hdf] at this
+      exact this
+
+/-- A compilation with container specializations has at least two families. -/
+theorem CompilationData.nested_families {s : InductiveSignature} {g : Instance s}
+    (H : CompilationData base source expanded s g aux block) (haux : aux ≠ []) :
+    2 ≤ s.families.size := by
+  obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := H.correspondence
+  have h1 := Lean4Lean.List.Forall₂.length_eq hfamilies
+  have h2 := mapM_length' (List.mapM_eq_some.mp hdirect)
+  have h3 : source.types ≠ [] := H.sourceWF.1
+  simp only [declaration, List.length_map, List.length_zipIdx, Array.length_toList,
+    List.length_append] at h1
+  have := List.length_pos_iff.2 h3
+  have := List.length_pos_iff.2 haux
+  omega
+where
+  mapM_length' {α β : Type} {R : α → β → Prop} {l : List α} {l' : List β}
+      (h : List.Forall₂ R l l') : l'.length = l.length :=
+    (Lean4Lean.List.Forall₂.length_eq h).symm
+
 end InductiveSignature
+
+theorem CertifiedSpecializations.mem {env : VEnv}
+    {aux : List InductiveSignature.ContainerSpecialization}
+    (H : CertifiedSpecializations env aux) :
+    ∀ a ∈ aux, ∃ base block installed, CompiledInductive base a.container block ∧
+      block.WF base ∧ VInductBlock.install base block = some installed ∧ installed ≤ env := by
+  exact CertifiedSpecializations.rec
+    (motive_1 := fun _ _ _ _ => True)
+    (motive_2 := fun env aux _ => ∀ a ∈ aux, ∃ base block installed,
+      CompiledInductive base a.container block ∧ block.WF base ∧
+      VInductBlock.install base block = some installed ∧ installed ≤ env)
+    (fun _ _ _ => trivial) (fun _ _ _ _ => trivial) (by simp)
+    (fun hcompile hw hinstall hle _ _ ih => by
+      intro a ha
+      rcases List.mem_cons.mp ha with rfl | ha
+      · exact ⟨_, _, _, hcompile, hw, hinstall, hle⟩
+      · exact ih a ha)
+    H
+
 end Lean4Lean
