@@ -452,3 +452,21 @@ threading the extended environment through `CompletedConstructorPhases.contextVE
 obligation `ProjNamesRegistered` of `registerCases`, and an eliminator variant of
 `corner_inhabit` (about the size of the native one). With it the registry invariant is by
 construction and no `NativeRecursorRegistered` provenance or universe correspondence is needed.
+
+### 5.2 Option (A) is circular as specified (2026-10-07)
+
+`CheckingEnv.Valid.registerCases` needs a `CaseSchema.Certified` witness, that is a full
+`CompilationData` (Theory/Inductive/Compilation.lean). Its field `recursiveTypesWF`
+(`g.RecursiveTypesWF`, typing of the generated induction hypotheses) is obtained in the pipeline
+only from the type check of the generated recursor types
+(`CompletedRecursorConstruction.consumedSignature_recursiveTypesWF` via
+`Instance.recursiveTypesWF_of_recursorType`), which is `checkRecursorTypes`, the very window run
+that needs the corner. The remaining fields (`recursors`, `equations`, `admissible`) also refer
+to the generated block and the elimination level, which `getElimLevel` computes inside the window.
+So a certified schema cannot be registered at the constructor boundary without either
+(C) weakening the premise of `VEnv.WF'.inductEliminators` to a case-only certificate (formation,
+model, correspondence, restoration scoping, names; no generated recursors, equations or
+induction-hypothesis typing, none of which a case schema uses), or (D) the bespoke window argument
+of 5.1. Also needed for (A)/(C): typability of the restored case type of a structure (the premise
+of `elimDF`), which no existing lemma provides; `VEnv.corner_inhabit_sig`
+(Theory/Typing/ProjectionCornerSig.lean) is the eliminator-independent part of the corner.
