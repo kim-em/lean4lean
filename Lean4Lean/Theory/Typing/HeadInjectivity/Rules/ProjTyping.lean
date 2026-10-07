@@ -312,6 +312,174 @@ theorem proj_typed (henv : env.Ordered) {Δ : List VExpr} (hΔ : OnCtx Δ (env.I
   intro i hi
   exact (key (i + 1) (by omega)).2 i (by omega)
 
+theorem ArgsTyped.append {Δ : List VExpr} :
+    ∀ {T : VExpr} {as bs : List VExpr} {R : VExpr}, ArgsTyped env U Δ T (as ++ bs) R →
+      ∃ M, ArgsTyped env U Δ T as M ∧ ArgsTyped env U Δ M bs R
+  | _, [], _, _, H => ⟨_, .nil, H⟩
+  | _, a :: as, bs, R, .cons ha H => by
+    obtain ⟨M, h1, h2⟩ := ArgsTyped.append (as := as) H
+    exact ⟨M, .cons ha h1, h2⟩
+
+theorem ArgsTyped.mkApps {Δ : List VExpr} :
+    ∀ {T : VExpr} {as : List VExpr} {R f : VExpr}, ArgsTyped env U Δ T as R →
+      env.HasType U Δ f T → env.HasType U Δ (VExpr.mkApps f as) R
+  | _, [], _, _, .nil, hf => hf
+  | _, a :: as, R, f, .cons ha H, hf => by
+    have h := ArgsTyped.mkApps (f := .app f a) H (.appDF hf ha)
+    exact h
+
+/-- The typings of the individual arguments along a substituted closed telescope. -/
+theorem ArgsTyped.elems {Δ D : List VExpr} {R0 : VExpr}
+    (hR0 : ∀ (σ : VExpr.Subst) A B, R0.subst σ ≠ .forallE A B) :
+    ∀ (as pre : List VExpr) {Tail : VExpr},
+      ArgsTyped env U Δ ((VExpr.wrapForalls (D.drop pre.length) R0).subst (VExpr.argSubst pre))
+        as Tail →
+      ∀ i (hi : i < as.length) (hD : pre.length + i < D.length),
+        env.HasType U Δ as[i] ((D[pre.length + i]).subst (VExpr.argSubst (pre ++ as.take i)))
+  | [], _, _, _, i, hi, _ => by simp at hi
+  | a :: as, pre, Tail, H, i, hi, hD => by
+    rw [List.drop_eq_getElem_cons (by omega), VExpr.subst_wrapForalls_cons] at H
+    cases H with
+    | cons ha H' =>
+      rw [VExpr.inst_lift_cons, ← VExpr.argSubst_append_one] at H'
+      cases i with
+      | zero => simpa using ha
+      | succ i =>
+        have := ArgsTyped.elems hR0 as (pre ++ [a]) (by simpa using H') i (by simp at hi; omega)
+          (by simp; omega)
+        simpa [Nat.add_assoc, Nat.add_comm 1, List.take_succ_cons] using this
+
+/-- The constructor's result at the arguments of a full spine is the structure at the
+parameters and the instantiated indices. -/
+theorem spine_result {S : Name} {u np : Nat} {doms idx : List VExpr} {ls : List VLevel}
+    (hlen : ls.length = u) {ps fs : List VExpr} (hpl : ps.length = np)
+    (hall : (ps ++ fs).length = doms.length) :
+    ((VExpr.mkApps (.const S (VLevel.params u))
+        ((List.range np).reverse.map (fun i => VExpr.bvar (doms.length - np + i)) ++ idx)).instL
+      ls).subst (VExpr.argSubst (ps ++ fs)) =
+      VExpr.mkApps (.const S ls)
+        (ps ++ idx.map fun e => (e.instL ls).subst (VExpr.argSubst (ps ++ fs))) := by
+  simp only [VExpr.instL_mkApps, VExpr.subst_mkApps, VExpr.instL, VExpr.subst_const,
+    VLevel.inst_map_id hlen, List.map_append, List.map_map]
+  congr 2
+  apply List.ext_getElem (by simp [hpl])
+  intro i h1 h2
+  simp only [List.getElem_map, List.getElem_reverse, List.getElem_range, List.length_range,
+    Function.comp_def, VExpr.instL, VExpr.subst_bvar]
+  simp only [List.length_map, List.length_reverse, List.length_range] at h1
+  rw [VExpr.argSubst_lt _ (by simp at hall ⊢; omega), List.getElem_append_left (by simp at hall ⊢; omega)]
+  congr 1
+  simp at hall ⊢; omega
+
+/-- **L3: projections of a constructor spine.** For a structure whose result sort is never zero
+at `ls`, the constructor applied to parameters `ps` and fields `fs` typed along its telescope is
+typed at the structure applied to `ps` and the instantiated indices, and each projection of it
+is typed at its field type and definitionally equal to the field. -/
+theorem proj_spine (henv : env.Ordered) {Δ : List VExpr} (hΔ : OnCtx Δ (env.IsType U))
+    {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
+    (hcl : info.ctorType.Closed) {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U)
+    (hlen : ls.length = info.uvars) (hnz : (info.resultLevel.inst ls).IsNeverZero)
+    {doms idx : List VExpr}
+    (hshape : info.ctorType = VExpr.wrapForalls doms
+      (VExpr.mkApps (.const S (VLevel.params info.uvars))
+        ((List.range info.nparams).reverse.map
+            (fun i => VExpr.bvar (doms.length - info.nparams + i)) ++ idx)))
+    (hidx : idx.length = info.nindices) (hwf : env.IsType info.uvars [] info.ctorType)
+    (hctor : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩)
+    {ps fs : List VExpr} {R : VExpr}
+    (hargs : ArgsTyped env U Δ (info.ctorType.instL ls) (ps ++ fs) R)
+    (hpl : ps.length = info.nparams) (hfl : fs.length = info.numFields) :
+    env.HasType U Δ (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))
+      (VExpr.mkApps (.const S ls)
+        (ps ++ idx.map fun e => (e.instL ls).subst (VExpr.argSubst (ps ++ fs)))) ∧
+    ∀ i (hi : i < fs.length), ∃ F,
+      info.fieldType S ls ps i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)) = some F ∧
+      env.HasType U Δ (.proj S i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))) F ∧
+      env.IsDefEq U Δ (.proj S i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))) fs[i] F := by
+  have T := ProjTele.of (S := S) henv hshape hwf hls
+  generalize hD : doms.map (·.instL ls) = D at T
+  generalize hR0 : (VExpr.mkApps (.const S (VLevel.params info.uvars))
+    ((List.range info.nparams).reverse.map
+      (fun i => VExpr.bvar (doms.length - info.nparams + i)) ++ idx)).instL ls = R0 at T
+  have hDl : D.length = doms.length := by rw [← hD]; simp
+  obtain ⟨c, lsR, args, hR0e⟩ := T.head
+  have hR0' : ∀ (σ : VExpr.Subst) A B, R0.subst σ ≠ .forallE A B := by
+    rw [hR0e]; exact subst_mkApps_const_ne_forallE c lsR args
+  have hT : info.ctorType.instL ls = (VExpr.wrapForalls (D.drop ([] : List VExpr).length) R0).subst
+      (VExpr.argSubst []) := by
+    rw [T.shape]; exact VExpr.subst_id.symm
+  have hargs' := hargs
+  rw [hT] at hargs'
+  obtain ⟨hle, -, hR⟩ := ArgsTyped.substEq T.doms hR0' (ps ++ fs) [] .nil (by simp) hargs'
+  simp only [List.nil_append, List.length_nil, Nat.zero_add] at hle hR
+  have hnf := T.numFields
+  have hall : (ps ++ fs).length = D.length := by simp [hpl, hfl, hnf] at hle ⊢; omega
+  rw [hall, List.drop_length] at hR
+  have hRe : R = VExpr.mkApps (.const S ls)
+      (ps ++ idx.map fun e => (e.instL ls).subst (VExpr.argSubst (ps ++ fs))) := by
+    rw [hR, VExpr.wrapForalls, List.foldr_nil, ← hR0]
+    exact spine_result hlen hpl (by rw [hall, hDl])
+  have hw : env.HasType U Δ (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)) R :=
+    ArgsTyped.mkApps hargs (.const hctor hls hlen)
+  rw [hRe] at hw
+  refine ⟨hw, ?_⟩
+  -- the parameters, and L2 at the spine
+  obtain ⟨M, hps, -⟩ := ArgsTyped.append hargs
+  have L2 := proj_typed henv hΔ hp hcl hls hlen hnz T hps hpl
+    (by simp [hidx]) hw
+  have hps' := hps
+  rw [hT] at hps'
+  obtain ⟨-, W0, -⟩ := ArgsTyped.substEq T.doms hR0' ps [] .nil (by simp) hps'
+  simp only [List.nil_append, List.length_nil] at W0
+  have helems := ArgsTyped.elems hR0' (ps ++ fs) [] hargs'
+  simp only [List.length_nil, Nat.zero_add, List.nil_append] at helems
+  -- the fields, one at a time, with the pair of substitutions
+  have key : ∀ j, j ≤ fs.length →
+      Ctx.SubstEq env U Δ
+        (VExpr.argSubst (ps ++ projsOf S (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)) j))
+        (VExpr.argSubst (ps ++ fs.take j)) (D.take (info.nparams + j)).reverse ∧
+      ∀ i (hi : i < j) (hi' : i < fs.length), ∃ F,
+        info.fieldType S ls ps i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)) = some F ∧
+        env.HasType U Δ (.proj S i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))) F ∧
+        env.IsDefEq U Δ (.proj S i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))) fs[i] F := by
+    intro j
+    induction j with
+    | zero => intro _; exact ⟨by simpa [projsOf, ← hpl] using W0, fun i hi => absurd hi (by omega)⟩
+    | succ j ih =>
+      intro hj
+      obtain ⟨W, hprev⟩ := ih (by omega)
+      have hk : info.nparams + j < D.length := by omega
+      obtain ⟨u, hu⟩ := T.doms _ hk
+      have hconv := hu.substDF henv (T.ctx _ (by omega)) hΔ W
+      simp only [VExpr.subst] at hconv
+      obtain ⟨F, hft, -, hproj, -⟩ := L2 j (by omega)
+      rw [T.fieldType hlen hpl _ hk, Option.some.injEq] at hft
+      subst hft
+      have hfj := helems (info.nparams + j) (by simp [hpl]; omega) hk
+      rw [List.getElem_append_right (by omega), List.take_append,
+        List.take_of_length_le (l := ps) (by omega)] at hfj
+      simp only [hpl, Nat.add_sub_cancel_left] at hfj
+      have hfj' : env.HasType U Δ fs[j]
+          ((D[info.nparams + j]).subst (VExpr.argSubst (ps ++ projsOf S
+            (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)) j))) := by
+        exact .defeqDF hconv.symm hfj
+      have hiota : env.IsDefEq U Δ (.proj S j (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)))
+          fs[j] _ :=
+        .projIota hp hproj (by rw [List.getElem?_append_right (by omega)]; simp [hpl]) hfj'
+      refine ⟨?_, fun i hi hi' => ?_⟩
+      · rw [projsOf_succ, ← List.append_assoc, List.take_succ_eq_append_getElem (by omega),
+          ← List.append_assoc, show info.nparams + (j + 1) = (info.nparams + j) + 1 by omega,
+          List.take_succ_eq_append_getElem hk, List.reverse_append, List.reverse_singleton,
+          List.singleton_append, VExpr.argSubst_append_one, VExpr.argSubst_append_one]
+        exact .cons (by rw [VExpr.Subst.cons_tail, VExpr.Subst.cons_tail]; exact W) hu
+          (by rw [VExpr.Subst.cons_head, VExpr.Subst.cons_head, VExpr.Subst.cons_tail]; exact hiota)
+      · by_cases hij : i < j
+        · exact hprev i hij hi'
+        · obtain rfl : i = j := by omega
+          exact ⟨_, T.fieldType hlen hpl _ hk, hproj, hiota⟩
+  intro i hi
+  exact (key (i + 1) (by omega)).2 i (by omega) hi
+
 end VEnv
 
 
