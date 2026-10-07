@@ -61,7 +61,20 @@ theorem VEnv.AddInduct.eliminators_iff (H : VEnv.AddInduct env decl env') :
     env'.eliminators n s ↔ VEnv.InductRegistration env decl n s env' ∨ env.eliminators n s := by
   cases H with
   | intro hdecl hcompile hblock helim hinstall =>
-    obtain ⟨envTypes, envCtors, ht, hc, key, schema, hE, hcert, hkey, hprojs, hhdr⟩ := helim
+    obtain ⟨envTypes, envCtors, ht, hc, helim⟩ := helim
+    rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, hhdr⟩
+    · rw [VInductBlock.install_eliminators_iff hinstall, hE]
+      constructor
+      · rintro (h | h)
+        · simp at h
+        · exact .inr h
+      · rintro (⟨block', envTypes', envCtors', -, -, -, hinstall', -, -, hE', -⟩ | h)
+        · have := VInductBlock.install_eliminators_iff (n := n) (s := s) hinstall'
+          rw [hE'] at this
+          have h2 := VInductBlock.install_eliminators_iff (n := n) (s := s) hinstall
+          rw [hE] at h2
+          exact .inr (by simpa using h2.mp (this.mpr (by simp)))
+        · exact .inr h
     rw [VInductBlock.install_eliminators_iff hinstall, hE]
     simp only [List.mem_singleton, Prod.mk.injEq]
     constructor

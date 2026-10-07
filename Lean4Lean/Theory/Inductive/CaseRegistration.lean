@@ -376,32 +376,37 @@ end InductiveSignature.CaseSchema
 namespace VInductBlock
 open InductiveSignature
 
+/-- The constructor stage of a declaration installed from its checked source is well formed. -/
+theorem _root_.Lean4Lean.VInductDecl.SourceWF.ctorsWF {base envTypes envCtors : VEnv}
+    {decl : VInductDecl} (hsource : decl.SourceWF base) (hbase : base.WF)
+    (htypes : base.addConstVals decl.typeConstants = some envTypes)
+    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors) :
+    envCtors.WF := by
+  obtain ⟨types, ctors, ht, hc, htypesWF, hctorsWF⟩ := hsource.2.2.2.2
+  rw [htypes] at ht
+  cases ht
+  apply VEnv.WF.addConstVals (cis := decl.constructorConstants) _ hctorsWF hctors
+  apply VEnv.WF.addConstVals hbase _ htypes
+  intro value hvalue
+  obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hvalue
+  exact htypesWF family hfamily
+
 /-- The constructor stage of a block with its certified eliminators is well formed. -/
 theorem EliminatorsWF.elimWF {base envTypes envCtors : VEnv} {decl : VInductDecl}
     {block : VInductBlock} (H : VInductBlock.EliminatorsWF base decl block) (hbase : base.WF)
+    (hsource : decl.SourceWF base) (htypesSource : block.types = decl.typeConstants)
+    (hctorsSource : block.ctors = decl.constructorConstants)
     (htypes : base.addConstVals block.types = some envTypes)
     (hctors : envTypes.addConstVals block.ctors = some envCtors) :
     (envCtors.addEliminators block.eliminators).WF := by
-  obtain ⟨envTypes', envCtors', ht', hc', key, schema, hE, hcert, hkey, hprojs, hhdr⟩ := H
+  obtain ⟨envTypes', envCtors', ht', hc', H⟩ := H
   cases htypes.symm.trans ht'
   cases hctors.symm.trans hc'
-  rw [hE]
-  exact hcert.register_after_constructors hbase hkey htypes hctors hprojs hhdr
-
-/-- Every projection entry of a certified block names a family of its eliminator. -/
-theorem EliminatorsWF.covered {base : VEnv} {decl : VInductDecl} {block : VInductBlock}
-    (H : VInductBlock.EliminatorsWF base decl block)
-    (hprojections : block.projections = decl.projectionEntries) :
-    ∀ entry ∈ block.projections, ∃ key schema, (key, schema) ∈ block.eliminators ∧
-      entry.typeName ∈ schema.originalFamilies := by
-  obtain ⟨_, _, _, _, key, schema, hE, hcert, _⟩ := H
-  intro entry hentry
-  rw [hprojections] at hentry
-  obtain ⟨type, htype, ctor, _, rfl⟩ := VInductDecl.projectionEntries_origin hentry
-  obtain ⟨_, _, _, _, _, hnames, _⟩ := hcert
-  refine ⟨key, schema, by rw [hE]; simp, ?_⟩
-  rw [hnames]
-  exact List.mem_map.mpr ⟨type, htype, rfl⟩
+  rcases H with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, hhdr⟩
+  · rw [hE]
+    exact hsource.ctorsWF hbase (htypesSource ▸ htypes) (hctorsSource ▸ hctors)
+  · rw [hE]
+    exact hcert.register_after_constructors hbase hkey htypes hctors hprojs hhdr
 
 /-- The projection stage of a certified block is well formed. -/
 theorem EliminatorsWF.projectionsWF {base envTypes envCtors : VEnv} {decl : VInductDecl}
@@ -412,11 +417,12 @@ theorem EliminatorsWF.projectionsWF {base envTypes envCtors : VEnv} {decl : VInd
     ((envCtors.addEliminators block.eliminators).addProjections block.projections).WF := by
   have ht' : base.addConstVals decl.typeConstants = some envTypes := by
     simpa only [hcompile.types] using htypes
+  have helimWF := H.elimWF hbase hdecl.1 hcompile.types hcompile.ctors htypes hctors
+  obtain ⟨_, _, _, _, H⟩ := H
+  rcases H with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, _, hhdr⟩
+  · rw [hP]; exact helimWF
   have parameters := hdecl.sourceParameterWF ht'
-  exact VEnv.WF.inductProjections hbase (H.elimWF hbase htypes hctors)
-    (by
-      obtain ⟨_, _, _, _, key, schema, hE, hcert, hkey, _, hhdr⟩ := H
-      exact ⟨key, schema, hE, hcert, hkey, hhdr⟩)
+  exact VEnv.WF.inductProjections hbase helimWF ⟨key, schema, hE, hcert, hkey, hhdr⟩
     hcompile.sourceNames hdecl.1.originalTypes hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at ht')
     parameters parameters.rawCtorShape hcompile.types hcompile.ctors
     hcompile.projections htypes hctors
@@ -484,7 +490,9 @@ theorem VEnv.WF.projections_eliminated {env : VEnv} (H : env.WF)
       | intro _ hcompile _ helim hinstall =>
         rcases (VInductBlock.install_projections_iff hinstall).mp hp with
           ⟨entry, hentry, rfl, rfl⟩ | hold
-        · obtain ⟨_, _, _, _, key, schema, hE, hcert, _⟩ := helim
+        · obtain ⟨_, _, _, _, helim⟩ := helim
+          rcases helim with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, _⟩
+          · rw [hP] at hentry; cases hentry
           refine ⟨key, schema, ?_, covered_of_certified hcert hcompile.projections hentry⟩
           rw [VInductBlock.install_eliminators_iff hinstall, hE]
           simp

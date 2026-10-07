@@ -33,6 +33,29 @@ theorem projNamesOK_iff_avoid {ok : Name → Prop} :
     · intro h
       refine ⟨Classical.byContradiction fun hm => (h m hm).1 rfl, fun n hn => (h n hn).2⟩
 
+theorem ProjNamesOK.wrapForalls_inv {ok : Name → Prop} :
+    ∀ {ds : List VExpr} {b : VExpr}, (VExpr.wrapForalls ds b).ProjNamesOK ok →
+      (∀ d ∈ ds, d.ProjNamesOK ok) ∧ b.ProjNamesOK ok
+  | [], _, h => ⟨by simp, h⟩
+  | d :: ds, b, h => by
+    obtain ⟨hd, hrest⟩ := h
+    obtain ⟨hds, hb⟩ := ProjNamesOK.wrapForalls_inv (ds := ds) hrest
+    refine ⟨fun x hx => ?_, hb⟩
+    rcases List.mem_cons.1 hx with rfl | hx
+    · exact hd
+    · exact hds x hx
+
+theorem ProjNamesOK.mkApps_inv {ok : Name → Prop} :
+    ∀ {f : VExpr} {args : List VExpr}, (VExpr.mkApps f args).ProjNamesOK ok →
+      f.ProjNamesOK ok ∧ ∀ a ∈ args, a.ProjNamesOK ok
+  | _, [], h => ⟨h, by simp⟩
+  | f, a :: args, h => by
+    obtain ⟨⟨hf, ha⟩, hargs⟩ := ProjNamesOK.mkApps_inv (f := .app f a) (args := args) h
+    refine ⟨hf, fun x hx => ?_⟩
+    rcases List.mem_cons.1 hx with rfl | hx
+    · exact ha
+    · exact hargs x hx
+
 end VExpr
 
 namespace InductiveSignature.Instance

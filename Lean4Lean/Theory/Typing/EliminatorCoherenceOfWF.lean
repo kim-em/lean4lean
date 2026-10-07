@@ -81,7 +81,7 @@ private theorem EliminatorsCoherent.addInduct (H : env.EliminatorsCoherent) (hen
     (hadd : env.AddInduct decl env') : env'.EliminatorsCoherent := by
   cases hadd with
   | @intro block installed hdecl hcompile hblock helim hinstall =>
-    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs, -⟩ := helim
+    obtain ⟨eT, eC, hT', hC', helim⟩ := helim
     simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at hinstall
     obtain ⟨envTypes, htypes, envCtors, hctors, envRecs, hrecs, rfl⟩ := hinstall
@@ -104,7 +104,9 @@ private theorem EliminatorsCoherent.addInduct (H : env.EliminatorsCoherent) (hen
       VEnv.addProjections_eliminators, VEnv.addEliminators_iff,
       VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes] at hs
     rcases hs with hnew | hold
-    · rw [hE] at hnew
+    · rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, -⟩
+      · rw [hE] at hnew; cases hnew
+      rw [hE] at hnew
       simp only [List.mem_singleton, Prod.mk.injEq] at hnew
       obtain ⟨rfl, rfl⟩ := hnew
       refine ⟨env, decl, block, hle, hcert, fun value hv => ?_,

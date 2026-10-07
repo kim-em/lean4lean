@@ -149,6 +149,38 @@ theorem addProjections_addConstVals
       | none => rfl
       | some next => simpa [hadd] using ih next
 
+theorem addEliminators_addConst
+    (env : VEnv) (es : List (Name × InductiveSignature.CaseSchema)) (name : Name)
+    (constant : VConstant) :
+    (env.addEliminators es).addConst name constant =
+      (env.addConst name constant).map (·.addEliminators es) := by
+  unfold VEnv.addConst
+  simp only [VEnv.addEliminators_constants]
+  split
+  · rfl
+  · simp only [Option.map_some]
+    congr 1
+    apply VEnv.ext
+    · simp only [VEnv.addEliminators_constants]
+    · simp only [VEnv.addEliminators_defeqs]
+    · simp only [VEnv.addEliminators_projections]
+    · funext n s
+      apply propext
+      simp only [VEnv.addEliminators_iff]
+
+theorem addEliminators_addConstVals
+    (env : VEnv) (es : List (Name × InductiveSignature.CaseSchema))
+    (constants : List VConstVal) :
+    (env.addEliminators es).addConstVals constants =
+      (env.addConstVals constants).map (·.addEliminators es) := by
+  induction constants generalizing env with
+  | nil => rfl
+  | cons constant constants ih =>
+      simp only [VEnv.addConstVals, VEnv.addEliminators_addConst]
+      cases hadd : env.addConst constant.name constant.toVConstant with
+      | none => rfl
+      | some next => simpa [hadd] using ih next
+
 end VEnv
 
 /-- Install a compiled block in dependency order. -/
