@@ -832,3 +832,16 @@ the eliminator rule clause.
   `(block, owner)` (schemas are registered under fresh keys).
 * E6 the D11 induction's `inductEliminators` step; `FamSort` for the schema's families from the
   certified compilation.
+
+Progress on stage E (handoff): E1-E4 are in Lean. `HTS.elim` (head type typed in the
+derivation's context, since `elimDF`/`elim` give no closed-context derivation, and context
+strengthening is not available), `HTS.spineH` (spine lemma for constant and eliminator heads),
+`Obs.elimRule`/`Obs.elim_iff`/`Obs.elim_indep`, `ElimValid`/`ElimsValid` and the `elimDF`/
+`elimIota` cases of `Model.sound` (which now takes `ElimsValid env E` instead of the absence of
+eliminators), and `Model/ElimRuleSound.lean` (`sound_pat_elim`, `sound_pat_elim_empty`,
+`major_indicator_gen`). Remaining: E5 (the syntactic facts of generic case equations: the
+restored abstract equations of the per-owner view `schema.specialize owner …`, the restored
+generic type and its major domain, uniqueness per `(block, owner)` from
+`CaseSchema.Certified.constructor_names_nodup`, `FamSort` for the view's family with
+`C_absurd_gen` weakened to never-zero at the instantiated levels) and E6 (the
+`inductEliminators` step of `WF'.ruleValid`, which must then carry `ElimsValid envF env`).
