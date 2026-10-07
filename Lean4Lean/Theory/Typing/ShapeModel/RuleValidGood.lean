@@ -149,6 +149,18 @@ theorem famSem_of_typeShape (H : env.WF) (h : Good env E) (hle : E ≤ env) (hE 
   refine ⟨t.toVConstant, ownParams ++ indices, hc, by simp [hnl, hal], fun ls hls m => ?_⟩
   exact (h.sound_nil_instL H hle hE h1 ls m).trans (h.sound_nil_instL H hle hE hw ls m)
 
+/-- Validity of the generic equations of one eliminator registration. -/
+def ElimOK (env : VEnv) [SemSig] (block : Name) (schema : CaseSchema) : Prop :=
+  ∀ {owner : Fin schema.signature.families.size} {rules : List VDefEq} {df : VDefEq}
+    {U : Nat} {levels : List VLevel} {target : VLevel} {Γ : List VExpr} {typeLevel : VLevel},
+    schema.genericEquations block owner = some rules →
+    df ∈ rules → InductiveSignature.CaseSchema.RuleClosed df →
+    schema.Permission U owner levels target →
+    StrongSound env Γ (df.type.instL (target :: levels)) (.sort typeLevel) →
+    StrongSound env Γ (df.lhs.instL (target :: levels)) (df.type.instL (target :: levels)) →
+    StrongSound env Γ (df.rhs.instL (target :: levels)) (df.type.instL (target :: levels)) →
+    SoundEq env [] (df.lhs.instL (target :: levels)) (df.rhs.instL (target :: levels))
+
 end
 
 end Lean4Lean.ShapeModel
