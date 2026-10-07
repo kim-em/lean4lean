@@ -501,12 +501,11 @@ and in the major's head).
   those facts for `quotDefEq` (both modes occur: `Quot` at a level that is identically zero
   is a proposition). Infrastructure: `Model/Tele.lean` (typed key telescopes), `Model/HTS.lean`
   (semantic typing derivations, the spine lemma), `Model/RuleLemmas.lean`.
-* [Lean] Stages B and D for compilations without container specializations (D11
-  implemented): `theorem VEnv.WF.headInjectivityCore_of_ordinary (henv : env.WF) (hB :
-  env.OrdinaryScope) : env.HeadInjectivityCore` (`Model/Staged.lean`). `OrdinaryScope`: no
-  projections, no eliminators, and `Model.OrdinaryNative env` (every compilation generating a
-  rule present in `env` has `auxiliaries = []`). All elimination modes are covered: data
-  families, elimination into `Prop`, singleton large elimination and K-like rules. It subsumes
+* [Lean] Stages B and D (D11 implemented): `theorem VEnv.WF.headInjectivityCore_of_projElimFree
+  (henv : env.WF) (hB : env.ProjElimFree) : env.HeadInjectivityCore` (`Model/Staged.lean`),
+  where `ProjElimFree` is: no projections and no eliminators. Every native recursor rule is
+  covered: ordinary and nested compilations, every elimination mode (data families,
+  elimination into `Prop`, singleton large elimination and K-like rules). It subsumes
   `DefsQuot`. Axioms propext, Classical.choice, Quot.sound. Structure:
   - `RuleValid` now has explicit binders (implicit ones were instantiated eagerly by `exact`).
   - `Rules/NativeOrdinary.lean`: for `auxiliaries = []` the restoration is `{}`; the pattern
@@ -540,6 +539,13 @@ and in the major's head).
     per head for the compilation that actually installed the rule. (A first version used
     `Rules/Batches.lean`, `VEnv.WF.sameHead`, whose batch witness need not be the installing
     compilation; it is kept but no longer used.)
+  - Nested compilations: `Rules/NativeNested.lean` (restored equations and recursor types,
+    restored-name injectivity, `CompilationData.ctor_origin`, `family_origin`,
+    `nested_families` (at least two families, so singleton elimination does not occur),
+    `CertifiedSpecializations.mem`) and `Model/NestedRule.lean` (`RuleValid.nested`,
+    `famSort_container`: `FamSort` of a container family from the container's own
+    compilation, in the environment before the nested declaration). `Model/FamSort.lean`:
+    `famSort_of`, `FamSort` from a family's declared shape in any earlier environment.
 * [plan] Stages B-E (section 10.2). Handoff for stage B (native recursors, mode AB): each
   compilation equation must be shown to satisfy the hypotheses of `Model.sound_pat`:
   pattern and coverage (`Instance.equation_patShape_strong`), `df.uvars = g.uvars` for
