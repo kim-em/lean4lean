@@ -109,6 +109,46 @@ theorem famSem_of_famShape (H : env.WF) (h : Good env E) (hle : E ≤ env) (hE :
   rw [huv] at hls
   exact (h.sound_nil_instL H hle hE h1 ls m).trans (h.sound_nil_instL H hle hE hw ls m)
 
+theorem takeForalls_wrapForalls' : ∀ {n : Nat} {e r : VExpr} {ds : List VExpr},
+    e.takeForalls n = some (ds, r) → e = VExpr.wrapForalls ds r ∧ ds.length = n
+  | 0, e, r, ds, h => by
+    cases Option.some.inj h
+    exact ⟨rfl, rfl⟩
+  | n + 1, e, r, ds, h => by
+    cases e with
+    | forallE dom body =>
+      cases hb : body.takeForalls n with
+      | none => simp [VExpr.takeForalls, hb] at h
+      | some out =>
+        rw [VExpr.takeForalls, hb] at h
+        cases Option.some.inj h
+        obtain ⟨h1, h2⟩ := takeForalls_wrapForalls' hb
+        exact ⟨congrArg (VExpr.forallE dom) h1, by simp [h2]⟩
+    | _ => simp [VExpr.takeForalls] at h
+
+/-- A family whose header shape is derived (as a declaration header) in a good environment has a
+semantic header; the family itself may be declared later. -/
+theorem famSem_of_typeShape (H : env.WF) (h : Good env E) (hle : E ≤ env) (hE : E.Ordered)
+    {decl : VInductDecl} {params : List VExpr} {t : VInductiveType}
+    (hshape : decl.TypeShape E params t) (huv : t.uvars = decl.uvars)
+    (hc : env.constants t.name = some t.toVConstant) :
+    letI := envSig env; FamSem env t.name t.resultLevel (decl.nparams + t.numIndices) := by
+  letI := envSig env
+  obtain ⟨normalized, ownParams, afterParams, indices, result, exprType, htype, hparams,
+    hindices, _, hresult⟩ := hshape
+  obtain ⟨hn, hnl⟩ := takeForalls_wrapForalls' hparams
+  obtain ⟨ha, hal⟩ := takeForalls_wrapForalls' hindices
+  have h1 : E.IsDefEq decl.uvars [] t.type (VExpr.wrapForalls (ownParams ++ indices) result)
+      exprType := by
+    rw [VExpr.wrapForalls_append, ← ha, ← hn]; exact htype
+  have h2 : E.IsDefEq decl.uvars (ownParams ++ indices).reverse result (.sort t.resultLevel)
+      (.sort t.resultLevel.succ) := by simpa [List.reverse_append] using hresult
+  have hctx : OnCtx ((ownParams ++ indices).reverse ++ []) (E.IsType decl.uvars) :=
+    hasType_wrapForalls_inv hE (Γ := []) trivial h1.hasType.2
+  obtain ⟨_, hw⟩ := wrapForalls_congr_body' (Γ := []) hctx (by simpa using h2)
+  refine ⟨t.toVConstant, ownParams ++ indices, hc, by simp [hnl, hal], fun ls hls m => ?_⟩
+  exact (h.sound_nil_instL H hle hE h1 ls m).trans (h.sound_nil_instL H hle hE hw ls m)
+
 end
 
 end Lean4Lean.ShapeModel
