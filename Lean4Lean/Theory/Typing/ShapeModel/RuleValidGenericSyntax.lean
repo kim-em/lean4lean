@@ -51,13 +51,13 @@ theorem generic_syntax {base : VEnv} {source expanded : VInductDecl} {block : VI
     {owner : Fin schema.signature.families.size} {rules : List VDefEq} {df : VDefEq}
     (hgen : schema.genericEquations key owner = some rules) (hdf : df ∈ rules) {Th0 : VExpr}
     (hT0 : schema.genericType owner = some Th0) :
-    ∃ (nf Cv : Nat) (Ds idx : List VExpr) (R : VExpr) (Es doms₀ : List VExpr) (TbH : VExpr)
+    ∃ (nf Cv : Nat) (Ds idx : List VExpr) (mR : Nat) (Es doms₀ : List VExpr) (TbH : VExpr)
       (c : Name) (lv : List VLevel) (ps : List VExpr) (Fn : Name) (lvF : List VLevel)
       (pargs : List VExpr),
       df.lhs = VExpr.wrapLams Ds (VExpr.mkApps (.elim key owner.val (.param 0 :: schema.genericLevels))
         (vars (schema.signature.params.length + (1 + Cv)) nf ++ idx ++
           [VExpr.mkApps (.const c lv) (ps ++ vars nf 0)])) ∧
-      df.rhs = VExpr.wrapLams Ds R ∧
+      df.rhs = VExpr.wrapLams Ds (VExpr.mkApps (.bvar mR) (vars nf 0)) ∧
       df.type = VExpr.wrapForalls Ds (VExpr.mkApps (.bvar (nf + Cv))
         (idx ++ [VExpr.mkApps (.const c lv) (ps ++ vars nf 0)])) ∧
       Ds.length = schema.signature.params.length + (1 + Cv) + nf ∧
@@ -91,7 +91,7 @@ theorem generic_syntax {base : VEnv} {source expanded : VInductDecl} {block : VI
     rfl
   obtain ⟨Ds, idx, major, R, Es, hl, hrr, ht, hDs, hidx, -, hmot, hEs, -, -⟩ :=
     restored_equation_syntax g _ _ index hrestore hhd
-  obtain ⟨index', Ds', idx', c, lv, ps, hl', -, hDs', -, hidx2, j, hjo, hjf, e, he, hres⟩ :=
+  obtain ⟨index', Ds', idx', c, lv, ps, hl', hrr', hDs', -, hidx2, j, hjo, hjf, e, he, hres⟩ :=
     Certified.generic_shape ⟨expanded, g0, aux, hdata, hprior, hr, hnames⟩ hgen hdf
   obtain ⟨hDsEq, hpre, hmaj⟩ := ruleBody_eq (hd := .elim key owner.val
     (.param 0 :: schema.genericLevels)) rfl (by intros; simp) (hl.symm.trans hl')
@@ -142,10 +142,8 @@ theorem generic_syntax {base : VEnv} {source expanded : VInductDecl} {block : VI
       have hps' := List.append_cancel_right hps
       rw [hjo] at hF'o
       rw [hFo] at hF'o; cases hF'o
-      refine ⟨_, _, Ds, idx, R, Es, doms₀, TbH, _, _, _, _, _, _, hl', ?_, htype, ?_, hidx2,
+      refine ⟨_, _, Ds, idx, _, Es, doms₀, TbH, _, _, _, _, _, _, hl', hrr', htype, hDs', hidx2,
         hmot'', hEs', hTh, hdoms', ?_, .inl ⟨F, hF, hFo, rfl, rfl, rfl, cv, hcv, rfl⟩⟩
-      · exact hrr
-      · exact hDs'
       · rw [hps']; simp [vars_length']
     · exfalso
       rw [hjo] at hlo
@@ -162,10 +160,8 @@ theorem generic_syntax {base : VEnv} {source expanded : VInductDecl} {block : VI
       have hps' := List.append_cancel_right hps
       rw [hjo] at hao'
       rw [hao] at hao'; cases hao'
-      refine ⟨_, _, Ds, idx, R, Es, doms₀, TbH, _, _, _, _, _, _, hl', ?_, htype, ?_, hidx2,
+      refine ⟨_, _, Ds, idx, _, Es, doms₀, TbH, _, _, _, _, _, _, hl', hrr', htype, hDs', hidx2,
         hmot'', hEs', hTh, hdoms', ?_, .inr ⟨a, ha, hlo, hao, rfl, rfl, rfl, cv, hcv, rfl⟩⟩
-      · exact hrr
-      · exact hDs'
       · rw [hps']; simp
 
 end Lean4Lean.ShapeModel
