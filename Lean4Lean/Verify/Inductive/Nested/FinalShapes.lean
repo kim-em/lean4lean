@@ -780,7 +780,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
   let trEnv := envCtors.addProjections sourceDecl.projectionEntries
   have Hfresh : ∀ n ∈ r.restorableNames, trEnv.constants n = none := by
     intro n hn
-    simp only [trEnv, VEnv.addProjections_constants]
+    simp only [trEnv, VEnv.addEliminators_constants, VEnv.addProjections_constants]
     exact E.restorableNames_fresh_ctors hadded Haux Hexpansion hnodup hctorNames
       hctors n hn
   have hheads : r.heads.map (·.auxiliary) = E.auxHeads := by

@@ -1203,12 +1203,13 @@ def VInductBlock.WF (env : VEnv) (block : VInductBlock) : Prop :=
   ∃ envTypes envCtors envRecursors,
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
-    (envCtors.addProjections block.projections).addConstVals
+    ((envCtors.addEliminators block.eliminators).addProjections block.projections).addConstVals
       block.recursors = some envRecursors ∧
     (∀ ci ∈ block.types, ci.toVConstant.WF env) ∧
     (∀ ci ∈ block.ctors, ci.toVConstant.WF envTypes) ∧
     (∀ ci ∈ block.recursors,
-      ci.toVConstant.WF (envCtors.addProjections block.projections)) ∧
+      ci.toVConstant.WF ((envCtors.addEliminators block.eliminators).addProjections
+        block.projections)) ∧
     ∀ df ∈ block.rules, df.WF envRecursors
 
 theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :

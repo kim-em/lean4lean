@@ -390,7 +390,7 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
   | some ci =>
   exfalso
   rcases VEnv.addConstVals_lookup_origin hrecAdded hc with hbase | ⟨entry, hentry, hname, -⟩
-  · simp only [VEnv.addProjections_constants] at hbase
+  · simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hbase
     rw [hfreshCtors n hn'] at hbase
     cases hbase
   obtain ⟨e, he, rfl⟩ := List.mem_map.mp hentry

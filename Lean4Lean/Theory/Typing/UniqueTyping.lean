@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.HeadInversion
 import Lean4Lean.Theory.Typing.Pattern
 import Lean4Lean.Theory.CanonicalEq

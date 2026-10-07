@@ -248,7 +248,8 @@ inductive Ordered : VEnv → Prop where
     env.addConst n ci = some env' → Ordered env'
   | defeq : Ordered env → df.WF env → Ordered (env.addDefEq df)
   | inductProjections {base envTypes envCtors : VEnv}
-      {decl : VInductDecl} {block : VInductBlock} :
+      {decl : VInductDecl} {block : VInductBlock}
+      {es : List (Name × InductiveSignature.CaseSchema)} :
     Ordered base →
     Ordered envCtors →
     decl.sourceNames.Nodup →
@@ -262,7 +263,7 @@ inductive Ordered : VEnv → Prop where
     block.projections = decl.projectionEntries →
     base.addConstVals block.types = some envTypes →
     envTypes.addConstVals block.ctors = some envCtors →
-    Ordered (envCtors.addProjections block.projections)
+    Ordered ((envCtors.addEliminators es).addProjections block.projections)
 
 theorem Ordered.projectionConstant (H : Ordered env)
     (hprojection : env.projections name info) :
@@ -275,10 +276,11 @@ theorem Ordered.projectionConstant (H : Ordered env)
     rcases ih hprojection with ⟨constant, hconstant⟩
     exact ⟨constant, (VEnv.addConst_le hadd).constants hconstant⟩
   | defeq _ _ ih => exact ih hprojection
-  | @inductProjections base envTypes envCtors decl block
+  | @inductProjections base envTypes envCtors decl block _es
       hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
+    simp only [VEnv.addEliminators_projections] at hprojection
     rcases hprojection with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
       rw [hprojections] at hentry
@@ -289,7 +291,7 @@ theorem Ordered.projectionConstant (H : Ordered env)
         exact List.mem_map.mpr ⟨type, htype, rfl⟩
       have hlookup := VEnv.addConstVals_get htypes htypeValue
       refine ⟨type.toVConstant, ?_⟩
-      simpa only [VEnv.addProjections_constants] using
+      simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using
         (VEnv.addConstVals_le hctors).constants hlookup
     · simpa using ihCtors hold
 
@@ -309,10 +311,11 @@ theorem Ordered.projectionConstructor (H : Ordered env)
     rw [VEnv.addConst_projections hadd] at hprojection
     exact (VEnv.addConst_le hadd).constants (ih hprojection)
   | defeq _ _ ih => exact ih hprojection
-  | @inductProjections base envTypes envCtors decl block
+  | @inductProjections base envTypes envCtors decl block _es
       hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     rw [VEnv.addProjections_iff] at hprojection
+    simp only [VEnv.addEliminators_projections] at hprojection
     rcases hprojection with hnew | hold
     · rcases hnew with ⟨entry, hentry, rfl, rfl⟩
       rw [hprojections] at hentry
@@ -326,9 +329,9 @@ theorem Ordered.projectionConstructor (H : Ordered env)
       have huvars := hconstructorUvars ctor (by
         rw [VInductDecl.constructorConstants]
         exact List.mem_flatMap.mpr ⟨type, htype, by simp [htypeCtors]⟩)
-      rw [VEnv.addProjections_constants, ← huvars]
+      rw [VEnv.addProjections_constants, VEnv.addEliminators_constants, ← huvars]
       exact hlookup
-    · simpa only [VEnv.addProjections_constants] using ihCtors hold
+    · simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using ihCtors hold
 
 theorem Ordered.projections_unique (H : Ordered env)
     (hleft : env.projections name left)
@@ -340,13 +343,14 @@ theorem Ordered.projections_unique (H : Ordered env)
     rw [VEnv.addConst_projections hadd] at hleft hright
     exact ih hleft hright
   | defeq _ _ ih => exact ih hleft hright
-  | @inductProjections base envTypes envCtors decl block
+  | @inductProjections base envTypes envCtors decl block _es
       hbase hctorsOrdered hsource htypesWF hconstructorUvars _hctorsWF _hparams _hshape htypesSource hctorsSource
       hprojections htypes hctors ihBase ihCtors =>
     have hstages : envCtors.projections = base.projections :=
       (VEnv.addConstVals_projections hctors).trans <|
         VEnv.addConstVals_projections htypes
     rw [VEnv.addProjections_iff] at hleft hright
+    simp only [VEnv.addEliminators_projections] at hleft hright
     rcases hleft with hleft | hleft <;> rcases hright with hright | hright
     · rcases hleft with ⟨leftEntry, hleftMem, hleftName, hleftInfo⟩
       rcases hright with ⟨rightEntry, hrightMem, hrightName, hrightInfo⟩
@@ -404,9 +408,10 @@ theorem Ordered.induction (motive : VEnv → Nat → VExpr → VExpr → Prop)
       fun h => (ih.2 h).imp (mono VEnv.addEliminator_le) (mono VEnv.addEliminator_le)⟩
   | empty => exact ⟨nofun, nofun⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
-    exact ⟨fun h => (ih.1 (by simpa using h)).imp fun _ => mono VEnv.addProjections_le,
-      fun h => (ih.2 (by simpa using h)).imp (mono VEnv.addProjections_le)
-        (mono VEnv.addProjections_le)⟩
+    exact ⟨fun h => (ih.1 (by simpa using h)).imp fun _ =>
+        mono VEnv.addEliminators_addProjections_le,
+      fun h => (ih.2 (by simpa using h)).imp (mono VEnv.addEliminators_addProjections_le)
+        (mono VEnv.addEliminators_addProjections_le)⟩
   | const h1 h2 h3 ih =>
     apply OnTypes.mono .rfl (mono (addConst_le h3))
     unfold addConst at h3; split at h3 <;> cases h3
@@ -604,7 +609,7 @@ theorem Ordered.constWF (H : Ordered env) (h : env.constants n = some ci) : ci.W
     · exact ih h
   | defeq _ _ ih => exact .mono addDefEq_le (ih h)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
-    exact .mono VEnv.addProjections_le (ih (by simpa using h))
+    exact .mono VEnv.addEliminators_addProjections_le (ih (by simpa using h))
 
 theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
   induction H with
@@ -619,7 +624,7 @@ theorem Ordered.defEqWF (H : Ordered env) (h : env.defeqs df) : df.WF env := by
     · assumption
     · exact ih h
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ ihBase ih =>
-    exact .mono VEnv.addProjections_le (ih (by simpa using h))
+    exact .mono VEnv.addEliminators_addProjections_le (ih (by simpa using h))
 
 variable! (henv : Ordered env) in
 theorem CtxWF.closed (h : OnCtx Γ (IsType env U)) : CtxClosed Γ :=

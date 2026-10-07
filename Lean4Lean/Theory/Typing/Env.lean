@@ -94,7 +94,9 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   | inductProjections {base envTypes envCtors : VEnv}
       {decl : VInductDecl} {block : VInductBlock} :
     VEnv.WF' baseDecls base →
-    VEnv.WF' ds envCtors →
+    VEnv.WF' ds (envCtors.addEliminators block.eliminators) →
+    (∃ key schema, block.eliminators = [(key, schema)] ∧
+      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key) →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
@@ -106,7 +108,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     block.projections = decl.projectionEntries →
     base.addConstVals block.types = some envTypes →
     envTypes.addConstVals block.ctors = some envCtors →
-    VEnv.WF' ds (envCtors.addProjections block.projections)
+    VEnv.WF' ds ((envCtors.addEliminators block.eliminators).addProjections block.projections)
 
 def VEnv.WF (env : VEnv) : Prop := ∃ ds, VEnv.WF' ds env
 
@@ -135,7 +137,9 @@ tie the new metadata to that precise prefix. -/
 theorem VEnv.WF.inductProjections
     {base envTypes envCtors : VEnv} {decl : VInductDecl}
     {block : VInductBlock}
-    (hbase : base.WF) (hctorsWF : envCtors.WF)
+    (hbase : base.WF) (hctorsWF : (envCtors.addEliminators block.eliminators).WF)
+    (hcovered : ∃ key schema, block.eliminators = [(key, schema)] ∧
+      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key)
     (hsource : decl.sourceNames.Nodup)
     (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
     (hconstructorUvars :
@@ -148,9 +152,9 @@ theorem VEnv.WF.inductProjections
     (hprojections : block.projections = decl.projectionEntries)
     (htypes : base.addConstVals block.types = some envTypes)
     (hctors : envTypes.addConstVals block.ctors = some envCtors) :
-    (envCtors.addProjections block.projections).WF := by
+    ((envCtors.addEliminators block.eliminators).addProjections block.projections).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases hctorsWF with ⟨decls, hctorsWF⟩
-  exact ⟨decls, .inductProjections hbase hctorsWF hsource htypesWF
+  exact ⟨decls, .inductProjections hbase hctorsWF hcovered hsource htypesWF
     hconstructorUvars hctorsWF' hparams hshape htypesSource hctorsSource hprojections
     htypes hctors⟩

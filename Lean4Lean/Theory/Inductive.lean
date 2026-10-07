@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Inductive.Compilation
+import Lean4Lean.Theory.Inductive.CaseFormation
 
 namespace Lean4Lean
 
@@ -848,7 +849,7 @@ theorem VEnv.InstalledInductCertificate.familyConstant
     apply hle.constants
     simpa only [VEnv.addDefEqRules_constants] using
       (VEnv.addConstVals_le hrecursors).constants
-        (VEnv.addProjections_le.constants
+        (VEnv.addEliminators_addProjections_le.constants
           ((VEnv.addConstVals_le hctors).constants hlookup))
 
 /-- Every family of an installed declaration carries the declaration's
@@ -899,8 +900,19 @@ theorem VEnv.InstalledInductCertificate.constructorConstant
     apply hle.constants
     simpa only [VEnv.addDefEqRules_constants] using
       (VEnv.addConstVals_le hrecursors).constants
-        (VEnv.addProjections_le.constants hlookup)
+        (VEnv.addEliminators_addProjections_le.constants hlookup)
 
+
+/-- The block registers exactly one case eliminator, under the key of its first family, with a
+schema certified by the declaration's case-only compilation certificate, projecting only out of
+structures registered at the constructor stage. It is installed after the constructors and
+before the projections (`VInductBlock.install`). -/
+def VInductBlock.EliminatorsWF (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop :=
+  ∃ envTypes envCtors, env.addConstVals block.types = some envTypes ∧
+    envTypes.addConstVals block.ctors = some envCtors ∧
+    ∃ key schema, block.eliminators = [(key, schema)] ∧
+      schema.Certified env decl block ∧ decl.types.head?.map (·.name) = some key ∧
+      schema.ProjNamesRegistered envCtors key
 
 /-- Relational abstract environment extension for inductive declarations,
 including the compiled block witness used by implementation refinement. -/
@@ -909,5 +921,6 @@ inductive VEnv.AddInduct (env : VEnv) (decl : VInductDecl) : VEnv → Prop where
     decl.WF env →
     VInductDecl.CompilesTo env decl block →
     VInductBlock.WF env block →
+    VInductBlock.EliminatorsWF env decl block →
     VInductBlock.install env block = some env' →
     VEnv.AddInduct env decl env'

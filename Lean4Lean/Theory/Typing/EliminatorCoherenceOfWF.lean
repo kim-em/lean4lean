@@ -16,12 +16,14 @@ set_option linter.unusedSectionVars false
 
 variable {env env' : VEnv}
 
-private theorem EliminatorsCoherent.extend (H : env.EliminatorsCoherent) (hle : env ≤ env')
-    (helim : env'.eliminators = env.eliminators)
-    (hproj : ∀ F info, env'.projections F info → env.projections F info ∨ env.constants F = none) :
-    env'.EliminatorsCoherent := by
-  intro key schema hs
-  rw [helim] at hs
+private theorem EliminatorsCoherent.extendAt (H : env.EliminatorsCoherent) (hle : env ≤ env')
+    (hproj : ∀ F info, env'.projections F info → env.projections F info ∨ env.constants F = none)
+    (hs : env.eliminators key schema) :
+    ∃ base source block,
+      base ≤ env' ∧ schema.Certified base source block ∧
+      (∀ value ∈ block.types ++ block.ctors, env'.constants value.name = some value.toVConstant) ∧
+      ∀ type ∈ source.types, ∀ info, env'.projections type.name info →
+        (⟨type.name, info⟩ : VProjectionEntry) ∈ source.projectionEntries := by
   obtain ⟨base, source, block, hbl, hcert, hconst, hcoh⟩ := H key schema hs
   refine ⟨base, source, block, hbl.trans hle, hcert, fun v hv => hle.constants (hconst v hv), ?_⟩
   intro type htype info hp
@@ -37,31 +39,84 @@ private theorem EliminatorsCoherent.extend (H : env.EliminatorsCoherent) (hle : 
     rw [hfresh] at this
     cases this
 
+private theorem EliminatorsCoherent.extend (H : env.EliminatorsCoherent) (hle : env ≤ env')
+    (helim : env'.eliminators = env.eliminators)
+    (hproj : ∀ F info, env'.projections F info → env.projections F info ∨ env.constants F = none) :
+    env'.EliminatorsCoherent := by
+  intro key schema hs
+  rw [helim] at hs
+  exact H.extendAt hle hproj hs
+
+/-- The eliminator registered with a block is coherent with the block's projections. -/
+private theorem coherent_new {base envTypes : VEnv} {decl : VInductDecl} {block : VInductBlock}
+    (hbase : base.Ordered)
+    (htypesSource : block.types = decl.typeConstants)
+    (hprojections : block.projections = decl.projectionEntries)
+    (htypes : base.addConstVals block.types = some envTypes)
+    (hproj : ∀ F info, env'.projections F info →
+      (∃ entry ∈ block.projections, F = entry.typeName ∧ info = entry.info) ∨
+        base.projections F info) :
+    ∀ type ∈ decl.types, ∀ info, env'.projections type.name info →
+      (⟨type.name, info⟩ : VProjectionEntry) ∈ decl.projectionEntries := by
+  intro type htype info hp
+  rcases hproj _ info hp with ⟨entry, hentry, hname, rfl⟩ | hp
+  · rw [hprojections] at hentry
+    rw [hname]
+    exact hentry
+  · exfalso
+    obtain ⟨c, hc⟩ := hbase.projectionConstant hp
+    have hfresh := VEnv.addConstVals_names_fresh htypes type.toVConstVal (by
+      rw [htypesSource]; exact List.mem_map.mpr ⟨type, htype, rfl⟩)
+    change base.constants type.name = none at hfresh
+    rw [hfresh] at hc
+    cases hc
+
 private theorem old_projections (h : env'.projections = env.projections) :
     ∀ F info, env'.projections F info → env.projections F info ∨ env.constants F = none := by
   intro F info hp
   rw [h] at hp
   exact .inl hp
 
-private theorem EliminatorsCoherent.addInduct (H : env.EliminatorsCoherent)
+private theorem EliminatorsCoherent.addInduct (H : env.EliminatorsCoherent) (henv : env.Ordered)
     (hadd : env.AddInduct decl env') : env'.EliminatorsCoherent := by
   cases hadd with
-  | @intro block installed hdecl hcompile hblock hinstall =>
+  | @intro block installed hdecl hcompile hblock helim hinstall =>
+    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs⟩ := helim
     simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at hinstall
     obtain ⟨envTypes, htypes, envCtors, hctors, envRecs, hrecs, rfl⟩ := hinstall
+    obtain rfl : envTypes = eT := Option.some.inj (htypes.symm.trans hT')
+    obtain rfl : envCtors = eC := Option.some.inj (hctors.symm.trans hC')
     have hle : env ≤ (envRecs.addDefEqRules block.rules) :=
       (((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)).trans
-        (VEnv.addProjections_le.trans (VEnv.addConstVals_le hrecs))).trans VEnv.addDefEqRules_le
-    apply H.extend hle
-    · rw [addDefEqRules_eliminators, VEnv.addConstVals_eliminators hrecs,
-        VEnv.addProjections_eliminators, VEnv.addConstVals_eliminators hctors,
-        VEnv.addConstVals_eliminators htypes]
-    · intro F info hp
+        (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hrecs))).trans
+          VEnv.addDefEqRules_le
+    have hproj : ∀ F info, (envRecs.addDefEqRules block.rules).projections F info →
+        (∃ entry ∈ block.projections, F = entry.typeName ∧ info = entry.info) ∨
+          env.projections F info := by
+      intro F info hp
       rw [VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hrecs,
-        VEnv.addProjections_iff, VEnv.addConstVals_projections hctors,
-        VEnv.addConstVals_projections htypes] at hp
-      rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hp
+        VEnv.addProjections_iff, VEnv.addEliminators_projections,
+        VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hp
+      exact hp
+    intro k s hs
+    rw [addDefEqRules_eliminators, VEnv.addConstVals_eliminators hrecs,
+      VEnv.addProjections_eliminators, VEnv.addEliminators_iff,
+      VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes] at hs
+    rcases hs with hnew | hold
+    · rw [hE] at hnew
+      simp only [List.mem_singleton, Prod.mk.injEq] at hnew
+      obtain ⟨rfl, rfl⟩ := hnew
+      refine ⟨env, decl, block, hle, hcert, fun value hv => ?_,
+        coherent_new henv hcompile.types hcompile.projections htypes hproj⟩
+      have hle' : envCtors ≤ envRecs.addDefEqRules block.rules :=
+        (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hrecs)).trans
+          VEnv.addDefEqRules_le
+      rcases List.mem_append.mp hv with hv | hv
+      · exact hle'.constants ((VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hv))
+      · exact hle'.constants (VEnv.addConstVals_get hctors hv)
+    · refine H.extendAt hle (fun F info hp => ?_) hold
+      rcases hproj F info hp with ⟨entry, hentry, rfl, rfl⟩ | hp
       · right
         rw [hcompile.projections] at hentry
         obtain ⟨type, htype, ctor, _, rfl⟩ := decl.projectionEntries_origin hentry
@@ -107,7 +162,7 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
       · apply old_projections
         rw [addDefEqs_as_rules, VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hadd']
     | quot _ hadd => exact ih.addQuot hadd
-    | induct _ hadd => exact ih.addInduct hadd
+    | induct _ hadd => exact ih.addInduct (show env.WF from ⟨ds, hbase⟩).ordered hadd
   | inductEliminators hbase henv hle hcert hkey hconstants hfresh ihBase ih =>
     intro k s hs
     rcases hs with ⟨rfl, rfl⟩ | hs
@@ -119,16 +174,36 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
       exact ⟨b, src, blk, hbl.trans VEnv.addEliminator_le, hc,
         fun v hv => VEnv.addEliminator_le.constants (hconst v hv), hcoh⟩
   | @inductProjections baseDecls ds base envTypes envCtors decl block
-      hbase _ hsource _ _ _ _ _ htypesSource _ hprojections htypes hctors ihBase ihCtors =>
-    have hle : base ≤ envCtors.addProjections block.projections :=
-      (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans VEnv.addProjections_le)
-    apply ihBase.extend hle
-    · rw [VEnv.addProjections_eliminators, VEnv.addConstVals_eliminators hctors,
-        VEnv.addConstVals_eliminators htypes]
-    · intro F info hp
-      rw [VEnv.addProjections_iff, VEnv.addConstVals_projections hctors,
-        VEnv.addConstVals_projections htypes] at hp
-      rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hp
+      hbase _ hcert hsource _ _ _ _ _ htypesSource _ hprojections htypes hctors ihBase ihCtors =>
+    obtain ⟨key, schema, hE, hcertS, hkey⟩ := hcert
+    have hbaseOrdered := (show base.WF from ⟨baseDecls, hbase⟩).ordered
+    have hle : base ≤ (envCtors.addEliminators block.eliminators).addProjections block.projections :=
+      (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans
+        VEnv.addEliminators_addProjections_le)
+    have hproj : ∀ F info, ((envCtors.addEliminators block.eliminators).addProjections
+        block.projections).projections F info →
+        (∃ entry ∈ block.projections, F = entry.typeName ∧ info = entry.info) ∨
+          base.projections F info := by
+      intro F info hp
+      rw [VEnv.addProjections_iff, VEnv.addEliminators_projections,
+        VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hp
+      exact hp
+    intro k s hs
+    rw [VEnv.addProjections_eliminators, VEnv.addEliminators_iff,
+      VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes] at hs
+    rcases hs with hnew | hold
+    · rw [hE] at hnew
+      simp only [List.mem_singleton, Prod.mk.injEq] at hnew
+      obtain ⟨rfl, rfl⟩ := hnew
+      refine ⟨base, decl, block, hle, hcertS, fun value hv => ?_,
+        coherent_new hbaseOrdered htypesSource hprojections htypes hproj⟩
+      have hle' : envCtors ≤ (envCtors.addEliminators block.eliminators).addProjections
+          block.projections := VEnv.addEliminators_addProjections_le
+      rcases List.mem_append.mp hv with hv | hv
+      · exact hle'.constants ((VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hv))
+      · exact hle'.constants (VEnv.addConstVals_get hctors hv)
+    · refine ihBase.extendAt hle (fun F info hp => ?_) hold
+      rcases hproj F info hp with ⟨entry, hentry, rfl, rfl⟩ | hp
       · right
         rw [hprojections] at hentry
         obtain ⟨type, htype, ctor, _, rfl⟩ := decl.projectionEntries_origin hentry

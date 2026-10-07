@@ -320,7 +320,7 @@ theorem CompletedRuleTranslationResult.equationProvenance
   have houtMapWF : outEnv.constants.WF := Hatomic.targetMapWF hmapWF
   intro df hdf
   rcases VEnv.addDefEqRules_defeqs_iff.mp hdf with hold | hnew
-  · exact .inl (by simpa only [VEnv.addProjections_defeqs] using Hatomic.defeqs df hold)
+  · exact .inl (by simpa only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using Hatomic.defeqs df hold)
   · right
     rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
     change T.rules = g.equations at he

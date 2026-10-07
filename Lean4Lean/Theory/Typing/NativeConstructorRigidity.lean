@@ -129,7 +129,7 @@ theorem VInductBlock.install_ctor_lookup (H : VInductBlock.install base block = 
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact (VEnv.addProjections_le.trans <|
+  exact (VEnv.addEliminators_addProjections_le.trans <|
     (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants (VEnv.addConstVals_get hc hvalue)
 
 /-- Constructors of certified containers are installed with their exact
@@ -538,22 +538,33 @@ private theorem ConstructorHistory.addInduct
     (H : ConstructorHistory env) (hordered : env.Ordered)
     (hadd : env.AddInduct decl env') : ConstructorHistory env' := by
   cases hadd with
-  | @intro block installed hdecl hcompile hblock hinstall =>
+  | @intro block installed hdecl hcompile hblock helim hinstall =>
     obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩ := hblock
+    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs⟩ := helim
+    cases htypes.symm.trans hT'
+    cases hctors.symm.trans hC'
     have hcanonical : VInductBlock.install env block =
         some (envRecursors.addDefEqRules block.rules) := by
       simp [VInductBlock.install, htypes, hctors, hrecs]
     have he : env' = envRecursors.addDefEqRules block.rules :=
       Option.some.inj (hinstall.symm.trans hcanonical)
     subst env'
-    have hpre := ((H.addConstVals htypes).addConstVals hctors).addProjections
-      (entries := block.projections)
-    have hle : env ≤ envCtors.addProjections block.projections :=
+    have hdf0 : envCtors.defeqs = env.defeqs :=
+      (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
+    have hreg := H.register ((H.addConstVals htypes).addConstVals hctors) hordered
+      ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) hcert
+      (fun value hv => by
+        rcases List.mem_append.mp hv with hv | hv
+        · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hv)
+        · exact VEnv.addConstVals_get hctors hv) hdf0 (key := key)
+    have hpre := (show ConstructorHistory (envCtors.addEliminators block.eliminators) by
+      rw [hE]; exact hreg).addProjections (entries := block.projections)
+    have hle : env ≤ (envCtors.addEliminators block.eliminators).addProjections block.projections :=
       (VEnv.addConstVals_le htypes).trans <|
-        (VEnv.addConstVals_le hctors).trans VEnv.addProjections_le
-    have hdf : (envCtors.addProjections block.projections).defeqs = env.defeqs :=
-      (VEnv.addProjections_defeqs _ _).trans <|
-        (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
+        (VEnv.addConstVals_le hctors).trans VEnv.addEliminators_addProjections_le
+    have hdf : ((envCtors.addEliminators block.eliminators).addProjections
+        block.projections).defeqs = env.defeqs := by
+      simp only [VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs, hdf0]
     apply hpre.compileRules hrecs hcompile.compiled.equation_head_owned
     intro df hdfMem name hmajor
     obtain ⟨originName, horigin, hctor | ⟨prior, hprior, hpriorMajor⟩⟩ :=
@@ -566,19 +577,21 @@ private theorem ConstructorHistory.addInduct
       have hfresh := VEnv.addConstVals_names_fresh hctors ctor hc
       have hr := hordered.rigid_of_absent
         (absent_of_le (VEnv.addConstVals_le htypes) hfresh)
-      have hci : (envCtors.addProjections block.projections).constants ctor.name =
+      have hci : ((envCtors.addEliminators block.eliminators).addProjections
+          block.projections).constants ctor.name =
           some ctor.toVConstant := by
-        simpa only [VEnv.addProjections_constants] using VEnv.addConstVals_get hctors hc
+        simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using VEnv.addConstVals_get hctors hc
       obtain ⟨type, htype, hct⟩ := List.mem_flatMap.mp hctor
       obtain ⟨ls, hres⟩ := hcompile.compiled.ctor_result type htype ctor hct
       have ht : type.toVConstVal ∈ block.types := by
         rw [hcompile.compiled.types_eq]; exact List.mem_map.mpr ⟨type, htype, rfl⟩
       have hTfresh := VEnv.addConstVals_names_fresh htypes _ ht
       have hTr := hordered.rigid_of_absent hTfresh
-      have hTc : (envCtors.addProjections block.projections).constants type.name =
+      have hTc : ((envCtors.addEliminators block.eliminators).addProjections
+          block.projections).constants type.name =
           some type.toVConstVal.toVConstant := by
         have := VEnv.addConstVals_get htypes ht
-        simpa only [VEnv.addProjections_constants] using (VEnv.addConstVals_le hctors).constants this
+        simpa only [VEnv.addEliminators_constants, VEnv.addProjections_constants] using (VEnv.addConstVals_le hctors).constants this
       exact ⟨⟨ctor.toVConstant, hci⟩, rigid_of_defeqs_eq hdf hr,
         ctor.toVConstant, hci, type.name, ls, hres, ⟨_, hTc⟩, rigid_of_defeqs_eq hdf hTr⟩
     · have heq := hmajor.unique horigin
@@ -610,7 +623,7 @@ private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHis
   | inductEliminators hbase henv hle hcert hkey hconstants hfresh ihBase ihEnv =>
     exact ihBase.register ihEnv (show VEnv.WF _ from ⟨_, hbase⟩).ordered
       hle hcert hconstants.1 hconstants.2.1
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
     exact ihCtors.addProjections
 
 /-- Every generated case constructor is rigid under native computation.

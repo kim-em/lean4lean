@@ -54,9 +54,9 @@ theorem WF'.inductiveStage {env : VEnv} {declarations : List VDecl}
       cases declarationWF with
       | induct original installation =>
         cases installation with
-        | intro original' compilation blockWF installed =>
+        | intro original' compilation blockWF eliminatorsWF installed =>
           obtain ⟨stages⟩ := VInductBlock.TypingStages.ofInstallation
-            ⟨declarations, previous⟩ original compilation blockWF installed
+            ⟨declarations, previous⟩ original compilation blockWF eliminatorsWF installed
           exact ⟨⟨base, _, _, declarations, previous, Nat.lt_succ_self _,
             original', compilation, stages, .rfl⟩⟩
     · obtain ⟨stage⟩ := ih old
@@ -64,7 +64,7 @@ theorem WF'.inductiveStage {env : VEnv} {declarations : List VDecl}
   | inductEliminators _ _ _ _ _ _ _ _ ih =>
     obtain ⟨stage⟩ := ih member
     exact ⟨stage.later VEnv.addEliminator_le (Nat.le_refl _)⟩
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨stage⟩ := ih member
     exact ⟨stage.later VEnv.addProjections_le (Nat.le_refl _)⟩
 

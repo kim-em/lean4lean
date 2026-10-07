@@ -41,11 +41,12 @@ theorem NativeRegistryHistory.quotient
           cases hc
     · obtain ⟨registered, absent⟩ := ih member
       exact ⟨registered.mono (declaration_le declaration), absent⟩
-  | native previous original compiled formed installed compilation specializations below ih =>
+  | native previous original compiled formed eliminatorsWF installed compilation specializations
+      below ih =>
     have oldMember : VDecl.quot ∈ _ := (List.mem_cons.mp member).resolve_left (by intro h; cases h)
     obtain ⟨registered, absent⟩ := ih oldMember
     refine ⟨registered.mono (declaration_le (.induct original
-      (.intro original compiled formed installed))), ?_⟩
+      (.intro original compiled formed eliminatorsWF installed))), ?_⟩
     cases lookup : installEntries _ _ ``Quot.lift with
     | none => rfl
     | some data =>
@@ -55,7 +56,7 @@ theorem NativeRegistryHistory.quotient
   | eliminators _ _ _ _ _ _ _ ih =>
     obtain ⟨registered, absent⟩ := ih member
     exact ⟨registered.mono VEnv.addEliminator_le, absent⟩
-  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+  | projections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨registered, absent⟩ := ih member
     exact ⟨registered.mono VEnv.addProjections_le, absent⟩
 

@@ -134,6 +134,7 @@ def block : VInductBlock where
   recursors := sp.inst.recursors
   rules := sp.inst.equations
   projections := sp.decl.projectionEntries
+  eliminators := [(sp.fam, InductiveSignature.CaseSchema.ofCompilation sp.decl sp.sig [])]
 
 end FamSpec
 

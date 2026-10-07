@@ -267,7 +267,7 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       change (enumCtorsEnv.addProjections enumDecl.projectionEntries).HasType 0 []
         (.const `Enum0 []) (.sort (.succ .zero))
       exact .constDF (ci := enumType.toVConstant)
-        (by simp [enumCtorsEnv, enumTypesEnv, VEnv.addProjections_constants]) nofun nofun rfl .nil
+        (by simp [enumCtorsEnv, enumTypesEnv, VEnv.addEliminators_constants, VEnv.addProjections_constants]) nofun nofun rfl .nil
   · intro owner
     have h : owner = (⟨0, by decide⟩ : Fin enumSignature.families.size) := by
       apply Fin.ext

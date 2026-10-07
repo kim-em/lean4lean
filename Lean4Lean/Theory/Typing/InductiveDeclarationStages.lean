@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.EnvLemmas
+import Lean4Lean.Theory.Inductive.CaseRegistration
 
 /-! The original typing environments of an installed inductive block.
 
@@ -20,17 +21,17 @@ structure VInductBlock.TypingStages (base : VEnv) (block : VInductBlock)
   recursors : VEnv
   addTypes : base.addConstVals block.types = some types
   addConstructors : types.addConstVals block.ctors = some constructors
-  addRecursors : (constructors.addProjections block.projections).addConstVals
+  addRecursors : ((constructors.addEliminators block.eliminators).addProjections block.projections).addConstVals
     block.recursors = some recursors
   installed_eq : installed = recursors.addDefEqRules block.rules
   typesWF : types.WF
   constructorsWF : constructors.WF
-  projectionsWF : (constructors.addProjections block.projections).WF
+  projectionsWF : ((constructors.addEliminators block.eliminators).addProjections block.projections).WF
   recursorsWF : recursors.WF
   originalTypes : ∀ ci ∈ block.types, ci.toVConstant.WF base
   originalConstructors : ∀ ci ∈ block.ctors, ci.toVConstant.WF types
   originalRecursors : ∀ ci ∈ block.recursors,
-    ci.toVConstant.WF (constructors.addProjections block.projections)
+    ci.toVConstant.WF ((constructors.addEliminators block.eliminators).addProjections block.projections)
   originalRules : ∀ df ∈ block.rules, df.WF recursors
 
 namespace VInductBlock.TypingStages
@@ -38,18 +39,15 @@ namespace VInductBlock.TypingStages
 theorem ofInstallation {base installed : VEnv} {source : VInductDecl}
     {block : VInductBlock} (hbase : base.WF)
     (hsource : source.WF base) (hcompile : source.CompilesTo base block)
-    (hblock : block.WF base) (hinstall : block.install base = some installed) :
+    (hblock : block.WF base) (helim : VInductBlock.EliminatorsWF base source block)
+    (hinstall : block.install base = some installed) :
     Nonempty (TypingStages base block installed) := by
   obtain ⟨types, constructors, recursors, ht, hc, hr, wt, wc, wr, we⟩ := hblock
   have typesWF := hbase.addConstVals wt ht
   have constructorsWF := typesWF.addConstVals wc hc
   have ht' : base.addConstVals source.typeConstants = some types := by
     simpa only [hcompile.types] using ht
-  have parameters := hsource.sourceParameterWF ht'
-  have projectionsWF := VEnv.WF.inductProjections hbase constructorsWF
-    hcompile.sourceNames hsource.1.originalTypes hsource.1.2.2.2.1 (hsource.1.constructorsWF_at ht')
-    parameters parameters.rawCtorShape hcompile.types hcompile.ctors
-    hcompile.projections ht hc
+  have projectionsWF := VInductBlock.EliminatorsWF.projectionsWF helim hbase hsource hcompile ht hc
   have recursorsWF := projectionsWF.addConstVals wr hr
   have installed_eq : installed = recursors.addDefEqRules block.rules := by
     simpa [VInductBlock.install, ht, hc, hr] using hinstall.symm
@@ -63,14 +61,14 @@ Current recursor constants are present but have no newly installed equations. -/
 theorem recursor_defeqs (stages : TypingStages base block installed) :
     stages.recursors.defeqs = base.defeqs := by
   rw [VEnv.addConstVals_defeqs stages.addRecursors, VEnv.addProjections_defeqs,
-    VEnv.addConstVals_defeqs stages.addConstructors,
+    VEnv.addEliminators_defeqs, VEnv.addConstVals_defeqs stages.addConstructors,
     VEnv.addConstVals_defeqs stages.addTypes]
 
 theorem base_le_recursors (stages : TypingStages base block installed) :
     base ≤ stages.recursors :=
   (VEnv.addConstVals_le stages.addTypes).trans <|
     (VEnv.addConstVals_le stages.addConstructors).trans <|
-      VEnv.addProjections_le.trans (VEnv.addConstVals_le stages.addRecursors)
+      VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le stages.addRecursors)
 
 theorem recursors_le (stages : TypingStages base block installed) :
     stages.recursors ≤ installed := by
@@ -92,7 +90,7 @@ The original proof, rather than a final-environment constant inversion, is
 the source of literal telescope formation payloads. -/
 theorem recursorTypeStrong (stages : TypingStages base block installed)
     {value : VConstVal} (member : value ∈ block.recursors) :
-    ∃ level, (stages.constructors.addProjections block.projections).IsDefEqStrong
+    ∃ level, ((stages.constructors.addEliminators block.eliminators).addProjections block.projections).IsDefEqStrong
       value.uvars [] value.type value.type (.sort level) := by
   obtain ⟨level, original⟩ := stages.originalRecursors value member
   exact ⟨level, original.strong stages.projectionsWF.ordered trivial⟩

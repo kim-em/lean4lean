@@ -61,14 +61,6 @@ structure VInductDecl where
   accidentally ascribe the safe formation rule to them. -/
   isUnsafe : Bool
 
-/-- The staged output of compiling an inductive declaration. -/
-structure VInductBlock where
-  types : List VConstVal
-  ctors : List VConstVal
-  recursors : List VConstVal
-  rules : List VDefEq
-  projections : List VProjectionEntry
-
 def VInductDecl.typeConstants (decl : VInductDecl) : List VConstVal :=
   decl.types.map VInductiveType.toVConstVal
 

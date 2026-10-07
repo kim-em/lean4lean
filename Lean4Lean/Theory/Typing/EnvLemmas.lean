@@ -20,15 +20,85 @@ theorem VEnv.addConsts_eliminators {env env' : VEnv} :
   | nil => rfl
   | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
 
+theorem VEnv.addEliminators_eliminators_congr {env₁ env₂ : VEnv} {es}
+    (h : env₁.eliminators = env₂.eliminators) :
+    (env₁.addEliminators es).eliminators = (env₂.addEliminators es).eliminators := by
+  funext n s
+  apply propext
+  rw [VEnv.addEliminators_iff, VEnv.addEliminators_iff, h]
+
+/-- An installed block registers exactly its case eliminators. -/
 theorem VInductBlock.install_eliminators {env env' : VEnv}
     (H : VInductBlock.install env block = some env') :
-    env'.eliminators = env.eliminators := by
+    env'.eliminators = (env.addEliminators block.eliminators).eliminators := by
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
   rw [VEnv.addDefEqRules_eliminators, VEnv.addConstVals_eliminators hr,
-    VEnv.addProjections_eliminators, VEnv.addConstVals_eliminators hc,
-    VEnv.addConstVals_eliminators ht]
+    VEnv.addProjections_eliminators]
+  exact VEnv.addEliminators_eliminators_congr
+    ((VEnv.addConstVals_eliminators hc).trans (VEnv.addConstVals_eliminators ht))
+
+theorem VInductBlock.install_eliminators_iff {env env' : VEnv}
+    (H : VInductBlock.install env block = some env') :
+    env'.eliminators n s ↔ (n, s) ∈ block.eliminators ∨ env.eliminators n s := by
+  rw [VInductBlock.install_eliminators H, VEnv.addEliminators_iff]
+
+/-- The case eliminator registered by one checked inductive declaration, with the data of its
+registration at the constructor stage. -/
+def VEnv.InductRegistration (env : VEnv) (decl : VInductDecl) (key : Name)
+    (schema : InductiveSignature.CaseSchema) (env' : VEnv) : Prop :=
+  ∃ (block : VInductBlock) (envTypes envCtors : VEnv),
+    decl.WF env ∧ VInductDecl.CompilesTo env decl block ∧ block.WF env ∧
+    VInductBlock.install env block = some env' ∧
+    env.addConstVals block.types = some envTypes ∧
+    envTypes.addConstVals block.ctors = some envCtors ∧
+    block.eliminators = [(key, schema)] ∧ schema.Certified env decl block ∧
+    decl.types.head?.map (·.name) = some key ∧ schema.ProjNamesRegistered envCtors key
+
+theorem VEnv.AddInduct.eliminators_iff (H : VEnv.AddInduct env decl env') :
+    env'.eliminators n s ↔ VEnv.InductRegistration env decl n s env' ∨ env.eliminators n s := by
+  cases H with
+  | intro hdecl hcompile hblock helim hinstall =>
+    obtain ⟨envTypes, envCtors, ht, hc, key, schema, hE, hcert, hkey, hprojs⟩ := helim
+    rw [VInductBlock.install_eliminators_iff hinstall, hE]
+    simp only [List.mem_singleton, Prod.mk.injEq]
+    constructor
+    · rintro (⟨rfl, rfl⟩ | h)
+      · exact .inl ⟨_, envTypes, envCtors, hdecl, hcompile, hblock, hinstall, ht, hc, hE, hcert,
+          hkey, hprojs⟩
+      · exact .inr h
+    · rintro (⟨block', envTypes', envCtors', -, -, -, hinstall', ht', hc', hE', -⟩ | h)
+      · have := VInductBlock.install_eliminators_iff (n := n) (s := s) hinstall'
+        rw [hE'] at this
+        have h2 := VInductBlock.install_eliminators_iff (n := n) (s := s) hinstall
+        rw [hE] at h2
+        simpa using h2.mp (this.mpr (by simp))
+      · exact .inr h
+
+theorem VEnv.addConsts_projections {env env' : VEnv} :
+    ∀ {cis}, env.addConsts cis = some env' → env'.projections = env.projections
+  | [], h => by cases h; rfl
+  | _ :: _, h => by
+    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
+      Option.bind_eq_some_iff] at h
+    obtain ⟨middle, hfirst, hrest⟩ := h
+    exact (VEnv.addConsts_projections hrest).trans (VEnv.addConst_projections hfirst)
+
+@[simp] theorem VEnv.addDefEqs_projections (env : VEnv) (cis : List VDefVal) :
+    (env.addDefEqs cis).projections = env.projections := by
+  induction cis generalizing env with
+  | nil => rfl
+  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
+
+theorem VEnv.addQuot_projections {env env' : VEnv}
+    (H : env.addQuot = some env') : env'.projections = env.projections := by
+  simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.some.injEq] at H
+  obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := H
+  exact (VEnv.addConst_projections hd).trans <|
+    (VEnv.addConst_projections hc).trans <|
+      (VEnv.addConst_projections hb).trans (VEnv.addConst_projections ha)
 
 theorem VEnv.addQuot_eliminators {env env' : VEnv}
     (H : env.addQuot = some env') : env'.eliminators = env.eliminators := by
@@ -39,78 +109,54 @@ theorem VEnv.addQuot_eliminators {env env' : VEnv}
     (VEnv.addConst_eliminators hc).trans <|
       (VEnv.addConst_eliminators hb).trans (VEnv.addConst_eliminators ha)
 
-theorem VDecl.WF.eliminators (H : VDecl.WF env decl env') :
-    env'.eliminators = env.eliminators := by
+/-- A declaration step registers a case eliminator only for an inductive declaration, and then
+exactly its certified one. -/
+theorem VDecl.WF.eliminators_iff (H : VDecl.WF env decl env') :
+    env'.eliminators n s ↔
+      (∃ source, decl = .induct source ∧ VEnv.InductRegistration env source n s env') ∨
+        env.eliminators n s := by
   cases H with
-  | «axiom» _ h | «opaque» _ h => exact VEnv.addConst_eliminators h
-  | «def» _ h => exact (VEnv.addConst_eliminators h : _ = env.eliminators)
-  | «example» => rfl
+  | «axiom» _ h | «opaque» _ h => simp [VEnv.addConst_eliminators h]
+  | «def» _ h => simp [(VEnv.addConst_eliminators h : _ = env.eliminators)]
+  | «example» => simp
   | mutualDef _ h _ =>
-    exact (VEnv.addDefEqs_eliminators ..).trans (VEnv.addConsts_eliminators h)
-  | quot _ h => exact VEnv.addQuot_eliminators h
-  | induct _ h => cases h with | intro _ _ _ h => exact VInductBlock.install_eliminators h
+    rw [VEnv.addDefEqs_eliminators, VEnv.addConsts_eliminators h]
+    simp
+  | quot _ h => simp [VEnv.addQuot_eliminators h]
+  | induct _ h =>
+    rw [h.eliminators_iff]
+    simp
 
-/-- Fresh registration fixes a schema for every abstract block key. -/
-theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
-    (hleft : env.eliminators key left) (hright : env.eliminators key right) :
-    left = right := by
-  rcases H with ⟨ds, H⟩
-  induction H with
-  | empty => cases hleft
-  | decl h _ ih =>
-    rw [h.eliminators] at hleft hright
-    exact ih hleft hright
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    simp only [VEnv.addProjections_eliminators] at hleft hright
-    exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
-    rcases hleft with ⟨rfl, rfl⟩ | hleft
-    · rcases hright with ⟨_, rfl⟩ | hright
-      · rfl
-      · exact (hfresh.1 _ hright).elim
-    · rcases hright with ⟨rfl, rfl⟩ | hright
-      · exact (hfresh.1 _ hleft).elim
-      · exact ih hleft hright
+/-- The stages of an installed block. -/
+theorem VInductBlock.install_stages {env env' : VEnv}
+    (H : VInductBlock.install env block = some env') :
+    ∃ envTypes envCtors envRecursors, env.addConstVals block.types = some envTypes ∧
+      envTypes.addConstVals block.ctors = some envCtors ∧
+      ((envCtors.addEliminators block.eliminators).addProjections block.projections).addConstVals
+        block.recursors = some envRecursors ∧
+      env' = envRecursors.addDefEqRules block.rules := by
+  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+    Option.pure_def, Option.some.injEq] at H
+  obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
+  exact ⟨types, ctors, recs, ht, hc, hr, rfl⟩
 
-theorem VEnv.WF.eliminators_originalFamilies_nodup (H : VEnv.WF env)
-    (hlookup : env.eliminators key schema) : schema.originalFamilies.Nodup := by
-  rcases H with ⟨ds, H⟩
-  induction H with
-  | empty => cases hlookup
-  | decl h _ ih =>
-    rw [h.eliminators] at hlookup
-    exact ih hlookup
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    simp only [VEnv.addProjections_eliminators] at hlookup
-    exact ih hlookup
-  | inductEliminators _ _ _ hformed _ _ _ _ ih =>
-    rcases hlookup with ⟨_, rfl⟩ | hlookup
-    · exact hformed.originalFamilies_nodup
-    · exact ih hlookup
+theorem VInductBlock.install_base_le {env env' : VEnv}
+    (H : VInductBlock.install env block = some env') : env ≤ env' := by
+  obtain ⟨_, _, _, ht, hc, hr, rfl⟩ := VInductBlock.install_stages H
+  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
+    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
+      VEnv.addDefEqRules_le
 
-/-- A native family has one registered block and schema. In particular,
-typed projection translation cannot choose another block's owner slot. -/
-theorem VEnv.WF.eliminators_owner_unique (H : VEnv.WF env)
-    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
-    (hnameLeft : name ∈ left.originalFamilies)
-    (hnameRight : name ∈ right.originalFamilies) : leftKey = rightKey ∧ left = right := by
-  rcases H with ⟨ds, H⟩
-  induction H with
-  | empty => cases hleft
-  | decl h _ ih =>
-    rw [h.eliminators] at hleft hright
-    exact ih hleft hright
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    simp only [VEnv.addProjections_eliminators] at hleft hright
-    exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ ih =>
-    rcases hleft with ⟨rfl, rfl⟩ | hleft
-    · rcases hright with ⟨rfl, rfl⟩ | hright
-      · exact ⟨rfl, rfl⟩
-      · exact (hfresh.2 _ _ hright hnameLeft hnameRight).elim
-    · rcases hright with ⟨rfl, rfl⟩ | hright
-      · exact (hfresh.2 _ _ hleft hnameRight hnameLeft).elim
-      · exact ih hleft hright
+/-- The constructor stage of an installed block is below the installed environment. -/
+theorem VInductBlock.install_ctors_le {env env' envTypes envCtors : VEnv}
+    (H : VInductBlock.install env block = some env')
+    (ht : env.addConstVals block.types = some envTypes)
+    (hc : envTypes.addConstVals block.ctors = some envCtors) : envCtors ≤ env' := by
+  obtain ⟨_, _, _, ht', hc', hr, rfl⟩ := VInductBlock.install_stages H
+  cases ht.symm.trans ht'
+  cases hc.symm.trans hc'
+  exact VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans
+      VEnv.addDefEqRules_le
 
 theorem VEnv.addConsts_le {env env' : VEnv} : ∀ {cis}, env.addConsts cis = some env' → env ≤ env'
   | [], h => by cases h; exact .rfl
@@ -212,9 +258,18 @@ theorem VEnv.WF.ordered : WF env → Ordered env
       | «example» _ => exact ih
       | quot h1 h2 => exact addQuot_WF ih h1 h2
       | induct h1 h2 => exact addInduct_WF ih h1 h2
-    | inductProjections _ _ hsource htypesWF hconstructorUvars hctorsWF hparams hshape htypesSource
-        hctorsSource hprojections htypes hctors ihBase ihCtors =>
-      exact .inductProjections ihBase ihCtors hsource htypesWF hconstructorUvars hctorsWF hparams
+    | inductProjections _ _ _ hsource htypesWF hconstructorUvars hctorsWF hparams hshape htypesSource
+        hctorsSource hprojections htypes hctors ihBase _ =>
+      have hT := ihBase.addConstVals (by
+        intro ci hci
+        rw [htypesSource] at hci
+        obtain ⟨type, htype, rfl⟩ := List.mem_map.mp hci
+        exact htypesWF type htype) htypes
+      have hC := hT.addConstVals (by
+        intro ci hci
+        rw [hctorsSource] at hci
+        exact hctorsWF ci hci) hctors
+      exact .inductProjections ihBase hC hsource htypesWF hconstructorUvars hctorsWF hparams
         hshape htypesSource hctorsSource hprojections htypes hctors
 
 /-- A dependency-ordered list of well-formed constants may be viewed as a

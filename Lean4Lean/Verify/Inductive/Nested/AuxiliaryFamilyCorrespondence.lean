@@ -72,7 +72,7 @@ private theorem install_base_le' {base installed : VEnv} {block : VInductBlock}
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
   exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
 
 private theorem install_type_lookup' {base installed : VEnv} {block : VInductBlock}
     {value : VConstVal}

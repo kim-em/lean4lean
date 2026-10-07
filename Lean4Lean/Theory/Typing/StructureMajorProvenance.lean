@@ -149,12 +149,13 @@ theorem WF'.quot_no_projection (H : VEnv.WF' ds env) :
         exact .inl (h ▸ hp)
       | induct _ hadd =>
         cases hadd with
-        | intro _ hcompile _ hinstall =>
+        | intro _ hcompile _ _ hinstall =>
           simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
             Option.pure_def, Option.some.injEq] at hinstall
           obtain ⟨envTypes, htypes, envCtors, hctors, envRecs, hrecs, rfl⟩ := hinstall
           rw [VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hrecs,
-            VEnv.addProjections_iff, VEnv.addConstVals_projections hctors,
+            VEnv.addProjections_iff, VEnv.addEliminators_projections,
+            VEnv.addConstVals_projections hctors,
             VEnv.addConstVals_projections htypes] at hp
           rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hp
           · rw [hcompile.projections] at hentry
@@ -187,16 +188,18 @@ theorem WF'.quot_no_projection (H : VEnv.WF' ds env) :
     obtain ⟨hq, hno⟩ := ih hmem
     exact ⟨hq.mono VEnv.addEliminator_le, fun info hp => hno info hp⟩
   | @inductProjections baseDecls ds base envTypes envCtors decl block
-      hbase _ _ _ _ _ _ _ htypesSource _ hprojections htypes hctors _ ihCtors =>
+      hbase _ _ _ _ _ _ _ _ htypesSource _ hprojections htypes hctors _ ihCtors =>
     intro hmem
     obtain ⟨hq, hno⟩ := ihCtors hmem
     have hbaseOrdered := (show base.WF from ⟨baseDecls, hbase⟩).ordered
-    have hleCtors : base ≤ envCtors :=
-      (VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)
+    have hleCtors : base ≤ envCtors.addEliminators block.eliminators :=
+      (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans
+        VEnv.addEliminators_le)
     refine ⟨hq.mono VEnv.addProjections_le, fun info hp => ?_⟩
     rw [VEnv.addProjections_iff] at hp
     rcases hp with ⟨entry, hentry, hname, rfl⟩ | hp
-    · have hdf : envCtors.defeqs = base.defeqs :=
+    · have hdf : (envCtors.addEliminators block.eliminators).defeqs = base.defeqs :=
+        VEnv.addEliminators_defeqs.trans <|
         (VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)
       have hqd : base.defeqs quotDefEq := hdf ▸ hq.equation
       have hmk : quotDefEq.HasConstructorMajor ``Quot.mk :=

@@ -450,7 +450,7 @@ theorem VInductBlock.install_constants {env installed : VEnv} {block : VInductBl
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := H
   have hle : ctors ≤ (recs.addDefEqRules block.rules) :=
-    VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
   intro v hv
   rcases List.mem_append.mp hv with hv | hv
   · exact hle.constants ((VEnv.addConstVals_le hc).constants (VEnv.addConstVals_get ht hv))
@@ -509,7 +509,7 @@ theorem VEnv.IsDefEq.noFreshConsts_addProjections {env : VEnv}
   have hon := Henv.onTypes_noFreshConsts Hfresh
   apply H.noConsts ⟨fun h => hon.1 (by simpa using h), fun h => hon.2 (by simpa using h)⟩
   · intro name ci hlookup hname
-    simp only [VEnv.addProjections_constants] at hlookup
+    simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hlookup
     rw [Hfresh name hname] at hlookup
     contradiction
   · exact Hctx

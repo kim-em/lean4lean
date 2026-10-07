@@ -83,8 +83,9 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_fresh
     Option.pure_def, Option.some.injEq] at hinstall
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinstall
   have hf := VEnv.addConstVals_names_fresh hr rec hrec
-  have hle : installBase ≤ ctors.addProjections block.projections := ((VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)).trans
-    (VEnv.addProjections_le)
+  have hle : installBase ≤ (ctors.addEliminators block.eliminators).addProjections block.projections :=
+    ((VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)).trans
+    VEnv.addEliminators_addProjections_le
   cases hv : installBase.constants data.name with
   | none => rfl
   | some value =>
@@ -207,7 +208,8 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.installNativeRegistr
       Option.pure_def, Option.some.injEq] at hinstall
     obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinstall
     exact (((VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)).trans
-      (VEnv.addProjections_le.trans (VEnv.addConstVals_le hr))).trans VEnv.addDefEqRules_le
+      (VEnv.addEliminators_addProjections_le.trans (VEnv.addConstVals_le hr))).trans
+        VEnv.addDefEqRules_le
   apply NativeRecursorRegistered.installEntries (entries := compilationEntries key source s auxiliaries g)
     (fun name data h => ⟨(hold name data h).1.mono (hinstalled.trans hle), (hold name data h).2⟩)
     (fun _ h => NativeRecursorRegistered.compilationEntries hdata hprior hbase hinstall hle h) hentry

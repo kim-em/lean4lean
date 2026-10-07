@@ -21,7 +21,7 @@ private theorem install_base_le' (H : VInductBlock.install base block = some ins
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
   exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
 
 theorem NativeRecursorRegistered.family_head_rigid {data : NativeRecursorData} (henv : env.WF)
     (H : NativeRecursorRegistered env data)
@@ -370,7 +370,7 @@ theorem VInductBlock.install_type_lookup' (H : VInductBlock.install base block =
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
+  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
     (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants (VEnv.addConstVals_get ht hvalue)
 
 /-- A native recursor whose source universe is never zero at the occurrence

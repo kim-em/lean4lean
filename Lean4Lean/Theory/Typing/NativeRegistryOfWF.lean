@@ -112,12 +112,13 @@ theorem WF'.nativeRegistry (formed : env.WF' declarations) :
     | induct original installed =>
       rename_i source
       cases installed with
-      | intro _ compiled blockWF installed =>
+      | intro _ compiled blockWF eliminatorsWF installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, below, compilation, specializations⟩ :=
           compiled.compiled.compilationOrigin
         let key : Name := (source.types.head?.map (·.name)).getD `nativeRegistry
         refine ⟨installEntries table (compilationEntries key _ signature auxiliaries generated),
-          .native history original compiled blockWF installed compilation specializations below, ?_⟩
+          .native history original compiled blockWF eliminatorsWF installed compilation
+            specializations below, ?_⟩
         intro equation present
         have retain := NativeRegistryEquationCovered.install history compilation installed
           (key := key) (equation := equation)
@@ -129,19 +130,19 @@ theorem WF'.nativeRegistry (formed : env.WF' declarations) :
         · obtain ⟨data, entry, index, owner, equationEq⟩ := compilation.nativeEntries_equation member key
           exact .inr (.inr ⟨data, compilation.nativeEntries_lookup entry, index, owner, equationEq⟩)
         · exact retain (covered equation (by
-            rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+            rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
               VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at present))
   | inductEliminators baseHistory _ below certified keyEq constants fresh _ ih =>
     obtain ⟨table, history, covered⟩ := ih
     exact ⟨table, .eliminators history baseHistory below certified keyEq constants fresh,
       fun equation present => covered equation present⟩
-  | inductProjections baseHistory _ sourceNames typeHeadersWF constructorUvars constructorsWF
+  | inductProjections baseHistory _ hcovered sourceNames typeHeadersWF constructorUvars constructorsWF
       parameters shape types constructors projections addTypes addConstructors _ ih =>
     obtain ⟨table, history, covered⟩ := ih
-    exact ⟨table, .projections history baseHistory sourceNames typeHeadersWF constructorUvars
+    exact ⟨table, .projections history baseHistory hcovered sourceNames typeHeadersWF constructorUvars
       constructorsWF parameters shape types constructors projections addTypes addConstructors,
       fun equation present => covered equation
-        (by simpa only [VEnv.addProjections_defeqs] using present)⟩
+        (by simpa only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using present)⟩
 
 /-- Lookup soundness and original-stage provenance are consequences of the
 same concrete table construction, together with full installed-rule coverage. -/
