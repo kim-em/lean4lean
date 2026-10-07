@@ -51,7 +51,7 @@ theorem previous_definition (continuation : Prefix first last)
   | decl continuation declaration ih =>
     exact ih (declaration_previous declaration (continuation.le.constants present) lookup)
   | native _ _ _ _ _ _ _ _ ih => exact ih lookup
-  | eliminators _ _ _ _ _ _ _ ih => exact ih lookup
+  | eliminators _ _ _ _ _ _ _ _ ih => exact ih lookup
   | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih => exact ih lookup
 
 end NativeRegistryHistory.Prefix

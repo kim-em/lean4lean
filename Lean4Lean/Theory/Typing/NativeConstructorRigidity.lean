@@ -595,7 +595,7 @@ private theorem WF.constructorHistory {env : VEnv} (H : env.WF) : ConstructorHis
     | mutualDef _ hadd _ => exact ih.addDefinitions hadd
     | quot _ hadd => exact ih.addQuot hordered hadd
     | induct _ hadd => exact ih.addInduct hordered hadd
-  | inductEliminators hbase henv hle hcert hkey hconstants hfresh ihBase ihEnv =>
+  | inductEliminators hbase henv hle hcert hkey hconstants hfresh _ ihBase ihEnv =>
     exact ihBase.register ihEnv (show VEnv.WF _ from ⟨_, hbase⟩).ordered
       hle hcert hconstants.1 hconstants.2.1
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ihCtors =>
