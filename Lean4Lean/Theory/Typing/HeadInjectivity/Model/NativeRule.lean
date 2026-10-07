@@ -191,6 +191,39 @@ theorem liftN_wrapForalls_sort {w : VLevel} : ∀ (ds : List VExpr) (n k : Nat),
     simp only [VExpr.wrapForalls, List.foldr_cons, VExpr.liftN] at h ⊢
     rw [h]
 
+theorem eqDoms_reverse_motive {s : InductiveSignature} (g : Instance s)
+    (index : Fin s.constructors.size) :
+    (g.eqDoms index).reverse[s.constructors[index].fields.length + s.constructors.size +
+      (s.families.size - 1 - s.constructors[index].owner.val)]? =
+      some (g.motive s.families[s.constructors[index].owner] s.constructors[index].owner.val) := by
+  have hlen := g.eqDoms_length index
+  have ho := s.constructors[index].owner.isLt
+  rw [List.getElem?_reverse (by omega)]
+  rw [show (g.eqDoms index).length - 1 - (s.constructors[index].fields.length +
+    s.constructors.size + (s.families.size - 1 - s.constructors[index].owner.val)) =
+    s.params.length + s.constructors[index].owner.val by omega]
+  simp only [Instance.eqDoms, List.append_assoc]
+  rw [List.getElem?_append_right (by simp [Instance.params]),
+    List.getElem?_append_left (by simp [Instance.params, Instance.motives])]
+  simp [Instance.params, Instance.motives]
+
+theorem motive_eq {s : InductiveSignature} (g : Instance s) (o : Fin s.families.size) :
+    ∃ ds0 : List VExpr, g.motive s.families[o] o.val = .wrapForalls ds0 (.sort g.targetLevel) ∧
+      ds0.length = s.families[o].indices.length + 1 :=
+  ⟨_, rfl, by simp [insertBinders]⟩
+
+/-- The binder type of a binder whose domain is a telescope ending in a sort. -/
+theorem binderTy_wrapForalls_sort {ds mds0 : List VExpr} {m : Nat} {w : VLevel}
+    (hget : ds.reverse[m]? = some (.wrapForalls mds0 (.sort w))) (ls : List VLevel) :
+    ∃ mds : List VExpr, binderTy ds ls m = .wrapForalls mds (.sort (w.inst ls)) ∧
+      mds.length = mds0.length := by
+  unfold binderTy
+  rw [List.getD_eq_getElem?_getD, hget, Option.getD_some]
+  obtain ⟨ds', h, l⟩ := liftN_wrapForalls_sort (w := w) mds0 (m + 1) 0
+  refine ⟨ds'.map (·.instL ls), ?_, by simp [l]⟩
+  rw [h, instL_wrapForalls'']
+  rfl
+
 /-- The binder type of the motive of a generated equation is a telescope ending in the
 target sort. -/
 theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
