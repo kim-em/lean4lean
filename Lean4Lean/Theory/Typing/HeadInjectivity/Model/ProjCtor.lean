@@ -16,6 +16,45 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
 
+theorem typed_wrap_rigid : ∀ {keys : List Key} {τs : List Ob},
+    TypedOb env U Δ cv (wrap keys (.rigid n ℓs m s)) τs →
+    ∃ ks : List Key, ks.length = keys.length ∧ piCodChain ks (.sort s) ∈ τs
+  | [], τs, h => by
+    cases h with
+    | rigid h => exact ⟨[], rfl, h⟩
+  | k :: keys, τs, h => by
+    obtain ⟨D, c, K⟩ := k
+    simp only [wrap_cons] at h
+    cases h with
+    | app _ _ _ _ _ _ hcod hty =>
+      obtain ⟨ks, hl, hm⟩ := typed_wrap_rigid hty
+      obtain ⟨K₀, hK₀, -⟩ := hcod _ hm
+      exact ⟨(D, c, K₀) :: ks, by simp [hl], hK₀⟩
+
+theorem Ob.Le.piCodChain_sort_inv : ∀ {ks : List Key} {o : Ob},
+    o ≼ piCodChain ks (.sort z) → ∃ ks' : List Key, ks'.length = ks.length ∧
+      o = piCodChain ks' (.sort z)
+  | [], o, h => ⟨[], rfl, h.sort_inv⟩
+  | k :: ks, o, h => by
+    simp only [piCodChain_cons] at h
+    obtain ⟨K₀, y, rfl, -, hy⟩ := h.piCodOb_inv
+    obtain ⟨ks', hl, rfl⟩ := Ob.Le.piCodChain_sort_inv hy
+    exact ⟨(k.1, k.2.1, K₀) :: ks', by simp [hl], rfl⟩
+
+theorem obs_wrapForalls_sort : ∀ {ds : List VExpr} {ks : List Key} {σ : VExpr.Subst}
+    {S : ObSets}, Obs' σ S (.wrapForalls ds (.sort l)) (piCodChain ks (.sort z)) → z = l.eval
+  | [], [], _, _, h => by
+    have := Obs.sort_mem h; simp at this; exact this
+  | [], _ :: _, _, _, h => by
+    have := Obs.sort_mem h; simp at this
+  | _ :: _, [], _, _, h => by
+    simp only [VExpr.wrapForalls, List.foldr_cons, piCodChain_nil] at h
+    cases h
+  | _ :: ds, _ :: ks, _, _, h => by
+    simp only [VExpr.wrapForalls, List.foldr_cons, piCodChain_cons] at h
+    obtain ⟨-, -, _, -, h⟩ := Obs.piCodOb_mem h
+    exact obs_wrapForalls_sort (ds := ds) (ks := ks) h
+
 /-- The anchors of a chain of typed keys. -/
 theorem TeleKeys.anchors (h : TeleKeys env U Δ σ S ds keys σ' S') :
     ∃ ys : List VExpr, σ' = ys.foldl VExpr.Subst.cons σ ∧ ys.length = ds.length ∧

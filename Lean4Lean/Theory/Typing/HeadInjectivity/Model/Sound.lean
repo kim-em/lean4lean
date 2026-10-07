@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.QuotRule
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.ProjCtor
 import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.Definitions
 
 /-! # Soundness of the observation model for rule-free environments (milestone M2)
