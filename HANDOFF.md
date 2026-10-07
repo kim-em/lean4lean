@@ -216,6 +216,24 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   EliminatorAvoidance, coherence, the confluence `Params` fields reaching
   constructor shapes) adapted on E1; then (A) proceeds with the case-only
   certificate plus an `elimDF` typability lemma for the case type.
+  **E1 at 463c99d4 (pushed):** `corner_inhabit_elim`
+  (Theory/Typing/ProjectionCornerCaseElim.lean) proves the corner for
+  index-free structures with a registered case eliminator under canonical
+  choice; `ProjectionWalkCornerResolved`/`projectionWalkCorner_resolved`/
+  `ProjectionWalkCorner.full` narrow the hypothesis to the unresolved walks;
+  cone 40570 constants, only sorry `headInversion`, only hypothesis the
+  narrowed `ProjectionWalkCorner`. Two blockers: (1) the kernel's
+  `infer_proj` accepts one-constructor INDEXED families (`args.size =
+  nparams + nindices`), so an indexed corner is needed (restored case type
+  of an indexed view is a type; normalized index telescope agrees with the
+  declared one at the major's indices): assigned to the strengthening agent;
+  (2) the window typings live in the eliminator-extended environment and
+  cannot be moved down to the eliminator-free one `VInductBlock.WF`
+  requires. **Decision (2026-10-07): restructure the installation so
+  `VInductBlock.WF`/`install`/`VEnv.AddInduct` carry the certified case
+  eliminators, ordered before the projections** (spec restructuring with the
+  case-only certificate; weakens no theorem; several thousand lines over
+  the `WF'` inductions, eliminator invariants and `addProjections` sites).
   **Mainline fast-forwarded to base 9cc2be01 (pushed):** realizability of
   `HasCanonicalChoice` (Verify/Inductive/ChoiceCanonicalForms.lean,
   Verify/CanonicalChoiceRealization.lean `VEnvs.WF.hasCanonicalChoice`,
