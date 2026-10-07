@@ -158,6 +158,20 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   the recursor premise at every call site, including the transient
   types+constructors window (generated terms only; a block-family
   projection could arise there only via structure eta in `isDefEq`).
+  **Theory-level corner proved (base branch c1e4b892):** `VEnv.corner_inhabit`
+  (Theory/Typing/ProjectionCornerElim.lean): under WF, `HasCanonicalChoice`,
+  the walk's data (projection info, levels, the instantiated constructor
+  telescope reaching `forallE D body'`, `IsType D`, the failed guard,
+  `nindices = 0`) and the bundle `StructurePropRecursor env U S info ls`
+  (a registered native recursor of `S` with constructor `info.ctorName`,
+  matching parameter count and arity, an instantiation `ls0` of its universes
+  with target zero and levels corresponding to `ls`; temporarily
+  `families.size = 1`), there is `d : D` in Δ (recursor applied with motive
+  `fun _ => Nonempty X`, minor `Nonempty.intro field_j`, then
+  `Classical.choice`). Sorry dependency only through unique typing
+  (`headInversion`). Next: Verify-level `projectionWalkCorner_of_choice`,
+  then the generalization to several families; E1 supplies the bundle at
+  the call sites from a proved pipeline invariant.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
