@@ -131,13 +131,17 @@ theorem Witness.present {base : VEnv} (hbase : base.WF) (hle : base ≤ env)
 
 def selAll (_ : VInductiveType) : Bool := true
 
-/-- Record a schema's views if none of its names is recorded yet. -/
-noncomputable def Tables.addSchema (T : Tables) (source : VInductDecl) : Tables := by
+/-- A family none of whose names (its own and its constructors') is recorded yet. -/
+noncomputable def selFree (T : Tables) (t : VInductiveType) : Bool := by
   classical
-  exact if ∀ t ∈ source.types, T.fam t.name = none ∧ T.ctor t.name = none ∧
-      ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none then
-    T.addViews (viewFams source selAll) (viewCtors source selAll)
-  else T
+  exact decide (T.fam t.name = none ∧ T.ctor t.name = none ∧
+    ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none)
+
+/-- Record the views of a schema's families none of whose names is recorded yet (family by
+family: a family of the schema that is not otherwise registered is recorded here, so every
+family of a generic equation's major has a recorded sort). -/
+noncomputable def Tables.addSchema (T : Tables) (source : VInductDecl) : Tables :=
+  T.addViews (viewFams source (selFree T)) (viewCtors source (selFree T))
 
 theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInductBlock}
     {schema : CaseSchema} (H : T.Inv env) (hbase : base.WF) (hle : base ≤ env)
@@ -148,10 +152,11 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
     T.Extends (T.addSchema source) ∧ (T.addSchema source).Inv (env.addEliminator key schema) := by
   classical
   have H' := H.transport (env' := env.addEliminator key schema) VEnv.addEliminator_le rfl rfl
+  have hfree : ∀ t ∈ source.types, selFree T t = true → T.fam t.name = none ∧
+      T.ctor t.name = none ∧ ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none := by
+    intro t _ ht; simpa [selFree] using ht
   unfold Tables.addSchema
-  split
-  · rename_i hfree
-    refine ⟨T.extends_addViews _ _, H'.addViews ?_⟩
+  · refine ⟨T.extends_addViews _ _, H'.addViews ?_⟩
     obtain ⟨expanded, g, aux, hdata, _, _, hnames⟩ := hcert
     obtain ⟨_, hnd, hTypeUv, hCtorUv, envTypes, envCtors, htypes, hctors, _⟩ := hdata.sourceWF
     obtain ⟨params, _, _, hTypeShape, _, hraw⟩ := hdata.sourceParameters
@@ -177,7 +182,7 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
       simpa only [VEnv.Rigid, VEnv.addEliminator_defeqs, hdf] using this
     have hreg : (env.addEliminator key schema).eliminators key schema := VEnv.addEliminator_self
     apply viewsOK_decl hnd
-    · intro t ht _; exact hfree t ht
+    · intro t ht hs; exact hfree t ht hs
     · intro t ht _
       exact famShape_of_typeShape ((hTypeShape t ht).mono hle') (hTypeUv t ht) (htypeConst t ht)
     · intro t ht _ c hc
@@ -190,7 +195,6 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
       · rw [hnames]; exact List.mem_map.mpr ⟨t, ht, rfl⟩
       · exact (Certified.mem_schemaCtorNames ⟨expanded, g, aux, hdata, ‹_›, ‹_›, hnames⟩).mpr
           ⟨c, List.mem_flatMap.mpr ⟨t, ht, hc⟩, rfl⟩
-  · exact ⟨.rfl, H'⟩
 
 /-! ## Structure registration -/
 
