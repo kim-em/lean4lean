@@ -146,7 +146,7 @@ theorem C_absurd_gen {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name}
     (hΔ : OnCtx Δ (env.IsType U)) (hlw : ∀ l ∈ ls, l.WF U)
     (eH : ci.type = .wrapForalls dsH RH) (hlen : dsH.length = k + 1)
     (hkH : dsH[k]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
-    (hfs : FamSort env I L) (hnz : (L.inst lsI).IsNeverZero) (hkl : keys.length = k)
+    (hfs : FamSort env I L) (hnz : ((L.inst lsI).inst ls).IsNeverZero) (hkl : keys.length = k)
     (h : Obs' .id .empty (ci.type.instL ls) (piCodChain keys
       (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) m fun _ => 0)))) : False := by
   have hlsI : ∀ l ∈ lsI.map (·.inst ls), l.WF U := by
@@ -170,7 +170,7 @@ theorem C_absurd_gen {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name}
   obtain ⟨ks, -, hks⟩ := typed_wrap_rigid hty
   have e := hfs _ _ _ _ _ _ hΔ hci hlsI (hτs _ hks)
   have e0 := congrFun e []
-  rw [← VLevel.inst_inst, VLevel.eval_inst] at e0
+  rw [← VLevel.inst_inst] at e0
   exact hnz _ e0.symm
 
 theorem liftN_wrapForalls_sort {w : VLevel} : ∀ (ds : List VExpr) (n k : Nat),

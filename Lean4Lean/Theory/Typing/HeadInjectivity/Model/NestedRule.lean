@@ -202,7 +202,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     exact sound_pat henv hΔ hdf hl hr hcov hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
       hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
       (fun keys hkl hobs => absurd hobs fun h =>
-        C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz) hkl h)
+        C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
       ihL ihR
   · -- small elimination: the right-hand side has no observations
     obtain ⟨args', hargs, rfl⟩ := Restoration.expr_bvar_mkApps hT'
