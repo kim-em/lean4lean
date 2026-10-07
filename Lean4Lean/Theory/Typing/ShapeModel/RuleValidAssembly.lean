@@ -118,8 +118,8 @@ theorem rule_instance_valid (H : env.WF) {r : Rule} (hr : EnvRule env r) {h : He
       SemSig.famProp ci.family (RuleMajor.lvls ⟨c, lv, (List.range nf).reverse⟩ ls) = true →
       SLvl.IsZero tgt.eval ∨
       ((∀ r', EnvRule env r' → r'.head = h → r'.major.map (·.ctor) = some c) ∧
-        ∀ σ, KeysFit env .nil Ds σ → ∀ i < nf, r.fieldIndex[i]? = some none →
-          σ (nf - 1 - i) ≤ .bot)) :
+        ∀ σ, KeysFit env .nil Ds σ → Valuation.Fits env Γ (Ds.reverse ++ Γ) σ →
+          ∀ i < nf, r.fieldIndex[i]? = some none → σ (nf - 1 - i) ≤ .bot)) :
     letI := envSig env
     SoundEq env [] (VExpr.wrapLams Ds (VExpr.mkApps (h.toExpr ls)
       (vars npre nf ++ idx.map (·.instL ls) ++
@@ -194,7 +194,7 @@ theorem rule_instance_valid (H : env.WF) {r : Rule} (hr : EnvRule env r) {h : He
       refine ⟨body_bot_of_motive W h₁ (fun m hm => by rw [← hTb]; exact (hB₁ m).1 hm) hka hia hz
         hlenE, body_bot_of_motive W h₂ (fun m hm => by rw [← hTb]; exact (hB₁ m).1 ((hB m).2 hm))
         hka hia hz hlenE⟩
-    · exact .inr ⟨hreads, fun h => by simp at h, fun _ => ⟨hD7, fun i hi hn => hunread σ K i hi hn⟩⟩
+    · exact .inr ⟨hreads, fun h => by simp at h, fun _ => ⟨hD7, fun i hi hn => hunread σ K W i hi hn⟩⟩
   | false =>
     refine .inr ⟨hreads, fun _ => ?_, fun h => by simp at h⟩
     obtain ⟨A, Bf, hf, hM⟩ := StrongSound.app_last h₁
