@@ -36,14 +36,6 @@ def FamSort (env : VEnv) (I : Name) (l : VLevel) : Prop :=
     (∀ l ∈ lsI, l.WF U) →
     Obs env U Δ .id .empty (ci.type.instL lsI) (piCodChain ks (.sort z)) → z = (l.inst lsI).eval
 
-/-- Scope of stages B and D: every native rule batch present in the environment comes from a
-compilation without container specializations. -/
-def OrdinaryNative (env : VEnv) : Prop :=
-  ∀ {base : VEnv} {source expanded : VInductDecl} {s : InductiveSignature} {g : Instance s}
-    {aux : List ContainerSpecialization} {block : VInductBlock},
-    CompilationData base source expanded s g aux block → ∀ df ∈ block.rules, env.defeqs df →
-    aux = []
-
 /-- Every rule of `env` headed by `n` belongs to `rs`. -/
 def HeadExcl (env : VEnv) (n : Name) (rs : List VDefEq) : Prop :=
   ∀ df', env.defeqs df' → ∀ ls', df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' ∈ rs

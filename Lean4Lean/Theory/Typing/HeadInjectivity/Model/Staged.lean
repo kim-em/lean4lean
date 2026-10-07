@@ -1,11 +1,10 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Extract
-import Lean4Lean.Theory.Typing.HeadInjectivity.Model.FamSort
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.NestedRule
 
-/-! # Staged soundness (decision D11) and stage B
+/-! # Staged soundness (decision D11) and stages B and D
 
-`VEnv.WF'.ruleValid`: in a well-formed environment `envF` without projections or eliminators
-whose native rules come from compilations without container specializations
-(`OrdinaryNative`), every rule of every environment in the declaration history of `envF` is
+`VEnv.WF'.ruleValid`: in a well-formed environment `envF` without projections or eliminators,
+every rule of every environment in the declaration history of `envF` is
 valid in the model of `envF`. The proof is by induction on the history; the semantic fact
 needed by a native rule of a data family (`FamSort`: the family's type observations end in its
 recorded result sort) comes from the soundness, in the model of `envF`, of the definitional
@@ -13,13 +12,16 @@ equality between the family's declared type and a telescope ending in that sort,
 of the environment before the rules of the family were installed, whose rules are valid by
 the induction hypothesis.
 
-`VEnv.WF.headInjectivityCore_of_ordinary`: chain-level head injectivity under that scope.
+`VEnv.WF.headInjectivityCore_of_projElimFree`: chain-level head injectivity under that scope.
 
 The proof-field fact needed by singleton eliminators (mode C) comes the same way from the
 soundness of the field typings recorded by `SingletonElimination`, placed in the equation's
 telescope (`Model/Singleton.lean`). Uniqueness of a native rule per head comes from
 `HeadsClosed`: along the history, no later declaration adds a rule headed by an existing
-constant, so the rules headed by a recursor are exactly its block's equations. -/
+constant, so the rules headed by a recursor are exactly its block's equations. Restored
+equations of nested compilations take `FamSort` of an original family from the block's own
+correspondence and of a container family from the container's compilation
+(`Model/NestedRule.lean`). -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -129,7 +131,7 @@ private theorem declaration_le' (H : VDecl.WF env decl env') : env ≤ env' := b
 /-- **Staged validity** (D11): every rule of every environment in the declaration history of a
 well-formed `envF` in scope is valid in the model of `envF`. -/
 theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.projections n p)
-    (hne : ∀ b s, ¬ envF.eliminators b s) (hon : Model.OrdinaryNative envF) :
+    (hne : ∀ b s, ¬ envF.eliminators b s) :
     ∀ {ds env}, env.WF' ds → env ≤ envF → HeadsClosed envF env →
       ∀ df, env.defeqs df → Model.RuleValid envF df := by
   have henvF := hF.ordered
@@ -216,7 +218,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
     | induct _ installed =>
       cases installed with
       | @intro block _ _ compiled hbwf hinst =>
-        obtain ⟨base, expanded, s, g, aux, hbase', C, -⟩ :=
+        obtain ⟨base, expanded, s, g, aux, hbase', C, hprior⟩ :=
           compiled.compiled.compilationOrigin
         have howned := compiled.compiled.equation_head_owned
         have hinst' := hinst
@@ -241,8 +243,35 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
           have hn : recursor.name = n := (VExpr.const.inj (hhead.symm.trans h)).1
           subst hn; exact hrecFresh recursor hrec)
         rcases hdefeqs df hdf with member | hdf
-        · have haux := hon C df member hdfF
-          subst haux
+        rcases (Classical.em (aux = [])).symm with haux | haux
+        · -- nested compilations
+          obtain ⟨src, hsrc, hres⟩ := Lean4Lean.List.Forall₂.forall_exists_r
+            (List.mapM_eq_some.mp C.equations) _ member
+          obtain ⟨index, -, rfl⟩ := List.mem_map.1 hsrc
+          obtain ⟨rec', hrec', hn, -⟩ := C.restored_recursor s.constructors[index].owner
+          have hc1 := VInductBlock.install_recursor_lookup hinst hrec'
+          have hc2 := hrecFresh _ hrec'
+          rw [hn] at hc1 hc2
+          have hex := hcl.excl h0 hdefeqs ⟨_, hc1⟩ hc2
+          have hbF : base ≤ envF := hbase'.trans (h0le.trans hle)
+          have hmemF : s.families[s.constructors[index].owner] ∈ s.families.toList :=
+            Array.mem_toList_iff.2 (Array.getElem_mem s.constructors[index].owner.isLt)
+          rcases C.family_origin s.constructors[index].owner with
+            ⟨envTypes, family, htypes, hfamily, hrel, hhn, hhl⟩ | ⟨a, ha, hhn, hhl, hlev⟩
+          · obtain ⟨-, -, -, -, _, _, _, _, hwf, _⟩ := C.sourceWF
+            have hfs := Model.famSort_source henvF h0 hnp hne (@ih' hcl0) hwf hbase' htypes C.types
+              hinst hle hfamily hrel
+            exact Model.RuleValid.nested henvF hdr hctor hcres C hprior haux hbF hinst hle index hres
+              hdfF hex (L := s.families[s.constructors[index].owner].resultLevel)
+              (by rw [hhn]; exact hfs) (fun hnz => by rw [hhl]; exact hnz _ hmemF)
+          · have hfs := Model.famSort_container henvF h0 (h0le.trans hle) hnp hne (@ih' hcl0)
+              hprior hbase' ha
+            exact Model.RuleValid.nested henvF hdr hctor hcres C hprior haux hbF hinst hle index hres
+              hdfF hex (L := a.source.resultLevel) (by rw [hhn]; exact hfs)
+              (fun hnz => by
+                rw [hhl, ← VLevel.inst_inst]
+                exact (hnz _ hmemF).of_equiv (VLevel.inst_congr_l hlev))
+        · subst haux
           rw [C.ordinary_rules] at member
           obtain ⟨index, -, rfl⟩ := List.mem_map.1 member
           have hrec : g.recursor s.constructors[index].owner ∈ block.recursors := by
@@ -299,21 +328,18 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
     exact @ih (VEnv.addProjections_le.trans hle) (fun df' h n ls h' ⟨ci, hci⟩ => by
       have := hcl df' h n ls h' ⟨ci, by simpa using hci⟩; simpa using this) df (by simpa using hdf)
 
-/-- The scope of stages B and D: no projections, no eliminators, and native rules only from
-compilations without container specializations (every elimination mode, including singleton
-large elimination and K-like rules). -/
-structure OrdinaryScope (env : VEnv) : Prop where
+/-- The scope of stages B and D: no projections and no eliminators. Every native recursor
+rule (ordinary or nested, every elimination mode) is covered. -/
+structure ProjElimFree (env : VEnv) : Prop where
   projections : ∀ n p, ¬ env.projections n p
   eliminators : ∀ b s, ¬ env.eliminators b s
-  native : Model.OrdinaryNative env
 
 /-- **Stages B and D**: chain-level head injectivity for well-formed environments without
-projections or eliminators whose native recursor rules come from compilations without
-container specializations. -/
-theorem WF.headInjectivityCore_of_ordinary {env : VEnv} (henv : env.WF) (hB : env.OrdinaryScope) :
-    env.HeadInjectivityCore := by
+projections or eliminators. -/
+theorem WF.headInjectivityCore_of_projElimFree {env : VEnv} (henv : env.WF)
+    (hB : env.ProjElimFree) : env.HeadInjectivityCore := by
   obtain ⟨ds, H⟩ := henv
-  have hvalid := WF'.ruleValid ⟨ds, H⟩ hB.projections hB.eliminators hB.native H .rfl
+  have hvalid := WF'.ruleValid ⟨ds, H⟩ hB.projections hB.eliminators H .rfl
     (fun _ h _ _ _ _ => h)
   exact WF.headInjectivityCore_of_sound ⟨ds, H⟩ fun hΔ H' =>
     Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid hB.projections hB.eliminators H'
