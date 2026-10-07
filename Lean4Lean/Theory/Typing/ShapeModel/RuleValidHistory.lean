@@ -49,10 +49,34 @@ theorem viewFams_famSem (H : env.WF) (hgood : Good env E) (hle : E ≤ env) (hE 
   obtain ⟨t, ht, -, rfl, rfl⟩ := viewFams_some h
   exact famSem_of_typeShape H hgood hle hE (hshape t ht) (huv t ht) (hc t ht)
 
+theorem SchemaCtorReserved.mono {E E' : VEnv}
+    (he : ∀ {b sch}, E.eliminators b sch → E'.eliminators b sch) (h : SchemaCtorReserved E c) :
+    SchemaCtorReserved E' c := by
+  obtain ⟨key, schema, h1, h2⟩ := h
+  exact ⟨key, schema, he h1, h2⟩
+
+/-- A reserved constructor name is declared. -/
+theorem SchemaCtorReserved.present {E : VEnv} (hE : E.WF) (h : SchemaCtorReserved E c) :
+    ∃ ci, E.constants c = some ci := by
+  obtain ⟨key, schema, h1, h2⟩ := h
+  obtain ⟨b, src, blk, _, _, hcert, _, hconsts⟩ := hE.eliminator_origin h1
+  obtain ⟨c', hc, rfl⟩ := (Certified.mem_schemaCtorNames hcert).mp h2
+  refine ⟨_, hconsts c' (List.mem_append_right _ ?_)⟩
+  obtain ⟨expanded, g, aux, hdata, _⟩ := hcert
+  rw [hdata.ctors]; exact hc
+
+/-- A family view recorded for a name fresh in a well-formed environment does not record a
+reserved constructor name. -/
+theorem fresh_not_reserved {E : VEnv} (hE : E.WF) (hn : E.constants n = none) :
+    ¬SchemaCtorReserved E n := fun h => by
+  obtain ⟨ci, hci⟩ := h.present hE
+  rw [hn] at hci; cases hci
+
 /-- Every environment of the history building the tables of `env` is good, and every family
 recorded along it has a semantic header. -/
 theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) (hle : E ≤ env)
-    (hext : T.Extends (envTables env)) :
+    (hext : T.Extends (envTables env))
+    (hfrz : ∀ c, SchemaCtorReserved E c → T.fam c = none → (envTables env).fam c = none) :
     Good env E ∧ ∀ I d, T.fam I = some d →
       letI := envSig env; FamSem env I d.resultLevel (d.nparams + d.nindices) := by
   letI := envSig env
@@ -61,12 +85,14 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     refine ⟨⟨fun _ h => h.elim, fun h => h.elim, fun h => h.elim⟩, fun I d h => ?_⟩
     cases h
   | @«axiom» env₀ env₁ T₀ ci _ henv hci hadd ih =>
-    obtain ⟨hg, hf⟩ := ih ((VEnv.addConst_le hadd).trans hle) hext
+    obtain ⟨hg, hf⟩ := ih ((VEnv.addConst_le hadd).trans hle) hext fun c hc =>
+      hfrz c (hc.mono fun h => (VEnv.addConst_le hadd).eliminators h)
     refine ⟨hg.extend (fun df h => .inl (by rwa [VEnv.addConst_defeqs hadd] at h))
       (fun h => .inl (by rwa [VEnv.addConst_eliminators hadd] at h))
       (fun h => .inl (by rwa [VEnv.addConst_projections hadd] at h)), hf⟩
   | @«opaque» env₀ env₁ T₀ ci _ henv hci hadd ih =>
-    obtain ⟨hg, hf⟩ := ih ((VEnv.addConst_le hadd).trans hle) hext
+    obtain ⟨hg, hf⟩ := ih ((VEnv.addConst_le hadd).trans hle) hext fun c hc =>
+      hfrz c (hc.mono fun h => (VEnv.addConst_le hadd).eliminators h)
     refine ⟨hg.extend (fun df h => .inl (by rwa [VEnv.addConst_defeqs hadd] at h))
       (fun h => .inl (by rwa [VEnv.addConst_eliminators hadd] at h))
       (fun h => .inl (by rwa [VEnv.addConst_projections hadd] at h)), hf⟩
@@ -75,6 +101,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     have hle₁ : env₀ ≤ env₁.addDefEq ci.toDefEq := (VEnv.addConst_le hadd).trans VEnv.addDefEq_le
     obtain ⟨hg, hf⟩ := ih (hle₁.trans hle)
       ((hT.extends_addDefs (cis := [ci]) (by simpa [VEnv.addConsts] using hadd)).trans hext)
+      fun c hc => hfrz c (hc.mono fun h => hle₁.eliminators h)
     refine ⟨hg.extend (fun df h => ?_)
       (fun h => .inl (by rwa [VEnv.addDefEq_eliminators, VEnv.addConst_eliminators hadd] at h))
       (fun h => .inl (by
@@ -94,6 +121,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     have hT := (HistTables.inv hH).1
     have hle₁ : env₀ ≤ env₁.addDefEqs cis := (VEnv.addConsts_le hadd).trans addDefEqs_le
     obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) ((hT.extends_addDefs hadd).trans hext)
+      fun c hc => hfrz c (hc.mono fun h => hle₁.eliminators h)
     obtain ⟨hfresh, hnd⟩ := addConsts_fresh hadd
     refine ⟨hg.extend (fun df h => ?_)
       (fun h => .inl (by
@@ -111,8 +139,15 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
       exact extraValid_def (.inl ⟨v, hdf, hdefs, rfl⟩) hci' (H.ordered.closed.2 hdf).2.1
     · left; rwa [addConsts_defeqs hadd] at h
   | @quot env₀ env₁ T₀ hH henv hready hadd ih =>
-    obtain ⟨hle₁, hdfIff, hproj, -⟩ := addQuot_parts hadd
+    obtain ⟨hle₁, hdfIff, hproj, hfQ0, -⟩ := addQuot_parts hadd
     obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) ((Tables.extends_addQuot T₀).trans hext)
+      fun c hc hc0 => hfrz c (hc.mono fun h => hle₁.eliminators h) (by
+        show addView T₀.fam quotFams c = none
+        rw [addView_none]
+        refine ⟨hc0, ?_⟩
+        by_cases hQ : c = ``Quot
+        · subst hQ; exact absurd hc (fresh_not_reserved henv hfQ0)
+        · simp [quotFams, hQ])
     have hT' := (HistTables.inv (HistTables.quot hH henv hready hadd)).1
     obtain ⟨hQI, hfQ, hcQ, -⟩ := hT'.quot rfl
     have hQI' := hQI.mono hle
@@ -134,7 +169,22 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     have hT := (HistTables.inv hH).1
     have hinst := hT.install' henv hcomp hblock hinstall hcle hdata hprior
     have hle₁ := install_le hinstall
-    obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) (hinst.1.trans hext)
+    have hfrz₀ : ∀ c, SchemaCtorReserved env₀ c → T₀.fam c = none →
+        (envTables env).fam c = none := by
+      intro c hc hc0
+      refine hfrz c (hc.mono fun h => hle₁.eliminators h) ?_
+      show addView T₀.fam (viewFams decl selCtors) c = none
+      rw [addView_none]
+      refine ⟨hc0, ?_⟩
+      cases hv : viewFams decl selCtors c with
+      | none => rfl
+      | some d =>
+        exfalso
+        obtain ⟨t, ht, -, rfl, -⟩ := viewFams_some hv
+        obtain ⟨envTypes, -, -, htypes, -⟩ := install_parts hinstall
+        exact fresh_not_reserved henv (VEnv.addConstVals_names_fresh htypes t.toVConstVal (by
+          rw [hdata.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩)) hc
+    obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) (hinst.1.trans hext) hfrz₀
     have hE := henv.ordered
     obtain ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs, hinstEq⟩ := install_parts hinstall
     have hTypeConst : ∀ t ∈ decl.types, env.constants t.name = some t.toVConstant := by
@@ -171,7 +221,20 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     have hT := (HistTables.inv hH).1
     have hel := hT.eliminator (key := key) hbase hle₀ hcert hconsts.1 hconsts.2.1
     have hle₁ : env₀ ≤ env₀.addEliminator key schema := VEnv.addEliminator_le
-    obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) (hel.1.trans hext)
+    have hfrz₀ : ∀ c, SchemaCtorReserved env₀ c → T₀.fam c = none →
+        (envTables env).fam c = none := by
+      intro c hc hc0
+      refine hfrz c (hc.mono fun h => hle₁.eliminators h) ?_
+      show addView T₀.fam (viewFams source (selFreeIn env₀ T₀)) c = none
+      rw [addView_none]
+      refine ⟨hc0, ?_⟩
+      cases hv : viewFams source (selFreeIn env₀ T₀) c with
+      | none => rfl
+      | some d =>
+        exfalso
+        obtain ⟨t, -, hsel, rfl, -⟩ := viewFams_some hv
+        exact not_reserved_of_selFreeIn hsel hc
+    obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) (hel.1.trans hext) hfrz₀
     have hE := henv.ordered
     obtain ⟨expanded, g, aux, hdata, _, _, hnames⟩ := hcert
     obtain ⟨params, _, _, hTypeShape, _, _⟩ := hdata.sourceParameters
@@ -180,7 +243,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
       refine hle.constants (hle₁.constants ?_)
       exact hconsts.1 t.toVConstVal (List.mem_append_left _ (by
         rw [hdata.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩))
-    have hfam' : ∀ I d, (T₀.addSchema source).fam I = some d →
+    have hfam' : ∀ I d, (T₀.addSchema env₀ source).fam I = some d →
         FamSem env I d.resultLevel (d.nparams + d.nindices) := by
       intro I d h
       rcases addView_some.mp h with h | ⟨-, h⟩
@@ -190,7 +253,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     refine ⟨hg.extend (fun df h => .inl h) (fun h => ?_) (fun h => .inl h), hfam'⟩
     rcases VEnv.addEliminator_iff.mp h with ⟨rfl, rfl⟩ | h
     · exact .inr (generic_elimOK H hg henv hle hbase hle₀ ⟨expanded, g, aux, hdata, ‹_›, ‹_›, hnames⟩
-        hkey hconsts hfresh hcompat hT hext hfam')
+        hkey hconsts hfresh hcompat hT hext hfam' hfrz)
     · exact .inl h
   | @proj base envTypes envCtors T₀ decl block hH hbase hctorsWF hsource htypesWF hcu hctorsWF'
       hparams hshape htypesSource hctorsSource hprojections htypes hctors ih =>
@@ -200,7 +263,23 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     have hreg := hT.registerProjections hbase henv' hsource hcu hparams hshape htypesSource
       hctorsSource hprojections htypes hctors
     have hle₁ : envCtors ≤ envCtors.addProjections block.projections := VEnv.addProjections_le
-    obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) (hreg.1.trans hext)
+    have hfrz₀ : ∀ c, SchemaCtorReserved envCtors c → T₀.fam c = none →
+        (envTables env).fam c = none := by
+      intro c hc hc0
+      refine hfrz c (hc.mono fun h => hle₁.eliminators h) ?_
+      show addView T₀.fam (viewFams decl selStruct) c = none
+      rw [addView_none]
+      refine ⟨hc0, ?_⟩
+      cases hv : viewFams decl selStruct c with
+      | none => rfl
+      | some d =>
+        exfalso
+        obtain ⟨t, ht, -, rfl, -⟩ := viewFams_some hv
+        have hcb : SchemaCtorReserved base t.name := hc.mono fun h => by
+          rwa [VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes] at h
+        exact fresh_not_reserved hbase (VEnv.addConstVals_names_fresh htypes t.toVConstVal (by
+          rw [htypesSource]; exact List.mem_map.mpr ⟨t, ht, rfl⟩)) hcb
+    obtain ⟨hg, hf⟩ := ih (hle₁.trans hle) (hreg.1.trans hext) hfrz₀
     have hE := hctorsWF.ordered
     have hbc : base ≤ envCtors := (VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)
     obtain ⟨params, _, _, hTypeShape, _, _⟩ := hparams
@@ -232,7 +311,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
 
 /-- The validity facts of the shape model of a well-formed environment. -/
 theorem good_of_wf (H : env.WF) : Good env env :=
-  (good_of_hist H (envTables_hist H) VEnv.LE.rfl Tables.Extends.rfl).1
+  (good_of_hist H (envTables_hist H) VEnv.LE.rfl Tables.Extends.rfl fun _ _ h => h).1
 
 /-- Head separation for every well-formed environment. -/
 theorem headSeparation_of_wf (H : env.WF) : env.HeadSeparation :=

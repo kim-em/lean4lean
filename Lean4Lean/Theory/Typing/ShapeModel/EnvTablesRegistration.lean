@@ -137,11 +137,30 @@ noncomputable def selFree (T : Tables) (t : VInductiveType) : Bool := by
   exact decide (T.fam t.name = none ∧ T.ctor t.name = none ∧
     ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none)
 
+/-- `n` is the name of a constructor of an original family of a schema registered in `env`. -/
+def SchemaCtorReserved (env : VEnv) (n : Name) : Prop :=
+  ∃ key schema, env.eliminators key schema ∧ n ∈ schemaCtorNames schema
+
+/-- A family none of whose names is recorded yet, whose own name is not the name of a constructor
+of a registered schema. -/
+noncomputable def selFreeIn (env : VEnv) (T : Tables) (t : VInductiveType) : Bool := by
+  classical
+  exact selFree T t && decide (¬SchemaCtorReserved env t.name)
+
+theorem selFree_of_selFreeIn (h : selFreeIn env T t = true) : selFree T t = true := by
+  simp only [selFreeIn, Bool.and_eq_true] at h; exact h.1
+
+theorem not_reserved_of_selFreeIn (h : selFreeIn env T t = true) :
+    ¬SchemaCtorReserved env t.name := by
+  simp only [selFreeIn, Bool.and_eq_true, decide_eq_true_eq] at h; exact h.2
+
 /-- Record the views of a schema's families none of whose names is recorded yet (family by
 family: a family of the schema that is not otherwise registered is recorded here, so every
-family of a generic equation's major has a recorded sort). -/
-noncomputable def Tables.addSchema (T : Tables) (source : VInductDecl) : Tables :=
-  T.addViews (viewFams source (selFree T)) (viewCtors source (selFree T))
+family of a generic equation's major has a recorded sort). A family whose name is a constructor
+of an already registered schema is not recorded: once a name is a schema constructor, it is
+never recorded as a family afterwards (in a consistent environment no such family exists). -/
+noncomputable def Tables.addSchema (T : Tables) (env : VEnv) (source : VInductDecl) : Tables :=
+  T.addViews (viewFams source (selFreeIn env T)) (viewCtors source (selFreeIn env T))
 
 theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInductBlock}
     {schema : CaseSchema} (H : T.Inv env) (hbase : base.WF) (hle : base ≤ env)
@@ -149,12 +168,13 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
     (hconsts : ∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant)
     (hdf : env.defeqs = base.defeqs) :
-    T.Extends (T.addSchema source) ∧ (T.addSchema source).Inv (env.addEliminator key schema) := by
+    T.Extends (T.addSchema env source) ∧
+      (T.addSchema env source).Inv (env.addEliminator key schema) := by
   classical
   have H' := H.transport (env' := env.addEliminator key schema) VEnv.addEliminator_le rfl rfl
-  have hfree : ∀ t ∈ source.types, selFree T t = true → T.fam t.name = none ∧
+  have hfree : ∀ t ∈ source.types, selFreeIn env T t = true → T.fam t.name = none ∧
       T.ctor t.name = none ∧ ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none := by
-    intro t _ ht; simpa [selFree] using ht
+    intro t _ ht; simpa [selFree] using selFree_of_selFreeIn ht
   unfold Tables.addSchema
   · refine ⟨T.extends_addViews _ _, H'.addViews ?_⟩
     obtain ⟨expanded, g, aux, hdata, _, _, hnames⟩ := hcert

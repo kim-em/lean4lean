@@ -53,7 +53,7 @@ inductive HistTables : VEnv → Tables → Prop
       env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
       schema.ProjNamesRegistered env key) →
     schema.Fresh env key → schema.StructCompat env →
-    HistTables (env.addEliminator key schema) (T.addSchema source)
+    HistTables (env.addEliminator key schema) (T.addSchema env source)
   | proj {base envTypes envCtors : VEnv} {T : Tables} {decl : VInductDecl}
       {block : VInductBlock} :
     HistTables envCtors T → base.WF → envCtors.WF →
