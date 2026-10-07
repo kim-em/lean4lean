@@ -6,6 +6,7 @@ import Lean4Lean.Theory.Typing.NativeConstructorRigidity
 import Lean4Lean.Theory.Inductive.SingletonCompilation
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.CanonicalChoice
+import Lean4Lean.Theory.Typing.ProjectionShape
 
 /-!
 # An inhabitant of a field type of a non-eliminable structure field
@@ -21,6 +22,108 @@ when the environment has canonical choice and `S` can be eliminated into `Prop`:
 
 namespace Lean4Lean
 open VExpr VEnv InductiveSignature
+
+namespace VEnv
+variable {env : VEnv} {U : Nat}
+
+theorem takeForalls_eq_wrapForalls' :
+    ∀ {n : Nat} {type result : VExpr} {domains : List VExpr},
+      type.takeForalls n = some (domains, result) →
+      type = VExpr.wrapForalls domains result ∧ domains.length = n
+  | 0, type, result, domains, H => by
+    cases Option.some.inj H
+    exact ⟨rfl, rfl⟩
+  | n + 1, type, result, domains, H => by
+    cases type with
+    | forallE domain body =>
+      cases htail : body.takeForalls n with
+      | none => simp [VExpr.takeForalls, htail] at H
+      | some out =>
+        rw [VExpr.takeForalls, htail] at H
+        cases Option.some.inj H
+        have ih := takeForalls_eq_wrapForalls' htail
+        exact ⟨congrArg (VExpr.forallE domain) ih.1, by simp [ih.2]⟩
+    | _ => simp [VExpr.takeForalls] at H
+
+theorem IsDefEqU.wrapForalls_context' (henv : env.WF) (hΓ : OnCtx Γ₀ (env.IsType U))
+    (W : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
+    (hlen : domains.length = domains'.length)
+    (ht : IsDefEqU env U Γ₁ (VExpr.wrapForalls domains result)
+      (VExpr.wrapForalls domains' result')) :
+    IsDefEqCtx env U Γ₀ (domains.reverse ++ Γ₁) (domains'.reverse ++ Γ₂) := by
+  induction domains generalizing Γ₁ Γ₂ domains' with
+  | nil =>
+    have he : domains' = [] := List.eq_nil_of_length_eq_zero hlen.symm
+    subst domains'
+    exact W
+  | cons d ds ih =>
+    cases domains' with
+    | nil => simp at hlen
+    | cons d' ds' =>
+      obtain ⟨⟨u, hd⟩, _, hrest⟩ := ht.forallE_inv henv (W.isType' hΓ)
+      have hh := ih (.succ W hd)
+        (by simpa only [List.length_cons, Nat.add_right_cancel_iff] using hlen) ⟨_, hrest⟩
+      simpa only [List.reverse_cons, List.append_assoc, List.singleton_append] using hh
+
+/-- The parameters of a typed major of a registered structure without indices are typed along
+the parameter telescope of the structure's constructor, and the major has no index arguments. -/
+theorem HasType.structure_params (henv : env.WF) (hΔ : OnCtx Δ (env.IsType U))
+    (hinfo : env.projections S info) (hls : ∀ l ∈ ls, l.WF U) (hni : info.nindices = 0)
+    {ps : List VExpr} (hpl : ps.length = info.nparams)
+    (he' : env.HasType U Δ e' (VExpr.mkApps (.const S ls) (ps ++ idx))) :
+    idx = [] ∧ ∃ ctorParams tail,
+      info.ctorType.takeForalls info.nparams = some (ctorParams, tail) ∧
+      TelInst env U Δ (ctorParams.map (·.instL ls)) ps := by
+  obtain ⟨typeConst, normalized, ownParams, rest, exprType, ctorParams, tail, hlookup, hnorm,
+    hown, hctorP, hctx, indices, result, hind, hres⟩ := Ordered.projectionShape_params henv hinfo
+  rw [hni] at hind
+  cases Option.some.inj hind
+  simp only [List.reverse_nil, List.nil_append] at hres
+  obtain ⟨v, hTy⟩ := he'.isType henv.ordered hΔ
+  have hhead := VExpr.WF.of_mkApps henv.ordered hΔ (f := .const S ls) ⟨_, hTy⟩
+  obtain ⟨_, hhead⟩ := hhead
+  obtain ⟨ci, hci, _, hlen⟩ := HasType.const_inv henv.ordered hΔ hhead
+  rw [hlookup] at hci
+  cases Option.some.inj hci
+  have hconst : env.HasType U Δ (.const S ls) (typeConst.type.instL ls) := .const hlookup hls hlen
+  have hnormL := (hnorm.instL hls).weak0 henv.ordered (Γ := Δ)
+  have hconst' := hconst.defeqU_r henv hΔ ⟨_, hnormL⟩
+  obtain ⟨hshapeN, hownl⟩ := takeForalls_eq_wrapForalls' hown
+  rw [hshapeN, VExpr.instL_wrapForalls] at hconst'
+  have hprefixWF : VExpr.WF env U Δ (VExpr.mkApps (.const S ls) ps) := by
+    rw [VExpr.mkApps_append] at hTy
+    exact VExpr.WF.of_mkApps henv.ordered hΔ ⟨_, hTy⟩
+  obtain ⟨hargs, happ⟩ := HasType.mkApps_wrapForalls henv hΔ hconst' hprefixWF
+    (by simp [hownl, hpl])
+  have hOwn : TelInst env U Δ (ownParams.map (·.instL ls)) ps :=
+    ⟨by simp [hownl, hpl], hargs⟩
+  refine ⟨?_, ctorParams, tail, hctorP, ?_⟩
+  · -- the family applied to its parameters is a sort, so no further argument fits
+    cases idx with
+    | nil => rfl
+    | cons a as =>
+      exfalso
+      rw [VExpr.mkApps_append] at hTy
+      have hfa := VExpr.WF.of_mkApps henv.ordered hΔ (f := .app _ a) ⟨_, hTy⟩
+      obtain ⟨A, B, hfun, _⟩ := hfa.app_inv henv.ordered hΔ
+      have hTC : env.IsType U [] (typeConst.type.instL ls) :=
+        (henv.ordered.constWF hlookup).instL hls
+      have hNT : env.IsType U [] (normalized.instL ls) :=
+        IsType.defeqU_l henv trivial ⟨_, hnorm.instL hls⟩ hTC
+      rw [hshapeN, VExpr.instL_wrapForalls] at hNT
+      have hΔo : OnCtx (ownParams.map (·.instL ls)).reverse (env.IsType U) := by
+        simpa using (IsType.wrapForalls_inv henv (Γ := []) trivial hNT).1
+      have hresL : env.IsDefEq U (ownParams.map (·.instL ls)).reverse (rest.instL ls)
+          (.sort (info.resultLevel.inst ls)) (.sort (info.resultLevel.inst ls).succ) := by
+        simpa [List.map_reverse, VExpr.instL, VLevel.inst] using hres.instL hls
+      have hinst := IsDefEq.closed_instOuter_congr henv hΔ hΔo hresL hOwn.1 hOwn.1
+        (fun j hj _ hd => hOwn.2 j hj hd)
+      simp only [VExpr.instOuter_sort] at hinst
+      have h1 := happ.uniqU henv hΔ hfun
+      exact IsDefEqU.sort_forallE_inv henv hΔ ((IsDefEq.toU hinst).symm.trans henv hΔ h1)
+  · exact TelInst.of_ctxDefEq henv hΔ hOwn (by simpa [List.map_reverse] using hctx.instL hls)
+
+end VEnv
 
 namespace InductiveSignature.NativeRecursorData
 variable {env : VEnv} {data : NativeRecursorData}
