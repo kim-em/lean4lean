@@ -102,7 +102,9 @@ theorem Valuation.Fits.of_record (W : Valuation.Fits env Γ₀ Γ ρ)
 
 /-- Inversion of the records of two lambda telescopes over the same domains, at types with the
 same approximations: under keys typed along the telescope, the valuation fits the extended
-context, the bodies have records, and their types have the same approximations. -/
+context, the bodies have records, and their types have the same approximations; moreover, if the
+type is (semantically) a Pi telescope over the same domains, the type of the first body is its
+codomain. -/
 theorem body_records {Ds : List VExpr} {b₁ b₂ : VExpr} {ρ σ : Valuation}
     (W : Valuation.Fits env Γ₀ Γ ρ) (K : KeysFit env ρ Ds σ)
     (H₁ : StrongSound env Γ (VExpr.wrapLams Ds b₁) T₁)
@@ -110,9 +112,11 @@ theorem body_records {Ds : List VExpr} {b₁ b₂ : VExpr} {ρ σ : Valuation}
     (hT : ∀ m, Interp env ρ m T₁ ↔ Interp env ρ m T₂) :
     ∃ B₁ B₂, Valuation.Fits env Γ₀ (Ds.reverse ++ Γ) σ ∧
       StrongSound env (Ds.reverse ++ Γ) b₁ B₁ ∧ StrongSound env (Ds.reverse ++ Γ) b₂ B₂ ∧
-      ∀ m, Interp env σ m B₁ ↔ Interp env σ m B₂ := by
+      (∀ m, Interp env σ m B₁ ↔ Interp env σ m B₂) ∧
+      ∀ Tb, (∀ m, Interp env ρ m T₁ ↔ Interp env ρ m (VExpr.wrapForalls Ds Tb)) →
+        ∀ m, Interp env σ m B₁ ↔ Interp env σ m Tb := by
   induction K generalizing Γ T₁ T₂ with
-  | nil => exact ⟨T₁, T₂, W, H₁, H₂, hT⟩
+  | nil => exact ⟨T₁, T₂, W, H₁, H₂, hT, fun Tb h => h⟩
   | @cons ρ D Ds σ a x ha hx _ ih =>
     rw [VExpr.wrapLams_cons] at H₁ H₂
     obtain ⟨u₁, v₁, C₁, hA₁, -, hb₁, he₁⟩ := H₁.lam_inv
@@ -122,8 +126,16 @@ theorem body_records {Ds : List VExpr} {b₁ b₂ : VExpr} {ρ σ : Valuation}
     have hC : ∀ m, Interp env (ρ.push x) m C₁ ↔ Interp env (ρ.push x) m C₂ := fun m =>
       ⟨Interp.forallE_inj (fun m => (hpi m).1) ha hx m,
         Interp.forallE_inj (fun m => (hpi m).2) ha hx m⟩
-    obtain ⟨B₁, B₂, W', r₁, r₂, hB⟩ := ih (W.of_record hA₁ ha hx) hb₁ hb₂ hC
-    refine ⟨B₁, B₂, ?_, ?_, ?_, hB⟩ <;> simpa using ‹_›
+    obtain ⟨B₁, B₂, W', r₁, r₂, hB, hTb⟩ := ih (W.of_record hA₁ ha hx) hb₁ hb₂ hC
+    refine ⟨B₁, B₂, ?_, ?_, ?_, hB, fun Tb hTb' => hTb Tb fun m => ?_⟩
+    · simpa using W'
+    · simpa using r₁
+    · simpa using r₂
+    · have hpi' : ∀ m, Interp env ρ m (.forallE D C₁) ↔
+          Interp env ρ m (.forallE D (VExpr.wrapForalls Ds Tb)) := fun m =>
+        (he₁ W).trans (hTb' m)
+      exact ⟨Interp.forallE_inj (fun m => (hpi' m).1) ha hx m,
+        Interp.forallE_inj (fun m => (hpi' m).2) ha hx m⟩
 
 /-! ### Heads -/
 

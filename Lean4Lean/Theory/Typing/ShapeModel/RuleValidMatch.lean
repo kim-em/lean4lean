@@ -593,22 +593,31 @@ theorem body_sup (hcl : ConstClosed env) (hr : SemSig.rules r) (hh : r.head = h)
     exact hm₁' _ (hge _ _ hargsT fun i hi => hindex _ hargsT i hi (hbots i hi))
 
 /-- Validity of a rule with a constructor major at one instance: the two sides are lambda
-telescopes over the same domains, and for every valuation fitting the binders the hypotheses of
-the body claim hold. -/
+telescopes over the same domains, and for every valuation fitting the binders either both bodies
+have only bottom approximations, or the hypotheses of the body claim hold. The valuation comes
+with the records of both bodies, at types with the same approximations, the first of which is the
+codomain of the rule's type when that type is a Pi telescope over the binders. -/
 theorem majorRule_sound (hcl : ConstClosed env) (hr : SemSig.rules r) (hh : r.head = h)
     (huv : ls.length = r.uvars)
     (hnb : r.nbind = npre + nf) (hrv : r.vars = (vars npre nf ++ idx).map argVar)
     (hmaj : r.major = some ⟨c, lv, (List.range nf).reverse⟩) (hrhs : r.rhs = R)
     (hfil : r.fieldIndex.length = nf)
     (hci : SemSig.ctor c = some ci) (hlen : idx'.length = idx.length)
-    {Ds : List VExpr} (hDs : Ds.length = npre + nf) (hRcl : (R.instL ls).ClosedN (npre + nf))
+    {Ds : List VExpr} (hRcl : (R.instL ls).ClosedN (npre + nf))
     (hL : StrongSound env Γ (VExpr.wrapLams Ds (VExpr.mkApps (h.toExpr ls)
       (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)]))) T)
     (hR : StrongSound env Γ (VExpr.wrapLams Ds (R.instL ls)) T)
-    (hσ : ∀ σ B, KeysFit env .nil Ds σ → Valuation.Fits env Γ (Ds.reverse ++ Γ) σ →
+    (hσ : ∀ σ B₁ B₂, KeysFit env .nil Ds σ → Valuation.Fits env Γ (Ds.reverse ++ Γ) σ →
       StrongSound env (Ds.reverse ++ Γ) (VExpr.mkApps (h.toExpr ls)
-        (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)])) B →
-      FieldReads env σ r (vars npre nf ++ idx') nf ∧
+        (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)])) B₁ →
+      StrongSound env (Ds.reverse ++ Γ) (R.instL ls) B₂ →
+      (∀ m, Interp env σ m B₁ ↔ Interp env σ m B₂) →
+      (∀ Tb, (∀ m, Interp env .nil m T ↔ Interp env .nil m (VExpr.wrapForalls Ds Tb)) →
+        ∀ m, Interp env σ m B₁ ↔ Interp env σ m Tb) →
+      ((∀ m, Interp env σ m (VExpr.mkApps (h.toExpr ls)
+          (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)])) → m ≤ .bot) ∧
+        ∀ m, Interp env σ m (R.instL ls) → m ≤ .bot) ∨
+      (FieldReads env σ r (vars npre nf ++ idx') nf ∧
       (SemSig.famProp ci.family (RuleMajor.lvls ⟨c, lv, (List.range nf).reverse⟩ ls) = false →
         ∃ n₀, ∃ fs : List (WShape n₀), fs.length = SemSig.nfields c ∧
           Interp env σ (WShape.ctor' c fs).T (VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)) ∧
@@ -616,13 +625,14 @@ theorem majorRule_sound (hcl : ConstClosed env) (hr : SemSig.rules r) (hh : r.he
             (i + fs.length < nf → (∃ j, r.fieldIndex[i]? = some (some j)) ∨ σ (nf - 1 - i) ≤ .bot)) ∧
       (SemSig.famProp ci.family (RuleMajor.lvls ⟨c, lv, (List.range nf).reverse⟩ ls) = true →
         (∀ r', SemSig.rules r' → r'.head = h → r'.major.map (·.ctor) = some c) ∧
-          ∀ i < nf, r.fieldIndex[i]? = some none → σ (nf - 1 - i) ≤ .bot)) :
+          ∀ i < nf, r.fieldIndex[i]? = some none → σ (nf - 1 - i) ≤ .bot))) :
     SoundEq env [] (VExpr.wrapLams Ds (VExpr.mkApps (h.toExpr ls)
       (vars npre nf ++ idx' ++ [VExpr.mkApps (.const c lv') (ps' ++ vars nf 0)])))
       (VExpr.wrapLams Ds (R.instL ls)) := by
   refine SoundEq.nil_of (Interp.wrapLams_congr fun σ K m => ?_)
-  obtain ⟨B₁, B₂, W, h₁, h₂, hB⟩ := body_records .nil K hL hR fun _ => .rfl
-  obtain ⟨hidx, hAB, hC⟩ := hσ σ B₁ K W h₁
+  obtain ⟨B₁, B₂, W, h₁, h₂, hB, hTb⟩ := body_records .nil K hL hR fun _ => .rfl
+  rcases hσ σ B₁ B₂ K W h₁ h₂ hB hTb with ⟨hb₁, hb₂⟩ | ⟨hidx, hAB, hC⟩
+  · exact ⟨fun h => .mono (hb₁ _ h) .bot, fun h => .mono (hb₂ _ h) .bot⟩
   exact ⟨body_sub hr hh hnb hrv hmaj hrhs hci hlen hidx,
     body_sup hcl hr hh huv hnb hrv hmaj hrhs hfil hci hlen hidx W h₁ h₂ hB hRcl hAB hC⟩
 
