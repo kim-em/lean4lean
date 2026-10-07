@@ -224,4 +224,67 @@ theorem VProjectionInfo.proofField_transfer {decl : VInductDecl}
     .defeqDF (.sortDF huwf (by simp [VLevel.WF]) hu0) hFY
   exact ⟨_, .proofIrrel hFY0 hproj hargΔ₂⟩
 
+/-- **The walked field type at a generic constructor application.** If the field type obtained by
+walking the constructor telescope over the parameters `PA` and the projections of a major `M` is
+well formed, then the corresponding field argument of a typed constructor application has that
+type: every projection it uses is a proof field. -/
+theorem VProjectionInfo.field_of_walk {decl : VInductDecl}
+    (henv : VEnv.WF env)
+    (hinfo : env.projections S info)
+    (hwf : env.IsType info.uvars [] info.ctorType)
+    (hctor : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩)
+    (hshape : info.ctorType = VExpr.wrapForalls doms result)
+    (hvalid : decl.RawIndAppAt (some S) (doms.length - decl.nparams) result)
+    (hhead : result.getAppFnArgs.1 = .const S (VLevel.params decl.uvars))
+    (hdn : decl.nparams = info.nparams) (hdu : decl.uvars = info.uvars)
+    (hle : info.nparams ≤ doms.length) (hni : info.nindices = 0)
+    {Γ : List VExpr} (hΓ : OnCtx Γ (env.IsType U))
+    {ls' : List VLevel} {args' : List VExpr} {T : VExpr}
+    (hc' : env.HasType U Γ (VExpr.mkApps (.const info.ctorName ls') args') T)
+    (hlen : args'.length = doms.length)
+    {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U) (hlsE : List.Forall₂ (· ≈ ·) ls ls')
+    (hnz : ¬ (info.resultLevel.inst ls).IsNeverZero)
+    {PA : List VExpr} (hPA : List.Forall₂ (env.IsDefEqU U Γ) PA (args'.take info.nparams))
+    {M : VExpr} (hM : env.HasType U Γ M (VExpr.mkApps (.const S ls) PA))
+    {j : Nat} (hmd : info.nparams + j < doms.length)
+    (hD : env.IsType U Γ (((doms[info.nparams + j]'hmd).instL ls).instOuter
+      (PA ++ (List.range j).map fun k => .proj S k M))) :
+    env.HasType U Γ (args'[info.nparams + j]'(by omega))
+      (((doms[info.nparams + j]'hmd).instL ls).instOuter
+        (PA ++ (List.range j).map fun k => .proj S k M)) := by
+  obtain ⟨hls', hlen', hargsTy, -, -, -⟩ :=
+    VProjectionInfo.ctorApp_typing henv hΓ hctor hshape hvalid hhead hdn hdu hle hc' hlen
+  have hPAl : PA.length = info.nparams := by
+    rw [List.Forall₂.length_eq hPA, List.length_take]; omega
+  have hW := VProjectionInfo.field_walk henv hΓ hwf hctor hshape hvalid hhead hdn hdu hle hc'
+    hlen hls hlsE hPA hmd (qs := (List.range j).map fun k => .proj S k M) (by simp)
+    fun k hk => by
+      by_cases hsk : ((doms[info.nparams + j]'hmd).instL ls).Skips 1 (j - 1 - k)
+      · exact .inl hsk
+      refine .inr ?_
+      have hocc' : VExpr.Occurs (.bvar (j - 1 - k))
+          ((doms[info.nparams + j]'hmd).instL ls) 0 :=
+        VExpr.Occurs.of_not_skips' _ 0 (by simpa [← VExpr.skips_iff] using hsk)
+      have hocc'' := hocc'.instOuter (PA ++ (List.range j).map fun i => VExpr.proj S i M)
+      have hb : (VExpr.bvar (j - 1 - k)).instOuter
+          (PA ++ (List.range j).map fun i => VExpr.proj S i M) = .proj S k M := by
+        rw [VExpr.instOuter_bvar _ (by simp [hPAl]; omega)]
+        apply (List.getElem_eq_iff _).2
+        have hidx : (PA ++ (List.range j).map fun i => VExpr.proj S i M).length - 1 -
+            (j - 1 - k) = info.nparams + k := by
+          simp [hPAl]; omega
+        rw [hidx, List.getElem?_append_right (by omega), hPAl, Nat.add_sub_cancel_left]
+        simp [List.getElem?_range hk]
+      rw [hb] at hocc''
+      obtain ⟨_, hDt⟩ := hD
+      obtain ⟨Δ', hΓΔ', hwfΔ'⟩ := VExpr.WF.of_occurs_lift henv [] hocc'' hΓ ⟨_, hDt⟩
+      have hXΔ : env.IsDefEqU U (Δ' ++ Γ) (M.liftN Δ'.length) (M.liftN Δ'.length) :=
+        ⟨_, hM.weakN henv.ordered (.zero Δ' rfl)⟩
+      have := VProjectionInfo.proofField_transfer henv hinfo hwf hctor hshape hvalid hhead hdn hdu
+        hle hni hΓ hc' hlen hls hlsE hnz hPA hM k Δ' hΓΔ' (by omega) hXΔ
+        (by simpa [VExpr.liftN] using hwfΔ') [] (Y := M) (by simpa using hΓ)
+        (by simpa using IsDefEqU.refl ⟨_, hM⟩)
+      simpa using this
+  exact (hargsTy (info.nparams + j) (by omega)).defeqU_r henv hΓ hW.symm
+
 end Lean4Lean.VEnv
