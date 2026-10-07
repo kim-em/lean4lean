@@ -45,11 +45,6 @@ theorem Ctx.SubstEq.prefix {E : VEnv} : ∀ {L : List VExpr} {σ σ' : VExpr.Sub
     cases W with
     | cons W _ hh => exact .cons (Ctx.SubstEq.prefix hL W) hA hh
 
-theorem Lookup.append_left' : ∀ {L : List VExpr} {i : Nat} {A : VExpr},
-    Lookup L i A → Lookup (L ++ Γ) i A
-  | _, _, _, .zero => .zero
-  | _, _, _, .succ h => .succ (Lookup.append_left' h)
-
 namespace Model
 
 theorem TV.prefix {L : List VExpr} {σ : VExpr.Subst} {S : ObSets}

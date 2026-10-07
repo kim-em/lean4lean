@@ -140,14 +140,14 @@ theorem native_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLe
 
 /-- Mode C is impossible at a head whose major family has a result sort that is never zero
 (general form: the major domain is any rigid spine with a `FamSort`). -/
-theorem C_absurd_gen {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name}
+theorem C_absurd_gen {T : VExpr} {dsH : List VExpr} {RH : VExpr} {I : Name}
     {lsI : List VLevel} {iargs : List VExpr} {k : Nat} {L : VLevel} {ls : List VLevel}
     {keys : List Key} {m : Nat}
     (hΔ : OnCtx Δ (env.IsType U)) (hlw : ∀ l ∈ ls, l.WF U)
-    (eH : ci.type = .wrapForalls dsH RH) (hlen : dsH.length = k + 1)
+    (eH : T = .wrapForalls dsH RH) (hlen : dsH.length = k + 1)
     (hkH : dsH[k]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hfs : FamSort env I L) (hnz : ((L.inst lsI).inst ls).IsNeverZero) (hkl : keys.length = k)
-    (h : Obs' .id .empty (ci.type.instL ls) (piCodChain keys
+    (h : Obs' .id .empty (T.instL ls) (piCodChain keys
       (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) m fun _ => 0)))) : False := by
   have hlsI : ∀ l ∈ lsI.map (·.inst ls), l.WF U := by
     intro l hl
