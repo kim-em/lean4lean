@@ -46,6 +46,16 @@ theorem Spine.headInfo {h : Head} {rev : List VExpr}
     obtain ⟨_, _, hf, -⟩ := hcore.app_inv
     exact ih hf
 
+theorem HeadType.unique {h : Head} (h₁ : HeadType env h ls Th) (h₂ : HeadType env h ls Th') :
+    Th = Th' := by
+  cases h with
+  | const c =>
+    obtain ⟨ci, e1, rfl⟩ := h₁; obtain ⟨ci', e2, rfl⟩ := h₂
+    cases e1.symm.trans e2; rfl
+  | elim b o =>
+    obtain ⟨T, e1, rfl⟩ := h₁; obtain ⟨T', e2, rfl⟩ := h₂
+    cases e1.symm.trans e2; rfl
+
 theorem StrongSound.app_last {f : VExpr} {pre : List VExpr} {M : VExpr}
     (hTy : StrongSound env Γ (VExpr.mkApps f (pre ++ [M])) B) :
     ∃ A Bf, StrongSound env Γ (VExpr.mkApps f pre) (.forallE A Bf) ∧ StrongSound env Γ M A := by

@@ -187,6 +187,190 @@ theorem fam_dom_realize (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ
   rw [e]
   exact (TShape.lift_eqv (hkey j hj)).2
 
+/-- The leftover parameter fields of a structure constructor major are read from the index
+arguments of the rule: the index argument at the position of the field in the major's type has
+exactly the approximations of the field. -/
+theorem leftover_reads (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ σ) {h : Head}
+    {pre₀ idx ps pargs doms₀ : List VExpr} {TbH : VExpr}
+    (hTy : StrongSound env Γ (VExpr.mkApps (h.toExpr ls)
+      (pre₀ ++ idx ++ [VExpr.mkApps (.const c lv) (ps ++ vars nf 0)])) B)
+    (hTh : HeadType env h ls Th)
+    (hThs : Th = VExpr.wrapForalls (doms₀ ++ [VExpr.mkApps (.const F lvF)
+      (pargs ++ vars idx.length 0)]) TbH)
+    (hlen0 : doms₀.length = pre₀.length + idx.length)
+    (hncF : SemSig.ctor F = none) (hnrF : ∀ r, SemSig.rules r → r.head ≠ .const F)
+    (hF : SemSig.StructFacts env s info) (hcn : info.ctorName = c)
+    (hpl : ps.length = pargs.length) (halign : ps.length + nf = info.nparams + info.numFields)
+    (hi : ps.length + i < info.nparams) (hif : i < nf) :
+    ∃ hidx : i < idx.length, ∀ t, Interp env σ t idx[i] ↔ t ≤ σ (nf - 1 - i) := by
+  subst hcn
+  obtain ⟨A, Bf, hf, hM⟩ := StrongSound.app_last hTy
+  obtain ⟨Dsc, idxs, hDsc, hidxs, hct⟩ := hF.ctorType
+  have hcv := hF.ctorConst
+  have hM' : StrongSound env Γ (VExpr.mkApps (.const info.ctorName lv)
+      (ps ++ vars nf 0).reverse.reverse) A := by rwa [List.reverse_reverse]
+  obtain ⟨ci, u, hci, hlv, hTyc⟩ := Spine.constInfo hM'
+  cases hci.symm.trans hcv
+  have hlv' : lv.length = info.uvars := hlv
+  let pbv : List VExpr :=
+    (List.range info.nparams).map fun j => .bvar (info.nparams + info.numFields - 1 - j)
+  have hctl : info.ctorType.instL lv = VExpr.wrapForalls (Dsc.map (·.instL lv))
+      (VExpr.mkApps (.const s lv) (pbv ++ idxs.map (·.instL lv))) := by
+    rw [hct]
+    show VExpr.instL lv (Dsc.foldr .forallE _) = _
+    rw [VExpr.instL_foldr_forallE, VExpr.instL_mkApps]
+    simp only [VExpr.instL, VLevel.inst_map_id hlv', List.map_append, List.map_map,
+      Function.comp_def, pbv]
+    rfl
+  have hmlen : (ps ++ vars nf 0).length = info.nparams + info.numFields := by
+    simp [vars_length']; omega
+  have hDl : (Dsc.map (·.instL lv)).length = (ps ++ vars nf 0).length := by
+    rw [List.length_map, hDsc, hmlen]
+  have hk : ps.length + i < (ps ++ vars nf 0).length := by rw [hmlen]; omega
+  have hmk : (ps ++ vars nf 0)[ps.length + i] = .bvar (nf - 1 - i) := by
+    rw [List.getElem_append_right (by omega), vars_getElem]; congr 1; simp
+  -- ⊇: the field's key approximates the index
+  let xs : List TShape := ps.map (fun _ => TShape.bot) ++ (List.range nf).reverse.map (fun j => σ j)
+  have hxs : List.Forall₂ (fun x A => Interp env σ x A) xs (ps ++ vars nf 0) := by
+    refine (List.Forall₂.append_of_left (by simp)).2 ⟨?_, ?_⟩
+    · refine List.forall₂_of_getElem (by simp) fun j _ _ => ?_
+      simp only [List.getElem_map]; exact .bot
+    · refine List.forall₂_of_getElem (by simp [vars_length']) fun j h1 h2 => ?_
+      rw [vars_getElem]
+      have hj : j < nf := by simpa using h1
+      have e : ((List.range nf).reverse.map (fun j => σ j))[j]'(by simpa using hj) =
+          σ (nf - 1 - j) := by simp [List.getElem_reverse]
+      rw [e, show 0 + (nf - 1 - j) = nf - 1 - j by omega]; exact .bvar'
+  have hxk : xs[ps.length + i]'(by simp [xs]; omega) = σ (nf - 1 - i) := by
+    simp only [xs]
+    rw [List.getElem_append_right (by simp)]
+    simp [List.getElem_reverse]
+  obtain ⟨psc, hpsc1, hpsc2, hpsct, hpsctel, -⟩ :=
+    ctor_body_of_type W hM hcv hctl hDl hxs (t := TShape.bot) .bot
+  obtain ⟨N, as, cts, has, haskey, hR1, hR1t⟩ :=
+    struct_codomain_realize hcl hF W hct hDsc hlv' hTyc hpsctel hpsct
+  have hR1A : Interp env σ (WShape.rigid s (lv.map (·.eval)) as cts).T A :=
+    ctor_type_of_body W hM hcv hctl hpsc2 hpsct hpsctel hR1
+  obtain ⟨psh, -, hpsh2, hpsht, hpshtel, hD⟩ := head_dom_of_type W hf hTh hThs
+    (by rw [hlen0]; simp) (xs := (pre₀ ++ idx).map fun _ => TShape.bot)
+    (List.forall₂_of_getElem (by simp) fun j _ _ => by simp only [List.getElem_map]; exact .bot)
+    hR1A hR1t
+  obtain ⟨rfl, hasD⟩ := Interp.rigid_inv hncF hnrF hD
+  have hlens := hasD.length_eq
+  simp only [List.length_append, vars_length'] at hlens
+  have hidx : i < idx.length := by omega
+  refine ⟨hidx, fun t => ⟨fun ht => ?_, fun ht => ?_⟩⟩
+  rotate_left
+  · -- ⊇
+    have hkas : pargs.length + i < as.length := by omega
+    have h1 : σ (nf - 1 - i) ≤ as[pargs.length + i].T := by
+      have := forall₂_getElem hpsc1 (i := ps.length + i) (by simp [xs]; omega)
+      rw [hxk] at this
+      have h' := haskey _ hi (by rw [hpsc2.length_eq]; exact hk) (by omega)
+      simp only [hpl] at this h'
+      exact this.trans h'
+    have h2 := forall₂_getElem hasD (i := pargs.length + i) hkas
+    rw [List.getElem_append_right (by omega), vars_getElem] at h2
+    have h3 := Interp.bvar_iff.1 h2
+    have hpl' : (psh.map (·.2)).length = pre₀.length + idx.length := by
+      simp [hpsh2.length_eq]
+    have e : 0 + (idx.length - 1 - (pargs.length + i - pargs.length)) =
+        (psh.map (·.2)).length - 1 - (pre₀.length + i) := by rw [hpl']; omega
+    rw [e, Valuation.pushes_getElem σ (psh.map (·.2)) _ (by rw [hpl']; omega),
+      List.getElem_map] at h3
+    have h4 := forall₂_getElem hpsh2 (i := pre₀.length + i) (by rw [hpsh2.length_eq]; simp; omega)
+    rw [List.getElem_append_right (by simp)] at h4
+    simp only [Nat.add_sub_cancel_left] at h4
+    exact h4.mono (ht.trans (h1.trans h3))
+  · -- ⊆
+    let xh : List TShape := pre₀.map (fun _ => TShape.bot) ++
+      (List.range idx.length).map (fun j => if j = i then t else TShape.bot)
+    have hxh : List.Forall₂ (fun x A => Interp env σ x A) xh (pre₀ ++ idx) := by
+      refine (List.Forall₂.append_of_left (by simp)).2 ⟨?_, ?_⟩
+      · refine List.forall₂_of_getElem (by simp) fun j _ _ => ?_
+        simp only [List.getElem_map]; exact .bot
+      · refine List.forall₂_of_getElem (by simp) fun j h1 h2 => ?_
+        simp only [List.getElem_map, List.getElem_range]
+        split
+        · rename_i hj; subst hj; exact ht
+        · exact .bot
+    have hxhk : xh[pre₀.length + i]'(by simp [xh]; omega) = t := by
+      simp only [xh]
+      rw [List.getElem_append_right (by simp)]
+      simp
+    have hf' : StrongSound env Γ (VExpr.mkApps (h.toExpr ls) (pre₀ ++ idx).reverse.reverse)
+        (.forallE A Bf) := by rwa [List.reverse_reverse]
+    obtain ⟨qsh, hqh1, hqh2, hqh3, hqh4⟩ := Spine.typed_head W hf' hTh
+      (List.Forall₂.reverse.2 hxh) (R := TShape.piBot) Interp.piBot
+    rw [hThs] at hqh4
+    have hqh4' : Interp env σ (nestPi qsh.reverse TShape.piBot)
+        (doms₀.foldr .forallE (.forallE (VExpr.mkApps (.const s lvF) (pargs ++ vars idx.length 0))
+          TbH)) := by
+      simpa only [VExpr.wrapForalls, List.foldr_append, List.foldr_cons, List.foldr_nil] using hqh4
+    obtain ⟨htelh, -⟩ := Interp.nest_inv (by
+      rw [List.length_reverse, hqh2.length_eq]; simp [hlen0]; omega) hqh4'
+    have hpth : TelTyped qsh.reverse := fun p hp => hqh3 p (List.mem_reverse.1 hp)
+    have hpsh2' : List.Forall₂ (fun p A => Interp env σ p.2 A) qsh.reverse (pre₀ ++ idx) := by
+      have := List.Forall₂.reverse.2 hqh2; rwa [List.reverse_reverse] at this
+    have hxh' : List.Forall₂ (fun x p => x ≤ p.2) xh qsh.reverse := by
+      have := List.Forall₂.reverse.2 hqh1; rwa [List.reverse_reverse] at this
+    obtain ⟨Th', uh, hTh', hThr⟩ := Spine.headInfo hf'
+    cases HeadType.unique hTh hTh'
+    rw [hThs] at hThr
+    have hThr' : StrongSound env Γ (doms₀.foldr .forallE
+        (.forallE (VExpr.mkApps (.const s lvF) (pargs ++ vars idx.length 0)) TbH)) (.sort uh) := by
+      simpa only [VExpr.wrapForalls, List.foldr_append, List.foldr_cons, List.foldr_nil] using hThr
+    obtain ⟨Γh, vh, Wh, hBh⟩ := Tel.fits W hThr' htelh hpth
+    obtain ⟨uD, -, hDr, -⟩ := hBh.forallE_inv
+    obtain ⟨cisF, DsF, hscF, huvF, hDsF, hfamT⟩ := hF.famTypeSem
+    have hsemS : FamSem env s info.resultLevel (info.nparams + info.nindices) :=
+      ⟨cisF, DsF, hscF, hDsF, fun ls hls m => hfamT ls (hls.trans huvF) m⟩
+    have hfcS : ∀ c' ∈ SemSig.famCtors s, ∃ ci k, env.constants c' = some ci ∧
+        SemSig.ctor c' = some k := by
+      intro c' hc'
+      rw [hF.famCtors, List.mem_singleton] at hc'
+      subst hc'
+      exact ⟨_, _, hF.ctorConst, hF.ctor⟩
+    obtain ⟨N₂, as₂, cts₂, has₂, hkey₂, hR2, hR2t⟩ := fam_dom_realize hcl Wh hF.famNotCtor
+      hF.famNoRule hF.famLevel hsemS hfcS hDr
+    have hR2A := head_type_of_dom W hf hTh hThs hpsh2' hpth htelh hR2 hR2t
+    obtain ⟨psc₂, -, hpsc₂2, -, -, hb⟩ := ctor_body_of_type W hM hcv hctl hDl
+      (xs := (ps ++ vars nf 0).map fun _ => TShape.bot)
+      (List.forall₂_of_getElem (by simp) fun j _ _ => by simp only [List.getElem_map]; exact .bot)
+      hR2A
+    obtain ⟨-, hasB⟩ := Interp.rigid_inv hF.famNotCtor hF.famNoRule hb
+    have hk2 : pargs.length + i < as₂.length := by omega
+    -- the argument of the rigid shape at the leftover position is below the field's key
+    have g1 := forall₂_getElem hasB (i := pargs.length + i) hk2
+    have hpb : pargs.length + i < ((List.range info.nparams).map
+        (fun j => VExpr.bvar (info.nparams + info.numFields - 1 - j))).length := by
+      simp only [List.length_map, List.length_range]; omega
+    rw [List.getElem_append_left hpb, List.getElem_map, List.getElem_range] at g1
+    have g2 := Interp.bvar_iff.1 g1
+    have hlc : (psc₂.map (·.2)).length = info.nparams + info.numFields := by
+      simp [hpsc₂2.length_eq, hmlen]
+    rw [show info.nparams + info.numFields - 1 - (pargs.length + i) =
+        (psc₂.map (·.2)).length - 1 - (pargs.length + i) by rw [hlc],
+      Valuation.pushes_getElem σ (psc₂.map (·.2)) _ (by rw [hlc]; omega), List.getElem_map] at g2
+    have g3 := forall₂_getElem hpsc₂2 (i := pargs.length + i)
+      (by rw [hpsc₂2.length_eq]; simp [vars_length']; omega)
+    have hmk2 : (ps ++ vars nf 0)[pargs.length + i]'(by simp [vars_length']; omega) =
+        .bvar (nf - 1 - i) := by
+      rw [List.getElem_append_right (by omega), vars_getElem]; congr 1; omega
+    rw [hmk2] at g3
+    have g4 := Interp.bvar_iff.1 g3
+    -- the key of the index position is below the argument
+    have g5 := hkey₂ i hidx hk2
+    have hlh : (qsh.reverse.map (·.2)).length = pre₀.length + idx.length := by
+      rw [List.length_map, hpsh2'.length_eq]; simp
+    rw [show idx.length - 1 - i = (qsh.reverse.map (·.2)).length - 1 - (pre₀.length + i) by
+        rw [hlh]; omega,
+      Valuation.pushes_getElem σ (qsh.reverse.map (·.2)) _ (by rw [hlh]; omega),
+      List.getElem_map] at g5
+    have g6 := forall₂_getElem hxh' (i := pre₀.length + i) (by simp [xh]; omega)
+    rw [hxhk] at g6
+    exact g6.trans (g5.trans (g2.trans g4))
+
 end abstract
 
 end
