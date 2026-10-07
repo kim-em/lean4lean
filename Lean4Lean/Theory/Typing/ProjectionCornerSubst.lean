@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.NativeSingletonTyping
+import Lean4Lean.Theory.Typing.LevelEquiv
 
 /-! # Substitution identities for instantiating a minor premise at actual parameters
 
@@ -96,6 +97,103 @@ theorem minor_instOuter (F Hs ps : List VExpr) (C M : VExpr) :
       liftN_subst_liftN_add]
     show _ = VExpr.app _ _
     rw [liftN_liftN]
+
+end VExpr
+end Lean4Lean
+
+namespace Lean4Lean
+namespace VExpr
+
+/-- An application or a constant: the shape of a constructor's result type, kept by
+instantiation and by level equivalence. -/
+def AppOrConst : VExpr → Prop
+  | .app .. | .const .. => True
+  | _ => False
+
+theorem AppOrConst.inst {e : VExpr} (h : e.AppOrConst) (a : VExpr) (k : Nat) :
+    (e.inst a k).AppOrConst := by
+  cases e <;> simp_all [AppOrConst, VExpr.inst]
+
+theorem AppOrConst.instOuterAt {e : VExpr} (h : e.AppOrConst) :
+    ∀ (args : List VExpr) (k : Nat), (e.instOuterAt args k).AppOrConst := by
+  intro args
+  induction args generalizing e with
+  | nil => intro _; exact h
+  | cons a as ih => intro k; exact ih (h.inst a _) k
+
+theorem AppOrConst.instL {e : VExpr} (h : e.AppOrConst) (ls : List VLevel) :
+    (e.instL ls).AppOrConst := by
+  cases e <;> simp_all [AppOrConst, VExpr.instL]
+
+theorem AppOrConst.of_lequiv {e e' : VExpr} (H : LEquiv U e e') (h : e'.AppOrConst) :
+    e.AppOrConst := by
+  cases H <;> simp_all [AppOrConst]
+
+theorem AppOrConst.ne_forallE {e : VExpr} (h : e.AppOrConst) : ∀ A B, e ≠ .forallE A B := by
+  intro A B he; subst he; exact h
+
+theorem AppOrConst.of_getAppFnArgs {e : VExpr} {c : Name} {ls : List VLevel}
+    (h : e.getAppFnArgs.1 = .const c ls) : e.AppOrConst := by
+  cases e with
+  | app => trivial
+  | const => trivial
+  | _ =>
+    simp [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] at h
+
+theorem instantiateProjectionParameters_wrapForalls_long :
+    ∀ (n : Nat) (ds : List VExpr) (b : VExpr), b.AppOrConst → ds.length = n →
+      ∀ args : List VExpr, n < args.length →
+        VProjectionInfo.instantiateProjectionParameters (wrapForalls ds b) args = none := by
+  intro n
+  induction n with
+  | zero =>
+    intro ds b hb hds args h
+    cases ds with
+    | cons => simp at hds
+    | nil =>
+      cases args with
+      | nil => simp at h
+      | cons a as =>
+        cases b <;> simp_all [AppOrConst, VProjectionInfo.instantiateProjectionParameters,
+          wrapForalls]
+  | succ n ih =>
+    intro ds b hb hds args h
+    cases ds with
+    | nil => simp at hds
+    | cons d ds =>
+      cases args with
+      | nil => simp at h
+      | cons a as =>
+        show VProjectionInfo.instantiateProjectionParameters
+          ((wrapForalls ds b).inst a) as = none
+        rw [wrapForalls_inst]
+        exact ih _ _ (hb.inst a _) (by simp at hds ⊢; omega) as (by simp at h; omega)
+
+/-- The binder reached by instantiating a telescope, level-equivalent to a wrapped telescope
+ending in an application or constant, at a prefix of arguments. -/
+theorem walk_binder {T₀ : VExpr} {ds : List VExpr} {r : VExpr} {args : List VExpr}
+    {D body' : VExpr} (hT : LEquiv U T₀ (wrapForalls ds r)) (hr : r.AppOrConst)
+    (hwalk : VProjectionInfo.instantiateProjectionParameters T₀ args = some (.forallE D body')) :
+    ∃ h : args.length < ds.length, LEquiv U D ((ds[args.length]'h).instOuter args) := by
+  obtain ⟨ds₀, b₀, rfl, hds, hb⟩ := hT.wrapForalls_inv
+  have hb₀ := hr.of_lequiv hb
+  have hlen := List.Forall₂.length_eq hds
+  by_cases hn : args.length ≤ ds₀.length
+  · rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _ hn] at hwalk
+    by_cases hlt : args.length < ds₀.length
+    · rw [List.drop_eq_getElem_cons hlt] at hwalk
+      simp only [instDomsAt, wrapForalls, List.foldr_cons, Option.some.injEq,
+        VExpr.forallE.injEq] at hwalk
+      obtain ⟨rfl, -⟩ := hwalk
+      refine ⟨by omega, ?_⟩
+      rw [← instOuter_eq_instOuterAt]
+      exact (List.forall₂_getElem hds _ hlt (by omega)).instOuter args
+    · have he : args.length = ds₀.length := by omega
+      rw [he, List.drop_length, Nat.sub_self] at hwalk
+      simp only [instDomsAt, wrapForalls, List.foldr_nil, Option.some.injEq] at hwalk
+      exact absurd hwalk ((hb₀.instOuterAt args 0).ne_forallE _ _)
+  · rw [instantiateProjectionParameters_wrapForalls_long _ _ _ hb₀ rfl _ (by omega)] at hwalk
+    cases hwalk
 
 end VExpr
 end Lean4Lean
