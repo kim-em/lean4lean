@@ -123,6 +123,22 @@ theorem HasType.structure_params (henv : env.WF) (hΔ : OnCtx Δ (env.IsType U))
       exact IsDefEqU.sort_forallE_inv henv hΔ ((IsDefEq.toU hinst).symm.trans henv hΔ h1)
   · exact TelInst.of_ctxDefEq henv hΔ hOwn (by simpa [List.map_reverse] using hctx.instL hls)
 
+/-- Constructor parameters typed along the source constructor are typed along the normalized
+signature's parameter telescope. -/
+theorem TelInst.signature_params {s : InductiveSignature} {c : InductiveSignature.Constructor s.families.size}
+    (henv : env.WF) (hΔ : OnCtx Δ (env.IsType U)) (hls : ∀ l ∈ ls, l.WF U)
+    {ctorType tail : VExpr} {ctorParams : List VExpr} {ps : List VExpr}
+    (hctorP : ctorType.takeForalls s.params.length = some (ctorParams, tail))
+    (hdef : env.IsDefEqU s.uvars [] (s.constructorType c) ctorType)
+    (H : TelInst env U Δ (ctorParams.map (·.instL ls)) ps) :
+    TelInst env U Δ (s.params.map (·.instL ls)) ps := by
+  obtain ⟨hshape, hlen⟩ := takeForalls_eq_wrapForalls' hctorP
+  rw [hshape, InductiveSignature.constructorType, VExpr.wrapForalls_append] at hdef
+  have hctx := IsDefEqU.wrapForalls_context' henv (Γ₀ := []) trivial .zero hlen.symm hdef
+  simp only [List.append_nil] at hctx
+  have hctxL := (IsDefEqCtx.instL hls hctx).symm henv.ordered
+  exact TelInst.of_ctxDefEq henv hΔ H (by simpa [List.map_reverse] using hctxL)
+
 end VEnv
 
 namespace InductiveSignature.NativeRecursorData
