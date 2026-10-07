@@ -203,6 +203,19 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   covers mutual and nested blocks, so the native-bundle generalization is
   dropped). The strengthening agent is redirected to the head-inversion
   effort; route (b)'s prototype is parked after a write-up for Mario.
+  **E1 at 89475ed3 (pushed):** mainline (78 commits) and base (corner files)
+  merged; `corner_inhabit_sig` (corner for any closed term typed at an
+  ordinary signature's recursor type). Option (A) as stated is circular:
+  `registerCases` needs a full `CompilationData`, parts of which
+  (`recursiveTypesWF`, recursors, equations, elimination level) exist only
+  after the window run that needs the corner. **Decision (2026-10-07):
+  option (C): weaken `WF'.inductEliminators` to a case-only certificate**
+  (formation, model, correspondence, restoration scoping, names, projection
+  names, coherence), since the eliminator rules depend only on the schema
+  data; spec correction, weakens no theorem; consumers (`eliminator_origin`,
+  EliminatorAvoidance, coherence, the confluence `Params` fields reaching
+  constructor shapes) adapted on E1; then (A) proceeds with the case-only
+  certificate plus an `elimDF` typability lemma for the case type.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
