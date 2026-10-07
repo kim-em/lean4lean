@@ -216,6 +216,140 @@ theorem Ctor.realize0 (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
   refine ⟨N, fs, by simp [fs, hlps], this, List.forall₂_map_right_iff.2 ?_⟩
   exact (hps1.and_mem).imp fun x p ⟨h, _, hp⟩ => h.trans (TShape.lift_eqv (hkeyN p hp)).2
 
+/-! ### Alignment of constructor applications -/
+
+theorem StrongSound.mkApps_head : ∀ {bs : List VExpr} {g : VExpr} {T},
+    StrongSound env Γ (VExpr.mkApps g bs) T → ∃ T', StrongSound env Γ g T'
+  | [], _, T, h => ⟨T, h⟩
+  | b :: bs, g, T, h => by
+    obtain ⟨T', h'⟩ := StrongSound.mkApps_head (bs := bs) (g := .app g b) h
+    obtain ⟨_, hcore, -⟩ := h'
+    obtain ⟨A, B, hf, -, -⟩ := hcore.app_inv
+    exact ⟨_, hf⟩
+
+theorem StrongSound.mkApps_prefix {f : VExpr} {as bs : List VExpr} {T}
+    (h : StrongSound env Γ (VExpr.mkApps f (as ++ bs)) T) :
+    ∃ T', StrongSound env Γ (VExpr.mkApps f as) T' := by
+  have : VExpr.mkApps f (as ++ bs) = VExpr.mkApps (VExpr.mkApps f as) bs := by
+    simp [VExpr.mkApps, List.foldl_append]
+  rw [this] at h
+  exact StrongSound.mkApps_head h
+
+theorem piBot_type : TShape.piBot.HasType TShape.type := by
+  refine TShape.HasType.sort_r.2 (.forallE (WShape.HasTypePi.def.2 ⟨?_, fun y z hm => ?_⟩))
+  · exact WShape.HasDom.bot (.bot' .sort_type)
+  · simp [WShapeFun.bot, ShapeFun.bot, WShapeFun.mem_def] at hm
+    have : z = WShape.bot := WShape.ext hm.2
+    subst this; exact .bot' .sort_type
+
+/-- A Pi shape does not approximate a constant heading no rule applied to arguments. -/
+theorem Interp.forallE_not_headless (hr : ∀ r, SemSig.rules r → r.head ≠ .const s)
+    {b : WShape n} {f : WShapeFun n}
+    (H : Interp env ρ (WShape.forallE b f).T (VExpr.mkApps (.const s ls) args)) : False := by
+  rcases Interp.headless_inv hr H with h | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, _, _, h⟩
+  · exact TShape.forallE_not_le_bot h
+  · exact TShape.forallE_not_le_lam' h
+  · exact TShape.forallE_not_le_ctor' h
+  · exact TShape.forallE_not_le_rigid h
+
+theorem Interp.nestPi_bots {Ds : List VExpr} {R : TShape} {body : VExpr}
+    (hR : ∀ ρ', Interp env ρ' R body) :
+    Interp env ρ (nestPi (List.replicate Ds.length (TShape.bot, TShape.bot)) R)
+      (Ds.foldr .forallE body) := by
+  induction Ds generalizing ρ with
+  | nil => exact hR ρ
+  | cons D Ds ih => exact Interp.pi_intro .bot TShape.HasType.bot_bot ih
+
+/-- A constructor (whose type is a telescope ending in an application of a constant heading no
+rule) is not applied to more arguments than its telescope. -/
+theorem ctor_not_over (W : Valuation.Fits env Γ₀ Γ ρ) (hcv : env.constants c = some cv)
+    {doms argsI : List VExpr}
+    (hct : cv.type = VExpr.wrapForalls doms (VExpr.mkApps (.const I (VLevel.params cv.uvars)) argsI))
+    (hnr : ∀ r, SemSig.rules r → r.head ≠ .const I)
+    (hTy : StrongSound env Γ (VExpr.mkApps (.const c ls) args) A)
+    (hlen : doms.length < args.length) : False := by
+  have hsplit : args = args.take doms.length ++ (args[doms.length] :: args.drop (doms.length + 1)) := by
+    simp
+  rw [hsplit, ← List.singleton_append, ← List.append_assoc] at hTy
+  obtain ⟨T', hT'⟩ := StrongSound.mkApps_prefix hTy
+  rw [VExpr.mkApps_append_singleton] at hT'
+  obtain ⟨_, hcore, -⟩ := hT'
+  obtain ⟨A', B', hf, -, -⟩ := hcore.app_inv
+  have hf' : StrongSound env Γ (VExpr.mkApps (.const c ls) (args.take doms.length).reverse.reverse)
+      (.forallE A' B') := by rwa [List.reverse_reverse]
+  obtain ⟨ci, u, hci, hlsl, -⟩ := Spine.constInfo hf'
+  cases hci.symm.trans hcv
+  obtain ⟨qs, -, hq2, -, hq4⟩ := Spine.typed W hf' hcv
+    (xs := (args.take doms.length).reverse.map fun _ => TShape.bot)
+    (List.forall₂_of_getElem (by simp) fun i _ _ => by simp only [List.getElem_map]; exact .bot)
+    (R := TShape.piBot) Interp.piBot
+  have hctl : cv.type.instL ls = (doms.map (·.instL ls)).foldr .forallE
+      (VExpr.mkApps (.const I ls) (argsI.map (·.instL ls))) := by
+    rw [hct]
+    show VExpr.instL ls (doms.foldr .forallE _) = _
+    rw [VExpr.instL_foldr_forallE, VExpr.instL_mkApps]
+    simp only [VExpr.instL, VLevel.inst_map_id hlsl]
+  rw [hctl] at hq4
+  have hl : (doms.map (·.instL ls)).length = qs.reverse.length := by
+    rw [List.length_map, List.length_reverse, hq2.length_eq]; simp; omega
+  obtain ⟨-, hP⟩ := Interp.nest_inv hl hq4
+  exact Interp.forallE_not_headless hnr hP
+
+/-- A constructor is not applied to fewer arguments than its telescope at the major position of a
+head whose type gives the major a domain that is an application of a constant heading no rule. -/
+theorem ctor_not_under {h : Head} (W : Valuation.Fits env Γ₀ Γ ρ)
+    (hTh : HeadType env h ls Th)
+    {doms₀ rest argsF : List VExpr} {Tb : VExpr}
+    (hThs : Th = VExpr.wrapForalls (doms₀ ++ VExpr.mkApps (.const F lvF) argsF :: rest) Tb)
+    (hlen0 : doms₀.length = pre.length) (hnrF : ∀ r, SemSig.rules r → r.head ≠ .const F)
+    (hTy : StrongSound env Γ (VExpr.mkApps (h.toExpr ls) (pre ++ [VExpr.mkApps (.const c lv) margs])) B)
+    (hcv : env.constants c = some cv) {domsc : List VExpr} {bodyc : VExpr}
+    (hct : cv.type = VExpr.wrapForalls domsc bodyc) (hlt : margs.length < domsc.length) : False := by
+  rw [VExpr.mkApps_append_singleton] at hTy
+  obtain ⟨_, hcore, -⟩ := hTy
+  obtain ⟨A, Bf, hf, hM, -⟩ := hcore.app_inv
+  have hM' : StrongSound env Γ (VExpr.mkApps (.const c lv) margs.reverse.reverse) A := by
+    rwa [List.reverse_reverse]
+  obtain ⟨ci, u, hci, hlsl, -⟩ := Spine.constInfo hM'
+  cases hci.symm.trans hcv
+  -- the domain of the major has a Pi approximation
+  have hPA : Interp env ρ TShape.piBot A := by
+    refine Spine.ofPi W hM' hcv (qs := List.replicate margs.length (TShape.bot, TShape.bot))
+      (List.forall₂_of_getElem (by simp) fun i _ _ => by simp only [List.getElem_replicate]; exact .bot)
+      ?_
+    have hsplit : domsc = domsc.take margs.length ++ domsc.drop margs.length := by simp
+    rw [hct]
+    show Interp env ρ _ (VExpr.instL lv (domsc.foldr .forallE bodyc))
+    rw [VExpr.instL_foldr_forallE, hsplit, List.map_append, List.foldr_append]
+    have hd : domsc.drop margs.length = domsc[margs.length] :: domsc.drop (margs.length + 1) := by
+      rw [List.drop_eq_getElem_cons (by omega)]
+    rw [hd, List.map_cons, List.foldr_cons, List.reverse_replicate]
+    have hlt' : ((domsc.take margs.length).map (·.instL lv)).length = margs.length := by
+      simp; omega
+    have := Interp.nestPi_bots (env := env) (ρ := ρ)
+      (Ds := (domsc.take margs.length).map (·.instL lv)) (R := TShape.piBot)
+      (body := .forallE (domsc[margs.length].instL lv)
+        (((domsc.drop (margs.length + 1)).map (·.instL lv)).foldr .forallE (bodyc.instL lv)))
+      fun _ => Interp.piBot
+    rwa [hlt'] at this
+  have hpi : Interp env ρ (TShape.pi TShape.piBot TShape.bot TShape.bot) (.forallE A Bf) :=
+    Interp.pi_intro hPA (TShape.HasType.bot' piBot_type) .bot
+  have hf' : StrongSound env Γ (VExpr.mkApps (h.toExpr ls) pre.reverse.reverse) (.forallE A Bf) := by
+    rwa [List.reverse_reverse]
+  obtain ⟨qs, -, hq2, -, hq4⟩ := Spine.typed_head W hf' hTh
+    (xs := pre.reverse.map fun _ => TShape.bot)
+    (List.forall₂_of_getElem (by simp) fun i _ _ => by simp only [List.getElem_map]; exact .bot)
+    (R := TShape.pi TShape.piBot TShape.bot TShape.bot) hpi
+  rw [hThs] at hq4
+  show False
+  have h4 : Interp env ρ (nestPi qs.reverse (TShape.pi TShape.piBot TShape.bot TShape.bot))
+      (doms₀.foldr .forallE (.forallE (VExpr.mkApps (.const F lvF) argsF) (rest.foldr .forallE Tb))) := by
+    have := hq4
+    simp only [VExpr.wrapForalls, List.foldr_append, List.foldr_cons] at this
+    exact this
+  obtain ⟨-, hP⟩ := Interp.nest_inv (by rw [List.length_reverse, hq2.length_eq]; simp [hlen0]) h4
+  exact Interp.forallE_not_headless hnrF (Interp.pi_inv hP).1
+
 end
 
 end Lean4Lean.ShapeModel
