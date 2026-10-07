@@ -51,8 +51,9 @@ unprovable, correct it minimally and repair consumers; never weaken
 beyond decisions recorded in HANDOFF.md; never add input-naming hypotheses;
 never hide a conjecture in a structure field. The executable must not diverge
 from the C++ kernel (no new rejections, changed constructions or reordered
-checks); branch agent/verify-inductives-e1 (scoped caches) and the countermodel
-on agent/verify-inductives-base are parked and not on the critical path. Do not
+checks) except for the scoped-cache change of branch agent/verify-inductives-e1,
+which is un-parked as the alternative to declarative strengthening (HANDOFF
+2026-10-06); the countermodel on agent/verify-inductives-base is parked. Do not
 delete or disable tests. Commit each verified step (message ends with only
 `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`), push to kim-em, keep
 HANDOFF.md current, and at each milestone run the full build, tests, replays and

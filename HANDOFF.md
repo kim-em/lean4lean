@@ -27,8 +27,19 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   because `NormalEqN.beta_aux` needs head eta. Caveat being fixed: the
   development is parametric in `class Params` (seven new fields) and
   `class FullEquationCoverage`, which have no instance; the agent is now
-  constructing both for every `VEnv.WF env` to give an unconditional
-  `VEnv.WF.church_rosser`. **Merged into the mainline (71addb9b..277edf4d,
+  constructing both. **Finding (strengthening agent): `FullEquationCoverage`
+  is FALSE for arbitrary WF environments**, refuted by the formalised
+  countermodel `envCM`: native iota of a large-eliminating Prop family is
+  excluded from `ParRed` (source level 0), its only computation is the
+  native delta rule, whose `NativePrefixReplay` needs `captures_typed`, and
+  the `Eq`-free proof-field selectors are ill-typed at generic indices
+  whenever a data slot's generic index type differs from the field type; so
+  the singleton equation cannot be joined and confluence of `VEnv.IsDefEq`
+  fails without canonical `Eq` (consistent with the countermodel). Decision:
+  the unconditional theorem is `VEnv.WF.church_rosser (henv) (heq :
+  env.HasCanonicalEq)`, with `NativePrefixProgram`'s proof-field selectors
+  replaced by `Eq`-cast extraction terms (built by the strengthening agent's
+  singleton-eta work; the two agents coordinate directly). **Merged into the mainline (71addb9b..277edf4d,
   pushed):** the one strengthening-dependent lemma underneath confluence
   (`VProjectionInfo.field_typing_of_ctorApp`, via the false
   `VExpr.WF.of_occurs`) was replaced by the E1 branch's strengthening-free
@@ -41,6 +52,103 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   and the projection-walk substitution (drags in the corner machinery); so
   `args_typing`/`iota`/`iota_body` still take `hs`. Patch saved at
   `/tmp/l4l-e1b-partial-port.patch` (volatile).
+  **Spec correction decided (2026-10-06):** `Instance.Admissible`/`Compiles`
+  constrained a recursor's target universe only by `target_wf`, so the
+  specification admitted recursors Lean never produces (a large-eliminating
+  singleton whose only recursor has motive universe `succ u`), under which
+  proof fields cannot be extracted at all (no elimination into Prop, no
+  cumulativity), `FullEquationCoverage` fails, and strengthening with
+  canonical `Eq` is in doubt. The target universe is now required to be
+  either `≈ zero` or a universe parameter not occurring in the declaration's
+  levels, exactly the shape `getElimLevel` produces; realizability is
+  preserved (CompletedElimination.lean / ConsumedAdmissible.lean instantiate
+  the target from it). This corrects the specification to Lean's
+  constructions; it weakens no theorem. The strengthening agent implements
+  it; the confluence instance relies on it. **Confluence instance proved
+  (cr branch 0d0c2531, `Theory/Typing/WFParams.lean`):** `WF.church_rosser
+  (henv) (heq : HasCanonicalEq) (hcoh : EliminatorsCoherent) (hΓ) (H)`,
+  joinability under `FullReduction` up to `NormalEq`, with the concrete
+  `Params` instance `WF.params` built from the canonical registry
+  (definition unfoldings, quotient rule when declared, native iota rules),
+  every field proved; coverage from `WF.equationCoverage` +
+  `WF.singletonCoverage` (`NativeSingletonProgram`/`NativeSingletonCoverage`,
+  needing `heq`); only sorry dependency `headInversion`.
+  `EliminatorsCoherent` was needed because `VEnv.WF` let a structure's
+  projections and an eliminator schema come from different declarations
+  (unit-like equality then breaks confluence); **decision (2026-10-07): make
+  coherence part of `inductEliminators`** (spec correction; no pipeline
+  producer registers schemas), so the theorem takes only `henv`, `heq`.
+  Note: `NativeIotaSoundness.lean` makes Theory import Verify for the first
+  time (no cycle; follow-up to relocate). **Done (base branch to
+  aac10d3c; mainline merged cc06211d as ec8b9270):** `Instance.FreeTarget`,
+  the singleton branch of `Admissible.elimination`, realization
+  `recursorDeclarationAbstractLevels_freeTarget`; abstract singleton eta
+  (`SingletonExtraction.lean`: `value_typed`, `occ_typed`, `singleton_eta`,
+  `occ_subst`); the native bridge `NativeRecursorData.propElim_wf` (a
+  registered native recursor with a large target, at an occurrence whose
+  source sort is Prop, gives `PropElim.WF`; the eliminator is the recursor
+  with its free target set to 0, motive instantiated at
+  `fun _ => ∀ p : Prop, p → p`), plus `occ_instL`, `occ_levels`,
+  closedness lemmas without `HasCanonicalEq`, handed to the confluence
+  integration. Only sorry dependency: `headInversion`. Next for (b): the
+  certificate calculus (rule-level design first, Astra review of admissible
+  transitivity); honest size estimate comparable to the confluence stack
+  (about 29k lines).
+  **Obstacle (base branch after aac10d3c; `STRENGTHENING_NOTES.md` "Part 3
+  status", `STRENGTHENING_ASTRA_REVIEW2.md`, `REVIEW3.md`):** route (b)
+  rests on a conversion-elimination theorem (admissible transitivity for a
+  certified, transitivity-free calculus whose certificates mention only
+  subterms, synthesized types and reducts of their endpoints) for which no
+  proof organisation is known, already for the Π/λ/app/β/η/proof-irrelevance
+  fragment: every organisation is circular (transitivity needs normal
+  equality transported along β; that needs substitution through the typing
+  evidence of proof-irrelevance and η leaves; substitution for synthesized
+  typing needs conversion composition at variables on outputs of earlier
+  calls, whose size grows) and no measure decreases; Siles–Herbelin does
+  not transfer; the theory does not normalize; Astra knows no proof and no
+  impossibility argument. **Decision (2026-10-06): pursue both remaining
+  routes.** (1) The strengthening agent continues with a minimal Lean
+  prototype of the certified core calculus hunting a termination
+  organisation, documenting each failed measure for Mario. (2) E1 is
+  UN-PARKED: its scoped-cache executable needs strengthening at exactly one
+  restricted site (`ProjectionWalkCorner`); the E1 agent merges the mainline,
+  finishes the last narrow-scope site, deletes `CheckerSubContextLocality`,
+  and reports the residual conjecture set; the strengthening agent assesses
+  whether `ProjectionWalkCorner` is provable with singleton eta. Whichever
+  route reaches a complete proof first wins; GOAL.md's "E1 parked" clause is
+  superseded by this entry.
+  **`ProjectionWalkCorner` assessment (strengthening agent,
+  `STRENGTHENING_NOTES.md` "Assessment: the restricted projection-walk
+  corner"):** provable by SUBSTITUTION, no certificates, if the environment
+  contains canonical `Nonempty` and `Classical.choice` (both in
+  `Init.Prelude`): eliminate the structure `S` into Prop with motive
+  `fun x => Nonempty D[x]` to get `hne : Nonempty D`, substitute
+  `d := Classical.choice hne`; since the body does not mention `d` the
+  substitution yields the smaller-context translation. Without choice the
+  restriction gives no measure (same conversion-elimination problem).
+  **Decision (2026-10-06): accept `VEnv.HasCanonicalChoice` as a further
+  hypothesis of the final theorem** (same character as `HasCanonicalEq`,
+  prelude-installed, monotone), on the E1 route; the strengthening agent
+  implements `projectionWalkCorner_of_choice` (about 1k to 2k lines) and its
+  realizability, then returns to the prototype. If E1 completes, the final
+  theorem's hypotheses are `ves.WF env`, canonical `Eq`, canonical
+  `Nonempty`/`choice`, `decl.IsModelled`, with `headInversion` the only
+  remaining conjecture; GOAL.md item (3) is to be updated accordingly when
+  that lands.
+  Corner implementation status: `VEnv.HasCanonicalChoice`
+  (Theory/CanonicalChoice.lean, without `Nonempty.rec`, with `mono`) and
+  `TrExprS.weakBV_inv₁_inhabited` (Verify/Typing/InhabitedStrengthening.lean:
+  strengthening across one binder whose type is inhabited by a typed term
+  below, by substitution) are built on the base branch. The corner theorem
+  needs, beyond `HasCanonicalChoice`: a registered native recursor of `S`
+  (without it the statement is false: `inductProjections` registers
+  projections with no eliminator), `info.nindices = 0` (true at the call site:
+  projection inference accepts only structure-like families), and
+  temporarily `families.size = 1` (to be generalized to mutual/nested
+  structures via the restored recursor with constant motives). E1 discharges
+  the recursor premise at every call site, including the transient
+  types+constructors window (generated terms only; a block-family
+  projection could arise there only via structure eta in `isDefEq`).
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
@@ -65,6 +173,46 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   Kernel-checked evidence: `docs/inductives/StrengtheningFalsification.lean`;
   write-up `docs/inductives/STRENGTHENING_NOTES.md` (on that branch).
   Continuing with singleton eta and the certificate calculus.
+  **Part 3 assessment (interim; `STRENGTHENING_NOTES.md` §3,
+  `STRENGTHENING_ASTRA_REVIEW.md` on that branch):** confluence alone does
+  not give strengthening: the canonical-step witness between binder-free
+  terms has side conditions that are new larger-context judgements
+  (K/singleton alignment checks, eta-domain agreement, binder-domain
+  premises) with no well-founded measure below the original (no
+  normalization; size not preserved by substitution). The irreducible core
+  is a certificate calculus with transitivity-admissibility redone with
+  certificate premises (Siles–Herbelin style), estimated 20k to 40k lines.
+  Astra agrees, knows no published strengthening theorem for this
+  combination, and suggests a checker locality theorem for the cache
+  consumers instead; but the cache-scope experiment shows the unscoped
+  executable is not local, so that route needs E1's executable change plus
+  the inductive-side locality theorem (9k to 16k lines), which was parked by
+  decision. Decision (2026-10-06): continue route (b) as planned (singleton
+  eta, then the certificate calculus); revisit only if the pilot shows it is
+  unworkable. **Pilot (paper, `STRENGTHENING_NOTES.md` §3.3):** strengthening
+  a larger-context witness (`FullReduction` + `NormalEqN`) by induction on
+  the index closes proof irrelevance, refl/sort/const/elim, forallE levels,
+  common-mode lam/eta, head-forced spines, projections and eta at
+  application heads. Failing pieces: own-mode lam/forallE domain premises
+  (fixable by a "deep" `NormalEqN` with index-counted domain premises), and
+  the irreducible core: reduction steps whose check is a conversion not
+  forced by typing (`DeltaPar.delta`/`quotDelta` with K/singleton alignment
+  checks; canonical choice of eta domains / struct-eta params). Design:
+  delta/quotDelta steps carry an alignment WITNESS instead of an `IsDefEq`
+  check; completeness reworks only the delta-level parts of
+  `LevelledReduction` (about 63 lemmas) and the deep `NormalEqN`, not the
+  whole confluence development. Far smaller than the 20k to 40k estimate.
+  **Correction:** the K/singleton alignment check arises in the strip where a
+  proof-irrelevance leaf `h ≡ₚ Eq.refl a` meets iota on the refl side, and
+  the check `a ≡ b` comes from injectivity applied to the type agreement of
+  the leaf (`Eq a b` vs `Eq a a`); witnessing it requires proof-irrelevance
+  leaves to carry witnessed agreement of their independently synthesized
+  types, hence witnessed synthesized-type agreements for typings: the full
+  synthesizing certificate calculus, with transitivity admissibility (strip)
+  restated as induction on certificate size. The deep `NormalEqN` and the
+  §3.3 strengthening analysis stand. Next: singleton eta formally, then the
+  certificate-calculus design doc with the plan for which mainline lemmas
+  carry over.
 
 ## Intended result
 

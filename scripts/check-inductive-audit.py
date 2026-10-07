@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parents[1]
 MARKER = "INDUCTIVE_AUDIT "
 ROOTS = {
     "Lean4Lean.addDecl.WF",
+    "Lean4Lean.addDecl.WF_of_canonicalEq",
+    "Lean4Lean.addDecl.WFHasCanonicalEq",
+    "Lean4Lean.addDecl.WFCanonicalEq_of_canonicalEq",
     "Lean4Lean.VEnv.QuotRegistered.witness_app",
     "Lean4Lean.VEnv.QuotDeltaRule.defeq",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF",
