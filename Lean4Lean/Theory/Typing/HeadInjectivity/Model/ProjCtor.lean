@@ -81,6 +81,49 @@ theorem tele_wind (h : TeleKeys env U Δ σ S ds keys σ' S') :
       appCls_eq henv hΔ hf' hyA, VExpr.subst_lift_inst]
     exact h2
 
+/-- **The field classes of a constructor spine** (by L3): the projections onto field `i` of
+the class of a constructor spine of a never-zero projection-registered structure form the
+class of the field. -/
+theorem ctor_projCls {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
+    (hcl : info.ctorType.Closed) {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U)
+    (hlen : ls.length = info.uvars) (hnz : (info.resultLevel.inst ls).IsNeverZero)
+    {doms idx : List VExpr}
+    (hshape : info.ctorType = VExpr.wrapForalls doms
+      (VExpr.mkApps (.const S (VLevel.params info.uvars))
+        ((List.range info.nparams).reverse.map
+            (fun i => VExpr.bvar (doms.length - info.nparams + i)) ++ idx)))
+    (hidx : idx.length = info.nindices) (hwf : env.IsType info.uvars [] info.ctorType)
+    (hctor : env.constants info.ctorName = some ⟨info.uvars, info.ctorType⟩)
+    {ps fs : List VExpr} {R : VExpr}
+    (hargs : ArgsTyped env U Δ (info.ctorType.instL ls) (ps ++ fs) R)
+    (hpl : ps.length = info.nparams) (hfl : fs.length = info.numFields)
+    {i : Nat} (hi : i < fs.length) :
+    env.HasType U Δ (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))
+      (VExpr.mkApps (.const S ls)
+        (ps ++ idx.map fun e => (e.instL ls).subst (VExpr.argSubst (ps ++ fs)))) ∧
+    ∃ F, info.fieldType S ls ps i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)) = some F ∧
+      env.IsDefEq U Δ (.proj S i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))) fs[i] F ∧
+      projCls env U Δ S i
+        (ElCls env U Δ (TyCls env U Δ (VExpr.mkApps (.const S ls)
+          (ps ++ idx.map fun e => (e.instL ls).subst (VExpr.argSubst (ps ++ fs)))))
+          (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs))) (TyCls env U Δ F) =
+        ElCls env U Δ (TyCls env U Δ F) fs[i] := by
+  obtain ⟨hmk, hall⟩ := proj_spine henv hΔ hp hcl hls hlen hnz hshape hidx hwf hctor hargs hpl hfl
+  obtain ⟨F, hF, hpty, hdef⟩ := hall i hi
+  refine ⟨hmk, F, hF, hdef, ?_⟩
+  obtain ⟨fl, hFs⟩ := hpty.isType henv hΔ
+  have hidx' : (idx.map fun e => (e.instL ls).subst (VExpr.argSubst (ps ++ fs))).length =
+      info.nindices := by simp [hidx]
+  funext z; apply propext; constructor
+  · rintro ⟨w, hw, hz⟩
+    have hmw := ElCls.collapse henv hΔ hmk TyCls.self hw
+    have hpw : env.IsDefEq U Δ (.proj S i (VExpr.mkApps (.const info.ctorName ls) (ps ++ fs)))
+        (.proj S i w) F := .projDF hp hls hlen hpl hidx' hF hFs hmk hmw hcl (.inl hnz)
+    rw [ElCls.eq_of_defeq TyCls.self hdef.symm, ElCls.eq_of_defeq TyCls.self hpw]
+    exact hz
+  · intro hz
+    exact ⟨_, ElCls.self, by rw [ElCls.eq_of_defeq TyCls.self hdef]; exact hz⟩
+
 end
 
 end Model
