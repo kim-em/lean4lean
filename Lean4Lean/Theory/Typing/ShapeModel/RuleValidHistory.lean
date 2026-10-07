@@ -37,24 +37,6 @@ theorem Good.extend (h : Good env E)
   · exact h.2.1 hb' hgen hmem hcl hperm h1 h2 h3
   · exact hok hgen hmem hcl hperm h1 h2 h3
 
-/-- The structure facts of a registered projection follow from the semantic header of its
-recorded family. -/
-theorem famTypeSem_of_famSem (H : env.WF) (hp : env.projections s info)
-    (hsem : letI := envSig env; FamSem env s info.resultLevel (info.nparams + info.nindices)) :
-    FamTypeSem env s info := by
-  letI := envSig env
-  obtain ⟨ci, Ds, hci, hlen, hiff⟩ := hsem
-  obtain ⟨ci', hci', huv, -⟩ := famOf_shape H (famOf_projection H hp)
-  cases hci.symm.trans hci'
-  exact ⟨ci, Ds, hci, huv, hlen, fun ls hls m => hiff ls (by rw [hls, huv]) m⟩
-
-theorem quot_famSem (hq : QuotInstalled env) :
-    letI := envSig env; FamSem env ``Quot (.param 0) 2 := by
-  letI := envSig env
-  refine ⟨_, [.sort (.param 0), .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))], hq.quot,
-    rfl, fun ls _ m => ?_⟩
-  exact Iff.rfl
-
 /-! ### The induction -/
 
 theorem viewFams_famSem (H : env.WF) (hgood : Good env E) (hle : E ≤ env) (hE : E.Ordered)
@@ -137,7 +119,7 @@ theorem good_of_hist (H : env.WF) {E : VEnv} {T : Tables} (hH : HistTables E T) 
     refine ⟨hg.extend (fun df h => ?_) (fun h => .inl ?_)
       (fun h => .inl (by rwa [hproj] at h)), fun I d h => ?_⟩
     · rcases (hdfIff df).mp h with rfl | h
-      · exact .inr (quot_extraValid H hQI' (hext.fam hfQ))
+      · exact .inr (quot_extraValid H (hext.quot rfl))
       · exact .inl h
     · rwa [VEnv.addQuot_eliminators hadd] at h
     · rcases addView_some.mp h with h | ⟨-, h⟩
