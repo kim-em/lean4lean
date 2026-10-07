@@ -29,12 +29,19 @@ variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 /-- Semantically typed derivations. -/
 inductive HTS : List VExpr → VExpr → VExpr → Prop
   | bvar : Lookup Γ i A → SD env U Δ Γ A A (.sort u) → HTS Γ (.bvar i) A
-  | other : (∀ c ls args, e ≠ .mkApps (.const c ls) args) → (∀ A b, e ≠ .lam A b) →
+  | other : (∀ c ls args, e ≠ .mkApps (.const c ls) args) →
+    (∀ b o ls args, e ≠ .mkApps (.elim b o ls) args) → (∀ A b, e ≠ .lam A b) →
     (∀ A B, e ≠ .forallE A B) → (∀ i, e ≠ .bvar i) → HTS Γ e T
   | const : env.constants c = some ci → (∀ l ∈ ls, l.WF U) → ls.length = ci.uvars →
     HTS [] (ci.type.instL ls) (.sort u) →
     SD env U Δ [] (ci.type.instL ls) (ci.type.instL ls) (.sort u) →
     HTS Γ (.const c ls) (ci.type.instL ls)
+  | elim {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators b schema → schema.genericType owner = some type → type.Closed →
+    (∀ l ∈ ls, l.WF U) → HTS [] (type.instL ls) (.sort u) →
+    SD env U Δ [] (type.instL ls) (type.instL ls) (.sort u) →
+    HTS Γ (.elim b owner.val ls) (type.instL ls)
   | app : SD env U Δ Γ A A (.sort u) → SD env U Δ (A :: Γ) B B (.sort v) →
     HTS Γ f (.forallE A B) → HTS Γ a A → SD env U Δ Γ a a A → HTS Γ (.app f a) (B.inst a)
   | lam : HTS Γ A (.sort u) → SD env U Δ Γ A A (.sort u) → HTS (A :: Γ) b B →
@@ -59,6 +66,15 @@ theorem PiSD.doms : PiSD env U Δ Γ ds R → DomsSD env U Δ Γ ds
   | .nil => .nil
   | .cons h _ h' => .cons h h'.doms
 
+theorem mkApps_elim_ne_lam : VExpr.mkApps (.elim b o ls) args ≠ .lam A t := by
+  intro h; rcases mkApps_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
+
+theorem mkApps_elim_ne_bvar : VExpr.mkApps (.elim b o ls) args ≠ .bvar i := by
+  intro h; rcases mkApps_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
+
+theorem mkApps_elim_ne_forallE : VExpr.mkApps (.elim b o ls) args ≠ .forallE A B := by
+  intro h; rcases mkApps_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
+
 theorem mkApps_const_ne_bvar : VExpr.mkApps (.const c ls) args ≠ .bvar i := by
   intro h; rcases mkApps_const_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
@@ -69,22 +85,24 @@ theorem mkApps_const_ne_forallE : VExpr.mkApps (.const c ls) args ≠ .forallE A
   intro h; rcases mkApps_const_inv h.symm with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
 theorem HTS.sort' : HTS env U Δ Γ (.sort l) T :=
-  .other (fun _ _ _ h => by rcases mkApps_const_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
-    nofun nofun nofun
-
-theorem HTS.elim' : HTS env U Δ Γ (.elim b o ls) T :=
-  .other (fun _ _ _ h => by rcases mkApps_const_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
+  .other (fun _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
+    (fun _ _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
     nofun nofun nofun
 
 theorem HTS.proj' : HTS env U Δ Γ (.proj n i e) T :=
-  .other (fun _ _ _ h => by rcases mkApps_const_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
+  .other (fun _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
+    (fun _ _ _ _ h => by rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h)
     nofun nofun nofun
 
 theorem HTS.beta_lhs : HTS env U Δ Γ (.app (.lam A e) e') T :=
   .other (fun _ _ _ h => by
-      rcases mkApps_const_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩
+      rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩
       · cases h
       · injection h with h; exact mkApps_const_ne_lam h.symm)
+    (fun _ _ _ _ h => by
+      rcases mkApps_inv h with ⟨_, h⟩ | ⟨_, _, _, h⟩
+      · cases h
+      · injection h with h; exact mkApps_elim_ne_lam h.symm)
     nofun nofun nofun
 
 section
@@ -132,8 +150,8 @@ theorem HTS.bvar_chain (H : HTS env U Δ Γ e T) (he : e = .bvar i) :
     ∃ A, Lookup Γ i A ∧ (A = T ∨ env.TypeChain U Γ A T) := by
   induction H with
   | bvar hL => cases he; exact ⟨_, hL, .inl rfl⟩
-  | other _ _ _ h => exact absurd he (h _)
-  | const | app | lam | forallE => cases he
+  | other _ _ _ _ h => exact absurd he (h _)
+  | const | elim | app | lam | forallE => cases he
   | conv _ hAB ih =>
     obtain ⟨A, hL, h⟩ := ih he
     refine ⟨A, hL, .inr ?_⟩
@@ -147,8 +165,8 @@ theorem HTS.forallE_inv (H : HTS env U Δ Γ e T) (he : e = .forallE A B) :
       HTS env U Δ (A :: Γ) B (.sort v) ∧ SD env U Δ (A :: Γ) B B (.sort v) := by
   induction H with
   | forallE h1 h2 h3 h4 => cases he; exact ⟨_, _, h1, h2, h3, h4⟩
-  | other _ _ h => exact absurd he (h _ _)
-  | bvar | const | app | lam => cases he
+  | other _ _ _ h => exact absurd he (h _ _)
+  | bvar | const | elim | app | lam => cases he
   | conv _ _ ih => exact ih he
 
 /-- A Pi telescope in a semantically typed derivation has sound domains and codomains. -/
@@ -168,8 +186,8 @@ theorem HTS.lam_inv (H : HTS env U Δ Γ e P) (he : e = .lam A b) :
   induction H with
   | lam h1 h2 h3 h4 h5 =>
     cases he; exact ⟨_, _, _, h1, h2, h3, h4, h5, fun _ _ _ _ => Ob.Sub.refl⟩
-  | other _ h => exact absurd he (h _ _)
-  | bvar | const | app | forallE => cases he
+  | other _ _ h => exact absurd he (h _ _)
+  | bvar | const | elim | app | forallE => cases he
   | conv _ hAB ih =>
     obtain ⟨B, u, v, h1, h2, h3, h4, h5, h6⟩ := ih he
     exact ⟨B, u, v, h1, h2, h3, h4, h5, fun σ S W tv =>
@@ -220,6 +238,7 @@ theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.cons
   induction H generalizing args Ks τs with
   | bvar => exact absurd he.symm mkApps_const_ne_bvar
   | other h => exact absurd he (h _ _ _)
+  | elim => rcases mkApps_const_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
   | lam => exact absurd he.symm mkApps_const_ne_lam
   | forallE => exact absurd he.symm mkApps_const_ne_forallE
   | const hci hls _ hT hsd =>

@@ -69,6 +69,14 @@ theorem mkApps_concat (f : VExpr) (as : List VExpr) (a : VExpr) :
     VExpr.mkApps f (as ++ [a]) = .app (VExpr.mkApps f as) a := by
   simp [VExpr.mkApps, List.foldl_append]
 
+theorem mkApps_inv {hd : VExpr} (h : e = VExpr.mkApps hd args) :
+    (args = [] ∧ e = hd) ∨
+      ∃ as a, args = as ++ [a] ∧ e = .app (VExpr.mkApps hd as) a := by
+  rcases List.eq_nil_or_concat args with rfl | ⟨as, a, rfl⟩
+  · exact .inl ⟨rfl, h⟩
+  · refine .inr ⟨as, a, by simp, ?_⟩
+    rw [h, List.concat_eq_append, mkApps_concat]
+
 theorem mkApps_const_inv (h : e = VExpr.mkApps (.const c ls) args) :
     (args = [] ∧ e = .const c ls) ∨
       ∃ as a, args = as ++ [a] ∧ e = .app (VExpr.mkApps (.const c ls) as) a := by
