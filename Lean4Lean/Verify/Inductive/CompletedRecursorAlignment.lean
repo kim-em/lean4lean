@@ -2,6 +2,7 @@ import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
 import Lean4Lean.Verify.Inductive.Recursor.Realization
 import Lean4Lean.Verify.Inductive.Recursor.GeneratedShapes
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 /-! Operational alignment from a joint ordinary compilation witness.
 
@@ -63,42 +64,6 @@ theorem Instance.fieldCount_of_equation {s : InductiveSignature} (g : Instance s
   omega
 
 end InductiveSignature
-theorem VInductDecl.RawCtorShape.constructorShape
-    {decl : VInductDecl} {family : VInductiveType} {ctor : VConstVal} {env : VEnv}
-    (H : decl.RawCtorShape family ctor) (hnames : decl.sourceNames.Nodup)
-    (hfamily : family ∈ decl.types)
-    (hlookup : env.constants ctor.name = some ⟨decl.uvars, ctor.type⟩) :
-    ∃ fields, Nonempty (VConstructorShape env ctor.name decl.uvars decl.nparams
-      fields family.numIndices family.name) := by
-  rcases H with ⟨doms, result, htype, hparamsLe, hvalid, hhead⟩
-  rcases hvalid with ⟨target, htarget, htargetName, levels, hfn, hlevels, hargs, hparams⟩
-  rcases htargetName with hnone | htargetName
-  · cases hnone
-  have heq : target = family := VInductDecl.type_eq_of_mem_name hnames htarget hfamily
-    (Option.some.inj htargetName).symm
-  subst target
-  change result.getAppFnArgs.2.length = decl.nparams + family.numIndices at hargs
-  change result.getAppFnArgs.2.take decl.nparams = decl.paramVars (doms.length - decl.nparams) at hparams
-  refine ⟨doms.length - decl.nparams, ⟨{
-    type := ctor.type
-    const := hlookup
-    doms := doms
-    indices := result.getAppFnArgs.2.drop decl.nparams
-    type_eq := ?_
-    doms_length := by omega
-    indices_length := by simp only [List.length_drop, hargs]; omega }⟩⟩
-  rw [htype]
-  congr 1
-  calc
-    result = VExpr.mkApps result.getAppFnArgs.1 result.getAppFnArgs.2 :=
-      (VExpr.mkApps_getAppFnArgs_eq result).symm
-    _ = VExpr.mkApps (.const family.name (VLevel.params decl.uvars))
-        ((result.getAppFnArgs.2.take decl.nparams) ++ result.getAppFnArgs.2.drop decl.nparams) := by
-      rw [List.take_append_drop, hhead]
-    _ = _ := by
-      rw [hparams]
-      congr 2
-      exact InductiveSignature.vars_eq_bvarRange _ _
 
 namespace VerifyInductive
 

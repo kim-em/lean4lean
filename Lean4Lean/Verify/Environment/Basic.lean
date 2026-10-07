@@ -4,6 +4,7 @@ import Lean4Lean.Declaration
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Std.SMap
 import Lean4Lean.Verify.Environment.RecursorAlignment
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -772,25 +773,6 @@ nonrec theorem AddQuot.to_addQuot (H : AddQuot m₁ m₂ env₁ env₂) : env₁
 nonrec theorem AddQuot.le (H : AddQuot m₁ m₂ env₁ env₂) : env₁ ≤ env₂ :=
   open AddQuot1 in (le <| le <| le <| le fun _ _ h => h.2 ▸ VEnv.addDefEq_le) _ _ H
 
-theorem VInductBlock.install_le
-    (H : VInductBlock.install env block = some env') : env ≤ env' := by
-  unfold VInductBlock.install at H
-  cases htypes : env.addConstVals block.types with
-  | none => simp [htypes] at H
-  | some envTypes =>
-    cases hctors : envTypes.addConstVals block.ctors with
-    | none => simp [htypes, hctors] at H
-    | some envCtors =>
-      cases hrecursors : (envCtors.addProjections block.projections).addConstVals
-          block.recursors with
-      | none => simp [htypes, hctors, hrecursors] at H
-      | some envRecursors =>
-        simp [htypes, hctors, hrecursors] at H
-        subst env'
-        exact (VEnv.addConstVals_le htypes).trans <|
-          (VEnv.addConstVals_le hctors).trans <|
-            VEnv.addProjections_le.trans <|
-              (VEnv.addConstVals_le hrecursors).trans VEnv.addDefEqRules_le
 
 /-- Exact production metadata for one constructor in an abstract inductive
 family installed by the current declaration.  This prevents a flat constant

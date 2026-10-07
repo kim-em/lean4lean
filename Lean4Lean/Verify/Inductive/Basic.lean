@@ -3,6 +3,7 @@ import Init.Data.List.Sublist
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Verify.Environment.Extension
 import Lean4Lean.Verify.TypeChecker
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 namespace Lean4Lean
 
@@ -128,17 +129,6 @@ theorem Lookup.append_zero (newer : List VExpr) (domain : VExpr)
     simpa [VExpr.liftN_succ, Nat.add_assoc] using
       (Lookup.succ (A := head) ih)
 
-theorem VExpr.getAppFnArgs_mkApps
-    (fn : VExpr) (args : List VExpr) :
-    (VExpr.mkApps fn args).getAppFnArgs =
-      let (head, prior) := fn.getAppFnArgs
-      (head, prior ++ args) := by
-  induction args generalizing fn with
-  | nil => simp [VExpr.mkApps]
-  | cons arg args ih =>
-      rw [show VExpr.mkApps fn (arg :: args) =
-        VExpr.mkApps (.app fn arg) args from rfl, ih]
-      simp [List.append_assoc]
 
 /-- Rebuilding an expression from its application head and left-to-right
 argument list is exact. -/

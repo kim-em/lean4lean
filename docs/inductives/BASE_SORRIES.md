@@ -506,16 +506,11 @@ verified pipeline calls it).
 
 ### Notes for the next session
 
-* `Theory/Typing/NativeIotaSoundness.lean` imports two Verify modules
-  (`Verify.Inductive.Nested.RecursorProvenance`,
-  `Verify.Inductive.Nested.AssemblyNativeWhnf`); it is the only Theory file
-  that does. There is no import cycle. Follow-up: move the lemmas it uses into
-  Theory (`restoredFamilyHead_spec`, `restored_iota_shape`,
-  `restoredConstructorShape`, `containerConstructors`,
-  `Restoration.expr_wrapLams_eq`, `expr_wrapForalls`, `expr_liftN`,
-  `expr_recursorMajor_source`, `expr_recursorMajor_auxiliary`,
-  `find?_of_nodup`, `declaration_ctor_mem`, `vars_eq_bvarRange`,
-  `vars_map_liftN`).
+* Done (2026-10-07): `Theory/Typing/NativeIotaSoundness.lean` no longer imports Verify. The
+  restoration and recursor-shape lemmas it uses were moved, with their proofs, into
+  `Theory/Inductive/NativeIotaRestoration.lean`; the Verify files now import it. No
+  `Lean4Lean.Theory.*` module imports a `Lean4Lean.Verify.*` module, directly or transitively
+  (checked by an import walk over every Theory module).
 * `NativeIotaPattern.sound` uses `VIotaRuleShape.iota_of_args`, a
   strengthening-free variant of `VIotaRuleShape.iota` (which still takes
   `VEnv.Strengthening` for its Verify callers).
