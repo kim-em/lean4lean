@@ -109,7 +109,7 @@ theorem WF'.constList {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
     | induct _ h =>
       cases h with
       | intro _ _ _ hinst => exact hL.install hinst
-  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨L, hL⟩ := ih
     exact ⟨L, hL.of_constants (VEnv.addProjections_constants _ _)⟩

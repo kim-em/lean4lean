@@ -199,15 +199,22 @@ theorem generic_rule (H : env.WF) {schema : CaseSchema} (hreg : env.eliminators 
   ⟨_, .inr (.inr (.inr ⟨key, schema, hreg, owner, rules, df, hgen, hdf, rfl⟩)), rfl, rfl,
     generic_ruleSyntax H hreg hgen hdf⟩
 
-/-! ## Corollaries through the `SchemaStructCompat` stub
+/-! ## Corollaries for well-formed environments
 
-These discharge `SchemaStructCompat` by `VEnv.WF.schemaStructCompat`, which currently depends on
-the marked `sorry` stub `VEnv.WF'.schemaStructCompat` (to be replaced by the specification fix of
-`VEnv.WF'.inductEliminators`). The theorems above take the hypothesis explicitly and are
-sorry-free. -/
+These discharge `SchemaStructCompat` by `VEnv.WF.schemaStructCompat`
+(`Theory/Typing/SchemaStructCompat.lean`, a consequence of the premise `schema.StructCompat env`
+of `VEnv.WF'.inductEliminators`, decision D10). -/
 
 theorem envSig_coherent_of_wf (H : env.WF) : @SemSig.Coherent (envSig env) :=
   envSig_coherent H H.schemaStructCompat
+
+theorem ctor_of_struct_family_of_wf (H : env.WF) (hproj : env.projections s info)
+    (hc : IsCtor env c) (hf : ctorFamily env c = some s) : c = info.ctorName :=
+  ctor_of_struct_family H H.schemaStructCompat hproj hc hf
+
+theorem envSig_structFacts_of_wf (H : env.WF) (hproj : env.projections s info)
+    (hsem : FamTypeSem env s info) : letI := envSig env; SemSig.StructFacts env s info :=
+  envSig_structFacts H H.schemaStructCompat hproj hsem
 
 theorem envSig_envFactsIn_of_wf (H : env.WF) {E : VEnv} (hle : E ≤ env)
     (hsem : ∀ {s info}, E.projections s info → FamTypeSem env s info) :

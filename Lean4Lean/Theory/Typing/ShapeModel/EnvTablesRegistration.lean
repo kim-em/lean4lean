@@ -383,7 +383,7 @@ theorem VEnv.WF'.tables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
       | intro _ hcompile hblock hinstall =>
         obtain ⟨T', hext, hT'⟩ := hT.install henv hcompile hblock hinstall
         exact ⟨T', hT', hq' hext.quot (by simp)⟩
-  | inductEliminators hbase _ hle hcert _ hconsts _ _ ih =>
+  | inductEliminators hbase _ hle hcert _ hconsts _ _ _ ih =>
     obtain ⟨T, hT, hq⟩ := ih
     obtain ⟨hext, hT'⟩ := hT.eliminator ⟨_, hbase⟩ hle hcert hconsts.1 hconsts.2.1
     exact ⟨_, hT', fun h => hext.quot (hq h)⟩
