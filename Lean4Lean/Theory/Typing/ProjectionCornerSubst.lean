@@ -195,5 +195,13 @@ theorem walk_binder {T₀ : VExpr} {ds : List VExpr} {r : VExpr} {args : List VE
   · rw [instantiateProjectionParameters_wrapForalls_long _ _ _ hb₀ rfl _ (by omega)] at hwalk
     cases hwalk
 
+theorem instOuter_app_bvar2_bvar0 (ps : List VExpr) (a b c : VExpr) :
+    (VExpr.app (.bvar 2) (.bvar 0)).instOuter (ps ++ [a] ++ [b] ++ [c]) = .app a c := by
+  rw [instOuter_eq_subst]
+  simp only [subst_app, subst_bvar,
+    Subst.ofList_lt _ (show 2 < (ps ++ [a] ++ [b] ++ [c]).length by simp),
+    Subst.ofList_lt _ (show 0 < (ps ++ [a] ++ [b] ++ [c]).length by simp)]
+  congr 1 <;> simp [List.getElem_append_right]
+
 end VExpr
 end Lean4Lean
