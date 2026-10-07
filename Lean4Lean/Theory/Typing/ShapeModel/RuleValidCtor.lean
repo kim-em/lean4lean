@@ -63,6 +63,42 @@ theorem FamSem.eval_eq (h₁ : FamSem env I l₁ n₁) (h₂ : FamSem env I l₂
   rw [VExpr.instL_foldr_forallE] at this
   exact Interp.nestPi_sort_inv this
 
+/-- A telescope shape ending in a sort that approximates a telescope ending in a sort has the
+same number of binders. -/
+theorem Interp.nestPi_sort_len {ps : List (TShape × TShape)} {Ds : List VExpr}
+    (H : Interp env ρ (nestPi ps (TShape.sort r)) (Ds.foldr .forallE (.sort l))) :
+    ps.length = Ds.length := by
+  induction ps generalizing ρ Ds with
+  | nil =>
+    cases Ds with
+    | nil => rfl
+    | cons D Ds => exact (Interp.sort_not_forallE H).elim
+  | cons p ps ih =>
+    cases Ds with
+    | nil => exact absurd H.le_sort TShape.forallE_not_le_sort
+    | cons D Ds => simp [ih (Interp.pi_inv H).2]
+
+/-- A family with a semantic header of `n` binders is applied to `n` arguments in a well-typed
+application of sort type. -/
+theorem famSem_args_length (hcl : ConstClosed env) (hsem : FamSem env I l n)
+    (W : Valuation.Fits env Γ₀ Γ ρ)
+    (hTy : StrongSound env Γ (VExpr.mkApps (.const I ls) args) (.sort v)) : args.length = n := by
+  have hTy' : StrongSound env Γ (VExpr.mkApps (.const I ls) args.reverse.reverse) (.sort v) := by
+    rwa [List.reverse_reverse]
+  obtain ⟨ci, u, hci, hls, -⟩ := Spine.constInfo hTy'
+  obtain ⟨ciI, Dsf, hsc, hDsf, hfamT⟩ := hsem
+  cases hci.symm.trans hsc
+  obtain ⟨qs, -, hq2, -, hq4⟩ := Spine.typed W hTy' hci
+    (xs := args.reverse.map fun _ => TShape.bot)
+    (List.forall₂_of_getElem (by simp) fun i _ _ => by simp only [List.getElem_map]; exact .bot)
+    (R := TShape.sort v.eval) Interp.sort'
+  have hq4' := (hfamT ls hls _).1 ((Interp.closed_iff (hcl hci).instL).1 hq4)
+  rw [VExpr.instL_foldr_forallE] at hq4'
+  have hlq := Interp.nestPi_sort_len hq4'
+  have h2 := hq2.length_eq
+  simp only [List.length_reverse, List.length_map] at hlq h2
+  omega
+
 /-! ### Realization of rigid family applications -/
 
 /-- A rigid family applied to arguments and typed at a sort is approximated by a rigid shape with
@@ -70,7 +106,7 @@ prescribed (approximating) arguments and constructor table; the sort of the appl
 family's sort at the levels. -/
 theorem Rigid.realize (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ ρ)
     (hnc : SemSig.ctor I = none) (hnr : ∀ r, SemSig.rules r → r.head ≠ .const I)
-    (hl : SemSig.famLevel I = some l) (hsem : FamSem env I l args.length)
+    (hl : SemSig.famLevel I = some l) (hsem : FamSem env I l n)
     (hTy : StrongSound env Γ (VExpr.mkApps (.const I ls) args) (.sort v))
     {as : List (WShape N)} (hargs : List.Forall₂ (fun x A => Interp env ρ x.T A) as args)
     {cts : List (Name × WShape N)} (hnames : cts.map (·.1) = SemSig.famCtors I)
@@ -78,6 +114,8 @@ theorem Rigid.realize (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
     (hcts : WShape.CtsTypes cts) :
     (l.inst ls).eval = v.eval ∧
       Interp env ρ (WShape.rigid I (ls.map (·.eval)) as cts).T (VExpr.mkApps (.const I ls) args) := by
+  have hn := famSem_args_length hcl hsem W hTy
+  subst hn
   have hTy' : StrongSound env Γ (VExpr.mkApps (.const I ls) args.reverse.reverse) (.sort v) := by
     rwa [List.reverse_reverse]
   obtain ⟨ci, u, hci, hls, -⟩ := Spine.constInfo hTy'
@@ -133,7 +171,7 @@ theorem Ctor.realize0 (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
     (hct : cv.type = VExpr.wrapForalls doms (VExpr.mkApps (.const I (VLevel.params cv.uvars)) argsI))
     (hdl : doms.length = nf)
     (hnc : SemSig.ctor I = none) (hnr : ∀ r, SemSig.rules r → r.head ≠ .const I)
-    (hl : SemSig.famLevel I = some l) (hsem : FamSem env I l argsI.length)
+    (hl : SemSig.famLevel I = some l) (hsem : FamSem env I l n)
     (hmem : c ∈ SemSig.famCtors I)
     (hfc : ∀ c' ∈ SemSig.famCtors I, ∃ ci k, env.constants c' = some ci ∧ SemSig.ctor c' = some k)
     (hTy : StrongSound env Γ (VExpr.mkApps (.const c ls) args) T)
@@ -195,7 +233,7 @@ theorem Ctor.realize0 (hcl : ConstClosed env) (W : Valuation.Fits env Γ₀ Γ �
     · obtain ⟨ci', k', h1, h2⟩ := hfc c' hc'
       refine ⟨ci', k', TShape.bot, h1, h2, .bot, ?_⟩
       simp only [if_neg he]; exact TShape.bot_le'
-  obtain ⟨hlev, hRI⟩ := Rigid.realize hcl W' hnc hnr hl (by simpa using hsem) hB (as := asI)
+  obtain ⟨hlev, hRI⟩ := Rigid.realize hcl W' hnc hnr hl hsem hB (as := asI)
     (List.forall₂_of_getElem (by simp [asI]) fun i _ _ => by simp only [asI, List.getElem_map]; exact .bot)
     (by simp [cts, List.map_map, Function.comp_def]) hent hcts
   have hRT : Interp env ρ (WShape.rigid I (ls.map (·.eval)) asI cts).T T :=
