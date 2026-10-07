@@ -218,42 +218,74 @@ theorem forall₂_append_single' {R : α → β → Prop} (H : List.Forall₂ R 
   | nil => exact .cons h .nil
   | cons h' _ ih => exact .cons h' ih
 
-/-- **The spine lemma**. -/
-theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.const c ls) args)
+/-- The type `Th` of a head: a constant at its levels, or a registered eliminator at its
+levels. -/
+def HeadTy (env : VEnv) (U : Nat) (hd Th : VExpr) : Prop :=
+  (∃ c ls ci, hd = .const c ls ∧ env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧
+    Th = ci.type.instL ls) ∨
+  (∃ (b : Name) (ls : List VLevel) (schema : InductiveSignature.CaseSchema)
+    (owner : Fin schema.signature.families.size) (type : VExpr), hd = .elim b owner.val ls ∧
+    env.eliminators b schema ∧ schema.genericType owner = some type ∧ type.Closed ∧
+    (∀ l ∈ ls, l.WF U) ∧ Th = type.instL ls)
+
+/-- **The spine lemma**, for constant and eliminator heads. -/
+theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args)
+    (hhd : (∃ c ls, hd = .const c ls) ∨ ∃ b o ls, hd = .elim b o ls)
     {σ S} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S)
     (Ks : List (List Ob)) (hKs : List.Forall₂ (fun K a => ∀ x ∈ K, Obs' σ S a x) Ks args)
     (τs : List Ob) (hτs : ∀ τ ∈ τs, Obs' σ S T τ) :
-    ∃ ci info, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧
-      (∃ u, HTS env U Δ [] (ci.type.instL ls) (.sort u) ∧
-        SD env U Δ [] (ci.type.instL ls) (ci.type.instL ls) (.sort u)) ∧
+    ∃ Th info, HeadTy env U hd Th ∧ Th.ClosedN ∧
+      (∃ u, HTS env U Δ [] Th (.sort u) ∧ SD env U Δ [] Th Th (.sort u)) ∧
       List.Forall₂ (KeyData env U Δ Γ σ S) info args ∧
       List.Forall₂ (fun K (ka : Key × VExpr) => ∀ x ∈ K, x ∈ ka.1.2.2) Ks info ∧
-      (∀ o, TypedOb env U Δ o τs → ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (ci.type.instL ls) τ) ∧
+      (∀ o, TypedOb env U Δ o τs → ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (Th) τ) ∧
         TypedOb env U Δ (wrap (info.map (·.1)) o) τ₀) ∧
-      (∀ x, Obs' .id .empty (ci.type.instL ls) (piCodChain (info.map (·.1)) x) →
+      (∀ x, Obs' .id .empty (Th) (piCodChain (info.map (·.1)) x) →
         ∃ x', Obs' σ S T x' ∧ x' ≼ x) ∧
       (∀ pre ka post, info = pre ++ ka :: post → ∀ x,
-        Obs' .id .empty (ci.type.instL ls) (piCodChain (pre.map (·.1)) (.piDomOb x)) →
+        Obs' .id .empty (Th) (piCodChain (pre.map (·.1)) (.piDomOb x)) →
         ∃ x', Obs' σ S ka.2 x' ∧ x' ≼ x) := by
   induction H generalizing args Ks τs with
-  | bvar => exact absurd he.symm mkApps_const_ne_bvar
-  | other h => exact absurd he (h _ _ _)
-  | elim => rcases mkApps_const_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
-  | lam => exact absurd he.symm mkApps_const_ne_lam
-  | forallE => exact absurd he.symm mkApps_const_ne_forallE
+  | bvar =>
+    rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
+    · exact absurd he.symm mkApps_const_ne_bvar
+    · exact absurd he.symm mkApps_elim_ne_bvar
+  | other h h' =>
+    rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
+    · exact absurd he (h _ _ _)
+    · exact absurd he (h' _ _ _ _)
+  | lam =>
+    rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
+    · exact absurd he.symm mkApps_const_ne_lam
+    · exact absurd he.symm mkApps_elim_ne_lam
+  | forallE =>
+    rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩
+    · exact absurd he.symm mkApps_const_ne_forallE
+    · exact absurd he.symm mkApps_elim_ne_forallE
   | const hci hls _ hT hsd =>
-    rcases mkApps_const_inv he with ⟨rfl, he'⟩ | ⟨_, _, _, he'⟩
-    · cases he'
+    rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨_, _, _, he'⟩
+    · subst he'
       cases hKs
-      have hcl := ((henv.closedC hci).instL (ls := ls))
-      refine ⟨_, [], hci, hls, ⟨_, hT, hsd⟩, .nil, .nil, fun o ho => ⟨τs, fun τ hτ =>
-        (Obs.closed_iff_id hcl).1 (hτs τ hτ), ho⟩, fun x hx => ⟨x, (Obs.closed_iff_id hcl).2 hx,
-        .refl⟩, fun pre ka post h => ?_⟩
+      refine ⟨_, [], .inl ⟨_, _, _, rfl, hci, hls, rfl⟩, (henv.closedC hci).instL, ⟨_, hT, hsd⟩,
+        .nil, .nil, fun o ho => ⟨τs, fun τ hτ =>
+          (Obs.closed_iff_id (henv.closedC hci).instL).1 (hτs τ hτ), ho⟩,
+        fun x hx => ⟨x, (Obs.closed_iff_id (henv.closedC hci).instL).2 hx, .refl⟩,
+        fun pre ka post h => ?_⟩
+      cases pre <;> cases h
+    · cases he'
+  | elim hb htype hcl0 hls hT hsd =>
+    rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨_, _, _, he'⟩
+    · subst he'
+      cases hKs
+      refine ⟨_, [], .inr ⟨_, _, _, _, _, rfl, hb, htype, hcl0, hls, rfl⟩, hcl0.instL,
+        ⟨_, hT, hsd⟩, .nil, .nil,
+        fun o ho => ⟨τs, fun τ hτ => (Obs.closed_iff_id hcl0.instL).1 (hτs τ hτ), ho⟩,
+        fun x hx => ⟨x, (Obs.closed_iff_id hcl0.instL).2 hx, .refl⟩, fun pre ka post h => ?_⟩
       cases pre <;> cases h
     · cases he'
   | @app _ A u B v f a hA hB _ _ hsa ihf _ =>
-    rcases mkApps_const_inv he with ⟨_, he'⟩ | ⟨as, a', rfl, he'⟩
-    · cases he'
+    rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨as, a', rfl, he'⟩
+    · rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> cases he'
     injection he' with hf ha; subst ha
     obtain ⟨Ks₀, Ka, rfl, hKs₀, hKa⟩ := forall₂_split hKs
     -- observation keys for the argument, large enough for the type observations
@@ -282,10 +314,11 @@ theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.cons
       hsa.1.defeq.hasType.1.substDF henv W.wf hΔ W
     have hc := TypedElCls.of_hasType haσ
     obtain ⟨τPi, hτPi, hwrap⟩ := pi_list hc ElCls.self hτk hkk hKτ
-    obtain ⟨ci, info, hci, hls, hT, hinfo, hKsi, P1, P2, dP2⟩ := ihf hf W tv Ks₀ hKs₀ τPi hτPi
+    obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ :=
+      ihf hf W tv Ks₀ hKs₀ τPi hτPi
     let k : Key := (TyCls env U Δ (A.subst σ), ElCls env U Δ (TyCls env U Δ (A.subst σ))
       (a.subst σ), K)
-    refine ⟨ci, info ++ [(k, A)], hci, hls, hT, forall₂_append_single' hinfo
+    refine ⟨Th, info ++ [(k, A)], hTh, hcl, hT, forall₂_append_single' hinfo
       ⟨rfl, hK, rfl, by assumption, hsa⟩,
       forall₂_append_single' hKsi (fun x hx => List.mem_append_left _ hx), fun o ho => ?_,
       fun x hx => ?_, fun pre ka post h => ?_⟩
@@ -324,12 +357,36 @@ theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.cons
   | conv _ hAB ih =>
     have hs := SD.sub henv hΔ hAB W tv
     obtain ⟨τs', h1, h2⟩ := exists_list_cover fun τ hτ => hs.2 τ (hτs τ hτ)
-    obtain ⟨ci, info, hci, hls, hT, hinfo, hKsi, P1, P2, dP2⟩ := ih he W tv Ks hKs τs' h1
-    refine ⟨ci, info, hci, hls, hT, hinfo, hKsi, fun o ho => P1 o (ho.strengthen h2),
+    obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ := ih he W tv Ks hKs τs' h1
+    refine ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, fun o ho => P1 o (ho.strengthen h2),
       fun x hx => ?_, dP2⟩
     obtain ⟨x₁, hx₁, l₁⟩ := P2 x hx
     obtain ⟨x₂, hx₂, l₂⟩ := hs.1 x₁ hx₁
     exact ⟨x₂, hx₂, l₂.trans l₁⟩
+
+/-- **The spine lemma** for constant heads. -/
+theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.const c ls) args)
+    {σ S} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S)
+    (Ks : List (List Ob)) (hKs : List.Forall₂ (fun K a => ∀ x ∈ K, Obs' σ S a x) Ks args)
+    (τs : List Ob) (hτs : ∀ τ ∈ τs, Obs' σ S T τ) :
+    ∃ ci info, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧
+      (∃ u, HTS env U Δ [] (ci.type.instL ls) (.sort u) ∧
+        SD env U Δ [] (ci.type.instL ls) (ci.type.instL ls) (.sort u)) ∧
+      List.Forall₂ (KeyData env U Δ Γ σ S) info args ∧
+      List.Forall₂ (fun K (ka : Key × VExpr) => ∀ x ∈ K, x ∈ ka.1.2.2) Ks info ∧
+      (∀ o, TypedOb env U Δ o τs → ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (ci.type.instL ls) τ) ∧
+        TypedOb env U Δ (wrap (info.map (·.1)) o) τ₀) ∧
+      (∀ x, Obs' .id .empty (ci.type.instL ls) (piCodChain (info.map (·.1)) x) →
+        ∃ x', Obs' σ S T x' ∧ x' ≼ x) ∧
+      (∀ pre ka post, info = pre ++ ka :: post → ∀ x,
+        Obs' .id .empty (ci.type.instL ls) (piCodChain (pre.map (·.1)) (.piDomOb x)) →
+        ∃ x', Obs' σ S ka.2 x' ∧ x' ≼ x) := by
+  obtain ⟨Th, info, hTh, -, hT, hinfo, hKsi, P1, P2, dP2⟩ :=
+    H.spineH henv hΔ he (.inl ⟨c, ls, rfl⟩) W tv Ks hKs τs hτs
+  rcases hTh with ⟨c', ls', ci, e, hci, hls, rfl⟩ | ⟨_, _, _, _, _, e, -⟩
+  · cases e
+    exact ⟨ci, info, hci, hls, hT, hinfo, hKsi, P1, P2, dP2⟩
+  · cases e
 
 /-- **The spine lemma through lambdas**: for a lambda telescope typed at `P`, typed keys along
 its domains, and a chain of `app` observations at those keys typed at observations of `P`,
