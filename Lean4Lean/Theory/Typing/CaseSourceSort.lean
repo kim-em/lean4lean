@@ -249,9 +249,10 @@ private theorem ContainerSpecialization.directFamily_resultLevel
 /-- A restored case family's native head has a telescope ending in the
 specialized source sort. Both original families and certified containers are
 justified by their actual native header constants. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.family_head_type
-    {s : InductiveSignature} {g : Instance s}
-    (hdata : CompilationData base source expanded s g auxiliaries sourceBlock)
+theorem _root_.Lean4Lean.InductiveSignature.CaseCompilationData.family_head_type
+    {s : InductiveSignature}
+    (hdata : CaseCompilationData base source expanded s auxiliaries sourceBlock)
+    (hdisj : RecursorNamesFresh base source expanded auxiliaries)
     (hprior : CertifiedSpecializations base auxiliaries)
     (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) (hle : base ≤ env)
     (hconstants : ∀ family ∈ source.types,
@@ -287,7 +288,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.family_head_type
       (hbody.mono htypesLE)
     have htyped := VEnv.constant_normalized_header henv hΓ (hconstants family hfamily)
       hheader hlevels (hlen.trans (hsourceUvars.trans huvars.symm))
-    rw [hname, hdata.headName_source hfamilyName, hdata.headLevels_source hfamilyName]
+    rw [hname, hdata.headName_source hdisj hfamilyName, hdata.headLevels_source hfamilyName]
     refine ⟨_, _, htyped, ?_⟩
     exact VLevel.inst_congr_l (by simpa only [declarationFamily] using hlevel)
   · obtain ⟨a, ha, hfamily⟩ := Lean4Lean.List.Forall₂.forall_exists_r
@@ -339,9 +340,9 @@ theorem Certified.family_head_type {schema : CaseSchema}
         (.const (schema.restoration.headName schema.signature.families[owner].name)
           (schema.restoration.headLevels schema.signature.families[owner].name levels))
         (VExpr.wrapForalls domains (.sort level)) ∧ level ≈ schema.sourceLevel owner levels := by
-  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hr, _⟩ := H
+  obtain ⟨expanded, auxiliaries, hdata, hprior, hr, _, hdisj⟩ := H
   rw [hr]
-  exact hdata.family_head_type hprior henv hΓ hle hconstants owner hlevels hlen
+  exact hdata.family_head_type hdisj hprior henv hΓ hle hconstants owner hlevels hlen
 
 end CaseSchema
 end Lean4Lean.InductiveSignature
@@ -382,7 +383,7 @@ theorem HasType.caseMajor_source_sort (henv : env.WF) (hΓ : OnCtx Γ (env.IsTyp
   have hsource : ∀ family ∈ source.types,
       env.constants family.name = some family.toVConstant := by
     intro family hfamily
-    obtain ⟨expanded, g, auxiliaries, hdata, _⟩ := hcert
+    obtain ⟨expanded, auxiliaries, hdata, _⟩ := hcert
     apply hconstants family.toVConstVal
     apply List.mem_append_left
     rw [hdata.types]

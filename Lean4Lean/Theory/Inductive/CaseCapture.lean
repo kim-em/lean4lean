@@ -13,7 +13,7 @@ which are the same parameters retained by the normalized signature. -/
 theorem Certified.restoration_nparams {schema : CaseSchema}
     (H : schema.Certified base source block) :
     ∀ head ∈ schema.restoration.heads, head.nparams = schema.signature.params.length := by
-  rcases H with ⟨expanded, g, auxiliaries, hdata, _, hr, _⟩
+  rcases H with ⟨expanded, auxiliaries, hdata, _, hr, _⟩
   intro head hhead
   rw [hr] at hhead
   obtain ⟨a, _, hhead⟩ := List.mem_flatMap.mp hhead
@@ -42,7 +42,7 @@ theorem Certified.view_constructor_indices {schema : CaseSchema}
     (index : Fin (schema.view owner).constructors.size) :
     (schema.view owner).constructors[index].indices.length =
       schema.signature.families[owner].indices.length := by
-  rcases H with ⟨expanded, g, auxiliaries, hdata, _, _, _⟩
+  rcases H with ⟨expanded, auxiliaries, hdata, _, _, _⟩
   obtain ⟨ctor, hctor, howner, hc⟩ := view_constructor_origin index
   obtain ⟨i, hi, hci⟩ := List.mem_iff_getElem.mp hctor
   have hi' : i < schema.signature.constructors.size := by simpa using hi

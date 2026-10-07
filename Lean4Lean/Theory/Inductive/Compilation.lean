@@ -147,17 +147,18 @@ theorem Models.restores_empty {s : InductiveSignature} {env envTypes : VEnv}
     · exact Lean4Lean.List.Forall₂.imp (fun n t hc =>
         ⟨hc.1, hc.2.1, n.type, Restoration.expr_empty _, hc.2.2⟩) hhead
 
-/-- A single expansion witness fixes formation and generated artifacts.
-Every auxiliary family is covered, including semantically unused auxiliaries
-introduced by erased concrete occurrences. -/
-structure CompilationData (env : VEnv) (source expanded : VInductDecl)
-    (s : InductiveSignature) (g : Instance s)
-    (auxiliaries : List ContainerSpecialization) (block : VInductBlock) : Prop where
+/-- The part of a finite compilation that fixes an abstract case schema: formation of the
+source and expanded declarations, the normalized model, the restoration correspondence and the
+installed source constants. It omits everything about the generated native recursors (their
+names, freshness, types, equations, elimination universe and the typing of their induction
+hypotheses), which the case eliminator rules `elimDF`/`elimIota` do not read. It is therefore
+available at the constructor boundary, before any generated recursor has been checked. -/
+structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
+    (s : InductiveSignature) (auxiliaries : List ContainerSpecialization)
+    (block : VInductBlock) : Prop where
   sourceWF : VInductDecl.SourceWF env source
   sourceParameters : VInductDecl.SourceParameterWF env source
   expandedWF : VInductDecl.SourceWF env expanded
-  /-- Lowering preserves every original family header literally; only new
-  auxiliary headers may follow this prefix. -/
   headerPrefix : source.typeConstants = expanded.typeConstants.take source.types.length
   expandedFormation : VInductDecl.FormationWF env expanded
   model : s.Models env expanded
@@ -172,6 +173,30 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
     List.Forall₂
       (RestoresFamily (compilationRestoration source auxiliaries) envTypes source.uvars)
       s.declaration.types (source.types ++ direct)
+  /-- Well-formed family applications of the normalized signature, in the expanded
+  constructor environment with its projection entries. -/
+  familyTypesWF : ∃ envExpandedTypes envExpandedCtors,
+    env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
+    envExpandedTypes.addConstVals expanded.constructorConstants = some envExpandedCtors ∧
+    s.FamilyTypesWF (envExpandedCtors.addProjections expanded.projectionEntries) expanded.uvars
+  types : block.types = source.typeConstants
+  ctors : block.ctors = source.constructorConstants
+  projections : block.projections = source.projectionEntries
+
+/-- The recursor names reserved by the restoration of a compilation (one per auxiliary family)
+are fresh in the base environment and are not names of the source or expanded declaration. -/
+def RecursorNamesFresh (env : VEnv) (source expanded : VInductDecl)
+    (auxiliaries : List ContainerSpecialization) : Prop :=
+  ∀ n ∈ (compilationRestoration source auxiliaries).recursors.map Prod.fst,
+    env.constants n = none ∧ n ∉ source.sourceNames ∧ n ∉ expanded.sourceNames
+
+/-- A single expansion witness fixes formation and generated artifacts.
+Every auxiliary family is covered, including semantically unused auxiliaries
+introduced by erased concrete occurrences. -/
+structure CompilationData (env : VEnv) (source expanded : VInductDecl)
+    (s : InductiveSignature) (g : Instance s)
+    (auxiliaries : List ContainerSpecialization) (block : VInductBlock) : Prop
+    extends CaseCompilationData env source expanded s auxiliaries block where
   admissible : ∃ envExpandedTypes,
     env.addConstVals expanded.typeConstants = some envExpandedTypes ∧
     g.Admissible envExpandedTypes
@@ -184,14 +209,12 @@ structure CompilationData (env : VEnv) (source expanded : VInductDecl)
   generatedNames : ((expanded.typeConstants ++ expanded.constructorConstants ++
     g.recursors).map (·.name)).Nodup
   recursorsFresh : ∀ recursor ∈ g.recursors, env.constants recursor.name = none
-  types : block.types = source.typeConstants
-  ctors : block.ctors = source.constructorConstants
-  projections : block.projections = source.projectionEntries
   recursors : g.restoredRecursors (compilationRestoration source auxiliaries) =
     some block.recursors
   equations : g.restoredEquations (compilationRestoration source auxiliaries) =
     some block.rules
   names : ((block.types ++ block.ctors ++ block.recursors).map (·.name)).Nodup
+
 
 end InductiveSignature
 
@@ -281,6 +304,8 @@ theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}
     admissible := ⟨envTypes, hadded, Hadmissible⟩
     recursiveTypesWF := let ⟨envCtors, hc, hwf, hfam⟩ := Hrec
       ⟨envTypes, envCtors, hadded, hc, hwf, hfam⟩
+    familyTypesWF := let ⟨envCtors, hc, _, hfam⟩ := Hrec
+      ⟨envTypes, envCtors, hadded, hc, hfam⟩
     recursorNames := hrecNames
     generatedNames := ?_
     recursorsFresh := ?_

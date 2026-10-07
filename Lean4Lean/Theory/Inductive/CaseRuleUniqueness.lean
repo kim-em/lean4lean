@@ -80,9 +80,38 @@ theorem CompilationData.headName_source
       rw [hn] at hrec
       exact (H.source_recursors_disjoint hname hrec).elim
 
-theorem CompilationData.headName_auxiliary_constructor
-    {s : InductiveSignature} {g : Instance s}
-    (H : CompilationData env source expanded s g auxiliaries block)
+theorem CaseCompilationData.headName_source
+    {s : InductiveSignature}
+    (H : CaseCompilationData env source expanded s auxiliaries block)
+    (hdisj : RecursorNamesFresh env source expanded auxiliaries)
+    (hname : name ∈ familyNames source.types) :
+    (compilationRestoration source auxiliaries).headName name = name := by
+  unfold Restoration.headName
+  cases hf : (compilationRestoration source auxiliaries).heads.find?
+      (fun h => h.auxiliary == name) with
+  | some found =>
+    have hm := List.mem_of_find?_eq_some hf
+    have hn : found.auxiliary = name := by simpa using List.find?_some hf
+    exact (H.source_head_disjoint hname (List.mem_map.mpr ⟨found, hm, hn⟩)).elim
+  | none =>
+    unfold Restoration.recursorName
+    cases hr : (compilationRestoration source auxiliaries).recursors.find?
+        (fun p => p.1 == name) with
+    | none => rfl
+    | some pair =>
+      have hm := List.mem_of_find?_eq_some hr
+      have hn : pair.1 = name := by simpa using List.find?_some hr
+      have hs : pair.1 ∈ source.sourceNames := by
+        rw [hn]
+        have := (familyNames_perm source.types).mem_iff.mp hname
+        simpa only [VInductDecl.sourceNames, VInductDecl.typeConstants,
+          VInductDecl.constructorConstants, List.map_map, List.map_flatMap, Function.comp_def]
+          using this
+      exact ((hdisj _ (List.mem_map.mpr ⟨pair, hm, rfl⟩)).2.1 hs).elim
+
+theorem CaseCompilationData.headName_auxiliary_constructor
+    {s : InductiveSignature}
+    (H : CaseCompilationData env source expanded s auxiliaries block)
     (ha : a ∈ auxiliaries) (hc : ctor ∈ a.source.ctors) :
     (compilationRestoration source auxiliaries).headName (a.constructorName ctor) = ctor.name := by
   apply Restoration.headName_of_mem H.restorationScoped (spec := {
@@ -156,9 +185,9 @@ theorem view_constructor_names (schema : CaseSchema)
     simp [ho, hv]
 
 theorem directFamily_restored_constructor_names
-    {s : InductiveSignature} {g : Instance s}
+    {s : InductiveSignature}
     {params : List VExpr}
-    (H : CompilationData env source expanded s g auxiliaries block)
+    (H : CaseCompilationData env source expanded s auxiliaries block)
     (ha : a ∈ auxiliaries) (hd : a.directFamily U params = some direct) :
     direct.ctors.map (fun ctor => (compilationRestoration source auxiliaries).headName ctor.name) =
       a.source.ctors.map (·.name) := by
@@ -211,7 +240,7 @@ theorem Certified.constructor_names_nodup {schema : CaseSchema}
     (owner : Fin schema.signature.families.size) :
     ((schema.view owner).constructors.toList.map
       (fun ctor => schema.restoration.headName ctor.name)).Nodup := by
-  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hr, _⟩ := H
+  obtain ⟨expanded, auxiliaries, hdata, hprior, hr, _, hdisj⟩ := H
   obtain ⟨envTypes, direct, _, hdirect, _, hfamilies⟩ := hdata.correspondence
   obtain ⟨family, hfamily, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_l hfamilies _
     (schema.signature.declarationFamily_mem owner)
@@ -226,7 +255,7 @@ theorem Certified.constructor_names_nodup {schema : CaseSchema}
         family.ctors.map (·.name) := by
       apply List.map_congr_left
       intro ctor hc
-      apply hdata.headName_source
+      apply hdata.headName_source hdisj
       exact List.mem_flatMap.mpr ⟨family, hfamily, List.mem_cons_of_mem _
         (List.mem_map.mpr ⟨ctor, hc, rfl⟩)⟩
     rw [heq]

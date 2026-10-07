@@ -470,3 +470,10 @@ induction-hypothesis typing, none of which a case schema uses), or (D) the bespo
 of 5.1. Also needed for (A)/(C): typability of the restored case type of a structure (the premise
 of `elimDF`), which no existing lemma provides; `VEnv.corner_inhabit_sig`
 (Theory/Typing/ProjectionCornerSig.lean) is the eliminator-independent part of the corner.
+
+Decision (coordinator, 2026-10-07): option (C). Done: `CaseCompilationData` and
+`RecursorNamesFresh` in `Theory/Inductive/Compilation.lean`, `CompilationData extends
+CaseCompilationData`, `CaseSchema.Certified` uses the case part. The registration
+premise reused `CompilationData` by convenience; the eliminator rules depend only on
+the schema data the case-only certificate fixes, so this corrects the specification and
+weakens no theorem.

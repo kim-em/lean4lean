@@ -97,6 +97,17 @@ theorem CompiledInductive.ctor_result (H : CompiledInductive env source block) :
       exact ⟨_, h2⟩)
     (fun _ _ _ ih => ih) trivial (fun _ _ _ _ _ _ _ => trivial) H
 
+theorem InductiveSignature.CaseCompilationData.ctor_result
+    (hdata : InductiveSignature.CaseCompilationData env source expanded s auxiliaries block) :
+    ∀ type ∈ source.types, ∀ ctor ∈ type.ctors, ∃ ls,
+      ctor.type.forallResult.getAppFnArgs.1 = .const type.name ls := by
+  intro type htype ctor hc
+  obtain ⟨_, _, _, _, _, hraw⟩ := hdata.sourceParameters
+  obtain ⟨doms, result, heq, _, _, hhead⟩ := hraw type htype ctor hc
+  have h2 := hhead
+  rw [← VExpr.forallResult_of_head hhead, ← VExpr.forallResult_wrapForalls doms, ← heq] at h2
+  exact ⟨_, h2⟩
+
 theorem CompiledInductive.types_eq (H : CompiledInductive env source block) :
     block.types = source.typeConstants := by
   exact CompiledInductive.rec
@@ -149,9 +160,10 @@ theorem CertifiedSpecializations.container_ctor (H : CertifiedSpecializations en
 which then contains the restored constructor, or the family of a certified
 container constructor whose native equation is already installed in the
 base environment. -/
-theorem InductiveSignature.CompilationData.family_head_origin
-    {s : InductiveSignature} {g : s.Instance}
-    (hdata : InductiveSignature.CompilationData base source expanded s g auxiliaries block)
+theorem InductiveSignature.CaseCompilationData.family_head_origin
+    {s : InductiveSignature}
+    (hdata : InductiveSignature.CaseCompilationData base source expanded s auxiliaries block)
+    (hdisj : InductiveSignature.RecursorNamesFresh base source expanded auxiliaries)
     (hprior : CertifiedSpecializations base auxiliaries) (index : Fin s.constructors.size) :
     (∃ family ∈ source.types, s.families[s.constructors[index].owner].name = family.name ∧
       (InductiveSignature.compilationRestoration source auxiliaries).headName family.name =
@@ -178,8 +190,8 @@ theorem InductiveSignature.CompilationData.family_head_origin
     have hcn : fc.name ∈ familyNames source.types :=
       List.mem_flatMap.mpr ⟨family, hsrc, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨fc, hfc, rfl⟩)⟩
     have hcname : s.constructors[index].name = fc.name := hrelctor.1
-    refine ⟨family, hsrc, hname, hdata.headName_source hfn, fc, hfc, ?_⟩
-    rw [hcname]; exact hdata.headName_source hcn
+    refine ⟨family, hsrc, hname, hdata.headName_source hdisj hfn, fc, hfc, ?_⟩
+    rw [hcname]; exact hdata.headName_source hdisj hcn
   · right
     rw [hname]
     obtain ⟨a, ha, hdf⟩ := Lean4Lean.List.Forall₂.forall_exists_r
@@ -218,7 +230,7 @@ theorem InductiveSignature.CaseSchema.Certified.family_head_origin
       base.constants ctor.name = some ctor.toVConstant ∧
       ∃ ls, ctor.type.forallResult.getAppFnArgs.1 =
         .const (schema.restoration.headName schema.signature.families[owner].name) ls := by
-  obtain ⟨expanded, g, auxiliaries, hdata, hprior, hr, hnames⟩ := H
+  obtain ⟨expanded, auxiliaries, hdata, hprior, hr, hnames, hdisj⟩ := H
   obtain ⟨rules, hrules, hmem, _⟩ := hgen
   obtain ⟨index, _⟩ := equation_origin hrules hmem
   obtain ⟨ctor, hctor, hown, _⟩ := view_constructor_origin index
@@ -228,7 +240,7 @@ theorem InductiveSignature.CaseSchema.Certified.family_head_origin
     simpa only [original, Fin.getElem_fin, Array.getElem_toList] using hget
   have hown' : schema.signature.constructors[original].owner = owner := by rw [hoeq]; exact hown
   rw [hr, ← hown']
-  rcases hdata.family_head_origin hprior original with
+  rcases hdata.family_head_origin hdisj hprior original with
     ⟨family, hsrc, hfn, hhn, _⟩ | h
   · left
     rw [hfn, hhn, hnames]
@@ -475,7 +487,7 @@ private theorem ConstructorHistory.register {base env : VEnv}
   · intro k s hs owner rule hr
     rcases hs with ⟨rfl, rfl⟩ | hs
     · rcases hcert.case_constructor_origin hr with ⟨ctor, hc, hn⟩ | ⟨prior, hp, hpm⟩
-      · obtain ⟨expanded, g, auxiliaries, hdata, _⟩ := hcert
+      · obtain ⟨expanded, auxiliaries, hdata, _⟩ := hcert
         obtain ⟨types, ctors, ht, hct, _⟩ := hdata.sourceWF.2.2.2.2
         have hfresh := absent_of_le (VEnv.addConstVals_le ht)
           (VEnv.addConstVals_names_fresh hct ctor hc)
@@ -488,7 +500,7 @@ private theorem ConstructorHistory.register {base env : VEnv}
     · exact Henv.2.1 k s hs owner rule hr
   · intro k s hs name hn
     rcases hs with ⟨rfl, rfl⟩ | hs
-    · obtain ⟨expanded, g, auxiliaries, hdata, _, _, hnames⟩ := hcert
+    · obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := hcert
       rw [hnames] at hn
       obtain ⟨family, hfamily, rfl⟩ := List.mem_map.mp hn
       obtain ⟨types, ctors, ht, _⟩ := hdata.sourceWF.2.2.2.2
@@ -503,7 +515,7 @@ private theorem ConstructorHistory.register {base env : VEnv}
   · intro k s hs owner rule hr
     rcases hs with ⟨rfl, rfl⟩ | hs
     · rcases hcert.family_head_origin hr with horig | ⟨cctor, equation, hdefeq, hmaj, hconst, ls, hres⟩
-      · obtain ⟨expanded, g, auxiliaries, hdata, _, _, hnames⟩ := hcert
+      · obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := hcert
         rw [hnames] at horig
         obtain ⟨family, hfamily, hfn⟩ := List.mem_map.mp horig
         rw [← hfn]

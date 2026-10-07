@@ -193,7 +193,7 @@ theorem MatchedCaseStep.struct_major (henv : env.WF) (hcoh : env.EliminatorsCohe
   obtain ⟨block, schema, owner, hlookup, hgen⟩ := hm.source.generated
   obtain ⟨base, source, sblock, hbaseLe, hcert, hconst, hproj⟩ := hcoh block schema hlookup
   have hcert' := hcert
-  obtain ⟨expanded, g, aux, hdata, hprior, hres, hfam⟩ := hcert
+  obtain ⟨expanded, aux, hdata, hprior, hres, hfam, hdisj⟩ := hcert
   have hparams : ∀ h ∈ schema.restoration.heads, h.nparams ≤ schema.signature.params.length :=
     fun h hh => Nat.le_of_eq (hcert'.restoration_nparams h hh)
   obtain ⟨index, hname, hcount⟩ := hgen.ctor_shape hparams
@@ -218,11 +218,11 @@ theorem MatchedCaseStep.struct_major (henv : env.WF) (hcoh : env.EliminatorsCohe
       rw [hn]
       exact List.mem_flatMap.mpr ⟨type, htype, List.mem_cons_of_mem _ (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
     rcases hcount with ⟨_, hlen⟩ | ⟨spec, hfind, _⟩
-    · rw [hdata.headName_source hsourceName, hn] at hctorEq
+    · rw [hdata.headName_source hdisj hsourceName, hn] at hctorEq
       have hmem : ctor ∈ source.constructorConstants := List.mem_flatMap.mpr ⟨type, htype, hctor⟩
       have hlookup' : env.constants ctor.name = some ctor.toVConstant :=
         hconst ctor (List.mem_append_right _ (by rw [hdata.ctors]; exact hmem))
-      obtain ⟨lsF, hresF⟩ := (CompiledInductive.intro hdata hprior).ctor_result type htype ctor hctor
+      obtain ⟨lsF, hresF⟩ := hdata.ctor_result type htype ctor hctor
       have hrigid : env.Rigid type.name := nativeHeadRigid_iff.mp
         (henv.case_original_family_rigid hlookup (by rw [hfam]; exact List.mem_map.mpr ⟨type, htype, rfl⟩))
       rw [hctorEq] at hs

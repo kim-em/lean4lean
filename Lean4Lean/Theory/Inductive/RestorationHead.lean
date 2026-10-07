@@ -55,9 +55,8 @@ theorem Restoration.headLevels_of_mem {r : Restoration} (hr : r.Scoped)
     cases heq
     rfl
 
-theorem CompilationData.headLevels_source
-    {s : InductiveSignature} {g : Instance s}
-    (H : CompilationData env source expanded s g auxiliaries block)
+theorem CaseCompilationData.headLevels_source
+    {s : InductiveSignature} (H : CaseCompilationData env source expanded s auxiliaries block)
     (hname : name ∈ familyNames source.types) :
     (compilationRestoration source auxiliaries).headLevels name levels = levels := by
   unfold Restoration.headLevels

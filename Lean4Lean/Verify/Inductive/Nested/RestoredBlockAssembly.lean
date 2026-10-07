@@ -1308,6 +1308,10 @@ theorem NestedValidatedRunResult.compilationData_of_specializations_rules
         exact E.production.loweredConstruction.consumedGeneration.recursiveTypesWF
       · rw [← E.production.constructors.completed.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
+    familyTypesWF := by
+      refine ⟨_, _, hloweredTypes, hloweredCtors, ?_⟩
+      rw [← E.production.constructors.completed.contextVEnv]
+      exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     recursorNames := E.production.loweredConstruction.consumedGeneration.names
     generatedNames := by
       rw [List.map_append]

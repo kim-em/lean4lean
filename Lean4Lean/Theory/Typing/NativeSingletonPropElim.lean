@@ -46,7 +46,7 @@ theorem singleton_familyHead (H : NativeRecursorRegistered env data)
     he.constants (VInductBlock.install_type_lookup' hi (by
       rw [hdata.types]; exact List.mem_map.mpr ⟨family, hf, rfl⟩))
   obtain ⟨domains, level, hH, hlevel⟩ :=
-    hdata.family_head_type ‹_› henv hΓ hbaseLE hconstants data.owner hlevels hlen
+    hdata.family_head_type hdata.recursorNamesFresh ‹_› henv hΓ hbaseLE hconstants data.owner hlevels hlen
   rw [hdata.restoration_of_singleton hfam] at hH
   exact ⟨domains, level, by simpa [Restoration.headName, Restoration.headLevels,
     Restoration.recursorName] using hH, hlevel⟩
