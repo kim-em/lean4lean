@@ -88,7 +88,8 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     source.types.head?.map (·.name) = some key →
     ((∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-      schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env) →
+      schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env ∧
+      schema.HeaderAgreement base source) →
     schema.Fresh env key →
     VEnv.WF' ds (env.addEliminator key schema)
   | inductProjections {base envTypes envCtors : VEnv}
@@ -96,7 +97,8 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     VEnv.WF' baseDecls base →
     VEnv.WF' ds (envCtors.addEliminators block.eliminators) →
     (∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key) →
+      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key ∧
+      schema.HeaderAgreement base decl) →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
@@ -123,12 +125,13 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
     (hequations : env.defeqs = base.defeqs)
     (hprojs : schema.ProjNamesRegistered env key)
     (hcoherent : source.ProjectionsCoherent env)
+    (hheader : schema.HeaderAgreement base source)
     (hfresh : schema.Fresh env key) :
     (env.addEliminator key schema).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases henv with ⟨ds, henv⟩
   exact ⟨ds, .inductEliminators hbase henv hle hformed hkey
-    ⟨hconstants, hequations, hprojs, hcoherent⟩ hfresh⟩
+    ⟨hconstants, hequations, hprojs, hcoherent, hheader⟩ hfresh⟩
 
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete
@@ -139,7 +142,8 @@ theorem VEnv.WF.inductProjections
     {block : VInductBlock}
     (hbase : base.WF) (hctorsWF : (envCtors.addEliminators block.eliminators).WF)
     (hcovered : ∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key)
+      schema.Certified base decl block ∧ decl.types.head?.map (·.name) = some key ∧
+      schema.HeaderAgreement base decl)
     (hsource : decl.sourceNames.Nodup)
     (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
     (hconstructorUvars :

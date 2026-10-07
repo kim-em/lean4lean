@@ -29,6 +29,14 @@ theorem ProjNamesOK.mono {ok ok' : Name → Prop} (hok : ∀ s, ok s → ok' s) 
   | .app _ _, h | .lam _ _, h | .forallE _ _, h => ⟨ProjNamesOK.mono hok h.1, ProjNamesOK.mono hok h.2⟩
   | .proj _ _ _, h => ⟨hok _ h.1, ProjNamesOK.mono hok h.2⟩
 
+theorem ProjNamesOK.liftN {ok : Name → Prop} {n : Nat} :
+    ∀ {e : VExpr} {k : Nat}, e.ProjNamesOK ok → (e.liftN n k).ProjNamesOK ok
+  | .bvar _, _, _ | .sort _, _, _ | .const .., _, _ | .elim .., _, _ => trivial
+  | .app _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
+  | .lam _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
+  | .forallE _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
+  | .proj _ _ _, _, h => ⟨h.1, ProjNamesOK.liftN h.2⟩
+
 /-- The term contains no projection. -/
 def projFree : VExpr → Bool
   | .bvar _ | .sort _ | .const .. | .elim .. => true
@@ -107,6 +115,20 @@ def Certified (schema : CaseSchema) (base : VEnv)
     schema.restoration = compilationRestoration source auxiliaries ∧
     schema.originalFamilies = source.types.map (·.name) ∧
     RecursorNamesFresh base source expanded auxiliaries
+
+/-- The family index domains of the signature restore, and the declared header of every original
+family is, in the environment with the declaration's family headers, its restored normalized
+header. Registration requires this (`VEnv.WF'.inductEliminators`): the restored case type of an
+indexed family needs restored index domains, and the case eliminator of an indexed structure
+needs its index telescope to agree with the declared one. -/
+def HeaderAgreement (schema : CaseSchema) (base : VEnv) (source : VInductDecl) : Prop :=
+  ∃ RP, schema.signature.params.mapM schema.restoration.expr = some RP ∧
+    ∀ owner : Fin schema.signature.families.size,
+      ∃ RI, schema.signature.families[owner].indices.mapM schema.restoration.expr = some RI ∧
+        ∀ type ∈ source.types, type.name = schema.signature.families[owner].name →
+          ∃ envTypes, base.addConstVals source.typeConstants = some envTypes ∧
+            envTypes.IsDefEqU source.uvars [] type.type
+              (VExpr.wrapForalls (RP ++ RI) (.sort schema.signature.families[owner].resultLevel))
 
 /-- Keys and native-family ownership are both fresh. Lowering auxiliaries do
 not reserve native names: they are identified by their block and owner slot. -/

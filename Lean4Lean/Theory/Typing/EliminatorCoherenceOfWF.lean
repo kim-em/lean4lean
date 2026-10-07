@@ -81,7 +81,7 @@ private theorem EliminatorsCoherent.addInduct (H : env.EliminatorsCoherent) (hen
     (hadd : env.AddInduct decl env') : env'.EliminatorsCoherent := by
   cases hadd with
   | @intro block installed hdecl hcompile hblock helim hinstall =>
-    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs⟩ := helim
+    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs, -⟩ := helim
     simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at hinstall
     obtain ⟨envTypes, htypes, envCtors, hctors, envRecs, hrecs, rfl⟩ := hinstall
@@ -169,13 +169,13 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
     · refine ⟨_, _, _, hle.trans VEnv.addEliminator_le, hcert,
         fun v hv => VEnv.addEliminator_le.constants (hconstants.1 v hv), ?_⟩
       intro type htype info hp
-      exact hconstants.2.2.2 type htype info hp
+      exact hconstants.2.2.2.1 type htype info hp
     · obtain ⟨b, src, blk, hbl, hc, hconst, hcoh⟩ := ih k s hs
       exact ⟨b, src, blk, hbl.trans VEnv.addEliminator_le, hc,
         fun v hv => VEnv.addEliminator_le.constants (hconst v hv), hcoh⟩
   | @inductProjections baseDecls ds base envTypes envCtors decl block
       hbase _ hcert hsource _ _ _ _ _ htypesSource _ hprojections htypes hctors ihBase ihCtors =>
-    obtain ⟨key, schema, hE, hcertS, hkey⟩ := hcert
+    obtain ⟨key, schema, hE, hcertS, hkey, -⟩ := hcert
     have hbaseOrdered := (show base.WF from ⟨baseDecls, hbase⟩).ordered
     have hle : base ≤ (envCtors.addEliminators block.eliminators).addProjections block.projections :=
       (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans

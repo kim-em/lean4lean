@@ -721,24 +721,8 @@ nonrec theorem AddQuot.le (H : AddQuot m₁ m₂ env₁ env₂) : env₁ ≤ env
   open AddQuot1 in (le <| le <| le <| le fun _ _ h => h.2 ▸ VEnv.addDefEq_le) _ _ H
 
 theorem VInductBlock.install_le
-    (H : VInductBlock.install env block = some env') : env ≤ env' := by
-  unfold VInductBlock.install at H
-  cases htypes : env.addConstVals block.types with
-  | none => simp [htypes] at H
-  | some envTypes =>
-    cases hctors : envTypes.addConstVals block.ctors with
-    | none => simp [htypes, hctors] at H
-    | some envCtors =>
-      cases hrecursors : (envCtors.addProjections block.projections).addConstVals
-          block.recursors with
-      | none => simp [htypes, hctors, hrecursors] at H
-      | some envRecursors =>
-        simp [htypes, hctors, hrecursors] at H
-        subst env'
-        exact (VEnv.addConstVals_le htypes).trans <|
-          (VEnv.addConstVals_le hctors).trans <|
-            VEnv.addProjections_le.trans <|
-              (VEnv.addConstVals_le hrecursors).trans VEnv.addDefEqRules_le
+    (H : VInductBlock.install env block = some env') : env ≤ env' :=
+  VInductBlock.install_base_le H
 
 /-- Exact production metadata for one constructor in an abstract inductive
 family installed by the current declaration.  This prevents a flat constant
@@ -838,14 +822,15 @@ inductive AddInduct (safety : DefinitionSafety)
     (∀ {name ci}, m₂.find? name = some ci → ci.deltaValue?.isSome →
       m₁.find? name = some ci) →
     InductiveRecursorProvenance safety m₁ env₁ m₂ env₂ →
+    VInductBlock.EliminatorsWF env₁ decl _block →
     AddInduct safety m₁ env₁ decl m₂ env₂
 
 theorem AddInduct.toVEnv
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     VEnv.AddInduct env₁ decl env₂ :=
   match H with
-  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ _ =>
-    .intro hdecl hcompile hblock hinstall
+  | .intro _ hdecl hcompile hblock hinstall _ _ _ _ _ helim =>
+    .intro hdecl hcompile hblock helim hinstall
 
 theorem AddInduct.declWF
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) : decl.WF env₁ := by

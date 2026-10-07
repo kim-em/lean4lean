@@ -540,7 +540,7 @@ private theorem ConstructorHistory.addInduct
   cases hadd with
   | @intro block installed hdecl hcompile hblock helim hinstall =>
     obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, _⟩ := hblock
-    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs⟩ := helim
+    obtain ⟨eT, eC, hT', hC', key, schema, hE, hcert, hkey, hprojs, -⟩ := helim
     cases htypes.symm.trans hT'
     cases hctors.symm.trans hC'
     have hcanonical : VInductBlock.install env block =

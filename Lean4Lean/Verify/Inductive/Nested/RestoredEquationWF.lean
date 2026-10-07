@@ -1,3 +1,4 @@
+import Lean4Lean.Theory.Inductive.ProjNamesAvoid
 import Lean4Lean.Verify.Inductive.Nested.RuleShape
 import Lean4Lean.Verify.Inductive.Nested.RecursorProvenance
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryConstructorRestoration
@@ -62,12 +63,6 @@ open Kernel
 open InductiveSignature
 
 namespace VExpr
-
-/-- No projection type name of the term is in `names`. -/
-def projNamesAvoid (names : List Name) : VExpr → Bool
-  | .bvar _ | .sort _ | .const .. | .elim .. => true
-  | .app f a | .lam f a | .forallE f a => f.projNamesAvoid names && a.projNamesAvoid names
-  | .proj n _ e => !names.contains n && e.projNamesAvoid names
 
 theorem projNamesAvoid_of_containsAnyConst {names : List Name} :
     ∀ {e : VExpr}, e.containsAnyConst names = false → e.projNamesAvoid names = true

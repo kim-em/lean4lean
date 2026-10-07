@@ -316,7 +316,7 @@ theorem compiledInductive : CompiledInductive Eb sp.decl sp.block :=
 theorem declWF : sp.decl.WF Eb := ⟨sourceWF H, .ordinary (formationWF H)⟩
 
 theorem eliminatorsWF : VInductBlock.EliminatorsWF Eb sp.decl sp.block := by
-  refine ⟨ET, EC, H.hT, H.hC, sp.fam, _, rfl, ?_, rfl, ?_⟩
+  refine ⟨ET, EC, H.hT, H.hC, sp.fam, _, rfl, ?_, rfl, ?_, ?_⟩
   · exact CaseSchema.ofCaseCompilation_certified
       (CaseCompilationData.ofOrdinary (sourceWF H) (formationWF H) (models H) H.hT H.hC
         (familyTypesWF H) rfl rfl rfl) .nil recursorNamesFresh_nil
@@ -331,6 +331,15 @@ theorem eliminatorsWF : VInductBlock.EliminatorsWF Eb sp.decl sp.block := by
         Fin.ext (by have := owner.isLt; simp [sig, CaseSchema.ofCompilation] at this; omega)
       subst h0
       rfl
+  · refine ⟨[], rfl, fun owner => ?_⟩
+    have h0 : owner = ⟨0, by simp [sig, CaseSchema.ofCompilation]⟩ :=
+      Fin.ext (by have := owner.isLt; simp [sig, CaseSchema.ofCompilation] at this; omega)
+    subst h0
+    refine ⟨_, rfl, fun type htype _ => ⟨ET, H.hT, ?_⟩⟩
+    simp only [decl, List.mem_singleton] at htype
+    subst htype
+    obtain ⟨u, hu⟩ := typeFam_wf_b H
+    exact ⟨_, (hu.mono (VEnv.addConstVals_le H.hT))⟩
 
 theorem induct_wf : VDecl.WF Eb (.induct sp.decl) EA :=
   .induct (declWF H) (.intro (declWF H)
