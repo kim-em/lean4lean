@@ -169,6 +169,60 @@ The global invariant `SchemaStructCompat env` holds in every well-formed environ
 (`VEnv.WF.schemaStructCompat`, `Theory/Typing/SchemaStructCompat.lean`), since every later
 projection names a constant that is fresh when it is registered.
 
+D11 (tables along the history, stratified validity). The tables of the signature
+(`envTables env`, `ShapeModel/EnvTables.lean`) are chosen among the tables built step by step
+along a `VEnv.WF'` history of `env` (`HistTables`, `ShapeModel/EnvTablesHist.lean`; every step
+is a constructor with the step's premises and its explicit table update). The validity of the
+rules is proved by induction along that history (`good_of_hist`,
+`ShapeModel/RuleValidHistory.lean`): `Good env E` (every equation of `E` is `ExtraValid`, every
+schema of `E` is valid, every structure of `E` has `FamTypeSem`, all in the model of the final
+`env`) together with a semantic header `FamSem` for every family recorded so far. Soundness of
+derivations in an earlier environment `E ≤ env` (`Good.sound`) is then available for the
+formation evidence of each new step (family headers, singleton fields, container headers).
+Eliminator registrations record their source families family by family (`Tables.addSchema`):
+a family is recorded if none of its names is recorded yet, so every family of a generic
+equation's major has a recorded sort.
+
+D12 (structural records of lambdas and eliminators). The `lam` case of `StrongSoundCore`
+records the domain and the body (`StrongSound Γ A (.sort u)`, `StrongSound (A::Γ) B (.sort v)`,
+`StrongSound (A::Γ) e B`), and the `elim` case records the generic type
+(`SemSig.elimType b o = some T`, `T.Closed`, `StrongSound Γ (T.instL ls) (.sort u)`). Rule
+validity reads the binder domains of a rule's lambda telescope and the type of its head from
+these records (`body_records`, `Spine.headInfo`).
+
+D13 (schema constructors are never recorded later as families). `Tables.addSchema` takes the
+environment and does not record a family whose name is a constructor name of a schema already
+registered (`selFreeIn`, `SchemaCtorReserved`). Reason: a generic equation whose major `c` is
+recorded as a family by a *later* registration is false in the final model (`c` is then not a
+constructor of the signature, `IsCtor`, so the equation never fires while its right side need
+not be bottom), and the contradiction showing that such a later registration cannot exist
+(`c`'s type ends in a rigid family application, so it has no semantic family header,
+`famSem_absurd`) is only available at the later step of the induction. With the exclusion, the
+induction carries the invariant that a reserved name that is not a family yet never becomes one
+(`good_of_hist`, hypothesis `hfrz`): native installations, the quotient and structure
+registrations record names fresh in a base whose schemas' constructor names are declared, and
+eliminator registrations skip reserved names. A schema constructor recorded as a family
+*earlier* contradicts that family's semantic header directly. A source family that is not
+recorded at its registration (because one of its names is) is shown to be recorded anyway or
+contradictory (`source_family_recorded`).
+
+D14 (rule validity: assembly). `rule_instance_valid` (`ShapeModel/RuleValidAssembly.lean`)
+proves validity of an instance of a rule with a constructor major from: the rule syntax, the
+typing records of both sides, the syntactic shape of the head's type (a Pi telescope whose last
+domain is a family applied to parameter expressions and the index variables), the signature
+data of the major constructor and of its family, and the mode-C hypothesis (if the family is a
+proposition at the instance: the target universe is zero, or D7 holds and every unread field
+key is bottom under every valuation fitting the binder telescope). Native rules
+(`native_extraValid`) and generic rules (`generic_elimOK`) instantiate it. Mode C for native
+rules follows the admissibility certificate: never-zero source sorts contradict `famProp`
+(`famProp_false_of_neverZero`, through `FamSem.eval_eq`); a zero target gives the first
+alternative; singleton elimination gives D7 (one constructor) and bottom unread fields
+(`native_singleton_unread`): an unread field is not a literal index, hence a proof in the header
+environment of the installation, whose context is well formed by the typing of the generated
+constructor type; soundness there and proof irrelevance make its key bottom, after removing
+the motive and minor keys from the valuation (`Valuation.Fits.unlift`, `Interp.liftN_iff`).
+Generic rules have no singleton case (`Permission.admissible`).
+
 ## 2. The domain (ShapeModel/Domain.lean, ShapeModel/ShapeTyping.lean)
 
 Carneiro's depth-indexed finite shapes, with:
@@ -256,4 +310,12 @@ validity and soundness are proved together by induction along the `VEnv.WF'` cha
   environments give without head inversion: `ctorType` no longer asks the constructor's family
   to be a non-constructor (only to head no rule; a sort telescope shape approximates no
   constructor shape either), and `famType` is a chain of two derivations (composing them needs
-  uniqueness of typing). The `sorry` of `VEnv.WF.headSeparation` remains until M4c.
+  uniqueness of typing).
+* Milestone M4c (done): for the signature of a well-formed environment, `FamTypeSem` for every
+  registered structure, `ExtraValid` for every equation and `ElimValidIn env env`
+  (`good_of_wf`, `ShapeModel/RuleValidHistory.lean`, decisions D11 to D14), hence
+  `headSeparation_of_wf`. `VEnv.WF.headSeparation` (`Theory/Typing/HeadInversion.lean`) is proved
+  from it, with no `sorry` (axioms: `propext`, `Classical.choice`, `Quot.sound`). The statements
+  of head inversion moved to `Theory/Typing/HeadInversionDefs.lean`, imported by
+  `HeadSeparationModel.lean`, so that `HeadInversion.lean` can import the shape model.
+  `VEnv.WF.headInjectivity` is the remaining conjecture.
