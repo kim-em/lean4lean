@@ -88,7 +88,31 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   preserved (CompletedElimination.lean / ConsumedAdmissible.lean instantiate
   the target from it). This corrects the specification to Lean's
   constructions; it weakens no theorem. The strengthening agent implements
-  it; the confluence instance relies on it. **Done (base branch to
+  it; the confluence instance relies on it. **Confluence instance proved
+  (cr branch 0d0c2531, `Theory/Typing/WFParams.lean`):** `WF.church_rosser
+  (henv) (heq : HasCanonicalEq) (hcoh : EliminatorsCoherent) (hΓ) (H)`,
+  joinability under `FullReduction` up to `NormalEq`, with the concrete
+  `Params` instance `WF.params` built from the canonical registry
+  (definition unfoldings, quotient rule when declared, native iota rules),
+  every field proved; coverage from `WF.equationCoverage` +
+  `WF.singletonCoverage` (`NativeSingletonProgram`/`NativeSingletonCoverage`,
+  needing `heq`); only sorry dependency `headInversion`.
+  `EliminatorsCoherent` was needed because `VEnv.WF` let a structure's
+  projections and an eliminator schema come from different declarations
+  (unit-like equality then breaks confluence); **decision (2026-10-07): make
+  coherence part of `inductEliminators`** (spec correction; no pipeline
+  producer registers schemas), so the theorem takes only `henv`, `heq`.
+  Note: `NativeIotaSoundness.lean` makes Theory import Verify for the first
+  time (no cycle; follow-up to relocate). **Landed on the mainline
+  (fast-forward to 4ca9f41d, pushed):** `WF.church_rosser (henv) (heq)` with
+  no coherence hypothesis: `VInductDecl.ProjectionsCoherent` is a fourth
+  conjunct of `inductEliminators`'s premise (proved by
+  `Certified.register_after_constructors` from freshness; a new premise of
+  `CheckingEnv.Valid.registerCases`), and `WF.eliminatorsCoherent` by
+  induction on `WF'` (Theory/Typing/EliminatorCoherenceOfWF.lean). Full
+  build (733 jobs), tests, both replays and the audit pass; three commits
+  inherited from the base branch still carry an Opus trailer (to normalise
+  there). **Done (base branch to
   aac10d3c; mainline merged cc06211d as ec8b9270):** `Instance.FreeTarget`,
   the singleton branch of `Admissible.elimination`, realization
   `recursorDeclarationAbstractLevels_freeTarget`; abstract singleton eta
@@ -103,6 +127,92 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   certificate calculus (rule-level design first, Astra review of admissible
   transitivity); honest size estimate comparable to the confluence stack
   (about 29k lines).
+  **Obstacle (base branch after aac10d3c; `STRENGTHENING_NOTES.md` "Part 3
+  status", `STRENGTHENING_ASTRA_REVIEW2.md`, `REVIEW3.md`):** route (b)
+  rests on a conversion-elimination theorem (admissible transitivity for a
+  certified, transitivity-free calculus whose certificates mention only
+  subterms, synthesized types and reducts of their endpoints) for which no
+  proof organisation is known, already for the Π/λ/app/β/η/proof-irrelevance
+  fragment: every organisation is circular (transitivity needs normal
+  equality transported along β; that needs substitution through the typing
+  evidence of proof-irrelevance and η leaves; substitution for synthesized
+  typing needs conversion composition at variables on outputs of earlier
+  calls, whose size grows) and no measure decreases; Siles–Herbelin does
+  not transfer; the theory does not normalize; Astra knows no proof and no
+  impossibility argument. **Decision (2026-10-06): pursue both remaining
+  routes.** (1) The strengthening agent continues with a minimal Lean
+  prototype of the certified core calculus hunting a termination
+  organisation, documenting each failed measure for Mario. (2) E1 is
+  UN-PARKED: its scoped-cache executable needs strengthening at exactly one
+  restricted site (`ProjectionWalkCorner`); the E1 agent merges the mainline,
+  finishes the last narrow-scope site, deletes `CheckerSubContextLocality`,
+  and reports the residual conjecture set; the strengthening agent assesses
+  whether `ProjectionWalkCorner` is provable with singleton eta. Whichever
+  route reaches a complete proof first wins; GOAL.md's "E1 parked" clause is
+  superseded by this entry.
+  **`ProjectionWalkCorner` assessment (strengthening agent,
+  `STRENGTHENING_NOTES.md` "Assessment: the restricted projection-walk
+  corner"):** provable by SUBSTITUTION, no certificates, if the environment
+  contains canonical `Nonempty` and `Classical.choice` (both in
+  `Init.Prelude`): eliminate the structure `S` into Prop with motive
+  `fun x => Nonempty D[x]` to get `hne : Nonempty D`, substitute
+  `d := Classical.choice hne`; since the body does not mention `d` the
+  substitution yields the smaller-context translation. Without choice the
+  restriction gives no measure (same conversion-elimination problem).
+  **Decision (2026-10-06): accept `VEnv.HasCanonicalChoice` as a further
+  hypothesis of the final theorem** (same character as `HasCanonicalEq`,
+  prelude-installed, monotone), on the E1 route; the strengthening agent
+  implements `projectionWalkCorner_of_choice` (about 1k to 2k lines) and its
+  realizability, then returns to the prototype. If E1 completes, the final
+  theorem's hypotheses are `ves.WF env`, canonical `Eq`, canonical
+  `Nonempty`/`choice`, `decl.IsModelled`, with `headInversion` the only
+  remaining conjecture; GOAL.md item (3) is to be updated accordingly when
+  that lands.
+  Corner implementation status: `VEnv.HasCanonicalChoice`
+  (Theory/CanonicalChoice.lean, without `Nonempty.rec`, with `mono`) and
+  `TrExprS.weakBV_inv₁_inhabited` (Verify/Typing/InhabitedStrengthening.lean:
+  strengthening across one binder whose type is inhabited by a typed term
+  below, by substitution) are built on the base branch. The corner theorem
+  needs, beyond `HasCanonicalChoice`: a registered native recursor of `S`
+  (without it the statement is false: `inductProjections` registers
+  projections with no eliminator), `info.nindices = 0` (true at the call site:
+  projection inference accepts only structure-like families), and
+  temporarily `families.size = 1` (to be generalized to mutual/nested
+  structures via the restored recursor with constant motives). E1 discharges
+  the recursor premise at every call site, including the transient
+  types+constructors window (generated terms only; a block-family
+  projection could arise there only via structure eta in `isDefEq`).
+  **Theory-level corner proved (base branch c1e4b892):** `VEnv.corner_inhabit`
+  (Theory/Typing/ProjectionCornerElim.lean): under WF, `HasCanonicalChoice`,
+  the walk's data (projection info, levels, the instantiated constructor
+  telescope reaching `forallE D body'`, `IsType D`, the failed guard,
+  `nindices = 0`) and the bundle `StructurePropRecursor env U S info ls`
+  (a registered native recursor of `S` with constructor `info.ctorName`,
+  matching parameter count and arity, an instantiation `ls0` of its universes
+  with target zero and levels corresponding to `ls`; temporarily
+  `families.size = 1`), there is `d : D` in Δ (recursor applied with motive
+  `fun _ => Nonempty X`, minor `Nonempty.intro field_j`, then
+  `Classical.choice`). Sorry dependency only through unique typing
+  (`headInversion`). Next: Verify-level `projectionWalkCorner_of_choice`,
+  then the generalization to several families; E1 supplies the bundle at
+  the call sites from a proved pipeline invariant.
+  **E1 status (c54b258d, pushed):** mainline merged; the last narrow-scope
+  site closed (`recursorTelescope_hypothesisUnlift` from the producer's
+  checker contexts); the nested `ctor_doms` proof made strengthening-free
+  (`CompilationData.restoredConstructorFieldDomains`); the unused
+  strengthening-dependent Verify lemmas deleted; `CheckerSubContextLocality`
+  gone. Top-level theorem on E1: `addDecl.WF_of_canonicalEq (wf) (hcorner :
+  ProjectionWalkCorner) (heq) (decl) (hdecl)`; the cone (40182 constants)
+  contains no `Strengthening` and no `weakN_iff`-family lemma; the only
+  sorry in it is `headInversion`. Remaining on E1: discharge `hcorner`
+  (proved registry invariant + the transient-window `ProjsOK` extension +
+  the base branch's Verify-level corner under `HasCanonicalChoice`).
+  **Decision (2026-10-07): E1 is the leading route and becomes the mainline
+  once `hcorner` is discharged**; the declarative-strengthening route (b)
+  is an open research problem and continues only as a documented prototype.
+  The final theorem will then assume canonical `Eq` and canonical
+  `Nonempty`/`Classical.choice`, with `headInversion` the sole conjecture;
+  GOAL.md item (3) will be updated when E1 lands.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the

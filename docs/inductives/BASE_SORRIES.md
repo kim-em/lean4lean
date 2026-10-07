@@ -414,3 +414,108 @@ instance obligations change:
 * `pat_iota_params`: native iota at a structure constructor reads only the
   fields, not the parameters, so a structure eta expansion of the major
   collapses by projection.
+
+## 7. The `Params` instance of a well-formed environment
+
+`Theory/Typing/ConcretePatterns.lean` defines the concrete pattern table
+`ConcretePattern registry env` (definition unfoldings, the primitive quotient
+rule when the quotient declaration is present, and native iota rules), over the
+canonical registry of `VEnv.WF.canonicalRegistry`, and proves its syntactic
+non-overlap facts. `Theory/Typing/ConcreteParams.lean` assembles `Params` from
+it. Two `Params` fields were restated truthfully:
+
+* `pat_const_native` and `recursorData_quot` exclude `Quot.lift` only when
+  `QuotRegistered env` holds: without the quotient declaration, `Quot.lift` is
+  an ordinary name and may be a definition.
+* `pat_struct_major` and `schema_struct_major` take the typing context's
+  well-formedness, since they are proved by uniqueness of types.
+
+### Confluence is false for some well-formed environments
+
+`VEnv.WF` admits environments in which `VEnv.IsDefEq` is not confluent in the
+full presentation, so `FullEquationCoverage` and the unconditional
+`VEnv.WF.church_rosser` are false as stated:
+
+1. Large elimination from a `Prop` family is excluded from native iota
+   (`pat_recursor` forces the guard `.nonzero sourceLevel`), so its only
+   computation is the singleton prefix unfolding `NativeDeltaRule`. Its replay
+   requires typed captures, and a proof-field selector is a case-eliminator
+   application at generic indices. The strengthening agent's countermodel
+   `envCM` (branch `agent/verify-inductives-base`, `Theory/Typing/Countermodel/`)
+   exhibits a family where that selector is ill-typed, so the singleton
+   equation cannot be joined. Independently, the selector needs the case
+   schema to be registered: `inductive And` installed without
+   `inductEliminators` is well formed, and its `And.rec` equation (source
+   level zero, large target) cannot be joined. The planned repair, following
+   the coordinator, is `Eq`-cast extraction selectors under
+   `env.HasCanonicalEq`.
+2. `inductProjections` and `inductEliminators` may register metadata for the
+   same constants from different declarations. Example (found by the
+   structure-major fork): register `structure S : Type` with constructor `S.a`
+   over axioms `S`, `S.a`; add the axiom `S.b : S`; register the case schema of
+   `inductive S | b : S` over the empty base. Then `elim m x S.b` computes to
+   `x` while `elim m x S.a` is stuck, although `S.a ≡ S.b` by the unit-like
+   rule. This was a specification defect; see the resolution below.
+
+### Resolution: Church-Rosser under canonical `Eq`
+
+Canonical `Eq` is the only hypothesis of the final theorem besides
+well-formedness:
+
+```lean
+theorem VEnv.WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :
+    letI := henv.params U
+    ∃ e₁' e₂', FullReduction Γ e₁ e₁' ∧ FullReduction Γ e₂ e₂' ∧ NormalEq Γ e₁' e₂'
+```
+
+Eliminator coherence (decision 2026-10-07, gap 2 above) is now part of
+well-formedness: `VEnv.WF'.inductEliminators` requires
+`VInductDecl.ProjectionsCoherent env source` (the projections already
+registered for the certified declaration's families are that declaration's own
+entries, `Theory/Typing/Env.lean`), and `VEnv.WF.eliminatorsCoherent`
+(`Theory/Typing/EliminatorCoherenceOfWF.lean`) derives
+`VEnv.EliminatorsCoherent` by induction on `WF'`: every later projection
+registration is for fresh family names. `Certified.register_after_constructors`
+proves the new premise from freshness of the declaration's types;
+`CheckingEnv.Valid.registerCases` takes it as a premise (no producer in the
+verified pipeline calls it).
+
+(`Theory/Typing/WFParams.lean`). Its only `sorry` dependency is
+`VEnv.WF.headInversion`; it does not use `VEnv.Strengthening`,
+`strengthening_of_canonicalEq` or `IsDefEqU.weakN_iff`.
+
+1. The singleton prefix program (`NativeRecursorData.singletonProgram`,
+   `Theory/Typing/NativeSingletonProgram.lean`) reconstructs the constructor
+   with `PropElim.occ`: data fields are read from the literal index slots, and
+   proof fields are extracted from the major by the native recursor at motive
+   universe `Prop`, with earlier data fields cast along `Eq`. It no longer uses
+   case-eliminator selectors, so no eliminator registration is needed.
+2. `NativeRecursorRegistered.zero_join`
+   (`Theory/Typing/NativeSingletonCoverage.lean`) joins the installed equation
+   of a large-eliminating native singleton at a universe specialization with
+   source `Prop`. Under the equation's binders, the recursor applied to its
+   prefix unfolds by `NativeDeltaRule` at the literal constructor instance,
+   then a beta step with the constructor major gives the right side at the
+   reconstructed fields. Data fields reconstruct to the field variables
+   themselves; proof fields are related to them by proof irrelevance. The
+   replay obligations are typed by `PropElim.occ_typed` and
+   `PropElim.singleton_eta`, which need `env.HasCanonicalEq`.
+3. `WF.singletonCoverage` discharges `WF.SingletonCoverage` from it, and
+   `WF.church_rosser` follows from `WF.church_rosser_of_singletonCoverage`.
+
+### Notes for the next session
+
+* `Theory/Typing/NativeIotaSoundness.lean` imports two Verify modules
+  (`Verify.Inductive.Nested.RecursorProvenance`,
+  `Verify.Inductive.Nested.AssemblyNativeWhnf`); it is the only Theory file
+  that does. There is no import cycle. Follow-up: move the lemmas it uses into
+  Theory (`restoredFamilyHead_spec`, `restored_iota_shape`,
+  `restoredConstructorShape`, `containerConstructors`,
+  `Restoration.expr_wrapLams_eq`, `expr_wrapForalls`, `expr_liftN`,
+  `expr_recursorMajor_source`, `expr_recursorMajor_auxiliary`,
+  `find?_of_nodup`, `declaration_ctor_mem`, `vars_eq_bvarRange`,
+  `vars_map_liftN`).
+* `NativeIotaPattern.sound` uses `VIotaRuleShape.iota_of_args`, a
+  strengthening-free variant of `VIotaRuleShape.iota` (which still takes
+  `VEnv.Strengthening` for its Verify callers).

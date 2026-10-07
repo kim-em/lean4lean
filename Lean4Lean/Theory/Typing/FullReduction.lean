@@ -312,10 +312,10 @@ theorem FullReduction.delta_prefix_overlap
   cases early with
   | intro hl _ _ _ _ _ hg replay =>
     cases late with
-    | intro hl' _ _ _ _ _ hg' _ =>
+    | intro hl' hr' _ hlarge' _ hz' hg' _ =>
       cases Option.some.inj (hl.symm.trans hl')
       obtain ⟨domain, body, hearly, hlate⟩ :=
-        InductiveSignature.NativeRecursorData.prefixProgram_supply_one hg hg'
+        InductiveSignature.NativeRecursorData.singletonProgram_supply_one henv hr' hlarge' hz' hg hg'
           (replay.templateScope henv).2.1
       rw [hearly, ← hlate]
       exact .tail .rfl (.core (.beta .rfl .rfl))

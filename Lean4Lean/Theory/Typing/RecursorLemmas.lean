@@ -953,10 +953,9 @@ theorem _root_.Lean4Lean.VExpr.mkApps_append (f : VExpr) (l₁ l₂ : List VExpr
     VExpr.mkApps f (l₁ ++ l₂) = VExpr.mkApps (VExpr.mkApps f l₁) l₂ := by
   simp [VExpr.mkApps, List.foldl_append]
 
-/-- Iota reduction: a recursor application whose major premise is definitionally a constructor
-application is definitionally equal to the stored rule's right-hand side applied to the
-parameters, motives, minors, and constructor fields, followed by the remaining arguments. -/
-theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+/-- Iota reduction from a supplied typing of the rule arguments along the rule telescope.
+This form does not use context strengthening. -/
+theorem _root_.Lean4Lean.VIotaRuleShape.iota_of_args (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
     (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
       indLevels ctorParams)
     (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
@@ -970,7 +969,12 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
     {cls : List VLevel} {P' fields : List VExpr}
     (hcls : cls.length = ctorUvars) (hclsw : ∀ l ∈ cls, l.WF U)
     (hP' : P'.length = cnparams) (hf : fields.length = nfields)
-    (hmajor : env.IsDefEqU U Γ major (VExpr.mkApps (.const ctorName cls) (P' ++ fields))) :
+    (hmajor : env.IsDefEqU U Γ major (VExpr.mkApps (.const ctorName cls) (P' ++ fields)))
+    (hA : ∀ j (hj : j < (pre.take (nparams + nmotives + nminors) ++ fields).length)
+      (hj' : j < (Hrule.doms.map (VExpr.instL ls)).length),
+      env.HasType U Γ (pre.take (nparams + nmotives + nminors) ++ fields)[j]
+        ((Hrule.doms.map (VExpr.instL ls))[j].instOuter
+          ((pre.take (nparams + nmotives + nminors) ++ fields).take j))) :
     env.IsDefEqU U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra))
       (VExpr.mkApps (df.rhs.instL ls)
         (pre.take (nparams + nmotives + nminors) ++ fields ++ extra)) := by
@@ -979,8 +983,6 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   rw [VExpr.mkApps_append (l₁ := pre.take (nparams + nmotives + nminors) ++ fields)]
   have hwf1 : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])) :=
     VExpr.WF.of_mkApps henv.ordered hΓ hwf
-  have hA := Hrule.args_typing henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP' hf
-    hmajor
   refine IsDefEqU.mkApps_congr_left henv hΓ ?_ hwf
   -- Notation
   generalize hm : nparams + nmotives + nminors = m at *
@@ -1203,6 +1205,34 @@ theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx �
   rw [← hX2]
   exact ⟨_, hbeta⟩
 
+
+/-- Iota reduction: a recursor application whose major premise is definitionally a constructor
+application is definitionally equal to the stored rule's right-hand side applied to the
+parameters, motives, minors, and constructor fields, followed by the remaining arguments. -/
+theorem _root_.Lean4Lean.VIotaRuleShape.iota (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U))
+    (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices indName
+      indLevels ctorParams)
+    (Hctor : VConstructorShape env ctorName ctorUvars cnparams nfields nindices indName)
+    (Hrule : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
+      indLevels nfields df ctorParams)
+    (hrigid : env.Rigid indName) (hIL : indLevels.length = ctorUvars)
+    (hls : ∀ l ∈ ls, l.WF U) (hlsl : ls.length = recUvars)
+    {pre : List VExpr} (hpre : pre.length = nparams + nmotives + nminors + nindices)
+    {major : VExpr} {extra : List VExpr}
+    (hwf : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra)))
+    {cls : List VLevel} {P' fields : List VExpr}
+    (hcls : cls.length = ctorUvars) (hclsw : ∀ l ∈ cls, l.WF U)
+    (hP' : P'.length = cnparams) (hf : fields.length = nfields)
+    (hmajor : env.IsDefEqU U Γ major (VExpr.mkApps (.const ctorName cls) (P' ++ fields))) :
+    env.IsDefEqU U Γ (VExpr.mkApps (.const recName ls) (pre ++ major :: extra))
+      (VExpr.mkApps (df.rhs.instL ls)
+        (pre.take (nparams + nmotives + nminors) ++ fields ++ extra)) := by
+  have hwf1 : VExpr.WF env U Γ (VExpr.mkApps (.const recName ls) (pre ++ [major])) := by
+    have : pre ++ major :: extra = (pre ++ [major]) ++ extra := by simp
+    rw [this, VExpr.mkApps_append] at hwf
+    exact VExpr.WF.of_mkApps henv.ordered hΓ hwf
+  exact Hrule.iota_of_args henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf hcls hclsw hP' hf hmajor
+    (Hrule.args_typing henv hΓ Hrec Hctor hrigid hIL hls hlsl hpre hwf1 hcls hclsw hP' hf hmajor)
 
 /-- `iota` with the right-hand side beta-reduced: the instantiated rule body applied to the
 remaining arguments. -/
