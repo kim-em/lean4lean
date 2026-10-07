@@ -418,3 +418,37 @@ and one constructor. Plan for E1:
    structures), or the registry fact is restricted to structures outside the current block and the
    window contexts carry the extended `ProjsOK` invariant. Changing the executable order is not an
    option (the C++ kernel declares the constructors before generating recursors).
+
+### 5.1 Transient window: analysis (2026-10-07)
+
+The window checker runs are `getElimLevel`, `isKTarget`, `mkRecInfos` (whnf and `inferType` with
+`inferOnly := true`, so no `isDefEq`) and `checkRecursorTypes` (`TypeChecker.checkType` on each
+generated recursor type, with `isDefEq`). No user term contains a constructor of the block (every
+constructor type is checked by `checkConstructors` before `declareConstructors`), hence none
+contains `.proj S` for a block family `S`. For the `inferOnly` runs the `Expr.ProjsOK` argument of
+`TypeChecker/HitShape.lean` carries over unchanged. `checkRecursorTypes` is the problem: the
+generated minor premises contain `S.mk ps fs` (as the major argument of a motive application),
+and `tryEtaStructCore` fires as soon as `isDefEq` sees, after `whnfCore`, a constructor
+application of `S` against a stuck term; its `.proj S i t` then reaches `inferProj` through the
+proof-irrelevance check. In the actual recursor types `isDefEq` is only called on argument types
+against domains (`S ps`, `T ps idx`), which contain no block constructor because motive codomains
+do not depend on the major; but this is a property of the shape of generated recursor types, not
+an invariant preserved by `whnf`/`inferType`/`isDefEq` (instantiating a dependent codomain with a
+constructor argument puts the constructor into a type). A proof along these lines is a bespoke
+re-verification of `checkType` on recursor-type shapes.
+
+Alternative (recommended): register the declaration's abstract case eliminator at the constructor
+boundary, as `Verify/Environment/CaseRegistration.lean` (`CheckingEnv.Valid.registerCases`,
+currently unused) was written to do: the window context becomes
+`(envCtors.addProjections entries).addEliminator key (CaseSchema.ofCompilation ..)`. The
+executable is unchanged (`.elim` is abstract-only). Then every registered structure has a
+registered case eliminator from the moment its projections are registered, both inside and
+outside the window, and the corner is inhabited by eliminating `S` into `Nonempty D` with
+`.elim key owner (.zero :: levels)` and applying `Classical.choice` (the argument of
+`VEnv.corner_inhabit`, with `schema.genericType` in place of the native recursor type). Costs:
+threading the extended environment through `CompletedConstructorPhases.contextVEnv`,
+`CompletedStagedBlock` and the final-environment equations (the eliminator commutes with
+`addConstVals`/`addDefEqRules`, and `Ordered.eliminator` has no premises), the producer
+obligation `ProjNamesRegistered` of `registerCases`, and an eliminator variant of
+`corner_inhabit` (about the size of the native one). With it the registry invariant is by
+construction and no `NativeRecursorRegistered` provenance or universe correspondence is needed.
