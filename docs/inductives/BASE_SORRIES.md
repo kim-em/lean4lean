@@ -455,20 +455,31 @@ full presentation, so `FullEquationCoverage` and the unconditional
    over axioms `S`, `S.a`; add the axiom `S.b : S`; register the case schema of
    `inductive S | b : S` over the empty base. Then `elim m x S.b` computes to
    `x` while `elim m x S.a` is stuck, although `S.a ≡ S.b` by the unit-like
-   rule. This is isolated as an explicit coherence hypothesis on registered
-   eliminator schemas (`schema_struct_major` is false without it).
+   rule. This was a specification defect; see the resolution below.
 
-### Resolution: Church-Rosser under canonical `Eq` and coherent eliminators
+### Resolution: Church-Rosser under canonical `Eq`
 
-Both gaps are now hypotheses of the final theorem, and every other premise is
-proved:
+Canonical `Eq` is the only hypothesis of the final theorem besides
+well-formedness:
 
 ```lean
 theorem VEnv.WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
-    (hcoh : env.EliminatorsCoherent) (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :
-    letI := henv.params hcoh U
+    (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :
+    letI := henv.params U
     ∃ e₁' e₂', FullReduction Γ e₁ e₁' ∧ FullReduction Γ e₂ e₂' ∧ NormalEq Γ e₁' e₂'
 ```
+
+Eliminator coherence (decision 2026-10-07, gap 2 above) is now part of
+well-formedness: `VEnv.WF'.inductEliminators` requires
+`VInductDecl.ProjectionsCoherent env source` (the projections already
+registered for the certified declaration's families are that declaration's own
+entries, `Theory/Typing/Env.lean`), and `VEnv.WF.eliminatorsCoherent`
+(`Theory/Typing/EliminatorCoherenceOfWF.lean`) derives
+`VEnv.EliminatorsCoherent` by induction on `WF'`: every later projection
+registration is for fresh family names. `Certified.register_after_constructors`
+proves the new premise from freshness of the declaration's types;
+`CheckingEnv.Valid.registerCases` takes it as a premise (no producer in the
+verified pipeline calls it).
 
 (`Theory/Typing/WFParams.lean`). Its only `sorry` dependency is
 `VEnv.WF.headInversion`; it does not use `VEnv.Strengthening`,
@@ -492,3 +503,19 @@ theorem VEnv.WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonic
    `PropElim.singleton_eta`, which need `env.HasCanonicalEq`.
 3. `WF.singletonCoverage` discharges `WF.SingletonCoverage` from it, and
    `WF.church_rosser` follows from `WF.church_rosser_of_singletonCoverage`.
+
+### Notes for the next session
+
+* `Theory/Typing/NativeIotaSoundness.lean` imports two Verify modules
+  (`Verify.Inductive.Nested.RecursorProvenance`,
+  `Verify.Inductive.Nested.AssemblyNativeWhnf`); it is the only Theory file
+  that does. There is no import cycle. Follow-up: move the lemmas it uses into
+  Theory (`restoredFamilyHead_spec`, `restored_iota_shape`,
+  `restoredConstructorShape`, `containerConstructors`,
+  `Restoration.expr_wrapLams_eq`, `expr_wrapForalls`, `expr_liftN`,
+  `expr_recursorMajor_source`, `expr_recursorMajor_auxiliary`,
+  `find?_of_nodup`, `declaration_ctor_mem`, `vars_eq_bvarRange`,
+  `vars_map_liftN`).
+* `NativeIotaPattern.sound` uses `VIotaRuleShape.iota_of_args`, a
+  strengthening-free variant of `VIotaRuleShape.iota` (which still takes
+  `VEnv.Strengthening` for its Verify callers).

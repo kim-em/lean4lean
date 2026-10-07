@@ -46,6 +46,17 @@ inductive VDecl.WF : VEnv → VDecl → VEnv → Prop where
     VEnv.AddInduct env decl env' →
     VDecl.WF env (.induct decl) env'
 
+/-- Projection metadata already registered for a declaration's families agrees
+with that declaration's own projection entries. A case schema may only be
+registered for a declaration coherent in this sense: otherwise one structure
+could carry projections (hence structure eta and the unit-like rule) from one
+declaration and a case schema from another, e.g. projections with constructor
+`S.a` and a case rule for an unrelated constant `S.b : S`, and `VEnv.IsDefEq`
+would not be confluent (`Theory/Typing/EliminatorCoherence.lean`). -/
+def VInductDecl.ProjectionsCoherent (env : VEnv) (source : VInductDecl) : Prop :=
+  ∀ type ∈ source.types, ∀ info, env.projections type.name info →
+    (⟨type.name, info⟩ : VProjectionEntry) ∈ source.projectionEntries
+
 inductive VEnv.WF' : List VDecl → VEnv → Prop where
   | empty : VEnv.WF' [] .empty
   | decl {env} : VDecl.WF env d env' → env.WF' ds → env'.WF' (d::ds)
@@ -54,7 +65,9 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   owner slot, including nested auxiliaries, for all later environments.
   The schema projects only out of structures registered at this point
   (`CaseSchema.ProjNamesRegistered`), hence never out of a name that is not
-  an installed constant. -/
+  an installed constant, and the projections already registered for its
+  families are those of the certified declaration
+  (`VInductDecl.ProjectionsCoherent`). -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →
@@ -64,7 +77,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     source.types.head?.map (·.name) = some key →
     ((∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-      schema.ProjNamesRegistered env key) →
+      schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env) →
     schema.Fresh env key →
     VEnv.WF' ds (env.addEliminator key schema)
   | inductProjections {base envTypes envCtors : VEnv}
@@ -96,12 +109,13 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
       env.constants value.name = some value.toVConstant)
     (hequations : env.defeqs = base.defeqs)
     (hprojs : schema.ProjNamesRegistered env key)
+    (hcoherent : source.ProjectionsCoherent env)
     (hfresh : schema.Fresh env key) :
     (env.addEliminator key schema).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases henv with ⟨ds, henv⟩
   exact ⟨ds, .inductEliminators hbase henv hle hformed hkey
-    ⟨hconstants, hequations, hprojs⟩ hfresh⟩
+    ⟨hconstants, hequations, hprojs, hcoherent⟩ hfresh⟩
 
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete

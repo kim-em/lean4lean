@@ -25,7 +25,15 @@ application `elim S (m, x) S.b` computes to `x`, while structure eta gives
 re-expansions; `x` and it are not normally equal, and proof irrelevance does
 not apply at `Type`. Hence `IsDefEq.full_church_rosser` is false for this
 well-formed environment, and the case-schema structure-major fact needs
-`VEnv.EliminatorsCoherent`. -/
+`VEnv.EliminatorsCoherent`.
+
+Decision (2026-10-07): this was a specification defect. `inductEliminators`
+now requires `VInductDecl.ProjectionsCoherent` (Theory/Typing/Env.lean), which
+excludes the example above, and `VEnv.WF.eliminatorsCoherent`
+(EliminatorCoherenceOfWF.lean) derives `VEnv.EliminatorsCoherent` from
+`VEnv.WF`. No producer in the verified pipeline registers schemas for foreign
+projection metadata: `Certified.register_after_constructors` proves the premise
+from freshness, and `CheckingEnv.Valid.registerCases` takes it. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 open VExpr
@@ -125,9 +133,7 @@ variable {env : VEnv}
 
 /-- Every registered case eliminator is certified by a source declaration
 whose constants are present and which owns the projection metadata of its
-original families. This is the coherence premise that
-`VEnv.WF'.inductEliminators` does not impose; see the module docstring for a
-well-formed environment violating it. Nested containers need no premise: they
+original families. It follows from well-formedness (`VEnv.WF.eliminatorsCoherent`). Nested containers need no premise: they
 are certified installations, whose projection metadata is coherent in every
 well-formed environment. -/
 def EliminatorsCoherent (env : VEnv) : Prop :=
