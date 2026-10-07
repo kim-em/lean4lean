@@ -96,7 +96,7 @@ theorem typed_pi_app (H : TypedOb env U Δ cv o τs) (hτ : ∀ τ ∈ τs, Obs'
   cases H with
   | app => exact ⟨_, _, _, _, rfl⟩
   | sort h | piDom h | piDomOb h | piCod h | piCodOb h | rigid h | rigidArg h | rigidArgOb h
-    | fieldTy h | fieldDom h | fieldOb h => nomatch hτ _ h
+    | fieldTy h | fieldDom h | fieldOb _ _ _ h => nomatch hτ _ h
   | ctorHead h | ctorArg h | ctorArgOb h =>
     obtain ⟨_, _, _, _, h, _⟩ := h; nomatch hτ _ h
 
@@ -366,8 +366,8 @@ theorem RuleValid.delta (henv : env.Ordered) (hdr : env.DefRules)
   · rcases Obs.const_iff.1 h with ⟨_, _, _, _, _, hrig, _⟩ |
       ⟨df', ci', τs, hdf', hlhs', hci', hτ, hty, hv⟩ | ⟨_, _, _, _, _, hc, _⟩ |
       ⟨df', doms, lsP, lead, ctor, lsC, ms, fs, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf',
-        hl', _⟩ | ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, hrig, _⟩ |
-      ⟨_, _, _, _, _, _, _, _, hrig, _⟩
+        hl', _⟩ | ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, _, _, _, _, hrig, _⟩ |
+      ⟨_, _, _, _, _, _, _, _, _, _, _, hrig, _⟩
     · exact absurd hrig notRigid
     · cases hdr.excl df df' hdf hdf' n _ _ hlhs (by rw [hlhs']; rfl)
       exact ⟨o, (Obs.closed_iff_id hrcl).2 hv, .refl⟩

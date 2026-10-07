@@ -1,4 +1,5 @@
 import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Obs
+import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.ProjTyping
 
 /-! # The observation interpretation (milestone M2, structural part)
 
@@ -114,9 +115,26 @@ def KeysBacked (keys : List Key) : Prop := ∀ k ∈ keys, Backed (fun o => o �
 `fam` (decision D12): a field observation of field `j` with the observation lists of the
 earlier field keys as context. -/
 def PCtorEnd (fam : Name) (info : VProjectionInfo) (keys : List Key) (r : Ob) : Prop :=
-  ∃ j L k, r = .fieldOb fam j L k ∧ j < info.numFields ∧
-    L = ((keys.drop info.nparams).take j).map (·.2.2) ∧
+  ∃ j L k, r = .fieldOb fam j L k ∧ j < info.numFields ∧ L.length = j ∧
+    (∀ i Li, L[i]? = some Li → ∃ ki, keys[info.nparams + i]? = some ki ∧ ∀ y ∈ Li, y ∈ ki.2.2) ∧
     ∃ kj, keys[info.nparams + j]? = some kj ∧ k ∈ kj.2.2
+
+section
+variable (env : VEnv) (U : Nat) (Δ : List VExpr)
+
+/-- Anchors `as` of a prefix of the telescope `D` (outermost first) in the classes of the keys
+`K`, each class typed at the type class of its domain at the earlier anchors. -/
+def ChainOK (D as : List VExpr) (K : List Key) : Prop :=
+  as.length = K.length ∧ ∀ i a k, as[i]? = some a → K[i]? = some k →
+    TypedElCls env U Δ
+      (TyCls env U Δ ((D.getD i (.sort .zero)).subst (VExpr.argSubst (as.take i)))) k.2.1 ∧ k.2.1 a
+
+end
+
+/-- Observation sets (de Bruijn indexed, innermost binder first) whose members are each weaker
+than a member of the corresponding key list of `K` (outermost first). -/
+def SetsCov (S' : ObSets) (K : List Key) : Prop :=
+  ∀ i y, S' i y → i < K.length ∧ ∃ k, K[K.length - 1 - i]? = some k ∧ ∃ y' ∈ k.2.2, y' ≼ y
 
 /-- The observation of a Pi telescope recording the codomain observation `x` at the keys. -/
 def piCodChain (keys : List Key) (x : Ob) : Ob := keys.foldr (fun k x => .piCodOb k.2.1 k.2.2 x) x
@@ -206,16 +224,21 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
   /-- A projection-registered family applied to all its arguments has the field-domain type
   observations, read from the constructor type at the parameter keys. -/
   | famTy : env.Rigid n → env.constants n = some ci → env.projections n info →
+    (info.resultLevel.inst ls).IsNeverZero →
     (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys (.fieldTy n j FL x)) τs →
     keys.length = info.nparams + info.nindices → j < info.numFields → FL.length = j →
-    Obs .id .empty (info.ctorType.instL ls) (piCodChain (keys.take info.nparams ++ FL) (.piDomOb x)) →
+    info.ctorType.instL ls = .wrapForalls Dc R0 → ChainOK env U Δ Dc as (keys.take info.nparams ++ FL) →
+    SetsCov S' (keys.take info.nparams ++ FL) →
+    Obs (VExpr.argSubst as) S' (Dc.getD (info.nparams + j) (.sort .zero)) x →
     Obs σ S (.const n ls) (wrap keys (.fieldTy n j FL x))
   | famDom : env.Rigid n → env.constants n = some ci → env.projections n info →
+    (info.resultLevel.inst ls).IsNeverZero →
     (∀ τ ∈ τs, Obs .id .empty (ci.type.instL ls) τ) →
     TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys (.fieldDom n j FL D)) τs →
     keys.length = info.nparams + info.nindices → j < info.numFields → FL.length = j →
-    Obs .id .empty (info.ctorType.instL ls) (piCodChain (keys.take info.nparams ++ FL) (.piDom D)) →
+    info.ctorType.instL ls = .wrapForalls Dc R0 → ChainOK env U Δ Dc as (keys.take info.nparams ++ FL) →
+    D = TyCls env U Δ ((Dc.getD (info.nparams + j) (.sort .zero)).subst (VExpr.argSubst as)) →
     Obs σ S (.const n ls) (wrap keys (.fieldDom n j FL D))
   /-- The rule clause (section 10.2 of the notes): a head chain whose keys bind the rule's
   variables has the observations of the rule's right-hand side body at that binding,
@@ -351,20 +374,21 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
       (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys r) τs ∧
       keys.length = info.nparams + info.numFields ∧ PCtorEnd fam info keys r ∧ KeysBacked keys) ∨
-    (∃ ci info τs keys j FL x, o = wrap keys (.fieldTy n j FL x) ∧ env.Rigid n ∧
-      env.constants n = some ci ∧ env.projections n info ∧
+    (∃ ci info τs keys j FL x Dc R0 as S', o = wrap keys (.fieldTy n j FL x) ∧ env.Rigid n ∧
+      env.constants n = some ci ∧ env.projections n info ∧ (info.resultLevel.inst ls).IsNeverZero ∧
       (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys (.fieldTy n j FL x)) τs ∧
       keys.length = info.nparams + info.nindices ∧ j < info.numFields ∧ FL.length = j ∧
-      Obs' .id .empty (info.ctorType.instL ls)
-        (piCodChain (keys.take info.nparams ++ FL) (.piDomOb x))) ∨
-    (∃ ci info τs keys j FL D, o = wrap keys (.fieldDom n j FL D) ∧ env.Rigid n ∧
-      env.constants n = some ci ∧ env.projections n info ∧
+      info.ctorType.instL ls = .wrapForalls Dc R0 ∧ ChainOK env U Δ Dc as (keys.take info.nparams ++ FL) ∧
+      SetsCov S' (keys.take info.nparams ++ FL) ∧
+      Obs' (VExpr.argSubst as) S' (Dc.getD (info.nparams + j) (.sort .zero)) x) ∨
+    (∃ ci info τs keys j FL D Dc R0 as, o = wrap keys (.fieldDom n j FL D) ∧ env.Rigid n ∧
+      env.constants n = some ci ∧ env.projections n info ∧ (info.resultLevel.inst ls).IsNeverZero ∧
       (∀ τ ∈ τs, Obs' .id .empty (ci.type.instL ls) τ) ∧
       TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls)) (wrap keys (.fieldDom n j FL D)) τs ∧
       keys.length = info.nparams + info.nindices ∧ j < info.numFields ∧ FL.length = j ∧
-      Obs' .id .empty (info.ctorType.instL ls)
-        (piCodChain (keys.take info.nparams ++ FL) (.piDom D))) := by
+      info.ctorType.instL ls = .wrapForalls Dc R0 ∧ ChainOK env U Δ Dc as (keys.take info.nparams ++ FL) ∧
+      D = TyCls env U Δ ((Dc.getD (info.nparams + j) (.sort .zero)).subst (VExpr.argSubst as))) := by
   constructor
   · intro h; cases h with
     | const h0 h1 h2 h3 h4 => exact .inl ⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩
@@ -376,26 +400,28 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
         _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩)))
     | projCtor h1 h2 h3 h4 h5 h6 h7 h8 =>
       exact .inr (.inr (.inr (.inr (.inl ⟨_, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8⟩))))
-    | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
+    | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 =>
       exact .inr (.inr (.inr (.inr (.inr (.inl
-        ⟨_, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9⟩)))))
-    | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 =>
+        ⟨_, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12,
+          h13⟩)))))
+    | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
       exact .inr (.inr (.inr (.inr (.inr (.inr
-        ⟨_, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9⟩)))))
+        ⟨_, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩)))))
   · rintro (⟨_, _, _, _, rfl, h0, h1, h2, h3, h4⟩ | ⟨_, _, _, h1, h2, h3, h4, h5, h6⟩ |
       ⟨_, _, _, _, rfl, h0, hp, h1, h2, h3, h4, hb⟩ |
       ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _,
         rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩ |
       ⟨_, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8⟩ |
-      ⟨_, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9⟩ |
-      ⟨_, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9⟩)
+      ⟨_, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12,
+        h13⟩ |
+      ⟨_, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11, h12⟩)
     · exact .const h0 h1 h2 h3 h4
     · exact .delta h1 h2 h3 h4 h5 h6
     · exact .ctor h0 hp h1 h2 h3 h4 hb
     · exact .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12
     · exact .projCtor h1 h2 h3 h4 h5 h6 h7 h8
-    · exact .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9
-    · exact .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9
+    · exact .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13
+    · exact .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
 
 /-- The observations of a constant do not depend on the valuation. -/
 theorem const_indep : Obs' σ S (.const n ls) o ↔ Obs' σ' S' (.const n ls) o := by
@@ -544,8 +570,10 @@ theorem mono (h : Obs' σ S t o) (hS : ∀ i o, S i o → S' i o) : Obs' σ S' t
   | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12 =>
     exact .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12
   | projCtor h1 h2 h3 h4 h5 h6 h7 h8 => exact .projCtor h1 h2 h3 h4 h5 h6 h7 h8
-  | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 => exact .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9
-  | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 => exact .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9
+  | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 =>
+    exact .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13
+  | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12
   | proj _ ih => exact .proj (ih hS)
 
 /-- Monotonicity up to subsumption: if every observation of `S` is subsumed by one of
@@ -589,8 +617,10 @@ theorem mono_le (h : Obs' σ S t o) (hS : ∀ i o, S i o → ∃ o', S' i o' ∧
   | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12 =>
     exact ⟨_, .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12, .refl⟩
   | projCtor h1 h2 h3 h4 h5 h6 h7 h8 => exact ⟨_, .projCtor h1 h2 h3 h4 h5 h6 h7 h8, .refl⟩
-  | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 => exact ⟨_, .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9, .refl⟩
-  | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 => exact ⟨_, .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9, .refl⟩
+  | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 =>
+    exact ⟨_, .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13, .refl⟩
+  | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact ⟨_, .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12, .refl⟩
   | proj _ ih =>
     obtain ⟨o', h1, l⟩ := ih hS
     obtain ⟨_, y, rfl, ly⟩ := l.fieldOb_inv
@@ -676,8 +706,10 @@ theorem compact (h : Obs' σ S t o) (n : Nat) :
   | delta h1 h2 h3 h4 h5 h6 => exact ⟨[], nofun, .delta h1 h2 h3 h4 h5 h6⟩
   | ctor h0 hp h1 h2 h3 h4 hb => exact ⟨[], nofun, .ctor h0 hp h1 h2 h3 h4 hb⟩
   | projCtor h1 h2 h3 h4 h5 h6 h7 h8 => exact ⟨[], nofun, .projCtor h1 h2 h3 h4 h5 h6 h7 h8⟩
-  | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 => exact ⟨[], nofun, .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9⟩
-  | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 => exact ⟨[], nofun, .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9⟩
+  | famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13 =>
+    exact ⟨[], nofun, .famTy h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 h13⟩
+  | famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12 =>
+    exact ⟨[], nofun, .famDom h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 h12⟩
   | proj _ ih => let ⟨K, h1, h2⟩ := ih n; exact ⟨K, h1, .proj h2⟩
   | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12 =>
     exact ⟨[], nofun, .rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12⟩
@@ -793,6 +825,35 @@ theorem _root_.Lean4Lean.VEnv.Model.elimCls_lvEq {T : VExpr} {ls ls' : List VLev
       ElCls env U Δ (TyCls env U Δ (T.instL ls')) (.elim b o ls') := by
   rw [TyCls.eq_of_lvEq (LvEq.instL T w1 w2 hls), ElCls.eq_of_lvEq (LvEq.elim w1 w2 hls)]
 
+theorem _root_.Lean4Lean.VEnv.Model.LvEq.wrapForalls_inv : ∀ {D : List VExpr} {R X : VExpr},
+    LvEq U (.wrapForalls D R) X → ∃ D' R', X = .wrapForalls D' R' ∧
+      ∀ i, LvEq U (D.getD i (.sort .zero)) (D'.getD i (.sort .zero))
+  | [], R, X, _ => ⟨[], X, rfl, fun _ => .refl⟩
+  | A :: D, R, X, h => by
+    simp only [VExpr.wrapForalls, List.foldr_cons] at h
+    cases h with
+    | refl => exact ⟨A :: D, R, rfl, fun _ => .refl⟩
+    | forallE hA hB =>
+      obtain ⟨D', R', rfl, hD⟩ := LvEq.wrapForalls_inv hB
+      refine ⟨_ :: D', R', rfl, fun i => ?_⟩
+      cases i with
+      | zero => exact hA
+      | succ i => exact hD i
+
+theorem _root_.Lean4Lean.VEnv.Model.wrapForalls_instL_lvEq {T : VExpr} {D : List VExpr}
+    (h : T.instL ls = .wrapForalls D R0) (w1 : ∀ l ∈ ls, l.WF U) (w2 : ∀ l ∈ ls', l.WF U)
+    (w3 : List.Forall₂ (· ≈ ·) ls ls') : ∃ D' R', T.instL ls' = .wrapForalls D' R' ∧
+      ∀ i, LvEq U (D.getD i (.sort .zero)) (D'.getD i (.sort .zero)) := by
+  have := LvEq.instL T w1 w2 w3; rw [h] at this; exact LvEq.wrapForalls_inv this
+
+theorem _root_.Lean4Lean.VEnv.Model.ChainOK.lvEq {D D' as : List VExpr} {K : List Key}
+    (h : ChainOK env U Δ D as K)
+    (hD : ∀ i, LvEq U (D.getD i (.sort .zero)) (D'.getD i (.sort .zero))) :
+    ChainOK env U Δ D' as K := by
+  refine ⟨h.1, fun i a k ha hk => ?_⟩
+  rw [← TyCls.eq_of_lvEq ((hD i).subst _)]
+  exact h.2 i a k ha hk
+
 /-- **Level invariance**: the observations of a term are those of its level variants
 (classes are saturated by `LvEq`, levels are observed through `VLevel.eval`). -/
 theorem lvEq (h : Obs' σ S t o) (ht : LvEq U t t') : Obs' σ S t' o := by
@@ -852,18 +913,23 @@ theorem lvEq (h : Obs' σ S t o) (ht : LvEq U t t') : Obs' σ S t' o := by
     | const w1 w2 w3 =>
       exact .projCtor h1 h2 h3 (fun τ hτ => ih4 τ hτ (.instL _ w1 w2 w3))
         (constCls_lvEq w1 w2 w3 ▸ h5) h6 h7 h8
-  | famTy h1 h2 h3 _ h5 h6 h7 h8 _ ih4 ih9 =>
+  | famTy h1 h2 h3 h4 _ h6 h7 h8 h9 h10 h11 h12 _ ih5 ih13 =>
     cases ht with
-    | refl => exact .famTy h1 h2 h3 (fun τ hτ => ih4 τ hτ .refl) h5 h6 h7 h8 (ih9 .refl)
+    | refl => exact .famTy h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ .refl) h6 h7 h8 h9 h10 h11 h12 (ih13 .refl)
     | const w1 w2 w3 =>
-      exact .famTy h1 h2 h3 (fun τ hτ => ih4 τ hτ (.instL _ w1 w2 w3))
-        (constCls_lvEq w1 w2 w3 ▸ h5) h6 h7 h8 (ih9 (.instL _ w1 w2 w3))
-  | famDom h1 h2 h3 _ h5 h6 h7 h8 _ ih4 ih9 =>
+      obtain ⟨D', R', e', hD⟩ := wrapForalls_instL_lvEq h10 w1 w2 w3
+      exact .famTy h1 h2 h3 (VLevel.IsNeverZero.of_equiv h4 (VLevel.inst_congr (VLevel.equiv_def.2 fun _ => rfl) w3))
+        (fun τ hτ => ih5 τ hτ (.instL _ w1 w2 w3))
+        (constCls_lvEq w1 w2 w3 ▸ h6) h7 h8 h9 e' (h11.lvEq hD) h12 (ih13 (hD _))
+  | famDom h1 h2 h3 h4 _ h6 h7 h8 h9 h10 h11 h12 ih5 =>
     cases ht with
-    | refl => exact .famDom h1 h2 h3 (fun τ hτ => ih4 τ hτ .refl) h5 h6 h7 h8 (ih9 .refl)
+    | refl => exact .famDom h1 h2 h3 h4 (fun τ hτ => ih5 τ hτ .refl) h6 h7 h8 h9 h10 h11 h12
     | const w1 w2 w3 =>
-      exact .famDom h1 h2 h3 (fun τ hτ => ih4 τ hτ (.instL _ w1 w2 w3))
-        (constCls_lvEq w1 w2 w3 ▸ h5) h6 h7 h8 (ih9 (.instL _ w1 w2 w3))
+      obtain ⟨D', R', e', hD⟩ := wrapForalls_instL_lvEq h10 w1 w2 w3
+      exact .famDom h1 h2 h3 (VLevel.IsNeverZero.of_equiv h4 (VLevel.inst_congr (VLevel.equiv_def.2 fun _ => rfl) w3))
+        (fun τ hτ => ih5 τ hτ (.instL _ w1 w2 w3))
+        (constCls_lvEq w1 w2 w3 ▸ h6) h7 h8 h9 e' (h11.lvEq hD)
+        (h12.trans (TyCls.eq_of_lvEq ((hD _).subst _)))
   | proj _ ih =>
     cases ht with
     | refl => exact .proj (ih .refl)
@@ -945,18 +1011,19 @@ theorem backed (h : Obs' σ S t o) (hS : ∀ i, Backed (S i)) : ∀ w ∈ o.wit,
     intro w hw
     obtain ⟨w', hw', rfl⟩ := mem_wit_wrap.1 hw
     have hty := h5.wit _ (mem_wit_wrap.2 ⟨_, hw', rfl⟩)
-    obtain ⟨j, L, k, rfl, hj, rfl, kj, hkj, hk⟩ := h7
+    obtain ⟨j, L, k, rfl, hj, hLj, hLk, kj, hkj, hk⟩ := h7
     rcases Ob.mem_wit_fieldOb.1 hw' with ⟨i, Li, y, hLi, hy, rfl⟩ | ⟨w'', hw'', rfl⟩
     · have hil : i < j := by
-        have := (List.getElem?_eq_some_iff.1 hLi).1; simp at this; omega
-      refine .projCtor h1 h2 h3 h4 hty h6 ⟨i, _, y, rfl, by omega, take_map_take (Nat.le_of_lt hil), ?_⟩ h8
-      have e1 := hLi
-      rw [List.getElem?_map, List.getElem?_take, if_pos hil, List.getElem?_drop] at e1
-      cases e2 : keys[info.nparams + i]? with
-      | none => rw [e2] at e1; cases e1
-      | some ki => rw [e2] at e1; cases e1; exact ⟨ki, rfl, hy⟩
+        have := (List.getElem?_eq_some_iff.1 hLi).1; omega
+      obtain ⟨ki, hki, hyi⟩ := hLk i Li hLi
+      refine .projCtor h1 h2 h3 h4 hty h6 ⟨i, _, y, rfl, by omega, by simp; omega,
+        fun i' Li' hi' => ?_, ki, hki, hyi y hy⟩ h8
+      rw [List.getElem?_take] at hi'
+      split at hi'
+      · exact hLk i' Li' hi'
+      · cases hi'
     · exact .projCtor h1 h2 h3 h4 hty h6
-        ⟨j, _, w'', rfl, hj, rfl, kj, hkj, h8 kj (List.mem_of_getElem? hkj) _ hk w'' hw''⟩ h8
+        ⟨j, _, w'', rfl, hj, hLj, hLk, kj, hkj, h8 kj (List.mem_of_getElem? hkj) _ hk w'' hw''⟩ h8
   | rule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12 _ _ ih12 =>
     intro w hw
     obtain ⟨w', hw', rfl⟩ := mem_wit_wrap.1 hw
@@ -1032,8 +1099,8 @@ theorem Obs.const_typed (h : Obs' σ S (.const n ls) o) (hci : env.constants n =
     ⟨_, ci', τs, _, _, hci', hτ, hty, _⟩ | ⟨ci', τs, _, _, rfl, _, _, hci', hτ, hty, _⟩ |
     ⟨_, _, _, _, _, _, _, _, _, ci', τs, _, _, _, _, _, _, _, _, _, _, _, rfl, _, _, _, hci', hτ,
       hty, _⟩ | ⟨_, _, ci', τs, _, _, rfl, _, _, hci', hτ, hty, _⟩ |
-    ⟨ci', _, τs, _, _, _, _, rfl, _, hci', _, hτ, hty, _⟩ |
-    ⟨ci', _, τs, _, _, _, _, rfl, _, hci', _, hτ, hty, _⟩ <;>
+    ⟨ci', _, τs, _, _, _, _, _, _, _, _, rfl, _, hci', _, _, hτ, hty, _⟩ |
+    ⟨ci', _, τs, _, _, _, _, _, _, _, rfl, _, hci', _, _, hτ, hty, _⟩ <;>
     cases hci.symm.trans hci' <;> exact ⟨τs, hτ, hty⟩
 
 /-- Observations of a constant transfer to equivalent levels, given that the observations
@@ -1055,8 +1122,8 @@ theorem Obs.const_levels (h : Obs' σ S (.const n ls) o)
     ⟨_, _, _, _, _, _, _, _, _, ci, τs, _, _, _, _, _, _, _, _, _, _, _, rfl, h1, h2, h3, hci,
       hτ, hty, h7, h8, h9, h10, h11, hb, h12⟩ |
     ⟨_, _, ci, τs, _, _, rfl, h1, h2, hci, hτ, hty, h6, h7, h8⟩ |
-    ⟨ci, _, τs, _, _, _, _, rfl, h0, hci, h3, hτ, hty, h6, h7, h8, h9⟩ |
-    ⟨ci, _, τs, _, _, _, _, rfl, h0, hci, h3, hτ, hty, h6, h7, h8, h9⟩ <;>
+    ⟨ci, _, τs, _, _, _, _, _, _, _, _, rfl, h0, hci, h3, h4, hτ, hty, h6, h7, h8, h9, h10, h11, h12⟩ |
+    ⟨ci, _, τs, _, _, _, _, _, _, _, rfl, h0, hci, h3, h4, hτ, hty, h6, h7, h8, h9, h10, h11⟩ <;>
     obtain ⟨τs', h1', h2'⟩ := tr ci τs _ hci hτ hty
   · exact .const h0 hci h1' h2' (map_eval_eq hls ▸ hr)
   · exact .delta h1 h2 hci h1' h2' (hv.lvEq (.instL _ w1 w2 hls))
@@ -1064,8 +1131,12 @@ theorem Obs.const_levels (h : Obs' σ S (.const n ls) o)
   · exact .rule h1 h2 h3 hci h1' h2' h7 h8 (fun e => (h9 e).lvEq (.instL _ w1 w2 hls)) h10
       (h11.lvEq w1 w2 hls) hb (h12.lvEq (.instL _ w1 w2 hls))
   · exact .projCtor h1 h2 hci h1' h2' h6 h7 h8
-  · exact .famTy h0 hci h3 h1' h2' h6 h7 h8 (h9.lvEq (.instL _ w1 w2 hls))
-  · exact .famDom h0 hci h3 h1' h2' h6 h7 h8 (h9.lvEq (.instL _ w1 w2 hls))
+  · obtain ⟨D', R', e', hD⟩ := wrapForalls_instL_lvEq h9 w1 w2 hls
+    exact .famTy h0 hci h3 (VLevel.IsNeverZero.of_equiv h4 (VLevel.inst_congr (VLevel.equiv_def.2 fun _ => rfl) hls))
+      h1' h2' h6 h7 h8 e' (h10.lvEq hD) h11 (h12.lvEq (hD _))
+  · obtain ⟨D', R', e', hD⟩ := wrapForalls_instL_lvEq h9 w1 w2 hls
+    exact .famDom h0 hci h3 (VLevel.IsNeverZero.of_equiv h4 (VLevel.inst_congr (VLevel.equiv_def.2 fun _ => rfl) hls))
+      h1' h2' h6 h7 h8 e' (h10.lvEq hD) (h11.trans (TyCls.eq_of_lvEq ((hD _).subst _)))
 
 end Model
 end VEnv

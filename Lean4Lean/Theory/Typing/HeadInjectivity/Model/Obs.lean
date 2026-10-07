@@ -472,6 +472,13 @@ def appCls (cv c C : VExpr → Prop) : VExpr → Prop :=
 def projCls (n : Name) (j : Nat) (cv D : VExpr → Prop) : VExpr → Prop :=
   fun z => ∃ w, cv w ∧ ElCls env U Δ D (.proj n j w) z
 
+/-- The keys `FL` of the earlier fields in a type observation of a field are compatible with
+the context `L` of a field observation of a value of class `cv`: each key class is a class of
+projections of `cv`, and each key observation is weaker than a context observation. -/
+def FLCompat (n : Name) (cv : VExpr → Prop) (L : List (List Ob)) (FL : List Key) : Prop :=
+  FL.length = L.length ∧ ∀ i F Li, FL[i]? = some F → L[i]? = some Li →
+    (∃ Di, F.2.1 = projCls env U Δ n i cv Di) ∧ ∀ y ∈ F.2.2, ∃ y' ∈ Li, y' ≼ y
+
 /-- `TypedOb cv o τs`: the observation `o` of a value of class `cv` is typed at the observations
 `τs` of its type. Sorts are typed at their successor; type observations at some sort, a
 codomain observation at a level that vanishes whenever the Pi's level does (so that
@@ -497,18 +504,16 @@ inductive TypedOb : (VExpr → Prop) → Ob → List Ob → Prop
   | ctorHead : CtorTyped env c τs → TypedOb cv (.ctorHead c ℓs m) τs
   | ctorArg : CtorTyped env c τs → TypedOb cv (.ctorArg i cls) τs
   | ctorArgOb : CtorTyped env c τs → TypedOb cv (.ctorArgOb i pre o) τs
-  | fieldTy : .sort ℓ ∈ τs → TypedOb cv (.fieldTy n j FL o) τs
-  | fieldDom : .sort ℓ ∈ τs → TypedOb cv (.fieldDom n j FL D) τs
-  /-- A field observation of a value of class `cv`: the value's type is a never-zero
-  application of the projection-registered family `n`; the earlier fields are keyed by the
-  projections of `cv` with the context lists `L`; the observation `o` is typed, at the class of
-  the projections, at the field-domain observations of the type at those keys; and the context
-  observations are typed field observations themselves. -/
-  | fieldOb : .rigid n ℓs m s ∈ τs → (∀ ns, s ns ≠ 0) → env.projections n info →
-    j < info.numFields → L.length = j → FL.length = j →
-    (∀ i Li, L[i]? = some Li → ∃ Di, FL[i]? = some (Di, projCls env U Δ n i cv Di, Li) ∧
-      .fieldDom n i (FL.take i) Di ∈ τs) →
-    .fieldDom n j FL D ∈ τs → (∀ x ∈ τd, .fieldTy n j FL x ∈ τs) →
+  | fieldTy : .sort ℓ ∈ τs → (∀ ns, ℓ ns ≠ 0) → TypedOb cv (.fieldTy n j FL o) τs
+  | fieldDom : .sort ℓ ∈ τs → (∀ ns, ℓ ns ≠ 0) → TypedOb cv (.fieldDom n j FL D) τs
+  /-- A field observation of a value of class `cv`: the value's type is an application of the
+  projection-registered family `n` with a field-domain observation of field `j` (of class `D`
+  at keys `FL` for the earlier fields compatible with the context `L`); the observation `o` is
+  typed, at the class of the projections, at field-type observations of the type at keys
+  compatible with `L`; and the context observations are typed field observations themselves. -/
+  | fieldOb : env.projections n info → j < info.numFields → L.length = j →
+    .fieldDom n j FL D ∈ τs → FLCompat env U Δ n cv L FL →
+    (∀ x ∈ τd, ∃ FLx, .fieldTy n j FLx x ∈ τs ∧ FLCompat env U Δ n cv L FLx) →
     TypedOb (projCls env U Δ n j cv D) o τd →
     (∀ i Li, L[i]? = some Li → ∀ y ∈ Li, TypedOb cv (.fieldOb n i (L.take i) y) τs) →
     TypedOb cv (.fieldOb n j L o) τs
@@ -538,20 +543,17 @@ theorem TypedOb.strengthen (H : TypedOb env U Δ cv o τs) (h : Covers τs' τs)
     obtain ⟨_, h2, l⟩ := h _ h1; cases l.rigid_inv; exact .ctorArgOb ⟨I, ℓs, m, s, h2, h3, h4, h5⟩
   | rigidArg h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArg h2
   | rigidArgOb h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .rigidArgOb h2
-  | fieldTy h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .fieldTy h2
-  | fieldDom h1 => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .fieldDom h2
-  | @fieldOb τs s n info j L FL cv τd D o ℓs m h1 hnz hp hj hL hFL hctx hD hτd _ _ iho ihrec =>
-    obtain ⟨_, h1', l1⟩ := h _ h1; cases l1.rigid_inv
+  | fieldTy h1 hz => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .fieldTy h2 hz
+  | fieldDom h1 hz => let ⟨_, h2, l⟩ := h _ h1; cases l.sort_inv; exact .fieldDom h2 hz
+  | @fieldOb n info j τs cv L FL τd D o hp hj hL hD hFL hτd _ _ iho ihrec =>
     obtain ⟨_, hD', lD⟩ := h _ hD; cases lD.fieldDom_inv
     have ⟨τd', hd1, hd2⟩ := exists_list_cover (L := τd)
-      (P := fun y => Ob.fieldTy n j FL y ∈ τs') (R := fun y x => y ≼ x) fun x hx => by
-        have ⟨_, h3, l⟩ := h _ (hτd x hx)
-        have ⟨y, e, l'⟩ := l.fieldTy_inv; subst e; exact ⟨y, h3, l'⟩
-    refine .fieldOb h1' hnz hp hj hL hFL (fun i Li hi => ?_) hD' hd1 (iho hd2)
-      (fun i Li hi y hy => ihrec i Li hi y hy h)
-    obtain ⟨Di, h4, h5⟩ := hctx i Li hi
-    obtain ⟨_, h6, l6⟩ := h _ h5; cases l6.fieldDom_inv
-    exact ⟨Di, h4, h6⟩
+      (P := fun y => ∃ FLx, Ob.fieldTy n j FLx y ∈ τs' ∧ FLCompat env U Δ n cv L FLx)
+      (R := fun y x => y ≼ x) fun x hx => by
+        obtain ⟨FLx, h3, h4⟩ := hτd x hx
+        have ⟨_, h5, l⟩ := h _ h3
+        have ⟨y, e, l'⟩ := l.fieldTy_inv; subst e; exact ⟨y, ⟨FLx, h5, h4⟩, l'⟩
+    exact .fieldOb hp hj hL hD' hFL hd1 (iho hd2) (fun i Li hi y hy => ihrec i Li hi y hy h)
   | @app _ τd K c _ τc _ C _ hD hd _ hB hc hC hcod _ ihk iho =>
     have ⟨_, h2, l⟩ := h _ hD; cases l.piDom_inv
     have ⟨_, hC', lC⟩ := h _ hC; cases lC.piCod_inv
@@ -593,8 +595,12 @@ theorem TypedOb.not_prop (H : TypedOb env U Δ cv o τs)
   | sort h1 | piDom h1 | piDomOb h1 | piCod h1 | piCodOb h1 | rigid h1 | rigidArg h1
   | rigidArgOb h1 =>
     obtain ⟨_, h⟩ := h _ h1; exact h.not_sort_zero
-  | fieldTy h1 | fieldDom h1 =>
-    obtain ⟨_, h⟩ := h _ h1; exact h.not_sort_zero
+  | fieldTy h1 hz | fieldDom h1 hz =>
+    obtain ⟨_, h⟩ := h _ h1
+    cases h with
+    | sort h2 =>
+      simp only [List.mem_singleton, Ob.sort.injEq] at h2
+      exact Nat.succ_ne_zero _ (congrFun h2 [])
   | ctorHead h1 | ctorArg h1 | ctorArgOb h1 =>
     obtain ⟨I, ℓs, m, s, h1, -, hne, -⟩ := h1
     obtain ⟨_, h⟩ := h _ h1
@@ -602,12 +608,12 @@ theorem TypedOb.not_prop (H : TypedOb env U Δ cv o τs)
     | rigid h2 =>
       simp only [List.mem_singleton, Ob.sort.injEq] at h2
       exact hne h2
-  | fieldOb h1 hnz =>
-    obtain ⟨_, h⟩ := h _ h1
+  | fieldOb _ _ _ hD =>
+    obtain ⟨_, h⟩ := h _ hD
     cases h with
-    | rigid h2 =>
+    | fieldDom h2 hz =>
       simp only [List.mem_singleton, Ob.sort.injEq] at h2
-      subst h2; exact hnz [] rfl
+      subst h2; exact hz [] rfl
   | app _ _ _ _ _ _ hcod _ _ iho =>
     refine iho fun x hx => ?_
     have ⟨_, h3, _⟩ := hcod x hx
@@ -627,11 +633,11 @@ theorem TypedOb.wit (H : TypedOb env U Δ cv o τs) : ∀ w ∈ o.wit, TypedOb e
     exact .app hD hd hk hB hc hC hcod (iho w' hw')
   | ctorArgOb h => intro w hw; simp only [Ob.wit, List.mem_map] at hw
                    obtain ⟨w', -, rfl⟩ := hw; exact .ctorArgOb h
-  | fieldOb h1 hnz hp hj hL hFL hctx hD hτd ho hrec iho _ =>
+  | fieldOb hp hj hL hD hFL hτd ho hrec iho _ =>
     intro w hw
     rcases Ob.mem_wit_fieldOb.1 hw with ⟨i, Li, y, hLi, hy, rfl⟩ | ⟨w', hw', rfl⟩
     · exact hrec i Li hLi y hy
-    · exact .fieldOb h1 hnz hp hj hL hFL hctx hD hτd (iho w' hw') hrec
+    · exact .fieldOb hp hj hL hD hFL hτd (iho w' hw') hrec
   | _ => intro w hw; simp [Ob.wit] at hw
 
 end Model

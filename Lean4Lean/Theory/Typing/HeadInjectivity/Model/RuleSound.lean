@@ -560,8 +560,8 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     ⟨_, _, _, _, _, hcn, _⟩ |
     ⟨df'', doms'', lsP'', lead'', ctor'', lsC'', ms'', fs'', body'', ci, τs, lkeys, Dm, cm, Km,
       p'', mC, τ, S'', I', ℓsI', mI', e, hdf'', hl'', hr'', -, -, -, hlen'', hsingle, -, hhd,
-      hbind, -, hbody⟩ | ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, hrig, _⟩ |
-    ⟨_, _, _, _, _, _, _, _, hrig, _⟩
+      hbind, -, hbody⟩ | ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, _, _, _, _, hrig, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, _, _, _, hrig, _⟩
   · exact absurd headOf (hrig df hdf lsP)
   · have := hdr.excl df' df hdf' hdf n _ lsP hlhs' headOf
     subst this

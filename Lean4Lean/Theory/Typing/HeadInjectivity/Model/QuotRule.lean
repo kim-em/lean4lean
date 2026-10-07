@@ -132,7 +132,7 @@ theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : Li
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys'', r, e, -, -, -, -, -, hr, -⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
     ⟨_, _, _, _, keys'', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
-    ⟨_, _, _, keys'', _, _, _, e, _⟩ | ⟨_, _, _, keys'', _, _, _, e, _⟩
+    ⟨_, _, _, keys'', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys'', _, _, _, _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e trivial hr.notApp
     cases hq.1.symm.trans hci
     have hlen : keys'.length = 2 := by

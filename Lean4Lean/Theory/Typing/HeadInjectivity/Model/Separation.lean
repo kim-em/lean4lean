@@ -32,7 +32,7 @@ theorem rigid_spine_not {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {o : O
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
     ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
-    ⟨_, _, _, keys', _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, e, _⟩
+    ⟨_, _, _, keys', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, _, _, _, e, _⟩
   · obtain ⟨-, rfl⟩ := wrap_inj e hna hr.notApp
     rcases ho with ⟨_, rfl⟩ | ⟨_, rfl⟩ <;> rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)

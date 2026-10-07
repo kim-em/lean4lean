@@ -91,7 +91,7 @@ theorem const_rigid_inv {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
     ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
     ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
     ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
-    ⟨_, _, _, keys', _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, e, _⟩
+    ⟨_, _, _, keys', _, _, _, _, _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, _, _, _, e, _⟩
   · rw [← e] at hty; exact ⟨ci, τs, hci, hτs, hty⟩
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
   · have hrn : r.NotApp := by
