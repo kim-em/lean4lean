@@ -216,6 +216,43 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   EliminatorAvoidance, coherence, the confluence `Params` fields reaching
   constructor shapes) adapted on E1; then (A) proceeds with the case-only
   certificate plus an `elimDF` typability lemma for the case type.
+  **E1 at 463c99d4 (pushed):** `corner_inhabit_elim`
+  (Theory/Typing/ProjectionCornerCaseElim.lean) proves the corner for
+  index-free structures with a registered case eliminator under canonical
+  choice; `ProjectionWalkCornerResolved`/`projectionWalkCorner_resolved`/
+  `ProjectionWalkCorner.full` narrow the hypothesis to the unresolved walks;
+  cone 40570 constants, only sorry `headInversion`, only hypothesis the
+  narrowed `ProjectionWalkCorner`. Two blockers: (1) the kernel's
+  `infer_proj` accepts one-constructor INDEXED families (`args.size =
+  nparams + nindices`), so an indexed corner is needed (restored case type
+  of an indexed view is a type; normalized index telescope agrees with the
+  declared one at the major's indices): assigned to the strengthening agent;
+  (2) the window typings live in the eliminator-extended environment and
+  cannot be moved down to the eliminator-free one `VInductBlock.WF`
+  requires. **Decision (2026-10-07): restructure the installation so
+  `VInductBlock.WF`/`install`/`VEnv.AddInduct` carry the certified case
+  eliminators, ordered before the projections** (spec restructuring with the
+  case-only certificate; weakens no theorem; several thousand lines over
+  the `WF'` inductions, eliminator invariants and `addProjections` sites).
+  **Indexed corner (2026-10-07):** needs a certificate clause the mainline
+  cannot supply: closed header agreement for original families (declared
+  family type ≡ `wrapForalls (params ++ normalized indices) (sort r)` in
+  the types environment). It was unprovable on the mainline (header-phase
+  whnf of later families inside earlier families' index binders; hence the
+  open `RestoresFamily.type` form), but E1's narrow-context header phase
+  normalizes each header from the parameters-only context, so E1 adds the
+  clause to the case-only certificate and discharges it; the strengthening
+  agent proves `corner_inhabit_elim_indexed` under it (branch
+  agent/verify-inductives-corner-indexed off E1 463c99d4). Integration
+  note: mainline `NativeIotaRestoration.lean` vs E1 `RestorationShapes`
+  relocate the same lemmas; keep one copy at merge. **Indexed corner
+  proved (branch agent/verify-inductives-corner-indexed d06d106a, off E1
+  463c99d4, pushed):** `VEnv.corner_inhabit_elim_indexed`
+  (Theory/Typing/ProjectionCornerIndexed*.lean), the indexed analogue of
+  `corner_inhabit_elim` under the restored header-agreement hypothesis on
+  the registered schema (restored params/indices `RP`, `RI`; declared type
+  of `S` ≡ `wrapForalls (RP ++ RI) (sort resultLevel)` in the empty
+  context); sorry dependency only `headInversion`. E1 supplies the clause.
   **Mainline fast-forwarded to base 9cc2be01 (pushed):** realizability of
   `HasCanonicalChoice` (Verify/Inductive/ChoiceCanonicalForms.lean,
   Verify/CanonicalChoiceRealization.lean `VEnvs.WF.hasCanonicalChoice`,
