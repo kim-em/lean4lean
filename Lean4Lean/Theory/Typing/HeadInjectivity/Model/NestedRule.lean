@@ -28,7 +28,7 @@ theorem FamSort.congr {I : Name} {l l' : VLevel} (H : FamSort env I l) (h : l �
 theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecialization}
     {a : ContainerSpecialization}
     (henvF : envF.Ordered) (h0 : env0.Ordered) (h0F : env0 ≤ envF)
-    (hnp : ∀ n p, ¬ envF.projections n p) (hne : ∀ b s, ¬ envF.eliminators b s)
+    (hnp : ∀ n p, ¬ envF.projections n p) (hEV : ElimsValid envF env0)
     (hvalid : ∀ df, env0.defeqs df → RuleValid envF df)
     (hprior : CertifiedSpecializations base aux) (hb : base ≤ env0) (ha : a ∈ aux) :
     FamSort envF a.source.name a.source.resultLevel := by
@@ -46,7 +46,7 @@ theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecializ
   have hc : envF.constants a.source.name = some a.source.toVConstant :=
     h0F.constants (hti'.trans (hle'.trans hb) |>.constants
       (addConstVals_get ht' (List.mem_map_of_mem hsrc)))
-  exact (famSort_of henvF h0 h0F hvalid hnp hne hc (h1.mono hTE) (h2.mono hTE) hlev).congr
+  exact (famSort_of henvF h0 h0F hvalid hnp hEV hc (h1.mono hTE) (h2.mono hTE) hlev).congr
     hrel.resultLevel
 
 end Model

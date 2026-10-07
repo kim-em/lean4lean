@@ -386,6 +386,71 @@ theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
     ihL ihR
 
 
+/-- **Validity of a generic case equation** of the schema registered at `b`, for the owner
+`owner`: the `elimIota` case of soundness in the model of `env`. -/
+def ElimValid (env : VEnv) {schema : InductiveSignature.CaseSchema}
+    (owner : Fin schema.signature.families.size) (df : VDefEq) : Prop :=
+  ∀ (U : Nat) (Δ Γ : List VExpr) (levels : List VLevel) (target tl : VLevel),
+    OnCtx Δ (env.IsType U) → schema.Permission U owner levels target →
+    env.IsDefEqStrong U Γ (df.type.instL (target :: levels)) (df.type.instL (target :: levels))
+      (.sort tl) →
+    SoundAt env U Δ Γ (df.type.instL (target :: levels)) (df.type.instL (target :: levels))
+      (.sort tl) ∧ HTS env U Δ Γ (df.type.instL (target :: levels)) (.sort tl) →
+    env.IsDefEqStrong U Γ (df.lhs.instL (target :: levels)) (df.lhs.instL (target :: levels))
+      (df.type.instL (target :: levels)) →
+    SoundAt env U Δ Γ (df.lhs.instL (target :: levels)) (df.lhs.instL (target :: levels))
+      (df.type.instL (target :: levels)) ∧
+      HTS env U Δ Γ (df.lhs.instL (target :: levels)) (df.type.instL (target :: levels)) →
+    env.IsDefEqStrong U Γ (df.rhs.instL (target :: levels)) (df.rhs.instL (target :: levels))
+      (df.type.instL (target :: levels)) →
+    SoundAt env U Δ Γ (df.rhs.instL (target :: levels)) (df.rhs.instL (target :: levels))
+      (df.type.instL (target :: levels)) ∧
+      HTS env U Δ Γ (df.rhs.instL (target :: levels)) (df.type.instL (target :: levels)) →
+    SoundAt env U Δ Γ (df.lhs.instL (target :: levels)) (df.rhs.instL (target :: levels))
+      (df.type.instL (target :: levels))
+
+/-- Validity of the eliminator rules of an environment `E` in the model of `env`, with
+uniqueness of the registered schemas of `env`. -/
+structure ElimsValid (env E : VEnv) : Prop where
+  uniq : ∀ b s s', env.eliminators b s → env.eliminators b s' → s = s'
+  valid : ∀ b (schema : InductiveSignature.CaseSchema) owner rules df,
+    E.eliminators b schema → schema.genericEquations b owner = some rules → df ∈ rules →
+    ElimValid env owner df
+
+theorem ElimsValid.mono {env E E' : VEnv} (H : ElimsValid env E) (h : E' ≤ E) :
+    ElimsValid env E' :=
+  ⟨H.uniq, fun b schema owner rules df hb => H.valid b schema owner rules df (h.eliminators hb)⟩
+
+theorem ElimsValid.of_elims {env E E' : VEnv} (H : ElimsValid env E)
+    (h : ∀ b s, E'.eliminators b s → E.eliminators b s) : ElimsValid env E' :=
+  ⟨H.uniq, fun b schema owner rules df hb => H.valid b schema owner rules df (h _ _ hb)⟩
+
+theorem ElimsValid.of_none {env E : VEnv} (hne : ∀ b s, ¬ env.eliminators b s) (h : E ≤ env) :
+    ElimsValid env E :=
+  ⟨fun b s _ hs => absurd hs (hne b s), fun b s _ _ _ hb => absurd (h.eliminators hb) (hne b s)⟩
+
+theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.Permission.wf_cons
+    {schema : InductiveSignature.CaseSchema} {owner : Fin schema.signature.families.size}
+    (H : schema.Permission U owner levels target) : ∀ l ∈ target :: levels, l.WF U := by
+  intro l hl
+  rcases List.mem_cons.1 hl with rfl | hl
+  · exact H.target_wf
+  · exact H.levels_wf l hl
+
+/-- Every observation of an eliminator passes its typing filter. -/
+theorem Obs.elim_typed {schema : InductiveSignature.CaseSchema}
+    {owner : Fin schema.signature.families.size}
+    (hEu : ∀ b s s', env.eliminators b s → env.eliminators b s' → s = s')
+    (h : Obs' σ S (.elim b owner.val ls) o) (hb : env.eliminators b schema)
+    (ht : schema.genericType owner = some type) :
+    TypedAt env U Δ .id .empty (type.instL ls) o := by
+  obtain ⟨schema', owner', _, _, _, _, _, _, _, _, _, _, type', τs, _, _, _, _, _, _, _, ei, rfl,
+    hb', -, -, -, -, ht', hτ, hty, -⟩ := Obs.elim_iff.1 h
+  cases hEu _ _ _ hb hb'
+  cases Fin.ext ei
+  cases ht.symm.trans ht'
+  exact ⟨τs, hτ, hty⟩
+
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
@@ -393,7 +458,7 @@ include henv hΔ
 /-- **Soundness** of the observation model for the derivations of an environment `E ≤ env`
 whose rules are valid in the model of `env`, carrying semantic typing derivations. -/
 theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → RuleValid env df)
-    (hnp : ∀ n p, ¬ E.projections n p) (hne : ∀ b s, ¬ E.eliminators b s)
+    (hnp : ∀ n p, ¬ E.projections n p) (hEV : ElimsValid env E)
     (H : E.IsDefEqStrong U Γ t t' T) :
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T := by
   induction H with
@@ -435,7 +500,26 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id (hcl ls)).2 (h1 τ hτ'), h2⟩
     · obtain ⟨τs, h1, h2⟩ := (h.const_typed hci).mono_le IH0.2.1
       exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id (hcl ls)).2 (h1 τ hτ'), h2⟩
-  | elimDF h1 => exact absurd h1 (hne _ _)
+  | elimDF hb htype hcl hperm hlw' hls _ h8 ih8 =>
+    replace hb := hle.eliminators hb
+    replace h8 := h8.mono hle
+    have hlw := hperm.wf_cons
+    refine ⟨?_, .elim hb htype hcl hlw ih8.2.1 ⟨h8.hasType.1, ih8.1.refl_l henv hΔ⟩,
+      .conv (.elim hb htype hcl hlw' ih8.2.2 ⟨h8.hasType.2, ih8.1.refl_r henv hΔ⟩)
+        ⟨h8.symm, ih8.1.symm henv hΔ⟩⟩
+    intro σ σ' S W tv tv'
+    have IH := ih8.1 σ σ' S W tv tv'
+    refine ⟨fun o h => ⟨o, Obs.elim_indep.1 (h.lvEq (.elim hlw hlw' hls)), .refl⟩,
+      fun o h => ⟨o, Obs.elim_indep.1 (h.lvEq (.elim hlw' hlw (forall₂_equiv_symm hls))), .refl⟩,
+      fun o h => ?_, fun o h => ?_⟩
+    · obtain ⟨τs, h1, h2⟩ := h.elim_typed hEV.uniq hb htype
+      exact ⟨τs, fun τ hτ' => (Obs.closed_iff_id hcl.instL).2 (h1 τ hτ'), h2⟩
+    · obtain ⟨τs, h1, h2⟩ := h.elim_typed hEV.uniq hb htype
+      obtain ⟨τs', h3, h4⟩ := TypedAt.mono_le (σ' := σ') (S' := S)
+        ⟨τs, fun τ hτ' => (Obs.closed_iff_id hcl.instL).2 (h1 τ hτ'), h2⟩ (fun x hx => by
+          obtain ⟨y, hy, l⟩ := IH.2.1 x hx
+          exact ⟨y, (Obs.closed_iff_id hcl.instL).2 ((Obs.closed_iff_id hcl.instL).1 hy), l⟩)
+      exact ⟨τs', h3, h4⟩
   | @appDF Γ A u B v f f' a a' _ _ hA hB hf ha hBB ihA ihB ihf iha ihBB =>
     replace hA := hA.mono hle
     replace hB := hB.mono hle
@@ -667,7 +751,10 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
   | @extra df ls u Γ hdf hlw hlen hu ht0 _ _ hl hr iht0 _ _ ihl ihr =>
     exact ⟨hvalid df hdf _ _ _ _ _ hΔ hlw hlen (ht0.mono hle) ⟨iht0.1, iht0.2.1⟩ (hl.mono hle)
       ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩, ihl.2.1, ihr.2.1⟩
-  | elimIota h1 => exact absurd h1 (hne _ _)
+  | elimIota hb hrules hmem _ hperm _ ht0 hl hr iht0 ihl ihr =>
+    exact ⟨hEV.valid _ _ _ _ _ hb hrules hmem _ _ _ _ _ _ hΔ hperm (ht0.mono hle)
+      ⟨iht0.1, iht0.2.1⟩ (hl.mono hle) ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩,
+      ihl.2.1, ihr.2.1⟩
   | projIota h1 => exact absurd h1 (hnp _ _)
   | structEta h1 => exact absurd h1 (hnp _ _)
   | unitLike h1 => exact absurd h1 (hnp _ _)

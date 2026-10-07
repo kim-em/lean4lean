@@ -54,7 +54,7 @@ theorem Model.famSort_of {envF E : VEnv} {I : Name} {c : VConstant} {domains : L
     {body A : VExpr} {level l : VLevel} {u0 : Nat}
     (henvF : envF.Ordered) (hE : E.Ordered) (hEF : E ≤ envF)
     (hvalid : ∀ df, E.defeqs df → Model.RuleValid envF df)
-    (hnp : ∀ n p, ¬ envF.projections n p) (hne : ∀ b s, ¬ envF.eliminators b s)
+    (hnp : ∀ n p, ¬ envF.projections n p) (hEV : Model.ElimsValid envF E)
     (hc : envF.constants I = some c)
     (h1 : E.IsDefEq u0 [] c.type (.wrapForalls domains body) A)
     (h2 : E.IsDefEq u0 domains.reverse body (.sort level) (.sort level.succ)) (hlev : level ≈ l) :
@@ -68,9 +68,8 @@ theorem Model.famSort_of {envF E : VEnv} {I : Name} {c : VConstant} {domains : L
   have s1 := IsDefEq.strong hE (show OnCtx [] (E.IsType U) from trivial) i1
   have s3 := IsDefEq.strong hE (show OnCtx [] (E.IsType U) from trivial) i3
   have hnpE : ∀ n p, ¬ E.projections n p := fun n p h => hnp n p (hEF.projections h)
-  have hneE : ∀ b s, ¬ E.eliminators b s := fun b s h => hne b s (hEF.eliminators h)
-  have S1 := (Model.sound henvF hΔ hEF hvalid hnpE hneE s1).1
-  have S3 := (Model.sound henvF hΔ hEF hvalid hnpE hneE s3).1
+  have S1 := (Model.sound henvF hΔ hEF hvalid hnpE hEV s1).1
+  have S3 := (Model.sound henvF hΔ hEF hvalid hnpE hEV s3).1
   rw [Model.instL_wrapForalls'' domains (.sort level)] at S3
   have := Model.family_sort₂ S1 S3 h
   rw [this]

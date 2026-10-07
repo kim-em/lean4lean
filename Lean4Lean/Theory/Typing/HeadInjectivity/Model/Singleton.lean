@@ -60,7 +60,7 @@ theorem TV.prefix {L : List VExpr} {σ : VExpr.Subst} {S : ObSets}
 theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}
     (henvF : envF.Ordered) (hE : E.Ordered) (hEF : E ≤ envF)
     (hvalid : ∀ df, E.defeqs df → RuleValid envF df)
-    (hnp : ∀ n p, ¬ E.projections n p) (hne : ∀ b s, ¬ E.eliminators b s)
+    (hnp : ∀ n p, ¬ E.projections n p) (hEV : ElimsValid envF E)
     (hdoms : OnCtx doms.reverse (E.IsType u0))
     (hder : E.HasType u0 doms.reverse ((doms.reverse.getD x default).liftN (x + 1))
       (.sort .zero))
@@ -71,7 +71,7 @@ theorem proofBinder_of {envF E : VEnv} {doms : List VExpr} {u0 x : Nat}
     rw [← List.map_reverse]; exact hdoms.instL hlw
   have hd' := hder.instL hlw
   rw [List.map_reverse] at hd'
-  have S := (Model.sound henvF hΔ hEF hvalid hnp hne (hd'.strong hE hL)).1
+  have S := (Model.sound henvF hΔ hEF hvalid hnp hEV (hd'.strong hE hL)).1
   have W := Wv.prefix (hL.mono (IsType.mono hEF))
   have tv := TV.prefix tvv
   refine ⟨⟨_, Or.inl rfl, (hd'.mono hEF).subst henvF W hΔ⟩, fun τ hτ => ?_⟩

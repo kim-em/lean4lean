@@ -35,7 +35,7 @@ environment `env0` before the family are valid. -/
 theorem Model.famSort_source {envF env0 installed base envTypes : VEnv} {source : VInductDecl}
     {block : VInductBlock} {r : Restoration} {u0 : Nat} {nf family : VInductiveType}
     (henvF : envF.Ordered) (h0 : env0.Ordered)
-    (hnp : ∀ n p, ¬ envF.projections n p) (hne : ∀ b s, ¬ envF.eliminators b s)
+    (hnp : ∀ n p, ¬ envF.projections n p) (hEV : Model.ElimsValid envF env0)
     (hvalid : ∀ df, env0.defeqs df → Model.RuleValid envF df)
     (hwf : ∀ t ∈ source.types, t.toVConstant.WF base) (hb : base ≤ env0)
     (htypes : base.addConstVals source.typeConstants = some envTypes)
@@ -53,14 +53,16 @@ theorem Model.famSort_source {envF env0 installed base envTypes : VEnv} {source 
   have hEF : types' ≤ envF := hti.trans hle
   have hfc : envF.constants family.name = some family.toVConstant :=
     hEF.constants (addConstVals_get ht (List.mem_map_of_mem hfamily))
-  refine Model.famSort_of henvF hE hEF ?_ hnp hne hfc (h1.mono hTE) (h2.mono hTE) hlev
+  refine Model.famSort_of henvF hE hEF ?_ hnp
+    (hEV.of_elims fun b s h => by rwa [VEnv.addConstVals_eliminators ht] at h) hfc
+    (h1.mono hTE) (h2.mono hTE) hlev
   rw [VEnv.addConstVals_defeqs ht]; exact hvalid
 
 /-- `FamSort` for every family of an ordinary compilation. -/
 theorem Model.famSort {envF env0 installed base : VEnv} {source expanded : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {block : VInductBlock}
     (henvF : envF.Ordered) (h0 : env0.Ordered)
-    (hnp : ∀ n p, ¬ envF.projections n p) (hne : ∀ b s, ¬ envF.eliminators b s)
+    (hnp : ∀ n p, ¬ envF.projections n p) (hEV : Model.ElimsValid envF env0)
     (hvalid : ∀ df, env0.defeqs df → Model.RuleValid envF df)
     (C : CompilationData base source expanded s g [] block) (hb : base ≤ env0)
     (hinst : block.install env0 = some installed) (hle : installed ≤ envF)
@@ -74,7 +76,7 @@ theorem Model.famSort {envF env0 installed base : VEnv} {source expanded : VIndu
   obtain ⟨-, -, -, -, _, _, _, _, hwf, _⟩ := C.sourceWF
   have hn : s.families[o].name = family.name := hrel.name
   rw [hn]
-  exact Model.famSort_source henvF h0 hnp hne hvalid hwf hb htypes C.types hinst hle hfamily hrel
+  exact Model.famSort_source henvF h0 hnp hEV hvalid hwf hb htypes C.types hinst hle hfamily hrel
 
 /-- The rules of `envF` whose head constant is a constant of `env` are rules of `env`: no later
 declaration adds a rule headed by an existing constant. -/
@@ -147,6 +149,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
     intro hle hcl df hdf
     have h0le := declaration_le' hdecl
     have h0 : env0.Ordered := (show env0.WF from ⟨ds, hbase⟩).ordered
+    have hEV0 : Model.ElimsValid envF env0 := .of_none hne (h0le.trans hle)
     have ih' := ih (h0le.trans hle)
     have hdfF := hle.defeqs hdf
     cases hdecl with
@@ -259,12 +262,12 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
           rcases C.family_origin s.constructors[index].owner with
             ⟨envTypes, family, htypes, hfamily, hrel, hhn, hhl⟩ | ⟨a, ha, hhn, hhl, hlev⟩
           · obtain ⟨-, -, -, -, _, _, _, _, hwf, _⟩ := C.sourceWF
-            have hfs := Model.famSort_source henvF h0 hnp hne (@ih' hcl0) hwf hbase' htypes C.types
+            have hfs := Model.famSort_source henvF h0 hnp hEV0 (@ih' hcl0) hwf hbase' htypes C.types
               hinst hle hfamily hrel
             exact Model.RuleValid.nested henvF hdr hctor hcres C hprior haux hbF hinst hle index hres
               hdfF hex (L := s.families[s.constructors[index].owner].resultLevel)
               (by rw [hhn]; exact hfs) (fun hnz => by rw [hhl]; exact hnz _ hmemF)
-          · have hfs := Model.famSort_container henvF h0 (h0le.trans hle) hnp hne (@ih' hcl0)
+          · have hfs := Model.famSort_container henvF h0 (h0le.trans hle) hnp hEV0 (@ih' hcl0)
               hprior hbase' ha
             exact Model.RuleValid.nested henvF hdr hctor hcres C hprior haux hbF hinst hle index hres
               hdfF hex (L := a.source.resultLevel) (by rw [hhn]; exact hfs)
@@ -309,7 +312,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
             simpa using onCtx_wrapForalls hER (show OnCtx [] (recursors.IsType g.uvars) from trivial)
               hty
           exact Model.RuleValid.native henvF hdr hctor hcres C hinst hle index hdfF hex
-            (Model.famSort henvF h0 hnp hne (@ih' hcl0) C hbase' hinst hle _)
+            (Model.famSort henvF h0 hnp hEV0 (@ih' hcl0) C hbase' hinst hle _)
             (fun envE hE hsing U Δ Γ ls hΔ hlw _ i hi hidx => by
               have hEE : envE ≤ recursors := by
                 rw [C.ordinary_expanded_types, ← C.types] at hE
@@ -317,7 +320,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
                   ((VEnv.addConstVals_le hc).trans (VEnv.addConstVals_le hr))
               exact Model.proofBinder_of henvF hER hERF hvalidR
                 (fun n p h => hnp n p (hERF.projections h))
-                (fun b s h => hne b s (hERF.eliminators h)) hdoms
+                (Model.ElimsValid.of_none hne hERF) hdoms
                 (singleton_field_typing hER hEE hsing index hi hidx) hΔ hlw)
         · exact @ih' hcl0 df hdf
   | inductEliminators _ _ _ _ _ _ _ _ _ =>
@@ -342,7 +345,8 @@ theorem WF.headInjectivityCore_of_projElimFree {env : VEnv} (henv : env.WF)
   have hvalid := WF'.ruleValid ⟨ds, H⟩ hB.projections hB.eliminators H .rfl
     (fun _ h _ _ _ _ => h)
   exact WF.headInjectivityCore_of_sound ⟨ds, H⟩ fun hΔ H' =>
-    Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid hB.projections hB.eliminators H'
+    Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid hB.projections
+      (Model.ElimsValid.of_none hB.eliminators .rfl) H'
 
 end VEnv
 end Lean4Lean

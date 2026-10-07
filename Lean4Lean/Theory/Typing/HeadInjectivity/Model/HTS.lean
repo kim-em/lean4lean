@@ -39,8 +39,8 @@ inductive HTS : List VExpr → VExpr → VExpr → Prop
   | elim {schema : InductiveSignature.CaseSchema}
       {owner : Fin schema.signature.families.size} :
     env.eliminators b schema → schema.genericType owner = some type → type.Closed →
-    (∀ l ∈ ls, l.WF U) → HTS [] (type.instL ls) (.sort u) →
-    SD env U Δ [] (type.instL ls) (type.instL ls) (.sort u) →
+    (∀ l ∈ ls, l.WF U) → HTS Γ (type.instL ls) (.sort u) →
+    SD env U Δ Γ (type.instL ls) (type.instL ls) (.sort u) →
     HTS Γ (.elim b owner.val ls) (type.instL ls)
   | app : SD env U Δ Γ A A (.sort u) → SD env U Δ (A :: Γ) B B (.sort v) →
     HTS Γ f (.forallE A B) → HTS Γ a A → SD env U Δ Γ a a A → HTS Γ (.app f a) (B.inst a)
@@ -235,7 +235,9 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     (Ks : List (List Ob)) (hKs : List.Forall₂ (fun K a => ∀ x ∈ K, Obs' σ S a x) Ks args)
     (τs : List Ob) (hτs : ∀ τ ∈ τs, Obs' σ S T τ) :
     ∃ Th info, HeadTy env U hd Th ∧ Th.ClosedN ∧
-      (∃ u, HTS env U Δ [] Th (.sort u) ∧ SD env U Δ [] Th Th (.sort u)) ∧
+      ((∃ u, HTS env U Δ [] Th (.sort u) ∧ SD env U Δ [] Th Th (.sort u)) ∨
+        ((∃ b o ls, hd = .elim b o ls) ∧
+          ∃ u, HTS env U Δ Γ Th (.sort u) ∧ SD env U Δ Γ Th Th (.sort u))) ∧
       List.Forall₂ (KeyData env U Δ Γ σ S) info args ∧
       List.Forall₂ (fun K (ka : Key × VExpr) => ∀ x ∈ K, x ∈ ka.1.2.2) Ks info ∧
       (∀ o, TypedOb env U Δ o τs → ∃ τ₀, (∀ τ ∈ τ₀, Obs' .id .empty (Th) τ) ∧
@@ -266,7 +268,8 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨_, _, _, he'⟩
     · subst he'
       cases hKs
-      refine ⟨_, [], .inl ⟨_, _, _, rfl, hci, hls, rfl⟩, (henv.closedC hci).instL, ⟨_, hT, hsd⟩,
+      refine ⟨_, [], .inl ⟨_, _, _, rfl, hci, hls, rfl⟩, (henv.closedC hci).instL,
+        .inl ⟨_, hT, hsd⟩,
         .nil, .nil, fun o ho => ⟨τs, fun τ hτ =>
           (Obs.closed_iff_id (henv.closedC hci).instL).1 (hτs τ hτ), ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id (henv.closedC hci).instL).2 hx, .refl⟩,
@@ -278,7 +281,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     · subst he'
       cases hKs
       refine ⟨_, [], .inr ⟨_, _, _, _, _, rfl, hb, htype, hcl0, hls, rfl⟩, hcl0.instL,
-        ⟨_, hT, hsd⟩, .nil, .nil,
+        .inr ⟨⟨_, _, _, rfl⟩, _, hT, hsd⟩, .nil, .nil,
         fun o ho => ⟨τs, fun τ hτ => (Obs.closed_iff_id hcl0.instL).1 (hτs τ hτ), ho⟩,
         fun x hx => ⟨x, (Obs.closed_iff_id hcl0.instL).2 hx, .refl⟩, fun pre ka post h => ?_⟩
       cases pre <;> cases h
@@ -385,7 +388,9 @@ theorem HTS.spine (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.cons
     H.spineH henv hΔ he (.inl ⟨c, ls, rfl⟩) W tv Ks hKs τs hτs
   rcases hTh with ⟨c', ls', ci, e, hci, hls, rfl⟩ | ⟨_, _, _, _, _, e, -⟩
   · cases e
-    exact ⟨ci, info, hci, hls, hT, hinfo, hKsi, P1, P2, dP2⟩
+    rcases hT with hT | ⟨⟨_, _, _, e⟩, -⟩
+    · exact ⟨ci, info, hci, hls, hT, hinfo, hKsi, P1, P2, dP2⟩
+    · cases e
   · cases e
 
 /-- **The spine lemma through lambdas**: for a lambda telescope typed at `P`, typed keys along
