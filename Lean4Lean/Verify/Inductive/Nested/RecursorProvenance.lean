@@ -254,104 +254,89 @@ theorem _root_.List.mapM_append_eq_some {f : α → Option β} {a b : List α} {
         Option.some.injEq] at h
       exact ⟨ca, cb, rfl, rfl, h.symm⟩
 
-/-- **Field-domain agreement of a typed iota equation, by strengthening.** The
-left-hand side of a well-typed equation with the iota pattern types each field
-pattern variable both at its own binder and along the constructor's telescope;
-unique typing identifies the two in the equation's full telescope, and
-`VEnv.IsDefEqU.weakN_iff` moves the identification to the prefix ending at the
-field. This supplies `VIotaRuleShape.ctor_doms` for restored nested rules. -/
-theorem iotaCtorDoms_of_lhsTyping {env : VEnv} (henv : VEnv.WF env)
-    {recName ctorName indName : Name}
-    {recUvars nparams cnparams nmotives nminors nindices nfields : Nat}
-    {ctorLevels : List VLevel} {ctorParams : List VExpr} {df : VDefEq}
-    {doms : List VExpr} {lhsBody typeBody : VExpr} {indexArgs : List VExpr}
-    (hwf : df.WF env) (huv : df.uvars = recUvars)
-    (hlhs : df.lhs = VExpr.wrapLams doms lhsBody)
-    (htype : df.type = VExpr.wrapForalls doms typeBody)
-    (hlen : doms.length = nparams + nmotives + nminors + nfields)
-    (hidx : indexArgs.length = nindices)
-    (hpat : lhsBody = VExpr.mkApps (.const recName (VLevel.params recUvars))
-      (VExpr.bvarRange (nparams + nmotives + nminors) doms.length ++ indexArgs ++
-        [VExpr.mkApps (.const ctorName ctorLevels)
-          ((ctorParams.map fun p => p.liftN (nmotives + nminors + nfields)) ++
-            VExpr.bvarRange nfields nfields)]))
-    (Hrec : VRecursorShape env recName recUvars nparams cnparams nmotives nminors nindices
-      indName ctorLevels ctorParams) :
-    ∀ ctorUvars ctorDoms ctorBody,
-    env.constants ctorName = some ⟨ctorUvars, VExpr.wrapForalls ctorDoms ctorBody⟩ →
-    ctorDoms.length = cnparams + nfields →
-    ∀ i, i < nfields → ∀ (hd : nparams + nmotives + nminors + i < doms.length)
-      (hc : cnparams + i < ctorDoms.length),
-    env.IsDefEqU recUvars ((doms.take (nparams + nmotives + nminors + i)).reverse)
-      doms[nparams + nmotives + nminors + i]
-      ((ctorDoms[cnparams + i].instL ctorLevels).instOuter
-        ((ctorParams.map fun p => p.liftN (nmotives + nminors + i)) ++
-          VExpr.bvarRange i i)) := by
-  intro ctorUvars ctorDoms ctorBody hconst hclen i hi hd hcd
-  generalize hm : nparams + nmotives + nminors = m at *
-  -- the left-hand side under the equation's telescope
-  have hleft := hwf.1
-  rw [hlhs, htype, huv] at hleft
-  rcases VEnv.HasType.wrapLams_inv henv (by trivial) hleft with ⟨hctx, hbody⟩
-  rw [hpat] at hbody
-  have hpre : (VExpr.bvarRange m doms.length ++ indexArgs).length =
-      nparams + nmotives + nminors + nindices := by
-    simp [hidx, hm]
-  have hbody' : env.HasType recUvars (doms.reverse ++ [])
-      (VExpr.mkApps (.const recName (VLevel.params recUvars))
-        ((VExpr.bvarRange m doms.length ++ indexArgs) ++
-          [VExpr.mkApps (.const ctorName ctorLevels)
-            ((ctorParams.map fun p => p.liftN (nmotives + nminors + nfields)) ++
-              VExpr.bvarRange nfields nfields)])) typeBody := by
-    simpa only [List.append_assoc] using hbody
-  have ⟨_, hmajor, _⟩ := Hrec.spine_typing henv hctx VLevel.params_wf VLevel.params_length
-    hpre ⟨_, hbody'⟩
-  -- the constructor constant and its spine
-  obtain ⟨_, hhead⟩ := VEnv.HasType.mkApps_head henv.ordered hctx hmajor
-  obtain ⟨ci, hci, hlw, hll⟩ := VEnv.HasType.const_inv henv hctx hhead
-  rw [hconst] at hci
-  cases hci
-  have hcT := VEnv.HasType.const (Γ := doms.reverse ++ []) hconst hlw hll
-  rw [VExpr.instL_wrapForalls] at hcT
-  have hplen : ctorParams.length = cnparams := Hrec.ctorParams_length
-  have hargsLen : ((ctorParams.map fun p => p.liftN (nmotives + nminors + nfields)) ++
-      VExpr.bvarRange nfields nfields).length = (ctorDoms.map (VExpr.instL ctorLevels)).length := by
-    simp [hplen, hclen]
-  have ⟨hcargs, _⟩ := VEnv.HasType.mkApps_wrapForalls henv hctx hcT ⟨_, hmajor⟩ hargsLen
-  have hv := hcargs (cnparams + i) (by simp [hplen]; omega) (by simp; omega)
-  rw [List.getElem_append_right (by simp [hplen]), List.take_append,
-    List.take_of_length_le (by simp [hplen])] at hv
-  simp only [List.length_map, hplen, Nat.add_sub_cancel_left] at hv
-  rw [VExpr.bvarRange_getElem _ _ _ hi, VExpr.bvarRange_take _ _ _ (Nat.le_of_lt hi)] at hv
-  -- closedness of the constructor's domains
-  have ⟨hctorC, _⟩ := VEnv.VEnv.constant_doms_closed henv hconst hlw
-  have hcC := hctorC (cnparams + i) (by simp; omega)
-  have hjn : m + i < doms.length := hd
-  have hY : (((ctorDoms.map (VExpr.instL ctorLevels))[cnparams + i]'(by simp; omega)).instOuter
-      ((ctorParams.map fun p => p.liftN (nmotives + nminors + i)) ++
-        VExpr.bvarRange i i)).liftN (doms.length - (m + i)) =
-      ((ctorDoms.map (VExpr.instL ctorLevels))[cnparams + i]'(by simp; omega)).instOuter
-        ((ctorParams.map fun p => p.liftN (nmotives + nminors + nfields)) ++
-          VExpr.bvarRange i nfields) := by
-    rw [VExpr.liftN_instOuter _ _ (by simpa [hplen] using hcC), List.map_append,
-      VExpr.bvarRange_map_liftN _ _ _ (Nat.le_refl _)]
-    simp only [List.map_map, Function.comp_def, VExpr.liftN_liftN]
-    rw [show nmotives + nminors + i + (doms.length - (m + i)) = nmotives + nminors + nfields by
-        omega,
-      show i + (doms.length - (m + i)) = nfields by omega]
-  rw [← hY] at hv
-  -- the pattern variable at its own binder
-  have hbvT : env.HasType recUvars (doms.reverse ++ []) (.bvar (doms.length - 1 - (m + i)))
-      (doms[m + i].liftN (doms.length - (m + i))) :=
-    .bvar (Lookup.reverse_append doms [] (m + i) hjn)
-  rw [show doms.length - 1 - (m + i) = nfields - 1 - i by omega] at hbvT
-  have hU := hbvT.uniqU henv hctx hv
-  have W : Ctx.LiftN (doms.length - (m + i)) 0 ((doms.take (m + i)).reverse ++ [])
-      (doms.reverse ++ []) := by
-    have := Ctx.LiftN.zero (Γ := (doms.take (m + i)).reverse ++ [])
-      ((doms.drop (m + i)).reverse) (n := doms.length - (m + i)) (by simp)
-    rwa [← List.append_assoc, ← List.reverse_append, List.take_append_drop] at this
-  sorry -- E1MERGE-TEMP
+/-! ### Field domains of restored constructors -/
+
+theorem _root_.Lean4Lean.VExpr.Subst.lift_liftN (σ : VExpr.Subst) :
+    ∀ i, σ.lift.liftN i = σ.liftN (i + 1)
+  | 0 => rfl
+  | i + 1 => by
+    show (σ.lift.liftN i).lift = (σ.liftN (i + 1)).lift
+    rw [VExpr.Subst.lift_liftN σ i]
+
+/-- Substitution through a telescope, binder by binder. -/
+theorem _root_.Lean4Lean.VExpr.wrapForalls_subst_doms (σ : VExpr.Subst) :
+    ∀ (ds : List VExpr) (b : VExpr), ∃ ds' b',
+      (VExpr.wrapForalls ds b).subst σ = VExpr.wrapForalls ds' b' ∧
+      ds'.length = ds.length ∧
+      ∀ i (h : i < ds.length) (h' : i < ds'.length), ds'[i] = ds[i].subst (σ.liftN i)
+  | [], b => ⟨[], b.subst σ, rfl, rfl, fun _ h => absurd h (Nat.not_lt_zero _)⟩
+  | d :: ds, b => by
+    obtain ⟨ds', b', heq, hlen, hget⟩ := VExpr.wrapForalls_subst_doms σ.lift ds b
+    refine ⟨d.subst σ :: ds', b', ?_, by simp [hlen], ?_⟩
+    · show VExpr.forallE (d.subst σ) ((VExpr.wrapForalls ds b).subst σ.lift) = _
+      rw [heq]; rfl
+    · intro i h h'
+      cases i with
+      | zero => rfl
+      | succ i =>
+        simp only [List.getElem_cons_succ]
+        rw [hget i (by simpa using h) (by simpa using h'), VExpr.Subst.lift_liftN]
+
+/-- Substituting the outer `args` beneath `i` binders is `instOuter` with the
+lifted arguments followed by the `i` bound variables. -/
+theorem _root_.Lean4Lean.VExpr.subst_liftN_ofList {d : VExpr} {args : List VExpr} {i : Nat}
+    (hd : d.ClosedN (args.length + i)) :
+    d.subst ((VExpr.Subst.ofList args).liftN i) =
+      d.instOuter ((args.map (·.liftN i)) ++ VExpr.bvarRange i i) := by
+  rw [VExpr.instOuter_eq_subst]
+  apply VExpr.subst_congr_closedN hd
+  intro k hk
+  have hL : k < ((args.map (·.liftN i)) ++ VExpr.bvarRange i i).length := by simp; omega
+  rw [VExpr.Subst.liftN_apply, VExpr.Subst.ofList_lt _ hL]
+  have hlen : ((args.map (·.liftN i)) ++ VExpr.bvarRange i i).length = args.length + i := by simp
+  split
+  · rename_i hki
+    rw [List.getElem_append_right (by simp; omega)]
+    rw [VExpr.bvarRange_getElem _ _ _ (by simp; omega)]
+    congr 1; simp; omega
+  · rename_i hki
+    rw [List.getElem_append_left (by simp; omega), List.getElem_map,
+      VExpr.Subst.ofList_lt _ (by omega)]
+    congr 2; simp; omega
+
+/-- Lifting at a cutoff commutes with `instOuter` of a closed term. -/
+theorem _root_.Lean4Lean.VExpr.liftN_at_instOuter {X : VExpr} {xs : List VExpr}
+    (hX : X.ClosedN xs.length) (e k : Nat) :
+    (X.instOuter xs).liftN e k = X.instOuter (xs.map (·.liftN e k)) := by
+  rw [VExpr.instOuter_eq_subst, VExpr.instOuter_eq_subst, VExpr.liftN_eq_subst_at]
+  erw [VExpr.subst_subst]
+  apply VExpr.subst_congr_closedN hX
+  intro i hi
+  simp only [VExpr.Subst.comp, VExpr.Subst.ofList_lt _ hi, List.length_map,
+    VExpr.Subst.ofList_lt (xs.map _) (by simpa using hi), List.getElem_map,
+    VExpr.liftN_eq_subst_at]
+
+
+theorem Restoration.mapM_expr_instL (r : Restoration) {l l' : List VExpr}
+    (h : l.mapM r.expr = some l') (L : List VLevel) :
+    (l.map (·.instL L)).mapM r.expr = some (l'.map (·.instL L)) := by
+  rw [List.mapM_eq_some] at h ⊢
+  induction h with
+  | nil => exact .nil
+  | cons hab _ ih => exact .cons (by rw [← Restoration.expr_instL, hab]; rfl) ih
+
+theorem Restoration.mapM_expr_insertBinders (r : Restoration)
+    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
+    {l l' : List VExpr} (h : l.mapM r.expr = some l') (e : Nat) :
+    (insertBinders l e).mapM r.expr = some (insertBinders l' e) := by
+  rw [List.mapM_eq_some] at h ⊢
+  have hlen := Lean4Lean.List.Forall₂.length_eq h
+  apply VerifyInductive.List.forall₂_of_getElem (by simp [insertBinders, hlen])
+  intro i ha hb
+  rw [insertBinders_getElem, insertBinders_getElem, ← Restoration.expr_liftN r hc,
+    Lean4Lean.List.forall₂_getElem h i (by simpa [insertBinders_length] using ha)
+      (by simpa [insertBinders_length] using hb)]
+  rfl
 
 /-- **The iota shape of a restored generated equation**, given the
 restoration of its constructor application. -/
@@ -378,7 +363,19 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
       some (VExpr.mkApps (.const ctorName levels)
         (params.map (fun arg => arg.liftN
           (s.families.size + s.constructors.size + s.constructors[index].fields.length)) ++
-          vars s.constructors[index].fields.length 0))) :
+          vars s.constructors[index].fields.length 0)))
+    (hheadsClosed : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
+    (hfieldDoms : ∃ RP RF, s.params.mapM r.expr = some RP ∧
+      (s.fieldTypes s.constructors[index]).mapM r.expr = some RF ∧
+      ∀ ctorUvars ctorDoms ctorBody,
+        env₀.constants ctorName = some ⟨ctorUvars, VExpr.wrapForalls ctorDoms ctorBody⟩ →
+        ∀ (_hclen : ctorDoms.length = params.length + s.constructors[index].fields.length)
+          i (hi : i < s.constructors[index].fields.length) (hi' : i < RF.length),
+          env₀.IsDefEqU g.uvars
+            (((RF.map (·.instL g.levels)).take i).reverse ++ (RP.map (·.instL g.levels)).reverse)
+            ((RF.map (·.instL g.levels))[i]'(by simpa using hi'))
+            (((ctorDoms[params.length + i]'(by omega)).instL levels).instOuter
+              ((params.map (·.liftN i)) ++ VExpr.bvarRange i i))) :
     Nonempty (VIotaRuleShape env (r.recursorName (g.recursorName s.constructors[index].owner))
       g.uvars s.params.length params.length s.families.size s.constructors.size
       s.families[s.constructors[index].owner].indices.length ctorName levels
@@ -516,8 +513,73 @@ theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s
   · -- the field binders agree with the constructor's field domains
     intro ctorUvars ctorDoms ctorBody hc hclen i hi hd hcd
     rw [hconsts] at hc
-    exact (iotaCtorDoms_of_lhsTyping henv₀ hwf huv hl.symm ht.symm hDlen' hIlen' hpat Hrec
-      ctorUvars ctorDoms ctorBody hc hclen i hi hd hcd).mono hle
+    obtain ⟨RP, RF, hRP, hRF, Hfd⟩ := hfieldDoms
+    have hRFlen : RF.length = nf := by
+      rw [← Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hRF)]
+      simp [InductiveSignature.fieldTypes, nf, ctor]
+    have hRPlen : RP.length = s.params.length :=
+      (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hRP)).symm
+    have h := Hfd ctorUvars ctorDoms ctorBody hc hclen i hi (by omega)
+    -- the restored rule's binders
+    obtain ⟨DA, DB, hDA, hDB, hD'⟩ := List.mapM_append_eq_some
+      (a := g.params ++ g.motives ++ g.minors) hD
+    obtain ⟨DP, DM, hDP, hDM, rfl⟩ := List.mapM_append_eq_some
+      (a := g.params) (b := g.motives ++ g.minors) (by simpa [List.append_assoc] using hDA)
+    have hDP' : DP = RP.map (·.instL g.levels) :=
+      Option.some.inj (hDP.symm.trans (Restoration.mapM_expr_instL r hRP g.levels))
+    have hDB' : DB = insertBinders (RF.map (·.instL g.levels)) extra :=
+      Option.some.inj (hDB.symm.trans (Restoration.mapM_expr_insertBinders r hheadsClosed
+        (Restoration.mapM_expr_instL r hRF g.levels) extra))
+    subst hDP' hDB' hD'
+    have hDMlen : DM.length = extra := by
+      rw [← Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hDM)]
+      simp [Instance.motives, Instance.minors, extra]
+    have hW := h.weakN henv₀.ordered (insertBinders_liftN (RF.map (·.instL g.levels))
+      DM.reverse (RP.map (·.instL g.levels)).reverse extra (by simp [hDMlen]) i
+      (by simp; omega))
+    have hmi : s.params.length + s.families.size + s.constructors.size + i =
+        (RP.map (·.instL g.levels) ++ DM).length + i := by
+      simp [hRPlen, hDMlen, extra]; omega
+    have hctx : ((RP.map (·.instL g.levels) ++ DM ++
+        insertBinders (RF.map (·.instL g.levels)) extra).take
+          (s.params.length + s.families.size + s.constructors.size + i)).reverse =
+        ((insertBinders (RF.map (·.instL g.levels)) extra).take i).reverse ++ DM.reverse ++
+          (RP.map (·.instL g.levels)).reverse := by
+      rw [hmi, List.take_append, List.take_of_length_le (by simp), Nat.add_sub_cancel_left]
+      simp [List.reverse_append, List.append_assoc]
+    have hdom : (RP.map (·.instL g.levels) ++ DM ++
+        insertBinders (RF.map (·.instL g.levels)) extra)[
+          s.params.length + s.families.size + s.constructors.size + i]'hd =
+        ((RF.map (fun x : VExpr => x.instL g.levels))[i]'(by simp; omega)).liftN extra i := by
+      rw [List.getElem_append_right (by simp [hRPlen, hDMlen, extra]; omega),
+        insertBinders_getElem]
+      congr 2 <;> simp [hRPlen, hDMlen, extra] <;> omega
+    have hclosed := (VEnv.VEnv.constant_doms_closed henv₀ hc (ls := []) (U := 0)
+      (by simp)).1 (params.length + i) (by simp; omega)
+    simp only [List.getElem_map] at hclosed
+    have hclosed' : ((ctorDoms[params.length + i]'(by omega)).instL levels).ClosedN
+        (((params.map (·.liftN i)) ++ VExpr.bvarRange i i).length) := by
+      simp only [List.length_append, List.length_map, VExpr.bvarRange_length]
+      exact (VExpr.ClosedN.instL_rev hclosed).instL
+    rw [VExpr.liftN_at_instOuter hclosed', List.map_append, List.map_map] at hW
+    have hps : (params.map ((fun x => x.liftN extra i) ∘ fun p => p.liftN i)) =
+        params.map fun p => p.liftN (s.families.size + s.constructors.size + i) := by
+      apply List.map_congr_left
+      intro p _
+      simp only [Function.comp]
+      rw [VExpr.liftN'_liftN' (Nat.zero_le _) (by omega)]
+      congr 1; simp [extra]; omega
+    have hbv : (VExpr.bvarRange i i).map (fun x => x.liftN extra i) = VExpr.bvarRange i i := by
+      apply List.ext_getElem (by simp)
+      intro j h1 h2
+      simp only [List.getElem_map]
+      rw [VExpr.bvarRange_getElem _ _ _ (by simpa using h2)]
+      simp only [VExpr.liftN]
+      have hj : j < i := by simpa using h2
+      rw [liftVar_lt (show i - 1 - j < i by omega)]
+    rw [hps, hbv] at hW
+    rw [hctx, hdom]
+    exact (hW.mono hle)
 
 /-- **Field count of a restored rule.** In a well-formed environment, a typed
 equation with the iota shape of a recursor whose constructor has a rigid
@@ -818,6 +880,336 @@ theorem CompilationData.restoredConstructorShape
       refine ⟨fields, ?_⟩
       rw [hchead]
       simpa only [List.length_map, hlevLen, hargLen, hidxEq] using hshape
+
+/-- **Field domains of a restored rule's constructor.** The restoration of the
+normalized constructor type is definitionally equal to the type of the
+constant it restores to (`RestoresType`), specialized at the restored family
+head's arguments for a constructor of a certified container. Injectivity of
+`∀` identifies the field domains binder by binder, in the restored
+parameters followed by the earlier restored fields. -/
+theorem CompilationData.restoredConstructorFieldDomains
+    {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
+    {g : Instance s} {auxiliaries : List ContainerSpecialization} {block : VInductBlock}
+    (Hd : CompilationData env source expanded s g auxiliaries block)
+    (Hcert : CertifiedSpecializations env auxiliaries)
+    {envTypes envCtors : VEnv}
+    (hadded : env.addConstVals source.typeConstants = some envTypes)
+    (hctorsAdded : envTypes.addConstVals source.constructorConstants = some envCtors)
+    (hfresh : ∀ n ∈ (compilationRestoration source auxiliaries).restorableNames,
+      envTypes.constants n = none)
+    (hfreshCtors : ∀ n ∈ (compilationRestoration source auxiliaries).restorableNames,
+      envCtors.constants n = none)
+    {venv : VEnv} (hle : envCtors ≤ venv) (hvenv : venv.WF)
+    (hlevelsWF : ∀ l ∈ g.levels, l.WF g.uvars)
+    (index : Fin s.constructors.size) (owner : Fin s.families.size)
+    (howner : s.constructors[index].owner = owner) :
+    ∃ head : RestoredFamilyHead,
+      g.restoredFamilyHead (compilationRestoration source auxiliaries) owner = some head ∧
+      ∃ RP RF, s.params.mapM (compilationRestoration source auxiliaries).expr = some RP ∧
+        (s.fieldTypes s.constructors[index]).mapM
+          (compilationRestoration source auxiliaries).expr = some RF ∧
+        ∀ ctorUvars ctorDoms ctorBody,
+          venv.constants ((compilationRestoration source auxiliaries).restoredHeadName
+            s.constructors[index].name) =
+              some ⟨ctorUvars, VExpr.wrapForalls ctorDoms ctorBody⟩ →
+          ∀ (_hclen : ctorDoms.length =
+            head.arguments.length + s.constructors[index].fields.length)
+            i (hi : i < s.constructors[index].fields.length) (hi' : i < RF.length),
+            venv.IsDefEqU g.uvars
+              (((RF.map (·.instL g.levels)).take i).reverse ++
+                (RP.map (·.instL g.levels)).reverse)
+              ((RF.map (·.instL g.levels))[i]'(by simpa using hi'))
+              (((ctorDoms[head.arguments.length + i]'(by omega)).instL head.levels).instOuter
+                ((head.arguments.map (·.liftN i)) ++ VExpr.bvarRange i i)) := by
+  have henvLE : env ≤ envCtors :=
+    (VEnv.addConstVals_le hadded).trans (VEnv.addConstVals_le hctorsAdded)
+  obtain ⟨envTypes', direct, hadded', hdirect, hwellFormed, Hfam⟩ := Hd.correspondence
+  have henv : envTypes = envTypes' := Option.some.inj (hadded.symm.trans hadded')
+  subst henv
+  have htypesLE : envTypes ≤ venv := (VEnv.addConstVals_le hctorsAdded).trans hle
+  obtain ⟨envExpandedTypes, -, Hadm⟩ := Hd.admissible
+  have hlevelsLen : g.levels.length = source.uvars :=
+    Hadm.levels_length.trans (Hd.model.uvars.trans Hd.uvars)
+  have hnp : s.params.length = source.nparams := Hd.model.nparams.trans Hd.nparams
+  have hdeclLen : s.declaration.types.length = s.families.size := by
+    simp [InductiveSignature.declaration]
+  have hlen := Lean4Lean.List.Forall₂.length_eq Hfam
+  have hown : owner.val < s.declaration.types.length := by rw [hdeclLen]; exact owner.isLt
+  have hown' : owner.val < (source.types ++ direct).length := hlen ▸ hown
+  have Hat := Lean4Lean.List.forall₂_getElem Hfam owner.val hown hown'
+  have hdeclName : (s.declaration.types[owner.val]'hown).name = s.families[owner].name := by
+    simp [InductiveSignature.declaration]
+  have hname : s.families[owner].name = ((source.types ++ direct)[owner.val]'hown').name :=
+    hdeclName.symm.trans Hat.name
+  obtain ⟨sc, hsc, hscName, hRT⟩ : ∃ sc ∈ ((source.types ++ direct)[owner.val]'hown').ctors,
+      s.constructors[index].name = sc.name ∧
+      RestoresType (compilationRestoration source auxiliaries) envTypes source.uvars
+        (s.constructorType s.constructors[index]) sc.type := by
+    have hmem := declaration_ctor_mem s index (by rw [howner]; exact hown)
+    simp only [howner] at hmem
+    obtain ⟨sc, hsc, hsc'⟩ :=
+      Lean4Lean.List.Forall₂.forall_exists_l Hat.constructors _ hmem
+    exact ⟨sc, hsc, hsc'.1, hsc'.2.2⟩
+  -- the restored normalized constructor type
+  obtain ⟨R0, hR0, hdef0⟩ := hRT
+  unfold InductiveSignature.constructorType at hR0
+  rw [Restoration.expr_wrapForalls, Option.bind_eq_some_iff] at hR0
+  obtain ⟨RD, hRD, hR0⟩ := hR0
+  obtain ⟨Rb, -, hRb⟩ := Option.map_eq_some_iff.mp hR0
+  subst hRb
+  obtain ⟨RP, RF, hRP, hRF, rfl⟩ := List.mapM_append_eq_some hRD
+  have hRPlen : RP.length = s.params.length :=
+    (Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hRP)).symm
+  have hRFlen : RF.length = s.constructors[index].fields.length := by
+    rw [← Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hRF)]
+    simp [InductiveSignature.fieldTypes]
+  have hdefV : venv.IsDefEqU g.uvars []
+      (VExpr.wrapForalls ((RP ++ RF).map (·.instL g.levels)) (Rb.instL g.levels))
+      (sc.type.instL g.levels) := by
+    have h := (hdef0.instL hlevelsWF).mono htypesLE
+    simpa only [List.map_nil, VExpr.instL_wrapForalls] using h
+  -- every presentation of the restored target as a telescope gives the field domains
+  have finish : ∀ (Tdoms : List VExpr) (Tb : VExpr),
+      sc.type.instL g.levels = VExpr.wrapForalls Tdoms Tb →
+      Tdoms.length = s.params.length + s.constructors[index].fields.length →
+      ∀ i (hi' : i < RF.length) (hT : s.params.length + i < Tdoms.length),
+        venv.IsDefEqU g.uvars
+          (((RF.map (·.instL g.levels)).take i).reverse ++ (RP.map (·.instL g.levels)).reverse)
+          ((RF.map (·.instL g.levels))[i]'(by simpa using hi')) Tdoms[s.params.length + i] := by
+    intro Tdoms Tb hT hTlen i hi' hTi
+    rw [hT] at hdefV
+    have h := VEnv.IsDefEqU.wrapForalls_doms hvenv (Γ := []) trivial
+      (by simp [hRPlen, hRFlen, hTlen]) hdefV (s.params.length + i)
+      (by simp [hRPlen]; omega) hTi
+    have htake : ((RP ++ RF).map (·.instL g.levels)).take (s.params.length + i) =
+        RP.map (·.instL g.levels) ++ (RF.map (·.instL g.levels)).take i := by
+      rw [List.map_append, List.take_append, List.take_of_length_le (by simp [hRPlen])]
+      simp [hRPlen]
+    have hget : ((RP ++ RF).map (·.instL g.levels))[s.params.length + i]'(by
+        simp [hRPlen]; omega) = (RF.map (·.instL g.levels))[i]'(by simpa using hi') := by
+      simp only [List.map_append]
+      rw [List.getElem_append_right (by simp [hRPlen])]
+      simp [hRPlen]
+    rw [htake, hget, List.reverse_append, List.append_nil] at h
+    exact h
+  have hfreshHeads : ∀ n ∈ (compilationRestoration source auxiliaries).heads.map (·.auxiliary),
+      envTypes.constants n = none :=
+    fun n hn => hfresh n (List.mem_append_left _ hn)
+  have hfreshRecs : ∀ p ∈ (compilationRestoration source auxiliaries).recursors,
+      envTypes.constants p.1 = none :=
+    fun p hp => hfresh p.1 (List.mem_append_right _ (List.mem_map_of_mem hp))
+  have hfreshHeadsC : ∀ n ∈ (compilationRestoration source auxiliaries).heads.map (·.auxiliary),
+      envCtors.constants n = none :=
+    fun n hn => hfreshCtors n (List.mem_append_left _ hn)
+  by_cases hsrc : owner.val < source.types.length
+  · -- a source family
+    have hname' : s.families[owner].name = (source.types[owner.val]'hsrc).name := by
+      rw [hname, List.getElem_append_left hsrc]
+    have hconst : envTypes.constants s.families[owner].name =
+        some (source.types[owner.val]'hsrc).toVConstVal.toVConstant := by
+      rw [hname']
+      exact VEnv.addConstVals_get hadded
+        (List.mem_map.mpr ⟨_, List.getElem_mem hsrc, rfl⟩)
+    have hfind : (compilationRestoration source auxiliaries).heads.find?
+        (fun h => h.auxiliary == s.families[owner].name) = none := by
+      apply Restoration.heads_find?_eq_none
+      intro hmem
+      rw [hfreshHeads _ hmem] at hconst
+      cases hconst
+    have hrecName : (compilationRestoration source auxiliaries).recursorName
+        s.families[owner].name = s.families[owner].name :=
+      Restoration.recursorName_of_constants hfreshRecs hconst
+    refine ⟨⟨s.families[owner].name, g.levels, vars s.params.length 0⟩, ?_,
+      RP, RF, hRP, hRF, ?_⟩
+    · simp only [Instance.restoredFamilyHead, Instance.familyApp,
+        InductiveSignature.familyApp, List.append_nil]
+      rw [(compilationRestoration source auxiliaries).expr_mkApps,
+        (compilationRestoration source auxiliaries).mapM_expr_vars]
+      simp only [Option.bind_some, Restoration.expr.go, hfind, hrecName]
+      simp only [Option.bind_eq_bind, Option.bind_some,
+        VerifyInductive.VExpr.getAppFnArgs_mkApps]
+      rfl
+    · intro ctorUvars ctorDoms ctorBody hc hclen i hi hi'
+      rw [List.getElem_append_left hsrc] at hsc
+      have hscMem : sc ∈ source.constructorConstants :=
+        List.mem_flatMap.mpr ⟨_, List.getElem_mem hsrc, hsc⟩
+      have hcconst : envCtors.constants s.constructors[index].name =
+          some sc.toVConstant := by
+        rw [hscName]
+        exact VEnv.addConstVals_get hctorsAdded hscMem
+      have hcfind : (compilationRestoration source auxiliaries).heads.find?
+          (fun h => h.auxiliary == s.constructors[index].name) = none := by
+        apply Restoration.heads_find?_eq_none
+        intro hmem
+        rw [hfreshHeadsC _ hmem] at hcconst
+        cases hcconst
+      have hchead : (compilationRestoration source auxiliaries).restoredHeadName
+          s.constructors[index].name = sc.name := by
+        simp only [Restoration.restoredHeadName, hcfind]
+        exact hscName
+      have hlookup : venv.constants sc.name = some sc.toVConstant :=
+        hle.constants (VEnv.addConstVals_get hctorsAdded hscMem)
+      rw [hchead] at hc
+      have hty : sc.type = VExpr.wrapForalls ctorDoms ctorBody := by
+        have := congrArg VConstant.type (Option.some.inj (hlookup.symm.trans hc))
+        simpa using this
+      simp only [vars_length'] at hclen ⊢
+      have hTi : s.params.length + i < (ctorDoms.map (·.instL g.levels)).length := by
+        simp; omega
+      have h := finish (ctorDoms.map (·.instL g.levels)) (ctorBody.instL g.levels)
+        (by rw [hty, VExpr.instL_wrapForalls]) (by simp; omega) i hi' hTi
+      have hclosed := (VEnv.VEnv.constant_doms_closed hvenv hc
+        hlevelsWF).1 (s.params.length + i) hTi
+      simp only [List.getElem_map] at hclosed
+      have hid := VExpr.instOuter_insert_bvars _ s.params.length i 0 hclosed
+      simp only [Nat.zero_add, VExpr.liftN_zero] at hid
+      have hv : vars s.params.length 0 = VExpr.bvarRange s.params.length s.params.length := by
+        rw [vars_eq_bvarRange, Nat.add_zero]
+      rw [← hv] at hid
+      rw [hid]
+      simpa using h
+  · -- an auxiliary family
+    have hge : source.types.length ≤ owner.val := Nat.le_of_not_lt hsrc
+    have hidx : owner.val - source.types.length < direct.length := by
+      have := hown'; simp only [List.length_append] at this; omega
+    have hFdirect := List.mapM_eq_some.mp hdirect
+    have hauxLen : auxiliaries.length = direct.length :=
+      Lean4Lean.List.Forall₂.length_eq hFdirect
+    have hidx' : owner.val - source.types.length < auxiliaries.length := hauxLen ▸ hidx
+    let a := auxiliaries[owner.val - source.types.length]'hidx'
+    have ha : a ∈ auxiliaries := List.getElem_mem hidx'
+    have hdf : a.directFamily source.uvars s.params =
+        some (direct[owner.val - source.types.length]'hidx) :=
+      Lean4Lean.List.forall₂_getElem hFdirect _ hidx' hidx
+    have hdirectName : (direct[owner.val - source.types.length]'hidx).name = a.auxiliary :=
+      ContainerSpecialization.directFamily_name hdf
+    have hname' : s.families[owner].name = a.auxiliary := by
+      rw [hname, List.getElem_append_right hge]
+      exact hdirectName
+    let h : HeadSpecialization :=
+      ⟨a.auxiliary, source.uvars, source.nparams, a.source.name, a.levels, a.arguments⟩
+    have hmem : h ∈ (compilationRestoration source auxiliaries).heads :=
+      List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
+    have hfind : (compilationRestoration source auxiliaries).heads.find?
+        (fun h => h.auxiliary == s.families[owner].name) = some h := by
+      rw [hname']
+      exact Restoration.find?_of_nodup Hd.restorationScoped.1 hmem
+    obtain ⟨hargLen, hargsClosed, hlevLen, -, -⟩ := hwellFormed a ha
+    have hclosedL : ∀ arg ∈ a.arguments, (arg.instL g.levels).ClosedN s.params.length := by
+      intro arg harg
+      rw [hnp]
+      exact (hargsClosed arg harg).instL
+    have hinst : ∀ k, a.arguments.map (fun arg => instantiateParams (arg.instL g.levels)
+        (vars source.nparams k)) =
+          a.arguments.map (fun arg => (arg.instL g.levels).liftN k) := by
+      intro k
+      apply List.map_congr_left
+      intro arg harg
+      rw [← hnp, instantiateParams_vars (hclosedL arg harg)]
+    refine ⟨⟨a.source.name, a.levels.map (·.inst g.levels),
+      a.arguments.map (fun arg => arg.instL g.levels)⟩, ?_, RP, RF, hRP, hRF, ?_⟩
+    · simp only [Instance.restoredFamilyHead, Instance.familyApp,
+        InductiveSignature.familyApp, List.append_nil]
+      rw [(compilationRestoration source auxiliaries).expr_mkApps,
+        (compilationRestoration source auxiliaries).mapM_expr_vars]
+      simp only [Option.bind_some, Restoration.expr.go, hfind, HeadSpecialization.apply,
+        hlevelsLen, h, bne_self_eq_false, Bool.false_or, vars_length', hnp]
+      rw [if_neg (by simp), List.take_of_length_le (by simp),
+        List.drop_of_length_le (by simp), hinst 0]
+      simp only [VExpr.liftN_zero, Option.pure_def, Option.bind_eq_bind, Option.bind_some,
+        List.append_nil, VerifyInductive.VExpr.getAppFnArgs_mkApps]
+      rfl
+    · intro ctorUvars ctorDoms ctorBody hc hclen i hi hi'
+      rw [List.getElem_append_right hge] at hsc
+      have hheads := a.directFamily_heads hdf
+      simp only [ContainerSpecialization.heads, List.map_cons, List.map_map,
+        List.cons.injEq] at hheads
+      have Hct := VerifyInductive.ContainerSpecialization.directFamily_ctors hdf
+      obtain ⟨j, hj, hscj⟩ := List.getElem_of_mem hsc
+      have hjs : j < a.source.ctors.length := by
+        rw [Lean4Lean.List.Forall₂.length_eq Hct]; exact hj
+      let ctor := a.source.ctors[j]'hjs
+      have hctor : ctor ∈ a.source.ctors := List.getElem_mem hjs
+      have hsct := Lean4Lean.List.forall₂_getElem Hct j hjs hj
+      rw [hscj] at hsct
+      have hctorName' : a.constructorName ctor = sc.name := by
+        have hn := congrArg (fun l => l[j]?) hheads.2
+        simp only [List.getElem?_map, List.getElem?_eq_getElem hjs,
+          List.getElem?_eq_getElem hj, Option.map_some, Option.some.injEq,
+          Function.comp_def] at hn
+        rw [hn, hscj]
+      have hcName : s.constructors[index].name = a.constructorName ctor :=
+        hscName.trans hctorName'.symm
+      let hc' : HeadSpecialization :=
+        ⟨a.constructorName ctor, source.uvars, source.nparams, ctor.name, a.levels,
+          a.arguments⟩
+      have hcmem : hc' ∈ (compilationRestoration source auxiliaries).heads :=
+        List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_of_mem _
+          (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
+      have hcfind : (compilationRestoration source auxiliaries).heads.find?
+          (fun h => h.auxiliary == s.constructors[index].name) = some hc' := by
+        rw [hcName]
+        exact Restoration.find?_of_nodup Hd.restorationScoped.1 hcmem
+      have hchead : (compilationRestoration source auxiliaries).restoredHeadName
+          s.constructors[index].name = ctor.name := by
+        simp only [Restoration.restoredHeadName, hcfind, hc']
+      obtain ⟨-, hctorsC⟩ := Hcert.containerConstructors a ha
+      have hsrcMem : a.source ∈ a.container.types := List.getElem_mem _
+      obtain ⟨-, hlookup⟩ := hctorsC a.source hsrcMem ctor hctor
+      have hlookup' := (henvLE.trans hle).constants hlookup
+      rw [hchead] at hc
+      have hty : ctor.type = VExpr.wrapForalls ctorDoms ctorBody := by
+        have := congrArg VConstant.type (Option.some.inj (hlookup'.symm.trans hc))
+        simpa using this
+      have hclen' : ctorDoms.length =
+          a.arguments.length + s.constructors[index].fields.length := by
+        simpa using hclen
+      -- the specialized constructor type, as a telescope
+      have hcn : a.arguments.length ≤ (ctorDoms.map (·.instL a.levels)).length := by
+        simp; omega
+      have hspec : VExpr.instantiateForallPrefix (ctor.type.instL a.levels) a.arguments =
+          (VExpr.wrapForalls ((ctorDoms.map (·.instL a.levels)).drop a.arguments.length)
+            (ctorBody.instL a.levels)).instOuter a.arguments := by
+        rw [hty, VExpr.instL_wrapForalls,
+          ← List.take_append_drop a.arguments.length (ctorDoms.map (·.instL a.levels)),
+          VExpr.wrapForalls_append, VerifyInductive.VExpr.instantiateForallPrefix_wrapForalls _ _ _
+            (by simp; omega)]
+        simp only [List.take_append_drop]
+      obtain ⟨ds', b', hsub, hds'len, hds'get⟩ := VExpr.wrapForalls_subst_doms
+        (VExpr.Subst.ofList (a.arguments.map (·.instL g.levels)))
+        (((ctorDoms.map (·.instL a.levels)).drop a.arguments.length).map (·.instL g.levels))
+        ((ctorBody.instL a.levels).instL g.levels)
+      have hT : sc.type.instL g.levels =
+          VExpr.wrapForalls (s.params.map (·.instL g.levels) ++ ds') b' := by
+        rw [hsct, VExpr.instL_wrapForalls, hspec, VExpr.instL_instOuter,
+          VExpr.instL_wrapForalls, VExpr.instOuter_eq_subst, hsub, VExpr.wrapForalls_append]
+      have hTlen : (s.params.map (·.instL g.levels) ++ ds').length =
+          s.params.length + s.constructors[index].fields.length := by
+        rw [List.length_append, hds'len]
+        simp only [List.length_map, List.length_drop, hclen']
+        omega
+      have hTi : s.params.length + i < (s.params.map (·.instL g.levels) ++ ds').length := by
+        rw [hTlen]; omega
+      have h := finish _ _ hT hTlen i hi' hTi
+      have hdi : i < ds'.length := by rw [hds'len]; simp; omega
+      have hget : (s.params.map (·.instL g.levels) ++ ds')[s.params.length + i]'hTi =
+          ds'[i]'hdi := by
+        rw [List.getElem_append_right (by simp)]
+        simp
+      rw [hget, hds'get i (by simp; omega) hdi] at h
+      have hdom : (((ctorDoms.map (·.instL a.levels)).drop a.arguments.length).map
+          (·.instL g.levels))[i]'(by simp; omega) =
+          (ctorDoms[a.arguments.length + i]'(by omega)).instL (a.levels.map (·.inst g.levels)) := by
+        simp [VExpr.instL_instL]
+      have hclosed := (VEnv.VEnv.constant_doms_closed hvenv hc
+        hlevelsWF).1 (a.arguments.length + i) (by simp; omega)
+      have hclosed' : ((ctorDoms[a.arguments.length + i]'(by omega)).instL
+          (a.levels.map (·.inst g.levels))).ClosedN
+          ((a.arguments.map (·.instL g.levels)).length + i) := by
+        simp only [List.length_map]
+        exact (VExpr.ClosedN.instL_rev (by simpa using hclosed)).instL
+      rw [hdom, VExpr.subst_liftN_ofList hclosed'] at h
+      simpa [List.map_map, Function.comp_def] using h
 
 end InductiveSignature
 
@@ -1213,10 +1605,17 @@ theorem NestedValidatedRunResult.hprovenance_of
       have h := hshape
       rw [R.name, R.uvars, R.numParams, R.numMotives, R.numMinors, R.numIndices] at h
       subst howner; exact h
+    obtain ⟨_, -, Hadm⟩ := Hdata.admissible
+    obtain ⟨head3, hhead3, RP, RF, hRP, hRF, Hfd⟩ :=
+      Hdata.restoredConstructorFieldDomains Hcertified hadded hctorsAdded hfresh hfreshCtors
+        hleCtors hfinalWF Hadm.levels_wf index owner howner
+    have h33 : head3 = head := Option.some.inj (hhead3.symm.trans hhead)
+    rw [h33, ← RR.ctor] at Hfd
     obtain ⟨I⟩ := Restoration.restored_iota_shape E.production.compilationInstance
       (compilationRestoration sourceDecl auxiliaries) index heq hdef hfinalWF
       VEnv.addDefEqRules_le (fun _ => by simp) (hrulesWF df hdfMem) hrecType Hrec
       hindices hnotHead RR.constructorApplication
+      (fun h hh => (Hdata.restorationScoped.2.2.1 h hh).2) ⟨RP, RF, hRP, hRF, Hfd⟩
     obtain ⟨head2, hhead2, fields, ⟨hctorShape⟩⟩ := Hdata.restoredConstructorShape Hcertified
       hadded hctorsAdded hfresh hfreshCtors hleCtors index owner howner
     have hhh : head2 = head := Option.some.inj (hhead2.symm.trans hhead)
