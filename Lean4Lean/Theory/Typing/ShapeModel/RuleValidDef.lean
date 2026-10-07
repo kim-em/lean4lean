@@ -21,17 +21,6 @@ noncomputable section
 
 variable {env : VEnv} [SemSig] [SemSig.Coherent]
 
-/-- `SoundEq` in the empty context is equality of the approximations at the base valuation. -/
-theorem SoundEq.nil_of (H : ∀ m, Interp env .nil m M ↔ Interp env .nil m N) :
-    SoundEq env [] M N := by
-  intro Γ₀ ρ W m
-  cases W with
-  | nil => exact H m
-
-theorem Valuation.Fits.nil_inv (W : Valuation.Fits env Γ₀ [] ρ) : Γ₀ = [] ∧ ρ = .nil := by
-  cases W with
-  | nil => exact ⟨rfl, rfl⟩
-
 /-- The validity of a definition rule. -/
 theorem extraValid_def {v : VDefVal} (hr : SemSig.rules (defRule v))
     (hci : env.constants v.name = some v.toVConstant) (hvcl : v.value.Closed) :
