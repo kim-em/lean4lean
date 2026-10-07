@@ -852,3 +852,50 @@ observations are what the eliminator rule clause binds fields from; `ElimValid` 
 separates the downward preservation of `HeadsClosed`.
 
 Remaining: stage C (projections: `projDF`, `projIota`, `structEta`, `unitLike`), see 10.2.
+
+### 10.5 Stage C (projections): analysis and plan (handoff)
+
+Stage C is the only remaining stage: `projDF`, `projIota`, `structEta`, `unitLike`
+(`Model.sound` still assumes `∀ n p, ¬ E.projections n p`). It needs a redesign of the
+observation model, not only new proofs. The analysis:
+
+1. `structEta` (`mk ps (proj 0 e) … ≡ e` for every `e : S ps`, `nindices = 0`) and `unitLike`
+   force the observations of values of a projection-registered family to be determined by their
+   fields: a variable `x : S ps` may carry any typed observation set, in particular none, so the
+   constructor spine `mk ps (proj e)…` must not have `ctorHead`/`ctorArg` observations. Plan
+   (as in 10.2): constructors of projection-registered families (`IsProjCtor env c`: some
+   `env.projections S info` with `info.ctorName = c`) produce only
+   `fieldOb S ℓs j pre k` chains (field `j` has observation `k`; `ℓs` the evaluated levels, `pre`
+   the parameter keys), and `TypedOb.fieldOb` types it at a rigid `S ℓs` observation of non-zero
+   sort whose `rigidArg i`/`rigidArgOb i` observations agree with `pre` (parameter classes and
+   observations; no `Obs` needed). `Ob.fieldOb` must be changed accordingly (it exists, unused).
+2. `proj S j e` observes `k` when `e` has `fieldOb S ℓs j pre k`, filtered by typing at the
+   `j`-th field domain of `info.ctorType.instL ls` (`ls.map eval = ℓs`) under the valuation
+   sending the parameters to anchors of the classes in `pre` (with their observation lists) and
+   the earlier fields `i < j` to `proj S i (e.subst σ)` with observation sets
+   `Obs σ S (proj S i e)` (positive occurrences of `Obs`, as in the rule clause). This keeps
+   `TypedOb` free of value classes. The typing invariant for `projDF` then needs the semantic
+   invariance of the constructor type at related valuations: `SoundAt` of
+   `info.ctorType.instL ls` (closed), a semantic fact of the kind of `FamSort`, proved at the
+   `induct`/`inductProjections` step from the soundness of the constructor's typing derivation
+   in the earlier environment (D11), together with the identification of `info` with the
+   installed constructor (re-derive from `VInductDecl.projectionEntries`; the existing
+   `ProjectionShape`/`ProjectionProgramTyping` lemmas import forbidden modules).
+3. The rule clauses (native `rule` and `elimRule`) need a third binding mode, eta: for a
+   major of a projection-registered family the fields are bound from the `fieldOb`
+   observations of the major key, the anchor of field `j` in the class of `proj S j m` for `m` in
+   the major's class (review R1); no `ctorHead` is required (unit-like structures have none).
+   `RuleBind`, `pat_lhs_sub`/`pat_rhs_sub` and their eliminator versions gain this case;
+   `RuleValid.native`/`nested`/`ElimValid.of_certified` select it when the constructor is a
+   projection constructor.
+4. Soundness cases: `projDF` (congruence; typing by item 2), `projIota` (both directions as for
+   a pattern rule with the virtual head `proj S j`; the right-to-left direction types the field's
+   observation at the field domain via the constructor spine keys), `structEta` (both sides have
+   the same `fieldOb` observations: the spine's field keys are the observations of
+   `proj S j e`), `unitLike` (no observations on either side). `HTS` needs a `proj` constructor
+   carrying the premises of `HasTypeStrong.proj` (currently `proj` terms are `HTS.other`).
+
+Estimated size: comparable to stages B, D and E together. The D11 induction (`WF'.ruleValid`)
+and `HeadsClosed` need no change of structure: projections are registered by `induct`
+(with the block) and by `inductProjections`, and the semantic projection facts are proved at
+those steps from the induction hypothesis, like `FamSort`.
