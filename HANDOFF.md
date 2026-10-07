@@ -79,7 +79,16 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   coherence part of `inductEliminators`** (spec correction; no pipeline
   producer registers schemas), so the theorem takes only `henv`, `heq`.
   Note: `NativeIotaSoundness.lean` makes Theory import Verify for the first
-  time (no cycle; follow-up to relocate). **Done (base branch to
+  time (no cycle; follow-up to relocate). **Landed on the mainline
+  (fast-forward to 4ca9f41d, pushed):** `WF.church_rosser (henv) (heq)` with
+  no coherence hypothesis: `VInductDecl.ProjectionsCoherent` is a fourth
+  conjunct of `inductEliminators`'s premise (proved by
+  `Certified.register_after_constructors` from freshness; a new premise of
+  `CheckingEnv.Valid.registerCases`), and `WF.eliminatorsCoherent` by
+  induction on `WF'` (Theory/Typing/EliminatorCoherenceOfWF.lean). Full
+  build (733 jobs), tests, both replays and the audit pass; three commits
+  inherited from the base branch still carry an Opus trailer (to normalise
+  there). **Done (base branch to
   aac10d3c; mainline merged cc06211d as ec8b9270):** `Instance.FreeTarget`,
   the singleton branch of `Admissible.elimination`, realization
   `recursorDeclarationAbstractLevels_freeTarget`; abstract singleton eta
