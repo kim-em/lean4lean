@@ -30,7 +30,18 @@ Deviations from the milestone specification:
   (`headSeparation_of_shapeModel_of_wf`).
 * `SemSig.HeadFacts.ctorType` only asks for the constructor's type to be, up to a derivation in
   the empty context, a telescope ending in an application of a rigid former (its family, at any
-  levels and arguments); the number of binders is not needed.
+  levels and arguments); the number of binders is not needed. It does not ask the family to be
+  a non-constructor, only to head no rule: a sort telescope shape approximates neither a rigid
+  shape nor a constructor shape (`Interp.nestPi_fam_absurd`). For a real environment, that the
+  family of a constructor is not itself a constructor is a consequence of head inversion when the
+  constructor is a major of a generic eliminator equation outside the constructor table, so it
+  is not available here.
+* `SemSig.HeadFacts.famType` is a chain of two derivations (the declared type to a telescope,
+  the telescope to the telescope ending in the sort): composing them into one derivation needs
+  uniqueness of typing, and the model only needs each step to be sound.
+* For the signature of a well-formed environment the head facts are proved in
+  `EnvSigHead.lean` (`envSig_headFacts`), and `Separation.lean` assembles
+  `headSeparation_of_valid`.
 -/
 
 namespace Lean4Lean.ShapeModel
@@ -149,11 +160,12 @@ structure SemSig.HeadFacts [S : SemSig] (env : VEnv) : Prop where
   /-- The type of a family is, up to a derivation in the empty context, a telescope ending in
   the family's sort. -/
   famType : ∀ {c l ci}, S.famLevel c = some l → env.constants c = some ci →
-    ∃ doms T, env.IsDefEq ci.uvars [] ci.type (VExpr.wrapForalls doms (.sort l)) T
+    ∃ W doms T T', env.IsDefEq ci.uvars [] ci.type W T ∧
+      env.IsDefEq ci.uvars [] W (VExpr.wrapForalls doms (.sort l)) T'
   /-- The type of a constructor is, up to a derivation in the empty context, a telescope ending
-  in an application of its family, which is a rigid former (not a constructor, heading no rule). -/
+  in an application of its family, which heads no rule. -/
   ctorType : ∀ {c k ci}, S.ctor c = some k → env.constants c = some ci →
-    S.ctor k.family = none ∧ (∀ r, S.rules r → r.head ≠ .const k.family) ∧
+    (∀ r, S.rules r → r.head ≠ .const k.family) ∧
     ∃ doms ls args T, env.IsDefEq ci.uvars [] ci.type
       (VExpr.wrapForalls doms (VExpr.mkApps (.const k.family ls) args)) T
 
@@ -202,25 +214,48 @@ theorem Interp.nestPi_sort_inv {ps : List (TShape × TShape)} {Ds : List VExpr}
     | nil => exact absurd H.le_sort TShape.forallE_not_le_sort
     | cons D Ds => exact ih (Interp.pi_inv H).2
 
+/-- The approximations of a constant heading no rule, applied to arguments, are bottom, a
+lambda, a constructor shape or a rigid shape. -/
+theorem Interp.headless_inv (hr : ∀ r, SemSig.rules r → r.head ≠ .const s)
+    (H : Interp env ρ m (VExpr.mkApps (.const s ls) args)) :
+    m ≤ .bot ∨ (∃ n, ∃ g : WShapeFun n, m ≤ (WShape.lam' g).T) ∨
+    (∃ n, ∃ c, ∃ fs : List (WShape n), m ≤ (WShape.ctor' c fs).T) ∨
+    ∃ n, ∃ c ls', ∃ l : List (WShape n), ∃ t, m ≤ (WShape.rigid c ls' l t).T := by
+  rcases Interp.mkApps_const_inv hr H with h | ⟨n, rargs, y, hC, hy, -⟩
+  · exact .inl h
+  cases hC with
+  | bot => exact .inl (hy.trans TShape.bot_eqv.1)
+  | lam _ h2 => exact .inr (.inl ⟨_, _, hy.trans h2⟩)
+  | ctor _ _ _ h4 => exact .inr (.inr (.inl ⟨_, _, _, hy.trans h4⟩))
+  | rigid _ _ _ _ _ h6 => exact .inr (.inr (.inr ⟨_, _, _, _, _, hy.trans h6⟩))
+  | rule h1 h2 => cases hr _ h1 h2
+  | ruleAB h1 h2 => cases hr _ h1 h2
+  | ruleC h1 h2 => cases hr _ h1 h2
+
 /-- A telescope shape ending in a sort does not approximate a telescope ending in an application
-of a rigid former. -/
-theorem Interp.nestPi_fam_absurd (hnc : SemSig.ctor s = none)
-    (hr : ∀ r, SemSig.rules r → r.head ≠ .const s) {ps : List (TShape × TShape)}
-    {Ds : List VExpr}
+of a constant heading no rule (a rigid former, or even a constructor). -/
+theorem Interp.nestPi_fam_absurd (hr : ∀ r, SemSig.rules r → r.head ≠ .const s)
+    {ps : List (TShape × TShape)} {Ds : List VExpr}
     (H : Interp env ρ (nestPi ps (TShape.sort r))
       (Ds.foldr .forallE (VExpr.mkApps (.const s ls) args))) : False := by
   induction ps generalizing ρ Ds with
   | nil =>
     cases Ds with
     | nil =>
-      rcases Interp.fam_inv hnc hr H with h | ⟨_, _, h⟩ | ⟨_, _, _, -, -, h, -⟩
+      rcases Interp.headless_inv hr H with h | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, _, _, h⟩
       · exact TShape.sort_not_le_bot h
       · exact TShape.sort_not_le_lam' h
+      · exact TShape.sort_not_le_ctor' h
       · exact TShape.sort_not_le_rigid h
     | cons D Ds => exact Interp.sort_not_forallE H
   | cons p ps ih =>
     cases Ds with
-    | nil => exact Interp.forallE_not_fam hnc hr H
+    | nil =>
+      rcases Interp.headless_inv hr H with h | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, _, _, h⟩
+      · exact TShape.forallE_not_le_bot h
+      · exact TShape.forallE_not_le_lam' h
+      · exact TShape.forallE_not_le_ctor' h
+      · exact TShape.forallE_not_le_rigid h
     | cons D Ds => exact ih (Interp.pi_inv H).2
 
 theorem onCtx_levelWF : ∀ {Γ}, OnCtx Γ (env.IsType U) → OnCtx Γ fun _ A => A.LevelWF U
@@ -277,18 +312,19 @@ theorem head_rigid (henv : env.Ordered) (hEF : SemSig.EnvFactsIn env env)
   cases hk : SemSig.ctor c with
   | some k =>
     exfalso
-    obtain ⟨hIc, hIr, doms, ls', args', T, hD⟩ := hHF.ctorType hk hci
+    obtain ⟨hIr, doms, ls', args', T, hD⟩ := hHF.ctorType hk hci
     have := interp_instL_of_defeq henv hEF hextra helim hD hls hq
     rw [VExpr.wrapForalls, VExpr.instL_foldr_forallE, VExpr.instL_mkApps] at this
-    exact Interp.nestPi_fam_absurd hIc hIr this
+    exact Interp.nestPi_fam_absurd hIr this
   | none =>
     have hprop : SLvl.IsZero u.eval → SemSig.famProp c (ls.map (·.eval)) = true := by
       intro hz
       cases hl : SemSig.famLevel c with
       | none => simp [SemSig.famProp, hl]
       | some l =>
-        obtain ⟨doms, T, hD⟩ := hHF.famType hl hci
-        have := interp_instL_of_defeq henv hEF hextra helim hD hls hq
+        obtain ⟨W, doms, T, T', hD₁, hD₂⟩ := hHF.famType hl hci
+        have := interp_instL_of_defeq henv hEF hextra helim hD₂ hls
+          (interp_instL_of_defeq henv hEF hextra helim hD₁ hls hq)
         rw [VExpr.wrapForalls, VExpr.instL_foldr_forallE] at this
         have he := Interp.nestPi_sort_inv this
         rw [SemSig.famProp_eval hl, ← he]; exact decide_eq_true hz

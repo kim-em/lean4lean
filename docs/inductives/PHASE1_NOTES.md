@@ -247,5 +247,13 @@ validity and soundness are proved together by induction along the `VEnv.WF'` cha
   valuation is a `HeadModel` (`headModel_of_shapeModel`, interface moved from the spike to
   `Theory/Typing/HeadSeparationModel.lean`), giving `headSeparation_of_shapeModel` from
   `SemSig.Coherent`, `SemSig.EnvFactsIn env env`, `SemSig.HeadFacts`, `ExtraValid`,
-  `ElimValidIn env env`. The
-  `sorry` of `VEnv.WF.headSeparation` remains until the signature of a real environment is built.
+  `ElimValidIn env env`. For the signature `envSig env` of a well-formed environment,
+  `SemSig.Coherent`, `SemSig.EnvFactsIn env env` (up to the semantic structure types
+  `FamTypeSem`) and `SemSig.HeadFacts` are proved (`envSig_coherent_of_wf`,
+  `envSig_envFactsIn_of_wf`, `envSig_headFacts`), and `headSeparation_of_valid`
+  (`ShapeModel/Separation.lean`) gives `env.HeadSeparation` from `FamTypeSem`, `ExtraValid` and
+  `ElimValidIn env env` (milestone M4c). Two fields of `HeadFacts` were weakened to what real
+  environments give without head inversion: `ctorType` no longer asks the constructor's family
+  to be a non-constructor (only to head no rule; a sort telescope shape approximates no
+  constructor shape either), and `famType` is a chain of two derivations (composing them needs
+  uniqueness of typing). The `sorry` of `VEnv.WF.headSeparation` remains until M4c.
