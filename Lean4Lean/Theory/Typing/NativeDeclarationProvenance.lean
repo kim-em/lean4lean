@@ -239,7 +239,8 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
       (constants : (∀ value ∈ block.types ++ block.ctors,
         env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
         schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env)
-      (fresh : schema.Fresh env key) :
+      (fresh : schema.Fresh env key)
+      (compat : schema.StructCompat env) :
       NativeRegistryHistory (env.addEliminator key schema) declarations table
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option NativeRecursorData} {source : VInductDecl} {block : VInductBlock}
@@ -266,8 +267,8 @@ theorem history (H : NativeRegistryHistory env declarations table) : env.WF' dec
   | decl _ declaration ih => exact .decl declaration ih
   | native _ original compiled formed installed _ _ _ ih =>
     exact .decl (.induct original (.intro original compiled formed installed)) ih
-  | eliminators _ baseHistory hle formed keyEq constants fresh ih =>
-    exact .inductEliminators baseHistory ih hle formed keyEq constants fresh
+  | eliminators _ baseHistory hle formed keyEq constants fresh compat ih =>
+    exact .inductEliminators baseHistory ih hle formed keyEq constants fresh compat
   | projections _ baseHistory sourceNames typeHeadersWF constructorUvars constructorsWF parameters shape types constructors projections addTypes addConstructors ih =>
     exact .inductProjections baseHistory ih sourceNames typeHeadersWF constructorUvars constructorsWF
       parameters shape types constructors projections addTypes addConstructors
@@ -312,7 +313,7 @@ theorem origin (H : NativeRegistryHistory env declarations table)
         compilation := compilation
         specializations := specializations
         entry := List.mem_of_find?_eq_some found }⟩⟩
-  | eliminators _ _ _ _ _ _ _ ih =>
+  | eliminators _ _ _ _ _ _ _ _ ih =>
     obtain ⟨same, ⟨origin⟩⟩ := ih lookup
     exact ⟨same, ⟨origin.metadata VEnv.addEliminator_le⟩⟩
   | projections _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>

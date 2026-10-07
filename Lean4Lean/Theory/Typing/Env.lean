@@ -67,7 +67,11 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   (`CaseSchema.ProjNamesRegistered`), hence never out of a name that is not
   an installed constant, and the projections already registered for its
   families are those of the certified declaration
-  (`VInductDecl.ProjectionsCoherent`). -/
+  (`VInductDecl.ProjectionsCoherent`). Every structure already registered
+  over one of its original families has, in the schema, exactly its
+  registered constructor (`CaseSchema.StructCompat`): otherwise a schema
+  could add constructors to a registered structure, which structure eta
+  makes inconsistent. -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →
@@ -79,6 +83,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
       env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
       schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env) →
     schema.Fresh env key →
+    schema.StructCompat env →
     VEnv.WF' ds (env.addEliminator key schema)
   | inductProjections {base envTypes envCtors : VEnv}
       {decl : VInductDecl} {block : VInductBlock} :
@@ -110,12 +115,13 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
     (hequations : env.defeqs = base.defeqs)
     (hprojs : schema.ProjNamesRegistered env key)
     (hcoherent : source.ProjectionsCoherent env)
-    (hfresh : schema.Fresh env key) :
+    (hfresh : schema.Fresh env key)
+    (hcompat : schema.StructCompat env) :
     (env.addEliminator key schema).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases henv with ⟨ds, henv⟩
   exact ⟨ds, .inductEliminators hbase henv hle hformed hkey
-    ⟨hconstants, hequations, hprojs, hcoherent⟩ hfresh⟩
+    ⟨hconstants, hequations, hprojs, hcoherent⟩ hfresh hcompat⟩
 
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete

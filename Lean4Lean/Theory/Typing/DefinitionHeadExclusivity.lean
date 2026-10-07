@@ -130,7 +130,7 @@ theorem WF'.definition_head_exclusive (H : env.WF' declarations)
         (List.mem_of_find?_eq_some hf) hdf (hn ▸ hhead)
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
     exact ih hlookup (by simpa only [VEnv.addProjections_defeqs] using hdf) hhead
-  | inductEliminators _ _ _ _ _ _ _ _ ih => exact ih hlookup hdf hhead
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact ih hlookup hdf hhead
 
 /-- The public registration witness inherits head exclusivity from the
 actual well-formed environment history. -/

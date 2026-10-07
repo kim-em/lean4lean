@@ -26,6 +26,33 @@ inductive HasTypeU1 : List VExpr → VExpr → VExpr → Prop where
   | lam : Γ ⊢ A : .sort u → A::Γ ⊢ body : B → Γ ⊢ .lam A body : .forallE A B
   | forallE : Γ ⊢ A : .sort u → A::Γ ⊢ body : .sort v → Γ ⊢ .forallE A body : .sort (.imax u v)
   | defeq : Γ ⊢ A ≡ B → Γ ⊢ e : A → Γ ⊢ e : B
+  /-- Mirrors `VEnv.IsDefEq.elimDF`, typing its right endpoint (the left endpoint is the
+  instance `target' :: levels' = target :: levels`). -/
+  | elim {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators block schema →
+    schema.genericType owner = some type →
+    type.Closed →
+    schema.Permission uvars owner levels target →
+    (∀ level ∈ target' :: levels', level.WF uvars) →
+    List.Forall₂ (· ≈ ·) (target :: levels) (target' :: levels') →
+    Γ ⊢ type.instL (target :: levels) : .sort typeLevel →
+    Γ ⊢ .elim block owner.val (target' :: levels') : type.instL (target :: levels)
+  /-- Mirrors `VEnv.IsDefEq.projDF`, with a single major-premise equation. Since the
+  equation is untyped, the source major premise's type is recorded separately. -/
+  | proj :
+    env.projections typeName info →
+    (∀ l ∈ levels, l.WF uvars) →
+    levels.length = info.uvars →
+    params.length = info.nparams →
+    indexArgs.length = info.nindices →
+    info.fieldType typeName levels params index sourceMajor = some fieldType →
+    Γ ⊢ fieldType : .sort fieldLevel →
+    Γ ⊢ sourceMajor : VExpr.mkApps (.const typeName levels) (params ++ indexArgs) →
+    Γ ⊢ sourceMajor ≡ major →
+    info.ctorType.Closed →
+    (info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero →
+    Γ ⊢ .proj typeName index major : fieldType
 
 variable
   (HasTypeU1 : List VExpr → VExpr → VExpr → Prop)
@@ -48,6 +75,63 @@ inductive IsDefEqU1 : List VExpr → VExpr → VExpr → Prop where
   | extra :
     env.defeqs df → (∀ l ∈ ls, l.WF uvars) → ls.length = df.uvars →
     Γ ⊢ df.lhs.instL ls ≡ df.rhs.instL ls
+  | elimDF {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators block schema →
+    schema.genericType owner = some type →
+    type.Closed →
+    schema.Permission uvars owner levels target →
+    (∀ level ∈ target' :: levels', level.WF uvars) →
+    List.Forall₂ (· ≈ ·) (target :: levels) (target' :: levels') →
+    Γ ⊢ type.instL (target :: levels) : .sort typeLevel →
+    Γ ⊢ .elim block owner.val (target :: levels) ≡ .elim block owner.val (target' :: levels')
+  | projDF :
+    env.projections typeName info →
+    (∀ l ∈ levels, l.WF uvars) →
+    levels.length = info.uvars →
+    params.length = info.nparams →
+    List.length (α := VExpr) indexArgs = info.nindices →
+    info.fieldType typeName levels params index sourceMajor = some fieldType →
+    Γ ⊢ fieldType : .sort fieldLevel →
+    Γ ⊢ sourceMajor ≡ major →
+    Γ ⊢ sourceMajor ≡ major' →
+    info.ctorType.Closed →
+    (info.resultLevel.inst levels).IsNeverZero ∨ fieldLevel ≈ .zero →
+    Γ ⊢ .proj typeName index major ≡ .proj typeName index major'
+  | elimIota {schema : InductiveSignature.CaseSchema}
+      {owner : Fin schema.signature.families.size} :
+    env.eliminators block schema →
+    schema.genericEquations block owner = some rules →
+    df ∈ rules →
+    InductiveSignature.CaseSchema.RuleClosed df →
+    schema.Permission uvars owner levels target →
+    Γ ⊢ df.lhs.instL (target :: levels) : df.type.instL (target :: levels) →
+    Γ ⊢ df.rhs.instL (target :: levels) : df.type.instL (target :: levels) →
+    Γ ⊢ df.lhs.instL (target :: levels) ≡ df.rhs.instL (target :: levels)
+  | projIota :
+    env.projections typeName info →
+    Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) : fieldType →
+    args[info.nparams + index]? = some field →
+    Γ ⊢ field : fieldType →
+    Γ ⊢ .proj typeName index (VExpr.mkApps (.const info.ctorName levels) args) ≡ field
+  | structEta :
+    env.projections typeName info →
+    params.length = info.nparams →
+    info.nindices = 0 →
+    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
+        (params ++ (List.range info.numFields).map fun index => .proj typeName index e) :
+      VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ VExpr.mkApps (.const info.ctorName levels)
+        (params ++ (List.range info.numFields).map fun index => .proj typeName index e) ≡ e
+  | unitLike :
+    env.projections typeName info →
+    params.length = info.nparams →
+    info.nindices = 0 →
+    info.numFields = 0 →
+    Γ ⊢ e : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ e' : VExpr.mkApps (.const typeName levels) params →
+    Γ ⊢ e ≡ e'
 
 end
 
@@ -95,6 +179,21 @@ theorem IsDefEq.inductionU1
     exact ⟨ih2.1, ih3.1, .proofIrrel (hty ih1.1) (hty ih2.1) (hty ih3.1)⟩
   | extra h1 h2 h3 _ _ _ _ _ _ _ _ _ ihl' ihr' =>
     exact ⟨ihl'.1, ihr'.1, .extra h1 h2 h3⟩
+  | elimDF h1 h2 h3 h4 h5 h6 _ _ ihT =>
+    exact ⟨.elim h1 h2 h3 h4 h4.packedWF (Lean4Lean.List.Forall₂.rfl fun _ _ => rfl) ihT.1,
+      .elim h1 h2 h3 h4 h5 h6 ihT.1, .elimDF h1 h2 h3 h4 h5 h6 (hty ihT.1)⟩
+  | projDF h1 h2 h3 h4 h5 h6 _ _ _ _ h7 h8 ihF ih1 ih2 =>
+    exact ⟨.proj h1 h2 h3 h4 h5 h6 ihF.1 ih1.1 (hdf ih1.1 ih1.2.1 ih1.2.2) h7 h8,
+      .proj h1 h2 h3 h4 h5 h6 ihF.1 ih2.1 (hdf ih2.1 ih2.2.1 ih2.2.2) h7 h8,
+      .projDF h1 h2 h3 h4 h5 h6 (hty ihF.1) ih1.2.2 ih2.2.2 h7 h8⟩
+  | elimIota h1 h2 h3 h4 h5 _ _ _ _ _ ihl ihr =>
+    exact ⟨ihl.1, ihr.1, .elimIota h1 h2 h3 h4 h5 (hty ihl.1) (hty ihr.1)⟩
+  | projIota h1 _ h2 _ ihp ihf =>
+    exact ⟨ihp.1, ihf.1, .projIota h1 (hty ihp.1) h2 (hty ihf.1)⟩
+  | structEta h1 h2 h3 _ _ ihe ihc =>
+    exact ⟨ihc.1, ihe.1, .structEta h1 h2 h3 (hty ihe.1) (hty ihc.1)⟩
+  | unitLike h1 h2 h3 h4 _ _ ihe ihe' =>
+    exact ⟨ihe.1, ihe'.1, .unitLike h1 h2 h3 h4 (hty ihe.1) (hty ihe'.1)⟩
 
 variable! (henv : Ordered env) (hΓ : OnCtx Γ (env.IsType U))
   {defEq : List VExpr → VExpr → VExpr → Prop}
@@ -110,6 +209,12 @@ theorem HasTypeU1.induction (H : env.HasTypeU1 U defEq Γ e A) : env.HasType U �
   | defeq h1 _ ih =>
     let ⟨_, h⟩ := (ih hΓ).isType henv hΓ
     exact (IH h h1).defeq (ih hΓ)
+  | elim h1 h2 h3 h4 h5 h6 _ ih =>
+    have ih := ih hΓ
+    exact (IsDefEq.elimDF h1 h2 h3 h4 h5 h6 ih).symm.trans (.elimDF h1 h2 h3 h4 h5 h6 ih)
+  | proj h1 h2 h3 h4 h5 h6 _ _ h7 h8 h9 ihF ihM =>
+    have hM := IH (ihM hΓ) h7
+    exact .projDF h1 h2 h3 h4 h5 h6 (ihF hΓ) hM hM h8 h9
 
 /-
 variable (henv : Ordered env)

@@ -108,7 +108,7 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
         rw [addDefEqs_as_rules, VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hadd']
     | quot _ hadd => exact ih.addQuot hadd
     | induct _ hadd => exact ih.addInduct hadd
-  | inductEliminators hbase henv hle hcert hkey hconstants hfresh ihBase ih =>
+  | inductEliminators hbase henv hle hcert hkey hconstants hfresh _ ihBase ih =>
     intro k s hs
     rcases hs with ⟨rfl, rfl⟩ | hs
     · refine ⟨_, _, _, hle.trans VEnv.addEliminator_le, hcert,
