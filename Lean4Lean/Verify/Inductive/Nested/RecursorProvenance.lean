@@ -317,27 +317,6 @@ theorem _root_.Lean4Lean.VExpr.liftN_at_instOuter {X : VExpr} {xs : List VExpr}
     VExpr.liftN_eq_subst_at]
 
 
-theorem Restoration.mapM_expr_instL (r : Restoration) {l l' : List VExpr}
-    (h : l.mapM r.expr = some l') (L : List VLevel) :
-    (l.map (·.instL L)).mapM r.expr = some (l'.map (·.instL L)) := by
-  rw [List.mapM_eq_some] at h ⊢
-  induction h with
-  | nil => exact .nil
-  | cons hab _ ih => exact .cons (by rw [← Restoration.expr_instL, hab]; rfl) ih
-
-theorem Restoration.mapM_expr_insertBinders (r : Restoration)
-    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
-    {l l' : List VExpr} (h : l.mapM r.expr = some l') (e : Nat) :
-    (insertBinders l e).mapM r.expr = some (insertBinders l' e) := by
-  rw [List.mapM_eq_some] at h ⊢
-  have hlen := Lean4Lean.List.Forall₂.length_eq h
-  apply VerifyInductive.List.forall₂_of_getElem (by simp [insertBinders, hlen])
-  intro i ha hb
-  rw [insertBinders_getElem, insertBinders_getElem, ← Restoration.expr_liftN r hc,
-    Lean4Lean.List.forall₂_getElem h i (by simpa [insertBinders_length] using ha)
-      (by simpa [insertBinders_length] using hb)]
-  rfl
-
 /-- **The iota shape of a restored generated equation**, given the
 restoration of its constructor application. -/
 theorem Restoration.restored_iota_shape {s : InductiveSignature} (g : Instance s)

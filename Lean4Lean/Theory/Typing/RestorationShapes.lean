@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Typing.CaseReduction
+import Lean4Lean.Theory.Inductive.RestorationNaturality
 
 /-! Restoration of generated recursor telescopes and its commutation with lifting. -/
 
@@ -209,6 +210,37 @@ theorem Restoration.expr_liftN (r : Restoration)
     cases Restoration.expr.go r major [] <;>
       simp [VExpr.liftN_mkApps, VExpr.liftN]
 
+
+theorem Restoration.mapM_expr_instL (r : Restoration) {l l' : List VExpr}
+    (h : l.mapM r.expr = some l') (L : List VLevel) :
+    (l.map (·.instL L)).mapM r.expr = some (l'.map (·.instL L)) := by
+  rw [List.mapM_eq_some] at h ⊢
+  induction h with
+  | nil => exact .nil
+  | cons hab _ ih => exact .cons (by rw [← Restoration.expr_instL, hab]; rfl) ih
+
+private theorem mapM_zipIdx_lift (r : Restoration)
+    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams) (e : Nat) :
+    ∀ {l l' : List VExpr} (k : Nat), l.mapM r.expr = some l' →
+      ((l.zipIdx k).map fun (t, i) => t.liftN e i).mapM r.expr =
+        some ((l'.zipIdx k).map fun (t, i) => t.liftN e i)
+  | [], l', k, h => by
+    simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h
+    subst h; rfl
+  | a :: as, l', k, h => by
+    simp only [List.mapM_cons, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.pure_def, Option.some.injEq] at h
+    obtain ⟨a', ha, as', has, rfl⟩ := h
+    have ih := mapM_zipIdx_lift r hc e (k + 1) has
+    simp only [List.zipIdx_cons, List.map_cons, List.mapM_cons]
+    rw [← Restoration.expr_liftN r hc, ha, Option.map_some]
+    simp only [ih, Option.bind_eq_bind, Option.bind_some, Option.pure_def]
+
+theorem Restoration.mapM_expr_insertBinders (r : Restoration)
+    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
+    {l l' : List VExpr} (h : l.mapM r.expr = some l') (e : Nat) :
+    (insertBinders l e).mapM r.expr = some (insertBinders l' e) :=
+  mapM_zipIdx_lift r hc e 0 h
 
 end InductiveSignature
 end Lean4Lean
