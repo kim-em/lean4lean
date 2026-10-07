@@ -175,8 +175,8 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   below, by substitution) are built on the base branch. The corner theorem
   needs, beyond `HasCanonicalChoice`: a registered native recursor of `S`
   (without it the statement is false: `inductProjections` registers
-  projections with no eliminator), `info.nindices = 0` (true at the call site:
-  projection inference accepts only structure-like families), and
+  projections with no eliminator), `info.nindices = 0` (not available at the call site; see
+  the E1 corner status below), and
   temporarily `families.size = 1` (to be generalized to mutual/nested
   structures via the restored recursor with constant motives). E1 discharges
   the recursor premise at every call site, including the transient
@@ -213,6 +213,33 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   The final theorem will then assume canonical `Eq` and canonical
   `Nonempty`/`Classical.choice`, with `headInversion` the sole conjecture;
   GOAL.md item (3) will be updated when E1 lands.
+  **E1 corner status (2026-10-07):** decision (C) done (case-only
+  certificate `CaseCompilationData` + `RecursorNamesFresh`; every consumer
+  adapted). The corner is proved from a registered case eliminator:
+  `VEnv.corner_inhabit_elim` (Theory/Typing/ProjectionCornerCaseElim.lean)
+  inhabits the walk binder under `env.WF`, `HasCanonicalChoice`,
+  `info.nindices = 0` and `env.eliminators key schema` with
+  `S ∈ schema.originalFamilies` (the restored case type of the structure's
+  one-constructor view is the ordinary recursor type of `caseView`, typed via
+  the registered constructor type; `elimDF` gives the closed inhabitant at
+  motive universe zero; `corner_inhabit_sig` does the rest).
+  `ProjectionWalkCorner` (Verify/Typing/ProjectionCorner.lean) is narrowed to
+  the walks with `¬ ProjectionWalkCornerResolved venv S info` (no canonical
+  choice, or indices, or no registered case eliminator of `S`);
+  `ProjectionWalkCorner.full` combines it with the proved case and is what
+  `inferProj` uses. Caveat: the Verify pipeline registers no case
+  eliminators yet, so for the checker's own environments the narrowing is
+  only formal until registration lands. **Finding: `info.nindices = 0` is
+  not available at the call site.** The C++ kernel's `infer_proj`
+  (`type_checker.cpp`: `length(I_val.get_cnstrs()) != 1 || args.size() !=
+  nparams + nindices`) and the executable accept one-constructor families
+  with indices, and `inductProjections` registers projections for them; the
+  earlier note that projection inference accepts only structure-like
+  families is wrong. An indexed corner needs the restored case type of an
+  indexed view to be a type (`elimDF` premise), which needs the normalized
+  index telescope (`FamilyTypesWF`, typed only in the expanded environment)
+  transported through restoration, plus agreement of that telescope with
+  the declared one at the major's indices; neither exists yet.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the

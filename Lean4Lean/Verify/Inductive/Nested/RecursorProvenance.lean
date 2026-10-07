@@ -256,13 +256,6 @@ theorem _root_.List.mapM_append_eq_some {f : α → Option β} {a b : List α} {
 
 /-! ### Field domains of restored constructors -/
 
-theorem _root_.Lean4Lean.VExpr.Subst.lift_liftN (σ : VExpr.Subst) :
-    ∀ i, σ.lift.liftN i = σ.liftN (i + 1)
-  | 0 => rfl
-  | i + 1 => by
-    show (σ.lift.liftN i).lift = (σ.liftN (i + 1)).lift
-    rw [VExpr.Subst.lift_liftN σ i]
-
 /-- Substitution through a telescope, binder by binder. -/
 theorem _root_.Lean4Lean.VExpr.wrapForalls_subst_doms (σ : VExpr.Subst) :
     ∀ (ds : List VExpr) (b : VExpr), ∃ ds' b',

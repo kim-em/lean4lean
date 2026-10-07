@@ -477,3 +477,40 @@ CaseCompilationData`, `CaseSchema.Certified` uses the case part. The registratio
 premise reused `CompilationData` by convenience; the eliminator rules depend only on
 the schema data the case-only certificate fixes, so this corrects the specification and
 weakens no theorem.
+
+### 5.3 Corner from a registered case eliminator; what (A) still needs (2026-10-07)
+
+Done: `VEnv.corner_inhabit_elim` (Theory/Typing/ProjectionCornerCaseElim.lean) inhabits the walk
+binder from `env.WF`, `HasCanonicalChoice`, `info.nindices = 0` and a registered schema with
+`S ∈ schema.originalFamilies`. The restored case type of the structure's one-constructor view is
+the ordinary recursor type of `caseView` at the restored parameters and fields
+(`CaseSchema.restored_structure_recursorType`); it is a type because the view's constructor type
+is the registered constructor type (`caseView_recursorType_isType`), which discharges the `elimDF`
+premise; `corner_inhabit_sig` finishes. `ProjectionWalkCorner` is narrowed to
+`¬ ProjectionWalkCornerResolved venv S info`, and `inferProj` uses `ProjectionWalkCorner.full`.
+
+Two obstacles to deleting `hcorner`:
+
+1. Indices. `infer_proj` in the C++ kernel and in the executable accepts one-constructor families
+   with indices (only `args.size = nparams + nindices` is checked), and their projections are
+   registered. The indexed corner needs the restored case type of an indexed view to be a type:
+   the normalized index telescope is typed only in the expanded environment (`FamilyTypesWF`) and
+   is not tied to the declared header (`RestoresFamily.type` is deliberately weaker), so this
+   needs restoration typing transport for the index telescope, plus agreement of the normalized
+   and declared index telescopes at the major's indices (spine inversion and uniqueness). Neither
+   exists. Until then the residual conjecture keeps the indexed walks.
+2. Registration in the pipeline. Verify registers no case eliminator, so the narrowing is formal
+   only. The recursor typings of the window are derived in the window environment; if that
+   environment carries the eliminator they cannot be moved to the eliminator-free
+   `envCtors.addProjections P` that `VInductBlock.WF` requires, and `inductEliminators` cannot be
+   applied after `install` (its `env.defeqs = base.defeqs` premise fails once the recursor rules
+   are installed). So (A) changes the Theory block data: `VInductBlock.WF`, `VInductBlock.install`
+   and `VEnv.AddInduct` must include the certified eliminators, ordered before the projections if
+   "every registered projection family has an eliminator" is to be a consequence of `VEnv.WF`
+   (with `inductProjections` requiring it). Every `decl`/`induct` case of the Theory induction
+   proofs over `VEnv.WF'` (17 sites) and the 19 eliminator-invariant inductions then register
+   eliminators in the `induct` step as well, and the Verify window (`contextVEnv`,
+   `CompletedStagedBlock.recursorsAdded`, about 330 `addProjections` occurrences in 50 files)
+   moves to the extended environment. Per-environment canonical choice must also reach `VContext`
+   (`ValidCore` field, transported by `mono` at each installation) for the residual to lose the
+   no-choice walks.
