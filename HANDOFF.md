@@ -223,7 +223,23 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   declarations `NativeIotaSoundness` used moved into
   Theory/Inductive/NativeIotaRestoration.lean with proofs unchanged). Full
   build (745 jobs) and tests (346) green.
-- `lean4lean-hi`, branch `agent/verify-inductives-headinv`: Phase 1a: port
+- `lean4lean-hi`, branch `agent/verify-inductives-headinv`: **Phase 1a
+  COMPLETE (84bf90d3; being merged into the mainline):** `lake build
+  Lean4Lean.Experimental` passes (NormalEq, ParallelReduction, Stratified,
+  StratifiedUntyped ported; two false-once-iota-fires theorems take
+  `VEnv.NoInductiveRules`); a new sound model `Theory/Typing/ShapeModel/`
+  over the real `VExpr`, sound for every rule in every WF environment;
+  `VEnv.WF.headSeparation` PROVED (fields `sort_sort`, `sort_forallE`,
+  `sort_rigid`, `forallE_rigid`, `rigid_heads`); `headInversion` is now
+  assembled from it and the single remaining conjecture
+  `VEnv.WF.headInjectivity` (`forallE_forallE`, `rigid_args`, `former_args`,
+  `proj_fieldType`; statements in HeadInversionDefs.lean). Spec correction
+  D10: `inductEliminators` gains `schema.StructCompat env` (a registered
+  schema has exactly the registered constructor of every registered
+  structure among its families), since otherwise unit-like plus a foreign
+  schema derived `Prop ≡ (Prop → Prop)` and head inversion was false.
+  Prototype gaps isolated (`Params.PatternRegistry`, `LR.ConstAdequate`,
+  `Params.TypedEnv`); decisions D1 to D14 in PHASE1_NOTES.md. Phase 1a: port
   Mario's Experimental prototype to this branch's `VExpr` (fixing the
   Experimental CI build), a sound shape model for the full calculus, the
   separation half of `HeadInversion`; split the conjecture so only
