@@ -1837,6 +1837,8 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
       (∃ hn : args.size ≤ Rcurrent.chk.length,
         MLCtxTopAgree Rcurrent.mlctx Rcurrent.chk args.size ∧
           ∃ j hj ty₀, Rcurrent.chk.dropN args.size hn = R.chk.dropN j hj ∧
+            (∃ k, (R.chk.dropN j hj).fvarList = R.chk.fvarList.take k ∧
+              R.chk.fvarList[k]? = some fv) ∧
             TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
               (c.lctx.get! fv).type ty₀ ∧
             R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ ∧
@@ -1886,7 +1888,8 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
   -- Normalization and the argument telescope run in the checker context of
   -- the parameters and the fields before `fv`.
   let F := loopUArgsCheckLCtx c prior
-  obtain ⟨jF, hjF, fieldType₀, hlctxF, hfieldType₀, hfieldType₀Ty⟩ := R.priorBase hpriorFVars
+  obtain ⟨jF, hjF, fieldType₀, hlctxF, hfieldType₀, hfieldType₀Ty, hkF⟩ :=
+    R.priorBase hpriorFVars
   let BF : R.Base F := (R.check.below jF hjF).cast hlctxF
   let RF := R.withCheckLCtx F BF
   rw [AddInductive.withCheckLCtx_apply]
@@ -1953,7 +1956,7 @@ theorem mkRecInfos.loopUArgs.resultRecursiveDomainOfInferredScope {alpha : Type}
         h4 h5 h6 h7 h8
         (by
           obtain ⟨hn, hag, hd, t₀, htr, htrTy, hcl⟩ := h9
-          exact ⟨hn, hag, jF, hjF, fieldType₀, hd, hfieldType₀, hfieldType₀Ty,
+          exact ⟨hn, hag, jF, hjF, fieldType₀, hd, hkF, hfieldType₀, hfieldType₀Ty,
             t₀, htr, htrTy, hcl⟩))
   exact Hloop.mono fun out hout => ⟨inferredTarget, hfieldTyping, hout⟩
 
@@ -2292,6 +2295,8 @@ structure SemanticBoundGeneratedRecursiveCall
       generated.localArgs.size ∧
       ∃ j hj ty₀, current_context.chk.dropN generated.localArgs.size hn =
           R.chk.dropN j hj ∧
+        (∃ k, (R.chk.dropN j hj).fvarList = R.chk.fvarList.take k ∧
+          R.chk.fvarList[k]? = some field.fvarId!) ∧
         TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
           (root.lctx.get! field.fvarId!).type ty₀ ∧
         R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ ∧

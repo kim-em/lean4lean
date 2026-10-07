@@ -661,7 +661,7 @@ theorem
         Array.array_toSubarray] at hsource
       exact List.mem_of_mem_take (List.mem_of_mem_drop hsource)
     exact F.semantic.exposed_scope.getAppArgsList hsourceFull
-  obtain ⟨_, _, _, _, _, _, _, _, _, ⟨exposed₁, Hexposed₁, _⟩, _, _⟩ :=
+  obtain ⟨_, _, _, _, _, _, _, _, _, _, ⟨exposed₁, Hexposed₁, _⟩, _, _⟩ :=
     F.semantic.chkAgree
   rw [hsemantic] at Hexposed₁
   obtain ⟨exposed₂, Hexposed₂⟩ := hemb.trExprS H.outVEnvWF
@@ -915,7 +915,7 @@ theorem
     exact h
   -- The major and its type, built from the checker contexts of the
   -- producer rather than restricted from the runtime context.
-  obtain ⟨hnC, hagreeC, jC, hjC, ty₀, hdropC, hty₀, hty₀Ty, t₀,
+  obtain ⟨hnC, hagreeC, jC, hjC, ty₀, hdropC, _hkC, hty₀, hty₀Ty, t₀,
     ⟨t₁, Ht₁, ht₁₀⟩, Ht₀Ty, hcl⟩ := F.semantic.chkAgree
   have hposFields : 0 < A.rule.allArgs.size := by
     have hlen := A.semantics.selection.fields_length

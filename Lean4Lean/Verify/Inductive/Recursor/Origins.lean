@@ -1000,7 +1000,9 @@ theorem RecursorContextWF.priorBase
       (R.chk.dropN j hj).lctx = loopUArgsCheckLCtx root prior ∧
       TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
         (root.lctx.get! fv).type ty₀ ∧
-      R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ := by
+      R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ ∧
+      ∃ k, (R.chk.dropN j hj).fvarList = R.chk.fvarList.take k ∧
+        R.chk.fvarList[k]? = some fv := by
   obtain ⟨k, hprior, hk⟩ := hpriorFVars
   have hlist : (root.checkLCtx.toList.map (·.fvarId)).reverse = R.chk.fvarList := by
     rw [← R.check.lctx_eq, R.check.wf.toList_eq, TypeChecker.MLCtx.decls_fvarId,
@@ -1031,7 +1033,7 @@ theorem RecursorContextWF.priorBase
     simp only [LocalContext.get!, hd']
     rw [← e1 d', hdeq]
     rfl
-  refine ⟨j + 1, hj, ty', ?_, htype ▸ htr, hty⟩
+  refine ⟨j + 1, hj, ty', ?_, htype ▸ htr, hty, k, htake.symm, hk⟩
   rw [loopUArgsCheckLCtx, hprior, htake]
   exact ((R.check.below (j + 1) hj).restrictTo_eq R.lctxWF).symm
 
@@ -1043,7 +1045,9 @@ theorem RecursorLoopUArgsInput.checkBase
       (R.chk.dropN j hj).lctx = loopUArgsCheckLCtx root H.prior ∧
       TrExprS R.venv recLparams (R.chk.dropN j hj).vlctx
         (root.lctx.get! fv).type ty₀ ∧
-      R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ :=
+      R.venv.IsType recLparams.length (R.chk.dropN j hj).vlctx.toCtx ty₀ ∧
+      ∃ k, (R.chk.dropN j hj).fvarList = R.chk.fvarList.take k ∧
+        R.chk.fvarList[k]? = some fv :=
   R.priorBase H.priorFVars
 
 /-- Exact successful prefix of the executable `loopUArgs.loop` traversal.
