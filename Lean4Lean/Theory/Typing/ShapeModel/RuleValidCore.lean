@@ -304,6 +304,72 @@ theorem Spine.realize_head' {h : Head} (hcl : ConstClosed env) (W : Valuation.Fi
   have := List.Forall₂.reverse.2 hargs
   rwa [List.reverse_reverse] at this
 
+/-! ### Head types along spines -/
+
+variable (env) in
+/-- `Th` is the type of the head `h` at levels `ls` (the type of its structural record). -/
+def HeadType : Head → List VLevel → VExpr → Prop
+  | .const c, ls, Th => ∃ ci, env.constants c = some ci ∧ Th = ci.type.instL ls
+  | .elim b o, ls, Th => ∃ T, SemSig.elimType b o = some T ∧ Th = T.instL ls
+
+theorem HeadType.core_eq {h : Head} (hTh : HeadType env h ls Th)
+    (H : StrongSoundCore env Γ (h.toExpr ls) T) : T = Th := by
+  cases h with
+  | const c =>
+    obtain ⟨ci, h1, rfl⟩ := hTh
+    obtain ⟨ci', u, h1', -, -, rfl⟩ := H.const_inv
+    cases h1.symm.trans h1'; rfl
+  | elim b o =>
+    obtain ⟨T', h1, rfl⟩ := hTh
+    cases H with | elim h1' _ => cases h1.symm.trans h1'; rfl
+
+/-- `Spine.ofPi` for constant and eliminator heads. -/
+theorem Spine.ofPi_head {h : Head} (W : Valuation.Fits env Γ₀ Γ ρ)
+    (hTy : StrongSound env Γ (VExpr.mkApps (h.toExpr ls) rev.reverse) T)
+    (hTh : HeadType env h ls Th)
+    (hps : List.Forall₂ (fun p A => Interp env ρ p.2 A) qs rev)
+    (H : Interp env ρ (nestPi qs.reverse R) Th) : Interp env ρ R T := by
+  induction hps generalizing R T with
+  | nil =>
+    obtain ⟨_, hcore, hT⟩ := hTy
+    cases hTh.core_eq hcore
+    exact (hT W).1 H
+  | @cons q a qs rev hq _ ih =>
+    rw [List.reverse_cons, VExpr.mkApps_append_singleton] at hTy
+    rw [List.reverse_cons, nestPi_append_singleton] at H
+    obtain ⟨_, hcore, hT⟩ := hTy
+    obtain ⟨A, B, hf, -, rfl⟩ := hcore.app_inv
+    have ⟨_, h2⟩ := Interp.pi_inv (ih hf H)
+    exact (hT W).1 (Interp.inst.2 ⟨_, h2, hq⟩)
+
+/-- `Spine.typed` for constant and eliminator heads. -/
+theorem Spine.typed_head {h : Head} (W : Valuation.Fits env Γ₀ Γ ρ)
+    (hTy : StrongSound env Γ (VExpr.mkApps (h.toExpr ls) rev.reverse) T)
+    (hTh : HeadType env h ls Th)
+    (hxs : List.Forall₂ (fun x A => Interp env ρ x A) xs rev) (hR : Interp env ρ R T) :
+    ∃ qs, List.Forall₂ (fun x p => x ≤ p.2) xs qs ∧
+      List.Forall₂ (fun p A => Interp env ρ p.2 A) qs rev ∧ TelTyped qs ∧
+      Interp env ρ (nestPi qs.reverse R) Th := by
+  induction hxs generalizing R T with
+  | nil =>
+    obtain ⟨_, hcore, hT⟩ := hTy
+    cases hTh.core_eq hcore
+    exact ⟨[], .nil, .nil, nofun, (hT W).2 hR⟩
+  | @cons x a xs rev hx _ ih =>
+    rw [List.reverse_cons, VExpr.mkApps_append_singleton] at hTy
+    obtain ⟨_, hcore, hT⟩ := hTy
+    obtain ⟨A, B, hf, ha, rfl⟩ := hcore.app_inv
+    obtain ⟨y, hyB, hya⟩ := Interp.inst.1 ((hT W).2 hR)
+    have hj := hx.join' hya
+    have hJ := TShape.Join.mk (hx.compat hya)
+    obtain ⟨x', d, a1, a2, a3, a4⟩ := ha.sound W hj
+    have hpi : Interp env ρ (TShape.pi d x' R) (.forallE A B) :=
+      .pi_intro a3 a4 (hyB.mono_l (Valuation.LE.push.2 ⟨.rfl, hJ.le.2.trans a1⟩))
+    obtain ⟨qs, b1, b2, b3, b4⟩ := ih hf hpi
+    refine ⟨(d, x') :: qs, .cons (hJ.le.1.trans a1) b1, .cons a2 b2, ?_, ?_⟩
+    · exact List.forall_mem_cons.2 ⟨a4, b3⟩
+    · rw [List.reverse_cons, nestPi_append_singleton]; exact b4
+
 end
 
 end Lean4Lean.ShapeModel
