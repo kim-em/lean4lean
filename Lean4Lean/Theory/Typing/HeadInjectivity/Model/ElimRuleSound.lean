@@ -145,7 +145,8 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
-    (hcis : IsCtor env ctor)
+    (hcis : IsCtor env ctor) (hIP : ∀ info, ¬ env.projections I info)
+    (hcnp : ¬ IsProjCtor env ctor)
     (hC : ∀ keys : List Key, keys.length = lead.length →
       Obs' .id .empty (type.instL ls) (piCodChain keys
         (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
@@ -231,7 +232,8 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
       have := List.Forall₂.length_eq hinfo'; simpa using this
     have hc := Obs.elimRule (σ := v) (S := vS) (Dm := kaM'.1.1) (cm := kaM'.1.2.1)
       (Km := kaM'.1.2.2) (lkeys := infoL'.map (·.1)) hb hrules hmem hl hr htype hτ₀'
-      (by simpa using hty₀') (by simp [hlen']) hhd hbind (hp.mono hS')
+      (by simpa using hty₀') (by simp [hlen']) hhd hbind
+      (by simpa using KeyData.forall₂_backed hinfo') (hp.mono hS')
     have hXo := obs_mkApps_of_wrap (KeyData.forall₂_keys hinfo') (by simpa using hc)
     exact Obs.wrapLams_iff.2 ⟨lk, v, vS, p, hk, rfl, hXo⟩
   by_cases hm : u.eval = fun _ => 0
@@ -247,7 +249,7 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
         (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hxr)
     have hCT : CtorTyped env ctor
         [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] :=
-      ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm⟩
+      ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm, hIP⟩
     have hcobs : ∀ r ∈ ctorObs ctor ((lsC.map (·.inst ls)).map (·.eval)) (cinfo.map (·.1)),
         Obs' v vS (.mkApps (.const ctor (lsC.map (·.inst ls)))
           (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
@@ -261,11 +263,12 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
         · exact .ctorArg hCT
         · exact .ctorArgOb hCT
       obtain ⟨τ₀c, h1, h2⟩ := cP1 r hrty
-      exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo) (.ctor hcis hcc h1 h2 hend)
+      exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo) (.ctor hcis hcnp hcc h1 h2 hend (KeyData.forall₂_backed hcinfo))
     have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
       (nd := doms.length) hLx v (lead.map (·.instL ls))) hcobs
     obtain ⟨Th2, info2, hTh2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
       hX.spineH henv hΔ rfl (.inr ⟨_, _, _, rfl⟩) Wv tvv _ hKs2 τc hτc
+    have hbk2 := KeyData.forall₂_backed hinfo2
     obtain rfl := HeadTy.elim_eq hEu hTh2 hb htype
     obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := forall₂_split hinfo2
     obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
@@ -286,8 +289,15 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
       else vS x
     have hfsj : ∀ x, x ∈ fs → fs[fs.idxOf x]? = some x := fun x hx =>
       List.getElem?_eq_some_iff.2 ⟨List.idxOf_lt_length_of_mem hx, List.getElem_idxOf _⟩
+    have hbM : Backed (fun o => o ∈ kaM2.1.2.2) :=
+      hbk2 _ (List.mem_map_of_mem (List.mem_append_right _ (List.mem_singleton_self _)))
     refine finish infoL2 kaM2 S' τ₀2 hinfo2 hτ₀2 hty₀2
-      ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩ ?_ ?_
+      ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩ ⟨fun x => ?_, ?_⟩ ?_
+    · simp only [S']
+      split
+      · intro k ⟨pre, hk⟩ w hw
+        exact ⟨pre, hbM _ hk _ (by simp only [Ob.wit]; exact List.mem_map_of_mem hw)⟩
+      · exact tvv.1 x
     · intro x hx
       by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
       · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
@@ -349,7 +359,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
   obtain ⟨keys, hkeys, hc⟩ := wrap_of_obs_mkApps' hp
   obtain ⟨schema'', owner'', rules'', df'', doms'', lsP'', lead'', ctor'', lsC'', ms'', fs'',
     body'', type'', τs, lkeys, Dm, cm, Km, p'', τ, S'', eo, e, hb'', hrules'', hmem'', hl'', hr'',
-    -, -, -, hlen'', hhd, hbind, hbody⟩ := Obs.elim_iff.1 hc
+    -, -, -, hlen'', hhd, hbind, -, hbody⟩ := Obs.elim_iff.1 hc
   cases hEu _ _ _ hb hb''
   cases Fin.ext eo
   cases hrules.symm.trans hrules''
@@ -440,7 +450,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     intro x o ho
     by_cases hx : x < doms''.length
     · simp only [S', hx, if_true] at ho
-      rcases hbind x hx with ⟨i, k, hi, -, hki, -, -, hkS⟩ |
+      rcases hbind.2 x hx with ⟨i, k, hi, -, hki, -, -, hkS⟩ |
         ⟨-, j, hj, ⟨-, -, -, -, -, hS⟩ | ⟨-, -, -, hS⟩⟩
       · rw [hkS] at ho
         have hil : i < lkeys.length := by
@@ -476,7 +486,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     cases hLA.uniq (hL x hx')
     rw [hτ'1 x hx', ← hbcl' x hx']
     have hvx := (Wv.lookup (hL x hx')).hasType.1
-    rcases hbind x hx' with ⟨i, k, hi, -, hki, hkt, hkm, -⟩ |
+    rcases hbind.2 x hx' with ⟨i, k, hi, -, hki, hkt, hkm, -⟩ |
       ⟨-, j, hj, ⟨-, cl, hcl, hct, hcm, -⟩ | ⟨-, ⟨X, hX, hτX⟩, ⟨P, hP, hPs⟩, -⟩⟩
     · have hil : i < lkeys.length := by
         have := List.Forall₂.length_eq hkeysL
@@ -532,7 +542,8 @@ theorem sound_pat_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.Cas
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
-    (hcis : IsCtor env ctor) (hcrig : env.Rigid ctor)
+    (hcis : IsCtor env ctor) (hIP : ∀ info, ¬ env.projections I info)
+    (hcnp : ¬ IsProjCtor env ctor) (hcrig : env.Rigid ctor)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       df' ∈ rules →
@@ -560,7 +571,7 @@ theorem sound_pat_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.Cas
       huniq ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP htype eH
-      hlenH hkH hIrig hcf hcis hC ihL.2 ihR.1 heq W' tv' o h
+      hlenH hkH hIrig hcf hcis hIP hcnp hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 /-- Soundness of an eliminator rule whose right-hand side has no observations. -/

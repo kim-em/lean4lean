@@ -152,8 +152,10 @@ theorem const_wrap_inv {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {keys :
     RigidEnd n (ls.map (·.eval)) keys o := by
   have hna : o.NotApp := by rcases ho with ⟨_, _, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;> trivial
   rcases Obs.const_iff.1 h with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
+    ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
+    ⟨_, _, _, keys', _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr.notApp
     exact hr
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
@@ -163,6 +165,9 @@ theorem const_wrap_inv {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {keys :
     rcases ho with ⟨_, _, _, _, rfl⟩ | ⟨_, _, rfl⟩ <;>
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig df hdf lsP)
+  all_goals
+    obtain ⟨-, rfl⟩ := wrap_inj e hna trivial
+    rcases ho with ⟨_, _, _, _, h⟩ | ⟨_, _, h⟩ <;> cases h
 
 /-- The keys of a left spine: each argument class is the class of the argument at the
 domain class, which is the type class of a type of the argument, and the key observations
@@ -199,7 +204,7 @@ theorem spine_data (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (en
     induction hinfo with
     | nil => exact .nil
     | @cons ka a _ _ h _ ih =>
-      obtain ⟨h1, h2, h3, _, h5⟩ := h
+      obtain ⟨h1, h2, h3, _, h5, _⟩ := h
       refine .cons ⟨by rw [h1, VExpr.subst_id], h2, ka.2, h5.1.defeq.hasType.1, ?_⟩ ih
       rw [h3, VExpr.subst_id]
 
@@ -285,7 +290,7 @@ theorem tele_spine (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) :
   | ⟨D, c, K⟩ :: keys, ds, w, Γ', σ, _, _, τs, o, W, hT, hτs, hty,
       .cons ⟨hc, X, hX, ha⟩ H1, .cons ha' H2 => by
     cases hty with
-    | app hD _ _ _ _ hcod hty' =>
+    | app hD _ _ _ _ _ hcod hty' =>
       obtain ⟨σ'', S'', W'', hobs⟩ := hτs _ hD
       cases ds with
       | nil => cases Obs.sort_mem hobs
@@ -349,11 +354,13 @@ theorem WF.headInjectivityCore_of_defsQuot {env : VEnv} (henv : env.WF) (hdq : e
     · exact VEnv.nativeHeadRigid_iff.1 (henv.case_constructor_rigid hb hgen)
   have hcres : ∀ c, Model.IsNativeCtor env c → env.CtorResultRigid c :=
     fun _ ⟨_, hdf, hm⟩ => henv.native_constructor_result_rigid hdf hm
+  have hpctor : ∀ c, Model.IsProjCtor env c → env.Rigid c :=
+    fun _ ⟨_, _, h, _⟩ => absurd h (hdq.projections _ _)
   have hvalid : ∀ df, env.defeqs df → Model.RuleValid env df := fun df hdf => by
     rcases hdq.defeqs df hdf with ⟨n, ls, h⟩ | rfl
-    · exact Model.RuleValid.delta henv.ordered henv.defRules hctor hdf h
+    · exact Model.RuleValid.delta henv.ordered henv.defRules hctor hpctor hdf h
     · exact Model.RuleValid.quot henv.ordered (hdq.quot hdf)
-        (Model.quot_single henv.defRules hdf hdq.defeqs) henv.defRules hctor hcres hdf
+        (Model.quot_single henv.defRules hdf hdq.defeqs) henv.defRules hctor hcres hpctor (hdq.projections _) (fun ⟨_, _, h, _⟩ => hdq.projections _ _ h) hdf
   exact henv.headInjectivityCore_of_sound fun hΔ H =>
     Model.sound henv.ordered hΔ .rfl hvalid hdq.projections
     (Model.ElimsValid.of_none hdq.eliminators .rfl) H

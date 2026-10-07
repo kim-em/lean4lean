@@ -230,6 +230,8 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
     · exact VEnv.nativeHeadRigid_iff.1 (hF.case_constructor_rigid hb hgen)
   have hcres : ∀ c, Model.IsNativeCtor envF c → envF.CtorResultRigid c :=
     fun _ ⟨_, hdf, hm⟩ => hF.native_constructor_result_rigid hdf hm
+  have hpctor : ∀ c, Model.IsProjCtor envF c → envF.Rigid c :=
+    fun _ ⟨_, _, h, _⟩ => absurd h (hnp _ _)
   intro ds env H
   induction H with
   | empty => intro _ _; exact ⟨fun df h => (by cases h), fun _ _ _ _ _ h => (by cases h)⟩
@@ -259,7 +261,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
         (fun df hm n ls h => by
           simp only [List.mem_singleton] at hm; subst hm; cases h; exact hnone)
       rcases hdf with rfl | hdf
-      · exact Model.RuleValid.delta henvF hdr hctor hdfF rfl
+      · exact Model.RuleValid.delta henvF hdr hctor hpctor hdfF rfl
       · exact @ih' hcl0 df (by rwa [VEnv.addConst_defeqs hadd] at hdf)
     | mutualDef _ hadd _ =>
       rw [addConsts_as_values] at hadd
@@ -273,7 +275,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
       rw [addDefEqs_as_rules, defeqs_addRules] at hdf
       rcases hdf with member | hdf
       · obtain ⟨ci, _, rfl⟩ := List.mem_map.mp member
-        exact Model.RuleValid.delta henvF hdr hctor hdfF rfl
+        exact Model.RuleValid.delta henvF hdr hctor hpctor hdfF rfl
       · exact @ih' hcl0 df (by rwa [VEnv.addConstVals_defeqs hadd] at hdf)
     | quot _ installed =>
       simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -309,7 +311,8 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
               ((VEnv.addConst_le hc).constants (VEnv.addConst_self hb))))
         have hex := hcl.excl h0 hdefeqs ⟨_, hlift⟩ hnone
         exact Model.RuleValid.quot henvF hq (fun df' ls' hdf' h' => List.mem_singleton.1
-          (hex df' hdf' ls' h')) hdr hctor hcres hdfF
+          (hex df' hdf' ls' h')) hdr hctor hcres hpctor (hnp _)
+          (fun ⟨_, _, h, _⟩ => hnp _ _ h) hdfF
       · exact @ih' hcl0 df hdf
     | induct _ installed =>
       cases installed with
@@ -357,13 +360,13 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
           · obtain ⟨-, -, -, -, _, _, _, _, hwf, _⟩ := C.sourceWF
             have hfs := Model.famSort_source henvF h0 hnp hEV0 (@ih' hcl0) hwf hbase' htypes C.types
               hinst hle hfamily hrel
-            exact Model.RuleValid.nested henvF hdr hctor hcres C hprior haux hbF hinst hle index hres
-              hdfF hex (L := s.families[s.constructors[index].owner].resultLevel)
+            exact Model.RuleValid.nested henvF hdr hctor hcres hpctor C hprior haux hbF hinst hle index hres
+              hdfF (hnp _) (fun ⟨_, _, h, _⟩ => hnp _ _ h) hex (L := s.families[s.constructors[index].owner].resultLevel)
               (by rw [hhn]; exact hfs) (fun hnz => by rw [hhl]; exact hnz _ hmemF)
           · have hfs := Model.famSort_container henvF h0 (h0le.trans hle) hnp hEV0 (@ih' hcl0)
               hprior hbase' ha
-            exact Model.RuleValid.nested henvF hdr hctor hcres C hprior haux hbF hinst hle index hres
-              hdfF hex (L := a.source.resultLevel) (by rw [hhn]; exact hfs)
+            exact Model.RuleValid.nested henvF hdr hctor hcres hpctor C hprior haux hbF hinst hle index hres
+              hdfF (hnp _) (fun ⟨_, _, h, _⟩ => hnp _ _ h) hex (L := a.source.resultLevel) (by rw [hhn]; exact hfs)
               (fun hnz => by
                 rw [hhl, ← VLevel.inst_inst]
                 exact (hnz _ hmemF).of_equiv (VLevel.inst_congr_l hlev))
@@ -404,7 +407,8 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
             rw [g.equation_type_eq] at hty
             simpa using onCtx_wrapForalls hER (show OnCtx [] (recursors.IsType g.uvars) from trivial)
               hty
-          exact Model.RuleValid.native henvF hdr hctor hcres C hinst hle index hdfF hex
+          exact Model.RuleValid.native henvF hdr hctor hcres hpctor C hinst hle index hdfF (hnp _)
+            (fun ⟨_, _, h, _⟩ => hnp _ _ h) hex
             (Model.famSort henvF h0 hnp hEV0 (@ih' hcl0) C hbase' hinst hle _)
             (fun envE hE hsing U Δ Γ ls hΔ hlw _ i hi hidx => by
               have hEE : envE ≤ recursors := by
@@ -447,13 +451,13 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
           rw [C.types]; exact List.mem_map_of_mem hfamily)))
       have hfs := Model.famSort_of henvF h0 hle0 IH.1 hnp hEV hfc (h1.mono hTE) (h2.mono hTE) hlev
       rw [← hhn, ← hrr] at hfs
-      refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
+      refine Model.ElimValid.of_certified henvF hEu hctor hnp hcert hbF hr hm hctorsIn hbase hIrig hfs
         fun levels target hlen hnz => ?_
       rw [hrr, hhl, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
       exact hnz
     · have hfs := Model.famSort_container henvF h0 hle0 hnp hEV IH.1 hprior hble ha
       rw [← hhn, ← hrr] at hfs
-      refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
+      refine Model.ElimValid.of_certified henvF hEu hctor hnp hcert hbF hr hm hctorsIn hbase hIrig hfs
         fun levels target hlen hnz => ?_
       rw [hrr, hhl, VLevel.inst_inst, List.map_map]
       have e : (VLevel.inst (target :: levels) ∘ VLevel.inst schema'.genericLevels) =

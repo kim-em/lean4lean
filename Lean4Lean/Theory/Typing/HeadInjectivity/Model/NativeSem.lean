@@ -36,7 +36,7 @@ theorem typed_wrap_rigid : ∀ {keys : List Key} {τs : List Ob},
     obtain ⟨D, c, K⟩ := k
     simp only [wrap_cons] at h
     cases h with
-    | app _ _ _ _ _ hcod hty =>
+    | app _ _ _ _ _ _ hcod hty =>
       obtain ⟨ks, hl, hm⟩ := typed_wrap_rigid hty
       obtain ⟨K₀, hK₀, -⟩ := hcod _ hm
       exact ⟨(D, c, K₀) :: ks, by simp [hl], hK₀⟩
@@ -95,7 +95,7 @@ theorem motive_tele_empty {doms args mds : List VExpr} {T X : VExpr} {m : Nat} {
   have h := hτc τ hτ
   rw [eT] at h
   obtain ⟨keys, hkeys, hb⟩ := wrap_of_obs_mkApps h
-  obtain ⟨τs', h1, h2⟩ := tv' m _ hm _ (Obs.bvar_iff.1 hb)
+  obtain ⟨τs', h1, h2⟩ := tv'.2 m _ hm _ (Obs.bvar_iff.1 hb)
   obtain ⟨τc', _, h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
     (by rw [hlen]; exact List.Forall₂.length_eq hkeys) h2 (fun τ hτ => ⟨_, _, h1 τ hτ⟩)
   refine ⟨_, h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩⟩
@@ -116,7 +116,7 @@ theorem motive_tele_empty_ctx {doms args mds : List VExpr} {T X : VExpr} {m : Na
   have h := hτc τ hτ
   rw [eT] at h
   obtain ⟨keys, hkeys, hb⟩ := wrap_of_obs_mkApps h
-  obtain ⟨τs', h1, h2⟩ := tv' m _ (Lookup.append_left' hm) _ (Obs.bvar_iff.1 hb)
+  obtain ⟨τs', h1, h2⟩ := tv'.2 m _ (Lookup.append_left' hm) _ (Obs.bvar_iff.1 hb)
   obtain ⟨τc', _, h3, h4⟩ := chain_terminal_sort (env := env) (U := U) (Δ := Δ) (w := w)
     (by rw [hlen]; exact List.Forall₂.length_eq hkeys) h2 (fun τ hτ => ⟨_, _, h1 τ hτ⟩)
   refine ⟨_, h4.strengthen fun k hk => ⟨_, List.mem_singleton_self _, ?_⟩⟩
@@ -170,7 +170,8 @@ theorem sound_pat_empty {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead 
       (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])))
     (hr : df.rhs = .wrapLams doms body)
     (hlsP : lsP.map (·.inst ls) = ls) (hlcl : df.lhs.ClosedN) (hrcl : df.rhs.ClosedN)
-    (hcrig : env.Rigid ctor) (hctor : ∀ c, IsCtor env c → env.Rigid c) (hdr : env.DefRules)
+    (hcrig : env.Rigid ctor) (hctor : ∀ c, IsCtor env c → env.Rigid c)
+    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c) (hdr : env.DefRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       env.defeqs df' →
@@ -188,7 +189,7 @@ theorem sound_pat_empty {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead 
   have W' := SubstEq.right henv hΔ W
   refine ⟨fun o h => ?_, fun o h => absurd h (hE σ' S W' tv' o),
     (ihL σ σ S W.left tv tv).2.2.1, (ihR.1 σ' σ' S W' tv' tv').2.2.1⟩
-  obtain ⟨o', h1, -⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hdr huniq
+  obtain ⟨o', h1, -⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hpctor hdr huniq
     ihR.2 ihR.1 W.left tv o h
   exact absurd h1 (hE σ S W.left tv o')
 

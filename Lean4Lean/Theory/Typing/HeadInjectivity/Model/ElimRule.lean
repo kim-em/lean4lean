@@ -111,6 +111,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     (henv : env.Ordered)
     (hEu : ∀ b s s', env.eliminators b s → env.eliminators b s' → s = s')
     (hctor : ∀ c, IsCtor env c → env.Rigid c)
+    (hnp : ∀ n info, ¬ env.projections n info)
     (hcert : schema.Certified base source block) (hb : env.eliminators b schema)
     (hrules : schema.genericEquations b owner = some rules) (hmem : df ∈ rules)
     (hctorsIn : ∀ value ∈ block.ctors, env.constants value.name = some value.toVConstant)
@@ -270,7 +271,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     · exact .inl (List.mem_append_left _ (mem_vars' (by omega) (by omega)))
   rcases hperm.admissible with hnz | hsmall
   · exact sound_pat_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP hrc.1 hrc.2.1 htype eT hlenH
-      hkH hIrig hcf hcis hcrig huniq
+      hkH hIrig hcf hcis (hnp _) (fun ⟨_, _, h, _⟩ => hnp _ _ h) hcrig huniq
       (fun keys hkl hobs => C_absurd_gen hΔ hlw eT hlenH hkH hIrig hfs
         (hnzL levels target hperm.length hnz) hkl hobs) ihL ihR
       (.elimIota hb hrules hmem hrc hperm hLd.defeq hRd.defeq)

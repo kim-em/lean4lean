@@ -83,7 +83,7 @@ theorem chain_terminal_sort : ∀ {ds : List VExpr} {keys : List Key} {o : Ob} {
     obtain ⟨D, c, K⟩ := k
     simp only [wrap_cons] at ho
     cases ho with
-    | app hD hd hkt hc hC hcod hty' =>
+    | app hD hd hkt hb hc hC hcod hty' =>
       refine chain_terminal_sort (Nat.succ.inj hl) hty' fun x hx => ?_
       obtain ⟨K₀, hm, -⟩ := hcod x hx
       obtain ⟨σ, S, h⟩ := hτ _ hm
@@ -129,8 +129,10 @@ theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : Li
   simp only [VExpr.instL_mkApps, VExpr.instL] at h
   obtain ⟨keys', -, hc⟩ := wrap_of_obs_mkApps h
   rcases Obs.const_iff.1 hc with ⟨ci, τs, keys'', r, e, -, hci, hτ, hty, hr⟩ |
-    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys'', r, e, -, -, -, -, hr⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys'', r, e, -, -, -, -, -, hr, -⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
+    ⟨_, _, _, _, keys'', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
+    ⟨_, _, _, keys'', _, _, _, e, _⟩ | ⟨_, _, _, keys'', _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e trivial hr.notApp
     cases hq.1.symm.trans hci
     have hlen : keys'.length = 2 := by
@@ -150,6 +152,9 @@ theorem quot_C_level (hq : QuotConsts env) (hrigQ : env.Rigid ``Quot) {keys : Li
       rcases hr with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩ <;> trivial)
     rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrigQ df hdf lsP)
+  · obtain ⟨rfl, h⟩ := wrap_inj e trivial trivial; cases h
+  · obtain ⟨rfl, h⟩ := wrap_inj e trivial trivial; cases h
+  · obtain ⟨rfl, h⟩ := wrap_inj e trivial trivial; cases h
 
 /-- In mode C (the quotient is a proposition at `ls`), the field `a` is a proof. -/
 theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).eval = fun _ => 0) :
@@ -170,7 +175,7 @@ theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).e
       (.sort (.succ ((VLevel.param 0).inst ls))) := .sortDF hw trivial e0
   rw [quot_binderTy0]
   refine ⟨⟨v 5, .self, hsz.defeqDF hv5⟩, fun τ hτ => ?_⟩
-  have := tvv 5 _ hL τ (Obs.bvar_iff.1 hτ)
+  have := tvv.2 5 _ hL τ (Obs.bvar_iff.1 hτ)
   have := typedAt_sort_iff.1 this
   rw [e0] at this
   exact ⟨_, this⟩

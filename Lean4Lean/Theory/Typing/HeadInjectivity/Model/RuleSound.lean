@@ -316,7 +316,8 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
-    (hcis : IsCtor env ctor)
+    (hcis : IsCtor env ctor) (hIP : ∀ info, ¬ env.projections I info)
+    (hcnp : ¬ IsProjCtor env ctor)
     (hC : ∀ keys : List Key, keys.length = lead.length →
       Obs' .id .empty (ci.type.instL ls) (piCodChain keys
         (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
@@ -407,7 +408,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
       have := List.Forall₂.length_eq hinfo'; simpa using this
     have hc := Obs.rule (σ := v) (S := vS) (Dm := kaM'.1.1) (cm := kaM'.1.2.1) (Km := kaM'.1.2.2)
       (lkeys := infoL'.map (·.1)) hdf hl hr hci hτ₀' (by simpa using hty₀') (by simp [hlen'])
-      hsingle hmobs hhd hbind (hp.mono hS')
+      hsingle hmobs hhd hbind (by simpa using KeyData.forall₂_backed hinfo') (hp.mono hS')
     have hXo := obs_mkApps_of_wrap (KeyData.forall₂_keys hinfo') (by simpa using hc)
     exact Obs.wrapLams_iff.2 ⟨lk, v, vS, p, hk, rfl, hXo⟩
   by_cases hm : u.eval = fun _ => 0
@@ -415,7 +416,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     rw [hm] at hind
     obtain ⟨hsingle, hpf⟩ := hC _ (by simp [hlenL]) hind
     refine finish infoL kaM vS true τ₀ (forall₂_append_single' hinfoL hkaM) hτ₀ hty₀
-      (fun _ => hsingle) (fun _ => hind) nofun ?_ fun _ _ h => h
+      (fun _ => hsingle) (fun _ => hind) nofun ⟨tvv.1, ?_⟩ fun _ _ h => h
     intro x hx
     by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
     · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
@@ -431,7 +432,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
       refine .inr ⟨hnb, j, hj, .inr ⟨rfl, ⟨_, .self, (Wv.lookup hL).hasType.1⟩, hP, ?_⟩⟩
       funext k; apply propext; constructor
       · intro hk
-        obtain ⟨τs', hτs', htk⟩ := tvv x _ hL k hk
+        obtain ⟨τs', hτs', htk⟩ := tvv.2 x _ hL k hk
         exact htk.not_prop fun τ hτ => hprop τ (hτs' τ hτ)
       · nofun
   · -- mode AB: the major's constructor observations
@@ -444,7 +445,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hxr)
     have hCT : CtorTyped env ctor
         [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] :=
-      ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm⟩
+      ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm, hIP⟩
     have hcobs : ∀ r ∈ ctorObs ctor ((lsC.map (·.inst ls)).map (·.eval)) (cinfo.map (·.1)),
         Obs' v vS (.mkApps (.const ctor (lsC.map (·.inst ls)))
           (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
@@ -458,11 +459,13 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         · exact .ctorArg hCT
         · exact .ctorArgOb hCT
       obtain ⟨τ₀c, h1, h2⟩ := cP1 r hrty
-      exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo) (.ctor hcis hcc h1 h2 hend)
+      exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo)
+        (.ctor hcis hcnp hcc h1 h2 hend (KeyData.forall₂_backed hcinfo))
     have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
       (nd := doms.length) hLx v (lead.map (·.instL ls))) hcobs
     obtain ⟨ci2, info2, hci2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
       hX.spine henv hΔ rfl Wv tvv _ hKs2 τc hτc
+    have hbk2 := KeyData.forall₂_backed hinfo2
     cases hci.symm.trans hci2
     obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := forall₂_split hinfo2
     obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
@@ -483,8 +486,15 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
       else vS x
     have hfsj : ∀ x, x ∈ fs → fs[fs.idxOf x]? = some x := fun x hx =>
       List.getElem?_eq_some_iff.2 ⟨List.idxOf_lt_length_of_mem hx, List.getElem_idxOf _⟩
+    have hbM : Backed (fun o => o ∈ kaM2.1.2.2) :=
+      hbk2 _ (List.mem_map_of_mem (List.mem_append_right _ (List.mem_singleton_self _)))
     refine finish infoL2 kaM2 S' false τ₀2 hinfo2 hτ₀2 hty₀2 nofun nofun
-      (fun _ => ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩) ?_ ?_
+      (fun _ => ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩) ⟨fun x => ?_, ?_⟩ ?_
+    · simp only [S']
+      split
+      · intro k ⟨pre, hk⟩ w hw
+        exact ⟨pre, hbM _ hk _ (by simp only [Ob.wit]; exact List.mem_map_of_mem hw)⟩
+      · exact tvv.1 x
     · intro x hx
       by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
       · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
@@ -523,7 +533,8 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
       (lead ++ [.mkApps (.const ctor lsC) (ms ++ fs.map .bvar)])))
     (hr : df.rhs = .wrapLams doms body)
     (hlsP : lsP.map (·.inst ls) = ls) (hlcl : df.lhs.ClosedN) (hrcl : df.rhs.ClosedN)
-    (hcrig : env.Rigid ctor) (hctor : ∀ c, IsCtor env c → env.Rigid c) (hdr : env.DefRules)
+    (hcrig : env.Rigid ctor) (hctor : ∀ c, IsCtor env c → env.Rigid c)
+    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c) (hdr : env.DefRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       env.defeqs df' →
@@ -549,12 +560,17 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     ⟨_, _, _, _, _, hcn, _⟩ |
     ⟨df'', doms'', lsP'', lead'', ctor'', lsC'', ms'', fs'', body'', ci, τs, lkeys, Dm, cm, Km,
       p'', mC, τ, S'', I', ℓsI', mI', e, hdf'', hl'', hr'', -, -, -, hlen'', hsingle, -, hhd,
-      hbind, hbody⟩
+      hbind, -, hbody⟩ | ⟨fam, info, _, _, _, _, _, hpi, hcn, _⟩ | ⟨_, _, _, _, _, _, _, _, hrig, _⟩ |
+    ⟨_, _, _, _, _, _, _, _, hrig, _⟩
   · exact absurd headOf (hrig df hdf lsP)
   · have := hdr.excl df' df hdf' hdf n _ lsP hlhs' headOf
     subst this
     exact absurd (hl.symm.trans hlhs') VExpr.wrapLams_mkApps_snoc_ne_const
   · exact absurd headOf (hctor n hcn df hdf lsP)
+  rotate_left
+  · exact absurd headOf (hpctor n ⟨fam, info, hpi, hcn⟩ df hdf lsP)
+  · exact absurd headOf (hrig df hdf lsP)
+  · exact absurd headOf (hrig df hdf lsP)
   obtain ⟨hleadlen, huq⟩ := huniq df'' doms'' lsP'' lead'' ctor'' lsC'' ms'' fs'' body'' hdf'' hl'' hr''
   have hklen : keys.length = lead.length + 1 := by
     have := List.Forall₂.length_eq hkeys; simpa using this
@@ -644,7 +660,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     intro x o ho
     by_cases hx : x < doms''.length
     · simp only [S', hx, if_true] at ho
-      rcases hbind x hx with ⟨i, k, hi, -, hki, -, -, hkS⟩ |
+      rcases hbind.2 x hx with ⟨i, k, hi, -, hki, -, -, hkS⟩ |
         ⟨-, j, hj, ⟨-, -, -, -, -, hS⟩ | ⟨-, -, -, hS⟩⟩
       · rw [hkS] at ho
         have hil : i < lkeys.length := by
@@ -680,7 +696,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     cases hLA.uniq (hL x hx')
     rw [hτ'1 x hx', ← hbcl' x hx']
     have hvx := (Wv.lookup (hL x hx')).hasType.1
-    rcases hbind x hx' with ⟨i, k, hi, -, hki, hkt, hkm, -⟩ |
+    rcases hbind.2 x hx' with ⟨i, k, hi, -, hki, hkt, hkm, -⟩ |
       ⟨-, j, hj, ⟨-, cl, hcl, hct, hcm, -⟩ | ⟨-, ⟨X, hX, hτX⟩, ⟨P, hP, hPs⟩, -⟩⟩
     · have hil : i < lkeys.length := by
         have := List.Forall₂.length_eq hkeysL
@@ -733,8 +749,10 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
-    (hcis : IsCtor env ctor) (hcrig : env.Rigid ctor)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hdr : env.DefRules)
+    (hcis : IsCtor env ctor) (hIP : ∀ info, ¬ env.projections I info)
+    (hcnp : ¬ IsProjCtor env ctor) (hcrig : env.Rigid ctor)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
+    (hdr : env.DefRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       env.defeqs df' →
@@ -764,11 +782,11 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
   have hRc := hrcl.instL (ls := ls)
   refine ⟨fun o h => ?_, fun o h => ?_, (ihL.1 σ σ S W.left tv tv).2.2.1,
     (ihR.1 σ' σ' S W' tv' tv').2.2.1⟩
-  · obtain ⟨o', h1, l⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hdr huniq
+  · obtain ⟨o', h1, l⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hpctor hdr huniq
       ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hci eH hlenH hkH hIrig hcf
-      hcis hC ihL.2 ihR.1 heq W' tv' o h
+      hcis hIP hcnp hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 end

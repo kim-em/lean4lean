@@ -148,11 +148,11 @@ theorem TeleKeys.typed' (h : TeleKeys env U Δ σ S ds keys σ' S')
     Ctx.SubstEq env U Δ σ' σ' (ds.reverse ++ Γ) ∧ TV env U Δ (ds.reverse ++ Γ) σ' S' := by
   induction h generalizing Γ with
   | nil => exact ⟨W, tv⟩
-  | cons hc hy hK _ ih =>
+  | cons hc hy hK hb _ ih =>
     cases hds with
     | cons hA hds =>
       have := ih hds (.cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy))
-        (tv.cons_cls henv hΔ hc hy hK)
+        (tv.cons_cls henv hΔ hc hy hb hK)
       simpa [List.reverse_cons, List.append_assoc] using this
 
 /-- Type observations transfer along a sound type equality, at one valuation. -/
@@ -315,7 +315,8 @@ theorem forall₂_split {R : α → β → Prop} :
 def KeyData (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (σ : VExpr.Subst) (S : ObSets)
     (ka : Key × VExpr) (a : VExpr) : Prop :=
   ka.1.2.1 = ElCls env U Δ ka.1.1 (a.subst σ) ∧ (∀ x ∈ ka.1.2.2, Obs env U Δ σ S a x) ∧
-  ka.1.1 = TyCls env U Δ (ka.2.subst σ) ∧ HTS env U Δ Γ a ka.2 ∧ SD env U Δ Γ a a ka.2
+  ka.1.1 = TyCls env U Δ (ka.2.subst σ) ∧ HTS env U Δ Γ a ka.2 ∧ SD env U Δ Γ a a ka.2 ∧
+  Backed (fun o => o ∈ ka.1.2.2)
 
 omit henv hΔ in
 theorem forall₂_append_single' {R : α → β → Prop} (H : List.Forall₂ R l₁ l₂) (h : R a b) :
@@ -410,29 +411,29 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
         | zero => exact hKK _ h
         | succ i => exact h)
       fun τ hτ => (hτ' τ hτ).compact0
-    let K := Ka ++ K₀
-    have hK : ∀ k ∈ K, Obs' σ S a k := fun k hk => by
+    have hK1 : ∀ k ∈ Ka ++ K₀, Obs' σ S a k := fun k hk => by
       rcases List.mem_append.1 hk with hk | hk
       · exact hKa k hk
       · exact hK₀ k hk
+    obtain ⟨K, hKK, hK, hbK⟩ := Backed.close (fun o h => Obs.backed h tv.1) hK1
     have hKτ : ∀ τ ∈ τs, Obs' (σ.cons (a.subst σ)) (S.cons (listSet K)) B τ := fun τ hτ =>
       (hK₀τ τ hτ).mono fun i o h => by
         cases i with
-        | zero => exact List.mem_append_right _ h
+        | zero => exact hKK _ (List.mem_append_right _ h)
         | succ i => exact h
     have IHa := hsa.2 σ σ S W tv tv
     obtain ⟨τk, hτk, hkk⟩ := TypedAt.merge fun k hk => IHa.2.2.1 k (hK k hk)
     have haσ : env.HasType U Δ (a.subst σ) (A.subst σ) :=
       hsa.1.defeq.hasType.1.substDF henv W.wf hΔ W
     have hc := TypedElCls.of_hasType haσ
-    obtain ⟨τPi, hτPi, hwrap⟩ := pi_list hc ElCls.self hτk hkk hKτ
+    obtain ⟨τPi, hτPi, hwrap⟩ := pi_list hc ElCls.self hτk hkk hbK hKτ
     obtain ⟨Th, info, hTh, hcl, hT, hinfo, hKsi, P1, P2, dP2⟩ :=
       ihf hf W tv Ks₀ hKs₀ τPi hτPi
     let k : Key := (TyCls env U Δ (A.subst σ), ElCls env U Δ (TyCls env U Δ (A.subst σ))
       (a.subst σ), K)
     refine ⟨Th, info ++ [(k, A)], hTh, hcl, hT, forall₂_append_single' hinfo
-      ⟨rfl, hK, rfl, by assumption, hsa⟩,
-      forall₂_append_single' hKsi (fun x hx => List.mem_append_left _ hx), fun o ho => ?_,
+      ⟨rfl, hK, rfl, by assumption, hsa, hbK⟩,
+      forall₂_append_single' hKsi (fun x hx => hKK _ (List.mem_append_left _ hx)), fun o ho => ?_,
       fun x hx => ?_, fun pre ka post h => ?_⟩
     · rw [vcls_app henv hΔ W hfty hsa.1.defeq.hasType.1] at ho
       obtain ⟨τ₀, h1, h2⟩ := P1 _ (hwrap _ o ho)
@@ -449,8 +450,9 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
       have hK₁ : ∀ k ∈ K₁, TypedAt env U Δ (ElCls env U Δ (TyCls env U Δ (A.subst σ)) (a.subst σ))
           σ S A k := fun k hk => ⟨τk', hτk', hkk' k hk⟩
       have hcA := TypedElCls.of_hasType haσ
-      obtain ⟨y₁, hy₁, l₁⟩ := (hB.2 _ _ _ W' (tv.cons_cls henv hΔ hcA hz hK₁)
-        (tv.cons_cls henv hΔ hcA ElCls.self hK₁)).1 _ hyB
+      have hb₁ := Obs.piCodOb_backed hy
+      obtain ⟨y₁, hy₁, l₁⟩ := (hB.2 _ _ _ W' (tv.cons_cls henv hΔ hcA hz hb₁ hK₁)
+        (tv.cons_cls henv hΔ hcA ElCls.self hb₁ hK₁)).1 _ hyB
       obtain ⟨y₂, hy₂, l₂⟩ := hy₁.mono_le (S' := S.cons (Obs' σ S a)) fun i o h => by
         cases i with
         | zero =>
@@ -529,7 +531,7 @@ theorem HTS.lamSpine {ds : List VExpr} :
     obtain ⟨B, u, v, _, hA, hb, hsb, hB, hsub, hch⟩ := H.lam_inv he
     subst he
     cases hk with
-    | @cons c y K _ _ _ _ _ _ _ hc hy hK hk =>
+    | @cons c y K _ _ _ _ _ _ _ hc hy hK hbK hk =>
       obtain ⟨τs', h1, h2⟩ := exists_list_cover fun τ hτ => hsub σ S W tv τ (hτs τ hτ)
       simp only [wrap_cons] at ho
       have ecls : vcls env U Δ σ (.wrapLams (A :: ds) X) P =
@@ -538,7 +540,7 @@ theorem HTS.lamSpine {ds : List VExpr} :
         · rfl
         · unfold vcls; rw [← TypeChain.tyCls_subst' henv hΔ W hch]; rfl
       rw [ecls] at ho
-      obtain ⟨-, -, -, τc, h3, h4⟩ :=
+      obtain ⟨-, -, -, -, τc, h3, h4⟩ :=
         pi_step henv hΔ hA.1.defeq.hasType.1 hB.1.defeq.hasType.1 hB.2 W tv (ho.strengthen h2)
           h1 hy
       have eb := vcls_beta henv hΔ W hA.1.defeq.hasType.1 hsb.1.defeq.hasType.1 hc hy
@@ -546,7 +548,7 @@ theorem HTS.lamSpine {ds : List VExpr} :
       rw [eb] at h4
       obtain ⟨T', hT', hds, τc', h5, h6⟩ := ih hb rfl
         (Ctx.SubstEq.cons (σ := σ.cons y) (σ' := σ.cons y) W hA.1.defeq.hasType.1
-          (hc.hasType henv hΔ hy)) (tv.cons_cls henv hΔ hc hy hK) hk h3 h4
+          (hc.hasType henv hΔ hy)) (tv.cons_cls henv hΔ hc hy hbK hK) hk h3 h4
       refine ⟨T', ?_, .cons hA hds, τc', h5, h6⟩
       simpa [List.reverse_cons, List.append_assoc] using hT'
 

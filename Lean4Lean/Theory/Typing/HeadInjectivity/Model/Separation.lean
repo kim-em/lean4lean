@@ -29,8 +29,10 @@ theorem rigid_spine_not {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {o : O
   have hna : o.NotApp := by rcases ho with ⟨_, rfl⟩ | ⟨_, rfl⟩ <;> trivial
   obtain ⟨keys, -, hw⟩ := wrap_of_obs_mkApps h
   rcases Obs.const_iff.1 hw with ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
+    ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
+    ⟨_, _, _, keys', _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, e, _⟩
   · obtain ⟨-, rfl⟩ := wrap_inj e hna hr.notApp
     rcases ho with ⟨_, rfl⟩ | ⟨_, rfl⟩ <;> rcases hr with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
@@ -40,6 +42,9 @@ theorem rigid_spine_not {Δ : List VExpr} {σ : VExpr.Subst} {S : ObSets} {o : O
     rcases ho with ⟨_, rfl⟩ | ⟨_, rfl⟩ <;>
       rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig df hdf lsP)
+  all_goals
+    obtain ⟨-, rfl⟩ := wrap_inj e hna trivial
+    rcases ho with ⟨_, h⟩ | ⟨_, h⟩ <;> cases h
 
 theorem sort_forallE (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ (env.IsType U))
     (h : env.TypeChain U Γ (.sort u) (.forallE A B)) : False := by

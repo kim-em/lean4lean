@@ -117,9 +117,9 @@ theorem TeleKeys.split : ∀ {pre : List VExpr} {kpre : List Key} {ds keys},
     TeleKeys env U Δ σ S (pre ++ ds) (kpre ++ keys) σ' S' →
     ∃ σ₁ S₁, TeleKeys env U Δ σ S pre kpre σ₁ S₁ ∧ TeleKeys env U Δ σ₁ S₁ ds keys σ' S'
   | [], [], _, _, _, h => ⟨_, _, .nil, h⟩
-  | _ :: _, _ :: _, _, _, hl, .cons hc hy hK h => by
+  | _ :: _, _ :: _, _, _, hl, .cons hc hy hK hb h => by
     obtain ⟨σ₁, S₁, h1, h2⟩ := TeleKeys.split (Nat.succ.inj hl) h
-    exact ⟨σ₁, S₁, .cons hc hy hK h1, h2⟩
+    exact ⟨σ₁, S₁, .cons hc hy hK hb h1, h2⟩
 
 /-- A domain of a semantically typed Pi telescope is semantically typed. -/
 theorem HTS.tele_dom : ∀ {pre : List VExpr} {Γ T},
@@ -155,8 +155,8 @@ theorem TypedAt.lift_iff_tail {T : VExpr} :
   unfold TypedAt; simp only [Obs.lift_iff_tail]
 
 theorem TV.tail (h : TV env U Δ (A :: Γ) σ S) : TV env U Δ Γ σ.tail S.tail := by
-  intro i B hL o ho
-  have := h (i+1) _ hL.succ o ho
+  refine ⟨fun i => h.1 (i+1), fun i B hL o ho => ?_⟩
+  have := h.2 (i+1) _ hL.succ o ho
   rw [vcls_tail] at this
   exact TypedAt.lift_iff_tail.1 this
 
@@ -188,18 +188,18 @@ theorem TV.transfer : ∀ {L : List VExpr} {τ v : VExpr.Subst} {S : ObSets},
     cases W with
     | cons W hA0 hhd =>
       have ih := TV.transfer hL W (fun x hx => he (x+1) (by simp; omega)) tv.tail
-      intro i B hLk o ho
+      refine ⟨tv.1, fun i B hLk o ho => ?_⟩
       cases hLk with
       | zero =>
         have W' : Ctx.SubstEq env U Δ τ v (A :: (L ++ Γ)) := .cons W hA0 hhd
         have ecls := vcls_substEq henv hΔ W' (IsDefEq.bvar (Lookup.zero (ty := A)))
-        have h1 := TypedAt.lift_iff_tail.1 (tv 0 _ .zero o ho)
+        have h1 := TypedAt.lift_iff_tail.1 (tv.2 0 _ .zero o ho)
         rw [ecls]
         refine TypedAt.lift_iff_tail.2 (h1.mono_le ?_)
         exact (hA.2 _ _ _ (SubstEq.symm henv hΔ W) tv.tail ih).1
       | succ hLk =>
         rw [vcls_tail]
-        have := ih _ _ hLk o ho
+        have := ih.2 _ _ hLk o ho
         exact TypedAt.lift_iff_tail.2 this
 
 /-- Related substitutions from pointwise equalities on a context prefix, agreeing outside. -/
@@ -284,8 +284,10 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
     rcases hr with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> trivial
   refine ⟨keys, hk, ?_⟩
   rcases Obs.const_iff.1 hw with ⟨_, _, keys', r', e, _, _, _, _, hr'⟩ |
-    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r', e, _, _, _, _, hr'⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r', e, _, _, _, _, _, hr', _⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
+    ⟨_, _, _, _, keys', r', e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
+    ⟨_, _, _, keys', _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, e, _⟩
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna hr'.notApp
     rcases hr with ⟨_, _, _, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;>
       rcases hr' with ⟨_, h⟩ | ⟨_, _, h⟩ <;> cases h
@@ -295,6 +297,12 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
     obtain ⟨rfl, rfl⟩ := wrap_inj e hna hrn
     exact hr'
   · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig df hdf lsP)
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e hna trivial
+    rcases hr with ⟨_, _, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ <;> cases h
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e hna trivial
+    rcases hr with ⟨_, _, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ <;> cases h
+  · obtain ⟨rfl, rfl⟩ := wrap_inj e hna trivial
+    rcases hr with ⟨_, _, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
 theorem instL_wrapForalls'' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
     (VExpr.wrapForalls ds body).instL ls =
@@ -320,6 +328,13 @@ theorem KeyData.forall₂_keys {info : List (Key × VExpr)} {args : List VExpr}
   | nil => exact .nil
   | cons h _ ih => exact .cons ⟨h.1, h.2.1⟩ ih
 
+theorem KeyData.forall₂_backed {info : List (Key × VExpr)} {args : List VExpr}
+    (h : List.Forall₂ (KeyData env U Δ Γ σ S) info args) : KeysBacked (info.map (·.1)) := by
+  intro k hk
+  obtain ⟨ka, hka, rfl⟩ := List.mem_map.1 hk
+  obtain ⟨a, -, hd⟩ := List.Forall₂.forall_exists_l h ka hka
+  exact hd.2.2.2.2.2
+
 theorem forall₂_nil_lists (args : List VExpr) {P : VExpr → Ob → Prop} :
     List.Forall₂ (fun K a => ∀ x ∈ K, P a x) (args.map fun _ => ([] : List Ob)) args := by
   induction args with
@@ -330,7 +345,7 @@ theorem TeleKeys.outer (h : TeleKeys env U Δ σ S ds keys v vS) :
     ∀ x, v (x + ds.length) = σ x ∧ vS (x + ds.length) = S x := by
   induction h with
   | nil => intro x; exact ⟨rfl, rfl⟩
-  | @cons c y K σ S A ds keys v vS _ _ _ _ ih =>
+  | @cons c y K σ S A ds keys v vS _ _ _ _ _ ih =>
     intro x
     have := ih (x+1)
     simp only [List.length_cons]
@@ -341,7 +356,7 @@ theorem TeleKeys.inner (h : TeleKeys env U Δ σ S ds keys v vS) :
     ∀ x < ds.length, ∃ K, vS x = listSet K := by
   induction h with
   | nil => intro x hx; cases hx
-  | @cons c y K σ S A ds keys v vS _ _ _ hk ih =>
+  | @cons c y K σ S A ds keys v vS _ _ _ _ hk ih =>
     intro x hx
     simp only [List.length_cons] at hx
     rcases Nat.lt_or_ge x ds.length with h | h

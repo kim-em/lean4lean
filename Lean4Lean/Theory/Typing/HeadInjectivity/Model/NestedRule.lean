@@ -79,17 +79,23 @@ theorem mapM_reverse_getElem? {f : VExpr → Option VExpr} {l l' : List VExpr} {
 namespace Model
 variable {env : VEnv}
 
+set_option maxHeartbeats 400000 in
 /-- **Validity of a restored native recursor rule** of a nested compilation. -/
 theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {base' installed : VEnv} {df : VDefEq} {L : VLevel}
     (henv : env.Ordered) (hdr : env.DefRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
+    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g aux block)
     (hprior : CertifiedSpecializations base aux) (haux : aux ≠ []) (hbF : base ≤ env)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
     (index : Fin s.constructors.size)
     (hres : (compilationRestoration source aux).equation (g.equation index) = some df)
     (hdf : env.defeqs df)
+    (hnpF : ∀ info, ¬ env.projections ((compilationRestoration source aux).headName
+      s.families[s.constructors[index].owner].name) info)
+    (hnpC : ¬ IsProjCtor env ((compilationRestoration source aux).headName
+      s.constructors[index].name))
     (hex : HeadExcl env ((compilationRestoration source aux).recursorName
       (g.recursorName s.constructors[index].owner)) block.rules)
     (hfs : FamSort env ((compilationRestoration source aux).headName
@@ -203,7 +209,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
     exact sound_pat henv hΔ hdf hl hr hcov hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
+      hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
       (fun keys hkl hobs => absurd hobs fun h =>
         C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
       ihL ihR (.extra hdf hlw hlen)
@@ -218,7 +224,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget ls
     have hcl' : (df.type.instL ls).ClosedN := hcl.1.2.instL
-    refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hdr
+    refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
       huniq ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := ds'.map (·.instL ls))
       (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])

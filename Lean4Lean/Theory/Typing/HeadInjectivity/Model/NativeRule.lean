@@ -88,8 +88,10 @@ theorem const_rigid_inv {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
       TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (ci.type.instL ls)) (.const n ls))
         (wrap keys (.rigid n' ℓs m z)) τs := by
   rcases Obs.const_iff.1 h with ⟨ci, τs, keys', r, e, _, hci, hτs, hty, hr⟩ |
-    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, hr⟩ |
-    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩
+    ⟨df, _, _, hdf, hlhs, _⟩ | ⟨_, _, keys', r, e, _, _, _, _, _, hr, _⟩ |
+    ⟨df, _, lsP, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, hdf, hlhs, _⟩ |
+    ⟨_, _, _, _, keys', r, e, _, _, _, _, _, _, ⟨_, _, _, rfl, _⟩, _⟩ |
+    ⟨_, _, _, keys', _, _, _, e, _⟩ | ⟨_, _, _, keys', _, _, _, e, _⟩
   · rw [← e] at hty; exact ⟨ci, τs, hci, hτs, hty⟩
   · exact absurd (by rw [hlhs]; rfl) (hrig df hdf _)
   · have hrn : r.NotApp := by
@@ -97,6 +99,9 @@ theorem const_rigid_inv {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
     obtain ⟨rfl, rfl⟩ := wrap_inj e trivial hrn
     rcases hr with h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩ <;> cases h
   · exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig df hdf lsP)
+  · cases (wrap_inj e trivial trivial).2
+  · cases (wrap_inj e trivial trivial).2
+  · cases (wrap_inj e trivial trivial).2
 
 /-- Mode C is impossible at a native recursor whose major family has a result sort that is
 never zero. -/
@@ -257,9 +262,12 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
 theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
     (henv : env.Ordered) (hdr : env.DefRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
+    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g [] block)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
     (index : Fin s.constructors.size) (hdf : env.defeqs (g.equation index))
+    (hnpF : ∀ info, ¬ env.projections s.families[s.constructors[index].owner].name info)
+    (hnpC : ¬ IsProjCtor env s.constructors[index].name)
     (hex : HeadExcl env (g.recursorName s.constructors[index].owner) block.rules)
     (hfs : FamSort env s.families[s.constructors[index].owner].name
         s.families[s.constructors[index].owner].resultLevel)
@@ -304,14 +312,14 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     have hnz' := hnz s.families[s.constructors[index].owner]
       (Array.mem_toList_iff.2 (Array.getElem_mem s.constructors[index].owner.isLt))
     exact sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
+      hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
       (fun keys hkl hobs => absurd (by rw [eH] at hobs; exact hobs)
         (fun h => native_C_absurd hΔ hlw hrigF hfs hnz' (by rw [hlenH, hkl]) h))
       ihL ihR (.extra hdf hlw hlen)
   · -- small elimination: the right-hand side has no observations
     obtain ⟨mds, emds, lmds⟩ := motive_binderTy g index ls
     have hcl' : ((g.equation index).type.instL ls).ClosedN := hcl.1.2.instL
-    refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hdr
+    refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
       huniq ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := (g.eqDoms index).map (·.instL ls))
       (by rw [g.equation_type_eq, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
@@ -331,7 +339,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
       ihR.1 W tv o
   · -- singleton elimination: mode C with propositional major-only fields
     refine sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH
-      hkH hrigF hcf hcis (hctor _ hcis) hctor hdr huniq
+      hkH hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
       (fun keys hkl hobs => ⟨fun df' ls' hdf' hh => ?_, fun x hx hnl v vS Wv tvv => ?_⟩) ihL ihR
       (.extra hdf hlw hlen)
     · have hm := hex df' hdf' ls' hh
