@@ -807,3 +807,28 @@ observations (the motive's binder type is syntactically `... → Sort target` wi
 `[sort 0]`); a proposition with one constructor and large elimination is the singleton case.
 `sound_pat`'s hypothesis `hC` must accordingly be weakened to "single rule and proof fields, or
 the right-hand side has no observations, or contradiction".
+
+### 10.4 Plan for stage E (abstract eliminators), as being implemented
+
+Case schemas are per-family views without induction hypotheses, and their permission is
+`ProjectionAdmissible` (source sort never zero, or target `≈ 0`): no singleton elimination,
+so the eliminator rule clause needs mode AB only (mode C is contradictory by `FamSort`, and
+with a zero target the right-hand side has no observations). Eliminator heads are never
+rigid and have no delta or constructor observations: their only observations are chains of
+the eliminator rule clause.
+
+* E1 `HTS`: an `elim` constructor (head type `type.instL ls` from `schema.genericType`, with
+  its `HTS`/`SD`), `other` excluding eliminator spines; the spine lemma generalized to heads
+  that are constants or eliminators (`HTS.spine` for constants is kept as a corollary).
+* E2 `Obs`: a constructor `elimRule` for `.elim b o ls`: a generic equation `df` of a registered
+  schema for owner `o`, pattern-shaped with head `.elim b o lsP`, chains `wrap (lkeys ++ [major
+  key]) p` filtered by typing at `type.instL ls`, mode AB binding (`RuleBind … false …`), the
+  major key containing the constructor head; structural lemmas extended.
+* E3 `Model.sound`: `elimDF` by level invariance (as `constDF`); `elimIota` from a validity
+  hypothesis for generic equations (`ElimRuleValid`, the analogue of `RuleValid`).
+* E4 `pat_lhs_sub`/`pat_rhs_sub`/`sound_pat` for eliminator heads (mode AB only).
+* E5 syntax of generic equations (`CaseSchema.Generates` facts in
+  `Inductive/CaseReductionLemmas.lean`), the generic type's major domain, uniqueness per
+  `(block, owner)` (schemas are registered under fresh keys).
+* E6 the D11 induction's `inductEliminators` step; `FamSort` for the schema's families from the
+  certified compilation.
