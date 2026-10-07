@@ -234,6 +234,18 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   eliminators, ordered before the projections** (spec restructuring with the
   case-only certificate; weakens no theorem; several thousand lines over
   the `WF'` inductions, eliminator invariants and `addProjections` sites).
+  **Indexed corner (2026-10-07):** needs a certificate clause the mainline
+  cannot supply: closed header agreement for original families (declared
+  family type ≡ `wrapForalls (params ++ normalized indices) (sort r)` in
+  the types environment). It was unprovable on the mainline (header-phase
+  whnf of later families inside earlier families' index binders; hence the
+  open `RestoresFamily.type` form), but E1's narrow-context header phase
+  normalizes each header from the parameters-only context, so E1 adds the
+  clause to the case-only certificate and discharges it; the strengthening
+  agent proves `corner_inhabit_elim_indexed` under it (branch
+  agent/verify-inductives-corner-indexed off E1 463c99d4). Integration
+  note: mainline `NativeIotaRestoration.lean` vs E1 `RestorationShapes`
+  relocate the same lemmas; keep one copy at merge.
   **Mainline fast-forwarded to base 9cc2be01 (pushed):** realizability of
   `HasCanonicalChoice` (Verify/Inductive/ChoiceCanonicalForms.lean,
   Verify/CanonicalChoiceRealization.lean `VEnvs.WF.hasCanonicalChoice`,
