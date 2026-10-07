@@ -36,7 +36,8 @@ inductive Prefix {base : VEnv} {before : List VDecl} {old : Name → Option Nati
       (keyEq : source.types.head?.map (·.name) = some key)
       (constants : (∀ value ∈ block.types ++ block.ctors,
         env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-        schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env)
+        schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env ∧
+        schema.HeaderAgreement base source)
       (fresh : schema.Fresh env key) :
       Prefix first (.eliminators previous baseHistory hle formed keyEq constants fresh)
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
@@ -44,7 +45,8 @@ inductive Prefix {base : VEnv} {before : List VDecl} {old : Name → Option Nati
       {previous : NativeRegistryHistory (envCtors.addEliminators block.eliminators) declarations table}
       (continuation : Prefix first previous) (baseHistory : base.WF' baseDeclarations)
       (covered : ∃ key schema, block.eliminators = [(key, schema)] ∧
-        schema.Certified base source block ∧ source.types.head?.map (·.name) = some key)
+        schema.Certified base source block ∧ source.types.head?.map (·.name) = some key ∧
+        schema.HeaderAgreement base source)
       (sourceNames : source.sourceNames.Nodup)
       (typeHeadersWF : ∀ type ∈ source.types, type.toVConstant.WF base)
       (constructorUvars : ∀ ctor ∈ source.constructorConstants, ctor.uvars = source.uvars)

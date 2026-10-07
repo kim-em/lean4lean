@@ -56,7 +56,7 @@ theorem constants (R : VEnv.InductRegistration env decl key schema env') :
 
 theorem projNames (R : VEnv.InductRegistration env decl key schema env') :
     schema.ProjNamesRegistered env' key := by
-  obtain ⟨block, envTypes, envCtors, _, _, _, hinstall, ht, hc, _, _, _, hprojs⟩ := R
+  obtain ⟨block, envTypes, envCtors, _, _, _, hinstall, ht, hc, _, _, _, hprojs, _⟩ := R
   exact hprojs.mono (VInductBlock.install_ctors_le hinstall ht hc)
 
 end VEnv.InductRegistration
@@ -90,6 +90,36 @@ theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
     · exact ⟨_, _, _, ⟨_, hb⟩, hle.trans VEnv.addEliminator_le, hf, hk, hc.1⟩
     · obtain ⟨base, source, block, hb, hle, hf, hk, hc⟩ := ih hlookup
       exact ⟨base, source, block, hb, hle.trans VEnv.addEliminator_le, hf, hk, hc⟩
+
+/-- Every registry entry retains the header agreement certified at its registration. -/
+theorem VEnv.WF.eliminator_headerAgreement {env : VEnv} (H : env.WF)
+    (hlookup : env.eliminators key schema) :
+    ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base ≤ env ∧
+      schema.Certified base source block ∧ schema.HeaderAgreement base source ∧
+      (∀ value ∈ block.types ++ block.ctors,
+        env.constants value.name = some value.toVConstant) := by
+  rcases H with ⟨ds, H⟩
+  induction H with
+  | empty => cases hlookup
+  | decl h hds ih =>
+    rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
+    · have hle := R.le
+      obtain ⟨block, hcert, hkey, hc⟩ := R.constants
+      obtain ⟨block', -, -, -, -, -, hinstall', -, -, -, hcert', -, -, hhdr⟩ := R
+      exact ⟨_, source, block, hle, hcert, hhdr, hc⟩
+    obtain ⟨base, source, block, hle, hf, hh, hc⟩ := ih hlookup
+    exact ⟨base, source, block, hle.trans (declaration_le h), hf, hh,
+      fun value hv => (declaration_le h).constants (hc value hv)⟩
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    simp only [VEnv.addProjections_eliminators] at hlookup
+    obtain ⟨base, source, block, hle, hf, hh, hc⟩ := ih hlookup
+    exact ⟨base, source, block, hle.trans VEnv.addProjections_le, hf, hh,
+      fun value hv => VEnv.addProjections_le.constants (hc value hv)⟩
+  | inductEliminators hb _ hle hf hk hc _ _ ih =>
+    rcases hlookup with ⟨rfl, rfl⟩ | hlookup
+    · exact ⟨_, _, _, hle.trans VEnv.addEliminator_le, hf, hc.2.2.2.2, hc.1⟩
+    · obtain ⟨base, source, block, hle, hf, hh, hc⟩ := ih hlookup
+      exact ⟨base, source, block, hle.trans VEnv.addEliminator_le, hf, hh, hc⟩
 
 /-- Schema ownership cannot precede the native family it describes. -/
 theorem VEnv.WF.eliminator_family_present {env : VEnv} (H : env.WF)
@@ -303,7 +333,8 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
     (hkey : source.types.head?.map (·.name) = some key)
     (htypes : base.addConstVals block.types = some envTypes)
     (hctors : envTypes.addConstVals block.ctors = some envCtors)
-    (hprojs : schema.ProjNamesRegistered envCtors key) :
+    (hprojs : schema.ProjNamesRegistered envCtors key)
+    (hheader : schema.HeaderAgreement base source) :
     (envCtors.addEliminator key schema).WF := by
   have hctorsWF : envCtors.WF := by
     obtain ⟨expanded, auxiliaries, hdata, _, _⟩ := H
@@ -334,7 +365,7 @@ theorem Certified.register_after_constructors {schema : CaseSchema} {base envTyp
   apply hbase.inductEliminators hctorsWF
     ((VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)) H hkey _
     ((VEnv.addConstVals_defeqs hctors).trans (VEnv.addConstVals_defeqs htypes)) hprojs
-    hcoherent hfresh
+    hcoherent hheader hfresh
   intro value hvalue
   rcases List.mem_append.mp hvalue with hvalue | hvalue
   · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hvalue)
@@ -351,11 +382,11 @@ theorem EliminatorsWF.elimWF {base envTypes envCtors : VEnv} {decl : VInductDecl
     (htypes : base.addConstVals block.types = some envTypes)
     (hctors : envTypes.addConstVals block.ctors = some envCtors) :
     (envCtors.addEliminators block.eliminators).WF := by
-  obtain ⟨envTypes', envCtors', ht', hc', key, schema, hE, hcert, hkey, hprojs⟩ := H
+  obtain ⟨envTypes', envCtors', ht', hc', key, schema, hE, hcert, hkey, hprojs, hhdr⟩ := H
   cases htypes.symm.trans ht'
   cases hctors.symm.trans hc'
   rw [hE]
-  exact hcert.register_after_constructors hbase hkey htypes hctors hprojs
+  exact hcert.register_after_constructors hbase hkey htypes hctors hprojs hhdr
 
 /-- Every projection entry of a certified block names a family of its eliminator. -/
 theorem EliminatorsWF.covered {base : VEnv} {decl : VInductDecl} {block : VInductBlock}
@@ -384,8 +415,8 @@ theorem EliminatorsWF.projectionsWF {base envTypes envCtors : VEnv} {decl : VInd
   have parameters := hdecl.sourceParameterWF ht'
   exact VEnv.WF.inductProjections hbase (H.elimWF hbase htypes hctors)
     (by
-      obtain ⟨_, _, _, _, key, schema, hE, hcert, hkey, _⟩ := H
-      exact ⟨key, schema, hE, hcert, hkey⟩)
+      obtain ⟨_, _, _, _, key, schema, hE, hcert, hkey, _, hhdr⟩ := H
+      exact ⟨key, schema, hE, hcert, hkey, hhdr⟩)
     hcompile.sourceNames hdecl.1.originalTypes hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at ht')
     parameters parameters.rawCtorShape hcompile.types hcompile.ctors
     hcompile.projections htypes hctors

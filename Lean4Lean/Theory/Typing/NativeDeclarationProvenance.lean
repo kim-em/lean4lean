@@ -241,7 +241,8 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
       (keyEq : source.types.head?.map (·.name) = some key)
       (constants : (∀ value ∈ block.types ++ block.ctors,
         env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
-        schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env)
+        schema.ProjNamesRegistered env key ∧ source.ProjectionsCoherent env ∧
+        schema.HeaderAgreement base source)
       (fresh : schema.Fresh env key) :
       NativeRegistryHistory (env.addEliminator key schema) declarations table
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
@@ -250,7 +251,8 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Nativ
         declarations table)
       (baseHistory : base.WF' baseDeclarations)
       (covered : ∃ key schema, block.eliminators = [(key, schema)] ∧
-        schema.Certified base source block ∧ source.types.head?.map (·.name) = some key)
+        schema.Certified base source block ∧ source.types.head?.map (·.name) = some key ∧
+        schema.HeaderAgreement base source)
       (sourceNames : source.sourceNames.Nodup)
       (typeHeadersWF : ∀ type ∈ source.types, type.toVConstant.WF base)
       (constructorUvars : ∀ ctor ∈ source.constructorConstants, ctor.uvars = source.uvars)

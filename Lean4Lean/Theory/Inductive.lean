@@ -912,7 +912,7 @@ def VInductBlock.EliminatorsWF (env : VEnv) (decl : VInductDecl) (block : VInduc
     envTypes.addConstVals block.ctors = some envCtors ∧
     ∃ key schema, block.eliminators = [(key, schema)] ∧
       schema.Certified env decl block ∧ decl.types.head?.map (·.name) = some key ∧
-      schema.ProjNamesRegistered envCtors key
+      schema.ProjNamesRegistered envCtors key ∧ schema.HeaderAgreement env decl
 
 /-- Relational abstract environment extension for inductive declarations,
 including the compiled block witness used by implementation refinement. -/

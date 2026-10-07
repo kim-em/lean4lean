@@ -54,19 +54,20 @@ def VEnv.InductRegistration (env : VEnv) (decl : VInductDecl) (key : Name)
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
     block.eliminators = [(key, schema)] ∧ schema.Certified env decl block ∧
-    decl.types.head?.map (·.name) = some key ∧ schema.ProjNamesRegistered envCtors key
+    decl.types.head?.map (·.name) = some key ∧ schema.ProjNamesRegistered envCtors key ∧
+    schema.HeaderAgreement env decl
 
 theorem VEnv.AddInduct.eliminators_iff (H : VEnv.AddInduct env decl env') :
     env'.eliminators n s ↔ VEnv.InductRegistration env decl n s env' ∨ env.eliminators n s := by
   cases H with
   | intro hdecl hcompile hblock helim hinstall =>
-    obtain ⟨envTypes, envCtors, ht, hc, key, schema, hE, hcert, hkey, hprojs⟩ := helim
+    obtain ⟨envTypes, envCtors, ht, hc, key, schema, hE, hcert, hkey, hprojs, hhdr⟩ := helim
     rw [VInductBlock.install_eliminators_iff hinstall, hE]
     simp only [List.mem_singleton, Prod.mk.injEq]
     constructor
     · rintro (⟨rfl, rfl⟩ | h)
       · exact .inl ⟨_, envTypes, envCtors, hdecl, hcompile, hblock, hinstall, ht, hc, hE, hcert,
-          hkey, hprojs⟩
+          hkey, hprojs, hhdr⟩
       · exact .inr h
     · rintro (⟨block', envTypes', envCtors', -, -, -, hinstall', ht', hc', hE', -⟩ | h)
       · have := VInductBlock.install_eliminators_iff (n := n) (s := s) hinstall'

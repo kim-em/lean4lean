@@ -618,7 +618,7 @@ theorem VInductBlock.install_defeqs_iff
     Option.pure_def, Option.some.injEq] at h
   rcases h with ⟨envTypes, ht, envCtors, hc, envRecs, hr, rfl⟩
   rw [VEnv.addDefEqRules_defeqs_iff, VEnv.addConstVals_defeqs hr,
-    VEnv.addProjections_defeqs, VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]
+    VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs, VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht]
 
 theorem InductiveRecursorProvenance.ofUnsafe
     (H : InductiveRecursorProvenance .unsafe source base target out) :

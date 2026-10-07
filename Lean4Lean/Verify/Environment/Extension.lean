@@ -62,37 +62,15 @@ theorem VInductBlock.install_mono
     (h₁ : VInductBlock.install env₁ block = some env₁')
     (h₂ : VInductBlock.install env₂ block = some env₂') :
     env₁' ≤ env₂' := by
-  unfold VInductBlock.install at h₁ h₂
-  cases htypes₁ : env₁.addConstVals block.types with
-  | none => simp [htypes₁] at h₁
-  | some types₁ =>
-    cases htypes₂ : env₂.addConstVals block.types with
-    | none => simp [htypes₂] at h₂
-    | some types₂ =>
-      cases hctors₁ : types₁.addConstVals block.ctors with
-      | none => simp [htypes₁, hctors₁] at h₁
-      | some ctors₁ =>
-        cases hctors₂ : types₂.addConstVals block.ctors with
-        | none => simp [htypes₂, hctors₂] at h₂
-        | some ctors₂ =>
-          cases hrecs₁ : (ctors₁.addProjections block.projections).addConstVals
-              block.recursors with
-          | none => simp [htypes₁, hctors₁, hrecs₁] at h₁
-          | some recs₁ =>
-            cases hrecs₂ : (ctors₂.addProjections block.projections).addConstVals
-                block.recursors with
-            | none => simp [htypes₂, hctors₂, hrecs₂] at h₂
-            | some recs₂ =>
-              simp [htypes₁, hctors₁, hrecs₁] at h₁
-              simp [htypes₂, hctors₂, hrecs₂] at h₂
-              subst env₁'
-              subst env₂'
-              apply VEnv.addDefEqRules_mono
-              apply VEnv.addConstVals_mono (cis := block.recursors) _ hrecs₁ hrecs₂
-              apply VEnv.addProjections_mono
-              apply VEnv.addConstVals_mono
-                (cis := block.ctors) _ hctors₁ hctors₂
-              exact VEnv.addConstVals_mono H htypes₁ htypes₂
+  obtain ⟨types₁, ctors₁, recs₁, htypes₁, hctors₁, hrecs₁, rfl⟩ := VInductBlock.install_stages h₁
+  obtain ⟨types₂, ctors₂, recs₂, htypes₂, hctors₂, hrecs₂, rfl⟩ := VInductBlock.install_stages h₂
+  apply VEnv.addDefEqRules_mono
+  apply VEnv.addConstVals_mono (cis := block.recursors) _ hrecs₁ hrecs₂
+  apply VEnv.addProjections_mono
+  apply VEnv.addEliminators_mono
+  apply VEnv.addConstVals_mono (cis := block.ctors) _ hctors₁ hctors₂
+  exact VEnv.addConstVals_mono H htypes₁ htypes₂
+
 theorem safePrimitives_add' {env : Environment} (mapWF : env.constants.WF)
     (old : ∀ {n : Name} {ci}, env.find? n = some ci →
       Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = [])
