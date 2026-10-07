@@ -588,3 +588,50 @@ They are for the call site (E1).
 `#print axioms VEnv.corner_inhabit` shows `sorryAx`. It comes only through unique typing
 (`IsDefEq.uniqU`), which depends on the open `headInversion` and `strengthening_of_canonicalEq`
 sorries, like every other use of uniqueness in the branch.
+
+## Parked (2026-10-07): state of the obstacle, for Mario
+
+Route (b), declarative strengthening `VEnv.strengthening_of_canonicalEq`, is parked. It is no
+longer on the critical path. The E1 cone contains no `Strengthening` hypothesis, and the
+projection-walk corner, the one place E1 needed a restricted form, is now discharged by
+substitution of an inhabitant (above). The certificate-calculus prototype (option 1) was
+never started.
+
+The state of the obstacle, in one place:
+
+1. **What is proved.**
+   - Strengthening holds wherever the removed binder is inhabited in the smaller context:
+     `TrExprS.weakBV_inv_inhabited`, `Verify/Typing/InhabitedStrengthening.lean`. The proof
+     is substitution followed by cancelling the lift, with no hypothesis on the environment.
+   - Confluence of the canonical reduction in a fixed context is available.
+   - Singleton eta has a formal, abstract-layer proof (Part 2).
+   - The unrestricted statement is false in a two-family model (`STRENGTHENING.md`), so any
+     proof has to use something specific to Lean's environments.
+
+2. **What is missing.** A conversion-elimination theorem for a support-preserving
+   ("certified") presentation of definitional equality. Statement: in the fragment of Π, λ,
+   application, sorts, constants, untyped β, typed η and typed proof irrelevance,
+   transitivity of the join relation `Conv` is admissible when `Conv` contains only subterms,
+   synthesized types and reducts of its endpoints. From that theorem, strengthening follows
+   by induction on certificates. A derivation in the smaller context exists because no
+   certificate mentions syntax outside its endpoints.
+
+3. **Why it is stuck** (Part 3 status above). Each candidate organisation is circular:
+   - transitivity needs NEq to be transported along β;
+   - transport is substitution through the typing evidence in the proof-irrelevance and η
+     leaves;
+   - substitution for `Synth` needs `Conv` composition at the variable case, on outputs
+     rather than sub-certificates.
+
+   The candidate measures fail as follows:
+   - universe level fails because proof irrelevance is level-blind;
+   - derivation height fails because substitution duplicates certificates;
+   - β-peak count fails because η-expansion creates new peaks.
+
+   Siles and Herbelin's typed parallel reduction covers β-only PTS. Its auxiliary calculus
+   is exactly what the support discipline forbids.
+
+4. **The open question for Mario.** Is there a proof of admissible transitivity, or of
+   strengthening, for λΠ with typed η and definitional proof irrelevance that does not go
+   through normalization? Alternatively, is there a counterexample in a non-normalizing
+   extension? Either answer settles route (b). In the meantime nothing in E1 depends on it.
