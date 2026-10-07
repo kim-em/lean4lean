@@ -369,12 +369,13 @@ theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
     (hqu : ∀ df' ls', env.defeqs df' →
       df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' → df' = quotDefEq)
     (hdr : env.DefRules)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (hdf : env.defeqs quotDefEq) : RuleValid env quotDefEq := by
   intro U Δ Γ ls u hΔ hlw hlen _ _ _ ihL _ ihR
-  have hcis : IsCtor env ``Quot.mk := ⟨quotDefEq, hdf, quotDefEq_ctorMajor⟩
+  have hcisN : IsNativeCtor env ``Quot.mk := ⟨quotDefEq, hdf, quotDefEq_ctorMajor⟩
+  have hcis : IsCtor env ``Quot.mk := .inl hcisN
   have hrigQ : env.Rigid ``Quot := by
-    obtain ⟨ci, hci, F, ls', hF, -, hrig⟩ := hcres _ hcis
+    obtain ⟨ci, hci, F, ls', hF, -, hrig⟩ := hcres _ hcisN
     cases hq.2.1.symm.trans hci
     cases hF; exact hrig
   have hcl := henv.closed.2 hdf

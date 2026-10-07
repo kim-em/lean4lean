@@ -83,7 +83,7 @@ variable {env : VEnv}
 theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {base' installed : VEnv} {df : VDefEq} {L : VLevel}
     (henv : env.Ordered) (hdr : env.DefRules)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (C : CompilationData base source expanded s g aux block)
     (hprior : CertifiedSpecializations base aux) (haux : aux ≠ []) (hbF : base ≤ env)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
@@ -142,9 +142,12 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     simp only [Fin.getElem_fin] at *
     omega
   -- the constructor and its family
-  have hcis : IsCtor env ((compilationRestoration source aux).headName s.constructors[index].name) :=
+  have hcisN : IsNativeCtor env
+      ((compilationRestoration source aux).headName s.constructors[index].name) :=
     ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl⟩
-  obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcis
+  have hcis : IsCtor env ((compilationRestoration source aux).headName s.constructors[index].name) :=
+    .inl hcisN
+  obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
   have hFam : F = (compilationRestoration source aux).headName
       s.families[s.constructors[index].owner].name := by
     rcases C.ctor_origin hprior index with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
@@ -206,8 +209,9 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
       ihL ihR
   · -- small elimination: the right-hand side has no observations
     obtain ⟨args', hargs, rfl⟩ := Restoration.expr_bvar_mkApps hT'
-    obtain ⟨ds0, e0, l0⟩ := motive_eq g s.constructors[index].owner
     obtain ⟨x, hx, hxget⟩ := mapM_reverse_getElem? hds (eqDoms_reverse_motive g index)
+    have hm := motive_eq g
+    obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
     obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls hx
     rw [Restoration.expr_sort, Option.some.injEq] at hb'

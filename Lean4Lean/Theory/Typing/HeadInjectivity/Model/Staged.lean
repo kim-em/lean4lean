@@ -138,9 +138,11 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.proje
       ∀ df, env.defeqs df → Model.RuleValid envF df := by
   have henvF := hF.ordered
   have hdr := hF.defRules
-  have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c :=
-    fun _ ⟨_, hdf, hm⟩ => VEnv.nativeHeadRigid_iff.1 (hF.native_constructor_rigid hdf hm)
-  have hcres : ∀ c, Model.IsCtor envF c → envF.CtorResultRigid c :=
+  have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c := by
+    rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
+    · exact VEnv.nativeHeadRigid_iff.1 (hF.native_constructor_rigid hdf hm)
+    · exact VEnv.nativeHeadRigid_iff.1 (hF.case_constructor_rigid hb hgen)
+  have hcres : ∀ c, Model.IsNativeCtor envF c → envF.CtorResultRigid c :=
     fun _ ⟨_, hdf, hm⟩ => hF.native_constructor_result_rigid hdf hm
   intro ds env H
   induction H with

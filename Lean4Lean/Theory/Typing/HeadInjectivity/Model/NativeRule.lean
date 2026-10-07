@@ -255,7 +255,7 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
 /-- **Validity of an ordinary native recursor rule** (stages B and D). -/
 theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
     (henv : env.Ordered) (hdr : env.DefRules)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsCtor env c → env.CtorResultRigid c)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (C : CompilationData base source expanded s g [] block)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
     (index : Fin s.constructors.size) (hdf : env.defeqs (g.equation index))
@@ -284,9 +284,10 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hkH := g.recDoms_major s.constructors[index].owner
   rw [← eqLead_length_owner C] at hkH
   -- the constructor and its family
-  have hcis : IsCtor env s.constructors[index].name :=
+  have hcisN : IsNativeCtor env s.constructors[index].name :=
     ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, mkApps_concat]; rfl⟩
-  obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcis
+  have hcis : IsCtor env s.constructors[index].name := .inl hcisN
+  obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
   obtain ⟨fc, hfc, hfcn, lsc, hfch⟩ := C.ordinary_ctor index
   have hfc' := hle.constants (VInductBlock.install_ctor_lookup hinst (by rw [C.ctors]; exact hfc))
   rw [hfcn, hci'] at hfc'

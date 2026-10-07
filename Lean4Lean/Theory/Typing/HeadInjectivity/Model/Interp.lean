@@ -82,8 +82,19 @@ def listSet (K : List Ob) : Ob → Prop := fun k => k ∈ K
 
 /-! ## Constructors and rules -/
 
-/-- `c` is a constructor: the major premise of an installed rule is headed by `c`. -/
-def IsCtor (env : VEnv) (c : Name) : Prop := ∃ df, env.defeqs df ∧ df.HasConstructorMajor c
+/-- `c` is a native constructor: the major premise of an installed rule is headed by `c`. -/
+def IsNativeCtor (env : VEnv) (c : Name) : Prop := ∃ df, env.defeqs df ∧ df.HasConstructorMajor c
+
+/-- `c` is a case constructor: the constructor of a generated case rule of a registered
+schema. -/
+def IsCaseCtor (env : VEnv) (c : Name) : Prop :=
+  ∃ (b : Name) (schema : InductiveSignature.CaseSchema)
+    (owner : Fin schema.signature.families.size)
+    (rule : InductiveSignature.CaseSchema.AppliedRule),
+    env.eliminators b schema ∧ schema.Generates b owner rule ∧ rule.application.ctorName = c
+
+/-- `c` is a constructor: of a native rule or of a generated case rule. -/
+def IsCtor (env : VEnv) (c : Name) : Prop := IsNativeCtor env c ∨ IsCaseCtor env c
 
 /-- The innermost observations of a constructor spine after the keys `keys`: the head, an
 argument class, or an argument observation (with the keys of the earlier arguments). -/

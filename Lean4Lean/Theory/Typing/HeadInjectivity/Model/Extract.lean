@@ -336,9 +336,11 @@ quotient rule (with the quotient constants of `addQuot`), and which have no proj
 eliminators. -/
 theorem WF.headInjectivityCore_of_defsQuot {env : VEnv} (henv : env.WF) (hdq : env.DefsQuot) :
     env.HeadInjectivityCore := by
-  have hctor : ∀ c, Model.IsCtor env c → env.Rigid c :=
-    fun _ ⟨_, hdf, hm⟩ => VEnv.nativeHeadRigid_iff.1 (henv.native_constructor_rigid hdf hm)
-  have hcres : ∀ c, Model.IsCtor env c → env.CtorResultRigid c :=
+  have hctor : ∀ c, Model.IsCtor env c → env.Rigid c := by
+    rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
+    · exact VEnv.nativeHeadRigid_iff.1 (henv.native_constructor_rigid hdf hm)
+    · exact VEnv.nativeHeadRigid_iff.1 (henv.case_constructor_rigid hb hgen)
+  have hcres : ∀ c, Model.IsNativeCtor env c → env.CtorResultRigid c :=
     fun _ ⟨_, hdf, hm⟩ => henv.native_constructor_result_rigid hdf hm
   have hvalid : ∀ df, env.defeqs df → Model.RuleValid env df := fun df hdf => by
     rcases hdq.defeqs df hdf with ⟨n, ls, h⟩ | rfl
