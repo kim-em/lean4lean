@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Run.SemanticFinalEnvironment
 import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
+import Lean4Lean.Verify.Inductive.EqCanonicalForms
 
 namespace Lean4Lean
 
@@ -22,29 +23,14 @@ private theorem vconstant_eq_of_fields {a b : VConstant}
   cases b
   simp_all
 
-/-- The concrete family type submitted by Lean's bootstrap declaration of
-`Eq`. Binder names are operationally retained by `Expr`, although abstract
-translation erases them. -/
-def eqBootstrapType (u alphaName lhsName rhsName : Name) : Expr :=
-  .forallE alphaName (.sort (.param u))
-    (.forallE lhsName (.bvar 0)
-      (.forallE rhsName (.bvar 1) (.sort .zero) .default) .default)
-    .implicit
-
-/-- The concrete constructor type submitted for `Eq.refl`. -/
-def eqBootstrapReflType (u alphaName valueName : Name) : Expr :=
-  .forallE alphaName (.sort (.param u))
-    (.forallE valueName (.bvar 0)
-      (.app (.app (.app (.const ``Eq [.param u]) (.bvar 1)) (.bvar 0))
-        (.bvar 0)) .default)
-    .implicit
-
 /-- Exact production syntax of Lean's ordinary (non-primitive) `Eq`
-bootstrap declaration, modulo binder and universe-parameter names. -/
+bootstrap declaration, modulo binder and universe-parameter names.  As
+submitted by `Init.Prelude`, `Eq` has two parameters (`α` and the left
+endpoint `a`) and one index (the right endpoint), so `nparams = 2`. -/
 def EqBootstrapShape (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) : Prop :=
   ∃ u alphaName lhsName rhsName reflAlphaName reflValueName,
-    lparams = [u] ∧ nparams = 1 ∧ isUnsafe = false ∧
+    lparams = [u] ∧ nparams = 2 ∧ isUnsafe = false ∧
     types = [{
       name := ``Eq
       type := eqBootstrapType u alphaName lhsName rhsName
@@ -146,6 +132,69 @@ theorem DeclaredHeadersResult.eqBootstrapEntry
   exact ⟨info, target, hentryEq ▸ hentry, hinfoName,
     htargetName, htargetConstant⟩
 
+/-- The source translation of the exact bootstrap declaration fixes the
+abstract declaration: one family `Eq` with the stored type of `Eq`, one
+constructor `Eq.refl` with the stored type of `Eq.refl`, two parameters. -/
+theorem TrInductDeclCore.eqBootstrapDecl
+    (H : TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors)
+    (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
+    ∃ family refl, decl.types = [family] ∧ family.name = ``Eq ∧
+      family.toVConstant = ⟨1, canonicalEqType⟩ ∧ family.ctors = [refl] ∧
+      refl.name = ``Eq.refl ∧ refl.toVConstant = ⟨1, canonicalEqReflType⟩ ∧
+      decl.nparams = 2 := by
+  rcases Hshape with
+    ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
+      rfl, rfl, rfl, rfl⟩
+  rcases forall₂_leftSingleton H.types with ⟨family, hdecl, Hfamily⟩
+  rcases forall₂_leftSingleton Hfamily.ctors with ⟨refl, hctors, Hrefl⟩
+  refine ⟨family, refl, hdecl, Hfamily.header.name, ?_, hctors, Hrefl.name, ?_,
+    H.nparams⟩
+  · apply vconstant_eq_of_fields
+    · simpa using Hfamily.header.uvars
+    · exact TrExprS.eq_canonicalEqType Hfamily.header.type
+  · apply vconstant_eq_of_fields
+    · simpa using Hrefl.uvars
+    · exact TrExprS.eq_canonicalEqReflType Hrefl.type
+
+/-- Installation of a block exposes each of its recursors at its exact value. -/
+theorem VInductBlock.install_recursorConstant {base env' : VEnv} {block : VInductBlock}
+    (H : block.install base = some env') {recursor : VConstVal}
+    (hrecursor : recursor ∈ block.recursors) :
+    env'.constants recursor.name = some recursor.toVConstant := by
+  unfold VInductBlock.install at H
+  cases htypes : base.addConstVals block.types with
+  | none => simp [htypes] at H
+  | some envTypes =>
+    cases hctors : envTypes.addConstVals block.ctors with
+    | none => simp [htypes, hctors] at H
+    | some envCtors =>
+      cases hrecursors : (envCtors.addProjections block.projections).addConstVals
+          block.recursors with
+      | none => simp [htypes, hctors, hrecursors] at H
+      | some envRecursors =>
+        simp [htypes, hctors, hrecursors] at H
+        subst env'
+        simpa using VEnv.addConstVals_get hrecursors hrecursor
+
+/-- Installation of a block stores each of its rules. -/
+theorem VInductBlock.install_rule {base env' : VEnv} {block : VInductBlock}
+    (H : block.install base = some env') {rule : VDefEq} (hrule : rule ∈ block.rules) :
+    env'.defeqs rule := by
+  unfold VInductBlock.install at H
+  cases htypes : base.addConstVals block.types with
+  | none => simp [htypes] at H
+  | some envTypes =>
+    cases hctors : envTypes.addConstVals block.ctors with
+    | none => simp [htypes, hctors] at H
+    | some envCtors =>
+      cases hrecursors : (envCtors.addProjections block.projections).addConstVals
+          block.recursors with
+      | none => simp [htypes, hctors, hrecursors] at H
+      | some envRecursors =>
+        simp [htypes, hctors, hrecursors] at H
+        subst env'
+        exact VEnv.addDefEqRules_defeqs_iff.mpr (.inr hrule)
+
 /-- The completed safe ordinary run for Lean's bootstrap declaration of `Eq`
 creates the canonical abstract equality constant at every observer safety.
 Unlike later ordinary declarations, this theorem assumes only that production
@@ -163,7 +212,9 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (InductiveSpecificationResult (ves.venv .safe) c.lparams
-        nparams indTypes.toList isUnsafe (ves'.venv .safe)) := by
+        nparams indTypes.toList isUnsafe (ves'.venv .safe)) ∧
+      (∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+        ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
@@ -217,13 +268,63 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   have hcanonical : CanonicalEqEnvs ves' := by
     intro safety
     exact (wf'.mono DefinitionSafety.le_safe).constants hsafeEq
+  have hHasCanonical : ∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
+      ∀ safety, (ves'.venv safety).HasCanonicalEq := by
+    intro ci hfind ⟨hciSafe, u, v, names, huv, hlps, htype⟩ safety
+    refine VEnv.HasCanonicalEq.mono (wf'.mono DefinitionSafety.le_safe) ?_
+    -- `Eq.rec`: the production type translates to the stored type.
+    rcases (wf'.tr (safety := .safe)).find? hfind
+        (by rw [hciSafe]; exact DefinitionSafety.le_rfl) with
+      ⟨recConst, hrecConst, -, hrecUvars, hrecType⟩
+    rw [hlps, htype] at hrecType
+    have hrecEq : (ves'.venv .safe).constants ``Eq.rec = some ⟨2, canonicalEqRecType⟩ := by
+      rw [hrecConst]
+      congr 1
+      apply vconstant_eq_of_fields
+      · simpa [hlps] using hrecUvars.symm
+      · exact TrExprS.eq_canonicalEqRecType huv hrecType
+    -- The abstract declaration is the canonical one.
+    rcases VerifyInductive.TrInductDeclCore.eqBootstrapDecl R.core Hshape with
+      ⟨family, refl, hdeclTypes, hfamilyName, hfamilyConst, hfamilyCtors, hreflName,
+        hreflConst, hdeclParams⟩
+    -- The generated rule is the stored rule.
+    have hinstall : B.block.install (ves.venv .safe) = some B.finalVEnv := B.install
+    have hrules : B.block.rules = [canonicalEqRecRule] := by
+      have Hcompiles : InductiveSignature.Compiles (ves.venv .safe) decl B.block := by
+        simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+          (T.compilation hnonempty).canonical
+      refine Hcompiles.eqRecRules hdeclTypes hfamilyName (by simp [hfamilyCtors])
+        hdeclParams ?_
+      intro recursor hrecursor hname
+      have hinstalled := hsafeReplay.constants
+        (VInductBlock.install_recursorConstant hinstall hrecursor)
+      rw [hname, hrecEq] at hinstalled
+      have h := Option.some.inj hinstalled
+      exact ⟨(congrArg VConstant.uvars h).symm, (congrArg VConstant.type h).symm⟩
+    have hrule : (ves'.venv .safe).defeqs canonicalEqRecRule :=
+      hsafeReplay.defeqs (VInductBlock.install_rule hinstall (by simp [hrules]))
+    -- `Eq.refl` is installed with the translated constructor type.
+    have hcert : VEnv.InstalledInductCertificate (ves'.venv .safe) decl := by
+      cases hadd with
+      | intro hdecl' hcompile' hblock' hinstall' =>
+        exact .intro hdecl'.1 hdecl'.2 hcompile' hblock' hinstall' VEnv.LE.rfl
+    have hreflEq : (ves'.venv .safe).constants ``Eq.refl =
+        some ⟨1, canonicalEqReflType⟩ := by
+      have hfamily : 0 < decl.types.length := by simp [hdeclTypes]
+      have hctor : 0 < decl.types[0].ctors.length := by
+        simp [hdeclTypes, hfamilyCtors]
+      have := hcert.constructorConstant 0 0 hfamily hctor
+      simp only [hdeclTypes, hfamilyCtors, List.getElem_cons_zero] at this
+      rw [hreflName, hreflConst] at this
+      exact this
+    exact ⟨hsafeEq, hreflEq, hrecEq, hrule⟩
   exact ⟨ves', wf', hcanonical, hle, ⟨{
     decl := decl
     envTypes := Hheaders.context.venv
     envCtors := R.declared.venvCtors
     source := R.core
     extension := hadd
-  }⟩⟩
+  }⟩, hHasCanonical⟩
 
 end VerifyInductive
 end Lean4Lean

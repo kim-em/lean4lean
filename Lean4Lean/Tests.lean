@@ -19,3 +19,4 @@ import Lean4Lean.Tests.RestoredRecursorMetadata
 import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd
 import Lean4Lean.Tests.RecursorOracle
+import Lean4Lean.Tests.CanonicalEq

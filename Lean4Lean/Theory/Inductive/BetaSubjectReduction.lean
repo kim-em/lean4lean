@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.RestorationDefEq
-import Lean4Lean.Theory.Typing.UniqueTyping
+import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Theory.Typing.IotaLemmas
 
 /-! # Subject reduction for a single beta step

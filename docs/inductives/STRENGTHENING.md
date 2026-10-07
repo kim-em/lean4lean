@@ -235,6 +235,28 @@ lake env lean docs/inductives/SingletonStrengthening.lean
 lake env lean docs/inductives/SingletonStrengtheningModel.lean
 ```
 
+## Current status: strengthening as an explicit environment hypothesis
+
+The former sorried inverse direction of `IsDefEqU.weakN_iff` is now the
+explicit predicate `VEnv.Strengthening` (`Theory/Typing/UniqueTyping.lean`).
+Every lemma that used inverse weakening takes `hs : env.Strengthening` next
+to `henv`. The executable is unchanged. The checker obtains the hypothesis
+from the `strengthening` field of `TypeChecker.VContext`; the inductive
+checking contexts (`ContextWF`, `RecursorContextWF`) carry the same field.
+
+The predicate is not monotone, so it is never derived from `VEnv.WF` or
+stated for an output environment. `addDecl.WF` assumes
+`decl.Strengthening ves env` (`Verify/Environment.lean`). This lists exactly
+the abstract environments in which checking `decl` runs the type checker:
+`VEnvs.DefinitionStrengthening`, `VEnvs.MutualStrengthening` and, for
+inductives, `VerifyInductive.InductiveDeclStrengthening` (built from
+`InductiveStrengthening`, `Verify/Environment/Basic.lean`). Each listed
+environment is pinned by the abstract translation of the declaration. The
+countermodel above shows that the hypothesis fails whenever one of these
+environments contains such a family with its computation rules, for
+instance when the input environment already does; `addDecl.WF` then says
+nothing about that declaration.
+
 ## Scope of the countermodel: canonical equality (2026-10-06)
 
 The countermodel does not survive adding canonical `Eq`. With `Eq.rec`
@@ -261,41 +283,15 @@ alternative `Eq`-only or `Acc` counterexample is known). The cache-scope
 experiment (`CacheScopeExperiment.lean`) runs in an environment without `Eq`
 and shows a scope-sensitive implementation phenomenon, not an inconsistency.
 
-## The inductive checker's narrow checker context
-
-`AddInductive.Context` carries two local contexts. The main `lctx` holds every
-binder the inductive checker opens and is the one read by `getType`,
-`mkForall`, `mkLambda` and the generated recursor telescopes. The second,
-`checkLCtx`, is the only context embedded `TypeChecker` runs see (the
-`MonadLift` instance in `Lean4Lean/Inductive/Add.lean`). Parameters, header
-indices, constructor fields, positivity and recursive-argument binders,
-recursor indices and higher-order argument binders are opened in both
-(`withCheckedLocalDecl`). Majors, motives, minors and induction hypotheses
-are opened only in the main context. Closed inputs are checked under `{}`,
-cached parameter steps under the first `i` parameters, constructor and
-recursor field telescopes on top of all parameters, and each recursive
-field's argument telescope under the fields before it.
-
-The point is that every checker fact is then produced in the narrow scope
-its verification needs, so no fact has to be strengthened out of a larger
-context (the unrestricted strengthening challenged above). Facts about the
-main context follow by weakening, which is valid.
-
-Fidelity: the C++ kernel keeps one growing local context and shows each
-call all of it. The results agree because a checker run consults the local
-context only through `find?` on free variables reachable from its inputs and
-their declarations, plus its own fresh binders: it never reads the context
-globally. This locality argument is not formalized; binders whose checker
-context changed are marked "checker context narrowed" in the source.
-
-On the proof side, `ContextWF` (and its recursor and staged variants) records
-that `checkLCtx` is a well-formed sub-context of the main context. The
-main-context lift lemmas (`liftTypeChecker.WF`, `whnfInContext.WF`, ...)
-keep their statements: they transfer a run in the checker context to the main
-context through the named hypothesis `CheckerSubContextLocality`
-(`Lean4Lean/Verify/Inductive/Context.lean`), the sub-context direction of
-the locality argument above. It is carried from the top as the `inductDecl`
-case of `Declaration.IsModelled`. The hypothesis is transitional: once every
-lifted run is verified directly in its narrow checker context (whose
-semantic context is then the narrow one), the main-context facts follow by
-weakening and the hypothesis can be dropped.
+The top-level form of this hypothesis is now the conjecture
+`VEnv.strengthening_of_canonicalEq` (`Theory/Typing/UniqueTyping.lean`, an
+open proof registered in the audit inventory): every well-formed environment with
+`VEnv.HasCanonicalEq` (`Theory/CanonicalEq.lean`: `Eq`, `Eq.refl`, `Eq.rec`
+with their prelude types and the `Eq.rec` iota rule) satisfies
+`VEnv.Strengthening`. `addDecl.WF_of_canonicalEq` (`Verify/Environment.lean`)
+derives `Declaration.Strengthening` from canonical `Eq` in the input models,
+and `addDecl.WFHasCanonicalEq` preserves it for the next declaration. To make
+every listed environment well formed, the unsafe-definition clause of
+`VEnvs.DefinitionStrengthening` and the projection clause of
+`InductiveStrengthening` now also assume the well-formedness that the checker
+establishes before running there.

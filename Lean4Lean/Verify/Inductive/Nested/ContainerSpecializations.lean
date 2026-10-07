@@ -554,6 +554,17 @@ structure AuxiliarySpecializationEvidence (sourceEnv envTypes : VEnv)
       (VInductDecl.DirectAuxConstructor envTypes decl.uvars sourceParams
         a.arguments a.levels a.source generated)
       a.source.ctors generated.ctors
+  /-- Each generated constructor type is syntactically the parameter closure
+  of the container constructor type instantiated at the specialization
+  arguments, up to level equivalence. -/
+  constructorShapes : ∃ sourceParams : List VExpr,
+    sourceParams.length = decl.nparams ∧
+    List.Forall₂
+      (fun ctor target => ∃ instCtorType : VExpr,
+        VExpr.LEquiv decl.uvars instCtorType (ctor.type.instL a.levels) ∧
+        target.type = VExpr.wrapForalls sourceParams
+          (VExpr.instantiateForallPrefix instCtorType a.arguments))
+      a.source.ctors generated.ctors
 
 private theorem directAuxConstructors_names
     {sourceCtors targetCtors : List VConstVal}
@@ -800,7 +811,8 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
     levelsWF := by rw [huvars]; exact N.levelsWF
     safety := hsafety
     familyForallPrefix := hfamilyPrefix
-    application := ?_ }
+    application := ?_
+    constructorShapes := ?_ }
   · intro arg harg
     rw [hnparams, ← N.sourceParamsLength]
     exact N.baseArgsClosed arg harg
@@ -814,6 +826,9 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
       exact N.familyType
     · rw [hsource, huvars]
       exact N.constructors
+  · refine ⟨N.sourceParams, N.sourceParamsLength.trans hnparams.symm, ?_⟩
+    rw [hsource, huvars]
+    exact N.constructorShapes
 
 
 private theorem exists_forall₂_of_forall {R : α → β → Prop} :

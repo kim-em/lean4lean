@@ -129,7 +129,16 @@ theorem CompletedRecursorPhasesResult.generationInstance_admissible
       have : (H.generationInstance s).targetLevel = .zero := Option.some.inj ht.symm
       rw [this]
       rfl
-    · exact .inr (.inr hsingleton)
+    · by_cases hz : H.elimLevel = .zero
+      · apply Or.inr; apply Or.inl
+        have ht := H.generationInstance_target s
+        rw [hz] at ht
+        have : (H.generationInstance s).targetLevel = .zero := Option.some.inj ht.symm
+        rw [this]
+        rfl
+      · obtain ⟨htarget, hfree⟩ := recursorDeclarationAbstractLevels_freeTarget
+          H.elimLevelAdmissible hz (H.generationInstance_target s)
+        exact .inr (.inr ⟨hsingleton, 0, htarget, hfree⟩)
 
 /-- Admissibility belongs to the same consumed signature selected before
 installation, including the actual singleton decision and universe policy. -/

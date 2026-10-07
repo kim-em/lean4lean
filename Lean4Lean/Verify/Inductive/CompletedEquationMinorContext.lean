@@ -1602,40 +1602,6 @@ theorem
       simp
     _ = sourceBinders.reverse := hfiltered
 
-/-- The dependency and ordering certificates together construct the exact
-non-contiguous semantic scope used to close the selected minor type. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorNarrowScope
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let minorIdx := recursorMinorOffset indTypes owner + i
-    let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-      H.bindings.flatMinors.fvars.take minorIdx
-    ∃ scope,
-      ∃ Hscope : checkInductiveTypes.loopType.FVarNarrowScope
-          H.recursorWF.venv Us scope H.recursorWF.mlctx.vlctx,
-        scope.fvars = sourceBinders.reverse := by
-  dsimp only
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let minorIdx := recursorMinorOffset indTypes owner + i
-  let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
-    H.bindings.flatMinors.fvars.take minorIdx
-  rcases checkInductiveTypes.loopType.narrowFVars
-      H.recursorWF.onlyLams
-      H.recursorWF.checking.tr.wf H.recursorWF.mlctx_wf
-      (fun fv => fv ∈ sourceBinders) A.finalSelectedMinorPrefixUp with
-    ⟨scope, Hscope, hscope⟩
-  exact ⟨scope, Hscope, hscope.trans A.finalSelectedMinorFilteredFVars⟩
-
 /-- Close the exact selected-minor declaration through the independently
 narrowed free-variable scope.  This exposes two translations of the same
 closed source domain: one over the scope's semantic domains and one over the

@@ -53,45 +53,6 @@ theorem FVarNarrowSources.closeSourceTranslation
       List.reverse_cons, VExpr.wrapForalls_append,
       VExpr.wrapForalls] using IH'
 
-/-- Restrict one concrete runtime translation both to the independently
-reconstructed source scope and to the normalized semantic header scope.
-The two scopes select exactly the same free variables, while the semantic
-scope is definitionally aligned with the canonical parameter/index
-telescope.  This avoids assuming that either independently reconstructed
-scope is syntactically identical to the other. -/
-theorem NormalizedHeaderSourceTelescope.restrictSourceAndSemantic
-    (H : NormalizedHeaderSourceTelescope env Us commonParams
-      nparams nindices)
-    (henv : env.WF)
-    (sourceExpr : Expr)
-    (htr : TrExprS env Us H.runtime sourceExpr runtimeTarget)
-    (hclosed : Closed sourceExpr 0)
-    (hfvars : FVarsIn (· ∈ H.sourceScope.fvars) sourceExpr) :
-    (∃ sourceTarget,
-      TrExprS env Us H.sourceScope sourceExpr sourceTarget) ∧
-    ∃ semanticScope semanticTarget,
-      H.sourceScope.fvars = semanticScope.fvars ∧
-      TrExprS env Us semanticScope sourceExpr semanticTarget ∧
-      VEnv.IsDefEqCtx env Us.length []
-        (H.indices.reverse ++ H.ownParams.reverse) semanticScope.toCtx := by
-  have Hsource := H.source.restrict henv htr hclosed hfvars
-  refine ⟨Hsource, ?_⟩
-  cases H.alignment with
-  | full sourceFVars semanticContext =>
-    exact ⟨H.runtime, runtimeTarget, sourceFVars, htr, semanticContext⟩
-  | narrow semanticScope sourceFVars semantic semanticContext =>
-    have hfvarsSemantic : FVarsIn (· ∈ semanticScope.fvars) sourceExpr :=
-      hfvars.mono fun fv hfv => by
-        rw [← sourceFVars]
-        exact hfv
-    rcases semantic.restrict henv htr hclosed hfvarsSemantic with
-      ⟨semanticTarget, Hsemantic⟩
-    have Hcontext : VEnv.IsDefEqCtx env Us.length []
-        (H.indices.reverse ++ H.ownParams.reverse) semanticScope.toCtx := by
-      have Hrefl := VEnv.IsDefEqCtx.refl (semantic.scopeWF henv).toCtx
-      simpa [semanticContext] using Hrefl
-    exact ⟨semanticScope, semanticTarget, sourceFVars, Hsemantic, Hcontext⟩
-
 end checkInductiveTypes.loopType
 end VerifyInductive
 end Lean4Lean

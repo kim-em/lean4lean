@@ -743,39 +743,6 @@ theorem NarrowRuntimeScope.scopeWF
     scope.WF env Us.length :=
   H.wf
 
-/-- Restrict a translated concrete expression to its semantic header scope.
-The source-side free-variable premise is the deliberate ownership boundary:
-ambient declarations retained by the executable loop may not occur. -/
-theorem NarrowRuntimeScope.restrict
-    (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
-    (htr : TrExprS env Us runtime e e')
-    (hclosed : Closed e 0)
-    (hfvars : FVarsIn (· ∈ scope.fvars) e) :
-    ∃ e', TrExprS env Us scope e e' := by
-  exact htr.weakFV'_inv henv H.lift
-    (H.context.symm henv.ordered) hclosed hfvars
-
-/-- Restriction together with the definitional equality obtained by
-weakening the narrowed translation back into the executable context. -/
-theorem NarrowRuntimeScope.restrictEq
-    (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
-    (htr : TrExprS env Us runtime e e')
-    (hclosed : Closed e 0)
-    (hfvars : FVarsIn (· ∈ scope.fvars) e) :
-    ∃ narrow', TrExprS env Us scope e narrow' ∧
-      env.IsDefEqU Us.length runtime.toCtx e'
-        (narrow'.lift' H.shift) := by
-  rcases H.restrict henv htr hclosed hfvars with ⟨narrow', hnarrow⟩
-  have hweak : TrExprS env Us H.expanded e
-      (narrow'.lift' H.shift) := by
-    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
-  exact ⟨narrow', hnarrow,
-    htr.uniq henv (H.context.symm henv.ordered) hweak⟩
-
-/-- The abstract target computed in the executable context is the weakening
-of the independently translated narrow target. -/
 theorem NarrowRuntimeScope.fullTargetEq
     (H : NarrowRuntimeScope env Us scope runtime)
     (henv : env.WF)
@@ -791,59 +758,6 @@ theorem NarrowRuntimeScope.fullTargetEq
   exact (hsourceEq'.defeqDFC henv.ordered H.context.defeqCtx).trans
     henv (H.context.symm henv.ordered).wf.toCtx hsourceEq
 
-/-- Restrict a runtime expression translation whose target is already known
-in the semantic scope.  This packages the inverse-weakening argument needed
-after executable WHNF: restrict the normalized source translation, compare
-both weakened targets in the runtime context, then cancel the weakening. -/
-theorem NarrowRuntimeScope.restrictTrExpr
-    (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
-    (hnarrow : TrExprS env Us scope input narrowTarget)
-    (hfullInput : TrExpr env Us runtime input fullTarget)
-    (hfullResult : TrExpr env Us runtime result fullTarget)
-    (hclosed : Closed result 0)
-    (hfvars : FVarsIn (· ∈ scope.fvars) result) :
-    TrExpr env Us scope result narrowTarget := by
-  rcases hfullResult with ⟨resultFull, hresultFull, hresultTarget⟩
-  rcases H.restrictEq henv hresultFull hclosed hfvars with
-    ⟨resultNarrow, hresultNarrow, hresultLift⟩
-  have htargetLift := H.fullTargetEq henv hnarrow hfullInput
-  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
-  have hlift : env.IsDefEqU Us.length runtime.toCtx
-      (resultNarrow.lift' H.shift) (narrowTarget.lift' H.shift) :=
-    (hresultLift.symm.trans henv hruntimeWF hresultTarget).trans
-      henv hruntimeWF htargetLift.symm
-  have hexpanded := hlift.defeqDFC henv.ordered
-    (H.context.defeqCtx.symm henv.ordered)
-  have hnarrowEq : env.IsDefEqU Us.length scope.toCtx
-      resultNarrow narrowTarget :=
-    (VEnv.IsDefEqU.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
-      hexpanded
-  exact ⟨resultNarrow, hresultNarrow, hnarrowEq⟩
-
-/-- Transfer a runtime typing result for a translated concrete expression
-back to its independently translated target in the narrow scope. -/
-theorem NarrowRuntimeScope.hasTypeOfFull
-    (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
-    (hnarrow : TrExprS env Us scope e narrow')
-    (hfull : TrExprS env Us runtime e full')
-    (htype : env.HasType Us.length runtime.toCtx full' (.sort u)) :
-    env.HasType Us.length scope.toCtx narrow' (.sort u) := by
-  have htarget := H.fullTargetEq henv hnarrow
-    (hfull.trExpr henv (H.context.symm henv.ordered).wf)
-  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
-  have hliftTyped := htype.defeqU_l henv hruntimeWF htarget.symm
-  have hexpanded := hliftTyped.defeqDFC henv.ordered
-    (H.context.defeqCtx.symm henv.ordered)
-  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
-    hexpanded
-
-
-/-- Weaken a translated type from the independent header scope into the
-executable reader context.  Context conversion may choose a definitionally
-equal target, so the transported target is returned existentially together
-with its preserved typehood. -/
 theorem NarrowRuntimeScope.transportType
     (H : NarrowRuntimeScope env Us scope runtime)
     (henv : env.WF)
@@ -905,40 +819,6 @@ theorem NarrowRuntimeScope.transportTypedTerm
   exact ⟨termRuntime, typeRuntime, htermRuntime, htypeRuntime,
     htypingBoth, htypeRuntimeType⟩
 
-/-- Move a successful runtime result-sort check back to the independent
-narrow header scope.  Both translations are tied to the same concrete
-residual, so uniqueness in the runtime context followed by inverse weakening
-provides the narrow result equality. -/
-theorem NarrowRuntimeScope.resultSort
-    (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
-    (hnarrow : TrExprS env Us scope e narrow')
-    (hfull : TrExpr env Us runtime e full')
-    (hsort : TrExpr env Us runtime (.sort level) full') :
-    TrExpr env Us scope (.sort level) narrow' := by
-  rcases hsort with ⟨sortFull, hsortFull, hsortTarget⟩
-  have hclosed : Closed (.sort level) 0 := trivial
-  have hfvars : FVarsIn (· ∈ scope.fvars) (.sort level) := by
-    simpa [FVarsIn] using hsortFull.fvarsIn
-  rcases H.restrictEq henv hsortFull hclosed hfvars with
-    ⟨sortNarrow, hsortNarrow, hsortLift⟩
-  have htarget := H.fullTargetEq henv hnarrow hfull
-  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
-  have hlift : env.IsDefEqU Us.length runtime.toCtx
-      (sortNarrow.lift' H.shift) (narrow'.lift' H.shift) :=
-    hsortLift.symm.trans henv hruntimeWF <|
-      hsortTarget.trans henv hruntimeWF htarget.symm
-  have hexpanded := hlift.defeqDFC henv.ordered
-    (H.context.defeqCtx.symm henv.ordered)
-  have hnarrowEq : env.IsDefEqU Us.length scope.toCtx
-      sortNarrow narrow' :=
-    (VEnv.IsDefEqU.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
-      hexpanded
-  exact ⟨sortNarrow, hsortNarrow, hnarrowEq⟩
-
-/-- Extend the embedding by a generated index free variable.  The new
-runtime domain need only be definitionally equal to the weakened semantic
-domain. -/
 def NarrowRuntimeScope.withIndex
     (H : NarrowRuntimeScope env Us scope runtime)
     (hnewRuntime : VLCtx.WF env Us.length
@@ -1113,36 +993,6 @@ theorem TrLCtx'.isFVarUpSet
     intro hselected fv hfv
     exact hdeps declaration (by simp) hselected fv hfv
 
-theorem FVarNarrowScope.restrict
-    (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
-    (htr : TrExprS env Us runtime source target)
-    (hclosed : Closed source 0)
-    (hfvars : FVarsIn (· ∈ scope.fvars) source) :
-    ∃ target', TrExprS env Us scope source target' := by
-  exact htr.weakFV'_inv henv H.lift
-    (H.context.symm henv.ordered) hclosed hfvars
-
-/-- Restrict a translation to a non-contiguous dependency-closed scope and
-retain the equality obtained by weakening the narrowed target back into the
-executable context.  This is the non-contiguous counterpart of
-`NarrowRuntimeScope.restrictEq`. -/
-theorem FVarNarrowScope.restrictEq
-    (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
-    (htr : TrExprS env Us runtime e e')
-    (hclosed : Closed e 0)
-    (hfvars : FVarsIn (· ∈ scope.fvars) e) :
-    ∃ narrow', TrExprS env Us scope e narrow' ∧
-      env.IsDefEqU Us.length runtime.toCtx e'
-        (narrow'.lift' H.shift) := by
-  rcases H.restrict henv htr hclosed hfvars with ⟨narrow', hnarrow⟩
-  have hweak : TrExprS env Us H.expanded e
-      (narrow'.lift' H.shift) := by
-    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
-  exact ⟨narrow', hnarrow,
-    htr.uniq henv (H.context.symm henv.ordered) hweak⟩
-
 theorem FVarNarrowScope.fullTargetEq
     (H : FVarNarrowScope env Us scope runtime)
     (henv : env.WF)
@@ -1157,25 +1007,6 @@ theorem FVarNarrowScope.fullTargetEq
   have hsourceEq' := hweak.uniq henv H.context hsource
   exact (hsourceEq'.defeqDFC henv.ordered H.context.defeqCtx).trans
     henv (H.context.symm henv.ordered).wf.toCtx hsourceEq
-
-/-- Transfer runtime typehood to a translation reconstructed in a
-dependency-selected free-variable scope. -/
-theorem FVarNarrowScope.hasTypeOfFull
-    (H : FVarNarrowScope env Us scope runtime)
-    (henv : env.WF)
-    (hnarrow : TrExprS env Us scope e narrow')
-    (hfull : TrExprS env Us runtime e full')
-    (htype : env.HasType Us.length runtime.toCtx full' (.sort u)) :
-    env.HasType Us.length scope.toCtx narrow' (.sort u) := by
-  have htarget := H.fullTargetEq henv hnarrow
-    (hfull.trExpr henv (H.context.symm henv.ordered).wf)
-  have hruntimeWF := (H.context.symm henv.ordered).wf.toCtx
-  have hliftTyped := htype.defeqU_l henv hruntimeWF htarget.symm
-  have hexpanded := hliftTyped.defeqDFC henv.ordered
-    (H.context.defeqCtx.symm henv.ordered)
-  exact (VEnv.HasType.weak'_iff henv H.context.wf.toCtx H.lift.toCtx).1
-    hexpanded
-
 
 /-- Retain one newly introduced named lambda.  Its semantic domain is
 obtained by inverse weakening; the executable domain need only be
@@ -1260,72 +1091,6 @@ def FVarNarrowScope.skipIndex
   wf := H.wf
 
 
-/-- Narrow an executable all-lambda context to exactly the free variables
-selected by a dependency-closed predicate.  Retained source domains are
-translated in the already narrowed tail; skipped declarations remain only
-in the comparison context. -/
-theorem narrowFVars
-    (H : MLCtxOnlyLams c)
-    (henv : env.WF)
-    (Hwf : c.WF env Us)
-    (P : FVarId → Prop) [DecidablePred P]
-    (hup : IsFVarUpSet P c.vlctx) :
-    ∃ scope, ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
-      scope.fvars = c.vlctx.fvars.filter P := by
-  induction c with
-  | nil => exact ⟨[], .nil, rfl⟩
-  | @vlam fv name type type' bi tail ih =>
-    have HruntimeWF := Hwf.tr.wf
-    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
-    rcases ih H.tail_vlam HtailWF hup.1 with
-      ⟨tailScope, HtailScope, htailScopeFVars⟩
-    by_cases hP : P fv
-    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
-        intro dep hdep
-        rw [htailScopeFVars]
-        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
-          simpa using hup.2 hP dep hdep⟩
-      have hclosed : Closed type 0 := by
-        have h := Htype.closed
-        rw [tail.noBV] at h
-        exact h
-      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
-        apply fvarsIn_iff.mpr
-        refine ⟨hdeps, ?_⟩
-        exact Htype.fvarsIn.mono fun _ _ => trivial
-      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
-        ⟨narrowType, HnarrowType⟩
-      have Hweak : TrExprS env Us HtailScope.expanded type
-          (narrowType.lift' HtailScope.shift) := by
-        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
-          HtailScope.context.wf
-      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
-      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
-          type' :=
-        HtypeType.defeqDFC henv.ordered
-          (HtailScope.context.symm henv.ordered).defeqCtx
-      rcases HtargetType with ⟨u, HtargetType⟩
-      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
-          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
-        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
-      have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
-        (VEnv.IsType.weak'_iff henv HtailScope.context.wf.toCtx
-          HtailScope.lift.toCtx).1 ⟨u, Hdomain.hasType.1⟩
-      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
-        HnarrowType Hdomain HnarrowIsType
-      exact ⟨_, Hnext, by
-        simp [Hnext, htailScopeFVars, hP]⟩
-    · have hskip : fv ∉ tailScope.fvars := by
-        rw [htailScopeFVars]
-        simp [hP]
-      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
-      exact ⟨_, Hnext, by
-        simp [Hnext, htailScopeFVars, hP]⟩
-  | @vlet fv name type value type' value' tail ih =>
-    exact H.vlet_false.elim
-
-/-- The exact weakening induced by selecting named declarations from a
-newest-first executable context. -/
 def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
     [DecidablePred P] : Lift :=
   match fvars with
@@ -1394,152 +1159,6 @@ theorem fvarSelectionLift_append_selected
     exact hfv
   · intro fv hfv hselected
     exact hdisjoint hfv hselected
-
-/-- Strengthen non-contiguous narrowing with its exact concrete source
-closure.  This records, at the producer, that the narrowed source telescope
-is the `LocalContext.mkForall` telescope over precisely the selected free
-variables. -/
-theorem MLCtxOnlyLams.narrowFVarsSource
-    {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
-    (H : MLCtxOnlyLams c)
-    (henv : env.WF)
-    (Hwf : c.WF env Us)
-    (P : FVarId → Prop) [DecidablePred P]
-    (hup : IsFVarUpSet P c.vlctx) :
-    ∃ scope,
-      ∃ Hscope : FVarNarrowScope env Us scope c.vlctx,
-        scope.fvars = c.vlctx.fvars.filter P ∧
-        Hscope.shift = fvarSelectionLift c.vlctx.fvars P ∧
-        (∀ fv ∈ scope.fvars, ∃ decl,
-          c.lctx.find? fv = some decl) ∧
-        ∀ body,
-          Hscope.sources.closeSource body =
-            c.lctx.mkForall
-              (scope.fvars.reverse.map Expr.fvar).toArray body := by
-  induction c with
-  | nil =>
-    refine ⟨[], .nil, rfl, rfl, ?_, ?_⟩
-    · intro fv hfv
-      simp at hfv
-    · intro body
-      change body = ({} : LocalContext).mkForall #[] body
-      exact (LocalContext.mkForall_empty {} body).symm
-  | @vlam fv name type type' bi tail ih =>
-    have HruntimeWF := Hwf.tr.wf
-    rcases Hwf with ⟨HtailWF, hfresh, Htype, HtypeType⟩
-    rcases ih H.tail_vlam HtailWF hup.1 with
-      ⟨tailScope, HtailScope, htailScopeFVars,
-        htailShift, htailDecls, htailClose⟩
-    by_cases hP : P fv
-    · have hdeps : type.fvarsList ⊆ tailScope.fvars := by
-        intro dep hdep
-        rw [htailScopeFVars]
-        exact List.mem_filter.mpr ⟨Htype.fvarsList hdep, by
-          simpa using hup.2 hP dep hdep⟩
-      have hclosed : Closed type 0 := by
-        have h := Htype.closed
-        rw [tail.noBV] at h
-        exact h
-      have htypeFVars : FVarsIn (· ∈ tailScope.fvars) type := by
-        apply fvarsIn_iff.mpr
-        refine ⟨hdeps, ?_⟩
-        exact Htype.fvarsIn.mono fun _ _ => trivial
-      rcases HtailScope.restrict henv Htype hclosed htypeFVars with
-        ⟨narrowType, HnarrowType⟩
-      have Hweak : TrExprS env Us HtailScope.expanded type
-          (narrowType.lift' HtailScope.shift) := by
-        simpa using HnarrowType.weakFV' henv.ordered HtailScope.lift
-          HtailScope.context.wf
-      have HtargetEq := Hweak.uniq henv HtailScope.context Htype
-      have HtargetType : env.IsType Us.length HtailScope.expanded.toCtx
-          type' :=
-        HtypeType.defeqDFC henv.ordered
-          (HtailScope.context.symm henv.ordered).defeqCtx
-      rcases HtargetType with ⟨u, HtargetType⟩
-      have Hdomain : env.IsDefEq Us.length HtailScope.expanded.toCtx
-          (narrowType.lift' HtailScope.shift) type' (.sort u) :=
-        HtargetEq.of_r henv HtailScope.context.wf.toCtx HtargetType
-      have HnarrowIsType : env.IsType Us.length tailScope.toCtx narrowType :=
-        (VEnv.IsType.weak'_iff henv HtailScope.context.wf.toCtx
-          HtailScope.lift.toCtx).1 ⟨u, Hdomain.hasType.1⟩
-      let Hnext := HtailScope.withIndex HruntimeWF hdeps name bi type
-        HnarrowType Hdomain HnarrowIsType
-      have hnextFVars : ∀ body,
-          Hnext.sources.closeSource body =
-            HtailScope.sources.closeSource
-              (.forallE name type (body.abstractN [fv]) bi) := by
-        intro body
-        rfl
-      have holdDecls : ∀ other ∈ tailScope.fvars.reverse,
-          ∃ decl, tail.lctx.find? other = some decl := by
-        intro other hother
-        exact htailDecls other (List.mem_reverse.mp hother)
-      have holdNodup : tailScope.fvars.reverse.Nodup :=
-        List.nodup_reverse.mpr (HtailScope.scopeWF henv).fvars_nodup
-      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
-      · change HtailScope.shift.cons = _
-        rw [htailShift]
-        simp [fvarSelectionLift, hP]
-      · intro other hother
-        change other ∈ fv :: tailScope.fvars at hother
-        simp only [List.mem_cons] at hother
-        rcases hother with rfl | hother
-        · refine ⟨.cdecl tail.lctx.decls.size other name type bi .default,
-            ?_⟩
-          simp [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
-            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
-        · rcases htailDecls other hother with ⟨decl, hlookup⟩
-          refine ⟨decl, ?_⟩
-          simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
-            LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
-          rw [if_neg]
-          · exact hlookup
-          · intro heq
-            have heq' : fv = other := beq_iff_eq.mp heq
-            rw [heq'] at hfresh
-            rw [hlookup] at hfresh
-            contradiction
-      · intro body
-        have Happ := LocalContext.mkForall_append_fresh
-          HtailWF.tr.1 hfresh holdDecls holdNodup
-          (body := body) (name := name) (type := type) (bi := bi)
-        rw [hnextFVars body, htailClose]
-        simpa [Hnext, TypeChecker.MLCtx.lctx, List.reverse_cons]
-          using Happ.symm
-    · have hskip : fv ∉ tailScope.fvars := by
-        rw [htailScopeFVars]
-        simp [hP]
-      let Hnext := HtailScope.skipIndex henv HruntimeWF hskip
-      have hnextFVars : ∀ body,
-          Hnext.sources.closeSource body =
-            HtailScope.sources.closeSource body := by
-        intro body
-        rfl
-      refine ⟨_, Hnext, by simp [htailScopeFVars, hP], ?_, ?_, ?_⟩
-      · change HtailScope.shift.skip = _
-        rw [htailShift]
-        simp [fvarSelectionLift, hP]
-      · intro other hother
-        change other ∈ tailScope.fvars at hother
-        rcases htailDecls other hother with ⟨decl, hlookup⟩
-        refine ⟨decl, ?_⟩
-        simp only [TypeChecker.MLCtx.lctx, LocalContext.mkLocalDecl,
-          LocalContext.find?, HtailWF.tr.1.map_wf.find?_insert]
-        rw [if_neg]
-        · exact hlookup
-        · intro heq
-          have heq' : fv = other := beq_iff_eq.mp heq
-          exact hskip (heq' ▸ hother)
-      · intro body
-        have Hskip := LocalContext.mkForall_skip_fresh
-          HtailWF.tr.1 hfresh
-          (selected := tailScope.fvars.reverse) (body := body)
-          (name := name) (type := type) (bi := bi)
-          (by simpa using hskip)
-        rw [hnextFVars body, htailClose]
-        simpa [Hnext, TypeChecker.MLCtx.lctx] using Hskip.symm
-  | @vlet fv name type value type' value' tail ih =>
-    exact H.vlet_false.elim
 
 theorem MLCtxOnlyLams.narrowFVarsSourceOracle
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
@@ -4213,22 +3832,6 @@ theorem LaterParameterScope.olderLift
   rw [← hcontext] at hlift
   simpa [current, VLCtx.toCtx] using hlift
 
-/-- Restrict a translated later-header domain to precisely the cached
-parameters already consumed by this header. -/
-theorem LaterParameterScope.domainTranslation
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {name : Name} {dom body : Expr} {bi : BinderInfo} {dom' : VExpr}
-    (H : LaterParameterScope Hsuffix i (.forallE name dom body bi))
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom') :
-    ∃ sourceDom', TrExprS Hc.venv c.lparams H.older dom sourceDom' := by
-  have hclosed : Closed dom 0 := by
-    have := hdom.closed
-    simpa [Hc.mlctx.noBV] using this
-  exact hdom.weakFV_inv Hc.checking.tr.wf H.olderLift
-    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hclosed H.fvars.1
-
 theorem LaterParameterScope.olderDrop
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth i : Nat}
@@ -4358,255 +3961,6 @@ theorem LaterParameterScope.typing
     exact .fvar hfind
   · exact Hc.mlctx_wf.tr.wf.find?_wf Hc.checking.tr.wf hfind
 
-/-- The successful executable comparison of a later parameter domain with
-its cached local type descends to the narrowed, abstract context. -/
-theorem LaterParameterScope.domainDefEq
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {name : Name} {dom body : Expr} {bi : BinderInfo}
-    {dom' paramTy' : VExpr}
-    (H : LaterParameterScope Hsuffix i (.forallE name dom body bi))
-    (hdom : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx dom dom')
-    (hparamTyEq : paramTy' = H.paramType.lift.liftN
-      (VLCtx.toCtx H.added).length 0)
-    (heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-      dom' paramTy') :
-    ∃ sourceDom',
-      TrExprS Hc.venv c.lparams H.older dom sourceDom' ∧
-      Hc.venv.IsDefEqU c.lparams.length H.older.toCtx
-        sourceDom' H.paramType := by
-  rcases H.domainTranslation hdom with ⟨sourceDom', hsourceDom⟩
-  have hweak := hsourceDom.weakFV Hc.checking.tr.wf.ordered
-    H.olderLift Hc.mlctx_wf.tr.wf
-  have htranslated : Hc.venv.IsDefEqU c.lparams.length
-      Hc.mlctx.vlctx.toCtx dom'
-      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0) :=
-    hdom.uniq Hc.checking.tr.wf
-      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hweak
-  rw [hparamTyEq] at heq
-  have hfull := htranslated.symm.trans Hc.checking.tr.wf
-    Hc.mlctx_wf.tr.wf.toCtx heq
-  have hfull' : Hc.venv.IsDefEqU c.lparams.length
-      Hc.mlctx.vlctx.toCtx
-      (sourceDom'.liftN (VLCtx.toCtx H.added).length.succ 0)
-      (H.paramType.liftN (VLCtx.toCtx H.added).length.succ 0) := by
-    simpa [Nat.succ_eq_add_one, VExpr.liftN_liftN, Nat.add_comm]
-      using hfull
-  exact ⟨sourceDom', hsourceDom,
-    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
-      Hc.mlctx_wf.tr.wf.toCtx
-      H.olderLift.toCtx).1 hfull'⟩
-
-/-- A closed source header starts the later-parameter traversal with an empty
-free-variable scope. -/
-noncomputable def LaterParameterScope.ofNoFVars
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    (hi : i < stats.params.size)
-    (hfvars : FVarsIn (fun _ => False) e) :
-    LaterParameterScope Hsuffix i e :=
-  Classical.choice <| by
-    rcases Hsuffix.fvLiftAt hi with
-      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, hadd,
-        hcontext, hparam, hlift⟩
-    exact ⟨{
-      added := added
-      newer := newer
-      older := older
-      fv := fv
-      deps := deps
-      paramType := paramType
-      parameterDecls := hdecls
-      newerLength := hnewer
-      addedEq := hadd
-      context := hcontext
-      parameter := by
-        simpa [Array.getElem!_eq_getD, hi] using hparam
-      lift := hlift
-      fvars := hfvars.mono fun _ h => False.elim h }⟩
-
-/-- Advance the narrow scope after substituting cached parameter `i` and
-normalizing the resulting body.  The next parameter's older suffix is
-exactly the current cached declaration followed by the current older suffix.
--/
-noncomputable def LaterParameterScope.next
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body normalized : Expr}
-    (H : LaterParameterScope Hsuffix i body)
-    (hi : i + 1 < stats.params.size)
-    (hbelow : FVarsBelow Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) normalized) :
-    LaterParameterScope Hsuffix (i + 1) normalized :=
-  Classical.choice <| by
-    rcases Hsuffix.fvLiftAt hi with
-      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, hadd,
-        hcontext, hparam, hlift⟩
-    let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
-      (some (H.fv, H.deps), .vlam H.paramType)
-    let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
-      (some (fv, deps), .vlam paramType)
-    have hdecomp :
-        H.newer ++ currentEntry :: H.older =
-          (newer ++ [nextEntry]) ++ older := by
-      calc
-        H.newer ++ currentEntry :: H.older =
-            Hsuffix.parameterDecls := H.parameterDecls.symm
-        _ = newer ++ nextEntry :: older := hdecls
-        _ = (newer ++ [nextEntry]) ++ older := by
-          simp [List.append_assoc]
-    have hprefixLength :
-        H.newer.length = (newer ++ [nextEntry]).length := by
-      simp only [List.length_append, List.length_singleton]
-      rw [H.newerLength, hnewer]
-      omega
-    have htail : currentEntry :: H.older = older :=
-      List.append_inj_right hdecomp hprefixLength
-    have hopened : FVarsIn
-        (· ∈ VLCtx.fvars (currentEntry :: H.older))
-        (body.instantiate1 stats.params[i]!) := by
-      rw [Expr.instantiate1_eq, H.parameter]
-      exact H.openedFVars
-    have hnormalized : FVarsIn
-        (· ∈ VLCtx.fvars (currentEntry :: H.older)) normalized :=
-      hbelow _ H.openedUpSet hopened
-    have hnextFVars : FVarsIn (· ∈ VLCtx.fvars older) normalized := by
-      rw [← htail]
-      exact hnormalized
-    exact ⟨{
-      added := added
-      newer := newer
-      older := older
-      fv := fv
-      deps := deps
-      paramType := paramType
-      parameterDecls := hdecls
-      newerLength := hnewer
-      addedEq := hadd
-      context := hcontext
-      parameter := by
-        simpa [Array.getElem!_eq_getD, hi] using hparam
-      lift := hlift
-      fvars := hnextFVars }⟩
-
-/-- The core later-parameter abstraction step.  Translation of the
-executable cached substitution is first restricted to the current-and-older
-parameter suffix, then the cached free variable is turned back into the
-source binder. -/
-theorem LaterParameterScope.uninstantiateEq
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body : Expr} {body' : VExpr}
-    (H : LaterParameterScope Hsuffix i body)
-    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body') :
-    ∃ body'', TrExprS Hc.venv c.lparams
-        ((none, .vlam H.paramType) :: H.older) body body'' ∧
-      Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx
-        body' (body''.liftN (VLCtx.toCtx H.added).length 0) := by
-  have hopened' : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      (body.instantiate1' (.fvar H.fv)) body' := by
-    simpa [Expr.instantiate1_eq, H.parameter] using hopened
-  have hsuffixWF := H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf
-  have hfresh : H.fv ∉ H.older.fvars :=
-    (hsuffixWF.2.1 H.fv H.deps rfl).1
-  have hsourceFresh : FVarsIn (· ≠ H.fv) body :=
-    H.fvars.mono fun fv hfv heq => by
-      subst fv
-      exact hfresh hfv
-  have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
-    have := hopened'.closed
-    simpa [Hc.mlctx.noBV] using this
-  exact hopened'.uninstantiateAfterWeakFV_eq Hc.checking.tr.wf H.lift
-    (.refl Hc.checking.tr.wf.ordered Hc.mlctx_wf.tr.wf)
-    hopenedClosed H.openedFVars hsourceFresh
-
-/-- The core later-parameter abstraction step without exposing the equality
-back to the retained runtime context. -/
-theorem LaterParameterScope.uninstantiate
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body : Expr} {body' : VExpr}
-    (H : LaterParameterScope Hsuffix i body)
-    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body') :
-    ∃ body'', TrExprS Hc.venv c.lparams
-      ((none, .vlam H.paramType) :: H.older) body body'' := by
-  rcases H.uninstantiateEq hopened with ⟨body'', hbody'', _⟩
-  exact ⟨body'', hbody''⟩
-
-/-- Restrict the post-substitution normal form to the consumed-parameter
-suffix and relate it to the reconstructed source body.  This is the semantic
-state transition used by the later-header telescope accumulator. -/
-theorem LaterParameterScope.normalizedBody
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body normalized : Expr} {body' : VExpr}
-    (H : LaterParameterScope Hsuffix i body)
-    (hopened : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body')
-    (hbelow : FVarsBelow Hc.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) normalized)
-    (hnormalized : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      normalized body') :
-    ∃ sourceBody' normalized',
-      TrExprS Hc.venv c.lparams
-        ((none, .vlam H.paramType) :: H.older) body sourceBody' ∧
-      TrExprS Hc.venv c.lparams
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
-        normalized normalized' ∧
-      Hc.venv.IsDefEqU c.lparams.length
-        ((H.paramType :: H.older.toCtx)) sourceBody' normalized' := by
-  rcases H.uninstantiateEq hopened with
-    ⟨sourceBody', hsourceBody, hopenedEq⟩
-  rcases hnormalized with ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
-  have hopenedFVars : FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      (body.instantiate1 stats.params[i]!) := by
-    rw [Expr.instantiate1_eq, H.parameter]
-    exact H.openedFVars
-  have hnormalizedFVars : FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      normalized :=
-    hbelow _ H.openedUpSet hopenedFVars
-  have hnormalizedClosed : Closed normalized 0 := by
-    have := hnormalizedFull.closed
-    simpa [Hc.mlctx.noBV] using this
-  rcases hnormalizedFull.weakFV_inv Hc.checking.tr.wf H.lift
-      (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
-      hnormalizedClosed hnormalizedFVars with
-    ⟨normalized', hnormalized'⟩
-  have hnormalizedWeak := hnormalized'.weakFV
-    Hc.checking.tr.wf.ordered H.lift Hc.mlctx_wf.tr.wf
-  have hnormalizedUniq := hnormalizedFull.uniq Hc.checking.tr.wf
-    (.refl Hc.checking.tr.wf Hc.mlctx_wf.tr.wf) hnormalizedWeak
-  have hfull : Hc.venv.IsDefEqU c.lparams.length
-      Hc.mlctx.vlctx.toCtx
-      (sourceBody'.liftN (VLCtx.toCtx H.added).length 0)
-      (normalized'.liftN (VLCtx.toCtx H.added).length 0) :=
-    hopenedEq.symm.trans Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
-      (hnormalizeEq.symm.trans Hc.checking.tr.wf
-        Hc.mlctx_wf.tr.wf.toCtx hnormalizedUniq)
-  have hnarrow : Hc.venv.IsDefEqU c.lparams.length
-      (VLCtx.toCtx
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      sourceBody' normalized' :=
-    (VEnv.IsDefEqU.weakN_iff Hc.checking.tr.wf
-      Hc.mlctx_wf.tr.wf.toCtx H.lift.toCtx).1 hfull
-  exact ⟨sourceBody', normalized', hsourceBody, hnormalized',
-    by simpa [VLCtx.toCtx] using hnarrow⟩
-
-/-- Adding a common parameter weakens every cached parameter translation and
-appends the newly generated free variable, whose abstract image is `bvar 0`.
-This is the exact state update performed by `loopType` on the first header. -/
 theorem ParameterCachePrefix.push
     (Hc : ContextWF c)
     (H : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx stats done 0)
@@ -5130,6 +4484,100 @@ theorem firstParameter.cacheSynthesisWF
     (Hsuffix.push Hc hprefix Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType)
     Hsynthesis' (by rfl)
 
+/-- A closed source header starts the later-parameter traversal with an empty
+free-variable scope. -/
+noncomputable def LaterParameterScope.ofNoFVars
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    (hi : i < stats.params.size)
+    (hfvars : FVarsIn (fun _ => False) e) :
+    LaterParameterScope Hsuffix i e :=
+  Classical.choice <| by
+    rcases Hsuffix.fvLiftAt hi with
+      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, hadd,
+        hcontext, hparam, hlift⟩
+    exact ⟨{
+      added := added
+      newer := newer
+      older := older
+      fv := fv
+      deps := deps
+      paramType := paramType
+      parameterDecls := hdecls
+      newerLength := hnewer
+      addedEq := hadd
+      context := hcontext
+      parameter := by
+        simpa [Array.getElem!_eq_getD, hi] using hparam
+      lift := hlift
+      fvars := hfvars.mono fun _ h => False.elim h }⟩
+
+/-- Advance the narrow scope after substituting cached parameter `i` and
+normalizing the resulting body.  The next parameter's older suffix is
+exactly the current cached declaration followed by the current older suffix.
+-/
+noncomputable def LaterParameterScope.next
+    {c : AddInductive.Context} {Hc : ContextWF c}
+    {stats : AddInductive.InductiveStats} {depth i : Nat}
+    {Hsuffix : ParameterContextSuffix Hc stats depth}
+    {body normalized : Expr}
+    (H : LaterParameterScope Hsuffix i body)
+    (hi : i + 1 < stats.params.size)
+    (hbelow : FVarsBelow Hc.mlctx.vlctx
+      (body.instantiate1 stats.params[i]!) normalized) :
+    LaterParameterScope Hsuffix (i + 1) normalized :=
+  Classical.choice <| by
+    rcases Hsuffix.fvLiftAt hi with
+      ⟨added, newer, older, fv, deps, paramType, hdecls, hnewer, hadd,
+        hcontext, hparam, hlift⟩
+    let currentEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+      (some (H.fv, H.deps), .vlam H.paramType)
+    let nextEntry : Option (FVarId × List FVarId) × VLocalDecl :=
+      (some (fv, deps), .vlam paramType)
+    have hdecomp :
+        H.newer ++ currentEntry :: H.older =
+          (newer ++ [nextEntry]) ++ older := by
+      calc
+        H.newer ++ currentEntry :: H.older =
+            Hsuffix.parameterDecls := H.parameterDecls.symm
+        _ = newer ++ nextEntry :: older := hdecls
+        _ = (newer ++ [nextEntry]) ++ older := by
+          simp [List.append_assoc]
+    have hprefixLength :
+        H.newer.length = (newer ++ [nextEntry]).length := by
+      simp only [List.length_append, List.length_singleton]
+      rw [H.newerLength, hnewer]
+      omega
+    have htail : currentEntry :: H.older = older :=
+      List.append_inj_right hdecomp hprefixLength
+    have hopened : FVarsIn
+        (· ∈ VLCtx.fvars (currentEntry :: H.older))
+        (body.instantiate1 stats.params[i]!) := by
+      rw [Expr.instantiate1_eq, H.parameter]
+      exact H.openedFVars
+    have hnormalized : FVarsIn
+        (· ∈ VLCtx.fvars (currentEntry :: H.older)) normalized :=
+      hbelow _ H.openedUpSet hopened
+    have hnextFVars : FVarsIn (· ∈ VLCtx.fvars older) normalized := by
+      rw [← htail]
+      exact hnormalized
+    exact ⟨{
+      added := added
+      newer := newer
+      older := older
+      fv := fv
+      deps := deps
+      paramType := paramType
+      parameterDecls := hdecls
+      newerLength := hnewer
+      addedEq := hadd
+      context := hcontext
+      parameter := by
+        simpa [Array.getElem!_eq_getD, hi] using hparam
+      lift := hlift
+      fvars := hnextFVars }⟩
+
 /-- Complete cached-parameter step of a later mutual header.  The executable
 compares the domain with the cached parameter type in the checker context of
 the earlier parameters, and normalizes the instantiated body in the checker
@@ -5261,6 +4709,8 @@ theorem laterParameter.checkedScopeWF
       rw [hchk₁] at hnormalized₀
       obtain ⟨normalized', hnormalized', hnormEq⟩ := hnormalized₀
       exact ⟨bodyC, normalized', hbodyC, hnormalized', hnormEq.symm⟩
+
+
 
 /-- Recursive verifier for the first mutual header.  It follows the concrete
 fuel recursion and carries both the parameter cache and the synthesized

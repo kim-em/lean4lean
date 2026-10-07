@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.QuotPatterns
 namespace Lean4Lean.VEnv
 open VExpr
 set_option maxHeartbeats 1000000
-private theorem quotient_walk (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+theorem quotient_walk (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hr : QuotRegistered env) (hu : u.WF U) (hv : v.WF U)
     (H : VExpr.WF env U Γ (mkApps (.const ``Quot.lift [u,v])
       [alpha, relation, beta, fn, compat, major])) :

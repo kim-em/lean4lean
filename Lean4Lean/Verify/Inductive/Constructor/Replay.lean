@@ -882,6 +882,32 @@ theorem recursorDeclarationAbstractLevels_length
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
+/-- A large elimination universe is a fresh parameter: it translates to the first
+abstract parameter, and the abstract source universes do not mention it. -/
+theorem recursorDeclarationAbstractLevels_freeTarget
+    (Helim : AddInductive.AdmissibleElimLevel lparams elimLevel) (hne : elimLevel ≠ .zero)
+    (htarget : VLevel.ofLevel (AddInductive.getRecLevelParams elimLevel lparams) elimLevel =
+      some target) :
+    target = .param 0 ∧ ∀ l ∈ recursorDeclarationAbstractLevels lparams Helim,
+      ∀ (ls : List VLevel) (u : VLevel), l.inst (ls.set 0 u) = l.inst ls := by
+  cases elimLevel with
+  | zero => exact absurd rfl hne
+  | param fresh =>
+    refine ⟨?_, ?_⟩
+    · simp [AddInductive.getRecLevelParams, VLevel.ofLevel] at htarget
+      exact htarget.symm
+    · intro l hl ls u
+      simp only [recursorDeclarationAbstractLevels, List.mem_map, VLevel.params,
+        List.mem_range] at hl
+      obtain ⟨_, ⟨i, _, rfl⟩, rfl⟩ := hl
+      rename_i hi
+      simp only [VLevel.prependShift, VLevel.inst, List.getD_eq_getElem?_getD,
+        List.getElem?_map, List.getElem?_range hi, Option.map_some, Option.getD_some,
+        List.getElem?_set]
+      simp
+  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
+    simp [AddInductive.AdmissibleElimLevel] at Helim
+
 theorem VConstVal.type_instL_recursorDeclarationAbstractLevels
     (Hwf : ctorVal.toVConstant.WF env)
     (huvars : ctorVal.uvars = lparams.length)
@@ -1644,21 +1670,6 @@ theorem RecursorLaterParameterScope.olderLift
   rw [← hcontext] at hlift
   simpa [current, VLCtx.toCtx] using hlift
 
-theorem RecursorLaterParameterScope.domainTranslation
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams}
-    {Hsuffix : RecursorParameterContextSuffix R stats depth}
-    {name : Name} {dom body : Expr} {bi : BinderInfo} {dom' : VExpr}
-    (H : RecursorLaterParameterScope Hsuffix i
-      (.forallE name dom body bi))
-    (hdom : TrExprS R.venv recLparams R.mlctx.vlctx dom dom') :
-    ∃ sourceDom', TrExprS R.venv recLparams H.older dom sourceDom' := by
-  have hclosed : Closed dom 0 := by
-    have h := hdom.closed
-    simpa [R.mlctx.noBV] using h
-  exact hdom.weakFV_inv R.checking.tr.wf H.olderLift
-    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hclosed H.fvars.1
-
 /-- Recover the cached parameter's concrete type and its recursor-universe
 translation from the exact generated local context. -/
 theorem RecursorLaterParameterScope.typing
@@ -1803,114 +1814,6 @@ theorem RecursorLaterParameterScope.nextOlder
   simpa only [currentEntry] using
     List.append_inj_right hdecomp hprefixLength
 
-
-/-- Reconstruct the source binder after substituting its cached concrete
-parameter in a universe-rebased recursor context, retaining the equality back
-in the full executable context. -/
-theorem RecursorLaterParameterScope.uninstantiateEq
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams}
-    {Hsuffix : RecursorParameterContextSuffix R stats depth}
-    {body : Expr} {body' : VExpr}
-    (H : RecursorLaterParameterScope Hsuffix i body)
-    (hopened : TrExprS R.venv recLparams R.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body') :
-    ∃ body'', TrExprS R.venv recLparams
-        ((none, .vlam H.paramType) :: H.older) body body'' ∧
-      R.venv.IsDefEqU recLparams.length R.mlctx.vlctx.toCtx
-        body' (body''.liftN (VLCtx.toCtx H.added).length 0) := by
-  have hopened' : TrExprS R.venv recLparams R.mlctx.vlctx
-      (body.instantiate1' (.fvar H.fv)) body' := by
-    simpa [Expr.instantiate1_eq, H.parameter] using hopened
-  have hsuffixWF := H.lift.wf R.checking.tr.wf R.mlctx_wf.tr.wf
-  have hfresh : H.fv ∉ H.older.fvars :=
-    (hsuffixWF.2.1 H.fv H.deps rfl).1
-  have hsourceFresh : FVarsIn (· ≠ H.fv) body :=
-    H.fvars.mono fun fv hfv heq => by
-      subst fv
-      exact hfresh hfv
-  have hopenedClosed : Closed (body.instantiate1' (.fvar H.fv)) 0 := by
-    have hclosed := hopened'.closed
-    simpa [R.mlctx.noBV] using hclosed
-  exact hopened'.uninstantiateAfterWeakFV_eq R.checking.tr.wf H.lift
-    (.refl R.checking.tr.wf.ordered R.mlctx_wf.tr.wf)
-    hopenedClosed H.openedFVars hsourceFresh
-
-theorem RecursorLaterParameterScope.uninstantiate
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams}
-    {Hsuffix : RecursorParameterContextSuffix R stats depth}
-    {body : Expr} {body' : VExpr}
-    (H : RecursorLaterParameterScope Hsuffix i body)
-    (hopened : TrExprS R.venv recLparams R.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body') :
-    ∃ body'', TrExprS R.venv recLparams
-      ((none, .vlam H.paramType) :: H.older) body body'' := by
-  rcases H.uninstantiateEq hopened with ⟨body'', hbody'', _⟩
-  exact ⟨body'', hbody''⟩
-
-/-- Restrict a normalized cached-parameter substitution to the exact
-consumed recursor suffix and relate it to the reconstructed source body. -/
-theorem RecursorLaterParameterScope.normalizedBody
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams}
-    {Hsuffix : RecursorParameterContextSuffix R stats depth}
-    {body normalized : Expr} {body' : VExpr}
-    (H : RecursorLaterParameterScope Hsuffix i body)
-    (hopened : TrExprS R.venv recLparams R.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) body')
-    (hbelow : FVarsBelow R.mlctx.vlctx
-      (body.instantiate1 stats.params[i]!) normalized)
-    (hnormalized : TrExpr R.venv recLparams R.mlctx.vlctx
-      normalized body') :
-    ∃ sourceBody' normalized',
-      TrExprS R.venv recLparams
-        ((none, .vlam H.paramType) :: H.older) body sourceBody' ∧
-      TrExprS R.venv recLparams
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older)
-        normalized normalized' ∧
-      R.venv.IsDefEqU recLparams.length
-        (H.paramType :: H.older.toCtx) sourceBody' normalized' := by
-  rcases H.uninstantiateEq hopened with
-    ⟨sourceBody', hsourceBody, hopenedEq⟩
-  rcases hnormalized with ⟨normalizedFull, hnormalizedFull, hnormalizeEq⟩
-  have hopenedFVars : FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      (body.instantiate1 stats.params[i]!) := by
-    rw [Expr.instantiate1_eq, H.parameter]
-    exact H.openedFVars
-  have hnormalizedFVars : FVarsIn
-      (· ∈ VLCtx.fvars
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      normalized :=
-    hbelow _ H.openedUpSet hopenedFVars
-  have hnormalizedClosed : Closed normalized 0 := by
-    have hclosed := hnormalizedFull.closed
-    simpa [R.mlctx.noBV] using hclosed
-  rcases hnormalizedFull.weakFV_inv R.checking.tr.wf H.lift
-      (.refl R.checking.tr.wf R.mlctx_wf.tr.wf)
-      hnormalizedClosed hnormalizedFVars with
-    ⟨normalized', hnormalized'⟩
-  have hnormalizedWeak := hnormalized'.weakFV
-    R.checking.tr.wf.ordered H.lift R.mlctx_wf.tr.wf
-  have hnormalizedUniq := hnormalizedFull.uniq R.checking.tr.wf
-    (.refl R.checking.tr.wf R.mlctx_wf.tr.wf) hnormalizedWeak
-  have hfull : R.venv.IsDefEqU recLparams.length
-      R.mlctx.vlctx.toCtx
-      (sourceBody'.liftN (VLCtx.toCtx H.added).length 0)
-      (normalized'.liftN (VLCtx.toCtx H.added).length 0) :=
-    hopenedEq.symm.trans R.checking.tr.wf R.mlctx_wf.tr.wf.toCtx
-      (hnormalizeEq.symm.trans R.checking.tr.wf
-        R.mlctx_wf.tr.wf.toCtx hnormalizedUniq)
-  have hnarrow : R.venv.IsDefEqU recLparams.length
-      (VLCtx.toCtx
-        ((some (H.fv, H.deps), .vlam H.paramType) :: H.older))
-      sourceBody' normalized' :=
-    (VEnv.IsDefEqU.weakN_iff R.checking.tr.wf
-      R.mlctx_wf.tr.wf.toCtx H.lift.toCtx).1 hfull
-  exact ⟨sourceBody', normalized', hsourceBody, hnormalized',
-    by simpa [VLCtx.toCtx] using hnarrow⟩
 
 /-- Application statistics interpreted under recursor universes.  Unlike
 `ValidAppStatsWF`, this structure does not claim that the recursor universe

@@ -2376,23 +2376,6 @@ theorem abstractForallContext.isUniqueCtx
     (TrExprS.IsUniqueCtx.anonymousLams
       (left := left.reverse) (right := right.reverse) (by simp [hlen]))
 
-/-- Remove a free-variable-only context prefix when the translated source
-uses only variables from the retained suffix.  The target is intentionally
-existential: deleting locals changes de Bruijn positions, and syntax-directed
-translation computes the uniquely rebased target in the smaller scope. -/
-theorem TrExprS.dropFVarPrefix
-    (henv : env.WF)
-    (hscope : (added ++ suffix).WF env Us.length)
-    (hnoBV : (added ++ suffix).NoBV)
-    (H : TrExprS env Us (added ++ suffix) source target)
-    (hfvars : FVarsIn (· ∈ suffix.fvars) source) :
-    ∃ target', TrExprS env Us suffix source target' := by
-  have hadded : added.NoBV :=
-    VLCtx.NoBV.leftOfAppend added suffix hnoBV
-  let W := VLCtx.FVLift.to_append suffix hadded
-  have hclosed : Closed source := hnoBV ▸ H.closed
-  exact H.weakFV_inv henv W (.refl henv hscope) hclosed hfvars
-
 /-- Locate the first retained free-variable declaration below an anonymous
 forall prefix and replace it by the corresponding bound-variable declaration.
 The source and target contexts have definitionally identical typing lists;

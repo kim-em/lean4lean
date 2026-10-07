@@ -259,3 +259,158 @@ saturated_of_hasType ~60 on top.
   indexed NormalEq, the strip/confluence proof, or Injectivity-class
   separation lemmas that do not exist yet.
 * `lake build` (675 jobs) passes at 9db09de.
+
+## 5. Confluence step 1 (agent/verify-inductives-cr, 2026-10-06)
+
+Normal equality is re-indexed: `NormalEqN : Nat → List VExpr → VExpr →
+VExpr → Prop` with leaves at bound 0, congruences at one plus their
+premises, and `etaL`/`etaR`/`etaBoth` at two; `NormalEq Γ a b := ∃ n,
+NormalEqN n Γ a b`, with constructor-named theorems so consumers are
+unchanged. `etaBoth` relates two functions whose applications to a fresh
+variable are related. Weakening, substitution and context conversion
+preserve the bound; `NormalEqN.trans` recurses on the sum of the bounds, and
+the eta/eta case closes by `etaBoth`. `NormalEq.weakN_inv_DFC`,
+`NormalEq.weakN_iff`, `ParRed.weakN_inv`, `hasType_app_bvar0` and the
+`ParRedExt` beta machinery are deleted; ChurchRosser.lean has no
+`weakN_iff` reference. The ParRed-only confluence (`CRDefEq`,
+`ParRedS.church_rosser`) is retired: `etaBoth` needs `FullStep.funEta`.
+
+In FullReduction.lean:
+
+* `NormalEqN.spine_expose`: a term related to a rigid-headed spine (applied
+  to related extra arguments) is a proof, reduces to a spine with an
+  equivalent head and related arguments, or reduces to a lambda whose body
+  is a smaller comparison with the eta expansion of such a spine.
+* `NormalEq.parRed` is proved for every parallel step through
+  `SpineTransport` (structural on the step, at every renaming and extra
+  spine, strong induction on the bound). `SpineTransport.redex` handles
+  native iota and generated case redexes. This removes
+  `NormalEq.headParallel`.
+* `NormalEqN.fullStep` uses strong induction on the bound; constant-headed
+  rules (native prefix unfolding, quotient lifting) go through
+  `NormalEqN.fullStep_rigidRule`, projection iota through
+  `NormalEqN.fullStep_projIota`. The three `NormalEq.fullStep` sorries and
+  the distinct-family case of `FullStep.strip` are closed.
+
+After the Phase 0 merge these separation facts are theorems (commits
+f14b82d8, efb7f95b, fb9b570b), and no class hypothesis remains:
+
+* rigid head against Pi and distinct rigid heads: `IsDefEqU.rigidApp_forallE_inv`,
+  `IsDefEqU.rigidApp_ne` (from `VEnv.WF.headInversion`).
+* case majors: `MatchedCaseStep.major_not_pi`, from the declaration-history
+  invariant extended with `VEnv.CtorResultRigid` (the constructor major of
+  every installed native equation returns a rigid family) and
+  `WF.case_family_head_rigid` (the family head of every registered case owner
+  with a rule is rigid; containers are traced through their installed
+  equations).
+* native majors: `Params.major_not_pi` (major domain of the restored recursor
+  type, `NativeRecursorRegistered.family_head_rigid`; quotient major `Quot`).
+  `Params.pat_recursor` now also records that an iota pattern's owner has a
+  constructor.
+* proof majors: `Params.major_proof`; small eliminators by
+  `NativeRecursorRegistered.result_sort`, large ones by the nonzero
+  source-level check and `NativeRecursorRegistered.major_not_proof`.
+
+Remaining at that point (now closed, see §6): `FullStep.strip` for the core, delta, quotient, projection iota
+and congruence steps. Strip follows from a local property D' (for two steps
+from one source, one side closes in at most one step, the other in a
+reduction, modulo normal equality) together with `NormalEq.fullReduction`,
+by induction on the development. D' fails for `FullStep` as defined because
+its delta, quotient, projection iota and eta steps do not reduce their
+subterms in parallel: substituting a stepped argument into a stepped body
+need not be a single step. The route is a fully parallel full-step relation
+between `FullStep` and `FullReduction`, its substitution lemma, and the
+critical pairs, including native iota against native prefix unfolding at
+the same recursor head.
+
+`lake env lean scripts/InductiveAudit.lean`: `NormalEq.parRed` depends on
+`sort_inv`, `forallE_inv_stratified`, `sort_forallE_inv` and
+`fieldType_inv_stratified`; `IsDefEq.full_church_rosser` on these and
+`FullStep.strip`; neither depends on `IsDefEqU.weakN_iff`.
+
+## 6. FullStep.strip by levelled local diagrams
+
+`FullStep.strip`, `FullReduction.church_rosser` and `IsDefEq.full_church_rosser`
+are proved without `sorry` (`Theory/Typing/LevelledReduction.lean` and
+`Theory/Typing/FullChurchRosser.lean`). Their only remaining `sorryAx`
+dependencies are `WF.headInversion` and `IsDefEqU.weakN_iff`.
+
+### The obstacle to a strongly closed parallel relation
+
+A fully parallel relation P with FullStep ⊆ P ⊆ FullReduction whose peaks close
+in at most one step each does not exist, because `FullStep.funEta` may expand
+the function of an application. Counterexample: in an environment with `Nat`,
+let `f := Nat.rec (motive := fun _ => Nat) z s` with `z : Nat` a variable, and
+`t := app f Nat.zero`. Then `t → z` by native iota, and
+`t → app (lam Nat (app f.lift #0)) Nat.zero` by
+`FullStep.app (FullStep.funEta _) FullStep.rfl`. Every one-step reduct of the
+latter (parallel beta reduces the body before substitution, so iota cannot
+fire) is an application or a lambda, and `z` only reduces to itself; no such
+pair is `NormalEq` (`Nat` is not a proposition). The peak closes in two steps
+(beta, then iota).
+
+Native iota and native prefix unfolding do not overlap: `NativeDeltaRule`
+requires a large target with source level equivalent to zero, while the native
+iota guard for large targets requires the source level to be nonzero.
+
+### Why not restrict `funEta` to non-head positions (route (a))
+
+The transports of computation through normal equality produce head
+expansions. `NormalEqN.beta_aux` (`FullReduction.lean`) matches a beta step on
+one side of a normal equality whose eta derivation ends in `etaBoth` by
+expanding the other side with `FullStep.funEta`, and through the `appDF` case
+that side is the function of an application. `NormalEq.parRed`,
+`NormalEq.fullStep` and the final transport in `FullReduction.church_rosser`
+all go through it. Restricting `funEta` would require redesigning these
+transports; the levelled route leaves `FullStep` and the transports unchanged.
+
+### Route taken: levelled local diagrams (route (c))
+
+`Theory/LevelledConfluence.lean` proves an abstract criterion in the style of
+decreasing diagrams: if the relations below level n are confluent, two level-n
+steps close by lower steps around at most one level-n step on each side, and a
+level-n step against a lower step closes by lower steps on its own side and by
+at most one level-n step followed by lower steps on the other side, then the
+relations up to level n are confluent. The proof counts level-n steps; no
+multiset ordering is needed.
+
+`FullStep` is split into four parallel relations (`LevelStep`):
+
+0. `NormalEq₀`: normal equality without eta (structural, universe levels,
+   proof irrelevance), obtained by indexing `NormalEqN` by an eta flag;
+1. `ParRed`: beta, native and registered schema patterns;
+2. `DeltaPar`: parallel native prefix unfolding, quotient prefix unfolding and
+   projection of constructor applications;
+3. `EtaPar`: parallel function and structure eta expansion.
+
+Eta sits above beta, as the counterexample requires: the expansion side of the
+peak may take any number of lower steps. Every `FullStep` is a single `UpStep`
+below level 4 (`FullStep.upStep`), and `Below.full` turns a levelled reduction
+back into a `FullReduction` followed by `NormalEq`, which yields
+`FullStep.strip`.
+
+The local diagrams are `ParRed.church_rosser` for `NormalEqF false` (level 1),
+`DeltaPar.peak` and `DeltaPar.parRed_peak` (level 2), `EtaPar.peak`, `EtaPar.deltaPar_peak` and
+`EtaPar.parRed_peak` (level 3), and the `normalEq₀_mirror` lemmas against
+level 0. The eta lemmas use induction on the size of the source; root eta
+expansions are peeled off by `Join3.fun_left` and `Join3.struct_left`, and a
+root computation meeting an expanded head or major is undone by the
+`collapse_*` lemmas with a lower beta or projection step.
+
+### New `Params` assumptions
+
+The prefix computation diagrams use seven new fields of `Params`
+(`ChurchRosser.lean`); `Params` has no instance in the repository, so no
+instance obligations change:
+
+* `pat_const_native`: definition patterns never unfold a native recursor or
+  `Quot.lift` (their prefixes compute by `DeltaPar`, so the two must not
+  overlap);
+* `recursorData_quot`: `Quot.lift` is not a registered native recursor;
+* `pat_ctor_rigid`, `projection_ctor_rigid`: constructors of native iota
+  patterns and structure constructors are rigid heads;
+* `pat_struct_major`, `schema_struct_major`: a native iota or case major of
+  structure type is a saturated application of the structure constructor;
+* `pat_iota_params`: native iota at a structure constructor reads only the
+  fields, not the parameters, so a structure eta expansion of the major
+  collapses by projection.

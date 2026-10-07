@@ -376,7 +376,17 @@ theorem CompletedRecursorConstruction.consumedInstance_admissible
       have : (H.consumedInstance s).targetLevel = .zero := Option.some.inj ht.symm
       rw [this]
       rfl
-    · exact .inr (.inr (H.consumedSingletonElimination hparams hfam hsize hfields
-        (recursorDeclarationAbstractLevels_wf H.elimLevelAdmissible) hsingleton))
+    · by_cases hz : H.elimLevel = .zero
+      · apply Or.inr; apply Or.inl
+        have ht := H.consumedInstance_target s
+        rw [hz] at ht
+        have : (H.consumedInstance s).targetLevel = .zero := Option.some.inj ht.symm
+        rw [this]
+        rfl
+      · obtain ⟨htarget, hfree⟩ := recursorDeclarationAbstractLevels_freeTarget
+          H.elimLevelAdmissible hz (H.consumedInstance_target s)
+        exact .inr (.inr ⟨H.consumedSingletonElimination hparams hfam hsize hfields
+          (recursorDeclarationAbstractLevels_wf H.elimLevelAdmissible) hsingleton,
+          0, htarget, hfree⟩)
 
 end Lean4Lean.VerifyInductive

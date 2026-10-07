@@ -1200,58 +1200,5 @@ theorem formationCoreAndClosure
         rcases Hresult with ⟨R, hclosedOut⟩
         exact ⟨headerEnv, Hheaders, R, hclosedOut⟩
 
-/-- Formation/core specialization of `formationCoreAndClosure`, deriving the
-metadata cardinality needed for mutual closure from the independently
-translated headers. -/
-theorem AddInductive.formationCore.closedWF
-    {envTypes : VEnv}
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (Hdecl : TrInductDeclHeaders Hc.venv c.lparams numParams
-      indTypes.toList isUnsafe decl envTypes)
-    (Hmaterialized :
-      checkInductiveTypes.loopInd.MaterializedHeaderResult
-        Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
-    (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
-      (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
-        isUnsafe c.lparams).toList,
-      ¬ Kernel.Environment.primitives.contains info.name)
-    (hconsume : ConsumeTypeAnnotationsCompat)
-    (hunsafe : isUnsafe = true → decl.isUnsafe = true)
-    (hnprimCtors : c.allowPrimitive = true →
-      ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
-      ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
-    ((AddInductive.declareInductiveTypes stats numParams indTypes numNested
-      isUnsafe >>= fun headerEnv =>
-        AddInductive.withEnv headerEnv do
-          AddInductive.checkConstructors indTypes stats isUnsafe
-          AddInductive.declareConstructors stats indTypes isUnsafe) c).WF
-      fun outEnv => ∃ headerEnv : Environment,
-        ∃ Hheaders : DeclaredHeadersResult c stats decl numParams isUnsafe
-          depth Hc.venv indTypes headerEnv,
-        ∃ _ : ConstructorPhasesResult Hheaders outEnv,
-          MutualInductivesClosed outEnv := by
-  have htypesLength : indTypes.size = decl.types.length := by
-    simpa using
-      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hdecl.types
-  have hsize : stats.nindices.size = indTypes.size := by
-    rw [Array.size_eq_length_toList, Hmaterialized.indices, List.length_map]
-    exact htypesLength.symm
-  have Hheaders := AddInductive.declareInductiveTypes.headersWF Hc Hdecl
-    Hmaterialized hvisible hnprimTypes
-  have HheadersClosed := declareInductiveTypes_headersAndClosure stats
-    numParams indTypes numNested isUnsafe c Hheaders
-    Hc.checking.tr.map_wf Hclosed hsize
-  apply formationCoreAndClosure stats numParams indTypes numNested isUnsafe c
-    HheadersClosed
-  intro headerEnv Hheader
-  exact AddInductive.constructorPhases.WF Hheader hconsume
-    Hheader.materializedAvailableLiteralDisjoint
-    hunsafe hvisible hnprimCtors hlparams
-
-
 end VerifyInductive
 end Lean4Lean

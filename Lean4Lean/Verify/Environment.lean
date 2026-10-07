@@ -491,3 +491,54 @@ theorem addDecl.WFCanonicalEq
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
   (addDecl.WF wf hcorner decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', hEq.mono hle, hle⟩
+
+/-! ### Canonical equality -/
+
+/-- Canonical equality (`VEnv.HasCanonicalEq`) at every safety level. -/
+def VEnvs.HasCanonicalEq (ves : VEnvs) : Prop :=
+  ∀ safety, (ves.venv safety).HasCanonicalEq
+
+theorem VEnvs.HasCanonicalEq.mono {ves ves' : VEnvs} (h : ves.HasCanonicalEq)
+    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety) : ves'.HasCanonicalEq :=
+  fun safety => (h safety).mono (hle safety)
+
+/-- `HasCanonicalEq` contains the `Eq` clause of `CanonicalEqEnvs`. -/
+theorem VEnvs.HasCanonicalEq.canonicalEqEnvs {ves : VEnvs} (h : ves.HasCanonicalEq) :
+    VerifyInductive.CanonicalEqEnvs ves :=
+  fun safety => (h safety).quotReady
+
+/-- The top-level preservation theorem in the canonical-`Eq` formulation.  On
+this branch the checker runs in scoped contexts, so no strengthening
+hypothesis is needed; the one open hypothesis is `ProjectionWalkCorner`.
+Canonical equality is not used by the proof and is retained so that the
+statement matches the mainline's. -/
+theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (hcorner : ProjectionWalkCorner)
+    (_heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  addDecl.WF wf hcorner decl hdecl
+
+/-- Iterable form of `addDecl.WF_of_canonicalEq`: canonical equality is
+preserved by the output environments, so the theorem applies again to the
+next declaration of a replay. -/
+theorem addDecl.WFHasCanonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+    (hcorner : ProjectionWalkCorner)
+    (heq : ves.HasCanonicalEq) (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧ ves'.HasCanonicalEq ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  (addDecl.WF_of_canonicalEq wf hcorner heq decl hdecl).mono fun _ ⟨ves', wf', hle⟩ =>
+    ⟨ves', wf', heq.mono hle, hle⟩
+
+/-- `addDecl.WFCanonicalEq` in the canonical-`Eq` formulation; the
+`CanonicalEqEnvs` invariant follows from `HasCanonicalEq`. -/
+theorem addDecl.WFCanonicalEq_of_canonicalEq {env : Environment} {ves : VEnvs}
+    (wf : ves.WF env) (hcorner : ProjectionWalkCorner) (heq : ves.HasCanonicalEq)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WF env' ∧
+        VerifyInductive.CanonicalEqEnvs ves' ∧
+        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
+  addDecl.WFCanonicalEq wf hcorner heq.canonicalEqEnvs decl hdecl

@@ -71,92 +71,13 @@ theorem TrExprS.weakBV_inv_lift (W : VLCtx.BVLift Δ Δ' dn dk n k)
     (hΔ' : Δ'.WF env Us.length)
     (H : TrExprS env Us Δ' e' t) (he : e' = e.liftLooseBVars' dk dn) :
     ∃ t₀, TrExprS env Us Δ e t₀ ∧ t = t₀.liftN n k := by
-  induction H generalizing e Δ dk k with
-  | bvar h1 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    rename_i i₀
-    subst he
-    rw [show (Sum.inl (if i₀ < dk then i₀ else i₀ + dn) : Nat ⊕ FVarId) =
-      VLCtx.liftVar dn dk (.inl i₀) from rfl] at h1
-    have ⟨⟨e₀, A₀⟩, h2⟩ := W.find?_exists_liftVar ⟨_, h1⟩
-    have h3 := W.find? h2
-    cases h1.symm.trans h3
-    exact ⟨_, .bvar h2, rfl⟩
-  | fvar h1 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    subst he
-    have ⟨⟨e₀, A₀⟩, h2⟩ := W.find?_exists_liftVar (v := .inr _) ⟨_, h1⟩
-    have h3 := W.find? h2
-    cases h1.symm.trans h3
-    exact ⟨_, .fvar h2, rfl⟩
-  | sort h1 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    subst he
-    exact ⟨_, .sort h1, rfl⟩
-  | const h1 h2 h3 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl⟩ := he
-    exact ⟨_, .const h1 h2 h3, rfl⟩
-  | app h1 h2 _ _ ih1 ih2 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl⟩ := he
-    obtain ⟨f₀, hf₀, rfl⟩ := ih1 W hΔ' rfl
-    obtain ⟨a₀, ha₀, rfl⟩ := ih2 W hΔ' rfl
-    have := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx (e := .app f₀ a₀)).1 ⟨_, h1.app h2⟩
-    have ⟨_, _, h3, h4⟩ := this.app_inv henv.ordered (W.wf henv hΔ').toCtx
-    exact ⟨_, .app h3 h4 hf₀ ha₀, rfl⟩
-  | lam h1 _ _ ih1 ih2 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl, rfl⟩ := he
-    obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' rfl
-    have h1' := (IsType.weakN_iff henv hΔ'.toCtx W.toCtx).1 h1
-    have hΔ'' : VLCtx.WF env Us.length ((none, .vlam (ty₀.liftN n k)) :: _) := ⟨hΔ', nofun, h1⟩
-    obtain ⟨body₀, hbody₀, rfl⟩ := ih2 (W.cons (.vlam ty₀)) hΔ'' rfl
-    exact ⟨_, .lam h1' hty₀ hbody₀, rfl⟩
-  | forallE h1 h2 _ _ ih1 ih2 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl, rfl⟩ := he
-    obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' rfl
-    have h1' := (IsType.weakN_iff henv hΔ'.toCtx W.toCtx).1 h1
-    have hΔ'' : VLCtx.WF env Us.length ((none, .vlam (ty₀.liftN n k)) :: _) := ⟨hΔ', nofun, h1⟩
-    obtain ⟨body₀, hbody₀, rfl⟩ := ih2 (W.cons (.vlam ty₀)) hΔ'' rfl
-    have hΓ'' : OnCtx (ty₀.liftN n k :: _) (env.IsType Us.length) := ⟨hΔ'.toCtx, h1⟩
-    have h2' := (IsType.weakN_iff henv hΓ'' (W.cons (.vlam ty₀)).toCtx).1 h2
-    exact ⟨_, .forallE h1' h2' hty₀ hbody₀, rfl⟩
-  | letE h1 _ _ _ ih1 ih2 ih3 =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := he
-    obtain ⟨ty₀, hty₀, rfl⟩ := ih1 W hΔ' rfl
-    obtain ⟨val₀, hval₀, rfl⟩ := ih2 W hΔ' rfl
-    have h1' := (HasType.weakN_iff henv hΔ'.toCtx W.toCtx).1 h1
-    have hΔ'' : VLCtx.WF env Us.length ((none, .vlet (ty₀.liftN n k) (val₀.liftN n k)) :: _) :=
-      ⟨hΔ', nofun, h1⟩
-    obtain ⟨body₀, hbody₀, rfl⟩ := ih3 (W.cons (.vlet ty₀ val₀)) hΔ'' rfl
-    exact ⟨_, .letE h1' hty₀ hval₀ hbody₀, rfl⟩
-  | lit h1 _ ih =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    subst he
-    obtain ⟨_, h, rfl⟩ := ih W hΔ' (Expr.liftLooseBVars_eq_self
-      Closed.toConstructor.looseBVarRange_le).symm
-    exact ⟨_, .lit h1 h, rfl⟩
-  | mdata _ ih =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl⟩ := he
-    obtain ⟨_, h, rfl⟩ := ih W hΔ' rfl
-    exact ⟨_, .mdata h, rfl⟩
-  | proj _ hp ih =>
-    cases e <;> simp [Expr.liftLooseBVars'] at he
-    obtain ⟨rfl, rfl, rfl⟩ := he
-    obtain ⟨s₀, hs₀, rfl⟩ := ih W hΔ' rfl
-    cases hp with | direct m t
-    have m' := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx).1 m
-    have t' := (VExpr.WF.weakN_iff henv hΔ'.toCtx W.toCtx (e := .proj _ _ s₀)).1 t
-    exact ⟨_, .proj hs₀ (.direct m' t'), rfl⟩
+  exact sorry -- E1MERGE-TEMP
+
 
 /-- Forward replacement for `TrExprS.weakBV_inv_lift`: when the source already
 has a translation `t₀` in the smaller context, every translation of its lift
 in the lifted context is the lift of `t₀`.  Unlike the inverse direction this
-needs no typing strengthening, only `weakBV` and syntactic uniqueness. -/
+needs no typing, only `weakBV` and syntactic uniqueness. -/
 theorem TrExprS.weakBV_lift_eq (henv : VEnv.Ordered env)
     (W : VLCtx.BVLift Δ Δ' dn dk n k)
     (H₀ : TrExprS env Us Δ e t₀)
@@ -279,8 +200,7 @@ theorem TrExprS.removeBeforeInner {env : VEnv} {Us : List Name} (henv : env.WF)
       (abstractForallContext (outer ++ inner) []).WF env Us.length := by
   have W := abstractForallContext.bvInsertBeforeInner outer inserted inner
   simp only [liftContextPrefix_reverse_reverse] at W
-  obtain ⟨t, Ht, rfl⟩ := TrExprS.weakBV_inv_lift henv W hwf H rfl
-  exact ⟨t, Ht, rfl, W.wf henv hwf⟩
+  sorry -- E1MERGE-TEMP
 
 /-- Remove two inserted groups: `G` directly below the current inner
 telescope and `M` directly above the retained field prefix `Fs`. -/

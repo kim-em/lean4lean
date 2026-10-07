@@ -51,7 +51,10 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   | decl {env} : VDecl.WF env d env' → env.WF' ds → env'.WF' (d::ds)
   /-- Register the abstract schemas of a formed finite compilation after its
   exact source constants are present. A fresh key fixes the meaning of every
-  owner slot, including nested auxiliaries, for all later environments. -/
+  owner slot, including nested auxiliaries, for all later environments.
+  The schema projects only out of structures registered at this point
+  (`CaseSchema.ProjNamesRegistered`), hence never out of a name that is not
+  an installed constant. -/
   | inductEliminators {base env : VEnv} {source : VInductDecl}
       {block : VInductBlock} {schema : InductiveSignature.CaseSchema} :
     VEnv.WF' baseDecls base →
@@ -60,7 +63,8 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     schema.Certified base source block →
     source.types.head?.map (·.name) = some key →
     ((∀ value ∈ block.types ++ block.ctors,
-      env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs) →
+      env.constants value.name = some value.toVConstant) ∧ env.defeqs = base.defeqs ∧
+      schema.ProjNamesRegistered env key) →
     schema.Fresh env key →
     VEnv.WF' ds (env.addEliminator key schema)
   | inductProjections {base envTypes envCtors : VEnv}
@@ -91,11 +95,13 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
     (hconstants : ∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant)
     (hequations : env.defeqs = base.defeqs)
+    (hprojs : schema.ProjNamesRegistered env key)
     (hfresh : schema.Fresh env key) :
     (env.addEliminator key schema).WF := by
   rcases hbase with ⟨baseDecls, hbase⟩
   rcases henv with ⟨ds, henv⟩
-  exact ⟨ds, .inductEliminators hbase henv hle hformed hkey ⟨hconstants, hequations⟩ hfresh⟩
+  exact ⟨ds, .inductEliminators hbase henv hle hformed hkey
+    ⟨hconstants, hequations, hprojs⟩ hfresh⟩
 
 /-- Register the projection table of one exact inductive prefix before its
 recursors are installed.  Both the source base and the constructor-complete

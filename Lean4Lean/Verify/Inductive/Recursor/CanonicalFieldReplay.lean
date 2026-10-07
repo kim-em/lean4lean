@@ -57,74 +57,12 @@ theorem RecInfoMinorSemanticSource.fieldSourceFVars
     S.fields.size HS.fieldsRecent.size_le (.sort .zero) Hup (by trivial)
   simpa [HS.parameterSuffix.parameterDecls_fvars] using Hfv
 
-theorem RecInfoMinorSemanticSource.fieldTranslationAtSuffix
-    {root : AddInductive.Context} {Rroot : RecursorContextWF root recLparams}
-    {S : RecInfoMinorTypeShape} (HS : RecInfoMinorSemanticSource Rroot S) :
-    ∃ target, TrExprS HS.rootWF.venv recLparams HS.parameterSuffix.parameterDecls
-      (HS.traversal.terminalContext.lctx.mkForall S.fields (.sort .zero)) target := by
-  have Htr := (HS.fieldsRecent.mkForallExact (body := .sort .zero) (bodyTarget := .sort .zero) (.sort rfl) ⟨_, .sort trivial⟩).1
-  rw [HS.parameterSuffix.context] at Htr
-  have Hwf : (HS.parameterSuffix.ambientDecls ++ HS.parameterSuffix.parameterDecls).WF
-      HS.rootWF.venv recLparams.length := by
-    rw [← HS.parameterSuffix.context]
-    exact HS.rootWF.mlctx_wf.tr.wf
-  have HnoBV : (HS.parameterSuffix.ambientDecls ++ HS.parameterSuffix.parameterDecls).NoBV := by
-    rw [← HS.parameterSuffix.context]
-    exact HS.rootWF.mlctx.noBV
-  exact TrExprS.dropFVarPrefix HS.rootWF.checking.tr.wf Hwf HnoBV Htr HS.fieldSourceFVars
-
 theorem TrExprS.isType_forallSort
     (Htel : Expr.ForallTelescope source n (.sort level))
     (Htr : TrExprS env Us Δ source target) : env.IsType Us.length Δ.toCtx target := by
   cases Htel with
   | nil => cases Htr with | sort hu => exact ⟨_, .sort (VLevel.WF.of_ofLevel hu)⟩
   | cons Htel => cases Htr with | forallE Hdom Hbody _ _ => exact .forallE Hdom Hbody
-
-theorem CompletedRecursorConstruction.consumedFieldDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
-    (owner : Nat) (howner : owner < H.recInfos.size)
-    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    let S := H.origins.minorShapes owner howner localIndex hlocal
-    ∃ domains, domains.length = S.fields.size ∧
-      TrExprS H.recursorWF.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-        (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [])
-        ((H.localContext.lctx.mkForall S.fields (.sort .zero)).abstractList H.params.fvars)
-        (VExpr.wrapForalls domains (.sort .zero)) ∧
-      H.recursorWF.venv.IsType (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
-        H.parameterSuffix.parameterDecls.toCtx (VExpr.wrapForalls domains (.sort .zero)) := by
-  let S := H.origins.minorShapes owner howner localIndex hlocal
-  obtain ⟨HS⟩ := H.minorSemantics owner howner localIndex hlocal
-  obtain ⟨target, Htr⟩ := HS.semantic.fieldTranslationAtSuffix
-  have hrootEnv : H.recursorWF.venv = HS.semantic.rootWF.venv :=
-    HS.semantic.extension.venv_eq.trans
-      (HS.semantic.hypothesesRecent.venv_eq.trans HS.semantic.fieldsRecent.venv_eq)
-  rw [← hrootEnv, HS.parameterDecls_eq] at Htr
-  have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
-  have hsource := HS.semantic.fieldsRecent.toBoundFVarArray.mkForall_mono Hext (.sort .zero)
-  rw [← hsource] at Htr
-  have houter := H.bindings.outerNodup H.params H.noAlias
-  have hparams := (List.nodup_append.mp (List.nodup_append.mp houter).1).1
-  have Habstract := H.parameterSuffix.abstractParameters H.params hparams (domains := []) (by
-    simpa [abstractForallContext] using Htr)
-  simp only [List.append_nil, List.length_nil] at Habstract
-  have Hbound := S.fields_bound.mono HS.semantic.extension.contextLE
-  have Htel := (Hbound.mkForall_forallTelescope H.localWF (.sort .zero)).abstractList H.params.fvars
-  have hsort (fvars : List FVarId) (k : Nat) :
-      (Expr.sort .zero).abstractList fvars k = .sort .zero :=
-    Expr.abstractList_eq_self_of_abstract1 _ (by intro fv depth; simp [Expr.abstract1]) fvars k
-  have hsortN (fvars : List FVarId) (k : Nat) :
-      (Expr.sort .zero).abstractN fvars k = .sort .zero := rfl
-  simp only [hsort, hsortN] at Htel
-  obtain ⟨domains, result, hdomains, heq, Hresult⟩ :=
-    TrExprS.forallTelescope_shape_with_context Htel Habstract
-  cases Hresult with
-  | sort hu =>
-    cases hu
-    rw [heq] at Habstract
-    exact ⟨domains, hdomains, Habstract, by
-      simpa [abstractForallContext_toCtx, VLCtx.toCtx] using
-        TrExprS.isType_forallSort Htel Habstract⟩
 
 theorem Expr.ForallTelescope.forallDomainsOnly_eq
     (H : Expr.ForallTelescope source n (.sort .zero)) :
