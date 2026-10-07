@@ -18,6 +18,8 @@ the induction hypothesis.
 namespace Lean4Lean
 namespace VEnv
 open InductiveSignature
+open private addDefEqs_as_rules addConsts_as_values defeqs_addRules
+  from Lean4Lean.Theory.Typing.NativeConstructorRigidity
 
 namespace Model
 
@@ -105,6 +107,157 @@ theorem Model.famSort {envF env0 installed base : VEnv} {source expanded : VIndu
   have := Model.family_sort₂ S1 S3 h
   rw [this]
   exact VLevel.inst_congr_l hlev
+
+/-- In stage B scope, the quotient rule is the only rule headed by `Quot.lift`: native recursor
+names end in `rec`. -/
+theorem Model.quot_unique_head {envF : VEnv} (hsh : envF.SameHead) (hon : Model.OrdinaryNative envF)
+    (hq : envF.defeqs quotDefEq) : ∀ df' ls', envF.defeqs df' →
+      df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' → df' = quotDefEq := by
+  intro df' ls' hdf' h'
+  have hQ : quotDefEq.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift [.param 0, .param 1] := by
+    rw [Model.quotDefEq_lhs]; exact VExpr.stripLams_wrapLams_mkApps_head
+  obtain ⟨rs, hrs, hm, hm'⟩ := hsh _ _ hdf' hq _ _ _ h' hQ
+  cases hrs with
+  | «mutual» cis =>
+    obtain ⟨ci, -, e⟩ := List.mem_map.1 hm'
+    exact absurd (congrArg VDefEq.lhs e).symm quotDefEq_lhs_ne_const
+  | quot => exact List.mem_singleton.1 hm
+  | @native _ _ _ s' g' aux' block' C' =>
+    obtain ⟨rfl, -⟩ := hon C' _ hm' hq
+    rw [C'.ordinary_rules] at hm'
+    obtain ⟨i, -, ei⟩ := List.mem_map.1 hm'
+    have hl := g'.equation_lhs_eq i
+    rw [ei] at hl
+    obtain ⟨-, hn, -⟩ := Model.wrapLams_pat_inj (Model.quotDefEq_lhs.symm.trans hl)
+    rw [C'.recursorNames] at hn
+    injection hn with _ h2
+    exact absurd h2 (by decide)
+
+private theorem definitions_le' (env : VEnv) (cis : List VDefVal) :
+    env ≤ env.addDefEqs cis := by
+  induction cis generalizing env with
+  | nil => exact .rfl
+  | cons ci cis ih => exact VEnv.addDefEq_le.trans (ih _)
+
+private theorem declaration_le' (H : VDecl.WF env decl env') : env ≤ env' := by
+  cases H with
+  | «axiom» _ h | «opaque» _ h => exact VEnv.addConst_le h
+  | «def» _ h => exact (VEnv.addConst_le h).trans VEnv.addDefEq_le
+  | «example» => exact .rfl
+  | mutualDef _ h _ => exact (VEnv.addConsts_le h).trans (definitions_le' ..)
+  | quot _ h =>
+    simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.some.injEq] at h
+    obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := h
+    exact (VEnv.addConst_le ha).trans <| (VEnv.addConst_le hb).trans <|
+      (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
+  | induct _ h =>
+    cases h with
+    | intro _ _ _ h =>
+      simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+        Option.pure_def, Option.some.injEq] at h
+      obtain ⟨types, ht, ctors, hc, recs, hr, rfl⟩ := h
+      exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
+        VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
+
+/-- **Staged validity** (D11): every rule of every environment in the declaration history of a
+well-formed `envF` in stage B scope is valid in the model of `envF`. -/
+theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) (hnp : ∀ n p, ¬ envF.projections n p)
+    (hne : ∀ b s, ¬ envF.eliminators b s) (hon : Model.OrdinaryNative envF) :
+    ∀ {ds env}, env.WF' ds → env ≤ envF → ∀ df, env.defeqs df → Model.RuleValid envF df := by
+  have henvF := hF.ordered
+  have hdr := hF.defRules
+  have hsh := hF.sameHead
+  have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c :=
+    fun _ ⟨_, hdf, hm⟩ => VEnv.nativeHeadRigid_iff.1 (hF.native_constructor_rigid hdf hm)
+  have hcres : ∀ c, Model.IsCtor envF c → envF.CtorResultRigid c :=
+    fun _ ⟨_, hdf, hm⟩ => hF.native_constructor_result_rigid hdf hm
+  intro ds env H
+  induction H with
+  | empty => intro _ df h; cases h
+  | @decl d env' ds env0 hdecl hbase ih =>
+    intro hle df hdf
+    have h0le := declaration_le' hdecl
+    have ih' := ih (h0le.trans hle)
+    have hdfF := hle.defeqs hdf
+    cases hdecl with
+    | «axiom» _ hadd | «opaque» _ hadd =>
+      exact @ih' df (by rwa [VEnv.addConst_defeqs hadd] at hdf)
+    | «example» => exact @ih' df hdf
+    | @«def» env₁ _ ci _ hadd =>
+      rcases hdf with rfl | hdf
+      · exact Model.RuleValid.delta henvF hdr hctor hdfF rfl
+      · exact @ih' df (by rwa [VEnv.addConst_defeqs hadd] at hdf)
+    | mutualDef _ hadd _ =>
+      rw [addDefEqs_as_rules, defeqs_addRules] at hdf
+      rcases hdf with member | hdf
+      · obtain ⟨ci, _, rfl⟩ := List.mem_map.mp member
+        exact Model.RuleValid.delta henvF hdr hctor hdfF rfl
+      · exact @ih' df (by
+          rwa [VEnv.addConstVals_defeqs (addConsts_as_values ▸ hadd)] at hdf)
+    | quot _ installed =>
+      simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
+        Option.some.injEq] at installed
+      obtain ⟨a, ha, b, hb, c, hc, e, he, rfl⟩ := installed
+      rcases hdf with rfl | hdf
+      · have hq : Model.QuotConsts envF := by
+          have hle' : e.addDefEq quotDefEq ≤ envF := hle
+          refine ⟨?_, ?_, ?_⟩
+          · exact hle'.constants (VEnv.addDefEq_le.constants ((VEnv.addConst_le he).constants
+              ((VEnv.addConst_le hc).constants ((VEnv.addConst_le hb).constants
+                (VEnv.addConst_self ha)))))
+          · exact hle'.constants (VEnv.addDefEq_le.constants ((VEnv.addConst_le he).constants
+              ((VEnv.addConst_le hc).constants (VEnv.addConst_self hb))))
+          · exact hle'.constants (VEnv.addDefEq_le.constants ((VEnv.addConst_le he).constants
+              (VEnv.addConst_self hc)))
+        exact Model.RuleValid.quot henvF hq (Model.quot_unique_head hsh hon hdfF) hdr hctor
+          hcres hdfF
+      · exact @ih' df (by
+          rwa [VEnv.addConst_defeqs he, VEnv.addConst_defeqs hc,
+            VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at hdf)
+    | induct _ installed =>
+      cases installed with
+      | @intro block _ _ compiled _ hinst =>
+        obtain ⟨base, expanded, s, g, aux, hbase', C, -⟩ :=
+          compiled.compiled.compilationOrigin
+        have hinst' := hinst
+        simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
+          Option.pure_def, Option.some.injEq] at hinst'
+        obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hinst'
+        rw [defeqs_addRules] at hdf
+        rcases hdf with member | hdf
+        · obtain ⟨rfl, -⟩ := hon C df member hdfF
+          rw [C.ordinary_rules] at member
+          obtain ⟨index, -, rfl⟩ := List.mem_map.1 member
+          have h0 : env0.Ordered := (show env0.WF from ⟨ds, hbase⟩).ordered
+          exact Model.RuleValid.native henvF hdr hsh hon hctor hcres C hinst hle index hdfF
+            (fun _ => Model.famSort henvF h0 hnp hne ih' C hbase' hinst hle _)
+        · exact @ih' df (by
+            rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs,
+              VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at hdf)
+  | inductEliminators _ _ _ _ _ _ _ _ _ =>
+    intro hle
+    exact absurd (hle.eliminators (VEnv.addEliminator_iff.2 (.inl ⟨rfl, rfl⟩))) (hne _ _)
+  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
+    intro hle df hdf
+    exact @ih (VEnv.addProjections_le.trans hle) df (by simpa using hdf)
+
+/-- The stage B scope: no projections, no eliminators, and native rules only from ordinary
+compilations whose elimination is admissible by non-zero family sorts or a zero target. -/
+structure StageB (env : VEnv) : Prop where
+  projections : ∀ n p, ¬ env.projections n p
+  eliminators : ∀ b s, ¬ env.eliminators b s
+  native : Model.OrdinaryNative env
+
+/-- **Stage B**: chain-level head injectivity for well-formed environments without projections
+or eliminators whose native recursor rules come from ordinary compilations of families with
+non-zero sorts or with elimination into `Prop`. -/
+theorem WF.headInjectivityCore_of_stageB {env : VEnv} (henv : env.WF) (hB : env.StageB) :
+    env.HeadInjectivityCore := by
+  obtain ⟨ds, H⟩ := henv
+  have hvalid := WF'.ruleValid ⟨ds, H⟩ hB.projections hB.eliminators hB.native H .rfl
+  exact WF.headInjectivityCore_of_sound ⟨ds, H⟩ fun hΔ H' =>
+    Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid hB.projections hB.eliminators H'
 
 end VEnv
 end Lean4Lean

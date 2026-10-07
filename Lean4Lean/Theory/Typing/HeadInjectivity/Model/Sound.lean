@@ -171,7 +171,7 @@ theorem SoundAt.sub_A (ih : SoundAt env U Δ Γ A A' T) (W : Ctx.SubstEq env U �
 soundness for `df` in the model of `env`, given the soundness and semantic typing of its typing
 premises. -/
 def RuleValid (env : VEnv) (df : VDefEq) : Prop :=
-  ∀ {U : Nat} {Δ Γ : List VExpr} {ls : List VLevel} {u : VLevel}, OnCtx Δ (env.IsType U) →
+  ∀ (U : Nat) (Δ Γ : List VExpr) (ls : List VLevel) (u : VLevel), OnCtx Δ (env.IsType U) →
     (∀ l ∈ ls, l.WF U) → ls.length = df.uvars →
     env.IsDefEqStrong U [] (df.type.instL ls) (df.type.instL ls) (.sort u) →
     SoundAt env U Δ [] (df.type.instL ls) (df.type.instL ls) (.sort u) ∧
@@ -665,7 +665,7 @@ theorem sound {E : VEnv} (hle : E ≤ env) (hvalid : ∀ df, E.defeqs df → Rul
     exact ⟨fun o h => (e1 o h).elim, fun o h => (e2 o h).elim,
       fun o h => (e1 o h).elim, fun o h => (e2 o h).elim⟩
   | @extra df ls u Γ hdf hlw hlen hu ht0 _ _ hl hr iht0 _ _ ihl ihr =>
-    exact ⟨hvalid df hdf hΔ hlw hlen (ht0.mono hle) ⟨iht0.1, iht0.2.1⟩ (hl.mono hle)
+    exact ⟨hvalid df hdf _ _ _ _ _ hΔ hlw hlen (ht0.mono hle) ⟨iht0.1, iht0.2.1⟩ (hl.mono hle)
       ⟨ihl.1, ihl.2.1⟩ (hr.mono hle) ⟨ihr.1, ihr.2.1⟩, ihl.2.1, ihr.2.1⟩
   | elimIota h1 => exact absurd h1 (hne _ _)
   | projIota h1 => exact absurd h1 (hnp _ _)
