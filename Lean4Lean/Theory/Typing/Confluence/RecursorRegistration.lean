@@ -93,7 +93,7 @@ end VEnv
 end Lean4Lean
 
 namespace Lean4Lean
-/-- Finite compilation retains concrete native equation coverage for every
+/-- Finite compilation retains concrete recursor equation coverage for every
 source constructor, including when the original derivation is replayed. -/
 theorem CompiledInductive.constructor_equation
     (H : CompiledInductive env source block) :
@@ -150,8 +150,8 @@ theorem RecursorRegistered.compilationEntries
   obtain ⟨owner, _, rfl⟩ := List.mem_map.mp hentry
   exact .ofCompilation hdata hprior hbase hinstall hle owner
 /-- Installing a new block cannot replace metadata of an earlier
-registered native recursor: its concrete constant name is already occupied. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_preserves
+registered recursor: its concrete constant name is already occupied. -/
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_preserves
     (hdata : CompilationData base source expanded s g auxiliaries block)
     (hinstall : block.install installBase = some installed)
     (hregistered : RecursorRegistered installBase previous)
@@ -171,7 +171,7 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_preser
 end Lean4Lean.VEnv
 
 namespace Lean4Lean.InductiveSignature.RecursorData
-/-- Only constructors of the selected native owner are enumerated. -/
+/-- Only constructors of the selected recursor owner are enumerated. -/
 def constructorIndices (data : RecursorData) :
     List (Fin data.schema.signature.constructors.size) :=
   (List.finRange data.schema.signature.constructors.size).filter
@@ -187,7 +187,7 @@ open private registeredInstance from Lean4Lean.Theory.Typing.RecursorRuleRegistr
 variable {data : RecursorData} {equation : VDefEq}
   {index : Fin data.schema.signature.constructors.size}
 /-- Successful compilation restores every generated rule, including every
-rule of a nonsingleton native recursor. -/
+rule of a nonsingleton recursor. -/
 theorem RecursorRegistered.equation_exists (H : RecursorRegistered env data)
     (index : Fin data.schema.signature.constructors.size) :
     ∃ equation, data.equation index = some equation := by
@@ -220,7 +220,7 @@ theorem RecursorRegistered.equation_uvars (_H : RecursorRegistered env data)
   obtain ⟨_, _, _, _, _, _, he⟩ := hgen
   cases he
   rfl
-/-- Constructor specialization computes the native major's actual name. -/
+/-- Constructor specialization computes the recursor major's actual name. -/
 theorem RecursorRegistered.equation_major (H : RecursorRegistered env data)
     (hgen : data.equation index = some equation) :
     ∃ fn levels args, equation.lhs.stripLams = .app fn
@@ -275,7 +275,7 @@ theorem Certified.constructor_index_unique {schema : CaseSchema}
 end Lean4Lean.InductiveSignature.CaseSchema
 namespace Lean4Lean.VEnv
 open InductiveSignature
-/-- The same registered native owner has one constructor index for each
+/-- The same registered recursor owner has one constructor index for each
 restored constructor name, including specialized container constructors. -/
 theorem RecursorRegistered.constructor_index_unique
     (H : RecursorRegistered env data)

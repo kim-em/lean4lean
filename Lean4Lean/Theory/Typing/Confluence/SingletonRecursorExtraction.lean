@@ -29,12 +29,12 @@ import Lean4Lean.Theory.Typing.SingletonExtraction.Basic
 import Lean4Lean.Theory.Inductive.Signature
 import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 
-/-! # Singleton extraction for a registered native recursor
+/-! # Singleton extraction for a registered recursor
 
 The abstract extraction interface (`PropElim`, `SingletonExtraction.lean`) is
-instantiated at a registered native recursor of a large-eliminating inductive
+instantiated at a registered recursor of a large-eliminating inductive
 proposition: the field and index telescopes come from the generated signature at the
-occurrence's source universes, and the eliminator into `Prop` is the native recursor
+occurrence's source universes, and the eliminator into `Prop` is the recursor
 itself with its free elimination universe (`Instance.FreeTarget`) set to zero. -/
 
 namespace Lean4Lean

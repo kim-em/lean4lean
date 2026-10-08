@@ -34,17 +34,17 @@ import Lean4Lean.Theory.Typing.ConstructorRigidity
 import Lean4Lean.Theory.Typing.StoredRuleHeads
 
 /-! The `Params` instance of a well-formed environment, built from its
-canonical registry. The structure-major and native soundness facts are passed
+head registry. The structure-major and generated iota soundness facts are passed
 in by the caller; they are proved in separate files. -/
 
 namespace Lean4Lean.VEnv
-open InductiveSignature CanonicalDataHead
+open InductiveSignature HeadRegistry
 
-/-- Assemble `Params` from the canonical registry and the remaining facts. -/
+/-- Assemble `Params` from the head registry and the remaining facts. -/
 @[instance_reducible] noncomputable def Params.ofRegistry {E : VEnv} {registry : Registry} {declarations : List VDecl}
     (henv : E.WF) (contract : registry.EnvironmentContract E declarations) (U : Nat)
     (sound : ∀ {Γ : List VExpr} {p : Pattern} {r : p.RHS × p.Check} {e A m1 m2},
-      OnCtx Γ (E.IsType U) → NativeIotaPattern E registry.recursors p r →
+      OnCtx Γ (E.IsType U) → GeneratedIotaPattern E registry.recursors p r →
       p.Matches e m1 m2 → E.HasType U Γ e A → E.IsDefEqU U Γ e (r.1.apply m1 m2))
     (structMajor : ∀ {rc mr cc kc} {r : (Pattern.app ((Pattern.const rc).varN mr)
         ((Pattern.const cc).varN kc)).RHS × (Pattern.app ((Pattern.const rc).varN mr)
@@ -98,8 +98,8 @@ open InductiveSignature CanonicalDataHead
   pat_app_l h hs := ConcretePattern.app_l henv contract h hs
   pat_app_l_uniq h h' hs hs' hb := ConcretePattern.app_l_uniq henv contract h h' hs hs' hb
   pat_app_uniq h h' hs hs' hl hr := ConcretePattern.app_uniq henv contract h h' hs hs' hl hr
-  pat_const_not_unfolding h := ConcretePattern.const_native henv contract h
-  recursorData_quot hq := ConcretePattern.native_quot henv contract hq
+  pat_const_not_unfolding h := ConcretePattern.const_not_unfolding henv contract h
+  recursorData_quot hq := ConcretePattern.recursor_quot henv contract hq
   pat_ctor_rigid h := ConcretePattern.ctor_rigid henv contract h
   projection_ctor_rigid hl := constHeadRigid_iff.mpr (henv.projectionCtorRigid hl)
   pat_struct_major h hΓ hl hs hlen := structMajor h hΓ hl hs hlen
@@ -123,14 +123,14 @@ private theorem PatternReductionTrace.of_definition
   | app _ _ ih ih' => exact .app ih ih'
   | lam _ ih => exact .lam ih
 
-/-- Coverage of every installed equation from the canonical registry, given
-coverage of the native equations at the specializations that the native
+/-- Coverage of every installed equation from the head registry, given
+coverage of the recursor equations at the specializations that the generated
 iota guard rejects. -/
 theorem equation_covered_of_registry {registry : Registry} {declarations : List VDecl}
     (contract : registry.EnvironmentContract env declarations)
     (hdef : ∀ {p r}, DefinitionPattern registry.definitions p r → Pat p r)
     (hquot : registry.quotient = true → Pat quotPattern (quotPatternRHS, quotPatternCheck))
-    (hnat : ∀ {p r}, NativeIotaPattern env recursorData p r → Pat p r)
+    (hnat : ∀ {p r}, GeneratedIotaPattern env recursorData p r → Pat p r)
     (hdata : recursorData = registry.recursors)
     (hzero : ∀ {Γ : List VExpr} {data : RecursorData}
       {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}

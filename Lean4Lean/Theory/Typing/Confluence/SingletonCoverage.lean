@@ -50,10 +50,10 @@ import Lean4Lean.Theory.Typing.Confluence.RecursorRegistration
 import Lean4Lean.Std.List
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 
-/-! # Coverage of zero-source native singleton equations
+/-! # Coverage of zero-source singleton recursor equations
 
 At a universe specialization where the source of a large-eliminating
-native recursor is `Prop`, its installed equation is joined by the singleton
+recursor is `Prop`, its installed equation is joined by the singleton
 prefix unfolding at the recursor's prefix (all arguments before the
 constructor major), a beta step with the constructor major, and proof
 irrelevance for the reconstructed proof fields. The replay of the singleton
@@ -86,7 +86,7 @@ open VExpr VEnv
 
 variable {env : VEnv} {data : RecursorData} {ls : List VLevel}
 
-/-- The explicit extraction data of a registered native singleton at an
+/-- The explicit extraction data of a registered singleton recursor at an
 occurrence where its source is `Prop`. -/
 theorem singleton_shape (H : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel ls ≈ .zero)
@@ -157,7 +157,7 @@ theorem singleton_shape (H : RecursorRegistered env data)
       rw [hfr, List.filter_cons_of_pos (by simpa [Fin.getElem_fin] using howner), List.filter_nil]
     simp only [hfr]
 
-/-- The syntax of the installed equation of a registered native singleton,
+/-- The syntax of the installed equation of a registered singleton recursor,
 at a universe specialization where its source is `Prop`, in terms of its
 extraction data. -/
 theorem singleton_equation_syntax (H : RecursorRegistered env data)
@@ -545,7 +545,7 @@ open Params
 
 set_option maxHeartbeats 1000000 in
 /-- **Zero-source singleton coverage.** At a universe specialization where the
-source of a large-eliminating native recursor is `Prop`, its installed equation
+source of a large-eliminating recursor is `Prop`, its installed equation
 is joined: the left side unfolds by the singleton prefix rule at the recursor
 prefix and a beta step with the constructor major, and the result is normally
 equal to the right side, the reconstructed data fields being the literal field

@@ -31,69 +31,69 @@ import Lean4Lean.Theory.Typing.RecursorRegistryInstallation
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 
-/-! Canonical dispatch need not retain native descriptors with no owned rules.
+/-! Head dispatch need not retain recursor descriptors with no owned rules.
 Removing precisely those entries preserves every computational equation and
-makes the native-table condition for rigid-head observations constructible. -/
-namespace Lean4Lean.CanonicalHead
+makes the recursor-table condition for rigid-head observations constructible. -/
+namespace Lean4Lean.HeadRegistry
 open VEnv InductiveSignature
 set_option Elab.async false
 
-/-- An empty recursor has a declaration but no native equation to dispatch.
+/-- An empty recursor has a declaration but no recursor equation to dispatch.
 Keep all entries that own at least one constructor rule. -/
-def Registry.removeEmptyNatives (registry : Registry) : Registry :=
+def Registry.removeEmptyRecursors (registry : Registry) : Registry :=
   { registry with recursors := fun name => do
       let data ← registry.recursors name
       if data.constructorIndices.isEmpty then none else some data }
 
-theorem Registry.removeEmptyNatives_lookup
+theorem Registry.removeEmptyRecursors_lookup
     (registry : Registry) :
-    registry.removeEmptyNatives.recursors name = some data ↔
+    registry.removeEmptyRecursors.recursors name = some data ↔
       registry.recursors name = some data ∧ data.constructorIndices ≠ [] := by
   cases lookup : registry.recursors name with
-  | none => simp [removeEmptyNatives, lookup]
+  | none => simp [removeEmptyRecursors, lookup]
   | some selected =>
     by_cases empty : selected.constructorIndices = []
-    · simp [removeEmptyNatives, lookup, empty]
+    · simp [removeEmptyRecursors, lookup, empty]
       rintro rfl
       exact empty
-    · simp [removeEmptyNatives, lookup, empty]
+    · simp [removeEmptyRecursors, lookup, empty]
       rintro rfl
       exact empty
 
 /-- Every actual owned equation keeps its exact descriptor and lookup. -/
-theorem Registry.removeEmptyNatives_preserves_owned
+theorem Registry.removeEmptyRecursors_preserves_owned
     (registry : Registry) (lookup : registry.recursors name = some data)
     {index : Fin data.schema.signature.constructors.size}
     (owner : data.schema.signature.constructors[index].owner = data.owner) :
-    registry.removeEmptyNatives.recursors name = some data := by
-  apply registry.removeEmptyNatives_lookup.mpr
+    registry.removeEmptyRecursors.recursors name = some data := by
+  apply registry.removeEmptyRecursors_lookup.mpr
   refine ⟨lookup, ?_⟩
   have member := RecursorData.mem_constructorIndices.mpr owner
   intro empty
   rw [empty] at member
   exact List.not_mem_nil member
 
-theorem Registry.Scoped.removeEmptyNatives
+theorem Registry.Scoped.removeEmptyRecursors
     {registry : Registry}
-    (hscoped : registry.Scoped) : registry.removeEmptyNatives.Scoped := by
+    (hscoped : registry.Scoped) : registry.removeEmptyRecursors.Scoped := by
   refine ⟨hscoped.definition, ?_, ?_, hscoped.caseEquation⟩
   · intro name data lookup
-    exact hscoped.native name data (registry.removeEmptyNatives_lookup.mp lookup).1
+    exact hscoped.singletonEquation name data (registry.removeEmptyRecursors_lookup.mp lookup).1
   · intro name data lookup
-    exact hscoped.nativeEquation name data (registry.removeEmptyNatives_lookup.mp lookup).1
+    exact hscoped.recursorEquation name data (registry.removeEmptyRecursors_lookup.mp lookup).1
 
-/-- A rigid name cannot retain a nonempty native descriptor in a sound table.
+/-- A rigid name cannot retain a nonempty recursor descriptor in a sound table.
 The argument uses an actual installed owned equation, not the false claim that
-every native declaration has a computational rule. -/
-theorem Registry.removeEmptyNatives_none_of_rigid
+every recursor declaration has a computational rule. -/
+theorem Registry.removeEmptyRecursors_none_of_rigid
     (registry : Registry)
     (registered : ∀ name data, registry.recursors name = some data →
       RecursorRegistered env data ∧ data.name = name)
-    (rigid : env.Rigid name) : registry.removeEmptyNatives.recursors name = none := by
-  cases lookup : registry.removeEmptyNatives.recursors name with
+    (rigid : env.Rigid name) : registry.removeEmptyRecursors.recursors name = none := by
+  cases lookup : registry.removeEmptyRecursors.recursors name with
   | none => rfl
   | some data =>
-    obtain ⟨original, nonempty⟩ := registry.removeEmptyNatives_lookup.mp lookup
+    obtain ⟨original, nonempty⟩ := registry.removeEmptyRecursors_lookup.mp lookup
     obtain ⟨sound, nameEq⟩ := registered name data original
     obtain ⟨index, member⟩ := List.exists_mem_of_ne_nil _ nonempty
     have owner := RecursorData.mem_constructorIndices.mp member
@@ -104,15 +104,15 @@ theorem Registry.removeEmptyNatives_none_of_rigid
 
 /-- Sound registration, including the enabled quotient rule, supplies the
 concrete inertness required by the rigid-family observation grammar. -/
-theorem Registry.removeEmptyNatives_headInert
+theorem Registry.removeEmptyRecursors_headInert
     (registry : Registry)
     (definitions : ∀ name value, registry.definitions name = some value →
       DefinitionRegistered env value ∧ value.name = name)
     (recursors : ∀ name data, registry.recursors name = some data →
       RecursorRegistered env data ∧ data.name = name)
     (quotient : registry.quotient = true → env.defeqs quotDefEq)
-    (rigid : env.Rigid name) : CanonicalDataHead.HeadInert registry.removeEmptyNatives name := by
-  refine ⟨?_, registry.removeEmptyNatives_none_of_rigid recursors rigid, ?_⟩
+    (rigid : env.Rigid name) : HeadRegistry.HeadInert registry.removeEmptyRecursors name := by
+  refine ⟨?_, registry.removeEmptyRecursors_none_of_rigid recursors rigid, ?_⟩
   · change registry.definitions name = none
     cases lookup : registry.definitions name with
     | none => rfl
@@ -131,10 +131,10 @@ theorem Registry.removeEmptyNatives_headInert
       subst name
       exact rigid quotDefEq (quotient enabled) _ rfl
 
-end Lean4Lean.CanonicalHead
+end Lean4Lean.HeadRegistry
 
 /-! Priority exclusions follow from real installation freshness and equation
-ownership. Empty native descriptors are removed before asserting computational
+ownership. Empty recursor descriptors are removed before asserting computational
 head disjointness. -/
 namespace Lean4Lean.VEnv
 open InductiveSignature RecursorData
@@ -143,9 +143,9 @@ set_option Elab.async false
 variable {env : VEnv} {table : Name → Option RecursorData}
 
 /-- An actual quotient declaration supplies its constants and rule. Its head
-cannot also occur in the actual native table, before or after that declaration. -/
-theorem NativeRegistryHistory.quotient
-    (history : NativeRegistryHistory env declarations table)
+cannot also occur in the actual recursor table, before or after that declaration. -/
+theorem RecursorRegistryHistory.quotient
+    (history : RecursorRegistryHistory env declarations table)
     (member : .quot ∈ declarations) :
     QuotRegistered env ∧ table ``Quot.lift = none := by
   induction history with
@@ -171,7 +171,7 @@ theorem NativeRegistryHistory.quotient
           cases hc
     · obtain ⟨registered, absent⟩ := ih member
       exact ⟨registered.mono (declaration_le declaration), absent⟩
-  | native previous original compiled formed eliminatorsWF installed compilation specializations
+  | induct previous original compiled formed eliminatorsWF installed compilation specializations
       below ih =>
     have oldMember : VDecl.quot ∈ _ := (List.mem_cons.mp member).resolve_left (by intro h; cases h)
     obtain ⟨registered, absent⟩ := ih oldMember
@@ -192,21 +192,21 @@ theorem NativeRegistryHistory.quotient
 
 end Lean4Lean.VEnv
 
-namespace Lean4Lean.CanonicalHead
+namespace Lean4Lean.HeadRegistry
 open VEnv InductiveSignature
 variable {env : VEnv} {registry : Registry}
 
 /-- An owned constructor equation precludes a transparent definition at the
 same selected name. The real equation supplies the exclusion witness. -/
-theorem Registry.removeEmptyNatives_notDefinition
+theorem Registry.removeEmptyRecursors_notDefinition
     (formed : env.WF)
     (definitions : ∀ name value, registry.definitions name = some value →
       DefinitionRegistered env value ∧ value.name = name)
     (recursors : ∀ name data, registry.recursors name = some data →
       RecursorRegistered env data ∧ data.name = name)
-    (lookup : registry.removeEmptyNatives.recursors name = some data) :
-    registry.removeEmptyNatives.definitions name = none := by
-  obtain ⟨original, nonempty⟩ := registry.removeEmptyNatives_lookup.mp lookup
+    (lookup : registry.removeEmptyRecursors.recursors name = some data) :
+    registry.removeEmptyRecursors.definitions name = none := by
+  obtain ⟨original, nonempty⟩ := registry.removeEmptyRecursors_lookup.mp lookup
   obtain ⟨registered, nameEq⟩ := recursors name data original
   obtain ⟨index, member⟩ := List.exists_mem_of_ne_nil _ nonempty
   obtain ⟨equation, generated⟩ := registered.equation_exists index
@@ -223,4 +223,4 @@ theorem Registry.removeEmptyNatives_notDefinition
         ((registered.equation_head owner generated).trans (by rw [nameEq, definitionName]))
     · exact registered.equation_major generated
 
-end Lean4Lean.CanonicalHead
+end Lean4Lean.HeadRegistry

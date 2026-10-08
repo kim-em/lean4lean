@@ -30,27 +30,28 @@ import Lean4Lean.Theory.Typing.DefinitionPatterns
 import Lean4Lean.Theory.Inductive.CaseReductionData
 import Lean4Lean.Theory.Typing.CaseReduction
 
-/-! The `Params` instance of a well-formed environment with coherent
-eliminator registrations. Every field is a theorem. -/
+/-! The `Params` instance of a well-formed environment, its equation
+coverage, and the confluence theorem `VEnv.WF.church_rosser` for every
+well-formed environment with canonical `Eq`. Every field is a theorem. -/
 
 namespace Lean4Lean.VEnv
-open InductiveSignature CanonicalDataHead
+open InductiveSignature HeadRegistry
 
-/-- The chosen declaration history and canonical registry of a well-formed
+/-- The chosen declaration history and head registry of a well-formed
 environment. -/
 noncomputable def WF.registry {env : VEnv} (henv : env.WF) : Registry :=
-  Classical.choose (Classical.choose_spec henv.canonicalRegistry)
+  Classical.choose (Classical.choose_spec henv.headRegistry)
 
 theorem WF.registry_contract {env : VEnv} (henv : env.WF) :
-    henv.registry.EnvironmentContract env (Classical.choose henv.canonicalRegistry) :=
-  Classical.choose_spec (Classical.choose_spec henv.canonicalRegistry)
+    henv.registry.EnvironmentContract env (Classical.choose henv.headRegistry) :=
+  Classical.choose_spec (Classical.choose_spec henv.headRegistry)
 
 /-- The confluence parameters of a well-formed environment at universe
 bound `U`. -/
 @[instance_reducible] noncomputable def WF.params {env : VEnv} (henv : env.WF)
     (U : Nat) : Params :=
   Params.ofRegistry henv henv.registry_contract U
-    (fun hΓ h hm ht => NativeIotaPattern.sound henv hΓ
+    (fun hΓ h hm ht => GeneratedIotaPattern.sound henv hΓ
       (fun _ _ h => let ⟨a, b, _⟩ := henv.registry_contract.recursors _ _ h; ⟨a, b⟩) h hm ht)
     (fun h hΓ hl hs hlen => ConcretePattern.struct_major henv henv.registry_contract h hΓ hl hs hlen)
     (fun h hl hcc hm hm' hps hps' =>
@@ -60,10 +61,10 @@ bound `U`. -/
 end Lean4Lean.VEnv
 
 namespace Lean4Lean.VEnv
-open InductiveSignature CanonicalDataHead
+open InductiveSignature HeadRegistry
 
 /-- Zero-source large-elimination coverage for the concrete instance: every
-native singleton equation, at a universe specialization where the native iota
+singleton recursor equation, at a universe specialization where the generated iota
 guard fails, is joinable. -/
 def WF.SingletonCoverage {env : VEnv} (henv : env.WF) (U : Nat) :
     Prop :=
@@ -102,7 +103,7 @@ theorem WF.church_rosser_of_singletonCoverage {env : VEnv} (henv : env.WF)
   exact h
 
 /-- Zero-source large-elimination coverage holds in every well-formed
-environment with canonical `Eq`: the installed equation of a native singleton
+environment with canonical `Eq`: the installed equation of a singleton recursor
 at a universe specialization with source `Prop` is joined by the singleton
 prefix unfolding (`RecursorRegistered.zero_join`). -/
 theorem WF.singletonCoverage {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq) (U : Nat) :
@@ -119,9 +120,10 @@ proof irrelevance and eta.
 Canonical `Eq` types the singleton prefix unfolding at a universe
 specialization whose source is `Prop`: the proof fields of the reconstructed
 constructor are extracted by the recursor itself into `Prop`, with the earlier
-data fields cast along `Eq`. Without `Eq` this extraction is not available:
-the environment `envCM` of `Theory/Typing/Countermodel` is well formed, has no
-`Eq`, and its singleton equation cannot be joined.
+data fields cast along `Eq`. Without `Eq` this extraction is not available: in
+the well-formed `Eq`-free environment of `docs/inductives/DESIGN.md`, section
+5.1, the equation of a singleton whose proof field `h : P v` follows a data
+field `v` is not joinable at a `Prop` source (argued, not checked in Lean).
 
 Coherence of case eliminators with projection metadata is part of
 well-formedness (`VInductDecl.ProjectionsCoherent`, a premise of

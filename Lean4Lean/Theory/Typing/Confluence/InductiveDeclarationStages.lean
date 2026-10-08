@@ -38,9 +38,9 @@ structure VInductBlock.TypingStages (base : VEnv) (block : VInductBlock)
   recursorsWF : recursors.WF
   sourceTypes : ∀ ci ∈ block.types, ci.toVConstant.WF base
   sourceConstructors : ∀ ci ∈ block.ctors, ci.toVConstant.WF types
-  originalRecursors : ∀ ci ∈ block.recursors,
+  sourceRecursors : ∀ ci ∈ block.recursors,
     ci.toVConstant.WF ((constructors.addEliminators block.eliminators).addProjections block.projections)
-  originalRules : ∀ df ∈ block.rules, df.WF recursors
+  sourceRules : ∀ df ∈ block.rules, df.WF recursors
 
 namespace VInductBlock.TypingStages
 

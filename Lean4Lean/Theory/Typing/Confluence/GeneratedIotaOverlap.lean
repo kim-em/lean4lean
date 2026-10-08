@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Pattern
 
-/-! Finite syntactic overlap facts for generated native iota patterns. -/
+/-! Finite syntactic overlap facts for generated generated iota patterns. -/
 
 namespace Lean4Lean
 

@@ -115,7 +115,7 @@ theorem sound (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     have he := IsDefEq.extra (Γ := Γ) hregistered.2 hlevels hlength
     simpa only [VDefVal.toDefEq, VExpr.instL, VLevel.inst_map_id hlength,
       Pattern.RHS.apply] using (show env.IsDefEqU U Γ _ _ from ⟨_, he⟩)
-/-- Every actual definition equation has a concrete one-step native trace;
+/-- Every actual definition equation has a concrete one-step pattern trace;
 there are no captured terms or additional equality guards. -/
 theorem equation_trace (hlookup : registry value.name = some value)
     (hclosed : value.value.Closed) (hlength : levels.length = value.uvars) :
@@ -217,7 +217,7 @@ definition pattern table, including mutually recursive definitions. -/
 
 namespace Lean4Lean
 
-/-- Only transparent definitions contribute native delta equations. -/
+/-- Only transparent definitions contribute prefix unfolding equations. -/
 def VDecl.definitionEntries : VDecl → List VDefVal
   | .def value => [value]
   | .mutualDef values => values
@@ -295,7 +295,7 @@ private theorem definitionRegistry_decl_preserves
   | mutualDef _ ha _ => exact installDefinitions_preserves ha hregistered hold
   | «axiom» | «opaque» | «example» | quot | induct => exact hold
 
-/-- A bare native constant equation can only be a transparent definition;
+/-- A bare recursor constant equation can only be a transparent definition;
 inductive and quotient equations have a constructor application as major. -/
 private theorem declaration_constEquation_origin
     (H : VDecl.WF env declaration extended) (hdf : extended.defeqs equation)
@@ -478,7 +478,7 @@ private theorem declaration_new_definition_head
       exact (exclude hf hh).elim
 
 /-- All equations at an ordinary definition's computational head are its
-one exact defining equation. This excludes definition/native-iota overlap. -/
+one exact defining equation. This excludes definition/generated-iota overlap. -/
 theorem WF'.definition_head_exclusive (H : env.WF' declarations)
     (hlookup : definitionRegistry declarations name = some value)
     (hdf : env.defeqs equation)

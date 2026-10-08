@@ -10,16 +10,16 @@ import Lean4Lean.Theory.VExpr
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Typing.Env
 
-/-! The scope requirements of the canonical head machine follow from actual
+/-! The scope requirements of the head registry follow from actual
 registration in a well-formed environment. Ordinary definitions are extracted
-from its declaration history. The native table supplies registration evidence
+from its declaration history. The recursor table supplies registration evidence
 for its entries; no body-closure or semantic guard assumption is required.
 -/
 
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-/-- A selected singleton equation is one of the actually registered native
+/-- A selected singleton equation is one of the actually registered recursor
 equations, so environment formation supplies the scope of its right side. -/
 theorem RecursorRegistered.singletonEquation_rhs_closed
     {env : VEnv} {data : RecursorData} {equation : VDefEq}
@@ -32,7 +32,7 @@ theorem RecursorRegistered.singletonEquation_rhs_closed
 
 end Lean4Lean.VEnv
 
-namespace Lean4Lean.CanonicalHead
+namespace Lean4Lean.HeadRegistry
 open InductiveSignature VEnv
 
-end Lean4Lean.CanonicalHead
+end Lean4Lean.HeadRegistry

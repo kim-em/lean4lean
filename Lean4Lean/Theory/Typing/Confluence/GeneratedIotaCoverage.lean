@@ -55,14 +55,14 @@ theorem forall₂_of_getElem {R : α → β → Prop} :
 end Basic
 end Lean4Lean.VEnv
 
-/-! Coverage of the installed native iota equations by the full presentation.
+/-! Coverage of the installed generated iota equations by the full presentation.
 
-A restored native equation is a lambda telescope over the recursor's
+A restored recursor equation is a lambda telescope over the recursor's
 parameters, motives and minors and the constructor's fields; its left side
 applies the recursor to the first of these binders, the constructor's indices
 and the constructor applied to (possibly specialized) parameters followed by
 its field binders. At every universe specialization whose source level is not
-zero, or for a small target, the native iota pattern reduces the body to the
+zero, or for a small target, the generated iota pattern reduces the body to the
 right side applied to all binders, which beta-reduces to the right side. -/
 
 namespace Lean4Lean.VEnv
@@ -70,7 +70,7 @@ open VExpr InductiveSignature
 open private restored_constructor_arguments restoration_vars
   from Lean4Lean.Theory.Inductive.CaseReductionLemmas
 
-/-- The restoration of a registered native instance specializes exactly the
+/-- The restoration of a registered recursor instance specializes exactly the
 signature's common parameters. -/
 theorem RecursorRegistered.restoration_nparams {data : RecursorData}
     (H : RecursorRegistered env data) :
@@ -91,7 +91,7 @@ private theorem vars_join' (p f : Nat) : vars p f ++ vars f 0 = vars (p + f) 0 :
   rw [Nat.add_comm p f]
   simp [vars, List.range_add, List.reverse_append, List.map_append, List.map_map]
 
-/-- The exact syntax of a restored native equation. -/
+/-- The exact syntax of a restored recursor equation. -/
 theorem RecursorRegistered.equation_shape {data : RecursorData}
     {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
     (H : RecursorRegistered env data)
@@ -265,12 +265,12 @@ section
 variable [Params]
 open Params
 
-/-- An installed native equation reduces by its own native iota pattern at
+/-- An installed recursor equation reduces by its own generated iota pattern at
 every universe specialization that passes the large-elimination guard. -/
 theorem RecursorRegistered.equation_parRedS {data : RecursorData}
     {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
     {levels : List VLevel}
-    (hpat : ∀ {p r}, NativeIotaPattern env recursorData p r → Pat p r)
+    (hpat : ∀ {p r}, GeneratedIotaPattern env recursorData p r → Pat p r)
     (hlookup : recursorData data.name = some data) (H : RecursorRegistered env data)
     (howner : data.schema.signature.constructors[index].owner = data.owner)
     (hgen : data.equation index = some equation)
@@ -320,7 +320,7 @@ theorem RecursorRegistered.equation_parRedS {data : RecursorData}
       (.app (VExpr.mkApps (.const data.name levels) pre)
         (VExpr.mkApps (.const cc (cl.map (·.inst levels))) cargs)) levels (Sum.elim g1 g2) :=
     .app hg1 hg2
-  have hp := hpat (NativeIotaPattern.intro henv H hlookup howner hgen)
+  have hp := hpat (GeneratedIotaPattern.intro henv H hlookup howner hgen)
   have hck : ∀ df, Pattern.Check.OK (p := data.rulePattern index equation) df levels (Sum.elim g1 g2)
       (data.ruleCheck index equation) := by
     intro df
@@ -390,11 +390,11 @@ theorem RecursorRegistered.equation_parRedS {data : RecursorData}
     VExpr.liftN_zero]
   exact .rfl
 
-/-- Coverage of a native equation at a guarded universe specialization. -/
+/-- Coverage of a recursor equation at a guarded universe specialization. -/
 theorem RecursorRegistered.equation_join {data : RecursorData}
     {index : Fin data.schema.signature.constructors.size} {equation : VDefEq}
     {levels : List VLevel} (hΓ : OnCtx Γ (env.IsType univs))
-    (hpat : ∀ {p r}, NativeIotaPattern env recursorData p r → Pat p r)
+    (hpat : ∀ {p r}, GeneratedIotaPattern env recursorData p r → Pat p r)
     (hlookup : recursorData data.name = some data) (H : RecursorRegistered env data)
     (howner : data.schema.signature.constructors[index].owner = data.owner)
     (hgen : data.equation index = some equation)

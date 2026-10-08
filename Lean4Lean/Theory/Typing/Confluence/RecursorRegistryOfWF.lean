@@ -21,7 +21,7 @@ import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Typing.DefinitionPatterns
 
-/-! The actual `WF'` derivation constructs its native table. Every inductive
+/-! The actual `WF'` derivation constructs its recursor table. Every inductive
 installation contributes the descriptors of its retained compilation, including
 compilations replayed from an earlier base. Equation coverage is proved along
 that same construction; it is not an input registry assumption. -/
@@ -36,7 +36,7 @@ variable {env extended : VEnv} {declarations : List VDecl}
 
 /-- Exact syntactic coverage of an installed equation by the two generated
 name tables or the fixed quotient rule. -/
-def NativeRegistryEquationCovered (declarations : List VDecl)
+def RecursorRegistryEquationCovered (declarations : List VDecl)
     (table : Name → Option RecursorData) (equation : VDefEq) : Prop :=
   (∃ value, definitionRegistry declarations value.name = some value ∧ equation = value.toDefEq) ∨
   (.quot ∈ declarations ∧ equation = quotDefEq) ∨
@@ -45,39 +45,39 @@ def NativeRegistryEquationCovered (declarations : List VDecl)
       data.schema.signature.constructors[index].owner = data.owner ∧
       data.equation index = some equation
 
-private theorem NativeRegistryEquationCovered.declaration
+private theorem RecursorRegistryEquationCovered.declaration
     (history : env.WF' declarations) (declaration : VDecl.WF env d extended)
-    (covered : NativeRegistryEquationCovered declarations table equation) :
-    NativeRegistryEquationCovered (d :: declarations) table equation := by
-  rcases covered with ⟨value, lookup, equal⟩ | ⟨member, equal⟩ | native
+    (covered : RecursorRegistryEquationCovered declarations table equation) :
+    RecursorRegistryEquationCovered (d :: declarations) table equation := by
+  rcases covered with ⟨value, lookup, equal⟩ | ⟨member, equal⟩ | recursor
   · exact .inl ⟨value, definitionRegistry_decl_preserves declaration
       (history.definitionRegistry_registered lookup).1 lookup, equal⟩
   · exact .inr (.inl ⟨List.mem_cons_of_mem _ member, equal⟩)
-  · exact .inr (.inr native)
+  · exact .inr (.inr recursor)
 
-private theorem NativeRegistryEquationCovered.install
+private theorem RecursorRegistryEquationCovered.install
     {base installBase : VEnv} {source expanded : VInductDecl} {block : VInductBlock}
-    (history : NativeRegistryHistory installBase declarations table)
+    (history : RecursorRegistryHistory installBase declarations table)
     (compilation : CompilationData base source expanded signature generated auxiliaries block)
     (installed : block.install installBase = some extended)
-    (covered : NativeRegistryEquationCovered declarations table equation) (key : Name) :
-    NativeRegistryEquationCovered (.induct source :: declarations)
+    (covered : RecursorRegistryEquationCovered declarations table equation) (key : Name) :
+    RecursorRegistryEquationCovered (.induct source :: declarations)
       (installEntries table (compilationEntries key source signature auxiliaries generated)) equation := by
   rcases covered with definition | quotient | ⟨data, lookup, index, owner, equationEq⟩
   · exact .inl definition
   · exact .inr (.inl ⟨List.mem_cons_of_mem _ quotient.1, quotient.2⟩)
   · exact .inr (.inr ⟨data,
-      compilation.nativeEntries_preserves installed (history.registered lookup).1 lookup,
+      compilation.recursorEntries_preserves installed (history.registered lookup).1 lookup,
       index, owner, equationEq⟩)
 
-/-- Every well-formed declaration history produces an actual native registry
+/-- Every well-formed declaration history produces an actual recursor registry
 history and exact coverage of all its installed equations. The construction
 uses the original compilation base retained by `CompiledInductive.replay`.
 No abstract eliminator-schema registration is required. -/
-theorem WF'.nativeRegistry (formed : env.WF' declarations) :
+theorem WF'.recursorRegistry (formed : env.WF' declarations) :
     ∃ table : Name → Option RecursorData,
-      NativeRegistryHistory env declarations table ∧
-      ∀ equation, env.defeqs equation → NativeRegistryEquationCovered declarations table equation := by
+      RecursorRegistryHistory env declarations table ∧
+      ∀ equation, env.defeqs equation → RecursorRegistryEquationCovered declarations table equation := by
   induction formed with
   | empty => exact ⟨fun _ => none, .empty, fun _ absent => by cases absent⟩
   | decl declaration previous ih =>
@@ -133,12 +133,12 @@ theorem WF'.nativeRegistry (formed : env.WF' declarations) :
       | intro _ compiled blockWF eliminatorsWF installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, below, compilation, specializations⟩ :=
           compiled.compiled.exists_compilation
-        let key : Name := (source.types.head?.map (·.name)).getD `nativeRegistry
+        let key : Name := (source.types.head?.map (·.name)).getD `recursorRegistry
         refine ⟨installEntries table (compilationEntries key _ signature auxiliaries generated),
-          .native history original compiled blockWF eliminatorsWF installed compilation
+          .induct history original compiled blockWF eliminatorsWF installed compilation
             specializations below, ?_⟩
         intro equation present
-        have retain := NativeRegistryEquationCovered.install history compilation installed
+        have retain := RecursorRegistryEquationCovered.install history compilation installed
           (key := key) (equation := equation)
         simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
           Option.pure_def, Option.some.injEq] at installed

@@ -20,7 +20,7 @@ import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.Inductive.SourceShape
 
-/-! Native table installation with original declaration provenance.
+/-! Recursor table installation with original declaration provenance.
 
 `RecursorRegistered` checks a final environment.  It does not identify
 the declaration whose pre-equation header may be used by stage induction.
@@ -37,7 +37,7 @@ variable {name key : Name} {env extended base envTypes envCtors : VEnv}
   {auxiliaries : List ContainerSpecialization} {equation : VDefEq}
 
 /-- A lookup packet, produced from a concrete table history below. -/
-structure NativeDeclarationOrigin (env : VEnv) (declarations : List VDecl)
+structure RecursorDeclarationOrigin (env : VEnv) (declarations : List VDecl)
     (data : RecursorData) where
   source : VInductDecl
   stage : InductiveStage env source declarations.length
@@ -54,10 +54,10 @@ structure NativeDeclarationOrigin (env : VEnv) (declarations : List VDecl)
   specializations : ContainersInstalled compilationBase auxiliaries
   entry : data ∈ compilationEntries key source signature auxiliaries generated
 
-namespace NativeDeclarationOrigin
+namespace RecursorDeclarationOrigin
 
-def later (origin : NativeDeclarationOrigin env declarations data)
-    (declaration : VDecl.WF env d extended) : NativeDeclarationOrigin extended (d :: declarations) data where
+def later (origin : RecursorDeclarationOrigin env declarations data)
+    (declaration : VDecl.WF env d extended) : RecursorDeclarationOrigin extended (d :: declarations) data where
   source := origin.source
   stage := origin.stage.later (declaration_le declaration) (Nat.le_succ _)
   laterDeclarations := d :: origin.laterDeclarations
@@ -73,8 +73,8 @@ def later (origin : NativeDeclarationOrigin env declarations data)
   specializations := origin.specializations
   entry := origin.entry
 
-def metadata (origin : NativeDeclarationOrigin env declarations data)
-    (hle : env ≤ extended) : NativeDeclarationOrigin extended declarations data where
+def metadata (origin : RecursorDeclarationOrigin env declarations data)
+    (hle : env ≤ extended) : RecursorDeclarationOrigin extended declarations data where
   source := origin.source
   stage := origin.stage.later hle (Nat.le_refl _)
   laterDeclarations := origin.laterDeclarations
@@ -90,32 +90,32 @@ def metadata (origin : NativeDeclarationOrigin env declarations data)
   specializations := origin.specializations
   entry := origin.entry
 
-theorem installed (origin : NativeDeclarationOrigin env declarations data) :
+theorem installed (origin : RecursorDeclarationOrigin env declarations data) :
     origin.stage.block.install origin.stage.base = some origin.stage.installed := by
   simp [VInductBlock.install, origin.stage.typing.addTypes,
     origin.stage.typing.addConstructors, origin.stage.typing.addRecursors,
     Option.bind_some, origin.stage.typing.installed_eq]
 
-theorem registered (origin : NativeDeclarationOrigin env declarations data) :
+theorem registered (origin : RecursorDeclarationOrigin env declarations data) :
     RecursorRegistered env data :=
   RecursorRegistered.compilationEntries origin.compilation origin.specializations
     origin.compilationBelow origin.installed origin.stage.installedBelow origin.entry
 
-end NativeDeclarationOrigin
+end RecursorDeclarationOrigin
 
-/-- A finite native registry built along an actual declaration history.
-The `native` constructor registers all family descriptors from the very block
+/-- A finite recursor registry built along an actual declaration history.
+The `induct` constructor registers all family descriptors from the very block
 whose constants and equations are installed by that declaration.  Ordinary
 declarations and metadata preserve previously recorded entries. -/
-inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option RecursorData) → Prop where
-  | empty : NativeRegistryHistory .empty [] (fun _ => none)
-  | decl {env extended : VEnv} {declarations : List VDecl} {table : Name → Option RecursorData} (previous : NativeRegistryHistory env declarations table)
+inductive RecursorRegistryHistory : VEnv → List VDecl → (Name → Option RecursorData) → Prop where
+  | empty : RecursorRegistryHistory .empty [] (fun _ => none)
+  | decl {env extended : VEnv} {declarations : List VDecl} {table : Name → Option RecursorData} (previous : RecursorRegistryHistory env declarations table)
       (declaration : VDecl.WF env d extended) :
-      NativeRegistryHistory extended (d :: declarations) table
-  | native {base extended compilationBase : VEnv} {declarations : List VDecl} {table : Name → Option RecursorData}
+      RecursorRegistryHistory extended (d :: declarations) table
+  | induct {base extended compilationBase : VEnv} {declarations : List VDecl} {table : Name → Option RecursorData}
       {source expanded : VInductDecl} {block : VInductBlock} {signature : InductiveSignature}
       {generated : Instance signature} {auxiliaries : List ContainerSpecialization} {key : Name}
-      (previous : NativeRegistryHistory base declarations table)
+      (previous : RecursorRegistryHistory base declarations table)
       (original : source.WF base)
       (compiled : source.CompilesTo base block)
       (formed : block.WF base)
@@ -124,11 +124,11 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Recur
       (compilation : CompilationData compilationBase source expanded signature generated auxiliaries block)
       (specializations : ContainersInstalled compilationBase auxiliaries)
       (compilationBelow : compilationBase ≤ base) :
-      NativeRegistryHistory extended (.induct source :: declarations)
+      RecursorRegistryHistory extended (.induct source :: declarations)
         (installEntries table (compilationEntries key source signature auxiliaries generated))
   | eliminators {env base : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option RecursorData} {source : VInductDecl} {block : VInductBlock}
-      {schema : CaseSchema} {key : Name} (previous : NativeRegistryHistory env declarations table)
+      {schema : CaseSchema} {key : Name} (previous : RecursorRegistryHistory env declarations table)
       (baseHistory : base.WF' baseDeclarations)
       (hle : base ≤ env)
       (registered : schema.Registered base source block key)
@@ -139,10 +139,10 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Recur
       (coherent : source.ProjectionsCoherent env)
       (fresh : schema.Fresh env key)
       (compat : schema.StructCompat env) :
-      NativeRegistryHistory (env.addEliminator key schema) declarations table
+      RecursorRegistryHistory (env.addEliminator key schema) declarations table
   | projections {base envTypes envCtors : VEnv} {declarations baseDeclarations : List VDecl}
       {table : Name → Option RecursorData} {source : VInductDecl} {block : VInductBlock}
-      (previous : NativeRegistryHistory (envCtors.addEliminators block.eliminators)
+      (previous : RecursorRegistryHistory (envCtors.addEliminators block.eliminators)
         declarations table)
       (baseHistory : base.WF' baseDeclarations)
       (covered : ∃ key schema, block.eliminators = [(key, schema)] ∧
@@ -158,16 +158,16 @@ inductive NativeRegistryHistory : VEnv → List VDecl → (Name → Option Recur
       (projections : block.projections = source.projectionEntries)
       (addTypes : base.addConstVals block.types = some envTypes)
       (addConstructors : envTypes.addConstVals block.ctors = some envCtors) :
-      NativeRegistryHistory ((envCtors.addEliminators block.eliminators).addProjections
+      RecursorRegistryHistory ((envCtors.addEliminators block.eliminators).addProjections
         block.projections) declarations table
 
-namespace NativeRegistryHistory
+namespace RecursorRegistryHistory
 
-theorem history (H : NativeRegistryHistory env declarations table) : env.WF' declarations := by
+theorem history (H : RecursorRegistryHistory env declarations table) : env.WF' declarations := by
   induction H with
   | empty => exact .empty
   | decl _ declaration ih => exact .decl declaration ih
-  | native _ original compiled formed eliminatorsWF installed _ _ _ ih =>
+  | induct _ original compiled formed eliminatorsWF installed _ _ _ ih =>
     exact .decl (.induct original (.intro original compiled formed eliminatorsWF installed)) ih
   | eliminators _ baseHistory hle registered constants equations projectionNames coherent fresh
       compat ih =>
@@ -180,15 +180,15 @@ theorem history (H : NativeRegistryHistory env declarations table) : env.WF' dec
 /-- Lookup follows the concrete list installation, retaining exactly one
 original compilation and header. No current/final-environment Strong proof
 is reinterpreted as an earlier induction hypothesis. -/
-theorem origin (H : NativeRegistryHistory env declarations table)
+theorem origin (H : RecursorRegistryHistory env declarations table)
     (lookup : table name = some data) :
-    data.name = name ∧ Nonempty (NativeDeclarationOrigin env declarations data) := by
+    data.name = name ∧ Nonempty (RecursorDeclarationOrigin env declarations data) := by
   induction H with
   | empty => cases lookup
   | decl _ declaration ih =>
     obtain ⟨same, ⟨origin⟩⟩ := ih lookup
     exact ⟨same, ⟨origin.later declaration⟩⟩
-  | @native base extended compilationBase declarations table source expanded block signature generated auxiliaries key
+  | @induct base extended compilationBase declarations table source expanded block signature generated auxiliaries key
       previous original compiled formed eliminatorsWF installed compilation specializations
       compilationBelow ih =>
     unfold installEntries at lookup
@@ -226,16 +226,16 @@ theorem origin (H : NativeRegistryHistory env declarations table)
     obtain ⟨same, ⟨origin⟩⟩ := ih lookup
     exact ⟨same, ⟨origin.metadata VEnv.addProjections_le⟩⟩
 
-/-- The actual table history supplies native registration independently of
+/-- The actual table history supplies recursor registration independently of
 optional abstract-schema metadata. -/
-theorem registered (H : NativeRegistryHistory env declarations table)
+theorem registered (H : RecursorRegistryHistory env declarations table)
     (lookup : table name = some data) : RecursorRegistered env data ∧ data.name = name := by
   obtain ⟨same, ⟨origin⟩⟩ := H.origin lookup
   exact ⟨origin.registered, same⟩
 
-end NativeRegistryHistory
+end RecursorRegistryHistory
 
-/-- A native installation cannot manufacture a new metadata entry for an
+/-- A recursor installation cannot manufacture a new metadata entry for an
 already present constant. This is the backward lookup used when interpreting
 an earlier source header against a later final registry. -/
 theorem _root_.Lean4Lean.InductiveSignature.CompilationData.installEntries_previous

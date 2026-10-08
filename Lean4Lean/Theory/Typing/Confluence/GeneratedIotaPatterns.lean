@@ -24,10 +24,10 @@ import Lean4Lean.Theory.InductBlock
 import Lean4Lean.Theory.VDecl
 import Lean4Lean.Theory.Typing.InductiveLemmas
 
-/-! Native iota patterns are generated from the actual restored equation.
+/-! Generated iota patterns are generated from the actual restored equation.
 Their RHS applies that equation's closed lambda telescope to captured
 parameters, motives, minors and constructor fields. The source guard is
-fixed by the registered native elimination instance. -/
+fixed by the registered recursor elimination instance. -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData
 
@@ -69,7 +69,7 @@ end Lean4Lean.InductiveSignature.RecursorData
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-inductive NativeIotaPattern (env : VEnv) (registry : Name → Option RecursorData) :
+inductive GeneratedIotaPattern (env : VEnv) (registry : Name → Option RecursorData) :
     (p : Pattern) → p.RHS × p.Check → Prop where
   | intro {data : RecursorData} {index : Fin data.schema.signature.constructors.size}
       {equation : VDefEq} (henv : env.WF)
@@ -77,29 +77,29 @@ inductive NativeIotaPattern (env : VEnv) (registry : Name → Option RecursorDat
       (hlookup : registry data.name = some data)
       (howner : data.schema.signature.constructors[index].owner = data.owner)
       (hgen : data.equation index = some equation) :
-      NativeIotaPattern env registry (data.rulePattern index equation)
+      GeneratedIotaPattern env registry (data.rulePattern index equation)
         (data.ruleRHS index equation (hregistered.equation_closed henv hgen).2.1,
           data.ruleCheck index equation)
 
-private theorem nativeHead_varN (p : Pattern) (n : Nat) :
+private theorem constHead_varN (p : Pattern) (n : Nat) :
     (p.varN n).constHead = p.constHead := by induction n <;> simp [Pattern.varN, Pattern.constHead, *]
 
-namespace NativeIotaPattern
+namespace GeneratedIotaPattern
 
-theorem simple (H : NativeIotaPattern env registry p rhs) :
+theorem simple (H : GeneratedIotaPattern env registry p rhs) :
     ∃ shape : SimplePattern, p = shape.toPattern := by
   cases H
   exact ⟨.iota _ _ _ _, rfl⟩
 
-theorem origin (H : NativeIotaPattern env registry p rhs) : PatternHeadsStoredRule env p := by
+theorem origin (H : GeneratedIotaPattern env registry p rhs) : PatternHeadsStoredRule env p := by
   cases H with
   | intro henv hr hl ho hg =>
     exact ⟨_, _, _, hr.equation_present hg,
       by simp only [RecursorData.rulePattern, SimplePattern.toPattern,
-        Pattern.constHead, nativeHead_varN],
+        Pattern.constHead, constHead_varN],
       (VExpr.equationHead_eq _).trans (hr.equation_head ho hg)⟩
 
-theorem generated (H : NativeIotaPattern env registry p rhs) :
+theorem generated (H : GeneratedIotaPattern env registry p rhs) :
     ∃ data : RecursorData, ∃ index : Fin data.schema.signature.constructors.size,
       ∃ (equation : VDefEq) (hclosed : equation.rhs.Closed), RecursorRegistered env data ∧ registry data.name = some data ∧
       data.schema.signature.constructors[index].owner = data.owner ∧
@@ -108,9 +108,9 @@ theorem generated (H : NativeIotaPattern env registry p rhs) :
   cases H with
   | @intro data index equation henv hr hl ho hg => exact ⟨data, index, equation, _, hr, hl, ho, hg, rfl, HEq.rfl⟩
 
-/-- The iota pattern retains the exact native metadata required by the core
+/-- The iota pattern retains the exact recursor metadata required by the core
 reduction guard; primitive quotient metadata remain a separate alternative. -/
-theorem registered (H : NativeIotaPattern env registry
+theorem registered (H : GeneratedIotaPattern env registry
     (SimplePattern.iota recursor major ctor fields).toPattern rhs) :
     ∃ data, RecursorRegistered env data ∧ data.name = recursor ∧
       data.majorOffset = major ∧ registry recursor = some data ∧
@@ -130,14 +130,14 @@ theorem registered (H : NativeIotaPattern env registry
   have hc := congrArg Prod.snd (eq_of_heq hrhs)
   exact ⟨.true, hc.trans (by simp only [RecursorData.ruleCheck, hlarge, ↓reduceIte]; rfl)⟩
 
-theorem app_l (H : NativeIotaPattern env registry p rhs)
+theorem app_l (H : GeneratedIotaPattern env registry p rhs)
     (hs : Subpattern (.app fn arg) p) : ¬Subpattern (.app left right) fn := by
   cases H
   obtain ⟨rfl, rfl⟩ := hs.iota_app
   exact Subpattern.constVarN_noapp
 
-theorem app_l_uniq (H : NativeIotaPattern env registry p rhs)
-    (H' : NativeIotaPattern env registry p' rhs')
+theorem app_l_uniq (H : GeneratedIotaPattern env registry p rhs)
+    (H' : GeneratedIotaPattern env registry p' rhs')
     (hs : Subpattern (.app fn arg) p) (hs' : Subpattern (.app fn' arg') p')
     (hb : Subpattern (.var body) fn) : fn'.inter body = none := by
   cases H with
@@ -152,8 +152,8 @@ theorem app_l_uniq (H : NativeIotaPattern env registry p rhs)
       cases Option.some.inj (hl.symm.trans hl')
       rfl
 
-theorem app_uniq (H : NativeIotaPattern env registry p rhs)
-    (H' : NativeIotaPattern env registry p' rhs')
+theorem app_uniq (H : GeneratedIotaPattern env registry p rhs)
+    (H' : GeneratedIotaPattern env registry p' rhs')
     (hs : Subpattern (.app fn arg) p) (hs' : Subpattern (.app fn' arg') p')
     (hl : Subpattern left fn) (hright : Subpattern right arg') : left.inter right = none := by
   cases H with
@@ -168,7 +168,7 @@ theorem app_uniq (H : NativeIotaPattern env registry p rhs)
       apply hrigid equation (hr.equation_present hg) (VLevel.params data.uvars)
       exact ((VExpr.equationHead_eq _).trans (hr.equation_head ho hg)).trans (by rw [hn]; rfl)
 
-end NativeIotaPattern
+end GeneratedIotaPattern
 end Lean4Lean.VEnv
 
 namespace Lean4Lean

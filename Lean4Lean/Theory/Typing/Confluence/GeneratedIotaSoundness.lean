@@ -44,9 +44,9 @@ import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Theory.Typing.UniqueTyping
 
-/-! Soundness of native iota patterns.
+/-! Soundness of generated iota patterns.
 
-A native iota pattern is generated from an actual restored recursor equation.
+A generated iota pattern is generated from an actual restored recursor equation.
 Its soundness is the iota theorem `VIotaRuleShape.iota` for the restored
 recursor, constructor and rule shapes. The shapes are read off the finite
 compilation that registered the recursor; the restoration lemmas for nested
@@ -328,7 +328,7 @@ theorem _root_.Lean4Lean.VExpr.instOuter_liftN_mid {X : VExpr} {p mid f : List V
       List.getElem_append_left (by omega)]
     congr 1; omega
 
-/-- The constructor field alignment of a native rule, after the recursor
+/-- The constructor field alignment of a recursor rule, after the recursor
 parameters `P` and the actual constructor parameters `ys` are supplied. The
 restored constructor type `R` is related to a source type `Q`, whose remainder
 after `P` is the actual constructor telescope's remainder after `ys`. -/
@@ -409,7 +409,7 @@ theorem _root_.Lean4Lean.VExpr.ClosedN.wrapForalls_drop {A B : List VExpr} {b : 
   exact VExpr.ClosedN.wrapForalls_body h
 
 set_option maxHeartbeats 4000000 in
-/-- The restored recursor, constructor and rule shapes of an installed native
+/-- The restored recursor, constructor and rule shapes of an installed recursor
 rule, at the restored head of its owner family. -/
 theorem RecursorRegistered.iota_core {data : RecursorData} (henv : env.WF)
     (hr : RecursorRegistered env data)
@@ -994,7 +994,7 @@ private theorem argumentRHS_apply_levels {p : Pattern} {n : Nat} (l l' : List VL
   obtain ⟨path, rfl⟩ := argumentRHS_var hx
   rfl
 
-/-- The major arguments of a restored native rule: the specialized parameters
+/-- The major arguments of a restored recursor rule: the specialized parameters
 and the field variables. -/
 private theorem ruleMajorArguments_eq
     (I : VIotaRuleShape env recName recUvars nparams cnparams nmotives nminors nindices ctorName
@@ -1014,12 +1014,12 @@ private theorem ruleMajorArguments_eq
   simp only [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go, List.nil_append] at h
   rw [h]
 
-/-- Native iota patterns are sound: a matched redex is definitionally equal
-to the captured instance of the installed native equation. -/
-theorem NativeIotaPattern.sound (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+/-- Generated iota patterns are sound: a matched redex is definitionally equal
+to the captured instance of the installed recursor equation. -/
+theorem GeneratedIotaPattern.sound (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (_hregistry : ∀ name data, registry name = some data →
       RecursorRegistered env data ∧ data.name = name)
-    (H : NativeIotaPattern env registry p rhs)
+    (H : GeneratedIotaPattern env registry p rhs)
     (hm : p.Matches e levels values) (ht : env.HasType U Γ e type) :
     env.IsDefEqU U Γ e (rhs.1.apply levels values) := by
   cases H with

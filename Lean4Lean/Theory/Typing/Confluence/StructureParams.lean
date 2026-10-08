@@ -33,10 +33,10 @@ import Lean4Lean.Theory.Inductive.Signature
 import Lean4Lean.Theory.Typing.RecursorRuleRegistration
 import Lean4Lean.Theory.Inductive.CompilationNames
 
-/-! A native rule at a structure constructor captures only the structure's
+/-! A recursor rule at a structure constructor captures only the structure's
 fields.
 
-The restored major of a native equation is the constructor applied to its
+The restored major of a recursor equation is the constructor applied to its
 constructor parameters followed by exactly the signature constructor's field
 variables. The constructor parameter prefix is the declaration's own common
 parameters for an original constructor, and the certified container
@@ -99,7 +99,7 @@ private theorem stripLams_wrap' (domains : List VExpr) (e : VExpr) :
   | nil => rfl
   | cons d ds ih => exact ih
 
-/-- The restored native equation's major is the restoration of the
+/-- The restored recursor equation's major is the restoration of the
 generated constructor application. -/
 theorem Instance.restored_equation_major_exact {s : InductiveSignature} {g : Instance s}
     (H : CompilationData env source expanded s g auxiliaries block)
@@ -347,7 +347,7 @@ theorem CompiledInductive.family_projection (henv : env.WF)
   subst this
   exact ⟨hsingle, rfl, rfl⟩
 
-/-- A native rule whose major constructor is a registered structure's
+/-- A recursor rule whose major constructor is a registered structure's
 constructor has at least the structure's parameters before the captured
 fields of its major. -/
 theorem RecursorRegistered.rule_param_count (henv : env.WF)

@@ -33,10 +33,10 @@ theorem RecursorRegistered.equation_rhs_closed (ordered : env.Ordered)
   VExpr.WF.closedN ordered
     ⟨_, (ordered.defEqWF (registered.equation_present generated)).2⟩ trivial
 end Lean4Lean.VEnv
-namespace Lean4Lean.CanonicalDataHead
+namespace Lean4Lean.HeadRegistry
 open InductiveSignature VEnv
 /-- The scope required by every possible selection follows from the actual
-native registration and finite original case headers. -/
+recursor registration and finite original case headers. -/
 theorem Registry.scoped_of_headers {env : VEnv} {registry : Registry}
     (formed : env.WF)
     (definitions : ∀ name value, registry.definitions name = some value → value.value.Closed)
@@ -69,12 +69,12 @@ def Registry.ofDataHistory (declarations : List VDecl)
     structureConstructors := structureConstructors
     quotient := quotient }
 /-- The complete machine's scope is produced from the original history and
-case headers, including every native constructor equation. -/
+case headers, including every constructor equation. -/
 theorem Registry.ofDataHistory_scoped
     {env : VEnv} {declarations : List VDecl} {recursors : Name → Option RecursorData}
     {cases : Name → Nat → Option CaseEntry} {projections : Name → Option VProjectionInfo}
     {structureConstructors : Name → Option VProjectionEntry} {quotient : Bool}
-    (history : NativeRegistryHistory env declarations recursors)
+    (history : RecursorRegistryHistory env declarations recursors)
     (caseHeaders : ∀ block owner entry, cases block owner = some entry →
       env.eliminators block entry.schema ∧
       ∃ header, entry.schema.genericType entry.owner = some header ∧ header.Closed) :
@@ -86,14 +86,14 @@ theorem Registry.ofDataHistory_scoped
   · intro name data lookup
     exact (history.registered lookup).1
   · exact caseHeaders
-end Lean4Lean.CanonicalDataHead
+end Lean4Lean.HeadRegistry
 
 namespace Lean4Lean.VEnv
 open VExpr
 variable {env : VEnv} {leftName rightName : Name} {leftInfo rightInfo : VProjectionInfo}
 set_option Elab.async false
 end Lean4Lean.VEnv
-namespace Lean4Lean.CanonicalDataHead
+namespace Lean4Lean.HeadRegistry
 open VEnv InductiveSignature
 variable {env : VEnv}
 set_option Elab.async false
@@ -184,4 +184,4 @@ theorem environmentCases_complete (formed : env.WF)
     cases formed.eliminators_unique registered present
     cases Fin.ext indexEq
     rfl
-end Lean4Lean.CanonicalDataHead
+end Lean4Lean.HeadRegistry

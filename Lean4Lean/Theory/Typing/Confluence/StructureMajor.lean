@@ -60,17 +60,17 @@ import Lean4Lean.Std.Basic
 
 /-! The structure-major facts of the concrete pattern table.
 
-A native or quotient iota major of structure type is a saturated application
-of the structure's constructor, and native computation at a structure
+A recursor or quotient iota major of structure type is a saturated application
+of the structure's constructor, and recursor computation at a structure
 constructor reads only its fields. Both are consequences of declaration
 provenance: the major constructor of every installed equation is the
 projection constructor of its registered result family
 (`WF.structureCtorCoherent`), a registered structure is never the primitive
-quotient type, and a native rule's constructor parameter prefix is the
+quotient type, and a recursor rule's constructor parameter prefix is the
 parameter telescope recorded by that family's projection metadata. -/
 
 namespace Lean4Lean.VEnv
-open InductiveSignature VExpr CanonicalDataHead
+open InductiveSignature VExpr HeadRegistry
 open private declaration_le from Lean4Lean.Theory.Typing.Confluence.DefinitionHistory
 set_option linter.unusedSectionVars false
 
@@ -307,7 +307,7 @@ theorem Pattern.Matches.const_arguments_eq
 section
 variable {registry : Registry} {declarations : List VDecl}
 
-/-- A native or quotient iota major of structure type is a saturated
+/-- A recursor or quotient iota major of structure type is a saturated
 application of the structure's constructor. -/
 theorem ConcretePattern.struct_major (henv : env.WF)
     (contract : registry.EnvironmentContract env declarations)
@@ -331,7 +331,7 @@ theorem ConcretePattern.struct_major (henv : env.WF)
   obtain ⟨hcc, hfs⟩ := henv.installed_major_struct hΓ hdf hm hl hs
   exact ⟨hcc, hlen ▸ hfs⟩
 
-/-- Native iota computation at a structure constructor reads only its
+/-- Generated iota computation at a structure constructor reads only its
 fields, not its parameters. -/
 theorem ConcretePattern.iota_params (henv : env.WF)
     (contract : registry.EnvironmentContract env declarations)

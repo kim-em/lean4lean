@@ -21,7 +21,7 @@ structure InductiveStage (env : VEnv) (source : VInductDecl) (historyLength : Na
   earlierDeclarations : List VDecl
   earlierHistory : base.WF' earlierDeclarations
   earlier : earlierDeclarations.length < historyLength
-  originalSource : source.WF base
+  sourceWF : source.WF base
   compilation : source.CompilesTo base block
   typing : VInductBlock.TypingStages base block installed
   installedBelow : installed ≤ env
@@ -37,7 +37,7 @@ def later {env extended : VEnv} {source : VInductDecl} {n m : Nat}
   earlierDeclarations := stage.earlierDeclarations
   earlierHistory := stage.earlierHistory
   earlier := Nat.lt_of_lt_of_le stage.earlier bound
-  originalSource := stage.originalSource
+  sourceWF := stage.sourceWF
   compilation := stage.compilation
   typing := stage.typing
   installedBelow := stage.installedBelow.trans hle

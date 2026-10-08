@@ -29,17 +29,17 @@ import Lean4Lean.Theory.Typing.EnvTables.Arity
 import Lean4Lean.Theory.Typing.Confluence.RecursorDeclarationProvenance
 
 /-! The concrete pattern table of a well-formed environment: definition
-unfoldings and native iota rules from the canonical registry, and the primitive
+unfoldings and generated iota rules from the head registry, and the primitive
 quotient rule when the quotient declaration is present. This file proves the
 syntactic non-overlap facts of the table. -/
 
 namespace Lean4Lean.VEnv
-open InductiveSignature CanonicalDataHead
+open InductiveSignature HeadRegistry
 set_option linter.unusedSectionVars false
 
-/-- A native recursor never carries the primitive quotient lift's name: its
+/-- A recursor never carries the primitive quotient lift's name: its
 type returns a motive application, the quotient lift's type a bare variable. -/
-theorem QuotRegistered.native_name_ne (hq : QuotRegistered env)
+theorem QuotRegistered.recursor_name_ne (hq : QuotRegistered env)
     (H : RecursorRegistered env data) : data.name ≠ ``Quot.lift := by
   intro hn
   obtain ⟨type, htype⟩ := H.recursorType_exists
@@ -60,7 +60,7 @@ theorem QuotRegistered.lift_head (hq : QuotRegistered env) :
       equation.lhs.equationHead = .const ``Quot.lift levels :=
   ⟨quotDefEq, [.param 0, .param 1], hq.equation, rfl⟩
 
-/-- A native recursor has an installed equation headed by its name, so it is
+/-- A recursor has an installed equation headed by its name, so it is
 never a rigid head. -/
 theorem RecursorRegistered.not_rigid_of_lookup
     (H : RecursorRegistered env data)
@@ -82,10 +82,10 @@ theorem _root_.Lean4Lean.SimplePattern.iota_toPattern_inj
   obtain ⟨e3, e4⟩ := Pattern.constVarN_inter h2
   exact ⟨e1, e2, e3, e4⟩
 
-namespace NativeIotaPattern
+namespace GeneratedIotaPattern
 
-theorem unique (H : NativeIotaPattern env registry p rhs)
-    (H' : NativeIotaPattern env registry q rhs')
+theorem unique (H : GeneratedIotaPattern env registry p rhs)
+    (H' : GeneratedIotaPattern env registry q rhs')
     (hs : Subpattern sub p) (hi : q.inter sub = some intersection) :
     p = q ∧ q = sub ∧ rhs ≍ rhs' := by
   cases H with
@@ -108,14 +108,14 @@ theorem unique (H : NativeIotaPattern env registry p rhs)
       cases Option.some.inj (hg.symm.trans hg')
       exact ⟨rfl, hsub.symm, HEq.rfl⟩
 
-end NativeIotaPattern
+end GeneratedIotaPattern
 
 /-- The concrete pattern table. -/
 def ConcretePattern (registry : Registry) (env : VEnv) (p : Pattern) (rhs : p.RHS × p.Check) :
     Prop :=
   DefinitionPattern registry.definitions p rhs ∨
     (registry.quotient = true ∧ QuotPattern env p rhs) ∨
-    NativeIotaPattern env registry.recursors p rhs
+    GeneratedIotaPattern env registry.recursors p rhs
 
 section
 variable {registry : Registry} {declarations : List VDecl}
@@ -136,14 +136,14 @@ theorem ConcretePattern.origin (H : ConcretePattern registry env p rhs) :
   · exact H.origin
   · exact H.origin
 
-/-- A native lookup is never the registered quotient lift. -/
-theorem ConcretePattern.native_quot (hq : QuotRegistered env) :
+/-- A recursor lookup is never the registered quotient lift. -/
+theorem ConcretePattern.recursor_quot (hq : QuotRegistered env) :
     registry.recursors ``Quot.lift = none := by
   cases h : registry.recursors ``Quot.lift with
   | none => rfl
   | some data =>
     obtain ⟨hr, hn, _⟩ := contract.recursors _ _ h
-    exact (hq.native_name_ne hr hn).elim
+    exact (hq.recursor_name_ne hr hn).elim
 
 theorem ConcretePattern.recursor {recursor ctor : Name} {major fields : Nat}
     {r : (SimplePattern.iota recursor major ctor fields).toPattern.RHS ×
@@ -173,10 +173,10 @@ theorem ConcretePattern.recursor {recursor ctor : Name} {major fields : Nat}
     cases hl
     exact .inl ⟨_, hr, hn, hm, hl', ⟨index, ho⟩, hg⟩
 
-/-- Definition heads are neither native recursors nor constructors of native
+/-- Definition heads are neither recursors nor constructors of recursor
 equations. -/
 theorem ConcretePattern.definition_iota (hd : DefinitionPattern registry.definitions (.const c) rd)
-    (hn : NativeIotaPattern env registry.recursors p rn) (hs : Subpattern (.const c) p) : False := by
+    (hn : GeneratedIotaPattern env registry.recursors p rn) (hs : Subpattern (.const c) p) : False := by
   cases hd with
   | @intro value hl _ =>
     obtain ⟨hvr, hvn⟩ := contract.definitions _ _ hl
@@ -184,7 +184,7 @@ theorem ConcretePattern.definition_iota (hd : DefinitionPattern registry.definit
     | @intro data index equation _ hr hlk ho hg =>
       rcases hs.iota_const with h | h
       · rw [h] at hl
-        rw [contract.nativeNotDefinition _ _ hlk] at hl
+        rw [contract.recursorNotDefinition _ _ hlk] at hl
         cases hl
       · have hrigid := henv.installed_constructor_rigid (hr.equation_present hg) (hr.equation_major hg)
         apply hrigid value.toDefEq hvr.2 (VLevel.params value.uvars)
@@ -198,10 +198,10 @@ theorem ConcretePattern.app_l (H : ConcretePattern registry env p rhs)
   · exact H.app_l hs
   · exact H.app_l hs
 
-/-- A native iota pattern's recursor is not the registered quotient lift, and
+/-- A generated iota pattern's recursor is not the registered quotient lift, and
 its constructor is neither the quotient lift nor the quotient constructor. -/
-theorem ConcretePattern.native_quot_names (hq : QuotRegistered env)
-    (H : NativeIotaPattern env registry.recursors p rhs) :
+theorem ConcretePattern.recursor_quot_names (hq : QuotRegistered env)
+    (H : GeneratedIotaPattern env registry.recursors p rhs) :
     ∃ rc mr cc kc, p = (SimplePattern.iota rc mr cc kc).toPattern ∧
       rc ≠ ``Quot.lift ∧ rc ≠ ``Quot.mk ∧ cc ≠ ``Quot.lift ∧ env.ConstHeadRigid cc ∧
       ¬env.ConstHeadRigid rc := by
@@ -209,7 +209,7 @@ theorem ConcretePattern.native_quot_names (hq : QuotRegistered env)
   | @intro data index equation _ hr hl ho hg =>
     have hrigid := henv.installed_constructor_rigid (hr.equation_present hg) (hr.equation_major hg)
     have hnr := hr.not_rigid_of_lookup ho hg
-    refine ⟨_, _, _, _, rfl, hq.native_name_ne hr, ?_, ?_, hrigid, hnr⟩
+    refine ⟨_, _, _, _, rfl, hq.recursor_name_ne hr, ?_, ?_, hrigid, hnr⟩
     · intro h; exact hnr (h ▸ hq.quotMk_rigid henv)
     · intro h
       obtain ⟨eq, lv, he, hh⟩ := hq.lift_head
@@ -239,7 +239,7 @@ theorem ConcretePattern.uniq (H : ConcretePattern registry env p rhs)
   · obtain ⟨hen, H⟩ := H
     have hq := contract.quotientRegistered hen
     obtain ⟨rc, mr, cc, kc, rfl, hrc, hrm, _, _, _⟩ :=
-      ConcretePattern.native_quot_names henv contract hq H'
+      ConcretePattern.recursor_quot_names henv contract hq H'
     cases H
     obtain ⟨_, he, _⟩ := SimplePattern.iota_overlap (fun h => (hrc h).elim) hrm hs hi
     exact (hrc he).elim
@@ -252,7 +252,7 @@ theorem ConcretePattern.uniq (H : ConcretePattern registry env p rhs)
   · obtain ⟨hen, H'⟩ := H'
     have hq := contract.quotientRegistered hen
     obtain ⟨rc, mr, cc, kc, rfl, hrc, _, hcq, _, _⟩ :=
-      ConcretePattern.native_quot_names henv contract hq H
+      ConcretePattern.recursor_quot_names henv contract hq H
     cases H'
     obtain ⟨_, he, _⟩ := SimplePattern.iota_overlap (fun h => (hrc h.symm).elim)
       (fun h => hcq h.symm) hs hi
@@ -274,7 +274,7 @@ theorem ConcretePattern.app_l_uniq (H : ConcretePattern registry env p rhs)
       | @intro data index equation _ hr hl ho hg =>
         obtain ⟨rfl, rfl⟩ := hs.iota_app
         obtain ⟨rfl, rfl⟩ := hs'.iota_app
-        exact SimplePattern.iota_app_l_uniq (fun h => (hq.native_name_ne hr h.symm).elim) hb
+        exact SimplePattern.iota_app_l_uniq (fun h => (hq.recursor_name_ne hr h.symm).elim) hb
   · rcases H' with H' | ⟨hen, H'⟩ | H'
     · exact (H'.no_app_subpattern hs').elim
     · have hq := contract.quotientRegistered hen
@@ -283,7 +283,7 @@ theorem ConcretePattern.app_l_uniq (H : ConcretePattern registry env p rhs)
       | @intro data index equation _ hr hl ho hg =>
         obtain ⟨rfl, rfl⟩ := hs.iota_app
         obtain ⟨rfl, rfl⟩ := hs'.iota_app
-        exact SimplePattern.iota_app_l_uniq (fun h => (hq.native_name_ne hr h).elim) hb
+        exact SimplePattern.iota_app_l_uniq (fun h => (hq.recursor_name_ne hr h).elim) hb
     · exact H.app_l_uniq H' hs hs' hb
 
 theorem ConcretePattern.app_uniq (H : ConcretePattern registry env p rhs)
@@ -320,7 +320,7 @@ theorem ConcretePattern.app_uniq (H : ConcretePattern registry env p rhs)
         exact hrd.not_rigid_of_lookup ho hg (h ▸ hq.quotMk_rigid henv)
     · exact H.app_uniq H' hs hs' hl hr
 
-theorem ConcretePattern.const_native (H : ConcretePattern registry env (.const c) rhs) :
+theorem ConcretePattern.const_not_unfolding (H : ConcretePattern registry env (.const c) rhs) :
     registry.recursors c = none ∧ (QuotRegistered env → c ≠ ``Quot.lift) := by
   rcases H with H | ⟨_, H⟩ | H
   · cases H with
@@ -328,7 +328,7 @@ theorem ConcretePattern.const_native (H : ConcretePattern registry env (.const c
       refine ⟨?_, fun hq => (hq.definition_names henv (contract.definitions _ _ hl).1).1⟩
       cases h : registry.recursors value.name with
       | none => rfl
-      | some data => rw [contract.nativeNotDefinition _ _ h] at hl; cases hl
+      | some data => rw [contract.recursorNotDefinition _ _ h] at hl; cases hl
   · cases H
   · cases H
 
