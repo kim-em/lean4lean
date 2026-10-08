@@ -730,8 +730,8 @@ set_option hygiene false
 local notation:65 Γ " ⊢ " e " : " A:36 " !! " n:36 => HasTypeStratifiedS Γ e A true n
 local notation:65 Γ " ⊢ " e " :! " A:36 " !! " n:36 => HasTypeStratifiedS Γ e A false n
 
-/-- SExpr-side analog of `HasTypeStratified`: a typing derivation indexed by
-its tree depth `n`, used for well-founded induction on stratification. -/
+/-- A typing derivation indexed by its tree depth `n`, used for well-founded induction on
+stratification. -/
 inductive HasTypeStratifiedS : List SExpr → SExpr → SExpr → Bool → Nat → Prop where
   | bvar : Lookup Γ i A → Γ ⊢ A : .sort u !! n → Γ ⊢ .bvar i :! A !! n+1
   | sort' : Γ ⊢ .sort l :! .sort (.succ l) !! n
