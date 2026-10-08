@@ -555,7 +555,8 @@ Recorded under Kim's standing instruction (decide, record, continue).
    (`Nested/CaseEliminators.lean`), and `RenamingReplacementOnCtx.eliminators` gains a second
    alternative (`RestoredEliminator`, added by `RenamingReplacementOnCtx.addEliminator`; the
    context-free `RenamingReplacement` keeps the first alternative only, since the conversion up
-   to beta needs a well-formed image context): a lowered schema without restoration may be matched by a registered source
+   to beta needs a well-formed image context; the source schema is matched up to its original
+   families, which differ between the lowered and the source declaration): a lowered schema without restoration may be matched by a registered source
    schema with the same signature whose restoration agrees with the replacement (shape,
    heads replaced, renaming), the elimination rules being transported through the agreement of
    restoration with renaming replacement up to beta (`RenamingRestorationSubstitution.expr_simAt`).
