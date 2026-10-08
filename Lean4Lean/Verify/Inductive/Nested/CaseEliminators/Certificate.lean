@@ -253,7 +253,7 @@ theorem NestedRun.boundaryCaseCompilationData
   obtain ⟨-, -, hnames, -, -, hwellFormedAll, -, hscoped, hdirect, -⟩ :=
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D True.intro
   -- the restoration substitution and the lowered defeqs of the checked constructors
-  obtain ⟨ρ, S, -⟩ := E.constructorRestorationSubstitution wf hadded henvTypes Haux Hexpansion
+  obtain ⟨S, -⟩ := E.constructorRestorationSubstitution wf hadded henvTypes Haux Hexpansion
     hnodup hfresh hrecFresh
   obtain ⟨envT, henvT, Hctors⟩ := HmodelsL.constructors
   rw [hloweredTypes] at henvT
@@ -269,7 +269,8 @@ theorem NestedRun.boundaryCaseCompilationData
       rw [hloweredUvars] at h
       exact h.2.2) Hctors)
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
-  have HsrcRestore := sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
+  have HsrcRestore := sourceConstructors_of_substitution S VExpr.projNamesFixed_id
+      henvTypes.betaSubjectReduction
     (forall₂_take Hdefeq sourceDecl.types.length)
     (E.loweredConstructors_of_lowering hadded henvTypes hfreshAll Hrestoring hlevels)
     (fun n hn => htotal n (List.mem_of_mem_take hn))
@@ -287,7 +288,8 @@ theorem NestedRun.boundaryCaseCompilationData
             RestoresType r envTypes sourceDecl.uvars normalized.type ctor.type)
             normalized.ctors family.ctors)
         (B.sourceSignature.declaration.types.drop sourceDecl.types.length) direct :=
-    fun direct hmapM => sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
+    fun direct hmapM => sourceConstructors_of_substitution S VExpr.projNamesFixed_id
+      henvTypes.betaSubjectReduction
       (Lean4Lean.List.forall₂_drop Hdefeq sourceDecl.types.length)
       (auxiliaryLoweredConstructors_restore henvTypes Haux HauxRestoring hPL hfreshAll
         hlevelsAux hmapM)

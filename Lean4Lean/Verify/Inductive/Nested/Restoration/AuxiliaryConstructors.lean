@@ -123,7 +123,7 @@ theorem auxiliaryLoweredConstructors_restore
 
 /-- The restoration substitution of a validated nested run from the lowered
 header environment to the source header environment
-(`Restoration.lambdaReplacement_substitution` over the signature's
+(`Restoration.constInterpretation_substitution` over the signature's
 parameters), together with the definitional equality, in the lowered header
 environment, of the normalized and lowered constructor types of every family
 (`Models.constructors`). This is the setup of
@@ -157,8 +157,10 @@ theorem NestedRun.constructorRestorationSubstitution
       (·.auxiliary), envTypes.constants name = none)
     (hrecFresh : ∀ p ∈ (compilationRestoration sourceDecl auxiliaries).recursors,
       envTypes.constants p.1 = none) :
-    ∃ ρ, RestorationSubstitution envTypes E.lowered.constructors.toConstructorCheck.headerVEnv
-        (compilationRestoration sourceDecl auxiliaries) ρ ∧
+    (compilationRestoration sourceDecl auxiliaries).Substitution envTypes
+        E.lowered.constructors.toConstructorCheck.headerVEnv
+        ((compilationRestoration sourceDecl auxiliaries).constInterpretation
+          E.lowered.signature.params) ∧
       List.Forall₂ (fun n l : VInductiveType => List.Forall₂
           (fun nc lc : VConstVal =>
             E.lowered.constructors.toConstructorCheck.headerVEnv.IsDefEqU sourceDecl.uvars []
@@ -256,10 +258,17 @@ theorem NestedRun.constructorRestorationSubstitution
     have h2 := hP.length_eq
     simp only [List.length_reverse] at h1 h2
     omega
+  have hfreshAll : ∀ name ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+      envTypes.constants name = none := by
+    intro name hname
+    rcases List.mem_append.mp hname with h | h
+    · exact hfresh name h
+    · obtain ⟨p, hp, rfl⟩ := List.mem_map.mp h
+      exact hrecFresh p hp
   have hreplaced : ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads, ∀ ci,
       E.lowered.constructors.toConstructorCheck.headerVEnv.constants h.auxiliary = some ci →
       ci.type.containsAnyConst
-          ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) = false ∧
+          (compilationRestoration sourceDecl auxiliaries).restorableNames = false ∧
       envTypes.HasType ci.uvars []
         (VExpr.wrapLams E.lowered.signature.params
           (VExpr.mkApps (.const h.target h.levels) h.arguments)) ci.type := by
@@ -285,7 +294,7 @@ theorem NestedRun.constructorRestorationSubstitution
     change t.type.containsAnyConst _ = false ∧
       envTypes.HasType t.uvars [] _ t.type
     rw [huvars]
-    refine ⟨(htypeD.noFreshConsts hordered hfresh (by intro _ h; simp at h)).2.1, ?_⟩
+    refine ⟨(htypeD.noFreshConsts hordered hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
     have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
         E.lowered.signature.params.reverse sourceParams.reverse :=
       VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)
@@ -305,17 +314,17 @@ theorem NestedRun.constructorRestorationSubstitution
       VEnv.IsDefEqU.trans henvTypes trivial hforalls
         (VEnv.IsDefEqU.trans henvTypes trivial hgtype.symm ⟨_, htypeD⟩)
     exact hlam.defeqU_r henvTypes trivial hchain
-  have S := Restoration.lambdaReplacement_substitution
+  have S := Restoration.constInterpretation_substitution
     (r := compilationRestoration sourceDecl auxiliaries)
     (P := E.lowered.signature.params)
     henvTypes hadded hloweredSplit hheadsParams
-    (fun h hh arg harg => (hscoped.2.2.1 h hh).2 arg harg) hPclosed hfresh
+    (fun h hh arg harg => (hscoped.2.2.1 h hh).2 arg harg) hPclosed hfreshAll
     (by
       intro entry hentry
       obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hentry
       rw [hheadNames]
       exact mem_familyNames.mpr ⟨t, ht, .inl rfl⟩)
-    hrecFresh hreplaced (henvTypes.eliminatorsAvoidConsts hfresh)
+    hreplaced (henvTypes.eliminatorsAvoidConsts hfreshAll)
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars := by
     have h1 := E.lowered.constructors.toConstructorCheck.core.uvars
     have h2 := E.sourceCore.core.uvars
@@ -328,7 +337,7 @@ theorem NestedRun.constructorRestorationSubstitution
       E.lowered.signature.declaration.types E.lowered.loweredDecl.types :=
     Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       simpa using congrArg List.length h.2.2.2.2) Hmodels.families
-  exact ⟨_, S, forall₂_ctors_split (R := fun nc lc : VConstVal =>
+  exact ⟨S, forall₂_ctors_split (R := fun nc lc : VConstVal =>
       E.lowered.constructors.toConstructorCheck.headerVEnv.IsDefEqU sourceDecl.uvars []
         nc.type lc.type) Hlengths
     (Lean4Lean.List.Forall₂.imp (fun _ _ h => by
@@ -395,7 +404,7 @@ theorem NestedRun.auxiliaryConstructors_of_lowering
     fun name hname => hfreshAll name (List.mem_append_left _ hname)
   have hrecFresh : ∀ p ∈ r.recursors, envTypes.constants p.1 = none :=
     fun p hp => hfreshAll p.1 (List.mem_append_right _ (List.mem_map_of_mem hp))
-  obtain ⟨ρ, S, Hdefeq⟩ := E.constructorRestorationSubstitution wf hadded henvTypes
+  obtain ⟨S, Hdefeq⟩ := E.constructorRestorationSubstitution wf hadded henvTypes
     Haux Hexpansion hnodup hfresh hrecFresh
   -- the common parameter telescope
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
@@ -421,7 +430,8 @@ theorem NestedRun.auxiliaryConstructors_of_lowering
       ← compilationRestoration_heads_auxiliary] at h
   have Hlowered := auxiliaryLoweredConstructors_restore henvTypes Haux HauxRestoring hP
     hfreshAll hlevels hmapM
-  exact sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
+  exact sourceConstructors_of_substitution S VExpr.projNamesFixed_id
+    henvTypes.betaSubjectReduction
     (Lean4Lean.List.forall₂_drop Hdefeq sourceDecl.types.length) Hlowered htotal
 
 end VerifyInductive

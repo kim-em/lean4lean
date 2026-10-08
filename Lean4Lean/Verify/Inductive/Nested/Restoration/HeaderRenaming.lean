@@ -27,31 +27,6 @@ open InductiveSignature
 
 namespace InductiveSignature
 
-/-- The renaming of a restoration: heads are renamed to their targets (this
-only matters for projection type names), every other name by the recursor
-renaming. -/
-def Restoration.renaming (r : Restoration) (n : Name) : Name :=
-  match r.heads.find? (fun h => h.auxiliary == n) with
-  | some h => h.target
-  | none => r.recursorName n
-
-theorem Restoration.renaming_of_find_none {r : Restoration} {n : Name}
-    (h : r.heads.find? (fun h => h.auxiliary == n) = none) :
-    r.renaming n = r.recursorName n := by
-  simp [Restoration.renaming, h]
-
-theorem Restoration.renaming_eq_self {r : Restoration} {n : Name}
-    (h : n ∉ r.restorableNames) : r.renaming n = n := by
-  have h1 : n ∉ r.heads.map (·.auxiliary) := fun hm => h (List.mem_append_left _ hm)
-  have h2 : n ∉ r.recursors.map Prod.fst := fun hm => h (List.mem_append_right _ hm)
-  rw [Restoration.renaming_of_find_none (Restoration.heads_find?_eq_none h1),
-    Restoration.recursorName_of_not_mem h2]
-
-theorem Restoration.lambdaReplacement_eq_none_of_not_restorable {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} {n : Name}
-    (h : n ∉ r.restorableNames) : r.lambdaReplacement domains n = none :=
-  Restoration.lambdaReplacement_eq_none fun hm => h (List.mem_append_left _ hm)
-
 theorem Restoration.replaceRen_eq_self {r : Restoration}
     {domains : HeadSpecialization → List VExpr} {e : VExpr}
     (h : e.containsAnyConst r.restorableNames = false) :
@@ -80,16 +55,6 @@ theorem Restoration.replaceRen_eq_self_of_mentions {r : Restoration}
     have hn : n ∉ r.restorableNames := by simpa using h'.1
     simp only [VExpr.replaceRen, replaceRen_eq_self_of_mentions h h'.2,
       Restoration.renaming_eq_self hn]
-
-theorem Restoration.projNamesFixed_of_avoid {r : Restoration} :
-    ∀ {e : VExpr}, e.projNamesAvoid r.restorableNames = true → e.ProjNamesFixed r.renaming
-  | .bvar _, _ | .sort _, _ | .elim .., _ | .const .., _ => trivial
-  | .app f a, h | .lam f a, h | .forallE f a, h => by
-    simp only [VExpr.projNamesAvoid, Bool.and_eq_true] at h
-    exact ⟨projNamesFixed_of_avoid h.1, projNamesFixed_of_avoid h.2⟩
-  | .proj n i e, h => by
-    simp only [VExpr.projNamesAvoid, Bool.and_eq_true, Bool.not_eq_true'] at h
-    exact ⟨Restoration.renaming_eq_self (by simpa using h.1), projNamesFixed_of_avoid h.2⟩
 
 /-- The lambda replacement over a closed telescope is closed and not a Pi. -/
 theorem Restoration.lambdaReplacement_closed {r : Restoration} {P : List VExpr}

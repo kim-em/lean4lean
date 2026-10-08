@@ -28,7 +28,6 @@ import Lean4Lean.Theory.VDecl
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Typing.Confluence.RecursorRegistration
 import Lean4Lean.Std.Basic
-import Lean4Lean.Theory.Inductive.RestorationDefEq
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Theory.InductBlock
 import Lean4Lean.Theory.Typing.CaseReduction

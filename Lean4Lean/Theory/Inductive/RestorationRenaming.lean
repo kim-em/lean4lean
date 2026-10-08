@@ -1,9 +1,9 @@
-import Lean4Lean.Theory.Inductive.RestorationDefEq
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 
 /-! Restoration with renaming, transporting derivations of a full lowered
 environment.
 
-`RestorationDefEq` transports derivations of a lowered *header* environment,
+The restoration interpretation keeping projection owners (`Restoration.constInterpretation`) transports derivations of a lowered *header* environment,
 whose only extra constants are opaque auxiliary headers, to the source header
 environment. A lowered recursor environment additionally contains
 
@@ -31,6 +31,16 @@ fixed by `σ`; the resulting typing of restored terms is in `RestorationRenaming
 namespace Lean4Lean
 
 namespace VExpr
+
+/-- Every replacement is closed, and no replacement is a Pi type (so that
+replacement does not create new telescope binders). -/
+def ReplacementsClosed (ρ : Name → Option VExpr) : Prop :=
+  ∀ c t, ρ c = some t → t.ClosedN ∧ ∀ A B, t ≠ .forallE A B
+
+theorem instL_ne_forallE (h : ∀ A B, t ≠ VExpr.forallE A B) (ls : List VLevel) :
+    ∀ A B, t.instL ls ≠ .forallE A B := by
+  cases t <;> simp [instL]
+  exact h _ _ rfl
 
 /-- Replace constants by closed universe-polymorphic terms, rename the other
 constants and all projection type names. -/
@@ -128,19 +138,6 @@ theorem replaceRen_eq_self {names : List Name}
     have hn : n ∉ names := by simpa using h.1
     simp only [replaceRen, replaceRen_eq_self hρ hσ h.2, hσ n hn]
 
-/-- Every projection type name of the term is fixed by `σ`. -/
-def ProjNamesFixed (σ : Name → Name) : VExpr → Prop
-  | .bvar _ | .sort _ | .const .. | .elim .. => True
-  | .app f a | .lam f a | .forallE f a => f.ProjNamesFixed σ ∧ a.ProjNamesFixed σ
-  | .proj n _ e => σ n = n ∧ e.ProjNamesFixed σ
-
-/-- Universe instantiation does not touch projection names. -/
-theorem ProjNamesFixed.instL {ls : List VLevel} :
-    ∀ {e : VExpr}, e.ProjNamesFixed σ → (e.instL ls).ProjNamesFixed σ
-  | .bvar _, _ | .sort _, _ | .elim .., _ | .const .., _ => trivial
-  | .app _ _, h | .lam _ _, h | .forallE _ _, h => ⟨instL h.1, instL h.2⟩
-  | .proj _ _ _, h => ⟨h.1, instL h.2⟩
-
 end VExpr
 
 namespace VProjectionInfo
@@ -215,6 +212,15 @@ theorem Lookup.replaceRen (hρ : VExpr.ReplacementsClosed ρ) (H : Lookup Γ i A
   | succ _ ih => rw [VExpr.replaceRen_lift hρ]; exact .succ ih
 
 namespace VEnv
+
+/-- Full beta reduction of a lambda telescope applied to at least as many
+arguments as it has binders. -/
+theorem SimAt.mkApps_wrapLams {env : VEnv} (henv : Ordered env) (hβ : env.BetaSubjectReduction U)
+    (hΓ : OnCtx Γ (env.IsType U)) (doms : List VExpr) (body : VExpr) (args : List VExpr)
+    (h : doms.length ≤ args.length) :
+    env.SimAt U Γ (VExpr.mkApps (VExpr.wrapLams doms body) args)
+      (VExpr.mkApps (body.instOuter (args.take doms.length)) (args.drop doms.length)) :=
+  (VExpr.BetaRed.mkApps_wrapLams doms body args h).simAt henv hβ hΓ
 
 /-- The four projection rules of `envL` at the projection `(typeName, info)`,
 transported along `replaceRen ρ σ` to `envS`: each conclusion holds in `envS`
