@@ -185,8 +185,7 @@ theorem nestedConstructorWFExpansions_ofForall₂
   | cons Hhead _ ih =>
     exact .cons Hhead.name Hhead.uvars
       (nestedForallPrefixExpansion_toNestedForallPrefixWFExpansion
-        Hhead.parameters)
-      (nestedExprExpansion_toNestedExprWFExpansion Hhead.type) ih
+        Hhead.parameters) ih
 
 /-- Convert ordered generic family expansion into the mutual
 strict-positivity encoding required by `NestedFormationWF`. -/
