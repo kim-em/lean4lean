@@ -135,7 +135,7 @@ only inspects the shape of `Eq` and its constructor (up to `Expr.eqv`), which is
 abstract model of `Quot.lift`; so the driver additionally requires, before the step that
 initializes the quotient module, that `Eq`, `Eq.refl` and `Eq.rec` are the prelude's: safe
 constants whose types are literally those `Init.Prelude` produces, up to binder and universe
-parameter names (`HasProductionEq` in `Lean4Lean/Verify/CanonicalEqRealization.lean`). -/
+parameter names (`HasProductionEq` in `Lean4Lean/Verify/Replay.lean`). -/
 
 namespace ProductionEq
 

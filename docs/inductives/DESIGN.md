@@ -104,7 +104,7 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
   `VEnvs.WF` resolve it (section 5.3).
 
 A replay from the empty environment is covered by `Replay.WF_empty`
-(`Lean4Lean/Verify/CanonicalEqRealization.lean`): every environment reached by adding a list
+(`Lean4Lean/Verify/Replay.lean`): every environment reached by adding a list
 of declarations one at a time with the checked `addDecl`, starting from
 `Kernel.Environment.empty`, has a well-formed model, provided each `quotDecl` comes after the
 prelude's `Eq`, `Eq.refl` and `Eq.rec` (`HasProductionEq`, a decidable property of the
@@ -112,7 +112,7 @@ executable environment; before `Eq` exists `quotDecl` has no model).
 
 Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` past `Eq`.
 Realizability is proved up to a fact about the concrete production declaration that is checked
-by a test: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEqRealization.lean`)
+by a test: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEq.lean`)
 takes as hypothesis that the executable installs `Eq.rec` with the production type, which
 `Lean4Lean/Tests/PreludeEq.lean` checks. The honest reading of the theorem is therefore:
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of

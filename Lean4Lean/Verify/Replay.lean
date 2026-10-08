@@ -1,5 +1,5 @@
 import Lean4Lean.Replay
-import Lean4Lean.Verify.CanonicalEqRealization
+import Lean4Lean.Verify.CanonicalEq
 
 /-!
 # Soundness of the replay driver
@@ -26,6 +26,58 @@ The per-declaration theorems are stated for the default fuel `{}`, which is also
 configuration when no `--config` flag is given. The walk lemma `Replayed.foldlM` holds for any
 fuel.
 -/
+
+namespace Lean4Lean
+
+open Lean hiding Environment Exception
+open Kernel
+
+/-! ### Replays -/
+
+/-- The prelude's `Eq`, `Eq.refl` and `Eq.rec` are declared in `env` with their production
+types. -/
+def HasProductionEq (env : Environment) : Prop :=
+  ∃ eqInfo reflInfo recInfo,
+    env.find? ``Eq = some eqInfo ∧ IsProductionEq eqInfo ∧
+    env.find? ``Eq.refl = some reflInfo ∧ IsProductionEqRefl reflInfo ∧
+    env.find? ``Eq.rec = some recInfo ∧ IsProductionEqRec recInfo
+
+/-- A replay: the declarations `ds` added one after another by the checked `addDecl`, from
+`env` to `env'`. A `quotDecl` step records that the prelude's `Eq` is already present
+(`HasProductionEq`): `quotDecl` is modelled by an abstract rule that types `Quot.lift` against
+`Eq`, so before `Eq` exists it has no model (and the executable rejects it, `checkEqType`). -/
+inductive Replay : Environment → List Declaration → Environment → Prop
+  | nil (env : Environment) : Replay env [] env
+  | cons {env env₁ env₂ : Environment} {d : Declaration} {ds : List Declaration} :
+    addDecl env d (check := true) (fuel := {}) = .ok env₁ →
+    (d = .quotDecl → HasProductionEq env) →
+    Replay env₁ ds env₂ → Replay env (d :: ds) env₂
+
+/-- Every step of a replay preserves `VEnvs.WF`. -/
+theorem Replay.WF {env env' : Environment} {ds : List Declaration}
+    (H : Replay env ds env') {ves : VEnvs} (wf : ves.WF env) :
+    ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+  induction H generalizing ves with
+  | nil => exact ⟨ves, wf, fun _ => VEnv.LE.rfl⟩
+  | @cons env env₁ env₂ d ds hadd hquot _ ih =>
+    have hq : d = .quotDecl → ∀ safety, (ves.venv safety).QuotReady := fun hd safety => by
+      obtain ⟨_, _, _, hEq, hEqP, hRefl, hReflP, hRec, hRecP⟩ := hquot hd
+      exact (wf.toWFCore.canonicalEq_constants hEq hEqP hRefl hReflP hRec hRecP safety).1
+    obtain ⟨ves₁, wf₁, hle₁, hcert⟩ :=
+      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorCert d hq _ hadd
+    obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorCert⟩
+    exact ⟨ves₂, wf₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
+
+/-- **Replay from the empty environment.** Every environment reached by a replay from the
+empty environment the executable starts from (`lake exe lean4lean --fresh`) is modelled by
+well-formed abstract environments. -/
+theorem Replay.WF_empty {m : Name} {s : Bool} {ds : List Declaration} {env : Environment}
+    (H : Replay (Kernel.Environment.empty m s) ds env) :
+    ∃ ves : VEnvs, ves.WF env :=
+  let ⟨ves, wf, _⟩ := H.WF (VEnvs.WF.empty m s)
+  ⟨ves, wf⟩
+
+end Lean4Lean
 
 namespace Lean4Lean.Replay
 open Lean hiding Environment Exception

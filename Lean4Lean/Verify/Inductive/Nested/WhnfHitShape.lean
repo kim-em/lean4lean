@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.TypeChecker.HitShape
+import Lean4Lean.Verify.TypeChecker.ParamUniformWHNF
 import Lean4Lean.Verify.Inductive.Nested.HitShapeInputs
 
 /-! # The `whnf` hit-shape fact of a nested run

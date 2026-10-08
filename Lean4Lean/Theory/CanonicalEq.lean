@@ -83,7 +83,7 @@ The rule is in the lambda-wrapped form of `VIotaRuleShape`, the form in which
 recursor rules are stored in `VEnv.defeqs`.
 
 Realizability: `addDecl.eqBootstrapHasCanonicalEq`
-(`Lean4Lean/Verify/CanonicalEqRealization.lean`) derives this predicate for the
+(`Lean4Lean/Verify/CanonicalEq.lean`) derives this predicate for the
 abstract environments produced by checking the `Init.Prelude` declaration of
 `Eq`, given that the executable installs `Eq.rec` with the production type,
 which `Lean4Lean/Tests/PreludeEq.lean` checks. -/

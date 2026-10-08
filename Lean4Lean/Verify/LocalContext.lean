@@ -721,3 +721,73 @@ theorem _root_.Lean.LocalContext.mkForall_skip_fresh
   intro heq
   have : fv = other := beq_iff_eq.mp heq
   exact hselected (this.symm ▸ hother)
+
+end Lean4Lean
+
+namespace Lean.Expr
+
+open Lean4Lean
+
+/-! ### Leading binders -/
+
+/-- `LeadingBinders k e body`: `e` is `k` nested `forallE`/`lam` binders (in any mix) around
+`body`. Binder domains are unconstrained. This is exactly the input shape that
+`ElimNestedInductive.Result.openRestoreParams k` consumes without reaching `unreachable!`. -/
+inductive LeadingBinders : Nat → Expr → Expr → Prop
+  | zero (e : Expr) : LeadingBinders 0 e e
+  | forallE {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo} :
+      LeadingBinders k b body → LeadingBinders (k + 1) (.forallE n t b bi) body
+  | lam {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo} :
+      LeadingBinders k b body → LeadingBinders (k + 1) (.lam n t b bi) body
+
+namespace LeadingBinders
+
+theorem trans {k m : Nat} {e mid body : Expr} (H₁ : LeadingBinders k e mid)
+    (H₂ : LeadingBinders m mid body) : LeadingBinders (m + k) e body := by
+  induction H₁ with
+  | zero => exact H₂
+  | forallE _ ih => exact .forallE (ih H₂)
+  | lam _ ih => exact .lam (ih H₂)
+
+theorem instantiate1' {k : Nat} {e body : Expr} (H : LeadingBinders k e body) (a : Expr)
+    (j : Nat) : LeadingBinders k (e.instantiate1' a j) (body.instantiate1' a (j + k)) := by
+  induction H generalizing j with
+  | zero => exact .zero _
+  | @forallE k _ _ _ _ _ _ ih =>
+    have := ih (j + 1)
+    rw [show j + 1 + k = j + (k + 1) by omega] at this
+    exact .forallE this
+  | @lam k _ _ _ _ _ _ ih =>
+    have := ih (j + 1)
+    rw [show j + 1 + k = j + (k + 1) by omega] at this
+    exact .lam this
+
+end LeadingBinders
+
+private theorem leadingBinders_go {isLambda : Bool} {lctx : LocalContext} :
+    ∀ {l : List FVarId}, (∀ x ∈ l, ∃ i fv n ty bi kind,
+      lctx.find? x = some (.cdecl i fv n ty bi kind)) →
+    ∀ b, LeadingBinders l.length (LocalContext.mkBindingListN.go isLambda lctx l b) b
+  | [], _, b => .zero b
+  | x :: l, hx, b => by
+    obtain ⟨i, fv, n, ty, bi, kind, hfind⟩ := hx x (.head _)
+    have ih := leadingBinders_go (isLambda := isLambda) (lctx := lctx) (l := l) (fun y hy => hx y (.tail _ hy))
+      (LocalContext.mkBindingList1N isLambda lctx l.reverse x b)
+    have hstep : LeadingBinders 1 (LocalContext.mkBindingList1N isLambda lctx l.reverse x b) b := by
+      simp only [LocalContext.mkBindingList1N, hfind]
+      cases isLambda
+      · exact .forallE (.zero b)
+      · exact .lam (.zero b)
+    simpa [LocalContext.mkBindingListN.go, Nat.add_comm] using ih.trans hstep
+
+/-- When every bound variable is a `cdecl`, `mkBindingListN` (the exact model of
+`LocalContext.mkBinding`) adds exactly one binder per variable around `b.abstractN xs`. -/
+theorem LeadingBinders.mkBindingListN {isLambda : Bool} {lctx : LocalContext}
+    {xs : List FVarId} (hx : ∀ x ∈ xs, ∃ i fv n ty bi kind,
+      lctx.find? x = some (.cdecl i fv n ty bi kind)) (b : Expr) :
+    LeadingBinders xs.length (LocalContext.mkBindingListN isLambda lctx xs b) (b.abstractN xs) := by
+  simp only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core]
+  simpa using leadingBinders_go (l := xs.reverse) (fun x hx' => hx x (List.mem_reverse.1 hx'))
+    (b.abstractN xs)
+
+end Lean.Expr

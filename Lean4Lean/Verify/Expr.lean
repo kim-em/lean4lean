@@ -1541,3 +1541,91 @@ theorem Expr.abstract1_instantiate1'_alpha
       rw [ihBody]
 
 end Lean4Lean.TypeChecker
+
+namespace Lean.Expr
+
+/-- Source-syntax absence of a set of constants.  This is deliberately an
+inductive judgment rather than a Boolean fold: the literal case records the
+expanded constructor syntax that `TrExprS.lit` actually translates. -/
+inductive AvoidsConsts (names : List Name) : Expr → Prop
+  | bvar (i) : AvoidsConsts names (.bvar i)
+  | fvar (fv) : AvoidsConsts names (.fvar fv)
+  | mvar (mv) : AvoidsConsts names (.mvar mv)
+  | sort (u) : AvoidsConsts names (.sort u)
+  | const (name levels) (fresh : name ∉ names) :
+      AvoidsConsts names (.const name levels)
+  | app (fn arg) : AvoidsConsts names fn → AvoidsConsts names arg →
+      AvoidsConsts names (.app fn arg)
+  | lam (name dom body bi) :
+      AvoidsConsts names dom → AvoidsConsts names body →
+      AvoidsConsts names (.lam name dom body bi)
+  | forallE (name dom body bi) :
+      AvoidsConsts names dom → AvoidsConsts names body →
+      AvoidsConsts names (.forallE name dom body bi)
+  | letE (name type value body nondep) :
+      AvoidsConsts names type → AvoidsConsts names value →
+      AvoidsConsts names body →
+      AvoidsConsts names (.letE name type value body nondep)
+  | lit (value) : AvoidsConsts names value.toConstructor →
+      AvoidsConsts names (.lit value)
+  | mdata (data body) : AvoidsConsts names body →
+      AvoidsConsts names (.mdata data body)
+  | proj (structName idx body) : AvoidsConsts names body →
+      AvoidsConsts names (.proj structName idx body)
+
+end Lean.Expr
+
+namespace Lean.Expr
+
+open Lean4Lean
+
+/-! ### Absence of constants -/
+
+namespace AvoidsConsts
+
+theorem instantiateLevelParamsCore' {names : List Name} {e : Expr} (H : AvoidsConsts names e) :
+    AvoidsConsts names (e.instantiateLevelParamsCore' red s) := by
+  induction H with
+  | bvar => exact .bvar _
+  | fvar => exact .fvar _
+  | mvar => exact .mvar _
+  | sort => exact .sort _
+  | const _ _ fresh => exact .const _ _ fresh
+  | app _ _ _ _ ihf iha => exact .app _ _ ihf iha
+  | lam _ _ _ _ _ _ iht ihb => exact .lam _ _ _ _ iht ihb
+  | forallE _ _ _ _ _ _ iht ihb => exact .forallE _ _ _ _ iht ihb
+  | letE _ _ _ _ _ _ _ _ iht ihv ihb => exact .letE _ _ _ _ _ iht ihv ihb
+  | lit _ h => exact .lit _ h
+  | mdata _ _ _ ih => exact .mdata _ _ ih
+  | proj _ _ _ _ ih => exact .proj _ _ _ ih
+
+theorem instantiateLevelParams {names : List Name} {e : Expr} (H : AvoidsConsts names e) :
+    AvoidsConsts names (e.instantiateLevelParams ps us) := by
+  rw [Expr.instantiateLevelParams_eq]; exact H.instantiateLevelParamsCore'
+
+end AvoidsConsts
+
+/-! ### Forall telescopes -/
+
+/-- `LeadingForalls k e body`: `e` is `k` nested `forallE` binders around `body`. -/
+inductive LeadingForalls : Nat → Expr → Expr → Prop
+  | zero (e : Expr) : LeadingForalls 0 e e
+  | forallE {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo} :
+      LeadingForalls k b body → LeadingForalls (k + 1) (.forallE n t b bi) body
+
+theorem LeadingForalls.forallE_inv {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo}
+    (H : LeadingForalls (k + 1) (.forallE n t b bi) body) : LeadingForalls k b body := by
+  cases H; assumption
+
+theorem LeadingForalls.isForall {k : Nat} {e body : Expr} (H : LeadingForalls (k + 1) e body) :
+    ∃ n t b bi, e = .forallE n t b bi ∧ LeadingForalls k b body := by
+  cases H; exact ⟨_, _, _, _, rfl, ‹_›⟩
+
+/-- The results of `Nat` literal reduction: a `Nat` literal or a `Bool` constant. -/
+def IsNatResult (e : Expr) : Prop :=
+  (∃ n, e = .lit (.natVal n)) ∨ e = .const ``Bool.true [] ∨ e = .const ``Bool.false []
+
+theorem IsNatResult.toExpr_bool (b : Bool) : IsNatResult (toExpr b) := by
+  cases b <;> simp [IsNatResult, toExpr, mkConst]
+
+end Lean.Expr

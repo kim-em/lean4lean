@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.TypeChecker.Recursor
-import Lean4Lean.Verify.TypeChecker.HitReduce
+import Lean4Lean.Verify.TypeChecker.ParamUniform
 import Lean4Lean.Verify.TypeChecker.UniverseSupport
 
 namespace Lean4Lean.TypeChecker.Inner

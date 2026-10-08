@@ -1,2 +1,2 @@
 import Lean4Lean.Verify.Environment
-import Lean4Lean.Verify.CanonicalEqRealization
+import Lean4Lean.Verify.CanonicalEq

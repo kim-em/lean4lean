@@ -3,48 +3,16 @@ import Lean4Lean.Verify.LocalContext
 /-!
 # Hit shapes (core definitions)
 
-This file holds the syntactic hit-shape predicates `Expr.HitShape`, `Expr.HitShapeB`,
-`Expr.LeadingBinders` and `Expr.HitShapeTele` together with their structural lemmas, and the
-constant-absence judgment `Expr.AvoidsConsts`. It depends only on the expression-level
+This file holds the syntactic hit-shape predicates `Expr.HitShape`, `Expr.HitShapeB` and
+`Expr.HitShapeTele` together with their structural lemmas. The generic constant-absence
+judgment `Expr.AvoidsConsts` is in `Lean4Lean/Verify/Expr.lean`, and the binder-prefix
+predicate `Expr.LeadingBinders` in `Lean4Lean/Verify/LocalContext.lean`. It depends only on the expression-level
 verification library, so that the hit-shape invariant of the verified type checker
 (`Lean4Lean/Verify/TypeChecker/Basic.lean`) can mention it. The nested-restoration specific
 facts (the executable parameter opening `openRestoreParams`) are in
 `Lean4Lean/Verify/Inductive/Nested/HitShape.lean`, whose module documentation explains the
 predicates.
 -/
-
-namespace Lean.Expr
-
-/-- Source-syntax absence of a set of constants.  This is deliberately an
-inductive judgment rather than a Boolean fold: the literal case records the
-expanded constructor syntax that `TrExprS.lit` actually translates. -/
-inductive AvoidsConsts (names : List Name) : Expr → Prop
-  | bvar (i) : AvoidsConsts names (.bvar i)
-  | fvar (fv) : AvoidsConsts names (.fvar fv)
-  | mvar (mv) : AvoidsConsts names (.mvar mv)
-  | sort (u) : AvoidsConsts names (.sort u)
-  | const (name levels) (fresh : name ∉ names) :
-      AvoidsConsts names (.const name levels)
-  | app (fn arg) : AvoidsConsts names fn → AvoidsConsts names arg →
-      AvoidsConsts names (.app fn arg)
-  | lam (name dom body bi) :
-      AvoidsConsts names dom → AvoidsConsts names body →
-      AvoidsConsts names (.lam name dom body bi)
-  | forallE (name dom body bi) :
-      AvoidsConsts names dom → AvoidsConsts names body →
-      AvoidsConsts names (.forallE name dom body bi)
-  | letE (name type value body nondep) :
-      AvoidsConsts names type → AvoidsConsts names value →
-      AvoidsConsts names body →
-      AvoidsConsts names (.letE name type value body nondep)
-  | lit (value) : AvoidsConsts names value.toConstructor →
-      AvoidsConsts names (.lit value)
-  | mdata (data body) : AvoidsConsts names body →
-      AvoidsConsts names (.mdata data body)
-  | proj (structName idx body) : AvoidsConsts names body →
-      AvoidsConsts names (.proj structName idx body)
-
-end Lean.Expr
 
 namespace Lean.Expr
 
@@ -564,40 +532,6 @@ end HitShapeB
 
 /-! ### Parameter telescopes -/
 
-/-- `LeadingBinders k e body`: `e` is `k` nested `forallE`/`lam` binders (in any mix) around
-`body`. Binder domains are unconstrained. This is exactly the input shape that
-`ElimNestedInductive.Result.openRestoreParams k` consumes without reaching `unreachable!`. -/
-inductive LeadingBinders : Nat → Expr → Expr → Prop
-  | zero (e : Expr) : LeadingBinders 0 e e
-  | forallE {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo} :
-      LeadingBinders k b body → LeadingBinders (k + 1) (.forallE n t b bi) body
-  | lam {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo} :
-      LeadingBinders k b body → LeadingBinders (k + 1) (.lam n t b bi) body
-
-namespace LeadingBinders
-
-theorem trans {k m : Nat} {e mid body : Expr} (H₁ : LeadingBinders k e mid)
-    (H₂ : LeadingBinders m mid body) : LeadingBinders (m + k) e body := by
-  induction H₁ with
-  | zero => exact H₂
-  | forallE _ ih => exact .forallE (ih H₂)
-  | lam _ ih => exact .lam (ih H₂)
-
-theorem instantiate1' {k : Nat} {e body : Expr} (H : LeadingBinders k e body) (a : Expr)
-    (j : Nat) : LeadingBinders k (e.instantiate1' a j) (body.instantiate1' a (j + k)) := by
-  induction H generalizing j with
-  | zero => exact .zero _
-  | @forallE k _ _ _ _ _ _ ih =>
-    have := ih (j + 1)
-    rw [show j + 1 + k = j + (k + 1) by omega] at this
-    exact .forallE this
-  | @lam k _ _ _ _ _ _ ih =>
-    have := ih (j + 1)
-    rw [show j + 1 + k = j + (k + 1) by omega] at this
-    exact .lam this
-
-end LeadingBinders
-
 /-- `HitShapeTele heads nparams ls e`: `e` is a closed parameter telescope of `nparams`
 `forallE`/`lam` binders around a body in bound-variable form at depth `0`. This is the shape of
 a stored term (recursor type, rule right-hand side) that `restoreNested` restores. -/
@@ -606,31 +540,6 @@ def HitShapeTele (heads : List Name) (nparams : Nat) (ls : List Level) (e : Expr
 
 /-! ### Closing telescopes with `LocalContext.mkBinding` -/
 
-private theorem leadingBinders_go {isLambda : Bool} {lctx : LocalContext} :
-    ∀ {l : List FVarId}, (∀ x ∈ l, ∃ i fv n ty bi kind,
-      lctx.find? x = some (.cdecl i fv n ty bi kind)) →
-    ∀ b, LeadingBinders l.length (LocalContext.mkBindingListN.go isLambda lctx l b) b
-  | [], _, b => .zero b
-  | x :: l, hx, b => by
-    obtain ⟨i, fv, n, ty, bi, kind, hfind⟩ := hx x (.head _)
-    have ih := leadingBinders_go (isLambda := isLambda) (lctx := lctx) (l := l) (fun y hy => hx y (.tail _ hy))
-      (LocalContext.mkBindingList1N isLambda lctx l.reverse x b)
-    have hstep : LeadingBinders 1 (LocalContext.mkBindingList1N isLambda lctx l.reverse x b) b := by
-      simp only [LocalContext.mkBindingList1N, hfind]
-      cases isLambda
-      · exact .forallE (.zero b)
-      · exact .lam (.zero b)
-    simpa [LocalContext.mkBindingListN.go, Nat.add_comm] using ih.trans hstep
-
-/-- When every bound variable is a `cdecl`, `mkBindingListN` (the exact model of
-`LocalContext.mkBinding`) adds exactly one binder per variable around `b.abstractN xs`. -/
-theorem LeadingBinders.mkBindingListN {isLambda : Bool} {lctx : LocalContext}
-    {xs : List FVarId} (hx : ∀ x ∈ xs, ∃ i fv n ty bi kind,
-      lctx.find? x = some (.cdecl i fv n ty bi kind)) (b : Expr) :
-    LeadingBinders xs.length (LocalContext.mkBindingListN isLambda lctx xs b) (b.abstractN xs) := by
-  simp only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core]
-  simpa using leadingBinders_go (l := xs.reverse) (fun x hx' => hx x (List.mem_reverse.1 hx'))
-    (b.abstractN xs)
 
 /-- Closing the opened parameters (distinct `cdecl` fvars) with `LocalContext.mkBinding` turns
 the free-variable form into a parameter telescope (`HitShapeTele`). This is the step

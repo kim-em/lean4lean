@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Header.LoopInd
-import Lean4Lean.Verify.ExprHitShape
+import Lean4Lean.Verify.ExprParamUniform
 
 namespace Lean4Lean
 
@@ -1130,7 +1130,7 @@ literals introduce old primitive constants, while `TrProj` is still an
 independent typing boundary in the existing model. -/
 
 /- `Expr.AvoidsConsts` (source-syntax absence of a set of constants) is defined in
-`Lean4Lean/Verify/ExprHitShape.lean`. -/
+`Lean4Lean/Verify/ExprParamUniform.lean`. -/
 
 /-- Closing a free variable cannot introduce a constant name. -/
 theorem _root_.Lean.Expr.AvoidsConsts.abstract1

@@ -12,7 +12,7 @@ the `M`-level entry points.
 
 Hypotheses (bundled in `VContext.HitScope pfx heads As ls P`):
 
-* `EnvHitShape c.env heads As.length ls` (`Lean4Lean/Verify/HitShapeEnv.lean`): constants other
+* `EnvHitShape c.env heads As.length ls` (`Lean4Lean/Verify/ParamUniformEnv.lean`): constants other
   than heads, all definition values and all recursor rules avoid the heads; head types at `ls` are
   parameter telescopes around bound-variable hit shapes; recursors in the environment never
   eliminate head families or families with head constructors; projections in the environment

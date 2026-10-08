@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.ExprHitShape
+import Lean4Lean.Verify.ExprParamUniform
 import Lean4Lean.Declaration
 
 /-!
@@ -157,48 +157,6 @@ theorem mono {ok' : Name → Prop} {e : Expr} (H : ProjsOK ok e) (h : ∀ s, ok 
   induction e <;> simp_all
 
 end ProjsOK
-
-/-! ### Absence of constants -/
-
-namespace AvoidsConsts
-
-theorem instantiateLevelParamsCore' {names : List Name} {e : Expr} (H : AvoidsConsts names e) :
-    AvoidsConsts names (e.instantiateLevelParamsCore' red s) := by
-  induction H with
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | const _ _ fresh => exact .const _ _ fresh
-  | app _ _ _ _ ihf iha => exact .app _ _ ihf iha
-  | lam _ _ _ _ _ _ iht ihb => exact .lam _ _ _ _ iht ihb
-  | forallE _ _ _ _ _ _ iht ihb => exact .forallE _ _ _ _ iht ihb
-  | letE _ _ _ _ _ _ _ _ iht ihv ihb => exact .letE _ _ _ _ _ iht ihv ihb
-  | lit _ h => exact .lit _ h
-  | mdata _ _ _ ih => exact .mdata _ _ ih
-  | proj _ _ _ _ ih => exact .proj _ _ _ ih
-
-theorem instantiateLevelParams {names : List Name} {e : Expr} (H : AvoidsConsts names e) :
-    AvoidsConsts names (e.instantiateLevelParams ps us) := by
-  rw [Expr.instantiateLevelParams_eq]; exact H.instantiateLevelParamsCore'
-
-end AvoidsConsts
-
-/-! ### Forall telescopes -/
-
-/-- `LeadingForalls k e body`: `e` is `k` nested `forallE` binders around `body`. -/
-inductive LeadingForalls : Nat → Expr → Expr → Prop
-  | zero (e : Expr) : LeadingForalls 0 e e
-  | forallE {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo} :
-      LeadingForalls k b body → LeadingForalls (k + 1) (.forallE n t b bi) body
-
-theorem LeadingForalls.forallE_inv {k : Nat} {n : Name} {t b body : Expr} {bi : BinderInfo}
-    (H : LeadingForalls (k + 1) (.forallE n t b bi) body) : LeadingForalls k b body := by
-  cases H; assumption
-
-theorem LeadingForalls.isForall {k : Nat} {e body : Expr} (H : LeadingForalls (k + 1) e body) :
-    ∃ n t b bi, e = .forallE n t b bi ∧ LeadingForalls k b body := by
-  cases H; exact ⟨_, _, _, _, rfl, ‹_›⟩
 
 end Lean.Expr
 
@@ -755,14 +713,6 @@ end Lean.Expr
 
 namespace Lean.Expr
 open Lean4Lean
-
-/-- The results of `Nat` literal reduction: a `Nat` literal or a `Bool` constant. -/
-def IsNatResult (e : Expr) : Prop :=
-  (∃ n, e = .lit (.natVal n)) ∨ e = .const ``Bool.true [] ∨ e = .const ``Bool.false []
-
-theorem IsNatResult.toExpr_bool (b : Bool) : IsNatResult (toExpr b) := by
-  cases b <;> simp [IsNatResult, toExpr, mkConst]
-
 theorem IsNatResult.hitOK {env : Lean.Kernel.Environment} {heads : List Name} {As : List Expr}
     {ls : List Level} {nparams} (H : EnvHitShape env heads nparams ls) {e : Expr}
     (h : IsNatResult e) : e.HitOK env heads As ls := by

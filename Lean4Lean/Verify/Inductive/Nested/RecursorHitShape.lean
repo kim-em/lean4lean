@@ -1,9 +1,9 @@
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
-import Lean4Lean.Verify.ExprHitShape
+import Lean4Lean.Verify.ExprParamUniform
 import Lean4Lean.Verify.Inductive.Recursor.FieldDeclarationTypes
 import Lean4Lean.Verify.Inductive.Recursor.ArgumentUniverses
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
-import Lean4Lean.Verify.HitShapeEnv
+import Lean4Lean.Verify.ParamUniformEnv
 
 /-! # Hit-shape provenance of generated recursor types and rule right-hand sides
 

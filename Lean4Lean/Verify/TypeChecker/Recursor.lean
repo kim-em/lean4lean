@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
 import Lean4Lean.Theory.Typing.ProjectionFamilyArity
 import Lean4Lean.Verify.EquivManager
-import Lean4Lean.Verify.Environment.Recursors
+import Lean4Lean.Verify.Environment.QuotCoherence
 import Lean4Lean.Std.List
 
 /-!

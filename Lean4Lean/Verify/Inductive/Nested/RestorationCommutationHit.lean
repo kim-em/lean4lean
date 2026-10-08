@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.RestoringExpansion
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
-import Lean4Lean.Verify.ExprHitShape
+import Lean4Lean.Verify.ExprParamUniform
 import Lean4Lean.Verify.Inductive.RuleTranslation
 import Lean4Lean.Std.Basic
 

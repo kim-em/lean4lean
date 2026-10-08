@@ -1,7 +1,7 @@
 import Lean4Lean.Std.SMap
 import Lean4Lean.Declaration
 import Lean4Lean.Verify.Environment.Basic
-import Lean4Lean.Verify.Environment.Recursors
+import Lean4Lean.Verify.Environment.QuotCoherence
 import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 namespace Lean4Lean

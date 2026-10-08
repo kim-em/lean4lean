@@ -6,7 +6,7 @@ import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
 import Lean4Lean.Verify.TypeChecker.FrameDefs
 import Lean4Lean.Verify.Typing.UniverseSupport
-import Lean4Lean.Verify.HitShapeEnv
+import Lean4Lean.Verify.ParamUniformEnv
 
 namespace Except
 
