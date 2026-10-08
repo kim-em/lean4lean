@@ -143,8 +143,9 @@ reduction theorems, the prefix-unfolding and quotient theorems (`PrefixUnfold.de
 `QuotPrefixUnfold.defeq`, `QuotRegistered.propInhabitant_app`), `NormalEq.parRed`,
 `RecursorConstruction.typeTranslations` and `IsDefEq.full_church_rosser`. It fails on any `sorry` and on any axiom
 not listed in `scripts/inductive-audit-inventory.json`. A second set of strict roots (the
-generator definitions of section 2 and a few foundational lemmas) may depend only on the three
-standard axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and
+generator definitions of section 2, a few foundational lemmas, and the confluence theorem
+`VEnv.WF.church_rosser` of section 4.2 with `WF.params`, `WF.equationCoverage` and
+`WF.singletonCoverage`) may depend only on the three standard axioms. The self-test checks that the walker finds a `sorry` behind an opaque body and
 an axiom used only in a type.
 
 ## 2. The generative specification of inductive types
@@ -521,16 +522,45 @@ definitionally equal terms reduce to normally equal terms. Both are stated under
 hypothesis classes: `Params` (`ChurchRosser.lean`: the environment, its well-formedness, the
 registered recursor data and the stored patterns with their properties) and
 `FullEquationCoverage` (`FullReduction.lean`: both sides of every installed equation reduce
-to normally equal terms). This tree has no instance of either class for an arbitrary
-well-formed environment.
+to normally equal terms).
 
-Canonical `Eq` is needed for equation coverage: a recursor singleton equation at a universe
-specialization whose source is `Prop` is joined by reconstructing the constructor, and its
-proof fields are extracted by the recursor into `Prop` with the earlier data fields cast
-along `Eq`. In a well-formed `Eq`-free environment (the one of section 5.1) that equation is
-not joinable (argued, not checked in Lean). Coherence of eliminators with projections
-(`VEnv.WF.eliminatorsCoherent`) is also needed. Confluence is not in the dependency cone of
-the top-level theorem.
+`VEnv.WF.church_rosser` (`Lean4Lean/Theory/Typing/Confluence/WFParams.lean`) instantiates both
+classes for every well-formed environment with canonical `Eq`:
+
+```lean
+theorem VEnv.WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
+    (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsDefEq U Γ e₁ e₂ A) :
+    letI := henv.params U
+    ∃ e₁' e₂', FullReduction Γ e₁ e₁' ∧ FullReduction Γ e₂ e₂' ∧ NormalEq Γ e₁' e₂'
+```
+
+The instance `WF.params` reads its data off a head registry chosen along the declaration
+history (`WF.headRegistry`, `Confluence/RegistryOfWF.lean`). Its patterns
+(`ConcretePattern`, `Confluence/Patterns.lean`) are the definition unfoldings, the generated
+iota rules of the registered recursors (`GeneratedIotaPattern`) and, when the quotient is
+declared, the quotient rule; every field of `Params` is a theorem. Soundness of a generated
+iota rule (`GeneratedIotaPattern.sound`, `Confluence/GeneratedIotaSoundness.lean`) is the iota
+theorem for the restored recursor, constructor and rule shapes of the compilation that
+registered the recursor. The structure-major fields (`ConcretePattern.struct_major`,
+`ConcretePattern.iota_params`, `CaseRedex.struct_major`) follow from declaration provenance
+and from the coherence of eliminators with projections (`VEnv.WF.eliminatorsCoherent`),
+which is part of well-formedness.
+
+`WF.equationCoverage` derives `FullEquationCoverage` from the registry for every installed
+equation except the one case `WF.SingletonCoverage` names: the equation of a
+large-eliminating singleton recursor at a universe specialization whose source is `Prop`.
+There the generated iota rule's guard fails, and `WF.singletonCoverage` joins the equation by
+the singleton prefix unfolding (`RecursorRegistered.zero_join`,
+`Confluence/SingletonCoverage.lean`), which reconstructs the constructor from the major.
+The proof fields of the reconstructed constructor are extracted by the recursor itself into
+`Prop`, and since a field's type may mention the earlier data fields, the extraction casts
+those along `Eq`. This is the only use of `HasCanonicalEq`. In a well-formed `Eq`-free
+environment (the one of section 5.1) that equation is not joinable (argued, not checked in
+Lean).
+
+`WF.church_rosser` and its coverage lemmas are audit roots (section 1.4) and depend only on
+the standard axioms. Confluence is not in the dependency cone of the top-level theorem of
+section 1.1.
 
 ## 5. Strengthening, scoped caches and constructor telescopes
 
@@ -777,7 +807,10 @@ Suggested order, with sizes.
    `HeadInjectivity/{ChainInjectivity,Uniqueness,FieldType}.lean` (16k in total for the directory).
 8. Confluence (outside the cone): `Lean4Lean/Theory/LevelledConfluence.lean`,
    `Lean4Lean/Theory/Typing/LevelledReduction.lean` (4.6k), `FullReduction.lean`,
-   `FullChurchRosser.lean`.
+   `FullChurchRosser.lean`, then its instance for well-formed environments in
+   `Lean4Lean/Theory/Typing/Confluence/` (11k): `WFParams.lean` (the theorem), `Params.lean`,
+   `Patterns.lean`, `RegistryOfWF.lean`, `GeneratedIotaSoundness.lean` (1.2k),
+   `GeneratedIotaCoverage.lean` and `SingletonCoverage.lean` (1k).
 9. The inductive checker: `Lean4Lean/Inductive/Add.lean` (1.6k), then the pipeline:
    `Lean4Lean/Verify/Inductive/Constructor/CheckedFormation.lean` (1k), `Context.lean` (3k),
    `Header/` (7k), `Constructor/` (5.5k), `Recursor/` (42k), `Rules/` (27k), `Install/` (5k),
