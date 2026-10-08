@@ -2,7 +2,7 @@ import Lean.Expr
 
 namespace Lean
 
-/-- Every universe parameter is among the declaration's parameters.
+/-- Every universe parameter of the level is in `params`.
 Universe metavariables are rejected. -/
 def Level.paramsIn (params : List Name) : Level → Bool
   | .zero => true
@@ -11,8 +11,9 @@ def Level.paramsIn (params : List Name) : Level → Bool
   | .param name => params.contains name
   | .mvar _ => false
 
-/-- Check the universe scope of concrete consumed syntax. Term variables
-are permitted; binder domains, constant levels, and sorts are all visited. -/
+/-- Every universe parameter of the expression is in `params`. Sorts, constant levels,
+binder domains and bodies are all visited; universe and expression metavariables are
+rejected, term variables are permitted. -/
 def Expr.levelParamsIn (params : List Name) : Expr → Bool
   | .sort u => u.paramsIn params
   | .const _ levels => levels.all (Level.paramsIn params)

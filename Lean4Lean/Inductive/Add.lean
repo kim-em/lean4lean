@@ -15,14 +15,14 @@ open TypeChecker
 structure RecCallTemplate where
   major : Expr
   args : Array Expr
-  /-- The producer context containing the temporary higher-order binders in
-  `args`.  These binders are out of scope by final recursor installation, so
-  rule construction must not consult the final ambient context for them. -/
+  /-- The local context of the minor pass, containing the temporary higher-order binders in
+  `args`.  These binders are out of scope when the recursor is installed, so
+  rule construction must not consult the ambient context for them. -/
   lctx : LocalContext
   targetTypeIdx : Nat
   targetIndices : Array Expr
   /-- The complete call closed over its temporary higher-order binders, with
-  one outer de Bruijn placeholder for the final recursor application.  It is
+  one outer de Bruijn placeholder for the recursor application.  It is
   produced before those temporary identifiers leave scope, so later outer
   binders cannot be confused with them even if the reader-local name
   generator reuses an identifier. -/
@@ -32,7 +32,7 @@ structure RecCallTemplate where
 structure RecRuleTemplate where
   ctor : Name
   fields : Array Expr
-  /-- The producer context containing the temporary constructor fields. -/
+  /-- The local context of the minor pass, containing the temporary constructor fields. -/
   lctx : LocalContext
   recursiveCalls : Array RecCallTemplate
   targetTypeIdx : Nat
@@ -61,13 +61,13 @@ structure InductiveStats where
 structure Context where
   env : Environment
   lctx : LocalContext := {}
-  /-- The local context seen by embedded typechecker runs.  It holds only the
-  binders a run may need (parameters, indices and fields, never majors,
+  /-- The checking context: the local context seen by embedded typechecker runs.  It holds
+  only the binders a run may need (parameters, indices and fields, never majors,
   motives, minors or induction hypotheses), so every checker fact is produced
-  in the narrow scope that its verification uses.  The C++ kernel shows each
+  in the context in which its verification uses it.  The C++ kernel shows each
   call a larger context; the results agree because a checker run only
-  consults free variables reachable from its inputs.  See
-  `docs/inductives/STRENGTHENING.md`. -/
+  consults free variables reachable from its inputs.  See section 3.2 of
+  `docs/inductives/DESIGN.md`. -/
   checkLCtx : LocalContext := {}
   lparams : List Name
   /-- Universe parameters used by embedded typechecker calls.  Inductive
@@ -127,7 +127,7 @@ def getType (fvar : Expr) : M Expr :=
       lctx := c.lctx.mkLocalDecl ⟨id⟩ name ty bi
       checkLCtx := base.mkLocalDecl ⟨id⟩ name ty bi }) <| k <| .fvar ⟨id⟩
 
-/-- `withCheckedLocalDecl` on the annotation-consumed domain. A type-annotation
+/-- `withCheckedLocalDecl` on the unannotated domain. A type-annotation
 wrapper is stripped only if the current environment declares it as the prelude's
 definition (`Kernel.Environment.isTypeAnnotationWrapper`); otherwise the domain is kept
 literally. -/
@@ -136,13 +136,13 @@ literally. -/
   withCheckedLocalDecl name bi (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
     k c
 
-/-- `withCheckedLocalDeclOn` on the annotation-consumed domain. -/
+/-- `withCheckedLocalDeclOn` on the unannotated domain. -/
 @[inline] def withUnannotatedCheckedLocalDeclOn (base : LocalContext) (name : Name)
     (bi : BinderInfo) (dom : Expr) (k : Expr → M α) : M α := fun c =>
   withCheckedLocalDeclOn base name bi
     (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) k c
 
-/-- `withLocalDecl` on the annotation-consumed domain. -/
+/-- `withLocalDecl` on the unannotated domain. -/
 @[inline] def withUnannotatedLocalDecl (name : Name) (bi : BinderInfo) (dom : Expr)
     (k : Expr → M α) : M α := fun c =>
   withLocalDecl name bi (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) k c
@@ -165,7 +165,7 @@ def paramCheckLCtx (stats : InductiveStats) (n : Nat) : M LocalContext :=
 def checkClosedType (name : Name) (type : Expr) : M Expr := do
   let env := (← read).env
   env.checkNoMVarNoFVar name type
-  -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+  -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
   withCheckLCtx {} (checkType type)
 
 namespace checkInductiveTypes
@@ -178,14 +178,14 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
     if let .forallE name dom body bi := type then
       if i < nparams then
         if stats.indConsts.isEmpty then
-          -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+          -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
           withUnannotatedCheckedLocalDecl name bi dom fun param => do
             let stats := { stats with params := stats.params.push param }
             let type := body.instantiate1 param
             loopType nparams stats (← whnf type) (i + 1) nindices fuel k
         else
           let param := stats.params[i]!
-          -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+          -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
           let paramTy ← getType param
           unless ← withCheckLCtx (← paramCheckLCtx stats i) (isDefEq dom paramTy) do
             throw <| .other "parameters of all inductive datatypes must match"
@@ -193,7 +193,7 @@ def loopType (nparams : Nat) (stats : InductiveStats) (type : Expr)
           let type ← withCheckLCtx (← paramCheckLCtx stats (i + 1)) (whnf type)
           loopType nparams stats type (i + 1) nindices fuel k
       else
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           let type := body.instantiate1 arg
           loopType nparams stats (← whnf type) i (nindices + 1) fuel k
@@ -209,7 +209,7 @@ def loopInd (nparams : Nat) (indTypes : Array InductiveType)
     let type := indType.type
     _ ← checkClosedType indType.name type
     let fuel := (← readThe Context).fuel.inductiveFuel
-    -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+    -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
     -- The closed header is normalized in the empty context, and the telescope
     -- is opened on top of the parameters (none yet for the first family).
     let type ← withCheckLCtx {} (whnf type)
@@ -268,9 +268,9 @@ def isReflexive (indTypes : Array InductiveType) (indConsts : Array Expr) : Bool
     | _ => false
   indTypes.any fun indType => indType.ctors.any fun ctor => loop ctor.type
 
-/-- Production `ConstantInfo` payloads for the mutually declared type
-constants. Kept as a named function so verification can relate the metadata-
-enriched kernel entries to the independently translated source headers. -/
+/-- The `InductiveVal` entries installed for the families of the mutual block. A named
+function, so that the verification can relate these kernel entries, with their metadata, to
+the independently translated source headers. -/
 def inductiveTypeInfos (stats : InductiveStats) (numParams : Nat)
     (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
     (lparams : List Name) : Array InductiveVal :=
@@ -283,9 +283,9 @@ def inductiveTypeInfos (stats : InductiveStats) (numParams : Nat)
       isRec := isRec indTypes stats.indConsts
       isReflexive := isReflexive indTypes stats.indConsts }
 
-/-- Public name for the private kernel environment insertion primitive used by
-the executable declaration fold.  Naming this boundary lets verification state
-and prove its lookup-preservation contract directly. -/
+/-- Public name for the private kernel environment insertion `Kernel.Environment.add` used
+by the inductive checker, so that the verification can state and prove how it changes
+lookups. -/
 def addConstant (env : Environment) (info : ConstantInfo) : Environment :=
   env.add info
 
@@ -333,7 +333,7 @@ where
   | fuel+1 => do
     let t ← whnf t
     let .forallE name dom body bi := t | return isValidIndApp? stats t
-    -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+    -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
     withUnannotatedCheckedLocalDecl name bi dom fun arg => do
     loop (body.instantiate1 arg) fuel
 
@@ -344,7 +344,7 @@ def checkPositivityStep (stats : InductiveStats) (t : Expr)
     if hasIndOcc stats.indConsts dom then
       throw <| .other s!"arg #{idx + 1} of '{ctor}' \
         has a non positive occurrence of the datatypes being declared"
-    -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+    -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
     withUnannotatedCheckedLocalDecl name bi dom fun arg => do
       recur (body.instantiate1 arg)
   else if let none := isValidIndApp? stats t then
@@ -368,7 +368,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
   | fuel+1 => do
     if let .forallE name dom body bi := t then
       if let some param := stats.params[i]? then
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         let paramTy ← getType param
         unless ← withCheckLCtx (← paramCheckLCtx stats i) (isDefEq dom paramTy) do
           throw <| .other
@@ -382,7 +382,7 @@ def loopCtor (stats : InductiveStats) (isUnsafe : Bool) (ctor : Name)
             is too big for the corresponding inductive datatype"
         if !isUnsafe then
           checkPositivity stats dom ctor i
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           loopCtor stats isUnsafe ctor targetIdx
             (body.instantiate1 arg) (i + 1) fuel
@@ -425,20 +425,19 @@ end checkConstructors
 def checkConstructors (indTypes : Array InductiveType)
     (stats : InductiveStats) (isUnsafe : Bool) : M Unit := do
   let _ ← getEnv
-  -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+  -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
   withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
   checkConstructors.loopTypes indTypes stats isUnsafe 0
 
-/-- Number of binders in a constructor's complete source telescope.  Keeping
-this calculation named makes the production `numFields` entry available to
-the projection refinement without duplicating the executable traversal. -/
+/-- Number of binders in a constructor's complete source telescope. A named function, so
+that the verification of projections can read the installed `numFields` entry without
+repeating the traversal. -/
 def constructorArity : Expr → Nat
   | .forallE _ _ body _ => constructorArity body + 1
   | _ => 0
 
-/-- Production metadata for one constructor. Keeping this record construction
-named lets verification retain the exact source-aligned entry, rather than
-only its translated type. -/
+/-- The `ConstructorVal` entry installed for one constructor. A named function, so that the
+verification can keep the exact entry, not only its translated type. -/
 def constructorInfo (stats : InductiveStats) (lparams : List Name)
     (isUnsafe : Bool) (indType : InductiveType) (cidx : Nat)
     (ctor : Constructor) : ConstructorVal :=
@@ -483,7 +482,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
     | 0 => throw .deepRecursion
     | fuel+1 => do
       if let .forallE name dom body bi := type then
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
           let mut toCheck := toCheck
           if i ≥ stats.params.size then
@@ -492,7 +491,7 @@ def isLargeEliminator (stats : InductiveStats) (indTypes : Array InductiveType) 
           loop (body.instantiate1 arg) (i + 1) toCheck fuel
       else
         return toCheck.all type.getAppArgs.contains
-    -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+    -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
     withCheckLCtx {} (loop ctor.type 0 #[] (← readThe Context).fuel.inductiveFuel)
   | _ => return false
 
@@ -529,12 +528,12 @@ def loopArgs1 (stats : InductiveStats) (type : Expr) (i : Nat) (indices : Array 
   | fuel+1 => do
     if let .forallE name dom body bi := type then
       if i < stats.params.size then
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         let type ← withCheckLCtx (← paramCheckLCtx stats (i + 1))
           (whnf <| body.instantiate1 stats.params[i]!)
         loopArgs1 stats type (i + 1) indices fuel k
       else
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         withUnannotatedCheckedLocalDecl name bi dom fun arg => do
         loopArgs1 stats (← whnf <| body.instantiate1 arg) i (indices.push arg) fuel k
     else
@@ -547,7 +546,7 @@ variable (stats : InductiveStats) (indTypes : Array InductiveType) (elimLevel : 
 def loopInd1 (dIdx : Nat) (recInfos : Array RecInfo) (k : Array RecInfo → M α) : M α := do
   if _h : dIdx < indTypes.size then
     let ctx ← readThe Context
-    -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+    -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
     let type ← withCheckLCtx {} (whnf indTypes[dIdx].type)
     withCheckLCtx (← paramCheckLCtx stats stats.params.size) do
     loopArgs1 stats type 0 #[] ctx.fuel.inductiveFuel fun indices => do
@@ -576,7 +575,7 @@ where
       if let some param := stats.params[i]? then
         loop (body.instantiate1 param) (i + 1) bu u fuel
       else
-        -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+        -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
         -- The field is checked on top of the parameters and earlier fields.
         let fieldCheck := (← getLCtx).restrictTo
           ((stats.params ++ bu).toList.map (·.fvarId!))
@@ -594,7 +593,7 @@ def fieldsBefore (stats : InductiveStats) (fields : Array Expr) (ui : Expr) :
   stats.params ++ fields.takeWhile (·.fvarId! != ui.fvarId!)
 
 def loopUArgs (prior : Array Expr) (ui : Expr) (k : Expr → Array Expr → M α) : M α := do
-  -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+  -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
   -- The recursive field's type is read off its declaration and normalized in
   -- the checker context of `prior`: the parameters and the fields before it.
   let uiTy ← getType ui
@@ -606,7 +605,7 @@ where
   | 0 => throw .deepRecursion
   | fuel+1 => do
     if let .forallE name dom body bi := uiTy then
-      -- checker context narrowed; see docs/inductives/STRENGTHENING.md
+      -- runs in the checking context (section 3.2 of docs/inductives/DESIGN.md)
       withUnannotatedCheckedLocalDecl name bi dom fun arg => do
       loop (← whnf <| body.instantiate1 arg) (xs.push arg) fuel
     else
@@ -731,7 +730,7 @@ def loopU (indTypes : Array InductiveType) (stats : InductiveStats)
       -- The recursor head is a placeholder for the loose variable just outside
       -- the `xs` binders: `mkLambda` does not shift loose bound variables, so
       -- it must be `.bvar xs.size` inside the body. `instantiate1` then lifts
-      -- `val` under those binders; its first-pass field variables may reuse
+      -- `val` under those binders; its free variables may reuse
       -- identifiers of `xs`, so `val` cannot be placed in the body before the
       -- abstraction.
       return (lctx.mkLambda xs <|
@@ -800,9 +799,9 @@ def RecRuleTemplate.instantiate (blueprint : RecRuleTemplate)
       mkAppN (mkAppN blueprint.minor blueprint.fields) recursiveValues
   }
 
-/-- Build recursor rules from the exact first-pass field and higher-order
-recursive-call choices retained by `mkRecInfos`.  This deliberately performs
-no second constructor traversal, classification, inference, or WHNF. -/
+/-- Build recursor rules from the rule templates recorded by `mkRecInfos` (fields and
+higher-order recursive calls). This performs no second constructor traversal,
+classification, inference, or WHNF. -/
 def mkRecRulesFromTemplates (indTypes : Array InductiveType)
     (elimLevel : Level) (stats : InductiveStats) (recInfos : Array RecInfo)
     (dIdx : Nat) (motives minors : Array Expr) : M (List RecursorRule) := do
@@ -1318,7 +1317,7 @@ def restoreInductiveHeaderDecl (loweredEnv : Environment)
   | _ => .error <| .other s!"missing lowered inductive '{indName}'"
 
 /-- Restore and install one source inductive family member, its constructors,
-and its primary recursor. -/
+and its source recursor. -/
 def restoreInductiveDecl (res : ElimNestedInductive.Result)
     (loweredEnv : Environment) (recNameMap : NameMap Name)
     (allIndNames : List Name) (allowPrimitive : Bool)
@@ -1353,22 +1352,22 @@ def restoreNestedHeaders (loweredEnv : Environment)
     restoreInductiveHeaderDecl loweredEnv allIndNames allowPrimitive
       indType.name
 
-/-- Restore the source header/constructor prefix without installing any
-recursors.  The ordinary returned restoration still uses
-`restoreNestedDeclarations`; this is a proof-oriented validation boundary. -/
+/-- Restore the source headers and constructors without any recursors. This side
+environment is where restored recursor types are validated; the returned environment is
+built by `restoreNestedDeclarations`. -/
 def restoreNestedConstructors (res : ElimNestedInductive.Result)
     (loweredEnv : Environment) (allIndNames : List Name)
     (allowPrimitive : Bool) (types : List InductiveType) :
     StateT Environment (Except Exception) Unit := do
   -- Constructors of one mutual family may mention a later sibling, so the
-  -- validation environment uses the canonical dependency order.
+  -- validation environment installs every header before any constructor.
   restoreNestedHeaders loweredEnv allIndNames allowPrimitive types
   types.forM fun indType =>
     restoreInductiveConstructorsOnly res loweredEnv allowPrimitive indType
 
-/-- The complete declaration-restoration loop for a lowered nested block.
-Kept separate from `Environment.addInductive` so its state transition can be
-verified compositionally. -/
+/-- The declaration-restoration loop for a lowered nested block: every source family with its
+constructors and source recursor, then the auxiliary recursors, each renamed through
+`recNameMap`. -/
 def restoreNestedDeclarations (res : ElimNestedInductive.Result)
     (loweredEnv : Environment) (recNameMap : NameMap Name)
     (allIndNames : List Name) (allowPrimitive : Bool)
@@ -1383,8 +1382,8 @@ def restoreNestedDeclarations (res : ElimNestedInductive.Result)
 
 namespace validateRestoredConstructorParameters
 
-/-- Recheck every original constructor type in the source-shaped
-environment of the restored headers. -/
+/-- Recheck every source constructor type in the environment of the restored source
+headers. -/
 def run (env : Environment) (lparams : List Name) (safety : DefinitionSafety)
     (fuel : FuelConfig) (types : List InductiveType)
     (_res : ElimNestedInductive.Result) : Except Exception Unit := do
@@ -1400,10 +1399,9 @@ end validateRestoredConstructorParameters
 
 namespace validateRestoredRecursorTypes
 
-/-- Recheck the type of one restored recursor before using any restored
-recursor as an environment dependency.  The side environment contains the
-source-shaped mutual headers and constructors, while the concrete recursor
-type is reconstructed from the exact lowered recursor and restoration map. -/
+/-- Recheck the type of one restored recursor. The side environment contains the restored
+source headers and constructors and no recursor; the recursor type is restored from the
+lowered recursor through the restoration map. -/
 def check (env loweredEnv : Environment) (lparams : List Name)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
@@ -1419,10 +1417,9 @@ def check (env loweredEnv : Environment) (lparams : List Name)
       let type ← TypeChecker.checkType restored.type
       TypeChecker.ensureSort type restored.type
 
-/-- Recheck every primary and auxiliary restored recursor type in the
-source-shaped header/constructor environment.  This pass intentionally
-checks only types: restored equation semantics are still reconstructed from
-the producer and restoration traces. -/
+/-- Recheck every restored source and auxiliary recursor type in the environment of the
+restored source headers and constructors. The rules are validated separately
+(`validateRestoredRecursorRules`). -/
 def run (env loweredEnv : Environment) (lparams : List Name)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
@@ -1458,9 +1455,9 @@ def check (env loweredEnv : Environment) (_lparams : List Name)
       (lparams := restored.levelParams) (fuel := fuel) do
         TypeChecker.checkType rule.rhs
 
-/-- Type-check the right-hand sides of the rules of every primary and
-auxiliary restored recursor, after all restored constants have been
-installed. -/
+/-- Type-check the right-hand sides of the rules of every restored source and auxiliary
+recursor. The caller passes the restored environment with the rules of these recursors
+removed (`stripRecursorRules`). -/
 def run (env loweredEnv : Environment) (lparams : List Name)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) (recNameMap : NameMap Name)
@@ -1475,8 +1472,8 @@ def run (env loweredEnv : Environment) (lparams : List Name)
 
 end validateRestoredRecursorRules
 
-/-- Validate every generated auxiliary witness in the restored local
-parameter context. -/
+/-- Type-check the nested application `I Ds` of every auxiliary family (`aux2nested`) in
+the lowering's local parameter context. -/
 def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
     (safety : DefinitionSafety) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result) : Except Exception Unit :=
@@ -1485,7 +1482,7 @@ def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
     res.aux2nested.forM fun _ e => do
       _ ← TypeChecker.checkType e
 
-/-- The names of the recursors produced by nested restoration: the primary recursors of the
+/-- The names of the recursors produced by nested restoration: the source recursors of the
 source types and the auxiliary recursors, each renamed through `recNameMap`. -/
 def restoredRecursorNames (recNameMap : NameMap Name) (types : List InductiveType)
     (auxRecNames : List Name) : List Name :=
@@ -1500,8 +1497,10 @@ def stripRecursorRules (env : Environment) (recNames : List Name) : Environment 
     | some (.recInfo info) => env.add (.recInfo { info with rules := [] })
     | _ => env
 
-/-- Restore a successfully installed lowered block and validate the generated
-auxiliary witnesses before returning the source-shaped environment. -/
+/-- Restore a successfully installed lowered block. Before the restored environment is
+returned, the source constructor types, the restored recursor types, the right-hand sides of
+the restored rules and the nested applications `I Ds` are type-checked, each in its own side
+environment (section 3.3 of `docs/inductives/DESIGN.md`). -/
 def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
     (lparams : List Name) (types : List InductiveType)
     (safety : DefinitionSafety) (allowPrimitive : Bool) (fuel : FuelConfig)
@@ -1525,9 +1524,9 @@ def Environment.restoreNestedAfterInstall (env loweredEnv : Environment)
   validateNestedAuxiliaries auxiliaryHeaderEnv lparams safety fuel res
   return restoredEnv
 
-/-- Complete production pipeline after nested lowering has produced its
-result: install the lowered block, then either return it directly or restore
-the source declarations and validate every generated auxiliary witness. -/
+/-- The inductive checker after nested lowering: run the ordinary pipeline on the lowered
+block, then return it directly if it has no auxiliary families, and otherwise restore and
+validate the source declarations (`restoreNestedAfterInstall`). -/
 def Environment.addInductiveAfterLowering (env : Environment)
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe allowPrimitive : Bool) (fuel : FuelConfig)
