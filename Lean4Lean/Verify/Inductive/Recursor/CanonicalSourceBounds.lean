@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.CompletedRecursorConstruction
+import Lean4Lean.Verify.Inductive.Recursor.Construction
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel

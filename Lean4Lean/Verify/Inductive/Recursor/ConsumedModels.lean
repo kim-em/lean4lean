@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorModel
 import Lean4Lean.Verify.Inductive.Recursor.SourceReplay
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFamilyReplay
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMotiveGroup
-import Lean4Lean.Verify.Inductive.SourceModels
+import Lean4Lean.Verify.Inductive.Constructor.SourceSignature
 
 /-! Typed source models for signatures built from the consumed data of the
 completed recursor construction. -/

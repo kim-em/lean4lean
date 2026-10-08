@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Inductive.Nested.ConstructorInstallation
 import Lean4Lean.Verify.Inductive.Nested.Recognition
-import Lean4Lean.Verify.Inductive.Run.LiteralDisjoint
+import Lean4Lean.Verify.Inductive.Install.LiteralNames
 
 namespace Lean4Lean
 

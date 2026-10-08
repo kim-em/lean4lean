@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
-import Lean4Lean.Verify.Inductive.ConstructorBoundary
+import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 import Lean4Lean.Theory.Inductive.CaseCertificateTransport
 import Lean4Lean.Verify.Inductive.Nested.CaseEliminatorPieces
 import Lean4Lean.Verify.Inductive.Nested.CompilationDataConstructors

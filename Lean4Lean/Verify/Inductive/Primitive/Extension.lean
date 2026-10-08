@@ -1,8 +1,8 @@
 import Lean4Lean.Verify.Inductive.Primitive.Run
-import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Verify.Inductive.Prelude.EqReady
 import Lean4Lean.Verify.Inductive.Primitive.Context
-import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
+import Lean4Lean.Verify.Inductive.Install.Result
 
 namespace Lean4Lean
 

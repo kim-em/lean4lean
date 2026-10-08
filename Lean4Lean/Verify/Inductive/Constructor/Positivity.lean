@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Header.LoopInd
+import Lean4Lean.Verify.Inductive.Header.Block
 import Lean4Lean.Verify.ExprParamUniform
 
 namespace Lean4Lean

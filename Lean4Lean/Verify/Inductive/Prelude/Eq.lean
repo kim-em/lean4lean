@@ -1,7 +1,6 @@
-import Lean4Lean.Verify.Inductive.Run.SemanticFinalEnvironment
-import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
+import Lean4Lean.Verify.Inductive.Install.OrdinaryExtension
+import Lean4Lean.Verify.Inductive.Install.Result
 import Lean4Lean.Verify.Inductive.Prelude.EqSyntax
-import Lean4Lean.Verify.Inductive.OrdinaryFinalDispatch
 
 namespace Lean4Lean
 

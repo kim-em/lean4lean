@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Run.Formation
+import Lean4Lean.Verify.Inductive.Install.Environments
 import Lean4Lean.Verify.Environment.Extension
 
 namespace Lean4Lean

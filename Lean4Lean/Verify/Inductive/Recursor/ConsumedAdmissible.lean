@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldDefEq
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstructorModel
 import Lean4Lean.Verify.Inductive.Recursor.SourceReplay
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFamilyReplay
-import Lean4Lean.Verify.Inductive.Header.SingletonElimination
+import Lean4Lean.Verify.Inductive.Recursor.Elimination.Singleton
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterRawShape
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMinorFields
 

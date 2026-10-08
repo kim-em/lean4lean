@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.CompletedEquationSetup
+import Lean4Lean.Verify.Inductive.Rules.Alignment
 
 namespace Lean4Lean
 

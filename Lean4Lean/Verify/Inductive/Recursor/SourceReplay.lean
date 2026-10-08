@@ -1,6 +1,6 @@
-import Lean4Lean.Verify.Inductive.CompletedRecursorConstruction
-import Lean4Lean.Verify.Inductive.CompletedConstructorPhases
-import Lean4Lean.Verify.Inductive.ConstructorBoundary
+import Lean4Lean.Verify.Inductive.Recursor.Construction
+import Lean4Lean.Verify.Inductive.Constructor.Check
+import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 
 /-! Exact source telescopes for the retained first recursor pass. -/
 

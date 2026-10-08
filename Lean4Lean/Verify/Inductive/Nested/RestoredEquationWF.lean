@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Inductive.ProjNamesAvoid
 import Lean4Lean.Verify.Inductive.Nested.RuleShape
 import Lean4Lean.Verify.Inductive.Nested.RecursorProvenance
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryConstructorRestoration
-import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Verify.Inductive.Nested.RestoredEliminatorFacts

@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.CompletedRecursorConstruction
+import Lean4Lean.Verify.Inductive.Recursor.Construction
 import Lean4Lean.Verify.Inductive.Recursor.SourceReplay
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalParameterReplay
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalMotiveGroup

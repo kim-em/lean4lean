@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Constructor.Replay
+import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveFields
 import Lean4Lean.Verify.Typing.RawShape
 
 namespace Lean4Lean

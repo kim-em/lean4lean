@@ -10,7 +10,7 @@ import Lean4Lean.Verify.Inductive.Nested.HeaderNativeEvidence
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterNativeReplay
 import Lean4Lean.Verify.Inductive.Nested.FormationExpansionTrace
 import Lean4Lean.Verify.Inductive.Nested.SourceCoreNativeEvidence
-import Lean4Lean.Verify.Inductive.Run.SemanticRun
+import Lean4Lean.Verify.Inductive.Install.Ordinary
 import Lean4Lean.Verify.Inductive.Nested.RestorationTables
 
 namespace Lean4Lean

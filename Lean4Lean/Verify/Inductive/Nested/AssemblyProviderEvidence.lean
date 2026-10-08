@@ -1,9 +1,9 @@
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
-import Lean4Lean.Verify.Inductive.CompletedEquationFinal
+import Lean4Lean.Verify.Inductive.Rules.Lhs
 import Lean4Lean.Verify.Inductive.Nested.PrimaryIotaGenerated
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryEvidence
 import Lean4Lean.Verify.Inductive.Nested.FormationNativeEvidence
-import Lean4Lean.Verify.Inductive.CompletedEquationSetup
+import Lean4Lean.Verify.Inductive.Rules.Alignment
 import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterValidationRun
 import Lean4Lean.Verify.Inductive.Nested.ValidationEnvironmentRegistry
 import Lean4Lean.Verify.Inductive.Nested.FinalShapes

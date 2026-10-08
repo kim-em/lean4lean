@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.RuleTranslation
+import Lean4Lean.Verify.Inductive.Rules.Translation
 import Lean4Lean.Theory.Inductive.CanonicalEqSignature
 
 /-! # Production syntax of the bootstrap equality

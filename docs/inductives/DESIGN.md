@@ -310,7 +310,7 @@ None weakens the top-level theorem.
 the executable's own branch selection. Primitive declarations (`Bool` and `Nat`, recognized
 by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive/`. For
 other declarations the verified lowering result decides: no auxiliary families means the
-ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
+ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
 (`Nested/EndToEnd.lean`, `NestedFinalSpecification.lean`). All three produce an
 `InductiveFinalResult`.
 
@@ -323,7 +323,7 @@ ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
   with the headers; positivity, the universe bound on fields and the result shape are
   verified, and each field is related to its strictly positive normal form (the
   `positiveFields` clause of `Models`).
-- **Constructor boundary** (`ConstructorBoundary.lean`). From the data available once the
+- **Constructor boundary** (`Constructor/CheckedFormation.lean`). From the data available once the
   constructors are declared, the proof computes the source signature
   (`ConstructorBoundary.sourceSignature`, with `sourceSignature_models`) and the
   declaration's case eliminator `(first family, CaseSchema.ofCompilation decl signature [])`.
@@ -336,7 +336,7 @@ ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
   `(ctors.addEliminators es).addProjections P` is shown well formed by `inductEliminators`
   and `inductProjections` (`VInductBlock.EliminatorsWF.windowWF`). The executable is
   unchanged by this: it has no case eliminators.
-- **Recursors** (`Recursor/`, 51k; `Completed*.lean`, 33k). The executable's recursor
+- **Recursors** (`Recursor/`, 51k; `Rules/`, 33k). The executable's recursor
   construction (first and second pass over the fields, elimination level, motives, minors,
   induction hypotheses, rules) is shown to produce exactly the translation of the abstract
   generator's output for one canonical `Instance`
@@ -345,8 +345,8 @@ ordinary path (`OrdinaryFinalDispatch.lean`), otherwise the nested path
   each generated recursor type (`checkRecursorTypes`), which supplies `RecursiveTypesWF` in
   the window environment; `FamilyTypesWF` likewise comes from checker runs in the window.
   Rules are proved well typed in the recursor
-  environment (`EquationWF.lean`, `RuleTranslation*.lean`).
-- **Assembly** (`CompletedBlockCertificate.lean`, `Run/`). The phases assemble into one
+  environment (`Rules/EquationWF.lean`, `Rules/Translation.lean`, `Rules/RuleTranslations.lean`).
+- **Assembly** (`Install/BlockCertificate.lean`, `Install/`). The phases assemble into one
   `CompletedBlockCertificate` (shared by the ordinary, primitive and nested paths), which
   yields `VInductDecl.CompilesTo`, `VInductBlock.WF`, `EliminatorsWF`, the final `AddInduct`
   and the safety-indexed `VEnvs.WF` of the output.
@@ -759,8 +759,8 @@ Suggested order, with sizes.
 8. Confluence (outside the cone): `Lean4Lean/Theory/LevelledConfluence.lean`,
    `Lean4Lean/Theory/Typing/LevelledReduction.lean` (4.7k), `WFParams.lean`.
 9. The inductive checker: `Lean4Lean/Inductive/Add.lean` (2.2k), then the pipeline:
-   `Lean4Lean/Verify/Inductive/ConstructorBoundary.lean` (1k), `Context.lean` (3.5k),
-   `Header/` (9k), `Constructor/` (7k), `Recursor/` (51k), `Completed*.lean` (33k), `Run/` (5k),
+   `Lean4Lean/Verify/Inductive/Constructor/CheckedFormation.lean` (1k), `Context.lean` (3.5k),
+   `Header/` (9k), `Constructor/` (7k), `Recursor/` (51k), `Rules/` (33k), `Install/` (5k),
    `Nested/` (91k, starting from `CaseEliminators.lean`, `EndToEnd.lean`,
    `RestoredEquationWF.lean`, `StrippedValidity.lean`).
 10. Quotients: `Lean4Lean/Verify/QuotInit.lean` (630).

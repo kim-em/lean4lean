@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
+import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 
 namespace Lean4Lean
 

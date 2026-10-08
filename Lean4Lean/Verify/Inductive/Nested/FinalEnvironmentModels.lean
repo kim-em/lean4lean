@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
 import Lean4Lean.Verify.Inductive.Nested.ConcreteBoundary
 import Lean4Lean.Verify.Inductive.Nested.ProductionOrigins
 import Lean4Lean.Verify.Inductive.Prelude.EqReady
-import Lean4Lean.Verify.Inductive.Run.FinalResult
+import Lean4Lean.Verify.Inductive.Install.Result
 
 namespace Lean4Lean
 

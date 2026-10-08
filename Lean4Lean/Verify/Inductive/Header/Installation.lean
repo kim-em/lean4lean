@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Header.SemanticFold
+import Lean4Lean.Verify.Inductive.Header.Check
 import Lean4Lean.Verify.Inductive.Recursor.Installation
 
 namespace Lean4Lean

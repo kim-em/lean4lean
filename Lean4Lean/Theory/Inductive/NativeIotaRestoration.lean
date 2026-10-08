@@ -378,7 +378,7 @@ theorem Restoration.expr_recursorMajor_auxiliary (r : Restoration) {s : Inductiv
 end InductiveSignature
 end Lean4Lean
 
--- from Lean4Lean/Verify/Inductive/CompletedRecursorAlignment.lean
+-- from Lean4Lean/Verify/Inductive/Recursor/InstanceAlignment.lean
 namespace Lean4Lean
 open InductiveSignature
 

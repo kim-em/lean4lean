@@ -1,5 +1,4 @@
-import Lean4Lean.Verify.Inductive.CompletedRecursorPhases
-import Lean4Lean.Verify.Inductive.CompletedElimination
+import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Verify.Inductive.Recursor.Realization
 
 /-! Recursor metadata realization for completed recursor phases.

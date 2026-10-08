@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Primitive.Context
-import Lean4Lean.Verify.Inductive.Header.SemanticAssembly
+import Lean4Lean.Verify.Inductive.Header.Declaration
 import Lean4Lean.Verify.Inductive.Header.Installation
-import Lean4Lean.Verify.Inductive.Run.SemanticHeaders
+import Lean4Lean.Verify.Inductive.Install.Headers
 
 namespace Lean4Lean
 

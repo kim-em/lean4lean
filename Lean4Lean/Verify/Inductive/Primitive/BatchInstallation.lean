@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Primitive.Constants
-import Lean4Lean.Verify.Inductive.Run.Formation
+import Lean4Lean.Verify.Inductive.Install.Environments
 
 namespace Lean4Lean
 

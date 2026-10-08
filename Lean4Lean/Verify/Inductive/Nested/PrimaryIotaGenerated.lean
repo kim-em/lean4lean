@@ -3,9 +3,9 @@ import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Inductive.Nested.Replacement
 import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Typing.Lemmas
-import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
+import Lean4Lean.Verify.Inductive.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
-import Lean4Lean.Verify.Inductive.Header.LoopType
+import Lean4Lean.Verify.Inductive.Header.Telescope
 import Lean4Lean.Verify.Inductive.Recursor.Rules
 
 namespace Lean4Lean

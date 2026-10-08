@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.FinalAssembly
 import Lean4Lean.Verify.Inductive.Nested.RestoredRecursorShape
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalConstruction
-import Lean4Lean.Verify.Inductive.CompletedRecursorPhases
+import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Std.List
 
 /-! `CompilationData` for the lowered declaration of a validated nested run.

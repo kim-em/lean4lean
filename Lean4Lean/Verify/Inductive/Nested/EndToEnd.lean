@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.ConstructorParameterValidationRun
 import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase
 import Lean4Lean.Verify.Inductive.Recursor.FirstPass
-import Lean4Lean.Verify.Inductive.Specification.Formation
+import Lean4Lean.Verify.Inductive.Formation
 
 namespace Lean4Lean
 

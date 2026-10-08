@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Primitive.ConstructorParams
-import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
+import Lean4Lean.Verify.Inductive.Rules.RuleTranslations
 
 namespace Lean4Lean
 

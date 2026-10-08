@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.RestoringExpansion
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.ExprParamUniform
-import Lean4Lean.Verify.Inductive.RuleTranslation
+import Lean4Lean.Verify.Inductive.Rules.Translation
 import Lean4Lean.Std.Basic
 
 /-! Commutation of executable nested restoration with `Restoration.expr`,

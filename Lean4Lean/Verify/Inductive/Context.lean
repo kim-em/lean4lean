@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Specification.Recursors
+import Lean4Lean.Verify.Inductive.Compilation
 
 namespace Lean4Lean
 
