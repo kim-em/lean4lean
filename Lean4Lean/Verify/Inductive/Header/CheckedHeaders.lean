@@ -1,6 +1,15 @@
 import Lean4Lean.Verify.Inductive.Header.Translation
 import Lean4Lean.Verify.Inductive.Header.Block
 
+/-!
+# The checked headers of a mutual block
+
+`CheckedHeaders` is the ordered accumulator of the header phase: for each source family its
+checked translation and its `HeaderFormation`, independent of any declaration skeleton. From
+it the file builds the header-only declaration (`headerDecl`), its `HeaderCertificate`, and
+the `HeaderStatsWF` result that the constructor phase starts from (`checkedResult`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -274,7 +283,7 @@ namespace VerifyInductive
 
 namespace checkInductiveTypes.loopInd
 
-/-- Retarget the runtime scope of a completed header result along exact
+/-- Retarget the runtime scope of a header result (`HeaderStatsWF`) along exact
 scope equality.  Data projections are preserved definitionally after
 eliminating the equality, which avoids opaque dependent casts at installed
 environment boundaries. -/
@@ -431,8 +440,8 @@ theorem CheckedHeaders.headerTranslationAt
   rw [← hsource, htarget]
   exact payload.2.translation
 
-/-- The completed skeleton-free header fold already determines a fully
-usable materialized header result before constructor targets are known.
+/-- The skeleton-free header fold already determines a usable checked header
+result before constructor targets are known.
 Constructor checking can therefore run against this declaration and produce
 those targets without circularly assuming a constructor-bearing skeleton. -/
 def CheckedHeaders.checkedResult

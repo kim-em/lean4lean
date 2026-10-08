@@ -1,6 +1,15 @@
 import Lean4Lean.Verify.Inductive.Header.Check
 import Lean4Lean.Verify.Inductive.Recursor.Entries.AddConstants
 
+/-!
+# Installation of the headers
+
+Verifies `AddInductive.declareInductiveTypes`, which adds the family constants: the
+executable environment is related by `AddConstants` to the abstract header environment
+`addConstVals (headerDecl isUnsafe).typeConstants`, with freshness read off the executable's
+`checkName` (`InstalledHeaders`, `declareInductiveTypes.headersWF`).
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +20,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- Existential form of the atomic mutual-header installer.  Freshness is
-recovered from each successful production `checkName`, so the abstract
+recovered from each successful executable `checkName`, so the abstract
 `addConstVals` equation is an output rather than a premise. -/
 theorem AddConstants.ofDeclareInductiveTypeInfosExists
     (Hvalid : CheckingEnv.Valid safety env venv)
@@ -69,7 +78,8 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
               simpa using AddConstants.cons (ci := .inductInfo info)
                 (ci' := ci') hn hnprimHead htr hwf hadd rfl Htail⟩
 
-/-- Production mutual-header metadata translates directly to the exact
+/-- The executable's mutual-header metadata (`inductiveTypeInfos`) translates
+directly to the exact
 constants recovered by the skeleton-free header traversal. -/
 theorem AddInductive.inductiveTypeInfos.translatedCheckedHeaders
     (Hheaders : HeaderTranslations env lparams
@@ -110,7 +120,7 @@ theorem AddInductive.inductiveTypeInfos.translatedCheckedHeaders
         hvisible
   · exact Htarget.wf
 
-/-- The production header declaration installs the skeleton-free abstract
+/-- The executable header declaration (`declareInductiveTypes`) installs the skeleton-free abstract
 header constants in exact source order.  In particular the abstract
 `addConstVals` equation is obtained from execution and is not supplied by a
 caller skeleton. -/
@@ -162,8 +172,8 @@ theorem AddInductive.declareInductiveTypes.installsCheckedHeadersWF
       exact habstract
     · simpa [infos] using Hinstalled
 
-/-- Skeleton-free production boundary after all mutual family constants have
-been installed and before any constructor is checked. -/
+/-- The header environment, skeleton-free: the state after all mutual family
+constants have been installed and before any constructor is checked. -/
 structure InstalledHeaders
     (c : AddInductive.Context) (Hc : ContextWF c)
     (stats : AddInductive.InductiveStats)

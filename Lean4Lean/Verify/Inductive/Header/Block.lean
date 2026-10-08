@@ -1,6 +1,16 @@
 import Lean4Lean.Verify.Inductive.Header.Telescope
 import Lean4Lean.Verify.Inductive.Header.RawTranslation
 
+/-!
+# Per-family steps of the mutual-header loop
+
+Verifies the continuation of `checkInductiveTypes.loopInd` after one header telescope has
+been traversed: the first family fixes the common parameters and result universe, later
+families must agree with them (`firstResult.WF`, `laterResult.WF`), and the loop ends with
+the executable statistics described by `HeaderStatsWF`, the header-phase invariant used
+by the constructor phase.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -85,8 +95,8 @@ theorem initialHeaderTelescopeState
       hctxEq hcurrent hheader⟩⟩
 
 /-- A later source header is closed before cached parameters are substituted.
-The outer `whnf` scope witness therefore initializes the narrow
-later-parameter invariant at executable parameter zero. -/
+The free-variable bound of the outer `whnf` result therefore initializes the
+reused-parameter scope (`ReusedParameterScope`) at executable parameter zero. -/
 noncomputable def initialReusedParameterScope
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
@@ -109,8 +119,8 @@ noncomputable def initialReusedParameterScope
     (hnormalized _ hfalseUpSet hsourceNoFVars)
 
 
-/-- Initialize the narrow later-header synthesis state in the empty consumed
-scope, from the closed translation of the normalized header that the closed
+/-- Initialize the later-header telescope state (`ScopedHeaderTelescope`) in the
+empty scope, from the closed translation of the normalized header that the closed
 `whnf` run produces in the empty checker context. -/
 theorem initialLaterHeaderTelescopeState
     {source : InductiveType} {target : VInductiveTypeSkeleton}
@@ -137,8 +147,8 @@ theorem initialLaterHeaderTelescopeState
     ⟨checkInductiveTypes.loopType.ScopedHeaderTelescope.empty
       ⟨targetLevel, htargetType⟩ hnormalizedType hheaderTyped⟩⟩
 
-/-- A sort translation of a narrow checker run transfers to any scope aligned
-with the checker context. -/
+/-- A sort translation obtained in the checker context transfers to any scope
+definitionally equal to the checker context. -/
 theorem TrExpr.sort_of_aligned {env : VEnv} {Us : List Name}
     {scope chk : VLCtx} {e : Expr} {cur cur₀ : VExpr} {s : Level}
     (henv : env.WF)
@@ -351,7 +361,7 @@ theorem result.WF
   simpa [hlevels, hindices, hconsts, hparams] using Hk
 
 
-/-- Concrete statistics recovered together with a materialized mutual header.
+/-- Concrete statistics recovered together with the checked mutual headers.
 This is the early traversal-facing form of `ValidAppStatsWF`; it is kept here
 because the latter also packages the derived name-search invariant used by
 positivity, which is defined after the executable constructor interfaces. -/
@@ -449,7 +459,7 @@ theorem HeaderStatsWF.levelParamsTranslation
   rw [H.levelTranslation,
     Lean4Lean.VerifyInductive.List.map_param_idxOf_eq_params hlparams, H.uvars]
 
-/-- The production field-universe guard implies the independent constructor
+/-- The executable field-universe guard implies the independent constructor
 bound.  The zero branch is semantic level equivalence, matching Lean's
 `isAlwaysZero`; the comparison branch is soundness of `geq'`, transported
 from the common mutual level to the selected family member. -/
@@ -554,8 +564,7 @@ namespace VerifyInductive
 namespace checkInductiveTypes.loopType
 
 /-- The executable per-header statistics update leaves the cached common
-parameters untouched, so the semantic cache can be transported without any
-new evidence. -/
+parameters untouched, so the semantic cache transports unchanged. -/
 def ParameterCachePrefix.reindexUpdatedStats
     (H : ParameterCachePrefix
       env Us scope stats done depth)

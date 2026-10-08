@@ -1,5 +1,18 @@
 import Lean4Lean.Verify.Inductive.Header.CheckingScope
 
+/-!
+# The header telescope loop
+
+Verifies `checkInductiveTypes.loopType`, the traversal of one family type's parameter and
+index binders in the header phase (section 3.2 of `docs/inductives/DESIGN.md`). The first
+header introduces the common parameters and is described by `HeaderTelescope`; a later header
+reuses the cached parameters and is described in its own scope, which excludes the indices
+left by earlier families (`ScopedHeaderTelescope`, `ReusedParameterScope`). Each header
+yields a `HeaderFormation`: its arity, result universe and the definitional agreement of the
+source type with the synthesized telescope, together with the concrete source telescope
+(`HeaderSourceTelescope`). `HeaderFormations` accumulates them in source order.
+-/
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -52,9 +65,9 @@ theorem ParameterContextSuffix.paramsDefEq
     omega
   exact VEnv.IsDefEqCtx.dropPrefixes hcontext hprefix
 
-/-- Source-side account of the header telescope consumed by `loopType`.
-`root` is the original normalized header and `current` is its unconsumed
-suffix.  The context relation records that annotation erasure may change a
+/-- Source-side account of the header telescope traversed by `loopType`.
+`root` is the source normalized header and `current` is its untraversed
+suffix.  The context relation records that stripping type annotations may change a
 binder domain without changing the abstract telescope up to definitional
 equality. -/
 structure HeaderTelescopeCertificate (Hc : ContextWF c)
@@ -226,7 +239,7 @@ noncomputable def HeaderTelescope.normalize
     header := H.header.trans_r Hc.checking.tr.wf (by trivial)
       (by simpa using hwrapped) }
 
-/-- Definitional header synthesis in a context narrower than the executable
+/-- Definitional header synthesis in a scope smaller than the executable
 reader context.  Later mutual headers retain indices introduced while
 checking earlier family members; those declarations must not become part of
 the later header's semantic telescope. -/
@@ -263,8 +276,8 @@ def ScopedHeaderTelescope.empty
   header := by simpa [VExpr.wrapForalls] using hheader
 
 /-- Replace the current residual by a definitionally equal forall over the
-next cached common-parameter type, then move that binder into the narrow
-scope. -/
+next cached common-parameter type, then move that binder into the header's
+own scope. -/
 noncomputable def ScopedHeaderTelescope.withParameter
     (henv : env.WF)
     (H : ScopedHeaderTelescope env Us target scope
@@ -306,7 +319,7 @@ noncomputable def ScopedHeaderTelescope.withParameter
       simpa [hindices, VExpr.wrapForalls, VExpr.wrapForalls_append]
         using hwrapped }
 
-/-- Move a definitionally equal residual forall into the narrow index
+/-- Move a definitionally equal residual forall into the header's own index
 telescope. -/
 noncomputable def ScopedHeaderTelescope.withIndex
     (henv : env.WF)
@@ -352,7 +365,7 @@ noncomputable def ScopedHeaderTelescope.withIndex
       simpa [VExpr.wrapForalls, VExpr.wrapForalls_append,
         List.append_assoc] using hwrapped }
 
-/-- Compare the next domain of a narrow replay state with the next domain of
+/-- Compare the next domain of a scoped header telescope with the next domain of
 another certified presentation of the same source header. -/
 theorem ScopedHeaderTelescope.nextDomainDefEq
     (henv : env.WF)
@@ -375,8 +388,9 @@ theorem ScopedHeaderTelescope.nextDomainDefEq
   simpa using VEnv.IsDefEqU.wrapForalls_next henv (by trivial)
     hlen hboth
 
-/-- Build the semantic parameter transition from the narrowed syntax
-translation and the executable comparison/normalization witnesses. -/
+/-- Build the semantic parameter transition from the syntax translation in
+the header's own scope and the executable comparison and normalization
+results. -/
 theorem ScopedHeaderTelescope.consumeParameter
     (henv : env.WF)
     (H : ScopedHeaderTelescope env Us target scope current i 0)
@@ -433,8 +447,9 @@ theorem ScopedHeaderTelescope.consumeParameter
     exact ⟨normalized', hnormalized,
       ⟨H.withParameter henv hindices hscopeWF hstep⟩⟩
 
-/-- Build the semantic index transition from the narrowed syntax
-translation and the executable comparison/normalization witnesses. -/
+/-- Build the semantic index transition from the syntax translation in
+the header's own scope and the executable comparison and normalization
+results. -/
 theorem ScopedHeaderTelescope.consumeIndex
     (henv : env.WF)
     (H : ScopedHeaderTelescope env Us target scope current i
@@ -575,7 +590,7 @@ theorem HeaderTelescope.typeShape
   exact H.typeShapeWithParams huvars
     (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
 
-/-- Materialize the two semantic header fields from the successful executable
+/-- Construct the two semantic header fields from the successful executable
 tail.  Unlike `typeShape`, this theorem does not require either field to have
 been chosen before the traversal: the index counter and translated sort are
 used to construct the target itself. -/
@@ -599,8 +614,7 @@ theorem HeaderTelescope.formationTypeShape
   · exact hsort
 
 /-- How the normalized semantic parameter/index telescope sits in the
-executable header context retained by an independently source-aware
-narrowing.  The first header occupies the full context; later mutual headers
+executable header context, as selected by a source-aware scope.  The first header occupies the full context; later mutual headers
 can skip indices left by earlier families. -/
 inductive HeaderSourceScopeAlignment (env : VEnv) (Us : List Name)
     (sourceScope runtime : VLCtx) (ownParams indices : List VExpr) : Type
@@ -617,8 +631,8 @@ inductive HeaderSourceScopeAlignment (env : VEnv) (Us : List Name)
         indices.reverse ++ ownParams.reverse) :
       HeaderSourceScopeAlignment env Us sourceScope runtime ownParams indices
 
-/-- Concrete source telescope retained only at the completed header
-boundary.  Keeping this separate from `ScopedHeaderTelescope` is
+/-- Concrete source telescope retained only once the header has been
+checked.  Keeping this separate from `ScopedHeaderTelescope` is
 essential: constructor replay universe-instantiates that generic certificate
 with abstract levels for which there need not be corresponding Lean source
 syntax. -/
@@ -688,8 +702,8 @@ def HeaderSourceTelescope.mono {env env' : VEnv}
 /-- Persistent result of checking one metadata-free source header.  The final
 mutual declaration need not exist yet; only its two block-wide counters are
 relevant to `TypeShape`.  This lets the outer traversal accumulate checked
-headers and withMetadata the declaration after every family member has
-supplied its metadata. -/
+headers and build the declaration with `withMetadata` after every family
+member has supplied its metadata. -/
 structure HeaderFormation (env : VEnv) (Us : List Name)
     (uvars nparams : Nat)
     (params : List VExpr) (source : VInductiveTypeSkeleton)
@@ -940,7 +954,7 @@ structure HeaderFormationAt (env : VEnv) (Us : List Name)
   commonLevel : data.2 ≈ commonLevel
 
 /-- Prefix of the metadata list built by the outer mutual-header traversal.
-`Forall₂` fixes both ordering and cardinality, so later materialization cannot
+`Forall₂` fixes both ordering and cardinality, so `withMetadata` cannot
 associate a checked arity or universe with the wrong family member. -/
 structure HeaderFormations (env : VEnv) (Us : List Name)
     (skeleton : VInductDeclSkeleton) (params : List VExpr)
@@ -953,7 +967,7 @@ structure HeaderFormations (env : VEnv) (Us : List Name)
       params commonLevel)
     (skeleton.types.take done) metadata
 
-/-- Every position of a completed header prefix retains the concrete source
+/-- Every position of a checked header prefix retains the concrete source
 telescope selected while checking that family. -/
 theorem HeaderFormations.normalizedSourceAt
     (H : HeaderFormations env Us skeleton params commonLevel metadata
@@ -966,7 +980,7 @@ theorem HeaderFormations.normalizedSourceAt
     (by simpa using hi) hmetadata
   exact Hchecked.header.normalizedSource
 
-/-- After exact materialization, the retained source telescope is indexed by
+/-- After `withMetadata`, the retained source telescope is indexed by
 the corresponding family in the resulting declaration. -/
 theorem HeaderFormations.normalizedSourceAtChecked
     (H : HeaderFormations env Us skeleton params commonLevel metadata
@@ -996,8 +1010,8 @@ theorem HeaderFormations.normalizedSourceAtChecked
     simp [VInductiveTypeSkeleton.toVInductiveType]
   simpa [hfields.2.1, hindices] using Hsource
 
-/-- The materialized family retains the joint source/semantic header witness
-used by the checker.  In particular, the concrete source index telescope and
+/-- The family built by `withMetadata` retains the joint source and semantic
+header telescope used by the checker.  In particular, the concrete source index telescope and
 the abstract index domains in the family typing are selected by one header
 replay, rather than by unrelated existential `TypeShape` proofs. -/
 theorem HeaderFormations.normalizedShapeAtChecked
@@ -1039,7 +1053,7 @@ theorem HeaderFormations.normalizedShapeAtChecked
   rw [htargetEq]
   simpa [VInductiveTypeSkeleton.toVInductiveType] using Hshape
 
-/-- Once every header has been visited, exact materialization turns the
+/-- Once every header has been visited, `withMetadata` turns the
 metadata-prefix invariant into the public formation header certificate. -/
 def HeaderFormations.complete
     (H : HeaderFormations env Us skeleton params commonLevel metadata
@@ -1515,8 +1529,9 @@ theorem ParameterContextSuffix.headerCheck_paramAligned
   rw [H.headerCheck_chk_vlctx] at hwf
   exact .refl Hc.checking.tr.wf hwf
 
-/-- Narrow concrete scope immediately before consuming cached parameter `i`.
-Only parameters already consumed by this later header may occur; ambient
+/-- Concrete scope of a later header immediately before processing cached
+parameter `i`.
+Only parameters already processed by this later header may occur; ambient
 indices and the current-or-future cached parameters are excluded. -/
 structure ReusedParameterScope
     (Hsuffix : ParameterContextSuffix Hc stats depth)
@@ -1559,7 +1574,7 @@ theorem ReusedParameterScope.older_eq_nil
     (hi : 0 < stats.params.size) : H.older = [] :=
   List.eq_nil_of_length_eq_zero (H.olderLength hi)
 
-/-- After the final cached parameter is consumed, the accumulated narrow
+/-- After the final cached parameter is processed, the accumulated
 scope is exactly the complete cached-parameter suffix. -/
 theorem ReusedParameterScope.scope
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1577,7 +1592,7 @@ theorem ReusedParameterScope.scope
   rw [H.parameterDecls, hnewer]
   simp
 
-/-- Consecutive cached-parameter scopes agree on the consumed suffix. -/
+/-- Consecutive cached-parameter scopes agree on the processed suffix. -/
 theorem ReusedParameterScope.nextOlder
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth i : Nat}
@@ -1639,7 +1654,7 @@ theorem ReusedParameterScope.openedUpSet
     (by simpa [H.context] using Hc.mlctx_wf.tr.wf)
 
 /-- Substitution of the current cached parameter, followed by an executable
-normalization step, cannot introduce dependencies outside the newly consumed
+normalization step, cannot introduce dependencies outside the newly processed
 parameter scope. -/
 theorem ReusedParameterScope.unannotatedFVars
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -1907,10 +1922,10 @@ theorem parameterMismatch.WF
     exact Except.WF.throw
 
 /-- Verification step for an index binder.  `hdom`/`hdomType` are stated for
-the annotation-consumed domain actually installed in the production local
-context, and `hdom₀`/`hdomType₀` for the same domain in the checker context;
-deriving them from the source domain is the separate `consumeTypeAnnotations`
-compatibility obligation.  The continuation receives the facts about the
+the unannotated domain (`consumeTypeAnnotationsVerified`) actually installed
+in the executable local context, and `hdom₀`/`hdomType₀` for the same domain
+in the checker context; deriving them from the source domain is the separate
+`ConsumeTypeAnnotationsCompat` obligation.  The continuation receives the facts about the
 normal form in both contexts. -/
 theorem index.WF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
@@ -2342,7 +2357,7 @@ noncomputable def ReusedParameterScope.ofNoFVars
       lift := hlift
       fvars := hfvars.mono fun _ h => False.elim h }⟩
 
-/-- Advance the narrow scope after substituting cached parameter `i` and
+/-- Advance the reused-parameter scope after substituting cached parameter `i` and
 normalizing the resulting body.  The next parameter's older suffix is
 exactly the current cached declaration followed by the current older suffix.
 -/
@@ -2411,7 +2426,7 @@ noncomputable def ReusedParameterScope.next
 compares the domain with the cached parameter type in the checker context of
 the earlier parameters, and normalizes the instantiated body in the checker
 context of the parameters up to the current one; both runs are verified in
-those contexts, which are exactly the narrow scopes of `Hscope`. -/
+those contexts, which are exactly the scopes recorded by `Hscope`. -/
 theorem laterParameter.checkedScopeWF
     (Hc : ContextWF c) (hi : i < nparams)
     (hnonempty : stats.indConsts.isEmpty = false)
@@ -2515,7 +2530,7 @@ theorem laterParameter.checkedScopeWF
     have heq : Hc.venv.IsDefEqU c.lparams.length Hc.mlctx.vlctx.toCtx dom' paramTy' :=
       Hci.check.embed.isDefEqU Hc.checking.tr.wf hdomN hparamTyN hdom hparamTy (hequal rfl)
     have hopened := Hc.instantiateDefEq hbody hparam hparamType heq
-    -- the narrow body under the cached parameter type
+    -- the body in the header's own scope, under the cached parameter type
     obtain ⟨v, hv⟩ := _hdomType₀
     have hctx : VLCtx.IsDefEq Hc.venv c.lparams.length
         ((none, .vlam dom₀) :: Hscope.older)
@@ -2656,9 +2671,9 @@ theorem firstHeaderTelescopeWF
             hconstsStable HR halign hforall hi Hcache Hsuffix Hsynthesis htype)
       · exact parameterMismatch.WF hforall hi
 
-/-- Cached-parameter recursion with the independent narrow header telescope
+/-- Cached-parameter recursion with the independent scoped header telescope
 accumulated in lockstep.  The executable reader context remains unchanged;
-the synthesis scope grows only by the parameters consumed by this header. -/
+the synthesis scope grows only by the parameters processed by this header. -/
 theorem laterParameterTelescopeWF
     {alpha : Type} (Hc : ContextWF c)
     {target : VInductiveTypeSkeleton}
@@ -2862,7 +2877,7 @@ theorem laterIndexTelescopeWF
             Hc'.mlctx.vlctx :=
           Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
             hdomNarrow hdomain ⟨v, hv⟩
-        -- the checker context stays aligned with the narrow scope
+        -- the checker context stays aligned with the header's own scope
         have hindexCons : Hc.venv.IsDefEqU c.lparams.length scope.toCtx indexType consumed₀ := by
           obtain ⟨_, hsc⟩ := Hdom₀.source_defeq
           have hsc' := hsc.defeqDFC henvWF.ordered (halign.defeqCtx.symm henvWF.ordered)
@@ -2900,7 +2915,7 @@ theorem laterIndexTelescopeWF
           rw [VLCtx.fvars_cons_some]
           exact List.mem_cons_self
         have hnormalizedFVars := hbelow _ Hruntime'.upset hopenedFVars
-        -- the checker-context normal form, read in the narrow scope
+        -- the checker-context normal form, read in the header's own scope
         rcases hnormalized₀ with ⟨normalizedC, hnormalizedC, hnormalizedCEq⟩
         obtain ⟨normalizedNarrow, hnormalizedNarrow⟩ :=
           hnormalizedC.defeqDFC henvWF (halign'.symm henvWF.ordered)

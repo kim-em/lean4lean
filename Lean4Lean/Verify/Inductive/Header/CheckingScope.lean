@@ -1,6 +1,19 @@
 import Lean4Lean.Verify.Inductive.Context
 import Lean4Lean.Verify.LocalContext
 
+/-!
+# Scopes inside the executable local context
+
+The header loops of `Lean4Lean/Inductive/Add.lean` keep indices of earlier families and the
+cached common parameters in one local context. This file describes the abstract scopes that
+the proof carves out of it without strengthening (section 5.1 of
+`docs/inductives/DESIGN.md`): the abstract images of the parameter cache
+(`cachedParamVars`, `ParameterCachePrefix`, `ParameterContextSuffix`), source telescopes of
+all-lambda contexts (`SourceTelescope`), and dependency-closed sub-scopes of a larger
+context (`FrontScopeEmbedding`, `ScopeEmbedding`), into which terms and types are moved by
+weakening. The scope embeddings are reused by the constructor and recursor phases.
+-/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -94,8 +107,8 @@ theorem cachedParamVars_zero_eq_bvarSpine (n : Nat) :
   · rw [List.getElem?_eq_none_iff.2 (by simp; omega)]
     simp [hi]
 
-/-- Source-domain provenance for a dependency-closed narrowed context.
-The context is newest first.  At each retained declaration, its original
+/-- Source domains of a dependency-closed scope.
+The context is newest first.  At each retained declaration, its source
 Lean domain is translated in the already retained older tail. -/
 inductive SourceTelescope (env : VEnv) (Us : List Name) :
     VLCtx → Type
@@ -229,8 +242,8 @@ the executable array stores parameters from oldest to newest, while local
 declarations are pushed at the head.
 
 This suffix decomposition is what lets later mutual headers discard ambient
-indices and not-yet-used cached parameters before applying
-`TrExprS.uninstantiateAfterWeakFV`. -/
+indices and not-yet-used cached parameters and work in the scope of the
+parameters they have already processed (`ReusedParameterScope`). -/
 structure ParameterContextSuffix (Hc : ContextWF c)
     (stats : AddInductive.InductiveStats) (depth : Nat) : Type where
   ambientDecls : VLCtx
@@ -356,8 +369,8 @@ theorem ParameterContextSuffix.noIndConsts
   exact go H.cached hfind
 
 /-- A semantic header scope embedded in the larger executable local context.
-`expanded` is the literal weakening of the narrow scope; it is kept separate
-from `runtime` because annotation consumption can replace an installed binder
+`expanded` is the literal weakening of the semantic scope; it is kept separate
+from `runtime` because stripping type annotations can replace an installed binder
 domain by a merely definitionally equal expression. -/
 inductive FrontFVLift : List VExpr → List VExpr →
     VLCtx → VLCtx → Lift → Prop
@@ -541,7 +554,7 @@ theorem FrontFVLift.closeReopen
 
 /-- Closing the retained front turns the full front-preserving shift into
 the base shift below that front.  This is the non-reopened naturality law
-needed when inverse weakening returns the production motive to its canonical
+needed when inverse weakening returns the executable's motive to its
 parameter scope. -/
 theorem FrontFVLift.closeAtBase
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift)
@@ -596,7 +609,7 @@ def FrontScopeEmbedding.mono {env env' : VEnv} (henv : env ≤ env')
   sourceTelescope := H.sourceTelescope.mono henv
   wf := H.wf.mono henv
 
-/-- Retarget only the executable context of a narrow scope along an exact
+/-- Retarget only the executable context of a scope embedding along an exact
 context equality.  The semantic front is copied field-by-field so its data
 projections remain definitionally unchanged, rather than being hidden below
 a dependent cast. -/
@@ -645,7 +658,7 @@ theorem FrontScopeEmbedding.transportType
       (H.context.symm henv.ordered).wf.toCtx heqRuntime⟩
 
 /-- Weaken a term together with its independently translated type from the
-narrow parameter scope into the executable runtime context. -/
+semantic parameter scope into the executable runtime context. -/
 theorem FrontScopeEmbedding.transportTypedTerm
     (H : FrontScopeEmbedding env Us scope runtime)
     (henv : env.WF)
@@ -1334,8 +1347,8 @@ def FrontScopeEmbedding.ofParameterSuffix
       exact Hc.mlctx_wf.tr.wf
     exact hwf.append_right
 
-/-- Relate a domain translated in the semantic scope to the annotation-
-consumed domain installed by the executable checker. -/
+/-- Relate a domain translated in the semantic scope to the unannotated
+domain installed by the executable checker. -/
 theorem FrontScopeEmbedding.unannotatedDomain
     (Hc : ContextWF c)
     (H : FrontScopeEmbedding Hc.venv c.lparams scope Hc.mlctx.vlctx)
