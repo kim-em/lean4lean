@@ -12,30 +12,6 @@ parameter count or without the constructor.
 namespace Lean4Lean.EnvTables
 open VEnv InductiveSignature
 
-/-- Two constructor shapes of the same constant with the same family and parameter count are
-equal. -/
-theorem CtorShape.eq {env : VEnv} {c : Name} {k k' : CtorData} (h : CtorShape env c k)
-    (h' : CtorShape env c k') (hf : k.family = k'.family) (hp : k.nparams = k'.nparams) :
-    k = k' := by
-  obtain ⟨ci, doms, idx, hc, huv, ht, hl⟩ := h
-  obtain ⟨ci', doms', idx', hc', huv', ht', hl'⟩ := h'
-  rw [hc] at hc'
-  cases hc'
-  have harity : ∀ {doms : List VExpr} {f ls args},
-      (VExpr.wrapForalls doms (VExpr.mkApps (.const f ls) args)).forallArity = doms.length := by
-    intro doms f ls args
-    rw [VExpr.forallArity_wrapForalls,
-      VExpr.forallArity_eq_zero_of_getAppFnArgs (VExpr.getAppFnArgs_mkApps_const _ _ _)]
-    rfl
-  have h1 := congrArg VExpr.forallArity ht
-  have h2 := congrArg VExpr.forallArity ht'
-  rw [harity] at h1 h2
-  obtain ⟨f, u, p, n⟩ := k
-  obtain ⟨f', u', p', n'⟩ := k'
-  simp only at hf hp huv huv' hl hl'
-  simp only [CtorData.mk.injEq]
-  exact ⟨hf, huv.symm.trans huv', hp, by omega⟩
-
 /-- Restoration of the constructor application of a signature constructor. -/
 theorem CaseCompilationData.ctorApp_cases {base : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {aux : List ContainerSpecialization}
@@ -153,65 +129,5 @@ theorem Certified.generic_major {base : VEnv} {source : VInductDecl} {block : VI
   have hc : ctor = schema.caseConstructor sc := hview
   rw [hc, hj]
   simp [CaseSchema.caseConstructor, fieldTypes, CaseSchema.view, g, CaseSchema.specialize]
-
-/-- T1 (c) for generic equations of registered eliminator schemas, restated: the major is a
-constructor of the schema's own view `kS` (a source constructor of the schema's declaration,
-or a container constructor), applied to `kS.nparams` parameter arguments and the field
-variables (with `nf = kS.nfields` under `ForallArityRigid`). The table records `kS`
-(`ctorOf env c = some kS`) except when the family is an original family of the schema that was
-recorded first under another view: with a different parameter count, or without this
-constructor (the structure registration of the counterexample in `EnvTables.lean`). -/
-theorem schema_major {env : VEnv} (H : env.WF) {schema : CaseSchema}
-    (hreg : env.eliminators key schema) {owner : Fin schema.signature.families.size}
-    {rules : List VDefEq} (hgen : schema.genericEquations key owner = some rules)
-    (hdf : df ∈ rules) (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args)) :
-    ∃ kS ps nf, args = ps ++ vars nf 0 ∧ ps.length = kS.nparams ∧ CtorShape env c kS ∧
-      (ForallArityRigid env → nf = kS.nfields) ∧
-      (ctorOf env c = some kS ∨ (kS.family ∈ schema.originalFamilies ∧
-        ∀ d, famOf env kS.family = some d → kS.nparams ≠ d.nparams ∨ c ∉ d.ctors)) := by
-  obtain ⟨base, source, block, hbase, hle, hcert, _, hconsts⟩ := H.eliminator_origin hreg
-  obtain ⟨j, _, e, he, hrestore⟩ := Certified.generic_major hcert hgen hdf hm
-  have hcert' := hcert
-  obtain ⟨expanded, aux, hdata, hprior, hr, hnames, hrfresh⟩ := hcert'
-  rw [hr] at hrestore
-  have htypes : ∀ t ∈ source.types, env.constants t.name = some t.toVConstant := fun t ht =>
-    hconsts t.toVConstVal (List.mem_append_left _ (by
-      rw [hdata.types]; exact List.mem_map.mpr ⟨t, ht, rfl⟩))
-  have hnp : schema.signature.params.length = source.nparams := by
-    rw [hdata.model.nparams, hdata.nparams]
-  rcases CaseCompilationData.ctorApp_cases hdata hrfresh j hrestore with
-    ⟨F, hF, _, c', hc', hcn, hmaj⟩ | ⟨a, ha, _, _, c', hc', hcn, hmaj⟩
-  · obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hmaj.symm
-    have hconst : env.constants c'.name = some c'.toVConstant :=
-      hconsts c' (List.mem_append_right _ (by
-        rw [hdata.ctors]; exact List.mem_flatMap.mpr ⟨F, hF, hc'⟩))
-    obtain ⟨_, _, _, _, _, hraw⟩ := hdata.sourceParameters
-    have hshape := ctorShape_of_raw (hraw F hF c' hc')
-      (hdata.sourceWF.2.2.2.1 c' (List.mem_flatMap.mpr ⟨F, hF, hc'⟩)) hconst
-    refine ⟨ctorView source F c', _, _, rfl, by simp [vars_length, ctorView, hnp], hshape,
-      fun hP => ?_, ?_⟩
-    · have := CaseCompilationData.source_arity hdata hrfresh hprior hP hle htypes j hF hc' hcn
-      simp only [ctorView]
-      omega
-    · by_cases hk : ctorOf env c'.name = some (ctorView source F c')
-      · exact .inl hk
-      · refine .inr ⟨by rw [hnames]; exact List.mem_map.mpr ⟨F, hF, rfl⟩, fun d hd => ?_⟩
-        by_cases hnpd : (ctorView source F c').nparams = d.nparams
-        · refine .inr fun hcd => hk ?_
-          obtain ⟨k, hkc, hkf⟩ := (famOf_mem_ctors H hd).mp hcd
-          obtain ⟨d', hd', _, hdnp⟩ := ctorOf_famOf H hkc
-          rw [hkf, hd] at hd'
-          cases hd'
-          rw [hkc, CtorShape.eq (ctorOf_shape H hkc) hshape hkf (hdnp.symm.trans hnpd.symm)]
-        · exact .inl hnpd
-  · obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hmaj.symm
-    have hk := container_ctor (envTables_inv H) hprior hle ha hc'
-    obtain ⟨_, _, _, _, hwf, _⟩ := hdata.correspondence
-    have hargs : a.arguments.length = a.container.nparams := (hwf a ha).1
-    refine ⟨ctorView a.container a.source c', _, _, rfl, by simp [ctorView, hargs],
-      ctorOf_shape H hk, fun hP => ?_, .inl hk⟩
-    have := CaseCompilationData.container_arity hdata hrfresh hprior hP hle htypes j ha hc' hcn
-    simp only [ctorView]
-    omega
 
 end Lean4Lean.EnvTables

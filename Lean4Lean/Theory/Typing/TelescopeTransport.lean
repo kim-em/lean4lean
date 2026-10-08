@@ -12,12 +12,6 @@ open VExpr
 
 variable {env : VEnv} {U : Nat}
 
-theorem IsDefEqCtx.instL (hls : ∀ l ∈ ls, l.WF U) :
-    IsDefEqCtx env U' [] Γ₁ Γ₂ →
-      IsDefEqCtx env U [] (Γ₁.map (·.instL ls)) (Γ₂.map (·.instL ls))
-  | .zero => .zero
-  | .succ h1 h2 => .succ (IsDefEqCtx.instL hls h1) (by simpa [VExpr.instL] using h2.instL hls)
-
 /-- An `IsDefEqCtx` over reversed telescopes, split at the last binder. -/
 theorem IsDefEqCtx.snoc_inv
     (H : IsDefEqCtx env U [] (A ++ [a]).reverse (B ++ [b]).reverse) :
@@ -63,19 +57,5 @@ theorem TelInst.of_ctxDefEq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) :
       (fun j hj _ hd => hA.2 j hj hd)
     simp only [VExpr.instOuter_sort] at this
     exact .defeqDF this hx
-
-theorem TelInst.of_lequiv (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U)) :
-    ∀ {A B args : List VExpr}, TelInst env U Γ A args →
-      List.Forall₂ (VExpr.LEquiv U) A B → TelInst env U Γ B args := by
-  intro A B args H hAB
-  have hlen := List.Forall₂.length_eq hAB
-  refine ⟨H.1.trans hlen, fun j hj hj' => ?_⟩
-  have hjA : j < A.length := by omega
-  have hx := H.2 j hj hjA
-  have hL : VExpr.LEquiv U A[j] B[j] := by
-    exact Lean4Lean.List.forall₂_getElem hAB j hjA hj'
-  have hdef := (hL.instOuter (args.take j)).defeq henv hΓ
-    (hx.isType henv.ordered hΓ |>.elim fun _ h => ⟨_, h⟩)
-  exact hx.defeqU_r henv hΓ hdef
 
 end Lean4Lean.VEnv

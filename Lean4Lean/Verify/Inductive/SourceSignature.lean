@@ -62,24 +62,6 @@ theorem canonicalFamilyOfTelescope
         (VExpr.wrapForalls indices (.sort resultLevel))) from
         ⟨.sort canonicalLevel, hcanonical⟩)
 
-/-- Express each checked source family using the block's one shared parameter
-telescope, keeping all choices at the original declaration universes. -/
-theorem _root_.Lean4Lean.VInductDecl.TypeShape.canonicalFamily
-    {env : VEnv} {decl : VInductDecl} {params : List VExpr} {family : VInductiveType}
-    (H : decl.TypeShape env params family) (henv : env.WF)
-    (htype : env.IsType decl.uvars [] family.type) :
-    ∃ indices, indices.length = family.numIndices ∧
-      env.IsDefEqU decl.uvars [] family.type
-        (VExpr.wrapForalls (params ++ indices) (.sort family.resultLevel)) := by
-  rcases H with ⟨normalized, ownParams, afterParams, indices, result, exprType,
-    hnormalized, hparamsTake, hindicesTake, hparams, hresult⟩
-  obtain ⟨hparamsRebuild, _⟩ := VExpr.takeForalls_rebuild hparamsTake
-  obtain ⟨hindicesRebuild, hindicesLength⟩ := VExpr.takeForalls_rebuild hindicesTake
-  have hnormalizedRebuild : normalized = VExpr.wrapForalls (ownParams ++ indices) result := by
-    rw [hparamsRebuild, hindicesRebuild, VExpr.wrapForalls_append]
-  rw [hnormalizedRebuild] at hnormalized
-  exact ⟨indices, hindicesLength, canonicalFamilyOfTelescope henv htype hnormalized hparams hresult⟩
-
 /-- A retained uniform positive normal form determines exactly the recursive
 shape expected by the independent generator, using the shared family table. -/
 theorem _root_.Lean4Lean.VInductDecl.UniformFieldNormalForm.recursiveShape
@@ -317,12 +299,6 @@ noncomputable def MaterializedHeaderResult.signatureFamilies
 @[simp] theorem MaterializedHeaderResult.signatureFamilies_size
     (H : MaterializedHeaderResult env Us Δ stats decl depth) :
     H.signatureFamilies.size = decl.types.length := by
-  simp [signatureFamilies]
-
-@[simp] theorem MaterializedHeaderResult.signatureFamilies_at
-    (H : MaterializedHeaderResult env Us Δ stats decl depth)
-    (i : Nat) (hi : i < decl.types.length) :
-    H.signatureFamilies[i]'(by simpa using hi) = H.signatureFamily i hi := by
   simp [signatureFamilies]
 
 /-- The chosen index domains are those of the same retained normalized source

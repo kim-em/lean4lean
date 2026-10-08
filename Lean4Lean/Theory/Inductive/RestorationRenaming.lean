@@ -132,17 +132,6 @@ def ProjNamesFixed (σ : Name → Name) : VExpr → Prop
   | .app f a | .lam f a | .forallE f a => f.ProjNamesFixed σ ∧ a.ProjNamesFixed σ
   | .proj n _ e => σ n = n ∧ e.ProjNamesFixed σ
 
-theorem ProjNamesFixed.of_containsAnyConst {names : List Name}
-    (hσ : ∀ c, c ∉ names → σ c = c) :
-    ∀ {e : VExpr}, e.containsAnyConst names = false → e.ProjNamesFixed σ
-  | .bvar _, _ | .sort _, _ | .elim .., _ | .const .., _ => trivial
-  | .app f a, h | .lam f a, h | .forallE f a, h => by
-    simp only [containsAnyConst, Bool.or_eq_false_iff] at h
-    exact ⟨of_containsAnyConst hσ h.1, of_containsAnyConst hσ h.2⟩
-  | .proj n i e, h => by
-    simp only [containsAnyConst, Bool.or_eq_false_iff] at h
-    exact ⟨hσ n (by simpa using h.1), of_containsAnyConst hσ h.2⟩
-
 /-- Universe instantiation does not touch projection names. -/
 theorem ProjNamesFixed.instL {ls : List VLevel} :
     ∀ {e : VExpr}, e.ProjNamesFixed σ → (e.instL ls).ProjNamesFixed σ
@@ -408,24 +397,6 @@ theorem RenamingReplacement.isDefEq (S : RenamingReplacement envS envL ρ σ)
     simp only [VExpr.replaceRen_instL, ← hl, ← hr, ← ht]
     exact .extra hS h2 (h3.trans hu.symm)
 
-theorem RenamingReplacement.onCtx (S : RenamingReplacement envS envL ρ σ) :
-    ∀ {Γ : List VExpr}, OnCtx Γ (envL.IsType U) →
-      OnCtx (Γ.map (·.replaceRen ρ σ)) (envS.IsType U)
-  | [], _ => trivial
-  | _ :: _, ⟨hΓ, _, hA⟩ => ⟨S.onCtx hΓ, _, S.isDefEq hA⟩
-
-/-- A renaming replacement into `envS` restricts to every smaller lowered
-environment. -/
-theorem RenamingReplacement.mono {envL₀ : VEnv} (S : RenamingReplacement envS envL ρ σ)
-    (hle : envL₀ ≤ envL) : RenamingReplacement envS envL₀ ρ σ where
-  closed := S.closed
-  ordered := S.ordered
-  replaced c ci t h := S.replaced c ci t (hle.constants h)
-  kept c ci h := S.kept c ci (hle.constants h)
-  defeqs df h := S.defeqs df (hle.defeqs h)
-  eliminators block schema h := S.eliminators block schema (hle.eliminators h)
-  projections typeName info h := S.projections typeName info (hle.projections h)
-
 /-- The clause of `RenamingReplacement` for one constant `c : ci` of the
 lowered environment. -/
 def RenamingReplacement.ConstClause (envS : VEnv) (ρ : Name → Option VExpr)
@@ -433,10 +404,6 @@ def RenamingReplacement.ConstClause (envS : VEnv) (ρ : Name → Option VExpr)
   (∀ t, ρ c = some t → envS.HasType ci.uvars [] t (ci.type.replaceRen ρ σ)) ∧
   (ρ c = none → ∃ ci', envS.constants (σ c) = some ci' ∧ ci'.uvars = ci.uvars ∧
     ∃ u, envS.IsDefEq ci.uvars [] ci'.type (ci.type.replaceRen ρ σ) (.sort u))
-
-theorem RenamingReplacement.constClause (S : RenamingReplacement envS envL ρ σ)
-    (h : envL.constants c = some ci) : RenamingReplacement.ConstClause envS ρ σ c ci :=
-  ⟨fun t ht => S.replaced c ci t h ht, fun ht => S.kept c ci h ht⟩
 
 /-- Extend a renaming replacement by one constant. -/
 theorem RenamingReplacement.addConst {env env' : VEnv}
@@ -480,23 +447,6 @@ theorem RenamingReplacement.addConstVals {env env' : VEnv} :
     exact RenamingReplacement.addConstVals
       (S.addConst h₁ (hc c List.mem_cons_self)) h₂
       (fun c' hc' => hc c' (List.mem_cons_of_mem _ hc'))
-
-/-- Extend a renaming replacement by projections. -/
-theorem RenamingReplacement.addProjections {env : VEnv}
-    (S : RenamingReplacement envS env ρ σ) {entries : List VProjectionEntry}
-    (hp : ∀ entry ∈ entries, ProjectionTransport envS ρ σ entry.typeName entry.info) :
-    RenamingReplacement envS (env.addProjections entries) ρ σ where
-  closed := S.closed
-  ordered := S.ordered
-  replaced c ci t hc ht := S.replaced c ci t (by rwa [VEnv.addProjections_constants] at hc) ht
-  kept c ci hc ht := S.kept c ci (by rwa [VEnv.addProjections_constants] at hc) ht
-  defeqs df hdf := S.defeqs df (by rwa [VEnv.addProjections_defeqs] at hdf)
-  eliminators block schema hs :=
-    S.eliminators block schema (by rwa [VEnv.addProjections_eliminators] at hs)
-  projections typeName info h := by
-    rcases VEnv.addProjections_iff.mp h with ⟨entry, hmem, rfl, rfl⟩ | h
-    · exact hp entry hmem
-    · exact S.projections typeName info h
 
 /-- A base environment, contained in `envS`, every piece of which is fixed by
 the replacement. -/
@@ -697,19 +647,6 @@ theorem RenamingRestorationSubstitution.agreement {envS envL : VEnv} {r : Restor
     RenamingRestorationAgreement r ρ σ :=
   ⟨S.shape, S.headsReplaced, S.renamed⟩
 
-/-- Restoration agrees with the renaming replacement up to beta, at every
-type of the replaced term, for terms whose projection names are fixed. -/
-theorem RenamingRestorationSubstitution.go_simAt {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} {σ : Name → Name}
-    (S : RenamingRestorationSubstitution envS envL r ρ σ)
-    (hβ : envS.BetaSubjectReduction U) :
-    ∀ (e : VExpr) {Γ : List VExpr} {as as' : List VExpr} {out : VExpr},
-      e.ProjNamesFixed σ →
-      OnCtx Γ (envS.IsType U) → List.Forall₂ (envS.SimAt U Γ) as as' →
-      Restoration.expr.go r e as' = some out →
-      envS.SimAt U Γ (VExpr.mkApps (e.replaceRen ρ σ) as) out :=
-  S.agreement.go_simAt S.ordered hβ
-
 theorem RenamingRestorationSubstitution.expr_simAt {envS envL : VEnv} {r : Restoration}
     {ρ : Name → Option VExpr} {σ : Name → Name}
     (S : RenamingRestorationSubstitution envS envL r ρ σ)
@@ -717,64 +654,6 @@ theorem RenamingRestorationSubstitution.expr_simAt {envS envL : VEnv} {r : Resto
     (hfix : e.ProjNamesFixed σ) (h : r.expr e = some e') :
     envS.SimAt U Γ (e.replaceRen ρ σ) e' :=
   S.agreement.expr_simAt S.ordered hβ hΓ hfix h
-
-/-- Restoration of a derivation of the lowered environment, in an arbitrary
-well-formed context whose entries are restored pointwise. -/
-theorem Restoration.expr_isDefEq' {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} {σ : Name → Name}
-    (S : RenamingRestorationSubstitution envS envL r ρ σ)
-    (hβ : envS.BetaSubjectReduction U) {Γ Γ' : List VExpr}
-    (hΓ : OnCtx Γ (envL.IsType U))
-    (H : envL.IsDefEq U Γ e₁ e₂ A) (he₁ : r.expr e₁ = some e₁')
-    (he₂ : r.expr e₂ = some e₂') (hA : r.expr A = some A')
-    (hfix₁ : e₁.ProjNamesFixed σ) (hfix₂ : e₂.ProjNamesFixed σ) (hfixA : A.ProjNamesFixed σ)
-    (hΓ' : List.Forall₂ (fun d d' => d.ProjNamesFixed σ ∧ r.expr d = some d') Γ Γ') :
-    envS.IsDefEq U Γ' e₁' e₂' A' := by
-  have henv := S.ordered
-  have hΓσ := S.onCtx hΓ
-  have Hσ := S.isDefEq H
-  have h1 := S.expr_simAt hβ hΓσ hfix₁ he₁ _ Hσ.hasType.1
-  have h2 := S.expr_simAt hβ hΓσ hfix₂ he₂ _ Hσ.hasType.2
-  obtain ⟨u, hAσ⟩ := Hσ.isType henv hΓσ
-  have h3 := S.expr_simAt hβ hΓσ hfixA hA _ hAσ
-  have Heq : envS.IsDefEq U (Γ.map (·.replaceRen ρ σ)) e₁' e₂' A' :=
-    .defeqDF h3 (h1.symm.trans (Hσ.trans h2))
-  have hctx : ∀ {Γ Γ'}, OnCtx Γ (envL.IsType U) →
-      List.Forall₂ (fun d d' => d.ProjNamesFixed σ ∧ r.expr d = some d') Γ Γ' →
-      IsDefEqCtx envS U [] (Γ.map (·.replaceRen ρ σ)) Γ' := by
-    intro Γ Γ' hΓ hΓ'
-    induction hΓ' with
-    | nil => exact .zero
-    | cons hd _ ih =>
-      obtain ⟨hΓ, _, hA⟩ := hΓ
-      have hAσ := S.isDefEq hA
-      exact .succ (ih hΓ) (S.expr_simAt hβ (S.onCtx hΓ) hd.1 hd.2 _ hAσ)
-  exact Heq.defeqDFC henv (hctx hΓ hΓ')
-
-theorem Restoration.expr_hasType' {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} {σ : Name → Name}
-    (S : RenamingRestorationSubstitution envS envL r ρ σ)
-    (hβ : envS.BetaSubjectReduction U) {Γ Γ' : List VExpr}
-    (hΓ : OnCtx Γ (envL.IsType U))
-    (H : envL.HasType U Γ e A) (he : r.expr e = some e') (hA : r.expr A = some A')
-    (hfix : e.ProjNamesFixed σ) (hfixA : A.ProjNamesFixed σ)
-    (hΓ' : List.Forall₂ (fun d d' => d.ProjNamesFixed σ ∧ r.expr d = some d') Γ Γ') :
-    envS.HasType U Γ' e' A' :=
-  Restoration.expr_isDefEq' S hβ hΓ H he he hA hfix hfix hfixA hΓ'
-
-/-- Restoration of a well-formed closed equation of the lowered environment. -/
-theorem Restoration.equation_wf' {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} {σ : Name → Name}
-    (S : RenamingRestorationSubstitution envS envL r ρ σ)
-    {df df' : VDefEq} (hβ : envS.BetaSubjectReduction df.uvars)
-    (hwf : df.WF envL) (hfixL : df.lhs.ProjNamesFixed σ) (hfixR : df.rhs.ProjNamesFixed σ)
-    (hfixT : df.type.ProjNamesFixed σ) (h : r.equation df = some df') :
-    df'.WF envS := by
-  simp only [Restoration.equation, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at h
-  obtain ⟨l, hl, rr, hr, t, ht, rfl⟩ := h
-  exact ⟨Restoration.expr_hasType' S hβ (Γ := []) trivial hwf.1 hl ht hfixL hfixT .nil,
-    Restoration.expr_hasType' S hβ (Γ := []) trivial hwf.2 hr ht hfixR hfixT .nil⟩
 
 end InductiveSignature
 end Lean4Lean

@@ -46,13 +46,4 @@ theorem Pattern.Matches.const_arguments
       intro x _
       exact (hmap x).symm
 
-def Pattern.RHS.applyArgs {p : Pattern} (head : p.RHS) (args : List p.RHS) : p.RHS := args.foldl .app head
-
-theorem Pattern.RHS.applyArgs_apply {p : Pattern} (head : p.RHS) (args : List p.RHS) {values : p.Path → VExpr} :
-    (head.applyArgs args).apply levels values =
-      VExpr.mkApps (head.apply levels values) (args.map fun rhs => rhs.apply levels values) := by
-  induction args generalizing head with
-  | nil => rfl
-  | cons arg args ih => simpa [applyArgs, VExpr.mkApps, Pattern.RHS.apply] using ih (.app head arg)
-
 end Lean4Lean

@@ -26,15 +26,6 @@ variable {env : VEnv} {U : Nat} {Δ : List VExpr}
 
 local notation "Obs'" => Obs env U Δ
 
-/-- A closed type soundly equal to a telescope ending in `Sort l` has only `l` at the end of
-its chain observations. -/
-theorem family_sort {T X : VExpr} {ds : List VExpr}
-    (H : SoundAt env U Δ [] T (.wrapForalls ds (.sort l)) X)
-    (h : Obs' .id .empty T (piCodChain ks (.sort z))) : z = l.eval := by
-  obtain ⟨o', h1, h2⟩ := (H .id .id .empty .nil TV.empty TV.empty).1 _ h
-  obtain ⟨ks', -, rfl⟩ := h2.piCodChain_sort_inv
-  exact obs_wrapForalls_sort h1
-
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ

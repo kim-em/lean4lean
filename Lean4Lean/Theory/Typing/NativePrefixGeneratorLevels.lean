@@ -56,15 +56,6 @@ private theorem levels_take {R : α → β → Prop} (H : List.Forall₂ R a b) 
     | zero => exact .nil
     | succ n => exact .cons h (ih n)
 
-private theorem levels_drop {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.drop n) (b.drop n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih =>
-    cases n with
-    | zero => exact .cons h hs
-    | succ n => exact ih n
-
 private theorem levels_append {R : α → β → Prop} (H : List.Forall₂ R a b)
     (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
   induction H with
@@ -145,17 +136,6 @@ end Lean4Lean.QuotPrefixProgram
 
 namespace Lean4Lean.InductiveSignature.NativeRecursorData
 open VEnv VExpr CaseSchema
-
-private theorem sourceLevels_related {levels levels' : List VLevel} (data : NativeRecursorData)
-    (he : List.Forall₂ (· ≈ ·) levels levels') :
-    List.Forall₂ (· ≈ ·) (data.sourceLevels levels) (data.sourceLevels levels') := by
-  apply List.forall₂_map_left_iff.mpr
-  apply List.forall₂_map_right_iff.mpr
-  exact Lean4Lean.List.Forall₂.rfl fun _ _ => VLevel.inst_congr rfl he
-
-private theorem sourceLevels_wf {levels : List VLevel} (data : NativeRecursorData)
-    (hl : ∀ level ∈ levels, level.WF U) : ∀ level ∈ data.sourceLevels levels, level.WF U :=
-  List.forall_mem_map.mpr fun _ _ => VLevel.WF.inst hl
 
 theorem singletonProgram_levels {data : NativeRecursorData} {levels levels' : List VLevel}
     {env : VEnv} (hr : NativeRecursorRegistered env data)

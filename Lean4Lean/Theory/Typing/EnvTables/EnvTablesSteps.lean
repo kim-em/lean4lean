@@ -100,24 +100,6 @@ theorem addConsts_fresh {cis : List VDefVal} (h : env.addConsts cis = some env')
       rw [hn, hself] at this
       cases this
 
-theorem addConsts_constants_inv {cis : List VDefVal} (h : env.addConsts cis = some env')
-    (hn : env'.constants n = some x) :
-    env.constants n = some x ∨ ∃ ci ∈ cis, ci.name = n ∧ x = ci.toVConstant := by
-  induction cis generalizing env with
-  | nil => simp [VEnv.addConsts] at h; subst h; exact .inl hn
-  | cons ci cis ih =>
-    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
-      Option.bind_eq_some_iff] at h
-    obtain ⟨env1, h1, h2⟩ := h
-    rcases ih h2 with h | ⟨c, hc, hcn, rfl⟩
-    · rw [VEnv.addConst_constants_eq h1] at h
-      by_cases he : ci.name = n
-      · simp only [he, if_true, Option.some.injEq] at h
-        exact .inr ⟨ci, List.mem_cons_self, he, h.symm⟩
-      · simp only [he, if_false] at h
-        exact .inl h
-    · exact .inr ⟨c, List.mem_cons_of_mem _ hc, hcn, rfl⟩
-
 theorem addConsts_defeqs {cis : List VDefVal} (h : env.addConsts cis = some env') :
     env'.defeqs = env.defeqs := by
   induction cis generalizing env with
@@ -656,13 +638,5 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
         rfl
     · obtain ⟨h1, h2⟩ := H.projections hold
       exact ⟨addView_of_old h1, addView_of_old h2⟩
-
-theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
-    (H : T.Inv env) (henv : env.WF)
-    (hcomp : decl.CompilesTo env block) (hblock : VInductBlock.WF env block)
-    (hinstall : block.install env = some env') :
-    ∃ T', T.Extends T' ∧ T'.Inv env' := by
-  obtain ⟨cbase, expanded, s, g, aux, hcle, hdata, hprior⟩ := hcomp.compiled.compilationOrigin
-  exact ⟨_, H.install' henv hcomp hblock hinstall hcle hdata hprior⟩
 
 end Lean4Lean.EnvTables

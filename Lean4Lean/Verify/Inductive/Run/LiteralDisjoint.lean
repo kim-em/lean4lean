@@ -48,105 +48,6 @@ theorem unreservedLiteralConstructorsOfStringOfList
     let .const hlookup _ _ := HconsConst
     exact ⟨_, hlookup⟩
 
-/-- The already-checked raw header installation excludes the three
-unreserved literal names whenever they are present in its source model.  This
-form is available before the executable production header fold runs. -/
-theorem _root_.Lean4Lean.TrInductDeclHeaders.unreservedLiteralNamesDisjointOfSourceContains
-    (H : TrInductDeclHeaders sourceEnv lparams nparams types isUnsafe decl
-      envTypes)
-    (hpresent : ∀ name ∈
-      checkPositivityStep.unreservedLiteralConstructorNames,
-      sourceEnv.contains name) :
-    checkPositivityStep.UnreservedLiteralConstructorNamesDisjoint
-      (decl.types.map (·.name)) := by
-  have hfresh := (VEnv.addConstVals_names_fresh H.typesAdded).2
-  intro name hname
-  have hnotMem : name ∉ decl.types.map (·.name) := by
-    intro hmem
-    rcases hpresent name hname with ⟨ci, hlookup⟩
-    rcases List.mem_map.mp hmem with ⟨type, htype, htypeName⟩
-    have hconstant : type.toVConstVal ∈ decl.typeConstants :=
-      List.mem_map.mpr ⟨type, htype, rfl⟩
-    have habsent := hfresh type.toVConstVal hconstant
-    rw [show type.toVConstVal.name = name by simpa using htypeName,
-      hlookup] at habsent
-    contradiction
-  simpa using hnotMem
-
-/-- Any constant already present in the source model is excluded from the
-fresh family names by the checked abstract header installation. -/
-theorem _root_.Lean4Lean.TrInductDeclHeaders.familyNamesExcludeSourceContains
-    (H : TrInductDeclHeaders sourceEnv lparams nparams types isUnsafe decl
-      envTypes)
-    (hpresent : sourceEnv.contains name) :
-    name ∉ decl.types.map (·.name) := by
-  intro hmem
-  rcases hpresent with ⟨ci, hlookup⟩
-  rcases List.mem_map.mp hmem with ⟨type, htype, htypeName⟩
-  have hconstant : type.toVConstVal ∈ decl.typeConstants :=
-    List.mem_map.mpr ⟨type, htype, rfl⟩
-  have habsent := (VEnv.addConstVals_names_fresh H.typesAdded).2
-    type.toVConstVal hconstant
-  rw [show type.toVConstVal.name = name by simpa using htypeName,
-    hlookup] at habsent
-  contradiction
-
-/-- Before production header installation, the already-checked abstract
-header fold supplies the exact environment-indexed literal condition.  This
-also covers `Char` bootstrap: string literals are not supported in that
-source environment, while natural literals expand only through pre-existing
-natural constructors. -/
-theorem _root_.Lean4Lean.TrInductDeclHeaders.materializedAvailableLiteralDisjoint
-    (H : TrInductDeclHeaders sourceEnv lparams nparams types isUnsafe decl
-      envTypes)
-    (Hmaterialized : checkInductiveTypes.loopInd.MaterializedHeaderResult
-      sourceEnv lparams Delta stats decl depth)
-    (hprimitives : sourceEnv.HasPrimitives) (hwf : sourceEnv.Ordered) :
-    checkPositivityStep.AvailableLiteralDisjoint
-      sourceEnv stats.indConsts := by
-  intro literal havailable
-  cases literal with
-  | natVal n =>
-      have hnat := hprimitives.nat havailable
-      exact Hmaterialized.natLiteralDisjoint
-        (H.familyNamesExcludeSourceContains hnat.1)
-        (H.familyNamesExcludeSourceContains hnat.2) n
-  | strVal s =>
-      have hnat : sourceEnv.contains ``Nat :=
-        hprimitives.nat_of_charOfNat hwf havailable.1
-      have hnatCtors := hprimitives.nat hnat
-      have hunreserved := unreservedLiteralConstructorsOfStringOfList
-        hprimitives hwf havailable.2
-      apply Hmaterialized.literalDisjoint
-      intro name hname
-      have hpresent : sourceEnv.contains name := by
-        simp only [checkPositivityStep.literalConstructorNames,
-          List.mem_cons, List.not_mem_nil, or_false] at hname
-        rcases hname with rfl | rfl | rfl | rfl | rfl | rfl | rfl
-        · exact hnatCtors.1
-        · exact hnatCtors.2
-        · exact havailable.2
-        · exact hunreserved ``Char (by
-            simp [checkPositivityStep.unreservedLiteralConstructorNames])
-        · exact hunreserved ``List.nil (by
-            simp [checkPositivityStep.unreservedLiteralConstructorNames])
-        · exact hunreserved ``List.cons (by
-            simp [checkPositivityStep.unreservedLiteralConstructorNames])
-        · exact havailable.1
-      simpa using H.familyNamesExcludeSourceContains hpresent
-
-/-- Once string support is visible in the source model, a checked raw header
-translation has no remaining literal-name premise. -/
-theorem _root_.Lean4Lean.TrInductDeclHeaders.unreservedLiteralNamesDisjointOfStringOfList
-    (H : TrInductDeclHeaders sourceEnv lparams nparams types isUnsafe decl
-      envTypes)
-    (hprimitives : sourceEnv.HasPrimitives) (hwf : sourceEnv.Ordered)
-    (hstring : sourceEnv.contains ``String.ofList) :
-    checkPositivityStep.UnreservedLiteralConstructorNamesDisjoint
-      (decl.types.map (·.name)) :=
-  H.unreservedLiteralNamesDisjointOfSourceContains
-    (unreservedLiteralConstructorsOfStringOfList hprimitives hwf hstring)
-
 /-- An ordinary installed family cannot use a production-reserved primitive
 name.  This is the exact reusable consequence of successful `checkName` for
 the materialized family-name list. -/
@@ -273,18 +174,6 @@ theorem DeclaredHeadersResult.sourceContainsOfTargetContainsPrimitive
     apply H.installed.valueNamesNonprimitive value.name
       (List.mem_map.mpr ⟨value, hvalue, rfl⟩)
     simpa [hname] using hprimitive
-
-/-- Materialized family constants inherit literal disjointness from the exact
-ordinary header installation that produced them. -/
-theorem DeclaredHeadersResult.materializedLiteralDisjoint
-    (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes outEnv)
-    (hunreserved :
-      checkPositivityStep.UnreservedLiteralConstructorNamesDisjoint
-        (decl.types.map (·.name))) :
-    checkPositivityStep.LiteralDisjoint stats.indConsts :=
-  H.materialized.literalDisjoint
-    (H.literalNamesDisjointOfUnreserved hunreserved)
 
 /-- The actual literal premise needed by positivity is automatic for every
 ordinary declaration, including the `Char` bootstrap declaration.  Natural

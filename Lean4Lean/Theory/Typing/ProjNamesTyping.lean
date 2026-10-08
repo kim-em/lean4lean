@@ -45,10 +45,5 @@ theorem IsDefEq.projNamesOK {env : VEnv} {U : Nat} {Γ : List VExpr} {e1 e2 A : 
       e2.ProjNamesOK (fun S => ∃ info, env.projections S info) :=
   (H.strong henv hΓ).projNamesOK
 
-theorem IsType.projNamesOK {env : VEnv} {U : Nat} {Γ : List VExpr} {A : VExpr}
-    (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U)) (H : env.IsType U Γ A) :
-    A.ProjNamesOK (fun S => ∃ info, env.projections S info) :=
-  let ⟨_, h⟩ := H; (h.projNamesOK henv hΓ).1
-
 end VEnv
 end Lean4Lean

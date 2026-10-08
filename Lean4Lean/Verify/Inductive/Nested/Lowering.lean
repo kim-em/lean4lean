@@ -11,22 +11,6 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- The first executable check on every source inductive header is an ordinary
-type-checker run. At an empty local context its successful result already
-provides both the source translation and the abstract typing derivation; later
-stages must transport the same statement through the common-parameter local
-context. -/
-theorem checkType_closed.WF
-    (hvalid : CheckingEnv.Valid safety env venv)
-    (hclosed : e.FVarsIn fun _ => False) :
-    (TypeChecker.M.run env safety {} lparams fuel (TypeChecker.checkType e)).WF
-      fun ty => ∃ e' ty', TrTyping venv lparams [] e ty e' ty' := by
-  have hfvars : e.FVarsIn fun fv => fv ∈ VLCtx.fvars ([] : VLCtx) :=
-    hclosed.mono fun _ h => False.elim h
-  exact TypeChecker.M.WF.runCheckingValid
-    (wf := hvalid) (lparams := lparams) (fuel := fuel)
-    (TypeChecker.checkType.WF hfvars)
-
 /-- Semantic postcondition of the production nested-auxiliary validation pass:
 every witness stored in `aux2nested` has a translated typing derivation in the
 restored parameter context.  A witness is a nested occurrence `I Ds` applied
@@ -150,94 +134,6 @@ theorem ClosedNestedAuxiliaryTranslation.sourceClosed
   apply Expr.closed_of_abstractList
   rw [hbvars] at HresidualClosed
   simpa [H.arity, selection.size] using HresidualClosed
-
-/-- Depth-general form of `restorationAlpha`, for auxiliary occurrences
-encountered underneath the remaining recursor binders. -/
-theorem ClosedNestedAuxiliaryTranslation.restorationAlphaAt
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
-    (Hscope : e.FVarsIn (· ∈ selection.fvars))
-    (hselectionNodup : selection.fvars.Nodup)
-    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
-    (hrestoreNodup : restoreSelection.fvars.Nodup)
-    (hsize : restoreSelection.fvars.length = selection.fvars.length)
-    (k : Nat) :
-    ((e.abstract res.params).instantiateRev restoreAs).abstractList
-        restoreSelection.fvars k =
-      e.abstractList selection.fvars k := by
-  have hopen : (e.abstract res.params).instantiateRev restoreAs =
-      Expr.reopenFVarsAt e selection.fvars restoreSelection.fvars k := by
-    symm
-    exact Expr.reopenFVarsAt_eq_reopenParams hselectionNodup hsize
-      selection.expressions restoreSelection.expressions e k
-      H.sourceClosed.looseBVarRange_zero
-  rw [hopen]
-  unfold Expr.reopenFVarsAt
-  apply FVarsIn.abstractList_instantiateRevList
-  · have Hclosed : (e.abstractList selection.fvars k).FVarsIn
-        (fun _ => False) := by
-      apply FVarsIn.abstractList_of
-      exact Hscope.mono fun fv hfv => Or.inl hfv
-    exact Hclosed.mono fun _ hfalse => False.elim hfalse
-  · exact hrestoreNodup
-
-/-- The expression inserted by a family hit in `restoreNestedNode` closes to
-the same de-Bruijn auxiliary body retained by `residual`, independently of
-the fresh free-variable names chosen by restoration.  This is the alpha-
-conversion bridge between executable restoration and the canonical closed
-auxiliary translation. -/
-theorem ClosedNestedAuxiliaryTranslation.restorationAlpha
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
-    (Hscope : e.FVarsIn (· ∈ selection.fvars))
-    (hselectionNodup : selection.fvars.Nodup)
-    (restoreSelection : LocalForallSelection restoreLctx restoreAs)
-    (hrestoreNodup : restoreSelection.fvars.Nodup)
-    (hsize : restoreSelection.fvars.length = selection.fvars.length) :
-    (((e.abstract res.params).instantiateRev restoreAs).abstract restoreAs) =
-      e.abstractList selection.fvars := by
-  have hlowered : e.abstract res.params =
-      e.abstractList selection.fvars := by
-    calc
-      e.abstract res.params =
-          e.abstract (selection.fvars.map Expr.fvar).toArray :=
-        congrArg e.abstract selection.expressions
-      _ = e.abstractList selection.fvars :=
-        Expr.abstract_eq_of_closed _ _ hselectionNodup H.sourceClosed.looseBVarRange_zero
-  have Hclosed : (e.abstractList selection.fvars).FVarsIn
-      (fun _ => False) := by
-    apply FVarsIn.abstractList_of
-    exact Hscope.mono fun fv hfv => Or.inl hfv
-  have Haway : (e.abstractList selection.fvars).FVarsIn
-      (fun fv => fv ∉ restoreSelection.fvars) :=
-    Hclosed.mono fun _ hfalse => False.elim hfalse
-  have hlb : (e.abstractList selection.fvars).looseBVarRange' ≤
-      restoreSelection.fvars.length := by
-    rw [← Expr.abstractN_eq_abstractList_of_closed hselectionNodup H.sourceClosed, hsize]
-    have := Expr.abstractN_looseBVarRange_le (e := e) (fvs := selection.fvars) (k := 0)
-    rw [H.sourceClosed.looseBVarRange_zero] at this
-    simpa using this
-  have Hcancel := Haway.abstract_instantiateRev_fvarArray restoreAs
-    restoreSelection.fvars restoreSelection.expressions hrestoreNodup hlb
-  rw [hlowered]
-  exact Hcancel
-
-/-- The residual auxiliary translation remains valid underneath any suffix
-of freshly introduced recursor binders.  The concrete source is presented at
-the actual binder depth used by restoration rather than as an opaque lift. -/
-theorem ClosedNestedAuxiliaryTranslation.residualUnder
-    (H : ClosedNestedAuxiliaryTranslation venv lparams res selection e)
-    (henv : venv.Ordered) (hselectionNodup : selection.fvars.Nodup)
-    (suffixDomains : List VExpr) :
-    TrExprS venv lparams
-      (abstractForallContext suffixDomains
-        (abstractForallContext H.domains []))
-      (e.abstractList selection.fvars suffixDomains.length)
-      (H.residualTarget.liftN suffixDomains.length 0) := by
-  have Hweak := H.residual.weakBV henv
-    (abstractForallContext.bvLift suffixDomains
-      (abstractForallContext H.domains []))
-  rw [← Expr.abstractList_add_eq_liftLooseBVars H.sourceClosed
-    hselectionNodup] at Hweak
-  simpa using Hweak
 
 def ClosedNestedAuxiliaryTranslations
     (venv : VEnv) (lparams : List Name)
@@ -684,137 +580,6 @@ theorem NestedParamOpening.initial_size
     (H : NestedParamOpening {} #[] type n outLctx tail outParams) :
     outParams.size = n := by simpa using H.params_size
 
-/-- A production recursor-parameter replay is the same syntactic opening as
-`NestedParamOpening`, with the already allocated cached parameter variables
-used in place of freshly generated ones.  This bridge lets later equation
-proofs reuse the alpha-invariant residual lemmas developed for nested
-restoration rather than reimplementing simultaneous closing. -/
-theorem RecursorParamPrefix.toNestedParamOpening
-    (H : RecursorParamPrefix stats 0 source tail)
-    (Hparams : BoundFVarArray c stats.params) :
-    ∃ outLctx, NestedParamOpening {} #[] source stats.params.size
-      outLctx tail stats.params := by
-  have go : ∀ {i source tail},
-      RecursorParamPrefix stats i source tail →
-      ∀ (lctx : LocalContext) (opened : Array Expr),
-        opened.toList = stats.params.toList.take i →
-        ∃ outLctx, NestedParamOpening lctx opened source
-          (stats.params.size - i) outLctx tail stats.params := by
-    intro i source tail Hprefix
-    induction Hprefix with
-    | @done i tail hi =>
-      intro lctx opened hopened
-      have hopenedFull : opened = stats.params := by
-        apply Array.toList_inj.mp
-        rw [hopened, hi]
-        change stats.params.toList.take stats.params.toList.length =
-          stats.params.toList
-        exact List.take_length
-      subst opened
-      have hzero : stats.params.size - i = 0 := by omega
-      rw [hzero]
-      exact ⟨lctx, NestedParamOpening.done⟩
-    | @step i param tail name dom body bi hparam Hnext ih =>
-      intro lctx opened hopened
-      obtain ⟨hi, hparamGet⟩ := Array.getElem?_eq_some_iff.mp hparam
-      rcases Hparams.getElem_eq_fvar i hi with ⟨_hiFvars, hparamFVar⟩
-      have hparamEq : param = .fvar Hparams.fvars[i] := by
-        exact hparamGet.symm.trans hparamFVar
-      subst param
-      have hopenedNext :
-          (opened.push (.fvar Hparams.fvars[i])).toList =
-            stats.params.toList.take (i + 1) := by
-        rw [Array.toList_push, hopened,
-          List.take_succ_eq_append_getElem (by simpa using hi)]
-        simpa using congrArg
-          (fun e => stats.params.toList.take i ++ [e]) hparamFVar.symm
-      rcases ih (lctx.mkLocalDecl Hparams.fvars[i] name dom bi)
-          (opened.push (.fvar Hparams.fvars[i])) hopenedNext with
-        ⟨outLctx, Hopening⟩
-      refine ⟨outLctx, ?_⟩
-      rw [hparamFVar] at Hopening
-      have Hstep := NestedParamOpening.step Hopening
-      have hcount : stats.params.size - (i + 1) + 1 =
-          stats.params.size - i := by omega
-      rw [hcount] at Hstep
-      exact Hstep
-  simpa using go H {} #[] (by simp)
-
-private theorem nestedWithParamsLoop_refines {α : Type}
-    (k : LocalContext → Expr → Array Expr →
-      Lean4Lean.ElimNestedInductive.M α)
-    (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State)
-    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
-    (Hk : ∀ outLctx tail outParams outState,
-      NestedParamOpening lctx params type n outLctx tail outParams →
-      (k outLctx tail outParams env outState).WF Q) :
-    (Lean4Lean.ElimNestedInductive.withParams.loop
-      k lctx type params n env state).WF Q := by
-  induction n generalizing lctx type params state with
-  | zero =>
-    simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
-      Hk lctx type params state .done
-  | succ n ih =>
-    cases type with
-    | forallE name dom body bi =>
-      simp only [Lean4Lean.ElimNestedInductive.withParams.loop]
-      simp only [mkFreshId, getNGen, setNGen,
-        Lean4Lean.ElimNestedInductive.instMonadNameGeneratorM,
-        StateT.get, StateT.set, StateT.modifyGet,
-        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
-      apply ih
-      intro outLctx tail outParams outState Hresult
-      exact Hk outLctx tail outParams outState (.step Hresult)
-    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
-      | proj =>
-      exact Except.WF.throw
-
-private theorem nestedWithParamsLoop_refinesSelected {α : Type}
-    (k : LocalContext → Expr → Array Expr →
-      Lean4Lean.ElimNestedInductive.M α)
-    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
-    (Hctx : NestedBindingContextWF lctx state.ngen)
-    (Hparams : NestedBoundParams lctx params)
-    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
-    (Hk : ∀ outLctx tail outParams outState,
-      NestedParamOpening lctx params type n outLctx tail outParams →
-      NestedBindingContextWF outLctx outState.ngen →
-      (Hselection : LocalForallSelection outLctx outParams) →
-      Hselection.fvars.Nodup →
-      outState.newTypes = state.newTypes →
-      outState.nestedAux = state.nestedAux →
-      outState.nextIdx = state.nextIdx →
-      outState.ngen.namePrefix = state.ngen.namePrefix →
-      outState.lvls = state.lvls →
-      (k outLctx tail outParams env outState).WF Q) :
-    (Lean4Lean.ElimNestedInductive.withParams.loop
-      k lctx type params n env state).WF Q := by
-  induction n generalizing lctx type params state with
-  | zero =>
-    simpa [Lean4Lean.ElimNestedInductive.withParams.loop] using
-      Hk lctx type params state .done Hctx (Hparams.toSelection Hctx)
-        Hparams.nodup rfl rfl rfl rfl rfl
-  | succ n ih =>
-    cases type with
-    | forallE name dom body bi =>
-      simp only [Lean4Lean.ElimNestedInductive.withParams.loop]
-      simp only [mkFreshId, getNGen, setNGen,
-        Lean4Lean.ElimNestedInductive.instMonadNameGeneratorM,
-        StateT.get, StateT.set, StateT.modifyGet,
-        bind, StateT.bind, ReaderT.bind, pure, StateT.pure, ReaderT.pure]
-      apply ih
-        (Hctx := Hctx.withLocalDecl name dom bi)
-        (Hparams := Hparams.push Hctx name dom bi)
-      intro outLctx tail outParams outState Hresult HresultCtx Hselection
-        hnodup hnewTypes hnestedAux hnextIdx hprefix hlvls
-      exact Hk outLctx tail outParams outState (.step Hresult) HresultCtx
-        Hselection hnodup (by simpa using hnewTypes) (by simpa using hnestedAux)
-        (by simpa using hnextIdx)
-        (by simpa [NameGenerator.next] using hprefix) (by simpa using hlvls)
-    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
-      | proj => exact Except.WF.throw
-
 /-- Strengthened parameter opening for a closed source telescope.  Besides
 the operational opening trace, the continuation receives a certificate that
 re-closing an expression open over exactly those parameters is closed. -/
@@ -877,28 +642,6 @@ private theorem nestedWithParamsLoop_refinesClosing {α : Type}
     | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
       | proj => exact Except.WF.throw
 
-theorem ElimNestedInductive.withParams.refinesSelected {α : Type}
-    (type : Expr) (nparams : Nat)
-    (k : LocalContext → Expr → Array Expr →
-      Lean4Lean.ElimNestedInductive.M α)
-    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
-    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
-    (Hk : ∀ lctx tail params outState,
-      NestedParamOpening {} #[] type nparams lctx tail params →
-      NestedBindingContextWF lctx outState.ngen →
-      (Hselection : LocalForallSelection lctx params) →
-      Hselection.fvars.Nodup →
-      outState.newTypes = state.newTypes →
-      outState.nestedAux = state.nestedAux →
-      outState.nextIdx = state.nextIdx →
-      outState.ngen.namePrefix = state.ngen.namePrefix →
-      outState.lvls = state.lvls →
-      (k lctx tail params env outState).WF Q) :
-    (Lean4Lean.ElimNestedInductive.withParams
-      type nparams k env state).WF Q := by
-  exact nestedWithParamsLoop_refinesSelected k env state
-    (NestedBindingContextWF.empty state.ngen) NestedBoundParams.empty Q Hk
-
 theorem ElimNestedInductive.withParams.refinesClosing {α : Type}
     (type : Expr) (nparams : Nat)
     (k : LocalContext → Expr → Array Expr →
@@ -922,20 +665,6 @@ theorem ElimNestedInductive.withParams.refinesClosing {α : Type}
   apply nestedWithParamsLoop_refinesClosing k env state Hclosing
   · exact Htype.mono fun fv hfalse => False.elim hfalse
   · exact Hk
-
-theorem ElimNestedInductive.withParams.refines {α : Type}
-    (type : Expr) (nparams : Nat)
-    (k : LocalContext → Expr → Array Expr →
-      Lean4Lean.ElimNestedInductive.M α)
-    (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State)
-    (Q : α × Lean4Lean.ElimNestedInductive.State → Prop)
-    (Hk : ∀ lctx tail params outState,
-      NestedParamOpening {} #[] type nparams lctx tail params →
-      (k lctx tail params env outState).WF Q) :
-    (Lean4Lean.ElimNestedInductive.withParams
-      type nparams k env state).WF Q := by
-  exact nestedWithParamsLoop_refines k env state Q Hk
 
 /-- Successful parameter instantiation has consumed exactly the requested
 number of leading forall binders; the returned term is precisely the exposed
@@ -995,20 +724,6 @@ theorem replaceNestedParamsCore_refines
     (Lean4Lean.ElimNestedInductive.replaceParamsCore params e args).WF
       fun out => out = (e.abstract args).instantiateRev params := by
   unfold Lean4Lean.ElimNestedInductive.replaceParamsCore
-  simp [hsize]
-  exact Except.WF.pure rfl
-
-/-- Parameter replacement cannot truncate either side of the substitution:
-success records exact arity equality and the concrete simultaneous
-abstraction/instantiation result. -/
-theorem replaceNestedParams_refines
-    (params : Array Expr) (e : Expr) (args : Array Expr)
-    (env : Environment) (state : Lean4Lean.ElimNestedInductive.State)
-    (hsize : args.size = params.size) :
-    (Lean4Lean.ElimNestedInductive.replaceParams params e args env state).WF
-      fun out => out.1 = (e.abstract args).instantiateRev params := by
-  unfold Lean4Lean.ElimNestedInductive.replaceParams
-    Lean4Lean.ElimNestedInductive.replaceParamsCore
   simp [hsize]
   exact Except.WF.pure rfl
 
@@ -1400,10 +1115,6 @@ def InductiveConstructorsBVarClosed (type : InductiveType) : Prop :=
 def SourceBVarClosed (types : List InductiveType) : Prop :=
   ∀ type ∈ types, Closed type.type ∧ InductiveConstructorsBVarClosed type
 
-theorem SourceBVarClosed.typeClosed
-    (H : SourceBVarClosed types) (hmem : type ∈ types) : Closed type.type :=
-  (H type hmem).1
-
 theorem SourceBVarClosed.constructorsClosed
     (H : SourceBVarClosed types) (hmem : type ∈ types) :
     InductiveConstructorsBVarClosed type :=
@@ -1681,82 +1392,12 @@ def RestoreAuxFamiliesFresh
   ∀ name nested, result.aux2nested.find? name = some nested →
     sourceEnv.find? name = none
 
-/-- Every name that the concrete restoration callback treats as an
-auxiliary family or constructor lies in the namespace rejected by the source
-syntax check.  This separates the name-generation argument from the
-expression-level restoration inverse. -/
-structure RestoreNamesReserved
-    (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment) : Prop
-    where
-  family : ∀ name nested, result.aux2nested.find? name = some nested →
-    (`_nested).isPrefixOf name = true
-  constructor : ∀ name nested auxFamily,
-    result.getNestedIfAuxCtor env name = some (nested, auxFamily) →
-    (`_nested).isPrefixOf name = true
-
 theorem NoNestedAux.findAny_false (H : NoNestedAux e) :
     e.findAny (fun
       | .const c _ => (`_nested).isPrefixOf c
       | .proj s _ _ => (`_nested).isPrefixOf s
       | _ => false) = false := by
   exact H
-
-theorem NoNestedAux.restoreSourceDisjoint
-    (H : NoNestedAux e) (Hreserved : RestoreNamesReserved result env) :
-    RestoreSourceDisjoint result env e := by
-  let p : Expr → Bool := fun
-    | .const c _ => (`_nested).isPrefixOf c
-    | .proj s _ _ => (`_nested).isPrefixOf s
-    | _ => false
-  have orFalse : ∀ a b : Bool, (a || b) = false →
-      a = false ∧ b = false := by
-    intro a b h
-    cases a <;> cases b <;> simp_all
-  have go : ∀ source, source.findAny p = false →
-      RestoreSourceDisjoint result env source := by
-    intro source Hfind
-    induction source with
-    | bvar | fvar | mvar | sort | lit => trivial
-    | const name levels =>
-      have hprefix : (`_nested).isPrefixOf name = false := by
-        simpa [Expr.findAny, p] using Hfind
-      constructor
-      · cases hfamily : result.aux2nested.find? name with
-        | none => rfl
-        | some nested =>
-          have := Hreserved.family name nested hfamily
-          simp_all
-      · cases hctor : result.getNestedIfAuxCtor env name with
-        | none => rfl
-        | some pair =>
-          rcases pair with ⟨nested, auxFamily⟩
-          have := Hreserved.constructor name nested auxFamily hctor
-          simp_all
-    | app fn arg ihFn ihArg =>
-      simp only [Expr.findAny, p, Bool.false_or] at Hfind
-      rcases orFalse _ _ Hfind with ⟨hfn, harg⟩
-      exact ⟨ihFn hfn, ihArg harg⟩
-    | lam name dom body bi ihDom ihBody =>
-      simp only [Expr.findAny, p, Bool.false_or] at Hfind
-      rcases orFalse _ _ Hfind with ⟨hdom, hbody⟩
-      exact ⟨ihDom hdom, ihBody hbody⟩
-    | forallE name dom body bi ihDom ihBody =>
-      simp only [Expr.findAny, p, Bool.false_or] at Hfind
-      rcases orFalse _ _ Hfind with ⟨hdom, hbody⟩
-      exact ⟨ihDom hdom, ihBody hbody⟩
-    | letE name type value body nondep ihType ihValue ihBody =>
-      simp only [Expr.findAny, p, Bool.false_or] at Hfind
-      rcases orFalse _ _ Hfind with ⟨htypeValue, hbody⟩
-      rcases orFalse _ _ htypeValue with ⟨htype, hvalue⟩
-      exact ⟨ihType htype, ihValue hvalue, ihBody hbody⟩
-    | mdata data body ihBody =>
-      simpa only [RestoreSourceDisjoint] using ihBody Hfind
-    | proj name idx body ihBody =>
-      simp only [Expr.findAny, p] at Hfind
-      rcases orFalse _ _ Hfind with ⟨hprefix, hbody⟩
-      simpa only [RestoreSourceDisjoint] using ihBody hbody
-  apply go e
-  simpa only [p] using H.findAny_false
 
 /-- Derive semantic restoration disjointness without assuming generated
 constructor names live below `_nested`. Family collisions are rejected by
@@ -2149,58 +1790,6 @@ theorem restoreNestedNode_family_general
   | lit literal => cases hhead
   | mdata data body => cases hhead
   | proj name idx body => cases hhead
-
-/-- Exact-parameter specialization of family restoration.  With no trailing
-arguments, the replacement node is precisely the reopened cached witness. -/
-theorem restoreNestedNode_family_exactParams
-    (result : Lean4Lean.ElimNestedInductive.Result)
-    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
-    (t nested : Expr) (family : Name) (levels : List Level)
-    (hhead : t.getAppFn = .const family levels)
-    (hrec : auxRec.find? family = none)
-    (hfamily : result.aux2nested.find? family = some nested)
-    (hargs : t.getAppArgs.size = result.nparams) :
-    result.restoreNestedNode env As auxRec t = some
-      ((nested.abstract result.params).instantiateRev As) := by
-  have Hgeneral := restoreNestedNode_family_general result env As auxRec t
-    nested family levels hhead hrec hfamily (by omega)
-  rw [Hgeneral]
-  rw [Expr.mkAppRange_to_end _ _ _ (by omega)]
-  have hdrop : t.getAppArgs.toList.drop result.nparams = [] := by
-    apply List.drop_eq_nil_iff.mpr
-    simpa [hargs]
-  simp [hdrop]
-
-theorem restoreNestedNode_constructor
-    (result : Lean4Lean.ElimNestedInductive.Result)
-    (env : Environment) (As : Array Expr) (auxRec : NameMap Name)
-    (t nested : Expr) (ctorName auxFamily sourceFamily : Name)
-    (headLevels sourceLevels : List Level)
-    (happ : t.isApp = true)
-    (hhead : t.getAppFn = .const ctorName headLevels)
-    (hnotFamily : result.aux2nested.find? ctorName = none)
-    (hlookup : result.getNestedIfAuxCtor env ctorName =
-      some (nested, auxFamily))
-    (harity : result.nparams ≤ t.getAppArgs.size)
-    (hrestoredHead :
-      ((nested.abstract result.params).instantiateRev As).getAppFn =
-        .const sourceFamily sourceLevels) :
-    result.restoreNestedNode env As auxRec t = some
-      (mkAppRange
-        (mkAppN (.const (ctorName.replacePrefix auxFamily sourceFamily)
-          sourceLevels)
-          ((nested.abstract result.params).instantiateRev As).getAppArgs)
-        result.nparams t.getAppArgs.size t.getAppArgs) := by
-  cases t with
-  | app fn arg =>
-    simp only [Lean4Lean.ElimNestedInductive.Result.restoreNestedNode]
-    simp [hhead, hnotFamily, hlookup, harity, Expr.withApp_eq]
-    simp only [Expr.instantiateRev_eq, Expr.instantiate_eq,
-      Array.toList_reverse] at hrestoredHead
-    rw [hrestoredHead]
-  | bvar | fvar | mvar | sort | const | lam | forallE | letE | lit | mdata
-      | proj => cases happ
-
 
 end VerifyInductive
 end Lean4Lean

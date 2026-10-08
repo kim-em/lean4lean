@@ -6,41 +6,6 @@ open Lean
 
 namespace VEnv
 
-/-- `src` is included in `dst` away from the constants selected by
-`changed`.  Definitional equality rules are retained globally: the
-derivation-scoped `UsesOnly` predicate below records precisely which
-constant lookups must be transported. -/
-structure LEExcept (changed : Name → Prop) (src dst : VEnv) : Prop where
-  constants : ∀ {name ci}, src.constants name = some ci → ¬ changed name →
-    dst.constants name = some ci
-  defeqs : ∀ {df}, src.defeqs df → dst.defeqs df
-  projections : ∀ {name info}, src.projections name info →
-    dst.projections name info
-  eliminators : ∀ {name schema}, src.eliminators name schema →
-    dst.eliminators name schema
-
-theorem LE.toLEExcept (H : src ≤ dst) (changed : Name → Prop) :
-    LEExcept changed src dst where
-  constants h _ := H.constants h
-  defeqs := H.defeqs
-  projections := H.projections
-  eliminators := H.eliminators
-
-theorem LEExcept.rfl (env : VEnv) (changed : Name → Prop) :
-    LEExcept changed env env where
-  constants h _ := h
-  defeqs := id
-  projections := id
-  eliminators := id
-
-theorem LEExcept.trans
-    (Hab : LEExcept changed a b) (Hbc : LEExcept changed b c) :
-    LEExcept changed a c where
-  constants h hn := Hbc.constants (Hab.constants h hn) hn
-  defeqs h := Hbc.defeqs (Hab.defeqs h)
-  projections h := Hbc.projections (Hab.projections h)
-  eliminators h := Hbc.eliminators (Hab.eliminators h)
-
 /-- The constants on which a particular typing/definitional-equality
 derivation depends.  This is proof-relevant on purpose: merely knowing that
 the endpoints avoid a name cannot exclude a transitivity detour through that
@@ -167,45 +132,6 @@ inductive IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
       UsesOnly changed He → UsesOnly changed He' →
       UsesOnly changed (.unitLike Hinfo Hparams Hindices HnumFields He He')
 
-theorem IsDefEq.rebaseExcept
-    (E : LEExcept changed src dst)
-    (H : src.IsDefEq uvars ctx lhs rhs type)
-    (HU : H.UsesOnly changed) :
-    dst.IsDefEq uvars ctx lhs rhs type := by
-  induction HU with
-  | elimDF hlookup htype hclosed hperm hright heq _ _ ih =>
-    exact .elimDF (E.eliminators hlookup) htype hclosed hperm hright heq ih
-  | elimIota hlookup hgen hmem hclosed hperm _ _ _ _ ihLeft ihRight =>
-    exact .elimIota (E.eliminators hlookup) hgen hmem hclosed hperm ihLeft ihRight
-  | bvar Hlookup => exact .bvar Hlookup
-  | symm _ IH => exact .symm IH
-  | trans _ _ IH₁ IH₂ => exact .trans IH₁ IH₂
-  | sortDF Hleft Hright Heq => exact .sortDF Hleft Hright Heq
-  | constDF name ci levels levels' Hlookup Hleft Hright Hlength Heq Hname =>
-    exact .constDF (E.constants Hlookup Hname) Hleft Hright Hlength Heq
-  | appDF _ _ IHf IHa => exact .appDF IHf IHa
-  | projDF typeName info levels params indexArgs index sourceMajor fieldType
-      Gamma fieldLevel major major'
-      Hinfo Hlevels Huvars Hparams Hindices HfieldType
-      _ _ _ Hclosed Hguard _ _ _ IHfield IHmajor IHmajor' =>
-    exact .projDF (E.projections Hinfo) Hlevels Huvars Hparams Hindices
-      HfieldType IHfield IHmajor IHmajor' Hclosed Hguard
-  | lamDF _ _ IHtype IHbody => exact .lamDF IHtype IHbody
-  | forallEDF _ _ IHtype IHbody => exact .forallEDF IHtype IHbody
-  | defeqDF _ _ IHtype IHterm => exact .defeqDF IHtype IHterm
-  | beta _ _ IHbody IHarg => exact .beta IHbody IHarg
-  | eta _ IH => exact .eta IH
-  | proofIrrel _ _ _ IHprop IHleft IHright =>
-    exact .proofIrrel IHprop IHleft IHright
-  | extra df levels Hdf Hlevels Hlength =>
-    exact .extra (E.defeqs Hdf) Hlevels Hlength
-  | projIota Hinfo _ Hindex _ _ _ IHproj IHfield =>
-    exact .projIota (E.projections Hinfo) IHproj Hindex IHfield
-  | structEta Hinfo Hparams Hindices _ _ _ _ IHe IHctor =>
-    exact .structEta (E.projections Hinfo) Hparams Hindices IHe IHctor
-  | unitLike Hinfo Hparams Hindices HnumFields _ _ _ _ IHe IHe' =>
-    exact .unitLike (E.projections Hinfo) Hparams Hindices HnumFields IHe IHe'
-
 /-- If every installed constant is outside `changed`, every derivation in
 the environment carries a canonical restriction witness. -/
 theorem IsDefEq.usesOnly_of_constants
@@ -303,37 +229,6 @@ theorem IsDefEq.UsesOnly.mono
     exact .unitLike (henv.projections Hinfo) Hparams Hindices HnumFields (He.mono henv)
       (He'.mono henv) IHe IHe'
 
-theorem HasType.rebaseExcept
-    (E : LEExcept changed src dst)
-    (H : src.HasType uvars ctx term type)
-    (HU : H.UsesOnly changed) :
-    dst.HasType uvars ctx term type :=
-  IsDefEq.rebaseExcept E H HU
-
-/-- Dependency evidence for an untyped definitional-equality witness. -/
-def IsDefEqU.UsesOnly {env : VEnv} {uvars : Nat} {ctx : List VExpr}
-    {left right : VExpr} (changed : Name → Prop)
-    (_H : env.IsDefEqU uvars ctx left right) : Prop :=
-  ∃ type, ∃ Hdefeq : env.IsDefEq uvars ctx left right type,
-    Hdefeq.UsesOnly changed
-
-theorem IsDefEqU.rebaseExcept
-    (E : LEExcept changed src dst)
-    (H : src.IsDefEqU uvars ctx left right)
-    (HU : H.UsesOnly changed) :
-    dst.IsDefEqU uvars ctx left right := by
-  rcases HU with ⟨type, Hdefeq, Huses⟩
-  exact ⟨type, Hdefeq.rebaseExcept E Huses⟩
-
-theorem IsDefEqU.usesOnly_of_constants
-    {env : VEnv} {changed : Name → Prop}
-    (H : env.IsDefEqU uvars ctx left right)
-    (Hconstants : ∀ {name ci}, env.constants name = some ci →
-      ¬ changed name) :
-    H.UsesOnly changed := by
-  rcases H with ⟨type, Hdefeq⟩
-  exact ⟨type, Hdefeq, Hdefeq.usesOnly_of_constants Hconstants⟩
-
 /-- A typehood witness avoids `changed` when its retained typing derivation
 does. -/
 def IsType.UsesOnly {env : VEnv} {uvars : Nat} {ctx : List VExpr}
@@ -341,14 +236,6 @@ def IsType.UsesOnly {env : VEnv} {uvars : Nat} {ctx : List VExpr}
     (_H : env.IsType uvars ctx type) : Prop :=
   ∃ level, ∃ Htype : env.HasType uvars ctx type (.sort level),
     Htype.UsesOnly changed
-
-theorem IsType.rebaseExcept
-    (E : LEExcept changed src dst)
-    (H : src.IsType uvars ctx type)
-    (HU : H.UsesOnly changed) :
-    dst.IsType uvars ctx type := by
-  rcases HU with ⟨level, Htype, Huses⟩
-  exact ⟨level, Htype.rebaseExcept E Huses⟩
 
 theorem IsType.usesOnly_of_constants
     {env : VEnv} {changed : Name → Prop}
@@ -369,63 +256,11 @@ theorem IsType.UsesOnly.mono
   rcases HU with ⟨level, Htype, Huses⟩
   exact ⟨level, Htype.mono henv, Huses.mono henv⟩
 
-/-- Pointwise dependency evidence for a context conversion. -/
-inductive IsDefEqCtx.UsesOnly {env : VEnv} {uvars : Nat}
-    (changed : Name → Prop) :
-    ∀ {base left right}, env.IsDefEqCtx uvars base left right → Prop where
-  | zero : UsesOnly changed (.zero : env.IsDefEqCtx uvars base base base)
-  | succ : UsesOnly changed Hctx → Htype.UsesOnly changed →
-      UsesOnly changed (.succ Hctx Htype)
-
-theorem IsDefEqCtx.UsesOnly.mono
-    {env env' : VEnv} (henv : env ≤ env')
-    {H : env.IsDefEqCtx uvars base left right}
-    (HU : H.UsesOnly changed) :
-    (H.mono henv).UsesOnly changed := by
-  induction HU with
-  | zero => exact .zero
-  | succ _ _ IH => exact .succ IH (IsDefEq.UsesOnly.mono henv ‹_›)
-
-theorem IsDefEqCtx.rebaseExcept
-    (E : LEExcept changed src dst)
-    (H : src.IsDefEqCtx uvars base left right)
-    (HU : H.UsesOnly changed) :
-    dst.IsDefEqCtx uvars base left right := by
-  induction HU with
-  | zero => exact .zero
-  | succ HctxUses HtypeUses IH =>
-    exact .succ IH (IsDefEq.rebaseExcept E _ HtypeUses)
-
-theorem IsDefEqCtx.usesOnly_of_constants
-    {env : VEnv} {changed : Name → Prop}
-    (H : env.IsDefEqCtx uvars base left right)
-    (Hconstants : ∀ {name ci}, env.constants name = some ci →
-      ¬ changed name) :
-    H.UsesOnly changed := by
-  induction H with
-  | zero => exact .zero
-  | succ Hctx Htype IH =>
-    exact .succ IH (Htype.usesOnly_of_constants Hconstants)
-
 /-- Static environment dependencies of the side condition used by literal
 translation. -/
 def ContainsLits.UsesOnly (changed : Name → Prop) : Literal → Prop
   | .natVal _ => ¬ changed ``Nat
   | .strVal _ => ¬ changed ``Char.ofNat ∧ ¬ changed ``String.ofList
-
-theorem ContainsLits.rebaseExcept
-    (E : LEExcept changed src dst)
-    (H : src.ContainsLits lit)
-    (HU : ContainsLits.UsesOnly changed lit) :
-    dst.ContainsLits lit := by
-  cases lit with
-  | natVal n =>
-    rcases H with ⟨ci, Hci⟩
-    exact ⟨ci, E.constants Hci HU⟩
-  | strVal s =>
-    rcases H with ⟨⟨charCi, Hchar⟩, stringCi, Hstring⟩
-    exact ⟨⟨charCi, E.constants Hchar HU.1⟩,
-      stringCi, E.constants Hstring HU.2⟩
 
 theorem ContainsLits.usesOnly_of_constants
     {env : VEnv} {changed : Name → Prop} {literal : Literal}
@@ -442,75 +277,6 @@ theorem ContainsLits.usesOnly_of_constants
     exact ⟨Hconstants Hchar, Hconstants Hstring⟩
 
 end VEnv
-
-/-- Restriction evidence for semantic local-declaration equality. -/
-inductive VLocalDecl.IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
-    (changed : Name → Prop) :
-    ∀ {ctx left right}, VLocalDecl.IsDefEq env uvars ctx left right → Prop where
-  | vlam : Htype.UsesOnly changed → UsesOnly changed (.vlam Htype)
-  | vlet : Hvalue.UsesOnly changed → Htype.UsesOnly changed →
-      UsesOnly changed (.vlet Hvalue Htype)
-
-theorem VLocalDecl.IsDefEq.rebaseExcept
-    (E : VEnv.LEExcept changed src dst)
-    (H : VLocalDecl.IsDefEq src uvars ctx left right)
-    (HU : H.UsesOnly changed) :
-    VLocalDecl.IsDefEq dst uvars ctx left right := by
-  induction HU with
-  | vlam Huses => exact .vlam (VEnv.IsDefEq.rebaseExcept E _ Huses)
-  | vlet HvalueUses HtypeUses =>
-    exact .vlet (VEnv.IsDefEq.rebaseExcept E _ HvalueUses)
-      (VEnv.IsDefEq.rebaseExcept E _ HtypeUses)
-
-theorem VLocalDecl.IsDefEq.usesOnly_of_constants
-    {env : VEnv} {changed : Name → Prop}
-    (H : VLocalDecl.IsDefEq env uvars ctx left right)
-    (Hconstants : ∀ {name ci}, env.constants name = some ci →
-      ¬ changed name) :
-    H.UsesOnly changed := by
-  cases H with
-  | vlam Htype => exact .vlam (Htype.usesOnly_of_constants Hconstants)
-  | vlet Hvalue Htype =>
-    exact VLocalDecl.IsDefEq.UsesOnly.vlet
-      (Hvalue.usesOnly_of_constants Hconstants)
-      (Htype.usesOnly_of_constants Hconstants)
-
-/-- Pointwise restriction evidence for semantic local-context equality. -/
-inductive VLCtx.IsDefEq.UsesOnly {env : VEnv} {uvars : Nat}
-    (changed : Name → Prop) :
-    ∀ {left right}, VLCtx.IsDefEq env uvars left right → Prop where
-  | nil : UsesOnly changed (.nil : VLCtx.IsDefEq env uvars [] [])
-  | cons (left right : VLCtx) (ofv : Option (FVarId × List FVarId))
-      (leftDecl rightDecl : VLocalDecl)
-      (Hctx : VLCtx.IsDefEq env uvars left right)
-      (Hfresh : ∀ fv deps, ofv = some (fv, deps) →
-      fv ∉ left.fvars ∧ deps ⊆ left.fvars) :
-      (Hdecl : VLocalDecl.IsDefEq env uvars left.toCtx leftDecl rightDecl) →
-      UsesOnly changed Hctx → Hdecl.UsesOnly changed →
-      UsesOnly changed (.cons Hctx Hfresh Hdecl)
-
-theorem VLCtx.IsDefEq.rebaseExcept
-    (E : VEnv.LEExcept changed src dst)
-    (H : VLCtx.IsDefEq src uvars left right)
-    (HU : H.UsesOnly changed) :
-    VLCtx.IsDefEq dst uvars left right := by
-  induction HU with
-  | nil => exact .nil
-  | cons left right ofv leftDecl rightDecl Hctx Hfresh Hdecl
-      HctxUses HdeclUses IH =>
-    exact .cons IH Hfresh (VLocalDecl.IsDefEq.rebaseExcept E _ HdeclUses)
-
-theorem VLCtx.IsDefEq.usesOnly_of_constants
-    {env : VEnv} {changed : Name → Prop}
-    (H : VLCtx.IsDefEq env uvars left right)
-    (Hconstants : ∀ {name ci}, env.constants name = some ci →
-      ¬ changed name) :
-    H.UsesOnly changed := by
-  induction H with
-  | nil => exact .nil
-  | cons Hctx Hfresh Hdecl IH =>
-    exact .cons _ _ _ _ _ Hctx Hfresh Hdecl IH
-      (Hdecl.usesOnly_of_constants Hconstants)
 
 /-- A finite environment anchor for one verified projection.  Restriction
 replay does not need every constant of the ambient source environment: it only
@@ -530,24 +296,6 @@ structure TrProj.RestrictionSupport
     structName index major projected
   constants : ∀ {name ci}, anchor.constants name = some ci →
     ¬ changed name
-
-theorem TrProj.RestrictionSupport.rebaseExcept
-    (E : VEnv.LEExcept changed src dst)
-    {H : TrProj (env := src) (U := U) Gamma
-      structName index major projected}
-    (S : H.RestrictionSupport changed) :
-    TrProj (env := dst) (U := U) Gamma
-      structName index major projected := by
-  apply S.projection.mono
-  constructor
-  · intro name ci hlookup
-    exact E.constants (S.anchor_le.constants hlookup) (S.constants hlookup)
-  · intro df hdf
-    exact E.defeqs (S.anchor_le.defeqs hdf)
-  · intro name info hlookup
-    exact E.projections (S.anchor_le.projections hlookup)
-  · intro name schema hlookup
-    exact E.eliminators (S.anchor_le.eliminators hlookup)
 
 def TrProj.RestrictionSupport.mono
     {env env' : VEnv} (henv : env ≤ env')
@@ -619,41 +367,6 @@ inductive TrExprS.UsesOnly {env : VEnv} {levelParams : List Name}
       (Huses : UsesOnly changed H)
       (HprojUses : Hproj.RestrictionSupport changed) :
       UsesOnly changed (.proj H Hproj)
-
-theorem TrExprS.rebaseExcept
-    (E : VEnv.LEExcept changed src dst)
-    (H : TrExprS src levelParams ctx source target)
-    (HU : H.UsesOnly changed) :
-    TrExprS dst levelParams ctx source target := by
-  induction HU with
-  | bvar ctx index target type Hlookup => exact .bvar Hlookup
-  | fvar ctx fvar target type Hlookup => exact .fvar Hlookup
-  | sort level targetLevel Hlevel => exact .sort Hlevel
-  | const name ci levels targets Hlookup Hlevels Hlength Hname =>
-    exact .const (E.constants Hlookup Hname) Hlevels Hlength
-  | app HfnTypeUses HargTypeUses HfnUses HargUses IHfn IHarg =>
-    exact .app
-      (VEnv.IsDefEq.rebaseExcept E _ HfnTypeUses)
-      (VEnv.IsDefEq.rebaseExcept E _ HargTypeUses)
-      IHfn IHarg
-  | lam HtypeUses HdomainUses HbodyUses IHdomain IHbody =>
-    exact .lam (VEnv.IsType.rebaseExcept E _ HtypeUses)
-      IHdomain IHbody
-  | forallE HdomainTypeUses HbodyTypeUses HdomainUses HbodyUses IHdomain IHbody =>
-    exact .forallE
-      (VEnv.IsType.rebaseExcept E _ HdomainTypeUses)
-      (VEnv.IsType.rebaseExcept E _ HbodyTypeUses)
-      IHdomain IHbody
-  | letE HvalueTypeUses HtypeUses HvalueUses HbodyUses IHtype IHvalue IHbody =>
-    exact .letE
-      (VEnv.IsDefEq.rebaseExcept E _ HvalueTypeUses)
-      IHtype IHvalue IHbody
-  | lit Hcontains Hliteral HconstructorUses IH =>
-    exact .lit (VEnv.ContainsLits.rebaseExcept E Hcontains Hliteral) IH
-  | mdata Huses IH => exact .mdata IH
-  | proj ctx source target structName index projected H Hproj Huses
-      HprojUses IH =>
-    exact .proj IH (HprojUses.rebaseExcept E)
 
 theorem TrExprS.usesOnly_of_constants
     {env : VEnv} {changed : Name → Prop}

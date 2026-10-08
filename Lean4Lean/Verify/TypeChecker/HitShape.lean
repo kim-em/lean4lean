@@ -35,53 +35,7 @@ theorem whnf.hitShape {c : VContext} {s : VState} (he : c.TrExprS e e') :
       (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.HitBelow s.ngen.namePrefix e e₁ :=
   (Inner.whnf.WF_fhit he rfl).run
 
-/-- `whnfCore` preserves hit shape. -/
-theorem whnfCore.hitShape {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    M.WF c s (whnfCore e) fun e₁ _ =>
-      (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.HitBelow s.ngen.namePrefix e e₁ :=
-  (Inner.whnfCore.WF_fhit he rfl).run
-
-/-- Type inference (`inferOnly := true`, the default) preserves hit shape; moreover the type of a
-bare head constant at the hit levels is its parameter telescope. -/
-theorem inferType.hitShape {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    M.WF c s (inferType e) fun ty _ =>
-      (∃ ty', c.TrTyping e ty e' ty') ∧ c.HitTyBelow s.ngen.namePrefix e ty :=
-  (Inner.inferType.WF_fhit he rfl).run
-
-/-- `unfoldDefinition` preserves hit shape. -/
-theorem unfoldDefinition.hitShape {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    M.WF c s (unfoldDefinition e) fun e₁ _ => c.TrExpr e₁ e' ∧ c.HitBelow s.ngen.namePrefix e e₁ := by
-  refine ((Inner.unfoldDefinition.WF he).and
-    (Inner.unfoldDefinition.WF_hit (pfx := s.ngen.namePrefix))).run.bind fun oe _ _ ⟨H, HH⟩ => ?_
-  cases oe with
-  | some => exact .pure ⟨H.2, HH _ rfl⟩
-  | none => exact .pure ⟨he.trExpr c.Ewf c.Δwf, .rfl⟩
-
 /-! ### Using the invariant -/
-
-/-- Read off hit shape of the output of a run satisfying `HitBelow`. -/
-theorem _root_.Lean4Lean.TypeChecker.VContext.HitBelow.hitShape {c : VContext}
-    (H : c.HitBelow pfx e e₁) (hs : c.HitScope pfx heads As ls P)
-    (he : e.HitShape heads As ls) (hp : e.ProjsOK (projHitOK c.env heads)) (hP : FVarsIn P e) :
-    e₁.HitShape heads As ls ∧ e₁.ProjsOK (projHitOK c.env heads) :=
-  H heads As ls P hs ⟨he, hp⟩ hP
-
-/-- A hit scope over the whole local context. -/
-theorem _root_.Lean4Lean.TypeChecker.VContext.HitScope.ofLCtx {c : VContext}
-    (henv : EnvHitShape c.env heads As.length ls) (hAs : HitParams pfx As)
-    (hdecls : ∀ fv decl, c.lctx'.find? fv = some decl →
-      decl.type.HitOK c.env heads As ls ∧ ∀ v, decl.value? true = some v → v.HitOK c.env heads As ls) :
-    c.HitScope pfx heads As ls (· ∈ c.vlctx.fvars) :=
-  ⟨henv, hAs, .fvars c.Δwf.fvwf, fun fv decl _ hd => hdecls fv decl hd⟩
-
-/-- The prefix condition for parameters whose names were not produced with the prefix `pfx`
-(in the inductive checker the parameters come from its own name generator, prefix
-`` `_ind_fresh ``, while the embedded type checker uses `` `_kernel_fresh ``). -/
-theorem _root_.Lean4Lean.TypeChecker.HitParams.of_prefix {pfx : Name} {As : List Expr}
-    (h : ∀ a ∈ As, ∃ p i, a = .fvar ⟨.num p i⟩ ∧ p ≠ pfx) : HitParams pfx As := by
-  intro a ha
-  obtain ⟨p, i, rfl, hp⟩ := h a ha
-  exact ⟨_, rfl, fun j eq => hp (by cases eq; rfl)⟩
 
 /-- The name generator of the initial checker state. -/
 @[simp] theorem VState.initial_namePrefix : ({} : State).ngen.namePrefix = `_kernel_fresh := rfl

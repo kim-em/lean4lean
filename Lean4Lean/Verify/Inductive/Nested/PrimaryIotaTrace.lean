@@ -18,20 +18,6 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- Smallest source-stage typing premise for one restored primary equation.
-It is indexed by the independently specified nested-iota shape and the exact
-target environment; RHS typing is intentionally absent because it is derived
-from the restoration tree below. -/
-structure RestoredPrimaryIotaSourceTyping
-    {decl : VInductDecl} {block : VInductBlock}
-    {owner : VInductiveType} {ctor : VConstVal} {sourceRule : VDefEq}
-    (targetEnv : VEnv)
-    (Hsource : decl.NestedIotaRule block owner ctor sourceRule) : Prop where
-  contextWF : OnCtx Hsource.domains.reverse
-    (targetEnv.IsType sourceRule.uvars)
-  lhsTyping : targetEnv.HasType sourceRule.uvars Hsource.domains.reverse
-    Hsource.lhsBody Hsource.typeBody
-
 /-- Semantic interpretation of the exact executable rule-restoration list
 for one primary recursor.  The abstract output list is forced to consist of
 the restored RHS endpoints of these very production rules. -/
@@ -154,97 +140,6 @@ inductive RestoredPrimaryIotaSemanticTrace
       RestoredPrimaryIotaSemanticTrace decl block targetVEnv P
         (.cons Hstep Htail Hheader Hconstructors Hrecursor Hrest)
         (owner :: owners) (headRules ++ tailRules)
-
-/-- Fold exact per-family primary equation interpretations over the already
-constructed source semantic trace.  This is the aggregate constructor used at
-the executable/specification boundary; family order and final rule-list shape
-come solely from the two input traces. -/
-theorem RestoredSourceInductiveSemanticTrace.primaryIotaSemanticTrace
-    {decl : VInductDecl} {lparams : List Name}
-    {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv : Environment} (P : NestedInstalledProduction loweredEnv)
-    {auxRec : NameMap Name}
-    {allIndNames : List Name} {sourceTypes : List InductiveType}
-    {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace
-      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
-      sourceTypes sourceProdEnv targetProdEnv}
-    {owners : List VInductiveType} {recursors : List VConstVal}
-    {block : VInductBlock}
-    (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-      sourceVEnv envTypes envCtors Htrace owners recursors)
-    (targetVEnv : VEnv)
-    (Hfamilies : ∀ indType stepSource stepTarget owner
-      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
-        indType stepSource stepTarget)
-      (_Hheader : TrSourceConst sourceVEnv lparams indType.name indType.type
-        owner.toVConstVal)
-      (_Hconstructors : RestoredSourceConstructorTrace result loweredEnv lparams safety envTypes
-        Hstep.oldInfo.ctors Hstep.restored.headerEnv
-          Hstep.restored.constructorEnv indType.ctors owner.ctors)
-      (_Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
-        Hstep.restored.recursor envCtors),
-      Nonempty (RestoredPrimaryIotaFamilySemantics decl block targetVEnv owner
-        P Hstep)) :
-    ∃ rules, RestoredPrimaryIotaSemanticTrace decl block targetVEnv P Hsource
-      owners rules := by
-  induction Hsource with
-  | nil sourceProdEnv => exact ⟨[], .nil sourceProdEnv⟩
-  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
-    rcases Hfamilies _ _ _ _ Hstep Hheader Hconstructors Hrecursor with
-      ⟨Hhead⟩
-    rcases ih with ⟨tailRules, Hrules⟩
-    exact ⟨Hhead.rules ++ tailRules,
-      .cons Hstep Htail Hheader Hconstructors Hrecursor Hrest Hhead.trace
-        Hrules⟩
-
-/-- Membership-indexed variant of `primaryIotaSemanticTrace`.  The source
-trace itself supplies membership of each visited family, allowing downstream
-producers to recover its unique operational family position instead of
-accepting a semantic callback for arbitrary unrelated restoration steps. -/
-theorem RestoredSourceInductiveSemanticTrace.primaryIotaSemanticTraceOfMem
-    {decl : VInductDecl} {lparams : List Name}
-    {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv : Environment} (P : NestedInstalledProduction loweredEnv)
-    {auxRec : NameMap Name}
-    {allIndNames : List Name} {sourceTypes : List InductiveType}
-    {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace
-      (RestoredInductiveStep result loweredEnv auxRec allIndNames)
-      sourceTypes sourceProdEnv targetProdEnv}
-    {owners : List VInductiveType} {recursors : List VConstVal}
-    {block : VInductBlock}
-    (Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
-      sourceVEnv envTypes envCtors Htrace owners recursors)
-    (targetVEnv : VEnv)
-    (Hfamilies : ∀ indType stepSource stepTarget owner
-      (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
-        indType stepSource stepTarget), indType ∈ sourceTypes →
-      (_Hheader : TrSourceConst sourceVEnv lparams indType.name indType.type
-        owner.toVConstVal) →
-      (_Hconstructors : RestoredSourceConstructorTrace result loweredEnv lparams safety envTypes
-        Hstep.oldInfo.ctors Hstep.restored.headerEnv
-          Hstep.restored.constructorEnv indType.ctors owner.ctors) →
-      (_Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
-        Hstep.restored.recursor envCtors) →
-      Nonempty (RestoredPrimaryIotaFamilySemantics decl block targetVEnv owner
-        P Hstep)) :
-    ∃ rules, RestoredPrimaryIotaSemanticTrace decl block targetVEnv P Hsource
-      owners rules := by
-  induction Hsource with
-  | nil sourceProdEnv => exact ⟨[], .nil sourceProdEnv⟩
-  | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
-    rcases Hfamilies _ _ _ _ Hstep (by simp) Hheader Hconstructors Hrecursor
-      with ⟨Hhead⟩
-    rcases ih (fun indType stepSource stepTarget owner Hstep hmem Hheader
-        Hconstructors Hrecursor =>
-      Hfamilies indType stepSource stepTarget owner Hstep (by simp [hmem])
-        Hheader Hconstructors Hrecursor) with ⟨tailRules, Hrules⟩
-    exact ⟨Hhead.rules ++ tailRules,
-      .cons Hstep Htail Hheader Hconstructors Hrecursor Hrest Hhead.trace
-        Hrules⟩
 
 theorem RestoredPrimaryIotaSemanticTrace.familyTrace
     (H : RestoredPrimaryIotaSemanticTrace decl block targetVEnv P Hsource owners

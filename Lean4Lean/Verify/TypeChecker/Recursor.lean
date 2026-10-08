@@ -662,14 +662,6 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
     have := Expr.levelParamsIn_getAppFn hA
     rw [hAfn] at this; simpa [Expr.levelParamsIn] using this
 
-theorem toCtorWhenK.WF {info : RecursorVal} {major : Expr} {m' : VExpr} (hk : info.k = true)
-    (hK : ∃ ind ctorName, c.env.constants.find? info.getMajorInduct = some (.inductInfo ind) ∧
-      ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
-    (he : c.TrExprS major m') :
-    RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
-      c.FVarsBelow major r ∧ c.TrExpr r m' :=
-  (toCtorWhenK.WF_all hk hK he).mono fun _ _ _ h => h.1
-
 theorem _root_.Lean.Expr.isConstOf_eq_true {e : Expr} {n : Name} (h : e.isConstOf n = true) :
     ∃ ls, e = .const n ls := by
   cases e <;> simp [Expr.isConstOf] at h
@@ -889,11 +881,6 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
       rcases ha with ha | ⟨i, -, rfl⟩
       · exact Expr.levelParamsIn_of_mem_getAppArgsList hA ha
       · exact hl
-
-theorem toCtorWhenStruct.WF {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
-    RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
-      c.FVarsBelow w r ∧ c.TrExpr r w' :=
-  (toCtorWhenStruct.WF_all he).mono fun _ _ _ h => h.1
 
 /-- Inductive recursor reduction refines the stored rules. -/
 theorem inductiveReduceRec.WF_all (he : c.TrExprS e e') :

@@ -149,26 +149,6 @@ structure SemanticRunVerificationInputs
     ¬ Kernel.Environment.primitives.contains
       (Lean.mkRecName indTypes[owner]!.name)
 
-/-- Declaration-facing result of the complete skeleton-free ordinary
-checker.  The semantic accumulator is retained so nested restoration can
-refer back to the exact normalized source telescopes selected by the header
-traversal. -/
-def VerifiedSemanticInductiveRunResult
-    (source : AddInductive.Context) (nparams : Nat)
-    (types : List InductiveType)
-    (numNested : Nat) (outEnv : Environment) : Prop :=
-  ∃ c' stats depth commonParams commonLevel,
-    ∃ Hc' : ContextWF c',
-    c'.env = source.env ∧
-    c'.safety = source.safety ∧
-    c'.lparams = source.lparams ∧
-    ∃ Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-        Hc'.venv c'.lparams nparams commonParams commonLevel
-          types.toArray.toList,
-      SemanticRunWithStatsResult c' stats nparams depth
-        types.toArray (source.safety != .safe) Hc'.venv outEnv
-
 /-- Source-aligned declaration-facing result of the complete ordinary
 checker.  In addition to the semantic certificate, this retains the exact
 verification environment from which header checking began. -/
@@ -262,37 +242,6 @@ theorem AddInductive.run.semanticSourceAlignedWF
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
           hlparams, hallowPrimitive, hfuel, hvenv, Hsemantic, Hrun⟩
   simpa [AddInductive.run] using Hcombined
-
-/-- Project an ordinary run to its declaration-level semantic result. -/
-theorem AddInductive.run.semanticWF
-    (nparams numNested : Nat)
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial)
-    (Hinputs : ∀ {c' : AddInductive.Context}
-      {stats : AddInductive.InductiveStats} {depth : Nat}
-      {commonParams : List VExpr} {commonLevel : VLevel},
-      (Hc' : ContextWF c') →
-      (Hsemantic :
-        checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-          Hc'.venv c'.lparams nparams commonParams commonLevel
-            types.toArray.toList) →
-      SemanticRunVerificationInputs c' stats nparams depth numNested
-        types.toArray (c.safety != .safe) Hc') :
-    (AddInductive.run nparams types numNested c).WF
-      (VerifiedSemanticInductiveRunResult c nparams types numNested) := by
-  exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed HenvGF hctx hnonempty HnotPartial
-    (fun Hc' _hallowPrimitive _hfuel Hsemantic =>
-      Hinputs Hc' Hsemantic)).mono fun _ Hresult => by
-      rcases Hresult with
-        ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
-          hlparams, _hallowPrimitive, _hfuel, _hvenv, Hsemantic, Hrun⟩
-      exact ⟨c', stats, depth, commonParams, commonLevel, Hc', henv,
-        hsafety, hlparams, Hsemantic, Hrun⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -47,59 +47,6 @@ namespace VEnv
 
 variable {env : VEnv} {U : Nat}
 
-theorem InstForalls.instantiateProjectionParameters_eq
-    (H : InstForalls env U Γ T params res) :
-    VProjectionInfo.instantiateProjectionParameters T params = some res := by
-  induction H with
-  | nil => rfl
-  | cons _ _ ih => simpa [VProjectionInfo.instantiateProjectionParameters] using ih
-  | vacuous _ ih =>
-    simpa [VProjectionInfo.instantiateProjectionParameters, VExpr.inst_lift] using ih
-
-theorem InstForalls.instantiateProjectionFields_eq
-    (H : InstForalls env U Γ tail
-      ((List.range k).map fun j => .proj typeName (current + j) major) (.forallE F rest)) :
-    VProjectionInfo.instantiateProjectionFields typeName major (current + k) current (k + 1)
-      tail = some F := by
-  induction k generalizing tail current with
-  | zero =>
-    cases H
-    simp [VProjectionInfo.instantiateProjectionFields]
-  | succ k ih =>
-    rw [List.range_succ_eq_map, List.map_cons, List.map_map] at H
-    generalize hargs : (List.range k).map ((fun j => VExpr.proj typeName (current + j) major) ∘
-      Nat.succ) = args at H
-    have hargs' : args = (List.range k).map fun j => VExpr.proj typeName (current + 1 + j) major := by
-      rw [← hargs]; congr 1; funext j; simp [Function.comp, Nat.add_assoc, Nat.add_comm 1 j]
-    subst hargs'
-    cases H with
-    | cons _ H' =>
-      have := ih (current := current + 1) H'
-      simp only [VProjectionInfo.instantiateProjectionFields, Nat.add_zero]
-      rw [if_neg (by omega)]
-      simpa [Nat.add_assoc, Nat.add_comm 1 k, Nat.add_left_comm] using this
-    | vacuous H' =>
-      have := ih (current := current + 1) H'
-      simp only [VProjectionInfo.instantiateProjectionFields, Nat.add_zero, VExpr.inst_lift]
-      rw [if_neg (by omega)]
-      simpa [Nat.add_assoc, Nat.add_comm 1 k, Nat.add_left_comm] using this
-
-/-- `fieldType` is determined by two typed walks: the parameters through the constructor
-telescope, then the projections of the earlier fields. -/
-theorem VProjectionInfo.fieldType_eq_of_instForalls (info : VProjectionInfo)
-    (hlevels : levels.length = info.uvars) (hparams : params.length = info.nparams)
-    (Hparams : InstForalls env U Γ (info.ctorType.instL levels) params tail)
-    (Hfields : InstForalls env U Γ tail
-      ((List.range index).map fun j => .proj typeName j major) (.forallE F rest)) :
-    info.fieldType typeName levels params index major = some F := by
-  have h1 := Hparams.instantiateProjectionParameters_eq
-  have Hfields' : InstForalls env U Γ tail
-      ((List.range index).map fun j => .proj typeName (0 + j) major) (.forallE F rest) := by
-    simpa using Hfields
-  have h2 := Hfields'.instantiateProjectionFields_eq
-  simp only [Nat.zero_add] at h2
-  simp [VProjectionInfo.fieldType, hlevels, hparams, h1, h2]
-
 theorem _root_.Lean4Lean.VExpr.takeForalls_inst {T : VExpr}
     (H : T.takeForalls n = some (doms, rest)) :
     ∃ doms', (T.inst a k).takeForalls n = some (doms', rest.inst a (k + n)) := by
@@ -269,34 +216,6 @@ theorem _root_.Lean4Lean.VExpr.mkApps_getAppFnArgs_eq (e : VExpr) :
   simpa [VExpr.mkApps] using go e []
 
 
-/-- Fully instantiating a valid inductive application replaces its parameter variables by the
-corresponding arguments. -/
-theorem _root_.Lean4Lean.VInductDecl.ValidIndAppAt.instOuter {decl : VInductDecl}
-    (H : decl.ValidIndAppAt (some typeName) depth result)
-    (hfn : result.getAppFnArgs.1 = .const typeName levels)
-    (args : List VExpr) (h : args.length = depth + decl.nparams) :
-    ∃ indices, result.instOuter args =
-        VExpr.mkApps (.const typeName levels) (args.take decl.nparams ++ indices) ∧
-      ∃ type ∈ decl.types, type.name = typeName ∧ indices.length = type.numIndices := by
-  obtain ⟨type, htype, hname, levels', hfn', hlevels, hlen, hparams, -⟩ := H
-  rcases hname with hname | hname
-  · cases hname
-  cases Option.some.inj hname
-  have hfn'' : (VExpr.getAppFnArgs.go result []).1 = .const type.name levels := hfn
-  rw [hfn'] at hfn''
-  cases hfn''
-  have hresult := VExpr.mkApps_getAppFnArgs_eq result
-  rw [hfn'] at hresult
-  generalize hxs : (VExpr.getAppFnArgs.go result []).2 = xs at hlen hparams hresult
-  refine ⟨(xs.drop decl.nparams).map (·.instOuter args), ?_, type, htype, rfl, ?_⟩
-  · have e1 : result.instOuter args = ((VExpr.const type.name levels).mkApps xs).instOuter args := by
-      rw [hresult]
-    rw [e1, VExpr.instOuter_mkApps, VExpr.instOuter_const]
-    congr 1
-    conv => lhs; rw [← List.take_append_drop decl.nparams xs]
-    rw [List.map_append, hparams, decl.paramVars_instOuter args h]
-  · simp [hlen]
-
 theorem _root_.Lean4Lean.VInductDecl.RawIndAppAt.instOuter {decl : VInductDecl}
     (H : decl.RawIndAppAt (some typeName) depth result)
     (hfn : result.getAppFnArgs.1 = .const typeName levels)
@@ -440,34 +359,6 @@ theorem _root_.Lean4Lean.VExpr.WF.of_occurs_lift (henv : VEnv.WF env) {a : VExpr
       HasType.proj_inv henv.ordered hΓ' H
     exact ih Δ hd hΓ' ⟨_, hmajor.hasType.2⟩
 
-/-- Instantiating a variable that does not occur is irrelevant: the corresponding argument may be
-replaced by any other term. -/
-theorem _root_.Lean4Lean.VExpr.instOuter_set_of_skips :
-    ∀ (args : List VExpr) (E : VExpr), k < args.length → E.Skips 1 k →
-      E.instOuter args = E.instOuter (args.set (args.length - 1 - k) b) := by
-  intro args
-  induction args with
-  | nil => intro _ h; simp at h
-  | cons a as ih =>
-    intro E hk hs
-    obtain ⟨E', rfl⟩ := VExpr.skips_iff_exists.1 hs
-    simp only [List.length_cons] at hk
-    by_cases hkm : k = as.length
-    · subst hkm
-      simp [VExpr.inst_liftN]
-    · have hk' : k < as.length := by omega
-      have e1 : (VExpr.liftN 1 E' k).inst a as.length = VExpr.liftN 1 (E'.inst a (as.length - 1)) k := by
-        have := VExpr.liftN_instN_lo 1 E' a (as.length - 1) k (by omega)
-        rw [this]; congr 1; omega
-      have e2 : (VExpr.liftN 1 E' k).inst b as.length = VExpr.liftN 1 (E'.inst b (as.length - 1)) k := by
-        have := VExpr.liftN_instN_lo 1 E' b (as.length - 1) k (by omega)
-        rw [this]; congr 1; omega
-      have hidx : (a :: as).length - 1 - k = (as.length - 1 - k) + 1 := by simp; omega
-      rw [hidx, List.set_cons_succ]
-      simp only [VExpr.instOuter_cons, List.length_set]
-      rw [e1]
-      exact ih _ hk' .liftN
-
 /-- `instOuter` at an offset: the first argument replaces the variable `k + args.length - 1`. -/
 def _root_.Lean4Lean.VExpr.instOuterAt : VExpr → List VExpr → Nat → VExpr
   | body, [], _ => body
@@ -533,10 +424,6 @@ theorem _root_.Lean4Lean.VExpr.instDomains_getElem (ds : List VExpr) (a : VExpr)
       simp only [VExpr.instDomains, List.getElem_cons_succ]
       rw [ih _ _ (by simp at h; omega)]
       simp [Nat.add_assoc, Nat.add_comm 1]
-
-theorem _root_.Lean4Lean.VExpr.instDomains_eq_instDomsAt (ds : List VExpr) (a : VExpr) (k : Nat) :
-    VExpr.instDomains ds a k = VExpr.instDomsAt ds [a] k := by
-  induction ds generalizing k <;> simp [VExpr.instDomains, VExpr.instDomsAt, *]
 
 theorem _root_.Lean4Lean.VExpr.instDomsAt_cons_arg (ds : List VExpr) (a : VExpr) (as : List VExpr)
     (k : Nat) :

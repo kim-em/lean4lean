@@ -110,26 +110,6 @@ theorem singletonRecon_lift' {ρ : Lift} {n : Nat} (henv : env.WF)
     (by cases n with | zero => omega | succ n => rfl) H
   simpa only [← lift'_eq_subst] using h
 
-theorem singletonRecon_instL (H : data.singletonRecon env levels all = some (c, fs)) :
-    data.singletonRecon env (levels.map (·.inst packed)) (all.map (·.instL packed)) =
-      some (c.instL packed, fs.map (·.instL packed)) := by
-  unfold singletonRecon at H ⊢
-  simp only [bind, Option.bind_eq_some_iff, pure, Option.some.injEq, Prod.mk.injEq] at H
-  obtain ⟨S, hS, E, hE, rfl, rfl⟩ := H
-  obtain ⟨hS', hP', E', hE', hocc⟩ := occ_instL (packed := packed) hS hE
-  obtain ⟨E'', hE'', hrel⟩ := propElim_instL hE packed
-  cases hE'.symm.trans hE''
-  have hct : E'.ctor = E.ctor.instL packed := hrel.ctor
-  have hocc' := hocc (all.take data.numParams) ((all.drop data.indexOffset).take data.numIndices)
-    (.bvar 0) S.fields.length
-  simp only [VExpr.instL, ← hP'] at hocc'
-  simp only [hS', hE', bind, Option.bind_some, pure, CastSpec.instL, List.length_map,
-    ← List.map_take, ← List.map_drop]
-  have hlen : (S.instL packed).fields.length = S.fields.length := by simp [CastSpec.instL]
-  simp only [CastSpec.instL, List.length_map] at hocc'
-  rw [hocc']
-  simp only [hct, VExpr.instL_mkApps, List.map_append]
-
 private theorem forall₂_take_levels {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b) (n : Nat) :
     List.Forall₂ R (a.take n) (b.take n) := by
   induction H generalizing n with

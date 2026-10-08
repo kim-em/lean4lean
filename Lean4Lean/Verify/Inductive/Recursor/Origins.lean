@@ -45,24 +45,6 @@ structure RecursorTranslatedOriginTypes
   isType : ∀ target ∈ targets,
     R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx target
 
-/-- Select one translated origin type without exposing the internal target
-list representation. -/
-theorem RecursorTranslatedOriginTypes.entryAt
-    (H : RecursorTranslatedOriginTypes (recLparams := recLparams) R origins)
-    (i : Nat) (hi : i < origins.size) :
-    ∃ target,
-      TrExprS R.venv recLparams R.mlctx.vlctx origins[i] target ∧
-      R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx target := by
-  have hlength : origins.toList.length = H.targets.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.translated
-  have hitargets : i < H.targets.length := by
-    simpa using hlength ▸ (by simpa using hi)
-  let target := H.targets[i]
-  have htr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
-    H.translated i (by simpa using hi) hitargets
-  refine ⟨target, ?_, H.isType target (List.getElem_mem hitargets)⟩
-  simpa [target] using htr
-
 def RecursorTranslatedOriginTypes.empty
     (R : RecursorContextWF c recLparams) :
     RecursorTranslatedOriginTypes R #[] where
@@ -242,12 +224,6 @@ def RecursorTranslatedOriginTypeRows.mono
     RecursorTranslatedOriginTypeRows Rcurrent origins where
   rows i hi := (H.rows i hi).mono Hext
 
-def RecursorTranslatedOriginTypeRows.rowAt
-    (H : RecursorTranslatedOriginTypeRows R origins)
-    (i : Nat) (hi : i < origins.size) :
-    RecursorTranslatedOriginTypes R origins[i] :=
-  H.rows i hi
-
 /-- Weaken every retained origin row through one semantically checked local. -/
 def RecursorTranslatedOriginTypeRows.withLocalDecl
     {c : AddInductive.Context} {recLparams : List Name}
@@ -289,29 +265,6 @@ def RecursorTranslatedOriginTypeRows.push
         omega
       subst i
       simpa using Hrow
-
-def FreshBoundFVarArray.weaken
-    (H : FreshBoundFVarArray root c xs)
-    (name : Name) (ty : Expr) (bi : BinderInfo) :
-    FreshBoundFVarArray root { c with
-      ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
-  toBoundFVarArray := H.toBoundFVarArray.weaken name ty bi
-  nodup := H.nodup
-  fresh := H.fresh
-
-/-- Variant of `FreshBoundFVarArray.weaken` for a binder opened in both contexts. -/
-def FreshBoundFVarArray.weakenChecked
-    {base : LocalContext}
-    (H : FreshBoundFVarArray root c xs)
-    (name : Name) (ty : Expr) (bi : BinderInfo) :
-    FreshBoundFVarArray root { c with
-      ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
-  toBoundFVarArray := H.toBoundFVarArray.weakenChecked (base := base) name ty bi
-  nodup := H.nodup
-  fresh := H.fresh
 
 def BoundFVarArray.get
     (H : BoundFVarArray c xs) (i : Nat) (hi : i < xs.size) :
@@ -388,46 +341,6 @@ theorem BoundFVarArray.declarationAt
     kind := kind
     declaration := hdeclaration }⟩
 
-/-- A retained array position has only one local declaration type. -/
-theorem BoundFVarDeclarationAt.type_unique
-    (D₁ D₂ : BoundFVarDeclarationAt c xs i) : D₁.type = D₂.type := by
-  have hfvar : D₁.fvar = D₂.fvar := by
-    apply Expr.fvar.inj
-    exact D₁.expression.symm.trans D₂.expression
-  have hfind : c.lctx.find? D₁.fvar = c.lctx.find? D₂.fvar :=
-    congrArg c.lctx.find? hfvar
-  have hdeclaration := Option.some.inj
-    (D₁.declaration.symm.trans (hfind.trans D₂.declaration))
-  exact congrArg LocalDecl.type hdeclaration
-
-/-- Recover the semantic translation of a retained concrete declaration
-type from the verified recursor local context containing it.  This is the
-direct bridge from first-pass declaration provenance to the abstract local
-context; no re-analysis of the declaration expression is involved. -/
-theorem RecursorContextWF.translatedDeclarationType
-    {c : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF c recLparams)
-    (D : BoundFVarDeclarationAt c xs i) :
-    ∃ target,
-      TrExprS R.venv recLparams R.mlctx.vlctx D.type target := by
-  let decl : LocalDecl := .cdecl D.index D.fvar D.userName D.type
-    D.binderInfo D.kind
-  have hfind : c.lctx.find? D.fvar = some decl := by
-    simpa [decl] using D.declaration
-  have hfind' : R.mlctx.lctx.find? D.fvar = some decl := by
-    rw [R.lctx_eq]
-    exact hfind
-  have hlist := hfind'
-  rw [R.mlctx_wf.tr.1.find?_eq_find?_toList] at hlist
-  have hmem : decl ∈ R.mlctx.lctx.toList :=
-    List.mem_of_find?_eq_some hlist
-  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmem with
-    ⟨_value, target, _hlookup, _hvalueBelow, _htypeBelow,
-      _hvalue, Htype⟩
-  refine ⟨target, ?_⟩
-  change TrExprS R.venv recLparams R.mlctx.vlctx D.type target at Htype
-  exact Htype
-
 /-- Exact declaration provenance survives a verified binding-context
 extension.  In particular the declaration type cannot silently change while
 the retained free variable is threaded through later `mkRecInfos` passes. -/
@@ -495,46 +408,6 @@ def TranslatedOriginTypes.empty (Hc : ContextWF c) :
   targets := []
   translated := .nil
   isType _ h := by simp at h
-
-/-- Append a newly consumed declaration domain and weaken all earlier origin
-translations through the corresponding fresh local declaration. -/
-def TranslatedOriginTypes.push {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : TranslatedOriginTypes Hc origins)
-    (Hdom : Hc.ConsumedDomain dom sourceTarget consumedTarget)
-    (Hdom₀ : Hc.narrow.ConsumedDomain dom sourceTarget₀ consumedTarget₀)
-    (name : Name) (bi : BinderInfo) :
-    let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-      Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-    TranslatedOriginTypes Hc' (origins.push (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)) := by
-  dsimp only
-  let Hc' := Hc.withCheckedLocalDecl (name := name) (bi := bi)
-    Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
-  let W : VLCtx.FVLift Hc.mlctx.vlctx Hc'.mlctx.vlctx 0 1 0 :=
-    .skip_fvar _ _ .refl
-  let liftedTargets := H.targets.map fun target => target.liftN 1 0
-  refine {
-    targets := liftedTargets ++ [consumedTarget.liftN 1 0]
-    translated := ?_
-    isType := ?_ }
-  · rw [Array.toList_push]
-    apply checkPositivityStep.forall₂_append
-    · apply checkPositivityStep.forall₂_map_right H.translated
-      intro source target Hsource
-      exact Hsource.weakFV Hc.checking.tr.wf.ordered W Hc'.mlctx_wf.tr.wf
-    · apply List.Forall₂.cons
-      · exact Hdom.consumed.weakFV Hc.checking.tr.wf.ordered W
-          Hc'.mlctx_wf.tr.wf
-      · exact .nil
-  · intro target htarget
-    simp only [liftedTargets, List.mem_append, List.mem_map,
-      List.mem_singleton] at htarget
-    rcases htarget with ⟨oldTarget, hold, rfl⟩ | rfl
-    · exact (H.isType oldTarget hold).weakN Hc.checking.tr.wf.ordered
-        (.one : Ctx.LiftN 1 0 Hc.mlctx.vlctx.toCtx
-          (consumedTarget :: Hc.mlctx.vlctx.toCtx))
-    · exact Hdom.isType.weakN Hc.checking.tr.wf.ordered
-        (.one : Ctx.LiftN 1 0 Hc.mlctx.vlctx.toCtx
-          (consumedTarget :: Hc.mlctx.vlctx.toCtx))
 
 /-- Two retained declarations for the same expression in one local context
 have the same declaration type.  This deliberately permits different source
@@ -886,30 +759,6 @@ structure RecInfoMinorTraversalShape where
   fieldClosed : terminal.abstractList fieldFVars = fieldResidual
   fieldResidual_not_forall : fieldResidual.isForall = false
 
-/-- The traversal's retained opening identifiers are uniquely determined by
-the concrete field array, independently of the fresh names chosen by the
-checker run. -/
-theorem RecInfoMinorTraversalShape.fieldFVars_eq_bound
-    (T : RecInfoMinorTraversalShape)
-    (B : BoundFVarArray c T.fields) :
-    T.fieldFVars = B.fvars := by
-  have harrays : (T.fieldFVars.map Expr.fvar).toArray =
-      (B.fvars.map Expr.fvar).toArray :=
-    T.fields_eq.symm.trans B.expressions
-  have hlists : T.fieldFVars.map Expr.fvar =
-      B.fvars.map Expr.fvar := by
-    simpa using congrArg Array.toList harrays
-  exact (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hlists
-
-/-- Close a retained traversal using any bound-field certificate for its
-literal field array. -/
-theorem RecInfoMinorTraversalShape.fieldClosed_of_bound
-    (T : RecInfoMinorTraversalShape)
-    (B : BoundFVarArray c T.fields) :
-    T.terminal.abstractList B.fvars = T.fieldResidual := by
-  rw [← T.fieldFVars_eq_bound B]
-  exact T.fieldClosed
-
 /-- Stable source construction for one installed recursive-hypothesis
 declaration.  This compact form is stored with the generated minor after the
 operational `loopU` accumulator itself has gone out of scope. -/
@@ -1087,11 +936,6 @@ theorem RecursorLoopUArgsPrefix.ofCheckRoot {root : AddInductive.Context}
   induction H with
   | root => exact .root
   | push _ next_eq normalization ih => exact .push ih next_eq normalization
-
-def RecursorLoopUArgsInput.closedNormalized
-    (H : RecursorLoopUArgsInput root field)
-    (outerBinders : List FVarId) : Expr :=
-  H.normalizedType.abstractList outerBinders
 
 structure RecInfoMinorHypothesisTypeOrigin
     (stats : AddInductive.InductiveStats)
@@ -1931,42 +1775,6 @@ structure RecursorMotiveTelescopeEvidence
   telescope : RecursorMotiveTelescope resultLevel indices.length family
     familyType motiveType
 
-/-- The family prefix of a validated, well-formed terminal application is
-itself well typed.  This is obtained by retaining the prefix of the complete
-abstract application spine, without choosing or normalizing its type. -/
-theorem RecursorValidatedIndAppAt.familyPrefixTyping
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams}
-    (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
-      stats decl depth exposedType syntaxTarget target)
-    (HsyntaxType : R.venv.IsType recLparams.length
-      R.mlctx.vlctx.toCtx syntaxTarget)
-    {levels : List VLevel} {params indices : List VExpr}
-    (hspine : syntaxTarget.getAppFnArgs =
-      (.const (decl.types[target]'H.target_lt).name levels,
-        params ++ indices)) :
-    ∃ familyType,
-      R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-        (VExpr.mkApps
-          (.const (decl.types[target]'H.target_lt).name levels) params)
-        familyType := by
-  let family := VExpr.mkApps
-    (.const (decl.types[target]'H.target_lt).name levels) params
-  have hrebuild := VExpr.mkApps_getAppFnArgs syntaxTarget
-  rw [hspine] at hrebuild
-  have hsyntax : syntaxTarget = VExpr.mkApps family indices := by
-    rw [← hrebuild]
-    simp [family, VExpr.mkApps, List.foldl_append]
-  have HsyntaxWF : VExpr.WF R.venv recLparams.length
-      R.mlctx.vlctx.toCtx syntaxTarget := by
-    rcases HsyntaxType with ⟨level, Htyped⟩
-    exact ⟨.sort level, Htyped⟩
-  have HfullWF : VExpr.WF R.venv recLparams.length
-      R.mlctx.vlctx.toCtx (VExpr.mkApps family indices) := by
-    rwa [← hsyntax]
-  exact VExpr.WF.mkApps_fn R.checking.tr.wf.ordered
-    R.mlctx_wf.tr.wf.toCtx HfullWF
-
 /-- Fill the syntactic half of shared-telescope evidence directly from the
 validated terminal payload.  The only remaining inputs are the semantic
 typing of the family prefix and its parallel relation to the retained motive
@@ -2220,36 +2028,6 @@ def RecursorCanonicalMotiveTelescope.mono
   family_typing := H.family_typing.mono henv
   familyApplicationType := H.familyApplicationType.mono henv
   telescope := H.telescope
-
-/-- A canonical motive telescope remains directly applicable after adding an
-arbitrary well-formed inner context.  The family prefix and the parallel
-motive type are weakened by the same amount, so a major premise at any
-concrete translated index spine yields the exact motive application type. -/
-theorem RecursorCanonicalMotiveTelescope.applyMajorTypedAfter
-    (C : RecursorCanonicalMotiveTelescope env levelParams stats decl target info
-      elimLevel)
-    (henv : env.WF) (added : List VExpr)
-    (hctx : OnCtx (added.reverse ++ C.params.reverse)
-      (env.IsType levelParams.length))
-    (indexTargets : List VExpr)
-    (hindices : indexTargets.length = C.indices.length)
-    (motive major : VExpr)
-    (Hmotive : env.HasType levelParams.length
-      (added.reverse ++ C.params.reverse) motive
-      (C.motiveType.liftN added.length 0))
-    (Hmajor : env.HasType levelParams.length
-      (added.reverse ++ C.params.reverse) major
-      (VExpr.mkApps (C.family.liftN added.length 0) indexTargets)) :
-    env.HasType levelParams.length (added.reverse ++ C.params.reverse)
-      (.app (VExpr.mkApps motive indexTargets) major)
-      (.sort C.resultLevel) := by
-  have W : Ctx.LiftN added.length 0 C.params.reverse
-      (added.reverse ++ C.params.reverse) := by
-    exact .zero added.reverse (by simp)
-  have Hfamily := C.family_typing.weakN henv.ordered W
-  have Htelescope := C.telescope.liftN added.length 0
-  rw [← hindices] at Htelescope
-  exact Htelescope.applyMajorTyped henv hctx Hfamily Hmotive Hmajor
 
 /-- Context-converted form of `applyMajorTypedAfter`.  This is the equation
 typing interface: the canonical first-pass parameter scope may be replaced
@@ -2836,116 +2614,12 @@ def RecInfoMotiveApplications.empty
     RecInfoMotiveApplications Rroot stats decl #[] elimLevel where
   application target htarget := by simp at htarget
 
-/-- Re-root every existing contract at a later production context.  A use
-still has to provide an extension of the new root; composing inclusions shows
-that it is also a legitimate use of the original contract. -/
-def RecInfoMotiveApplications.mono
-    (H : RecInfoMotiveApplications Rroot stats decl recInfos elimLevel)
-    (Hext : RecursorContextExtension Rroot Rcurrent) :
-    RecInfoMotiveApplications Rcurrent stats decl recInfos elimLevel where
-  application target htarget := fun R Hlater =>
-    H.application target htarget R (Hext.trans Hlater)
-
-/-- Extend the pointwise motive contract in lockstep with the first mutual
-pass.  Earlier contracts are definitionally unchanged by `Array.push`; only
-the newly generated frame needs a fresh semantic application proof. -/
-def RecInfoMotiveApplications.push
-    (H : RecInfoMotiveApplications Rroot stats decl recInfos elimLevel)
-    (next : AddInductive.RecInfo)
-    (Hnext : RecursorMotiveApplicationAt Rroot stats decl recInfos.size next
-      elimLevel) :
-    RecInfoMotiveApplications Rroot stats decl (recInfos.push next)
-      elimLevel where
-  application target htarget := by
-    by_cases hlast : target = recInfos.size
-    · subst target
-      have hget : (recInfos.push next)[recInfos.size]! = next := by simp
-      rw [hget]
-      exact Hnext
-    · have hold : target < recInfos.size := by
-        simp only [Array.size_push] at htarget
-        omega
-      have hget : (recInfos.push next)[target]! = recInfos[target]! := by
-        simp only [Array.getElem!_eq_getD]
-        unfold Array.getD
-        rw [dif_pos htarget, dif_pos hold]
-        exact Array.getElem_push_lt hold
-      rw [hget]
-      exact H.application target hold
-
 def RecInfoMotiveTelescopes.applications
     (H : RecInfoMotiveTelescopes Rroot stats decl parameterCtx recInfos
       elimLevel) :
     RecInfoMotiveApplications Rroot stats decl recInfos elimLevel where
   application target htarget :=
     RecursorMotiveTelescopeAt.toApplication (H.telescope target htarget)
-
-/-- Semantic lookup package for one generated major premise and its exact
-family-application declaration type. -/
-structure RecursorMajorBindingAt
-    {c : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF c recLparams)
-    (stats : AddInductive.InductiveStats)
-    (recInfos : Array AddInductive.RecInfo) (target : Nat) : Type where
-  target_lt : target < recInfos.size
-  majorTarget : VExpr
-  majorTypeTarget : VExpr
-  major : TrExprS R.venv recLparams R.mlctx.vlctx
-    recInfos[target]!.major majorTarget
-  majorType : TrExprS R.venv recLparams R.mlctx.vlctx
-    (((mkAppN (mkAppN stats.indConsts[target]! stats.params)
-      recInfos[target]!.indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)) majorTypeTarget
-  typing : R.venv.HasType recLparams.length R.mlctx.vlctx.toCtx
-    majorTarget majorTypeTarget
-  typeIsType : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx
-    majorTypeTarget
-
-/-- Recover a generated major premise from its retained binding and exact
-positional family-application origin. -/
-theorem RecInfoMajorTypeShapes.majorBindingAt
-    (R : RecursorContextWF c recLparams)
-    (Hbindings : RecInfoBindings c recInfos)
-    (Horigins : RecInfoTypeOrigins c recInfos)
-    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes c.env.isTypeAnnotationWrapper)
-    (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (RecursorMajorBindingAt R stats recInfos target) := by
-  have htargetMap : target < (recInfos.map (·.major)).size := by
-    simpa using htarget
-  rcases Hbindings.majors.declarationAt R.toBindingContextWF target
-      htargetMap with ⟨D⟩
-  have hmajor : recInfos[target]!.major = .fvar D.fvar := by
-    have h := D.expression
-    simpa [Array.getElem!_eq_getD, Array.getD, htarget] using h
-  have htype : D.type =
-      ((mkAppN (mkAppN stats.indConsts[target]! stats.params)
-        recInfos[target]!.indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) :=
-    (Horigins.majors.type_eq D).trans (Hshape.shape target htarget)
-  have hfind := D.declaration
-  rw [R.toBindingContextWF.wf.find?_eq_find?_toList] at hfind
-  have hmember : (.cdecl D.index D.fvar D.userName D.type
-      D.binderInfo D.kind) ∈ c.lctx.toList :=
-    List.mem_of_find?_eq_some hfind
-  have hmember' : (.cdecl D.index D.fvar D.userName D.type
-      D.binderInfo D.kind) ∈ R.mlctx.lctx.toList := by
-    rw [R.lctx_eq]
-    exact hmember
-  rcases R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmember' with
-    ⟨majorTarget, majorTypeTarget, hlookup, _hvalueBelow,
-      _htypeBelow, hmajorTr, hmajorTypeTr⟩
-  have hmajorTyping := R.mlctx_wf.tr.wf.find?_wf
-    R.checking.tr.wf.ordered hlookup
-  refine ⟨{
-    target_lt := htarget
-    majorTarget := majorTarget
-    majorTypeTarget := majorTypeTarget
-    major := ?_
-    majorType := ?_
-    typing := hmajorTyping
-    typeIsType := hmajorTyping.isType R.checking.tr.wf
-      R.mlctx_wf.tr.wf.toCtx }⟩
-  · simpa [Lean.LocalDecl.value', hmajor] using hmajorTr
-  · rw [← htype]
-    simpa only [Lean.LocalDecl.type] using hmajorTypeTr
 
 /-- Recover one motive's complete semantic lookup package from the binding,
 origin, and telescope-shape invariants retained by the first mutual pass. -/
@@ -3769,64 +3443,6 @@ theorem RecInfoMotiveApplications.applyAtMono
       Rcurrent.mlctx_wf.tr.wf.toCtx Hdefeq.symm
   exact Happlications.application target htarget Rcurrent Hext
     Hbinding.toBinding Hexposed HsyntaxType Hmajor HmajorType' Hvalidated
-
-/-- Exact-suffix specialization of `applyAtMono`. -/
-theorem RecInfoMotiveApplications.applyAtRecent
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams} {args : Array Expr}
-    (Happlications : RecInfoMotiveApplications Rroot stats decl recInfos
-      elimLevel)
-    (Hbindings : RecInfoBindings root recInfos)
-    (Horigins : RecInfoTypeOrigins root recInfos)
-    (Hshape : RecInfoMotiveTypeShapes root recInfos
-      Horigins.motiveTypes elimLevel)
-    (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args)
-    (target : Nat) (htarget : target < recInfos.size)
-    {depth : Nat} {exposedType major : Expr}
-    {syntaxTarget terminalTarget majorTarget : VExpr}
-    (Hexposed : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-      exposedType syntaxTarget)
-    (Hdefeq : Rcurrent.venv.IsDefEqU recLparams.length
-      Rcurrent.mlctx.vlctx.toCtx syntaxTarget terminalTarget)
-    (Hterminal : Rcurrent.venv.IsType recLparams.length
-      Rcurrent.mlctx.vlctx.toCtx terminalTarget)
-    (Hmajor : TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-      major majorTarget)
-    (HmajorType : Rcurrent.venv.HasType recLparams.length
-      Rcurrent.mlctx.vlctx.toCtx majorTarget terminalTarget)
-    (Hvalidated : RecursorValidatedIndAppAt Rcurrent.venv recLparams
-      Rcurrent.mlctx.vlctx stats decl depth exposedType syntaxTarget target) :
-    let itIndices := exposedType.getAppArgs[stats.params.size:]
-    let motiveApp := Expr.app
-      (mkAppN recInfos[target]!.motive itIndices) major
-    ∃ motiveTarget,
-      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-        motiveApp motiveTarget ∧
-      Rcurrent.venv.IsType recLparams.length
-        Rcurrent.mlctx.vlctx.toCtx motiveTarget :=
-  Happlications.applyAtMono Hbindings Horigins Hshape Hrecent.contextExtension
-    target htarget Hexposed Hdefeq Hterminal Hmajor HmajorType Hvalidated
-
-/-- Select the matching major premise after a higher-order recursive suffix
-has extended the local context. -/
-theorem RecInfoMajorTypeShapes.majorBindingAtRecent
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams} {args : Array Expr}
-    (Hbindings : RecInfoBindings root recInfos)
-    (Horigins : RecInfoTypeOrigins root recInfos)
-    (Hshape : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
-      root.env.isTypeAnnotationWrapper)
-    (Hrecent : RecursorRecentBoundFVarArray Rroot Rcurrent args)
-    (target : Nat) (htarget : target < recInfos.size) :
-    Nonempty (RecursorMajorBindingAt Rcurrent stats recInfos target) := by
-  have Hshape' : RecInfoMajorTypeShapes stats recInfos Horigins.majorTypes
-      current.env.isTypeAnnotationWrapper := by
-    rw [Hrecent.contextLE.env_eq]; exact Hshape
-  exact Hshape'.majorBindingAt Rcurrent
-    (Hbindings.mono Hrecent.contextLE) (Horigins.mono Hrecent.contextLE)
-    target htarget
 
 theorem RecInfoBindings.empty_noAlias
     {stats : AddInductive.InductiveStats}
@@ -4845,140 +4461,6 @@ theorem RecInfoMinorSemanticSource.sourceType_consumeTypeAnnotations_eq_self
     · change S.motiveApp.isAppOfArity `semiOutParam 1 = false
       exact Expr.isAppOfArity_eq_false_of_getAppFn_fvar hhead _ _
 
-def RecInfoMinorSemanticSource.fieldDomains
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) : List VExpr :=
-  MLCtxForallDomains HS.terminalWF.mlctx S.fields.size
-    HS.fieldsRecent.size_le
-
-def RecInfoMinorSemanticSource.hypothesisDomains
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) : List VExpr :=
-  MLCtxForallDomains HS.sourceWF.mlctx S.hypotheses.size
-    HS.hypothesesRecent.size_le
-
-/-- The domains replayed from consumed field declarations are not expected
-to be syntactically identical to the domains obtained by translating the
-original constructor telescope.  The retained whole-target equality implies
-the correct invariant: their completed dependent contexts are definitionally
-equal over the common root context. -/
-theorem RecInfoMinorSemanticSource.fieldContextDefEq
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) :
-    ∃ sourceDomains sourceResidual,
-      sourceDomains.length = S.fields.size ∧
-      HS.parameterTarget =
-        VExpr.wrapForalls sourceDomains sourceResidual ∧
-      VEnv.IsDefEqCtx HS.rootWF.venv recLparams.length []
-        (sourceDomains.reverse ++ HS.rootWF.mlctx.vlctx.toCtx)
-        (HS.fieldDomains.reverse ++ HS.rootWF.mlctx.vlctx.toCtx) := by
-  rcases TrExprS.forallTelescope_shape HS.traversal.fieldTelescope
-      HS.parameterTranslation with
-    ⟨sourceDomains, sourceResidual, hsourceLength, hparameterTarget⟩
-  have hsourceLength' : sourceDomains.length = S.fields.size :=
-    hsourceLength.trans (congrArg Array.size HS.traversal_fields)
-  have hfieldLength : HS.fieldDomains.length = S.fields.size := by
-    exact HS.terminalWF.onlyLams.forallDomains_length S.fields.size
-      HS.fieldsRecent.size_le
-  have Htarget : HS.rootWF.venv.IsDefEqU recLparams.length
-      HS.rootWF.mlctx.vlctx.toCtx
-      (VExpr.wrapForalls sourceDomains sourceResidual)
-      (VExpr.wrapForalls HS.fieldDomains HS.terminalTarget) := by
-    rw [← hparameterTarget]
-    simpa [RecInfoMinorSemanticSource.fieldDomains,
-      TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using
-        HS.fieldTargetDefEq
-  have Hbase : VEnv.IsDefEqCtx HS.rootWF.venv recLparams.length []
-      HS.rootWF.mlctx.vlctx.toCtx HS.rootWF.mlctx.vlctx.toCtx :=
-    .refl HS.rootWF.mlctx_wf.tr.wf.toCtx
-  exact ⟨sourceDomains, sourceResidual, hsourceLength', hparameterTarget,
-    VEnv.IsDefEqU.wrapForalls_context HS.rootWF.checking.tr.wf Hbase
-      (hsourceLength'.trans hfieldLength.symm) Htarget⟩
-
-/-- Transport the field-context conversion to any later recursor context.
-The consumed domains are exposed after the exact free-variable lift carried
-by the executable context extension; this is the form needed when the minor
-is finally installed among motives and preceding minors. -/
-theorem RecInfoMinorSemanticSource.fieldContextDefEqMono
-    {root current : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {Rcurrent : RecursorContextWF current recLparams}
-    {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource Rroot S)
-    (Hext : RecursorContextExtension HS.rootWF Rcurrent) :
-    ∃ sourceDomains sourceResidual consumedDomains consumedResidual,
-      sourceDomains.length = S.fields.size ∧
-      consumedDomains.length = S.fields.size ∧
-      TrExprS Rcurrent.venv recLparams Rcurrent.mlctx.vlctx
-        HS.traversal.parameterTail
-        (VExpr.wrapForalls sourceDomains sourceResidual) ∧
-      (VExpr.wrapForalls HS.fieldDomains HS.terminalTarget).lift'
-          (Hext.shift.consN 0) =
-        VExpr.wrapForalls consumedDomains consumedResidual ∧
-      VEnv.IsDefEqCtx Rcurrent.venv recLparams.length []
-        (sourceDomains.reverse ++ Rcurrent.mlctx.vlctx.toCtx)
-        (consumedDomains.reverse ++ Rcurrent.mlctx.vlctx.toCtx) := by
-  have Hparameter := Hext.weakTrExprS HS.parameterTranslation
-  rcases TrExprS.forallTelescope_shape HS.traversal.fieldTelescope
-      Hparameter with
-    ⟨sourceDomains, sourceResidual, hsourceLength, hsourceTarget⟩
-  have hsourceLength' : sourceDomains.length = S.fields.size :=
-    hsourceLength.trans (congrArg Array.size HS.traversal_fields)
-  rcases VExpr.lift'_wrapForalls_shape HS.fieldDomains HS.terminalTarget
-      (Hext.shift.consN 0) with
-    ⟨consumedDomains, consumedResidual, hconsumedLength, hconsumedTarget⟩
-  have hfieldLength : HS.fieldDomains.length = S.fields.size := by
-    exact HS.terminalWF.onlyLams.forallDomains_length S.fields.size
-      HS.fieldsRecent.size_le
-  have hconsumedLength' : consumedDomains.length = S.fields.size :=
-    hconsumedLength.trans hfieldLength
-  have HfieldTarget : HS.rootWF.venv.IsDefEqU recLparams.length
-      HS.rootWF.mlctx.vlctx.toCtx HS.parameterTarget
-      (VExpr.wrapForalls HS.fieldDomains HS.terminalTarget) := by
-    simpa [RecInfoMinorSemanticSource.fieldDomains,
-      TypeChecker.MLCtx.mkForall'_eq_wrapForalls] using
-        HS.fieldTargetDefEq
-  have Htarget := Hext.weakDefEqU HfieldTarget
-  rw [hsourceTarget, hconsumedTarget] at Htarget
-  have Hbase : VEnv.IsDefEqCtx Rcurrent.venv recLparams.length []
-      Rcurrent.mlctx.vlctx.toCtx Rcurrent.mlctx.vlctx.toCtx :=
-    .refl Rcurrent.mlctx_wf.tr.wf.toCtx
-  exact ⟨sourceDomains, sourceResidual, consumedDomains, consumedResidual,
-    hsourceLength', hconsumedLength', by
-      rw [← hsourceTarget]
-      exact Hparameter,
-    hconsumedTarget,
-    VEnv.IsDefEqU.wrapForalls_context Rcurrent.checking.tr.wf Hbase
-      (hsourceLength'.trans hconsumedLength'.symm) Htarget⟩
-
-/-- Replay the exact two-stage `mkForall` closure used to construct a minor,
-without passing through its later installed declaration.  The field and
-hypothesis domain lists are therefore the literal targets introduced by the
-first executable pass. -/
-theorem RecInfoMinorSemanticSource.sourceTypeTranslation
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) :
-    TrExprS HS.rootWF.venv recLparams HS.rootWF.mlctx.vlctx S.sourceType
-        (VExpr.wrapForalls HS.fieldDomains
-          (VExpr.wrapForalls HS.hypothesisDomains HS.motiveTarget)) ∧
-      HS.rootWF.venv.IsType recLparams.length HS.rootWF.mlctx.vlctx.toCtx
-        (VExpr.wrapForalls HS.fieldDomains
-          (VExpr.wrapForalls HS.hypothesisDomains HS.motiveTarget)) := by
-  have Hhypotheses := HS.hypothesesRecent.mkForallExact
-    HS.motiveTranslation HS.motiveType
-  have Hfields := HS.fieldsRecent.mkForallExact
-    Hhypotheses.1 Hhypotheses.2
-  have hfields := HS.fieldsRecent.toFreshBoundFVarArray.toBoundFVarArray
-    |>.mkForall_mono HS.hypothesesRecent.contextLE
-      (S.sourceFullContext.lctx.mkForall S.hypotheses S.motiveApp)
-  rw [S.sourceType_eq, ← S.sourceContext_eq, hfields]
-  simpa [RecInfoMinorSemanticSource.fieldDomains,
-    RecInfoMinorSemanticSource.hypothesisDomains] using Hfields
-
 /-- Restrict the shared constructor-tail translation to the cached parameter
 suffix.  The ambient motives and previously generated minors cannot occur in
 that source by the retained field-traversal scope invariant. -/
@@ -4989,31 +4471,6 @@ theorem RecInfoMinorSemanticSource.parameterTranslationAtSuffix
     ∃ target, TrExprS HS.rootWF.venv recLparams
       HS.parameterSuffix.parameterDecls HS.traversal.parameterTail target :=
   HS.parameterTranslation₀
-
-/-- Compare the replayed unconsumed telescope with the exact consumed target
-installed by production, in the original full source context. -/
-theorem RecInfoMinorSemanticSource.replayedSourceDefEqConsumed
-    {c : AddInductive.Context} {recLparams : List Name}
-    {R : RecursorContextWF c recLparams} {S : RecInfoMinorTypeShape}
-    (HS : RecInfoMinorSemanticSource R S) :
-    let replayed :=
-      (VExpr.wrapForalls HS.fieldDomains
-        (VExpr.wrapForalls HS.hypothesisDomains HS.motiveTarget)).lift'
-          ((HS.fieldsRecent.contextExtension.trans
-            HS.hypothesesRecent.contextExtension).shift.consN 0)
-    HS.sourceWF.venv.IsDefEqU recLparams.length
-      HS.sourceWF.mlctx.vlctx.toCtx replayed HS.consumedTarget := by
-  dsimp only
-  have Hreplayed :=
-    (HS.fieldsRecent.contextExtension.trans
-      HS.hypothesesRecent.contextExtension).weakTrExprS
-        HS.sourceTypeTranslation.1
-  have Hsource := Hreplayed.uniq HS.sourceWF.checking.tr.wf
-    (.refl HS.sourceWF.checking.tr.wf HS.sourceWF.mlctx_wf.tr.wf)
-    HS.consumption.source
-  rcases HS.consumption.source_defeq with ⟨level, Hconsumed⟩
-  exact Hsource.trans HS.sourceWF.checking.tr.wf
-    HS.sourceWF.mlctx_wf.tr.wf.toCtx ⟨.sort level, Hconsumed⟩
 
 structure RecInfoMinorSemanticSourceAt
     {c : AddInductive.Context} {recLparams : List Name}

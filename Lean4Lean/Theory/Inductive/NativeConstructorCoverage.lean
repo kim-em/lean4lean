@@ -63,23 +63,6 @@ end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean
 
-/-- Finite compilation retains concrete native equation coverage for every
-source constructor, including when the original derivation is replayed. -/
-theorem CompiledInductive.constructor_equation
-    (H : CompiledInductive env source block) :
-    ∀ ctor ∈ source.constructorConstants, ∃ equation ∈ block.rules, ∃ fn levels args,
-      equation.lhs.stripLams = .app fn (VExpr.mkApps (.const ctor.name levels) args) := by
-  exact CompiledInductive.rec
-    (motive_1 := fun _ source block _ =>
-      ∀ ctor ∈ source.constructorConstants, ∃ equation ∈ block.rules, ∃ fn levels args,
-        equation.lhs.stripLams = .app fn (VExpr.mkApps (.const ctor.name levels) args))
-    (motive_2 := fun _ _ _ => True)
-    (fun data _ _ ctor hctor => data.constructor_equation hctor)
-    (fun _ _ _ ih => ih)
-    trivial
-    (fun _ _ _ _ _ _ _ => trivial)
-    H
-
 /-- Equation installation retains each actual generated rule. -/
 theorem VEnv.addDefEqRules_mem {env : VEnv} (hmem : equation ∈ rules) :
     (env.addDefEqRules rules).defeqs equation := by

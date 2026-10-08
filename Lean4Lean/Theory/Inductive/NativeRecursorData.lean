@@ -60,14 +60,6 @@ def reconstructCanonical (data : NativeRecursorData) (U : Nat) (packed : List VL
   let source ← data.schema.projectionData data.owner (data.sourceLevels packed)
   data.reconstruct U packed (List.replicate source.fields.length .zero) arguments
 
-/-- The reconstructed application has the same native head, universe spine,
-parameters, motives, minors, and indices. Only the major is generated anew. -/
-def reconstructedApplication (data : NativeRecursorData) (U : Nat)
-    (packed fieldSorts : List VLevel) (arguments : List VExpr) : Option VExpr := do
-  let constructor ← data.reconstruct U packed fieldSorts arguments
-  return VExpr.mkApps (.const data.name packed)
-    (arguments.take data.majorOffset ++ [constructor])
-
 /-- Recover a fixed-length native telescope without inspecting the
 possibly functional result of the recursor. -/
 def takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
@@ -125,14 +117,6 @@ def largeTarget (data : NativeRecursorData) : Bool :=
 /-- Source sort at the native occurrence's actual universe specialization. -/
 def sourceLevel (data : NativeRecursorData) (packed : List VLevel) : VLevel :=
   (data.schema.sourceLevel data.owner data.levels).inst packed
-
-/-- Only unconstrained constructor indices permit a delta function at the
-bare recursor constant. A general indexed singleton still needs its actual
-indices before reconstruction can be checked. -/
-def unconstrainedSingleton (data : NativeRecursorData) : Bool :=
-  match data.schema.projectionData data.owner data.levels with
-  | none => false
-  | some projection => projection.unconstrainedIndices
 
 end NativeRecursorData
 end Lean4Lean.InductiveSignature

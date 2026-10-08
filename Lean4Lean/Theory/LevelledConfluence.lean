@@ -72,11 +72,6 @@ theorem NPath.toLoStar (H : NPath R n a b 0) : LoStar R n a b := by
   | lo h _ ih => exact ReflTransGen.trans (.tail .rfl h) (ih hk)
   | hi => cases hk
 
-theorem NPath.ofOpt (H : Opt R n a b) : NPath R n a b 1 ∨ a = b := by
-  rcases H with rfl | h
-  · exact .inr (Eq.refl _)
-  · exact .inl (.hi h .rfl)
-
 theorem NLe.append (H1 : NLe R n a b k₁) (H2 : NLe R n b c k₂) : NLe R n a c (k₁ + k₂) :=
   let ⟨_, h1, p1⟩ := H1; let ⟨_, h2, p2⟩ := H2; ⟨_, Nat.add_le_add h1 h2, p1.append p2⟩
 

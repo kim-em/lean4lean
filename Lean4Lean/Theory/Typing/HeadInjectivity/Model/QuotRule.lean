@@ -59,19 +59,6 @@ def quotLiftDoms : List VExpr := [.sort (.param 0),
 
 theorem quotLiftConst_type : quotLiftConst.type = .wrapForalls quotLiftDoms (.bvar 3) := rfl
 
-theorem quotConst_type : quotConst.type =
-    .wrapForalls [.sort (.param 0), .forallE (.bvar 0) (.forallE (.bvar 1) (.sort .zero))]
-      (.sort (.param 0)) := rfl
-
-theorem wrapForalls_inj_len : ∀ {ds ds' : List VExpr} {b b' : VExpr}, ds.length = ds'.length →
-    VExpr.wrapForalls ds b = VExpr.wrapForalls ds' b' → ds = ds' ∧ b = b'
-  | [], [], _, _, _, h => ⟨rfl, h⟩
-  | d :: ds, d' :: ds', _, _, hl, h => by
-    simp only [VExpr.wrapForalls, List.foldr_cons] at h
-    injection h with h1 h2
-    obtain ⟨rfl, rfl⟩ := wrapForalls_inj_len (Nat.succ.inj hl) h2
-    exact ⟨by rw [h1], rfl⟩
-
 /-- The innermost observation of a typed chain at a telescope ending in a sort is typed at
 that sort only. -/
 theorem chain_terminal_sort : ∀ {ds : List VExpr} {keys : List Key} {o : Ob} {τs : List Ob},
@@ -179,37 +166,6 @@ theorem quot_pf (hlsw : ∀ l ∈ ls, l.WF U) (e0 : ((VLevel.param 0).inst ls).e
   have := typedAt_sort_iff.1 this
   rw [e0] at this
   exact ⟨_, this⟩
-
-/-- The quotient rule is the only rule headed by `Quot.lift`, in an environment whose rules
-are delta rules or the quotient rule. -/
-theorem quot_single (hdr : env.DefRules) (hqd : env.defeqs quotDefEq)
-    (hrules : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq) :
-    ∀ df' ls', env.defeqs df' → df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' →
-      df' = quotDefEq := by
-  intro df' ls' hdf hh
-  rcases hrules df' hdf with ⟨n, ls, h⟩ | rfl
-  · exfalso
-    have hn : n = ``Quot.lift := by rw [h] at hh; injection hh
-    subst hn
-    have := hdr.excl df' quotDefEq hdf hqd _ ls [.param 0, .param 1] h rfl
-    rw [← this] at h
-    exact absurd (quotDefEq_lhs.symm.trans h) VExpr.wrapLams_mkApps_snoc_ne_const
-  · rfl
-
-/-- Uniqueness of the quotient rule for its head and constructor. -/
-theorem quot_uniq (hrules : ∀ df, env.defeqs df → (∃ n ls, df.lhs = .const n ls) ∨ df = quotDefEq) :
-    ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
-      (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
-      env.defeqs df' →
-      df'.lhs = .wrapLams doms' (.mkApps (.const ``Quot.lift lsP')
-        (lead' ++ [.mkApps (.const ctor' lsC') (ms' ++ fs'.map .bvar)])) →
-      df'.rhs = .wrapLams doms' body' →
-      lead'.length = quotLead.length ∧ (ctor' = ``Quot.mk → df' = quotDefEq) := by
-  intro df' doms' lsP' lead' ctor' lsC' ms' fs' body' hdf hl _
-  rcases hrules df' hdf with ⟨_, _, h⟩ | rfl
-  · exact absurd (hl.symm.trans h) VExpr.wrapLams_mkApps_snoc_ne_const
-  · obtain ⟨-, -, -, h, -⟩ := wrapLams_pat_inj (hl.symm.trans quotDefEq_lhs)
-    exact ⟨by rw [h], fun _ => rfl⟩
 
 /-- Uniqueness of the quotient rule for its head and constructor, from its uniqueness per
 head. -/

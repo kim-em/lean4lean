@@ -265,11 +265,5 @@ theorem WF.projectionRigid {env : VEnv} (H : env.WF)
     {name : Name} {info : VProjectionInfo} (hinfo : env.projections name info) :
     env.Rigid name := (H.projectionRigid_both name info hinfo).1
 
-/-- The constructor of a registered structure is rigid: no installed equation
-computes at its head. -/
-theorem WF.projectionCtorRigid {env : VEnv} (H : env.WF)
-    {name : Name} {info : VProjectionInfo} (hinfo : env.projections name info) :
-    env.Rigid info.ctorName := (H.projectionRigid_both name info hinfo).2
-
 end VEnv
 end Lean4Lean

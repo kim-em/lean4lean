@@ -51,13 +51,6 @@ def NativeRecursorRegistered (env : VEnv) (data : NativeRecursorData) : Prop :=
     data.uvars = g.uvars ∧ data.levels = g.levels ∧ data.target = g.targetLevel ∧
     block.install installBase = some installed ∧ installed ≤ env
 
-theorem NativeRecursorRegistered.mono {env env' : VEnv} (hle : env ≤ env')
-    (H : NativeRecursorRegistered env data) : NativeRecursorRegistered env' data := by
-  obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, hprior, hbase, hr, ho, hu, hl, ht, hi, he⟩ := H
-  exact ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
-    hdata, hprior, hbase, hr, ho, hu, hl, ht, hi, he.trans hle⟩
-
 /-- The singleton replay equation is taken from the actual installed finite
 block, with the original instance's universe packing and canonical names. -/
 theorem NativeRecursorRegistered.singletonEquation

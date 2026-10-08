@@ -37,20 +37,6 @@ theorem ProjNamesOK.liftN {ok : Name → Prop} {n : Nat} :
   | .forallE _ _, _, h => ⟨ProjNamesOK.liftN h.1, ProjNamesOK.liftN h.2⟩
   | .proj _ _ _, _, h => ⟨h.1, ProjNamesOK.liftN h.2⟩
 
-/-- The term contains no projection. -/
-def projFree : VExpr → Bool
-  | .bvar _ | .sort _ | .const .. | .elim .. => true
-  | .app f a | .lam f a | .forallE f a => f.projFree && a.projFree
-  | .proj .. => false
-
-theorem ProjNamesOK.of_projFree {ok : Name → Prop} :
-    ∀ {e : VExpr}, e.projFree = true → e.ProjNamesOK ok
-  | .bvar _, _ | .sort _, _ | .const .., _ | .elim .., _ => trivial
-  | .app _ _, h | .lam _ _, h | .forallE _ _, h => by
-    simp only [projFree, Bool.and_eq_true] at h
-    exact ⟨ProjNamesOK.of_projFree h.1, ProjNamesOK.of_projFree h.2⟩
-  | .proj .., h => by simp [projFree] at h
-
 end VExpr
 
 namespace InductiveSignature.CaseSchema
@@ -64,24 +50,6 @@ def ProjNamesRegistered (schema : CaseSchema) (env : VEnv) (key : Name) : Prop :
     df.lhs.ProjNamesOK (fun S => ∃ info, env.projections S info) ∧
     df.rhs.ProjNamesOK (fun S => ∃ info, env.projections S info) ∧
     df.type.ProjNamesOK (fun S => ∃ info, env.projections S info))
-
-/-- A schema whose generic type and equations contain no projection projects only out of
-registered structures, by computation. -/
-theorem projNamesRegistered_of_projFree {schema : CaseSchema} {env : VEnv} {key : Name}
-    (htype : ∀ owner, (schema.genericType owner).all (·.projFree) = true)
-    (hequations : ∀ owner, (schema.genericEquations key owner).all
-      (·.all fun df => df.lhs.projFree && df.rhs.projFree && df.type.projFree) = true) :
-    schema.ProjNamesRegistered env key := by
-  refine ⟨fun owner type h => ?_, fun owner rules h df hdf => ?_⟩
-  · have := htype owner
-    rw [h] at this
-    exact VExpr.ProjNamesOK.of_projFree (by simpa using this)
-  · have := hequations owner
-    rw [h] at this
-    simp only [Option.all_some, List.all_eq_true, Bool.and_eq_true] at this
-    obtain ⟨⟨h1, h2⟩, h3⟩ := this df hdf
-    exact ⟨VExpr.ProjNamesOK.of_projFree h1, VExpr.ProjNamesOK.of_projFree h2,
-      VExpr.ProjNamesOK.of_projFree h3⟩
 
 /-- Registration of projections is monotone along environment extension. -/
 theorem ProjNamesRegistered.mono {schema : CaseSchema} {env env' : VEnv}
@@ -155,25 +123,12 @@ def Fresh (schema : CaseSchema) (env : VEnv) (key : Name) : Prop :=
   ∀ previousKey previous, env.eliminators previousKey previous →
     List.Disjoint schema.originalFamilies previous.originalFamilies
 
-theorem ofCompilation_certified
-    {s : InductiveSignature} {g : Instance s}
-    (H : CompilationData base source expanded s g auxiliaries block)
-    (hprior : CertifiedSpecializations base auxiliaries) :
-    (ofCompilation source s auxiliaries).Certified base source block :=
-  ⟨expanded, auxiliaries, H.toCaseCompilationData, hprior, rfl, rfl, H.recursorNamesFresh⟩
-
 theorem ofCaseCompilation_certified {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s auxiliaries block)
     (hprior : CertifiedSpecializations base auxiliaries)
     (hdisj : RecursorNamesFresh base source expanded auxiliaries) :
     (ofCompilation source s auxiliaries).Certified base source block :=
   ⟨expanded, auxiliaries, H, hprior, rfl, rfl, hdisj⟩
-
-theorem Certified.originalFamilies_nodup {schema : CaseSchema}
-    (H : schema.Certified base source block) : schema.originalFamilies.Nodup := by
-  rcases H with ⟨expanded, auxiliaries, hdata, _, _, hnames, _⟩
-  rw [hnames]
-  exact source.typeNames_nodup hdata.sourceWF.2.1
 
 end InductiveSignature.CaseSchema
 

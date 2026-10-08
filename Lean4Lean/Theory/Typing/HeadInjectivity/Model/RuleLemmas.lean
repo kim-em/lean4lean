@@ -202,24 +202,6 @@ theorem TV.transfer : ∀ {L : List VExpr} {τ v : VExpr.Subst} {S : ObSets},
         have := ih.2 _ _ hLk o ho
         exact TypedAt.lift_iff_tail.2 this
 
-/-- Related substitutions from pointwise equalities on a context prefix, agreeing outside. -/
-theorem SubstEq.of_heads : ∀ {L : List VExpr} {τ v : VExpr.Subst},
-    Ctx.SubstEq env U Δ v v (L ++ Γ) → (∀ x, L.length ≤ x → τ x = v x) →
-    (∀ x A, x < L.length → Lookup (L ++ Γ) x A → env.IsDefEq U Δ (τ x) (v x) (A.subst τ)) →
-    Ctx.SubstEq env U Δ τ v (L ++ Γ)
-  | [], τ, v, W, he, _ => by
-    have : τ = v := funext fun x => he x (Nat.zero_le _)
-    subst this; exact W
-  | A :: L, τ, v, W, he, h => by
-    cases W with
-    | cons W hA _ =>
-      refine .cons (SubstEq.of_heads W (fun x hx => he (x+1) (by simp; omega))
-        fun x B hx hL => ?_) hA ?_
-      · have := h (x+1) B.lift (by simp; omega) hL.succ
-        rwa [VExpr.lift_subst] at this
-      · have := h 0 A.lift (by simp) .zero
-        rwa [VExpr.lift_subst] at this
-
 end
 
 

@@ -35,17 +35,5 @@ theorem NestedIotaListCertificate.ofForall₂
   rules i hctor hrule :=
     Lean4Lean.VerifyInductive.List.Forall₂.getElem H i hctor hrule
 
-/-- Pointwise restored-primary rules can be accumulated without losing their
-source owner/constructor index. -/
-theorem RestoredPrimaryIotaListTrace.prepend
-    {decl : VInductDecl} {block : VInductBlock}
-    {owned : VInductiveType × VConstVal} {rule : VDefEq}
-    {owneds : List (VInductiveType × VConstVal)} {rules : List VDefEq}
-    (Hhead : Nonempty (decl.NestedIotaRule block owned.1 owned.2 rule))
-    (Htail : RestoredPrimaryIotaListTrace decl block owneds rules) :
-    RestoredPrimaryIotaListTrace decl block (owned :: owneds)
-      (rule :: rules) :=
-  List.Forall₂.cons Hhead Htail
-
 end VerifyInductive
 end Lean4Lean

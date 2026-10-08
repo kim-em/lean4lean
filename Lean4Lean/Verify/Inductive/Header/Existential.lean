@@ -80,26 +80,6 @@ def empty (env : VEnv) (Us : List Name) (indTypes : Array InductiveType) :
     CheckedSourceHeaderTraversal env Us indTypes 0 where
   accumulator := CheckedSourceHeaderAccumulator.empty env Us
 
-/-- Advancing `loopInd` by one extends exactly the source prefix selected by
-the next executable array index. -/
-def next (H : CheckedSourceHeaderTraversal env Us indTypes dIdx)
-    (hidx : dIdx < indTypes.size)
-    (payload : CheckedSourceHeaderPayload env Us indTypes[dIdx]) :
-    CheckedSourceHeaderTraversal env Us indTypes (dIdx + 1) where
-  accumulator := by
-    rw [List.take_succ_eq_append_getElem (by simpa using hidx)]
-    exact H.accumulator.snoc indTypes[dIdx] payload
-
-/-- At loop termination, exact prefix coverage is coverage of the entire
-mutual source block. -/
-def complete (H : CheckedSourceHeaderTraversal env Us indTypes dIdx)
-    (hdone : indTypes.size ≤ dIdx) :
-    CheckedSourceHeaderAccumulator env Us indTypes.toList := by
-  have htake : indTypes.toList.take dIdx = indTypes.toList :=
-    List.take_of_length_le (by simpa using hdone)
-  rw [← htake]
-  exact H.accumulator
-
 end CheckedSourceHeaderTraversal
 
 namespace CheckedSourceHeaderTranslation

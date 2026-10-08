@@ -11,63 +11,6 @@ variable {env env' : VEnv} {T : Tables}
 
 /-! ## Constant occurrences with their universe arity -/
 
-/-- Every constant occurrence is declared, at its universe arity. -/
-def ConstsWF (env : VEnv) : VExpr → Prop
-  | .const name levels => ∃ ci, env.constants name = some ci ∧ levels.length = ci.uvars
-  | .app f a | .lam f a | .forallE f a => ConstsWF env f ∧ ConstsWF env a
-  | .proj _ _ e => ConstsWF env e
-  | _ => True
-
-theorem IsDefEqStrong.constsWF {U Γ left right type}
-    (h : IsDefEqStrong env U Γ left right type) : ConstsWF env left ∧ ConstsWF env right := by
-  induction h with
-  | bvar | sortDF | elimDF => exact ⟨trivial, trivial⟩
-  | constDF lookup _ _ hlen hrel => exact ⟨⟨_, lookup, hlen⟩, ⟨_, lookup, (Lean4Lean.List.Forall₂.length_eq hrel) ▸ hlen⟩⟩
-  | symm _ ih => exact ih.symm
-  | trans _ _ ih₁ ih₂ => exact ⟨ih₁.1, ih₂.2⟩
-  | appDF _ _ _ _ _ _ _ _ _ fn arg _ =>
-    exact ⟨⟨fn.1, arg.1⟩, ⟨fn.2, arg.2⟩⟩
-  | projDF _ _ _ _ _ _ _ _ _ _ _ _ _ first second => exact ⟨first.2, second.2⟩
-  | lamDF _ _ _ _ _ _ _ domain _ _ body _ =>
-    exact ⟨⟨domain.1, body.1⟩, ⟨domain.2, body.2⟩⟩
-  | forallEDF _ _ _ _ _ domain body _ =>
-    exact ⟨⟨domain.1, body.1⟩, ⟨domain.2, body.2⟩⟩
-  | defeqDF _ _ _ _ ih => exact ih
-  | beta _ _ _ _ _ _ _ _ domain _ body arg _ result =>
-    exact ⟨⟨⟨domain.1, body.1⟩, arg.1⟩, result.1⟩
-  | eta _ _ _ _ _ _ _ _ domain _ _ fn lifted _ =>
-    exact ⟨⟨domain.1, lifted.1, trivial⟩, fn.1⟩
-  | proofIrrel _ _ _ _ left right => exact ⟨left.1, right.1⟩
-  | extra _ _ _ _ _ _ _ _ _ _ _ _ left right => exact ⟨left.1, right.1⟩
-  | elimIota _ _ _ _ _ _ _ _ _ _ left right => exact ⟨left.1, right.1⟩
-  | projIota _ _ _ _ left right => exact ⟨left.1, right.1⟩
-  | structEta _ _ _ _ _ right left => exact ⟨left.1, right.1⟩
-  | unitLike _ _ _ _ _ _ left right => exact ⟨left.1, right.1⟩
-
-theorem ConstsWF.mkApps_head {f : VExpr} (h : ConstsWF env (VExpr.mkApps f args)) :
-    ConstsWF env f := by
-  induction args generalizing f with
-  | nil => exact h
-  | cons a args ih => exact (ih (f := .app f a) h).1
-
-theorem ConstsWF.wrapForalls_body (h : ConstsWF env (VExpr.wrapForalls doms body)) :
-    ConstsWF env body := by
-  induction doms with
-  | nil => exact h
-  | cons _ _ ih => exact ih h.2
-
-/-- A constructor of an ordered environment uses its family at the family's universe arity. -/
-theorem family_uvars_of_ctor (henv : env.Ordered) (hc : env.constants c = some ci)
-    (hshape : ci.type = VExpr.wrapForalls doms (VExpr.mkApps (.const F ls) args))
-    (hF : env.constants F = some ciF) : ls.length = ciF.uvars := by
-  obtain ⟨u, ht⟩ := henv.constWF hc
-  have h := (IsDefEqStrong.constsWF (ht.strong henv (Γ := []) ⟨⟩)).1
-  rw [hshape] at h
-  obtain ⟨ci', hci', hlen⟩ := h.wrapForalls_body.mkApps_head
-  rw [hF] at hci'
-  cases hci'
-  exact hlen
-
 /-! ## Constructor names of a certified schema -/
 
 theorem forall₂_prefix {R : α → β → Prop} {as : List α} {bs cs : List β}
@@ -101,8 +44,6 @@ theorem Certified.mem_schemaCtorNames {schema : CaseSchema}
 
 /-! ## Eliminator registration -/
 
-def selAll (_ : VInductiveType) : Bool := true
-
 /-- A family none of whose names (its own and its constructors') is recorded yet. -/
 noncomputable def selFree (T : Tables) (t : VInductiveType) : Bool := by
   classical
@@ -121,10 +62,6 @@ noncomputable def selFreeIn (env : VEnv) (T : Tables) (t : VInductiveType) : Boo
 
 theorem selFree_of_selFreeIn (h : selFreeIn env T t = true) : selFree T t = true := by
   simp only [selFreeIn, Bool.and_eq_true] at h; exact h.1
-
-theorem not_reserved_of_selFreeIn (h : selFreeIn env T t = true) :
-    ¬SchemaCtorReserved env t.name := by
-  simp only [selFreeIn, Bool.and_eq_true, decide_eq_true_eq] at h; exact h.2
 
 /-- Record the views of a schema's families none of whose names is recorded yet (family by
 family: a family of the schema that is not otherwise registered is recorded here, so every
@@ -358,8 +295,6 @@ theorem Tables.Inv.registerCasesProjections {base envTypes envCtors : VEnv}
 
 /-! ## Structure registration -/
 
-def selStruct (t : VInductiveType) : Bool := t.ctors.length == 1
-
 end Lean4Lean.EnvTables
 
 namespace Lean4Lean.EnvTables
@@ -382,41 +317,5 @@ theorem Tables.empty_inv : Tables.empty.Inv VEnv.empty where
     witness := fun h => (h.elim (· rfl) (· rfl)).elim }
   equations h := by cases h
   projections h := by cases h
-
-theorem VEnv.WF'.tables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
-    ∃ T : Tables, T.Inv env := by
-  induction H with
-  | empty => exact ⟨_, Tables.empty_inv⟩
-  | @decl d env' ds env hdecl hprev ih =>
-    obtain ⟨T, hT⟩ := ih
-    have henv : env.WF := ⟨ds, hprev⟩
-    have henv' : env'.WF := ⟨d :: ds, .decl hdecl hprev⟩
-    cases hdecl with
-    | «axiom» _ hadd =>
-      exact ⟨T, hT.transport (VEnv.addConst_le hadd) (VEnv.addConst_defeqs hadd)
-        (VEnv.addConst_projections hadd)⟩
-    | «opaque» _ hadd =>
-      exact ⟨T, hT.transport (VEnv.addConst_le hadd) (VEnv.addConst_defeqs hadd)
-        (VEnv.addConst_projections hadd)⟩
-    | «example» => exact ⟨T, hT⟩
-    | @«def» _ _ ci _ hadd =>
-      exact ⟨_, hT.addDefinitions (cis := [ci]) (by simpa [VEnv.addConsts] using hadd)⟩
-    | mutualDef _ hadd _ => exact ⟨_, hT.addDefinitions hadd⟩
-    | quot _ hadd => exact ⟨_, hT.addQuot henv henv' hadd⟩
-    | induct _ hadd =>
-      cases hadd with
-      | intro _ hcompile hblock _ hinstall =>
-        obtain ⟨T', _, hT'⟩ := hT.install henv hcompile hblock hinstall
-        exact ⟨T', hT'⟩
-  | inductEliminators hbase _ hle hcert _ hconsts _ _ _ ih =>
-    obtain ⟨T, hT⟩ := ih
-    exact ⟨_, (hT.eliminator ⟨_, hbase⟩ hle hcert hconsts.1 hconsts.2.1).2⟩
-  | inductProjections hbase _ hcovered _ _ _ _ _ _ _ _ _ htypes hctors ihBase _ =>
-    obtain ⟨T, hT⟩ := ihBase
-    obtain ⟨key, schema, hE, hcert, -, -⟩ := hcovered
-    exact ⟨_, (hT.registerCasesProjections ⟨_, hbase⟩ hE hcert htypes hctors).2⟩
-
-theorem VEnv.WF.tables {env : VEnv} (H : env.WF) : ∃ T : Tables, T.Inv env :=
-  VEnv.WF'.tables H.choose_spec
 
 end Lean4Lean.EnvTables

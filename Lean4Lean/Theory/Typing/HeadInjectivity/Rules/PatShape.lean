@@ -31,13 +31,6 @@ structure VDefEq.PatShape (df : VDefEq) (head : VExpr) : Prop where
     df.rhs = VExpr.wrapLams doms body ∧ df.type = VExpr.wrapForalls doms T ∧
     PatArgs doms.length args
 
-theorem PatArgs.nil : PatArgs 0 [] := .inl ⟨rfl, rfl⟩
-
-/-- A definition `const c ls ≡ value` is the degenerate pattern. -/
-theorem VDefEq.PatShape.ofConst {df : VDefEq} (h : df.lhs = .const c ls) :
-    df.PatShape (.const c ls) :=
-  ⟨⟨[], [], df.rhs, df.type, h, rfl, rfl, .nil⟩⟩
-
 theorem VExpr.wrapLams_mkApps_snoc_ne_const {ds as : List VExpr} {f a : VExpr} :
     VExpr.wrapLams ds (VExpr.mkApps f (as ++ [a])) ≠ .const n ls := by
   cases ds with
@@ -203,15 +196,6 @@ theorem Instance.equation_patShape_strong {s : InductiveSignature} (g : Instance
     by_cases hxf : x < nf
     · exact .inr (by simpa using hxf)
     · exact .inl (List.mem_append_left _ (mem_vars (by omega) (by omega)))
-
-theorem Instance.equation_patShape {s : InductiveSignature} (g : Instance s)
-    (index : Fin s.constructors.size) (mode : HeadMode) {r : Restoration} {df : VDefEq}
-    (hparams : ∀ h ∈ r.heads, h.nparams ≤ s.params.length)
-    (hhead : ∀ n ls, g.recursorHead mode s.constructors[index].owner = .const n ls →
-      ∀ h ∈ r.heads, h.auxiliary ≠ n)
-    (he : r.equation (g.equation index mode) = some df) :
-    df.PatShape (r.headOf (g.recursorHead mode s.constructors[index].owner)) :=
-  (g.equation_patShape_strong index mode hparams hhead he).1
 
 end InductiveSignature
 end Lean4Lean

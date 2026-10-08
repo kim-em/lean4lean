@@ -299,13 +299,6 @@ theorem InductiveSignature.insertBinders_take (l : List VExpr) (n k : Nat) :
   · intro i _ _
     simp [InductiveSignature.insertBinders]
 
-@[simp] theorem InductiveSignature.insertBinders_zero (l : List VExpr) :
-    InductiveSignature.insertBinders l 0 = l := by
-  apply List.ext_getElem
-  · simp [InductiveSignature.insertBinders]
-  · intro i _ _
-    simp [InductiveSignature.insertBinders]
-
 /-- A selected recursive field is one of the opened field variables. -/
 theorem RecInfoMinorTypeShape.recursiveField_pos (S : RecInfoMinorTypeShape)
     {env : VEnv} {decl : VInductDecl} {uvars : Nat}

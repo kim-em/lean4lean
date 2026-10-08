@@ -202,13 +202,6 @@ theorem forall₂_cls {σ : VExpr.Subst} {S : ObSets} :
   | _ :: _, _ :: _, _ :: _, _ :: _, .cons h1 t1, .cons ⟨_, h2, _⟩ t2, .cons ⟨h3, _⟩ t3 =>
     .cons (by rw [h1, h2]; exact h3) (forall₂_cls t1 t2 t3)
 
-theorem extS_congr : ∀ {keys'' keys' : List Key},
-    List.Forall₂ (fun (k'' k' : Key) => k''.2 = k'.2) keys'' keys' →
-    ∀ S, extS S keys'' = extS S keys'
-  | [], [], .nil, _ => rfl
-  | _ :: _, _ :: _, .cons h t, S => by
-    simp only [extS, List.foldl_cons]; rw [h]; exact extS_congr t _
-
 /-- The valuation of a constant spine over a syntactic telescope, at every prefix. -/
 theorem spine_tele_prefix (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
     {Γ : List VExpr} {c : Name} {ls : List VLevel} {args : List VExpr} {T : VExpr}

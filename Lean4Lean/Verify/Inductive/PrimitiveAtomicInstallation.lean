@@ -432,23 +432,6 @@ theorem _root_.Lean4Lean.inductInfo_zip_noCtor {infos : List InductiveVal}
   rw [← hfst] at heq
   cases heq
 
-/-- A lookup absent from the source stays absent when none of the exact
-atomic entries uses that name. -/
-theorem AtomicAddConstants.preservesFindNone
-    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF)
-    (hsource : env.find? name = none)
-    (hentries : ∀ entry ∈ entries, entry.1.name ≠ name) :
-    outEnv.find? name = none := by
-  cases hfind : outEnv.find? name with
-  | none => rfl
-  | some found =>
-      rcases H.entryOrigin hwf hfind with hold |
-          ⟨entry, hentry, hname, _hfound⟩
-      · rw [hsource] at hold
-        contradiction
-      · exact False.elim (hentries entry hentry hname.symm)
-
 /-- Every entry of an atomic batch is fresh with respect to the batch's
 starting environment. -/
 theorem AtomicAddConstants.entryFresh

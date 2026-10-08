@@ -141,21 +141,6 @@ variable {venv venv' : VEnv}
 
 /-! ## Rigidity -/
 
-/-- Every constant rigid in `venv` stays rigid in `venv'`. -/
-def VEnv.RigidPreserving (venv venv' : VEnv) : Prop := ∀ c, venv.Rigid c → venv'.Rigid c
-
-theorem VEnv.RigidPreserving.rfl : VEnv.RigidPreserving venv venv := fun _ h => h
-
-theorem VEnv.RigidPreserving.trans (h1 : VEnv.RigidPreserving venv₁ venv₂)
-    (h2 : VEnv.RigidPreserving venv₂ venv₃) : VEnv.RigidPreserving venv₁ venv₃ :=
-  fun c h => h2 c (h1 c h)
-
-theorem VEnv.RigidPreserving.addConst (h : venv.addConst name ci = some venv') :
-    VEnv.RigidPreserving venv venv' := by
-  intro c hc df hdf
-  rw [VEnv.addConst_defeqs h] at hdf
-  exact hc df hdf
-
 /-- Adding an equation headed (under its lambdas) by a constant that is not `c` keeps `c` rigid. -/
 theorem VEnv.Rigid.addDefEq (hc : venv.Rigid c)
     (hhead : ∀ ls, df.lhs.stripLams.getAppFnArgs.1 ≠ .const c ls) :
@@ -164,25 +149,6 @@ theorem VEnv.Rigid.addDefEq (hc : venv.Rigid c)
   rcases hdf' with rfl | hdf'
   · exact hhead ls
   · exact hc df' hdf' ls
-
-/-- Adding an equation headed by a constant not yet in the environment keeps every existing
-constant rigid. -/
-theorem VEnv.RigidPreserving.addDefEq_fresh {head : Name}
-    (hhead : ∀ ls, df.lhs.stripLams.getAppFnArgs.1 = .const head ls)
-    (hfresh : venv.constants head = none) :
-    ∀ c, venv.contains c → venv.Rigid c → (venv.addDefEq df).Rigid c := by
-  intro c ⟨ci, hci⟩ hc
-  refine hc.addDefEq fun ls h => ?_
-  rw [hhead ls] at h
-  cases h
-  rw [hfresh] at hci
-  cases hci
-
-theorem VEnv.RigidPreserving.addProjections (entries : List VProjectionEntry) :
-    VEnv.RigidPreserving venv (venv.addProjections entries) := by
-  intro c hc df hdf
-  rw [VEnv.addProjections_defeqs] at hdf
-  exact hc df hdf
 
 theorem VEnv.addDefEqRules_defeqs_iff : ∀ {dfs : List VDefEq} {env : VEnv} {df : VDefEq},
     (env.addDefEqRules dfs).defeqs df ↔ env.defeqs df ∨ df ∈ dfs
@@ -291,12 +257,6 @@ theorem RecursorAlignmentCore.toAlignment (H : RecursorAlignmentCore venv rec)
   let ⟨cnparams, indLevels, ctorParams, hs, hrules⟩ := H
   ⟨cnparams, indLevels, ctorParams, hs, hrigid, hrules⟩
 
-theorem RecursorAlignment.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving venv venv')
-    (H : RecursorAlignment venv rec) : RecursorAlignment venv' rec :=
-  let ⟨cnparams, indLevels, ctorParams, ⟨s⟩, hrigid, hrules⟩ := H
-  ⟨cnparams, indLevels, ctorParams, ⟨s.mono h⟩, hr _ hrigid, fun rule hrule =>
-    let ⟨df, hdf⟩ := hrules rule hrule; ⟨df, hdf.mono h ⟨_, s.const⟩⟩⟩
-
 theorem KLikeAlignment.mono (h : venv ≤ venv')
     (H : KLikeAlignment venv rec ctorName) : KLikeAlignment venv' rec ctorName := by
   obtain ⟨indUvars, indType, ctorType, indDoms, ctorDoms, ctorBody,
@@ -311,15 +271,6 @@ theorem KLikeRecursor.mono {C C' : ConstMap} (h : venv ≤ venv')
     (H : KLikeRecursor C venv rec) : KLikeRecursor C' venv' rec := fun hk =>
   let ⟨info, ctorName, hfind, hctors, halign⟩ := H hk
   ⟨info, ctorName, hC hfind, hctors, halign.mono h⟩
-
-theorem QuotCoherent.mono (h : venv ≤ venv') (hr : VEnv.RigidPreserving venv venv')
-    (H : QuotCoherent venv) : QuotCoherent venv' where
-  quot := h.constants H.quot
-  quotMk := h.constants H.quotMk
-  lift := h.constants H.lift
-  ind := h.constants H.ind
-  defeq := h.defeqs H.defeq
-  rigid := hr _ H.rigid
 
 theorem QuotCoherent.mono_of_rigid (h : venv ≤ venv') (hr : venv'.Rigid ``Quot)
     (H : QuotCoherent venv) : QuotCoherent venv' where
@@ -361,45 +312,6 @@ theorem EquationHeadsCoherent.rigid_of_fresh {C : ConstMap} (H : EquationHeadsCo
   cases hhead
   rw [h] at hci
   cases hci
-
-theorem EquationHeadsCoherent.mapExt {C C' : ConstMap} (H : EquationHeadsCoherent C venv)
-    (h : ∀ name, C.find? name = C'.find? name) : EquationHeadsCoherent C' venv := by
-  intro df hdf
-  obtain ⟨head, ls, ci, hhead, hci, hne, hq⟩ := H df hdf
-  exact ⟨head, ls, ci, hhead, (h head).symm.trans hci, hne, hq⟩
-
-theorem EquationHeadsCoherent.insert {C : ConstMap} (H : EquationHeadsCoherent C venv) (hwf : C.WF)
-    (hfresh : C.find? n = none) : EquationHeadsCoherent (C.insert n ci) venv := by
-  intro df hdf
-  obtain ⟨head, ls, ci', hhead, hci, hne, hq⟩ := H df hdf
-  refine ⟨head, ls, ci', hhead, ?_, hne, hq⟩
-  rw [hwf.find?_insert]
-  split
-  · rename_i heq; rw [beq_iff_eq] at heq; subst heq; rw [hfresh] at hci; cases hci
-  · exact hci
-
-theorem EquationHeadsCoherent.addConst {C : ConstMap} (H : EquationHeadsCoherent C venv)
-    (h : venv.addConst n ci = some venv') : EquationHeadsCoherent C venv' := by
-  intro df hdf
-  rw [VEnv.addConst_defeqs h] at hdf
-  exact H df hdf
-
-theorem EquationHeadsCoherent.addProjections {C : ConstMap} (H : EquationHeadsCoherent C venv)
-    (entries : List VProjectionEntry) : EquationHeadsCoherent C (venv.addProjections entries) := by
-  intro df hdf
-  rw [VEnv.addProjections_defeqs] at hdf
-  exact H df hdf
-
-/-- Adding an equation headed by a non-inductive constant of `C`. -/
-theorem EquationHeadsCoherent.addDefEq {C : ConstMap} (H : EquationHeadsCoherent C venv)
-    (hhead : ∃ head ls ci, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
-      C.find? head = some ci ∧ (∀ info, ci ≠ .inductInfo info) ∧
-      (∀ q, ci = .quotInfo q → q.kind = .lift)) :
-    EquationHeadsCoherent C (venv.addDefEq df) := by
-  intro df' hdf'
-  rcases hdf' with rfl | hdf'
-  · exact hhead
-  · exact H df' hdf'
 
 /-! ## Transport of the carried facts
 
@@ -478,11 +390,6 @@ theorem RecursorEnvCoherent.extendSimple {C C' : ConstMap}
     RecursorEnvCoherent safety C' venv' :=
   H.extend hpres (fun h hs => .inl (hrec h hs)) hle fun df hdf => .inl (hdefeq df hdf)
 
-theorem RecursorEnvCoherent.mapExt {C C' : ConstMap} (H : RecursorEnvCoherent safety C venv)
-    (h : ∀ name, C.find? name = C'.find? name) : RecursorEnvCoherent safety C' venv :=
-  H.extendSimple (fun {n _} hn => (h n).symm.trans hn)
-    (fun {n _} hn _ => (h n).trans hn) VEnv.LE.rfl fun _ hdf => hdf
-
 theorem RecursorEnvCoherent.addProjections {C : ConstMap} (H : RecursorEnvCoherent safety C venv)
     (entries : List VProjectionEntry) :
     RecursorEnvCoherent safety C (venv.addProjections entries) :=
@@ -524,11 +431,6 @@ theorem RecursorEnvCoherent.insertInvisible {C : ConstMap}
     split at hm
     · cases Option.some.inj hm; exact absurd hs hinvisible
     · exact hm
-
-theorem RecursorEnvCoherent.addConst {C : ConstMap} (H : RecursorEnvCoherent safety C venv)
-    (h : venv.addConst n ci = some venv') : RecursorEnvCoherent safety C venv' :=
-  H.extendSimple (fun h => h) (fun h _ => h) (VEnv.addConst_le h) fun df hdf => by
-    rwa [VEnv.addConst_defeqs h] at hdf
 
 /-- Adding an equation headed by an acceptable constant of `C`. -/
 theorem RecursorEnvCoherent.addDefEq {C : ConstMap} (H : RecursorEnvCoherent safety C venv)
@@ -589,11 +491,6 @@ theorem QuotEnvCoherent.extend {C C' : ConstMap} (H : QuotEnvCoherent C venv)
     QuotEnvCoherent C' venv' :=
   let ⟨q, hq, hk⟩ := H.find
   ⟨H.coherent.mono_of_rigid hle (hheads.rigid_quot (hpres hq) hk), q, hpres hq, hk⟩
-
-theorem QuotEnvCoherent.mapExt {C C' : ConstMap} (H : QuotEnvCoherent C venv)
-    (h : ∀ name, C.find? name = C'.find? name) : QuotEnvCoherent C' venv :=
-  let ⟨q, hq, hk⟩ := H.find
-  ⟨H.coherent, q, (h _).symm.trans hq, hk⟩
 
 /-- Rebase an installation certificate to larger environments that add the same equations. -/
 theorem InductiveRecursorProvenance.mono {m₁ m₂ : ConstMap} {env₁ env₂ env₁' env₂' : VEnv}

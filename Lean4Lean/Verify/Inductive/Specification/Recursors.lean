@@ -31,27 +31,6 @@ theorem RecursorBuildCertificate.empty (decl : VInductDecl) :
   covered := Nat.zero_le _
   shapes _ h := by simp at h
 
-theorem RecursorBuildCertificate.push
-    (H : RecursorBuildCertificate decl recursors)
-    (hnext : recursors.length < decl.types.length)
-    (hshape : Nonempty
-      (decl.RecursorShape decl.types[recursors.length] recursor)) :
-    RecursorBuildCertificate decl (recursors ++ [recursor]) where
-  covered := by simp; omega
-  shapes i hrec htype := by
-    by_cases hi : i < recursors.length
-    · simpa [List.getElem_append, hi] using H.shapes i hi htype
-    · have hieq : i = recursors.length := by simp at hrec; omega
-      subst i
-      simpa using hshape
-
-theorem RecursorBuildCertificate.complete
-    (H : RecursorBuildCertificate decl recursors)
-    (hcomplete : recursors.length = decl.types.length) :
-    RecursorCertificate decl recursors where
-  length := hcomplete
-  shapes i htype hrec := H.shapes i hrec htype
-
 theorem RecursorCertificate.forall₂
     (H : RecursorCertificate decl recursors) :
     List.Forall₂ (fun type recursor =>
@@ -79,14 +58,6 @@ theorem NestedRecursorCertificate.forall₂
   intro i htype hrec
   exact H.shapes i htype hrec
 
-theorem RecursorCertificate.toNested
-    (H : RecursorCertificate decl recursors) :
-    NestedRecursorCertificate decl recursors where
-  length := H.length
-  shapes i htype hrec := by
-    rcases H.shapes i htype hrec with ⟨Hshape⟩
-    exact ⟨Hshape.toNested⟩
-
 /-- Indexed output certificate for exactly one iota rule per owned
 constructor, in the same flattened order used for minors. -/
 structure IotaCertificate (env : VEnv) (decl : VInductDecl)
@@ -105,16 +76,6 @@ theorem IotaCertificate.forall₂
   apply List.forall₂_of_getElem H.length.symm
   intro i hctor hrule
   exact H.rules i hctor hrule
-
-/-- Rule-list certificate used when nested restoration appends auxiliary
-rules after the primary rules corresponding to source constructors. -/
-structure IotaListCertificate (env : VEnv) (decl : VInductDecl)
-    (block : VInductBlock) (ruleList : List VDefEq) : Prop where
-  length : ruleList.length = decl.ownedConstructors.length
-  rules : ∀ i (hctor : i < decl.ownedConstructors.length)
-      (hrule : i < ruleList.length),
-    Nonempty (decl.IotaRule env block decl.ownedConstructors[i].1
-      decl.ownedConstructors[i].2 ruleList[i])
 
 /-- Append-oriented iota invariant matching the per-family batches emitted by
 `mkRecRules`. The rule list may later become either the complete ordinary
@@ -173,28 +134,12 @@ theorem IotaBuildCertificate.append
           simpa [Nat.add_assoc, Nat.add_comm 1 i] using h)
       simpa [List.append_assoc] using Htail
 
-theorem IotaBuildCertificate.complete
-    (H : IotaBuildCertificate env decl block rules)
-    (hcomplete : rules.length = decl.ownedConstructors.length) :
-    IotaListCertificate env decl block rules where
-  length := hcomplete
-  rules i hctor hrule := H.shapes i hrule hctor
-
 theorem IotaBuildCertificate.completeBlock
     (H : IotaBuildCertificate env decl block block.rules)
     (hcomplete : block.rules.length = decl.ownedConstructors.length) :
     IotaCertificate env decl block where
   length := hcomplete
   rules i hctor hrule := H.shapes i hrule hctor
-
-theorem IotaListCertificate.forall₂
-    (H : IotaListCertificate env decl block ruleList) :
-    List.Forall₂ (fun owned rule =>
-      Nonempty (decl.IotaRule env block owned.1 owned.2 rule))
-      decl.ownedConstructors ruleList := by
-  apply List.forall₂_of_getElem H.length.symm
-  intro i hctor hrule
-  exact H.rules i hctor hrule
 
 /-- Complete restored-primary equation list for a nested declaration.  Its
 pointwise judgment permits the auxiliary motive/minor telescope retained by
@@ -222,46 +167,6 @@ theorem NestedIotaBuildCertificate.empty
     NestedIotaBuildCertificate decl block [] where
   covered := Nat.zero_le _
   shapes _ h := by simp at h
-
-theorem NestedIotaBuildCertificate.push
-    (H : NestedIotaBuildCertificate decl block rules)
-    (hnext : rules.length < decl.ownedConstructors.length)
-    (hshape : Nonempty (decl.NestedIotaRule block
-      decl.ownedConstructors[rules.length].1
-      decl.ownedConstructors[rules.length].2 rule)) :
-    NestedIotaBuildCertificate decl block (rules ++ [rule]) where
-  covered := by simp; omega
-  shapes i hrule hctor := by
-    by_cases hold : i < rules.length
-    · simpa [List.getElem_append, hold] using H.shapes i hold hctor
-    · have hi : i = rules.length := by simp at hrule; omega
-      subst i
-      simpa using hshape
-
-theorem NestedIotaBuildCertificate.append
-    (H : NestedIotaBuildCertificate decl block rules)
-    (hlen : newRules.length + rules.length ≤
-      decl.ownedConstructors.length)
-    (hshapes : ∀ i (hi : i < newRules.length),
-      Nonempty (decl.NestedIotaRule block
-        decl.ownedConstructors[rules.length + i].1
-        decl.ownedConstructors[rules.length + i].2 newRules[i])) :
-    NestedIotaBuildCertificate decl block (rules ++ newRules) := by
-  induction newRules generalizing rules with
-  | nil => simpa using H
-  | cons rule newRules ih =>
-      have hnext : rules.length < decl.ownedConstructors.length := by
-        simp at hlen
-        omega
-      have hhead := hshapes 0 (by simp)
-      have Hpush := H.push hnext (by simpa using hhead)
-      have Htail := ih Hpush (by
-          simp at hlen ⊢
-          omega) (by
-          intro i hi
-          have h := hshapes (i + 1) (by simpa using hi)
-          simpa [Nat.add_assoc, Nat.add_comm 1 i] using h)
-      simpa [List.append_assoc] using Htail
 
 theorem NestedIotaBuildCertificate.complete
     (H : NestedIotaBuildCertificate decl block rules)
@@ -296,25 +201,6 @@ structure OrdinaryShapeCertificate (env : VEnv)
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
 
-/-- The executable block-name check contains the original type and
-constructor names as an exact prefix. Consequently its global freshness
-certificate supplies precisely the name-uniqueness field of `SourceWF`. -/
-theorem sourceNames_nodup_ofBlock
-    {block : VInductBlock} {decl : VInductDecl}
-    (htypes : block.types = decl.typeConstants)
-    (hctors : block.ctors = decl.constructorConstants)
-    (hnames : List.Nodup
-      ((block.types ++ block.ctors ++ block.recursors).map (·.name))) :
-    decl.sourceNames.Nodup := by
-  rw [htypes, hctors] at hnames
-  simp only [List.map_append] at hnames
-  exact (List.nodup_append.mp hnames).1
-
-theorem OrdinaryShapeCertificate.sourceNames_nodup
-    (H : OrdinaryShapeCertificate env decl block) :
-    decl.sourceNames.Nodup :=
-  sourceNames_nodup_ofBlock H.types H.ctors H.names
-
 theorem OrdinaryShapeCertificate.ordinary
     (H : OrdinaryShapeCertificate env decl block) :
     decl.OrdinaryShape env block := by
@@ -335,10 +221,6 @@ structure OrdinaryCompilationCertificate (env : VEnv)
   canonical : InductiveSignature.Compiles env decl block
   finite : CompiledInductive env decl block
 
-theorem OrdinaryCompilationCertificate.sourceNames_nodup
-    (H : OrdinaryCompilationCertificate env decl block) : decl.sourceNames.Nodup :=
-  H.toOrdinaryShapeCertificate.sourceNames_nodup
-
 theorem OrdinaryCompilationCertificate.ordinary
     (H : OrdinaryCompilationCertificate env decl block) :
     decl.OrdinaryCompilation env block :=
@@ -349,16 +231,6 @@ theorem OrdinaryCompilationCertificate.ordinary
 theorem OrdinaryCompilationCertificate.compilesTo
     (H : OrdinaryCompilationCertificate env decl block) : decl.CompilesTo env block :=
   .ordinary H.ordinary
-
-theorem TrInductDeclCore.toTrInductDeclOfOrdinaryCompilation
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (hsource : types ≠ [])
-    (Hcompile : OrdinaryCompilationCertificate env decl block) :
-    TrInductDecl env lparams nparams types isUnsafe decl :=
-  Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty H hsource)
-    Hcompile.sourceNames_nodup
 
 /-- Legacy nested restoration shape. This records primary coverage and
 auxiliary RHS guardedness but leaves auxiliary equation syntax unconstrained.
@@ -387,21 +259,6 @@ structure NestedShapeCertificate (env : VEnv)
     rule.rhs.GuardedRuleRhs (block.recursors.map (·.name))
   names : List.Nodup
     ((block.types ++ block.ctors ++ block.recursors).map (·.name))
-
-theorem NestedShapeCertificate.sourceNames_nodup
-    (H : NestedShapeCertificate env decl block) :
-    decl.sourceNames.Nodup :=
-  sourceNames_nodup_ofBlock H.types H.ctors H.names
-
-theorem TrInductDeclCore.toTrInductDeclOfNestedCompilation
-    (H : TrInductDeclCore env lparams nparams types isUnsafe decl
-      envTypes envCtors)
-    (hsource : types ≠ [])
-    (Hcompile : NestedShapeCertificate env decl block) :
-    TrInductDecl env lparams nparams types isUnsafe decl :=
-  Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDecl H
-    (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty H hsource)
-    Hcompile.sourceNames_nodup
 
 def NestedShapeCertificate.nested
     (H : NestedShapeCertificate env decl block) :

@@ -186,10 +186,6 @@ theorem mkApps_const_inj {h h' : Name} {ls ls' : List VLevel} {xs xs' : List VEx
   simp only [Prod.mk.injEq, VExpr.const.injEq] at h1
   exact ⟨h1.1.1, h1.1.2, h1.2⟩
 
-theorem finRange_map_inj {f : Fin n → β} (h : ((List.finRange n).map f).Nodup)
-    {i j : Fin n} (hij : f i = f j) : i = j :=
-  List.eq_of_mem_of_nodup_map h (List.mem_finRange i) (List.mem_finRange j) hij
-
 /-- A certified container was compiled and installed below the environment. -/
 theorem CertifiedSpecializations.member {env : VEnv} {aux : List ContainerSpecialization}
     (H : CertifiedSpecializations env aux) {a : ContainerSpecialization} (ha : a ∈ aux) :

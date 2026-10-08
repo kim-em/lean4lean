@@ -344,11 +344,6 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.family_indices
   rw [Fin.getElem_fin, D.family_getElem]
   exact H.consumedFamilies_indices ⟨i.val, howner⟩
 
-theorem CompletedRecursorConstruction.ConsumedSignatureData.params_length
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
-    (D : H.ConsumedSignatureData s) : s.params.length = stats.params.size := by
-  rw [D.params, List.length_reverse, H.sourceParameterCount]
-
 /-- The closed type of each consumed constructor is definitionally the
 source constructor at the same flattened position, in the header
 environment. -/

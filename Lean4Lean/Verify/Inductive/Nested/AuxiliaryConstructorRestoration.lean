@@ -443,33 +443,6 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
   exact sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
     (forall₂_drop₄ Hdefeq sourceDecl.types.length) Hlowered htotal
 
-/-- The lowered auxiliary constructor types restore syntactically to the
-generated constructor types, so restoration is total on them. -/
-theorem auxiliaryLoweredConstructors_total
-    {base envTypes : VEnv} {paramCtx : List VExpr} {decl : VInductDecl}
-    {r : Restoration} {auxiliaries : List ContainerSpecialization}
-    {generated targets : List VInductiveType}
-    (henv : envTypes.WF)
-    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence base envTypes paramCtx decl)
-      auxiliaries generated)
-    (Hexp : List.Forall₂ (VInductDecl.NestedTypeExpansion base decl
-        (r.RestoringLeaf (VLevel.params decl.uvars)))
-      generated targets)
-    (hfresh : ∀ name ∈ r.restorableNames, envTypes.constants name = none)
-    (hlevels : ∀ t ∈ targets, ∀ lc ∈ t.ctors,
-      lc.type.ConstLevelsAt (r.heads.map (·.auxiliary)) (VLevel.params decl.uvars)) :
-    ∀ t ∈ targets, ∀ lc ∈ t.ctors, ∃ restored, r.expr lc.type = some restored := by
-  intro t ht lc hlc
-  obtain ⟨g, hg, hexp⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hexp t ht
-  obtain ⟨a, -, hev⟩ := Lean4Lean.List.Forall₂.forall_exists_r Haux g hg
-  obtain ⟨gc, hgc, hc⟩ := Lean4Lean.List.Forall₂.forall_exists_r hexp.constructors lc hlc
-  obtain ⟨sp, -, -, -, -, -, hctors⟩ := hev.application
-  obtain ⟨c, -, hdc⟩ := Lean4Lean.List.Forall₂.forall_exists_r hctors gc hgc
-  obtain ⟨_, hgd⟩ := hdc.type
-  have hfree : gc.type.containsAnyConst r.restorableNames = false :=
-    (hgd.hasType.1.noFreshConsts henv.ordered hfresh (by intro _ h; simp at h)).1
-  exact ⟨gc.type, hc.type.restore hfree (hlevels t ht lc hlc)⟩
-
 end VerifyInductive
 
 end Lean4Lean

@@ -104,25 +104,6 @@ theorem Mentions.mkApps_fn (h : Mentions X f) : Mentions X (VExpr.mkApps f args)
 theorem Mentions.mkApps_head : Mentions X (VExpr.mkApps (.const X ls) args) :=
   Mentions.mkApps_fn (show Mentions X (.const X ls) from rfl)
 
-theorem Mentions.mkApps_arg (h : Mentions X a) (ha : a ∈ args) :
-    Mentions X (VExpr.mkApps f args) := by
-  induction args generalizing f with
-  | nil => cases ha
-  | cons b args ih =>
-    rcases List.mem_cons.mp ha with rfl | ha
-    · exact Mentions.mkApps_fn (f := .app f a) (Or.inr h)
-    · exact ih (f := .app f b) ha
-
-theorem Mentions.wrapForalls (h : Mentions X body) : Mentions X (VExpr.wrapForalls doms body) := by
-  induction doms with
-  | nil => exact h
-  | cons _ _ ih => exact Or.inr ih
-
-theorem Mentions.wrapLams (h : Mentions X body) : Mentions X (VExpr.wrapLams doms body) := by
-  induction doms with
-  | nil => exact h
-  | cons _ _ ih => exact Or.inr ih
-
 /-! ## The tables -/
 
 /-- The source constructor names of a certified schema, as determined by the schema. -/

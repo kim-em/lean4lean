@@ -166,37 +166,6 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   · exact hH
   · exact hH.trans (wf'.mono DefinitionSafety.unsafe_le)
 
-/-- Environment-preservation projection of `extendSafeExact`. -/
-theorem SemanticRunWithStatsResult.extendSafe
-    {ves : VEnvs}
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
-      isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
-    (hsafety : c.safety = .safe)
-    (hsource : sourceEnv = ves.venv .safe)
-    (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendSafeExact wf hcorner hsafety hsource hnonempty with
-    ⟨ves', _decl, _envTypes, _envCtors, wf', hle, _source, _hadd⟩
-  exact ⟨ves', wf', hle⟩
-
-/-- Canonical equality, when already available, is preserved by monotonicity
-of the generic safe extension. -/
-theorem SemanticRunWithStatsResult.extendSafeOfQuotReady
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
-      isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
-    (hEq : CanonicalEqEnvs ves)
-    (hsafety : c.safety = .safe)
-    (hsource : sourceEnv = ves.venv .safe)
-    (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendSafe wf hcorner hsafety hsource hnonempty with
-    ⟨ves', wf', hle⟩
-  exact ⟨ves', wf', hEq.mono hle, hle⟩
-
 /-- A completed unsafe ordinary run extends the unsafe model and is hidden
 from the partial and safe observers. Uniform entry safety is obtained from
 the actual staged installation rather than assumed separately. -/
@@ -277,39 +246,6 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     simp [hisUnsafe]
   rw [this]
   exact hH
-
-/-- Environment-preservation projection of `extendUnsafeExact`. -/
-theorem SemanticRunWithStatsResult.extendUnsafe
-    {ves : VEnvs}
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
-      isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
-    (hsafety : c.safety = .unsafe)
-    (hsource : sourceEnv = ves.venv .unsafe)
-    (hproduction : isUnsafe = (c.safety != .safe))
-    (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendUnsafeExact wf hcorner hsafety hsource hproduction hnonempty with
-    ⟨ves', _decl, _envTypes, _envCtors, wf', hle, _source, _hadd⟩
-  exact ⟨ves', wf', hle⟩
-
-/-- Canonical equality, when already available, is preserved by monotonicity
-of the generic unsafe extension. -/
-theorem SemanticRunWithStatsResult.extendUnsafeOfQuotReady
-    (Hrun : SemanticRunWithStatsResult c stats nparams depth indTypes
-      isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
-    (hEq : CanonicalEqEnvs ves)
-    (hsafety : c.safety = .unsafe)
-    (hsource : sourceEnv = ves.venv .unsafe)
-    (hproduction : isUnsafe = (c.safety != .safe))
-    (hnonempty : indTypes.toList ≠ []) :
-    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
-  rcases Hrun.extendUnsafe wf hcorner hsafety hsource hproduction hnonempty with
-    ⟨ves', wf', hle⟩
-  exact ⟨ves', wf', hEq.mono hle, hle⟩
 
 end VerifyInductive
 end Lean4Lean

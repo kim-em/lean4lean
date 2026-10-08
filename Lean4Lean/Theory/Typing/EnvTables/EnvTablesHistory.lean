@@ -71,39 +71,6 @@ theorem install_eliminators {base installed : VEnv} {block : VInductBlock}
     installed.eliminators n s ↔ (n, s) ∈ block.eliminators ∨ base.eliminators n s :=
   VInductBlock.install_eliminators_iff H
 
-/-- A constant of the installed environment is either old or one of the block's constants. -/
-theorem install_constants {base installed : VEnv} {block : VInductBlock}
-    (H : VInductBlock.install base block = some installed)
-    (h : installed.constants n = some ci) :
-    base.constants n = some ci ∨
-      ∃ value ∈ block.types ++ block.ctors ++ block.recursors, value.name = n := by
-  obtain ⟨t, c, r, ht, hc, hr, rfl⟩ := install_parts H
-  have go : ∀ {e e' : VEnv} {cis : List VConstVal}, e.addConstVals cis = some e' →
-      e'.constants n = some ci → e.constants n = some ci ∨ ∃ v ∈ cis, v.name = n := by
-    intro e e' cis hadd hn
-    induction cis generalizing e with
-    | nil => simp [VEnv.addConstVals] at hadd; subst hadd; exact .inl hn
-    | cons v vs ih =>
-      cases hv : e.addConst v.name v.toVConstant with
-      | none => simp [VEnv.addConstVals, hv] at hadd
-      | some mid =>
-        simp [VEnv.addConstVals, hv] at hadd
-        rcases ih hadd with h | ⟨w, hw, hwn⟩
-        · rw [VEnv.addConst_constants_eq hv] at h
-          by_cases hn' : v.name = n
-          · exact .inr ⟨v, List.mem_cons_self, hn'⟩
-          · simp only [hn', if_false] at h; exact .inl h
-        · exact .inr ⟨w, List.mem_cons_of_mem _ hw, hwn⟩
-  simp only [VEnv.addDefEqRules_constants] at h
-  rcases go hr h with h | ⟨v, hv, hvn⟩
-  · simp only [VEnv.addProjections_constants, VEnv.addEliminators_constants] at h
-    rcases go hc h with h | ⟨v, hv, hvn⟩
-    · rcases go ht h with h | ⟨v, hv, hvn⟩
-      · exact .inl h
-      · exact .inr ⟨v, by simp [hv], hvn⟩
-    · exact .inr ⟨v, by simp [hv], hvn⟩
-  · exact .inr ⟨v, by simp [hv], hvn⟩
-
 theorem mkApps_getAppFnArgs (e : VExpr) :
     VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
   suffices ∀ args, VExpr.mkApps (VExpr.getAppFnArgs.go e args).1

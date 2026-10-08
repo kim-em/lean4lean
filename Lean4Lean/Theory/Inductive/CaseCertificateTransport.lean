@@ -48,14 +48,6 @@ theorem ProjNamesOK.mkApps {ok : Name → Prop} :
     ProjNamesOK.mkApps (f := .app _ a) (args := args) ⟨hf, hargs a List.mem_cons_self⟩
       fun x hx => hargs x (List.mem_cons_of_mem _ hx)
 
-theorem ProjNamesOK.wrapForalls {ok : Name → Prop} :
-    ∀ {ds : List VExpr} {b : VExpr}, (∀ d ∈ ds, d.ProjNamesOK ok) → b.ProjNamesOK ok →
-      (VExpr.wrapForalls ds b).ProjNamesOK ok
-  | [], _, _, hb => hb
-  | d :: _, _, hds, hb =>
-    ⟨hds d List.mem_cons_self,
-      ProjNamesOK.wrapForalls (fun x hx => hds x (List.mem_cons_of_mem _ hx)) hb⟩
-
 theorem containsAnyConst_wrapForalls_inv {names : List Name} :
     ∀ {ds : List VExpr} {b : VExpr}, (VExpr.wrapForalls ds b).containsAnyConst names = false →
       (∀ d ∈ ds, d.containsAnyConst names = false) ∧ b.containsAnyConst names = false

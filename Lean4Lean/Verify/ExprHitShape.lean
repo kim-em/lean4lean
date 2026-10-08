@@ -52,15 +52,6 @@ open Lean4Lean
 
 /-! ### Spine helpers -/
 
-theorem mkAppN_eq_mkAppList_hit (fn : Expr) (args : Array Expr) :
-    mkAppN fn args = Expr.mkAppList fn args.toList := by
-  unfold mkAppN
-  rw [← Array.foldl_toList, Expr.mkAppList_eq_foldl]
-  suffices ∀ (l : List Expr) fn, l.foldl Lean.mkApp fn = l.foldl Expr.app fn from this _ _
-  intro l; induction l with
-  | nil => intro; rfl
-  | cons a l ih => intro fn; exact ih _
-
 private theorem mkAppList_map {g : Expr → Expr} (hg : ∀ f a, g (.app f a) = .app (g f) (g a))
     (f : Expr) (l : List Expr) : g (mkAppList f l) = mkAppList (g f) (l.map g) := by
   induction l generalizing f with
@@ -191,13 +182,6 @@ theorem mkAppList_const_hit {c : Name} {rest : List Expr} (hc : c ∈ heads)
   rw [Expr.mkAppList_append]
   exact (hitHead hc).mkAppList hrest
 
-/-- `mkAppN` form of `mkAppList_const_hit`. -/
-theorem mkAppN_const_hit {c : Name} {rest : List Expr} (hc : c ∈ heads)
-    (hrest : ∀ a ∈ rest, HitShape heads params ls a) :
-    HitShape heads params ls (mkAppN (.const c ls) (params ++ rest).toArray) := by
-  rw [mkAppN_eq_mkAppList_hit]
-  exact mkAppList_const_hit hc hrest
-
 /-- An expression that mentions no constant of `heads` has shape (vacuously). -/
 theorem of_avoidsConsts {e : Expr} (h : e.AvoidsConsts heads) : HitShape heads params ls e := by
   induction h with
@@ -244,26 +228,6 @@ theorem getAppFn_const_hit_inv {e : Expr} {c : Name} {us : List Level}
   | const hnot => cases hfn; exact absurd hc hnot
   | _ => cases hfn
 
-/-- `getAppFn_const_hit_inv` in the take/length form. -/
-theorem getAppFn_const_hit_inv' {e : Expr} {c : Name} {us : List Level}
-    (H : HitShape heads params ls e) (hfn : e.getAppFn = .const c us) (hc : c ∈ heads) :
-    us = ls ∧ params.length ≤ e.getAppArgsList.length ∧
-      e.getAppArgsList.take params.length = params ∧
-      ∀ a ∈ e.getAppArgsList.drop params.length, HitShape heads params ls a := by
-  obtain ⟨hus, rest, hargs, hrest⟩ := H.getAppFn_const_hit_inv hfn hc
-  refine ⟨hus, ?_, ?_, ?_⟩
-  · rw [hargs]; simp
-  · rw [hargs]; simp
-  · rw [hargs]; simpa using hrest
-
-/-- Converse of `getAppFn_const_hit_inv`. -/
-theorem of_getAppFn_const_hit {e : Expr} {c : Name} {rest : List Expr}
-    (hfn : e.getAppFn = .const c ls) (hc : c ∈ heads)
-    (hargs : e.getAppArgsList = params ++ rest) (hrest : ∀ a ∈ rest, HitShape heads params ls a) :
-    HitShape heads params ls e := by
-  rw [← Expr.mkAppList_getAppArgsList e, hfn, hargs]
-  exact mkAppList_const_hit hc hrest
-
 /-- Inversion at an application whose head is not a hit. -/
 theorem app_inv {f a : Expr} (H : HitShape heads params ls (.app f a))
     (hnot : ∀ c us, f.getAppFn = .const c us → c ∉ heads) :
@@ -275,22 +239,6 @@ theorem app_inv {f a : Expr} (H : HitShape heads params ls (.app f a))
     have := congrArg Expr.getAppFn he
     rw [getAppFn_hitHead] at this
     exact absurd hc (hnot _ _ this)
-  | _ => cases he
-
-/-- The last argument of a shaped application is shaped, provided the parameters are. -/
-theorem app_inv_arg {f a : Expr} (H : HitShape heads params ls (.app f a))
-    (hp : ∀ p ∈ params, HitShape heads params ls p) : HitShape heads params ls a := by
-  generalize he : Expr.app f a = e at H
-  cases H with
-  | app _ ha => cases he; exact ha
-  | @hitHead c hc =>
-    obtain ⟨params', p, hsplit⟩ : ∃ params' p, params = params' ++ [p] := by
-      rcases List.eq_nil_or_concat params with h | h
-      · subst h; cases he
-      · simpa using h
-    rw [hsplit, Expr.mkAppList_append] at he
-    cases he
-    exact hp a (by rw [hsplit]; simp)
   | _ => cases he
 
 /-- Inversion of an application spine whose head is not a hit. -/
@@ -405,11 +353,6 @@ theorem liftLooseBVars' {e : Expr} (H : HitShape heads params ls e)
   | mdata _ ih => exact .mdata (ih s)
   | proj _ ih => exact .proj (ih s)
 
-theorem liftLooseBVars {e : Expr} (H : HitShape heads params ls e)
-    (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (s d : Nat) :
-    HitShape heads params ls (e.liftLooseBVars s d) := by
-  rw [Expr.liftLooseBVars_eq]; exact H.liftLooseBVars' hp s d
-
 /-- Shape is invariant under lowering loose bound variables. -/
 theorem lowerLooseBVars' {e : Expr} (H : HitShape heads params ls e)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (s d : Nat) :
@@ -463,11 +406,6 @@ theorem lowerLooseBVars' {e : Expr} (H : HitShape heads params ls e)
     · exact .proj h
     · exact .proj (ih s)
 
-theorem lowerLooseBVars {e : Expr} (H : HitShape heads params ls e)
-    (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (s d : Nat) :
-    HitShape heads params ls (e.lowerLooseBVars s d) := by
-  rw [Expr.lowerLooseBVars_eq]; exact H.lowerLooseBVars' hp s d
-
 /-- Substituting a shaped term for a bound variable preserves shape. -/
 theorem instantiate1' {e a : Expr} (H : HitShape heads params ls e)
     (ha : HitShape heads params ls a) (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) (k : Nat) :
@@ -515,51 +453,7 @@ theorem instantiateRevList {e : Expr} {subst : List Expr} (H : HitShape heads pa
   rw [← Expr.instantiateList_reverse]
   exact H.instantiateList (fun a ha => hs a (List.mem_reverse.1 ha)) hp k
 
-theorem instantiate {e : Expr} {subst : Array Expr} (H : HitShape heads params ls e)
-    (hs : ∀ a ∈ subst, HitShape heads params ls a) (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
-    HitShape heads params ls (e.instantiate subst) := by
-  rw [Expr.instantiate_eq]
-  exact H.instantiateList (fun a ha => hs a (Array.mem_toList_iff.1 ha)) hp 0
-
-theorem instantiateRev {e : Expr} {subst : Array Expr} (H : HitShape heads params ls e)
-    (hs : ∀ a ∈ subst, HitShape heads params ls a) (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv) :
-    HitShape heads params ls (e.instantiateRev subst) := by
-  rw [Expr.instantiateRev_eq]
-  exact H.instantiate (fun a ha => hs a (Array.mem_reverse.1 ha)) hp
-
 /-! ### Changing the head set -/
-
-private theorem AvoidsConsts.mkAppList_fn {names : List Name} {f : Expr} {args : List Expr}
-    (h : (f.mkAppList args).AvoidsConsts names) : f.AvoidsConsts names := by
-  induction args generalizing f with
-  | nil => exact h
-  | cons a args ih => have := ih h; cases this; assumption
-
-/-- Shrinking the head set: hits on the retained heads `heads' ⊆ heads` stay hits, and the
-dropped heads must not occur at all (`havoid`, with every dropped head listed in `drop`). -/
-theorem mono {heads' drop : List Name} {e : Expr} (H : HitShape heads params ls e)
-    (hsub : ∀ c ∈ heads', c ∈ heads) (hdrop : ∀ c ∈ heads, c ∉ heads' → c ∈ drop)
-    (havoid : e.AvoidsConsts drop) : HitShape heads' params ls e := by
-  induction H with
-  | @hitHead c hc =>
-    by_cases hc' : c ∈ heads'
-    · exact .hitHead hc'
-    · have := AvoidsConsts.mkAppList_fn havoid
-      cases this with
-      | const _ _ fresh => exact absurd (hdrop c hc hc') fresh
-  | app _ _ ihf iha => cases havoid; exact .app (ihf ‹_›) (iha ‹_›)
-  | const hc => exact .const fun h => hc (hsub _ h)
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | lit => exact .lit _
-  | lam _ _ iht ihb => cases havoid; exact .lam (iht ‹_›) (ihb ‹_›)
-  | forallE _ _ iht ihb => cases havoid; exact .forallE (iht ‹_›) (ihb ‹_›)
-  | letE _ _ _ iht ihv ihb =>
-    cases havoid; exact .letE (iht ‹_›) (ihv ‹_›) (ihb ‹_›)
-  | mdata _ ih => cases havoid; exact .mdata (ih ‹_›)
-  | proj _ ih => cases havoid; exact .proj (ih ‹_›)
 
 /-! ### Abstraction -/
 
@@ -610,16 +504,6 @@ theorem abstractN_params {xs : List FVarId} {e : Expr}
   | letE _ _ _ iht ihv ihb => exact .letE (iht d) (ihv d) (ihb (d + 1))
   | mdata _ ih => exact .mdata (ih d)
   | proj _ ih => exact .proj (ih d)
-
-/-- `Expr.abstract` form of `abstractN_params`: closing the opened parameters `As` (distinct
-fvars) gives the bound-variable form at depth `0`. -/
-theorem abstract {As : Array Expr} {xs : List FVarId} {e : Expr}
-    (H : HitShape heads As.toList ls e) (hAs : As.toList = xs.map .fvar) (hnd : xs.Nodup) :
-    HitShapeB heads As.size ls 0 (e.abstract As) := by
-  obtain ⟨As⟩ := As
-  simp only at hAs; subst hAs
-  rw [Expr.abstractN_eq]
-  simpa using H.abstractN_params hnd 0
 
 /-- Abstracting fvars that are not parameters keeps the free-variable form. -/
 theorem abstractN_of_disjoint {ys : List FVarId} {e : Expr} (H : HitShape heads params ls e)
@@ -694,27 +578,6 @@ theorem instantiateRevList_fvars {fvs : List FVarId} {d : Nat} {e : Expr}
   | letE _ _ _ iht ihv ihb => rw [Expr.instantiateRevList_letE]; exact .letE iht ihv ihb
   | mdata _ ih => rw [Expr.instantiateRevList_mdata]; exact .mdata ih
   | proj _ ih => rw [Expr.instantiateRevList_proj]; exact .proj ih
-
-private theorem fvars_of_all {As : List Expr} (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv) :
-    ∃ fvs : List FVarId, As = fvs.map .fvar := by
-  induction As with
-  | nil => exact ⟨[], rfl⟩
-  | cons a As ih =>
-    obtain ⟨fv, rfl⟩ := hAs a (.head _)
-    obtain ⟨fvs, rfl⟩ := ih fun b hb => hAs b (.tail _ hb)
-    exact ⟨fv :: fvs, rfl⟩
-
-/-- Opening the parameter telescope: `instantiateRev` of a depth-`0` bound-variable-form term
-by `nparams` fvars is in free-variable form with `params = As.toList`. -/
-theorem instantiateRev_params {n : Nat} {e : Expr} {As : Array Expr}
-    (H : HitShapeB heads n ls 0 e) (hAs : ∀ a ∈ As.toList, ∃ fv, a = .fvar fv)
-    (hsize : As.size = n) : HitShape heads As.toList ls (e.instantiateRev As) := by
-  obtain ⟨fvs, hfvs⟩ := fvars_of_all hAs
-  have hlen : fvs.length = n := by
-    rw [← hsize, ← Array.length_toList, hfvs, List.length_map]
-  subst hlen
-  rw [Expr.instantiateRev_eq_instantiateList, Expr.instantiateList_reverse, hfvs]
-  exact H.instantiateRevList_fvars
 
 end HitShapeB
 
@@ -926,9 +789,6 @@ theorem replace_bvar_of_none {f : Expr → Option Expr} {i : Nat} (h : f (.bvar 
 
 theorem replace_fvar_of_none {f : Expr → Option Expr} {fv : FVarId} (h : f (.fvar fv) = none) :
     (Expr.fvar fv).replace f = .fvar fv := by simp [replace_eq, replaceNoCache, h]
-
-theorem replace_mvar_of_none {f : Expr → Option Expr} {mv : MVarId} (h : f (.mvar mv) = none) :
-    (Expr.mvar mv).replace f = .mvar mv := by simp [replace_eq, replaceNoCache, h]
 
 theorem replace_sort_of_none {f : Expr → Option Expr} {u : Level} (h : f (.sort u) = none) :
     (Expr.sort u).replace f = .sort u := by simp [replace_eq, replaceNoCache, h]

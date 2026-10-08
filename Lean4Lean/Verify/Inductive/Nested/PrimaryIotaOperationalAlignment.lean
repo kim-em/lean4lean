@@ -57,37 +57,6 @@ structure RestoredPrimaryOperationalFamilyAlignment
     auxRec Hstep.restored.recursor.restored.newInfo
       (Hprod.generated.entry familyIdx hentry)
 
-/-- Select the exact lowering/restoration pair for one constructor position
-from the lockstep family trace.  This is the pointwise operational input used
-by the constructor half of the restored LHS telescope proof. -/
-theorem RestoredConstructorMappingTrace.at
-    (H : RestoredConstructorMappingTrace result mappingEnv loweredEnv params
-      nparams safety lparams sources state targets finalState sourceProdEnv
-        targetProdEnv)
-    (i : Nat) (hsource : i < sources.length)
-    (htarget : i < targets.length) :
-    ∃ before after stepSource stepTarget,
-      LoweredConstructorMapping mappingEnv params nparams result
-        sources[i] before (targets[i], after) ∧
-      ∃ HctorStep : RestoredConstructorStep result loweredEnv targets[i].name
-          stepSource stepTarget,
-        safety ≤ (ConstantInfo.ctorInfo HctorStep.oldInfo).safety ∧
-        HctorStep.oldInfo.levelParams = lparams ∧
-        HctorStep.oldInfo.name = targets[i].name ∧
-        HctorStep.oldInfo.type = targets[i].type := by
-  induction H generalizing i with
-  | nil => simp at hsource
-  | @cons source state target nextState sourceProdEnv middleProdEnv sources
-      finalState targets targetProdEnv Hmapping Hstep hsafety hlevels hname
-      htype Hrest ih =>
-    cases i with
-    | zero =>
-      exact ⟨state, nextState, sourceProdEnv, middleProdEnv, Hmapping,
-        Hstep, by simpa using hsafety, by simpa using hlevels,
-        by simpa using hname, by simpa using htype⟩
-    | succ i =>
-      simpa using ih i (by simpa using hsource) (by simpa using htarget)
-
 /-- Construct the joint operational certificate directly from a closed
 lowering run and the exact family restoration step. -/
 theorem NestedLoweringResultClosed.primaryOperationalFamilyAlignmentAtFresh

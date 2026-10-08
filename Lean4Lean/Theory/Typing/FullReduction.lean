@@ -217,157 +217,6 @@ theorem FullReduction.defeqDFC (hΓ : OnCtx Γ₀ (env.IsType univs))
   | rfl => exact .rfl
   | tail before h ih => exact .tail ih (h.defeqDFC hΓ W (FullReduction.hasType (W.isType' hΓ) before he))
 
-theorem FullReduction.weakN (W : Ctx.LiftN n k Γ Γ') (H : FullReduction Γ e e') :
-    FullReduction Γ' (e.liftN n k) (e'.liftN n k) := by
-  induction H with
-  | rfl => exact .rfl
-  | tail _ h ih => exact .tail ih (h.weakN W)
-
-theorem FullStep.instN (W : Ctx.InstN Γ₀ arg A k Γ₁ Γ)
-    (harg : HasType env univs Γ₀ arg A) (H : FullStep Γ₁ e e') :
-    FullStep Γ (e.inst arg k) (e'.inst arg k) := by
-  induction H generalizing Γ k with
-  | core h => exact .core (ParRed.instN (H₀ := .rfl) (H₀' := harg) W h)
-  | delta h =>
-    simp only [VExpr.inst_mkApps, VExpr.inst]
-    exact .delta (h.instN henv W harg)
-  | quotDelta h =>
-    simp only [VExpr.inst_mkApps, VExpr.inst]
-    exact .quotDelta (h.instN henv W harg)
-  | projIota h1 hs h3 ht =>
-    have hs' := hs.instN henv W harg
-    simp only [VExpr.inst_mkApps, VExpr.inst] at hs' ⊢
-    exact .projIota h1 hs' (by simp [h3]) (ht.instN henv W harg)
-  | structEta h1 h2 h3 hs ht =>
-    have hs' := hs.instN henv W harg
-    have ht' := ht.instN henv W harg
-    simp only [VExpr.inst_mkApps, VExpr.inst, List.map_append, List.map_map,
-      Function.comp_def] at hs' ht' ⊢
-    exact .structEta h1 (by simpa using h2) h3 hs' ht'
-  | funEta ht =>
-    simpa only [VExpr.inst, ← VExpr.lift_instN_lo, instVar, if_pos (Nat.zero_lt_succ k)] using
-      (FullStep.funEta (ht.instN henv W harg))
-  | app _ _ ihf iha => exact .app (ihf W) (iha W)
-  | proj _ ih => exact .proj (ih W)
-  | lam _ _ ihd ihb => exact .lam (ihd W) (ihb W.succ)
-  | forallE _ _ ihd ihb => exact .forallE (ihd W) (ihb W.succ)
-
-theorem FullReduction.instN (W : Ctx.InstN Γ₀ arg A k Γ₁ Γ)
-    (harg : HasType env univs Γ₀ arg A) (H : FullReduction Γ₁ e e') :
-    FullReduction Γ (e.inst arg k) (e'.inst arg k) := by
-  induction H with
-  | rfl => exact .rfl
-  | tail _ h ih => exact .tail ih (h.instN W harg)
-
-
-/-- A reduction of the substituted argument is replayed at every occurrence,
-including under dependent binders. The finite structural closure handles
-any number of copies of that argument. -/
-theorem FullReduction.instN_r (W : Ctx.InstN Γ₀ arg A k Γ₁ Γ)
-    (H : FullReduction Γ₀ arg arg') (e : VExpr) :
-    FullReduction Γ (e.inst arg k) (e.inst arg' k) := by
-  induction e generalizing Γ₁ Γ k with
-  | bvar i =>
-    dsimp only [VExpr.inst]
-    induction W generalizing i with
-    | zero =>
-      cases i with simp
-      | zero => exact H
-      | succ i => exact .rfl
-    | succ _ ih =>
-      cases i with simp
-      | zero => exact .rfl
-      | succ i => exact (ih i).weakN .one
-  | sort | const | elim => exact .rfl
-  | app _ _ ihf iha => exact .app (ihf W) (iha W)
-  | proj _ _ _ ih => exact .proj (ih W)
-  | lam _ _ ihd ihb => exact .lam (ihd W) (ihb W.succ)
-  | forallE _ _ ihd ihb => exact .forallE (ihd W) (ihb W.succ)
-
-/-- Simultaneous development of a term and its typed substituend. -/
-theorem FullReduction.instN_both (W : Ctx.InstN Γ₀ arg A k Γ₁ Γ)
-    (harg : HasType env univs Γ₀ arg A)
-    (H : FullReduction Γ₁ e e') (Harg : FullReduction Γ₀ arg arg') :
-    FullReduction Γ (e.inst arg k) (e'.inst arg' k) :=
-  (H.instN W harg).trans (Harg.instN_r W e')
-
-
-/-- The beta contractum and a developed lambda application meet after
-substituting the developed argument in the developed body. -/
-theorem FullReduction.beta_development
-    (harg : HasType env univs Γ arg domain)
-    (hbody : FullReduction (domain :: Γ) body body')
-    (hargument : FullReduction Γ arg arg') :
-    FullReduction Γ (body.inst arg) (body'.inst arg') ∧
-      FullReduction Γ (.app (.lam domain' body') arg') (body'.inst arg') :=
-  ⟨hbody.instN_both .zero harg hargument, .tail .rfl (.core (.beta .rfl .rfl))⟩
-
-/-- Adjacent aligned prefixes have the expected beta overlap. The earlier
-unfolding, supplied with the next argument, computes to the later unfolding's
-exact generated right-hand side. -/
-theorem FullReduction.delta_prefix_overlap
-    (early : NativeDeltaRule env univs recursorData Γ name levels args earlyRhs)
-    (late : NativeDeltaRule env univs recursorData Γ name levels (args ++ [arg]) lateRhs) :
-    FullReduction Γ (.app earlyRhs arg) lateRhs := by
-  cases early with
-  | intro hl _ _ _ _ _ hg replay =>
-    cases late with
-    | intro hl' hr' _ hlarge' _ hz' hg' _ =>
-      cases Option.some.inj (hl.symm.trans hl')
-      obtain ⟨domain, body, hearly, hlate⟩ :=
-        InductiveSignature.NativeRecursorData.singletonProgram_supply_one henv hr' hlarge' hz' hg hg'
-          (replay.templateScope henv).2.1
-      rw [hearly, ← hlate]
-      exact .tail .rfl (.core (.beta .rfl .rfl))
-
-/-- Projection computation commutes with an arbitrary finite development
-of its constructor argument spine. The selected field follows its own
-finite development, and the developed constructor projects to that field. -/
-theorem FullReduction.projIota_spine (hΓ : OnCtx Γ (env.IsType univs))
-    (hinfo : env.projections family info)
-    (hproj : HasType env univs Γ
-      (.proj family index (VExpr.mkApps (.const info.ctorName levels) args)) fieldType)
-    (hfield : args[info.nparams + index]? = some field)
-    (ht : HasType env univs Γ field fieldType)
-    (hargs : List.Forall₂ (FullReduction Γ) args args') :
-    ∃ field', args'[info.nparams + index]? = some field' ∧
-      FullReduction Γ field field' ∧ FullReduction Γ
-        (.proj family index (VExpr.mkApps (.const info.ctorName levels) args')) field' := by
-  obtain ⟨hi, heq⟩ := List.getElem?_eq_some_iff.mp hfield
-  have hi' : info.nparams + index < args'.length := by
-    rw [← Lean4Lean.List.Forall₂.length_eq hargs]
-    exact hi
-  have hred := Lean4Lean.List.Forall₂.getElem_of hargs (info.nparams + index) hi hi'
-  rw [heq] at hred
-  have hprojRed := (FullReduction.mkApps (fn := .const info.ctorName levels) .rfl hargs).proj (family := family) (index := index)
-  have hget : args'[info.nparams + index]? = some args'[info.nparams + index] := by simp [hi']
-  exact ⟨_, hget, hred, .tail .rfl
-    (.projIota hinfo (hprojRed.hasType hΓ hproj) hget (hred.hasType hΓ ht))⟩
-
-/-- Projecting an eta-expanded structure computes back to the original
-projection, giving the concrete projection/structure-eta overlap. -/
-theorem FullReduction.proj_structEta_cancel (hΓ : OnCtx Γ (env.IsType univs))
-    (hl : env.projections family info) (hp : params.length = info.nparams)
-    (hi : info.nindices = 0) (hindex : index < info.numFields)
-    (hs : HasType env univs Γ major (VExpr.mkApps (.const family levels) params))
-    (hc : HasType env univs Γ
-      (VExpr.mkApps (.const info.ctorName levels)
-        (params ++ (List.range info.numFields).map fun i => .proj family i major))
-      (VExpr.mkApps (.const family levels) params))
-    (ht : HasType env univs Γ (.proj family index major) fieldType) :
-    FullReduction Γ
-      (.proj family index (VExpr.mkApps (.const info.ctorName levels)
-        (params ++ (List.range info.numFields).map fun i => .proj family i major)))
-      (.proj family index major) := by
-  have hred : FullStep Γ (.proj family index major)
-      (.proj family index (VExpr.mkApps (.const info.ctorName levels)
-        (params ++ (List.range info.numFields).map fun i => .proj family i major))) :=
-    .proj (.structEta hl hp hi hs hc)
-  have hget : (params ++ (List.range info.numFields).map fun i => VExpr.proj family i major)[info.nparams + index]? = some (.proj family index major) := by
-    rw [List.getElem?_append_right (by omega)]
-    simp [hp, hindex]
-  exact .tail .rfl (.projIota hl (hred.hasType hΓ ht) hget ht)
-
 private theorem eta_arguments_wf (hΓ : OnCtx Γ (env.IsType univs))
     (H : VExpr.WF env univs Γ (mkApps fn args)) :
     ∀ arg ∈ args, VExpr.WF env univs Γ arg := by
@@ -418,16 +267,6 @@ theorem NormalEq.fullStep_structEta (hΓ : OnCtx Γ (env.IsType univs))
   have htleft := ((hctorEq.defeq hΓ).of_l henv hΓ ht).hasType.2
   exact ⟨_, .tail .rfl (.structEta hl hp hi hsleft htleft), hctorEq.symm hΓ⟩
 
-
-/-- A proof-valued computation is compatible with every normal equality,
-regardless of how the right-hand proof exposes its computational head. -/
-theorem NormalEq.fullStep_proof (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NormalEq Γ left right) (R : FullStep Γ right result)
-    (ht : HasType env univs Γ right proposition)
-    (hp : HasType env univs Γ proposition (.sort .zero)) :
-    ∃ output, FullReduction Γ left output ∧ NormalEq Γ output result := by
-  have hl := ht.defeqU_l henv hΓ (H.defeq hΓ).symm
-  exact ⟨_, .rfl, .proofIrrel hp hl (R.hasType hΓ ht)⟩
 
 /-- The added function expansion is already one of the structural normal
 eta equalities, so it is compatible with every normal-equality derivation. -/
@@ -503,26 +342,6 @@ theorem NormalEq.fullStep_quotDelta_levels (hΓ : OnCtx Γ (env.IsType univs))
   obtain ⟨rhs', hh, hr⟩ := H.congr_levels henv hΓ hw' he ha
   obtain ⟨type, hd⟩ := H.defeq henv hΓ
   exact ⟨_, .tail .rfl (.quotDelta hh), (NormalEq.of_levelEquiv hΓ (.of_eqUpToLevels hr) hd.hasType.2).symm hΓ⟩
-
-/-- Once the application heads agree, actual native replay transports every
-normally related supplied argument, including dependent indices and captures. -/
-theorem NormalEq.fullStep_delta_args (hΓ : OnCtx Γ (env.IsType univs))
-    (H : NativeDeltaRule env univs recursorData Γ name levels args rhs)
-    (ha : List.Forall₂ (NormalEq Γ) args' args) :
-    ∃ rhs', FullReduction Γ (VExpr.mkApps (.const name levels) args') rhs' ∧ NormalEq Γ rhs' rhs := by
-  have hback := Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)
-    (Lean4Lean.List.Forall₂.flip ha)
-  obtain ⟨rhs', hr, hn⟩ := H.congr_normal hΓ hback
-  exact ⟨rhs', .tail .rfl (.delta hr), hn.symm hΓ⟩
-
-theorem NormalEq.fullStep_quotDelta_args (hΓ : OnCtx Γ (env.IsType univs))
-    (H : QuotDeltaRule env univs Γ levels args rhs)
-    (ha : List.Forall₂ (NormalEq Γ) args' args) :
-    ∃ rhs', FullReduction Γ (VExpr.mkApps (.const ``Quot.lift levels) args') rhs' ∧ NormalEq Γ rhs' rhs := by
-  have hback := Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)
-    (Lean4Lean.List.Forall₂.flip ha)
-  obtain ⟨rhs', hr, hn⟩ := H.congr_normal hΓ hback
-  exact ⟨rhs', .tail .rfl (.quotDelta hr), hn.symm hΓ⟩
 
 section NormalParallel
 
@@ -708,27 +527,12 @@ theorem RigidHead.equiv_rfl (h : RigidHead e) : HeadEquiv e e := by
   | elim => exact .elim (levels_equiv_rfl _)
 
 omit [Params] in
-theorem HeadEquiv.trans : HeadEquiv a b → HeadEquiv b c → HeadEquiv a c
-  | .const h1, .const h2 => .const (Lean4Lean.List.Forall₂.trans (fun _ _ _ h h' => h.trans h') h1 h2)
-  | .elim h1, .elim h2 => .elim (Lean4Lean.List.Forall₂.trans (fun _ _ _ h h' => h.trans h') h1 h2)
-
-omit [Params] in
-theorem RigidHead.lift (h : RigidHead e) : e.lift = e := by cases h <;> rfl
-
-omit [Params] in
 theorem RigidHead.mkApps_eq_app (hh : RigidHead h)
     (H : VExpr.mkApps h targs = .app f a) :
     ∃ targs₀, targs = targs₀ ++ [a] ∧ f = VExpr.mkApps h targs₀ := by
   rcases eq_nil_or_snoc targs with rfl | ⟨targs₀, t, rfl⟩
   · cases hh <;> cases H
   · rw [mkApps_concat] at H; cases H; exact ⟨_, rfl, rfl⟩
-
-omit [Params] in
-theorem RigidHead.mkApps_app (hh : RigidHead h) :
-    ∃ f a, VExpr.mkApps h targs = .app f a ∨ targs = [] := by
-  rcases eq_nil_or_snoc targs with rfl | ⟨targs₀, t, rfl⟩
-  · exact ⟨h, h, .inr rfl⟩
-  · exact ⟨_, _, .inl (mkApps_concat ..)⟩
 
 omit [Params] in
 theorem inst_lift_spine (h : VExpr) (targs : List VExpr) (b : VExpr) :
@@ -1883,16 +1687,6 @@ theorem NormalEq.parRed (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e�
     (by simp only [VExpr.lift'_refl, VExpr.mkApps, List.foldl]; exact H1)
   simpa only [VExpr.lift'_refl, VExpr.mkApps, List.foldl] using this
 
-theorem NormalEq.parRedS (hΓ : OnCtx Γ (env.IsType univs)) (H1 : NormalEq Γ e₁ e₂)
-    (H2 : ParRedS Γ e₂ e₂') :
-    ∃ e₁', FullReduction Γ e₁ e₁' ∧ NormalEq Γ e₁' e₂' := by
-  induction H2 with
-  | rfl => exact ⟨_, .rfl, H1⟩
-  | tail _ h2 ih =>
-    let ⟨_, a1, a2⟩ := ih
-    let ⟨_, b1, b2⟩ := a2.parRed hΓ h2
-    exact ⟨_, a1.trans b1, b2⟩
-
 end SpineTransport2
 
 section RigidRule
@@ -2261,51 +2055,6 @@ theorem NormalEq.fullReduction (hΓ : OnCtx Γ (env.IsType univs))
     obtain ⟨mid, hmid, heq⟩ := ih
     obtain ⟨out, hout, heq'⟩ := heq.fullStep hΓ step
     exact ⟨out, hmid.trans hout, heq'⟩
-
-/-- Structure expansion commutes with an entire full development by
-developing the repeated occurrences below its generated projections. The
-other endpoint expands to exactly the same constructor application. -/
-theorem FullReduction.structEta_strip (hΓ : OnCtx Γ (env.IsType univs))
-    (hl : env.projections family info) (hp : params.length = info.nparams)
-    (hi : info.nindices = 0)
-    (hs : HasType env univs Γ source (VExpr.mkApps (.const family levels) params))
-    (hc : HasType env univs Γ
-      (VExpr.mkApps (.const info.ctorName levels)
-        (params ++ (List.range info.numFields).map fun index => .proj family index source))
-      (VExpr.mkApps (.const family levels) params))
-    (development : FullReduction Γ source target) :
-    ∃ left' right',
-      FullReduction Γ
-        (VExpr.mkApps (.const info.ctorName levels)
-          (params ++ (List.range info.numFields).map fun index => .proj family index source)) left' ∧
-      FullReduction Γ target right' ∧ NormalEq Γ left' right' := by
-  have hparams : List.Forall₂ (FullReduction Γ) params params := by
-    clear hp hs hc
-    induction params with | nil => exact .nil | cons _ _ ih => exact .cons .rfl ih
-  have hfields (indices : List Nat) : List.Forall₂ (FullReduction Γ)
-      (indices.map fun index => .proj family index source)
-      (indices.map fun index => .proj family index target) := by
-    induction indices with
-    | nil => exact .nil
-    | cons _ _ ih => exact .cons development.proj ih
-  have expanded := FullReduction.mkApps (fn := .const info.ctorName levels) .rfl
-    (case_forall₂_append hparams (hfields (List.range info.numFields)))
-  have hc' := expanded.hasType hΓ hc
-  have right := FullStep.structEta hl hp hi (development.hasType hΓ hs) hc'
-  exact ⟨_, _, expanded, .tail .rfl right, .refl hc'⟩
-
-/-- Function eta expansion commutes with a whole development by moving
-that development under its fresh binder and expanding the other endpoint. -/
-theorem FullReduction.funEta_strip (hΓ : OnCtx Γ (env.IsType univs))
-    (ht : HasType env univs Γ source (.forallE domain body))
-    (development : FullReduction Γ source target) :
-    ∃ left' right',
-      FullReduction Γ (.lam domain (.app source.lift (.bvar 0))) left' ∧
-      FullReduction Γ target right' ∧ NormalEq Γ left' right' := by
-  have lifted := development.weakN (Γ' := domain :: Γ) .one
-  have hright := development.hasType hΓ ht
-  exact ⟨_, _, .lam .rfl (.app lifted .rfl), .tail .rfl (.funEta hright),
-    .refl (IsDefEq.eta hright).hasType.1⟩
 
 /-- Every installed equation joins in the full presentation at each scoped
 universe packing. The terminal comparison permits proof irrelevance: quotient

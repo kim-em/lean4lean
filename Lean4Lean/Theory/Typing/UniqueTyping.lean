@@ -17,20 +17,6 @@ variable {env : VEnv} {U : Nat}
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env U Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2 " : " A:36 => IsDefEq env U Γ e1 e2 A
 
-/-- The type assigned by a strong typing is itself a type. -/
-theorem HasTypeStrong.isType (H : env.HasTypeStrong U Γ e A b) : env.IsType U Γ A := by
-  induction H with
-  | bvar _ _ h => exact ⟨_, h.hasType⟩
-  | sort' _ h2 _ => exact ⟨_, .sort h2⟩
-  | const _ _ _ _ _ h => exact ⟨_, h.hasType⟩
-  | elim _ _ _ _ _ h => exact ⟨_, h.hasType⟩
-  | app _ _ _ _ _ _ _ h => exact ⟨_, h.hasType⟩
-  | proj _ _ _ _ _ _ _ h => exact ⟨_, h.hasType⟩
-  | lam _ _ _ _ _ h => exact ⟨_, h.hasType⟩
-  | forallE h1 h2 _ _ => exact ⟨_, .sort (l := .imax _ _) ⟨h1, h2⟩⟩
-  | base _ ih => exact ih
-  | defeq _ _ _ h _ => exact ⟨_, h.hasType⟩
-
 /-- To relate a type to every type of `e`, it suffices to relate it to the
 syntax-directed ones: conversions on the second typing are appended as links. -/
 theorem HasTypeStrong.chain_peel

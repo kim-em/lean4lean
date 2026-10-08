@@ -78,34 +78,5 @@ theorem RecursorFieldDecisions.fieldDeclsSatisfy
     obtain ⟨hdom, hbody⟩ := hstep ih.1
     exact ⟨hbody _, fieldDeclsSatisfy_push Hc ih.2 hdom⟩
 
-/-- Field declarations persist into every extension of the terminal context. -/
-theorem FieldDeclsSatisfy.mono {P : Expr → Prop}
-    (H : FieldDeclsSatisfy P c fields) (hle : BindingContextLE c c') :
-    FieldDeclsSatisfy P c' fields := by
-  intro e he
-  obtain ⟨fv, index, name, type, bi, kind, rfl, hmem, hfind, htype⟩ := H e he
-  exact ⟨fv, index, name, type, bi, kind, rfl, hle.fvars hmem,
-    (hle.declarations fv hmem).trans hfind, htype⟩
-
-/-- Weakening the predicate. -/
-theorem FieldDeclsSatisfy.imp {P Q : Expr → Prop}
-    (H : FieldDeclsSatisfy P c fields) (hPQ : ∀ e, P e → Q e) :
-    FieldDeclsSatisfy Q c fields := by
-  intro e he
-  obtain ⟨fv, index, name, type, bi, kind, rfl, hmem, hfind, htype⟩ := H e he
-  exact ⟨fv, index, name, type, bi, kind, rfl, hmem, hfind, hPQ _ htype⟩
-
-/-- Two predicates established separately hold jointly. -/
-theorem FieldDeclsSatisfy.and {P Q : Expr → Prop}
-    (HP : FieldDeclsSatisfy P c fields) (HQ : FieldDeclsSatisfy Q c fields) :
-    FieldDeclsSatisfy (fun e => P e ∧ Q e) c fields := by
-  intro e he
-  obtain ⟨fv, index, name, type, bi, kind, rfl, hmem, hfind, htype⟩ := HP e he
-  obtain ⟨fv', index', name', type', bi', kind', heq, -, hfind', htype'⟩ := HQ _ he
-  cases Expr.fvar.inj heq
-  rw [hfind] at hfind'
-  cases hfind'
-  exact ⟨fv, index, name, type, bi, kind, rfl, hmem, hfind, htype, htype'⟩
-
 end VerifyInductive
 end Lean4Lean

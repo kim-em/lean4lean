@@ -79,10 +79,6 @@ theorem TeleKeys.data (h : TeleKeys env U Δ σ S ds keys σ' S') :
       have := hd i k y' A' hk hy' hA
       simpa [List.take_succ_cons, List.foldl_cons, extS] using this
 
-theorem TeleKeys.head {k : Key} (h : TeleKeys env U Δ σ S (A :: ds) (k :: keys) σ' S') :
-    TypedElCls env U Δ (TyCls env U Δ (A.subst σ)) k.2.1 := by
-  cases h with | cons hc => exact hc
-
 theorem forall₂_take' {R : α → β → Prop} : ∀ (i : Nat) {l₁ : List α} {l₂ : List β},
     List.Forall₂ R l₁ l₂ → List.Forall₂ R (l₁.take i) (l₂.take i)
   | 0, _, _, _ => by simp
@@ -92,39 +88,6 @@ theorem forall₂_take' {R : α → β → Prop} : ∀ (i : Nat) {l₁ : List α
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
-
-/-- The classes of a chain of typed keys from the identity are typed at the domains instantiated
-at any other members `bs` of the classes. -/
-theorem TeleKeys.cls_at (h : TeleKeys env U Δ .id .empty ds keys σ' S')
-    (hds : DomsSD env U Δ [] ds) {bs : List VExpr}
-    (hbs : List.Forall₂ (fun (k : Key) b => k.2.1 b) keys bs) :
-    ∀ i k A, keys[i]? = some k → ds[i]? = some A →
-      TypedElCls env U Δ (TyCls env U Δ (A.subst (VExpr.argSubst (bs.take i)))) k.2.1 ∧
-      Ctx.SubstEq env U Δ (VExpr.argSubst (bs.take i)) (VExpr.argSubst (bs.take i))
-        (ds.take i).reverse := by
-  intro i k A hk hA
-  have hil : i < ds.length := (List.getElem?_eq_some_iff.1 hA).1
-  have hkl : i < keys.length := (List.getElem?_eq_some_iff.1 hk).1
-  have hl := h.length
-  have e1 : ds = ds.take i ++ ds.drop i := (List.take_append_drop i ds).symm
-  have e2 : keys = keys.take i ++ keys.drop i := (List.take_append_drop i keys).symm
-  rw [e1, e2] at h
-  obtain ⟨σ₁, S₁, h1, h2⟩ := TeleKeys.split (by simp; omega) h
-  obtain ⟨ys, rfl, -, -, -, -⟩ := TeleKeys.data h1
-  have hbs' := forall₂_take' i hbs
-  obtain ⟨hds1, u, hsd⟩ := DomsSD.take_getElem hds i hil
-  have W := TeleKeys.substEq henv hΔ h1 (v := .id) hds1 (Ctx.SubstEq.nil) hbs'
-  simp only [List.append_nil] at W
-  refine ⟨?_, SubstEq.right henv hΔ W⟩
-  rw [List.drop_eq_getElem_cons hil, List.drop_eq_getElem_cons hkl] at h2
-  have hc := h2.head
-  have eA : ds[i] = A := Option.some.inj ((List.getElem?_eq_getElem hil).symm.trans hA)
-  have ek : keys[i] = k := Option.some.inj ((List.getElem?_eq_getElem hkl).symm.trans hk)
-  rw [ek] at hc
-  subst eA
-  simp only [List.append_nil] at hsd
-  have := TyCls.eq_of_defeq (IsDefEq.substDF henv W.wf hΔ W hsd.1.defeq.hasType.1)
-  unfold VExpr.argSubst; rw [← this]; exact hc
 
 end
 

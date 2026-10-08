@@ -322,47 +322,6 @@ theorem mem_insertBinders {l : List VExpr} {x : VExpr} (h : x ∈ l) (k : Nat) :
 
 /-! ## Restoration success of the native recursor types -/
 
-theorem native_restoreOK {s : InductiveSignature} {g : Instance s} {r : Restoration}
-    (owner : Fin s.families.size) (hnat : RestoreOK r (g.recursorType owner) 0) :
-    (∀ p ∈ s.params, RestoreOK r p 0) ∧
-    (∀ c ∈ s.constructors.toList,
-      (∀ f ∈ s.fieldTypes c, RestoreOK r f 0) ∧ ∀ e ∈ c.indices, RestoreOK r e 0) ∧
-    ∀ e ∈ s.families[owner].indices, RestoreOK r e 0 := by
-  simp only [Instance.recursorType] at hnat
-  rw [restoreOK_wrapForalls] at hnat
-  obtain ⟨hdoms, -⟩ := hnat
-  refine ⟨?_, ?_, ?_⟩
-  · intro p hp
-    have := hdoms (p.instL g.levels) (by
-      simp only [List.mem_append]; left; left; left; left
-      exact List.mem_map.mpr ⟨p, hp, rfl⟩)
-    exact (restoreOK_instL r _ p 0).mp this
-  · intro c hc
-    obtain ⟨idx, hidx, rfl⟩ := List.getElem_of_mem hc
-    have hm := hdoms (g.minor s.constructors.toList[idx] idx) (by
-      simp only [List.mem_append]; left; left; right
-      exact List.mem_map.mpr ⟨_, mem_zipIdx_getElem _ idx hidx, rfl⟩)
-    simp only [Instance.minor] at hm
-    rw [restoreOK_wrapForalls] at hm
-    obtain ⟨hfields, hbody⟩ := hm
-    refine ⟨fun f hf => ?_, fun e he => ?_⟩
-    · obtain ⟨j, hj⟩ := mem_insertBinders (List.mem_map.mpr ⟨f, hf, rfl⟩) _
-      have := hfields _ (List.mem_append_left _ hj)
-      rw [restoreOK_liftN, restoreOK_instL] at this
-      exact this
-    · rw [restoreOK_mkApps] at hbody
-      have := hbody.1 _ (List.mem_append_left _ (List.mem_map.mpr ⟨e, he, rfl⟩))
-      rw [restoreOK_liftN, restoreOK_liftN, restoreOK_instL] at this
-      exact this
-  · intro e he
-    obtain ⟨j, hj⟩ := mem_insertBinders (List.mem_map.mpr ⟨e, he, rfl⟩) _
-    have := hdoms _ (by
-      simp only [List.mem_append]; left; right
-      exact hj)
-    rw [restoreOK_liftN, restoreOK_instL] at this
-    exact this
-
-
 /-! ## Restoration success of the case type -/
 
 theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.families.size)

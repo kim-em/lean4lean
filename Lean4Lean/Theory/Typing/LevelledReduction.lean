@@ -543,12 +543,6 @@ theorem Below.ofLoStar (H : Levelled.LoStar (LevelRel Γ) n a b) :
   | rfl => exact .rfl
   | tail _ h ih => obtain ⟨k, hk, _, h⟩ := h; exact .tail ih ⟨k, hk, h⟩
 
-theorem Below.mono (h : n ≤ m) (H : ReflTransGen (Below Γ n) a b) :
-    ReflTransGen (Below Γ m) a b := by
-  induction H with
-  | rfl => exact .rfl
-  | tail _ h' ih => obtain ⟨k, hk, h'⟩ := h'; exact .tail ih ⟨k, by omega, h'⟩
-
 theorem Below.single (hk : k < n) (H : LevelStep Γ k a b) : ReflTransGen (Below Γ n) a b :=
   .tail .rfl ⟨k, hk, H⟩
 
@@ -602,10 +596,6 @@ theorem Below.congr {f : VExpr → VExpr} {P : VExpr → Prop}
     obtain ⟨k, hk, h⟩ := h
     have hP : P b' := Below.pres hpres h₁ ha
     exact ih.tail ⟨k, hk, hstep hP h⟩
-
-theorem Below.typed_pres (hΓ : OnCtx Γ (env.IsType univs)) :
-    ∀ {k a b}, (Γ ⊢ a : A) → LevelStep Γ k a b → Γ ⊢ b : A :=
-  fun ha h => h.hasType hΓ ha
 
 theorem LevelStep.app_l (hf : Γ ⊢ f : .forallE X Y) (hx : Γ ⊢ x : X)
     (hΓ : OnCtx Γ (env.IsType univs)) (H : LevelStep Γ k f f') :
@@ -1134,14 +1124,6 @@ theorem Params.iota_no_quotDelta
       apply hck.1
       simpa [VLevel.inst, List.getD_eq_getElem?_getD] using hz
 
-
-omit [Params] in
-theorem mkApps_snoc_ne_proj : VExpr.mkApps h (as ++ [a]) ≠ .proj s i m := by
-  rw [mkApps_snoc]; intro h; cases h
-
-omit [Params] in
-theorem mkApps_const_snoc_ne_const : VExpr.mkApps (.const n ls) (as ++ [a]) ≠ .const n' ls' := by
-  rw [mkApps_snoc]; intro h; cases h
 
 theorem ParRed.const_spine_of (n : Nat)
     (hno : ∀ {p r pre lv vals}, Pat p r → pre.length ≤ n →

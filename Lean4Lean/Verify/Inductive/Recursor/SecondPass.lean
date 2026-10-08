@@ -131,15 +131,6 @@ theorem RecInfoHypothesisCallSemanticOrigins.pushCurrent
     exact ⟨originRoot, Rorigin, priorHypotheses, Hprior,
       hpriorSize, hchkO, S⟩
 
-theorem List.mem_take_idxOf_succ {α : Type} [BEq α] [LawfulBEq α]
-    {l : List α} {a : α} (h : a ∈ l) :
-    a ∈ l.take (l.idxOf a + 1) := by
-  have hlt : l.idxOf a < l.length := List.idxOf_lt_length_of_mem h
-  rw [List.take_add_one]
-  apply List.mem_append.mpr
-  right
-  simp [List.getElem?_eq_getElem hlt, List.getElem_idxOf hlt]
-
 /-- Sharpening a field up-set to a binder-order prefix of the fields.  The
 retained fields form the exact newest-first prefix of the context, each
 depends only on earlier binders, and no field lies in the root scope `P`. -/
@@ -583,136 +574,13 @@ end mkRecRules.loopU
 
 namespace mkRecInfos.loopCtorArgs.loop
 
-/-- Operational binder refinement for constructor-field classification. -/
-theorem resultBindings {alpha : Type}
-    (stats : AddInductive.InductiveStats)
-    (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
-    {t : Expr} {i : Nat} {bu u : Array Expr} {fuel : Nat}
-    {c : AddInductive.Context} {Q : alpha → Prop}
-    (Hc : BindingContextWF c)
-    (Hbu : FreshBoundFVarArray root c bu)
-    (Hu : FreshBoundFVarArray root c u)
-    (Hselected : u.toList.Sublist bu.toList)
-    (Hroot : BindingContextLE root c)
-    (Hk : ∀ t bu u c, BindingContextWF c →
-      FreshBoundFVarArray root c bu → FreshBoundFVarArray root c u →
-      u.toList.Sublist bu.toList → BindingContextLE root c →
-      (k t bu u c).WF Q) :
-    (AddInductive.mkRecInfos.loopCtorArgs.loop stats k t i bu u fuel c).WF Q := by
-  induction fuel generalizing c t i bu u with
-  | zero =>
-    intro _ h
-    simp [AddInductive.mkRecInfos.loopCtorArgs.loop] at h
-  | succ fuel ih =>
-    cases t with
-    | forallE name dom body bi =>
-      rw [AddInductive.mkRecInfos.loopCtorArgs.loop]
-      cases hparam : stats.params[i]? with
-      | some param =>
-        change (AddInductive.mkRecInfos.loopCtorArgs.loop stats k
-          (body.instantiate1 param) (i + 1) bu u fuel c).WF Q
-        exact ih Hc Hbu Hu Hselected Hroot
-      | none =>
-        let c' : AddInductive.Context := { c with
-          ngen := c.ngen.next
-          lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
-          checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
-        change (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu } >>= fun selected =>
-          AddInductive.mkRecInfos.loopCtorArgs.loop stats
-            k (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) (i + 1)
-            (bu.push (.fvar ⟨c.ngen.curr⟩))
-            (if selected.isSome then u.push (.fvar ⟨c.ngen.curr⟩) else u)
-            fuel c') |>.WF Q
-        have hclass : (AddInductive.isRecArg stats dom { c' with checkLCtx := ctorFieldCheck c stats bu }).WF
-            (fun _ => True) := by
-          intro _ _
-          trivial
-        refine hclass.bind fun selected _ => ?_
-        let Hc' := (Hc.withLocalDecl name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi).withCheckLCtx
-          ((ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
-        let hstep := BindingContextLE.withCheckedLocalDecl
-          (base := ctorFieldCheck c stats bu) c Hc name
-          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
-        cases selected with
-        | none =>
-          have hselected' : u.toList.Sublist
-              (bu.push (.fvar ⟨c.ngen.curr⟩)).toList := by
-            simpa using Hselected.trans
-              (List.sublist_append_left bu.toList
-                [.fvar ⟨c.ngen.curr⟩])
-          exact ih Hc'
-            (Hbu.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
-            (Hu.weakenChecked name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
-            hselected'
-            (Hroot.trans hstep)
-        | some target =>
-          have hselected' : (u.push (.fvar ⟨c.ngen.curr⟩)).toList.Sublist
-              (bu.push (.fvar ⟨c.ngen.curr⟩)).toList := by
-            simpa using
-              Hselected.append_right [.fvar ⟨c.ngen.curr⟩]
-          exact ih Hc'
-            (Hbu.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
-            (Hu.pushCurrentChecked Hc Hroot name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi)
-            hselected'
-            (Hroot.trans hstep)
-    | bvar | fvar | mvar | sort | const | app | lam | letE | lit | mdata
-      | proj =>
-      change (k _ bu u c).WF Q
-      exact Hk _ _ _ _ Hc Hbu Hu Hselected Hroot
-
 end mkRecInfos.loopCtorArgs.loop
-
-theorem mkRecInfos.loopCtorArgs.resultBindings {alpha : Type}
-    (stats : AddInductive.InductiveStats) (t : Expr)
-    (k : Expr → Array Expr → Array Expr → AddInductive.M alpha)
-    (c : AddInductive.Context) {Q : alpha → Prop}
-    (Hc : BindingContextWF c)
-    (Hk : ∀ t bu u c', BindingContextWF c' →
-      FreshBoundFVarArray c c' bu → FreshBoundFVarArray c c' u →
-      u.toList.Sublist bu.toList → BindingContextLE c c' →
-      (k t bu u c').WF Q) :
-    (AddInductive.mkRecInfos.loopCtorArgs stats t k c).WF Q := by
-  unfold AddInductive.mkRecInfos.loopCtorArgs
-  exact mkRecInfos.loopCtorArgs.loop.resultBindings stats k Hc
-    (FreshBoundFVarArray.empty c) (FreshBoundFVarArray.empty c)
-    .slnil (BindingContextLE.refl c) Hk
 
 namespace mkRecRules.loopCtors
 
 
 end mkRecRules.loopCtors
 
-
-/-- Binder-aware analogue of `appendGeneratedRules`. Traversal, ordering, and
-flattened constructor indexing are discharged here; the remaining pointwise
-premise receives all local-binding evidence needed to construct `IotaRule`. -/
-theorem IotaBuildCertificate.appendBoundGeneratedRules
-    (Hbuild : IotaBuildCertificate env decl block prior)
-    (Hgenerated : BoundGeneratedRecursorRules
-      indTypes stats motives minors lvls ctors start sourceRules)
-    (hlength : abstractRules.length = sourceRules.length)
-    (hroom : abstractRules.length + prior.length ≤
-      decl.ownedConstructors.length)
-    (hsemantic : ∀ i (hctor : i < ctors.length)
-      (hsource : i < sourceRules.length)
-      (habstract : i < abstractRules.length),
-      BoundGeneratedRecursorRule indTypes stats motives minors lvls
-        ctors[i] (start + i) sourceRules[i] →
-      Nonempty (decl.IotaRule env block
-        decl.ownedConstructors[prior.length + i].1
-        decl.ownedConstructors[prior.length + i].2 abstractRules[i])) :
-    IotaBuildCertificate env decl block (prior ++ abstractRules) := by
-  apply Hbuild.append hroom
-  intro i habstract
-  have hsource : i < sourceRules.length := by omega
-  have hctor : i < ctors.length := by
-    rw [← Hgenerated.length]
-    exact hsource
-  rcases Hgenerated.entry i hctor hsource with ⟨Hrule⟩
-  exact hsemantic i hctor hsource habstract Hrule
 
 namespace mkRecInfos.loopU
 
@@ -1593,28 +1461,6 @@ theorem RecInfoCoreEq.map_indices
       getElem!_pos right i (by simpa [← H.size_eq] using hi)] at h
     simpa only [Array.getElem_map] using h
 
-theorem RecInfoCoreEq.indices_eq_all
-    (H : RecInfoCoreEq left right) (i : Nat) :
-    left[i]!.indices = right[i]!.indices := by
-  by_cases hi : i < left.size
-  · exact H.indices_eq i hi
-  · have hi' : ¬ i < right.size := by
-      intro hi'
-      apply hi
-      rwa [H.size_eq]
-    simp [Array.getElem!_eq_getD, Array.getD, hi, hi']
-
-theorem RecInfoCoreEq.major_eq_all
-    (H : RecInfoCoreEq left right) (i : Nat) :
-    left[i]!.major = right[i]!.major := by
-  by_cases hi : i < left.size
-  · exact H.major_eq i hi
-  · have hi' : ¬ i < right.size := by
-      intro hi'
-      apply hi
-      rwa [H.size_eq]
-    simp [Array.getElem!_eq_getD, Array.getD, hi, hi']
-
 def RecursorMotiveBinding.congrInfo
     (B : RecursorMotiveBinding R info elimLevel)
     (hmotive : info.motive = info'.motive)
@@ -1661,35 +1507,6 @@ theorem RecInfoMotiveCoreEq.size_eq
     (H : RecInfoMotiveCoreEq left right) : left.size = right.size := by
   have h := congrArg Array.size H.map_motive
   simpa using h
-
-theorem RecInfoMotiveTelescopes.rebaseMotiveCore
-    (T : RecInfoMotiveTelescopes R stats decl parameterCtx left elimLevel)
-    (H : RecInfoMotiveCoreEq left right) :
-    RecInfoMotiveTelescopes R stats decl parameterCtx right elimLevel := by
-  refine ⟨?_, ?_, ?_⟩
-  · intro target htarget
-    have htarget' : target < left.size := by
-      simpa [H.size_eq] using htarget
-    apply RecursorMotiveTelescopeAt.congrInfo (T.telescope target htarget')
-    · exact (H.motive_eq target).symm
-    · exact (H.indices_eq target).symm
-    · exact (H.major_eq target).symm
-  · intro target htarget
-    have htarget' : target < left.size := by
-      simpa [H.size_eq] using htarget
-    rcases T.seed target htarget' with ⟨S, hparams⟩
-    let S' := S.congrInfo (H.indices_eq target).symm
-      (H.major_eq target).symm
-    exact ⟨S', by
-      simpa [S', RecursorMotiveTelescopeSeed.congrInfo] using hparams⟩
-  · intro target htarget
-    have htarget' : target < left.size := by
-      simpa [H.size_eq] using htarget
-    rcases T.seed target htarget' with ⟨S, hparams⟩
-    let S' := S.congrInfo (H.indices_eq target).symm
-      (H.major_eq target).symm
-    exact ⟨S'.canonical, by
-      simpa [S', RecursorMotiveTelescopeSeed.congrInfo] using hparams⟩
 
 theorem RecInfoMotiveTelescopeLookup.rebaseMotiveCore
     (K : RecInfoMotiveTelescopeLookup R stats decl left elimLevel)
@@ -1777,10 +1594,6 @@ theorem RecInfoBindings.rebaseCore_motives_fvars
     (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
     (B.rebaseCore H).motives.fvars = B.motives.fvars := rfl
 
-theorem RecInfoBindings.rebaseCore_majors_fvars
-    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
-    (B.rebaseCore H).majors.fvars = B.majors.fvars := rfl
-
 theorem RecInfoBindings.rebaseCore_flatMinors_fvars
     (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
     (B.rebaseCore H).flatMinors.fvars = B.flatMinors.fvars := by
@@ -1790,16 +1603,6 @@ theorem RecInfoBindings.rebaseCore_flatMinors_fvars
       ((B.rebaseCore H).flatMinors.exprArrayFVarIds).symm
     _ = ExprArrayFVarIds (left.flatMap (·.minors)) := by rw [H.flatMap_minors]
     _ = B.flatMinors.fvars := B.flatMinors.exprArrayFVarIds
-
-theorem RecInfoBindings.rebaseCore_flatIndices_fvars
-    (B : RecInfoBindings c left) (H : RecInfoCoreEq left right) :
-    (B.rebaseCore H).flatIndices.fvars = B.flatIndices.fvars := by
-  calc
-    (B.rebaseCore H).flatIndices.fvars =
-        ExprArrayFVarIds (right.flatMap (·.indices)) :=
-      ((B.rebaseCore H).flatIndices.exprArrayFVarIds).symm
-    _ = ExprArrayFVarIds (left.flatMap (·.indices)) := by rw [H.flatMap_indices]
-    _ = B.flatIndices.fvars := B.flatIndices.exprArrayFVarIds
 
 theorem RecInfoBindings.NoAlias.rebaseCore
     {stats : AddInductive.InductiveStats}

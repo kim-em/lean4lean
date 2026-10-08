@@ -249,21 +249,5 @@ theorem LargeEliminationTrace.contains_bvar_of_fvar
     cases Hfind.symm.trans Hlookup
     exact htarget
 
-/-- A required field variable cannot be one of the uniform parameters; its
-canonical translation therefore occurs in the constructor result indices. -/
-theorem LargeEliminationTrace.index_of_fvar
-    {decl : VInductDecl}
-    (Hargs : List.Forall₂ (TrExprS env Us Δ) args (decl.paramVars nfields ++ indices))
-    (Hcontains : args.contains (.fvar fv) = true)
-    (Hfind : Δ.find? (.inr fv) = some (.bvar i, type))
-    (hi : i < nfields) :
-    VExpr.bvar i ∈ indices := by
-  rcases List.mem_append.mp (contains_bvar_of_fvar Hargs Hcontains Hfind) with
-    hparam | hindex
-  · simp only [VInductDecl.paramVars, List.mem_map] at hparam
-    rcases hparam with ⟨j, hj, heq⟩
-    cases heq
-    omega
-  · exact hindex
 end VerifyInductive
 end Lean4Lean

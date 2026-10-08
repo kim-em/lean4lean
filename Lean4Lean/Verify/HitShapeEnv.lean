@@ -74,16 +74,6 @@ theorem instantiateRevList {e : Expr} {subst : List Expr} (H : ProjsOK ok e)
   rw [← Expr.instantiateList_reverse]
   exact H.instantiateList (fun a ha => hs a (List.mem_reverse.1 ha)) k
 
-theorem instantiate {e : Expr} {subst : Array Expr} (H : ProjsOK ok e)
-    (hs : ∀ a ∈ subst, ProjsOK ok a) : ProjsOK ok (e.instantiate subst) := by
-  rw [Expr.instantiate_eq]
-  exact H.instantiateList (fun a ha => hs a (Array.mem_toList_iff.1 ha)) 0
-
-theorem instantiateRev {e : Expr} {subst : Array Expr} (H : ProjsOK ok e)
-    (hs : ∀ a ∈ subst, ProjsOK ok a) : ProjsOK ok (e.instantiateRev subst) := by
-  rw [Expr.instantiateRev_eq]
-  exact H.instantiate (fun a ha => hs a (Array.mem_reverse.1 ha))
-
 theorem abstract1 {e : Expr} (H : ProjsOK ok e) (fv : FVarId) (k : Nat) :
     ProjsOK ok (e.abstract1 fv k) := by
   induction e generalizing k <;> simp_all [Expr.abstract1]
@@ -569,14 +559,6 @@ theorem EnvHitShape.str {env heads nparams ls} (H : EnvHitShape env heads nparam
     (hs : StrLitsDeclared env) {n : Name} (h : n ∈ hitStrNames := by simp [hitStrNames]) :
     n ∉ heads := H.strs hs n h
 
-theorem EnvHitShape.not_delta {env heads nparams ls} (H : EnvHitShape env heads nparams ls)
-    {n ci} (h : env.find? n = some ci) (hn : n ∈ heads) : ci.deltaValue? = none := by
-  rcases H.head_kind h hn with ⟨v, rfl⟩ | ⟨v, rfl⟩ <;> rfl
-
-theorem EnvHitShape.not_rec {env heads nparams ls} (H : EnvHitShape env heads nparams ls)
-    {n r} (h : env.find? n = some (.recInfo r)) : n ∉ heads := fun hn => by
-  rcases H.head_kind h hn with ⟨v, h'⟩ | ⟨v, h'⟩ <;> cases h'
-
 end Lean4Lean
 
 namespace Lean.Expr
@@ -594,7 +576,6 @@ namespace HitOK
 
 variable {env : Lean.Kernel.Environment} {heads : List Name} {As : List Expr} {ls : List Level}
 
-theorem bvar : HitOK env heads As ls (.bvar i) := ⟨.bvar _, trivial⟩
 theorem fvar : HitOK env heads As ls (.fvar fv) := ⟨.fvar _, trivial⟩
 theorem sort : HitOK env heads As ls (.sort u) := ⟨.sort _, trivial⟩
 theorem lit : HitOK env heads As ls (.lit l) := ⟨.lit _, trivial⟩
@@ -602,15 +583,11 @@ theorem const (h : c ∉ heads) : HitOK env heads As ls (.const c us) := ⟨.con
 
 theorem app (hf : HitOK env heads As ls f) (ha : HitOK env heads As ls a) :
     HitOK env heads As ls (.app f a) := ⟨.app hf.1 ha.1, hf.2, ha.2⟩
-theorem lam (ht : HitOK env heads As ls t) (hb : HitOK env heads As ls b) :
-    HitOK env heads As ls (.lam n t b bi) := ⟨.lam ht.1 hb.1, ht.2, hb.2⟩
 theorem forallE (ht : HitOK env heads As ls t) (hb : HitOK env heads As ls b) :
     HitOK env heads As ls (.forallE n t b bi) := ⟨.forallE ht.1 hb.1, ht.2, hb.2⟩
 theorem letE (ht : HitOK env heads As ls t) (hv : HitOK env heads As ls v)
     (hb : HitOK env heads As ls b) : HitOK env heads As ls (.letE n t v b nd) :=
   ⟨.letE ht.1 hv.1 hb.1, ht.2, hv.2, hb.2⟩
-theorem mdata (h : HitOK env heads As ls e) : HitOK env heads As ls (.mdata m e) :=
-  ⟨.mdata h.1, h.2⟩
 theorem proj (hs : projHitOK env heads s) (h : HitOK env heads As ls e) :
     HitOK env heads As ls (.proj s i e) := ⟨.proj h.1, hs, h.2⟩
 
@@ -643,21 +620,6 @@ theorem instantiateList {subst : List Expr} (H : HitOK env heads As ls e)
     (hs : ∀ a ∈ subst, HitOK env heads As ls a) (k : Nat) :
     HitOK env heads As ls (e.instantiateList subst k) :=
   ⟨H.1.instantiateList (fun a h => (hs a h).1) hp k, H.2.instantiateList (fun a h => (hs a h).2) k⟩
-
-theorem instantiateRevList {subst : List Expr} (H : HitOK env heads As ls e)
-    (hs : ∀ a ∈ subst, HitOK env heads As ls a) (k : Nat) :
-    HitOK env heads As ls (e.instantiateRevList subst k) :=
-  ⟨H.1.instantiateRevList (fun a h => (hs a h).1) hp k,
-    H.2.instantiateRevList (fun a h => (hs a h).2) k⟩
-
-theorem instantiate {subst : Array Expr} (H : HitOK env heads As ls e)
-    (hs : ∀ a ∈ subst, HitOK env heads As ls a) : HitOK env heads As ls (e.instantiate subst) :=
-  ⟨H.1.instantiate (fun a h => (hs a h).1) hp, H.2.instantiate (fun a h => (hs a h).2)⟩
-
-theorem instantiateRev {subst : Array Expr} (H : HitOK env heads As ls e)
-    (hs : ∀ a ∈ subst, HitOK env heads As ls a) :
-    HitOK env heads As ls (e.instantiateRev subst) :=
-  ⟨H.1.instantiateRev (fun a h => (hs a h).1) hp, H.2.instantiateRev (fun a h => (hs a h).2)⟩
 
 theorem of_mem_getAppArgsList (H : HitOK env heads As ls e) (ha : a ∈ e.getAppArgsList) :
     HitOK env heads As ls a :=
@@ -712,11 +674,6 @@ theorem instantiateLevelParams_of_avoids {e : Expr} (H : e.AvoidsConsts heads)
     (hp : e.ProjsOK (projHitOK env heads)) :
     HitOK env heads As ls (e.instantiateLevelParams ps us) :=
   ⟨.instantiateLevelParams_of_avoids H, hp.instantiateLevelParams⟩
-
-omit hp in
-theorem abstractN_of_disjoint {ys : List FVarId} (H : HitOK env heads As ls e)
-    (hp : ∀ p ∈ As, ∃ fv, p = .fvar fv ∧ fv ∉ ys) (d : Nat) :
-    HitOK env heads As ls (e.abstractN ys d) := ⟨H.1.abstractN_of_disjoint hp d, H.2.abstractN ys d⟩
 
 end HitOK
 
@@ -893,15 +850,6 @@ theorem lowerLooseBVars' {e : Expr} (H : HitOK env heads As ls e)
     (hp : ∀ p ∈ As, ∃ fv, p = .fvar fv) (s d : Nat) :
     HitOK env heads As ls (e.lowerLooseBVars' s d) :=
   ⟨H.1.lowerLooseBVars' hp s d, H.2.lowerLooseBVars' s d⟩
-
-theorem liftLooseBVars' {e : Expr} (H : HitOK env heads As ls e)
-    (hp : ∀ p ∈ As, ∃ fv, p = .fvar fv) (s d : Nat) :
-    HitOK env heads As ls (e.liftLooseBVars' s d) :=
-  ⟨H.1.liftLooseBVars' hp s d, H.2.liftLooseBVars' s d⟩
-
-theorem app_inv_arg {f a : Expr} (H : HitOK env heads As ls (.app f a))
-    (hp : ∀ p ∈ As, ∃ fv, p = .fvar fv) : HitOK env heads As ls a :=
-  ⟨H.1.app_inv_arg fun p h => let ⟨fv, e⟩ := hp p h; e ▸ .fvar fv, H.2.2⟩
 
 end HitOK
 

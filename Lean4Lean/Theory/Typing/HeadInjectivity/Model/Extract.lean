@@ -33,12 +33,6 @@ variable {env : VEnv} {U : Nat}
 
 /-! ## List helpers -/
 
-theorem forall₂_append_single {R : α → β → Prop} (H : List.Forall₂ R l₁ l₂) (h : R a b) :
-    List.Forall₂ R (l₁ ++ [a]) (l₂ ++ [b]) := by
-  induction H with
-  | nil => exact .cons h .nil
-  | cons h' _ ih => exact .cons h' ih
-
 theorem forall₂_equiv_of_map_eval :
     ∀ {ls ls' : List VLevel}, ls.map (·.eval) = ls'.map (·.eval) → List.Forall₂ (· ≈ ·) ls ls'
   | [], [], _ => .nil
@@ -341,41 +335,6 @@ theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Mode
       .id args args' τs₀ _ .nil hT (fun τ hτ => ⟨_, _, .nil, eT ▸ hτs₀ τ hτ⟩) hty₀
       (Model.forall₂_imp (fun k a ⟨h1, _, X, hX, h2⟩ => ⟨h1, X, h2 ▸ .self, hX⟩) hkeys) hk'
     rwa [VExpr.subst_id, ← eT] at this
-
-/-- **Stage A2** (`docs/inductives/PHASE1B_NOTES.md`, section 10.2): chain-level head
-injectivity for well-formed environments whose rules are definitions' delta rules and the
-quotient rule (with the quotient constants of `addQuot`), and which have no projections or
-eliminators. -/
-theorem WF.headInjectivityCore_of_defsQuot {env : VEnv} (henv : env.WF) (hdq : env.DefsQuot) :
-    env.HeadInjectivityCore := by
-  have hctor : ∀ c, Model.IsCtor env c → env.Rigid c := by
-    rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
-    · exact VEnv.nativeHeadRigid_iff.1 (henv.native_constructor_rigid hdf hm)
-    · exact VEnv.nativeHeadRigid_iff.1 (henv.case_constructor_rigid hb hgen)
-  have hcres : ∀ c, Model.IsNativeCtor env c → env.CtorResultRigid c :=
-    fun _ ⟨_, hdf, hm⟩ => henv.native_constructor_result_rigid hdf hm
-  have hpctor : ∀ c, Model.IsProjCtor env c → env.Rigid c :=
-    fun _ ⟨_, _, h, _⟩ => absurd h (hdq.projections _ _)
-  have hvalid : ∀ df, env.defeqs df → Model.RuleValid env df := fun df hdf => by
-    rcases hdq.defeqs df hdf with ⟨n, ls, h⟩ | rfl
-    · exact Model.RuleValid.delta henv.ordered henv.defRules hctor hpctor hdf h
-    · exact Model.RuleValid.quot henv.ordered (hdq.quot hdf)
-        (Model.quot_single henv.defRules hdf hdq.defeqs) henv.defRules hctor hcres hpctor (hdq.projections _) (fun ⟨_, _, h, _⟩ => hdq.projections _ _ h) hdf
-  exact henv.headInjectivityCore_of_sound fun hΔ H =>
-    Model.sound henv.ordered hΔ .rfl hvalid (fun n p h => absurd h (hdq.projections n p))
-    (Model.ElimsValid.of_none hdq.eliminators .rfl) H
-
-/-- **Stage A1**: chain-level head injectivity for well-formed environments whose rules are
-all definitions' delta rules and which have no projections or eliminators. -/
-theorem WF.headInjectivityCore_of_defsOnly {env : VEnv} (henv : env.WF) (hdo : env.DefsOnly) :
-    env.HeadInjectivityCore :=
-  henv.headInjectivityCore_of_defsQuot hdo.defsQuot
-
-/-- **Chain-level head injectivity for rule-free environments** (milestone M2 of
-`docs/inductives/PHASE1B_NOTES.md`, section 9.3). -/
-theorem WF.headInjectivityCore_of_noRules {env : VEnv} (henv : env.WF) (hnr : env.NoRules) :
-    env.HeadInjectivityCore :=
-  henv.headInjectivityCore_of_defsOnly hnr.defsOnly
 
 end VEnv
 end Lean4Lean

@@ -97,17 +97,6 @@ theorem CompiledInductive.ctor_result (H : CompiledInductive env source block) :
       exact ⟨_, h2⟩)
     (fun _ _ _ ih => ih) trivial (fun _ _ _ _ _ _ _ => trivial) H
 
-theorem InductiveSignature.CaseCompilationData.ctor_result
-    (hdata : InductiveSignature.CaseCompilationData env source expanded s auxiliaries block) :
-    ∀ type ∈ source.types, ∀ ctor ∈ type.ctors, ∃ ls,
-      ctor.type.forallResult.getAppFnArgs.1 = .const type.name ls := by
-  intro type htype ctor hc
-  obtain ⟨_, _, _, _, _, hraw⟩ := hdata.sourceParameters
-  obtain ⟨doms, result, heq, _, _, hhead⟩ := hraw type htype ctor hc
-  have h2 := hhead
-  rw [← VExpr.forallResult_of_head hhead, ← VExpr.forallResult_wrapForalls doms, ← heq] at h2
-  exact ⟨_, h2⟩
-
 theorem CompiledInductive.types_eq (H : CompiledInductive env source block) :
     block.types = source.typeConstants := by
   exact CompiledInductive.rec

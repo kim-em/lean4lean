@@ -116,23 +116,11 @@ theorem M.Framed.pure {a : α} {R} (h : R a) : M.Framed G (pure a) R := by
 theorem M.Framed.throw {R} : M.Framed G (throw e : M α) R := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩
 
-theorem M.Framed.mono {x : M α} {R R'} (h : M.Framed G x R) (H : ∀ a, R a → R' a) :
-    M.Framed G x R' := fun _ _ _ _ _ hr hs e =>
-  let ⟨h1, h2, h3, h4⟩ := h hr hs e; ⟨h1, H _ h2, h3, h4⟩
-
-theorem M.Framed.map {x : M α} {f : α → β} {R R'} (h : M.Framed G x R)
-    (H : ∀ a, R a → R' (f a)) : M.Framed G (f <$> x) R' := by
-  rw [map_eq_pure_bind]; exact h.bind fun a ha => .pure (H a ha)
-
 theorem M.Framed.getEnv : M.Framed G TypeChecker.getEnv fun _ => True := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, trivial, hs, .rfl⟩
 
 theorem M.Framed.getEnv' : M.Framed G TypeChecker.getEnv (EnvGF G) := by
   rintro c₁ c₂ s b s' hr hs ⟨⟩; exact ⟨by rw [hr.env_eq]; rfl, hr.env_eq ▸ hr.env, hs, .rfl⟩
-
-theorem M.Framed.getLCtx_throw {f : LocalContext → Exception} {R} :
-    M.Framed G (getLCtx >>= fun l => (MonadExcept.throw (f l) : M α)) R := by
-  rintro c₁ c₂ s b s' hr hs ⟨⟩
 
 /-- A read of the context whose continuation does not depend on the local context. -/
 theorem M.Framed.read {f : Context → M α} {R}
@@ -260,13 +248,6 @@ theorem RecM.Framed.ite {c : Prop} [Decidable c] {x y : RecM α} {R}
   split
   · exact h1
   · exact h2
-
-theorem RecM.Framed.mono {x : RecM α} {R R'} (h : RecM.Framed G x R) (H : ∀ a, R a → R' a) :
-    RecM.Framed G x R' := fun _ hm => (h hm).mono H
-
-theorem RecM.Framed.map {x : RecM α} {f : α → β} {R R'} (h : RecM.Framed G x R)
-    (H : ∀ a, R a → R' (f a)) : RecM.Framed G (f <$> x) R' := by
-  rw [map_eq_pure_bind]; exact h.bind fun a ha => .pure (H a ha)
 
 theorem RecM.Framed.lift {x : M α} {R} (h : M.Framed G x R) : RecM.Framed G (liftM x) R :=
   fun _ _ => h

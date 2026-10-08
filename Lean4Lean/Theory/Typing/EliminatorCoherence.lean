@@ -84,16 +84,4 @@ def EliminatorsCoherent (env : VEnv) : Prop :=
     ∀ type ∈ source.types, ∀ info, env.projections type.name info →
       (⟨type.name, info⟩ : VProjectionEntry) ∈ source.projectionEntries
 
-theorem CaseStep.generated (H : CaseStep env U Γ rule levels arguments) :
-    ∃ block schema owner, env.eliminators block schema ∧ schema.Generates block owner rule := by
-  cases H with
-  | iota hl hg => exact ⟨_, _, _, hl, hg⟩
-
-private theorem instL_wrapForalls'' (ds : List VExpr) (body : VExpr) (packed : List VLevel) :
-    (VExpr.wrapForalls ds body).instL packed =
-      VExpr.wrapForalls (ds.map (·.instL packed)) (body.instL packed) := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih => simp only [VExpr.wrapForalls, List.foldr_cons, List.map_cons, VExpr.instL] at ih ⊢; rw [ih]
-
 end Lean4Lean.VEnv

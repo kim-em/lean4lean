@@ -84,12 +84,6 @@ theorem forallArity_mkApps_of_zero' :
   | _, [], h => h
   | _, _ :: xs, _ => forallArity_mkApps_of_zero' (f := .app _ _) xs rfl
 
-theorem forallArity_mkApps_const_instOuter (c : Name) (ls : List VLevel)
-    (xs args : List VExpr) :
-    ((VExpr.mkApps (.const c ls) xs).instOuter args).forallArity = 0 := by
-  rw [instOuter_mkApps, instOuter_const]
-  exact forallArity_mkApps_of_zero' _ rfl
-
 @[simp] theorem replaceRen_proj' {ρ : Name → Option VExpr} {σ : Name → Name}
     {n : Name} {i : Nat} {e : VExpr} :
     (VExpr.proj n i e).replaceRen ρ σ = .proj (σ n) i (e.replaceRen ρ σ) := rfl

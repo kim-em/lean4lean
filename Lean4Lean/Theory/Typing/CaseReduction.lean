@@ -220,16 +220,6 @@ private theorem spine_go_mkApps (fn : VExpr) (args rest : List VExpr) :
   | nil => rfl
   | cons arg args ih => exact ih (.app fn arg)
 
-private theorem spine_liftN (e : VExpr) :
-    (e.liftN n k).getAppFnArgs =
-      (e.getAppFnArgs.1.liftN n k, e.getAppFnArgs.2.map fun e => e.liftN n k) := by
-  suffices ∀ args, VExpr.getAppFnArgs.go (e.liftN n k) (args.map fun e => e.liftN n k) =
-      ((VExpr.getAppFnArgs.go e args).1.liftN n k,
-        (VExpr.getAppFnArgs.go e args).2.map fun e => e.liftN n k) from this []
-  induction e with
-  | app fn arg ih _ => intro args; exact ih (arg :: args)
-  | _ => intro args; rfl
-
 private theorem spine_lift' (e : VExpr) :
     (e.lift' ρ).getAppFnArgs =
       (e.getAppFnArgs.1.lift' ρ, e.getAppFnArgs.2.map fun e => e.lift' ρ) := by
@@ -245,48 +235,6 @@ private theorem case_application_extract (actual : Application) :
   cases actual
   simp [Application.extract, Application.expr, VExpr.getAppFnArgs,
     spine_go_mkApps, VExpr.getAppFnArgs.go]
-
-/-- Lifting cannot create an abstract or constructor head, and all arguments
-of a lifted case spine come from the original spine. -/
-theorem case_application_liftN_inv {actual : Application} {e : VExpr}
-    (h : actual.expr = e.liftN n k) :
-    ∃ original, original.expr = e ∧ CaseApplicationMap original (fun e => e.liftN n k) = actual := by
-  have hextract : Application.extract (e.liftN n k) = some actual := by
-    rw [← h]
-    exact case_application_extract actual
-  cases e <;> simp only [VExpr.liftN, Application.extract] at hextract <;> try contradiction
-  rename_i fn major
-  rw [spine_liftN, spine_liftN] at hextract
-  cases hf : fn.getAppFnArgs.1 <;> cases hm : major.getAppFnArgs.1 <;>
-    simp only [hf, hm, VExpr.liftN] at hextract <;> try contradiction
-  cases hextract
-  refine ⟨{ block := _, owner := _, levels := _, arguments := fn.getAppFnArgs.2, ctorName := _, ctorLevels := _, ctorArguments := major.getAppFnArgs.2 }, ?_, rfl⟩
-  apply Application.extract_sound
-  simp only [Application.extract]
-  cases hf' : fn.getAppFnArgs with | mk f args =>
-    cases hm' : major.getAppFnArgs with | mk c fields =>
-      simp only [hf', hm'] at hf hm
-      simp [hf, hm]
-
-theorem case_application_lift'_inv {actual : Application} {e : VExpr}
-    (h : actual.expr = e.lift' ρ) :
-    ∃ original, original.expr = e ∧ CaseApplicationMap original (fun e => e.lift' ρ) = actual := by
-  have hextract : Application.extract (e.lift' ρ) = some actual := by
-    rw [← h]
-    exact case_application_extract actual
-  cases e <;> simp only [VExpr.lift', Application.extract] at hextract <;> try contradiction
-  rename_i fn major
-  rw [spine_lift', spine_lift'] at hextract
-  cases hf : fn.getAppFnArgs.1 <;> cases hm : major.getAppFnArgs.1 <;>
-    simp only [hf, hm, VExpr.lift'] at hextract <;> try contradiction
-  cases hextract
-  refine ⟨{ block := _, owner := _, levels := _, arguments := fn.getAppFnArgs.2, ctorName := _, ctorLevels := _, ctorArguments := major.getAppFnArgs.2 }, ?_, rfl⟩
-  apply Application.extract_sound
-  simp only [Application.extract]
-  cases hf' : fn.getAppFnArgs with | mk f args =>
-    cases hm' : major.getAppFnArgs with | mk c fields =>
-      simp only [hf', hm'] at hf hm
-      simp [hf, hm]
 
 private theorem case_rebuild_spine (e : VExpr) :
     VExpr.mkApps e.getAppFnArgs.1 e.getAppFnArgs.2 = e := by
@@ -1009,9 +957,6 @@ theorem MatchedCaseStep.majorPremise (henv : env.WF)
   · rw [H.block_eq, H.owner_eq, hb, ho]
   · exact H.arguments_length.trans (hcert.arguments_length hbase hg)
 
-theorem IsCaseMajorPremise.not_reduction (henv : env.WF) (hm : IsCaseMajorPremise env e)
-    (H : AppliedSchemaReduction env U Γ e out) : False := hm.toPrefix.not_reduction henv H
-
 theorem AppliedSchemaReduction.determ (henv : env.WF)
     (H : AppliedSchemaReduction env U Γ lhs rhs) (H' : AppliedSchemaReduction env U Γ lhs rhs') :
     rhs = rhs' := by
@@ -1024,25 +969,9 @@ theorem AppliedSchemaReduction.determ (henv : env.WF)
       cases hm.rule_unique henv hm'
       rfl
 
-/-- Every concrete case reduction starts at its registered abstract family
-slot, even after open argument substitution. -/
-theorem CaseStep.head (H : CaseStep env U Γ rule levels arguments) :
-    ∃ block owner universes,
-      (rule.lhs levels arguments).getAppFnArgs.1 = .elim block owner universes := by
-  cases H with
-  | iota _ hgen => exact ⟨_, _, _, hgen.head⟩
-
 theorem AppliedSchemaReduction.head (H : AppliedSchemaReduction env U Γ lhs rhs) :
     ∃ block owner levels, lhs.getAppFnArgs.1 = .elim block owner levels := by
   cases H with | iota h => exact ⟨_, _, _, Application.head _⟩
-
-/-- Native simple rules cannot reduce the head of a concrete case redex. -/
-theorem CaseStep.not_native_match
-    (H : CaseStep env U Γ rule levels arguments) {pattern : SimplePattern}
-    {values : pattern.toPattern.Path → VExpr}
-    (hm : pattern.toPattern.Matches (rule.lhs levels arguments) ls values) : False := by
-  cases H with
-  | iota _ hgen => exact hgen.not_native_match hm
 
 theorem AppliedSchemaReduction.not_native_match
     (H : AppliedSchemaReduction env U Γ lhs rhs) {pattern : SimplePattern}

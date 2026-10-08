@@ -320,67 +320,6 @@ theorem VEnv.WF.eliminators_unique (H : VEnv.WF env)
       · exact (hfresh.1 _ hleft).elim
       · exact ih hleft hright
 
-theorem VEnv.WF.eliminators_originalFamilies_nodup (H : VEnv.WF env)
-    (hlookup : env.eliminators key schema) : schema.originalFamilies.Nodup := by
-  rcases H with ⟨ds, H⟩
-  induction H with
-  | empty => cases hlookup
-  | decl h _ ih =>
-    rcases h.eliminators_iff.mp hlookup with ⟨source, -, R⟩ | hlookup
-    · obtain ⟨block, hcert, -⟩ := R.constants
-      exact hcert.originalFamilies_nodup
-    exact ih hlookup
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    simp only [VEnv.addProjections_eliminators] at hlookup
-    exact ih hlookup
-  | inductEliminators _ _ _ hformed _ _ _ _ _ ih =>
-    rcases hlookup with ⟨_, rfl⟩ | hlookup
-    · exact hformed.originalFamilies_nodup
-    · exact ih hlookup
-
-/-- A native family has one registered block and schema. In particular,
-typed projection translation cannot choose another block's owner slot. -/
-theorem VEnv.WF.eliminators_owner_unique (H : VEnv.WF env)
-    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
-    (hnameLeft : name ∈ left.originalFamilies)
-    (hnameRight : name ∈ right.originalFamilies) : leftKey = rightKey ∧ left = right := by
-  rcases H with ⟨ds, H⟩
-  induction H with
-  | empty => cases hleft
-  | decl h hds ih =>
-    have henv : VEnv.WF _ := ⟨_, hds⟩
-    rcases h.eliminators_iff.mp hleft with ⟨source, rfl, R⟩ | hleft <;>
-      rcases h.eliminators_iff.mp hright with ⟨source', hs, R'⟩ | hright
-    · cases hs; exact R.unique henv R'
-    · exact ((R.fresh henv).2 _ _ hright hnameLeft hnameRight).elim
-    · exact ((R'.fresh henv).2 _ _ hleft hnameRight hnameLeft).elim
-    · exact ih hleft hright
-  | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
-    simp only [VEnv.addProjections_eliminators] at hleft hright
-    exact ih hleft hright
-  | inductEliminators _ _ _ _ _ _ hfresh _ _ ih =>
-    rcases hleft with ⟨rfl, rfl⟩ | hleft
-    · rcases hright with ⟨rfl, rfl⟩ | hright
-      · exact ⟨rfl, rfl⟩
-      · exact (hfresh.2 _ _ hright hnameLeft hnameRight).elim
-    · rcases hright with ⟨rfl, rfl⟩ | hright
-      · exact (hfresh.2 _ _ hleft hnameRight hnameLeft).elim
-      · exact ih hleft hright
-
-
-/-- Native projection metadata determines one abstract symbol, including
-its owner slot, even when the two translations start with separate witnesses. -/
-theorem VEnv.WF.eliminator_slot_unique {env : VEnv} {leftIndex rightIndex : Nat} (H : env.WF)
-    (hleft : env.eliminators leftKey left) (hright : env.eliminators rightKey right)
-    (hleftName : left.originalFamilies[leftIndex]? = some name)
-    (hrightName : right.originalFamilies[rightIndex]? = some name) :
-    leftKey = rightKey ∧ left = right ∧ leftIndex = rightIndex := by
-  obtain ⟨rfl, rfl⟩ := H.eliminators_owner_unique hleft hright
-    (List.mem_of_getElem? hleftName) (List.mem_of_getElem? hrightName)
-  refine ⟨rfl, rfl, (List.getElem?_inj ?_ (H.eliminators_originalFamilies_nodup hleft)).mp
-    (hleftName.trans hrightName.symm)⟩
-  exact (List.getElem?_eq_some_iff.mp hleftName).1
-
 namespace InductiveSignature.CaseSchema
 
 /-- Register all case schemas immediately after source headers and
@@ -468,25 +407,6 @@ theorem EliminatorsWF.elimWF {base envTypes envCtors : VEnv} {decl : VInductDecl
     exact hsource.ctorsWF hbase (htypesSource ▸ htypes) (hctorsSource ▸ hctors)
   · rw [hE]
     exact hcert.register_after_constructors hbase hkey htypes hctors hprojs hhdr
-
-/-- The projection stage of a certified block is well formed. -/
-theorem EliminatorsWF.projectionsWF {base envTypes envCtors : VEnv} {decl : VInductDecl}
-    {block : VInductBlock} (H : VInductBlock.EliminatorsWF base decl block) (hbase : base.WF)
-    (hdecl : decl.WF base) (hcompile : decl.CompilesTo base block)
-    (htypes : base.addConstVals block.types = some envTypes)
-    (hctors : envTypes.addConstVals block.ctors = some envCtors) :
-    ((envCtors.addEliminators block.eliminators).addProjections block.projections).WF := by
-  have ht' : base.addConstVals decl.typeConstants = some envTypes := by
-    simpa only [hcompile.types] using htypes
-  have helimWF := H.elimWF hbase hdecl.1 hcompile.types hcompile.ctors htypes hctors
-  obtain ⟨_, _, _, _, H⟩ := H
-  rcases H with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, _, hhdr⟩
-  · rw [hP]; exact helimWF
-  have parameters := hdecl.sourceParameterWF ht'
-  exact VEnv.WF.inductProjections hbase helimWF ⟨key, schema, hE, hcert, hkey, hhdr⟩
-    hcompile.sourceNames hdecl.1.originalTypes hdecl.1.2.2.2.1 (hdecl.1.constructorsWF_at ht')
-    parameters parameters.rawCtorShape hcompile.types hcompile.ctors
-    hcompile.projections htypes hctors
 
 end VInductBlock
 end Lean4Lean

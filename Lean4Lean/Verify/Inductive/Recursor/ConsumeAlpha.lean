@@ -57,31 +57,9 @@ theorem Expr.abstractN_consumeTypeAnnotationsVerified
         cases head <;> simp_all [Expr.consumeTypeAnnotationsVerified, Expr.abstractN]
         case fvar => split <;> simp_all [Expr.consumeTypeAnnotationsVerified]
 
-/-- Closing a free-variable spine commutes with removal of the outer type
-annotations recognized by the executable checker. -/
-theorem Expr.abstractList_consumeTypeAnnotations
-    (e : Expr) (fvars : List FVarId) (k : Nat := 0) :
-    (e.consumeTypeAnnotationsVerified annOk).abstractList fvars k =
-      ((e.abstractList fvars k).consumeTypeAnnotationsVerified annOk) := by
-  induction fvars generalizing e with
-  | nil => rfl
-  | cons fv fvars ih =>
-      simp only [Expr.abstractList,
-        Expr.abstract1_consumeTypeAnnotationsVerified]
-      exact ih (e.abstract1 fv k)
-
 end TypeChecker
 
 namespace VerifyInductive
-
-/-- The annotation-consumer alpha contract follows from its existing
-executable equation; it is not an additional checker assumption. -/
-theorem consumeTypeAnnotationsAlphaCompat :
-    ConsumeTypeAnnotationsAlphaCompat := by
-  intro ok leftBinders rightBinders leftDomain rightDomain Halpha
-  unfold TypeChecker.ExprAlphaUnder at Halpha ⊢
-  rw [TypeChecker.Expr.abstractList_consumeTypeAnnotations,
-    TypeChecker.Expr.abstractList_consumeTypeAnnotations, Halpha]
 
 end VerifyInductive
 end Lean4Lean

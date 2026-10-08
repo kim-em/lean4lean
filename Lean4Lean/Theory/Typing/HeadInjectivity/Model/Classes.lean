@@ -76,10 +76,6 @@ def ElStep (D : VExpr → Prop) (a b : VExpr) : Prop :=
 def ElCls (D : VExpr → Prop) (a : VExpr) : VExpr → Prop :=
   fun b => a = b ∨ Relation.TransGen (ElStep env U Δ D) a b
 
-/-- `D` is the type class of a type. -/
-def TypedTyCls (D : VExpr → Prop) : Prop :=
-  ∃ A u, env.HasType U Δ A (.sort u) ∧ D = TyCls env U Δ A
-
 /-- `c` is the element class, at `D`, of a term typed at a member of `D`. -/
 def TypedElCls (D c : VExpr → Prop) : Prop :=
   ∃ a X, D X ∧ env.HasType U Δ a X ∧ c = ElCls env U Δ D a
@@ -133,17 +129,6 @@ theorem LvEq.toEqUpToLevels (h : LvEq U a b) (ha : a.LevelWF U) : EqUpToLevels U
   | lam _ _ ih1 ih2 => exact .lam (ih1 ha.1) (ih2 ha.2)
   | forallE _ _ ih1 ih2 => exact .forallE (ih1 ha.1) (ih2 ha.2)
   | proj _ ih => exact .proj (ih ha)
-
-theorem LvEq.liftN (h : LvEq U a b) : LvEq U (a.liftN n k) (b.liftN n k) := by
-  induction h generalizing k with
-  | refl => exact .refl
-  | sort h1 h2 h3 => exact .sort h1 h2 h3
-  | const h1 h2 h3 => exact .const h1 h2 h3
-  | elim h1 h2 h3 => exact .elim h1 h2 h3
-  | app _ _ ih1 ih2 => exact .app ih1 ih2
-  | lam _ _ ih1 ih2 => exact .lam ih1 ih2
-  | forallE _ _ ih1 ih2 => exact .forallE ih1 ih2
-  | proj _ ih => exact .proj ih
 
 theorem LvEq.subst (h : LvEq U a b) (σ : VExpr.Subst) : LvEq U (a.subst σ) (b.subst σ) := by
   induction h generalizing σ with
@@ -261,9 +246,6 @@ theorem TyCls.defeq' (hX : TyCls env U Δ X₀ X) (h : env.IsDefEq U Δ e₁ e�
   · exact hX.defeqDF h
 
 end
-
-theorem TypedTyCls.of_hasType (h : env.HasType U Δ A (.sort u)) :
-    TypedTyCls env U Δ (TyCls env U Δ A) := ⟨_, _, h, rfl⟩
 
 /-! ## Element classes -/
 
@@ -386,56 +368,13 @@ theorem SubstEq.symm (W : Ctx.SubstEq env U Δ σ σ' Γ) : Ctx.SubstEq env U Δ
 theorem SubstEq.right (W : Ctx.SubstEq env U Δ σ σ' Γ) : Ctx.SubstEq env U Δ σ' σ' Γ :=
   (SubstEq.symm henv hΔ W).left
 
-/-- Composition of related pairs along a common middle. -/
-theorem SubstEq.trans (W1 : Ctx.SubstEq env U Δ σ₁ σ₂ Γ) (W2 : Ctx.SubstEq env U Δ σ₂ σ₃ Γ) :
-    Ctx.SubstEq env U Δ σ₁ σ₃ Γ := by
-  induction W1 generalizing σ₃ with
-  | nil => exact .nil
-  | @cons σ₁ σ₂ Γ A u W1 hA hhead ih =>
-    cases W2 with
-    | cons W2 _ hhead2 =>
-      refine .cons (ih W2) hA (hhead.trans ?_)
-      exact .defeqDF (hA.substDF henv W1.wf hΔ W1).symm hhead2
-
 end
 
 /-! ## The anchored class lemma -/
 
-/-- If each value of `σ'` lies in the class of the corresponding value of a typed anchor
-`σ` (at the type class of the substituted context entry), the two substitutions are
-related. -/
-theorem SubstEq.of_mem_cls (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
-    (W : Ctx.SubstEq env U Δ σ σ Γ)
-    (h : ∀ i A, Lookup Γ i A → ElCls env U Δ (TyCls env U Δ (A.subst σ)) (σ i) (σ' i)) :
-    Ctx.SubstEq env U Δ σ σ' Γ := by
-  induction Γ generalizing σ σ' with
-  | nil => exact .nil
-  | cons B Γ ih =>
-    cases W with
-    | cons W hB hhead =>
-      refine .cons (ih W fun i A hL => ?_) hB ?_
-      · have := h (i+1) A.lift (.succ hL)
-        rwa [VExpr.lift_subst] at this
-      · have := h 0 B.lift .zero
-        rw [VExpr.lift_subst] at this
-        exact ElCls.collapse henv hΔ hhead .self this
-
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
-
-/-- Classes of a typed term agree at an anchor and at any substitution by class members. -/
-theorem ElCls.subst_eq_of_mem_cls (W : Ctx.SubstEq env U Δ σ σ Γ)
-    (h : ∀ i A, Lookup Γ i A → ElCls env U Δ (TyCls env U Δ (A.subst σ)) (σ i) (σ' i))
-    (ht : env.HasType U Γ t T) (hD : D (T.subst σ)) :
-    ElCls env U Δ D (t.subst σ) = ElCls env U Δ D (t.subst σ') :=
-  ElCls.eq_of_defeq hD (ht.substDF henv W.wf hΔ (SubstEq.of_mem_cls henv hΔ W h))
-
-theorem TyCls.subst_eq_of_mem_cls (W : Ctx.SubstEq env U Δ σ σ Γ)
-    (h : ∀ i A, Lookup Γ i A → ElCls env U Δ (TyCls env U Δ (A.subst σ)) (σ i) (σ' i))
-    (ht : env.HasType U Γ t (.sort u)) :
-    TyCls env U Δ (t.subst σ) = TyCls env U Δ (t.subst σ') :=
-  TyCls.eq_of_defeq (ht.substDF henv W.wf hΔ (SubstEq.of_mem_cls henv hΔ W h))
 
 end
 
@@ -450,66 +389,11 @@ here (instantiated with sets of observations by the model). -/
 section
 variable (env U Δ)
 
-/-- Representatives of the classes of a valuation. -/
-def Reps {β : Type} (ρ : List ((VExpr → Prop) × β)) (σ : VExpr.Subst) : Prop :=
-  ∀ i (h : i < ρ.length), (ρ[i]).1 (σ i)
-
-/-- The element class of `t` at `D` under a valuation: the union over representatives. -/
-def clsOf {β : Type} (ρ : List ((VExpr → Prop) × β)) (D : VExpr → Prop) (t : VExpr) :
-    VExpr → Prop :=
-  fun b => ∃ σ, Reps ρ σ ∧ ElCls env U Δ D (t.subst σ) b
-
-/-- The type class of `t` under a valuation: the union over representatives. -/
-def tyClsOf {β : Type} (ρ : List ((VExpr → Prop) × β)) (t : VExpr) : VExpr → Prop :=
-  fun b => ∃ σ, Reps ρ σ ∧ TyCls env U Δ (t.subst σ) b
-
-/-- A valuation anchored at `σ` for `Γ`: each class is the class of the anchor's value at
-the type class of the substituted context entry. -/
-def Anchored {β : Type} (Γ : List VExpr) (σ : VExpr.Subst) (ρ : List ((VExpr → Prop) × β)) :
-    Prop :=
-  ρ.length = Γ.length ∧ ∀ i A (h : i < ρ.length), Lookup Γ i A →
-    (ρ[i]).1 = ElCls env U Δ (TyCls env U Δ (A.subst σ)) (σ i)
-
 end
-
-theorem Reps.of_anchored {β : Type} {ρ : List ((VExpr → Prop) × β)}
-    (hρ : Anchored env U Δ Γ σ ρ) : Reps ρ σ := by
-  intro i h
-  have ⟨A, hL⟩ := Lookup.ofLt (hρ.1 ▸ h)
-  rw [hρ.2 i A h hL]; exact .self
-
-theorem Reps.mem_cls {β : Type} {ρ : List ((VExpr → Prop) × β)}
-    (hρ : Anchored env U Δ Γ σ ρ) (hσ' : Reps ρ σ') :
-    ∀ i A, Lookup Γ i A → ElCls env U Δ (TyCls env U Δ (A.subst σ)) (σ i) (σ' i) := by
-  intro i A hL
-  have h := hρ.1 ▸ hL.lt
-  have := hσ' i h; rwa [hρ.2 i A h hL] at this
 
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
-
-/-- At an anchored typed valuation, the union-over-representatives element class of a
-typed term is the anchored class. -/
-theorem clsOf_anchored {β : Type} {ρ : List ((VExpr → Prop) × β)}
-    (W : Ctx.SubstEq env U Δ σ σ Γ) (hρ : Anchored env U Δ Γ σ ρ)
-    (ht : env.HasType U Γ t T) (hD : D (T.subst σ)) :
-    clsOf env U Δ ρ D t = ElCls env U Δ D (t.subst σ) := by
-  funext b; apply propext; constructor
-  · rintro ⟨σ', hσ', hb⟩
-    rwa [ElCls.subst_eq_of_mem_cls henv hΔ W (Reps.mem_cls hρ hσ') ht hD]
-  · exact fun hb => ⟨σ, Reps.of_anchored hρ, hb⟩
-
-/-- At an anchored typed valuation, the union-over-representatives type class of a type
-is the anchored class. -/
-theorem tyClsOf_anchored {β : Type} {ρ : List ((VExpr → Prop) × β)}
-    (W : Ctx.SubstEq env U Δ σ σ Γ) (hρ : Anchored env U Δ Γ σ ρ)
-    (ht : env.HasType U Γ t (.sort u)) :
-    tyClsOf env U Δ ρ t = TyCls env U Δ (t.subst σ) := by
-  funext b; apply propext; constructor
-  · rintro ⟨σ', hσ', hb⟩
-    rwa [TyCls.subst_eq_of_mem_cls henv hΔ W (Reps.mem_cls hρ hσ') ht]
-  · exact fun hb => ⟨σ, Reps.of_anchored hρ, hb⟩
 
 end
 

@@ -13,13 +13,6 @@ structure QuotRegistered (env : VEnv) : Prop where
   induction : env.constants ``Quot.ind = some quotIndConst
   equation : env.defeqs quotDefEq
 
-theorem QuotRegistered.mono (h : env ≤ env') (H : QuotRegistered env) : QuotRegistered env' :=
-  ⟨h.constants H.quotient, h.constants H.constructor, h.constants H.lift,
-    h.constants H.induction, h.defeqs H.equation⟩
-
-theorem QuotRegistered.of_addQuot {env env' : VEnv} (h : env.addQuot = some env') : QuotRegistered env' :=
-  ⟨addQuot_quot h, addQuot_quotMk h, addQuot_quotLift h, addQuot_quotInd h, addQuot_defeq h⟩
-
 /-- Checked zero-source unfolding at a primitive quotient-lift prefix.
 The selector is Quot.ind, and all replay data come from quotDefEq. -/
 inductive QuotDeltaRule (env : VEnv) (U : Nat) (Γ : List VExpr) :
@@ -34,41 +27,6 @@ inductive QuotDeltaRule (env : VEnv) (U : Nat) (Γ : List VExpr) :
 theorem QuotDeltaRule.registered (H : QuotDeltaRule env U Γ levels arguments rhs) :
     QuotRegistered env := by
   cases H with | intro hr _ _ _ _ => exact hr
-
-/-- The quotient generator and registration discharge every structural
-replay check; only the occurrence's ordinary typing checks remain. -/
-theorem QuotDeltaRule.ofGenerated
-    (hr : QuotRegistered env) (hw : ∀ level ∈ levels, level.WF U)
-    (hz : levels[0]?.getD .zero ≈ .zero)
-    (hg : QuotPrefixProgram.generate levels args = some program)
-    (hsource : HasType env U Γ (VExpr.mkApps (.const ``Quot.lift levels) args) program.type)
-    (hcaptures : ∀ j (hj : j < program.captures.length)
-        (hd : j < program.equationBody.domains.length),
-      HasType env U (program.domains.reverse ++ Γ) program.captures[j]
-        ((program.equationBody.domains[j].instL program.levels).instOuter (program.captures.take j)))
-    (hmajor : ∃ proposition,
-      HasType env U (program.domains.reverse ++ Γ) proposition (.sort .zero) ∧
-      HasType env U (program.domains.reverse ++ Γ) (.bvar 0) proposition ∧
-      HasType env U (program.domains.reverse ++ Γ) program.constructor proposition)
-    (hmatch : NativeSpineMatch env U (program.domains.reverse ++ Γ)
-      (.app (nativeEtaBody (program.domains.length - 1)
-        (VExpr.mkApps (.const ``Quot.lift levels) args)).lift program.constructor)
-      ((program.equationBody.lhs.instL program.levels).instOuter program.captures)) :
-    QuotDeltaRule env U Γ levels args program.rhs := by
-  obtain ⟨hl, _, hn, hlevels, heq, hbody, hcapturesLength⟩ := QuotPrefixProgram.generate_spec hg
-  refine .intro hr hw hz hg {
-    source_typed := hsource
-    remaining_nonempty := hn
-    equation_present := heq.symm ▸ hr.equation
-    equation_body := hbody
-    levels_wf := hlevels ▸ hw
-    levels_length := ?_
-    captures_length := hcapturesLength
-    captures_typed := hcaptures
-    major_prop := hmajor
-    native_lhs := hmatch }
-  rw [hlevels, heq]
-  exact hl
 
 theorem QuotDeltaRule.unique (H : QuotDeltaRule env U Γ levels args rhs)
     (H' : QuotDeltaRule env U Γ levels args rhs') : rhs = rhs' := by

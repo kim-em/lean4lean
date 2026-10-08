@@ -45,42 +45,6 @@ structure RestoredPrimaryOperationalFamilySemantics
         A.loweredState Hstep.restored.headerEnv
           Hstep.restored.constructorEnv owner.ctors
 
-/-- Re-run the already established source translations over the exact
-operational constructor trace.  No semantic witness is selected afresh: the
-result is indexed by `A.constructors`, hence by the same `Hstep` and lowering
-state as the restored primary recursor. -/
-theorem RestoredPrimaryOperationalFamilyAlignment.withSourceSemantics
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
-      depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
-      sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
-    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
-    {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
-    {hentry : familyIdx < Hprod.entries.length}
-    {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
-      sourceTypes[familyIdx] sourceProdEnv targetProdEnv}
-    (A : RestoredPrimaryOperationalFamilyAlignment Hlowering Hprod familyIdx
-      hfamily hentry Hstep)
-    (owner : VInductiveType)
-    (Hrecursor : RestoredPrimaryRecursorSemantics sourceDecl owner c.safety
-      Hstep.restored.recursor canonicalEnv)
-    (Hconstructors : RestoredSourceConstructorTrace result loweredEnv c.lparams c.safety
-      canonicalEnv Hstep.oldInfo.ctors Hstep.restored.headerEnv
-        Hstep.restored.constructorEnv sourceTypes[familyIdx].ctors owner.ctors)
-    (Hsyntax : SourceConstructorSyntaxes sourceTypes[familyIdx].ctors)
-    (Hdisjoint : ∀ source ∈ sourceTypes[familyIdx].ctors,
-      RestoreSourceDisjoint result loweredEnv source.type)
-    (hresultNParams : result.nparams = nparams) :
-    RestoredPrimaryOperationalFamilySemantics A owner Hrecursor := by
-  refine { constructors := ?_ }
-  apply A.constructors.sourceSemanticMapping Hconstructors.forall₂ Hsyntax
-    Hdisjoint rfl A.fvars A.params A.paramsNodup hresultNParams A.paramsSize
-
 /-- Select one constructor while retaining all three identities at once:
 the original source constructor, its lowered/restored operational step, and
 the independently translated abstract source constructor. -/

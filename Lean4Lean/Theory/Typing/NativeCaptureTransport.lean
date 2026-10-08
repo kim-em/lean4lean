@@ -38,11 +38,6 @@ theorem trans (h : TypeConversion env U Γ A B) (h' : TypeConversion env U Γ B 
   | refl => exact h
   | tail _ edge ih => exact .tail ih edge
 
-theorem symm (h : TypeConversion env U Γ A B) : TypeConversion env U Γ B A := by
-  induction h with
-  | refl => exact .refl
-  | tail _ edge ih => exact (single edge.symm).trans ih
-
 theorem cast (h : TypeConversion env U Γ A B) (he : IsDefEq env U Γ e e' A) :
     IsDefEq env U Γ e e' B := by
   induction h with

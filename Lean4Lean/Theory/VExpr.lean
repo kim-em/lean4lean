@@ -323,12 +323,6 @@ def stripLams : VExpr → VExpr
   | .lam _ body => stripLams body
   | e => e
 
-@[simp] theorem forallArity_liftN (e : VExpr) : (e.liftN n k).forallArity = e.forallArity := by
-  induction e generalizing k <;> simp [forallArity, liftN, *]
-
-@[simp] theorem forallArity_instL (e : VExpr) : (e.instL ls).forallArity = e.forallArity := by
-  induction e <;> simp [forallArity, instL, *]
-
 theorem liftN_instN_lo (n : Nat) (e1 e2 : VExpr) (j k : Nat) (hj : k ≤ j) :
     liftN n (e1.inst e2 j) k = (liftN n e1 k).inst e2 (n+j) := by
   induction e1 generalizing k j with

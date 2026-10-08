@@ -38,16 +38,6 @@ theorem liftN_one_subst_liftN (d : VExpr) (σ : Subst) (i : Nat) :
   · rw [if_neg hv, if_neg (by omega), if_neg hv]
     congr 2; omega
 
-theorem liftN_subst_liftN_add (X : VExpr) (τ : Subst) (f h : Nat) :
-    (X.liftN h).subst (τ.liftN (f + h)) = (X.subst (τ.liftN f)).liftN h := by
-  rw [liftN_eq_subst X h, liftN_eq_subst _ h, subst_subst, subst_subst]
-  congr 1; funext v
-  simp only [Subst.comp, Subst.shift, subst_bvar, Subst.liftN_apply]
-  by_cases hv : v < f
-  · rw [if_pos (by omega), if_pos hv]; rfl
-  · rw [if_neg (by omega), if_neg hv, ← liftN_eq_subst, liftN_liftN]
-    congr 2; omega
-
 theorem Subst.ofList_snoc_zero (ps : List VExpr) (M : VExpr) :
     Subst.ofList (ps ++ [M]) 0 = M := by
   simp [Subst.ofList]
@@ -171,14 +161,6 @@ theorem walk_binder {T₀ : VExpr} {ds : List VExpr} {r : VExpr} {args : List VE
       exact absurd hwalk ((hb₀.instOuterAt args 0).ne_forallE _ _)
   · rw [instantiateProjectionParameters_wrapForalls_long _ _ _ hb₀ rfl _ (by omega)] at hwalk
     cases hwalk
-
-theorem instOuter_app_bvar2_bvar0 (ps : List VExpr) (a b c : VExpr) :
-    (VExpr.app (.bvar 2) (.bvar 0)).instOuter (ps ++ [a] ++ [b] ++ [c]) = .app a c := by
-  rw [instOuter_eq_subst]
-  simp only [subst_app, subst_bvar,
-    Subst.ofList_lt _ (show 2 < (ps ++ [a] ++ [b] ++ [c]).length by simp),
-    Subst.ofList_lt _ (show 0 < (ps ++ [a] ++ [b] ++ [c]).length by simp)]
-  congr 1 <;> simp [List.getElem_append_right]
 
 end VExpr
 end Lean4Lean

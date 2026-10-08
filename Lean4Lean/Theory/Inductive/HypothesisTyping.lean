@@ -95,16 +95,6 @@ theorem hypothesis_isType_of_recursorType {s : InductiveSignature} (g : Instance
         (recursiveFields s.constructors[index])[j].2) :=
   (hypothesis_onCtx_of_recursorType g henv owner H index j hj).2
 
-/-- The context of every generated induction hypothesis is well-formed
-whenever some generated recursor type is well-formed in the empty context. -/
-theorem hypothesisContext_onCtx_of_recursorType {s : InductiveSignature} (g : Instance s)
-    {env : VEnv} (henv : env.WF) (owner : Fin s.families.size)
-    (H : env.IsType g.uvars [] (g.recursorType owner))
-    (index : Fin s.constructors.size) (j : Nat)
-    (hj : j < (recursiveFields s.constructors[index]).length) :
-    OnCtx (g.hypothesisContext s.constructors[index] index.val j) (env.IsType g.uvars) :=
-  (hypothesis_onCtx_of_recursorType g henv owner H index j hj).1
-
 /-- The recursive-field clause of the generative specification holds in any
 environment in which some generated recursor type is well-formed. -/
 theorem recursiveTypesWF_of_recursorType {s : InductiveSignature} (g : Instance s)

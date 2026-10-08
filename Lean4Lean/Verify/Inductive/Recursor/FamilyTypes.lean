@@ -27,27 +27,6 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
 
-/-- The header-phase source signature has well-formed family applications in
-the environment in which the recursors are declared.  Its family telescope is
-definitionally the declared family type (`sourceSignatureHeader_families`), so
-each family applied to its own telescope variables has the recorded sort. -/
-theorem sourceSignature_familyTypesWF
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv) :
-    R.sourceSignature.FamilyTypesWF
-      ((R.ctorVEnv.addEliminators R.eliminators).addProjections decl.projectionEntries)
-      decl.uvars :=
-  R.sourceSignature_familyTypesWF_header.mono
-    ((VEnv.addConstVals_le R.core.ctorsAdded).trans VEnv.addEliminators_addProjections_le)
-
-/-- The same statement in the retained checking context's environment. -/
-theorem sourceSignature_familyTypesWF_context
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv) :
-    R.sourceSignature.FamilyTypesWF R.context.venv decl.uvars := by
-  rw [R.contextVEnv]
-  exact R.sourceSignature_familyTypesWF
-
 end CompletedConstructorPhases
 
 theorem vars_append_canonical (a b : Nat) :

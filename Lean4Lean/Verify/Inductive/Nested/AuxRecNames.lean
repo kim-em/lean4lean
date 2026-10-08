@@ -96,39 +96,6 @@ theorem AvoidsConsts.mono {L L' : List Name} (hsub : ∀ n ∈ L', n ∈ L) {e :
     (h : e.AvoidsConsts L) : e.AvoidsConsts L' :=
   AvoidsConsts.of_cover (L₂ := L) (fun n hn => .inl (hsub n hn)) h h
 
-theorem AvoidsConsts.nil (e : Expr) : e.AvoidsConsts [] := by
-  induction e with
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | const => exact .const _ _ (by simp)
-  | app _ _ ihf iha => exact .app _ _ ihf iha
-  | lam _ _ _ _ ihd ihb => exact .lam _ _ _ _ ihd ihb
-  | forallE _ _ _ _ ihd ihb => exact .forallE _ _ _ _ ihd ihb
-  | letE _ _ _ _ _ iht ihv ihb => exact .letE _ _ _ _ _ iht ihv ihb
-  | lit l =>
-    exact Lean4Lean.VerifyInductive.avoidsConsts_lit_of_reserved (by simp) l
-  | mdata _ _ ih => exact .mdata _ _ ih
-  | proj _ _ _ ih => exact .proj _ _ _ ih
-
-/-- Every expression satisfies `HitTrailAvoids` for the empty name list. -/
-theorem HitTrailAvoids.nil (heads : List Name) (np : Nat) (e : Expr) :
-    e.HitTrailAvoids heads [] np := by
-  induction e with
-  | bvar => exact .bvar _
-  | fvar => exact .fvar _
-  | mvar => exact .mvar _
-  | sort => exact .sort _
-  | const => exact .const _ _
-  | lit l => exact .lit _ (AvoidsConsts.nil _)
-  | app _ _ ihf iha => exact .app ihf iha fun _ _ _ _ x _ => AvoidsConsts.nil x
-  | lam _ _ _ _ ihd ihb => exact .lam ihd ihb
-  | forallE _ _ _ _ ihd ihb => exact .forallE ihd ihb
-  | letE _ _ _ _ _ iht ihv ihb => exact .letE iht ihv ihb
-  | mdata _ _ ih => exact .mdata ih
-  | proj _ _ _ ih => exact .proj ih
-
 private theorem instantiate1'_fvar_bvar (i k : Nat) (fv : FVarId) :
     (∃ j, instantiate1' (.bvar i) (.fvar fv) k = .bvar j) ∨
       instantiate1' (.bvar i) (.fvar fv) k = .fvar fv := by
@@ -965,26 +932,6 @@ def NestedValidatedRunResult.LoweredRulesAvoid
       rule.rhs.HitTrailAvoids heads X result.nparams ∧
         rule.rhs.LamPrefixAvoids X result.nparams
 
-/-- `LoweredRulesAvoid` for the empty name list holds whenever the lowered
-rule right-hand sides start with `result.nparams` lambdas. -/
-theorem NestedValidatedRunResult.loweredRulesAvoid_nil
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv) (heads : List Name)
-    (hlam : ∀ (owner : Fin E.production.production.generationSignature.families.size)
-      (rec : RecursorVal),
-      E.loweredEnv.find?
-          (E.production.production.canonicalGeneration.recursorName owner) =
-        some (.recInfo rec) →
-      ∀ rule ∈ rec.rules, rule.rhs.LamPrefixAvoids [] result.nparams) :
-    E.LoweredRulesAvoid heads [] :=
-  fun owner rec hfind rule hrule =>
-    ⟨Lean.Expr.HitTrailAvoids.nil heads _ _, hlam owner rec hfind rule hrule⟩
-
 /-- **Realization of a restored equation list modulo `X`**: as
 `RestoredRulesRealization`, but the translation environment need only lack
 the restorable names outside `X`. -/
@@ -1002,19 +949,6 @@ def NestedValidatedRunResult.RestoredRulesRealizationModulo
       (List.finRange
         E.production.production.generationSignature.constructors.size)
       rules
-
-theorem NestedValidatedRunResult.RestoredRulesRealization.modulo
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
-    {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    {outEnv : Environment}
-    {E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
-      sourceDecl lparams nparams isUnsafe safety outEnv}
-    {r : Restoration} {rules : List VDefEq} (H : E.RestoredRulesRealization r rules)
-    (X : List Name) : E.RestoredRulesRealizationModulo r X rules := by
-  obtain ⟨trEnv, Hfresh, HF⟩ := H
-  exact ⟨trEnv, fun n hn _ => Hfresh n hn, HF⟩
 
 /-- Freshness outside `X` is freshness outside the restorable names of `X`. -/
 theorem fresh_filter_restorable {R X : List Name} {P : Name → Prop}

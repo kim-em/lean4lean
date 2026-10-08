@@ -1277,91 +1277,6 @@ theorem
   simpa [selectedOuter, ownerOuter, List.reverse_append,
     List.append_assoc] using Htransported
 
-/-- The parameter group of the call-selected generated recursor is
-definitionally equal to the independently replayed canonical parameter
-group for that same mutual family. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalParameterAlignment
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let selectedOwner := F.semantic.generated.ownerIdx
-    ∃ C : RecursorCanonicalMotiveTelescope H.outVEnv Us stats decl
-        selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
-      VEnv.IsDefEqCtx H.outVEnv Us.length []
-        F.telescope.params.reverse C.params.reverse := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let selectedOwner := F.semantic.generated.ownerIdx
-  rcases H.finalRecursorParameterContextAt selectedOwner F.entry_lt with
-    ⟨T, hgenerated⟩
-  rcases T.groupsResult_eq F.telescope with
-    ⟨hparams, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
-  rw [hparams] at hgenerated
-  rcases H.finalCanonicalMotiveTelescopeAt selectedOwner F.entry_lt with
-    ⟨C, hcanonical⟩
-  exact ⟨C,
-    Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.transEmpty H.outVEnvWF
-      hgenerated (hcanonical.symm H.outVEnvWF.ordered)⟩
-
-/-- Exact generated owner-motive domain for the recursive call's selected
-family, stated against the particular telescope retained in this frame. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveDomainTranslation
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let selectedOwner := F.semantic.generated.ownerIdx
-    ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
-        selectedOwner H.recInfos[selectedOwner]! H.elimLevel,
-      VEnv.IsDefEqCtx H.outVEnv Us.length []
-          F.telescope.params.reverse S.canonical.params.reverse ∧
-      TrExprS H.outVEnv Us
-        (abstractForallContext
-          (F.telescope.params ++
-            F.telescope.motives.take selectedOwner) [])
-        ((H.localContext.lctx.mkForall
-          H.recInfos[selectedOwner]!.indices
-          (H.localContext.lctx.mkForall
-            #[H.recInfos[selectedOwner]!.major]
-            (.sort H.elimLevel))).abstractList
-              (H.params.fvars ++
-                H.bindings.motives.fvars.take selectedOwner))
-        F.telescope.motives[selectedOwner]! ∧
-      H.outVEnv.IsType Us.length
-        (abstractForallContext
-          (F.telescope.params ++
-            F.telescope.motives.take selectedOwner) []).toCtx
-        F.telescope.motives[selectedOwner]! := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let selectedOwner := F.semantic.generated.ownerIdx
-  rcases H.finalOwnerMotiveDomainTranslationAt selectedOwner F.entry_lt with
-    ⟨T, S, hparameters, Hdomain, HdomainType⟩
-  rcases T.groupsResult_eq F.telescope with
-    ⟨hparams, hmotives, _hminors, _hindices, _hmajor, _hresult⟩
-  rw [hparams] at hparameters
-  rw [hparams, hmotives] at Hdomain HdomainType
-  exact ⟨S, hparameters, Hdomain, HdomainType⟩
-
 /-- The motive binder selected by a recursive call is definitionally equal
 to the independently reconstructed canonical motive type for that call's
 mutual-family owner.  This is stated against the frame's fixed generated
@@ -1917,59 +1832,6 @@ theorem
   · exact HprefixExpected.defeqDFC H.outVEnvWF.ordered Hfull
   · exact HownerExpected.defeqDFC H.outVEnvWF.ordered Hfull
 
-/-- Any concrete mutual-family constant retained in the executable statistics
-translates under recursor universes to its installed abstract header at the
-declaration-level universe instantiation. -/
-theorem CompletedRecursorPhasesResult.finalInductiveHeadTranslationAt
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
-    (target : Nat) (htarget : target < decl.types.length)
-    (Delta : VLCtx) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    TrExprS H.outVEnv Us Delta stats.indConsts[target]!
-      (.const decl.types[target].name
-        (recursorDeclarationAbstractLevels c.lparams
-          H.elimLevelAdmissible)) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let targetVal := decl.types[target]
-  have hlookupHeader : R.headerVEnv.constants targetVal.name =
-      some targetVal.toVConstant := by
-    apply VEnv.addConstVals_get R.installation.headerAbstract
-    rw [R.headerValues]
-    exact List.mem_map.mpr
-      ⟨targetVal, List.getElem_mem htarget, rfl⟩
-  have hlookupCtor : R.context.venv.constants targetVal.name =
-      some targetVal.toVConstant :=
-    R.ctorLE.constants (R.installation.constructorLE.constants hlookupHeader)
-  have hlookup : H.outVEnv.constants targetVal.name =
-      some targetVal.toVConstant :=
-    H.constructorVEnv_le.constants hlookupCtor
-  have hsource : stats.indConsts[target]! =
-      .const targetVal.name stats.levels := by
-    rw [R.materializedFinal.consts]
-    simp [targetVal, htarget]
-  have hlevels := R.materializedFinal.recursorLevelTranslation
-    H.lparamsNodup H.elimLevelAdmissible
-  have htypesLength : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
-      R.core.types
-  have hsourceTarget : target < indTypes.toList.length := by
-    simpa [htypesLength] using htarget
-  have Htarget := Lean4Lean.VerifyInductive.List.Forall₂.getElem
-    R.core.types target hsourceTarget htarget
-  have htargetUvars : targetVal.uvars = decl.uvars := by
-    exact Htarget.header.uvars.trans R.materializedFinal.uvars
-  have hlength : stats.levels.length = targetVal.uvars := by
-    exact R.materializedFinal.levels.trans htargetUvars.symm
-  dsimp only [Us, targetVal]
-  rw [hsource]
-  exact TrExprS.const hlookup hlevels hlength
-
 /-- The concrete constructor constant at the head of the generated major
 premise translates under recursor universes to the installed abstract
 constructor at the declaration-level universe instantiation. -/
@@ -2026,46 +1888,6 @@ theorem
   dsimp only [Us, sourceCtor, ctorVal]
   rw [← hname]
   exact TrExprS.const hlookup hlevels hlength
-
-/-- Typed canonical application of the common recursor prefix used by this
-rule.  The remaining function consumes precisely the owner's indices and
-major premise. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.recursorPrefixTyping
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    let recursor := H.entries[owner].2
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
-        (H.generated.entry owner howner).info.type recursor.type
-        stats.params.size (H.recInfos.map (·.motive)).size
-        (H.recInfos.flatMap (·.minors)).size
-        H.recInfos[owner]!.indices.size owner,
-      H.outVEnv.HasType Us.length
-        (T.params ++ T.motives ++ T.minors).reverse
-        (VExpr.mkApps
-          ((VExpr.const recursor.name (VLevel.params Us.length)).liftN
-            (T.params ++ T.motives ++ T.minors).length 0)
-          (recursorCanonicalVars
-            (T.params ++ T.motives ++ T.minors).length))
-        (VExpr.wrapForalls (T.indices ++ T.major) T.result) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  let recursor := H.entries[owner].2
-  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
-  have hrec := A.recursorTyping
-  have huvars := A.recursorUvars
-  change Us.length = recursor.uvars at huvars
-  change H.outVEnv.HasType recursor.uvars []
-    (.const recursor.name (VLevel.params recursor.uvars)) recursor.type at hrec
-  rw [← huvars] at hrec
-  exact ⟨T, T.prefixTyping H.outVEnvWF.ordered hrec⟩
 
 /-- Weaken the common recursor application below the genuine constructor
 fields.  This packages it with the exact dependent equation context and the
@@ -2164,43 +1986,6 @@ theorem
     hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx, Hmajor, by
     simpa [List.reverse_append, List.append_assoc] using Hprefix',
     Htarget, HintroShape⟩
-
-/-- The residual of the selected translated recursor is literally the owner
-motive applied to its canonical index variables and major premise.  This
-turns the otherwise opaque `T.result` field into the exact suffix shape that
-the generated equation must instantiate. -/
-theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalRecursorResultShape
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-    ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
-        (H.generated.entry owner howner).info.type H.entries[owner].2.type
-        stats.params.size (H.recInfos.map (·.motive)).size
-        (H.recInfos.flatMap (·.minors)).size
-        H.recInfos[owner]!.indices.size owner,
-      T.result = VExpr.mkApps
-        (.bvar
-          (1 + H.recInfos[owner]!.indices.size +
-            (H.recInfos.flatMap (·.minors)).size +
-            ((H.recInfos.map (·.motive)).size - 1 - owner)))
-        (((List.range H.recInfos[owner]!.indices.size).reverse.map
-            fun index => .bvar (index + 1)) ++ [.bvar 0]) := by
-  let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
-  have hownerRecInfo : owner < H.recInfos.size := by
-    simpa [H.generated.length] using howner
-  have hownerMotive : owner < (H.recInfos.map (·.motive)).size := by
-    simpa using hownerRecInfo
-  exact ⟨T, T.resultShape hownerMotive⟩
 
 end VerifyInductive
 end Lean4Lean

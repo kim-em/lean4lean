@@ -199,26 +199,6 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
             from ⟨decl, ctorEnv, R.completed, Hrecursors⟩
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
 
-/-- Declaration-facing primitive result whose declaration is selected by the
-successful executable header and constructor traversals. -/
-def VerifiedSemanticPrimitiveInductiveRunResult
-    (source : AddInductive.Context) (nparams : Nat)
-    (types : List InductiveType) (numNested : Nat)
-    (outEnv : Environment) : Prop :=
-  ∃ c' stats depth commonParams commonLevel,
-    ∃ Hc' : ContextWF c',
-    c'.env = source.env ∧
-    c'.safety = source.safety ∧
-    c'.lparams = source.lparams ∧
-    ∃ Hsemantic :
-      checkInductiveTypes.loopType.MaterializedSourceHeaderSemanticAccumulator
-        Hc'.venv c'.lparams nparams commonParams commonLevel
-          types.toArray.toList,
-    ∃ Hshape : PrimitiveInductiveShape c'.lparams nparams
-      types.toArray.toList (source.safety != .safe),
-      SemanticPrimitiveRunWithStatsResult c' stats nparams depth Hc'.venv
-        types.toArray (source.safety != .safe) outEnv
-
 /-- Source-aligned primitive result, retaining the exact abstract model from
 which the executable header traversal began. -/
 def VerifiedSemanticPrimitiveInductiveRunResultSourceAligned
@@ -300,28 +280,6 @@ theorem AddInductive.run.primitiveSemanticSourceAlignedWF
             hlparams, hallowPrimitive, hfuel, hvenv, Hsemantic, Hshape',
             Hrun⟩
   simpa [AddInductive.run] using Hcombined
-
-/-- Project a primitive run to its declaration-level semantic result. -/
-theorem AddInductive.run.primitiveSemanticWF
-    (nparams numNested : Nat)
-    (Hc : ContextWF c)
-    (Hclosed : MutualInductivesClosed c.env)
-    (Hshape : PrimitiveInductiveShape c.lparams nparams
-      types.toArray.toList (c.safety != .safe))
-    (hctx : Hc.mlctx.vlctx = [])
-    (hnonempty : 0 < types.toArray.size)
-    (HnotPartial : c.safety ≠ .partial) :
-    (AddInductive.run nparams types numNested c).WF
-      (VerifiedSemanticPrimitiveInductiveRunResult c nparams types
-        numNested) := by
-  exact (AddInductive.run.primitiveSemanticSourceAlignedWF nparams numNested
-    Hc Hclosed Hshape hctx hnonempty HnotPartial).mono fun _ Hresult => by
-      rcases Hresult with
-        ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
-          hlparams, _hallowPrimitive, _hfuel, _hvenv, Hsemantic, Hshape',
-          Hrun⟩
-      exact ⟨c', stats, depth, commonParams, commonLevel, Hc', henv,
-        hsafety, hlparams, Hsemantic, Hshape', Hrun⟩
 
 end VerifyInductive
 end Lean4Lean

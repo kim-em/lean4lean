@@ -117,14 +117,6 @@ theorem RestoredCompilationRealization.congr_eliminators
   rcases H.generated with ⟨expanded, s, g, auxiliaries, hdata, hprior, hentries⟩
   exact ⟨expanded, s, g, auxiliaries, hdata.congr_eliminators es, hprior, hentries⟩
 
-theorem RestoredRecursorRealization.ruleCount
-    {s : InductiveSignature} {g : Instance s}
-    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RestoredRecursorRealization g r sourceNames venv owner rec) :
-    rec.rules.length = (s.ownedConstructors owner).length := by
-  rcases H.specialization with ⟨_, _, _, _, _, _, hrules⟩
-  exact (Lean4Lean.List.Forall₂.length_eq hrules).symm
-
 /-- The source parameter count is fixed even if the restored constructor has
 additional specialized parameters. Corrupting this concrete count cannot be
 repaired by choosing another existential signature. -/
@@ -149,59 +141,6 @@ theorem RestoredCompilationRealization.all
     ⟨owner, _, concrete, he, _, hrec⟩
   cases he
   exact hrec.all
-
-theorem RestoredRuleRealization.mono {s : InductiveSignature} {g : Instance s}
-    {index : Fin s.constructors.size}
-    (H : RestoredRuleRealization g r venv Us head index rule)
-    (hle : venv ≤ venv') : RestoredRuleRealization g r venv' Us head index rule := by
-  rcases H.equation with ⟨df, heq, hhead, htr⟩
-  exact { H with equation := ⟨df, heq, hhead, htr.mono hle⟩ }
-
-theorem RestoredRecursorRealization.mono {s : InductiveSignature} {g : Instance s}
-    {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RestoredRecursorRealization g r sourceNames venv owner rec)
-    (hle : venv ≤ venv') :
-    RestoredRecursorRealization g r sourceNames venv' owner rec := by
-  rcases H.type with ⟨type, heq, htr⟩
-  rcases H.specialization with ⟨head, hh, hm, hl, ha, hmajor, hrules⟩
-  exact { H with
-    type := ⟨type, heq, htr.mono hle⟩
-    specialization := ⟨head, hh, hm, hl, ha, hmajor,
-      Lean4Lean.List.Forall₂.imp (fun _ _ h => h.mono hle) hrules⟩ }
-
-/-- Concrete entry order matches the generated restored constant list, so
-its abstract values are exactly the compiled block's recursors. -/
-theorem RestoredCompilationRealization.entryValues
-    (H : RestoredCompilationRealization env source block venv entries) :
-    entries.map Prod.snd = block.recursors := by
-  rcases H.generated with ⟨expanded, s, g, auxiliaries, hdata, _, hentries⟩
-  let r := compilationRestoration source auxiliaries
-  have hmap : ∀ {owners entries},
-      List.Forall₂ (RestoredRecursorEntryRealization g r
-        (source.types.map (·.name)) venv) owners entries →
-      owners.mapM (fun owner => r.recursor (g.recursor owner)) =
-        some (entries.map Prod.snd) := by
-    intro owners entries h
-    induction h with
-    | nil => rfl
-    | @cons owner entry owners entries h _ ih =>
-      rcases h with ⟨rec, _, heq, _⟩
-      simp [List.mapM_cons, heq, ih]
-  have generated := hmap hentries
-  have heq := hdata.recursors
-  simp only [Instance.restoredRecursors, Instance.recursors, List.mapM_map,
-    Function.comp_def] at heq
-  exact Option.some.inj (generated.symm.trans heq)
-
-theorem RestoredCompilationRealization.monoTarget
-    (H : RestoredCompilationRealization env source block venv entries)
-    (hle : venv ≤ venv') :
-    RestoredCompilationRealization env source block venv' entries := by
-  rcases H.generated with ⟨expanded, s, g, auxiliaries, hdata, hprior, hentries⟩
-  refine ⟨expanded, s, g, auxiliaries, hdata, hprior, ?_⟩
-  exact Lean4Lean.List.Forall₂.imp (fun _ _ h => by
-    rcases h with ⟨rec, hc, hv, hrec⟩
-    exact ⟨rec, hc, hv, hrec.mono hle⟩) hentries
 
 end InductiveSignature
 end Lean4Lean

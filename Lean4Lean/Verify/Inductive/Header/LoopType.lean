@@ -159,14 +159,6 @@ theorem FVarNarrowSources.noBV (H : FVarNarrowSources env Us scope) : scope.bvar
     (FVarNarrowSources.nil : FVarNarrowSources env Us []).closeSource body =
       body := rfl
 
-theorem FVarNarrowSources.toCtx_length
-    (H : FVarNarrowSources env Us scope) :
-    scope.toCtx.length = scope.length := by
-  induction H with
-  | nil => rfl
-  | cons tail name binderInfo domain translation ih =>
-    simp [VLCtx.toCtx, ih]
-
 theorem _root_.Lean4Lean.VLCtx.WF.mono
     {env env' : VEnv} (henv : env ≤ env') :
     ∀ {scope : VLCtx}, VLCtx.WF env U scope → VLCtx.WF env' U scope
@@ -381,14 +373,6 @@ inductive FrontFVLift : List VExpr → List VExpr →
         ((some (fv, deps), .vlam (indexType.lift' shift)) :: expanded)
         (shift.consN 1)
 
-theorem FrontFVLift.sourcePrefix
-    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
-    (scope.toCtx.take sourceDomains.length).reverse = sourceDomains := by
-  induction H with
-  | zero => rfl
-  | cons fv deps indexType _ H ih =>
-    simp [VLCtx.toCtx, ih, List.take_succ_cons, List.reverse_cons]
-
 theorem FrontFVLift.expandedPrefix
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     (expanded.toCtx.take expandedDomains.length).reverse =
@@ -404,20 +388,6 @@ theorem FrontFVLift.length_eq
   induction H with
   | zero => rfl
   | cons _ _ _ _ _ ih => simpa using congrArg Nat.succ ih
-
-theorem FrontFVLift.sourceLengthLE
-    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
-    sourceDomains.length ≤ scope.toCtx.length := by
-  induction H with
-  | zero => simp
-  | cons _ _ _ _ _ ih => simpa [VLCtx.toCtx] using Nat.succ_le_succ ih
-
-theorem FrontFVLift.sourceLengthLEScope
-    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
-    sourceDomains.length ≤ scope.length := by
-  induction H with
-  | zero => simp
-  | cons _ _ _ _ _ ih => simpa using Nat.succ_le_succ ih
 
 theorem FrontFVLift.sourceBaseBVars
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
@@ -464,40 +434,12 @@ theorem FrontFVLift.sourceDeclarations
       List.take_succ_cons, VLCtx.fvars_cons_some]
     exact List.Forall₂.cons (by exact ⟨deps, indexType, rfl⟩) ih
 
-/-- The expanded side of a retained front consists of the same named lambda
-declarations, with each domain weakened by the accumulated embedding. -/
-theorem FrontFVLift.expandedDeclarations
-    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
-    List.Forall₂
-      (fun fv entry => ∃ deps type,
-        entry = (some (fv, deps), .vlam type))
-      (VLCtx.fvars (expanded.take expandedDomains.length))
-      (expanded.take expandedDomains.length) := by
-  induction H with
-  | zero => exact .nil
-  | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType hdeps H ih =>
-    simp only [List.length_append, List.length_singleton, Nat.add_one,
-      List.take_succ_cons, VLCtx.fvars_cons_some]
-    exact List.Forall₂.cons
-      (by exact ⟨deps, indexType.lift' shift, rfl⟩) ih
-
 /-- `toCtx` sees every declaration in the retained source prefix because
 `withIndex` adds lambdas only. -/
 theorem FrontFVLift.sourceTakenContext
     (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
     (VLCtx.toCtx (scope.take sourceDomains.length)).reverse =
       sourceDomains := by
-  induction H with
-  | zero => rfl
-  | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType hdeps H ih =>
-    simp [List.take_succ_cons, VLCtx.toCtx, ih, List.reverse_cons]
-
-theorem FrontFVLift.expandedTakenContext
-    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
-    (VLCtx.toCtx (expanded.take expandedDomains.length)).reverse =
-      expandedDomains := by
   induction H with
   | zero => rfl
   | @cons sourceDomains expandedDomains scope expanded shift fv deps
@@ -521,18 +463,6 @@ theorem _root_.Lean4Lean.VLCtx.fvars_take_sublist
         change (fv.1 :: VLCtx.fvars (scope.take n)).Sublist
           (fv.1 :: VLCtx.fvars scope)
         exact List.cons_sublist_cons.mpr (ih scope)
-
-theorem FrontFVLift.expandedContext
-    (H : FrontFVLift sourceDomains expandedDomains scope expanded shift) :
-    VLCtx.toCtx expanded =
-      expandedDomains.reverse ++
-        VLCtx.toCtx (expanded.drop expandedDomains.length) := by
-  induction H with
-  | zero => simp
-  | @cons sourceDomains expandedDomains scope expanded shift fv deps
-      indexType _ H ih =>
-    simpa [VLCtx.toCtx, List.reverse_append, List.append_assoc] using
-      congrArg (indexType.lift' shift :: ·) ih
 
 /-- Recover the fixed free-variable weakening below a front accumulated by
 `withIndex`.  Removing the leading source and expanded declarations exposes
@@ -567,56 +497,6 @@ theorem _root_.Lean4Lean.VLCtx.IsDefEq.drop
     cases H with
     | nil => exact .nil
     | cons H _ _ => exact ih H
-
-/-- A verifier-context conversion preserves the named-lambda shape of every
-selected leading declaration.  Domain expressions may differ, but the free
-variable identifier and dependency metadata are shared by `VLCtx.IsDefEq`.
--/
-theorem _root_.Lean4Lean.VLCtx.IsDefEq.leftLambdaDeclarations
-    (H : VLCtx.IsDefEq env U left right)
-    (Hright : List.Forall₂
-      (fun fv entry => ∃ deps type,
-        entry = (some (fv, deps), .vlam type))
-      fvars (right.take n)) :
-    List.Forall₂
-      (fun fv entry => ∃ deps type,
-        entry = (some (fv, deps), .vlam type))
-      fvars (left.take n) := by
-  induction n generalizing left right fvars with
-  | zero =>
-    have hfvars : fvars = [] :=
-      List.eq_nil_of_length_eq_zero
-        (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hright)
-    subst fvars
-    exact .nil
-  | succ n ih =>
-    cases H with
-    | nil =>
-      have hfvars : fvars = [] :=
-        List.eq_nil_of_length_eq_zero
-          (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hright)
-      subst fvars
-      exact .nil
-    | @cons leftTail rightTail ofv leftDecl rightDecl Hctx _ Hdecl =>
-      cases fvars with
-      | nil => cases Hright
-      | cons fv fvars =>
-        simp only [List.take_succ_cons] at Hright ⊢
-        cases Hright with
-        | cons hentry Htail =>
-          rcases hentry with ⟨deps, type, hentry⟩
-          cases hentry
-          cases Hdecl with
-          | vlam Htype =>
-            exact .cons ⟨deps, _, rfl⟩ (ih Hctx Htail)
-
-theorem _root_.Lean4Lean.VLCtx.IsDefEq.bvars
-    (H : VLCtx.IsDefEq env U left right) :
-    VLCtx.bvars left = VLCtx.bvars right :=
-  match H with
-  | .nil => rfl
-  | .cons (ofv := none) H _ _ => congrArg Nat.succ H.bvars
-  | .cons (ofv := some _) H _ _ => H.bvars
 
 theorem Lift.closeReopen_cons (shift : Lift) (n : Nat) :
     Lift.comp (Lift.comp (Lift.skipN .refl n) shift) (.skip .refl) =
@@ -742,21 +622,6 @@ theorem NarrowRuntimeScope.scopeWF
     (_henv : env.WF) :
     scope.WF env Us.length :=
   H.wf
-
-theorem NarrowRuntimeScope.fullTargetEq
-    (H : NarrowRuntimeScope env Us scope runtime)
-    (henv : env.WF)
-    (hnarrow : TrExprS env Us scope e narrow')
-    (hfull : TrExpr env Us runtime e full') :
-    env.IsDefEqU Us.length runtime.toCtx
-      (narrow'.lift' H.shift) full' := by
-  rcases hfull with ⟨source', hsource, hsourceEq⟩
-  have hweak : TrExprS env Us H.expanded e
-      (narrow'.lift' H.shift) := by
-    simpa using hnarrow.weakFV' henv.ordered H.lift H.context.wf
-  have hsourceEq' := hweak.uniq henv H.context hsource
-  exact (hsourceEq'.defeqDFC henv.ordered H.context.defeqCtx).trans
-    henv (H.context.symm henv.ordered).wf.toCtx hsourceEq
 
 theorem NarrowRuntimeScope.transportType
     (H : NarrowRuntimeScope env Us scope runtime)
@@ -908,22 +773,6 @@ def FVarNarrowScope.mono {env env' : VEnv} (henv : env ≤ env')
   declarations := H.declarations
   sources := H.sources.mono henv
   wf := H.wf.mono henv
-
-/-- Retarget only the executable context while preserving every data
-projection of a dependency-selected scope definitionally. -/
-def FVarNarrowScope.retargetRuntime
-    (H : FVarNarrowScope env Us scope runtime)
-    (h : runtime = runtime') :
-    FVarNarrowScope env Us scope runtime' where
-  expanded := H.expanded
-  shift := H.shift
-  lift := H.lift
-  context := by cases h; exact H.context
-  upset := by cases h; exact H.upset
-  noBV := H.noBV
-  declarations := H.declarations
-  sources := H.sources
-  wf := H.wf
 
 theorem FVarNarrowScope.scopeWF
     (H : FVarNarrowScope env Us scope runtime)
@@ -1098,67 +947,6 @@ def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
   | fv :: fvars =>
     if P fv then .cons (fvarSelectionLift fvars P)
     else .skip (fvarSelectionLift fvars P)
-
-/-- Selecting a smaller predicate and then embedding its selected context
-through a larger selection factors the direct runtime selection exactly. -/
-theorem fvarSelectionLift_mono_comp
-    (fvars : List FVarId) (P Q : FVarId → Prop)
-    [DecidablePred P] [DecidablePred Q]
-    (hsub : ∀ fv, P fv → Q fv) :
-    Lift.comp (fvarSelectionLift (fvars.filter Q) P)
-        (fvarSelectionLift fvars Q) =
-      fvarSelectionLift fvars P := by
-  induction fvars with
-  | nil => rfl
-  | cons fv fvars ih =>
-    by_cases hQ : Q fv
-    · by_cases hP : P fv
-      · simp [fvarSelectionLift, hQ, hP, ih]
-      · simp [fvarSelectionLift, hQ, hP, ih]
-    · have hP : ¬ P fv := fun hp => hQ (hsub fv hp)
-      simp [fvarSelectionLift, hQ, hP, ih]
-
-/-- Selecting every member of a list retains a pure `cons` lift. -/
-theorem fvarSelectionLift_all
-    (fvars : List FVarId) (P : FVarId → Prop) [DecidablePred P]
-    (hall : ∀ fv ∈ fvars, P fv) :
-    fvarSelectionLift fvars P = .consN .refl fvars.length := by
-  induction fvars with
-  | nil => rfl
-  | cons fv fvars ih =>
-    have hhead := hall fv (by simp)
-    have htail : ∀ other ∈ fvars, P other := by
-      intro other hother
-      exact hall other (by simp [hother])
-    simp [fvarSelectionLift, hhead, ih htail]
-
-/-- A prefix containing no selected identifiers contributes only skips. -/
-theorem fvarSelectionLift_append_none
-    (extra tail : List FVarId) (P : FVarId → Prop) [DecidablePred P]
-    (hnone : ∀ fv ∈ extra, ¬ P fv) :
-    fvarSelectionLift (extra ++ tail) P =
-      .skipN (fvarSelectionLift tail P) extra.length := by
-  induction extra with
-  | nil => rfl
-  | cons fv extra ih =>
-    have hhead := hnone fv (by simp)
-    have htail : ∀ other ∈ extra, ¬ P other := by
-      intro other hother
-      exact hnone other (by simp [hother])
-    simp [fvarSelectionLift, hhead, ih htail]
-
-/-- Selecting the second half of a disjoint concatenation is the ordinary
-uniform insertion of the first half in front of the retained context. -/
-theorem fvarSelectionLift_append_selected
-    (extra selected : List FVarId) (hdisjoint : extra.Disjoint selected) :
-    fvarSelectionLift (extra ++ selected) (· ∈ selected) =
-      .skipN (.consN .refl selected.length) extra.length := by
-  rw [fvarSelectionLift_append_none]
-  · rw [fvarSelectionLift_all]
-    intro fv hfv
-    exact hfv
-  · intro fv hfv hselected
-    exact hdisjoint hfv hselected
 
 theorem MLCtxOnlyLams.narrowFVarsSourceOracle
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
@@ -1667,75 +1455,6 @@ theorem HeaderTelescopeCertificate.empty
   rebuild := by simp [VExpr.wrapForalls]
   context := by simpa using hctx
 
-/-- Consume a common-parameter binder.  This operation is restricted to the
-parameter phase, before any index binder has been seen. -/
-theorem HeaderTelescopeCertificate.withParameter
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : HeaderTelescopeCertificate Hc root (.forallE sourceDom body)
-      params [])
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
-    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
-    HeaderTelescopeCertificate
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
-      root body (params ++ [sourceDom]) [] where
-  rebuild := by
-    simpa [VExpr.wrapForalls, VExpr.wrapForalls_append] using H.rebuild
-  context := by
-    have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      (sourceDom :: params.reverse)
-      (consumedDom :: Hc.mlctx.vlctx.toCtx) := by
-      rcases hdom.source_defeq with ⟨_, hsource⟩
-      exact .succ H.context
-        (hsource.defeqDFC Hc.checking.tr.wf.ordered
-          (H.context.symm Hc.checking.tr.wf.ordered))
-    simpa only [List.reverse_nil, List.nil_append, List.reverse_append,
-      List.reverse_singleton, List.singleton_append,
-      ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
-      ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hctx
-
-/-- Consume an index binder after the common parameters. -/
-theorem HeaderTelescopeCertificate.withIndex
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : HeaderTelescopeCertificate Hc root (.forallE sourceDom body)
-      params indices)
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
-    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
-    HeaderTelescopeCertificate
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
-      root body params (indices ++ [sourceDom]) where
-  rebuild := by
-    simpa [VExpr.wrapForalls, VExpr.wrapForalls_append] using H.rebuild
-  context := by
-    have hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      (sourceDom :: (indices.reverse ++ params.reverse))
-      (consumedDom :: Hc.mlctx.vlctx.toCtx) := by
-      rcases hdom.source_defeq with ⟨_, hsource⟩
-      exact .succ H.context
-        (hsource.defeqDFC Hc.checking.tr.wf.ordered
-          (H.context.symm Hc.checking.tr.wf.ordered))
-    simpa only [List.reverse_append, List.reverse_singleton,
-      List.singleton_append, List.cons_append, List.nil_append,
-      ContextWF.withLocalDecl_venv, ContextWF.withCheckedLocalDecl_venv, ContextWF.withCheckedLocalDeclOn_venv,
-      ContextWF.withLocalDecl_toCtx, ContextWF.withCheckedLocalDecl_toCtx, ContextWF.withCheckedLocalDeclOn_toCtx] using hctx
-
-theorem HeaderTelescopeCertificate.takeParameters
-    (H : HeaderTelescopeCertificate Hc root current params indices)
-    (hlen : params.length = nparams) :
-    root.takeForalls nparams =
-      some (params, VExpr.wrapForalls indices current) := by
-  subst nparams
-  rw [H.rebuild, VExpr.takeForalls_wrapForalls_append]
-
-theorem HeaderTelescopeCertificate.takeIndices
-    (_H : HeaderTelescopeCertificate Hc root current params indices)
-    (hlen : indices.length = nindices) :
-    (VExpr.wrapForalls indices current).takeForalls nindices =
-      some (indices, current) := by
-  subst nindices
-  exact VExpr.takeForalls_wrapForalls indices current
-
 /-- Type-valued state carried by the executable telescope loop.  It owns the
 source parameter and index lists, and synchronizes their lengths with the two
 counters maintained by `loopType`. -/
@@ -2157,41 +1876,6 @@ theorem NarrowHeaderSynthesisCertificate.consumeIndex
     exact ⟨normalized', hnormalized,
       H.withIndex henv hscopeWF hstep, rfl, rfl⟩
 
-theorem NarrowHeaderSynthesisCertificate.typeShape
-    {decl : VInductDecl} {target : VInductiveType}
-    (H : NarrowHeaderSynthesisCertificate env Us target.toSkeleton
-      scope current decl.nparams target.numIndices)
-    (henv : env.WF)
-    (huvars : Us.length = decl.uvars)
-    (hlevel : ∀ resultLevel,
-      VLevel.ofLevel Us level = some resultLevel →
-      resultLevel = target.resultLevel)
-    (hsort : TrExpr env Us scope (.sort level) current) :
-    decl.TypeShape env H.params target := by
-  have hparamsTake :
-      (VExpr.wrapForalls (H.params ++ H.indices) current).takeForalls
-        decl.nparams =
-      some (H.params, VExpr.wrapForalls H.indices current) := by
-    simpa only [H.parameterCount] using
-      VExpr.takeForalls_wrapForalls_append H.params H.indices current
-  have hindicesTake :
-      (VExpr.wrapForalls H.indices current).takeForalls target.numIndices =
-      some (H.indices, current) := by
-    simpa only [H.indexCount] using
-      VExpr.takeForalls_wrapForalls H.indices current
-  have hctxType : OnCtx (H.indices.reverse ++ H.params.reverse)
-      (env.IsType decl.uvars) := by
-    simpa [huvars, ← H.scopeCtx] using H.scopeWF.toCtx
-  apply TrExpr.typeShape (decl := decl) (target := target)
-    (params := H.params) (ownParams := H.params) (indices := H.indices)
-    (normalized := VExpr.wrapForalls (H.params ++ H.indices) current)
-    (afterParams := VExpr.wrapForalls H.indices current)
-    (result := current) (exprType := H.exprType)
-    henv H.scopeWF huvars H.scopeCtx
-    (by simpa [huvars, VInductiveType.toSkeleton] using H.header)
-    hparamsTake hindicesTake
-    (VInductDecl.paramsDefEq_reflOfAppend hctxType) hlevel hsort
-
 theorem NarrowHeaderSynthesisCertificate.typeShapeWithParams
     {decl : VInductDecl} {target : VInductiveType}
     {commonParams : List VExpr}
@@ -2384,14 +2068,6 @@ def NormalizedHeaderSourceTelescope.mono {env env' : VEnv}
   parameters := H.parameters.mono henv
   semanticContext := H.semanticContext.mono henv
   alignment := H.alignment.mono henv
-
-theorem NormalizedHeaderSourceTelescope.semanticLength
-    (H : NormalizedHeaderSourceTelescope env Us commonParams
-      nparams nindices) :
-    H.semanticScope.length = nparams + nindices := by
-  have hctx := H.semanticContext.length_eq
-  rw [H.semanticSources.toCtx_length] at hctx
-  simpa [H.parameterCount, H.indexCount, Nat.add_comm] using hctx.symm
 
 /-- Persistent result of checking one metadata-free source header.  The final
 mutual declaration need not exist yet; only its two block-wide counters are
@@ -2640,130 +2316,6 @@ theorem HeaderSynthesisCertificate.synthesizedHeader
     · exact hofLevel
     · exact hsort
 
-/-- Later mutual headers use the first header's parameter telescope.  Their
-own synthesized domains are connected to it by the successful executable
-`isDefEq` checks, represented here independently of the not-yet-materialized
-declaration. -/
-theorem HeaderSynthesisCertificate.synthesizedHeaderWithParams
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {source : VInductiveTypeSkeleton} {commonParams : List VExpr}
-    (H : HeaderSynthesisCertificate Hc source current nparams nindices)
-    (huvars : c.lparams.length = uvars)
-    (hparams : VEnv.IsDefEqCtx Hc.venv uvars []
-      commonParams.reverse H.params.reverse)
-    (hofLevel : VLevel.ofLevel c.lparams level = some resultLevel)
-    (hsort : TrExpr Hc.venv c.lparams Hc.mlctx.vlctx
-      (.sort level) current) :
-    SynthesizedHeader Hc.venv c.lparams uvars nparams commonParams source
-      nindices resultLevel where
-  parameterCount := by
-    simpa [H.parameterCount] using hparams.length_eq
-  levelCount := huvars
-  normalizedSource := by
-    have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
-      (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf with
-      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
-    have hfilter : Hc.mlctx.vlctx.fvars.filter
-        (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
-      List.filter_mem_eq_of_sublist_nodup (.refl _)
-        Hc.mlctx_wf.tr.wf.fvars_nodup
-    exact ⟨{
-      runtime := Hc.mlctx.vlctx
-      sourceScope := sourceScope
-      source := Hsource
-      sourceLctx := Hc.mlctx.lctx
-      sourceClosure := hsourceClosure
-      semanticScope := Hc.mlctx.vlctx
-      semanticSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
-      semanticScopeWF := Hc.mlctx_wf.tr.wf
-      ownParams := H.params
-      indices := H.indices
-      parameterCount := H.parameterCount
-      indexCount := H.indexCount
-      sourceLength := by
-        calc
-          sourceScope.length = sourceScope.fvars.length :=
-            Hsource.fvars_length.symm
-          _ = Hc.mlctx.vlctx.fvars.length :=
-            congrArg List.length (hsourceFVars.trans hfilter)
-          _ = Hc.mlctx.length := Hc.onlyLams.fvars_length
-          _ = Hc.mlctx.vlctx.toCtx.length :=
-            Hc.onlyLams.toCtx_length.symm
-          _ = (H.indices.reverse ++ H.params.reverse).length :=
-            H.context.length_eq.symm
-          _ = nparams + nindices := by
-            simp [H.parameterCount, H.indexCount, Nat.add_comm]
-      parameters := by simpa [huvars] using hparams
-      semanticContext := H.context
-      alignment := .full (hsourceFVars.trans hfilter) H.context }⟩
-  normalizedShape := by
-    have hup := IsFVarUpSet.suffixFVars Hc.mlctx.vlctx ([] : VLCtx)
-      (by simpa using Hc.mlctx_wf.tr.wf)
-    rcases MLCtxOnlyLams.fullSourceScope Hc.onlyLams
-        Hc.checking.tr.wf Hc.mlctx_wf with
-      ⟨sourceScope, Hsource, hsourceFVars, hsourceClosure⟩
-    have hfilter : Hc.mlctx.vlctx.fvars.filter
-        (· ∈ Hc.mlctx.vlctx.fvars) = Hc.mlctx.vlctx.fvars :=
-      List.filter_mem_eq_of_sublist_nodup (.refl _)
-        Hc.mlctx_wf.tr.wf.fvars_nodup
-    let sourceTelescope : NormalizedHeaderSourceTelescope Hc.venv c.lparams
-        commonParams nparams nindices := {
-      runtime := Hc.mlctx.vlctx
-      sourceScope := sourceScope
-      source := Hsource
-      sourceLctx := Hc.mlctx.lctx
-      sourceClosure := hsourceClosure
-      semanticScope := Hc.mlctx.vlctx
-      semanticSources := MLCtxOnlyLams.sources Hc.onlyLams Hc.mlctx_wf
-      semanticScopeWF := Hc.mlctx_wf.tr.wf
-      ownParams := H.params
-      indices := H.indices
-      parameterCount := H.parameterCount
-      indexCount := H.indexCount
-      sourceLength := by
-        calc
-          sourceScope.length = sourceScope.fvars.length :=
-            Hsource.fvars_length.symm
-          _ = Hc.mlctx.vlctx.fvars.length :=
-            congrArg List.length (hsourceFVars.trans hfilter)
-          _ = Hc.mlctx.length := Hc.onlyLams.fvars_length
-          _ = Hc.mlctx.vlctx.toCtx.length :=
-            Hc.onlyLams.toCtx_length.symm
-          _ = (H.indices.reverse ++ H.params.reverse).length :=
-            H.context.length_eq.symm
-          _ = nparams + nindices := by
-            simp [H.parameterCount, H.indexCount, Nat.add_comm]
-      parameters := by simpa [huvars] using hparams
-      semanticContext := H.context
-      alignment := .full (hsourceFVars.trans hfilter) H.context }
-    rcases TrExpr.sort_result Hc.checking.tr.wf Hc.mlctx_wf.tr.wf.toCtx
-        hsort with ⟨resultLevel', hlevel', Hresult⟩
-    have hresultLevel : resultLevel' = resultLevel := by
-      rw [hofLevel] at hlevel'
-      exact (Option.some.inj hlevel').symm
-    subst resultLevel'
-    exact ⟨sourceTelescope, current, H.exprType, by
-      simpa [sourceTelescope, VInductiveTypeSkeleton.toVInductiveType] using
-        H.header, by
-      simpa [sourceTelescope] using Hresult.defeqDFC Hc.checking.tr.wf.ordered
-        (H.context.symm Hc.checking.tr.wf.ordered)⟩
-  typeShape decl hdeclUvars hdeclParams := by
-    have huvars' : c.lparams.length = decl.uvars :=
-      huvars.trans hdeclUvars.symm
-    have hparams' : decl.ParamsDefEq Hc.venv commonParams H.params := by
-      simpa [VInductDecl.ParamsDefEq, hdeclUvars] using hparams
-    subst nparams
-    apply H.typeShapeWithParams
-      (target := source.toVInductiveType nindices resultLevel)
-      huvars' hparams'
-    · intro resultLevel' hofLevel'
-      rw [hofLevel] at hofLevel'
-      cases hofLevel'
-      rfl
-    · exact hsort
-
 structure SynthesizedHeaderMetadata (env : VEnv) (Us : List Name)
     (uvars nparams : Nat)
     (params : List VExpr) (commonLevel : VLevel)
@@ -2784,35 +2336,6 @@ structure SynthesizedHeaderPrefix (env : VEnv) (Us : List Name)
     (SynthesizedHeaderMetadata env Us skeleton.uvars skeleton.nparams
       params commonLevel)
     (skeleton.types.take done) metadata
-
-theorem SynthesizedHeaderPrefix.first
-    (hindex : 0 < skeleton.types.length)
-    (Hheader : SynthesizedHeader env Us skeleton.uvars skeleton.nparams
-      params skeleton.types[0] nindices resultLevel) :
-    SynthesizedHeaderPrefix env Us skeleton params resultLevel
-      [(nindices, resultLevel)] 1 where
-  parameterCount := Hheader.parameterCount
-  covered := by omega
-  checked := by
-    rw [List.take_succ_eq_append_getElem hindex]
-    simp only [List.take_zero, List.nil_append]
-    exact .cons ⟨Hheader, by rfl⟩ .nil
-
-theorem SynthesizedHeaderPrefix.push
-    (H : SynthesizedHeaderPrefix env Us skeleton params commonLevel
-      metadata done)
-    (hindex : done < skeleton.types.length)
-    (Hheader : SynthesizedHeader env Us skeleton.uvars skeleton.nparams
-      params skeleton.types[done] nindices resultLevel)
-    (hlevel : resultLevel ≈ commonLevel) :
-    SynthesizedHeaderPrefix env Us skeleton params commonLevel
-      (metadata ++ [(nindices, resultLevel)]) (done + 1) where
-  parameterCount := H.parameterCount
-  covered := by omega
-  checked := by
-    rw [List.take_succ_eq_append_getElem hindex]
-    exact Lean4Lean.VerifyInductive.List.Forall₂.append' H.checked
-      (.cons ⟨Hheader, hlevel⟩ .nil)
 
 /-- Every position of a completed header prefix retains the concrete source
 telescope selected while checking that family. -/
@@ -2951,21 +2474,6 @@ def SynthesizedHeaderPrefix.complete
     exact (checkedAt i hskeleton).header.typeShape decl
       hfields.1 hfields.2.1
 
-/-- Exact coverage makes skeleton materialization total and packages the
-resulting formation-header certificate. -/
-theorem SynthesizedHeaderPrefix.materializes
-    (H : SynthesizedHeaderPrefix env Us skeleton params commonLevel metadata
-      skeleton.types.length) :
-    ∃ decl, skeleton.materialize metadata = some decl ∧
-      Nonempty (HeaderCertificate env decl) := by
-  have hmetadata : metadata.length = skeleton.types.length := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
-      H.checked
-    simpa using hlength.symm
-  cases hmaterialize : skeleton.materialize metadata with
-  | none => simp [VInductDeclSkeleton.materialize, hmetadata] at hmaterialize
-  | some decl => exact ⟨decl, rfl, ⟨H.complete hmaterialize⟩⟩
-
 def HeaderTelescopeLoopCertificate.empty
     {c : AddInductive.Context} {Hc : ContextWF c} {root : VExpr}
     (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
@@ -2976,66 +2484,6 @@ def HeaderTelescopeLoopCertificate.empty
   telescope := .empty hctx
   parameterCount := rfl
   indexCount := rfl
-
-def HeaderTelescopeLoopCertificate.withParameter
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : HeaderTelescopeLoopCertificate Hc root
-      (.forallE sourceDom body) i nindices)
-    (hindices : H.indices = [])
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
-    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
-    HeaderTelescopeLoopCertificate
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
-      root body (i + 1) nindices where
-  params := H.params ++ [sourceDom]
-  indices := []
-  telescope := by
-    have Htel := H.telescope
-    rw [hindices] at Htel
-    exact Htel.withParameter hdom hdom₀
-  parameterCount := by simp [H.parameterCount]
-  indexCount := by simpa [hindices] using H.indexCount
-
-def HeaderTelescopeLoopCertificate.withIndex
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    (H : HeaderTelescopeLoopCertificate Hc root
-      (.forallE sourceDom body) i nindices)
-    (hdom : Hc.ConsumedDomain dom sourceDom consumedDom)
-    (hdom₀ : Hc.narrow.ConsumedDomain dom sourceDom₀ consumedDom₀) :
-    HeaderTelescopeLoopCertificate
-      (Hc.withCheckedLocalDecl (name := name) (bi := bi)
-        hdom.consumed hdom.isType hdom₀.consumed hdom₀.isType)
-      root body i (nindices + 1) where
-  params := H.params
-  indices := H.indices ++ [sourceDom]
-  telescope := H.telescope.withIndex hdom hdom₀
-  parameterCount := H.parameterCount
-  indexCount := by simp [H.indexCount]
-
-theorem HeaderTelescopeLoopCertificate.takeParameters
-    (H : HeaderTelescopeLoopCertificate Hc root current i nindices) :
-    root.takeForalls i =
-      some (H.params, VExpr.wrapForalls H.indices current) :=
-  H.telescope.takeParameters H.parameterCount
-
-theorem HeaderTelescopeLoopCertificate.takeIndices
-    (H : HeaderTelescopeLoopCertificate Hc root current i nindices) :
-    (VExpr.wrapForalls H.indices current).takeForalls nindices =
-      some (H.indices, current) :=
-  H.telescope.takeIndices H.indexCount
-
-def AmbientParamContext.ofFirst
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {indices params : List VExpr}
-    (hctx : Hc.mlctx.vlctx.toCtx = indices.reverse ++ params.reverse) :
-    AmbientParamContext Hc params indices.length where
-  ambient := indices.reverse
-  context := by
-    have hwf : OnCtx (indices.reverse ++ params.reverse)
-        (Hc.venv.IsType c.lparams.length) := hctx ▸ Hc.mlctx_wf.tr.wf.toCtx
-    simpa [hctx] using VEnv.IsDefEqCtx.refl hwf
-  length := by simp
 
 def AmbientParamContext.ofFirstDefEq
     {c : AddInductive.Context} {Hc : ContextWF c}
@@ -3487,215 +2935,6 @@ theorem LaterParameterScope.olderLength
   rw [htotal, H.newerLength] at hparts
   omega
 
-/-- The block-wide abstract parameter at the current position denotes the
-exact cached local declaration type selected by `LaterParameterScope`.
-Crucially, the equality lives in `older.toCtx`, the scope containing exactly
-the parameters already replayed. -/
-theorem LaterParameterScope.parameterDefEq
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    {params : List VExpr}
-    (H : LaterParameterScope Hsuffix i e)
-    (hi : i < stats.params.size)
-    (hparams : params.length = stats.params.size)
-    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      params.reverse Hsuffix.parameterDecls.toCtx) :
-    ∃ u, Hc.venv.IsDefEq c.lparams.length H.older.toCtx
-      (params[i]'(hparams.symm ▸ hi)) H.paramType (.sort u) := by
-  have hcachedLength :=
-    CachedParameterDecl.forall₂_toCtx_length Hsuffix.cached
-  have hdeclLength := Hsuffix.parameterDecls_length
-  have hnewerLe := VLCtx.toCtx_length_le H.newer
-  have holderLe := VLCtx.toCtx_length_le H.older
-  have hctxParts := congrArg List.length <| congrArg VLCtx.toCtx H.parameterDecls
-  simp only [VLCtx.toCtx_append, VLCtx.toCtx, List.length_append,
-    List.length_cons] at hctxParts
-  have hlistParts := congrArg List.length H.parameterDecls
-  simp only [List.length_append, List.length_cons] at hlistParts
-  have hnewerCtx : H.newer.toCtx.length = H.newer.length := by omega
-  let j := H.newer.toCtx.length
-  have hj : j < params.reverse.length := by
-    simp only [List.length_reverse, j, hnewerCtx, hparams,
-      H.newerLength]
-    omega
-  have hscopeCtx : Hsuffix.parameterDecls.toCtx =
-      H.newer.toCtx ++ H.paramType :: H.older.toCtx := by
-    rw [H.parameterDecls]
-    simp [VLCtx.toCtx]
-  have hctx' : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      params.reverse (H.newer.toCtx ++ H.paramType :: H.older.toCtx) := by
-    rw [← hscopeCtx]
-    exact hctx
-  have hentry := VEnv.IsDefEqCtx.getElemRight
-    Hc.checking.tr.wf.ordered hctx' hj
-  have hjEq : j = stats.params.size - 1 - i := by
-    change H.newer.toCtx.length = stats.params.size - 1 - i
-    rw [hnewerCtx]
-    exact H.newerLength
-  have hsourceIndex : params.length - 1 - j = i := by
-    rw [hparams, hjEq]
-    omega
-  have hsourceIndex' :
-      params.length - 1 - H.newer.toCtx.length = i := by
-    simpa [j] using hsourceIndex
-  rcases hentry with ⟨u, hentry⟩
-  simp [j] at hentry
-  refine ⟨u, ?_⟩
-  simpa only [List.getElem_reverse, hsourceIndex'] using hentry
-
-/-- The already replayed common-parameter prefix and the concrete `older`
-suffix are definitionally equal contexts. -/
-theorem LaterParameterScope.parameterPrefixDefEq
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    {params : List VExpr}
-    (H : LaterParameterScope Hsuffix i e)
-    (hi : i < stats.params.size)
-    (hparams : params.length = stats.params.size)
-    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      params.reverse Hsuffix.parameterDecls.toCtx) :
-    VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      (params.take i).reverse H.older.toCtx := by
-  have hcachedLength :=
-    CachedParameterDecl.forall₂_toCtx_length Hsuffix.cached
-  have hdeclLength := Hsuffix.parameterDecls_length
-  have hnewerLe := VLCtx.toCtx_length_le H.newer
-  have holderLe := VLCtx.toCtx_length_le H.older
-  have hctxParts := congrArg List.length <| congrArg VLCtx.toCtx H.parameterDecls
-  simp only [VLCtx.toCtx_append, VLCtx.toCtx, List.length_append,
-    List.length_cons] at hctxParts
-  have hlistParts := congrArg List.length H.parameterDecls
-  simp only [List.length_append, List.length_cons] at hlistParts
-  have hnewerCtx : H.newer.toCtx.length = H.newer.length := by omega
-  have hscopeCtx : Hsuffix.parameterDecls.toCtx =
-      H.newer.toCtx ++ H.paramType :: H.older.toCtx := by
-    rw [H.parameterDecls]
-    simp [VLCtx.toCtx]
-  have hctx' : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      params.reverse (H.newer.toCtx ++ H.paramType :: H.older.toCtx) := by
-    rw [← hscopeCtx]
-    exact hctx
-  let j := H.newer.toCtx.length
-  have hjEq : j = stats.params.size - 1 - i := by
-    change H.newer.toCtx.length = stats.params.size - 1 - i
-    rw [hnewerCtx]
-    exact H.newerLength
-  have htake : params.length - (j + 1) = i := by
-    rw [hparams, hjEq]
-    omega
-  have htake' : params.length - (H.newer.toCtx.length + 1) = i := by
-    simpa [j] using htake
-  have hdrop := VEnv.IsDefEqCtx.dropHeads hctx' (j + 1)
-  simp [j] at hdrop
-  simpa [List.drop_reverse, htake'] using hdrop
-
-/-- A family-local parameter domain selected by `TypeShape.ParamsDefEq` is
-definitionally equal to the exact cached declaration type used by executable
-parameter replay. -/
-theorem LaterParameterScope.ownParameterDefEq
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
-    {decl : VInductDecl} {params ownParams : List VExpr}
-    (H : LaterParameterScope Hsuffix i e)
-    (hi : i < stats.params.size)
-    (hparamsLength : params.length = stats.params.size)
-    (huvars : c.lparams.length = decl.uvars)
-    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      params.reverse Hsuffix.parameterDecls.toCtx)
-    (hown : decl.ParamsDefEq Hc.venv params ownParams) :
-    ∃ u, Hc.venv.IsDefEq c.lparams.length H.older.toCtx
-      (ownParams[i]'(by
-        have hlen : params.length = ownParams.length := by
-          simpa using hown.length_eq
-        omega)) H.paramType (.sort u) := by
-  have hiparams : i < params.length := by omega
-  rcases VInductDecl.ParamsDefEq.getElem hown hiparams with
-    ⟨u, hcommonOwn⟩
-  have hcommonOwnAtRuntime : Hc.venv.IsDefEq c.lparams.length
-      (params.take i).reverse params[i]
-      (ownParams[i]'(by
-        have hlen : params.length = ownParams.length := by
-          simpa using hown.length_eq
-        omega)) (.sort u) := by
-    simpa only [huvars] using hcommonOwn
-  have hprefix := H.parameterPrefixDefEq hi hparamsLength hctx
-  have hcommonOwn' := hcommonOwnAtRuntime.defeqDFC
-    Hc.checking.tr.wf.ordered hprefix
-  rcases H.parameterDefEq hi hparamsLength hctx with
-    ⟨cachedLevel, hcommonCached⟩
-  have holderWF :=
-    (H.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1
-  exact ⟨cachedLevel, hcommonOwn'.symm.trans_r Hc.checking.tr.wf
-    holderWF.toCtx hcommonCached⟩
-
-/-- The domain currently exposed by narrow header replay is the exact cached
-parameter declaration selected by the executable traversal.  This joins the
-independent source `TypeShape`, the narrow synthesis state, and the retained
-parameter cache; no successful executable `isDefEq` comparison is used. -/
-theorem LaterParameterScope.currentDomainDefEq
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {name : Name} {dom body : Expr} {bi : BinderInfo}
-    {decl : VInductDecl} {params : List VExpr}
-    {target : VInductiveType}
-    {currentDomain currentBody : VExpr}
-    (Hscope : LaterParameterScope Hsuffix i
-      (.forallE name dom body bi))
-    (Hsynthesis : NarrowHeaderSynthesisCertificate Hc.venv c.lparams
-      target.toSkeleton Hscope.older
-      (.forallE currentDomain currentBody) i 0)
-    (hi : i < stats.params.size)
-    (hparams : stats.params.size = decl.nparams)
-    (huvars : c.lparams.length = decl.uvars)
-    (hctx : VEnv.IsDefEqCtx Hc.venv c.lparams.length []
-      params.reverse Hsuffix.parameterDecls.toCtx)
-    (hshape : decl.TypeShape Hc.venv params target) :
-    Hc.venv.IsDefEqU c.lparams.length Hscope.older.toCtx
-      currentDomain Hscope.paramType := by
-  have hiDecl : i < decl.nparams := by omega
-  rcases VInductDecl.TypeShape.nextParameter hshape hiDecl with
-    ⟨ownParams, expectedDomain, expectedBody, targetType,
-      hownLength, hget, hown, hpresentation⟩
-  have hiOwn : i < ownParams.length := by omega
-  have hexpected : expectedDomain = ownParams[i] := by
-    have hget' : some ownParams[i] = some expectedDomain := by
-      simpa [List.getElem?_eq_getElem hiOwn] using hget
-    exact (Option.some.inj hget').symm
-  have hindices : Hsynthesis.indices = [] :=
-    List.eq_nil_of_length_eq_zero Hsynthesis.indexCount
-  have hprefixLength : Hsynthesis.params.length =
-      (ownParams.take i).length := by
-    rw [Hsynthesis.parameterCount, List.length_take]
-    omega
-  have hpresentation' : Hc.venv.IsDefEq c.lparams.length []
-      target.toSkeleton.type
-      (VExpr.wrapForalls (ownParams.take i)
-        (.forallE expectedDomain expectedBody)) targetType := by
-    simpa [VInductiveType.toSkeleton, huvars] using hpresentation
-  rcases Hsynthesis.nextDomainDefEq Hc.checking.tr.wf hindices
-      hprefixLength hpresentation' with ⟨nextLevel, hnext⟩
-  have hscopeCtx : Hscope.older.toCtx = Hsynthesis.params.reverse := by
-    simpa [hindices] using Hsynthesis.scopeCtx
-  have hnext' : Hc.venv.IsDefEq c.lparams.length Hscope.older.toCtx
-      currentDomain expectedDomain (.sort nextLevel) := by
-    rw [hscopeCtx]
-    exact hnext
-  have hparamsLength : params.length = stats.params.size := by
-    have hlength : params.length = ownParams.length := by
-      simpa using hown.length_eq
-    omega
-  rcases Hscope.ownParameterDefEq hi hparamsLength huvars hctx hown with
-    ⟨cachedLevel, hcached⟩
-  have hcached' : Hc.venv.IsDefEq c.lparams.length Hscope.older.toCtx
-      expectedDomain Hscope.paramType (.sort cachedLevel) := by
-    simpa [hexpected] using hcached
-  exact ⟨_, hnext'.trans_r Hc.checking.tr.wf
-    (Hscope.lift.wf Hc.checking.tr.wf Hc.mlctx_wf.tr.wf).1.toCtx hcached'⟩
-
 theorem LaterParameterScope.older_eq_nil
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
@@ -3805,32 +3044,6 @@ theorem LaterParameterScope.consumedFVars
     rw [Expr.instantiate1_eq, H.parameter]
     exact H.openedFVars
   exact hbelow _ H.openedUpSet hopened
-
-/-- Forget the ambient prefix, the not-yet-consumed cached parameters, and
-the current cached parameter.  A source domain at this point may depend only
-on the already consumed parameters in `older`. -/
-theorem LaterParameterScope.olderLift
-    {c : AddInductive.Context} {Hc : ContextWF c}
-    {stats : AddInductive.InductiveStats} {depth i : Nat}
-    {Hsuffix : ParameterContextSuffix Hc stats depth}
-    {body : Expr}
-    (H : LaterParameterScope Hsuffix i body) :
-    VLCtx.FVLift H.older Hc.mlctx.vlctx 0
-      (VLCtx.toCtx H.added).length.succ 0 := by
-  let current : Option (FVarId × List FVarId) × VLocalDecl :=
-    (some (H.fv, H.deps), .vlam H.paramType)
-  have hcontext : Hc.mlctx.vlctx =
-      (H.added ++ [current]) ++ H.older := by
-    simpa only [current, List.append_assoc, List.singleton_append]
-      using H.context
-  have hfullNoBV : ((H.added ++ [current]) ++ H.older).NoBV := by
-    rw [← hcontext]
-    exact Hc.mlctx.noBV
-  have hprefixNoBV : (H.added ++ [current]).NoBV :=
-    VLCtx.NoBV.leftOfAppend (H.added ++ [current]) H.older hfullNoBV
-  have hlift := VLCtx.FVLift.to_append H.older hprefixNoBV
-  rw [← hcontext] at hlift
-  simpa [current, VLCtx.toCtx] using hlift
 
 theorem LaterParameterScope.olderDrop
     {c : AddInductive.Context} {Hc : ContextWF c}

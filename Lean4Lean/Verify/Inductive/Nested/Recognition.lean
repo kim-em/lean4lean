@@ -15,28 +15,6 @@ structure NestedAppShape (e : Expr) : Prop where
   isApp : e.isApp = true
   constHead : ∃ fn levels, e.getAppFn = .const fn levels
 
-theorem isNestedInductiveApp_shape
-    (e : Expr) (env : Environment)
-    (state : Lean4Lean.ElimNestedInductive.State) :
-    (Lean4Lean.ElimNestedInductive.isNestedInductiveApp? e env state).WF
-      fun out => out.1.isSome → NestedAppShape e := by
-  intro out hout hsome
-  unfold Lean4Lean.ElimNestedInductive.isNestedInductiveApp? at hout
-  by_cases happ : e.isApp = false
-  · simp only [happ, Bool.not_false, if_true] at hout
-    change Except.ok (none, state) = .ok out at hout
-    cases hout
-    simp at hsome
-  · have happTrue : e.isApp = true := by
-      cases h : e.isApp <;> simp_all
-    cases hhead : e.getAppFn with
-    | const fn levels =>
-      exact ⟨happTrue, ⟨fn, levels, hhead⟩⟩
-    | _ =>
-      simp [happTrue, hhead, ReaderT.pure, StateT.pure] at hout
-      cases hout
-      simp at hsome
-
 /-- Independent specification of the occurrence test used while scanning
 parameters of a previously declared inductive application. -/
 def MentionsNestedNewType
@@ -95,17 +73,6 @@ structure NestedParameterScan
   arity : n ≤ args.size
   nested : ∃ i, i < n ∧ MentionsNestedNewType newTypes args[i]!
   closed : ∀ i, i < n → args[i]!.hasLooseBVars = false
-
-theorem NestedParameterScan.noLoose
-    (H : NestedParameterScan newTypes args n) (hi : i < n) :
-    args[i]!.hasLooseBVars = false :=
-  H.closed i hi
-
-theorem NestedParameterScan.hasOccurrence
-    (H : NestedParameterScan newTypes args n) :
-    ∃ i, i < args.size ∧ MentionsNestedNewType newTypes args[i]! := by
-  rcases H.nested with ⟨i, hi, hmentions⟩
-  exact ⟨i, Nat.lt_of_lt_of_le hi H.arity, hmentions⟩
 
 /-- Full abstract acceptance contract for nested-application recognition.
 This is deliberately stated without reference to the executable loop, so its
@@ -360,24 +327,6 @@ theorem GeneratedAuxiliaryBatch.resultSome
   induction H with
   | nil hresult => exact hresult
   | cons _ _ ih => exact ih
-
-theorem GeneratedAuxiliaryBatch.appendSizes
-    (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams
-      args result sourceNames state out) :
-    out.2.nestedAux.size = state.nestedAux.size + sourceNames.length ∧
-    out.2.newTypes.size = state.newTypes.size + sourceNames.length := by
-  induction H with
-  | nil => simp
-  | cons Hstep Htail ih =>
-    rcases Hstep.generated with
-      ⟨auxName, nextIdx, data, Hfresh, Hdata, hresult, hstate⟩
-    constructor
-    · rw [ih.1, hstate]
-      simp only [Array.size_push, List.length_cons]
-      omega
-    · rw [ih.2, hstate]
-      simp only [Array.size_push, List.length_cons]
-      omega
 
 theorem GeneratedAuxiliaryBatch.auxFVarsIn
     (H : GeneratedAuxiliaryBatch env lctx params As targetName levels nparams

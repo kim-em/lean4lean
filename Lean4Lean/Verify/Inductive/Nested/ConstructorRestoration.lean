@@ -34,13 +34,6 @@ namespace InductiveSignature
 
 /-! ### Lambda replacement on terms avoiding the restoration heads -/
 
-theorem Restoration.mem_heads_of_lambdaReplacement {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} {c : Name} {t : VExpr}
-    (h : r.lambdaReplacement domains c = some t) : c ∈ r.heads.map (·.auxiliary) := by
-  by_contra hc
-  rw [Restoration.lambdaReplacement_eq_none hc] at h
-  cases h
-
 theorem Restoration.replaceConsts_lambdaReplacement {r : Restoration}
     {domains : HeadSpecialization → List VExpr} :
     ∀ {e : VExpr}, e.containsAnyConst (r.heads.map (·.auxiliary)) = false →

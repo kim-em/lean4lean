@@ -103,12 +103,6 @@ theorem RestoreCtxRel.find? {r : Restoration}
         rw [← InductiveSignature.Restoration.expr_liftN r hc, hr]
         rfl
 
-theorem restoration_expr_bvar (r : Restoration) (i : Nat) : r.expr (.bvar i) = some (.bvar i) :=
-  rfl
-
-theorem restoration_expr_sort (r : Restoration) (u : VLevel) :
-    r.expr (.sort u) = some (.sort u) := rfl
-
 theorem restoration_expr_app {r : Restoration} {f a f' a' : VExpr}
     (hf : r.expr f = some f') (ha : r.expr a = some a') :
     r.expr (.app f a) = some (.app f' a') := by

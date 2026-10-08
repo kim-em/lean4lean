@@ -24,23 +24,6 @@ def consumeTranslatedTypeAnnotations (ok : Name → Bool) : Expr → VExpr → V
     else target
   | _, target => target
 
-/-- Universe rewriting preserves the selected consumed subexpression. -/
-theorem consumeTranslatedTypeAnnotations_instL (source : Expr) (target : VExpr) :
-    consumeTranslatedTypeAnnotations ok source (target.instL levels) =
-      (consumeTranslatedTypeAnnotations ok source target).instL levels := by
-  fun_induction Expr.consumeTypeAnnotationsVerified ok source generalizing target
-  case case1 name sourceLevels first second hannotation ih =>
-    cases target <;> simp [consumeTranslatedTypeAnnotations, hannotation, VExpr.instL]
-    case app fn arg =>
-      cases fn <;> simp [consumeTranslatedTypeAnnotations, hannotation, VExpr.instL]
-      case app head first' =>
-        cases head <;> simp [consumeTranslatedTypeAnnotations, hannotation, VExpr.instL, ih]
-  case case3 name sourceLevels arg hannotation ih =>
-    cases target <;> simp [consumeTranslatedTypeAnnotations, hannotation, VExpr.instL]
-    case app head arg' =>
-      cases head <;> simp [consumeTranslatedTypeAnnotations, hannotation, VExpr.instL, ih]
-  all_goals simp [consumeTranslatedTypeAnnotations, *]
-
 /-- Consumption reuses subtranslations of the selected source target;
 it does not choose a fresh projection representation. -/
 theorem TrExprS.consumeTranslatedTypeAnnotations
@@ -83,16 +66,5 @@ theorem consumeTranslatedTypeAnnotations_semantic_of_wrappers
     (show venv.IsDefEqU Us.length Δ.toCtx target consumed from ⟨.sort level, heq⟩).trans
       Hchecking.wf hΔ.toCtx halign⟩
 
-
-theorem consumeTranslatedTypeAnnotations_semantic
-    {env : Environment} {venv : VEnv} {safety : DefinitionSafety}
-    {Us : List Name} {Δ : VLCtx}
-    (Hchecking : CheckingEnv.Valid safety env venv)
-    (hΔ : Δ.WF venv Us.length)
-    (htr : TrExprS venv Us Δ source target)
-    (htype : venv.IsType Us.length Δ.toCtx target) :
-    venv.IsType Us.length Δ.toCtx (consumeTranslatedTypeAnnotations env.isTypeAnnotationWrapper source target) ∧
-    venv.IsDefEqU Us.length Δ.toCtx target (consumeTranslatedTypeAnnotations env.isTypeAnnotationWrapper source target) :=
-  consumeTranslatedTypeAnnotations_semantic_of_wrappers Hchecking.tr (.of_env env) hΔ htr htype
 
 end Lean4Lean

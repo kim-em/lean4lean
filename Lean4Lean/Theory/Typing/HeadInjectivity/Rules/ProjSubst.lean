@@ -73,54 +73,5 @@ theorem ProjTele.fieldType_subst (henv : env.Ordered) {S : Name} {info : VProjec
   subst hF
   rw [T.fieldType hlen (by simpa using hpl) _ hj, T.dom_subst henv hpl w hj σ]
 
-/-- **The projection telescope at definitionally equal majors.** Under the hypotheses of
-`proj_typed`, the substitutions instantiating the first `info.nparams + j` binders of the
-constructor telescope at the parameters and the first `j` projections of `w`, resp. of `w'`,
-are definitionally equal along that prefix. -/
-theorem ProjTele.substEq_projs (henv : env.Ordered) {Δ : List VExpr}
-    (hΔ : OnCtx Δ (env.IsType U))
-    {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
-    (hcl : info.ctorType.Closed) {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U)
-    (hlen : ls.length = info.uvars) (hnz : (info.resultLevel.inst ls).IsNeverZero)
-    {D : List VExpr} {R0 : VExpr} (T : ProjTele env U S info ls D R0)
-    {ps : List VExpr} {Tail : VExpr} (hps : ArgsTyped env U Δ (info.ctorType.instL ls) ps Tail)
-    (hpl : ps.length = info.nparams) {w : VExpr} {idx' : List VExpr}
-    (hidx : idx'.length = info.nindices)
-    (hw : env.HasType U Δ w (VExpr.mkApps (.const S ls) (ps ++ idx')))
-    {w' : VExpr} (hww' : env.IsDefEq U Δ w w' (VExpr.mkApps (.const S ls) (ps ++ idx'))) :
-    ∀ j, j ≤ info.numFields →
-      Ctx.SubstEq env U Δ (VExpr.argSubst (ps ++ projsOf S w j))
-        (VExpr.argSubst (ps ++ projsOf S w' j)) (D.take (info.nparams + j)).reverse := by
-  obtain ⟨c, lsR, args, hR0⟩ := T.head
-  have hR0' : ∀ (σ : VExpr.Subst) A B, R0.subst σ ≠ .forallE A B := by
-    rw [hR0]; exact subst_mkApps_const_ne_forallE c lsR args
-  have hT : info.ctorType.instL ls = (VExpr.wrapForalls (D.drop ([] : List VExpr).length) R0).subst
-      (VExpr.argSubst []) := by
-    rw [T.shape]; exact VExpr.subst_id.symm
-  have hps' := hps
-  rw [hT] at hps'
-  obtain ⟨hle, W0, -⟩ := ArgsTyped.substEq T.doms hR0' ps [] .nil (by simp) hps'
-  simp only [List.nil_append, List.length_nil, Nat.zero_add] at hle W0
-  have L2 := proj_typed henv hΔ hp hcl hls hlen hnz T hps hpl hidx hw
-  rw [T.numFields] at L2 ⊢
-  intro j
-  induction j with
-  | zero => intro _; simpa [projsOf, ← hpl] using W0
-  | succ j ih =>
-    intro hj
-    have W := ih (by omega)
-    have hk : info.nparams + j < D.length := by omega
-    obtain ⟨u, hu⟩ := T.doms _ hk
-    obtain ⟨F, hft, -, -, hcong⟩ := L2 j (by omega)
-    rw [T.fieldType hlen hpl w hk, Option.some.injEq] at hft
-    subst hft
-    rw [projsOf_succ, projsOf_succ, ← List.append_assoc, ← List.append_assoc,
-      show info.nparams + (j + 1) = (info.nparams + j) + 1 by omega,
-      List.take_succ_eq_append_getElem hk, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, VExpr.argSubst_append_one, VExpr.argSubst_append_one]
-    exact .cons (by rw [VExpr.Subst.cons_tail, VExpr.Subst.cons_tail]; exact W) hu
-      (by rw [VExpr.Subst.cons_head, VExpr.Subst.cons_head, VExpr.Subst.cons_tail]
-          exact hcong w' hww')
-
 end VEnv
 end Lean4Lean

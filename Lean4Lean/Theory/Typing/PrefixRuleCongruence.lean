@@ -114,13 +114,6 @@ theorem CongrRel.argRel (I : CongrRel R)
 
 end Congr
 
-theorem NormalEqF.argRel : ArgRel (NormalEqF η) where
-  refl _ h := .refl h
-  weakN W h := h.weakN W
-  defeq hΓ h ha := (h.defeq hΓ).of_l henv hΓ ha
-  mkApps hΓ hf hs ht := NormalEqF.mkApps_spine hΓ hf hs ht
-  instantiateParams hΓ hs ht := NormalEqF.instantiateParams_args hΓ hs ht
-
 section Native
 variable {R : List VExpr → VExpr → VExpr → Prop}
 
@@ -139,15 +132,6 @@ private theorem rel_take {R : α → β → Prop} (H : List.Forall₂ R a b) (n 
   | cons h hs ih => cases n with
     | zero => exact .nil
     | succ n => exact .cons h (ih n)
-
-omit [Params] in
-private theorem rel_drop {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.drop n) (b.drop n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .cons h hs
-    | succ n => exact ih n
 
 private theorem rel_vars (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs)) (hn : n ≤ Γ.length) :
     List.Forall₂ (R Γ) (vars n 0) (vars n 0) := by

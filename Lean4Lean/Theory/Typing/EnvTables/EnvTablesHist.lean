@@ -93,19 +93,6 @@ inductive HistTables : VEnv → Tables → Prop
 
 variable {env env' : VEnv} {T : Tables}
 
-theorem Tables.Inv.extends_addDefs (H : T.Inv env) {cis : List VDefVal} {env1 : VEnv}
-    (hadd : env.addConsts cis = some env1) : T.Extends (T.addDefs cis) := by
-  obtain ⟨hfresh, hnd⟩ := addConsts_fresh hadd
-  have hold : ∀ n, (∃ ci, env.constants n = some ci) → ∀ ci ∈ cis, ci.name ≠ n := by
-    rintro n ⟨x, hx⟩ ci hci rfl
-    rw [hfresh ci hci] at hx
-    cases hx
-  refine ⟨fun {n v} h => ?_, id, id, id, id⟩
-  exact (Tables.addDefs_defs hnd).mpr (.inr ⟨hold n (H.defs_const (by simp [h])), h⟩)
-
-theorem Tables.extends_addQuot (T : Tables) : T.Extends T.addQuot :=
-  ⟨id, id, fun _ => rfl, addView_of_old, addView_of_old⟩
-
 /-- The tables of a native installation that also installs the certified case eliminator of
 its declaration. -/
 theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key : Name}

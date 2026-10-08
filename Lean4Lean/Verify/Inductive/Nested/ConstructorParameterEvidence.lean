@@ -12,17 +12,6 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-/-- The left member of a shared concrete forall prefix exposes that exact
-number of binders, independently of either residual. -/
-theorem Expr.SameForallPrefix.leftTelescope
-    (H : Expr.SameForallPrefix n left right) :
-    ∃ residual, Expr.ForallTelescope left n residual := by
-  induction H with
-  | @nil left right => exact ⟨left, .nil left⟩
-  | cons _ ih =>
-    rcases ih with ⟨residual, Htail⟩
-    exact ⟨residual, .cons Htail⟩
-
 /-- The exact restored-family half of constructor parameter coherence.  This
 is family-indexed (rather than constructor-indexed): every constructor of one
 family is compared with the same executable cached parameter scope. -/
@@ -81,47 +70,6 @@ theorem RestoredFamilyParameterScope.constructorDomains
     constructorLength := hconstructorLength.trans hnparams
     parameterDomains := VEnv.IsDefEqCtx.transEmpty henv Hfamily.context
       (hconstructorScope.symm henv.ordered) }⟩
-
-/-- A completed constructor run exposes its actual checked parameter-prefix
-trace in the original post-header environment where the executable
-comparison occurred. -/
-theorem ConstructorPhasesResult.checkedConstructorParameterPrefixAt
-    {c : AddInductive.Context}
-    {stats : AddInductive.InductiveStats} {decl : VInductDecl}
-    {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
-    {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
-    {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
-    (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
-    (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
-    ∃ tail sourceDomains,
-      CheckedConstructorParameterPrefix H.context.venv c.lparams stats
-        indTypes[familyIdx].ctors[ctorIdx].type stats.params.size tail
-        H.materialized.parameterScope sourceDomains := by
-  rcases R.checkedRecursorConstructorTailAt familyIdx hfamily ctorIdx hctor with
-    ⟨_ctorVal, tail, _tailTarget, sourceDomains, _hctorMem,
-      _Hctor, _Hprefix, Hchecked, _Htail, _Hcertificate, _Hsynthesis⟩
-  exact ⟨tail, sourceDomains, Hchecked⟩
-
-/-- The checked comparisons contain enough typing information to rebuild the
-cached scope in any environment where the exact trace lives.  Free-variable
-freshness and dependency closure are syntax-only and are supplied by the
-original executable scope. -/
-theorem CheckedConstructorParameterPrefix.scopeWFOfFVWF
-    (henv : env.WF)
-    (H : CheckedConstructorParameterPrefix env Us stats original
-      i current scope sourceDomains)
-    (hfv : scope.FVWF) : scope.WF env Us.length := by
-  induction H with
-  | zero => trivial
-  | step H hparam hparamFVar hdomain hdomainType hcompare ih =>
-    rename_i i name dom body bi oldScope oldDomains param fv sourceDomain
-      paramType deps
-    rcases hfv with ⟨hfv, hfresh⟩
-    have hparamType : env.IsType Us.length oldScope.toCtx paramType := by
-      exact hdomainType.defeqU_l henv (ih hfv).toCtx hcompare
-    exact ⟨ih hfv, hfresh, hparamType⟩
 
 /-- Family-indexed parameter scopes connecting the production checker trace
 to restored constructors.  This chooses no constructor and contains no

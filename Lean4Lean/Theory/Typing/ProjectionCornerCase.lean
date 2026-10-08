@@ -31,9 +31,6 @@ theorem fieldTypes_external (s : InductiveSignature) {c : Constructor s.families
 namespace CaseSchema
 variable {schema : CaseSchema} {owner : Fin schema.signature.families.size}
 
-theorem view_families_getElem (owner : Fin schema.signature.families.size) :
-    (schema.view owner).families[schema.viewOwner owner] = schema.signature.families[owner] := rfl
-
 theorem view_fieldTypes_case (c : Constructor schema.signature.families.size) :
     (schema.view owner).fieldTypes (schema.caseConstructor c) = schema.signature.fieldTypes c :=
   fieldTypes_external _ rfl

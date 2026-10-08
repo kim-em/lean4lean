@@ -183,19 +183,6 @@ theorem TV.cons_cls (tv : TV env U Δ Γ σ S)
     TV env U Δ (A :: Γ) (σ.cons y) (S.cons (listSet K)) :=
   tv.cons hb fun k hk => (hK k hk).congr_cls (let ⟨_, _, _, e⟩ := hc.mem henv hΔ hy; e)
 
-/-- The extension of a typed valuation along typed keys is typed. -/
-theorem TeleKeys.typed (h : TeleKeys env U Δ σ S ds keys σ' S')
-    (hds : PiSD env U Δ Γ ds R) (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
-    Ctx.SubstEq env U Δ σ' σ' (ds.reverse ++ Γ) ∧ TV env U Δ (ds.reverse ++ Γ) σ' S' := by
-  induction h generalizing Γ with
-  | nil => exact ⟨W, tv⟩
-  | cons hc hy hK hb _ ih =>
-    cases hds with
-    | cons hA _ hds =>
-      have := ih hds (.cons W hA.1.defeq.hasType.1 (hc.hasType henv hΔ hy))
-        (tv.cons_cls henv hΔ hc hy hb hK)
-      simpa [List.reverse_cons, List.append_assoc] using this
-
 /-- One step of unwinding: an `app` observation typed at observations of a Pi type has its
 key typed at the domain, and its result typed, at the class of the applications, at codomain
 observations at the extension by any member `y` of the key class. -/

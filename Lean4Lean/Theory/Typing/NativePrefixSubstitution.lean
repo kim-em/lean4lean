@@ -8,47 +8,6 @@ namespace Lean4Lean.InductiveSignature.CaseSchema
 open VExpr VEnv
 open private instantiateParams_inst from Lean4Lean.Theory.Typing.NativePrefixSpecialization
 
-theorem singletonReconstructAt_inst {schema : CaseSchema} {params : List VExpr}
-    {owner : Fin schema.signature.families.size}
-    (H : schema.singletonReconstructAt block owner U levels sorts params indices major = some ctor) :
-    schema.singletonReconstructAt block owner U levels sorts
-      (params.map (·.inst arg k)) (indices.map (·.inst arg k)) (major.inst arg k) =
-      some (ctor.inst arg k) := by
-  unfold singletonReconstructAt at H ⊢
-  split at H <;> try contradiction
-  rename_i hguard
-  rw [if_neg hguard]
-  simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨data, hdata, H⟩ := H
-  simp only [bind, hdata, Option.bind_some, List.length_map]
-  split at H <;> try contradiction
-  rename_i harity
-  rw [if_neg harity]
-  simp only [Option.bind_eq_some_iff] at H
-  obtain ⟨fields, hfields, hresult⟩ := H
-  cases hresult
-  simp only [hfields, Option.bind_some, Option.pure_def, Option.some.injEq]
-  have hd := projectionData_scoped hdata
-  have hclosed := data.reconstructionPrefix_closed hd (by simp)
-    (by simpa using hd.fields) (by simp) hfields
-  have hlen := data.reconstructionPrefix_length hfields
-  simp only [List.length_nil, Nat.zero_add] at hlen
-  have hp : params.length = data.params.length := by
-    by_cases hp : params.length = data.params.length
-    · exact hp
-    · exact (harity (by simp [hp])).elim
-  have hargs : data.constructor.ClosedN
-      (params ++ fields.map (fun field => mkApps field.value (params ++ indices ++ [major]))).length := by
-    simpa only [List.length_append, List.length_map, hp, hlen] using hd.constructor
-  rw [instantiateParams_inst hargs]
-  congr 1
-  simp only [List.map_append, List.map_map, Function.comp_def, inst_mkApps,
-    List.map_cons, List.map_nil]
-  congr 1
-  apply List.map_congr_left
-  intro field hf
-  rw [(hclosed field hf).instN_eq (Nat.zero_le _)]
-
 end Lean4Lean.InductiveSignature.CaseSchema
 
 namespace Lean4Lean.InductiveSignature.NativeRecursorData
@@ -63,30 +22,6 @@ theorem supplyType_inst (H : supplyType args type = some output) :
     cases type <;> try contradiction
     simp only [supplyType, List.map_cons, VExpr.inst, ← VExpr.inst0_inst_hi]
     exact ih H
-
-theorem reconstruct_inst {data : NativeRecursorData}
-    (H : data.reconstruct U levels targets args = some output) :
-    data.reconstruct U levels targets (args.map (·.inst arg k)) = some (output.inst arg k) := by
-  unfold reconstruct at H ⊢
-  simp only [List.length_map]
-  split at H <;> try contradiction
-  rename_i hguard
-  rw [if_neg hguard]
-  simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨major, hmajor, H⟩ := H
-  simp only [List.getElem?_map, hmajor, Option.map_some, bind, Option.bind_some,
-    ← List.map_take, ← List.map_drop]
-  exact singletonReconstructAt_inst H
-
-theorem reconstructCanonical_inst {data : NativeRecursorData}
-    (H : data.reconstructCanonical U levels args = some output) :
-    data.reconstructCanonical U levels (args.map (·.inst arg k)) = some (output.inst arg k) := by
-  unfold reconstructCanonical at H ⊢
-  simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨source, hsource, H⟩ := H
-  simp only [hsource]
-  exact reconstruct_inst H
-
 
 /-- Substitute an outer term through the remaining dependent telescope. -/
 def PrefixProgram.instN (program : PrefixProgram) (arg : VExpr) (k : Nat) : PrefixProgram :=
@@ -116,61 +51,6 @@ private theorem vars_inst_above (n k : Nat) (arg : VExpr) :
   simp only [vars, List.mem_map, List.mem_reverse, List.mem_range] at he
   obtain ⟨i, hi, rfl⟩ := he
   exact (show (VExpr.bvar (0+i)).ClosedN n from by simpa only [VExpr.ClosedN, Nat.zero_add] using hi).instN_eq (j := k+n) (by omega)
-
-theorem prefixProgram_inst {data : NativeRecursorData} {nativeType : VExpr}
-    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
-    (H : data.prefixProgram U levels args = some program) :
-    data.prefixProgram U levels (args.map (·.inst arg k)) = some (program.instN arg k) := by
-  unfold prefixProgram at H ⊢
-  simp only [List.length_map]
-  split at H <;> try contradiction
-  rename_i hguard
-  rw [if_neg hguard]
-  simp only [bind, htype, Option.bind_some, Option.bind_eq_some_iff] at H
-  obtain ⟨residual, hsupply, ⟨domains, result⟩, htake,
-    constructor, hconstructor, source, hsource, fields, hfields,
-    equation, hequation, body, hbody, H⟩ := H
-  split at H <;> try contradiction
-  rename_i hcaptureCount
-  cases H
-  have hlen := takeForalls_length htake
-  have hsupply' := supplyType_inst (arg := arg) (k := k) hsupply
-  rw [(hclosed.instL (ls := levels)).instN_eq (Nat.zero_le _)] at hsupply'
-  have htake' := takeForalls_instDomains (arg := arg) (k := k) htake
-  let remaining := data.majorOffset + 1 - args.length
-  have hall :
-      (args.map (·.inst arg k)).map (·.liftN remaining) ++ vars remaining 0 =
-      (args.map (·.liftN remaining) ++ vars remaining 0).map (·.inst arg (k + remaining)) := by
-    simp only [List.map_append, List.map_map, Function.comp_def, vars_inst_above,
-      liftN_instN_lo _ _ _ _ _ (Nat.zero_le _), Nat.add_comm remaining k]
-  have hconstructor' := reconstructCanonical_inst (arg := arg) (k := k + remaining) hconstructor
-  rw [← hall] at hconstructor'
-  dsimp only [remaining] at hconstructor'
-  have hvarslen (n j : Nat) : (vars n j).length = n := by simp [vars]
-  simp only [bind, htype, Option.bind_some, hsupply', htake', hconstructor', hsource,
-    hfields, hequation, hbody, List.length_map, List.length_append, List.length_take,
-    hvarslen] at hcaptureCount ⊢
-  have hscoped := projectionData_scoped hsource
-  have hselectors := source.reconstructionPrefix_closed hscoped (by simp)
-    (by simpa using hscoped.fields) (by simp) hfields
-  rw [if_neg hcaptureCount]
-  simp only [Option.pure_def, Option.some.injEq, PrefixProgram.instN, PrefixProgram.mk.injEq,
-    hlen, and_true, true_and]
-  dsimp only [remaining] at hall
-  rw [hall]
-  simp only [List.map_append, List.map_map, Function.comp_def, List.map_take]
-  congr 1
-  apply List.map_congr_left
-  intro field hf
-  rw [inst_mkApps, (hselectors field hf).instN_eq (Nat.zero_le _)]
-  have hn : args.length ≤ data.majorOffset := by
-    by_cases hn : args.length ≤ data.majorOffset
-    · exact hn
-    · exact (hguard (by simp [show data.majorOffset < args.length by omega])).elim
-  have hzero : (.bvar 0 : VExpr).inst arg (k + (data.majorOffset + 1 - args.length)) = .bvar 0 := by
-    simp [VExpr.inst, instVar, show 0 < k + (data.majorOffset + 1 - args.length) by omega]
-  simp only [List.map_append, List.map_take, List.map_drop, List.map_cons,
-    List.map_nil, hzero, List.map_map, Function.comp_def]
 
 theorem singletonProgram_inst {data : NativeRecursorData} {nativeType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.NativeRecursorRegistered env data)

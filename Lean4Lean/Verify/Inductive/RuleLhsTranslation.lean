@@ -398,15 +398,6 @@ theorem RuleLhs.closed_of_abstractedTranslation {env : VEnv} {Us : List Name}
   simp only [abstractForallContext_bvars, VLCtx.bvars, hlen, Nat.add_zero] at h
   exact Expr.closed_of_abstractList (depth := 0) (by simpa using h)
 
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.sourceLhsBody_closed
-    {H : CompletedRecursorPhasesResult R outEnv}
-    {owner : Nat} {howner : owner < H.entries.length}
-    {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
-    Closed A.rule.sourceLhsBody :=
-  RuleLhs.closed_of_abstractedTranslation (A.equationDomains_length hk) (A.lhsTranslation hk)
-
 theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.sourceRhsBody_closed
     {H : CompletedRecursorPhasesResult R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}

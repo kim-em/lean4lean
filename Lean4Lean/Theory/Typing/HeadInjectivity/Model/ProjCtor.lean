@@ -55,16 +55,6 @@ theorem obs_wrapForalls_sort : ∀ {ds : List VExpr} {ks : List Key} {σ : VExpr
     obtain ⟨-, -, _, -, h⟩ := Obs.piCodOb_mem h
     exact obs_wrapForalls_sort (ds := ds) (ks := ks) h
 
-/-- The anchors of a chain of typed keys. -/
-theorem TeleKeys.anchors (h : TeleKeys env U Δ σ S ds keys σ' S') :
-    ∃ ys : List VExpr, σ' = ys.foldl VExpr.Subst.cons σ ∧ ys.length = ds.length ∧
-      List.Forall₂ (fun (k : Key) y => k.2.1 y) keys ys := by
-  induction h with
-  | nil => exact ⟨[], rfl, rfl, .nil⟩
-  | @cons c y K σ S A ds keys σ' S' hc hy _ _ _ ih =>
-    obtain ⟨ys, e, hl, hk⟩ := ih
-    exact ⟨y :: ys, e, by simp [hl], .cons hy hk⟩
-
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ

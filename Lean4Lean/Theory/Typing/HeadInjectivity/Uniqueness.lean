@@ -253,14 +253,5 @@ theorem TypeChain.collapse' (henv : env.WF) (core : env.HeadInjectivityCore)
   | single h => let ⟨_, h⟩ := h; exact retype hA h
   | tail _ h ih => let ⟨_, h⟩ := h; exact ih.trans (retype ih.hasType.2 h)
 
-theorem IsDefEq.uniq' (henv : env.WF) (core : env.HeadInjectivityCore)
-    (hΓ : OnCtx Γ (env.IsType U))
-    (h1 : env.IsDefEq U Γ e₁ e₂ A) (h2 : env.IsDefEq U Γ e₂ e₃ B) :
-    ∃ u, env.IsDefEq U Γ A B (.sort u) := by
-  have H := HasTypeStrong.uniq_chain' henv core hΓ
-    (h1.strong henv.ordered hΓ).hasType'.2 (h2.strong henv.ordered hΓ).hasType'.1
-  have ⟨_, hA⟩ := h1.isType henv.ordered hΓ
-  exact ⟨_, H.collapse' henv core hΓ hA⟩
-
 end VEnv
 end Lean4Lean

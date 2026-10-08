@@ -145,32 +145,6 @@ theorem CompletedFormationInstallation.headerMapWF
   | ordinary Htypes _ => exact Htypes.targetMapWF hwf
   | primitive Htypes _ _ => exact Htypes.targetMapWF hwf
 
-theorem CompletedFormationInstallation.constructorMapWF
-    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
-      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
-    (hwf : sourceEnv.constants.WF) : ctorEnv.constants.WF := by
-  have hheader := H.headerMapWF hwf
-  cases H with
-  | ordinary _ Hctors => exact Hctors.targetMapWF hheader
-  | primitive _ Hctors _ => exact Hctors.targetMapWF hheader
-
-/-- Every old production lookup survives either sound completed formation
-history. -/
-theorem CompletedFormationInstallation.preservesSourceFind
-    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
-      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
-    (hwf : sourceEnv.constants.WF)
-    (hfind : sourceEnv.find? name = some found) :
-    ctorEnv.find? name = some found := by
-  have hheaderWF := H.headerMapWF hwf
-  cases H with
-  | ordinary Htypes Hctors =>
-      exact Hctors.preservesSourceFind hheaderWF
-        (Htypes.preservesSourceFind hwf hfind)
-  | primitive Htypes Hctors _ =>
-      exact Hctors.preservesSourceFind hheaderWF
-        (Htypes.preservesSourceFind hwf hfind)
-
 /-- A retained header entry is visible at the completed constructor endpoint
 for both ordinary and atomic primitive histories. -/
 theorem CompletedFormationInstallation.findHeaderEntry
@@ -187,27 +161,6 @@ theorem CompletedFormationInstallation.findHeaderEntry
   | primitive Htypes Hctors _ =>
       exact Hctors.preservesSourceFind hheaderWF
         (Htypes.findEntry hwf hentry)
-
-/-- A retained constructor entry is visible at the completed constructor
-endpoint for both installation histories. -/
-theorem CompletedFormationInstallation.findConstructorEntry
-    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
-      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
-    (hwf : sourceEnv.constants.WF)
-    (hentry : (info, value) ∈ ctorEntries) :
-    ctorEnv.find? info.name = some info := by
-  have hheaderWF := H.headerMapWF hwf
-  cases H with
-  | ordinary _ Hctors => exact Hctors.findEntry hheaderWF hentry
-  | primitive _ Hctors _ => exact Hctors.findEntry hheaderWF hentry
-
-theorem CompletedFormationInstallation.constructorEntrySafety
-    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
-      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
-    (hentry : (info, value) ∈ ctorEntries) : safety ≤ info.safety := by
-  cases H with
-  | ordinary _ Hctors => exact Hctors.entrySafety hentry
-  | primitive _ Hctors _ => exact Hctors.entrySafety hentry
 
 /-- Every constant of the completed constructor environment is old or an installed entry. -/
 theorem CompletedFormationInstallation.entryOrigin
@@ -371,15 +324,6 @@ theorem CompletedConstructorPhases.casesWF
     (Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF R.core hsourceWF)
     R.core.typesAdded R.core.ctorsAdded
 
-/-- The retained context is the projected constructor-complete environment. -/
-theorem CompletedConstructorPhases.projectedChecking
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv) :
-    CheckingEnv.Valid c.safety ctorEnv
-      ((R.ctorVEnv.addEliminators R.eliminators).addProjections decl.projectionEntries) := by
-  rw [← R.contextVEnv]
-  exact R.context.checking
-
 theorem CompletedConstructorPhases.ctorLE
     (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
@@ -525,25 +469,6 @@ def ConstructorPhasesResult.completed
   core := R.core
   productionInductiveOrigins := R.productionInductiveOrigins
   constructorSemantics := fun Hsource => R.constructorSemantics Hsource
-
-/-- Transport the materialized header cache into the completed primitive
-constructor context. -/
-def PrimitiveConstructorPhasesResult.materialized
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
-    {sourceEnv : VEnv} {indTypes : Array InductiveType}
-    {headerEnv ctorEnv : Environment}
-    {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
-      sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorPhasesResult H ctorEnv) :
-    checkInductiveTypes.loopInd.MaterializedHeaderResult
-      R.declared.context.venv c.lparams R.declared.context.mlctx.vlctx
-      stats decl depth := by
-  have henv : H.context.venv <= R.declared.context.venv := by
-    rw [R.declared.contextVEnv]
-    exact R.declared.installed.le
-  let M := H.materialized.mono henv
-  simpa only [R.declared.contextMLCtx] using M
 
 /-- The constructor boundary of a completed primitive formation run. -/
 noncomputable def PrimitiveConstructorPhasesResult.boundary

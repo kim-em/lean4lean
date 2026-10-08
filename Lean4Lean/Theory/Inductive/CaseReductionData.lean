@@ -135,13 +135,6 @@ theorem AppliedRule.extract_spec {block : Name} {owner : Nat}
   obtain ⟨body, hb, application, ha, ⟨hblock, howner⟩, rfl⟩ := h
   exact ⟨rfl, hb, ha, hblock, howner⟩
 
-/-- Extract all rules in the same constructor order as the generator. Any
-restoration, telescope or ownership failure rejects the entire rule list. -/
-def appliedRules (schema : CaseSchema) (block : Name)
-    (owner : Fin schema.signature.families.size) : Option (List AppliedRule) := do
-  let equations ← schema.genericEquations block owner
-  equations.mapM (AppliedRule.extract block owner.val)
-
 /-- Finite provenance of one applied rule: both the equation and its parsing
 come from the selected schema, rather than being supplied by a caller. -/
 def Generates (schema : CaseSchema) (block : Name)
@@ -168,28 +161,6 @@ def AppliedRule.type (rule : AppliedRule) (levels : List VLevel)
 variable {schema : CaseSchema} {block : Name}
   {owner : Fin schema.signature.families.size} {rule : AppliedRule}
   {levels : List VLevel} {arguments : List VExpr}
-
-/-- Every member of the generated ordered list has its original equation and
-its successful extraction as provenance. -/
-theorem generates_of_appliedRules
-    (h : schema.appliedRules block owner = some rules) (hmem : rule ∈ rules) :
-    schema.Generates block owner rule := by
-  simp only [appliedRules, Bind.bind, Option.bind_eq_some_iff] at h
-  obtain ⟨equations, hgen, hextract⟩ := h
-  have hrel := List.mapM_eq_some.mp hextract
-  have find : ∃ equation ∈ equations,
-      AppliedRule.extract block owner.val equation = some rule := by
-    clear hgen hextract
-    induction hrel with
-    | nil => cases hmem
-    | @cons equation other equations others he _ ih =>
-      rcases List.mem_cons.mp hmem with rfl | hmem
-      · exact ⟨equation, by simp, he⟩
-      · obtain ⟨equation', hm, he'⟩ := ih hmem
-        exact ⟨equation', by simp [hm], he'⟩
-  obtain ⟨equation, hm, he⟩ := find
-  have heq := (AppliedRule.extract_spec he).1
-  exact ⟨equations, hgen, heq ▸ hm, heq ▸ he⟩
 
 /-- Generated provenance fixes both the registry key and the family slot. -/
 theorem Generates.owned (h : schema.Generates block owner rule) :
@@ -263,14 +234,6 @@ theorem Application.head (a : Application) :
   simp only [Application.expr, spine_app_head, spine_mkApps_head]
   rfl
 
-/-- Head ownership survives both universe and simultaneous term substitution. -/
-theorem Generates.head (h : schema.Generates block owner rule) :
-    (rule.lhs levels arguments).getAppFnArgs.1 =
-      .elim block owner.val (rule.application.levels.map (·.inst levels)) := by
-  rw [h.lhs_exact, Application.head]
-  obtain ⟨hb, ho⟩ := h.owned
-  simp only [Application.specialize, hb, ho]
-
 private theorem native_varN_head {name : Name} {n : Nat}
     {values : (Pattern.varN (.const name) n).Path → VExpr}
     (h : (Pattern.varN (.const name) n).Matches e ls values) :
@@ -290,14 +253,5 @@ theorem native_pattern_head {pattern : SimplePattern}
   | iota name major ctor args =>
     cases h with
     | app hf _ => exact ⟨name, (spine_app_head _ _).trans (native_varN_head hf)⟩
-
-/-- The concrete case rules and every legacy native simple pattern have
-syntactically disjoint heads, independently of their constructor names. -/
-theorem Generates.not_native_match (h : schema.Generates block owner rule)
-    {pattern : SimplePattern} {values : pattern.toPattern.Path → VExpr}
-    (hm : pattern.toPattern.Matches (rule.lhs levels arguments) ls values) : False := by
-  obtain ⟨name, hn⟩ := native_pattern_head hm
-  rw [h.head] at hn
-  cases hn
 
 end Lean4Lean.InductiveSignature.CaseSchema

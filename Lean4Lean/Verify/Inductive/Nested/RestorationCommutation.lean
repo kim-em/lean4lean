@@ -79,30 +79,6 @@ theorem Restoration.expr_of_not_contains (r : Restoration) {e : VExpr}
     (H : e.containsAnyConst r.restorableNames = false) : r.expr e = some e :=
   Restoration.expr.go_of_not_contains r H []
 
-theorem Restoration.expr_wrapForalls_of_clean (r : Restoration) {domains : List VExpr}
-    (hdomains : ∀ d ∈ domains, d.containsAnyConst r.restorableNames = false)
-    {body body' : VExpr} (hbody : r.expr body = some body') :
-    r.expr (VExpr.wrapForalls domains body) = some (VExpr.wrapForalls domains body') := by
-  induction domains with
-  | nil => simpa [VExpr.wrapForalls] using hbody
-  | cons d ds ih =>
-    have hd := Restoration.expr_of_not_contains r (hdomains d (by simp))
-    have ht := ih (fun d' hd' => hdomains d' (by simp [hd']))
-    simp only [Restoration.expr, VExpr.wrapForalls, List.foldr_cons] at hd ht ⊢
-    simp [Restoration.expr.go, hd, ht, VExpr.mkApps]
-
-theorem Restoration.expr_wrapLams (r : Restoration) {domains : List VExpr}
-    (hdomains : ∀ d ∈ domains, d.containsAnyConst r.restorableNames = false)
-    {body body' : VExpr} (hbody : r.expr body = some body') :
-    r.expr (VExpr.wrapLams domains body) = some (VExpr.wrapLams domains body') := by
-  induction domains with
-  | nil => simpa [VExpr.wrapLams] using hbody
-  | cons d ds ih =>
-    have hd := Restoration.expr_of_not_contains r (hdomains d (by simp))
-    have ht := ih (fun d' hd' => hdomains d' (by simp [hd']))
-    simp only [Restoration.expr, VExpr.wrapLams, List.foldr_cons] at hd ht ⊢
-    simp [Restoration.expr.go, hd, ht, VExpr.mkApps]
-
 end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean
@@ -189,20 +165,6 @@ theorem VLCtx.VLamShape.append {a b c d : VLCtx} (H₁ : VLCtx.VLamShape a b)
   induction H₁ with
   | nil => simpa using H₂
   | cons _ ih => exact .cons ih
-
-theorem VLCtx.VLamShape.find? {left right : VLCtx} (H : VLCtx.VLamShape left right)
-    (v : Nat ⊕ FVarId) :
-    (left.find? v).map Prod.fst = (right.find? v).map Prod.fst := by
-  induction H generalizing v with
-  | nil => rfl
-  | @cons left right ofv x y _ ih =>
-    simp only [VLCtx.find?]
-    cases VLCtx.next ofv v with
-    | none => simp [VLocalDecl.value]
-    | some v' =>
-      have := ih v'
-      cases hl : left.find? v' <;> cases hr : right.find? v' <;>
-        simp_all [VLocalDecl.depth]
 
 theorem restoreNestedNode_eq_none_of_restoreHead
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
@@ -423,75 +385,10 @@ theorem TrExprS.instantiateRevFVars {env : VEnv} {Us : List Name} :
 
 /-! ### Names -/
 
-theorem _root_.Lean4Lean.InductiveSignature.Restoration.restoredHeadName_of_not_mem
-    {r : Restoration} {name : Name} (h : name ∉ r.heads.map (·.auxiliary)) :
-    r.restoredHeadName name = name := by
-  simp [InductiveSignature.Restoration.restoredHeadName,
-    Restoration.heads_find?_eq_none h]
-
 theorem nameMap_getD_eq (m : NameMap Name) (k d : Name) :
     Std.TreeMap.getD m k d = (m.find? k).getD d := by
   simp only [NameMap.find?]
   exact Std.TreeMap.getD_eq_getD_getElem?
-
-/-- The recursor name chosen by `restoreRecursorDecl`
-(`recNameMap.getD recName recName`) is `r.recursorName`. -/
-theorem RestorationMapAgreement.restoredRecursorName
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (oldRecName : Name) :
-    Std.TreeMap.getD auxRec oldRecName oldRecName = r.recursorName oldRecName := by
-  rw [nameMap_getD_eq, A.recursorName]
-
-theorem RestorationMapAgreement.restoreRecursor_name
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (allIndNames : List Name) (oldRecName : Name) (info : RecursorVal) :
-    (result.restoreRecursor env auxRec allIndNames oldRecName
-      (Std.TreeMap.getD auxRec oldRecName oldRecName) info).name =
-      r.recursorName oldRecName := by
-  simp [Lean4Lean.ElimNestedInductive.Result.restoreRecursor,
-    A.restoredRecursorName]
-
-theorem RecursorRestoration.name_eq_recursorName
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (H : RecursorRestoration result env auxRec allIndNames oldRecName newRecName
-      oldInfo newInfo)
-    (hnew : newRecName = Std.TreeMap.getD auxRec oldRecName oldRecName) :
-    newInfo.name = r.recursorName oldRecName := by
-  rw [H.name, hnew, A.restoredRecursorName]
-
-/-- `restoreCtorName` agrees with `Restoration.restoredHeadName` on the
-constructors of auxiliary families. -/
-theorem RestorationMapAgreement.restoreCtorName
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (hfamily : result.aux2nested.find? c = none)
-    (hctor : result.getNestedIfAuxCtor env c = some (nested, auxI)) :
-    result.restoreCtorName env c = r.restoredHeadName c := by
-  rcases A.ctorTarget c nested auxI hfamily hctor with ⟨I, ls, hI, hname⟩
-  simp [Lean4Lean.ElimNestedInductive.Result.restoreCtorName, hctor, hI, hname,
-    Id.run]
-
-/-- Rule constructor names of an auxiliary recursor are restored to the
-abstract head targets. -/
-theorem RestorationMapAgreement.restoreRule_ctor_auxiliary
-    (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
-    (hne : newRecName ≠ oldRecName)
-    (hfamily : result.aux2nested.find? rule.ctor = none)
-    (hctor : result.getNestedIfAuxCtor env rule.ctor = some (nested, auxI)) :
-    (result.restoreRule env auxRec oldRecName newRecName rule).ctor =
-      r.restoredHeadName rule.ctor := by
-  simp [Lean4Lean.ElimNestedInductive.Result.restoreRule, hne,
-    A.restoreCtorName hfamily hctor]
-
-/-- Rule constructor names of a primary recursor are unchanged, as are their
-abstract restorations. -/
-theorem restoreRule_ctor_primary {r : Restoration}
-    {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
-    {auxRec : NameMap Name} {oldRecName : Name} {rule : RecursorRule}
-    (hnot : rule.ctor ∉ r.heads.map (·.auxiliary)) :
-    (result.restoreRule env auxRec oldRecName oldRecName rule).ctor =
-      r.restoredHeadName rule.ctor := by
-  simp [Lean4Lean.ElimNestedInductive.Result.restoreRule,
-    InductiveSignature.Restoration.restoredHeadName_of_not_mem hnot]
 
 end VerifyInductive
 end Lean4Lean

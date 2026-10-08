@@ -94,36 +94,6 @@ theorem CompletedRecursorConstruction.consumedSignature_shapeTranslations
   rw [hx, hft]
   exact ⟨h1, hpos, hfield, h2, h3, h4, h5, h6, h7⟩
 
-/-- The constructors of the consumed generation are the consumed constructors
-of the minors, with the consumed field domains and the chosen recursive shapes. -/
-theorem CompletedRecursorConstruction.consumedGeneration_constructor
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
-    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
-    let G := H.consumedGeneration
-    let k := recursorMinorOffset indTypes owner + localIndex
-    ∃ hk : k < G.signature.constructors.size,
-      G.signature.constructors[k] = H.consumedConstructorAt H.argumentUniverses owner howner
-        localIndex hlocal ∧
-      G.signature.fieldTypes G.signature.constructors[k] =
-        H.sourceFields owner howner localIndex hlocal ∧
-      InductiveSignature.Instance.recursiveFields (s := G.signature) G.signature.constructors[k] =
-        H.consumedShapes H.argumentUniverses owner howner localIndex hlocal := by
-  intro G k
-  have hk : k < (H.consumedSignature H.argumentUniverses).constructors.size := by
-    simp only [CompletedRecursorConstruction.consumedSignature, Array.size_ofFn]
-    exact H.sourceMinorOffsetBound owner howner localIndex hlocal
-  have hctor := H.consumedSignature_constructor H.argumentUniverses owner howner localIndex
-    hlocal hk
-  refine ⟨hk, hctor, ?_, ?_⟩
-  · change (H.consumedSignature H.argumentUniverses).fieldTypes
-      (H.consumedSignature H.argumentUniverses).constructors[k] = _
-    rw [hctor]
-    exact H.consumedConstructorAt_fieldTypes H.argumentUniverses owner howner localIndex hlocal
-  · change InductiveSignature.Instance.recursiveFields (s := H.consumedSignature H.argumentUniverses)
-      (H.consumedSignature H.argumentUniverses).constructors[k] = _
-    rw [hctor]
-    exact H.consumedConstructorAt_recursiveFields H.argumentUniverses owner howner localIndex hlocal
-
 /-- The recursive shapes of the consumed generation's constructor for minor
 `(owner, localIndex)`: for every induction hypothesis `j`, the retained
 blueprint call `C := B.recursiveCalls[j]!` is the call of this hypothesis
@@ -178,19 +148,5 @@ theorem CompletedRecursorConstruction.consumedGeneration_shapeTranslations
     exact H.sourceMinorOffsetBound owner howner localIndex hlocal
   exact ⟨hk, H.consumedSignature_shapeTranslations H.argumentUniverses owner howner localIndex
     hlocal hk⟩
-
-/-- The minor group of every checked recursor type is the consumed
-generation's minor list; in particular its `j`-th induction hypothesis is the
-generator's `hypothesis` for the `j`-th recursive shape. -/
-theorem CompletedRecursorConstruction.recursorTelescope_minors_consumedGeneration
-    (H : CompletedRecursorConstruction R)
-    {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
-    (T : GeneratedRecursorTelescopeTranslation R.context.venv
-      (AddInductive.getRecLevelParams H.elimLevel c.lparams)
-      (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
-      target stats.params.size (H.recInfos.map (·.motive)).size
-      (H.recInfos.flatMap (·.minors)).size H.recInfos[owner]!.indices.size owner) :
-    T.minors = H.consumedGeneration.generation.minors :=
-  H.recursorTelescope_minors_consumed H.argumentUniverses howner T
 
 end Lean4Lean.VerifyInductive

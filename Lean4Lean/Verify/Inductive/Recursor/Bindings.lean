@@ -112,21 +112,6 @@ def RecursorContextExtension.withLocalDecl
   shift := (.refl : Lift).skipN 1
   lift := .skip_fvar _ _ .refl
 
-/-- Variant of `RecursorContextExtension.withLocalDecl` for a binder opened in both contexts. -/
-def RecursorContextExtension.withCheckedLocalDecl
-    (R : RecursorContextWF c recLparams)
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS R.venv recLparams R.chk.vlctx ty ty₀)
-    (hty₀ : R.venv.IsType recLparams.length R.chk.vlctx.toCtx ty₀) :
-    RecursorContextExtension R
-      (R.withCheckedLocalDecl (name := name) (bi := bi) htr hty htr₀ hty₀) where
-  contextLE := BindingContextLE.withCheckedLocalDecl c R.toBindingContextWF
-    name ty bi
-  venv_eq := rfl
-  shift := (.refl : Lift).skipN 1
-  lift := .skip_fvar _ _ .refl
-
 /-- Transport a syntax translation along an exact recursor-context
 extension.  The concrete expression is unchanged; its abstract target is
 shifted by precisely the retained `Lift`. -/
@@ -199,22 +184,6 @@ def BoundFVarArray.weaken
     BoundFVarArray { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
-  fvars := H.fvars
-  expressions := H.expressions
-  members := by
-    intro fv hfv
-    simp only [LocalContext.fvars, LocalContext.mkLocalDecl_toList,
-      List.map_cons, LocalDecl.fvarId, List.mem_cons]
-    exact Or.inr (H.members fv hfv)
-
-/-- Variant of `BoundFVarArray.weaken` for a binder opened in both contexts. -/
-def BoundFVarArray.weakenChecked
-    {base : LocalContext}
-    (H : BoundFVarArray c xs) (name : Name) (ty : Expr) (bi : BinderInfo) :
-    BoundFVarArray { c with
-      ngen := c.ngen.next
-      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi
-      checkLCtx := base.mkLocalDecl ⟨c.ngen.curr⟩ name ty bi } xs where
   fvars := H.fvars
   expressions := H.expressions
   members := by
@@ -476,32 +445,6 @@ def RecentBoundFVarArray.empty (Hc : ContextWF c) :
   reverse_eq := by simp
   drop_eq := rfl
 
-def RecentBoundFVarArray.pushCurrent {root c : AddInductive.Context}
-    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
-    (H : RecentBoundFVarArray Hroot Hc xs)
-    (name : Name) (ty : Expr) (ty' : VExpr) (bi : BinderInfo)
-    (htr : TrExprS Hc.venv c.lparams Hc.mlctx.vlctx ty ty')
-    (hty : Hc.venv.IsType c.lparams.length Hc.mlctx.vlctx.toCtx ty') :
-    RecentBoundFVarArray Hroot
-      (ContextWF.withLocalDecl (c := c) (name := name) (ty := ty)
-        (ty' := ty') (bi := bi) (H := Hc) htr hty)
-      (xs.push (.fvar ⟨c.ngen.curr⟩)) where
-  toFreshBoundFVarArray := H.toFreshBoundFVarArray.pushCurrent
-    Hc.toBindingContextWF H.contextLE name ty bi
-  contextLE := H.contextLE.trans <|
-    BindingContextLE.withLocalDecl c Hc.toBindingContextWF name ty bi
-  size_le := by
-    simpa only [Array.size_push, ContextWF.withLocalDecl, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
-      TypeChecker.MLCtx.length] using Nat.succ_le_succ H.size_le
-  reverse_eq := by
-    simpa only [Array.toList_push, List.reverse_append, List.reverse_singleton,
-      List.singleton_append, Array.size_push, ContextWF.withLocalDecl, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
-      TypeChecker.MLCtx.fvarRevList, List.map_cons] using
-        congrArg (List.cons (.fvar ⟨c.ngen.curr⟩)) H.reverse_eq
-  drop_eq := by
-    simpa only [Array.size_push, ContextWF.withLocalDecl, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
-      TypeChecker.MLCtx.dropN] using H.drop_eq
-
 /-- Variant of `RecentBoundFVarArray.pushCurrent` for a binder opened in both contexts. -/
 def RecentBoundFVarArray.pushCurrentChecked {root c : AddInductive.Context}
     {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
@@ -531,44 +474,6 @@ def RecentBoundFVarArray.pushCurrentChecked {root c : AddInductive.Context}
   drop_eq := by
     simpa only [Array.size_push, ContextWF.withCheckedLocalDecl, ContextWF.withCheckedLocalDeclOn,
       TypeChecker.MLCtx.dropN] using H.drop_eq
-
-def RecentBoundFVarArray.recursorSizeLE {root c : AddInductive.Context}
-    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
-    (H : RecentBoundFVarArray Hroot Hc xs)
-    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
-    xs.size ≤ (Hc.toAdmissibleRecursorContextWF Helim).mlctx.length := by
-  cases elimLevel with
-  | zero =>
-    change xs.size ≤ Hc.mlctx.length
-    exact H.size_le
-  | param name =>
-    change xs.size ≤
-      (Hc.mlctx.prependLevelParam c.lparams.length).length
-    simpa using H.size_le
-  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
-    simp [AddInductive.AdmissibleElimLevel] at Helim
-
-theorem RecentBoundFVarArray.recursorReverseEq {root c : AddInductive.Context}
-    {Hroot : ContextWF root} {Hc : ContextWF c} {xs : Array Expr}
-    (H : RecentBoundFVarArray Hroot Hc xs)
-    (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
-    xs.toList.reverse =
-      ((Hc.toAdmissibleRecursorContextWF Helim).mlctx.fvarRevList xs.size
-        (H.recursorSizeLE Helim)).map Expr.fvar := by
-  cases elimLevel with
-  | zero =>
-    change xs.toList.reverse =
-      (Hc.mlctx.fvarRevList xs.size _).map Expr.fvar
-    exact H.reverse_eq
-  | param name =>
-    change xs.toList.reverse =
-      ((Hc.mlctx.prependLevelParam c.lparams.length).fvarRevList xs.size _).map
-        Expr.fvar
-    rw [TypeChecker.MLCtx.prependLevelParam_fvarRevList
-      (hn := H.size_le)]
-    exact H.reverse_eq
-  | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
-    simp [AddInductive.AdmissibleElimLevel] at Helim
 
 /-- Exact consecutive index-local suffix tracked wholly inside one recursor
 universe interpretation. -/
@@ -787,167 +692,6 @@ theorem RecursorRecentBoundFVarArray.upsetRoot
     apply H.fresh fv (by simpa using hfv)
     rw [← Rroot.lctx_eq, Rroot.mlctx_wf.tr.fvars_eq]
     exact hscope fv hp
-
-/-- Replacing an exact recent free-variable suffix by anonymous binders with
-the retained translated domains does not change the verifier typing context. -/
-theorem RecursorRecentBoundFVarArray.abstractRecent_toCtx
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs) :
-    (abstractForallContext
-      (MLCtxForallDomains R.mlctx xs.size H.size_le)
-      Rroot.mlctx.vlctx).toCtx = R.mlctx.vlctx.toCtx := by
-  let domains := MLCtxForallDomains R.mlctx xs.size H.size_le
-  have hdomains := R.onlyLams.forallDomains_eq_take_reverse
-    xs.size H.size_le
-  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
-    R.mlctx xs.size H.size_le
-  rw [H.drop_eq] at hvlctx
-  have hvlctxToCtx := congrArg VLCtx.toCtx hvlctx.symm
-  rw [VLCtx.toCtx_append] at hvlctxToCtx
-  rw [R.onlyLams.toCtx_take] at hvlctxToCtx
-  have hctx : domains.reverse ++ Rroot.mlctx.vlctx.toCtx =
-      R.mlctx.vlctx.toCtx := by
-    rw [show domains =
-        (R.mlctx.vlctx.toCtx.take xs.size).reverse by exact hdomains]
-    simpa [VLCtx.toCtx] using hvlctxToCtx
-  have htoCtx : ∀ types : List VExpr,
-      VLCtx.toCtx (types.map fun type =>
-        ((none, .vlam type) :
-          Option (FVarId × List FVarId) × VLocalDecl)) = types := by
-    intro types
-    induction types with
-    | nil => rfl
-    | cons type types ih => simp [VLCtx.toCtx, ih]
-  have htoCtxReverse : ∀ types : List VExpr,
-      VLCtx.toCtx (types.map fun type =>
-        ((none, .vlam type) :
-          Option (FVarId × List FVarId) × VLocalDecl)).reverse =
-        types.reverse := by
-    intro types
-    rw [← List.map_reverse]
-    exact htoCtx types.reverse
-  simpa [abstractForallContext, VLCtx.toCtx_append, htoCtx,
-    htoCtxReverse, domains] using hctx
-
-/-- `abstractRecent_toCtx` under an already opened anonymous prefix.  This is
-the context identity used when constructor fields are closed outside a
-higher-order recursive call's local arguments. -/
-theorem RecursorRecentBoundFVarArray.abstractRecent_toCtx_withPrefix
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
-    (domains : List VExpr) :
-    (abstractForallContext
-      (MLCtxForallDomains R.mlctx xs.size H.size_le ++ domains)
-      Rroot.mlctx.vlctx).toCtx =
-    (abstractForallContext domains R.mlctx.vlctx).toCtx := by
-  have hbase := H.abstractRecent_toCtx
-  let localPrefix : VLCtx := domains.reverse.map fun type => (none, .vlam type)
-  have hprefixed := congrArg (fun tail => localPrefix.toCtx ++ tail) hbase
-  simpa [localPrefix, abstractForallContext, List.reverse_append,
-    List.map_append, VLCtx.toCtx_append, List.append_assoc] using hprefixed
-
-/-- Close the exact recent local suffix in a strict translation while
-preserving the older recursor context.  The newly anonymous domain list is
-the same `MLCtxForallDomains` used by `mkForallRecent` and `mkLambda`. -/
-theorem RecursorRecentBoundFVarArray.abstractRecent
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
-    (domains : List VExpr)
-    (Htr : TrExprS env Us
-      (abstractForallContext domains R.mlctx.vlctx) e e') :
-    TrExprS env Us
-      (abstractForallContext
-        (MLCtxForallDomains R.mlctx xs.size H.size_le ++ domains)
-        Rroot.mlctx.vlctx)
-      (e.abstractList H.fvars domains.length) e' := by
-  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
-    R.mlctx xs.size H.size_le
-  rw [H.drop_eq] at hvlctx
-  rw [hvlctx] at Htr
-  have hexpressions := congrArg Array.toList H.expressions
-  have hmapped : xs.toList = H.fvars.map Expr.fvar := by
-    simpa using hexpressions
-  have hmaps : H.fvars.reverse.map Expr.fvar =
-      (R.mlctx.fvarRevList xs.size H.size_le).map Expr.fvar := by
-    calc
-      H.fvars.reverse.map Expr.fvar =
-          (H.fvars.map Expr.fvar).reverse := by simp
-      _ = xs.toList.reverse := by rw [← hmapped]
-      _ = _ := H.reverse_eq
-  have hfvars : H.fvars.reverse =
-      R.mlctx.fvarRevList xs.size H.size_le :=
-    (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hmaps
-  have Hdecls := R.onlyLams.fvarRevList_declarations xs.size H.size_le
-  rw [← hfvars] at Hdecls
-  have Hclosed :=
-    Lean4Lean.VerifyInductive.TrExprS.abstractFVarLambdaPrefix
-      (domains := domains) (tail := Rroot.mlctx.vlctx)
-      Hdecls (List.nodup_reverse.mpr H.nodup) Htr
-  have hdomains := R.onlyLams.forallDomains_eq_take_reverse
-    xs.size H.size_le
-  have htoCtx := R.onlyLams.toCtx_take xs.size
-  simp only [List.reverse_reverse] at Hclosed
-  simpa only [htoCtx, ← hdomains] using Hclosed
-
-/-- Abstracting an exact recent suffix removes all of its free variables.
-Consequently, a source expression scoped by the current metacontext is
-scoped by the older root after simultaneous abstraction, at any surrounding
-de Bruijn cutoff. -/
-theorem RecursorRecentBoundFVarArray.abstractRecentFVars
-    {root c : AddInductive.Context} {recLparams : List Name}
-    {Rroot : RecursorContextWF root recLparams}
-    {R : RecursorContextWF c recLparams} {xs : Array Expr}
-    (H : RecursorRecentBoundFVarArray Rroot R xs)
-    (hscope : FVarsIn (· ∈ R.mlctx.vlctx.fvars) e) (k : Nat) :
-    FVarsIn (· ∈ Rroot.mlctx.vlctx.fvars)
-      (e.abstractList H.fvars k) := by
-  have hvlctx := TypeChecker.MLCtx.vlctx_eq_take_append_dropN
-    R.mlctx xs.size H.size_le
-  rw [H.drop_eq] at hvlctx
-  have hrecent : VLCtx.fvars (R.mlctx.vlctx.take xs.size) =
-      H.fvars.reverse := by
-    have hexpressions := congrArg Array.toList H.expressions
-    have hmapped : xs.toList = H.fvars.map Expr.fvar := by
-      simpa using hexpressions
-    have hmaps : H.fvars.reverse.map Expr.fvar =
-        (R.mlctx.fvarRevList xs.size H.size_le).map Expr.fvar := by
-      calc
-        H.fvars.reverse.map Expr.fvar =
-            (H.fvars.map Expr.fvar).reverse := by simp
-        _ = xs.toList.reverse := by rw [← hmapped]
-        _ = _ := H.reverse_eq
-    have hfvars : H.fvars.reverse =
-        R.mlctx.fvarRevList xs.size H.size_le :=
-      (List.map_inj_right (fun _ _ h => Expr.fvar.inj h)).mp hmaps
-    have Hdecls := R.onlyLams.fvarRevList_declarations
-      xs.size H.size_le
-    rw [← hfvars] at Hdecls
-    have hdeclFvars : ∀ {fvs : List FVarId} {entries : VLCtx},
-        List.Forall₂
-          (fun fv entry => ∃ deps type,
-            entry = (some (fv, deps), .vlam type))
-          fvs entries → VLCtx.fvars entries = fvs := by
-      intro fvs entries hdecls
-      induction hdecls with
-      | nil => rfl
-      | cons hdecl _ ih =>
-        rcases hdecl with ⟨deps, type, rfl⟩
-        simpa [VLCtx.fvars] using ih
-    exact hdeclFvars Hdecls
-  apply FVarsIn.abstractList_of
-  exact hscope.mono fun fv hfv => by
-    rw [hvlctx, VLCtx.fvars_append] at hfv
-    rcases List.mem_append.mp hfv with hrecentFv | hrootFv
-    · left
-      rw [hrecent] at hrecentFv
-      exact List.mem_reverse.mp hrecentFv
-    · exact Or.inr hrootFv
 
 /-- Opening an exact consecutive suffix preserves the independently checked
 parameter context.  The fresh locals become additional ambient declarations;
@@ -1727,19 +1471,6 @@ def RecursorContextWF.fieldBaseNext
       change B.m.fvarList ++ [⟨c.ngen.curr⟩] = _
       rw [hB]
       simp [Expr.fvarId!])))
-
-theorem RecursorContextWF.fieldBaseNext_m
-    {c : AddInductive.Context} {recLparams : List Name}
-    (R : RecursorContextWF c recLparams)
-    {stats : AddInductive.InductiveStats} {bu : Array Expr}
-    (B : R.Base (ctorFieldCheck c stats bu))
-    (hB : B.m.fvarList = (stats.params ++ bu).toList.map (·.fvarId!))
-    (htr : TrExprS R.venv recLparams R.mlctx.vlctx ty ty')
-    (hty : R.venv.IsType recLparams.length R.mlctx.vlctx.toCtx ty')
-    (htr₀ : TrExprS R.venv recLparams B.m.vlctx ty ty₀)
-    (hty₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx ty₀) :
-    (R.fieldBaseNext (name := name) (bi := bi) B hB htr hty htr₀ hty₀).m =
-      .vlam ⟨c.ngen.curr⟩ name ty ty₀ bi B.m := rfl
 
 theorem RecursorContextWF.fieldBaseNext_fvarList
     {c : AddInductive.Context} {recLparams : List Name}

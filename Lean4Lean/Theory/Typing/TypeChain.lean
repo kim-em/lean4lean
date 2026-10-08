@@ -94,10 +94,6 @@ theorem TypeChain.instN (henv : env.Ordered) (h₀ : env.HasType U Γ₀ e₀ A�
     env.TypeChain U Γ (A.inst e₀ k) (B.inst e₀ k) :=
   H.map fun h => ⟨_, h.instN henv h₀ W⟩
 
-theorem TypeChain.defeqDFC (henv : env.Ordered) (h1 : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
-    (H : env.TypeChain U Γ₁ A B) : env.TypeChain U Γ₂ A B :=
-  H.map (f := id) fun h => ⟨_, h.defeqDFC henv h1⟩
-
 end
 
 end VEnv

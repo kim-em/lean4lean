@@ -67,45 +67,6 @@ theorem RecursorFieldDecisions.levelParamsIn
       (Expr.levelParamsIn_consumeTypeAnnotationsVerified hdom)⟩
     simpa using hbody
 
-theorem FieldUniverseSupport.mono
-    (H : FieldUniverseSupport params c fields) (Hfields : BoundFVarArray c fields)
-    (hle : BindingContextLE c c') : FieldUniverseSupport params c' fields := by
-  intro e he
-  obtain ⟨fv, index, name, type, bi, kind, rfl, hfind, htype⟩ := H e he
-  have hfv : fv ∈ c.lctx.fvars := by
-    rw [Hfields.expressions] at he
-    simp only [List.mem_toArray, List.mem_map, Expr.fvar.injEq] at he
-    obtain ⟨fv', hfv', rfl⟩ := he
-    exact Hfields.members _ hfv'
-  exact ⟨fv, index, name, type, bi, kind, rfl, (hle.declarations fv hfv).trans hfind, htype⟩
-
-theorem FieldUniverseSupport.mkForall
-    (H : FieldUniverseSupport params c fields) (Hfields : BoundFVarArray c fields)
-    (hbody : body.levelParamsIn params = true) :
-    (c.lctx.mkForall fields body).levelParamsIn params = true := by
-  have hdecl : ∀ fv ∈ Hfields.fvars, ∃ index name type bi kind,
-      c.lctx.find? fv = some (.cdecl index fv name type bi kind) ∧ type.levelParamsIn params = true := by
-    intro fv hfv
-    have he : Expr.fvar fv ∈ fields := by
-      rw [Hfields.expressions]
-      simpa using hfv
-    obtain ⟨fv', index, name, type, bi, kind, heq, hfind, htype⟩ := H _ he
-    cases Expr.fvar.inj heq
-    exact ⟨index, name, type, bi, kind, hfind, htype⟩
-  have hgo : ∀ fvars : List FVarId, (∀ fv ∈ fvars, fv ∈ Hfields.fvars) →
-      ∀ body : Expr, body.levelParamsIn params = true →
-      (LocalContext.mkBindingListN.go false c.lctx fvars body).levelParamsIn params = true := by
-    intro fvars hmem body hbody
-    induction fvars generalizing body with
-    | nil => exact hbody
-    | cons fv fvars ih =>
-      obtain ⟨index, name, type, bi, kind, hfind, htype⟩ := hdecl fv (hmem _ (by simp))
-      apply ih (fun other hother => hmem other (by simp [hother]))
-      simpa [LocalContext.mkBindingList1N, hfind, Expr.levelParamsIn, htype] using hbody
-  rw [Hfields.expressions, LocalContext.mkForall, LocalContext.mkBinding_eqN]
-  apply hgo Hfields.fvars.reverse (by simp) _
-  simpa using hbody
-
 theorem Expr.getAppArgs_slice_toList (e : Expr) (n : Nat) :
     ((e.getAppArgs[n:] : Array Expr)).toList = e.getAppArgsList.drop n := by
   rw [← Expr.getAppArgs_toList]

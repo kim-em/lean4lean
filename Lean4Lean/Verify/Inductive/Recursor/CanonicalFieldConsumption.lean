@@ -6,21 +6,6 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-theorem _root_.Lean4Lean.Closed.consumeTypeAnnotationsVerified {ok : Name → Bool} {e : Expr} {k}
-    (H : Closed e k) : Closed (e.consumeTypeAnnotationsVerified ok) k := by
-  fun_induction Expr.consumeTypeAnnotationsVerified ok e
-  case case1 ih => exact ih H.1.2
-  case case2 => exact H
-  case case3 ih => exact ih H.2
-  case case4 => exact H
-  case case5 => exact H
-
-theorem _root_.Lean4Lean.Closed.consumeForallTypes {ok : Name → Bool} {e : Expr} {k}
-    (H : Closed e k) : Closed (Lean4Lean.Expr.consumeForallTypes ok e) k := by
-  induction e generalizing k with
-  | forallE _ _ _ _ _ ih => exact ⟨H.1.consumeTypeAnnotationsVerified, ih H.2⟩
-  | _ => exact H
-
 /-- Opening constructor fields preserves bound-variable closedness of the
 remaining telescope. -/
 theorem RecursorFieldDecisions.terminalClosed
@@ -198,17 +183,6 @@ theorem CompletedRecursorConstruction.constructorRawSourceReplay
   have hparams := (List.nodup_append.mp (List.nodup_append.mp houter).1).1
   exact TrExprS.abstractCachedParameters Hcached H.params hparams
     Hraw
-
-theorem CompletedRecursorConstruction.constructorRawSourceUniverses
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
-    (owner : Nat) (howner : owner < H.recInfos.size)
-    (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
-    (HS : RecInfoMinorSemanticSourceAt H.recursorWF
-      (H.origins.minorShapes owner howner localIndex hlocal) H.parameterSuffix.parameterDecls) :
-    (HS.semantic.traversal.parameterTail.abstractList H.params.fvars).levelParamsIn c.lparams = true :=
-  (H.constructorRawSourceReplay owner howner localIndex hlocal HS).levelParamsIn
-
 
 /-- Header installation preserves the local checking relation; the
 annotation wrappers accepted in the constructor environment are definitions

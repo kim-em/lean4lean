@@ -42,33 +42,12 @@ def primitiveNatSucc : VConstVal :=
 def primitiveNatConstants : List VConstVal :=
   [primitiveNatType, primitiveNatZero, primitiveNatSucc]
 
-theorem primitiveBoolConstants_names :
-    primitiveBoolConstants.map (·.name) =
-      [``Bool, ``Bool.false, ``Bool.true] := rfl
-
-theorem primitiveNatConstants_names :
-    primitiveNatConstants.map (·.name) =
-      [``Nat, ``Nat.zero, ``Nat.succ] := rfl
-
 /-- Evidence that a complete finite batch was installed in one abstract
 environment transition.  In particular, this certificate makes no claim that
 any proper prefix of `constants` produces a valid checking environment. -/
 structure PrimitiveBootstrapInstallation
     (env out : VEnv) (constants : List VConstVal) : Prop where
   installed : env.addConstVals constants = some out
-
-/-- Atomic batch installation only extends the abstract environment. -/
-theorem PrimitiveBootstrapInstallation.le
-    (H : PrimitiveBootstrapInstallation env out constants) : env ≤ out :=
-  VEnv.addConstVals_le H.installed
-
-/-- Every member of an atomically installed bootstrap batch has its exact
-abstract constant metadata in the completed environment. -/
-theorem PrimitiveBootstrapInstallation.lookup
-    (H : PrimitiveBootstrapInstallation env out constants)
-    (hci : ci ∈ constants) :
-    out.constants ci.name = some ci.toVConstant :=
-  VEnv.addConstVals_get H.installed hci
 
 /-- A primitive specification survives a batch extension when the constant it
 inspects is unchanged.  The other constants and definitional equations used

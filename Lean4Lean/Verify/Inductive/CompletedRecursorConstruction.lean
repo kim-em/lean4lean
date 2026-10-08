@@ -86,25 +86,5 @@ structure CompletedRecursorConstruction
     recInfos[i]!.minors.size = indTypes[i]!.ctors.length
   cardinality : RecursorCardinalityCertificate stats recInfos decl
 
-/-- Fix the source signature's universe instance before selecting any
-abstract recursor entry. -/
-noncomputable def CompletedConstructorPhases.sourceGeneration
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv)
-    (elimLevel : Level) (helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :
-    InductiveSignature.Instance R.sourceSignature where
-  uvars := (AddInductive.getRecLevelParams elimLevel c.lparams).length
-  levels := recursorDeclarationAbstractLevels c.lparams helim
-  targetLevel := Classical.choose helim.ofLevel
-  recursorName owner := R.sourceSignature.families[owner].name.str "rec"
-
-theorem CompletedConstructorPhases.sourceSignature_familyCount
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
-      sourceEnv indTypes ctorEnv) : R.sourceSignature.families.size = indTypes.size := by
-  have h := Lean4Lean.List.Forall₂.length_eq R.core.types
-  simpa [ConstructorBoundary.sourceSignature,
-    ConstructorBoundary.sourceSignatureHeader,
-    checkInductiveTypes.loopInd.MaterializedHeaderResult.signatureHeader] using h.symm
-
 end VerifyInductive
 end Lean4Lean

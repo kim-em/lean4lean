@@ -50,24 +50,6 @@ structure RecursorRealization {s : InductiveSignature} (g : Instance s)
     s.families[owner].resultLevel ≈ .zero ∧
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
 
-/-- Rule coverage cannot survive replacing the concrete rule list by one of
-a different length, even when the translated recursor type is unchanged. -/
-theorem RecursorRealization.ruleCount
-    {s : InductiveSignature} {g : Instance s}
-    {rec : Lean.RecursorVal} {owner : Fin s.families.size} {venv : VEnv}
-    (H : RecursorRealization g venv owner rec) :
-    rec.rules.length = (s.ownedConstructors owner).length := by
-  exact (Lean4Lean.List.Forall₂.length_eq H.rules).symm
-
-/-- Parameter metadata is not erased by recursor realization. -/
-theorem RecursorRealization.parameterCount_unique
-    {s : InductiveSignature} {g : Instance s}
-    {rec rec' : Lean.RecursorVal} {owner owner' : Fin s.families.size}
-    {venv venv' : VEnv}
-    (H : RecursorRealization g venv owner rec)
-    (H' : RecursorRealization g venv' owner' rec') :
-    rec.numParams = rec'.numParams := H.numParams.trans H'.numParams.symm
-
 /-- An installed concrete entry and its abstract constant realize the same
 owner. A type translation alone would erase the operational metadata. -/
 def RecursorEntryRealization {s : InductiveSignature} (g : Instance s)
@@ -116,48 +98,6 @@ theorem CompilationRealization.parameterCount
     ⟨owner, _, concrete, he, _, hrec⟩
   cases he
   exact hrec.numParams.trans hm.nparams
-
-theorem RuleRealization.mono {s : InductiveSignature} {g : Instance s}
-    {index : Fin s.constructors.size}
-    (H : RuleRealization g venv Us index rule) (hle : venv ≤ venv') :
-    RuleRealization g venv' Us index rule :=
-  { H with rhs := H.rhs.mono hle }
-
-theorem RecursorRealization.mono {s : InductiveSignature} {g : Instance s}
-    {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal}
-    (H : RecursorRealization g venv owner rec) (hle : venv ≤ venv') :
-    RecursorRealization g venv' owner rec :=
-  { H with
-    type := H.type.mono hle
-    rules := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.mono hle) H.rules }
-
-theorem CompilationRealization.monoTarget
-    (H : CompilationRealization env decl block venv entries) (hle : venv ≤ venv') :
-    CompilationRealization env decl block venv' entries := by
-  rcases H.generated with ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he, hentries⟩
-  refine ⟨s, g, envTypes, hm, ht, ha, hrec, hn, hr, he, ?_⟩
-  apply Lean4Lean.List.Forall₂.imp (l₁ := List.finRange s.families.size) _ hentries
-  intro owner entry h
-  rcases h with ⟨rec, hc, hv, hrec⟩
-  exact ⟨rec, hc, hv, hrec.mono hle⟩
-
-/-- Replaying the same declaration in a larger source model preserves the
-joint witness, provided its source headers can still be installed. -/
-theorem CompilationRealization.monoSource
-    {env env' envTypes' envCtors' : VEnv}
-    (H : CompilationRealization env decl block venv entries) (hle : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes')
-    (hctors : envTypes'.addConstVals decl.constructorConstants = some envCtors') :
-    CompilationRealization env' decl block venv entries := by
-  rcases H.generated with
-    ⟨s, g, envTypes, hm, ht, ha, ⟨envCtors, es, hc, hes, hrec, hfam⟩, hrest⟩
-  have htypesLE := VEnv.addConstVals_mono hle ht htypes
-  have hprojLE := VEnv.addProjections_mono (entries := decl.projectionEntries)
-    (VEnv.addEliminators_mono (es := es) (VEnv.addConstVals_mono htypesLE hc hctors))
-  exact ⟨s, g, envTypes', hm.mono hle htypes, htypes,
-    ha.mono htypesLE,
-    ⟨envCtors', es, hctors, hes.mono hle htypes, hrec.mono hprojLE, hfam.mono hprojLE⟩, hrest⟩
 
 end InductiveSignature
 end Lean4Lean

@@ -50,22 +50,6 @@ theorem addConstVals_mono
 
 end VEnv
 
-/-- Duplicate-free source names turn equality of family names back into
-equality of their positions in the mutual block. -/
-theorem VInductDecl.typeIndex_eq_of_name
-    {decl : VInductDecl} (H : decl.sourceNames.Nodup)
-    {left right : Nat} (hleft : left < decl.types.length)
-    (hright : right < decl.types.length)
-    (hname : decl.types[left].name = decl.types[right].name) :
-    left = right := by
-  have hleftMap : left < (decl.types.map (·.name)).length := by
-    simpa using hleft
-  have hrightMap : right < (decl.types.map (·.name)).length := by
-    simpa using hright
-  apply (List.getElem_inj (h₀ := hleftMap) (h₁ := hrightMap)
-    (VInductDecl.typeNames_nodup H)).mp
-  simpa using hname
-
 theorem VExpr.takeForalls_domains_length
     {e : VExpr} {n : Nat} {domains : List VExpr} {result : VExpr}
     (H : e.takeForalls n = some (domains, result)) :
@@ -250,41 +234,6 @@ theorem VInductDecl.RawIndAppAt.instL
   · rw [← List.map_take, hparams]
     simp [VInductDecl.paramVars, VExpr.instL]
 
-/-- A concrete application spine cannot name two different members of the
-same inductive block.  Keeping this fact at the abstract boundary lets later
-implementation proofs compare independently replayed classifier passes
-without appealing to array indices or executable name lookup. -/
-theorem VInductDecl.ValidIndAppAt.target_unique
-    {decl : VInductDecl} {left right : Name}
-    {depth : Nat} {e : VExpr}
-    (Hleft : decl.ValidIndAppAt (some left) depth e)
-    (Hright : decl.ValidIndAppAt (some right) depth e) :
-    left = right := by
-  rcases Hleft with ⟨leftType, _hleftType, hleftTarget,
-    leftLevels, hleftHead, _⟩
-  rcases Hright with ⟨rightType, _hrightType, hrightTarget,
-    rightLevels, hrightHead, _⟩
-  have htypeNames : leftType.name = rightType.name := by
-    exact (VExpr.const.inj (hleftHead.symm.trans hrightHead)).1
-  rcases hleftTarget with hnone | hleft
-  · cases hnone
-  rcases hrightTarget with hnone | hright
-  · cases hnone
-  exact Option.some.inj hleft |>.trans <|
-    htypeNames.trans (Option.some.inj hright).symm
-
-theorem VInductDecl.ValidIndAppAt.targetIndex_unique
-    {decl : VInductDecl} (hnames : decl.sourceNames.Nodup)
-    {left right : Nat} (hleft : left < decl.types.length)
-    (hright : right < decl.types.length) {depth : Nat} {e : VExpr}
-    (Hleft : decl.ValidIndAppAt
-      (some (decl.types[left]'hleft).name) depth e)
-    (Hright : decl.ValidIndAppAt
-      (some (decl.types[right]'hright).name) depth e) :
-    left = right := by
-  apply VInductDecl.typeIndex_eq_of_name hnames hleft hright
-  exact Hleft.target_unique Hright
-
 /- Positivity is recursively modulo definitional equality: the executable
 checker exposes every higher-order body to WHNF, not only the outermost field
 type.  `SyntacticallyPositive` classifies one exposed head, while `Positive`
@@ -404,15 +353,6 @@ theorem VInductDecl.RecursiveArgAtTarget.instL
         (he.instL hlevels) (hdom.instL hlevels)
         (hbody.instL hlevels) ih
 
-theorem VInductDecl.RecursiveArg.toAt
-    {decl : VInductDecl} {env : VEnv} {ctx : List VExpr}
-    {depth : Nat} {e : VExpr}
-    (H : decl.RecursiveArg env ctx depth e) :
-    decl.RecursiveArgAt env decl.uvars ctx depth e := by
-  induction H with
-  | direct hdef happ => exact .direct hdef happ
-  | forallE he hdom hbody _ ih => exact .forallE he hdom hbody ih
-
 theorem VInductDecl.RecursiveArgAt.toRecursiveArg
     {decl : VInductDecl} {env : VEnv} {ctx : List VExpr}
     {depth : Nat} {e : VExpr}
@@ -460,48 +400,11 @@ theorem VInductDecl.Positive.mono
       .forallE hcontains (hdom.mono henv) (hbody.mono henv) ih)
     (fun h => .recursive h) H
 
-theorem VInductDecl.SyntacticallyPositive.mono
-    {env env' : VEnv} {decl : VInductDecl}
-    (henv : env ≤ env')
-    (H : decl.SyntacticallyPositive env ctx depth e) :
-    decl.SyntacticallyPositive env' ctx depth e := by
-  exact VInductDecl.SyntacticallyPositive.rec
-    (motive_1 := fun ctx depth e _ => decl.Positive env' ctx depth e)
-    (motive_2 := fun ctx depth e _ =>
-      decl.SyntacticallyPositive env' ctx depth e)
-    (fun hdef _ ih => .unfold (hdef.mono henv) ih)
-    (fun h => .nonrecursive h)
-    (fun hcontains hdom hbody _ ih =>
-      .forallE hcontains (hdom.mono henv) (hbody.mono henv) ih)
-    (fun h => .recursive h) H
-
 theorem VInductDecl.RecursiveArg.mono
     {env env' : VEnv} {decl : VInductDecl}
     (henv : env ≤ env')
     (H : decl.RecursiveArg env ctx depth e) :
     decl.RecursiveArg env' ctx depth e := by
-  induction H with
-  | direct hdef happ => exact .direct (hdef.mono henv) happ
-  | forallE he hdom hbody _ ih =>
-    exact .forallE (he.mono henv) (hdom.mono henv) (hbody.mono henv) ih
-
-theorem VInductDecl.RecursiveArgAt.mono
-    {env env' : VEnv} {decl : VInductDecl} {uvars : Nat}
-    {ctx : List VExpr} {depth : Nat} {e : VExpr}
-    (henv : env ≤ env')
-    (H : decl.RecursiveArgAt env uvars ctx depth e) :
-    decl.RecursiveArgAt env' uvars ctx depth e := by
-  induction H with
-  | direct hdef happ => exact .direct (hdef.mono henv) happ
-  | forallE he hdom hbody _ ih =>
-    exact .forallE (he.mono henv) (hdom.mono henv) (hbody.mono henv) ih
-
-theorem VInductDecl.RecursiveArgAtTarget.mono
-    {env env' : VEnv} {decl : VInductDecl} {uvars : Nat}
-    {target : Name} {ctx : List VExpr} {depth : Nat} {e : VExpr}
-    (henv : env ≤ env')
-    (H : decl.RecursiveArgAtTarget env uvars target ctx depth e) :
-    decl.RecursiveArgAtTarget env' uvars target ctx depth e := by
   induction H with
   | direct hdef happ => exact .direct (hdef.mono henv) happ
   | forallE he hdom hbody _ ih =>
@@ -719,61 +622,6 @@ structure VInductDecl.NestedTypeExpansion
   constructors : List.Forall₂ (NestedConstructorExpansion leaf decl.nparams)
     source.ctors target.ctors
 
-/-- Independent source-to-expanded declaration relation for nested lowering.
-Original families occupy an exact prefix; generated leaves point to an
-auxiliary family in the remaining suffix and replace an expression containing
-an original-family occurrence. -/
-structure VInductDecl.NestedExpansion
-    (leaf : Nat → VExpr → VExpr → Prop)
-    (env : VEnv) (source expanded : VInductDecl) : Prop where
-  uvars : expanded.uvars = source.uvars
-  nparams : expanded.nparams = source.nparams
-  isUnsafe : expanded.isUnsafe = source.isUnsafe
-  sourcePrefix : source.types.length ≤ expanded.types.length
-  leafSource : ∀ {depth input output}, leaf depth input output →
-    input.containsAnyConst (source.types.map (·.name)) = true
-  leafTarget : ∀ {depth input output}, leaf depth input output →
-    ∃ auxiliary ∈ expanded.types.drop source.types.length,
-      ∃ levels args,
-        output.getAppFnArgs = (.const auxiliary.name levels, args)
-  originalTypes : List.Forall₂
-    (NestedTypeExpansion env source leaf) source.types
-      (expanded.types.take source.types.length)
-
-theorem VInductDecl.NestedTypeExpansion.mono
-    (henv : env ≤ env')
-    (H : VInductDecl.NestedTypeExpansion env decl leaf source target) :
-    VInductDecl.NestedTypeExpansion env' decl leaf source target where
-  name := H.name
-  uvars := H.uvars
-  type := H.type.mono henv
-  numIndices := H.numIndices
-  resultLevel := H.resultLevel
-  constructors := H.constructors
-
-/-- Nested expansion is stable when the ambient abstract environment grows.
-This is the relation-level ingredient needed by later block rebasing. -/
-theorem VInductDecl.NestedExpansion.mono
-    (henv : env ≤ env')
-    (H : VInductDecl.NestedExpansion leaf env source expanded) :
-    VInductDecl.NestedExpansion leaf env' source expanded where
-  uvars := H.uvars
-  nparams := H.nparams
-  isUnsafe := H.isUnsafe
-  sourcePrefix := H.sourcePrefix
-  leafSource := H.leafSource
-  leafTarget := H.leafTarget
-  originalTypes := Lean4Lean.List.Forall₂.imp
-    (fun _ _ h => h.mono henv) H.originalTypes
-
-/-- Rebase an expansion witness without changing either declaration or the
-leaf correspondence. -/
-theorem VInductDecl.NestedExpansion.rebase
-    (H : VInductDecl.NestedExpansion leaf env source expanded)
-    (henv : env ≤ env') :
-    VInductDecl.NestedExpansion leaf env' source expanded :=
-  H.mono henv
-
 /-! ### Raw constructor shape across nested expansion -/
 
 @[simp] theorem VExpr.getAppFnArgs_bvar :
@@ -787,20 +635,6 @@ theorem VInductDecl.NestedExpansion.rebase
 @[simp] theorem VExpr.getAppFnArgs_proj :
     getAppFnArgs (.proj typeName index struct) =
       (.proj typeName index struct, []) := rfl
-
-/-- Constant freedom is antitone in the excluded name list. -/
-theorem VExpr.SourceConstFree.mono
-    (hsub : ∀ name ∈ names', name ∈ names)
-    (H : VExpr.SourceConstFree names e) : VExpr.SourceConstFree names' e := by
-  induction H with
-  | bvar index => exact .bvar index
-  | sort level => exact .sort level
-  | const name levels fresh => exact .const name levels (fun h => fresh (hsub name h))
-  | elim block owner levels => exact .elim block owner levels
-  | proj typeName index _ ih => exact .proj typeName index ih
-  | app _ _ ihFn ihArg => exact .app ihFn ihArg
-  | lam _ _ ihDomain ihBody => exact .lam ihDomain ihBody
-  | forallE _ _ ihDomain ihBody => exact .forallE ihDomain ihBody
 
 /-- A constant-free expression cannot be headed by an excluded constant. -/
 theorem VExpr.SourceConstFree.head_not_mem
@@ -821,32 +655,6 @@ theorem VExpr.SourceConstFree.head_not_mem
     exact ihFn (Prod.ext hfn rfl)
   | lam _ _ _ _ => simp at hhead
   | forallE _ _ _ _ => simp at hhead
-
-/-- An application spine headed by a permitted constant with constant-free
-arguments is constant-free. -/
-theorem VExpr.SourceConstFree.ofGetAppFnArgs
-    (hhead : e.getAppFnArgs = (.const name levels, args))
-    (hname : name ∉ names)
-    (hargs : ∀ arg ∈ args, VExpr.SourceConstFree names arg) :
-    VExpr.SourceConstFree names e := by
-  induction e generalizing args with
-  | bvar => simp at hhead
-  | sort => simp at hhead
-  | elim => simp [VExpr.getAppFnArgs, VExpr.getAppFnArgs.go] at hhead
-  | const name' levels' =>
-    simp only [VExpr.getAppFnArgs_const, Prod.mk.injEq, VExpr.const.injEq] at hhead
-    rw [← hhead.1.1] at hname
-    exact .const name' levels' hname
-  | proj => simp at hhead
-  | app fn arg ihFn _ =>
-    simp only [VExpr.getAppFnArgs_app] at hhead
-    obtain ⟨hfn, hargsEq⟩ := Prod.mk.inj hhead
-    subst hargsEq
-    refine .app (ihFn (Prod.ext hfn rfl) ?_) (hargs arg (by simp))
-    intro arg' harg'
-    exact hargs arg' (by simp [harg'])
-  | lam => simp at hhead
-  | forallE => simp at hhead
 
 /-- Members of a list with pairwise distinct images agree once their images
 agree. -/
@@ -1832,85 +1640,6 @@ structure VInductDecl.NestedIotaRule
       recursiveArgs.length
   rhs_guarded : rhsBody.GuardedIota
     (block.recursors.map (·.name)) fieldVars 0
-
-/-- Reinterpret an ordinary equation from an expanded lowering declaration as
-one source nested equation.  The source nested-recursor shape fixes the
-retained auxiliary telescope; constructor identity is needed only at the
-constant-name boundary because the restored source constructor may have a
-different abstract type. -/
-def VInductDecl.IotaRule.toNestedOfCompatible
-    {env : VEnv} {loweredDecl sourceDecl : VInductDecl}
-    {loweredBlock sourceBlock : VInductBlock}
-    {loweredOwner sourceOwner : VInductiveType}
-    {loweredCtor sourceCtor : VConstVal} {rule : VDefEq}
-    (H : loweredDecl.IotaRule env loweredBlock loweredOwner loweredCtor rule)
-    (sourceRecursor : VConstVal)
-    (Hshape : sourceDecl.NestedRecursorShape sourceOwner sourceRecursor)
-    (hrecursorMem : sourceRecursor ∈ sourceBlock.recursors)
-    (hrecursorNames : sourceBlock.recursors.map (·.name) =
-      loweredBlock.recursors.map (·.name))
-    (hrecursorName : sourceRecursor.name = H.recursor.name)
-    (hrecursorUvars : sourceRecursor.uvars = H.recursor.uvars)
-    (huvars : sourceDecl.uvars = loweredDecl.uvars)
-    (hnparams : sourceDecl.nparams = loweredDecl.nparams)
-    (hindices : sourceOwner.numIndices = loweredOwner.numIndices)
-    (hmotives : Hshape.motives.length = loweredDecl.types.length)
-    (hminors : Hshape.minors.length =
-      loweredDecl.ownedConstructors.length)
-    (hctorName : sourceCtor.name = loweredCtor.name) :
-    sourceDecl.NestedIotaRule sourceBlock sourceOwner sourceCtor rule := by
-  let fields : List VInductDecl.NestedIotaField :=
-    H.recursiveFields.map fun field =>
-      { fieldIndex := field.fieldIndex, arg := field.arg }
-  refine {
-    recursor := sourceRecursor
-    recursor_mem := hrecursorMem
-    recursor_shape := Hshape
-    rule_uvars := H.rule_uvars.trans hrecursorUvars.symm
-    domains := H.domains
-    lhsBody := H.lhsBody
-    rhsBody := H.rhsBody
-    typeBody := H.typeBody
-    lhs_wrapped := H.lhs_wrapped
-    rhs_wrapped := H.rhs_wrapped
-    type_wrapped := H.type_wrapped
-    recursorLevels := H.recursorLevels
-    leadingArgs := H.leadingArgs
-    ctorLevels := H.ctorLevels
-    ctorArgs := H.ctorArgs
-    lhs_pattern := ?_
-    recursor_levels := H.recursor_levels.trans hrecursorUvars.symm
-    ctor_levels := by simpa [huvars] using H.ctor_levels
-    leading_arity := by
-      simpa [hnparams, hmotives, hminors, hindices] using H.leading_arity
-    constructor_arity := by simpa [hnparams] using H.constructor_arity
-    parameter_args := by simpa [hnparams] using H.parameter_args
-    domains_arity := by
-      simpa [hnparams, hmotives, hminors] using H.domains_arity
-    recursiveFields := fields
-    fieldPositions := H.fieldPositions
-    fieldPositions_eq := ?_
-    fieldPositions_ordered := H.fieldPositions_ordered
-    fields_at_positions := ?_
-    recursiveArgs := H.recursiveArgs
-    recursiveArgs_eq := ?_
-    recursive_args := by simpa [hnparams] using H.recursive_args
-    fieldVars := H.fieldVars
-    fieldVars_eq := H.fieldVars_eq
-    fields_in_scope := H.fields_in_scope
-    minorVar := H.minorVar
-    minor_in_scope := H.minor_in_scope
-    rhsArgs := H.rhsArgs
-    rhs_spine := H.rhs_spine
-    field_args := by simpa [hnparams] using H.field_args
-    recursive_results := by simpa [hnparams] using H.recursive_results
-    rhs_guarded := by simpa [hrecursorNames] using H.rhs_guarded }
-  · simpa [hrecursorName, hctorName] using H.lhs_pattern
-  · simpa [fields, Function.comp_def] using H.fieldPositions_eq
-  · intro field hfield
-    rcases List.mem_map.mp hfield with ⟨source, hsource, rfl⟩
-    simpa [hnparams] using H.fields_at_positions source hsource
-  · simpa [fields, Function.comp_def] using H.recursiveArgs_eq
 
 def VInductDecl.IotaRule.mono
     {env env' : VEnv} {decl : VInductDecl} {block : VInductBlock}

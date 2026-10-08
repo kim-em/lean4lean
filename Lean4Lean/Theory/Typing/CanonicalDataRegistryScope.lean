@@ -22,13 +22,6 @@ than supplied as an additional registry-correctness assumption. -/
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-/-- Only ordered equation registration is needed for right-side scope. -/
-theorem NativeRecursorRegistered.equation_rhs_closed (ordered : env.Ordered)
-    (registered : NativeRecursorRegistered env data)
-    (generated : data.equation index = some equation) : equation.rhs.Closed :=
-  VExpr.WF.closedN ordered
-    ⟨_, (ordered.defEqWF (registered.equation_present generated)).2⟩ trivial
-
 /-- The restoration table is the one checked by the original compilation. -/
 theorem WF.eliminator_restoration_scoped {env : VEnv} {schema : CaseSchema}
     (formed : env.WF)

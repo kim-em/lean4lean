@@ -38,24 +38,6 @@ theorem SynthesizedHeader.retarget
     subst targetVal
     exact Hshape
 
-def SynthesizedHeader.mono {env env' : VEnv}
-    (henv : env ≤ env')
-    (H : SynthesizedHeader env Us uvars nparams params source
-      nindices resultLevel) :
-    SynthesizedHeader env' Us uvars nparams params source
-      nindices resultLevel where
-  parameterCount := H.parameterCount
-  levelCount := H.levelCount
-  normalizedSource :=
-    ⟨(Classical.choice H.normalizedSource).mono henv⟩
-  normalizedShape := by
-    rcases H.normalizedShape with
-      ⟨sourceTelescope, residual, exprType, hheader, hresult⟩
-    exact ⟨sourceTelescope.mono henv, residual, exprType,
-      hheader.mono henv, hresult.mono henv⟩
-  typeShape decl huvars hnparams :=
-    (H.typeShape decl huvars hnparams).mono henv
-
 /-- One source-aligned semantic header payload.  Its constructor list is
 deliberately empty; `retarget` attaches the same proof to the final
 constructor-bearing skeleton. -/
@@ -75,19 +57,6 @@ def MaterializedSourceHeaderSemantics.headerType
     (H : MaterializedSourceHeaderSemantics env Us nparams params
       commonResultLevel source) : VInductiveType :=
   (headerSkeleton H.target).toVInductiveType H.numIndices H.resultLevel
-
-def MaterializedSourceHeaderSemantics.mono {env env' : VEnv}
-    (henv : env ≤ env')
-    (H : MaterializedSourceHeaderSemantics env Us nparams params
-      commonResultLevel source) :
-    MaterializedSourceHeaderSemantics env' Us nparams params
-      commonResultLevel source where
-  target := H.target
-  numIndices := H.numIndices
-  resultLevel := H.resultLevel
-  translation := H.translation.mono henv
-  synthesized := H.synthesized.mono henv
-  commonLevel := H.commonLevel
 
 /-- Ordered semantic outputs of the skeleton-free mutual-header traversal. -/
 structure MaterializedSourceHeaderSemanticAccumulator
@@ -122,17 +91,6 @@ def reindexUs
       commonLevel sources := by
   cases h
   exact H
-
-def mono {env env' : VEnv} (henv : env ≤ env')
-    (H : MaterializedSourceHeaderSemanticAccumulator env Us nparams params
-      commonLevel sources) :
-    MaterializedSourceHeaderSemanticAccumulator env' Us nparams params
-      commonLevel sources where
-  payloads := H.payloads.map fun payload =>
-    ⟨payload.1, payload.2.mono henv⟩
-  sourceOrder := by
-    rw [List.map_map]
-    exact H.sourceOrder
 
 def first (source : InductiveType) (target : VConstVal)
     (numIndices : Nat) (resultLevel : VLevel)

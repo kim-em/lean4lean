@@ -15,24 +15,6 @@ open VExpr VEnv
 namespace InductiveSignature.Instance
 variable {s : InductiveSignature} (g : Instance s)
 
-theorem specialize_specialize (U U' : Nat) (ls ls' : List VLevel) :
-    (g.specialize U ls).specialize U' ls' = g.specialize U' (ls.map (·.inst ls')) := by
-  simp [specialize, List.map_map, Function.comp_def, VLevel.inst_inst]
-
-theorem instL_wrapLams (ds : List VExpr) (b : VExpr) (ls : List VLevel) :
-    (VExpr.wrapLams ds b).instL ls = VExpr.wrapLams (ds.map (·.instL ls)) (b.instL ls) := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih =>
-    show VExpr.instL ls (.lam d (VExpr.wrapLams ds b)) =
-      .lam (d.instL ls) (VExpr.wrapLams (ds.map (·.instL ls)) (b.instL ls))
-    simp only [VExpr.instL, ih]
-
-theorem instL_instDomains (ds : List VExpr) (a : VExpr) (k : Nat) (ls : List VLevel) :
-    (VExpr.instDomains ds a k).map (·.instL ls) =
-      VExpr.instDomains (ds.map (·.instL ls)) (a.instL ls) k := by
-  induction ds generalizing k <;> simp [VExpr.instDomains, *]
-
 theorem sFields_specialize (c : Constructor s.families.size) (U ls) :
     (g.specialize U ls).sFields c = (g.sFields c).map (·.instL ls) := by
   simp [sFields, specialize, List.map_map, Function.comp_def, VExpr.instL_instL]
@@ -51,24 +33,6 @@ theorem sHyps_specialize (c : Constructor s.families.size) (U ls) :
 
 theorem params_specialize' (U ls) : (g.specialize U ls).params = g.params.map (·.instL ls) :=
   (params_specialize g U ls).symm
-
-/-- The elimination at an instantiated instance is the instantiated elimination. -/
-theorem singletonElim_instL (owner : Fin s.families.size) (c : Constructor s.families.size)
-    (h : VExpr) (U : Nat) (ls : List VLevel) :
-    PropElim.Rel (fun x y => y = x.instL ls) (g.singletonElim owner c h)
-      ((g.specialize U ls).singletonElim owner c (h.instL ls)) where
-  family := by simp [singletonElim, specialize, VExpr.instL]
-  ctor := by simp [singletonElim, specialize, VExpr.instL]
-  ctorIndices := by
-    simp only [singletonElim, sCtorIndices_specialize]
-    exact forall₂_instL_of
-  elimHead := rfl
-  minorOf := by
-    intro M M' b b' hM hb
-    subst hM hb
-    simp only [singletonElim, instL_wrapLams, instL_instDomains, VExpr.instL_liftN,
-      sFields_specialize, sHyps_specialize, List.length_map, List.map_append,
-      instL_insertBinders]
 
 /-- Elimination at two lists of equivalent universes gives related eliminations. -/
 theorem singletonElim_levels (owner : Fin s.families.size) (c : Constructor s.families.size)
@@ -119,22 +83,10 @@ theorem singletonElim_levels (owner : Fin s.families.size) (c : Constructor s.fa
 end InductiveSignature.Instance
 namespace CastSpec
 
-theorem instL_instL (S : CastSpec) (ls ls' : List VLevel) :
-    (S.instL ls).instL ls' = S.instL (ls.map (·.inst ls')) := by
-  cases S
-  simp [CastSpec.instL, List.map_map, Function.comp_def, VExpr.instL_instL, VLevel.inst_inst]
-
 theorem getD_sorts_map (l : List VLevel) (ls : List VLevel) (i : Nat) :
     (l.map (·.inst ls)).getD i .zero = (l.getD i .zero).inst ls := by
   simp only [List.getD_eq_getElem?_getD, List.getElem?_map]
   cases l[i]? <;> simp [VLevel.inst]
-
-theorem rel_instL (S : CastSpec) (ls : List VLevel) :
-    Rel (fun x y => y = x.instL ls) (fun u v => v = u.inst ls) S (S.instL ls) where
-  fields := forall₂_instL_of
-  indices := forall₂_instL_of
-  slot := rfl
-  sorts i := by simp only [CastSpec.instL]; exact getD_sorts_map _ _ _
 
 theorem rel_levels (S : CastSpec) {U : Nat} {ls ls' : List VLevel}
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
@@ -160,35 +112,6 @@ end CastSpec
 
 namespace InductiveSignature.NativeRecursorData
 variable {env : VEnv} {data : NativeRecursorData}
-
-theorem castSpec_instL (ls packed : List VLevel) :
-    data.castSpec env (ls.map (·.inst packed)) = (data.castSpec env ls).map (·.instL packed) := by
-  simp only [castSpec, Option.map_map]
-  congr 1
-  funext S
-  simp [CastSpec.instL_instL]
-
-theorem propParams_instL (ls packed : List VLevel) :
-    data.propParams (ls.map (·.inst packed)) = (data.propParams ls).map (·.instL packed) := by
-  simp [propParams, List.map_map, Function.comp_def, VExpr.instL_instL]
-
-theorem set_zero_map (ls packed : List VLevel) (k : Nat) :
-    (ls.map (·.inst packed)).set k .zero = (ls.set k .zero).map (·.inst packed) := by
-  rw [List.map_set]; rfl
-
-theorem propElim_instL {ls : List VLevel} {E : PropElim} (hE : data.propElim ls = some E)
-    (packed : List VLevel) :
-    ∃ E', data.propElim (ls.map (·.inst packed)) = some E' ∧
-      PropElim.Rel (fun x y => y = x.instL packed) E E' := by
-  unfold propElim at hE ⊢
-  simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff,
-    Option.some.injEq] at hE
-  obtain ⟨k, hk, i, hi, rfl⟩ := hE
-  refine ⟨(data.nativeInstance.specialize 0 ((ls.map (·.inst packed)).set k .zero)).singletonElim
-    data.owner data.schema.signature.constructors[i]
-    (.const data.name ((ls.map (·.inst packed)).set k .zero)), by simp [hk, hi], ?_⟩
-  rw [set_zero_map, ← Instance.specialize_specialize]
-  exact Instance.singletonElim_instL _ _ _ _ 0 packed
 
 theorem forall₂_set {R : α → α → Prop} (hd : R d d) :
     ∀ {l l' : List α}, List.Forall₂ R l l' → ∀ k, List.Forall₂ R (l.set k d) (l'.set k d)
@@ -235,25 +158,6 @@ theorem propParams_levels {ls ls' : List VLevel}
   induction l with
   | nil => exact .nil
   | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih
-
-/-- The reconstruction at instantiated universes is the instantiated reconstruction. -/
-theorem occ_instL {ls packed : List VLevel} {S : CastSpec} {E : PropElim}
-    (hS : data.castSpec env ls = some S) (hE : data.propElim ls = some E) :
-    data.castSpec env (ls.map (·.inst packed)) = some (S.instL packed) ∧
-    data.propParams (ls.map (·.inst packed)) = (data.propParams ls).map (·.instL packed) ∧
-    ∃ E', data.propElim (ls.map (·.inst packed)) = some E' ∧
-      ∀ ps idx m i,
-        PropElim.occ (S.instL packed) ((data.propParams ls).map (·.instL packed)) E'
-            (ps.map (·.instL packed)) (idx.map (·.instL packed)) (m.instL packed) i =
-          ((PropElim.occ S (data.propParams ls) E ps idx m i).1.map (·.instL packed),
-            (PropElim.occ S (data.propParams ls) E ps idx m i).2.map (·.instL packed)) := by
-  refine ⟨by rw [castSpec_instL, hS]; rfl, propParams_instL _ _, ?_⟩
-  obtain ⟨E', hE', hrel⟩ := propElim_instL hE packed
-  refine ⟨E', hE', fun ps idx m i => ?_⟩
-  have := PropElim.occ_rel (SynRel.instL packed) (CastSpec.rel_instL S packed)
-    forall₂_instL_of hrel (params := data.propParams ls) (ps := ps) (idx := idx) (m := m) (m' := m.instL packed)
-    forall₂_instL_of forall₂_instL_of rfl i
-  rw [← forall₂_instL this.1, ← forall₂_instL this.2]
 
 /-- The reconstruction at equivalent universes, from arguments equal up to levels, is equal
 up to levels. -/

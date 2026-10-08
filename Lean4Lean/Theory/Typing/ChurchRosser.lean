@@ -184,68 +184,9 @@ theorem Params.not_rigid_match (h : env.NativeHeadRigid name) (hp : Pat p r)
   subst originalName
   exact h equation hd originalLevels he
 
-/-- A finite trace leaving a native constant must start with its native
-delta pattern. Structural/beta/schema steps cannot change a bare constant. -/
-theorem NativeReductionTrace.const_pattern
-    (H : NativeReductionTrace env univs Pat Γ source output)
-    (hsource : source = .const name levels) :
-    output = .const name levels ∨ ∃ r, Pat (.const name) r := by
-  induction H with
-  | refl => exact .inl hsource
-  | trans _ _ ih1 ih2 =>
-    rcases ih1 hsource with h | h
-    · exact ih2 h
-    · exact .inr h
-  | native hp hm hc =>
-    rw [hsource] at hm
-    cases hm
-    exact .inr ⟨_, hp⟩
-  | schema hs =>
-    have hh := hs.head
-    rw [hsource] at hh
-    obtain ⟨block, owner, packed, hh⟩ := hh
-    cases hh
-  | beta | app | lam => cases hsource
-
-/-- Orthogonality gives priority to a native delta presentation: an iota
-pattern at the same recursor cannot coexist with its constant pattern. -/
-theorem Params.no_iota_of_const
-    (hp : Pat (SimplePattern.iota recursor major ctor fields).toPattern r)
-    (hc : Pat (.const recursor) r') : False := by
-  have hsub : Subpattern (.const recursor) ((Pattern.const recursor).varN major) := by
-    clear hp r
-    induction major with
-    | zero => exact .refl
-    | succ n ih => exact .varL ih
-  have h := pat_uniq hp hc (.appL hsub) (p₄ := .const recursor) (by simp [Pattern.inter])
-  cases h.1
-
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 => IsDefEqU env univs Γ e1 e2
-
-/-- The concrete union of legacy native head computation and declaration-
-generated abstract case computation. Only the native branch uses `Params.Pat`;
-case equations are obtained from the installed schema registry. -/
-inductive HeadComputation (Γ : List VExpr) : VExpr → VExpr → Prop where
-  | native : Pat p r → p.Matches e m1 m2 →
-    r.2.OK (IsDefEqU env univs Γ) m1 m2 →
-    HeadComputation Γ e (r.1.apply m1 m2)
-  | schema : AppliedSchemaReduction env univs Γ e e' → HeadComputation Γ e e'
-
-theorem HeadComputation.defeq (H : HeadComputation Γ e e')
-    (hΓ : OnCtx Γ (env.IsType univs)) (he : Γ ⊢ e : A) : Γ ⊢ e ≡ e' := by
-  cases H with
-  | native hp hm hc => exact pat_wf hΓ hp hm he hc
-  | schema h => exact h.defeq henv hΓ
-
-/-- Cross-branch overlap at a head is impossible, including when an abstract
-case restores to a constructor also mentioned by a native rule. -/
-theorem HeadComputation.native_schema_disjoint
-    (hp : Pat p r) (hm : p.Matches e m1 m2)
-    (hs : AppliedSchemaReduction env univs Γ e e') : False := by
-  obtain ⟨pattern, rfl⟩ := pat_simple hp
-  exact hs.not_native_match hm
 
 theorem _root_.Lean4Lean.Pattern.Check.OK.weakN (W : Ctx.LiftN n k Γ Γ') {p : Pattern}
     (ck : p.Check) {m1 m2} (H : ck.OK (IsDefEqU env univs Γ) m1 m2) :
@@ -392,9 +333,6 @@ theorem NormalEq.etaL (h1 : Γ ⊢ e' : .forallE A B) :
 theorem NormalEq.etaR (h1 : Γ ⊢ e' : .forallE A B) :
     A::Γ ⊢ .app e'.lift (.bvar 0) ≡ₚ e → Γ ⊢ e' ≡ₚ .lam A e
   | ⟨_, h2⟩ => ⟨_, .etaR h1 h2⟩
-theorem NormalEq.etaBoth (h1 : Γ ⊢ e : .forallE A B) (h2 : Γ ⊢ e' : .forallE A B) :
-    A::Γ ⊢ .app e.lift (.bvar 0) ≡ₚ .app e'.lift (.bvar 0) → Γ ⊢ e ≡ₚ e'
-  | ⟨_, h3⟩ => ⟨_, .etaBoth h1 h2 h3⟩
 theorem NormalEq.proofIrrel (h1 : Γ ⊢ p : .sort .zero) (h2 : Γ ⊢ h : p) (h3 : Γ ⊢ h' : p) :
     Γ ⊢ h ≡ₚ h' := ⟨_, .proofIrrel h1 h2 h3⟩
 
@@ -715,10 +653,6 @@ variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem NormalEq.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : A::Γ ⊢ e1 ≡ₚ e2) :
     A'::Γ ⊢ e1 ≡ₚ e2 := defeqDFC hΓ (.succ .zero W) H
 
-variable! (hΓ : OnCtx Γ (IsType env univs)) in
-theorem NormalEqF.defeq_l (W : Γ ⊢ A ≡ A' : sort u) (H : NormalEqF b (A::Γ) e1 e2) :
-    NormalEqF b (A'::Γ) e1 e2 := NormalEqF.defeqDFC hΓ (.succ .zero W) H
-
 theorem NormalEqN.trans (hΓ : OnCtx Γ (IsType env univs)) :
     Γ ⊢ e1 ≡ₚ{b}[n₁] e2 → Γ ⊢ e2 ≡ₚ{b}[n₂] e3 → NormalEqF b Γ e1 e3
   | .elimDF l1 l2, .elimDF r1 r2 =>
@@ -845,12 +779,6 @@ inductive HeadParallelReduction (Γ : List VExpr) : VExpr → VExpr → Prop whe
       Γ ⊢ (rule.capture actual)[i] ≫ arguments[i]'(by omega)) →
     HeadParallelReduction Γ actual.expr (rule.rhs actual.levels arguments)
 
-theorem HeadParallelReduction.parRed (H : HeadParallelReduction Γ e e') :
-    Γ ⊢ e ≫ e' := by
-  cases H with
-  | native hp hm hc hr => exact .extra hp hm hc hr
-  | schema hm hl hr => exact .schema hm hl hr
-
 /-- A beta-redex cannot simultaneously have an abstract case head. -/
 theorem ParRed.app_lam_cases (H : Γ ⊢ .app (.lam A body) arg ≫ out) :
     (∃ fn' arg', Γ ⊢ .lam A body ≫ fn' ∧ Γ ⊢ arg ≫ arg' ∧ out = .app fn' arg') ∨
@@ -867,42 +795,6 @@ theorem ParRed.app_lam_cases (H : Γ ⊢ .app (.lam A body) arg ≫ out) :
     obtain ⟨name, hhead⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
     rw [← he] at hhead
     cases hhead
-  | _ => cases he
-
-/-- A free variable in the major position cannot match a generated case or a
-native constructor pattern. -/
-theorem ParRed.app_bvar_cases (H : Γ ⊢ .app fn (.bvar i) ≫ out) :
-    (∃ fn', Γ ⊢ fn ≫ fn' ∧ out = .app fn' (.bvar i)) ∨
-    (∃ A body body', fn = .lam A body ∧ A :: Γ ⊢ body ≫ body' ∧ out = body'.inst (.bvar i)) := by
-  generalize he : VExpr.app fn (.bvar i) = source at H
-  cases H with
-  | schema hm hl hr =>
-    have hmajor := VExpr.app.inj he |>.2
-    have hne : ∀ (head : VExpr) args, (∀ i, head ≠ .bvar i) →
-        VExpr.mkApps head args ≠ .bvar i := by
-      intro head args
-      induction args generalizing head with
-      | nil => exact fun h => h i
-      | cons arg args ih => intro _; exact ih _ (by intros; intro h; cases h)
-    exact False.elim (hne _ _ (by intros; intro h; cases h) hmajor.symm)
-  | app hf ha =>
-    cases he
-    cases ha with
-    | bvar => exact .inl ⟨_, hf, rfl⟩
-    | extra _ hm => cases hm
-  | beta hb ha =>
-    cases he
-    cases ha with
-    | bvar => exact .inr ⟨_, _, _, rfl, hb, rfl⟩
-    | extra _ hm => cases hm
-  | extra hp hm =>
-    rw [← he] at hm
-    obtain ⟨sp, rfl⟩ := pat_simple hp
-    cases sp with
-    | defn => cases hm
-    | iota rec major ctor args =>
-      cases hm with
-      | app _ hmajor => cases args <;> cases hmajor
   | _ => cases he
 
 def NonNeutral (Γ : List VExpr) (e : VExpr) : Prop :=
@@ -1038,21 +930,6 @@ theorem ParRed.rigid_const_spine (hrigid : env.NativeHeadRigid name)
       exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn.symm)
     | extra hp hm => exact False.elim (Params.not_rigid_match hrigid hp hm hhead)
     | _ => cases hshape
-
-theorem ParRed.instantiate_variables (H : VariableApplications body)
-    (hc : body.ClosedN arguments.length) (hlen : arguments'.length = arguments.length)
-    (hargs : ∀ i (hi : i < arguments.length) (hi' : i < arguments'.length),
-      Γ ⊢ arguments[i] ≫ arguments'[i]) :
-    Γ ⊢ InductiveSignature.instantiateParams body arguments ≫
-      InductiveSignature.instantiateParams body arguments' := by
-  induction H with
-  | @bvar i =>
-    change i < arguments.length at hc
-    rw [instantiateParams_eq_instOuter, instantiateParams_eq_instOuter,
-      VExpr.instOuter_bvar arguments hc, VExpr.instOuter_bvar arguments' (by simpa [hlen] using hc)]
-    simpa only [hlen] using hargs (arguments.length - 1 - i) (by change i < arguments.length at hc; omega)
-      (by change i < arguments.length at hc; omega)
-  | app hf ha ihf iha => exact .app (ihf hc.1) (iha hc.2)
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem NormalEqF.instantiate_variables (H : VariableApplications body)
@@ -1725,17 +1602,6 @@ theorem ParRedS.forallE (hf : Γ ⊢ A ≫* A') (ha : A::Γ ⊢ body ≫* body')
   | rfl =>  exact .rfl
   | tail f1 f2 ihf => exact .tail ihf (.forallE f2 .rfl)
 
-theorem NativeReductionTrace.parRedS
-    (H : NativeReductionTrace env univs Pat Γ e e') : Γ ⊢ e ≫* e' := by
-  induction H with
-  | refl => exact .rfl
-  | trans _ _ ih1 ih2 => exact ih1.trans ih2
-  | native hp hm hc => exact .tail .rfl (.extra hp hm hc fun _ => .rfl)
-  | schema hs => exact .tail .rfl (ParRed.of_schema hs)
-  | beta => exact .tail .rfl (.beta .rfl .rfl)
-  | app _ _ ih1 ih2 => exact ih1.app ih2
-  | lam _ ih => exact .lam .rfl ih
-
 variable! (hΓ : OnCtx Γ (IsType env univs)) in
 theorem ParRedS.inst (Ha : Γ ⊢ a : A)
     (hf : A :: Γ ⊢ f ≫* f') (ha : Γ ⊢ a ≫* a') : Γ ⊢ f.inst a ≫* f'.inst a' := by
@@ -1754,55 +1620,6 @@ theorem ParRedS.weakN (W : Ctx.LiftN n k Γ Γ') (H : Γ ⊢ e ≫* e') :
   induction H with
   | rfl =>  exact .rfl
   | tail _ h ih => exact .tail ih (.weakN W h)
-
-variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.instantiate_variables_parRedS (H : VariableApplications body)
-    (hc : body.ClosedN arguments.length) (hlen : arguments'.length = arguments.length)
-    (hargs : ∀ i (hi : i < arguments.length) (hi' : i < arguments'.length),
-      ∃ out, Γ ⊢ arguments[i] ≫* out ∧ Γ ⊢ out ≡ₚ arguments'[i])
-    (ht : Γ ⊢ InductiveSignature.instantiateParams body arguments : type) :
-    ∃ out, Γ ⊢ InductiveSignature.instantiateParams body arguments ≫* out ∧
-      Γ ⊢ out ≡ₚ InductiveSignature.instantiateParams body arguments' := by
-  induction H generalizing type with
-  | @bvar i =>
-    change i < arguments.length at hc
-    rw [instantiateParams_eq_instOuter, instantiateParams_eq_instOuter,
-      VExpr.instOuter_bvar arguments hc, VExpr.instOuter_bvar arguments' (by simpa [hlen] using hc)]
-    simpa only [hlen] using hargs (arguments.length - 1 - i) (by change i < arguments.length at hc; omega)
-      (by change i < arguments.length at hc; omega)
-  | app hf ha ihf iha =>
-    have ⟨_, _, hfn, harg⟩ := ht.app_inv henv hΓ
-    obtain ⟨fn', hfnRed, hfnNormal⟩ := ihf hc.1 hfn
-    obtain ⟨arg', hargRed, hargNormal⟩ := iha hc.2 harg
-    have hfn' := hfnRed.hasType hΓ hfn
-    have harg' := hargRed.hasType hΓ harg
-    exact ⟨_, .app hfnRed hargRed, .appDF hfn'
-      ((hfnNormal.defeq hΓ).of_l henv hΓ hfn').hasType.2
-      harg' ((hargNormal.defeq hΓ).of_l henv hΓ harg').hasType.2 hfnNormal hargNormal⟩
-
-variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem CaseStep.rhs_normalEq_parRedS
-    (H : CaseStep env univs Γ rule levels arguments)
-    (hlen : arguments'.length = arguments.length)
-    (hargs : ∀ i (hi : i < arguments.length) (hi' : i < arguments'.length),
-      ∃ out, Γ ⊢ arguments[i] ≫* out ∧ Γ ⊢ out ≡ₚ arguments'[i]) :
-    ∃ out, Γ ⊢ rule.rhs levels arguments ≫* out ∧
-      Γ ⊢ out ≡ₚ rule.rhs levels' arguments' := by
-  have hvars := H.rhs_variables
-  obtain ⟨type, ht⟩ := H.defeq henv hΓ
-  simp only [InductiveSignature.CaseSchema.AppliedRule.rhs, hvars.instL_eq] at ht ⊢
-  exact NormalEq.instantiate_variables_parRedS hΓ hvars H.closed.2.1 hlen hargs ht.hasType.2
-
-variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem MatchedCaseStep.normalEq_parRedS
-    (H : MatchedCaseStep env univs Γ rule actual)
-    (hlen : arguments'.length = (rule.capture actual).length)
-    (hargs : ∀ i (hi : i < (rule.capture actual).length) (hi' : i < arguments'.length),
-      ∃ out, Γ ⊢ (rule.capture actual)[i] ≫* out ∧ Γ ⊢ out ≡ₚ arguments'[i]) :
-    ∃ out, Γ ⊢ actual.expr ≫* out ∧ Γ ⊢ out ≡ₚ rule.rhs levels' arguments' := by
-  obtain ⟨out, hr, hn⟩ := H.source.rhs_normalEq_parRedS hΓ hlen hargs
-  exact ⟨out, .trans (.tail .rfl (.schema H rfl fun _ _ => .rfl)) hr, hn⟩
-
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem NormalEqF.mkApps_spine
@@ -1873,18 +1690,6 @@ theorem MatchedCaseStep.of_normalEq_spine
   have hs := hspine.normalEq_symm hΓ
   exact H.congr henv hΓ (hs.normalEq_defeq hΓ)
     ((hs.normalEq hΓ hactual.hasType.1).defeq hΓ)
-
-variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.schema_of_spine
-    (H : MatchedCaseStep env univs Γ rule actual')
-    (hspine : CaseApplicationRelated (NormalEq Γ) actual actual')
-    (hlen : arguments'.length = (rule.capture actual).length)
-    (hargs : ∀ i (hi : i < (rule.capture actual).length) (hi' : i < arguments'.length),
-      ∃ out, Γ ⊢ (rule.capture actual)[i] ≫* out ∧ Γ ⊢ out ≡ₚ arguments'[i]) :
-    ∃ out, Γ ⊢ actual.expr ≫* out ∧ Γ ⊢ out ≡ₚ rule.rhs levels' arguments' :=
-  (H.of_normalEq_spine hΓ hspine).normalEq_parRedS hΓ hlen hargs
-
-
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
 theorem NormalEqF.of_levelEquiv (L : VExpr.LEquiv univs e e') (ht : Γ ⊢ e : type) :
@@ -1966,22 +1771,3 @@ theorem NormalEq.const_native_parallel
   have ht : Γ ⊢ .const name ls : ci.type.instL ls := .const hc hls hlen
   exact ⟨_, .tail .rfl hrLeft,
     NormalEq.of_levelEquiv hΓ (r.1.const_levelEquiv hls hls' he) (hrLeft.hasType hΓ ht)⟩
-
-variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.schema_parallel_of_major_proof
-    (H : Γ ⊢ left ≡ₚ actual.expr)
-    (hmatch : MatchedCaseStep env univs Γ rule actual)
-    (hlen : arguments'.length = (rule.capture actual).length)
-    (hargs : ∀ i (hi : i < (rule.capture actual).length),
-      Γ ⊢ (rule.capture actual)[i] ≫ arguments'[i]'(by omega))
-    (hprop : Γ ⊢ proposition : .sort .zero)
-    (hproof : Γ ⊢ VExpr.mkApps (.const actual.ctorName actual.ctorLevels)
-      actual.ctorArguments : proposition) :
-    ∃ out, Γ ⊢ left ≫* out ∧ Γ ⊢ out ≡ₚ rule.rhs actual.levels arguments' := by
-  obtain ⟨resultType, hresultProp, hresult⟩ :=
-    hmatch.result_prop_of_major_proof henv hΓ hprop hproof
-  have hleft := hresult.defeqU_l henv hΓ (H.defeq hΓ).symm
-  have hred : Γ ⊢ actual.expr ≫ rule.rhs actual.levels arguments' :=
-    .schema hmatch hlen hargs
-  exact ⟨left, .rfl, .proofIrrel hresultProp hleft (hred.hasType hΓ hresult)⟩
-

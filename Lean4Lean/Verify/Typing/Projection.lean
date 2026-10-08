@@ -23,12 +23,6 @@ theorem target_eq
   cases H
   rfl
 
-theorem target_bvarHead?_eq_none
-    (H : TrProj (env := env) (U := U) Gamma structName index major target) :
-    target.bvarHead? = none := by
-  cases H
-  rfl
-
 theorem target_not_forall
     (H : TrProj (env := env) (U := U) Gamma structName index major target) :
     target ≠ .forallE domain body := by

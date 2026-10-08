@@ -738,62 +738,6 @@ theorem lastRevIdx?_lt_length {v : FVarId} : ∀ {xs : List FVarId} {r : Nat},
       · cases h; simp
       · cases h
 
-theorem lastRevIdx?_append_singleton (v : FVarId) : ∀ {zs : List FVarId}, a ∉ zs →
-    lastRevIdx? v (zs ++ [a]) =
-      match lastRevIdx? v zs with
-      | some r => some (r + 1)
-      | none => if a == v then some 0 else none
-  | [], _ => by simp [lastRevIdx?]
-  | b :: zs, hz => by
-    simp only [List.mem_cons, not_or] at hz
-    have ih := lastRevIdx?_append_singleton v hz.2
-    simp only [List.cons_append, lastRevIdx?, ih]
-    cases hzs : lastRevIdx? v zs with
-    | some r => simp
-    | none =>
-      by_cases hav : a = v
-      · subst hav
-        have hbv : (b == a) = false := by simpa using Ne.symm hz.1
-        simp [hbv]
-      · have hav' : (a == v) = false := by simpa using hav
-        by_cases hbv : b = v
-        · subst hbv; simp [hav', List.length_append]
-        · have hbv' : (b == v) = false := by simpa using hbv
-          simp [hav', hbv']
-
-/-- Abstracting one more variable, placed innermost, is an earlier abstraction below the
-binder depth of the remaining variables. -/
-theorem abstractN_append_singleton (h : a ∉ ys) : ∀ (e : Expr) (d : Nat),
-    abstractN (ys ++ [a]) e d = abstractN ys (abstractN [a] e d) (d + 1)
-  | .bvar _, _ => rfl
-  | .fvar v, d => by
-    rw [abstractN, lastRevIdx?_append_singleton v h]
-    cases hr : lastRevIdx? v ys with
-    | some r =>
-      by_cases hv : a = v
-      · subst hv
-        rw [lastRevIdx?_eq_none_of_not_mem h] at hr
-        cases hr
-      · have : (a == v) = false := by simpa using hv
-        simp [abstractN, lastRevIdx?, this, hr, Nat.add_assoc, Nat.add_comm 1 r]
-    | none =>
-      by_cases hv : a = v
-      · subst hv; simp [abstractN, lastRevIdx?, hr]
-      · have : (a == v) = false := by simpa using hv
-        simp [abstractN, lastRevIdx?, this, hr]
-  | .mdata _ e, d => by simp [abstractN, abstractN_append_singleton h e d]
-  | .proj _ _ e, d => by simp [abstractN, abstractN_append_singleton h e d]
-  | .app f a', d => by
-    simp [abstractN, abstractN_append_singleton h f d, abstractN_append_singleton h a' d]
-  | .lam _ t b _, d => by
-    simp [abstractN, abstractN_append_singleton h t d, abstractN_append_singleton h b (d+1)]
-  | .forallE _ t b _, d => by
-    simp [abstractN, abstractN_append_singleton h t d, abstractN_append_singleton h b (d+1)]
-  | .letE _ t v b _, d => by
-    simp [abstractN, abstractN_append_singleton h t d, abstractN_append_singleton h v d,
-      abstractN_append_singleton h b (d+1)]
-  | .const .., _ | .sort _, _ | .mvar _, _ | .lit _, _ => rfl
-
 theorem abstractN_nil : ∀ (e : Expr) (d : Nat), abstractN [] e d = e
   | .bvar _, _ => rfl
   | .fvar v, d => by simp [abstractN, lastRevIdx?]

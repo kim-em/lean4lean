@@ -144,18 +144,6 @@ theorem paramBridge {E env : VEnv} (henv : env.Ordered) (hE : E ≤ env) {Δ : L
   have := hcls i hi
   simpa using this
 
-/-- The symmetric form of `paramBridge`: from `pdoms` to `own`. -/
-theorem paramBridge_symm {E env : VEnv} (henv : env.Ordered) (hE : E ≤ env) {Δ : List VExpr}
-    (hΔ : OnCtx Δ (env.IsType U)) {u0 : Nat} {params own pdoms : List VExpr}
-    (h1 : E.IsDefEqCtx u0 [] params.reverse own.reverse)
-    (h2 : E.IsDefEqCtx u0 [] params.reverse pdoms.reverse) {ls : List VLevel}
-    (hls : ∀ l ∈ ls, l.WF U) {as : List VExpr} (hn : as.length ≤ pdoms.length)
-    (W : Ctx.SubstEq env U Δ (argSubst as) (argSubst as)
-      ((pdoms.map (·.instL ls)).take as.length).reverse) :
-    Ctx.SubstEq env U Δ (argSubst as) (argSubst as)
-      ((own.map (·.instL ls)).take as.length).reverse :=
-  (paramBridge henv hE hΔ h2 h1 hls hn W).1
-
 end Model
 end VEnv
 end Lean4Lean

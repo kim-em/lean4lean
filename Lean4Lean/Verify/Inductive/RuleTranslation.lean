@@ -628,22 +628,6 @@ theorem TrExprSyn.shapeToEquation {env : VEnv} {Us Us' : List Name} {ls : List V
   rw [Expr.closeShapeSource e F P Q pos rbT.length hpos hc2 hF hPQ hdisj hscope]
   exact TrExprSyn.ofShape hlev hsfT hpos (by simp at hΓ ⊢; omega) H
 
-theorem LocalContext.mkLambda_fvars_append (lctx : LocalContext) (xs ys : List FVarId)
-    (b : Lean.Expr) (hdecl : ∀ fv ∈ xs ++ ys, ∃ d, lctx.find? fv = some d)
-    (hnd : (xs ++ ys).Nodup) :
-    lctx.mkLambda (xs.map Lean.Expr.fvar).toArray (lctx.mkLambda (ys.map Lean.Expr.fvar).toArray b) =
-      lctx.mkLambda ((xs ++ ys).map Lean.Expr.fvar).toArray b := by
-  simp only [LocalContext.mkLambda, LocalContext.mkBinding_eqN]
-  exact (LocalContext.mkBindingListN_append hdecl hnd).symm
-
-theorem LocalContext.mkForall_fvars_append (lctx : LocalContext) (xs ys : List FVarId)
-    (b : Lean.Expr) (hdecl : ∀ fv ∈ xs ++ ys, ∃ d, lctx.find? fv = some d)
-    (hnd : (xs ++ ys).Nodup) :
-    lctx.mkForall (xs.map Lean.Expr.fvar).toArray (lctx.mkForall (ys.map Lean.Expr.fvar).toArray b) =
-      lctx.mkForall ((xs ++ ys).map Lean.Expr.fvar).toArray b := by
-  simp only [LocalContext.mkForall, LocalContext.mkBinding_eqN]
-  exact (LocalContext.mkBindingListN_append hdecl hnd).symm
-
 namespace VerifyInductive
 open Kernel
 
