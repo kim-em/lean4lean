@@ -418,8 +418,8 @@ uniqueness throughout.
 A logical relation with Coquand-Huber adequacy, as in the shape logical relation prototype in
 `Lean4Lean/Experimental/`, cannot deliver the injectivity half here: any sound compositional
 model must interpret an eliminator on a proof major by reading through to its iota result, and
-Pi adequacy then forces the iota check, which for `Eq.rec` is equality reflection (the
-evidence is in `Lean4Lean/Experimental/Spike/`). The proof uses soundness of a model only.
+Pi adequacy then forces the iota check, which for `Eq.rec` is equality reflection. The proof
+uses soundness of a model only.
 
 **The glued observation model** (`Lean4Lean/Theory/Typing/HeadInjectivity/Model/`, 15k). A
 term denotes a set of atomic observations, glued with declarative equivalence classes of
@@ -497,8 +497,8 @@ theorem WF.church_rosser {env : VEnv} (henv : env.WF) (heq : env.HasCanonicalEq)
 Canonical `Eq` is needed for equation coverage: a native singleton equation at a universe
 specialization whose source is `Prop` is joined by reconstructing the constructor, and its
 proof fields are extracted by the recursor into `Prop` with the earlier data fields cast
-along `Eq`. In the well-formed `Eq`-free environment of `Lean4Lean/Theory/Typing/Countermodel/`
-that equation is not joinable (argued, not checked in Lean). Coherence of eliminators with projections
+along `Eq`. In a well-formed `Eq`-free environment (the one of section 5.1) that equation is
+not joinable (argued, not checked in Lean). Coherence of eliminators with projections
 (`VEnv.WF.eliminatorsCoherent`) is also needed. Confluence is not in the dependency cone of
 the top-level theorem.
 
