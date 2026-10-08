@@ -17,13 +17,13 @@ open InductiveSignature
 namespace VEnv
 
 /-- The delta rules of an environment: rules with a bare-constant left-hand side. -/
-structure DefRules (env : VEnv) : Prop where
+structure DeltaRules (env : VEnv) : Prop where
   const : ∀ df, env.defeqs df → ∀ n ls, df.lhs = .const n ls →
     ls = VLevel.params df.uvars ∧ env.constants n = some ⟨df.uvars, df.type⟩
   excl : ∀ df df', env.defeqs df → env.defeqs df' → ∀ n ls ls', df.lhs = .const n ls →
     df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' = df
 
-theorem DefRules.extend {env env' : VEnv} {new : List VDefEq} (H : env.DefRules)
+theorem DeltaRules.extend {env env' : VEnv} {new : List VDefEq} (H : env.DeltaRules)
     (hord : env.Ordered)
     (hle : ∀ n ci, env.constants n = some ci → env'.constants n = some ci)
     (hdefeqs : ∀ df, env'.defeqs df ↔ df ∈ new ∨ env.defeqs df)
@@ -33,7 +33,7 @@ theorem DefRules.extend {env env' : VEnv} {new : List VDefEq} (H : env.DefRules)
       ls = VLevel.params df.uvars ∧ env'.constants n = some ⟨df.uvars, df.type⟩)
     (hexcl : ∀ df ∈ new, ∀ df' ∈ new, ∀ n ls ls', df.lhs = .const n ls →
       df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' = df) :
-    env'.DefRules := by
+    env'.DeltaRules := by
   have oldHead : ∀ df, env.defeqs df → ∀ n ls,
       df.lhs.stripLams.getAppFnArgs.1 = .const n ls → ∃ ci, env.constants n = some ci :=
     fun df hdf n ls h => (hord.defEqWF hdf).1.head_const_lookup hord (Γ := []) ⟨⟩ h
@@ -70,7 +70,7 @@ theorem quotDefEq_lhs_ne_const : quotDefEq.lhs ≠ .const n ls := by
 theorem defeqs_addDefEq {env : VEnv} : (env.addDefEq d).defeqs df ↔ df ∈ [d] ∨ env.defeqs df := by
   simp [VEnv.addDefEq]
 
-theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
+theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
   induction H with
   | empty => exact ⟨nofun, nofun⟩
   | @decl d env' ds env hdecl hbase ih =>
@@ -196,7 +196,7 @@ theorem WF'.defRules {env : VEnv} (H : env.WF' ds) : env.DefRules := by
     exact ⟨fun df hdf n ls h => by simpa using ih.const df (by simpa using hdf) n ls h,
       fun df df' hdf hdf' => ih.excl df df' (by simpa using hdf) (by simpa using hdf')⟩
 
-theorem WF.defRules {env : VEnv} (H : env.WF) : env.DefRules :=
+theorem WF.defRules {env : VEnv} (H : env.WF) : env.DeltaRules :=
   let ⟨_, H⟩ := H; H.defRules
 
 end VEnv

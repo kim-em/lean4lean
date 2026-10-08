@@ -284,9 +284,9 @@ theorem ArgsTyped.of_substEq {D : List VExpr} {R0 : VExpr} :
 
 /-! ## The family header at a given origin -/
 
-/-- `VEnv.ProjOrigin.familyTele_data` at the types environment of a given origin. -/
-theorem _root_.Lean4Lean.VEnv.ProjOriginAt.familyTele_data {envTypes : VEnv} {S : Name}
-    {info : VProjectionInfo} (h : env.ProjOriginAt envTypes S info) :
+/-- `VEnv.ProjDecl.familyTele_data` at the types environment of a given origin. -/
+theorem _root_.Lean4Lean.VEnv.ProjDeclAt.familyTele_data {envTypes : VEnv} {S : Name}
+    {info : VProjectionInfo} (h : env.ProjDeclAt envTypes S info) :
     ∃ (famType : VExpr) (params ownParams pdoms fdoms idoms idx : List VExpr)
       (result exprType : VExpr),
       envTypes.Ordered ∧ envTypes ≤ env ∧
@@ -470,8 +470,8 @@ theorem ProjValid.ctx (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U)) {S : 
   obtain ⟨-, envTypes, ho, hsnd⟩ := hPV
   obtain ⟨famType, params, own, pdoms, fdoms, idoms, idx, result, exprType, hord, hle, hfc,
     hshape, hpl, hol, hil, hidx, hT, ⟨w, hconv⟩, hctx1, hctx2, hwfT⟩ := ho.familyTele_data
-  have hsE : SoundEnvAtH env envTypes U Δ := fun h => hsnd U Δ hΔ h
-  have hsE' : SoundEnvAt env envTypes U Δ := fun h => hsE.soundEnvAt h
+  have hsE : SoundTypedIn env envTypes U Δ := fun h => hsnd U Δ hΔ h
+  have hsE' : SoundIn env envTypes U Δ := fun h => hsE.soundEnvAt h
   have hwf : env.IsType info.uvars [] info.ctorType := hwfT.mono hle
   have hshape' : info.ctorType = .wrapForalls (pdoms ++ fdoms)
       (ctorRes S info (pdoms ++ fdoms).length idx) := hshape

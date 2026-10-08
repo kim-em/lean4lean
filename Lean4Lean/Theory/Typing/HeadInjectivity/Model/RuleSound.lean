@@ -739,7 +739,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hr : df.rhs = .wrapLams doms body)
     (hlsP : lsP.map (·.inst ls) = ls) (hlcl : df.lhs.ClosedN) (hrcl : df.rhs.ClosedN)
     (hcrig : env.Rigid ctor) (hctor : ∀ c, IsCtor env c → env.Rigid c)
-    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c) (hdr : env.DefRules)
+    (hpctor : ∀ c, IsProjCtor env c → env.Rigid c) (hdr : env.DeltaRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       env.defeqs df' →
@@ -752,7 +752,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hci : env.constants n = some ci) (eH : ci.type = .wrapForalls dsH RH)
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs))
-    (hfam : MajorFam0 env I ctor)
+    (hfam : MajorFamEntry env I ctor)
     (hRH : HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
     (hR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
@@ -995,7 +995,7 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
    
     (hcrig : env.Rigid ctor)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
-    (hdr : env.DefRules)
+    (hdr : env.DeltaRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
       (ctor' : Name) (lsC' : List VLevel) (ms' : List VExpr) (fs' : List Nat) (body' : VExpr),
       env.defeqs df' →

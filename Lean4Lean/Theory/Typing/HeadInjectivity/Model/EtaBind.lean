@@ -51,13 +51,13 @@ def MajorFam (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (I ctor : Name)
 /-- The part of `MajorFam` used by the left-to-right direction of a pattern rule: the family `I`
 of the major is not projection-registered and `ctor` is not a projection constructor, or `I` is
 projection-registered with the constructor `ctor`. -/
-def MajorFam0 (env : VEnv) (I ctor : Name) : Prop :=
+def MajorFamEntry (env : VEnv) (I ctor : Name) : Prop :=
   ((∀ info, ¬ env.projections I info) ∧ ¬ IsProjCtor env ctor) ∨
   ∃ info, env.projections I info ∧ info.ctorName = ctor
 
 theorem MajorFam.weak {Γ : List VExpr} {I ctor : Name} {doms lead ms : List VExpr}
     {fs : List Nat} {ls lsC : List VLevel}
-    (h : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC) : MajorFam0 env I ctor := by
+    (h : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC) : MajorFamEntry env I ctor := by
   rcases h with h | ⟨info, h1, -, h2, -⟩
   · exact .inl h
   · exact .inr ⟨info, h1, h2⟩
@@ -483,7 +483,7 @@ theorem eta_field_cls {I : Name} {info : VProjectionInfo} (hp : env.projections 
   have hpi : PiSD env U Δ [] (doms.map (·.instL lsc)) (R.instL lsc) := by
     obtain ⟨w, h⟩ := IsType.instL hls hwfE
     rw [← hct, hshape, VExpr.instL_wrapForalls] at h
-    exact piSD_of hord hle (SoundEnvAtH.soundEnvAt (hsnd U Δ hΔ)) trivial h
+    exact piSD_of hord hle (SoundTypedIn.soundEnvAt (hsnd U Δ hΔ)) trivial h
   have hnf := (ProjTele.of (S := I) henv (hRdef ▸ hshape) hwf hls).numFields
   simp only [List.length_map] at hnf
   have hDl : (doms.map (·.instL lsc)).length = margs.length := by simp; omega

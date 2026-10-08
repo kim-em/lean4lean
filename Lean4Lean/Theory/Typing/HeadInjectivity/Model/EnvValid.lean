@@ -229,8 +229,8 @@ theorem projections_of_decl {env0 env' : VEnv} (hdecl : VDecl.WF env0 d env') :
           compiled.projections ht hc hentry).2
       · exact .inl hp
 
-/-- `VEnv.ProjOrigin.ofEntry` at the given types environment. -/
-theorem ProjOriginAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
+/-- `VEnv.ProjDecl.ofEntry` at the given types environment. -/
+theorem ProjDeclAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
     {decl : VInductDecl} (hbase : base.WF' dsb)
     (htypes : base.addConstVals decl.typeConstants = some envTypes) (hle : envTypes ≤ env)
     (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
@@ -239,7 +239,7 @@ theorem ProjOriginAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
     (hshape : ∀ type ∈ decl.types, ∀ ctor ∈ type.ctors, decl.RawCtorShape type ctor)
     (hnodup : decl.sourceNames.Nodup) (hspw : decl.SourceParameterWF base)
     {entry : VProjectionEntry} (hentry : entry ∈ decl.projectionEntries) :
-    env.ProjOriginAt envTypes entry.typeName entry.info := by
+    env.ProjDeclAt envTypes entry.typeName entry.info := by
   obtain ⟨type, htype, ctor, hctors, rfl⟩ := VInductDecl.projectionEntries_origin hentry
   have hmem : ctor ∈ type.ctors := by rw [hctors]; simp
   have hcc : ctor ∈ decl.constructorConstants := by
@@ -257,7 +257,7 @@ theorem ProjOriginAt.ofEntry {base envTypes env : VEnv} {dsb : List VDecl}
 
 /-- Validity of a projection entry from an origin whose types environment is valid. -/
 theorem Model.ProjValid.of_origin {envF envTypes : VEnv} {S : Name} {info : VProjectionInfo}
-    (hF : envF.WF) (hp : envF.projections S info) (hO : envF.ProjOriginAt envTypes S info)
+    (hF : envF.WF) (hp : envF.projections S info) (hO : envF.ProjDeclAt envTypes S info)
     (V : Model.EnvValid envF envTypes) : Model.ProjValid envF S info := by
   have hTF : envTypes ≤ envF := let ⟨_, _, _, _, _, _, _, h, _⟩ := hO; h
   exact ⟨hF.projStatic hp, envTypes, hO, fun U Δ hΔ => V.soundAtH hF.ordered hTF U Δ hΔ⟩
@@ -303,7 +303,7 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.W
         have hTF : envTypes ≤ envF := (VEnv.addConstVals_le hctors).trans <|
           VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hrecs).trans <|
             VEnv.addDefEqRules_le.trans hle
-        exact Model.ProjValid.of_origin hF hpF (ProjOriginAt.ofEntry hbase htypes' hTF
+        exact Model.ProjValid.of_origin hF hpF (ProjDeclAt.ofEntry hbase htypes' hTF
           hdeclWF.1.originalTypes (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1
           hparams.rawCtorShape hcompile.sourceNames hparams hentry) (V0.addConstVals htypes')
       · rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections hctors,
@@ -785,7 +785,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       · rw [hprojections] at hentry
         have htypes' := htypes
         rw [htypesSource] at htypes'
-        exact Model.ProjValid.of_origin hF hpF (ProjOriginAt.ofEntry hbase htypes'
+        exact Model.ProjValid.of_origin hF hpF (ProjDeclAt.ofEntry hbase htypes'
           ((VEnv.addConstVals_le hctors).trans hCF) htypesWF hctorsWF' hconstructorUvars hshape
           hsource hspw hentry) (VB.addConstVals htypes')
       · rw [VEnv.addEliminators_projections] at hold
@@ -835,7 +835,7 @@ theorem WF.soundEnv {env : VEnv} (henv : env.WF) : Model.SoundEnv env := by
   exact V.soundAtH (VEnv.WF.ordered ⟨ds, H⟩) .rfl U Δ hΔ H'
 
 /-- **Chain-level head injectivity** for every well-formed environment. -/
-theorem WF.headInjectivityCore {env : VEnv} (henv : env.WF) : env.HeadInjectivityCore :=
+theorem WF.headInjectivityCore {env : VEnv} (henv : env.WF) : env.ChainHeadInjectivity :=
   WF.headInjectivityCore_of_sound henv henv.soundEnv
 
 end VEnv

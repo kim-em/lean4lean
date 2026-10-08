@@ -2,12 +2,12 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Projections.Typing
 
 /-! # The family header of a projection-registered structure
 
-For a projection entry `S`, `info` of the declaration history (`VEnv.ProjOrigin`), the
+For a projection entry `S`, `info` of the declaration history (`VEnv.ProjDecl`), the
 family constant `S` is installed at the projection's universe arity, and its declared type is
 definitionally a telescope over the header's own parameter domains and the index domains,
 ending in the recorded result sort. The header's parameter domains and the constructor's raw
 parameter domains are both context-convertible to the declaration's common parameter
-telescope (`VEnv.ProjOrigin.familyTele_data`).
+telescope (`VEnv.ProjDecl.familyTele_data`).
 
 Composing the header conversion and the two parameter conversions into a single
 definitional equality at a sort needs uniqueness of types: `TypeShape` types the header

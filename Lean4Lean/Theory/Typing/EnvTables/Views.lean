@@ -121,20 +121,20 @@ theorem addView_of_old {old new : Name → Option α} (h : old n = some d) :
     addView old new n = some d := addView_some.mpr (.inl h)
 
 /-- Conditions under which a family of new views is consistent. -/
-structure ViewsOK (env : VEnv) (famT : Name → Option FamData) (ctorT : Name → Option CtorData)
+structure NewViewsWF (env : VEnv) (famT : Name → Option FamData) (ctorT : Name → Option CtorData)
     (fs : Name → Option FamData) (cs : Name → Option CtorData) : Prop where
   fam : fs n = some d → famT n = none ∧ ctorT n = none ∧ cs n = none ∧
     FamShape env n d ∧ d.ctors.Nodup ∧
     (∀ c ∈ d.ctors, ∃ k, cs c = some k ∧ k.family = n ∧ k.uvars = d.uvars ∧
       k.nparams = d.nparams) ∧
-    env.Rigid n ∧ Witness env n
+    env.Rigid n ∧ MetadataMentions env n
   ctor : cs c = some k → famT c = none ∧ ctorT c = none ∧ fs c = none ∧
     CtorShape env c k ∧ (∃ d, fs k.family = some d ∧ c ∈ d.ctors) ∧
-    env.Rigid c ∧ Witness env c
+    env.Rigid c ∧ MetadataMentions env c
 
 theorem ViewInv.addViews {fam : Name → Option FamData} {ctor : Name → Option CtorData}
     {fs : Name → Option FamData} {cs : Name → Option CtorData}
-    (H : ViewInv env fam ctor) (hok : ViewsOK env fam ctor fs cs) :
+    (H : ViewInv env fam ctor) (hok : NewViewsWF env fam ctor fs cs) :
     ViewInv env (addView fam fs) (addView ctor cs) where
   fam {I d} h := by
     rcases addView_some.mp h with h | ⟨_, h⟩
@@ -221,7 +221,7 @@ theorem transport (H : T.Inv env) (hle : env ≤ env') (hdf : env'.defeqs = env.
   equations h := H.equations (by rwa [hdf] at h)
   projections h := H.projections (by rwa [hproj] at h)
 
-theorem addViews (H : T.Inv env) (hok : ViewsOK env T.fam T.ctor fs cs) :
+theorem addViews (H : T.Inv env) (hok : NewViewsWF env T.fam T.ctor fs cs) :
     (T.addViews fs cs).Inv env where
   defs h := H.defs h
   natives h := by
@@ -437,8 +437,8 @@ theorem viewsOK_decl {famT : Name → Option FamData} {ctorT : Name → Option C
     (hctors : ∀ t ∈ decl.types, sel t → ∀ c ∈ t.ctors,
       env.constants c.name = some c.toVConstant ∧ decl.RawCtorShape t c ∧ c.uvars = decl.uvars)
     (hrigid : ∀ t ∈ decl.types, sel t → env.Rigid t.name ∧ ∀ c ∈ t.ctors, env.Rigid c.name)
-    (hwit : ∀ t ∈ decl.types, sel t → Witness env t.name ∧ ∀ c ∈ t.ctors, Witness env c.name) :
-    ViewsOK env famT ctorT (viewFams decl sel) (viewCtors decl sel) := by
+    (hwit : ∀ t ∈ decl.types, sel t → MetadataMentions env t.name ∧ ∀ c ∈ t.ctors, MetadataMentions env c.name) :
+    NewViewsWF env famT ctorT (viewFams decl sel) (viewCtors decl sel) := by
   have huniq := ctorView_unique hctors
   refine ⟨fun {n d} h => ?_, fun {n k} h => ?_⟩
   · obtain ⟨t, ht, hs, rfl, rfl⟩ := viewFams_some h

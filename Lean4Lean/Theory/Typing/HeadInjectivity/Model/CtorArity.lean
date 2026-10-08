@@ -112,7 +112,7 @@ theorem EndHead.forallArity_teleArity {h : Name} {e : VExpr} (H : EndHead e h) :
 
 /-- **Arity of rigid-ended telescopes**, by end heads. -/
 theorem Model.tele_arity_end {envF E : VEnv} (hE : E.Ordered) (hEF : E ≤ envF)
-    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundEnvAtH envF E U Δ)
+    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundTypedIn envF E U Δ)
     {e e' : VExpr} {h h' : Name} {U : Nat} (H : EndHead e h) (H' : EndHead e' h')
     (hrig : envF.Rigid h) (hrig' : envF.Rigid h') (hd : E.IsDefEqU U [] e e') :
     e.forallArity = e'.forallArity := by
@@ -144,7 +144,7 @@ theorem CaseCompilationData.ctor_arity_sem {envF base E : VEnv} {src exp : VIndu
     (hfresh : RecursorNamesFresh base src exp aux)
     (hprior : ContainersInstalled base aux)
     (hE : E.Ordered) (hEF : E ≤ envF)
-    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
+    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundTypedIn envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (index : Fin s.constructors.size)
     (hrigF : envF.Rigid ((compilationRestoration src aux).headName
@@ -231,7 +231,7 @@ theorem CaseCompilationData.source_arity_sem {envF base E : VEnv} {src exp : VIn
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (hfresh : RecursorNamesFresh base src exp aux)
     (hprior : ContainersInstalled base aux) (hE : E.Ordered) (hEF : E ≤ envF)
-    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
+    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundTypedIn envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (j : Fin s.constructors.size)
     (hrigF : envF.Rigid ((compilationRestoration src aux).headName
@@ -260,7 +260,7 @@ theorem CaseCompilationData.container_arity_sem {envF base E : VEnv} {src exp : 
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     (hfresh : RecursorNamesFresh base src exp aux)
     (hprior : ContainersInstalled base aux) (hE : E.Ordered) (hEF : E ≤ envF)
-    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundEnvAtH envF E U Δ) (hle : base ≤ E)
+    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → Model.SoundTypedIn envF E U Δ) (hle : base ≤ E)
     (htypes : ∀ t ∈ src.types, E.constants t.name = some t.toVConstant)
     (j : Fin s.constructors.size)
     (hrigF : envF.Rigid ((compilationRestoration src aux).headName

@@ -59,7 +59,7 @@ def ProjMajor (env : VEnv) (I ctor : Name) (np nf : Nat) (L : VLevel) : Prop :=
     info.nparams = np ∧ info.numFields = nf ∧ info.resultLevel ≈ L
 
 theorem ProjMajor.weak {I ctor : Name} {np nf : Nat} {L : VLevel}
-    (h : ProjMajor env I ctor np nf L) : MajorFam0 env I ctor := by
+    (h : ProjMajor env I ctor np nf L) : MajorFamEntry env I ctor := by
   rcases h with h | ⟨info, h1, -, h2, -⟩
   · exact .inl h
   · exact .inr ⟨info, h1, h2⟩
@@ -298,7 +298,7 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
 set_option maxHeartbeats 1000000 in
 /-- **Validity of an ordinary native recursor rule** (stages B and D). -/
 theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
-    (henv : env.Ordered) (hdr : env.DefRules)
+    (henv : env.Ordered) (hdr : env.DeltaRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g [] block)

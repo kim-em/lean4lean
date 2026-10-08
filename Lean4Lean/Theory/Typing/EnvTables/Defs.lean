@@ -113,7 +113,7 @@ def schemaCtorNames (schema : CaseSchema) : List Name :=
 
 /-- Metadata witnessing that a table entry is declared in every well-formed environment
 below the current one with the same equations, projections and eliminators. -/
-def Witness (env : VEnv) (X : Name) : Prop :=
+def MetadataMentions (env : VEnv) (X : Name) : Prop :=
   (∃ df, env.defeqs df ∧ Mentions X df.lhs) ∨
   (∃ df Y ci, env.defeqs df ∧ Mentions Y df.lhs ∧ env.constants Y = some ci ∧
     Mentions X ci.type) ∨
@@ -121,7 +121,7 @@ def Witness (env : VEnv) (X : Name) : Prop :=
   (∃ key schema, env.eliminators key schema ∧
     (X ∈ schema.sourceFamilies ∨ X ∈ schemaCtorNames schema))
 
-theorem Witness.mono (H : Witness env X) (hle : env ≤ env') : Witness env' X := by
+theorem MetadataMentions.mono (H : MetadataMentions env X) (hle : env ≤ env') : MetadataMentions env' X := by
   rcases H with ⟨df, h1, h2⟩ | ⟨df, Y, ci, h1, h2, h3, h4⟩ | ⟨s, info, h1, h2⟩ |
     ⟨key, schema, h1, h2⟩
   · exact .inl ⟨df, hle.defeqs h1, h2⟩
@@ -165,7 +165,7 @@ theorem QuotInstalled.mono (H : QuotInstalled env) (hle : env ≤ env') : QuotIn
 
 /-- Actual provenance of a native recursor entry: the finite compilation of the very block that
 installed it, together with the family views it recorded. -/
-def NativeEvidence (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
+def NativeEntryCompiled (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded auxiliaries block installed,
     CompilationData base source expanded data.schema.signature data.nativeInstance
       auxiliaries block ∧
@@ -177,14 +177,14 @@ def NativeEvidence (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
     installBase.WF ∧ VInductBlock.WF installBase block ∧
     ∀ type ∈ source.types, type.ctors ≠ [] → T.fam type.name = some (famView source type)
 
-theorem NativeEvidence.mono (H : NativeEvidence env T data) (hle : env ≤ env')
-    (hT : T.Extends T') : NativeEvidence env' T' data := by
+theorem NativeEntryCompiled.mono (H : NativeEntryCompiled env T data) (hle : env ≤ env')
+    (hT : T.Extends T') : NativeEntryCompiled env' T' data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7, h9, h10, h8⟩ := H
   exact ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7.trans hle, h9, h10, fun type ht hc => hT.fam (h8 type ht hc)⟩
 
-theorem NativeEvidence.registered (H : NativeEvidence env T data) :
+theorem NativeEntryCompiled.registered (H : NativeEntryCompiled env T data) :
     RecursorRegistered env data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7, _, _, _⟩ := H
@@ -205,7 +205,7 @@ structure ViewInv (env : VEnv) (famT : Name → Option FamData) (ctorT : Name �
   /-- Table entries are rigid. -/
   rigid : famT n ≠ none ∨ ctorT n ≠ none → env.Rigid n
   /-- Table entries are witnessed by metadata. -/
-  witness : famT n ≠ none ∨ ctorT n ≠ none → Witness env n
+  witness : famT n ≠ none ∨ ctorT n ≠ none → MetadataMentions env n
 
 /-- The history invariant of the tables. -/
 structure Tables.Inv (env : VEnv) (T : Tables) : Prop where
@@ -213,7 +213,7 @@ structure Tables.Inv (env : VEnv) (T : Tables) : Prop where
   defs : T.defs n = some v → v.name = n ∧ env.constants n = some v.toVConstant ∧
     env.defeqs v.toDefEq
   /-- Native recursor entries, with their actual installation. -/
-  natives : T.natives n = some data → data.name = n ∧ NativeEvidence env T data
+  natives : T.natives n = some data → data.name = n ∧ NativeEntryCompiled env T data
   /-- The quotient flag. -/
   quot : T.quot = true → QuotInstalled env ∧ T.fam ``Quot = some quotFam ∧
     T.ctor ``Quot.mk = some quotCtor ∧ T.defs ``Quot.lift = none ∧

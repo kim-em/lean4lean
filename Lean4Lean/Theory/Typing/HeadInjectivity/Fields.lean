@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Uniqueness
 
 /-! # The injectivity fields of head inversion
 
-`HeadInjectivityCore.toHeadInjectivity`: in a well-formed environment, chain-level head
+`ChainHeadInjectivity.toHeadInjectivity`: in a well-formed environment, chain-level head
 injectivity yields the four injectivity fields of `VEnv.HeadInversion` (`forallE_forallE`,
 the argument part of `rigid_rigid`, `former_args`, `proj_fieldType`), stated in
 `HeadInjectivity` exactly as in `HeadInversion.lean`. -/
@@ -11,8 +11,8 @@ namespace Lean4Lean
 open Lean4Lean
 namespace VEnv
 
-theorem HeadInjectivityCore.toHeadInjectivity {env : VEnv} (henv : env.WF)
-    (core : env.HeadInjectivityCore) : env.HeadInjectivity where
+theorem ChainHeadInjectivity.toHeadInjectivity {env : VEnv} (henv : env.WF)
+    (core : env.ChainHeadInjectivity) : env.HeadInjectivity where
   forallE_forallE {U Γ A B A' B'} hΓ H := by
     have ⟨hA, hB⟩ := core.forallE_chain hΓ H
     have ⟨hAt, hBt⟩ := H.isType_l.forallE_inv henv.ordered

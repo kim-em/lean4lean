@@ -964,7 +964,7 @@ theorem
     hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hfull,
     HcachedCtx, HlhsResidual, Hlhs', HtypeBody, HtypeTranslation⟩
 
-/-- Witness-stable framed form of `finalCachedCanonicalLhsBodyWithFrame`.
+/-- MetadataMentions-stable framed form of `finalCachedCanonicalLhsBodyWithFrame`.
 Besides fixing the recursor telescope, this retains the checked constructor
 tail needed to compare the LHS context with the independently narrowed RHS
 context. -/

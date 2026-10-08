@@ -27,7 +27,7 @@ theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :
 /-- Injectivity of type heads for every well-formed environment: the chain-level core from
 soundness of the glued observation model (`VEnv.WF.headInjectivityCore`,
 `Theory/Typing/HeadInjectivity/Model/EnvValid.lean`), lifted by the syntactic layer
-(`VEnv.HeadInjectivityCore.toHeadInjectivity`). -/
+(`VEnv.ChainHeadInjectivity.toHeadInjectivity`). -/
 theorem _root_.Lean4Lean.VEnv.WF.headInjectivity {env : VEnv} (henv : env.WF) :
     env.HeadInjectivity :=
   henv.headInjectivityCore.toHeadInjectivity henv

@@ -28,7 +28,7 @@ compactness, monotonicity and the substitution lemma; `eta` uses the typing inva
 (`≼`); `proofIrrel` uses `TypedOb.not_prop`; `defeqDF` transfers typing along the
 inclusions given by the type equality; `sortDF`/`constDF` see levels only through
 `VLevel.eval`, and at a defined constant on level invariance of the value (`Obs.lvEq`);
-`extra` is the delta clause in both directions, using `DefRules` (the rule of a defined
+`extra` is the delta clause in both directions, using `DeltaRules` (the rule of a defined
 constant is unique and its type is the constant's). The projection rules (`projDF`,
 `projIota`, `structEta`, `unitLike`) are sound for entries valid in the model (`ProjValid`,
 `Model/ProjSound.lean`). -/
@@ -310,7 +310,7 @@ theorem sound_forallEDF (hAA : env.IsDefEqStrong U Γ A A' (.sort u))
 end
 
 /-- Delta rules are valid. -/
-theorem RuleValid.delta (henv : env.Ordered) (hdr : env.DefRules)
+theorem RuleValid.delta (henv : env.Ordered) (hdr : env.DeltaRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (hdf : env.defeqs df)
     (hlhs : df.lhs = .const n ls₀) : RuleValid env df := by
@@ -359,7 +359,7 @@ rule. -/
 theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
     (hqu : ∀ df' ls', env.defeqs df' →
       df'.lhs.stripLams.getAppFnArgs.1 = .const ``Quot.lift ls' → df' = quotDefEq)
-    (hdr : env.DefRules)
+    (hdr : env.DeltaRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (hnpQ : ∀ info, ¬ env.projections ``Quot info) (hnpM : ¬ IsProjCtor env ``Quot.mk)
@@ -801,7 +801,7 @@ theorem EnvValid.of_sub {env E E' : VEnv} (V : EnvValid env E)
 
 /-- Soundness for an environment that is valid in the model of `env`. -/
 theorem EnvValid.soundAtH {env E : VEnv} (henv : env.Ordered) (hle : E ≤ env) (V : EnvValid env E)
-    (U : Nat) (Δ : List VExpr) (hΔ : OnCtx Δ (env.IsType U)) : SoundEnvAtH env E U Δ :=
+    (U : Nat) (Δ : List VExpr) (hΔ : OnCtx Δ (env.IsType U)) : SoundTypedIn env E U Δ :=
   fun H => sound henv hΔ hle V.rule V.proj V.elim H
 
 end Model

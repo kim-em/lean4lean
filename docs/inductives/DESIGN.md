@@ -495,7 +495,7 @@ definitionally equal Pi telescopes ending in rigid spines have equal length, whi
 syntactic argument cannot give without head inversion.
 
 **The syntactic layer** (`HeadInjectivity/{Core,Uniqueness,FieldType,Fields}.lean`) turns the
-chain-level injectivity delivered by the model (`HeadInjectivityCore`) into the injectivity
+chain-level injectivity delivered by the model (`ChainHeadInjectivity`) into the injectivity
 fields of `HeadInversion`. Uniqueness up to chains and a congruence property are proved by
 one induction on the strong typing derivation, which makes `proj_fieldType` provable:
 unused, untypable earlier projections never occur in the field type, so the induction never

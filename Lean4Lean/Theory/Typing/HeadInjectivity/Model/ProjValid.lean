@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Model.HTS
 
 The soundness cases of the projection rules (`projDF`, `projIota`, `structEta`, `unitLike`) need
 semantic facts about the registered constructor and family that come from derivations in the
-environment in which the entry's family and constructor were checked (`VEnv.ProjOriginAt`): the
+environment in which the entry's family and constructor were checked (`VEnv.ProjDeclAt`): the
 constructor type is a sound telescope, and the family's declared type is soundly a telescope
 ending in the recorded result sort. As for rules (`RuleValid`) and eliminator rules
 (`ElimValid`), these facts are provided by the induction along the declaration history: the
@@ -15,8 +15,8 @@ exactly that soundness; it is not a hypothesis about the entry itself. -/
 
 namespace Lean4Lean
 
-/-- The origin of a projection entry (`VEnv.ProjOrigin`), at a given types environment. -/
-def VEnv.ProjOriginAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
+/-- The origin of a projection entry (`VEnv.ProjDecl`), at a given types environment. -/
+def VEnv.ProjDeclAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
   ∃ (base : VEnv) (dsb : List VDecl) (decl : VInductDecl) (type : VInductiveType)
     (ctor : VConstVal),
     base.WF' dsb ∧ base.addConstVals decl.typeConstants = some envTypes ∧ envTypes ≤ env ∧
@@ -27,11 +27,11 @@ def VEnv.ProjOriginAt (env envTypes : VEnv) (S : Name) (info : VProjectionInfo) 
     decl.RawCtorShape type ctor ∧ decl.sourceNames.Nodup ∧ decl.SourceParameterWF base
 
 theorem VEnv.projOrigin_iff {env : VEnv} {S : Name} {info : VProjectionInfo} :
-    env.ProjOrigin S info ↔ ∃ envTypes, env.ProjOriginAt envTypes S info :=
+    env.ProjDecl S info ↔ ∃ envTypes, env.ProjDeclAt envTypes S info :=
   ⟨fun ⟨b, e, d, h⟩ => ⟨e, b, d, h⟩, fun ⟨e, b, d, h⟩ => ⟨b, e, d, h⟩⟩
 
-theorem VEnv.ProjOriginAt.origin {env envTypes : VEnv} {S : Name} {info : VProjectionInfo}
-    (h : env.ProjOriginAt envTypes S info) : env.ProjOrigin S info :=
+theorem VEnv.ProjDeclAt.origin {env envTypes : VEnv} {S : Name} {info : VProjectionInfo}
+    (h : env.ProjDeclAt envTypes S info) : env.ProjDecl S info :=
   VEnv.projOrigin_iff.2 ⟨_, h⟩
 
 namespace VEnv
@@ -40,12 +40,12 @@ namespace Model
 /-- Soundness, with the semantic typing derivations of both sides, of every strong derivation of
 an earlier environment `E`, in the model of `env` at the target context `Δ`. This is the
 conclusion of `Model.sound` for `E`. -/
-def SoundEnvAtH (env E : VEnv) (U : Nat) (Δ : List VExpr) : Prop :=
+def SoundTypedIn (env E : VEnv) (U : Nat) (Δ : List VExpr) : Prop :=
   ∀ {Γ t t' T}, E.IsDefEqStrong U Γ t t' T →
     SoundAt env U Δ Γ t t' T ∧ HTS env U Δ Γ t T ∧ HTS env U Δ Γ t' T
 
-theorem SoundEnvAtH.soundEnvAt {env E : VEnv} {U : Nat} {Δ : List VExpr}
-    (h : SoundEnvAtH env E U Δ) : SoundEnvAt env E U Δ := fun H => (h H).1
+theorem SoundTypedIn.soundEnvAt {env E : VEnv} {U : Nat} {Δ : List VExpr}
+    (h : SoundTypedIn env E U Δ) : SoundIn env E U Δ := fun H => (h H).1
 
 /-- Static facts about a projection entry of a well-formed environment, used by the
 soundness cases of the projection rules. Every field is a property of the environment that is
@@ -60,8 +60,8 @@ structure ProjStatic (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop whe
 /-- **Validity of a projection entry** in the model of `env`: its static facts, and an origin
 whose types environment is sound in the model of `env`, at every target context. -/
 def ProjValid (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
-  ProjStatic env S info ∧ ∃ envTypes, env.ProjOriginAt envTypes S info ∧
-    ∀ U Δ, OnCtx Δ (env.IsType U) → SoundEnvAtH env envTypes U Δ
+  ProjStatic env S info ∧ ∃ envTypes, env.ProjDeclAt envTypes S info ∧
+    ∀ U Δ, OnCtx Δ (env.IsType U) → SoundTypedIn env envTypes U Δ
 
 end Model
 end VEnv

@@ -149,7 +149,7 @@ theorem onCtx_mono {E E' : VEnv} (hle : E ≤ E') :
 
 /-- One direction of `tele_arity`. -/
 theorem tele_arity_le {envF E : VEnv} (hE : E.Ordered) (hEF : E ≤ envF)
-    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundEnvAtH envF E U Δ)
+    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundTypedIn envF E U Δ)
     {ds ds' : List VExpr} {c c' : Name} {ls ls' : List VLevel} {as as' : List VExpr}
     {T : VExpr} (hrig' : envF.Rigid c')
     (h : E.IsDefEq U [] (.wrapForalls ds (.mkApps (.const c ls) as))
@@ -177,7 +177,7 @@ theorem tele_arity_le {envF E : VEnv} (hE : E.Ordered) (hEF : E ≤ envF)
 model of `envF`, definitionally equal Pi telescopes ending in spines of constants rigid in `envF`
 have the same number of binders. -/
 theorem tele_arity {envF E : VEnv} (hE : E.Ordered) (hEF : E ≤ envF)
-    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundEnvAtH envF E U Δ)
+    (hsnd : ∀ U Δ, OnCtx Δ (envF.IsType U) → SoundTypedIn envF E U Δ)
     {ds ds' : List VExpr} {c c' : Name} {ls ls' : List VLevel} {as as' : List VExpr}
     {T : VExpr} (hrig : envF.Rigid c) (hrig' : envF.Rigid c')
     (h : E.IsDefEq U [] (.wrapForalls ds (.mkApps (.const c ls) as))

@@ -317,7 +317,7 @@ theorem Tables.Inv.addQuot (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)
     · exact henv.ordered.rigid_of_absent hn df hold ls hhead
   have hmk : Mentions ``Quot.mk quotDefEq.lhs := Mentions.of_mentionsB (by decide)
   have hQmk : Mentions ``Quot quotMkConst.type := Mentions.of_mentionsB (by decide)
-  have hok : ViewsOK env' T.fam T.ctor quotFams quotCtors := by
+  have hok : NewViewsWF env' T.fam T.ctor quotFams quotCtors := by
     refine ⟨fun {n d} hn => ?_, fun {n k} hn => ?_⟩
     · simp only [quotFams] at hn
       split at hn <;> cases hn
@@ -523,9 +523,9 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     apply Mentions.of_stripLams
     rw [hmaj]
     exact Or.inr Mentions.mkApps_head
-  have hctorWitness : ∀ t ∈ decl.types, ∀ c ∈ t.ctors, Witness env' c.name :=
+  have hctorWitness : ∀ t ∈ decl.types, ∀ c ∈ t.ctors, MetadataMentions env' c.name :=
     fun t ht c hc => .inl (hctorMention t ht c hc)
-  have hok : ViewsOK env' T.fam T.ctor (viewFams decl selCtors) (viewCtors decl selCtors) := by
+  have hok : NewViewsWF env' T.fam T.ctor (viewFams decl selCtors) (viewCtors decl selCtors) := by
     apply viewsOK_decl hnd
     · intro t ht _
       obtain ⟨h1, h2, _⟩ := H.freshT (hfreshType t ht)
@@ -551,7 +551,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
   have hfamT' : ∀ t ∈ decl.types, t.ctors ≠ [] → T'.fam t.name = some (famView decl t) :=
     fun t ht hne => addView_some.mpr (.inr ⟨(H.freshT (hfreshType t ht)).1,
       viewFams_mem hnd ht (selCtors_iff.mpr hne)⟩)
-  have hnewEvidence : ∀ data ∈ entries, NativeEvidence env' T' data := by
+  have hnewEvidence : ∀ data ∈ entries, NativeEntryCompiled env' T' data := by
     intro data hd
     obtain ⟨owner, _, rfl⟩ := List.mem_map.mp hd
     have hinstance : (RecursorData.ofInstance default (CaseSchema.ofCompilation decl s aux)

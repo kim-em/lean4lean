@@ -4,7 +4,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.ChainInjectivity
 /-! # Chain-level head injectivity for rule-free environments (milestone M2)
 
 `VEnv.WF.headInjectivityCore_of_noRules`: in a well-formed environment without
-definitional rules, projections or eliminators, the hypothesis `HeadInjectivityCore` of the
+definitional rules, projections or eliminators, the hypothesis `ChainHeadInjectivity` of the
 syntactic layer holds (`docs/inductives/PHASE1B_NOTES.md`, sections 3 and 9.3).
 
 All observations are taken at the identity valuation `(id, ∅)` of the chain's own context
@@ -303,7 +303,7 @@ end Model
 /-- **Chain-level head injectivity from soundness**: in a well-formed environment for which
 the observation model is sound, the hypothesis of the syntactic layer holds. -/
 theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Model.SoundEnv env) :
-    env.HeadInjectivityCore where
+    env.ChainHeadInjectivity where
   sort_sort hΓ h := Model.sort_sort henv.ordered hnr hΓ h
   forallE_chain hΓ h := Model.forallE_chain henv.ordered hnr hΓ h
   rigid_rigid hΓ hrig hrig' h := by

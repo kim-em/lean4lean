@@ -3,9 +3,9 @@ import Lean4Lean.Theory.Typing.EnvTables.Registration
 /-!
 # Environment tables built along a declaration history
 
-`HistTables env T`: the tables `T` are those built step by step along a `VEnv.WF'` history of
+`Tables.OfHistory env T`: the tables `T` are those built step by step along a `VEnv.WF'` history of
 `env` (one constructor per step, with the step's premises and the explicit table update). Every
-such `T` satisfies the history invariant `Tables.Inv env` (`HistTables.inv`), and every
+such `T` satisfies the history invariant `Tables.Inv env` (`Tables.OfHistory.inv`), and every
 well-formed environment has such tables (`VEnv.WF'.histTables`).
 
 The environment tables (`envTables`, `EnvTables.lean`) are chosen among these:
@@ -18,61 +18,61 @@ namespace Lean4Lean.EnvTables
 open VEnv InductiveSignature
 
 /-- Tables built along a well-formed history. -/
-inductive HistTables : VEnv → Tables → Prop
-  | empty : HistTables .empty Tables.empty
+inductive Tables.OfHistory : VEnv → Tables → Prop
+  | empty : Tables.OfHistory .empty Tables.empty
   | «axiom» {env env' : VEnv} {T : Tables} {ci : VConstVal} :
-    HistTables env T → env.WF → ci.WF env → env.addConst ci.name ci.toVConstant = some env' →
-    HistTables env' T
+    Tables.OfHistory env T → env.WF → ci.WF env → env.addConst ci.name ci.toVConstant = some env' →
+    Tables.OfHistory env' T
   | «opaque» {env env' : VEnv} {T : Tables} {ci : VDefVal} :
-    HistTables env T → env.WF → ci.WF env → env.addConst ci.name ci.toVConstant = some env' →
-    HistTables env' T
+    Tables.OfHistory env T → env.WF → ci.WF env → env.addConst ci.name ci.toVConstant = some env' →
+    Tables.OfHistory env' T
   | «def» {env env' : VEnv} {T : Tables} {ci : VDefVal} :
-    HistTables env T → env.WF → ci.WF env → env.addConst ci.name ci.toVConstant = some env' →
-    HistTables (env'.addDefEq ci.toDefEq) (T.addDefs [ci])
+    Tables.OfHistory env T → env.WF → ci.WF env → env.addConst ci.name ci.toVConstant = some env' →
+    Tables.OfHistory (env'.addDefEq ci.toDefEq) (T.addDefs [ci])
   | mutualDef {env env' : VEnv} {T : Tables} {cis : List VDefVal} :
-    HistTables env T → env.WF → (∀ ci ∈ cis, ci.toVConstant.WF env) →
+    Tables.OfHistory env T → env.WF → (∀ ci ∈ cis, ci.toVConstant.WF env) →
     env.addConsts cis = some env' → (∀ ci ∈ cis, ci.WF env') →
-    HistTables (env'.addDefEqs cis) (T.addDefs cis)
+    Tables.OfHistory (env'.addDefEqs cis) (T.addDefs cis)
   | quot {env env' : VEnv} {T : Tables} :
-    HistTables env T → env.WF → env.QuotReady → env.addQuot = some env' →
-    HistTables env' T.addQuot
+    Tables.OfHistory env T → env.WF → env.QuotReady → env.addQuot = some env' →
+    Tables.OfHistory env' T.addQuot
   | induct {env env' cbase : VEnv} {T : Tables} {decl expanded : VInductDecl}
       {block : VInductBlock} {s : InductiveSignature} {g : Instance s}
       {aux : List ContainerSpecialization} :
-    HistTables env T → env.WF → decl.WF env → decl.CompilesTo env block →
+    Tables.OfHistory env T → env.WF → decl.WF env → decl.CompilesTo env block →
     VInductBlock.WF env block → VInductBlock.EliminatorsWF env decl block →
     block.eliminators = [] → block.install env = some env' →
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
     ContainersInstalled cbase aux →
-    HistTables env' (T.addNative decl (RecursorData.compilationEntries default decl s aux g))
+    Tables.OfHistory env' (T.addNative decl (RecursorData.compilationEntries default decl s aux g))
   /-- A native installation that also installs the certified case eliminator of its
   declaration: the native views, then the views of the remaining families of the schema. -/
   | inductCases {env env' cbase : VEnv} {T : Tables} {decl expanded : VInductDecl}
       {block : VInductBlock} {s : InductiveSignature} {g : Instance s}
       {aux : List ContainerSpecialization} {key : Name} {schema : CaseSchema} :
-    HistTables env T → env.WF → decl.WF env → decl.CompilesTo env block →
+    Tables.OfHistory env T → env.WF → decl.WF env → decl.CompilesTo env block →
     VInductBlock.WF env block → VInductBlock.EliminatorsWF env decl block →
     block.eliminators = [(key, schema)] → block.install env = some env' →
     cbase ≤ env → CompilationData cbase decl expanded s g aux block →
     ContainersInstalled cbase aux →
-    HistTables env'
+    Tables.OfHistory env'
       ((T.addNative decl (RecursorData.compilationEntries default decl s aux g)).addSchema
         env' decl)
   | elim {base env : VEnv} {T : Tables} {source : VInductDecl} {block : VInductBlock}
       {schema : CaseSchema} {key : Name} :
-    HistTables env T → base.WF → env.WF → base ≤ env →
+    Tables.OfHistory env T → base.WF → env.WF → base ≤ env →
     schema.Registered base source block key →
     (∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant) → env.defeqs = base.defeqs →
     schema.ProjNamesRegistered env key → source.ProjectionsCoherent env →
     schema.Fresh env key → schema.StructCompat env →
-    HistTables (env.addEliminator key schema) (T.addSchema env source)
+    Tables.OfHistory (env.addEliminator key schema) (T.addSchema env source)
   /-- Projection registration after the certified case eliminator of the same declaration
   (`VEnv.WF'.inductProjections`), over the tables of the base: the schema records the views of
   every family of the declaration, structures included. -/
   | proj {base envTypes envCtors : VEnv} {T : Tables} {decl : VInductDecl}
       {block : VInductBlock} {key : Name} {schema : CaseSchema} :
-    HistTables base T → base.WF → (envCtors.addEliminators block.eliminators).WF →
+    Tables.OfHistory base T → base.WF → (envCtors.addEliminators block.eliminators).WF →
     block.eliminators = [(key, schema)] → schema.Registered base decl block key →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
@@ -85,7 +85,7 @@ inductive HistTables : VEnv → Tables → Prop
     block.projections = decl.projectionEntries →
     base.addConstVals block.types = some envTypes →
     envTypes.addConstVals block.ctors = some envCtors →
-    HistTables ((envCtors.addEliminators block.eliminators).addProjections block.projections)
+    Tables.OfHistory ((envCtors.addEliminators block.eliminators).addProjections block.projections)
       (T.addSchema envCtors decl)
 
 variable {env env' : VEnv} {T : Tables}
@@ -136,7 +136,7 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
   exfalso
   have hsel : selCtors t = true := selCtors_iff.mpr (List.ne_nil_of_mem hc)
   have hfree := selFree_of_selFreeIn hs
-  simp only [selFree, decide_eq_true_eq] at hfree
+  simp only [unrecorded, decide_eq_true_eq] at hfree
   have hnone := (hfree.2.2 c hc).2
   obtain ⟨p, hp⟩ := find?_exists (f := fun p : VInductiveType × VConstVal => p.2.name)
     (x := (t, c)) (mem_viewPairs.mpr ⟨ht, hsel, hc⟩) rfl
@@ -145,7 +145,7 @@ theorem Tables.Inv.inductCases {decl : VInductDecl} {block : VInductBlock} {key 
   exact hsome (addView_none.mp hnone).2
 
 /-- Tables built along a history satisfy the history invariant, in a well-formed environment. -/
-theorem HistTables.inv (H : HistTables env T) : T.Inv env ∧ env.WF := by
+theorem Tables.OfHistory.inv (H : Tables.OfHistory env T) : T.Inv env ∧ env.WF := by
   induction H with
   | empty => exact ⟨Tables.empty_inv, ⟨[], .empty⟩⟩
   | «axiom» _ henv hci hadd ih =>
@@ -189,7 +189,7 @@ theorem HistTables.inv (H : HistTables env T) : T.Inv env ∧ env.WF := by
 
 /-- Every well-formed history builds tables. -/
 theorem VEnv.WF'.histTables {ds : List VDecl} {env : VEnv} (H : env.WF' ds) :
-    ∃ T : Tables, HistTables env T := by
+    ∃ T : Tables, Tables.OfHistory env T := by
   induction H with
   | empty => exact ⟨_, .empty⟩
   | @decl d env' ds env hdecl hprev ih =>

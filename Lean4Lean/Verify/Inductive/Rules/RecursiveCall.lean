@@ -1980,7 +1980,7 @@ theorem
       insertedCtx, List.reverse_append, List.append_assoc,
       Nat.add_comm] using Haligned⟩
 
-/-- Witness-stable form of
+/-- MetadataMentions-stable form of
 `finalCheckedNarrowEquationContextAlignment`.  Consumers of canonical
 recursive results already carry a particular recursor telescope translation;
 this specialization transports the equation-context conversion to that exact

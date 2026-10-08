@@ -69,7 +69,7 @@ set_option maxHeartbeats 400000 in
 /-- **Validity of a restored native recursor rule** of a nested compilation. -/
 theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {base' installed : VEnv} {df : VDefEq} {L : VLevel}
-    (henv : env.Ordered) (hdr : env.DefRules)
+    (henv : env.Ordered) (hdr : env.DeltaRules)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
     (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g aux block)

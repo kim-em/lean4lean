@@ -16,16 +16,16 @@ namespace EnvTables
 open InductiveSignature VExpr
 
 theorem restoreOK_wrapLams (r : Restoration) (doms : List VExpr) (body : VExpr) :
-    RestoreOK r (VExpr.wrapLams doms body) 0 ↔
-      (∀ d ∈ doms, RestoreOK r d 0) ∧ RestoreOK r body 0 := by
+    Restorable r (VExpr.wrapLams doms body) 0 ↔
+      (∀ d ∈ doms, Restorable r d 0) ∧ Restorable r body 0 := by
   induction doms with
   | nil => simp [VExpr.wrapLams]
   | cons d ds ih =>
     simp only [VExpr.wrapLams, List.foldr_cons] at ih ⊢
-    simp only [RestoreOK, ih, List.mem_cons, forall_eq_or_imp, and_assoc]
+    simp only [Restorable, ih, List.mem_cons, forall_eq_or_imp, and_assoc]
 
 theorem restoreOK_insertBinders {r : Restoration} {l : List VExpr} {k : Nat} :
-    (∀ d ∈ insertBinders l k, RestoreOK r d 0) ↔ ∀ x ∈ l, RestoreOK r x 0 := by
+    (∀ d ∈ insertBinders l k, Restorable r d 0) ↔ ∀ x ∈ l, Restorable r x 0 := by
   constructor
   · intro h x hx
     obtain ⟨j, hj⟩ := mem_insertBinders hx k
@@ -36,8 +36,8 @@ theorem restoreOK_insertBinders {r : Restoration} {l : List VExpr} {k : Nat} :
 
 theorem constructorApp_restoreOK_iff {s : InductiveSignature} (g : Instance s)
     {r : Restoration} (ctor : Constructor s.families.size) (extra below : Nat) :
-    RestoreOK r (g.constructorApp ctor extra below) 0 ↔
-      RestoreOK r (.const ctor.name g.levels) (s.params.length + ctor.fields.length) := by
+    Restorable r (g.constructorApp ctor extra below) 0 ↔
+      Restorable r (.const ctor.name g.levels) (s.params.length + ctor.fields.length) := by
   unfold Instance.constructorApp
   rw [restoreOK_mkApps]
   constructor
@@ -53,42 +53,42 @@ equations are built from the parameters, motives and minor premises of the recur
 the field types, indices and constructor application of the constructor's minor premise. -/
 theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instance s)
     {r : Restoration} (owner : Fin s.families.size)
-    (h : RestoreOK r (g.recursorType owner) 0) (index : Fin s.constructors.size)
+    (h : Restorable r (g.recursorType owner) 0) (index : Fin s.constructors.size)
     (hrec : Instance.recursiveFields s.constructors[index] = []) (block : Name) (first : Nat) :
-    RestoreOK r (g.equation index (.elim block first)).lhs 0 ∧
-      RestoreOK r (g.equation index (.elim block first)).rhs 0 ∧
-      RestoreOK r (g.equation index (.elim block first)).type 0 := by
+    Restorable r (g.equation index (.elim block first)).lhs 0 ∧
+      Restorable r (g.equation index (.elim block first)).rhs 0 ∧
+      Restorable r (g.equation index (.elim block first)).type 0 := by
   unfold Instance.recursorType at h
   rw [restoreOK_wrapForalls] at h
   obtain ⟨hdoms, -⟩ := h
-  have hparams : ∀ p ∈ g.params, RestoreOK r p 0 := fun p hp => hdoms p (by simp [hp])
-  have hmotives : ∀ m ∈ g.motives, RestoreOK r m 0 := fun m hm => hdoms m (by simp [hm])
-  have hminors : ∀ m ∈ g.minors, RestoreOK r m 0 := fun m hm => hdoms m (by simp [hm])
+  have hparams : ∀ p ∈ g.params, Restorable r p 0 := fun p hp => hdoms p (by simp [hp])
+  have hmotives : ∀ m ∈ g.motives, Restorable r m 0 := fun m hm => hdoms m (by simp [hm])
+  have hminors : ∀ m ∈ g.minors, Restorable r m 0 := fun m hm => hdoms m (by simp [hm])
   have hmem : (s.constructors[index], index.val) ∈ s.constructors.toList.zipIdx := by
     have := mem_zipIdx_getElem s.constructors.toList index.val (by simp)
     simpa using this
-  have hminor : RestoreOK r (g.minor s.constructors[index] index.val) 0 :=
+  have hminor : Restorable r (g.minor s.constructors[index] index.val) 0 :=
     hminors _ (List.mem_map.2 ⟨_, hmem, rfl⟩)
   simp only [Instance.minor] at hminor
   rw [restoreOK_wrapForalls, restoreOK_mkApps] at hminor
   obtain ⟨hfdoms, hargs, -⟩ := hminor
   have hfields : ∀ d ∈ insertBinders ((s.fieldTypes s.constructors[index]).map
-      (·.instL g.levels)) (s.families.size + s.constructors.size), RestoreOK r d 0 := by
+      (·.instL g.levels)) (s.families.size + s.constructors.size), Restorable r d 0 := by
     refine restoreOK_insertBinders.mpr fun x hx => ?_
     have := restoreOK_insertBinders.mp
       (fun d hd => hfdoms d (List.mem_append_left _ hd)) x hx
     exact this
-  have hindices : ∀ e ∈ s.constructors[index].indices, RestoreOK r (e.instL g.levels) 0 := by
+  have hindices : ∀ e ∈ s.constructors[index].indices, Restorable r (e.instL g.levels) 0 := by
     intro e he
     have := hargs _ (List.mem_append_left _ (List.mem_map.mpr ⟨e, he, rfl⟩))
     rwa [restoreOK_liftN, restoreOK_liftN] at this
-  have hctor : RestoreOK r (.const s.constructors[index].name g.levels)
+  have hctor : Restorable r (.const s.constructors[index].name g.levels)
       (s.params.length + s.constructors[index].fields.length) :=
     (constructorApp_restoreOK_iff g _ _ _).mp
       (hargs _ (List.mem_append_right _ (List.mem_singleton_self _)))
   have hdomains : ∀ d ∈ g.params ++ g.motives ++ g.minors ++
       insertBinders ((s.fieldTypes s.constructors[index]).map (·.instL g.levels))
-        (s.families.size + s.constructors.size), RestoreOK r d 0 := by
+        (s.families.size + s.constructors.size), Restorable r d 0 := by
     intro d hd
     simp only [List.mem_append] at hd
     rcases hd with ((hd | hd) | hd) | hd
@@ -98,12 +98,12 @@ theorem equation_restoreOK_of_recursorType {s : InductiveSignature} (g : Instanc
     · exact hfields d hd
   have hidx : ∀ a ∈ s.constructors[index].indices.map fun e =>
       (e.instL g.levels).liftN (s.families.size + s.constructors.size)
-        s.constructors[index].fields.length, RestoreOK r a 0 := by
+        s.constructors[index].fields.length, Restorable r a 0 := by
     intro a ha
     obtain ⟨e, he, rfl⟩ := List.mem_map.mp ha
     rw [restoreOK_liftN]
     exact hindices e he
-  have hmajor : RestoreOK r (g.constructorApp s.constructors[index]
+  have hmajor : Restorable r (g.constructorApp s.constructors[index]
       (s.families.size + s.constructors.size) 0) 0 :=
     (constructorApp_restoreOK_iff g _ _ _).mpr hctor
   unfold Instance.equation
@@ -159,7 +159,7 @@ theorem genericEquations_restorable {schema : CaseSchema} (h0 : schema.restorati
   have ht := htype ((schema.specialize owner schema.genericUvars schema.genericLevels
       (.param 0)).recursorType (schema.viewOwner owner))
     (by simp only [genericType, CaseSchema.type, h0, Restoration.expr_empty])
-  have hOK : RestoreOK r ((schema.specialize owner schema.genericUvars schema.genericLevels
+  have hOK : Restorable r ((schema.specialize owner schema.genericUvars schema.genericLevels
       (.param 0)).recursorType (schema.viewOwner owner)) 0 := by
     simpa using (restore_go_isSome r _ []).mp ht
   have hrec : Instance.recursiveFields (schema.view owner).constructors[index] = [] := by

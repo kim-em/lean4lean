@@ -45,7 +45,7 @@ theorem Certified.mem_schemaCtorNames {schema : CaseSchema}
 /-! ## Eliminator registration -/
 
 /-- A family none of whose names (its own and its constructors') is recorded yet. -/
-noncomputable def selFree (T : Tables) (t : VInductiveType) : Bool := by
+noncomputable def unrecorded (T : Tables) (t : VInductiveType) : Bool := by
   classical
   exact decide (T.fam t.name = none ∧ T.ctor t.name = none ∧
     ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none)
@@ -56,12 +56,12 @@ def SchemaCtorReserved (env : VEnv) (n : Name) : Prop :=
 
 /-- A family none of whose names is recorded yet, whose own name is not the name of a constructor
 of a registered schema. -/
-noncomputable def selFreeIn (env : VEnv) (T : Tables) (t : VInductiveType) : Bool := by
+noncomputable def unrecordedIn (env : VEnv) (T : Tables) (t : VInductiveType) : Bool := by
   classical
-  exact selFree T t && decide (¬SchemaCtorReserved env t.name)
+  exact unrecorded T t && decide (¬SchemaCtorReserved env t.name)
 
-theorem selFree_of_selFreeIn (h : selFreeIn env T t = true) : selFree T t = true := by
-  simp only [selFreeIn, Bool.and_eq_true] at h; exact h.1
+theorem selFree_of_selFreeIn (h : unrecordedIn env T t = true) : unrecorded T t = true := by
+  simp only [unrecordedIn, Bool.and_eq_true] at h; exact h.1
 
 /-- Record the views of a schema's families none of whose names is recorded yet (family by
 family: a family of the schema that is not otherwise registered is recorded here, so every
@@ -69,7 +69,7 @@ family of a generic equation's major has a recorded sort). A family whose name i
 of an already registered schema is not recorded: once a name is a schema constructor, it is
 never recorded as a family afterwards (in a consistent environment no such family exists). -/
 noncomputable def Tables.addSchema (T : Tables) (env : VEnv) (source : VInductDecl) : Tables :=
-  T.addViews (viewFams source (selFreeIn env T)) (viewCtors source (selFreeIn env T))
+  T.addViews (viewFams source (unrecordedIn env T)) (viewCtors source (unrecordedIn env T))
 
 theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInductBlock}
     {schema : CaseSchema} (H : T.Inv env) (hbase : base.WF) (hle : base ≤ env)
@@ -82,9 +82,9 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
   classical
   have hcert₀ := hcert
   have H' := H.transport (env' := env.addEliminator key schema) VEnv.addEliminator_le rfl rfl
-  have hfree : ∀ t ∈ source.types, selFreeIn env T t = true → T.fam t.name = none ∧
+  have hfree : ∀ t ∈ source.types, unrecordedIn env T t = true → T.fam t.name = none ∧
       T.ctor t.name = none ∧ ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none := by
-    intro t _ ht; simpa [selFree] using selFree_of_selFreeIn ht
+    intro t _ ht; simpa [unrecorded] using selFree_of_selFreeIn ht
   unfold Tables.addSchema
   · refine ⟨T.extends_addViews _ _, H'.addViews ?_⟩
     obtain ⟨expanded, aux, hdata, _, _, hnames, _⟩ := hcert
@@ -133,14 +133,14 @@ theorem Tables.Inv.addSchema_registered {base E : VEnv} {source : VInductDecl}
     (hcert : schema.Certified base source block) (hreg : E.eliminators key schema)
     (hconsts : ∀ value ∈ block.types ++ block.ctors,
       E.constants value.name = some value.toVConstant)
-    (hrigid : ∀ t ∈ source.types, selFreeIn E T t = true →
+    (hrigid : ∀ t ∈ source.types, unrecordedIn E T t = true →
       E.Rigid t.name ∧ ∀ c ∈ t.ctors, E.Rigid c.name) :
     T.Extends (T.addSchema E source) ∧ (T.addSchema E source).Inv E := by
   classical
   have hcert₀ := hcert
-  have hfree : ∀ t ∈ source.types, selFreeIn E T t = true → T.fam t.name = none ∧
+  have hfree : ∀ t ∈ source.types, unrecordedIn E T t = true → T.fam t.name = none ∧
       T.ctor t.name = none ∧ ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none := by
-    intro t _ ht; simpa [selFree] using selFree_of_selFreeIn ht
+    intro t _ ht; simpa [unrecorded] using selFree_of_selFreeIn ht
   unfold Tables.addSchema
   refine ⟨T.extends_addViews _ _, H.addViews ?_⟩
   obtain ⟨expanded, aux, hdata, _, _, hnames, _⟩ := hcert
@@ -169,14 +169,14 @@ theorem Tables.Inv.addSchema_registered {base E : VEnv} {source : VInductDecl}
     · exact (Certified.mem_schemaCtorNames hcert₀).mpr
         ⟨c, List.mem_flatMap.mpr ⟨t, ht, hc⟩, rfl⟩
 
-/-- A family whose names are fresh in a well-formed environment is selected by `selFreeIn` in
+/-- A family whose names are fresh in a well-formed environment is selected by `unrecordedIn` in
 every environment with the same schemas. -/
 theorem selFreeIn_of_fresh {base E : VEnv} {t : VInductiveType} (H : T.Inv base)
     (hbase : base.WF) (helim : ∀ {k s}, E.eliminators k s → base.eliminators k s)
     (hfresh : base.constants t.name = none)
-    (hfreshC : ∀ c ∈ t.ctors, base.constants c.name = none) : selFreeIn E T t = true := by
+    (hfreshC : ∀ c ∈ t.ctors, base.constants c.name = none) : unrecordedIn E T t = true := by
   classical
-  simp only [selFreeIn, selFree, Bool.and_eq_true, decide_eq_true_eq]
+  simp only [unrecordedIn, unrecorded, Bool.and_eq_true, decide_eq_true_eq]
   refine ⟨⟨(H.freshT hfresh).1, (H.freshT hfresh).2.1, fun c hc =>
     ⟨(H.freshT (hfreshC c hc)).1, (H.freshT (hfreshC c hc)).2.1⟩⟩, ?_⟩
   rintro ⟨key, schema, hreg, hmem⟩
@@ -227,14 +227,14 @@ theorem constructorStage_facts {base envTypes envCtors : VEnv} {block : VInductB
   · exact (VEnv.addConstVals_le hctors).constants (VEnv.addConstVals_get htypes hvalue)
   · exact VEnv.addConstVals_get hctors hvalue
 
-/-- Every family of a certified declaration is selected by `selFreeIn` at its constructor
+/-- Every family of a certified declaration is selected by `unrecordedIn` at its constructor
 stage. -/
 theorem selFreeIn_constructorStage {base envTypes envCtors : VEnv} {decl : VInductDecl}
     {block : VInductBlock} {schema : CaseSchema} (H : T.Inv base) (hbase : base.WF)
     (hcert : schema.Certified base decl block)
     (htypes : base.addConstVals block.types = some envTypes)
     (hctors : envTypes.addConstVals block.ctors = some envCtors)
-    {t : VInductiveType} (ht : t ∈ decl.types) : selFreeIn envCtors T t = true := by
+    {t : VInductiveType} (ht : t ∈ decl.types) : unrecordedIn envCtors T t = true := by
   obtain ⟨_, _, hdata, _⟩ := hcert
   obtain ⟨-, -, -, helimC, -⟩ := constructorStage_facts htypes hctors
   refine selFreeIn_of_fresh H hbase (fun h => by rwa [helimC] at h) ?_ fun c hc => ?_

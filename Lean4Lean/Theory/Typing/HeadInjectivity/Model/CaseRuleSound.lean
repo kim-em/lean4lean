@@ -140,7 +140,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     (htype : schema.genericType owner = some type) (eH : type = .wrapForalls dsH RH)
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs))
-    (hfam : MajorFam0 env I ctor)
+    (hfam : MajorFamEntry env I ctor)
     (hRH : HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
     (hR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
@@ -426,7 +426,7 @@ theorem sound_pat_elim_empty {df : VDefEq} {b : Name} {schema : InductiveSignatu
     (htype : schema.genericType owner = some type) (eH : type = .wrapForalls dsH RH)
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs))
-    (hfam : MajorFam0 env I ctor)
+    (hfam : MajorFamEntry env I ctor)
     (ihL : SoundAt env U Δ Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls))
     (ihR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) ∧
       HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))

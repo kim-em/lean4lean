@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Typing.HeadInversionDefs
 
 /-! # Chain-level head injectivity and the injectivity fields of head inversion
 
-`HeadInjectivityCore` is the hypothesis of the syntactic layer: injectivity of type heads
+`ChainHeadInjectivity` is the hypothesis of the syntactic layer: injectivity of type heads
 along `TypeChain`s, to be supplied by a semantic model (see
 `docs/inductives/PHASE1B_NOTES.md`, sections 3 and 5). `HeadInjectivity` is what the
 syntactic layer derives from it: the structure `VEnv.HeadInjectivity` of
@@ -18,7 +18,7 @@ namespace VEnv
 `sort_sort`, `rigid_rigid` and `former_args` are the fields of `HeadInversion` of the
 same names; `forallE_chain` is the chain-level form of `forallE_forallE`, relating the
 domains and codomains by chains rather than by single definitional equalities. -/
-structure HeadInjectivityCore (env : VEnv) : Prop where
+structure ChainHeadInjectivity (env : VEnv) : Prop where
   sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
     env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v
   forallE_chain : ∀ {U Γ A B A' B'}, OnCtx Γ (env.IsType U) →

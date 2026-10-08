@@ -4,7 +4,7 @@ import Lean4Lean.Theory.Typing.EnvTables.OfHistory
 # Environment tables
 
 For a well-formed environment, `ctorOf env` and `famOf env` are chosen from the tables built along
-one of its histories (`HistTables`, `EnvTablesHist.lean`). They record, for every family, its
+one of its histories (`Tables.OfHistory`, `EnvTablesHist.lean`). They record, for every family, its
 *first* registration: native installation (families with at least one constructor), structure
 registration, eliminator registration (family by family, for a family none of whose names was
 recorded before) or the quotient.
@@ -30,12 +30,12 @@ open VEnv InductiveSignature
 variable {env : VEnv}
 
 /-- The tables chosen for an environment: tables built along one of its histories
-(`HistTables`, `EnvTablesHist.lean`; empty if it has none). -/
+(`Tables.OfHistory`, `EnvTablesHist.lean`; empty if it has none). -/
 noncomputable def envTables (env : VEnv) : Tables := by
   classical
-  exact if h : ∃ T : Tables, HistTables env T then Classical.choose h else Tables.empty
+  exact if h : ∃ T : Tables, Tables.OfHistory env T then Classical.choose h else Tables.empty
 
-theorem envTables_hist (H : env.WF) : HistTables env (envTables env) := by
+theorem envTables_hist (H : env.WF) : Tables.OfHistory env (envTables env) := by
   classical
   have h := VEnv.WF'.histTables H.choose_spec
   simp only [envTables, dif_pos h]

@@ -13,29 +13,29 @@ open InductiveSignature VExpr
 /-- The syntactic condition under which restoration succeeds: every
 auxiliary head occurs with its universe arity and at least its parameter
 count of arguments (`n` counts the arguments supplied by the spine). -/
-def RestoreOK (r : Restoration) : VExpr → Nat → Prop
-  | .app fn arg, n => RestoreOK r arg 0 ∧ RestoreOK r fn (n + 1)
+def Restorable (r : Restoration) : VExpr → Nat → Prop
+  | .app fn arg, n => Restorable r arg 0 ∧ Restorable r fn (n + 1)
   | .const name levels, n => ∀ h, r.heads.find? (fun h => h.auxiliary == name) = some h →
       levels.length = h.uvars ∧ h.nparams ≤ n
-  | .lam d b, _ => RestoreOK r d 0 ∧ RestoreOK r b 0
-  | .forallE d b, _ => RestoreOK r d 0 ∧ RestoreOK r b 0
-  | .proj _ _ m, _ => RestoreOK r m 0
+  | .lam d b, _ => Restorable r d 0 ∧ Restorable r b 0
+  | .forallE d b, _ => Restorable r d 0 ∧ Restorable r b 0
+  | .proj _ _ m, _ => Restorable r m 0
   | _, _ => True
 
 theorem restore_go_isSome (r : Restoration) (e : VExpr) (args : List VExpr) :
-    (Restoration.expr.go r e args).isSome ↔ RestoreOK r e args.length := by
+    (Restoration.expr.go r e args).isSome ↔ Restorable r e args.length := by
   induction e generalizing args with
   | app fn arg ihf iha =>
-    simp only [Restoration.expr.go, bind, RestoreOK]
+    simp only [Restoration.expr.go, bind, Restorable]
     cases h : Restoration.expr.go r arg [] with
     | none =>
-      have : ¬ RestoreOK r arg 0 := fun hok => by simpa [h] using (iha []).mpr hok
+      have : ¬ Restorable r arg 0 := fun hok => by simpa [h] using (iha []).mpr hok
       simp [this]
     | some a' =>
-      have : RestoreOK r arg 0 := (iha []).mp (by simp [h])
+      have : Restorable r arg 0 := (iha []).mp (by simp [h])
       simp [this, ihf]
   | const name levels =>
-    simp only [Restoration.expr.go, RestoreOK]
+    simp only [Restoration.expr.go, Restorable]
     split
     · rename_i h hh
       simp only [HeadSpecialization.apply, bind, pure]
@@ -59,74 +59,74 @@ theorem restore_go_isSome (r : Restoration) (e : VExpr) (args : List VExpr) :
       rw [hh] at hh'
       cases hh'
   | lam d b ihd ihb | forallE d b ihd ihb =>
-    simp only [Restoration.expr.go, bind, RestoreOK]
+    simp only [Restoration.expr.go, bind, Restorable]
     cases h1 : Restoration.expr.go r d [] with
     | none =>
-      have : ¬ RestoreOK r d 0 := fun hok => by simpa [h1] using (ihd []).mpr hok
+      have : ¬ Restorable r d 0 := fun hok => by simpa [h1] using (ihd []).mpr hok
       simp [this]
     | some d' =>
-      have : RestoreOK r d 0 := (ihd []).mp (by simp [h1])
+      have : Restorable r d 0 := (ihd []).mp (by simp [h1])
       cases h2 : Restoration.expr.go r b [] with
       | none =>
-        have : ¬ RestoreOK r b 0 := fun hok => by simpa [h2] using (ihb []).mpr hok
+        have : ¬ Restorable r b 0 := fun hok => by simpa [h2] using (ihb []).mpr hok
         simp [*]
       | some b' =>
-        have : RestoreOK r b 0 := (ihb []).mp (by simp [h2])
+        have : Restorable r b 0 := (ihb []).mp (by simp [h2])
         simp [*]
   | proj n i m ih =>
-    simp only [Restoration.expr.go, bind, RestoreOK]
+    simp only [Restoration.expr.go, bind, Restorable]
     cases h : Restoration.expr.go r m [] with
     | none =>
-      have : ¬ RestoreOK r m 0 := fun hok => by simpa [h] using (ih []).mpr hok
+      have : ¬ Restorable r m 0 := fun hok => by simpa [h] using (ih []).mpr hok
       simp [this]
     | some m' =>
-      have : RestoreOK r m 0 := (ih []).mp (by simp [h])
+      have : Restorable r m 0 := (ih []).mp (by simp [h])
       simp [this]
-  | bvar | sort | elim => simp [Restoration.expr.go, RestoreOK]
+  | bvar | sort | elim => simp [Restoration.expr.go, Restorable]
 
 theorem restoreOK_instL (r : Restoration) (ls : List VLevel) :
-    ∀ (e : VExpr) (n : Nat), RestoreOK r (e.instL ls) n ↔ RestoreOK r e n
-  | .app f a, n => by simp only [instL, RestoreOK, restoreOK_instL r ls f, restoreOK_instL r ls a]
+    ∀ (e : VExpr) (n : Nat), Restorable r (e.instL ls) n ↔ Restorable r e n
+  | .app f a, n => by simp only [instL, Restorable, restoreOK_instL r ls f, restoreOK_instL r ls a]
   | .lam d b, n | .forallE d b, n => by
-    simp only [instL, RestoreOK, restoreOK_instL r ls d, restoreOK_instL r ls b]
-  | .proj _ _ m, n => by simp only [instL, RestoreOK, restoreOK_instL r ls m]
-  | .const c us, n => by simp [instL, RestoreOK]
-  | .bvar _, _ | .sort _, _ | .elim .., _ => by simp [instL, RestoreOK]
+    simp only [instL, Restorable, restoreOK_instL r ls d, restoreOK_instL r ls b]
+  | .proj _ _ m, n => by simp only [instL, Restorable, restoreOK_instL r ls m]
+  | .const c us, n => by simp [instL, Restorable]
+  | .bvar _, _ | .sort _, _ | .elim .., _ => by simp [instL, Restorable]
 
 theorem restoreOK_liftN (r : Restoration) (k : Nat) :
-    ∀ (e : VExpr) (j n : Nat), RestoreOK r (e.liftN k j) n ↔ RestoreOK r e n
+    ∀ (e : VExpr) (j n : Nat), Restorable r (e.liftN k j) n ↔ Restorable r e n
   | .app f a, j, n => by
-    simp only [liftN, RestoreOK, restoreOK_liftN r k f, restoreOK_liftN r k a]
+    simp only [liftN, Restorable, restoreOK_liftN r k f, restoreOK_liftN r k a]
   | .lam d b, j, n | .forallE d b, j, n => by
-    simp only [liftN, RestoreOK, restoreOK_liftN r k d, restoreOK_liftN r k b]
-  | .proj _ _ m, j, n => by simp only [liftN, RestoreOK, restoreOK_liftN r k m]
-  | .const c us, _, n => by simp [liftN, RestoreOK]
-  | .bvar _, _, _ | .sort _, _, _ | .elim .., _, _ => by simp [liftN, RestoreOK]
+    simp only [liftN, Restorable, restoreOK_liftN r k d, restoreOK_liftN r k b]
+  | .proj _ _ m, j, n => by simp only [liftN, Restorable, restoreOK_liftN r k m]
+  | .const c us, _, n => by simp [liftN, Restorable]
+  | .bvar _, _, _ | .sort _, _, _ | .elim .., _, _ => by simp [liftN, Restorable]
 
 theorem restoreOK_mkApps (r : Restoration) (fn : VExpr) (args : List VExpr) (n : Nat) :
-    RestoreOK r (mkApps fn args) n ↔
-      (∀ a ∈ args, RestoreOK r a 0) ∧ RestoreOK r fn (n + args.length) := by
+    Restorable r (mkApps fn args) n ↔
+      (∀ a ∈ args, Restorable r a 0) ∧ Restorable r fn (n + args.length) := by
   induction args generalizing fn n with
   | nil => simp [mkApps]
   | cons a args ih =>
     simp only [mkApps, List.foldl_cons] at ih ⊢
     rw [ih]
-    simp only [RestoreOK, List.mem_cons, forall_eq_or_imp, List.length_cons]
+    simp only [Restorable, List.mem_cons, forall_eq_or_imp, List.length_cons]
     constructor
     · rintro ⟨h1, h2, h3⟩; exact ⟨⟨h2, h1⟩, by simpa [Nat.add_assoc, Nat.add_comm 1] using h3⟩
     · rintro ⟨⟨h2, h1⟩, h3⟩; exact ⟨h1, h2, by simpa [Nat.add_assoc, Nat.add_comm 1] using h3⟩
 
 theorem restoreOK_wrapForalls (r : Restoration) (doms : List VExpr) (body : VExpr) :
-    RestoreOK r (wrapForalls doms body) 0 ↔
-      (∀ d ∈ doms, RestoreOK r d 0) ∧ RestoreOK r body 0 := by
+    Restorable r (wrapForalls doms body) 0 ↔
+      (∀ d ∈ doms, Restorable r d 0) ∧ Restorable r body 0 := by
   induction doms with
   | nil => simp [wrapForalls]
   | cons d ds ih =>
     simp only [wrapForalls, List.foldr_cons] at ih ⊢
-    simp only [RestoreOK, ih, List.mem_cons, forall_eq_or_imp, and_assoc]
+    simp only [Restorable, ih, List.mem_cons, forall_eq_or_imp, and_assoc]
 
 theorem restoreOK_vars (r : Restoration) (count below : Nat) :
-    ∀ a ∈ vars count below, RestoreOK r a 0 := by
+    ∀ a ∈ vars count below, Restorable r a 0 := by
   intro a ha
   obtain ⟨i, _, rfl⟩ := List.mem_map.mp ha
   trivial
@@ -326,13 +326,13 @@ theorem mem_insertBinders {l : List VExpr} {x : VExpr} (h : x ∈ l) (k : Nat) :
 
 theorem case_restoreOK (schema : CaseSchema) (owner : Fin schema.signature.families.size)
     {r : Restoration}
-    (hp : ∀ p ∈ schema.signature.params, RestoreOK r p 0)
+    (hp : ∀ p ∈ schema.signature.params, Restorable r p 0)
     (hc : ∀ c ∈ schema.signature.constructors.toList,
-      (∀ f ∈ schema.signature.fieldTypes c, RestoreOK r f 0) ∧ ∀ e ∈ c.indices, RestoreOK r e 0)
-    (hi : ∀ e ∈ schema.signature.families[owner].indices, RestoreOK r e 0)
+      (∀ f ∈ schema.signature.fieldTypes c, Restorable r f 0) ∧ ∀ e ∈ c.indices, Restorable r e 0)
+    (hi : ∀ e ∈ schema.signature.families[owner].indices, Restorable r e 0)
     (hconst : ∀ name n, schema.signature.params.length ≤ n →
-      RestoreOK r (.const name schema.genericLevels) n) :
-    RestoreOK r ((schema.specialize owner schema.genericUvars schema.genericLevels
+      Restorable r (.const name schema.genericLevels) n) :
+    Restorable r ((schema.specialize owner schema.genericUvars schema.genericLevels
       (.param 0)).recursorType (schema.viewOwner owner)) 0 := by
   simp only [Instance.recursorType]
   rw [restoreOK_wrapForalls]
@@ -611,29 +611,29 @@ theorem CaseSchema.Certified.genericType_closed {schema : CaseSchema}
   obtain ⟨RP, hRP, hRI⟩ := hheader
   rw [hr] at hRP hRI
   let r := compilationRestoration source auxiliaries
-  have hOK : ∀ e e', r.expr e = some e' → RestoreOK r e 0 := by
+  have hOK : ∀ e e', r.expr e = some e' → Restorable r e 0 := by
     intro e e' he
     have := (restore_go_isSome r e []).mp (by
       change (r.expr e).isSome = true; rw [he]; rfl)
     simpa using this
-  have hmapOK : ∀ (l L : List VExpr), l.mapM r.expr = some L → ∀ e ∈ l, RestoreOK r e 0 := by
+  have hmapOK : ∀ (l L : List VExpr), l.mapM r.expr = some L → ∀ e ∈ l, Restorable r e 0 := by
     intro l L hl e he
     obtain ⟨e', _, he'⟩ := Lean4Lean.List.Forall₂.forall_exists_l (List.mapM_eq_some.mp hl) _ he
     exact hOK e e' he'
-  have hpOK : ∀ p ∈ schema.signature.params, RestoreOK r p 0 := hmapOK _ _ hRP
-  have hiOK : ∀ e ∈ schema.signature.families[owner].indices, RestoreOK r e 0 := by
+  have hpOK : ∀ p ∈ schema.signature.params, Restorable r p 0 := hmapOK _ _ hRP
+  have hiOK : ∀ e ∈ schema.signature.families[owner].indices, Restorable r e 0 := by
     obtain ⟨RI, hRI', -⟩ := hRI owner
     exact hmapOK _ _ hRI'
   have hcOK : ∀ c ∈ schema.signature.constructors.toList,
-      (∀ f ∈ schema.signature.fieldTypes c, RestoreOK r f 0) ∧
-        ∀ e ∈ c.indices, RestoreOK r e 0 := by
+      (∀ f ∈ schema.signature.fieldTypes c, Restorable r f 0) ∧
+        ∀ e ∈ c.indices, Restorable r e 0 := by
     intro c hc
     obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem hc
     let index : Fin schema.signature.constructors.size := ⟨i, by simpa using hi⟩
     have hcidx : schema.signature.constructors.toList[i] = schema.signature.constructors[index] := by
       simp [index]
     rw [hcidx]
-    have hctorOK : RestoreOK r
+    have hctorOK : Restorable r
         (schema.signature.constructorType schema.signature.constructors[index]) 0 := by
       obtain ⟨_, _, _, _, _, hfamilies⟩ := hdata.correspondence
       obtain ⟨src, -, hrest⟩ := Lean4Lean.List.Forall₂.forall_exists_l hfamilies _
@@ -659,7 +659,7 @@ theorem CaseSchema.Certified.genericType_closed {schema : CaseSchema}
   have hnparams : schema.signature.params.length = source.nparams :=
     hdata.model.nparams.trans hdata.nparams
   have hconst : ∀ name n, schema.signature.params.length ≤ n →
-      RestoreOK r (.const name schema.genericLevels) n := by
+      Restorable r (.const name schema.genericLevels) n := by
     intro name n hn h hfind
     obtain ⟨hu, hp⟩ := hheads h (List.mem_of_find?_eq_some hfind)
     refine ⟨?_, ?_⟩

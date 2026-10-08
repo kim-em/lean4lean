@@ -4,7 +4,7 @@ import Lean4Lean.Theory.Typing.ProjectionRigidity
 
 /-! # Uniqueness of types from chain-level head injectivity
 
-From `HeadInjectivityCore` (no `HeadInversion`), by one induction on the first strong
+From `ChainHeadInjectivity` (no `HeadInversion`), by one induction on the first strong
 typing, prove simultaneously
 
 * (i) uniqueness of types up to `TypeChain` (`HasTypeStrong.uniq_chain'`), and
@@ -61,7 +61,7 @@ theorem congrUB_leaf (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   have hY' := hY.weakN henv.ordered W
   exact (hi (hY'.strong henv.ordered hΓ).hasType'.1).symm.defeqDF hY'
 
-theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore)
+theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.ChainHeadInjectivity)
     (h1 : env.HasTypeStrong U Γ e A b) : OnCtx Γ (env.IsType U) →
     (∀ {B b₂}, env.HasTypeStrong U Γ e B b₂ → env.TypeChain U Γ A B) ∧
     (∀ {Γ₀ k e'}, Ctx.LiftN k 0 Γ₀ Γ → CongrUB env U Γ₀ k e e' →
@@ -226,7 +226,7 @@ theorem HasTypeStrong.uniq_congr (henv : env.WF) (core : env.HeadInjectivityCore
     | bvar | sort | const | elim | app | proj | lam => cases hx
 
 /-- Uniqueness of types up to a chain, from chain-level head injectivity. -/
-theorem HasTypeStrong.uniq_chain' (henv : env.WF) (core : env.HeadInjectivityCore)
+theorem HasTypeStrong.uniq_chain' (henv : env.WF) (core : env.ChainHeadInjectivity)
     (hΓ : OnCtx Γ (env.IsType U))
     (h1 : env.HasTypeStrong U Γ e A b₁) (h2 : env.HasTypeStrong U Γ e B b₂) :
     env.TypeChain U Γ A B :=
@@ -234,14 +234,14 @@ theorem HasTypeStrong.uniq_chain' (henv : env.WF) (core : env.HeadInjectivityCor
 
 /-- A strongly typed term is definitionally equal, at its type, to every
 `CongrUB`-related term. -/
-theorem HasTypeStrong.congrUB_defeq (henv : env.WF) (core : env.HeadInjectivityCore)
+theorem HasTypeStrong.congrUB_defeq (henv : env.WF) (core : env.ChainHeadInjectivity)
     (hΓ : OnCtx Γ (env.IsType U)) (h1 : env.HasTypeStrong U Γ e A b)
     (W : Ctx.LiftN k 0 Γ₀ Γ) (hc : CongrUB env U Γ₀ k e e') :
     env.IsDefEq U Γ e e' A :=
   (h1.uniq_congr henv core hΓ).2 W hc
 
 /-- Copy of `TypeChain.collapse` (`UniqueTyping.lean`) using `uniq_chain'`. -/
-theorem TypeChain.collapse' (henv : env.WF) (core : env.HeadInjectivityCore)
+theorem TypeChain.collapse' (henv : env.WF) (core : env.ChainHeadInjectivity)
     (hΓ : OnCtx Γ (env.IsType U)) (H : env.TypeChain U Γ A B)
     (hA : env.HasType U Γ A (.sort u)) : env.IsDefEq U Γ A B (.sort u) := by
   have retype {X Y w} (hX : env.HasType U Γ X (.sort u))

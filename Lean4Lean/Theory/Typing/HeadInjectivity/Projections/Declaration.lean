@@ -13,7 +13,7 @@ projections and eliminators of `base`, so soundness of `base`'s derivations appl
 namespace Lean4Lean
 
 /-- The facts recorded at the installation of a projection entry. -/
-def VEnv.ProjOrigin (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
+def VEnv.ProjDecl (env : VEnv) (S : Name) (info : VProjectionInfo) : Prop :=
   ∃ (base envTypes : VEnv) (dsb : List VDecl) (decl : VInductDecl) (type : VInductiveType)
     (ctor : VConstVal),
     base.WF' dsb ∧ base.addConstVals decl.typeConstants = some envTypes ∧ envTypes ≤ env ∧
@@ -40,7 +40,7 @@ theorem VExpr.mkApps_getAppFnArgs_go : ∀ (e : VExpr) (args : List VExpr),
 /-- **The syntactic shape of a projection-registered constructor type**: a telescope ending
 in the family at its own universe parameters, applied to the parameter variables and to index
 arguments. -/
-theorem VEnv.ProjOrigin.ctorType_shape {env : VEnv} (h : env.ProjOrigin S info) :
+theorem VEnv.ProjDecl.ctorType_shape {env : VEnv} (h : env.ProjDecl S info) :
     ∃ doms idx, info.ctorType = VExpr.wrapForalls doms
         (VExpr.mkApps (.const S (VLevel.params info.uvars))
           ((List.range info.nparams).reverse.map
