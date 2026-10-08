@@ -335,8 +335,8 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env
       (wf.tr (safety := .safe)).map_wf vs hfresh hnd
     constructorOwners := wf.constructorOwners.addDefinitions
       (wf.tr (safety := .safe)).map_wf vs hfresh hnd
-    ctorParamsAgree {safety} :=
-      (wf.ctorParamsAgree (safety := safety)).addDefinitions
+    constructorParameterAlignment {safety} :=
+      (wf.constructorParameterAlignment (safety := safety)).addDefinitions
         (wf.tr (safety := .safe)).map_wf vs hfresh hnd (hleFinal safety)
     inductFamiliesInstalled {safety} := by
       rw [Environment.constants_addDefs]
@@ -377,7 +377,7 @@ theorem VEnvs.WFCore.extendUnsafeExact
     (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
     (hconstructorSemantics : ∀ safety,
-      VerifyInductive.CtorParamsAgree safety env'
+      VerifyInductive.ConstructorParameterAlignment safety env'
         (match safety with
         | .unsafe => unsafeEnv
         | .partial => ves.venv .partial
@@ -404,8 +404,8 @@ theorem VEnvs.WFCore.extendUnsafeExact
       safePrimitives := hsafePrimitives
       inductivesClosed := hinductivesClosed
       constructorOwners := hconstructorOwners
-      ctorParamsAgree {safety} := by
-        change VerifyInductive.CtorParamsAgree
+      constructorParameterAlignment {safety} := by
+        change VerifyInductive.ConstructorParameterAlignment
           safety env' (match safety with
           | .unsafe => unsafeEnv
           | .partial => ves.venv .partial
@@ -468,7 +468,7 @@ theorem VEnvs.WFCore.extendInductExact
     (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
     (hconstructorSemantics : ∀ safety,
-      VerifyInductive.CtorParamsAgree safety env'
+      VerifyInductive.ConstructorParameterAlignment safety env'
         (next safety))
     (hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety) :
@@ -489,8 +489,8 @@ theorem VEnvs.WFCore.extendInductExact
       safePrimitives := hsafePrimitives
       inductivesClosed := hinductivesClosed
       constructorOwners := hconstructorOwners
-      ctorParamsAgree {safety} := by
-        change VerifyInductive.CtorParamsAgree
+      constructorParameterAlignment {safety} := by
+        change VerifyInductive.ConstructorParameterAlignment
           safety env' (next safety)
         exact hconstructorSemantics safety
       inductFamiliesInstalled {safety} :=
@@ -561,8 +561,8 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       (wf.tr (safety := .safe)).map_wf hn hnind
     constructorOwners := wf.constructorOwners.addNonConstructor
       (wf.tr (safety := .safe)).map_wf hn hnctor
-    ctorParamsAgree {safety} :=
-      (wf.ctorParamsAgree (safety := safety)).addNonInductive
+    constructorParameterAlignment {safety} :=
+      (wf.constructorParameterAlignment (safety := safety)).addNonInductive
         (wf.tr (safety := .safe)).map_wf hn hnind (hves' safety).le
     inductFamiliesInstalled {safety} := by
       change InductFamiliesInstalled safety
@@ -656,8 +656,8 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     constructorOwners := wf.constructorOwners.addNonConstructor
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    ctorParamsAgree {safety} :=
-      (wf.ctorParamsAgree (safety := safety)).addNonInductive
+    constructorParameterAlignment {safety} :=
+      (wf.constructorParameterAlignment (safety := safety)).addNonInductive
         (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
         (hves' safety).le
     inductFamiliesInstalled {safety} := by
@@ -731,8 +731,8 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     constructorOwners := wf.constructorOwners.addNonConstructor
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
-    ctorParamsAgree {safety} :=
-      (wf.ctorParamsAgree (safety := safety)).addNonInductive
+    constructorParameterAlignment {safety} :=
+      (wf.constructorParameterAlignment (safety := safety)).addNonInductive
         (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
         (match safety with
         | .unsafe => hle

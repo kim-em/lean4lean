@@ -45,11 +45,11 @@ private theorem FreshExtension.trEnvIgnore
       exact ih hnextWF (fun entry hentry =>
         hhidden entry (by simp [hentry])) hhead
 
-private def CtorParamsAgreeAt.mapKernel
-    (H : CtorParamsAgreeAt source venv familyName
+private def ConstructorParameterAlignmentAt.mapKernel
+    (H : ConstructorParameterAlignmentAt source venv familyName
       familyInfo i hi)
     (heq : ∀ name, source.find? name = target.find? name) :
-    CtorParamsAgreeAt target venv familyName
+    ConstructorParameterAlignmentAt target venv familyName
       familyInfo i hi where
   info := H.info
   lookup := by
@@ -80,10 +80,10 @@ private def CtorParamsAgreeAt.mapKernel
   constructorParams := H.constructorParams
   parameterDomains := H.parameterDomains
 
-private theorem CtorParamsAgree.mapKernel
-    (H : CtorParamsAgree safety source venv)
+private theorem ConstructorParameterAlignment.mapKernel
+    (H : ConstructorParameterAlignment safety source venv)
     (heq : ∀ name, source.find? name = target.find? name) :
-    CtorParamsAgree safety target venv := by
+    ConstructorParameterAlignment safety target venv := by
   intro familyName familyInfo hfamily hvisible i hi
   have hfamily' : source.find? familyName =
       some (.inductInfo familyInfo) := by
@@ -313,7 +313,7 @@ private theorem RestoredBlockCertificate.extendSafe
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules))) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -419,7 +419,7 @@ private theorem RestoredBlockCertificate.extendSafe
   let next (observer : DefinitionSafety) :=
     (cert observer).installedVEnv
   have hcompletedCanonical :
-      CtorParamsAgree .safe C.installedEnv
+      ConstructorParameterAlignment .safe C.installedEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)) :=
     hconstructorSemantics.mapKernel hlookupEnv
@@ -444,7 +444,7 @@ private theorem RestoredBlockCertificate.extendSafe
     · intro observer
       have Hcanonical := B.replaySafeConstructorTyping
         (cert observer) Hvalid.tr.map_wf
-        (wf.ctorParamsAgree (safety := observer)) hcompletedCanonical
+        (wf.constructorParameterAlignment (safety := observer)) hcompletedCanonical
         (outputLE observer)
       exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
     · intro observer observer' hle
@@ -482,7 +482,7 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -535,7 +535,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
     (hnames : allIndNames = sourceTypes.map (fun type => type.name))
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -578,7 +578,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
     {venvH : VEnv}
@@ -674,10 +674,10 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
     · exact hfresh
   have hiddenSemantics (observer : DefinitionSafety)
       (hne : observer ≠ .unsafe) :
-      CtorParamsAgree observer outEnv
+      ConstructorParameterAlignment observer outEnv
         (ves.venv observer) := by
     have Hcanonical := B.hiddenUnsafeConstructorTyping Hvalid.tr.map_wf
-      (wf.ctorParamsAgree (safety := observer)) hne hheadersCanonical
+      (wf.constructorParameterAlignment (safety := observer)) hne hheadersCanonical
     exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
   have hiddenProvenance (observer : DefinitionSafety)
       (hne : observer ≠ .unsafe) :
@@ -786,7 +786,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
       ∀ entry ∈ entries, entry.safety = .unsafe)
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)))
     {venvH : VEnv}

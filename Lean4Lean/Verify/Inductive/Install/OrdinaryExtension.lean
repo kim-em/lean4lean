@@ -130,10 +130,10 @@ theorem OrdinaryInstallation.extendSafeExact
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hconstructors :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
     exact Hrecursors.constructorTyping
-      (wf.ctorParamsAgree (safety := .safe)) T.rules
+      (wf.constructorParameterAlignment (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
     Hrecursors.inductInfosFromDecl
@@ -198,10 +198,10 @@ theorem OrdinaryInstallation.extendUnsafeExact
   have hisUnsafe : isUnsafe = true := by
     exact hproduction.trans (by rw [hsafety]; decide)
   have hconstructors :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
     exact Hrecursors.constructorTyping
-      (wf.ctorParamsAgree (safety := .unsafe)) T.rules
+      (wf.constructorParameterAlignment (safety := .unsafe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
     Hrecursors.inductInfosFromDecl

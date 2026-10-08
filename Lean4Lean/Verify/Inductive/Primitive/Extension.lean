@@ -61,12 +61,12 @@ theorem PrimitiveInstallation.extendSafeExact
     simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
       BlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
-  have Hsemantics : CtorParamsAgree .safe outEnv
+  have Hsemantics : ConstructorParameterAlignment .safe outEnv
       Hcert.installedVEnv := by
     simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
       BlockCertificate.installedVEnv] using
     Hrecursors.constructorTyping
-      (wf.ctorParamsAgree (safety := .safe)) T.rules
+      (wf.constructorParameterAlignment (safety := .safe)) T.rules
   rcases Hcert.extendSafeExact wf htels hdecl hcompile
       Hrecursors.inductInfosFromDecl T.newRecursorsAligned
       Hrecursors.closed

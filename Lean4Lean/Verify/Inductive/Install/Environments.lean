@@ -361,7 +361,7 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
         familyInfo.name = indTypes[familyIdx].name ∧
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
-        Nonempty (CtorParamsAgreeAt
+        Nonempty (ConstructorParameterAlignmentAt
           outEnv D.venvCtors familyInfo.name familyInfo ctorIdx hi) := by
   rcases H.sourceAligned with ⟨numNested, Haligned⟩
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -462,7 +462,7 @@ theorem ConstructorEnvironment.installedConstructorCoherenceAt
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
         AddInductive.constructorInfo, hindicesSize] }
   refine ⟨familyInfo, hi, hfamilyName, hfamilyCtors, hfamilyLookup, ?_⟩
-  apply CtorParamsAgreeAt.ofShapes C hfinalWF
+  apply ConstructorParameterAlignmentAt.ofShapes C hfinalWF
     decl.types[familyIdx] decl.types[familyIdx].ctors[ctorIdx]
     hfamilyTargetLookup hctorTargetLookup
   · exact Htype.header.uvars.trans core.uvars.symm
@@ -731,7 +731,7 @@ theorem ConstructorEnvironment.inductInfosFromDecl
 for base families and supplies it positionally for every newly declared
 family.  The fact for a new family is built positionally, not by matching
 names; names only identify the unique kernel lookup after installation. -/
-theorem ConstructorEnvironment.ctorParamsAgree
+theorem ConstructorEnvironment.constructorParameterAlignment
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -743,9 +743,9 @@ theorem ConstructorEnvironment.ctorParamsAgree
       isUnsafe decl H.context.venv D.venvCtors)
     (Hchecked : CheckedConstructors sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.statsWF.parameterScope)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) :
-    CtorParamsAgree
+    ConstructorParameterAlignment
       safety outEnv D.venvCtors := by
   intro familyName familyInfo hfamily hvisible ctorIdx hctor
   rcases D.installed.entryOrigin H.context.checking.tr.map_wf
@@ -1110,7 +1110,7 @@ theorem OrdinaryConstructorCheck.installedConstructorCoherenceAt
         familyInfo.name = indTypes[familyIdx].name ∧
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
-        Nonempty (CtorParamsAgreeAt
+        Nonempty (ConstructorParameterAlignmentAt
           outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) :=
   R.declared.toConstructorEnvironment.installedConstructorCoherenceAt
     R.core ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ familyIdx hfamily
@@ -1131,7 +1131,7 @@ theorem OrdinaryConstructorCheck.inductInfosFromDecl
   R.declared.toConstructorEnvironment.inductInfosFromDecl R.core
     ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩
 
-theorem OrdinaryConstructorCheck.ctorParamsAgree
+theorem OrdinaryConstructorCheck.constructorParameterAlignment
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -1139,11 +1139,11 @@ theorem OrdinaryConstructorCheck.ctorParamsAgree
     {H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
     (R : OrdinaryConstructorCheck H outEnv)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) :
-    CtorParamsAgree
+    ConstructorParameterAlignment
       safety outEnv R.declared.venvCtors :=
-  R.declared.toConstructorEnvironment.ctorParamsAgree R.core
+  R.declared.toConstructorEnvironment.constructorParameterAlignment R.core
     ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩ Hsource
 
 /-- The independent source environment used for header translation contains

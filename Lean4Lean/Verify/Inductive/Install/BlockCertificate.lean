@@ -531,11 +531,11 @@ theorem BlockCertificate.hiddenUnsafeConstructorTyping
     (H : BlockCertificate .unsafe prodEnv unsafeBase types ctors recursors
       rules outEnv outBase)
     (hwf : prodEnv.constants.WF)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       observer prodEnv observerBase)
     (hobserver : observer ≠ .unsafe)
     (Hhidden : NewFamiliesUnsafe prodEnv outEnv) :
-    CtorParamsAgree observer outEnv observerBase := by
+    ConstructorParameterAlignment observer outEnv observerBase := by
   intro familyName familyInfo hfamily hvisible i hi
   let Hinstall := H.installation.atomic
   rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
@@ -581,7 +581,7 @@ theorem BlockCertificate.extendUnsafeExact
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
         H.installedVEnv)
     (hinductiveProvenance : ∀ safety,
       InductFamiliesInstalled safety outEnv.constants
@@ -606,12 +606,12 @@ theorem BlockCertificate.extendUnsafeExact
     | «partial» =>
       exact H.hiddenUnsafeConstructorTyping
         (wf.tr (safety := .unsafe)).map_wf
-        (wf.ctorParamsAgree (safety := .partial)) (by decide)
+        (wf.constructorParameterAlignment (safety := .partial)) (by decide)
         hheadersUnsafe
     | safe =>
       exact H.hiddenUnsafeConstructorTyping
         (wf.tr (safety := .unsafe)).map_wf
-        (wf.ctorParamsAgree (safety := .safe)) (by decide)
+        (wf.constructorParameterAlignment (safety := .safe)) (by decide)
         hheadersUnsafe
   · exact hinductiveProvenance
   · exact VInductBlock.install_le H.install
@@ -627,12 +627,12 @@ theorem BlockCertificate.replaySafeConstructorTyping
     (Hreplay : BlockCertificate observer prodEnv observerBase types ctors
       recursors rules outEnv replayBase)
     (hwf : prodEnv.constants.WF)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       observer prodEnv observerBase)
-    (Hcompleted : CtorParamsAgree .safe outEnv
+    (Hcompleted : ConstructorParameterAlignment .safe outEnv
       H.installedVEnv)
     (hreplay : H.installedVEnv ≤ Hreplay.installedVEnv) :
-    CtorParamsAgree observer outEnv
+    ConstructorParameterAlignment observer outEnv
       Hreplay.installedVEnv := by
   intro familyName familyInfo hfamily hvisible i hi
   let Hinstall := Hreplay.installation.atomic
@@ -685,7 +685,7 @@ theorem BlockCertificate.extendSafeExact
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .safe outEnv
+      ConstructorParameterAlignment .safe outEnv
         H.installedVEnv)
     (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -748,7 +748,7 @@ theorem BlockCertificate.extendSafeExact
       ci.safety = .safe ∧ ci.levelParams = [] :=
     (Hsafe.validCore (valid .safe).toValidCore).safePrimitives
   have hsemantics : ∀ safety,
-      CtorParamsAgree safety outEnv
+      ConstructorParameterAlignment safety outEnv
         (next safety) := by
     intro safety
     have hreplay : H.installedVEnv ≤ (cert safety).installedVEnv := by
@@ -757,7 +757,7 @@ theorem BlockCertificate.extendSafeExact
     simpa [next, BlockCertificate.installedVEnv, certProjections safety] using
       H.replaySafeConstructorTyping (cert safety)
         (wf.tr (safety := safety)).map_wf
-        (wf.ctorParamsAgree (safety := safety)) hconstructorSemantics
+        (wf.constructorParameterAlignment (safety := safety)) hconstructorSemantics
         hreplay
   have hmono : ∀ {safety safety'}, safety ≤ safety' →
       next safety' ≤ next safety := by
@@ -821,7 +821,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     (hclosed : MutualInductivesClosed outEnv)
     (hconstructorOwners : ConstructorOwnersPresent outEnv)
     (hconstructorSemantics :
-      CtorParamsAgree .unsafe outEnv
+      ConstructorParameterAlignment .unsafe outEnv
         H.installedVEnv)
     (helim : VInductBlock.EliminatorsWF (ves.venv .unsafe) decl H.block) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
@@ -1087,18 +1087,18 @@ theorem RecursorCheck.outVEnvWF
 
 /-- Recursor installation preserves the constructor semantics established at
 the checked formation. -/
-theorem RecursorCheck.ctorParamsAgree
+theorem RecursorCheck.constructorParameterAlignment
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) :
-    CtorParamsAgree safety outEnv H.outVEnv := by
+    ConstructorParameterAlignment safety outEnv H.outVEnv := by
   apply H.installed.preservesConstructorTyping
   · rw [H.localExtends.env_eq]
     exact R.context.checking.tr.map_wf
   · rw [H.localExtends.env_eq]
-    exact (R.ctorParamsAgree Hsource).mono R.ctorLE
+    exact (R.constructorParameterAlignment Hsource).mono R.ctorLE
   · exact H.generated.nonInductive
 
 theorem RecursorCheck.inductInfosFromDecl
@@ -1118,11 +1118,11 @@ theorem RecursorCheck.constructorTyping
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) (rules : List VDefEq) :
-    CtorParamsAgree safety outEnv
+    ConstructorParameterAlignment safety outEnv
       (H.outVEnv.addDefEqRules rules) :=
-  (H.ctorParamsAgree Hsource).mono
+  (H.constructorParameterAlignment Hsource).mono
     VEnv.addDefEqRules_le
 
 theorem RecursorCheck.generatedTelescopeTranslations

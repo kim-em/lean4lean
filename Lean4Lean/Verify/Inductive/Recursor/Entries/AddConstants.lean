@@ -1344,18 +1344,18 @@ theorem AddConstants.listedConstructorsOfDeclaration
     cases hentryEq
 
 /-- Installing a batch containing no inductive headers preserves the
-constructor-parameter agreement `CtorParamsAgree`. Exact kernel-environment lookups are
+constructor-parameter agreement `ConstructorParameterAlignment`. Exact kernel-environment lookups are
 transported through the lockstep fold; all abstract judgments use
 the larger target environment of the same installation. -/
 theorem AddConstants.preservesConstructorTyping
     (H : AddConstants installSafety env venv entries outEnv outVEnv)
     (hwf : env.constants.WF)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       observer env venv)
     (hnind : ∀ (info : ConstantInfo) (value : VConstVal),
       (info, value) ∈ entries → ∀ inductiveValue,
         info ≠ .inductInfo inductiveValue) :
-    CtorParamsAgree observer outEnv outVEnv := by
+    ConstructorParameterAlignment observer outEnv outVEnv := by
   intro familyName familyInfo hfamily hvisible i hi
   rcases H.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩

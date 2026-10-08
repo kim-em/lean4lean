@@ -398,7 +398,7 @@ theorem VEnvs.WFCore.empty (m : Name) (s : Bool) :
   safePrimitives h := by simp [Kernel.Environment.empty_find?] at h
   inductivesClosed _ _ h := by simp [Kernel.Environment.empty_find?] at h
   constructorOwners _ _ h := by simp [Kernel.Environment.empty_find?] at h
-  ctorParamsAgree _ _ h := by simp [Kernel.Environment.empty_find?] at h
+  constructorParameterAlignment _ _ h := by simp [Kernel.Environment.empty_find?] at h
   inductFamiliesInstalled _ _ h := by
     change ({ stage₁ := s } : ConstMap).find? _ = _ at h; simp at h
   mono _ := VEnv.LE.rfl

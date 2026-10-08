@@ -9,7 +9,7 @@ import Lean4Lean.Verify.Inductive.Constructor.LiteralDisjoint
 
 Adds to the primitive constructor facts the invariants of the kernel environment that the
 shared recursor phase needs: lookup of the installed families (`InductInfosFromDecl`),
-constructor-parameter agreement (`CtorParamsAgree`) and mutual-family closure, yielding
+constructor-parameter agreement (`ConstructorParameterAlignment`) and mutual-family closure, yielding
 `PrimitiveConstructorCheck` (`AddInductive.primitiveConstructorPhases.WF`).
 -/
 
@@ -40,7 +40,7 @@ structure PrimitiveConstructorCoreCheck
 
 /-- Select one constructor installed by the primitive atomic batch and recover
 its family's kernel entry and constructor-parameter agreement
-(`CtorParamsAgreeAt`).  This is the primitive counterpart of
+(`ConstructorParameterAlignmentAt`).  This is the primitive counterpart of
 `OrdinaryConstructorCheck.installedConstructorCoherenceAt`; it never asserts a
 valid header-only context. -/
 theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
@@ -58,7 +58,7 @@ theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
         familyInfo.name = indTypes[familyIdx].name ∧
         familyInfo.ctors = indTypes[familyIdx].ctors.map (fun ctor => ctor.name) ∧
         outEnv.find? familyInfo.name = some (.inductInfo familyInfo) ∧
-        Nonempty (CtorParamsAgreeAt
+        Nonempty (ConstructorParameterAlignmentAt
           outEnv R.declared.venvCtors familyInfo.name familyInfo ctorIdx hi) := by
   rcases H.sourceAligned with ⟨numNested, Haligned⟩
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -160,7 +160,7 @@ theorem PrimitiveConstructorCoreCheck.installedConstructorCoherenceAt
       simp [ctorInfo, familyInfo, infos, AddInductive.inductiveTypeInfos,
         AddInductive.constructorInfo, hindicesSize] }
   refine ⟨familyInfo, hi, hfamilyName, hfamilyCtors, hfamilyLookup, ?_⟩
-  apply CtorParamsAgreeAt.ofShapes C hfinalWF
+  apply ConstructorParameterAlignmentAt.ofShapes C hfinalWF
     decl.types[familyIdx] decl.types[familyIdx].ctors[ctorIdx]
     hfamilyTargetLookup hctorTargetLookup
   · exact Htype.header.uvars.trans R.core.uvars.symm
@@ -421,9 +421,9 @@ theorem PrimitiveConstructorCoreCheck.inductInfosFromDecl
       hvalue.symm)
 
 /-- Atomic primitive header and constructor installation preserves
-constructor-parameter agreement (`CtorParamsAgree`) for the base families and
+constructor-parameter agreement (`ConstructorParameterAlignment`) for the base families and
 establishes it positionally for the newly installed canonical family. -/
-theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
+theorem PrimitiveConstructorCoreCheck.constructorParameterAlignment
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
@@ -431,9 +431,9 @@ theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCoreCheck H outEnv)
-    (Hsource : CtorParamsAgree
+    (Hsource : ConstructorParameterAlignment
       safety c.env sourceEnv) :
-    CtorParamsAgree
+    ConstructorParameterAlignment
       safety outEnv R.declared.venvCtors := by
   intro familyName familyInfo hfamily hvisible ctorIdx hctor
   rcases R.declared.installed.entryOrigin H.context.checking.map_wf
@@ -532,7 +532,7 @@ def PrimitiveConstructorCoreCheck.complete
   formation := R.formation
   core := R.core
   inductInfosFromDecl := R.inductInfosFromDecl
-  ctorParamsAgree := R.ctorParamsAgree
+  constructorParameterAlignment := R.constructorParameterAlignment
 
 /-- The successful executable check is followed by the exact atomic
 constructor fold.  Validity is regained only at the end of the fold, once the
