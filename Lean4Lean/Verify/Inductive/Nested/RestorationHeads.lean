@@ -41,15 +41,15 @@ private theorem find?_auxiliary_of_nodup' {l : List InductiveSignature.HeadSpeci
 
 /-- Pointwise existence of translations, with values fixed by the inversion
 lemma, assembles into the abstract specialisation of the arguments. -/
-private theorem forall₂_instantiate_of_exists {envS env : VEnv} {Us : List Name}
+private theorem forall₂_instantiate_of_exists {envS env : VEnv} {Us₀ Us : List Name}
     {ls : List VLevel}
-    (hls : (Us.map Level.param).mapM (VLevel.ofLevel Us) = some ls)
+    (hls : (Us₀.map Level.param).mapM (VLevel.ofLevel Us) = some ls)
     {As : List Expr} {params : List VExpr} {Δ : VLCtx}
     (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv)
     (hTr : List.Forall₂ (TrExprS env Us Δ) As params)
     {domains : List VExpr} (hdomains : domains.length = As.length) :
     ∀ {Ys : List Expr} {args : List VExpr},
-      List.Forall₂ (TrExprS envS Us (abstractForallContext domains [])) Ys args →
+      List.Forall₂ (TrExprS envS Us₀ (abstractForallContext domains [])) Ys args →
       (∀ Y ∈ Ys, ∃ v, TrExprS env Us Δ (Y.instantiateRevList As 0) v) →
       List.Forall₂ (TrExprS env Us Δ) (Ys.map (·.instantiateRevList As 0))
         (args.map fun arg => instantiateParams (arg.instL ls) params)
@@ -104,22 +104,22 @@ base context in which the opened parameters live. -/
 theorem RestorationTableData.restoreHeadsTranslate
     {decl : VInductDecl} {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
-    {auxRec : NameMap Name} {Us : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us)
+    {auxRec : NameMap Name} {Us₀ Us : List Name}
+    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
     {envT : VEnv} (hT : envT.WF)
-    {doms : List VExpr} (hdoms : doms.length = result.nparams)
+    {ats : List FVarId} {Dt : List VExpr}
     (Hval : ∀ name nested, result.aux2nested.find? name = some nested →
-      ∃ v, TrExprS envT Us (abstractForallContext doms []) (nested.abstract result.params) v)
+      ∃ (doms : List VExpr) (v : VExpr), doms.length = result.nparams ∧
+        TrExprS envT Us (abstractForallContext doms []) (nested.abstract result.params) v ∧
+        VLCtx.IsDefEq envT Us.length (fvarScope ats doms) (fvarScope ats Dt))
     (Hconsts : ∀ a ∈ auxiliaries,
       (∃ ci, envT.constants a.source.name = some ci ∧ ci.uvars = a.levels.length) ∧
       ∀ ctor ∈ a.source.ctors, ∃ ci, envT.constants ctor.name = some ci ∧
         ci.uvars = a.levels.length)
-    {ats : List FVarId} (hnodup : ats.Nodup) (hlen : ats.length = result.nparams)
-    {Dt : List VExpr}
-    (hΔ : VLCtx.IsDefEq envT Us.length (fvarScope ats doms) (fvarScope ats Dt))
+    (hnodup : ats.Nodup) (hlen : ats.length = result.nparams)
     {Δt0 : VLCtx} (hsame : VLCtx.SameUpToDeps (fvarScope ats Dt) Δt0) :
     RestoreHeadsTranslate (InductiveSignature.compilationRestoration decl auxiliaries) result
-      env envT Us (Us.map Level.param) ⟨ats.map .fvar⟩ Δt0 := by
+      env envT Us (Us₀.map Level.param) ⟨ats.map .fvar⟩ Δt0 := by
   have hheadsNodup :
       ((compilationRestoration decl auxiliaries).heads.map (·.auxiliary)).Nodup := by
     rw [compilationRestoration_heads_auxiliary]
@@ -142,8 +142,8 @@ theorem RestorationTableData.restoreHeadsTranslate
       (Ys : List Expr), result.aux2nested.find? a.auxiliary = some nested →
       domains.length = result.nparams →
       nested.abstract result.params = Expr.mkAppList (.const a.source.name lvls) Ys →
-      lvls.mapM (VLevel.ofLevel Us) = some a.levels →
-      List.Forall₂ (TrExprS envS Us (abstractForallContext domains [])) Ys a.arguments →
+      lvls.mapM (VLevel.ofLevel Us₀) = some a.levels →
+      List.Forall₂ (TrExprS envS Us₀ (abstractForallContext domains [])) Ys a.arguments →
       (∃ ci, envT.constants target = some ci ∧ ci.uvars = a.levels.length) →
       TrExprS envT Us Δt (.const target lvls)
           (.const target (a.levels.map (·.inst levels))) ∧
@@ -156,8 +156,10 @@ theorem RestorationTableData.restoreHeadsTranslate
     · have hclosed := AuxNestedSpec.reopen_closed hdom hYs hAs hsize
       exact forall₂_instantiate_of_exists hlevels hAs hPT
         (by simp [hdom, hlen]) hYs
-        (reopenedArgs_translate hT hdoms hab (Hval _ nested hn) hclosed hnodup hlen hΔ
-          hsame hlift)
+        (by
+          obtain ⟨doms, v, hdoms, hv, hΔ⟩ := Hval _ nested hn
+          exact reopenedArgs_translate hT hdoms hab ⟨v, hv⟩ hclosed hnodup hlen hΔ
+            hsame hlift)
   unfold restoreHead at hH
   cases hfind : result.aux2nested.find? c with
   | some nested =>
