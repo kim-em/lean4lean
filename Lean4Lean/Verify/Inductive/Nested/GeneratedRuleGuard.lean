@@ -143,9 +143,10 @@ theorem recursiveFields_positions {s : InductiveSignature} (ctor : Constructor s
 sublist of its field variables. -/
 theorem recursiveFields_args_sublist {s : InductiveSignature}
     (ctor : Constructor s.families.size) :
-    List.Sublist ((Instance.recursiveFields ctor).map fun p =>
-        VExpr.bvar (ctor.fields.length - 1 - p.1))
+    List.Sublist (((Instance.recursiveFields ctor).map Prod.fst).map fun i =>
+        VExpr.bvar (ctor.fields.length - 1 - i))
       (vars ctor.fields.length 0) := by
+  simp only [List.map_map, Function.comp_def]
   have hvars : vars ctor.fields.length 0 =
       ctor.fields.zipIdx.map fun p => VExpr.bvar (ctor.fields.length - 1 - p.2) := by
     apply List.ext_getElem
@@ -324,7 +325,7 @@ theorem restoredRecursiveCall_guarded {s : InductiveSignature} (g : Instance s)
 Bruijn indices beneath the fields of its generated equation. -/
 def recursiveFieldVars {s : InductiveSignature} (ctor : Constructor s.families.size) :
     List Nat :=
-  (Instance.recursiveFields ctor).map fun p => ctor.fields.length - 1 - p.1
+  ((Instance.recursiveFields ctor).map Prod.fst).map fun i => ctor.fields.length - 1 - i
 
 /-- **The restored right-hand side of a generated equation.** Under the
 avoidance of the generated recursor type's pieces, the restoration of the
@@ -393,7 +394,9 @@ theorem restoredEquation_rhs {s : InductiveSignature} (g : Instance s)
       obtain ⟨⟨field, rec⟩, hp, rfl⟩ := hc0
       exact restoredRecursiveCall_guarded g r hmention hhead hmem _ field rec
         (hrec _ hp).1 (hrec _ hp).2
-        (List.mem_map_of_mem (f := fun p => s.constructors[k].fields.length - 1 - p.1) hp) hr
+        (by
+          unfold recursiveFieldVars
+          exact List.mem_map_of_mem (List.mem_map_of_mem hp)) hr
 
 /-! ### Avoidance of the restored block recursors in a validated nested run -/
 
