@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Environment
 * Every declaration form, `quotDecl` included, satisfies `Declaration.IsModelled`.
 * The executable's `init_quot`, run after adding `Init.Prelude`'s `Eq` to an
   empty environment, installs `Quot`, `Quot.mk`, `Quot.lift` and `Quot.ind`
-  as Lean's kernel does (up to binder info), with the closed types `QuotInit.tQuotC` and
+  as Lean's kernel does, exactly, with the closed types `QuotInit.tQuotC` and
   siblings that `Environment.addQuot_eq` computes, and these translate to the
   abstract constants `quotConst`, `quotMkConst`, `quotLiftConst` and
   `quotIndConst` installed by `VEnv.addQuot`. -/
@@ -50,9 +50,8 @@ run_meta do
   for (n, closed, abs) in expected do
     let some (.quotInfo ci) := kenv.find? n | throwError "Lean4Lean did not install {n}"
     let some (.quotInfo ci₀) := env.find? n | throwError "missing {n}"
-    -- Up to binder info: Lean4Lean marks the `q` binder of `Quot.ind` implicit,
-    -- Lean's kernel does not.
-    check (ci.levelParams == ci₀.levelParams && ci.type == ci₀.type && ci.kind == ci₀.kind)
+    -- Exact comparison, binder info included.
+    check (ci.levelParams == ci₀.levelParams && ci.type.equal ci₀.type && ci.kind == ci₀.kind)
       s!"{n}: Lean4Lean and Lean's kernel disagree"
     check (ci.type.equal closed) s!"{n}: type is not the closed form of `Environment.addQuot_eq`"
     let t ← Lean4Lean.Meta.ofExpr ci.levelParams {} ci.type

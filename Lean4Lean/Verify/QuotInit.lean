@@ -125,7 +125,7 @@ def L4 : LocalContext := L3'.mkLocalDecl (fid 4) `β (.sort v) .implicit
 def L5 : LocalContext := L4.mkLocalDecl (fid 5) `f (Expr.arrow α β) .default
 def L6 : LocalContext := L5.mkLocalDecl (fid 6) `b α .default
 def L4' : LocalContext := L3'.mkLocalDecl (fid 4) `β (Expr.arrow quot_r Expr.prop) .implicit
-def L5' : LocalContext := L4'.mkLocalDecl (fid 5) `q quot_r .implicit
+def L5' : LocalContext := L4'.mkLocalDecl (fid 5) `q quot_r .default
 def sanity : Expr := L6.mkForall #[a, b]
   (Expr.arrow (mkApp2 r a b) (mkApp3 (.const ``Eq [v]) β (.app f a) (.app f b)))
 def quotMk_a : Expr := mkApp3 (.const ``Quot.mk [u]) α r a
@@ -170,7 +170,7 @@ def tIndC : Expr :=
             (.app (.bvar 1) (.app (.app (.app (.const ``Quot.mk [.param `u]) (.bvar 3))
               (.bvar 2)) (.bvar 0))) .default)
           (.forallE `q (.app (.app (.const ``Quot [.param `u]) (.bvar 3)) (.bvar 2))
-            (.app (.bvar 2) (.bvar 0)) .implicit)
+            (.app (.bvar 2) (.bvar 0)) .default)
           .default) .implicit) .implicit) .implicit
 
 
@@ -244,7 +244,7 @@ theorem fL4' (x) : L4'.find? x = if fid 4 == x then some (.cdecl L3'.decls.size 
     (Expr.arrow quot_r Expr.prop) .implicit .default) else L3'.find? x := by
   rw [L4', find?_mkLocalDecl wf3']
 theorem fL5' (x) : L5'.find? x = if fid 5 == x then some (.cdecl L4'.decls.size (fid 5) `q
-    quot_r .implicit .default) else L4'.find? x := by
+    quot_r .default .default) else L4'.find? x := by
   rw [L5', find?_mkLocalDecl wf4']
 
 theorem tMk_eq : tMk = tMkC := by
@@ -307,7 +307,7 @@ theorem allQuot_eq : all_quot = allQuotC := by
     simp [fL4', fL3', fid] at hd; subst hd; simp [LocalContext.DeclClosed, Closed, α]
 
 theorem qbody_eq :
-    L5'.mkForall #[q] (.app β q) = .forallE `q quot_r (.app β (.bvar 0)) .implicit := by
+    L5'.mkForall #[q] (.app β q) = .forallE `q quot_r (.app β (.bvar 0)) .default := by
   rw [show #[q] = ([fid 5].map Expr.fvar).toArray from rfl, mkForall_eq_fold]
   · simp [fL5', LocalContext.mkBindingList1, Expr.abstract1, fid, β, q, quot_r, mkApp2, α, r]
   · intro x hx; simp at hx; subst hx; simp [fL5', fid]
