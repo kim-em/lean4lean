@@ -859,7 +859,7 @@ theorem LoweredRestoredConstructors.sourceSemantics
     (hnodup : paramFvars.Nodup)
     (hresultNParams : result.nparams = nparams)
     (hparamsSize : params.size = nparams) :
-    RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv
+    RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv
       (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv
         sources constructors := by
   induction H generalizing constructors with
@@ -891,7 +891,7 @@ theorem LoweredRestoredConstructors.sourceSemantics
             exact Hsource.uvars.symm) (by
             exact (hname.trans Hmapping.name).trans Hsource.name.symm)
             HrestoredType
-        apply RestoredSourceConstructorTrace.cons Hstep
+        apply RestoredConstructorTranslations.cons Hstep
           { constructor := vctor
             sourceTranslation := Hsource
             restoredTranslation := Htranslated }
@@ -2057,7 +2057,7 @@ theorem LoweredRestoredConstructors.ofInstalled
     (howner : owner ∈ indTypes.toList)
     (Hmapping : ConstructorLowerings.Resolved mappingEnv params nparams result
       sources state (targets, finalState))
-    (Htrace : StateForMTrace (RestoredConstructorStep result loweredEnv)
+    (Htrace : FoldSteps (RestoredConstructorStep result loweredEnv)
       (targets.map (fun ctor => ctor.name)) sourceProdEnv targetProdEnv)
     (Htargets : ∀ target ∈ targets, target ∈ owner.ctors) :
     LoweredRestoredConstructors result mappingEnv loweredEnv params nparams

@@ -9,7 +9,7 @@ produced by the executable (`restoreRule`, whose right-hand side is
 `restoreNested` of the lowered rule's right-hand side); this file proves that
 its translation is the abstract restoration of the generated equation's
 right-hand side, using the hit shape of the lowered right-hand sides
-(`NestedValidatedRunResult.recursorHitShape'`, which needs nothing beyond the
+(`NestedRun.recursorHitShape'`, which needs nothing beyond the
 run). The lowered right-hand side is a
 lambda telescope, so we first prove the lambda analogue of
 `NestedRestoration.restorationCommutes'`. -/
@@ -76,7 +76,7 @@ theorem NestedRestorationOpening.restoredBody_closed_lam {decl : VInductDecl}
     {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
+    (D : RestorationTablesAgree decl auxiliaries result env auxRec Us₀)
     {input output suffix : Expr}
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
@@ -154,31 +154,31 @@ index of the rule (`recursorMinorOffset` of the owner plus `j`),
   equation's left-hand side and type. The executable `RecursorRule` carries
   no left-hand side or type, so these two components have no executable
   counterpart to be translated. -/
-def NestedValidatedRunResult.TrRestoredRecursorRule
+def NestedRun.TrRestoredRecursorRule
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (r : Restoration) (trEnv : VEnv)
-    (k : Fin E.production.production.generationSignature.constructors.size)
+    (k : Fin E.lowered.recursors.generationSignature.constructors.size)
     (rule : VDefEq) : Prop :=
-  ∃ (owner : Fin E.production.production.generationSignature.families.size)
+  ∃ (owner : Fin E.lowered.recursors.generationSignature.families.size)
     (j : Nat) (s t : Environment)
     (Hstep : RestoredRecursorStep result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
       (sourceTypes.map (·.name))
-      (E.production.production.canonicalGeneration.recursorName owner) s t)
+      (E.lowered.recursors.canonicalGeneration.recursorName owner) s t)
     (hj : j < Hstep.restored.newInfo.rules.length),
-    k.val = recursorMinorOffset E.production.indTypes owner.val + j ∧
-    rule.uvars = (E.production.production.canonicalGeneration.equation k).uvars ∧
+    k.val = recursorMinorOffset E.lowered.indTypes owner.val + j ∧
+    rule.uvars = (E.lowered.recursors.canonicalGeneration.equation k).uvars ∧
     TrExprS trEnv Hstep.restored.newInfo.levelParams []
       (Hstep.restored.newInfo.rules[j]'hj).rhs rule.rhs ∧
-    r.expr (E.production.production.canonicalGeneration.equation k).lhs =
+    r.expr (E.lowered.recursors.canonicalGeneration.equation k).lhs =
       some rule.lhs ∧
-    r.expr (E.production.production.canonicalGeneration.equation k).type =
+    r.expr (E.lowered.recursors.canonicalGeneration.equation k).type =
       some rule.type
 
 /-! ### The canonical restored block -/

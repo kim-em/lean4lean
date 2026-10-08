@@ -18,7 +18,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
-    (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
+    (Hlower : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes

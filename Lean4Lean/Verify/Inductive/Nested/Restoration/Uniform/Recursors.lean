@@ -19,7 +19,7 @@ the executable's generated recursors have this shape:
   and every rule right-hand side `blueprint.build ...` are `Expr.ParamUniformTele heads nparams ls`.
 * `RecursorCheck.generatedHitShape`: the same for each installed
   `GeneratedRecursorEntry`.
-* `NestedValidatedRunResult.recursorHitShape` (with projections `recursorTypeHitShape`,
+* `NestedRun.recursorHitShape` (with projections `recursorTypeHitShape`,
   `ruleRhsHitShape`): the same for the recursor read back by any restoration step of an exact
   validated nested run, at `result.nparams` and `lparams.map Level.param`.
 
@@ -49,7 +49,7 @@ projection condition `ProjsOK (projAvoidsHeads env heads)`) rather than plain hi
 shape, since that is the invariant the type checker preserves; the head set is
 arbitrary here. For a nested run the chain is instantiated at the checker's
 head set `E.uniformHeads` (auxiliary heads and main constructors) and shrunk back
-to the auxiliary heads (`NestedValidatedRunResult.recursorHitShape'` in
+to the auxiliary heads (`NestedRun.recursorHitShape'` in
 `Nested/Restoration/Uniform/Whnf.lean`).
 
 Remaining hypotheses are collected in `RecursorConstruction.ParamUniformDeclarations`; see
@@ -286,7 +286,7 @@ projection registry already contains the block's structures, so `.proj S i x`
 with `S` a main structure whose constructor mentions an auxiliary family
 translates, and its inferred type exposes the auxiliary family at the
 parameters of `x`'s type rather than at the parameter variables. The
-instance for a nested run is `NestedValidatedRunResult.whnfHitOKFacts`
+instance for a nested run is `NestedRun.whnfHitOKFacts`
 (`Nested/Restoration/Uniform/Whnf.lean`).
 
 `inferType` is not needed as a separate hypothesis: the only lifted
@@ -1376,18 +1376,18 @@ end Assembly
 /-- The auxiliary heads of a nested run: the names of the lowered families after
 the source families, each followed by the names of its constructors. This is
 the head list `auxiliaries.flatMap (·.headNames)` of the run's container
-specialisations (`NestedValidatedRunResult.loweredConstructorLevels_heads`).
+specialisations (`NestedRun.loweredConstructorLevels_heads`).
 The theorems below are stated for an arbitrary head list; this is the intended
 instance. -/
-def NestedValidatedRunResult.auxHeads
+def NestedRun.auxHeads
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
-  InductiveSignature.familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length)
+  InductiveSignature.familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)
 
 section Run
 
@@ -1396,45 +1396,45 @@ variable {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
 
 /-- The production statistics carry the declaration's universe parameters. -/
-theorem NestedValidatedRunResult.statsLevels :
-    E.production.stats.levels = lparams.map Level.param := by
-  have h := E.production.headers.statsWF.levelParams
+theorem NestedRun.statsLevels :
+    E.lowered.stats.levels = lparams.map Level.param := by
+  have h := E.lowered.headers.statsWF.levelParams
   rwa [E.production_c, E.productionContext_lparams] at h
 
 /-- The production statistics carry exactly the lowered run's parameters. -/
-theorem NestedValidatedRunResult.statsParamsSize :
-    E.production.stats.params.size = result.nparams := by
+theorem NestedRun.statsParamsSize :
+    E.lowered.stats.params.size = result.nparams := by
   obtain ⟨_, Hrun, _, _⟩ := E.lowering
-  rw [Hrun.resultNParams, E.production.production.cardinality.params,
-    E.production.constructors.core.nparams, E.production_nparams]
+  rw [Hrun.resultNParams, E.lowered.recursors.cardinality.params,
+    E.lowered.constructors.core.nparams, E.production_nparams]
 
 /-- The generated entry of an owner is the recursor read back by any
 restoration step at the owner's recursor name. -/
-theorem NestedValidatedRunResult.generatedEntryOfStep
-    (owner : Fin E.production.production.generationSignature.families.size)
+theorem NestedRun.generatedEntryOfStep
+    (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
+      (E.lowered.recursors.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    ∃ hi : owner.val < E.production.production.entries.length,
-      (E.production.production.generated.entry owner.val hi).info =
+    ∃ hi : owner.val < E.lowered.recursors.entries.length,
+      (E.lowered.recursors.generated.entry owner.val hi).info =
         Hstep.oldInfo := by
-  rcases E.production.production.metadataRealization owner with
+  rcases E.lowered.recursors.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
-  have hlen : owner.val < E.production.production.entries.length := by
-    rw [E.production.production.entries_length_eq]
+  have hlen : owner.val < E.lowered.recursors.entries.length := by
+    rw [E.lowered.recursors.entries_length_eq]
     exact owner.isLt
   refine ⟨hlen, ?_⟩
-  have hmem := List.getElem_mem (l := E.production.production.entries)
+  have hmem := List.getElem_mem (l := E.lowered.recursors.entries)
     (n := owner.val) hlen
-  have hfind := E.production.production.findRecursorOfMem
-    (info := (E.production.production.entries[owner.val]'hlen).1) hmem
-  have hrec' : (E.production.production.entries[owner.val]'hlen).1 = .recInfo rec := hrec
+  have hfind := E.lowered.recursors.findRecursorOfMem
+    (info := (E.lowered.recursors.entries[owner.val]'hlen).1) hmem
+  have hrec' : (E.lowered.recursors.entries[owner.val]'hlen).1 = .recInfo rec := hrec
   rw [hrec'] at hfind
   change E.loweredEnv.find? rec.name = some (.recInfo rec) at hfind
   have h2 : some (ConstantInfo.recInfo rec) = some (.recInfo Hstep.oldInfo) := by
@@ -1443,7 +1443,7 @@ theorem NestedValidatedRunResult.generatedEntryOfStep
   have heq : rec = Hstep.oldInfo := by
     injection h2 with h
     injection h
-  have hG := (E.production.production.generated.entry owner.val hlen).source_eq
+  have hG := (E.lowered.recursors.generated.entry owner.val hlen).source_eq
   rw [hrec] at hG
   injection hG with hG
   rw [← heq, hG]
@@ -1459,17 +1459,17 @@ Hypotheses: `W` (the `whnf` hit-shape preservation fact, see
 `WhnfPreservesParamUniform`) and `I` (the non-`whnf` provenance, see
 `RecursorConstruction.ParamUniformDeclarations`). Both are discharged at
 `heads := E.uniformHeads` in `Nested/Restoration/Uniform/Whnf.lean`
-(`NestedValidatedRunResult.recursorHitShape'`). -/
-theorem NestedValidatedRunResult.recursorHitShape
+(`NestedRun.recursorHitShape'`). -/
+theorem NestedRun.recursorHitShape
     {heads : List Name}
-    (I : E.production.production.toRecursorConstruction.ParamUniformDeclarations heads)
-    (W : WhnfPreservesParamUniform heads E.production.stats.params.toList (lparams.map Level.param)
-      E.production.production.localContext.env)
-    (owner : Fin E.production.production.generationSignature.families.size)
+    (I : E.lowered.recursors.toRecursorConstruction.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads E.lowered.stats.params.toList (lparams.map Level.param)
+      E.lowered.recursors.localContext.env)
+    (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
+      (E.lowered.recursors.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     Expr.ParamUniformTele heads result.nparams (lparams.map Level.param) Hstep.oldInfo.type ∧
       ∀ rule ∈ Hstep.oldInfo.rules,
@@ -1477,7 +1477,7 @@ theorem NestedValidatedRunResult.recursorHitShape
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
   rw [← E.statsLevels] at W ⊢
   rw [← E.statsParamsSize]
-  have H := E.production.production.generatedHitShape I W owner.val hi
+  have H := E.lowered.recursors.generatedHitShape I W owner.val hi
   rw [hinfo] at H
   exact H
 

@@ -19,12 +19,12 @@ inductive RestoredAuxiliaryRecursorsWF
     {loweredEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} :
     ∀ {names : List Name} {sourceEnv targetEnv : Environment}
-        {Htrace : StateForMTrace
+        {Htrace : FoldSteps
           (RestoredRecursorStep result loweredEnv auxRec allIndNames)
           names sourceEnv targetEnv}
         {priorRecursors : List VConstVal} {priorRules : List VDefEq}
         {finalRecursors : List VConstVal} {finalRules : List VDefEq},
-      RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
+      AuxiliaryRecursorsGuardedRules decl block main safety trEnv Htrace
         priorRecursors priorRules finalRecursors finalRules →
       List VConstVal → List VDefEq → List VConstVal → List VDefEq → Prop
   | nil (sourceEnv : Environment) (recursors : List VConstVal)
@@ -34,12 +34,12 @@ inductive RestoredAuxiliaryRecursorsWF
   | cons
       (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
         oldRecName sourceEnv middleEnv)
-      (Htail : StateForMTrace
+      (Htail : FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hsemantic : RestoredAuxiliaryStepShape decl block main safety trEnv
+      (Hsemantic : AuxiliaryRecursorGuardedRules decl block main safety trEnv
         Hstep priorRecursors)
-      (Hrest : RestoredAuxiliaryShapeTrace decl block main safety trEnv
+      (Hrest : AuxiliaryRecursorsGuardedRules decl block main safety trEnv
         Htail (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules)
       (Hrecursor : Hsemantic.recursor.toVConstant.WF recursorEnv)
@@ -101,7 +101,7 @@ namespace VerifyInductive
 The operational auxiliary-restoration loop and its semantic interpretation
 have the same recursive shape.  This module packages the per-step semantic
 and final well-formedness evidence together, then folds that package over the
-exact `StateForMTrace`.  Keeping the two traces synchronized here prevents a
+exact `FoldSteps`.  Keeping the two traces synchronized here prevents a
 final-assembly proof from choosing unrelated auxiliary recursors or rules.
 -/
 
@@ -114,7 +114,7 @@ structure RestoredAuxiliaryRecursorWF
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceEnv targetEnv)
     (priorRecursors : List VConstVal) where
-  semantics : RestoredAuxiliaryStepShape decl block main safety trEnv
+  semantics : AuxiliaryRecursorGuardedRules decl block main safety trEnv
     Hstep priorRecursors
   recursorWF : semantics.recursor.toVConstant.WF recursorEnv
   rulesWF : ∀ rule ∈ semantics.rules, rule.WF ruleEnv

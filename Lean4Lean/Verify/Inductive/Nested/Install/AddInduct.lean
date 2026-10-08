@@ -12,8 +12,8 @@ namespace VerifyInductive
 Projection metadata is installed between constructors and recursors, exactly
 as in `VInductBlock.install`; no flattened pre-projection installation is used
 as a surrogate for this semantic trace. -/
-theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+theorem NestedRestorationFolds.addInductOfStagedInstallation
+    (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
     (envTypes envCtors : VEnv)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
@@ -102,8 +102,8 @@ restoration into the concrete implementation-refinement boundary. Source
 lookup preservation, final production/abstract alignment, and delta
 conservativity are consequences of the restoration trace. The producer supplies
 declaration origins and recursor provenance for the same source and target. -/
-theorem RestoredNestedDeclarationsResult.addInductConcrete
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+theorem NestedRestorationFolds.addInductConcrete
+    (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
     (Habstract : VEnv.AddInduct sourceVEnv decl targetVEnv)
     (Hchecking : CheckingEnv safety out.2 targetVEnv)

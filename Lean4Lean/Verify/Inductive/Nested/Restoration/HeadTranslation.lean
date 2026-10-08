@@ -8,7 +8,7 @@ hypothesis `RestoreHeadsTranslate`: at every context lifting the base context
 of the opened parameters by bound binders, each executable replacement head
 (`restoreHead`) is a constant applied to arguments that translate to the
 abstract specialisation of the matching restoration head. This file discharges
-it from the restoration tables (`RestorationTableData`) and a translation of
+it from the restoration tables (`RestorationTablesAgree`) and a translation of
 each recorded container application in the target environment.
 
 The existence of the translations is transported from the abstracted
@@ -97,11 +97,11 @@ open _root_.Lean4Lean.InductiveSignature (compilationRestoration
 /-- **The executable replacement heads translate** to the abstract
 specialisations of `compilationRestoration`, at every bound-binder lift of a
 base context in which the opened parameters live. -/
-theorem RestorationTableData.restoreHeadsTranslate
+theorem RestorationTablesAgree.restoreHeadsTranslate
     {decl : VInductDecl} {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ Us : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
+    (D : RestorationTablesAgree decl auxiliaries result env auxRec Us₀)
     {envT : VEnv} (hT : envT.WF)
     {ats : List FVarId} {Dt : List VExpr}
     (Hval : ∀ name nested, result.aux2nested.find? name = some nested →
@@ -151,7 +151,7 @@ theorem RestorationTableData.restoreHeadsTranslate
     refine ⟨.const hci (VLevel.mapM_ofLevel_reindex hlevels hlvls) ?_, ?_⟩
     · rw [huv]
       exact Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.1 hlvls)
-    · have hclosed := AuxNestedSpec.reopen_closed hdom hYs hAs hsize
+    · have hclosed := AuxiliaryContainerApp.reopen_closed hdom hYs hAs hsize
       exact forall₂_instantiate_of_exists hlevels hAs hPT
         (by simp [hdom, hlen]) hYs
         (by
@@ -173,7 +173,7 @@ theorem RestorationTableData.restoreHeadsTranslate
     cases hh
     obtain ⟨hfn, hargs⟩ := key a nested a.source.name envS domains lvls Ys hfind hdom hab
       hlvls hYs (Hconsts a ha).1
-    exact ⟨_, _, AuxNestedSpec.reopen hab _, hfn, hargs⟩
+    exact ⟨_, _, AuxiliaryContainerApp.reopen hab _, hfn, hargs⟩
   | none =>
     rw [hfind] at hH
     cases hget : result.getNestedIfAuxCtor env c with
@@ -185,7 +185,7 @@ theorem RestorationTableData.restoreHeadsTranslate
       obtain ⟨a, ha, hauxEq, envS, domains, lvls, Ys, hdom, hab, hlvls, hYs⟩ :=
         D.familyKey _ nested hn
       obtain ⟨ctor, hctor, rfl⟩ := D.ctorLookup c info hc a ha hauxEq.symm
-      simp only [AuxNestedSpec.reopen hab, Expr.getAppFn_mkAppList_const,
+      simp only [AuxiliaryContainerApp.reopen hab, Expr.getAppFn_mkAppList_const,
         Option.some.injEq] at hH
       subst hH
       have hmem : InductiveSignature.HeadSpecialization.mk (a.constructorName ctor)

@@ -13,7 +13,7 @@ namespace VerifyInductive
 
 theorem AtomicAddConstants.freshTrace
     (H : AtomicAddConstants safety source sourceVEnv entries target targetVEnv) :
-    FreshConstantTrace source (entries.map Prod.fst) target := by
+    FreshExtension source (entries.map Prod.fst) target := by
   induction H with
   | nil => exact .nil
   | cons hfresh _ _ _ _ _ ih => exact .cons hfresh ih
@@ -25,7 +25,7 @@ typing remains tied to the header/constructor/projection/recursor stages. -/
 theorem BlockInstallation.validCoreOfFreshPermutation
     (H : BlockInstallation safety source sourceVEnv types ctors recursors
       projections canonicalTarget targetVEnv)
-    (Hactual : FreshConstantTrace source actualEntries actualTarget)
+    (Hactual : FreshExtension source actualEntries actualTarget)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (Hsource : CheckingEnv.ValidCore safety source sourceVEnv) :
     CheckingEnv.ValidCore safety actualTarget targetVEnv := by
@@ -48,11 +48,11 @@ permutation, and the endpoint correspondence is then proved extensionally.
 
 /-- A finite list of pairwise-distinct constants that is fresh in the source
 environment can be installed in its listed order. -/
-theorem FreshConstantTrace.exists_of_sourceFresh_nodup
+theorem FreshExtension.exists_of_sourceFresh_nodup
     (hsourceWF : source.constants.WF)
     (hsourceFresh : ∀ ci ∈ entries, source.find? ci.name = none)
     (hnodup : (entries.map (·.name)).Nodup) :
-    ∃ target, FreshConstantTrace source entries target := by
+    ∃ target, FreshExtension source entries target := by
   induction entries generalizing source with
   | nil => exact ⟨source, .nil⟩
   | cons ci entries ih =>
@@ -72,25 +72,25 @@ theorem FreshConstantTrace.exists_of_sourceFresh_nodup
     exact ⟨target, .cons hciFresh Htail⟩
 
 /-- Replay an exact production freshness trace in any permuted order. -/
-theorem FreshConstantTrace.exists_permuted
-    (H : FreshConstantTrace source actualEntries actualTarget)
+theorem FreshExtension.exists_permuted
+    (H : FreshExtension source actualEntries actualTarget)
     (hsourceWF : source.constants.WF)
     (hperm : actualEntries ~ canonicalEntries) :
     ∃ canonicalTarget,
-      FreshConstantTrace source canonicalEntries canonicalTarget := by
-  apply FreshConstantTrace.exists_of_sourceFresh_nodup hsourceWF
+      FreshExtension source canonicalEntries canonicalTarget := by
+  apply FreshExtension.exists_of_sourceFresh_nodup hsourceWF
   · intro ci hci
     exact H.sourceFresh hsourceWF (hperm.mem_iff.mpr hci)
   · exact (hperm.map (·.name)).nodup_iff.mp (H.namesNodup hsourceWF)
 
 /-- The endpoint of the permuted replay has exactly the lookup behavior of
 the executable restoration endpoint. -/
-theorem FreshConstantTrace.exists_permuted_lookupEq
-    (H : FreshConstantTrace source actualEntries actualTarget)
+theorem FreshExtension.exists_permuted_lookupEq
+    (H : FreshExtension source actualEntries actualTarget)
     (hsourceWF : source.constants.WF)
     (hperm : actualEntries ~ canonicalEntries) :
     ∃ canonicalTarget,
-      FreshConstantTrace source canonicalEntries canonicalTarget ∧
+      FreshExtension source canonicalEntries canonicalTarget ∧
       ∀ name, actualTarget.constants.find? name =
         canonicalTarget.constants.find? name := by
   rcases H.exists_permuted hsourceWF hperm with
@@ -100,10 +100,10 @@ theorem FreshConstantTrace.exists_permuted_lookupEq
 
 /-- Split a fresh replay at an exact list boundary, retaining the concrete
 intermediate environment produced by the prefix. -/
-theorem FreshConstantTrace.split_append
-    (H : FreshConstantTrace source (firstEntries ++ suffix) target) :
-    ∃ middle, FreshConstantTrace source firstEntries middle ∧
-      FreshConstantTrace middle suffix target := by
+theorem FreshExtension.split_append
+    (H : FreshExtension source (firstEntries ++ suffix) target) :
+    ∃ middle, FreshExtension source firstEntries middle ∧
+      FreshExtension middle suffix target := by
   induction firstEntries generalizing source with
   | nil => exact ⟨source, .nil, H⟩
   | cons head tail ih =>
@@ -115,10 +115,10 @@ theorem FreshConstantTrace.split_append
 /-- A pointwise property of the payload of one exact fresh replay transfers
 to every entry of another replay with the same source and target.  This is
 the property-level form of order-insensitive restoration alignment. -/
-theorem FreshConstantTrace.transferForallSameTarget
+theorem FreshExtension.transferForallSameTarget
     {P : ConstantInfo → Prop}
-    (Hleft : FreshConstantTrace source leftEntries target)
-    (Hright : FreshConstantTrace source rightEntries target)
+    (Hleft : FreshExtension source leftEntries target)
+    (Hright : FreshExtension source rightEntries target)
     (hsourceWF : source.constants.WF)
     (hproperty : ∀ entry ∈ rightEntries, P entry) :
     ∀ entry ∈ leftEntries, P entry := by
@@ -135,7 +135,7 @@ into the lockstep `AddConstants` certificate.  Translation and typing may be
 proved in a fixed smaller environment; monotonicity transports them to each
 successive abstract installation point. -/
 theorem AddConstants.ofFreshAbstract
-    (Hfresh : FreshConstantTrace prodEnv (entries.map Prod.fst) outProd)
+    (Hfresh : FreshExtension prodEnv (entries.map Prod.fst) outProd)
     (Htranslated : ∀ entry ∈ entries,
       TrConstVal safety base entry.1 entry.2)
     (Hwf : ∀ entry ∈ entries, entry.2.toVConstant.WF base)
@@ -185,7 +185,7 @@ theorem AddConstants.ofFreshAbstract
 batch.  No abstract environment is selected by a caller: freshness and the
 checking invariant force each successive `addConst` to succeed. -/
 theorem AddConstants.exists_ofFresh
-    (Hfresh : FreshConstantTrace prodEnv (entries.map Prod.fst) outProd)
+    (Hfresh : FreshExtension prodEnv (entries.map Prod.fst) outProd)
     (Htranslated : ∀ entry ∈ entries,
       TrConstVal safety base entry.1 entry.2)
     (Hwf : ∀ entry ∈ entries, entry.2.toVConstant.WF base)
@@ -233,7 +233,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -293,12 +293,12 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
 
 /-- Constructor semantics and the operational constructor fold select the
 same exact concrete entries, not merely entries with matching names. -/
-theorem RestoredSourceConstructorTrace.existsEntriesFresh
-    (H : RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv names
+theorem RestoredConstructorTranslations.existsEntriesFresh
+    (H : RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv names
       sourceProdEnv targetProdEnv sources constructors)
     (hsourceWF : sourceProdEnv.constants.WF) :
     ∃ entries : List (ConstantInfo × VConstVal),
-      FreshConstantTrace sourceProdEnv (entries.map Prod.fst) targetProdEnv ∧
+      FreshExtension sourceProdEnv (entries.map Prod.fst) targetProdEnv ∧
       entries.map Prod.snd = constructors ∧
       ∀ entry ∈ entries,
         TrConstVal safety canonicalEnv entry.1 entry.2 ∧
@@ -316,7 +316,7 @@ theorem RestoredSourceConstructorTrace.existsEntriesFresh
     have hmiddleWF : middleSource.constants.WF :=
       hmiddle.symm ▸ constantsWF_add_checked hsourceWF hheadFresh
     rcases ih hmiddleWF with ⟨entries, Hfresh, hvalues, Hentries⟩
-    have Hfresh' : FreshConstantTrace (stepSource.add head.1)
+    have Hfresh' : FreshExtension (stepSource.add head.1)
         (entries.map Prod.fst) stepTarget := by
       rw [← hmiddle]
       exact Hfresh
@@ -379,17 +379,17 @@ private theorem perm_group_familyEntries
 
 /-- Exact primary restoration replay, retaining both executable
 family-interleaved order and canonical dependency order. -/
-structure RestoredSourceInductiveSemanticTrace.CanonicalReplay
-    {Htrace : StateForMTrace
+structure SourceFamilyTranslations.InDependencyOrder
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv targetProdEnv}
     {primaryRecursors : List VConstVal}
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners primaryRecursors)
     (typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal))
     (actualEntries : List ConstantInfo) : Prop where
-  fresh : FreshConstantTrace sourceProdEnv actualEntries targetProdEnv
+  fresh : FreshExtension sourceProdEnv actualEntries targetProdEnv
   productionOrder : actualEntries ~
     (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   typeValues : typeEntries.map Prod.snd =
@@ -410,12 +410,12 @@ structure RestoredSourceInductiveSemanticTrace.CanonicalReplay
 /-- Fold the exact source semantics together with the exact executable
 restoration steps.  The result proves the canonical grouping permutation;
 it does not ask a caller to identify two independently selected endpoints. -/
-theorem RestoredSourceInductiveSemanticTrace.existsCanonicalReplay
-    {Htrace : StateForMTrace
+theorem SourceFamilyTranslations.existsCanonicalReplay
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv targetProdEnv}
     {primaryRecursors : List VConstVal}
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners primaryRecursors)
     (Hheaders : ∀ indType stepSource stepTarget (owner : VInductiveType)
       (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -426,7 +426,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsCanonicalReplay
         (.inductInfo Hstep.restored.header.newInfo) owner.toVConstVal)
     (hsourceWF : sourceProdEnv.constants.WF) :
     ∃ typeEntries constructorEntries recursorEntries actualEntries,
-      H.CanonicalReplay typeEntries constructorEntries recursorEntries
+      H.InDependencyOrder typeEntries constructorEntries recursorEntries
         actualEntries := by
   induction H with
   | nil => exact ⟨[], [], [], [], {
@@ -454,7 +454,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsCanonicalReplay
     rcases Hconstructors.existsEntriesFresh hheaderWF with
       ⟨familyConstructors, HconstructorFresh, hconstructorValues,
         HconstructorEntries⟩
-    have HconstructorFresh' : FreshConstantTrace
+    have HconstructorFresh' : FreshExtension
         (stepSource.add headerEntry.1) (familyConstructors.map Prod.fst)
           Hstep.restored.constructorEnv := by
       rw [← hheaderEnv]
@@ -472,18 +472,18 @@ theorem RestoredSourceInductiveSemanticTrace.existsCanonicalReplay
         Hstep.restored.constructorEnv.add recursorEntry.1 :=
       congrArg (fun out : Unit × Environment => out.2)
         Hstep.restored.recursor.restored.output
-    have HrecursorFresh : FreshConstantTrace
+    have HrecursorFresh : FreshExtension
         Hstep.restored.constructorEnv [recursorEntry.1] middleSource := by
-      have Hraw : FreshConstantTrace Hstep.restored.constructorEnv
+      have Hraw : FreshExtension Hstep.restored.constructorEnv
           [recursorEntry.1]
           (Hstep.restored.constructorEnv.add recursorEntry.1) :=
         .cons hrecursorFresh .nil
-      exact Eq.mp (congrArg (fun target => FreshConstantTrace
+      exact Eq.mp (congrArg (fun target => FreshExtension
         Hstep.restored.constructorEnv [recursorEntry.1] target) htarget).symm
           Hraw
     let familyEntries : List ConstantInfo :=
       headerEntry.1 :: familyConstructors.map Prod.fst ++ [recursorEntry.1]
-    have HfamilyFresh : FreshConstantTrace stepSource familyEntries
+    have HfamilyFresh : FreshExtension stepSource familyEntries
         middleSource := by
       exact .cons hheaderFresh
         (HconstructorFresh'.append HrecursorFresh)
@@ -498,7 +498,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsCanonicalReplay
     let constructorEntries := familyConstructors ++ tailConstructors
     let recursorEntries := recursorEntry :: tailRecursorEntries
     let actualEntries := familyEntries ++ tailActual
-    have Hfresh : FreshConstantTrace stepSource actualEntries
+    have Hfresh : FreshExtension stepSource actualEntries
         stepTarget := HfamilyFresh.append HtailReplay.fresh
     have hgroup := perm_group_familyEntries headerEntry recursorEntry
       tailTypes familyConstructors tailConstructors tailRecursorEntries
@@ -546,7 +546,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsCanonicalReplay
 /-- Exact lowering/production specialization of `existsCanonicalReplay`.
 The returned production permutation and all three primary semantic batches
 are consequences of the executable traces. -/
-theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
+theorem SourceFamilyTranslations.existsExactCanonicalPrimaryReplay
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -555,14 +555,14 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       sourceTypes sourceProdEnv targetProdEnv}
     {primaryRecursors : List VConstVal}
-    (H : RestoredSourceInductiveSemanticTrace decl c.lparams c.safety
+    (H : SourceFamilyTranslations decl c.lparams c.safety
       sourceVEnv envTypes envCtors Htrace owners primaryRecursors)
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -570,7 +570,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hsourceWF : sourceProdEnv.constants.WF) :
     ∃ typeEntries constructorEntries recursorEntries actualEntries,
-      H.CanonicalReplay typeEntries constructorEntries recursorEntries
+      H.InDependencyOrder typeEntries constructorEntries recursorEntries
         actualEntries := by
   apply H.existsCanonicalReplay
   · intro indType stepSource stepTarget owner Hstep hmem Hheader
@@ -584,7 +584,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
 record deliberately does not mention the final block, generated name scheme,
 or any restored rule: only the concrete recursor translation and its
 well-formedness are needed to construct the final constant environment. -/
-structure RestoredAuxiliaryRecursorStep
+structure AuxiliaryRecursorTranslation
     (safety : DefinitionSafety) (trEnv recursorEnv : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceEnv targetEnv) where
@@ -596,7 +596,7 @@ structure RestoredAuxiliaryRecursorStep
 /-- Construct the pre-rule recursor payload from the exact translated and
 typed restored telescope.  Names and universe arity are fixed directly by
 the executable `RecursorVal`; no separately chosen abstract constant remains. -/
-def RestoredAuxiliaryRecursorStep.ofTypeTranslation
+def AuxiliaryRecursorTranslation.ofTypeTranslation
     (targetType : VExpr)
     (hsafety : safety ≤ (ConstantInfo.recInfo
       Hstep.restored.newInfo).safety)
@@ -604,7 +604,7 @@ def RestoredAuxiliaryRecursorStep.ofTypeTranslation
       Hstep.restored.newInfo.type targetType)
     (Htype : recursorEnv.IsType Hstep.restored.newInfo.levelParams.length []
       targetType) :
-    RestoredAuxiliaryRecursorStep safety trEnv recursorEnv Hstep where
+    AuxiliaryRecursorTranslation safety trEnv recursorEnv Hstep where
   recursor := {
     name := Hstep.restored.newInfo.name
     uvars := Hstep.restored.newInfo.levelParams.length
@@ -634,7 +634,7 @@ theorem RecursorCheck.restoredTelescopeAlignmentOfGeneratedName
     (hresultParams : result.params.size = result.nparams) :
     ∃ ownerIdx, ∃ hentry : ownerIdx < Hprod.entries.length,
       oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name ∧
-        Nonempty (GeneratedRecursorRestorationTelescopeAlignment result
+        Nonempty (RestoredRecursorTelescopeAlignment result
           loweredEnv auxRec Hstep.restored.newInfo
             (Hprod.generated.entry ownerIdx hentry)) := by
   rcases List.mem_map.mp hgenerated with ⟨value, hvalue, hvalueName⟩
@@ -661,7 +661,7 @@ theorem RecursorCheck.restoredTelescopeAlignmentOfGeneratedName
 
 /-- Exact generated-entry provenance for one concrete auxiliary restoration
 step.  The owner is an output, not a caller-selected index. -/
-structure RestoredAuxiliaryGeneratedStepAlignment
+structure AuxiliaryRecursorGeneratedAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -675,7 +675,7 @@ structure RestoredAuxiliaryGeneratedStepAlignment
   ownerIdx : Nat
   entry_lt : ownerIdx < Hprod.entries.length
   oldRecName_eq : oldRecName = Lean.mkRecName indTypes[ownerIdx]!.name
-  alignment : GeneratedRecursorRestorationTelescopeAlignment result
+  alignment : RestoredRecursorTelescopeAlignment result
     loweredEnv auxRec Hstep.restored.newInfo
       (Hprod.generated.entry ownerIdx entry_lt)
 
@@ -683,7 +683,7 @@ structure RestoredAuxiliaryGeneratedStepAlignment
 determines a generated-entry telescope alignment at every state transition.
 This trace retains no translated target and no caller-supplied step
 semantics. -/
-inductive RestoredAuxiliaryGeneratedAlignmentTrace
+inductive AuxiliaryRecursorGeneratedAlignments
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -695,22 +695,22 @@ inductive RestoredAuxiliaryGeneratedAlignmentTrace
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name} :
     ∀ {names : List Name} {sourceEnv targetEnv : Environment},
-      StateForMTrace
+      FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names sourceEnv targetEnv → Prop
   | nil (sourceEnv : Environment) :
-      RestoredAuxiliaryGeneratedAlignmentTrace Hprod (.nil)
+      AuxiliaryRecursorGeneratedAlignments Hprod (.nil)
   | cons
       (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
         oldRecName sourceEnv middleEnv)
-      (Htail : StateForMTrace
+      (Htail : FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hhead : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
-      (Hrest : RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htail) :
-      RestoredAuxiliaryGeneratedAlignmentTrace Hprod (.cons Hstep Htail)
+      (Hhead : AuxiliaryRecursorGeneratedAlignment Hprod Hstep)
+      (Hrest : AuxiliaryRecursorGeneratedAlignments Hprod Htail) :
+      AuxiliaryRecursorGeneratedAlignments Hprod (.cons Hstep Htail)
 
-theorem StateForMTrace.generatedAlignmentTrace
+theorem FoldSteps.generatedAlignmentTrace
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -722,14 +722,14 @@ theorem StateForMTrace.generatedAlignmentTrace
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hgenerated : ∀ name ∈ names,
       name ∈ (Hprod.entries.map Prod.snd).map (·.name))
     (hresultNparams : result.nparams = nparams)
     (hresultParams : result.params.size = result.nparams) :
-    RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htrace := by
+    AuxiliaryRecursorGeneratedAlignments Hprod Htrace := by
   induction Htrace with
   | @nil source => exact .nil source
   | @cons head source middle tail target Hstep Htail ih =>
@@ -747,7 +747,7 @@ theorem StateForMTrace.generatedAlignmentTrace
 entry of the exact generated recursor batch.  The proof follows the fresh
 lowering queue and `mkAuxRecNameMap`; no name-based semantic lookup is
 assumed. -/
-theorem NestedLoweringResultClosed.auxRecNameGeneratedAtFresh
+theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -755,7 +755,7 @@ theorem NestedLoweringResultClosed.auxRecNameGeneratedAtFresh
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -801,7 +801,7 @@ theorem NestedLoweringResultClosed.auxRecNameGeneratedAtFresh
 /-- The exact production restoration result carries generated-entry
 alignment at every auxiliary state transition.  This is the structural
 predecessor of restored recursor translation/WF construction. -/
-theorem RestoredNestedDeclarationsResult.generatedAlignmentTraceOfProduction
+theorem NestedRestorationFolds.generatedAlignmentTraceOfProduction
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -809,16 +809,16 @@ theorem RestoredNestedDeclarationsResult.generatedAlignmentTraceOfProduction
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+    (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
       ((main :: rest).map (fun type => type.name)) (main :: rest)
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1
       ((), targetProdEnv)) :
-    RestoredAuxiliaryGeneratedAlignmentTrace Hprod H.auxiliaries := by
+    AuxiliaryRecursorGeneratedAlignments Hprod H.auxiliaries := by
   apply H.auxiliaries.generatedAlignmentTrace Hprod
   · intro name hname
     exact Hlower.auxRecNameGeneratedAtFresh Hc Hprod hempty hname
@@ -830,42 +830,42 @@ the executable restoration trace.  Unlike
 `RestoredAuxiliaryRecursorWFTrace`, this trace has no dependency on an
 already selected block or rule semantics, so it can be used to construct the
 final recursor environment without a circular premise. -/
-inductive RestoredAuxiliaryRecursorTrace
+inductive AuxiliaryRecursorTranslations
     (safety : DefinitionSafety) (trEnv recursorEnv : VEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} :
     ∀ {names : List Name} {sourceEnv targetEnv : Environment},
-      StateForMTrace
+      FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names sourceEnv targetEnv →
       List VConstVal → List VConstVal → Prop
   | nil (sourceEnv : Environment) (recursors : List VConstVal) :
-      RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv
+      AuxiliaryRecursorTranslations safety trEnv recursorEnv
         (.nil) recursors recursors
   | cons
       (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
         oldRecName sourceEnv middleEnv)
-      (Htail : StateForMTrace
+      (Htail : FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hhead : RestoredAuxiliaryRecursorStep safety trEnv recursorEnv Hstep)
-      (Hrest : RestoredAuxiliaryRecursorTrace safety trEnv
+      (Hhead : AuxiliaryRecursorTranslation safety trEnv recursorEnv Hstep)
+      (Hrest : AuxiliaryRecursorTranslations safety trEnv
         recursorEnv Htail (priorRecursors ++ [Hhead.recursor])
           finalRecursors) :
-      RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv
+      AuxiliaryRecursorTranslations safety trEnv recursorEnv
         (.cons Hstep Htail) priorRecursors finalRecursors
 
 /-- Canonical concrete replay of the block-independent auxiliary recursor
 trace. -/
-structure RestoredAuxiliaryRecursorTrace.CanonicalReplay
-    {Htrace : StateForMTrace
+structure AuxiliaryRecursorTranslations.InDependencyOrder
+    {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    (H : RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv
+    (H : AuxiliaryRecursorTranslations safety trEnv recursorEnv
       Htrace priorRecursors finalRecursors)
     (entries : List (ConstantInfo × VConstVal)) : Prop where
-  fresh : FreshConstantTrace sourceProdEnv (entries.map Prod.fst) targetProdEnv
+  fresh : FreshExtension sourceProdEnv (entries.map Prod.fst) targetProdEnv
   recursorValues : finalRecursors = priorRecursors ++ entries.map Prod.snd
   recursors : ∀ entry ∈ entries,
     TrConstVal safety trEnv entry.1 entry.2 ∧
@@ -873,15 +873,15 @@ structure RestoredAuxiliaryRecursorTrace.CanonicalReplay
 
 /-- Recover the exact concrete auxiliary-recursion suffix from its
 block-independent semantic trace. -/
-theorem RestoredAuxiliaryRecursorTrace.existsCanonicalReplay
-    {Htrace : StateForMTrace
+theorem AuxiliaryRecursorTranslations.existsCanonicalReplay
+    {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    (H : RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv
+    (H : AuxiliaryRecursorTranslations safety trEnv recursorEnv
       Htrace priorRecursors finalRecursors)
     (hsourceWF : sourceProdEnv.constants.WF) :
     ∃ entries : List (ConstantInfo × VConstVal),
-      H.CanonicalReplay entries :=
+      H.InDependencyOrder entries :=
   match H with
   | .nil source recursors => by
       refine ⟨[], ?_⟩
@@ -898,7 +898,7 @@ theorem RestoredAuxiliaryRecursorTrace.existsCanonicalReplay
       have hmiddleWF := hmiddle.symm ▸ haddWF
       rcases Hrest.existsCanonicalReplay hmiddleWF with
         ⟨entries, HtailReplay⟩
-      have Hfresh' : FreshConstantTrace (sourceProdEnv.add head.1)
+      have Hfresh' : FreshExtension (sourceProdEnv.add head.1)
           (entries.map Prod.fst) targetProdEnv := by
         rw [← hmiddle]
         exact HtailReplay.fresh
@@ -916,7 +916,7 @@ theorem RestoredAuxiliaryRecursorTrace.existsCanonicalReplay
 batch.  Primary restoration supplies headers, constructors, and primary
 recursors; auxiliary restoration contributes exactly the final recursor
 suffix. -/
-structure CanonicalRestorationReplay
+structure RestorationInDependencyOrder
     (safety : DefinitionSafety)
     (sourceProdEnv outProdEnv : Environment)
     (sourceVEnv envTypes envCtors : VEnv)
@@ -926,7 +926,7 @@ structure CanonicalRestorationReplay
   constructorEntries : List (ConstantInfo × VConstVal)
   recursorEntries : List (ConstantInfo × VConstVal)
   actualEntries : List ConstantInfo
-  fresh : FreshConstantTrace sourceProdEnv actualEntries outProdEnv
+  fresh : FreshExtension sourceProdEnv actualEntries outProdEnv
   productionOrder : actualEntries ~
     (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   typeValues : typeEntries.map Prod.snd =
@@ -948,13 +948,13 @@ structure CanonicalRestorationReplay
 /-- Replay the exact restoration payload in canonical dependency order.  The
 new endpoint is selected by freshness and is proved extensionally equal to
 the executable restoration endpoint. -/
-theorem CanonicalRestorationReplay.existsCanonicalFresh
-    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
+theorem RestorationInDependencyOrder.existsCanonicalFresh
+    (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes envCtors owners primaryRecursors
         auxiliaryRecursors)
     (hsourceWF : sourceProdEnv.constants.WF) :
     ∃ canonicalTarget,
-      FreshConstantTrace sourceProdEnv
+      FreshExtension sourceProdEnv
         ((H.typeEntries ++ H.constructorEntries ++ H.recursorEntries).map
           Prod.fst) canonicalTarget ∧
       ∀ name, outProdEnv.constants.find? name =
@@ -963,12 +963,12 @@ theorem CanonicalRestorationReplay.existsCanonicalFresh
 
 /-- Transfer any concrete entry property retained by a companion exact-run
 trace to the canonical dependency-ordered payload. -/
-theorem CanonicalRestorationReplay.canonicalProperty
+theorem RestorationInDependencyOrder.canonicalProperty
     {P : ConstantInfo → Prop}
-    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
+    (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes envCtors owners primaryRecursors
         auxiliaryRecursors)
-    (Hcompanion : FreshConstantTrace sourceProdEnv companionEntries
+    (Hcompanion : FreshExtension sourceProdEnv companionEntries
       outProdEnv)
     (hsourceWF : sourceProdEnv.constants.WF)
     (hproperty : ∀ entry ∈ companionEntries, P entry) :
@@ -985,11 +985,11 @@ theorem CanonicalRestorationReplay.canonicalProperty
 
 /-- The exact primitive-safe companion run supplies the nonprimitive side
 condition for every canonically reordered restoration entry. -/
-theorem CanonicalRestorationReplay.canonicalNonprimitive
-    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
+theorem RestorationInDependencyOrder.canonicalNonprimitive
+    (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes envCtors owners primaryRecursors
         auxiliaryRecursors)
-    (Hprimitive : PrimitiveSafeFreshConstantTrace false sourceProdEnv
+    (Hprimitive : FreshNonprimitiveExtension false sourceProdEnv
       primitiveEntries outProdEnv)
     (hsourceWF : sourceProdEnv.constants.WF) :
     ∀ entry ∈ H.typeEntries ++ H.constructorEntries ++
@@ -999,11 +999,11 @@ theorem CanonicalRestorationReplay.canonicalNonprimitive
 
 /-- A same-run non-delta trace supplies the delta side condition for every
 canonically reordered restoration entry. -/
-theorem CanonicalRestorationReplay.canonicalNondelta
-    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
+theorem RestorationInDependencyOrder.canonicalNondelta
+    (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes envCtors owners primaryRecursors
         auxiliaryRecursors)
-    (Hnondelta : FreshConstantTrace sourceProdEnv nondeltaEntries outProdEnv)
+    (Hnondelta : FreshExtension sourceProdEnv nondeltaEntries outProdEnv)
     (hsourceWF : sourceProdEnv.constants.WF)
     (hnondelta : ∀ entry ∈ nondeltaEntries,
       entry.deltaValue? = none) :
@@ -1016,18 +1016,18 @@ the exact restoration replay and its two executable side-condition traces.
 The source specification fixes the mutual-header and constructor abstract
 endpoints; the checking invariant constructs the final recursor endpoint.
 No endpoint or installation certificate is selected by a caller. -/
-theorem CanonicalRestorationReplay.existsStagedBlock
+theorem RestorationInDependencyOrder.existsStagedBlock
     (projections : List VProjectionEntry)
     (es : List (Name × InductiveSignature.CaseSchema))
-    (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
+    (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
       sourceVEnv envTypes ((envCtors.addEliminators es).addProjections projections) owners
         primaryRecursors auxiliaryRecursors)
     (Hchecking : CheckingEnv safety sourceProdEnv sourceVEnv)
     (HcasesWF : (envCtors.addEliminators es).WF)
     (HprojectedWF : ((envCtors.addEliminators es).addProjections projections).WF)
-    (Hprimitive : PrimitiveSafeFreshConstantTrace false sourceProdEnv
+    (Hprimitive : FreshNonprimitiveExtension false sourceProdEnv
       primitiveEntries outProdEnv)
-    (Hnondelta : FreshConstantTrace sourceProdEnv nondeltaEntries outProdEnv)
+    (Hnondelta : FreshExtension sourceProdEnv nondeltaEntries outProdEnv)
     (hnondelta : ∀ entry ∈ nondeltaEntries,
       entry.deltaValue? = none)
     (htypesAbstract : sourceVEnv.addConstVals
@@ -1042,7 +1042,7 @@ theorem CanonicalRestorationReplay.existsStagedBlock
         canonicalProdEnv.constants.find? name := by
   rcases H.existsCanonicalFresh Hchecking.map_wf with
     ⟨canonicalProdEnv, HcanonicalFresh, hlookup⟩
-  have HcanonicalFresh' : FreshConstantTrace sourceProdEnv
+  have HcanonicalFresh' : FreshExtension sourceProdEnv
       (H.typeEntries.map Prod.fst ++ (H.constructorEntries.map Prod.fst ++
         H.recursorEntries.map Prod.fst)) canonicalProdEnv := by
     simpa [List.map_append, List.append_assoc] using HcanonicalFresh
@@ -1101,30 +1101,30 @@ theorem CanonicalRestorationReplay.existsStagedBlock
 
 /-- Block-independent form of `appendAuxiliary`, used to construct the final
 constant environment before any restored rule is interpreted or typed. -/
-def RestoredSourceInductiveSemanticTrace.CanonicalReplay.appendAuxiliaryRecursors
+def SourceFamilyTranslations.InDependencyOrder.appendAuxiliaryRecursors
     {sourceTypes : List InductiveType} {auxRecNames : List Name}
     {sourceProdEnv primaryProdEnv outProdEnv : Environment}
     {sourceVEnv envTypes envCtors : VEnv}
     {owners : List VInductiveType}
     {primaryRecursors auxiliaryRecursors : List VConstVal}
-    {HprimaryTrace : StateForMTrace
+    {HprimaryTrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv primaryProdEnv}
-    {Hsource : RestoredSourceInductiveSemanticTrace decl lparams safety
+    {Hsource : SourceFamilyTranslations decl lparams safety
       sourceVEnv envTypes envCtors HprimaryTrace owners primaryRecursors}
-    {HauxTrace : StateForMTrace
+    {HauxTrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       auxRecNames primaryProdEnv outProdEnv}
-    {Haux : RestoredAuxiliaryRecursorTrace safety envCtors
+    {Haux : AuxiliaryRecursorTranslations safety envCtors
       envCtors HauxTrace [] auxiliaryRecursors}
     {typeEntries constructorEntries primaryRecursorEntries :
       List (ConstantInfo × VConstVal)}
     {primaryActualEntries : List ConstantInfo}
-    (Hprimary : Hsource.CanonicalReplay typeEntries constructorEntries
+    (Hprimary : Hsource.InDependencyOrder typeEntries constructorEntries
       primaryRecursorEntries primaryActualEntries)
     {auxiliaryEntries : List (ConstantInfo × VConstVal)}
-    (Hauxiliary : Haux.CanonicalReplay auxiliaryEntries) :
-    CanonicalRestorationReplay safety sourceProdEnv outProdEnv sourceVEnv
+    (Hauxiliary : Haux.InDependencyOrder auxiliaryEntries) :
+    RestorationInDependencyOrder safety sourceProdEnv outProdEnv sourceVEnv
       envTypes envCtors owners primaryRecursors auxiliaryRecursors := by
   let recursorEntries := primaryRecursorEntries ++ auxiliaryEntries
   let actualEntries := primaryActualEntries ++ auxiliaryEntries.map Prod.fst
@@ -1161,7 +1161,7 @@ source semantics and the block-independent auxiliary recursor trace.  Every
 layout, concrete endpoint, value split, and installation field is derived
 before restored rule semantics; the remaining inputs are the primitive-safe
 and non-delta companion traces from the same executable run. -/
-theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
+theorem SourceFamilyTranslations.existsExactStagedRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -1170,25 +1170,25 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    {HprimaryTrace : StateForMTrace
+    {HprimaryTrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       sourceTypes c.env primaryProdEnv}
     {primaryRecursors auxiliaryRecursors : List VConstVal}
     {auxRecNames : List Name}
     {es : List (Name × InductiveSignature.CaseSchema)}
-    {HauxTrace : StateForMTrace
+    {HauxTrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       auxRecNames primaryProdEnv outProdEnv}
-    (Hsource : RestoredSourceInductiveSemanticTrace decl c.lparams c.safety
+    (Hsource : SourceFamilyTranslations decl c.lparams c.safety
       sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
       HprimaryTrace decl.types primaryRecursors)
-    (Haux : RestoredAuxiliaryRecursorTrace c.safety
+    (Haux : AuxiliaryRecursorTranslations c.safety
       ((envCtors.addEliminators es).addProjections decl.projectionEntries)
       ((envCtors.addEliminators es).addProjections decl.projectionEntries) HauxTrace []
       auxiliaryRecursors)
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -1197,13 +1197,13 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (Hprimitive : PrimitiveSafeFreshConstantTrace false c.env
+    (Hprimitive : FreshNonprimitiveExtension false c.env
       primitiveEntries outProdEnv)
-    (Hnondelta : FreshConstantTrace c.env nondeltaEntries outProdEnv)
+    (Hnondelta : FreshExtension c.env nondeltaEntries outProdEnv)
     (hnondelta : ∀ entry ∈ nondeltaEntries,
       entry.deltaValue? = none)
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv decl (decl.caseBlock es)) :
-    ∃ replay : CanonicalRestorationReplay c.safety c.env outProdEnv
+    ∃ replay : RestorationInDependencyOrder c.safety c.env outProdEnv
         sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
         decl.types primaryRecursors auxiliaryRecursors,
       ∃ canonicalProdEnv installedVEnv,

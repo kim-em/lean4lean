@@ -15,7 +15,7 @@ available for one original family.  Later primary-iota proofs must retain
 this object rather than projecting only the source recursor and constructor
 translations, because those projections forget the telescope identities
 needed to type the restored LHS application. -/
-structure RestoredPrimaryOperationalFamilyAlignment
+structure SourceFamilyRestorationAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -23,7 +23,7 @@ structure RestoredPrimaryOperationalFamilyAlignment
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
+    (Hlowering : NestedLoweringOutputClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
     (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -45,7 +45,7 @@ structure RestoredPrimaryOperationalFamilyAlignment
   mappings : ConstructorLowerings.Resolved loweredSourceEnv result.params
     nparams result sourceTypes[familyIdx].ctors stepState
       (target.ctors, loweredState)
-  restorationTrace : StateForMTrace
+  restorationTrace : FoldSteps
     (RestoredConstructorStep result loweredEnv)
     (target.ctors.map (fun ctor => ctor.name)) Hstep.restored.headerEnv
       Hstep.restored.constructorEnv
@@ -53,13 +53,13 @@ structure RestoredPrimaryOperationalFamilyAlignment
     loweredEnv result.params nparams c.safety c.lparams
       sourceTypes[familyIdx].ctors stepState target.ctors loweredState
       Hstep.restored.headerEnv Hstep.restored.constructorEnv
-  recursor : GeneratedRecursorRestorationTelescopeAlignment result loweredEnv
+  recursor : RestoredRecursorTelescopeAlignment result loweredEnv
     auxRec Hstep.restored.recursor.restored.newInfo
       (Hprod.generated.entry familyIdx hentry)
 
 /-- Construct the joint operational certificate directly from a closed
 lowering run and the exact family restoration step. -/
-theorem NestedLoweringResultClosed.primaryOperationalFamilyAlignmentAtFresh
+theorem NestedLoweringOutputClosed.primaryOperationalFamilyAlignmentAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -67,7 +67,7 @@ theorem NestedLoweringResultClosed.primaryOperationalFamilyAlignmentAtFresh
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -75,7 +75,7 @@ theorem NestedLoweringResultClosed.primaryOperationalFamilyAlignmentAtFresh
     (hentry : familyIdx < Hprod.entries.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv) :
-    Nonempty (RestoredPrimaryOperationalFamilyAlignment H Hprod familyIdx
+    Nonempty (SourceFamilyRestorationAlignment H Hprod familyIdx
       hfamily hentry Hstep) := by
   rcases H.sourceConstructorRestorationTraceAtFresh Hc Hprod hempty
       familyIdx hfamily Hstep with
@@ -129,7 +129,7 @@ namespace VerifyInductive
 the source-facing abstract constructor semantics at that exact restoration
 step.  This is the earliest safe place to establish the constructor half of
 restored primary-iota LHS typing. -/
-inductive RestoredConstructorSemanticMappingTrace
+inductive RestoredConstructorMappingTranslations
     (result : Lean4Lean.ElimNestedInductive.Result)
     (mappingEnv loweredEnv : Environment) (params : Array Expr)
     (nparams : Nat) (safety : DefinitionSafety) (lparams : List Name)
@@ -139,7 +139,7 @@ inductive RestoredConstructorSemanticMappingTrace
       Environment → Environment → List VConstVal → Prop
   | nil (state : Lean4Lean.ElimNestedInductive.State)
       (sourceProdEnv : Environment) :
-      RestoredConstructorSemanticMappingTrace result mappingEnv loweredEnv
+      RestoredConstructorMappingTranslations result mappingEnv loweredEnv
         params nparams safety lparams canonicalEnv [] state [] state
           sourceProdEnv sourceProdEnv []
   | cons
@@ -151,13 +151,13 @@ inductive RestoredConstructorSemanticMappingTrace
       (hlevels : Hstep.oldInfo.levelParams = lparams)
       (hname : Hstep.oldInfo.name = target.name)
       (htype : Hstep.oldInfo.type = target.type)
-      (Hsemantic : RestoredSourceConstructorSemantics lparams safety
+      (Hsemantic : RestoredConstructorTranslation lparams safety
         canonicalEnv Hstep source)
-      (Hrest : RestoredConstructorSemanticMappingTrace result mappingEnv
+      (Hrest : RestoredConstructorMappingTranslations result mappingEnv
         loweredEnv params nparams safety lparams canonicalEnv sources
           nextState targets finalState middleProdEnv targetProdEnv
             constructors) :
-      RestoredConstructorSemanticMappingTrace result mappingEnv loweredEnv
+      RestoredConstructorMappingTranslations result mappingEnv loweredEnv
         params nparams safety lparams canonicalEnv (source :: sources) state
           (target :: targets) finalState sourceProdEnv targetProdEnv
             (Hsemantic.constructor :: constructors)
@@ -180,7 +180,7 @@ theorem LoweredRestoredConstructors.sourceSemanticMapping
     (hnodup : paramFvars.Nodup)
     (hresultNParams : result.nparams = nparams)
     (hparamsSize : params.size = nparams) :
-    RestoredConstructorSemanticMappingTrace result mappingEnv loweredEnv
+    RestoredConstructorMappingTranslations result mappingEnv loweredEnv
       params nparams safety lparams canonicalEnv sources state targets
         finalState sourceProdEnv targetProdEnv constructors := by
   induction H generalizing constructors with
@@ -212,7 +212,7 @@ theorem LoweredRestoredConstructors.sourceSemanticMapping
             exact Hsource.uvars.symm) (by
             exact (hname.trans Hmapping.name).trans Hsource.name.symm)
             HrestoredType
-        apply RestoredConstructorSemanticMappingTrace.cons Hmapping Hstep
+        apply RestoredConstructorMappingTranslations.cons Hmapping Hstep
           hsafety hlevels hname htype
           { constructor := constructor
             sourceTranslation := Hsource
@@ -223,8 +223,8 @@ theorem LoweredRestoredConstructors.sourceSemanticMapping
 
 /-- Pointwise selection preserves the shared operational step and abstract
 constructor identity. -/
-theorem RestoredConstructorSemanticMappingTrace.at
-    (H : RestoredConstructorSemanticMappingTrace result mappingEnv loweredEnv
+theorem RestoredConstructorMappingTranslations.at
+    (H : RestoredConstructorMappingTranslations result mappingEnv loweredEnv
       params nparams safety lparams canonicalEnv sources state targets
         finalState sourceProdEnv targetProdEnv constructors)
     (i : Nat) (hsource : i < sources.length)
@@ -234,7 +234,7 @@ theorem RestoredConstructorSemanticMappingTrace.at
           sources[i] before (targets[i], after),
       ∃ Hstep : RestoredConstructorStep result loweredEnv targets[i].name
           stepSource stepTarget,
-      ∃ Hsemantic : RestoredSourceConstructorSemantics lparams safety
+      ∃ Hsemantic : RestoredConstructorTranslation lparams safety
           canonicalEnv Hstep sources[i],
         Hstep.oldInfo.name = targets[i].name ∧
         Hsemantic.constructor = constructors[i] := by
@@ -269,7 +269,7 @@ pointwise selector which preserves that identity.
 /-- Family semantics retaining the complete operational recursor alignment
 and a lockstep constructor trace whose source translation is indexed by the
 same lowering/restoration step. -/
-structure RestoredPrimaryOperationalFamilySemantics
+structure SourceFamilyConstructorTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -277,19 +277,19 @@ structure RestoredPrimaryOperationalFamilySemantics
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
+    {Hlowering : NestedLoweringOutputClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
     {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv}
-    (A : RestoredPrimaryOperationalFamilyAlignment Hlowering Hprod familyIdx
+    (A : SourceFamilyRestorationAlignment Hlowering Hprod familyIdx
       hfamily hentry Hstep)
     (owner : VInductiveType)
-    (Hrecursor : RestoredPrimaryRecursorSemantics sourceDecl owner c.safety
+    (Hrecursor : SourceRecursorTranslation sourceDecl owner c.safety
       Hstep.restored.recursor canonicalEnv) : Prop where
-  constructors : RestoredConstructorSemanticMappingTrace result
+  constructors : RestoredConstructorMappingTranslations result
     loweredSourceEnv loweredEnv result.params nparams c.safety c.lparams
       canonicalEnv sourceTypes[familyIdx].ctors A.stepState A.target.ctors
         A.loweredState Hstep.restored.headerEnv
@@ -298,7 +298,7 @@ structure RestoredPrimaryOperationalFamilySemantics
 /-- Select one constructor while retaining all three identities at once:
 the original source constructor, its lowered/restored operational step, and
 the independently translated abstract source constructor. -/
-theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
+theorem SourceFamilyConstructorTranslations.constructorAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -306,19 +306,19 @@ theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
+    {Hlowering : NestedLoweringOutputClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
     {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
       sourceTypes[familyIdx] sourceProdEnv targetProdEnv}
-    {A : RestoredPrimaryOperationalFamilyAlignment Hlowering Hprod familyIdx
+    {A : SourceFamilyRestorationAlignment Hlowering Hprod familyIdx
       hfamily hentry Hstep}
     {owner : VInductiveType}
-    {Hrecursor : RestoredPrimaryRecursorSemantics sourceDecl owner c.safety
+    {Hrecursor : SourceRecursorTranslation sourceDecl owner c.safety
       Hstep.restored.recursor canonicalEnv}
-    (F : RestoredPrimaryOperationalFamilySemantics A owner Hrecursor)
+    (F : SourceFamilyConstructorTranslations A owner Hrecursor)
     (i : Nat) (hsource : i < sourceTypes[familyIdx].ctors.length)
     (htarget : i < A.target.ctors.length)
     (hconstructor : i < owner.ctors.length) :
@@ -328,7 +328,7 @@ theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
             (A.target.ctors[i], after),
       ∃ HctorStep : RestoredConstructorStep result loweredEnv
           A.target.ctors[i].name stepSource stepTarget,
-      ∃ Hsemantic : RestoredSourceConstructorSemantics c.lparams c.safety
+      ∃ Hsemantic : RestoredConstructorTranslation c.lparams c.safety
           canonicalEnv HctorStep sourceTypes[familyIdx].ctors[i],
         HctorStep.oldInfo.name = A.target.ctors[i].name ∧
         Hsemantic.constructor = owner.ctors[i] :=

@@ -45,7 +45,7 @@ theorem RestoredFamilyParameterScope.constructorDomains
     (hnparams : decl.nparams = numParams)
     (hparamsScope : env.IsDefEqCtx levelParams.length []
       params.reverse scope.toCtx) :
-    Nonempty (RestoredConstructorParameterDomains env levelParams numParams
+    Nonempty (ConstructorParameterDomainsDefEq env levelParams numParams
       familyTarget constructor.toVConstant) := by
   rcases Hctor with ⟨constructorDomains, constructorTail,
     hconstructorTake, hconstructorParams⟩
@@ -76,41 +76,41 @@ theorem RestoredFamilyParameterScope.constructorDomains
 to restored constructors.  This chooses no constructor and contains no
 constructor semantics. -/
 def NestedRestoredFamilyParameterScopes
-    (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv) : Prop :=
   ∀ familyIdx (hfamily : familyIdx < decl.types.length),
-    Nonempty (RestoredFamilyParameterScope E.assembly.canonical.venvCtors
-      lparams nparams E.production.headers.statsWF.parameterScope
+    Nonempty (RestoredFamilyParameterScope E.assembly.install.venvCtors
+      lparams nparams E.lowered.headers.statsWF.parameterScope
       decl.types[familyIdx].toVConstVal.toVConstant)
 
 /-- The independently restored source family has the same semantic parameter
 telescope as the lowered header that the executable checker materialized.
 The telescope need not be syntactically visible in the restored constant:
 header checking normalizes before exposing `TypeShape`. -/
-theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
-    (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes sourceEnv
+theorem NestedInstalledRun.restoredFamilyParameterScopes
+    (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
+    (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
     (hempty : initialState.nestedAux = #[]) :
     NestedRestoredFamilyParameterScopes E := by
   let Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
-      isUnsafe decl E.assembly.canonical.venvTypes
-        E.assembly.canonical.venvCtors :=
-    E.assembly.sourceSemantics.core E.assembly.typesSource E.assembly.uvars
+      isUnsafe decl E.assembly.install.venvTypes
+        E.assembly.install.venvCtors :=
+    E.assembly.sourceTranslations.core E.assembly.typesSource E.assembly.uvars
       E.assembly.numParams E.assembly.unsafeEq E.assembly.typesAdded
       E.assembly.constructorsAdded
   have hsourceWF : sourceEnv.WF := by
-    have hwf := E.production.headers.sourceContext.checking.tr.wf
-    rw [E.production.headers.sourceContextVEnv] at hwf
+    have hwf := E.lowered.headers.sourceContext.checking.tr.wf
+    rw [E.lowered.headers.sourceContextVEnv] at hwf
     simpa only [E.production_initialEnv] using hwf
-  have hcanonicalWF : E.assembly.canonical.venvCtors.WF :=
+  have hcanonicalWF : E.assembly.install.venvCtors.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource hsourceWF
-  have hsourceLE : sourceEnv ≤ E.assembly.canonical.venvCtors :=
+  have hsourceLE : sourceEnv ≤ E.assembly.install.venvCtors :=
     (VEnv.addConstVals_le E.assembly.typesAdded).trans
       (VEnv.addConstVals_le E.assembly.constructorsAdded)
-  have hlparams : E.production.c.lparams = lparams := by
+  have hlparams : E.lowered.c.lparams = lparams := by
     rw [E.production_c, E.productionContext_lparams]
   intro familyIdx hfamily
   have hsourceFamily : familyIdx < sourceTypes.length := by
@@ -118,20 +118,20 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
     exact hfamily
   have hresultFamily : familyIdx < result.types.length :=
     Nat.lt_of_lt_of_le hsourceFamily Hlower.toResult.sourceTypes_length_le
-  have hloweredFamily : familyIdx < E.production.loweredDecl.types.length := by
+  have hloweredFamily : familyIdx < E.lowered.loweredDecl.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-      E.production.constructors.core]
+      E.lowered.constructors.core]
     simpa only [E.production_indTypes] using hresultFamily
   let sourceTarget := decl.types[familyIdx]
-  let loweredTarget := E.production.loweredDecl.types[familyIdx]
+  let loweredTarget := E.lowered.loweredDecl.types[familyIdx]
   have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
     familyIdx hsourceFamily hfamily
-  have HproductionCore : TrInductDeclCore E.production.initialEnv lparams
-      nparams result.types E.production.isUnsafe E.production.loweredDecl
-      E.production.headers.context.venv
-      E.production.constructors.declared.venvCtors := by
+  have HproductionCore : TrInductDeclCore E.lowered.initialEnv lparams
+      nparams result.types E.lowered.isUnsafe E.lowered.loweredDecl
+      E.lowered.headers.context.venv
+      E.lowered.constructors.declared.venvCtors := by
     simpa [hlparams, E.production_nparams, E.production_indTypes]
-      using E.production.constructors.core
+      using E.lowered.constructors.core
   rcases Hlower.sourceHeaderTranslationAtFresh hempty
       HproductionCore familyIdx hsourceFamily with
     ⟨_hdecl, HloweredHeader⟩
@@ -142,12 +142,12 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
         simpa only [E.production_initialEnv, hlparams,
           sourceTarget, loweredTarget]
         using HloweredHeader.type)
-  have HloweredShape : E.production.loweredDecl.TypeShape sourceEnv
-      E.production.headers.sourceStatsWF.headers.params loweredTarget := by
+  have HloweredShape : E.lowered.loweredDecl.TypeShape sourceEnv
+      E.lowered.headers.sourceStatsWF.headers.params loweredTarget := by
     have Hshape :=
-      E.production.headers.sourceStatsWF.headers.typeShapes loweredTarget
+      E.lowered.headers.sourceStatsWF.headers.typeShapes loweredTarget
         (List.getElem_mem hloweredFamily)
-    simpa only [E.production.headers.sourceContextVEnv,
+    simpa only [E.lowered.headers.sourceContextVEnv,
       E.production_initialEnv] using Hshape
   rcases HloweredShape with
     ⟨normalized, ownParams, afterParams, _indices, _familyResult, exprType,
@@ -156,35 +156,35 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
     ⟨HnormalizedEq, hownParams⟩
   have HsourceNormalized : sourceEnv.IsDefEq lparams.length []
       sourceTarget.type normalized exprType := by
-    have HtargetEq' : sourceEnv.IsDefEqU E.production.loweredDecl.uvars []
+    have HtargetEq' : sourceEnv.IsDefEqU E.lowered.loweredDecl.uvars []
         sourceTarget.type loweredTarget.type := by
-      simpa [E.production.constructors.core.uvars, hlparams] using HtargetEq
+      simpa [E.lowered.constructors.core.uvars, hlparams] using HtargetEq
     have Hnormalized' := VEnv.IsDefEq.transU_r hsourceWF (by trivial)
       HtargetEq' Hnormalized
-    simpa [E.production.constructors.core.uvars, hlparams] using Hnormalized'
-  have HtargetDefEq : E.assembly.canonical.venvCtors.IsDefEqU
+    simpa [E.lowered.constructors.core.uvars, hlparams] using Hnormalized'
+  have HtargetDefEq : E.assembly.install.venvCtors.IsDefEqU
       lparams.length [] sourceTarget.type
       (VExpr.wrapForalls ownParams afterParams) := by
     rw [← HnormalizedEq]
     exact ⟨exprType, HsourceNormalized.mono hsourceLE⟩
-  have HownCommon : E.assembly.canonical.venvCtors.IsDefEqCtx
+  have HownCommon : E.assembly.install.venvCtors.IsDefEqCtx
       lparams.length [] ownParams.reverse
-      E.production.headers.sourceStatsWF.headers.params.reverse := by
+      E.lowered.headers.sourceStatsWF.headers.params.reverse := by
     have Hparams' : sourceEnv.IsDefEqCtx lparams.length []
-        E.production.headers.sourceStatsWF.headers.params.reverse
+        E.lowered.headers.sourceStatsWF.headers.params.reverse
         ownParams.reverse := by
       simpa [VInductDecl.ParamsDefEq,
-        E.production.constructors.core.uvars, hlparams] using Hparams
+        E.lowered.constructors.core.uvars, hlparams] using Hparams
     exact (Hparams'.symm hsourceWF.ordered).mono hsourceLE
-  have HcommonCached : E.assembly.canonical.venvCtors.IsDefEqCtx
+  have HcommonCached : E.assembly.install.venvCtors.IsDefEqCtx
       lparams.length []
-      E.production.headers.sourceStatsWF.headers.params.reverse
-      E.production.headers.sourceStatsWF.parameterScope.toCtx := by
-    have Hcached₀ := E.production.headers.sourceStatsWF.paramsContext
+      E.lowered.headers.sourceStatsWF.headers.params.reverse
+      E.lowered.headers.sourceStatsWF.parameterScope.toCtx := by
+    have Hcached₀ := E.lowered.headers.sourceStatsWF.paramsContext
     have Hcached : sourceEnv.IsDefEqCtx lparams.length []
-        E.production.headers.sourceStatsWF.headers.params.reverse
-        E.production.headers.sourceStatsWF.parameterScope.toCtx := by
-      simpa only [E.production.headers.sourceContextVEnv,
+        E.lowered.headers.sourceStatsWF.headers.params.reverse
+        E.lowered.headers.sourceStatsWF.parameterScope.toCtx := by
+      simpa only [E.lowered.headers.sourceContextVEnv,
         E.production_initialEnv, hlparams] using Hcached₀
     exact Hcached.mono hsourceLE
   have HownCached := VEnv.IsDefEqCtx.trans_empty hcanonicalWF HownCommon
@@ -195,11 +195,11 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
     target_defeq := by simpa [sourceTarget] using HtargetDefEq
     length := by
       calc
-        ownParams.length = E.production.loweredDecl.nparams := hownParams
-        _ = E.production.nparams := E.production.constructors.core.nparams
+        ownParams.length = E.lowered.loweredDecl.nparams := hownParams
+        _ = E.lowered.nparams := E.lowered.constructors.core.nparams
         _ = nparams := E.production_nparams
     context := by
-      rw [E.production.headers.parameterScopeEq]
+      rw [E.lowered.headers.parameterScopeEq]
       exact HownCached }⟩
 
 /-- Build restored constructor-parameter coherence directly from the source
@@ -208,35 +208,35 @@ certificate fixes one canonical parameter list for every family and
 constructor.  For each restored family, equal-length forall inversion aligns
 that list with the executable cached parameter scope.  Consequently no
 derivation-locality or environment-restriction premise is required. -/
-theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
-    (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes sourceEnv
+theorem NestedInstalledRun.restoredConstructorParameterDomainsNative
+    (E : NestedInstalledRun result sourceProdEnv sourceTypes sourceEnv
       decl lparams nparams isUnsafe safety outEnv)
     (Hfamilies : NestedRestoredFamilyParameterScopes E) :
-    NestedRestoredConstructorParameterDomains E.assembly := by
+    NestedConstructorParameterDomainsDefEq E.assembly := by
   rcases E.assembly.formationAssembly.sourceParameters with
     ⟨params, parameterEnv, hparameterEnv, Htypes, Hconstructors⟩
   have hcanonicalTypes : parameterEnv =
-      E.assembly.canonical.venvTypes := by
+      E.assembly.install.venvTypes := by
     exact Option.some.inj (hparameterEnv.symm.trans
       E.assembly.typesAdded)
   subst parameterEnv
-  have hsourceTypes : sourceEnv ≤ E.assembly.canonical.venvTypes :=
+  have hsourceTypes : sourceEnv ≤ E.assembly.install.venvTypes :=
     VEnv.addConstVals_le E.assembly.typesAdded
-  have htypesCtors : E.assembly.canonical.venvTypes ≤
-      E.assembly.canonical.venvCtors :=
-    VEnv.addConstVals_le E.assembly.canonical.abstract_ctors
-  have hsourceCtors : sourceEnv ≤ E.assembly.canonical.venvCtors :=
+  have htypesCtors : E.assembly.install.venvTypes ≤
+      E.assembly.install.venvCtors :=
+    VEnv.addConstVals_le E.assembly.install.abstract_ctors
+  have hsourceCtors : sourceEnv ≤ E.assembly.install.venvCtors :=
     hsourceTypes.trans htypesCtors
-  have hcanonicalWF : E.assembly.canonical.venvCtors.WF := by
+  have hcanonicalWF : E.assembly.install.venvCtors.WF := by
     let Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
-        isUnsafe decl E.assembly.canonical.venvTypes
-          E.assembly.canonical.venvCtors :=
-      E.assembly.sourceSemantics.core E.assembly.typesSource E.assembly.uvars
+        isUnsafe decl E.assembly.install.venvTypes
+          E.assembly.install.venvCtors :=
+      E.assembly.sourceTranslations.core E.assembly.typesSource E.assembly.uvars
         E.assembly.numParams E.assembly.unsafeEq
         E.assembly.typesAdded E.assembly.constructorsAdded
     have hsourceWF : sourceEnv.WF := by
-      have hwf := E.production.headers.sourceContext.checking.tr.wf
-      rw [E.production.headers.sourceContextVEnv] at hwf
+      have hwf := E.lowered.headers.sourceContext.checking.tr.wf
+      rw [E.lowered.headers.sourceContextVEnv] at hwf
       simpa only [E.production_initialEnv] using hwf
     exact TrInductDeclCore.envCtorsWF Hsource hsourceWF
   intro familyIdx hfamily ctorIdx hctor
@@ -248,7 +248,7 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
     List.getElem_mem hctor
   have Hshape := Htypes family hfamilyMem
   have Hconstructor : decl.CtorParameterShape
-      E.assembly.canonical.venvCtors params constructor :=
+      E.assembly.install.venvCtors params constructor :=
     (Hconstructors.1 family hfamilyMem constructor hctorMem).mono htypesCtors
   rcases Hfamilies familyIdx hfamily with ⟨Hfamily⟩
   rcases Hshape with
@@ -257,13 +257,13 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
   rcases VExpr.takeForalls_rebuild HparamsTake with
     ⟨HnormalizedTarget, hownLength⟩
   have HsourcePresentation :
-      E.assembly.canonical.venvCtors.IsDefEqU lparams.length []
+      E.assembly.install.venvCtors.IsDefEqU lparams.length []
         family.type (VExpr.wrapForalls ownParams afterParams) := by
     rw [← HnormalizedTarget]
     exact ⟨exprType, by
       simpa [E.assembly.uvars] using Hnormalized.mono hsourceCtors⟩
   have Hpresentations :
-      E.assembly.canonical.venvCtors.IsDefEqU lparams.length []
+      E.assembly.install.venvCtors.IsDefEqU lparams.length []
         (VExpr.wrapForalls ownParams afterParams)
         (VExpr.wrapForalls Hfamily.domains Hfamily.tail) := by
     exact HsourcePresentation.symm.trans hcanonicalWF (by trivial)
@@ -272,17 +272,17 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
     (VEnv.IsDefEqCtx.refl (by trivial))
     (hownLength.trans (E.assembly.numParams.trans Hfamily.length.symm))
     Hpresentations
-  have HparamsOwn : E.assembly.canonical.venvCtors.IsDefEqCtx
+  have HparamsOwn : E.assembly.install.venvCtors.IsDefEqCtx
       lparams.length [] params.reverse ownParams.reverse := by
     simpa [VInductDecl.ParamsDefEq, E.assembly.uvars] using
       Hparams.mono hsourceCtors
-  have HparamsFamily : E.assembly.canonical.venvCtors.IsDefEqCtx
+  have HparamsFamily : E.assembly.install.venvCtors.IsDefEqCtx
       lparams.length [] params.reverse Hfamily.domains.reverse :=
     VEnv.IsDefEqCtx.trans_empty hcanonicalWF HparamsOwn (by
       simpa using HownFamily)
-  have HparamsScope : E.assembly.canonical.venvCtors.IsDefEqCtx
+  have HparamsScope : E.assembly.install.venvCtors.IsDefEqCtx
       lparams.length [] params.reverse
-        E.production.headers.statsWF.parameterScope.toCtx :=
+        E.lowered.headers.statsWF.parameterScope.toCtx :=
     VEnv.IsDefEqCtx.trans_empty hcanonicalWF HparamsFamily Hfamily.context
   simpa [family, constructor] using
     Hfamily.constructorDomains hcanonicalWF Hconstructor

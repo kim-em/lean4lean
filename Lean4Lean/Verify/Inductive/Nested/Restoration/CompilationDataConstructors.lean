@@ -4,11 +4,11 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryConstructors
 import Lean4Lean.Std.List
 
 /-! Constructor restoration and `CompilationData` of a validated nested run,
-for the specializations of `NestedValidatedRunResult.restorationTablesRestoring`.
+for the specializations of `NestedRun.restorationTablesRestoring`.
 
-`NestedValidatedRunResult.sourceConstructors_of_evidence`,
-`NestedValidatedRunResult.loweredConstructors_of` and
-`NestedValidatedRunResult.auxiliaryFamilies_of` each speak about a
+`NestedRun.sourceConstructors_of_evidence`,
+`NestedRun.loweredConstructors_of` and
+`NestedRun.auxiliaryFamilies_of` each speak about a
 specialization list obtained from an existential, so their conclusions cannot
 be combined directly. Here all three arguments are run on the single list
 supplied by `restorationTablesRestoring`. The proofs of the lowered
@@ -17,10 +17,10 @@ tails of `loweredConstructors_of` and `auxiliaryFamilies_of`, instantiated at
 that list.
 
 The universe-level premise of `loweredConstructors_of` (`ConstLevelsAt`) is
-`NestedValidatedRunResult.loweredConstructorLevels_heads`, and the
+`NestedRun.loweredConstructorLevels_heads`, and the
 restoration of the auxiliary constructor types is
-`NestedValidatedRunResult.auxiliaryConstructors_of_evidence`. What remains
-open for `NestedCompilationPending` (`compilationData_of_pending'`):
+`NestedRun.auxiliaryConstructors_of_evidence`. What remains
+open for `NestedCompilationRestorationFacts` (`compilationData_of_pending'`):
 
 * `normalizedTotal`: restoration is defined on the normalized constructor
   types (of the source and of the auxiliary families),
@@ -36,14 +36,14 @@ open Lean hiding Environment Exception
 open Kernel
 
 /-- The facts of `containerSpecializationFacts` (as repeated in the prefix of
-`NestedValidatedRunResult.loweredConstructors_of`), for the specializations of
+`NestedRun.loweredConstructors_of`), for the specializations of
 `restorationTablesRestoring`, conjoined with an arbitrary further fact. -/
-theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
+theorem NestedRun.restorationPrefix_of {X : Prop}
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv)
@@ -54,34 +54,34 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
     (henvTypes : envTypes.WF)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
-    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hX : X) :
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
       envTypes.WF ∧
       auxiliaries.map (·.auxiliary) =
-        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
+        (E.lowered.loweredDecl.types.drop sourceDecl.types.length).map
           (·.name) ∧
       auxiliaries.flatMap (·.headNames) =
-        familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+        familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       ContainersInstalled (ves.venv (if isUnsafe then .unsafe else .safe))
         auxiliaries ∧
       (∀ params : List VExpr,
         VEnv.IsDefEqCtx envTypes sourceDecl.uvars [] params.reverse
-          E.production.headers.commonParameterContext →
+          E.lowered.headers.commonParameterContext →
         ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
       (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
-        E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse) ∧
+        E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse) ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
       (∀ (U : Nat) (params : List VExpr), ∃ direct,
         auxiliaries.mapM (fun a => a.specializedFamily U params) = some direct ∧
@@ -96,17 +96,17 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
       X := by
   let r := compilationRestoration sourceDecl auxiliaries
   have hsuffixNodup :
-      (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ++
-        (E.production.loweredDecl.types.drop sourceDecl.types.length).map
+      (familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ++
+        (E.lowered.loweredDecl.types.drop sourceDecl.types.length).map
           (fun t => t.name.str "rec")).Nodup := by
     refine hnodup.sublist (List.Sublist.append ?_ ((List.drop_sublist _ _).map _))
     conv => rhs; rw [← List.take_append_drop sourceDecl.types.length
-      E.production.loweredDecl.types]
+      E.lowered.loweredDecl.types]
     simp only [familyNames, List.flatMap_append]
     exact List.sublist_append_right _ _
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
-      E.production.headers.commonParameterContext := by
+      (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
+      E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
       OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
@@ -156,13 +156,13 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
 /-- The lowered constructor types of the source families restore
 syntactically to the source constructor types, for the specializations of
 `restorationTablesRestoring`, given the universe-level premise of
-`NestedValidatedRunResult.loweredConstructors_of`. -/
-theorem NestedValidatedRunResult.loweredConstructors_of_evidence
+`NestedRun.loweredConstructors_of`. -/
+theorem NestedRun.loweredConstructors_of_evidence
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {envTypes : VEnv} {auxiliaries : List ContainerSpecialization}
@@ -176,8 +176,8 @@ theorem NestedValidatedRunResult.loweredConstructors_of_evidence
             ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
               (VLevel.params sourceDecl.uvars)) 0 sc.type lc.type)
           source.ctors lowered.ctors)
-        sourceDecl.types (E.production.loweredDecl.types.take sourceDecl.types.length))
-    (hlevels : ∀ lowered ∈ E.production.loweredDecl.types.take sourceDecl.types.length,
+        sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length))
+    (hlevels : ∀ lowered ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
         lc.type.ConstLevelsAt
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
@@ -187,11 +187,11 @@ theorem NestedValidatedRunResult.loweredConstructors_of_evidence
             (compilationRestoration sourceDecl auxiliaries).expr lc.type = some restored ∧
             envTypes.SimAt sourceDecl.uvars [] restored sc.type)
           lowered.ctors source.ctors)
-      (E.production.loweredDecl.types.take sourceDecl.types.length) sourceDecl.types := by
+      (E.lowered.loweredDecl.types.take sourceDecl.types.length) sourceDecl.types := by
   let r := compilationRestoration sourceDecl auxiliaries
-  have Hsource := E.nativeSource.core
+  have Hsource := E.sourceCore.core
   rw [E.nativeSourceDecl_eq] at Hsource
-  have htypesEq : E.nativeSource.envTypes = envTypes := by
+  have htypesEq : E.sourceCore.envTypes = envTypes := by
     exact Option.some.inj (Hsource.typesAdded.symm.trans hadded)
   have hordered := henvTypes.ordered
   have hsourceFree : ∀ family ∈ sourceDecl.types, ∀ sc ∈ family.ctors,
@@ -214,16 +214,16 @@ theorem NestedValidatedRunResult.loweredConstructors_of_evidence
     hc.restore (hsourceFree family hfamily sc hsc) (hlevels lowered hlowered lc hlc)
   exact ⟨sc.type, hr, fun _ h => h⟩
 
-/-- The `auxiliaryFamilies` field of `NestedCompilationPending` for any
+/-- The `auxiliaryFamilies` field of `NestedCompilationRestorationFacts` for any
 specialization list with exact lowering evidence, modulo the restoration of
 the auxiliary constructor types (the tail of
-`NestedValidatedRunResult.auxiliaryFamilies_of`). -/
-theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
+`NestedRun.auxiliaryFamilies_of`). -/
+theorem NestedRun.auxiliaryFamiliesField_of_evidence
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv)
@@ -234,30 +234,30 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
     (henvTypes : envTypes.WF)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
     (Hrestores : ∀ envTypes direct,
         (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
           sourceDecl.typeConstants = some envTypes →
         auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars
-          E.production.compilationSignature.params) = some direct →
+          E.lowered.signature.params) = some direct →
         List.Forall₂ (fun normalized family : VInductiveType =>
             List.Forall₂ (fun normalized ctor : VConstVal =>
               RestoresType (compilationRestoration sourceDecl auxiliaries) envTypes
                 sourceDecl.uvars normalized.type ctor.type)
               normalized.ctors family.ctors)
-          (E.production.compilationSignature.declaration.types.drop
+          (E.lowered.signature.declaration.types.drop
             sourceDecl.types.length) direct) :
     ∀ envTypes direct,
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes →
       auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars
-        E.production.compilationSignature.params) = some direct →
+        E.lowered.signature.params) = some direct →
       List.Forall₂ (fun normalized family : VInductiveType =>
           normalized.numIndices = family.numIndices ∧
           normalized.resultLevel ≈ family.resultLevel ∧
@@ -271,51 +271,51 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
             RestoresType (compilationRestoration sourceDecl auxiliaries) envTypes
               sourceDecl.uvars normalized.type ctor.type)
             normalized.ctors family.ctors)
-        (E.production.compilationSignature.declaration.types.drop
+        (E.lowered.signature.declaration.types.drop
           sourceDecl.types.length) direct := by
   intro envTypes' direct htypes' hmapM
   have henvEq : envTypes' = envTypes := Option.some.inj (htypes'.symm.trans hadded)
   subst envTypes'
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
-      E.production.headers.commonParameterContext := by
+      (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
+      E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
       OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
-  have hinit : E.production.initialEnv =
+  have hinit : E.lowered.initialEnv =
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
-  have Hmodels : E.production.compilationSignature.Models
-      (ves.venv (if isUnsafe then .unsafe else .safe)) E.production.loweredDecl := by
-    have h := E.production.loweredConstruction.generator.models
-    change E.production.compilationSignature.Models E.production.initialEnv
-      E.production.loweredDecl at h
+  have Hmodels : E.lowered.signature.Models
+      (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
+    have h := E.lowered.recursorConstruction.generator.models
+    change E.lowered.signature.Models E.lowered.initialEnv
+      E.lowered.loweredDecl at h
     rwa [hinit] at h
-  have hsourceUvars : sourceDecl.uvars = E.production.c.lparams.length := by
-    have h := E.nativeSource.core.uvars
+  have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
+    have h := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h
     rw [h, E.production_c, E.productionContext_lparams]
-  have hloweredUvars : E.production.loweredDecl.uvars = sourceDecl.uvars :=
-    E.production.constructors.core.uvars.trans hsourceUvars.symm
-  have hloweredNparams : E.production.loweredDecl.nparams = sourceDecl.nparams := by
-    have h := E.nativeSource.core.nparams
+  have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars :=
+    E.lowered.constructors.core.uvars.trans hsourceUvars.symm
+  have hloweredNparams : E.lowered.loweredDecl.nparams = sourceDecl.nparams := by
+    have h := E.sourceCore.core.nparams
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.production.constructors.core.nparams, E.production_nparams]
-  have hparams : E.production.compilationSignature.params =
-      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.generator.params
+    rw [h, E.lowered.constructors.core.nparams, E.production_nparams]
+  have hparams : E.lowered.signature.params =
+      E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
+    E.lowered.recursorConstruction.generator.params
   refine auxiliaryFamilies_of_evidence (base := ves.venv (if isUnsafe then .unsafe else .safe))
-    (headerParams := E.production.headers.headers.params)
+    (headerParams := E.lowered.headers.headers.params)
     henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars
     hloweredNparams (hparams ▸ hlink) ?_ hmapM (Hrestores envTypes direct htypes' hmapM)
   · exact Lean4Lean.List.Forall₂.imp (fun _ _ h => ⟨h.2.2.1, h.2.2.2.1, h.2.2.2.2⟩)
       (Lean4Lean.List.forall₂_drop Hmodels.families sourceDecl.types.length)
   · intro t ht
-    have h := E.production.headers.headers.typeShapes t (List.mem_of_mem_drop ht)
-    generalize E.production.headers.headers.params = hp at h ⊢
+    have h := E.lowered.headers.headers.typeShapes t (List.mem_of_mem_drop ht)
+    generalize E.lowered.headers.headers.params = hp at h ⊢
     rwa [hinit] at h
   · intro n hn c hc
-    rw [E.production.compilationSignature.declaration_ctor_uvars n
+    rw [E.lowered.signature.declaration_ctor_uvars n
       (List.mem_of_mem_drop hn) c hc, Hmodels.uvars, hloweredUvars]
 
 end VerifyInductive

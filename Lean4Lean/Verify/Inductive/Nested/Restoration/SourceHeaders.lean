@@ -17,9 +17,9 @@ abstract block.  Splitting ordinary header installation at that queue
 boundary constructs the source-shaped abstract header environment and the
 complete positional source translation without choosing a source declaration
 or translating any constructor. -/
-theorem NestedLoweringResultClosed.sourceHeaderPrefix
+theorem NestedLoweringOutputClosed.sourceHeaderPrefix
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Htarget : TrInductDeclCore sourceVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
@@ -71,7 +71,7 @@ private theorem restoredHeaderValidationValidAux
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -213,7 +213,7 @@ theorem ValidationHeaderEnvironment.validOfLowering
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])

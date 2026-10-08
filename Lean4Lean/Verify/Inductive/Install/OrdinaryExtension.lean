@@ -569,9 +569,9 @@ theorem LoweringQueue.types_eq_of_aux2nested_size_eq_zero
 
 /-- Source syntax checked before lowering is therefore preserved literally
 by every successful ordinary (zero-auxiliary) lowering result. -/
-theorem NestedLoweringResult.types_eq_source_of_aux2nested_size_eq_zero
+theorem NestedLoweringOutput.types_eq_source_of_aux2nested_size_eq_zero
     {initialState : ElimNestedInductive.State}
-    (H : NestedLoweringResult env fuel nparams sourceTypes
+    (H : NestedLoweringOutput env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
@@ -612,14 +612,14 @@ theorem NestedLoweringResult.types_eq_source_of_aux2nested_size_eq_zero
 /-- Production starts lowering from this exact fresh state.  This
 specialization removes the generic cache premise from the declaration-facing
 ordinary branch. -/
-theorem NestedLoweringResult.ordinary_types_eq_source
-    (H : NestedLoweringResult env fuel nparams sourceTypes
+theorem NestedLoweringOutput.ordinary_types_eq_source
+    (H : NestedLoweringOutput env fuel nparams sourceTypes
       { lvls := levels, newTypes := sourceTypes.toArray } result)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
     (hsize : result.aux2nested.size = 0) :
     result.types = sourceTypes := by
-  apply NestedLoweringResult.types_eq_source_of_aux2nested_size_eq_zero
+  apply NestedLoweringOutput.types_eq_source_of_aux2nested_size_eq_zero
     (initialState := { lvls := levels, newTypes := sourceTypes.toArray })
     H Hsources HsourcesB
   · rfl
@@ -649,8 +649,8 @@ theorem PrimitiveNamesFresh.ofAllowPrimitiveFalse
 /-- A completed lowering trace can only have arisen from a nonempty source
 mutual block.  This packages the operational nonemptiness check at the
 declaration-facing trace boundary. -/
-theorem NestedLoweringResult.sourceTypes_nonempty
-    (H : NestedLoweringResult env fuel nparams sourceTypes initialState result) :
+theorem NestedLoweringOutput.sourceTypes_nonempty
+    (H : NestedLoweringOutput env fuel nparams sourceTypes initialState result) :
     sourceTypes ≠ [] := by
   rcases H with ⟨finalState, Hrun⟩
   rcases Hrun.source with
@@ -659,9 +659,9 @@ theorem NestedLoweringResult.sourceTypes_nonempty
 
 /-- Lowering retains every original family, so a successful lowering result
 is itself nonempty. -/
-theorem NestedLoweringResult.resultTypes_nonempty
+theorem NestedLoweringOutput.resultTypes_nonempty
     (initialState : ElimNestedInductive.State)
-    (H : NestedLoweringResult env fuel nparams sourceTypes
+    (H : NestedLoweringOutput env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result) :
     result.types ≠ [] := by
   have hsource : 0 < sourceTypes.length := by
@@ -679,7 +679,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
     (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
-    (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
+    (Hlower : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
@@ -737,7 +737,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
-    (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
+    (Hlower : NestedLoweringOutput env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes

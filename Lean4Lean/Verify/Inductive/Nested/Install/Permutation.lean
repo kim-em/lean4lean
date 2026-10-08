@@ -13,8 +13,8 @@ namespace VerifyInductive
 
 /-- Every lookup introduced by a fresh production trace is one of its exact
 entries; all other lookups come from the source environment. -/
-theorem FreshConstantTrace.entryOrigin
-    (H : FreshConstantTrace source entries target)
+theorem FreshExtension.entryOrigin
+    (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
     (hfind : target.find? name = some found) :
     source.find? name = some found ∨
@@ -44,8 +44,8 @@ theorem FreshConstantTrace.entryOrigin
 
 /-- Every exact entry of a fresh production trace is present in the target
 environment with unchanged metadata. -/
-theorem FreshConstantTrace.findEntry
-    (H : FreshConstantTrace source entries target)
+theorem FreshExtension.findEntry
+    (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
     (hentry : info ∈ entries) :
     target.find? info.name = some info := by
@@ -72,9 +72,9 @@ theorem FreshConstantTrace.findEntry
 /-- Fresh insertion order is irrelevant to production lookup semantics.
 This is deliberately an extensional statement: the two `SMap`
 representations need not be propositionally equal. -/
-theorem FreshConstantTrace.lookupEqOfPerm
-    (Hleft : FreshConstantTrace source leftEntries leftTarget)
-    (Hright : FreshConstantTrace source rightEntries rightTarget)
+theorem FreshExtension.lookupEqOfPerm
+    (Hleft : FreshExtension source leftEntries leftTarget)
+    (Hright : FreshExtension source rightEntries rightTarget)
     (hsourceWF : source.constants.WF)
     (hperm : leftEntries ~ rightEntries) :
     ∀ name, leftTarget.constants.find? name =
@@ -179,7 +179,7 @@ theorem CheckingEnv.ValidCore.mapExt
 retaining its exact production freshness trace. -/
 theorem AddConstants.freshTrace
     (H : AddConstants safety source sourceVEnv entries target targetVEnv) :
-    FreshConstantTrace source (entries.map Prod.fst) target := by
+    FreshExtension source (entries.map Prod.fst) target := by
   induction H with
   | nil => exact .nil
   | cons hfresh _ _ _ _ _ _ ih => exact .cons hfresh ih

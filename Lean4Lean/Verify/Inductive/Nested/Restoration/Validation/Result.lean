@@ -13,7 +13,7 @@ namespace VerifyInductive
 /-- Successful nested restoration retains the exact declaration fold, the
 canonical-order side environment, and the exact successful native parameter
 validation run before auxiliary validation begins. -/
-structure RestoredAfterInstallResult
+structure ValidatedRestoration
     (res : Lean4Lean.ElimNestedInductive.Result)
     (sourceEnv loweredEnv : Environment) (recNameMap : NameMap Name)
     (allIndNames : List Name) (types : List InductiveType)
@@ -21,10 +21,10 @@ structure RestoredAfterInstallResult
     (allowPrimitive : Bool) (fuel : FuelConfig)
     (auxRecNames : List Name) (Validated : Environment → Prop)
     (outEnv : Environment) : Prop where
-  restoration : Nonempty (RestoredNestedDeclarationsResult res loweredEnv
+  restoration : Nonempty (NestedRestorationFolds res loweredEnv
     sourceEnv recNameMap allIndNames types auxRecNames ((), outEnv))
   primitiveSafe : ∃ entries,
-    PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv entries outEnv
+    FreshNonprimitiveExtension allowPrimitive sourceEnv entries outEnv
   constructorParameterValidation : ∃ validationEnv,
     Nonempty (ValidationEnvironment res loweredEnv
       sourceEnv allIndNames allowPrimitive types validationEnv)
@@ -77,7 +77,7 @@ theorem Environment.restoreNestedAfterInstall.WF
     (hsourceWF : env.constants.WF)
     (Validated : Environment → Prop)
     (Hvalidate : ∀ restoredEnv validationEnv auxiliaryHeaderEnv,
-      Nonempty (RestoredNestedDeclarationsResult res loweredEnv env
+      Nonempty (NestedRestorationFolds res loweredEnv env
         (Lean4Lean.mkAuxRecNameMap loweredEnv types).2 (types.map (·.name))
         types (Lean4Lean.mkAuxRecNameMap loweredEnv types).1
         ((), restoredEnv)) →
@@ -104,7 +104,7 @@ theorem Environment.restoreNestedAfterInstall.WF
         fuel res).WF fun _ => Validated restoredEnv) :
     (Environment.restoreNestedAfterInstall env loweredEnv lparams types safety
       allowPrimitive fuel res).WF fun outEnv =>
-        RestoredAfterInstallResult res env loweredEnv
+        ValidatedRestoration res env loweredEnv
           (Lean4Lean.mkAuxRecNameMap loweredEnv types).2
           (types.map (·.name)) types lparams safety allowPrimitive fuel
           (Lean4Lean.mkAuxRecNameMap loweredEnv types).1 Validated outEnv := by
@@ -118,9 +118,9 @@ theorem Environment.restoreNestedAfterInstall.WF
       ((·.2) <$> Lean4Lean.restoreNestedDeclarations res loweredEnv
         recNameMap allIndNames allowPrimitive types recNames env).WF
           fun restoredEnv =>
-            Nonempty (RestoredNestedDeclarationsResult res loweredEnv env
+            Nonempty (NestedRestorationFolds res loweredEnv env
               recNameMap allIndNames types recNames ((), restoredEnv)) ∧
-            ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive env
+            ∃ entries, FreshNonprimitiveExtension allowPrimitive env
               entries restoredEnv := by
     exact Hdeclarations.map fun restored Hrestored => by
       rcases restored with ⟨unit, restoredEnv⟩
@@ -172,7 +172,7 @@ theorem Environment.restoreNestedAfterInstall.WF
             fun _ =>
           (Lean4Lean.validateNestedAuxiliaries auxiliaryHeaderEnv lparams
             safety fuel res).bind fun _ => Except.pure restoredEnv).WF
-        (RestoredAfterInstallResult res env loweredEnv recNameMap allIndNames
+        (ValidatedRestoration res env loweredEnv recNameMap allIndNames
           types lparams safety allowPrimitive fuel recNames Validated) :=
     HrestoredEnv.bind fun restoredEnv HrestoredData => by
       rcases HrestoredData with ⟨Hrestored, Hprimitive⟩
@@ -234,7 +234,7 @@ theorem Environment.restoreNestedAfterInstall.WF
                   exact ⟨Hvalidated unit hrun, by simpa using hrun⟩
                 exact HvalidatedRun.bind fun _ Hresult =>
                   Except.WF.pure (show
-                    RestoredAfterInstallResult res env loweredEnv recNameMap
+                    ValidatedRestoration res env loweredEnv recNameMap
                       allIndNames types lparams safety allowPrimitive fuel
                         recNames Validated
                         restoredEnv from

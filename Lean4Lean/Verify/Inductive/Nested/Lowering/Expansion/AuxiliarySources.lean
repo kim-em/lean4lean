@@ -1373,7 +1373,7 @@ validation derive exactly the same common-parameter context.  This is the
 small-elimination specialization of the recursor-facing context theorem, but
 it is proved directly so formation does not depend on a completed recursor
 phase. -/
-theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
+theorem NestedLoweringOutputClosed.auxiliaryFormationParameterContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv : VEnv}
@@ -1382,7 +1382,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourceHeaders : List.Forall₂
@@ -1530,7 +1530,7 @@ theorem LoweredAuxiliaryFamily.abstractContainerApplication
       realization.family = VExpr.mkApps
         (.const Horigin.generated.sourceName abstractLevels) baseArgs := by
   dsimp only
-  let Hclosed : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+  let Hclosed : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result :=
     ⟨finalState, Hrun, Hcache, Hparams⟩
   have Hmap : NestedAuxMapModels result finalState :=
@@ -1799,7 +1799,7 @@ theorem NestedLowering.nativeGeneratedFamilySources
       (elimLevel := .zero) (by trivial)).parameterDecls.toCtx
   let count := result.types.length - sourceTypes.length
   have hle : sourceTypes.length ≤ result.types.length :=
-    (show NestedLoweringResult c.env fuel nparams sourceTypes
+    (show NestedLoweringOutput c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result from
         ⟨finalState, Hrun⟩).sourceTypes_length_le
   have hresultAt (i : Fin count) :
@@ -2219,7 +2219,7 @@ theorem NestedLowering.allExpansionsOfNativeSources
         (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl
           N.generated))
       (sourceDecl.types ++ N.generated) loweredDecl.types := by
-  let Hclosed : NestedLoweringResultClosed prodEnv fuel nparams sourceTypes
+  let Hclosed : NestedLoweringOutputClosed prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result :=
     ⟨finalState, Hrun, Hcache, Hparams⟩
   have hresultNodup := Hclosed.selectionNodup resultSelection

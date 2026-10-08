@@ -11,8 +11,8 @@ namespace VerifyInductive
 
 /-- A checked restoration fold preserves every lookup from its source
 production environment. -/
-theorem FreshConstantTrace.preservesSourceFind
-    (H : FreshConstantTrace source entries target)
+theorem FreshExtension.preservesSourceFind
+    (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
     (hfind : source.find? name = some found) :
     target.find? name = some found := by
@@ -42,8 +42,8 @@ theorem FreshConstantTrace.preservesSourceFind
 
 /-- Map-level form of source-lookup preservation, used directly by the
 concrete `AddInduct` relation. -/
-theorem FreshConstantTrace.preservesSourceMapFind
-    (H : FreshConstantTrace source entries target)
+theorem FreshExtension.preservesSourceMapFind
+    (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
     (hfind : source.constants.find? name = some found) :
     target.constants.find? name = some found := by
@@ -57,8 +57,8 @@ theorem FreshConstantTrace.preservesSourceMapFind
 
 /-- A restoration fold consisting only of non-definitional constant kinds
 cannot introduce a delta-reducible production declaration. -/
-theorem FreshConstantTrace.deltaConservative
-    (H : FreshConstantTrace source entries target)
+theorem FreshExtension.deltaConservative
+    (H : FreshExtension source entries target)
     (hsourceWF : source.constants.WF)
     (hnondelta : ∀ ci ∈ entries, ci.deltaValue? = none) :
     ∀ {name found}, target.constants.find? name = some found →
@@ -89,11 +89,11 @@ theorem FreshConstantTrace.deltaConservative
 
 /-- The exact constructor-restoration fold installs only constructor
 constants, hence every entry in its fresh trace is non-definitional. -/
-theorem StateForMTrace.constructorFreshTraceNondelta
-    (H : StateForMTrace (RestoredConstructorStep result loweredEnv)
+theorem FoldSteps.constructorFreshTraceNondelta
+    (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∀ ci ∈ entries, ci.deltaValue? = none := by
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
@@ -115,12 +115,12 @@ theorem StateForMTrace.constructorFreshTraceNondelta
       · exact hnondelta entry hentry
 
 /-- The exact recursor-restoration fold installs only recursor constants. -/
-theorem StateForMTrace.recursorFreshTraceNondelta
-    (H : StateForMTrace
+theorem FoldSteps.recursorFreshTraceNondelta
+    (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∀ ci ∈ entries, ci.deltaValue? = none := by
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
@@ -143,11 +143,11 @@ theorem StateForMTrace.recursorFreshTraceNondelta
 
 /-- One restored source family installs a header, constructor batch, and
 primary recursor, all of which are non-definitional constant kinds. -/
-theorem RestoredInductiveDeclResult.freshTraceNondelta
-    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+theorem SourceFamilyRestoration.freshTraceNondelta
+    (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hsourceWF : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∀ ci ∈ entries, ci.deltaValue? = none := by
   let header : ConstantInfo := .inductInfo H.header.newInfo
   have hheaderEnv : H.headerEnv = sourceEnv.add header :=
@@ -155,7 +155,7 @@ theorem RestoredInductiveDeclResult.freshTraceNondelta
   have hheaderFresh : sourceEnv.find? header.name = none :=
     find?_none_of_contains_false hsourceWF H.header.fresh
   have hheaderWF := constantsWF_add_checked hsourceWF hheaderFresh
-  have Hconstructors : StateForMTrace
+  have Hconstructors : FoldSteps
       (RestoredConstructorStep result loweredEnv) oldInfo.ctors
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
@@ -185,12 +185,12 @@ theorem RestoredInductiveDeclResult.freshTraceNondelta
 
 /-- The outer source-family restoration fold preserves the same non-delta
 property compositionally. -/
-theorem StateForMTrace.inductiveFreshTraceNondelta
-    (H : StateForMTrace
+theorem FoldSteps.inductiveFreshTraceNondelta
+    (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∀ ci ∈ entries, ci.deltaValue? = none := by
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
@@ -208,11 +208,11 @@ theorem StateForMTrace.inductiveFreshTraceNondelta
 /-- Complete nested restoration supplies its own fresh non-delta production
 trace; the final concrete `AddInduct` delta clause therefore needs no external
 semantic assumption. -/
-theorem RestoredNestedDeclarationsResult.freshTraceNondelta
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv auxRec
+theorem NestedRestorationFolds.freshTraceNondelta
+    (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames out)
     (hsourceWF : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries out.2 ∧
+    ∃ entries, FreshExtension sourceEnv entries out.2 ∧
       ∀ ci ∈ entries, ci.deltaValue? = none := by
   rcases H.inductives.inductiveFreshTraceNondelta hsourceWF with
     ⟨primaryEntries, Hprimary, hprimaryNondelta⟩

@@ -44,7 +44,7 @@ theorem ConstructorValidationStateTrace.headerTarget_eq
 private theorem installRestoredSourceConstructors
     (Hvalid : CheckingEnv.ValidCore safety currentProdEnv currentVEnv)
     (Hle : canonicalEnv ≤ currentVEnv)
-    (Hsource : RestoredSourceConstructorTrace result loweredEnv lparams safety
+    (Hsource : RestoredConstructorTranslations result loweredEnv lparams safety
       canonicalEnv names traceProdEnv traceTargetEnv sources constructors)
     (Hvalidation : ConstructorValidationStateTrace
       (ValidationConstructorStep result loweredEnv false)
@@ -122,7 +122,7 @@ private theorem installRestoredSourceFamilies
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
@@ -140,7 +140,7 @@ private theorem installRestoredSourceFamilies
       Lean4Lean.validateRestoredConstructorParameters.run auxiliaryHeaderEnv
         c.lparams c.safety validationFuel sourceTypes result = .ok ())
     (hempty : initialState.nestedAux = #[])
-    (Hrestoration : StateForMTrace
+    (Hrestoration : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       remainingSources restorationSource restorationTarget)
     (Hvalidation : ConstructorValidationStateTrace
@@ -238,7 +238,7 @@ structure NestedSourceDeclaration
 /-- Reconstruct the complete ordinary source core used by nested verification
 from the actual producer and side-validation traces.  In particular, neither
 the declaration nor its constructor translations are supplied by a caller. -/
-theorem NestedLoweringResultClosed.nativeSourceCore
+theorem NestedLoweringOutputClosed.nativeSourceCore
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -246,13 +246,13 @@ theorem NestedLoweringResultClosed.nativeSourceCore
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
-    (Hrestoration : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestoration : NestedRestorationFolds result loweredEnv c.env
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 ((), outEnv))

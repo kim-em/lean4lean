@@ -12,7 +12,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 /-! # Primitive-safe restoration traces
 
-`FreshConstantTrace` records the successful freshness checks performed by
+`FreshExtension` records the successful freshness checks performed by
 nested restoration.  Canonical semantic replay additionally needs the other
 fact returned by the same `checkName`: when primitive declarations are not
 allowed, every installed name is outside the kernel primitive table.  This
@@ -20,34 +20,34 @@ companion trace retains that exact executable fact without changing the
 semantic restoration structures.
 -/
 
-inductive PrimitiveSafeFreshConstantTrace (allowPrimitive : Bool) :
+inductive FreshNonprimitiveExtension (allowPrimitive : Bool) :
     Environment → List ConstantInfo → Environment → Prop
-  | nil : PrimitiveSafeFreshConstantTrace allowPrimitive env [] env
+  | nil : FreshNonprimitiveExtension allowPrimitive env [] env
   | cons :
       env.find? ci.name = none →
       (allowPrimitive = false →
         Kernel.Environment.primitives.contains ci.name = false) →
-      PrimitiveSafeFreshConstantTrace allowPrimitive (env.add ci) cis outEnv →
-      PrimitiveSafeFreshConstantTrace allowPrimitive env (ci :: cis) outEnv
+      FreshNonprimitiveExtension allowPrimitive (env.add ci) cis outEnv →
+      FreshNonprimitiveExtension allowPrimitive env (ci :: cis) outEnv
 
-theorem PrimitiveSafeFreshConstantTrace.fresh
-    (H : PrimitiveSafeFreshConstantTrace allowPrimitive source entries target) :
-    FreshConstantTrace source entries target := by
+theorem FreshNonprimitiveExtension.fresh
+    (H : FreshNonprimitiveExtension allowPrimitive source entries target) :
+    FreshExtension source entries target := by
   induction H with
   | nil => exact .nil
   | cons hfresh _ _ ih => exact .cons hfresh ih
 
-theorem PrimitiveSafeFreshConstantTrace.append
-    (H₁ : PrimitiveSafeFreshConstantTrace allowPrimitive source entries middle)
-    (H₂ : PrimitiveSafeFreshConstantTrace allowPrimitive middle rest target) :
-    PrimitiveSafeFreshConstantTrace allowPrimitive source (entries ++ rest)
+theorem FreshNonprimitiveExtension.append
+    (H₁ : FreshNonprimitiveExtension allowPrimitive source entries middle)
+    (H₂ : FreshNonprimitiveExtension allowPrimitive middle rest target) :
+    FreshNonprimitiveExtension allowPrimitive source (entries ++ rest)
       target := by
   induction H₁ with
   | nil => exact H₂
   | cons hfresh hnprim _ ih => exact .cons hfresh hnprim (ih H₂)
 
-theorem PrimitiveSafeFreshConstantTrace.nonprimitive
-    (H : PrimitiveSafeFreshConstantTrace false source entries target) :
+theorem FreshNonprimitiveExtension.nonprimitive
+    (H : FreshNonprimitiveExtension false source entries target) :
     ∀ ci ∈ entries,
       ¬ Kernel.Environment.primitives.contains ci.name := by
   induction H with
@@ -67,7 +67,7 @@ theorem restoreInductiveHeaderDecl_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (Lean4Lean.restoreInductiveHeaderDecl loweredEnv allIndNames
       allowPrimitive indName sourceEnv).WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   unfold Lean4Lean.restoreInductiveHeaderDecl
   simp only [hlookup]
@@ -93,7 +93,7 @@ theorem restoreConstructorDecl_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive ctorName
       sourceEnv).WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   unfold Lean4Lean.restoreConstructorDecl
   simp only [hlookup]
@@ -120,7 +120,7 @@ theorem restoreRecursorDecl_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
       allowPrimitive oldRecName sourceEnv).WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   unfold Lean4Lean.restoreRecursorDecl
   simp only [hlookup]
@@ -145,11 +145,11 @@ theorem stateForM_primitiveSafe
     (Hstep : ∀ item, item ∈ items → ∀ source,
       source.constants.WF →
       (step item source).WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive source
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive source
           entries out.2)
     (hsourceWF : source.constants.WF) :
     (items.forM step source).WF fun out =>
-      ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive source
+      ∃ entries, FreshNonprimitiveExtension allowPrimitive source
         entries out.2 := by
   induction items generalizing source with
   | nil => exact Except.WF.pure ⟨[], .nil⟩
@@ -164,7 +164,7 @@ theorem stateForM_primitiveSafe
       have Htail : ∀ item, item ∈ tail → ∀ source,
           source.constants.WF →
           (step item source).WF fun out =>
-            ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive source
+            ∃ entries, FreshNonprimitiveExtension allowPrimitive source
               entries out.2 := by
         intro item hitem
         exact Hstep item (by simp [hitem])
@@ -182,7 +182,7 @@ theorem restoreConstructorDecls_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (ctorNames.forM fun ctorName => Lean4Lean.restoreConstructorDecl result
       loweredEnv allowPrimitive ctorName) sourceEnv |>.WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   apply stateForM_primitiveSafe _ (items := ctorNames) (source := sourceEnv)
     (allowPrimitive := allowPrimitive) _ hsourceWF
@@ -203,7 +203,7 @@ theorem restoreRecursorDecls_primitiveSafe
     (recNames.forM fun recName => Lean4Lean.restoreRecursorDecl result
       loweredEnv auxRec allIndNames allowPrimitive recName) sourceEnv |>.WF
         fun out =>
-          ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+          ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
             entries out.2 := by
   apply stateForM_primitiveSafe _ (items := recNames) (source := sourceEnv)
     (allowPrimitive := allowPrimitive) _ hsourceWF
@@ -229,7 +229,7 @@ theorem restoreInductiveDecl_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (Lean4Lean.restoreInductiveDecl result loweredEnv auxRec allIndNames
       allowPrimitive indType sourceEnv).WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   have Hheader := restoreInductiveHeaderDecl_primitiveSafe loweredEnv sourceEnv
     allIndNames allowPrimitive indType.name oldInfo hlookup hsourceWF
@@ -242,7 +242,7 @@ theorem restoreInductiveDecl_primitiveSafe
           Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
             allowPrimitive (Lean.mkRecName indType.name) constructorOut.2).WF
         fun out =>
-          ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+          ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
             entries out.2 :=
     Hheader.bind fun headerOut HheaderOut => by
     rcases headerOut with ⟨unit, headerEnv⟩
@@ -285,7 +285,7 @@ theorem restoreInductiveDecls_primitiveSafe
     (types.forM fun indType => Lean4Lean.restoreInductiveDecl result
       loweredEnv auxRec allIndNames allowPrimitive indType) sourceEnv |>.WF
         fun out =>
-          ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+          ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
             entries out.2 := by
   apply stateForM_primitiveSafe _ (items := types) (source := sourceEnv)
     (allowPrimitive := allowPrimitive) _ hsourceWF
@@ -318,7 +318,7 @@ theorem restoreNestedDeclarations_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (Lean4Lean.restoreNestedDeclarations result loweredEnv auxRec allIndNames
       allowPrimitive types auxRecNames sourceEnv).WF fun out =>
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   have Hprimary := restoreInductiveDecls_primitiveSafe result loweredEnv
     sourceEnv auxRec allIndNames allowPrimitive types Htypes hsourceWF
@@ -329,7 +329,7 @@ theorem restoreNestedDeclarations_primitiveSafe
           (auxRecNames.forM fun recName => Lean4Lean.restoreRecursorDecl result
             loweredEnv auxRec allIndNames allowPrimitive recName)
             primaryOut.2).WF fun out =>
-              ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive
+              ∃ entries, FreshNonprimitiveExtension allowPrimitive
                 sourceEnv entries out.2 :=
     Hprimary.bind fun primaryOut HprimaryOut => by
     rcases primaryOut with ⟨unit, primaryEnv⟩
@@ -375,9 +375,9 @@ theorem restoreNestedDeclarations_refines_primitiveSafe
     (hsourceWF : sourceEnv.constants.WF) :
     (Lean4Lean.restoreNestedDeclarations result loweredEnv auxRec allIndNames
       allowPrimitive types auxRecNames sourceEnv).WF fun out =>
-        Nonempty (RestoredNestedDeclarationsResult result loweredEnv sourceEnv
+        Nonempty (NestedRestorationFolds result loweredEnv sourceEnv
           auxRec allIndNames types auxRecNames out) ∧
-        ∃ entries, PrimitiveSafeFreshConstantTrace allowPrimitive sourceEnv
+        ∃ entries, FreshNonprimitiveExtension allowPrimitive sourceEnv
           entries out.2 := by
   have Hrestored := restoreNestedDeclarations_refines result loweredEnv
     sourceEnv auxRec allIndNames allowPrimitive types auxRecNames Htypes Haux

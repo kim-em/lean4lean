@@ -33,7 +33,7 @@ theorem RestoredInductiveStep.constructorInductFresh
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -86,7 +86,7 @@ theorem RestoredInductiveStep.constructorInductFresh
       simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using
         hheaderFresh
 
-theorem StateForMTrace.sourceFamiliesConstructorInductFresh
+theorem FoldSteps.sourceFamiliesConstructorInductFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -94,11 +94,11 @@ theorem StateForMTrace.sourceFamiliesConstructorInductFresh
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       remaining sourceEnv targetEnv)
@@ -138,8 +138,8 @@ theorem StateForMTrace.sourceFamiliesConstructorInductFresh
 
 /-- Auxiliary recursor restoration adds no constructors: constructor lookups
 after the suffix already hold before it. -/
-theorem StateForMTrace.recursorConstructorFind
-    (Htrace : StateForMTrace
+theorem FoldSteps.recursorConstructorFind
+    (Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
@@ -162,7 +162,7 @@ theorem StateForMTrace.recursorConstructorFind
       · simp [ci] at hci
       · exact hsrc
 
-theorem RestoredNestedDeclarationsResult.constructorInductFresh
+theorem NestedRestorationFolds.constructorInductFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -170,11 +170,11 @@ theorem RestoredNestedDeclarationsResult.constructorInductFresh
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       out) :
     ∀ name info, out.2.find? name = some (.ctorInfo info) →
@@ -184,7 +184,7 @@ theorem RestoredNestedDeclarationsResult.constructorInductFresh
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshTrace hsourceWF
-  have hprimaryWF : Hrestored.primaryEnv.constants.WF :=
+  have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
   exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
     hempty [] (by simp) hsourceWF name info
@@ -192,8 +192,8 @@ theorem RestoredNestedDeclarationsResult.constructorInductFresh
 
 /-! ### Membership in the primary restoration endpoint -/
 
-theorem StateForMTrace.constructorFindOfMem
-    (H : StateForMTrace (RestoredConstructorStep result loweredEnv)
+theorem FoldSteps.constructorFindOfMem
+    (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : cn ∈ names) :
     ∃ ctorOld : ConstructorVal,
@@ -223,8 +223,8 @@ theorem StateForMTrace.constructorFindOfMem
         Hstep.restored.newInfo_eq] using hkept
     · exact ih hmiddleWF hmem
 
-theorem StateForMTrace.inductiveHeaderFindOfMem
-    (H : StateForMTrace
+theorem FoldSteps.inductiveHeaderFindOfMem
+    (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types) :
@@ -279,8 +279,8 @@ theorem StateForMTrace.inductiveHeaderFindOfMem
         exact Hfresh'.preservesSourceFind hmiddleWF hmid
     · exact ih hmiddleWF hmem
 
-theorem StateForMTrace.inductiveFindCases
-    (H : StateForMTrace
+theorem FoldSteps.inductiveFindCases
+    (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
@@ -315,7 +315,7 @@ theorem ConstructorValidationStateTrace.headersFreshTrace
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | @cons head source middle tail target Hstep Htail ih =>
@@ -412,7 +412,7 @@ theorem ConstructorValidationStateTrace.constructorsFreshTrace
       (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | @cons head source middle tail target Hstep Htail ih =>
@@ -479,7 +479,7 @@ theorem ConstructorValidationStateTrace.familiesFreshTrace
       (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | @cons head source middle tail target Hstep Htail ih =>
@@ -668,7 +668,7 @@ theorem ValidationEnvironment.validProjected
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {es : List (Name × InductiveSignature.CaseSchema)}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -677,7 +677,7 @@ theorem ValidationEnvironment.validProjected
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       out)
     (H : ValidationEnvironment result loweredEnv c.env
@@ -700,11 +700,11 @@ theorem ValidationEnvironment.validProjected
   have Hinitial : InductInfosFromDecl c.env.constants c.env.constants
       sourceDecl := fun _ _ h => .inl h
   have Hprimary : InductInfosFromDecl c.env.constants
-      Hrestored.primaryEnv.constants sourceDecl :=
+      Hrestored.sourceFamiliesEnv.constants sourceDecl :=
     Hrestored.inductives.sourceFamiliesProductionInductiveOrigins Hlower Hc
       Hprod Hsource Hmetadata Hsources Harity Howners hempty [] (by simp)
       hsourceWF Hinitial
-  have HprimaryOwners : ConstructorOwnersPresent Hrestored.primaryEnv :=
+  have HprimaryOwners : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv :=
     Hrestored.inductives.sourceFamiliesConstructorOwnersPresent Hlower Hc Hprod
       hempty [] (by simp) hsourceWF Howners
   have HprimaryInduct :=
@@ -712,10 +712,10 @@ theorem ValidationEnvironment.validProjected
       hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshTrace hsourceWF
-  have hprimaryWF : Hrestored.primaryEnv.constants.WF :=
+  have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
   have hsubset : ∀ {name ci}, validationEnv.find? name = some ci →
-      Hrestored.primaryEnv.find? name = some ci := by
+      Hrestored.sourceFamiliesEnv.find? name = some ci := by
     intro name ci hfind
     rcases H.findCases hsourceWF hfind with hold |
         ⟨indType, hmem, oldInfo, hlookup, rfl, rfl⟩ |
@@ -849,7 +849,7 @@ theorem ValidationEnvironment.validProjected
 come from canonical replay, owners from the restoration trace, and projection
 metadata from the restored source families. These facts do not supply
 recursor semantics. -/
-theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
+theorem NestedRestorationFolds.finalLocalValidOfStaged
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -858,7 +858,7 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -867,10 +867,10 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv))
-    (Hactual : FreshConstantTrace c.env actualEntries outEnv)
+    (Hactual : FreshExtension c.env actualEntries outEnv)
     (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
       sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)

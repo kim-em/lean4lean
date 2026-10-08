@@ -70,7 +70,7 @@ theorem NestedRestorationOpening.translatesLambdaTrail
     {decl : VInductDecl} {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ Us : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
+    (D : RestorationTablesAgree decl auxiliaries result env auxRec Us₀)
     (hr : r = InductiveSignature.compilationRestoration decl auxiliaries)
     {input output suffix : Expr} {s : VExpr}
     (Hopen : NestedRestorationOpening result env auxRec input output)

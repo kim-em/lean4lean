@@ -31,7 +31,7 @@ only binders inside the parameters of a cache-hit occurrence can change.
 **What holds** is the strongest relation used by the cache: the installed type
 is `Expr.eqv`-equal to the source type.
 
-* `NestedValidatedRunResult.constructorTypeRoundTrip`: for a successful
+* `NestedRun.constructorTypeRoundTrip`: for a successful
   validated nested run,
   - `ConstructorsFromSources`: every constructor visible in the output
     environment is inherited unchanged from the input environment, or is the
@@ -40,19 +40,19 @@ is `Expr.eqv`-equal to the source type.
     parameters `lparams`, and `(info.type == source.type) = true`;
   - `ConstructorTypesInstalled`: every source constructor is visible in the
     output environment with the same relation.
-* `NestedValidatedRunResult.installedConstructorSource`: the lookup-indexed
+* `NestedRun.installedConstructorSource`: the lookup-indexed
   form, additionally giving `EquivManager.RelevantEq info.type source.type`.
 
 Consumers transport a source-type certificate along `==`: `TrExprS.eqv` does
 this for translations, and any relation on `Expr` that ignores binder names and
 binder annotations transports the same way. All other `ConstructorVal` fields
 of the installed constant are those of the lowered constructor
-(`RestoredConstructorDeclResult.newInfo_eq`, `ConstructorRestoration`); their
+(`ConstructorRestorationStep.newInfo_eq`, `ConstructorRestoration`); their
 alignment with the source declaration (`numParams`, `numFields`, `induct`,
 `cidx`) is `InductInfosFromDecl`
-(`RestoredNestedDeclarationsResult.productionInductiveOrigins`).
+(`NestedRestorationFolds.productionInductiveOrigins`).
 
-**Obtaining the hypotheses.** `E : NestedValidatedRunResult ...` is the
+**Obtaining the hypotheses.** `E : NestedRun ...` is the
 `validated` field produced by
 `Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF`;
 `SourceSyntaxChecks sourceTypes` is supplied to the continuation of
@@ -63,7 +63,7 @@ alignment with the source declaration (`numParams`, `numFields`, `induct`,
 The core per-constructor inverse is
 `ConstructorRestorationInverse.restoredType_eqv_source`; the lemmas here
 thread it through the exact production restoration fold
-(`LoweredRestoredConstructors`, `RestoredNestedDeclarationsResult`).
+(`LoweredRestoredConstructors`, `NestedRestorationFolds`).
 -/
 
 namespace Lean4Lean
@@ -175,7 +175,7 @@ theorem ConstructorTypesInstalled.append
 
 theorem ConstructorTypesInstalled.fresh
     (H : ConstructorTypesInstalled lparams sources env)
-    (Hfresh : FreshConstantTrace env entries env')
+    (Hfresh : FreshExtension env entries env')
     (hwf : env.constants.WF) :
     ConstructorTypesInstalled lparams sources env' := by
   intro source hsource
@@ -251,7 +251,7 @@ theorem LoweredRestoredConstructors.freshTrace
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)
     (hsourceWF : sourceProdEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceProdEnv entries targetProdEnv := by
+    ∃ entries, FreshExtension sourceProdEnv entries targetProdEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | @cons source state target nextState sourceProdEnv middleProdEnv sources
@@ -350,7 +350,7 @@ theorem RecursorCheck.ctorIsUnsafe
 
 /-- One restored original family: its header and primary recursor add no
 constructor, and its constructor fold is the aligned mapping trace. -/
-theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
+theorem NestedLoweringOutputClosed.familyConstructorTypeOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -358,7 +358,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -419,8 +419,8 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
   exact ((Hheader.trans Hctors).trans Hrec).mono (by simp)
 
 /-- The auxiliary-recursor suffix of nested restoration adds no constructor. -/
-theorem StateForMTrace.recursorConstructorTypeOrigins
-    (H : StateForMTrace
+theorem FoldSteps.recursorConstructorTypeOrigins
+    (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -444,7 +444,7 @@ theorem StateForMTrace.recursorConstructorTypeOrigins
     exact (Hhead.trans (ih hmiddleWF)).mono (by simp)
 
 /-- The fold over the original families. -/
-theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
+theorem NestedLoweringOutputClosed.familiesConstructorTypeOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -452,7 +452,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -461,7 +461,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
       Closed source.type)
     (Hdisjoint : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
       RestoreSourceDisjoint result loweredEnv source.type)
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       remaining sourceEnv targetEnv)
     (processed : List InductiveType)
@@ -495,7 +495,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
     · exact hsource
 
 /-- The complete production restoration fold of a nested block. -/
-theorem NestedLoweringResultClosed.restorationConstructorTypeOrigins
+theorem NestedLoweringOutputClosed.restorationConstructorTypeOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -503,7 +503,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypeOrigins
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -512,7 +512,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypeOrigins
       Closed source.type)
     (Hdisjoint : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
       RestoreSourceDisjoint result loweredEnv source.type)
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv sourceEnv
+    (Hrestored : NestedRestorationFolds result loweredEnv sourceEnv
       auxRec allIndNames sourceTypes auxRecNames out)
     (hwf : sourceEnv.constants.WF) :
     ConstructorsFromSources c.lparams c.env isUnsafe (sourceTypes.flatMap (·.ctors))
@@ -536,7 +536,7 @@ private theorem SourceSyntaxChecks.inductiveSyntaxOfMem
     · exact ih htail
 
 /-- Forward form of `familyConstructorTypeOrigins`. -/
-theorem NestedLoweringResultClosed.familyConstructorTypesInstalled
+theorem NestedLoweringOutputClosed.familyConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -544,7 +544,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypesInstalled
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -588,15 +588,15 @@ theorem NestedLoweringResultClosed.familyConstructorTypesInstalled
       Hstep.restored.recursor.restored.fresh
   have htarget : stepTarget = Hstep.restored.constructorEnv.add recursor :=
     congrArg Prod.snd Hstep.restored.recursor.restored.output
-  have HrecFresh : FreshConstantTrace Hstep.restored.constructorEnv
+  have HrecFresh : FreshExtension Hstep.restored.constructorEnv
       [recursor] stepTarget := by
-    have Hadd : FreshConstantTrace Hstep.restored.constructorEnv [recursor]
+    have Hadd : FreshExtension Hstep.restored.constructorEnv [recursor]
         (Hstep.restored.constructorEnv.add recursor) := .cons hrecFresh .nil
     rwa [← htarget] at Hadd
   exact Hctors.fresh HrecFresh hconstructorWF
 
 /-- Forward form of `familiesConstructorTypeOrigins`. -/
-theorem NestedLoweringResultClosed.familiesConstructorTypesInstalled
+theorem NestedLoweringOutputClosed.familiesConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -604,7 +604,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypesInstalled
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -613,7 +613,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypesInstalled
       Closed source.type)
     (Hdisjoint : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
       RestoreSourceDisjoint result loweredEnv source.type)
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       remaining sourceEnv targetEnv)
     (processed : List InductiveType)
@@ -645,7 +645,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypesInstalled
     simpa using (Hhead.fresh HtailFresh hmiddleWF).append Hrest
 
 /-- Forward form of `restorationConstructorTypeOrigins`. -/
-theorem NestedLoweringResultClosed.restorationConstructorTypesInstalled
+theorem NestedLoweringOutputClosed.restorationConstructorTypesInstalled
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -653,7 +653,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypesInstalled
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -662,7 +662,7 @@ theorem NestedLoweringResultClosed.restorationConstructorTypesInstalled
       Closed source.type)
     (Hdisjoint : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
       RestoreSourceDisjoint result loweredEnv source.type)
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv sourceEnv
+    (Hrestored : NestedRestorationFolds result loweredEnv sourceEnv
       auxRec allIndNames sourceTypes auxRecNames out)
     (hwf : sourceEnv.constants.WF) :
     ConstructorTypesInstalled c.lparams (sourceTypes.flatMap (·.ctors))
@@ -680,7 +680,7 @@ restoration fold.  The side conditions of the lowering/restoration inverse
 (bound-variable closedness and disjointness from the generated auxiliary
 names) are discharged from the independent source translation and the
 freshness of the generated declarations. -/
-theorem NestedLoweringResultClosed.constructorTypeRoundTripOfSource
+theorem NestedLoweringOutputClosed.constructorTypeRoundTripOfSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv} {headerEnv ctorEnv : Environment}
@@ -688,7 +688,7 @@ theorem NestedLoweringResultClosed.constructorTypeRoundTripOfSource
       sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -696,7 +696,7 @@ theorem NestedLoweringResultClosed.constructorTypeRoundTripOfSource
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Howners : ConstructorOwnersPresent c.env)
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec allIndNames sourceTypes auxRecNames out) :
     ConstructorsFromSources c.lparams c.env isUnsafe (sourceTypes.flatMap (·.ctors))
         c.env out.2 ∧
@@ -750,8 +750,8 @@ and in both cases the installed constructor carries the source constructor's
 name and the declaration's universe parameters, and its type is
 `Expr.eqv`-equal to the source type.  Literal equality is false in general;
 see the module docstring. -/
-theorem NestedValidatedRunResult.constructorTypeRoundTrip
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+theorem NestedRun.constructorTypeRoundTrip
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
@@ -759,7 +759,7 @@ theorem NestedValidatedRunResult.constructorTypeRoundTrip
         sourceProdEnv outEnv ∧
       ConstructorTypesInstalled lparams (sourceTypes.flatMap (·.ctors))
         outEnv := by
-  have key : ∀ P : NestedInstalledProduction E.loweredEnv,
+  have key : ∀ P : LoweredRun E.loweredEnv,
       P.c.env = sourceProdEnv → P.c.lparams = lparams →
       P.nparams = nparams → P.indTypes = result.types.toArray →
       P.isUnsafe = isUnsafe → P.initialEnv = sourceVEnv → ContextWF P.c →
@@ -779,20 +779,20 @@ theorem NestedValidatedRunResult.constructorTypeRoundTrip
       · rfl
       · intro i _hi₁ hi₂
         simp at hi₂
-    have Hlower : NestedLoweringResultClosed c.env
+    have Hlower : NestedLoweringOutputClosed c.env
         E.validationFuel.inductiveFuel nparams' sourceTypes
         { initialState with newTypes := sourceTypes.toArray } result := by
       rw [henv]
       simpa [initialState] using E.lowering
     have Hsource : TrInductDeclCore initialEnv c.lparams nparams' sourceTypes
-        isUnsafe' E.nativeSource.sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
+        isUnsafe' E.sourceCore.sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
       rw [hlparams]
-      exact E.nativeSource.core
+      exact E.sourceCore.core
     have Howners' : ConstructorOwnersPresent c.env := by
       rw [henv]
       exact Howners
-    have Hrestored : RestoredNestedDeclarationsResult result E.loweredEnv
+    have Hrestored : NestedRestorationFolds result E.loweredEnv
         c.env (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
         (sourceTypes.map (·.name)) sourceTypes
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1
@@ -803,19 +803,19 @@ theorem NestedValidatedRunResult.constructorTypeRoundTrip
       Hsources Hsource Howners' Hrestored
     rw [henv, hlparams] at H
     exact H
-  exact key E.production
+  exact key E.lowered
     ((congrArg AddInductive.Context.env E.production_c).trans
       E.productionContext_env)
     ((congrArg AddInductive.Context.lparams E.production_c).trans
       E.productionContext_lparams)
     E.production_nparams E.production_indTypes E.production_isUnsafe_source
-    E.production_initialEnv (E.production_c ▸ E.productionContextWF)
+    E.production_initialEnv (E.production_c ▸ E.contextWF)
 
 /-- Consumer form: a constructor visible after a successful validated nested
 run is inherited, or its type is `RelevantEq` to (in particular, translates
 exactly like) the type of a source constructor with the same name. -/
-theorem NestedValidatedRunResult.installedConstructorSource
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+theorem NestedRun.installedConstructorSource
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
@@ -835,7 +835,7 @@ theorem NestedValidatedRunResult.installedConstructorSource
         EquivManager.RelevantEq.of_eqv horigin.type_eqv, hsafe⟩
     · left
       have hwf : sourceProdEnv.constants.WF := by
-        have h := E.productionContextWF.checking.tr.map_wf
+        have h := E.contextWF.checking.tr.map_wf
         rwa [E.productionContext_env] at h
       rcases E.restoration.inductives.inductiveFreshTrace hwf with ⟨_, Hprimary⟩
       have hprimaryWF := Hprimary.targetWF hwf

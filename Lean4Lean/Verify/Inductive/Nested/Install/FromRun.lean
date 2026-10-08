@@ -40,8 +40,8 @@ The fields are split by role:
 /-- The operational/source constructor join is lockstep in all three lists.
 This exposes the rule-cardinality fact needed to fold one restored primary
 recursor without asking final assembly to restate constructor layout. -/
-theorem RestoredConstructorSemanticMappingTrace.lengths
-    (H : RestoredConstructorSemanticMappingTrace result mappingEnv loweredEnv
+theorem RestoredConstructorMappingTranslations.lengths
+    (H : RestoredConstructorMappingTranslations result mappingEnv loweredEnv
       params nparams safety lparams canonicalEnv sources state targets
         finalState sourceProdEnv targetProdEnv constructors) :
     sources.length = targets.length ∧ targets.length = constructors.length := by
@@ -53,7 +53,7 @@ theorem RestoredConstructorSemanticMappingTrace.lengths
 /-- Telescope-translation specialization of the pointwise source producer.
 The source recursor, its shape, metadata refinement, and installation typing
 are reconstructed from the exact production/restoration join. -/
-theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfValidation
+theorem NestedLoweringOutputClosed.restoredPrimaryTelescopeAtFreshOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv validationEnv : Environment}
@@ -61,7 +61,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfValidation
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
+    (H : NestedLoweringOutputClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hvalid : CheckingEnv.Valid validationSafety validationEnv envCtors)
@@ -99,7 +99,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfValidation
 /-- The retained whole-block validation pass also constructs the exact
 translated and typed auxiliary recursor payload selected by one restoration
 step. -/
-theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfValidation
+theorem AuxiliaryRecursorGeneratedAlignment.recursorStepOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv validationEnv : Environment}
@@ -109,13 +109,13 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfValidation
     {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
-    (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
+    (A : AuxiliaryRecursorGeneratedAlignment Hprod Hstep)
     (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
       loweredEnv validationLparams c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (hrec : oldRecName ∈ auxRecNames) :
-    Nonempty (RestoredAuxiliaryRecursorStep c.safety envCtors envCtors
+    Nonempty (AuxiliaryRecursorTranslation c.safety envCtors envCtors
       Hstep) := by
   rcases validateRestoredRecursorTypes.auxiliaryTranslation_of_run Hvalid Hrun
       hrec Hstep.lookup with ⟨targetType, Htranslation, Htype⟩
@@ -127,13 +127,13 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfValidation
     simpa [ConstantInfo.safety, ConstantInfo.isUnsafe,
       ConstantInfo.isPartial, Hstep.restored.restoration.isUnsafe] using
         Hmetadata.1
-  exact ⟨RestoredAuxiliaryRecursorStep.ofTypeTranslation targetType Hsafety
+  exact ⟨AuxiliaryRecursorTranslation.ofTypeTranslation targetType Hsafety
     Htranslation Htype⟩
 
 /-- Fold the executable validation certificates over the exact auxiliary
 restoration trace.  Membership in the validation suffix is inherited from
-the literal `StateForMTrace` name list. -/
-theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfValidation
+the literal `FoldSteps` name list. -/
+theorem AuxiliaryRecursorGeneratedAlignments.recursorTraceOfValidation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv validationEnv : Environment}
@@ -141,17 +141,17 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfValidation
       depth sourceVEnv indTypes headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    (H : RestoredAuxiliaryGeneratedAlignmentTrace Hprod Htrace)
+    (H : AuxiliaryRecursorGeneratedAlignments Hprod Htrace)
     (Hvalid : CheckingEnv.Valid c.safety validationEnv envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
       loweredEnv validationLparams c.safety validationFuel result auxRec
       allIndNames validationTypes auxRecNames = .ok ())
     (Hnames : ∀ name ∈ names, name ∈ auxRecNames)
     (priorRecursors : List VConstVal) :
-    ∃ finalRecursors, RestoredAuxiliaryRecursorTrace c.safety envCtors
+    ∃ finalRecursors, AuxiliaryRecursorTranslations c.safety envCtors
       envCtors Htrace priorRecursors finalRecursors := by
   induction H generalizing priorRecursors with
   | nil sourceEnv => exact ⟨priorRecursors, .nil sourceEnv priorRecursors⟩
@@ -164,18 +164,18 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfValidation
       rcases ih HtailNames (priorRecursors ++ [Hhead.recursor]) with
         ⟨finalRecursors, Hfinal⟩
       exact ⟨finalRecursors,
-        RestoredAuxiliaryRecursorTrace.cons Hstep Htail Hhead Hfinal⟩
+        AuxiliaryRecursorTranslations.cons Hstep Htail Hhead Hfinal⟩
 
 /-- The source semantic trace fixes the ordered primary-recursor names to the
 literal executable restoration renaming.  This is producer evidence: no
 block-level name equality is supplied by a final-assembly caller. -/
-theorem RestoredSourceInductiveSemanticTrace.recursorNames
+theorem SourceFamilyTranslations.recursorNames
     {sourceTypes : List InductiveType}
     {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv targetProdEnv}
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors) :
     recursors.map (fun recursor => recursor.name) =
       sourceTypes.map (fun indType =>
@@ -192,11 +192,11 @@ theorem RestoredSourceInductiveSemanticTrace.recursorNames
 of restored recursor names.  The more general prefix statement matches the
 append-oriented trace index and specializes to the empty initial suffix used
 by canonical staging. -/
-theorem RestoredAuxiliaryRecursorTrace.recursorNames
-    {Htrace : StateForMTrace
+theorem AuxiliaryRecursorTranslations.recursorNames
+    {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
-    (H : RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv Htrace
+    (H : AuxiliaryRecursorTranslations safety trEnv recursorEnv Htrace
       priorRecursors finalRecursors) :
     finalRecursors.map (fun recursor => recursor.name) =
       priorRecursors.map (fun recursor => recursor.name) ++
@@ -217,7 +217,7 @@ theorem RestoredAuxiliaryRecursorTrace.recursorNames
 /-- Construct the canonical constant installation for an exact nonempty
 nested restoration using only the source semantic trace, executable recursor
 validation, and the primitive/non-delta companion traces of that same run. -/
-theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
+theorem NestedLoweringOutputClosed.existsValidatedExactStagedRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -227,17 +227,17 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {es : List (Name × InductiveSignature.CaseSchema)}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams (main :: rest)
       isUnsafe decl envTypes envCtors)
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
       ((main :: rest).map (·.name)) (main :: rest)
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1
       ((), outProdEnv))
-    (Hsource : RestoredSourceInductiveSemanticTrace decl c.lparams c.safety
+    (Hsource : SourceFamilyTranslations decl c.lparams c.safety
       sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
       Hrestored.inductives decl.types primaryRecursors)
     (HvalidationValid : CheckingEnv.Valid c.safety validationEnv
@@ -252,15 +252,15 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
-    (Hprimitive : PrimitiveSafeFreshConstantTrace false c.env
+    (Hprimitive : FreshNonprimitiveExtension false c.env
       primitiveEntries outProdEnv)
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv decl (decl.caseBlock es)) :
     ∃ auxiliaryRecursors,
-      RestoredAuxiliaryRecursorTrace c.safety
+      AuxiliaryRecursorTranslations c.safety
           ((envCtors.addEliminators es).addProjections decl.projectionEntries)
           ((envCtors.addEliminators es).addProjections decl.projectionEntries)
           Hrestored.auxiliaries [] auxiliaryRecursors ∧
-        ∃ replay : CanonicalRestorationReplay c.safety c.env outProdEnv
+        ∃ replay : RestorationInDependencyOrder c.safety c.env outProdEnv
           sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
           decl.types primaryRecursors auxiliaryRecursors,
         ∃ canonicalProdEnv installedVEnv,
@@ -284,7 +284,7 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
 /-- Construct the rule-independent part of the final nested certificate
 directly from the exact traces retained by the executable run. No rule list
 is selected. -/
-theorem NestedFinalAssemblyBase.ofReplay
+theorem RestoredBlockBase.ofReplay
     {c : AddInductive.Context} {sourceDecl : VInductDecl} {isUnsafe : Bool}
     {nparams : Nat} {sourceVEnv envTypes envCtors finalBaseVEnv : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -294,22 +294,22 @@ theorem NestedFinalAssemblyBase.ofReplay
     (Hc : ContextWF c)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
-    (P : NestedInstalledProduction loweredEnv)
+    (P : LoweredRun loweredEnv)
     (Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl)
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2
       (sourceTypes.map (fun type => type.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).1 ((), outEnv))
     (primaryRecursors auxiliaryRecursors : List VConstVal)
-    (Hsource : RestoredSourceInductiveSemanticTrace sourceDecl c.lparams
+    (Hsource : SourceFamilyTranslations sourceDecl c.lparams
       c.safety sourceVEnv envTypes
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       Hrestored.inductives sourceDecl.types primaryRecursors)
-    (HauxiliaryRecursors : RestoredAuxiliaryRecursorTrace c.safety
+    (HauxiliaryRecursors : AuxiliaryRecursorTranslations c.safety
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       Hrestored.auxiliaries [] auxiliaryRecursors)
-    (replay : CanonicalRestorationReplay c.safety c.env outEnv sourceVEnv
+    (replay : RestorationInDependencyOrder c.safety c.env outEnv sourceVEnv
       envTypes ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       sourceDecl.types primaryRecursors auxiliaryRecursors)
     (canonical : BlockInstallation c.safety c.env sourceVEnv replay.typeEntries
@@ -326,11 +326,11 @@ theorem NestedFinalAssemblyBase.ofReplay
     (Hcases : VInductBlock.EliminatorsWF sourceVEnv sourceDecl (sourceDecl.caseBlock es))
     (Hreplay : sourceDecl.CaseEliminators sourceVEnv
       (fun n => c.env.constants.find? n = none) es)
-    (HelimRestored : NestedEliminatorsRestored P result
+    (HelimRestored : CaseEliminatorsRestored P result
       (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2 sourceDecl c.lparams es) :
-    Nonempty { B : NestedFinalAssemblyBase Hrestored sourceVEnv
+    Nonempty { B : RestoredBlockBase Hrestored sourceVEnv
         sourceDecl c.lparams nparams isUnsafe c.safety //
-      B.production = P ∧ CheckingEnv.Valid c.safety ruleEnv B.finalBaseVEnv } := by
+      B.lowered = P ∧ CheckingEnv.Valid c.safety ruleEnv B.recursorVEnv } := by
   have hcanonicalTypes : canonical.venvTypes = envTypes := by
     have hadded := canonical.abstract_types
     rw [replay.typeValues] at hadded
@@ -348,39 +348,39 @@ theorem NestedFinalAssemblyBase.ofReplay
   cases htypesSource : sourceDecl.types with
   | nil => exact (hownersNonempty htypesSource).elim
   | cons main rest =>
-      have Hsource' : RestoredSourceInductiveSemanticTrace sourceDecl
+      have Hsource' : SourceFamilyTranslations sourceDecl
           c.lparams c.safety sourceVEnv envTypes
           ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
           Hrestored.inductives (main :: rest) primaryRecursors := by
         simpa only [htypesSource] using Hsource
-      have HsourceCanonical : RestoredSourceInductiveSemanticTrace sourceDecl
+      have HsourceCanonical : SourceFamilyTranslations sourceDecl
           c.lparams c.safety sourceVEnv canonical.venvTypes
           ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections sourceDecl.projectionEntries)
           Hrestored.inductives (main :: rest)
             primaryRecursors := by
         simpa only [hcanonicalTypes, hcanonicalCtors, hcanonicalElims] using Hsource'
-      have HauxiliaryCanonical : RestoredAuxiliaryRecursorTrace c.safety
+      have HauxiliaryCanonical : AuxiliaryRecursorTranslations c.safety
           ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections sourceDecl.projectionEntries)
           ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections sourceDecl.projectionEntries)
           Hrestored.auxiliaries [] auxiliaryRecursors := by
         simpa only [hcanonicalCtors, hcanonicalElims] using HauxiliaryRecursors
       exact ⟨⟨{
-        production := P
+        lowered := P
         typeEntries := replay.typeEntries
         constructorEntries := replay.constructorEntries
         recursorEntries := replay.recursorEntries
-        canonicalProdEnv := canonicalProdEnv
-        finalBaseVEnv := finalBaseVEnv
-        canonical := canonical
-        productionOrder := fun actualEntries Hactual =>
+        installedEnv := canonicalProdEnv
+        recursorVEnv := finalBaseVEnv
+        install := canonical
+        executableOrder_perm := fun actualEntries Hactual =>
           (Hactual.permOfSameTarget replay.fresh Hc.checking.tr.map_wf).trans
             replay.productionOrder
         main := main
         rest := rest
         typesSource := htypesSource
-        primaryRecursors := primaryRecursors
+        sourceRecursors := primaryRecursors
         auxiliaryRecursors := auxiliaryRecursors
-        sourceSemantics := HsourceCanonical
+        sourceTranslations := HsourceCanonical
         auxiliaryRecursorTrace := HauxiliaryCanonical
         typeValues := replay.typeValues
         constructorValues := replay.constructorValues
@@ -409,8 +409,8 @@ private theorem NestedExpansionData.expanded_eq_of_envTransport
 
 /-- Dependent eta for an installed production whose complete phase package is
 transported together with its inductive-type array. -/
-private theorem NestedInstalledProduction.rebuildIndTypes_eq
-    {outEnv : Environment} (P : NestedInstalledProduction outEnv)
+private theorem LoweredRun.rebuildIndTypes_eq
+    {outEnv : Environment} (P : LoweredRun outEnv)
     (newIndTypes : Array InductiveType) (h : P.indTypes = newIndTypes) :
     let PhasePack := fun indTypes =>
       Sigma fun Hheaders : HeaderEnvironment P.c P.stats P.loweredDecl
@@ -419,7 +419,7 @@ private theorem NestedInstalledProduction.rebuildIndTypes_eq
           RecursorCheck R.toConstructorCheck outEnv
     let pack : PhasePack newIndTypes :=
       Eq.mp (congrArg PhasePack h)
-        (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
+        (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
     ({ c := P.c
        stats := P.stats
        loweredDecl := P.loweredDecl
@@ -432,7 +432,7 @@ private theorem NestedInstalledProduction.rebuildIndTypes_eq
        ctorEnv := P.ctorEnv
        headers := pack.1
        constructors := pack.2.1
-       production := pack.2.2 } : NestedInstalledProduction outEnv) = P := by
+       recursors := pack.2.2 } : LoweredRun outEnv) = P := by
   subst newIndTypes
   rfl
 
@@ -440,19 +440,19 @@ private theorem NestedInstalledProduction.rebuildIndTypes_eq
 ordinary header shapes of the exact lowered prefix.  The source-core builder
 retains literal header values, while materialization retains the separately
 checked index count and result universe. -/
-theorem NestedValidatedRunResult.nativeSourceTypeShapes
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+theorem NestedRun.nativeSourceTypeShapes
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     {params : List VExpr}
-    (Hshapes : ∀ target ∈ E.production.loweredDecl.types,
-      E.production.loweredDecl.TypeShape E.production.initialEnv params target) :
+    (Hshapes : ∀ target ∈ E.lowered.loweredDecl.types,
+      E.lowered.loweredDecl.TypeShape E.lowered.initialEnv params target) :
     ∀ target ∈ sourceDecl.types,
       sourceDecl.TypeShape sourceVEnv params target := by
-  let P := E.production
+  let P := E.lowered
   have hinitial : P.initialEnv = sourceVEnv := E.production_initialEnv
   have Hsource : TrInductDeclCore sourceVEnv lparams nparams sourceTypes
-      isUnsafe sourceDecl E.nativeSource.envTypes E.nativeSource.envCtors := by
-    simpa only [E.nativeSourceDecl_eq] using E.nativeSource.core
+      isUnsafe sourceDecl E.sourceCore.envTypes E.sourceCore.envCtors := by
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.core
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm
   have hloweredLength : P.loweredDecl.types.length = result.types.length :=
@@ -465,7 +465,7 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
     rw [hsourceLength, hloweredLength]
     let initialState : Lean4Lean.ElimNestedInductive.State :=
       { lvls := lparams.map .param, newTypes := #[] }
-    have Hresult : NestedLoweringResult sourceProdEnv
+    have Hresult : NestedLoweringOutput sourceProdEnv
         E.validationFuel.inductiveFuel nparams sourceTypes
         { initialState with newTypes := sourceTypes.toArray }
         result := E.lowering.toResult
@@ -492,7 +492,7 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
         (P.loweredDecl.types.take sourceTypes.length).map
           VInductiveType.toVConstVal := by
       simpa only [P, E.nativeSourceDecl_eq] using
-        E.nativeSource.sourceTypeValues
+        E.sourceCore.sourceTypeValues
     have hvalues := congrArg (fun values => values[i]?)
       hvaluesAll
     have hiTake : i <
@@ -507,7 +507,7 @@ theorem NestedValidatedRunResult.nativeSourceTypeShapes
   have htype : sourceTarget.type = expandedTarget.type :=
     congrArg (fun value : VConstVal => value.type) hvalue
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
   have hnumIndices : sourceTarget.numIndices = expandedTarget.numIndices :=
     Hmetadata.numIndices hprefix i hi hiExpanded
   have hresultLevel : sourceTarget.resultLevel = expandedTarget.resultLevel :=
@@ -538,16 +538,16 @@ lowered header environment. The header-stage renaming replacement
 (`headerRenamingReplacement`) transports that certificate to the source header
 environment: the parameters and the prefix mention no auxiliary family, so the
 replacement fixes them. -/
-theorem NestedValidatedRunResult.nativeSourceParameterWF
+theorem NestedRun.nativeSourceParameterWF
     {ves : VEnvs}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hraw : ∀ type ∈ sourceDecl.types, ∀ ctor ∈ type.ctors,
       sourceDecl.RawCtorShape type ctor) :
     sourceDecl.SourceParameterWF (ves.venv (if isUnsafe then .unsafe else .safe)) := by
-  let P := E.production
+  let P := E.lowered
   have hinitial : P.initialEnv = ves.venv (if isUnsafe then .unsafe else .safe) :=
     E.production_initialEnv
   obtain ⟨paramsL, envTypesL, haddedL, HtypeShapesL, HctorsL, -⟩ :=
@@ -572,10 +572,10 @@ theorem NestedValidatedRunResult.nativeSourceParameterWF
       (ves.venv (if isUnsafe then .unsafe else .safe)).constants n = none :=
     fun n hn => (VEnv.addConstVals_le hadded).constants_eq_none_left (hfresh n hn)
   have Hsource : TrInductDeclCore (ves.venv (if isUnsafe then .unsafe else .safe))
-      lparams nparams sourceTypes isUnsafe sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
-    simpa only [E.nativeSourceDecl_eq] using E.nativeSource.core
-  have hnativeTypes : E.nativeSource.envTypes = envTypes := by
+      lparams nparams sourceTypes isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.core
+  have hnativeTypes : E.sourceCore.envTypes = envTypes := by
     have h := Hsource.typesAdded
     rw [hadded] at h
     exact (Option.some.inj h).symm
@@ -684,13 +684,13 @@ theorem NestedValidatedRunResult.nativeSourceParameterWF
     exact hctx A (List.mem_reverse.mpr hA)
   have hmapParams : paramsL.reverse.map (fun A => A.replaceRen
       ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => P.compilationSignature.params)
+        fun _ => P.signature.params)
       (InductiveSignature.compilationRestoration sourceDecl auxiliaries).renaming) = paramsL.reverse := by
     rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.replaceRen_eq_self
       (hparamsClean A (List.mem_reverse.mp hA))), List.map_id']
   have hmapOwn : own.reverse.map (fun A => A.replaceRen
       ((InductiveSignature.compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => P.compilationSignature.params)
+        fun _ => P.signature.params)
       (InductiveSignature.compilationRestoration sourceDecl auxiliaries).renaming) = own.reverse := by
     rw [List.map_congr_left (fun A hA => InductiveSignature.Restoration.replaceRen_eq_self
       (hownClean A (List.mem_reverse.mp hA))), List.map_id']
@@ -702,9 +702,9 @@ theorem NestedValidatedRunResult.nativeSourceParameterWF
 production record's native dependent indices, without the recursor-rule
 validator, then transport it once to the public indices.  Transporting only the finished aggregate avoids splitting
 the dependent header/constructor/recursor phase chain apart. -/
-private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
+private theorem NestedRun.assemblyBaseOfFormationNative
     {ves : VEnvs} {sourceVEnv : VEnv} {safety : DefinitionSafety}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (wf : ves.WFCore sourceProdEnv)
     (hsourceVEnv : sourceVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
@@ -715,20 +715,20 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     (hvisible : safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (Hformation : NestedExpansionData sourceVEnv sourceDecl)
-    (hformationExpanded : Hformation.expanded = E.production.loweredDecl) :
-    Nonempty { C : NestedFinalAssemblyBase E.restoration sourceVEnv
+    (hformationExpanded : Hformation.expanded = E.lowered.loweredDecl) :
+    Nonempty { C : RestoredBlockBase E.restoration sourceVEnv
         sourceDecl lparams nparams isUnsafe safety //
-      C.production = E.production ∧
+      C.lowered = E.lowered ∧
         CheckingEnv.Valid safety
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
-          C.finalBaseVEnv } := by
+          C.recursorVEnv } := by
   subst hsourceVEnv hsafetyEq
   have hctorNames := Hformation.sourceConstructorNames hformationExpanded
-  let P := E.production
-  have hc : P.c = E.productionContext := E.production_c
+  let P := E.lowered
+  have hc : P.c = E.context := E.production_c
   have henv : P.c.env = sourceProdEnv :=
     (congrArg AddInductive.Context.env hc).trans E.productionContext_env
   have hlparams : P.c.lparams = lparams :=
@@ -745,7 +745,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     exact E.production_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
-    exact E.productionContextWF
+    exact E.contextWF
   have HsourceCons : ∃ main rest, sourceTypes = main :: rest := by
     have hnonempty : sourceTypes ≠ [] := by
       rcases E.lowering with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
@@ -765,7 +765,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
       rfl
     · intro i _hi₁ hi₂
       simp at hi₂
-  have Hlower : NestedLoweringResultClosed P.c.env
+  have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result := by
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
@@ -776,11 +776,11 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
         RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
+      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
   let Hheaders := Hpack.1
   let R := Hpack.2.1
   let Hprod := Hpack.2.2
-  let P' : NestedInstalledProduction E.loweredEnv := {
+  let P' : LoweredRun E.loweredEnv := {
     c := P.c
     stats := P.stats
     loweredDecl := P.loweredDecl
@@ -793,22 +793,22 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     ctorEnv := P.ctorEnv
     headers := Hheaders
     constructors := R
-    production := Hprod }
+    recursors := Hprod }
   have Hcore : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      (main :: rest) P.isUnsafe sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
+      (main :: rest) P.isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe,
-      E.nativeSourceDecl_eq] using E.nativeSource.core
+      E.nativeSourceDecl_eq] using E.sourceCore.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
     exact Eq.mp
       (congrArg (fun decl => SourcePrefixOfLowered decl P.loweredDecl)
         E.nativeSourceDecl_eq)
-      E.nativeSource.materialized
+      E.sourceCore.materialized
   have HownersP : ConstructorOwnersPresent P.c.env := by
     rw [henv]
     exact Howners
   let RestorationAt := fun env =>
-    RestoredNestedDeclarationsResult result E.loweredEnv env
+    NestedRestorationFolds result E.loweredEnv env
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2
       ((main :: rest).map (fun type => type.name)) (main :: rest)
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1
@@ -821,7 +821,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     rcases Hlower with ⟨_finalState, Hrun, _Hcache, _Hparams⟩
     exact Hrun.resultFamilyNamesReservedFresh hempty
   have Hconstructors : RestoreAuxConstructorsFresh result E.loweredEnv
-      E.nativeSource.envTypes :=
+      E.sourceCore.envTypes :=
     Hlower.restoreAuxConstructorsFreshAtTypes HcP Hprod Hcore
       HownersP hempty
   have Hparams : sourceDecl.SourceParameterWF P.initialEnv := by
@@ -832,21 +832,21 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     rw [hformationExpanded] at h
     exact h
   have HbaseValid : CheckingEnv.Valid P.c.safety P.c.env P.initialEnv := by
-    have Hchecking := E.productionContextWF.checking
+    have Hchecking := E.contextWF.checking
     simpa only [hc, hinitial, E.productionContext_venv] using Hchecking
   obtain ⟨es, Hcases, Hreplay, key, sL, auxC, hcompEl, hesEq, -, -, -, -, -, -, -, DC, -, -⟩ :=
     E.caseEliminators wf Hsources Howners Hformation hformationExpanded
-  have HelimRestored : NestedEliminatorsRestored P' result
+  have HelimRestored : CaseEliminatorsRestored P' result
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 sourceDecl P.c.lparams es := by
     have hP'P : P' = P := by
       simpa only [P', Hheaders, R, Hprod, Hpack] using
-        NestedInstalledProduction.rebuildIndTypes_eq P result.types.toArray hindTypes
+        LoweredRun.rebuildIndTypes_eq P result.types.toArray hindTypes
     rw [hP'P, hlparams]
     exact ⟨key, sL, auxC, hcompEl, hesEq, DC⟩
   have HcasesP : VInductBlock.EliminatorsWF P.initialEnv sourceDecl (sourceDecl.caseBlock es) := by
     rw [hinitial]; exact Hcases
   -- the corner in the environments containing the restored constructors
-  have hcornerAt : ∀ {venv'}, E.nativeSource.envTypes ≤ venv' →
+  have hcornerAt : ∀ {venv'}, E.sourceCore.envTypes ≤ venv' →
       CtorTelescopes P.c.safety outEnv venv' ∧
       CtorTelescopes P.c.safety E.validationEnv venv' := by
     intro venv' hle
@@ -856,11 +856,11 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     rw [hsafety]
     exact ⟨CtorTelescopes.mono H.1 hle, CtorTelescopes.mono H.2 hle⟩
   have HtypeValid : CheckingEnv.Valid P.c.safety E.validationEnv
-      ((E.nativeSource.envCtors.addEliminators es).addProjections
+      ((E.sourceCore.envCtors.addEliminators es).addProjections
         sourceDecl.projectionEntries) := by
     have hvalidCore : CheckingEnv.ValidCore P.c.safety E.validationEnv
-        E.nativeSource.envCtors := by
-      simpa only [hsafety] using E.nativeSource.validationValid
+        E.sourceCore.envCtors := by
+      simpa only [hsafety] using E.sourceCore.validationValid
     have HV : ValidationEnvironment result E.loweredEnv
         P.c.env ((main :: rest).map (fun type => type.name)) false
         (main :: rest) E.validationEnv := by
@@ -887,14 +887,14 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
             stepSource stepTarget Hstep)
   rcases HexactSource with ⟨primaryRecursors, Hsource⟩
   rcases E.primitiveSafe with ⟨primitiveEntries, HprimitiveRaw⟩
-  have Hprimitive : PrimitiveSafeFreshConstantTrace false P.c.env
+  have Hprimitive : FreshNonprimitiveExtension false P.c.env
       primitiveEntries outEnv := by
     simpa only [henv] using HprimitiveRaw
   have hvisibleP : P.c.safety ≤
       (if P.isUnsafe then DefinitionSafety.unsafe else .safe) := by
     simpa only [hsafety, hisUnsafe] using hvisible
   rcases Hlower.existsValidatedExactStagedRestoration
-      (primaryProdEnv := Hrestored.primaryEnv) HcP Hprod Hcore
+      (primaryProdEnv := Hrestored.sourceFamiliesEnv) HcP Hprod Hcore
       Hrestored Hsource HtypeValid HtypeRun Hparams hempty hvisibleP Hprimitive HcasesP
       with
     ⟨auxiliaryRecursors, HauxiliaryRecursors, replay, canonicalProdEnv,
@@ -915,7 +915,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
         rw [show _ = _ from replay.typeValues] at h1
         have h2 : P.initialEnv.addConstVals
             (List.map VInductiveType.toVConstVal sourceDecl.types) =
-              some E.nativeSource.envTypes := Hcore.typesAdded
+              some E.sourceCore.envTypes := Hcore.typesAdded
         rw [h2] at h1
         rw [Option.some.inj h1]
         exact canonical.formation.constructorLE.trans
@@ -928,7 +928,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
     calc
       HformationP.expanded = Hformation.expanded :=
         NestedExpansionData.expanded_eq_of_envTransport hinitial Hformation
-      _ = E.production.loweredDecl := hformationExpanded
+      _ = E.lowered.loweredDecl := hformationExpanded
       _ = P.loweredDecl := rfl
   have huvars : sourceDecl.uvars = P.c.lparams.length := Hcore.uvars
   have hnumParams : sourceDecl.nparams = P.nparams := Hcore.nparams
@@ -946,29 +946,29 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
       ctorEnv := P.ctorEnv
       headers := Hheaders
       constructors := R
-      production := Hprod } := rfl
-  rcases NestedFinalAssemblyBase.ofReplay HcP Hcore P' Hmetadata
+      recursors := Hprod } := rfl
+  rcases RestoredBlockBase.ofReplay HcP Hcore P' Hmetadata
       Hrestored primaryRecursors auxiliaryRecursors Hsource HauxiliaryRecursors
       replay canonical HruleValid HformationP hformationExpandedP
       huvars hnumParams hunsafeEq (by simp) hcanonicalElims HcasesP
       (by rw [hinitial, henv]; exact Hreplay) HelimRestored with ⟨⟨C, hproduction, hCvalid⟩⟩
-  have hproductionOriginal : C.production = P := by
+  have hproductionOriginal : C.lowered = P := by
     calc
-      C.production = P' := hproduction
+      C.lowered = P' := hproduction
       _ = P := by
         simpa only [P', Hheaders, R, Hprod, Hpack] using
-          NestedInstalledProduction.rebuildIndTypes_eq P
+          LoweredRun.rebuildIndTypes_eq P
             result.types.toArray hindTypes
   let CertificateAt := fun q : Sigma RestorationAt =>
-    Nonempty { C : NestedFinalAssemblyBase q.2 P.initialEnv sourceDecl
+    Nonempty { C : RestoredBlockBase q.2 P.initialEnv sourceDecl
         P.c.lparams P.nparams P.isUnsafe P.c.safety //
-      C.production = P ∧
+      C.lowered = P ∧
         CheckingEnv.Valid P.c.safety
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
-          C.finalBaseVEnv }
+          C.recursorVEnv }
   have hp : (⟨P.c.env, Hrestored⟩ : Sigma RestorationAt) =
       ⟨sourceProdEnv, E.restoration⟩ := by
     apply Sigma.ext henv
@@ -992,26 +992,26 @@ formation comes from the literal restored-parameter validator; and the full
 ordered nested expansion comes from the producer-owned generated registry.
 No declaration-specific evidence is accepted from the caller. The stripped
 output environment is valid in the base's final abstract environment. -/
-theorem NestedValidatedRunResult.assemblyBaseNativeValid
+theorem NestedRun.assemblyBaseNativeValid
     {ves : VEnvs}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0) :
-    Nonempty { B : NestedFinalAssemblyBase E.restoration
+    Nonempty { B : RestoredBlockBase E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
-      B.production = E.production ∧
+      B.lowered = E.lowered ∧
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
-          B.finalBaseVEnv } := by
+          B.recursorVEnv } := by
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
-  let P := E.production
-  have hc : P.c = E.productionContext := E.production_c
+  let P := E.lowered
+  have hc : P.c = E.context := E.production_c
   have henv : P.c.env = sourceProdEnv :=
     (congrArg AddInductive.Context.env hc).trans E.productionContext_env
   have hlparams : P.c.lparams = lparams :=
@@ -1024,15 +1024,15 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
   have hisUnsafe : P.isUnsafe = isUnsafe := E.production_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
-    exact E.productionContextWF
+    exact E.contextWF
   let initialState : Lean4Lean.ElimNestedInductive.State :=
     { lvls := P.c.lparams.map .param, newTypes := #[] }
-  have Hlower : NestedLoweringResultClosed P.c.env
+  have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
   rcases Hlower with ⟨finalState, Hrun, Hcache, Hparams⟩
-  let Hclosed : NestedLoweringResultClosed P.c.env
+  let Hclosed : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result :=
     ⟨finalState, Hrun, Hcache, Hparams⟩
@@ -1043,38 +1043,38 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
         RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
+      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
   let Hheaders := Hpack.1
   let R := Hpack.2.1
   let Hprod := Hpack.2.2
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      sourceTypes P.isUnsafe sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
+      sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.nativeSource.core
+      E.nativeSourceDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hheaders.context.venv
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
-    simpa only [hinitial, hlparams, safety] using E.nativeSource.sourceHeaders
+    simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
   have HsourceAdded : P.initialEnv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
-        VInductiveType.toVConstVal) = some E.nativeSource.envTypes := by
-    simpa only [hinitial, safety] using E.nativeSource.sourceAdded
-  have HsourceTypesWF : E.nativeSource.envTypes.WF :=
+        VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
+    simpa only [hinitial, safety] using E.sourceCore.sourceAdded
+  have HsourceTypesWF : E.sourceCore.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource
       (by simpa only [hinitial, safety] using
         (wf.tr (safety := safety)).wf)
   have Htranslations : ClosedNestedOccurrenceTypings
-      E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
+      E.sourceCore.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := by
@@ -1131,7 +1131,7 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
   let FormationAt := fun env => NestedExpansionData env sourceDecl
   let Hformation : FormationAt (ves.venv safety) :=
     Eq.mp (congrArg FormationAt hinitial) HformationP
-  have hformationExpanded : Hformation.expanded = E.production.loweredDecl := by
+  have hformationExpanded : Hformation.expanded = E.lowered.loweredDecl := by
     have hexpanded : Hformation.expanded = HformationP.expanded := by
       exact NestedExpansionData.expanded_eq_of_envTransport hinitial.symm
         HformationP

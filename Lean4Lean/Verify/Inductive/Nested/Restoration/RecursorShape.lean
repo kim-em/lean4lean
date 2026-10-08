@@ -21,7 +21,7 @@ its stored abstract constant is the restored generated type, its counts are the
 expanded signature's, it is not K-like, and its major family application is the
 restored owner family at the parameter and index variables
 (`TrRestoredRecursorVal.specialization`). Rules are not involved. -/
-structure RestoredRecursorShapeInputs {s : InductiveSignature} (g : Instance s)
+structure RestoredRecursorShape {s : InductiveSignature} (g : Instance s)
     (r : Restoration) (venv : VEnv) (owner : Fin s.families.size)
     (rec : Lean.RecursorVal) : Prop where
   type : ∃ type, r.expr (g.recursorType owner) = some type ∧
@@ -76,9 +76,9 @@ theorem TrRestoredRecursorVal.k_eq_false {s : InductiveSignature} {g : Instance 
 
 /-- The restored recursor's stored type has the recursor shape, with the
 restored family head's arguments as constructor parameters. -/
-theorem RestoredRecursorShapeInputs.shape {s : InductiveSignature} {g : Instance s}
+theorem RestoredRecursorShape.shape {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} (H : RestoredRecursorShapeInputs g r venv owner rec) :
+    {rec : Lean.RecursorVal} (H : RestoredRecursorShape g r venv owner rec) :
     ∃ head : RestoredFamilyHead, rec.getMajorInduct = head.name ∧
       Nonempty (VRecursorShape venv rec.name rec.levelParams.length rec.numParams
         head.arguments.length rec.numMotives rec.numMinors rec.numIndices
@@ -111,17 +111,17 @@ theorem RestoredRecursorShapeInputs.shape {s : InductiveSignature} {g : Instance
     List.getElem?_concat_length, hmaj, ← hmajor, vars_eq_bvarRange, Nat.add_zero]
 
 /-- The rule-free copy of a restored recursor is aligned. -/
-theorem RestoredRecursorShapeInputs.alignmentCore {s : InductiveSignature} {g : Instance s}
+theorem RestoredRecursorShape.alignmentCore {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} (H : RestoredRecursorShapeInputs g r venv owner rec) :
+    {rec : Lean.RecursorVal} (H : RestoredRecursorShape g r venv owner rec) :
     RecursorAlignmentCore venv { rec with rules := [] } := by
   rcases H.shape with ⟨head, _, hshape⟩
   exact ⟨head.arguments.length, head.levels, head.arguments, hshape, by simp⟩
 
 /-- The rule-free copy of a restored recursor is not K-like. -/
-theorem RestoredRecursorShapeInputs.kLike {s : InductiveSignature} {g : Instance s}
+theorem RestoredRecursorShape.kLike {s : InductiveSignature} {g : Instance s}
     {r : Restoration} {venv : VEnv} {owner : Fin s.families.size}
-    {rec : Lean.RecursorVal} (H : RestoredRecursorShapeInputs g r venv owner rec)
+    {rec : Lean.RecursorVal} (H : RestoredRecursorShape g r venv owner rec)
     (C : Lean.ConstMap) : KLikeRecursor C venv { rec with rules := [] } := by
   intro hk
   have : rec.k = true := hk

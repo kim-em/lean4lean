@@ -241,7 +241,7 @@ theorem auxiliaryFamily_header
 
 /-! ### The auxiliary suffix -/
 
-/-- The `auxiliaryFamilies` relation of `NestedCompilationPending`, for any
+/-- The `auxiliaryFamilies` relation of `NestedCompilationRestorationFacts`, for any
 specialization list with exact lowering evidence, given the restoration of the
 auxiliary constructor types. -/
 theorem auxiliaryFamilies_of_evidence

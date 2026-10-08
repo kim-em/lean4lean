@@ -9,13 +9,13 @@ For an exact validated nested run `E`, at the auxiliary heads `E.auxHeads`
 (the names of the lowered families after the source families and of their
 constructors):
 
-* `NestedValidatedRunResult.auxHeadsFacts`: the auxiliary heads are fresh in
+* `NestedRun.auxHeadsFacts`: the auxiliary heads are fresh in
   the source environment (and after the source headers are added), lie in the
   reserved `_nested` namespace, and contain every key of `aux2nested`.
 * Ingredients of `RecursorConstruction.ParamUniformDeclarations` (assembled at
-  the head set `E.uniformHeads` by `NestedValidatedRunResult.hitShapeInputs_of` in
+  the head set `E.uniformHeads` by `NestedRun.hitShapeInputs_of` in
   `Nested/Restoration/Uniform/Whnf.lean`):
-  - `NestedValidatedRunResult.familyHeadersAvoid`: headers are not lowered,
+  - `NestedRun.familyHeadersAvoid`: headers are not lowered,
     and both source and auxiliary headers are translated in the source
     environment, where the heads are fresh.
   - `RecursorConstruction.paramDecls_of_fresh` and
@@ -23,7 +23,7 @@ constructors):
     context, translated in the source environment where the heads are fresh
     (`TrExprS.sourceAvoidsFresh`) and only its structures are registered
     (`TrExprS.projsRegistered`).
-  - `NestedValidatedRunResult.constructorTypesHitShape`: every lowered family
+  - `NestedRun.constructorTypesHitShape`: every lowered family
     has a lowering mapping from a pre-lowering family whose constructor types
     are translated in the source-header environment (`loweredFamilyMappings`:
     the source translations for the source families, the native payload
@@ -31,7 +31,7 @@ constructors):
     `ConstructorLowering.Resolved.hitShapeTele` applies.
   - `RecursorConstruction.recursorNames_not_mem`: from the
     distinctness of family and recursor names.
-* `NestedValidatedRunResult.normalizedTotal_of`: `Restoration.expr` is total
+* `NestedRun.normalizedTotal_of`: `Restoration.expr` is total
   on every normalized constructor type of the compilation signature. The
   predicate `VExpr.HeadsApplied` (every head occurrence is applied to at least
   `nparams` arguments at `uvars` levels) makes `Restoration.expr` total
@@ -39,7 +39,7 @@ constructors):
   form `Expr.HeadsApplied` of `ParamUniform` along `TrExprS`
   (`Expr.HeadsApplied.trExprS`), applied to the field-telescope replay
   `sourceConstructorIndices_replay` of every consumed constructor.
-* `NestedValidatedRunResult.compilationData_of_pendingTotal`:
+* `NestedRun.compilationData_of_pendingTotal`:
   `compilationData_of_pending'` with that premise discharged. -/
 
 namespace Lean.Expr
@@ -586,12 +586,12 @@ source environment (and in the environment extended by the source family
 headers), lie in the reserved `_nested` namespace, and contain every key of
 the final `aux2nested` map. The lowered family and recursor names are
 moreover pairwise distinct. -/
-theorem NestedValidatedRunResult.auxHeadsFacts
+theorem NestedRun.auxHeadsFacts
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
@@ -604,11 +604,11 @@ theorem NestedValidatedRunResult.auxHeadsFacts
         (ves.venv (if isUnsafe then .unsafe else .safe)).constants name = none) ∧
       (∀ name ∈ E.auxHeads, (`_nested).isPrefixOf name = true) ∧
       (∀ c nested, result.aux2nested.find? c = some nested → c ∈ E.auxHeads) ∧
-      (familyNames E.production.loweredDecl.types ++
-        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+      (familyNames E.lowered.loweredDecl.types ++
+        E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
   have hnodup :
-      (familyNames E.production.loweredDecl.types ++
-        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+      (familyNames E.lowered.loweredDecl.types ++
+        E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
@@ -974,12 +974,12 @@ Source families use the checked source translations; generated families use
 the native pre-lowering payload of the run (`AuxiliaryFamilySources`),
 whose constructor types are translated in the environment of the source
 headers, where the auxiliary names are fresh. -/
-theorem NestedValidatedRunResult.loweredFamilyMappings
+theorem NestedRun.loweredFamilyMappings
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
@@ -992,8 +992,8 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
   obtain ⟨envTypes, hadded, _henvTypes, hfreshTypes, hfreshSrc, _hreserved, _hkeys,
     _hnodup⟩ := E.auxHeadsFacts wf Hsources
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
-  let P := E.production
-  have hc : P.c = E.productionContext := E.production_c
+  let P := E.lowered
+  have hc : P.c = E.context := E.production_c
   have henv : P.c.env = sourceProdEnv :=
     (congrArg AddInductive.Context.env hc).trans E.productionContext_env
   have hlparams : P.c.lparams = lparams :=
@@ -1006,10 +1006,10 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
   have hisUnsafe : P.isUnsafe = isUnsafe := E.production_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
-    exact E.productionContextWF
+    exact E.contextWF
   let initialState : Lean4Lean.ElimNestedInductive.State :=
     { lvls := P.c.lparams.map .param, newTypes := #[] }
-  have Hlower : NestedLoweringResultClosed P.c.env
+  have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
@@ -1021,14 +1021,14 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
         RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
+      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
   let R := Hpack.2.1
   let Hprod := Hpack.2.2
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      sourceTypes P.isUnsafe sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
+      sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.nativeSource.core
+      E.nativeSourceDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
@@ -1038,28 +1038,28 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
-    simpa only [hinitial, hlparams, safety] using E.nativeSource.sourceHeaders
+    simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
   have HsourceAdded : P.initialEnv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
-        VInductiveType.toVConstVal) = some E.nativeSource.envTypes := by
-    simpa only [hinitial, safety] using E.nativeSource.sourceAdded
+        VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
+    simpa only [hinitial, safety] using E.sourceCore.sourceAdded
   have HbaseWF : P.initialEnv.WF := by
     simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf
-  have HsourceTypesWF : E.nativeSource.envTypes.WF :=
+  have HsourceTypesWF : E.sourceCore.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
   have Htranslations : ClosedNestedOccurrenceTypings
-      E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
+      E.sourceCore.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := rfl
   rcases Hrun.nativeGeneratedFamilySources Hcache Hparams wfP
       hinitial HcP Hprod Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, -⟩
-  have HsourceCore := E.nativeSource.core
+  have HsourceCore := E.sourceCore.core
   rw [E.nativeSourceDecl_eq] at HsourceCore
-  have htypesEq : E.nativeSource.envTypes = envTypes :=
+  have htypesEq : E.sourceCore.envTypes = envTypes :=
     Option.some.inj (HsourceCore.typesAdded.symm.trans hadded)
-  have hfreshN : ∀ name ∈ E.auxHeads, E.nativeSource.envTypes.constants name = none := by
+  have hfreshN : ∀ name ∈ E.auxHeads, E.sourceCore.envTypes.constants name = none := by
     rw [htypesEq]; exact hfreshTypes
   have hloweredLength : result.types.length = P.loweredDecl.types.length :=
     TrInductDeclCore.types_length Htarget
@@ -1122,18 +1122,18 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
 /-- **Lowered constructor types of an exact validated nested run are parameter
 telescopes in hit shape** for the auxiliary heads, at the production
 statistics' parameter count and levels. -/
-theorem NestedValidatedRunResult.constructorTypesHitShape
+theorem NestedRun.constructorTypesHitShape
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∀ i, i < E.production.indTypes.size → ∀ ctor ∈ E.production.indTypes[i]!.ctors,
-      Expr.ParamUniformTele E.auxHeads E.production.stats.params.size
-        E.production.stats.levels ctor.type := by
+    ∀ i, i < E.lowered.indTypes.size → ∀ ctor ∈ E.lowered.indTypes[i]!.ctors,
+      Expr.ParamUniformTele E.auxHeads E.lowered.stats.params.size
+        E.lowered.stats.levels ctor.type := by
   obtain ⟨-, -, -, -, -, -, hkeys, -⟩ := E.auxHeadsFacts wf Hsources
   have hmaps := E.loweredFamilyMappings wf Hsources
   have hnp : result.nparams = nparams := by
@@ -1156,34 +1156,34 @@ validated nested run** (source and auxiliary families alike), for every
 specialisation list whose head names are the run's auxiliary family and
 constructor names. This is the `normalizedTotal` premise of
 `compilationData_of_pending'`. -/
-theorem NestedValidatedRunResult.normalizedTotal_of
+theorem NestedRun.normalizedTotal_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =
-      familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length)) :
-    ∀ normalized ∈ E.production.compilationSignature.declaration.types,
+      familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)) :
+    ∀ normalized ∈ E.lowered.signature.declaration.types,
       ∀ ctor ∈ normalized.ctors, ∃ restored,
         (compilationRestoration sourceDecl auxiliaries).expr ctor.type = some restored := by
   obtain ⟨-, -, -, -, hfreshSrc, hreserved, -, -⟩ := E.auxHeadsFacts wf Hsources
-  have hfresh : ∀ name ∈ E.auxHeads, E.production.initialEnv.constants name = none := by
+  have hfresh : ∀ name ∈ E.auxHeads, E.lowered.initialEnv.constants name = none := by
     rw [E.production_initialEnv]; exact hfreshSrc
-  have hN := E.production.loweredConstruction.normalizedHeadsApplied
+  have hN := E.lowered.recursorConstruction.normalizedHeadsApplied
     (E.constructorTypesHitShape wf Hsources)
     (fun l => avoidsConsts_lit_of_reserved hreserved l)
-    (E.production.loweredConstruction.paramsFree_of_fresh hfresh)
-  have Hsource := E.nativeSource.core
+    (E.lowered.recursorConstruction.paramsFree_of_fresh hfresh)
+  have Hsource := E.sourceCore.core
   rw [E.nativeSourceDecl_eq] at Hsource
-  have hnp : E.production.stats.params.size = sourceDecl.nparams := by
+  have hnp : E.lowered.stats.params.size = sourceDecl.nparams := by
     obtain ⟨_, Hrun, _, _⟩ := E.lowering
     rw [E.statsParamsSize, Hrun.resultNParams, Hsource.nparams]
-  have hlv : E.production.stats.levels.length = sourceDecl.uvars := by
+  have hlv : E.lowered.stats.levels.length = sourceDecl.uvars := by
     rw [E.statsLevels, List.length_map, Hsource.uvars]
   have hheads : ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
       h.auxiliary ∈ E.auxHeads ∧ h.uvars = sourceDecl.uvars ∧

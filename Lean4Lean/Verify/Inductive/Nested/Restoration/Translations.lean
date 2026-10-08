@@ -17,7 +17,7 @@ namespace VerifyInductive
 recursor constant and the abstract rule batch of the step, of the restored
 length. The record fixes no equation syntax; the final producer result
 supplies the finite canonical compilation of the rules. -/
-structure RestoredAuxiliaryStepShape
+structure AuxiliaryRecursorGuardedRules
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -32,37 +32,37 @@ structure RestoredAuxiliaryStepShape
 /-- Trace-aligned steps of an auxiliary restoration fold. The chosen
 rule batches are retained explicitly, but this judgment alone does not
 constrain their left-hand sides or establish their concrete realization. -/
-inductive RestoredAuxiliaryShapeTrace
+inductive AuxiliaryRecursorsGuardedRules
     (decl : VInductDecl) (block : VInductBlock) (main : VInductiveType)
     (safety : DefinitionSafety) (trEnv : VEnv) :
     ∀ {names sourceEnv targetEnv},
-      StateForMTrace
+      FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names sourceEnv targetEnv →
       List VConstVal → List VDefEq →
       List VConstVal → List VDefEq → Prop
   | nil (sourceEnv) (recursors rules) :
-      RestoredAuxiliaryShapeTrace decl block main safety trEnv
-        (StateForMTrace.nil (P :=
+      AuxiliaryRecursorsGuardedRules decl block main safety trEnv
+        (FoldSteps.nil (P :=
           RestoredRecursorStep result loweredEnv auxRec allIndNames)
           (source := sourceEnv)) recursors rules recursors rules
   | cons
       (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
         oldRecName sourceEnv middleEnv)
-      (Htail : StateForMTrace
+      (Htail : FoldSteps
         (RestoredRecursorStep result loweredEnv auxRec allIndNames)
         names middleEnv targetEnv)
-      (Hsemantic : RestoredAuxiliaryStepShape decl block main safety trEnv
+      (Hsemantic : AuxiliaryRecursorGuardedRules decl block main safety trEnv
         Hstep priorRecursors)
-      (Hrest : RestoredAuxiliaryShapeTrace decl block main safety trEnv
+      (Hrest : AuxiliaryRecursorsGuardedRules decl block main safety trEnv
         Htail (priorRecursors ++ [Hsemantic.recursor])
           (priorRules ++ Hsemantic.rules) finalRecursors finalRules) :
-      RestoredAuxiliaryShapeTrace decl block main safety trEnv
+      AuxiliaryRecursorsGuardedRules decl block main safety trEnv
         (.cons Hstep Htail) priorRecursors priorRules
           finalRecursors finalRules
 
 /-- Semantic payload for one restored primary recursor. -/
-structure RestoredPrimaryRecursorSemantics
+structure SourceRecursorTranslation
     (decl : VInductDecl) (owner : VInductiveType)
     (safety : DefinitionSafety)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -81,7 +81,7 @@ structure RestoredPrimaryRecursorSemantics
 this object mentions neither the lowered declaration nor any production
 restoration step: it is the abstract specification which the executable
 recursor construction must refine. -/
-structure SourcePrimaryRecursorSemantics
+structure SourceRecursorSpec
     (sourceDecl : VInductDecl) (owner : VInductiveType)
     (canonicalEnv : VEnv) where
   recursor : VConstVal
@@ -90,10 +90,10 @@ structure SourcePrimaryRecursorSemantics
   shape : Nonempty (sourceDecl.NestedRecursorShape owner recursor)
 
 /-- Executable-to-specification refinement for a restored primary recursor.
-The source recursor is fixed by `SourcePrimaryRecursorSemantics`; this record
+The source recursor is fixed by `SourceRecursorSpec`; this record
 states that the concrete restoration step has exactly its universe arity and
 translates its restored telescope to exactly its abstract type. -/
-structure RestoredPrimaryRecursorRefinement
+structure SourceRecursorRefinement
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
     (canonicalEnv : VEnv) (recursor : VConstVal) : Prop where
@@ -104,54 +104,54 @@ structure RestoredPrimaryRecursorRefinement
 /-- One abstract source recursor realized by a particular restored concrete
 recursor.  The equality field prevents the source witness and refinement
 proof from drifting to different constants. -/
-structure SourcePrimaryRecursorRealization
+structure SourceRecursorRealization
     (sourceDecl : VInductDecl) (sourceOwner : VInductiveType)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
     (canonicalEnv : VEnv) (recursor : VConstVal) where
-  source : SourcePrimaryRecursorSemantics sourceDecl sourceOwner canonicalEnv
+  source : SourceRecursorSpec sourceDecl sourceOwner canonicalEnv
   recursor_eq : source.recursor = recursor
-  refinement : RestoredPrimaryRecursorRefinement Hstep canonicalEnv recursor
+  refinement : SourceRecursorRefinement Hstep canonicalEnv recursor
 
 /-- Source semantics for the inductive families in one restoration trace. -/
-inductive RestoredSourceInductiveSemanticTrace
+inductive SourceFamilyTranslations
     (decl : VInductDecl) (lparams : List Name)
     (safety : DefinitionSafety)
     (sourceVEnv envTypes envCtors : VEnv) :
     ∀ {types sourceProdEnv targetProdEnv},
-      StateForMTrace
+      FoldSteps
         (RestoredInductiveStep result loweredEnv auxRec allIndNames)
         types sourceProdEnv targetProdEnv →
       List VInductiveType → List VConstVal → Prop
   | nil (sourceProdEnv : Environment) :
-      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      SourceFamilyTranslations decl lparams safety sourceVEnv
         envTypes envCtors
-        (StateForMTrace.nil (P :=
+        (FoldSteps.nil (P :=
           RestoredInductiveStep result loweredEnv auxRec allIndNames)
           (source := sourceProdEnv)) [] []
   | cons
       (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
         indType sourceProdEnv middleProdEnv)
-      (Htail : StateForMTrace
+      (Htail : FoldSteps
         (RestoredInductiveStep result loweredEnv auxRec allIndNames)
         types middleProdEnv targetProdEnv)
       (Hheader : TrSourceConst sourceVEnv lparams indType.name indType.type
         owner.toVConstVal)
-      (Hconstructors : RestoredSourceConstructorTrace result loweredEnv lparams safety envTypes
+      (Hconstructors : RestoredConstructorTranslations result loweredEnv lparams safety envTypes
         Hstep.oldInfo.ctors Hstep.restored.headerEnv
           Hstep.restored.constructorEnv indType.ctors owner.ctors)
-      (Hrecursor : RestoredPrimaryRecursorSemantics decl owner safety
+      (Hrecursor : SourceRecursorTranslation decl owner safety
         Hstep.restored.recursor envCtors)
-      (Hrest : RestoredSourceInductiveSemanticTrace decl lparams safety
+      (Hrest : SourceFamilyTranslations decl lparams safety
         sourceVEnv envTypes envCtors Htail owners recursors) :
-      RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+      SourceFamilyTranslations decl lparams safety sourceVEnv
         envTypes envCtors (.cons Hstep Htail) (owner :: owners)
         (Hrecursor.recursor :: recursors)
 
 /-- All canonical-stage semantic data for one exact operational family
 restoration step.  Bundling the fields keeps mutual-trace assembly independent
 of how headers, constructors, and primary recursors are proved. -/
-structure RestoredSourceInductiveSemantics
+structure SourceFamilyTranslation
     (decl : VInductDecl) (lparams : List Name)
     (safety : DefinitionSafety) (sourceVEnv envTypes envCtors : VEnv)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -159,19 +159,19 @@ structure RestoredSourceInductiveSemantics
   owner : VInductiveType
   header : TrSourceConst sourceVEnv lparams indType.name indType.type
     owner.toVConstVal
-  constructors : RestoredSourceConstructorTrace result loweredEnv lparams safety envTypes
+  constructors : RestoredConstructorTranslations result loweredEnv lparams safety envTypes
     Hstep.oldInfo.ctors Hstep.restored.headerEnv
       Hstep.restored.constructorEnv indType.ctors owner.ctors
-  recursor : RestoredPrimaryRecursorSemantics decl owner safety
+  recursor : SourceRecursorTranslation decl owner safety
     Hstep.restored.recursor envCtors
 
-theorem RestoredSourceInductiveSemanticTrace.types
+theorem SourceFamilyTranslations.types
     {sourceTypes : List InductiveType}
     {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv targetProdEnv}
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors) :
     List.Forall₂ (TrInductiveType sourceVEnv envTypes lparams)
       sourceTypes owners := by
@@ -182,8 +182,8 @@ theorem RestoredSourceInductiveSemanticTrace.types
 
 /-- Header well-formedness is already pointwise data in the exact restored
 source trace; no separate final-assembly premise is needed. -/
-theorem RestoredSourceInductiveSemanticTrace.typeConstantsWF
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+theorem SourceFamilyTranslations.typeConstantsWF
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors)
     (htypes : decl.types = owners) :
     ∀ ci ∈ decl.typeConstants, ci.toVConstant.WF sourceVEnv := by
@@ -199,8 +199,8 @@ theorem RestoredSourceInductiveSemanticTrace.typeConstantsWF
 
 /-- Constructor well-formedness is likewise fixed by the canonical
 post-header interpretation of the restoration trace. -/
-theorem RestoredSourceInductiveSemanticTrace.constructorConstantsWF
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+theorem SourceFamilyTranslations.constructorConstantsWF
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors)
     (htypes : decl.types = owners) :
     ∀ ci ∈ decl.constructorConstants, ci.toVConstant.WF envTypes := by
@@ -218,8 +218,8 @@ theorem RestoredSourceInductiveSemanticTrace.constructorConstantsWF
 
 /-- Primary restored recursors are typed in the canonical environment that
 already contains every mutual constructor. -/
-theorem RestoredSourceInductiveSemanticTrace.primaryRecursorsWF
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+theorem SourceFamilyTranslations.primaryRecursorsWF
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors) :
     ∀ ci ∈ recursors, ci.toVConstant.WF envCtors := by
   induction H with
@@ -235,13 +235,13 @@ theorem RestoredSourceInductiveSemanticTrace.primaryRecursorsWF
 canonical-stage semantic trace.  The executable restoration trace fixes all
 pointwise source/target correspondences; only the canonical abstract stage
 extensions and declaration metadata are supplied separately. -/
-theorem RestoredSourceInductiveSemanticTrace.core
+theorem SourceFamilyTranslations.core
     {sourceTypes : List InductiveType}
     {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       sourceTypes sourceProdEnv targetProdEnv}
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors)
     (htypes : decl.types = owners)
     (huvars : decl.uvars = lparams.length)
@@ -429,7 +429,7 @@ theorem AddConstants.findOfMem
     · exact ih hnextWF htail
 
 /-- Exact lookup effect of the executable mutual-header installation fold. -/
-structure DeclaredInductiveInfos
+structure InductiveInfosAdded
     (source : Environment) (infos : List InductiveVal)
     (target : Environment) : Prop where
   mapWF : target.constants.WF
@@ -448,7 +448,7 @@ theorem declareInductiveTypeInfos_refines
     (hwf : env.constants.WF) :
     (Lean4Lean.AddInductive.declareInductiveTypeInfos
       allowPrimitive infos env).WF fun out =>
-        DeclaredInductiveInfos env infos out := by
+        InductiveInfosAdded env infos out := by
   induction infos generalizing env with
   | nil =>
     simp only [Lean4Lean.AddInductive.declareInductiveTypeInfos]
@@ -552,8 +552,8 @@ private theorem inductiveMemberInfos_of_forall
     exact .cons (hlookup info (by simp))
       (ih fun member hmem => hlookup member (by simp [hmem]))
 
-theorem DeclaredInductiveInfos.newMembers
-    (H : DeclaredInductiveInfos source infos target) :
+theorem InductiveInfosAdded.newMembers
+    (H : InductiveInfosAdded source infos target) :
     InductiveMemberInfos target (infos.map (fun info => info.name)) :=
   inductiveMemberInfos_of_forall infos H.installed
 
@@ -607,8 +607,8 @@ theorem GeneratedRecursors.closesMutuals
   rcases entry with ⟨info, value⟩
   exact H.nonInductive info value hmem inductiveValue
 
-theorem DeclaredInductiveInfos.closesMutuals
-    (H : DeclaredInductiveInfos source infos target)
+theorem InductiveInfosAdded.closesMutuals
+    (H : InductiveInfosAdded source infos target)
     (hold : MutualInductivesClosed source)
     (huniform : ∀ info ∈ infos,
       info.all = infos.map (fun member => member.name))

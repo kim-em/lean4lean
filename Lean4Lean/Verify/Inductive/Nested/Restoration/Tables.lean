@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
 
 /-! The restoration table data of a nested run: the executable facts that fix the
 executable restoration tables relative to an abstract specialisation list
-(`RestorationTableData`). Stated here, ahead of the final assembly, so that the final assembly
+(`RestorationTablesAgree`). Stated here, ahead of the final assembly, so that the final assembly
 shape can record the specialisation list of its restored case eliminators. -/
 
 namespace Lean4Lean
@@ -24,7 +24,7 @@ namespace VerifyInductive
 /-- The recorded container application of one auxiliary, abstracted over the
 lowering parameters, is the container family applied to arguments whose
 translations in the parameter telescope are the specialisation arguments. -/
-def AuxNestedSpec (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List Name)
+def AuxiliaryContainerApp (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List Name)
     (nested : Expr) (a : InductiveSignature.ContainerSpecialization) : Prop :=
   ∃ (envS : VEnv) (domains : List VExpr) (lvls : List Level) (Ys : List Expr),
     domains.length = result.nparams ∧
@@ -32,7 +32,7 @@ def AuxNestedSpec (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List 
     lvls.mapM (VLevel.ofLevel Us₀) = some a.levels ∧
     List.Forall₂ (TrExprS envS Us₀ (abstractForallContext domains [])) Ys a.arguments
 
-/-- `AuxNestedSpec` in a fixed environment, with parameter domains
+/-- `AuxiliaryContainerApp` in a fixed environment, with parameter domains
 definitionally equal to the context `ctx`. -/
 def AuxNestedSpecAt (envS : VEnv) (ctx : List VExpr)
     (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List Name)
@@ -46,7 +46,7 @@ def AuxNestedSpecAt (envS : VEnv) (ctx : List VExpr)
 
 /-- Executable facts about one run that fix the executable restoration
 tables relative to the abstract specialisation list `auxiliaries`. -/
-structure RestorationTableData (decl : VInductDecl)
+structure RestorationTablesAgree (decl : VInductDecl)
     (auxiliaries : List InductiveSignature.ContainerSpecialization)
     (result : Lean4Lean.ElimNestedInductive.Result) (env : Environment)
     (auxRec : NameMap Name) (Us₀ : List Name) : Prop where
@@ -60,7 +60,7 @@ structure RestorationTableData (decl : VInductDecl)
   recursorNotHead : ∀ c new, auxRec.find? c = some new →
     c ∉ auxiliaries.flatMap (·.headNames)
   familyKey : ∀ c nested, result.aux2nested.find? c = some nested →
-    ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxNestedSpec result Us₀ nested a
+    ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxiliaryContainerApp result Us₀ nested a
   familyLookup : ∀ a ∈ auxiliaries, ∃ nested,
     result.aux2nested.find? a.auxiliary = some nested
   ctorLookup : ∀ c info, env.find? c = some (.ctorInfo info) →

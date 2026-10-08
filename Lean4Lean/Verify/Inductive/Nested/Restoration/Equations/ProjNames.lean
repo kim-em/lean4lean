@@ -3,7 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
 
 /-! Projection-name avoidance of the restored generated equations: fields
 `constructorProjNames`, `recursorProjNames` and `equationProjNames` of
-`NestedRestoredEquationGaps` (`Nested/Restoration/Equations/WF.lean`).
+`RestorationSubstitutionPremises` (`Nested/Restoration/Equations/WF.lean`).
 
 * Translated syntax projects only out of registered structures
   (`TrExprS.targetProjsRegistered`), and translation maps projection nodes to
@@ -578,8 +578,8 @@ variable {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
 /-- **Field `constructorProjNames`**: the lowered constructor types are
 translated in the lowered header environment, which registers only the
 structures of the base environment. -/
-theorem NestedValidatedRunResult.constructorProjNames_of
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+theorem NestedRun.constructorProjNames_of
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv)
@@ -589,28 +589,28 @@ theorem NestedValidatedRunResult.constructorProjNames_of
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
-    ∀ lc ∈ E.production.loweredDecl.constructorConstants,
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
+    ∀ lc ∈ E.lowered.loweredDecl.constructorConstants,
       lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
         true := by
   intro lc hlc
   obtain ⟨t, ht, hc⟩ := List.mem_flatMap.1 hlc
   obtain ⟨owner, -, HT⟩ := Lean4Lean.List.Forall₂.forall_exists_r
-    E.production.constructors.core.types t ht
+    E.lowered.constructors.core.types t ht
   obtain ⟨ctor, -, HC⟩ := Lean4Lean.List.Forall₂.forall_exists_r HT.ctors lc hc
-  have hheaderV : E.production.headers.context.venv.Ordered :=
-    E.production.headers.context.checking.tr.wf.ordered
+  have hheaderV : E.lowered.headers.context.venv.Ordered :=
+    E.lowered.headers.context.checking.tr.wf.ordered
   have hreg := HC.type.targetProjsRegistered hheaderV trivial VLCtx.ProjNamesOK.nil
   refine hreg.projNamesAvoid fun S ⟨info, hinfo⟩ => ?_
-  rw [VEnv.addConstVals_projections_eq E.production.constructors.core.typesAdded,
+  rw [VEnv.addConstVals_projections_eq E.lowered.constructors.core.typesAdded,
     E.production_initialEnv] at hinfo
   exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hinfo
 
@@ -619,8 +619,8 @@ projection condition at the heads `E.uniformHeads` (no projection out of an
 auxiliary family) and is translated in the recursor-pass environment, which
 registers only base structures and lowered families (no auxiliary constructor
 or recursor). The canonical recursor type is its translation. -/
-theorem NestedValidatedRunResult.recursorProjNames_of
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+theorem NestedRun.recursorProjNames_of
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
@@ -630,55 +630,55 @@ theorem NestedValidatedRunResult.recursorProjNames_of
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
-    ∀ owner : Fin E.production.production.generationSignature.families.size,
-      (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup) :
+    ∀ owner : Fin E.lowered.recursors.generationSignature.families.size,
+      (E.lowered.recursors.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro owner
-  have hfam := E.production.production.toRecursorConstruction.generator.familyCount
-  have howner : owner.val < E.production.indTypes.size := by
+  have hfam := E.lowered.recursors.toRecursorConstruction.generator.familyCount
+  have howner : owner.val < E.lowered.indTypes.size := by
     have := owner.isLt
     simp only [RecursorConstruction.generationSignature] at this
     omega
-  have hrecSize : E.production.production.toRecursorConstruction.recInfos.size =
-      E.production.indTypes.size := by
-    rw [E.production.production.toRecursorConstruction.cardinality.records]
+  have hrecSize : E.lowered.recursors.toRecursorConstruction.recInfos.size =
+      E.lowered.indTypes.size := by
+    rw [E.lowered.recursors.toRecursorConstruction.cardinality.records]
     simpa using (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-      E.production.constructors.toConstructorCheck.core).symm
+      E.lowered.constructors.toConstructorCheck.core).symm
   have hrec : owner.val <
-      E.production.production.toRecursorConstruction.recInfos.size := by
+      E.lowered.recursors.toRecursorConstruction.recInfos.size := by
     omega
-  have htr := E.production.production.toRecursorConstruction.canonicalTypeTranslations
+  have htr := E.lowered.recursors.toRecursorConstruction.canonicalTypeTranslations
     owner.val howner
-  have hnative : (E.production.production.toRecursorConstruction.recursorTarget
+  have hnative : (E.lowered.recursors.toRecursorConstruction.recursorTarget
       owner.val).type =
-      E.production.production.canonicalGeneration.recursorType owner := by
+      E.lowered.recursors.canonicalGeneration.recursorType owner := by
     simp only [RecursorConstruction.recursorTarget, dif_pos owner.isLt,
       Instance.recursor]
     rfl
   rw [hnative] at htr
   have W := E.whnfHitOKFacts wf Hsources
   rw [← E.statsLevels] at W
-  have hsrc := E.production.production.toRecursorConstruction.recursorTypeProjsOK
+  have hsrc := E.lowered.recursors.toRecursorConstruction.recursorTypeProjsOK
     (E.hitShapeInputs_of wf Hsources) W owner.val hrec
   have h1 := htr.projNamesOK_of_source hsrc VLCtx.ProjNamesOK.nil
   have h2 := htr.targetProjsRegistered
-    E.production.constructors.toConstructorCheck.context.checking.tr.wf.ordered trivial
+    E.lowered.constructors.toConstructorCheck.context.checking.tr.wf.ordered trivial
     VLCtx.ProjNamesOK.nil
   have hheadNames : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
-      familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) := by
+      familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length) := by
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
   refine (h1.and h2).projNamesAvoid fun S ⟨hhit, info, hinfo⟩ hmem => ?_
-  rw [E.production.constructors.toConstructorCheck.contextVEnv] at hinfo
+  rw [E.lowered.constructors.toConstructorCheck.contextVEnv] at hinfo
   rcases VEnv.addProjections_iff.mp hinfo with ⟨entry, hentry, rfl, -⟩ | hbase
   · simp only [VInductDecl.projectionEntries, List.mem_filterMap] at hentry
     obtain ⟨t, ht, hsome⟩ := hentry
@@ -690,81 +690,81 @@ theorem NestedValidatedRunResult.recursorProjNames_of
       · exact hhit.1 (E.auxHeads_subset_hitHeads _ hmem)
       · obtain ⟨g, hg, hev⟩ := Lean4Lean.List.Forall₂.forall_exists_l Haux a ha
         obtain ⟨t', ht', hexp⟩ := Lean4Lean.List.Forall₂.forall_exists_l Hexpansion g hg
-        have h1 : t.name ∈ familyNames E.production.loweredDecl.types :=
+        have h1 : t.name ∈ familyNames E.lowered.loweredDecl.types :=
           List.mem_flatMap.2 ⟨t, ht, List.mem_cons_self⟩
-        have h2 : t.name ∈ E.production.loweredDecl.types.map (fun t => t.name.str "rec") := by
+        have h2 : t.name ∈ E.lowered.loweredDecl.types.map (fun t => t.name.str "rec") := by
           refine List.mem_map.2 ⟨t', List.mem_of_mem_drop ht', ?_⟩
           rw [← hname, hev.auxiliary, ← hexp.name]
         exact (List.nodup_append.1 hnodup).2.2 _ h1 _ h2 rfl
     · cases hsome
   · rw [VEnv.addEliminators_projections,
-      VEnv.addConstVals_projections_eq E.production.constructors.toConstructorCheck.core.ctorsAdded,
-      VEnv.addConstVals_projections_eq E.production.constructors.toConstructorCheck.core.typesAdded,
+      VEnv.addConstVals_projections_eq E.lowered.constructors.toConstructorCheck.core.ctorsAdded,
+      VEnv.addConstVals_projections_eq E.lowered.constructors.toConstructorCheck.core.typesAdded,
       E.production_initialEnv] at hbase
     exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
 
 /-- **Field `equationProjNames`**: the generated equations are built from the
 pieces of the generated recursor types. -/
-theorem NestedValidatedRunResult.equationProjNames_of
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+theorem NestedRun.equationProjNames_of
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {auxiliaries : List ContainerSpecialization}
-    (Hrec : ∀ owner : Fin E.production.production.generationSignature.families.size,
-      (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
+    (Hrec : ∀ owner : Fin E.lowered.recursors.generationSignature.families.size,
+      (E.lowered.recursors.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true) :
-    ∀ k : Fin E.production.production.generationSignature.constructors.size,
-      (E.production.production.canonicalGeneration.equation k).lhs.projNamesAvoid
+    ∀ k : Fin E.lowered.recursors.generationSignature.constructors.size,
+      (E.lowered.recursors.canonicalGeneration.equation k).lhs.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-        (E.production.production.canonicalGeneration.equation k).rhs.projNamesAvoid
+        (E.lowered.recursors.canonicalGeneration.equation k).rhs.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-        (E.production.production.canonicalGeneration.equation k).type.projNamesAvoid
+        (E.lowered.recursors.canonicalGeneration.equation k).type.projNamesAvoid
           (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro k
   exact Instance.equation_projNamesAvoid_of_recursorType _ _
-    (Hrec E.production.production.generationSignature.constructors[k].owner) k .recursor
+    (Hrec E.lowered.recursors.generationSignature.constructors[k].owner) k .recursor
 
 /-- **Fields `constructorProjNames`, `recursorProjNames` and
-`equationProjNames` of `NestedRestoredEquationGaps`**, for every restoration
+`equationProjNames` of `RestorationSubstitutionPremises`**, for every restoration
 table of the run and every final assembly base (the base and its validity
 are not used): proved for the table of `restorationTablesRestoringAll`, whose
 restorable names contain those of every table
-(`RestorationTableData.restorable_transfer`). -/
-theorem NestedValidatedRunResult.restoredEquationProjNames_of
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+(`RestorationTablesAgree.restorable_transfer`). -/
+theorem NestedRun.restoredEquationProjNames_of
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
+      ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
+        B.lowered = E.lowered →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
-        (∀ lc ∈ E.production.loweredDecl.constructorConstants,
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
+        (∀ lc ∈ E.lowered.loweredDecl.constructorConstants,
           lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
             true) ∧
-        (∀ owner : Fin E.production.production.generationSignature.families.size,
-          (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
+        (∀ owner : Fin E.lowered.recursors.generationSignature.families.size,
+          (E.lowered.recursors.canonicalGeneration.recursorType owner).projNamesAvoid
             (compilationRestoration sourceDecl auxiliaries).restorableNames = true) ∧
-        (∀ k : Fin E.production.production.generationSignature.constructors.size,
-          (E.production.production.canonicalGeneration.equation k).lhs.projNamesAvoid
+        (∀ k : Fin E.lowered.recursors.generationSignature.constructors.size,
+          (E.lowered.recursors.canonicalGeneration.equation k).lhs.projNamesAvoid
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-            (E.production.production.canonicalGeneration.equation k).rhs.projNamesAvoid
+            (E.lowered.recursors.canonicalGeneration.equation k).rhs.projNamesAvoid
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true ∧
-            (E.production.production.canonicalGeneration.equation k).type.projNamesAvoid
+            (E.lowered.recursors.canonicalGeneration.equation k).type.projNamesAvoid
               (compilationRestoration sourceDecl auxiliaries).restorableNames = true) := by
   intro auxiliaries D _ _ _
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -, -⟩
-  have hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+  have hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
@@ -779,74 +779,74 @@ theorem NestedValidatedRunResult.restoredEquationProjNames_of
   exact ⟨VExpr.projNamesAvoid_mono hsub hl, VExpr.projNamesAvoid_mono hsub hr,
     VExpr.projNamesAvoid_mono hsub ht⟩
 
-/-- **`NestedRestoredEquationGaps` from its three remaining fields**: the
+/-- **`RestorationSubstitutionPremises` from its three remaining fields**: the
 eliminator-schema projection names (`eliminatorProjNames`), the typing of the
 auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and the
 transport of the lowered projection rules (`projections`). The projection
 names of the lowered constructor types, generated recursor types and
 generated equations are `restoredEquationProjNames_of`. The result has the
 shape of the hypothesis `G` of `hrestoredWF_of_gaps`. -/
-theorem NestedValidatedRunResult.restoredEquationGaps_of
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+theorem NestedRun.restoredEquationGaps_of
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Helim : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
+      ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
+        B.lowered = E.lowered →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
         EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
           (compilationRestoration sourceDecl auxiliaries).restorableNames)
     (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
+      ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
+        B.lowered = E.lowered →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
         (∀ envTypes : VEnv,
           (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
             sourceDecl.typeConstants = some envTypes →
-          ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+          ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
             ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
               h.auxiliary = lc.name →
               ∃ restored, (compilationRestoration sourceDecl auxiliaries).expr lc.type =
                   some restored ∧
                 envTypes.HasType sourceDecl.uvars []
-                  (VExpr.wrapLams E.production.compilationSignature.params
+                  (VExpr.wrapLams E.lowered.signature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
-        ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionRulesRenamedOnCtx B.finalBaseVEnv
+        ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
+          VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-              fun _ => E.production.compilationSignature.params)
+              fun _ => E.lowered.signature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
             entry.typeName entry.info) :
     ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
+      ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
+        B.lowered = E.lowered →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
-        NestedRestoredEquationGaps E B auxiliaries := by
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
+        RestorationSubstitutionPremises E B auxiliaries := by
   intro auxiliaries D B hB hV
   obtain ⟨hctors, hrecs, heqs⟩ := E.restoredEquationProjNames_of wf Hsources auxiliaries D B hB hV
   obtain ⟨haux, hprojs⟩ := Hcontainers auxiliaries D B hB hV
@@ -858,57 +858,57 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
       auxiliaryConstructors := haux
       projections := hprojs }
 
-/-- **`NestedRestoredEquationGaps` from its two remaining fields**: the typing
+/-- **`RestorationSubstitutionPremises` from its two remaining fields**: the typing
 of the auxiliary constructor restoration lambdas (`auxiliaryConstructors`) and
 the transport of the lowered projection rules (`projections`). The
 eliminator-schema projection names are `eliminatorProjNames_of`. -/
-theorem NestedValidatedRunResult.restoredEquationGaps_of'
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+theorem NestedRun.restoredEquationGaps_of'
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
+      ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
+        B.lowered = E.lowered →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
         (∀ envTypes : VEnv,
           (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
             sourceDecl.typeConstants = some envTypes →
-          ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+          ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
             ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
               h.auxiliary = lc.name →
               ∃ restored, (compilationRestoration sourceDecl auxiliaries).expr lc.type =
                   some restored ∧
                 envTypes.HasType sourceDecl.uvars []
-                  (VExpr.wrapLams E.production.compilationSignature.params
+                  (VExpr.wrapLams E.lowered.signature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
-        ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionRulesRenamedOnCtx B.finalBaseVEnv
+        ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
+          VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-              fun _ => E.production.compilationSignature.params)
+              fun _ => E.lowered.signature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
             entry.typeName entry.info) :
     ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ B : NestedFinalAssemblyBase E.restoration
+      ∀ B : RestoredBlockBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        B.production = E.production →
+        B.lowered = E.lowered →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
-        NestedRestoredEquationGaps E B auxiliaries := by
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
+        RestorationSubstitutionPremises E B auxiliaries := by
   exact E.restoredEquationGaps_of wf Hsources
     (fun auxiliaries D _ _ _ => E.eliminatorProjNames_of wf Hsources auxiliaries D) Hcontainers
 

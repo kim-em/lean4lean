@@ -193,9 +193,9 @@ theorem InductInfosFromDecl.addNoninductive
 
 /-- The auxiliary restoration fold installs recursors only, so it cannot
 introduce a new inductive-family origin. -/
-theorem StateForMTrace.recursorPreservesProductionInductiveOrigins
+theorem FoldSteps.recursorPreservesProductionInductiveOrigins
     {sourceEnv targetEnv base : Environment}
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
@@ -218,8 +218,8 @@ theorem StateForMTrace.recursorPreservesProductionInductiveOrigins
         hfresh (by simp [ci])
 
 /-- Constructor restoration cannot create an inductive-family lookup. -/
-theorem StateForMTrace.constructorInductiveFindSource
-    (Htrace : StateForMTrace
+theorem FoldSteps.constructorInductiveFindSource
+    (Htrace : FoldSteps
       (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
@@ -248,8 +248,8 @@ theorem StateForMTrace.constructorInductiveFindSource
 constructor.  It exposes the exact lowered lookup and restoration metadata,
 and proves the restored constructor lookup in the final constructor-fold
 environment. -/
-theorem StateForMTrace.constructorProductionOriginAt
-    (H : StateForMTrace (RestoredConstructorStep result loweredEnv)
+theorem FoldSteps.constructorProductionOriginAt
+    (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
     (ctorIdx : Nat) (hname : ctorIdx < names.length) :
@@ -309,8 +309,8 @@ theorem StateForMTrace.constructorProductionOriginAt
 /-- A constructor visible after an exact restoration fold either came from
 the source environment or is the result of one concrete positional
 restoration step. -/
-theorem StateForMTrace.constructorFindCases
-    (H : StateForMTrace (RestoredConstructorStep result loweredEnv)
+theorem FoldSteps.constructorFindCases
+    (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
     (hfind : targetEnv.find? name = some (.ctorInfo found)) :
@@ -353,8 +353,8 @@ theorem StateForMTrace.constructorFindCases
 newly restored header or an unchanged lookup from the preceding environment.
 The constructor and recursor sub-phases are proved non-inductive from their
 concrete `ConstantInfo` constructors. -/
-theorem RestoredInductiveDeclResult.inductiveFindCases
-    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+theorem SourceFamilyRestoration.inductiveFindCases
+    (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hsourceWF : sourceEnv.constants.WF)
     (hfind : targetEnv.find? familyName = some (.inductInfo familyInfo)) :
@@ -395,8 +395,8 @@ theorem RestoredInductiveDeclResult.inductiveFindCases
 
 /-- The restored family header remains visible after its constructor fold and
 primary recursor addition. -/
-theorem RestoredInductiveDeclResult.headerFind
-    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+theorem SourceFamilyRestoration.headerFind
+    (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hsourceWF : sourceEnv.constants.WF) :
     targetEnv.find? H.header.newInfo.name =
@@ -438,9 +438,9 @@ theorem RestoredInductiveDeclResult.headerFind
 alignment premise is indexed by the exact restored header in the final
 family environment; all classification and old-origin rebasing are derived
 from the operational restoration trace. -/
-theorem RestoredInductiveDeclResult.extendProductionInductiveOrigins
+theorem SourceFamilyRestoration.extendProductionInductiveOrigins
     {base : Environment}
-    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+    (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hsourceWF : sourceEnv.constants.WF)
     (Horigins : InductInfosFromDecl base.constants
@@ -596,7 +596,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -701,7 +701,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
@@ -766,7 +766,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -1217,8 +1217,8 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
 
 /-- Auxiliary recursor restoration adds no constructors and therefore
 preserves constructor-owner presence. -/
-theorem StateForMTrace.recursorConstructorOwnersPresent
-    (Htrace : StateForMTrace
+theorem FoldSteps.recursorConstructorOwnersPresent
+    (Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
@@ -1242,7 +1242,7 @@ theorem StateForMTrace.recursorConstructorOwnersPresent
 
 /-- Indexed fold of exact per-family owner preservation over a suffix of the
 original mutual source list. -/
-theorem StateForMTrace.sourceFamiliesConstructorOwnersPresent
+theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -1250,11 +1250,11 @@ theorem StateForMTrace.sourceFamiliesConstructorOwnersPresent
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       remaining sourceEnv targetEnv)
@@ -1285,7 +1285,7 @@ theorem StateForMTrace.sourceFamiliesConstructorOwnersPresent
 
 /-- Exact nested restoration preserves constructor-owner presence through
 the primary family fold and the auxiliary-recursors-only suffix. -/
-theorem RestoredNestedDeclarationsResult.constructorOwnersPresent
+theorem NestedRestorationFolds.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -1293,29 +1293,29 @@ theorem RestoredNestedDeclarationsResult.constructorOwnersPresent
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       out)
     (Howners : ConstructorOwnersPresent c.env) :
     ConstructorOwnersPresent out.2 := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
-  have Hprimary : ConstructorOwnersPresent Hrestored.primaryEnv := by
+  have Hprimary : ConstructorOwnersPresent Hrestored.sourceFamiliesEnv := by
     apply Hrestored.inductives.sourceFamiliesConstructorOwnersPresent
       Hlower Hc Hprod hempty [] (by simp) hsourceWF Howners
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
     Hrestored.inductives.inductiveFreshTrace hsourceWF
-  have hprimaryWF : Hrestored.primaryEnv.constants.WF :=
+  have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
   exact Hrestored.auxiliaries.recursorConstructorOwnersPresent
     hprimaryWF Hprimary
 
 /-- Indexed fold of the pointwise source-family alignment over an exact
 suffix of the original mutual source list. -/
-theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
+theorem FoldSteps.sourceFamiliesProductionInductiveOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -1324,7 +1324,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -1334,7 +1334,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
-    (Htrace : StateForMTrace
+    (Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       remaining sourceEnv targetEnv)
@@ -1371,7 +1371,7 @@ theorem StateForMTrace.sourceFamiliesProductionInductiveOrigins
 /-- The full nested restoration fold has exact source-declaration production
 origins.  Original families are installed positionally; auxiliary restoration
 adds recursors only. -/
-theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
+theorem NestedRestorationFolds.productionInductiveOrigins
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -1380,7 +1380,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -1390,7 +1390,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       out) :
     InductInfosFromDecl c.env.constants out.2.constants sourceDecl := by
@@ -1400,7 +1400,7 @@ theorem RestoredNestedDeclarationsResult.productionInductiveOrigins
     intro familyName familyInfo hfind
     exact .inl hfind
   have Hprimary : InductInfosFromDecl c.env.constants
-      Hrestored.primaryEnv.constants sourceDecl := by
+      Hrestored.sourceFamiliesEnv.constants sourceDecl := by
     apply Hrestored.inductives.sourceFamiliesProductionInductiveOrigins
       Hlower Hc Hprod Hsource Hmetadata Hsources Harity Howners hempty []
         (by simp) hsourceWF Hinitial

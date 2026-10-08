@@ -10,7 +10,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceTranslations
 
 A successful nested run stores, for every source constructor, the restoration of the lowered
 constructor type, which is `Expr.eqv` to the source type
-(`NestedValidatedRunResult.installedConstructorSource`). The source type itself is checked by
+(`NestedRun.installedConstructorSource`). The source type itself is checked by
 `validateRestoredConstructorParameters.run` in the header-only validation environment, before
 any environment containing the restored constructors is used by the checker; that run certifies
 its telescope (`checkType.WF_telTr`), and `Expr.eqv` transports the certificate.
@@ -53,17 +53,17 @@ theorem validateRestoredConstructorParameters.telTr_of_run
 /-- Every constructor visible after a successful validated nested run is old, or a new
 constructor carrying the declaration's safety flag and certified in the source header
 environment. -/
-theorem NestedValidatedRunResult.restoredCtorOrigin
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+theorem NestedRun.restoredCtorOrigin
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
     (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
     {name : Name} {ci : ConstructorVal} (hfind : outEnv.find? name = some (.ctorInfo ci)) :
     sourceProdEnv.find? name = some (.ctorInfo ci) ∨
-      (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt E.nativeSource.envTypes ci) := by
+      (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt E.sourceCore.envTypes ci) := by
   have hwf : sourceProdEnv.constants.WF := by
-    have h := E.productionContextWF.checking.tr.map_wf
+    have h := E.contextWF.checking.tr.map_wf
     rwa [E.productionContext_env] at h
   -- the restored headers have the source header types
   have hheaderType : ∀ indType ∈ sourceTypes, ∀ oldInfo : InductiveVal,
@@ -71,7 +71,7 @@ theorem NestedValidatedRunResult.restoredCtorOrigin
       oldInfo.type = indType.type := by
     intro indType hmem oldInfo hlookup
     rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, rfl⟩
-    have key : ∀ P : NestedInstalledProduction E.loweredEnv,
+    have key : ∀ P : LoweredRun E.loweredEnv,
         P.c.env = sourceProdEnv → P.nparams = nparams →
         P.indTypes = result.types.toArray → ContextWF P.c →
         oldInfo.type = sourceTypes[familyIdx].type := by
@@ -87,7 +87,7 @@ theorem NestedValidatedRunResult.restoredCtorOrigin
         · rfl
         · intro i _hi₁ hi₂
           simp at hi₂
-      have Hlower : NestedLoweringResultClosed c.env
+      have Hlower : NestedLoweringOutputClosed c.env
           E.validationFuel.inductiveFuel nparams' sourceTypes
           { initialState with newTypes := sourceTypes.toArray } result := by
         rw [henv']
@@ -104,11 +104,11 @@ theorem NestedValidatedRunResult.restoredCtorOrigin
       cases ConstantInfo.inductInfo.inj (Option.some.inj (hlookup.symm.trans hinfoLookup'))
       rw [hinfoType, ← Hmapping.type]
       simp [htargetEq]
-    exact key E.production
+    exact key E.lowered
       ((congrArg AddInductive.Context.env E.production_c).trans
         E.productionContext_env)
       E.production_nparams E.production_indTypes
-      (E.production_c ▸ E.productionContextWF)
+      (E.production_c ▸ E.contextWF)
   -- the header-only validation environment is ghost-free
   have hgf : TypeChecker.EnvGF (fun _ => True) E.auxiliaryHeaderEnv := by
     intro n ci hfind
@@ -122,9 +122,9 @@ theorem NestedValidatedRunResult.restoredCtorOrigin
       exact (Hsources.typeClosed hmem).mono fun _ h => h.elim
   -- every source constructor type is certified by the validation run
   have hsrc : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
-      ∃ T, TelTr E.nativeSource.envTypes lparams [] source.type T :=
+      ∃ T, TelTr E.sourceCore.envTypes lparams [] source.type T :=
     fun _ htype _ hsource => validateRestoredConstructorParameters.telTr_of_run
-      E.nativeSource.headerValidationValid hgf Hsources E.parameterValidation htype hsource
+      E.sourceCore.headerValidationValid hgf Hsources E.parameterValidation htype hsource
   rcases E.installedConstructorSource Hsources Howners hfind with
     hold | ⟨type, htype, source, hsource, -, hlp, heqv, -, hu⟩
   · exact .inl hold
@@ -135,21 +135,21 @@ theorem NestedValidatedRunResult.restoredCtorOrigin
 
 /-- Every constructor visible after a successful validated nested run, and every constructor of
 its constructor-validation environment, is certified in the source header environment. -/
-theorem NestedValidatedRunResult.restoredCtorTelescopes
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+theorem NestedRun.restoredCtorTelescopes
+    (E : NestedRun result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
     (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
     (hbase : CtorTelescopes safety sourceProdEnv sourceVEnv) :
-    CtorTelescopes safety outEnv E.nativeSource.envTypes ∧
-      CtorTelescopes safety E.validationEnv E.nativeSource.envTypes := by
+    CtorTelescopes safety outEnv E.sourceCore.envTypes ∧
+      CtorTelescopes safety E.validationEnv E.sourceCore.envTypes := by
   have hwf : sourceProdEnv.constants.WF := by
-    have h := E.productionContextWF.checking.tr.map_wf
+    have h := E.contextWF.checking.tr.map_wf
     rwa [E.productionContext_env] at h
-  have hle : sourceVEnv ≤ E.nativeSource.envTypes :=
-    VEnv.addConstVals_le E.nativeSource.core.typesAdded
-  have hout : CtorTelescopes safety outEnv E.nativeSource.envTypes := by
+  have hle : sourceVEnv ≤ E.sourceCore.envTypes :=
+    VEnv.addConstVals_le E.sourceCore.core.typesAdded
+  have hout : CtorTelescopes safety outEnv E.sourceCore.envTypes := by
     intro name ci hfind hvis
     rcases E.restoredCtorOrigin Hsources Howners henv hfind with hold | ⟨-, hc⟩
     · exact (hbase hold hvis).mono hle

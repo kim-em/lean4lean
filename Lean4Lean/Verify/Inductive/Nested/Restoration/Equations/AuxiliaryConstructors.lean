@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.WF
 
-/-! The container fields of `NestedRestoredEquationGaps`
+/-! The container fields of `RestorationSubstitutionPremises`
 (`Nested/Restoration/Equations/WF.lean`): the typing of the restoration lambdas of
 the auxiliary constructors (`auxiliaryConstructors`) and the transport of the
 projection rules of the lowered declaration (`projections`).
@@ -267,39 +267,39 @@ theorem auxiliaryConstructorLambdas_hasType
   exact hlam.defeqU_r henv trivial
     (VEnv.IsDefEqU.trans henv trivial hforalls ⟨_, hgd.symm⟩)
 
-/-- **The `auxiliaryConstructors` field of `NestedRestoredEquationGaps`**,
+/-- **The `auxiliaryConstructors` field of `RestorationSubstitutionPremises`**,
 for every restoration table of the run. The specialization list of
 `restorationTablesRestoringAll` carries the evidence of
 `auxiliaryConstructorLambdas_hasType`; its heads and restoration agree with
-those of every other table (`RestorationTableData.find_transfer`,
-`RestorationTableData.expr_eq`). -/
-theorem NestedValidatedRunResult.restoredEquationAuxiliaryConstructors_of
+those of every other table (`RestorationTablesAgree.find_transfer`,
+`RestorationTablesAgree.expr_eq`). -/
+theorem NestedRun.restoredEquationAuxiliaryConstructors_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ∀ envTypes : VEnv,
         (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
           sourceDecl.typeConstants = some envTypes →
-        ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+        ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
           ∀ lc ∈ t.ctors, ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
             h.auxiliary = lc.name →
             ∃ restored, (compilationRestoration sourceDecl auxiliaries).expr lc.type =
                 some restored ∧
               envTypes.HasType sourceDecl.uvars []
-                (VExpr.wrapLams E.production.compilationSignature.params
+                (VExpr.wrapLams E.lowered.signature.params
                   (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored := by
   intro auxiliaries D envTypes' hadded' t ht lc hlc h hh hname
   have hnodup :
-      (familyNames E.production.loweredDecl.types ++
-        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+      (familyNames E.lowered.loweredDecl.types ++
+        E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
@@ -309,7 +309,7 @@ theorem NestedValidatedRunResult.restoredEquationAuxiliaryConstructors_of
   have heq : envTypes' = envTypes := Option.some.inj (hadded'.symm.trans hadded)
   rw [heq]
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
-  have hlevels : ∀ t ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+  have hlevels : ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ t.ctors, lc.type.ConstLevelsAt
         ((compilationRestoration sourceDecl aux').heads.map (·.auxiliary))
         (VLevel.params sourceDecl.uvars) := by
@@ -317,21 +317,21 @@ theorem NestedValidatedRunResult.restoredEquationAuxiliaryConstructors_of
     rwa [← auxiliarySpecializations_headNames Haux Hexpansion,
       ← compilationRestoration_heads_auxiliary] at h
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
-      E.production.headers.commonParameterContext := by
+      (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
+      E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
       OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
-  have hparams : E.production.compilationSignature.params =
-      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
-    E.production.loweredConstruction.generator.params
+  have hparams : E.lowered.signature.params =
+      E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
+    E.lowered.recursorConstruction.generator.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      E.production.compilationSignature.params.reverse
-      E.production.headers.commonParameterContext := by
+      E.lowered.signature.params.reverse
+      E.lowered.headers.commonParameterContext := by
     rw [hparams]; exact hlink
   have hheadsNodup : ∀ {aux : List ContainerSpecialization},
-      RestorationTableData sourceDecl aux result E.loweredEnv
+      RestorationTablesAgree sourceDecl aux result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
       ((compilationRestoration sourceDecl aux).heads.map (·.auxiliary)).Nodup := by
     intro aux Daux
@@ -426,32 +426,32 @@ theorem Restoration.expr_forallArity (r : Restoration) {e e' : VExpr}
 
 /-! ### Projections -/
 
-theorem RestorationTableData.lambdaReplacement_eq {decl : VInductDecl}
+theorem RestorationTablesAgree.lambdaReplacement_eq {decl : VInductDecl}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name} {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀)
+    (D₀ : RestorationTablesAgree decl aux₀ result env auxRec Us₀)
+    (D₁ : RestorationTablesAgree decl aux₁ result env auxRec Us₀)
     (domains : HeadSpecialization → List VExpr) :
     (compilationRestoration decl aux₀).lambdaReplacement domains =
       (compilationRestoration decl aux₁).lambdaReplacement domains := by
   funext c
   simp only [Restoration.lambdaReplacement, D₀.find_eq D₁ c]
 
-theorem RestorationTableData.renaming_eq {decl : VInductDecl}
+theorem RestorationTablesAgree.renaming_eq {decl : VInductDecl}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name} {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀) :
+    (D₀ : RestorationTablesAgree decl aux₀ result env auxRec Us₀)
+    (D₁ : RestorationTablesAgree decl aux₁ result env auxRec Us₀) :
     (compilationRestoration decl aux₀).renaming =
       (compilationRestoration decl aux₁).renaming := by
   funext n
   simp only [Restoration.renaming, D₀.find_eq D₁ n, D₀.recursorName n, D₁.recursorName n]
 
-theorem RestorationTableData.restorable_iff {decl : VInductDecl}
+theorem RestorationTablesAgree.restorable_iff {decl : VInductDecl}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name} {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀) (n : Name) :
+    (D₀ : RestorationTablesAgree decl aux₀ result env auxRec Us₀)
+    (D₁ : RestorationTablesAgree decl aux₁ result env auxRec Us₀) (n : Name) :
     n ∈ (compilationRestoration decl aux₀).restorableNames ↔
       n ∈ (compilationRestoration decl aux₁).restorableNames :=
   ⟨D₁.restorable_transfer D₀, D₀.restorable_transfer D₁⟩

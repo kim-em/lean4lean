@@ -69,35 +69,35 @@ theorem RestoreTelescope.forallTelescope_of_recursorType
 
 /-- The lowered recursor type of a restoration step at a generated owner's
 recursor name translates to the owner's canonical generated recursor type. -/
-theorem NestedValidatedRunResult.loweredRecursorTypeTranslation
+theorem NestedRun.loweredRecursorTypeTranslation
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.generationSignature.families.size)
+    (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
+      (E.lowered.recursors.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    TrExprS E.production.production.outVEnv Hstep.oldInfo.levelParams []
+    TrExprS E.lowered.recursors.outVEnv Hstep.oldInfo.levelParams []
       Hstep.oldInfo.type
-      (E.production.production.canonicalGeneration.recursorType owner) := by
-  rcases E.production.production.metadataRealization owner with
+      (E.lowered.recursors.canonicalGeneration.recursorType owner) := by
+  rcases E.lowered.recursors.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
-  have hlen : owner.val < E.production.production.entries.length := by
-    rw [show E.production.production.entries =
-      E.production.production.entries from rfl,
-      E.production.production.entries_length_eq]
+  have hlen : owner.val < E.lowered.recursors.entries.length := by
+    rw [show E.lowered.recursors.entries =
+      E.lowered.recursors.entries from rfl,
+      E.lowered.recursors.entries_length_eq]
     exact owner.isLt
-  have hmem := List.getElem_mem (l := E.production.production.entries)
+  have hmem := List.getElem_mem (l := E.lowered.recursors.entries)
     (n := owner.val) hlen
-  have hfind := E.production.production.findRecursorOfMem
-    (info := (E.production.production.entries[owner.val]'hlen).1) hmem
-  have hrec' : (E.production.production.entries[owner.val]'hlen).1 = .recInfo rec := hrec
+  have hfind := E.lowered.recursors.findRecursorOfMem
+    (info := (E.lowered.recursors.entries[owner.val]'hlen).1) hmem
+  have hrec' : (E.lowered.recursors.entries[owner.val]'hlen).1 = .recInfo rec := hrec
   rw [hrec'] at hfind
   change E.loweredEnv.find? rec.name = some (.recInfo rec) at hfind
   have h2 : some (ConstantInfo.recInfo rec) = some (.recInfo Hstep.oldInfo) := by
@@ -111,47 +111,47 @@ theorem NestedValidatedRunResult.loweredRecursorTypeTranslation
 
 /-- The parameter telescope of the lowered recursor type of a restoration
 step at a generated owner's recursor name. -/
-theorem NestedValidatedRunResult.loweredRecursorParameterTelescope
+theorem NestedRun.loweredRecursorParameterTelescope
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.generationSignature.families.size)
+    (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
+      (E.lowered.recursors.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     ∃ suffix, Expr.ForallTelescope Hstep.oldInfo.type result.nparams suffix :=
   Hstep.typeTelescope.forallTelescope_of_recursorType
     (E.loweredRecursorTypeTranslation owner Hstep)
 
 /-- The executable recursor name of a generated entry, as recorded by
-`RestoredAuxiliaryGeneratedStepAlignment.oldRecName_eq`, is the canonical
+`AuxiliaryRecursorGeneratedAlignment.oldRecName_eq`, is the canonical
 recursor name of the generated owner at the same position. -/
-theorem NestedValidatedRunResult.recursorOwnerOfEntry
+theorem NestedRun.recursorOwnerOfEntry
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    {ownerIdx : Nat} (hentry : ownerIdx < E.production.production.entries.length) :
-    ∃ owner : Fin E.production.production.generationSignature.families.size,
+    {ownerIdx : Nat} (hentry : ownerIdx < E.lowered.recursors.entries.length) :
+    ∃ owner : Fin E.lowered.recursors.generationSignature.families.size,
       owner.val = ownerIdx ∧
-      Lean.mkRecName E.production.indTypes[ownerIdx]!.name =
-        E.production.production.canonicalGeneration.recursorName owner := by
-  have hi : ownerIdx < E.production.production.generationSignature.families.size := by
-    rw [← E.production.production.entries_length_eq]
+      Lean.mkRecName E.lowered.indTypes[ownerIdx]!.name =
+        E.lowered.recursors.canonicalGeneration.recursorName owner := by
+  have hi : ownerIdx < E.lowered.recursors.generationSignature.families.size := by
+    rw [← E.lowered.recursors.entries_length_eq]
     exact hentry
   refine ⟨⟨ownerIdx, hi⟩, rfl, ?_⟩
-  rcases E.production.production.metadataRealization ⟨ownerIdx, hi⟩ with
+  rcases E.lowered.recursors.metadataRealization ⟨ownerIdx, hi⟩ with
     ⟨rec, hrec, _, M⟩
-  let G := E.production.production.generated.entry ownerIdx hentry
+  let G := E.lowered.recursors.generated.entry ownerIdx hentry
   have h : ConstantInfo.recInfo rec = .recInfo G.info := hrec.symm.trans G.source_eq
   injection h with h
   rw [← G.name, ← h, M.name]

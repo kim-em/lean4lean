@@ -13,7 +13,7 @@ namespace VerifyInductive
 /-- One source constructor paired with the exact operational restoration
 step that installs it.  Source translation is stated in the canonical
 post-header environment, not the production interleaved environment. -/
-structure RestoredSourceConstructorSemantics
+structure RestoredConstructorTranslation
     (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv)
     (Hstep : RestoredConstructorStep result loweredEnv ctorName
       sourceProdEnv targetProdEnv)
@@ -26,28 +26,28 @@ structure RestoredSourceConstructorSemantics
 
 /-- Positional source-constructor semantics for the exact constructor
 restoration fold of one family. -/
-inductive RestoredSourceConstructorTrace
+inductive RestoredConstructorTranslations
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv : Environment)
     (lparams : List Name) (safety : DefinitionSafety) (canonicalEnv : VEnv) :
     List Name → Environment → Environment →
       List Constructor → List VConstVal → Prop
   | nil (sourceProdEnv : Environment) :
-      RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv
+      RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv
         [] sourceProdEnv sourceProdEnv [] []
   | cons
       (Hstep : RestoredConstructorStep result loweredEnv ctorName
         sourceProdEnv middleProdEnv)
-      (Hsemantic : RestoredSourceConstructorSemantics lparams safety
+      (Hsemantic : RestoredConstructorTranslation lparams safety
         canonicalEnv Hstep source)
-      (Hrest : RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv
+      (Hrest : RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv
         names middleProdEnv targetProdEnv sources constructors) :
-      RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv
+      RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv
         (ctorName :: names) sourceProdEnv targetProdEnv (source :: sources)
         (Hsemantic.constructor :: constructors)
 
-theorem RestoredSourceConstructorTrace.forall₂
-    (H : RestoredSourceConstructorTrace result loweredEnv lparams safety canonicalEnv names
+theorem RestoredConstructorTranslations.forall₂
+    (H : RestoredConstructorTranslations result loweredEnv lparams safety canonicalEnv names
       sourceProdEnv targetProdEnv sources constructors) :
     List.Forall₂ (fun source constructor =>
       TrSourceConst canonicalEnv lparams source.name source.type constructor)

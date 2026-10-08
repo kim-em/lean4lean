@@ -19,7 +19,7 @@ namespace VerifyInductive
 successful semantic run.  Unlike `OrdinaryInstallation`, this retains
 the existential witnesses as data and can therefore index later certificates
 without proof-irrelevance erasing run identity. -/
-structure NestedInstalledProduction (outEnv : Environment) where
+structure LoweredRun (outEnv : Environment) where
   c : AddInductive.Context
   stats : AddInductive.InductiveStats
   loweredDecl : VInductDecl
@@ -33,7 +33,7 @@ structure NestedInstalledProduction (outEnv : Environment) where
   headers : HeaderEnvironment c stats loweredDecl nparams isUnsafe depth
     initialEnv indTypes headerEnv
   constructors : OrdinaryConstructorCheck headers ctorEnv
-  production : RecursorCheck constructors.toConstructorCheck outEnv
+  recursors : RecursorCheck constructors.toConstructorCheck outEnv
 
 end VerifyInductive
 end Lean4Lean

@@ -10,7 +10,7 @@ restored recursors of the executable restoration folds: the primary recursors
 selected by the source semantic trace, then the auxiliary recursors selected by
 the auxiliary shape trace. Each of these is the abstract restoration
 (`Restoration.recursor`) of the generated recursor of the same owner, so the
-`recursors` field of `NestedCompilationPending` holds. -/
+`recursors` field of `NestedCompilationRestorationFacts` holds. -/
 
 
 namespace Lean4Lean
@@ -395,7 +395,7 @@ open Kernel
 /-! ### The recursor steps selected by the restoration traces -/
 
 /-- The data of a restored recursor step fixing its translated constant. -/
-def RestoredRecursorStepValue (env : VEnv)
+def RecursorRestorationStepValue (env : VEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceEnv targetEnv) (w : VConstVal) : Prop :=
   w.name = Hstep.restored.newRecName ∧
@@ -405,19 +405,19 @@ def RestoredRecursorStepValue (env : VEnv)
 
 /-- The primary recursors of a source semantic trace, one per source family,
 each the translation of the restored recursor at the family's recursor name. -/
-theorem RestoredSourceInductiveSemanticTrace.recursorSteps
+theorem SourceFamilyTranslations.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
     {types : List InductiveType} {sourceProdEnv targetProdEnv : Environment}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceProdEnv targetProdEnv}
-    (H : RestoredSourceInductiveSemanticTrace decl lparams safety sourceVEnv
+    (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors) :
     List.Forall₂ (fun (indType : InductiveType) (w : VConstVal) =>
         ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
           auxRec allIndNames (Lean.mkRecName indType.name) s t),
-          RestoredRecursorStepValue envCtors Hstep w)
+          RecursorRestorationStepValue envCtors Hstep w)
       types recursors := by
   induction H with
   | nil => exact .nil
@@ -430,20 +430,20 @@ theorem RestoredSourceInductiveSemanticTrace.recursorSteps
 
 /-- The auxiliary recursors of an auxiliary shape trace, one per restored
 recursor name, each the translation of the restored recursor at that name. -/
-theorem RestoredAuxiliaryShapeTrace.recursorSteps
+theorem AuxiliaryRecursorsGuardedRules.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv}
-    (H : RestoredAuxiliaryShapeTrace decl block main safety trEnv Htrace
+    (H : AuxiliaryRecursorsGuardedRules decl block main safety trEnv Htrace
       priorRecursors priorRules finalRecursors finalRules) :
     ∃ added, finalRecursors = priorRecursors ++ added ∧
       List.Forall₂ (fun (name : Name) (w : VConstVal) =>
           ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
             auxRec allIndNames name s t),
-            RestoredRecursorStepValue trEnv Hstep w)
+            RecursorRestorationStepValue trEnv Hstep w)
         names added := by
   induction H with
   | nil => exact ⟨[], by simp, .nil⟩
@@ -457,20 +457,20 @@ theorem RestoredAuxiliaryShapeTrace.recursorSteps
 
 /-- The auxiliary recursors of an auxiliary recursor trace, one per restored
 recursor name, each the translation of the restored recursor at that name. -/
-theorem RestoredAuxiliaryRecursorTrace.recursorSteps
+theorem AuxiliaryRecursorTranslations.recursorSteps
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    {Htrace : StateForMTrace
+    {Htrace : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv}
-    (H : RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv Htrace
+    (H : AuxiliaryRecursorTranslations safety trEnv recursorEnv Htrace
       priorRecursors finalRecursors) :
     ∃ added, finalRecursors = priorRecursors ++ added ∧
       List.Forall₂ (fun (name : Name) (w : VConstVal) =>
           ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
             auxRec allIndNames name s t),
-            RestoredRecursorStepValue trEnv Hstep w)
+            RecursorRestorationStepValue trEnv Hstep w)
         names added := by
   induction H with
   | nil => exact ⟨[], by simp, .nil⟩
@@ -486,34 +486,34 @@ theorem RestoredAuxiliaryRecursorTrace.recursorSteps
 
 /-- The lowered recursor read back by a restoration step at a generated
 owner's recursor name realizes the owner's generated recursor metadata. -/
-theorem NestedValidatedRunResult.recursorMetadataOfStep
+theorem NestedRun.recursorMetadataOfStep
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.generationSignature.families.size)
+    (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.canonicalGeneration.recursorName owner)
+      (E.lowered.recursors.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    RecursorMetadata E.production.production.canonicalGeneration
-      E.production.production.outVEnv owner Hstep.oldInfo := by
-  rcases E.production.production.metadataRealization owner with
+    RecursorMetadata E.lowered.recursors.canonicalGeneration
+      E.lowered.recursors.outVEnv owner Hstep.oldInfo := by
+  rcases E.lowered.recursors.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
-  have hlen : owner.val < E.production.production.entries.length := by
-    rw [show E.production.production.entries =
-      E.production.production.entries from rfl,
-      E.production.production.entries_length_eq]
+  have hlen : owner.val < E.lowered.recursors.entries.length := by
+    rw [show E.lowered.recursors.entries =
+      E.lowered.recursors.entries from rfl,
+      E.lowered.recursors.entries_length_eq]
     exact owner.isLt
-  have hmem := List.getElem_mem (l := E.production.production.entries)
+  have hmem := List.getElem_mem (l := E.lowered.recursors.entries)
     (n := owner.val) hlen
-  have hfind := E.production.production.findRecursorOfMem
-    (info := (E.production.production.entries[owner.val]'hlen).1) hmem
-  have hrec' : (E.production.production.entries[owner.val]'hlen).1 = .recInfo rec := hrec
+  have hfind := E.lowered.recursors.findRecursorOfMem
+    (info := (E.lowered.recursors.entries[owner.val]'hlen).1) hmem
+  have hrec' : (E.lowered.recursors.entries[owner.val]'hlen).1 = .recInfo rec := hrec
   rw [hrec'] at hfind
   change E.loweredEnv.find? rec.name = some (.recInfo rec) at hfind
   have h2 : some (ConstantInfo.recInfo rec) = some (.recInfo Hstep.oldInfo) := by
@@ -530,35 +530,35 @@ restoration step at a generated owner's lowered recursor name is the abstract
 restoration (`Restoration.recursor`) of the owner's generated recursor, given
 the hit shape of the lowered recursor type and the freshness of the
 restorable names in the translation environment. -/
-theorem NestedValidatedRunResult.restoredRecursor_of_step
+theorem NestedRun.restoredRecursor_of_step
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {auxiliaries : List ContainerSpecialization}
     (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
-    (owner : Fin E.production.production.generationSignature.families.size)
+    (owner : Fin E.lowered.recursors.generationSignature.families.size)
     {oldRecName : Name} {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) oldRecName stepSource stepTarget)
     (hname : oldRecName =
-      E.production.production.canonicalGeneration.recursorName owner)
+      E.lowered.recursors.canonicalGeneration.recursorName owner)
     (Hshape : Expr.ParamUniformTele
       ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
       result.nparams (lparams.map Level.param) Hstep.oldInfo.type)
     {targetEnv : VEnv}
     (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       targetEnv.constants n = none)
-    {w : VConstVal} (Hw : RestoredRecursorStepValue targetEnv Hstep w) :
+    {w : VConstVal} (Hw : RecursorRestorationStepValue targetEnv Hstep w) :
     (compilationRestoration sourceDecl auxiliaries).recursor
-      (E.production.production.canonicalGeneration.recursor owner) =
+      (E.lowered.recursors.canonicalGeneration.recursor owner) =
         some w := by
   subst hname
   obtain ⟨hwname, hwuvars, Ht⟩ := Hw
@@ -570,17 +570,17 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
   have Hinput : Hstep.oldInfo.type.FVarsIn fun _ => False :=
     Hs.fvarsIn.mono fun _ h => by simp [VLCtx.fvars] at h
   have htype : (compilationRestoration sourceDecl auxiliaries).expr
-      (E.production.production.canonicalGeneration.recursorType owner) =
+      (E.lowered.recursors.canonicalGeneration.recursorType owner) =
         some w.type :=
     Hstep.restored.restoration.typeRestorationCommutes' hparamsSize
       (D.agreement targetEnv _) hscoped.argumentsClosed Hfresh Hshape
       (fun Hopen => Hopen.restoredBody_closed D Htel hclosed) Htel Hinput hclosed Hs Ht
   have hrecName : (compilationRestoration sourceDecl auxiliaries).recursorName
-      (E.production.production.canonicalGeneration.recursorName owner) =
+      (E.lowered.recursors.canonicalGeneration.recursorName owner) =
         w.name := by
     rw [D.recursorName, hwname, Hstep.restored.mappedName]
     exact (nameMap_getD_eq _ _ _).symm
-  have huvars : E.production.production.canonicalGeneration.uvars = w.uvars := by
+  have huvars : E.lowered.recursors.canonicalGeneration.uvars = w.uvars := by
     rw [← M.uvars, ← hwuvars, Hstep.restored.restoration.levelParams]
   simp only [Restoration.recursor, InductiveSignature.Instance.recursor, htype,
     Option.bind_eq_bind, Option.pure_def, Option.bind_some, hrecName]
@@ -592,18 +592,18 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
 
 /-- The source constructor names are constructor names of the source prefix of
 the lowered declaration. -/
-theorem NestedFinalAssemblyBase.sourceConstructorNames
+theorem RestoredBlockBase.sourceConstructorNames
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
     {auxRecNames : List Name} {outEnv : Environment}
-    {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+    {H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
     {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    (B : NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety) :
+    (B : RestoredBlockBase H sourceEnv decl lparams nparams isUnsafe safety) :
     ∀ c ∈ decl.constructorConstants,
-      c.name ∈ familyNames (B.production.loweredDecl.types.take decl.types.length) := by
+      c.name ∈ familyNames (B.lowered.loweredDecl.types.take decl.types.length) := by
   intro c hc
   obtain ⟨src, hsrc, hcsrc⟩ := List.mem_flatMap.mp hc
   have HT := List.forall₂_take B.formationAssembly.types decl.types.length
@@ -615,12 +615,12 @@ theorem NestedFinalAssemblyBase.sourceConstructorNames
 
 /-- The restorable names of the compilation restoration of a validated nested
 run are fresh in the source constructor environment. -/
-theorem NestedValidatedRunResult.restorableNames_fresh_ctors
+theorem NestedRun.restorableNames_fresh_ctors
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {envTypes : VEnv} {generated : List VInductiveType}
@@ -629,29 +629,29 @@ theorem NestedValidatedRunResult.restorableNames_fresh_ctors
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
     (hctorNames : ∀ c ∈ sourceDecl.constructorConstants,
-      c.name ∈ familyNames (E.production.loweredDecl.types.take sourceDecl.types.length))
+      c.name ∈ familyNames (E.lowered.loweredDecl.types.take sourceDecl.types.length))
     {envCtors : VEnv}
     (hctors : envTypes.addConstVals sourceDecl.constructorConstants = some envCtors) :
     ∀ name ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
       envCtors.constants name = none := by
   have hfreshTypes := E.restorableNames_fresh hadded Haux Hexpansion hnodup
-  have hfamNodup : (familyNames (E.production.loweredDecl.types.take sourceDecl.types.length) ++
-      familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length)).Nodup := by
+  have hfamNodup : (familyNames (E.lowered.loweredDecl.types.take sourceDecl.types.length) ++
+      familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)).Nodup := by
     have h := (List.nodup_append.mp hnodup).1
-    rw [← List.take_append_drop sourceDecl.types.length E.production.loweredDecl.types] at h
+    rw [← List.take_append_drop sourceDecl.types.length E.lowered.loweredDecl.types] at h
     simpa only [familyNames, List.flatMap_append] using h
   have hheadNames : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
-      familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) := by
+      familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length) := by
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
   intro name hname
@@ -672,18 +672,18 @@ theorem NestedValidatedRunResult.restorableNames_fresh_ctors
           exact List.mem_map_of_mem hp
         obtain ⟨a, ha, hpa⟩ := List.mem_map.mp hp1
         have haux : a.auxiliary ∈
-            (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name) := by
+            (E.lowered.loweredDecl.types.drop sourceDecl.types.length).map (·.name) := by
           rw [← auxiliarySpecializations_names Haux Hexpansion]
           exact List.mem_map_of_mem ha
         obtain ⟨t, ht, hta⟩ := List.mem_map.mp haux
-        have h1 : p.1 ∈ familyNames E.production.loweredDecl.types := by
-          have : familyNames (E.production.loweredDecl.types.take sourceDecl.types.length) ⊆
-              familyNames E.production.loweredDecl.types := by
+        have h1 : p.1 ∈ familyNames E.lowered.loweredDecl.types := by
+          have : familyNames (E.lowered.loweredDecl.types.take sourceDecl.types.length) ⊆
+              familyNames E.lowered.loweredDecl.types := by
             intro x hx
             obtain ⟨t', ht', hx'⟩ := mem_familyNames.mp hx
             exact mem_familyNames.mpr ⟨t', List.mem_of_mem_take ht', hx'⟩
           exact this hsrc
-        have h2 : p.1 ∈ E.production.loweredDecl.types.map
+        have h2 : p.1 ∈ E.lowered.loweredDecl.types.map
             (fun t => t.name.str "rec") := by
           rw [← hpa, ← hta]
           exact List.mem_map_of_mem (f := fun t : VInductiveType => t.name.str "rec")
@@ -701,38 +701,38 @@ theorem forall₂_map_eq {R : α → β → Prop} {f : α → γ} {g : β → γ
 /-- The generated recursor names, in owner order, are the recursor names of
 the source families followed by the auxiliary recursor names restored by the
 executable auxiliary fold. -/
-theorem NestedValidatedRunResult.recursorNames_order
+theorem NestedRun.recursorNames_order
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (hnonempty : sourceTypes ≠ []) :
     (List.finRange
-        E.production.production.generationSignature.families.size).map
-        E.production.production.canonicalGeneration.recursorName =
+        E.lowered.recursors.generationSignature.families.size).map
+        E.lowered.recursors.canonicalGeneration.recursorName =
       sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
-  let P := E.production
-  have hentries : P.production.entries.length = P.indTypes.toList.length := by
-    rw [P.production.generated.length, P.production.cardinality.records,
+  let P := E.lowered
+  have hentries : P.recursors.entries.length = P.indTypes.toList.length := by
+    rw [P.recursors.generated.length, P.recursors.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length P.constructors.core]
   -- generated names in owner order
   have hgen : (List.finRange
-        E.production.production.generationSignature.families.size).map
-        E.production.production.canonicalGeneration.recursorName =
+        E.lowered.recursors.generationSignature.families.size).map
+        E.lowered.recursors.canonicalGeneration.recursorName =
       P.indTypes.toList.map (fun t => Lean.mkRecName t.name) := by
-    have hN : E.production.production.generationSignature.families.size =
+    have hN : E.lowered.recursors.generationSignature.families.size =
         P.indTypes.toList.length := by
-      rw [← E.production.production.entries_length_eq]
+      rw [← E.lowered.recursors.entries_length_eq]
       exact hentries
     apply List.ext_getElem
     · simp only [List.length_map, List.length_finRange]; exact hN
     · intro i hi hi'
       simp only [List.getElem_map, List.getElem_finRange, Fin.cast_mk]
-      have hiE : i < P.production.entries.length := by
+      have hiE : i < P.recursors.entries.length := by
         rw [hentries]; simpa using hi'
       obtain ⟨owner, hown, h⟩ := E.recursorOwnerOfEntry hiE
       have : owner = ⟨i, by simpa using hi⟩ := Fin.ext hown
@@ -747,7 +747,7 @@ theorem NestedValidatedRunResult.recursorNames_order
     forall₂_map_eq (fun a b h => h.header.name.symm) P.constructors.core.types
   have hsourceNames : sourceTypes.map (·.name) =
       (P.loweredDecl.types.take sourceTypes.length).map (·.name) :=
-    forall₂_map_eq (fun a b h => h.name.symm) E.nativeSource.sourceHeaders
+    forall₂_map_eq (fun a b h => h.name.symm) E.sourceCore.sourceHeaders
   have hsplit : P.indTypes.toList.map (·.name) =
       sourceTypes.map (·.name) ++
         (P.indTypes.toList.drop sourceTypes.length).map (·.name) := by
@@ -767,8 +767,8 @@ theorem NestedValidatedRunResult.recursorNames_order
     simp only [List.map_cons, List.cons_append, List.cons.injEq] at hsplit
     exact hsplit.1
   have Hc : ContextWF P.c := by
-    rw [E.production_c]; exact E.productionContextWF
-  obtain ⟨info, hfind, -, hall⟩ := P.production.findSourceHeader Hc
+    rw [E.production_c]; exact E.contextWF
+  obtain ⟨info, hfind, -, hall⟩ := P.recursors.findSourceHeader Hc
     (owner := o) (by rw [hos]; exact List.mem_cons_self)
   rw [hoName] at hfind
   have haux : (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1 =
@@ -805,18 +805,18 @@ theorem NestedValidatedRunResult.recursorNames_order
 each is the abstract restoration of the owner's generated recursor and the
 translation of the restored recursor of a restoration step at the owner's
 lowered recursor name. -/
-theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
+theorem NestedRun.restoredRecursorEntries_of_hitShape
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (B : NestedFinalAssemblyBase E.restoration
+    (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.production = E.production)
+    (hB : B.lowered = E.lowered)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -824,42 +824,42 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
     (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
     List.Forall₂ (fun owner w =>
         (compilationRestoration sourceDecl auxiliaries).recursor
-          (E.production.production.canonicalGeneration.recursor owner) = some w ∧
+          (E.lowered.recursors.canonicalGeneration.recursor owner) = some w ∧
         ∃ (s t : Environment) (Hstep : RestoredRecursorStep result E.loweredEnv
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name))
-          (E.production.production.canonicalGeneration.recursorName owner) s t),
-          RestoredRecursorStepValue
-            ((B.canonical.venvCtors.addEliminators B.canonical.eliminators).addProjections
+          (E.lowered.recursors.canonicalGeneration.recursorName owner) s t),
+          RecursorRestorationStepValue
+            ((B.install.venvCtors.addEliminators B.install.eliminators).addProjections
               sourceDecl.projectionEntries) Hstep w)
       (List.finRange
-        E.production.production.generationSignature.families.size)
-      (B.primaryRecursors ++ B.auxiliaryRecursors) := by
+        E.lowered.recursors.generationSignature.families.size)
+      (B.sourceRecursors ++ B.auxiliaryRecursors) := by
   let r := compilationRestoration sourceDecl auxiliaries
-  let trEnv := (B.canonical.venvCtors.addEliminators B.canonical.eliminators).addProjections sourceDecl.projectionEntries
+  let trEnv := (B.install.venvCtors.addEliminators B.install.eliminators).addProjections sourceDecl.projectionEntries
   -- freshness of the restorable names in the translation environment
-  have htypesEq : B.canonical.venvTypes = envTypes := by
-    have h := B.canonical.abstract_types
+  have htypesEq : B.install.venvTypes = envTypes := by
+    have h := B.install.abstract_types
     rw [B.typeValues, hadded] at h
     exact (Option.some.inj h).symm
   have hctorsAdded : envTypes.addConstVals sourceDecl.constructorConstants =
-      some B.canonical.venvCtors := by
-    have h := B.canonical.abstract_ctors
+      some B.install.venvCtors := by
+    have h := B.install.abstract_ctors
     rwa [B.constructorValues, htypesEq] at h
   have hctorNames := B.sourceConstructorNames
   rw [hB] at hctorNames
@@ -872,7 +872,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
   -- the recursor steps selected by the two traces
-  have Hprimary := B.sourceSemantics.recursorSteps
+  have Hprimary := B.sourceTranslations.recursorSteps
   obtain ⟨added, hadded', Hadded⟩ := B.auxiliaryRecursorTrace.recursorSteps
   simp only [List.nil_append] at hadded'
   rw [← hadded'] at Hadded
@@ -880,11 +880,11 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
       ∃ (s t : Environment) (Hstep : RestoredRecursorStep result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
         (sourceTypes.map (·.name)) name s t),
-        RestoredRecursorStepValue trEnv Hstep w)
+        RecursorRestorationStepValue trEnv Hstep w)
       ((List.finRange
-          E.production.production.generationSignature.families.size).map
-          E.production.production.canonicalGeneration.recursorName)
-      (B.primaryRecursors ++ B.auxiliaryRecursors) := by
+          E.lowered.recursors.generationSignature.families.size).map
+          E.lowered.recursors.canonicalGeneration.recursorName)
+      (B.sourceRecursors ++ B.auxiliaryRecursors) := by
     have hnonempty : sourceTypes ≠ [] := B.sourceNonempty
     rw [E.recursorNames_order hnonempty]
     exact Lean4Lean.List.Forall₂.append_of_left (by
@@ -902,19 +902,19 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
 
 /-- The restored generated recursor list of the lowered declaration is the
 recursor list of a final assembly base, for the specializations of
-`restorationTablesRestoringAll` (via `NestedValidatedRunResult.recursorHitShape'`). -/
-theorem NestedValidatedRunResult.restoredRecursorList_of_hitShape
+`restorationTablesRestoringAll` (via `NestedRun.recursorHitShape'`). -/
+theorem NestedRun.restoredRecursorList_of_hitShape
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (B : NestedFinalAssemblyBase E.restoration
+    (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.production = E.production)
+    (hB : B.lowered = E.lowered)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -922,22 +922,22 @@ theorem NestedValidatedRunResult.restoredRecursorList_of_hitShape
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
     (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
-    E.production.compilationInstance.restoredRecursors
+    E.lowered.generatedInstance.restoredRecursors
         (compilationRestoration sourceDecl auxiliaries) =
-      some (B.primaryRecursors ++ B.auxiliaryRecursors) := by
+      some (B.sourceRecursors ++ B.auxiliaryRecursors) := by
   have Hrec := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1)
     (E.restoredRecursorEntries_of_hitShape B hB wf Hsources hadded Haux Hexpansion hnodup
       hparamsSize D hscoped)
@@ -945,22 +945,22 @@ theorem NestedValidatedRunResult.restoredRecursorList_of_hitShape
   rw [List.mapM_map]
   exact List.mapM_eq_some.mpr Hrec
 
-/-- **The `recursors` field of `NestedCompilationPending`.** For the
+/-- **The `recursors` field of `NestedCompilationRestorationFacts`.** For the
 specializations of `restorationTablesRestoringAll`, the restored generated
 recursor list of the lowered declaration is exactly the recursor list of the
-canonical restored block (via `NestedValidatedRunResult.recursorHitShape'`). -/
-theorem NestedValidatedRunResult.restoredRecursors_of_hitShape
+canonical restored block (via `NestedRun.recursorHitShape'`). -/
+theorem NestedRun.restoredRecursors_of_hitShape
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : RestoredBlockDerivation E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hC : C.production = E.production)
+    (hC : C.lowered = E.lowered)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -968,23 +968,23 @@ theorem NestedValidatedRunResult.restoredRecursors_of_hitShape
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
     (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
-    E.production.compilationInstance.restoredRecursors
+    E.lowered.generatedInstance.restoredRecursors
         (compilationRestoration sourceDecl auxiliaries) =
-      some (canonicalRestoredBlock sourceDecl C.primaryRecursors
-        C.auxiliaryRecursors C.primaryRules C.auxiliaryRules).recursors :=
+      some (canonicalRestoredBlock sourceDecl C.sourceRecursors
+        C.auxiliaryRecursors C.sourceRules C.auxiliaryRules).recursors :=
   E.restoredRecursorList_of_hitShape C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped
 
@@ -1008,19 +1008,19 @@ abstract environment of the assembly base stores the restored recursor at
 the abstract restoration of the owner's generated recursor type, and the
 restored recursor's parameter, index, motive and minor counts are the
 signature's. These are the `type`, `numParams`, `numIndices`, `numMotives`
-and `numMinors` clauses of `RestoredRecursorShapeInputs`. -/
-theorem NestedValidatedRunResult.restoredRecursorShapeFields
+and `numMinors` clauses of `RestoredRecursorShape`. -/
+theorem NestedRun.restoredRecursorShapeFields
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (B : NestedFinalAssemblyBase E.restoration
+    (B : RestoredBlockBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
-    (hB : B.production = E.production)
+    (hB : B.lowered = E.lowered)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
@@ -1028,38 +1028,38 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
       sourceDecl.typeConstants = some envTypes)
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
     (hparamsSize : result.params.size = result.nparams)
-    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+    (D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
-    ∀ (owner : Fin E.production.production.generationSignature.families.size)
+    ∀ (owner : Fin E.lowered.recursors.generationSignature.families.size)
       {s t : Environment}
       (Hstep : RestoredRecursorStep result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
         (sourceTypes.map (·.name))
-        (E.production.production.canonicalGeneration.recursorName owner) s t),
+        (E.lowered.recursors.canonicalGeneration.recursorName owner) s t),
       (∃ type, (compilationRestoration sourceDecl auxiliaries).expr
-          (E.production.production.canonicalGeneration.recursorType owner) =
+          (E.lowered.recursors.canonicalGeneration.recursorType owner) =
             some type ∧
-        B.finalBaseVEnv.constants Hstep.restored.newInfo.name =
+        B.recursorVEnv.constants Hstep.restored.newInfo.name =
           some ⟨Hstep.restored.newInfo.levelParams.length, type⟩) ∧
       Hstep.restored.newInfo.numParams =
-        E.production.production.generationSignature.params.length ∧
+        E.lowered.recursors.generationSignature.params.length ∧
       Hstep.restored.newInfo.numIndices =
-        E.production.production.generationSignature.families[owner].indices.length ∧
+        E.lowered.recursors.generationSignature.families[owner].indices.length ∧
       Hstep.restored.newInfo.numMotives =
-        E.production.production.generationSignature.families.size ∧
+        E.lowered.recursors.generationSignature.families.size ∧
       Hstep.restored.newInfo.numMinors =
-        E.production.production.generationSignature.constructors.size := by
+        E.lowered.recursors.generationSignature.constructors.size := by
   intro owner s t Hstep
   have Hentries := E.restoredRecursorEntries_of_hitShape B hB wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
@@ -1070,13 +1070,13 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
   have R := Hstep.restored.restoration
   refine ⟨?_, R.numParams.trans M.numParams, R.numIndices.trans M.numIndices,
     R.numMotives.trans M.numMotives, R.numMinors.trans M.numMinors⟩
-  have hadd := B.canonical.recursorsAdded.abstract
+  have hadd := B.install.recursorsAdded.abstract
   rw [B.recursorValues] at hadd
   have hconst := VEnv.addConstVals_get hadd hw
   simp only [Restoration.recursor, InductiveSignature.Instance.recursor,
     Option.bind_eq_bind, Option.pure_def] at hrec
   cases ht : (compilationRestoration sourceDecl auxiliaries).expr
-      (E.production.production.canonicalGeneration.recursorType owner) with
+      (E.lowered.recursors.canonicalGeneration.recursorType owner) with
   | none => simp [ht] at hrec
   | some type =>
     simp only [ht, Option.bind_some, Option.some.injEq] at hrec
@@ -1088,7 +1088,7 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
 
 /-! ### `CompilationData` with an arbitrary equation list
 
-`NestedValidatedRunResult.compilationData_of_specializations`
+`NestedRun.compilationData_of_specializations`
 (`Nested/Restoration/CompilationData.lean`), with the rule lists of the canonical
 restored block arbitrary: no field of `CompilationData` but `equations`
 mentions the block's rules. -/
@@ -1097,39 +1097,39 @@ mentions the block's rules. -/
 /-! ### Generated recursor names are not restoration heads -/
 
 /-- Every generated recursor name is the recursor name of a lowered family. -/
-theorem NestedValidatedRunResult.recursorName_mem_lowered
+theorem NestedRun.recursorName_mem_lowered
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
+    (E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.generationSignature.families.size) :
-    E.production.production.canonicalGeneration.recursorName owner ∈
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec") := by
-  have hiE : owner.val < E.production.production.entries.length := by
-    rw [show E.production.production.entries =
-      E.production.production.entries from rfl,
-      E.production.production.entries_length_eq]
+    (owner : Fin E.lowered.recursors.generationSignature.families.size) :
+    E.lowered.recursors.canonicalGeneration.recursorName owner ∈
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec") := by
+  have hiE : owner.val < E.lowered.recursors.entries.length := by
+    rw [show E.lowered.recursors.entries =
+      E.lowered.recursors.entries from rfl,
+      E.lowered.recursors.entries_length_eq]
     exact owner.isLt
   obtain ⟨owner', hown, h⟩ := E.recursorOwnerOfEntry hiE
   have : owner' = owner := Fin.ext hown
   subst this
   rw [← h]
-  have hloweredNames : E.production.indTypes.toList.map (·.name) =
-      E.production.loweredDecl.types.map (·.name) :=
-    forall₂_map_eq (fun a b h => h.header.name.symm) E.production.constructors.core.types
-  have hlt : owner'.val < E.production.indTypes.size := by
-    have := E.production.production.generated.length
-    rw [E.production.production.cardinality.records,
+  have hloweredNames : E.lowered.indTypes.toList.map (·.name) =
+      E.lowered.loweredDecl.types.map (·.name) :=
+    forall₂_map_eq (fun a b h => h.header.name.symm) E.lowered.constructors.core.types
+  have hlt : owner'.val < E.lowered.indTypes.size := by
+    have := E.lowered.recursors.generated.length
+    rw [E.lowered.recursors.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-        E.production.constructors.core] at this
+        E.lowered.constructors.core] at this
     rw [this] at hiE
     simpa using hiE
-  have hmem : E.production.indTypes[owner'.val]!.name ∈
-      E.production.indTypes.toList.map (·.name) := by
-    rw [getElem!_pos E.production.indTypes owner'.val hlt]
+  have hmem : E.lowered.indTypes[owner'.val]!.name ∈
+      E.lowered.indTypes.toList.map (·.name) := by
+    rw [getElem!_pos E.lowered.indTypes owner'.val hlt]
     exact List.mem_map_of_mem (Array.getElem_mem_toList hlt)
   rw [hloweredNames] at hmem
   obtain ⟨t, ht, hname⟩ := List.mem_map.mp hmem
@@ -1137,42 +1137,42 @@ theorem NestedValidatedRunResult.recursorName_mem_lowered
   exact List.mem_map_of_mem (f := fun t : VInductiveType => t.name.str "rec") ht
 
 /-- No generated recursor name is a restoration head. -/
-theorem NestedValidatedRunResult.recursorName_not_head
+theorem NestedRun.recursorName_not_head
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (SpecializationGenerates
       (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-      E.production.headers.commonParameterContext sourceDecl)
+      E.lowered.headers.commonParameterContext sourceDecl)
       auxiliaries generated)
     (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
         (VInductDecl.NestedOccurrenceReplacementAbs
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
-    (hnodup : (familyNames E.production.loweredDecl.types ++
-      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
-    (owner : Fin E.production.production.generationSignature.families.size) :
+      generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.lowered.loweredDecl.types ++
+      E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+    (owner : Fin E.lowered.recursors.generationSignature.families.size) :
     (compilationRestoration sourceDecl auxiliaries).heads.find?
         (fun h => h.auxiliary ==
-          E.production.production.canonicalGeneration.recursorName owner) =
+          E.lowered.recursors.canonicalGeneration.recursorName owner) =
       none := by
   apply List.find?_eq_none.mpr
   intro h hh heq
   have heq' : h.auxiliary =
-      E.production.production.canonicalGeneration.recursorName owner := by
+      E.lowered.recursors.canonicalGeneration.recursorName owner := by
     simpa using heq
   have hmem : h.auxiliary ∈ (compilationRestoration sourceDecl auxiliaries).heads.map
       (·.auxiliary) := List.mem_map_of_mem hh
   rw [compilationRestoration_heads_auxiliary,
     auxiliarySpecializations_headNames Haux Hexpansion] at hmem
-  have h1 : h.auxiliary ∈ familyNames E.production.loweredDecl.types := by
+  have h1 : h.auxiliary ∈ familyNames E.lowered.loweredDecl.types := by
     obtain ⟨t, ht, hx⟩ := mem_familyNames.mp hmem
     exact mem_familyNames.mpr ⟨t, List.mem_of_mem_drop ht, hx⟩
   have h2 := E.recursorName_mem_lowered owner

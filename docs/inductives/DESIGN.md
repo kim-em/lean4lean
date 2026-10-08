@@ -399,7 +399,7 @@ verbatim, the ordinary pipeline checks it for the lowered constructor in the low
 environment, and the header stage of the restoration substitution
 (`Nested/Restoration/HeaderRenaming.lean`), which replaces each auxiliary header by its restoration
 lambda, transports that check to the source header environment, where it fixes the
-parameters and the prefix (`NestedValidatedRunResult.nativeSourceParameterWF`).
+parameters and the prefix (`NestedRun.nativeSourceParameterWF`).
 
 The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-checked
 (`validateNestedAuxiliaries`), as in the C++ kernel. For a nested occurrence of a family with

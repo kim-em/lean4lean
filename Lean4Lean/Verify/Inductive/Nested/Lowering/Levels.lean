@@ -9,11 +9,11 @@ The relational traces record this through `NestedAuxLE` (which fixes `lvls`),
 the `lvls` fields of `ConstructorLowering`,
 `ConstructorLowering.Resolved` and `NestedLowering`, and the universe-argument
 premise of the replacement leaves in
-`NestedLoweringResultClosed.originalExpansionsAboveLvls`. Projected through
+`NestedLoweringOutputClosed.originalExpansionsAboveLvls`. Projected through
 the translation, every replacement hit is a level leaf
 (`NestedReplacementFinalTrace.levelLeaf`), so the lowered constructor types of
 the source families use the auxiliary family and constructor names only at
-`VLevel.params sourceDecl.uvars` (`NestedValidatedRunResult.loweredConstructorLevels`).
+`VLevel.params sourceDecl.uvars` (`NestedRun.loweredConstructorLevels`).
 -/
 
 namespace Lean4Lean
@@ -144,24 +144,24 @@ theorem LoweredAuxiliaryFamily.abstractExpansionAboveLvls
 nested run.** Every auxiliary family or auxiliary constructor name occurs in
 every lowered constructor type (of the source families and of the auxiliary
 families alike) at the universe parameters of the declaration. -/
-theorem NestedValidatedRunResult.loweredConstructorLevelsAll
+theorem NestedRun.loweredConstructorLevelsAll
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∀ lowered ∈ E.production.loweredDecl.types, ∀ lc ∈ lowered.ctors,
+    ∀ lowered ∈ E.lowered.loweredDecl.types, ∀ lc ∈ lowered.ctors,
       lc.type.ConstLevelsAt
-        (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length))
+        (familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
         (VLevel.params sourceDecl.uvars) := by
-  let names := familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length)
+  let names := familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)
   -- the auxiliary names are fresh in the source header environment
   have hnodup :
-      (familyNames E.production.loweredDecl.types ++
-        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+      (familyNames E.lowered.loweredDecl.types ++
+        E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
@@ -178,15 +178,15 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
     apply hfreshAll
     rw [← hnames] at hname
     exact List.mem_append_left _ hname
-  have HsourceCore := E.nativeSource.core
+  have HsourceCore := E.sourceCore.core
   rw [E.nativeSourceDecl_eq] at HsourceCore
-  have htypesEq : E.nativeSource.envTypes = envTypes :=
+  have htypesEq : E.sourceCore.envTypes = envTypes :=
     Option.some.inj (HsourceCore.typesAdded.symm.trans hadded)
   have hordered := henvTypes.ordered
   -- the lowering run and its translations
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
-  let P := E.production
-  have hc : P.c = E.productionContext := E.production_c
+  let P := E.lowered
+  have hc : P.c = E.context := E.production_c
   have henv : P.c.env = sourceProdEnv :=
     (congrArg AddInductive.Context.env hc).trans E.productionContext_env
   have hlparams : P.c.lparams = lparams :=
@@ -199,10 +199,10 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
   have hisUnsafe : P.isUnsafe = isUnsafe := E.production_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
-    exact E.productionContextWF
+    exact E.contextWF
   let initialState : Lean4Lean.ElimNestedInductive.State :=
     { lvls := P.c.lparams.map .param, newTypes := #[] }
-  have Hlower : NestedLoweringResultClosed P.c.env
+  have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
@@ -214,19 +214,19 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
         RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
+      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
   let R := Hpack.2.1
   let Hprod := Hpack.2.2
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      sourceTypes P.isUnsafe sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
+      sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.nativeSource.core
+      E.nativeSourceDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HbaseWF : P.initialEnv.WF := by
@@ -235,17 +235,17 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
-    simpa only [hinitial, hlparams, safety] using E.nativeSource.sourceHeaders
+    simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
   have HsourceAdded : P.initialEnv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
-        VInductiveType.toVConstVal) = some E.nativeSource.envTypes := by
-    simpa only [hinitial, safety] using E.nativeSource.sourceAdded
-  have HsourceTypesWF : E.nativeSource.envTypes.WF :=
+        VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
+    simpa only [hinitial, safety] using E.sourceCore.sourceAdded
+  have HsourceTypesWF : E.sourceCore.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
   have HtargetTypesWF : Hpack.1.context.venv.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget HbaseWF
   have Htranslations : ClosedNestedOccurrenceTypings
-      E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
+      E.sourceCore.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := rfl
@@ -273,12 +273,12 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
       obtain ⟨u, hu⟩ := hC.wf
       rw [htypesEq] at hu
       exact (hu.noFreshConsts hordered hfresh (by intro _ h; simp at h)).1
-    have Hexpansions := NestedLoweringResultClosed.originalExpansionsAboveLvls HliftLv
+    have Hexpansions := NestedLoweringOutputClosed.originalExpansionsAboveLvls HliftLv
       ⟨finalState, Hrun, Hcache, Hparams⟩ Hsource Htarget Hmetadata Hsources hempty
       HbaseWF
       (fun Htrace Hctx selection _ Harity Hdepth _ HtargetParams _ HsourceExpr
           HtargetExpr hlvls =>
-        Htrace.levelLeaf P.production.lparamsNodup Hsource.uvars
+        Htrace.levelLeaf P.recursors.lparamsNodup Hsource.uvars
           (hparamsSize.trans Hsource.nparams.symm) HliftLv Hctx selection Harity
           Hdepth HtargetParams HsourceExpr HtargetExpr hlvls)
     intro lowered hlowered lc hlc
@@ -311,7 +311,7 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
       Hrun.resultParamsSize Hsource.nparams.symm
       (fun Htrace Hctx selection _ Harity Hdepth _ HtargetParams _ HsourceExpr
           HtargetExpr hlvls =>
-        Htrace.levelLeaf P.production.lparamsNodup Hsource.uvars
+        Htrace.levelLeaf P.recursors.lparamsNodup Hsource.uvars
           (hparamsSize.trans Hsource.nparams.symm) HliftLv Hctx selection Harity
           Hdepth HtargetParams HsourceExpr HtargetExpr (hlvls.trans Hrun.lvls))
     rw [hloweredEq] at hlc
@@ -332,58 +332,58 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
   · exact hsuffix lowered h
 
 /-- `loweredConstructorLevelsAll` for the source families. -/
-theorem NestedValidatedRunResult.loweredConstructorLevels
+theorem NestedRun.loweredConstructorLevels
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∀ lowered ∈ E.production.loweredDecl.types.take sourceDecl.types.length,
+    ∀ lowered ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
         lc.type.ConstLevelsAt
-          (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length))
+          (familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
           (VLevel.params sourceDecl.uvars) :=
   fun lowered hlowered =>
     E.loweredConstructorLevelsAll wf Hsources lowered (List.mem_of_mem_take hlowered)
 
 /-- `loweredConstructorLevelsAll` for the auxiliary families. -/
-theorem NestedValidatedRunResult.loweredAuxiliaryConstructorLevels
+theorem NestedRun.loweredAuxiliaryConstructorLevels
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    ∀ lowered ∈ E.production.loweredDecl.types.drop sourceDecl.types.length,
+    ∀ lowered ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
         lc.type.ConstLevelsAt
-          (familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length))
+          (familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length))
           (VLevel.params sourceDecl.uvars) :=
   fun lowered hlowered =>
     E.loweredConstructorLevelsAll wf Hsources lowered (List.mem_of_mem_drop hlowered)
 
 /-- `loweredConstructorLevels` at the restoration heads of any specialisation
 list whose head names are the auxiliary family and constructor names (as for
-the specialisations of `NestedValidatedRunResult.loweredConstructors_of`): the
+the specialisations of `NestedRun.loweredConstructors_of`): the
 universe-level premise of `loweredConstructors_of`. -/
-theorem NestedValidatedRunResult.loweredConstructorLevels_heads
+theorem NestedRun.loweredConstructorLevels_heads
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheadNames : auxiliaries.flatMap (·.headNames) =
-      familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length)) :
-    ∀ lowered ∈ E.production.loweredDecl.types.take sourceDecl.types.length,
+      familyNames (E.lowered.loweredDecl.types.drop sourceDecl.types.length)) :
+    ∀ lowered ∈ E.lowered.loweredDecl.types.take sourceDecl.types.length,
       ∀ lc ∈ lowered.ctors,
         lc.type.ConstLevelsAt
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))

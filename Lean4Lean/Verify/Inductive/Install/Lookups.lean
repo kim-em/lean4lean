@@ -507,7 +507,7 @@ theorem RecursorCheck.restoredPrimaryTelescopeAlignment
       Lean.mkRecName indTypes[ownerIdx]!.name)
     (hresultNparams : result.nparams = nparams)
     (hresultParams : result.params.size = result.nparams) :
-    Nonempty (GeneratedRecursorRestorationTelescopeAlignment result outEnv
+    Nonempty (RestoredRecursorTelescopeAlignment result outEnv
       auxRec Hstep.restored.newInfo (H.generated.entry ownerIdx hentry)) := by
   have hrecInfo : ownerIdx < H.recInfos.size := by
     simpa [H.generated.length] using hentry
@@ -618,7 +618,7 @@ def RecursorCheck.restoredSourcePrimaryRecursorRealization
       H.recInfos[ownerIdx]!.indices.size)
     (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
       Hstep.restored.newInfo.type recursor.type) :
-    SourcePrimaryRecursorRealization sourceDecl
+    SourceRecursorRealization sourceDecl
       (sourceDecl.types[ownerIdx]'hsourceOwner) Hstep canonicalEnv recursor := by
   have hrecInfo : ownerIdx < H.recInfos.size := by
     simpa [H.generated.length] using hentry

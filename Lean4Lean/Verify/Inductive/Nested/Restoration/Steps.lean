@@ -138,7 +138,7 @@ theorem RecursorRestoration.typeConcreteRecursorResultForallTelescope
 primary recursor: common parameters are opened once, every remaining domain
 is paired with its restored domain, and the canonical motive-application
 residual is unchanged. -/
-structure GeneratedRecursorRestorationTelescopeTrace
+structure RestoredRecursorTelescope
     (result : Lean4Lean.ElimNestedInductive.Result)
     (prodEnv : Environment) (auxRec : NameMap Name)
     (newInfo : RecursorVal)
@@ -169,7 +169,7 @@ theorem RecursorRestoration.generatedTelescopeTrace
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size)
     (hresultParams : result.params.size = result.nparams) :
-    Nonempty (GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
+    Nonempty (RestoredRecursorTelescope result prodEnv auxRec
       newInfo Hentry) := by
   let numMotives := (recInfos.map (·.motive)).size
   let numMinors := (recInfos.flatMap (·.minors)).size
@@ -206,13 +206,13 @@ theorem RecursorRestoration.generatedTelescopeTrace
 
 /-- The operational restoration suffix and the generated semantic suffix are
 aligned on the same parameter-closed concrete body. -/
-structure GeneratedRecursorRestorationTelescopeAlignment
+structure RestoredRecursorTelescopeAlignment
     (result : Lean4Lean.ElimNestedInductive.Result)
     (prodEnv : Environment) (auxRec : NameMap Name)
     (newInfo : RecursorVal)
     (Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
       indTypes recInfos ownerIdx entry) where
-  trace : GeneratedRecursorRestorationTelescopeTrace result prodEnv auxRec
+  trace : RestoredRecursorTelescope result prodEnv auxRec
     newInfo Hentry
   selections : RecursorBinderGroups c stats recInfos ownerIdx
   noAlias : selections.NoAlias
@@ -236,11 +236,11 @@ structure GeneratedRecursorRestorationTelescopeAlignment
 /-- The retained opening and suffix traces determine the complete telescope
 of the exact restored recursor, independently of any semantic translation of
 its domains. -/
-theorem GeneratedRecursorRestorationTelescopeAlignment.restoredForallTelescope
+theorem RestoredRecursorTelescopeAlignment.restoredForallTelescope
     {recInfos : Array AddInductive.RecInfo} {ownerIdx : Nat}
     {Hentry : GeneratedRecursorEntry safety venv lparams elimLevel c stats
       indTypes recInfos ownerIdx entry}
-    (H : GeneratedRecursorRestorationTelescopeAlignment result prodEnv auxRec
+    (H : RestoredRecursorTelescopeAlignment result prodEnv auxRec
       newInfo Hentry) :
     Expr.ForallTelescope newInfo.type
       (result.nparams + ((recInfos.map (·.motive)).size +
@@ -287,7 +287,7 @@ theorem RecursorRestoration.generatedTelescopeAlignment
     (hnoalias : Hselections.NoAlias)
     (hparams : result.nparams = stats.params.size)
     (hresultParams : result.params.size = result.nparams) :
-    Nonempty (GeneratedRecursorRestorationTelescopeAlignment result prodEnv
+    Nonempty (RestoredRecursorTelescopeAlignment result prodEnv
       auxRec newInfo Hentry) := by
   rcases Hrestore.generatedTelescopeTrace Hentry Hselections howner hnoalias
       hparams hresultParams with ⟨Htrace⟩
@@ -454,7 +454,7 @@ theorem restoreRecursor_refines
   isUnsafe := rfl
 
 /-- Exact state transition of the production family-header restoration step. -/
-structure RestoredInductiveHeaderDeclResult
+structure HeaderRestorationStep
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (indName : Name) (oldInfo : InductiveVal)
     (out : Unit × Environment) where
@@ -476,8 +476,8 @@ theorem TrConstVal.inductInfo_setAll
     ConstantInfo.levelParams, ConstantInfo.type, ConstantInfo.name,
     ConstantInfo.toConstantVal] using H
 
-theorem RestoredInductiveHeaderDeclResult.translated
-    (H : RestoredInductiveHeaderDeclResult loweredEnv sourceProdEnv
+theorem HeaderRestorationStep.translated
+    (H : HeaderRestorationStep loweredEnv sourceProdEnv
       allIndNames indName oldInfo out)
     (Htr : TrConstVal safety venv (.inductInfo oldInfo) header) :
     TrConstVal safety venv (.inductInfo H.newInfo) header := by
@@ -490,7 +490,7 @@ theorem restoreInductiveHeaderDecl_refines
     (hlookup : loweredEnv.find? indName = some (.inductInfo oldInfo)) :
     (Lean4Lean.restoreInductiveHeaderDecl loweredEnv allIndNames
       allowPrimitive indName sourceEnv).WF fun out =>
-        Nonempty (RestoredInductiveHeaderDeclResult loweredEnv sourceEnv
+        Nonempty (HeaderRestorationStep loweredEnv sourceEnv
           allIndNames indName oldInfo out) := by
   intro out hout
   unfold Lean4Lean.restoreInductiveHeaderDecl at hout
@@ -518,36 +518,36 @@ theorem restoreInductiveHeaderDecl_refines
 
 /-- Generic compositional trace for the stateful list folds used by nested
 declaration restoration. -/
-inductive StateForMTrace (P : α → σ → σ → Type) :
+inductive FoldSteps (P : α → σ → σ → Type) :
     List α → σ → σ → Type
-  | nil : StateForMTrace P [] source source
+  | nil : FoldSteps P [] source source
   | cons : P head source middle →
-      StateForMTrace P tail middle target →
-      StateForMTrace P (head :: tail) source target
+      FoldSteps P tail middle target →
+      FoldSteps P (head :: tail) source target
 
 /-- Environment additions whose names were checked immediately before each
 installation.  This forgetful trace is shared by all three nested-restoration
 folds and exposes the freshness invariant without importing any semantic
 typing assumptions. -/
-inductive FreshConstantTrace :
+inductive FreshExtension :
     Environment → List ConstantInfo → Environment → Prop
-  | nil : FreshConstantTrace env [] env
+  | nil : FreshExtension env [] env
   | cons : env.find? ci.name = none →
-      FreshConstantTrace (env.add ci) cis outEnv →
-      FreshConstantTrace env (ci :: cis) outEnv
+      FreshExtension (env.add ci) cis outEnv →
+      FreshExtension env (ci :: cis) outEnv
 
 /-- The production `quotInit` flag is unchanged by a fresh constant trace. -/
-theorem FreshConstantTrace.quotInit_eq
-    (H : FreshConstantTrace env entries outEnv) :
+theorem FreshExtension.quotInit_eq
+    (H : FreshExtension env entries outEnv) :
     outEnv.quotInit = env.quotInit := by
   induction H with
   | nil => rfl
   | cons _ _ ih => exact ih
 
-theorem FreshConstantTrace.append
-    (H₁ : FreshConstantTrace env entries middleEnv)
-    (H₂ : FreshConstantTrace middleEnv rest outEnv) :
-    FreshConstantTrace env (entries ++ rest) outEnv := by
+theorem FreshExtension.append
+    (H₁ : FreshExtension env entries middleEnv)
+    (H₂ : FreshExtension middleEnv rest outEnv) :
+    FreshExtension env (entries ++ rest) outEnv := by
   induction H₁ with
   | nil => exact H₂
   | cons hfresh _Htail ih => exact .cons hfresh (ih H₂)
@@ -587,8 +587,8 @@ theorem constantsWF_add_checked
     rwa [hwf.find?'_eq_find?] at hfresh
   exact hwf.insert ci.name ci hfreshMap
 
-theorem FreshConstantTrace.sourceFresh
-    (H : FreshConstantTrace env entries outEnv)
+theorem FreshExtension.sourceFresh
+    (H : FreshExtension env entries outEnv)
     (hwf : env.constants.WF) (hentry : ci ∈ entries) :
     env.find? ci.name = none := by
   induction H with
@@ -601,8 +601,8 @@ theorem FreshConstantTrace.sourceFresh
       exact find?_none_of_add_none hwf hfresh
         (ih hnextWF htail)
 
-theorem FreshConstantTrace.namesNodup
-    (H : FreshConstantTrace env entries outEnv) (hwf : env.constants.WF) :
+theorem FreshExtension.namesNodup
+    (H : FreshExtension env entries outEnv) (hwf : env.constants.WF) :
     (entries.map (·.name)).Nodup := by
   induction H with
   | nil => simp
@@ -617,8 +617,8 @@ theorem FreshConstantTrace.namesNodup
     rw [← heq, htailFresh] at hheadPresent
     contradiction
 
-theorem FreshConstantTrace.targetWF
-    (H : FreshConstantTrace env entries outEnv) (hwf : env.constants.WF) :
+theorem FreshExtension.targetWF
+    (H : FreshExtension env entries outEnv) (hwf : env.constants.WF) :
     outEnv.constants.WF := by
   induction H with
   | nil => exact hwf
@@ -633,13 +633,13 @@ theorem stateForM_refines
           out.1 = () ∧ Nonempty (P item source out.2)) →
       ∀ (source : σ),
       (List.forM items step source).WF fun out =>
-        out.1 = () ∧ Nonempty (StateForMTrace P items source out.2) := by
+        out.1 = () ∧ Nonempty (FoldSteps P items source out.2) := by
   intro items
   induction items with
   | nil =>
     intro _Hstep
     intro source
-    exact Except.WF.pure ⟨rfl, ⟨StateForMTrace.nil⟩⟩
+    exact Except.WF.pure ⟨rfl, ⟨FoldSteps.nil⟩⟩
   | cons head tail ih =>
     intro Hstep
     intro source
@@ -655,7 +655,7 @@ theorem stateForM_refines
         exact Hstep item (by simp [hitem])
       exact (ih Htail middle).mono fun final Hfinal => by
         rcases Hfinal with ⟨hunit, ⟨Htail⟩⟩
-        exact ⟨hunit, ⟨StateForMTrace.cons Hhead Htail⟩⟩
+        exact ⟨hunit, ⟨FoldSteps.cons Hhead Htail⟩⟩
 
 /-- Constructor-level restoration records that the production step changes
 only the type, using the verified nested-expression traversal. -/
@@ -711,7 +711,7 @@ theorem restoreConstructor_refines
   isUnsafe := rfl
 
 /-- Exact state transition of one production constructor-restoration step. -/
-structure RestoredConstructorDeclResult
+structure ConstructorRestorationStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (ctorName : Name)
     (oldInfo : ConstructorVal) (out : Unit × Environment) where
@@ -730,7 +730,7 @@ theorem restoreConstructorDecl_refines
     (Htelescope : RestoreTelescope oldInfo.type result.nparams) :
     (Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive ctorName
       sourceEnv).WF fun out =>
-        Nonempty (RestoredConstructorDeclResult result loweredEnv sourceEnv
+        Nonempty (ConstructorRestorationStep result loweredEnv sourceEnv
           ctorName oldInfo out) := by
   intro out hout
   unfold Lean4Lean.restoreConstructorDecl at hout
@@ -769,7 +769,7 @@ structure RestoredConstructorStep
   oldInfo : ConstructorVal
   lookup : loweredEnv.find? ctorName = some (.ctorInfo oldInfo)
   telescope : RestoreTelescope oldInfo.type result.nparams
-  restored : RestoredConstructorDeclResult result loweredEnv sourceEnv
+  restored : ConstructorRestorationStep result loweredEnv sourceEnv
     ctorName oldInfo ((), targetEnv)
 
 theorem restoreConstructorDecls_refines
@@ -784,7 +784,7 @@ theorem restoreConstructorDecls_refines
       (ctorNames.forM fun ctorName =>
         Lean4Lean.restoreConstructorDecl result loweredEnv allowPrimitive
           ctorName) sourceEnv |>.WF fun out =>
-            out.1 = () ∧ Nonempty (StateForMTrace
+            out.1 = () ∧ Nonempty (FoldSteps
               (RestoredConstructorStep result loweredEnv)
               ctorNames sourceEnv out.2) := by
   apply stateForM_refines
@@ -804,7 +804,7 @@ theorem restoreConstructorDecls_refines
 /-- Exact state transition of one production recursor-restoration step. The
 semantic use of the restored metadata remains factored through
 `RecursorRestoration`. -/
-structure RestoredRecursorDeclResult
+structure RecursorRestorationStep
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
     (allIndNames : List Name) (oldRecName : Name)
@@ -830,7 +830,7 @@ theorem restoreRecursorDecl_refines
       RestoreTelescope rule.rhs result.nparams) :
     (Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
       allowPrimitive oldRecName sourceEnv).WF fun out =>
-        Nonempty (RestoredRecursorDeclResult result loweredEnv sourceEnv auxRec
+        Nonempty (RecursorRestorationStep result loweredEnv sourceEnv auxRec
           allIndNames oldRecName oldInfo out) := by
   intro out hout
   unfold Lean4Lean.restoreRecursorDecl at hout
@@ -878,7 +878,7 @@ structure RestoredRecursorStep
   typeTelescope : RestoreTelescope oldInfo.type result.nparams
   ruleTelescopes : ∀ rule ∈ oldInfo.rules,
     RestoreTelescope rule.rhs result.nparams
-  restored : RestoredRecursorDeclResult result loweredEnv sourceEnv auxRec
+  restored : RecursorRestorationStep result loweredEnv sourceEnv auxRec
     allIndNames oldRecName oldInfo ((), targetEnv)
 
 theorem restoreRecursorDecls_refines
@@ -896,7 +896,7 @@ theorem restoreRecursorDecls_refines
       (recNames.forM fun recName =>
         Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
           allowPrimitive recName) sourceEnv |>.WF fun out =>
-            out.1 = () ∧ Nonempty (StateForMTrace
+            out.1 = () ∧ Nonempty (FoldSteps
               (RestoredRecursorStep result loweredEnv auxRec allIndNames)
               recNames sourceEnv out.2) := by
   apply stateForM_refines
@@ -918,16 +918,16 @@ theorem restoreRecursorDecls_refines
 
 /-- Complete operational trace for restoring one source family member: its
 header, constructor list, and primary recursor. -/
-structure RestoredInductiveDeclResult
+structure SourceFamilyRestoration
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
     (allIndNames : List Name) (indType : InductiveType)
     (oldInfo : InductiveVal) (out : Unit × Environment) where
   headerEnv : Environment
   constructorEnv : Environment
-  header : RestoredInductiveHeaderDeclResult loweredEnv sourceEnv allIndNames
+  header : HeaderRestorationStep loweredEnv sourceEnv allIndNames
     indType.name oldInfo ((), headerEnv)
-  constructors : StateForMTrace
+  constructors : FoldSteps
     (RestoredConstructorStep result loweredEnv) oldInfo.ctors headerEnv
       constructorEnv
   recursor : RestoredRecursorStep result loweredEnv auxRec allIndNames
@@ -952,7 +952,7 @@ theorem restoreInductiveDecl_refines
       RestoreTelescope rule.rhs result.nparams) :
     (Lean4Lean.restoreInductiveDecl result loweredEnv auxRec allIndNames
       allowPrimitive indType sourceEnv).WF fun out =>
-        Nonempty (RestoredInductiveDeclResult result loweredEnv sourceEnv
+        Nonempty (SourceFamilyRestoration result loweredEnv sourceEnv
           auxRec allIndNames indType oldInfo out) := by
   have Hheader := restoreInductiveHeaderDecl_refines loweredEnv sourceEnv
     allIndNames allowPrimitive indType.name oldInfo hlookup
@@ -964,7 +964,7 @@ theorem restoreInductiveDecl_refines
             ctorName) headerOut.2).bind fun constructorOut =>
           Lean4Lean.restoreRecursorDecl result loweredEnv auxRec allIndNames
             allowPrimitive (Lean.mkRecName indType.name) constructorOut.2).WF
-        fun out => Nonempty (RestoredInductiveDeclResult result loweredEnv
+        fun out => Nonempty (SourceFamilyRestoration result loweredEnv
           sourceEnv auxRec allIndNames indType oldInfo out) :=
     Hheader.bind fun headerOut HheaderOut => by
     rcases headerOut with ⟨unit, headerEnv⟩
@@ -1006,7 +1006,7 @@ structure RestoredInductiveStep
     (sourceEnv targetEnv : Environment) where
   oldInfo : InductiveVal
   lookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo)
-  restored : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+  restored : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
     allIndNames indType oldInfo ((), targetEnv)
 
 theorem restoreInductiveDecls_refines
@@ -1031,7 +1031,7 @@ theorem restoreInductiveDecls_refines
       (types.forM fun indType =>
         Lean4Lean.restoreInductiveDecl result loweredEnv auxRec allIndNames
           allowPrimitive indType) sourceEnv |>.WF fun out =>
-            out.1 = () ∧ Nonempty (StateForMTrace
+            out.1 = () ∧ Nonempty (FoldSteps
               (RestoredInductiveStep result loweredEnv auxRec allIndNames)
               types sourceEnv out.2) := by
   apply stateForM_refines
@@ -1051,18 +1051,18 @@ theorem restoreInductiveDecls_refines
 
 /-- Exact operational certificate for the two folds comprising nested
 declaration restoration: source families first, then auxiliary recursors. -/
-structure RestoredNestedDeclarationsResult
+structure NestedRestorationFolds
     (result : Lean4Lean.ElimNestedInductive.Result)
     (loweredEnv sourceEnv : Environment) (auxRec : NameMap Name)
     (allIndNames : List Name) (types : List InductiveType)
     (auxRecNames : List Name) (out : Unit × Environment) where
-  primaryEnv : Environment
-  inductives : StateForMTrace
+  sourceFamiliesEnv : Environment
+  inductives : FoldSteps
     (RestoredInductiveStep result loweredEnv auxRec allIndNames)
-    types sourceEnv primaryEnv
-  auxiliaries : StateForMTrace
+    types sourceEnv sourceFamiliesEnv
+  auxiliaries : FoldSteps
     (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-    auxRecNames primaryEnv out.2
+    auxRecNames sourceFamiliesEnv out.2
   outputUnit : out.1 = ()
 
 theorem find?_none_of_contains_false
@@ -1073,11 +1073,11 @@ theorem find?_none_of_contains_false
   rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
   cases hfind : env.constants.find? name <;> simp_all
 
-theorem StateForMTrace.constructorFreshTrace
-    (H : StateForMTrace (RestoredConstructorStep result loweredEnv)
+theorem FoldSteps.constructorFreshTrace
+    (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | cons Hstep Htail ih =>
@@ -1090,12 +1090,12 @@ theorem StateForMTrace.constructorFreshTrace
     rcases ih (constantsWF_add_checked hwf hfresh) with ⟨entries, Hentries⟩
     exact ⟨ci :: entries, .cons hfresh Hentries⟩
 
-theorem StateForMTrace.recursorFreshTrace
-    (H : StateForMTrace
+theorem FoldSteps.recursorFreshTrace
+    (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | cons Hstep Htail ih =>
@@ -1108,18 +1108,18 @@ theorem StateForMTrace.recursorFreshTrace
     rcases ih (constantsWF_add_checked hwf hfresh) with ⟨entries, Hentries⟩
     exact ⟨ci :: entries, .cons hfresh Hentries⟩
 
-theorem RestoredInductiveDeclResult.freshTrace
-    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+theorem SourceFamilyRestoration.freshTrace
+    (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   let header : ConstantInfo := .inductInfo H.header.newInfo
   have hheaderEnv : H.headerEnv = sourceEnv.add header :=
     congrArg Prod.snd H.header.output
   have hheaderFresh : sourceEnv.find? header.name = none :=
     find?_none_of_contains_false hwf H.header.fresh
   have hwfHeader := constantsWF_add_checked hwf hheaderFresh
-  have Hconstructors' : StateForMTrace
+  have Hconstructors' : FoldSteps
       (RestoredConstructorStep result loweredEnv) oldInfo.ctors
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
@@ -1135,15 +1135,15 @@ theorem RestoredInductiveDeclResult.freshTrace
     find?_none_of_contains_false hwfConstructors H.recursor.restored.fresh
   rw [htarget]
   exact ⟨header :: constructors ++ [recursor],
-    FreshConstantTrace.cons hheaderFresh
+    FreshExtension.cons hheaderFresh
       (Hconstructors.append (.cons hrecFresh .nil))⟩
 
-theorem StateForMTrace.inductiveFreshTrace
-    (H : StateForMTrace
+theorem FoldSteps.inductiveFreshTrace
+    (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv := by
+    ∃ entries, FreshExtension sourceEnv entries targetEnv := by
   induction H with
   | nil => exact ⟨[], .nil⟩
   | cons Hstep _Htail ih =>
@@ -1151,11 +1151,11 @@ theorem StateForMTrace.inductiveFreshTrace
     rcases ih (Hhead.targetWF hwf) with ⟨tailEntries, Htail⟩
     exact ⟨headEntries ++ tailEntries, Hhead.append Htail⟩
 
-theorem RestoredNestedDeclarationsResult.freshTrace
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv auxRec
+theorem NestedRestorationFolds.freshTrace
+    (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames out)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries out.2 := by
+    ∃ entries, FreshExtension sourceEnv entries out.2 := by
   rcases H.inductives.inductiveFreshTrace hwf with
     ⟨primaryEntries, Hprimary⟩
   rcases H.auxiliaries.recursorFreshTrace (Hprimary.targetWF hwf) with
@@ -1189,7 +1189,7 @@ theorem restoreNestedDeclarations_refines
           RestoreTelescope rule.rhs result.nparams) :
     (Lean4Lean.restoreNestedDeclarations result loweredEnv auxRec allIndNames
       allowPrimitive types auxRecNames sourceEnv).WF fun out =>
-        Nonempty (RestoredNestedDeclarationsResult result loweredEnv sourceEnv
+        Nonempty (NestedRestorationFolds result loweredEnv sourceEnv
           auxRec allIndNames types auxRecNames out) := by
   have Hinductives := restoreInductiveDecls_refines result loweredEnv auxRec
     allIndNames allowPrimitive types Htypes sourceEnv
@@ -1200,7 +1200,7 @@ theorem restoreNestedDeclarations_refines
           (auxRecNames.forM fun recName => Lean4Lean.restoreRecursorDecl result
             loweredEnv auxRec allIndNames allowPrimitive recName)
             primaryOut.2).WF fun out =>
-              Nonempty (RestoredNestedDeclarationsResult result loweredEnv
+              Nonempty (NestedRestorationFolds result loweredEnv
                 sourceEnv auxRec allIndNames types auxRecNames out) :=
     Hinductives.bind fun primaryOut Hprimary => by
       rcases primaryOut with ⟨unit, primaryEnv⟩
@@ -1211,7 +1211,7 @@ theorem restoreNestedDeclarations_refines
       exact Hauxiliaries.mono fun out Hout => by
         rcases Hout with ⟨hunit, ⟨HauxTrace⟩⟩
         exact ⟨{
-          primaryEnv := primaryEnv
+          sourceFamiliesEnv := primaryEnv
           inductives := HinductiveTrace
           auxiliaries := HauxTrace
           outputUnit := hunit }⟩

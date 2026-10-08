@@ -421,7 +421,7 @@ private theorem forall₂_instantiate_inv {envS env : VEnv} {Us₀ Us : List Nam
 
 /-- The translation of a reopened container application, possibly with its
 head renamed (a constructor), is the abstract specialisation. -/
-theorem AuxNestedSpec.reopenedTranslation {result : Lean4Lean.ElimNestedInductive.Result}
+theorem AuxiliaryContainerApp.reopenedTranslation {result : Lean4Lean.ElimNestedInductive.Result}
     {Us₀ Us : List Name} {a : InductiveSignature.ContainerSpecialization}
     {envS : VEnv} {domains : List VExpr} {lvls : List Level} {Ys : List Expr}
     (hdomains : domains.length = result.nparams)
@@ -467,7 +467,7 @@ theorem abstractN_getAppFn_const {xs : List FVarId} {name : Name} {lvls : List L
   | .mvar _, _, h => by simp [Expr.abstractN, Expr.getAppFn] at h
   | .lit _, _, h => by simp [Expr.abstractN, Expr.getAppFn] at h
 
-theorem AuxNestedSpec.reopen {result : Lean4Lean.ElimNestedInductive.Result}
+theorem AuxiliaryContainerApp.reopen {result : Lean4Lean.ElimNestedInductive.Result}
     {nested : Expr} {name : Name} {lvls : List Level} {Ys : List Expr}
     (h : nested.abstract result.params = Expr.mkAppList (.const name lvls) Ys)
     (As : Array Expr) :
@@ -508,11 +508,11 @@ open _root_.Lean4Lean.InductiveSignature (compilationRestoration compilationRest
 /-- **The executable restoration tables agree with `compilationRestoration`**
 for every target environment and universe-parameter list, at the lowered
 universe arguments `Us₀.map .param`. -/
-theorem RestorationTableData.agreement {decl : VInductDecl}
+theorem RestorationTablesAgree.agreement {decl : VInductDecl}
     {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
+    (D : RestorationTablesAgree decl auxiliaries result env auxRec Us₀)
     (targetEnv : VEnv) (Us : List Name) :
     RestorationMapAgreement (compilationRestoration decl auxiliaries) result env auxRec
       targetEnv Us (Us₀.map Level.param) := by
@@ -559,7 +559,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
         rw [← hind] at hn
         rw [getNestedIfAuxCtor_of hc hn] at hnone
         obtain ⟨_, _, _, _, _, _, _, _, hab, _⟩ := D.familyKey _ nested hn
-        simp only [AuxNestedSpec.reopen hab, Expr.getAppFn_mkAppList_const] at hnone
+        simp only [AuxiliaryContainerApp.reopen hab, Expr.getAppFn_mkAppList_const] at hnone
         cases hnone
   · intro As c H hH
     unfold restoreHead at hH
@@ -576,8 +576,8 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
       refine ⟨_, InductiveSignature.Restoration.find?_of_nodup hheadsNodup hmem, D.nparams,
         fun levels hlevels => ⟨hlevelsLength levels hlevels, ?_⟩⟩
       intro Δ params v hAs hsize hTr hv
-      rw [AuxNestedSpec.reopen hab] at hv
-      exact AuxNestedSpec.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _ hv
+      rw [AuxiliaryContainerApp.reopen hab] at hv
+      exact AuxiliaryContainerApp.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _ hv
     | none =>
       rw [hfind] at hH
       cases hget : result.getNestedIfAuxCtor env c with
@@ -589,7 +589,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
         obtain ⟨a, ha, hauxEq, envS, domains, lvls, Ys, hdom, hab, hlvls, hYs⟩ :=
           D.familyKey _ nested hn
         obtain ⟨ctor, hctor, rfl⟩ := D.ctorLookup c info hc a ha hauxEq.symm
-        simp only [AuxNestedSpec.reopen hab, Expr.getAppFn_mkAppList_const,
+        simp only [AuxiliaryContainerApp.reopen hab, Expr.getAppFn_mkAppList_const,
           Option.some.injEq] at hH
         subst hH
         have hmem : InductiveSignature.HeadSpecialization.mk (a.constructorName ctor)
@@ -602,7 +602,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
         intro Δ params v hAs hsize hTr hv
         rw [Expr.getAppArgs_eq, Expr.getAppArgsList_mkAppList_const,
           Expr.mkAppN_eq_mkAppList, ← hauxEq, hrename a ha ctor hctor] at hv
-        exact AuxNestedSpec.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _
+        exact AuxiliaryContainerApp.reopenedTranslation hdom hlvls hYs hlevels hAs hsize hTr _
           (by simpa using hv)
   · intro c nested auxI _ hget
     obtain ⟨info, hc, hn, rfl⟩ := getNestedIfAuxCtor_eq_some hget
@@ -739,7 +739,7 @@ theorem AuxiliaryFamilySourceData.auxNestedSpec
     (hnodup : fvars.Nodup) (sel : CDeclArray result.lctx result.params)
     (hclosed : H.generated.data.nested.looseBVarRange' = 0)
     (hnp : result.nparams = nparams) :
-    AuxNestedSpec result lparams H.generated.data.nested a := by
+    AuxiliaryContainerApp result lparams H.generated.data.nested a := by
   have hsel : sel.fvars = fvars := by
     have h : (sel.fvars.map Expr.fvar).toArray = (fvars.map Expr.fvar).toArray :=
       sel.expressions.symm.trans hfvars
@@ -837,9 +837,9 @@ private theorem forall₂_trExprS_uniqueCtxEnv {env₁ env₂ : VEnv} {Us : List
 
 /-- Two specialisations recorded for the same container application agree on
 their head, universe arguments and parameter arguments. -/
-theorem AuxNestedSpec.unique {result : Lean4Lean.ElimNestedInductive.Result}
+theorem AuxiliaryContainerApp.unique {result : Lean4Lean.ElimNestedInductive.Result}
     {Us₀ : List Name} {nested : Expr} {a b : InductiveSignature.ContainerSpecialization}
-    (ha : AuxNestedSpec result Us₀ nested a) (hb : AuxNestedSpec result Us₀ nested b) :
+    (ha : AuxiliaryContainerApp result Us₀ nested a) (hb : AuxiliaryContainerApp result Us₀ nested b) :
     a.source.name = b.source.name ∧ a.levels = b.levels ∧ a.arguments = b.arguments := by
   obtain ⟨_, domA, lvlA, YsA, hdA, habA, hlA, hYA⟩ := ha
   obtain ⟨_, domB, lvlB, YsB, hdB, habB, hlB, hYB⟩ := hb
@@ -906,9 +906,9 @@ private theorem restoration_expr_paramVars {r : InductiveSignature.Restoration}
 open _root_.Lean4Lean.InductiveSignature in
 /-- **Every replacement hit of an exact run is a restoring leaf** for the
 restoration table of a specialisation list keyed by the run's `aux2nested`
-map (`RestorationTableData.familyKey`). The specialisation keyed by the
+map (`RestorationTablesAgree.familyKey`). The specialisation keyed by the
 auxiliary name is identified with the native source of the hit by
-`AuxNestedSpec.unique`; the universe arguments of the auxiliary occurrence are
+`AuxiliaryContainerApp.unique`; the universe arguments of the auxiliary occurrence are
 the identity by the `ConstLevelsAt` premise of the leaf. -/
 theorem AuxiliaryFamilySources.restoringReplacement
     {isUnsafe : Bool} {initialState : Lean4Lean.ElimNestedInductive.State}
@@ -932,7 +932,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
       nested.looseBVarRange' = 0)
     {auxiliaries : List ContainerSpecialization}
     (hfamilyKey : ∀ c nested, result.aux2nested.find? c = some nested →
-      ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxNestedSpec result lparams nested a)
+      ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxiliaryContainerApp result lparams nested a)
     (hheadNodup :
       ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)).Nodup)
     (hargs : ∀ a ∈ auxiliaries, ∀ arg ∈ a.arguments,
@@ -1022,7 +1022,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
   have hnestedClosed : Ocanonical.origin.generated.data.nested.looseBVarRange' = 0 := by
     rw [Ocanonical.nested_eq]
     exact hclosedNested _ _ T.resultLookup
-  have hspecN : AuxNestedSpec result lparams T.nested aN := by
+  have hspecN : AuxiliaryContainerApp result lparams T.nested aN := by
     have h := Nsource.auxNestedSpec aN
       (by
         change Nsource.container.types[idx].name = _
@@ -1201,18 +1201,18 @@ theorem NestedLowering.resultTypes_eq
 
 open _root_.Lean4Lean.InductiveSignature in
 /-- The container specialisations of an exact validated nested run (as in
-`NestedValidatedRunResult.containerSpecializations`), together with the
+`NestedRun.containerSpecializations`), together with the
 executable restoration-table data relating them to the run's `aux2nested`
 map, lowered constructors and auxiliary-recursor map, and the expansion of
 the source constructors into the lowered ones by leaves that the restoration
 table inverts (`Restoration.RestoringLeaf`), for the source families and
 for the auxiliary families alike. -/
-theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
+theorem NestedRun.restorationTablesRestoringAllSpec
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
@@ -1223,39 +1223,39 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-        E.production.headers.commonParameterContext sourceDecl)
+        E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-        generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams ∧
       List.Forall₂ (fun source lowered : VInductiveType => List.Forall₂
           (fun sc lc : VConstVal => VExpr.NestedExprExpansion
             ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
               (VLevel.params sourceDecl.uvars)) 0 sc.type lc.type)
           source.ctors lowered.ctors)
-        sourceDecl.types (E.production.loweredDecl.types.take sourceDecl.types.length) ∧
+        sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length) ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
           ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
             (VLevel.params sourceDecl.uvars)))
-        generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       ∀ a ∈ auxiliaries, ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
-        AuxNestedSpecAt envTypes E.production.headers.commonParameterContext result lparams
+        AuxNestedSpecAt envTypes E.lowered.headers.commonParameterContext result lparams
           nested a := by
   have hloweredNodup :
-      (familyNames E.production.loweredDecl.types ++
-        E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
+      (familyNames E.lowered.loweredDecl.types ++
+        E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
     rcases E.containerSpecializations wf Hsources with
       ⟨_, _, _, _, _, _, _, h, _⟩
     exact h
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
-  let P := E.production
-  have hc : P.c = E.productionContext := E.production_c
+  let P := E.lowered
+  have hc : P.c = E.context := E.production_c
   have henv : P.c.env = sourceProdEnv :=
     (congrArg AddInductive.Context.env hc).trans E.productionContext_env
   have hlparams : P.c.lparams = lparams :=
@@ -1268,10 +1268,10 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   have hisUnsafe : P.isUnsafe = isUnsafe := E.production_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
-    exact E.productionContextWF
+    exact E.contextWF
   let initialState : Lean4Lean.ElimNestedInductive.State :=
     { lvls := P.c.lparams.map .param, newTypes := #[] }
-  have Hlower : NestedLoweringResultClosed P.c.env
+  have Hlower : NestedLoweringOutputClosed P.c.env
       E.validationFuel.inductiveFuel P.nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
     simpa only [henv, hnparams, hlparams, initialState] using E.lowering
@@ -1283,37 +1283,37 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
         RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
-      (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
+      (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)
   let R := Hpack.2.1
   let Hprod := Hpack.2.2
   have Hsource : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
-      sourceTypes P.isUnsafe sourceDecl E.nativeSource.envTypes
-        E.nativeSource.envCtors := by
+      sourceTypes P.isUnsafe sourceDecl E.sourceCore.envTypes
+        E.sourceCore.envCtors := by
     simpa only [hinitial, hlparams, hnparams, hisUnsafe, safety,
-      E.nativeSourceDecl_eq] using E.nativeSource.core
+      E.nativeSourceDecl_eq] using E.sourceCore.core
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
         source.type target.toVConstVal)
       sourceTypes (P.loweredDecl.types.take sourceTypes.length) := by
-    simpa only [hinitial, hlparams, safety] using E.nativeSource.sourceHeaders
+    simpa only [hinitial, hlparams, safety] using E.sourceCore.sourceHeaders
   have HsourceAdded : P.initialEnv.addConstVals
       ((P.loweredDecl.types.take sourceTypes.length).map
-        VInductiveType.toVConstVal) = some E.nativeSource.envTypes := by
-    simpa only [hinitial, safety] using E.nativeSource.sourceAdded
-  have HsourceTypesWF : E.nativeSource.envTypes.WF :=
+        VInductiveType.toVConstVal) = some E.sourceCore.envTypes := by
+    simpa only [hinitial, safety] using E.sourceCore.sourceAdded
+  have HsourceTypesWF : E.sourceCore.envTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource
       (by simpa only [hinitial, safety] using
         (wf.tr (safety := safety)).wf)
   have Htranslations : ClosedNestedOccurrenceTypings
-      E.nativeSource.envTypes P.c.lparams result E.auxiliarySelection := by
+      E.sourceCore.envTypes P.c.lparams result E.auxiliarySelection := by
     rw [← E.auxiliaryVEnv_eq_native]
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := by
@@ -1324,7 +1324,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
     have key : ∀ (i : Array InductiveType) (h : P.indTypes = i),
         (Eq.mp (congrArg PhasePack h)
-          (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)).1.commonParameterContext =
+          (⟨P.headers, P.constructors, P.recursors⟩ : PhasePack P.indTypes)).1.commonParameterContext =
           P.headers.commonParameterContext := by
       intro i h
       subst h
@@ -1343,11 +1343,11 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   have hvals : sourceDecl.typeConstants =
       (P.loweredDecl.types.take sourceTypes.length).map
         VInductiveType.toVConstVal := by
-    have h := E.nativeSource.sourceTypeValues
+    have h := E.sourceCore.sourceTypeValues
     rw [E.nativeSourceDecl_eq] at h
     exact h
   have hadded : (ves.venv safety).addConstVals sourceDecl.typeConstants =
-      some E.nativeSource.envTypes := by
+      some E.sourceCore.envTypes := by
     have h := HsourceAdded
     rw [hinitial, ← hvals] at h
     exact h
@@ -1357,7 +1357,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     omega
   have Hparts := (Lean4Lean.List.Forall₂.append_of_left hprefixLength).mp
     (by rw [List.take_append_drop]; exact Htypes)
-  have hbaseLE : P.initialEnv ≤ E.nativeSource.envTypes :=
+  have hbaseLE : P.initialEnv ≤ E.sourceCore.envTypes :=
     VEnv.addConstVals_le HsourceAdded
   have Hmap : NestedAuxMapModels result finalState :=
     Hrun.resultAuxMapModelsFresh (by simpa using hempty)
@@ -1366,11 +1366,11 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   have hparamsSize : result.params.size = result.nparams :=
     Hrun.resultParamsSize.trans hnp.symm
   have Hpoint : ∀ family ∈ N.generated, ∃ a,
-      SpecializationGenerates (ves.venv safety) E.nativeSource.envTypes
+      SpecializationGenerates (ves.venv safety) E.sourceCore.envTypes
         N.parameterContext sourceDecl a family ∧
       ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
-        AuxNestedSpec result P.c.lparams nested a ∧
-        AuxNestedSpecAt E.nativeSource.envTypes N.parameterContext result P.c.lparams
+        AuxiliaryContainerApp result P.c.lparams nested a ∧
+        AuxNestedSpecAt E.sourceCore.envTypes N.parameterContext result P.c.lparams
           nested a := by
     intro family hfamily
     rcases List.mem_iff_getElem.mp hfamily with ⟨i, hi, rfl⟩
@@ -1401,7 +1401,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   obtain ⟨generated, hgenEq⟩ : ∃ g, g = N.generated := ⟨_, rfl⟩
   rw [← hgenEq] at Haux Haux' Hexpansion
   rw [hinitial] at Hexpansion
-  have D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+  have D : RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams := by
     rw [hlparams] at Haux'
     have hloweredNames : P.loweredDecl.types.map (·.name) = result.types.map (·.name) :=
@@ -1416,7 +1416,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       Hrun.resultFamilyNamesFreshOfEmpty hwfMap rfl
     -- per-auxiliary data
     have Hper : ∀ a ∈ auxiliaries, ∃ g t,
-        SpecializationGenerates (ves.venv safety) E.nativeSource.envTypes
+        SpecializationGenerates (ves.venv safety) E.sourceCore.envTypes
           P.headers.commonParameterContext sourceDecl a g ∧
         VInductDecl.NestedTypeExpansion (ves.venv safety) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs (ves.venv safety) sourceDecl
@@ -1424,7 +1424,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
         t ∈ P.loweredDecl.types ∧ t.name = a.auxiliary ∧
         t.ctors.map (·.name) = a.source.ctors.map a.constructorName ∧
         ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
-          AuxNestedSpec result lparams nested a := by
+          AuxiliaryContainerApp result lparams nested a := by
       intro a ha
       rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
         ⟨g, hg, hev, nested, hfind, hspec, -⟩
@@ -1594,14 +1594,14 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       exact hsome rfl
 
   have Hspec : ∀ a ∈ auxiliaries, ∃ nested, result.aux2nested.find? a.auxiliary = some nested ∧
-      AuxNestedSpecAt E.nativeSource.envTypes E.production.headers.commonParameterContext
+      AuxNestedSpecAt E.sourceCore.envTypes E.lowered.headers.commonParameterContext
         result lparams nested a := by
     intro a ha
     rcases Lean4Lean.List.Forall₂.forall_exists_l Haux' a ha with
       ⟨g, -, -, nested, hfind, -, hspec⟩
     rw [hlparams] at hspec
     exact ⟨nested, hfind, hspec⟩
-  refine ⟨E.nativeSource.envTypes, generated, auxiliaries, hadded,
+  refine ⟨E.sourceCore.envTypes, generated, auxiliaries, hadded,
     HsourceTypesWF, Haux, Hexpansion, hparamsSize, D, ?_⟩
   -- the restoring expansion of the source families
   let r := compilationRestoration sourceDecl auxiliaries
@@ -1627,7 +1627,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     rw [compilationRestoration_heads_auxiliary]
     exact D.headNodup
   have hkey : ∀ c nested, result.aux2nested.find? c = some nested →
-      ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxNestedSpec result P.c.lparams nested a := by
+      ∃ a ∈ auxiliaries, a.auxiliary = c ∧ AuxiliaryContainerApp result P.c.lparams nested a := by
     rw [hlparams]
     exact D.familyKey
   have hclosedNested : ∀ c nested, result.aux2nested.find? c = some nested →
@@ -1635,7 +1635,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     intro c nested hfind
     rcases Htranslations _ _ hfind with ⟨Htr⟩
     exact Htr.sourceClosed.looseBVarRange_zero
-  let Hclosed : NestedLoweringResultClosed P.c.env E.validationFuel.inductiveFuel
+  let Hclosed : NestedLoweringOutputClosed P.c.env E.validationFuel.inductiveFuel
       P.nparams sourceTypes { initialState with newTypes := sourceTypes.toArray }
       result := ⟨finalState, Hrun, Hcache, ⟨fvars, hfvars, hfvarsNodup⟩⟩
   have hresultNodup := Hclosed.selectionNodup E.auxiliarySelection
@@ -1696,12 +1696,12 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   exact ⟨Hall, Hspec⟩
 
 open _root_.Lean4Lean.InductiveSignature in
-theorem NestedValidatedRunResult.restorationTablesRestoringAll
+theorem NestedRun.restorationTablesRestoringAll
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
@@ -1712,27 +1712,27 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-        E.production.headers.commonParameterContext sourceDecl)
+        E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-        generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams ∧
       List.Forall₂ (fun source lowered : VInductiveType => List.Forall₂
           (fun sc lc : VConstVal => VExpr.NestedExprExpansion
             ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
               (VLevel.params sourceDecl.uvars)) 0 sc.type lc.type)
           source.ctors lowered.ctors)
-        sourceDecl.types (E.production.loweredDecl.types.take sourceDecl.types.length) ∧
+        sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length) ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
           ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
             (VLevel.params sourceDecl.uvars)))
-        generated (E.production.loweredDecl.types.drop sourceDecl.types.length) := by
+        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) := by
   obtain ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, h8, -⟩ :=
     E.restorationTablesRestoringAllSpec wf Hsources
   exact ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, h8⟩
@@ -1740,12 +1740,12 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
 open _root_.Lean4Lean.InductiveSignature in
 /-- `restorationTablesRestoringAll` without the auxiliary families' restoring
 expansion. -/
-theorem NestedValidatedRunResult.restorationTablesRestoring
+theorem NestedRun.restorationTablesRestoring
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
     {isUnsafe : Bool} {outEnv : Environment}
-    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+    (E : NestedRun result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
@@ -1756,22 +1756,22 @@ theorem NestedValidatedRunResult.restorationTablesRestoring
       envTypes.WF ∧
       List.Forall₂ (SpecializationGenerates
         (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
-        E.production.headers.commonParameterContext sourceDecl)
+        E.lowered.headers.commonParameterContext sourceDecl)
         auxiliaries generated ∧
       List.Forall₂ (VInductDecl.NestedTypeExpansion
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
           (VInductDecl.NestedOccurrenceReplacementAbs
             (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
-        generated (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
+        generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) ∧
       result.params.size = result.nparams ∧
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams ∧
       List.Forall₂ (fun source lowered : VInductiveType => List.Forall₂
           (fun sc lc : VConstVal => VExpr.NestedExprExpansion
             ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
               (VLevel.params sourceDecl.uvars)) 0 sc.type lc.type)
           source.ctors lowered.ctors)
-        sourceDecl.types (E.production.loweredDecl.types.take sourceDecl.types.length) := by
+        sourceDecl.types (E.lowered.loweredDecl.types.take sourceDecl.types.length) := by
   obtain ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7, -⟩ :=
     E.restorationTablesRestoringAll wf Hsources
   exact ⟨envTypes, generated, auxiliaries, h1, h2, h3, h4, h5, h6, h7⟩
@@ -1911,7 +1911,7 @@ theorem restoreNestedNode_closed
       rw [restoreNestedNode_eq_of_notRecursor result env As auxRec t hnotrec, hfn] at h
       cases h
 
-theorem AuxNestedSpec.reopen_closed {result : Lean4Lean.ElimNestedInductive.Result}
+theorem AuxiliaryContainerApp.reopen_closed {result : Lean4Lean.ElimNestedInductive.Result}
     {Us₀ : List Name} {a : InductiveSignature.ContainerSpecialization}
     {envS : VEnv} {domains : List VExpr} {Ys : List Expr}
     (hdomains : domains.length = result.nparams)
@@ -1930,11 +1930,11 @@ theorem AuxNestedSpec.reopen_closed {result : Lean4Lean.ElimNestedInductive.Resu
     simpa [hdomains, hsize, VLCtx.bvars] using this
 
 /-- Every executable replacement head is closed, at the opened parameters. -/
-theorem RestorationTableData.restoreHead_closed {decl : VInductDecl}
+theorem RestorationTablesAgree.restoreHead_closed {decl : VInductDecl}
     {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
+    (D : RestorationTablesAgree decl auxiliaries result env auxRec Us₀)
     {As : Array Expr} (hAs : ∀ a ∈ As.toList, ∃ fv, a = .fvar fv)
     (hsize : As.size = result.nparams) :
     ∀ c H, restoreHead result env As c = some H → Closed H := by
@@ -1946,10 +1946,10 @@ theorem RestorationTableData.restoreHead_closed {decl : VInductDecl}
     cases hH
     obtain ⟨a, _, _, envS, domains, lvls, Ys, hdom, hab, _, hYs⟩ :=
       D.familyKey _ nested hfind
-    rw [AuxNestedSpec.reopen hab, Closed.mkAppList_iff]
+    rw [AuxiliaryContainerApp.reopen hab, Closed.mkAppList_iff]
     exact ⟨trivial, fun Y hY => by
       rcases List.mem_map.mp hY with ⟨Y', hY', rfl⟩
-      exact AuxNestedSpec.reopen_closed hdom hYs hAs hsize Y' hY'⟩
+      exact AuxiliaryContainerApp.reopen_closed hdom hYs hAs hsize Y' hY'⟩
   | none =>
     rw [hfind] at hH
     cases hget : result.getNestedIfAuxCtor env c with
@@ -1960,7 +1960,7 @@ theorem RestorationTableData.restoreHead_closed {decl : VInductDecl}
       obtain ⟨info, _, hn, rfl⟩ := getNestedIfAuxCtor_eq_some hget
       obtain ⟨a, _, _, envS, domains, lvls, Ys, hdom, hab, _, hYs⟩ :=
         D.familyKey _ nested hn
-      simp only [AuxNestedSpec.reopen hab, Expr.getAppFn_mkAppList_const,
+      simp only [AuxiliaryContainerApp.reopen hab, Expr.getAppFn_mkAppList_const,
         Option.some.injEq] at hH
       subst hH
       rw [Expr.getAppArgs_eq, Expr.getAppArgsList_mkAppList_const,
@@ -1968,14 +1968,14 @@ theorem RestorationTableData.restoreHead_closed {decl : VInductDecl}
       rw [Closed.mkAppList_iff]
       exact ⟨trivial, fun Y hY => by
         rcases List.mem_map.mp hY with ⟨Y', hY', rfl⟩
-        exact AuxNestedSpec.reopen_closed hdom hYs hAs hsize Y' hY'⟩
+        exact AuxiliaryContainerApp.reopen_closed hdom hYs hAs hsize Y' hY'⟩
 
 /-- The restored body of every opening of a closed lowered type is closed. -/
 theorem NestedRestorationOpening.restoredBody_closed {decl : VInductDecl}
     {auxiliaries : List InductiveSignature.ContainerSpecialization}
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us₀ : List Name}
-    (D : RestorationTableData decl auxiliaries result env auxRec Us₀)
+    (D : RestorationTablesAgree decl auxiliaries result env auxRec Us₀)
     {input output suffix : Expr}
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htel : Expr.ForallTelescope input result.nparams suffix)

@@ -383,19 +383,19 @@ namespace VerifyInductive
 
 /-! ### Restored recursor names are fresh -/
 
-theorem FreshConstantTrace.overwritable
-    (H : FreshConstantTrace env entries outEnv)
+theorem FreshExtension.overwritable
+    (H : FreshExtension env entries outEnv)
     (h : SMapOverwritable env.constants x) :
     SMapOverwritable outEnv.constants x := by
   induction H with
   | nil => exact h
   | cons _ _ ih => exact ih (h.insert _ _)
 
-theorem RestoredInductiveDeclResult.freshTraceWithRecursor
-    (H : RestoredInductiveDeclResult result loweredEnv sourceEnv auxRec
+theorem SourceFamilyRestoration.freshTraceWithRecursor
+    (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∃ e ∈ entries, e.name =
         auxRec.getD (Lean.mkRecName indType.name) (Lean.mkRecName indType.name) := by
   let header : ConstantInfo := .inductInfo H.header.newInfo
@@ -404,7 +404,7 @@ theorem RestoredInductiveDeclResult.freshTraceWithRecursor
   have hheaderFresh : sourceEnv.find? header.name = none :=
     find?_none_of_contains_false hwf H.header.fresh
   have hwfHeader := constantsWF_add_checked hwf hheaderFresh
-  have Hconstructors' : StateForMTrace
+  have Hconstructors' : FoldSteps
       (RestoredConstructorStep result loweredEnv) oldInfo.ctors
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
@@ -423,16 +423,16 @@ theorem RestoredInductiveDeclResult.freshTraceWithRecursor
     H.recursor.restored.restoration.name.trans H.recursor.restored.mappedName
   rw [htarget]
   exact ⟨header :: constructors ++ [recursor],
-    FreshConstantTrace.cons hheaderFresh
+    FreshExtension.cons hheaderFresh
       (Hconstructors.append (.cons hrecFresh .nil)),
     recursor, by simp, hrecName⟩
 
-theorem StateForMTrace.inductiveFreshTraceWithRecursors
-    (H : StateForMTrace
+theorem FoldSteps.inductiveFreshTraceWithRecursors
+    (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∀ t ∈ types, ∃ e ∈ entries, e.name =
         auxRec.getD (Lean.mkRecName t.name) (Lean.mkRecName t.name) := by
   induction H with
@@ -449,12 +449,12 @@ theorem StateForMTrace.inductiveFreshTraceWithRecursors
     · rcases htail t ht with ⟨e', he', hname'⟩
       exact ⟨e', by simp [he'], hname'⟩
 
-theorem StateForMTrace.recursorFreshTraceWithNames
-    (H : StateForMTrace
+theorem FoldSteps.recursorFreshTraceWithNames
+    (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ∃ entries, FreshConstantTrace sourceEnv entries targetEnv ∧
+    ∃ entries, FreshExtension sourceEnv entries targetEnv ∧
       ∀ n ∈ names, ∃ e ∈ entries, e.name = auxRec.getD n n := by
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
@@ -477,8 +477,8 @@ theorem StateForMTrace.recursorFreshTraceWithNames
       exact ⟨e, by simp [he], hname'⟩
 
 /-- Every restored recursor name is fresh in the source environment. -/
-theorem RestoredNestedDeclarationsResult.restoredRecursorNamesFresh
-    (H : RestoredNestedDeclarationsResult result loweredEnv sourceEnv auxRec
+theorem NestedRestorationFolds.restoredRecursorNamesFresh
+    (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames out)
     (hwf : sourceEnv.constants.WF)
     (hx : x ∈ Lean4Lean.restoredRecursorNames auxRec types auxRecNames) :
@@ -506,7 +506,7 @@ every new visible recursor of the stripped map.  The local invariants,
 constructor owners and projection registry are transported from
 `finalLocalValidOfStaged`; old recursors and the quotient facts come from the
 source environment, since every stripped name is fresh there. -/
-theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
+theorem NestedRestorationFolds.finalValidOfStaged_of_shapes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -515,7 +515,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
       depth sourceVEnv result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
+    (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
@@ -524,10 +524,10 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : sourceDecl.ConstructorArityPrefix loweredDecl)
     (hempty : initialState.nestedAux = #[])
-    (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
+    (Hrestored : NestedRestorationFolds result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv))
-    (Hactual : FreshConstantTrace c.env actualEntries outEnv)
+    (Hactual : FreshExtension c.env actualEntries outEnv)
     (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
       sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
