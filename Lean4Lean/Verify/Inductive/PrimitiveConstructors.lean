@@ -289,6 +289,29 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.primitiveAbstractConstants
         · simpa [hlparams] using Hsucc.uvars
         · exact hsuccType
 
+/-- The primitive constructor types are `Bool`, `Nat` and `Nat → Nat`: certified directly. -/
+theorem SourceCtorsCertified.ofPrimitiveShape {targets : List VInductiveType}
+    (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
+    (Htranslated : List.Forall₂ (fun source target => List.Forall₂
+        (fun ctor ctor' => TrSourceConst venv lparams ctor.name ctor.type ctor')
+        source.ctors target.ctors) types targets) :
+    SourceCtorsCertified venv lparams types := by
+  refine SourceCtorsCertified.ofTranslated Htranslated ?_
+  intro owner howner ctor hctor T hT
+  rcases Hshape with ⟨-, -, -, hbool | ⟨_, _, hnat⟩⟩
+  · rw [hbool] at howner
+    simp only [List.mem_singleton] at howner
+    subst howner
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hctor
+    rcases hctor with rfl | rfl <;> exact ⟨_, TelTrN.const hT⟩
+  · rw [hnat] at howner
+    simp only [List.mem_singleton] at howner
+    subst howner
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hctor
+    rcases hctor with rfl | rfl
+    · exact ⟨_, TelTrN.const hT⟩
+    · exact ⟨_, TelTrN.constArrow hT⟩
+
 /-- The executable constructor declaration fold is verified atomically on a
 canonical primitive branch.  Validity is restored only after the family
 header and all constructors have been identified as one complete bootstrap
@@ -307,6 +330,9 @@ theorem AddInductive.declareConstructors.primitiveWF
         ∃ _ : PrimitiveDeclaredConstructorsResult H outEnv, True := by
   let mkInfo := AddInductive.constructorInfo stats c.lparams isUnsafe
   have Htranslated := Hchecked.translated H.translation
+  have hctors : H.context.venv.HasCanonicalChoice ∨
+      SourceCtorsCertified H.context.venv c.lparams indTypes.toList :=
+    .inr (SourceCtorsCertified.ofPrimitiveShape Hshape Htranslated)
   have Hfold := AtomicAddConstants.ofConstructorTypes
     (allowPrimitive := c.allowPrimitive) mkInfo H.context.checking
     Htranslated VEnv.LE.rfl
@@ -504,6 +530,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       rwa [H.sourceContextVEnv] at h
     let Hcontext := Hinstalled.completeContext H.context
       hprimitives hsafe hannotations howners hregistry hrecursors hquot
+      (Hinstalled.corner H.context.checking H.context.corner (Haligned.cornerSteps hctors))
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
       rw [← hctorValues]

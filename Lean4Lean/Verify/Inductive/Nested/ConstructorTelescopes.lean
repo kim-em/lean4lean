@@ -1,0 +1,178 @@
+import Lean4Lean.Verify.Inductive.Nested.ConstructorTypeRoundTrip
+import Lean4Lean.Verify.Inductive.Constructor.Telescopes
+import Lean4Lean.Verify.Inductive.Nested.HeaderNativeEvidence
+import Lean4Lean.Verify.Inductive.Nested.ValidationEnvironmentRegistry
+import Lean4Lean.Verify.Inductive.Nested.FreshTraceLemmas
+import Lean4Lean.Verify.Inductive.Nested.EndToEnd
+
+/-!
+# Telescope certificates of restored nested constructors
+
+A successful nested run stores, for every source constructor, the restoration of the lowered
+constructor type, which is `Expr.eqv` to the source type
+(`NestedValidatedRunResult.installedConstructorSource`). The source type itself is checked by
+`validateRestoredConstructorParameters.run` in the header-only validation environment, before
+any environment containing the restored constructors is used by the checker; that run certifies
+its telescope (`checkType.WF_telTr`), and `Expr.eqv` transports the certificate.
+-/
+
+namespace Lean4Lean
+open Lean hiding Environment Exception
+open Kernel
+
+namespace VerifyInductive
+
+/-- The executable source-type check of the nested constructor validation certifies the
+telescope of every source constructor type in the validation environment. -/
+theorem validateRestoredConstructorParameters.telTr_of_run
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (henv : TypeChecker.EnvGF (fun _ => True) env)
+    (Hsources : SourceSyntaxChecks types)
+    (hrun : Lean4Lean.validateRestoredConstructorParameters.run env lparams
+      safety fuel types result = .ok ())
+    (htype : indType ∈ types) (hctor : ctor ∈ indType.ctors) :
+    ∃ T, TelTr venv lparams [] ctor.type T := by
+  rcases validateRestoredConstructorParameters.typeCheck_eq_ok_of_run
+      hrun htype hctor with ⟨checked, hcheck⟩
+  have hclosed := Hsources.constructorsClosed htype ctor hctor
+  have hfvars : ctor.type.FVarsIn fun fv => fv ∈
+      (TypeChecker.VContext.mkCheckingValid hvalid lparams fuel).vlctx.fvars := by
+    simpa [TypeChecker.VContext.mkCheckingValid,
+      TypeChecker.VContext.mkChecking] using hclosed
+  have Hcheck : (do
+      let type ← TypeChecker.checkType ctor.type
+      TypeChecker.ensureSort type ctor.type).WF
+      (TypeChecker.VContext.mkCheckingValid hvalid lparams fuel) {}
+      fun _ _ => ∃ T, TelTr venv lparams [] ctor.type T := by
+    refine ((TypeChecker.checkType.WF (e := ctor.type) hfvars).and
+      (TypeChecker.checkType.WF_telTr henv (by intro k r h; simp at h) hfvars
+        (by simp))).bind fun _ _ _ ⟨⟨_, _, _, _, hsort, _⟩, htel⟩ => ?_
+    exact (TypeChecker.ensureSort.WF hsort).mono fun _ _ _ _ => htel
+  exact TypeChecker.M.WF.runCheckingValid Hcheck checked hcheck
+
+/-- Every constructor visible after a successful validated nested run is old, or a new
+constructor carrying the declaration's safety flag and certified in the source header
+environment. -/
+theorem NestedValidatedRunResult.restoredCtorOrigin
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Howners : ConstructorOwnersPresent sourceProdEnv)
+    (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
+    {name : Name} {ci : ConstructorVal} (hfind : outEnv.find? name = some (.ctorInfo ci)) :
+    sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+      (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt E.nativeSource.envTypes ci) := by
+  have hwf : sourceProdEnv.constants.WF := by
+    have h := E.productionContextWF.checking.tr.map_wf
+    rwa [E.productionContext_env] at h
+  -- the restored headers have the source header types
+  have hheaderType : ∀ indType ∈ sourceTypes, ∀ oldInfo : InductiveVal,
+      E.loweredEnv.find? indType.name = some (.inductInfo oldInfo) →
+      oldInfo.type = indType.type := by
+    intro indType hmem oldInfo hlookup
+    rcases List.mem_iff_getElem.mp hmem with ⟨familyIdx, hfamily, rfl⟩
+    have key : ∀ P : NestedInstalledProduction E.loweredEnv,
+        P.c.env = sourceProdEnv → P.nparams = nparams →
+        P.indTypes = result.types.toArray → ContextWF P.c →
+        oldInfo.type = sourceTypes[familyIdx].type := by
+      intro P henv' hnparams hindTypes Hc
+      rcases P with ⟨c, stats, loweredDecl, nparams', depth, isUnsafe',
+        initialEnv, indTypes, headerEnv, ctorEnv, Hheaders, R, Hprod⟩
+      dsimp only at henv' hnparams hindTypes Hc
+      subst hnparams hindTypes
+      let initialState : Lean4Lean.ElimNestedInductive.State :=
+        { lvls := lparams.map .param, newTypes := #[] }
+      have hempty : initialState.nestedAux = #[] := by
+        apply Array.ext
+        · rfl
+        · intro i _hi₁ hi₂
+          simp at hi₂
+      have Hlower : NestedLoweringResultClosed c.env
+          E.validationFuel.inductiveFuel nparams' sourceTypes
+          { initialState with newTypes := sourceTypes.toArray } result := by
+        rw [henv']
+        simpa [initialState] using E.lowering
+      rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+        ⟨_, _, loweredTarget, _, _, _, _, Hmapping, htarget⟩
+      obtain ⟨hresultFamily, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
+      rcases Hprod.findSourceHeaderAt Hc familyIdx (by simpa using hresultFamily) with
+        ⟨info, hinfoLookup, -, hinfoType, -⟩
+      have hinfoLookup' : E.loweredEnv.find? sourceTypes[familyIdx].name =
+          some (.inductInfo info) := by
+        rw [← Hmapping.name]
+        simpa [htargetEq] using hinfoLookup
+      cases ConstantInfo.inductInfo.inj (Option.some.inj (hlookup.symm.trans hinfoLookup'))
+      rw [hinfoType, ← Hmapping.type]
+      simp [htargetEq]
+    exact key E.production
+      ((congrArg AddInductive.Context.env E.production_c).trans
+        E.productionContext_env)
+      E.production_nparams E.production_indTypes
+      (E.production_c ▸ E.productionContextWF)
+  -- the header-only validation environment is ghost-free
+  have hgf : TypeChecker.EnvGF (fun _ => True) E.auxiliaryHeaderEnv := by
+    intro n ci hfind
+    rcases E.headerValidationEnvironment.headers.headerFindCases hwf hfind with
+      hold | ⟨indType, hmem, oldInfo, hlookup, -, rfl⟩
+    · exact henv hold
+    · refine ⟨?_, fun v hv => by simp [ConstantInfo.deltaValue?] at hv, fun r hr => by
+        cases hr⟩
+      show TypeChecker.GF _ oldInfo.type
+      rw [hheaderType indType hmem oldInfo hlookup]
+      exact (Hsources.typeClosed hmem).mono fun _ h => h.elim
+  -- every source constructor type is certified by the validation run
+  have hsrc : ∀ type ∈ sourceTypes, ∀ source ∈ type.ctors,
+      ∃ T, TelTr E.nativeSource.envTypes lparams [] source.type T :=
+    fun _ htype _ hsource => validateRestoredConstructorParameters.telTr_of_run
+      E.nativeSource.headerValidationValid hgf Hsources E.parameterValidation htype hsource
+  rcases E.installedConstructorSource Hsources Howners hfind with
+    hold | ⟨type, htype, source, hsource, -, hlp, heqv, -, hu⟩
+  · exact .inl hold
+  · obtain ⟨T, hT⟩ := hsrc type htype source hsource
+    refine .inr ⟨hu, ?_⟩
+    rw [CtorTelescopeAt, hlp]
+    exact ⟨T, hT.eqv_toTelTrN (BEq.symm heqv)⟩
+
+/-- Every constructor visible after a successful validated nested run, and every constructor of
+its constructor-validation environment, is certified in the source header environment. -/
+theorem NestedValidatedRunResult.restoredCtorTelescopes
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Howners : ConstructorOwnersPresent sourceProdEnv)
+    (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
+    (hbase : CtorTelescopes safety sourceProdEnv sourceVEnv) :
+    CtorTelescopes safety outEnv E.nativeSource.envTypes ∧
+      CtorTelescopes safety E.validationEnv E.nativeSource.envTypes := by
+  have hwf : sourceProdEnv.constants.WF := by
+    have h := E.productionContextWF.checking.tr.map_wf
+    rwa [E.productionContext_env] at h
+  have hle : sourceVEnv ≤ E.nativeSource.envTypes :=
+    VEnv.addConstVals_le E.nativeSource.core.typesAdded
+  have hout : CtorTelescopes safety outEnv E.nativeSource.envTypes := by
+    intro name ci hfind hvis
+    rcases E.restoredCtorOrigin Hsources Howners henv hfind with hold | ⟨-, hc⟩
+    · exact (hbase hold hvis).mono hle
+    · exact hc
+  refine ⟨hout, ?_⟩
+  intro name ci hfind hvis
+  refine hout (name := name) (ci := ci) ?_ hvis
+  -- the constructors of the validation environment are those of the output
+  rcases E.restoration.inductives.inductiveFreshTrace hwf with ⟨_, Hprimary⟩
+  have hprimaryWF := Hprimary.targetWF hwf
+  rcases E.restoration.auxiliaries.recursorFreshTrace hprimaryWF with ⟨_, Hauxiliary⟩
+  rcases E.validationEnvironment.findCases hwf hfind with hold | ⟨_, _, _, _, _, hci⟩ |
+      ⟨indType, hmem, oldInfo, hlookup, cn, hcn, ctorOld, hctorLookup, rfl, hci⟩
+  · exact Hauxiliary.preservesSourceFind hprimaryWF
+      (Hprimary.preservesSourceFind hwf hold)
+  · cases hci
+  · rcases E.restoration.inductives.inductiveHeaderFindOfMem hwf hmem with
+      ⟨oldInfo', hlookup', _, hctors⟩
+    cases ConstantInfo.inductInfo.inj (Option.some.inj (hlookup.symm.trans hlookup'))
+    rcases hctors cn hcn with ⟨ctorOld', hctorLookup', hctorFind⟩
+    cases ConstantInfo.ctorInfo.inj (Option.some.inj (hctorLookup.symm.trans hctorLookup'))
+    rw [hci]
+    exact Hauxiliary.preservesSourceFind hprimaryWF hctorFind
+
+end VerifyInductive
+end Lean4Lean

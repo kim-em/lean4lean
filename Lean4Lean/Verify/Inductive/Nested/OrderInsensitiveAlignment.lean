@@ -162,7 +162,6 @@ theorem CheckingEnv.ValidCore.mapExt
     CheckingEnv.ValidCore safety target venv where
   tr := CheckingEnv.mapExt H.tr htargetWF heq
   hasPrimitives := H.hasPrimitives
-  canonicalChoice := H.canonicalChoice
   safePrimitives := by
     intro name ci hfind hprimitive
     have hfindTarget : target.constants.find? name = some ci := by
@@ -203,7 +202,7 @@ theorem CheckingEnv.Valid.mapExt
   recursors := H.recursors.mapExt heq
   quot hq := (H.quot (hquotInit ▸ hq)).mapExt heq
   hasPrimitives := H.hasPrimitives
-  canonicalChoice := H.canonicalChoice
+  corner := H.corner.mapExt H.tr.map_wf htargetWF heq
   safePrimitives := by
     intro name ci hfind hprimitive
     have hfindTarget : target.constants.find? name = some ci := by
@@ -241,18 +240,6 @@ theorem AddConstants.freshTrace
   induction H with
   | nil => exact .nil
   | cons hfresh _ _ _ _ _ _ ih => exact .cons hfresh ih
-
-/-- A lockstep semantic installation preserves the local checking invariant.
-Unlike `AddConstants.valid`, this needs no primitive-metadata side
-conditions. -/
-theorem AddConstants.checking
-    (H : AddConstants safety source sourceVEnv entries target targetVEnv)
-    (Hsource : CheckingEnv safety source sourceVEnv) :
-    CheckingEnv safety target targetVEnv := by
-  induction H with
-  | nil => exact Hsource
-  | cons hfresh _ htr hwf hadd hdelta _ ih =>
-    exact ih (Hsource.add hfresh htr.1 hwf hadd hdelta)
 
 /-- A canonical dependency-ordered semantic installation can justify the
 actual family-interleaved production environment whenever their exact
@@ -305,11 +292,12 @@ theorem AddConstants.validOfFreshPermutation
       targetVEnv)
     (hrecursors : RecursorEnvCoherent safety canonicalTarget.constants targetVEnv)
     (hquot : canonicalTarget.quotInit = true →
-      QuotEnvCoherent canonicalTarget.constants targetVEnv) :
+      QuotEnvCoherent canonicalTarget.constants targetVEnv)
+    (hcorner : ProjectionCorner safety canonicalTarget targetVEnv) :
     CheckingEnv.Valid safety actualTarget targetVEnv := by
   have HcanonicalValid :
       CheckingEnv.Valid safety canonicalTarget targetVEnv :=
-    (Hcanonical.validCore Hsource).toValid howners hregistry hrecursors hquot
+    (Hcanonical.validCore Hsource).toValid howners hregistry hrecursors hquot hcorner
   have heq := Hactual.lookupEqOfPerm Hcanonical.freshTrace
     Hsource.tr.map_wf hperm
   exact CheckingEnv.Valid.mapExt HcanonicalValid

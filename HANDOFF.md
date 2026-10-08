@@ -12,7 +12,6 @@ instruction for the branch is [docs/inductives/GOAL.md](docs/inductives/GOAL.md)
 ```lean
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (decl : Declaration) (hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
@@ -22,13 +21,22 @@ in [Lean4Lean/Verify/Environment.lean](Lean4Lean/Verify/Environment.lean). If th
 `addDecl` succeeds, the result environment is modelled by abstract environments `ves'` that
 are well formed and extend the input models at every safety level. The dependency cone has an
 empty `sorry` inventory. `addDecl.WFHasCanonicalEq` is the iterable form: it also returns
-`HasCanonicalEq` and `HasCanonicalChoice` for `ves'`, so the theorem applies again to the next
-declaration of a replay.
+`HasCanonicalEq` for `ves'`, so the theorem applies again to the next declaration of a replay.
+There is no canonical-choice hypothesis. The previous form over the core invariant survives as
+`addDecl.WF_of_canonicalChoice` (`wf : ves.WFCore env` plus `hch : HasCanonicalChoice`, with
+iterable form `addDecl.WFHasCanonicalChoice`).
 
 The hypotheses, and what each one costs:
 
 - `wf : ves.WF env`. The executable environment is modelled by well-formed abstract
-  environments. This is the invariant being preserved; it is not an extra assumption.
+  environments. `VEnvs.WF` ([Verify/TypeChecker.lean](Lean4Lean/Verify/TypeChecker.lean)) is
+  the core invariant `VEnvs.WFCore` together with constructor telescope certificates
+  (`ctorCert : ves.CtorCert env`: every visible constructor's stored type has a `TelTrN`
+  telescope translation along its whole `forallE` spine). This is the invariant being
+  preserved; it is not an extra assumption. An environment without constructors satisfies it
+  from `WFCore` alone (`VEnvs.WF.ofNoCtors`), and every checked declaration establishes the
+  certificates of the constructors it installs (`VEnvs.CertPres` in the conclusion of
+  `addDecl.WF`).
 - `heq : HasCanonicalEq` ([Theory/CanonicalEq.lean](Lean4Lean/Theory/CanonicalEq.lean)).
   A constant-presence predicate: `Eq`, `Eq.refl`, `Eq.rec` are present with the stored types
   of the prelude, and the iota rule of `Eq.rec` is a definitional equation. It is monotone
@@ -42,16 +50,10 @@ The hypotheses, and what each one costs:
   and the type of `Quot.lift` mentions `Eq`; the underlying theorem `addDecl.WF` takes that
   readiness (`VEnv.QuotReady` at each level) as its hypothesis and `WF_of_canonicalEq` derives
   it from `heq`. The confluence theorem `WF.church_rosser` also needs it, outside the cone.
-- `hch : HasCanonicalChoice`
-  ([Theory/CanonicalChoice.lean](Lean4Lean/Theory/CanonicalChoice.lean)). A constant-presence
-  predicate: `Nonempty`, `Nonempty.intro` and the axiom `Classical.choice` are present with the
-  prelude's types (one universe parameter each; `Nonempty.rec` is not required). Monotone, and
-  realized by the prelude replay
-  ([Verify/CanonicalChoiceRealization.lean](Lean4Lean/Verify/CanonicalChoiceRealization.lean),
-  `VEnvs.WF.hasCanonicalChoice`; [Tests/CanonicalChoice.lean](Lean4Lean/Tests/CanonicalChoice.lean)).
-  It is used at exactly one place, the projection-walk corner (section 3(b)). The honest
-  reading of the theorem is therefore: soundness of `addDecl` in environments that contain
-  the canonical prelude declarations, which every real Lean environment does.
+- No `hch : HasCanonicalChoice`. The projection-walk corner (section 3(b)) is resolved by the
+  constructor certificates of `wf` (`VEnvs.CtorCert.corner`, a `ProjectionCorner`, which is
+  `HasCanonicalChoice ∨ CtorTelescopes`); see
+  [STRENGTHENING_PLAN_2026-10-08.md](docs/inductives/STRENGTHENING_PLAN_2026-10-08.md).
 - `hdecl : decl.IsModelled env ves`. Now `True` for every declaration form, including
   `quotDecl` (covered by `addQuot.WF` since 2026-10-08; see
   [QUOT_THEOREM.md](docs/inductives/QUOT_THEOREM.md) and
@@ -215,9 +217,11 @@ In progress on branches off `agent/verify-inductives` (none of this is merged ye
   half, and deletion of dead modules.
 - `agent/verify-inductives-pipeline`: consolidation of the recursor pipeline, retiring
   `Verify/Inductive/Equation/`.
-- `agent/verify-inductives-strengthening` (with helper branches `-strengthening-*`): research
-  on a choice-free projection-walk corner via a frame-lemma route, following route (b) of
-  STRENGTHENING_NOTES.md. Success would delete `hch`; there is no estimate of success.
+- `agent/verify-inductives-strengthening`: LANDED there. The choice-free projection-walk
+  corner via constructor-telescope certificates: `VEnvs.WF` = `WFCore` + `CtorCert`,
+  `hch` deleted from `addDecl.WF_of_canonicalEq` (kept in `addDecl.WF_of_canonicalChoice` over
+  `WFCore`). See
+  [STRENGTHENING_PLAN_2026-10-08.md](docs/inductives/STRENGTHENING_PLAN_2026-10-08.md) §8.
 
 Left as is:
 

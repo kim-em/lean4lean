@@ -11,7 +11,7 @@ open Kernel
 structure VEnvs where
   venv : DefinitionSafety → VEnv
 
-structure VEnvs.WF (env : Environment) (ves : VEnvs) where
+structure VEnvs.WFCore (env : Environment) (ves : VEnvs) where
   tr : TrEnv safety env (ves.venv safety)
   hasPrimitives : VEnv.HasPrimitives (ves.venv safety)
   safePrimitives : env.find? n = some ci →
@@ -28,25 +28,87 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) where
 /-- The unsafe observer sees every production inductive, so the persistent
 semantic invariant also supplies safety-independent exact constructor
 metadata coherence. -/
-theorem VEnvs.WF.inductiveConstructorsCoherent
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+theorem VEnvs.WFCore.inductiveConstructorsCoherent
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     VerifyInductive.InductiveConstructorsCoherent env := by
   intro familyName familyInfo hfamily i hi
   rcases wf.constructorSemantics (safety := .unsafe)
       familyName familyInfo hfamily DefinitionSafety.unsafe_le i hi with ⟨C⟩
   exact ⟨C.toInductiveConstructorCoherenceAt⟩
 
-theorem VEnvs.WF.projectionRegistryCoherent
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env) :
+theorem VEnvs.WFCore.projectionRegistryCoherent
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) :
     ProjectionRegistryCoherent safety env.constants (ves.venv safety) :=
   wf.inductiveProvenance.projectionRegistryCoherent
 
-theorem VEnvs.WF.toCheckingValid
-    {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (safety : DefinitionSafety) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) :
+theorem VEnvs.WFCore.toCheckingValid
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (safety : DefinitionSafety) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
     CheckingEnv.Valid safety env (ves.venv safety) :=
   wf.tr.toCheckingValid wf.hasPrimitives wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+
+/-- Every visible constructor of `env` carries a telescope certificate at every safety level
+(`CtorTelescopes`). This is the environment invariant that replaces canonical choice at the
+projection-walk corner of `inferProj`. -/
+def VEnvs.CtorCert (env : Environment) (ves : VEnvs) : Prop :=
+  ∀ safety, CtorTelescopes safety env (ves.venv safety)
+
+/-- The well-formedness invariant of the checker's environment model: the core invariant
+(`VEnvs.WFCore`) together with the constructor certificates (`VEnvs.CtorCert`). Any core-valid
+environment without constructors satisfies it (`VEnvs.WF.ofNoCtors`), and every checked
+declaration preserves it (`addDecl.WF_of_canonicalEq`). -/
+structure VEnvs.WF (env : Environment) (ves : VEnvs) : Prop extends VEnvs.WFCore env ves where
+  ctorCert : ves.CtorCert env
+
+/-- Certificate preservation from `env, ves` to `env', ves'`: the conclusion every declaration
+check provides alongside `VEnvs.WFCore`. -/
+def VEnvs.CertPres (env env' : Environment) (ves ves' : VEnvs) : Prop :=
+  ves.CtorCert env → ves'.CtorCert env'
+
+/-- An environment without constructors carries the constructor certificates vacuously. -/
+theorem VEnvs.CtorCert.ofNoCtors {env : Environment} {ves : VEnvs}
+    (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.CtorCert env :=
+  fun _ name ci hfind _ => absurd hfind (h name ci)
+
+/-- A core-valid environment without constructors satisfies the full invariant. -/
+theorem VEnvs.WF.ofNoCtors {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.WF env :=
+  ⟨wf, .ofNoCtors h⟩
+
+theorem VEnvs.CtorCert.corner {env : Environment} {ves : VEnvs} (H : ves.CtorCert env) :
+    ∀ safety, ProjectionCorner safety env (ves.venv safety) :=
+  fun safety => .inr (H safety)
+
+open private Lean.Kernel.Environment.add from Lean.Environment in
+/-- A fresh non-constructor constant needs no certificate. -/
+theorem VEnvs.CertPres.addNonCtor {env : Environment} {ves ves' : VEnvs} {ci : ConstantInfo}
+    (wf : ves.WFCore env) (hn : env.find? ci.name = none)
+    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety)
+    (hnot : ∀ info, ci ≠ .ctorInfo info) : VEnvs.CertPres env (env.add ci) ves ves' :=
+  fun H safety => CtorTelescopes.addNonCtor (H safety) (wf.tr (safety := safety)).map_wf hn
+    (hle safety) hnot
+
+/-- Certificate preservation for an inductive installation: every constructor of the output is
+old, or a new constructor of the declaration (with its safety flag) certified in an abstract
+environment below the output model at the declaration's safety. Old constructors keep their
+certificates by monotonicity; a new one is visible only to observers at most as strict as the
+declaration's safety, whose models extend the declaration's. -/
+theorem VEnvs.CertPres.ofOrigin {env env' : Environment} {ves ves' : VEnvs} {isUnsafe : Bool}
+    {venvH : VEnv}
+    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety)
+    (hmono : ∀ {safety safety'}, safety ≤ safety' → ves'.venv safety' ≤ ves'.venv safety)
+    (hH : venvH ≤ ves'.venv (if isUnsafe then .unsafe else .safe))
+    (horigin : ∀ {name ci}, env'.find? name = some (.ctorInfo ci) →
+      env.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
+    VEnvs.CertPres env env' ves ves' := by
+  intro hold safety name ci hfind hvis
+  rcases horigin hfind with h | ⟨hu, hc⟩
+  · exact (hold safety h hvis).mono (hle safety)
+  · have hs : safety ≤ (if isUnsafe then .unsafe else .safe) := by
+      simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hu] using hvis
+    exact hc.mono (hH.trans (hmono hs))
 
 /-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
 three safety levels. -/
@@ -68,7 +130,7 @@ structure VEnvAt (env : Environment) (safety : DefinitionSafety) (venv : VEnv) :
   recursors : RecursorEnvCoherent safety env.constants venv
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
 
-theorem VEnvs.WF.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem VEnvs.WFCore.toVEnvAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) : VEnvAt env safety (ves.venv safety) where
   tr := wf.tr
   hasPrimitives := wf.hasPrimitives
@@ -123,7 +185,7 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
     (projectionRegistry : ProjectionRegistryCoherent safety env.constants venv)
     (recursors : RecursorEnvCoherent safety env.constants venv)
     (quot : env.quotInit = true → QuotEnvCoherent env.constants venv)
-    (canonicalChoice : venv.HasCanonicalChoice)
+    (corner : ProjectionCorner safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel
   venv
@@ -133,7 +195,7 @@ def VContext.mkChecking {env : Environment} {venv : VEnv}
   projectionRegistry
   recursors
   quot
-  canonicalChoice
+  corner
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
@@ -142,7 +204,7 @@ def VContext.mkCheckingValid {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
     (lparams : List Name := []) (fuel : FuelConfig := {}) : VContext :=
   .mkChecking wf.tr wf.hasPrimitives wf.safePrimitives wf.projectionRegistry
-    wf.recursors wf.quot wf.canonicalChoice lparams fuel
+    wf.recursors wf.quot wf.corner lparams fuel
 
 def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
     (wf : CheckingEnv.Valid safety env venv)
@@ -156,14 +218,14 @@ def VContext.mkCheckingValidMLC {env : Environment} {venv : VEnv}
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
-  canonicalChoice := wf.canonicalChoice
+  corner := wf.corner
   mlctx
   mlctx_wf
   lctx := mlctx.lctx
   lctx_eq := rfl
 
 def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    (wf : VEnvAt env safety venv) (hch : venv.HasCanonicalChoice) (lparams : List Name := [])
+    (wf : VEnvAt env safety venv) (hcorner : ProjectionCorner safety env venv) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext where
   env; safety; lparams; fuel; venv
   hasPrimitives := wf.hasPrimitives
@@ -172,20 +234,20 @@ def VContext.mk1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
   projectionRegistry := wf.projectionRegistry
   recursors := wf.recursors
   quot := wf.quot
-  canonicalChoice := hch
+  corner := hcorner
   mlctx := .nil
   mlctx_wf := trivial
   lctx_eq := rfl
 
-def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
-    (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (hch _) lparams fuel
+    (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (hcorner _) lparams fuel
 
 theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
-    {wf : VEnvAt env safety venv} {hch : venv.HasCanonicalChoice} {lparams : List Name}
+    {wf : VEnvAt env safety venv} {hcorner : ProjectionCorner safety env venv} {lparams : List Name}
     {fuel : FuelConfig} :
-    VState.WF (.mk1 wf hch lparams fuel) {} where
+    VState.WF (.mk1 wf hcorner lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -209,10 +271,10 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {canonicalChoice : venv.HasCanonicalChoice}
+    {corner : ProjectionCorner safety env venv}
     {lparams : List Name} {fuel : FuelConfig} :
     VState.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot canonicalChoice lparams fuel) {} where
+      recursors quot corner lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -235,7 +297,7 @@ theorem VState.WF.emptyCheckingValid {env : Environment} {venv : VEnv}
     VState.WF (.mkCheckingValid wf lparams fuel) {} :=
   VState.WF.emptyChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
     (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot) (canonicalChoice := wf.canonicalChoice)
+    (recursors := wf.recursors) (quot := wf.quot) (corner := wf.corner)
 
 theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -260,15 +322,15 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   whnf_hit := .empty
   inferTypeI_hit := .empty
 
-theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WF env}
+theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
-    {hch : ∀ safety, (ves.venv safety).HasCanonicalChoice} :
-    VState.WF (.mk' wf hch safety lparams fuel) {} := by
+    {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)} :
+    VState.WF (.mk' wf hcorner safety lparams fuel) {} := by
   unfold VContext.mk'; exact .empty1
 
 theorem M.WF.run1 {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv)
-    {hch : venv.HasCanonicalChoice}
-    {x : M α} {Q} (H : x.WF (.mk1 wf hch lparams fuel) {} fun a _ => Q a) :
+    {hcorner : ProjectionCorner safety env venv}
+    {x : M α} {Q} (H : x.WF (.mk1 wf hcorner lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -283,10 +345,10 @@ theorem M.WF.runChecking {env : Environment} {venv : VEnv}
     {projectionRegistry : ProjectionRegistryCoherent safety env.constants venv}
     {recursors : RecursorEnvCoherent safety env.constants venv}
     {quot : env.quotInit = true → QuotEnvCoherent env.constants venv}
-    {canonicalChoice : venv.HasCanonicalChoice}
+    {corner : ProjectionCorner safety env venv}
     {x : M α} {Q}
     (H : x.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
-      recursors quot canonicalChoice lparams fuel) {} fun a _ => Q a) :
+      recursors quot corner lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   intro a eq
   simp [M.run, Functor.map, Except.map] at eq
@@ -302,7 +364,7 @@ theorem M.WF.runCheckingValid {env : Environment} {venv : VEnv}
     (M.run env safety {} lparams fuel x).WF Q :=
   M.WF.runChecking (trenv := wf.tr) (hasPrimitives := wf.hasPrimitives)
     (safePrimitives := wf.safePrimitives) (projectionRegistry := wf.projectionRegistry)
-    (recursors := wf.recursors) (quot := wf.quot) (canonicalChoice := wf.canonicalChoice) H
+    (recursors := wf.recursors) (quot := wf.quot) (corner := wf.corner) H
 
 theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
@@ -319,9 +381,9 @@ theorem M.WF.runCheckingValidMLC {env : Environment} {venv : VEnv}
   let ⟨_, _, _, _, hQ⟩ := H (.emptyCheckingValidMLC hfresh) _ _ eq
   exact hQ
 
-theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WF env)
-    {hch : ∀ safety, (ves.venv safety).HasCanonicalChoice}
-    {x : M α} {Q} (H : x.WF (.mk' wf hch safety lparams fuel) {} fun a _ => Q a) :
+theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    {hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)}
+    {x : M α} {Q} (H : x.WF (.mk' wf hcorner safety lparams fuel) {} fun a _ => Q a) :
     (M.run env safety {} lparams fuel x).WF Q := by
   unfold VContext.mk' at H; exact M.WF.run1 _ H
 

@@ -603,7 +603,7 @@ theorem GeneratedFamilyInstalledContainer.builtConstructorTranslation
     {ves : VEnvs}
     (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WFCore prodEnv)
     (i : Nat) (hi : i < H.sourceInfo.ctors.length) :
     Nonempty (C.BuiltConstructorTranslation i hi) := by
   rcases H.built.constructorAt i hi with ⟨htarget, Hbuilt⟩

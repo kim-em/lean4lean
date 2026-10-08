@@ -7,11 +7,15 @@ Branch `agent/verify-inductives-quot` (2026-10-08).
 `Lean4Lean/Verify/QuotInit.lean`:
 
 ```lean
-theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hq : ∀ safety, (ves.venv safety).QuotReady) :
     (Environment.addQuot env).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+        VEnvs.CertPres env env' ves ves'
 ```
+
+No constructor is installed (`Quot.mk` is a `quotInfo`), so the constructor
+certificates carry over (`CtorTelescopes.addNonCtor`).
 
 `addDecl.WF` gains the hypothesis `hq` and closes its `quotDecl` case with
 `addQuot.WF`.  `addDecl.WF_of_canonicalEq` keeps its statement; it discharges
@@ -51,7 +55,7 @@ supplies it from `HasCanonicalEq` (which the replay of `Init.Prelude` realizes,
   `quotMkConst`, `quotLiftConst`, `quotIndConst`.
 * `AddQuot.exists`: any ordered `QuotReady` model without the four names extends
   to an `AddQuot` (the Verify alignment of `VEnv.addQuot`).
-* `VEnvs.WF.addQuot`: assembles the new `VEnvs` (`TrEnv'.quot` at every level),
+* `VEnvs.WFCore.addQuot`: assembles the new `VEnvs` (`TrEnv'.quot` at every level),
   carrying the constant-map invariants through the four insertions
   (`QuotEnvInv.add`) and across `markQuotInit` (`QuotEnvInv.markQuotInit`).
 

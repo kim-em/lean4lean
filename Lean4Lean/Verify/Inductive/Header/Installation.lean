@@ -59,7 +59,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
         have HnextValid : CheckingEnv.Valid safety
             (env.add (.inductInfo info)) nextVEnv :=
           Hvalid.add (ci := .inductInfo info) hn hnprimHead htr.1 hwf hadd rfl
-            trivial (RecursorInstallStep.of_not_rec nofun)
+            trivial (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
         have hnextLe : sourceEnv ≤ nextVEnv :=
           hle.trans (VEnv.addConst_le hadd)
         exact (ih HnextValid hnextLe hnprimTail).mono

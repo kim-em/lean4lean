@@ -662,7 +662,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.linkedSpecialization
     (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
       lparams target)
     (hbase : baseVEnv = ves.venv (if isUnsafe then .unsafe else .safe))
-    (wf : ves.WF prodEnv) (decl : VInductDecl)
+    (wf : ves.WFCore prodEnv) (decl : VInductDecl)
     (huvars : decl.uvars = lparams.length) (hnparams : decl.nparams = nparams)
     (hunsafe : decl.isUnsafe = isUnsafe)
     (hle : baseVEnv ≤ sourceTypesVEnv) {paramCtx : List VExpr}
@@ -1261,7 +1261,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1340,7 +1340,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
     exact R.core
   have Hmetadata : MaterializedInductivePrefix sourceDecl P.loweredDecl := by
     simpa only [E.nativeSourceDecl_eq] using E.nativeSource.materialized
-  have wfP : ves.WF P.c.env := by
+  have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -1375,7 +1375,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
     exact hNctx.trans (key _ hindTypes)
   have Htypes := Hrun.allExpansionsOfNativeSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
-      (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed
+      (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
       (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
       hempty N E.auxiliarySelection
   have hsourceLength : sourceTypes.length = sourceDecl.types.length :=
@@ -1673,7 +1673,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
     Hsources hempty
     (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
     (N.restoringReplacement Htarget
-      (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed Hsources
+      (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed Hsources
       E.auxiliarySelection hresultNodup hempty Hsource.nparams hfvars hfvarsNodup hnp
       hclosedNested hkey hheadNodup hscopedArgs hlevelsWF Hlift)
   refine ⟨Lean4Lean.List.Forall₂.imp (fun _ _ h =>
@@ -1712,7 +1712,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
       HsourceTypesWF HtargetTypesWF Hrun.resultParamsSize Hsource.nparams.symm
       (fun Htrace Hctx selection hnd Harity Hdepth hsp htp hscope hse hte _ =>
         N.restoringReplacement Htarget
-          (VEnvs.WF.environmentTypesClosed wfP) wfP.inductivesClosed Hsources
+          (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed Hsources
           E.auxiliarySelection hresultNodup hempty Hsource.nparams hfvars hfvarsNodup hnp
           hclosedNested hkey hheadNodup hscopedArgs hlevelsWF Hlift
           Htrace Hctx selection hnd Harity Hdepth hsp htp hscope hse hte)
@@ -1736,7 +1736,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoring
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1777,7 +1777,7 @@ theorem NestedValidatedRunResult.restorationTables
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ (envTypes : VEnv) (generated : List VInductiveType)
         (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1815,7 +1815,7 @@ theorem NestedValidatedRunResult.restorationMapAgreement
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
@@ -2213,7 +2213,7 @@ theorem NestedValidatedRunResult.restoredRecursorTypes
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∃ (envTypes : VEnv) (auxiliaries : List ContainerSpecialization),
       (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
         sourceDecl.typeConstants = some envTypes ∧
