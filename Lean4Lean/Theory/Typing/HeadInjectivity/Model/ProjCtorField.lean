@@ -61,16 +61,18 @@ theorem wrap_eq_wrap_notApp : ∀ {ks₀ ks : List Key} {o r : Ob}, r.NotApp →
     refine ⟨ks', ?_, rfl⟩
     obtain ⟨_, _, _⟩ := k; obtain ⟨_, _, _⟩ := k'; simp_all
 
-/-- The end observations of a rigid family constant that is not a constructor. -/
+/-- The end observations of a rigid family constant that is not a projection constructor. -/
 def FamEnd (S : Name) (ls : List VLevel) (keys : List Key) (r : Ob) : Prop :=
   (∃ s, r = .rigid S (ls.map (·.eval)) keys.length s) ∨ (∃ i c, r = .rigidArg i c) ∨
-  (∃ j FL x, r = .fieldTy S j FL x) ∨ (∃ j FL D, r = .fieldDom S j FL D)
+  (∃ j FL x, r = .fieldTy S j FL x) ∨ (∃ j FL D, r = .fieldDom S j FL D) ∨
+  CtorEnd S (ls.map (·.eval)) keys r
 
 theorem FamEnd.notApp (h : FamEnd S ls keys r) : r.NotApp := by
-  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> trivial
+  rcases h with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ | ⟨_, _, _, rfl⟩ |
+    (rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩) <;> trivial
 
-/-- Inversion of the observations of a rigid constant that is not a constructor. -/
-theorem Obs.famConst_inv {S : Name} (hrig : env.Rigid S) (hnc : ¬ IsCtor env S)
+/-- Inversion of the observations of a rigid constant that is not a projection constructor. -/
+theorem Obs.famConst_inv {S : Name} (hrig : env.Rigid S)
     (hnpc : ¬ IsProjCtor env S) (h : Obs' σ S0 (.const S ls) o) :
     ∃ keys r, o = wrap keys r ∧ FamEnd S ls keys r := by
   cases h with
@@ -79,28 +81,28 @@ theorem Obs.famConst_inv {S : Name} (hrig : env.Rigid S) (hnc : ¬ IsCtor env S)
     · exact ⟨_, _, rfl, .inl ⟨s, rfl⟩⟩
     · exact ⟨_, _, rfl, .inr (.inl ⟨i, _, rfl⟩)⟩
   | delta hdf hlhs => exact absurd (by rw [hlhs]; rfl) (hrig _ hdf (VLevel.params _))
-  | ctor hc => exact absurd hc hnc
+  | ctor _ _ _ _ _ hr => exact ⟨_, _, rfl, .inr (.inr (.inr (.inr hr)))⟩
   | projCtor hp hn => exact absurd ⟨_, _, hp, hn⟩ hnpc
   | rule hdf hlhs =>
     exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig _ hdf _)
   | famTy => exact ⟨_, _, rfl, .inr (.inr (.inl ⟨_, _, _, rfl⟩))⟩
-  | famDom => exact ⟨_, _, rfl, .inr (.inr (.inr ⟨_, _, _, rfl⟩))⟩
+  | famDom => exact ⟨_, _, rfl, .inr (.inr (.inr (.inl ⟨_, _, _, rfl⟩)))⟩
 
 /-- Inversion of the observations of a spine of a rigid constant that is not a constructor:
 they are end observations wrapped in keys. -/
-theorem Obs.famSpine_inv {S : Name} (hrig : env.Rigid S) (hnc : ¬ IsCtor env S)
+theorem Obs.famSpine_inv {S : Name} (hrig : env.Rigid S)
     (hnpc : ¬ IsProjCtor env S) (h : Obs' σ S0 (.mkApps (.const S ls) args) o) :
     ∃ keys ks r, o = wrap ks r ∧ FamEnd S ls (keys ++ ks) r := by
   obtain ⟨keys, -, h'⟩ := wrap_of_obs_mkApps h
-  obtain ⟨keys', r, e, hr⟩ := Obs.famConst_inv hrig hnc hnpc h'
+  obtain ⟨keys', r, e, hr⟩ := Obs.famConst_inv hrig hnpc h'
   obtain ⟨ks, rfl, rfl⟩ := wrap_eq_wrap_notApp hr.notApp e
   exact ⟨keys, ks, r, rfl, hr⟩
 
 /-- A family spine has no observation of a non-`app` shape other than its end observations. -/
-theorem Obs.famSpine_notApp {S : Name} (hrig : env.Rigid S) (hnc : ¬ IsCtor env S)
+theorem Obs.famSpine_notApp {S : Name} (hrig : env.Rigid S)
     (hnpc : ¬ IsProjCtor env S) (h : Obs' σ S0 (.mkApps (.const S ls) args) o)
     (ho : o.NotApp) : ∃ keys, FamEnd S ls keys o := by
-  obtain ⟨keys, ks, r, rfl, hr⟩ := Obs.famSpine_inv hrig hnc hnpc h
+  obtain ⟨keys, ks, r, rfl, hr⟩ := Obs.famSpine_inv hrig hnpc h
   cases ks with
   | nil => exact ⟨_, hr⟩
   | cons => cases ho
@@ -465,6 +467,123 @@ theorem ProjValid.ctx (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U)) {S : 
       Option.map_some, Option.getD_some]
     exact this
 
+/-! ## Inversions -/
+
+theorem FamEnd.not_sort : ¬ FamEnd S ls keys (.sort l) := by
+  rintro (⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩)) <;>
+    cases h
+
+theorem FamEnd.not_piDom : ¬ FamEnd S ls keys (.piDom D) := by
+  rintro (⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩)) <;>
+    cases h
+
+theorem FamEnd.rigid_eq (h : FamEnd S ls keys (.rigid I ℓs m z)) : I = S ∧ ℓs = ls.map (·.eval) := by
+  rcases h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩) <;>
+    cases h
+  exact ⟨rfl, rfl⟩
+
+theorem FamEnd.fieldDom_eq (h : FamEnd S ls keys (.fieldDom n j FL D)) : n = S := by
+  rcases h with ⟨_, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ | ⟨_, _, _, h⟩ | (h | ⟨_, _, h⟩ | ⟨_, _, _, _, h⟩) <;>
+    cases h
+  rfl
+
+/-- Inversion of a semantic typing derivation of a projection, through `conv` nodes. -/
+theorem HTS.proj_inv (H : HTS env U Δ Γ e T) {S : Name} {j : Nat} {e₀ : VExpr}
+    (he : e = .proj S j e₀) :
+    ∃ (info : VProjectionInfo) (ls : List VLevel) (ps idx : List VExpr) (F : VExpr)
+      (fl : VLevel) (e' : VExpr),
+      env.projections S info ∧ (∀ l ∈ ls, l.WF U) ∧ ls.length = info.uvars ∧
+      ps.length = info.nparams ∧ idx.length = info.nindices ∧
+      info.fieldType S ls ps j e' = some F ∧ SD env U Δ Γ F F (.sort fl) ∧
+      HTS env U Δ Γ e₀ (.mkApps (.const S ls) (ps ++ idx)) ∧
+      SD env U Δ Γ e' e₀ (.mkApps (.const S ls) (ps ++ idx)) ∧
+      ((info.resultLevel.inst ls).IsNeverZero ∨ fl ≈ .zero) ∧
+      ∀ σ S0, Ctx.SubstEq env U Δ σ σ Γ → TV env U Δ Γ σ S0 →
+        Ob.Sub (Obs' σ S0 T) (Obs' σ S0 F) := by
+  induction H with
+  | proj h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 =>
+    cases he
+    exact ⟨_, _, _, _, _, _, _, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10,
+      fun _ _ _ _ => Ob.Sub.refl⟩
+  | other _ _ _ _ _ h => exact absurd he (h _ _ _)
+  | bvar | const | elim | app | lam | forallE => cases he
+  | conv _ hAB ih =>
+    obtain ⟨info, ls, ps, idx, F, fl, e', h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11⟩ := ih he
+    exact ⟨info, ls, ps, idx, F, fl, e', h1, h2, h3, h4, h5, h6, h7, h8, h9, h10,
+      fun σ S0 W tv => ((hAB.2 σ σ S0 W tv tv).2.1).trans (h11 σ S0 W tv)⟩
+
+section
+variable (henv : env.Ordered)
+include henv
+
+/-- **Typed observations at a projection-registered family are field observations**, of a field
+that exists, and only when the entry is never zero at the family's levels. -/
+theorem typed_fam_fieldOb {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
+    (hrig : env.Rigid S) (hnpc : ¬ IsProjCtor env S) {cv : VExpr → Prop} {o : Ob}
+    {τs : List Ob} (H : TypedOb env U Δ cv o τs) {σ : VExpr.Subst} {S0 : ObSets}
+    {ls : List VLevel} {args : List VExpr}
+    (hτ : ∀ τ ∈ τs, Obs' σ S0 (.mkApps (.const S ls) args) τ) :
+    ∃ j L k, o = .fieldOb S j L k ∧ j < info.numFields ∧
+      (info.resultLevel.inst ls).IsNeverZero := by
+  have fe : ∀ τ ∈ τs, τ.NotApp → ∃ keys, FamEnd S ls keys τ := fun τ hτ' hn =>
+    Obs.famSpine_notApp hrig hnpc (hτ τ hτ') hn
+  cases H with
+  | sort h | piDom h | piDomOb h | piCod h | piCodOb h | rigid h | rigidArg h | rigidArgOb h
+  | fieldTy h | fieldDom h =>
+    obtain ⟨_, h⟩ := fe _ h trivial; exact absurd h FamEnd.not_sort
+  | app h => obtain ⟨_, h⟩ := fe _ h trivial; exact absurd h FamEnd.not_piDom
+  | ctorHead h | ctorArg h | ctorArgOb h =>
+    obtain ⟨I, ℓs, m, z, h1, -, -, h4⟩ := h
+    obtain ⟨_, h⟩ := fe _ h1 trivial
+    obtain ⟨rfl, -⟩ := h.rigid_eq
+    exact absurd hp (h4 info)
+  | fieldOb hp' hj _ hD =>
+    obtain ⟨_, h⟩ := fe _ hD trivial
+    cases h.fieldDom_eq
+    cases henv.projections_unique hp hp'
+    obtain ⟨-, -, info', -, -, -, hp'', hnz, -⟩ := famDom_inv hrig (hτ _ hD)
+    cases henv.projections_unique hp hp''
+    exact ⟨_, _, _, rfl, hj, hnz⟩
+
+/-- **The field observations of a constructor spine** of a projection entry come from the
+projection-constructor clause: the spine is full, and the field's observation is covered by
+an observation of the argument at the field. -/
+theorem Obs.ctorSpine_fieldOb_inv {S : Name} {info : VProjectionInfo}
+    (hp : env.projections S info) (hrig : env.Rigid info.ctorName) {σ : VExpr.Subst}
+    {S0 : ObSets} {ls : List VLevel} {args : List VExpr} {j : Nat} {L : List (List Ob)} {k : Ob}
+    (h : Obs' σ S0 (.mkApps (.const info.ctorName ls) args) (.fieldOb S j L k)) :
+    args.length = info.nparams + info.numFields ∧ j < info.numFields ∧
+      ∃ a, args[info.nparams + j]? = some a ∧ ∃ k', Obs' σ S0 a k' ∧ k' ≼ k := by
+  obtain ⟨keys0, hk0, h'⟩ := wrap_of_obs_mkApps' h
+  generalize hw : wrap keys0 (Ob.fieldOb S j L k) = w at h'
+  cases h' with
+  | const _ _ _ _ hr =>
+    obtain ⟨-, e⟩ := wrap_inj hw trivial hr.notApp
+    rcases hr with ⟨_, rfl⟩ | ⟨_, _, rfl⟩ <;> cases e
+  | delta hdf hlhs => exact absurd (by rw [hlhs]; rfl) (hrig _ hdf (VLevel.params _))
+  | ctor _ hnp => exact absurd ⟨_, _, hp, rfl⟩ hnp
+  | rule hdf hlhs =>
+    exact absurd (by rw [hlhs]; exact VExpr.stripLams_wrapLams_mkApps_head) (hrig _ hdf _)
+  | projCtor hp' hcn _ _ _ hlen hend =>
+    obtain ⟨j', L', k', rfl, hj', -, -, kj, hkj, hkk⟩ := hend
+    obtain ⟨rfl, e⟩ := wrap_inj hw trivial trivial
+    cases e
+    cases henv.projections_unique hp hp'
+    have hl := List.Forall₂.length_eq hk0
+    refine ⟨by omega, hj', ?_⟩
+    have hia : info.nparams + j < args.length := by
+      have := (List.getElem?_eq_some_iff.1 hkj).1; omega
+    obtain ⟨-, hcov⟩ := forall₂_get? hk0 hkj (List.getElem?_eq_getElem hia)
+    exact ⟨_, List.getElem?_eq_getElem hia, hcov k hkk⟩
+  | famTy =>
+    obtain ⟨-, e⟩ := wrap_inj hw trivial trivial
+    cases e
+  | famDom =>
+    obtain ⟨-, e⟩ := wrap_inj hw trivial trivial
+    cases e
+
+end
+
 section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
@@ -475,7 +594,7 @@ keys whose classes contain the arguments and whose observations are covered by t
 observation of the spine's type. -/
 theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.const c ls) args)
     {σ S} (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
-    ∃ ci, env.constants c = some ci ∧
+    ∃ ci, env.constants c = some ci ∧ (∀ l ∈ ls, l.WF U) ∧ ls.length = ci.uvars ∧
       ∀ keys, ChainArgs env U Δ σ S keys args → ∀ x,
         Obs' .id .empty (ci.type.instL ls) (piCodChain keys x) → ∃ x', Obs' σ S T x' ∧ x' ≼ x := by
   induction H generalizing args with
@@ -485,10 +604,10 @@ theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.c
   | forallE => exact absurd he.symm mkApps_const_ne_forallE
   | proj => rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
   | elim => rcases mkApps_inv he with ⟨_, h⟩ | ⟨_, _, _, h⟩ <;> cases h
-  | @const _ ci' _ _ _ hci hls _ hT hsd =>
+  | @const _ ci' _ _ _ hci hls hlen hT hsd =>
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨_, _, _, he'⟩
     · cases he'
-      refine ⟨ci', hci, fun keys hk x hx => ?_⟩
+      refine ⟨ci', hci, hls, hlen, fun keys hk x hx => ?_⟩
       cases hk
       exact ⟨x, (Obs.closed_iff_id (henv.closedC hci).instL).2 hx, .refl⟩
     · cases he'
@@ -496,8 +615,8 @@ theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.c
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨as, a', rfl, he'⟩
     · cases he'
     injection he' with hf ha; subst ha
-    obtain ⟨ci, hci, ih⟩ := ihf hf W tv
-    refine ⟨ci, hci, fun keys hk x hx => ?_⟩
+    obtain ⟨ci, hci, hls, hlen, ih⟩ := ihf hf W tv
+    refine ⟨ci, hci, hls, hlen, fun keys hk x hx => ?_⟩
     unfold ChainArgs at hk
     obtain ⟨keys', k, rfl, hk', ⟨hka, hkK⟩⟩ := forall₂_split hk
     rw [piCodChain_append, piCodChain_cons, piCodChain_nil] at hx
@@ -522,8 +641,8 @@ theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.c
       | succ i => exact ⟨o, h, .refl⟩
     exact ⟨x₃, Obs.inst_iff.2 hx₃, l₃.trans (l₂.trans ly)⟩
   | conv _ hAB ih =>
-    obtain ⟨ci, hci, ih⟩ := ih he W tv
-    refine ⟨ci, hci, fun keys hk x hx => ?_⟩
+    obtain ⟨ci, hci, hls, hlen, ih⟩ := ih he W tv
+    refine ⟨ci, hci, hls, hlen, fun keys hk x hx => ?_⟩
     obtain ⟨x₁, hx₁, l₁⟩ := ih keys hk x hx
     obtain ⟨x₂, hx₂, l₂⟩ := (SD.sub henv hΔ hAB W tv).1 x₁ hx₁
     exact ⟨x₂, hx₂, l₂.trans l₁⟩
@@ -1159,6 +1278,169 @@ theorem ctor_field_obs {S : Name} {info : VProjectionInfo} (hp : env.projections
       List.getElem?_drop, List.getElem?_eq_getElem (show info.nparams + i < keysD.length by omega),
       Option.map_some, Option.some.injEq] at hLi
     exact ⟨_, List.getElem?_eq_getElem _, fun y hy => hLi ▸ hy⟩
+
+omit henv hΔ in
+/-- Typed keys at the substituted arguments, with observations from the arguments, are chain
+keys of the arguments. -/
+theorem KeysAt.chainArgs {D args : List VExpr} {keys : List Key} {S' : ObSets}
+    {σ : VExpr.Subst} {S0 : ObSets}
+    (K : KeysAt env U Δ D (args.map (·.subst σ)) keys S')
+    (hobs : ∀ (i : Nat) (k : Key), keys[i]? = some k → ∀ y ∈ k.2.2,
+      ∃ a, args[i]? = some a ∧ Obs' σ S0 a y) :
+    ChainArgs env U Δ σ S0 keys args := by
+  have hl : keys.length = args.length := by have := K.len; have := K.ylen; simp at *; omega
+  refine forall₂_of_getElem hl fun i h1 h2 => ⟨?_, fun y hy => ?_⟩
+  · obtain ⟨-, e2, -⟩ := K.cls i _ (List.getElem?_eq_getElem h1)
+    rw [e2, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem h2]
+    exact ElCls.self
+  · obtain ⟨a, ha, hya⟩ := hobs i _ (List.getElem?_eq_getElem h1) y hy
+    rw [List.getElem?_eq_getElem h2, Option.some.injEq] at ha
+    exact ⟨y, ha ▸ hya, .refl⟩
+
+/-- The rigid observation of the constructor's codomain `S ls (params, idx)`, at the extension
+of the constructor telescope by typed keys. -/
+theorem fam_rigid_obs {S : Name} {info : VProjectionInfo} (hrig : env.Rigid S)
+    {ls : List VLevel} {doms idx hdoms : List VExpr} {famType : VExpr}
+    (C : ProjCtx env U Δ S info ls doms idx famType hdoms) (hlen : ls.length = info.uvars)
+    {ys : List VExpr} {keysD : List Key} {S' : ObSets}
+    (KD : KeysAt env U Δ (doms.map (·.instL ls)) ys keysD S') :
+    Obs' (VExpr.argSubst ys) S' ((ctorRes S info doms.length idx).instL ls)
+      (.rigid S (ls.map (·.eval)) (info.nparams + info.nindices)
+        (info.resultLevel.inst ls).eval) := by
+  obtain ⟨keysF, S'', KF, -, hobs⟩ := fam_keys henv hΔ C hlen KD
+  have hkFl : keysF.length = info.nparams + info.nindices := by
+    simpa [C.hdoms_len] using KF.len
+  have hAl : (famArgs info doms.length idx ls).length = keysF.length := by
+    simp [famArgs_length, C.idx_len, hkFl]
+  rw [ctorRes_instL hlen]
+  have hargs : List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1
+      (a.subst (VExpr.argSubst ys)) ∧ ∀ x ∈ k.2.2, Obs' (VExpr.argSubst ys) S' a x)
+      keysF (famArgs info doms.length idx ls) := by
+    refine forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
+    · obtain ⟨-, e2, -⟩ := KF.cls i _ (List.getElem?_eq_getElem h1)
+      rw [e2]; congr 1
+      simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h2]
+    · obtain ⟨a, ha, hxa⟩ := hobs i _ (List.getElem?_eq_getElem h1) x hx
+      rw [List.getElem?_eq_getElem h2, Option.some.injEq] at ha
+      rw [ha]; exact hxa
+  obtain ⟨τ₀, h1, h2⟩ := tele_wind0 KF.tele (R := .sort (info.resultLevel.inst ls))
+    (o := .rigid S (ls.map (·.eval)) keysF.length (info.resultLevel.inst ls).eval)
+    (τc := [.sort (info.resultLevel.inst ls).eval])
+    (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact .sort)
+    (fun cv => .rigid (List.mem_singleton_self _))
+  obtain ⟨τs, h3, h4⟩ := exists_list_cover (R := fun y x => y ≼ x)
+    fun τ hτ => C.famSub' τ (h1 τ hτ)
+  rw [← hkFl]
+  exact obs_mkApps_of_wrap hargs (.const hrig C.famConst h3 ((h2 _).strengthen h4)
+    (.inl ⟨_, rfl⟩))
+
+/-- **Constructor spines typed at a family application.** A semantically typed constructor
+spine of a projection entry, at the application of the family at levels where the entry is
+never zero, has the constructor's arity, and the entry is never zero at the constructor's
+levels. -/
+theorem ctor_spine_fam {S : Name} {info : VProjectionInfo} (hp : env.projections S info)
+    (hPV : ProjValid env S info) {Γ : List VExpr} {σ : VExpr.Subst} {S0 : ObSets}
+    (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S0)
+    {lsm ls' : List VLevel} {args xs : List VExpr}
+    (H : HTS env U Δ Γ (.mkApps (.const info.ctorName lsm) args) (.mkApps (.const S ls') xs))
+    (hnz : (info.resultLevel.inst ls').IsNeverZero) :
+    (∀ l ∈ lsm, l.WF U) ∧ lsm.length = info.uvars ∧
+      args.length = info.nparams + info.numFields ∧
+      (info.resultLevel.inst lsm).IsNeverZero := by
+  have hst := hPV.1
+  obtain ⟨ci, hci, hls, hlenci, hcod⟩ := HTS.spineCod henv hΔ H rfl W tv
+  cases hci.symm.trans (henv.projectionConstructor hp)
+  have hlen : lsm.length = info.uvars := hlenci
+  obtain ⟨doms, idx, famType, hdoms, C⟩ := ProjValid.ctx henv hΔ hp hPV hls
+  have hn := C.np_le
+  have hDl : (doms.map (·.instL lsm)).length = doms.length := by simp
+  have hnf : info.numFields = doms.length - info.nparams := by rw [C.tele.numFields, hDl]
+  have hTh : (⟨info.uvars, info.ctorType⟩ : VConstant).type.instL lsm =
+      .wrapForalls (doms.map (·.instL lsm)) ((ctorRes S info doms.length idx).instL lsm) :=
+    C.tele.shape
+  rw [hTh] at hcod
+  have noPiDom : ∀ {σ' S1 ls1 xs1 D}, Obs' σ' S1 (.mkApps (.const S ls1) xs1) (.piDom D) →
+      False := fun h => by
+    obtain ⟨_, h⟩ := Obs.famSpine_notApp hst.famRigid hst.famNotProjCtor h trivial
+    exact FamEnd.not_piDom h
+  -- the arity is at most the constructor's
+  have hle : args.length ≤ doms.length := by
+    refine Nat.le_of_not_lt fun hlt => ?_
+    obtain ⟨Th, As, hHT, -, hAl, hdom, -⟩ :=
+      HTS.spineRev henv hΔ H rfl (.inl ⟨_, _, rfl⟩) W tv
+    rcases hHT with ⟨c', ls1, ci', e, hci', -, rfl⟩ | ⟨_, _, _, _, _, e, -⟩
+    · cases e
+      cases hci'.symm.trans (henv.projectionConstructor hp)
+      obtain ⟨-, ⟨keys, hk, hobs⟩, -⟩ := hdom doms.length (As[doms.length]'(by omega))
+        (args[doms.length]'hlt) (List.getElem?_eq_getElem _) (List.getElem?_eq_getElem _)
+      have hkl : keys.length = doms.length := by rw [hk.length]; simp; omega
+      rw [hTh] at hobs
+      obtain ⟨_, _, -, -, -, hz⟩ := tele_split (by rw [hkl, hDl]; exact Nat.le_refl _) hobs
+      have e : (doms.map (·.instL lsm)).drop keys.length = [] := by
+        rw [hkl, ← hDl, List.drop_length]
+      rw [e] at hz
+      have hz' : Obs' _ _ ((ctorRes S info doms.length idx).instL lsm) _ := hz
+      rw [ctorRes_instL hlen] at hz'
+      exact noPiDom hz'
+    · cases e
+  -- the arity is at least the constructor's
+  have hge : doms.length ≤ args.length := by
+    refine Nat.le_of_not_lt fun hlt => ?_
+    have hTW : Ob.Sub (Obs' .id .empty ((⟨info.uvars, info.ctorType⟩ : VConstant).type.instL lsm))
+        (Obs' .id .empty (.wrapForalls (doms.map (·.instL lsm))
+          ((ctorRes S info doms.length idx).instL lsm))) := by rw [hTh]; exact Ob.Sub.refl
+    obtain ⟨W1, tv1⟩ := spine_tele henv hΔ H W tv (henv.projectionConstructor hp) hTW C.piSD
+      (by simp; omega)
+    obtain ⟨keys, S'', hT, hkl, hS, hk⟩ := tele_compact
+      (D := (doms.map (·.instL lsm)).take args.length) (as := args.map (·.subst σ))
+      (fun i hi => by
+        rw [List.getElem_take]; exact C.ctorClosed i (by simp at hi; omega))
+      (by simp; omega) (by simpa using W1) (by simpa using tv1)
+      (List.replicate args.length []) (by simp; omega)
+      (fun i Fi hFi y hy => by
+        rw [List.getElem?_replicate] at hFi; split at hFi <;> cases hFi; cases hy)
+    have KF := KeysAt.of_tele henv hΔ hT (by simp; omega) hS
+    have hch := KF.chainArgs fun i k hki y hy => by
+      obtain ⟨-, h2, -⟩ := hk i k hki
+      have hi : i < args.length := by
+        have := (List.getElem?_eq_some_iff.1 hki).1; simp at hkl; omega
+      have := h2 y hy
+      rw [show ((doms.map (·.instL lsm)).take args.length).length = args.length by simp; omega]
+        at this
+      exact ⟨_, List.getElem?_eq_getElem hi, (argSets_get (List.getElem?_eq_getElem hi)).1 this⟩
+    have hdrop : (doms.map (fun d : VExpr => d.instL lsm)).drop args.length =
+        (doms.map (fun d : VExpr => d.instL lsm))[args.length]'(by simp; omega) ::
+          (doms.map (fun d : VExpr => d.instL lsm)).drop (args.length + 1) :=
+      List.drop_eq_getElem_cons _
+    have hx : Obs' (VExpr.argSubst (args.map (·.subst σ))) S''
+        (.wrapForalls ((doms.map (fun d : VExpr => d.instL lsm)).drop args.length)
+          ((ctorRes S info doms.length idx).instL lsm))
+        (.piDom (TyCls env U Δ (((doms.map (fun d : VExpr => d.instL lsm))[args.length]'(by simp; omega)).subst
+          (VExpr.argSubst (args.map (·.subst σ)))))) := by
+      rw [hdrop]; exact .piDom
+    have := tele_obs hT hx
+    rw [← VExpr.wrapForalls_append, List.take_append_drop] at this
+    obtain ⟨x', hx', l⟩ := hcod keys hch _ this
+    cases l.piDom_inv
+    exact noPiDom hx'
+  have hal : args.length = doms.length := by omega
+  refine ⟨hls, hlen, by omega, ?_⟩
+  -- the levels agree up to evaluation, by the rigid observation of the codomain
+  obtain ⟨keysD, S', KD, hkd⟩ := ctor_keys henv hΔ C W tv H hal (List.replicate doms.length [])
+    (by simp) (fun i Fi hFi y hy => by
+      rw [List.getElem?_replicate] at hFi; split at hFi <;> cases hFi; cases hy)
+  have hrig := fam_rigid_obs henv hΔ hst.famRigid C hlen KD
+  have := tele_obs KD.tele hrig
+  obtain ⟨x', hx', l⟩ := hcod keysD (KD.chainArgs fun i k hki => (hkd i k hki).2) _ this
+  cases l.rigid_inv
+  obtain ⟨_, h⟩ := Obs.famSpine_notApp hst.famRigid hst.famNotProjCtor hx' trivial
+  obtain ⟨-, heq⟩ := h.rigid_eq
+  intro ns
+  have h1 := hnz ns
+  rw [show (info.resultLevel.inst lsm).eval ns = info.resultLevel.evalAt (lsm.map (·.eval)) ns
+    from congrFun (VLevel.eval_inst_eq_evalAt _ _) ns, heq,
+    ← congrFun (VLevel.eval_inst_eq_evalAt _ _) ns]
+  exact h1
 
 end
 
