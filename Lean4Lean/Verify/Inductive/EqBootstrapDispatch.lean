@@ -212,7 +212,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
     {ves : VEnvs}
     (Hrun : VerifiedSemanticInductiveRunResultSourceAligned source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WFCore source.env) (hcorner : ∀ safety, ProjectionCorner safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
@@ -236,7 +236,7 @@ theorem VerifiedSemanticInductiveRunResultSourceAligned.extendEqBootstrap
   have wf' : ves.WFCore c'.env := by
     rw [henv]
     exact wf
-  have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
+  have hcorner' : ∀ safety, CtorTelescopes safety c'.env (ves.venv safety) := by
     rw [henv]; exact hcorner
   have hAbsent' : c'.env.constants.find? ``Eq = none := by
     rwa [henv]
@@ -256,7 +256,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : Hc.venv = ves.venv .safe)
@@ -300,7 +300,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
@@ -361,7 +361,7 @@ with the same source-aligned run that installs canonical abstract equality. -/
 theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
@@ -394,7 +394,7 @@ the theorem follows the production branch rather than assuming it. -/
 theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : EqBootstrapShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)

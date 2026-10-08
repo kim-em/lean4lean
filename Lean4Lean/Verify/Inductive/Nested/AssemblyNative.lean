@@ -34,7 +34,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_restoredWF
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
+    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (HrestoredWF : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -76,12 +76,13 @@ theorem NestedValidatedRunResult.assemblyNative
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety)) :
+    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
     Nonempty { C : NestedFinalAssemblyCertificate E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.production = E.production } :=
-  E.assemblyNative_of_restoredWF wf Hsources hnested hcorner (E.hrestoredWF_of wf Hsources)
+  E.assemblyNative_of_restoredWF wf Hsources hnested hcorner (fun auxiliaries D C hC hV =>
+    E.hrestoredWF_of wf Hsources auxiliaries D C hC hV)
 
 end VerifyInductive
 

@@ -619,35 +619,6 @@ theorem RestoredNestedDeclarationsResult.freshTraceRecursorSteps
   obtain ⟨s, t', Hstep, hmem⟩ := hheaders t ht
   exact ⟨s, t', Hstep, List.mem_append_left _ hmem⟩
 
-/-! ### The restored recursors of the staged block -/
-
-/-- The auxiliary recursors of an auxiliary recursor trace, one per restored
-recursor name, each the translation of the restored recursor at that name. -/
-theorem RestoredAuxiliaryRecursorTrace.recursorSteps
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
-    {names : List Name} {sourceEnv targetEnv : Environment}
-    {Htrace : StateForMTrace
-      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-      names sourceEnv targetEnv}
-    (H : RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv Htrace
-      priorRecursors finalRecursors) :
-    ∃ added, finalRecursors = priorRecursors ++ added ∧
-      List.Forall₂ (fun (name : Name) (w : VConstVal) =>
-          ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
-            auxRec allIndNames name s t),
-            RestoredRecursorStepValue trEnv Hstep w)
-        names added := by
-  induction H with
-  | nil => exact ⟨[], by simp, .nil⟩
-  | cons Hstep Htail Hhead Hrest ih =>
-    obtain ⟨added, hfinal, Hadded⟩ := ih
-    obtain ⟨⟨_, huvars, htype⟩, hname⟩ := Hhead.translated
-    refine ⟨Hhead.recursor :: added, by simp [hfinal], .cons ⟨_, _, Hstep,
-      ?_, huvars, htype⟩ Hadded⟩
-    rw [← Hstep.restored.restoration.name]
-    exact hname.symm
-
 /-! ### The restored major family application -/
 
 private theorem vars_map_liftN (n k : Nat) :
@@ -1086,7 +1057,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) recEnv
       Hrestored.auxiliaries [] auxiliaryRecursors)
     (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors)
-    (hcorner : ProjectionCorner c.safety outEnv finalVEnv) :
+    (hcorner : CtorTelescopes c.safety outEnv finalVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2

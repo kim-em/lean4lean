@@ -726,7 +726,7 @@ theorem NestedValidatedRunResult.equationProjNames_of
 
 /-- **Fields `constructorProjNames`, `recursorProjNames` and
 `equationProjNames` of `NestedRestoredEquationGaps`**, for every restoration
-table of the run and every final assembly shape (the shape and its validity
+table of the run and every final assembly base (the base and its validity
 are not used): proved for the table of `restorationTablesRestoringAll`, whose
 restorable names contain those of every table
 (`RestorationTableData.restorable_transfer`). -/
@@ -738,15 +738,15 @@ theorem NestedValidatedRunResult.restoredEquationProjNames_of
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
         (∀ lc ∈ E.production.loweredDecl.constructorConstants,
           lc.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
             true) ∧
@@ -794,29 +794,29 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
     (Helim : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
         EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
           (compilationRestoration sourceDecl auxiliaries).restorableNames)
     (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
         (∀ envTypes : VEnv,
           (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
             sourceDecl.typeConstants = some envTypes →
@@ -829,7 +829,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
                   (VExpr.wrapLams E.production.compilationSignature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionTransportOnCtx C.finalBaseVEnv
+          VEnv.ProjectionTransportOnCtx B.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
@@ -837,21 +837,21 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        NestedRestoredEquationGaps E C auxiliaries := by
-  intro auxiliaries D C hC hV
-  obtain ⟨hctors, hrecs, heqs⟩ := E.restoredEquationProjNames_of wf Hsources auxiliaries D C hC hV
-  obtain ⟨haux, hprojs⟩ := Hcontainers auxiliaries D C hC hV
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
+        NestedRestoredEquationGaps E B auxiliaries := by
+  intro auxiliaries D B hB hV
+  obtain ⟨hctors, hrecs, heqs⟩ := E.restoredEquationProjNames_of wf Hsources auxiliaries D B hB hV
+  obtain ⟨haux, hprojs⟩ := Hcontainers auxiliaries D B hB hV
   exact
-    { eliminatorProjNames := Helim auxiliaries D C hC hV
+    { eliminatorProjNames := Helim auxiliaries D B hB hV
       constructorProjNames := hctors
       recursorProjNames := hrecs
       equationProjNames := heqs
@@ -870,15 +870,15 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of'
     (Hcontainers : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
         (∀ envTypes : VEnv,
           (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
             sourceDecl.typeConstants = some envTypes →
@@ -891,7 +891,7 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of'
                   (VExpr.wrapLams E.production.compilationSignature.params
                     (VExpr.mkApps (.const h.target h.levels) h.arguments)) restored) ∧
         ∀ entry ∈ E.production.loweredDecl.projectionEntries,
-          VEnv.ProjectionTransportOnCtx C.finalBaseVEnv
+          VEnv.ProjectionTransportOnCtx B.finalBaseVEnv
             ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
               fun _ => E.production.compilationSignature.params)
             (compilationRestoration sourceDecl auxiliaries).renaming
@@ -899,16 +899,16 @@ theorem NestedValidatedRunResult.restoredEquationGaps_of'
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        NestedRestoredEquationGaps E C auxiliaries := by
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
+        NestedRestoredEquationGaps E B auxiliaries := by
   exact E.restoredEquationGaps_of wf Hsources
     (fun auxiliaries D _ _ _ => E.eliminatorProjNames_of wf Hsources auxiliaries D) Hcontainers
 
