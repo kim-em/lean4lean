@@ -883,9 +883,7 @@ def isDefEqUnitLike (t s : Expr) : RecM Bool := do
   let .const I _ := tType.getAppFn | return false
   let env ← getEnv
   let .inductInfo { isRec := false, ctors := [c], numIndices := 0, .. } ← env.get I | return false
-  let .ctorInfo { numFields := 0, induct, .. } ← env.get c | return false
-  -- redundant on well-typed input (see `divergences.md`)
-  unless induct == I do return false
+  let .ctorInfo { numFields := 0, .. } ← env.get c | return false
   isDefEqCore tType (← inferType s)
 
 @[inherit_doc isDefEqCore]

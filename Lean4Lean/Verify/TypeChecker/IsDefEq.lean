@@ -631,8 +631,6 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   split <;> [rename_i I_val hval; exact .pure nofun]
   refine (M.WF.liftExcept envGet.WF).lift.bind fun cci _ _ hcci => ?_
   split <;> [rename_i cval hcval; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  rename_i hinduct
   refine (inferType.WF he₂).bind fun sty _ _ ⟨sty', _, _, hsty, hsty'⟩ => ?_
   refine (isDefEqCore.WF htT hsty).mono fun b _ _ h hb => ?_
   have hb := h (by simpa using hb)
@@ -644,7 +642,12 @@ theorem isDefEqUnitLike.WF {c : VContext} {s : VState}
   have .const hfc hls hlen := stk.tr
   have heq := htT'.uniq c.Ewf (.refl c.Ewf c.Δwf) htT''
   obtain ⟨info, hinfo, -, decl, doms, result, -, -, -, -, -, -, -, -, -, -, hnf, hnp, hni, -, ⟨_, hfam⟩, -, -⟩ :=
-    VContext.registryShape hci hfc rfl hcci (by simpa using hinduct)
+    VContext.registryShape hci hfc rfl hcci (by
+      -- the listed constant is a constructor of the structure
+      obtain ⟨info, hinfoEq, hinfoInduct, -⟩ :=
+        c.listedConstructors I _ hci _ (by simp) _ hcci
+      rw [ConstantInfo.ctorInfo.inj hinfoEq]
+      exact hinfoInduct)
   -- the type is an application of the structure at a sort, so it supplies exactly the
   -- parameters (the structure has no indices)
   have hlenP : args'.length = info.nparams := by
