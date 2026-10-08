@@ -653,8 +653,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   requires the listed constructor and applies structure eta only at never-zero sorts;
   `toCtorWhenK` checks the arity of the type's spine; constructor owner
   agreement is checked wherever a structure's constructor is looked up, and `isUnsafe` agreement
-  wherever the family's visibility is not already known (not in `reduceProjCore` or
-  `expandEtaStruct`); `toCtorWhenStruct` and
+  wherever the family's visibility is not already known (not in `reduceProjCore`,
+  `isDefEqUnitLike` or `expandEtaStruct`); `toCtorWhenStruct` and
   `expandEtaStruct` return the term unchanged where the C++ kernel throws, and when the type
   of the major premise's type does not reduce to a sort. Each
   guard lets the verification justify a step from the registry entry alone, without
