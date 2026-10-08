@@ -61,7 +61,6 @@ theorem toCtorWhenK.framed (he : GF G e) :
     split <;> [skip; exact .pure he]
     split <;> [exact .pure he; skip]
     split <;> [exact .pure he; skip]
-    split <;> [exact .pure he; skip]
     split <;> [skip; exact .pure he]
     rename_i c hc
     have hc := mkNullaryCtor_gf ht hc
