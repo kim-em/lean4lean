@@ -11,7 +11,9 @@ The lemmas here refine both executable walks by the syntactic instantiation
 `VProjectionInfo.instantiateProjectionParameters` of the translated telescope: the executable
 residual translates to the abstract residual. A field binder whose body has no loose bound
 variables is kept without substitution by the executable; its translation is a lift, so the
-substitution is a no-op on the abstract side.
+substitution is a no-op on the abstract side. The constructor telescopes of section 5.3 of
+`docs/inductives/DESIGN.md` cover the non-dependent field steps, whose projections need not be
+typable.
 -/
 
 open Lean4Lean
@@ -399,7 +401,7 @@ theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Exp
   · exact (instantiateProjectionParameters.WF_all hT hle hlen hargs hty hpfx).mono
       fun _ _ _ h t ht => ⟨h t ht, fun h' => absurd h' hc⟩
 
-/-- The field walk, with the projection-walk corner resolved by a telescope certificate of the
+/-- The field walk, with the non-dependent fields covered by a telescope certificate of the
 current type. -/
 theorem instantiateProjectionFields.WF_ctorTelescopes {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')

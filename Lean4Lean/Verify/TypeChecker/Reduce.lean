@@ -313,7 +313,7 @@ theorem reduceProj.WF_levels {c : VContext} {s : VState} (he : c.TrExprS (.proj 
   exact (reduceProjCore.WF_levels h3).mono fun _ _ _ H _ eq Us P hs hl hP =>
     H _ eq Us P hs (h2 Us P hs hl hP) (h1 P hs.1 hP)
 
-/-! ### Hit shape of projection reduction -/
+/-! ### Parameter uniformity of projection reduction -/
 
 theorem reduceProjCoreCont.WF_paramUniform {c : VContext} {s : VState} :
     RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
