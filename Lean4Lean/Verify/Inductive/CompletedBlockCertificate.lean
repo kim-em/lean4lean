@@ -222,8 +222,9 @@ theorem CompletedBlockCertificate.rebaseCertificate
   have hprojectedWF :
       ((largerCtors.addEliminators H.staged.eliminators).addProjections H.projections).WF := by
     obtain ⟨_, _, _, _, hc⟩ := Hcases
-    rcases hc with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, _, hhdr⟩
-    · have hP' : H.projections = [] := hP
+    rcases hc with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, _⟩
+    · have hP' : H.projections = [] :=
+        Hcompile.projections.trans (VInductDecl.projectionEntries_eq_nil hT)
       have hcasesWF' := hcasesWF
       generalize H.staged.eliminators = es at hcasesWF' ⊢
       rw [hP']
@@ -233,7 +234,7 @@ theorem CompletedBlockCertificate.rebaseCertificate
         (decl := decl) (block := H.block)
     · exact Hvalid.tr.wf
     · exact hcasesWF
-    · exact ⟨key, schema, hE, hcert, hkey, hhdr⟩
+    · exact ⟨key, schema, hE, hreg⟩
     · exact Hcompile.sourceNames
     · exact fun type member => (Hdecl.1.originalTypes type member).mono hbase
     · exact Hdecl.1.2.2.2.1

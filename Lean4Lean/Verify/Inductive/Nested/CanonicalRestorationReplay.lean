@@ -1232,13 +1232,12 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
   have HprojectedWF :
       ((envCtors.addEliminators es).addProjections decl.projectionEntries).WF := by
     obtain ⟨_, _, ht, hc, helim⟩ := Hcases
-    rcases helim with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, -, hhdr⟩
-    · have hP' : decl.projectionEntries = [] := hP
-      rw [hP']
+    rcases helim with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, -⟩
+    · rw [VInductDecl.projectionEntries_eq_nil hT]
       exact HcasesWF
     exact VEnv.WF.inductProjections (base := sourceVEnv) (envTypes := envTypes)
       (decl := decl) (block := decl.caseBlock es)
-      HsourceChecking.wf HcasesWF ⟨key, schema, hE, hcert, hkey, hhdr⟩
+      HsourceChecking.wf HcasesWF ⟨key, schema, hE, hreg⟩
       (TrInductDeclCore.sourceNames_nodup Hcore) (TrInductDeclCore.typeHeadersWF Hcore)
       (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore)
       (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore)

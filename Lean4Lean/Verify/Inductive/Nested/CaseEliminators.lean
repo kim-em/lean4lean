@@ -741,8 +741,8 @@ theorem NestedValidatedRunResult.caseEliminators
   have hcert : σ.Certified (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
       (sourceDecl.caseBlock [(B.caseKey, σ)]) :=
     CaseSchema.ofCaseCompilation_certified (Hdata _) hcertified hrecFresh
-  refine ⟨[(B.caseKey, σ)], ⟨T0, C0, hT0, hC0, .inr ⟨B.caseKey, σ, rfl, hcert, hkey,
-    hprojs, hhdr⟩⟩, ?_, B.caseKey, B.sourceSignature, auxiliaries, hBel.trans hBcase, rfl,
+  refine ⟨[(B.caseKey, σ)], ⟨T0, C0, hT0, hC0, .inr ⟨B.caseKey, σ, rfl, ⟨hcert, hkey,
+    hhdr⟩, hprojs⟩⟩, ?_, B.caseKey, B.sourceSignature, auxiliaries, hBel.trans hBcase, rfl,
     envTypes, generated, hadded, henvTypes, Haux, Hexpansion, hparamsSize, D, Hrestoring,
     HauxRestoring⟩
   -- replay
@@ -779,7 +779,7 @@ theorem NestedValidatedRunResult.caseEliminators
   have hC0le : C0 ≤ C' :=
     VEnv.addConstVals_mono (VEnv.addConstVals_mono hle hT0 hT') hC0 hC'
   exact ⟨T', C', hT', hC', .inr ⟨B.caseKey, σ, rfl,
-    CaseSchema.ofCaseCompilation_certified Hdata' (hcertified.mono hle) hrecFresh', hkey,
-    hprojs.mono hC0le, hhdr.mono hle hT'⟩⟩
+    ⟨CaseSchema.ofCaseCompilation_certified Hdata' (hcertified.mono hle) hrecFresh', hkey,
+      hhdr.mono hle hT'⟩, hprojs.mono hC0le⟩⟩
 
 end Lean4Lean.VerifyInductive

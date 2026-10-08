@@ -106,7 +106,7 @@ private theorem EliminatorsCoherent.addInduct (H : env.EliminatorsCoherent) (hen
       VEnv.addProjections_eliminators, VEnv.addEliminators_iff,
       VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes] at hs
     rcases hs with hnew | hold
-    · rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, -⟩
+    · rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, ⟨hcert, hkey, -⟩, hprojs⟩
       · rw [hE] at hnew; cases hnew
       rw [hE] at hnew
       simp only [List.mem_singleton, Prod.mk.injEq] at hnew
@@ -167,19 +167,19 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
         rw [addDefEqs_as_rules, VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hadd']
     | quot _ hadd => exact ih.addQuot hadd
     | induct _ hadd => exact ih.addInduct (show env.WF from ⟨ds, hbase⟩).ordered hadd
-  | inductEliminators hbase henv hle hcert hkey hconstants hfresh _ ihBase ih =>
+  | inductEliminators hbase henv hle hreg hconstants _ _ hcoherent hfresh _ ihBase ih =>
     intro k s hs
     rcases hs with ⟨rfl, rfl⟩ | hs
-    · refine ⟨_, _, _, hle.trans VEnv.addEliminator_le, hcert,
-        fun v hv => VEnv.addEliminator_le.constants (hconstants.1 v hv), ?_⟩
+    · refine ⟨_, _, _, hle.trans VEnv.addEliminator_le, hreg.certified,
+        fun v hv => VEnv.addEliminator_le.constants (hconstants v hv), ?_⟩
       intro type htype info hp
-      exact hconstants.2.2.2.1 type htype info hp
+      exact hcoherent type htype info hp
     · obtain ⟨b, src, blk, hbl, hc, hconst, hcoh⟩ := ih k s hs
       exact ⟨b, src, blk, hbl.trans VEnv.addEliminator_le, hc,
         fun v hv => VEnv.addEliminator_le.constants (hconst v hv), hcoh⟩
   | @inductProjections baseDecls ds base envTypes envCtors decl block
       hbase _ hcert hsource _ _ _ _ _ htypesSource _ hprojections htypes hctors ihBase ihCtors =>
-    obtain ⟨key, schema, hE, hcertS, hkey, -⟩ := hcert
+    obtain ⟨key, schema, hE, ⟨hcertS, hkey, -⟩⟩ := hcert
     have hbaseOrdered := (show base.WF from ⟨baseDecls, hbase⟩).ordered
     have hle : base ≤ (envCtors.addEliminators block.eliminators).addProjections block.projections :=
       (VEnv.addConstVals_le htypes).trans ((VEnv.addConstVals_le hctors).trans

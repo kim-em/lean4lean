@@ -748,18 +748,17 @@ theorem VEnv.InstalledInductCertificate.constructorConstant
         (VEnv.addEliminators_addProjections_le.constants hlookup)
 
 
-/-- The block registers no case eliminator and no projection, or exactly one case eliminator,
-under the key of its first family, with a
-schema certified by the declaration's case-only compilation certificate, projecting only out of
-structures registered at the constructor stage. It is installed after the constructors and
-before the projections (`VInductBlock.install`). -/
+/-- The declaration has no families and the block registers no case eliminator, or the block
+registers exactly one case eliminator with a registration certificate (`CaseSchema.Registered`:
+the case-only compilation certificate, the key of the first family and header agreement),
+projecting only out of structures registered at the constructor stage. It is installed after the
+constructors and before the projections (`VInductBlock.install`). -/
 def VInductBlock.EliminatorsWF (env : VEnv) (decl : VInductDecl) (block : VInductBlock) : Prop :=
   ∃ envTypes envCtors, env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
-    ((block.eliminators = [] ∧ block.projections = []) ∨
+    ((decl.types = [] ∧ block.eliminators = []) ∨
     ∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Certified env decl block ∧ decl.types.head?.map (·.name) = some key ∧
-      schema.ProjNamesRegistered envCtors key ∧ schema.HeaderAgreement env decl)
+      schema.Registered env decl block key ∧ schema.ProjNamesRegistered envCtors key)
 
 /-- The block skeleton of a declaration at its constructor boundary: families, constructors,
 projections and case eliminators, without generated recursors. -/
@@ -785,6 +784,14 @@ theorem InductiveSignature.CaseSchema.Certified.congr_block {schema : InductiveS
       projections := hprojections.trans hdata.projections },
     hprior, hr, hnames, hfresh⟩
 
+theorem InductiveSignature.CaseSchema.Registered.congr_block
+    {schema : InductiveSignature.CaseSchema} {base : VEnv} {source : VInductDecl}
+    {block block' : VInductBlock} {key : Name}
+    (H : schema.Registered base source block key) (htypes : block'.types = block.types)
+    (hctors : block'.ctors = block.ctors) (hprojections : block'.projections = block.projections) :
+    schema.Registered base source block' key :=
+  { H with certified := H.certified.congr_block htypes hctors hprojections }
+
 /-- Eliminator certification only reads a block's families, constructors and eliminators. -/
 theorem VInductBlock.EliminatorsWF.congr_block {env : VEnv} {decl : VInductDecl}
     {block block' : VInductBlock} (H : VInductBlock.EliminatorsWF env decl block)
@@ -794,10 +801,10 @@ theorem VInductBlock.EliminatorsWF.congr_block {env : VEnv} {decl : VInductDecl}
     VInductBlock.EliminatorsWF env decl block' := by
   obtain ⟨envTypes, envCtors, ht, hc, H⟩ := H
   refine ⟨envTypes, envCtors, htypes ▸ ht, hctors ▸ hc, ?_⟩
-  rcases H with ⟨hE, hP⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, hhdr⟩
-  · exact .inl ⟨heliminators.trans hE, hprojections.trans hP⟩
+  rcases H with ⟨hT, hE⟩ | ⟨key, schema, hE, hreg, hprojs⟩
+  · exact .inl ⟨hT, heliminators.trans hE⟩
   · exact .inr ⟨key, schema, heliminators.trans hE,
-      hcert.congr_block htypes hctors hprojections, hkey, hprojs, hhdr⟩
+      hreg.congr_block htypes hctors hprojections, hprojs⟩
 
 /-- Relational abstract environment extension for inductive declarations,
 including the compiled block witness used by implementation refinement. -/

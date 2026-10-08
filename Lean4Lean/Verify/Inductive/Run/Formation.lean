@@ -1046,26 +1046,25 @@ theorem AddInductive.declareConstructors.WF
       obtain ⟨eT, eC, ht, hc, helim⟩ := helimsWF
       obtain rfl : H.context.venv = eT := Option.some.inj (core.typesAdded.symm.trans ht)
       obtain rfl : venvCtors = eC := Option.some.inj (core.ctorsAdded.symm.trans hc)
-      rcases helim with ⟨hE, -⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, hhdr⟩
+      rcases helim with ⟨-, hE⟩ | ⟨key, schema, hE, hreg, hprojs⟩
       · rw [show B.caseEliminators = [] from hE]
         exact hvalidCore.tr.wf
       · rw [show B.caseEliminators = [(key, schema)] from hE]
-        have := hcert.register_after_constructors hsourceWF hkey ht hc hprojs hhdr
+        have := hreg.register_after_constructors hsourceWF ht hc hprojs
         simpa [VInductDecl.caseBlock, VEnv.addEliminators] using this
     have hprojectedWF :
         ((venvCtors.addEliminators B.caseEliminators).addProjections
           decl.projectionEntries).WF := by
       obtain ⟨_, _, ht, hc, helim⟩ := helimsWF
-      rcases helim with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, hprojs, hhdr⟩
-      · have hP' : decl.projectionEntries = [] := hP
-        rw [hP']
+      rcases helim with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, -⟩
+      · rw [VInductDecl.projectionEntries_eq_nil hT]
         exact helimWF
       apply VEnv.WF.inductProjections
           (base := sourceEnv) (envTypes := H.context.venv)
           (decl := decl) (block := decl.caseBlock B.caseEliminators)
       · exact hsourceWF
       · exact helimWF
-      · exact ⟨key, schema, hE, hcert, hkey, hhdr⟩
+      · exact ⟨key, schema, hE, hreg⟩
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup core
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.typeHeadersWF core
       · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars core
@@ -1511,8 +1510,9 @@ theorem BlockCertificate.rebaseCertificate
   have hprojectedWF :
       ((largerCtors.addEliminators H.staged.eliminators).addProjections H.projections).WF := by
     obtain ⟨_, _, _, _, hc⟩ := Hcases
-    rcases hc with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, _, hhdr⟩
-    · have hP' : H.projections = [] := hP
+    rcases hc with ⟨hT, -⟩ | ⟨key, schema, hE, hreg, _⟩
+    · have hP' : H.projections = [] :=
+        Hcompile.projections.trans (VInductDecl.projectionEntries_eq_nil hT)
       have hcasesWF' := hcasesWF
       generalize H.staged.eliminators = es at hcasesWF' ⊢
       rw [hP']
@@ -1522,7 +1522,7 @@ theorem BlockCertificate.rebaseCertificate
         (decl := decl) (block := H.block)
     · exact Hvalid.tr.wf
     · exact hcasesWF
-    · exact ⟨key, schema, hE, hcert, hkey, hhdr⟩
+    · exact ⟨key, schema, hE, hreg⟩
     · exact Hcompile.sourceNames
     · exact fun type member => (Hdecl.1.originalTypes type member).mono hbase
     · exact Hdecl.1.2.2.2.1

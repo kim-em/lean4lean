@@ -961,7 +961,7 @@ theorem NestedValidatedRunResult.restoredEliminators
           true) := by
     have Hord := E.production.constructors.completed.eliminatorsOrdinary
     rw [hcompEl] at Hord
-    rcases Hord with ⟨hE, -⟩ | ⟨s, key', hE', -, -, -, -, envTypes', envCtors', ht', hc', -,
+    rcases Hord with ⟨-, hE⟩ | ⟨s, key', hE', -, -, -, -, envTypes', envCtors', ht', hc', -,
       hprojs, -⟩
     · cases hE
     · simp only [List.cons.injEq, Prod.mk.injEq, and_true] at hE'
