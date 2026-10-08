@@ -11,7 +11,7 @@ to the declarations `Init.Prelude` submits.
   (`nonemptyBootstrapType`, `nonemptyBootstrapIntroType`, `choiceBootstrapType`, generic only
   in binder and universe-parameter names). It proves that every `TrExprS` translation of each
   is the corresponding stored term.
-* `VEnvs.WF.hasCanonicalChoice` (below): every well-formed model of an environment whose
+* `VEnvs.WFCore.hasCanonicalChoice` (below): every well-formed model of an environment whose
   production `Nonempty`, `Nonempty.intro` and `Classical.choice` have the production types
   satisfies `HasCanonicalChoice` at every safety. Every later environment keeps these
   constants, and `VEnv.HasCanonicalChoice.mono` transports the property along model
@@ -30,8 +30,8 @@ private theorem vconstant_ext' {a b : VConstant} (huvars : a.uvars = b.uvars)
   cases a; cases b; simp_all
 
 /-- The translated constant of a safe production constant whose type translates uniquely. -/
-private theorem VEnvs.WF.constant_of_production' {env : Environment} {ves : VEnvs}
-    (wf : ves.WF env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
+private theorem VEnvs.WFCore.constant_of_production' {env : Environment} {ves : VEnvs}
+    (wf : ves.WFCore env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
     (hfind : env.find? name = some ci) (hsafe : ci.safety = .safe)
     (huvars : ci.levelParams.length = uvars)
     (htype : ∀ {venv e}, TrExprS venv ci.levelParams [] ci.type e → e = type)
@@ -45,8 +45,8 @@ private theorem VEnvs.WF.constant_of_production' {env : Environment} {ves : VEnv
 
 /-- **Canonical choice is realized** in every well-formed model of an environment containing
 the production `Nonempty`, `Nonempty.intro` and `Classical.choice`. -/
-theorem VEnvs.WF.hasCanonicalChoice {env : Environment} {ves : VEnvs}
-    (wf : ves.WF env) {neInfo introInfo choiceInfo : ConstantInfo}
+theorem VEnvs.WFCore.hasCanonicalChoice {env : Environment} {ves : VEnvs}
+    (wf : ves.WFCore env) {neInfo introInfo choiceInfo : ConstantInfo}
     (hNe : env.find? ``Nonempty = some neInfo) (hNeProd : IsProductionNonempty neInfo)
     (hIntro : env.find? ``Nonempty.intro = some introInfo)
     (hIntroProd : IsProductionNonemptyIntro introInfo)

@@ -15,8 +15,10 @@ the executable, like the C++ kernel's `infer_proj`, still walks past when the re
 on it) the binder is inhabited by eliminating the major into `Prop` through the structure's
 registered case eliminator and applying canonical choice (`VEnv.WF.corner_inhabit_choice`), and
 substitution again removes it (`projectionWalkCorner_choice`). Every registered structure has a
-registered case eliminator in a well-formed environment (`VEnv.WF.projections_eliminated`); the
-checker's contexts carry canonical choice of their environment.
+registered case eliminator in a well-formed environment (`VEnv.WF.projections_eliminated`).
+This is one of the two ways a checker context resolves the corner (`ProjectionCorner`); the other,
+used by `addDecl.WF_of_canonicalEq`, is a telescope certificate of every visible constructor
+(`TelTrN.delete_closed`), which needs no choice.
 -/
 
 namespace Lean4Lean

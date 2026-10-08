@@ -189,7 +189,7 @@ private theorem restoredHeaderValidationValidAux
                 (ci' := target.toVConstVal.toVConstant) hfresh hnprim
                 HheadTr'.1 (Hheader.wf.mono Hle)
                 (by simpa [HheadTr'.2] using hadd) rfl trivial
-                (RecursorInstallStep.of_not_rec nofun)
+                (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
             rw [HvalidationHead.output] at HvalidationTail
             apply ih HvalidationTail
             · intro nextSource hmem

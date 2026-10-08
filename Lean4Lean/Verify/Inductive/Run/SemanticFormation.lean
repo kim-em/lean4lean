@@ -48,7 +48,8 @@ theorem AddInductive.semanticFormationCoreWF
     (hnprimCtors : c.allowPrimitive = true →
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (henv : TypeChecker.EnvGF (fun _ => True) c.env) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -84,7 +85,8 @@ theorem AddInductive.semanticFormationCoreWF
               CheckedConstructorsResult Hc.venv decl Hheaders.context.venv
                   Hheaders.headers.params stats indTypes c.lparams
                   Hheaders.materialized.parameterScope /\
-                CheckedConstructorOwnerNormalForms stats indTypes := by
+                CheckedConstructorOwnerNormalForms stats indTypes ∧
+                SourceCtorsCertified Hheaders.context.venv c.lparams indTypes.toList := by
       intro checkedOut hfull
       have hcheckedOut : AddInductive.checkConstructors.loopTypes indTypes stats
           isUnsafe 0 { headerCheckContext c stats with env := headerEnv } = .ok checkedOut :=
@@ -99,7 +101,11 @@ theorem AddInductive.semanticFormationCoreWF
         AddInductive.checkConstructors.ownerNormalFormsWF Hheaders
           hconsume hlitInstalled
           checkedOut hfull
-      exact ⟨decl, Hheaders, Hchecked, Howners⟩
+      have Htele := AddInductive.checkConstructors.telescopesWF Hheaders
+        (Hheaders.installed.envGF Hc.checking.tr.map_wf henv
+          (Hheaders.entriesNoRecursor))
+        checkedOut hfull
+      exact ⟨decl, Hheaders, Hchecked, Howners, Htele⟩
     have Hphases :
         ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
           AddInductive.declareConstructors stats indTypes isUnsafe)
@@ -109,15 +115,16 @@ theorem AddInductive.semanticFormationCoreWF
                 isUnsafe depth Hc.venv indTypes headerEnv,
               ∃ _ : ConstructorPhasesResult Hheaders outEnv, True :=
       Hcheck.bind fun _ Hchecked => by
-      rcases Hchecked with ⟨decl, Hheaders, Hchecked, Howners⟩
+      rcases Hchecked with ⟨decl, Hheaders, Hchecked, Howners, Htele⟩
       exact (AddInductive.declareConstructors.WF Hheaders
-        Hchecked hvisible hnprimCtors).mono fun outEnv Hdeclared => by
+        Hchecked hvisible hnprimCtors Htele).mono fun outEnv Hdeclared => by
           rcases Hdeclared with ⟨Hdeclared, _⟩
           let R : ConstructorPhasesResult Hheaders outEnv := {
             checked := Hchecked.checked
             parameterPrefixes := Hchecked.parameterPrefixes
             constructorTails := Hchecked.constructorTails
             ownerNormalForms := Howners
+            telescopes := Htele
             declared := Hdeclared
             formation := Hheaders.formation Hchecked
             core := Lean4Lean.VerifyInductive.TrInductDeclCore.ofPhases

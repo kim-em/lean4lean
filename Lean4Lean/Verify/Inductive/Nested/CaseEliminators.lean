@@ -64,7 +64,7 @@ theorem NestedValidatedRunResult.boundarySignatureFacts
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (B : ConstructorBoundary E.production.c E.production.stats E.production.loweredDecl
       E.production.nparams E.production.isUnsafe E.production.depth E.production.initialEnv
       E.production.indTypes)
@@ -232,7 +232,7 @@ theorem NestedValidatedRunResult.boundaryCaseCompilationData
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hformation : NestedFormationAssembly (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl)
@@ -460,7 +460,7 @@ theorem NestedValidatedRunResult.restorationRecursorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (Hformation : NestedFormationAssembly (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)
     (hformationExpanded : Hformation.expanded = E.production.loweredDecl)
@@ -547,7 +547,7 @@ theorem NestedValidatedRunResult.loweredRecursorNames_fresh
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) :
+    (wf : ves.WFCore sourceProdEnv) :
     ∀ n ∈ E.production.loweredDecl.types.map (fun t => t.name.str "rec"),
       sourceProdEnv.find? n = none := by
   intro n hn
@@ -618,7 +618,7 @@ theorem NestedValidatedRunResult.caseEliminators
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (_Howners : ConstructorOwnersPresent sourceProdEnv)
     (Hformation : NestedFormationAssembly (ves.venv (if isUnsafe then .unsafe else .safe))
       sourceDecl)

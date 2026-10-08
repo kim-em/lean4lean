@@ -1117,7 +1117,7 @@ theorem GeneratedFamilyInstalledContainer.directAuxiliaryConstructors
     {ves : VEnvs}
     (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WFCore prodEnv)
     (henv : (ves.venv safety).WF)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (abstractLevels : List VLevel)
@@ -1255,7 +1255,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.builtConstructorTranslation
       target)
     (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
       params finalState.nestedAux H.source H.generated)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WFCore prodEnv)
     (result : Lean4Lean.ElimNestedInductive.Result)
     (Hmap : NestedAuxMapModels result finalState)
     (i : Nat) (hi : i < target.ctors.length) :

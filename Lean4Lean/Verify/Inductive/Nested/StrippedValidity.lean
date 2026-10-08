@@ -584,7 +584,8 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
         finalVEnv rec ∧
       ∃ info, (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames)).constants.find?
-          rec.getMajorInduct = some (.inductInfo info)) :
+          rec.getMajorInduct = some (.inductInfo info))
+    (hcorner : ProjectionCorner c.safety outEnv finalVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
@@ -655,7 +656,6 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
         · exact hcore.tr.of_value h hs hv
         · cases hv }
     hasPrimitives := hcore.hasPrimitives
-    canonicalChoice := hcore.canonicalChoice
     safePrimitives := by
       intro n ci hfind hprim
       rcases hcasesE hfind with h | ⟨r, h, rfl⟩
@@ -707,6 +707,10 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     rw [hSquot, Hactual.quotInit_eq] at hq
     exact (hvalidSource.quot hq).extend hpres canonical.le hrecursors.heads
   exact hvalidCore.toValid howners' hregistry' hrecursors hquot
+    (hcorner.ofCtors fun h => by
+      rcases hcasesE h with h | ⟨r, _, he⟩
+      · exact h
+      · cases he)
 
 end VerifyInductive
 end Lean4Lean

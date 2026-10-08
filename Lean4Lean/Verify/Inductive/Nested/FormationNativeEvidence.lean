@@ -1009,7 +1009,7 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
       finalState targetConcrete)
     (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
       params finalState.nestedAux Horigin.source Horigin.generated)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WFCore prodEnv)
     (henv : (ves.venv safety).WF)
     (sourceTypesVEnv : VEnv)
     (hbaseLE : ves.venv safety ≤ sourceTypesVEnv)
@@ -1344,7 +1344,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
-    (wf : ves.WF c.env)
+    (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -1794,7 +1794,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState finalState : Lean4Lean.ElimNestedInductive.State}
     {ves : VEnvs}
-    (wf : ves.WF c.env)
+    (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -1838,7 +1838,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
   rcases H.installedContainerBeforeHeaders wf rfl Hrun Hc Hprod
       HsourceHeaders HsourceAdded realization with ⟨C⟩
   rcases H.formationHeaderParameterDomains Htarget htarget hparamsSize
-      (VEnvs.WF.environmentTypesBVarClosed wf) with
+      (VEnvs.WFCore.environmentTypesBVarClosed wf) with
     ⟨sourceDomains, familyTarget, hsourceDomains, Hfamily, Hcontext⟩
   have henv : (ves.venv safety).WF := wf.tr.wf
   have hbaseLE : ves.venv safety ≤ sourceTypesVEnv :=
@@ -2007,7 +2007,7 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
       (result, finalState))
     (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
     (Hparams : NestedResultParamsNodup result)
-    (wf : ves.WF c.env)
+    (wf : ves.WFCore c.env)
     (hsourceVEnv : sourceVEnv = ves.venv safety)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
@@ -2061,7 +2061,7 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     have hresult := hresultAt i
     have htarget := htargetAt i
     rcases Hrun.finalGeneratedFamilyOriginAt
-        (VerifyInductive.VEnvs.WF.environmentTypesClosed wf)
+        (VerifyInductive.VEnvs.WFCore.environmentTypesClosed wf)
         wf.inductivesClosed Hsources (by simp) (by simp) hresult with
       ⟨Horigin⟩
     rcases Horigin.nativeGeneratedFamilySource

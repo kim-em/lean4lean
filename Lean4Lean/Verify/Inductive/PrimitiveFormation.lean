@@ -53,6 +53,9 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersWF
       simpa [hlength]
     let Hstaged := Hc.toStaged.withEnv
       (Hinstalled.checking Hc.checking.tr) Hinstalled.le
+      ((Hc.checking.corner.ofCtors
+        (Hinstalled.ctors_of_noCtor Hc.checking.tr.map_wf inductInfo_zip_noCtor)).mono
+        Hinstalled.le)
     refine ⟨{
       entries := List.zip
         (infos.toList.map (fun info => .inductInfo info)) decl.typeConstants

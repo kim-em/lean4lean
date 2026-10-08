@@ -52,6 +52,7 @@ theorem AddInductive.run.semanticAddInductWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
+    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
@@ -75,7 +76,7 @@ theorem AddInductive.run.semanticAddInductWF
   have htypes : types ≠ [] := by
     simpa using List.ne_nil_of_length_pos
       (by simpa using hnonempty : 0 < types.length)
-  exact (AddInductive.run.semanticWF nparams numNested Hc Hclosed hctx
+  exact (AddInductive.run.semanticWF nparams numNested Hc Hclosed HenvGF hctx
     hnonempty HnotPartial Hinputs).mono fun _ Hrun =>
       Hrun.addInductCanonical htypes
 

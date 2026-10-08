@@ -11,7 +11,7 @@ an empty environment through `Lean4Lean.addDecl`. The test checks that
 * the real constants satisfy `IsProductionNonempty`, `IsProductionNonemptyIntro` and
   `IsProductionChoice`: their types are `nonemptyBootstrapType`,
   `nonemptyBootstrapIntroType` and `choiceBootstrapType`, they are safe, and they have one
-  universe parameter. So `VEnvs.WF.hasCanonicalChoice` applies to every environment that
+  universe parameter. So `VEnvs.WFCore.hasCanonicalChoice` applies to every environment that
   contains them;
 * the executable installs the three constants exactly as Lean's kernel does;
 * their translations are the terms stored by `VEnv.HasCanonicalChoice`. -/

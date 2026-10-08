@@ -519,6 +519,20 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     rwa [(VExpr.WF.closedN c.Ewf.ordered (hT₀.wf c.Ewf.ordered (by trivial)) trivial).liftN_eq
       (j := 0) (Nat.le_refl 0)] at this
   obtain ⟨T₀, hT₀nil, hT₀, L⟩ := hcT
+  -- under constructor certificates, the instantiated constructor type is telescope-closed
+  have hcertT : CtorTelescopes c.safety c.env c.venv →
+      c_val.numFields = AddInductive.constructorArity c_val.type - c_val.numParams ∧
+      TelTrN c.venv c.lparams (AddInductive.constructorArity c_val.type) c.vlctx
+        ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels) T₀ := by
+    intro hcert
+    have hnf := VContext.constructorArity hci hfc hsingle hcci hinduct'
+    obtain ⟨T, hT⟩ := hcert hcci (c.trenv.find?_uniq hcci hctor).2.1
+    obtain ⟨T₁, hT₁, -⟩ := hT.instL_lequiv c.Ewf hls (h5.trans hlen.symm)
+    cases hT₁.toTrExprS.uniqueS hT₀nil
+    refine ⟨hnf, ?_⟩
+    have := hT₁.weakFV c.Ewf.ordered (.from_nil c.mlctx.noBV) c.Δwf
+    rwa [(VExpr.WF.closedN c.Ewf.ordered (hT₀nil.wf c.Ewf.ordered (by trivial)) trivial).liftN_eq
+      (j := 0) (Nat.le_refl 0)] at this
   have L₀ := L
   rw [hshape, VExpr.instL_wrapForalls] at L
   obtain ⟨doms₀, result₀, rfl, hdoms, -⟩ := L.wrapForalls_inv
@@ -535,9 +549,12 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   -- the parameters
   have hP'len : (args'.take info.nparams).length = info.nparams := by simp; omega
   have hnpLen : info.nparams ≤ doms₀.length := by omega
-  refine (instantiateProjectionParameters.WF_all hT₀ (ds := doms₀) (position := 0)
+  refine (instantiateProjectionParameters.WF_cert hT₀ (fun hc => (hcertT hc).2)
+      (fun hc => ?_) (ds := doms₀) (position := 0)
       (xs' := args'.take info.nparams) (by rw [hsp]; exact hnpLen) (by rw [hP'len, hsp]) ?_ ?_
       hpfx₂).bind fun r _ le₃ H => ?_
+  · have := (hcertT hc).1
+    omega
   · intro k hk
     rw [hsp] at hk
     refine ⟨type.getAppArgs[k]'(by omega), ?_, ?_⟩
@@ -552,7 +569,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     · have := hparam ls' args' hlen' hargsLen' ⟨_, hetyS⟩ k hk (by omega)
       rwa [List.getElem_take]
   split <;> [rename_i afterParameters hafter; exact hfail']
-  obtain ⟨⟨⟨⟨R₁, hR₁, hafter'⟩, hfvAfter⟩, hlvAfter⟩, hhAfter⟩ := H _ rfl
+  obtain ⟨⟨⟨⟨⟨R₁, hR₁, hafter'⟩, hfvAfter⟩, hlvAfter⟩, hhAfter⟩, hafterCert⟩ := H _ rfl
   have hpfx₃ := VState.LE.namePrefix_eq hpfx₂ le₃
   have hR₁0 := hR₁
   rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
@@ -609,15 +626,28 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     exact hp.hasType.2.defeqU_r c.Ewf c.Δwf hL.symm
   -- the fields
   have hile : i ≤ ds.length := by omega
-  refine (instantiateProjectionFields.WF_all (st := st) (G := G) he ⟨_, hety⟩ (.inr rfl) hG hafter'
-    hile (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
-    (fun _ m _ D body' hres hD hnG body hbody hcl =>
-      projectionWalkCorner_choice c.Ewf c.canonicalChoice c.Δwf hinfo hlsWF hlen' L₀ hP'len
-        (idx := args'.drop info.nparams) (by rw [List.take_append_drop]; exact hety)
-        (j := m) (by
-          rw [VProjectionInfo.instantiateProjectionParameters_append, hR₁0]; simpa [projs] using hres)
-        hD hnG hbody hcl) hpfx₄).bind
-    fun r _ le₅ H => ?_
+  refine (instantiateProjectionFields.WF_corner (st := st) (G := G)
+    (m := AddInductive.constructorArity c_val.type - I_val.numParams) he ⟨_, hety⟩ (.inr rfl) hG
+    hafter' hile (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
+    ?corner hpfx₄).bind fun r _ le₅ H => ?_
+  case corner =>
+    rcases c.corner with hch | hcert
+    · exact .inr fun _ m _ D body' hres hD hnG body hbody hcl =>
+        projectionWalkCorner_choice c.Ewf hch c.Δwf hinfo hlsWF hlen' L₀ hP'len
+          (idx := args'.drop info.nparams) (by rw [List.take_append_drop]; exact hety)
+          (j := m) (by
+            rw [VProjectionInfo.instantiateProjectionParameters_append, hR₁0]
+            simpa [projs] using hres)
+          hD hnG hbody hcl
+    · obtain ⟨R, hR, hRT⟩ := hafterCert hcert
+      have hnf := (hcertT hcert).1
+      rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
+        (by rw [hP'len]; exact hnpLen)] at hR
+      cases hR
+      rw [hP'len] at hRT
+      refine .inl ⟨?_, ?_⟩
+      · rw [← hds_def]; exact hRT
+      · omega
   have hpfx₅ := VState.LE.namePrefix_eq hpfx₄ le₅
   split <;> [skip; exact hfail']
   obtain ⟨⟨⟨⟨R₂, hR₂, hsel'⟩, hfvSel⟩, hlvSel⟩, hhSel⟩ := H _ rfl

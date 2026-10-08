@@ -54,17 +54,17 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) (hEq : CanonicalEqEnvs ves)
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (hEq : CanonicalEqEnvs ves)
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0)
     : (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        exists ves' : VEnvs, ves'.WF outEnv /\ CanonicalEqEnvs ves' /\
+        exists ves' : VEnvs, ves'.WFCore outEnv /\ CanonicalEqEnvs ves' /\
           forall safety, ves.venv safety <= ves'.venv safety := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
-  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hch
+  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hcorner
   have hsource : Hc.venv = ves.venv c.safety := by
     rfl
   have hctx : Hc.mlctx.vlctx = [] := by
@@ -90,7 +90,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalEnvironmentWF
     exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.semanticFinalWF
-    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hch hEq hsource
+    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hEq hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
@@ -103,17 +103,18 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
       { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res)
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WF outEnv ∧
-          ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
+          (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+          VEnvs.CertPres env outEnv ves ves' := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
-  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hch
+  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hcorner
   have hsource : Hc.venv = ves.venv c.safety := by
     rfl
   have hctx : Hc.mlctx.vlctx = [] := by
@@ -139,15 +140,15 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.semanticFinalSpecificationModelWF
-    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hch hsource
+    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
   intro outEnv hout
   have hout' : AddInductive.run nparams res.types 0 c = .ok outEnv := by
     simpa [c, safety, initialContext] using hout
-  rcases Hrun outEnv hout' with ⟨ves', wf', hle, _⟩
-  exact ⟨ves', wf', hle⟩
+  rcases Hrun outEnv hout' with ⟨ves', wf', hle, hcert, _⟩
+  exact ⟨ves', wf', hle, hcert⟩
 
 /-- Source-facing ordinary refinement at the exact production boundary.  The
 successful source precheck and zero-auxiliary lowering trace prove that the
@@ -158,7 +159,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
@@ -166,15 +167,16 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WF outEnv ∧
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult
             (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
             sourceTypes isUnsafe
-            (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
+            (ves'.venv (if isUnsafe then .unsafe else .safe))) ∧
+          VEnvs.CertPres env outEnv ves ves' := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
-  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hch
+  let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hcorner
   have hsource : Hc.venv = ves.venv c.safety := by
     rfl
   have hctx : Hc.mlctx.vlctx = [] := by
@@ -202,15 +204,15 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     exact SemanticRunVerificationInputs.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.semanticFinalSpecificationModelWF
-    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hch hsource
+    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
   intro outEnv hout
   have hout' : AddInductive.run nparams res.types 0 c = .ok outEnv := by
     simpa [c, safety, initialContext] using hout
-  rcases Hrun outEnv hout' with ⟨ves', wf', hle, ⟨S⟩⟩
-  refine ⟨ves', wf', hle, ⟨?_⟩⟩
+  rcases Hrun outEnv hout' with ⟨ves', wf', hle, hcert, ⟨S⟩⟩
+  refine ⟨ves', wf', hle, ⟨?_⟩, hcert⟩
   rw [htypes, hsource] at S
   have hisUnsafe : (c.safety != .safe) = isUnsafe := by
     cases isUnsafe <;> rfl
@@ -223,7 +225,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WF env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) (hEq : CanonicalEqEnvs ves)
+    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (hEq : CanonicalEqEnvs ves)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (HsourcesB : SourceBVarClosed sourceTypes)
     (Hlower : NestedLoweringResult env fuel.inductiveFuel nparams sourceTypes
@@ -231,15 +233,15 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationWF
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        ∃ ves' : VEnvs, ves'.WF outEnv ∧ CanonicalEqEnvs ves' ∧
+        ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ CanonicalEqEnvs ves' ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
           Nonempty (InductiveSpecificationResult
             (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
             sourceTypes isUnsafe
             (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
-    env lparams nparams sourceTypes isUnsafe fuel res ves wf hch Hsources HsourcesB
-    Hlower haux).mono fun _ ⟨ves', wf', hle, Hspec⟩ =>
+    env lparams nparams sourceTypes isUnsafe fuel res ves wf hcorner Hsources HsourcesB
+    Hlower haux).mono fun _ ⟨ves', wf', hle, Hspec, _⟩ =>
       ⟨ves', wf', hEq.mono hle, hle, Hspec⟩
 
 end VerifyInductive

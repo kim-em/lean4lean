@@ -336,7 +336,7 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (C : NestedFinalAssemblyShape E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
@@ -817,7 +817,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_of_trail
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -1047,7 +1047,7 @@ theorem NestedValidatedRunResult.restoredEquation_of_realizationModulo
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -1088,7 +1088,7 @@ theorem NestedValidatedRunResult.restoredEquations_of_realizationModulo
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (hheads : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       E.auxHeads)
@@ -1155,7 +1155,7 @@ theorem NestedValidatedRunResult.auxRecName_not_renamed
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {auxiliaries : List ContainerSpecialization}
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams) :
@@ -1217,7 +1217,7 @@ theorem NestedValidatedRunResult.hrules_of_modulo
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (HruleShape : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
