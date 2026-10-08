@@ -19,21 +19,21 @@ open VExpr
 /-- A finite structural derivation realizing an installed equation in the
 chosen native/schema reduction presentation. The full presentation adds
 checked singleton and quotient prefix replay for zero-source occurrences. -/
-inductive NativeReductionTrace (env : VEnv) (U : Nat)
+inductive PatternReductionTrace (env : VEnv) (U : Nat)
     (Pat : (p : Pattern) → p.RHS × p.Check → Prop) :
     List VExpr → VExpr → VExpr → Prop where
-  | refl : NativeReductionTrace env U Pat Γ e e
-  | trans : NativeReductionTrace env U Pat Γ e e' →
-      NativeReductionTrace env U Pat Γ e' e'' → NativeReductionTrace env U Pat Γ e e''
-  | native : Pat p r → p.Matches e levels values →
+  | refl : PatternReductionTrace env U Pat Γ e e
+  | trans : PatternReductionTrace env U Pat Γ e e' →
+      PatternReductionTrace env U Pat Γ e' e'' → PatternReductionTrace env U Pat Γ e e''
+  | pattern : Pat p r → p.Matches e levels values →
       r.2.OK (IsDefEqU env U Γ) levels values →
-      NativeReductionTrace env U Pat Γ e (r.1.apply levels values)
-  | schema : CaseIota env U Γ e e' → NativeReductionTrace env U Pat Γ e e'
-  | beta : NativeReductionTrace env U Pat Γ (.app (.lam domain body) arg) (body.inst arg)
-  | app : NativeReductionTrace env U Pat Γ fn fn' → NativeReductionTrace env U Pat Γ arg arg' →
-      NativeReductionTrace env U Pat Γ (.app fn arg) (.app fn' arg')
-  | lam : NativeReductionTrace env U Pat (domain :: Γ) body body' →
-      NativeReductionTrace env U Pat Γ (.lam domain body) (.lam domain body')
+      PatternReductionTrace env U Pat Γ e (r.1.apply levels values)
+  | schema : CaseIota env U Γ e e' → PatternReductionTrace env U Pat Γ e e'
+  | beta : PatternReductionTrace env U Pat Γ (.app (.lam domain body) arg) (body.inst arg)
+  | app : PatternReductionTrace env U Pat Γ fn fn' → PatternReductionTrace env U Pat Γ arg arg' →
+      PatternReductionTrace env U Pat Γ (.app fn arg) (.app fn' arg')
+  | lam : PatternReductionTrace env U Pat (domain :: Γ) body body' →
+      PatternReductionTrace env U Pat Γ (.lam domain body) (.lam domain body')
 
 class Params where
   env : VEnv
@@ -767,7 +767,7 @@ inductive ParRed : List VExpr → VExpr → VExpr → Prop where
 /-- The concrete native and registered-schema head developments, including
 parallel reduction of their captured arguments. -/
 inductive HeadParallelReduction (Γ : List VExpr) : VExpr → VExpr → Prop where
-  | native : Pat p r → p.Matches e m1 m2 →
+  | pattern : Pat p r → p.Matches e m1 m2 →
     r.2.OK (IsDefEqU env univs Γ) m1 m2 →
     (∀ a, Γ ⊢ m2 a ≫ m2' a) →
     HeadParallelReduction Γ e (r.1.apply m1 m2')

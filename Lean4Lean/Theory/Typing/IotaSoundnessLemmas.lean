@@ -25,7 +25,7 @@ import Lean4Lean.Theory.Typing.Env
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Theory.Typing.LevelEquiv
-import Lean4Lean.Theory.Typing.NativeCaptureTransport
+import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.CaseMajorDomain
 import Lean4Lean.Theory.Typing.ProjectionShape

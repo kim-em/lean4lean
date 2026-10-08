@@ -52,19 +52,19 @@ The index case records the conversion from the source variable's natural
 domain to its constructor-field domain AFTER the given substitution.
 The proof case can use any already typed proof in the common target context.
 No endpoint equality or computation callback is supplied. -/
-inductive NativeCaptureReplay (env : VEnv) (U : Nat) (Γ source : List VExpr)
+inductive ConstructorCaptureReplay (env : VEnv) (U : Nat) (Γ source : List VExpr)
     (arguments : Subst) : List VExpr → Subst → Prop where
-  | nil : NativeCaptureReplay env U Γ source arguments [] captures
-  | index : NativeCaptureReplay env U Γ source arguments declared captures.tail →
+  | nil : ConstructorCaptureReplay env U Γ source arguments [] captures
+  | index : ConstructorCaptureReplay env U Γ source arguments declared captures.tail →
       HasType env U declared domain (.sort level) →
       Lookup source position naturalDomain →
       captures.head = arguments position →
       TypeConversion env U Γ (naturalDomain.subst arguments) (domain.subst captures.tail) →
-      NativeCaptureReplay env U Γ source arguments (domain :: declared) captures
-  | proof : NativeCaptureReplay env U Γ source arguments declared captures.tail →
+      ConstructorCaptureReplay env U Γ source arguments (domain :: declared) captures
+  | proof : ConstructorCaptureReplay env U Γ source arguments declared captures.tail →
       HasType env U declared domain (.sort .zero) →
       HasType env U Γ captures.head (domain.subst captures.tail) →
-      NativeCaptureReplay env U Γ source arguments (domain :: declared) captures
+      ConstructorCaptureReplay env U Γ source arguments (domain :: declared) captures
 
 /-- Transport all captures by induction on their declared telescope.
 Previously related captures transport the next declared domain. An index
@@ -73,11 +73,11 @@ domain. This works when alignment is available only after substitution.
 
 Only strong substitution and explicit conversion are used. In particular,
 the freshly obtained typing/guard proofs are never induction arguments. -/
-theorem NativeCaptureReplay.transport
+theorem ConstructorCaptureReplay.transport
     (henv : env.Ordered) (hΓ : OnCtx Γ (env.IsType U))
     (W : Ctx.SubstEq env U Γ arguments arguments' source)
-    (H : NativeCaptureReplay env U Γ source arguments declared captures) :
-    ∃ captures', NativeCaptureReplay env U Γ source arguments' declared captures' ∧
+    (H : ConstructorCaptureReplay env U Γ source arguments declared captures) :
+    ∃ captures', ConstructorCaptureReplay env U Γ source arguments' declared captures' ∧
       Ctx.SubstEq env U Γ captures captures' declared := by
   induction H with
   | @nil emptyCaptures => exact ⟨emptyCaptures, .nil, .nil⟩

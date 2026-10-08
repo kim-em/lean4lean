@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Typing.PrimSpec
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Theory.Typing.Strong
-import Lean4Lean.Theory.Typing.NativeCaptureTransport
+import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.Injectivity
 import Lean4Lean.Instantiate
 

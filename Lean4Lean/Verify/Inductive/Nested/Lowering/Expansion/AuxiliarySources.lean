@@ -1810,7 +1810,7 @@ theorem NestedLowering.auxiliaryFamilySources
       sourceTypes.length + i.1 < loweredDecl.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Htarget]
     exact hresultAt i
-  let NativeAt (i : Fin count) :=
+  let AuxiliarySourceAt (i : Fin count) :=
     Σ Horigin : LoweredAuxiliaryFamily c.env result.params
       nparams finalState
         (getElem result.types (sourceTypes.length + i.1) (hresultAt i)),
@@ -1819,7 +1819,7 @@ theorem NestedLowering.auxiliaryFamilySources
             (getElem loweredDecl.types (sourceTypes.length + i.1) (htargetAt i)) //
         VEnv.IsDefEqCtx (ves.venv safety) c.lparams.length []
           N.sourceParams.reverse parameterContext }
-  have Hpoint : ∀ i : Fin count, Nonempty (NativeAt i) := by
+  have Hpoint : ∀ i : Fin count, Nonempty (AuxiliarySourceAt i) := by
     intro i
     have hresult := hresultAt i
     have htarget := htargetAt i
@@ -1836,9 +1836,9 @@ theorem NestedLowering.auxiliaryFamilySources
         (List.getElem_mem htarget) Hrun.resultParamsSize with
       ⟨N, hN⟩
     exact ⟨⟨Horigin, N, hN⟩⟩
-  let nativeAt (i : Fin count) : NativeAt i := Classical.choice (Hpoint i)
+  let auxiliarySourceAt (i : Fin count) : AuxiliarySourceAt i := Classical.choice (Hpoint i)
   let generated : List VInductiveType :=
-    List.ofFn fun i : Fin count => (nativeAt i).2.1.payload.source
+    List.ofFn fun i : Fin count => (auxiliarySourceAt i).2.1.payload.source
   refine ⟨{
     generated := generated
     length := ?_
@@ -1851,8 +1851,8 @@ theorem NestedLowering.auxiliaryFamilySources
     have hicount : i < count := by
       simpa only [generated, List.length_ofFn] using hi
     let fi : Fin count := ⟨i, hicount⟩
-    let O := (nativeAt fi).1
-    let N := (nativeAt fi).2.1
+    let O := (auxiliarySourceAt fi).1
+    let N := (auxiliarySourceAt fi).2.1
     refine ⟨O, ?_, ?_⟩
     · simpa only [fi, O, N] using N
     · simp only [generated, List.getElem_ofFn, N]
@@ -1861,8 +1861,8 @@ theorem NestedLowering.auxiliaryFamilySources
     have hicount : i < count := by
       simpa only [generated, List.length_ofFn] using hi
     let fi : Fin count := ⟨i, hicount⟩
-    let O := (nativeAt fi).1
-    let N := (nativeAt fi).2
+    let O := (auxiliarySourceAt fi).1
+    let N := (auxiliarySourceAt fi).2
     refine ⟨O, N.1, ?_, N.2⟩
     simp only [generated, List.getElem_ofFn, N]
     congr 1

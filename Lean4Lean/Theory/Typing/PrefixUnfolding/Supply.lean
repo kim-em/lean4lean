@@ -58,7 +58,7 @@ theorem singletonUnfolding_supply_one {data : RecursorData} {env : VEnv}
   split at hEarly <;> try contradiction
   split at hLate <;> try contradiction
   simp only [bind, Option.bind_eq_some_iff] at hEarly
-  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+  obtain ⟨recType, htype, residual, hsupply, ⟨domains, result⟩, htake,
     ⟨constructor, fields⟩, hrecon, equation, hequation, eqbody, hbody, hEarly⟩ := hEarly
   split at hEarly <;> try contradiction
   cases hEarly

@@ -23,7 +23,7 @@ theorem singletonUnfolding_anyArity {data : RecursorData} {levels : List VLevel}
     simp at hguard ⊢; exact ⟨hguard.1, hargs⟩
   rw [if_neg hguard']
   simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+  obtain ⟨recType, htype, residual, hsupply, ⟨domains, result⟩, htake,
     ⟨constructor, fields⟩, hrecon, equation, hequation, body, hbody, H⟩ := H
   split at H <;> try contradiction
   rename_i hcaptures

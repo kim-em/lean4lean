@@ -54,11 +54,11 @@ theorem RecursorRegistered.prefixType {data : RecursorData}
   simp at hguard
   have hlen : levels.length = data.uvars := hguard.1
   simp only [bind, Option.bind_eq_some_iff] at hg
-  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+  obtain ⟨recType, htype, residual, hsupply, ⟨domains, result⟩, htake,
     ⟨constructor, fields⟩, _, equation, _, body, _, hg⟩ := hg
   split at hg <;> try contradiction
   cases hg
-  have hf : env.HasType U Γ (.const data.name levels) (nativeType.instL levels) :=
+  have hf : env.HasType U Γ (.const data.name levels) (recType.instL levels) :=
     .const (H.recursorType htype) hlevels hlen
   have hh := hf.supply henv hΓ ht hsupply
   rw [takeForalls_sound htake] at hh

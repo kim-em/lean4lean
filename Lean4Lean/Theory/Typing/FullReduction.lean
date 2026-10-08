@@ -942,7 +942,7 @@ theorem SpineTransport.beta (hb : ParRed (A :: Γ) b b') (ha : ParRed Γ a a')
 
 end SpineTransport
 
-section NativeHead
+section CaseRedexMajor
 
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
 local notation:65 Γ " ⊢ " e1 " ≡ " e2:36 " : " A:36 => IsDefEq env univs Γ e1 e2 A
@@ -1180,7 +1180,7 @@ theorem HasType.app_lam_arg (hΓ : OnCtx Γ (env.IsType univs))
   have ⟨⟨_, u1⟩, _⟩ := ((c1.lam c2).uniqU henv hΓ hf).forallE_inv henv hΓ
   exact u1.symm.defeq hb
 
-end NativeHead
+end CaseRedexMajor
 
 section SpineTransport2
 

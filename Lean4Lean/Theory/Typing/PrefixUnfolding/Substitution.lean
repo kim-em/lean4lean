@@ -50,10 +50,10 @@ private theorem vars_inst_above (n k : Nat) (arg : VExpr) :
   obtain ⟨i, hi, rfl⟩ := he
   exact (show (VExpr.bvar (0+i)).ClosedN n from by simpa only [VExpr.ClosedN, Nat.zero_add] using hi).instN_eq (j := k+n) (by omega)
 
-theorem singletonUnfolding_inst {data : RecursorData} {nativeType : VExpr} {env : VEnv}
+theorem singletonUnfolding_inst {data : RecursorData} {recType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
-    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
+    (htype : data.recursorType = some recType) (hclosed : recType.Closed)
     (H : data.singletonUnfolding env U levels args = some program) :
     data.singletonUnfolding env U levels (args.map (·.inst arg k)) = some (program.instN arg k) := by
   unfold singletonUnfolding at H ⊢

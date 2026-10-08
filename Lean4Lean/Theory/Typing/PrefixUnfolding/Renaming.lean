@@ -77,10 +77,10 @@ private theorem vars_lift'_consN (n : Nat) (ρ : Lift) :
   · simpa only [VExpr.ClosedN, Nat.zero_add] using hi
   · exact hfix
 
-theorem singletonUnfolding_lift' {data : RecursorData} {nativeType : VExpr} {env : VEnv}
+theorem singletonUnfolding_lift' {data : RecursorData} {recType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
-    (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
+    (htype : data.recursorType = some recType) (hclosed : recType.Closed)
     (H : data.singletonUnfolding env U levels args = some program) :
     data.singletonUnfolding env U levels (args.map (·.lift' ρ)) = some (program.rename ρ) := by
   unfold singletonUnfolding at H ⊢

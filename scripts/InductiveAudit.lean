@@ -11,7 +11,7 @@ import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.FullChurchRosser
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
-import Lean4Lean.Theory.Typing.NativeCaptureTransport
+import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Verify.Replay
@@ -107,7 +107,7 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.singletonReconstructAt
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.singletonEquation
 #inductive_audit Lean4Lean.VEnv.RecursorRegistered
-#inductive_audit Lean4Lean.VEnv.NativeReductionTrace
+#inductive_audit Lean4Lean.VEnv.PatternReductionTrace
 #inductive_audit Lean4Lean.VEnv.PrefixUnfold
 #inductive_audit Lean4Lean.VEnv.PrefixUnfold.defeq
 
@@ -143,7 +143,7 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.IsDefEq.strong
 #inductive_audit Lean4Lean.VEnv.IsDefEqStrong.subst
 #inductive_audit Lean4Lean.VEnv.IsDefEq.transport_bvar
-#inductive_audit Lean4Lean.VEnv.NativeCaptureReplay.transport
+#inductive_audit Lean4Lean.VEnv.ConstructorCaptureReplay.transport
 #inductive_audit Lean4Lean.VEnv.HasType.etaOpen_wf
 #inductive_audit Lean4Lean.VEnv.HasType.etaOpen_defeq
 #inductive_audit Lean4Lean.VEnv.IsDefEq.etaOpen_wrapLams

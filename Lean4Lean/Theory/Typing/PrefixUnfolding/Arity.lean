@@ -67,7 +67,7 @@ theorem singletonUnfolding_sameArity {data : RecursorData} {levels : List VLevel
   rename_i hguard
   rw [if_neg hguard]
   simp only [bind, Option.bind_eq_some_iff] at H
-  obtain ⟨nativeType, htype, residual, hsupply, ⟨domains, result⟩, htake,
+  obtain ⟨recType, htype, residual, hsupply, ⟨domains, result⟩, htake,
     ⟨constructor, fields⟩, hrecon, equation, hequation, body, hbody, H⟩ := H
   split at H <;> try contradiction
   rename_i hcaptures
