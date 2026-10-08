@@ -6,12 +6,34 @@ import Lean4Lean.Verify.Inductive.Nested.RestoredEquationProjNames
 The restorable names of the compilation restoration of a nested run are the
 auxiliary family names `_nested.i`, the auxiliary constructor names (the
 container constructor names with the container prefix replaced by
-`_nested.i`), and the lowered auxiliary recursor names `_nested.i.rec`.
+`_nested.i`), and the lowered auxiliary recursor names `_nested.i.rec`
+(`restorableNames_cover`).
 
 * `NestedValidatedRunResult.restorableNames_reserved`: every restorable name
-  lies in the reserved `_nested` namespace.
-* `NestedValidatedRunResult.restorableNames_lit`: hence no literal mentions a
-  restorable name.
+  lies in the reserved `_nested` namespace; `restorableNames_lit`: hence no
+  literal mentions a restorable name.
+* `NestedValidatedRunResult.loweredRulesAvoid_auxRecNames`: the lowered rules
+  avoid the lowered auxiliary recursor names (trailing arguments of hits of
+  any head list, literals, parameter domains). The recursor names are fresh
+  in the recursor-pass environment (`auxRecNames_fresh_ctorEnv`: the
+  recursor installation adds them), so the hit-shape invariant holds at them
+  at every level list (`envHitShape_auxRecNames`); the trailing provenance
+  chain `ruleRhsTrail` admits the recursor names (their occurrences in the
+  rules are the heads of the recursive calls), and running it at two
+  different level lists excludes them from trailing positions
+  (`HitTrailWith.toHitTrailAvoids_two`).
+* `NestedValidatedRunResult.loweredRules_projsOK`: the lowered rules project
+  out of no restorable name. The projection condition of the hit-shape chain
+  (`CompletedRecursorConstruction.ruleRhsProjsOK`) excludes the auxiliary
+  families and constructors; the translation of a rule in the recursor-pass
+  environment registers only base structures and lowered families, which
+  excludes the recursor names.
+* `NestedValidatedRunResult.loweredRulesAvoid_restorable_of_families`: the
+  lowered rules avoid every restorable name, given that they avoid the
+  auxiliary family names (`E.LoweredRulesAvoid heads E.auxFamilyNames`).
+
+The auxiliary family names do occur in the recursor-pass environment (in the
+lowered constructor types), so the level argument does not apply to them.
 -/
 
 namespace Lean.Expr
@@ -69,11 +91,51 @@ theorem and' {ok₁ ok₂ : Name → Prop} : ∀ {e : Expr}, ProjsOK ok₁ e →
   | .forallE _ _ _ _, h₁, h₂ => ⟨and' h₁.1 h₂.1, and' h₁.2 h₂.2⟩
   | .letE _ _ _ _ _, h₁, h₂ => ⟨and' h₁.1 h₂.1, and' h₁.2.1 h₂.2.1, and' h₁.2.2 h₂.2.2⟩
   | .mdata _ e, h₁, h₂ => and' (e := e) h₁ h₂
-  | .proj _ _ e, h₁, h₂ => ⟨⟨h₁.1, h₂.1⟩, and' h₁.2 h₂.2⟩
+  | .proj _ _ _, h₁, h₂ => ⟨⟨h₁.1, h₂.1⟩, and' h₁.2 h₂.2⟩
   | .bvar _, _, _ | .fvar _, _, _ | .mvar _, _, _ | .sort _, _, _ | .const .., _, _
   | .lit _, _, _ => trivial
 
 end ProjsOK
+
+end Lean.Expr
+
+namespace Lean.Expr
+
+open Lean4Lean
+
+/-- Trailing avoidance of a list covered by two avoided lists. -/
+theorem HitTrailAvoids.of_cover {heads L L₁ L₂ : List Name} {np : Nat}
+    (hcover : ∀ n ∈ L, n ∈ L₁ ∨ n ∈ L₂) {e : Expr}
+    (h₁ : e.HitTrailAvoids heads L₁ np) (h₂ : e.HitTrailAvoids heads L₂ np) :
+    e.HitTrailAvoids heads L np := by
+  induction h₁ with
+  | bvar => exact .bvar _
+  | fvar => exact .fvar _
+  | mvar => exact .mvar _
+  | sort => exact .sort _
+  | const => exact .const _ _
+  | lit _ h => cases h₂ with | lit _ h' => exact .lit _ (AvoidsConsts.of_cover hcover h h')
+  | app _ _ htrail ihf iha =>
+    cases h₂ with
+    | app hf ha htrail' =>
+      exact .app (ihf hf) (iha ha) fun c us hfn hc x hx =>
+        AvoidsConsts.of_cover hcover (htrail c us hfn hc x hx) (htrail' c us hfn hc x hx)
+  | lam _ _ iht ihb => cases h₂ with | lam ht hb => exact .lam (iht ht) (ihb hb)
+  | forallE _ _ iht ihb => cases h₂ with | forallE ht hb => exact .forallE (iht ht) (ihb hb)
+  | letE _ _ _ iht ihv ihb =>
+    cases h₂ with | letE ht hv hb => exact .letE (iht ht) (ihv hv) (ihb hb)
+  | mdata _ ih => cases h₂ with | mdata h => exact .mdata (ih h)
+  | proj _ ih => cases h₂ with | proj h => exact .proj (ih h)
+
+/-- Lambda-prefix avoidance of a list covered by two avoided lists. -/
+theorem LamPrefixAvoids.of_cover {L L₁ L₂ : List Name}
+    (hcover : ∀ n ∈ L, n ∈ L₁ ∨ n ∈ L₂) {k : Nat} {e : Expr}
+    (h₁ : LamPrefixAvoids L₁ k e) (h₂ : LamPrefixAvoids L₂ k e) :
+    LamPrefixAvoids L k e := by
+  induction h₁ with
+  | zero => exact .zero _
+  | succ hd _ ih =>
+    cases h₂ with | succ hd' hb => exact .succ (AvoidsConsts.of_cover hcover hd hd') (ih hb)
 
 end Lean.Expr
 
@@ -301,7 +363,7 @@ theorem blueprintProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
       Expr.ProjsOK.mkAppN' (by rw [hffv]; trivial) ?_⟩
     intro a ha
     rw [O.arguments_bound.expressions] at ha
-    simp only [List.toList_toArray, List.mem_map] at ha
+    simp only [List.mem_map] at ha
     obtain ⟨y, -, rfl⟩ := ha
     trivial
   · intro y hy
@@ -854,6 +916,80 @@ theorem NestedValidatedRunResult.loweredRules_projsOK
       VEnv.addConstVals_projections_eq E.production.constructors.completed.core.typesAdded,
       E.production_initialEnv] at hbase
     exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
+
+theorem NestedValidatedRunResult.LoweredRulesAvoid.of_cover
+    {E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv}
+    {heads L L₁ L₂ : List Name} (hcover : ∀ n ∈ L, n ∈ L₁ ∨ n ∈ L₂)
+    (H₁ : E.LoweredRulesAvoid heads L₁) (H₂ : E.LoweredRulesAvoid heads L₂) :
+    E.LoweredRulesAvoid heads L :=
+  fun owner rec hfind rule hrule =>
+    ⟨(H₁ owner rec hfind rule hrule).1.of_cover hcover (H₂ owner rec hfind rule hrule).1,
+      (H₁ owner rec hfind rule hrule).2.of_cover hcover (H₂ owner rec hfind rule hrule).2⟩
+
+/-- The auxiliary family names of a nested run: the lowered families after
+the source families. -/
+def NestedValidatedRunResult.auxFamilyNames
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) : List Name :=
+  (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name)
+
+/-- Every restorable name is an auxiliary family, auxiliary constructor or
+lowered auxiliary recursor name. -/
+theorem NestedValidatedRunResult.restorableNames_cover
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    {auxiliaries : List ContainerSpecialization}
+    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams) :
+    ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+      n ∈ E.auxFamilyNames ∨ (n ∈ E.auxCtorNames ∨ n ∈ E.auxRecNames) := by
+  obtain ⟨envTypes, generated, aux', hadded, -, Haux, Hexpansion, -, D', -⟩ :=
+    E.restorationTablesRestoring wf Hsources
+  intro n hn0
+  have hn := D.restorableNames_subset D' n hn0
+  simp only [Restoration.restorableNames, List.mem_append] at hn
+  rcases hn with hhead | hrec
+  · rw [compilationRestoration_heads_auxiliary,
+      auxiliarySpecializations_headNames Haux Hexpansion] at hhead
+    obtain ⟨t, ht, hmem⟩ := List.mem_flatMap.1 hhead
+    rcases List.mem_cons.1 hmem with rfl | hctor
+    · exact .inl (List.mem_map.2 ⟨t, ht, rfl⟩)
+    · exact .inr (.inl (List.mem_flatMap.2 ⟨t, ht, hctor⟩))
+  · rw [compilationRestoration_recursors_fst] at hrec
+    obtain ⟨a, ha, rfl⟩ := List.mem_map.1 hrec
+    have haux : a.auxiliary ∈
+        (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name) := by
+      rw [← auxiliarySpecializations_names Haux Hexpansion]
+      exact List.mem_map_of_mem ha
+    obtain ⟨t, ht, hta⟩ := List.mem_map.1 haux
+    exact .inr (.inr (List.mem_map.2 ⟨t, ht, by rw [hta]⟩))
+
+/-- **Input-side avoidance of all restorable names, given the auxiliary
+family names.** The auxiliary constructor names
+(`loweredRulesAvoid_auxCtorNames`) and the lowered auxiliary recursor names
+(`loweredRulesAvoid_auxRecNames`) are avoided unconditionally; the auxiliary
+family names are the remaining hypothesis `HF`. -/
+theorem NestedValidatedRunResult.loweredRulesAvoid_restorable_of_families
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    {auxiliaries : List ContainerSpecialization}
+    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams) (heads : List Name)
+    (HF : E.LoweredRulesAvoid heads E.auxFamilyNames) :
+    E.LoweredRulesAvoid heads (compilationRestoration sourceDecl auxiliaries).restorableNames :=
+  NestedValidatedRunResult.LoweredRulesAvoid.of_cover
+    (L₂ := E.auxCtorNames ++ E.auxRecNames)
+    (fun n hn => (E.restorableNames_cover wf Hsources D n hn).imp_right List.mem_append.2) HF
+    (NestedValidatedRunResult.LoweredRulesAvoid.of_cover (fun _ h => List.mem_append.1 h)
+      (E.loweredRulesAvoid_auxCtorNames wf Hsources heads)
+      (E.loweredRulesAvoid_auxRecNames wf Hsources heads))
 
 end RecNames
 
