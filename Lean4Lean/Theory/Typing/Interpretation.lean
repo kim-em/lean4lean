@@ -101,6 +101,12 @@ theorem expr_const_none {c : Name} {ls : List VLevel} (h : I.consts c = none) :
     I.expr (.const c ls) = .const (I.rename c) ls := by
   simp [expr, h]
 
+theorem expr_proj {n : Name} {i : Nat} {e : VExpr} :
+    I.expr (.proj n i e) = .proj (I.projOwner n) i (I.expr e) := rfl
+
+theorem expr_elim {block : Name} {owner : Nat} {ls : List VLevel} :
+    I.expr (.elim block owner ls) = .elim (I.elim block owner).1 (I.elim block owner).2 ls := rfl
+
 @[simp] theorem expr_mkApps (f : VExpr) (args : List VExpr) :
     I.expr (VExpr.mkApps f args) = VExpr.mkApps (I.expr f) (args.map I.expr) := by
   induction args generalizing f with

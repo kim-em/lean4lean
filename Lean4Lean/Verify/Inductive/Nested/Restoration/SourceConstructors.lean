@@ -88,7 +88,7 @@ theorem Restoration.constInterpretation_substitution {env envTypes envL : VEnv}
   have hon := hordered.onTypes_noFreshConsts hfresh
   have hfix : ∀ {e : VExpr}, e.containsAnyConst r.restorableNames = false →
       (r.constInterpretation P).expr e = e :=
-    Restoration.interpretation_expr_eq_self (σ := id) (fun _ _ => rfl)
+    Restoration.constInterpretation_expr_eq_self
   have hnotR : ∀ {c ci}, envTypes.constants c = some ci → c ∉ r.restorableNames := by
     intro c ci hci hmem
     rw [hfresh c hmem] at hci
@@ -113,7 +113,7 @@ theorem Restoration.constInterpretation_substitution {env envTypes envL : VEnv}
     defeqs := ?_
     eliminators := ?_
     projections := ?_ }
-  · exact ⟨S.weaken fun _ => trivial, Restoration.interpretation_agrees hnparams id⟩
+  · exact ⟨S.weaken fun _ => trivial, Restoration.constInterpretation_agrees hnparams⟩
   · intro c ci hci
     refine ⟨fun t hρ => ?_, fun hρ => ?_⟩
     · change r.lambdaReplacement (fun _ => P) c = some t at hρ

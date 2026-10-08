@@ -1,22 +1,21 @@
 import Lean4Lean.Theory.Inductive.ProjNamesAvoid
-import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Verify.Inductive.Nested.Restoration.SourceConstructorTypes
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TableAgreement
 
 /-! The header stage of the restoration substitution of a nested run.
 
-`NestedRun.headerRenamingReplacement` is the renaming
-replacement from the lowered header environment (the source headers followed
-by the auxiliary headers) into any ordered environment containing the source
-header environment: base constants and source headers are kept, and each
-auxiliary header is replaced by its restoration lambda
-`λ params, target levels args`, which is typed at the auxiliary header type in
-the source header environment (`NestedRun.headerSetup`). It
-transports every derivation of the lowered header environment, in particular
-the checks the ordinary pipeline performs on the lowered block before its
-recursors exist, to the source header environment. The later stages of the
-substitution are in `Nested/Restoration/Equations/WF.lean`.
+`NestedRun.headerInterpretationSound`: the restoration interpretation
+(`Restoration.interpretation`) is a sound interpretation of the lowered header environment (the
+source headers followed by the auxiliary headers) into any ordered environment containing the
+source header environment, for every context (the invariant `fun _ _ => True`): base constants
+and source headers are kept, and each auxiliary header is interpreted by its restoration lambda
+`λ params, target levels args`, which is typed at the auxiliary header type in the source header
+environment (`NestedRun.headerSetup`). It transports every derivation of the lowered header
+environment, in particular the checks the ordinary pipeline performs on the lowered block before
+its recursors exist, to the source header environment. The later stages of the substitution are
+in `Nested/Restoration/Equations/WF.lean`.
 -/
 
 namespace Lean4Lean
@@ -27,114 +26,21 @@ open InductiveSignature
 
 namespace InductiveSignature
 
-theorem Restoration.replaceRen_eq_self {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} {e : VExpr}
-    (h : e.containsAnyConst r.restorableNames = false) :
-    e.replaceRen (r.lambdaReplacement domains) r.renaming = e :=
-  VExpr.replaceRen_eq_self (fun _ hc => Restoration.lambdaReplacement_eq_none_of_not_restorable hc)
-    (fun _ hc => Restoration.renaming_eq_self hc) h
-
-theorem Restoration.replaceRen_eq_self_of_mentions {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} :
-    ∀ {e : VExpr}, e.mentionsAnyConst r.restorableNames = false →
-      e.projNamesAvoid r.restorableNames = true →
-      e.replaceRen (r.lambdaReplacement domains) r.renaming = e
-  | .bvar _, _, _ | .sort _, _, _ | .elim .., _, _ => rfl
-  | .const c ls, h, _ => by
-    have hc : c ∉ r.restorableNames := by simpa [VExpr.mentionsAnyConst] using h
-    rw [VExpr.replaceRen_const_none (Restoration.lambdaReplacement_eq_none_of_not_restorable hc),
-      Restoration.renaming_eq_self hc]
-  | .app f a, h, h' | .lam f a, h, h' | .forallE f a, h, h' => by
-    simp only [VExpr.mentionsAnyConst, Bool.or_eq_false_iff] at h
-    simp only [VExpr.projNamesAvoid, Bool.and_eq_true] at h'
-    simp only [VExpr.replaceRen, replaceRen_eq_self_of_mentions h.1 h'.1,
-      replaceRen_eq_self_of_mentions h.2 h'.2]
-  | .proj n i e, h, h' => by
-    simp only [VExpr.mentionsAnyConst] at h
-    simp only [VExpr.projNamesAvoid, Bool.and_eq_true, Bool.not_eq_true'] at h'
-    have hn : n ∉ r.restorableNames := by simpa using h'.1
-    simp only [VExpr.replaceRen, replaceRen_eq_self_of_mentions h h'.2,
-      Restoration.renaming_eq_self hn]
-
-/-- The lambda replacement over a closed telescope is closed and not a Pi. -/
-theorem Restoration.lambdaReplacement_closed {r : Restoration} {P : List VExpr}
-    (hnparams : ∀ h ∈ r.heads, h.nparams = P.length)
-    (hargs : ∀ h ∈ r.heads, ∀ arg ∈ h.arguments, arg.ClosedN h.nparams)
-    (hPclosed : ∀ i (hi : i < P.length), P[i].ClosedN i) :
-    VExpr.ReplacementsClosed (r.lambdaReplacement fun _ => P) := by
-  intro c t hρ
-  refine ⟨?_, Restoration.lambdaReplacement_ne_forallE r hρ⟩
-  unfold Restoration.lambdaReplacement at hρ
-  cases hf : r.heads.find? (fun h => h.auxiliary == c) with
-  | none => simp [hf] at hρ
-  | some h =>
-    simp only [hf, Option.map_some, Option.some.injEq] at hρ
-    subst hρ
-    have hmem := List.mem_of_find?_eq_some hf
-    refine VExpr.ClosedN.wrapLams_closed (n := 0) (by simpa using hPclosed) ?_
-    refine VExpr.ClosedN.mkApps_closed trivial fun arg harg => ?_
-    have := hargs h hmem arg harg
-    rw [hnparams h hmem] at this
-    simpa using this
-
-/-- The lambda replacement and the restoration renaming agree with the
-restoration (the agreement clauses of a `RestoredEliminator`). -/
-theorem RenamingRestorationAgreement.of_lambda {r : Restoration} {P : List VExpr}
-    (hnparams : ∀ h ∈ r.heads, h.nparams = P.length) :
-    RenamingRestorationAgreement r (r.lambdaReplacement fun _ => P) r.renaming where
-  shape := fun c t hρ =>
-    Restoration.lambdaReplacement_shape r (fun h hmem => (hnparams h hmem).symm) hρ
-  headsReplaced := fun c h hf => by
-    simp [Restoration.lambdaReplacement, hf]
-  renamed := fun c hf => Restoration.renaming_of_find_none hf
-
-/-- A renaming replacement along the lambda replacement and the restoration
-renaming is a renaming restoration substitution. -/
-theorem RenamingRestorationSubstitution.of_lambda {envS envL : VEnv} {r : Restoration}
-    {P : List VExpr}
-    (S : VEnv.RenamingReplacement envS envL (r.lambdaReplacement fun _ => P) r.renaming)
-    (hnparams : ∀ h ∈ r.heads, h.nparams = P.length) :
-    RenamingRestorationSubstitution envS envL r (r.lambdaReplacement fun _ => P)
-      r.renaming :=
-  { S with
-    shape := fun c t hρ =>
-      Restoration.lambdaReplacement_shape r (fun h hmem => (hnparams h hmem).symm) hρ
-    headsReplaced := fun c h hf => by
-      simp [Restoration.lambdaReplacement, hf]
-    renamed := fun c hf => Restoration.renaming_of_find_none hf }
-
-/-- A context-carrying renaming replacement along the lambda replacement and
-the restoration renaming is a context-carrying renaming restoration
-substitution. -/
-theorem RenamingRestorationSubstitutionOnCtx.of_lambda {envS envL : VEnv} {r : Restoration}
-    {P : List VExpr}
-    (S : VEnv.RenamingReplacementOnCtx envS envL (r.lambdaReplacement fun _ => P) r.renaming)
-    (hnparams : ∀ h ∈ r.heads, h.nparams = P.length) :
-    RenamingRestorationSubstitutionOnCtx envS envL r (r.lambdaReplacement fun _ => P)
-      r.renaming :=
-  { S with
-    shape := fun c t hρ =>
-      Restoration.lambdaReplacement_shape r (fun h hmem => (hnparams h hmem).symm) hρ
-    headsReplaced := fun c h hf => by
-      simp [Restoration.lambdaReplacement, hf]
-    renamed := fun c hf => Restoration.renaming_of_find_none hf }
+/-- The restoration interpretation fixes a term mentioning no restorable constant and
+projecting out of no restorable name. -/
+theorem Restoration.interpretation_expr_eq_self_of_mentions {r : Restoration} {P : List VExpr}
+    {e : VExpr} (h : e.mentionsAnyConst r.restorableNames = false)
+    (h' : e.projNamesAvoid r.restorableNames = true) : (r.interpretation P).expr e = e :=
+  VEnv.Interpretation.expr_eq_self_of_mentions
+    (fun _ hc => Restoration.lambdaReplacement_eq_none_of_not_restorable hc)
+    (fun _ hc => Restoration.renaming_eq_self hc) (fun _ _ => rfl) h
+    (Restoration.projNamesFixed_of_avoid h')
 
 end InductiveSignature
 
 namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-/-- Renaming replacement transports definitionally equal contexts. -/
-theorem _root_.Lean4Lean.VEnv.RenamingReplacement.isDefEqCtx
-    {envS envL : VEnv} {ρ : Name → Option VExpr} {σ : Name → Name}
-    (S : VEnv.RenamingReplacement envS envL ρ σ) {U : Nat} {Γ₀ Γ₁ Γ₂ : List VExpr}
-    (H : envL.IsDefEqCtx U Γ₀ Γ₁ Γ₂) :
-    envS.IsDefEqCtx U (Γ₀.map (·.replaceRen ρ σ)) (Γ₁.map (·.replaceRen ρ σ))
-      (Γ₂.map (·.replaceRen ρ σ)) := by
-  induction H with
-  | zero => exact .zero
-  | succ _ hA ih => exact .succ ih (S.isDefEq hA)
 
 /-- Two expressions with the same retained forall prefix translate, in
 contexts with the same translated variables, to terms with the same
@@ -530,10 +436,10 @@ theorem Restoration.find?_of_mem_heads {r : Restoration} {n : Name}
   | some hd =>
     exact ⟨hd, rfl, List.mem_of_find?_eq_some hf, by simpa using List.find?_some hf⟩
 
-/-- **The header stage**: the renaming replacement from the lowered header
-environment into any ordered environment containing the source header
-environment. -/
-theorem NestedRun.headerRenamingReplacement
+/-- **The header stage**: the restoration interpretation is sound from the lowered header
+environment into any ordered environment containing the source header environment, in every
+context. -/
+theorem NestedRun.headerInterpretationSound
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -561,10 +467,9 @@ theorem NestedRun.headerRenamingReplacement
     {envT : VEnv} (hT : envT.Ordered) (hle : envTypes ≤ envT)
     (Helim : EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
       (compilationRestoration sourceDecl auxiliaries).restorableNames) :
-    VEnv.RenamingReplacement envT E.lowered.constructors.toConstructorCheck.headerVEnv
-      ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => E.lowered.signature.params)
-      (compilationRestoration sourceDecl auxiliaries).renaming := by
+    ((compilationRestoration sourceDecl auxiliaries).interpretation
+      E.lowered.signature.params).Sound envT
+      E.lowered.constructors.toConstructorCheck.headerVEnv fun _ _ => True := by
   obtain ⟨hsplit, hheadNames, hnp, hargs, hPclosed, -, hrepl⟩ :=
     E.headerSetup wf hadded henvTypes Haux Hexpansion hnodup
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
@@ -582,34 +487,36 @@ theorem NestedRun.headerRenamingReplacement
     intro env c ci hf hc hmem
     rw [hf c hmem] at hc
     cases hc
-  have hclosed := Restoration.lambdaReplacement_closed hnp hargs hPclosed
+  have hclosed := Restoration.interpretation_closed hnp hargs hPclosed
   have helimC := hbase.eliminatorsAvoidConsts hbaseFresh
-  have S₀ : VEnv.RenamingReplacement envT (ves.venv (if isUnsafe then .unsafe else .safe))
-      ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-        fun _ => E.lowered.signature.params)
-      (compilationRestoration sourceDecl auxiliaries).renaming := by
-    refine VEnv.RenamingReplacement.of_le hclosed hT hbase.ordered (hbaseLe.trans hle)
-      ?_ ?_ ?_
+  have S₀ : ((compilationRestoration sourceDecl auxiliaries).interpretation
+      E.lowered.signature.params).Sound envT (ves.venv (if isUnsafe then .unsafe else .safe))
+      fun _ _ => True := by
+    refine VEnv.Interpretation.Sound.of_le hclosed
+      (Restoration.interpretation_preservesTelescopes _ _) hT hbase.ordered
+      (hbaseLe.trans hle) ?_ ?_ ?_
     · intro c ci hc
       have hn := hnotR hbaseFresh hc
       obtain ⟨_, hty, -⟩ := hon.1 hc
       exact ⟨Restoration.lambdaReplacement_eq_none_of_not_restorable hn,
-        Restoration.renaming_eq_self hn, Restoration.replaceRen_eq_self hty⟩
+        Restoration.renaming_eq_self hn, Restoration.renaming_eq_self hn,
+        Restoration.interpretation_expr_eq_self hty⟩
     · intro df hdf
       obtain ⟨⟨hl, ht⟩, hr, -⟩ := hon.2 hdf
-      exact ⟨Restoration.replaceRen_eq_self hl, Restoration.replaceRen_eq_self hr,
-        Restoration.replaceRen_eq_self ht⟩
+      exact ⟨Restoration.interpretation_expr_eq_self hl,
+        Restoration.interpretation_expr_eq_self hr, Restoration.interpretation_expr_eq_self ht⟩
     · intro block schema hs
       obtain ⟨hty, hrules⟩ := helimC block schema hs
       obtain ⟨hty', hrules'⟩ := Helim block schema hs
-      refine ⟨fun owner type h =>
-        Restoration.replaceRen_eq_self_of_mentions (hty owner type h) (hty' owner type h), ?_⟩
+      refine ⟨fun _ => rfl, fun owner type h =>
+        Restoration.interpretation_expr_eq_self_of_mentions (hty owner type h)
+          (hty' owner type h), ?_⟩
       intro owner rules h df hdf
       obtain ⟨a, b, c⟩ := hrules owner rules h df hdf
       obtain ⟨a', b', c'⟩ := hrules' owner rules h df hdf
-      exact ⟨Restoration.replaceRen_eq_self_of_mentions a a',
-        Restoration.replaceRen_eq_self_of_mentions b b',
-        Restoration.replaceRen_eq_self_of_mentions c c'⟩
+      exact ⟨Restoration.interpretation_expr_eq_self_of_mentions a a',
+        Restoration.interpretation_expr_eq_self_of_mentions b b',
+        Restoration.interpretation_expr_eq_self_of_mentions c c'⟩
   refine S₀.addConstVals hsplit ?_
   intro c hc
   rcases List.mem_append.mp hc with hsrc | haux
@@ -619,10 +526,11 @@ theorem NestedRun.headerRenamingReplacement
       (domains := fun _ => E.lowered.signature.params) hn
     obtain ⟨_, hty, -⟩ := (henvTypes.ordered.onTypes_noFreshConsts hfreshAll).1 hget
     obtain ⟨u, hu⟩ := henvTypes.ordered.constWF hget
-    refine ⟨fun t ht => (by rw [hρ] at ht; cases ht), fun _ => ?_⟩
-    refine ⟨c.toVConstant, by rw [Restoration.renaming_eq_self hn]; exact hle.constants hget,
-      rfl, u, ?_⟩
-    rw [Restoration.replaceRen_eq_self hty]
+    refine ⟨fun t ht => (by rw [Restoration.interpretation_consts, hρ] at ht; cases ht), fun _ => ?_⟩
+    refine ⟨c.toVConstant, by
+      rw [Restoration.interpretation_rename, Restoration.renaming_eq_self hn]
+      exact hle.constants hget, rfl, u, ?_⟩
+    rw [Restoration.interpretation_expr_eq_self hty]
     exact hu.mono hle
   · have hget := VEnv.addConstVals_get hsplit (List.mem_append_right _ haux)
     obtain ⟨t, ht, rfl⟩ := List.mem_map.mp haux
@@ -635,10 +543,10 @@ theorem NestedRun.headerRenamingReplacement
         some t.toVConstVal.toVConstant := by rw [hdaux]; exact hget
     obtain ⟨hfree, htyped⟩ := hrepl hd hdmem _ hget'
     refine ⟨fun t' ht' => ?_, fun hnone => ?_⟩
-    · simp only [Restoration.lambdaReplacement, hf, Option.map_some,
-        Option.some.injEq] at ht'
+    · simp only [Restoration.interpretation_consts, Restoration.lambdaReplacement, hf,
+        Option.map_some, Option.some.injEq] at ht'
       subst ht'
-      rw [Restoration.replaceRen_eq_self hfree]
+      rw [Restoration.interpretation_expr_eq_self hfree]
       exact htyped.mono hle
     · simp [Restoration.lambdaReplacement, hf] at hnone
 

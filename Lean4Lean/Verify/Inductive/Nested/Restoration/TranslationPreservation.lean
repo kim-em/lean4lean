@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CommutationUniform
-import Lean4Lean.Theory.Inductive.RestorationRenamingOnCtx
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 
 /-! # Restoration preserves translation
 
@@ -9,11 +9,10 @@ the abstract restoration of the lowered translation. This file proves that one
 exists: restoration preserves translation, typing side conditions included.
 
 The lowered term is translated in a lowered environment `envL`; a
-context-carrying renaming restoration substitution
-(`RenamingRestorationSubstitutionOnCtx envT envL r ρ σ`) transports every
-typing judgment of `envL` along `replaceRen ρ σ` to the target environment
-`envT`, and beta subject reduction of `envT` identifies `replaceRen ρ σ` with
-the restoration `r.expr` at every type (`expr_simAt`). Each typing side
+restoration substitution (`r.Substitution envT envL I`) transports every
+typing judgment of `envL` along the interpretation `I` to the target environment
+`envT`, and beta subject reduction of `envT` identifies `I.expr` with
+the restoration `r.expr` at every type (`Restoration.Substitution.expr_simAt`). Each typing side
 condition of the lowered translation is transported in this way
 (`RestoreTypedCtx.hasType`), along a context invariant relating the two
 translation contexts (`RestoreTypedCtx`).
@@ -127,33 +126,28 @@ theorem TrExprS.projNamesOK_of_source {env : VEnv} {Us : List Name} {Δ : VLCtx}
 
 namespace VerifyInductive
 
-variable {r : Restoration} {envT envL : VEnv} {ρ : Name → Option VExpr} {σ : Name → Name}
+variable {r : Restoration} {envT envL : VEnv} {I : VEnv.Interpretation}
 
-/-- Projection names avoiding the restorable names are fixed by the renaming of
-a renaming restoration substitution. -/
-theorem RenamingRestorationSubstitutionOnCtx.projNamesFixed
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ) :
-    ∀ {e : VExpr}, e.ProjNamesOK (· ∉ r.restorableNames) → e.ProjNamesFixed σ
+/-- Projection names avoiding the restorable names are fixed by the interpretation of
+a restoration substitution. -/
+theorem RestorationSubstitution.projNamesFixed
+    (S : r.Substitution envT envL I) :
+    ∀ {e : VExpr}, e.ProjNamesOK (· ∉ r.restorableNames) → e.ProjNamesFixed I.projOwner
   | .bvar _, _ | .sort _, _ | .elim .., _ | .const .., _ => trivial
   | .app f a, h | .lam f a, h | .forallE f a, h =>
-    ⟨RenamingRestorationSubstitutionOnCtx.projNamesFixed S h.1,
-      RenamingRestorationSubstitutionOnCtx.projNamesFixed S h.2⟩
+    ⟨RestorationSubstitution.projNamesFixed S h.1,
+      RestorationSubstitution.projNamesFixed S h.2⟩
   | .proj n _ e, h => by
-    refine ⟨?_, RenamingRestorationSubstitutionOnCtx.projNamesFixed S h.2⟩
-    have hn : n ∉ r.restorableNames := h.1
-    have h1 : n ∉ r.heads.map (·.auxiliary) := fun hm => hn (List.mem_append_left _ hm)
-    have h2 : n ∉ r.recursors.map Prod.fst := fun hm => hn (List.mem_append_right _ hm)
-    rw [S.renamed n (Restoration.heads_find?_eq_none h1),
-      Restoration.recursorName_of_not_mem h2]
+    exact ⟨S.agrees.projOwner n h.1, RestorationSubstitution.projNamesFixed S h.2⟩
 
 /-- A name that is not a restoration head is not replaced. -/
-theorem RenamingRestorationSubstitutionOnCtx.replacement_eq_none
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    {c : Name} (hc : c ∉ r.heads.map (·.auxiliary)) : ρ c = none := by
-  cases hρ : ρ c with
+theorem RestorationSubstitution.replacement_eq_none
+    (S : r.Substitution envT envL I)
+    {c : Name} (hc : c ∉ r.heads.map (·.auxiliary)) : I.consts c = none := by
+  cases hρ : I.consts c with
   | none => rfl
   | some t =>
-    obtain ⟨h, _, hf, _⟩ := S.shape c t hρ
+    obtain ⟨h, _, hf, _⟩ := S.agrees.shape c t hρ
     exact absurd (List.mem_map.mpr ⟨h, List.mem_of_find?_eq_some hf,
       by simpa using List.find?_some hf⟩) hc
 
@@ -164,59 +158,59 @@ theorem RenamingRestorationSubstitutionOnCtx.replacement_eq_none
 definitionally equal, in the target environment, to the replaced lowered ones.
 The values of the lowered context project only out of non-restorable
 structures. -/
-structure RestoreTypedCtx (r : Restoration) (envL envT : VEnv) (ρ : Name → Option VExpr)
-    (σ : Name → Name) (U : Nat) (Δs Δt : VLCtx) : Prop where
+structure RestoreTypedCtx (r : Restoration) (envL envT : VEnv) (I : VEnv.Interpretation)
+    (U : Nat) (Δs Δt : VLCtx) : Prop where
   wfs : Δs.WF envL U
   rel : RestoreCtxRel r Δs Δt
-  defeq : envT.IsDefEqCtx U [] (Δs.toCtx.map (·.replaceRen ρ σ)) Δt.toCtx
+  defeq : envT.IsDefEqCtx U [] (Δs.toCtx.map I.expr) Δt.toCtx
   projs : VLCtx.ProjNamesOK (· ∉ r.restorableNames) Δs
 
-theorem RestoreTypedCtx.nil : RestoreTypedCtx r envL envT ρ σ U [] [] :=
+theorem RestoreTypedCtx.nil : RestoreTypedCtx r envL envT I U [] [] :=
   ⟨trivial, .nil, .zero, VLCtx.ProjNamesOK.nil⟩
 
-theorem RestoreTypedCtx.onCtxImage (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt) :
-    OnCtx (Δs.toCtx.map (·.replaceRen ρ σ)) (envT.IsType U) :=
+theorem RestoreTypedCtx.onCtxImage (H : RestoreTypedCtx r envL envT I U Δs Δt) :
+    OnCtx (Δs.toCtx.map I.expr) (envT.IsType U) :=
   H.defeq.isType' trivial
 
-theorem RestoreTypedCtx.onCtx (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+theorem RestoreTypedCtx.onCtx (H : RestoreTypedCtx r envL envT I U Δs Δt)
     (henv : envT.Ordered) : OnCtx Δt.toCtx (envT.IsType U) :=
   (H.defeq.symm henv).isType' trivial
 
 /-- **Transport of a typing judgment** of the lowered context to the related
 target context, at the replaced type. -/
 theorem RestoreTypedCtx.hasType
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+    (S : r.Substitution envT envL I)
+    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {e A e' : VExpr} (He : envL.HasType U Δs.toCtx e A) (he : r.expr e = some e')
     (hok : e.ProjNamesOK (· ∉ r.restorableNames)) :
-    envT.HasType U Δt.toCtx e' (A.replaceRen ρ σ) := by
+    envT.HasType U Δt.toCtx e' (I.expr A) := by
   have hΓ := H.onCtxImage
-  have Hσ := S.isDefEq He hΓ
-  have h1 := S.expr_simAt hβ hΓ (RenamingRestorationSubstitutionOnCtx.projNamesFixed S hok)
+  have Hσ := S.sound.isDefEq (.typed S.ordered) He hΓ
+  have h1 := S.expr_simAt hβ hΓ (RestorationSubstitution.projNamesFixed S hok)
     he _ Hσ
   exact h1.hasType.2.defeqDFC S.ordered H.defeq
 
 /-- Transport of a typing judgment whose type also restores. -/
 theorem RestoreTypedCtx.hasType_restored
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+    (S : r.Substitution envT envL I)
+    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {e A e' A' : VExpr} (He : envL.HasType U Δs.toCtx e A) (he : r.expr e = some e')
     (hA : r.expr A = some A')
     (hok : e.ProjNamesOK (· ∉ r.restorableNames))
     (hokA : A.ProjNamesOK (· ∉ r.restorableNames)) :
     envT.HasType U Δt.toCtx e' A' := by
   have hΓ := H.onCtxImage
-  have Hσ := S.isDefEq He hΓ
-  have h1 := S.expr_simAt hβ hΓ (RenamingRestorationSubstitutionOnCtx.projNamesFixed S hok)
+  have Hσ := S.sound.isDefEq (.typed S.ordered) He hΓ
+  have h1 := S.expr_simAt hβ hΓ (RestorationSubstitution.projNamesFixed S hok)
     he _ Hσ
   obtain ⟨u, hAσ⟩ := VEnv.IsDefEq.isType S.ordered hΓ Hσ
-  have h3 := S.expr_simAt hβ hΓ (RenamingRestorationSubstitutionOnCtx.projNamesFixed S hokA)
+  have h3 := S.expr_simAt hβ hΓ (RestorationSubstitution.projNamesFixed S hokA)
     hA _ hAσ
   exact (VEnv.IsDefEq.defeqDF h3 h1.hasType.2).defeqDFC S.ordered H.defeq
 
 theorem RestoreTypedCtx.isType
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+    (S : r.Substitution envT envL I)
+    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {A A' : VExpr} (HA : envL.IsType U Δs.toCtx A) (hA : r.expr A = some A')
     (hok : A.ProjNamesOK (· ∉ r.restorableNames)) :
     envT.IsType U Δt.toCtx A' := by
@@ -224,8 +218,8 @@ theorem RestoreTypedCtx.isType
   exact ⟨u, H.hasType S hβ hu hA hok⟩
 
 theorem RestoreTypedCtx.wf
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+    (S : r.Substitution envT envL I)
+    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {e e' : VExpr} (He : VExpr.WF envL U Δs.toCtx e) (he : r.expr e = some e')
     (hok : e.ProjNamesOK (· ∉ r.restorableNames)) :
     VExpr.WF envT U Δt.toCtx e' := by
@@ -234,26 +228,26 @@ theorem RestoreTypedCtx.wf
 
 /-- Extend the invariant under a binder. -/
 theorem RestoreTypedCtx.vlam
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+    (S : r.Substitution envT envL I)
+    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {d d' : VExpr}
     (Hd : envL.IsType U Δs.toCtx d) (hd : r.expr d = some d')
     (hok : d.ProjNamesOK (· ∉ r.restorableNames)) :
-    RestoreTypedCtx r envL envT ρ σ U ((none, .vlam d) :: Δs) ((none, .vlam d') :: Δt) := by
+    RestoreTypedCtx r envL envT I U ((none, .vlam d) :: Δs) ((none, .vlam d') :: Δt) := by
   refine ⟨⟨H.wfs, by simp, Hd⟩, H.rel.vlam, ?_,
     VLCtx.ProjNamesOK.cons H.projs VLocalDecl.value_vlam_projNamesOK⟩
   obtain ⟨u, hu⟩ := Hd
   have hΓ := H.onCtxImage
-  have Hσ := S.isDefEq hu hΓ
-  have h1 := S.expr_simAt hβ hΓ (RenamingRestorationSubstitutionOnCtx.projNamesFixed S hok)
+  have Hσ := S.sound.isDefEq (.typed S.ordered) hu hΓ
+  have h1 := S.expr_simAt hβ hΓ (RestorationSubstitution.projNamesFixed S hok)
     hd _ Hσ
   exact .succ H.defeq h1
 
 /-- Extend the invariant by a `let`. -/
-theorem RestoreTypedCtx.vlet (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+theorem RestoreTypedCtx.vlet (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {ty ty' v v' : VExpr} (Hv : envL.HasType U Δs.toCtx v ty)
     (hv : r.expr v = some v') (hok : v.ProjNamesOK (· ∉ r.restorableNames)) :
-    RestoreTypedCtx r envL envT ρ σ U ((none, .vlet ty v) :: Δs) ((none, .vlet ty' v') :: Δt) :=
+    RestoreTypedCtx r envL envT I U ((none, .vlet ty v) :: Δs) ((none, .vlet ty' v') :: Δt) :=
   ⟨⟨H.wfs, by simp, Hv⟩, H.rel.vlet hv, by simpa [VLCtx.toCtx] using H.defeq,
     VLCtx.ProjNamesOK.cons (d := .vlet ty v) H.projs hok⟩
 
@@ -271,16 +265,16 @@ theorem restoration_expr_const_of_not_mem {r : Restoration} {c : Name} {ls : Lis
 
 /-- A constant that is not restorable is kept by the substitution under its own
 name. -/
-theorem RenamingRestorationSubstitutionOnCtx.kept_of_not_mem
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+theorem RestorationSubstitution.kept_of_not_mem
+    (S : r.Substitution envT envL I)
     {c : Name} {ci : VConstant} (hci : envL.constants c = some ci)
     (hc : c ∉ r.restorableNames) :
     ∃ ci', envT.constants c = some ci' ∧ ci'.uvars = ci.uvars := by
   have h1 : c ∉ r.heads.map (·.auxiliary) := fun hm => hc (List.mem_append_left _ hm)
   have h2 : c ∉ r.recursors.map Prod.fst := fun hm => hc (List.mem_append_right _ hm)
-  obtain ⟨ci', hci', huv, _⟩ := S.kept c ci hci
-    (RenamingRestorationSubstitutionOnCtx.replacement_eq_none S h1)
-  rw [S.renamed c (Restoration.heads_find?_eq_none h1),
+  obtain ⟨ci', hci', huv, _⟩ := (S.sound.constants c ci hci).2
+    (RestorationSubstitution.replacement_eq_none S h1)
+  rw [S.agrees.renamed c (Restoration.heads_find?_eq_none h1),
     Restoration.recursorName_of_not_mem h2] at hci'
   exact ⟨ci', hci', huv⟩
 
@@ -289,14 +283,14 @@ theorem RenamingRestorationSubstitutionOnCtx.kept_of_not_mem
 /-- **Syntax avoiding the restorable names translates in the target
 environment**, to the restoration of its lowered translation. -/
 theorem translate_avoids_exists
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    (S : r.Substitution envT envL I)
     {Us : List Name} (hβ : envT.BetaSubjectReduction Us.length)
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hlits : ∀ l, envL.ContainsLits l → envT.ContainsLits l)
     {e : Expr} {Δs Δt : VLCtx} {s : VExpr}
     (Havoid : e.AvoidsConsts r.restorableNames)
     (Hprojs : e.ProjsOK (· ∉ r.restorableNames))
-    (Hctx : RestoreTypedCtx r envL envT ρ σ Us.length Δs Δt)
+    (Hctx : RestoreTypedCtx r envL envT I Us.length Δs Δt)
     (Hs : TrExprS envL Us Δs e s) :
     ∃ t, TrExprS envT Us Δt e t ∧ r.expr s = some t := by
   induction Hs generalizing Δt with
@@ -311,7 +305,7 @@ theorem translate_avoids_exists
     cases Havoid with
     | const _ _ hfresh =>
       obtain ⟨ci', hci', huv⟩ :=
-        RenamingRestorationSubstitutionOnCtx.kept_of_not_mem S hcs hfresh
+        RestorationSubstitution.kept_of_not_mem S hcs hfresh
       exact ⟨_, .const hci' hls (hlen.trans huv.symm),
         restoration_expr_const_of_not_mem hfresh⟩
   | app h1 h2 hf ha ihf iha =>
@@ -391,7 +385,7 @@ def RestoreHeadsTranslate (r : Restoration) (result : Lean4Lean.ElimNestedInduct
 
 /-- The head-occurrence case of `restorationTranslates`. -/
 theorem restorationTranslates'_paramUniform
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    (S : r.Substitution envT envL I)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level} {As : Array Expr}
     (hL : envL.Ordered) (hβ : envT.BetaSubjectReduction Us.length)
@@ -405,7 +399,7 @@ theorem restorationTranslates'_paramUniform
     (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
     (Htrail : ∀ x ∈ e.getAppArgsList.drop result.nparams, x.AvoidsConsts r.restorableNames)
     (Hprojs : e.ProjsOK (· ∉ r.restorableNames))
-    (Hctx : RestoreTypedCtx r envL envT ρ σ Us.length Δs Δt)
+    (Hctx : RestoreTypedCtx r envL envT I Us.length Δs Δt)
     (Hlift : ∃ dn n, VLCtx.BVLift Δt0 Δt dn 0 n 0)
     (Hs : TrExprS envL Us Δs e s) :
     ∃ t, TrExprS envT Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t ∧
@@ -481,7 +475,7 @@ theorem restorationTranslates'_paramUniform
 `Expr.replace` with `restoreNestedNode`: the executable output translates in
 the target environment, to the restoration of the lowered translation. -/
 theorem restorationTranslates
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    (S : r.Substitution envT envL I)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level} {As : Array Expr}
     (hL : envL.Ordered) (hβ : envT.BetaSubjectReduction Us.length)
@@ -496,7 +490,7 @@ theorem restorationTranslates
     (Htrail : e.TrailingArgs (r.heads.map (·.auxiliary)) result.nparams
       (·.AvoidsConsts r.restorableNames))
     (Hprojs : e.ProjsOK (· ∉ r.restorableNames))
-    (Hctx : RestoreTypedCtx r envL envT ρ σ Us.length Δs Δt)
+    (Hctx : RestoreTypedCtx r envL envT I Us.length Δs Δt)
     (Hlift : ∃ dn n, VLCtx.BVLift Δt0 Δt dn 0 n 0)
     (Hs : TrExprS envL Us Δs e s) :
     ∃ t, TrExprS envT Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t ∧
@@ -528,9 +522,9 @@ theorem restorationTranslates
           rw [show (Expr.const c us).getAppArgsList = [] from rfl] at hx; simp at hx)
         Hprojs Hctx Hlift (.const hcs hls hlen)
     · have hnone := A.restoreHead_eq_none (As := As) hmem
-      have hρ := RenamingRestorationSubstitutionOnCtx.replacement_eq_none S hmem
-      obtain ⟨ci', hci', huv, -⟩ := S.kept c ci hcs hρ
-      rw [S.renamed c (Restoration.heads_find?_eq_none hmem), A.recursorName] at hci'
+      have hρ := RestorationSubstitution.replacement_eq_none S hmem
+      obtain ⟨ci', hci', huv, -⟩ := (S.sound.constants c ci hcs).2 hρ
+      rw [S.agrees.renamed c (Restoration.heads_find?_eq_none hmem), A.recursorName] at hci'
       cases hrec : auxRec.find? c with
       | some new =>
         rw [Expr.replace_of_some (restoreNestedNode_recursor result env As auxRec c new us
@@ -863,18 +857,18 @@ theorem ParamOpening.toMLCtxForall {env : VEnv} {Us : List Name}
 /-- Extend the invariant under a binder of any naming, given the
 well-formedness of the extended lowered context. -/
 theorem RestoreTypedCtx.vlam_wf
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
-    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT ρ σ U Δs Δt)
+    (S : r.Substitution envT envL I)
+    (hβ : envT.BetaSubjectReduction U) (H : RestoreTypedCtx r envL envT I U Δs Δt)
     {ofv : Option (FVarId × List FVarId)} {d d' : VExpr}
     (hwfs : VLCtx.WF envL U ((ofv, .vlam d) :: Δs)) (hd : r.expr d = some d')
     (hok : d.ProjNamesOK (· ∉ r.restorableNames)) :
-    RestoreTypedCtx r envL envT ρ σ U ((ofv, .vlam d) :: Δs) ((ofv, .vlam d') :: Δt) := by
+    RestoreTypedCtx r envL envT I U ((ofv, .vlam d) :: Δs) ((ofv, .vlam d') :: Δt) := by
   refine ⟨hwfs, H.rel.vlam, ?_,
     VLCtx.ProjNamesOK.cons H.projs VLocalDecl.value_vlam_projNamesOK⟩
   obtain ⟨u, hu⟩ := hwfs.2.2
   have hΓ := H.onCtxImage
-  have Hσ := S.isDefEq hu hΓ
-  have h1 := S.expr_simAt hβ hΓ (RenamingRestorationSubstitutionOnCtx.projNamesFixed S hok)
+  have Hσ := S.sound.isDefEq (.typed S.ordered) hu hΓ
+  have h1 := S.expr_simAt hβ hΓ (RestorationSubstitution.projNamesFixed S hok)
     hd _ Hσ
   exact .succ H.defeq h1
 
@@ -987,14 +981,14 @@ theorem MLCtx.fvarRevList_full_eq : ∀ (c : TypeChecker.MLCtx),
 /-- **Restoration of a metacontext of binders**: the binder types translate in
 the target environment to the restorations of their lowered translations. -/
 theorem MLCtx.restore
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    (S : r.Substitution envT envL I)
     {Us : List Name} (hβ : envT.BetaSubjectReduction Us.length)
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hlits : ∀ l, envL.ContainsLits l → envT.ContainsLits l) :
     ∀ (ML : TypeChecker.MLCtx), ML.WF envL Us → MLCtxAvoids r ML →
     ∃ MT : TypeChecker.MLCtx, MT.lctx = ML.lctx ∧ MT.WF envT Us ∧
       MT.length = ML.length ∧
-      RestoreTypedCtx r envL envT ρ σ Us.length ML.vlctx MT.vlctx ∧
+      RestoreTypedCtx r envL envT I Us.length ML.vlctx MT.vlctx ∧
       (∀ n hn hn' X Y, r.expr X = some Y →
         r.expr (ML.mkForall' n hn X) = some (MT.mkForall' n hn' Y)) ∧
       (∀ n hn hn' X Y, r.expr X = some Y →
@@ -1052,7 +1046,7 @@ input is opened at restoration's parameters, its body restored by
 `restorationTranslates`, and the output closed over the restored parameter
 domains (which the executable copies verbatim). -/
 theorem NestedRestorationOpening.translatesForall
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    (S : r.Substitution envT envL I)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level}
     {input output suffix : Expr} {s : VExpr}
@@ -1218,7 +1212,7 @@ theorem ParamOpening.toMLCtxLambda {env : VEnv} {Us : List Name}
 /-- **Restoration of a closed lambda telescope translates** (the
 counterpart of `translatesForall` for rule right-hand sides). -/
 theorem NestedRestorationOpening.translatesLambda
-    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    (S : r.Substitution envT envL I)
     {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
     {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level}
     {input output suffix : Expr} {s : VExpr}

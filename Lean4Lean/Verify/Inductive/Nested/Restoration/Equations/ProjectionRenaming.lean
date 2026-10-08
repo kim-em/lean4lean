@@ -1,19 +1,19 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.AuxiliaryConstructors
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjNames
 
-/-! Beta reduction and the context-carrying renaming of projection rules.
+/-! Beta reduction and the projection clause of a source structure.
 
 The lowered constructor type of a source structure restores syntactically to the source
-constructor type. The renaming replacement `replaceRen ρ σ` of the lowered constructor type beta
-reduces to its restoration (`Restoration.expr_betaRed`): each inserted restoration lambda
-`λ params, target levels args` meets a complete parameter spine. Field types commute with the
-replacement (`VProjectionInfo.fieldType_replaceRen_renamed`), and field types computed from a beta
-reduct of the constructor type are beta reducts of the field types
+constructor type. The interpretation of the lowered constructor type by an agreeing
+interpretation beta reduces to its restoration (`Restoration.Agrees.expr_betaRed`): each inserted
+restoration lambda `λ params, target levels args` meets a complete parameter spine. Field types
+commute with the interpretation (`VProjectionInfo.fieldType_interpret`), and field types computed
+from a beta reduct of the constructor type are beta reducts of the field types
 (`VProjectionInfo.fieldType_betaRed`), as instantiating parameters and preceding fields is
-substitution. `ProjectionRulesRenamedOnCtx` receives the well-formedness of the image context in
-every projection rule, so beta subject reduction (`VExpr.BetaRed.simAt`) applies and the renaming
-of the projection rules of a source structure needs no hypothesis
-(`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`). Auxiliary structure-like families are
+substitution. The projection clause for well-formed contexts (`VEnv.TypedCtx`) receives the
+well-formedness of the image context in every projection rule, so beta subject reduction
+(`VExpr.BetaRed.simAt`) applies and the projection clause of a source structure needs no
+hypothesis (`ProjectionClause.of_ctorType_betaRed`). Auxiliary structure-like families are
 handled in `Nested/Restoration/AuxiliaryProjections.lean`.
 -/
 
@@ -79,221 +79,53 @@ theorem fieldType_betaRed {info : VProjectionInfo} {ctorType' : VExpr}
     obtain ⟨Y, hY, hXY⟩ := instantiateProjectionFields_betaRed _ hrel hX
     exact ⟨Y, ⟨tail', htail', hY⟩, hXY⟩
 
-theorem instantiateProjectionFields_replaceRen_renamed {ρ : Name → Option VExpr} {σ : Name → Name}
-    (hρ : VExpr.ReplacementsClosed ρ) (type : VExpr) :
-    instantiateProjectionFields (σ typeName) (major.replaceRen ρ σ) wanted current fuel
-        (type.replaceRen ρ σ) =
-      (instantiateProjectionFields typeName major wanted current fuel type).map
-        (·.replaceRen ρ σ) := by
-  induction fuel generalizing type current with
-  | zero => simp [instantiateProjectionFields]
-  | succ fuel ih =>
-    cases type <;> simp [instantiateProjectionFields, VExpr.replaceRen]
-    case const c ls =>
-      cases h : ρ c with
-      | none => simp [instantiateProjectionFields]
-      | some t =>
-        exact instantiateProjectionFields_of_ne_forallE (VExpr.instL_ne_forallE (hρ c t h).2 ls)
-    case forallE domain body =>
-      split
-      · simp
-      · change instantiateProjectionFields (σ typeName) (major.replaceRen ρ σ) wanted
-            (current + 1) fuel
-            ((body.replaceRen ρ σ).inst
-              (.proj (σ typeName) current (major.replaceRen ρ σ))) = _
-        have : VExpr.proj (σ typeName) current (major.replaceRen ρ σ) =
-            (VExpr.proj typeName current major).replaceRen ρ σ := by
-          simp [VExpr.replaceRen]
-        rw [this, ← VExpr.replaceRen_inst hρ]
-        exact ih (current := current + 1) (body.inst (.proj typeName current major))
-
-/-- Field types commute with a renaming replacement of the constructor type,
-the parameters, the major premise and the projection type name. -/
-theorem fieldType_replaceRen_renamed {ρ : Name → Option VExpr} {σ : Name → Name}
-    {typeName : Name} {levels : List VLevel} {params : List VExpr} {index : Nat}
-    {major : VExpr} (hρ : VExpr.ReplacementsClosed ρ) (info : VProjectionInfo) :
-    { info with ctorType := info.ctorType.replaceRen ρ σ }.fieldType (σ typeName) levels
-        (params.map (VExpr.replaceRen ρ σ)) index (major.replaceRen ρ σ) =
-      (info.fieldType typeName levels params index major).map (VExpr.replaceRen ρ σ) := by
-  simp only [fieldType, List.length_map]
-  split
-  · rfl
-  · rw [← VExpr.replaceRen_instL, instantiateProjectionParameters_replaceRen hρ]
-    cases instantiateProjectionParameters (info.ctorType.instL levels) params <;>
-      simp [instantiateProjectionFields_replaceRen_renamed hρ]
-
 end VProjectionInfo
 
-namespace InductiveSignature
+/-! ### The projection clause of a source structure -/
 
-/-- Restoration is a beta reduct of the renaming replacement, for terms whose
-projection names are fixed (the syntactic form of
-`RenamingRestorationSubstitution.go_simAt`). -/
-theorem Restoration.go_betaRed {r : Restoration} {ρ : Name → Option VExpr}
-    {σ : Name → Name}
-    (shape : ∀ c t, ρ c = some t → ∃ h doms,
-      r.heads.find? (fun h => h.auxiliary == c) = some h ∧ doms.length = h.nparams ∧
-      t = VExpr.wrapLams doms (VExpr.mkApps (.const h.target h.levels) h.arguments))
-    (headsReplaced : ∀ c h, r.heads.find? (fun h => h.auxiliary == c) = some h → ρ c ≠ none)
-    (renamed : ∀ c, r.heads.find? (fun h => h.auxiliary == c) = none →
-      σ c = r.recursorName c) :
-    ∀ (e : VExpr) {as as' : List VExpr} {out : VExpr},
-      e.ProjNamesFixed σ → List.Forall₂ VExpr.BetaRed as as' →
-      Restoration.expr.go r e as' = some out →
-      VExpr.BetaRed (VExpr.mkApps (e.replaceRen ρ σ) as) out := by
-  intro e
-  induction e with
-  | bvar i =>
-    intro as as' out _ has h
-    simp only [Restoration.expr.go, Option.some.injEq] at h
-    subst h
-    exact VExpr.BetaRed.mkApps .refl has
-  | sort u =>
-    intro as as' out _ has h
-    simp only [Restoration.expr.go, Option.some.injEq] at h
-    subst h
-    exact VExpr.BetaRed.mkApps .refl has
-  | elim block owner ls =>
-    intro as as' out _ has h
-    simp only [Restoration.expr.go, Option.some.injEq] at h
-    subst h
-    exact VExpr.BetaRed.mkApps .refl has
-  | app fn arg ihfn iharg =>
-    intro as as' out hfix has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
-    obtain ⟨arg', harg, hfn⟩ := h
-    have h1 := iharg (as := []) (as' := []) hfix.2 .nil harg
-    exact ihfn (as := arg.replaceRen ρ σ :: as) hfix.1 (.cons h1 has) hfn
-  | lam d b ihd ihb =>
-    intro as as' out hfix has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨d', hd, b', hb, rfl⟩ := h
-    exact VExpr.BetaRed.mkApps (.lam (ihd (as := []) hfix.1 .nil hd)
-      (ihb (as := []) hfix.2 .nil hb)) has
-  | forallE d b ihd ihb =>
-    intro as as' out hfix has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨d', hd, b', hb, rfl⟩ := h
-    exact VExpr.BetaRed.mkApps (.forallE (ihd (as := []) hfix.1 .nil hd)
-      (ihb (as := []) hfix.2 .nil hb)) has
-  | proj n i m ih =>
-    intro as as' out hfix has h
-    simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
-      Option.pure_def, Option.some.injEq] at h
-    obtain ⟨m', hm, rfl⟩ := h
-    simp only [VExpr.replaceRen, hfix.1]
-    exact VExpr.BetaRed.mkApps (.proj (ih (as := []) hfix.2 .nil hm)) has
-  | const c ls =>
-    intro as as' out _ has h
-    simp only [Restoration.expr.go] at h
-    split at h
-    · next hd hfind =>
-      cases hρ : ρ c with
-      | none => exact absurd hρ (headsReplaced c hd hfind)
-      | some t =>
-        rw [VExpr.replaceRen_const_some hρ]
-        obtain ⟨hd', doms, hfind', hdoms, rfl⟩ := shape c t hρ
-        rw [hfind] at hfind'
-        cases hfind'
-        have hsim := VExpr.BetaRed.mkApps (f := (VExpr.wrapLams doms
-          (VExpr.mkApps (.const hd.target hd.levels) hd.arguments)).instL ls) .refl has
-        refine hsim.trans ?_
-        unfold HeadSpecialization.apply at h
-        split at h
-        · cases h
-        · next hlen =>
-          simp only [Bool.or_eq_true, bne_iff_ne, ne_eq, decide_eq_true_eq, not_or,
-            Nat.not_lt] at hlen
-          simp only [Option.pure_def, Option.some.injEq] at h
-          subst h
-          rw [VExpr.instL_wrapLams]
-          have := VExpr.BetaRed.mkApps_wrapLams (doms.map (VExpr.instL ls))
-            ((VExpr.mkApps (.const hd.target hd.levels) hd.arguments).instL ls) as'
-            (by simp [hdoms]; omega)
-          simp only [List.length_map, hdoms] at this
-          refine this.trans ?_
-          simp only [VExpr.instL_mkApps, VExpr.instL, VExpr.instOuter_mkApps,
-            VExpr.instOuter_const, ← VExpr.mkApps_append, List.map_map,
-            Function.comp_def, Lean4Lean.VEnv.instantiateParams_eq_instOuter]
-          exact .refl
-    · next hfind =>
-      have hρ : ρ c = none := by
-        cases hρ : ρ c with
-        | none => rfl
-        | some t =>
-          obtain ⟨_, _, hfind', _⟩ := shape c t hρ
-          rw [hfind] at hfind'
-          cases hfind'
-      simp only [Option.some.injEq] at h
-      subst h
-      rw [VExpr.replaceRen_const_none hρ, renamed c hfind]
-      exact VExpr.BetaRed.mkApps .refl has
+namespace VEnv.Interpretation
 
-theorem Restoration.expr_betaRed {r : Restoration} {ρ : Name → Option VExpr}
-    {σ : Name → Name}
-    (shape : ∀ c t, ρ c = some t → ∃ h doms,
-      r.heads.find? (fun h => h.auxiliary == c) = some h ∧ doms.length = h.nparams ∧
-      t = VExpr.wrapLams doms (VExpr.mkApps (.const h.target h.levels) h.arguments))
-    (headsReplaced : ∀ c h, r.heads.find? (fun h => h.auxiliary == c) = some h → ρ c ≠ none)
-    (renamed : ∀ c, r.heads.find? (fun h => h.auxiliary == c) = none →
-      σ c = r.recursorName c)
-    {e e' : VExpr} (hfix : e.ProjNamesFixed σ) (h : r.expr e = some e') :
-    VExpr.BetaRed (e.replaceRen ρ σ) e' :=
-  Restoration.go_betaRed shape headsReplaced renamed e (as := []) hfix .nil h
-
-end InductiveSignature
-
-/-! ### Context-carrying renaming of projection rules -/
-
-namespace VEnv
-
-/-- A projection whose type and constructor names are fixed by the
-replacement, registered in `envS` with a constructor type that is a beta
-reduct of the renamed constructor type (of the same syntactic arity),
-has its projection rules renamed in well-formed contexts, by beta subject
+/-- A projection whose owner and constructor the interpretation fixes, registered in `envS` with
+a constructor type that is a beta reduct of the interpreted constructor type (of the same
+syntactic arity), satisfies the projection clause in well-formed contexts, by beta subject
 reduction of `envS`. -/
-theorem ProjectionRulesRenamedOnCtx.of_ctorType_betaRed {envS : VEnv}
-    {ρ : Name → Option VExpr} {σ : Name → Name} {typeName : Name}
-    {info : VProjectionInfo} {ctorType' : VExpr}
+theorem ProjectionClause.of_ctorType_betaRed {envS : VEnv} {I : Interpretation}
+    {typeName : Name} {info : VProjectionInfo} {ctorType' : VExpr}
     (henv : envS.Ordered) (hβ : ∀ U, envS.BetaSubjectReduction U)
-    (hρ : VExpr.ReplacementsClosed ρ)
+    (hI : I.Closed) (hT : I.PreservesTelescopes)
     (hS : envS.projections typeName { info with ctorType := ctorType' })
-    (htn : ρ typeName = none) (hσtn : σ typeName = typeName)
-    (hctorName : ρ info.ctorName = none) (hσctor : σ info.ctorName = info.ctorName)
+    (htn : I.consts typeName = none) (hrtn : I.rename typeName = typeName)
+    (hptn : I.projOwner typeName = typeName)
+    (hctorName : I.consts info.ctorName = none) (hrctor : I.rename info.ctorName = info.ctorName)
     (hclosed : ctorType'.Closed) (harity : ctorType'.forallArity = info.ctorType.forallArity)
-    (hBR : VExpr.BetaRed (info.ctorType.replaceRen ρ σ) ctorType') :
-    ProjectionRulesRenamedOnCtx envS ρ σ typeName info where
+    (hBR : VExpr.BetaRed (I.expr info.ctorType) ctorType') :
+    I.ProjectionClause envS envS.TypedCtx typeName info where
   projDF := by
     intro U Γ levels params index sourceMajor fieldType fieldLevel major indexArgs major'
       hΓ hlevels huvars hparams hindices hfield _ hguard ihField ihLeft ihRight
-    have h1 := VProjectionInfo.fieldType_replaceRen_renamed (typeName := typeName) (levels := levels)
-      (params := params) (index := index) (major := sourceMajor) (σ := σ) hρ info
-    rw [hfield, hσtn] at h1
+    have h1 := VProjectionInfo.fieldType_interpret (typeName := typeName) (levels := levels)
+      (params := params) (index := index) (major := sourceMajor) hI hT info
+    rw [hfield, hptn] at h1
     obtain ⟨fieldType', hfield', hXY⟩ :=
       VProjectionInfo.fieldType_betaRed (ctorType' := ctorType') hBR h1
     have hfield'' : ({ info with ctorType := ctorType' } : VProjectionInfo).fieldType typeName
-        levels (params.map (VExpr.replaceRen ρ σ)) index (sourceMajor.replaceRen ρ σ) =
-        some fieldType' := hfield'
+        levels (params.map I.expr) index (I.expr sourceMajor) = some fieldType' := hfield'
     have hdefF := (hXY.simAt henv (hβ U) hΓ _ ihField).symm
-    simp only [VExpr.replaceRen_mkApps, List.map_append,
-      VExpr.replaceRen_const_none htn, hσtn] at ihLeft ihRight
-    simp only [VExpr.replaceRen, hσtn]
+    simp only [expr_mkApps, List.map_append, expr_const_none htn, hrtn] at ihLeft ihRight
+    simp only [expr_proj, hptn]
     exact .defeqDF hdefF (.projDF hS hlevels huvars (by simpa using hparams)
       (by simpa using hindices) hfield'' hdefF.hasType.1 ihLeft ihRight hclosed hguard)
   projIota := by
     intro U Γ index levels args field fieldType _ ih1 h3 ih2
-    simp only [VExpr.replaceRen, VExpr.replaceRen_mkApps, hctorName,
-      hσctor, hσtn] at ih1 ⊢
+    simp only [expr_proj, expr_mkApps, expr_const_none hctorName, hrctor, hptn] at ih1 ⊢
     exact .projIota (info := { info with ctorType := ctorType' }) hS ih1 (by simp [h3]) ih2
   structEta := by
     intro U Γ levels params e _ h2 h3 ih1 ih2
     have hnf : ({ info with ctorType := ctorType' } : VProjectionInfo).numFields =
         info.numFields := by
       simp only [VProjectionInfo.numFields, harity]
-    simp only [VExpr.replaceRen, VExpr.replaceRen_mkApps, List.map_append,
-      List.map_map, Function.comp_def, hctorName, htn, hσctor, hσtn] at ih1 ih2 ⊢
+    simp only [expr_proj, expr_mkApps, List.map_append, List.map_map, Function.comp_def,
+      expr_const_none hctorName, expr_const_none htn, hrctor, hrtn, hptn] at ih1 ih2 ⊢
     rw [← hnf] at ih2 ⊢
     exact .structEta hS (by simpa using h2) h3 ih1 ih2
   unitLike := by
@@ -301,9 +133,9 @@ theorem ProjectionRulesRenamedOnCtx.of_ctorType_betaRed {envS : VEnv}
     have hnf : ({ info with ctorType := ctorType' } : VProjectionInfo).numFields =
         info.numFields := by
       simp only [VProjectionInfo.numFields, harity]
-    simp only [VExpr.replaceRen_mkApps, VExpr.replaceRen_const_none htn, hσtn] at ih1 ih2 ⊢
+    simp only [expr_mkApps, expr_const_none htn, hrtn] at ih1 ih2 ⊢
     exact .unitLike hS (by simpa using h2) h3 (hnf.trans h4) ih1 ih2
 
-end VEnv
+end VEnv.Interpretation
 
 end Lean4Lean
