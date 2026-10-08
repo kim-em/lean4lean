@@ -9,7 +9,7 @@ import Lean4Lean.Quot
 four installed types exactly (`QuotInit.tQuot_eq` and siblings), translates
 them to the abstract constants `quotConst`, `quotMkConst`, `quotLiftConst` and
 `quotIndConst` of `Theory/Quot.lean`, and extends every safety-indexed abstract
-environment by `VEnv.addQuot` (`VEnvs.WF.addQuot`).  The abstract rule
+environment by `VEnv.addQuot` (`VEnvs.WFCore.addQuot`).  The abstract rule
 `VDecl.WF.quot` needs `VEnv.QuotReady` (abstract `Eq` with its canonical type)
 at every safety level; the executable's `checkEqType` does not check the
 safety of `Eq`, so this is a hypothesis of `addQuot.WF`, discharged at the top
@@ -125,7 +125,7 @@ def L4 : LocalContext := L3'.mkLocalDecl (fid 4) `β (.sort v) .implicit
 def L5 : LocalContext := L4.mkLocalDecl (fid 5) `f (Expr.arrow α β) .default
 def L6 : LocalContext := L5.mkLocalDecl (fid 6) `b α .default
 def L4' : LocalContext := L3'.mkLocalDecl (fid 4) `β (Expr.arrow quot_r Expr.prop) .implicit
-def L5' : LocalContext := L4'.mkLocalDecl (fid 5) `q quot_r .implicit
+def L5' : LocalContext := L4'.mkLocalDecl (fid 5) `q quot_r .default
 def sanity : Expr := L6.mkForall #[a, b]
   (Expr.arrow (mkApp2 r a b) (mkApp3 (.const ``Eq [v]) β (.app f a) (.app f b)))
 def quotMk_a : Expr := mkApp3 (.const ``Quot.mk [u]) α r a
@@ -170,7 +170,7 @@ def tIndC : Expr :=
             (.app (.bvar 1) (.app (.app (.app (.const ``Quot.mk [.param `u]) (.bvar 3))
               (.bvar 2)) (.bvar 0))) .default)
           (.forallE `q (.app (.app (.const ``Quot [.param `u]) (.bvar 3)) (.bvar 2))
-            (.app (.bvar 2) (.bvar 0)) .implicit)
+            (.app (.bvar 2) (.bvar 0)) .default)
           .default) .implicit) .implicit) .implicit
 
 
@@ -244,7 +244,7 @@ theorem fL4' (x) : L4'.find? x = if fid 4 == x then some (.cdecl L3'.decls.size 
     (Expr.arrow quot_r Expr.prop) .implicit .default) else L3'.find? x := by
   rw [L4', find?_mkLocalDecl wf3']
 theorem fL5' (x) : L5'.find? x = if fid 5 == x then some (.cdecl L4'.decls.size (fid 5) `q
-    quot_r .implicit .default) else L4'.find? x := by
+    quot_r .default .default) else L4'.find? x := by
   rw [L5', find?_mkLocalDecl wf4']
 
 theorem tMk_eq : tMk = tMkC := by
@@ -307,7 +307,7 @@ theorem allQuot_eq : all_quot = allQuotC := by
     simp [fL4', fL3', fid] at hd; subst hd; simp [LocalContext.DeclClosed, Closed, α]
 
 theorem qbody_eq :
-    L5'.mkForall #[q] (.app β q) = .forallE `q quot_r (.app β (.bvar 0)) .implicit := by
+    L5'.mkForall #[q] (.app β q) = .forallE `q quot_r (.app β (.bvar 0)) .default := by
   rw [show #[q] = ([fid 5].map Expr.fvar).toArray from rfl, mkForall_eq_fold]
   · simp [fL5', LocalContext.mkBindingList1, Expr.abstract1, fid, β, q, quot_r, mkApp2, α, r]
   · intro x hx; simp at hx; subst hx; simp [fL5', fid]
@@ -466,7 +466,7 @@ theorem VEnv.HasPrimitives.addQuot {venv venv' : VEnv} (H : venv.HasPrimitives)
   obtain ⟨e1, e2, e3, e4, h1, h2, h3, h4, rfl⟩ := VEnv.addQuot_cases h
   exact (((H.addConst p1 h1).addConst p2 h2).addConst p3 h3 |>.addConst p4 h4).addDefEq
 
-/-- The safety-independent invariants of `VEnvs.WF` that only concern the
+/-- The safety-independent invariants of `VEnvs.WFCore` that only concern the
 constant map, together with the safety-indexed metadata coherence over a fixed
 family of abstract environments. -/
 structure QuotEnvInv (env : Environment) (V : DefinitionSafety → VEnv) : Prop where
@@ -526,7 +526,7 @@ theorem QuotEnvInv.find?_add {env : Environment} {V} (H : QuotEnvInv env V) {ci 
 
 /-- Extending every safety level of a well-formed model by the quotient
 constants, as installed by the executable, preserves well-formedness. -/
-theorem VEnvs.WF.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hq : ∀ safety, (ves.venv safety).QuotReady) (hinit : env.quotInit = false)
     (n1 : env.find? ``Quot = none) (n2 : env.find? ``Quot.mk = none)
     (n3 : env.find? ``Quot.lift = none) (n4 : env.find? ``Quot.ind = none)
@@ -535,8 +535,10 @@ theorem VEnvs.WF.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WF env)
     (p3 : Environment.primitives.contains ``Quot.lift = false)
     (p4 : Environment.primitives.contains ``Quot.ind = false) :
     ∃ ves' : VEnvs,
-      ves'.WF (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd)) ∧
-      ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+      ves'.WFCore (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd)) ∧
+      (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+      VEnvs.CertPres env (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd))
+        ves ves' := by
   have hC : env.constants.WF := (wf.tr (safety := .safe)).map_wf
   have hc {n} (h : env.find? n = none) : env.constants.find? n = none := by
     rwa [← hC.find?'_eq_find?]
@@ -560,29 +562,41 @@ theorem VEnvs.WF.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WF env)
       inductiveProvenance := fun _ => wf.inductiveProvenance }
   have I1 : QuotEnvInv (env.add ciQuot) ves'.venv :=
     I0.add { name := ``Quot, kind := .type, levelParams := [`u], type := tQuotC } n1 p1 hle
+  have m2 : (env.add ciQuot).find? ``Quot.mk = none := by
+    rw [I0.find?_add (ci := ciQuot) n1 (by decide)]; exact n2
   have I2 : QuotEnvInv ((env.add ciQuot).add ciMk) ves'.venv :=
     I1.add { name := ``Quot.mk, kind := .ctor, levelParams := [`u], type := tMkC }
-      (by rw [I0.find?_add (ci := ciQuot) n1 (by decide)]; exact n2) p2 fun _ => VEnv.LE.rfl
+      m2 p2 fun _ => VEnv.LE.rfl
+  have m3 : ((env.add ciQuot).add ciMk).find? ``Quot.lift = none := by
+    rw [I1.find?_add (ci := ciMk) m2 (by decide), I0.find?_add (ci := ciQuot) n1 (by decide)]
+    exact n3
   have I3 : QuotEnvInv (((env.add ciQuot).add ciMk).add ciLift) ves'.venv :=
     I2.add { name := ``Quot.lift, kind := .lift, levelParams := [`u, `v], type := tLiftC }
-      (by
-        rw [I1.find?_add (ci := ciMk) (by rw [I0.find?_add (ci := ciQuot) n1 (by decide)]; exact n2)
-          (by decide), I0.find?_add (ci := ciQuot) n1 (by decide)]; exact n3)
-      p3 fun _ => VEnv.LE.rfl
+      m3 p3 fun _ => VEnv.LE.rfl
+  have m4 : (((env.add ciQuot).add ciMk).add ciLift).find? ``Quot.ind = none := by
+    rw [I2.find?_add (ci := ciLift) m3 (by decide), I1.find?_add (ci := ciMk) m2 (by decide),
+      I0.find?_add (ci := ciQuot) n1 (by decide)]
+    exact n4
   have I4 : QuotEnvInv ((((env.add ciQuot).add ciMk).add ciLift).add ciInd) ves'.venv :=
     I3.add { name := ``Quot.ind, kind := .ind, levelParams := [`u], type := tIndC }
-      (by
-        have m2 : (env.add ciQuot).find? ``Quot.mk = none := by
-          rw [I0.find?_add (ci := ciQuot) n1 (by decide)]; exact n2
-        have m3 : ((env.add ciQuot).add ciMk).find? ``Quot.lift = none := by
-          rw [I1.find?_add (ci := ciMk) m2 (by decide), I0.find?_add (ci := ciQuot) n1 (by decide)]
-          exact n3
-        rw [I2.find?_add (ci := ciLift) m3 (by decide), I1.find?_add (ci := ciMk) m2 (by decide),
-          I0.find?_add (ci := ciQuot) n1 (by decide)]
-        exact n4)
-      p4 fun _ => VEnv.LE.rfl
+      m4 p4 fun _ => VEnv.LE.rfl
   have I5 := I4.markQuotInit
-  refine ⟨ves', ?_, hle⟩
+  -- no constructor is installed (`Quot.mk` is a `quotInfo`), so the certificates carry over
+  have hcert : VEnvs.CertPres env
+      (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd)) ves ves' :=
+    fun H safety =>
+      have C1 : CtorTelescopes safety (env.add ciQuot) (ves'.venv safety) :=
+        CtorTelescopes.addNonCtor (ci := ciQuot) (H safety) I0.mapWF n1 (hle safety)
+          (fun _ h => by cases h)
+      have C2 : CtorTelescopes safety ((env.add ciQuot).add ciMk) (ves'.venv safety) :=
+        CtorTelescopes.addNonCtor (ci := ciMk) C1 I1.mapWF m2 VEnv.LE.rfl (fun _ h => by cases h)
+      have C3 : CtorTelescopes safety (((env.add ciQuot).add ciMk).add ciLift) (ves'.venv safety) :=
+        CtorTelescopes.addNonCtor (ci := ciLift) C2 I2.mapWF m3 VEnv.LE.rfl (fun _ h => by cases h)
+      have C4 : CtorTelescopes safety ((((env.add ciQuot).add ciMk).add ciLift).add ciInd)
+          (ves'.venv safety) :=
+        CtorTelescopes.addNonCtor (ci := ciInd) C3 I3.mapWF m4 VEnv.LE.rfl (fun _ h => by cases h)
+      C4
+  refine ⟨ves', ?_, hle, hcert⟩
   exact {
     tr {safety} := by
       change TrEnv' safety ((((env.add ciQuot).add ciMk).add ciLift).add ciInd).constants true _
@@ -604,15 +618,16 @@ safety-indexed abstract environment.  `VEnv.QuotReady` is required at every
 safety level: the abstract rule `VDecl.WF.quot` types `Quot.lift` against `Eq`
 in each of them, while the executable's `checkEqType` only inspects the shape
 of `Eq`, not its safety. -/
-theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hq : ∀ safety, (ves.venv safety).QuotReady) :
     (Environment.addQuot env).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+        VEnvs.CertPres env env' ves ves' := by
   cases hinit : env.quotInit with
   | true =>
     unfold Environment.addQuot
     simp only [hinit, ↓reduceIte]
-    exact .pure ⟨ves, wf, fun _ => VEnv.LE.rfl⟩
+    exact .pure ⟨ves, wf, fun _ => VEnv.LE.rfl, id⟩
   | false =>
     rw [Environment.addQuot_eq env hinit]
     have hC := (wf.tr (safety := .safe)).map_wf

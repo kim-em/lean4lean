@@ -697,7 +697,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
@@ -710,17 +710,22 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProductionClose
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
-          (C.primaryRules ++ C.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (C.primaryRules ++ C.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .safe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.safeInductiveFinalResultOfProduction wf hch Hlower Hc Hprod
+  exact C.safeInductiveFinalResultOfProduction wf hcorner Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
-      hconstructorSemantics
+      hconstructorSemantics htypesH hctorOrigin
 
 /-- Unsafe final assembly with origins, final mutual closure, and uniform
 restoration-entry safety all derived from the exact producer/restoration
@@ -743,7 +748,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
@@ -761,8 +766,13 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
         (C.finalBaseVEnv.addDefEqRules
-          (C.primaryRules ++ C.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (C.primaryRules ++ C.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .unsafe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = true ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
@@ -771,9 +781,9 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProductionClo
     Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.unsafeInductiveFinalResultOfProduction wf hch Hlower Hc Hprod
+  exact C.unsafeInductiveFinalResultOfProduction wf hcorner Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
-      hconstructorSemantics
+      hconstructorSemantics htypesH hctorOrigin
 
 /-- Consume a rich exact safe nested run directly.  All dependent ordinary
 production indices are recovered from the alignments retained by the run. -/
@@ -799,7 +809,7 @@ private theorem NestedInstalledProduction.reindex
 theorem NestedExactFinalRunResult.safeInductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -809,8 +819,13 @@ theorem NestedExactFinalRunResult.safeInductiveFinalResult
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
       (E.assembly.finalBaseVEnv.addDefEqRules
-          (E.assembly.primaryRules ++ E.assembly.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (E.assembly.primaryRules ++ E.assembly.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .safe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   have hisUnsafe : E.production.isUnsafe = false := by
     rw [E.production_isUnsafe, E.productionContext_safety]
@@ -822,10 +837,10 @@ theorem NestedExactFinalRunResult.safeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf hch Hlower
+  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf hcorner Hlower
     E.productionContextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl
-      hconstructorSemantics
+      hconstructorSemantics htypesH hctorOrigin
 
 /-- Consume a rich exact unsafe nested run directly.  Closure and every
 unsafe restoration-entry tag are reconstructed from its exact production
@@ -833,7 +848,7 @@ and restoration traces. -/
 theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -843,8 +858,13 @@ theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
       (E.assembly.finalBaseVEnv.addDefEqRules
-          (E.assembly.primaryRules ++ E.assembly.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (E.assembly.primaryRules ++ E.assembly.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .unsafe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = true ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   have hisUnsafe : E.production.isUnsafe = true := by
     rw [E.production_isUnsafe, E.productionContext_safety]
@@ -856,10 +876,10 @@ theorem NestedExactFinalRunResult.unsafeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf hch Hlower
+  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf hcorner Hlower
     E.productionContextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl rfl rfl
-      E.productionContext_safety hconstructorSemantics
+      E.productionContext_safety hconstructorSemantics htypesH hctorOrigin
 
 /-! ## Narrow semantic residue for restored constructors -/
 
@@ -1048,7 +1068,7 @@ theorem NestedFinalAssemblyCertificate.constructorSemanticsOfParameterDomains
     {ves : VEnvs}
     (C : NestedFinalAssemblyCertificate H (ves.venv safety) decl lparams
       nparams isUnsafe safety)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WFCore sourceProdEnv)
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (Hparams : NestedRestoredConstructorParameterDomains C) :
@@ -1174,7 +1194,7 @@ theorem NestedExactFinalRunResult.safeConstructorSemanticsOfParameterDomains
     {ves : VEnvs}
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WFCore sourceProdEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -1208,7 +1228,7 @@ theorem NestedExactFinalRunResult.unsafeConstructorSemanticsOfParameterDomains
     {ves : VEnvs}
     (E : NestedExactFinalRunResult result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WFCore sourceProdEnv)
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed E.productionContext.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)

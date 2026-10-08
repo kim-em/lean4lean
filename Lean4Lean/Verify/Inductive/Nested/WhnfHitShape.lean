@@ -307,14 +307,14 @@ section Old
 
 variable {env₀ env₁ : Environment} {ves : VEnvs} {heads : List Name}
 
-private theorem find_constants (wf : ves.WF env₀) {n : Name} {ci : ConstantInfo}
+private theorem find_constants (wf : ves.WFCore env₀) {n : Name} {ci : ConstantInfo}
     (h : env₀.find? n = some ci) : env₀.constants.find? n = some ci := by
   have hwf := (wf.tr (safety := .unsafe)).map_wf
   rw [← hwf.find?'_eq_find?]; exact h
 
 /-- A name absent from the production environment is absent from its unsafe
 abstract model. -/
-theorem _root_.Lean4Lean.VEnvs.WF.unsafe_fresh (wf : ves.WF env₀) {n : Name} (h : env₀.find? n = none) :
+theorem _root_.Lean4Lean.VEnvs.WFCore.unsafe_fresh (wf : ves.WFCore env₀) {n : Name} (h : env₀.find? n = none) :
     (ves.venv .unsafe).constants n = none := by
   cases hc : (ves.venv .unsafe).constants n with
   | none => rfl
@@ -323,12 +323,12 @@ theorem _root_.Lean4Lean.VEnvs.WF.unsafe_fresh (wf : ves.WF env₀) {n : Name} (
     rw [h] at hfind; cases hfind
 
 /-- A constant of the unsafe abstract model is a production constant. -/
-theorem _root_.Lean4Lean.VEnvs.WF.unsafe_present (wf : ves.WF env₀) {n : Name} {ci : VConstant}
+theorem _root_.Lean4Lean.VEnvs.WFCore.unsafe_present (wf : ves.WFCore env₀) {n : Name} {ci : VConstant}
     (h : (ves.venv .unsafe).constants n = some ci) : ∃ ci', env₀.find? n = some ci' := by
   obtain ⟨ci', hfind, -⟩ := (wf.tr (safety := .unsafe)).find?_iff.2 ⟨ci, h⟩
   exact ⟨ci', hfind⟩
 
-variable (wf : ves.WF env₀)
+variable (wf : ves.WFCore env₀)
   (hpres : ∀ {n ci}, env₀.find? n = some ci → env₁.find? n = some ci)
   (hfresh : ∀ h ∈ heads, env₀.find? h = none)
 
@@ -763,7 +763,7 @@ theorem NestedValidatedRunResult.ctorNames_fresh_headerVEnv
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv)
+    (wf : ves.WFCore sourceProdEnv)
     (hnodup : (InductiveSignature.familyNames E.production.loweredDecl.types).Nodup)
     {t : VInductiveType} (ht : t ∈ E.production.loweredDecl.types)
     {c : VConstVal} (hc : c ∈ t.ctors) :
@@ -798,7 +798,7 @@ theorem NestedValidatedRunResult.ctorTypes_headType
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ owner ∈ E.production.indTypes.toList, ∀ ctor ∈ owner.ctors,
       HeadType E.hitHeads nparams (lparams.map Level.param) ctor.type := by
   obtain ⟨-, -, -, -, -, -, hkeys, hnodupAll⟩ := E.auxHeadsFacts wf Hsources
@@ -848,7 +848,7 @@ theorem NestedValidatedRunResult.generatedFamilyType_forall
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ i (hi : i < result.types.length), sourceTypes.length ≤ i →
       ∃ body, Expr.LeadingForalls nparams result.types[i].type body := by
   obtain ⟨-, -, -, -, -, -, -, hparamsSize, -, -⟩ := E.restorationTablesRestoring wf Hsources
@@ -893,7 +893,7 @@ theorem NestedValidatedRunResult.generatedFamilyType_forall
   have Htarget : TrInductDeclCore P.initialEnv P.c.lparams P.nparams
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
-  have wfP : ves.WF P.c.env := by
+  have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂
       (fun source target => TrSourceConst P.initialEnv P.c.lparams source.name
@@ -974,7 +974,7 @@ theorem NestedValidatedRunResult.hitHeads_fresh
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) :
+    (wf : ves.WFCore sourceProdEnv) :
     ∀ n ∈ E.hitHeads, sourceProdEnv.find? n = none := by
   intro n hn
   have hwfP : E.production.c.env.constants.WF := by
@@ -987,7 +987,7 @@ theorem NestedValidatedRunResult.ctorEnv_preserves
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) {n : Name} {ci : ConstantInfo}
+    (wf : ves.WFCore sourceProdEnv) {n : Name} {ci : ConstantInfo}
     (h : sourceProdEnv.find? n = some ci) : E.production.ctorEnv.find? n = some ci := by
   have hwfP : E.production.c.env.constants.WF := by
     rw [E.productionEnv]; exact (wf.tr (safety := .unsafe)).map_wf
@@ -1030,7 +1030,7 @@ theorem NestedValidatedRunResult.familyType_headType
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {owner : InductiveType} (howner : owner ∈ E.production.indTypes.toList)
     (hname : owner.name ∈ E.hitHeads) :
     HeadType E.hitHeads nparams (lparams.map Level.param) owner.type := by
@@ -1085,7 +1085,7 @@ theorem NestedValidatedRunResult.envHitShape
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     EnvHitShape E.production.ctorEnv E.hitHeads nparams (lparams.map Level.param) := by
   have hfresh := E.hitHeads_fresh wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
@@ -1347,7 +1347,7 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     WhnfHitOKFacts E.hitHeads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env := by
   refine .of_env ?_ E.paramsHitParams
@@ -1374,7 +1374,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     E.production.production.toCompletedRecursorConstruction.HitShapeInputs
       E.hitHeads := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
@@ -1439,7 +1439,7 @@ theorem NestedValidatedRunResult.recursorHitShape_hitHeads
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
@@ -1468,7 +1468,7 @@ theorem NestedValidatedRunResult.recursorHitShape'
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}

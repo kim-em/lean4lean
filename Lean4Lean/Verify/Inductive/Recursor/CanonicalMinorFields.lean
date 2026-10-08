@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Recursor.CanonicalFieldChoice
+import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 /-! Field domains of a generated minor premise, in the abstract contexts used
 by the independent generator.
@@ -9,33 +10,6 @@ Weakening it beneath the motives and earlier minors therefore yields the
 generator's `insertBinders` form of the selected source field domains. -/
 
 namespace Lean4Lean
-
-/-- Translation is syntactically unique: every constructor of `TrExprS` is
-determined by the source syntax and the context, including projections
-(`TrProj.target_eq`).  This strengthens `TrExprS.unique'`, whose `IsUnique`
-hypothesis excludes projections. -/
-theorem TrExprS.uniqueCtx {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr}
-    {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
-    (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) : e₁ = e₂ := by
-  induction H1 generalizing Δ₂ e₂ with cases H2
-  | bvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | fvar => exact hΔ.find?_uniq ‹_› ‹_›
-  | sort h1
-  | const _ h1 => cases h1.symm.trans ‹_›; rfl
-  | app _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 hΔ ‹_›; rfl
-  | lam _ _ _ ih1 ih2
-  | forallE _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlam) ‹_›; rfl
-  | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
-  | lit _ _ ih => exact ih hΔ ‹_›
-  | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ hp ih =>
-    rename_i h2 hp2
-    cases ih hΔ h2
-    rw [hp.target_eq, hp2.target_eq]
-
-theorem TrExprS.uniqueS {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Lean.Expr}
-    {e₁ e₂ : VExpr} (H1 : TrExprS env Us Δ e e₁) (H2 : TrExprS env Us Δ e e₂) : e₁ = e₂ :=
-  H1.uniqueCtx .base H2
 
 theorem FVarsIn.abstract1_eq_liftLooseBVars {e : Lean.Expr} {v : Lean.FVarId} {k : Nat}
     (h : FVarsIn (· ≠ v) e) : e.abstract1 v k = e.liftLooseBVars' k 1 := by

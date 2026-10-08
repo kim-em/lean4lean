@@ -332,9 +332,10 @@ structure VContext extends Context where
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
   equation are present.  This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- Canonical choice of the environment, which resolves the corner of the projection walk
-  (`projectionWalkCorner_choice`). -/
-  canonicalChoice : venv.HasCanonicalChoice
+  /-- What resolves the corner of the projection walk at a non-dependent field: canonical
+  choice of the environment (`projectionWalkCorner_choice`), or a telescope certificate of every
+  visible constructor (`TelTrN.delete_closed`). -/
+  corner : ProjectionCorner safety env venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx
@@ -403,6 +404,27 @@ theorem VContext.familyConstant (c : VContext) {n mkC : Name} {sInfo : Inductive
   have hvis : c.safety ≤ (ConstantInfo.inductInfo sInfo).safety := by
     simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hunsafe] using hsafe
   exact c.trenv.find?_iff.1 ⟨_, hfind, hvis⟩
+
+/-- The field count of the constructor of a visible single-constructor family is the syntactic
+arity of its stored type beyond the parameters. -/
+theorem VContext.constructorArity {c : VContext} {n mkC : Name} {structInfo : InductiveVal}
+    {mkInfo : ConstructorVal} {familyConstant : VConstant}
+    (hfind : c.env.find? n = some (.inductInfo structInfo))
+    (habstract : c.venv.constants n = some familyConstant)
+    (hsingle : structInfo.ctors = [mkC])
+    (hci : c.env.find? mkC = some (.ctorInfo mkInfo))
+    (hinduct : mkInfo.induct = n) :
+    mkInfo.numFields = AddInductive.constructorArity mkInfo.type - mkInfo.numParams := by
+  obtain ⟨A⟩ := c.projectionAlignment hfind habstract hsingle hci hinduct
+  have hciMap : c.env.constants.find? mkC = some (.ctorInfo mkInfo) := by
+    rwa [← c.trenv.map_wf.find?'_eq_find?]
+  have hcEq : A.constructorInfo = mkInfo := by
+    have := A.constructor_lookup
+    rw [hciMap] at this
+    cases this
+    rfl
+  rw [← hcEq]
+  exact A.constructor_arity
 
 /-- The facts about a single-constructor inductive and its constructor that the checker's
 projection, structure-eta and unit-like steps consume, read off the projection registry.

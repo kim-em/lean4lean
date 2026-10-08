@@ -99,6 +99,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
       some commonLevel)
     (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (Hclosed : MutualInductivesClosed c.env)
+    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
@@ -123,7 +124,7 @@ theorem AddInductive.runWithStats.semanticClosedWF
   · exact AddInductive.semanticFormationCoreClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon hnotzero Hclosed hvisible hnprimTypes
-      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams
+      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams HenvGF
   · exact hlparams
   · exact hnotPartial
   · exact hnprimRecursors
@@ -198,6 +199,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
+    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
@@ -236,6 +238,9 @@ theorem AddInductive.run.semanticSourceAlignedWF
     have Hclosed' : MutualInductivesClosed c'.env := by
       rw [henv]
       exact Hclosed
+    have HenvGF' : TypeChecker.EnvGF (fun _ => True) c'.env := by
+      rw [henv]
+      exact HenvGF
     have hvisible : c'.safety ≤
         (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
       rw [hsafety]
@@ -251,7 +256,7 @@ theorem AddInductive.run.semanticSourceAlignedWF
     exact (AddInductive.runWithStats.semanticClosedWF
       (hsourceSafety := by rw [hsafety]) Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
-      Hcache Hsuffix Hambient hcommon hnotzero Hclosed' hvisible I.freshTypes
+      Hcache Hsuffix Hambient hcommon hnotzero Hclosed' HenvGF' hvisible I.freshTypes
       I.freshConstructors hlparamsNodup hnotPartial
       I.freshRecursors).mono fun outEnv Hrun =>
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,
@@ -263,6 +268,7 @@ theorem AddInductive.run.semanticWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
+    (HenvGF : TypeChecker.EnvGF (fun _ => True) c.env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
@@ -279,7 +285,7 @@ theorem AddInductive.run.semanticWF
     (AddInductive.run nparams types numNested c).WF
       (VerifiedSemanticInductiveRunResult c nparams types numNested) := by
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
-    Hclosed hctx hnonempty HnotPartial
+    Hclosed HenvGF hctx hnonempty HnotPartial
     (fun Hc' _hallowPrimitive _hfuel Hsemantic =>
       Hinputs Hc' Hsemantic)).mono fun _ Hresult => by
       rcases Hresult with

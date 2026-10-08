@@ -1117,7 +1117,7 @@ theorem GeneratedFamilyInstalledContainer.directAuxiliaryConstructors
     {ves : VEnvs}
     (C : GeneratedFamilyInstalledContainer prodEnv (ves.venv safety)
       params nestedAux concrete H)
-    (wf : ves.WF prodEnv)
+    (wf : ves.WFCore prodEnv)
     (henv : (ves.venv safety).WF)
     (lparams : List Name) (parameterDomains baseArgs : List VExpr)
     (abstractLevels : List VLevel)

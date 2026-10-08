@@ -217,7 +217,7 @@ theorem NestedValidatedRunResult.restoredMajorHead {ves : VEnvs}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {r : Restoration} {auxRec : NameMap Name} {targetEnv : VEnv} {Us : List Name}
     {auxLevels : List Level}
     (A : RestorationMapAgreement r result E.loweredEnv auxRec targetEnv Us auxLevels)
@@ -365,13 +365,13 @@ type of the source production environment. -/
 theorem NestedValidatedRunResult.auxNestedHead {ves : VEnvs}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {name : Name} {nested : Expr} (hfind : result.aux2nested.find? name = some nested) :
     ∃ I ls info, nested.getAppFn = .const I ls ∧
       sourceProdEnv.find? I = some (.inductInfo info) := by
   rcases E.lowering with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   rcases Hrun.finalCachedGeneratedFamilyOriginOfLookup
-      (VEnvs.WF.environmentTypesClosed wf) wf.inductivesClosed Hsources rfl rfl hfind with
+      (VEnvs.WFCore.environmentTypesClosed wf) wf.inductivesClosed Hsources rfl rfl hfind with
     ⟨O⟩
   have hhead := O.origin.generated.built.nested_getAppFn O.origin.generated.selection
     O.origin.generated.argsArity
@@ -729,7 +729,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_steps
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -804,7 +804,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
@@ -1041,7 +1041,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (hnested : result.aux2nested.size ≠ 0)
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams' depth : Nat} {isUnsafe' : Bool}
@@ -1085,14 +1085,15 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
     (HauxTrace : RestoredAuxiliaryRecursorTrace sf'
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) recEnv
       Hrestored.auxiliaries [] auxiliaryRecursors)
-    (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors) :
+    (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors)
+    (hcorner : ProjectionCorner c.safety outEnv finalVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
       finalVEnv := by
-  apply Hrestored.finalValidOfStaged_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
-    Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
+  refine Hrestored.finalValidOfStaged_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
+    Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource ?_ hcorner
   intro name rec hfind _hs hnone
   -- the restoration tables of the run
   have hnodup : (familyNames E.production.loweredDecl.types ++

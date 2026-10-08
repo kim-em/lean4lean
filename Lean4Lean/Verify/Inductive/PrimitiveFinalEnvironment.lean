@@ -64,7 +64,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WF prodEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
     (hconstants : types.map Prod.snd ++ ctors.map Prod.snd =
         primitiveBoolConstants \/
       types.map Prod.snd ++ ctors.map Prod.snd = primitiveNatConstants)
@@ -83,14 +83,15 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         H.finalVEnv)
     (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
-    exists ves' : VEnvs, ves'.WF outEnv /\
+    exists ves' : VEnvs, ves'.WFCore outEnv /\
       (forall safety, ves.venv safety <= ves'.venv safety) /\
-      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) /\
+      H.finalVEnv <= ves'.venv .safe := by
   have valid (safety : DefinitionSafety) :
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
       (Hreplay .unsafe) with
@@ -180,9 +181,11 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
         exact VInductBlock.install_mono (wf.mono hle)
           hinstall (cert safety).install) with
     ⟨ves', wf', hle, hexact⟩
-  refine ⟨ves', wf', hle, ?_⟩
-  rw [hexact .safe]
-  exact (adds .safe).toVEnv
+  refine ⟨ves', wf', hle, ?_, ?_⟩
+  · rw [hexact .safe]
+    exact (adds .safe).toVEnv
+  · rw [hexact .safe]
+    exact outputLE .safe
 
 /-- The shared completed-constructor boundary still determines the exact
 canonical primitive constant batch from its source translation. -/
@@ -201,7 +204,7 @@ theorem CompletedConstructorPhases.primitiveAbstractConstants
 
 /-- The completed recursor suffix preserves the local checking invariants that
 were restored at the full primitive constructor boundary. (The full invariant
-is regained only once the iota rules are installed, see `VEnvs.WF`.) -/
+is regained only once the iota rules are installed, see `VEnvs.WFCore`.) -/
 theorem CompletedRecursorPhasesResult.outValid
     {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
@@ -217,16 +220,17 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
-    (wf : ves.WF c.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       (c.safety != .safe)) :
     exists ves' : VEnvs, exists decl : VInductDecl,
       exists envTypes envCtors : VEnv,
-      ves'.WF outEnv /\
+      ves'.WFCore outEnv /\
       (forall safety, ves.venv safety <= ves'.venv safety) /\
       TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
         (c.safety != .safe) decl envTypes envCtors /\
-      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) /\
+      VEnvs.CertPres c.env outEnv ves ves' := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
   have hsafety : c.safety = .safe := by
     have hnotUnsafe : (c.safety != .safe) = false := Hshape.2.2.1
@@ -261,14 +265,23 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
       CompletedBlockCertificate.finalVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.constructorSemantics (safety := .safe)) T.rules
-  rcases Hcert.extendSafePrimitiveExact wf hch hconstants hdecl hcompile
+  rcases Hcert.extendSafePrimitiveExact wf hcorner hconstants hdecl hcompile
       Hrecursors.productionInductiveOrigins T.recursorProvenance HvalidOut.safePrimitives
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
-    ⟨ves', wf', hle, hadd⟩
-  exact ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd⟩
+    ⟨ves', wf', hle, hadd, hfinal⟩
+  have hH : R.headerVEnv ≤ ves'.venv (if false then .unsafe else .safe) := by
+    refine (Hcert.typesLe ?_).trans hfinal
+    rw [R.headerValues]
+    exact R.core.typesAdded
+  refine ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd,
+    VEnvs.CertPres.ofOrigin (isUnsafe := false) hle wf'.mono hH fun hfind => ?_⟩
+  rcases Hrecursors.ctorOrigin hfind with h | ⟨hu, hc⟩
+  · exact .inl h
+  · refine .inr ⟨?_, hc⟩
+    rw [hu, hsafety]; rfl
 
 /-- The executable primitive checker reaches the final safety-indexed model
 without an equality-bootstrap premise. -/
@@ -276,7 +289,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WF c.env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv .safe)
     (Hshape : PrimitiveInductiveShape c.lparams nparams
       types.toArray.toList (c.safety != .safe))
@@ -285,7 +298,7 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
     (HnotPartial : c.safety ≠ .partial) :
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       exists decl : VInductDecl, exists ves' : VEnvs,
-        ves'.WF outEnv /\
+        ves'.WFCore outEnv /\
         forall safety, ves.venv safety <= ves'.venv safety := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
     nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty HnotPartial
@@ -297,14 +310,16 @@ theorem AddInductive.run.primitiveFinalEnvironmentModelWF
       ⟨c', stats, depth, _commonParams, _commonLevel, _Hc', henv, hsafety,
         _hlparams, _hallowPrimitive, _hfuel, hvenv, _Hsemantic, Hshape',
         Hphases⟩
-    have wf' : ves.WF c'.env := by simpa [henv] using wf
+    have wf' : ves.WFCore c'.env := by simpa [henv] using wf
+    have hcorner' : ∀ safety, ProjectionCorner safety c'.env (ves.venv safety) := by
+      rw [henv]; exact hcorner
     have Hshape'' : PrimitiveInductiveShape c'.lparams nparams
         types.toArray.toList (c'.safety != .safe) := by
       simpa [hsafety] using Hshape'
     have Hphases' : SemanticPrimitiveRunWithStatsResult c' stats nparams depth
         (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
       simpa [hvenv, hsafety] using Hphases
-    rcases Hphases'.extendSafeExact wf' hch Hshape'' with
+    rcases Hphases'.extendSafeExact wf' hcorner' Hshape'' with
       ⟨ves', decl, _envTypes, _envCtors, wf'', hle, _source, _hadd⟩
     exact ⟨decl, ves', wf'', hle⟩
 

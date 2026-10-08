@@ -93,6 +93,9 @@ def AssembledSemanticHeadersOf.primitiveDeclaredResult
   let context : StagedContextWF { c with env := outEnv } :=
     Hc.toStaged.withEnv (venv' := envTypes)
       (Hinstalled.checking Hc.checking.tr) Hinstalled.le
+      ((Hc.checking.corner.ofCtors
+        (Hinstalled.ctors_of_noCtor Hc.checking.tr.map_wf inductInfo_zip_noCtor)).mono
+        Hinstalled.le)
   have hcontextVEnv : context.venv = envTypes := rfl
   have hle : Hc.venv ≤ context.venv := Hinstalled.le
   let materializedMono := sourceMaterialized.mono hle

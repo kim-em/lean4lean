@@ -324,7 +324,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     {isUnsafe : Bool}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams isUnsafe .safe)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -333,16 +333,18 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
           (C.primaryRules ++ C.auxiliaryRules))) :
-    ∃ ves' : VEnvs, ves'.WF outEnv ∧
+    ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       Nonempty (NestedFinalEnvironmentResult (ves.venv .safe) decl lparams
         nparams sourceTypes isUnsafe .safe outEnv) ∧
-      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) ∧
+      ∀ venvH, (ves.venv .safe).addConstVals decl.typeConstants = some venvH →
+        venvH ≤ ves'.venv .safe := by
   let B := C.blockCertificate
   have Hvalid : CheckingEnv.Valid .safe sourceProdEnv (ves.venv .safe) :=
     (wf.tr (safety := .safe)).toCheckingValid
       (wf.hasPrimitives (safety := .safe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -364,7 +366,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
     (wf.tr (safety := observer)).toCheckingValid
       (wf.hasPrimitives (safety := observer)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
         ∃ Breplay : BlockCertificate observer sourceProdEnv
@@ -446,7 +448,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     · rw [← hlookupEnv]
       exact hfind
     · exact hprimitive
-  have Hmodels : ∃ ves' : VEnvs, ves'.WF outEnv ∧
+  have Hmodels : ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ observer, ves.venv observer ≤ ves'.venv observer) ∧
       ∀ observer, ves'.venv observer = next observer := by
     apply wf.extendInductExact decl next adds actual.property.quotInit_eq
@@ -473,9 +475,12 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         hinstall
         (cert observer).install
   rcases Hmodels with ⟨ves', wf', hle, hexact⟩
-  refine ⟨ves', wf', hle, ⟨C.finalEnvironment Hvalid⟩, ?_⟩
-  rw [hexact .safe]
-  exact (adds .safe).toVEnv
+  refine ⟨ves', wf', hle, ⟨C.finalEnvironment Hvalid⟩, ?_, fun venvH htypesH => ?_⟩
+  · rw [hexact .safe]
+    exact (adds .safe).toVEnv
+  · rw [hexact .safe]
+    rw [← C.typeValues] at htypesH
+    exact (B.typesLe htypesH).trans (outputLE .safe)
 
 /-- Declaration-dispatch form of the safe exact-restoration replay theorem. -/
 private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
@@ -488,7 +493,7 @@ private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : NestedFinalAssemblyCertificate H (ves.venv .safe) decl lparams
       nparams false .safe)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hclosed : MutualInductivesClosed outEnv)
@@ -496,18 +501,25 @@ private theorem NestedFinalAssemblyCertificate.safeInductiveFinalResult
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
-          (C.primaryRules ++ C.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (C.primaryRules ++ C.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .safe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
-  rcases C.extendSafe wf hch Horigins hclosed
+  rcases C.extendSafe wf hcorner Horigins hclosed
       hconstructorOwners hconstructorSemantics with
-    ⟨ves', wf', hle, ⟨Hfinal⟩, hadd⟩
+    ⟨ves', wf', hle, ⟨Hfinal⟩, hadd, htypesLe⟩
   exact ⟨InductiveFinalResult.ofModel ves' wf' hle
     { decl := decl
       envTypes := Hfinal.envTypes
       envCtors := Hfinal.envCtors
       source := Hfinal.sourceCore
-      extension := hadd }⟩
+      extension := hadd }
+    (VEnvs.CertPres.ofOrigin (isUnsafe := false) hle wf'.mono
+      (htypesLe venvH htypesH) hctorOrigin)⟩
 
 /-- Safe final-model assembly with production origins discharged from the
 exact closed lowering, ordinary production, and restoration traces. -/
@@ -528,7 +540,7 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
@@ -542,18 +554,23 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
         (C.finalBaseVEnv.addDefEqRules
-          (C.primaryRules ++ C.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (C.primaryRules ++ C.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .safe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = false ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.safeInductiveFinalResult wf hch
+  exact C.safeInductiveFinalResult wf hcorner
     (C.productionInductiveOrigins Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hclosed
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
-    hconstructorSemantics
+    hconstructorSemantics htypesH hctorOrigin
 
 /-- An unsafe exact restoration changes only the unsafe abstract observer.
 The premise is indexed by every exact fresh restoration trace, ruling out an
@@ -569,7 +586,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     {decl : VInductDecl} {lparams : List Name} {nparams : Nat}
     (C : NestedFinalAssemblyCertificate H (ves.venv .unsafe) decl lparams
       nparams true .unsafe)
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Horigins : ProductionInductiveOrigins sourceProdEnv.constants
       outEnv.constants decl)
     (hentriesUnsafe : ∀ entries
@@ -580,14 +597,19 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
         (C.finalBaseVEnv.addDefEqRules
-          (C.primaryRules ++ C.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (C.primaryRules ++ C.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .unsafe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = true ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   let B := C.blockCertificate
   have Hvalid : CheckingEnv.Valid .unsafe sourceProdEnv (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+      wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshConstantTrace sourceProdEnv entries outEnv } := by
     rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
@@ -717,7 +739,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     · rw [← hlookupEnv]
       exact hfind
     · exact hprimitive
-  rcases VEnvs.WF.extendUnsafeExact wf
+  rcases VEnvs.WFCore.extendUnsafeExact wf
       (C.finalBaseVEnv.addDefEqRules
         (C.primaryRules ++ C.auxiliaryRules))
       htrUnsafe htrPartial htrSafe
@@ -737,12 +759,18 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
       (ves'.venv .unsafe) := by
     rw [hexact]
     exact Hadd.toVEnv
+  have hH : venvH ≤ ves'.venv (if true then .unsafe else .safe) := by
+    show venvH ≤ ves'.venv .unsafe
+    rw [hexact]
+    rw [← C.typeValues] at htypesH
+    exact B.typesLe htypesH
   exact ⟨InductiveFinalResult.ofModel ves' wf' hle
     { decl := decl
       envTypes := F.envTypes
       envCtors := F.envCtors
       source := F.sourceCore
-      extension := haddExact }⟩
+      extension := haddExact }
+    (VEnvs.CertPres.ofOrigin (isUnsafe := true) hle wf'.mono hH hctorOrigin)⟩
 
 /-- Unsafe final-model assembly with production origins discharged from the
 exact closed lowering, ordinary production, and restoration traces. -/
@@ -763,7 +791,7 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WF sourceProdEnv) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
+    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, ProjectionCorner safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
@@ -780,18 +808,23 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
     (hconstructorSemantics :
       InductiveConstructorsSemanticallyCoherent .unsafe outEnv
         (C.finalBaseVEnv.addDefEqRules
-          (C.primaryRules ++ C.auxiliaryRules))) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+          (C.primaryRules ++ C.auxiliaryRules)))
+    {venvH : VEnv}
+    (htypesH : (ves.venv .unsafe).addConstVals decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = true ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   have Howners : ConstructorOwnersPresent c.env := by
     rw [henv]
     exact wf.constructorOwners
-  exact C.unsafeInductiveFinalResult wf hch
+  exact C.unsafeInductiveFinalResult wf hcorner
     (C.productionInductiveOrigins Hlower Hc Hprod Hmetadata Hsources Harity
       Howners hempty henv hlparams hnames)
     hentriesUnsafe hclosed
     (C.constructorOwnersPresent Hlower Hc Hprod Howners hempty henv hnames)
-    hconstructorSemantics
+    hconstructorSemantics htypesH hctorOrigin
 
 end VerifyInductive
 end Lean4Lean

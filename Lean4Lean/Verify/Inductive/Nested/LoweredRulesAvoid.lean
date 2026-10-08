@@ -1173,7 +1173,7 @@ theorem NestedValidatedRunResult.ctorType_avoids_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {owner : InductiveType} (howner : owner ∈ E.production.indTypes.toList)
     {ctor : Constructor} (hctor : ctor ∈ owner.ctors) :
     ctor.type.AvoidsConsts E.auxCtorNames := by
@@ -1197,7 +1197,7 @@ theorem NestedValidatedRunResult.envHitShape_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     EnvHitShape E.production.ctorEnv E.auxCtorNames 0 (badLevels lparams) := by
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
     fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
@@ -1349,7 +1349,7 @@ theorem NestedValidatedRunResult.whnfHitOKFacts_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     WhnfHitOKFacts E.auxCtorNames [] (badLevels lparams)
       E.production.production.localContext.env := by
   refine .of_env ?_ (fun a ha => by simp at ha)
@@ -1362,7 +1362,7 @@ theorem NestedValidatedRunResult.trailInputs_of
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     E.production.production.toCompletedRecursorConstruction.TrailInputs
       E.auxCtorNames (badLevels lparams) := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
@@ -1554,7 +1554,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (heads : List Name) :
     E.LoweredRulesAvoid heads E.auxCtorNames := by
   intro owner rec hfind rule hrule
@@ -1681,7 +1681,7 @@ theorem NestedValidatedRunResult.restorableRenamed_auxCtorNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
@@ -1732,7 +1732,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_renamed
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {envTypes : VEnv} {generated : List VInductiveType}
     {auxiliaries : List ContainerSpecialization}
     (Haux : List.Forall₂ (AuxiliarySpecializationEvidence

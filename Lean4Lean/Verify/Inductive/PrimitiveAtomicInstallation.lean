@@ -29,12 +29,12 @@ structure StagedContextWF (c : AddInductive.Context) where
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
   /-- The open projection-walk corner, carried to the restored checker context. -/
-  canonicalChoice : venv.HasCanonicalChoice
+  corner : ProjectionCorner c.safety c.env venv
 
 def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
   venv := H.venv
   checking := H.checking.tr
-  canonicalChoice := H.checking.canonicalChoice
+  corner := H.checking.corner
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -50,11 +50,12 @@ extension.  Unlike `ContextWF.withEnv`, this operation intentionally needs no
 primitive invariant. -/
 def StagedContextWF.withEnv (H : StagedContextWF c)
     (hchecking : CheckingEnv c.safety env' venv')
-    (hle : H.venv <= venv') :
+    (hle : H.venv <= venv')
+    (hcorner : ProjectionCorner c.safety env' venv') :
     StagedContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
-  canonicalChoice := H.canonicalChoice.mono hle
+  corner := hcorner
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -87,7 +88,7 @@ def StagedContextWF.complete (H : StagedContextWF c)
       intro n ci hfind hprimitive
       exact hsafe hfind hprimitive
     typeAnnotationWrappers := hannotations
-    canonicalChoice := H.canonicalChoice
+    corner := H.corner
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors
@@ -396,6 +397,42 @@ theorem AtomicAddConstants.entryOrigin
       · left
         rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
     · exact Or.inr ⟨entry, by simp [hentry], hname, hfound⟩
+
+/-- An atomic installation preserves the projection-walk corner, given the constructor steps of
+its entries (stated in the environment before the installation). -/
+theorem AtomicAddConstants.corner
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
+    (hchecking : CheckingEnv safety env venv)
+    (hcorner : ProjectionCorner safety env venv)
+    (hsteps : ∀ entry ∈ entries, CtorCornerStep safety venv entry.1) :
+    ProjectionCorner safety outEnv outVEnv := by
+  induction H with
+  | nil => exact hcorner
+  | cons hn htr hwf hadd hdelta _ ih =>
+    exact ih (hchecking.add hn htr.1 hwf hadd hdelta)
+      (hcorner.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
+      fun e he => (hsteps e (List.mem_cons_of_mem _ he)).mono (VEnv.addConst_le hadd)
+
+/-- An installation of no constructor adds no constructor lookup. -/
+theorem AtomicAddConstants.ctors_of_noCtor
+    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal, entry.1 ≠ .ctorInfo info) :
+    ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      env.find? name = some (.ctorInfo ci) := by
+  intro name ci hfind
+  rcases H.entryOrigin hwf hfind with h | ⟨entry, hentry, -, hci⟩
+  · exact h
+  · exact absurd hci.symm (hkinds entry hentry ci)
+
+theorem _root_.Lean4Lean.inductInfo_zip_noCtor {infos : List InductiveVal}
+    {values : List VConstVal} :
+    ∀ entry ∈ List.zip (infos.map (fun info => ConstantInfo.inductInfo info)) values,
+      ∀ info : ConstructorVal, entry.1 ≠ .ctorInfo info := by
+  intro entry hentry info heq
+  rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨_, _, hfst⟩
+  rw [← hfst] at heq
+  cases heq
 
 /-- A lookup absent from the source stays absent when none of the exact
 atomic entries uses that name. -/
@@ -827,9 +864,10 @@ def AtomicAddConstants.completeContext
     (howners : ConstructorOwnersPresent outEnv)
     (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
+    (hcorner : ProjectionCorner c.safety outEnv outVEnv) :
     ContextWF { c with env := outEnv } :=
-  (source.withEnv (H.checking source.checking) H.le).complete
+  (source.withEnv (H.checking source.checking) H.le hcorner).complete
     hprimitives hsafe hannotations howners hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
@@ -907,6 +945,7 @@ structure PrimitiveConstructorPhasesResult
   constructorTails : CheckedRecursorConstructorTails H.context.venv c.lparams
     H.materialized.parameterScope stats decl indTypes
   ownerNormalForms : CheckedConstructorOwnerNormalForms stats indTypes
+  telescopes : SourceCtorsCertified H.context.venv c.lparams indTypes.toList
   declared : PrimitiveDeclaredConstructorsResult H outEnv
   formation : FormationCertificate sourceEnv decl
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList

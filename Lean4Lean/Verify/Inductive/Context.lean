@@ -1030,15 +1030,15 @@ def initialContext (env : Environment) (lparams : List Name)
     AddInductive.Context where
   env; lparams; safety; allowPrimitive; fuel
 
-def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WF env)
+def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety) (lparams : List Name)
     (allowPrimitive : Bool) (fuel : FuelConfig)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) :
+    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) :
     ContextWF (initialContext env lparams safety allowPrimitive fuel) where
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent (hch _)
+    wf.typeAnnotationWrappers wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl

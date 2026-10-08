@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.TypeChecker.IsDefEq
 import Lean4Lean.Verify.Typing.LevelEquiv
+import Lean4Lean.Verify.Typing.TelescopeTranslationLemmas
 
 /-!
 # The projection telescope walk
@@ -342,5 +343,313 @@ theorem instantiateProjectionFields.WF {c : VContext} {G : VLevel → Prop}
       ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t :=
   (instantiateProjectionFields.WF_all he hmaj hG0 hG hT hle hproj hch rfl).mono
     fun _ _ _ H t ht => (H t ht).1.1
+
+/-! ### The walk over a telescope-closed constructor type
+
+The constructor type carries a depth-bounded telescope certificate (`TelTrN`) covering its
+parameters and fields. Along the walk the certificate is maintained: at each step the current type
+is a syntactic `forallE` (so `whnf` returns it unchanged), a parameter or a dependent field is
+substituted (`TelTrN.inst`), and a non-dependent field is deleted (`TelTrN.delete_closed`), which
+needs no typing of the corresponding projection. -/
+
+theorem instantiateProjectionParameters.WF_tel {c : VContext} {args : Array Expr} :
+    ∀ {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+      {position : Nat} {xs' : List VExpr},
+    TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b) → remaining ≤ m →
+    ∀ (hle : remaining ≤ ds.length) (hlen : xs'.length = remaining),
+    (∀ k (_hk : k < remaining), ∃ a, args[position + k]? = some a ∧
+      c.TrExprS a (xs'[k]'(by omega))) →
+    (∀ k (hk : k < remaining), ∃ D', VExpr.LEquiv c.lparams.length
+      ((ds[k]'(by omega)).instOuter (xs'.take k)) D' ∧ c.HasType (xs'[k]'(by omega)) D') →
+    (instantiateProjectionParameters type args position remaining).WF c s fun r _ =>
+      ∀ t, r = some t → ∃ R,
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
+        TelTrN c.venv c.lparams (m - remaining) c.vlctx t R := by
+  intro remaining
+  induction remaining with
+  | zero =>
+    intro m s type ds b position xs' hT _ _ hlen _ _
+    obtain rfl := List.eq_nil_of_length_eq_zero hlen
+    exact .pure fun t ht => by cases ht; exact ⟨_, rfl, hT⟩
+  | succ remaining ih =>
+    intro m s type ds b position xs' hT hm hle hlen hargs hty
+    cases ds with | nil => simp at hle | cons d ds' => ?_
+    cases xs' with | nil => cases hlen | cons a' xs'' => ?_
+    obtain ⟨m, rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by omega⟩
+    have hT' : TelTrN c.venv c.lparams (m + 1) c.vlctx type
+        (.forallE d (VExpr.wrapForalls ds' b)) := hT
+    obtain ⟨n, d₀, body, bi, _, _, rfl, he⟩ := hT'.forallE_of_succ
+    cases he
+    have hkeep := hT'.keep
+    unfold instantiateProjectionParameters
+    refine whnf.WF_forall.bind fun e₁ _ _ H₁ => ?_
+    subst H₁
+    simp only
+    split <;> [skip; exact .pure nofun]
+    rename_i a ha
+    have ⟨a₀, ha₀, ha₀'⟩ := hargs 0 (Nat.succ_pos _)
+    simp only [Nat.add_zero] at ha₀
+    rw [ha] at ha₀; cases ha₀
+    have ⟨D', hL, hD'⟩ := hty 0 (Nat.succ_pos _)
+    simp only [List.take_zero, VExpr.instOuter_nil, List.getElem_cons_zero] at hL hD'
+    let .forallE ⟨_, hd'⟩ _ _ _ := hT'.toTrExprS
+    have hda : c.HasType a' d :=
+      hD'.defeqU_r c.Ewf c.Δwf (hL.defeq c.Ewf c.Δwf.toCtx ⟨_, hd'⟩).symm
+    have hinst := hkeep.inst c.Ewf.ordered hda ha₀'
+    rw [Expr.instantiate1_eq]
+    have hT'' : TelTrN c.venv c.lparams m c.vlctx (body.instantiate1' a)
+        (VExpr.wrapForalls (VExpr.instDomains ds' a' 0) (b.inst a' (0 + ds'.length))) := by
+      rw [← VExpr.wrapForalls_inst]; exact hinst
+    refine (ih hT'' (by omega) (by simpa using Nat.le_of_succ_le_succ hle) (by simpa using hlen)
+      ?_ ?_).mono fun r _ _ H t ht => ?_
+    · intro k hk
+      have ⟨a₁, h1, h2⟩ := hargs (k + 1) (Nat.succ_lt_succ hk)
+      exact ⟨a₁, by rw [← h1]; congr 1; omega, h2⟩
+    · intro k hk
+      have ⟨D', h1, h2⟩ := hty (k + 1) (Nat.succ_lt_succ hk)
+      refine ⟨D', ?_, h2⟩
+      have hk' : k < xs''.length := by simp at hlen; omega
+      rw [VExpr.instDomains_getElem _ _ _ _ (by simp at hle; omega), Nat.zero_add]
+      simp only [List.getElem_cons_succ, List.take_succ_cons, VExpr.instOuter_cons,
+        List.length_take, Nat.min_eq_left (Nat.le_of_lt hk')] at h1
+      exact h1
+    · obtain ⟨R, hR, hR'⟩ := H t ht
+      refine ⟨R, ?_, by simpa [Nat.add_sub_add_right] using hR'⟩
+      show VProjectionInfo.instantiateProjectionParameters
+        (.forallE d (VExpr.wrapForalls ds' b)) (a' :: xs'') = some R
+      simp only [VProjectionInfo.instantiateProjectionParameters, VExpr.wrapForalls_inst]
+      exact hR
+
+theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
+    (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
+    (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u) :
+    ∀ {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+      {position : Nat},
+    TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b) → remaining ≤ m →
+    ∀ (hle : remaining ≤ ds.length),
+    (∀ m (hm : m < remaining) u,
+      c.HasType ((ds[m]'(by omega)).instOuter (projs st e' position m)) (.sort u) → G u →
+      c.HasType (.proj st (position + m) e')
+        ((ds[m]'(by omega)).instOuter (projs st e' position m))) →
+    s.ngen.namePrefix = pfx →
+    (instantiateProjectionFields st struct maybePropType type position remaining).WF c s
+      fun r _ => ∀ t, r = some t → (((∃ R,
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
+          (projs st e' position remaining) = some R ∧
+        TelTrN c.venv c.lparams (m - remaining) c.vlctx t R) ∧
+      ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
+      ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+        struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true) ∧
+      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+        FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
+        projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+  intro remaining
+  induction remaining with
+  | zero =>
+    intro m s type ds b position hT _ _ _ _
+    exact .pure fun t ht => by
+      cases ht; exact ⟨⟨⟨⟨_, rfl, hT⟩, fun _ _ h _ => h⟩, fun _ _ _ h _ _ _ => h⟩,
+        fun _ _ _ _ _ h _ _ _ _ => h⟩
+  | succ remaining ih =>
+    intro m s type ds b position hT hm hle hproj hpfx
+    cases ds with | nil => simp at hle | cons d ds' => ?_
+    obtain ⟨m, rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by omega⟩
+    have hT' : TelTrN c.venv c.lparams (m + 1) c.vlctx type
+        (.forallE d (VExpr.wrapForalls ds' b)) := hT
+    obtain ⟨_, _, _, _, _, _, htype, -⟩ := hT'.forallE_of_succ
+    have hTS := hT'.toTrExprS
+    have hwf : RecM.WF c s (whnf type) fun e₁ _ => e₁ = type := by
+      rw [htype]; exact whnf.WF_forall
+    unfold instantiateProjectionFields
+    refine (((whnf.WF_below' hTS).and (whnf.WF_hit hTS hpfx)).and hwf).bind
+      fun e₁ s₁ le₁ H₁ => ?_
+    obtain ⟨⟨⟨⟨hbe, -, hs⟩, hle₁⟩, hh₁⟩, he₁⟩ := H₁
+    have hpfx₁ := VState.LE.namePrefix_eq hpfx le₁
+    have h₁ := hs _ _ rfl
+    split <;> [skip; exact .pure nofun]
+    rename_i n d₁ body bi
+    rw [← he₁] at hT'
+    have hkeep := hT'.keep
+    let .forallE hd hW hd₁ hbody := h₁
+    have hbl : ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+        d₁.levelParamsIn Us = true ∧ body.levelParamsIn Us = true := fun Us P hsc hlt hfvt => by
+      have := hle₁ Us P hsc hlt hfvt
+      simpa only [Expr.levelParamsIn, Bool.and_eq_true] using this
+    -- the continuation: the walk on the rest of the telescope
+    have cont : ∀ {s : VState} (type' : Expr), s.ngen.namePrefix = pfx →
+        TelTrN c.venv c.lparams m c.vlctx type'
+          ((VExpr.wrapForalls ds' b).inst (.proj st position e')) →
+        (∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P type') →
+        (∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+          struct.levelParamsIn Us = true → FVarsIn P struct → type'.levelParamsIn Us = true) →
+        (∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+          FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
+          projHitOK c.env heads st → type'.HitOK c.env heads As ls) →
+        RecM.WF c s (instantiateProjectionFields st struct maybePropType type' (position + 1)
+          remaining) fun r _ => ∀ t, r = some t → (((∃ R,
+          VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls (d :: ds') b)
+            (projs st e' position (remaining + 1)) = some R ∧
+            TelTrN c.venv c.lparams (m + 1 - (remaining + 1)) c.vlctx t R) ∧
+          ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
+          ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+            struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true) ∧
+          ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+            FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
+            projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+      intro s type' hps hT'' hfv' hlv' hhv'
+      rw [VExpr.wrapForalls_inst] at hT''
+      have E : ∀ m (hm' : m < ds'.length),
+          ((VExpr.instDomains ds' (.proj st position e') 0)[m]'(by simpa using hm')).instOuter
+              (projs st e' (position + 1) m) =
+            (ds'[m]'hm').instOuter (projs st e' position (m + 1)) := by
+        intro m hm'
+        rw [VExpr.instDomains_getElem _ _ _ _ hm', projs_succ,
+          VExpr.instOuter_cons, projs_length, Nat.zero_add]
+      refine (ih hT'' (by omega) (by simpa using Nat.le_of_succ_le_succ hle) ?_ hps).mono
+        fun r _ _ H t ht => ?_
+      · intro m hm u
+        have hm' : m < ds'.length := by simp at hle; omega
+        rw [E m hm', show position + 1 + m = position + (m + 1) by omega]
+        exact hproj (m + 1) (Nat.succ_lt_succ hm) u
+      · obtain ⟨⟨⟨⟨R, hR, hR'⟩, hfv⟩, hlv⟩, hhv⟩ := H t ht
+        refine ⟨⟨⟨⟨R, ?_, by simpa [Nat.add_sub_add_right] using hR'⟩, fun P hP hfvt hfvs => hfv P hP (hfv' P hP hfvt hfvs) hfvs⟩,
+          fun Us P hsc hlt hfvt hls hfvs =>
+            hlv Us P hsc (hlv' Us P hsc hlt hfvt hls hfvs) (hfv' P hsc.1 hfvt hfvs) hls hfvs⟩,
+          fun heads As ls P hsc hht hfvt hhs hfvs hok =>
+            hhv heads As ls P hsc (hhv' heads As ls P hsc hht hfvt hhs hfvs hok)
+              (hfv' P hsc.up hfvt hfvs) hhs hfvs hok⟩
+        rw [projs_succ]
+        show VProjectionInfo.instantiateProjectionParameters (.forallE d (VExpr.wrapForalls ds' b))
+          (_ :: _) = some R
+        simp only [VProjectionInfo.instantiateProjectionParameters, VExpr.wrapForalls_inst]
+        exact hR
+    -- typing of the projection at the current binder, from the sort of the domain
+    have hp0 : ∀ u, c.HasType d (.sort u) → G u → c.HasType (.proj st position e') d := by
+      intro u hu hGu
+      have := hproj 0 (Nat.succ_pos _) u (by simpa using hu) hGu
+      simpa using this
+    split
+    · -- the body depends on the field: substitute the projection
+      have main {s : VState} (hps : s.ngen.namePrefix = pfx)
+          (hp : c.HasType (.proj st position e') d) :
+          RecM.WF c s (instantiateProjectionFields st struct maybePropType
+            (body.instantiate1 (.proj st position struct)) (position + 1) remaining)
+            fun r _ => ∀ t, r = some t → (((∃ R,
+              VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls (d :: ds') b)
+                (projs st e' position (remaining + 1)) = some R ∧
+            TelTrN c.venv c.lparams (m + 1 - (remaining + 1)) c.vlctx t R) ∧
+              ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
+              ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+                struct.levelParamsIn Us = true → FVarsIn P struct →
+                t.levelParamsIn Us = true) ∧
+              ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+                FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
+                projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+        have hp_tr : c.TrExprS (.proj st position struct) (.proj st position e') :=
+          .proj he (.direct hmaj ⟨_, hp⟩)
+        rw [Expr.instantiate1_eq]
+        exact cont _ hps (hkeep.inst c.Ewf.ordered hp hp_tr)
+          (fun P hP hfvt hfvs => FVarsIn.instantiate1 (hbe P hP hfvt).2 hfvs)
+          (fun Us P hsc hlt hfvt hls _ =>
+            Expr.levelParamsIn_instantiate1 (hbl Us P hsc hlt hfvt).2 hls)
+          fun heads As ls P hsc hht hfvt hhs _ hok =>
+            (hh₁ heads As ls P hsc hht hfvt).forallE_inv.2.instantiate1' hsc.params.fvars
+              (.proj hok hhs) 0
+      split
+      · rename_i hmp
+        refine (isProp.WF hd₁).bind fun bp _ le₂ hbp => ?_
+        split <;> [skip; exact .pure nofun]
+        rename_i hbp'
+        exact main (VState.LE.namePrefix_eq hpfx₁ le₂) (hp0 .zero (hbp (by simpa using hbp')) hG0)
+      · rename_i hmp
+        have ⟨u, hu⟩ := hd
+        exact main hpfx₁ (hp0 u hu (hG (by simpa using hmp) u))
+    · -- the body does not depend on the field
+      rename_i hnl
+      have hlr : body.looseBVarRange' ≤ 0 := by simpa [Expr.hasLooseBVars] using hnl
+      refine cont _ hpfx₁ ?_ (fun P hP hfvt _ => (hbe P hP hfvt).2)
+        (fun Us P hsc hlt hfvt _ _ => (hbl Us P hsc hlt hfvt).2)
+        fun heads As ls P hsc hht hfvt _ _ _ => (hh₁ heads As ls P hsc hht hfvt).forallE_inv.2
+      obtain ⟨W₀, hW, hdel⟩ := hT'.delete_closed hlr
+      rw [hW, VExpr.inst_lift]; exact hdel
+
+/-- The parameter walk with an optional telescope certificate: the plain conclusions of
+`instantiateProjectionParameters.WF_all`, and the certified residual whenever `Cert` holds. -/
+theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Expr}
+    {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+    {position : Nat} {xs' : List VExpr} {Cert : Prop}
+    (hT : c.TrExprS type (VExpr.wrapForalls ds b))
+    (hcert : Cert → TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b))
+    (hm : Cert → remaining ≤ m) (hle : remaining ≤ ds.length)
+    (hlen : xs'.length = remaining)
+    (hargs : ∀ k (_hk : k < remaining), ∃ a, args[position + k]? = some a ∧
+      c.TrExprS a (xs'[k]'(by omega)))
+    (hty : ∀ k (hk : k < remaining), ∃ D', VExpr.LEquiv c.lparams.length
+      ((ds[k]'(by omega)).instOuter (xs'.take k)) D' ∧ c.HasType (xs'[k]'(by omega)) D')
+    (hpfx : s.ngen.namePrefix = pfx) :
+    (instantiateProjectionParameters type args position remaining).WF c s fun r _ =>
+      ∀ t, r = some t → ((((∃ R,
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
+        c.TrExprS t R) ∧
+      ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type →
+        (∀ k (hk : k < remaining) a, args[position + k]? = some a → FVarsIn P a) →
+        FVarsIn P t) ∧
+      ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+        (∀ k (hk : k < remaining) a, args[position + k]? = some a →
+          a.levelParamsIn Us = true ∧ FVarsIn P a) →
+        t.levelParamsIn Us = true) ∧
+      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+        FVarsIn P type →
+        (∀ k (hk : k < remaining) a, args[position + k]? = some a →
+          a.HitOK c.env heads As ls ∧ FVarsIn P a) →
+        t.HitOK c.env heads As ls) ∧
+      (Cert → ∃ R,
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
+        TelTrN c.venv c.lparams (m - remaining) c.vlctx t R) := by
+  by_cases hc : Cert
+  · exact ((instantiateProjectionParameters.WF_all hT hle hlen hargs hty hpfx).and
+      (instantiateProjectionParameters.WF_tel (hcert hc) (hm hc) hle hlen hargs hty)).mono
+      fun _ _ _ ⟨h1, h2⟩ t ht => ⟨h1 t ht, fun _ => h2 t ht⟩
+  · exact (instantiateProjectionParameters.WF_all hT hle hlen hargs hty hpfx).mono
+      fun _ _ _ h t ht => ⟨h t ht, fun h' => absurd h' hc⟩
+
+/-- The field walk, with the projection-walk corner resolved either by a telescope certificate of
+the current type or by the callback of `instantiateProjectionFields.WF_all`. -/
+theorem instantiateProjectionFields.WF_corner {c : VContext} {G : VLevel → Prop}
+    (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
+    (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u)
+    {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+    {position : Nat}
+    (hT : c.TrExprS type (VExpr.wrapForalls ds b)) (hle : remaining ≤ ds.length)
+    (hproj : ∀ m (hm : m < remaining) u,
+      c.HasType ((ds[m]'(by omega)).instOuter (projs st e' position m)) (.sort u) → G u →
+      c.HasType (.proj st (position + m) e')
+        ((ds[m]'(by omega)).instOuter (projs st e' position m)))
+    (hcorner : (TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b) ∧
+        remaining ≤ m) ∨
+      (maybePropType = true → ∀ m, m < remaining → ∀ {D body' : VExpr},
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
+          (projs st e' position m) = some (.forallE D body') →
+        c.IsType D → (∀ u, c.HasType D (.sort u) → ¬ G u) →
+        ∀ {body : Expr}, TrExprS c.venv c.lparams ((none, .vlam D) :: c.vlctx) body body' →
+          Closed body → ∃ b₀, c.TrExprS body b₀ ∧ body' = b₀.lift))
+    (hpfx : s.ngen.namePrefix = pfx) :
+    (instantiateProjectionFields st struct maybePropType type position remaining).WF c s
+      fun r _ => ∀ t, r = some t → (((∃ R,
+        VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b)
+          (projs st e' position remaining) = some R ∧
+        c.TrExprS t R) ∧
+      ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
+      ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
+        struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true) ∧
+      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+        FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
+        projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+  rcases hcorner with ⟨hcert, hm⟩ | hch
+  · exact (instantiateProjectionFields.WF_tel he hmaj hG0 hG hcert hm hle hproj hpfx).mono
+      fun _ _ _ H t ht =>
+        let ⟨⟨⟨⟨R, hR, hR'⟩, h1⟩, h2⟩, h3⟩ := H t ht
+        ⟨⟨⟨⟨R, hR, hR'.toTrExprS⟩, h1⟩, h2⟩, h3⟩
+  · exact instantiateProjectionFields.WF_all he hmaj hG0 hG hT hle hproj hch hpfx
 
 end Lean4Lean.TypeChecker.Inner

@@ -67,9 +67,10 @@ theorem CompletedStagedBlock.valid
     (howners : ConstructorOwnersPresent outEnv)
     (hregistry : ProjectionRegistryCoherent safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent safety outEnv.constants outVEnv)
-    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv) :
+    (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
+    (hcorner : ProjectionCorner safety outEnv outVEnv) :
     CheckingEnv.Valid safety outEnv outVEnv :=
-  (H.recursorsAdded.validCore hvalidCtors).toValid howners hregistry hrecursors hquot
+  (H.recursorsAdded.validCore hvalidCtors).toValid howners hregistry hrecursors hquot hcorner
 
 theorem CompletedStagedBlock.validCore
     (H : CompletedStagedBlock safety env venv types ctors recursors
@@ -154,6 +155,17 @@ def CompletedBlockCertificate.finalVEnv
       rules outEnv outVEnv) : VEnv :=
   outVEnv.addDefEqRules rules
 
+/-- The header environment of a completed block is below its final model. -/
+theorem CompletedBlockCertificate.typesLe
+    (H : CompletedBlockCertificate safety env venv types ctors recursors rules outEnv outVEnv)
+    (htypes : venv.addConstVals (types.map Prod.snd) = some venvH) :
+    venvH ≤ H.finalVEnv := by
+  rw [H.staged.abstract_types] at htypes
+  cases htypes
+  exact (VEnv.addConstVals_le H.staged.abstract_ctors).trans
+    (VEnv.addEliminators_addProjections_le.trans
+      (H.staged.recursorsAdded.le.trans VEnv.addDefEqRules_le))
+
 theorem CompletedBlockCertificate.block_eq_of_projections_eq
     (H₁ : CompletedBlockCertificate safety₁ env₁ venv₁ types ctors recursors
       rules outEnv₁ outVEnv₁)
@@ -214,7 +226,7 @@ theorem CompletedBlockCertificate.rebaseCertificate
         ctors recursors rules outEnv largerOutBase,
       outBase ≤ largerOutBase ∧ Hlarger.projections = H.projections ∧
         Hlarger.staged.eliminators = H.staged.eliminators := by
-  rcases H.staged.formationAdded.rebase Hvalid.toValidCore hsafety hbase with
+  rcases H.staged.formationAdded.rebase Hvalid.tr hsafety hbase with
     ⟨largerTypes, largerCtors, ⟨Hformation⟩, htypes, hctors⟩
   have HcheckingCtors : CheckingEnv safety H.staged.envCtors largerCtors :=
     Hformation.checking Hvalid.tr

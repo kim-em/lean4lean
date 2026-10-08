@@ -1166,6 +1166,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
     (Hc : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe allowPrimitive fuel))
     (Hclosed : MutualInductivesClosed env)
+    (HenvGF : TypeChecker.EnvGF (fun _ => True) env)
     (Howners : ConstructorOwnersPresent env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < res.types.toArray.size)
@@ -1208,7 +1209,8 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
   let c := nestedAddInductiveContext env lparams isUnsafe allowPrimitive fuel
   have Hrun := AddInductive.run.semanticSourceAlignedWF
     (types := res.types) nparams res.aux2nested.size Hc (by
-      simpa [c, nestedAddInductiveContext] using Hclosed) hctx hnonempty
+      simpa [c, nestedAddInductiveContext] using Hclosed) (by
+      simpa [c, nestedAddInductiveContext] using HenvGF) hctx hnonempty
       HnotPartial
       (fun Hc' hallowPrimitive hfuel Hsemantic =>
         Hinputs Hc' hallowPrimitive hfuel Hsemantic)

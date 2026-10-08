@@ -690,7 +690,8 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     (hsourceQuot : c.env.quotInit = true →
       QuotEnvCoherent c.env.constants sourceVEnv)
     (hcasesWF : (envCtors.addEliminators es).WF)
-    (hprojectedWF : ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries).WF) :
+    (hprojectedWF : ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries).WF)
+    (hcorner : ProjectionCorner c.safety validationEnv envCtors) :
     CheckingEnv.Valid c.safety validationEnv
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
@@ -839,7 +840,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     rw [H.quotInit_eq hsourceWF] at hq
     exact (hsourceQuot hq).extend hpres hle hrecursors.heads
   exact ((hvalid.addEliminators hcasesWF).addProjections hprojectedWF).toValid howners hregistry
-    hrecursors hquot
+    hrecursors hquot (hcorner.mono (VEnv.addEliminators_le.trans VEnv.addProjections_le))
 
 
 /-! ### The final restored environment -/

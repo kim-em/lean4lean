@@ -84,7 +84,7 @@ private theorem validationHeadersValid
             hnprim
             HheadTr'.1 (Hheader.wf.mono Hle)
             (by simpa [HheadTr'.2] using hadd) rfl trivial
-            (RecursorInstallStep.of_not_rec nofun)
+            (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
         rw [HvalidationHead.output, hinfo] at HvalidationTail
         have HleNext : sourceVEnv ≤ nextVEnv :=
           Hle.trans (VEnv.addConst_le hadd)

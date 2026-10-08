@@ -78,7 +78,7 @@ family. -/
 theorem GeneratedFamilyWitness.installedContainer
     {ves : VEnvs}
     (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (wf : ves.WF prodEnv) :
+    (wf : ves.WFCore prodEnv) :
     Nonempty (GeneratedFamilyInstalledContainer prodEnv (ves.venv .unsafe)
       params nestedAux family H) := by
   have hfind : prodEnv.constants.find? H.sourceName =
@@ -134,7 +134,7 @@ not an additional safety premise. -/
 theorem GeneratedFamilyWitness.installedContainerOfAbstractLookup
     {ves : VEnvs}
     (H : GeneratedFamilyWitness prodEnv params nestedAux family)
-    (wf : ves.WF prodEnv) (safety : DefinitionSafety)
+    (wf : ves.WFCore prodEnv) (safety : DefinitionSafety)
     (abstractFamily : VConstant)
     (habstract : (ves.venv safety).constants H.sourceName =
       some abstractFamily) :
