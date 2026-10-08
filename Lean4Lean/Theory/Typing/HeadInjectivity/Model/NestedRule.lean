@@ -209,7 +209,8 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
     exact sound_pat henv hΔ hdf hl hr hcov hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
+      hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (fun ⟨_, h⟩ => absurd h (hnpF _)) (hctor _ hcis) hctor
+      hpctor hdr huniq
       (fun keys hkl hobs => absurd hobs fun h =>
         C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
       ihL ihR (.extra hdf hlw hlen)

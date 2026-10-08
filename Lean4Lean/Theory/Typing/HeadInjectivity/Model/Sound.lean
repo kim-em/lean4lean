@@ -412,7 +412,8 @@ theorem RuleValid.quot (henv : env.Ordered) (hq : QuotConsts env)
   have hcl := henv.closed.2 hdf
   exact sound_pat henv hΔ hdf quotDefEq_lhs quotDefEq_rhs quot_cov
     (VLevel.inst_map_id hlen) hcl.1.1 hcl.2.1 hq.2.2 quotLiftConst_type rfl rfl hrigQ
-    ⟨_, _, hq.2.1, rfl⟩ hcis hnpQ hnpM (hctor _ hcis) hctor hpctor hdr (quot_uniq' hqu)
+    ⟨_, _, hq.2.1, rfl⟩ hcis (.inl ⟨hnpQ, hnpM⟩) (fun ⟨_, h⟩ => absurd h (hnpQ _))
+    (hctor _ hcis) hctor hpctor hdr (quot_uniq' hqu)
     (fun keys hkl hobs => ⟨hqu,
       quot_pf hlw (quot_C_level hq hrigQ hkl hobs)⟩)
     ihL ihR (.extra hdf hlw hlen)

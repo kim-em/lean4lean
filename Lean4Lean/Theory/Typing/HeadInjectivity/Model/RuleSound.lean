@@ -9,7 +9,10 @@ syntactic facts (pattern, binder coverage, the family of the major domain in the
 the constructor's family, rule uniqueness per head and constructor, and in mode C the
 propositional typing of the major-only fields), the soundness of the instantiated rule
 follows from the soundness and semantic typing (`HTS`) of its typing premises
-(`docs/inductives/PHASE1B_NOTES.md`, section 10.2, "Soundness of the rule cases"). -/
+(`docs/inductives/PHASE1B_NOTES.md`, section 10.2, "Soundness of the rule cases"). For a major
+of a projection-registered family (`MajorFam`, decision D16) the rule clause is identified from
+the head type and the fields are bound by the eta binding (never-zero entries; right to left via
+`eta_field_cls` and the field observations of the major, `CtorFieldObs`) or the proof binding. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -317,8 +320,8 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
-    (hcis : IsCtor env ctor) (hIP : ∀ info, ¬ env.projections I info)
-    (hcnp : ¬ IsProjCtor env ctor)
+    (hcis : IsCtor env ctor) (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
+    (hcfo : (∃ info, env.projections I info) → CtorFieldObs env)
     (hC : ∀ keys : List Key, keys.length = lead.length →
       Obs' .id .empty (ci.type.instL ls) (piCodChain keys
         (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length fun _ => 0))) →
@@ -438,93 +441,244 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         obtain ⟨τs', hτs', htk⟩ := tvv.2 x _ hL k hk
         exact htk.not_prop fun τ hτ => hprop τ (hτs' τ hτ)
       · nofun
-  · -- mode AB: the major's constructor observations
-    obtain ⟨-, -, -, hHTSm, -⟩ := hkaM
-    have hKc := argDemand_ok (env := env) (U := U) (Δ := Δ) (nd := doms.length) hLx v
-      (ms.map (·.instL ls) ++ fs.map .bvar)
-    obtain ⟨cc, cinfo, hcc, -, -, hcinfo, hcKs, cP1, -, -⟩ :=
-      hHTSm.spine henv hΔ rfl Wv tvv _ hKc
-        [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval]
-        (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hxr)
-    have hCT : CtorTyped env ctor
-        [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] :=
-      ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm, hIP⟩
-    have hcobs : ∀ r ∈ ctorObs ctor ((lsC.map (·.inst ls)).map (·.eval)) (cinfo.map (·.1)),
-        Obs' v vS (.mkApps (.const ctor (lsC.map (·.inst ls)))
-          (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
-      intro r hr
-      have hend := ctorObs_end hr
-      have hrty : TypedOb env U Δ (vcls env U Δ v (.mkApps (.const ctor (lsC.map (·.inst ls)))
-          (ms.map (·.instL ls) ++ fs.map .bvar)) kaM.2) r
-          [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] := by
-        rcases hend with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩
-        · exact .ctorHead hCT
-        · exact .ctorArg hCT
-        · exact .ctorArgOb hCT
-      obtain ⟨τ₀c, h1, h2⟩ := cP1 r hrty
-      exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo)
-        (.ctor hcis hcnp hcc h1 h2 hend (KeyData.forall₂_backed hcinfo))
-    have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
-      (nd := doms.length) hLx v (lead.map (·.instL ls))) hcobs
-    obtain ⟨ci2, info2, hci2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
-      hX.spine henv hΔ rfl Wv tvv _ hKs2 τc hτc
-    have hbk2 := KeyData.forall₂_backed hinfo2
-    cases hci.symm.trans hci2
-    obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := forall₂_split hinfo2
-    obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
-    obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
-    cases e2
-    obtain ⟨τ₀2, hτ₀2, hty₀2⟩ := P12 p hpty
-    have hclen : (cinfo.map (·.1)).length = ms.length + fs.length := by
-      have := List.Forall₂.length_eq hcinfo; simp at this ⊢; omega
-    have hmarg : ∀ j x, fs[j]? = some x →
-        (ms.map (·.instL ls) ++ fs.map VExpr.bvar)[ms.length + j]? = some (.bvar x) := by
-      intro j x hj
-      rw [List.getElem?_append_right (by simp)]
-      simp [hj]
-    classical
-    let S' : ObSets := fun x =>
-      if x < doms.length ∧ (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) ∧ x ∈ fs then
-        fun k => ∃ pre, .ctorArgOb (ms.length + fs.idxOf x) pre k ∈ kaM2.1.2.2
-      else vS x
-    have hfsj : ∀ x, x ∈ fs → fs[fs.idxOf x]? = some x := fun x hx =>
-      List.getElem?_eq_some_iff.2 ⟨List.idxOf_lt_length_of_mem hx, List.getElem_idxOf _⟩
-    have hbM : Backed (fun o => o ∈ kaM2.1.2.2) :=
-      hbk2 _ (List.mem_map_of_mem (List.mem_append_right _ (List.mem_singleton_self _)))
-    refine finish infoL2 kaM2 S' false τ₀2 hinfo2 hτ₀2 hty₀2 nofun nofun
-      (fun _ => .inl ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩) ⟨fun x => ?_, ?_⟩ ?_
-    · simp only [S']
-      split
-      · intro k ⟨pre, hk⟩ w hw
-        exact ⟨pre, hbM _ hk _ (by simp only [Ob.wit]; exact List.mem_map_of_mem hw)⟩
-      · exact tvv.1 x
-    · intro x hx
-      by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
-      · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
-        obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL2 hKsiL2 hi
-        have : S' x = vS x := by
-          simp only [S']; rw [if_neg]; rintro ⟨-, h, -⟩; exact h i hi
-        exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, this.trans hk4⟩
-      · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
-        have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
-          obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
-          exact hb ⟨i, List.getElem?_eq_some_iff.2 ⟨hi, e⟩⟩
-        obtain ⟨cl, hcl, hcty, hcm, -⟩ := bind_field (c := ctor)
-          (ℓs := (lsC.map (·.inst ls)).map (·.eval)) henv hΔ Wv hx hcinfo hcKs
-          (hmarg _ _ (hfsj x hxf))
-        refine .inr ⟨hnb, fs.idxOf x, hfsj x hxf, .inl ⟨rfl, cl, hKsM2 _ hcl, hcty, hcm, ?_⟩⟩
-        simp only [S']; rw [if_pos ⟨hx, hnb, hxf⟩]
-    · intro x o ho
-      simp only [S']
-      split
-      · rename_i hMF
-        obtain ⟨hx, hnb, hxf⟩ := hMF
-        obtain ⟨_, -, -, -, hall⟩ := bind_field (c := ctor)
-          (ℓs := (lsC.map (·.inst ls)).map (·.eval)) henv hΔ Wv hx hcinfo hcKs
-          (hmarg _ _ (hfsj x hxf))
-        rw [hLx x hx] at ho
-        exact ⟨_, hKsM2 _ (hall o ho)⟩
-      · exact ho
+  · rcases hfam with ⟨hIP, hcnp⟩ | ⟨info, hpI, hPV, hcn, hfull, hnpj, hnzp⟩
+    · -- mode AB: the major's constructor observations
+      obtain ⟨-, -, -, hHTSm, -⟩ := hkaM
+      have hKc := argDemand_ok (env := env) (U := U) (Δ := Δ) (nd := doms.length) hLx v
+        (ms.map (·.instL ls) ++ fs.map .bvar)
+      obtain ⟨cc, cinfo, hcc, -, -, hcinfo, hcKs, cP1, -, -⟩ :=
+        hHTSm.spine henv hΔ rfl Wv tvv _ hKc
+          [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval]
+          (fun τ hτ => by rw [List.mem_singleton] at hτ; subst hτ; exact hxr)
+      have hCT : CtorTyped env ctor
+          [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] :=
+        ⟨I, _, _, _, List.mem_singleton_self _, hcf, hm, hIP⟩
+      have hcobs : ∀ r ∈ ctorObs ctor ((lsC.map (·.inst ls)).map (·.eval)) (cinfo.map (·.1)),
+          Obs' v vS (.mkApps (.const ctor (lsC.map (·.inst ls)))
+            (ms.map (·.instL ls) ++ fs.map .bvar)) r := by
+        intro r hr
+        have hend := ctorObs_end hr
+        have hrty : TypedOb env U Δ (vcls env U Δ v (.mkApps (.const ctor (lsC.map (·.inst ls)))
+            (ms.map (·.instL ls) ++ fs.map .bvar)) kaM.2) r
+            [.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval] := by
+          rcases hend with rfl | ⟨_, _, rfl⟩ | ⟨_, _, _, _, rfl⟩
+          · exact .ctorHead hCT
+          · exact .ctorArg hCT
+          · exact .ctorArgOb hCT
+        obtain ⟨τ₀c, h1, h2⟩ := cP1 r hrty
+        exact obs_mkApps_of_wrap (KeyData.forall₂_keys hcinfo)
+          (.ctor hcis hcnp hcc h1 h2 hend (KeyData.forall₂_backed hcinfo))
+      have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
+        (nd := doms.length) hLx v (lead.map (·.instL ls))) hcobs
+      obtain ⟨ci2, info2, hci2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
+        hX.spine henv hΔ rfl Wv tvv _ hKs2 τc hτc
+      have hbk2 := KeyData.forall₂_backed hinfo2
+      cases hci.symm.trans hci2
+      obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := forall₂_split hinfo2
+      obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
+      obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
+      cases e2
+      obtain ⟨τ₀2, hτ₀2, hty₀2⟩ := P12 p hpty
+      have hclen : (cinfo.map (·.1)).length = ms.length + fs.length := by
+        have := List.Forall₂.length_eq hcinfo; simp at this ⊢; omega
+      have hmarg : ∀ j x, fs[j]? = some x →
+          (ms.map (·.instL ls) ++ fs.map VExpr.bvar)[ms.length + j]? = some (.bvar x) := by
+        intro j x hj
+        rw [List.getElem?_append_right (by simp)]
+        simp [hj]
+      classical
+      let S' : ObSets := fun x =>
+        if x < doms.length ∧ (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) ∧ x ∈ fs then
+          fun k => ∃ pre, .ctorArgOb (ms.length + fs.idxOf x) pre k ∈ kaM2.1.2.2
+        else vS x
+      have hfsj : ∀ x, x ∈ fs → fs[fs.idxOf x]? = some x := fun x hx =>
+        List.getElem?_eq_some_iff.2 ⟨List.idxOf_lt_length_of_mem hx, List.getElem_idxOf _⟩
+      have hbM : Backed (fun o => o ∈ kaM2.1.2.2) :=
+        hbk2 _ (List.mem_map_of_mem (List.mem_append_right _ (List.mem_singleton_self _)))
+      refine finish infoL2 kaM2 S' false τ₀2 hinfo2 hτ₀2 hty₀2 nofun nofun
+        (fun _ => .inl ⟨_, hKsM2 _ (hclen ▸ mem_ctorObs_head)⟩) ⟨fun x => ?_, ?_⟩ ?_
+      · simp only [S']
+        split
+        · intro k ⟨pre, hk⟩ w hw
+          exact ⟨pre, hbM _ hk _ (by simp only [Ob.wit]; exact List.mem_map_of_mem hw)⟩
+        · exact tvv.1 x
+      · intro x hx
+        by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
+        · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
+          obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL2 hKsiL2 hi
+          have : S' x = vS x := by
+            simp only [S']; rw [if_neg]; rintro ⟨-, h, -⟩; exact h i hi
+          exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, this.trans hk4⟩
+        · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
+          have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
+            obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
+            exact hb ⟨i, List.getElem?_eq_some_iff.2 ⟨hi, e⟩⟩
+          obtain ⟨cl, hcl, hcty, hcm, -⟩ := bind_field (c := ctor)
+            (ℓs := (lsC.map (·.inst ls)).map (·.eval)) henv hΔ Wv hx hcinfo hcKs
+            (hmarg _ _ (hfsj x hxf))
+          refine .inr ⟨hnb, fs.idxOf x, hfsj x hxf, .inl ⟨rfl, cl, hKsM2 _ hcl, hcty, hcm, ?_⟩⟩
+          simp only [S']; rw [if_pos ⟨hx, hnb, hxf⟩]
+      · intro x o ho
+        simp only [S']
+        split
+        · rename_i hMF
+          obtain ⟨hx, hnb, hxf⟩ := hMF
+          obtain ⟨_, -, -, -, hall⟩ := bind_field (c := ctor)
+            (ℓs := (lsC.map (·.inst ls)).map (·.eval)) henv hΔ Wv hx hcinfo hcKs
+            (hmarg _ _ (hfsj x hxf))
+          rw [hLx x hx] at ho
+          exact ⟨_, hKsM2 _ (hall o ho)⟩
+        · exact ho
+    · -- a projection-registered family: the eta binding (never zero) or the proof binding
+      have hEH : ∀ k, k = lead.length → EtaHead env I ctor ci.type k := fun k hk =>
+        ⟨info, dsH, RH, lsI, iargs, hpI, hcn, eH, hk ▸ hlenH, hk ▸ hkH⟩
+      rcases hnzp with hnz | hpf
+      · -- the eta binding: fields read from the field observations of the major key
+        obtain ⟨-, -, -, hHTSm, hSDm, -⟩ := hkaM
+        subst hcn
+        obtain ⟨hlsW, hlsl⟩ := ctor_spine_levels henv hΔ hpI Wv hSDm
+        have hmarg : ∀ j x, fs[j]? = some x →
+            (ms.map (·.instL ls) ++ fs.map VExpr.bvar)[ms.length + j]? = some (.bvar x) := by
+          intro j x hj
+          rw [List.getElem?_append_right (by simp)]
+          simp [hj]
+        have hfsj : ∀ x, x ∈ fs → fs[fs.idxOf x]? = some x := fun x hx =>
+          List.getElem?_eq_some_iff.2 ⟨List.idxOf_lt_length_of_mem hx, List.getElem_idxOf _⟩
+        -- the field observations of the major
+        have hfo : ∀ j x k, fs[j]? = some x → info.nparams ≤ ms.length + j → x < doms.length →
+            k ∈ Lx x → ∃ L, Obs' v vS (.mkApps (.const info.ctorName (lsC.map (·.inst ls)))
+              (ms.map (·.instL ls) ++ fs.map .bvar))
+              (.fieldOb I (ms.length + j - info.nparams) L k) := by
+          intro j x k hj hnp hxd hk
+          have H' := hHTSm
+          rw [← List.take_append_drop info.nparams (ms.map (·.instL ls) ++ fs.map VExpr.bvar)]
+            at H'
+          have hjd : ms.length + j - info.nparams <
+              ((ms.map (·.instL ls) ++ fs.map VExpr.bvar).drop info.nparams).length := by
+            have := (List.getElem?_eq_some_iff.1 hj).1; simp; omega
+          have hget : ((ms.map (·.instL ls) ++ fs.map VExpr.bvar).drop info.nparams)[
+              ms.length + j - info.nparams]'hjd = .bvar x := by
+            have h1 : ((ms.map (·.instL ls) ++ fs.map VExpr.bvar).drop info.nparams)[
+                ms.length + j - info.nparams]? = some (.bvar x) := by
+              rw [List.getElem?_drop,
+                show info.nparams + (ms.length + j - info.nparams) = ms.length + j by omega]
+              exact hmarg j x hj
+            exact (List.getElem?_eq_some_iff.1 h1).2
+          have hkx : Obs' v vS ((ms.map (·.instL ls) ++ fs.map VExpr.bvar).drop info.nparams)[
+              ms.length + j - info.nparams] k := by
+            rw [hget]; exact .bvar (by rw [hLx x hxd]; exact hk)
+          have := hcfo ⟨info, hpI⟩ U Δ henv hΔ hpI hPV hlsW hlsl hnz Wv tvv H'
+            (by simp; omega) (by simp; omega) hjd hkx
+          rwa [List.take_append_drop] at this
+        classical
+        obtain ⟨Kd, hKd, hKdc⟩ := exists_list_witness
+          (Q := Obs' v vS (.mkApps (.const info.ctorName (lsC.map (·.inst ls)))
+            (ms.map (·.instL ls) ++ fs.map .bvar)))
+          (P := fun (a : Nat × Ob) o => ∃ L, o = .fieldOb I (ms.length + a.1 - info.nparams) L a.2)
+          (((List.range fs.length).filter fun j => decide (info.nparams ≤ ms.length + j ∧
+              fs.getD j 0 < doms.length)).flatMap fun j => (Lx (fs.getD j 0)).map fun k => (j, k))
+          (by
+            intro a ha
+            simp only [List.mem_flatMap, List.mem_filter, List.mem_range, decide_eq_true_eq,
+              List.mem_map] at ha
+            obtain ⟨j, ⟨hjl, hnp, hxd⟩, k, hk, rfl⟩ := ha
+            have hj : fs[j]? = some (fs.getD j 0) := by
+              rw [← List.getElem_eq_getD 0 (h := hjl), List.getElem?_eq_getElem hjl]
+            obtain ⟨L, hL⟩ := hfo j _ k hj hnp hxd hk
+            exact ⟨_, hL, L, rfl⟩)
+        have hKdx : ∀ j x k, fs[j]? = some x → info.nparams ≤ ms.length + j → x < doms.length →
+            k ∈ Lx x → ∃ L, .fieldOb I (ms.length + j - info.nparams) L k ∈ Kd := by
+          intro j x k hj hnp hxd hk
+          have hjl : j < fs.length := (List.getElem?_eq_some_iff.1 hj).1
+          have hfx : fs.getD j 0 = x := by
+            rw [← List.getElem_eq_getD 0 (h := hjl)]; exact (List.getElem?_eq_some_iff.1 hj).2
+          obtain ⟨o, ho, L, rfl⟩ := hKdc (j, k) (by
+            simp only [List.mem_flatMap, List.mem_filter, List.mem_range, decide_eq_true_eq,
+              List.mem_map]
+            exact ⟨j, ⟨hjl, hnp, by rw [hfx]; exact hxd⟩, k, by rw [hfx]; exact hk, rfl⟩)
+          exact ⟨L, ho⟩
+        -- the second pass of the head spine, with the field observations of the major
+        have hKs2 := forall₂_append_single' (argDemand_ok (env := env) (U := U) (Δ := Δ)
+          (nd := doms.length) hLx v (lead.map (·.instL ls))) hKd
+        obtain ⟨ci2, info2, hci2, -, -, hinfo2, hKsi2, P12, -, -⟩ :=
+          hX.spine henv hΔ rfl Wv tvv _ hKs2 τc hτc
+        have hbk2 := KeyData.forall₂_backed hinfo2
+        cases hci.symm.trans hci2
+        obtain ⟨infoL2, kaM2, rfl, hinfoL2, hkaM2⟩ := forall₂_split hinfo2
+        obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
+        obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
+        cases e2
+        obtain ⟨τ₀2, hτ₀2, hty₀2⟩ := P12 p hpty
+        obtain ⟨hcm2, -, hDm2, hHTS2, hSD2, -⟩ := hkaM2
+        have hlenL2 : infoL2.length = lead.length := by
+          have := List.Forall₂.length_eq hinfoL2; simpa using this
+        let S' : ObSets := fun x =>
+          if x < doms.length ∧ (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) ∧ x ∈ fs then
+            fun k => ∃ L, .fieldOb I (ms.length + fs.idxOf x - info.nparams) L k ∈ kaM2.1.2.2
+          else vS x
+        have hbM : Backed (fun o => o ∈ kaM2.1.2.2) :=
+          hbk2 _ (List.mem_map_of_mem (List.mem_append_right _ (List.mem_singleton_self _)))
+        refine finish infoL2 kaM2 S' false τ₀2 hinfo2 hτ₀2 hty₀2 nofun nofun
+          (fun _ => .inr (hEH _ (by simp [hlenL2]))) ⟨fun x => ?_, ?_⟩ ?_
+        · simp only [S']
+          split
+          · intro k ⟨L, hk⟩ w hw
+            exact ⟨L, hbM _ hk _ (Ob.mem_wit_fieldOb.2 (.inr ⟨w, hw, rfl⟩))⟩
+          · exact tvv.1 x
+        · intro x hx
+          by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
+          · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
+            obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL2 hKsiL2 hi
+            have : S' x = vS x := by
+              simp only [S']; rw [if_neg]; rintro ⟨-, h, -⟩; exact h i hi
+            exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, this.trans hk4⟩
+          · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
+            have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
+              obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
+              exact hb ⟨i, List.getElem?_eq_some_iff.2 ⟨hi, e⟩⟩
+            have hL := lookup_binderTy (Γ := Γ) (ls := ls) hx
+            have hnp := hnpj x _ (hfsj x hxf) hnb
+            obtain ⟨E, hvx⟩ := eta_field_cls henv hΔ hpI hPV Wv tvv hHTS2 hSD2
+              (by simp; omega) hnz (hmarg _ _ (hfsj x hxf)) hnp hL
+            have ecm : kaM2.1.2.1 = ElCls env U Δ (TyCls env U Δ (kaM2.2.subst v))
+                ((VExpr.mkApps (.const info.ctorName (lsC.map (·.inst ls)))
+                  (ms.map (·.instL ls) ++ fs.map .bvar)).subst v) := by
+              rw [hcm2, hDm2]
+            refine .inr ⟨hnb, fs.idxOf x, hfsj x hxf,
+              .inr (.inr ⟨rfl, info, hpI, rfl, hnp, hnz, ?_, ?_, ?_⟩)⟩
+            · rw [ecm, E]; exact TypedElCls.of_hasType hvx
+            · rw [ecm, E]; exact ElCls.self
+            · simp only [S']; rw [if_pos ⟨hx, hnb, hxf⟩]
+        · intro x o ho
+          simp only [S']
+          split
+          · rename_i hMF
+            obtain ⟨hx, hnb, hxf⟩ := hMF
+            rw [hLx x hx] at ho
+            obtain ⟨L, hmem⟩ := hKdx _ x o (hfsj x hxf) (hnpj x _ (hfsj x hxf) hnb) hx ho
+            exact ⟨L, hKsM2 _ hmem⟩
+          · exact ho
+      · -- the proof binding for every field not bound by the leading arguments
+        refine finish infoL kaM vS false τ₀ (forall₂_append_single' hinfoL hkaM) hτ₀ hty₀ nofun
+          nofun (fun _ => .inr (hEH _ (by simp [hlenL]))) ⟨tvv.1, ?_⟩ fun _ _ h => h
+        intro x hx
+        by_cases hb : ∃ i : Nat, lead[i]? = some (VExpr.bvar x)
+        · obtain ⟨i, hi, hfirst⟩ := firstOcc x hb
+          obtain ⟨k, hk1, hk2, hk3, hk4⟩ := bind_lead henv hΔ Wv hLx hx hinfoL hKsiL hi
+          exact .inl ⟨i, k, hi, hfirst, hk1, hk2, hk3, hk4⟩
+        · have hnb : ∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x) := fun i h => hb ⟨i, h⟩
+          have hxf : x ∈ fs := (hcov x hx).resolve_left fun h => by
+            obtain ⟨i, hi, e⟩ := List.getElem_of_mem h
+            exact hb ⟨i, List.getElem?_eq_some_iff.2 ⟨hi, e⟩⟩
+          obtain ⟨j, hj⟩ := fieldIdx x hxf
+          obtain ⟨hP, hprop⟩ := hpf x hx hnb v vS Wv tvv
+          have hL := lookup_binderTy (Γ := Γ) (ls := ls) hx
+          refine .inr ⟨hnb, j, hj, .inr (.inl ⟨⟨_, .self, (Wv.lookup hL).hasType.1⟩, hP, ?_⟩)⟩
+          funext k; apply propext; constructor
+          · intro hk
+            obtain ⟨τs', hτs', htk⟩ := tvv.2 x _ hL k hk
+            exact htk.not_prop fun τ hτ => hprop τ (hτs' τ hτ)
+          · nofun
 
 /-- **Left to right** for a pattern rule: every observation of the left side is subsumed by
 one of the right side. -/
@@ -789,8 +943,8 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs)) (hIrig : env.Rigid I)
     (hcf : CtorFam env ctor I)
-    (hcis : IsCtor env ctor) (hIP : ∀ info, ¬ env.projections I info)
-    (hcnp : ¬ IsProjCtor env ctor) (hcrig : env.Rigid ctor)
+    (hcis : IsCtor env ctor) (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
+    (hcfo : (∃ info, env.projections I info) → CtorFieldObs env) (hcrig : env.Rigid ctor)
     (hctor : ∀ c, IsCtor env c → env.Rigid c) (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (hdr : env.DefRules)
     (huniq : ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
@@ -823,10 +977,10 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
   refine ⟨fun o h => ?_, fun o h => ?_, (ihL.1 σ σ S W.left tv tv).2.2.1,
     (ihR.1 σ' σ' S W' tv' tv').2.2.1⟩
   · obtain ⟨o', h1, l⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hpctor hdr huniq
-      hci eH hlenH hkH (.inl ⟨hIP, hcnp⟩) ihR.2 ihR.1 W.left tv o h
+      hci eH hlenH hkH hfam ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hci eH hlenH hkH hIrig hcf
-      hcis hIP hcnp hC ihL.2 ihR.1 heq W' tv' o h
+      hcis hfam hcfo hC ihL.2 ihR.1 heq W' tv' o h
     exact ⟨o', (Obs.closed_iff_id hLc).2 ((Obs.closed_iff_id hLc).1 h1), l⟩
 
 end
