@@ -12,6 +12,7 @@ import Lean4Lean.Tests.Environment
 import Lean4Lean.Tests.RecursiveInductive
 import Lean4Lean.Tests.NestedInductive
 import Lean4Lean.Tests.NestedConstructorRoundTrip
+import Lean4Lean.Tests.NestedIndexedFamily
 import Lean4Lean.Tests.NestedRecursorReduction
 import Lean4Lean.Tests.SpecializedRecursorShape
 import Lean4Lean.Tests.KNormalization
