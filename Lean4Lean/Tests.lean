@@ -22,7 +22,6 @@ import Lean4Lean.Tests.KernelHardening
 import Lean4Lean.Tests.LevelStd
 import Lean4Lean.Tests.RecursorOracle
 import Lean4Lean.Tests.CanonicalEq
-import Lean4Lean.Tests.CanonicalChoice
 import Lean4Lean.Tests.DeclFVar
 import Lean4Lean.Tests.Level
 import Lean4Lean.Tests.TypeAnnotationWrappers

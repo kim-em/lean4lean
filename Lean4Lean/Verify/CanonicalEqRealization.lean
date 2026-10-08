@@ -83,10 +83,10 @@ theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
 equality: the output environment has well-formed abstract models extending the
 input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
 `Eq.rec`) as soon as the executable has installed `Eq.rec` with the production
-type.  Only the absence of `Eq` is assumed of the input, together with canonical choice
-(`VEnv.HasCanonicalChoice`) at every safety level. -/
+type.  Only the absence of `Eq` is assumed of the input, together with the constructor telescope
+certificates at every safety level. -/
 theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     {lparams : List Name} {nparams : Nat} {types : List InductiveType} {isUnsafe : Bool}
     (Hshape : VerifyInductive.EqBootstrapShape lparams nparams types isUnsafe)
@@ -133,7 +133,7 @@ theorem Replay.WF {env env' : Environment} {ds : List Declaration}
       obtain ⟨_, _, _, hEq, hEqP, hRefl, hReflP, hRec, hRecP⟩ := hquot hd
       exact (wf.toWFCore.canonicalEq_constants hEq hEqP hRefl hReflP hRec hRecP safety).1
     obtain ⟨ves₁, wf₁, hle₁, hcert⟩ :=
-      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorCert.corner d hq _ hadd
+      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorCert d hq _ hadd
     obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorCert⟩
     exact ⟨ves₂, wf₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
 

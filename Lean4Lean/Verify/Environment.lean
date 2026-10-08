@@ -9,7 +9,7 @@ open Kernel
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : AxiomVal) :
+theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : AxiomVal) :
     (addAxiom env v).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
         ∃ ci' : VConstVal, ∀ safety,
@@ -34,7 +34,7 @@ theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hco
     cases v.isUnsafe <;> cases safety <;> trivial
   · exact .axiom htr (by rwa [← old.map_wf.find?'_eq_find?]) hci hadd old
 
-theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (v : DefinitionVal) :
     (addDefinition env v).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
@@ -87,7 +87,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     · exact (hp eq).preserves (wf.mono DefinitionSafety.le_safe) wf.tr.wf wf.hasPrimitives
         (hsf.mono (wf.mono hs)) (hci.mono (hmono.trans (wf.mono hs))) hadd
 
-theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : TheoremVal) :
+theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : TheoremVal) :
     (addTheorem env v).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
         ∃ ci' : VConstVal, ∀ safety,
@@ -106,7 +106,7 @@ theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (h
   exact .thm htr' (by rwa [← old.map_wf.find?'_eq_find?]) (hbody.mono hle)
     (hprop.mono hle) hadd old
 
-theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety)) (v : OpaqueVal) :
+theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : OpaqueVal) :
     (addOpaque env v).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
         ∃ ci' : VConstVal, ∀ safety,
@@ -167,7 +167,7 @@ metavariables and free variables, and nested lowering would silently repair
 loose bound variables while re-closing constructor types.  Environment
 preservation itself (`finalPreservesWF`) does not need this hypothesis. -/
 theorem addInductiveDeclaration.finalResultWF
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
     (HsourcesB : VerifyInductive.SourceBVarClosed types) :
@@ -197,7 +197,7 @@ declaration dispatch.  This is unconditional: it is derived from the
 well-formedness halves of the three execution branches, not from the
 source-facing specification. -/
 theorem addInductiveDeclaration.finalPreservesWF
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
@@ -239,7 +239,7 @@ private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except 
 private theorem Except.WF.throwBind {e : ε} {f : α → Except ε β} {Q : β → Prop} :
     ((throw e : Except ε α) >>= f).WF Q := fun _ h => nomatch h
 
-theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (vs : List DefinitionVal) :
     (addMutual env vs).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
@@ -286,7 +286,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
   obtain ⟨base, hbase0⟩ := (wf.tr (safety := v₀.safety)).exists_addConsts
     (hpullr hhdr fun _ _ h => h.1.2 ▸ h.2.2.1) (hnameeq ▸ hnd)
   have wfA := VEnvAt.addAxioms hsf (wf.toVEnvAt v₀.safety) hhdr hnd hbase0
-  have hchA := ProjectionCorner.foldlAdd
+  have hchA := CtorTelescopes.foldlAdd
     (f := fun v : DefinitionVal => ConstantInfo.axiomInfo
       { v with isUnsafe := v₀.safety == .unsafe }) (fun _ _ h => by cases h)
     (VEnv.addConsts_le hbase0) (v₀ :: rest) (hcorner v₀.safety)
@@ -332,7 +332,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
 abstract rule needs it. This is the form a replay from the empty environment uses, since `Eq`
 does not exist before the prelude declares it. -/
 theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (decl : Declaration)
     (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
@@ -362,7 +362,7 @@ safety-indexed abstract environment, and preserves the constructor certificates.
 projection-walk corner is supplied by `hcorner`; quotient initialization needs the abstract `Eq`
 at every safety level (`hq`). -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
@@ -427,25 +427,8 @@ theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf.toWFCore wf.ctorCert.corner (fun safety => (heq safety).quotReady) decl).mono
+  (addDecl.WF wf.toWFCore wf.ctorCert (fun safety => (heq safety).quotReady) decl).mono
     fun _ ⟨ves', wf', hle, hcert⟩ => ⟨ves', ⟨wf', hcert wf.ctorCert⟩, hle⟩
-
-/-- The top-level preservation theorem over the core invariant `VEnvs.WFCore`, which does not
-record constructor telescope certificates. In exchange it assumes canonical
-`Nonempty`/`Classical.choice` (`VEnv.HasCanonicalChoice`) at every safety level, which resolves the
-projection-walk corner instead (`projectionWalkCorner_choice`). This hypothesis is a property of
-the abstract environment that the prelude installs and every extension preserves, but it is a
-semantic assumption about `Classical.choice`; `addDecl.WF_of_canonicalEq` replaces it by the
-certificates, which every checked declaration establishes itself. Canonical equality is used only
-for quotient initialization. -/
-theorem addDecl.WF_of_canonicalChoice {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (heq : ∀ safety, (ves.venv safety).HasCanonicalEq)
-    (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
-    (decl : Declaration) :
-    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf (fun safety => .inl (hch safety)) (fun safety => (heq safety).quotReady) decl).mono
-    fun _ ⟨ves', wf', hle, _⟩ => ⟨ves', wf', hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq`: `VEnvs.WF` and canonical equality are
 preserved by the output environments, so the theorem applies again to the next declaration of a
@@ -457,15 +440,3 @@ theorem addDecl.WFHasCanonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF 
         ∀ safety, ves.venv safety ≤ ves'.venv safety :=
   (addDecl.WF_of_canonicalEq wf heq decl).mono fun _ ⟨ves', wf', hle⟩ =>
     ⟨ves', wf', heq.mono hle, hle⟩
-
-/-- Iterable form of `addDecl.WF_of_canonicalChoice`: canonical equality and canonical choice
-are preserved by the output environments. -/
-theorem addDecl.WFHasCanonicalChoice {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (heq : ves.HasCanonicalEq) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
-    (decl : Declaration) :
-    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ ves'.HasCanonicalEq ∧
-        (∀ safety, (ves'.venv safety).HasCanonicalChoice) ∧
-        ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF_of_canonicalChoice wf heq hch decl).mono fun _ ⟨ves', wf', hle⟩ =>
-    ⟨ves', wf', heq.mono hle, fun safety => (hch safety).mono (hle safety), hle⟩

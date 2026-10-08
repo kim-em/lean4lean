@@ -5,7 +5,6 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ProjectionShape
 import Lean4Lean.TypeChecker
 import Lean4Lean.Verify.Typing.UniverseSupport
-import Lean4Lean.Verify.Typing.ProjectionCorner
 import Lean4Lean.Verify.HitShapeEnv
 
 namespace Except
@@ -298,10 +297,9 @@ structure VContext extends Context where
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
   equation are present.  This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- What resolves the corner of the projection walk at a non-dependent field: canonical
-  choice of the environment (`projectionWalkCorner_choice`), or a telescope certificate of every
-  visible constructor (`TelTrN.delete_closed`). -/
-  corner : ProjectionCorner safety env venv
+  /-- What resolves the corner of the projection walk at a non-dependent field: a telescope
+  certificate of every visible constructor (`TelTrN.delete_closed`). -/
+  corner : CtorTelescopes safety env venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx

@@ -64,7 +64,7 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : CompletedBlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, ProjectionCorner safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hconstants : types.map Prod.snd ++ ctors.map Prod.snd =
         primitiveBoolConstants \/
       types.map Prod.snd ++ ctors.map Prod.snd = primitiveNatConstants)
@@ -220,7 +220,7 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
     {ves : VEnvs}
     (Hrun : SemanticPrimitiveRunWithStatsResult c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, ProjectionCorner safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       (c.safety != .safe)) :
     exists ves' : VEnvs, exists decl : VInductDecl,
