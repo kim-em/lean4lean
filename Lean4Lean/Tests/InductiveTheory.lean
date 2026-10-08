@@ -246,7 +246,7 @@ theorem enumCanonicalCompilation : InductiveSignature.Compiles .empty enumDecl e
       subst ctor
       rfl
   · exact ⟨rfl, nofun, by trivial, Or.inr (Or.inl (by rfl))⟩
-  · refine ⟨enumCtorsEnv, ?_, ?_, ?_⟩
+  · refine ⟨enumCtorsEnv, [], ?_, (fun _ h => by cases h), ?_, ?_⟩
     · simp [enumDecl, enumType, enumCtor, enumTypesEnv, enumCtorsEnv,
         VInductDecl.constructorConstants, VEnv.addConstVals, VEnv.addConst]
     · intro index j hj
