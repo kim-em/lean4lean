@@ -895,7 +895,7 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
     exact Option.some.inj (h.symm.trans Hsource.ctorsAdded)
   have hle : envCtors.addProjections sourceDecl.projectionEntries ≤ finalVEnv := by
     rw [← hvenvCtors]
-    exact canonical.recursorsAdded.le
+    exact (VEnv.addProjections_mono VEnv.addEliminators_le).trans canonical.recursorsAdded.le
   have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
       finalVEnv := by
     apply hvalidSource.projectionRegistry.extendInductive (envTypes := envTypes)

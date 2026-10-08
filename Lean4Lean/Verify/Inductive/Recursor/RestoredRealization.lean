@@ -109,6 +109,14 @@ theorem RestoredCompilationRealization.compiles
   rcases H.generated with ⟨_, _, _, _, hdata, hprior, _⟩
   exact .intro hdata hprior
 
+/-- The realization does not read the block's case eliminators. -/
+theorem RestoredCompilationRealization.congr_eliminators
+    (H : RestoredCompilationRealization env source block venv entries)
+    (es : List (Name × InductiveSignature.CaseSchema)) :
+    RestoredCompilationRealization env source { block with eliminators := es } venv entries := by
+  rcases H.generated with ⟨expanded, s, g, auxiliaries, hdata, hprior, hentries⟩
+  exact ⟨expanded, s, g, auxiliaries, hdata.congr_eliminators es, hprior, hentries⟩
+
 theorem RestoredRecursorRealization.ruleCount
     {s : InductiveSignature} {g : Instance s}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}

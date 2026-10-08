@@ -134,7 +134,7 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+    by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have hconstructors :
       InductiveConstructorsSemanticallyCoherent .safe outEnv
@@ -147,7 +147,9 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
   rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance
-      Hrecursors.closed howners hconstructors with
+      Hrecursors.closed howners hconstructors
+      (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
+        (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
     ⟨ves', wf', hle, hadd, _hsafe⟩
   exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
     wf', hle, R.core, hadd⟩
@@ -216,7 +218,7 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   have hdecl : decl.WF (ves.venv .unsafe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .unsafe) B.block :=
-    by simpa [B, B0, BlockCertificate.sf_mono, BlockCertificate.block] using
+    by simpa [B, B0, BlockCertificate.sf_mono, StagedBlock.sf_mono, BlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have hisUnsafe : isUnsafe = true := by
     exact hproduction.trans (by rw [hsafety]; decide)
@@ -245,7 +247,8 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
     · exact Hrecursors.generated.entrySafety_eq_unsafe
         hlocalSafety hrecursors
   rcases B.extendUnsafeOfHiddenExact wf hcorner hdecl hcompile
-      horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors with
+      horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors
+      (Hrecursors.blockEliminatorsWF T.rules T.rulesWF) with
     ⟨ves', wf', hle, hadd⟩
   exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
     wf', hle, R.core, hadd⟩

@@ -2269,7 +2269,8 @@ theorem BlockCertificate.rebaseAddInduct
         recursors rules outEnv largerOutBase,
       Hlarger.projections = H.projections ∧
       VEnv.AddInduct largerBase decl Hlarger.finalVEnv ∧
-      H.finalVEnv ≤ Hlarger.finalVEnv := by
+      H.finalVEnv ≤ Hlarger.finalVEnv ∧
+      Hlarger.staged.eliminators = H.staged.eliminators := by
   rcases H.rebaseCertificate Hvalid hsafety hbase hdecl hcompile Hreplay with
     ⟨largerOutBase, Hlarger, houtBase, hprojections, heliminators⟩
   have hdeclLarger : decl.WF largerBase :=
@@ -2282,7 +2283,7 @@ theorem BlockCertificate.rebaseAddInduct
       exact hcompile.mono hbase Hlarger.wf
   have helimLarger : VInductBlock.EliminatorsWF largerBase decl Hlarger.block :=
     (Hreplay.congr_block hblock).eliminatorsWF hdeclLarger.1
-  refine ⟨largerOutBase, Hlarger, hprojections, ?_, ?_⟩
+  refine ⟨largerOutBase, Hlarger, hprojections, ?_, ?_, heliminators⟩
   · simpa [BlockCertificate.finalVEnv, hprojections] using
       VEnv.AddInduct.intro hdeclLarger hcompileLarger Hlarger.wf helimLarger Hlarger.install
   · exact VEnv.addDefEqRules_mono houtBase

@@ -187,6 +187,26 @@ theorem VInductBlock.EliminatorsWF.casesWF {base envTypes envCtors : VEnv} {decl
   · rw [hE]
     exact hcert.register_after_constructors hbase hkey htypes hctors hprojs hhdr
 
+/-- The case eliminators registered at an ordinary constructor boundary are the declaration's
+own restoration-free case schemas. -/
+theorem VInductDecl.OrdinaryCaseEliminators.own {env : VEnv} {decl : VInductDecl}
+    {es : List (Name × InductiveSignature.CaseSchema)}
+    (H : decl.OrdinaryCaseEliminators env es) : decl.OwnCaseEliminators env es := by
+  rcases H with ⟨hE, -⟩ | ⟨s, key, hE, -, -, -, hmodel, -⟩
+  · intro p hp; rw [hE] at hp; cases hp
+  · intro p hp
+    rw [hE] at hp
+    rcases List.mem_singleton.mp hp with rfl
+    exact ⟨rfl, rfl, hmodel⟩
+
+theorem VInductBlock.EliminatorsReplay.congr_fields {env : VEnv} {decl : VInductDecl}
+    {block block' : VInductBlock} (H : VInductBlock.EliminatorsReplay env decl block)
+    (htypes : block'.types = block.types) (hctors : block'.ctors = block.ctors)
+    (hprojections : block'.projections = block.projections)
+    (heliminators : block'.eliminators = block.eliminators) :
+    VInductBlock.EliminatorsReplay env decl block' := fun T C ht hc =>
+  (H T C ht hc).congr_block htypes hctors hprojections heliminators
+
 theorem VInductDecl.OrdinaryCaseEliminators.replay {env env' : VEnv}
     {decl : VInductDecl} {es : List (Name × InductiveSignature.CaseSchema)} {block : VInductBlock}
     (H : decl.OrdinaryCaseEliminators env es) (hle : env ≤ env')

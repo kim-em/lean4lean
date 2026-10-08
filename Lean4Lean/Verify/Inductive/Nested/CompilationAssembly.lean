@@ -19,26 +19,27 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
     (htypesSource : decl.types = main :: rest)
     (primaryRecursors auxiliaryRecursors : List VConstVal)
     (primaryRules auxiliaryRules : List VDefEq)
+    (es : List (Name × InductiveSignature.CaseSchema))
     (HprimaryRecursors : RestoredPrimaryRecursorSemanticTrace decl safety
-      (envCtors.addProjections decl.projectionEntries) H.inductives
+      ((envCtors.addEliminators es).addProjections decl.projectionEntries) H.inductives
       (main :: rest) primaryRecursors)
     (HprimaryRules : NestedIotaBuildCertificate decl
-      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
-        primaryRules auxiliaryRules) primaryRules)
+      { canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules with eliminators := es } primaryRules)
     (hprimaryLength : primaryRules.length = decl.ownedConstructors.length)
     (Hauxiliary : RestoredAuxiliaryShapeTrace decl
       (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
         primaryRules auxiliaryRules) main safety trEnv H.auxiliaries
       [] [] auxiliaryRecursors auxiliaryRules)
     (Hcanonical : CompiledInductive sourceEnv decl
-      (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
-        primaryRules auxiliaryRules))
+      { canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+        primaryRules auxiliaryRules with eliminators := es })
     (Hformation : decl.NestedFormationWF sourceEnv)
     (Hsource : TrInductDeclCore sourceEnv lparams nparams sourceTypes
       isUnsafe decl envTypes envCtors)
     (hnonempty : sourceTypes ≠ [])
     (HrecursorsAdded :
-      (envCtors.addProjections decl.projectionEntries).addConstVals
+      ((envCtors.addEliminators es).addProjections decl.projectionEntries).addConstVals
         (primaryRecursors ++ auxiliaryRecursors) = some outVEnv)
     (HtypesWF : ∀ ci ∈ decl.typeConstants,
       ci.toVConstant.WF sourceEnv)
@@ -46,19 +47,20 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
       ci.toVConstant.WF envTypes)
     (HrecursorsWF : ∀ ci ∈ primaryRecursors ++ auxiliaryRecursors,
       ci.toVConstant.WF
-        (envCtors.addProjections decl.projectionEntries))
+        ((envCtors.addEliminators es).addProjections decl.projectionEntries))
     (HrulesWF : ∀ df ∈ primaryRules ++ auxiliaryRules,
-      df.WF outVEnv) :
+      df.WF outVEnv)
+    (Helim : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock es)) :
     VEnv.AddInduct sourceEnv decl
       (outVEnv.addDefEqRules (primaryRules ++ auxiliaryRules)) := by
-  let block := canonicalRestoredBlock decl primaryRecursors
-    auxiliaryRecursors primaryRules auxiliaryRules
+  let block : VInductBlock := { canonicalRestoredBlock decl primaryRecursors
+    auxiliaryRecursors primaryRules auxiliaryRules with eliminators := es }
   have hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     have hraw : ∃ rawOut,
         envCtors.addConstVals (primaryRecursors ++ auxiliaryRecursors) =
           some rawOut := by
-      rw [VEnv.addProjections_addConstVals] at HrecursorsAdded
+      rw [VEnv.addProjections_addConstVals, VEnv.addEliminators_addConstVals] at HrecursorsAdded
       cases hraw : envCtors.addConstVals
           (primaryRecursors ++ auxiliaryRecursors) with
       | none => simp [hraw] at HrecursorsAdded
@@ -72,8 +74,8 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
     simpa [block, canonicalRestoredBlock] using
       VEnv.addConstVals_names_nodup hall
   have Haux : AuxiliaryRestorationPrefix decl block main auxiliaryRecursors
-      auxiliaryRules := by
-    exact Hauxiliary.prefix (AuxiliaryRestorationPrefix.empty decl block main)
+      auxiliaryRules :=
+    ⟨(Hauxiliary.prefix (AuxiliaryRestorationPrefix.empty decl _ main)).guarded⟩
   let Hshape : NestedShapeCertificate sourceEnv decl block :=
     NestedShapeCertificate.ofRestoration sourceEnv envTypes envCtors
       decl block main rest htypesSource primaryRecursors auxiliaryRecursors
@@ -105,7 +107,8 @@ theorem RestoredNestedDeclarationsResult.addInductOfStagedInstallation
     ⟨Lean4Lean.TrInductDecl.sourceWF Htranslated,
       .nested Hformation VEnv.LE.rfl⟩
     (NestedCompilationCertificate.compilesTo
-      { Hshape with canonical := Hcanonical }) HblockWF Hinstall
+      { Hshape with canonical := Hcanonical }) HblockWF
+    (Helim.congr_block rfl rfl rfl rfl) Hinstall
 
 end VerifyInductive
 end Lean4Lean

@@ -53,7 +53,7 @@ private theorem install_type_lookup' {base installed : VEnv} {block : VInductBlo
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
     Option.pure_def, Option.some.injEq] at H
   obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addProjections_le.trans <|
+  exact ((VEnv.addConstVals_le hc).trans <| VEnv.addEliminators_addProjections_le.trans <|
     (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le).constants
       (VEnv.addConstVals_get ht hvalue)
 

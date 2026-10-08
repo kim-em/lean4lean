@@ -1254,6 +1254,37 @@ def RecursorPhasesResult.blockCertificate
   exact Hgenerated'.toBlockCertificate decl.projectionEntries H.staged
     H.localWF H.bindings H.params Hheaders.typesWF R.declared.ctorsWF hrules
 
+/-- The block registers the declaration's certified case eliminators. -/
+theorem RecursorPhasesResult.blockEliminatorsWF
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) :
+    VInductBlock.EliminatorsWF sourceEnv decl (H.blockCertificate rules hrules).block :=
+  R.declared.eliminatorsWF.congr_block Hheaders.values R.declared.values rfl rfl
+
+/-- The block's case eliminators are certified over every larger environment in which its
+families and constructors install. -/
+theorem RecursorPhasesResult.blockEliminatorsReplay
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv)
+    (rules : List VDefEq)
+    (hrules : ∀ df ∈ rules, df.WF H.outVEnv) {env' : VEnv} (hle : sourceEnv ≤ env') :
+    VInductBlock.EliminatorsReplay env' decl (H.blockCertificate rules hrules).block :=
+  R.declared.eliminatorsOrdinary.replay hle Hheaders.values R.declared.values rfl rfl
+
 /-- Generated recursor names are fresh already at the post-constructor
 boundary.  This installation fact belongs with the block certificate rather
 than the later equation-application development, and is needed by nested

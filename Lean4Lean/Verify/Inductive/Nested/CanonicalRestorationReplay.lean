@@ -1363,11 +1363,13 @@ endpoints; the checking invariant constructs the final recursor endpoint.
 No endpoint or installation certificate is selected by a caller. -/
 theorem CanonicalRestorationReplay.existsStagedBlock
     (projections : List VProjectionEntry)
+    (es : List (Name × InductiveSignature.CaseSchema))
     (H : CanonicalRestorationReplay safety sourceProdEnv outProdEnv
-      sourceVEnv envTypes (envCtors.addProjections projections) owners
+      sourceVEnv envTypes ((envCtors.addEliminators es).addProjections projections) owners
         primaryRecursors auxiliaryRecursors)
     (Hchecking : CheckingEnv safety sourceProdEnv sourceVEnv)
-    (HprojectedWF : (envCtors.addProjections projections).WF)
+    (HcasesWF : (envCtors.addEliminators es).WF)
+    (HprojectedWF : ((envCtors.addEliminators es).addProjections projections).WF)
     (Hprimitive : PrimitiveSafeFreshConstantTrace false sourceProdEnv
       primitiveEntries outProdEnv)
     (Hnondelta : FreshConstantTrace sourceProdEnv nondeltaEntries outProdEnv)
@@ -1378,9 +1380,9 @@ theorem CanonicalRestorationReplay.existsStagedBlock
     (hconstructorsAbstract : envTypes.addConstVals
       (H.constructorEntries.map Prod.snd) = some envCtors) :
     ∃ canonicalProdEnv finalVEnv,
-      Nonempty (StagedBlock safety sourceProdEnv sourceVEnv H.typeEntries
+      Nonempty { S : StagedBlock safety sourceProdEnv sourceVEnv H.typeEntries
         H.constructorEntries H.recursorEntries projections canonicalProdEnv
-          finalVEnv) ∧
+          finalVEnv // S.eliminators = es } ∧
       ∀ name, outProdEnv.constants.find? name =
         canonicalProdEnv.constants.find? name := by
   rcases H.existsCanonicalFresh Hchecking.map_wf with
@@ -1423,23 +1425,25 @@ theorem CanonicalRestorationReplay.existsStagedBlock
   have HcheckingCtors : CheckingEnv safety prodCtors envCtors :=
     HconstructorsAdded.checking HcheckingTypes
   have HcheckingProjected : CheckingEnv safety prodCtors
-      (envCtors.addProjections projections) :=
-    HcheckingCtors.addProjections HprojectedWF
+      ((envCtors.addEliminators es).addProjections projections) :=
+    (HcheckingCtors.addEliminators HcasesWF).addProjections HprojectedWF
   rcases AddConstants.exists_ofFresh HrecursorsFresh
       (fun entry hentry => (H.recursors entry hentry).1)
       (fun entry hentry => (H.recursors entry hentry).2)
       (fun entry hentry => hnonprimitive entry (by simp [hentry]))
       (fun entry hentry => hnondeltaCanonical entry (by simp [hentry]))
       HcheckingProjected VEnv.LE.rfl with ⟨finalVEnv, HrecursorsAdded⟩
-  exact ⟨canonicalProdEnv, finalVEnv, ⟨{
+  exact ⟨canonicalProdEnv, finalVEnv, ⟨⟨{
     envTypes := prodTypes
     venvTypes := envTypes
     envCtors := prodCtors
     venvCtors := envCtors
     typesAdded := HtypesAdded
     ctorsAdded := HconstructorsAdded
+    eliminators := es
+    casesWF := HcasesWF
     projectedWF := HprojectedWF
-    recursorsAdded := HrecursorsAdded }⟩, hlookup⟩
+    recursorsAdded := HrecursorsAdded }, rfl⟩⟩, hlookup⟩
 
 /-- Join the exact primary and auxiliary replays.  The only transport is
 semantic weakening from the source abstract environment to the canonical
@@ -1579,16 +1583,17 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
       sourceTypes c.env primaryProdEnv}
     {primaryRecursors auxiliaryRecursors : List VConstVal}
     {auxRecNames : List Name}
+    {es : List (Name × InductiveSignature.CaseSchema)}
     {HauxTrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec
         (sourceTypes.map (fun type => type.name)))
       auxRecNames primaryProdEnv outProdEnv}
     (Hsource : RestoredSourceInductiveSemanticTrace decl c.lparams c.safety
-      sourceVEnv envTypes (envCtors.addProjections decl.projectionEntries)
+      sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
       HprimaryTrace decl.types primaryRecursors)
     (Haux : RestoredAuxiliaryRecursorTrace c.safety
-      (envCtors.addProjections decl.projectionEntries)
-      (envCtors.addProjections decl.projectionEntries) HauxTrace []
+      ((envCtors.addEliminators es).addProjections decl.projectionEntries)
+      ((envCtors.addEliminators es).addProjections decl.projectionEntries) HauxTrace []
       auxiliaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -1603,14 +1608,15 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
       primitiveEntries outProdEnv)
     (Hnondelta : FreshConstantTrace c.env nondeltaEntries outProdEnv)
     (hnondelta : ∀ entry ∈ nondeltaEntries,
-      entry.deltaValue? = none) :
+      entry.deltaValue? = none)
+    (Hcases : VInductBlock.EliminatorsWF sourceVEnv decl (decl.caseBlock es)) :
     ∃ replay : CanonicalRestorationReplay c.safety c.env outProdEnv
-        sourceVEnv envTypes (envCtors.addProjections decl.projectionEntries)
+        sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
         decl.types primaryRecursors auxiliaryRecursors,
       ∃ canonicalProdEnv finalVEnv,
-        Nonempty (StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+        Nonempty { S : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
           replay.constructorEntries replay.recursorEntries
-            decl.projectionEntries canonicalProdEnv finalVEnv) ∧
+            decl.projectionEntries canonicalProdEnv finalVEnv // S.eliminators = es } ∧
         ∀ name, outProdEnv.constants.find? name =
           canonicalProdEnv.constants.find? name := by
   rcases Hsource.existsExactCanonicalPrimaryReplay Hlower Hc Hprod hempty
@@ -1633,32 +1639,25 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
   have HsourceChecking : CheckingEnv c.safety c.env sourceVEnv := by
     simpa only [Hheaders.sourceContextVEnv] using
       Hheaders.sourceContext.checking.tr
+  have HcasesWF : (envCtors.addEliminators es).WF :=
+    Hcases.casesWF HsourceChecking.wf (TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf)
+      Hcore.typesAdded Hcore.ctorsAdded
   have HprojectedWF :
-      (envCtors.addProjections decl.projectionEntries).WF := by
-    let block : VInductBlock := {
-      types := decl.typeConstants
-      ctors := decl.constructorConstants
-      recursors := []
-      rules := []
-      projections := decl.projectionEntries }
-    apply VEnv.WF.inductProjections
-        (base := sourceVEnv) (envTypes := envTypes)
-        (decl := decl) (block := block)
-    · exact HsourceChecking.wf
-    · exact TrInductDeclCore.envCtorsWF Hcore HsourceChecking.wf
-    · exact TrInductDeclCore.sourceNames_nodup Hcore
-    · exact TrInductDeclCore.typeHeadersWF Hcore
-    · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore
-    · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore
-    · exact Hparams
-    · exact Hparams.rawCtorShape
-    · rfl
-    · rfl
-    · rfl
-    · exact Hcore.typesAdded
-    · exact Hcore.ctorsAdded
-  rcases replay.existsStagedBlock decl.projectionEntries HsourceChecking
-      HprojectedWF Hprimitive Hnondelta
+      ((envCtors.addEliminators es).addProjections decl.projectionEntries).WF := by
+    obtain ⟨_, _, ht, hc, helim⟩ := Hcases
+    rcases helim with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, -, hhdr⟩
+    · have hP' : decl.projectionEntries = [] := hP
+      rw [hP']
+      exact HcasesWF
+    exact VEnv.WF.inductProjections (base := sourceVEnv) (envTypes := envTypes)
+      (decl := decl) (block := decl.caseBlock es)
+      HsourceChecking.wf HcasesWF ⟨key, schema, hE, hcert, hkey, hhdr⟩
+      (TrInductDeclCore.sourceNames_nodup Hcore) (TrInductDeclCore.typeHeadersWF Hcore)
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hcore)
+      (Lean4Lean.VerifyInductive.TrInductDeclCore.constructorsWF Hcore)
+      Hparams Hparams.rawCtorShape rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
+  rcases replay.existsStagedBlock decl.projectionEntries es HsourceChecking
+      HcasesWF HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with
     ⟨canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩
   exact ⟨replay, canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩

@@ -59,7 +59,7 @@ theorem AddInductive.runWithStats.semanticWF
     have hlit : checkPositivityStep.AvailableLiteralDisjoint
         R.declared.context.venv stats.indConsts := by
       rw [R.declared.contextVEnv]
-      exact hlitCtors.addProjections _
+      exact (hlitCtors.addEliminators _).addProjections _
     exact (R.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
