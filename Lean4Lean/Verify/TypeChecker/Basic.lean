@@ -1221,6 +1221,54 @@ theorem M.WF.withFreshId {c : VContext} {s : VState} {x : Name → M α} {Q : α
     have le' : s ≤ vs' := VState.LE.trans .next le
     exact ⟨s.leaveScope vs', rfl, le', wf.leaveScope le' hu, hQ⟩
 
+/-- Entering a binder keeps the state well formed: the name generator advances past the fresh
+variable and every cache is weakened to the extended context. This is the well-formedness part of
+`RecM.WF.withLocalDecl` and `M.WF.withLocalDecl`, and the state at a kept binder of the ghost
+telescope proof. -/
+theorem VState.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
+    (wf : s.WF (c.withMLC m)) (hty : (c.withMLC m).TrExprS ty ty')
+    (hty' : (c.withMLC m).IsType ty')
+    [cwf' : c.MLCWF (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi)] :
+    s.next.WF (c.withMLC (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi)) := by
+  let id := s.ngen.curr
+  have h0 := s.ngen.next_reserves_self
+  have h1 := s.ngen.not_reserves_self
+  have le : s ≤ s.next := .next
+  have h1' := wf.find?_eq_none h1
+  let m' := m.vlam ⟨id⟩ name ty ty' bi
+  have trctx : (c.withMLC m').TrLCtx := wf.trctx.mkLocalDecl h1' hty hty'
+  have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) : InferCache.WF (c.withMLC m') s.next ic :=
+    fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
+  have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
+    fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
+  have hlc {ic : InferCache}
+      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+      (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
+    H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
+  have hhc {ic : InferCache}
+      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+      (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
+      ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
+    H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
+  have hhtc {ic : InferCache}
+      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+      (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
+      ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
+    H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
+  exact
+  { ngen_wf := by
+      simp [VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
+    ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
+    trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
+    whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
+    inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
+    inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
+    whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
+    whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
+    whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
+    whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
+    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
+
 protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : VState} {f : Expr → RecM α} {Q name ty ty' bi}
     (hty : (c.withMLC m).TrExprS ty ty')
@@ -1238,38 +1286,7 @@ protected theorem RecM.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   have h1' := wf.find?_eq_none h1
   let m' := m.vlam ⟨id⟩ name ty ty' bi
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
-  have : VState.WF (c.withMLC m') s.next :=
-    have trctx := wf.trctx.mkLocalDecl h1' hty hty'
-    have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) : InferCache.WF (c.withMLC m') s.next ic :=
-      fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
-    have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
-      fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
-    have hlc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
-      H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-    have hhc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-        ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-      H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-    have hhtc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-        ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-      H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-    { ngen_wf := by
-        simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-      ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
-      trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
-      inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
-      inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
-      whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
-      whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-      whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
-      whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
-      inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
+  have : VState.WF (c.withMLC m') s.next := VState.WF.vlam (cwf' := cwf') wf hty hty'
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
@@ -1291,41 +1308,58 @@ protected theorem M.WF.withLocalDecl {c : VContext} {m} [cwf : c.MLCWF m]
   have h1' := wf.find?_eq_none h1
   let m' := m.vlam ⟨id⟩ name ty ty' bi
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hty'⟩
-  have : VState.WF (c.withMLC m') s.next :=
-    have trctx := wf.trctx.mkLocalDecl h1' hty hty'
-    have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) : InferCache.WF (c.withMLC m') s.next ic :=
-      fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
-    have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
-      fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
-    have hlc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
-      H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-    have hhc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-        ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-      H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-    have hhtc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-        ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-      H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-    { ngen_wf := by
-        simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-      ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
-      trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
-      inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
-      inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
-      whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
-      whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-      whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
-      whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
-      inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
+  have : VState.WF (c.withMLC m') s.next := VState.WF.vlam (cwf' := cwf') wf hty hty'
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩
+
+/-- Entering a `let` binder keeps the state well formed, as `VState.WF.vlam` for a local
+definition. -/
+theorem VState.WF.vlet {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
+    (wf : s.WF (c.withMLC m)) (hty : (c.withMLC m).TrExprS ty ty')
+    (hval : (c.withMLC m).TrExprS val val')
+    (hval' : (c.withMLC m).HasType val' ty')
+    [cwf' : c.MLCWF (m.vlet ⟨s.ngen.curr⟩ name ty val ty' val')] :
+    s.next.WF (c.withMLC (m.vlet ⟨s.ngen.curr⟩ name ty val ty' val')) := by
+  let id := s.ngen.curr
+  have h0 := s.ngen.next_reserves_self
+  have h1 := s.ngen.not_reserves_self
+  have le : s ≤ s.next := .next
+  have h1' := wf.find?_eq_none h1
+  let m' := m.vlet ⟨id⟩ name ty val ty' val'
+  have trctx : (c.withMLC m').TrLCtx := wf.trctx.mkLetDecl h1' hty hval hval'
+  have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) :
+      InferCache.WF (c.withMLC m') s.next ic :=
+    fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
+  have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
+    fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
+  have hlc {ic : InferCache}
+      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+      (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
+    H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
+  have hhc {ic : InferCache}
+      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+      (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
+      ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
+    H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
+  have hhtc {ic : InferCache}
+      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
+      (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
+      ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
+    H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
+  exact
+  { ngen_wf := by
+      simp [VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
+    ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
+    trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
+    whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
+    inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
+    inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
+    whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
+    whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
+    whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
+    whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
+    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
 
 protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
     {s : VState} {f : Expr → RecM α} {Q name ty ty'}
@@ -1345,39 +1379,7 @@ protected theorem RecM.WF.withLetDecl {c : VContext} {m} [cwf : c.MLCWF m]
   have h1' := wf.find?_eq_none h1
   let m' := m.vlet ⟨id⟩ name ty val ty' val'
   have cwf' : c.MLCWF m' := ⟨cwf.1, h1', hty, hval, hval'⟩
-  have : VState.WF (c.withMLC m') s.next :=
-    have trctx := wf.trctx.mkLetDecl h1' hty hval hval'
-    have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) :
-        InferCache.WF (c.withMLC m') s.next ic :=
-      fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
-    have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
-      fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
-    have hlc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
-      H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
-    have hhc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-        ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-      H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
-    have hhtc {ic : InferCache}
-        (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-        (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-        ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-      H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlet h) h1' hres h1
-    { ngen_wf := by
-        simp [m', VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-      ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
-      trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-      whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
-      inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
-      inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
-      whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
-      whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-      whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
-      whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
-      inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
+  have : VState.WF (c.withMLC m') s.next := VState.WF.vlet (cwf' := cwf') wf hty hval hval'
   refine M.WF.withFreshId wf fun a s' e => ?_
   let ⟨s', hs1, hs2, wf', hs4⟩ := H _ _ _ (hs.trans le) h1 _ mwf this a s' e
   exact ⟨s', hs1, hs2, wf'.unfold_wf, hs4⟩

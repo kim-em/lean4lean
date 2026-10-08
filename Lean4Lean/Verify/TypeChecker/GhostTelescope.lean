@@ -149,51 +149,6 @@ theorem mlcwf_vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
     c.MLCWF (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi) :=
   ⟨cwf.1, wf.find?_eq_none s.ngen.not_reserves_self, hty, hty'⟩
 
-/-- The state at a kept binder (the well-formedness part of `RecM.WF.withLocalDecl`). -/
-theorem VState.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
-    (wf : s.WF (c.withMLC m)) (hty : (c.withMLC m).TrExprS ty ty')
-    (hty' : (c.withMLC m).IsType ty')
-    [cwf' : c.MLCWF (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi)] :
-    s.next.WF (c.withMLC (m.vlam ⟨s.ngen.curr⟩ name ty ty' bi)) := by
-  let id := s.ngen.curr
-  have h0 := s.ngen.next_reserves_self
-  have h1 := s.ngen.not_reserves_self
-  have le : s ≤ s.next := .next
-  have h1' := wf.find?_eq_none h1
-  let m' := m.vlam ⟨id⟩ name ty ty' bi
-  have trctx : (c.withMLC m').TrLCtx := wf.trctx.mkLocalDecl h1' hty hty'
-  have hic {ic} (H : InferCache.WF (c.withMLC m) s ic) : InferCache.WF (c.withMLC m') s.next ic :=
-    fun _ _ h => ((H h).fresh c.Ewf.ordered trctx.wf).mono le
-  have hwc {wc} (H : WHNFCache.WF (c.withMLC m) s wc) : WHNFCache.WF (c.withMLC m') s.next wc :=
-    fun _ _ h => ((H h).fresh c.Ewf trctx.wf).mono le
-  have hlc {ic : InferCache}
-      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-      (H : LevelsCache.WF (c.withMLC m) ic) : LevelsCache.WF (c.withMLC m') ic :=
-    H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-  have hhc {ic : InferCache}
-      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-      (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-      ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-    H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-  have hhtc {ic : InferCache}
-      (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-      (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-      ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
-    H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
-  exact
-  { ngen_wf := by
-      simp [VContext.withMLC]; exact ⟨h0, fun _ h => le.reservesV (wf.ngen_wf _ h)⟩
-    ectx := wf.ectx.weak' c.Ewf (.skip_fvar _ _ .refl) trctx.wf
-    trctx, inferTypeI_wf := hic wf.inferTypeI_wf, inferTypeC_wf := hic wf.inferTypeC_wf
-    whnfCore_wf := hwc wf.whnfCore_wf, whnf_wf := hwc wf.whnf_wf, unfold_wf := wf.unfold_wf
-    inferTypeI_levels := hlc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_levels
-    inferTypeC_levels := hlc (fun _ _ h => (wf.inferTypeC_wf h).2.1) wf.inferTypeC_levels
-    whnfCore_levels := hlc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_levels
-    whnf_levels := hlc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_levels
-    whnfCore_paramUniform := hhc (fun _ _ h => (wf.whnfCore_wf h).2.1) wf.whnfCore_paramUniform
-    whnf_paramUniform := hhc (fun _ _ h => (wf.whnf_wf h).2.1) wf.whnf_paramUniform
-    inferTypeI_paramUniform := hhtc (fun _ _ h => (wf.inferTypeI_wf h).2.1) wf.inferTypeI_paramUniform }
-
 /-! ### Ghost-extended local contexts -/
 
 theorem find?_mkLocalDecl {l : LocalContext} {fv fv' : FVarId} {name : Name} {ty : Expr}
