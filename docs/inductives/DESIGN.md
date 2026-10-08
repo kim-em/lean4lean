@@ -379,12 +379,15 @@ run, under the same key, restored by the nested compilation's restoration
 
 The executable validates the restoration before installing it: restored constructor
 types, restored recursor types, and restored rules, each rule as a closed
-equation whose two sides are type checked and compared, together with a structural check that
-the rule is guarded (`validateRestoredRecursorRules`, `guardedIotaCheck`). Rules are
-validated in a copy of the restored environment in which every restored recursor has no rules
-(`stripRecursorRules`), because the abstract iota equations are only added once the rules
-are known to be well formed. The proof consumes these checks as evidence
-(`Nested/StrippedValidity.lean`, `Nested/CheckedGuardedIota.lean`).
+equation whose two sides are type checked and compared (`validateRestoredRecursorRules`).
+Rules are validated in a copy of the restored environment in which every restored recursor
+has no rules (`stripRecursorRules`), because the abstract iota equations are only added once
+the rules are known to be well formed (`Nested/StrippedValidity.lean`). The proof reads only
+the translation of each restored right-hand side off this pass. The abstract rules are the
+restorations of the generated equations: their nested-iota shape and guardedness come from
+the generator through restoration (`Nested/GeneratedRuleGuard.lean`, `primaryNestedIotaRule`),
+their well-formedness from the restoration substitution, and the final assembly extends the
+rule-free assembly base by them (`Nested/RuleShapeBase.lean`).
 
 The common-parameter prefix of a source constructor is not re-checked. Lowering keeps it
 verbatim, the ordinary pipeline checks it for the lowered constructor in the lowered header
@@ -671,7 +674,7 @@ wrapper name. The other changes cannot change a decision except through checker 
   are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
   restoration validation of section 3.3 re-checks restored declarations in side environments
   and validates restored rules in the
-  stripped environment with guardedness, shape and equation-type checks, all stricter than the
+  stripped environment with shape and equation-type checks, all stricter than the
   C++ kernel's revalidation (leanprover/lean4#14621). The nested applications `I Ds`
   themselves are only type-checked, as in the C++ kernel.
 - **Caching**: `whnf` results are cached only for applications, constants, lambdas and
@@ -735,9 +738,7 @@ constructor, recursor or inductive type is rejected by the corresponding check.
   The ported files (`SExpr`, `NormalEq`, `ParallelReduction`, `Stratified`,
   `StratifiedUntyped`, the shape logical relation) build against the extended `VExpr`; the
   global axiom `Params.extra_pat` of `SExpr.lean` is now a hypothesis class.
-- **Executable cost.** `guardedIotaCheck` expands natural-number literals in nested
-  constructor types, so a large literal makes it slow. Replay performance relative to `master`
-  has not been profiled.
+- **Executable cost.** Replay performance relative to `master` has not been profiled.
 
 ## 10. Reading guide
 

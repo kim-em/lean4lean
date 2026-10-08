@@ -1468,54 +1468,6 @@ def guardFuel : Expr → Nat
       2 * s.length + 2 * s.foldl (fun bound c => max bound c.toNat) 0 + 16
   | .bvar _ | .mvar _ | .fvar _ | .sort _ | .const _ _ => 1
 
-/-- Executable guarded-recursion check for a literal restored expression.
-The fuel decreases even when a constant-headed application is flattened, so
-the definition is total independently of any assumptions about expression
-hash-consing.  At a recursive head, the last argument must be headed by a
-de Bruijn variable designated by `fieldVars` at the current binder depth.
-Primitive projections inspect only their source major; the abstract syntax
-retains the projection node directly. -/
-def guardedIotaCheck (recursors : List Name) (fieldVars : List Nat) :
-    Nat → Nat → Expr → Bool
-  | 0, _, _ => false
-  | fuel + 1, depth, expression =>
-    match expression with
-    | .bvar _ | .sort _ => true
-    | .const name _ => !recursors.contains name
-    | .app fn arg =>
-      match expression.getAppFn with
-      | .const name _ =>
-        if recursors.contains name then
-          match expression.getAppArgs.toList.reverse with
-          | [] => false
-          | major :: _ =>
-            let fieldMajor := match major.getAppFn with
-              | .bvar index => fieldVars.any fun field =>
-                  index == field + depth
-              | _ => false
-            fieldMajor && expression.getAppArgs.toList.all
-              (guardedIotaCheck recursors fieldVars fuel depth)
-        else
-          guardedIotaCheck recursors fieldVars fuel depth fn &&
-            guardedIotaCheck recursors fieldVars fuel depth arg
-      | _ =>
-        guardedIotaCheck recursors fieldVars fuel depth fn &&
-          guardedIotaCheck recursors fieldVars fuel depth arg
-    | .lam _ domain body _ | .forallE _ domain body _ =>
-      guardedIotaCheck recursors fieldVars fuel depth domain &&
-        guardedIotaCheck recursors fieldVars fuel (depth + 1) body
-    | .lit literal =>
-      guardedIotaCheck recursors fieldVars fuel depth literal.toConstructor
-    | .mdata _ body | .proj _ _ body =>
-      guardedIotaCheck recursors fieldVars fuel depth body
-    | .mvar _ | .fvar _ | .letE .. => false
-
-/-- Canonical finite field-variable candidate used by the executable guard
-check.  It contains every possible `index - depth` arising from a bvar head
-in the rule, while avoiding an unbounded search. -/
-def guardedFieldVars (expression : Expr) : List Nat :=
-  List.range (rawBVarBound expression)
-
 /-- Collect the constructor-field variables which occur as majors of actual
 source recursor calls.  The binder depth is local to the residual iota body;
 the separate rule-level driver below peels the closed equation telescope
@@ -1570,50 +1522,6 @@ def recursiveFieldVars (recursors : List Name) (expression : Expr) :
       recursiveMajorFieldVars recursors fuel 0 residual
   (go (guardFuel expression + rawBVarBound expression + 1)
     expression).eraseDups
-
-/-- Check a closed equation RHS by peeling its rule telescope.  Binder
-domains must contain no recursor call (the empty field set enforces this),
-while the residual body is checked at depth zero with the finite field set
-computed from the complete literal rule. -/
-def guardedRuleCheck (recursors : List Name) (fieldVars : List Nat) :
-    Nat → Expr → Bool
-  | 0, _ => false
-  | fuel + 1, .lam _ domain body _ =>
-      guardedIotaCheck recursors [] fuel 0 domain &&
-        guardedRuleCheck recursors fieldVars fuel body
-  | fuel + 1, expression =>
-      guardedIotaCheck recursors fieldVars fuel 0 expression
-
-/-- Run the guarded-recursion predicate against an explicitly selected set of
-constructor-field variables.  Primary nested equations use this entry point:
-their field set is retained by the generated-rule blueprint and must not be
-replaced by an arbitrary syntactic upper bound. -/
-def checkGuardedWithFields (recursors : List Name) (fieldVars : List Nat)
-    (expression : Expr) :
-    Except Exception Unit :=
-  unless guardedRuleCheck recursors fieldVars
-      (guardFuel expression + rawBVarBound expression + 1)
-      expression do
-    throw <| .other s!"restored recursor rule is not structurally guarded: {expression}"
-
-/-- Decide that an expression has exactly the requested leading lambda
-telescope.  The zero case deliberately rejects a lambda, so a successful
-check exposes both the complete telescope and a non-lambda residual. -/
-def exactLambdaArity : Nat → Expr → Bool
-  | 0, .lam _ _ _ _ => false
-  | 0, _ => true
-  | arity + 1, .lam _ _ body _ => exactLambdaArity arity body
-  | _ + 1, _ => false
-
-/-- Primary guardedness check with the producer's exact rule arity.  This
-prevents a malformed restoration from adding or removing binders while still
-passing the recursive guardedness traversal. -/
-def checkGuardedWithFieldsAtArity (recursors : List Name)
-    (fieldVars : List Nat) (arity : Nat) (expression : Expr) :
-    Except Exception Unit := do
-  unless exactLambdaArity arity expression do
-    throw <| .other s!"restored recursor rule changed lambda arity: {expression}"
-  checkGuardedWithFields recursors fieldVars expression
 
 /-- Remove exactly `arity` leading lambdas and return the residual.  This is
 the data-valued companion of `exactLambdaArity`; callers which need a
@@ -1681,11 +1589,6 @@ def checkPrimaryRuleShape (recInfo : RecursorVal)
   checkPrimaryRuleCondition
     ((rhsArgs.drop restoredRule.nfields).length == recursiveVars.length)
     s!"restored recursor rule changed its recursive-result arity: {residual}"
-
-/-- Check existential closed-rule guardedness for an auxiliary rule. -/
-def checkGuarded (recursors : List Name) (expression : Expr) :
-    Except Exception Unit :=
-  checkGuardedWithFields recursors (guardedFieldVars expression) expression
 
 /-- Reconstruct the closed literal iota left-hand side for one recursor rule.
 The rule telescope itself supplies the bound arguments.  Keeping the result
@@ -1973,11 +1876,6 @@ def check (env loweredEnv : Environment) (_lparams : List Name)
   let newRecName := recNameMap.getD recName recName
   let restored := res.restoreRecursor loweredEnv recNameMap allIndNames
     recName newRecName recInfo
-  let restoredRecursorNames :=
-    allIndNames.map (fun name =>
-      let oldName := mkRecName name
-      recNameMap.getD oldName oldName) ++
-    auxRecNames.map fun oldName => recNameMap.getD oldName oldName
   _ ← restored.rules.forM fun rule => do
     env.checkNoMVarNoFVar restored.name rule.rhs
     _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
@@ -1986,7 +1884,6 @@ def check (env loweredEnv : Environment) (_lparams : List Name)
     _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
       (lparams := restored.levelParams) (fuel := fuel) do
         checkEquation restored rule
-    checkGuarded restoredRecursorNames rule.rhs
   return ()
 
 /-- Source-primary extension of the common restored-rule validation. -/
@@ -2002,19 +1899,7 @@ def checkPrimary (env loweredEnv : Environment) (lparams : List Name)
   let newRecName := recNameMap.getD recName recName
   let restored := res.restoreRecursor loweredEnv recNameMap allIndNames
     recName newRecName recInfo
-  let restoredRecursorNames :=
-    allIndNames.map (fun name =>
-      let oldName := mkRecName name
-      recNameMap.getD oldName oldName) ++
-    auxRecNames.map fun oldName => recNameMap.getD oldName oldName
   let sourceRecursorNames := allIndNames.map mkRecName ++ auxRecNames
-  _ ← recInfo.rules.forM fun sourceRule => do
-    let restoredRule := res.restoreRule loweredEnv recNameMap recName
-      newRecName sourceRule
-    checkGuardedWithFieldsAtArity restoredRecursorNames
-      (recursiveFieldVars sourceRecursorNames sourceRule.rhs)
-      sourceRule.rhs.getNumHeadLambdas
-      restoredRule.rhs
   _ ← recInfo.rules.forM fun sourceRule =>
     let restoredRule := res.restoreRule loweredEnv recNameMap recName
       newRecName sourceRule

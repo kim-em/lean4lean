@@ -495,11 +495,6 @@ theorem validateRestoredRecursorRules.translation_of_check
         rule.rhs inferred target targetType := by
   let restored := result.restoreRecursor loweredEnv recNameMap allIndNames
     recName (recNameMap.getD recName recName) oldInfo
-  let restoredRecursorNames :=
-    allIndNames.map (fun name =>
-      let oldName := Lean.mkRecName name
-      recNameMap.getD oldName oldName) ++
-    auxRecNames.map fun oldName => recNameMap.getD oldName oldName
   unfold Lean4Lean.validateRestoredRecursorRules.check at hstep
   rw [hlookup] at hstep
   simp only at hstep
@@ -512,8 +507,7 @@ theorem validateRestoredRecursorRules.translation_of_check
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
         (lparams := restored.levelParams) (fuel := fuel) do
           Lean4Lean.validateRestoredRecursorRules.checkEquation restored rule
-      Lean4Lean.validateRestoredRecursorRules.checkGuarded
-        restoredRecursorNames rule.rhs) =
+      pure ()) =
         .ok () := by
     apply listForM_eq_ok_of_mem
       (fun candidate : RecursorRule => do
@@ -525,8 +519,7 @@ theorem validateRestoredRecursorRules.translation_of_check
           (lparams := restored.levelParams) (fuel := fuel) do
             Lean4Lean.validateRestoredRecursorRules.checkEquation restored
               candidate
-        Lean4Lean.validateRestoredRecursorRules.checkGuarded
-          restoredRecursorNames candidate.rhs)
+        pure ())
     · simpa only [restored] using hvalidated
     · simpa only [restored] using hrule
   have hruleStep : (do
