@@ -58,7 +58,7 @@ theorem TrExprS.toSyn {env : VEnv} {Us : List Name} {Δ : VLCtx} {e : Expr} {e' 
   | letE _ _ _ _ ih1 ih2 ih3 => exact .letE ih1 ih2 ih3
   | lit _ _ ih => exact .lit ih
   | mdata _ ih => exact .mdata ih
-  | proj _ hp ih => rw [hp.target_eq]; exact .proj ih
+  | proj _ _ ih => exact .proj ih
 
 theorem TrExprSyn.uniqueCtx {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Lean.Expr}
     {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)

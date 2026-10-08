@@ -1122,7 +1122,7 @@ theorem ValidAppStatsWF.translatedParam
 
 /- Absence of a newly declared constant is preserved by syntax translation.
 Literal expansion and projection translation are explicit side conditions:
-literals introduce base primitive constants, and `TrProj` is a separate
+literals introduce base primitive constants, and the projection case carries a separate
 typing judgment. -/
 
 /- `Expr.AvoidsConsts` (source-syntax absence of a set of constants) is defined in

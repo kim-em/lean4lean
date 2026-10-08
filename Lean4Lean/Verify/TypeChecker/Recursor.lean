@@ -924,7 +924,7 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     refine List.forall₂_of_getElem (by simp) fun i hi hi' => ?_
     simp only [List.getElem_map, List.getElem_range]
     simp only [List.length_map, List.length_range] at hi
-    exact .proj he (.direct ⟨_, htS⟩ ⟨_, hprojT i hi⟩)
+    exact .proj he ⟨_, hprojT i hi⟩
   refine .pure ⟨⟨?_, ⟨_, hexpS, ⟨_, heta⟩⟩⟩, ?_⟩
   · intro P hP hfe
     have hfA : FVarsIn P A := hfvA P hP (hfvT P hP hfe)

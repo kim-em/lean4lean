@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.Env
 import Lean4Lean.Verify.NameGenerator
 import Lean4Lean.Verify.VLCtx
 import Lean4Lean.Verify.Axioms
-import Lean4Lean.Verify.Typing.Projection
+import Lean4Lean.Theory.Inductive
 
 namespace Lean4Lean
 open Lean
@@ -101,8 +101,8 @@ inductive TrExprS : VLCtx → Expr → VExpr → Prop
   | lit : env.ContainsLits l → TrExprS Δ l.toConstructor e → TrExprS Δ (.lit l) e
   | mdata : TrExprS Δ e e' → TrExprS Δ (.mdata d e) e'
   | proj : TrExprS Δ e e' →
-      TrProj (env := env) (U := Us.length) Δ.toCtx s i e' e'' →
-      TrExprS Δ (.proj s i e) e''
+      VExpr.WF env Us.length Δ.toCtx (.proj s i e') →
+      TrExprS Δ (.proj s i e) (.proj s i e')
 
 def TrExpr (env : VEnv) (Us : List Name) (Δ : VLCtx) (e : Expr) (e' : VExpr) : Prop :=
   ∃ e₂, TrExprS env Us Δ e e₂ ∧ env.IsDefEqU Us.length Δ.toCtx e₂ e'

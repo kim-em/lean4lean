@@ -74,12 +74,10 @@ theorem TrExprS.targetProjsRegistered {env : VEnv} {Us : List Name} {Δ : VLCtx}
   | lit _ _ ih => exact ih hΔwf hΔ
   | mdata _ ih => exact ih hΔwf hΔ
   | proj _ hproj ih =>
-    cases hproj with
-    | direct _ hwf =>
-      obtain ⟨_, hty⟩ := hwf
-      obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ :=
-        VEnv.HasType.proj_inv henv hΔwf.toCtx hty
-      exact ⟨⟨info, hinfo⟩, ih hΔwf hΔ⟩
+    obtain ⟨_, hty⟩ := hproj
+    obtain ⟨info, -, -, -, -, -, -, hinfo, -⟩ :=
+      VEnv.HasType.proj_inv henv hΔwf.toCtx hty
+    exact ⟨⟨info, hinfo⟩, ih hΔwf hΔ⟩
 
 end Lean4Lean
 

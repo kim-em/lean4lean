@@ -2,7 +2,6 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.ParameterPrefix
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Basic
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.Inductive.Recursor.Context.ForallTelescope
-import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Verify.Inductive.Nested.Lowering.Queue
 

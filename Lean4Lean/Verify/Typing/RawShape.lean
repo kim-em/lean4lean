@@ -9,13 +9,6 @@ import Lean4Lean.Theory.Inductive.RawShape
 namespace Lean4Lean
 open Lean
 
-/-- Two projection translations have the same skeleton: both are `.proj` nodes. -/
-theorem TrProj.rawShape (H1 : TrProj (env := env) (U := U) Γ name index major target)
-    (H2 : TrProj (env := env') (U := U') Γ' name' index' major' target') :
-    VExpr.RawShapeRel target target' := by
-  rw [H1.target_eq, H2.target_eq]
-  exact .proj
-
 inductive TrExprS.RawShapeDecl : VLocalDecl → VLocalDecl → Prop
   | vlam : RawShapeDecl (.vlam ty) (.vlam ty')
   | vlet : VExpr.RawShapeRel val val' → RawShapeDecl (.vlet ty val) (.vlet ty' val')
@@ -68,6 +61,6 @@ theorem TrExprS.rawShape (hΔ : RawShapeCtx Δ₁ Δ₂)
     exact ih2 (hΔ.cons (.vlet (ih1 hΔ ‹_›))) ‹_›
   | lit _ _ ih => exact ih hΔ ‹_›
   | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ hp => exact hp.rawShape ‹_›
+  | proj => exact .proj
 
 end Lean4Lean

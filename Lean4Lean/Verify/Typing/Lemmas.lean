@@ -1,6 +1,7 @@
 import Batteries.Data.String.Lemmas
 import Lean4Lean.Verify.Typing.Expr
-import Lean4Lean.Verify.Typing.ProjectionRelation
+import Lean4Lean.Verify.Typing.ConstSupport
+import Lean4Lean.Theory.Typing.Lemmas
 import Lean4Lean.Verify.Typing.PrimSpec
 import Lean4Lean.Verify.Expr
 import Lean4Lean.Theory.Typing.Strong
@@ -732,16 +733,6 @@ inductive SortList : VLCtx → List VLevel → Prop
 
 end VLCtx
 
-theorem TrProj.weak' (henv : VEnv.Ordered env) (W : Ctx.Lift' n Γ Γ')
-    (H : TrProj (env := env) (U := U) Γ s i e e') :
-    TrProj (env := env) (U := U) Γ' s i (e.lift' n) (e'.lift' n) :=
-  EnvTrProj.weak' H henv W
-
-theorem TrProj.weakN (henv : VEnv.Ordered env) (W : Ctx.LiftN n k Γ Γ')
-    (H : TrProj (env := env) (U := U) Γ s i e e') :
-    TrProj (env := env) (U := U) Γ' s i (e.liftN n k) (e'.liftN n k) :=
-  EnvTrProj.weakN H henv W
-
 variable! (henv : Ordered env) in
 theorem TrExprS.weakFV' (W : VLCtx.FVLift' Δ Δ' dk n k) (hΔ' : Δ'.WF env Us.length)
     (H : TrExprS env Us Δ e e') : TrExprS env Us Δ' e (e'.lift' (n.consN k)) := by
@@ -811,40 +802,29 @@ theorem TrExpr.weakBV (W : VLCtx.BVLift Δ Δ' dn dk n k)
   let ⟨_, H1, H2⟩ := H
   ⟨_, H1.weakBV henv W, H2.weakN henv W.toCtx⟩
 
-theorem TrProj.defeqDFC (henv : VEnv.WF env) (hΓ : env.IsDefEqCtx U [] Γ₁ Γ₂)
+/-- A well-formed primitive projection stays well formed when its major is replaced by a
+definitionally equal one in a definitionally equal context. -/
+theorem VExpr.WF.proj_defeqDFC (henv : VEnv.WF env) (hΓ : env.IsDefEqCtx U [] Γ₁ Γ₂)
     (he : env.IsDefEqU U Γ₁ e₁ e₂)
-    (H : TrProj (env := env) (U := U) Γ₁ s i e₁ e') :
-    ∃ e', TrProj (env := env) (U := U) Γ₂ s i e₂ e' := by
-  cases H with
-  | direct majorWF targetWF =>
-      have hΓ₂ : OnCtx Γ₂ (env.IsType U) := (hΓ.symm henv.ordered).isType
-      have he₂ := he.defeqDFC henv.ordered hΓ
-      obtain ⟨majorType, he₂'⟩ := he₂
-      have majorWF₂ : VExpr.WF env U Γ₂ e₂ :=
-        ⟨majorType, he₂'.hasType.2⟩
-      have targetWF₂ : VExpr.WF env U Γ₂ (.proj s i e₂) := by
-        obtain ⟨resultType, htarget⟩ := targetWF
-        obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType,
-            fieldLevel, hinfo, hlevels, huvars, hparams, hindices, hfield,
-            hfieldTyping, hsource, hclosed, hguard⟩ :=
-          HasType.proj_inv henv.ordered hΓ.isType htarget
-        have hfieldTyping₂ := hfieldTyping.defeqDFC henv.ordered hΓ
-        have hsource₂ := hsource.defeqDFC henv.ordered hΓ
-        have hsourceMajor₂ := hsource₂.trans_l henv hΓ₂ he₂'
-        exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices
-          hfield hfieldTyping₂ hsourceMajor₂ hsourceMajor₂ hclosed hguard⟩
-      exact ⟨_, .direct majorWF₂ targetWF₂⟩
+    (H : VExpr.WF env U Γ₁ (.proj s i e₁)) :
+    VExpr.WF env U Γ₂ (.proj s i e₂) := by
+  have hΓ₂ : OnCtx Γ₂ (env.IsType U) := (hΓ.symm henv.ordered).isType
+  obtain ⟨_, he₂'⟩ := he.defeqDFC henv.ordered hΓ
+  obtain ⟨resultType, htarget⟩ := H
+  obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType,
+      fieldLevel, hinfo, hlevels, huvars, hparams, hindices, hfield,
+      hfieldTyping, hsource, hclosed, hguard⟩ :=
+    HasType.proj_inv henv.ordered hΓ.isType htarget
+  have hfieldTyping₂ := hfieldTyping.defeqDFC henv.ordered hΓ
+  have hsource₂ := hsource.defeqDFC henv.ordered hΓ
+  have hsourceMajor₂ := hsource₂.trans_l henv hΓ₂ he₂'
+  exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices
+    hfield hfieldTyping₂ hsourceMajor₂ hsourceMajor₂ hclosed hguard⟩
 
 variable! {env env' : VEnv} (henv : env ≤ env') in
 nonrec theorem VEnv.ContainsLits.mono : ∀ {l}, env.ContainsLits l → env'.ContainsLits l
   | .natVal _, ⟨_, H⟩ => ⟨_, henv.1 H⟩
   | .strVal _, ⟨⟨_, H1⟩, ⟨_, H2⟩⟩ => ⟨⟨_, henv.1 H1⟩, ⟨_, henv.1 H2⟩⟩
-
-variable! {env env' : VEnv} (henv : env ≤ env') in
-theorem TrProj.mono
-    (H : TrProj (env := env) (U := U) Γ s i e e') :
-    TrProj (env := env') (U := U) Γ s i e e' :=
-  EnvTrProj.mono H henv
 
 variable! {env env' : VEnv} (henv : env ≤ env') in
 theorem TrExprS.mono (H : TrExprS env Us Δ e e') : TrExprS env' Us Δ e e' := by
@@ -1037,11 +1017,6 @@ theorem TrExpr.fvarsIn (H : TrExpr env Us Δ e e') : FVarsIn (· ∈ Δ.fvars) e
 theorem TrExpr.fvarsList (H : TrExpr env Us Δ e e') : e.fvarsList ⊆ Δ.fvars :=
   (fvarsIn_iff.1 H.fvarsIn).1
 
-theorem TrProj.wf
-    (H1 : TrProj (env := env) (U := U) Γ s i e e')
-    (_H2 : VExpr.WF env U Γ e) : VExpr.WF env U Γ e' :=
-  EnvTrProj.wf H1
-
 theorem TrExpr.wf (H : TrExpr env Us Δ e e') : VExpr.WF env Us.length Δ.toCtx e' :=
   let ⟨_, _, _, H⟩ := H; ⟨_, H.hasType.2⟩
 
@@ -1060,7 +1035,7 @@ theorem TrExprS.wf (H : TrExprS env Us Δ e e') : VExpr.WF env Us.length Δ.toCt
   | forallE h1 h2 => have ⟨_, h1'⟩ := h1; have ⟨_, h2'⟩ := h2; exact ⟨_, h1'.forallE h2'⟩
   | letE h1 _ _ _ _ _ ih3 => exact ih3 ⟨hΔ, nofun, h1⟩
   | lit _ _ ih | mdata _ ih => exact ih hΔ
-  | proj _ h2 ih => exact h2.wf (ih hΔ)
+  | proj _ h2 => exact h2
 
 variable! (henv : Ordered env) {Us : List Name} (hΔ : VLCtx.WF env Us.length Δ) in
 theorem TrExprS.trExpr (H : TrExprS env Us Δ e e') : TrExpr env Us Δ e e' :=
@@ -1083,22 +1058,19 @@ theorem TrExpr.app (henv : VEnv.WF env) (hΔ : OnCtx Δ.toCtx (env.IsType Us.len
   ⟨_, .app h3.hasType.1 h4.hasType.1 s3 s4, _, h3.appDF h4⟩
 
 variable! (henv : VEnv.WF env) (hΓ : IsDefEqCtx env U [] Γ₁ Γ₂) in
-theorem TrProj.uniq
-    (H1 : TrProj (env := env) (U := U) Γ₁ s i e₁ e₁')
-    (H2 : TrProj (env := env) (U := U) Γ₂ s i e₂ e₂')
+/-- Primitive projections of definitionally equal majors are definitionally equal. -/
+theorem VExpr.WF.proj_uniq
+    (H1 : VExpr.WF env U Γ₁ (.proj s i e₁))
     (H : env.IsDefEqU U Γ₁ e₁ e₂) :
-    env.IsDefEqU U Γ₁ e₁' e₂' := by
-  cases H1 with
-  | direct _ targetWF =>
-    cases H2
-    obtain ⟨resultType, htarget⟩ := targetWF
-    obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType,
-        fieldLevel, hinfo, hlevels, huvars, hparams, hindices, hfield,
-        hfieldTyping, hsource, hclosed, hguard⟩ :=
-      HasType.proj_inv henv.ordered hΓ.isType htarget
-    have hsourceMajor₂ := hsource.transU_l henv hΓ.isType H
-    exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices hfield
-      hfieldTyping hsource hsourceMajor₂ hclosed hguard⟩
+    env.IsDefEqU U Γ₁ (.proj s i e₁) (.proj s i e₂) := by
+  obtain ⟨resultType, htarget⟩ := H1
+  obtain ⟨info, levels, params, indexArgs, sourceMajor, fieldType,
+      fieldLevel, hinfo, hlevels, huvars, hparams, hindices, hfield,
+      hfieldTyping, hsource, hclosed, hguard⟩ :=
+    HasType.proj_inv henv.ordered hΓ.isType htarget
+  have hsourceMajor₂ := hsource.transU_l henv hΓ.isType H
+  exact ⟨fieldType, .projDF hinfo hlevels huvars hparams hindices hfield
+    hfieldTyping hsource hsourceMajor₂ hclosed hguard⟩
 
 variable! (henv : VEnv.WF env) {Us : List Name} (hΔ : VLCtx.IsDefEq env Us.length Δ₁ Δ₂) in
 theorem TrExprS.uniq (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ₂ e e₂) :
@@ -1134,7 +1106,7 @@ theorem TrExprS.uniq (H1 : TrExprS env Us Δ₁ e e₁) (H2 : TrExprS env Us Δ�
     exact .vlet (ih3 hΔ r3 |>.of_l henv hΓ l1) (ih2 hΔ r2 |>.of_l henv hΓ hb)
   | lit _ _ ih1 => let .lit _ r2 := H2; exact ih1 hΔ r2
   | mdata _ ih1 => let .mdata r1 := H2; exact ih1 hΔ r1
-  | proj _ l2 ih1 => let .proj r1 r2 := H2; exact l2.uniq henv hΔ.defeqCtx r2 (ih1 hΔ r1)
+  | proj _ l2 ih1 => let .proj r1 _ := H2; exact l2.proj_uniq henv hΔ.defeqCtx (ih1 hΔ r1)
 
 variable! (henv : VEnv.WF env) {Us : List Name} (hΔ : VLCtx.IsDefEq env Us.length Δ₁ Δ₂) in
 theorem TrExpr.uniq (H1 : TrExpr env Us Δ₁ e e₁) (H2 : TrExpr env Us Δ₂ e e₂) :
@@ -1199,8 +1171,7 @@ theorem TrExprS.defeqDFC (H : TrExprS env Us Δ₁ e e₁) : ∃ e₂, TrExprS e
   | mdata _ ih1 => let ⟨_, h1⟩ := ih1 hΔ; exact ⟨_, .mdata h1⟩
   | proj h1 h2 ih1 =>
     let ⟨_, h1'⟩ := ih1 hΔ
-    let ⟨_, h2⟩ := h2.defeqDFC henv hΔ.defeqCtx (h1.uniq henv hΔ h1')
-    exact ⟨_, .proj h1' h2⟩
+    exact ⟨_, .proj h1' (h2.proj_defeqDFC henv hΔ.defeqCtx (h1.uniq henv hΔ h1'))⟩
 
 variable! (henv : VEnv.WF env) {Us : List Name} (hΔ : VLCtx.IsDefEq env Us.length Δ₁ Δ₂) in
 theorem TrExprS.defeqDFC' (H : TrExprS env Us Δ₁ e e') : TrExpr env Us Δ₂ e e' := by
@@ -1265,13 +1236,13 @@ theorem TrExpr.lit (h1 : env.ContainsLits l)
 theorem TrExpr.mdata (h : TrExpr env Us Δ e e') : TrExpr env Us Δ (.mdata d e) e' :=
   let ⟨_, s2, h2⟩ := h; ⟨_, .mdata s2, h2⟩
 
-theorem TrExpr.proj {env Us Δ e e' s i e''} (henv : VEnv.WF env) (hΔ : VLCtx.WF env Us.length Δ)
+theorem TrExpr.proj {env Us Δ e e' s i} (henv : VEnv.WF env) (hΔ : VLCtx.WF env Us.length Δ)
     (H : TrExpr env Us Δ e e')
-    (H2 : TrProj (env := env) (U := Us.length) Δ.toCtx s i e' e'') :
-    TrExpr env Us Δ (.proj s i e) e'' :=
+    (H2 : VExpr.WF env Us.length Δ.toCtx (.proj s i e')) :
+    TrExpr env Us Δ (.proj s i e) (.proj s i e') :=
   let ⟨_, s2, h2⟩ := H
-  have ⟨_, H2'⟩ := H2.defeqDFC henv (.refl hΔ) h2.symm
-  ⟨_, .proj s2 H2', H2'.uniq henv (.refl hΔ) H2 h2⟩
+  have H2' := H2.proj_defeqDFC henv (.refl hΔ) h2.symm
+  ⟨_, .proj s2 H2', H2'.proj_uniq henv (.refl hΔ) h2⟩
 
 variable! (henv : Ordered env) (h₀ : TrExprS env Us Δ₀ e₀ e₀') in
 theorem TrExprS.instN_var (W : VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ) (H : Δ₁.find? v = some (e', A)) :
@@ -1318,13 +1289,6 @@ theorem TrExprS.instN_var (W : VLCtx.InstN Δ₀ e₀' A₀ dk k Δ₁ Δ) (H : 
         simp [VLCtx.find?, VLCtx.next]
         refine ⟨_, _, h, ?_, rfl⟩
         cases d <;> simp [VLocalDecl.depth, VLocalDecl.inst, VExpr.lift_instN_lo]
-
-theorem TrProj.instN (henv : VEnv.Ordered env)
-    (W : Ctx.InstN Γ₀ e₀ A₀ k Γ₁ Γ)
-    (Hsub : env.HasType U Γ₀ e₀ A₀)
-    (H : TrProj (env := env) (U := U) Γ₁ s i e e') :
-    TrProj (env := env) (U := U) Γ s i (e.inst e₀ k) (e'.inst e₀ k) :=
-  EnvTrProj.instN H henv W Hsub
 
 variable! (henv : Ordered env) (h₀ : TrExprS env Us Δ₀ e₀ e₀')
   (t₀ : env.HasType Us.length Δ₀.toCtx e₀' A₀) in
@@ -1591,13 +1555,6 @@ theorem ofLevel_mkLevelIMax'
   · simp_all; exact VLevel.imax_self.symm
   simp [VLevel.ofLevel]; exact ⟨_, ⟨_, h1, _, h2, rfl⟩, rfl⟩
 
-variable! {ls : List VLevel} (hls : ∀ l ∈ ls, l.WF U') in
-theorem TrProj.instL
-    (H : TrProj (env := env) (U := U) Γ s i e e') :
-    TrProj (env := env) (U := U') (Γ.map (VExpr.instL ls)) s i
-      (e.instL ls) (e'.instL ls) :=
-  EnvTrProj.instL H hls
-
 /-- Universe weakening for strict concrete-expression translation.  A fresh
 concrete parameter is prepended, the concrete expression is unchanged, and
 all existing abstract universe indices are shifted by one. -/
@@ -1861,7 +1818,7 @@ theorem TrExprS.unique (H : IsUnique e)
 
 /-- Translation is syntactically unique: every constructor of `TrExprS` is
 determined by the source syntax and the context, including projections
-(`TrProj.target_eq`).  This strengthens `TrExprS.unique'`, whose `IsUnique`
+(the target of `TrExprS.proj` is the primitive projection of the translated major).  This strengthens `TrExprS.unique'`, whose `IsUnique`
 hypothesis excludes projections. -/
 theorem TrExprS.uniqueCtx {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e : Expr}
     {e₁ e₂ : VExpr} (hΔ : TrExprS.IsUniqueCtx Δ₁ Δ₂)
@@ -1877,10 +1834,7 @@ theorem TrExprS.uniqueCtx {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx} {e
   | letE _ _ _ _ _ ih1 ih2 => cases ih1 hΔ ‹_›; cases ih2 (hΔ.cons .vlet) ‹_›; rfl
   | lit _ _ ih => exact ih hΔ ‹_›
   | mdata _ ih => exact ih hΔ ‹_›
-  | proj _ hp ih =>
-    rename_i h2 hp2
-    cases ih hΔ h2
-    rw [hp.target_eq, hp2.target_eq]
+  | proj _ _ ih => cases ih hΔ ‹_›; rfl
 
 theorem TrExprS.boolFalse (henv : env.HasPrimitives) (H : env.contains ``Bool) :
     TrExprS env Us Δ (toExpr false) .boolFalse ∧

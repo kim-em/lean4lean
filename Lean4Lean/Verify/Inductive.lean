@@ -14,7 +14,6 @@ import Lean4Lean.Verify.Inductive.Nested.Lowering.Expansion.AuxiliaryHeads
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.SourceIota
 import Lean4Lean.Verify.Inductive.Nested.Restoration.InstalledFamilyLookups
 import Lean4Lean.Theory.Inductive
-import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExprReplace
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 import Lean4Lean.Verify.Typing.Lemmas

@@ -1,5 +1,4 @@
 import Lean4Lean.Theory.Inductive
-import Lean4Lean.Verify.Typing.ProjectionRelation
 import Lean4Lean.Verify.Inductive.Nested.Restoration.ExprReplace
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Steps
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal

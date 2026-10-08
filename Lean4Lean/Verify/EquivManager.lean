@@ -114,8 +114,8 @@ theorem RelevantEq.uniq (eq : RelevantEq e₁ e₂)
   | lit _ _ ih1 => cases eq; let .lit _ r2 := H2; exact ih1 hΔ .rfl r2
   | mdata _ ih1 => let .mdata eq := eq; let .mdata r1 := H2; exact ih1 hΔ eq r1
   | proj _ l2 ih1 =>
-    let .proj eq := eq; let .proj r1 r2 := H2
-    exact l2.uniq henv hΔ.defeqCtx r2 (ih1 hΔ eq r1)
+    let .proj eq := eq; let .proj r1 _ := H2
+    exact l2.proj_uniq henv hΔ.defeqCtx (ih1 hΔ eq r1)
 
 theorem IsDefEqE.trExpr
     (henv : env.WF) (noBV : Δ.NoBV) (H1 : IsDefEqE env Us Δ r₁ r₂) (hΔ : Δ'.WF env Us.length)

@@ -260,7 +260,6 @@ theorem TrExprS.liftN_inv (W : VLCtx.BVLift Δ Δ' 1 dk 1 k)
     cases e₀ <;> simp [Expr.liftLooseBVars'] at he
     obtain ⟨rfl, rfl, rfl⟩ := he
     obtain ⟨x₀, rfl⟩ := ih W rfl
-    rw [hp.target_eq]
     exact ⟨.proj _ _ x₀, rfl⟩
 
 theorem TrExprS.lift_inv

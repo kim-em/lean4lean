@@ -329,7 +329,7 @@ theorem tryEtaStructCore.WF {c : VContext} {s : VState}
           (Or.inl hguard)
       have hprojTr : c.TrExprS (.proj fInfo.induct (i - fInfo.numParams) e₁)
           (.proj fInfo.induct (i - fInfo.numParams) e₁') :=
-        .proj he₁ (.direct ⟨_, htS⟩ ⟨_, hprojk⟩)
+        .proj he₁ ⟨_, hprojk⟩
       refine (isDefEq.WF hprojTr (hargsGet i hi)).bind fun b _ _ hb => ?_
       split <;> [skip; exact .pure nofun]
       have hb := hb ‹_›
@@ -670,7 +670,7 @@ theorem lazyDeltaProjReduction.finish.WF {c : VContext} {s : VState}
   have hF {s} : (F ⟨⟩).WF c s fun r _ => r → c.IsDefEqU e₁' e₂' := by
     have .proj a1 a2 := he₁; have .proj b1 b2 := he₂
     refine (isDefEqCore.WF a1 b1).mono fun _ _ _ h hb => ?_
-    exact a2.uniq c.Ewf (.refl c.Δwf.toCtx) b2 (h hb)
+    exact a2.proj_uniq c.Ewf (.refl c.Δwf.toCtx) (h hb)
   split <;> [have ⟨a1, _, a2, a3⟩ := h1 _ rfl; exact .pureBind hF]
   refine (reduceProjCore.WF he₂).bind fun _ _ _ h2 => ?_
   split <;> [have ⟨b1, _, b2, b3⟩ := h2 _ rfl; exact .pureBind hF]
@@ -685,20 +685,20 @@ theorem lazyDeltaProjReduction.loop.WF {c : VContext} {s : VState}
   unfold loop; have .proj a1 a2 := he₁; have .proj b1 b2 := he₂
   refine (lazyDeltaReductionStep.WF a1 b1).bind fun _ _ _ h => ?_; split
   · have ⟨_, ⟨_, c1, c2⟩, ⟨_, d1, d2⟩⟩ := h
-    have ⟨_, e1⟩ := a2.defeqDFC c.Ewf (.refl c.Δwf.toCtx) c2.symm
-    have ⟨_, e2⟩ := b2.defeqDFC c.Ewf (.refl c.Δwf.toCtx) d2.symm
+    have e1 := a2.proj_defeqDFC c.Ewf (.refl c.Δwf.toCtx) c2.symm
+    have e2 := b2.proj_defeqDFC c.Ewf (.refl c.Δwf.toCtx) d2.symm
     refine (ih (.proj c1 e1) (.proj d1 e2)).mono fun _ _ _ h hb => ?_
-    have f1 := e1.uniq c.Ewf (.refl c.Δwf.toCtx) a2 c2
-    have f2 := e2.uniq c.Ewf (.refl c.Δwf.toCtx) b2 d2
+    have f1 := e1.proj_uniq c.Ewf (.refl c.Δwf.toCtx) c2
+    have f2 := e2.proj_uniq c.Ewf (.refl c.Δwf.toCtx) d2
     exact f1.symm.trans c.Ewf c.Δwf <| (h hb).trans c.Ewf c.Δwf f2
-  · exact .pure fun _ => a2.uniq c.Ewf (.refl c.Δwf.toCtx) b2 h
+  · exact .pure fun _ => a2.proj_uniq c.Ewf (.refl c.Δwf.toCtx) h
   all_goals
     have ⟨⟨_, c1, c2⟩, ⟨_, d1, d2⟩⟩ := h
-    have ⟨_, e1⟩ := a2.defeqDFC c.Ewf (.refl c.Δwf.toCtx) c2.symm
-    have ⟨_, e2⟩ := b2.defeqDFC c.Ewf (.refl c.Δwf.toCtx) d2.symm
+    have e1 := a2.proj_defeqDFC c.Ewf (.refl c.Δwf.toCtx) c2.symm
+    have e2 := b2.proj_defeqDFC c.Ewf (.refl c.Δwf.toCtx) d2.symm
     refine (finish.WF (.proj c1 e1) (.proj d1 e2)).mono fun _ _ _ h hb => ?_
-    have f1 := e1.uniq c.Ewf (.refl c.Δwf.toCtx) a2 c2
-    have f2 := e2.uniq c.Ewf (.refl c.Δwf.toCtx) b2 d2
+    have f1 := e1.proj_uniq c.Ewf (.refl c.Δwf.toCtx) c2
+    have f2 := e2.proj_uniq c.Ewf (.refl c.Δwf.toCtx) d2
     exact f1.symm.trans c.Ewf c.Δwf <| (h hb).trans c.Ewf c.Δwf f2
 
 theorem isDefEqCore'.WF {c : VContext} {s : VState}

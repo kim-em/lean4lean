@@ -70,7 +70,6 @@ theorem TrExprS.cacheKey_not_forall (H : TrExprS env Us Δ e e')
     (hkey : whnfCacheKey e = true) : e' ≠ .forallE domain body := by
   cases H <;> simp only [whnfCacheKey] at hkey
   all_goals first | contradiction | (intro h; cases h)
-  case proj hmajor hprojection => exact hprojection.target_not_forall rfl
 
 /-- A `whnf` cache entry `e ↦ e₁` that is valid conditionally on the context: both sides are
 closed and mention only reserved free variables, and whenever the free variables of `e` lie in `Δ`,

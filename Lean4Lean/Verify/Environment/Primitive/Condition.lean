@@ -480,7 +480,7 @@ theorem noProj_toConstructor : ∀ {l : Literal}, noProj l.toConstructor
     induction s.toList <;> simp [noProj, *]
 
 /-- A translation survives binders appended on the right. `noProj` only to sidestep `proj`, whose
-`TrProj` side condition would have to be transported too; every closed piece a `Condition` carries
+well-formedness premise would have to be transported too; every closed piece a `Condition` carries
 is projection-free by `CondOK`. -/
 theorem TrExprS.weakR {env : VEnv} {Us : List Name} (henv : env.Ordered) {Δ' : VLCtx} :
     ∀ {Δ : VLCtx} {e : Expr} {e' : VExpr}, TrExprS env Us Δ e e' →

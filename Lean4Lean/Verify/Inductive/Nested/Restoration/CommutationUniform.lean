@@ -200,7 +200,6 @@ theorem RestoreCtxRel.translate_avoids {r : Restoration}
     | proj h hp' =>
       cases Havoid with
       | proj _ _ _ Ha =>
-        rw [hp.target_eq, hp'.target_eq]
         exact restoration_expr_proj (ih Hctx Ha h)
 
 theorem RestoreCtxRel.translate_avoids_forall₂ {r : Restoration}
@@ -435,7 +434,6 @@ theorem restorationCommutes
     rw [Expr.replace_proj_of_none (hmiss _ (by simp) (by simp [Expr.getAppFn]))] at Ht
     cases Ht with
     | proj ht hp' =>
-      rw [hp.target_eq, hp'.target_eq]
       exact restoration_expr_proj (ih He Hctx ht)
 
 /-! ### Closed telescopes -/
