@@ -724,9 +724,6 @@ structure FinalLoweredGeneratedFamilyNativeSource
     (VExpr.mkApps (.const containerFamily.name levels) baseArgs)
     (VExpr.instantiateForallPrefix (containerFamily.type.instL levels)
       baseArgs)
-  familyApplicationType : sourceTypesVEnv.IsType lparams.length
-    (abstractForallContext sourceParams []).toCtx
-    (VExpr.mkApps (.const containerFamily.name levels) baseArgs)
   constructors : List.Forall₂
     (VInductDecl.DirectAuxConstructor sourceTypesVEnv lparams.length sourceParams
       baseArgs levels containerFamily payload.source)
@@ -742,74 +739,6 @@ structure FinalLoweredGeneratedFamilyNativeSource
       target.type = VExpr.wrapForalls sourceParams
         (VExpr.instantiateForallPrefix instCtorType baseArgs))
     containerFamily.ctors payload.source.ctors
-
-/-- The generated family installed by the ordinary header pass is
-indexless.  This is not metadata copied from the concrete auxiliary (which
-does not carry an index count): the checked header is peeled to its
-post-parameter residual, while the retained specialized-container typing
-shows that same residual is definitionally a sort. -/
-theorem FinalLoweredGeneratedFamilyNativeSource.numIndices_eq_zero
-    (N : FinalLoweredGeneratedFamilyNativeSource H baseVEnv sourceTypesVEnv
-      lparams target)
-    (henv : sourceTypesVEnv.WF)
-    (decl : VInductDecl) (params : List VExpr)
-    (Hshape : decl.TypeShape sourceTypesVEnv params target)
-    (huvars : decl.uvars = lparams.length)
-    (hnparams : decl.nparams = N.sourceParams.length) :
-    target.numIndices = 0 := by
-  rcases Hshape with
-    ⟨normalized, ownParams, afterParams, indices, result, exprType,
-      Hnormalized, HparamsTake, HindicesTake, _Hparams, _Hresult⟩
-  rcases VExpr.takeForalls_rebuild HparamsTake with
-    ⟨HnormalizedEq, hownParams⟩
-  have HtargetNormalized : sourceTypesVEnv.IsDefEqU decl.uvars []
-      target.type normalized := ⟨exprType, Hnormalized⟩
-  have Hwhole : sourceTypesVEnv.IsDefEqU lparams.length []
-      (VExpr.wrapForalls N.sourceParams
-        (VExpr.instantiateForallPrefix (N.containerFamily.type.instL N.levels)
-          N.baseArgs))
-      (VExpr.wrapForalls ownParams afterParams) := by
-    rw [← HnormalizedEq]
-    have HtoTarget := N.familyType.symm.trans henv (by trivial)
-      N.targetType.symm
-    have Hnormalized' : sourceTypesVEnv.IsDefEqU lparams.length []
-        target.type normalized := by simpa only [huvars] using HtargetNormalized
-    exact HtoTarget.trans henv (by trivial) Hnormalized'
-  have hlength : N.sourceParams.length = ownParams.length := by
-    exact hnparams.symm.trans hownParams.symm
-  have Hresidual := VEnv.IsDefEqU.wrapForalls_residual henv (by trivial)
-    hlength Hwhole
-  have hctx : OnCtx N.sourceParams.reverse
-      (sourceTypesVEnv.IsType lparams.length) := N.sourceParamsWF
-  rcases N.familyApplicationType with ⟨u, HappSort⟩
-  have Htyping : sourceTypesVEnv.HasType lparams.length
-      N.sourceParams.reverse
-      (VExpr.mkApps (.const N.containerFamily.name N.levels) N.baseArgs)
-      (VExpr.instantiateForallPrefix (N.containerFamily.type.instL N.levels)
-        N.baseArgs) := by
-    simpa only [abstractForallContext_toCtx, VLCtx.toCtx, List.append_nil]
-      using N.familyApplicationTyping
-  have Hsort : sourceTypesVEnv.HasType lparams.length
-      N.sourceParams.reverse
-      (VExpr.mkApps (.const N.containerFamily.name N.levels) N.baseArgs)
-      (.sort u) := by
-    simpa only [abstractForallContext_toCtx, VLCtx.toCtx, List.append_nil]
-      using HappSort
-  have HcanonicalSort : sourceTypesVEnv.IsDefEqU lparams.length
-      N.sourceParams.reverse
-      (VExpr.instantiateForallPrefix (N.containerFamily.type.instL N.levels)
-        N.baseArgs) (.sort u) := by
-    exact Htyping.uniqU henv hctx Hsort
-  have Hresidual' : sourceTypesVEnv.IsDefEqU lparams.length
-      N.sourceParams.reverse
-      (VExpr.instantiateForallPrefix (N.containerFamily.type.instL N.levels)
-        N.baseArgs) afterParams := by
-    simpa only [List.append_nil] using Hresidual
-  have HafterSort : sourceTypesVEnv.IsDefEqU lparams.length
-      N.sourceParams.reverse afterParams (.sort u) :=
-    Hresidual'.symm.trans henv hctx HcanonicalSort
-  exact VExpr.takeForalls_eq_zero_of_defEqSort henv hctx HindicesTake
-    HafterSort
 
 /-- The canonical base arguments retained by a native generated source and
 the live base arguments at a cache hit are structurally identical after the
@@ -1038,11 +967,6 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     (HcheckedHeader : TrSourceConst (ves.venv safety) lparams
       Horigin.source.name Horigin.source.type target.toVConstVal)
     (HfamilyApps : VExpr.WF sourceTypesVEnv lparams.length
-      (abstractForallContext sourceParams []).toCtx
-      (VExpr.mkApps
-        (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name levels)
-        baseArgs))
-    (HfamilyAppsIsType : sourceTypesVEnv.IsType lparams.length
       (abstractForallContext sourceParams []).toCtx
       (VExpr.mkApps
         (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name levels)
@@ -1285,9 +1209,6 @@ theorem GeneratedFamilyInstalledContainer.nativeGeneratedFamilySource
     familyApplicationTyping := by
       simpa only [containerFamily, Ctypes,
         GeneratedFamilyInstalledContainer.mono] using HfamilyData.2
-    familyApplicationType := by
-      simpa only [containerFamily, Ctypes,
-        GeneratedFamilyInstalledContainer.mono] using HfamilyAppsIsType
     constructors := by
       simpa [payload, source, containerFamily] using HdirectConstructors'
     constructorShapes := by
@@ -1359,8 +1280,8 @@ theorem FinalLoweredGeneratedFamilyOrigin.installedContainerBeforeHeaders
         VInductiveType.toVConstVal) = some sourceTypesVEnv)
     (Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
       finalState target)
-    (realization : RestoredFamilyRealization sourceTypesVEnv c.lparams
-      parameterDomains 0
+    (realization : GeneratedFamilyHeadRealization sourceTypesVEnv c.lparams
+      parameterDomains
       ((mkAppRange (.const Horigin.generated.sourceName
         Horigin.generated.levels) 0 Horigin.generated.nestedNParams
         Horigin.generated.args).abstractList
@@ -1509,7 +1430,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
       ⟨target, _htarget, Htr⟩
     have h := Htr.type.closed
     simpa [VLCtx.bvars] using h
-  rcases H.sourceParameterPrefix HsourceClosed HsourceBClosed e with
+  rcases H.sourceParameterPrefix HsourceClosed HsourceBClosed Haux.type with
     ⟨first, rest, residual, hsourceTypes, Htelescope, Hsame⟩
   subst sourceTypes
   have hfamily : 0 < (first :: rest).length := by simp
@@ -1549,10 +1470,9 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
       (VExpr.wrapForalls sourceDomains sourceResidual) :=
     HsourceTranslation.mono hsourceLE
   have HauxClosed : TrExprS sourceTypesVEnv c.lparams []
-      (result.lctx.mkForall result.params e)
-      (VExpr.wrapForalls Haux.domains Haux.residualTarget) := by
-    rw [← Haux.target]
-    exact Haux.closed
+      (result.lctx.mkForall result.params Haux.type)
+      (VExpr.wrapForalls Haux.domains Haux.residualType) :=
+    Haux.closed
   have HauxSource : VEnv.IsDefEqCtx sourceTypesVEnv c.lparams.length []
       Haux.domains.reverse sourceDomains.reverse := by
     have hauxDomains : Haux.domains.length = nparams :=
@@ -1608,8 +1528,8 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
       (mkAppRange (.const Horigin.generated.sourceName
         Horigin.generated.levels) 0 Horigin.generated.nestedNParams
         Horigin.generated.args).abstractList Horigin.generated.selection.fvars
-    ∃ realization : RestoredFamilyRealization sourceTypesVEnv
-        c.lparams parameterDomains 0 sourceApplication,
+    ∃ realization : GeneratedFamilyHeadRealization sourceTypesVEnv
+        c.lparams parameterDomains sourceApplication,
       ∃ abstractLevels, ∃ baseArgs,
       Horigin.generated.levels.mapM
           (VLevel.ofLevel c.lparams) =
@@ -1624,7 +1544,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
               arg.abstractList Horigin.generated.selection.fvars))
         baseArgs ∧
       (∀ arg ∈ baseArgs, arg.ClosedN parameterDomains.length) ∧
-      realization.semantics.family = VExpr.mkApps
+      realization.family = VExpr.mkApps
         (.const Horigin.generated.sourceName abstractLevels) baseArgs := by
   dsimp only
   let Hclosed : NestedLoweringResultClosed c.env fuel nparams sourceTypes
@@ -1646,7 +1566,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
     intro Haux
     exact Hclosed.auxiliaryFormationParameterContext (R := R) Hsources
       HsourceHeaders HsourceAdded HsourceTypesWF hempty selection Haux
-  rcases Horigin.generated.cachedFamilyRestoredRealizationZero Hmap
+  rcases Horigin.generated.cachedFamilyHeadRealization Hmap
       hselectionNodup Htranslations henvTypesWF
       ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
         (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse)
@@ -1666,114 +1586,6 @@ theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplication
         have Hwf' := (Hwf.mono hbaseLE).toCtx
         simpa only [AddInductive.getRecLevelParams, List.reverse_reverse]
           using Hwf') with
-    ⟨abstractLevels, baseArgs, Hlevels, hbaseLength, Hbase, HbaseClosed,
-      hfamily⟩
-  exact ⟨realization, abstractLevels, baseArgs, Hlevels, hbaseLength, Hbase,
-    HbaseClosed, hfamily⟩
-
-/-- The recursor-level counterpart of `abstractContainerApplication`.
-Unlike the formation specialization above, this theorem uses the actual
-admissible elimination level selected by the completed recursor phases.  The
-validated auxiliary is rebased to the exact canonical parameter suffix by
-`auxiliaryCanonicalParameterContext`; no family translation or parameter
-conversion is supplied by a caller. -/
-theorem FinalLoweredGeneratedFamilyOrigin.abstractContainerApplicationAtRecursor
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv envTypes envCtors : VEnv}
-    {headerEnv ctorEnv loweredEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
-      depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {initialState finalState : Lean4Lean.ElimNestedInductive.State}
-    (Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray }
-      (result, finalState))
-    (Hcache : NestedAuxFVarsIn (· ∈ result.lctx.fvars) finalState)
-    (Hparams : NestedResultParamsNodup result)
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
-    (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
-      isUnsafe sourceDecl envTypes envCtors)
-    (hempty : initialState.nestedAux = #[])
-    (selection : LocalForallSelection result.lctx result.params)
-    (Htranslations : ClosedNestedAuxiliaryTranslations envCtors
-      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams)
-      result selection)
-    (Horigin : FinalLoweredGeneratedFamilyOrigin c.env result.params nparams
-      finalState target) :
-    let parameterDomains :=
-      (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
-        Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse
-    let sourceApplication :=
-      (mkAppRange (.const Horigin.generated.sourceName
-        Horigin.generated.levels) 0 Horigin.generated.nestedNParams
-        Horigin.generated.args).abstractList Horigin.generated.selection.fvars
-    ∃ realization : RestoredFamilyRealization envCtors
-        (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams)
-        parameterDomains 0 sourceApplication,
-      ∃ abstractLevels, ∃ baseArgs,
-      Horigin.generated.levels.mapM
-          (VLevel.ofLevel
-            (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams)) =
-        some abstractLevels ∧
-      baseArgs.length = Horigin.generated.nestedNParams ∧
-      List.Forall₂
-        (TrExprS envCtors
-          (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams)
-          (abstractForallContext parameterDomains []))
-        ((Horigin.generated.args.toList.take
-          Horigin.generated.nestedNParams).map
-            (fun arg =>
-              arg.abstractList Horigin.generated.selection.fvars))
-        baseArgs ∧
-      (∀ arg ∈ baseArgs, arg.ClosedN parameterDomains.length) ∧
-      realization.semantics.family = VExpr.mkApps
-        (.const Horigin.generated.sourceName abstractLevels) baseArgs := by
-  dsimp only
-  let Hclosed : NestedLoweringResultClosed c.env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray } result :=
-    ⟨finalState, Hrun, Hcache, Hparams⟩
-  have Hmap : NestedAuxMapModels result finalState :=
-    Hrun.resultAuxMapModelsFresh (by simpa using hempty)
-  have hselectionNodup : selection.fvars.Nodup :=
-    Hclosed.selectionNodup selection
-  have henvCtorsWF : envCtors.WF := by
-    have hsourceWF : sourceVEnv.WF := by
-      rw [← Hheaders.sourceContextVEnv]
-      exact Hheaders.sourceContext.checking.tr.wf
-    exact Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource
-      hsourceWF
-  have Hcontexts : ∀ Haux : ClosedNestedAuxiliaryTranslation envCtors
-      (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams)
-      result selection Horigin.generated.data.nested,
-      VEnv.IsDefEqCtx envCtors
-        (AddInductive.getRecLevelParams Hprod.elimLevel c.lparams).length []
-        ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
-          Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse).reverse
-        Haux.domains.reverse := by
-    intro Haux
-    exact Hclosed.auxiliaryCanonicalParameterContext Hprod Hsource hempty
-      selection Haux
-  rcases Horigin.generated.cachedFamilyRestoredRealizationZero Hmap
-      hselectionNodup Htranslations henvCtorsWF
-      ((Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
-        Hprod.elimLevelAdmissible).parameterDecls.toCtx.reverse)
-      Hcontexts with
-    ⟨realization⟩
-  rcases Horigin.generated.abstractContainerApplication realization
-      henvCtorsWF (by
-        have Hwf :=
-          (Hheaders.sourceMaterialized.parameterSuffix.toRecursorContext
-            Hprod.elimLevelAdmissible).parameterWF
-        have hbaseLE :
-            (Hheaders.sourceContext.toAdmissibleRecursorContextWF
-              Hprod.elimLevelAdmissible).venv ≤ envCtors := by
-          rw [ContextWF.toAdmissibleRecursorContextWF_venv]
-          rw [Hheaders.sourceContextVEnv]
-          exact (VEnv.addConstVals_le Hsource.typesAdded).trans
-            (VEnv.addConstVals_le Hsource.ctorsAdded)
-        have Hwf' := (Hwf.mono hbaseLE).toCtx
-        simpa only [List.reverse_reverse] using Hwf') with
     ⟨abstractLevels, baseArgs, Hlevels, hbaseLength, Hbase, HbaseClosed,
       hfamily⟩
   exact ⟨realization, abstractLevels, baseArgs, Hlevels, hbaseLength, Hbase,
@@ -1861,28 +1673,10 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
       (VExpr.mkApps
         (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name
           abstractLevels) baseArgs) := by
-    refine ⟨VExpr.wrapForalls realization.semantics.indexDomains
-      realization.semantics.familyResult, ?_⟩
+    refine ⟨realization.familyType, ?_⟩
     rw [← C.lookupName.trans C.familyName, ← hfamily]
     simpa only [VEnv.HasType, abstractForallContext_toCtx, VLCtx.toCtx,
-      List.append_nil] using realization.semantics.familyTyping
-  have HfamilyAppsCanonicalIsType : sourceTypesVEnv.IsType c.lparams.length
-      (abstractForallContext parameterDomains []).toCtx
-      (VExpr.mkApps
-        (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name
-          abstractLevels) baseArgs) := by
-    have hindices := realization.indexDomains_eq_nil
-    have HappType := realization.semantics.familyApplicationType
-    rw [hfamily] at HappType
-    rw [hindices] at HappType
-    simp only [List.reverse_nil, List.nil_append, List.length_nil,
-      VExpr.liftN_zero, recursorCanonicalVars, List.ofFn_zero,
-      List.range_zero, List.map_nil, List.foldl_nil, VExpr.mkApps] at HappType
-    rw [C.lookupName.trans C.familyName] at HappType
-    dsimp only [parameterDomains]
-    simpa only [abstractForallContext_toCtx, VLCtx.toCtx, List.append_nil,
-      VExpr.mkApps]
-      using HappType
+      List.append_nil] using realization.familyTyping
   have HfamilyAppsOldAtSource : VExpr.WF sourceTypesVEnv c.lparams.length
       (abstractForallContext sourceDomains []).toCtx
       (VExpr.mkApps
@@ -1909,13 +1703,6 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
   have hctx : OnCtx (abstractForallContext sourceDomains []).toCtx
       (sourceTypesVEnv.IsType c.lparams.length) := by
     simpa [abstractForallContext_toCtx, VLCtx.toCtx] using hsourceParamWF
-  have HfamilyAppsOldAtSourceIsType : sourceTypesVEnv.IsType
-      c.lparams.length (abstractForallContext sourceDomains []).toCtx
-      (VExpr.mkApps
-        (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name
-          abstractLevels) baseArgs) :=
-    VEnv.IsType.defeqDFC HsourceTypesWF.ordered HcontextV.defeqCtx
-      HfamilyAppsCanonicalIsType
   have HheadWF := VExpr.WF.mkApps_fn HsourceTypesWF.ordered hctx
     HfamilyAppsOldAtSource
   have HheadEq := VEnv.IsDefEqU.refl HheadWF
@@ -1928,13 +1715,6 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
           abstractLevels) sourceBaseArgs) := by
     rcases HappEq with ⟨appType, HappEq⟩
     exact ⟨appType, HappEq.hasType.2⟩
-  have HfamilyAppsIsType : sourceTypesVEnv.IsType c.lparams.length
-      (abstractForallContext sourceDomains []).toCtx
-      (VExpr.mkApps
-        (.const (C.container.types[C.familyIdx]'C.familyIdx_lt).name
-          abstractLevels) sourceBaseArgs) :=
-    VEnv.IsType.defeqU_l HsourceTypesWF hctx HappEq
-      HfamilyAppsOldAtSourceIsType
   have hdomains : sourceDomains.length = H.generated.selection.fvars.length := by
     calc
       sourceDomains.length = nparams := hsourceDomains
@@ -1981,7 +1761,7 @@ theorem FinalLoweredGeneratedFamilyOrigin.nativeGeneratedFamilySource
       Hfamily
       (Hfamily.mono hbaseLE) targetAbstract
       HcheckedHeader
-      HfamilyApps HfamilyAppsIsType hsourceDomains hbaseClosed
+      HfamilyApps hsourceDomains hbaseClosed
       hlevelsLength
   rcases Hnative with ⟨N, hN⟩
   refine ⟨N, ?_⟩
@@ -2103,44 +1883,6 @@ theorem NestedLoweringRun.nativeGeneratedFamilySources
     refine ⟨O, N.1, ?_, N.2⟩
     simp only [generated, List.getElem_ofFn, N]
     congr 1
-
-/-- Every target position in the exact generated suffix has zero indices.
-The result is reconstructed from the native specialized-container typing and
-the ordinary header certificate at that literal position. -/
-theorem NestedGeneratedFamilyNativeSources.targetNumIndices_eq_zero
-    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
-    {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
-    {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
-    {headerEnv ctorEnv : Environment}
-    {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
-      depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {initialState finalState : Lean4Lean.ElimNestedInductive.State}
-    {Hrun : NestedLoweringRun c.env fuel nparams sourceTypes
-      { initialState with newTypes := sourceTypes.toArray }
-      (result, finalState)}
-    (N : NestedGeneratedFamilyNativeSources Hrun sourceVEnv sourceTypesVEnv
-      c.lparams loweredDecl)
-    (HsourceTypesWF : sourceTypesVEnv.WF)
-    (hbaseLE : sourceVEnv ≤ sourceTypesVEnv)
-    (Htarget : TrInductDeclCore sourceVEnv c.lparams nparams result.types
-      isUnsafe loweredDecl targetTypesVEnv targetCtorsVEnv)
-    (i : Nat) (hi : i < N.generated.length)
-    (hresult : sourceTypes.length + i < result.types.length)
-    (htarget : sourceTypes.length + i < loweredDecl.types.length) :
-    loweredDecl.types[sourceTypes.length + i].numIndices = 0 := by
-  rcases N.sourceAt i hi hresult htarget with
-    ⟨Horigin, Nsource, _hsource⟩
-  have Hshape₀ := Hheaders.sourceMaterialized.headers.typeShapes
-    loweredDecl.types[sourceTypes.length + i] (List.getElem_mem htarget)
-  have Hshape : loweredDecl.TypeShape sourceTypesVEnv
-      Hheaders.sourceMaterialized.headers.params
-      loweredDecl.types[sourceTypes.length + i] := by
-    apply typeShape_mono hbaseLE
-    simpa only [Hheaders.sourceContextVEnv] using Hshape₀
-  exact Nsource.numIndices_eq_zero HsourceTypesWF loweredDecl
-    Hheaders.sourceMaterialized.headers.params Hshape R.core.uvars
-      (R.core.nparams.trans Nsource.sourceParamsLength.symm)
 
 /-- Reindex the registry source at the exact cache slot selected by a reused
 replacement.  Cache-name uniqueness identifies the retained canonical
