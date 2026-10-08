@@ -38,20 +38,6 @@ private theorem listForM_eq_ok_of_mem
       · exact hhead
       · exact ih hrun htail
 
-/-- If a unit-returning first phase and a following phase both succeeded,
-then the first phase itself succeeded.  This is used to keep the original
-rule-validation projections stable when the executable checker gains an
-additional retained-evidence phase. -/
-private theorem except_bind_unit_left_of_ok
-    {first : Except error Unit} {next : Unit → Except error alpha}
-    (H : first >>= next = .ok value) : first = .ok () := by
-  cases hfirst : first with
-  | error err =>
-    rw [hfirst] at H
-    cases H
-  | ok unit =>
-    simpa using hfirst
-
 private theorem forallExists_to_forall₂
     (H : ∀ item ∈ items, ∃ target, relation item target) :
     ∃ targets, List.Forall₂ relation items targets := by
@@ -410,16 +396,16 @@ theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
     (validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run hrun hrec)
       hlookup
 
-private theorem validateRestoredRecursorRules.primaryFullCheck_eq_ok_of_run
+private theorem validateRestoredRecursorRules.primaryCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types) :
-    Lean4Lean.validateRestoredRecursorRules.checkPrimary env loweredEnv lparams
+    Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
       safety fuel result recNameMap allIndNames auxRecNames
         (Lean.mkRecName indType.name) = .ok () := by
   unfold Lean4Lean.validateRestoredRecursorRules.run at hrun
   cases hprimary : types.forM fun type =>
-      Lean4Lean.validateRestoredRecursorRules.checkPrimary env loweredEnv lparams
+      Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
         safety fuel result recNameMap allIndNames auxRecNames
           (Lean.mkRecName type.name) with
   | error err =>
@@ -430,27 +416,9 @@ private theorem validateRestoredRecursorRules.primaryFullCheck_eq_ok_of_run
       rcases unit with ⟨⟩
       exact listForM_eq_ok_of_mem
         (fun type : InductiveType =>
-          Lean4Lean.validateRestoredRecursorRules.checkPrimary env loweredEnv lparams
+          Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
             safety fuel result recNameMap allIndNames auxRecNames
               (Lean.mkRecName type.name)) hprimary htype
-
-private theorem validateRestoredRecursorRules.primaryCheck_eq_ok_of_run
-    (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
-      safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
-    (htype : indType ∈ types) :
-    Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
-      safety fuel result recNameMap allIndNames auxRecNames
-        (Lean.mkRecName indType.name) = .ok () := by
-  have hfull :=
-    validateRestoredRecursorRules.primaryFullCheck_eq_ok_of_run hrun htype
-  unfold Lean4Lean.validateRestoredRecursorRules.checkPrimary at hfull
-  cases hcommon : Lean4Lean.validateRestoredRecursorRules.check env loweredEnv
-      lparams safety fuel result recNameMap allIndNames auxRecNames
-        (Lean.mkRecName indType.name) with
-  | error err => simp [hcommon, bind, Except.bind] at hfull
-  | ok unit =>
-      cases unit
-      simpa using hcommon
 
 private theorem validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
@@ -460,7 +428,7 @@ private theorem validateRestoredRecursorRules.auxiliaryCheck_eq_ok_of_run
       safety fuel result recNameMap allIndNames auxRecNames recName = .ok () := by
   unfold Lean4Lean.validateRestoredRecursorRules.run at hrun
   cases hprimary : types.forM fun type =>
-      Lean4Lean.validateRestoredRecursorRules.checkPrimary env loweredEnv lparams
+      Lean4Lean.validateRestoredRecursorRules.check env loweredEnv lparams
         safety fuel result recNameMap allIndNames auxRecNames
           (Lean.mkRecName type.name) with
   | error err =>
@@ -498,49 +466,19 @@ theorem validateRestoredRecursorRules.translation_of_check
   unfold Lean4Lean.validateRestoredRecursorRules.check at hstep
   rw [hlookup] at hstep
   simp only at hstep
-  have hvalidated := except_bind_unit_left_of_ok hstep
-  have hruleFull : (do
-      env.checkNoMVarNoFVar restored.name rule.rhs
-      _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
-        (lparams := restored.levelParams) (fuel := fuel) do
-          TypeChecker.checkType rule.rhs
-      _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
-        (lparams := restored.levelParams) (fuel := fuel) do
-          Lean4Lean.validateRestoredRecursorRules.checkEquation restored rule
-      pure ()) =
-        .ok () := by
-    apply listForM_eq_ok_of_mem
-      (fun candidate : RecursorRule => do
-        env.checkNoMVarNoFVar restored.name candidate.rhs
-        _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
-          (lparams := restored.levelParams) (fuel := fuel) do
-            TypeChecker.checkType candidate.rhs
-        _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
-          (lparams := restored.levelParams) (fuel := fuel) do
-            Lean4Lean.validateRestoredRecursorRules.checkEquation restored
-              candidate
-        pure ())
-    · simpa only [restored] using hvalidated
-    · simpa only [restored] using hrule
   have hruleStep : (do
       env.checkNoMVarNoFVar restored.name rule.rhs
       _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
         (lparams := restored.levelParams) (fuel := fuel) do
           TypeChecker.checkType rule.rhs) = .ok () := by
-    cases hclosed : env.checkNoMVarNoFVar restored.name rule.rhs with
-    | error err =>
-        rw [hclosed] at hruleFull
-        cases hruleFull
-    | ok unit =>
-        rcases unit with ⟨⟩
-        rw [hclosed] at hruleFull
-        cases htype : TypeChecker.M.run env (safety := safety) (lctx := {})
-            (lparams := restored.levelParams) (fuel := fuel)
-            (TypeChecker.checkType rule.rhs) with
-        | error err =>
-            rw [htype] at hruleFull
-            cases hruleFull
-        | ok inferred => rfl
+    apply listForM_eq_ok_of_mem
+      (fun candidate : RecursorRule => do
+        env.checkNoMVarNoFVar restored.name candidate.rhs
+        _ ← TypeChecker.M.run env (safety := safety) (lctx := {})
+          (lparams := restored.levelParams) (fuel := fuel) do
+            TypeChecker.checkType candidate.rhs)
+    · simpa only [restored] using hstep
+    · simpa only [restored] using hrule
   have hclosedRun : env.checkNoMVarNoFVar restored.name rule.rhs = .ok () := by
     cases hclosed : env.checkNoMVarNoFVar restored.name rule.rhs with
     | error err =>

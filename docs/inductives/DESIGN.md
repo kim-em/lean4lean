@@ -378,8 +378,8 @@ run, under the same key, restored by the nested compilation's restoration
 (`Nested/CaseEliminators.lean`), certified from the validated run.
 
 The executable validates the restoration before installing it: restored constructor
-types, restored recursor types, and restored rules, each rule as a closed
-equation whose two sides are type checked and compared (`validateRestoredRecursorRules`).
+types, restored recursor types, and the right-hand side of each restored rule, as the
+C++ kernel does (`validateRestoredRecursorRules`).
 Rules are validated in a copy of the restored environment in which every restored recursor
 has no rules (`stripRecursorRules`), because the abstract iota equations are only added once
 the rules are known to be well formed (`Nested/StrippedValidity.lean`). The proof reads only
@@ -673,9 +673,9 @@ wrapper name. The other changes cannot change a decision except through checker 
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
   are named `_nested.i` rather than `_nested.J_i` (internal names only). The nested
   restoration validation of section 3.3 re-checks restored declarations in side environments
-  and validates restored rules in the
-  stripped environment with equation-type checks, stricter than the
-  C++ kernel's revalidation (leanprover/lean4#14621). The nested applications `I Ds`
+  and type-checks the right-hand sides of the restored rules in the
+  stripped environment, as the C++ kernel's revalidation (leanprover/lean4#14621) does in the
+  complete restored environment. The nested applications `I Ds`
   themselves are only type-checked, as in the C++ kernel.
 - **Caching**: `whnf` results are cached only for applications, constants, lambdas and
   projections (`Lean4Lean/WHNFCacheKey.lean`), which keeps the cache invariant within reach
