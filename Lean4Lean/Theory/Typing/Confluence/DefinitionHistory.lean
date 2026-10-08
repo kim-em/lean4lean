@@ -246,7 +246,7 @@ private theorem declaration_le (H : VDecl.WF env declaration extended) : env ≤
     obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := ha
     exact ((((VEnv.addConst_le ha).trans (VEnv.addConst_le hb)).trans
       (VEnv.addConst_le hc)).trans (VEnv.addConst_le hd)).trans VEnv.addDefEq_le
-  | induct _ ha =>
+  | induct ha =>
     cases ha with
     | intro _ _ _ _ hi =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -324,7 +324,7 @@ private theorem declaration_constEquation_origin
     · cases hhead
     · exact .inr (by rwa [VEnv.addConst_defeqs hd, VEnv.addConst_defeqs hc,
         VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at hdf)
-  | induct _ ha =>
+  | induct ha =>
     cases ha with
     | intro _ hcompile _ _ hi =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -332,7 +332,7 @@ private theorem declaration_constEquation_origin
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hi
       rw [VEnv.addDefEqRules_defeqs_iff_mem_or] at hdf
       rcases hdf with hmem | hdf
-      · obtain ⟨_, ⟨fn, us, args, hmajor⟩, _⟩ := hcompile.compiled.equation_major_cases equation hmem
+      · obtain ⟨_, ⟨fn, us, args, hmajor⟩, _⟩ := hcompile.equation_major_cases equation hmem
         rw [hhead] at hmajor
         cases hmajor
       · exact .inr (by rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
@@ -425,7 +425,7 @@ private theorem declaration_old_equation
       exact (exclude ((VEnv.addConst_le ha).trans (VEnv.addConst_le hb)) hf).elim
     · rwa [VEnv.addConst_defeqs hd, VEnv.addConst_defeqs hc,
         VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at hdf
-  | induct _ ha =>
+  | induct ha =>
     cases ha with
     | intro _ hcompile _ _ hi =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -433,7 +433,7 @@ private theorem declaration_old_equation
       obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := hi
       rw [VEnv.addDefEqRules_defeqs_iff_mem_or] at hdf
       rcases hdf with hmem | hdf
-      · obtain ⟨rec, hrec, us, howned⟩ := hcompile.compiled.equation_head_owned equation hmem
+      · obtain ⟨rec, hrec, us, howned⟩ := hcompile.equation_head_owned equation hmem
         rw [VExpr.equationHead_eq] at hhead
         have hn := (VExpr.const.inj (howned.symm.trans hhead)).1
         have hf := VEnv.addConstVals_names_fresh hr rec hrec

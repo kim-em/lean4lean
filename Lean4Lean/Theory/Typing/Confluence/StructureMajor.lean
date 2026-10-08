@@ -202,7 +202,7 @@ theorem WF'.quot_no_projection (H : VEnv.WF' ds env) :
           (VEnv.addConst_projections hd).trans <| (VEnv.addConst_projections hc).trans <|
             (VEnv.addConst_projections hb).trans (VEnv.addConst_projections ha)
         exact .inl (h ▸ hp)
-      | induct _ hadd =>
+      | induct hadd =>
         cases hadd with
         | intro _ hcompile _ _ hinstall =>
           simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,

@@ -105,7 +105,7 @@ theorem CompilationData.restorableNames_fresh
   obtain ⟨envT, direct, _, hdirect, _, hfamilies⟩ := H.correspondence
   have hexpNames : familyNames expanded.types = familyNames source.types ++ familyNames direct := by
     rw [← H.model.familyNames, RestoresFamily.familyNames hfamilies, familyNames_append]
-  obtain ⟨envExpT, envExpC, _, hexpT, hexpC, _⟩ := H.recursiveTypesWF
+  obtain ⟨envExpT, envExpC, _, hexpT, hexpC, _⟩ := H.generatedIHsWellTyped
   have hfreshExp : ∀ m ∈ familyNames expanded.types, base.constants m = none := by
     intro m hm
     rcases mem_familyNames.mp hm with ⟨t, ht, rfl⟩ | ⟨t, ht, c, hc, rfl⟩

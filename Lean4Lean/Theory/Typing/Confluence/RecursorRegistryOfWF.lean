@@ -127,12 +127,12 @@ theorem WF'.recursorRegistry (formed : env.WF' declarations) :
       · exact (covered equation (by
           rwa [VEnv.addConst_defeqs hd, VEnv.addConst_defeqs hc,
             VEnv.addConst_defeqs hb, VEnv.addConst_defeqs ha] at present)).declaration previous declaration
-    | induct original installed =>
+    | induct installed =>
       rename_i source
       cases installed with
-      | intro _ compiled blockWF eliminatorsWF installed =>
+      | intro original compiled blockWF eliminatorsWF installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, below, compilation, specializations⟩ :=
-          compiled.compiled.exists_compilation
+          compiled.exists_compilation
         let key : Name := (source.types.head?.map (·.name)).getD `recursorRegistry
         refine ⟨installEntries table (compilationEntries key _ signature auxiliaries generated),
           .induct history original compiled blockWF eliminatorsWF installed compilation

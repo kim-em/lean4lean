@@ -235,14 +235,6 @@ end InductiveSignature
 namespace CompiledInductive
 open InductiveSignature
 
-theorem projections_eq (H : CompiledInductive env source block) :
-    block.projections = source.projectionEntries := by
-  exact CompiledInductive.rec
-    (motive_1 := fun _ source block _ => block.projections = source.projectionEntries)
-    (motive_2 := fun _ _ _ => True)
-    (fun hdata _ _ => hdata.projections) (fun _ _ _ ih => ih)
-    trivial (fun _ _ _ _ _ _ _ => trivial) H
-
 theorem ctor_names_nodup (H : CompiledInductive env source block) :
     (source.constructorConstants.map VConstVal.name).Nodup := by
   exact CompiledInductive.rec

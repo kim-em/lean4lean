@@ -120,7 +120,7 @@ def atFive (u v : VLevel) (alpha relation beta fn compat : VExpr) : PrefixUnfold
 theorem generate_atFive : QuotPrefixUnfolding.generate [u,v] [alpha, relation, beta, fn, compat] =
     some (atFive u v alpha relation beta fn compat) := by
   simp [QuotPrefixUnfolding.generate, atFive, supplyType, quotLiftConst, instL, inst, VLevel.inst,
-    inst_lift, ← lift_instN_lo, RecursorData.takeForalls, vars, mkApps,
+    inst_lift, ← lift_instN_lo, VExpr.takeForalls, vars, mkApps,
     quotDefEq, CaseSchema.EquationBody.extract,
     VExpr.takeForalls, stripLams]
 

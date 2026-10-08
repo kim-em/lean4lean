@@ -175,7 +175,7 @@ theorem RecursorRegistryHistory.quotient
       below ih =>
     have oldMember : VDecl.quot ∈ _ := (List.mem_cons.mp member).resolve_left (by intro h; cases h)
     obtain ⟨registered, absent⟩ := ih oldMember
-    refine ⟨registered.mono (declaration_le (.induct original
+    refine ⟨registered.mono (declaration_le (.induct
       (.intro original compiled formed eliminatorsWF installed))), ?_⟩
     cases lookup : installEntries _ _ ``Quot.lift with
     | none => rfl

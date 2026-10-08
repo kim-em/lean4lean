@@ -191,13 +191,13 @@ private theorem StructureCtorCoherent.addInduct (H : StructureCtorCoherent env)
         · exact hm
         · rw [hdf] at ho; exact absurd ho hold
       obtain ⟨name, horigin, hctor | ⟨prior, hprior, hpm⟩⟩ :=
-        hcompile.compiled.equation_major_cases eq hd'
+        hcompile.equation_major_cases eq hd'
       · have hn := hasConstructorMajor_unique hm horigin
         obtain ⟨ctor, hctorMem, hname⟩ := hctor
         have hc : c = ctor.name := hn.trans hname
         subst hc
         obtain ⟨type, htype, hct⟩ := List.mem_flatMap.mp hctorMem
-        obtain ⟨ls, hres⟩ := hcompile.compiled.ctor_result type htype ctor hct
+        obtain ⟨ls, hres⟩ := hcompile.ctor_result type htype ctor hct
         have hcLookup : (envRecs.addDefEqRules block.rules).constants ctor.name =
             some ctor.toVConstant := by
           have hc : ctor ∈ block.ctors := by rw [hcompile.ctors]; exact hctorMem
@@ -309,7 +309,7 @@ theorem WF'.structureCtorCoherent (H : VEnv.WF' ds env) : StructureCtorCoherent 
           exact (definition_no_major hm).elim
         · rw [VEnv.addConstVals_defeqs hadd'] at hd; exact absurd hd hold
     | quot _ hadd => exact ih.addQuot henv hadd
-    | induct _ hadd => exact ih.addInduct henv hadd
+    | induct hadd => exact ih.addInduct henv hadd
   | inductEliminators _ _ _ _ _ _ _ _ _ _ _ ih =>
     intro F info hp eq c hd hm hr
     exact ih F info hp eq c hd hm ⟨hr.choose, hr.choose_spec.choose, hr.choose_spec.choose_spec⟩

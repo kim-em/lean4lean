@@ -168,7 +168,7 @@ theorem history (H : RecursorRegistryHistory env declarations table) : env.WF' d
   | empty => exact .empty
   | decl _ declaration ih => exact .decl declaration ih
   | induct _ original compiled formed eliminatorsWF installed _ _ _ ih =>
-    exact .decl (.induct original (.intro original compiled formed eliminatorsWF installed)) ih
+    exact .decl (.induct (.intro original compiled formed eliminatorsWF installed)) ih
   | eliminators _ baseHistory hle registered constants equations projectionNames coherent fresh
       compat ih =>
     exact .inductEliminators baseHistory ih hle registered constants equations projectionNames
@@ -196,7 +196,7 @@ theorem origin (H : RecursorRegistryHistory env declarations table)
         (fun value => value.name == name) with
     | none =>
       obtain ⟨same, ⟨origin⟩⟩ := ih (by simpa only [found, Option.orElse_none] using lookup)
-      exact ⟨same, ⟨origin.later (.induct original
+      exact ⟨same, ⟨origin.later (.induct
         (.intro original compiled formed eliminatorsWF installed))⟩⟩
     | some selected =>
       simp only [found, Option.orElse_some, Option.some.injEq] at lookup
