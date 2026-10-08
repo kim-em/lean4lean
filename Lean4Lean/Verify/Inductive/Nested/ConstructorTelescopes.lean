@@ -50,22 +50,21 @@ theorem validateRestoredConstructorParameters.telTr_of_run
     exact (TypeChecker.ensureSort.WF hsort).mono fun _ _ _ _ => htel
   exact TypeChecker.M.WF.runCheckingValid Hcheck checked hcheck
 
-/-- Every constructor visible after a successful validated nested run, and every constructor of
-its constructor-validation environment, is certified in the source header environment. -/
-theorem NestedValidatedRunResult.restoredCtorTelescopes
+/-- Every constructor visible after a successful validated nested run is old, or a new
+constructor carrying the declaration's safety flag and certified in the source header
+environment. -/
+theorem NestedValidatedRunResult.restoredCtorOrigin
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv)
     (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
-    (hbase : CtorTelescopes safety sourceProdEnv sourceVEnv) :
-    CtorTelescopes safety outEnv E.nativeSource.envTypes ∧
-      CtorTelescopes safety E.validationEnv E.nativeSource.envTypes := by
+    {name : Name} {ci : ConstructorVal} (hfind : outEnv.find? name = some (.ctorInfo ci)) :
+    sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+      (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt E.nativeSource.envTypes ci) := by
   have hwf : sourceProdEnv.constants.WF := by
     have h := E.productionContextWF.checking.tr.map_wf
     rwa [E.productionContext_env] at h
-  have hle : sourceVEnv ≤ E.nativeSource.envTypes :=
-    VEnv.addConstVals_le E.nativeSource.core.typesAdded
   -- the restored headers have the source header types
   have hheaderType : ∀ indType ∈ sourceTypes, ∀ oldInfo : InductiveVal,
       E.loweredEnv.find? indType.name = some (.inductInfo oldInfo) →
@@ -126,14 +125,35 @@ theorem NestedValidatedRunResult.restoredCtorTelescopes
       ∃ T, TelTr E.nativeSource.envTypes lparams [] source.type T :=
     fun _ htype _ hsource => validateRestoredConstructorParameters.telTr_of_run
       E.nativeSource.headerValidationValid hgf Hsources E.parameterValidation htype hsource
+  rcases E.installedConstructorSource Hsources Howners hfind with
+    hold | ⟨type, htype, source, hsource, -, hlp, heqv, -, hu⟩
+  · exact .inl hold
+  · obtain ⟨T, hT⟩ := hsrc type htype source hsource
+    refine .inr ⟨hu, ?_⟩
+    rw [CtorTelescopeAt, hlp]
+    exact ⟨T, hT.eqv_toTelTrN (BEq.symm heqv)⟩
+
+/-- Every constructor visible after a successful validated nested run, and every constructor of
+its constructor-validation environment, is certified in the source header environment. -/
+theorem NestedValidatedRunResult.restoredCtorTelescopes
+    (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceVEnv
+      sourceDecl lparams nparams isUnsafe safety outEnv)
+    (Hsources : SourceSyntaxChecks sourceTypes)
+    (Howners : ConstructorOwnersPresent sourceProdEnv)
+    (henv : TypeChecker.EnvGF (fun _ => True) sourceProdEnv)
+    (hbase : CtorTelescopes safety sourceProdEnv sourceVEnv) :
+    CtorTelescopes safety outEnv E.nativeSource.envTypes ∧
+      CtorTelescopes safety E.validationEnv E.nativeSource.envTypes := by
+  have hwf : sourceProdEnv.constants.WF := by
+    have h := E.productionContextWF.checking.tr.map_wf
+    rwa [E.productionContext_env] at h
+  have hle : sourceVEnv ≤ E.nativeSource.envTypes :=
+    VEnv.addConstVals_le E.nativeSource.core.typesAdded
   have hout : CtorTelescopes safety outEnv E.nativeSource.envTypes := by
     intro name ci hfind hvis
-    rcases E.installedConstructorSource Hsources Howners hfind with
-      hold | ⟨type, htype, source, hsource, -, hlp, heqv, -⟩
+    rcases E.restoredCtorOrigin Hsources Howners henv hfind with hold | ⟨-, hc⟩
     · exact (hbase hold hvis).mono hle
-    · obtain ⟨T, hT⟩ := hsrc type htype source hsource
-      rw [CtorTelescopeAt, hlp]
-      exact ⟨T, hT.eqv_toTelTrN (BEq.symm heqv)⟩
+    · exact hc
   refine ⟨hout, ?_⟩
   intro name ci hfind hvis
   refine hout (name := name) (ci := ci) ?_ hvis

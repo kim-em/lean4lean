@@ -118,7 +118,8 @@ theorem SemanticRunWithStatsResult.extendSafeExact
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
         isUnsafe decl envTypes envCtors ∧
-      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) ∧
+      VEnvs.CertPres c.env outEnv ves ves' := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
@@ -150,9 +151,19 @@ theorem SemanticRunWithStatsResult.extendSafeExact
       Hrecursors.closed howners hconstructors
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
-    ⟨ves', wf', hle, hadd, _hsafe⟩
-  exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
-    wf', hle, R.core, hadd⟩
+    ⟨ves', wf', hle, hadd, hsafe⟩
+  have htypes : (ves.venv .safe).addConstVals (Hheaders.entries.map Prod.snd) =
+      some Hheaders.context.venv := by
+    rw [Hheaders.values]; exact Hheaders.translation.typesAdded
+  have hH : Hheaders.context.venv ≤ ves'.venv .safe :=
+    (B.typesLe htypes).trans hsafe
+  refine ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
+    wf', hle, R.core, hadd, VEnvs.CertPres.ofOrigin (isUnsafe := isUnsafe)
+      (venvH := Hheaders.context.venv) hle wf'.mono ?_
+      fun hfind => Hrecursors.completed.ctorOrigin hfind⟩
+  cases isUnsafe
+  · exact hH
+  · exact hH.trans (wf'.mono DefinitionSafety.unsafe_le)
 
 /-- Environment-preservation projection of `extendSafeExact`. -/
 theorem SemanticRunWithStatsResult.extendSafe
@@ -202,7 +213,8 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
       TrInductDeclCore (ves.venv .unsafe) c.lparams nparams indTypes.toList
         isUnsafe decl envTypes envCtors ∧
-      VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) := by
+      VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) ∧
+      VEnvs.CertPres c.env outEnv ves ves' := by
   subst sourceEnv
   rcases Hrun with
     ⟨decl, headerEnv, ctorEnv, Hheaders, R, ⟨Hrecursors⟩⟩
@@ -249,9 +261,20 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   rcases B.extendUnsafeOfHiddenExact wf hcorner hdecl hcompile
       horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors
       (Hrecursors.blockEliminatorsWF T.rules T.rulesWF) with
-    ⟨ves', wf', hle, hadd⟩
-  exact ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
-    wf', hle, R.core, hadd⟩
+    ⟨ves', wf', hle, hadd, hfinal⟩
+  have htypes : (ves.venv .unsafe).addConstVals (Hheaders.entries.map Prod.snd) =
+      some Hheaders.context.venv := by
+    rw [Hheaders.values]; exact Hheaders.translation.typesAdded
+  have hH : Hheaders.context.venv ≤ ves'.venv .unsafe :=
+    (B.typesLe htypes).trans hfinal
+  refine ⟨ves', decl, Hheaders.context.venv, R.declared.venvCtors,
+    wf', hle, R.core, hadd, VEnvs.CertPres.ofOrigin (isUnsafe := isUnsafe)
+      (venvH := Hheaders.context.venv) hle wf'.mono ?_
+      fun hfind => Hrecursors.completed.ctorOrigin hfind⟩
+  have : (if isUnsafe then DefinitionSafety.unsafe else .safe) = .unsafe := by
+    simp [hisUnsafe]
+  rw [this]
+  exact hH
 
 /-- Environment-preservation projection of `extendUnsafeExact`. -/
 theorem SemanticRunWithStatsResult.extendUnsafe

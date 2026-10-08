@@ -209,6 +209,69 @@ theorem CompletedFormationInstallation.constructorEntrySafety
   | ordinary _ Hctors => exact Hctors.entrySafety hentry
   | primitive _ Hctors _ => exact Hctors.entrySafety hentry
 
+/-- Every constant of the completed constructor environment is old or an installed entry. -/
+theorem CompletedFormationInstallation.entryOrigin
+    (H : CompletedFormationInstallation safety sourceEnv sourceVEnv
+      headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
+    (hwf : sourceEnv.constants.WF)
+    (hfind : ctorEnv.find? name = some found) :
+    sourceEnv.find? name = some found ∨ (∃ e ∈ headerEntries, found = e.1) ∨
+      ∃ e ∈ ctorEntries, found = e.1 := by
+  have hheaderWF := H.headerMapWF hwf
+  cases H with
+  | ordinary Htypes Hctors =>
+    rcases (AtomicAddConstants.ofAddConstants Hctors).entryOrigin hheaderWF hfind with
+      h | ⟨e, he, -, rfl⟩
+    · rcases (AtomicAddConstants.ofAddConstants Htypes).entryOrigin hwf h with
+        h | ⟨e, he, -, rfl⟩
+      · exact .inl h
+      · exact .inr (.inl ⟨e, he, rfl⟩)
+    · exact .inr (.inr ⟨e, he, rfl⟩)
+  | primitive Htypes Hctors _ =>
+    rcases Hctors.entryOrigin hheaderWF hfind with h | ⟨e, he, -, rfl⟩
+    · rcases Htypes.entryOrigin hwf h with h | ⟨e, he, -, rfl⟩
+      · exact .inl h
+      · exact .inr (.inl ⟨e, he, rfl⟩)
+    · exact .inr (.inr ⟨e, he, rfl⟩)
+
+theorem InductiveHeaderEntries.not_ctor (H : InductiveHeaderEntries infos entries) :
+    ∀ e ∈ entries, ∀ info : ConstructorVal, e.1 ≠ .ctorInfo info := by
+  induction H with
+  | nil => simp
+  | cons _ ih =>
+    intro e he info heq
+    rcases List.mem_cons.mp he with rfl | he
+    · cases heq
+    · exact ih e he info heq
+
+theorem ConstructorListEntries.mem_info
+    {mkInfo : Nat → Constructor → ConstructorVal}
+    (H : ConstructorListEntries mkInfo start ctors entries) :
+    ∀ e ∈ entries, ∃ ctor ∈ ctors, ∃ i, e.1 = .ctorInfo (mkInfo i ctor) := by
+  induction H with
+  | nil => simp
+  | @cons start ctors tail ctor value _ ih =>
+    intro e he
+    rcases List.mem_cons.mp he with rfl | he
+    · exact ⟨ctor, List.mem_cons_self, _, rfl⟩
+    · obtain ⟨c, hc, i, h⟩ := ih e he
+      exact ⟨c, List.mem_cons_of_mem _ hc, i, h⟩
+
+theorem ConstructorTypeEntries.mem_info
+    {mkInfo : InductiveType → Nat → Constructor → ConstructorVal}
+    (H : ConstructorTypeEntries mkInfo owners entries) :
+    ∀ e ∈ entries, ∃ owner ∈ owners, ∃ ctor ∈ owner.ctors, ∃ i,
+      e.1 = .ctorInfo (mkInfo owner i ctor) := by
+  induction H with
+  | nil => simp
+  | cons Hhead _ ih =>
+    intro e he
+    rcases List.mem_append.mp he with he | he
+    · obtain ⟨c, hc, i, h⟩ := Hhead.mem_info e he
+      exact ⟨_, List.mem_cons_self, c, hc, i, h⟩
+    · obtain ⟨o, ho, c, hc, i, h⟩ := ih e he
+      exact ⟨o, List.mem_cons_of_mem _ ho, c, hc, i, h⟩
+
 /-- Stable input boundary for recursor generation.  It contains only facts
 available after every constructor is installed and the final checking context
 is valid.  No field requires a valid header-only context. -/
@@ -265,6 +328,27 @@ structure CompletedConstructorPhases (c : AddInductive.Context)
   constructorSemantics : forall {safety},
     InductiveConstructorsSemanticallyCoherent safety c.env sourceEnv ->
     InductiveConstructorsSemanticallyCoherent safety ctorEnv ctorVEnv
+
+/-- Every constructor of the completed constructor environment is old, or a new constructor of
+the declaration, with the declaration's safety flag and a certified type. -/
+theorem CompletedConstructorPhases.ctorOrigin
+    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv)
+    (hfind : ctorEnv.find? name = some (.ctorInfo ci)) :
+    c.env.find? name = some (.ctorInfo ci) ∨
+      (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt R.headerVEnv ci) := by
+  rcases R.installation.entryOrigin R.sourceContext.checking.tr.map_wf hfind with
+    h | ⟨e, he, heq⟩ | ⟨e, he, heq⟩
+  · exact .inl h
+  · obtain ⟨_, hH⟩ := R.headerSourceAligned
+    exact absurd heq.symm (hH.not_ctor e he ci)
+  · obtain ⟨owner, howner, ctor, hctor, i, he1⟩ :=
+      R.constructorSourceAligned.mem_info e he
+    rw [he1] at heq
+    cases heq
+    refine .inr ⟨by simp [AddInductive.constructorInfo], ?_⟩
+    obtain ⟨T, hT⟩ := R.telescopes owner howner ctor hctor
+    exact ⟨T, by simpa [AddInductive.constructorInfo] using hT⟩
 
 /-- The constructor-complete abstract environment admits the exact projection
 prefix of this declaration as a genuine staged well-formed environment. -/

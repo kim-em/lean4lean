@@ -43,8 +43,14 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
     (Hlower : NestedLoweringResultClosed sourceProdEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
     (hempty : initialState.nestedAux = #[])
-    (hconstructors : NestedExactConstructorSemantics E) :
-    Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+    (hconstructors : NestedExactConstructorSemantics E)
+    {venvH : VEnv}
+    (htypesH : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      decl.typeConstants = some venvH)
+    (hctorOrigin : ∀ {name ci}, outEnv.find? name = some (.ctorInfo ci) →
+      sourceProdEnv.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
+    Nonempty (InductiveFinalResult sourceProdEnv outEnv ves lparams nparams sourceTypes
       isUnsafe) := by
   have Hlower' : NestedLoweringResultClosed E.productionContext.env fuel
       nparams sourceTypes
@@ -56,10 +62,10 @@ theorem NestedExactFinalRunResult.inductiveFinalResult
   cases isUnsafe with
   | false =>
       exact E.safeInductiveFinalResult wf hcorner Hlower' Hmetadata
-        Hsources hempty hconstructors
+        Hsources hempty hconstructors htypesH hctorOrigin
   | true =>
       exact E.unsafeInductiveFinalResult wf hcorner Hlower' Hmetadata
-        Hsources hempty hconstructors
+        Hsources hempty hconstructors htypesH hctorOrigin
 
 /-- Final-result refinement for the nested post-lowering branch.  Exact
 assembly and constructor parameter domains are reconstructed internally from
@@ -76,7 +82,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
     (hnested : res.aux2nested.size ≠ 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   let Hc' : ContextWF
       (nestedAddInductiveContext env lparams isUnsafe false fuel) :=
@@ -199,8 +205,14 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
       | true =>
           exact E'.unsafeConstructorSemanticsOfParameterDomains wf HlowerExact
             Hmetadata Hsources Howners rfl Hparams
+    have htypesH : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+        sourceDecl.typeConstants = some V'.nativeSource.envTypes := by
+      have h := V'.nativeSource.core.typesAdded
+      rw [V'.nativeSourceDecl_eq] at h
+      exact h
     exact E'.inductiveFinalResult wf hcorner Hsources HlowerInitialClosed rfl
-      hconstructors
+      hconstructors htypesH
+      (V'.restoredCtorOrigin Hsources wf.constructorOwners wf.envGF)
 
 end VerifyInductive
 end Lean4Lean

@@ -188,7 +188,8 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
     (Hreplay : ∀ safety, VInductBlock.EliminatorsReplay (ves.venv safety) decl H.block) :
     exists ves' : VEnvs, ves'.WFCore outEnv /\
       (forall safety, ves.venv safety <= ves'.venv safety) /\
-      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) /\
+      H.finalVEnv <= ves'.venv .safe := by
   have valid (safety : DefinitionSafety) :
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
@@ -283,9 +284,11 @@ theorem CompletedBlockCertificate.extendSafePrimitiveExact
         exact VInductBlock.install_mono (wf.mono hle)
           hinstall (cert safety).install) with
     ⟨ves', wf', hle, hexact⟩
-  refine ⟨ves', wf', hle, ?_⟩
-  rw [hexact .safe]
-  exact (adds .safe).toVEnv
+  refine ⟨ves', wf', hle, ?_, ?_⟩
+  · rw [hexact .safe]
+    exact (adds .safe).toVEnv
+  · rw [hexact .safe]
+    exact outputLE .safe
 
 /-- Primitive installation preserves the bootstrap phase invariant: before
 `Eq`, the exact Bool/Nat batch leaves it absent; after `Eq`, monotonicity
@@ -387,7 +390,8 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
       (forall safety, ves.venv safety <= ves'.venv safety) /\
       TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
         (c.safety != .safe) decl envTypes envCtors /\
-      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) := by
+      VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) /\
+      VEnvs.CertPres c.env outEnv ves ves' := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
   have hsafety : c.safety = .safe := by
     have hnotUnsafe : (c.safety != .safe) = false := Hshape.2.2.1
@@ -428,8 +432,17 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
-    ⟨ves', wf', hle, hadd⟩
-  exact ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd⟩
+    ⟨ves', wf', hle, hadd, hfinal⟩
+  have hH : R.headerVEnv ≤ ves'.venv (if false then .unsafe else .safe) := by
+    refine (Hcert.typesLe ?_).trans hfinal
+    rw [R.headerValues]
+    exact R.core.typesAdded
+  refine ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd,
+    VEnvs.CertPres.ofOrigin (isUnsafe := false) hle wf'.mono hH fun hfind => ?_⟩
+  rcases Hrecursors.ctorOrigin hfind with h | ⟨hu, hc⟩
+  · exact .inl h
+  · refine .inr ⟨?_, hc⟩
+    rw [hu, hsafety]; rfl
 
 /-- A skeleton-free semantic primitive run now reaches the final
 safety-indexed environment boundary, not merely a single abstract

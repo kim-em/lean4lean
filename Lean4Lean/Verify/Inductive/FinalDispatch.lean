@@ -29,13 +29,13 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveFinalResultWF
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams sourceTypes
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     env lparams nparams sourceTypes isUnsafe fuel res ves wf hcorner Hsources HsourcesB
     Hlower haux).mono
-      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
-        ⟨InductiveFinalResult.ofModel ves' wf' hle Hspec⟩
+      fun _ ⟨ves', wf', hle, ⟨Hspec⟩, hcert⟩ =>
+        ⟨InductiveFinalResult.ofModel ves' wf' hle Hspec hcert⟩
 
 /-- Uniform final result for the canonical primitive Bool/Nat post-lowering
 branch, valid both before and after the bootstrap `Eq` declaration. -/
@@ -49,7 +49,7 @@ theorem Environment.addInductiveAfterLowering.primitiveInductiveFinalResultWF
     (haux : res.aux2nested.size = 0) :
     (Environment.addInductiveAfterLowering env lparams nparams types isUnsafe
       true fuel res).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams types
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams types
           isUnsafe) := by
   have hisUnsafe : isUnsafe = false := Hshape.2.2.1
   subst isUnsafe
@@ -57,12 +57,13 @@ theorem Environment.addInductiveAfterLowering.primitiveInductiveFinalResultWF
     (Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel res ves wf hcorner Hshape
       htypes haux).mono
-      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
+      fun _ ⟨ves', wf', hle, hcert, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
           wf := wf'
           mono := hle
-          specification := Hspec }⟩
+          specification := Hspec
+          certPres := hcert }⟩
 
 /-- Uniform `Environment.addInductive` result for canonical primitive
 Bool/Nat declarations. -/
@@ -73,19 +74,20 @@ theorem Environment.addInductive.primitiveInductiveFinalResultWF
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true
       fuel).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams types
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams types
           isUnsafe) := by
   have hisUnsafe : isUnsafe = false := Hshape.2.2.1
   subst isUnsafe
   exact
     (Environment.addInductive.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel ves wf hcorner Hshape).mono
-      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
+      fun _ ⟨ves', wf', hle, hcert, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
           wf := wf'
           mono := hle
-          specification := Hspec }⟩
+          specification := Hspec
+          certPres := hcert }⟩
 
 /-- Checked declaration-facing form of
 `primitiveInductiveFinalResultWF`. -/
@@ -96,19 +98,20 @@ theorem addInductiveDeclaration.primitiveInductiveFinalResultWF
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams types
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams types
           isUnsafe) := by
   have hisUnsafe : isUnsafe = false := Hshape.2.2.1
   subst isUnsafe
   exact
     (addInductiveDeclaration.primitiveFinalSpecificationModelWF
       env lparams nparams types false fuel ves wf hcorner Hshape).mono
-      fun _ ⟨ves', wf', hle, ⟨Hspec⟩⟩ =>
+      fun _ ⟨ves', wf', hle, hcert, ⟨Hspec⟩⟩ =>
         ⟨{
           targetModels := ves'
           wf := wf'
           mono := hle
-          specification := Hspec }⟩
+          specification := Hspec
+          certPres := hcert }⟩
 
 /-- Dispatch over the actual lowering result.  The source-facing
 specification requires the source declaration to have no loose bound
@@ -124,12 +127,12 @@ theorem Environment.addInductive.inductiveFinalResultWF
     (HsourcesB : SourceBVarClosed types) :
     (Environment.addInductive env lparams nparams types isUnsafe false
       fuel).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams types
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams types
           isUnsafe) := by
   refine Environment.addInductive.checkedLoweringClosedWF env lparams nparams
     types isUnsafe false fuel wf.inductivesClosed
       (VEnvs.WFCore.environmentTypesClosed wf)
-      (fun outEnv => Nonempty (InductiveFinalResult outEnv ves lparams
+      (fun outEnv => Nonempty (InductiveFinalResult env outEnv ves lparams
         nparams types isUnsafe)) ?_
   intro res Hsources Hlower
   by_cases haux : res.aux2nested.size = 0
@@ -152,7 +155,7 @@ theorem addInductiveDeclaration.inductiveFinalResultWF
       isUnsafe = .ok false) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
-        Nonempty (InductiveFinalResult outEnv ves lparams nparams types
+        Nonempty (InductiveFinalResult env outEnv ves lparams nparams types
           isUnsafe) := by
   have Hrun := Environment.addInductive.inductiveFinalResultWF env lparams
     nparams types isUnsafe fuel ves wf hcorner HsourcesB

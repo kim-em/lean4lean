@@ -155,6 +155,17 @@ def CompletedBlockCertificate.finalVEnv
       rules outEnv outVEnv) : VEnv :=
   outVEnv.addDefEqRules rules
 
+/-- The header environment of a completed block is below its final model. -/
+theorem CompletedBlockCertificate.typesLe
+    (H : CompletedBlockCertificate safety env venv types ctors recursors rules outEnv outVEnv)
+    (htypes : venv.addConstVals (types.map Prod.snd) = some venvH) :
+    venvH ≤ H.finalVEnv := by
+  rw [H.staged.abstract_types] at htypes
+  cases htypes
+  exact (VEnv.addConstVals_le H.staged.abstract_ctors).trans
+    (VEnv.addEliminators_addProjections_le.trans
+      (H.staged.recursorsAdded.le.trans VEnv.addDefEqRules_le))
+
 theorem CompletedBlockCertificate.block_eq_of_projections_eq
     (H₁ : CompletedBlockCertificate safety₁ env₁ venv₁ types ctors recursors
       rules outEnv₁ outVEnv₁)

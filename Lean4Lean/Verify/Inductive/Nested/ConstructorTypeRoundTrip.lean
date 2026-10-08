@@ -83,31 +83,39 @@ structure RestoredConstructorTypeOrigin (lparams : List Name)
   levelParams : info.levelParams = lparams
   type_eqv : (info.type == source.type) = true
 
+/-- The safety flag of a newly installed constructor: it is the declaration's flag, unless its
+name is already taken in the base environment `baseEnv` (which freshness later excludes). -/
+def RestoredConstructorSafety (baseEnv : Environment) (isUnsafe : Bool) (name : Name)
+    (info : ConstructorVal) : Prop :=
+  info.isUnsafe = isUnsafe ∨ ∃ ci, baseEnv.find? name = some ci
+
 /-- Every constructor visible in `targetEnv` is inherited from `sourceEnv`, or
-is the installed form of one of `sources`. -/
-def ConstructorTypeOrigins (lparams : List Name) (sources : List Constructor)
-    (sourceEnv targetEnv : Environment) : Prop :=
+is the installed form of one of `sources`, carrying the declaration's safety flag relative to
+`baseEnv`. -/
+def ConstructorTypeOrigins (lparams : List Name) (baseEnv : Environment) (isUnsafe : Bool)
+    (sources : List Constructor) (sourceEnv targetEnv : Environment) : Prop :=
   ∀ name info, targetEnv.find? name = some (.ctorInfo info) →
     sourceEnv.find? name = some (.ctorInfo info) ∨
-      ∃ source ∈ sources, RestoredConstructorTypeOrigin lparams source info
+      ∃ source ∈ sources, RestoredConstructorTypeOrigin lparams source info ∧
+        RestoredConstructorSafety baseEnv isUnsafe name info
 
 theorem ConstructorTypeOrigins.refl :
-    ConstructorTypeOrigins lparams sources env env :=
+    ConstructorTypeOrigins lparams baseEnv isUnsafe sources env env :=
   fun _ _ hfind => .inl hfind
 
 theorem ConstructorTypeOrigins.mono
-    (H : ConstructorTypeOrigins lparams sources sourceEnv targetEnv)
+    (H : ConstructorTypeOrigins lparams baseEnv isUnsafe sources sourceEnv targetEnv)
     (hsub : ∀ source ∈ sources, source ∈ sources') :
-    ConstructorTypeOrigins lparams sources' sourceEnv targetEnv := by
+    ConstructorTypeOrigins lparams baseEnv isUnsafe sources' sourceEnv targetEnv := by
   intro name info hfind
   rcases H name info hfind with hold | ⟨source, hsource, horigin⟩
   · exact .inl hold
   · exact .inr ⟨source, hsub source hsource, horigin⟩
 
 theorem ConstructorTypeOrigins.trans
-    (H₁ : ConstructorTypeOrigins lparams sources₁ env₁ env₂)
-    (H₂ : ConstructorTypeOrigins lparams sources₂ env₂ env₃) :
-    ConstructorTypeOrigins lparams (sources₁ ++ sources₂) env₁ env₃ := by
+    (H₁ : ConstructorTypeOrigins lparams baseEnv isUnsafe sources₁ env₁ env₂)
+    (H₂ : ConstructorTypeOrigins lparams baseEnv isUnsafe sources₂ env₂ env₃) :
+    ConstructorTypeOrigins lparams baseEnv isUnsafe (sources₁ ++ sources₂) env₁ env₃ := by
   intro name info hfind
   rcases H₂ name info hfind with hmid | ⟨source, hsource, horigin⟩
   · rcases H₁ name info hmid with hold | ⟨source, hsource, horigin⟩
@@ -120,7 +128,7 @@ theorem ConstructorTypeOrigins.addNonConstructor
     {env : Environment} (hwf : env.constants.WF) (ci : ConstantInfo)
     (hfresh : env.find? ci.name = none)
     (hci : ∀ info, ci ≠ .ctorInfo info) :
-    ConstructorTypeOrigins lparams [] env (env.add ci) := by
+    ConstructorTypeOrigins lparams baseEnv isUnsafe [] env (env.add ci) := by
   intro name info hfind
   rcases Environment.find?_freshAdd_cases hwf ci hfresh hfind with
     ⟨_hname, hfound⟩ | hold
@@ -131,13 +139,16 @@ theorem ConstructorTypeOrigins.addNonConstructor
 theorem ConstructorTypeOrigins.addConstructor
     {env : Environment} (hwf : env.constants.WF) (info : ConstructorVal)
     (hfresh : env.find? (ConstantInfo.ctorInfo info).name = none)
-    (horigin : RestoredConstructorTypeOrigin lparams source info) :
-    ConstructorTypeOrigins lparams [source] env (env.add (.ctorInfo info)) := by
+    (horigin : RestoredConstructorTypeOrigin lparams source info)
+    (hsafety : RestoredConstructorSafety baseEnv isUnsafe info.name info) :
+    ConstructorTypeOrigins lparams baseEnv isUnsafe [source] env
+      (env.add (.ctorInfo info)) := by
   intro name found hfind
   rcases Environment.find?_freshAdd_cases hwf _ hfresh hfind with
     ⟨_hname, hfound⟩ | hold
   · cases hfound
-    exact .inr ⟨source, by simp, horigin⟩
+    subst _hname
+    exact .inr ⟨source, by simp, horigin, hsafety⟩
   · exact .inl hold
 
 /-- Every constructor of `sources` is visible in `targetEnv` with the
@@ -189,8 +200,10 @@ theorem RestoredConstructorMappingTrace.constructorTypeOrigins
     (hnodup : paramFvars.Nodup)
     (hresultNParams : result.nparams = nparams)
     (hparamsSize : params.size = nparams)
-    (hsourceWF : sourceProdEnv.constants.WF) :
-    ConstructorTypeOrigins lparams sources sourceProdEnv targetProdEnv := by
+    (hsourceWF : sourceProdEnv.constants.WF)
+    (hlowered : ∀ name old, loweredEnv.find? name = some (.ctorInfo old) →
+      old.isUnsafe = isUnsafe ∨ ∃ ci, baseEnv.find? name = some ci) :
+    ConstructorTypeOrigins lparams baseEnv isUnsafe sources sourceProdEnv targetProdEnv := by
   induction H with
   | nil => exact .refl
   | @cons source state target nextState sourceProdEnv middleProdEnv sources
@@ -215,10 +228,19 @@ theorem RestoredConstructorMappingTrace.constructorTypeOrigins
         congrArg Prod.snd Hstep.restored.output
       have hmiddleWF : middleProdEnv.constants.WF :=
         hmiddle.symm ▸ constantsWF_add_checked hsourceWF hfresh
-      have Hhead : ConstructorTypeOrigins lparams [source] sourceProdEnv
+      have hsafe : RestoredConstructorSafety baseEnv isUnsafe Hstep.restored.newInfo.name
+          Hstep.restored.newInfo := by
+        have hn : Hstep.restored.newInfo.name = target.name := by
+          rw [Hstep.restored.newInfo_eq]; exact hname
+        have hu : Hstep.restored.newInfo.isUnsafe = Hstep.oldInfo.isUnsafe := by
+          rw [Hstep.restored.newInfo_eq]
+        rcases hlowered _ _ Hstep.lookup with h | h
+        · exact .inl (hu.trans h)
+        · rw [hn]; exact .inr h
+      have Hhead : ConstructorTypeOrigins lparams baseEnv isUnsafe [source] sourceProdEnv
           middleProdEnv := by
         rw [hmiddle]
-        exact .addConstructor hsourceWF _ hfresh horigin
+        exact .addConstructor hsourceWF _ hfresh horigin hsafe
       have Htail := ih HtailSyntax
         (fun tail htail => HsyntaxBVar tail (by simp [htail]))
         (fun tail htail => Hdisjoint tail (by simp [htail])) hmiddleWF
@@ -303,6 +325,29 @@ theorem RestoredConstructorMappingTrace.constructorTypesInstalled
         (fun tail htail => Hdisjoint tail (by simp [htail])) hmiddleWF
       exact (Hhead.fresh HtailFresh hmiddleWF).append Htail
 
+/-- Every constructor of a production output is old, or a new constructor of the declaration
+with its safety flag. -/
+theorem RecursorPhasesResult.ctorIsUnsafe
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {indTypes : Array InductiveType} {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
+      sourceVEnv indTypes headerEnv}
+    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    (H : RecursorPhasesResult R outEnv) :
+    ∀ name old, outEnv.find? name = some (.ctorInfo old) →
+      old.isUnsafe = isUnsafe ∨ ∃ ci, c.env.find? name = some ci := by
+  intro name old hfind
+  have hwf : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.completed.context.checking.tr.map_wf
+  have h := (AtomicAddConstants.ofAddConstants H.installed).ctors_of_noCtor hwf
+    (fun e he info => H.generated.nonConstructor e.1 e.2 (by simpa using he) info) hfind
+  rw [H.localExtends.env_eq] at h
+  rcases R.completed.ctorOrigin h with h | ⟨h, -⟩
+  · exact .inr ⟨_, h⟩
+  · exact .inl h
+
 /-- One restored original family: its header and primary recursor add no
 constructor, and its constructor fold is the aligned mapping trace. -/
 theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
@@ -326,7 +371,7 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
       sourceTypes[familyIdx] stepSource stepTarget)
     (hwf : stepSource.constants.WF) :
-    ConstructorTypeOrigins c.lparams sourceTypes[familyIdx].ctors stepSource
+    ConstructorTypeOrigins c.lparams c.env isUnsafe sourceTypes[familyIdx].ctors stepSource
       stepTarget := by
   rcases H.sourceConstructorRestorationTraceAtFresh Hc Hprod hempty
       familyIdx hfamily Hstep with
@@ -339,18 +384,19 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
     find?_none_of_contains_false hwf Hstep.restored.header.fresh
   have hheaderWF : Hstep.restored.headerEnv.constants.WF :=
     hheaderEnv.symm ▸ constantsWF_add_checked hwf hheaderFresh
-  have Hheader : ConstructorTypeOrigins c.lparams [] stepSource
+  have Hheader : ConstructorTypeOrigins c.lparams c.env isUnsafe [] stepSource
       Hstep.restored.headerEnv := by
     rw [hheaderEnv]
     exact .addNonConstructor hwf header hheaderFresh (by
       intro info h
       simp [header] at h)
-  have Hctors : ConstructorTypeOrigins c.lparams sourceTypes[familyIdx].ctors
+  have Hctors : ConstructorTypeOrigins c.lparams c.env isUnsafe sourceTypes[familyIdx].ctors
       Hstep.restored.headerEnv Hstep.restored.constructorEnv :=
     Haligned.constructorTypeOrigins
       (Hsources.getElem familyIdx hfamily).constructors HsourceBVar Hdisjoint
       rfl fvars hparams hnodup H.toResult.resultNParams
       (H.resultParamsSize.trans H.toResult.resultNParams) hheaderWF
+      Hprod.ctorIsUnsafe
   obtain ⟨_entries, HctorFresh⟩ :=
     Hstep.restored.constructors.constructorFreshTrace hheaderWF
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
@@ -361,9 +407,9 @@ theorem NestedLoweringResultClosed.familyConstructorTypeOrigins
       Hstep.restored.recursor.restored.fresh
   have htarget : stepTarget = Hstep.restored.constructorEnv.add recursor :=
     congrArg Prod.snd Hstep.restored.recursor.restored.output
-  have Hrec : ConstructorTypeOrigins c.lparams []
+  have Hrec : ConstructorTypeOrigins c.lparams c.env isUnsafe []
       Hstep.restored.constructorEnv stepTarget := by
-    have Hadd : ConstructorTypeOrigins c.lparams []
+    have Hadd : ConstructorTypeOrigins c.lparams c.env isUnsafe []
         Hstep.restored.constructorEnv
         (Hstep.restored.constructorEnv.add recursor) :=
       .addNonConstructor hconstructorWF recursor hrecFresh (by
@@ -378,7 +424,7 @@ theorem StateForMTrace.recursorConstructorTypeOrigins
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
-    ConstructorTypeOrigins lparams [] sourceEnv targetEnv := by
+    ConstructorTypeOrigins lparams baseEnv isUnsafe [] sourceEnv targetEnv := by
   induction H with
   | nil => exact .refl
   | cons Hstep Htail ih =>
@@ -390,7 +436,7 @@ theorem StateForMTrace.recursorConstructorTypeOrigins
       congrArg Prod.snd Hstep.restored.output
     have hmiddleWF : middle.constants.WF :=
       hmiddle.symm ▸ constantsWF_add_checked hwf hfresh
-    have Hhead : ConstructorTypeOrigins lparams [] source middle := by
+    have Hhead : ConstructorTypeOrigins lparams baseEnv isUnsafe [] source middle := by
       rw [hmiddle]
       exact .addNonConstructor hwf ci hfresh (by
         intro info h
@@ -421,7 +467,7 @@ theorem NestedLoweringResultClosed.familiesConstructorTypeOrigins
     (processed : List InductiveType)
     (hsplit : sourceTypes = processed ++ remaining)
     (hwf : sourceEnv.constants.WF) :
-    ConstructorTypeOrigins c.lparams (sourceTypes.flatMap (·.ctors))
+    ConstructorTypeOrigins c.lparams c.env isUnsafe (sourceTypes.flatMap (·.ctors))
       sourceEnv targetEnv := by
   induction Htrace generalizing processed with
   | nil => exact .refl
@@ -469,13 +515,13 @@ theorem NestedLoweringResultClosed.restorationConstructorTypeOrigins
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv sourceEnv
       auxRec allIndNames sourceTypes auxRecNames out)
     (hwf : sourceEnv.constants.WF) :
-    ConstructorTypeOrigins c.lparams (sourceTypes.flatMap (·.ctors))
+    ConstructorTypeOrigins c.lparams c.env isUnsafe (sourceTypes.flatMap (·.ctors))
       sourceEnv out.2 := by
   have Hprimary := H.familiesConstructorTypeOrigins Hc Hprod hempty Hsources
     HsourceBVar Hdisjoint Hrestored.inductives [] (by simp) hwf
   obtain ⟨_entries, Hfresh⟩ := Hrestored.inductives.inductiveFreshTrace hwf
   have Haux := Hrestored.auxiliaries.recursorConstructorTypeOrigins
-    (lparams := c.lparams) (Hfresh.targetWF hwf)
+    (lparams := c.lparams) (baseEnv := c.env) (isUnsafe := isUnsafe) (Hfresh.targetWF hwf)
   exact (Hprimary.trans Haux).mono (by simp)
 
 private theorem SourceSyntaxChecks.inductiveSyntaxOfMem
@@ -652,7 +698,7 @@ theorem NestedLoweringResultClosed.constructorTypeRoundTripOfSource
     (Howners : ConstructorOwnersPresent c.env)
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
       auxRec allIndNames sourceTypes auxRecNames out) :
-    ConstructorTypeOrigins c.lparams (sourceTypes.flatMap (·.ctors))
+    ConstructorTypeOrigins c.lparams c.env isUnsafe (sourceTypes.flatMap (·.ctors))
         c.env out.2 ∧
       ConstructorTypesInstalled c.lparams (sourceTypes.flatMap (·.ctors))
         out.2 := by
@@ -709,7 +755,7 @@ theorem NestedValidatedRunResult.constructorTypeRoundTrip
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent sourceProdEnv) :
-    ConstructorTypeOrigins lparams (sourceTypes.flatMap (·.ctors))
+    ConstructorTypeOrigins lparams sourceProdEnv isUnsafe (sourceTypes.flatMap (·.ctors))
         sourceProdEnv outEnv ∧
       ConstructorTypesInstalled lparams (sourceTypes.flatMap (·.ctors))
         outEnv := by
@@ -717,7 +763,7 @@ theorem NestedValidatedRunResult.constructorTypeRoundTrip
       P.c.env = sourceProdEnv → P.c.lparams = lparams →
       P.nparams = nparams → P.indTypes = result.types.toArray →
       P.isUnsafe = isUnsafe → P.initialEnv = sourceVEnv → ContextWF P.c →
-      ConstructorTypeOrigins lparams (sourceTypes.flatMap (·.ctors))
+      ConstructorTypeOrigins lparams sourceProdEnv isUnsafe (sourceTypes.flatMap (·.ctors))
           sourceProdEnv outEnv ∧
         ConstructorTypesInstalled lparams (sourceTypes.flatMap (·.ctors))
           outEnv := by
@@ -778,14 +824,26 @@ theorem NestedValidatedRunResult.installedConstructorSource
       ∃ type ∈ sourceTypes, ∃ source ∈ type.ctors,
         info.name = source.name ∧ info.levelParams = lparams ∧
         (info.type == source.type) = true ∧
-        EquivManager.RelevantEq info.type source.type := by
+        EquivManager.RelevantEq info.type source.type ∧ info.isUnsafe = isUnsafe := by
   rcases (E.constructorTypeRoundTrip Hsources Howners).1 name info hfind with
-    hold | ⟨source, hsource, horigin⟩
+    hold | ⟨source, hsource, horigin, hsafe⟩
   · exact .inl hold
-  · rcases List.mem_flatMap.mp hsource with ⟨type, htype, hctor⟩
-    exact .inr ⟨type, htype, source, hctor, horigin.name,
-      horigin.levelParams, horigin.type_eqv,
-      EquivManager.RelevantEq.of_eqv horigin.type_eqv⟩
+  · rcases hsafe with hsafe | ⟨ci, hci⟩
+    · rcases List.mem_flatMap.mp hsource with ⟨type, htype, hctor⟩
+      exact .inr ⟨type, htype, source, hctor, horigin.name,
+        horigin.levelParams, horigin.type_eqv,
+        EquivManager.RelevantEq.of_eqv horigin.type_eqv, hsafe⟩
+    · left
+      have hwf : sourceProdEnv.constants.WF := by
+        have h := E.productionContextWF.checking.tr.map_wf
+        rwa [E.productionContext_env] at h
+      rcases E.restoration.inductives.inductiveFreshTrace hwf with ⟨_, Hprimary⟩
+      have hprimaryWF := Hprimary.targetWF hwf
+      rcases E.restoration.auxiliaries.recursorFreshTrace hprimaryWF with ⟨_, Hauxiliary⟩
+      have h := Hauxiliary.preservesSourceFind hprimaryWF (Hprimary.preservesSourceFind hwf hci)
+      rw [hfind] at h
+      rw [← h] at hci
+      exact hci
 
 end VerifyInductive
 end Lean4Lean

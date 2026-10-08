@@ -2107,6 +2107,16 @@ def BlockCertificate.finalVEnv
       rules outEnv outVEnv) : VEnv :=
   outVEnv.addDefEqRules rules
 
+/-- The header environment of a block is below its final model. -/
+theorem BlockCertificate.typesLe
+    (H : BlockCertificate safety env venv types ctors recursors rules outEnv outVEnv)
+    (htypes : venv.addConstVals (types.map Prod.snd) = some venvH) :
+    venvH ≤ H.finalVEnv := by
+  rw [H.staged.abstract_types] at htypes
+  cases htypes
+  exact H.staged.ctorsAdded.le.trans (VEnv.addEliminators_addProjections_le.trans
+    (H.staged.recursorsAdded.le.trans VEnv.addDefEqRules_le))
+
 theorem BlockCertificate.block_eq_of_projections_eq
     (H₁ : BlockCertificate safety₁ env₁ venv₁ types ctors recursors
       rules outEnv₁ outVEnv₁)
@@ -2961,7 +2971,8 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     (helim : VInductBlock.EliminatorsWF (ves.venv .unsafe) decl H.block) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) := by
+      VEnv.AddInduct (ves.venv .unsafe) decl (ves'.venv .unsafe) ∧
+      H.finalVEnv ≤ ves'.venv .unsafe := by
   have validUnsafe : CheckingEnv.Valid .unsafe prodEnv
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
@@ -3051,7 +3062,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       (H.validCore validUnsafe.toValidCore).safePrimitives hclosed hconstructorOwners
       hconstructorSemantics hinductiveProvenance hheadersUnsafe with
     ⟨ves', wf', hle, hexact⟩
-  refine ⟨ves', wf', hle, ?_⟩
+  refine ⟨ves', wf', hle, ?_, hexact ▸ VEnv.LE.rfl⟩
   rw [hexact]
   exact haddUnsafe.toVEnv
 

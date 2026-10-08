@@ -55,9 +55,9 @@ def VEnvs.CtorCert (env : Environment) (ves : VEnvs) : Prop :=
   ∀ safety, CtorTelescopes safety env (ves.venv safety)
 
 /-- The well-formedness invariant of the checker's environment model: the core invariant
-(`VEnvs.WFCore`) together with the constructor certificates (`VEnvs.CtorCert`). The empty
-environment satisfies it (`VEnvs.WF.empty`), and every checked declaration preserves it
-(`addDecl.WF_of_canonicalEq`). -/
+(`VEnvs.WFCore`) together with the constructor certificates (`VEnvs.CtorCert`). Any core-valid
+environment without constructors satisfies it (`VEnvs.WF.ofNoCtors`), and every checked
+declaration preserves it (`addDecl.WF_of_canonicalEq`). -/
 structure VEnvs.WF (env : Environment) (ves : VEnvs) : Prop extends VEnvs.WFCore env ves where
   ctorCert : ves.CtorCert env
 
@@ -65,6 +65,16 @@ structure VEnvs.WF (env : Environment) (ves : VEnvs) : Prop extends VEnvs.WFCore
 check provides alongside `VEnvs.WFCore`. -/
 def VEnvs.CertPres (env env' : Environment) (ves ves' : VEnvs) : Prop :=
   ves.CtorCert env → ves'.CtorCert env'
+
+/-- An environment without constructors carries the constructor certificates vacuously. -/
+theorem VEnvs.CtorCert.ofNoCtors {env : Environment} {ves : VEnvs}
+    (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.CtorCert env :=
+  fun _ name ci hfind _ => absurd hfind (h name ci)
+
+/-- A core-valid environment without constructors satisfies the full invariant. -/
+theorem VEnvs.WF.ofNoCtors {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (h : ∀ name ci, env.find? name ≠ some (.ctorInfo ci)) : ves.WF env :=
+  ⟨wf, .ofNoCtors h⟩
 
 theorem VEnvs.CtorCert.corner {env : Environment} {ves : VEnvs} (H : ves.CtorCert env) :
     ∀ safety, ProjectionCorner safety env (ves.venv safety) :=
@@ -78,6 +88,27 @@ theorem VEnvs.CertPres.addNonCtor {env : Environment} {ves ves' : VEnvs} {ci : C
     (hnot : ∀ info, ci ≠ .ctorInfo info) : VEnvs.CertPres env (env.add ci) ves ves' :=
   fun H safety => CtorTelescopes.addNonCtor (H safety) (wf.tr (safety := safety)).map_wf hn
     (hle safety) hnot
+
+/-- Certificate preservation for an inductive installation: every constructor of the output is
+old, or a new constructor of the declaration (with its safety flag) certified in an abstract
+environment below the output model at the declaration's safety. Old constructors keep their
+certificates by monotonicity; a new one is visible only to observers at most as strict as the
+declaration's safety, whose models extend the declaration's. -/
+theorem VEnvs.CertPres.ofOrigin {env env' : Environment} {ves ves' : VEnvs} {isUnsafe : Bool}
+    {venvH : VEnv}
+    (hle : ∀ safety, ves.venv safety ≤ ves'.venv safety)
+    (hmono : ∀ {safety safety'}, safety ≤ safety' → ves'.venv safety' ≤ ves'.venv safety)
+    (hH : venvH ≤ ves'.venv (if isUnsafe then .unsafe else .safe))
+    (horigin : ∀ {name ci}, env'.find? name = some (.ctorInfo ci) →
+      env.find? name = some (.ctorInfo ci) ∨
+        (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt venvH ci)) :
+    VEnvs.CertPres env env' ves ves' := by
+  intro hold safety name ci hfind hvis
+  rcases horigin hfind with h | ⟨hu, hc⟩
+  · exact (hold safety h hvis).mono (hle safety)
+  · have hs : safety ≤ (if isUnsafe then .unsafe else .safe) := by
+      simpa [ConstantInfo.safety, ConstantInfo.isUnsafe, ConstantInfo.isPartial, hu] using hvis
+    exact hc.mono (hH.trans (hmono hs))
 
 /-- Assemble a `VEnvs` from a pointwise existential by case analysis on the
 three safety levels. -/

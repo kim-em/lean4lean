@@ -152,6 +152,27 @@ theorem CompletedRecursorPhasesResult.constructorOwnersPresent
   have hne := H.generated.nonConstructor entry.1 entry.2 (by simpa using hentry) info
   exact False.elim (hne hinfo)
 
+/-- The recursor phase adds no constructor: every constructor of the output is old, or a new
+constructor of the declaration with its safety flag and a certified type. -/
+theorem CompletedRecursorPhasesResult.ctorOrigin
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {ctorEnv outEnv : Environment}
+    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+      sourceEnv indTypes ctorEnv}
+    (H : CompletedRecursorPhasesResult R outEnv)
+    (hfind : outEnv.find? name = some (.ctorInfo ci)) :
+    c.env.find? name = some (.ctorInfo ci) ∨
+      (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt R.headerVEnv ci) := by
+  have hwf : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.context.checking.tr.map_wf
+  have h := (AtomicAddConstants.ofAddConstants H.installed).ctors_of_noCtor hwf
+    (fun e he info => H.generated.nonConstructor e.1 e.2 (by simpa using he) info) hfind
+  rw [H.localExtends.env_eq] at h
+  exact R.ctorOrigin h
+
 /-- The exact `getElimLevel`/`mkRecInfos`/`declareRecursors` suffix, entered
 from a completed and valid constructor context.  This is shared by ordinary
 and atomic primitive formation. -/

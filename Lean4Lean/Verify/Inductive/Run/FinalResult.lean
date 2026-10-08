@@ -10,10 +10,12 @@ namespace VerifyInductive
 /-- Uniform declaration-facing result for every inductive execution path.
 It records a complete model of the exact returned environment, pointwise
 extension of all source observers, and the independent specification of the
-exact submitted source declaration. Equality bootstrap state is deliberately
-absent: it is not an inductive-soundness precondition. -/
+exact submitted source declaration, and preservation of the constructor
+telescope certificate from the source environment to the returned one.
+Equality bootstrap state is deliberately absent: it is not an
+inductive-soundness precondition. -/
 structure InductiveFinalResult
-    (outEnv : Environment) (sourceModels : VEnvs)
+    (sourceEnv outEnv : Environment) (sourceModels : VEnvs)
     (lparams : List Name) (nparams : Nat) (sourceTypes : List InductiveType)
     (isUnsafe : Bool) where
   targetModels : VEnvs
@@ -23,6 +25,7 @@ structure InductiveFinalResult
     (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
     sourceTypes isUnsafe
     (targetModels.venv (if isUnsafe then .unsafe else .safe))
+  certPres : VEnvs.CertPres sourceEnv outEnv sourceModels targetModels
 
 /-- Construct the uniform result directly from the environment model and
 independent source specification. -/
@@ -32,22 +35,25 @@ def InductiveFinalResult.ofModel
     (specification : InductiveSpecificationResult
       (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams
       nparams sourceTypes isUnsafe
-      (targetModels.venv (if isUnsafe then .unsafe else .safe))) :
-    InductiveFinalResult outEnv sourceModels lparams nparams sourceTypes
+      (targetModels.venv (if isUnsafe then .unsafe else .safe)))
+    (certPres : VEnvs.CertPres sourceEnv outEnv sourceModels targetModels) :
+    InductiveFinalResult sourceEnv outEnv sourceModels lparams nparams sourceTypes
       isUnsafe where
   targetModels := targetModels
   wf := wf
   mono := mono
   specification := specification
+  certPres := certPres
 
 /-- Forget the inductive-specific evidence and recover the traditional
 environment-preservation postcondition used by `addDecl.WF`. -/
 theorem InductiveFinalResult.modelExtension
-    (H : InductiveFinalResult outEnv sourceModels lparams nparams sourceTypes
+    (H : InductiveFinalResult sourceEnv outEnv sourceModels lparams nparams sourceTypes
       isUnsafe) :
     ∃ targetModels : VEnvs, targetModels.WFCore outEnv ∧
-      ∀ safety, sourceModels.venv safety ≤ targetModels.venv safety :=
-  ⟨H.targetModels, H.wf, H.mono⟩
+      (∀ safety, sourceModels.venv safety ≤ targetModels.venv safety) ∧
+      VEnvs.CertPres sourceEnv outEnv sourceModels targetModels :=
+  ⟨H.targetModels, H.wf, H.mono, H.certPres⟩
 
 end VerifyInductive
 end Lean4Lean

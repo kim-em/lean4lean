@@ -110,7 +110,8 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     (Environment.addInductiveAfterLowering env lparams nparams sourceTypes
       isUnsafe false fuel res).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
-          ∀ safety, ves.venv safety ≤ ves'.venv safety := by
+          (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+          VEnvs.CertPres env outEnv ves ves' := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
   let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hcorner
@@ -146,8 +147,8 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
   intro outEnv hout
   have hout' : AddInductive.run nparams res.types 0 c = .ok outEnv := by
     simpa [c, safety, initialContext] using hout
-  rcases Hrun outEnv hout' with ⟨ves', wf', hle, _⟩
-  exact ⟨ves', wf', hle⟩
+  rcases Hrun outEnv hout' with ⟨ves', wf', hle, hcert, _⟩
+  exact ⟨ves', wf', hle, hcert⟩
 
 /-- Source-facing ordinary refinement at the exact production boundary.  The
 successful source precheck and zero-auxiliary lowering trace prove that the
@@ -171,7 +172,8 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
           Nonempty (InductiveSpecificationResult
             (ves.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
             sourceTypes isUnsafe
-            (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
+            (ves'.venv (if isUnsafe then .unsafe else .safe))) ∧
+          VEnvs.CertPres env outEnv ves ves' := by
   let safety : DefinitionSafety := if isUnsafe then .unsafe else .safe
   let c := initialContext env lparams safety false fuel
   let Hc : ContextWF c := ContextWF.initial wf safety lparams false fuel hcorner
@@ -209,8 +211,8 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
   intro outEnv hout
   have hout' : AddInductive.run nparams res.types 0 c = .ok outEnv := by
     simpa [c, safety, initialContext] using hout
-  rcases Hrun outEnv hout' with ⟨ves', wf', hle, ⟨S⟩⟩
-  refine ⟨ves', wf', hle, ⟨?_⟩⟩
+  rcases Hrun outEnv hout' with ⟨ves', wf', hle, hcert, ⟨S⟩⟩
+  refine ⟨ves', wf', hle, ⟨?_⟩, hcert⟩
   rw [htypes, hsource] at S
   have hisUnsafe : (c.safety != .safe) = isUnsafe := by
     cases isUnsafe <;> rfl
@@ -239,7 +241,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationWF
             (ves'.venv (if isUnsafe then .unsafe else .safe))) := by
   exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     env lparams nparams sourceTypes isUnsafe fuel res ves wf hcorner Hsources HsourcesB
-    Hlower haux).mono fun _ ⟨ves', wf', hle, Hspec⟩ =>
+    Hlower haux).mono fun _ ⟨ves', wf', hle, Hspec, _⟩ =>
       ⟨ves', wf', hEq.mono hle, hle, Hspec⟩
 
 end VerifyInductive
