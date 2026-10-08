@@ -4,7 +4,7 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.Renaming
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 import Batteries.Tactic.OpenPrivate
 
-/-! Typed abstraction of an opened native prefix. -/
+/-! Typed abstraction of an opened recursor prefix. -/
 
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.RecursorData
@@ -37,7 +37,7 @@ theorem takeForalls_sound
     cases he
     exact congrArg (VExpr.forallE _) (ih ht)
 
-/-- Successful native generation determines the actual type of any
+/-- Successful singleton unfolding determines the actual type of any
 well-formed occurrence of that registered recursor prefix. -/
 theorem RecursorRegistered.prefixType {data : RecursorData}
     {levels : List VLevel} {program : PrefixUnfolding}

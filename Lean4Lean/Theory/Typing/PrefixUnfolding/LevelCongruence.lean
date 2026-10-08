@@ -79,7 +79,7 @@ end Lean4Lean.VEnv
 namespace Lean4Lean.InductiveSignature.RecursorData
 open VEnv
 
-/-- The finite replay program varies only at scoped equivalent universes.
+/-- The finite unfolding varies only at scoped equivalent universes.
 Its installed equation and the parsed generic body remain exactly the same. -/
 structure PrefixUnfolding.LevelEquiv (U : Nat) (p p' : PrefixUnfolding) : Prop where
   domains : List.Forall₂ (EqUpToLevels U) p.domains p'.domains

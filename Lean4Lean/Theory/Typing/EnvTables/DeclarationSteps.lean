@@ -371,14 +371,15 @@ theorem Tables.Inv.addQuot (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)
     obtain ⟨h1, h2⟩ := H.projections hp
     exact ⟨addView_of_old h1, addView_of_old h2⟩
 
-/-! ## Native installation -/
+/-! ## Block installation -/
 
 def selCtors (t : VInductiveType) : Bool := !t.ctors.isEmpty
 
 theorem selCtors_iff {t : VInductiveType} : selCtors t = true ↔ t.ctors ≠ [] := by
   simp [selCtors, List.isEmpty_iff]
 
-/-- Record a native installation. -/
+/-- Record a block installation: the views of the families with constructors and the recursor
+entries. -/
 def Tables.addRecursor (T : Tables) (decl : VInductDecl) (entries : List RecursorData) :
     Tables :=
   { T.addViews (viewFams decl selCtors) (viewCtors decl selCtors) with
@@ -423,7 +424,7 @@ theorem installEntries_some {old : Name → Option RecursorData}
     have := List.find?_eq_none.mp hf d hd
     simp [hn] at this
 
-/-- Native installation with the chosen compilation data (`Tables.Inv.install` chooses it). -/
+/-- Block installation with the chosen compilation data (`Tables.Inv.install` chooses it). -/
 theorem Tables.Inv.install {decl : VInductDecl} {block : VInductBlock}
     (H : T.Inv env) (henv : env.WF)
     (hcomp : decl.CompilesTo env block) (hblock : VInductBlock.WF env block)

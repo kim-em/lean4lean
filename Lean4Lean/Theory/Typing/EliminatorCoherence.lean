@@ -28,35 +28,35 @@ import Lean4Lean.Theory.Typing.CaseReduction
 
 A case schema is registered (`VEnv.WF'.inductEliminators`) over a base
 environment that is only required to agree with the current one on its
-equations and to contain the certified declaration's constants. Nothing ties
-the certified declaration to the projection metadata already registered for
-the same family names. The resulting gap is genuine: the confluence of the
-full reduction fails without the coherence hypothesis below.
+equations and to contain the certified declaration's constants. Without a
+further premise, nothing would tie the certified declaration to the projection
+metadata already registered for the same family names, and the confluence of
+the full reduction would fail: `EliminatorsCoherent` below is needed.
 
 Counterexample. Start from the empty environment and register, by
 `inductProjections` over the axioms `S : Type` and `S.a : S`, the structure
 `structure S : Type where a ::` (one constructor `S.a`, no parameters, no
 fields). Add the axiom `S.b : S`, and register by `inductEliminators`, over
 the empty base, the case schema of `inductive S : Type | b : S`. Every premise
-holds: the schema is certified over the empty base, the environment contains
-the constants `S` and `S.b` at that declaration's values, no equation was
+other than `VInductDecl.ProjectionsCoherent` holds: the schema is certified
+over the empty base, the environment contains the constants `S` and `S.b` at
+that declaration's values, no equation was
 added, the schema needs no projection names, and its key is fresh. In a
 context with a motive `m : S → Type` and a minor `x : m S.b`, the case
 application `elim S (m, x) S.b` computes to `x`, while structure eta gives
 `S.b ≡ S.a`, so the same application is definitionally equal to
 `elim S (m, x) S.a`, which has no rule and no reduct other than eta
 re-expansions; `x` and it are not normally equal, and proof irrelevance does
-not apply at `Type`. Hence `IsDefEq.full_church_rosser` is false for this
-well-formed environment, and the case-schema structure-major fact needs
+not apply at `Type`. Hence `IsDefEq.full_church_rosser` would be false for this
+environment, and the case-schema structure-major fact needs
 `VEnv.EliminatorsCoherent`.
 
-Decision (2026-10-07): this was a specification defect. `inductEliminators`
-now requires `VInductDecl.ProjectionsCoherent` (Theory/Typing/Env.lean), which
-excludes the example above, and `VEnv.WF.eliminatorsCoherent`
-(EliminatorCoherenceOfWF.lean) derives `VEnv.EliminatorsCoherent` from
-`VEnv.WF`. No producer in the verified pipeline registers schemas for foreign
-projection metadata: `Registered.register_after_constructors` proves the premise
-from freshness, and `CheckingEnv.Valid.registerCases` takes it. -/
+The specification excludes the example: `inductEliminators` requires
+`VInductDecl.ProjectionsCoherent` (`Theory/Typing/Env.lean`), and
+`VEnv.WF.eliminatorsCoherent` (`EliminatorCoherenceOfWF.lean`) derives
+`VEnv.EliminatorsCoherent` from `VEnv.WF` (section 2.4 of `docs/inductives/DESIGN.md`). The
+verified pipeline never registers a schema for foreign projection metadata:
+`Registered.register_after_constructors` proves the premise from freshness. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 open VExpr
@@ -73,9 +73,9 @@ variable {env : VEnv}
 
 /-- Every registered case eliminator is certified by a source declaration
 whose constants are present and which owns the projection metadata of its
-original families. It follows from well-formedness (`VEnv.WF.eliminatorsCoherent`). Nested containers need no premise: they
-are certified installations, whose projection metadata is coherent in every
-well-formed environment. -/
+source families. It follows from well-formedness (`VEnv.WF.eliminatorsCoherent`). Nested
+containers need no premise: they are certified installations, whose projection metadata is
+coherent in every well-formed environment. -/
 def EliminatorsCoherent (env : VEnv) : Prop :=
   ∀ key schema, env.eliminators key schema → ∃ base source block,
     base ≤ env ∧ schema.Certified base source block ∧

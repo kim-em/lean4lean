@@ -12,9 +12,7 @@ theorems `VEnv.WF.headSeparation`, `VEnv.WF.headInjectivity` and `VEnv.WF.headIn
 
 This file imports only the uniqueness-free base (`Lemmas`, `Strong`, `EnvLemmas`,
 `ProjectionRigidity`). It must not import `UniqueTyping`, `Injectivity`, `ChurchRosser`,
-`FullReduction` or `HeadReduction`.
-
-See `docs/inductives/history/BASE_OBLIGATIONS_DESIGN.md`, section 4, Phase 0. -/
+`FullReduction` or `HeadReduction`. See section 4.1 of `docs/inductives/DESIGN.md`. -/
 
 namespace Lean4Lean
 namespace VEnv
@@ -26,8 +24,9 @@ equalities each typed at a sort. "Typed at a sort" is essential: rigid heads are
 injective at term level (`Or.inl h ≡ Or.inr h'` by proof irrelevance, `S.mk (proj e) ≡ e`
 by `structEta`), but at the type level they are.
 
-The fields `sort_sort` through `forallE_rigid` are the statements of the design document.
-The last field, `proj_fieldType`, is an addition: it is the projection case of uniqueness
+The fields `sort_sort` through `forallE_rigid` are head separation and head injectivity
+(section 4.1 of `docs/inductives/DESIGN.md`). The last field, `proj_fieldType`, is the
+projection case of uniqueness
 of types, stated without uniqueness. It is not derivable from `rigid_rigid` and
 `former_args` by substitution in this calculus, for the following reason. A projection's
 field type is the constructor telescope instantiated by the parameters and by the
@@ -38,12 +37,11 @@ must be typed. Under the `projDF` guard `resultLevel.IsNeverZero ∨ fieldLevel 
 projection of a data field out of a structure that may live in `Prop` is untypable, so the
 substitution is not typed whenever such a field precedes the selected one, even if the
 selected field type does not depend on it. Removing the unused binder instead needs
-strengthening, which is not available (`docs/inductives/STRENGTHENING.md`). The
-occurrence-directed alternative, `fieldTemplateCongruence` in
-`FieldFormationCongruence.lean`, only compares typed occurrences but needs uniqueness of
-types (`AssignedTypeCompatibility`) at arbitrary subterms of the field type, which is
-circular inside the induction proving uniqueness. So the projection case is part of the
-semantic obligation. -/
+strengthening, which is not available (section 5.1 of `docs/inductives/DESIGN.md`). A
+comparison of the typed occurrences only would need uniqueness of types at arbitrary
+subterms of the field type, which is circular inside the induction proving uniqueness. So
+the projection case is a field of the obligation; it is proved together with uniqueness up to
+chains by the induction of `HeadInjectivity/Uniqueness.lean`. -/
 structure HeadInversion (env : VEnv) : Prop where
   sort_sort : ∀ {U Γ u v}, OnCtx Γ (env.IsType U) →
     env.TypeChain U Γ (.sort u) (.sort v) → u ≈ v

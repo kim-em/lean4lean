@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.CaseReductionLemmas
 
-/-! Syntactic facts about the canonical variable spines `InductiveSignature.vars`, their
+/-! Syntactic facts about the bvar spines `InductiveSignature.vars`, their
 restoration and lifting, and the generic universe levels of a case schema. -/
 
 namespace Lean4Lean.InductiveSignature

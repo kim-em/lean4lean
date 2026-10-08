@@ -4,13 +4,13 @@ import Lean4Lean.Theory.Typing.PrefixUnfolding.SpineDefEq
 import Lean4Lean.Theory.Typing.BVarConversion
 import Batteries.Tactic.OpenPrivate
 
-/-! Singleton unfolding is checked at a native recursor prefix. Supplied
+/-! Singleton unfolding is checked at a recursor prefix. Supplied
 arguments are instantiated; all remaining binders, including the major, are
 opened before the generated constructor is checked at the major's type.
 This distinguishes Eq.rec at aligned endpoints from Eq.rec at arbitrary
 endpoints, including during eta expansion.
 
-The complementary native iota guard is negated source equivalence to zero.
+The complementary recursor iota guard is negated source equivalence to zero.
 It is stable under equivalent universes and term substitution, but not under
 arbitrary universe substitution. Equation coverage must therefore be given
 freshly at every universe specialization. No ParRed.instL is assumed.
@@ -19,7 +19,7 @@ freshly at every universe specialization. No ParRed.instL is assumed.
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-/-- Every replay datum is fixed by the generated program. These are the
+/-- Every datum of the unfolding check is fixed by the generated unfolding. These are the
 ordinary typing and syntactic checks of the actual stored equation, not a
 caller-provided proof that an arbitrary replacement computes correctly. -/
 structure UnfoldingCheck (env : VEnv) (U : Nat) (Γ : List VExpr)
@@ -45,7 +45,7 @@ structure UnfoldingCheck (env : VEnv) (U : Nat) (Γ : List VExpr)
     (.app (etaOpen (program.domains.length - 1) source).lift program.constructor)
     ((program.equationBody.lhs.instL program.levels).instOuter program.captures)
 
-/-- An aligned prefix of the actual finite singleton program. All remaining
+/-- An aligned prefix of the actual finite singleton unfolding. All remaining
 binders are opened before checking its reconstructed constructor. -/
 inductive PrefixUnfold (env : VEnv) (U : Nat)
     (registry : Name → Option RecursorData) (Γ : List VExpr) :
@@ -58,7 +58,7 @@ inductive PrefixUnfold (env : VEnv) (U : Nat)
       UnfoldingCheck env U Γ (VExpr.mkApps (.const name levels) arguments) program →
       PrefixUnfold env U registry Γ name levels arguments program.rhs
 
-/-- With the same supplied prefix, program generation is deterministic.
+/-- With the same supplied prefix, unfolding generation is deterministic.
 Different prefix lengths may unfold the same larger application; those
 steps require a beta-join, not literal equality of one-step outputs. -/
 theorem PrefixUnfold.unique
@@ -70,7 +70,7 @@ theorem PrefixUnfold.unique
       cases RecursorData.singletonUnfolding_unique hg hg'
       rfl
 
-/-- Replaying the installed equation under the fresh telescope is sound.
+/-- Applying the installed equation under the fresh telescope is sound.
 The proof uses only ordinary equation application, beta, eta, and proof
 irrelevance at the explicitly checked major proposition. -/
 theorem UnfoldingCheck.defeq (henv : env.WF)
@@ -136,7 +136,7 @@ theorem PrefixUnfold.defeqDFC (henv : env.WF)
 open private closed_wrapLams_body closed_wrapForalls_domain
   from Lean4Lean.Theory.Typing.CaseReduction
 
-/-- Installed equation syntax bounds all replay captures and their domains. -/
+/-- Installed equation syntax bounds all unfolding captures and their domains. -/
 theorem UnfoldingCheck.templateScope (henv : env.WF)
     (H : UnfoldingCheck env U Γ source program) :
     program.equationBody.lhs.ClosedN program.captures.length ∧

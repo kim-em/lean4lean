@@ -17,8 +17,8 @@ namespace VEnv
 open VExpr
 
 /-- A finite structural derivation realizing an installed equation in the
-chosen native/schema reduction presentation. The full presentation adds
-checked singleton and quotient prefix replay for zero-source occurrences. -/
+chosen stored-rule/case-schema reduction presentation. The full presentation adds
+singleton and quotient prefix unfolding for zero-source occurrences. -/
 inductive PatternReductionTrace (env : VEnv) (U : Nat)
     (Pat : (p : Pattern) → p.RHS × p.Check → Prop) :
     List VExpr → VExpr → VExpr → Prop where
@@ -65,24 +65,24 @@ class Params where
     Subpattern (.app p₁' p₂') p' → Subpattern (.var p₃) p₁ → p₁'.inter p₃ = none
   pat_app_uniq : Pat p r → Pat p' r' → Subpattern (.app p₁ p₂) p →
     Subpattern (.app p₁' p₂') p' → Subpattern p₃ p₁ → Subpattern p₃' p₂' → p₃.inter p₃' = none
-  /-- Definition patterns unfold definitions, never a native recursor or the
-  registered quotient lift, whose prefixes compute by native and quotient prefix
+  /-- Definition patterns unfold definitions, never a recursor or the
+  registered quotient lift, whose prefixes compute by singleton and quotient prefix
   unfolding. Without the quotient declaration, `Quot.lift` is an ordinary name. -/
   pat_const_not_unfolding : Pat (.const c) r → recursorData c = none ∧ (QuotRegistered env → c ≠ ``Quot.lift)
-  /-- The registered quotient lift is not a native recursor. -/
+  /-- The registered quotient lift is not a recursor. -/
   recursorData_quot : QuotRegistered env → recursorData ``Quot.lift = none
-  /-- The constructor of a native iota pattern carries no computation of its own. -/
+  /-- The constructor of a recursor iota pattern carries no computation of its own. -/
   pat_ctor_rigid : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
     env.ConstHeadRigid cc
   /-- Structure constructors carry no computation of their own. -/
   projection_ctor_rigid : env.projections family info → env.ConstHeadRigid info.ctorName
-  /-- A native iota major of structure type is a saturated application of the
+  /-- A recursor iota major of structure type is a saturated application of the
   structure's constructor. -/
   pat_struct_major : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r →
     OnCtx Γ (env.IsType univs) → env.projections family info →
     HasType env univs Γ (VExpr.mkApps (.const cc lsc) fs) (VExpr.mkApps (.const family ls) ps) →
     fs.length = kc → cc = info.ctorName ∧ kc = info.nparams + info.numFields
-  /-- Native iota computation at a structure constructor reads only its fields,
+  /-- Recursor iota computation at a structure constructor reads only its fields,
   not its parameters. -/
   pat_iota_params {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
       (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check} :
@@ -120,7 +120,7 @@ theorem Params.pat_not_elim (H : Pat p r)
   obtain ⟨sp, rfl⟩ := pat_simple H
   cases sp <;> cases hm
 
-/-- Every fixed node of a native pattern has a native constant head. -/
+/-- Every fixed node of a stored-rule pattern has a constant head. -/
 def ConstHeaded : Pattern → Prop
   | .const _ => True
   | .elim _ _ => False
@@ -764,7 +764,7 @@ inductive ParRed : List VExpr → VExpr → VExpr → Prop where
   | extra : Pat p r → p.Matches e m1 m2 → r.2.OK (IsDefEqU env univs Γ) m1 m2 →
     (∀ a, Γ ⊢ m2 a ≫ m2' a) → Γ ⊢ e ≫ r.1.apply m1 m2'
 
-/-- The concrete native and registered-schema head developments, including
+/-- The concrete stored-rule and registered-schema head developments, including
 parallel reduction of their captured arguments. -/
 inductive HeadParallelReduction (Γ : List VExpr) : VExpr → VExpr → Prop where
   | pattern : Pat p r → p.Matches e m1 m2 →

@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Typing.EnvTables.Majors
 
 /-!
-# Majors of generic eliminator-schema equations (M4a, T1 (c) for schemas)
+# Majors of generic eliminator-schema equations
 
 The schema's own view of a family can disagree with the recorded one (see the counterexample in
-`EnvTables.lean`), so for schema equations the constructor data are given in the schema's own
-view `kS`; the table agrees with it unless the family was recorded first with a different
+`EnvTables/OfWF.lean`), so for schema equations the constructor data are given in the schema's own
+view; the table agrees with it unless the family was recorded first with a different
 parameter count or without the constructor.
 -/
 

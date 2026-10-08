@@ -10,8 +10,8 @@ import Lean4Lean.Theory.Typing.ProjectionProofResult
 import Lean4Lean.Theory.Typing.PatternCaptures
 import Lean4Lean.Theory.Typing.RecursorMajorFamily
 
-/-! The native/schema parallel calculus is the core of this presentation.
-Checked singleton and quotient prefixes extend it with declaration-generated
+/-! The stored-rule/case-schema parallel calculus is the core of this presentation.
+Singleton and quotient prefix unfolding extend it with declaration-generated
 computation. Typed function and structure eta expansions allow computation
 beneath extensional equalities. Different prefix lengths can require multiple
 beta steps to join; the confluence obligation uses a global strip property.
@@ -980,7 +980,7 @@ theorem CaseRedex.major_not_pi {E : VEnv} {U : Nat} (hE : E.WF)
     have ⟨_, hsort⟩ := hmajor.isType hE.ordered hΓ
     exact IsDefEqU.rigidApp_forallE_inv hE hΓ hrigid hsort (hmajor.uniqU hE hΓ hpi)
 
-/-- The major of a matched native iota redex is never a function. -/
+/-- The major of a matched recursor iota redex is never a function. -/
 theorem Params.major_not_pi (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
     (hm : p.Matches (.app F M) m1 m2) (ht : HasType env univs Γ (.app F M) T) :
     ¬ HasType env univs Γ M (.forallE A B) := by
@@ -1022,7 +1022,7 @@ theorem Params.major_not_pi (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
       exact IsDefEqU.rigidApp_forallE_inv henv hΓ (hr.quot_rigid henv) hsort
         (hM.uniqU henv hΓ hpi)
 
-/-- A matched native iota redex with a proof major is itself a proof: small
+/-- A matched recursor iota redex with a proof major is itself a proof: small
 eliminators target Prop, and large ones carry a nonzero source-level check
 that excludes proof majors. -/
 theorem Params.major_proof (hΓ : OnCtx Γ (env.IsType univs)) (hp : Pat p r)
@@ -1660,7 +1660,7 @@ theorem eqUpToLevels_forall₂_rfl (hΓ : OnCtx Γ (env.IsType univs)) :
     let ⟨_, h⟩ := H _ (List.mem_cons_self ..)
     .cons (eqUpToLevels_rfl hΓ h) (eqUpToLevels_forall₂_rfl hΓ fun b hb => H b (List.mem_cons_of_mem _ hb))
 
-/-- Transport along a constant-headed computation rule (native prefix
+/-- Transport along a constant-headed computation rule (singleton prefix
 unfolding or quotient lifting) through normal equality, by spine exposure.
 An eta-expanded left side recurses at a smaller comparison bound on the
 rule applied to the fresh variable. -/

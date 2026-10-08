@@ -4,10 +4,10 @@ import Lean4Lean.Theory.Typing.EnvTables.OfHistory
 # Environment tables
 
 For a well-formed environment, `ctorOf env` and `famOf env` are chosen from the tables built along
-one of its histories (`Tables.OfHistory`, `EnvTablesHist.lean`). They record, for every family, its
-*first* registration: native installation (families with at least one constructor), structure
-registration, eliminator registration (family by family, for a family none of whose names was
-recorded before) or the quotient.
+one of its histories (`Tables.OfHistory`, `EnvTables/OfHistory.lean`). They record, for every
+family, its *first* registration: block installation (families with at least one constructor),
+structure registration, eliminator registration (family by family, for a family none of whose
+names was recorded before) or the quotient.
 
 ## Why first registrations
 
@@ -18,10 +18,11 @@ add axioms `S : Type → Type 1` and `S.mk : (α : Type) → α → S α`; regis
 one field `val : α`), giving `projections S ⟨.., nparams := 1, .., ctorName := S.mk, ..⟩` with one
 field; then register an eliminator schema (`inductEliminators`) for the declaration with no
 parameters and one index (`inductive S : Type → Type 1 | mk (α : Type) (a : α) : S α`), whose
-generic case equation has the major `S.mk α a` with *two* trailing field variables. Target
-T1 (d) forces `ctorOf S.mk = ⟨S, 0, 1, 1⟩` while T1 (c) for the schema equation forces two fields.
-The tables keep the first registration (here the structure one); T1 (c) is stated for schema
-equations whose family view is the recorded one.
+generic case equation has the major `S.mk α a` with *two* trailing field variables. The
+projection fact (`ctorOf_projection`) forces `ctorOf S.mk = ⟨S, 0, 1, 1⟩`, while reading the
+fields of the schema equation off its major would force two fields. The tables keep the first
+registration (here the structure one); the major facts for schema equations are stated for
+equations whose family view is the recorded one (`EnvTables/CaseMajors.lean`).
 -/
 
 namespace Lean4Lean.EnvTables
@@ -30,7 +31,7 @@ open VEnv InductiveSignature
 variable {env : VEnv}
 
 /-- The tables chosen for an environment: tables built along one of its histories
-(`Tables.OfHistory`, `EnvTablesHist.lean`; empty if it has none). -/
+(`Tables.OfHistory`, `EnvTables/OfHistory.lean`; empty if it has none). -/
 noncomputable def envTables (env : VEnv) : Tables := by
   classical
   exact if h : ∃ T : Tables, Tables.OfHistory env T then Classical.choose h else Tables.empty
@@ -50,7 +51,7 @@ noncomputable def ctorOf (env : VEnv) : Name → Option CtorData := (envTables e
 /-- The family table. -/
 noncomputable def famOf (env : VEnv) : Name → Option FamData := (envTables env).fam
 
-/-! ## T1 (a): constructor shape -/
+/-! ## Constructor shape -/
 
 theorem ctorOf_shape (H : env.WF) (h : ctorOf env c = some k) :
     ∃ ci doms indices, env.constants c = some ci ∧ ci.uvars = k.uvars ∧
@@ -59,7 +60,7 @@ theorem ctorOf_shape (H : env.WF) (h : ctorOf env c = some k) :
       doms.length = k.nparams + k.nfields :=
   ((envTables_inv H).views.ctor h).1
 
-/-! ## T1 (b): rigidity and roles -/
+/-! ## Rigidity and roles -/
 
 theorem ctorOf_rigid (H : env.WF) (h : ctorOf env c = some k) :
     env.Rigid c ∧ env.Rigid k.family ∧ ctorOf env k.family = none := by
@@ -68,13 +69,13 @@ theorem ctorOf_rigid (H : env.WF) (h : ctorOf env c = some k) :
   refine ⟨HT.views.rigid (.inr (by simp [ctorOf] at h; simp [h])),
     HT.views.rigid (.inl (by simp [hd])), HT.views.fam_ctor (by simp [hd])⟩
 
-/-! ## T1 (d): projections -/
+/-! ## Projections -/
 
 theorem ctorOf_projection (H : env.WF) (h : env.projections s info) :
     ctorOf env info.ctorName = some ⟨s, info.uvars, info.nparams, info.numFields⟩ :=
   ((envTables_inv H).projections h).2
 
-/-! ## T1 (e): families -/
+/-! ## Families -/
 
 theorem famOf_mem_ctors (H : env.WF) (h : famOf env I = some d) :
     c ∈ d.ctors ↔ ∃ k, ctorOf env c = some k ∧ k.family = I := by
@@ -114,8 +115,8 @@ theorem recursor_head {T : Tables} (HT : T.Inv env) (hd : T.recursors n = some d
   obtain ⟨_, he⟩ := HT.recursors hd
   exact he.registered.equation_head howner hgen
 
-/-! ## T4: rigid constants -/
+/-! ## Rigid constants -/
 
-/-! ## T5: equations with the same head -/
+/-! ## Equations with the same head -/
 
 end Lean4Lean.EnvTables

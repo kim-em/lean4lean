@@ -14,7 +14,7 @@ The observation model (`Theory/Typing/HeadInjectivity/Model/`) needs, for an arb
 environment, a constructor table and a family table, together with a classification of every
 stored equation. These are not functions of the final environment alone: the same axiomatized
 constants can be described by two declarations with different parameter counts (see
-`EnvTables.lean` for the counterexample), so the tables are built along the declaration history,
+`EnvTables/OfWF.lean` for the counterexample), so the tables are built along the declaration history,
 recording the *first* registration ("view") of every family. This file defines the tables, the
 history invariant `Tables.Inv`, and proves that every `VEnv.WF'` history has tables satisfying it.
 
@@ -163,7 +163,7 @@ theorem QuotInstalled.mono (H : QuotInstalled env) (hle : env ≤ env') : QuotIn
   ⟨hle.constants H.quot, hle.constants H.mkConst, hle.constants H.lift, hle.constants H.ind,
     hle.defeqs H.equation⟩
 
-/-- Actual provenance of a native recursor entry: the finite compilation of the very block that
+/-- The installation of a recursor entry: the finite compilation of the very block that
 installed it, together with the family views it recorded. -/
 def RecursorEntryCompiled (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded auxiliaries block installed,
@@ -212,17 +212,18 @@ structure Tables.Inv (env : VEnv) (T : Tables) : Prop where
   /-- Definition entries. -/
   defs : T.defs n = some v → v.name = n ∧ env.constants n = some v.toVConstant ∧
     env.defeqs v.toDefEq
-  /-- Native recursor entries, with their actual installation. -/
+  /-- Recursor entries, with their actual installation. -/
   recursors : T.recursors n = some data → data.name = n ∧ RecursorEntryCompiled env T data
   /-- The quotient flag. -/
   quot : T.quot = true → QuotInstalled env ∧ T.fam ``Quot = some quotFam ∧
     T.ctor ``Quot.mk = some quotCtor ∧ T.defs ``Quot.lift = none ∧
     T.recursors ``Quot.lift = none ∧ T.defs ``Quot.ind = none ∧ T.recursors ``Quot.ind = none
-  /-- Definition and native heads are distinct. -/
+  /-- Definition and recursor heads are distinct. -/
   defs_recursors : T.defs n ≠ none → T.recursors n = none
   /-- Families and constructors. -/
   views : ViewInv env T.fam T.ctor
-  /-- Every stored equation has an origin. -/
+  /-- Every stored equation is a definition's delta rule, the quotient rule, or an equation of a
+  recursor entry. -/
   equations : env.defeqs df →
     (∃ v, T.defs v.name = some v ∧ df = v.toDefEq) ∨
     (T.quot = true ∧ df = quotDefEq) ∨

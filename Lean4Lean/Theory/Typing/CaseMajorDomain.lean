@@ -2,7 +2,8 @@ import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Inductive.RestorationHead
 
 /-! The major premise of a typed abstract case application has the restored
-native family type determined by its generated eliminator telescope. -/
+family type, headed by the installed family constant, determined by its generated eliminator
+telescope. -/
 
 set_option maxHeartbeats 1000000
 
@@ -87,7 +88,7 @@ private theorem caseMajor_head_typed {type : VExpr} (henv : env.WF) (hΓ : OnCtx
     exact ⟨_, hf⟩
 
 /-- Typing a saturated abstract eliminator application fixes the major
-premise's native family head and its restored universe specialization. -/
+premise's installed family head and its restored universe specialization. -/
 theorem HasType.caseMajor_type (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     {schema : CaseSchema} {owner : Fin schema.signature.families.size}
     {packed : List VLevel} {args : List VExpr} {major : VExpr}

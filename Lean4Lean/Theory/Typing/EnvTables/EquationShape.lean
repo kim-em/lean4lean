@@ -1,9 +1,9 @@
 import Lean4Lean.Theory.Typing.EnvTables.OfWF
 
 /-!
-# Shapes of installed native equations (M4a, T2)
+# Shapes of installed recursor equations
 
-A restored native recursor equation is a lambda telescope over the parameters, motives, minors
+A restored recursor equation is a lambda telescope over the parameters, motives, minors
 and constructor fields; its left body applies the recursor to the parameter, motive and minor
 variables, to arbitrary index expressions, and to a constructor application whose trailing
 arguments are the field variables. Restoration may specialize the constructor's parameters
@@ -55,7 +55,7 @@ theorem compilationRestoration_nparams {source : VInductDecl}
   simp only [ContainerSpecialization.heads, List.mem_cons, List.mem_map] at ha
   rcases ha with rfl | ⟨c, _, rfl⟩ <;> rfl
 
-/-- T2 for one restored native equation of a finite compilation. -/
+/-- The shape of one restored recursor equation of a finite compilation. -/
 theorem CompilationData.rule_shape
     {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {block : VInductBlock} {env : VEnv} {src exp : VInductDecl} {df : VDefEq}

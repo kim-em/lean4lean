@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Supply
 import Lean4Lean.Theory.Typing.PrefixUnfolding.NormalCongruence
 
-/-! # Supplying arguments to generated prefix programs
+/-! # Supplying arguments to generated prefix unfoldings
 
 Prefix generation succeeds at every admissible prefix length once it succeeds
 at one, and supplying further arguments to a generated right-hand side beta
-reduces to the program generated at the longer prefix.
+reduces to the unfolding generated at the longer prefix.
 -/
 
 namespace Lean4Lean.InductiveSignature.RecursorData

@@ -8,7 +8,7 @@ certification is existential: it exhibits some finite compilation of the contain
 below the current environment, not necessarily the one of the actual history. This file shows
 that the tables nevertheless record each container constructor with the container's own
 parameter count: the container's equation for the constructor is an installed equation, and its
-syntax pins down the actual native recursor, its family, and its parameter count.
+syntax pins down the actual recursor, its family, and its parameter count.
 -/
 
 namespace Lean4Lean.EnvTables

@@ -13,8 +13,7 @@ typeCast u X Y e x := @Eq.rec.{u, u+1} (Sort u) X (fun T _ => T) x Y e : Y
 
 for `e : @Eq (Sort u) X Y` and `x : X`. When `X ≡ Y`, the cast computes to `x`: the
 equation proof is proof-irrelevantly `Eq.refl X`, and the stored `Eq.rec` iota rule
-fires. This is the K-like computation used by singleton eta
-(`docs/inductives/STRENGTHENING_NOTES.md`, section 1.2). -/
+fires. This is the K-like computation used by singleton eta. -/
 
 set_option linter.unusedSimpArgs false
 

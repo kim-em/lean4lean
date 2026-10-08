@@ -64,7 +64,7 @@ noncomputable def singletonLayout (env : VEnv) (data : RecursorData) (packed : L
 def propParams (data : RecursorData) (packed : List VLevel) : List VExpr :=
   data.recursorInstance.params.map (·.instL packed)
 
-/-- Elimination into `Prop` through the native recursor itself, at an occurrence's universes
+/-- Elimination into `Prop` through the recursor itself, at an occurrence's universes
 with the free elimination universe set to zero. -/
 def propElim (data : RecursorData) (packed : List VLevel) : Option PropElim := do
   let k ← data.targetParam
@@ -75,9 +75,9 @@ def propElim (data : RecursorData) (packed : List VLevel) : Option PropElim := d
 end InductiveSignature.RecursorData
 end Lean4Lean
 
-/-! # Facts about a registered native large-eliminating proposition
+/-! # Facts about a registered large-eliminating proposition
 
-A registered native recursor whose target universe can be large and whose source sort is
+A registered recursor whose target universe can be large and whose source sort is
 `Prop` at an occurrence comes from a singleton signature with identity restoration and a
 free elimination universe (`Instance.FreeTarget`). -/
 
@@ -87,7 +87,7 @@ open VExpr InductiveSignature VEnv
 namespace InductiveSignature.RecursorData
 variable {env : VEnv}
 
-/-- What a registered native large-eliminating proposition provides: a singleton
+/-- What a registered large-eliminating proposition provides: a singleton
 signature, identity restoration, free elimination universe, and the installed
 recursor typed by the generator. -/
 structure SingletonSignature (env : VEnv) (data : RecursorData) : Prop where
@@ -172,8 +172,8 @@ theorem singletonSignature (H : RecursorRegistered env data) (hlarge : data.larg
 end InductiveSignature.RecursorData
 end Lean4Lean
 
-/-! Scope and term-renaming facts for the actual singleton reconstruction
-program. These facts retain its selected index and proof-field programs. -/
+/-! Scope and term-renaming facts for the actual singleton reconstruction.
+These facts retain its selected index and proof-field extractions. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 open VExpr

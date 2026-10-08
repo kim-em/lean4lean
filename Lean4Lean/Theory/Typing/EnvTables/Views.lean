@@ -4,7 +4,7 @@ import Lean4Lean.Theory.Typing.EnvTables.Defs
 # The history invariant of the environment tables
 
 Every `VEnv.WF'` history has tables satisfying `Tables.Inv`. Families are recorded at their
-first registration: native installation (families with at least one constructor), structure
+first registration: block installation (families with at least one constructor), structure
 registration (`inductProjections`), eliminator registration (family by family, for a family none
 of whose names is already recorded) and the quotient.
 -/

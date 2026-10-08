@@ -9,7 +9,7 @@ def openedArguments (data : RecursorData) (args : List VExpr) : List VExpr :=
   let remaining := data.majorOffset + 1 - args.length
   args.map (·.liftN remaining) ++ vars remaining 0
 
-/-- The fields reconstructed by the singleton program at the supplied arguments. -/
+/-- The fields reconstructed by the singleton unfolding at the supplied arguments. -/
 noncomputable def singletonFields (data : RecursorData) (S : SingletonLayout) (E : PropElim)
     (levels : List VLevel) (args : List VExpr) : List VExpr :=
   (PropElim.occ S (data.propParams levels) E ((data.openedArguments args).take data.numParams)

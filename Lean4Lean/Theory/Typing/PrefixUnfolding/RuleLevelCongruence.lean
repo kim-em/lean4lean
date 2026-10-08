@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.PrefixUnfolding.GenerationLevels
 import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 
-/-! Fixed-context universe congruence of concrete native and primitive
+/-! Fixed-context universe congruence of concrete singleton and primitive
 quotient prefix reconstruction. -/
 
 namespace Lean4Lean.VEnv

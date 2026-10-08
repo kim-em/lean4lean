@@ -14,7 +14,7 @@ structure QuotRegistered (env : VEnv) : Prop where
   equation : env.defeqs quotDefEq
 
 /-- Checked zero-source unfolding at a primitive quotient-lift prefix.
-The selector is Quot.ind, and all replay data come from quotDefEq. -/
+The selector is Quot.ind, and all unfolding-check data come from quotDefEq. -/
 inductive QuotPrefixUnfold (env : VEnv) (U : Nat) (Γ : List VExpr) :
     List VLevel → List VExpr → VExpr → Prop where
   | intro {program : RecursorData.PrefixUnfolding} :

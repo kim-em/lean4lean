@@ -50,7 +50,7 @@ noncomputable def unrecorded (T : Tables) (t : VInductiveType) : Bool := by
   exact decide (T.fam t.name = none ∧ T.ctor t.name = none ∧
     ∀ c ∈ t.ctors, T.fam c.name = none ∧ T.ctor c.name = none)
 
-/-- `n` is the name of a constructor of an original family of a schema registered in `env`. -/
+/-- `n` is the name of a constructor of a source family of a schema registered in `env`. -/
 def SchemaCtorReserved (env : VEnv) (n : Name) : Prop :=
   ∃ key schema, env.eliminators key schema ∧ n ∈ schemaCtorNames schema
 
@@ -126,7 +126,7 @@ theorem Tables.Inv.eliminator {base : VEnv} {source : VInductDecl} {block : VInd
       · exact (Certified.mem_schemaCtorNames hcert₀).mpr
           ⟨c, List.mem_flatMap.mpr ⟨t, ht, hc⟩, rfl⟩
 
-/-- Record the views of a schema that is already registered in `E`: a native installation that
+/-- Record the views of a schema that is already registered in `E`: a block installation that
 also installs the certified case eliminator of its declaration (`VInductBlock.install`). -/
 theorem Tables.Inv.addSchema_registered {base E : VEnv} {source : VInductDecl}
     {block : VInductBlock} {schema : CaseSchema} {key : Name} (H : T.Inv E) (hle : base ≤ E)

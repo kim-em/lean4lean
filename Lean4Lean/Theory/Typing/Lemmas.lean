@@ -335,7 +335,7 @@ theorem Ordered.projectionConstant (H : Ordered env)
 
 /-- Projection metadata in an ordered environment names the exact constructor
 constant from which that metadata was derived.  This is an invariant of the
-inductive installation trace, rather than an additional projection-readiness
+ordered declaration history, not an additional projection-readiness
 assumption. -/
 theorem Ordered.projectionConstructor (H : Ordered env)
     (hprojection : env.projections name info) :

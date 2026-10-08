@@ -34,8 +34,8 @@ theorem HasType.etaOpen_wf (henv : env.Ordered)
     simpa only [List.reverse_cons, List.append_assoc, List.singleton_append,
       List.length_cons, etaOpen] using ih (Γ := domain :: Γ) ⟨hΓ, u, hd⟩ hbody
 
-/-- Eta expansion through a dependent telescope preserves the exact native
-type. Functional result types remain below the supplied telescope. -/
+/-- Eta expansion through a dependent telescope preserves the exact type of
+the term. Functional result types remain below the supplied telescope. -/
 theorem HasType.etaOpen_defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : HasType env U Γ fn (wrapForalls domains result)) :
@@ -53,7 +53,7 @@ theorem HasType.etaOpen_defeq (henv : env.WF)
     have heq := ih hΓ' hbody
     exact heta.symm.trans (.lamDF hd heq)
 
-/-- Close an equality proved under the remaining native telescope. -/
+/-- Close an equality proved under the remaining telescope. -/
 theorem IsDefEq.etaOpen_wrapLams (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (hdomains : OnCtx (domains.reverse ++ Γ) (env.IsType U))

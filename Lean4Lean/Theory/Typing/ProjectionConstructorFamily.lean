@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.InductiveLemmas
 
 /-! Concrete selectors for the functional environment metadata. Case entries
 retain precisely the closed-header eligibility already required by `elimDF`.
-No abstract schema is added to an ordinary native installation. -/
+No abstract schema is added to an ordinary installation. -/
 namespace Lean4Lean.VEnv
 open VExpr
 variable {env : VEnv} {leftName rightName : Name} {leftInfo rightInfo : VProjectionInfo}
