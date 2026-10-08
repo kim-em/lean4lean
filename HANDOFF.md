@@ -273,7 +273,7 @@ Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
   may spawn their own helper subagents on `-<topic>` branches; scratch
   worktrees now live under `~/worktrees/lean4lean/`, not `/tmp`.
 - `lean4lean-hi`, branch `agent/verify-inductives-headinv`: **Phase 1a
-  COMPLETE (84bf90d3; being merged into the mainline):** `lake build
+  COMPLETE (84bf90d3; merged into the mainline):** `lake build
   Lean4Lean.Experimental` passes (NormalEq, ParallelReduction, Stratified,
   StratifiedUntyped ported; two false-once-iota-fires theorems take
   `VEnv.NoInductiveRules`); a new sound model `Theory/Typing/ShapeModel/`
