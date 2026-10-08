@@ -252,6 +252,36 @@ structure ConstructorBoundary (c : AddInductive.Context)
 end Lean4Lean.VerifyInductive
 
 
+namespace Lean4Lean.VerifyInductive
+
+/-- The window environment of a declaration with certified case eliminators: its constructor
+stage with the eliminators, and then with its projection entries, is well formed. -/
+theorem _root_.Lean4Lean.VInductBlock.EliminatorsWF.windowWF {base envTypes envCtors : VEnv}
+    {decl : VInductDecl} {es : List (Name × InductiveSignature.CaseSchema)}
+    {lparams : List Name} {nparams : Nat} {types : List Lean.InductiveType} {isUnsafe : Bool}
+    (Hcases : VInductBlock.EliminatorsWF base decl (decl.caseBlock es)) (hbase : base.WF)
+    (Hcore : TrInductDeclCore base lparams nparams types isUnsafe decl envTypes envCtors)
+    (hparams : decl.SourceParameterWF base) :
+    (envCtors.addEliminators es).WF ∧
+      ((envCtors.addEliminators es).addProjections decl.projectionEntries).WF := by
+  have hcases : (envCtors.addEliminators es).WF :=
+    Hcases.casesWF hbase (TrInductDeclCore.envCtorsWF Hcore hbase) Hcore.typesAdded
+      Hcore.ctorsAdded
+  refine ⟨hcases, ?_⟩
+  obtain ⟨_, _, _, _, helim⟩ := Hcases
+  rcases helim with ⟨-, hP⟩ | ⟨key, schema, hE, hcert, hkey, -, hhdr⟩
+  · have hP' : decl.projectionEntries = [] := hP
+    rw [hP']
+    exact hcases
+  exact VEnv.WF.inductProjections (base := base) (envTypes := envTypes)
+    (decl := decl) (block := decl.caseBlock es)
+    hbase hcases ⟨key, schema, hE, hcert, hkey, hhdr⟩
+    (TrInductDeclCore.sourceNames_nodup Hcore) (TrInductDeclCore.typeHeadersWF Hcore)
+    (TrInductDeclCore.constructorUvars Hcore) (TrInductDeclCore.constructorsWF Hcore)
+    hparams hparams.rawCtorShape rfl rfl rfl Hcore.typesAdded Hcore.ctorsAdded
+
+end Lean4Lean.VerifyInductive
+
 /-! Source signature selections at the completed constructor boundary. -/
 
 namespace Lean4Lean.VerifyInductive

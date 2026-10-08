@@ -176,7 +176,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
   have hfreshCtors := E.restorableNames_fresh_ctors hadded Haux Hexpansion hnodup
     hsourceCtorNames hctorsAdded
   have hrecAdded := C.canonical.recursorsAdded.abstract
-  have hle : C.canonical.venvCtors.addProjections sourceDecl.projectionEntries ≤
+  have hle : (C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries ≤
       C.finalBaseVEnv := VEnv.addConstVals_le hrecAdded
   have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
     have Hcore := E.nativeSource.core

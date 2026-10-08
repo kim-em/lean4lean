@@ -351,7 +351,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
             (E.production.production.completed.canonicalGeneration.recursor owner) =
               some entry.2 ∧
           RestoredRecursorStepValue
-            (C.canonical.venvCtors.addProjections sourceDecl.projectionEntries) Hstep
+            ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries) Hstep
             entry.2)
       (List.finRange
         E.production.production.completed.generationSignature.families.size)

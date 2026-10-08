@@ -667,6 +667,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
       depth sourceVEnv result.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
+    {es : List (Name × InductiveSignature.CaseSchema)}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
@@ -688,9 +689,10 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     (hsourceRecursors : RecursorEnvCoherent c.safety c.env.constants sourceVEnv)
     (hsourceQuot : c.env.quotInit = true →
       QuotEnvCoherent c.env.constants sourceVEnv)
-    (hprojectedWF : (envCtors.addProjections sourceDecl.projectionEntries).WF) :
+    (hcasesWF : (envCtors.addEliminators es).WF)
+    (hprojectedWF : ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries).WF) :
     CheckingEnv.Valid c.safety validationEnv
-      (envCtors.addProjections sourceDecl.projectionEntries) := by
+      ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have hvalidWF : validationEnv.constants.WF := hvalid.tr.map_wf
@@ -758,7 +760,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
           (Option.some.inj (hlookup'.symm.trans hlookup''))
         exact ⟨_, by rw [hF]; exact hheader⟩
   have hregistry : ProjectionRegistryCoherent c.safety validationEnv.constants
-      (envCtors.addProjections sourceDecl.projectionEntries) := by
+      ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
     apply hsourceRegistry.extendInductive (envTypes := envTypes)
       (envCtors := envCtors)
     · apply ProductionInductiveOrigins.restrict Hprimary
@@ -799,12 +801,12 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     · exact Lean4Lean.VerifyInductive.TrInductDeclCore.constructorUvars Hsource
     · exact Hsource.typesAdded
     · exact Hsource.ctorsAdded
-    · exact VEnv.addProjections_le
+    · exact VEnv.addEliminators_addProjections_le
     · intro entry hentry
       exact VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩)
-  have hle : sourceVEnv ≤ envCtors.addProjections sourceDecl.projectionEntries :=
+  have hle : sourceVEnv ≤ (envCtors.addEliminators es).addProjections sourceDecl.projectionEntries :=
     (VEnv.addConstVals_le Hsource.typesAdded).trans
-      ((VEnv.addConstVals_le Hsource.ctorsAdded).trans VEnv.addProjections_le)
+      ((VEnv.addConstVals_le Hsource.ctorsAdded).trans VEnv.addEliminators_addProjections_le)
   have hpres : ∀ {n ci}, c.env.constants.find? n = some ci →
       validationEnv.constants.find? n = some ci := by
     intro n ci hfind
@@ -814,7 +816,7 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     have hout := H.preservesSourceFind hsourceWF hfind'
     rwa [Lean.Kernel.Environment.find?, hvalidWF.find?'_eq_find?] at hout
   have hrecursors : RecursorEnvCoherent c.safety validationEnv.constants
-      (envCtors.addProjections sourceDecl.projectionEntries) := by
+      ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
     refine hsourceRecursors.extendSimple hpres ?_ hle ?_
     · intro n rec hfind _
       have hfind' : validationEnv.find? n = some (.recInfo rec) := by
@@ -826,16 +828,18 @@ theorem RestoredConstructorValidationEnvironment.validProjected
       · cases heq
       · cases heq
     · intro df hdf
-      rw [VEnv.addProjections_defeqs, VEnv.addConstVals_defeqs Hsource.ctorsAdded,
+      rw [VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
+        VEnv.addConstVals_defeqs Hsource.ctorsAdded,
         VEnv.addConstVals_defeqs Hsource.typesAdded] at hdf
       exact hdf
   have hquot : validationEnv.quotInit = true →
       QuotEnvCoherent validationEnv.constants
-        (envCtors.addProjections sourceDecl.projectionEntries) := by
+        ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) := by
     intro hq
     rw [H.quotInit_eq hsourceWF] at hq
     exact (hsourceQuot hq).extend hpres hle hrecursors.heads
-  exact (hvalid.addProjections hprojectedWF).toValid howners hregistry hrecursors hquot
+  exact ((hvalid.addEliminators hcasesWF).addProjections hprojectedWF).toValid howners hregistry
+    hrecursors hquot
 
 
 /-! ### The final restored environment -/
