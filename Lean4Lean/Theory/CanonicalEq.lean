@@ -1,6 +1,11 @@
 import Lean4Lean.Theory.Quot
 
-/-! # Canonical equality in an abstract environment -/
+/-! # Canonical equality in an abstract environment
+
+`VEnv.HasCanonicalEq`: the environment contains the prelude's `Eq`, `Eq.refl` and `Eq.rec`
+with their types and the stored iota rule of `Eq.rec`. It is the hypothesis `heq` of the
+top-level theorem `addDecl.WF_of_canonicalEq` and is used only for the quotient declaration
+(sections 1.3 and 6 of `docs/inductives/DESIGN.md`). -/
 
 namespace Lean4Lean
 
@@ -64,7 +69,7 @@ def canonicalEqRecRule : VDefEq where
 
 /-- The environment contains Lean's prelude equality `Eq`, its constructor
 `Eq.refl` and its recursor `Eq.rec`, with the types and the iota rule that the
-replay of `Init.Prelude` installs.  Universe parameters follow the production
+replay of `Init.Prelude` installs.  Universe parameters follow the prelude's
 declarations: `Eq.{u_1}` and `Eq.refl.{u_1}` have one universe parameter (the
 sort of `α`, `.param 0`); `Eq.rec.{u, u_1}` has two, the motive universe `u`
 (`.param 0`) followed by the sort of `α` (`.param 1`).  `Eq` has two parameters
@@ -85,7 +90,7 @@ recursor rules are stored in `VEnv.defeqs`.
 Realizability: `addDecl.preludeEq_hasCanonicalEq`
 (`Lean4Lean/Verify/CanonicalEq.lean`) derives this predicate for the
 abstract environments produced by checking the `Init.Prelude` declaration of
-`Eq`, given that the executable installs `Eq.rec` with the production type,
+`Eq`, given that the executable installs `Eq.rec` with the prelude's type,
 which `Lean4Lean/Tests/PreludeEq.lean` checks. -/
 def VEnv.HasCanonicalEq (env : VEnv) : Prop :=
   env.constants ``Eq = some ⟨1, canonicalEqType⟩ ∧
@@ -107,7 +112,7 @@ theorem VEnv.HasCanonicalEq.quotReady {env : VEnv} (h : env.HasCanonicalEq) :
 declarations' types and of the rule `@Eq.rec α a motive refl a (Eq.refl a) ≡ refl`.
 The `vconst`/`vdefeq` elaborators number universe parameters in order of first
 occurrence (the sort of `α` first), so for `Eq.rec` the two parameters are
-swapped back into the production order `[u, u_1]`. -/
+swapped back into the prelude's order `[u, u_1]`. -/
 example (env : VEnv) : env.HasCanonicalEq ↔
     env.constants ``Eq = some vconst(type_of% @Eq) ∧
     env.constants ``Eq.refl = some vconst(type_of% @Eq.refl) ∧

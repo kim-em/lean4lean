@@ -240,7 +240,8 @@ theorem VEnv.addProjections_le {env : VEnv} {entries : List VProjectionEntry} :
   | nil => exact .rfl
   | cons entry entries ih => exact addProjection_le.trans ih
 
-/-- The constructor stage is below the stage with the block's eliminators and projections. -/
+/-- The constructor environment is below its extension by the block's eliminators and
+projections (the recursor-checking environment). -/
 theorem VEnv.addEliminators_addProjections_le {env : VEnv} {es}
     {entries : List VProjectionEntry} : env ≤ (env.addEliminators es).addProjections entries :=
   addEliminators_le.trans addProjections_le

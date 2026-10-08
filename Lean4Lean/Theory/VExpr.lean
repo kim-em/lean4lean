@@ -8,7 +8,7 @@ inductive VExpr where
   | bvar (deBruijnIndex : Nat)
   | sort (u : VLevel)
   | const (declName : Name) (us : List VLevel)
-  /-- Declaration-derived eliminator, disjoint from native constant names.
+  /-- Declaration-derived case eliminator, disjoint from constant names.
   The universe spine starts with the elimination level, followed by the source
   declaration's levels; `owner` indexes the expanded mutual block. -/
   | elim (block : Name) (owner : Nat) (us : List VLevel)
