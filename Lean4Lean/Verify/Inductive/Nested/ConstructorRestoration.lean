@@ -467,7 +467,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     refine ⟨(htypeD.noFreshConsts hordered hfresh (by intro _ h; simp at h)).2.1, ?_⟩
     have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
         E.production.compilationSignature.params.reverse sourceParams.reverse :=
-      VEnv.IsDefEqCtx.transEmpty henvTypes hP (hctx.symm hordered)
+      VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)
     have htypingP := htyping.defeqDFC hordered (hPS.symm hordered)
     have hlam : envTypes.HasType sourceDecl.uvars []
         (VExpr.wrapLams E.production.compilationSignature.params

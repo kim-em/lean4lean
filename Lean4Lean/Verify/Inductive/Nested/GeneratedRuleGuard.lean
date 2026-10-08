@@ -226,14 +226,6 @@ theorem recursorType_pieces_avoid {s : InductiveSignature} (g : Instance s) {L :
 
 /-! ### Restoration of the generated right-hand side -/
 
-private theorem forall₂_append_left_split {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {r : List β}, List.Forall₂ R (l₁ ++ l₂) r →
-      ∃ r₁ r₂, r = r₁ ++ r₂ ∧ List.Forall₂ R l₁ r₁ ∧ List.Forall₂ R l₂ r₂
-  | [], _, _, h => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t => by
-    obtain ⟨r₁, r₂, rfl, H₁, H₂⟩ := forall₂_append_left_split t
-    exact ⟨_ :: r₁, r₂, rfl, .cons h H₁, H₂⟩
-
 theorem Restoration.expr_mkApps_const_of_find_none {r : Restoration} {c : Name}
     {ls : List VLevel} (args : List VExpr)
     (h : r.heads.find? (fun h => h.auxiliary == c) = none) :
@@ -374,7 +366,7 @@ theorem restoredEquation_rhs {s : InductiveSignature} (g : Instance s)
   rw [Restoration.expr_mkApps_bvar] at hbody
   obtain ⟨args', hargs, rfl⟩ := Option.map_eq_some_iff.mp hbody
   obtain ⟨vars', calls', rfl, Hvars, Hcalls⟩ :=
-    forall₂_append_left_split (List.mapM_eq_some.mp hargs)
+    List.Forall₂.append_inv (List.mapM_eq_some.mp hargs)
   have hvars := restored_vars Hvars
   subst hvars
   refine ⟨D, calls', hD, ?_, ?_, hbodyEq.symm, ?_⟩
@@ -589,7 +581,7 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
   -- the lowered names are source names or heads
   have HT := C.formationAssembly.types
   rw [hloweredDecl] at HT
-  obtain ⟨r₁, r₂, hsplit, HT₁, -⟩ := forall₂_append_left_split HT
+  obtain ⟨r₁, r₂, hsplit, HT₁, -⟩ := List.Forall₂.append_inv HT
   have hlen₁ : r₁.length = sourceDecl.types.length := (Lean4Lean.List.Forall₂.length_eq HT₁).symm
   have hr₂ : r₂ = E.production.loweredDecl.types.drop sourceDecl.types.length := by
     rw [hsplit, ← hlen₁, List.drop_left]

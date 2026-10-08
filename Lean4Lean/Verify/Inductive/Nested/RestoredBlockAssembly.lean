@@ -187,7 +187,7 @@ theorem Restoration.spineOK_insertBinders (r : Restoration) (ds : List VExpr) (c
   · rintro H _ d i hdi rfl
     exact (r.spineOK_liftN c d i 0).mpr (H d (List.fst_mem_of_mem_zipIdx hdi))
 
-private theorem mem_zipIdx_of_mem {l : List α} {x : α} (h : x ∈ l) :
+theorem mem_zipIdx_of_mem {l : List α} {x : α} (h : x ∈ l) :
     ∃ i, (x, i) ∈ l.zipIdx := by
   obtain ⟨i, hi⟩ := List.mem_iff_getElem?.mp h
   exact ⟨i, List.mk_mem_zipIdx_iff_getElem?.mpr hi⟩
@@ -590,15 +590,6 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
 
 /-! ### Freshness of the restorable names in the source constructor environment -/
 
-private theorem forall₂_take' {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.take k) (r.take k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons _ _, 0 => by simp
-  | _, _, .cons h t, k + 1 => by
-    simp only [List.take_succ_cons]
-    exact .cons h (forall₂_take' t k)
-
 /-- The source constructor names are constructor names of the source prefix of
 the lowered declaration. -/
 theorem NestedFinalAssemblyBase.sourceConstructorNames
@@ -615,7 +606,7 @@ theorem NestedFinalAssemblyBase.sourceConstructorNames
       c.name ∈ familyNames (B.production.loweredDecl.types.take decl.types.length) := by
   intro c hc
   obtain ⟨src, hsrc, hcsrc⟩ := List.mem_flatMap.mp hc
-  have HT := forall₂_take' B.formationAssembly.types decl.types.length
+  have HT := List.forall₂_take B.formationAssembly.types decl.types.length
   rw [List.take_left' rfl, B.formationExpanded] at HT
   obtain ⟨t, ht, hT⟩ := Lean4Lean.List.Forall₂.forall_exists_l HT src hsrc
   obtain ⟨c', hc', hcc⟩ := Lean4Lean.List.Forall₂.forall_exists_l hT.constructors c hcsrc
@@ -701,7 +692,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh_ctors
 
 /-! ### The order of the restored recursors -/
 
-private theorem forall₂_map_eq {R : α → β → Prop} {f : α → γ} {g : β → γ}
+theorem forall₂_map_eq {R : α → β → Prop} {f : α → γ} {g : β → γ}
     (hR : ∀ a b, R a b → f a = g b) :
     ∀ {l : List α} {r : List β}, List.Forall₂ R l r → l.map f = r.map g
   | _, _, .nil => rfl

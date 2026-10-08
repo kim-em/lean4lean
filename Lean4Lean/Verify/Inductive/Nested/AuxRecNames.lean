@@ -407,20 +407,6 @@ theorem NestedValidatedRunResult.finalBaseVEnv_restorableNames_fresh_of_not_rena
 section Commutation
 
 
-private theorem forall₂_append_left' {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {m : List β}, List.Forall₂ R (l₁ ++ l₂) m →
-      ∃ m₁ m₂, m = m₁ ++ m₂ ∧ List.Forall₂ R l₁ m₁ ∧ List.Forall₂ R l₂ m₂
-  | [], _, _, h => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t => by
-    obtain ⟨m₁, m₂, rfl, h₁, h₂⟩ := forall₂_append_left' t
-    exact ⟨_ :: m₁, m₂, rfl, .cons h h₁, h₂⟩
-
-private theorem forall₂_append' {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {m₁ m₂ : List β}, List.Forall₂ R l₁ m₁ → List.Forall₂ R l₂ m₂ →
-      List.Forall₂ R (l₁ ++ l₂) (m₁ ++ m₂)
-  | _, _, _, _, .nil, h => h
-  | _, _, _, _, .cons h t, h₂ => .cons h (forall₂_append' t h₂)
-
 /-- Syntax translated in an environment lacking the restorable names outside
 `X`, and avoiding `X` itself, avoids every restorable name. -/
 theorem avoidsRestorable_of_partial {r : Restoration} {X : List Name}
@@ -479,7 +465,7 @@ theorem restorationCommutesTrail_hit
   rcases checkPositivityStep.TrExprS.mkAppList_inv Hs with ⟨fn', L', hfn', hL', rfl⟩
   cases hfn' with
   | const _ hlsV _ =>
-  obtain ⟨P', R'', rfl, hP', hR''⟩ := forall₂_append_left' hL'
+  obtain ⟨P', R'', rfl, hP', hR''⟩ := List.Forall₂.append_inv hL'
   rcases checkPositivityStep.TrExprS.mkAppList_inv Ht with ⟨Hv, R', hHv, hR', rfl⟩
   rcases A.head As c H hH with ⟨h, hfind, hnparams, hlevels⟩
   rcases hlevels _ hlsV with ⟨huvars, hsem⟩
@@ -494,7 +480,7 @@ theorem restorationCommutesTrail_hit
   have hPTlen : PT.length = result.nparams := by
     rw [← Lean4Lean.List.Forall₂.length_eq hPT, hAsLen]
   simp only [Restoration.expr]
-  rw [Restoration.expr.go_mkApps r (forall₂_append' hPr hRr), List.append_nil]
+  rw [Restoration.expr.go_mkApps r (List.Forall₂.append' hPr hRr), List.append_nil]
   have hle : h.nparams ≤ (PT ++ R').length := by simp [hnparams, hPTlen]
   simp [Restoration.expr.go, hfind, HeadSpecialization.apply, huvars, hnparams, hPTlen,
     Lean4Lean.VExpr.mkApps_append]
@@ -678,15 +664,6 @@ theorem Expr.SameLambdaPrefix.translatedDomains_restoreTrail {r : Restoration}
       (Hctx.translate_avoids hc (avoidsRestorable_of_partial Hfresh hd₂ hdX) hd₁ hd₂)
       (ih Hrest Hctx.vlam hb₁ hb₂ (by simpa using h₁) (by simpa using h₂))
 
-private theorem fvarIdsIn_of_trExprS_abstractForallContextTrail
-    {env : VEnv} {Us : List Name} {domains : List VExpr} {e : Expr} {e' : VExpr}
-    (H : TrExprS env Us (abstractForallContext domains []) e e') (P : FVarId → Prop) :
-    e.FVarIdsIn P := by
-  apply FVarsIn_to_FVarIdsIn
-  apply H.fvarsIn.mono
-  intro fv hfv
-  simp [abstractForallContext, VLCtx.fvars] at hfv
-
 /-- **Closed-term commutation for lambda telescopes with input-side
 avoidance** (`NestedRestorationOpening.restorationCommutesLam'` with the
 freshness of the names of `X` replaced by their avoidance in the input). -/
@@ -736,7 +713,7 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
     ⟨Ds, sR, hDs, rfl, HsR⟩
   have HbodyS := TrExprS.instantiateRevFVars Hopen.selection.fvars Ds [] suffix sR
     (hlen.trans hDs.symm) hnodup
-    (fvarIdsIn_of_trExprS_abstractForallContextTrail HsR _) HsR
+    (fvarIdsIn_of_trExprS_abstractForallContext' HsR _) HsR
   rw [← hbody, List.append_nil] at HbodyS
   have houtput : output = Hopen.lctx.mkLambda Hopen.params Hopen.restoredBody := by
     simpa [hnotForall] using Hopen.output_eq
@@ -748,7 +725,7 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
   rcases TrExprS.lambdaTelescope_shape_with_context HoutTel Ht with ⟨Dt, tR, hDt, rfl, HtR⟩
   have HbodyT := TrExprS.instantiateRevFVars Hopen.selection.fvars Dt [] _ tR
     hDt.symm hnodup
-    (fvarIdsIn_of_trExprS_abstractForallContextTrail HtR _) HtR
+    (fvarIdsIn_of_trExprS_abstractForallContext' HtR _) HtR
   rw [TypeChecker.Expr.abstractList_instantiateRevList_eq_self hnodup hrestored,
     List.append_nil, Hopen.replacement.eq_replace] at HbodyT
   have Hbody := restorationCommutesTrail A hc HAs hsize Hfresh Hshape HbodyTrail
@@ -1063,15 +1040,6 @@ theorem _root_.Lean4Lean.InductiveSignature.compilationRestoration_recursors_snd
   obtain ⟨⟨a, i⟩, -, rfl⟩ := hp
   exact Name.appendIndexAfter_str_rec _ _
 
-private theorem names_of_trTypes' {env envTypes : VEnv} {lparams : List Name} :
-    ∀ {types : List InductiveType} {decls : List VInductiveType},
-      List.Forall₂ (TrInductiveType env envTypes lparams) types decls →
-      types.map (·.name) = decls.map (·.name)
-  | _, _, .nil => rfl
-  | _, _, .cons h t => by
-    simp only [List.map_cons, names_of_trTypes' t, List.cons.injEq, and_true]
-    exact h.header.name.symm
-
 /-- **Lowered auxiliary recursor names are never renamed recursor names.** The
 renamed names `M.s` extend the first source family name `M`, while a lowered
 auxiliary recursor name is `A.rec` for an auxiliary family `A`, which is
@@ -1112,7 +1080,7 @@ theorem NestedValidatedRunResult.auxRecName_not_renamed
     have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
       have Hcore := E.nativeSource.core
       rw [E.nativeSourceDecl_eq] at Hcore
-      exact names_of_trTypes' Hcore.types
+      exact (forall₂_trInductiveType_names Hcore.types).symm
     have hlen : sourceTypes.length = sourceDecl.types.length := by
       simpa using congrArg List.length hnames
     have hsrc := E.sourceNames_eq

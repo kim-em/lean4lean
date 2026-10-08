@@ -977,7 +977,7 @@ theorem SelectedParameterTargets.translatedSelection
     have hiAs : i < As.toList.length := by simpa [htargetsLength] using hiTarget
     have hiFVars : i < Hselection.fvars.length := by
       simpa [hfvarsLength] using hiAs
-    have Htranslated := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+    have Htranslated := Lean4Lean.List.forall₂_getElem
       Htargets i hiAs hiTarget
     have hsource : As.toList[i] = .fvar Hselection.fvars[i] := by
       have harr : As.toList = Hselection.fvars.map Expr.fvar := by

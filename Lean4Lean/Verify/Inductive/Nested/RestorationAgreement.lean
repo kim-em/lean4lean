@@ -477,18 +477,6 @@ theorem AuxNestedSpec.reopen {result : Lean4Lean.ElimNestedInductive.Result}
     instantiateRevList_mkAppList,
     instantiateRevList_closed rfl]
 
-private theorem find?_auxiliary_of_nodup {l : List InductiveSignature.HeadSpecialization}
-    (hnodup : (l.map (·.auxiliary)).Nodup) {x : InductiveSignature.HeadSpecialization}
-    (hx : x ∈ l) : l.find? (fun y => y.auxiliary == x.auxiliary) = some x := by
-  induction l with
-  | nil => simp at hx
-  | cons y l ih =>
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnodup
-    rcases List.mem_cons.mp hx with rfl | hx
-    · simp
-    · have hne : y.auxiliary ≠ x.auxiliary := fun h => hnodup.1 ⟨x, hx, h.symm⟩
-      simp [hne, ih hnodup.2 hx]
-
 theorem getNestedIfAuxCtor_eq_some {result : Lean4Lean.ElimNestedInductive.Result}
     {env : Environment} {c : Name} {nested : Expr} {auxI : Name}
     (h : result.getNestedIfAuxCtor env c = some (nested, auxI)) :
@@ -585,7 +573,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
           decl.nparams a.source.name a.levels a.arguments ∈
           (compilationRestoration decl auxiliaries).heads :=
         List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-      refine ⟨_, find?_auxiliary_of_nodup hheadsNodup hmem, D.nparams,
+      refine ⟨_, InductiveSignature.Restoration.find?_of_nodup hheadsNodup hmem, D.nparams,
         fun levels hlevels => ⟨hlevelsLength levels hlevels, ?_⟩⟩
       intro Δ params v hAs hsize hTr hv
       rw [AuxNestedSpec.reopen hab] at hv
@@ -609,7 +597,7 @@ theorem RestorationTableData.agreement {decl : VInductDecl}
             (compilationRestoration decl auxiliaries).heads :=
           List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_of_mem _
             (List.mem_map.mpr ⟨ctor, hctor, rfl⟩)⟩
-        refine ⟨_, find?_auxiliary_of_nodup hheadsNodup hmem, D.nparams,
+        refine ⟨_, InductiveSignature.Restoration.find?_of_nodup hheadsNodup hmem, D.nparams,
           fun levels hlevels => ⟨hlevelsLength levels hlevels, ?_⟩⟩
         intro Δ params v hAs hsize hTr hv
         rw [Expr.getAppArgs_eq, Expr.getAppArgsList_mkAppList_const,
@@ -886,12 +874,6 @@ private theorem forall₂_nestedExprExpansion_false_eq :
   | _, _ :: _, _ :: _, .cons h t => by
     rw [nestedExprExpansion_false_eq h, forall₂_nestedExprExpansion_false_eq t]
 
-private theorem onCtx_levelWF {env : VEnv} {U : Nat} :
-    ∀ {Γ : List VExpr}, OnCtx Γ (env.IsType U) → OnCtx Γ fun _ A => A.LevelWF U
-  | [], _ => trivial
-  | _ :: _, ⟨hΓ, _, hA⟩ =>
-    ⟨onCtx_levelWF hΓ, (hA.levelWF (onCtx_levelWF hΓ)).1⟩
-
 theorem VExpr.levelWF_mkApps {U : Nat} :
     ∀ {fn : VExpr} {args : List VExpr}, (VExpr.mkApps fn args).LevelWF U ↔
       fn.LevelWF U ∧ ∀ arg ∈ args, arg.LevelWF U
@@ -909,7 +891,7 @@ theorem AuxiliarySpecializationEvidence.argumentsLevelWF
     (H : AuxiliarySpecializationEvidence sourceEnv envTypes paramCtx decl a generated) :
     ∀ arg ∈ a.arguments, arg.LevelWF decl.uvars := by
   obtain ⟨sourceParams, -, -, hon, htyping, -⟩ := H.application
-  exact (VExpr.levelWF_mkApps.mp (htyping.levelWF (onCtx_levelWF hon)).1).2
+  exact (VExpr.levelWF_mkApps.mp (htyping.levelWF (OnCtx.levelWF_of_isType hon)).1).2
 
 private theorem restoration_expr_paramVars {r : InductiveSignature.Restoration}
     (decl : VInductDecl) (depth : Nat) :
@@ -1082,7 +1064,7 @@ theorem NestedGeneratedFamilyNativeSources.restoringReplacement
     VExpr.NestedExprExpansion.forall₂_restore Htrailing
       (fun s hsMem => hs.2 s (List.mem_append_right _ hsMem))
       (fun t htMem => ht.2 t (List.mem_append_right _ htMem))
-  have hargsRestore := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  have hargsRestore := _root_.List.Forall₂.append'
     (restoration_expr_paramVars (r := r) sourceDecl fieldDepth) htrailingRestore
   change Restoration.expr.go r _ [] = _
   rw [Restoration.expr.go_mkApps r hargsRestore, List.append_nil]
@@ -1090,7 +1072,7 @@ theorem NestedGeneratedFamilyNativeSources.restoringReplacement
       some (HeadSpecialization.mk a.auxiliary sourceDecl.uvars sourceDecl.nparams
         a.source.name a.levels a.arguments) := by
     rw [← haux]
-    exact find?_auxiliary_of_nodup hheadNodup hmem
+    exact InductiveSignature.Restoration.find?_of_nodup hheadNodup hmem
   have hparamVarsLength : (sourceDecl.paramVars fieldDepth).length = sourceDecl.nparams := by
     simp [VInductDecl.paramVars]
   subst hauxLevels
@@ -1119,38 +1101,6 @@ theorem NestedGeneratedFamilyNativeSources.restoringReplacement
   rw [hlv', hav', hdrop]
 
 /-! ### Lowered constructors and auxiliary keys of an exact run -/
-
-private theorem exists_forall₂_of_forall' {R : α → β → Prop} :
-    ∀ {l : List β}, (∀ y ∈ l, ∃ x, R x y) → ∃ xs, List.Forall₂ R xs l
-  | [], _ => ⟨[], .nil⟩
-  | y :: l, H => by
-    rcases H y List.mem_cons_self with ⟨x, hx⟩
-    rcases exists_forall₂_of_forall' (fun z hz => H z (List.mem_cons_of_mem _ hz)) with
-      ⟨xs, hxs⟩
-    exact ⟨x :: xs, .cons hx hxs⟩
-
-private theorem forall₂_trInductiveType_names'
-    (H : List.Forall₂ (TrInductiveType env envTypes lparams) types decl) :
-    decl.map (·.name) = types.map (·.name) := by
-  induction H with
-  | nil => rfl
-  | cons h _ ih => simp only [List.map_cons, ih, ← h.header.name]
-
-private theorem familyNames_drop_sublist' (types : List VInductiveType) (n : Nat) :
-    (InductiveSignature.familyNames (types.drop n)).Sublist
-      (InductiveSignature.familyNames types) := by
-  conv => rhs; rw [← List.take_append_drop n types]
-  simp only [InductiveSignature.familyNames, List.flatMap_append]
-  exact List.sublist_append_right _ _
-
-private theorem nestedConstructorExpansions_names'
-    {sourceCtors targetCtors : List VConstVal}
-    (H : List.Forall₂ (VInductDecl.NestedConstructorExpansion leaf nparams)
-      sourceCtors targetCtors) :
-    targetCtors.map (·.name) = sourceCtors.map (·.name) := by
-  induction H with
-  | nil => rfl
-  | cons hhead _ ih => simp only [List.map_cons, ih, hhead.name]
 
 private theorem forall₂_trCtor_names
     {ctors : List Constructor} {ctors' : List VConstVal}
@@ -1199,28 +1149,6 @@ theorem ConstructorTypeEntries.ctorOfEntry
       exact ⟨_, List.mem_cons_self, ctor, hctor, info, he, hn, hi⟩
     · rcases ih htail with ⟨owner, howner, ctor, hctor, info, he, hn, hi⟩
       exact ⟨owner, List.mem_cons_of_mem _ howner, ctor, hctor, info, he, hn, hi⟩
-
-theorem ConstructorTypeEntries.findInduct
-    {stats : AddInductive.InductiveStats} {lparams : List Name}
-    {isUnsafe : Bool} {types : List InductiveType} {owner : InductiveType}
-    {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
-    (H : ConstructorTypeEntries
-      (AddInductive.constructorInfo stats lparams isUnsafe) types entries)
-    (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
-    ∃ info : ConstructorVal, ∃ value : VConstVal,
-      (.ctorInfo info, value) ∈ entries ∧
-      info.name = ctor.name ∧ info.induct = owner.name := by
-  induction H generalizing owner with
-  | nil => simp at howner
-  | cons Hhead Htail ih =>
-    simp only [List.mem_cons] at howner
-    rcases howner with rfl | htailOwner
-    · rcases List.mem_iff_getElem.mp hctor with ⟨k, hk, rfl⟩
-      rcases Hhead.findAt k hk with ⟨value, hmem⟩
-      exact ⟨_, value, List.mem_append_left _ hmem,
-        by simp [AddInductive.constructorInfo], by simp [AddInductive.constructorInfo]⟩
-    · rcases ih htailOwner hctor with ⟨info, value, hmem, hname, hinduct⟩
-      exact ⟨info, value, List.mem_append_right _ hmem, hname, hinduct⟩
 
 /-- Every constructor visible in the lowered production environment either
 predates the inductive installation or is a constructor of one of the
@@ -1465,7 +1393,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     · exact NN.auxNestedSpecAt a (by rw [hsrc, NN.containerName]) hlev hargs hfvars
         hfvarsNodup E.auxiliarySelection Htr.sourceClosed.looseBVarRange_zero hnp
         (VEnv.IsDefEqCtx.mono hbaseLE hctx)
-  rcases exists_forall₂_of_forall' Hpoint with ⟨auxiliaries, Haux'⟩
+  rcases exists_forall₂_of_forall Hpoint with ⟨auxiliaries, Haux'⟩
   have Haux := Lean4Lean.List.Forall₂.imp (fun _ _ h => h.1) Haux'
   have Hexpansion := Hparts.2
   have hauxNames := auxiliarySpecializations_names Haux Hexpansion
@@ -1477,7 +1405,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams := by
     rw [hlparams] at Haux'
     have hloweredNames : P.loweredDecl.types.map (·.name) = result.types.map (·.name) :=
-      forall₂_trInductiveType_names' Htarget.types
+      forall₂_trInductiveType_names Htarget.types
     have htypesNodup : (P.loweredDecl.types.map (·.name)).Nodup := by
       have h := (List.nodup_append.mp
         (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core)).1
@@ -1504,7 +1432,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
         ⟨t, ht, hexp⟩
       exact ⟨g, t, hev, hexp, List.mem_of_mem_drop ht,
         hexp.name.trans hev.auxiliary.symm,
-        (nestedConstructorExpansions_names' hexp.constructors).trans
+        (nestedConstructorExpansions_names hexp.constructors).trans
           hev.generatedCtorNames, nested, hfind, hspec⟩
     -- lowered constructors are installed as constructors of their family
     have HctorFacts : ∀ t ∈ P.loweredDecl.types, ∀ ctor ∈ t.ctors,
@@ -1542,7 +1470,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     rcases Hprod.findSourceHeader HcP (by simpa using hloweredMain) with
       ⟨info, hfindMain, _hctors, hall⟩
     rw [hloweredName] at hfindMain
-    have hsourceNames := forall₂_trInductiveType_names' Hsource.types
+    have hsourceNames := forall₂_trInductiveType_names Hsource.types
     have hfirst : sourceDecl.types.head?.map (·.name) = some main.name := by
       have h := congrArg List.head? hsourceNames
       rw [hsourceTypes] at h
@@ -1561,7 +1489,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
     rw [hauxRec]
     have hheadsNodup : (auxiliaries.flatMap (·.headNames)).Nodup := by
       rw [auxiliarySpecializations_headNames Haux Hexpansion]
-      exact (List.nodup_append.mp hloweredNodup).1.sublist (familyNames_drop_sublist' _ _)
+      exact (List.nodup_append.mp hloweredNodup).1.sublist (familyNames_drop_sublist _ _)
     refine {
       headNodup := hheadsNodup
       uvars := by rw [← hlparams]; exact Hsource.uvars
@@ -1587,7 +1515,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
       rw [auxiliarySpecializations_headNames Haux Hexpansion] at hmem
       have hfam : (Function.comp Lean.mkRecName (·.auxiliary)) a ∈
           familyNames P.loweredDecl.types :=
-        (familyNames_drop_sublist' _ _).subset hmem
+        (familyNames_drop_sublist _ _).subset hmem
       have hrec : (Function.comp Lean.mkRecName (·.auxiliary)) a ∈
           P.loweredDecl.types.map (fun t => t.name.str "rec") :=
         List.mem_map.mpr ⟨t, ht, by rw [htname]; rfl⟩

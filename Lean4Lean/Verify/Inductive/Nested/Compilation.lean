@@ -653,24 +653,6 @@ theorem DeclaredInductiveInfos.closesMutuals
           exact (hparams sourceMember hsourceMember).trans
             (hparams value hinfo).symm⟩
 
-private theorem property_of_mem_zipWith
-    (f : α → β → γ) (P : γ → Prop)
-    (hproperty : ∀ a b, P (f a b)) :
-    ∀ {as : List α} {bs : List β} {value : γ},
-      value ∈ List.zipWith f as bs → P value := by
-  intro as
-  induction as with
-  | nil => simp
-  | cons a as ih =>
-    intro bs value hmem
-    cases bs with
-    | nil => simp at hmem
-    | cons b bs =>
-      simp only [List.zipWith_cons_cons, List.mem_cons] at hmem
-      rcases hmem with rfl | htail
-      · exact hproperty a b
-      · exact ih htail
-
 private theorem zipWith_left_projection
     (g : α → γ) {as : List α} {bs : List β}
     (hlength : bs.length = as.length) :
@@ -698,7 +680,7 @@ theorem inductiveTypeInfos_uniformAll
           isUnsafe lparams).toList.map (fun member => member.name) := by
   intro info hinfo
   simp [AddInductive.inductiveTypeInfos, hsize] at hinfo ⊢
-  have hall := property_of_mem_zipWith
+  have hall := List.property_of_mem_zipWith
     (fun (indType : InductiveType) (numIndices : Nat) =>
       show InductiveVal from {
         name := indType.name
@@ -732,7 +714,7 @@ theorem inductiveTypeInfos_uniformNumParams
       info.numParams = numParams := by
   intro info hinfo
   simp [AddInductive.inductiveTypeInfos, hsize] at hinfo ⊢
-  exact property_of_mem_zipWith
+  exact List.property_of_mem_zipWith
     (fun (indType : InductiveType) (numIndices : Nat) =>
       show InductiveVal from {
         name := indType.name

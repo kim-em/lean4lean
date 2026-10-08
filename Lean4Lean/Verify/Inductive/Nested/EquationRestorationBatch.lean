@@ -43,7 +43,7 @@ theorem RestoredPrimaryIotaFamilyTrace.forall₂
   | nil => exact .nil
   | @cons owner owners head tail Hhead Htail ih =>
     simpa [ownedConstructorsFor] using
-      Lean4Lean.VerifyInductive.List.Forall₂.append' Hhead ih
+      _root_.List.Forall₂.append' Hhead ih
 
 /-- Once source restoration has fixed the declaration's owner list, the
 family-local batches give the complete ordered primary iota certificate.

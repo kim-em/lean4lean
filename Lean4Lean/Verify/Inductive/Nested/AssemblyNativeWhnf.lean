@@ -38,7 +38,7 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-private theorem forall₂_imp_mem_right {R S : α → β → Prop} :
+theorem forall₂_imp_mem_right {R S : α → β → Prop} :
     ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ →
       (∀ a b, b ∈ l₂ → R a b → S a b) → List.Forall₂ S l₁ l₂
   | _, _, .nil, _ => .nil
@@ -159,20 +159,6 @@ theorem RestoredNestedDeclarationsResult.find_restoredRecursor
   have hsame := (Hs.info_eq Hstep).2
   rw [← hsame]
   exact Htrace.findEntry hwf hs
-
-/-- Every installed entry of a staged constant list has the name of its
-abstract value. -/
-theorem AddConstants.name_eq
-    (H : AddConstants safety env venv entries outEnv outVEnv) :
-    ∀ entry ∈ entries, entry.1.name = entry.2.name := by
-  induction H with
-  | nil => simp
-  | cons _ _ htr _ _ _ _ ih =>
-    intro entry hentry
-    simp only [List.mem_cons] at hentry
-    rcases hentry with rfl | hentry
-    · exact htr.2
-    · exact ih entry hentry
 
 /-- The recursor entries of a final assembly shape are installed in the
 output environment under the names of their abstract values. -/
@@ -582,11 +568,6 @@ theorem NestedValidatedRunResult.restoredRecursorRealization_of_step
       exact ⟨type, ht, Ht.mono hle⟩
   · rw [R.all, hnames]
 
-private theorem mem_zipIdx_of_mem' {l : List α} {x : α} (h : x ∈ l) :
-    ∃ i, (x, i) ∈ l.zipIdx := by
-  obtain ⟨i, hi⟩ := List.mem_iff_getElem?.mp h
-  exact ⟨i, List.mk_mem_zipIdx_iff_getElem?.mpr hi⟩
-
 /-- **The restored rules of one restored recursor.** Given the restored
 family head of its owner (with the constructor restorations of
 `CompilationData.restoredFamilyHead_spec`), every rule of the restored
@@ -699,7 +680,7 @@ theorem NestedValidatedRunResult.restoredRuleRealizations
   have hrecMem : ∀ a ∈ auxiliaries, a.auxiliary.str "rec" ∈
       (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.fst := by
     intro a ha
-    obtain ⟨i, hi⟩ := mem_zipIdx_of_mem' ha
+    obtain ⟨i, hi⟩ := InductiveSignature.mem_zipIdx_of_mem ha
     exact List.mem_map.mpr ⟨_, List.mem_map.mpr ⟨(a, i), hi, rfl⟩, rfl⟩
   -- the restored constructor name
   have hctor : (Hstep.restored.newInfo.rules[j]'hjNew).ctor =

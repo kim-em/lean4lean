@@ -96,15 +96,6 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-private theorem names_of_trTypes' {env envTypes : VEnv} {lparams : List Name} :
-    ∀ {types : List InductiveType} {decls : List VInductiveType},
-      List.Forall₂ (TrInductiveType env envTypes lparams) types decls →
-      types.map (·.name) = decls.map (·.name)
-  | _, _, .nil => rfl
-  | _, _, .cons h t => by
-    simp only [List.map_cons, names_of_trTypes' t, List.cons.injEq, and_true]
-    exact h.header.name.symm
-
 private theorem Restoration.recursor_name' {r : Restoration} {v w : VConstVal}
     (h : r.recursor v = some w) : w.name = r.recursorName v.name := by
   simp only [Restoration.recursor, Option.bind_eq_bind, Option.pure_def] at h
@@ -341,7 +332,7 @@ theorem NestedValidatedRunResult.hprovenance_of
   have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
     have Hcore := E.nativeSource.core
     rw [E.nativeSourceDecl_eq] at Hcore
-    exact names_of_trTypes' Hcore.types
+    exact (forall₂_trInductiveType_names Hcore.types).symm
   have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf
   -- the realization of the restored recursor of an entry

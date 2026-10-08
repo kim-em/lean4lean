@@ -27,25 +27,16 @@ namespace VerifyInductive
 
 /-! ### List helpers -/
 
-private theorem forall₂_take {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.take k) (r.take k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons _ _, 0 => by simp
-  | _, _, .cons h t, k + 1 => by
-    simp only [List.take_succ_cons]
-    exact .cons h (forall₂_take t k)
-
-private theorem forall₂_append_left_split {R : α → β → Prop}
+theorem forall₂_append_left_split {R : α → β → Prop}
     {l₁ l₂ : List α} {r : List β} (H : List.Forall₂ R (l₁ ++ l₂) r) :
     List.Forall₂ R l₁ (r.take l₁.length) ∧
       List.Forall₂ R l₂ (r.drop l₁.length) := by
-  have h₁ := forall₂_take H l₁.length
+  have h₁ := List.forall₂_take H l₁.length
   have h₂ := Lean4Lean.List.forall₂_drop H l₁.length
   simp only [List.take_left', List.drop_left'] at h₁ h₂
   exact ⟨h₁, h₂⟩
 
-private theorem forall₂_of_map_eq {f : α → γ} {g : β → γ} :
+theorem forall₂_of_map_eq {f : α → γ} {g : β → γ} :
     ∀ {l : List α} {r : List β}, l.map f = r.map g →
       List.Forall₂ (fun a b => f a = g b) l r
   | [], [], _ => .nil
@@ -55,13 +46,13 @@ private theorem forall₂_of_map_eq {f : α → γ} {g : β → γ} :
     simp only [List.map_cons, List.cons.injEq] at h
     exact .cons h.1 (forall₂_of_map_eq h.2)
 
-private theorem forall₂_swap {R : α → β → Prop} :
+theorem forall₂_swap {R : α → β → Prop} :
     ∀ {l : List α} {r : List β}, List.Forall₂ R l r →
       List.Forall₂ (fun b a => R a b) r l
   | _, _, .nil => .nil
   | _, _, .cons h t => .cons h (forall₂_swap t)
 
-private theorem forall₂_join {R : α → β → Prop} {S : γ → β → Prop} :
+theorem forall₂_join {R : α → β → Prop} {S : γ → β → Prop} :
     ∀ {l : List α} {m : List β} {n : List γ}, List.Forall₂ R l m →
       List.Forall₂ S n m → List.Forall₂ (fun a c => ∃ b, R a b ∧ S c b) l n
   | _, _, _, .nil, .nil => .nil
@@ -261,10 +252,10 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
       have hprefixLength :
           (E.production.compilationSignature.declaration.types.take
             sourceDecl.types.length).length = sourceDecl.types.length := by
-        rw [Lean4Lean.List.Forall₂.length_eq (forall₂_take HM sourceDecl.types.length)]
+        rw [Lean4Lean.List.Forall₂.length_eq (List.forall₂_take HM sourceDecl.types.length)]
         exact (Lean4Lean.List.Forall₂.length_eq HTsource).symm
       refine (Lean4Lean.List.Forall₂.append_of_left hprefixLength).mpr ⟨?_, ?_⟩
-      · have HMp := forall₂_take HM sourceDecl.types.length
+      · have HMp := List.forall₂_take HM sourceDecl.types.length
         have HP := Hpending.sourceConstructors envTypes htypes
         obtain ⟨_, _, _, hheaders, _, _⟩ := C.formationAssembly.sourceParameters
         have H1 := forall₂_join HMp HTsource

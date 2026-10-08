@@ -31,9 +31,9 @@ theorem NestedIotaListCertificate.ofForall₂
       decl.ownedConstructors rules) :
     NestedIotaListCertificate decl block rules where
   length :=
-    (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H).symm
+    (Lean4Lean.List.Forall₂.length_eq H).symm
   rules i hctor hrule :=
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem H i hctor hrule
+    Lean4Lean.List.forall₂_getElem H i hctor hrule
 
 end VerifyInductive
 end Lean4Lean

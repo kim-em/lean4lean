@@ -373,20 +373,6 @@ theorem translate_avoids_exists
 
 /-! ### Restoration of opened bodies -/
 
-private theorem forall₂_append_left' {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {m : List β}, List.Forall₂ R (l₁ ++ l₂) m →
-      ∃ m₁ m₂, m = m₁ ++ m₂ ∧ List.Forall₂ R l₁ m₁ ∧ List.Forall₂ R l₂ m₂
-  | [], _, _, h => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t => by
-    obtain ⟨m₁, m₂, rfl, h₁, h₂⟩ := forall₂_append_left' t
-    exact ⟨_ :: m₁, m₂, rfl, .cons h h₁, h₂⟩
-
-private theorem forall₂_append' {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {m₁ m₂ : List β}, List.Forall₂ R l₁ m₁ → List.Forall₂ R l₂ m₂ →
-      List.Forall₂ R (l₁ ++ l₂) (m₁ ++ m₂)
-  | _, _, _, _, .nil, h => h
-  | _, _, _, _, .cons h t, h₂ => .cons h (forall₂_append' t h₂)
-
 /-- The executable replacement heads translate: at every context lifting a
 base context `Δt0` by binders, in which the opened parameters `As` translate
 to `PT`, the replacement head of a restorable name is a constant applied to
@@ -452,7 +438,7 @@ theorem restorationTranslates'_hit
       auxLevels.mapM (VLevel.ofLevel Us) = some lv := by
     cases hfn' with
     | const _ h _ => exact ⟨_, rfl, h⟩
-  obtain ⟨P', R'', rfl, hP', hR''⟩ := forall₂_append_left' hL'
+  obtain ⟨P', R'', rfl, hP', hR''⟩ := List.Forall₂.append_inv hL'
   rcases A.head As c H hH with ⟨h, hfind, hnparams, hlevels⟩
   rcases hlevels _ hlsV with ⟨huvars, -⟩
   obtain ⟨PT, hPT, hPr⟩ := Hctx.rel.translate_fvars hc HAs hP'
@@ -481,7 +467,7 @@ theorem restorationTranslates'_hit
       some (VExpr.mkApps (.const h.target (h.levels.map (·.inst lv)))
         (h.arguments.map (fun arg => instantiateParams (arg.instL lv) PT) ++ R')) := by
     simp only [Restoration.expr]
-    rw [Restoration.expr.go_mkApps r (forall₂_append' hPr hRr), List.append_nil]
+    rw [Restoration.expr.go_mkApps r (List.Forall₂.append' hPr hRr), List.append_nil]
     have hle : h.nparams ≤ (PT ++ R').length := by simp [hnparams, hPTlen]
     simp [Restoration.expr.go, hfind, HeadSpecialization.apply, huvars, hnparams, hPTlen,
       Lean4Lean.VExpr.mkApps_append]
@@ -489,7 +475,7 @@ theorem restorationTranslates'_hit
   have hwf := Hctx.wf S hβ HsWF hr hokS
   rw [← Expr.mkAppList_append]
   exact checkPositivityStep.TrExprS.mkAppList S.ordered (Hctx.onCtx S.ordered) Hfn
-    (forall₂_append' Hargs hR') hwf
+    (List.Forall₂.append' Hargs hR') hwf
 
 
 /-- **Restoration preserves translation** on an opened body traversed by
@@ -1054,7 +1040,7 @@ theorem MLCtx.restore
         simp only [TypeChecker.MLCtx.mkLambda']
         exact hlam n _ _ _ _ (restoration_expr_lam hr h)
     · simp only [MLCtx.types]
-      exact forall₂_append' htysT (.cons hr .nil)
+      exact List.Forall₂.append' htysT (.cons hr .nil)
 
 
 theorem MLCtx.eq_nil_of_length : ∀ {c : TypeChecker.MLCtx}, c.length = 0 → c = .nil

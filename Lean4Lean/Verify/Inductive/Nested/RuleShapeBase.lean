@@ -54,14 +54,6 @@ theorem RestoredPrimaryIotaRuleTrace.ofForall₂
     | cons h t =>
       exact .cons Hrule Htail _ (Classical.choice h.1) h.2 (ih (by simpa using hlen) t)
 
-private theorem forall₂_append_left_split_RSB {R : α → β → Prop} :
-    ∀ {l₁ l₂ : List α} {r : List β}, List.Forall₂ R (l₁ ++ l₂) r →
-      ∃ r₁ r₂, r = r₁ ++ r₂ ∧ List.Forall₂ R l₁ r₁ ∧ List.Forall₂ R l₂ r₂
-  | [], _, _, H => ⟨[], _, rfl, .nil, H⟩
-  | _ :: _, _, _, .cons h t => by
-    obtain ⟨r₁, r₂, rfl, H₁, H₂⟩ := forall₂_append_left_split_RSB t
-    exact ⟨_ :: r₁, r₂, rfl, .cons h H₁, H₂⟩
-
 /-- The primary semantic trace over a source-family trace, from pointwise
 nested iota rules for the owned constructors, given that each owner has as
 many constructors as its lowered recursor has rules. -/
@@ -94,7 +86,7 @@ theorem RestoredSourceInductiveSemanticTrace.primaryIotaOfRules
   | cons Hstep Htail Hheader Hconstructors Hrecursor Hrest ih =>
     cases hcount with
     | cons hc hcount =>
-      obtain ⟨r₁, r₂, rfl, Hh, Ht⟩ := forall₂_append_left_split_RSB H
+      obtain ⟨r₁, r₂, rfl, Hh, Ht⟩ := List.Forall₂.append_inv H
       rw [Lean4Lean.List.forall₂_map_left_iff] at Hh
       exact .cons Hstep Htail Hheader Hconstructors Hrecursor Hrest
         (RestoredPrimaryIotaRuleTrace.ofForall₂ _ (hc _ _ Hstep) Hh)

@@ -21,7 +21,7 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-private theorem List.nodup_of_map_nodup
+theorem List.nodup_of_map_nodup
     {l : List α} (f : α → β) (H : (l.map f).Nodup) : l.Nodup := by
   induction l with
   | nil => simp
@@ -876,7 +876,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
           (loweredDecl.types.take sourceTypes.length).length := by
         rw [← Lean4Lean.List.Forall₂.length_eq HsourceHeaders]
         exact hsource
-      have Hhead := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+      have Hhead := Lean4Lean.List.forall₂_getElem
         HsourceHeaders 0 hsource htarget
       have hfirst : sourceTypes[0] = first := by simp [htypes]
       rw [hfirst] at Hhead
