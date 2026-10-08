@@ -2,6 +2,7 @@ import Lean4Lean.Tests.Toolchain
 import Lean4Lean.Tests.ProjectionInference
 import Lean4Lean.Tests.ProjectionWithoutCasesOn
 import Lean4Lean.Tests.ProjectionSpecialization
+import Lean4Lean.Tests.ProjectionReduction
 import Lean4Lean.Tests.InductiveTheory
 import Lean4Lean.Tests.InductiveSignature
 import Lean4Lean.Tests.InductiveRestoration

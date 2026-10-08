@@ -649,7 +649,7 @@ acceptance needs a conversion fact outside its scope. The wrapper stripping belo
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
-  constructor to be the structure's unique constructor and fully applied; `tryEtaStructCore`
+  constructor to be the structure's unique constructor; `tryEtaStructCore`
   requires the listed constructor and applies structure eta only at never-zero sorts;
   `isDefEqUnitLike` and `toCtorWhenK` check the arity of the type's spine; `inferProj`
   rejects field indices beyond `numFields`; constructor owner and `isUnsafe` agreement are
@@ -697,7 +697,7 @@ wrapper name. The other changes cannot change a decision except through checker 
 
 - executable oracles: `RecursorOracle.lean` (generated recursor types, metadata and every rule
   compared with the kernel's for a set of declarations), `RecursiveInductive.lean`,
-  `NestedRecursorReduction.lean`, `KNormalization.lean`, `ProjectionInference.lean`,
+  `NestedRecursorReduction.lean`, `KNormalization.lean`, `ProjectionInference.lean`, `ProjectionReduction.lean`,
   `ProjectionWithoutCasesOn.lean`, `QuotInit.lean`, additions to `NestedInductive.lean` and
   `KernelHardening.lean`;
 - realizability: `CanonicalEq.lean`, `CanonicalChoice.lean`;

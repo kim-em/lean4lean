@@ -217,12 +217,7 @@ theorem reduceProjCoreCont.framed (hc : GF G c) :
   split <;> [skip; exact .pure OGF.none]
   refine RecM.Framed.getEnv.bind fun env _ => ?_
   refine (RecM.Framed.liftExcept (R := fun _ => True) fun _ _ => trivial).bind fun _ _ => ?_
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
-  split <;> [skip; exact .pure OGF.none]
+  repeat (split <;> [skip; exact .pure OGF.none])
   exact .pure fun _ h => hargs.getElem? h
 
 theorem reduceProjCore.framed (hs : GF G struct) :

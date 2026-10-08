@@ -180,12 +180,10 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
   split <;> [rename_i hsingle; exact .pure nofun]
   split <;> [rename_i hinduct; exact .pure nofun]
   split <;> [rename_i hunsafe; exact .pure nofun]
-  split <;> [rename_i harity; exact .pure nofun]
   refine .pure fun e₁ heq => ?_
   have hsingle := beq_iff_eq.1 hsingle
   have hinduct := beq_iff_eq.1 hinduct
   have hunsafe := beq_iff_eq.1 hunsafe
-  have harity := beq_iff_eq.1 harity
   -- the constructor application spine
   have hc₁ : c.TrExprS ((Expr.const mkC ls).mkAppList c₁.getAppArgsList) c' := by
     rw [← hmk, c₁.mkAppList_getAppArgsList]; exact hc
@@ -206,10 +204,22 @@ theorem reduceProjCoreCont.WF (hc : c.TrExprS c₁ c')
   obtain rfl := c.Ewf.ordered.projections_unique hinfo hinfo'
   subst hname
   -- the selected argument
+  -- the constructor application is saturated: its type is an application of the rigid
+  -- structure type, so it supplies the whole constructor telescope
   have hlenArgs : args'.length = doms.length := by
-    rw [← Lean4Lean.List.Forall₂.length_eq hargs, ← Expr.getAppArgs_toList, Array.length_toList,
-      harity, hnp, hnf]
-    omega
+    obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, hsm', _, _⟩ :=
+      VEnv.HasType.proj_inv c.Ewf.ordered c.Δwf.toCtx hproj'.hasType.2
+    have ht := hsm'.hasType.2
+    have hhd : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx (.const info.ctorName _) :=
+      VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx ⟨_, ht⟩
+    obtain ⟨ci, hci', hcls, hlen'⟩ := hhd.const_inv c.Ewf.ordered c.Δwf.toCtx
+    cases hctor.symm.trans hci'
+    have h1 := VEnv.HasType.const (Γ := c.vlctx.toCtx) hctor hcls hlen'
+    have hh : (VExpr.getAppFnArgs.go result []).1 = .const n (VLevel.params decl.uvars) := hhead
+    rw [hshape, VExpr.instL_wrapForalls, ← VExpr.mkApps_getAppFnArgs_eq result, hh,
+      VExpr.instL_mkApps, VExpr.instL] at h1
+    simpa using VEnv.HasType.mkApps_rigid_arity c.Ewf c.Δwf.toCtx (c.Ewf.projectionRigid hinfo)
+      h1 ht
   obtain ⟨e₁', hk', he₁'⟩ : ∃ e₁', args'[info.nparams + i]? = some e₁' ∧ c.TrExprS e₁ e₁' := by
     have hget : c₁.getAppArgsList[mkInfo.numParams + i]? = some e₁ := by
       rw [← Expr.getAppArgs_toList]; simpa [Array.getElem?_toList] using heq
@@ -275,12 +285,7 @@ theorem reduceProjCoreCont.WF_levels {c : VContext} {s : VState} :
   rw [Expr.withApp_eq]
   split <;> [skip; exact .pure nofun]
   refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ _ => ?_
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
+  repeat (split <;> [skip; exact .pure nofun])
   exact .pure fun e₁ heq Us h =>
     Expr.levelParamsIn_of_mem_getAppArgs h (Array.mem_of_getElem? heq)
 
@@ -318,12 +323,7 @@ theorem reduceProjCoreCont.WF_hit {c : VContext} {s : VState} :
   rw [Expr.withApp_eq]
   split <;> [skip; exact .pure nofun]
   refine .getEnv <| (M.WF.liftExcept envGet.WF).lift.bind fun ci _ _ _ => ?_
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
-  split <;> [skip; exact .pure nofun]
+  repeat (split <;> [skip; exact .pure nofun])
   exact .pure fun e₁ heq _ _ _ hp h => h.of_mem_getAppArgs hp (Array.mem_of_getElem? heq)
 
 theorem reduceProjCore.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
