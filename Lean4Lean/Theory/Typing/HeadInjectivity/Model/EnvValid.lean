@@ -327,7 +327,7 @@ theorem restored_family_rigid {envF base installed env0 : VEnv} {source expanded
     envF.Rigid ((compilationRestoration source aux).headName
       s.families[s.constructors[index].owner].name) := by
   obtain ⟨ci, hci', F, lsF, hF', -, hrigF⟩ := hF.installed_constructor_result_rigid hdf hm
-  rcases C.ctor_origin hprior index with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
+  rcases C.ctor_cases hprior index with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
   · have hfc' := hle.constants (VInductBlock.install_ctor_lookup hinst
       (by rw [C.ctors]; exact hfc))
     rw [hfcn, hci'] at hfc'
@@ -406,7 +406,7 @@ theorem elimValid_of_registration {envF env base : VEnv} {key : Name} {schema : 
   obtain ⟨expanded, aux, C, hprior, hrr, -, hfresh⟩ := hcert'
   have hpm := Model.projMajor_generic hF h0 hle C hfresh hprior hrr hble hpc0 IH hsrc hconsts
     hr hm hIrig
-  rcases C.family_origin hfresh owner with
+  rcases C.family_cases hfresh owner with
     ⟨envTypes, family, htypes, hfamily, hrel, hhn, hhl⟩ | ⟨a, ha, hhn, hhl, hlev⟩
   · obtain ⟨domains, body, level, exprType, hlev, h1, h2⟩ := hrel.type
     have hTE : envTypes ≤ env := addConstVals_le_of htypes hble fun v hv =>
@@ -598,7 +598,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       cases installed with
       | @intro block _ hdw compiled hbwf _ hinst =>
         obtain ⟨base, expanded, s, g, aux, hbase', C, hprior⟩ :=
-          compiled.compiled.compilationOrigin
+          compiled.compiled.exists_compilation
         have howned := compiled.compiled.equation_head_owned
         have hinst' := hinst
         simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -653,7 +653,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
             ⟨_, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
           have hpm := Model.projMajor_restored hF C hprior h0 hinst hle hpc hprojV hbase'
             (h0le.trans hle) hpc0 V0.proj hTO hTF hsndT hbT htypesT index hres hrigF
-          rcases C.family_origin s.constructors[index].owner with
+          rcases C.family_cases s.constructors[index].owner with
             ⟨envTypes, family, htypes, hfamily, hrel, hhn, hhl⟩ | ⟨a, ha, hhn, hhl, hlev⟩
           · obtain ⟨-, -, -, -, _, _, _, _, hwf, _⟩ := C.sourceWF
             have hfs := Model.famSort_source henvF h0 V0 hwf hbase' htypes C.types

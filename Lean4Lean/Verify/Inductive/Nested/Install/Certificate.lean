@@ -544,7 +544,7 @@ noncomputable def RestoredBlockCertificate.extension
       C.typesAdded C.constructorsAdded
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshExtension sourceProdEnv entries outEnv } := by
-    rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
+    rcases H.freshExtension Hvalid.tr.map_wf with ⟨entries, Hentries⟩
     exact ⟨⟨entries, Hentries⟩⟩
   let actual := Classical.choice HactualExists
   let HrestoredValid : CheckingEnv.ValidCore safety outEnv C.recursorVEnv :=

@@ -158,9 +158,9 @@ theorem NestedRun.restoredCtorTelescopes
   intro name ci hfind hvis
   refine hout (name := name) (ci := ci) ?_ hvis
   -- the constructors of the validation environment are those of the output
-  rcases E.restoration.inductives.inductiveFreshTrace hwf with ⟨_, Hprimary⟩
+  rcases E.restoration.inductives.inductiveFreshExtension hwf with ⟨_, Hprimary⟩
   have hprimaryWF := Hprimary.targetWF hwf
-  rcases E.restoration.auxiliaries.recursorFreshTrace hprimaryWF with ⟨_, Hauxiliary⟩
+  rcases E.restoration.auxiliaries.recursorFreshExtension hprimaryWF with ⟨_, Hauxiliary⟩
   rcases E.validationEnvironment.findCases hwf hfind with hold | ⟨_, _, _, _, _, hci⟩ |
       ⟨indType, hmem, oldInfo, hlookup, cn, hcn, ctorOld, hctorLookup, rfl, hci⟩
   · exact Hauxiliary.preservesSourceFind hprimaryWF

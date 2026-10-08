@@ -611,8 +611,8 @@ theorem NestedRun.restoredGeneratedAvoidance
       exfalso
       have horigin : (ves.venv (if isUnsafe then .unsafe else .safe)).constants n ≠ none ∨
           n ∈ E.lowered.loweredDecl.sourceNames := by
-        rcases VEnv.addConstVals_lookup_origin hloweredCtors hlook with h | ⟨e, he, rfl, _⟩
-        · rcases VEnv.addConstVals_lookup_origin hloweredTypes h with h | ⟨e, he, rfl, _⟩
+        rcases VEnv.addConstVals_lookup_cases hloweredCtors hlook with h | ⟨e, he, rfl, _⟩
+        · rcases VEnv.addConstVals_lookup_cases hloweredTypes h with h | ⟨e, he, rfl, _⟩
           · exact .inl (by simp [h])
           · exact .inr (List.mem_append_left _ (List.mem_map_of_mem he))
         · exact .inr (List.mem_append_right _ (List.mem_map_of_mem he))

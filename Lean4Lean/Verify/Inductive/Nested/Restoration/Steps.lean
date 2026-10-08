@@ -1073,7 +1073,7 @@ theorem find?_none_of_contains_false
   rw [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?]
   cases hfind : env.constants.find? name <;> simp_all
 
-theorem FoldSteps.constructorFreshTrace
+theorem FoldSteps.constructorFreshExtension
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -1090,7 +1090,7 @@ theorem FoldSteps.constructorFreshTrace
     rcases ih (constantsWF_add_checked hwf hfresh) with ⟨entries, Hentries⟩
     exact ⟨ci :: entries, .cons hfresh Hentries⟩
 
-theorem FoldSteps.recursorFreshTrace
+theorem FoldSteps.recursorFreshExtension
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
@@ -1108,7 +1108,7 @@ theorem FoldSteps.recursorFreshTrace
     rcases ih (constantsWF_add_checked hwf hfresh) with ⟨entries, Hentries⟩
     exact ⟨ci :: entries, .cons hfresh Hentries⟩
 
-theorem SourceFamilyRestoration.freshTrace
+theorem SourceFamilyRestoration.freshExtension
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hwf : sourceEnv.constants.WF) :
@@ -1124,7 +1124,7 @@ theorem SourceFamilyRestoration.freshTrace
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
     exact H.constructors
-  rcases Hconstructors'.constructorFreshTrace hwfHeader with
+  rcases Hconstructors'.constructorFreshExtension hwfHeader with
     ⟨constructors, Hconstructors⟩
   have hwfConstructors : H.constructorEnv.constants.WF :=
     Hconstructors.targetWF hwfHeader
@@ -1138,7 +1138,7 @@ theorem SourceFamilyRestoration.freshTrace
     FreshExtension.cons hheaderFresh
       (Hconstructors.append (.cons hrecFresh .nil))⟩
 
-theorem FoldSteps.inductiveFreshTrace
+theorem FoldSteps.inductiveFreshExtension
     (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
@@ -1147,18 +1147,18 @@ theorem FoldSteps.inductiveFreshTrace
   induction H with
   | nil => exact ⟨[], .nil⟩
   | cons Hstep _Htail ih =>
-    rcases Hstep.restored.freshTrace hwf with ⟨headEntries, Hhead⟩
+    rcases Hstep.restored.freshExtension hwf with ⟨headEntries, Hhead⟩
     rcases ih (Hhead.targetWF hwf) with ⟨tailEntries, Htail⟩
     exact ⟨headEntries ++ tailEntries, Hhead.append Htail⟩
 
-theorem NestedRestorationFolds.freshTrace
+theorem NestedRestorationFolds.freshExtension
     (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames out)
     (hwf : sourceEnv.constants.WF) :
     ∃ entries, FreshExtension sourceEnv entries out.2 := by
-  rcases H.inductives.inductiveFreshTrace hwf with
+  rcases H.inductives.inductiveFreshExtension hwf with
     ⟨primaryEntries, Hprimary⟩
-  rcases H.auxiliaries.recursorFreshTrace (Hprimary.targetWF hwf) with
+  rcases H.auxiliaries.recursorFreshExtension (Hprimary.targetWF hwf) with
     ⟨auxiliaryEntries, Hauxiliary⟩
   exact ⟨primaryEntries ++ auxiliaryEntries,
     Hprimary.append Hauxiliary⟩

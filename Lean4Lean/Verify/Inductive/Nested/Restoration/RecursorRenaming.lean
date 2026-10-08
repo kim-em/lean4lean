@@ -357,7 +357,7 @@ theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
   | none => rfl
   | some ci =>
   exfalso
-  rcases VEnv.addConstVals_lookup_origin hrecAdded hc with hbase | ⟨entry, hentry, hname, -⟩
+  rcases VEnv.addConstVals_lookup_cases hrecAdded hc with hbase | ⟨entry, hentry, hname, -⟩
   · simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hbase
     rw [hfreshCtors n hn'] at hbase
     cases hbase

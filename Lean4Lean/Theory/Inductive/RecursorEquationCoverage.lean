@@ -123,7 +123,7 @@ namespace Lean4Lean.InductiveSignature.CaseSchema
 /-- A generated case rule selects either an original constructor or a
 constructor whose native equation was installed by a certified prior
 container. The parser does not introduce new constructor names. -/
-theorem Certified.case_constructor_origin {schema : CaseSchema}
+theorem Certified.case_constructor_cases {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule} {key : Name}
     (H : schema.Certified base source sourceBlock)
     (hgen : schema.Generates key owner rule) :
@@ -133,9 +133,9 @@ theorem Certified.case_constructor_origin {schema : CaseSchema}
         .app fn (VExpr.mkApps (.const rule.application.ctorName levels) args)) := by
   obtain ⟨expanded, auxiliaries, hdata, hprior, hr, _, hdisj⟩ := H
   obtain ⟨rules, hrules, hmem, hparse⟩ := hgen
-  obtain ⟨index, hrestore⟩ := equation_origin hrules hmem
+  obtain ⟨index, hrestore⟩ := equation_of_mem hrules hmem
   have hparsed := Instance.parsed_constructor _ index hrestore hparse
-  obtain ⟨ctor, hctor, _, hview⟩ := view_constructor_origin index
+  obtain ⟨ctor, hctor, _, hview⟩ := view_constructor_eq_caseConstructor index
   obtain ⟨position, hposition, hget⟩ := List.mem_iff_getElem.mp hctor
   let original : Fin schema.signature.constructors.size := ⟨position, by simpa using hposition⟩
   have hname : (schema.view owner).constructors[index].name =
@@ -145,7 +145,7 @@ theorem Certified.case_constructor_origin {schema : CaseSchema}
     simpa only [original, Fin.getElem_fin, Array.getElem_toList] using
       (congrArg (fun c => c.name) hget).symm
   rw [hname, hr] at hparsed
-  rcases hdata.constructor_name_origin hdisj original with ⟨ctor, hctor, hname⟩ |
+  rcases hdata.constructor_name_cases hdisj original with ⟨ctor, hctor, hname⟩ |
       ⟨a, ha, ctor, hctor, hname⟩
   · exact .inl ⟨ctor, hctor, hparsed.trans hname⟩
   · obtain ⟨equation, hequation, fn, levels, args, hmajor⟩ :=

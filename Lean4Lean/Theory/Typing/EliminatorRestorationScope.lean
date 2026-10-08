@@ -27,7 +27,7 @@ theorem WF.eliminator_restoration_scoped {env : VEnv} {schema : CaseSchema}
     (formed : env.WF)
     (lookup : env.eliminators block schema) : schema.restoration.Scoped := by
   obtain ⟨base, source, generated, _, _, certified, _, _⟩ :=
-    formed.eliminator_origin lookup
+    formed.eliminator_installed lookup
   obtain ⟨expanded, auxiliaries, compilation, _, restoration, _, _⟩ := certified
   rw [restoration]
   exact compilation.restorationScoped

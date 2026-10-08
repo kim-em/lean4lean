@@ -50,7 +50,7 @@ theorem forall₂_imp_mem_right {R S : α → β → Prop} :
 
 /-- The restored recursor of one inductive restoration step is an entry of a
 fresh trace of that step. -/
-theorem SourceFamilyRestoration.freshTraceWithRecInfo
+theorem SourceFamilyRestoration.freshExtensionWithRecInfo
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hwf : sourceEnv.constants.WF) :
@@ -67,7 +67,7 @@ theorem SourceFamilyRestoration.freshTraceWithRecInfo
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
     exact H.constructors
-  rcases Hconstructors'.constructorFreshTrace hwfHeader with
+  rcases Hconstructors'.constructorFreshExtension hwfHeader with
     ⟨constructors, Hconstructors⟩
   have hwfConstructors : H.constructorEnv.constants.WF :=
     Hconstructors.targetWF hwfHeader
@@ -81,7 +81,7 @@ theorem SourceFamilyRestoration.freshTraceWithRecInfo
   exact FreshExtension.cons hheaderFresh
     (Hconstructors.append (.cons hrecFresh .nil))
 
-theorem FoldSteps.inductiveFreshTraceWithRecInfos
+theorem FoldSteps.inductiveFreshExtensionWithRecInfos
     (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
@@ -93,7 +93,7 @@ theorem FoldSteps.inductiveFreshTraceWithRecInfos
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
   | cons Hstep _Htail ih =>
-    rcases Hstep.restored.freshTraceWithRecInfo hwf with ⟨headEntries, Hhead, hmem⟩
+    rcases Hstep.restored.freshExtensionWithRecInfo hwf with ⟨headEntries, Hhead, hmem⟩
     rcases ih (Hhead.targetWF hwf) with ⟨tailEntries, Htail, htail⟩
     refine ⟨headEntries ++ tailEntries, Hhead.append Htail, ?_⟩
     intro t ht
@@ -103,7 +103,7 @@ theorem FoldSteps.inductiveFreshTraceWithRecInfos
     · rcases htail t ht with ⟨s, t', Hs, hs⟩
       exact ⟨s, t', Hs, by simp [hs]⟩
 
-theorem FoldSteps.recursorFreshTraceWithRecInfos
+theorem FoldSteps.recursorFreshExtensionWithRecInfos
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
@@ -141,9 +141,9 @@ theorem NestedRestorationFolds.find_restoredRecursor
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames n s t) :
     out.2.find? Hstep.restored.newInfo.name =
       some (.recInfo Hstep.restored.newInfo) := by
-  rcases H.inductives.inductiveFreshTraceWithRecInfos hwf with
+  rcases H.inductives.inductiveFreshExtensionWithRecInfos hwf with
     ⟨primaryEntries, Hprimary, hprimary⟩
-  rcases H.auxiliaries.recursorFreshTraceWithRecInfos (Hprimary.targetWF hwf) with
+  rcases H.auxiliaries.recursorFreshExtensionWithRecInfos (Hprimary.targetWF hwf) with
     ⟨auxiliaryEntries, Hauxiliary, hauxiliary⟩
   have Htrace := Hprimary.append Hauxiliary
   have hmem : ∃ (s' t' : Environment) (Hs : RestoredRecursorStep result loweredEnv
@@ -176,7 +176,7 @@ theorem RestoredBlockBase.find_recursorEntry
     ∀ entry ∈ C.recursorEntries,
       outEnv.find? entry.2.name = some entry.1 := by
   intro entry hentry
-  rcases H.freshTrace hwf with ⟨actual, Hactual⟩
+  rcases H.freshExtension hwf with ⟨actual, Hactual⟩
   have hperm := C.executableOrder_perm actual Hactual
   have hmem : entry.1 ∈ actual := hperm.symm.mem_iff.mp
     (List.mem_map.mpr ⟨entry, List.mem_append_right _ hentry, rfl⟩)

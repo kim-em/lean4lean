@@ -97,7 +97,7 @@ theorem Certified.generic_major {base : VEnv} {source : VInductDecl} {block : VI
         (vars schema.signature.params.length (e + schema.signature.constructors[j].fields.length) ++
           vars schema.signature.constructors[j].fields.length 0)) =
         some (VExpr.mkApps (.const c ls) args) := by
-  obtain ⟨index, hrestore⟩ := CaseSchema.equation_origin hgen hdf
+  obtain ⟨index, hrestore⟩ := CaseSchema.equation_of_mem hgen hdf
   have ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
   obtain ⟨ds', lhs', _, _, hl', _, _, hel, _, _, _⟩ := restored_common_telescope hl hr ht
   let g := schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)
@@ -117,7 +117,7 @@ theorem Certified.generic_major {base : VEnv} {source : VInductDecl} {block : VI
     Option.some.injEq] at hout
   rw [hel, VExpr.stripLams_wrapLams, ← hout, VExpr.mkApps_snoc] at hm
   have hmaj : major' = VExpr.mkApps (.const c ls) args := (VExpr.app.inj hm).2
-  obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_origin index
+  obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_eq_caseConstructor index
   obtain ⟨jn, hjn, hjget⟩ := List.mem_iff_getElem.mp hsc
   let j : Fin schema.signature.constructors.size := ⟨jn, by simpa using hjn⟩
   have hj : schema.signature.constructors[j] = sc := by simpa [j] using hjget

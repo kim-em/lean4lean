@@ -55,7 +55,7 @@ theorem RestoredInductiveStep.constructorInductFresh
   have hheaderWF : Hstep.restored.headerEnv.constants.WF :=
     hheaderEnv.symm ▸ constantsWF_add_checked hsourceWF hheaderFresh
   obtain ⟨ctorEntries, HctorFresh⟩ :=
-    Hstep.restored.constructors.constructorFreshTrace hheaderWF
+    Hstep.restored.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
     HctorFresh.targetWF hheaderWF
   let recursor : ConstantInfo :=
@@ -121,7 +121,7 @@ theorem FoldSteps.sourceFamiliesConstructorInductFresh
           (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
           stepSource middle := by
         simpa [hfamilyEq] using Hstep
-      obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshTrace hsourceWF
+      obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
       have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
       rcases ih (processed := processed ++ [head])
           (hsplit := by simpa [List.append_assoc] using hsplit)
@@ -183,7 +183,7 @@ theorem NestedRestorationFolds.constructorInductFresh
   intro name info hfind
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
-    Hrestored.inductives.inductiveFreshTrace hsourceWF
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
   exact Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
@@ -217,7 +217,7 @@ theorem FoldSteps.constructorFindOfMem
       have hself : middle.find? ci.name = some ci := by
         rw [hmiddle]
         exact Environment.find?_freshAdd_self hwf ci hfresh
-      rcases Htail.constructorFreshTrace hmiddleWF with ⟨entries, Hfresh⟩
+      rcases Htail.constructorFreshExtension hmiddleWF with ⟨entries, Hfresh⟩
       have hkept := Hfresh.preservesSourceFind hmiddleWF hself
       simpa [ci, ConstantInfo.name, ConstantInfo.toConstantVal,
         Hstep.restored.newInfo_eq] using hkept
@@ -239,13 +239,13 @@ theorem FoldSteps.inductiveHeaderFindOfMem
   induction H with
   | nil => simp at hmem
   | @cons head source middle tail target Hstep Htail ih =>
-    obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshTrace hwf
+    obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshExtension hwf
     have hmiddleWF : middle.constants.WF := Hfresh.targetWF hwf
     simp only [List.mem_cons] at hmem
     rcases hmem with rfl | hmem
     · refine ⟨Hstep.oldInfo, Hstep.lookup, ?_, ?_⟩
       · have hheader := Hstep.restored.headerFind hwf
-        rcases Htail.inductiveFreshTrace hmiddleWF with ⟨entries', Hfresh'⟩
+        rcases Htail.inductiveFreshExtension hmiddleWF with ⟨entries', Hfresh'⟩
         have := Hfresh'.preservesSourceFind hmiddleWF hheader
         simpa [Hstep.restored.header.restored] using this
       · intro cn hcn
@@ -260,7 +260,7 @@ theorem FoldSteps.inductiveHeaderFindOfMem
           with ⟨ctorOld, hlookup, hfindCtor⟩
         refine ⟨ctorOld, hlookup, ?_⟩
         obtain ⟨ctorEntries, HctorFresh⟩ :=
-          Hstep.restored.constructors.constructorFreshTrace hheaderWF
+          Hstep.restored.constructors.constructorFreshExtension hheaderWF
         have hconstructorWF := HctorFresh.targetWF hheaderWF
         let recursor : ConstantInfo :=
           .recInfo Hstep.restored.recursor.restored.newInfo
@@ -275,7 +275,7 @@ theorem FoldSteps.inductiveHeaderFindOfMem
           rw [hmiddleEq]
           exact Environment.find?_freshAdd_preserves hconstructorWF recursor
             hrecFresh hfindCtor
-        rcases Htail.inductiveFreshTrace hmiddleWF with ⟨entries', Hfresh'⟩
+        rcases Htail.inductiveFreshExtension hmiddleWF with ⟨entries', Hfresh'⟩
         exact Hfresh'.preservesSourceFind hmiddleWF hmid
     · exact ih hmiddleWF hmem
 
@@ -292,7 +292,7 @@ theorem FoldSteps.inductiveFindCases
   induction H with
   | nil => exact Or.inl hfind
   | @cons head source middle tail target Hstep Htail ih =>
-    obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshTrace hwf
+    obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshExtension hwf
     have hmiddleWF : middle.constants.WF := Hfresh.targetWF hwf
     rcases ih hmiddleWF hfind with hmid | ⟨indType, hmem, oldInfo, hlookup, hF, hinfo⟩
     · rcases Hstep.restored.inductiveFindCases hwf hmid with ⟨hF, hinfo⟩ | hsrc
@@ -308,7 +308,7 @@ theorem FoldSteps.inductiveFindCases
 
 /-! ### Lookups in the constructor validation environment -/
 
-theorem ConstructorValidationSteps.headersFreshTrace
+theorem ConstructorValidationSteps.headersFreshExtension
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
     (H : ConstructorValidationSteps
@@ -362,7 +362,7 @@ theorem ConstructorValidationSteps.headerFind
       have hself : middle.find? ci.name = some ci := by
         rw [hmiddle]
         exact Environment.find?_freshAdd_self hwf ci hfresh
-      rcases Htail.headersFreshTrace hmiddleWF with ⟨entries, Hfresh⟩
+      rcases Htail.headersFreshExtension hmiddleWF with ⟨entries, Hfresh⟩
       have := Hfresh.preservesSourceFind hmiddleWF hself
       simpa [ci, ConstantInfo.name, ConstantInfo.toConstantVal] using this
     · exact ih hmiddleWF hmem
@@ -404,7 +404,7 @@ theorem ConstructorValidationSteps.headerFindCases
     · right
       exact ⟨indType, by simp [hmem], oldInfo, hlookup, hn, hci⟩
 
-theorem ConstructorValidationSteps.constructorsFreshTrace
+theorem ConstructorValidationSteps.constructorsFreshExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
@@ -471,7 +471,7 @@ theorem ConstructorValidationSteps.constructorFindCases
     · right
       exact ⟨cn, by simp [hmem], ctorOld, hlookup, hn, hci⟩
 
-theorem ConstructorValidationSteps.familiesFreshTrace
+theorem ConstructorValidationSteps.familiesFreshExtension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
@@ -483,7 +483,7 @@ theorem ConstructorValidationSteps.familiesFreshTrace
   induction H with
   | nil => exact ⟨[], .nil⟩
   | @cons head source middle tail target Hstep Htail ih =>
-    rcases Hstep.constructors.constructorsFreshTrace hwf with ⟨entries, Hhead⟩
+    rcases Hstep.constructors.constructorsFreshExtension hwf with ⟨entries, Hhead⟩
     have hmiddleWF : middle.constants.WF := Hhead.targetWF hwf
     rcases ih hmiddleWF with ⟨entries', Htail'⟩
     exact ⟨entries ++ entries', Hhead.append Htail'⟩
@@ -508,7 +508,7 @@ theorem ConstructorValidationSteps.familiesFindCases
   induction H with
   | nil => exact Or.inl hfind
   | @cons head source middle tail target Hstep Htail ih =>
-    rcases Hstep.constructors.constructorsFreshTrace hwf with ⟨entries, Hhead⟩
+    rcases Hstep.constructors.constructorsFreshExtension hwf with ⟨entries, Hhead⟩
     have hmiddleWF : middle.constants.WF := Hhead.targetWF hwf
     rcases ih hmiddleWF hfind with hmid |
         ⟨indType, hmem, oldInfo, hlookup, cn, hcn, ctorOld, hctor, hn, hci⟩
@@ -526,7 +526,7 @@ theorem ValidationEnvironment.headerEnvWF
     (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF) : H.headerEnv.constants.WF := by
-  rcases H.headers.headersFreshTrace hwf with ⟨entries, Hfresh⟩
+  rcases H.headers.headersFreshExtension hwf with ⟨entries, Hfresh⟩
   exact Hfresh.targetWF hwf
 
 theorem ValidationEnvironment.preservesSourceFind
@@ -535,8 +535,8 @@ theorem ValidationEnvironment.preservesSourceFind
     (hwf : sourceEnv.constants.WF)
     (hfind : sourceEnv.find? name = some ci) :
     targetEnv.find? name = some ci := by
-  rcases H.headers.headersFreshTrace hwf with ⟨entries, Hheaders⟩
-  rcases H.constructors.familiesFreshTrace (H.headerEnvWF hwf) with
+  rcases H.headers.headersFreshExtension hwf with ⟨entries, Hheaders⟩
+  rcases H.constructors.familiesFreshExtension (H.headerEnvWF hwf) with
     ⟨entries', Hconstructors⟩
   exact Hconstructors.preservesSourceFind (H.headerEnvWF hwf)
     (Hheaders.preservesSourceFind hwf hfind)
@@ -547,8 +547,8 @@ theorem ValidationEnvironment.quotInit_eq
     (H : ValidationEnvironment result loweredEnv sourceEnv
       allIndNames allowPrimitive types targetEnv)
     (hwf : sourceEnv.constants.WF) : targetEnv.quotInit = sourceEnv.quotInit := by
-  rcases H.headers.headersFreshTrace hwf with ⟨entries, Hheaders⟩
-  rcases H.constructors.familiesFreshTrace (H.headerEnvWF hwf) with
+  rcases H.headers.headersFreshExtension hwf with ⟨entries, Hheaders⟩
+  rcases H.constructors.familiesFreshExtension (H.headerEnvWF hwf) with
     ⟨entries', Hconstructors⟩
   exact Hconstructors.quotInit_eq.trans Hheaders.quotInit_eq
 
@@ -585,7 +585,7 @@ theorem ValidationEnvironment.headerFind
       targetEnv.find? oldInfo.name =
         some (.inductInfo { oldInfo with all := allIndNames }) := by
   rcases H.headers.headerFind hwf hmem with ⟨oldInfo, hlookup, hheader⟩
-  rcases H.constructors.familiesFreshTrace (H.headerEnvWF hwf) with
+  rcases H.constructors.familiesFreshExtension (H.headerEnvWF hwf) with
     ⟨entries', Hconstructors⟩
   exact ⟨oldInfo, hlookup,
     Hconstructors.preservesSourceFind (H.headerEnvWF hwf) hheader⟩
@@ -711,7 +711,7 @@ theorem ValidationEnvironment.validProjected
     Hrestored.inductives.sourceFamiliesConstructorInductFresh Hlower Hc Hprod
       hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
-    Hrestored.inductives.inductiveFreshTrace hsourceWF
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
   have hsubset : ∀ {name ci}, validationEnv.find? name = some ci →

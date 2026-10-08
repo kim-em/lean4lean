@@ -11,7 +11,7 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-theorem AtomicAddConstants.freshTrace
+theorem AtomicAddConstants.freshExtension
     (H : AtomicAddConstants safety source sourceVEnv entries target targetVEnv) :
     FreshExtension source (entries.map Prod.fst) target := by
   induction H with
@@ -30,7 +30,7 @@ theorem BlockInstallation.validCoreOfFreshPermutation
     (Hsource : CheckingEnv.ValidCore safety source sourceVEnv) :
     CheckingEnv.ValidCore safety actualTarget targetVEnv := by
   have HcanonicalValid := H.validCore Hsource
-  have heq := Hactual.lookupEqOfPerm H.atomic.freshTrace
+  have heq := Hactual.lookupEqOfPerm H.atomic.freshExtension
     Hsource.tr.map_wf hperm
   exact CheckingEnv.ValidCore.mapExt HcanonicalValid
     (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm

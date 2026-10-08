@@ -232,7 +232,7 @@ theorem extract_of_genericEquation {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     (h : schema.genericEquations block owner = some rules) (hmem : equation ∈ rules) :
     ∃ rule, AppliedRule.extract block owner.val equation = some rule := by
-  obtain ⟨index, hrestore⟩ := equation_origin h hmem
+  obtain ⟨index, hrestore⟩ := equation_of_mem h hmem
   have ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
   let g := schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)
   let ctor := (schema.view owner).constructors[index]
@@ -263,7 +263,7 @@ private theorem view_constructor_external {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     (index : Fin (schema.view owner).constructors.size) :
     Instance.recursiveFields (schema.view owner).constructors[index] = [] := by
-  obtain ⟨ctor, _, _, hc⟩ := view_constructor_origin index
+  obtain ⟨ctor, _, _, hc⟩ := view_constructor_eq_caseConstructor index
   rw [hc]
   unfold Instance.recursiveFields
   apply List.filterMap_eq_nil_iff.mpr
@@ -282,7 +282,7 @@ theorem Generates.rhs_shape {schema : CaseSchema}
     (hgen : schema.Generates block owner rule) :
     ∃ minor nf, rule.body.rhs = VExpr.mkApps (.bvar minor) (vars nf 0) := by
   obtain ⟨rules, hg, hm, he⟩ := hgen
-  obtain ⟨index, hrestore⟩ := equation_origin hg hm
+  obtain ⟨index, hrestore⟩ := equation_of_mem hg hm
   have ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
   obtain ⟨ds, lhs, rhs, type, hl', hr', _, hel, her, het, _⟩ :=
     restored_common_telescope hl hr ht
@@ -322,7 +322,7 @@ theorem Generates.capture_shape {schema : CaseSchema}
         (schema.view owner).constructors.size +
         (schema.view owner).constructors[index].indices.length := by
   obtain ⟨rules, hg, hm, he⟩ := hgen
-  obtain ⟨index, hrestore⟩ := equation_origin hg hm
+  obtain ⟨index, hrestore⟩ := equation_of_mem hg hm
   have ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
   let g := schema.specialize owner schema.genericUvars schema.genericLevels (.param 0)
   let ctor := (schema.view owner).constructors[index]
@@ -486,7 +486,7 @@ theorem Generates.equation_uvars {schema : CaseSchema}
     (hgen : schema.Generates block owner rule) :
     rule.equation.uvars = schema.genericUvars := by
   obtain ⟨rules, hg, hm, _⟩ := hgen
-  obtain ⟨index, he⟩ := equation_origin hg hm
+  obtain ⟨index, he⟩ := equation_of_mem hg hm
   simp only [Restoration.equation, bind, Option.bind_eq_some_iff] at he
   obtain ⟨lhs, _, rhs, _, type, _, he⟩ := he
   exact (congrArg VDefEq.uvars (Option.some.inj he)).symm

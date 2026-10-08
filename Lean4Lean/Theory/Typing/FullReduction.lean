@@ -960,7 +960,7 @@ theorem CaseRedex.major_not_pi {E : VEnv} {U : Nat} (hE : E.WF)
   generalize hpacked : actual.levels = packed at hsource
   cases hsource with
   | @iota block levels target arguments schema owner rule hl hg hc hp hleft hright ha =>
-    obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := hE.eliminator_origin hl
+    obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := hE.eliminator_installed hl
     have harity := hcert.arguments_length hbase hg
     obtain ⟨hb, ho⟩ := hg.owned
     have hab : actual.block = block := H.block_eq.trans hb

@@ -32,7 +32,7 @@ theorem famSort_container {envF env0 base : VEnv} {aux : List ContainerSpecializ
     (hprior : ContainersInstalled base aux) (hb : base ≤ env0) (ha : a ∈ aux) :
     FamSort envF a.source.name a.source.resultLevel := by
   obtain ⟨base', block', inst', hcomp, -, hinst', hle'⟩ := hprior.mem a ha
-  obtain ⟨base'', expanded'', s'', g'', aux'', hb'', C'', -⟩ := hcomp.compilationOrigin
+  obtain ⟨base'', expanded'', s'', g'', aux'', hb'', C'', -⟩ := hcomp.exists_compilation
   obtain ⟨envTypes'', direct'', htypes'', -, -, hfam''⟩ := C''.correspondence
   have hsrc : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
   obtain ⟨nf, -, hrel⟩ := Lean4Lean.List.Forall₂.forall_exists_r hfam'' a.source
@@ -147,7 +147,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
   have hFam : F = (compilationRestoration source aux).headName
       s.families[s.constructors[index].owner].name := by
-    rcases C.ctor_origin hprior index with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
+    rcases C.ctor_cases hprior index with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
     · have hfc' := hle.constants (VInductBlock.install_ctor_lookup hinst
         (by rw [C.ctors]; exact hfc))
       rw [hfcn, hci'] at hfc'

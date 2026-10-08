@@ -13,7 +13,7 @@ open InductiveSignature
 
 /-- Finite replay retains the actual compilation at its original base. It
 never asserts that lowering-only names remain fresh at the installation base. -/
-theorem CompiledInductive.compilationOrigin
+theorem CompiledInductive.exists_compilation
     (compiled : CompiledInductive installBase source block) :
     ∃ (base : VEnv) (expanded : VInductDecl) (signature : InductiveSignature)
       (generated : Instance signature) (auxiliaries : List ContainerSpecialization),

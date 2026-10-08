@@ -283,7 +283,7 @@ theorem FoldSteps.constructorKernelOriginAt
           have htargetFind : target.find? newInfo.name =
               some (.ctorInfo newInfo) := by
             obtain ⟨entries, Hfresh⟩ :=
-              Htail.constructorFreshTrace hmiddleWF
+              Htail.constructorFreshExtension hmiddleWF
             exact Hfresh.preservesSourceFind hmiddleWF hmiddleFind
           exact ⟨stepSource, middle, Hstep.oldInfo,
             newInfo, by simpa using Hstep, rfl, rfl,
@@ -369,7 +369,7 @@ theorem SourceFamilyRestoration.inductiveFindCases
   have hheaderWF : H.headerEnv.constants.WF :=
     hheaderEnv.symm ▸ constantsWF_add_checked hsourceWF hheaderFresh
   obtain ⟨ctorEntries, HctorFresh⟩ :=
-    H.constructors.constructorFreshTrace hheaderWF
+    H.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF : H.constructorEnv.constants.WF :=
     HctorFresh.targetWF hheaderWF
   have hctorFind : H.headerEnv.find? familyName =
@@ -416,7 +416,7 @@ theorem SourceFamilyRestoration.headerFind
     simpa [header, ConstantInfo.name, ConstantInfo.toConstantVal] using
       hheaderFind'
   obtain ⟨ctorEntries, HctorFresh⟩ :=
-    H.constructors.constructorFreshTrace hheaderWF
+    H.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF := HctorFresh.targetWF hheaderWF
   have hconstructorFind :=
     HctorFresh.preservesSourceFind hheaderWF hheaderFind
@@ -449,7 +449,7 @@ theorem SourceFamilyRestoration.extendInductInfosFromDecl
       H.header.newInfo) :
     InductInfosFromDecl base.constants targetEnv.constants decl := by
   intro familyName familyInfo hfind
-  have htargetWF := H.freshTrace hsourceWF
+  have htargetWF := H.freshExtension hsourceWF
   rcases htargetWF with ⟨entries, Hfresh⟩
   have hfindEnv : targetEnv.find? familyName =
       some (.inductInfo familyInfo) := by
@@ -722,7 +722,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
   have hheaderWF : Hstep.restored.headerEnv.constants.WF :=
     hheaderEnv.symm ▸ constantsWF_add_checked hsourceWF hheaderFresh
   obtain ⟨ctorEntries, HctorFresh⟩ :=
-    Hstep.restored.constructors.constructorFreshTrace hheaderWF
+    Hstep.restored.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
     HctorFresh.targetWF hheaderWF
   let recursor : ConstantInfo :=
@@ -745,7 +745,7 @@ theorem RestoredInductiveStep.constructorOwnersPresent
       · rcases hnewHeader with ⟨_name, hinfo⟩
         simp [header] at hinfo
       · rcases Howners name info hsource with ⟨owner, howner⟩
-        obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshTrace hsourceWF
+        obtain ⟨entries, Hfresh⟩ := Hstep.restored.freshExtension hsourceWF
         exact ⟨owner, Hfresh.preservesSourceFind hsourceWF howner⟩
     · rcases hrestored with
         ⟨ctorIdx, hidx, ctorSource, ctorTarget, Hctor, hname, hinfo⟩
@@ -854,10 +854,10 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
   have hheaderWF : Hstep.restored.headerEnv.constants.WF :=
     hheaderEnv.symm ▸ constantsWF_add_checked hstepWF hheaderFresh
   obtain ⟨ctorEntries, HctorFresh⟩ :=
-    Hstep.restored.constructors.constructorFreshTrace hheaderWF
+    Hstep.restored.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
     HctorFresh.targetWF hheaderWF
-  obtain ⟨stepEntries, HstepFresh⟩ := Hstep.restored.freshTrace hstepWF
+  obtain ⟨stepEntries, HstepFresh⟩ := Hstep.restored.freshExtension hstepWF
   have hstepTargetWF := HstepFresh.targetWF hstepWF
   have hheaderMap : stepTarget.constants.find?
       Hstep.restored.header.newInfo.name =
@@ -1277,7 +1277,7 @@ theorem FoldSteps.sourceFamiliesConstructorOwnersPresent
         simpa [hfamilyEq] using Hstep
       have Hnext := Hstep'.constructorOwnersPresent Hlower Hc Hprod hempty
         familyIdx hfamily hsourceWF Howners
-      obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshTrace hsourceWF
+      obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
       have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
       apply ih (processed := processed ++ [head])
         (hsplit := by simpa [List.append_assoc] using hsplit)
@@ -1307,7 +1307,7 @@ theorem NestedRestorationFolds.constructorOwnersPresent
     apply Hrestored.inductives.sourceFamiliesConstructorOwnersPresent
       Hlower Hc Hprod hempty [] (by simp) hsourceWF Howners
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
-    Hrestored.inductives.inductiveFreshTrace hsourceWF
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
   have hprimaryWF : Hrestored.sourceFamiliesEnv.constants.WF :=
     HprimaryFresh.targetWF hsourceWF
   exact Hrestored.auxiliaries.recursorConstructorOwnersPresent
@@ -1362,7 +1362,7 @@ theorem FoldSteps.sourceFamiliesInductInfosFromDecl
         hsourceWF
       have Hnext := Hstep'.restored.extendInductInfosFromDecl
         hsourceWF Horigins Halign
-      obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshTrace hsourceWF
+      obtain ⟨entries, Hfresh⟩ := Hstep'.restored.freshExtension hsourceWF
       have hmiddleWF : middle.constants.WF := Hfresh.targetWF hsourceWF
       apply ih (processed := processed ++ [head])
         (hsplit := by simpa [List.append_assoc] using hsplit)
@@ -1405,7 +1405,7 @@ theorem NestedRestorationFolds.inductInfosFromDecl
       Hlower Hc Hprod Hsource Hmetadata Hsources Harity Howners hempty []
         (by simp) hsourceWF Hinitial
   obtain ⟨entries, Hfresh⟩ :=
-    Hrestored.inductives.inductiveFreshTrace hsourceWF
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
   exact Hrestored.auxiliaries.recursorPreservesInductInfosFromDecl
     (Hfresh.targetWF hsourceWF) Hprimary
 

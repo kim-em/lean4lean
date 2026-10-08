@@ -29,7 +29,7 @@ theorem RecursorRegistered.family_head_rigid {data : RecursorData} (henv : env.W
     hdata, hprior, hbase, hr, _, _, _, _, hi, he⟩ := H
   have hle : base ≤ env := hbase.trans ((VInductBlock.install_base_le hi).trans he)
   rw [hr]
-  rcases hdata.family_head_origin hdata.recursorNamesFresh hprior index with
+  rcases hdata.family_head_cases hdata.recursorNamesFresh hprior index with
     ⟨family, hsrc, hfn, hhn, fc, hfc, hcn⟩ |
     ⟨cctor, equation, hdefeq, hmaj, hconst, ls, hres⟩
   · rw [hfn, hhn]

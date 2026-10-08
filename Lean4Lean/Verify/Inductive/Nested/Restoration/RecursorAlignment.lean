@@ -202,7 +202,7 @@ theorem NestedRun.restoredMajorFound
     rw [RecursorVal.getMajorInduct_of_binderAt _ Hbinder, hc]
     rfl
   have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf
-  obtain ⟨entries, Htrace, -, hheaders⟩ := E.restoration.freshTraceRecursorSteps hwf
+  obtain ⟨entries, Htrace, -, hheaders⟩ := E.restoration.freshExtensionRecursorSteps hwf
   have houtWF : outEnv.constants.WF := Htrace.targetWF hwf
   rw [hmi]
   rcases hdisj with ⟨hnot, hceq⟩ | ⟨nested, ls', hfindN, hfn⟩
@@ -380,7 +380,7 @@ theorem NestedRun.recursorsAligned_of
     rcases List.mem_append.mp hdf with hp | ha
     · exact C.sourceIota.rulesWF df hp
     · exact C.auxiliaryWF.rulesWF (by simp) df ha
-  obtain ⟨entries, Htrace, hsteps, -⟩ := E.restoration.freshTraceRecursorSteps hsrcWF
+  obtain ⟨entries, Htrace, hsteps, -⟩ := E.restoration.freshExtensionRecursorSteps hsrcWF
   have houtWF : outEnv.constants.WF := Htrace.targetWF hsrcWF
   -- every inductive type of the output environment is rigid in the final base
   have hrigid : ∀ n info, outEnv.constants.find? n = some (.inductInfo info) →

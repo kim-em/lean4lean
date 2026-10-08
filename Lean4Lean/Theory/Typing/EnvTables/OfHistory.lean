@@ -206,7 +206,7 @@ theorem VEnv.WF'.tablesOfHistory {ds : List VDecl} {env : VEnv} (H : env.WF' ds)
       cases hadd with
       | intro _ hcompile hblock helim hinstall =>
         obtain ⟨cbase, expanded, s, g, aux, hcle, hdata, hprior⟩ :=
-          hcompile.compiled.compilationOrigin
+          hcompile.compiled.exists_compilation
         have helim' := helim
         obtain ⟨_, _, _, _, hcase⟩ := helim'
         rcases hcase with ⟨-, hE⟩ | ⟨key, schema, hE, -⟩

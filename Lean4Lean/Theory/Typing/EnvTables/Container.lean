@@ -281,7 +281,7 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors) :
     T.ctor c.name = some (ctorView a.container a.source c) := by
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ := ContainersInstalled.member hprior ha
-  obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
+  obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.exists_compilation
   have hfam_lt : a.family.val < s'.families.size :=
     Nat.lt_of_lt_of_le a.family.isLt (CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)
   let o' : Fin s'.families.size := ⟨a.family.val, hfam_lt⟩

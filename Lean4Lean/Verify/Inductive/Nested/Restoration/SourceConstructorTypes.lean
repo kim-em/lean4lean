@@ -129,7 +129,7 @@ theorem NestedRun.restorableNames_fresh
     | none => rfl
     | some ci =>
       exfalso
-      rcases VEnv.addConstVals_lookup_origin hadded hc with hbase | ⟨entry, hentry, hn, -⟩
+      rcases VEnv.addConstVals_lookup_cases hadded hc with hbase | ⟨entry, hentry, hn, -⟩
       · rw [hbaseFresh name hname] at hbase; cases hbase
       · obtain ⟨t, ht, rfl⟩ := hsourceEntry entry hentry
         have h1 : name ∈ familyNames
@@ -193,7 +193,7 @@ theorem NestedRun.restorableNames_fresh
     | none => rfl
     | some ci =>
       exfalso
-      rcases VEnv.addConstVals_lookup_origin hadded hc with hbase | ⟨entry, hentry, hn, -⟩
+      rcases VEnv.addConstVals_lookup_cases hadded hc with hbase | ⟨entry, hentry, hn, -⟩
       · rw [hrecBase t (List.mem_of_mem_drop ht)] at hbase; cases hbase
       · obtain ⟨t', ht', rfl⟩ := hsourceEntry entry hentry
         have h1 : t'.name ∈ familyNames E.lowered.loweredDecl.types :=

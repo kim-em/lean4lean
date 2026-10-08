@@ -63,7 +63,7 @@ theorem lookup_of_addConstVals_append {env envTypes envL : VEnv}
     (hc : envL.constants c = some ci) :
     envTypes.constants c = some ci ∨
       ∃ entry ∈ auxTC, entry.name = c ∧ entry.toVConstant = ci := by
-  rcases VEnv.addConstVals_lookup_origin hlowered hc with hbase | ⟨entry, hmem, hname, hval⟩
+  rcases VEnv.addConstVals_lookup_cases hlowered hc with hbase | ⟨entry, hmem, hname, hval⟩
   · exact .inl ((VEnv.addConstVals_le htypes).constants hbase)
   · rcases List.mem_append.mp hmem with hsrc | haux
     · left

@@ -266,8 +266,8 @@ theorem Generates.unique_of_names {schema : CaseSchema}
     (hctor : left.application.ctorName = right.application.ctorName) : left = right := by
   obtain ⟨leftRules, hleftRules, hleftMem, hleftParse⟩ := hleft
   obtain ⟨rightRules, hrightRules, hrightMem, hrightParse⟩ := hright
-  obtain ⟨i, hi⟩ := equation_origin hleftRules hleftMem
-  obtain ⟨j, hj⟩ := equation_origin hrightRules hrightMem
+  obtain ⟨i, hi⟩ := equation_of_mem hleftRules hleftMem
+  obtain ⟨j, hj⟩ := equation_of_mem hrightRules hrightMem
   have hnameLeft := Instance.parsed_constructor _ i hi hleftParse
   have hnameRight := Instance.parsed_constructor _ j hj hrightParse
   have heq : i = j := by
@@ -301,7 +301,7 @@ theorem VEnv.WF.case_rule_unique {env : VEnv} (H : env.WF)
     (hleft : schema.Generates block owner left)
     (hright : schema.Generates block owner right)
     (hctor : left.application.ctorName = right.application.ctorName) : left = right := by
-  obtain ⟨_, _, _, _, _, hformed, _, _⟩ := H.eliminator_origin hregistered
+  obtain ⟨_, _, _, _, _, hformed, _, _⟩ := H.eliminator_installed hregistered
   exact hformed.generated_unique hleft hright hctor
 
 end Lean4Lean

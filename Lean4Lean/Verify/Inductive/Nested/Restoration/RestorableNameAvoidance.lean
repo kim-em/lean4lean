@@ -600,7 +600,7 @@ theorem NestedRun.envParamUniform_auxRecNames
         ci = .ctorInfo info ∧ n = ctor.name ∧ info.type = ctor.type ∧
         info.levelParams = lparams) := by
     intro n ci h
-    have := E.lowered.ctorEnv_origin hwfP h
+    have := E.lowered.ctorEnv_find_cases hwfP h
     rwa [E.lowered_c_env, E.lowered_c_lparams] at this
   have hnotIn : ∀ {n ci}, E.lowered.ctorEnv.find? n = some ci → n ∉ E.auxRecNames :=
     fun h hn => by rw [hfreshC _ hn] at h; cases h

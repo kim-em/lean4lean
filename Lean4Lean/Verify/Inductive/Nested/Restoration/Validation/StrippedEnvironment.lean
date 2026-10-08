@@ -391,7 +391,7 @@ theorem FreshExtension.overwritable
   | nil => exact h
   | cons _ _ ih => exact ih (h.insert _ _)
 
-theorem SourceFamilyRestoration.freshTraceWithRecursor
+theorem SourceFamilyRestoration.freshExtensionWithRecursor
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hwf : sourceEnv.constants.WF) :
@@ -409,7 +409,7 @@ theorem SourceFamilyRestoration.freshTraceWithRecursor
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
     exact H.constructors
-  rcases Hconstructors'.constructorFreshTrace hwfHeader with
+  rcases Hconstructors'.constructorFreshExtension hwfHeader with
     ⟨constructors, Hconstructors⟩
   have hwfConstructors : H.constructorEnv.constants.WF :=
     Hconstructors.targetWF hwfHeader
@@ -427,7 +427,7 @@ theorem SourceFamilyRestoration.freshTraceWithRecursor
       (Hconstructors.append (.cons hrecFresh .nil)),
     recursor, by simp, hrecName⟩
 
-theorem FoldSteps.inductiveFreshTraceWithRecursors
+theorem FoldSteps.inductiveFreshExtensionWithRecursors
     (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
@@ -438,7 +438,7 @@ theorem FoldSteps.inductiveFreshTraceWithRecursors
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
   | cons Hstep _Htail ih =>
-    rcases Hstep.restored.freshTraceWithRecursor hwf with
+    rcases Hstep.restored.freshExtensionWithRecursor hwf with
       ⟨headEntries, Hhead, e, he, hname⟩
     rcases ih (Hhead.targetWF hwf) with ⟨tailEntries, Htail, htail⟩
     refine ⟨headEntries ++ tailEntries, Hhead.append Htail, ?_⟩
@@ -449,7 +449,7 @@ theorem FoldSteps.inductiveFreshTraceWithRecursors
     · rcases htail t ht with ⟨e', he', hname'⟩
       exact ⟨e', by simp [he'], hname'⟩
 
-theorem FoldSteps.recursorFreshTraceWithNames
+theorem FoldSteps.recursorFreshExtensionWithNames
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
@@ -483,9 +483,9 @@ theorem NestedRestorationFolds.restoredRecursorNamesFresh
     (hwf : sourceEnv.constants.WF)
     (hx : x ∈ Lean4Lean.restoredRecursorNames auxRec types auxRecNames) :
     sourceEnv.find? x = none := by
-  rcases H.inductives.inductiveFreshTraceWithRecursors hwf with
+  rcases H.inductives.inductiveFreshExtensionWithRecursors hwf with
     ⟨primaryEntries, Hprimary, hprimary⟩
-  rcases H.auxiliaries.recursorFreshTraceWithNames (Hprimary.targetWF hwf) with
+  rcases H.auxiliaries.recursorFreshExtensionWithNames (Hprimary.targetWF hwf) with
     ⟨auxiliaryEntries, Hauxiliary, hauxiliary⟩
   have Htrace := Hprimary.append Hauxiliary
   simp only [Lean4Lean.restoredRecursorNames, List.map_append, List.map_map,

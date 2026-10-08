@@ -82,13 +82,13 @@ theorem view_ctor_name_mem {schema : CaseSchema} {owner : Fin schema.signature.f
 /-- The major constructor of a generic equation of a registered schema is in the constructor
 table, or it is a source constructor of the schema at a source slot whose original family is
 the constructor's family. -/
-theorem generic_major_origin {env : VEnv} (H : env.WF) {schema : CaseSchema}
+theorem generic_major_cases {env : VEnv} (H : env.WF) {schema : CaseSchema}
     (hreg : env.eliminators key schema) {owner : Fin schema.signature.families.size}
     {rules : List VDefEq} (hgen : schema.genericEquations key owner = some rules) (hdf : df ∈ rules)
     (hm : df.lhs.stripLams = .app fn (VExpr.mkApps (.const c ls) args)) :
     ctorOf env c ≠ none ∨ (schema.sourceFamilies[owner.val]? = ctorFamily env c ∧
       c ∈ (schema.view owner).constructors.toList.map (·.name)) := by
-  obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_origin hreg
+  obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_installed hreg
   have hcert' := hcert
   obtain ⟨expanded, aux, hdata, hprior, hr, hnames, hrfresh⟩ := hcert'
   obtain ⟨j, hown, e, _, hrestore⟩ := Certified.generic_major hcert hgen hdf hm

@@ -323,7 +323,7 @@ theorem HasType.caseMajor_source_sort (henv : env.WF) (hΓ : OnCtx Γ (env.IsTyp
     ∃ type level, env.HasType U Γ major type ∧ env.HasType U Γ type (.sort level) ∧
       level ≈ schema.sourceLevel owner levels := by
   obtain ⟨base, source, native, _, hle, hcert, _, hconstants⟩ :=
-    henv.eliminator_origin hlookup
+    henv.eliminator_installed hlookup
   have hsource : ∀ family ∈ source.types,
       env.constants family.name = some family.toVConstant := by
     intro family hfamily
@@ -388,7 +388,7 @@ theorem CaseRedex.result_prop_of_major_proof (henv : env.WF)
     have htarget : target ≈ .zero := by
       rcases hp.admissible with hnever | hzero
       · obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ :=
-          henv.eliminator_origin hl
+          henv.eliminator_installed hl
         have harity := hcert.arguments_length hbase hg
         obtain ⟨hb, ho⟩ := hg.owned
         have hab : actual.block = block := H.block_eq.trans hb

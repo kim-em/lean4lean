@@ -101,7 +101,7 @@ namespace CaseSchema
 
 /-- Every case-view constructor is the selected owner's original constructor,
 with the same ordered indices and field domains. -/
-theorem view_constructor_origin {schema : CaseSchema}
+theorem view_constructor_eq_caseConstructor {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     (index : Fin (schema.view owner).constructors.size) :
     ∃ ctor ∈ schema.signature.constructors.toList, ctor.owner = owner ∧
@@ -119,7 +119,7 @@ theorem view_constructor_origin {schema : CaseSchema}
 
 /-- Each restored case rule comes from a specific constructor in the same
 one-family view, with the exact abstract owner offset. -/
-theorem equation_origin {schema : CaseSchema} {owner : Fin schema.signature.families.size}
+theorem equation_of_mem {schema : CaseSchema} {owner : Fin schema.signature.families.size}
     (h : schema.equations block owner U levels target = some rules) (hmem : rule ∈ rules) :
     ∃ index : Fin (schema.view owner).constructors.size,
       schema.restoration.equation
@@ -148,7 +148,7 @@ theorem genericEquation_head {schema : CaseSchema}
     (h : schema.genericEquations block owner = some rules) (hmem : rule ∈ rules) :
     rule.lhs.stripLams.getAppFnArgs.1 =
       .elim block owner.val (.param 0 :: schema.genericLevels) := by
-  obtain ⟨index, hrestore⟩ := equation_origin h hmem
+  obtain ⟨index, hrestore⟩ := equation_of_mem h hmem
   have hhead := Instance.restored_abstract_equation_head _ index hrestore
   have hzero : ((schema.view owner).constructors[index]).owner.val = 0 := by
     have := ((schema.view owner).constructors[index]).owner.isLt

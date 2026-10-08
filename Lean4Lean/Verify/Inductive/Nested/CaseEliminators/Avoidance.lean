@@ -13,7 +13,7 @@ import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 registered case schema's generic type and generic equations mention (in the
 sense of `replaceConsts`, i.e. ignoring projection type names) no name that is
 absent from the environment. The proof follows the schema's certification
-(`VEnv.WF.eliminator_origin`): the normalized signature's pieces are typed in
+(`VEnv.WF.eliminator_installed`): the normalized signature's pieces are typed in
 the expanded header/constructor environments, in which the absent names and
 the renamed auxiliary recursor names are fresh; restoration then replaces
 every auxiliary head by a certified container target with arguments typed in
@@ -554,7 +554,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     (henv : env.WF) (hfresh : ∀ n ∈ names, env.constants n = none) :
     EliminatorsAvoidConsts env names := by
   intro block schema hlookup
-  obtain ⟨base, source, blk, hbase, hle, hcert, _, hconst⟩ := henv.eliminator_origin hlookup
+  obtain ⟨base, source, blk, hbase, hle, hcert, _, hconst⟩ := henv.eliminator_installed hlookup
   obtain ⟨expanded, auxiliaries, hdata, hprior, hres, _, hrfresh⟩ := hcert
   have hbaseOrd : base.Ordered := hbase.ordered
   have hbaseFresh : ∀ n ∈ names, base.constants n = none :=
@@ -629,8 +629,8 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
       have horigin : base.constants n ≠ none ∨
           n ∈ expanded.typeConstants.map (·.name) ++
             expanded.constructorConstants.map (·.name) := by
-        rcases VEnv.addConstVals_lookup_origin hEC hlook with h | ⟨e, he, rfl, _⟩
-        · rcases VEnv.addConstVals_lookup_origin hET h with h | ⟨e, he, rfl, _⟩
+        rcases VEnv.addConstVals_lookup_cases hEC hlook with h | ⟨e, he, rfl, _⟩
+        · rcases VEnv.addConstVals_lookup_cases hET h with h | ⟨e, he, rfl, _⟩
           · exact Or.inl (by simp [h])
           · exact Or.inr (List.mem_append_left _ (List.mem_map_of_mem he))
         · exact Or.inr (List.mem_append_right _ (List.mem_map_of_mem he))
@@ -742,7 +742,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     | none => rfl
     | some ci =>
       exfalso
-      rcases VEnv.addConstVals_lookup_origin hTS hlook with h | ⟨e, he, rfl, _⟩
+      rcases VEnv.addConstVals_lookup_cases hTS hlook with h | ⟨e, he, rfl, _⟩
       · rw [hbaseFresh n hn] at h
         cases h
       · obtain ⟨t, ht, rfl⟩ := List.mem_map.mp he
@@ -809,7 +809,7 @@ theorem VEnv.WF.eliminatorsAvoidConsts {env : VEnv} {names : List Name}
     exact Restoration.expr_mentions hheads hrename
       ((hview owner).recursorType _ _) htype
   · intro owner rules hrules df hdf
-    obtain ⟨index, hrestore⟩ := CaseSchema.equation_origin hrules hdf
+    obtain ⟨index, hrestore⟩ := CaseSchema.equation_of_mem hrules hdf
     rw [hres] at hrestore
     obtain ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
     obtain ⟨al, ar, at'⟩ := (hview owner).equation _ index block owner.val

@@ -177,7 +177,7 @@ theorem CheckingEnv.ValidCore.mapExt
 
 /-- Forget the semantic part of a canonical lockstep installation while
 retaining its exact production freshness trace. -/
-theorem AddConstants.freshTrace
+theorem AddConstants.freshExtension
     (H : AddConstants safety source sourceVEnv entries target targetVEnv) :
     FreshExtension source (entries.map Prod.fst) target := by
   induction H with

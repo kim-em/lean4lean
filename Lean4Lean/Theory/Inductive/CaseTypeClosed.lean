@@ -307,7 +307,7 @@ theorem view_constructors_mem {schema : CaseSchema}
     (h : ctor ∈ (schema.view owner).constructors.toList) :
     ∃ c ∈ schema.signature.constructors.toList, c.owner = owner ∧ ctor = schema.caseConstructor c := by
   obtain ⟨i, hi, rfl⟩ := List.getElem_of_mem h
-  have := CaseSchema.view_constructor_origin (schema := schema) (owner := owner) ⟨i, by rw [← Array.length_toList]; exact hi⟩
+  have := CaseSchema.view_constructor_eq_caseConstructor (schema := schema) (owner := owner) ⟨i, by rw [← Array.length_toList]; exact hi⟩
   obtain ⟨c, hc, ho, he⟩ := this
   exact ⟨c, hc, ho, by rw [Array.getElem_toList]; exact he⟩
 

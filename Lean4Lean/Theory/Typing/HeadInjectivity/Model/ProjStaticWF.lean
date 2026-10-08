@@ -81,7 +81,7 @@ theorem WF.ctorOf_of_installedCtor (henv : env.WF) (h : Model.IsInstalledCtor en
 
 /-- A case constructor is a constructor of the table, or a constructor, in the schema's view, of
 an original family of the schema which is its syntactic family. -/
-theorem WF.caseCtor_origin (henv : env.WF) (h : Model.IsCaseCtor env c) :
+theorem WF.caseCtor_cases (henv : env.WF) (h : Model.IsCaseCtor env c) :
     EnvTables.ctorOf env c ≠ none ∨ ∃ (key : Name) (schema : CaseSchema)
       (owner : Fin schema.signature.families.size), env.eliminators key schema ∧
       schema.sourceFamilies[owner.val]? = EnvTables.ctorFamily env c ∧
@@ -89,7 +89,7 @@ theorem WF.caseCtor_origin (henv : env.WF) (h : Model.IsCaseCtor env c) :
   obtain ⟨key, schema, owner, rule, hreg, hgen, rfl⟩ := h
   obtain ⟨fn, ls, args, hm⟩ := Model.generates_major hgen
   obtain ⟨rules, hrules, hmem, -⟩ := hgen
-  rcases EnvTables.generic_major_origin henv hreg hrules hmem hm with h | ⟨ho, hc⟩
+  rcases EnvTables.generic_major_cases henv hreg hrules hmem hm with h | ⟨ho, hc⟩
   · exact .inl h
   · exact .inr ⟨key, schema, owner, hreg, ho, hc⟩
 
@@ -151,7 +151,7 @@ theorem WF.ctor_of_projFamily (henv : env.WF) (hp : env.projections I info)
     simpa using hmem
   rcases hc with h | h
   · exact fromTable (henv.ctorOf_of_installedCtor h)
-  · rcases henv.caseCtor_origin h with h | ⟨key, schema, owner, hreg, ho, hmem⟩
+  · rcases henv.caseCtor_cases h with h | ⟨key, schema, owner, hreg, ho, hmem⟩
     · exact fromTable h
     · rw [hf] at ho
       rw [henv.schemaStructCompat hreg hp owner ho] at hmem
@@ -330,7 +330,7 @@ theorem WF'.quot_projections : ∀ {ds env}, VEnv.WF' ds env → env.defeqs quot
           have hn := (VExpr.const.inj hhead).1
           have hlook := VInductBlock.install_recursor_lookup hinst hrec
           rw [← hn, hlift] at hlook
-          obtain ⟨_, _, _, _, _, _, C, _⟩ := compiled.compiled.compilationOrigin
+          obtain ⟨_, _, _, _, _, _, C, _⟩ := compiled.compiled.exists_compilation
           obtain ⟨f, x, hfx⟩ := InductiveSignature.CompilationData.recursor_forallResult_app C hrec
           have := congrArg VConstant.type (Option.some.inj hlook)
           exact quotLiftConst_forallResult_not_app f x (by rw [this]; exact hfx)

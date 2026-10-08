@@ -1226,7 +1226,7 @@ theorem RecursorCheck.sourceHeaderFresh
       isUnsafe c.lparams hsize howner with
     ⟨info, hinfo, hname, _hctors, _hall⟩
   rcases Haligned.findInfo hinfo with ⟨value, hentry⟩
-  have hfresh := Hheaders.installed.freshTrace.sourceFresh
+  have hfresh := Hheaders.installed.freshExtension.sourceFresh
     Hc.checking.tr.map_wf
     (List.mem_map.mpr ⟨((.inductInfo info : ConstantInfo), value), hentry,
       rfl⟩)

@@ -193,7 +193,7 @@ end Instance
 /-- The restored constructor of a generated equation returns the restored family of its
 owner: either it is an original constructor, installed with the block, or a constructor of a
 certified container, installed in the base environment. -/
-theorem CaseCompilationData.ctor_origin {s : InductiveSignature}
+theorem CaseCompilationData.ctor_cases {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s aux block)
     (hfresh : RecursorNamesFresh base source expanded aux)
     (hprior : ContainersInstalled base aux) (index : Fin s.constructors.size) :
@@ -245,8 +245,8 @@ theorem CaseCompilationData.ctor_origin {s : InductiveSignature}
     obtain ⟨hconst, hres⟩ := hprior.container_ctor a ha cctor hcctor
     exact ⟨cctor, by rw [← hcn]; exact hconst, hres⟩
 
-/-- `CaseCompilationData.ctor_origin` for a full compilation. -/
-theorem CompilationData.ctor_origin {s : InductiveSignature} {g : Instance s}
+/-- `CaseCompilationData.ctor_cases` for a full compilation. -/
+theorem CompilationData.ctor_cases {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block)
     (hprior : ContainersInstalled base aux) (index : Fin s.constructors.size) :
     (∃ fc ∈ source.constructorConstants,
@@ -257,7 +257,7 @@ theorem CompilationData.ctor_origin {s : InductiveSignature} {g : Instance s}
         s.constructors[index].name) = some cc.toVConstant ∧
       ∃ ls, cc.type.forallResult.getAppFnArgs.1 = .const ((compilationRestoration source aux).headName
         s.families[s.constructors[index].owner].name) ls) :=
-  H.toCaseCompilationData.ctor_origin H.recursorNamesFresh hprior index
+  H.toCaseCompilationData.ctor_cases H.recursorNamesFresh hprior index
 
 theorem Restoration.recursor_parts {r : Restoration} {value value' : VConstVal}
     (h : r.recursor value = some value') :
@@ -360,7 +360,7 @@ theorem ContainerSpecialization.directFamily_resultLevel_nested {a : ContainerSp
 
 /-- The restored head of a family: an original family (with its correspondence), or the
 container family of a specialization. -/
-theorem CaseCompilationData.family_origin {s : InductiveSignature}
+theorem CaseCompilationData.family_cases {s : InductiveSignature}
     (H : CaseCompilationData base source expanded s aux block)
     (hfresh : RecursorNamesFresh base source expanded aux) (o : Fin s.families.size) :
     (∃ envTypes family, base.addConstVals source.typeConstants = some envTypes ∧
@@ -400,8 +400,8 @@ theorem CaseCompilationData.family_origin {s : InductiveSignature}
       rw [ContainerSpecialization.directFamily_resultLevel_nested hdf] at this
       exact this
 
-/-- `CaseCompilationData.family_origin` for a full compilation. -/
-theorem CompilationData.family_origin {s : InductiveSignature} {g : Instance s}
+/-- `CaseCompilationData.family_cases` for a full compilation. -/
+theorem CompilationData.family_cases {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block) (o : Fin s.families.size) :
     (∃ envTypes family, base.addConstVals source.typeConstants = some envTypes ∧
       family ∈ source.types ∧
@@ -413,7 +413,7 @@ theorem CompilationData.family_origin {s : InductiveSignature} {g : Instance s}
       (∀ lv, (compilationRestoration source aux).headLevels s.families[o].name lv =
         a.levels.map (·.inst lv)) ∧
       s.families[o].resultLevel ≈ a.source.resultLevel.inst a.levels) :=
-  H.toCaseCompilationData.family_origin H.recursorNamesFresh o
+  H.toCaseCompilationData.family_cases H.recursorNamesFresh o
 
 /-- A compilation with container specializations has at least two families. -/
 theorem CompilationData.nested_families {s : InductiveSignature} {g : Instance s}

@@ -60,7 +60,7 @@ theorem Generates.motive_shape {schema : CaseSchema}
       rule.body.type = VExpr.mkApps
         (.bvar (rule.body.domains.length - 1 - position)) typeArguments := by
   obtain ⟨rules, hg, hm, he⟩ := H
-  obtain ⟨index, hrestore⟩ := equation_origin hg hm
+  obtain ⟨index, hrestore⟩ := equation_of_mem hg hm
   obtain ⟨hl, hr, ht⟩ := Restoration.equation_parts hrestore
   obtain ⟨ds, lhs, rhs, type, hds, hl', hr', ht', hel, her, het⟩ :=
     restoration_telescope_trace hl hr ht

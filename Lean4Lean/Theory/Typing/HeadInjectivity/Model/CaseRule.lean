@@ -89,7 +89,7 @@ theorem case_ctorFam {schema : CaseSchema} {owner : Fin schema.signature.familie
       (schema.restoration.headName schema.signature.families[owner].name) := by
   subst hio
   rw [hrr]
-  rcases C.ctor_origin hfresh hprior i with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
+  rcases C.ctor_cases hfresh hprior i with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
   · refine ⟨_, _, ?_, hfch⟩
     rw [← hfcn]; exact hctorsIn fc (by rw [C.ctors]; exact hfc)
   · exact ⟨_, _, hbF.constants hcc, hcch⟩
@@ -130,7 +130,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
   intro U Δ Γ levels target tl hΔ hrc hperm _ ihT hLd ihL hRd ihR
   have hnodup := hcert.constructor_names_nodup owner
   obtain ⟨expanded, aux, C, hprior, hrr, -, hfresh⟩ := hcert
-  obtain ⟨j, hres⟩ := CaseSchema.equation_origin hrules hmem
+  obtain ⟨j, hres⟩ := CaseSchema.equation_of_mem hrules hmem
   have hparams : ∀ h ∈ schema.restoration.heads, h.nparams ≤ (schema.view owner).params.length := by
     intro head hhead
     rw [hrr] at hhead
@@ -238,7 +238,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
       df'.rhs = .wrapLams doms' body' →
       lead'.length = leadE.length ∧ (ctor' = cE → df' = df) := by
     intro df' doms' lsP' lead' ctor' lsC'' ms'' fs' body'' hm' hl' _
-    obtain ⟨j', hres'⟩ := CaseSchema.equation_origin hrules hm'
+    obtain ⟨j', hres'⟩ := CaseSchema.equation_of_mem hrules hm'
     obtain ⟨_, idxj, _, _, _, _, -, hidxj, hlj, -, -, -, -⟩ :=
       Instance.restored_equation_abstract _ j' b owner.val hparams hres'
     have h0' : ((schema.view owner).constructors[j']).owner.val = 0 := by

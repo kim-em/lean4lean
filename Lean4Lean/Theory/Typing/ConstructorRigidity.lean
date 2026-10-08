@@ -19,7 +19,7 @@ theorem VEnv.nativeHeadRigid_iff {env : VEnv} {name : Name} :
     env.NativeHeadRigid name ↔ env.Rigid name := by
   simp only [NativeHeadRigid, Rigid, VExpr.equationHead_eq]
 
-theorem InductiveSignature.CompilationData.equation_major_origin
+theorem InductiveSignature.CompilationData.equation_major_cases
     {s : InductiveSignature} {g : s.Instance}
     (H : InductiveSignature.CompilationData env source expanded s g auxiliaries block)
     (hprior : ContainersInstalled env auxiliaries) (hdf : df ∈ block.rules) :
@@ -30,13 +30,13 @@ theorem InductiveSignature.CompilationData.equation_major_origin
     (List.mapM_eq_some.mp H.equations) _ hdf
   obtain ⟨index, _, rfl⟩ := List.mem_map.mp hgenerated
   refine ⟨_, InductiveSignature.Instance.restored_equation_major H index hrestored, ?_⟩
-  rcases H.constructor_name_origin index with ho | ⟨a, ha, ctor, hc, he⟩
+  rcases H.constructor_name_cases index with ho | ⟨a, ha, ctor, hc, he⟩
   · exact Or.inl ho
   · right
     rw [he]
     exact hprior.constructor_equation a ha ctor hc
 
-theorem CompiledInductive.equation_major_origin (H : CompiledInductive env source block) :
+theorem CompiledInductive.equation_major_cases (H : CompiledInductive env source block) :
     ∀ df ∈ block.rules, ∃ name, df.HasConstructorMajor name ∧
       ((∃ ctor ∈ source.constructorConstants, name = ctor.name) ∨
         ∃ prior, env.defeqs prior ∧ prior.HasConstructorMajor name) := by
@@ -46,7 +46,7 @@ theorem CompiledInductive.equation_major_origin (H : CompiledInductive env sourc
         ((∃ ctor ∈ source.constructorConstants, name = ctor.name) ∨
           ∃ prior, env.defeqs prior ∧ prior.HasConstructorMajor name))
     (motive_2 := fun _ _ _ => True)
-    (fun hdata hprior _ df hdf => hdata.equation_major_origin hprior hdf)
+    (fun hdata hprior _ df hdf => hdata.equation_major_cases hprior hdf)
     (fun _ hle _ ih df hdf => by
       obtain ⟨name, hm, ho | ⟨prior, hp, hpm⟩⟩ := ih df hdf
       · exact ⟨name, hm, Or.inl ho⟩
@@ -149,7 +149,7 @@ theorem ContainersInstalled.container_ctor (H : ContainersInstalled env auxiliar
 which then contains the restored constructor, or the family of a certified
 container constructor whose native equation is already installed in the
 base environment. -/
-theorem InductiveSignature.CaseCompilationData.family_head_origin
+theorem InductiveSignature.CaseCompilationData.family_head_cases
     {s : InductiveSignature}
     (hdata : InductiveSignature.CaseCompilationData base source expanded s auxiliaries block)
     (hdisj : InductiveSignature.RecursorNamesFresh base source expanded auxiliaries)
@@ -209,7 +209,7 @@ theorem InductiveSignature.CaseCompilationData.family_head_origin
 /-- The family head selected by a generated case rule is either an original
 family or the family of a certified container constructor whose native
 equation is already installed in the base environment. -/
-theorem InductiveSignature.CaseSchema.Certified.family_head_origin
+theorem InductiveSignature.CaseSchema.Certified.family_head_cases
     {schema : InductiveSignature.CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : InductiveSignature.CaseSchema.AppliedRule}
     (H : schema.Certified base source sourceBlock) (hgen : schema.Generates key owner rule) :
@@ -221,15 +221,15 @@ theorem InductiveSignature.CaseSchema.Certified.family_head_origin
         .const (schema.restoration.headName schema.signature.families[owner].name) ls := by
   obtain ⟨expanded, auxiliaries, hdata, hprior, hr, hnames, hdisj⟩ := H
   obtain ⟨rules, hrules, hmem, _⟩ := hgen
-  obtain ⟨index, _⟩ := equation_origin hrules hmem
-  obtain ⟨ctor, hctor, hown, _⟩ := view_constructor_origin index
+  obtain ⟨index, _⟩ := equation_of_mem hrules hmem
+  obtain ⟨ctor, hctor, hown, _⟩ := view_constructor_eq_caseConstructor index
   obtain ⟨position, hposition, hget⟩ := List.mem_iff_getElem.mp hctor
   let original : Fin schema.signature.constructors.size := ⟨position, by simpa using hposition⟩
   have hoeq : schema.signature.constructors[original] = ctor := by
     simpa only [original, Fin.getElem_fin, Array.getElem_toList] using hget
   have hown' : schema.signature.constructors[original].owner = owner := by rw [hoeq]; exact hown
   rw [hr, ← hown']
-  rcases hdata.family_head_origin hdisj hprior original with
+  rcases hdata.family_head_cases hdisj hprior original with
     ⟨family, hsrc, hfn, hhn, _⟩ | h
   · left
     rw [hfn, hhn, hnames]
@@ -432,7 +432,7 @@ private theorem ConstructorHeadsRigid.register {base env : VEnv}
   · exact Henv.1
   · intro k s hs owner rule hr
     rcases hs with ⟨rfl, rfl⟩ | hs
-    · rcases hcert.case_constructor_origin hr with ⟨ctor, hc, hn⟩ | ⟨prior, hp, hpm⟩
+    · rcases hcert.case_constructor_cases hr with ⟨ctor, hc, hn⟩ | ⟨prior, hp, hpm⟩
       · obtain ⟨expanded, auxiliaries, hdata, _⟩ := hcert
         obtain ⟨types, ctors, ht, hct, _⟩ := hdata.sourceWF.2.2.2.2
         have hfresh := VEnv.LE.constants_eq_none_left (VEnv.addConstVals_le ht)
@@ -460,7 +460,7 @@ private theorem ConstructorHeadsRigid.register {base env : VEnv}
     · exact Henv.2.2.1 k s hs name hn
   · intro k s hs owner rule hr
     rcases hs with ⟨rfl, rfl⟩ | hs
-    · rcases hcert.family_head_origin hr with horig | ⟨cctor, equation, hdefeq, hmaj, hconst, ls, hres⟩
+    · rcases hcert.family_head_cases hr with horig | ⟨cctor, equation, hdefeq, hmaj, hconst, ls, hres⟩
       · obtain ⟨expanded, auxiliaries, hdata, _, _, hnames, hdisj⟩ := hcert
         rw [hnames] at horig
         obtain ⟨family, hfamily, hfn⟩ := List.mem_map.mp horig
@@ -517,7 +517,7 @@ private theorem ConstructorHeadsRigid.addInduct
     apply hpre.compileRules hrecs hcompile.compiled.equation_head_owned
     intro df hdfMem name hmajor
     obtain ⟨originName, horigin, hctor | ⟨prior, hprior, hpriorMajor⟩⟩ :=
-      hcompile.compiled.equation_major_origin df hdfMem
+      hcompile.compiled.equation_major_cases df hdfMem
     · have heq := hmajor.unique horigin
       obtain ⟨ctor, hctor, hname⟩ := hctor
       have hn : name = ctor.name := heq.trans hname

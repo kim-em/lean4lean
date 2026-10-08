@@ -155,7 +155,7 @@ theorem WF'.deltaRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
       cases installed with
       | @intro block _ _ compiled _ _ installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, _, compilation, _⟩ :=
-          compiled.compiled.compilationOrigin
+          compiled.compiled.exists_compilation
         have hrules := compilation.equations
         have howned := compiled.compiled.equation_head_owned
         simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,

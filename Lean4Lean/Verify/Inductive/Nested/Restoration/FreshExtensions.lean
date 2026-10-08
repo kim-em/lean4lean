@@ -89,7 +89,7 @@ theorem FreshExtension.deltaConservative
 
 /-- The exact constructor-restoration fold installs only constructor
 constants, hence every entry in its fresh trace is non-definitional. -/
-theorem FoldSteps.constructorFreshTraceNondelta
+theorem FoldSteps.constructorFreshExtensionNondelta
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF) :
@@ -115,7 +115,7 @@ theorem FoldSteps.constructorFreshTraceNondelta
       · exact hnondelta entry hentry
 
 /-- The exact recursor-restoration fold installs only recursor constants. -/
-theorem FoldSteps.recursorFreshTraceNondelta
+theorem FoldSteps.recursorFreshExtensionNondelta
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
@@ -143,7 +143,7 @@ theorem FoldSteps.recursorFreshTraceNondelta
 
 /-- One restored source family installs a header, constructor batch, and
 primary recursor, all of which are non-definitional constant kinds. -/
-theorem SourceFamilyRestoration.freshTraceNondelta
+theorem SourceFamilyRestoration.freshExtensionNondelta
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hsourceWF : sourceEnv.constants.WF) :
@@ -160,7 +160,7 @@ theorem SourceFamilyRestoration.freshTraceNondelta
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
     exact H.constructors
-  rcases Hconstructors.constructorFreshTraceNondelta hheaderWF with
+  rcases Hconstructors.constructorFreshExtensionNondelta hheaderWF with
     ⟨constructors, HconstructorTrace, hconstructorsNondelta⟩
   have hconstructorWF : H.constructorEnv.constants.WF :=
     HconstructorTrace.targetWF hheaderWF
@@ -185,7 +185,7 @@ theorem SourceFamilyRestoration.freshTraceNondelta
 
 /-- The outer source-family restoration fold preserves the same non-delta
 property compositionally. -/
-theorem FoldSteps.inductiveFreshTraceNondelta
+theorem FoldSteps.inductiveFreshExtensionNondelta
     (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
@@ -195,7 +195,7 @@ theorem FoldSteps.inductiveFreshTraceNondelta
   induction H with
   | nil => exact ⟨[], .nil, by simp⟩
   | cons Hstep Htail ih =>
-      rcases Hstep.restored.freshTraceNondelta hsourceWF with
+      rcases Hstep.restored.freshExtensionNondelta hsourceWF with
         ⟨headEntries, Hhead, hheadNondelta⟩
       rcases ih (Hhead.targetWF hsourceWF) with
         ⟨tailEntries, Htail, htailNondelta⟩
@@ -208,15 +208,15 @@ theorem FoldSteps.inductiveFreshTraceNondelta
 /-- Complete nested restoration supplies its own fresh non-delta production
 trace; the final concrete `AddInduct` delta clause therefore needs no external
 semantic assumption. -/
-theorem NestedRestorationFolds.freshTraceNondelta
+theorem NestedRestorationFolds.freshExtensionNondelta
     (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames out)
     (hsourceWF : sourceEnv.constants.WF) :
     ∃ entries, FreshExtension sourceEnv entries out.2 ∧
       ∀ ci ∈ entries, ci.deltaValue? = none := by
-  rcases H.inductives.inductiveFreshTraceNondelta hsourceWF with
+  rcases H.inductives.inductiveFreshExtensionNondelta hsourceWF with
     ⟨primaryEntries, Hprimary, hprimaryNondelta⟩
-  rcases H.auxiliaries.recursorFreshTraceNondelta
+  rcases H.auxiliaries.recursorFreshExtensionNondelta
       (Hprimary.targetWF hsourceWF) with
     ⟨auxiliaryEntries, Hauxiliary, hauxiliaryNondelta⟩
   refine ⟨primaryEntries ++ auxiliaryEntries,

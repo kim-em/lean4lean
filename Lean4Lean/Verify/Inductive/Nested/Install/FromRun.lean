@@ -273,7 +273,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     Hprod hempty
   rcases Halignment.recursorTraceOfValidation HvalidationValid HrecursorValidation (fun _ h => h) [] with
     ⟨auxiliaryRecursors, Hauxiliary⟩
-  rcases Hrestored.freshTraceNondelta Hc.checking.tr.map_wf with
+  rcases Hrestored.freshExtensionNondelta Hc.checking.tr.map_wf with
     ⟨nondeltaEntries, Hnondelta, hnondelta⟩
   rcases Hsource.existsExactRestoration Hauxiliary Hlower Hc Hprod
       Hcore Hparams hempty hvisible Hprimitive Hnondelta hnondelta Hcases with

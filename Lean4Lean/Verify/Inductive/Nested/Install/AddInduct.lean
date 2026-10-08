@@ -114,7 +114,7 @@ theorem NestedRestorationFolds.addInductConcrete
       out.2.constants decl) :
     AddInduct safety sourceProdEnv.constants sourceVEnv decl
       out.2.constants targetVEnv := by
-  rcases H.freshTraceNondelta hsourceWF with
+  rcases H.freshExtensionNondelta hsourceWF with
     ⟨entries, Hfresh, hnondelta⟩
   cases Habstract with
   | intro Hdecl Hcompile Hblock Helim Hinstall =>

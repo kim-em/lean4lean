@@ -180,7 +180,7 @@ theorem selFreeIn_of_fresh {base E : VEnv} {t : VInductiveType} (H : T.Inv base)
   refine ⟨⟨(H.freshT hfresh).1, (H.freshT hfresh).2.1, fun c hc =>
     ⟨(H.freshT (hfreshC c hc)).1, (H.freshT (hfreshC c hc)).2.1⟩⟩, ?_⟩
   rintro ⟨key, schema, hreg, hmem⟩
-  obtain ⟨_, _, _, _, _, hcert, _, hconsts⟩ := hbase.eliminator_origin (helim hreg)
+  obtain ⟨_, _, _, _, _, hcert, _, hconsts⟩ := hbase.eliminator_installed (helim hreg)
   obtain ⟨c, hc, hcn⟩ := (Certified.mem_schemaCtorNames hcert).mp hmem
   have hcb := hconsts c (List.mem_append_right _ (by
     obtain ⟨_, _, hdata, _⟩ := hcert

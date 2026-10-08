@@ -324,12 +324,12 @@ private theorem RestoredBlockCertificate.extendSafe
       wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshExtension sourceProdEnv entries outEnv } := by
-    rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
+    rcases H.freshExtension Hvalid.tr.map_wf with ⟨entries, Hentries⟩
     exact ⟨⟨entries, Hentries⟩⟩
   let actual := Classical.choice HactualExists
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.installedEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.install.atomic.freshTrace
+    actual.property.lookupEqOfPerm C.install.atomic.freshExtension
       Hvalid.tr.map_wf (C.executableOrder_perm actual.val actual.property)
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.installedEnv.find? name := by
@@ -589,13 +589,13 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
       wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
   let HactualExists : Nonempty { entries : List ConstantInfo //
       FreshExtension sourceProdEnv entries outEnv } := by
-    rcases H.freshTrace Hvalid.tr.map_wf with ⟨entries, Hentries⟩
+    rcases H.freshExtension Hvalid.tr.map_wf with ⟨entries, Hentries⟩
     exact ⟨⟨entries, Hentries⟩⟩
   let actual := Classical.choice HactualExists
   have hperm := C.executableOrder_perm actual.val actual.property
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.installedEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.install.atomic.freshTrace
+    actual.property.lookupEqOfPerm C.install.atomic.freshExtension
       Hvalid.tr.map_wf hperm
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.installedEnv.find? name := by

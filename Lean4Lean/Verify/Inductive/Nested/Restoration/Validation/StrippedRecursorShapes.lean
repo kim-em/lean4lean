@@ -456,7 +456,7 @@ end MajorHead
 /-! ### The fresh recursors of a nested restoration -/
 
 /-- A restored constructor fold installs no recursor. -/
-theorem FoldSteps.constructorFreshTraceNoRec
+theorem FoldSteps.constructorFreshExtensionNoRec
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -499,7 +499,7 @@ theorem RecursorsFromSteps.append
   · obtain ⟨n, hn, h⟩ := H₂ e he r hr
     exact ⟨n, List.mem_append_right _ hn, h⟩
 
-theorem SourceFamilyRestoration.freshTraceRecursorSteps
+theorem SourceFamilyRestoration.freshExtensionRecursorSteps
     (H : SourceFamilyRestoration result loweredEnv sourceEnv auxRec
       allIndNames indType oldInfo ((), targetEnv))
     (hwf : sourceEnv.constants.WF) :
@@ -518,7 +518,7 @@ theorem SourceFamilyRestoration.freshTraceRecursorSteps
       (sourceEnv.add header) H.constructorEnv := by
     rw [← hheaderEnv]
     exact H.constructors
-  rcases Hconstructors'.constructorFreshTraceNoRec hwfHeader with
+  rcases Hconstructors'.constructorFreshExtensionNoRec hwfHeader with
     ⟨constructors, Hconstructors, hnorec⟩
   have hwfConstructors : H.constructorEnv.constants.WF :=
     Hconstructors.targetWF hwfHeader
@@ -541,7 +541,7 @@ theorem SourceFamilyRestoration.freshTraceRecursorSteps
       subst hr
       exact ⟨_, List.mem_singleton_self _, _, _, H.recursor, rfl⟩
 
-theorem FoldSteps.inductiveFreshTraceRecursorSteps
+theorem FoldSteps.inductiveFreshExtensionRecursorSteps
     (H : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       types sourceEnv targetEnv)
@@ -555,7 +555,7 @@ theorem FoldSteps.inductiveFreshTraceRecursorSteps
   induction H with
   | nil => exact ⟨[], .nil, by simp [RecursorsFromSteps], by simp⟩
   | cons Hstep _Htail ih =>
-    rcases Hstep.restored.freshTraceRecursorSteps hwf with
+    rcases Hstep.restored.freshExtensionRecursorSteps hwf with
       ⟨headEntries, Hhead, hhead, hheader⟩
     rcases ih (Hhead.targetWF hwf) with ⟨tailEntries, Htail, htail, htailHeaders⟩
     refine ⟨headEntries ++ tailEntries, Hhead.append Htail, hhead.append htail, ?_⟩
@@ -566,7 +566,7 @@ theorem FoldSteps.inductiveFreshTraceRecursorSteps
     · obtain ⟨s, t', H', hmem⟩ := htailHeaders t ht
       exact ⟨s, t', H', List.mem_append_right _ hmem⟩
 
-theorem FoldSteps.recursorFreshTraceRecursorSteps
+theorem FoldSteps.recursorFreshExtensionRecursorSteps
     (H : FoldSteps
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceEnv targetEnv)
@@ -594,7 +594,7 @@ theorem FoldSteps.recursorFreshTraceRecursorSteps
 
 /-- Every recursor installed by a nested restoration is the restored
 recursor of one of its steps. -/
-theorem NestedRestorationFolds.freshTraceRecursorSteps
+theorem NestedRestorationFolds.freshExtensionRecursorSteps
     (H : NestedRestorationFolds result loweredEnv sourceEnv auxRec
       allIndNames types auxRecNames ((), outEnv))
     (hwf : sourceEnv.constants.WF) :
@@ -604,9 +604,9 @@ theorem NestedRestorationFolds.freshTraceRecursorSteps
       ∀ t ∈ types, ∃ (s t' : Environment)
         (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames t s t'),
         .inductInfo Hstep.restored.header.newInfo ∈ entries := by
-  rcases H.inductives.inductiveFreshTraceRecursorSteps hwf with
+  rcases H.inductives.inductiveFreshExtensionRecursorSteps hwf with
     ⟨primaryEntries, Hprimary, hprimary, hheaders⟩
-  rcases H.auxiliaries.recursorFreshTraceRecursorSteps (Hprimary.targetWF hwf) with
+  rcases H.auxiliaries.recursorFreshExtensionRecursorSteps (Hprimary.targetWF hwf) with
     ⟨auxiliaryEntries, Hauxiliary, hauxiliary⟩
   refine ⟨_, Hprimary.append Hauxiliary, hprimary.append hauxiliary, ?_⟩
   intro t ht
@@ -1109,7 +1109,7 @@ theorem NestedRun.validOfInstallation_of_paramUniform
     rcases stripLookup_cases hspec hfind with h | ⟨_, r0, h, _⟩
     · exact ⟨rec, h⟩
     · exact ⟨r0, h⟩
-  obtain ⟨entries, Htrace, hsteps, hheaders⟩ := Hrestored.freshTraceRecursorSteps hsourceWF
+  obtain ⟨entries, Htrace, hsteps, hheaders⟩ := Hrestored.freshExtensionRecursorSteps hsourceWF
   have hr0' : outEnv.find? name = some (.recInfo r0) := by
     rw [Kernel.Environment.find?_eq_constants houtWF]; exact hr0
   rcases Htrace.entryOrigin hsourceWF hr0' with hold | ⟨entry, hentry, hname, hfound⟩

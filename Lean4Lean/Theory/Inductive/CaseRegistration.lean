@@ -290,7 +290,7 @@ theorem VEnv.WF.registryInv {env : VEnv} (H : env.WF) : env.RegistryInv :=
 
 /-- Every registry entry retains its independent formation derivation and
 the exact source constants justified when it was registered. -/
-theorem VEnv.WF.eliminator_origin {env : VEnv} (H : env.WF)
+theorem VEnv.WF.eliminator_installed {env : VEnv} (H : env.WF)
     (hlookup : env.eliminators key schema) :
     ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
       schema.Certified base source block ∧

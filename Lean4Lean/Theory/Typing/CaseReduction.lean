@@ -507,7 +507,7 @@ theorem CaseStep.canonicalMatch (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   have Hsaved := H
   cases H with
   | @iota block levels target arguments schema owner rule hl hg hc hp ht hr ha =>
-    obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := henv.eliminator_origin hl
+    obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := henv.eliminator_installed hl
     have hcapture := hcert.capture_specialize hg ha.1 (levels := target :: levels)
     have hlevels := hg.application_levels_inst (levels := target :: levels)
       (by simp only [List.length_cons, hg.equation_uvars, genericUvars, hp.length])
@@ -576,7 +576,7 @@ theorem generated_case_body (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     simpa only [domains, List.getElem_map] using hty
   have hmatch := H.canonicalMatch henv hctx
   have hstep := CaseIota.iota hmatch
-  have hcapture := henv.eliminator_origin hlookup
+  have hcapture := henv.eliminator_installed hlookup
   obtain ⟨base, source, sourceBlock, _, _, hcert, _, _⟩ := hcapture
   rw [hcert.capture_specialize hgen H.length] at hstep
   have hlevels := hgen.application_levels_inst (levels := target :: levels)
@@ -710,7 +710,7 @@ theorem CaseStep.arity_eq (henv : env.WF)
       cases henv.eliminators_unique hl hl'
       have hslot : owner = owner' := Fin.ext (ho.symm.trans (howner.trans ho'))
       cases hslot
-      obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_origin hl
+      obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_installed hl
       exact hcert.arguments_length_eq hbase hg hg'
 
 theorem CaseRedex.not_elim_prefix (henv : env.WF)
@@ -913,7 +913,7 @@ theorem IsCasePrefix.not_reduction (henv : env.WF) (hm : IsCasePrefix env e)
     cases henv.eliminators_unique hlookup hl
     have hslot : owner' = owner := Fin.ext (hgo.symm.trans (hmatch.owner_eq.symm.trans ho))
     cases hslot
-    obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_origin hlookup
+    obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_installed hlookup
     have hn := hcert.arguments_length hbase hg
     have hargs := congrArg (fun p : VExpr × List VExpr => p.2.length) hs
     simp only [List.length_append, List.length_singleton] at hargs
@@ -925,7 +925,7 @@ theorem CaseRedex.majorPremise (henv : env.WF)
     IsCaseMajorPremise env (VExpr.mkApps (.elim actual.block actual.owner actual.levels) actual.arguments) := by
   obtain ⟨schema, block, owner, hl, hg⟩ := H.source.generates
   obtain ⟨hb, ho⟩ := hg.owned
-  obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_origin hl
+  obtain ⟨base, source, sourceBlock, hbase, _, hcert, _, _⟩ := henv.eliminator_installed hl
   refine ⟨schema, block, owner, actual.levels, actual.arguments, hl, ?_, ?_⟩
   · rw [H.block_eq, H.owner_eq, hb, ho]
   · exact H.arguments_length.trans (hcert.arguments_length hbase hg)

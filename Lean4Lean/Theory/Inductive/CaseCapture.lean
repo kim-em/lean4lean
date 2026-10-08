@@ -43,7 +43,7 @@ theorem Certified.view_constructor_indices {schema : CaseSchema}
     (schema.view owner).constructors[index].indices.length =
       schema.signature.families[owner].indices.length := by
   rcases H with ⟨expanded, auxiliaries, hdata, _, _, _⟩
-  obtain ⟨ctor, hctor, howner, hc⟩ := view_constructor_origin index
+  obtain ⟨ctor, hctor, howner, hc⟩ := view_constructor_eq_caseConstructor index
   obtain ⟨i, hi, hci⟩ := List.mem_iff_getElem.mp hctor
   have hi' : i < schema.signature.constructors.size := by simpa using hi
   have hci' : schema.signature.constructors[(⟨i, hi'⟩ : Fin schema.signature.constructors.size)] = ctor := hci

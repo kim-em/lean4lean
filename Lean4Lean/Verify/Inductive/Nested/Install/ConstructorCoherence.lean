@@ -124,11 +124,11 @@ private theorem FoldSteps.restoredSourceMemberInfos
         Hsource Hmetadata Hsources Harity Howners hempty familyIdx hfamily
         hsourceWF
       obtain ⟨headEntries, HheadFresh⟩ :=
-        Hstep'.restored.freshTrace hsourceWF
+        Hstep'.restored.freshExtension hsourceWF
       have hmiddleWF : middle.constants.WF :=
         HheadFresh.targetWF hsourceWF
       obtain ⟨tailEntries, HtailFresh⟩ :=
-        Htail.inductiveFreshTrace hmiddleWF
+        Htail.inductiveFreshExtension hmiddleWF
       have hheadName : Hstep'.restored.header.newInfo.name = head.name := by
         calc
           Hstep'.restored.header.newInfo.name =
@@ -213,9 +213,9 @@ theorem RestoredBlockCertificate.mutualInductivesClosed
     Hrestored.inductives.restoredSourceMemberInfos Hlower Hc Hprod Hsource
       Hmetadata Hsources Harity Howners hempty [] (by simp) hsourceWF
   obtain ⟨primaryEntries, HprimaryFresh⟩ :=
-    Hrestored.inductives.inductiveFreshTrace hsourceWF
+    Hrestored.inductives.inductiveFreshExtension hsourceWF
   obtain ⟨auxEntries, HauxFresh⟩ :=
-    Hrestored.auxiliaries.recursorFreshTrace
+    Hrestored.auxiliaries.recursorFreshExtension
       (HprimaryFresh.targetWF hsourceWF)
   have HmembersSource : InductiveMemberInfos outEnv
       (sourceTypes.map (fun type => type.name)) :=
@@ -263,7 +263,7 @@ theorem RestoredBlockCertificate.mutualInductivesClosed
 /-- The positionally aligned constructor restoration trace retains enough
 installed-production metadata to show that every restored constructor is
 exactly unsafe, not merely visible to the unsafe checker. -/
-private theorem LoweredRestoredConstructors.unsafeFreshTrace
+private theorem LoweredRestoredConstructors.unsafeFreshExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -316,7 +316,7 @@ private theorem LoweredRestoredConstructors.unsafeFreshTrace
 /-- A recursor restoration whose source name belongs to the exact generated
 batch restores an exactly unsafe entry when that batch was produced in the
 unsafe checking context. -/
-private theorem RestoredRecursorStep.unsafeFreshTrace
+private theorem RestoredRecursorStep.unsafeFreshExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -370,7 +370,7 @@ private theorem RestoredRecursorStep.unsafeFreshTrace
 
 /-- One exact primary-family restoration emits only unsafe entries when the
 source declaration and generated recursor batch are unsafe. -/
-private theorem RestoredInductiveStep.unsafeFreshTraceAt
+private theorem RestoredInductiveStep.unsafeFreshExtensionAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -432,7 +432,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
     have := htarget'.symm.trans htarget
     exact Option.some.inj this
   subst target'
-  rcases HctorTrace.unsafeFreshTrace Hprod target htargetMem
+  rcases HctorTrace.unsafeFreshExtension Hprod target htargetMem
       (fun ctor hctor => hctor) hunsafe hheaderWF with
     ⟨ctorEntries, HctorEntries, hctorUnsafe⟩
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
@@ -454,7 +454,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
       simpa [hbang] using hgenerated
     rw [Hmapping.name] at htargetGenerated
     exact htargetGenerated
-  rcases Hstep.restored.recursor.unsafeFreshTrace Hprod hprimaryGenerated
+  rcases Hstep.restored.recursor.unsafeFreshExtension Hprod hprimaryGenerated
       hsafety hconstructorWF with
     ⟨recEntries, HrecEntries, hrecUnsafe⟩
   have HctorRec := HctorEntries.append HrecEntries
@@ -472,7 +472,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
     · exact hrecUnsafe entry hrec
 
 /-- The exact outer primary-family fold emits only unsafe entries. -/
-private theorem FoldSteps.unsafeInductiveFreshTrace
+private theorem FoldSteps.unsafeInductiveFreshExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -513,7 +513,7 @@ private theorem FoldSteps.unsafeInductiveFreshTrace
           (sourceTypes.map (fun type => type.name)) sourceTypes[familyIdx]
           source middle := by
         simpa only [hfamilyEq] using Hstep
-      rcases Hstep'.unsafeFreshTraceAt Hlower Hc Hprod Hsource Hmetadata
+      rcases Hstep'.unsafeFreshExtensionAt Hlower Hc Hprod Hsource Hmetadata
           Hsources Harity Howners hempty familyIdx hfamily hunsafe hsafety hwf
           with
         ⟨headEntries, Hhead, hheadUnsafe⟩
@@ -530,7 +530,7 @@ private theorem FoldSteps.unsafeInductiveFreshTrace
 
 /-- A recursor-only restoration fold emits only unsafe entries when each
 source name is identified with the exact generated batch. -/
-private theorem FoldSteps.unsafeRecursorFreshTrace
+private theorem FoldSteps.unsafeRecursorFreshExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
@@ -551,7 +551,7 @@ private theorem FoldSteps.unsafeRecursorFreshTrace
   induction Htrace with
   | nil => exact ⟨[], .nil, by simp⟩
   | @cons head source middle tail target Hstep Htail ih =>
-      rcases Hstep.unsafeFreshTrace Hprod
+      rcases Hstep.unsafeFreshExtension Hprod
           (hgenerated head (by simp)) hsafety hwf with
         ⟨headEntries, Hhead, hheadUnsafe⟩
       have hmiddleWF : middle.constants.WF := Hhead.targetWF hwf
@@ -571,7 +571,7 @@ private theorem FoldSteps.unsafeRecursorFreshTrace
 /-- The complete exact production restoration trace is uniformly unsafe.
 This is the canonical trace later transported to any extension-equivalent
 fresh trace by `RestoredBlockCertificate.productionOrder`. -/
-theorem NestedRestorationFolds.unsafeFreshTraceOfKernel
+theorem NestedRestorationFolds.unsafeFreshExtensionOfKernel
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -599,7 +599,7 @@ theorem NestedRestorationFolds.unsafeFreshTraceOfKernel
     (hwf : sourceProdEnv.constants.WF) :
     ∃ entries, FreshExtension sourceProdEnv entries targetProdEnv ∧
       ∀ entry ∈ entries, entry.safety = .unsafe := by
-  rcases H.inductives.unsafeInductiveFreshTrace Hlower Hc Hprod Hsource
+  rcases H.inductives.unsafeInductiveFreshExtension Hlower Hc Hprod Hsource
       Hmetadata Hsources Harity Howners hempty [] (by simp) rfl hsafety hwf with
     ⟨primaryEntries, Hprimary, hprimaryUnsafe⟩
   have hprimaryWF := Hprimary.targetWF hwf
@@ -608,7 +608,7 @@ theorem NestedRestorationFolds.unsafeFreshTraceOfKernel
       name ∈ (Hprod.entries.map Prod.snd).map (·.name) := by
     intro name hname
     exact Hlower.auxRecNameGeneratedAtFresh Hc Hprod hempty hname
-  rcases H.auxiliaries.unsafeRecursorFreshTrace Hprod hauxGenerated
+  rcases H.auxiliaries.unsafeRecursorFreshExtension Hprod hauxGenerated
       hsafety hprimaryWF with
     ⟨auxEntries, Haux, hauxUnsafe⟩
   refine ⟨primaryEntries ++ auxEntries, Hprimary.append Haux, ?_⟩
@@ -667,7 +667,7 @@ theorem RestoredBlockCertificate.entriesUnsafe
           (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1
           ((), outEnv) := by
         simpa only [henv, hnames, hauxRec, hauxNames] using H
-      rcases Hrestored.unsafeFreshTraceOfKernel Hlower Hc Hprod Hsource
+      rcases Hrestored.unsafeFreshExtensionOfKernel Hlower Hc Hprod Hsource
           Hmetadata Hsources Harity Howners hempty hsafety hsourceWF with
         ⟨exactEntries, Hexact, hexactUnsafe⟩
       intro entries Hentries entry hentry
@@ -1081,7 +1081,7 @@ theorem RestoredBlockCertificate.constructorTypingOfParameterDomains
     (C.sourceRules ++ C.auxiliaryRules)
   have hsourceMapWF : sourceProdEnv.constants.WF :=
     (wf.tr (safety := safety)).map_wf
-  obtain ⟨entries, Hfresh⟩ := H.freshTrace hsourceMapWF
+  obtain ⟨entries, Hfresh⟩ := H.freshExtension hsourceMapWF
   have houtMapWF : outEnv.constants.WF := Hfresh.targetWF hsourceMapWF
   have hctorsLE : C.install.venvCtors ≤ installedVEnv :=
     VEnv.addEliminators_addProjections_le.trans

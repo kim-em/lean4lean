@@ -56,7 +56,7 @@ theorem Instance.restored_equation_major {s : InductiveSignature} {g : Instance 
 
 /-- A restored constructor belongs either to the original declaration or to
 one of the earlier containers selected by the finite specialization trace. -/
-theorem CaseCompilationData.constructor_name_origin {s : InductiveSignature}
+theorem CaseCompilationData.constructor_name_cases {s : InductiveSignature}
     (H : CaseCompilationData env source expanded s auxiliaries block)
     (hdisj : RecursorNamesFresh env source expanded auxiliaries)
     (index : Fin s.constructors.size) :
@@ -87,13 +87,13 @@ theorem CaseCompilationData.constructor_name_origin {s : InductiveSignature}
     obtain ⟨original, horiginal, hrestored⟩ := List.mem_map.mp hm
     exact ⟨a, ha, original, horiginal, by rw [hname]; exact hrestored.symm⟩
 
-theorem CompilationData.constructor_name_origin {s : InductiveSignature} {g : Instance s}
+theorem CompilationData.constructor_name_cases {s : InductiveSignature} {g : Instance s}
     (H : CompilationData env source expanded s g auxiliaries block)
     (index : Fin s.constructors.size) :
     (∃ ctor ∈ source.constructorConstants,
       (compilationRestoration source auxiliaries).headName s.constructors[index].name = ctor.name) ∨
     (∃ a ∈ auxiliaries, ∃ ctor ∈ a.source.ctors,
       (compilationRestoration source auxiliaries).headName s.constructors[index].name = ctor.name) :=
-  H.toCaseCompilationData.constructor_name_origin H.recursorNamesFresh index
+  H.toCaseCompilationData.constructor_name_cases H.recursorNamesFresh index
 
 end Lean4Lean.InductiveSignature

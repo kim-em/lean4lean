@@ -659,7 +659,7 @@ theorem NestedRun.restorableNames_fresh_ctors
   | none => rfl
   | some ci =>
     exfalso
-    rcases VEnv.addConstVals_lookup_origin hctors hc with hbase | ⟨entry, hentry, hn, -⟩
+    rcases VEnv.addConstVals_lookup_cases hctors hc with hbase | ⟨entry, hentry, hn, -⟩
     · rw [hfreshTypes name hname] at hbase; cases hbase
     · have hsrc := hctorNames entry hentry
       rw [hn] at hsrc

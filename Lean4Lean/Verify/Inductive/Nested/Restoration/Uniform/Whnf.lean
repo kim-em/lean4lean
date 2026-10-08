@@ -458,7 +458,7 @@ variable {outEnv : Environment} (P : LoweredRun outEnv)
 /-- **Lookups in the constructor-phase environment** (where the recursor pass
 runs): either an old constant, an installed family header, or an installed
 constructor. -/
-theorem LoweredRun.ctorEnv_origin (hwf : P.c.env.constants.WF)
+theorem LoweredRun.ctorEnv_find_cases (hwf : P.c.env.constants.WF)
     {n : Name} {ci : ConstantInfo} (h : P.ctorEnv.find? n = some ci) :
     P.c.env.find? n = some ci ∨
       (∃ indType ∈ P.indTypes.toList, ∃ info : InductiveVal, ci = .inductInfo info ∧
@@ -1025,7 +1025,7 @@ theorem NestedRun.envParamUniform
         ci = .ctorInfo info ∧ n = ctor.name ∧ info.type = ctor.type ∧
         info.levelParams = lparams) := by
     intro n ci h
-    have := E.lowered.ctorEnv_origin hwfP h
+    have := E.lowered.ctorEnv_find_cases hwfP h
     rwa [E.lowered_c_env, E.lowered_c_lparams] at this
   have hfreshN : ∀ {n ci}, sourceProdEnv.find? n = some ci → n ∉ E.uniformHeads :=
     fun h hn => by rw [hfresh _ hn] at h; cases h

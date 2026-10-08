@@ -26,7 +26,7 @@ theorem WF.caseCtor_const (H : env.WF) (h : Model.IsCaseCtor env c) :
   obtain ⟨key, schema, owner, rule, hreg, hgen, rfl⟩ := h
   obtain ⟨fn, ls, args, hm⟩ := Model.generates_major hgen
   obtain ⟨rules, hrules, hmem, -⟩ := hgen
-  obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_origin hreg
+  obtain ⟨base, source, block, _, hle, hcert, _, hconsts⟩ := H.eliminator_installed hreg
   have hcert' := hcert
   obtain ⟨expanded, aux, hdata, hprior, hr, -, hfresh⟩ := hcert'
   obtain ⟨j, -, e, _, hrestore⟩ := EnvTables.Certified.generic_major hcert hrules hmem hm
@@ -62,7 +62,7 @@ theorem container_ctor_installed {base : VEnv} {aux : List ContainerSpecializati
     Model.IsInstalledCtor env c.name := by
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
     EnvTables.ContainersInstalled.member hprior ha
-  obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
+  obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.exists_compilation
   have hfam_lt : a.family.val < s'.families.size :=
     Nat.lt_of_lt_of_le a.family.isLt (EnvTables.CaseCompilationData.families_size_ge hdata'.toCaseCompilationData)
   let o' : Fin s'.families.size := ⟨a.family.val, hfam_lt⟩
@@ -100,7 +100,7 @@ theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (h
       ⟨_, ls, hle.constants h1, h2⟩
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
     EnvTables.ContainersInstalled.member hprior ha
-  obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
+  obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.exists_compilation
   have hsrc : a.source ∈ a.container.types := List.getElem_mem a.family.isLt
   have hnd := EnvTables.sourceNames_ctors_nodup hdata'.sourceWF.2.1 hsrc
   have hone := list_eq_single_of_names hnd hall hc
@@ -146,7 +146,7 @@ theorem generic_major_at {schema : CaseSchema} {owner : Fin schema.signature.fam
     Option.some.injEq] at hout
   rw [hel, VExpr.stripLams_wrapLams, ← hout, VExpr.mkApps_snoc] at hm
   have hmaj : major' = major := (VExpr.app.inj hm).2
-  obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_origin index
+  obtain ⟨sc, hsc, hown, hview⟩ := CaseSchema.view_constructor_eq_caseConstructor index
   obtain ⟨jn, hjn, hjget⟩ := List.mem_iff_getElem.mp hsc
   let j : Fin schema.signature.constructors.size := ⟨jn, by simpa using hjn⟩
   have hj : schema.signature.constructors[j] = sc := by simpa [j] using hjget

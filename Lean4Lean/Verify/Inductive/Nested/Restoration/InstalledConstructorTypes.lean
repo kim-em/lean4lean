@@ -246,7 +246,7 @@ theorem LoweredRestoredConstructors.constructorsFromSources
         (fun tail htail => Hdisjoint tail (by simp [htail])) hmiddleWF
       exact Hhead.trans Htail
 
-theorem LoweredRestoredConstructors.freshTrace
+theorem LoweredRestoredConstructors.freshExtension
     (H : LoweredRestoredConstructors result mappingEnv loweredEnv params
       nparams safety lparams sources state targets finalState sourceProdEnv
         targetProdEnv)
@@ -313,7 +313,7 @@ theorem LoweredRestoredConstructors.constructorTypesInstalled
       have hheadFind : middleProdEnv.find? source.name = some ci := by
         rw [hmiddle, ← horigin.name]
         exact Environment.find?_freshAdd_self hsourceWF ci hfresh
-      rcases Hrest.freshTrace hmiddleWF with ⟨_entries, HtailFresh⟩
+      rcases Hrest.freshExtension hmiddleWF with ⟨_entries, HtailFresh⟩
       have Hhead : ConstructorTypesInstalled lparams [source]
           middleProdEnv := by
         intro source' hsource'
@@ -398,7 +398,7 @@ theorem NestedLoweringOutputClosed.familyConstructorsFromSources
       (H.resultParamsSize.trans H.toResult.resultNParams) hheaderWF
       Hprod.ctorIsUnsafe
   obtain ⟨_entries, HctorFresh⟩ :=
-    Hstep.restored.constructors.constructorFreshTrace hheaderWF
+    Hstep.restored.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
     HctorFresh.targetWF hheaderWF
   let recursor : ConstantInfo := .recInfo Hstep.restored.recursor.restored.newInfo
@@ -484,7 +484,7 @@ theorem NestedLoweringOutputClosed.familiesConstructorsFromSources
       List.getElem_mem hfamily
     have Hhead := H.familyConstructorsFromSources Hc Hprod hempty Hsources
       familyIdx hfamily (HsourceBVar _ hmem) (Hdisjoint _ hmem) Hstep' hwf
-    obtain ⟨_entries, Hfresh⟩ := Hstep'.restored.freshTrace hwf
+    obtain ⟨_entries, Hfresh⟩ := Hstep'.restored.freshExtension hwf
     have hmiddleWF : middle.constants.WF := Hfresh.targetWF hwf
     have Hrest := ih (processed ++ [head])
       (by simpa [List.append_assoc] using hsplit) hmiddleWF
@@ -519,7 +519,7 @@ theorem NestedLoweringOutputClosed.restorationConstructorsFromSources
       sourceEnv out.2 := by
   have Hprimary := H.familiesConstructorsFromSources Hc Hprod hempty Hsources
     HsourceBVar Hdisjoint Hrestored.inductives [] (by simp) hwf
-  obtain ⟨_entries, Hfresh⟩ := Hrestored.inductives.inductiveFreshTrace hwf
+  obtain ⟨_entries, Hfresh⟩ := Hrestored.inductives.inductiveFreshExtension hwf
   have Haux := Hrestored.auxiliaries.recursorConstructorsFromSources
     (lparams := c.lparams) (baseEnv := c.env) (isUnsafe := isUnsafe) (Hfresh.targetWF hwf)
   exact (Hprimary.trans Haux).mono (by simp)
@@ -577,7 +577,7 @@ theorem NestedLoweringOutputClosed.familyConstructorTypesInstalled
       rfl fvars hparams hnodup H.toResult.resultNParams
       (H.resultParamsSize.trans H.toResult.resultNParams) hheaderWF
   obtain ⟨_entries, HctorFresh⟩ :=
-    Hstep.restored.constructors.constructorFreshTrace hheaderWF
+    Hstep.restored.constructors.constructorFreshExtension hheaderWF
   have hconstructorWF : Hstep.restored.constructorEnv.constants.WF :=
     HctorFresh.targetWF hheaderWF
   let recursor : ConstantInfo :=
@@ -637,9 +637,9 @@ theorem NestedLoweringOutputClosed.familiesConstructorTypesInstalled
     have Hhead := H.familyConstructorTypesInstalled Hc Hprod hempty Hsources
       familyIdx hfamily (HsourceBVar _ hmem) (Hdisjoint _ hmem) Hstep' hwf
     rw [hfamilyEq] at Hhead
-    obtain ⟨_entries, Hfresh⟩ := Hstep'.restored.freshTrace hwf
+    obtain ⟨_entries, Hfresh⟩ := Hstep'.restored.freshExtension hwf
     have hmiddleWF : middle.constants.WF := Hfresh.targetWF hwf
-    obtain ⟨_tailEntries, HtailFresh⟩ := Htail.inductiveFreshTrace hmiddleWF
+    obtain ⟨_tailEntries, HtailFresh⟩ := Htail.inductiveFreshExtension hmiddleWF
     have Hrest := ih (processed ++ [head])
       (by simpa [List.append_assoc] using hsplit) hmiddleWF
     simpa using (Hhead.fresh HtailFresh hmiddleWF).append Hrest
@@ -669,10 +669,10 @@ theorem NestedLoweringOutputClosed.restorationConstructorTypesInstalled
       out.2 := by
   have Hprimary := H.familiesConstructorTypesInstalled Hc Hprod hempty
     Hsources HsourceBVar Hdisjoint Hrestored.inductives [] (by simp) hwf
-  obtain ⟨_entries, Hfresh⟩ := Hrestored.inductives.inductiveFreshTrace hwf
+  obtain ⟨_entries, Hfresh⟩ := Hrestored.inductives.inductiveFreshExtension hwf
   have hprimaryWF := Hfresh.targetWF hwf
   obtain ⟨_auxEntries, HauxFresh⟩ :=
-    Hrestored.auxiliaries.recursorFreshTrace hprimaryWF
+    Hrestored.auxiliaries.recursorFreshExtension hprimaryWF
   exact Hprimary.fresh HauxFresh hprimaryWF
 
 /-- Both directions of the constructor round trip for the complete
@@ -837,9 +837,9 @@ theorem NestedRun.installedConstructorSource
       have hwf : sourceProdEnv.constants.WF := by
         have h := E.contextWF.checking.tr.map_wf
         rwa [E.context_env] at h
-      rcases E.restoration.inductives.inductiveFreshTrace hwf with ⟨_, Hprimary⟩
+      rcases E.restoration.inductives.inductiveFreshExtension hwf with ⟨_, Hprimary⟩
       have hprimaryWF := Hprimary.targetWF hwf
-      rcases E.restoration.auxiliaries.recursorFreshTrace hprimaryWF with ⟨_, Hauxiliary⟩
+      rcases E.restoration.auxiliaries.recursorFreshExtension hprimaryWF with ⟨_, Hauxiliary⟩
       have h := Hauxiliary.preservesSourceFind hprimaryWF (Hprimary.preservesSourceFind hwf hci)
       rw [hfind] at h
       rw [← h] at hci

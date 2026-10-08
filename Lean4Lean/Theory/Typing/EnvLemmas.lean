@@ -342,7 +342,7 @@ end ConstantHeaderOrigin
 
 /-- No lookup can appear except from the old environment or a literal
 member of the installed block. -/
-theorem addConstVals_lookup_origin {base extended : VEnv}
+theorem addConstVals_lookup_cases {base extended : VEnv}
     (installed : base.addConstVals values = some extended)
     (lookup : extended.constants name = some value) :
     base.constants name = some value ∨
