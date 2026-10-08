@@ -661,7 +661,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   is rejected.
 - **Inductive checker** (`Lean4Lean/Inductive/Add.lean`): restructured into explicit loops
   with total fresh-name searches, narrow checker contexts (section 3.2), unreachable arity
-  guards in recursor construction, and recursor rules built from the first constructor
+  and result-type guards in recursor construction (kept: the verification cannot show that
+  two `whnf` runs agree), and recursor rules built from the first constructor
   traversal. Each generated recursor type is type-checked (`checkRecursorTypes`); the kernel
   of the pinned toolchain does not do this, upstream does since leanprover/lean4#14808, which
   also checks rule type preservation, which lean4lean proves instead. Nested auxiliary types
