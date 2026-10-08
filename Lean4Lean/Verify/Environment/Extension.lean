@@ -231,8 +231,6 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
         (by rw [← wf.tr.map_wf.find?'_eq_find?]; exact hd.2.2.1) hd.2.1 h₁' wf.tr
     have wf₁ : VEnvAt (env.add (.axiomInfo { v with isUnsafe := bs == .unsafe })) bs venv₁ :=
       { tr := htr
-        recursors := htr.recursorEnvCoherent
-        quot := htr.quotEnvCoherent
         constructorOwners := wf.constructorOwners.addNonConstructor wf.tr.map_wf
           hd.2.2.1 nofun
         listedConstructors := wf.listedConstructors.addOfPresent wf.listedPresent
