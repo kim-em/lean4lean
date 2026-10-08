@@ -362,7 +362,7 @@ theorem WF.headInjectivityCore_of_defsQuot {env : VEnv} (henv : env.WF) (hdq : e
     · exact Model.RuleValid.quot henv.ordered (hdq.quot hdf)
         (Model.quot_single henv.defRules hdf hdq.defeqs) henv.defRules hctor hcres hpctor (hdq.projections _) (fun ⟨_, _, h, _⟩ => hdq.projections _ _ h) hdf
   exact henv.headInjectivityCore_of_sound fun hΔ H =>
-    Model.sound henv.ordered hΔ .rfl hvalid hdq.projections
+    Model.sound henv.ordered hΔ .rfl hvalid (fun n p h => absurd h (hdq.projections n p))
     (Model.ElimsValid.of_none hdq.eliminators .rfl) H
 
 /-- **Stage A1**: chain-level head injectivity for well-formed environments whose rules are
