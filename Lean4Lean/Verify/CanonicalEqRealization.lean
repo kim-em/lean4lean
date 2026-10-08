@@ -10,8 +10,8 @@ declaration `Init.Prelude` submits.
   expressions literally (`eqBootstrapType`, `eqBootstrapReflType`,
   `eqRecTypeExpr`, `eqRecRuleRhsExpr`, `eqRecRuleLhsExpr`, `eqRecRuleTypeExpr`,
   generic only in binder and universe-parameter names) and proves that every
-  `TrExprS` translation of each is the corresponding stored term
-  (`TrExprS.eq_canonicalEq*`).
+  `TrExprS` translation of each of the three types is the corresponding stored
+  term (`TrExprS.eq_canonicalEq*`).
 * `InductiveSignature.Compiles.eqRecRules`
   (`Lean4Lean/Theory/Inductive/CanonicalEqSignature.lean`): an ordinary
   compilation of the declaration generates exactly the stored iota rule once its

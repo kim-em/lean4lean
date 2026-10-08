@@ -66,6 +66,33 @@ From `Lean4Lean/Verify/Environment.lean`: `checkEqType.WF` and
 `VEnvs.HasCanonicalEq` and `.mono`, used by the iterable replay statement
 `addDecl.WFHasCanonicalEq`.
 
+Eq-bootstrap plumbing with no users (checked by computing the dependency cone
+of `addDecl.WFHasCanonicalEq`, `addDecl.eqBootstrapHasCanonicalEq`,
+`VEnvs.WF.canonicalEq_constants` and the definitions `Tests/CanonicalEq.lean`
+reads, plus every reference from modules outside this task):
+
+* `Verify/Inductive/PrimitiveFinalDispatch.lean` (all three
+  `primitiveFinalEnvironmentEqReadyOrAbsentWF` theorems), with its import in
+  `Verify/Inductive.lean`;
+* from `Verify/Inductive/PrimitiveFinalEnvironment.lean`:
+  `CompletedBlockCertificate.eqCanonicalOfBase`,
+  `.preservesEqAbsentPrimitive`, `.extendSafePrimitiveEqReadyOrAbsent`,
+  `GeneratedRecursors.entryNamesNeEq`,
+  `SemanticPrimitiveRunWithStatsResult.extendSafeEqReadyOrAbsent`,
+  `VerifiedSemanticPrimitiveInductiveRunResultSourceAligned.extendSafeEqReadyOrAbsent`,
+  `AddInductive.run.primitiveFinalEnvironmentEqReadyOrAbsentWF`;
+* from `Verify/Inductive/EqCanonicalForms.lean`: the iota-rule translation
+  lemmas `eqRecRule{Lhs,Rhs,Type}Expr_syn` and
+  `TrExprS.eq_canonicalEqRecRule{Lhs,Rhs,Type}` (the realizability proof gets
+  the rule clause from `InductiveSignature.Compiles.eqRecRules`; the test checks
+  the rule expressions directly).
+
+Kept although outside the cone: `CanonicalEqEnvs` and `EqReadyOrAbsent`
+(`Run/EqCanonical.lean`) and the `CanonicalEqTyping` lemmas, which modules
+outside this task still reference; `AddInductive.run.primitiveFinalEnvironmentModelWF`
+(not Eq plumbing); `addInductiveDeclaration.finalResultWF` (the source-facing
+specification).
+
 The Eq-bootstrap realizability chain (`addDecl.eqBootstrapHasCanonicalEq`,
 `VEnvs.WF.canonicalEq_constants`, `Tests/CanonicalEq.lean` and their cone) is
 kept: it is what makes the `HasCanonicalEq` hypothesis honest, and the
