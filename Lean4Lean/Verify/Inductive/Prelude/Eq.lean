@@ -196,7 +196,7 @@ theorem OrdinaryInstallation.extendSafeEqBootstrap
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (htels : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (_hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
@@ -254,7 +254,7 @@ theorem OrdinaryInstallation.extendSafeEqBootstrap
     apply VEnv.addEliminators_addProjections_le.constants
     apply (VEnv.addConstVals_le B.installation.abstract_ctors).constants
     exact htypesEq
-  rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
+  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
@@ -539,7 +539,7 @@ theorem OrdinaryRunResult.extendEqBootstrap
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
       nparams types numNested outEnv)
-    (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
+    (wf : ves.WFCore source.env) (htels : ∀ safety, CtorTelescopes safety source.env (ves.venv safety))
     (hAbsent : source.env.constants.find? ``Eq = none)
     (hsafety : source.safety = .safe)
     (hsource : sourceEnv = ves.venv .safe)
@@ -564,7 +564,7 @@ theorem OrdinaryRunResult.extendEqBootstrap
     rw [henv]
     exact wf
   have hcorner' : ∀ safety, CtorTelescopes safety c'.env (ves.venv safety) := by
-    rw [henv]; exact hcorner
+    rw [henv]; exact htels
   have hAbsent' : c'.env.constants.find? ``Eq = none := by
     rwa [henv]
   have hcSafety' : c'.safety = .safe := hcSafety.trans hsafety
@@ -583,7 +583,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (htels : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hAbsent : c.env.constants.find? ``Eq = none)
     (hsafety : c.safety = .safe)
     (hsource : Hc.venv = ves.venv .safe)
@@ -619,7 +619,7 @@ theorem AddInductive.run.eqBootstrapFinalWF
     decide
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed wf.envGF hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
-      Hrun.extendEqBootstrap wf hcorner hAbsent hsafety hsource Hshape
+      Hrun.extendEqBootstrap wf htels hAbsent hsafety hsource Hshape
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by
 the exact bootstrap `Eq` declaration. -/
@@ -627,7 +627,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
@@ -649,7 +649,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
   let c := initialContext env lparams .safe false fuel
   let Hc : ContextWF c := by
     simpa [c, initialContext] using
-      ContextWF.initial wf .safe lparams false fuel hcorner
+      ContextWF.initial wf .safe lparams false fuel htels
   have hsource : Hc.venv = ves.venv .safe := rfl
   have Hshape' : PreludeEqShape c.lparams nparams res.types
       (c.safety != .safe) := by
@@ -670,7 +670,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
   have Hrun := AddInductive.run.eqBootstrapFinalWF
-    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf hcorner hAbsent
+    (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hAbsent
     (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' Hinputs
   unfold Environment.addInductiveAfterLowering
   rw [haux]
@@ -688,7 +688,7 @@ with the same source-aligned run that installs canonical abstract equality. -/
 theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe false fuel).WF
@@ -711,7 +711,7 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF env
-        lparams nparams types isUnsafe fuel res ves wf hcorner hAbsent Hshape
+        lparams nparams types isUnsafe fuel res ves wf htels hAbsent Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
@@ -721,7 +721,7 @@ the theorem follows the production branch rather than assuming it. -/
 theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
@@ -733,7 +733,7 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
   have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
-    lparams nparams types isUnsafe fuel ves wf hcorner hAbsent Hshape
+    lparams nparams types isUnsafe fuel ves wf htels hAbsent Hshape
   have hcheck := checkPrimitiveInductive_eq_false_of_eqBootstrapShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun
 

@@ -256,7 +256,7 @@ theorem NestedRun.hprovenance_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
+    (hnested : result.aux2nested.size ≠ 0) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -371,7 +371,7 @@ theorem NestedRun.hprovenance_of
     (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
       (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
       wf.safePrimitives wf.constructorOwners
-      wf.projectionRegistryCoherent ((hcorner _))
+      wf.projectionRegistryCoherent ((htels _))
   have hheadsSrc := Hvalid.recursors.heads
   have hsrcWF : sourceProdEnv.constants.WF := Hvalid.tr.map_wf
   have hfinalWF : C.recursorVEnv.WF := (C.install.validCore Hvalid.toValidCore).tr.wf

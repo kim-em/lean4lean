@@ -418,7 +418,7 @@ theorem ConstructorListEntries.cornerSteps
       (AddInductive.constructorInfo stats lparams isUnsafe owner) initial ctors entries)
     (hcert : ∀ ctor ∈ ctors,
       ∃ T, TelTrN venv lparams (AddInductive.constructorArity ctor.type) [] ctor.type T) :
-    ∀ entry ∈ entries, CtorCornerStep safety venv entry.1 := by
+    ∀ entry ∈ entries, CtorTelescopeStep safety venv entry.1 := by
   induction H with
   | nil => simp
   | @cons start ctors tailEntries ctor value Htail ih =>
@@ -436,7 +436,7 @@ theorem ConstructorTypeEntries.cornerSteps
     (H : ConstructorTypeEntries
       (AddInductive.constructorInfo stats lparams isUnsafe) owners entries)
     (hcert : SourceCtorsCertified venv lparams owners) :
-    ∀ entry ∈ entries, CtorCornerStep safety venv entry.1 := by
+    ∀ entry ∈ entries, CtorTelescopeStep safety venv entry.1 := by
   induction H with
   | nil => simp
   | cons Hhead Htail ih =>
@@ -786,17 +786,17 @@ theorem AddConstants.checking
 
 /-- A lockstep installation preserves the projection-walk corner, given the constructor steps
 of its entries (stated in the environment before the installation). -/
-theorem AddConstants.corner
+theorem AddConstants.ctorTelescopes
     (H : AddConstants safety env venv entries outEnv outVEnv)
     (hchecking : CheckingEnv safety env venv)
-    (hcorner : CtorTelescopes safety env venv)
-    (hsteps : ∀ entry ∈ entries, CtorCornerStep safety venv entry.1) :
+    (htels : CtorTelescopes safety env venv)
+    (hsteps : ∀ entry ∈ entries, CtorTelescopeStep safety venv entry.1) :
     CtorTelescopes safety outEnv outVEnv := by
   induction H with
-  | nil => exact hcorner
+  | nil => exact htels
   | cons hn _ htr hwf hadd hdelta _ ih =>
     exact ih (hchecking.add hn htr.1 hwf hadd hdelta)
-      (hcorner.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
+      (htels.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
       fun e he => (hsteps e (List.mem_cons_of_mem _ he)).mono (VEnv.addConst_le hadd)
 
 /-- A lockstep installation preserves the local checking invariants. -/

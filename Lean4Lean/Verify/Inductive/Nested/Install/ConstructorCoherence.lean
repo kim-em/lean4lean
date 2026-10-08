@@ -699,7 +699,7 @@ theorem RestoredBlockCertificate.safeInductiveFinalResultOfProductionClosed
       (ves.venv .safe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -725,7 +725,7 @@ theorem RestoredBlockCertificate.safeInductiveFinalResultOfProductionClosed
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.safeInductiveFinalResultOfProduction wf hcorner Hlower Hc Hprod
+  exact C.safeInductiveFinalResultOfProduction wf htels Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -750,7 +750,7 @@ theorem RestoredBlockCertificate.unsafeInductiveFinalResultOfProductionClosed
       (ves.venv .unsafe) result.types.toArray headerEnv}
     {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringOutputClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
@@ -783,7 +783,7 @@ theorem RestoredBlockCertificate.unsafeInductiveFinalResultOfProductionClosed
     Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.unsafeInductiveFinalResultOfProduction wf hcorner Hlower Hc Hprod
+  exact C.unsafeInductiveFinalResultOfProduction wf htels Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -811,7 +811,7 @@ private theorem LoweredRun.reindex
 theorem NestedInstalledRun.safeInductiveFinalResult
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .safe) decl lparams nparams false .safe outEnv)
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -839,7 +839,7 @@ theorem NestedInstalledRun.safeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf hcorner Hlower
+  exact E.assembly.safeInductiveFinalResultOfProductionClosed wf htels Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl
       hconstructorSemantics htypesH hctorOrigin
@@ -850,7 +850,7 @@ and restoration traces. -/
 theorem NestedInstalledRun.unsafeInductiveFinalResult
     (E : NestedInstalledRun result sourceProdEnv sourceTypes
       (ves.venv .unsafe) decl lparams nparams true .unsafe outEnv)
-    (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (wf : ves.WFCore sourceProdEnv) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringOutputClosed E.context.env fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
@@ -878,7 +878,7 @@ theorem NestedInstalledRun.unsafeInductiveFinalResult
     have h := E.assembly.constructorArityPrefix
     rw [E.production_eq] at h
     exact h
-  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf hcorner Hlower
+  exact E.assembly.unsafeInductiveFinalResultOfProductionClosed wf htels Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
     E.productionContext_env E.productionContext_lparams rfl rfl rfl
       E.productionContext_safety hconstructorSemantics htypesH hctorOrigin

@@ -55,7 +55,7 @@ structure InductiveExtension
     (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams nparams
     sourceTypes isUnsafe
     (targetModels.venv (if isUnsafe then .unsafe else .safe))
-  certPres : VEnvs.CertPres sourceEnv outEnv sourceModels targetModels
+  ctorTelescopesPreserved : VEnvs.CtorTelescopesPreserved sourceEnv outEnv sourceModels targetModels
 
 /-- Construct the uniform result directly from the environment model and
 independent source specification. -/
@@ -66,14 +66,14 @@ def InductiveExtension.ofModel
       (sourceModels.venv (if isUnsafe then .unsafe else .safe)) lparams
       nparams sourceTypes isUnsafe
       (targetModels.venv (if isUnsafe then .unsafe else .safe)))
-    (certPres : VEnvs.CertPres sourceEnv outEnv sourceModels targetModels) :
+    (ctorTelescopesPreserved : VEnvs.CtorTelescopesPreserved sourceEnv outEnv sourceModels targetModels) :
     InductiveExtension sourceEnv outEnv sourceModels lparams nparams sourceTypes
       isUnsafe where
   targetModels := targetModels
   wf := wf
   mono := mono
   specification := specification
-  certPres := certPres
+  ctorTelescopesPreserved := ctorTelescopesPreserved
 
 /-- Forget the inductive-specific evidence and recover the traditional
 environment-preservation postcondition used by `addDecl.WF`. -/
@@ -82,8 +82,8 @@ theorem InductiveExtension.modelExtension
       isUnsafe) :
     ∃ targetModels : VEnvs, targetModels.WFCore outEnv ∧
       (∀ safety, sourceModels.venv safety ≤ targetModels.venv safety) ∧
-      VEnvs.CertPres sourceEnv outEnv sourceModels targetModels :=
-  ⟨H.targetModels, H.wf, H.mono, H.certPres⟩
+      VEnvs.CtorTelescopesPreserved sourceEnv outEnv sourceModels targetModels :=
+  ⟨H.targetModels, H.wf, H.mono, H.ctorTelescopesPreserved⟩
 
 end VerifyInductive
 end Lean4Lean

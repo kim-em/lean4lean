@@ -547,7 +547,7 @@ theorem NestedRestorationFolds.finalValidOfStaged_of_shapes
       ∃ info, (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames)).constants.find?
           rec.getMajorInduct = some (.inductInfo info))
-    (hcorner : CtorTelescopes c.safety outEnv installedVEnv) :
+    (htels : CtorTelescopes c.safety outEnv installedVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
@@ -652,7 +652,7 @@ theorem NestedRestorationFolds.finalValidOfStaged_of_shapes
     rw [hSquot, Hactual.quotInit_eq] at hq
     exact (hvalidSource.quot hq).extend hpres canonical.le hrecursors.heads
   exact hvalidCore.toValid howners' hregistry' hrecursors hquot
-    (hcorner.ofCtors fun h => by
+    (htels.ofCtors fun h => by
       rcases hcasesE h with h | ⟨r, _, he⟩
       · exact h
       · cases he)

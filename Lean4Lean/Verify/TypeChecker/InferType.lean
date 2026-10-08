@@ -628,7 +628,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     obtain ⟨r, rfl⟩ : ∃ r, i = ds.length + r := ⟨i - ds.length, by omega⟩
     have hrigid := c.Ewf.projectionRigid hinfo
     rw [instantiateProjectionFields_add, bind_assoc]
-    have hnf := (hcertT c.corner).1
+    have hnf := (hcertT c.ctorTelescopes).1
     refine (instantiateProjectionFields.WF_corner (st := st) (G := G)
       (m := AddInductive.constructorArity c_val.type - I_val.numParams)
       (b := result₀.instOuterAt (List.take info.nparams args') (doms₀.length - info.nparams))
@@ -637,7 +637,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       ?cert ?bound hpfx₄).bind fun o _ _ H => ?_
     case cert =>
       by_cases hnp : I_val.numParams ≤ AddInductive.constructorArity c_val.type
-      · obtain ⟨R, hR, hRT⟩ := hafterCert ⟨c.corner, hnp⟩
+      · obtain ⟨R, hR, hRT⟩ := hafterCert ⟨c.ctorTelescopes, hnp⟩
         rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
           (by rw [hP'len]; exact hnpLen)] at hR
         cases hR
@@ -668,8 +668,8 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     · exact hfail'
   replace hidx : i < c_val.numFields := by omega
   have hile : i ≤ ds.length := by omega
-  have hnf := (hcertT c.corner).1
-  obtain ⟨R, hR, hRT⟩ := hafterCert ⟨c.corner, by omega⟩
+  have hnf := (hcertT c.ctorTelescopes).1
+  obtain ⟨R, hR, hRT⟩ := hafterCert ⟨c.ctorTelescopes, by omega⟩
   rw [VProjectionInfo.instantiateProjectionParameters_wrapForalls _ _ _
     (by rw [hP'len]; exact hnpLen)] at hR
   cases hR

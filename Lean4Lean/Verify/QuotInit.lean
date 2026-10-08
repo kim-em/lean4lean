@@ -524,7 +524,7 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
     ∃ ves' : VEnvs,
       ves'.WFCore (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd)) ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      VEnvs.CertPres env (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd))
+      VEnvs.CtorTelescopesPreserved env (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd))
         ves ves' := by
   have hC : env.constants.WF := (wf.tr (safety := .safe)).map_wf
   have hc {n} (h : env.find? n = none) : env.constants.find? n = none := by
@@ -568,7 +568,7 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
       m4 p4 fun _ => VEnv.LE.rfl
   have I5 := I4.markQuotInit
   -- no constructor is installed (`Quot.mk` is a `quotInfo`), so the certificates carry over
-  have hcert : VEnvs.CertPres env
+  have hcert : VEnvs.CtorTelescopesPreserved env
       (markQuotInit ((((env.add ciQuot).add ciMk).add ciLift).add ciInd)) ves ves' :=
     fun H safety =>
       have C1 : CtorTelescopes safety (env.add ciQuot) (ves'.venv safety) :=
@@ -607,7 +607,7 @@ theorem addQuot.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hq : ∀ safety, (ves.venv safety).QuotReady) :
     (Environment.addQuot env).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CertPres env env' ves ves' := by
+        VEnvs.CtorTelescopesPreserved env env' ves ves' := by
   cases hinit : env.quotInit with
   | true =>
     unfold Environment.addQuot

@@ -9,16 +9,16 @@ open Kernel
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : AxiomVal) :
+theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : AxiomVal) :
     (addAxiom env v).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CtorTelescopesPreserved env env' ves ves' ∧
         ∃ ci' : VConstVal, ∀ safety,
         (ves.venv safety).AddConst safety (.axiomInfo v) ci'.toVConstant (ves'.venv safety) := by
   let checkSafety : DefinitionSafety := if v.isUnsafe then .unsafe else .safe
   have hsafety : checkSafety ≤ (ConstantInfo.axiomInfo v).safety := by
     cases v.isUnsafe <;> exact DefinitionSafety.le_rfl
   unfold addAxiom
-  refine (checkConstantVal.WF wf hcorner (.axiomInfo v) false hsafety).run wf
+  refine (checkConstantVal.WF wf htels (.axiomInfo v) false hsafety).run wf
     |>.bind fun _ ⟨ci', htr, hci, hn, hnonprim⟩ => ?_
   have hnonprim' :
       Environment.primitives.contains (ConstantInfo.axiomInfo v).name = false := by
@@ -34,15 +34,15 @@ theorem addAxiom.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hco
     cases v.isUnsafe <;> cases safety <;> trivial
   · exact .axiom htr (by rwa [← old.map_wf.find?'_eq_find?]) hci hadd old
 
-theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (v : DefinitionVal) :
     (addDefinition env v).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CtorTelescopesPreserved env env' ves ves' ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         (v.safety ≠ .unsafe → ∃ ci' : VDefVal, ∀ safety,
           (ves.venv safety).AddDef safety (.defnInfo v) ci' (ves'.venv safety)) := by
   unfold addDefinition; split
-  · refine checkConstantVal.WF wf hcorner (.defnInfo v) false DefinitionSafety.unsafe_le
+  · refine checkConstantVal.WF wf htels (.defnInfo v) false DefinitionSafety.unsafe_le
       |>.run wf |>.bind fun _ ⟨ci0, htr, hwfc, hn, hnonprim⟩ => ?_; simp at hnonprim
     refine (checkNoMVarNoFVar.WF _ _ _).bind fun _ h => ?_
     have ⟨vesA, wfA, hstepA⟩ := addConst.WF wf (.axiomInfo { v with isUnsafe := true }) ci0
@@ -52,7 +52,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
         .axiom htr' (by rwa [← old.map_wf.find?'_eq_find?]) hci' hadd' old
     have hadd := (hstepA .unsafe).2.2
     refine checkBodyCore.WF (wfA.toVEnvAt .unsafe)
-      ((hcorner .unsafe).addNonCtor (wf.tr (safety := .unsafe)).map_wf hn
+      ((htels .unsafe).addNonCtor (wf.tr (safety := .unsafe)).map_wf hn
         (VEnv.addConst_le hadd) nofun)
       (.defnDecl v)
       v.levelParams v.type v.value ci0.type (htr.1.2.2.mono (VEnv.addConst_le hadd)) h
@@ -64,7 +64,7 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     have ⟨ves', hwf', hmono'⟩ := addUnsafeDef.WF wf v ⟨ci0, value'⟩ (vesA.venv .unsafe)
       ‹_› htr hwfc hadd hvalue hciWF hn hnonprim
     exact .pure ⟨ves', hwf', .addNonCtor wf hn hmono' nofun, hmono', (nomatch · ‹_›)⟩
-  refine (checkDefinition.WF wf hcorner v).run wf |>.bind
+  refine (checkDefinition.WF wf htels v).run wf |>.bind
     fun _ ⟨ci', hp, hu, ht, hname, hvalue, hci, hfresh⟩ => ?_
   have hle : v.safety ≤ .safe := DefinitionSafety.le_safe
   have hmono := wf.mono hle
@@ -87,12 +87,12 @@ theorem addDefinition.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     · exact (hp eq).preserves (wf.mono DefinitionSafety.le_safe) wf.tr.wf wf.hasPrimitives
         (hsf.mono (wf.mono hs)) (hci.mono (hmono.trans (wf.mono hs))) hadd
 
-theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : TheoremVal) :
+theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : TheoremVal) :
     (addTheorem env v).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CtorTelescopesPreserved env env' ves ves' ∧
         ∃ ci' : VConstVal, ∀ safety,
         (ves.venv safety).AddConst safety (.thmInfo v) ci'.toVConstant (ves'.venv safety) := by
-  refine (checkTheorem.WF wf hcorner v).run wf |>.bind fun _ h => ?_
+  refine (checkTheorem.WF wf htels v).run wf |>.bind fun _ h => ?_
   obtain ⟨ci', htr, hbody, hprop, hn, hnonprim⟩ := h
   have ⟨ves', hwf, hstep⟩ := addConst.WF wf (.thmInfo v) ci'.toVConstVal .safe
     (fun _ _ => DefinitionSafety.le_safe) htr.1 ⟨_, hprop⟩ hn
@@ -106,15 +106,15 @@ theorem addTheorem.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (h
   exact .thm htr' (by rwa [← old.map_wf.find?'_eq_find?]) (hbody.mono hle)
     (hprop.mono hle) hadd old
 
-theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : OpaqueVal) :
+theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)) (v : OpaqueVal) :
     (addOpaque env v).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CtorTelescopesPreserved env env' ves ves' ∧
         ∃ ci' : VConstVal, ∀ safety,
         (ves.venv safety).AddConst safety (.opaqueInfo v) ci'.toVConstant (ves'.venv safety) := by
   let checkSafety : DefinitionSafety := if v.isUnsafe then .unsafe else .safe
   have hsafety : (ConstantInfo.opaqueInfo v).safety = checkSafety := by
     cases v.isUnsafe <;> rfl
-  refine (checkOpaque.WF wf hcorner v).run wf |>.bind fun _ h => ?_
+  refine (checkOpaque.WF wf htels v).run wf |>.bind fun _ h => ?_
   obtain ⟨ci', hu, ht, hname, hvalue, hciC, hci, hfresh, hnonprim⟩ := h
   have hle : checkSafety ≤ .safe := DefinitionSafety.le_safe
   have hmono := wf.mono hle
@@ -167,7 +167,7 @@ metavariables and free variables, and nested lowering would silently repair
 loose bound variables while re-closing constructor types.  Environment
 preservation itself (`finalPreservesWF`) does not need this hypothesis. -/
 theorem addInductiveDeclaration.finalResultWF
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
     (HsourcesB : VerifyInductive.SourceBVarClosed types) :
@@ -182,7 +182,7 @@ theorem addInductiveDeclaration.finalResultWF
   cases allowPrimitive with
   | false =>
     exact VerifyInductive.Environment.addInductive.inductiveFinalResultWF
-      env lparams nparams types isUnsafe fuel ves wf hcorner HsourcesB
+      env lparams nparams types isUnsafe fuel ves wf htels HsourcesB
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
         nparams types isUnsafe :=
@@ -190,25 +190,25 @@ theorem addInductiveDeclaration.finalResultWF
         nparams types isUnsafe).mp hallow
     exact
       VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf hcorner Hprimitive
+        env lparams nparams types isUnsafe fuel ves wf htels Hprimitive
 
 /-- Traditional environment-preservation theorem for the complete inductive
 declaration dispatch.  This is unconditional: it is derived from the
 well-formedness halves of the three execution branches, not from the
 source-facing specification. -/
 theorem addInductiveDeclaration.finalPreservesWF
-    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig) :
     (addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          VEnvs.CertPres env outEnv ves ves' := by
+          VEnvs.CtorTelescopesPreserved env outEnv ves ves' := by
   apply addInductiveDeclaration.WF env lparams nparams types isUnsafe fuel
     (fun outEnv => ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      VEnvs.CertPres env outEnv ves ves')
+      VEnvs.CtorTelescopesPreserved env outEnv ves ves')
   intro allowPrimitive hallow
   cases allowPrimitive with
   | false =>
@@ -218,10 +218,10 @@ theorem addInductiveDeclaration.finalPreservesWF
     intro res Hsources Hlower
     by_cases haux : res.aux2nested.size = 0
     · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF
-        env lparams nparams types isUnsafe fuel res ves wf hcorner Hlower.toResult haux
+        env lparams nparams types isUnsafe fuel res ves wf htels Hlower.toResult haux
     · exact
         (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
-          env lparams nparams types isUnsafe fuel res ves wf hcorner Hsources Hlower
+          env lparams nparams types isUnsafe fuel res ves wf htels Hsources Hlower
             haux).mono fun _ ⟨H⟩ => H.modelExtension
   | true =>
     have Hprimitive : VerifyInductive.PrimitiveInductiveShape lparams
@@ -230,7 +230,7 @@ theorem addInductiveDeclaration.finalPreservesWF
         nparams types isUnsafe).mp hallow
     exact
       (VerifyInductive.Environment.addInductive.primitiveInductiveFinalResultWF
-        env lparams nparams types isUnsafe fuel ves wf hcorner Hprimitive).mono
+        env lparams nparams types isUnsafe fuel ves wf htels Hprimitive).mono
         fun _ ⟨H⟩ => H.modelExtension
 
 private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except ε α).WF Q :=
@@ -239,10 +239,10 @@ private theorem Except.WF.throw' {e : ε} {Q : α → Prop} : (throw e : Except 
 private theorem Except.WF.throwBind {e : ε} {f : α → Except ε β} {Q : β → Prop} :
     ((throw e : Except ε α) >>= f).WF Q := fun _ h => nomatch h
 
-theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (vs : List DefinitionVal) :
     (addMutual env vs).WF fun env' =>
-      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CertPres env env' ves ves' ∧
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ VEnvs.CtorTelescopesPreserved env env' ves ves' ∧
         ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   unfold addMutual
   simp only [reduceIte]
@@ -257,7 +257,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
       TrMutualHeader v₀.safety (ves.venv v₀.safety) env v ci ∧
       v.safety = v₀.safety ∧ v.levelParams = v₀.levelParams) cis) ∧
     (((v₀ :: rest).map (·.name)).Nodup ∧
-      ∀ v ∈ (v₀ :: rest), (∅ : NameSet).contains v.name = false)) wf (hcorner := hcorner) ?_).bind
+      ∀ v ∈ (v₀ :: rest), (∅ : NameSet).contains v.name = false)) wf (htels := htels) ?_).bind
     fun _ h1 => ?_
   · refine (TypeChecker.M.WF.forInFresh fun v found s => ?_).bind fun _ _ _ h => .pure h
     split <;> [exact .bindThrow .throw; rename_i hsafety]
@@ -265,7 +265,7 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
     split <;> [exact .bindThrow .throw; rename_i hfound]
     simp at hsafety hlp hfound
     rw [← hlp]
-    refine (checkConstantVal.WF wf hcorner (.defnInfo v) false ?_ s).bind ?_
+    refine (checkConstantVal.WF wf htels (.defnInfo v) false ?_ s).bind ?_
     · rw [ConstantInfo.defnInfo_safety, hsafety]; exact DefinitionSafety.le_rfl
     refine fun _ _ _ ⟨ci', htr, hciw, hn, hnp⟩ => .pure ?_; simp at hnp
     exact ⟨hfound, ⟨⟨ci', .bvar 0⟩, ⟨htr, hciw, hn, hnp⟩, hsafety, rfl⟩, rfl⟩
@@ -289,13 +289,13 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
   have hchA := CtorTelescopes.foldlAdd
     (f := fun v : DefinitionVal => ConstantInfo.axiomInfo
       { v with isUnsafe := v₀.safety == .unsafe }) (fun _ _ h => by cases h)
-    (VEnv.addConsts_le hbase0) (v₀ :: rest) (hcorner v₀.safety)
+    (VEnv.addConsts_le hbase0) (v₀ :: rest) (htels v₀.safety)
     (wf.tr (safety := v₀.safety)).map_wf hfresh
     (by simpa [ConstantInfo.name, ConstantInfo.toConstantVal] using hnd)
   refine (TypeChecker.M.WF.run1 (Q := fun _ => ∃ cis',
     cis0.Forall₂ (fun (ci ci' : VDefVal) => ci.toVConstVal = ci'.toVConstVal) cis' ∧
     (v₀ :: rest).Forall₂ (fun v ci' => TrExprS base v.levelParams [] v.value ci'.value ∧
-      ci'.WF base) cis') wfA (hcorner := hchA) ?_).bind fun _ h2 => ?_
+      ci'.WF base) cis') wfA (htels := hchA) ?_).bind fun _ h2 => ?_
   · refine (TypeChecker.M.WF.forInForall₂ (fun v ci s hd => ?_) hQ0).bind fun _ _ _ h => .pure h
     have hdecl := hd.1.1.1.2.2.mono (VEnv.addConsts_le hbase0)
     refine (TypeChecker.M.WF.liftExcept
@@ -332,29 +332,29 @@ theorem addMutual.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (hc
 abstract rule needs it. This is the form a replay from the empty environment uses, since `Eq`
 does not exist before the prelude declares it. -/
 theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (decl : Declaration)
     (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CertPres env env' ves ves' := by
+        VEnvs.CtorTelescopesPreserved env env' ves ves' := by
   cases decl with
   | axiomDecl v =>
-    exact (addAxiom.WF wf hcorner v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
+    exact (addAxiom.WF wf htels v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
       ⟨ves', hwf, (h · |>.le), hc⟩
   | thmDecl v =>
-    exact (addTheorem.WF wf hcorner v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
+    exact (addTheorem.WF wf htels v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
       ⟨ves', hwf, (h · |>.le), hc⟩
   | defnDecl v =>
-    exact (addDefinition.WF wf hcorner v).mono fun _ ⟨ves', hwf, hc, h, _⟩ => ⟨ves', hwf, h, hc⟩
+    exact (addDefinition.WF wf htels v).mono fun _ ⟨ves', hwf, hc, h, _⟩ => ⟨ves', hwf, h, hc⟩
   | opaqueDecl v =>
-    exact (addOpaque.WF wf hcorner v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
+    exact (addOpaque.WF wf htels v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
       ⟨ves', hwf, (h · |>.le), hc⟩
   | quotDecl => exact addQuot.WF wf (hq rfl)
   | mutualDefnDecl vs =>
-    exact (addMutual.WF wf hcorner vs).mono fun _ ⟨ves', hwf, hc, h⟩ => ⟨ves', hwf, h, hc⟩
+    exact (addMutual.WF wf htels vs).mono fun _ ⟨ves', hwf, hc, h⟩ => ⟨ves', hwf, h, hc⟩
   | inductDecl lparams nparams types isUnsafe =>
-    exact addInductiveDeclaration.finalPreservesWF wf hcorner
+    exact addInductiveDeclaration.finalPreservesWF wf htels
       lparams nparams types isUnsafe {}
 
 /-- Successful checked addition of a declaration preserves the core invariant, extends every
@@ -362,13 +362,13 @@ safety-indexed abstract environment, and preserves the constructor certificates.
 projection-walk corner is supplied by `hcorner`; quotient initialization needs the abstract `Eq`
 at every safety level (`hq`). -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
-    (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CertPres env env' ves ves' :=
-  addDecl.WF_quotReadyAt wf hcorner decl fun _ => hq
+        VEnvs.CtorTelescopesPreserved env env' ves ves' :=
+  addDecl.WF_quotReadyAt wf htels decl fun _ => hq
 
 /-! ### The empty environment -/
 
@@ -427,8 +427,8 @@ theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF
     (heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WF env' ∧ ∀ safety, ves.venv safety ≤ ves'.venv safety :=
-  (addDecl.WF wf.toWFCore wf.ctorCert (fun safety => (heq safety).quotReady) decl).mono
-    fun _ ⟨ves', wf', hle, hcert⟩ => ⟨ves', ⟨wf', hcert wf.ctorCert⟩, hle⟩
+  (addDecl.WF wf.toWFCore wf.ctorTelescopes (fun safety => (heq safety).quotReady) decl).mono
+    fun _ ⟨ves', wf', hle, hcert⟩ => ⟨ves', ⟨wf', hcert wf.ctorTelescopes⟩, hle⟩
 
 /-- Iterable form of `addDecl.WF_of_canonicalEq`: `VEnvs.WF` and canonical equality are
 preserved by the output environments, so the theorem applies again to the next declaration of a

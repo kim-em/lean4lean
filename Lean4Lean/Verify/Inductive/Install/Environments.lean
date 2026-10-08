@@ -1040,7 +1040,7 @@ theorem AddInductive.declareConstructors.WF
       ((hvalidCore.addEliminators helimWF).addProjections hprojectedWF).toValid howners
         (hregistry.monoEnv hle) hrecursors'
         (fun hq => (hquot hq).extend (fun h => h) hle hrecursors'.heads)
-        ((Hinstalled.corner H.context.checking.tr H.context.checking.corner
+        ((Hinstalled.ctorTelescopes H.context.checking.tr H.context.checking.ctorTelescopes
           (Haligned.cornerSteps htele)).mono
           (VEnv.addEliminators_le.trans VEnv.addProjections_le))
     exact ⟨{

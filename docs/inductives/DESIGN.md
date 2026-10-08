@@ -35,13 +35,13 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (decl : Declaration) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CertPres env env' ves ves'
+        VEnvs.CtorTelescopesPreserved env env' ves ves'
 ```
 
 `VEnvs.WF` is the core invariant `VEnvs.WFCore` together with the constructor-telescope
-certificates `VEnvs.CtorCert` (section 5.3); the wrapper discharges `hcorner` from the
+certificates `VEnvs.AllCtorTelescopes` (section 5.3); the wrapper discharges `hcorner` from the
 certificates, derives `hq` from `heq` (`VEnv.HasCanonicalEq.quotReady`), and carries the
-certificates to the output through `CertPres`. The iterable form `addDecl.WFHasCanonicalEq`
+certificates to the output through `CtorTelescopesPreserved`. The iterable form `addDecl.WFHasCanonicalEq`
 also returns `HasCanonicalEq` for `ves'` (monotone along `≤`), so the theorem applies again
 to the next declaration of a replay.
 
@@ -83,7 +83,7 @@ imports whose well-formedness and canonical `Eq` are assumed: imports are truste
 
 - `wf : ves.WF env` is the invariant being preserved. `VEnvs.WF`
   (`Lean4Lean/Verify/TypeChecker.lean`) is the core invariant `VEnvs.WFCore` together with
-  the constructor telescope certificates (`VEnvs.CtorCert`). The core gains fields in this pull
+  the constructor telescope certificates (`VEnvs.AllCtorTelescopes`). The core gains fields in this pull
   request: closure of mutual inductives, presence of constructor owners, semantic coherence of
   installed constructors with the abstract model, and inductive provenance (which carries
   projection-registry coherence). It holds for the empty environment the executable replays
@@ -596,9 +596,9 @@ them) and a ghost-telescope verification (`Verify/TypeChecker/GhostTelescope.lea
 when a constructor type is checked, every unused binder of its telescope can be deleted from
 the translation. The result is recorded as a depth-bounded certificate `TelTrN`
 (`Verify/Typing/TelescopeTranslation.lean`), one per visible constructor at every safety
-level (`VEnvs.CtorCert`); the bound is the constructor's own arity, which is what the walk
+level (`VEnvs.AllCtorTelescopes`); the bound is the constructor's own arity, which is what the walk
 consumes. The certificates hold vacuously for an environment without constructors, are
-preserved by every declaration (`VEnvs.CertPres`), and the walk uses the delete branch of the
+preserved by every declaration (`VEnvs.CtorTelescopesPreserved`), and the walk uses the delete branch of the
 certificate at each non-dependent field. Nested declarations need the stored constructor type
 to agree with the checked source type up to binder names
 (`Verify/Inductive/Nested/Restoration/InstalledConstructorTypes.lean`), because reusing an auxiliary

@@ -276,7 +276,7 @@ def HeaderDeclarationOf.primitiveDeclaredResult
   let context : LocalContextWF { c with env := outEnv } :=
     Hc.toLocal.withEnv (venv' := envTypes)
       (Hinstalled.checking Hc.checking.tr) Hinstalled.le
-      ((Hc.checking.corner.ofCtors
+      ((Hc.checking.ctorTelescopes.ofCtors
         (Hinstalled.ctors_of_noCtor Hc.checking.tr.map_wf inductInfo_zip_noCtor)).mono
         Hinstalled.le)
   have hcontextVEnv : context.venv = envTypes := rfl

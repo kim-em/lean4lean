@@ -29,12 +29,12 @@ structure LocalContextWF (c : AddInductive.Context) where
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
   /-- The open projection-walk corner, carried to the restored checker context. -/
-  corner : CtorTelescopes c.safety c.env venv
+  ctorTelescopes : CtorTelescopes c.safety c.env venv
 
 def ContextWF.toLocal (H : ContextWF c) : LocalContextWF c where
   venv := H.venv
   checking := H.checking.tr
-  corner := H.checking.corner
+  ctorTelescopes := H.checking.ctorTelescopes
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -51,11 +51,11 @@ primitive invariant. -/
 def LocalContextWF.withEnv (H : LocalContextWF c)
     (hchecking : CheckingEnv c.safety env' venv')
     (hle : H.venv <= venv')
-    (hcorner : CtorTelescopes c.safety env' venv') :
+    (htels : CtorTelescopes c.safety env' venv') :
     LocalContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
-  corner := hcorner
+  ctorTelescopes := htels
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -86,7 +86,7 @@ def LocalContextWF.toContextWF (H : LocalContextWF c)
     safePrimitives := by
       intro n ci hfind hprimitive
       exact hsafe hfind hprimitive
-    corner := H.corner
+    ctorTelescopes := H.ctorTelescopes
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors
@@ -398,17 +398,17 @@ theorem AtomicAddConstants.entryOrigin
 
 /-- An atomic installation preserves the projection-walk corner, given the constructor steps of
 its entries (stated in the environment before the installation). -/
-theorem AtomicAddConstants.corner
+theorem AtomicAddConstants.ctorTelescopes
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hchecking : CheckingEnv safety env venv)
-    (hcorner : CtorTelescopes safety env venv)
-    (hsteps : ∀ entry ∈ entries, CtorCornerStep safety venv entry.1) :
+    (htels : CtorTelescopes safety env venv)
+    (hsteps : ∀ entry ∈ entries, CtorTelescopeStep safety venv entry.1) :
     CtorTelescopes safety outEnv outVEnv := by
   induction H with
-  | nil => exact hcorner
+  | nil => exact htels
   | cons hn htr hwf hadd hdelta _ ih =>
     exact ih (hchecking.add hn htr.1 hwf hadd hdelta)
-      (hcorner.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
+      (htels.add hchecking.map_wf hn (VEnv.addConst_le hadd) (hsteps _ List.mem_cons_self))
       fun e he => (hsteps e (List.mem_cons_of_mem _ he)).mono (VEnv.addConst_le hadd)
 
 /-- An installation of no constructor adds no constructor lookup. -/
@@ -846,9 +846,9 @@ def AtomicAddConstants.completeContext
     (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
     (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
-    (hcorner : CtorTelescopes c.safety outEnv outVEnv) :
+    (htels : CtorTelescopes c.safety outEnv outVEnv) :
     ContextWF { c with env := outEnv } :=
-  (source.withEnv (H.checking source.checking) H.le hcorner).toContextWF
+  (source.withEnv (H.checking source.checking) H.le htels).toContextWF
     hprimitives hsafe howners hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary

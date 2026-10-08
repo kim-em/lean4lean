@@ -1035,14 +1035,14 @@ theorem NestedRun.finalValidOfStaged_of_hitShape
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) recEnv
       Hrestored.auxiliaries [] auxiliaryRecursors)
     (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors)
-    (hcorner : CtorTelescopes c.safety outEnv installedVEnv) :
+    (htels : CtorTelescopes c.safety outEnv installedVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
       installedVEnv := by
   refine Hrestored.finalValidOfStaged_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
-    Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource ?_ hcorner
+    Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource ?_ htels
   intro name rec hfind _hs hnone
   -- the restoration tables of the run
   have hnodup : (familyNames E.lowered.loweredDecl.types ++

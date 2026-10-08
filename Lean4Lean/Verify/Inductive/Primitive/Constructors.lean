@@ -500,7 +500,7 @@ theorem AddInductive.declareConstructors.primitiveWF
       rwa [H.sourceContextVEnv] at h
     let Hcontext := Hinstalled.completeContext H.context
       hprimitives hsafe howners hregistry hrecursors hquot
-      (Hinstalled.corner H.context.checking H.context.corner (Haligned.cornerSteps hctors))
+      (Hinstalled.ctorTelescopes H.context.checking H.context.ctorTelescopes (Haligned.cornerSteps hctors))
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by
       rw [← hctorValues]

@@ -86,7 +86,7 @@ input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
 type.  Only the absence of `Eq` is assumed of the input, together with the constructor telescope
 certificates at every safety level. -/
 theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
-    (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hAbsent : env.constants.find? ``Eq = none)
     {lparams : List Name} {nparams : Nat} {types : List InductiveType} {isUnsafe : Bool}
     (Hshape : VerifyInductive.PreludeEqShape lparams nparams types isUnsafe)
@@ -97,7 +97,7 @@ theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
         ∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
           ves'.HasCanonicalEq :=
   (VerifyInductive.addInductiveDeclaration.eqBootstrapFinalEnvironmentWF env lparams
-      nparams types isUnsafe fuel ves wf hcorner hAbsent Hshape).mono
+      nparams types isUnsafe fuel ves wf htels hAbsent Hshape).mono
     fun _ ⟨ves', wf', _, hle, _, hcanonical⟩ => ⟨ves', wf', hle, hcanonical⟩
 
 end Lean4Lean

@@ -1341,12 +1341,12 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
             ((pack'.subst γ).appN (σ a))) := fun a F₂ hF₂ => by
       have he3S' := e3.mkAppList_getAppArgsList ▸ he3S
       rw [hlist] at he3S'
-      have hcorner := VEnv.IsDefEqU.trans c.Ewf (c.withMLC m').Δwf.toCtx
+      have htels := VEnv.IsDefEqU.trans c.Ewf (c.withMLC m').Δwf.toCtx
         (((VEnv.IsDefEqU.trans c.Ewf (c.withMLC m').Δwf.toCtx he3eq he2eq).trans
           c.Ewf (c.withMLC m').Δwf.toCtx he1eq).symm)
         ((AppStack.tr stk).uniq c.Ewf (.refl c.Ewf (c.withMLC m').Δwf) he3S').symm
-      rw [hΓm] at hcorner
-      have h1 := VEnv.IsDefEqU.subst E.wf (hclose a).1 (E.mono hcorner)
+      rw [hΓm] at htels
+      have h1 := VEnv.IsDefEqU.subst E.wf (hclose a).1 (E.mono htels)
       refine VEnv.IsDefEqU.trans E.wf trivial
         (VEnv.IsDefEqU.trans E.wf trivial (hevclosed a).symm h1) ?_
       -- the argument: the value chain ends at `a₀`, the recognizer's checks at the binder, and

@@ -43,15 +43,15 @@ private theorem find?_add_cases
 /-- What a constant installation must supply for the projection-walk corner: nothing for a
 non-constructor; for a visible constructor, its telescope certificate (stated in the environment
 before the installation, which is where the constructor was checked). -/
-def _root_.Lean4Lean.CtorCornerStep (safety : DefinitionSafety) (venv : VEnv)
+def _root_.Lean4Lean.CtorTelescopeStep (safety : DefinitionSafety) (venv : VEnv)
     (ci : ConstantInfo) : Prop :=
   ∀ info, ci = .ctorInfo info → safety ≤ ci.safety → CtorTelescopeAt venv info
 
-theorem _root_.Lean4Lean.CtorCornerStep.of_not_ctor (h : ∀ info, ci ≠ .ctorInfo info) :
-    CtorCornerStep safety venv ci := fun info e => absurd e (h info)
+theorem _root_.Lean4Lean.CtorTelescopeStep.of_not_ctor (h : ∀ info, ci ≠ .ctorInfo info) :
+    CtorTelescopeStep safety venv ci := fun info e => absurd e (h info)
 
-theorem _root_.Lean4Lean.CtorCornerStep.mono (H : CtorCornerStep safety venv ci)
-    (hle : venv ≤ venv') : CtorCornerStep safety venv' ci :=
+theorem _root_.Lean4Lean.CtorTelescopeStep.mono (H : CtorTelescopeStep safety venv ci)
+    (hle : venv ≤ venv') : CtorTelescopeStep safety venv' ci :=
   fun info e hs => (H info e hs).mono hle
 
 /-- Certificates of an installed constant: none for a non-constructor; for a visible constructor,
@@ -59,7 +59,7 @@ its certificate in the environment before the installation. -/
 theorem _root_.Lean4Lean.CtorTelescopes.add {env : Environment}
     (H : CtorTelescopes safety env venv) (hwf : env.constants.WF)
     (hn : env.find? ci.name = none) (hle : venv ≤ venv')
-    (hstep : CtorCornerStep safety venv ci) :
+    (hstep : CtorTelescopeStep safety venv ci) :
     CtorTelescopes safety (env.add ci) venv' := by
   intro name ci₂ hfind hvis
   rcases find?_add_cases hwf _ hn hfind with ⟨-, heq⟩ | hold
@@ -1074,8 +1074,8 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
   /-- What resolves the projection-walk corner of `inferProj`: a telescope certificate of every
   visible constructor (`TelTrN.delete_closed`). Constructor installations supply it through
-  `CtorCornerStep`. -/
-  corner : CtorTelescopes safety env venv
+  `CtorTelescopeStep`. -/
+  ctorTelescopes : CtorTelescopes safety env venv
 
 theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
     (hprims : venv.HasPrimitives)
@@ -1084,10 +1084,10 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
       ci.safety = .safe ∧ ci.levelParams = [])
     (howners : VerifyInductive.ConstructorOwnersPresent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
-    (hcorner : CtorTelescopes safety env venv) :
+    (htels : CtorTelescopes safety env venv) :
     CheckingEnv.Valid safety env venv :=
   ⟨⟨H.toChecking, hprims, hsafe⟩, howners, hregistry,
-    H.recursorEnvCoherent, H.quotEnvCoherent, hcorner⟩
+    H.recursorEnvCoherent, H.quotEnvCoherent, htels⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
     (hn : env.find? ci.name = none)
@@ -1127,7 +1127,7 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     (hdelta : ci.deltaValue? = none)
     (hstep : ProjectionRegistryStep env.constants venv' ci)
     (hrec : RecursorInstallStep safety env.constants venv' ci)
-    (hcstep : CtorCornerStep safety venv ci) :
+    (hcstep : CtorTelescopeStep safety venv ci) :
     CheckingEnv.Valid safety (env.add ci) venv' := by
   have hcore := H.toValidCore.add hn hnprim htr hci hadd hdelta
   have hfresh : env.constants.find? ci.name = none := by
@@ -1151,7 +1151,7 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     projectionRegistry := ?_
     recursors := hrecursors
     quot := hquot
-    corner := H.corner.add H.tr.map_wf hn hle hcstep }
+    ctorTelescopes := H.ctorTelescopes.add H.tr.map_wf hn hle hcstep }
   · cases ci with
     | ctorInfo info =>
       rcases hstep.1 with ⟨owner, howner⟩
@@ -1232,7 +1232,7 @@ theorem CheckingEnv.Valid.addEliminators
   quot hq := (H.quot hq).extend (fun h => h) VEnv.addEliminators_le
     (H.recursors.extendSimple (fun h => h) (fun h _ => h)
       VEnv.addEliminators_le (fun _ h => by simpa using h)).heads
-  corner := H.corner.mono VEnv.addEliminators_le
+  ctorTelescopes := H.ctorTelescopes.mono VEnv.addEliminators_le
 
 theorem CheckingEnv.Valid.addProjections
     (H : CheckingEnv.Valid safety env venv)
@@ -1244,7 +1244,7 @@ theorem CheckingEnv.Valid.addProjections
   recursors := H.recursors.addProjections entries
   quot hq := (H.quot hq).extend (fun h => h) VEnv.addProjections_le
     (H.recursors.addProjections entries).heads
-  corner := H.corner.mono VEnv.addProjections_le
+  ctorTelescopes := H.ctorTelescopes.mono VEnv.addProjections_le
 
 /-- Promote the local invariants to the full checking invariant once
 constructor-owner presence and registry coherence are known. -/
@@ -1254,11 +1254,11 @@ theorem CheckingEnv.ValidCore.toValid
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
     (hrecursors : RecursorEnvCoherent safety env.constants venv)
     (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv)
-    (hcorner : CtorTelescopes safety env venv) :
+    (htels : CtorTelescopes safety env venv) :
     CheckingEnv.Valid safety env venv :=
   { H with
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors
     quot := hquot
-    corner := hcorner }
+    ctorTelescopes := htels }

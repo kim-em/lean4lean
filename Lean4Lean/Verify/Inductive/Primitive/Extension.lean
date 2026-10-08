@@ -17,7 +17,7 @@ theorem PrimitiveInstallation.extendSafeExact
     {ves : VEnvs}
     (Hrun : PrimitiveInstallation c stats nparams depth
       (ves.venv .safe) indTypes (c.safety != .safe) outEnv)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (htels : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       (c.safety != .safe)) :
     exists ves' : VEnvs, exists decl : VInductDecl,
@@ -27,7 +27,7 @@ theorem PrimitiveInstallation.extendSafeExact
       TrInductDeclCore (ves.venv .safe) c.lparams nparams indTypes.toList
         (c.safety != .safe) decl envTypes envCtors /\
       VEnv.AddInduct (ves.venv .safe) decl (ves'.venv .safe) /\
-      VEnvs.CertPres c.env outEnv ves ves' := by
+      VEnvs.CtorTelescopesPreserved c.env outEnv ves ves' := by
   rcases Hrun with ⟨decl, _ctorEnv, R, ⟨Hrecursors⟩⟩
   have hsafety : c.safety = .safe := by
     have hnotUnsafe : (c.safety != .safe) = false := Hshape.2.2.1
@@ -57,7 +57,7 @@ theorem PrimitiveInstallation.extendSafeExact
       BlockCertificate.installedVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.ctorParamsAgree (safety := .safe)) T.rules
-  rcases Hcert.extendSafeExact wf hcorner hdecl hcompile
+  rcases Hcert.extendSafeExact wf htels hdecl hcompile
       Hrecursors.productionInductiveOrigins T.recursorProvenance
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
@@ -69,7 +69,7 @@ theorem PrimitiveInstallation.extendSafeExact
     rw [R.headerValues]
     exact R.core.typesAdded
   refine ⟨ves', decl, R.headerVEnv, R.ctorVEnv, wf', hle, R.core, hadd,
-    VEnvs.CertPres.ofOrigin (isUnsafe := false) hle wf'.mono hH fun hfind => ?_⟩
+    VEnvs.CtorTelescopesPreserved.ofOrigin (isUnsafe := false) hle wf'.mono hH fun hfind => ?_⟩
   rcases Hrecursors.ctorOrigin hfind with h | ⟨hu, hc⟩
   · exact .inl h
   · refine .inr ⟨?_, hc⟩
@@ -91,10 +91,10 @@ theorem PrimitiveRunResult.extendSafeWithSpecification
     {ves : VEnvs}
     (Hrun : PrimitiveRunResult source
       (ves.venv .safe) nparams types numNested outEnv)
-    (wf : ves.WFCore source.env) (hcorner : ∀ safety, CtorTelescopes safety source.env (ves.venv safety)) :
+    (wf : ves.WFCore source.env) (htels : ∀ safety, CtorTelescopes safety source.env (ves.venv safety)) :
     ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
       (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-      VEnvs.CertPres source.env outEnv ves ves' ∧
+      VEnvs.CtorTelescopesPreserved source.env outEnv ves ves' ∧
       Nonempty (SourceAddInduct (ves.venv .safe)
         source.lparams nparams types (source.safety != .safe)
         (ves'.venv .safe)) := by
@@ -104,7 +104,7 @@ theorem PrimitiveRunResult.extendSafeWithSpecification
       Hphases⟩
   have wf' : ves.WFCore c'.env := by simpa [henv] using wf
   have hcorner' : ∀ safety, CtorTelescopes safety c'.env (ves.venv safety) := by
-    rw [henv]; exact hcorner
+    rw [henv]; exact htels
   have Hphases' : PrimitiveInstallation c' stats nparams
       depth (ves.venv .safe) types.toArray (c'.safety != .safe) outEnv := by
     simpa [hvenv, hsafety] using Hphases
@@ -128,7 +128,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
-    (wf : ves.WFCore c.env) (hcorner : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
+    (wf : ves.WFCore c.env) (htels : ∀ safety, CtorTelescopes safety c.env (ves.venv safety))
     (hsource : Hc.venv = ves.venv .safe)
     (Hshape : PrimitiveInductiveShape c.lparams nparams
       types.toArray.toList (c.safety != .safe))
@@ -138,7 +138,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
     (AddInductive.run nparams types numNested c).WF fun outEnv =>
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
         (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-        VEnvs.CertPres c.env outEnv ves ves' ∧
+        VEnvs.CtorTelescopesPreserved c.env outEnv ves ves' ∧
         Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) := by
   have Hrun := AddInductive.run.primitiveSemanticSourceAlignedWF
@@ -148,14 +148,14 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
     have Hresult' : PrimitiveRunResult
         c (ves.venv .safe) nparams types numNested outEnv := by
       simpa [hsource] using Hresult
-    exact Hresult'.extendSafeWithSpecification wf hcorner
+    exact Hresult'.extendSafeWithSpecification wf htels
 
 /-- Primitive post-lowering refinement with no equality-bootstrap premise. -/
 theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (htypes : res.types = types)
     (haux : res.aux2nested.size = 0) :
@@ -163,7 +163,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
       true fuel res).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          VEnvs.CertPres env outEnv ves ves' ∧
+          VEnvs.CtorTelescopesPreserved env outEnv ves ves' ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   let c := primitiveAddInductiveContext env lparams isUnsafe fuel
@@ -182,11 +182,11 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     simpa [c, primitiveAddInductiveContext] using wf
   let Hc : ContextWF c := by
     simpa [c, primitiveAddInductiveContext, initialContext] using
-      ContextWF.initial wf .safe lparams true fuel hcorner
+      ContextWF.initial wf .safe lparams true fuel htels
   have hsource : Hc.venv = ves.venv .safe := rfl
   have hctx : Hc.mlctx.vlctx = [] := rfl
   have Hrun := AddInductive.run.primitiveFinalSpecificationModelWF
-    (c := c) (ves := ves) nparams 0 Hc wf' (by simpa [c, primitiveAddInductiveContext] using hcorner) hsource Hshape' hctx
+    (c := c) (ves := ves) nparams 0 Hc wf' (by simpa [c, primitiveAddInductiveContext] using htels) hsource Hshape' hctx
     hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
   rw [haux, htypes]
@@ -196,13 +196,13 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
 theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Environment.addInductive env lparams nparams types isUnsafe true fuel).WF
       fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          VEnvs.CertPres env outEnv ves ves' ∧
+          VEnvs.CtorTelescopesPreserved env outEnv ves ves' ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   have Hsources : (Lean4Lean.checkInductiveSources env types).WF
@@ -213,7 +213,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
       Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
-        env lparams nparams types isUnsafe fuel res ves wf hcorner Hshape
+        env lparams nparams types isUnsafe fuel res ves wf htels Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
@@ -222,17 +222,17 @@ premise. -/
 theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
-    (ves : VEnvs) (wf : ves.WFCore env) (hcorner : ∀ safety, CtorTelescopes safety env (ves.venv safety))
+    (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     (Lean4Lean.addDecl env (.inductDecl lparams nparams types isUnsafe)
       (check := true) (fuel := fuel)).WF fun outEnv =>
         ∃ ves' : VEnvs, ves'.WFCore outEnv ∧
           (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
-          VEnvs.CertPres env outEnv ves ves' ∧
+          VEnvs.CtorTelescopesPreserved env outEnv ves ves' ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
   have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF
-    env lparams nparams types isUnsafe fuel ves wf hcorner Hshape
+    env lparams nparams types isUnsafe fuel ves wf htels Hshape
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun

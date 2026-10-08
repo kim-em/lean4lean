@@ -300,7 +300,7 @@ structure VContext extends Context where
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
   /-- What resolves the corner of the projection walk at a non-dependent field: a telescope
   certificate of every visible constructor (`TelTrN.delete_closed`). -/
-  corner : CtorTelescopes safety env venv
+  ctorTelescopes : CtorTelescopes safety env venv
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams
   lctx_eq : mlctx.lctx = lctx

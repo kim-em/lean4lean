@@ -64,8 +64,8 @@ theorem AddDeclChain.WF {env env' : Environment} {ds : List Declaration}
       obtain ⟨_, _, _, hEq, hEqP, hRefl, hReflP, hRec, hRecP⟩ := hquot hd
       exact (wf.toWFCore.canonicalEq_constants hEq hEqP hRefl hReflP hRec hRecP safety).1
     obtain ⟨ves₁, wf₁, hle₁, hcert⟩ :=
-      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorCert d hq _ hadd
-    obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorCert⟩
+      addDecl.WF_quotReadyAt wf.toWFCore wf.ctorTelescopes d hq _ hadd
+    obtain ⟨ves₂, wf₂, hle₂⟩ := ih ⟨wf₁, hcert wf.ctorTelescopes⟩
     exact ⟨ves₂, wf₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
 
 /-- **Replay from the empty environment.** Every environment reached by a replay from the

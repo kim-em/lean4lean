@@ -850,7 +850,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
       CtorTelescopes P.c.safety outEnv venv' ∧
       CtorTelescopes P.c.safety E.validationEnv venv' := by
     intro venv' hle
-    have hcert := HbaseValid.corner
+    have hcert := HbaseValid.ctorTelescopes
     rw [henv, hinitial, hsafety] at hcert
     have H := E.restoredCtorTelescopes Hsources Howners wf.envGF hcert
     rw [hsafety]

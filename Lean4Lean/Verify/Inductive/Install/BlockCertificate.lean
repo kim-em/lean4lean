@@ -666,7 +666,7 @@ theorem BlockCertificate.extendSafeExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .safe prodEnv (ves.venv .safe) types ctors
       recursors rules outEnv outBase)
-    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (htels : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hdecl : decl.WF (ves.venv .safe))
     (hcompile : decl.CompilesTo (ves.venv .safe) H.block)
     (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
@@ -687,7 +687,7 @@ theorem BlockCertificate.extendSafeExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
       (Hreplay .unsafe) with
@@ -800,7 +800,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
     {ves : VEnvs} {decl : VInductDecl}
     (H : BlockCertificate .unsafe prodEnv (ves.venv .unsafe) types ctors
       recursors rules outEnv outVEnv)
-    (wf : ves.WFCore prodEnv) (hcorner : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
+    (wf : ves.WFCore prodEnv) (htels : ∀ safety, CtorTelescopes safety prodEnv (ves.venv safety))
     (hdecl : decl.WF (ves.venv .unsafe))
     (hcompile : decl.CompilesTo (ves.venv .unsafe) H.block)
     (horigins : InductInfosFromDecl prodEnv.constants outEnv.constants
@@ -823,7 +823,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
+      wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
   have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
       ¬ DefinitionSafety.partial ≤ entry.1.safety := by
     intro entry hentry

@@ -231,7 +231,7 @@ theorem NestedRun.assemblyNative_of_restoredWF
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
+    (hnested : result.aux2nested.size ≠ 0) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (HrestoredWF : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTablesAgree sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -256,7 +256,7 @@ theorem NestedRun.assemblyNative_of_restoredWF
       C.lowered = E.lowered } :=
   E.assemblyNative_of_run wf Hsources
     (E.hrules_of wf Hsources (E.hruleShape_of_base wf Hsources hnested HrestoredWF))
-    (E.hprovenance_of wf Hsources hnested hcorner)
+    (E.hprovenance_of wf Hsources hnested htels)
 
 /-- The canonical equations and concrete recursor evidence are selected from
 this complete successful run. This theorem does not upgrade arbitrary legacy
@@ -273,12 +273,12 @@ theorem NestedRun.assemblyNative
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
+    (hnested : result.aux2nested.size ≠ 0) (htels : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety)) :
     Nonempty { C : RestoredBlockCertificate E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.lowered = E.lowered } :=
-  E.assemblyNative_of_restoredWF wf Hsources hnested hcorner (E.hrestoredWF_of wf Hsources)
+  E.assemblyNative_of_restoredWF wf Hsources hnested htels (E.hrestoredWF_of wf Hsources)
 
 end VerifyInductive
 
