@@ -10,6 +10,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.FullChurchRosser
+import Lean4Lean.Theory.Typing.Confluence.WFParams
 import Lean4Lean.Theory.Typing.PrefixUnfolding.Rule
 import Lean4Lean.Theory.Typing.ConstructorCaptureTransport
 import Lean4Lean.Theory.Typing.CaseReduction
@@ -120,6 +121,10 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.VEnv.FullEquationCoverage
 
 #inductive_audit Lean4Lean.VEnv.IsDefEq.full_church_rosser
+#inductive_audit Lean4Lean.VEnv.WF.church_rosser
+#inductive_audit Lean4Lean.VEnv.WF.params
+#inductive_audit Lean4Lean.VEnv.WF.equationCoverage
+#inductive_audit Lean4Lean.VEnv.WF.singletonCoverage
 
 #inductive_audit Lean4Lean.InductiveSignature.CaseSchema.structureEta
 
