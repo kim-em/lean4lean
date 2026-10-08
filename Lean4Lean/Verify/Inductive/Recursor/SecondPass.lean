@@ -1841,6 +1841,610 @@ theorem modifyMinorAndBlueprint_motiveCoreEq
 
 namespace mkRecInfos.loopCtors
 
+/-- Inserting the minor premise for the current constructor at the end of row
+`dIdx` keeps the rule-blueprint rows the same length as the minor-type rows,
+given that the old rows had equal lengths. -/
+theorem continueMinor_rowsSize
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (minorName : Name) (minorTy : Expr)
+    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (hidx : dIdx < recInfos.size)
+    (HminorShape : RecInfoMinorTypeShape)
+    (HminorShapePosition :
+      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
+      HminorShape.origin = minorTy)
+    (Hrows : ∀ owner, owner < recInfos.size →
+      recInfos[owner]!.ruleBlueprints.size =
+        Horigins.minorTypes[owner]!.size) :
+    let cMinor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName minorTy .default }
+    let next := recInfos.modify dIdx fun info =>
+      { info with
+        minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
+        ruleBlueprints := info.ruleBlueprints.push
+          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+    let HoriginsMinor := Horigins.addMinor dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
+      .default HminorShape HminorShapePosition
+    let HoriginsNext : RecInfoTypeOrigins cMinor next :=
+      HoriginsMinor.rebaseCore Hcore
+    ∀ owner, owner < next.size →
+      next[owner]!.ruleBlueprints.size =
+        HoriginsNext.minorTypes[owner]!.size := by
+  intro cMinor next Hcore HoriginsMinor HoriginsNext
+  intro owner howner
+  have hownerOld : owner < recInfos.size := by
+    simpa [next] using howner
+  by_cases hdi : dIdx = owner
+  · subst owner
+    have hrow := Hrows dIdx hidx
+    have hminorSize := (Horigins.minors dIdx hidx).size_eq
+    have hidxTypes : dIdx < Horigins.minorTypes.size := by
+      rw [Horigins.minorTypes_size]
+      exact hidx
+    dsimp [next, HoriginsNext, HoriginsMinor,
+      RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+    rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
+    rw [mkRecInfos.loopCtors.getElemBang_modify_self Horigins.minorTypes
+      dIdx _ hidxTypes]
+    simp only [Array.size_push]
+    omega
+  · have hrow := Hrows owner hownerOld
+    have hownerTypes : owner < Horigins.minorTypes.size := by
+      rw [Horigins.minorTypes_size]
+      exact hownerOld
+    dsimp [next, HoriginsNext, HoriginsMinor,
+      RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+    rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
+      hownerOld hdi]
+    rw [mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+      dIdx owner _ hownerTypes hdi]
+    exact hrow
+
+/-- Every retained field binder of every minor row stays distinct from the
+recursor prefix after the current constructor's minor premise is opened as a
+fresh local and appended to row `dIdx`.  Old rows use the old freshness fact
+`Hfresh`; the new row uses `HminorFieldsFresh`; the fresh minor itself is not
+among any field binders because those are already in the context. -/
+theorem continueMinor_fieldsOuterFresh
+    (stats : AddInductive.InductiveStats)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (minorName : Name) (minorTy : Expr)
+    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (hidx : dIdx < recInfos.size)
+    (HminorShape : RecInfoMinorTypeShape)
+    (HminorShapePosition :
+      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
+      HminorShape.origin = minorTy)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hlater : ∀ i, dIdx < i → i < recInfos.size →
+      recInfos[i]!.minors.size = 0)
+    {parameterDecls : VLCtx}
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      parameterDecls)
+    (HminorSemantic :
+      Nonempty (RecInfoMinorSemanticSourceAt R HminorShape parameterDecls))
+    (HminorFieldsFresh : ∀ fv ∈ HminorShape.fields_bound.fvars,
+      fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+        Hbindings.flatMinors.fvars)
+    (Hfresh : ∀ owner (howner : owner < recInfos.size) (localIndex : Nat)
+      (hlocal : localIndex < Horigins.minorTypes[owner]!.size) (fv : FVarId),
+      fv ∈ (Horigins.minorShapes owner howner localIndex
+        hlocal).fields_bound.fvars →
+      fv ∉ (ExprArrayFVarIds stats.params ++
+        ExprArrayFVarIds (recInfos.map (·.motive))) ++
+        ExprArrayFVarIds (recInfos.flatMap (·.minors))) :
+    let cMinor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName minorTy .default }
+    let next := recInfos.modify dIdx fun info =>
+      { info with
+        minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
+        ruleBlueprints := info.ruleBlueprints.push
+          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+    let HoriginsMinor := Horigins.addMinor dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
+      .default HminorShape HminorShapePosition
+    let HoriginsNext : RecInfoTypeOrigins cMinor next :=
+      HoriginsMinor.rebaseCore Hcore
+    ∀ owner (howner : owner < next.size) (localIndex : Nat)
+      (hlocal : localIndex < HoriginsNext.minorTypes[owner]!.size)
+      (fv : FVarId),
+      fv ∈ (HoriginsNext.minorShapes owner howner localIndex
+        hlocal).fields_bound.fvars →
+      fv ∉ (ExprArrayFVarIds stats.params ++
+        ExprArrayFVarIds (next.map (·.motive))) ++
+        ExprArrayFVarIds (next.flatMap (·.minors)) := by
+  intro cMinor next Hcore HoriginsMinor HoriginsNext
+  let HbindingsMinor := Hbindings.addMinor dIdx hidx
+    (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy .default
+  let HbindingsNext : RecInfoBindings cMinor next :=
+    HbindingsMinor.rebaseCore Hcore
+  have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
+    apply Array.ext
+    · simp [next]
+    · intro i hiNext hiOld
+      rw [Array.getElem_map, Array.getElem_map]
+      rw [Array.getElem_modify (by simpa [next] using hiNext)]
+      split <;> rfl
+  have hflatMinorsFVarsNext : HbindingsNext.flatMinors.fvars =
+      Hbindings.flatMinors.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] := by
+    change (HbindingsMinor.rebaseCore Hcore).flatMinors.fvars = _
+    rw [HbindingsMinor.rebaseCore_flatMinors_fvars Hcore]
+    exact Hbindings.addMinor_flatMinors_fvars dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName
+      minorTy .default Hlater
+  intro owner howner localIndex hlocal fv hfv
+  have hownerOld : owner < recInfos.size := by
+    simpa [next] using howner
+  rw [hmotivesNext, Hparams.exprArrayFVarIds,
+    Hbindings.motives.exprArrayFVarIds,
+    HbindingsNext.flatMinors.exprArrayFVarIds,
+    hflatMinorsFVarsNext]
+  intro houter
+  have holdOrCurrent :
+      fv ∈ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+          Hbindings.flatMinors.fvars ∨
+        fv = (⟨c.ngen.curr⟩ : FVarId) := by
+    rcases List.mem_append.mp houter with hpm | hminorCurrent
+    · exact Or.inl (List.mem_append.mpr (Or.inl hpm))
+    · rcases List.mem_append.mp hminorCurrent with hminor | hcurrent
+      · exact Or.inl (List.mem_append.mpr (Or.inr hminor))
+      · exact Or.inr (by simpa using hcurrent)
+  rcases holdOrCurrent with holdOuter | hcurrent
+  · by_cases hdi : dIdx = owner
+    · subst owner
+      by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+      · subst localIndex
+        have hshapeLast :
+            HoriginsNext.minorShapes dIdx howner
+                Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+        rw [hshapeLast] at hfv
+        exact HminorFieldsFresh fv hfv holdOuter
+      · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+          dsimp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore,
+            RecInfoTypeOrigins.addMinor] at hlocal
+          have hidxTypes : dIdx < Horigins.minorTypes.size := by
+            rw [Horigins.minorTypes_size]
+            exact hidx
+          rw [mkRecInfos.loopCtors.getElemBang_modify_self
+            Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+          simp only [Array.size_push] at hlocal
+          omega
+        have hshapeOld :
+            HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+              Horigins.minorShapes dIdx hidx localIndex hold := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+            hlast]
+        rw [hshapeOld] at hfv
+        apply Hfresh dIdx hidx
+          localIndex hold fv hfv
+        simpa only [Hparams.exprArrayFVarIds,
+          Hbindings.motives.exprArrayFVarIds,
+          Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
+    · have hlocalOld :
+          localIndex < Horigins.minorTypes[owner]!.size := by
+        simpa [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+            dIdx owner _
+              (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
+          using hlocal
+      have hshapeOld :
+          HoriginsNext.minorShapes owner howner localIndex hlocal =
+            Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          hdi]
+      rw [hshapeOld] at hfv
+      apply Hfresh owner hownerOld
+        localIndex hlocalOld fv hfv
+      simpa only [Hparams.exprArrayFVarIds,
+        Hbindings.motives.exprArrayFVarIds,
+        Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
+  · subst fv
+    apply R.toBindingContextWF.current_not_mem
+    by_cases hdi : dIdx = owner
+    · subst owner
+      by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+      · subst localIndex
+        have hshapeLast :
+            HoriginsNext.minorShapes dIdx howner
+                Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+        rw [hshapeLast] at hfv
+        rcases HminorSemantic with ⟨HS⟩
+        exact HS.semantic.extension.contextLE.fvars
+          (HminorShape.fields_bound.members _ hfv)
+      · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+          dsimp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore,
+            RecInfoTypeOrigins.addMinor] at hlocal
+          have hidxTypes : dIdx < Horigins.minorTypes.size := by
+            rw [Horigins.minorTypes_size]
+            exact hidx
+          rw [mkRecInfos.loopCtors.getElemBang_modify_self
+            Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+          simp only [Array.size_push] at hlocal
+          omega
+        have hshapeOld :
+            HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+              Horigins.minorShapes dIdx hidx localIndex hold := by
+          simp [HoriginsNext, HoriginsMinor,
+            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+            hlast]
+        rw [hshapeOld] at hfv
+        rcases HminorSemantics dIdx hidx localIndex hold with ⟨HS⟩
+        exact HS.semantic.extension.contextLE.fvars
+          ((Horigins.minorShapes dIdx hidx localIndex hold
+            ).fields_bound.members _ hfv)
+    · have hlocalOld :
+          localIndex < Horigins.minorTypes[owner]!.size := by
+        simpa [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+            dIdx owner _
+              (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
+          using hlocal
+      have hshapeOld :
+          HoriginsNext.minorShapes owner howner localIndex hlocal =
+            Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          hdi]
+      rw [hshapeOld] at hfv
+      rcases HminorSemantics owner hownerOld localIndex hlocalOld with ⟨HS⟩
+      exact HS.semantic.extension.contextLE.fvars
+        ((Horigins.minorShapes owner hownerOld localIndex hlocalOld
+          ).fields_bound.members _ hfv)
+
+/-- Syntactic rule-blueprint origins survive inserting the current
+constructor's minor premise and its blueprint at the end of row `dIdx`. -/
+theorem continueMinor_blueprintOrigins
+    (stats : AddInductive.InductiveStats)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (minorName : Name) (minorTy : Expr)
+    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (hidx : dIdx < recInfos.size)
+    (HminorShape : RecInfoMinorTypeShape)
+    (HminorShapePosition :
+      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
+      HminorShape.origin = minorTy)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hlater : ∀ i, dIdx < i → i < recInfos.size →
+      recInfos[i]!.minors.size = 0)
+    {parameterDecls : VLCtx}
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      parameterDecls)
+    (HminorSemantic :
+      Nonempty (RecInfoMinorSemanticSourceAt R HminorShape parameterDecls))
+    (HminorFieldsFresh : ∀ fv ∈ HminorShape.fields_bound.fvars,
+      fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+        Hbindings.flatMinors.fvars)
+    (Hblueprints : RecInfoRuleBlueprintOrigins stats recInfos Horigins)
+    (HminorBlueprint : RecInfoRuleBlueprintOriginAt stats
+      HminorShape (.fvar ⟨c.ngen.curr⟩)
+      (mkBlueprint (.fvar ⟨c.ngen.curr⟩))) :
+    let cMinor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName minorTy .default }
+    let next := recInfos.modify dIdx fun info =>
+      { info with
+        minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
+        ruleBlueprints := info.ruleBlueprints.push
+          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+    let HoriginsMinor := Horigins.addMinor dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
+      .default HminorShape HminorShapePosition
+    let HoriginsNext : RecInfoTypeOrigins cMinor next :=
+      HoriginsMinor.rebaseCore Hcore
+    RecInfoRuleBlueprintOrigins stats next HoriginsNext := by
+  intro cMinor next Hcore HoriginsMinor HoriginsNext
+  refine {
+    rows_size := continueMinor_rowsSize R dIdx recInfos minorName minorTy
+      mkBlueprint Horigins hidx HminorShape HminorShapePosition
+      Hblueprints.rows_size
+    entry := ?_
+    fields_outer_fresh := continueMinor_fieldsOuterFresh stats R dIdx recInfos minorName minorTy
+      mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
+      Hlater HminorSemantics HminorSemantic HminorFieldsFresh
+      Hblueprints.fields_outer_fresh }
+  intro owner howner localIndex hlocal
+  have hownerOld : owner < recInfos.size := by
+    simpa [next] using howner
+  by_cases hdi : dIdx = owner
+  · subst owner
+    by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+    · subst localIndex
+      have hminorIndex : Horigins.minorTypes[dIdx]!.size =
+          recInfos[dIdx]!.minors.size :=
+        (Horigins.minors dIdx hidx).size_eq
+      have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
+          recInfos[dIdx]!.ruleBlueprints.size :=
+        (Hblueprints.rows_size dIdx hidx).symm
+      have hminorLast :
+          (recInfos[dIdx]!.minors.push (.fvar ⟨c.ngen.curr⟩))[
+            Horigins.minorTypes[dIdx]!.size]! =
+            .fvar ⟨c.ngen.curr⟩ := by
+        rw [hminorIndex]
+        simp
+      have hblueprintLast :
+          (recInfos[dIdx]!.ruleBlueprints.push
+            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
+              Horigins.minorTypes[dIdx]!.size]! =
+            mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
+        rw [hblueprintIndex]
+        simp
+      have hshapeLast :
+          HoriginsNext.minorShapes dIdx howner
+            Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+      rw [hshapeLast]
+      simpa [next, HoriginsNext, HoriginsMinor,
+        RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+        RecInfoRuleBlueprintOriginAt,
+        mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+        hminorLast, hblueprintLast]
+        using HminorBlueprint
+    · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+        dsimp [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+          RecInfoTypeOrigins.addMinor] at hlocal
+        have hidxTypes : dIdx < Horigins.minorTypes.size := by
+          rw [Horigins.minorTypes_size]
+          exact hidx
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self
+          Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+        simp only [Array.size_push] at hlocal
+        omega
+      have holdMinor : localIndex < recInfos[dIdx]!.minors.size := by
+        rw [← (Horigins.minors dIdx hidx).size_eq]
+        exact hold
+      have holdBlueprint :
+          localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
+        rw [Hblueprints.rows_size dIdx hidx]
+        exact hold
+      have holdMinor' : localIndex < recInfos[dIdx].minors.size := by
+        simpa [getElem!_pos recInfos dIdx hidx] using holdMinor
+      have holdBlueprint' :
+          localIndex < recInfos[dIdx].ruleBlueprints.size := by
+        simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
+      have hminorGet :
+          (recInfos[dIdx]!.minors.push
+            (.fvar ⟨c.ngen.curr⟩))[localIndex]! =
+            recInfos[dIdx]!.minors[localIndex]! := by
+        simp [Array.getElem!_eq_getD, Array.getD, hidx, holdMinor',
+          Array.getElem_push_lt holdMinor'] <;> omega
+      have hblueprintGet :
+          (recInfos[dIdx]!.ruleBlueprints.push
+            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
+            recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
+        simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
+          Array.getElem_push_lt holdBlueprint'] <;> omega
+      have Hentry := Hblueprints.entry dIdx hidx localIndex hold
+      have hshapeOld :
+          HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+            Horigins.minorShapes dIdx hidx localIndex hold := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          hlast]
+      rw [hshapeOld]
+      simpa [next, HoriginsNext, HoriginsMinor,
+        RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+        RecInfoRuleBlueprintOriginAt,
+        mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+        hlast, Array.getElem_push_lt hold,
+        Array.getElem_push_lt holdMinor,
+        Array.getElem_push_lt holdBlueprint,
+        hminorGet, hblueprintGet] using Hentry
+  · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
+      simpa [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+        RecInfoTypeOrigins.addMinor,
+        mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+          dIdx owner _ (by simpa [Horigins.minorTypes_size] using hownerOld)
+          hdi] using hlocal
+    have Hentry := Hblueprints.entry owner hownerOld localIndex hlocalOld
+    have hshapeOld :
+        HoriginsNext.minorShapes owner howner localIndex hlocal =
+          Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+      simp [HoriginsNext, HoriginsMinor,
+        RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor, hdi]
+    rw [hshapeOld]
+    simpa [next, HoriginsNext, HoriginsMinor,
+      RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+      RecInfoRuleBlueprintOriginAt,
+      hdi,
+      mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
+        hownerOld hdi] using Hentry
+
+/-- Semantic rule-blueprint origins survive opening the current constructor's
+minor premise as a local and inserting it with its blueprint at the end of row
+`dIdx`: old entries are transported along the context extension, and the new
+entry is `HminorBlueprintSemantic`. -/
+theorem continueMinor_blueprintSemanticOrigins
+    (stats : AddInductive.InductiveStats)
+    {recLparams : List Name} {c : AddInductive.Context}
+    (R : RecursorContextWF c recLparams)
+    {decl : VInductDecl} {elimLevel : Level}
+    (dIdx : Nat) (recInfos : Array AddInductive.RecInfo)
+    (minorName : Name) (minorTy : Expr)
+    (mkBlueprint : Expr → AddInductive.RecRuleBlueprint)
+    (Horigins : RecInfoTypeOrigins c recInfos)
+    (hidx : dIdx < recInfos.size)
+    (HminorShape : RecInfoMinorTypeShape)
+    (HminorShapePosition :
+      HminorShape.localIndex = Horigins.minorTypes[dIdx]!.size ∧
+      HminorShape.origin = minorTy)
+    (Hbindings : RecInfoBindings c recInfos)
+    (Hparams : BoundFVarArray c stats.params)
+    (Hlater : ∀ i, dIdx < i → i < recInfos.size →
+      recInfos[i]!.minors.size = 0)
+    {parameterDecls : VLCtx}
+    (HminorSemantics : RecInfoMinorSemanticAlignment R Horigins
+      parameterDecls)
+    (HminorSemantic :
+      Nonempty (RecInfoMinorSemanticSourceAt R HminorShape parameterDecls))
+    (HminorFieldsFresh : ∀ fv ∈ HminorShape.fields_bound.fvars,
+      fv ∉ (Hparams.fvars ++ Hbindings.motives.fvars) ++
+        Hbindings.flatMinors.fvars)
+    {minorTarget : VExpr}
+    (Hminor : TrExprS R.venv recLparams R.mlctx.vlctx minorTy minorTarget)
+    (HminorType : R.venv.IsType recLparams.length
+      R.mlctx.vlctx.toCtx minorTarget)
+    (HblueprintSemantics : RecInfoRuleBlueprintSemanticOrigins R decl stats
+      recInfos elimLevel parameterDecls Horigins)
+    (HminorBlueprintSemantic : Nonempty
+      (RecInfoRuleBlueprintSemanticOriginAt R decl stats recInfos elimLevel
+        parameterDecls dIdx HminorShape
+        (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))) :
+    let cMinor : AddInductive.Context := { c with
+      ngen := c.ngen.next
+      lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ minorName minorTy .default }
+    let next := recInfos.modify dIdx fun info =>
+      { info with
+        minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
+        ruleBlueprints := info.ruleBlueprints.push
+          (mkBlueprint (.fvar ⟨c.ngen.curr⟩)) }
+    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+      (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+    let HoriginsMinor := Horigins.addMinor dIdx hidx
+      (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
+      .default HminorShape HminorShapePosition
+    let HoriginsNext : RecInfoTypeOrigins cMinor next :=
+      HoriginsMinor.rebaseCore Hcore
+    let Rminor := R.withLocalDecl (name := minorName) (bi := .default)
+      Hminor HminorType
+    RecInfoRuleBlueprintSemanticOrigins Rminor decl stats next elimLevel
+      parameterDecls HoriginsNext := by
+  intro cMinor next Hcore HoriginsMinor HoriginsNext Rminor
+  let Hstep := RecursorContextExtension.withLocalDecl
+    (name := minorName) (bi := .default) R Hminor HminorType
+  let HmotiveCore := modifyMinorAndBlueprint_motiveCoreEq recInfos dIdx hidx
+    (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
+  have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
+    apply Array.ext
+    · simp [next]
+    · intro i hiNext hiOld
+      rw [Array.getElem_map, Array.getElem_map]
+      rw [Array.getElem_modify (by simpa [next] using hiNext)]
+      split <;> rfl
+  refine {
+    rows_size := continueMinor_rowsSize R dIdx recInfos minorName minorTy
+      mkBlueprint Horigins hidx HminorShape HminorShapePosition
+      HblueprintSemantics.rows_size
+    entry := ?_
+    fields_outer_fresh := continueMinor_fieldsOuterFresh stats R dIdx recInfos minorName minorTy
+      mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings Hparams
+      Hlater HminorSemantics HminorSemantic HminorFieldsFresh
+      HblueprintSemantics.fields_outer_fresh }
+  intro owner howner localIndex hlocal
+  have hownerOld : owner < recInfos.size := by
+    simpa [next] using howner
+  by_cases hdi : dIdx = owner
+  · subst owner
+    by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
+    · subst localIndex
+      have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
+          recInfos[dIdx]!.ruleBlueprints.size :=
+        (HblueprintSemantics.rows_size dIdx hidx).symm
+      have hblueprintLast :
+          (recInfos[dIdx]!.ruleBlueprints.push
+            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
+              Horigins.minorTypes[dIdx]!.size]! =
+            mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
+        rw [hblueprintIndex]
+        simp
+      have hshapeLast :
+          HoriginsNext.minorShapes dIdx howner
+            Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
+      rw [hshapeLast]
+      rcases HminorBlueprintSemantic with ⟨HminorBlueprintSemantic⟩
+      have HminorBlueprintSemantic' :=
+        (HminorBlueprintSemantic.mono Hstep).rebaseMotiveCore HmotiveCore
+      simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt,
+        mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+        hblueprintLast, hmotivesNext] using HminorBlueprintSemantic'
+    · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
+        dsimp [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+          RecInfoTypeOrigins.addMinor] at hlocal
+        have hidxTypes : dIdx < Horigins.minorTypes.size := by
+          rw [Horigins.minorTypes_size]
+          exact hidx
+        rw [mkRecInfos.loopCtors.getElemBang_modify_self
+          Horigins.minorTypes dIdx _ hidxTypes] at hlocal
+        simp only [Array.size_push] at hlocal
+        omega
+      have holdBlueprint :
+          localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
+        rw [HblueprintSemantics.rows_size dIdx hidx]
+        exact hold
+      have holdBlueprint' :
+          localIndex < recInfos[dIdx].ruleBlueprints.size := by
+        simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
+      have hblueprintGet :
+          (recInfos[dIdx]!.ruleBlueprints.push
+            (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
+            recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
+        simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
+          Array.getElem_push_lt holdBlueprint'] <;> omega
+      rcases HblueprintSemantics.entry dIdx hidx localIndex hold with ⟨Hentry⟩
+      have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
+      have hshapeOld :
+          HoriginsNext.minorShapes dIdx howner localIndex hlocal =
+            Horigins.minorShapes dIdx hidx localIndex hold := by
+        simp [HoriginsNext, HoriginsMinor,
+          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
+          hlast]
+      rw [hshapeOld]
+      simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt,
+        mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
+        hlast, Array.getElem_push_lt holdBlueprint, hblueprintGet,
+        hmotivesNext] using
+          Hentry
+  · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
+      simpa [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
+        RecInfoTypeOrigins.addMinor,
+        mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
+          dIdx owner _ (by simpa [Horigins.minorTypes_size] using hownerOld)
+          hdi] using hlocal
+    rcases HblueprintSemantics.entry owner hownerOld localIndex
+      hlocalOld with ⟨Hentry⟩
+    have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
+    have hshapeOld :
+        HoriginsNext.minorShapes owner howner localIndex hlocal =
+          Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
+      simp [HoriginsNext, HoriginsMinor,
+        RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor, hdi]
+    rw [hshapeOld]
+    simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt, hdi,
+      mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
+        hownerOld hdi, hmotivesNext] using Hentry
+
 /-- Semantic boundary for the final action of one constructor iteration.
 Once the complete minor domain has been independently translated and typed,
 this mirrors production's `withLocalDecl`, updates the owning minor row, and
@@ -2007,522 +2611,24 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     HminorShapePosition HminorSemantic
   let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
     (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
-  let HmotiveCore := modifyMinorAndBlueprint_motiveCoreEq recInfos dIdx hidx
-    (.fvar ⟨c.ngen.curr⟩) (mkBlueprint (.fvar ⟨c.ngen.curr⟩))
-  have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
-    apply Array.ext
-    · simp [next]
-    · intro i hiNext hiOld
-      rw [Array.getElem_map, Array.getElem_map]
-      rw [Array.getElem_modify (by simpa [next] using hiNext)]
-      split <;> rfl
   let HbindingsNext : RecInfoBindings cMinor next :=
     HbindingsMinor.rebaseCore Hcore
   let HoriginsNext : RecInfoTypeOrigins cMinor next :=
     HoriginsMinor.rebaseCore Hcore
   let HparamsMinor := Hparams.mono Hstep.contextLE
-  have hmotivesFVarsNext : HbindingsNext.motives.fvars =
-      Hbindings.motives.fvars := by
-    change (HbindingsMinor.rebaseCore Hcore).motives.fvars = _
-    rw [HbindingsMinor.rebaseCore_motives_fvars Hcore]
-    exact Hbindings.addMinor_motives_fvars dIdx hidx
-      (BindingContextLE.refl c) R.toBindingContextWF minorName
-      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default
-  have hflatMinorsFVarsNext : HbindingsNext.flatMinors.fvars =
-      Hbindings.flatMinors.fvars ++ [(⟨c.ngen.curr⟩ : FVarId)] := by
-    change (HbindingsMinor.rebaseCore Hcore).flatMinors.fvars = _
-    rw [HbindingsMinor.rebaseCore_flatMinors_fvars Hcore]
-    exact Hbindings.addMinor_flatMinors_fvars dIdx hidx
-      (BindingContextLE.refl c) R.toBindingContextWF minorName
-      (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hlater
   have HblueprintsNext :
-      RecInfoRuleBlueprintOrigins stats next HoriginsNext := by
-    refine {
-      rows_size := ?_
-      entry := ?_
-      fields_outer_fresh := ?_ }
-    · intro owner howner
-      have hownerOld : owner < recInfos.size := by
-        simpa [next] using howner
-      by_cases hdi : dIdx = owner
-      · subst owner
-        have hrow := Hblueprints.rows_size dIdx hidx
-        have hminorSize := (Horigins.minors dIdx hidx).size_eq
-        have hidxTypes : dIdx < Horigins.minorTypes.size := by
-          rw [Horigins.minorTypes_size]
-          exact hidx
-        dsimp [next, HoriginsNext, HoriginsMinor,
-          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-        rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx]
-        rw [mkRecInfos.loopCtors.getElemBang_modify_self Horigins.minorTypes
-          dIdx _ hidxTypes]
-        simp only [Array.size_push]
-        omega
-      · have hrow := Hblueprints.rows_size owner hownerOld
-        have hownerTypes : owner < Horigins.minorTypes.size := by
-          rw [Horigins.minorTypes_size]
-          exact hownerOld
-        dsimp [next, HoriginsNext, HoriginsMinor,
-          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-        rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
-          hownerOld hdi]
-        rw [mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-          dIdx owner _ hownerTypes hdi]
-        exact hrow
-    · intro owner howner localIndex hlocal
-      have hownerOld : owner < recInfos.size := by
-        simpa [next] using howner
-      by_cases hdi : dIdx = owner
-      · subst owner
-        by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
-        · subst localIndex
-          have hminorIndex : Horigins.minorTypes[dIdx]!.size =
-              recInfos[dIdx]!.minors.size :=
-            (Horigins.minors dIdx hidx).size_eq
-          have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
-              recInfos[dIdx]!.ruleBlueprints.size :=
-            (Hblueprints.rows_size dIdx hidx).symm
-          have hminorLast :
-              (recInfos[dIdx]!.minors.push (.fvar ⟨c.ngen.curr⟩))[
-                Horigins.minorTypes[dIdx]!.size]! =
-                .fvar ⟨c.ngen.curr⟩ := by
-            rw [hminorIndex]
-            simp
-          have hblueprintLast :
-              (recInfos[dIdx]!.ruleBlueprints.push
-                (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
-                  Horigins.minorTypes[dIdx]!.size]! =
-                mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
-            rw [hblueprintIndex]
-            simp
-          have hshapeLast :
-              HoriginsNext.minorShapes dIdx howner
-                Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
-            simp [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-          rw [hshapeLast]
-          simpa [next, HoriginsNext, HoriginsMinor,
-            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-            RecInfoRuleBlueprintOriginAt,
-            mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
-            hminorLast, hblueprintLast]
-            using HminorBlueprint
-        · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
-            dsimp [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
-              RecInfoTypeOrigins.addMinor] at hlocal
-            have hidxTypes : dIdx < Horigins.minorTypes.size := by
-              rw [Horigins.minorTypes_size]
-              exact hidx
-            rw [mkRecInfos.loopCtors.getElemBang_modify_self
-              Horigins.minorTypes dIdx _ hidxTypes] at hlocal
-            simp only [Array.size_push] at hlocal
-            omega
-          have holdMinor : localIndex < recInfos[dIdx]!.minors.size := by
-            rw [← (Horigins.minors dIdx hidx).size_eq]
-            exact hold
-          have holdBlueprint :
-              localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
-            rw [Hblueprints.rows_size dIdx hidx]
-            exact hold
-          have holdMinor' : localIndex < recInfos[dIdx].minors.size := by
-            simpa [getElem!_pos recInfos dIdx hidx] using holdMinor
-          have holdBlueprint' :
-              localIndex < recInfos[dIdx].ruleBlueprints.size := by
-            simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
-          have hminorGet :
-              (recInfos[dIdx]!.minors.push
-                (.fvar ⟨c.ngen.curr⟩))[localIndex]! =
-                recInfos[dIdx]!.minors[localIndex]! := by
-            simp [Array.getElem!_eq_getD, Array.getD, hidx, holdMinor',
-              Array.getElem_push_lt holdMinor'] <;> omega
-          have hblueprintGet :
-              (recInfos[dIdx]!.ruleBlueprints.push
-                (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
-                recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
-            simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
-              Array.getElem_push_lt holdBlueprint'] <;> omega
-          have Hentry := Hblueprints.entry dIdx hidx localIndex hold
-          have hshapeOld :
-              HoriginsNext.minorShapes dIdx howner localIndex hlocal =
-                Horigins.minorShapes dIdx hidx localIndex hold := by
-            simp [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              hlast]
-          rw [hshapeOld]
-          simpa [next, HoriginsNext, HoriginsMinor,
-            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-            RecInfoRuleBlueprintOriginAt,
-            mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
-            hlast, Array.getElem_push_lt hold,
-            Array.getElem_push_lt holdMinor,
-            Array.getElem_push_lt holdBlueprint,
-            hminorGet, hblueprintGet] using Hentry
-      · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
-          simpa [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
-            RecInfoTypeOrigins.addMinor,
-            mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-              dIdx owner _ (by simpa [Horigins.minorTypes_size] using hownerOld)
-              hdi] using hlocal
-        have Hentry := Hblueprints.entry owner hownerOld localIndex hlocalOld
-        have hshapeOld :
-            HoriginsNext.minorShapes owner howner localIndex hlocal =
-              Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
-          simp [HoriginsNext, HoriginsMinor,
-            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor, hdi]
-        rw [hshapeOld]
-        simpa [next, HoriginsNext, HoriginsMinor,
-          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-          RecInfoRuleBlueprintOriginAt,
-          hdi,
-          mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
-            hownerOld hdi] using Hentry
-    · intro owner howner localIndex hlocal fv hfv
-      have hownerOld : owner < recInfos.size := by
-        simpa [next] using howner
-      rw [hmotivesNext, Hparams.exprArrayFVarIds,
-        Hbindings.motives.exprArrayFVarIds,
-        HbindingsNext.flatMinors.exprArrayFVarIds,
-        hflatMinorsFVarsNext]
-      intro houter
-      have holdOrCurrent :
-          fv ∈ (Hparams.fvars ++ Hbindings.motives.fvars) ++
-              Hbindings.flatMinors.fvars ∨
-            fv = (⟨c.ngen.curr⟩ : FVarId) := by
-        rcases List.mem_append.mp houter with hpm | hminorCurrent
-        · exact Or.inl (List.mem_append.mpr (Or.inl hpm))
-        · rcases List.mem_append.mp hminorCurrent with hminor | hcurrent
-          · exact Or.inl (List.mem_append.mpr (Or.inr hminor))
-          · exact Or.inr (by simpa using hcurrent)
-      rcases holdOrCurrent with holdOuter | hcurrent
-      · by_cases hdi : dIdx = owner
-        · subst owner
-          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
-          · subst localIndex
-            have hshapeLast :
-                HoriginsNext.minorShapes dIdx howner
-                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-            rw [hshapeLast] at hfv
-            exact HminorFieldsFresh fv hfv holdOuter
-          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
-              dsimp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore,
-                RecInfoTypeOrigins.addMinor] at hlocal
-              have hidxTypes : dIdx < Horigins.minorTypes.size := by
-                rw [Horigins.minorTypes_size]
-                exact hidx
-              rw [mkRecInfos.loopCtors.getElemBang_modify_self
-                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
-              simp only [Array.size_push] at hlocal
-              omega
-            have hshapeOld :
-                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
-                  Horigins.minorShapes dIdx hidx localIndex hold := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-                hlast]
-            rw [hshapeOld] at hfv
-            apply Hblueprints.fields_outer_fresh dIdx hidx
-              localIndex hold fv hfv
-            simpa only [Hparams.exprArrayFVarIds,
-              Hbindings.motives.exprArrayFVarIds,
-              Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
-        · have hlocalOld :
-              localIndex < Horigins.minorTypes[owner]!.size := by
-            simpa [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-                dIdx owner _
-                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
-              using hlocal
-          have hshapeOld :
-              HoriginsNext.minorShapes owner howner localIndex hlocal =
-                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
-            simp [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              hdi]
-          rw [hshapeOld] at hfv
-          apply Hblueprints.fields_outer_fresh owner hownerOld
-            localIndex hlocalOld fv hfv
-          simpa only [Hparams.exprArrayFVarIds,
-            Hbindings.motives.exprArrayFVarIds,
-            Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
-      · subst fv
-        apply R.toBindingContextWF.current_not_mem
-        by_cases hdi : dIdx = owner
-        · subst owner
-          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
-          · subst localIndex
-            have hshapeLast :
-                HoriginsNext.minorShapes dIdx howner
-                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-            rw [hshapeLast] at hfv
-            rcases HminorSemantic with ⟨HS⟩
-            exact HS.semantic.extension.contextLE.fvars
-              (HminorShape.fields_bound.members _ hfv)
-          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
-              dsimp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore,
-                RecInfoTypeOrigins.addMinor] at hlocal
-              have hidxTypes : dIdx < Horigins.minorTypes.size := by
-                rw [Horigins.minorTypes_size]
-                exact hidx
-              rw [mkRecInfos.loopCtors.getElemBang_modify_self
-                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
-              simp only [Array.size_push] at hlocal
-              omega
-            have hshapeOld :
-                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
-                  Horigins.minorShapes dIdx hidx localIndex hold := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-                hlast]
-            rw [hshapeOld] at hfv
-            rcases HminorSemantics dIdx hidx localIndex hold with ⟨HS⟩
-            exact HS.semantic.extension.contextLE.fvars
-              ((Horigins.minorShapes dIdx hidx localIndex hold
-                ).fields_bound.members _ hfv)
-        · have hlocalOld :
-              localIndex < Horigins.minorTypes[owner]!.size := by
-            simpa [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-                dIdx owner _
-                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
-              using hlocal
-          have hshapeOld :
-              HoriginsNext.minorShapes owner howner localIndex hlocal =
-                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
-            simp [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              hdi]
-          rw [hshapeOld] at hfv
-          rcases HminorSemantics owner hownerOld localIndex hlocalOld with ⟨HS⟩
-          exact HS.semantic.extension.contextLE.fvars
-            ((Horigins.minorShapes owner hownerOld localIndex hlocalOld
-              ).fields_bound.members _ hfv)
+      RecInfoRuleBlueprintOrigins stats next HoriginsNext :=
+    continueMinor_blueprintOrigins stats R dIdx recInfos minorName
+      _ mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings
+      Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
+      Hblueprints HminorBlueprint
   have HblueprintSemanticsNext :
       RecInfoRuleBlueprintSemanticOrigins Rminor decl stats next elimLevel
-        Hsuffix.parameterDecls HoriginsNext := by
-    refine {
-      rows_size := HblueprintsNext.rows_size
-      entry := ?_
-      fields_outer_fresh := ?_ }
-    intro owner howner localIndex hlocal
-    have hownerOld : owner < recInfos.size := by
-      simpa [next] using howner
-    by_cases hdi : dIdx = owner
-    · subst owner
-      by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
-      · subst localIndex
-        have hblueprintIndex : Horigins.minorTypes[dIdx]!.size =
-            recInfos[dIdx]!.ruleBlueprints.size :=
-          (Hblueprints.rows_size dIdx hidx).symm
-        have hblueprintLast :
-            (recInfos[dIdx]!.ruleBlueprints.push
-              (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[
-                Horigins.minorTypes[dIdx]!.size]! =
-              mkBlueprint (.fvar ⟨c.ngen.curr⟩) := by
-          rw [hblueprintIndex]
-          simp
-        have hshapeLast :
-            HoriginsNext.minorShapes dIdx howner
-              Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
-          simp [HoriginsNext, HoriginsMinor,
-            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-        rw [hshapeLast]
-        rcases HminorBlueprintSemantic with ⟨HminorBlueprintSemantic⟩
-        have HminorBlueprintSemantic' :=
-          (HminorBlueprintSemantic.mono Hstep).rebaseMotiveCore HmotiveCore
-        simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt,
-          mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
-          hblueprintLast, hmotivesNext] using HminorBlueprintSemantic'
-      · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
-          dsimp [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
-            RecInfoTypeOrigins.addMinor] at hlocal
-          have hidxTypes : dIdx < Horigins.minorTypes.size := by
-            rw [Horigins.minorTypes_size]
-            exact hidx
-          rw [mkRecInfos.loopCtors.getElemBang_modify_self
-            Horigins.minorTypes dIdx _ hidxTypes] at hlocal
-          simp only [Array.size_push] at hlocal
-          omega
-        have holdBlueprint :
-            localIndex < recInfos[dIdx]!.ruleBlueprints.size := by
-          rw [Hblueprints.rows_size dIdx hidx]
-          exact hold
-        have holdBlueprint' :
-            localIndex < recInfos[dIdx].ruleBlueprints.size := by
-          simpa [getElem!_pos recInfos dIdx hidx] using holdBlueprint
-        have hblueprintGet :
-            (recInfos[dIdx]!.ruleBlueprints.push
-              (mkBlueprint (.fvar ⟨c.ngen.curr⟩)))[localIndex]! =
-              recInfos[dIdx]!.ruleBlueprints[localIndex]! := by
-          simp [Array.getElem!_eq_getD, Array.getD, hidx, holdBlueprint',
-            Array.getElem_push_lt holdBlueprint'] <;> omega
-        rcases HblueprintSemantics.entry dIdx hidx localIndex hold with ⟨Hentry⟩
-        have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
-        have hshapeOld :
-            HoriginsNext.minorShapes dIdx howner localIndex hlocal =
-              Horigins.minorShapes dIdx hidx localIndex hold := by
-          simp [HoriginsNext, HoriginsMinor,
-            RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-            hlast]
-        rw [hshapeOld]
-        simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt,
-          mkRecInfos.loopCtors.getElemBang_modify_self recInfos dIdx _ hidx,
-          hlast, Array.getElem_push_lt holdBlueprint, hblueprintGet,
-          hmotivesNext] using
-            Hentry
-    · have hlocalOld : localIndex < Horigins.minorTypes[owner]!.size := by
-        simpa [HoriginsNext, HoriginsMinor, RecInfoTypeOrigins.rebaseCore,
-          RecInfoTypeOrigins.addMinor,
-          mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-            dIdx owner _ (by simpa [Horigins.minorTypes_size] using hownerOld)
-            hdi] using hlocal
-      rcases HblueprintSemantics.entry owner hownerOld localIndex
-        hlocalOld with ⟨Hentry⟩
-      have Hentry := (Hentry.mono Hstep).rebaseMotiveCore HmotiveCore
-      have hshapeOld :
-          HoriginsNext.minorShapes owner howner localIndex hlocal =
-            Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
-        simp [HoriginsNext, HoriginsMinor,
-          RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor, hdi]
-      rw [hshapeOld]
-      simpa [next, Rminor, RecInfoRuleBlueprintSemanticOriginAt, hdi,
-        mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx owner _
-          hownerOld hdi, hmotivesNext] using Hentry
-    · intro owner howner localIndex hlocal fv hfv
-      have hownerOld : owner < recInfos.size := by
-        simpa [next] using howner
-      rw [hmotivesNext, Hparams.exprArrayFVarIds,
-        Hbindings.motives.exprArrayFVarIds,
-        HbindingsNext.flatMinors.exprArrayFVarIds,
-        hflatMinorsFVarsNext]
-      intro houter
-      have holdOrCurrent :
-          fv ∈ (Hparams.fvars ++ Hbindings.motives.fvars) ++
-              Hbindings.flatMinors.fvars ∨
-            fv = (⟨c.ngen.curr⟩ : FVarId) := by
-        rcases List.mem_append.mp houter with hpm | hminorCurrent
-        · exact Or.inl (List.mem_append.mpr (Or.inl hpm))
-        · rcases List.mem_append.mp hminorCurrent with hminor | hcurrent
-          · exact Or.inl (List.mem_append.mpr (Or.inr hminor))
-          · exact Or.inr (by simpa using hcurrent)
-      rcases holdOrCurrent with holdOuter | hcurrent
-      · by_cases hdi : dIdx = owner
-        · subst owner
-          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
-          · subst localIndex
-            have hshapeLast :
-                HoriginsNext.minorShapes dIdx howner
-                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-            rw [hshapeLast] at hfv
-            exact HminorFieldsFresh fv hfv holdOuter
-          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
-              dsimp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore,
-                RecInfoTypeOrigins.addMinor] at hlocal
-              have hidxTypes : dIdx < Horigins.minorTypes.size := by
-                rw [Horigins.minorTypes_size]
-                exact hidx
-              rw [mkRecInfos.loopCtors.getElemBang_modify_self
-                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
-              simp only [Array.size_push] at hlocal
-              omega
-            have hshapeOld :
-                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
-                  Horigins.minorShapes dIdx hidx localIndex hold := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-                hlast]
-            rw [hshapeOld] at hfv
-            apply HblueprintSemantics.fields_outer_fresh dIdx hidx
-              localIndex hold fv hfv
-            simpa only [Hparams.exprArrayFVarIds,
-              Hbindings.motives.exprArrayFVarIds,
-              Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
-        · have hlocalOld :
-              localIndex < Horigins.minorTypes[owner]!.size := by
-            simpa [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-                dIdx owner _
-                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
-              using hlocal
-          have hshapeOld :
-              HoriginsNext.minorShapes owner howner localIndex hlocal =
-                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
-            simp [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              hdi]
-          rw [hshapeOld] at hfv
-          apply HblueprintSemantics.fields_outer_fresh owner hownerOld
-            localIndex hlocalOld fv hfv
-          simpa only [Hparams.exprArrayFVarIds,
-            Hbindings.motives.exprArrayFVarIds,
-            Hbindings.flatMinors.exprArrayFVarIds] using holdOuter
-      · subst fv
-        apply R.toBindingContextWF.current_not_mem
-        by_cases hdi : dIdx = owner
-        · subst owner
-          by_cases hlast : localIndex = Horigins.minorTypes[dIdx]!.size
-          · subst localIndex
-            have hshapeLast :
-                HoriginsNext.minorShapes dIdx howner
-                    Horigins.minorTypes[dIdx]!.size hlocal = HminorShape := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor]
-            rw [hshapeLast] at hfv
-            rcases HminorSemantic with ⟨HS⟩
-            exact HS.semantic.extension.contextLE.fvars
-              (HminorShape.fields_bound.members _ hfv)
-          · have hold : localIndex < Horigins.minorTypes[dIdx]!.size := by
-              dsimp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore,
-                RecInfoTypeOrigins.addMinor] at hlocal
-              have hidxTypes : dIdx < Horigins.minorTypes.size := by
-                rw [Horigins.minorTypes_size]
-                exact hidx
-              rw [mkRecInfos.loopCtors.getElemBang_modify_self
-                Horigins.minorTypes dIdx _ hidxTypes] at hlocal
-              simp only [Array.size_push] at hlocal
-              omega
-            have hshapeOld :
-                HoriginsNext.minorShapes dIdx howner localIndex hlocal =
-                  Horigins.minorShapes dIdx hidx localIndex hold := by
-              simp [HoriginsNext, HoriginsMinor,
-                RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-                hlast]
-            rw [hshapeOld] at hfv
-            rcases HminorSemantics dIdx hidx localIndex hold with ⟨HS⟩
-            exact HS.semantic.extension.contextLE.fvars
-              ((Horigins.minorShapes dIdx hidx localIndex hold
-                ).fields_bound.members _ hfv)
-        · have hlocalOld :
-              localIndex < Horigins.minorTypes[owner]!.size := by
-            simpa [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              mkRecInfos.loopCtors.getElemBang_modify_ne Horigins.minorTypes
-                dIdx owner _
-                  (by simpa [Horigins.minorTypes_size] using hownerOld) hdi]
-              using hlocal
-          have hshapeOld :
-              HoriginsNext.minorShapes owner howner localIndex hlocal =
-                Horigins.minorShapes owner hownerOld localIndex hlocalOld := by
-            simp [HoriginsNext, HoriginsMinor,
-              RecInfoTypeOrigins.rebaseCore, RecInfoTypeOrigins.addMinor,
-              hdi]
-          rw [hshapeOld] at hfv
-          rcases HminorSemantics owner hownerOld localIndex hlocalOld with ⟨HS⟩
-          exact HS.semantic.extension.contextLE.fvars
-            ((Horigins.minorShapes owner hownerOld localIndex hlocalOld
-              ).fields_bound.members _ hfv)
+        Hsuffix.parameterDecls HoriginsNext :=
+    continueMinor_blueprintSemanticOrigins stats R dIdx recInfos minorName
+      _ mkBlueprint Horigins hidx HminorShape HminorShapePosition Hbindings
+      Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
+      Hminor HminorType HblueprintSemantics HminorBlueprintSemantic
   have HminorSourcesNext :
       RecInfoMinorSourceAlignment stats indTypes HoriginsNext := by
     exact RecInfoMinorSourceAlignment.rebaseCore _ HminorSourcesMinor Hcore
