@@ -193,10 +193,10 @@ theorem defeq_major {env : VEnv} (H : env.WF) (hdf : env.defeqs df)
     obtain ⟨_, hm⟩ := VExpr.app.inj hm
     obtain ⟨rfl, rfl, rfl⟩ := mkApps_const_inj hm.symm
     refine ⟨quotCtor, [.bvar 5, .bvar 4], 1, (HT.quot hq).2.2.1, rfl, rfl, fun _ => rfl⟩
-  · obtain ⟨_, hevX⟩ := HT.natives hdX
+  · obtain ⟨_, hevX⟩ := HT.recursors hdX
     obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, hpriorX, hbX, hrX, _, hinstX,
       hleX, _, _, hfamX⟩ := hevX
-    have hgX' : (compilationRestoration srcX auxX).equation (dX.nativeInstance.equation iX) =
+    have hgX' : (compilationRestoration srcX auxX).equation (dX.recursorInstance.equation iX) =
         some df := by
       simpa only [RecursorData.equation, hrX] using hgX
     have htypesE : ∀ t ∈ srcX.types, env.constants t.name = some t.toVConstant := fun t ht =>

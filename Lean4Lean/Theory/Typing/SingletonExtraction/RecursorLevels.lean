@@ -133,7 +133,7 @@ theorem propElim_levels {ls ls' : List VLevel} {E : PropElim} (hE : data.propEli
   simp only [Option.bind_eq_bind, Option.pure_def, Option.bind_eq_some_iff,
     Option.some.injEq] at hE
   obtain ⟨k, hk, i, hi, rfl⟩ := hE
-  refine ⟨(data.nativeInstance.specialize 0 (ls'.set k .zero)).singletonElim
+  refine ⟨(data.recursorInstance.specialize 0 (ls'.set k .zero)).singletonElim
     data.owner data.schema.signature.constructors[i]
     (.const data.name (ls'.set k .zero)), by simp [hk, hi], ?_⟩
   have h0 := wf_set hls k
@@ -154,7 +154,7 @@ theorem propParams_levels {ls ls' : List VLevel}
     (hls : ∀ l ∈ ls, l.WF U) (hls' : ∀ l ∈ ls', l.WF U) (heq : List.Forall₂ (· ≈ ·) ls ls') :
     List.Forall₂ (EqUpToLevels U) (data.propParams ls) (data.propParams ls') := by
   simp only [propParams]
-  generalize data.nativeInstance.params = l
+  generalize data.recursorInstance.params = l
   induction l with
   | nil => exact .nil
   | cons x l ih => exact .cons (EqUpToLevels.instL_expr x hls hls' heq) ih

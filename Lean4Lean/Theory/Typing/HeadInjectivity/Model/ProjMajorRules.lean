@@ -25,9 +25,9 @@ open InductiveSignature
 def ProjsClosed (envF env : VEnv) : Prop :=
   ∀ S info, envF.projections S info → Model.IsCtor env info.ctorName → env.projections S info
 
-theorem Model.IsNativeCtor.mono {env env' : VEnv} {c : Name}
-    (hdf : ∀ df, env.defeqs df → env'.defeqs df) (h : Model.IsNativeCtor env c) :
-    Model.IsNativeCtor env' c :=
+theorem Model.IsInstalledCtor.mono {env env' : VEnv} {c : Name}
+    (hdf : ∀ df, env.defeqs df → env'.defeqs df) (h : Model.IsInstalledCtor env c) :
+    Model.IsInstalledCtor env' c :=
   let ⟨df, h, hm⟩ := h; ⟨df, hdf df h, hm⟩
 
 theorem Model.IsCtor.mono {env env' : VEnv} {c : Name}
@@ -180,7 +180,7 @@ theorem projMajor_source {envF env0 installed base E : VEnv} {source expanded : 
     (List.mem_map.mpr ⟨index, List.mem_finRange _, rfl⟩)
   have hρI : installed.defeqs ρ := VInductBlock.install_rule hinst hρmem
   obtain ⟨Ds, idx, hρlhs⟩ := EnvTables.CompilationData.source_rule C index ho hc hcn hρ
-  have hcis : IsNativeCtor installed c.name :=
+  have hcis : IsInstalledCtor installed c.name :=
     ⟨ρ, hρI, _, _, _, by rw [hρlhs, EnvTables.ruleBody_stripLams]⟩
   have hcconst : envF.constants c.name = some c.toVConstant :=
     hle.constants (VInductBlock.install_ctor_lookup hinst (by
@@ -214,7 +214,7 @@ theorem projMajor_container {envF env0 base : VEnv} {aux : List ContainerSpecial
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors)
     {nf : Nat} (harity : nf + a.container.nparams = c.type.forallArity) :
     ProjMajor envF a.source.name c.name a.container.nparams nf a.source.resultLevel := by
-  have hcis : IsNativeCtor env0 c.name := container_ctor_native hprior hb0 ha hc
+  have hcis : IsInstalledCtor env0 c.name := container_ctor_installed hprior hb0 ha hc
   obtain ⟨h1, ls, h2⟩ := hprior.container_ctor a ha c hc
   have hcf : CtorFam envF c.name a.source.name := ⟨_, ls, (hb0.trans h0F).constants h1, h2⟩
   by_cases hex : ∃ info, envF.projections a.source.name info

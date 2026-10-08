@@ -23,7 +23,7 @@ structure SourceAddInduct
     decl envTypes envCtors
   extension : VEnv.AddInduct sourceEnv decl installedVEnv
 
-/-- Ordinary runs and primitive-bootstrap runs share the same independent
+/-- Ordinary runs and primitive-toConstantsInstallation runs share the same independent
 source judgment; this alias documents the ordinary use site. -/
 abbrev OrdinarySourceAddInduct := SourceAddInduct
 
@@ -42,7 +42,7 @@ It records a complete model of the exact returned environment, pointwise
 extension of all source observers, and the independent specification of the
 exact submitted source declaration, and preservation of the constructor
 telescope certificate from the source environment to the returned one.
-Equality bootstrap state is deliberately absent: it is not an
+Equality toConstantsInstallation state is deliberately absent: it is not an
 inductive-soundness precondition. -/
 structure InductiveExtension
     (sourceEnv outEnv : Environment) (sourceModels : VEnvs)

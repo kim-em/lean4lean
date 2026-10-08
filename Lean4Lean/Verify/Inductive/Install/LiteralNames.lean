@@ -176,7 +176,7 @@ theorem HeaderEnvironment.sourceContainsOfTargetContainsPrimitive
     simpa [hname] using hprimitive
 
 /-- The actual literal premise needed by positivity is automatic for every
-ordinary declaration, including the `Char` bootstrap declaration.  Natural
+ordinary declaration, including the `Char` toConstantsInstallation declaration.  Natural
 literals only expose reserved natural constructors.  A supported string
 literal implies that the reserved `String.ofList` lookup predates this
 ordinary header batch; `HasPrimitives`, orderedness, and source freshness then

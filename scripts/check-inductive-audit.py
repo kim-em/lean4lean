@@ -21,7 +21,7 @@ ROOTS = {
     "Lean4Lean.Replay.replayFresh.WF",
     "Lean4Lean.Replay.replayFromImports.WF",
     "Lean4Lean.Replay.Replayed.foldlM",
-    "Lean4Lean.VEnv.QuotRegistered.witness_app",
+    "Lean4Lean.VEnv.QuotRegistered.propInhabitant_app",
     "Lean4Lean.VEnv.QuotPrefixUnfold.defeq",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveExtensionWF",
     "Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveExtensionWF",
@@ -79,9 +79,9 @@ FOUNDATION_ROOTS = {
     "Lean4Lean.VEnv.IsDefEqStrong.subst",
     "Lean4Lean.VEnv.IsDefEq.transport_bvar",
     "Lean4Lean.VEnv.NativeCaptureReplay.transport",
-    "Lean4Lean.VEnv.HasType.native_open",
-    "Lean4Lean.VEnv.HasType.native_eta",
-    "Lean4Lean.VEnv.IsDefEq.native_wrapLams",
+    "Lean4Lean.VEnv.HasType.etaOpen_wf",
+    "Lean4Lean.VEnv.HasType.etaOpen_defeq",
+    "Lean4Lean.VEnv.IsDefEq.etaOpen_wrapLams",
 }
 STRICT_ROOTS = DEFINITION_ROOTS | FOUNDATION_ROOTS
 ROOTS |= STRICT_ROOTS

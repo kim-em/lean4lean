@@ -832,7 +832,7 @@ theorem AddInduct.le
   cases H with
   | intro _ _ _ _ hinstall => exact VInductBlock.install_le hinstall
 
-theorem AddInduct.productionOrigins
+theorem AddInduct.kernelOrigins
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     InductInfosFromDecl m₁ m₂ decl := by
   cases H with
@@ -1516,7 +1516,7 @@ theorem InductFamiliesInstalled.addInduct
     (H : AddInduct safety source base decl target installed) :
     InductFamiliesInstalled safety target installed := by
   intro familyName familyInfo hfind hvisible
-  rcases H.productionOrigins familyName familyInfo hfind with hold | hnew
+  rcases H.kernelOrigins familyName familyInfo hfind with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible with ⟨P⟩
     exact ⟨P.mono (by simpa [P.name] using hfind)
       H.preservesSourceFind H.le⟩

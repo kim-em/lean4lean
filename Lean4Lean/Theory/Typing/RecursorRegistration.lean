@@ -58,10 +58,10 @@ theorem RecursorRegistered.singletonEquation
     (hgen : data.singletonEquation = some equation) : env.defeqs equation := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, _, hr, _, hu, hl, ht, hi, he⟩ := H
-  have hinstance : data.nativeInstance = g := by
+  have hinstance : data.recursorInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [RecursorData.nativeInstance, Instance.mk.injEq]
+      simp only [RecursorData.recursorInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   have every (index : Fin data.schema.signature.constructors.size)
       (hg : (compilationRestoration source auxiliaries).equation (g.equation index) = some equation) :
@@ -87,10 +87,10 @@ theorem RecursorRegistered.recursorType
     env.constants data.name = some { uvars := data.uvars, type := type } := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, _, hr, _, hu, hl, ht, hi, he⟩ := H
-  have hinstance : data.nativeInstance = g := by
+  have hinstance : data.recursorInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [RecursorData.nativeInstance, Instance.mk.injEq]
+      simp only [RecursorData.recursorInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   have hgenerated : g.recursor data.owner ∈ g.recursors :=
     List.mem_map.mpr ⟨data.owner, List.mem_finRange _, rfl⟩

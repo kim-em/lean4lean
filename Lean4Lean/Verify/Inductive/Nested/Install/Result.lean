@@ -55,10 +55,10 @@ theorem NestedInstalledRun.inductiveExtension
   have Hlower' : NestedLoweringOutputClosed E.context.env fuel
       nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result := by
-    simpa only [E.productionContext_env] using Hlower
+    simpa only [E.context_env] using Hlower
   have Hmetadata : SourcePrefixOfLowered decl
       E.lowered.loweredDecl := by
-    simpa only [E.production_eq] using E.assembly.materialized
+    simpa only [E.lowered_eq] using E.assembly.materialized
   cases isUnsafe with
   | false =>
       exact E.safeInductiveExtension wf htels Hlower' Hmetadata
@@ -150,21 +150,21 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
       lowered := V'.lowered
       context := V'.context
       contextWF := V'.contextWF
-      productionContext_env := V'.productionContext_env
-      productionContext_lparams := V'.productionContext_lparams
-      productionContext_safety := V'.productionContext_safety
-      production_c := V'.production_c
-      production_nparams := V'.production_nparams
-      production_isUnsafe := V'.production_isUnsafe
-      production_initialEnv := V'.production_initialEnv
-      production_indTypes := V'.production_indTypes
+      context_env := V'.context_env
+      context_lparams := V'.context_lparams
+      context_safety := V'.context_safety
+      lowered_c := V'.lowered_c
+      lowered_nparams := V'.lowered_nparams
+      lowered_isUnsafe := V'.lowered_isUnsafe
+      lowered_initialEnv := V'.lowered_initialEnv
+      lowered_indTypes := V'.lowered_indTypes
       validationFuel := V'.validationFuel
       lowering := V'.lowering
       restoration := V'.restoration
       primitiveSafe := V'.primitiveSafe
       validationEnv := V'.validationEnv
       validationEnvironment := by
-        simpa only [V'.productionContext_allowPrimitive] using
+        simpa only [V'.context_allowPrimitive] using
           V'.validationEnvironment
       recursorTypeValidation := V'.recursorTypeValidation
       recursorRuleValidation := V'.recursorRuleValidation
@@ -181,23 +181,23 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
       sourceCore := V'.sourceCore
       nativeSourceDecl_eq := V'.nativeSourceDecl_eq
       assembly := C
-      production_eq := hproduction
+      lowered_eq := hproduction
       finalResult := C.finalEnvironment Hvalid }
     have HlowerExact : NestedLoweringOutputClosed E'.context.env
         fuel.inductiveFuel nparams sourceTypes
         { ({ lvls := lparams.map .param, newTypes := #[] } :
             Lean4Lean.ElimNestedInductive.State) with
           newTypes := sourceTypes.toArray } res := by
-      simpa only [E'.productionContext_env] using HlowerInitialClosed
+      simpa only [E'.context_env] using HlowerInitialClosed
     have hconstructors : NestedInstalledConstructorsCoherent E' := by
       have Hparams := E'.constructorParameterDomainsDefEqNative
         (E'.restoredFamilyParameterScopes HlowerExact rfl)
       have Howners : ConstructorOwnersPresent E'.context.env := by
-        rw [E'.productionContext_env]
+        rw [E'.context_env]
         exact wf.constructorOwners
       have Hmetadata : SourcePrefixOfLowered sourceDecl
           E'.lowered.loweredDecl := by
-        simpa only [E'.production_eq] using E'.assembly.materialized
+        simpa only [E'.lowered_eq] using E'.assembly.materialized
       cases isUnsafe with
       | false =>
           exact E'.safeConstructorSemanticsOfParameterDomains wf HlowerExact

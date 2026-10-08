@@ -140,7 +140,7 @@ theorem Params.constHeaded (h : Pat p r) : ConstHeaded p := by
   | iota => exact ⟨ConstHeaded.varN trivial, ConstHeaded.varN trivial⟩
 
 omit [Params] in
-private theorem native_spine_go_head (e : VExpr) (args : List VExpr) :
+private theorem constSpine_go_head (e : VExpr) (args : List VExpr) :
     (VExpr.getAppFnArgs.go e args).1 = e.getAppFnArgs.1 := by
   induction e generalizing args with
   | app fn arg ih _ => exact (ih (arg :: args)).trans (ih [arg]).symm
@@ -154,10 +154,10 @@ theorem ConstHeaded.matches_head (hp : ConstHeaded p) (hm : p.Matches e levels v
   | elim => cases hp
   | app hf ha ih _ =>
     obtain ⟨name, h⟩ := ih hp.1
-    exact ⟨name, (native_spine_go_head _ [_]).trans h⟩
+    exact ⟨name, (constSpine_go_head _ [_]).trans h⟩
   | var hf ih =>
     obtain ⟨name, h⟩ := ih hp
-    exact ⟨name, (native_spine_go_head _ [_]).trans h⟩
+    exact ⟨name, (constSpine_go_head _ [_]).trans h⟩
 
 omit [Params] in
 theorem ConstHeaded.subpattern (H : ConstHeaded parent) (hs : Subpattern child parent) : ConstHeaded child := by
@@ -168,18 +168,18 @@ theorem ConstHeaded.subpattern (H : ConstHeaded parent) (hs : Subpattern child p
   | varL _ ih => exact ih H
 
 omit [Params] in
-theorem matches_nativeHead {p : Pattern} {e : VExpr} {levels : List VLevel} {values : p.Path → VExpr} (hm : p.Matches e levels values)
+theorem matches_constHead {p : Pattern} {e : VExpr} {levels : List VLevel} {values : p.Path → VExpr} (hm : p.Matches e levels values)
     (hh : e.getAppFnArgs.1 = .const name us) : p.constHead = some name := by
   induction hm with
   | const => cases hh; rfl
   | elim => cases hh
-  | app _ _ ih _ => exact ih ((native_spine_go_head _ [_]).symm.trans hh)
-  | var _ ih => exact ih ((native_spine_go_head _ [_]).symm.trans hh)
+  | app _ _ ih _ => exact ih ((constSpine_go_head _ [_]).symm.trans hh)
+  | var _ ih => exact ih ((constSpine_go_head _ [_]).symm.trans hh)
 
 theorem Params.not_rigid_match (h : env.NativeHeadRigid name) (hp : Pat p r)
     (hm : p.Matches e levels values) (hh : e.getAppFnArgs.1 = .const name us) : False := by
   obtain ⟨equation, originalName, originalLevels, hd, hn, he⟩ := pat_origin hp
-  have hname := matches_nativeHead hm hh
+  have hname := matches_constHead hm hh
   have heq : originalName = name := Option.some.inj (hn.symm.trans hname)
   subst originalName
   exact h equation hd originalLevels he
@@ -792,7 +792,7 @@ theorem ParRed.app_lam_cases (H : Γ ⊢ .app (.lam A body) arg ≫ out) :
   | beta hb ha => cases he; exact .inr ⟨_, _, hb, ha, rfl⟩
   | extra hp hm =>
     obtain ⟨sp, rfl⟩ := pat_simple hp
-    obtain ⟨name, hhead⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
+    obtain ⟨name, hhead⟩ := InductiveSignature.CaseSchema.recursor_pattern_head hm
     rw [← he] at hhead
     cases hhead
   | _ => cases he
@@ -885,7 +885,7 @@ theorem ParRed.elim_prefix
       exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn.symm)
     | extra hp hm =>
       obtain ⟨sp, rfl⟩ := pat_simple hp
-      obtain ⟨name, hh⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
+      obtain ⟨name, hh⟩ := InductiveSignature.CaseSchema.recursor_pattern_head hm
       rw [← he, InductiveSignature.spine_mkApps_exact _ _ rfl] at hh
       cases hh
     | _ => cases hshape
@@ -1353,7 +1353,7 @@ theorem ParRed.triangle (H1 : Γ ⊢ e : A) (H : Γ ⊢ e ≫ e') (H2 : Γ ⊢ e
       exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn)
     | extra hp hmatch =>
       obtain ⟨sp, rfl⟩ := pat_simple hp
-      obtain ⟨name, hh⟩ := InductiveSignature.CaseSchema.native_pattern_head hmatch
+      obtain ⟨name, hh⟩ := InductiveSignature.CaseSchema.recursor_pattern_head hmatch
       rw [← he, InductiveSignature.CaseSchema.Application.head] at hh
       cases hh
     | bvar | sort | const | elim | proj | lam | forallE => cases he
@@ -1742,7 +1742,7 @@ theorem _root_.Lean4Lean.Pattern.Check.const_levels
     exact ⟨(hl.defeq hΓ).symm.trans henv hΓ (IsDefEqU.trans henv hΓ ⟨_, ht⟩ (hh.defeq hΓ)), ih hr⟩
 
 variable! (hΓ : OnCtx Γ (env.IsType univs)) in
-theorem NormalEq.const_native_parallel
+theorem NormalEq.const_stored_parallel
     (hc : env.constants name = some ci)
     (hls : ∀ l ∈ ls, l.WF univs) (hls' : ∀ l ∈ ls', l.WF univs)
     (hlen : ls.length = ci.uvars) (he : List.Forall₂ (· ≈ ·) ls ls')

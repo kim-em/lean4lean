@@ -41,19 +41,19 @@ def singletonCtor (data : RecursorData) : Option (Fin data.schema.signature.cons
 /-- The sorts of the data fields, chosen at the generic universes. Proof fields get `Prop`. -/
 noncomputable def genericSorts (env : VEnv) (data : RecursorData)
     (c : Constructor data.schema.signature.families.size) : List VLevel :=
-  (List.range (data.nativeInstance.fieldsAt c).length).map fun i =>
-    match fieldSlot (data.nativeInstance.ctorIndicesAt c) (data.nativeInstance.fieldsAt c).length i with
+  (List.range (data.recursorInstance.fieldsAt c).length).map fun i =>
+    match fieldSlot (data.recursorInstance.ctorIndicesAt c) (data.recursorInstance.fieldsAt c).length i with
     | some _ => Classical.epsilon fun u =>
       env.HasType data.uvars
-        (data.nativeInstance.params ++ (data.nativeInstance.fieldsAt c).take i).reverse
-        ((data.nativeInstance.fieldsAt c).getD i default) (.sort u)
+        (data.recursorInstance.params ++ (data.recursorInstance.fieldsAt c).take i).reverse
+        ((data.recursorInstance.fieldsAt c).getD i default) (.sort u)
     | none => .zero
 
 /-- The cast specification at the generic universes. -/
 noncomputable def singletonLayoutGeneric (env : VEnv) (data : RecursorData) : Option SingletonLayout := do
   let i ← data.singletonCtor
   let c := data.schema.signature.constructors[i]
-  return data.nativeInstance.singletonCast data.owner c (data.genericSorts env c)
+  return data.recursorInstance.singletonCast data.owner c (data.genericSorts env c)
 
 /-- The cast specification at an occurrence's universes: the generic one, instantiated. -/
 noncomputable def singletonLayout (env : VEnv) (data : RecursorData) (packed : List VLevel) :
@@ -62,14 +62,14 @@ noncomputable def singletonLayout (env : VEnv) (data : RecursorData) (packed : L
 
 /-- The parameter telescope at an occurrence's universes. -/
 def propParams (data : RecursorData) (packed : List VLevel) : List VExpr :=
-  data.nativeInstance.params.map (·.instL packed)
+  data.recursorInstance.params.map (·.instL packed)
 
 /-- Elimination into `Prop` through the native recursor itself, at an occurrence's universes
 with the free elimination universe set to zero. -/
 def propElim (data : RecursorData) (packed : List VLevel) : Option PropElim := do
   let k ← data.targetParam
   let i ← data.singletonCtor
-  return (data.nativeInstance.specialize 0 (packed.set k .zero)).singletonElim data.owner
+  return (data.recursorInstance.specialize 0 (packed.set k .zero)).singletonElim data.owner
     data.schema.signature.constructors[i] (.const data.name (packed.set k .zero))
 
 end InductiveSignature.RecursorData
@@ -98,7 +98,7 @@ structure SingletonSignature (env : VEnv) (data : RecursorData) : Prop where
     ∀ l ∈ data.levels, ∀ (ls : List VLevel) (u : VLevel), l.inst (ls.set k u) = l.inst ls
   levels_wf : ∀ l ∈ data.levels, l.WF data.uvars
   recursor : env.constants data.name =
-    some { uvars := data.uvars, type := data.nativeInstance.recursorType data.owner }
+    some { uvars := data.uvars, type := data.recursorInstance.recursorType data.owner }
   singleton : ∃ envTypes, envTypes ≤ env ∧
     data.schema.signature.SingletonElimination envTypes data.uvars data.levels
   arity : ∀ ctor ∈ data.schema.signature.constructors.toList,
@@ -109,10 +109,10 @@ theorem singletonSignature (H : RecursorRegistered env data) (hlarge : data.larg
     (hzero : data.sourceLevel packed ≈ .zero) : SingletonSignature env data := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, hbase, hr, _, hu, hl, ht, hi, he⟩ := H
-  have hinstance : data.nativeInstance = g := by
+  have hinstance : data.recursorInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [RecursorData.nativeInstance, Instance.mk.injEq]
+      simp only [RecursorData.recursorInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   obtain ⟨envTypes, htypes0, hadm⟩ := hdata.admissible
   have hsingle : data.schema.signature.SingletonElimination envTypes g.uvars g.levels ∧
@@ -161,7 +161,7 @@ theorem singletonSignature (H : RecursorRegistered env data) (hlarge : data.larg
     have hwf := hadm.target_wf
     rw [hk] at hwf
     exact ⟨k, ht.trans hk, by rw [hu]; simpa [VLevel.WF] using hwf, by rw [hl]; exact hlv⟩
-  · have hgen : data.recursorType = some (data.nativeInstance.recursorType data.owner) := by
+  · have hgen : data.recursorType = some (data.recursorInstance.recursorType data.owner) := by
       simp [recursorType, hrest]
     exact RecursorRegistered.recursorType
       ⟨base, installBase, source, expanded, g, auxiliaries, block, _, hdata, ‹_›, hbase, hr, ‹_›,

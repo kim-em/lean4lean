@@ -7,7 +7,7 @@ replay premises. The fresh remaining telescope is renamed under its binders. -/
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.RecursorData
 
-private theorem native_lift_lift' (e : VExpr) (ρ : Lift) :
+private theorem etaOpen_lift_lift' (e : VExpr) (ρ : Lift) :
     (e.lift' ρ).lift = e.lift.lift' ρ.cons := by
   simp only [← lift'_consN_skipN (k := 0), Lift.consN]
   rw [← lift'_comp, ← lift'_comp]
@@ -44,7 +44,7 @@ theorem UnfoldingCheck.weak' (henv : env.WF)
     captures_length := ?_
     captures_typed := ?_
     major_prop := ?_
-    native_lhs := ?_ }
+    recursor_lhs := ?_ }
   · rw [PrefixUnfolding.rename_type]
     exact H.source_typed.weak' henv.ordered W
   · intro hn
@@ -71,7 +71,7 @@ theorem UnfoldingCheck.weak' (henv : env.WF)
     cases hn : program.domains.length with
     | zero => contradiction
     | succ n => simpa only [hn, Lift.consN, VExpr.lift', Lift.liftVar, PrefixUnfolding.rename] using hm'
-  · have hmatch := H.native_lhs.weak' henv Wext
+  · have hmatch := H.recursor_lhs.weak' henv Wext
     have hn : program.domains.length = program.domains.length - 1 + 1 := by omega
     have hleft : (VExpr.app (etaOpen (program.domains.length - 1) source).lift program.constructor).lift'
         (ρ.consN program.domains.length) =
@@ -79,7 +79,7 @@ theorem UnfoldingCheck.weak' (henv : env.WF)
           (program.constructor.lift' (ρ.consN program.domains.length)) := by
       conv => lhs; rw [hn]
       simp only [VExpr.lift', Lift.consN, Nat.add_sub_cancel]
-      rw [← native_lift_lift', ← nativeEtaBody_lift']
+      rw [← etaOpen_lift_lift', ← etaOpen_lift']
       conv => rhs; rw [hn]
       rfl
     rw [hleft] at hmatch
@@ -100,7 +100,7 @@ theorem PrefixUnfold.weak' {name : Name} {levels : List VLevel} (henv : env.WF)
         unfold singletonUnfolding at hg
         split at hg <;> simp [hh] at hg
     obtain ⟨type, htype⟩ := hex
-    have hg' := singletonProgram_lift' henv hr ht hz htype (hr.recursorType_closed henv htype) hg (ρ := ρ)
+    have hg' := singletonUnfolding_lift' henv hr ht hz htype (hr.recursorType_closed henv htype) hg (ρ := ρ)
     have replay' := replay.weak' henv W
     rw [VExpr.lift'_mkApps] at replay'
     rw [← PrefixUnfolding.rename_rhs (replay.templateScope henv).2.1]

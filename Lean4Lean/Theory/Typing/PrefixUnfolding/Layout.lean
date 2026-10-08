@@ -16,7 +16,7 @@ noncomputable def singletonFields (data : RecursorData) (S : SingletonLayout) (E
     (((data.openedArguments args).drop data.indexOffset).take data.numIndices) (.bvar 0)
     S.fields.length).2
 
-theorem singletonProgram_layout {data : RecursorData} {env : VEnv}
+theorem singletonUnfolding_layout {data : RecursorData} {env : VEnv}
     (H : data.singletonUnfolding env U levels args = some program) :
     ∃ S E, data.singletonLayout env levels = some S ∧ data.propElim levels = some E ∧
       program.domains.length = data.majorOffset + 1 - args.length ∧
@@ -141,8 +141,8 @@ theorem UnfoldingCheck.singleton_rel_components {R : List VExpr → VExpr → VE
     (ha : List.Forall₂ (R Γ) args args') :
     List.Forall₂ (R (program.domains.reverse ++ Γ)) program.captures program'.captures ∧
       R (program.domains.reverse ++ Γ) program.constructor program'.constructor := by
-  obtain ⟨S, E, hS, hE, hlen, hctor, hcapture⟩ := singletonProgram_layout hg
-  obtain ⟨S', E', hS', hE', hlen', hctor', hcapture'⟩ := singletonProgram_layout hg'
+  obtain ⟨S, E, hS, hE, hlen, hctor, hcapture⟩ := singletonUnfolding_layout hg
+  obtain ⟨S', E', hS', hE', hlen', hctor', hcapture'⟩ := singletonUnfolding_layout hg'
   cases hS.symm.trans hS'
   cases hE.symm.trans hE'
   have halen := Lean4Lean.List.Forall₂.length_eq ha

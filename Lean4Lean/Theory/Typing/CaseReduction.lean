@@ -946,12 +946,12 @@ theorem CaseIota.head (H : CaseIota env U Γ lhs rhs) :
     ∃ block owner levels, lhs.getAppFnArgs.1 = .elim block owner levels := by
   cases H with | iota h => exact ⟨_, _, _, Application.head _⟩
 
-theorem CaseIota.not_native_match
+theorem CaseIota.not_stored_match
     (H : CaseIota env U Γ lhs rhs) {pattern : SimplePattern}
     {values : pattern.toPattern.Path → VExpr}
     (hm : pattern.toPattern.Matches lhs levels values) : False := by
   obtain ⟨_, _, _, hhead⟩ := H.head
-  obtain ⟨_, hnative⟩ := CaseSchema.native_pattern_head hm
+  obtain ⟨_, hnative⟩ := CaseSchema.recursor_pattern_head hm
   rw [hhead] at hnative
   cases hnative
 

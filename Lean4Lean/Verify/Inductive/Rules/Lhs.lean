@@ -506,7 +506,7 @@ theorem
       (bvarSpine stats.params.size).map
         (fun arg => arg.liftN added.length 0) := by
     rw [hparameterTargets,
-      recursorCanonicalVars_liftN_zero_eq_ofFn]
+      bvarSpine_liftN_zero_eq_ofFn]
     apply List.ext_getElem
     · simp
     · intro j hleft hright
@@ -862,7 +862,7 @@ theorem
         T.minors_length, T.motives_length]
       omega
     · rw [hexpectedArity]
-      exact recursorCanonicalVars_liftN_at_length _ _
+      exact bvarSpine_liftN_at_length _ _
   rw [hresultCanonical] at Hlhs
   have htypeResult := VExpr.applyForallType_wrapForalls_canonical
     expectedDomains args ownerTarget hargsLength
@@ -957,7 +957,7 @@ theorem
     simpa [typeBody, ownerTarget, args, majorSource, majorTarget,
       Expr.abstractList_app, Expr.abstractList_mkAppN,
       Expr.mkAppN_eq_mkAppList, VExpr.mkApps_append,
-      VExpr.liftN_mkApps, recursorCanonicalVars_liftN_at_length,
+      VExpr.liftN_mkApps, bvarSpine_liftN_at_length,
       getElem!_pos indTypes owner A.sourceOwner_lt] using
       HtypeTranslation₀
   exact ⟨T, originalDomains, fieldDomains, fieldResult, lhsBody, typeBody,

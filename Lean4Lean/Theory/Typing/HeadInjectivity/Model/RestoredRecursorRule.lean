@@ -70,7 +70,7 @@ set_option maxHeartbeats 400000 in
 theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List ContainerSpecialization}
     {base' installed : VEnv} {df : VDefEq} {L : VLevel}
     (henv : env.Ordered) (hdr : env.DeltaRules)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsInstalledCtor env c → env.CtorResultRigid c)
     (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g aux block)
     (hprior : ContainersInstalled base aux) (haux : aux ≠ []) (hbF : base ≤ env)
@@ -139,7 +139,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     simp only [Fin.getElem_fin] at *
     omega
   -- the constructor and its family
-  have hcisN : IsNativeCtor env
+  have hcisN : IsInstalledCtor env
       ((compilationRestoration source aux).headName s.constructors[index].name) :=
     ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
   have hcis : IsCtor env ((compilationRestoration source aux).headName s.constructors[index].name) :=

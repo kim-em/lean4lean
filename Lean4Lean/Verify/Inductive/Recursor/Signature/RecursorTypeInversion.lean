@@ -1612,7 +1612,7 @@ theorem majorDomain_lift (name : Name) (levels : List VLevel) (nparams nidx extr
       VExpr.mkApps (.const name levels)
         (InductiveSignature.vars nparams (extra + nidx) ++ InductiveSignature.vars nidx 0) := by
   simp only [VExpr.liftN_mkApps, VExpr.liftN]
-  rw [recursorCanonicalVars_add, List.map_append, List.map_map, ← vars_eq_canonical,
+  rw [bvarSpine_add, List.map_append, List.map_map, ← vars_eq_canonical,
     ← vars_eq_canonical]
   congr 1
   congr 1
@@ -1717,8 +1717,8 @@ theorem RecursorConstruction.recursorTarget_eq_of_minors
     simp [InductiveSignature.insertBinders, H.sourceIndices_length]
   rw [T.target_eq, InductiveSignature.Instance.recursorType]
   simp only [InductiveSignature.Instance.familyApp, InductiveSignature.familyApp]
-  rw [hp', ← hm', ← hminors, hfam', H.consumedFamilies_indices ⟨owner, howner⟩,
-    H.consumedFamilies_name ⟨owner, howner⟩, hl, hidxLen', hplen, hres', hvars,
+  rw [hp', ← hm', ← hminors, hfam', H.families_indices ⟨owner, howner⟩,
+    H.families_name ⟨owner, howner⟩, hl, hidxLen', hplen, hres', hvars,
     List.append_assoc (T.params ++ T.motives ++ T.minors) T.indices T.major, him',
     ← List.append_assoc]
   congr 3

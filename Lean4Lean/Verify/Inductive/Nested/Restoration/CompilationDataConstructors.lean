@@ -284,7 +284,7 @@ theorem NestedRun.auxiliaryFamiliesField_of_evidence
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have Hmodels : E.lowered.signature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
     have h := E.lowered.recursorConstruction.generator.models
@@ -294,13 +294,13 @@ theorem NestedRun.auxiliaryFamiliesField_of_evidence
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.production_c, E.productionContext_lparams]
+    rw [h, E.lowered_c, E.context_lparams]
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars :=
     E.lowered.constructors.core.uvars.trans hsourceUvars.symm
   have hloweredNparams : E.lowered.loweredDecl.nparams = sourceDecl.nparams := by
     have h := E.sourceCore.core.nparams
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.lowered.constructors.core.nparams, E.production_nparams]
+    rw [h, E.lowered.constructors.core.nparams, E.lowered_nparams]
   have hparams : E.lowered.signature.params =
       E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.lowered.recursorConstruction.generator.params

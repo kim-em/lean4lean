@@ -673,7 +673,7 @@ def LiteralDisjoint (indConsts : Array Expr) : Prop :=
 
 /-- The literal-expansion condition needed by translation is only required
 for literals supported by the current environment.  This is strictly weaker
-than `LiteralDisjoint` during bootstrap, when (for example) the freshly
+than `LiteralDisjoint` during toConstantsInstallation, when (for example) the freshly
 declared `Char` family exists but string literals are not available yet. -/
 def AvailableLiteralDisjoint (env : VEnv) (indConsts : Array Expr) : Prop :=
   ∀ literal : Literal, env.ContainsLits literal →

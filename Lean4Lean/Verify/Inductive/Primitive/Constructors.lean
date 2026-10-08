@@ -288,7 +288,7 @@ theorem SourceCtorsCertified.ofPrimitiveShape {targets : List VInductiveType}
 
 /-- The executable constructor declaration fold is verified atomically on a
 canonical primitive branch.  Validity is restored only after the family
-header and all constructors have been identified as one complete bootstrap
+header and all constructors have been identified as one complete toConstantsInstallation
 batch. -/
 theorem AddInductive.declareConstructors.primitiveWF
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
@@ -333,7 +333,7 @@ theorem AddInductive.declareConstructors.primitiveWF
     have hcombinedValues : (H.entries ++ entries).map Prod.snd =
         decl.typeConstants ++ decl.constructorConstants := by
       simp [H.values, hctorValues]
-    let Hbootstrap := Hcombined.bootstrap hcombinedValues
+    let Hbootstrap := Hcombined.toConstantsInstallation hcombinedValues
     have hsourcePrimitives : sourceEnv.HasPrimitives := by
       rw [← H.sourceContextVEnv]
       exact H.sourceContext.checking.hasPrimitives

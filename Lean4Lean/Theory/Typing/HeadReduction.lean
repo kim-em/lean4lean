@@ -65,7 +65,7 @@ theorem IsMajorPremise.not_rigid (H : IsMajorPremise e) (hrigid : env.NativeHead
     (hhead : e.getAppFnArgs.1 = .const name levels) : False := by
   obtain ⟨p, ⟨r, hp⟩, p₁, p₂, hs, levels', values, hm⟩ := H
   cases Params.simple_app hp hs
-  have hn := matches_nativeHead hm hhead
+  have hn := matches_constHead hm hhead
   obtain ⟨equation, originalName, originalLevels, hd, hh, he⟩ := pat_origin hp
   change p₁.constHead = some originalName at hh
   have heq : originalName = name := Option.some.inj (hh.symm.trans hn)
@@ -78,10 +78,10 @@ theorem IsMajorPremise.not_caseMajor (H : IsMajorPremise e) (H' : IsCaseMajorPre
   rw [hb] at hn
   cases hn
 
-theorem IsCaseMajorPremise.not_native_match (H : IsCaseMajorPremise env fn)
+theorem IsCaseMajorPremise.not_stored_match (H : IsCaseMajorPremise env fn)
     (hp : Pat p r) (hm : p.Matches (.app fn arg) levels values) : False := by
   obtain ⟨sp, rfl⟩ := pat_simple hp
-  obtain ⟨name, hn⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
+  obtain ⟨name, hn⟩ := InductiveSignature.CaseSchema.recursor_pattern_head hm
   obtain ⟨block, owner, packed, hb⟩ := H.head
   rw [case_spine_app] at hn
   change fn.getAppFnArgs.1 = .const name levels at hn
@@ -178,7 +178,7 @@ theorem WHNF.case_prefix (Hprefix : IsCasePrefix env e) : WHNF Γ e := by
   | extra hp hm =>
     intro hprefix
     obtain ⟨sp, rfl⟩ := pat_simple hp
-    obtain ⟨name, hn⟩ := InductiveSignature.CaseSchema.native_pattern_head hm
+    obtain ⟨name, hn⟩ := InductiveSignature.CaseSchema.recursor_pattern_head hm
     obtain ⟨block, owner, levels, hb⟩ := hprefix.head
     rw [hb] at hn
     cases hn
@@ -283,7 +283,7 @@ theorem WHRed.schema_determ (H : CaseIota env univs Γ e out)
     | extra hp hmatch _ =>
       subst source
       obtain ⟨sp, rfl⟩ := pat_simple hp
-      exact False.elim ((CaseIota.iota hm).not_native_match hmatch)
+      exact False.elim ((CaseIota.iota hm).not_stored_match hmatch)
 
 theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = e₂ := by
   induction H1 generalizing e₂ with
@@ -295,7 +295,7 @@ theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = 
     | caseMajor _ ha' => cases ih ha'; rfl
     | major hn _ => exact False.elim (hn.not_caseMajor hm)
     | beta => exact False.elim hm.not_lam
-    | extra hp hmatch => exact False.elim (hm.not_native_match hp hmatch)
+    | extra hp hmatch => exact False.elim (hm.not_stored_match hp hmatch)
   | app l1 ih =>
     cases H2 with
     | schema hs => exact (WHRed.schema_determ hs (.app l1)).symm
@@ -329,7 +329,7 @@ theorem WHRed.determ (H1 : Γ ⊢ e ⤳ e₁) (H2 : Γ ⊢ e ⤳ e₂) : e₁ = 
   | extra l1 l2 lcheck =>
     cases H2 with
     | schema hs => exact (WHRed.schema_determ hs (.extra l1 l2 lcheck)).symm
-    | caseMajor hm _ => exact False.elim (hm.not_native_match l1 l2)
+    | caseMajor hm _ => exact False.elim (hm.not_stored_match l1 l2)
     | beta => nomatch l2
     | major r1 r2 =>
       cases l2 with

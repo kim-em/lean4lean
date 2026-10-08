@@ -9,7 +9,7 @@ import Batteries.Tactic.OpenPrivate
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.RecursorData
 
-theorem HasType.nativeSupply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
+theorem HasType.supply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (hf : env.HasType U Γ fn type) (H : VExpr.WF env U Γ (mkApps fn args))
     (hg : supplyType args type = some residual) :
     env.HasType U Γ (mkApps fn args) residual := by
@@ -25,7 +25,7 @@ theorem HasType.nativeSupply (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     have harg := ha.defeqU_r henv hΓ ⟨_, hdom.symm⟩
     exact ih (hf.app harg) H hg
 
-theorem native_takeForalls_sound
+theorem takeForalls_sound
     (H : RecursorData.takeForalls count type = some (domains, result)) :
     type = wrapForalls domains result := by
   induction count generalizing type domains result with
@@ -60,8 +60,8 @@ theorem RecursorRegistered.prefixType {data : RecursorData}
   cases hg
   have hf : env.HasType U Γ (.const data.name levels) (nativeType.instL levels) :=
     .const (H.recursorType htype) hlevels hlen
-  have hh := hf.nativeSupply henv hΓ ht hsupply
-  rw [native_takeForalls_sound htake] at hh
+  have hh := hf.supply henv hΓ ht hsupply
+  rw [takeForalls_sound htake] at hh
   exact hh
 
 end Lean4Lean.VEnv

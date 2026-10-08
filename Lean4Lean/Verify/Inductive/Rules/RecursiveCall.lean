@@ -651,7 +651,7 @@ theorem TrExprS.mkAppList_fvarPrefix {env : VEnv} {Us : List Name}
         (bvarSpine (pre.length + 1)) =
         .app ((VExpr.mkApps (bF.liftN pre.length)
           (bvarSpine pre.length)).liftN 1) (.bvar 0) := by
-      rw [recursorCanonicalVars_add pre.length 1, VExpr.mkApps_append,
+      rw [bvarSpine_add pre.length 1, VExpr.mkApps_append,
         VExpr.liftN_mkApps]
       simp [bvarSpine, VExpr.mkApps, VExpr.liftN_liftN]
     refine ⟨?_, ?_⟩

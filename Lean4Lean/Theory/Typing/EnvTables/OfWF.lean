@@ -107,11 +107,11 @@ theorem definition_head (v : VDefVal) :
 
 theorem quot_head : VDefEq.head quotDefEq = .const ``Quot.lift [.param 0, .param 1] := rfl
 
-theorem native_head {T : Tables} (HT : T.Inv env) (hd : T.natives n = some data)
+theorem recursor_head {T : Tables} (HT : T.Inv env) (hd : T.recursors n = some data)
     (howner : data.schema.signature.constructors[index].owner = data.owner)
     (hgen : data.equation index = some df) :
     VDefEq.head df = .const data.name (VLevel.params data.uvars) := by
-  obtain ⟨_, he⟩ := HT.natives hd
+  obtain ⟨_, he⟩ := HT.recursors hd
   exact he.registered.equation_head howner hgen
 
 /-! ## T4: rigid constants -/

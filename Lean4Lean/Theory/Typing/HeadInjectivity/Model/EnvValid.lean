@@ -326,7 +326,7 @@ theorem restored_family_rigid {envF base installed env0 : VEnv} {source expanded
       s.constructors[index].name)) :
     envF.Rigid ((compilationRestoration source aux).headName
       s.families[s.constructors[index].owner].name) := by
-  obtain ⟨ci, hci', F, lsF, hF', -, hrigF⟩ := hF.native_constructor_result_rigid hdf hm
+  obtain ⟨ci, hci', F, lsF, hF', -, hrigF⟩ := hF.installed_constructor_result_rigid hdf hm
   rcases C.ctor_origin hprior index with ⟨fc, hfc, hfcn, lsc, hfch⟩ | ⟨cc, hcc, lsc, hcch⟩
   · have hfc' := hle.constants (VInductBlock.install_ctor_lookup hinst
       (by rw [C.ctors]; exact hfc))
@@ -501,10 +501,10 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
   have hdr := hF.deltaRules
   have hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c := by
     rintro _ (⟨_, hdf, hm⟩ | ⟨_, _, _, _, hb, hgen, rfl⟩)
-    · exact VEnv.nativeHeadRigid_iff.1 (hF.native_constructor_rigid hdf hm)
+    · exact VEnv.nativeHeadRigid_iff.1 (hF.installed_constructor_rigid hdf hm)
     · exact VEnv.nativeHeadRigid_iff.1 (hF.case_constructor_rigid hb hgen)
-  have hcres : ∀ c, Model.IsNativeCtor envF c → envF.CtorResultRigid c :=
-    fun _ ⟨_, hdf, hm⟩ => hF.native_constructor_result_rigid hdf hm
+  have hcres : ∀ c, Model.IsInstalledCtor envF c → envF.CtorResultRigid c :=
+    fun _ ⟨_, hdf, hm⟩ => hF.installed_constructor_result_rigid hdf hm
   have hpctor : ∀ c, Model.IsProjCtor envF c → envF.Rigid c := fun _ h => hF.projCtor_rigid h
   intro ds env H
   induction H with
@@ -699,7 +699,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
           have hpm := Model.projMajor_source hF C hprior h0 hinst hle hpc hprojV hTO hTF hsndT
             hbT htypesT index (ordinary_owner_lt C _) hrigF
           rw [headName_nil, headName_nil] at hpm
-          exact Model.RuleValid.native henvF hdr hctor hcres hpctor C hinst hle index hdfF hpm hex
+          exact Model.RuleValid.recursor henvF hdr hctor hcres hpctor C hinst hle index hdfF hpm hex
             (Model.famSort henvF h0 V0 C hbase' hinst hle _)
             (fun envE hE hsing U Δ Γ ls hΔ hlw _ i hi hidx => by
               have hEE : envE ≤ recursors := by

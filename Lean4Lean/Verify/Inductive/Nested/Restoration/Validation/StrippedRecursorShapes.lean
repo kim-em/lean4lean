@@ -406,7 +406,7 @@ theorem NestedRun.one_lt_familiesSize
     rw [E.lowered.recursors.generated.length,
       E.lowered.recursors.cardinality.records,
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-        E.lowered.constructors.core, E.production_indTypes]
+        E.lowered.constructors.core, E.lowered_indTypes]
   have hj' : j < finalState.newTypes.size := hj
   have hinit' : sourceTypes.length ≤ j := by simpa using hinit
   have hlen : 1 ≤ sourceTypes.length := by rw [htypes]; simp
@@ -442,7 +442,7 @@ theorem NestedRun.loweredSourceKeyed
   obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hu
   have hi' : i < E.lowered.indTypes.size := by simpa using hi
   have Hc : ContextWF E.lowered.c := by
-    rw [E.production_c]; exact E.contextWF
+    rw [E.lowered_c]; exact E.contextWF
   obtain ⟨info', hfind', hname', -⟩ :=
     E.lowered.recursors.findSourceHeaderAt Hc i hi'
   simp only [Array.getElem_toList] at hun

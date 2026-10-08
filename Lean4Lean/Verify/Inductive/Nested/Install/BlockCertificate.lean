@@ -39,7 +39,7 @@ private theorem FreshExtension.trEnvIgnore
       exact ih hnextWF (fun entry hentry =>
         hhidden entry (by simp [hentry])) hhead
 
-private def CtorParamsAgreeAt.mapProduction
+private def CtorParamsAgreeAt.mapKernel
     (H : CtorParamsAgreeAt source venv familyName
       familyInfo i hi)
     (heq : ∀ name, source.find? name = target.find? name) :
@@ -74,7 +74,7 @@ private def CtorParamsAgreeAt.mapProduction
   constructorParams := H.constructorParams
   parameterDomains := H.parameterDomains
 
-private theorem CtorParamsAgree.mapProduction
+private theorem CtorParamsAgree.mapKernel
     (H : CtorParamsAgree safety source venv)
     (heq : ∀ name, source.find? name = target.find? name) :
     CtorParamsAgree safety target venv := by
@@ -84,7 +84,7 @@ private theorem CtorParamsAgree.mapProduction
     rw [heq]
     exact hfamily
   rcases H familyName familyInfo hfamily' hvisible i hi with ⟨C⟩
-  exact ⟨C.mapProduction heq⟩
+  exact ⟨C.mapKernel heq⟩
 
 /-- Recover the replayable staged block before `NestedInstallResult`
 projects it to the independent `VEnv.AddInduct` judgment.  This is the exact
@@ -118,7 +118,7 @@ def RestoredBlockCertificate.blockCertificate
     rw [C.recursorValues]
     intro ci hci
     rcases List.mem_append.mp hci with hprimary | hauxiliary
-    · exact C.sourceTranslations.primaryRecursorsWF ci hprimary
+    · exact C.sourceTranslations.sourceRecursorsWF ci hprimary
     · exact C.auxiliaryWF.recursorsWF (by simp) ci hauxiliary
   rulesWF := by
     intro df hdf
@@ -416,7 +416,7 @@ private theorem RestoredBlockCertificate.extendSafe
       CtorParamsAgree .safe C.installedEnv
         (C.recursorVEnv.addDefEqRules
           (C.sourceRules ++ C.auxiliaryRules)) :=
-    hconstructorSemantics.mapProduction hlookupEnv
+    hconstructorSemantics.mapKernel hlookupEnv
   have hsafePrimitives : ∀ {n ci}, outEnv.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [] := by
@@ -440,7 +440,7 @@ private theorem RestoredBlockCertificate.extendSafe
         (cert observer) Hvalid.tr.map_wf
         (wf.ctorParamsAgree (safety := observer)) hcompletedCanonical
         (outputLE observer)
-      exact Hcanonical.mapProduction (fun name => (hlookupEnv name).symm)
+      exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
     · intro observer observer' hle
       have hblock : (cert observer').block = (cert observer).block :=
         (cert observer').block_eq_of_projections_eq (cert observer)
@@ -500,7 +500,7 @@ private theorem RestoredBlockCertificate.safeInductiveExtension
 
 /-- Safe final-model assembly with production origins discharged from the
 exact closed lowering, ordinary production, and restoration traces. -/
-theorem RestoredBlockCertificate.safeInductiveExtensionOfProduction
+theorem RestoredBlockCertificate.safeInductiveExtensionOfKernel
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -673,7 +673,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
         (ves.venv observer) := by
     have Hcanonical := B.hiddenUnsafeConstructorSemantics Hvalid.tr.map_wf
       (wf.ctorParamsAgree (safety := observer)) hne hheadersCanonical
-    exact Hcanonical.mapProduction (fun name => (hlookupEnv name).symm)
+    exact Hcanonical.mapKernel (fun name => (hlookupEnv name).symm)
   have hiddenProvenance (observer : DefinitionSafety)
       (hne : observer ≠ .unsafe) :
       InductFamiliesInstalled observer outEnv.constants
@@ -749,7 +749,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
 
 /-- Unsafe final-model assembly with production origins discharged from the
 exact closed lowering, ordinary production, and restoration traces. -/
-theorem RestoredBlockCertificate.unsafeInductiveExtensionOfProduction
+theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernel
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}

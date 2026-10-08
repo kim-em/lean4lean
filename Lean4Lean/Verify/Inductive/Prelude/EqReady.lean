@@ -9,15 +9,15 @@ open Kernel
 namespace VerifyInductive
 
 /-- Canonical equality is available in every safety-indexed abstract model.
-This is the persistent invariant needed after Lean's bootstrap `Eq`
+This is the persistent invariant needed after Lean's toConstantsInstallation `Eq`
 declaration and before quotient initialization. -/
 def CanonicalEqEnvs (ves : VEnvs) : Prop :=
   ∀ safety, (ves.venv safety).QuotReady
 
-/-- Before the bootstrap `Eq` declaration, equality is absent from the
+/-- Before the toConstantsInstallation `Eq` declaration, equality is absent from the
 production environment. Afterwards, every safety-indexed abstract observer
 must contain its canonical interpretation.  This disjunction is the
-persistent boundary invariant across both phases of kernel bootstrap. -/
+persistent boundary invariant across both phases of kernel toConstantsInstallation. -/
 def EqReadyOrAbsent (env : Environment) (ves : VEnvs) : Prop :=
   env.constants.find? ``Eq = none ∨ CanonicalEqEnvs ves
 

@@ -11,7 +11,7 @@ to extend the rule-free assembly base by the restored generated equations:
   (`restoredRuleRhs_of_trail`, with the freshness of the non-renamed
   restorable names and the input-side avoidance `loweredRulesAvoid_renamed`);
 * every restored generated equation of a source constructor is a nested iota
-  rule of the restored block (`primaryNestedIotaRule`); every clause,
+  rule of the restored block (`sourceNestedIotaRule`); every clause,
   including the right-hand-side spine and guardedness, is computed from the
   generator through restoration (`restoredEquation_rhs`,
   `restoredGeneratedAvoidance` in `Nested/Restoration/Equations/GeneratedGuard.lean`);
@@ -98,7 +98,7 @@ theorem NestedRun.restoredRuleRhs_translation
   · obtain ⟨indType, hind, hname⟩ := List.mem_map.mp hp
     subst hname
     obtain ⟨_, target, _, Hty⟩ :=
-      validateRestoredRecursorRules.primaryTranslation_of_run hvalid hrun hind Hstep.lookup hmem'
+      validateRestoredRecursorRules.sourceTranslation_of_run hvalid hrun hind Hstep.lookup hmem'
     refine ⟨target, ?_⟩
     have h := Hty.2.1
     rw [← Hstep.restored.produced] at h
@@ -329,7 +329,7 @@ theorem VExpr.wrapLams_inj_of_length :
 
 /-- The restored generated equation of a constructor whose owner's recursor
 name and whose own name are not restoration heads. -/
-theorem Restoration.equation_primary_structure {s : InductiveSignature}
+theorem Restoration.equation_source_structure {s : InductiveSignature}
     (g : Instance s) (r : Restoration) (k : Fin s.constructors.size) {rule : VDefEq}
     (hrule : r.equation (g.equation k) = some rule)
     (hrec : r.heads.find? (fun h => h.auxiliary ==
@@ -460,11 +460,11 @@ set_option maxHeartbeats 4000000 in
 /-- **The restored generated equation of a source constructor is a nested
 iota rule** of the restored block of a final assembly shape, for the
 source owner and constructor at its position. Every clause is computed from
-the generator: the left-hand side and type by `equation_primary_structure`,
+the generator: the left-hand side and type by `equation_source_structure`,
 the right-hand side (its spine, field arguments, recursive results and
 guardedness) by `restoredEquation_rhs`, whose recursor avoidance comes from
 `restoredGeneratedAvoidance`. -/
-theorem NestedRun.primaryNestedIotaRule
+theorem NestedRun.sourceNestedIotaRule
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -698,7 +698,7 @@ theorem NestedRun.primaryNestedIotaRule
     D.nparams.trans hnp
   -- the restored generated equation
   obtain ⟨D0, idx, hD0, hidx, hlhsEq, ⟨X0, hrhsEq0⟩, ⟨T0, htypeEq0⟩⟩ :=
-    Restoration.equation_primary_structure _ _ k hrule
+    Restoration.equation_source_structure _ _ k hrule
       (by rw [hkOwner]; exact E.recursorName_not_head Haux Hexpansion hnodup ⟨f, hfFam⟩)
       hctorHead
   have hD0len : D0.length =

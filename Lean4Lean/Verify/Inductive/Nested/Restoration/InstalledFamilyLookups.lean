@@ -248,7 +248,7 @@ theorem FoldSteps.constructorInductiveFindSource
 constructor.  It exposes the exact lowered lookup and restoration metadata,
 and proves the restored constructor lookup in the final constructor-fold
 environment. -/
-theorem FoldSteps.constructorProductionOriginAt
+theorem FoldSteps.constructorKernelOriginAt
     (H : FoldSteps (RestoredConstructorStep result loweredEnv)
       names sourceEnv targetEnv)
     (hsourceWF : sourceEnv.constants.WF)
@@ -968,7 +968,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
     have htraceName : ctorIdx < Hstep.oldInfo.ctors.length := by
       rw [hctorNames, List.length_map]
       exact htargetCtor
-    rcases Hstep.restored.constructors.constructorProductionOriginAt
+    rcases Hstep.restored.constructors.constructorKernelOriginAt
         hheaderWF ctorIdx htraceName with
       ⟨ctorSource, ctorTarget, oldCtorInfo, newCtorInfo, HctorStep,
         holdCtor, hnewCtor, HctorRestore, hctorFind⟩

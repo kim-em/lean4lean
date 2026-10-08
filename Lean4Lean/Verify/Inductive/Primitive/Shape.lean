@@ -186,7 +186,7 @@ theorem PrimitiveInductiveShape.materializedLiteralDisjoint
     exact primitiveNatLiteralDisjoint
 
 /-- The generated recursor names are not themselves primitive-reserved, even
-on the finite `Bool`/`Nat` bootstrap branch. -/
+on the finite `Bool`/`Nat` toConstantsInstallation branch. -/
 theorem PrimitiveInductiveShape.recursorsNonprimitive
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe) :
     ∀ owner (_howner : owner < types.toArray.size),

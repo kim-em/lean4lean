@@ -9,7 +9,7 @@ namespace Lean4Lean
 def VDefEq.HasConstructorMajor (equation : VDefEq) (name : Name) : Prop :=
   ∃ fn levels args, equation.lhs.stripLams = .app fn (VExpr.mkApps (.const name levels) args)
 
-theorem VExpr.nativeEquationHead_eq (e : VExpr) :
+theorem VExpr.equationHead_eq (e : VExpr) :
     e.equationHead = e.stripLams.getAppFnArgs.1 := by
   induction e with
   | lam _ _ _ ih => exact ih
@@ -17,7 +17,7 @@ theorem VExpr.nativeEquationHead_eq (e : VExpr) :
 
 theorem VEnv.nativeHeadRigid_iff {env : VEnv} {name : Name} :
     env.NativeHeadRigid name ↔ env.Rigid name := by
-  simp only [NativeHeadRigid, Rigid, VExpr.nativeEquationHead_eq]
+  simp only [NativeHeadRigid, Rigid, VExpr.equationHead_eq]
 
 theorem InductiveSignature.CompilationData.equation_major_origin
     {s : InductiveSignature} {g : s.Instance}
@@ -604,14 +604,14 @@ theorem WF.case_family_head_rigid {env : VEnv} (H : env.WF)
 
 /-- The major constructor of every installed native iota equation remains
 rigid throughout all subsequent declarations. -/
-theorem WF.native_constructor_rigid {env : VEnv} (H : env.WF)
+theorem WF.installed_constructor_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
     env.NativeHeadRigid name :=
   nativeHeadRigid_iff.mpr ((H.constructorHeadsRigid.1 _ hinstalled _ hmajor).2.1)
 
 /-- The constructor major of every installed equation returns an application
 of a rigid family constant. -/
-theorem WF.native_constructor_result_rigid {env : VEnv} (H : env.WF)
+theorem WF.installed_constructor_result_rigid {env : VEnv} (H : env.WF)
     (hinstalled : env.defeqs equation) (hmajor : equation.HasConstructorMajor name) :
     env.CtorResultRigid name :=
   (H.constructorHeadsRigid.1 _ hinstalled _ hmajor).2.2

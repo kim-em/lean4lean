@@ -218,7 +218,7 @@ theorem SourceFamilyTranslations.constructorConstantsWF
 
 /-- Primary restored recursors are typed in the canonical environment that
 already contains every mutual constructor. -/
-theorem SourceFamilyTranslations.primaryRecursorsWF
+theorem SourceFamilyTranslations.sourceRecursorsWF
     (H : SourceFamilyTranslations decl lparams safety sourceVEnv
       envTypes envCtors Htrace owners recursors) :
     ∀ ci ∈ recursors, ci.toVConstant.WF envCtors := by

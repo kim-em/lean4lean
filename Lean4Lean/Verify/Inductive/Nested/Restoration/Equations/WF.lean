@@ -174,7 +174,7 @@ theorem NestedRun.constructorRenamingReplacement
   have hloweredUvars : E.lowered.c.lparams.length = sourceDecl.uvars := by
     have h2 := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h2
-    rw [h2, E.production_c, E.productionContext_lparams]
+    rw [h2, E.lowered_c, E.context_lparams]
   have hlcWF : ∀ lc ∈ E.lowered.loweredDecl.constructorConstants,
       lc.uvars = sourceDecl.uvars ∧
         lc.toVConstant.WF E.lowered.constructors.toConstructorCheck.headerVEnv := by
@@ -440,7 +440,7 @@ theorem NestedRun.restoredEliminators
           S ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames := by
         rintro S ⟨info, hinfo⟩
         rw [VEnv.addConstVals_projections_eq hc', VEnv.addConstVals_projections_eq ht',
-          E.production_initialEnv] at hinfo
+          E.lowered_initialEnv] at hinfo
         exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hinfo
       refine ⟨fun owner type h => (hprojs.1 owner type h).projNamesAvoid hnot,
         fun owner rules h df hdf => ?_⟩

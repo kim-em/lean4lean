@@ -66,7 +66,7 @@ end Lean4Lean.VEnv
 namespace Lean4Lean.QuotPrefixUnfolding
 open VEnv VExpr InductiveSignature InductiveSignature.RecursorData
 
-theorem witness_levels (hl : l.WF U) (hl' : l'.WF U) (he : l ≈ l') :
+theorem propInhabitant_levels (hl : l.WF U) (hl' : l'.WF U) (he : l ≈ l') :
     EqUpToLevels U (propInhabitant l) (propInhabitant l') := by
   have H := EqUpToLevels.instL_expr (propInhabitant (.param 0))
     (ls := [l]) (ls' := [l']) (by simpa) (by simpa) (.cons he .nil)
@@ -107,7 +107,7 @@ theorem generate_levels {levels levels' : List VLevel}
     cases hh : levels'[0]? with
     | none => trivial
     | some u => exact hl' u (List.mem_of_getElem? hh)
-  have hproof := EqUpToLevels.mkApps_args (witness_levels hlevelWF hlevelWF' hlevel)
+  have hproof := EqUpToLevels.mkApps_args (propInhabitant_levels hlevelWF hlevelWF' hlevel)
     (.cons halpha (.cons hrelation (.cons hmajor .nil)))
   have hconstructor := EqUpToLevels.mkApps_args
     (EqUpToLevels.const (c := ``Quot.mk) (by simpa using hlevelWF) (by simpa using hlevelWF') (.cons hlevel .nil))
@@ -122,7 +122,7 @@ end Lean4Lean.QuotPrefixUnfolding
 namespace Lean4Lean.InductiveSignature.RecursorData
 open VEnv VExpr CaseSchema
 
-theorem singletonProgram_levels {data : RecursorData} {levels levels' : List VLevel}
+theorem singletonUnfolding_levels {data : RecursorData} {levels levels' : List VLevel}
     {env : VEnv} (hr : RecursorRegistered env data)
     (hl : ∀ level ∈ levels, level.WF U) (hl' : ∀ level ∈ levels', level.WF U)
     (he : List.Forall₂ (· ≈ ·) levels levels')
@@ -151,7 +151,7 @@ theorem singletonProgram_levels {data : RecursorData} {levels levels' : List VLe
   let remaining := data.majorOffset + 1 - args.length
   have hall := List.Forall₂.append' (levels_lift ha remaining) (levels_vars (U := U) remaining 0)
   obtain ⟨constructor', fields', hrecon', heconstructor, hefields⟩ :=
-    singletonRecon_levels hl hl' he hall hrecon
+    singletonReconstruction_levels hl hl' he hall hrecon
   have hecaptures := List.Forall₂.append' (List.forall₂_take hall data.indexOffset) hefields
   dsimp only [remaining] at hrecon'
   simp only [bind, htype, hsupply', htake', hrecon', hequation, hbody, Option.bind_some]

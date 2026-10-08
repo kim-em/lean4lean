@@ -234,7 +234,7 @@ theorem Application.head (a : Application) :
   simp only [Application.expr, spine_app_head, spine_mkApps_head]
   rfl
 
-private theorem native_varN_head {name : Name} {n : Nat}
+private theorem recursor_varN_head {name : Name} {n : Nat}
     {values : (Pattern.varN (.const name) n).Path → VExpr}
     (h : (Pattern.varN (.const name) n).Matches e ls values) :
     e.getAppFnArgs.1 = .const name ls := by
@@ -244,7 +244,7 @@ private theorem native_varN_head {name : Name} {n : Nat}
     cases h with | var h => exact (spine_app_head _ _).trans (ih h)
 
 /-- Native patterns retain a native constant at their head. -/
-theorem native_pattern_head {pattern : SimplePattern}
+theorem recursor_pattern_head {pattern : SimplePattern}
     {values : pattern.toPattern.Path → VExpr}
     (h : pattern.toPattern.Matches e ls values) :
     ∃ name, e.getAppFnArgs.1 = .const name ls := by
@@ -252,6 +252,6 @@ theorem native_pattern_head {pattern : SimplePattern}
   | defn name => cases h; exact ⟨name, rfl⟩
   | iota name major ctor args =>
     cases h with
-    | app hf _ => exact ⟨name, (spine_app_head _ _).trans (native_varN_head hf)⟩
+    | app hf _ => exact ⟨name, (spine_app_head _ _).trans (recursor_varN_head hf)⟩
 
 end Lean4Lean.InductiveSignature.CaseSchema

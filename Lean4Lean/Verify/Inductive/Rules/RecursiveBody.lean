@@ -164,7 +164,7 @@ theorem
       (bvarSpine stats.params.size).map
         (fun target => target.liftN added.length 0) := by
     rw [hparameterTargets,
-      recursorCanonicalVars_liftN_zero_eq_ofFn]
+      bvarSpine_liftN_zero_eq_ofFn]
     apply List.ext_getElem
     · simp
     · intro k hleft hright
@@ -1194,7 +1194,7 @@ theorem
         F.telescope.minors_length, F.telescope.motives_length]
       omega
     · rw [hexpectedArity]
-      exact recursorCanonicalVars_liftN_at_length _ _
+      exact bvarSpine_liftN_at_length _ _
   rw [hresultCanonical] at Hleft
   have htypeResult := VExpr.applyForallType_wrapForalls_canonical
     expectedDomains args ownerTarget hargsLength

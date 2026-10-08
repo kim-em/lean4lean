@@ -82,7 +82,7 @@ sort of `α`, `.param 0`); `Eq.rec.{u, u_1}` has two, the motive universe `u`
 The rule is in the lambda-wrapped form of `VIotaRuleShape`, the form in which
 recursor rules are stored in `VEnv.defeqs`.
 
-Realizability: `addDecl.eqBootstrapHasCanonicalEq`
+Realizability: `addDecl.preludeEq_hasCanonicalEq`
 (`Lean4Lean/Verify/CanonicalEq.lean`) derives this predicate for the
 abstract environments produced by checking the `Init.Prelude` declaration of
 `Eq`, given that the executable installs `Eq.rec` with the production type,

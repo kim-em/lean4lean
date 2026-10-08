@@ -312,7 +312,7 @@ theorem
             A.rule.motives_bound.fvars) ++
             A.rule.minors_bound.fvars).length + i))) =
         bvarSpine fieldDomains.length := by
-    rw [recursorCanonicalVars_eq_ofFn]
+    rw [bvarSpine_eq_ofFn]
     apply List.ext_getElem
     · simpa using hfields.symm
     · intro j hleft hright
@@ -491,7 +491,7 @@ theorem
       (bvarSpine T.params.length).map (fun arg =>
         arg.liftN
           ((T.motives ++ T.minors).length + fieldDomains.length) 0) := by
-    rw [recursorCanonicalVars_eq_ofFn]
+    rw [bvarSpine_eq_ofFn]
     apply List.ext_getElem
     · simp [T.params_length]
     · intro j hleft hright
@@ -560,8 +560,8 @@ theorem
     exact congrArg bvarSpine T.params_length.symm
   rw [HintroShape, hcanonicalVars, ← hfields]
   simp only [VExpr.liftN_mkApps, VExpr.liftN, List.map_append,
-    recursorCanonicalVars_liftN_at_length]
-  rw [recursorCanonicalVars_liftN_comp]
+    bvarSpine_liftN_at_length]
+  rw [bvarSpine_liftN_comp]
   simp [VExpr.mkApps, List.foldl_append, Nat.add_comm]
 
 /-- Translate the concrete constructor major in the generated equation to
@@ -755,7 +755,7 @@ theorem
         (bvarSpine
           (T.params ++ T.motives ++ T.minors).length).map fun arg =>
             arg.liftN fieldDomains.length 0 := by
-    rw [recursorCanonicalVars_eq_ofFn]
+    rw [bvarSpine_eq_ofFn]
     apply List.ext_getElem
     · simp only [List.length_append, List.length_ofFn, List.length_map]
       rw [T.params_length, T.motives_length, T.minors_length]

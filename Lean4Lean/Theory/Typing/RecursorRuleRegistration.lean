@@ -11,7 +11,7 @@ namespace Lean4Lean.InductiveSignature.RecursorData
 /-- The exact restored native equation at a signature constructor index. -/
 def equation (data : RecursorData)
     (index : Fin data.schema.signature.constructors.size) : Option VDefEq :=
-  data.schema.restoration.equation (data.nativeInstance.equation index)
+  data.schema.restoration.equation (data.recursorInstance.equation index)
 
 end Lean4Lean.InductiveSignature.RecursorData
 
@@ -23,15 +23,15 @@ variable {data : RecursorData} {equation : VDefEq}
 
 private theorem registeredInstance (H : RecursorRegistered env data) :
     ∃ base installBase source expanded auxiliaries block installed,
-      CompilationData base source expanded data.schema.signature data.nativeInstance auxiliaries block ∧
+      CompilationData base source expanded data.schema.signature data.recursorInstance auxiliaries block ∧
       ContainersInstalled base auxiliaries ∧
       data.schema.restoration = compilationRestoration source auxiliaries ∧
       block.install installBase = some installed ∧ installed ≤ env := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, hprior, _, hr, _, hu, hl, ht, hi, he⟩ := H
-  have hg : data.nativeInstance = g := by
+  have hg : data.recursorInstance = g := by
     cases g
-    simp only [RecursorData.nativeInstance, Instance.mk.injEq]
+    simp only [RecursorData.recursorInstance, Instance.mk.injEq]
     exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   exact ⟨base, installBase, source, expanded, auxiliaries, block, installed, hg ▸ hdata, hprior, hr, hi, he⟩
 
@@ -47,7 +47,7 @@ theorem RecursorRegistered.equation_head (H : RecursorRegistered env data)
   rw [← hr] at hn
   have he := Restoration.wrapLams_head_const hn
     (VExpr.getAppFnArgs_mkApps_head _ _) hleft
-  simpa only [RecursorData.nativeInstance, RecursorData.name,
+  simpa only [RecursorData.recursorInstance, RecursorData.name,
     Instance.recursorName, howner] using he
 
 private theorem extracted_body_stripLams {lhs rhs type : VExpr}

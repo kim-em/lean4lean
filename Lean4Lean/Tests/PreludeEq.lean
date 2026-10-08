@@ -10,7 +10,7 @@ from the environment), and added to an empty environment through
 `Lean4Lean.addDecl`.  The test checks that
 
 * the submitted declaration has the syntax `PreludeEqShape` describes
-  (`nparams = 2`), so `addDecl.eqBootstrapHasCanonicalEq` applies to it;
+  (`nparams = 2`), so `addDecl.preludeEq_hasCanonicalEq` applies to it;
 * the executable installs `Eq`, `Eq.refl` and `Eq.rec` exactly as Lean's kernel
   does, and the installed `Eq.rec` satisfies `IsPreludeEqRec` (its type is
   `eqRecTypeExpr`) with the single rule `eqRecRuleRhsExpr`;

@@ -70,7 +70,7 @@ theorem IndConstArray.literalDisjoint
       induction s.toList <;> simp_all [Expr.findAny]
 
 /-- Natural-number literal expansion only exposes the two reserved natural
-constructors.  This local form remains usable during the ordinary bootstrap
+constructors.  This local form remains usable during the ordinary toConstantsInstallation
 window where string-literal support is not yet available. -/
 theorem IndConstArray.natLiteralDisjoint
     {levels : List Level} {indConsts : Array Expr} {names : List Name}

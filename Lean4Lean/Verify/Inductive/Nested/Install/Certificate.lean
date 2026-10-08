@@ -314,7 +314,7 @@ structure NestedFinalAssemblyRemainder
     (canonical : BlockInstallation safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv) where
-  productionOrder : ∃ actualEntries,
+  kernelOrder : ∃ actualEntries,
     FreshExtension sourceProdEnv actualEntries outEnv ∧
       actualEntries ~
         (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
@@ -394,7 +394,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   install := canonical
   executableOrder_perm := by
     intro actualEntries Hactual
-    rcases R.productionOrder with
+    rcases R.kernelOrder with
       ⟨witnessEntries, Hwitness, hwitnessOrder⟩
     exact (Hactual.permOfSameTarget Hwitness R.sourceMapWF).trans
       hwitnessOrder
@@ -428,7 +428,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
 source family and its exact restored source recursor in the two aggregate
 lists.  These are the two positional facts needed to connect a pointwise
 restoration step back to its generated production entry and final block. -/
-theorem SourceFamilyTranslations.primaryIotaSemanticTraceOfMemberships
+theorem SourceFamilyTranslations.sourceIotaSemanticTraceOfMemberships
     {decl : VInductDecl} {lparams : List Name}
     {safety : DefinitionSafety} {sourceVEnv envTypes envCtors : VEnv}
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -573,7 +573,7 @@ noncomputable def RestoredBlockCertificate.finalEnvironment
     (by
       intro ci hci
       rcases List.mem_append.mp hci with hprimary | hauxiliary
-      · exact C.sourceTranslations.primaryRecursorsWF ci hprimary
+      · exact C.sourceTranslations.sourceRecursorsWF ci hprimary
       · exact C.auxiliaryWF.recursorsWF (by simp) ci hauxiliary)
     (by
       intro df hdf
@@ -594,18 +594,18 @@ structure NestedRun
   lowered : LoweredRun loweredEnv
   context : AddInductive.Context
   contextWF : ContextWF context
-  productionContext_env : context.env = sourceProdEnv
-  productionContext_lparams : context.lparams = lparams
-  productionContext_safety : context.safety = safety
-  productionContext_allowPrimitive : context.allowPrimitive = false
-  productionContext_venv : contextWF.venv = sourceEnv
-  production_c : lowered.c = context
-  production_nparams : lowered.nparams = nparams
-  production_isUnsafe : lowered.isUnsafe =
+  context_env : context.env = sourceProdEnv
+  context_lparams : context.lparams = lparams
+  context_safety : context.safety = safety
+  context_allowPrimitive : context.allowPrimitive = false
+  context_venv : contextWF.venv = sourceEnv
+  lowered_c : lowered.c = context
+  lowered_nparams : lowered.nparams = nparams
+  lowered_isUnsafe : lowered.isUnsafe =
     (context.safety != .safe)
-  production_isUnsafe_source : lowered.isUnsafe = isUnsafe
-  production_initialEnv : lowered.initialEnv = sourceEnv
-  production_indTypes : lowered.indTypes = res.types.toArray
+  lowered_isUnsafe_source : lowered.isUnsafe = isUnsafe
+  lowered_initialEnv : lowered.initialEnv = sourceEnv
+  lowered_indTypes : lowered.indTypes = res.types.toArray
   stats : AddInductive.InductiveStats
   depth : Nat
   commonParams : List VExpr
@@ -615,7 +615,7 @@ structure NestedRun
       contextWF.venv context.lparams nparams commonParams
         commonLevel res.types.toArray.toList
   validationFuel : FuelConfig
-  productionContext_fuel : context.fuel = validationFuel
+  context_fuel : context.fuel = validationFuel
   lowering : NestedLoweringOutputClosed sourceProdEnv
     validationFuel.inductiveFuel nparams sourceTypes
     { lvls := lparams.map .param, newTypes := sourceTypes.toArray } res
@@ -665,7 +665,7 @@ structure NestedRun
     sourceTypes isUnsafe lowered.loweredDecl safety validationEnv
       auxiliaryHeaderEnv
   nativeSourceDecl_eq : sourceCore.sourceDecl = decl
-  auxiliaryVEnv_eq_native : auxiliaryVEnv = sourceCore.envTypes
+  auxiliaryVEnv_eq_sourceCore : auxiliaryVEnv = sourceCore.envTypes
 
 /-- Rich final nested result retaining the exact ordinary installation,
 restoration trace, and assembly certificate that produced the public final
@@ -681,15 +681,15 @@ structure NestedInstalledRun
   lowered : LoweredRun loweredEnv
   context : AddInductive.Context
   contextWF : ContextWF context
-  productionContext_env : context.env = sourceProdEnv
-  productionContext_lparams : context.lparams = lparams
-  productionContext_safety : context.safety = safety
-  production_c : lowered.c = context
-  production_nparams : lowered.nparams = nparams
-  production_isUnsafe : lowered.isUnsafe =
+  context_env : context.env = sourceProdEnv
+  context_lparams : context.lparams = lparams
+  context_safety : context.safety = safety
+  lowered_c : lowered.c = context
+  lowered_nparams : lowered.nparams = nparams
+  lowered_isUnsafe : lowered.isUnsafe =
     (context.safety != .safe)
-  production_initialEnv : lowered.initialEnv = sourceEnv
-  production_indTypes : lowered.indTypes = res.types.toArray
+  lowered_initialEnv : lowered.initialEnv = sourceEnv
+  lowered_indTypes : lowered.indTypes = res.types.toArray
   validationFuel : FuelConfig
   lowering : NestedLoweringOutputClosed sourceProdEnv
     validationFuel.inductiveFuel nparams sourceTypes
@@ -743,7 +743,7 @@ structure NestedInstalledRun
   nativeSourceDecl_eq : sourceCore.sourceDecl = decl
   assembly : RestoredBlockCertificate restoration sourceEnv decl lparams
     nparams isUnsafe safety
-  production_eq : assembly.lowered = lowered
+  lowered_eq : assembly.lowered = lowered
   finalResult : NestedInstallResult sourceEnv decl lparams nparams
     sourceTypes isUnsafe safety outEnv
 
@@ -971,7 +971,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
       have hproducerUnsafe : (c.safety != .safe) = isUnsafe := by
         simp [c, nestedAddInductiveContext]
         cases isUnsafe <;> decide
-      have Hnative := HlowerInitial'.nativeSourceCore Hc' Hprod Hsources
+      have Hnative := HlowerInitial'.sourceCore Hc' Hprod Hsources
         Howners' rfl Htrace' Hvalidation' HheaderValidation' Hparameters'
         hvisible
       have Hnative' : Nonempty (NestedSourceDeclaration Hc'.venv lparams
@@ -997,28 +997,28 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
             lowered := P
             context := c'
             contextWF := Hc'
-            productionContext_env := henv'
-            productionContext_lparams := hlparams'
-            productionContext_safety := by
+            context_env := henv'
+            context_lparams := hlparams'
+            context_safety := by
               simpa [c, nestedAddInductiveContext] using hsafety'
-            productionContext_allowPrimitive := by
+            context_allowPrimitive := by
               exact hallowPrimitive'.trans hallowFalse
-            productionContext_venv := rfl
-            production_c := rfl
-            production_nparams := rfl
-            production_isUnsafe := by
+            context_venv := rfl
+            lowered_c := rfl
+            lowered_nparams := rfl
+            lowered_isUnsafe := by
               change (c.safety != .safe) = (c'.safety != .safe)
               rw [hsafety']
-            production_isUnsafe_source := hproducerUnsafe
-            production_initialEnv := rfl
-            production_indTypes := rfl
+            lowered_isUnsafe_source := hproducerUnsafe
+            lowered_initialEnv := rfl
+            lowered_indTypes := rfl
             stats := stats
             depth := depth
             commonParams := commonParams
             commonLevel := commonLevel
             sourceHeaderSemantics := Hsemantic
             lowering := Hlower
-            productionContext_fuel := hfuel'
+            context_fuel := hfuel'
             restoration := Htrace
             primitiveSafe := by
               simpa only [hallowFalse] using Hrestored.primitiveSafe
@@ -1043,7 +1043,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
               simpa only [hlparams'] using Htranslations
             sourceCore := N
             nativeSourceDecl_eq := rfl
-            auxiliaryVEnv_eq_native :=
+            auxiliaryVEnv_eq_sourceCore :=
               Option.some.inj (HsourceTypesAdded.symm.trans N.sourceAdded)
           }⟩⟩ }
     exact Hrestore.mono fun restoredEnv Hrestored => by

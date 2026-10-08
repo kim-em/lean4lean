@@ -571,7 +571,7 @@ private theorem FoldSteps.unsafeRecursorFreshTrace
 /-- The complete exact production restoration trace is uniformly unsafe.
 This is the canonical trace later transported to any extension-equivalent
 fresh trace by `RestoredBlockCertificate.productionOrder`. -/
-theorem NestedRestorationFolds.unsafeFreshTraceOfProduction
+theorem NestedRestorationFolds.unsafeFreshTraceOfKernel
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -667,7 +667,7 @@ theorem RestoredBlockCertificate.entriesUnsafe
           (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1
           ((), outEnv) := by
         simpa only [henv, hnames, hauxRec, hauxNames] using H
-      rcases Hrestored.unsafeFreshTraceOfProduction Hlower Hc Hprod Hsource
+      rcases Hrestored.unsafeFreshTraceOfKernel Hlower Hc Hprod Hsource
           Hmetadata Hsources Harity Howners hempty hsafety hsourceWF with
         ⟨exactEntries, Hexact, hexactUnsafe⟩
       intro entries Hentries entry hentry
@@ -682,7 +682,7 @@ theorem RestoredBlockCertificate.entriesUnsafe
 
 /-- Safe final assembly with both production origins and final mutual closure
 derived from the exact producer/restoration evidence. -/
-theorem RestoredBlockCertificate.safeInductiveExtensionOfProductionClosed
+theorem RestoredBlockCertificate.safeInductiveExtensionOfKernelClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -725,7 +725,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfProductionClosed
     exact wf.constructorOwners
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.safeInductiveExtensionOfProduction wf htels Hlower Hc Hprod
+  exact C.safeInductiveExtensionOfKernel wf htels Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -733,7 +733,7 @@ theorem RestoredBlockCertificate.safeInductiveExtensionOfProductionClosed
 restoration-entry safety all derived from the exact producer/restoration
 evidence.  Constructor semantic coherence is the only remaining final-model
 premise. -/
-theorem RestoredBlockCertificate.unsafeInductiveExtensionOfProductionClosed
+theorem RestoredBlockCertificate.unsafeInductiveExtensionOfKernelClosed
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -783,7 +783,7 @@ theorem RestoredBlockCertificate.unsafeInductiveExtensionOfProductionClosed
     Howners hempty henv hlparams hnames hauxRec hauxNames hsafety
   have hclosed := C.mutualInductivesClosed Hlower Hc Hprod Hmetadata Hsources
     Harity Howners hempty henv hlparams hnames wf.inductivesClosed
-  exact C.unsafeInductiveExtensionOfProduction wf htels Hlower Hc Hprod
+  exact C.unsafeInductiveExtensionOfKernel wf htels Hlower Hc Hprod
     Hmetadata Hsources Harity hempty henv hlparams hnames hentries hclosed
       hconstructorSemantics htypesH hctorOrigin
 
@@ -830,18 +830,18 @@ theorem NestedInstalledRun.safeInductiveExtension
     Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       false) := by
   have hisUnsafe : E.lowered.isUnsafe = false := by
-    rw [E.production_isUnsafe, E.productionContext_safety]
+    rw [E.lowered_isUnsafe, E.context_safety]
     decide
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
-    E.lowered.reindex E.production_c E.production_nparams hisUnsafe
-      E.production_initialEnv E.production_indTypes
+    E.lowered.reindex E.lowered_c E.lowered_nparams hisUnsafe
+      E.lowered_initialEnv E.lowered_indTypes
   have Harity : decl.ConstructorArityPrefix E.lowered.loweredDecl := by
     have h := E.assembly.constructorArityPrefix
-    rw [E.production_eq] at h
+    rw [E.lowered_eq] at h
     exact h
-  exact E.assembly.safeInductiveExtensionOfProductionClosed wf htels Hlower
+  exact E.assembly.safeInductiveExtensionOfKernelClosed wf htels Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
-    E.productionContext_env E.productionContext_lparams rfl
+    E.context_env E.context_lparams rfl
       hconstructorSemantics htypesH hctorOrigin
 
 /-- Consume a rich exact unsafe nested run directly.  Closure and every
@@ -869,19 +869,19 @@ theorem NestedInstalledRun.unsafeInductiveExtension
     Nonempty (InductiveExtension sourceProdEnv outEnv ves lparams nparams sourceTypes
       true) := by
   have hisUnsafe : E.lowered.isUnsafe = true := by
-    rw [E.production_isUnsafe, E.productionContext_safety]
+    rw [E.lowered_isUnsafe, E.context_safety]
     decide
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
-    E.lowered.reindex E.production_c E.production_nparams hisUnsafe
-      E.production_initialEnv E.production_indTypes
+    E.lowered.reindex E.lowered_c E.lowered_nparams hisUnsafe
+      E.lowered_initialEnv E.lowered_indTypes
   have Harity : decl.ConstructorArityPrefix E.lowered.loweredDecl := by
     have h := E.assembly.constructorArityPrefix
-    rw [E.production_eq] at h
+    rw [E.lowered_eq] at h
     exact h
-  exact E.assembly.unsafeInductiveExtensionOfProductionClosed wf htels Hlower
+  exact E.assembly.unsafeInductiveExtensionOfKernelClosed wf htels Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity hempty
-    E.productionContext_env E.productionContext_lparams rfl rfl rfl
-      E.productionContext_safety hconstructorSemantics htypesH hctorOrigin
+    E.context_env E.context_lparams rfl rfl rfl
+      E.context_safety hconstructorSemantics htypesH hctorOrigin
 
 /-! ## Narrow semantic residue for restored constructors -/
 
@@ -1108,7 +1108,7 @@ theorem RestoredBlockCertificate.constructorSemanticsOfParameterDomains
           some (.inductInfo familyInfo)
         rw [hsourceMapWF.find?'_eq_find?]
         exact hold) hvisible ctorIdx hctorIdx with ⟨Hctor⟩
-    exact ⟨Hctor.rebaseProduction
+    exact ⟨Hctor.rebaseKernel
       (Hfresh.preservesSourceFind hsourceMapWF Hctor.lookup) hsourceLE⟩
   · rcases hnew with ⟨familyIdx, rfl, ⟨Hfamily⟩⟩
     have hfamilyIdx := Hfamily.familyIdx_lt
@@ -1209,18 +1209,18 @@ theorem NestedInstalledRun.safeConstructorSemanticsOfParameterDomains
       (E.assembly.recursorVEnv.addDefEqRules
         (E.assembly.sourceRules ++ E.assembly.auxiliaryRules)) := by
   have hisUnsafe : E.lowered.isUnsafe = false := by
-    rw [E.production_isUnsafe, E.productionContext_safety]
+    rw [E.lowered_isUnsafe, E.context_safety]
     decide
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
-    E.lowered.reindex E.production_c E.production_nparams hisUnsafe
-      E.production_initialEnv E.production_indTypes
+    E.lowered.reindex E.lowered_c E.lowered_nparams hisUnsafe
+      E.lowered_initialEnv E.lowered_indTypes
   have Harity : decl.ConstructorArityPrefix E.lowered.loweredDecl := by
     have h := E.assembly.constructorArityPrefix
-    rw [E.production_eq] at h
+    rw [E.lowered_eq] at h
     exact h
   have Horigins := E.assembly.inductInfosFromDecl Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity Howners hempty
-      E.productionContext_env E.productionContext_lparams rfl
+      E.context_env E.context_lparams rfl
   exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
 
 /-- Unsafe counterpart of `safeConstructorSemanticsOfParameterDomains`.
@@ -1243,18 +1243,18 @@ theorem NestedInstalledRun.unsafeConstructorSemanticsOfParameterDomains
       (E.assembly.recursorVEnv.addDefEqRules
         (E.assembly.sourceRules ++ E.assembly.auxiliaryRules)) := by
   have hisUnsafe : E.lowered.isUnsafe = true := by
-    rw [E.production_isUnsafe, E.productionContext_safety]
+    rw [E.lowered_isUnsafe, E.context_safety]
     decide
   obtain ⟨Hheaders, Hconstructors, ⟨Hproduction⟩⟩ :=
-    E.lowered.reindex E.production_c E.production_nparams hisUnsafe
-      E.production_initialEnv E.production_indTypes
+    E.lowered.reindex E.lowered_c E.lowered_nparams hisUnsafe
+      E.lowered_initialEnv E.lowered_indTypes
   have Harity : decl.ConstructorArityPrefix E.lowered.loweredDecl := by
     have h := E.assembly.constructorArityPrefix
-    rw [E.production_eq] at h
+    rw [E.lowered_eq] at h
     exact h
   have Horigins := E.assembly.inductInfosFromDecl Hlower
     E.contextWF Hproduction Hmetadata Hsources Harity Howners hempty
-      E.productionContext_env E.productionContext_lparams rfl
+      E.context_env E.context_lparams rfl
   exact E.assembly.constructorSemanticsOfParameterDomains wf Horigins Hparams
 
 end VerifyInductive

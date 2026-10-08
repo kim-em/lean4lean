@@ -211,7 +211,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
   have hcanonical :
       checkInductiveTypes.loopType.cachedParamVars stats.params.size 0 =
         bvarSpine Hsynthesis.params.length := by
-    rw [checkInductiveTypes.loopType.cachedParamVars_zero_eq_recursorCanonicalVars,
+    rw [checkInductiveTypes.loopType.cachedParamVars_zero_eq_bvarSpine,
       Hsynthesis.parameterCount]
   have Hargs : List.Forall₂
       (TrExprS Rbase.venv

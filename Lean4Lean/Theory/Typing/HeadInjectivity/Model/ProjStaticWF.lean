@@ -73,7 +73,7 @@ theorem Model.generates_major {schema : CaseSchema} {owner : Fin schema.signatur
   rfl
 
 /-- A native constructor is a constructor of the table. -/
-theorem WF.ctorOf_of_nativeCtor (henv : env.WF) (h : Model.IsNativeCtor env c) :
+theorem WF.ctorOf_of_installedCtor (henv : env.WF) (h : Model.IsInstalledCtor env c) :
     EnvTables.ctorOf env c ≠ none := by
   obtain ⟨df, hdf, fn, ls, args, hm⟩ := h
   obtain ⟨k, _, _, hk, _⟩ := EnvTables.defeq_major henv hdf hm
@@ -112,8 +112,8 @@ theorem WF.projFamily_not_projCtor (henv : env.WF) (hp : env.projections S info)
   cases h1
 
 /-- A registered structure is not a native constructor. -/
-theorem WF.projFamily_not_nativeCtor (henv : env.WF) (hp : env.projections S info) :
-    ¬ Model.IsNativeCtor env S := fun h => henv.ctorOf_of_nativeCtor h
+theorem WF.projFamily_not_installedCtor (henv : env.WF) (hp : env.projections S info) :
+    ¬ Model.IsInstalledCtor env S := fun h => henv.ctorOf_of_installedCtor h
   (EnvTables.ctorOf_rigid henv (EnvTables.ctorOf_projection henv hp)).2.2
 
 /-- **Static facts of a projection entry** (`Model.ProjStatic`) of a well-formed environment,
@@ -123,7 +123,7 @@ theorem WF.projStatic (henv : env.WF) (hp : env.projections S info) :
     Model.ProjStatic env S info := by
   have hk := EnvTables.ctorOf_projection henv hp
   have hr := EnvTables.ctorOf_rigid henv hk
-  exact ⟨hr.2.1, hr.1, henv.projFamily_not_nativeCtor hp, henv.projFamily_not_projCtor hp,
+  exact ⟨hr.2.1, hr.1, henv.projFamily_not_installedCtor hp, henv.projFamily_not_projCtor hp,
     henv.ordered.closedC (henv.ordered.projectionConstructor hp)⟩
 
 /-- **A constructor of a registered structure belongs to that structure.** -/
@@ -150,7 +150,7 @@ theorem WF.ctor_of_projFamily (henv : env.WF) (hp : env.projections I info)
       ⟨k, hk, rfl⟩
     simpa using hmem
   rcases hc with h | h
-  · exact fromTable (henv.ctorOf_of_nativeCtor h)
+  · exact fromTable (henv.ctorOf_of_installedCtor h)
   · rcases henv.caseCtor_origin h with h | ⟨key, schema, owner, hreg, ho, hmem⟩
     · exact fromTable h
     · rw [hf] at ho

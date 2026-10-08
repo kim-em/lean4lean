@@ -50,7 +50,7 @@ private theorem vars_inst_above (n k : Nat) (arg : VExpr) :
   obtain ⟨i, hi, rfl⟩ := he
   exact (show (VExpr.bvar (0+i)).ClosedN n from by simpa only [VExpr.ClosedN, Nat.zero_add] using hi).instN_eq (j := k+n) (by omega)
 
-theorem singletonProgram_inst {data : RecursorData} {nativeType : VExpr} {env : VEnv}
+theorem singletonUnfolding_inst {data : RecursorData} {nativeType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
@@ -84,7 +84,7 @@ theorem singletonProgram_inst {data : RecursorData} {nativeType : VExpr} {env : 
   have hvarslen (n j : Nat) : (vars n j).length = n := by simp [vars]
   have hallLen : (args.map (·.liftN remaining) ++ vars remaining 0).length = data.majorOffset + 1 := by
     simp only [List.length_append, List.length_map, hvarslen]; omega
-  have hrecon' := singletonRecon_inst (a := arg) (K := k + remaining) henv hr hlarge hzero hallLen (by omega) hrecon
+  have hrecon' := singletonReconstruction_inst (a := arg) (K := k + remaining) henv hr hlarge hzero hallLen (by omega) hrecon
   rw [← hall] at hrecon'
   dsimp only [remaining] at hrecon'
   simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody,
@@ -101,7 +101,7 @@ end Lean4Lean.InductiveSignature.RecursorData
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.RecursorData
 
-theorem nativeEtaBody_instN (source arg : VExpr) (n k : Nat) :
+theorem etaOpen_instN (source arg : VExpr) (n k : Nat) :
     (etaOpen n source).inst arg (k+n) = etaOpen n (source.inst arg k) := by
   induction n generalizing source k with
   | zero => rfl
@@ -142,7 +142,7 @@ theorem UnfoldingCheck.instN (henv : env.WF)
     captures_length := ?_
     captures_typed := ?_
     major_prop := ?_
-    native_lhs := ?_ }
+    recursor_lhs := ?_ }
   · rw [PrefixUnfolding.type_instN]
     exact H.source_typed.instN henv.ordered W harg
   · intro he
@@ -165,11 +165,11 @@ theorem UnfoldingCheck.instN (henv : env.WF)
       hc.instN henv.ordered Wext harg⟩
     have hm' := hm.instN henv.ordered Wext harg
     simpa only [PrefixUnfolding.instN, VExpr.inst, instVar, if_pos (show 0 < k + program.domains.length by omega)] using hm'
-  · have hm := H.native_lhs.instN henv Wext harg
+  · have hm := H.recursor_lhs.instN henv Wext harg
     rw [← instantiateParams_eq_instOuter, InductiveSignature.instantiateParams_inst (hscope.1.instL (ls := program.levels))] at hm
     have hlength : k + program.domains.length = (k + (program.domains.length-1)) + 1 := by omega
     simp only [VExpr.inst] at hm
-    rw [hlength, ← lift_instN_lo, nativeEtaBody_instN] at hm
+    rw [hlength, ← lift_instN_lo, etaOpen_instN] at hm
     simpa only [PrefixUnfolding.instN, instDomains_length, instantiateParams_eq_instOuter, ← hlength] using hm
 
 theorem PrefixUnfold.instN {name : Name} {levels : List VLevel}
@@ -186,7 +186,7 @@ theorem PrefixUnfold.instN {name : Name} {levels : List VLevel}
         unfold singletonUnfolding at hg
         split at hg <;> simp [hh] at hg
     obtain ⟨type, htype⟩ := hex
-    have hg' := singletonProgram_inst henv hr ht hz htype (hr.recursorType_closed henv htype) hg (arg := arg) (k := k)
+    have hg' := singletonUnfolding_inst henv hr ht hz htype (hr.recursorType_closed henv htype) hg (arg := arg) (k := k)
     have replay' := replay.instN henv W harg
     simp only [inst_mkApps, VExpr.inst] at replay'
     rw [← PrefixUnfolding.rhs_instN program (replay.templateScope henv).2.1]
@@ -230,7 +230,7 @@ theorem generate_inst {levels : List VLevel}
   rw [hall]
   simp only [getD_map_inst]
   simp only [inst_mkApps, List.map_cons, List.map_nil, List.map_append,
-    List.map_take, VExpr.inst, (witness_closed _).instN_eq (Nat.zero_le _), and_self]
+    List.map_take, VExpr.inst, (propInhabitant_closed _).instN_eq (Nat.zero_le _), and_self]
 
 end Lean4Lean.QuotPrefixUnfolding
 

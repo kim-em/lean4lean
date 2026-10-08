@@ -123,7 +123,7 @@ theorem UnfoldingCheck.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType 
     captures_length := ?_
     captures_typed := ?_
     major_prop := ?_
-    native_lhs := ?_ }
+    recursor_lhs := ?_ }
   · intro he
     apply H.remaining_nonempty
     apply List.eq_nil_of_length_eq_zero
@@ -150,7 +150,7 @@ theorem UnfoldingCheck.congr_levels (henv : env.WF) (hΓ : OnCtx Γ (env.IsType 
     exact ⟨proposition, hprop.defeqDFC henv W, hmajor.defeqDFC henv W,
       ((hctor.eqUpToLevels henv.ordered hctx hp.constructor).hasType.2).defeqDFC henv W⟩
   · apply ConstSpineDefEq.defeqDFC henv W
-    apply H.native_lhs.congr_levels henv hctx
+    apply H.recursor_lhs.congr_levels henv hctx
     · rw [← hlength]
       exact .app (hs.etaOpen _).weakN hp.constructor
     · rw [← hp.equationBody, ← instantiateParams_eq_instOuter, ← instantiateParams_eq_instOuter]

@@ -51,7 +51,7 @@ theorem NestedIotaBuildCertificate.empty
   shapes _ h := by simp at h
 
 /-- Ordinary compilation of a staged block: its layout and name uniqueness,
-the direct canonical generation witness (read by the `Eq` bootstrap), and the
+the direct canonical generation witness (read by the `Eq` toConstantsInstallation), and the
 shared finite derivation. -/
 structure OrdinaryCompilationCertificate (env : VEnv)
     (decl : VInductDecl) (block : VInductBlock) : Prop where

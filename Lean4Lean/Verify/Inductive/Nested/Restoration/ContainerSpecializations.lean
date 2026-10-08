@@ -1145,17 +1145,17 @@ theorem NestedRun.containerSpecializations
           name) := by
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.lowered
-  have hc : P.c = E.context := E.production_c
+  have hc : P.c = E.context := E.lowered_c
   have henv : P.c.env = sourceProdEnv :=
-    (congrArg AddInductive.Context.env hc).trans E.productionContext_env
+    (congrArg AddInductive.Context.env hc).trans E.context_env
   have hlparams : P.c.lparams = lparams :=
     (congrArg AddInductive.Context.lparams hc).trans
-      E.productionContext_lparams
-  have hnparams : P.nparams = nparams := E.production_nparams
+      E.context_lparams
+  have hnparams : P.nparams = nparams := E.lowered_nparams
   have hinitial : P.initialEnv = ves.venv safety := by
-    simpa only [safety] using E.production_initialEnv
-  have hindTypes : P.indTypes = result.types.toArray := E.production_indTypes
-  have hisUnsafe : P.isUnsafe = isUnsafe := E.production_isUnsafe_source
+    simpa only [safety] using E.lowered_initialEnv
+  have hindTypes : P.indTypes = result.types.toArray := E.lowered_indTypes
+  have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
     exact E.contextWF
@@ -1204,11 +1204,11 @@ theorem NestedRun.containerSpecializations
         (wf.tr (safety := safety)).wf)
   have Htranslations : ClosedNestedOccurrenceTypings
       E.sourceCore.envTypes P.c.lparams result E.auxiliarySelection := by
-    rw [← E.auxiliaryVEnv_eq_native]
+    rw [← E.auxiliaryVEnv_eq_sourceCore]
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := by
     rfl
-  rcases Hrun.nativeGeneratedFamilySources Hcache Hparams wfP
+  rcases Hrun.auxiliaryFamilySources Hcache Hparams wfP
       hinitial HcP Hprod Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, hNctx⟩
   have hctxEq : N.parameterContext = P.headers.commonParameterContext := by
@@ -1220,7 +1220,7 @@ theorem NestedRun.containerSpecializations
       subst h
       rfl
     exact hNctx.trans (key _ hindTypes)
-  have Htypes := Hrun.allExpansionsOfNativeSources Hcache Hparams Hsource
+  have Htypes := Hrun.allExpansionsOfSources Hcache Hparams Hsource
     Htarget Hmetadata Hsources
       (VEnvs.WFCore.environmentTypesClosed wfP) wfP.inductivesClosed
       (by simpa only [hinitial, safety] using (wf.tr (safety := safety)).wf)
@@ -1375,13 +1375,13 @@ theorem NestedRun.commonParameterContext_refl
   generalize E.lowered.headers.commonParameterContext = L₂ at hctx ⊢
   generalize E.lowered.headers.sourceStatsWF.headers.params.reverse = L₁
     at hctx
-  rw [E.lowered.headers.sourceContextVEnv, E.production_initialEnv] at hctx
+  rw [E.lowered.headers.sourceContextVEnv, E.lowered_initialEnv] at hctx
   have henv : (ves.venv (if isUnsafe then .unsafe else .safe)).WF :=
     (wf.tr (safety := if isUnsafe then .unsafe else .safe)).wf
   have huvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.production_c, E.productionContext_lparams]
+    rw [h, E.lowered_c, E.context_lparams]
   rw [huvars]
   exact VEnv.IsDefEqCtx.refl (hctx.symm henv.ordered).isType
 

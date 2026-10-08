@@ -1186,7 +1186,7 @@ section SpineTransport2
 
 local notation:65 Γ " ⊢ " e " : " A:36 => HasType env univs Γ e A
 
-theorem SpineTransport.native_defn {r : (Pattern.const c).RHS × (Pattern.const c).Check}
+theorem SpineTransport.stored_defn {r : (Pattern.const c).RHS × (Pattern.const c).Check}
     (hp : Pat (.const c) r) (hm : (Pattern.const c).Matches e m1 m2)
     (hc : r.2.OK (IsDefEqU env univs Γ) m1 m2) (hstep : ParRed Γ e (r.1.apply m1 m2')) :
     ∀ n, SpineTransport Γ e (r.1.apply m1 m2') n := by
@@ -1204,7 +1204,7 @@ theorem SpineTransport.native_defn {r : (Pattern.const c).RHS × (Pattern.const 
     exact SpineTransport.etaBoth_case (bs := []) hΓ hstep W (ih _ (by omega)) l1 l2 l3
   | constDF h1 h2 h3 h4 h5 =>
     cases hRR
-    obtain ⟨out, hred, hn⟩ := NormalEq.const_native_parallel hΓ h1 h2 h3 h4 h5 hp .const
+    obtain ⟨out, hred, hn⟩ := NormalEq.const_stored_parallel hΓ h1 h2 h3 h4 h5 hp .const
       ((hc.weak' W).congr_values fun a => nomatch a)
       (values' := fun a => (m2' a).lift' ρ) (fun a => nomatch a)
     refine ⟨out, hred.full, ?_⟩
@@ -1351,7 +1351,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
     (NormalEqF.forall₂_refl (η := true) fun a ha => schema_mkApps_arg_type hΓ hFt ha) (.refl hMt) hEt H
 
 
-theorem SpineTransport.native_iota
+theorem SpineTransport.stored_iota
     {r : (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).RHS ×
       (Pattern.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)).Check}
     (hp : Pat (.app ((Pattern.const rc).varN mr) ((Pattern.const cc).varN kc)) r)
@@ -1469,14 +1469,14 @@ theorem SpineTransport.native_iota
   exact SpineTransport.redex (hd := fun ls => .const rc ls) (fun _ => .const) (fun _ _ => rfl)
     (fun he => by cases he with | const h => exact ⟨_, rfl, h⟩) fire'
 
-theorem SpineTransport.native (hp : Pat p r) (hm : p.Matches e m1 m2)
+theorem SpineTransport.stored (hp : Pat p r) (hm : p.Matches e m1 m2)
     (hc : r.2.OK (IsDefEqU env univs Γ) m1 m2) (hr : ∀ a, ParRed Γ (m2 a) (m2' a))
     (ih : ∀ a n, SpineTransport Γ (m2 a) (m2' a) n) :
     ∀ n, SpineTransport Γ e (r.1.apply m1 m2') n := by
   obtain ⟨sp, rfl⟩ := Params.pat_simple hp
   cases sp with
-  | defn c => exact SpineTransport.native_defn hp hm hc (.extra hp hm hc hr)
-  | iota rc mr cc kc => exact SpineTransport.native_iota hp hm hc hr ih
+  | defn c => exact SpineTransport.stored_defn hp hm hc (.extra hp hm hc hr)
+  | iota rc mr cc kc => exact SpineTransport.stored_iota hp hm hc hr ih
 
 theorem HasType.elim_levels_wf (hΓ : OnCtx Γ (env.IsType univs))
     (H : Γ ⊢ .elim block slot packed : V) : ∀ l ∈ packed, l.WF univs := by
@@ -1628,7 +1628,7 @@ theorem ParRed.spineTransport (H : ParRed Γ e e') : ∀ n, SpineTransport Γ e 
   | lam hA hb _ ihb => exact SpineTransport.lam hA hb ihb
   | forallE hA hB ihA ihB => exact SpineTransport.forallE hA hB ihA ihB
   | beta hb ha ihb iha => exact SpineTransport.beta hb ha ihb iha
-  | extra hp hm hc hr ih => exact SpineTransport.native hp hm hc hr ih
+  | extra hp hm hc hr ih => exact SpineTransport.stored hp hm hc hr ih
   | schema hm hl hr ih => exact SpineTransport.schema hm hl hr ih
 
 /-- Normal equality respects one parallel step. Eta expansion of the left

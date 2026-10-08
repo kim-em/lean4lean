@@ -16,7 +16,7 @@ def ConstSpineDefEq (env : VEnv) (U : Nat) (Γ : List VExpr)
     List.Forall₂ (· ≈ ·) levels levels' ∧
     List.Forall₂ (env.IsDefEqU U Γ) args args'
 
-private theorem nativeSpine_congr {env : VEnv} {U : Nat} {Γ : List VExpr}
+private theorem constSpine_congr {env : VEnv} {U : Nat} {Γ : List VExpr}
     {fn fn' type : VExpr} {args args' : List VExpr} (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
     (H : List.Forall₂ (env.IsDefEqU U Γ) args args')
     (head : env.IsDefEqU U Γ fn fn') (ht : env.HasType U Γ (mkApps fn args) type) :
@@ -34,7 +34,7 @@ theorem ConstSpineDefEq.defeq (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U))
   obtain ⟨name, levels, levels', args, args', rfl, rfl, hw, hw', heq, hargs⟩ := H
   have hhead := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
   obtain ⟨_, hhead⟩ := hhead
-  exact nativeSpine_congr henv hΓ hargs
+  exact constSpine_congr henv hΓ hargs
     ⟨_, hhead.eqUpToLevels henv.ordered hΓ (.const hw hw' heq)⟩ ht
 
 theorem ConstSpineDefEq.defeqDFC (henv : env.WF)

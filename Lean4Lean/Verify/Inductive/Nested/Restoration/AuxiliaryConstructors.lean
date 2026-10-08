@@ -183,7 +183,7 @@ theorem NestedRun.constructorRestorationSubstitution
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.lowered.loweredDecl.typeConstants =
         some E.lowered.constructors.toConstructorCheck.headerVEnv :=
@@ -320,7 +320,7 @@ theorem NestedRun.constructorRestorationSubstitution
     have h1 := E.lowered.constructors.toConstructorCheck.core.uvars
     have h2 := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h2
-    rw [h1, h2, E.production_c, E.productionContext_lparams]
+    rw [h1, h2, E.lowered_c, E.context_lparams]
   obtain ⟨envT, henvT, Hctors⟩ := Hmodels.constructors
   rw [hloweredTypes] at henvT
   cases henvT

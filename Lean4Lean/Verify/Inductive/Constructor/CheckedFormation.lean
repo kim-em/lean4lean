@@ -438,7 +438,7 @@ variable {isUnsafe : Bool}
 /-- Constructor identities are unique in the actual production array as
 well as in its translated table. This identifies retained replay witnesses
 with the constructors visited by subsequent passes. -/
-theorem productionConstructorNames
+theorem kernelConstructorNames
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     (indTypes.toList.flatMap (·.ctors)).map Lean.Constructor.name =
       decl.constructorConstants.map VConstVal.name := by
@@ -463,10 +463,10 @@ theorem productionConstructorNames
         congrArg (target.ctors.map VConstVal.name ++ ·) ih
   exact names R.core.types
 
-theorem productionConstructorNames_nodup
+theorem kernelConstructorNames_nodup
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ((indTypes.toList.flatMap (·.ctors)).map Lean.Constructor.name).Nodup := by
-  rw [R.productionConstructorNames]
+  rw [R.kernelConstructorNames]
   exact VEnv.addConstVals_names_nodup R.core.ctorsAdded
 
 /-- Shared source-universe parameters and family choices, before the
@@ -688,7 +688,7 @@ theorem sourceSignature_replay_of_source
   have hraw := hreplay
   obtain ⟨_, _, _, hraw, _⟩ := hraw
   have heq : production = source := List.eq_of_mem_of_nodup_map
-    R.productionConstructorNames_nodup hproduction hsource
+    R.kernelConstructorNames_nodup hproduction hsource
     (hraw.name.symm.trans hname.symm)
   simpa only [heq] using hreplay
 

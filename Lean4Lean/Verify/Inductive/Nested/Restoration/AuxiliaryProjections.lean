@@ -385,7 +385,7 @@ namespace VerifyInductive
 an original structure transports to the final environment, which registers
 the source structure's projection: the transported lowered constructor type
 beta reduces to the source constructor type. -/
-theorem NestedRun.projectionPrimaryOnCtx_of
+theorem NestedRun.projectionSourceOnCtx_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -727,7 +727,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
     exact h1.symm
   -- index count and result level
   have hinit : E.lowered.initialEnv = ves.venv (if isUnsafe then .unsafe else .safe) :=
-    E.production_initialEnv
+    E.lowered_initialEnv
   have hshape : E.lowered.loweredDecl.TypeShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.headers.headers.params t := by
     have h := E.lowered.headers.headers.typeShapes t (List.mem_of_mem_drop htDrop)
@@ -820,7 +820,7 @@ assembly base of the run**, with no hypothesis: the projection-name fields
 are `restoredEquationProjNames_of` and `eliminatorProjNames_of`, the
 auxiliary constructor lambdas are typed by
 `restoredEquationAuxiliaryConstructors_of`, and the lowered projections
-transport in well-formed contexts (`projectionPrimaryOnCtx_of` for original
+transport in well-formed contexts (`projectionSourceOnCtx_of` for original
 structures, `projectionAuxiliaryOnCtx_of` for auxiliary structure-like
 families). -/
 theorem NestedRun.restoredEquationGaps
@@ -850,7 +850,7 @@ theorem NestedRun.restoredEquationGaps
   intro entry hentry
   by_cases hTN : entry.typeName ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames
   · exact E.projectionAuxiliaryOnCtx_of wf Hsources auxiliaries D B hB hV entry hentry hTN
-  · exact E.projectionPrimaryOnCtx_of wf Hsources auxiliaries D B hB hV entry hentry hTN
+  · exact E.projectionSourceOnCtx_of wf Hsources auxiliaries D B hB hV entry hentry hTN
 
 /-- **`HrestoredWF` of `NestedRun.hruleShape_of_base`**: every
 restored generated equation is well formed in the final abstract environment

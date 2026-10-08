@@ -915,7 +915,7 @@ theorem AuxiliaryFamilySourceData.nestedOccurrenceReplacement
 checker header, and cached application spine have been recovered.  The
 constructor list is synthesized positionally by the executable auxiliary
 builder theorem; no family or constructor translation is supplied. -/
-theorem AuxiliaryFamilyContainer.nativeGeneratedFamilySource
+theorem AuxiliaryFamilyContainer.auxiliaryFamilySource
     {ves : VEnvs}
     (Horigin : LoweredAuxiliaryFamily prodEnv params nparams
       finalState targetConcrete)
@@ -1579,7 +1579,7 @@ position is reconstructed from the actual lowering run and ordinary header
 production.  Parameter-context conversion, application transport, installed
 container provenance, header translation, and every constructor target are
 all derived here. -/
-theorem LoweredAuxiliaryFamily.nativeGeneratedFamilySource
+theorem LoweredAuxiliaryFamily.auxiliaryFamilySource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
@@ -1736,7 +1736,7 @@ theorem LoweredAuxiliaryFamily.nativeGeneratedFamilySource
       rw [← H.lowered.type]
       exact Htarget.header.type
     wf := Htarget.header.wf }
-  have Hnative := C.nativeGeneratedFamilySource H wf wf.tr.wf
+  have Hnative := C.auxiliaryFamilySource H wf wf.tr.wf
     sourceTypesVEnv hbaseLE HsourceTypesWF
       c.lparams sourceDomains
       sourceBaseArgs abstractLevels Hlevels HsourceBase hdomains
@@ -1755,7 +1755,7 @@ theorem LoweredAuxiliaryFamily.nativeGeneratedFamilySource
 the literal final suffix.  Every choice is immediately certified by the
 exact position's lowering origin and native builder proof, so no translation
 or formation witness crosses a declaration boundary. -/
-theorem NestedLowering.nativeGeneratedFamilySources
+theorem NestedLowering.auxiliaryFamilySources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv sourceTypesVEnv targetTypesVEnv targetCtorsVEnv : VEnv}
@@ -1827,7 +1827,7 @@ theorem NestedLowering.nativeGeneratedFamilySources
         (VerifyInductive.VEnvs.WFCore.environmentTypesClosed wf)
         wf.inductivesClosed Hsources (by simp) (by simp) hresult with
       ⟨Horigin⟩
-    rcases Horigin.nativeGeneratedFamilySource
+    rcases Horigin.auxiliaryFamilySource
         (targetCtorsVEnv := targetCtorsVEnv) wf rfl Hrun
         Hcache Hparams Hc Hprod Hsources HsourceHeaders
         HsourceAdded HsourceTypesWF hempty selection Htranslations
@@ -2130,7 +2130,7 @@ theorem AuxiliaryFamilySources.replacementCompat
 
 /-- Project the producer-owned generated registry to the ordered generated
 suffix expansion using the exact origin stored at each slot. -/
-theorem NestedLowering.generatedExpansionsOfNativeSources
+theorem NestedLowering.auxiliaryExpansionsOfSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -2194,7 +2194,7 @@ theorem NestedLowering.generatedExpansionsOfNativeSources
 
 /-- Ordered formation expansion for the entire lowered queue, assembled only
 from the exact original translation and producer-owned generated registry. -/
-theorem NestedLowering.allExpansionsOfNativeSources
+theorem NestedLowering.allExpansionsOfSources
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hrun : NestedLowering prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray }
@@ -2233,7 +2233,7 @@ theorem NestedLowering.allExpansionsOfNativeSources
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource henv
   have HtargetTypesWF : targetEnvTypes.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Htarget henv
-  have Hgenerated := Hrun.generatedExpansionsOfNativeSources Htarget henv
+  have Hgenerated := Hrun.auxiliaryExpansionsOfSources Htarget henv
     HtargetTypesWF N HsourceTypesWF Henv hclosures Hsources Hsource.typesAdded
       resultSelection hresultNodup hempty Hsource.uvars Hsource.nparams
   have Hall := _root_.List.Forall₂.append' Horiginal

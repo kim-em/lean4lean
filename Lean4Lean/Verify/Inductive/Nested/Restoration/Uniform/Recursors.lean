@@ -1403,14 +1403,14 @@ variable {result : Lean4Lean.ElimNestedInductive.Result}
 theorem NestedRun.statsLevels :
     E.lowered.stats.levels = lparams.map Level.param := by
   have h := E.lowered.headers.statsWF.levelParams
-  rwa [E.production_c, E.productionContext_lparams] at h
+  rwa [E.lowered_c, E.context_lparams] at h
 
 /-- The production statistics carry exactly the lowered run's parameters. -/
 theorem NestedRun.statsParamsSize :
     E.lowered.stats.params.size = result.nparams := by
   obtain ⟨_, Hrun, _, _⟩ := E.lowering
   rw [Hrun.resultNParams, E.lowered.recursors.cardinality.params,
-    E.lowered.constructors.core.nparams, E.production_nparams]
+    E.lowered.constructors.core.nparams, E.lowered_nparams]
 
 /-- The generated entry of an owner is the recursor read back by any
 restoration step at the owner's recursor name. -/

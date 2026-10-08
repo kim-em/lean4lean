@@ -70,7 +70,7 @@ def takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
   | _ + 1, _ => none
 
 /-- The actual native instance retained by finite compilation. -/
-def nativeInstance (data : RecursorData) : Instance data.schema.signature := {
+def recursorInstance (data : RecursorData) : Instance data.schema.signature := {
   uvars := data.uvars
   levels := data.levels
   targetLevel := data.target
@@ -81,11 +81,11 @@ def singletonEquation (data : RecursorData) : Option VDefEq := do
   let s := data.schema.signature
   let [ctorIndex] := (List.finRange s.constructors.size).filter
     (fun i => s.constructors[i].owner == data.owner) | none
-  data.schema.restoration.equation (data.nativeInstance.equation ctorIndex)
+  data.schema.restoration.equation (data.recursorInstance.equation ctorIndex)
 
 /-- The exact restored recursor type; constrained indices are retained. -/
 def recursorType (data : RecursorData) : Option VExpr :=
-  data.schema.restoration.expr (data.nativeInstance.recursorType data.owner)
+  data.schema.restoration.expr (data.recursorInstance.recursorType data.owner)
 
 theorem singletonEquation_uvars {data : RecursorData} {equation : VDefEq}
     (h : data.singletonEquation = some equation) : equation.uvars = data.uvars := by

@@ -196,13 +196,13 @@ theorem Tables.Inv.addProjections_viewed {P : List VProjectionEntry} (H : T.Inv 
   defs h := by
     obtain ⟨h1, h2, h3⟩ := H.defs h
     exact ⟨h1, VEnv.addProjections_le.constants h2, VEnv.addProjections_le.defeqs h3⟩
-  natives h := by
-    obtain ⟨h1, h2⟩ := H.natives h
+  recursors h := by
+    obtain ⟨h1, h2⟩ := H.recursors h
     exact ⟨h1, h2.mono VEnv.addProjections_le .rfl⟩
   quot h := by
     obtain ⟨h1, h2⟩ := H.quot h
     exact ⟨h1.mono VEnv.addProjections_le, h2⟩
-  defs_natives := H.defs_natives
+  defs_recursors := H.defs_recursors
   views := H.views.transport VEnv.addProjections_le (VEnv.addProjections_defeqs _ _)
   equations h := H.equations (by rwa [VEnv.addProjections_defeqs] at h)
   projections h := by
@@ -306,9 +306,9 @@ def Tables.empty : Tables := ⟨fun _ => none, fun _ => none, false, fun _ => no
 
 theorem Tables.empty_inv : Tables.empty.Inv VEnv.empty where
   defs h := by cases h
-  natives h := by cases h
+  recursors h := by cases h
   quot h := by cases h
-  defs_natives h := rfl
+  defs_recursors h := rfl
   views := {
     fam := fun h => by cases h
     ctor := fun h => by cases h

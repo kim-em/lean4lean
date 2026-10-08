@@ -27,10 +27,10 @@ theorem defs_const (H : T.Inv env) (h : T.defs n ≠ none) : ∃ ci, env.constan
   obtain ⟨v, hv⟩ := Option.ne_none_iff_exists'.mp h
   exact ⟨_, (H.defs hv).2.1⟩
 
-theorem natives_const (H : T.Inv env) (h : T.natives n ≠ none) :
+theorem recursors_const (H : T.Inv env) (h : T.recursors n ≠ none) :
     ∃ ci, env.constants n = some ci := by
   obtain ⟨data, hd⟩ := Option.ne_none_iff_exists'.mp h
-  obtain ⟨rfl, he⟩ := H.natives hd
+  obtain ⟨rfl, he⟩ := H.recursors hd
   exact he.registered.constant_exists
 
 end Tables.Inv
@@ -184,7 +184,7 @@ theorem Tables.Inv.addDefinitions (H : T.Inv env) {cis : List VDefVal} {env1 : V
       · exact addDefEqs_defeqs.mpr (.inl ⟨v, hv, rfl⟩)
     · obtain ⟨h1, h2, h3⟩ := H.defs h
       exact ⟨h1, hle.constants h2, hle.defeqs h3⟩
-  · obtain ⟨h1, h2⟩ := H.natives h
+  · obtain ⟨h1, h2⟩ := H.recursors h
     exact ⟨h1, h2.mono hle hext⟩
   · obtain ⟨hq, h2, h3, h4, h5, h6, h7⟩ := H.quot h
     have hlift : ∀ ci ∈ cis, ci.name ≠ ``Quot.lift := hold _ ⟨_, hq.lift⟩
@@ -204,11 +204,11 @@ theorem Tables.Inv.addDefinitions (H : T.Inv env) {cis : List VDefVal} {env1 : V
         · rw [h6] at h; cases h
   · obtain ⟨v, hv⟩ := Option.ne_none_iff_exists'.mp h
     rcases (Tables.addDefs_defs hnd).mp hv with ⟨hmem, rfl⟩ | ⟨_, h⟩
-    · change T.natives v.name = none
-      cases hn : T.natives v.name with
+    · change T.recursors v.name = none
+      cases hn : T.recursors v.name with
       | none => rfl
-      | some data => exact absurd rfl (hold _ (H.natives_const (by simp [hn])) v hmem)
-    · exact H.defs_natives (by simp [h])
+      | some data => exact absurd rfl (hold _ (H.recursors_const (by simp [hn])) v hmem)
+    · exact H.defs_recursors (by simp [h])
   · apply H.views.addRules hle
     intro df hdf
     rcases addDefEqs_defeqs.mp hdf with ⟨ci, hci, rfl⟩ | hdf
@@ -281,7 +281,7 @@ theorem Tables.Inv.addQuot (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)
     (h : env.addQuot = some env') : T.addQuot.Inv env' := by
   obtain ⟨hle, hdfIff, hproj, fQ, fM, fL, fI⟩ := addQuot_parts h
   have hfreshT : ∀ n, env.constants n = none →
-      T.fam n = none ∧ T.ctor n = none ∧ T.defs n = none ∧ T.natives n = none := by
+      T.fam n = none ∧ T.ctor n = none ∧ T.defs n = none ∧ T.recursors n = none := by
     intro n hn
     refine ⟨?_, ?_, ?_, ?_⟩
     · cases hx : T.fam n with
@@ -293,9 +293,9 @@ theorem Tables.Inv.addQuot (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)
     · cases hx : T.defs n with
       | none => rfl
       | some _ => obtain ⟨_, hc⟩ := H.defs_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
-    · cases hx : T.natives n with
+    · cases hx : T.recursors n with
       | none => rfl
-      | some _ => obtain ⟨_, hc⟩ := H.natives_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
+      | some _ => obtain ⟨_, hc⟩ := H.recursors_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
   have hquotT : T.quot = false := by
     cases hq : T.quot with
     | false => rfl
@@ -349,11 +349,11 @@ theorem Tables.Inv.addQuot (H : T.Inv env) (henv : env.WF) (henv' : env'.WF)
     rcases (hdfIff df).mp hdf with rfl | hold
     · exact .inr ⟨``Quot.lift, _, rfl, fL⟩
     · exact .inl hold
-  refine ⟨fun {n v} hv => ?_, fun {n data} hd => ?_, fun _ => ?_, H.defs_natives,
+  refine ⟨fun {n v} hv => ?_, fun {n data} hd => ?_, fun _ => ?_, H.defs_recursors,
     hviews.addViews hok, fun {df} hdf => ?_, fun {s info} hp => ?_⟩
   · obtain ⟨h1, h2, h3⟩ := H.defs hv
     exact ⟨h1, hle.constants h2, hle.defeqs h3⟩
-  · obtain ⟨h1, h2⟩ := H.natives hd
+  · obtain ⟨h1, h2⟩ := H.recursors hd
     exact ⟨h1, h2.mono hle hext⟩
   · obtain ⟨_, _, h3, h4⟩ := hfreshT _ fL
     obtain ⟨_, _, h3', h4'⟩ := hfreshT _ fI
@@ -379,13 +379,13 @@ theorem selCtors_iff {t : VInductiveType} : selCtors t = true ↔ t.ctors ≠ []
   simp [selCtors, List.isEmpty_iff]
 
 /-- Record a native installation. -/
-def Tables.addNative (T : Tables) (decl : VInductDecl) (entries : List RecursorData) :
+def Tables.addRecursor (T : Tables) (decl : VInductDecl) (entries : List RecursorData) :
     Tables :=
   { T.addViews (viewFams decl selCtors) (viewCtors decl selCtors) with
-    natives := RecursorData.installEntries T.natives entries }
+    recursors := RecursorData.installEntries T.recursors entries }
 
 theorem Tables.Inv.freshT (H : T.Inv env) (hn : env.constants n = none) :
-    T.fam n = none ∧ T.ctor n = none ∧ T.defs n = none ∧ T.natives n = none := by
+    T.fam n = none ∧ T.ctor n = none ∧ T.defs n = none ∧ T.recursors n = none := by
   refine ⟨?_, ?_, ?_, ?_⟩
   · cases hx : T.fam n with
     | none => rfl
@@ -396,9 +396,9 @@ theorem Tables.Inv.freshT (H : T.Inv env) (hn : env.constants n = none) :
   · cases hx : T.defs n with
     | none => rfl
     | some _ => obtain ⟨_, hc⟩ := H.defs_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
-  · cases hx : T.natives n with
+  · cases hx : T.recursors n with
     | none => rfl
-    | some _ => obtain ⟨_, hc⟩ := H.natives_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
+    | some _ => obtain ⟨_, hc⟩ := H.recursors_const (n := n) (by simp [hx]); rw [hn] at hc; cases hc
 
 theorem installEntries_old {old : Name → Option RecursorData}
     {entries : List RecursorData} (h : ∀ data ∈ entries, data.name ≠ n) :
@@ -432,10 +432,10 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     {aux : List ContainerSpecialization} (hcle : cbase ≤ env)
     (hdata : CompilationData cbase decl expanded s g aux block)
     (hprior : ContainersInstalled cbase aux) :
-    T.Extends (T.addNative decl (RecursorData.compilationEntries default decl s aux g)) ∧
-      (T.addNative decl (RecursorData.compilationEntries default decl s aux g)).Inv env' := by
+    T.Extends (T.addRecursor decl (RecursorData.compilationEntries default decl s aux g)) ∧
+      (T.addRecursor decl (RecursorData.compilationEntries default decl s aux g)).Inv env' := by
   let entries := RecursorData.compilationEntries default decl s aux g
-  let T' := T.addNative decl entries
+  let T' := T.addRecursor decl entries
   have hle := VInductBlock.install_base_le hinstall
   obtain ⟨envTypes, envCtors, envRecs, htypes, hctors, hrecs, hinst⟩ := install_parts hinstall
   have hfreshAll : ∀ v ∈ block.types ++ block.ctors ++ block.recursors,
@@ -462,15 +462,15 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
   have hfreshCtor : ∀ t ∈ decl.types, ∀ c ∈ t.ctors, env.constants c.name = none :=
     fun t ht c hc => hfreshAll c (by simp [hctorMem t ht c hc])
   have hentryFresh : ∀ data ∈ entries, env.constants data.name = none := fun data hd =>
-    hdata.nativeEntries_fresh hinstall hd
+    hdata.recursorEntries_fresh hinstall hd
   have hentryNe : ∀ n, (∃ ci, env.constants n = some ci) → ∀ data ∈ entries, data.name ≠ n := by
     rintro n ⟨ci, hci⟩ data hd rfl
     rw [hentryFresh data hd] at hci
     cases hci
   have hext : T.Extends T' := by
     refine ⟨id, fun {n d} h => ?_, id, addView_of_old, addView_of_old⟩
-    change RecursorData.installEntries T.natives entries n = some d
-    rw [installEntries_old (hentryNe n (H.natives_const (by simp [h])))]
+    change RecursorData.installEntries T.recursors entries n = some d
+    rw [installEntries_old (hentryNe n (H.recursors_const (by simp [h])))]
     exact h
   have hTypeConst : ∀ t ∈ decl.types, env'.constants t.name = some t.toVConstant := by
     intro t ht
@@ -555,7 +555,7 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     intro data hd
     obtain ⟨owner, _, rfl⟩ := List.mem_map.mp hd
     have hinstance : (RecursorData.ofInstance default (CaseSchema.ofCompilation decl s aux)
-        g owner).nativeInstance = g := by
+        g owner).recursorInstance = g := by
       cases g with
       | mk U levels target names =>
         change Instance.mk U levels target (fun owner => s.families[owner].name.str "rec") =
@@ -572,24 +572,24 @@ theorem Tables.Inv.install' {decl : VInductDecl} {block : VInductBlock}
     exact ⟨h1, hle.constants h2, hle.defeqs h3⟩
   · rcases installEntries_some hd with ⟨hmem, rfl⟩ | ⟨_, hold⟩
     · exact ⟨rfl, hnewEvidence data hmem⟩
-    · obtain ⟨h1, h2⟩ := H.natives hold
+    · obtain ⟨h1, h2⟩ := H.recursors hold
       exact ⟨h1, h2.mono hle hext⟩
   · obtain ⟨hQI, h2, h3, h4, h5, h6, h7⟩ := H.quot hq
     refine ⟨hQI.mono hle, addView_of_old h2, addView_of_old h3, h4, ?_, h6, ?_⟩
-    · change RecursorData.installEntries T.natives entries _ = none
+    · change RecursorData.installEntries T.recursors entries _ = none
       rw [installEntries_old (hentryNe _ ⟨_, hQI.lift⟩)]; exact h5
-    · change RecursorData.installEntries T.natives entries _ = none
+    · change RecursorData.installEntries T.recursors entries _ = none
       rw [installEntries_old (hentryNe _ ⟨_, hQI.ind⟩)]; exact h7
-  · change RecursorData.installEntries T.natives entries n = none
+  · change RecursorData.installEntries T.recursors entries n = none
     rw [installEntries_old (hentryNe _ (H.defs_const hn))]
-    exact H.defs_natives hn
+    exact H.defs_recursors hn
   · rcases (install_defeqs hinstall).mp hdf with hnew | hold
-    · obtain ⟨data, hmem, index, howner, hgen⟩ := hdata.nativeEntries_equation hnew default
-      exact .inr (.inr ⟨data, hdata.nativeEntries_lookup hmem, index, howner, hgen⟩)
+    · obtain ⟨data, hmem, index, howner, hgen⟩ := hdata.recursorEntries_equation hnew default
+      exact .inr (.inr ⟨data, hdata.recursorEntries_lookup hmem, index, howner, hgen⟩)
     · rcases H.equations hold with ⟨v, hv, rfl⟩ | h | ⟨data, hd, rest⟩
       · exact .inl ⟨v, hv, rfl⟩
       · exact .inr (.inl h)
-      · exact .inr (.inr ⟨data, hext.natives hd, rest⟩)
+      · exact .inr (.inr ⟨data, hext.recursors hd, rest⟩)
   · rcases (install_projections hinstall).mp hp with ⟨entry, hentry, rfl, rfl⟩ | hold
     · rw [hdata.projections] at hentry
       obtain ⟨t, ht, c, hctors1, rfl⟩ := VInductDecl.projectionEntries_origin hentry

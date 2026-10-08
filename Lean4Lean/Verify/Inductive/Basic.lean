@@ -788,10 +788,10 @@ theorem VEnv.TypedApplicationSpine.hasType
 def bvarSpine (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
 
-@[simp] theorem recursorCanonicalVars_zero : bvarSpine 0 = [] :=
+@[simp] theorem bvarSpine_zero : bvarSpine 0 = [] :=
   rfl
 
-theorem recursorCanonicalVars_eq_ofFn (n : Nat) :
+theorem bvarSpine_eq_ofFn (n : Nat) :
     bvarSpine n =
       List.ofFn fun i : Fin n => VExpr.bvar (n - 1 - i) := by
   apply List.ext_getElem
@@ -799,14 +799,14 @@ theorem recursorCanonicalVars_eq_ofFn (n : Nat) :
   · intro i hleft hright
     simp [bvarSpine]
 
-theorem recursorCanonicalVars_succ_cons (n : Nat) :
+theorem bvarSpine_succ_cons (n : Nat) :
     bvarSpine (n + 1) =
       .bvar n :: bvarSpine n := by
   simp [bvarSpine, List.range_succ]
 
 /-- Split canonical telescope variables into an older applied initial block,
 weakened below the still-open suffix, followed by the suffix variables. -/
-theorem recursorCanonicalVars_add (initialCount suffixCount : Nat) :
+theorem bvarSpine_add (initialCount suffixCount : Nat) :
     bvarSpine (initialCount + suffixCount) =
       (bvarSpine initialCount).map
           (fun arg => arg.liftN suffixCount 0) ++
@@ -816,8 +816,8 @@ theorem recursorCanonicalVars_add (initialCount suffixCount : Nat) :
   | succ initialCount ih =>
     rw [show (initialCount + 1) + suffixCount =
         (initialCount + suffixCount) + 1 by omega,
-      recursorCanonicalVars_succ_cons,
-      recursorCanonicalVars_succ_cons, List.map_cons, ih]
+      bvarSpine_succ_cons,
+      bvarSpine_succ_cons, List.map_cons, ih]
     simp [VExpr.liftN, liftVar_base, List.append_assoc]
 
 theorem VExpr.liftN_mkApps
@@ -847,7 +847,7 @@ theorem VExpr.mkApps_canonical_add
           (bvarSpine initialCount)).liftN suffixCount 0 := by
     rw [VExpr.liftN_mkApps]
     simp [VExpr.liftN_liftN]
-  rw [recursorCanonicalVars_add]
+  rw [bvarSpine_add]
   rw [VExpr.mkApps_append, hinitialApp]
 
 /-- A term whose type is a dependent forall telescope can be weakened beneath
@@ -932,14 +932,14 @@ theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
   | zero => rfl
   | succ numIndices ih =>
     rw [List.range_succ, List.reverse_append, List.map_append]
-    simpa [recursorCanonicalVars_succ_cons, List.append_assoc] using
+    simpa [bvarSpine_succ_cons, List.append_assoc] using
       congrArg (VExpr.bvar (numIndices + 1) :: ·) ih
 
-@[simp] theorem recursorCanonicalVars_liftN_at_length
+@[simp] theorem bvarSpine_liftN_at_length
     (n shift : Nat) :
     (bvarSpine n).map (fun arg => arg.liftN shift n) =
       bvarSpine n := by
-  rw [recursorCanonicalVars_eq_ofFn]
+  rw [bvarSpine_eq_ofFn]
   apply List.ext_getElem
   · simp
   · intro i hleft hright
@@ -947,13 +947,13 @@ theorem concreteRecursorResultArgs_eq_canonical (numIndices : Nat) :
     simp only [List.getElem_map, List.getElem_ofFn, VExpr.liftN]
     rw [liftVar_lt (by omega)]
 
-theorem recursorCanonicalVars_liftN_comp
+theorem bvarSpine_liftN_comp
     (n inner outer : Nat) :
     ((bvarSpine n).map (fun arg => arg.liftN inner 0)).map
         (fun arg => arg.liftN outer inner) =
       (bvarSpine n).map
         (fun arg => arg.liftN (inner + outer) 0) := by
-  rw [recursorCanonicalVars_eq_ofFn]
+  rw [bvarSpine_eq_ofFn]
   apply List.ext_getElem
   · simp
   · intro i hleft hright
@@ -965,13 +965,13 @@ theorem recursorCanonicalVars_liftN_comp
 
 /-- Weakening the canonical variables for an outer telescope below an inner
 block gives the direct de Bruijn numbering in the combined context. -/
-theorem recursorCanonicalVars_liftN_zero_eq_ofFn
+theorem bvarSpine_liftN_zero_eq_ofFn
     (outer inner : Nat) :
     (bvarSpine outer).map
         (fun arg => arg.liftN inner 0) =
       List.ofFn fun i : Fin outer =>
         VExpr.bvar (outer + inner - 1 - i) := by
-  rw [recursorCanonicalVars_eq_ofFn]
+  rw [bvarSpine_eq_ofFn]
   apply List.ext_getElem
   · simp
   · intro i hleft hright
@@ -1250,11 +1250,11 @@ theorem VExpr.inst_mkApps
   | cons head tail ih =>
     simpa [VExpr.mkApps, VExpr.inst] using ih (.app fn head)
 
-@[simp] theorem recursorCanonicalVars_inst_at_length
+@[simp] theorem bvarSpine_inst_at_length
     (n : Nat) (arg : VExpr) :
     (bvarSpine n).map (fun e => e.inst arg n) =
       bvarSpine n := by
-  rw [recursorCanonicalVars_eq_ofFn]
+  rw [bvarSpine_eq_ofFn]
   apply List.ext_getElem
   · simp
   · intro i hleft hright
@@ -1269,8 +1269,8 @@ theorem VExpr.inst_canonicalResult
         (bvarSpine (n + 1))).inst arg n =
       VExpr.mkApps ((VExpr.app fn arg).liftN n 0)
         (bvarSpine n) := by
-  rw [VExpr.inst_mkApps, recursorCanonicalVars_succ_cons,
-    List.map_cons, recursorCanonicalVars_inst_at_length,
+  rw [VExpr.inst_mkApps, bvarSpine_succ_cons,
+    List.map_cons, bvarSpine_inst_at_length,
     VExpr.inst_liftN_lo]
   simp [VExpr.mkApps, VExpr.inst, VExpr.instVar, VExpr.liftN]
 
@@ -1392,7 +1392,7 @@ theorem RecursorMotiveTelescope.wrapForalls
         family familyResult)
   | cons domain domains ih =>
     apply RecursorMotiveTelescope.succ
-    simpa [VExpr.wrapForalls, recursorCanonicalVars_succ_cons,
+    simpa [VExpr.wrapForalls, bvarSpine_succ_cons,
       VExpr.mkApps, VExpr.liftN, VExpr.liftN_liftN, Nat.add_comm] using
       ih (.app (family.liftN 1 0) (.bvar 0))
 

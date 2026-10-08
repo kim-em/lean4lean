@@ -357,7 +357,7 @@ theorem ConstructorCheck.recursorPhasesWF
           simp only [Array.length_toList] at hc
           omega
         rw [Htargets i hi]
-        exact ((construction T).nativeTarget_eq i hbound).symm }⟩
+        exact ((construction T).recursorTarget_eq i hbound).symm }⟩
 
 /-- The production universe-parameter guard succeeds only for a duplicate-free
 parameter list. -/

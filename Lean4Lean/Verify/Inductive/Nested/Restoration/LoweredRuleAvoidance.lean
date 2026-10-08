@@ -1533,7 +1533,7 @@ theorem NestedRun.envParamUniform_auxCtorNames
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
       E.lowered.ctorEnv.find? n = some ci := E.ctorEnv_preserves wf
   have hwfP : E.lowered.c.env.constants.WF := by
-    rw [E.productionEnv]; exact (wf.tr (safety := .unsafe)).map_wf
+    rw [E.lowered_c_env]; exact (wf.tr (safety := .unsafe)).map_wf
   have horigin : ∀ {n ci}, E.lowered.ctorEnv.find? n = some ci →
       sourceProdEnv.find? n = some ci ∨
       (∃ indType ∈ E.lowered.indTypes.toList, ∃ info : InductiveVal,
@@ -1544,7 +1544,7 @@ theorem NestedRun.envParamUniform_auxCtorNames
         info.levelParams = lparams) := by
     intro n ci h
     have := E.lowered.ctorEnv_origin hwfP h
-    rwa [E.productionEnv, E.productionLParams] at this
+    rwa [E.lowered_c_env, E.lowered_c_lparams] at this
   have hfreshN : ∀ {n ci}, sourceProdEnv.find? n = some ci → n ∉ E.auxCtorNames :=
     fun h hn => by rw [hfresh _ hn] at h; cases h
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
@@ -1554,7 +1554,7 @@ theorem NestedRun.envParamUniform_auxCtorNames
       ∃ info', (ves.venv sf).projections s info' := by
     intro s info h
     rw [VEnv.addConstVals_projections_eq E.lowered.constructors.core.typesAdded,
-      E.production_initialEnv] at h
+      E.lowered_initialEnv] at h
     exact ⟨info, h⟩
   -- every new constant type avoids the auxiliary constructor names
   have hnewAvoids : ∀ {n ci}, E.lowered.ctorEnv.find? n = some ci →
@@ -1714,7 +1714,7 @@ theorem NestedRun.trailingArgDeclarations_of
       ∃ info', (ves.venv sf).projections s info' := by
     intro s info h
     rw [VEnv.addConstVals_projections_eq E.lowered.constructors.core.typesAdded,
-      E.production_initialEnv] at h
+      E.lowered_initialEnv] at h
     exact ⟨info, h⟩
   have hmem : ∀ i, i < E.lowered.indTypes.size →
       E.lowered.indTypes[i]! ∈ E.lowered.indTypes.toList := by
@@ -1724,13 +1724,13 @@ theorem NestedRun.trailingArgDeclarations_of
   refine ⟨?_, ?_, ?_, ?_⟩
   · refine E.lowered.recursors.toRecursorConstruction.paramDecls_trail
       (fun n hn => ?_) (fun s info h => ?_)
-    · rw [E.production_initialEnv]
+    · rw [E.lowered_initialEnv]
       cases hc : (ves.venv sf).constants n with
       | none => rfl
       | some ci =>
         obtain ⟨ci', hfind, -⟩ := (wf.tr (safety := sf)).find?_iff.2 ⟨ci, hc⟩
         rw [hfresh n hn] at hfind; cases hfind
-    · rw [E.production_initialEnv] at h
+    · rw [E.lowered_initialEnv] at h
       obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
         (wf.tr (safety := sf)).wf.ordered.projectionShape h
       obtain ⟨ci, hci, -⟩ := (wf.tr (safety := sf)).find?_iff.2 ⟨_, hlookup⟩

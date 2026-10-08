@@ -38,7 +38,7 @@ theorem generate_rename {levels : List VLevel}
   rw [hall]
   simp only [getD_map_lift']
   simp only [VExpr.lift'_mkApps, List.map_cons, List.map_nil, List.map_append,
-    List.map_take, VExpr.lift', (witness_closed _).lift'_eq Lift.Fixes.zero, and_self]
+    List.map_take, VExpr.lift', (propInhabitant_closed _).lift'_eq Lift.Fixes.zero, and_self]
 
 end Lean4Lean.QuotPrefixUnfolding
 

@@ -56,7 +56,7 @@ theorem motive_eq_scalar_lift (g : InductiveSignature.Instance s)
           (.sort g.targetLevel))).liftN prior 0 := by
   rw [VExpr.liftN_wrapForalls]
   simp only [Nat.zero_add, VExpr.liftN, VExpr.liftN_mkApps, List.length_map]
-  rw [recursorCanonicalVars_add, List.map_append, ← vars_eq_canonical,
+  rw [bvarSpine_add, List.map_append, ← vars_eq_canonical,
     ← vars_eq_canonical, vars_lift, Nat.add_zero, vars_lift_below, vars_lift_above]
   simp [InductiveSignature.Instance.motive, insertBinders_eq_prefix,
     VExpr.wrapForalls]
@@ -188,7 +188,7 @@ theorem RecursorConstruction.generatedMotiveBinder
       (abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse []))
   rw [hprior] at Hweak
   rw [hp', motive_eq_scalar_lift]
-  simpa only [H.consumedFamilies_indices owner, H.consumedFamilies_name owner, hl,
+  simpa only [H.families_indices owner, H.families_name owner, hl,
     H.sourceIndices_length owner, hp, List.length_reverse, H.sourceParameterCount] using Hweak
 
 theorem RecursorConstruction.generatedMotivesTranslation

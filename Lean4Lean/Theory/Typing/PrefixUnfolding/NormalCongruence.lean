@@ -9,7 +9,7 @@ open VExpr Params InductiveSignature InductiveSignature.RecursorData
 variable [Params]
 
 omit [Params] in
-theorem nativeEtaBody_spine (n : Nat) (fn : VExpr) :
+theorem etaOpen_spine (n : Nat) (fn : VExpr) :
     etaOpen n fn = mkApps (fn.liftN n) (vars n 0) := by
   induction n generalizing fn with
   | zero => simp [etaOpen, vars, mkApps, liftN_zero]
@@ -68,7 +68,7 @@ theorem ConstSpineDefEq.instOuter_normal {name : Name} {levels : List VLevel} (h
   simpa only [instantiateParams_eq_instOuter] using (NormalEqF.instantiateParams_args hΓ hc hA).defeq hΓ
 
 
-private theorem native_eta_match {domains : List VExpr} (hpos : 0 < domains.length) (hΓ : OnCtx Γ (env.IsType univs))
+private theorem etaOpen_match {domains : List VExpr} (hpos : 0 < domains.length) (hΓ : OnCtx Γ (env.IsType univs))
     {name : Name} {levels : List VLevel}
     (hlevels : ∀ l ∈ levels, l.WF univs)
     (hargs : List.Forall₂ (NormalEqF η Γ) args args')
@@ -77,7 +77,7 @@ private theorem native_eta_match {domains : List VExpr} (hpos : 0 < domains.leng
     ConstSpineDefEq env univs (domains.reverse ++ Γ)
       (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args)).lift ctor)
       (.app (etaOpen (domains.length - 1) (mkApps (.const name levels) args')).lift ctor') := by
-  rw [nativeEtaBody_spine, nativeEtaBody_spine]
+  rw [etaOpen_spine, etaOpen_spine]
   simp only [lift, liftN_mkApps, liftN, List.map_append]
   refine ⟨name, levels, levels,
     (args.map (·.liftN (domains.length - 1)) |>.map (·.liftN 1)) ++
@@ -142,7 +142,7 @@ theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
       captures_length := ?_
       captures_typed := ?_
       major_prop := ?_
-      native_lhs := ?_ }
+      recursor_lhs := ?_ }
     · intro hn
       apply H.remaining_nonempty
       apply List.eq_nil_of_length_eq_zero
@@ -172,11 +172,11 @@ theorem UnfoldingCheck.congr_normal {name : Name} {levels : List VLevel}
     · apply ConstSpineDefEq.defeqDFC henv W
       rw [← hlen, ← hbody, ← hlevels]
       obtain ⟨_, _, hw, _⟩ := HasType.const_inv henv.ordered hΓ hh
-      have hleft := native_eta_match (name := name) hpos hΓ hw ha hctor hctx
+      have hleft := etaOpen_match (name := name) hpos hΓ hw ha hctor hctx
       obtain ⟨n, ls, as, hhead⟩ := hhead
       have hright := ConstSpineDefEq.instOuter_normal hctx
         (by rw [hhead, instL_mkApps]; rfl) hcaptures hiota.hasType.1
-      exact (hleft.symm.trans hctx H.native_lhs).trans hctx hright
+      exact (hleft.symm.trans hctx H.recursor_lhs).trans hctx hright
   · have hn := NormalEqF.instantiateParams_args
       (e := p.equationBody.rhs.instL p.levels) hctx hcaptures
       (by simpa only [instantiateParams_eq_instOuter] using hiota.hasType.2)
@@ -193,15 +193,15 @@ theorem PrefixUnfold.congr_normal {name : Name} {levels : List VLevel}
     ∃ rhs', PrefixUnfold env univs registry Γ name levels args' rhs' ∧ NormalEqF η Γ rhs rhs' := by
   cases H with
   | @intro data program hlookup hregistered hname hlarge hw hz hg replay =>
-    obtain ⟨program', hg'⟩ := singletonProgram_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
-    obtain ⟨_, _, hl, _, he, hb, _⟩ := singletonProgram_spec hg
-    obtain ⟨_, _, hl', _, he', hb', _⟩ := singletonProgram_spec hg'
+    obtain ⟨program', hg'⟩ := singletonUnfolding_sameArity hg (Lean4Lean.List.Forall₂.length_eq ha).symm
+    obtain ⟨_, _, hl, _, he, hb, _⟩ := singletonUnfolding_spec hg
+    obtain ⟨_, _, hl', _, he', hb', _⟩ := singletonUnfolding_spec hg'
     have heq : program.equation = program'.equation := Option.some.inj (he.symm.trans he')
     have hbody : program.equationBody = program'.equationBody := by
       rw [heq] at hb
       exact Option.some.inj (hb.symm.trans hb')
-    obtain ⟨_, _, _, _, hlen, _, _⟩ := singletonProgram_layout hg
-    obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonProgram_layout hg'
+    obtain ⟨_, _, _, _, hlen, _, _⟩ := singletonUnfolding_layout hg
+    obtain ⟨_, _, _, _, hlen', _, _⟩ := singletonUnfolding_layout hg'
     have hlength : program.domains.length = program'.domains.length := by
       rw [hlen, hlen', Lean4Lean.List.Forall₂.length_eq ha]
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, replay.source_typed⟩
@@ -235,7 +235,7 @@ def prefixProof (levels : List VLevel) (args : List VExpr) : VExpr :=
   mkApps (propInhabitant (levels[0]?.getD .zero))
     [all[0]?.getD default, all[1]?.getD default, all[5]?.getD default]
 
-theorem prefixArguments_length (h : args.length ≤ 6) : (openedArguments args).length = 6 := by
+theorem openedArguments_length (h : args.length ≤ 6) : (openedArguments args).length = 6 := by
   simp [openedArguments, vars]
   omega
 
@@ -306,8 +306,8 @@ theorem QuotRegistered.prefixType {env : VEnv} {levels : List VLevel}
   cases hg
   have hf : env.HasType U Γ (.const ``Quot.lift levels) (quotLiftConst.type.instL levels) :=
     .const H.lift hw hlen
-  have hh := hf.nativeSupply henv hΓ ht hsupply
-  rw [native_takeForalls_sound htake] at hh
+  have hh := hf.supply henv hΓ ht hsupply
+  rw [takeForalls_sound htake] at hh
   exact hh
 
 variable [Params]
@@ -347,7 +347,7 @@ theorem UnfoldingCheck.quot_normal_components {levels : List VLevel}
         ((QuotPrefixUnfolding.openedArguments args)[i]?.getD default)
         ((QuotPrefixUnfolding.openedArguments args')[i]?.getD default) := by
     have hil : i < (QuotPrefixUnfolding.openedArguments args).length := by
-      rw [QuotPrefixUnfolding.prefixArguments_length (by omega)]
+      rw [QuotPrefixUnfolding.openedArguments_length (by omega)]
       exact hi
     have hir : i < (QuotPrefixUnfolding.openedArguments args').length := by
       rw [← Lean4Lean.List.Forall₂.length_eq hall]

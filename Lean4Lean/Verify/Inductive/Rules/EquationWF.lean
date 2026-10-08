@@ -862,7 +862,7 @@ theorem RecursorCheck.params_size_eq
 theorem RecursorCheck.motives_size_eq
     (H : RecursorCheck R outEnv) :
     (H.recInfos.map (·.motive)).size = H.generationSignature.families.size := by
-  rw [Array.size_map, ← H.consumedFamilies_size]
+  rw [Array.size_map, ← H.families_size]
   change _ = H.generator.signature.families.size
   rw [H.generator.families]
 

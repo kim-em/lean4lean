@@ -51,7 +51,7 @@ structure PrimitiveConstantsInstallation
 
 /-- A complete canonical Bool batch restores the primitive invariant.  No
 intermediate environment is asserted to satisfy `HasPrimitives`. -/
-theorem VEnv.HasPrimitives.addBoolBootstrap
+theorem VEnv.HasPrimitives.addBoolConstants
     {env out : VEnv}
     (H : env.HasPrimitives)
     (Hadd : env.addConstVals primitiveBoolConstants = some out) :
@@ -127,7 +127,7 @@ theorem VEnv.HasPrimitives.addBoolBootstrap
     (same name hBool hFalseName hTrueName)
 
 /-- A complete canonical Nat batch restores the primitive invariant. -/
-theorem VEnv.HasPrimitives.addNatBootstrap
+theorem VEnv.HasPrimitives.addNatConstants
     {env out : VEnv}
     (H : env.HasPrimitives)
     (Hadd : env.addConstVals primitiveNatConstants = some out) :
@@ -206,14 +206,14 @@ claim is made about its family-only prefix. -/
 theorem PrimitiveConstantsInstallation.boolHasPrimitives
     (B : PrimitiveConstantsInstallation env out primitiveBoolConstants)
     (H : env.HasPrimitives) : out.HasPrimitives :=
-  VEnv.HasPrimitives.addBoolBootstrap H B.installed
+  VEnv.HasPrimitives.addBoolConstants H B.installed
 
 /-- The completed atomic Nat batch restores `HasPrimitives`; no validity claim
 is made about its family-only prefix. -/
 theorem PrimitiveConstantsInstallation.natHasPrimitives
     (B : PrimitiveConstantsInstallation env out primitiveNatConstants)
     (H : env.HasPrimitives) : out.HasPrimitives :=
-  VEnv.HasPrimitives.addNatBootstrap H B.installed
+  VEnv.HasPrimitives.addNatConstants H B.installed
 
 end VerifyInductive
 end Lean4Lean

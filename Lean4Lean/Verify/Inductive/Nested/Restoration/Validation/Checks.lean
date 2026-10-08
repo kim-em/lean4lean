@@ -158,7 +158,7 @@ theorem validateRestoredConstructorParameters.sourceConsts_of_run
   exact validateRestoredConstructorParameters.sourceConst_of_run hvalid
     Hsources hrun htype hctor
 
-private theorem validateRestoredRecursorTypes.primaryCheck_eq_ok_of_run
+private theorem validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredRecursorTypes.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types) :
@@ -202,7 +202,7 @@ theorem validateRestoredRecursorTypes.typeCheck_eq_ok_of_run
           TypeChecker.ensureSort type restored.type) = .ok checked := by
   dsimp only
   have hcheck :=
-    validateRestoredRecursorTypes.primaryCheck_eq_ok_of_run hrun htype
+    validateRestoredRecursorTypes.sourceCheck_eq_ok_of_run hrun htype
   unfold Lean4Lean.validateRestoredRecursorTypes.check at hcheck
   rw [hlookup] at hcheck
   simp only at hcheck
@@ -397,7 +397,7 @@ theorem validateRestoredRecursorTypes.auxiliaryTranslation_of_run
     (validateRestoredRecursorTypes.auxiliaryCheck_eq_ok_of_run hrun hrec)
       hlookup
 
-private theorem validateRestoredRecursorRules.primaryCheck_eq_ok_of_run
+private theorem validateRestoredRecursorRules.sourceCheck_eq_ok_of_run
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
     (htype : indType ∈ types) :
@@ -512,7 +512,7 @@ theorem validateRestoredRecursorRules.translation_of_check
 
 /-- Primary specialization of `translation_of_check`, selected from the
 successful whole-block rule-validation pass. -/
-theorem validateRestoredRecursorRules.primaryTranslation_of_run
+theorem validateRestoredRecursorRules.sourceTranslation_of_run
     (hvalid : CheckingEnv.Valid safety env venv)
     (hrun : Lean4Lean.validateRestoredRecursorRules.run env loweredEnv lparams
       safety fuel result recNameMap allIndNames types auxRecNames = .ok ())
@@ -532,7 +532,7 @@ theorem validateRestoredRecursorRules.primaryTranslation_of_run
             (Lean.mkRecName indType.name)) oldInfo).levelParams []
         rule.rhs inferred target targetType := by
   exact validateRestoredRecursorRules.translation_of_check hvalid
-    (validateRestoredRecursorRules.primaryCheck_eq_ok_of_run hrun htype)
+    (validateRestoredRecursorRules.sourceCheck_eq_ok_of_run hrun htype)
       hlookup hrule
 
 /-- Auxiliary specialization of `translation_of_check`, selected from the

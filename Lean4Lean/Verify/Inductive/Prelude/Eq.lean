@@ -16,7 +16,7 @@ private theorem vconstant_eq_of_fields {a b : VConstant}
   simp_all
 
 /-- Exact production syntax of Lean's ordinary (non-primitive) `Eq`
-bootstrap declaration, modulo binder and universe-parameter names.  As
+toConstantsInstallation declaration, modulo binder and universe-parameter names.  As
 submitted by `Init.Prelude`, `Eq` has two parameters (`α` and the left
 endpoint `a`) and one index (the right endpoint), so `nparams = 2`. -/
 def PreludeEqShape (lparams : List Name) (nparams : Nat)
@@ -33,7 +33,7 @@ def PreludeEqShape (lparams : List Name) (nparams : Nat)
 /-- The concrete `Eq` family arity has the canonical abstract type stored in
 `eqConst`. This proof is environment-independent: the arity contains only
 sorts and bound variables. -/
-theorem eqBootstrapType_translation
+theorem preludeEqType_translation
     (env : VEnv) (u alphaName lhsName rhsName : Name) :
     TrExprS env [u] [] (preludeEqType u alphaName lhsName rhsName)
       eqConst.type := by
@@ -74,7 +74,7 @@ theorem eqBootstrapType_translation
 
 /-- Header translation of the exact production `Eq` declaration determines
 the abstract family constant uniquely. -/
-theorem TrInductDeclHeaders.eqBootstrapConstant
+theorem TrInductDeclHeaders.preludeEqConstant
     (H : TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     ∃ target : VInductiveType,
@@ -90,11 +90,11 @@ theorem TrInductDeclHeaders.eqBootstrapConstant
   apply vconstant_eq_of_fields
   · simpa [eqConst] using Htarget.header.uvars
   · apply TrExprS.unique (by trivial) Htarget.header.type
-    exact eqBootstrapType_translation env u alphaName lhsName rhsName
+    exact preludeEqType_translation env u alphaName lhsName rhsName
 
-/-- An exact bootstrap header certificate identifies one installed production
+/-- An exact toConstantsInstallation header certificate identifies one installed production
 `Eq` entry and the corresponding canonical abstract value. -/
-theorem HeaderEnvironment.eqBootstrapEntry
+theorem HeaderEnvironment.preludeEqEntry
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
     (Hshape : PreludeEqShape c.lparams nparams indTypes.toList isUnsafe) :
@@ -102,7 +102,7 @@ theorem HeaderEnvironment.eqBootstrapEntry
       (.inductInfo info, target.toVConstVal) ∈ H.entries ∧
       info.name = ``Eq ∧ target.name = ``Eq ∧
       target.toVConstant = eqConst := by
-  rcases TrInductDeclHeaders.eqBootstrapConstant H.translation Hshape with
+  rcases TrInductDeclHeaders.preludeEqConstant H.translation Hshape with
     ⟨target, htypes, htargetName, htargetConstant⟩
   have htargetMem : target.toVConstVal ∈ H.entries.map Prod.snd := by
     rw [H.values, VInductDecl.typeConstants, htypes]
@@ -124,10 +124,10 @@ theorem HeaderEnvironment.eqBootstrapEntry
   exact ⟨info, target, hentryEq ▸ hentry, hinfoName,
     htargetName, htargetConstant⟩
 
-/-- The source translation of the exact bootstrap declaration fixes the
+/-- The source translation of the exact toConstantsInstallation declaration fixes the
 abstract declaration: one family `Eq` with the stored type of `Eq`, one
 constructor `Eq.refl` with the stored type of `Eq.refl`, two parameters. -/
-theorem TrInductDeclCore.eqBootstrapDecl
+theorem TrInductDeclCore.preludeEqDecl
     (H : TrInductDeclCore env lparams nparams types isUnsafe decl envTypes envCtors)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe) :
     ∃ family refl, decl.types = [family] ∧ family.name = ``Eq ∧
@@ -187,12 +187,12 @@ theorem VInductBlock.install_rule {base env' : VEnv} {block : VInductBlock}
         subst env'
         exact VEnv.addDefEqRules_defeqs_iff.mpr (.inr hrule)
 
-/-- The completed safe ordinary run for Lean's bootstrap declaration of `Eq`
+/-- The completed safe ordinary run for Lean's toConstantsInstallation declaration of `Eq`
 creates the canonical abstract equality constant at every observer safety.
 Unlike later ordinary declarations, this theorem assumes only that production
 `Eq` is absent at the source; canonical equality is obtained from the actual
 header translation and staged installation of this block. -/
-theorem OrdinaryInstallation.extendSafeEqBootstrap
+theorem OrdinaryInstallation.extendSafePreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
       isUnsafe sourceEnv outEnv)
@@ -215,7 +215,7 @@ theorem OrdinaryInstallation.extendSafeEqBootstrap
   let B := B0.sf_mono (safety := .safe) (by
     rw [hsafety]
     exact DefinitionSafety.le_rfl)
-  rcases Hheaders.eqBootstrapEntry Hshape with
+  rcases Hheaders.preludeEqEntry Hshape with
     ⟨eqInfo, target, hentry, hinfoName, htargetName, htargetConstant⟩
   have hnonempty : indTypes.toList ≠ [] := by
     intro hempty
@@ -281,7 +281,7 @@ theorem OrdinaryInstallation.extendSafeEqBootstrap
       · simpa [hlps] using hrecUvars.symm
       · exact TrExprS.eq_canonicalEqRecType huv hrecType
     -- The abstract declaration is the canonical one.
-    rcases VerifyInductive.TrInductDeclCore.eqBootstrapDecl R.core Hshape with
+    rcases VerifyInductive.TrInductDeclCore.preludeEqDecl R.core Hshape with
       ⟨family, refl, hdeclTypes, hfamilyName, hfamilyConst, hfamilyCtors, hreflName,
         hreflConst, hdeclParams⟩
     -- The generated rule is the stored rule.
@@ -336,10 +336,10 @@ open Kernel
 namespace VerifyInductive
 
 set_option linter.unusedSimpArgs false in
-/-- Nested-inductive lowering is a literal no-op for the bootstrap `Eq`
+/-- Nested-inductive lowering is a literal no-op for the toConstantsInstallation `Eq`
 syntax: its recursive constructor occurrence is the family currently being
 defined, not a nested occurrence through another inductive. -/
-theorem ElimNestedInductive.run'.eqBootstrapNoop
+theorem ElimNestedInductive.run'.preludeEqNoop
     (env : Environment) (fuel : Nat) (lparams : List Name)
     (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
     (res : ElimNestedInductive.Result)
@@ -507,7 +507,7 @@ theorem ElimNestedInductive.run'.eqBootstrapNoop
       · rfl
 
 /-- Predicate-transformer form of the exact `Eq` lowering no-op. -/
-theorem ElimNestedInductive.run'.eqBootstrapNoopWF
+theorem ElimNestedInductive.run'.preludeEqNoopWF
     (env : Environment) (fuel : Nat) (lparams : List Name)
     (nparams : Nat) (types : List InductiveType) (isUnsafe : Bool)
     (Hshape : PreludeEqShape lparams nparams types isUnsafe)
@@ -515,10 +515,10 @@ theorem ElimNestedInductive.run'.eqBootstrapNoopWF
     ((ElimNestedInductive.run fuel nparams types env).run'
       { lvls := lparams.map .param, newTypes := types.toArray }).WF fun res =>
         res.types = types ∧ res.aux2nested.size = 0 :=
-  fun res hout => eqBootstrapNoop env fuel lparams nparams types isUnsafe res
+  fun res hout => preludeEqNoop env fuel lparams nparams types isUnsafe res
     Hshape hAbsent hout
 
-/-- The exact bootstrap `Eq` syntax is necessarily dispatched through the
+/-- The exact toConstantsInstallation `Eq` syntax is necessarily dispatched through the
 ordinary branch: it has one universe parameter and two inductive parameters
 (`α` and the left endpoint), whereas primitive Bool/Nat recognition requires
 both lists to be empty. -/
@@ -533,9 +533,9 @@ theorem checkPrimitiveInductive_eq_false_of_preludeEqShape
   simp [Primitive.checkInductive]
   rfl
 
-/-- Source-aligned ordinary execution of the exact safe bootstrap `Eq`
+/-- Source-aligned ordinary execution of the exact safe toConstantsInstallation `Eq`
 declaration establishes the first canonical equality environment. -/
-theorem OrdinaryRunResult.extendEqBootstrap
+theorem OrdinaryRunResult.extendPreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
       nparams types numNested outEnv)
@@ -572,14 +572,14 @@ theorem OrdinaryRunResult.extendEqBootstrap
   have Hshape' : PreludeEqShape c'.lparams nparams
       types.toArray.toList (source.safety != .safe) := by
     simpa [hlparams] using Hshape
-  rcases Hphases.extendSafeEqBootstrap wf' hcorner' hAbsent' hcSafety' hcVEnv
+  rcases Hphases.extendSafePreludeEq wf' hcorner' hAbsent' hcSafety' hcVEnv
       Hshape' with ⟨ves', wf', hEq', hle, Hspec, hcanonical⟩
   refine ⟨ves', wf', hEq', hle, ?_, hcanonical⟩
   simpa only [hlparams, hsource] using Hspec
 
-/-- Complete `AddInductive.run` refinement for the exact bootstrap `Eq`
+/-- Complete `AddInductive.run` refinement for the exact toConstantsInstallation `Eq`
 declaration, without assuming canonical equality in the source model. -/
-theorem AddInductive.run.eqBootstrapFinalWF
+theorem AddInductive.run.preludeEqFinalWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
@@ -619,11 +619,11 @@ theorem AddInductive.run.eqBootstrapFinalWF
     decide
   exact (AddInductive.run.semanticSourceAlignedWF nparams numNested Hc
     Hclosed wf.envGhostFree hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
-      Hrun.extendEqBootstrap wf htels hAbsent hsafety hsource Hshape
+      Hrun.extendPreludeEq wf htels hAbsent hsafety hsource Hshape
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by
-the exact bootstrap `Eq` declaration. -/
-theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
+the exact toConstantsInstallation `Eq` declaration. -/
+theorem Environment.addInductiveAfterLowering.preludeEqFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
@@ -669,7 +669,7 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-  have Hrun := AddInductive.run.eqBootstrapFinalWF
+  have Hrun := AddInductive.run.preludeEqFinalWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hAbsent
     (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' Hinputs
   unfold Environment.addInductiveAfterLowering
@@ -682,10 +682,10 @@ theorem Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF
       simpa [c, initialContext, htypes] using Hspec
     exact ⟨ves', wf', EqReadyOrAbsent.ofCanonical hEq', hle, Hspec', hcanonical⟩
 
-/-- End-to-end production `addInductive` boundary for the ordinary bootstrap
+/-- End-to-end production `addInductive` boundary for the ordinary toConstantsInstallation
 `Eq` declaration.  Source checks and the exact lowering no-op are composed
 with the same source-aligned run that installs canonical abstract equality. -/
-theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
+theorem Environment.addInductive.preludeEqFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -706,19 +706,19 @@ theorem Environment.addInductive.eqBootstrapFinalEnvironmentWF
   have Hsources : (Lean4Lean.checkInductiveSources env types).WF
       fun _ => SourceSyntaxChecks types :=
     checkInductiveSources_refines env types
-  have Hlowering := ElimNestedInductive.run'.eqBootstrapNoopWF env
+  have Hlowering := ElimNestedInductive.run'.preludeEqNoopWF env
     fuel.inductiveFuel lparams nparams types isUnsafe Hshape hAbsentFind
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
-      Environment.addInductiveAfterLowering.eqBootstrapFinalEnvironmentWF env
+      Environment.addInductiveAfterLowering.preludeEqFinalEnvironmentWF env
         lparams nparams types isUnsafe fuel res ves wf htels hAbsent Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
-/-- Checked `addDecl` dispatch for the exact non-primitive bootstrap `Eq`
+/-- Checked `addDecl` dispatch for the exact non-primitive toConstantsInstallation `Eq`
 declaration.  The actual primitive precheck is proved to return `false`, so
 the theorem follows the production branch rather than assuming it. -/
-theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
+theorem addInductiveDeclaration.preludeEqFinalEnvironmentWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -732,7 +732,7 @@ theorem addInductiveDeclaration.eqBootstrapFinalEnvironmentWF
             nparams types false (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
-  have Hrun := Environment.addInductive.eqBootstrapFinalEnvironmentWF env
+  have Hrun := Environment.addInductive.preludeEqFinalEnvironmentWF env
     lparams nparams types isUnsafe fuel ves wf htels hAbsent Hshape
   have hcheck := checkPrimitiveInductive_eq_false_of_preludeEqShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun

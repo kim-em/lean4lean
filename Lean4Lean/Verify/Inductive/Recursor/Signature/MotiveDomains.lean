@@ -410,7 +410,7 @@ theorem TrExprS.const_canonicalBvars_eq
         cases Option.some.inj hlevels
         rfl) Htr
   have htargets : bvarSpine n = args.map VExpr.bvar := by
-    simp [recursorCanonicalVars_eq_ofFn, args, List.map_ofFn, Function.comp_def]
+    simp [bvarSpine_eq_ofFn, args, List.map_ofFn, Function.comp_def]
   simpa [VExpr.mkApps, htargets, List.foldl_map] using heq
 
 /-- Any strict motive translation has the same major family application,

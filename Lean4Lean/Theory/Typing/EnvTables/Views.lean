@@ -196,7 +196,7 @@ def Tables.addViews (T : Tables) (fs : Name → Option FamData) (cs : Name → O
 theorem Tables.extends_addViews (T : Tables) (fs : Name → Option FamData)
     (cs : Name → Option CtorData) : T.Extends (T.addViews fs cs) where
   defs h := h
-  natives h := h
+  recursors h := h
   quot h := h
   fam h := addView_of_old h
   ctor h := addView_of_old h
@@ -210,13 +210,13 @@ theorem transport (H : T.Inv env) (hle : env ≤ env') (hdf : env'.defeqs = env.
   defs h := by
     obtain ⟨h1, h2, h3⟩ := H.defs h
     exact ⟨h1, hle.constants h2, hle.defeqs h3⟩
-  natives h := by
-    obtain ⟨h1, h2⟩ := H.natives h
+  recursors h := by
+    obtain ⟨h1, h2⟩ := H.recursors h
     exact ⟨h1, h2.mono hle .rfl⟩
   quot h := by
     obtain ⟨h1, h2⟩ := H.quot h
     exact ⟨h1.mono hle, h2⟩
-  defs_natives := H.defs_natives
+  defs_recursors := H.defs_recursors
   views := H.views.transport hle hdf
   equations h := H.equations (by rwa [hdf] at h)
   projections h := H.projections (by rwa [hproj] at h)
@@ -224,13 +224,13 @@ theorem transport (H : T.Inv env) (hle : env ≤ env') (hdf : env'.defeqs = env.
 theorem addViews (H : T.Inv env) (hok : NewViewsWF env T.fam T.ctor fs cs) :
     (T.addViews fs cs).Inv env where
   defs h := H.defs h
-  natives h := by
-    obtain ⟨h1, h2⟩ := H.natives h
+  recursors h := by
+    obtain ⟨h1, h2⟩ := H.recursors h
     exact ⟨h1, h2.mono .rfl (T.extends_addViews fs cs)⟩
   quot h := by
     obtain ⟨h1, h2, h3, h4⟩ := H.quot h
     exact ⟨h1, addView_of_old h2, addView_of_old h3, h4⟩
-  defs_natives := H.defs_natives
+  defs_recursors := H.defs_recursors
   views := H.views.addViews hok
   equations h := H.equations h
   projections h := by

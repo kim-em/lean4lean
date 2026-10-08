@@ -11,7 +11,7 @@ def etaOpen : Nat → VExpr → VExpr
   | 0, fn => fn
   | n + 1, fn => etaOpen n (.app fn.lift (.bvar 0))
 
-theorem nativeEtaBody_succ (n : Nat) (fn : VExpr) :
+theorem etaOpen_succ (n : Nat) (fn : VExpr) :
     etaOpen (n + 1) fn = .app (etaOpen n fn).lift (.bvar 0) := by
   induction n generalizing fn with
   | zero => rfl
@@ -19,7 +19,7 @@ theorem nativeEtaBody_succ (n : Nat) (fn : VExpr) :
 
 /-- Apply the known function type to fresh variables directly. No inversion
 of a converted lambda type is needed to type the opened expression. -/
-theorem HasType.native_open (henv : env.Ordered)
+theorem HasType.etaOpen_wf (henv : env.Ordered)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : HasType env U Γ fn (wrapForalls domains result)) :
     OnCtx (domains.reverse ++ Γ) (env.IsType U) ∧
@@ -36,7 +36,7 @@ theorem HasType.native_open (henv : env.Ordered)
 
 /-- Eta expansion through a dependent telescope preserves the exact native
 type. Functional result types remain below the supplied telescope. -/
-theorem HasType.native_eta (henv : env.WF)
+theorem HasType.etaOpen_defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : HasType env U Γ fn (wrapForalls domains result)) :
     IsDefEq env U Γ fn (wrapLams domains (etaOpen domains.length fn))
@@ -54,7 +54,7 @@ theorem HasType.native_eta (henv : env.WF)
     exact heta.symm.trans (.lamDF hd heq)
 
 /-- Close an equality proved under the remaining native telescope. -/
-theorem IsDefEq.native_wrapLams (henv : env.WF)
+theorem IsDefEq.etaOpen_wrapLams (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (hdomains : OnCtx (domains.reverse ++ Γ) (env.IsType U))
     (H : IsDefEq env U (domains.reverse ++ Γ) lhs rhs result) :

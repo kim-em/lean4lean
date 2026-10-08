@@ -214,9 +214,9 @@ theorem ConstructorCheck.headerCheckingAnnotations
       rw [hinfo] at heq; cases heq
   cases R.installation with
   | ordinary _ Hctors =>
-    exact hreflect R.constructorProduction (Hctors.entryOrigin Hheader.map_wf hfind)
+    exact hreflect R.constructorKernel (Hctors.entryOrigin Hheader.map_wf hfind)
   | primitive _ Hctors _ _ =>
-    exact hreflect R.constructorProduction (Hctors.entryOrigin Hheader.map_wf hfind)
+    exact hreflect R.constructorKernel (Hctors.entryOrigin Hheader.map_wf hfind)
 
 theorem ConstructorCheck.headerAnonymousParameterWF
     (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :

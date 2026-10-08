@@ -57,7 +57,7 @@ theorem SourceIotaRules.ofForall₂
 /-- The primary semantic trace over a source-family trace, from pointwise
 nested iota rules for the owned constructors, given that each owner has as
 many constructors as its lowered recursor has rules. -/
-theorem SourceFamilyTranslations.primaryIotaOfRules
+theorem SourceFamilyTranslations.sourceIotaOfRules
     {decl : VInductDecl} {block : VInductBlock} {targetVEnv : VEnv}
     {lparams : List Name} {safety : DefinitionSafety}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -189,7 +189,7 @@ noncomputable def RestoredBlockBase.withRules
   { toRestoredBlockBase := B
     sourceRules := primaryRules
     auxiliaryRules := auxiliaryRules
-    sourceIota := B.sourceTranslations.primaryIotaOfRules B.lowered hcount Hprimary
+    sourceIota := B.sourceTranslations.sourceIotaOfRules B.lowered hcount Hprimary
     auxiliaryGuarded := Haux.elim fun Hsemantic _ => Hsemantic
     auxiliaryWF := Haux.elim fun _ HWF => HWF }
 
@@ -218,7 +218,7 @@ the rule validator) is extended by the restored generated equations
 * each restored generated equation realizes the executable restored rule
   (`trRestoredRecursorRule_of_equation`, from the right-hand-side type check);
 * the restored generated equation of a source constructor is a nested iota
-  rule of the canonical restored shape block (`primaryNestedIotaRule`, from
+  rule of the canonical restored shape block (`sourceNestedIotaRule`, from
   the generator);
 * `HrestoredWF`: each restored generated equation is well formed in the
   final abstract environment of every base in which the stripped output
@@ -416,7 +416,7 @@ theorem NestedRun.hruleShape_of_base
       simp only [List.getElem_take]
       have Hk := Lean4Lean.List.forall₂_getElem Hrules _ (by simpa using hkn) hk'
       simp only [List.getElem_finRange] at Hk
-      exact ⟨E.primaryNestedIotaRule wf Hsources hadded Haux Hexpansion hnodup hparamsSize D'
+      exact ⟨E.sourceNestedIotaRule wf Hsources hadded Haux Hexpansion hnodup hparamsSize D'
           hscoped B hB hcountPrim hauxNames _ Hk i hi j hj rfl,
         HrestoredWF aux' D' B hB hV _ _ Hk⟩
   -- the auxiliary rule counts

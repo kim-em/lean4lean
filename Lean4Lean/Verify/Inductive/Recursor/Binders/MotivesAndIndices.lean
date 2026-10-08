@@ -19,9 +19,9 @@ inside a context that stores the most recently opened index first. -/
 def indexBVarSpine (n : Nat) : List VExpr :=
   (List.range n).reverse.map .bvar
 
-@[simp] theorem canonicalIndexVars_zero : indexBVarSpine 0 = [] := rfl
+@[simp] theorem indexBVarSpine_zero : indexBVarSpine 0 = [] := rfl
 
-@[simp] theorem canonicalIndexVars_succ (n : Nat) :
+@[simp] theorem indexBVarSpine_succ (n : Nat) :
     (indexBVarSpine n).map (fun target => target.liftN 1 0) ++
       [.bvar 0] = indexBVarSpine (n + 1) := by
   induction n with
@@ -37,7 +37,7 @@ def indexBVarSpine (n : Nat) : List VExpr :=
 
 /-- Common parameters beneath `n` index binders followed by those index
 variables are exactly the canonical variables for the whole header. -/
-theorem VInductDecl.paramVars_append_canonicalIndexVars
+theorem VInductDecl.paramVars_append_indexBVarSpine
     (decl : VInductDecl) (n : Nat) :
     decl.paramVars n ++ indexBVarSpine n =
       indexBVarSpine (decl.nparams + n) := by
@@ -867,7 +867,7 @@ theorem MotivePassHeaderAt.completedRecursorNarrowArguments
   have hnindices : nindices = H.target.numIndices := by omega
   have Hall :=
     List.Forall₂.append' Hstats.params Hindices
-  rw [hcanonical, VInductDecl.paramVars_append_canonicalIndexVars] at Hall
+  rw [hcanonical, VInductDecl.paramVars_append_indexBVarSpine] at Hall
   simpa [hnindices, H.parameterCount] using Hall
 
 /-- Applying the installed family constant to the canonical variables of a

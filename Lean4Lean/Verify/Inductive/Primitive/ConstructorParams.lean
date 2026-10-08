@@ -435,7 +435,7 @@ theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
         H.sourceContext.checking.tr.map_wf C.lookup
       have hctorFinal := R.declared.installed.preservesSourceFind
         H.context.checking.map_wf hctorHeader
-      exact ⟨C.rebaseProduction hctorFinal
+      exact ⟨C.rebaseKernel hctorFinal
         (H.installed.le.trans R.declared.installed.le)⟩
     · rcases hnew with ⟨entry, hentry, hentryName, hentryValue⟩
       rcases H.sourceAligned with ⟨numNested, Haligned⟩

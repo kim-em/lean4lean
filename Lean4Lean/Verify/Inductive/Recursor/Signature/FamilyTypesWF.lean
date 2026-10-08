@@ -30,7 +30,7 @@ end ConstructorCheck
 
 theorem vars_append_canonical (a b : Nat) :
     InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = bvarSpine (a + b) := by
-  rw [recursorCanonicalVars_add, ← vars_eq_canonical, ← vars_eq_canonical, vars_lift, Nat.add_zero]
+  rw [bvarSpine_add, ← vars_eq_canonical, ← vars_eq_canonical, vars_lift, Nat.add_zero]
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -134,7 +134,7 @@ theorem RecursorConstruction.consumedFamilyTypesWF
     s.FamilyTypesWF R.context.venv decl.uvars := by
   intro owner
   have hown : owner.val < H.recInfos.size := by
-    have hsize : s.families.size = H.recInfos.size := by rw [hf, H.consumedFamilies_size]
+    have hsize : s.families.size = H.recInfos.size := by rw [hf, H.families_size]
     have := owner.isLt
     omega
   let o : Fin H.recInfos.size := ⟨owner.val, hown⟩
@@ -142,11 +142,11 @@ theorem RecursorConstruction.consumedFamilyTypesWF
   have hfam : s.families[owner] = H.families[owner.val]'(by simp [hown]) := by
     simp only [Fin.getElem_fin, hf]
   have hidx : s.families[owner].indices = H.declIndexDomains o := by
-    rw [hfam]; exact H.consumedFamilies_indices o
+    rw [hfam]; exact H.families_indices o
   have hname : s.families[owner].name = (decl.types[owner.val]'hdecl).name := by
-    rw [hfam]; exact H.consumedFamilies_name o
+    rw [hfam]; exact H.families_name o
   have hlev : s.families[owner].resultLevel = (decl.types[owner.val]'hdecl).resultLevel := by
-    rw [hfam]; exact H.consumedFamilies_level o
+    rw [hfam]; exact H.families_level o
   have hU : decl.uvars = c.lparams.length := R.core.uvars
   have hPrev : s.params.reverse = R.parameterScope.toCtx := by rw [hp, List.reverse_reverse]
   have hplen : s.params.length = stats.params.size := by

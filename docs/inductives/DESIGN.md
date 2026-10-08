@@ -112,7 +112,7 @@ executable environment; before `Eq` exists `quotDecl` has no model).
 
 Canonical `Eq` holds in every environment obtained by replaying `Init.Prelude` past `Eq`.
 Realizability is proved up to a fact about the concrete production declaration that is checked
-by a test: `addDecl.eqBootstrapHasCanonicalEq` (`Lean4Lean/Verify/CanonicalEq.lean`)
+by a test: `addDecl.preludeEq_hasCanonicalEq` (`Lean4Lean/Verify/CanonicalEq.lean`)
 takes as hypothesis that the executable installs `Eq.rec` with the production type, which
 `Lean4Lean/Tests/PreludeEq.lean` checks. The honest reading of the theorem is therefore:
 `addDecl` is sound for environments that contain the prelude's `Eq`, and every declaration of
@@ -385,7 +385,7 @@ has no rules (`stripRecursorRules`), because the abstract iota equations are onl
 the rules are known to be well formed (`Nested/Restoration/Validation/StrippedEnvironment.lean`). The proof reads only
 the translation of each restored right-hand side off this pass. The abstract rules are the
 restorations of the generated equations: their nested-iota shape and guardedness come from
-the generator through restoration (`Nested/Restoration/Equations/GeneratedGuard.lean`, `primaryNestedIotaRule`),
+the generator through restoration (`Nested/Restoration/Equations/GeneratedGuard.lean`, `sourceNestedIotaRule`),
 their well-formedness from the restoration substitution, and the final assembly extends the
 rule-free assembly base by them (`Nested/Restoration/Equations/RestoredRulesBase.lean`). The translation of the
 restored right-hand sides can also be obtained by preservation, without the executable check

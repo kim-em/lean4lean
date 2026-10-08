@@ -11,11 +11,11 @@ reduces to the program generated at the longer prefix.
 namespace Lean4Lean.InductiveSignature.RecursorData
 open VExpr
 
-theorem singletonProgram_anyArity {data : RecursorData} {levels : List VLevel} {env : VEnv}
+theorem singletonUnfolding_anyArity {data : RecursorData} {levels : List VLevel} {env : VEnv}
     (H : data.singletonUnfolding env U levels args = some program)
     (hargs : args'.length ≤ data.majorOffset) :
     ∃ program', data.singletonUnfolding env U levels args' = some program' := by
-  have hbound := (singletonProgram_spec H).1
+  have hbound := (singletonUnfolding_spec H).1
   unfold singletonUnfolding at H ⊢
   split at H <;> try contradiction
   rename_i hguard
@@ -41,7 +41,7 @@ theorem singletonProgram_anyArity {data : RecursorData} {levels : List VLevel} {
   have hrecon' : ∃ p, data.singletonReconstruction env levels
       (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
         vars (data.majorOffset + 1 - args'.length) 0) = some p := by
-    have h := singletonRecon_isSome env data levels
+    have h := singletonReconstruction_isSome env data levels
       (args'.map (·.liftN (data.majorOffset + 1 - args'.length)) ++
         vars (data.majorOffset + 1 - args'.length) 0)
       (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
@@ -53,8 +53,8 @@ theorem singletonProgram_anyArity {data : RecursorData} {levels : List VLevel} {
     | none => rw [hg] at h; cases h
     | some p => exact ⟨p, rfl⟩
   obtain ⟨⟨ctor', fields'⟩, hrecon'⟩ := hrecon'
-  obtain ⟨S1, hS1, hf1⟩ := singletonRecon_fields_length hrecon
-  obtain ⟨S2, hS2, hf2⟩ := singletonRecon_fields_length hrecon'
+  obtain ⟨S1, hS1, hf1⟩ := singletonReconstruction_fields_length hrecon
+  obtain ⟨S2, hS2, hf2⟩ := singletonReconstruction_fields_length hrecon'
   cases hS1.symm.trans hS2
   simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hrecon',
     hequation, hbody]
@@ -150,7 +150,7 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   simp only [List.map_append, List.map_take, List.map_cons, List.map_nil, hall]
   rw [hlateLen] at hall ⊢
   congr 2
-  rw [inst_mkApps, (witness_closed _).instN_eq (Nat.zero_le _)]
+  rw [inst_mkApps, (propInhabitant_closed _).instN_eq (Nat.zero_le _)]
   simp only [List.map_cons, List.map_nil, getD_inst, hall, List.map_append, List.map_cons,
     List.map_nil, List.append_assoc, List.cons_append, List.nil_append]
 

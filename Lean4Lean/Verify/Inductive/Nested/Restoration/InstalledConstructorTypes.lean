@@ -804,12 +804,12 @@ theorem NestedRun.constructorTypeRoundTrip
     rw [henv, hlparams] at H
     exact H
   exact key E.lowered
-    ((congrArg AddInductive.Context.env E.production_c).trans
-      E.productionContext_env)
-    ((congrArg AddInductive.Context.lparams E.production_c).trans
-      E.productionContext_lparams)
-    E.production_nparams E.production_indTypes E.production_isUnsafe_source
-    E.production_initialEnv (E.production_c ▸ E.contextWF)
+    ((congrArg AddInductive.Context.env E.lowered_c).trans
+      E.context_env)
+    ((congrArg AddInductive.Context.lparams E.lowered_c).trans
+      E.context_lparams)
+    E.lowered_nparams E.lowered_indTypes E.lowered_isUnsafe_source
+    E.lowered_initialEnv (E.lowered_c ▸ E.contextWF)
 
 /-- Consumer form: a constructor visible after a successful validated nested
 run is inherited, or its type is `RelevantEq` to (in particular, translates
@@ -836,7 +836,7 @@ theorem NestedRun.installedConstructorSource
     · left
       have hwf : sourceProdEnv.constants.WF := by
         have h := E.contextWF.checking.tr.map_wf
-        rwa [E.productionContext_env] at h
+        rwa [E.context_env] at h
       rcases E.restoration.inductives.inductiveFreshTrace hwf with ⟨_, Hprimary⟩
       have hprimaryWF := Hprimary.targetWF hwf
       rcases E.restoration.auxiliaries.recursorFreshTrace hprimaryWF with ⟨_, Hauxiliary⟩

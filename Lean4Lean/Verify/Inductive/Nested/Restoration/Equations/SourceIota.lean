@@ -23,7 +23,7 @@ namespace VerifyInductive
 generated recursor entry at the corresponding source-family position.  The
 ordinary equation proof and the restoration trace can therefore be indexed by
 one shared rule list. -/
-theorem RecursorCheck.restoredPrimaryInfo_eq_generated
+theorem RecursorCheck.restoredSourceInfo_eq_generated
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -75,7 +75,7 @@ namespace VerifyInductive
 independent source declaration's owner/constructor traversal, so this
 relation fixes both order and cardinality rather than accepting a separate
 indexing callback. -/
-abbrev RestoredPrimaryIotaListTrace
+abbrev RestoredSourceIotaListTrace
     (decl : VInductDecl) (block : VInductBlock)
     (owned : List (VInductiveType × VConstVal))
     (rules : List VDefEq) : Prop :=
@@ -87,7 +87,7 @@ abbrev RestoredPrimaryIotaListTrace
 `NestedIotaListCertificate` consumed by nested compilation. -/
 theorem NestedIotaListCertificate.ofForall₂
     {decl : VInductDecl} {block : VInductBlock} {rules : List VDefEq}
-    (H : RestoredPrimaryIotaListTrace decl block
+    (H : RestoredSourceIotaListTrace decl block
       decl.ownedConstructors rules) :
     NestedIotaListCertificate decl block rules where
   length :=
@@ -135,7 +135,7 @@ inductive SourceIotaRulesByFamily
 independent nested-iota specification. -/
 theorem SourceIotaRulesByFamily.forall₂
     (H : SourceIotaRulesByFamily decl block owners rules) :
-    RestoredPrimaryIotaListTrace decl block
+    RestoredSourceIotaListTrace decl block
       (ownedConstructorsFor owners) rules := by
   induction H with
   | nil => exact .nil

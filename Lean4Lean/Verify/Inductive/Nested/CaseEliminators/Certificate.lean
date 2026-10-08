@@ -75,11 +75,11 @@ theorem NestedRun.boundarySignatureFacts
         ∃ restored, (compilationRestoration sourceDecl auxiliaries).expr ctor.type =
           some restored := by
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.production_c, E.productionContext_lparams]
+    rw [h, E.lowered_c, E.context_lparams]
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars :=
     E.lowered.constructors.core.uvars.trans hsourceUvars.symm
   refine ⟨?_, ?_, ?_⟩
@@ -142,7 +142,7 @@ theorem NestedRun.sourceLoweredBasics
         E.lowered.loweredDecl.typeConstants =
           some E.lowered.constructors.toConstructorCheck.headerVEnv := by
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have Hsource := E.sourceCore.core
   rw [E.nativeSourceDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
@@ -166,7 +166,7 @@ theorem NestedRun.sourceLoweredBasics
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.production_c, E.productionContext_lparams]
+    rw [h, E.lowered_c, E.context_lparams]
   refine ⟨hsourceNonempty, ?_, hprefix,
     E.lowered.constructors.core.uvars.trans hsourceUvars.symm, ?_,
     TrInductDeclCore.sourceWF_ofNonempty Hsource hsourceNonempty, ?_⟩
@@ -177,7 +177,7 @@ theorem NestedRun.sourceLoweredBasics
     simpa [VInductDecl.typeConstants] using this
   · have h := E.sourceCore.core.nparams
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.lowered.constructors.core.nparams, E.production_nparams]
+    rw [h, E.lowered.constructors.core.nparams, E.lowered_nparams]
   · exact Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.lowered.loweredDecl.typeConstants =
           some E.lowered.constructors.toConstructorCheck.headerVEnv) hinit)
@@ -233,7 +233,7 @@ theorem NestedRun.boundaryCaseCompilationData
       E.lowered.loweredDecl B.sourceSignature auxiliaries (sourceDecl.caseBlock es) := by
   let r := compilationRestoration sourceDecl auxiliaries
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
         E.lowered.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup := by
@@ -295,7 +295,7 @@ theorem NestedRun.boundaryCaseCompilationData
   have hsourceUvars : sourceDecl.uvars = E.lowered.c.lparams.length := by
     have h := E.sourceCore.core.uvars
     rw [E.nativeSourceDecl_eq] at h
-    rw [h, E.production_c, E.productionContext_lparams]
+    rw [h, E.lowered_c, E.context_lparams]
   have HauxFamilies : ∀ direct,
       auxiliaries.mapM (fun a => a.specializedFamily sourceDecl.uvars B.sourceSignature.params) =
         some direct →
@@ -516,7 +516,7 @@ theorem NestedRun.loweredRecursorNames_fresh
   intro n hn
   obtain ⟨t, ht, rfl⟩ := List.mem_map.1 hn
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have Hmodels : E.lowered.signature.Models
       (ves.venv (if isUnsafe then .unsafe else .safe)) E.lowered.loweredDecl := by
     have h := E.lowered.recursorConstruction.generator.models
@@ -623,7 +623,7 @@ theorem NestedRun.caseEliminators
                 (VLevel.params sourceDecl.uvars)))
             generated (E.lowered.loweredDecl.types.drop sourceDecl.types.length) := by
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   obtain ⟨B, hBel, -, hBscope⟩ := E.lowered.constructors.toConstructorCheck.eliminatorsBoundary
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, auxiliaries, hadded, henvTypes, Haux, Hexpansion,
@@ -731,7 +731,7 @@ theorem NestedRun.caseEliminators
     intro ci hci
     apply hfreshK
     have hwfC : E.lowered.c.env.constants.WF := by
-      rw [E.productionEnv]; exact hwfP
+      rw [E.lowered_c_env]; exact hwfP
     have h := E.lowered.fresh_familyNames hwfC (n := ci.name) (by
       apply (familyNames_perm E.lowered.loweredDecl.types).mem_iff.mpr
       have : ci.name ∈ E.lowered.loweredDecl.sourceNames := by
@@ -740,7 +740,7 @@ theorem NestedRun.caseEliminators
       simpa only [VInductDecl.sourceNames, VInductDecl.typeConstants,
         VInductDecl.constructorConstants, List.map_map, List.map_flatMap, Function.comp_def]
         using this)
-    rwa [E.productionEnv] at h
+    rwa [E.lowered_c_env] at h
   obtain ⟨LC', hLC'⟩ := VEnv.addConstVals_exists_of_fresh hLnodup hLfresh
   obtain ⟨LT', hLT', hLCT'⟩ := VEnv.addConstVals_append_inv hLC'
   have Hdata' := (Hdata [(B.caseKey, σ)]).mono hle hT' hC' hLT' hLCT'

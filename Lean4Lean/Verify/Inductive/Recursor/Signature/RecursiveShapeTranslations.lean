@@ -29,7 +29,7 @@ variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The recursive shapes of a consumed constructor, for any universe support. -/
-theorem RecursorConstruction.consumedSignature_shapeTranslations
+theorem RecursorConstruction.signature_shapeTranslations
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -73,14 +73,14 @@ theorem RecursorConstruction.consumedSignature_shapeTranslations
           r.indices := by
   intro s S B ctor rf
   have hctor : ctor = H.constructorAt HU owner howner localIndex hlocal :=
-    H.consumedSignature_constructor HU owner howner localIndex hlocal hk
+    H.signature_constructor HU owner howner localIndex hlocal hk
   have hft : s.fieldTypes ctor = H.declFieldDomains owner howner localIndex hlocal := by
-    rw [hctor]; exact H.consumedConstructorAt_fieldTypes HU owner howner localIndex hlocal
+    rw [hctor]; exact H.constructorAt_fieldTypes HU owner howner localIndex hlocal
   have hrec : rf = H.recursiveShapes HU owner howner localIndex hlocal := by
     simp only [rf]
     rw [hctor]
-    exact H.consumedConstructorAt_recursiveFields HU owner howner localIndex hlocal
-  have hspec := H.consumedShapes_spec HU owner howner localIndex hlocal
+    exact H.constructorAt_recursiveFields HU owner howner localIndex hlocal
+  have hspec := H.recursiveShapes_spec HU owner howner localIndex hlocal
   refine ⟨hft, by rw [hrec]; exact hspec.2.1, ?_⟩
   intro j hj
   have hj' : j < (H.recursiveShapes HU owner howner localIndex hlocal).length := by
@@ -146,7 +146,7 @@ theorem RecursorConstruction.generatedBy_shapeTranslations
   have hk : k < (H.signature H.argumentUniverses).constructors.size := by
     simp only [RecursorConstruction.signature, Array.size_ofFn]
     exact H.sourceMinorOffsetBound owner howner localIndex hlocal
-  exact ⟨hk, H.consumedSignature_shapeTranslations H.argumentUniverses owner howner localIndex
+  exact ⟨hk, H.signature_shapeTranslations H.argumentUniverses owner howner localIndex
     hlocal hk⟩
 
 end Lean4Lean.VerifyInductive

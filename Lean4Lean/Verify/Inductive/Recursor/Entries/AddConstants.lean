@@ -1190,7 +1190,7 @@ theorem AddConstants.preservesConstructorSemantics
   intro familyName familyInfo hfamily hvisible i hi
   rcases H.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
-    exact ⟨C.rebaseProduction (H.preservesSourceFind hwf C.lookup) H.le⟩
+    exact ⟨C.rebaseKernel (H.preservesSourceFind hwf C.lookup) H.le⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     exact False.elim (hnind entry.1 entry.2 hentry familyInfo hinfo.symm)
 

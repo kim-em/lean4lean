@@ -84,7 +84,7 @@ theorem compilationRestoration_recursors_mem {src : VInductDecl}
   exact ⟨a, List.fst_mem_of_mem_zipIdx hai, i + 1, rfl⟩
 
 /-- A source family keeps its recursor name. -/
-theorem CaseCompilationData.primary_recursorName {base : VEnv} {src exp : VInductDecl}
+theorem CaseCompilationData.source_recursorName {base : VEnv} {src exp : VInductDecl}
     {s : InductiveSignature} {aux : List ContainerSpecialization}
     {block : VInductBlock} (hdata : CaseCompilationData base src exp s aux block)
     {F : VInductiveType} (hF : F ∈ src.types) :
@@ -243,7 +243,7 @@ theorem CompilationData.source_rule {base : VEnv} {src exp : VInductDecl}
       (g.recursorName s.constructors[j].owner) =
       (src.types[s.constructors[j].owner.val]).name.str "rec" := by
     rw [hdata.recursorNames, hfam]
-    exact CaseCompilationData.primary_recursorName hdata.toCaseCompilationData hF
+    exact CaseCompilationData.source_recursorName hdata.toCaseCompilationData hF
   rw [hrec] at hlhs
   rcases hmaj with ⟨hnone, rfl⟩ | ⟨spec, hspec, hsome, _, _⟩
   · have hhn := hdata.headName_source hcn
@@ -317,12 +317,12 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
   · exfalso
     rw [hq, quot_head] at hhead
     simp at hhead
-  · obtain ⟨_, hevX⟩ := HT.natives hdX
-    have hX := native_head HT hdX hiX hgX
+  · obtain ⟨_, hevX⟩ := HT.recursors hdX
+    have hX := recursor_head HT hdX hiX hgX
     rw [hhead] at hX
     have hnameX : a.source.name.str "rec" = dX.name := (VExpr.const.inj hX).1
     obtain ⟨bX, ibX, srcX, expX, auxX, blockX, instX, hdataX, _, _, hrX, _, _, _, _, _, hfamX⟩ := hevX
-    have hgX' : (compilationRestoration srcX auxX).equation (dX.nativeInstance.equation iX) =
+    have hgX' : (compilationRestoration srcX auxX).equation (dX.recursorInstance.equation iX) =
         some ρ := by
       simpa only [RecursorData.equation, hrX] using hgX
     have hdXname : dX.name = (compilationRestoration srcX auxX).recursorName
@@ -384,15 +384,15 @@ theorem container_ctor {T : Tables} {env base : VEnv} {aux : List ContainerSpeci
       have hname0 : (compilationRestoration srcX auxX).recursorName
           (dX.schema.signature.families[o0].name.str "rec") = a.source.name.str "rec" := by
         have hs := (CaseCompilationData.source_slot hdataX.toCaseCompilationData o0 h0).1
-        rw [hs, CaseCompilationData.primary_recursorName hdataX.toCaseCompilationData (List.getElem_mem h0)]
+        rw [hs, CaseCompilationData.source_recursorName hdataX.toCaseCompilationData (List.getElem_mem h0)]
         simp only [hts, List.head?_cons, Option.map_some, Option.getD_some] at hF0
         simp [o0, hts, hF0]
-      have hnd := hdataX.nativeEntries_nodup (key := default)
+      have hnd := hdataX.recursorEntries_nodup (key := default)
       simp only [RecursorData.compilationEntries] at hnd
       have heq : (RecursorData.ofInstance default
-            (CaseSchema.ofCompilation srcX dX.schema.signature auxX) dX.nativeInstance o0).name =
+            (CaseSchema.ofCompilation srcX dX.schema.signature auxX) dX.recursorInstance o0).name =
           (RecursorData.ofInstance default
-            (CaseSchema.ofCompilation srcX dX.schema.signature auxX) dX.nativeInstance dX.owner).name := by
+            (CaseSchema.ofCompilation srcX dX.schema.signature auxX) dX.recursorInstance dX.owner).name := by
         change (compilationRestoration srcX auxX).recursorName
             (dX.schema.signature.families[o0].name.str "rec") =
           (compilationRestoration srcX auxX).recursorName

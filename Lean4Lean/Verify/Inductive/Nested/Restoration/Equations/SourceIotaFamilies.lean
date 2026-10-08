@@ -59,7 +59,7 @@ structure SourceFamilyRestorationAlignment
 
 /-- Construct the joint operational certificate directly from a closed
 lowering run and the exact family restoration step. -/
-theorem NestedLoweringOutputClosed.primaryOperationalFamilyAlignmentAtFresh
+theorem NestedLoweringOutputClosed.sourceOperationalFamilyAlignmentAtFresh
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
@@ -94,7 +94,7 @@ theorem NestedLoweringOutputClosed.primaryOperationalFamilyAlignmentAtFresh
     H.toResult.resultNParams
   have hresultParams : result.params.size = result.nparams :=
     H.resultParamsSize
-  rcases Hprod.restoredPrimaryTelescopeAlignment familyIdx hentry
+  rcases Hprod.restoredSourceTelescopeAlignment familyIdx hentry
       Hstep.restored.recursor holdRecName hresultNparams hresultParams with
     ⟨Hrecursor⟩
   exact ⟨{

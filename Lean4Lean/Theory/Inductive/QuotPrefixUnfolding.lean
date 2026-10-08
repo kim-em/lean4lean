@@ -21,7 +21,7 @@ def propInhabitant (level : VLevel) : VExpr :=
     (mkApps (.const ``Quot.ind [level]) [alpha, relation,
       .lam quotient alpha.lift, .lam alpha (.bvar 0), major])
 
-theorem witness_closed (level : VLevel) : (propInhabitant level).Closed := by
+theorem propInhabitant_closed (level : VLevel) : (propInhabitant level).Closed := by
   simp [propInhabitant, VExpr.wrapLams, VExpr.mkApps, VExpr.Closed, VExpr.ClosedN, VExpr.lift, VExpr.liftN]
 
 /-- Open the remaining quotient-lift prefix, reconstruct its major, and

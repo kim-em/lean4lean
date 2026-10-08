@@ -137,13 +137,13 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.InductiveSignature.RecursorData.installEntries
 #inductive_audit Lean4Lean.VEnv.QuotPrefixUnfold.defeq
 
-#inductive_audit Lean4Lean.VEnv.QuotRegistered.witness_app
+#inductive_audit Lean4Lean.VEnv.QuotRegistered.propInhabitant_app
 
 -- These proofs must remain below the admitted inversion/confluence layer.
 #inductive_audit Lean4Lean.VEnv.IsDefEq.strong
 #inductive_audit Lean4Lean.VEnv.IsDefEqStrong.subst
 #inductive_audit Lean4Lean.VEnv.IsDefEq.transport_bvar
 #inductive_audit Lean4Lean.VEnv.NativeCaptureReplay.transport
-#inductive_audit Lean4Lean.VEnv.HasType.native_open
-#inductive_audit Lean4Lean.VEnv.HasType.native_eta
-#inductive_audit Lean4Lean.VEnv.IsDefEq.native_wrapLams
+#inductive_audit Lean4Lean.VEnv.HasType.etaOpen_wf
+#inductive_audit Lean4Lean.VEnv.HasType.etaOpen_defeq
+#inductive_audit Lean4Lean.VEnv.IsDefEq.etaOpen_wrapLams

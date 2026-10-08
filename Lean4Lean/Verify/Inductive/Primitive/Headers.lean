@@ -193,7 +193,7 @@ namespace VerifyInductive
 
 /-- Package skeleton-free semantic assembly against an atomic primitive
 header installation.  The resulting context remains staged until constructor
-installation completes the bootstrap batch. -/
+installation completes the toConstantsInstallation batch. -/
 def HeaderDeclarationOf.primitiveDeclaredResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}

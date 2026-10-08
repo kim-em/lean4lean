@@ -390,7 +390,7 @@ structure SourceFamilyTranslations.InDependencyOrder
       List (ConstantInfo × VConstVal))
     (actualEntries : List ConstantInfo) : Prop where
   fresh : FreshExtension sourceProdEnv actualEntries targetProdEnv
-  productionOrder : actualEntries ~
+  kernelOrder : actualEntries ~
     (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   typeValues : typeEntries.map Prod.snd =
     owners.map VInductiveType.toVConstVal
@@ -431,7 +431,7 @@ theorem SourceFamilyTranslations.existsInDependencyOrder
   induction H with
   | nil => exact ⟨[], [], [], [], {
       fresh := .nil
-      productionOrder := .refl []
+      kernelOrder := .refl []
       typeValues := rfl
       constructorValues := rfl
       recursorValues := rfl
@@ -507,7 +507,7 @@ theorem SourceFamilyTranslations.existsInDependencyOrder
           (tailTypes ++ tailConstructors ++ tailRecursorEntries).map
             Prod.fst := by
       apply (List.Perm.refl familyEntries).append
-      exact HtailReplay.productionOrder
+      exact HtailReplay.kernelOrder
     have hgrouped :
         (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst ~
           familyEntries ++
@@ -517,7 +517,7 @@ theorem SourceFamilyTranslations.existsInDependencyOrder
         using hgroup.map Prod.fst
     refine ⟨typeEntries, constructorEntries, recursorEntries, actualEntries, {
       fresh := Hfresh
-      productionOrder := hfamilyTail.trans hgrouped.symm
+      kernelOrder := hfamilyTail.trans hgrouped.symm
       typeValues := ?_
       constructorValues := ?_
       recursorValues := ?_
@@ -546,7 +546,7 @@ theorem SourceFamilyTranslations.existsInDependencyOrder
 /-- Exact lowering/production specialization of `existsCanonicalReplay`.
 The returned production permutation and all three primary semantic batches
 are consequences of the executable traces. -/
-theorem SourceFamilyTranslations.existsExactCanonicalPrimaryReplay
+theorem SourceFamilyTranslations.existsExactCanonicalSourceReplay
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -656,7 +656,7 @@ theorem RecursorCheck.restoredTelescopeAlignmentOfGeneratedName
         rfl
       _ = Lean.mkRecName indTypes[ownerIdx]!.name := E.name
   exact ⟨ownerIdx, hentry', holdRecName,
-    Hprod.restoredPrimaryTelescopeAlignment ownerIdx hentry' Hstep
+    Hprod.restoredSourceTelescopeAlignment ownerIdx hentry' Hstep
       holdRecName hresultNparams hresultParams⟩
 
 /-- Exact generated-entry provenance for one concrete auxiliary restoration
@@ -801,7 +801,7 @@ theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
 /-- The exact production restoration result carries generated-entry
 alignment at every auxiliary state transition.  This is the structural
 predecessor of restored recursor translation/WF construction. -/
-theorem NestedRestorationFolds.generatedAlignmentTraceOfProduction
+theorem NestedRestorationFolds.generatedAlignmentTraceOfKernel
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
@@ -927,7 +927,7 @@ structure RestorationInDependencyOrder
   recursorEntries : List (ConstantInfo × VConstVal)
   actualEntries : List ConstantInfo
   fresh : FreshExtension sourceProdEnv actualEntries outProdEnv
-  productionOrder : actualEntries ~
+  kernelOrder : actualEntries ~
     (typeEntries ++ constructorEntries ++ recursorEntries).map Prod.fst
   typeValues : typeEntries.map Prod.snd =
     owners.map VInductiveType.toVConstVal
@@ -959,7 +959,7 @@ theorem RestorationInDependencyOrder.existsCanonicalFresh
           Prod.fst) canonicalTarget ∧
       ∀ name, outProdEnv.constants.find? name =
         canonicalTarget.constants.find? name :=
-  H.fresh.exists_permuted_lookupEq hsourceWF H.productionOrder
+  H.fresh.exists_permuted_lookupEq hsourceWF H.kernelOrder
 
 /-- Transfer any concrete entry property retained by a companion exact-run
 trace to the canonical dependency-ordered payload. -/
@@ -979,7 +979,7 @@ theorem RestorationInDependencyOrder.canonicalProperty
       (H.typeEntries ++ H.constructorEntries ++ H.recursorEntries).map
         Prod.fst := List.mem_map.mpr ⟨entry, hentry, rfl⟩
   have hactual : entry.1 ∈ H.actualEntries :=
-    H.productionOrder.mem_iff.mpr hcanonical
+    H.kernelOrder.mem_iff.mpr hcanonical
   exact H.fresh.transferForallSameTarget Hcompanion hsourceWF hproperty
     entry.1 hactual
 
@@ -1134,14 +1134,14 @@ def SourceFamilyTranslations.InDependencyOrder.appendAuxiliaryRecursors
     recursorEntries := recursorEntries
     actualEntries := actualEntries
     fresh := Hprimary.fresh.append Hauxiliary.fresh
-    productionOrder := ?_
+    kernelOrder := ?_
     typeValues := Hprimary.typeValues
     constructorValues := Hprimary.constructorValues
     recursorValues := ?_
     types := Hprimary.types
     constructors := Hprimary.constructors
     recursors := ?_ }
-  · have h := Hprimary.productionOrder.append
+  · have h := Hprimary.kernelOrder.append
       (List.Perm.refl (auxiliaryEntries.map Prod.fst))
     simpa [recursorEntries, actualEntries, List.map_append,
       List.append_assoc] using h
@@ -1212,7 +1212,7 @@ theorem SourceFamilyTranslations.existsExactStagedRestoration
             decl.projectionEntries canonicalProdEnv installedVEnv // S.eliminators = es } ∧
         ∀ name, outProdEnv.constants.find? name =
           canonicalProdEnv.constants.find? name := by
-  rcases Hsource.existsExactCanonicalPrimaryReplay Hlower Hc Hprod hempty
+  rcases Hsource.existsExactCanonicalSourceReplay Hlower Hc Hprod hempty
       hvisible Hc.checking.tr.map_wf with
       ⟨typeEntries, constructorEntries, primaryRecursorEntries,
         primaryActualEntries, Hprimary⟩

@@ -12,7 +12,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- A successful primitive Bool/Nat run extends the complete environment
-model without any premise about the bootstrap state of `Eq`. -/
+model without any premise about the toConstantsInstallation state of `Eq`. -/
 theorem PrimitiveInstallation.extendSafeExact
     {ves : VEnvs}
     (Hrun : PrimitiveInstallation c stats nparams depth
@@ -86,7 +86,7 @@ open Kernel
 namespace VerifyInductive
 
 /-- The primitive execution path retains its independent source judgment and
-complete final model without any equality-bootstrap premise. -/
+complete final model without any equality-toConstantsInstallation premise. -/
 theorem PrimitiveRunResult.extendSafeWithSpecification
     {ves : VEnvs}
     (Hrun : PrimitiveRunResult source
@@ -123,7 +123,7 @@ theorem PrimitiveRunResult.extendSafeWithSpecification
   }
 
 /-- Complete primitive `AddInductive.run` refinement without an
-equality-bootstrap premise. -/
+equality-toConstantsInstallation premise. -/
 theorem AddInductive.run.primitiveFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
@@ -150,7 +150,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
       simpa [hsource] using Hresult
     exact Hresult'.extendSafeWithSpecification wf htels
 
-/-- Primitive post-lowering refinement with no equality-bootstrap premise. -/
+/-- Primitive post-lowering refinement with no equality-toConstantsInstallation premise. -/
 theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -192,7 +192,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
   rw [haux, htypes]
   simpa [c, primitiveAddInductiveContext] using Hrun
 
-/-- End-to-end primitive refinement without an equality-bootstrap premise. -/
+/-- End-to-end primitive refinement without an equality-toConstantsInstallation premise. -/
 theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -217,7 +217,7 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
-/-- Checked primitive declaration refinement without an equality-bootstrap
+/-- Checked primitive declaration refinement without an equality-toConstantsInstallation
 premise. -/
 theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)

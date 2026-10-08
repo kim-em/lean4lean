@@ -203,7 +203,7 @@ theorem FormationInstallation.atomic
 
 /-- The completed formation prefix restores `HasPrimitives`: ordinary
 installation never touches a primitive name, and a primitive batch is the
-complete canonical Bool or Nat bootstrap. -/
+complete canonical Bool or Nat toConstantsInstallation. -/
 theorem FormationInstallation.hasPrimitives
     (H : FormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
@@ -214,9 +214,9 @@ theorem FormationInstallation.hasPrimitives
       have hadd := VEnv.addConstVals_append Htypes.abstract Hctors.abstract
       rcases hconstants with hbool | hnat
       · rw [hbool] at hadd
-        exact VEnv.HasPrimitives.addBoolBootstrap Hsource hadd
+        exact VEnv.HasPrimitives.addBoolConstants Hsource hadd
       · rw [hnat] at hadd
-        exact VEnv.HasPrimitives.addNatBootstrap Hsource hadd
+        exact VEnv.HasPrimitives.addNatConstants Hsource hadd
 
 /-- The completed formation endpoint carries the local checking invariants,
 for both installation histories. -/
@@ -302,7 +302,7 @@ structure ConstructorCheck (c : AddInductive.Context)
   constructorSourceAligned : ConstructorTypeEntries
     (AddInductive.constructorInfo stats c.lparams isUnsafe)
     indTypes.toList constructorEntries
-  constructorProduction : forall
+  constructorKernel : forall
       (entry : ConstantInfo × VConstVal), entry ∈ constructorEntries ->
     exists info : ConstructorVal, entry.1 = ConstantInfo.ctorInfo info
   constructorNonInductive : forall
@@ -497,7 +497,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   telescopes := R.telescopes
   headerSourceAligned := H.sourceAligned
   constructorSourceAligned := R.declared.sourceAligned
-  constructorProduction := R.declared.infos
+  constructorKernel := R.declared.infos
   constructorNonInductive := R.declared.nonInductive
   ctorVEnv := R.declared.venvCtors
   eliminators := R.declared.eliminators
@@ -601,7 +601,7 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   telescopes := R.telescopes
   headerSourceAligned := H.sourceAligned
   constructorSourceAligned := R.declared.sourceAligned
-  constructorProduction := R.declared.infos
+  constructorKernel := R.declared.infos
   constructorNonInductive := R.declared.nonInductive
   ctorVEnv := R.declared.venvCtors
   eliminators := R.toCheckedFormation.caseEliminators

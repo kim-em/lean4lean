@@ -783,7 +783,7 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
     type := targetType }
   have huvars : recursor.uvars = sourceDecl.uvars ∨
       recursor.uvars = sourceDecl.uvars + 1 := by
-    exact Hprod.restoredPrimaryRecursorUvars familyIdx hentry
+    exact Hprod.restoredSourceRecursorUvars familyIdx hentry
       Hstep.restored.recursor holdRecName sourceDecl Hsource.uvars
   have hmotives : sourceDecl.types.length ≤
       (Hprod.recInfos.map (·.motive)).size := by
@@ -922,7 +922,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveSemanticsAtFreshExactOwner
       (Lean.mkRecName sourceTypes[familyIdx].name)).isSome = false
     rw [hunmapped]
     rfl
-  have Hmetadata := Hprod.restoredPrimaryRecursorMetadata familyIdx hentry
+  have Hmetadata := Hprod.restoredSourceRecursorMetadata familyIdx hentry
     Hstep.restored.recursor (congrArg Lean.mkRecName hsourceName.symm)
   have hownerName : (sourceDecl.types[familyIdx]'hdecl).name =
       sourceTypes[familyIdx].name := by

@@ -57,10 +57,10 @@ theorem takeForalls_wrapForalls (domains : List VExpr) (body : VExpr) :
     rw [ih]
     rfl
 
-theorem singletonProgram_sameArity {data : RecursorData} {levels : List VLevel} {env : VEnv}
+theorem singletonUnfolding_sameArity {data : RecursorData} {levels : List VLevel} {env : VEnv}
     (H : data.singletonUnfolding env U levels args = some program) (hargs : args'.length = args.length) :
     ∃ program', data.singletonUnfolding env U levels args' = some program' := by
-  have hbound := (singletonProgram_spec H).1
+  have hbound := (singletonUnfolding_spec H).1
   unfold singletonUnfolding at H ⊢
   simp only [hargs]
   split at H <;> try contradiction
@@ -85,7 +85,7 @@ theorem singletonProgram_sameArity {data : RecursorData} {levels : List VLevel} 
   have hrecon' : ∃ p, data.singletonReconstruction env levels
       (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
         vars (data.majorOffset + 1 - args.length) 0) = some p := by
-    have h := singletonRecon_isSome env data levels
+    have h := singletonReconstruction_isSome env data levels
       (args'.map (·.liftN (data.majorOffset + 1 - args.length)) ++
         vars (data.majorOffset + 1 - args.length) 0)
       (args.map (·.liftN (data.majorOffset + 1 - args.length)) ++
@@ -97,8 +97,8 @@ theorem singletonProgram_sameArity {data : RecursorData} {levels : List VLevel} 
     | none => rw [hg] at h; cases h
     | some p => exact ⟨p, rfl⟩
   obtain ⟨⟨ctor', fields'⟩, hrecon'⟩ := hrecon'
-  obtain ⟨S1, hS1, hl1⟩ := singletonRecon_fields_length hrecon
-  obtain ⟨S2, hS2, hl2⟩ := singletonRecon_fields_length hrecon'
+  obtain ⟨S1, hS1, hl1⟩ := singletonReconstruction_fields_length hrecon
+  obtain ⟨S2, hS2, hl2⟩ := singletonReconstruction_fields_length hrecon'
   cases hS1.symm.trans hS2
   simp only [bind, htype, Option.bind_some, hsupply', hshape', htake', hrecon',
     hequation, hbody]

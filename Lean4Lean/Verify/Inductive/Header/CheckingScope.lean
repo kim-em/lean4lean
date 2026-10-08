@@ -81,7 +81,7 @@ theorem cachedParamVars_eq_paramVars (decl : VInductDecl) :
       omega)]
     simp [hi]
 
-theorem cachedParamVars_zero_eq_recursorCanonicalVars (n : Nat) :
+theorem cachedParamVars_zero_eq_bvarSpine (n : Nat) :
     cachedParamVars n 0 = bvarSpine n := by
   unfold bvarSpine
   apply List.ext_getElem?

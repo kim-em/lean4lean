@@ -531,7 +531,7 @@ theorem BlockCertificate.hiddenUnsafeConstructorSemantics
   let Hinstall := H.installation.atomic
   rcases Hinstall.entryOrigin hwf hfamily with hold | hnew
   · rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
-    exact ⟨C.rebaseProduction
+    exact ⟨C.rebaseKernel
       (Hinstall.preservesSourceFind hwf C.lookup) VEnv.LE.rfl⟩
   · rcases hnew with ⟨_entry, _hentry, _hname, _hinfo⟩
     cases hold : prodEnv.find? familyName with
@@ -540,7 +540,7 @@ theorem BlockCertificate.hiddenUnsafeConstructorSemantics
       rw [hfamily] at hpreserved
       cases hpreserved
       rcases Hsource familyName familyInfo hold hvisible i hi with ⟨C⟩
-      exact ⟨C.rebaseProduction
+      exact ⟨C.rebaseKernel
         (Hinstall.preservesSourceFind hwf C.lookup) VEnv.LE.rfl⟩
     | none =>
       have hunsafe := Hhidden familyName familyInfo hfamily hold
@@ -632,7 +632,7 @@ theorem BlockCertificate.replaySafeConstructorSemantics
     have hlookup := Hinstall.preservesSourceFind hwf C.lookup
     have hle : observerBase ≤ Hreplay.installedVEnv :=
       VEnv.addEliminators_addProjections_le.trans (Hinstall.le.trans VEnv.addDefEqRules_le)
-    exact ⟨C.rebaseProduction hlookup hle⟩
+    exact ⟨C.rebaseKernel hlookup hle⟩
   · rcases hnew with ⟨entry, hentry, _hname, hinfo⟩
     have hsafe : .safe ≤ (ConstantInfo.inductInfo familyInfo).safety := by
       rw [hinfo]

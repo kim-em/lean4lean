@@ -441,7 +441,7 @@ theorem NestedRun.headerSetup
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.lowered.loweredDecl.typeConstants =
         some E.lowered.constructors.toConstructorCheck.headerVEnv :=

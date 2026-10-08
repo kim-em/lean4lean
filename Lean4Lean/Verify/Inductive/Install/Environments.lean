@@ -745,7 +745,7 @@ theorem ConstructorEnvironment.ctorParamsAgree
         H.sourceContext.checking.tr.map_wf C.lookup
       have hctorFinal := D.installed.preservesSourceFind
         H.context.checking.tr.map_wf hctorHeader
-      exact ⟨C.rebaseProduction hctorFinal
+      exact ⟨C.rebaseKernel hctorFinal
         (H.installed.le.trans D.installed.le)⟩
     · rcases hnew with ⟨entry, hentry, hentryName, hentryValue⟩
       rcases H.sourceAligned with ⟨numNested, Haligned⟩

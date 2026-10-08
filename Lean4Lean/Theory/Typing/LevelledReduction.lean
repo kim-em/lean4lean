@@ -993,7 +993,7 @@ theorem PrefixUnfold.not_rigid
   intro hrig
   cases H with
   | @intro data program hl hreg hname _ _ _ hg _ =>
-    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.RecursorData.singletonProgram_spec hg
+    obtain ⟨_, _, _, _, hse, _, _⟩ := InductiveSignature.RecursorData.singletonUnfolding_spec hg
     have hinst := hreg.singletonEquation hse
     unfold InductiveSignature.RecursorData.singletonEquation at hse
     dsimp only at hse
@@ -1006,7 +1006,7 @@ theorem PrefixUnfold.not_rigid
       simpa using (List.mem_filter.mp hmem).2
     have hhead := hreg.equation_head howner (equation := program.equation) hse
     subst hname
-    exact hrig _ hinst _ ((VExpr.nativeEquationHead_eq _).trans hhead)
+    exact hrig _ hinst _ ((VExpr.equationHead_eq _).trans hhead)
 
 theorem QuotPrefixUnfold.not_rigid (H : QuotPrefixUnfold env univs Γ ls args rhs) :
     ¬ env.NativeHeadRigid ``Quot.lift := by
@@ -2037,7 +2037,7 @@ theorem PrefixUnfold.length_le (H : PrefixUnfold env univs recursorData Γ name 
     ∃ data, recursorData name = some data ∧ args.length ≤ data.majorOffset := by
   cases H with
   | @intro data program hl _ _ _ _ _ hg _ =>
-    exact ⟨data, hl, (InductiveSignature.RecursorData.singletonProgram_spec hg).1⟩
+    exact ⟨data, hl, (InductiveSignature.RecursorData.singletonUnfolding_spec hg).1⟩
 
 theorem QuotPrefixUnfold.length_le (H : QuotPrefixUnfold env univs Γ ls args rhs) : args.length ≤ 5 := by
   cases H with
@@ -2382,13 +2382,13 @@ theorem prefixUnfolding_supply_many {data : InductiveSignature.RecursorData}
     cases hp.symm.trans hq
     exact .rfl
   | m :: rest, xs, p, q, hp, hq, hclosed => by
-    have hbound := (InductiveSignature.RecursorData.singletonProgram_spec hq).1
-    obtain ⟨p₁, hp₁⟩ := InductiveSignature.RecursorData.singletonProgram_anyArity hp
+    have hbound := (InductiveSignature.RecursorData.singletonUnfolding_spec hq).1
+    obtain ⟨p₁, hp₁⟩ := InductiveSignature.RecursorData.singletonUnfolding_anyArity hp
       (args' := xs ++ [m]) (by simp at hbound ⊢; omega)
     obtain ⟨d, body, he, hb⟩ :=
-      InductiveSignature.RecursorData.singletonProgram_supply_one henv hr hlarge hzero hp hp₁ hclosed
-    have hspec := InductiveSignature.RecursorData.singletonProgram_spec hp
-    have hspec₁ := InductiveSignature.RecursorData.singletonProgram_spec hp₁
+      InductiveSignature.RecursorData.singletonUnfolding_supply_one henv hr hlarge hzero hp hp₁ hclosed
+    have hspec := InductiveSignature.RecursorData.singletonUnfolding_spec hp
+    have hspec₁ := InductiveSignature.RecursorData.singletonUnfolding_spec hp₁
     have heq : p.equation = p₁.equation :=
       Option.some.inj (hspec.2.2.2.2.1.symm.trans hspec₁.2.2.2.2.1)
     have hbody : p.equationBody = p₁.equationBody := by

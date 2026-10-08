@@ -41,7 +41,7 @@ theorem RecursorRegistered.family_head_rigid {data : RecursorData} (henv : env.W
     rw [hcn] at hmajor
     have hdf : env.defeqs actual := he.defeqs (VInductBlock.install_rule hi hmem)
     obtain ⟨ci, hci, F, ls', hF, ⟨ciF, hciF⟩, hFr⟩ :=
-      henv.native_constructor_result_rigid hdf hmajor
+      henv.installed_constructor_result_rigid hdf hmajor
     have hfcc : fc ∈ source.constructorConstants := List.mem_flatMap.mpr ⟨family, hsrc, hfc⟩
     have hconst : env.constants fc.name = some fc.toVConstant :=
       he.constants (VInductBlock.install_ctor_lookup hi (by rw [hdata.ctors]; exact hfcc))
@@ -55,7 +55,7 @@ theorem RecursorRegistered.family_head_rigid {data : RecursorData} (henv : env.W
     exact ⟨⟨ciF, hciF⟩, hFr⟩
   · have hdf : env.defeqs equation := hle.defeqs hdefeq
     obtain ⟨ci, hci, F, ls', hF, ⟨ciF, hciF⟩, hFr⟩ :=
-      henv.native_constructor_result_rigid hdf hmaj
+      henv.installed_constructor_result_rigid hdf hmaj
     rw [hle.constants hconst] at hci
     cases hci
     obtain rfl := (VExpr.const.inj (hF.symm.trans hres)).1
@@ -169,7 +169,7 @@ theorem QuotRegistered.quot_rigid (henv : env.WF) (hr : QuotRegistered env) :
     env.Rigid ``Quot := by
   have hmk : quotDefEq.HasConstructorMajor ``Quot.mk :=
     ⟨_, [.param 0], [.bvar 5, .bvar 4, .bvar 0], rfl⟩
-  obtain ⟨ci, hci, F, ls, hF, _, hFr⟩ := henv.native_constructor_result_rigid hr.equation hmk
+  obtain ⟨ci, hci, F, ls, hF, _, hFr⟩ := henv.installed_constructor_result_rigid hr.equation hmk
   rw [hr.constructor] at hci
   cases hci
   have : quotMkConst.type.forallResult.getAppFnArgs.1 = .const ``Quot [.param 0] := rfl
@@ -227,13 +227,13 @@ theorem RecursorData.recursorType_shape {data : RecursorData}
     omega
   have hrel' := Lean4Lean.List.Forall₂.getElem_of hrel (data.numParams + data.owner.val)
     (by rw [hlen]; exact hpos) hpos
-  have hsrc : (data.nativeInstance.params ++ data.nativeInstance.motives ++
-      data.nativeInstance.minors ++ insertBinders (data.schema.signature.families[data.owner].indices.map
-        (VExpr.instL data.nativeInstance.levels)) (data.schema.signature.families.size +
+  have hsrc : (data.recursorInstance.params ++ data.recursorInstance.motives ++
+      data.recursorInstance.minors ++ insertBinders (data.schema.signature.families[data.owner].indices.map
+        (VExpr.instL data.recursorInstance.levels)) (data.schema.signature.families.size +
           data.schema.signature.constructors.size) ++
-      [data.nativeInstance.familyApp data.owner _ _])[data.numParams + data.owner.val]'(by
+      [data.recursorInstance.familyApp data.owner _ _])[data.numParams + data.owner.val]'(by
         rw [hlen]; exact hpos) =
-      data.nativeInstance.motive data.schema.signature.families[data.owner] data.owner.val := by
+      data.recursorInstance.motive data.schema.signature.families[data.owner] data.owner.val := by
     simp only [List.append_assoc]
     rw [List.getElem_append_right (by simp [Instance.params, RecursorData.numParams])]
     rw [List.getElem_append_left (by simp [Instance.params, Instance.motives,

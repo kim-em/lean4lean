@@ -447,7 +447,7 @@ theorem RecursorCheck.restorationSources
 
 /-- The installed generated entry fixes the universe arity of the old
 recursor metadata read by primary restoration. -/
-theorem RecursorCheck.restoredPrimaryRecursorMetadata
+theorem RecursorCheck.restoredSourceRecursorMetadata
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -491,7 +491,7 @@ recursor entry and expose the complete old/restored telescope alignment.  In
 particular, callers do not choose an unrelated generated entry or reconstruct
 the local binder selection: installation, the restoration lookup, and the
 retained `mkRecInfos` state determine all of them. -/
-theorem RecursorCheck.restoredPrimaryTelescopeAlignment
+theorem RecursorCheck.restoredSourceTelescopeAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -544,7 +544,7 @@ theorem RecursorCheck.restoredPrimaryTelescopeAlignment
 universe arities admitted for generated recursors.  This packages the lookup
 argument identifying the step's old metadata with the exact generated entry,
 so later source-restoration proofs do not need to repeat it. -/
-theorem RecursorCheck.restoredPrimaryRecursorUvars
+theorem RecursorCheck.restoredSourceRecursorUvars
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

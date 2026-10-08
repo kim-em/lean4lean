@@ -333,7 +333,7 @@ theorem RecursorConstruction.SignatureSpec.family_name
     s.families[i].name = (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name := by
   subst heq
   rw [Fin.getElem_fin, D.family_getElem]
-  exact H.consumedFamilies_name ⟨i.val, howner⟩
+  exact H.families_name ⟨i.val, howner⟩
 
 theorem RecursorConstruction.SignatureSpec.family_indices
     {H : RecursorConstruction R} {s : InductiveSignature}
@@ -342,7 +342,7 @@ theorem RecursorConstruction.SignatureSpec.family_indices
     s.families[i].indices = H.declIndexDomains ⟨owner, howner⟩ := by
   subst heq
   rw [Fin.getElem_fin, D.family_getElem]
-  exact H.consumedFamilies_indices ⟨i.val, howner⟩
+  exact H.families_indices ⟨i.val, howner⟩
 
 /-- The closed type of each consumed constructor is definitionally the
 source constructor at the same flattened position, in the header
@@ -535,7 +535,7 @@ theorem RecursorConstruction.SignatureSpec.models
   have hparams : s.params.length = decl.nparams := by
     rw [D.params, List.length_reverse, H.sourceParameterCount, H.cardinality.params]
   have hfamSize : s.families.size = H.recInfos.size := by
-    rw [D.families, H.consumedFamilies_size]
+    rw [D.families, H.families_size]
   have Harity : ∀ ctor ∈ s.constructors.toList,
       ctor.indices.length = s.families[ctor.owner].indices.length := by
     intro ctor hctor
@@ -602,8 +602,8 @@ theorem RecursorConstruction.SignatureSpec.models
   have hget : s.families.toList[i] = H.families[i]'(by simpa using howner) := by
     simp only [Array.getElem_toList]
     exact D.family_getElem i (by simpa using hi)
-  rw [hget, H.consumedFamilies_name ⟨i, howner⟩, H.consumedFamilies_indices ⟨i, howner⟩,
-    H.consumedFamilies_level ⟨i, howner⟩]
+  rw [hget, H.families_name ⟨i, howner⟩, H.families_indices ⟨i, howner⟩,
+    H.families_level ⟨i, howner⟩]
   refine ⟨rfl, ?_, rfl⟩
   rw [H.sourceIndices_length, H.cardinality.indices i howner]
 

@@ -283,9 +283,9 @@ theorem RecursorCheck.ownerSuffix_eq_expected
   obtain ⟨hmot, hidx⟩ := T.motivesSuffix_eq_of_target T₀ htgt
   let g := H.generatedInstance H.familySignature
   have hm := H.recursorTelescope_motives T₀ g rfl rfl rfl
-    (H.consumedInstance_target _)
+    (H.generatedInstance_target _)
   have him := H.recursorTelescope_indicesMajor hrec T₀
-    (H.consumedInstance_target H.familySignature)
+    (H.generatedInstance_target H.familySignature)
   have hfam : owner < H.families.size := by simpa using hrec
   have hgm : g.motives[owner]! = g.motive (H.families[owner]'hfam) owner := by
     have hlt : owner < g.motives.length := by
@@ -296,8 +296,8 @@ theorem RecursorCheck.ownerSuffix_eq_expected
       RecursorConstruction.familySignature, List.getElem_zipIdx]
   have hTm : T.motives[owner]! = g.motives[owner]! := by rw [hmot, hm]
   rw [hTm, hgm] at hmotive
-  have hidxs := H.consumedFamilies_indices ⟨owner, hrec⟩
-  have hname := H.consumedFamilies_name ⟨owner, hrec⟩
+  have hidxs := H.families_indices ⟨owner, hrec⟩
+  have hname := H.families_name ⟨owner, hrec⟩
   simp only [InductiveSignature.Instance.motive] at hmotive
   rw [hidxs, hname] at hmotive
   have hsrcLen := H.sourceIndices_length ⟨owner, hrec⟩

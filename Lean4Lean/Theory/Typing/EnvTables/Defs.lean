@@ -131,7 +131,7 @@ theorem MetadataMentions.mono (H : MetadataMentions env X) (hle : env ≤ env') 
 
 structure Tables where
   defs : Name → Option VDefVal
-  natives : Name → Option RecursorData
+  recursors : Name → Option RecursorData
   quot : Bool
   fam : Name → Option FamData
   ctor : Name → Option CtorData
@@ -139,7 +139,7 @@ structure Tables where
 /-- `T'` extends `T`: no entry is removed or changed. -/
 structure Tables.Extends (T T' : Tables) : Prop where
   defs : T.defs n = some v → T'.defs n = some v
-  natives : T.natives n = some d → T'.natives n = some d
+  recursors : T.recursors n = some d → T'.recursors n = some d
   quot : T.quot = true → T'.quot = true
   fam : T.fam n = some f → T'.fam n = some f
   ctor : T.ctor n = some k → T'.ctor n = some k
@@ -148,7 +148,7 @@ theorem Tables.Extends.rfl {T : Tables} : T.Extends T := ⟨id, id, id, id, id�
 
 theorem Tables.Extends.trans {T₁ T₂ T₃ : Tables} (h₁ : T₁.Extends T₂) (h₂ : T₂.Extends T₃) :
     T₁.Extends T₃ :=
-  ⟨h₂.defs ∘ h₁.defs, h₂.natives ∘ h₁.natives, h₂.quot ∘ h₁.quot, h₂.fam ∘ h₁.fam,
+  ⟨h₂.defs ∘ h₁.defs, h₂.recursors ∘ h₁.recursors, h₂.quot ∘ h₁.quot, h₂.fam ∘ h₁.fam,
     h₂.ctor ∘ h₁.ctor⟩
 
 /-- The quotient constants and equation are installed with their exact values. -/
@@ -167,7 +167,7 @@ theorem QuotInstalled.mono (H : QuotInstalled env) (hle : env ≤ env') : QuotIn
 installed it, together with the family views it recorded. -/
 def NativeEntryCompiled (env : VEnv) (T : Tables) (data : RecursorData) : Prop :=
   ∃ base installBase source expanded auxiliaries block installed,
-    CompilationData base source expanded data.schema.signature data.nativeInstance
+    CompilationData base source expanded data.schema.signature data.recursorInstance
       auxiliaries block ∧
     ContainersInstalled base auxiliaries ∧
     base ≤ installBase ∧
@@ -188,7 +188,7 @@ theorem NativeEntryCompiled.registered (H : NativeEntryCompiled env T data) :
     RecursorRegistered env data := by
   obtain ⟨base, installBase, source, expanded, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, h6, h7, _, _, _⟩ := H
-  exact ⟨base, installBase, source, expanded, data.nativeInstance, auxiliaries, block, installed,
+  exact ⟨base, installBase, source, expanded, data.recursorInstance, auxiliaries, block, installed,
     h1, h2, h3, h4, h5, rfl, rfl, rfl, h6, h7⟩
 
 /-- The family and constructor part of the history invariant. -/
@@ -213,20 +213,20 @@ structure Tables.Inv (env : VEnv) (T : Tables) : Prop where
   defs : T.defs n = some v → v.name = n ∧ env.constants n = some v.toVConstant ∧
     env.defeqs v.toDefEq
   /-- Native recursor entries, with their actual installation. -/
-  natives : T.natives n = some data → data.name = n ∧ NativeEntryCompiled env T data
+  recursors : T.recursors n = some data → data.name = n ∧ NativeEntryCompiled env T data
   /-- The quotient flag. -/
   quot : T.quot = true → QuotInstalled env ∧ T.fam ``Quot = some quotFam ∧
     T.ctor ``Quot.mk = some quotCtor ∧ T.defs ``Quot.lift = none ∧
-    T.natives ``Quot.lift = none ∧ T.defs ``Quot.ind = none ∧ T.natives ``Quot.ind = none
+    T.recursors ``Quot.lift = none ∧ T.defs ``Quot.ind = none ∧ T.recursors ``Quot.ind = none
   /-- Definition and native heads are distinct. -/
-  defs_natives : T.defs n ≠ none → T.natives n = none
+  defs_recursors : T.defs n ≠ none → T.recursors n = none
   /-- Families and constructors. -/
   views : ViewInv env T.fam T.ctor
   /-- Every stored equation has an origin. -/
   equations : env.defeqs df →
     (∃ v, T.defs v.name = some v ∧ df = v.toDefEq) ∨
     (T.quot = true ∧ df = quotDefEq) ∨
-    (∃ data, T.natives data.name = some data ∧
+    (∃ data, T.recursors data.name = some data ∧
       ∃ index : Fin data.schema.signature.constructors.size,
         data.schema.signature.constructors[index].owner = data.owner ∧
         data.equation index = some df)

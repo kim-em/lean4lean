@@ -1,7 +1,7 @@
 import Lean4Lean.Verify.Inductive.Rules.Translation
 import Lean4Lean.Theory.Inductive.CanonicalEqSignature
 
-/-! # Production syntax of the bootstrap equality
+/-! # Production syntax of the toConstantsInstallation equality
 
 The declaration of `Eq` submitted by `Init.Prelude`, and the type and iota rule
 of the recursor `Eq.rec` that the kernel generates for it, stated literally
@@ -17,7 +17,7 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The concrete family type submitted by Lean's bootstrap declaration of
+/-- The concrete family type submitted by Lean's toConstantsInstallation declaration of
 `Eq`. Binder names are operationally retained by `Expr`, although abstract
 translation erases them. -/
 def preludeEqType (u alphaName lhsName rhsName : Name) : Expr :=
@@ -157,13 +157,13 @@ macro_rules | `(tactic| canonical_eq_tr_syn) => `(tactic|
     | (apply TrExprSyn.const; first
         | exact mapM_one | exact mapM_two_right ‹_› | exact mapM_two ‹_›)))
 
-theorem eqBootstrapType_syn (u alphaName lhsName rhsName : Name) :
+theorem preludeEqType_syn (u alphaName lhsName rhsName : Name) :
     TrExprSyn [u] [] (preludeEqType u alphaName lhsName rhsName)
       canonicalEqType := by
   unfold preludeEqType canonicalEqType
   canonical_eq_tr_syn
 
-theorem eqBootstrapReflType_syn (u alphaName valueName : Name) :
+theorem preludeEqReflType_syn (u alphaName valueName : Name) :
     TrExprSyn [u] [] (preludeEqReflType u alphaName valueName)
       canonicalEqReflType := by
   unfold preludeEqReflType canonicalEqReflType
@@ -182,11 +182,11 @@ variable {env : VEnv} {e : VExpr}
 
 theorem TrExprS.eq_canonicalEqType {u a b c : Name}
     (H : TrExprS env [u] [] (preludeEqType u a b c) e) : e = canonicalEqType :=
-  H.toSyn.unique (eqBootstrapType_syn u a b c)
+  H.toSyn.unique (preludeEqType_syn u a b c)
 
 theorem TrExprS.eq_canonicalEqReflType {u a b : Name}
     (H : TrExprS env [u] [] (preludeEqReflType u a b) e) : e = canonicalEqReflType :=
-  H.toSyn.unique (eqBootstrapReflType_syn u a b)
+  H.toSyn.unique (preludeEqReflType_syn u a b)
 
 theorem TrExprS.eq_canonicalEqRecType {u v : Name} (huv : u ≠ v) {n : EqRecBinderNames}
     (H : TrExprS env [u, v] [] (eqRecTypeExpr u v n) e) : e = canonicalEqRecType :=

@@ -26,7 +26,7 @@ variable {block : VInductBlock} {name : Name}
 
 /-- The metadata table has exactly the names of the restored installed
 recursors, in the same family order. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_names
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_names
     (hdata : CompilationData base source expanded s g auxiliaries block) :
     (compilationEntries key source s auxiliaries g).map (·.name) =
       block.recursors.map (·.name) := by
@@ -50,13 +50,13 @@ theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_names
 
 /-- Successful whole-block installation makes every new metadata name
 fresh in the previous environment. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_fresh
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_fresh
     (hdata : CompilationData base source expanded s g auxiliaries block)
     (hinstall : block.install installBase = some installed)
     (hentry : data ∈ compilationEntries key source s auxiliaries g) :
     installBase.constants data.name = none := by
   have hname : data.name ∈ block.recursors.map (·.name) := by
-    rw [← hdata.nativeEntries_names (key := key)]
+    rw [← hdata.recursorEntries_names (key := key)]
     exact List.mem_map.mpr ⟨data, hentry, rfl⟩
   obtain ⟨rec, hrec, heq⟩ := List.mem_map.mp hname
   simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -81,10 +81,10 @@ theorem RecursorRegistered.recursorType_exists
     (H : RecursorRegistered env data) : ∃ type, data.recursorType = some type := by
   obtain ⟨base, installBase, source, expanded, g, auxiliaries, block, installed,
     hdata, _, _, hr, _, hu, hl, ht, hi, he⟩ := H
-  have hinstance : data.nativeInstance = g := by
+  have hinstance : data.recursorInstance = g := by
     cases g with
     | mk U levels target recNames =>
-      simp only [nativeInstance, Instance.mk.injEq]
+      simp only [recursorInstance, Instance.mk.injEq]
       exact ⟨hu, hl, ht, funext fun owner => (hdata.recursorNames owner).symm⟩
   have hgenerated : g.recursor data.owner ∈ g.recursors :=
     List.mem_map.mpr ⟨data.owner, List.mem_finRange _, rfl⟩
@@ -100,15 +100,15 @@ theorem RecursorRegistered.constant_exists
   obtain ⟨type, htype⟩ := H.recursorType_exists
   exact ⟨_, H.recursorType htype⟩
 
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_nodup
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_nodup
     (hdata : CompilationData base source expanded s g auxiliaries block) :
     ((compilationEntries key source s auxiliaries g).map (·.name)).Nodup := by
-  rw [hdata.nativeEntries_names]
+  rw [hdata.recursorEntries_names]
   have hh := hdata.names
   simp only [List.map_append, List.nodup_append] at hh
   exact hh.2.1
 
-private theorem nativeEntries_find (entries : List RecursorData)
+private theorem recursorEntries_find (entries : List RecursorData)
     (hnodup : (entries.map (·.name)).Nodup) (hmem : data ∈ entries) :
     entries.find? (fun value => value.name == data.name) = some data := by
   induction entries with
@@ -127,13 +127,13 @@ private theorem nativeEntries_find (entries : List RecursorData)
 
 /-- Every newly installed family remains individually addressable by its
 actual restored name. -/
-theorem _root_.Lean4Lean.InductiveSignature.CompilationData.nativeEntries_lookup
+theorem _root_.Lean4Lean.InductiveSignature.CompilationData.recursorEntries_lookup
     (hdata : CompilationData base source expanded s g auxiliaries block)
     (hmem : data ∈ compilationEntries key source s auxiliaries g) :
     RecursorData.installEntries old (compilationEntries key source s auxiliaries g)
       data.name = some data := by
   unfold RecursorData.installEntries
-  rw [nativeEntries_find _ hdata.nativeEntries_nodup hmem]
+  rw [recursorEntries_find _ hdata.recursorEntries_nodup hmem]
   rfl
 
 end Lean4Lean.VEnv
@@ -151,7 +151,7 @@ variable {base installBase extended env : VEnv} {source expanded : VInductDecl}
 
 /-- Every restored constructor equation belongs to the descriptor for its
 actual owner. Both the descriptor and equation are computed from one instance. -/
-theorem InductiveSignature.CompilationData.nativeEntries_equation
+theorem InductiveSignature.CompilationData.recursorEntries_equation
     (compilation : CompilationData base source expanded signature generated auxiliaries block)
     (member : equation ∈ block.rules) (key : Name) :
     ∃ data ∈ compilationEntries key source signature auxiliaries generated,
@@ -163,7 +163,7 @@ theorem InductiveSignature.CompilationData.nativeEntries_equation
   obtain ⟨index, _, rfl⟩ := List.mem_map.mp originalMember
   let data := ofInstance key (CaseSchema.ofCompilation source signature auxiliaries)
     generated signature.constructors[index].owner
-  have instanceEq : data.nativeInstance = generated := by
+  have instanceEq : data.recursorInstance = generated := by
     cases generated with
     | mk U levels target names =>
       change Instance.mk U levels target (fun owner => signature.families[owner].name.str "rec") =
@@ -172,7 +172,7 @@ theorem InductiveSignature.CompilationData.nativeEntries_equation
       exact funext fun owner => (compilation.recursorNames owner).symm
   refine ⟨data, List.mem_map.mpr ⟨signature.constructors[index].owner,
     List.mem_finRange _, rfl⟩, index, rfl, ?_⟩
-  change (compilationRestoration source auxiliaries).equation (data.nativeInstance.equation index) = _
+  change (compilationRestoration source auxiliaries).equation (data.recursorInstance.equation index) = _
   rw [instanceEq]
   exact restored
 

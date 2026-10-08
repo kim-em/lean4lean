@@ -111,7 +111,7 @@ theorem RecursorCheck.entries_length_eq
     H.entries.length = H.generationSignature.families.size := by
   rw [H.generated.length]
   change _ = H.generator.signature.families.size
-  rw [H.generator.families, H.consumedFamilies_size]
+  rw [H.generator.families, H.families_size]
 
 /-- The head constant of the generated major premise is the owner family. -/
 theorem RecursorCheck.generated_getMajorInduct
@@ -161,7 +161,7 @@ theorem RecursorCheck.kShape
   have hfam1 : H.generationSignature.families.size = 1 :=
     H.generator.familyCount.trans hsize1
   have hrec1 : H.recInfos.size = 1 := by
-    rw [← H.consumedFamilies_size, ← hfamCons]; exact hfam1
+    rw [← H.families_size, ← hfamCons]; exact hfam1
   have h0 : 0 < H.recInfos.size := by omega
   have hminors0 : H.recInfos[0]!.minors.size = 1 := by
     rw [H.minorCounts 0 h0]; simp [hind, hctors]
@@ -177,10 +177,10 @@ theorem RecursorCheck.kShape
   refine ⟨hfam1, hctor1, ?_, ?_⟩
   · intro owner
     have howner : owner.val < H.recInfos.size := by
-      rw [← H.consumedFamilies_size, ← hfamCons]; exact owner.isLt
+      rw [← H.families_size, ← hfamCons]; exact owner.isLt
     have hlevel : H.generationSignature.families[owner].resultLevel =
         (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact howner)).resultLevel := by
-      rw [← H.consumedFamilies_level ⟨owner.val, howner⟩]
+      rw [← H.families_level ⟨owner.val, howner⟩]
       simp only [Fin.getElem_fin, hfamCons]
     rw [hlevel]
     exact (VLevel.equiv_congr_left
@@ -269,11 +269,11 @@ theorem RecursorCheck.metadataRealization
     k := ?_ }
   · rw [E.numIndices, ← H.arities _ hrecInfo,
       ← H.sourceIndices_length ⟨owner.val, hrecInfo⟩,
-      ← H.consumedFamilies_indices ⟨owner.val, hrecInfo⟩, Fin.getElem_fin,
+      ← H.families_indices ⟨owner.val, hrecInfo⟩, Fin.getElem_fin,
       hfamily owner.val owner.isLt]
-  · rw [E.numMotives, Array.size_map, ← H.consumedFamilies_size, ← hfamCons]
+  · rw [E.numMotives, Array.size_map, ← H.families_size, ← hfamCons]
   · rw [H.generated_getMajorInduct owner.val hi, Fin.getElem_fin,
-      hfamily owner.val owner.isLt, H.consumedFamilies_name ⟨owner.val, hrecInfo⟩]
+      hfamily owner.val owner.isLt, H.families_name ⟨owner.val, hrecInfo⟩]
   · rw [E.all]
     apply List.ext_getElem
     · simp only [List.length_map, Array.length_toList, Array.size_map]

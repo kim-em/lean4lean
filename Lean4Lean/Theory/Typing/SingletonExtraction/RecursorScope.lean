@@ -61,7 +61,7 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
   have harity := F.arity c hmem
   simp only [hown] at harity
   -- the closed generated recursor type, at the instance eliminating into `Prop`
-  let gp := data.nativeInstance.specialize 0 (ls.set k .zero)
+  let gp := data.recursorInstance.specialize 0 (ls.set k .zero)
   have htarget : gp.targetLevel = .zero := by
     show (data.target).inst (ls.set k .zero) = .zero
     rw [hk']
@@ -70,7 +70,7 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
     · rw [List.getElem?_set_self (by simpa using hkl)]; rfl
     · rw [List.getElem?_eq_none (by simp; omega)]; rfl
   have hclosed : (gp.recursorType data.owner).ClosedN 0 := by
-    have hgen : data.recursorType = some (data.nativeInstance.recursorType data.owner) := by
+    have hgen : data.recursorType = some (data.recursorInstance.recursorType data.owner) := by
       simp [recursorType, F.restoration]
     have := (H.recursorType_closed henv hgen).instL (ls := ls.set k .zero)
     rwa [Instance.recursorType_specialize _ 0] at this
@@ -79,8 +79,8 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
     gp.constructorApp_shape] at hrec
   rw [hrec] at hclosed
   obtain ⟨hdoms, _⟩ := VExpr.ClosedN.wrapForalls_inv_singleton hclosed
-  have hPlen : gp.params.length = data.nativeInstance.params.length := by
-    simp [Instance.params, Instance.specialize, nativeInstance]
+  have hPlen : gp.params.length = data.recursorInstance.params.length := by
+    simp [Instance.params, Instance.specialize, recursorInstance]
   -- parameters
   have hP : ∀ j (h : j < gp.params.length), (gp.params[j]).ClosedN j := by
     intro j hj
@@ -125,15 +125,15 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
     exact VExpr.ClosedN.of_liftN (j := 0) (n := (gp.hypotheses c).length)
       (k := gp.params.length + (gp.fieldsAt c).length) h1 (Nat.zero_le _)
   -- transfer between the occurrence universes and the `Prop` instance
-  have hsF : gp.fieldsAt c = (data.nativeInstance.fieldsAt c).map (·.instL (ls.set k .zero)) :=
+  have hsF : gp.fieldsAt c = (data.recursorInstance.fieldsAt c).map (·.instL (ls.set k .zero)) :=
     Instance.sFields_specialize _ _ _ _
   have hsI : gp.indicesAt data.owner =
-      (data.nativeInstance.indicesAt data.owner).map (·.instL (ls.set k .zero)) :=
+      (data.recursorInstance.indicesAt data.owner).map (·.instL (ls.set k .zero)) :=
     Instance.sIndices_specialize _ _ _ _
-  have hsP : gp.params = data.nativeInstance.params.map (·.instL (ls.set k .zero)) :=
+  have hsP : gp.params = data.recursorInstance.params.map (·.instL (ls.set k .zero)) :=
     Instance.params_specialize' _ _ _
-  have hlF : (gp.fieldsAt c).length = (data.nativeInstance.fieldsAt c).length := by simp [hsF]
-  have hlI : (gp.indicesAt data.owner).length = (data.nativeInstance.indicesAt data.owner).length := by
+  have hlF : (gp.fieldsAt c).length = (data.recursorInstance.fieldsAt c).length := by simp [hsF]
+  have hlI : (gp.indicesAt data.owner).length = (data.recursorInstance.indicesAt data.owner).length := by
     simp [hsI]
   have hlCI : (gp.ctorIndicesAt c).length = (gp.indicesAt data.owner).length := by
     simp [Instance.ctorIndicesAt, Instance.indicesAt, harity]
@@ -155,13 +155,13 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
     simp only [hsI, List.getElem_map, ClosedN.instL_iff] at this
     simpa [hlP] using this
   · simp only [SingletonLayout.instL, Instance.singletonCast] at h ⊢
-    by_cases hjl : j < (data.nativeInstance.fieldsAt c).length
+    by_cases hjl : j < (data.recursorInstance.fieldsAt c).length
     · rw [getD_of_lt (by simpa using hjl)] at h
       simp only [List.getElem_map, List.getElem_range] at h
       obtain ⟨hk1, _⟩ := fieldSlot_spec h
       simp only [List.length_map]
-      have : (data.nativeInstance.ctorIndicesAt c).length =
-          (data.nativeInstance.indicesAt data.owner).length := by
+      have : (data.recursorInstance.ctorIndicesAt c).length =
+          (data.recursorInstance.indicesAt data.owner).length := by
         simp [Instance.ctorIndicesAt, Instance.indicesAt, harity]
       omega
     · simp [List.getD_eq_getElem?_getD, List.getElem?_range, hjl] at h
@@ -177,7 +177,7 @@ theorem propElim_closed (henv : env.WF) (H : RecursorRegistered env data)
   · simp only [Instance.singletonElim]
     change (VExpr.wrapLams (VExpr.instDomains (insertBinders (gp.fieldsAt c) 1 ++ gp.hypotheses c) M 0)
       (b.liftN (gp.hypotheses c).length)).ClosedN _
-    have hbF : ((data.nativeInstance.singletonCast data.owner c (genericSorts env data c)).instL
+    have hbF : ((data.recursorInstance.singletonCast data.owner c (genericSorts env data c)).instL
         ls).fields.length = (gp.fieldsAt c).length := by
       simp [SingletonLayout.instL, Instance.singletonCast, hlF]
     rw [hbF, hlP] at hb

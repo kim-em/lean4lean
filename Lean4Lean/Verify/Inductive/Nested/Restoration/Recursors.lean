@@ -767,7 +767,7 @@ theorem NestedRun.recursorNames_order
     simp only [List.map_cons, List.cons_append, List.cons.injEq] at hsplit
     exact hsplit.1
   have Hc : ContextWF P.c := by
-    rw [E.production_c]; exact E.contextWF
+    rw [E.lowered_c]; exact E.contextWF
   obtain ⟨info, hfind, -, hall⟩ := P.recursors.findSourceHeader Hc
     (owner := o) (by rw [hos]; exact List.mem_cons_self)
   rw [hoName] at hfind

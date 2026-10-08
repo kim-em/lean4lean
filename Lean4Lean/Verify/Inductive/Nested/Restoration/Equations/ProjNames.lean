@@ -611,7 +611,7 @@ theorem NestedRun.constructorProjNames_of
   have hreg := HC.type.targetProjsRegistered hheaderV trivial VLCtx.ProjNamesOK.nil
   refine hreg.projNamesAvoid fun S ⟨info, hinfo⟩ => ?_
   rw [VEnv.addConstVals_projections_eq E.lowered.constructors.core.typesAdded,
-    E.production_initialEnv] at hinfo
+    E.lowered_initialEnv] at hinfo
   exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hinfo
 
 /-- **Field `recursorProjNames`**: the executable recursor type satisfies the
@@ -700,7 +700,7 @@ theorem NestedRun.recursorProjNames_of
   · rw [VEnv.addEliminators_projections,
       VEnv.addConstVals_projections_eq E.lowered.constructors.toConstructorCheck.core.ctorsAdded,
       VEnv.addConstVals_projections_eq E.lowered.constructors.toConstructorCheck.core.typesAdded,
-      E.production_initialEnv] at hbase
+      E.lowered_initialEnv] at hbase
     exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
 
 /-- **Field `equationProjNames`**: the generated equations are built from the

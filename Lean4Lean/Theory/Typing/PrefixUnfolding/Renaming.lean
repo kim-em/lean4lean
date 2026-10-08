@@ -77,7 +77,7 @@ private theorem vars_lift'_consN (n : Nat) (ρ : Lift) :
   · simpa only [VExpr.ClosedN, Nat.zero_add] using hi
   · exact hfix
 
-theorem singletonProgram_lift' {data : RecursorData} {nativeType : VExpr} {env : VEnv}
+theorem singletonUnfolding_lift' {data : RecursorData} {nativeType : VExpr} {env : VEnv}
     {packed : List VLevel} (henv : env.WF) (hr : VEnv.RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
     (htype : data.recursorType = some nativeType) (hclosed : nativeType.Closed)
@@ -110,7 +110,7 @@ theorem singletonProgram_lift' {data : RecursorData} {nativeType : VExpr} {env :
       liftN_lift'_consN, vars_lift'_consN]
   have hallLen : (args.map (·.liftN remaining) ++ vars remaining 0).length = data.majorOffset + 1 := by
     simp only [List.length_append, List.length_map, InductiveSignature.length_vars]; omega
-  have hrecon' := singletonRecon_lift' (ρ := ρ) (n := remaining) henv hr hlarge hzero hallLen (by omega) hrecon
+  have hrecon' := singletonReconstruction_lift' (ρ := ρ) (n := remaining) henv hr hlarge hzero hallLen (by omega) hrecon
   rw [← hall] at hrecon'
   dsimp only [remaining] at hrecon'
   simp only [bind, htype, Option.bind_some, hsupply', htake', hrecon', hequation, hbody,
@@ -169,12 +169,12 @@ end Lean4Lean.InductiveSignature.RecursorData
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature.RecursorData
 
-theorem nativeEtaBody_lift' (n : Nat) (e : VExpr) (ρ : Lift) :
+theorem etaOpen_lift' (n : Nat) (e : VExpr) (ρ : Lift) :
     etaOpen n (e.lift' ρ) = (etaOpen n e).lift' (ρ.consN n) := by
   induction n with
   | zero => rfl
   | succ n ih =>
-    rw [nativeEtaBody_succ, nativeEtaBody_succ, ih]
+    rw [etaOpen_succ, etaOpen_succ, ih]
     simp only [VExpr.lift', Lift.consN, Lift.liftVar]
     exact congrArg (fun fn => fn.app (.bvar 0)) (liftN_lift'_consN _ 1 _)
 

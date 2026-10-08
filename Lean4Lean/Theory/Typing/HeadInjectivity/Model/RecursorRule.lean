@@ -3,7 +3,7 @@ import Lean4Lean.Theory.Typing.HeadInjectivity.Rules.RecursorEquations
 
 /-! # Validity of ordinary native recursor rules (stages B and D)
 
-`RuleValid.native`: a generated equation of a finite compilation without container
+`RuleValid.recursor`: a generated equation of a finite compilation without container
 specializations is valid in the model of a well-formed environment, given
 
 * that the rules headed by its recursor are exactly its block's equations (`HeadExcl`);
@@ -15,7 +15,7 @@ specializations is valid in the model of a well-formed environment, given
 
 The proof splits on the admissibility of the elimination: with family sorts that are never
 zero the rule is an instance of `sound_pat` whose mode C hypothesis is contradictory
-(`native_C_absurd`); with a zero target sort its right-hand side has no observations
+(`recursor_C_absurd`); with a zero target sort its right-hand side has no observations
 (`sound_pat_empty`); with singleton elimination it is an instance of `sound_pat` in mode C
 (the rule is the only one of its head, the major-only fields are proof binders). -/
 
@@ -94,7 +94,7 @@ theorem eqLead_length_owner {s : InductiveSignature} {g : Instance s}
   rw [g.eqLead_length, h]
 
 /-- Uniqueness of an ordinary native rule per head and constructor. -/
-theorem native_uniq {s : InductiveSignature} {g : Instance s}
+theorem recursor_uniq {s : InductiveSignature} {g : Instance s}
     (C : CompilationData base source expanded s g [] block) (index : Fin s.constructors.size)
     (hex : HeadExcl env (g.recursorName s.constructors[index].owner) block.rules) :
     ∀ (df' : VDefEq) (doms' : List VExpr) (lsP' : List VLevel) (lead' : List VExpr)
@@ -142,7 +142,7 @@ theorem const_rigid_inv {σ : VExpr.Subst} {S : ObSets} {keys : List Key}
 
 /-- Mode C is impossible at a native recursor whose major family has a result sort that is
 never zero. -/
-theorem native_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLevel}
+theorem recursor_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLevel}
     {o : Fin s.families.size} {RH : VExpr} {keys : List Key} {m : Nat}
     (hΔ : OnCtx Δ (env.IsType U)) (hlw : ∀ l ∈ ls, l.WF U)
     (hIrig : env.Rigid s.families[o].name)
@@ -297,9 +297,9 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
 
 set_option maxHeartbeats 1000000 in
 /-- **Validity of an ordinary native recursor rule** (stages B and D). -/
-theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
+theorem RuleValid.recursor {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
     (henv : env.Ordered) (hdr : env.DeltaRules)
-    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsNativeCtor env c → env.CtorResultRigid c)
+    (hctor : ∀ c, IsCtor env c → env.Rigid c) (hcres : ∀ c, IsInstalledCtor env c → env.CtorResultRigid c)
     (hpctor : ∀ c, IsProjCtor env c → env.Rigid c)
     (C : CompilationData base source expanded s g [] block)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
@@ -332,7 +332,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hkH := g.recDoms_major s.constructors[index].owner
   rw [← eqLead_length_owner C] at hkH
   -- the constructor and its family
-  have hcisN : IsNativeCtor env s.constructors[index].name :=
+  have hcisN : IsInstalledCtor env s.constructors[index].name :=
     ⟨_, hdf, _, _, _, by rw [hl, VExpr.stripLams_wrapLams, VExpr.mkApps_snoc]; rfl⟩
   have hcis : IsCtor env s.constructors[index].name := .inl hcisN
   obtain ⟨ci, hci', F, lsF, hF, -, hrigF⟩ := hcres _ hcisN
@@ -344,7 +344,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   cases hF
   have hcf : CtorFam env s.constructors[index].name s.families[s.constructors[index].owner].name :=
     ⟨_, _, hci', hfch⟩
-  have huniq := native_uniq C index hex
+  have huniq := recursor_uniq C index hex
   have hpm' : ProjMajor env s.families[s.constructors[index].owner].name
       s.constructors[index].name (eqMs index).length (eqFs index).length
       s.families[s.constructors[index].owner].resultLevel := by
@@ -359,7 +359,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
       (hctor _ hcis) hctor
       hpctor hdr huniq
       (fun keys hkl hobs => absurd (by rw [eH] at hobs; exact hobs)
-        (fun h => native_C_absurd hΔ hlw hrigF hfs hnz' (by rw [hlenH, hkl]) h))
+        (fun h => recursor_C_absurd hΔ hlw hrigF hfs hnz' (by rw [hlenH, hkl]) h))
       ihL ihR (.extra hdf hlw hlen)
   · -- small elimination: the right-hand side has no observations
     obtain ⟨mds, emds, lmds⟩ := motive_binderTy g index ls

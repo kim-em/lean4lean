@@ -89,7 +89,7 @@ structure RecursorConstruction.GeneratedBy
 
 /-- The consumed signature's constructors carry the retained source origins
 of their minors. -/
-theorem RecursorConstruction.consumedSignature_origins
+theorem RecursorConstruction.signature_origins
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
@@ -104,8 +104,8 @@ theorem RecursorConstruction.consumedSignature_origins
   obtain ⟨origins, horig, _, _⟩ :=
     (H.origins.minorShapes owner howner localIndex hlocal).hypothesisTypeOrigins_exists
       stats H.recInfos hHas
-  have hspec := H.consumedShapes_spec HU owner howner localIndex hlocal
-  have hrec := H.consumedConstructorAt_recursiveFields HU owner howner localIndex hlocal
+  have hspec := H.recursiveShapes_spec HU owner howner localIndex hlocal
+  have hrec := H.constructorAt_recursiveFields HU owner howner localIndex hlocal
   refine ⟨{
     traversal := traversal
     traversal_eq := htrav
@@ -138,33 +138,33 @@ noncomputable def RecursorConstruction.generatorOf
     H.GeneratedBy := by
   have D := H.signatureSpec HU
   have hfamCount : (H.signature HU).families.size = indTypes.size := by
-    simp [H.consumedFamilies_size, H.sourceFamilyCount]
+    simp [H.families_size, H.sourceFamilyCount]
   refine {
     signature := H.signature HU
     generation := H.generatedInstance (H.signature HU)
     models := D.models
     params := rfl
     families := rfl
-    admissible := H.consumedInstance_admissible D.uvars D.params D.families D.size
+    admissible := H.generatedInstance_admissible D.uvars D.params D.families D.size
       (fun owner howner localIndex hlocal => by
         obtain ⟨hk, _, h2, h3, h4⟩ := D.constructor owner howner localIndex hlocal
         exact ⟨hk, h2, h3, h4⟩)
     uvars := rfl
     levels := rfl
-    target := H.consumedInstance_target _
+    target := H.generatedInstance_target _
     familyCount := hfamCount
     familyName := ?_
     names := fun _ => rfl
     constructorCount := D.size
     constructorOrder := ?_
-    minorTranslation := H.consumedSignature_minorTranslation HU
-    types := H.consumedSignature_types HU
-    recursiveTypesWF := H.consumedSignature_recursiveTypesWF HU
+    minorTranslation := H.signature_minorTranslation HU
+    types := H.signature_types HU
+    recursiveTypesWF := H.signature_recursiveTypesWF HU
     familyTypesWF := H.consumedFamilyTypesWF rfl rfl
     sourceOrigins := ?_ }
   · intro owner howner
     have howner' : owner < H.recInfos.size := by
-      simpa [H.consumedFamilies_size] using howner
+      simpa [H.families_size] using howner
     have hsourceOwner : owner < indTypes.size := by rwa [← H.sourceFamilyCount]
     have hdeclOwner : owner < decl.types.length := by
       rw [← H.cardinality.records]; exact howner'
@@ -188,8 +188,8 @@ noncomputable def RecursorConstruction.generatorOf
     obtain ⟨hk, _, hown, hft, hidx⟩ := D.constructor owner howner localIndex hlocal
     refine ⟨⟨recursorMinorOffset indTypes owner + localIndex, hk⟩, rfl, hown, hft, hidx, ?_⟩
     simp only [Fin.getElem_fin]
-    rw [H.consumedSignature_constructor HU owner howner localIndex hlocal hk]
-    exact H.consumedSignature_origins HU owner howner localIndex hlocal
+    rw [H.signature_constructor HU owner howner localIndex hlocal hk]
+    exact H.signature_origins HU owner howner localIndex hlocal
 
 /-- The generation witness: the explicit construction `consumedGenerationOf`
 (not a choice from `canonicalConsumedGeneration`), so that its signature is
@@ -217,7 +217,7 @@ noncomputable def RecursorConstruction.recursorTarget
     H.generationInstance.recursor ⟨owner, h⟩
   else { name := .anonymous, uvars := 0, type := .sort .zero }
 
-theorem RecursorConstruction.nativeTarget_eq
+theorem RecursorConstruction.recursorTarget_eq
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :

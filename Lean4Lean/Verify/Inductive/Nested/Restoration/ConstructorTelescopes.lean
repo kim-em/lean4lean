@@ -64,7 +64,7 @@ theorem NestedRun.restoredCtorOrigin
       (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt E.sourceCore.envTypes ci) := by
   have hwf : sourceProdEnv.constants.WF := by
     have h := E.contextWF.checking.tr.map_wf
-    rwa [E.productionContext_env] at h
+    rwa [E.context_env] at h
   -- the restored headers have the source header types
   have hheaderType : ∀ indType ∈ sourceTypes, ∀ oldInfo : InductiveVal,
       E.loweredEnv.find? indType.name = some (.inductInfo oldInfo) →
@@ -105,10 +105,10 @@ theorem NestedRun.restoredCtorOrigin
       rw [hinfoType, ← Hmapping.type]
       simp [htargetEq]
     exact key E.lowered
-      ((congrArg AddInductive.Context.env E.production_c).trans
-        E.productionContext_env)
-      E.production_nparams E.production_indTypes
-      (E.production_c ▸ E.contextWF)
+      ((congrArg AddInductive.Context.env E.lowered_c).trans
+        E.context_env)
+      E.lowered_nparams E.lowered_indTypes
+      (E.lowered_c ▸ E.contextWF)
   -- the header-only validation environment is ghost-free
   have hgf : TypeChecker.EnvGhostFree (fun _ => True) E.auxiliaryHeaderEnv := by
     intro n ci hfind
@@ -146,7 +146,7 @@ theorem NestedRun.restoredCtorTelescopes
       CtorTelescopes safety E.validationEnv E.sourceCore.envTypes := by
   have hwf : sourceProdEnv.constants.WF := by
     have h := E.contextWF.checking.tr.map_wf
-    rwa [E.productionContext_env] at h
+    rwa [E.context_env] at h
   have hle : sourceVEnv ≤ E.sourceCore.envTypes :=
     VEnv.addConstVals_le E.sourceCore.core.typesAdded
   have hout : CtorTelescopes safety outEnv E.sourceCore.envTypes := by

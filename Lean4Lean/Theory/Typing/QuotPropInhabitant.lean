@@ -9,7 +9,7 @@ namespace Lean4Lean.VEnv
 open VExpr
 set_option maxHeartbeats 1000000
 /-- The closed source selector has its exact three-binder type. -/
-theorem QuotRegistered.witness_type {env : VEnv} (hr : QuotRegistered env) {U : Nat} {u : VLevel}
+theorem QuotRegistered.propInhabitant_type {env : VEnv} (hr : QuotRegistered env) {U : Nat} {u : VLevel}
     (hu : u.WF U) (hz : u ≈ .zero) :
     env.HasType U Γ (QuotPrefixUnfolding.propInhabitant u)
       (wrapForalls [.sort u,
@@ -81,13 +81,13 @@ theorem QuotRegistered.witness_type {env : VEnv} (hr : QuotRegistered env) {U : 
   · rfl
 
 /-- Applying the generated selector to well-typed source data recovers a source proof. -/
-theorem QuotRegistered.witness_app {env : VEnv} (H : QuotRegistered env)
+theorem QuotRegistered.propInhabitant_app {env : VEnv} (H : QuotRegistered env)
     (hu : u.WF U) (hz : u ≈ .zero)
     (ha : env.HasType U Γ alpha (.sort u))
     (hr : env.HasType U Γ relation (.forallE alpha (.forallE alpha.lift (.sort .zero))))
     (hq : env.HasType U Γ major (mkApps (.const ``Quot [u]) [alpha, relation])) :
     env.HasType U Γ (mkApps (QuotPrefixUnfolding.propInhabitant u) [alpha, relation, major]) alpha := by
-  have hw := H.witness_type (Γ := Γ) hu hz
+  have hw := H.propInhabitant_type (Γ := Γ) hu hz
   have h1 := HasType.app hw ha
   simp [mkApps, inst] at h1
   have h2 := HasType.app h1 hr

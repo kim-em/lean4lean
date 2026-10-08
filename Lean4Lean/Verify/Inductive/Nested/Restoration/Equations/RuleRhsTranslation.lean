@@ -195,7 +195,7 @@ theorem NestedRun.canonicalGenerationLevels
         E.lowered.headers.commonParameterContext.reverse.map
           (VExpr.instL (recursorDeclarationAbstractLevels lparams Helim)) := by
   have hlp : E.lowered.c.lparams = lparams :=
-    (congrArg AddInductive.Context.lparams E.production_c).trans E.productionContext_lparams
+    (congrArg AddInductive.Context.lparams E.lowered_c).trans E.context_lparams
   have h1 := E.lowered.recursors.toRecursorConstruction.elimLevelAdmissible
   have h2 := E.lowered.recursors.toRecursorConstruction.generator.levels
   have h3 := E.lowered.recursors.toRecursorConstruction.generator.params

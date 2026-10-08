@@ -185,7 +185,7 @@ noncomputable def RecursorConstruction.generatedInstance
   targetLevel := Classical.choose H.elimLevelAdmissible.ofLevel
   recursorName owner := s.families[owner].name.str "rec"
 
-theorem RecursorConstruction.consumedInstance_target
+theorem RecursorConstruction.generatedInstance_target
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (s : InductiveSignature) :
     VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -244,7 +244,7 @@ theorem RecursorConstruction.consumedSingletonElimination
   have hctorCount : decl.ownedConstructors.length = ind.ctors.length := by
     simpa [hind, ownedConstructors] using hsourceCtorCount.symm
   refine ⟨?_, ?_, ?_⟩
-  · rw [hfam, H.consumedFamilies_size, H.sourceFamilyCount, hind]; rfl
+  · rw [hfam, H.families_size, H.sourceFamilyCount, hind]; rfl
   · rw [hsize, hctorCount]
     rcases hctors with hnil | ⟨ctor, hctor, _⟩ <;> simp_all
   intro ctor hctor i hi
@@ -338,7 +338,7 @@ theorem RecursorConstruction.consumedSingletonElimination
 generator's admissibility judgment for any signature carrying the consumed
 universe count, parameters, family table, constructor count and per-minor
 field domains and result indices. -/
-theorem RecursorConstruction.consumedInstance_admissible
+theorem RecursorConstruction.generatedInstance_admissible
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R)
     {s : InductiveSignature} (huvars : s.uvars = decl.uvars)
@@ -356,7 +356,7 @@ theorem RecursorConstruction.consumedInstance_admissible
   refine {
     levels_length := ?_
     levels_wf := recursorDeclarationAbstractLevels_wf H.elimLevelAdmissible
-    target_wf := .of_ofLevel (H.consumedInstance_target s)
+    target_wf := .of_ofLevel (H.generatedInstance_target s)
     elimination := ?_ }
   · change (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible).length = s.uvars
     rw [recursorDeclarationAbstractLevels_length, huvars, R.core.uvars]
@@ -366,25 +366,25 @@ theorem RecursorConstruction.consumedInstance_admissible
       rw [hfam] at hfamily
       obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hfamily
       have hi' : i < H.recInfos.size := by simpa using hi
-      have hlevel := H.consumedFamilies_level ⟨i, hi'⟩
+      have hlevel := H.families_level ⟨i, hi'⟩
       simp only [Array.getElem_toList] at hlevel ⊢
       rw [hlevel]
       exact (hnonzero _ (List.getElem_mem _)).inst
     · apply Or.inr; apply Or.inl
-      have ht := H.consumedInstance_target s
+      have ht := H.generatedInstance_target s
       rw [hsmall] at ht
       have : (H.generatedInstance s).targetLevel = .zero := Option.some.inj ht.symm
       rw [this]
       rfl
     · by_cases hz : H.elimLevel = .zero
       · apply Or.inr; apply Or.inl
-        have ht := H.consumedInstance_target s
+        have ht := H.generatedInstance_target s
         rw [hz] at ht
         have : (H.generatedInstance s).targetLevel = .zero := Option.some.inj ht.symm
         rw [this]
         rfl
       · obtain ⟨htarget, hfree⟩ := recursorDeclarationAbstractLevels_freeTarget
-          H.elimLevelAdmissible hz (H.consumedInstance_target s)
+          H.elimLevelAdmissible hz (H.generatedInstance_target s)
         exact .inr (.inr ⟨H.consumedSingletonElimination hparams hfam hsize hfields
           (recursorDeclarationAbstractLevels_wf H.elimLevelAdmissible) hsingleton,
           0, htarget, hfree⟩)

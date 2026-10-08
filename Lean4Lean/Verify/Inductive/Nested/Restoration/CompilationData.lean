@@ -179,7 +179,7 @@ theorem NestedRun.compilationData_of_specializations
       (canonicalRestoredBlock sourceDecl C.sourceRecursors C.auxiliaryRecursors
         C.sourceRules C.auxiliaryRules) := by
   have hinit : E.lowered.initialEnv =
-      ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
+      ves.venv (if isUnsafe then .unsafe else .safe) := E.lowered_initialEnv
   have hexpanded : C.formationAssembly.expanded = E.lowered.loweredDecl := by
     rw [C.formationExpanded, hC]
   have HexpandedSource : E.lowered.loweredDecl.SourceWF

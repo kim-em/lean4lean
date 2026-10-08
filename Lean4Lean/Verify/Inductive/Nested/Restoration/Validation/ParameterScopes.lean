@@ -104,14 +104,14 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
   have hsourceWF : sourceEnv.WF := by
     have hwf := E.lowered.headers.sourceContext.checking.tr.wf
     rw [E.lowered.headers.sourceContextVEnv] at hwf
-    simpa only [E.production_initialEnv] using hwf
+    simpa only [E.lowered_initialEnv] using hwf
   have hcanonicalWF : E.assembly.install.venvCtors.WF :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.envCtorsWF Hsource hsourceWF
   have hsourceLE : sourceEnv ≤ E.assembly.install.venvCtors :=
     (VEnv.addConstVals_le E.assembly.typesAdded).trans
       (VEnv.addConstVals_le E.assembly.constructorsAdded)
   have hlparams : E.lowered.c.lparams = lparams := by
-    rw [E.production_c, E.productionContext_lparams]
+    rw [E.lowered_c, E.context_lparams]
   intro familyIdx hfamily
   have hsourceFamily : familyIdx < sourceTypes.length := by
     rw [Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource]
@@ -121,7 +121,7 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
   have hloweredFamily : familyIdx < E.lowered.loweredDecl.types.length := by
     rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
       E.lowered.constructors.core]
-    simpa only [E.production_indTypes] using hresultFamily
+    simpa only [E.lowered_indTypes] using hresultFamily
   let sourceTarget := decl.types[familyIdx]
   let loweredTarget := E.lowered.loweredDecl.types[familyIdx]
   have HsourceType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt Hsource
@@ -130,7 +130,7 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
       nparams result.types E.lowered.isUnsafe E.lowered.loweredDecl
       E.lowered.headers.context.venv
       E.lowered.constructors.declared.venvCtors := by
-    simpa [hlparams, E.production_nparams, E.production_indTypes]
+    simpa [hlparams, E.lowered_nparams, E.lowered_indTypes]
       using E.lowered.constructors.core
   rcases Hlower.sourceHeaderTranslationAtFresh hempty
       HproductionCore familyIdx hsourceFamily with
@@ -139,7 +139,7 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
       sourceTarget.type loweredTarget.type := by
     exact HsourceType.header.type.uniq hsourceWF
       (.refl hsourceWF (by trivial)) (by
-        simpa only [E.production_initialEnv, hlparams,
+        simpa only [E.lowered_initialEnv, hlparams,
           sourceTarget, loweredTarget]
         using HloweredHeader.type)
   have HloweredShape : E.lowered.loweredDecl.TypeShape sourceEnv
@@ -148,7 +148,7 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
       E.lowered.headers.sourceStatsWF.headers.typeShapes loweredTarget
         (List.getElem_mem hloweredFamily)
     simpa only [E.lowered.headers.sourceContextVEnv,
-      E.production_initialEnv] using Hshape
+      E.lowered_initialEnv] using Hshape
   rcases HloweredShape with
     ⟨normalized, ownParams, afterParams, _indices, _familyResult, exprType,
       Hnormalized, HparamsTake, _HindicesTake, Hparams, _Hresult⟩
@@ -185,7 +185,7 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
         E.lowered.headers.sourceStatsWF.headers.params.reverse
         E.lowered.headers.sourceStatsWF.parameterScope.toCtx := by
       simpa only [E.lowered.headers.sourceContextVEnv,
-        E.production_initialEnv, hlparams] using Hcached₀
+        E.lowered_initialEnv, hlparams] using Hcached₀
     exact Hcached.mono hsourceLE
   have HownCached := VEnv.IsDefEqCtx.trans_empty hcanonicalWF HownCommon
     HcommonCached
@@ -197,7 +197,7 @@ theorem NestedInstalledRun.restoredFamilyParameterScopes
       calc
         ownParams.length = E.lowered.loweredDecl.nparams := hownParams
         _ = E.lowered.nparams := E.lowered.constructors.core.nparams
-        _ = nparams := E.production_nparams
+        _ = nparams := E.lowered_nparams
     context := by
       rw [E.lowered.headers.parameterScopeEq]
       exact HownCached }⟩
@@ -237,7 +237,7 @@ theorem NestedInstalledRun.constructorParameterDomainsDefEqNative
     have hsourceWF : sourceEnv.WF := by
       have hwf := E.lowered.headers.sourceContext.checking.tr.wf
       rw [E.lowered.headers.sourceContextVEnv] at hwf
-      simpa only [E.production_initialEnv] using hwf
+      simpa only [E.lowered_initialEnv] using hwf
     exact TrInductDeclCore.envCtorsWF Hsource hsourceWF
   intro familyIdx hfamily ctorIdx hctor
   let family := decl.types[familyIdx]

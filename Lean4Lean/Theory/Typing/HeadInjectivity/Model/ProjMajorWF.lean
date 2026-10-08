@@ -15,9 +15,9 @@ open InductiveSignature
 
 variable {env : VEnv}
 
-theorem WF.nativeCtor_const (H : env.WF) (h : Model.IsNativeCtor env c) :
+theorem WF.installedCtor_const (H : env.WF) (h : Model.IsInstalledCtor env c) :
     ∃ ci, env.constants c = some ci := by
-  obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp (H.ctorOf_of_nativeCtor h)
+  obtain ⟨k, hk⟩ := Option.ne_none_iff_exists'.mp (H.ctorOf_of_installedCtor h)
   obtain ⟨ci, -, -, hci, -⟩ := EnvTables.ctorOf_shape H hk
   exact ⟨ci, hci⟩
 
@@ -43,7 +43,7 @@ theorem WF.caseCtor_const (H : env.WF) (h : Model.IsCaseCtor env c) :
 
 /-- **A constructor of a rule is a declared constant.** -/
 theorem WF.isCtor_const (H : env.WF) (h : Model.IsCtor env c) : ∃ ci, env.constants c = some ci :=
-  h.elim H.nativeCtor_const H.caseCtor_const
+  h.elim H.installedCtor_const H.caseCtor_const
 
 theorem list_eq_single_of_names {l : List VConstVal} {c : VConstVal} {k : Name}
     (hnd : (l.map (·.name)).Nodup) (hall : ∀ x ∈ l, x.name = k) (hc : c ∈ l) : l = [c] := by
@@ -56,10 +56,10 @@ theorem list_eq_single_of_names {l : List VConstVal} {c : VConstVal} {k : Name}
 
 /-- Every constructor of a certified container family is a native constructor of a later
 environment. -/
-theorem container_ctor_native {base : VEnv} {aux : List ContainerSpecialization}
+theorem container_ctor_installed {base : VEnv} {aux : List ContainerSpecialization}
     (hprior : ContainersInstalled base aux) (hle : base ≤ env)
     {a : ContainerSpecialization} (ha : a ∈ aux) {c : VConstVal} (hc : c ∈ a.source.ctors) :
-    Model.IsNativeCtor env c.name := by
+    Model.IsInstalledCtor env c.name := by
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
     EnvTables.ContainersInstalled.member hprior ha
   obtain ⟨b'', exp', s', g', aux', hb'', hdata', hprior'⟩ := hcomp'.compilationOrigin
@@ -96,7 +96,7 @@ theorem WF.container_entry {base : VEnv} {aux : List ContainerSpecialization} (h
   have hall : ∀ c' ∈ a.source.ctors, c'.name = info.ctorName := by
     intro c' hc'
     obtain ⟨h1, ls, h2⟩ := hprior.container_ctor a ha c' hc'
-    exact henv.ctor_of_projFamily hp (.inl (container_ctor_native hprior hle ha hc'))
+    exact henv.ctor_of_projFamily hp (.inl (container_ctor_installed hprior hle ha hc'))
       ⟨_, ls, hle.constants h1, h2⟩
   obtain ⟨base', block', inst', hcomp', hinst', hle'⟩ :=
     EnvTables.ContainersInstalled.member hprior ha

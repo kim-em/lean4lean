@@ -300,7 +300,7 @@ def CtorParamsAgreeAt.addConstant
 production-environment extension once the exact constructor lookup has been
 shown to survive.  All semantic fields only require monotonicity of the
 abstract environment. -/
-def CtorParamsAgreeAt.rebaseProduction
+def CtorParamsAgreeAt.rebaseKernel
     (H : CtorParamsAgreeAt
       env venv familyName familyInfo i hi)
     (hlookup : env'.find? familyInfo.ctors[i] = some (.ctorInfo H.info))

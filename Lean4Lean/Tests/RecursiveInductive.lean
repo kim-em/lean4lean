@@ -81,7 +81,7 @@ def higherOrderRecursiveDecl : Declaration :=
     }]
   }] false
 
-/-- The canonical bootstrap shape recognized by the primitive dispatch. -/
+/-- The canonical toConstantsInstallation shape recognized by the primitive dispatch. -/
 def primitiveBoolDecl : Declaration :=
   .inductDecl [] 0 [{
     name := ``Bool

@@ -993,17 +993,17 @@ theorem NestedRun.loweredFamilyMappings
     _hnodup⟩ := E.auxHeadsFacts wf Hsources
   let safety := if isUnsafe then DefinitionSafety.unsafe else .safe
   let P := E.lowered
-  have hc : P.c = E.context := E.production_c
+  have hc : P.c = E.context := E.lowered_c
   have henv : P.c.env = sourceProdEnv :=
-    (congrArg AddInductive.Context.env hc).trans E.productionContext_env
+    (congrArg AddInductive.Context.env hc).trans E.context_env
   have hlparams : P.c.lparams = lparams :=
     (congrArg AddInductive.Context.lparams hc).trans
-      E.productionContext_lparams
-  have hnparams : P.nparams = nparams := E.production_nparams
+      E.context_lparams
+  have hnparams : P.nparams = nparams := E.lowered_nparams
   have hinitial : P.initialEnv = ves.venv safety := by
-    simpa only [safety] using E.production_initialEnv
-  have hindTypes : P.indTypes = result.types.toArray := E.production_indTypes
-  have hisUnsafe : P.isUnsafe = isUnsafe := E.production_isUnsafe_source
+    simpa only [safety] using E.lowered_initialEnv
+  have hindTypes : P.indTypes = result.types.toArray := E.lowered_indTypes
+  have hisUnsafe : P.isUnsafe = isUnsafe := E.lowered_isUnsafe_source
   have HcP : ContextWF P.c := by
     rw [hc]
     exact E.contextWF
@@ -1049,10 +1049,10 @@ theorem NestedRun.loweredFamilyMappings
     Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF Hsource HbaseWF
   have Htranslations : ClosedNestedOccurrenceTypings
       E.sourceCore.envTypes P.c.lparams result E.auxiliarySelection := by
-    rw [← E.auxiliaryVEnv_eq_native]
+    rw [← E.auxiliaryVEnv_eq_sourceCore]
     simpa only [hlparams] using E.auxiliaryTranslations
   have hempty : initialState.nestedAux = #[] := rfl
-  rcases Hrun.nativeGeneratedFamilySources Hcache Hparams wfP
+  rcases Hrun.auxiliaryFamilySources Hcache Hparams wfP
       hinitial HcP Hprod Hsources HsourceHeaders HsourceAdded HsourceTypesWF
       hempty E.auxiliarySelection Htranslations Htarget with ⟨N, -⟩
   have HsourceCore := E.sourceCore.core
@@ -1139,7 +1139,7 @@ theorem NestedRun.constructorTypesParamUniform
   have hnp : result.nparams = nparams := by
     obtain ⟨_, Hrun, _, _⟩ := E.lowering
     exact Hrun.resultNParams
-  rw [E.production_indTypes, E.statsLevels, E.statsParamsSize, hnp]
+  rw [E.lowered_indTypes, E.statsLevels, E.statsParamsSize, hnp]
   intro i hi ctor hctor
   have hi' : i < result.types.length := by simpa using hi
   have hget : result.types.toArray[i]! = result.types[i] := by
@@ -1173,7 +1173,7 @@ theorem NestedRun.normalizedTotal_of
         (compilationRestoration sourceDecl auxiliaries).expr ctor.type = some restored := by
   obtain ⟨-, -, -, -, hfreshSrc, hreserved, -, -⟩ := E.auxHeadsFacts wf Hsources
   have hfresh : ∀ name ∈ E.auxHeads, E.lowered.initialEnv.constants name = none := by
-    rw [E.production_initialEnv]; exact hfreshSrc
+    rw [E.lowered_initialEnv]; exact hfreshSrc
   have hN := E.lowered.recursorConstruction.normalizedHeadsApplied
     (E.constructorTypesParamUniform wf Hsources)
     (fun l => avoidsConsts_lit_of_reserved hreserved l)

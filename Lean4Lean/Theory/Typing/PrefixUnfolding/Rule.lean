@@ -41,7 +41,7 @@ structure UnfoldingCheck (env : VEnv) (U : Nat) (Γ : List VExpr)
     HasType env U (program.domains.reverse ++ Γ) majorType (.sort .zero) ∧
     HasType env U (program.domains.reverse ++ Γ) (.bvar 0) majorType ∧
     HasType env U (program.domains.reverse ++ Γ) program.constructor majorType
-  native_lhs : ConstSpineDefEq env U (program.domains.reverse ++ Γ)
+  recursor_lhs : ConstSpineDefEq env U (program.domains.reverse ++ Γ)
     (.app (etaOpen (program.domains.length - 1) source).lift program.constructor)
     ((program.equationBody.lhs.instL program.levels).instOuter program.captures)
 
@@ -67,7 +67,7 @@ theorem PrefixUnfold.unique
   cases H with | intro hl _ _ _ _ _ hg _ =>
     cases H' with | intro hl' _ _ _ _ _ hg' _ =>
       cases Option.some.inj (hl.symm.trans hl')
-      cases RecursorData.singletonProgram_unique hg hg'
+      cases RecursorData.singletonUnfolding_unique hg hg'
       rfl
 
 /-- Replaying the installed equation under the fresh telescope is sound.
@@ -77,14 +77,14 @@ theorem UnfoldingCheck.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
     (H : UnfoldingCheck env U Γ source program) :
     IsDefEq env U Γ source program.rhs program.type := by
-  have heta := H.source_typed.native_eta henv hΓ
-  obtain ⟨hctx, hopen⟩ := H.source_typed.native_open henv.ordered hΓ
+  have heta := H.source_typed.etaOpen_defeq henv hΓ
+  obtain ⟨hctx, hopen⟩ := H.source_typed.etaOpen_wf henv.ordered hΓ
   have hpos : 0 < program.domains.length := List.length_pos_iff.mpr H.remaining_nonempty
   have hetaBody : etaOpen program.domains.length source =
       .app (etaOpen (program.domains.length - 1) source).lift (.bvar 0) := by
     have hlen : program.domains.length = (program.domains.length - 1) + 1 := by omega
     conv => lhs; rw [hlen]
-    exact nativeEtaBody_succ _ _
+    exact etaOpen_succ _ _
   rw [hetaBody] at hopen
   obtain ⟨domain, result, hf, hm⟩ := hopen.app_inv henv hctx
   obtain ⟨majorType, hp, hmajor, hctor⟩ := H.major_prop
@@ -94,12 +94,12 @@ theorem UnfoldingCheck.defeq (henv : env.WF)
   obtain ⟨hl, hr, ht⟩ := CaseSchema.EquationBody.extract_sound H.equation_body
   have hiota := IsDefEq.extra_instOuter henv hctx H.equation_present H.levels_wf
     H.levels_length hl.symm hr.symm ht.symm H.captures_length H.captures_typed
-  have halign := H.native_lhs.defeq henv hctx hreplace.hasType.2
+  have halign := H.recursor_lhs.defeq henv hctx hreplace.hasType.2
   have hbody := IsDefEqU.of_l henv hctx
     ((IsDefEqU.trans henv hctx ⟨_, hreplace⟩ halign).trans henv hctx ⟨_, hiota⟩) hopen
   rw [← hetaBody] at hbody
   simpa only [RecursorData.PrefixUnfolding.rhs, RecursorData.PrefixUnfolding.type, instantiateParams_eq_instOuter] using
-    heta.trans (hbody.native_wrapLams henv hΓ hctx)
+    heta.trans (hbody.etaOpen_wrapLams henv hΓ hctx)
 
 theorem PrefixUnfold.defeq (henv : env.WF)
     (hΓ : OnCtx Γ (env.IsType U))
@@ -112,7 +112,7 @@ theorem UnfoldingCheck.defeqDFC (henv : env.WF)
     (W : IsDefEqCtx env U Γ₀ Γ₁ Γ₂)
     (H : UnfoldingCheck env U Γ₁ source program) :
     UnfoldingCheck env U Γ₂ source program := by
-  have hctx := (H.source_typed.native_open henv.ordered (W.isType' hΓ)).1
+  have hctx := (H.source_typed.etaOpen_wf henv.ordered (W.isType' hΓ)).1
   have extend {xs : List VExpr} (h : OnCtx (xs ++ Γ₁) (env.IsType U)) :
       IsDefEqCtx env U Γ₀ (xs ++ Γ₁) (xs ++ Γ₂) := by
     induction xs with
@@ -121,7 +121,7 @@ theorem UnfoldingCheck.defeqDFC (henv : env.WF)
   have W' := extend hctx
   refine { H with source_typed := H.source_typed.defeqDFC henv W
                   captures_typed := fun j hj hd => (H.captures_typed j hj hd).defeqDFC henv W'
-                  native_lhs := H.native_lhs.defeqDFC henv W'
+                  recursor_lhs := H.recursor_lhs.defeqDFC henv W'
                   major_prop := ?_ }
   obtain ⟨majorType, hp, hm, hc⟩ := H.major_prop
   exact ⟨majorType, hp.defeqDFC henv W', hm.defeqDFC henv W', hc.defeqDFC henv W'⟩

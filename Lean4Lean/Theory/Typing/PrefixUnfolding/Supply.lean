@@ -38,7 +38,7 @@ theorem _root_.Lean4Lean.InductiveSignature.instantiateParams_inst {body : VExpr
   simp only [Subst.comp, Subst.ofList, List.length_map, dif_pos hi,
     List.getElem_map, ← instN_eq]
 
-theorem singletonProgram_supply_one {data : RecursorData} {env : VEnv}
+theorem singletonUnfolding_supply_one {data : RecursorData} {env : VEnv}
     {args : List VExpr} {early late : PrefixUnfolding}
     {packed : List VLevel} (henv : env.WF) (hr : RecursorRegistered env data)
     (hlarge : data.largeTarget = true) (hzero : data.sourceLevel packed ≈ .zero)
@@ -46,7 +46,7 @@ theorem singletonProgram_supply_one {data : RecursorData} {env : VEnv}
     (hLate : data.singletonUnfolding env U levels (args ++ [arg]) = some late)
     (hclosed : early.equationBody.rhs.ClosedN early.captures.length) :
     ∃ domain body, early.rhs = .lam domain body ∧ body.inst arg = late.rhs := by
-  have hbound := (singletonProgram_spec hLate).1
+  have hbound := (singletonUnfolding_spec hLate).1
   simp only [List.length_append, List.length_singleton] at hbound
   let n := data.majorOffset - args.length
   have hn : 0 < n := by dsimp [n]; omega
@@ -74,7 +74,7 @@ theorem singletonProgram_supply_one {data : RecursorData} {env : VEnv}
   have hallLen : (args.map (·.liftN (n + 1)) ++ vars (n + 1) 0).length = data.majorOffset + 1 := by
     simp [vars]; omega
   rw [hearlyLen] at hrecon
-  have hrecon' := singletonRecon_inst (a := arg) (K := n) henv hr hlarge hzero hallLen hn hrecon
+  have hrecon' := singletonReconstruction_inst (a := arg) (K := n) henv hr hlarge hzero hallLen hn hrecon
   have hall : (args.map (·.liftN (n + 1)) ++ vars (n + 1) 0).map (·.inst arg n) =
       (args ++ [arg]).map (·.liftN n) ++ vars n 0 := by
     simp only [List.map_append, List.map_map, Function.comp_def, inst_liftN_lo, InductiveSignature.vars_inst_last,

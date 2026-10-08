@@ -68,7 +68,7 @@ noncomputable def RecursorConstruction.families
       indices := H.declIndexDomains owner
       resultLevel := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel }
 
-@[simp] theorem RecursorConstruction.consumedFamilies_size
+@[simp] theorem RecursorConstruction.families_size
     (H : RecursorConstruction R) : H.families.size = H.recInfos.size := by
   simp [families]
 
@@ -100,20 +100,20 @@ theorem RecursorConstruction.sourceIndices_motive
     (R.recursorHeaders.recursorLevelTranslation H.lparamsNodup H.elimLevelAdmissible)
     hlevel Hchoice.2.2.2
 
-@[simp] theorem RecursorConstruction.consumedFamilies_indices
+@[simp] theorem RecursorConstruction.families_indices
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.families[owner.val]'(by simp [owner.isLt])).indices = H.declIndexDomains owner := by
   simp [families]
 
-@[simp] theorem RecursorConstruction.consumedFamilies_name
+@[simp] theorem RecursorConstruction.families_name
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.families[owner.val]'(by simp [owner.isLt])).name =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name := by
   simp [families]
 
-@[simp] theorem RecursorConstruction.consumedFamilies_level
+@[simp] theorem RecursorConstruction.families_level
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.families[owner.val]'(by simp [owner.isLt])).resultLevel =

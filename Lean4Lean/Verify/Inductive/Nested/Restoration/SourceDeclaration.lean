@@ -238,7 +238,7 @@ structure NestedSourceDeclaration
 /-- Reconstruct the complete ordinary source core used by nested verification
 from the actual producer and side-validation traces.  In particular, neither
 the declaration nor its constructor translations are supplied by a caller. -/
-theorem NestedLoweringOutputClosed.nativeSourceCore
+theorem NestedLoweringOutputClosed.sourceCore
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}

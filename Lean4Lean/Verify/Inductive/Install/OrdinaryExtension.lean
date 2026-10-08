@@ -88,7 +88,7 @@ private theorem GeneratedRecursors.entrySafety_eq_unsafe
 
 /-- A completed safe ordinary run extends the complete safety-indexed model.
 The result depends only on the successful run and the source environment
-model; equality bootstrap state is irrelevant to inductive soundness. -/
+model; equality toConstantsInstallation state is irrelevant to inductive soundness. -/
 theorem OrdinaryInstallation.extendSafeExact
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
@@ -314,7 +314,7 @@ theorem OrdinaryRunResult.extendWithSpecification
       exact (hnotPartial hs).elim
 
 /-- Complete ordinary refinement retaining the independent source judgment,
-without any equality-bootstrap premise. -/
+without any equality-toConstantsInstallation premise. -/
 theorem AddInductive.run.semanticFinalSpecificationModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)

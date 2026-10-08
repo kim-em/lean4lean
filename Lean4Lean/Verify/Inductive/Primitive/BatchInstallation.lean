@@ -827,7 +827,7 @@ theorem AtomicAddConstants.ofConstructorTypes
 
 /-- Forget the staging details only after the complete abstract batch has
 been identified.  This certificate still makes no validity claim. -/
-def AtomicAddConstants.bootstrap
+def AtomicAddConstants.toConstantsInstallation
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hvalues : entries.map Prod.snd = constants) :
     PrimitiveConstantsInstallation venv outVEnv constants where

@@ -561,7 +561,7 @@ theorem NestedRun.restoredGeneratedAvoidance
   refine ⟨L, fun e out he hout => Restoration.expr_mentions hheads hconst he hout, ?_⟩
   -- the lowered constructor environment
   have hinit : E.lowered.initialEnv = ves.venv (if isUnsafe then .unsafe else .safe) :=
-    E.production_initialEnv
+    E.lowered_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.lowered.loweredDecl.typeConstants =
         some E.lowered.constructors.toConstructorCheck.headerVEnv :=
