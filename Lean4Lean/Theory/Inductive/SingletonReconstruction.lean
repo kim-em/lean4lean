@@ -27,26 +27,10 @@ def StructureTelescope.indexSelector (data : StructureTelescope) (domain : VExpr
     value := VExpr.wrapLams domains (.bvar (data.indices.length - index))
     type := VExpr.wrapForalls domains (data.fieldTarget domain previous) }
 
-/-- Project a proof field with a motive specialized at elimination level zero.
-Earlier fields may be index selectors as well as proof projections. -/
-def StructureTelescope.proofSelector (data : StructureTelescope) (block : Name) (owner : Nat)
-    (levels : List VLevel) (domain : VExpr)
-    (previous : List ProjectionFunction) : ProjectionFunction :=
-  let fieldType := data.fieldTarget domain previous
-  let motive := VExpr.wrapLams (data.indices ++ [data.major]) fieldType
-  let minor := VExpr.wrapLams data.fields (.bvar (data.fields.length - 1 - previous.length))
-  let below := data.indices.length + 1
-  let body := VExpr.mkApps (.elim block owner (.zero :: levels))
-    (vars data.params.length below ++ [motive.liftN below, minor.liftN below] ++
-      vars data.indices.length 1 ++ [.bvar 0])
-  let domains := data.params ++ data.indices ++ [data.major]
-  { targetLevel := .zero
-    value := VExpr.wrapLams domains body
-    type := VExpr.wrapForalls domains fieldType }
-
 /-- A single normalized sort is supplied per source field. Only a literal
-zero sort permits proof projection; all other fields require a direct index
-selector. Typing must establish those normalized sort assignments. -/
+zero sort permits proof projection (the case projection `StructureTelescope.step`
+at target level zero; earlier fields may be index selectors as well as proof
+projections); all other fields require a direct index selector. Typing must establish those normalized sort assignments. -/
 def StructureTelescope.reconstructionPrefix (data : StructureTelescope) (block : Name)
     (owner : Nat) (levels : List VLevel) : List VExpr → List VLevel →
       List ProjectionFunction → Option (List ProjectionFunction)
@@ -59,7 +43,7 @@ def StructureTelescope.reconstructionPrefix (data : StructureTelescope) (block :
         else none
       | none =>
         match target with
-        | .zero => some (data.proofSelector block owner levels domain previous)
+        | .zero => some (data.step block owner levels domain .zero previous)
         | _ => none
     data.reconstructionPrefix block owner levels domains targets (previous ++ [next])
   | _, _, _ => none
