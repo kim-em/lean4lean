@@ -18,7 +18,7 @@ argument and substitutes the actual parameter arguments.
 The two agree (`restorationCommutes'`) when
 
 * every hit is applied literally to `As` at the agreed levels
-  (`Expr.HitShape`, a purely syntactic condition on the input), and
+  (`Expr.ParamUniform`, a purely syntactic condition on the input), and
 * the translation of the executable output exists in an environment in which
   the restorable names are fresh. This translation forces every untraversed
   trailing argument (and every literal) to avoid the restorable names
@@ -271,7 +271,7 @@ theorem restorationCommutes'_hit
     (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
     {e : Expr} {c : Name} {us : List Level} {Δs Δt : VLCtx} {s t : VExpr}
     (hfn : e.getAppFn = .const c us) (hmem : c ∈ r.heads.map (·.auxiliary))
-    (Hshape : e.HitShape (r.heads.map (·.auxiliary)) As.toList auxLevels)
+    (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
     (Hctx : RestoreCtxRel r Δs Δt)
     (Hs : TrExprS sourceEnv Us Δs e s)
     (Ht : TrExprS targetEnv Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t) :
@@ -329,7 +329,7 @@ theorem restorationCommutes'
     (HAs : ∀ a ∈ As.toList, ∃ fv, a = .fvar fv) (hsize : As.size = result.nparams)
     (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
     {e : Expr} {Δs Δt : VLCtx} {s t : VExpr}
-    (Hshape : e.HitShape (r.heads.map (·.auxiliary)) As.toList auxLevels)
+    (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
     (Hctx : RestoreCtxRel r Δs Δt)
     (Hs : TrExprS sourceEnv Us Δs e s)
     (Ht : TrExprS targetEnv Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t) :
@@ -512,8 +512,8 @@ theorem NestedRestorationOpening.hitShape_of_lowered
     {input output suffix : Expr}
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htel : Expr.ForallTelescope input result.nparams suffix)
-    (Hshape : Expr.HitShapeTele heads result.nparams auxLevels input) :
-    Hopen.body.HitShape heads Hopen.params.toList auxLevels ∧
+    (Hshape : Expr.ParamUniformTele heads result.nparams auxLevels input) :
+    Hopen.body.ParamUniform heads Hopen.params.toList auxLevels ∧
       Hopen.params.size = result.nparams ∧
       ∀ a ∈ Hopen.params.toList, ∃ fv, a = .fvar fv := by
   rcases Hopen.opening.forallResidualData Htel with ⟨fvars, hAs, hlen, hbody⟩
@@ -540,7 +540,7 @@ theorem NestedRestorationOpening.restorationCommutes'
     (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
-    (Hshape : Hopen.body.HitShape (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
+    (Hshape : Hopen.body.ParamUniform (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
     (Htel : Expr.ForallTelescope input result.nparams suffix)
     (Hinput : input.FVarsIn fun _ => False) (hclosed : Closed input)
     (hrestored : Closed Hopen.restoredBody)
@@ -597,7 +597,7 @@ theorem NestedRestoration.restorationCommutes'
     (A : RestorationMapAgreement r result env auxRec targetEnv Us auxLevels)
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
-    (Hshape : Expr.HitShapeTele (r.heads.map (·.auxiliary)) result.nparams auxLevels input)
+    (Hshape : Expr.ParamUniformTele (r.heads.map (·.auxiliary)) result.nparams auxLevels input)
     (Hclosed : ∀ Hopen : NestedRestorationOpening result env auxRec input output,
       Closed Hopen.restoredBody)
     (Htel : Expr.ForallTelescope input result.nparams suffix)
@@ -620,7 +620,7 @@ theorem RecursorRestoration.typeRestorationCommutes'
       auxLevels)
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     (Hfresh : ∀ n ∈ r.restorableNames, targetEnv.constants n = none)
-    (Hshape : Expr.HitShapeTele (r.heads.map (·.auxiliary)) result.nparams auxLevels
+    (Hshape : Expr.ParamUniformTele (r.heads.map (·.auxiliary)) result.nparams auxLevels
       oldInfo.type)
     (Hclosed : ∀ Hopen : NestedRestorationOpening result env auxRec oldInfo.type
         newInfo.type, Closed Hopen.restoredBody)

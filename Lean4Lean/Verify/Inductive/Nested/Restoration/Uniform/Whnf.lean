@@ -3,18 +3,18 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Declarations
 
 /-! # The `whnf` hit-shape fact of a nested run
 
-`TypeChecker.whnf.hitShape` (`Lean4Lean/Verify/TypeChecker/HitShape.lean`) says
-that `whnf` preserves `Expr.HitOK` (hit shape together with the projection
-condition `ProjsOK (projHitOK env heads)`) under a hit scope whose environment
-satisfies `EnvHitShape`. This file instantiates it for the recursor pass of an
+`TypeChecker.whnf.hitShape` (`Lean4Lean/Verify/TypeChecker/ParamUniform.lean`) says
+that `whnf` preserves `Expr.ParamUniformIn` (hit shape together with the projection
+condition `ProjsOK (projAvoidsHeads env heads)`) under a hit scope whose environment
+satisfies `EnvParamUniform`. This file instantiates it for the recursor pass of an
 exact validated nested run.
 
 * `whnfInRecursorContext.hitOK`: the lift to the inductive checker's
   `monadLift (TypeChecker.whnf e)` in a `RecursorContextWF` (mirrors
   `whnfInRecursorContext.levelsWF`).
-* `NestedValidatedRunResult.envHitShape`: `EnvHitShape` of the constructor-phase
+* `NestedValidatedRunResult.envHitShape`: `EnvParamUniform` of the constructor-phase
   environment (where the recursor pass runs) for the head set
-  `E.hitHeads = E.auxHeads ++ E.mainCtorNames`. The main constructors must be
+  `E.uniformHeads = E.auxHeads ++ E.mainCtorNames`. The main constructors must be
   heads: their lowered types mention auxiliary families, so they cannot satisfy
   `type_avoids`. Old constants are handled through the unsafe model of the
   source environment (types, values and recursor rules translate there, the
@@ -24,20 +24,20 @@ exact validated nested run.
 * `NestedValidatedRunResult.paramsHitParams`: the run's parameters are never
   names of the checker's name generator (`RecursorContextWF.kernelFresh`; the
   checker's generator starts at index `0`).
-* `NestedValidatedRunResult.whnfHitOKFacts`: the resulting `WhnfHitOKFacts`
+* `NestedValidatedRunResult.whnfHitOKFacts`: the resulting `WhnfPreservesParamUniform`
   (`Nested/Restoration/Uniform/Recursors.lean`).
 * `NestedValidatedRunResult.hitShapeInputs_of`: the non-`whnf` inputs
-  `CompletedRecursorConstruction.HitShapeInputs` at `E.hitHeads`.
+  `CompletedRecursorConstruction.ParamUniformDeclarations` at `E.uniformHeads`.
 * `NestedValidatedRunResult.recursorHitShape'`: the hit shape of the lowered
   recursor types and rule right-hand sides at the auxiliary heads, from the run
   alone.
 
-The provenance chain of `Nested/Restoration/Uniform/Recursors.lean` runs at `E.hitHeads`
+The provenance chain of `Nested/Restoration/Uniform/Recursors.lean` runs at `E.uniformHeads`
 rather than at the auxiliary heads, with the projection condition on inputs
 and scope declarations, both forced by the invariant: the main constructors'
 types mention auxiliary families, and the projection registry of the
-recursor pass contains the block's own structures. `HitShape.shrink`,
-`HitShapeB.shrink` and `HitShapeTele.shrink` return from `E.hitHeads` to
+recursor pass contains the block's own structures. `ParamUniform.shrink`,
+`ParamUniformBV.shrink` and `ParamUniformTele.shrink` return from `E.uniformHeads` to
 `E.auxHeads`. -/
 
 
@@ -83,9 +83,9 @@ theorem LeadingForalls.mkBindingListN {lctx : LocalContext}
     (b.abstractN xs)
 
 /-- Closing the opened parameters with `LocalContext.mkForall` yields a head type. -/
-theorem HitShape.mkForall_headType {heads : List Name} {ls : List Level}
+theorem ParamUniform.mkForall_headType {heads : List Name} {ls : List Level}
     {lctx : LocalContext} {As : Array Expr} {xs : List FVarId} {b : Expr}
-    (H : HitShape heads As.toList ls b) (hAs : As.toList = xs.map .fvar) (hnd : xs.Nodup)
+    (H : ParamUniform heads As.toList ls b) (hAs : As.toList = xs.map .fvar) (hnd : xs.Nodup)
     (hx : ∀ x ∈ xs, ∃ i fv n ty bi kind, lctx.find? x = some (.cdecl i fv n ty bi kind)) :
     HeadType heads As.size ls (lctx.mkForall As b) := by
   obtain ⟨As⟩ := As
@@ -97,12 +97,12 @@ theorem HitShape.mkForall_headType {heads : List Name} {ls : List Level}
 /-! #### Growing and shrinking the head set -/
 
 /-- Adding heads that do not occur. -/
-theorem HitShapeB.grow {heads heads' extra : List Name} {n : Nat} {ls : List Level}
-    {d : Nat} {e : Expr} (H : HitShapeB heads n ls d e) (hsub : ∀ c ∈ heads, c ∈ heads')
+theorem ParamUniformBV.grow {heads heads' extra : List Name} {n : Nat} {ls : List Level}
+    {d : Nat} {e : Expr} (H : ParamUniformBV heads n ls d e) (hsub : ∀ c ∈ heads, c ∈ heads')
     (hnew : ∀ c ∈ heads', c ∉ heads → c ∈ extra) (havoid : e.AvoidsConsts extra) :
-    HitShapeB heads' n ls d e := by
+    ParamUniformBV heads' n ls d e := by
   induction H with
-  | hitHead hc => exact .hitHead (hsub _ hc)
+  | head hc => exact .head (hsub _ hc)
   | app _ _ ihf iha => cases havoid; exact .app (ihf ‹_›) (iha ‹_›)
   | @const _ c _ hc =>
     cases havoid with
@@ -119,23 +119,23 @@ theorem HitShapeB.grow {heads heads' extra : List Name} {n : Nat} {ls : List Lev
   | proj _ ih => cases havoid; exact .proj (ih ‹_›)
 
 private theorem hitShapeB_mkAppList {heads : List Name} {n : Nat} {ls : List Level} {d : Nat}
-    {f : Expr} {args : List Expr} (hf : HitShapeB heads n ls d f)
-    (hargs : ∀ a ∈ args, HitShapeB heads n ls d a) :
-    HitShapeB heads n ls d (f.mkAppList args) := by
+    {f : Expr} {args : List Expr} (hf : ParamUniformBV heads n ls d f)
+    (hargs : ∀ a ∈ args, ParamUniformBV heads n ls d a) :
+    ParamUniformBV heads n ls d (f.mkAppList args) := by
   induction args generalizing f with
   | nil => exact hf
   | cons a args ih => exact ih (.app hf (hargs a (.head _))) fun b hb => hargs b (.tail _ hb)
 
 /-- Dropping heads, bound-variable form. -/
-theorem HitShapeB.shrink {heads heads' : List Name} {n : Nat} {ls : List Level} {d : Nat}
-    {e : Expr} (H : HitShapeB heads' n ls d e) (hsub : ∀ c ∈ heads, c ∈ heads') :
-    HitShapeB heads n ls d e := by
+theorem ParamUniformBV.shrink {heads heads' : List Name} {n : Nat} {ls : List Level} {d : Nat}
+    {e : Expr} (H : ParamUniformBV heads' n ls d e) (hsub : ∀ c ∈ heads, c ∈ heads') :
+    ParamUniformBV heads n ls d e := by
   induction H with
-  | @hitHead c d hc =>
+  | @head c d hc =>
     by_cases hc' : c ∈ heads
-    · exact .hitHead hc'
+    · exact .head hc'
     · refine hitShapeB_mkAppList (.const hc') fun p hmem => ?_
-      simp only [hitParamBVars, List.mem_map] at hmem
+      simp only [paramBVars, List.mem_map] at hmem
       obtain ⟨_, _, rfl⟩ := hmem
       exact .bvar _
   | app _ _ ihf iha => exact .app ihf iha
@@ -151,9 +151,9 @@ theorem HitShapeB.shrink {heads heads' : List Name} {n : Nat} {ls : List Level} 
   | mdata _ ih => exact .mdata ih
   | proj _ ih => exact .proj ih
 
-theorem HitShapeTele.shrink {heads heads' : List Name} {n : Nat} {ls : List Level} {e : Expr}
-    (H : HitShapeTele heads' n ls e) (hsub : ∀ c ∈ heads, c ∈ heads') :
-    HitShapeTele heads n ls e :=
+theorem ParamUniformTele.shrink {heads heads' : List Name} {n : Nat} {ls : List Level} {e : Expr}
+    (H : ParamUniformTele heads' n ls e) (hsub : ∀ c ∈ heads, c ∈ heads') :
+    ParamUniformTele heads n ls e :=
   let ⟨body, hl, hb⟩ := H; ⟨body, hl, hb.shrink hsub⟩
 
 /-! #### Level instantiation at the identity -/
@@ -175,21 +175,21 @@ theorem LeadingForalls.instantiateLevelParamsCore' {red : Bool} {s : Name → Le
   | zero => exact .zero _
   | forallE _ ih => exact .forallE ih
 
-theorem HitShapeB.instantiateLevelParamsCore' {red : Bool} {s : Name → Level}
+theorem ParamUniformBV.instantiateLevelParamsCore' {red : Bool} {s : Name → Level}
     {heads : List Name} {n : Nat} {ls : List Level} {d : Nat} {e : Expr}
-    (H : HitShapeB heads n ls d e) (hls : ∀ l ∈ ls, l.substParams' s red = l) :
-    HitShapeB heads n ls d (e.instantiateLevelParamsCore' red s) := by
+    (H : ParamUniformBV heads n ls d e) (hls : ∀ l ∈ ls, l.substParams' s red = l) :
+    ParamUniformBV heads n ls d (e.instantiateLevelParamsCore' red s) := by
   induction H with
-  | @hitHead c d hc =>
+  | @head c d hc =>
     rw [instantiateLevelParamsCore'_mkAppList]
     have hmap : ls.map (·.substParams' s red) = ls := by
       conv => rhs; rw [← List.map_id ls]
       exact List.map_congr_left hls
-    have hargs : (hitParamBVars n d).map (·.instantiateLevelParamsCore' red s) =
-        hitParamBVars n d := by
-      simp [hitParamBVars, Function.comp_def, Expr.instantiateLevelParamsCore']
+    have hargs : (paramBVars n d).map (·.instantiateLevelParamsCore' red s) =
+        paramBVars n d := by
+      simp [paramBVars, Function.comp_def, Expr.instantiateLevelParamsCore']
     simp only [Expr.instantiateLevelParamsCore', hmap, hargs]
-    exact .hitHead hc
+    exact .head hc
   | app _ _ ihf iha => exact .app ihf iha
   | const hc => exact .const hc
   | bvar => exact .bvar _
@@ -225,8 +225,8 @@ theorem _root_.Lean4Lean.HeadType.instantiateLevelParams_self {heads : List Name
   simp only [Level.substParams']
   exact idxOf?_bind_map_param
 
-theorem HitShapeB.of_avoidsConsts {heads : List Name} {n : Nat} {ls : List Level}
-    {e : Expr} (h : e.AvoidsConsts heads) : ∀ d, HitShapeB heads n ls d e := by
+theorem ParamUniformBV.of_avoidsConsts {heads : List Name} {n : Nat} {ls : List Level}
+    {e : Expr} (h : e.AvoidsConsts heads) : ∀ d, ParamUniformBV heads n ls d e := by
   induction h with
   | bvar => exact fun _ => .bvar _
   | fvar => exact fun _ => .fvar _
@@ -291,7 +291,7 @@ include wf hpres hfresh in
 structure is not a head, and its constructors (old constants as well) are not
 heads. -/
 theorem projHitOK_of_old {s : Name} {ci : ConstantInfo} (hs : env₀.find? s = some ci) :
-    projHitOK env₁ heads s := by
+    projAvoidsHeads env₁ heads s := by
   refine ⟨fun hmem => (by rw [hfresh s hmem] at hs; cases hs), fun v hv c hc hmem => ?_⟩
   rw [hpres hs] at hv
   cases hv
@@ -305,7 +305,7 @@ include wf hpres hfresh in
 /-- Projections in syntax translated in the unsafe model of the old environment. -/
 theorem projsOK_of_unsafe_tr {Us : List Name} {e : Expr} {e' : VExpr}
     (H : TrExprS (ves.venv .unsafe) Us [] e e') :
-    e.ProjsOK (projHitOK env₁ heads) := by
+    e.ProjsOK (projAvoidsHeads env₁ heads) := by
   have hvwf := (wf.tr (safety := .unsafe)).wf
   refine (H.projsRegistered hvwf.ordered trivial).mono fun s ⟨info, hinfo⟩ => ?_
   obtain ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, hlookup, -⟩ :=
@@ -321,7 +321,7 @@ environment. -/
 theorem projsOK_of_tr_sub (sf : DefinitionSafety) {V : VEnv} (hV : V.Ordered)
     (hsub : ∀ s info, V.projections s info → ∃ info', (ves.venv sf).projections s info')
     {Us : List Name} {e : Expr} {e' : VExpr} (H : TrExprS V Us [] e e') :
-    e.ProjsOK (projHitOK env₁ heads) := by
+    e.ProjsOK (projAvoidsHeads env₁ heads) := by
   have hvwf := (wf.tr (safety := sf)).wf
   refine (H.projsRegistered hV trivial).mono fun s ⟨info, hinfo⟩ => ?_
   obtain ⟨info', hinfo'⟩ := hsub s info hinfo
@@ -545,9 +545,9 @@ theorem NestedInstalledProduction.ctorEnv_new_nonprimitive (hwf : P.c.env.consta
 end Production
 
 /-- The checker's own primitive constants are reserved names. -/
-theorem hitPrimNames_primitive : ∀ n ∈ hitPrimNames, Kernel.Environment.primitives.contains n := by
+theorem hitPrimNames_primitive : ∀ n ∈ checkerPrimNames, Kernel.Environment.primitives.contains n := by
   intro n hn
-  simp only [hitPrimNames, List.mem_cons, List.not_mem_nil, or_false] at hn
+  simp only [checkerPrimNames, List.mem_cons, List.not_mem_nil, or_false] at hn
   simp only [Kernel.Environment.primitives, NameSet.ofList]
   rcases hn with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp +decide [NameSet.contains]
 
@@ -595,7 +595,7 @@ def NestedValidatedRunResult.mainCtorNames
 /-- The head set of the type checker's hit-shape invariant at the recursor
 pass: the auxiliary families and constructors together with the main
 constructors. -/
-def NestedValidatedRunResult.hitHeads
+def NestedValidatedRunResult.uniformHeads
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) : List Name :=
   E.auxHeads ++ E.mainCtorNames
@@ -603,7 +603,7 @@ def NestedValidatedRunResult.hitHeads
 theorem NestedValidatedRunResult.hitHeads_subset
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) {n : Name}
-    (hn : n ∈ E.hitHeads) :
+    (hn : n ∈ E.uniformHeads) :
     n ∈ InductiveSignature.familyNames E.production.loweredDecl.types := by
   rcases List.mem_append.1 hn with hn | hn
   · exact familyNames_drop_subset hn
@@ -613,14 +613,14 @@ theorem NestedValidatedRunResult.hitHeads_subset
 theorem NestedValidatedRunResult.auxHeads_subset_hitHeads
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv) :
-    ∀ c ∈ E.auxHeads, c ∈ E.hitHeads := fun _ h => List.mem_append_left _ h
+    ∀ c ∈ E.auxHeads, c ∈ E.uniformHeads := fun _ h => List.mem_append_left _ h
 
 /-- Every lowered constructor name is a head. -/
 theorem NestedValidatedRunResult.ctorName_mem_hitHeads
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
     {t : VInductiveType} (ht : t ∈ E.production.loweredDecl.types)
-    {c : VConstVal} (hc : c ∈ t.ctors) : c.name ∈ E.hitHeads := by
+    {c : VConstVal} (hc : c ∈ t.ctors) : c.name ∈ E.uniformHeads := by
   have hsplit := List.take_append_drop sourceDecl.types.length E.production.loweredDecl.types
   rw [← hsplit] at ht
   rcases List.mem_append.1 ht with ht | ht
@@ -635,7 +635,7 @@ theorem NestedValidatedRunResult.mainFamily_not_mem_hitHeads
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (hnodup : (InductiveSignature.familyNames E.production.loweredDecl.types).Nodup)
     {t : VInductiveType} (ht : t ∈ E.production.loweredDecl.types.take sourceDecl.types.length) :
-    t.name ∉ E.hitHeads := by
+    t.name ∉ E.uniformHeads := by
   have hsplit := List.take_append_drop sourceDecl.types.length E.production.loweredDecl.types
   have hnd := hnodup
   rw [← hsplit, InductiveSignature.familyNames, List.flatMap_append] at hnd
@@ -669,7 +669,7 @@ theorem LoweredConstructorMapping.headType {heads : List Name} {ls : List Level}
     rw [← Hmap.lvls, H.lvls, hlvls]
   have Hlowered := Hmap.hitShape hkeys (Hopen.tailAvoidsConsts hsource) hopenedLvls
   rw [htype, ← hsize]
-  refine Expr.HitShape.mkForall_headType Hlowered
+  refine Expr.ParamUniform.mkForall_headType Hlowered
     (by have h := congrArg Array.toList Hselection.expressions; simpa using h)
     hnodup fun x hx => ?_
   obtain ⟨index, name, type, bi, kind, hfind⟩ := Hselection.declarations x hx
@@ -724,7 +724,7 @@ theorem NestedValidatedRunResult.ctorTypes_headType
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ owner ∈ E.production.indTypes.toList, ∀ ctor ∈ owner.ctors,
-      HeadType E.hitHeads nparams (lparams.map Level.param) ctor.type := by
+      HeadType E.uniformHeads nparams (lparams.map Level.param) ctor.type := by
   obtain ⟨-, -, -, -, -, -, hkeys, hnodupAll⟩ := E.auxHeadsFacts wf Hsources
   have hnodup : (InductiveSignature.familyNames E.production.loweredDecl.types).Nodup :=
     (List.nodup_append.1 hnodupAll).1
@@ -899,7 +899,7 @@ theorem NestedValidatedRunResult.hitHeads_fresh
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) :
-    ∀ n ∈ E.hitHeads, sourceProdEnv.find? n = none := by
+    ∀ n ∈ E.uniformHeads, sourceProdEnv.find? n = none := by
   intro n hn
   have hwfP : E.production.c.env.constants.WF := by
     rw [E.productionEnv]; exact (wf.tr (safety := .unsafe)).map_wf
@@ -956,8 +956,8 @@ theorem NestedValidatedRunResult.familyType_headType
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     {owner : InductiveType} (howner : owner ∈ E.production.indTypes.toList)
-    (hname : owner.name ∈ E.hitHeads) :
-    HeadType E.hitHeads nparams (lparams.map Level.param) owner.type := by
+    (hname : owner.name ∈ E.uniformHeads) :
+    HeadType E.uniformHeads nparams (lparams.map Level.param) owner.type := by
   obtain ⟨-, -, -, -, -, -, -, hnodupAll⟩ := E.auxHeadsFacts wf Hsources
   have hnodup : (InductiveSignature.familyNames E.production.loweredDecl.types).Nodup :=
     (List.nodup_append.1 hnodupAll).1
@@ -986,20 +986,20 @@ theorem NestedValidatedRunResult.familyType_headType
   have heq : E.production.indTypes.toList[i] = result.types[i] := List.getElem_of_eq hres hi
   obtain ⟨e', htr⟩ := E.familyType_tr (List.getElem_mem hi)
   rw [heq] at htr ⊢
-  have havoid : result.types[i].type.AvoidsConsts E.hitHeads :=
+  have havoid : result.types[i].type.AvoidsConsts E.uniformHeads :=
     avoids_of_tr wf (E.hitHeads_fresh wf) _ htr
-  exact ⟨body, hl, Expr.HitShapeB.of_avoidsConsts (hl.avoidsConsts havoid) 0⟩
+  exact ⟨body, hl, Expr.ParamUniformBV.of_avoidsConsts (hl.avoidsConsts havoid) 0⟩
 
 /-- **The environment condition of the type checker's hit-shape invariant
 holds in the environment of the recursor pass** of an exact validated nested
-run, for the head set `E.hitHeads` (auxiliary families and constructors, and
+run, for the head set `E.uniformHeads` (auxiliary families and constructors, and
 the main constructors), `nparams` parameters and the declaration's level
 parameters.
 
 The constants the checker builds on its own are not heads: the reserved ones
-(`hitPrimNames`) because every head was installed by a `checkName` without
+(`checkerPrimNames`) because every head was installed by a `checkName` without
 primitive permission (`NestedInstalledProduction.nonprimitive_familyNames`);
-the other string-literal constants (`hitStrNames`) because, once the
+the other string-literal constants (`strLitNames`) because, once the
 environment declares `Char.ofNat` and `String.ofList`, these two are old
 constants (they are reserved, so the run did not install them), and then
 `HasPrimitives` of the source model forces `String`, `Char`, `List.nil` and
@@ -1010,7 +1010,7 @@ theorem NestedValidatedRunResult.envHitShape
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    EnvHitShape E.production.ctorEnv E.hitHeads nparams (lparams.map Level.param) := by
+    EnvParamUniform E.production.ctorEnv E.uniformHeads nparams (lparams.map Level.param) := by
   have hfresh := E.hitHeads_fresh wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
       E.production.ctorEnv.find? n = some ci := E.ctorEnv_preserves wf
@@ -1027,7 +1027,7 @@ theorem NestedValidatedRunResult.envHitShape
     intro n ci h
     have := E.production.ctorEnv_origin hwfP h
     rwa [E.productionEnv, E.productionLParams] at this
-  have hfreshN : ∀ {n ci}, sourceProdEnv.find? n = some ci → n ∉ E.hitHeads :=
+  have hfreshN : ∀ {n ci}, sourceProdEnv.find? n = some ci → n ∉ E.uniformHeads :=
     fun h hn => by rw [hfresh _ hn] at h; cases h
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hheaderV : E.production.headers.context.venv.Ordered :=
@@ -1064,8 +1064,8 @@ theorem NestedValidatedRunResult.envHitShape
       | none =>
         refine absurd hp (E.production.ctorEnv_new_nonprimitive hwfP h ?_)
         rw [E.productionEnv]; exact h0
-    obtain ⟨_, hc₁⟩ := hold (hitPrimNames_primitive _ (by simp [hitPrimNames])) h₁
-    obtain ⟨_, hc₂⟩ := hold (hitPrimNames_primitive _ (by simp [hitPrimNames])) h₂
+    obtain ⟨_, hc₁⟩ := hold (hitPrimNames_primitive _ (by simp [checkerPrimNames])) h₁
+    obtain ⟨_, hc₂⟩ := hold (hitPrimNames_primitive _ (by simp [checkerPrimNames])) h₂
     have htr := wf.tr (safety := .unsafe)
     obtain ⟨_, hv₁, -⟩ := htr.find? hc₁ DefinitionSafety.unsafe_le
     obtain ⟨_, hv₂, -⟩ := htr.find? hc₂ DefinitionSafety.unsafe_le
@@ -1073,7 +1073,7 @@ theorem NestedValidatedRunResult.envHitShape
     have hprimU : (ves.venv .unsafe).HasPrimitives := wf.hasPrimitives (safety := .unsafe)
     have hlits : (ves.venv .unsafe).ContainsLits (.strVal "") := ⟨⟨_, hv₁⟩, ⟨_, hv₂⟩⟩
     have hcontains : (ves.venv .unsafe).contains n := by
-      simp only [hitStrNames, List.mem_cons, List.not_mem_nil, or_false] at hn
+      simp only [strLitNames, List.mem_cons, List.not_mem_nil, or_false] at hn
       rcases hn with rfl | hn
       · obtain ⟨_, H⟩ := (TrExprS.trLiteral hord hprimU (.strVal "") hlits
           (Us := []) (Δ := [])).2.isType hord trivial
@@ -1170,7 +1170,7 @@ end RunEnv
 
 /-- **`whnf` preserves hit shape in a recursor context.** The lifted
 `TypeChecker.whnf` call of the inductive checker, run from the empty checker
-state, maps an input in hit shape (with projections respecting `projHitOK`)
+state, maps an input in hit shape (with projections respecting `projAvoidsHeads`)
 whose free variables lie in a hit scope to an output with the same property.
 This is `TypeChecker.whnf.hitShape` transported along the same lift as
 `whnfInRecursorContext.levelsWF`. -/
@@ -1180,16 +1180,16 @@ theorem whnfInRecursorContext.hitOK
     (he : TrExprS Hc.venv recLparams Hc.mlctx.vlctx e e')
     {e₀ : VExpr} (hn : TrExprS Hc.venv recLparams Hc.chk.vlctx e e₀)
     {heads : List Name} {As : List Expr} {ls : List Level} {P : FVarId → Prop}
-    (henv : EnvHitShape c.env heads As.length ls)
-    (hAs : TypeChecker.HitParams `_kernel_fresh As)
-    (hscope : Hc.HitOKScope c.env heads As ls P)
-    (hin : e.HitOK c.env heads As ls) (hP : FVarsIn P e) :
+    (henv : EnvParamUniform c.env heads As.length ls)
+    (hAs : TypeChecker.UngeneratedParams `_kernel_fresh As)
+    (hscope : Hc.ParamUniformScope c.env heads As ls P)
+    (hin : e.ParamUniformIn c.env heads As ls) (hP : FVarsIn P e) :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
-      e₁.HitOK c.env heads As ls := by
+      e₁.ParamUniformIn c.env heads As ls := by
   -- the run is verified in the checker context, whose hit scope is the part
   -- of `P` among the checker variables
   let P₀ : FVarId → Prop := fun fv => P fv ∧ fv ∈ Hc.chk.vlctx.fvars
-  have hs : Hc.checkTC.HitScope `_kernel_fresh heads As ls P₀ := by
+  have hs : Hc.checkTC.ParamUniformScope `_kernel_fresh heads As ls P₀ := by
     refine ⟨henv, hAs, IsFVarUpSet.and _ (Hc.check.embed.isFVarUpSet hscope.1)
       (IsFVarUpSet.fvars Hc.check.wf.tr.wf.fvwf), ?_⟩
     intro fv d ⟨hPfv, _⟩ hfind
@@ -1212,7 +1212,7 @@ theorem whnfInRecursorContext.hitOK
     exact fvarsIn_iff.mpr ⟨fun fv hfv => ⟨(fvarsIn_iff.mp hP).1 fv hfv, hc fv hfv⟩,
       (fvarsIn_iff.mp hP).2⟩
   have Hx : TypeChecker.M.WF Hc.checkTC {}
-      (TypeChecker.whnf e) (fun e₁ _ => e₁.HitOK c.env heads As ls) :=
+      (TypeChecker.whnf e) (fun e₁ _ => e₁.ParamUniformIn c.env heads As ls) :=
     (TypeChecker.whnf.hitShape hn).mono fun e₁ _ _ h => h.2 heads As ls P₀ hs hin hP₀
   exact liftTypeChecker.recursorWF Hc Hx
 
@@ -1227,10 +1227,10 @@ namespace VerifyInductive
 
 /-- `whnf` facts from the environment condition and parameters that the
 checker's name generator never produces. -/
-theorem WhnfHitOKFacts.of_env {heads : List Name} {params : List Expr} {ls : List Level}
-    {env : Environment} (henv : EnvHitShape env heads params.length ls)
-    (hparams : TypeChecker.HitParams `_kernel_fresh params) :
-    WhnfHitOKFacts heads params ls env where
+theorem WhnfPreservesParamUniform.of_env {heads : List Name} {params : List Expr} {ls : List Level}
+    {env : Environment} (henv : EnvParamUniform env heads params.length ls)
+    (hparams : TypeChecker.UngeneratedParams `_kernel_fresh params) :
+    WhnfPreservesParamUniform heads params ls env where
   whnf Hc _ _ _ _ hc he hn hscope hP hin hrun := by
     subst hc
     obtain ⟨_, hn⟩ := hn
@@ -1249,7 +1249,7 @@ theorem NestedValidatedRunResult.paramsHitParams
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv) :
-    TypeChecker.HitParams `_kernel_fresh E.production.stats.params.toList := by
+    TypeChecker.UngeneratedParams `_kernel_fresh E.production.stats.params.toList := by
   intro a ha
   obtain ⟨fv, rfl, hmem⟩ :=
     BoundFVarArray.fvar_of_mem E.production.production.params (Array.mem_toList_iff.1 ha)
@@ -1264,7 +1264,7 @@ theorem NestedValidatedRunResult.paramsHitParams
   exact Nat.not_lt_zero _ this
 
 /-- **The `whnf` hit-shape fact of an exact validated nested run**, at the head
-set `E.hitHeads` (auxiliary families and constructors, and the main
+set `E.uniformHeads` (auxiliary families and constructors, and the main
 constructors), the run's parameters and the declaration's levels, in the
 environment of the recursor pass. -/
 theorem NestedValidatedRunResult.whnfHitOKFacts
@@ -1272,7 +1272,7 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    WhnfHitOKFacts E.hitHeads E.production.stats.params.toList (lparams.map Level.param)
+    WhnfPreservesParamUniform E.uniformHeads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env := by
   refine .of_env ?_ E.paramsHitParams
   have hlen : E.production.stats.params.toList.length = nparams := by
@@ -1282,7 +1282,7 @@ theorem NestedValidatedRunResult.whnfHitOKFacts
   exact E.envHitShape wf Hsources
 
 /-- **The non-`whnf` hit-shape inputs of an exact validated nested run**, at the
-head set `E.hitHeads`, with the projection condition at the environment of the
+head set `E.uniformHeads`, with the projection condition at the environment of the
 recursor pass, derived from the run alone:
 
 * parameter declarations: translated in the source environment, where the
@@ -1290,7 +1290,7 @@ recursor pass, derived from the run alone:
   (`CompletedRecursorConstruction.paramDecls_hitOK`, `projHitOK_of_old`);
 * family headers: translated in the source environment
   (`NestedValidatedRunResult.familyType_tr`);
-* constructor types: head types for `E.hitHeads`
+* constructor types: head types for `E.uniformHeads`
   (`NestedValidatedRunResult.ctorTypes_headType`), translated in the header
   environment, whose projections are the source environment's;
 * recursor names: distinct from the family and constructor names. -/
@@ -1299,8 +1299,8 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.toCompletedRecursorConstruction.HitShapeInputs
-      E.hitHeads := by
+    E.production.production.toCompletedRecursorConstruction.ParamUniformDeclarations
+      E.uniformHeads := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh := E.hitHeads_fresh wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
@@ -1356,7 +1356,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
       (fun _ hh => E.hitHeads_subset hh) hnodup
 
 /-- **Hit shape of the lowered recursor type and rule right-hand sides of an
-exact validated nested run, at the checker's head set `E.hitHeads`**:
+exact validated nested run, at the checker's head set `E.uniformHeads`**:
 `recursorHitShape` with its two hypotheses discharged by
 `hitShapeInputs_of` and `whnfHitOKFacts`. -/
 theorem NestedValidatedRunResult.recursorHitShape_hitHeads
@@ -1370,10 +1370,10 @@ theorem NestedValidatedRunResult.recursorHitShape_hitHeads
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
       (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    Expr.HitShapeTele E.hitHeads result.nparams (lparams.map Level.param)
+    Expr.ParamUniformTele E.uniformHeads result.nparams (lparams.map Level.param)
         Hstep.oldInfo.type ∧
       ∀ rule ∈ Hstep.oldInfo.rules,
-        Expr.HitShapeTele E.hitHeads result.nparams (lparams.map Level.param) rule.rhs :=
+        Expr.ParamUniformTele E.uniformHeads result.nparams (lparams.map Level.param) rule.rhs :=
   E.recursorHitShape (E.hitShapeInputs_of wf Hsources) (E.whnfHitOKFacts wf Hsources)
     owner Hstep
 
@@ -1385,9 +1385,9 @@ are closed parameter telescopes of `result.nparams` binders whose body is in
 bound-variable hit shape for the auxiliary heads at the levels
 `lparams.map Level.param`.
 
-The proof runs the provenance chain at the checker's head set `E.hitHeads`
+The proof runs the provenance chain at the checker's head set `E.uniformHeads`
 (`recursorHitShape_hitHeads`) and drops the main constructors with
-`HitShapeTele.shrink`. -/
+`ParamUniformTele.shrink`. -/
 theorem NestedValidatedRunResult.recursorHitShape'
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
@@ -1399,10 +1399,10 @@ theorem NestedValidatedRunResult.recursorHitShape'
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
       (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    Expr.HitShapeTele E.auxHeads result.nparams (lparams.map Level.param)
+    Expr.ParamUniformTele E.auxHeads result.nparams (lparams.map Level.param)
         Hstep.oldInfo.type ∧
       ∀ rule ∈ Hstep.oldInfo.rules,
-        Expr.HitShapeTele E.auxHeads result.nparams (lparams.map Level.param) rule.rhs := by
+        Expr.ParamUniformTele E.auxHeads result.nparams (lparams.map Level.param) rule.rhs := by
   obtain ⟨htype, hrules⟩ := E.recursorHitShape_hitHeads wf Hsources owner Hstep
   exact ⟨htype.shrink E.auxHeads_subset_hitHeads,
     fun rule hrule => (hrules rule hrule).shrink E.auxHeads_subset_hitHeads⟩

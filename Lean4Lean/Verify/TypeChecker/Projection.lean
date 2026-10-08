@@ -55,11 +55,11 @@ theorem instantiateProjectionParameters.WF_all {c : VContext} {args : Array Expr
         (∀ k (hk : k < remaining) a, args[position + k]? = some a →
           a.levelParamsIn Us = true ∧ FVarsIn P a) →
         t.levelParamsIn Us = true) ∧
-      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+      ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
         FVarsIn P type →
         (∀ k (hk : k < remaining) a, args[position + k]? = some a →
-          a.HitOK c.env heads As ls ∧ FVarsIn P a) →
-        t.HitOK c.env heads As ls := by
+          a.ParamUniformIn c.env heads As ls ∧ FVarsIn P a) →
+        t.ParamUniformIn c.env heads As ls := by
   intro remaining
   induction remaining with
   | zero =>
@@ -226,9 +226,9 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
       ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
       ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
         struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true) ∧
-      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
-        FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
-        projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+      ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
+        FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
+        projAvoidsHeads c.env heads st → t.ParamUniformIn c.env heads As ls := by
   intro remaining
   induction remaining with
   | zero =>
@@ -268,9 +268,9 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
         (∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P type') →
         (∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
           struct.levelParamsIn Us = true → FVarsIn P struct → type'.levelParamsIn Us = true) →
-        (∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
-          FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
-          projHitOK c.env heads st → type'.HitOK c.env heads As ls) →
+        (∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
+          FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
+          projAvoidsHeads c.env heads st → type'.ParamUniformIn c.env heads As ls) →
         RecM.WF c s (instantiateProjectionFields st struct maybePropType type' (position + 1)
           remaining) fun r _ => ∀ t, r = some t → (((∃ R,
           VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls (d :: ds') b)
@@ -279,9 +279,9 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
           ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
           ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
             struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true) ∧
-          ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
-            FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
-            projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+          ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
+            FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
+            projAvoidsHeads c.env heads st → t.ParamUniformIn c.env heads As ls := by
       intro s type' hps hT'' hfv' hlv' hhv'
       rw [VExpr.wrapForalls_inst] at hT''
       have E : ∀ m (hm' : m < ds'.length),
@@ -328,9 +328,9 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
               ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
                 struct.levelParamsIn Us = true → FVarsIn P struct →
                 t.levelParamsIn Us = true) ∧
-              ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
-                FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
-                projHitOK c.env heads st → t.HitOK c.env heads As ls := by
+              ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
+                FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
+                projAvoidsHeads c.env heads st → t.ParamUniformIn c.env heads As ls := by
         have hp_tr : c.TrExprS (.proj st position struct) (.proj st position e') :=
           .proj he (.direct hmaj ⟨_, hp⟩)
         rw [Expr.instantiate1_eq]
@@ -384,11 +384,11 @@ theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Exp
         (∀ k (hk : k < remaining) a, args[position + k]? = some a →
           a.levelParamsIn Us = true ∧ FVarsIn P a) →
         t.levelParamsIn Us = true) ∧
-      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
+      ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
         FVarsIn P type →
         (∀ k (hk : k < remaining) a, args[position + k]? = some a →
-          a.HitOK c.env heads As ls ∧ FVarsIn P a) →
-        t.HitOK c.env heads As ls) ∧
+          a.ParamUniformIn c.env heads As ls ∧ FVarsIn P a) →
+        t.ParamUniformIn c.env heads As ls) ∧
       (Cert → ∃ R,
         VProjectionInfo.instantiateProjectionParameters (VExpr.wrapForalls ds b) xs' = some R ∧
         TelTrN c.venv c.lparams (m - remaining) c.vlctx t R) := by
@@ -421,9 +421,9 @@ theorem instantiateProjectionFields.WF_corner {c : VContext} {G : VLevel → Pro
       ∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P t) ∧
       ∀ Us P, c.UniverseScope Us P → type.levelParamsIn Us = true → FVarsIn P type →
         struct.levelParamsIn Us = true → FVarsIn P struct → t.levelParamsIn Us = true) ∧
-      ∀ heads As ls P, c.HitScope pfx heads As ls P → type.HitOK c.env heads As ls →
-        FVarsIn P type → struct.HitOK c.env heads As ls → FVarsIn P struct →
-        projHitOK c.env heads st → t.HitOK c.env heads As ls :=
+      ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → type.ParamUniformIn c.env heads As ls →
+        FVarsIn P type → struct.ParamUniformIn c.env heads As ls → FVarsIn P struct →
+        projAvoidsHeads c.env heads st → t.ParamUniformIn c.env heads As ls :=
   (instantiateProjectionFields.WF_tel he hmaj hG0 hG hcert hm hle hproj hpfx).mono
     fun _ _ _ H t ht =>
       let ⟨⟨⟨⟨R, hR, hR'⟩, h1⟩, h2⟩, h3⟩ := H t ht

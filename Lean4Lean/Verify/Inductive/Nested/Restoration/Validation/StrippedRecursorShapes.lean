@@ -192,9 +192,9 @@ theorem CompletedRecursorPhasesResult.generated_majorBinder
   rw [H.majorSourceType owner hrecInfo D]
   simp [Expr.getAppFn_mkAppN, Expr.getAppFn]
 
-theorem _root_.Lean.Expr.HitShape.binderAt {heads : List Name} {params : List Expr}
-    {ls : List Level} {e : Expr} (H : e.HitShape heads params ls)
-    (Hbinder : Expr.ForallBinderAt e i domain) : domain.HitShape heads params ls := by
+theorem _root_.Lean.Expr.ParamUniform.binderAt {heads : List Name} {params : List Expr}
+    {ls : List Level} {e : Expr} (H : e.ParamUniform heads params ls)
+    (Hbinder : Expr.ForallBinderAt e i domain) : domain.ParamUniform heads params ls := by
   induction Hbinder with
   | here => exact H.forallE_inv.1
   | there _ ih => exact ih H.forallE_inv.2

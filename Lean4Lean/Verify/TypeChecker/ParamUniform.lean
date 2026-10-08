@@ -4,7 +4,7 @@ import Lean4Lean.Verify.TypeChecker.UniverseSupport
 /-!
 # Hit shape through the reduction steps of `whnfCore` and `whnf`
 
-The hit-shape clauses (`VContext.HitBelow`) of recursor reduction (quotient and inductive,
+The hit-shape clauses (`VContext.ParamUniformBelow`) of recursor reduction (quotient and inductive,
 including the K-like and structure-eta conversions of the major premise) and of definition
 unfolding. These steps do not write to the caches, so their hit-shape clauses are proved
 separately from the typing clauses (via `RecM.Post` where the tail of a run only decides between
@@ -22,7 +22,7 @@ variable {c : VContext} {s : VState}
 theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) (hpos : argPos < mkPos) :
     RecM.WF c s (quotReduceRecCont e whnf mkPos argPos) fun oe _ =>
-      ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+      ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold quotReduceRecCont
   extract_lets args
   have hargs_eq : args = e.getAppArgs := rfl
@@ -34,8 +34,8 @@ theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS
   have hisApp : mk.isAppOfArity ``Quot.mk 3 = true := by simpa using hnot
   obtain ⟨lsm, a1, a2, a3, rfl⟩ := Expr.isAppOfArity_three_eq_true hisApp
   simp only [Expr.appArg!]
-  have main : ∀ heads As ls P, c.HitScope pfx heads As ls P → e.HitOK c.env heads As ls →
-      FVarsIn P e → (Expr.app e.getAppArgs[argPos]! a3).HitOK c.env heads As ls := by
+  have main : ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → e.ParamUniformIn c.env heads As ls →
+      FVarsIn P e → (Expr.app e.getAppArgs[argPos]! a3).ParamUniformIn c.env heads As ls := by
     intro heads As ls P hs hl hP
     have hp' := hs.params.fvars
     have hall := fun a (h : a ∈ e.getAppArgs) => hl.of_mem_getAppArgs hp' h
@@ -51,7 +51,7 @@ theorem quotReduceRecCont.WF_hit {e : Expr} {mkPos argPos : Nat} (he : c.TrExprS
   · exact .pure fun _ h heads As ls P hs hl hP => Option.some.inj h ▸ main heads As ls P hs hl hP
 
 theorem quotReduceRec.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
-    RecM.WF c s (quotReduceRec e whnf) fun oe _ => ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+    RecM.WF c s (quotReduceRec e whnf) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold quotReduceRec
   split <;> [skip; exact .pure nofun]
   split
@@ -66,13 +66,13 @@ theorem quotReduceRec.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx
 mentions no head, and the remaining pieces are arguments of the recursor application and of the
 converted major premise. -/
 theorem inductiveReduceRecTail.hitOK {info : RecursorVal} {recFn : Name} {ls : List Level}
-    {e major₂ : Expr} {heads As lv} {nparams} (H : EnvHitShape c.env heads nparams lv)
+    {e major₂ : Expr} {heads As lv} {nparams} (H : EnvParamUniform c.env heads nparams lv)
     (hAs : ∀ a ∈ As, ∃ fv, a = .fvar fv)
     (hinfo : c.env.find? recFn = some (.recInfo info))
     (hfirst : info.getFirstIndexIdx ≤ e.getAppArgs.size)
-    (hl : e.HitOK c.env heads As lv) (hm : major₂.HitOK c.env heads As lv) :
+    (hl : e.ParamUniformIn c.env heads As lv) (hm : major₂.ParamUniformIn c.env heads As lv) :
     ∀ r, inductiveReduceRecTail info ls e.getAppArgs major₂ = some r →
-      r.HitOK c.env heads As lv := by
+      r.ParamUniformIn c.env heads As lv := by
   intro r hr
   unfold inductiveReduceRecTail at hr
   simp only [bind, Option.bind] at hr
@@ -82,7 +82,7 @@ theorem inductiveReduceRecTail.hitOK {info : RecursorVal} {recFn : Name} {ls : L
   have hmem := List.mem_of_find?_eq_some hrule
   split at hr <;> [cases hr; skip]
   split at hr <;> [cases hr; skip]
-  have hrhs : (rule.rhs.instantiateLevelParams info.levelParams ls).HitOK c.env heads As lv :=
+  have hrhs : (rule.rhs.instantiateLevelParams info.levelParams ls).ParamUniformIn c.env heads As lv :=
     .instantiateLevelParams_of_avoids (H.rules_avoid hinfo rule hmem) (H.rules_projs hinfo rule hmem)
   have hargs := fun a (h : a ∈ e.getAppArgs) => hl.of_mem_getAppArgs hAs h
   have hmargs := fun a (h : a ∈ major₂.getAppArgs) => hm.of_mem_getAppArgs hAs h
@@ -117,20 +117,20 @@ theorem toCtorWhenK.Post_hit {info : RecursorVal} {major : Expr} {m' : VExpr} (h
       ind.ctors = [ctorName] ∧ KLikeAlignment c.venv info ctorName)
     (he : c.TrExprS major m') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r =>
-      c.HitBelow pfx major r := by
+      c.ParamUniformBelow pfx major r := by
   unfold toCtorWhenK
   split <;> [skip; exact absurd hk ‹_›]
   refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
   refine RecM.Post.bind (whnf.WF_fhit hTS (VState.LE.namePrefix_eq hp le))
     fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
-  have hid : ∀ {x : Expr}, x = major → c.HitBelow pfx major x := by rintro _ rfl; exact .rfl
+  have hid : ∀ {x : Expr}, x = major → c.ParamUniformBelow pfx major x := by rintro _ rfl; exact .rfl
   split <;> [rename_i I lsI hAfn; exact .pure (hid rfl)]
   split <;> [exact .pure (hid rfl); rename_i hI]
   split <;> [exact .pure (hid rfl); skip]
   split <;> [rename_i newCtorApp hnull; exact .pure (hid rfl)]
   simp only [bne_iff_ne, ne_eq, Classical.not_not] at hI
-  have hnew : c.HitBelow pfx major newCtorApp := by
+  have hnew : c.ParamUniformBelow pfx major newCtorApp := by
     intro heads As ls P hs hl hP
     have hAok := hA heads As ls P hs (hT.1 heads As ls P hs hl hP) (hfvT P hs.up hP)
     obtain ⟨I', ls', name, hfn', hfirst, rfl⟩ := mkNullaryCtor_eq_some hnull
@@ -172,8 +172,8 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
     (hrec : c.env.find? recFn = some (.recInfo info))
     (he : c.TrExprS w w') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (toCtorWhenStruct c.env whnf inferType info.getMajorInduct w) fun r =>
-      c.HitBelow pfx w r := by
-  have hid : ∀ {x : Expr}, x = w → c.HitBelow pfx w x := by rintro _ rfl; exact .rfl
+      c.ParamUniformBelow pfx w r := by
+  have hid : ∀ {x : Expr}, x = w → c.ParamUniformBelow pfx w x := by rintro _ rfl; exact .rfl
   unfold toCtorWhenStruct
   split <;> [exact .pure (hid rfl); rename_i hguard]
   have hnonrec : c.env.isNonRecStructure info.getMajorInduct = true := by
@@ -185,7 +185,7 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
   split <;> [exact .pure (hid rfl); rename_i hisConst]
   have hisConst' : A.getAppFn.isConstOf info.getMajorInduct = true := by simpa using hisConst
   obtain ⟨lsI, hAfn⟩ := Expr.isConstOf_eq_true hisConst'
-  have hnew : c.HitBelow pfx w (expandEtaStruct c.env A w) := by
+  have hnew : c.ParamUniformBelow pfx w (expandEtaStruct c.env A w) := by
     intro heads As ls P hs hl hP
     have hAok := hA heads As ls P hs (hT.1 heads As ls P hs hl hP) (hfvT P hs.up hP)
     have ⟨hInot, hctors⟩ := hs.env.rec_major hrec
@@ -215,7 +215,7 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
 /-- Inductive recursor reduction keeps hit shape. -/
 theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
     RecM.Post c s (inductiveReduceRec c.env e whnf inferType isDefEq) fun oe =>
-      ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+      ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold inductiveReduceRec
   split <;> [rename_i recFn ls hfn; exact .pure nofun]
   split <;> [rename_i info hinfo; exact .pure nofun]
@@ -239,9 +239,9 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
     rw [← Expr.getAppArgs_toList]; exact Array.getElem_mem_toList _
   -- the tail
   have htail : ∀ (major₂ : Expr), c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ →
-      c.HitBelow pfx e.getAppArgs[info.getMajorIdx] major₂ →
+      c.ParamUniformBelow pfx e.getAppArgs[info.getMajorIdx] major₂ →
       ∀ e₁, inductiveReduceRecTail info ls e.getAppArgs major₂ = some e₁ →
-        c.HitBelow pfx e e₁ := by
+        c.ParamUniformBelow pfx e e₁ := by
     intro major₂ hfv hh e₁ h heads As lv P hs hl hP
     exact inductiveReduceRecTail.hitOK hs.env hs.params.fvars hinfo
       (by simp only [RecursorVal.getMajorIdx, RecursorVal.getFirstIndexIdx] at hmaj ⊢; omega) hl
@@ -250,8 +250,8 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
   -- after the K conversion
   have hjp : ∀ {s₁ : VState} (m₁ : Expr) {m₁' : VExpr}, s₁.ngen.namePrefix = pfx →
       c.FVarsBelow e.getAppArgs[info.getMajorIdx] m₁ →
-      c.HitBelow pfx e.getAppArgs[info.getMajorIdx] m₁ → c.TrExprS m₁ m₁' →
-      RecM.Post c s₁ (jpMatch () m₁) fun oe => ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+      c.ParamUniformBelow pfx e.getAppArgs[info.getMajorIdx] m₁ → c.TrExprS m₁ m₁' →
+      RecM.Post c s₁ (jpMatch () m₁) fun oe => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
     intro s₁ m₁ m₁' hp₁ hfv₁ hh₁ hm₁S
     simp only [jpMatch, jpTail]
     refine RecM.Post.bind (whnf.WF_fhit hm₁S hp₁) fun w s₂ le ⟨⟨hfvw, w', hwS, _⟩, hhw⟩ => ?_
@@ -283,12 +283,12 @@ theorem inductiveReduceRec.Post_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefi
 
 /-- Recursor reduction keeps hit shape. -/
 theorem reduceRecursor.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pfx) :
-    RecM.WF c s (reduceRecursor e) fun oe _ => ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+    RecM.WF c s (reduceRecursor e) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold reduceRecursor
   refine .getEnv ?_
   extract_lets jp
   have hjp : ∀ {s : VState}, s.ngen.namePrefix = pfx → RecM.WF c s (jp ()) fun oe _ =>
-      ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+      ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
     intro s hp
     simp only [jp]
     refine ((inductiveReduceRec.WF he).and_post (inductiveReduceRec.Post_hit he hp)).bind
@@ -306,23 +306,23 @@ theorem reduceRecursor.WF_hit (he : c.TrExprS e e') (hp : s.ngen.namePrefix = pf
 /-! ### Definition unfolding -/
 
 theorem instantiateDeltaValue_hitOK {heads As lv} {nparams}
-    (H : EnvHitShape c.env heads nparams lv)
+    (H : EnvParamUniform c.env heads nparams lv)
     (hlookup : c.env.find? name = some info) (hdelta : info.deltaValue? = some value) :
-    (instantiateDeltaValue info levels).HitOK c.env heads As lv := by
+    (instantiateDeltaValue info levels).ParamUniformIn c.env heads As lv := by
   simp only [instantiateDeltaValue, hdelta, Option.get!_some]
   exact .instantiateLevelParams_of_avoids (H.value_avoids hlookup hdelta)
     (H.value_projs hlookup hdelta)
 
 theorem unfoldDefinitionCore.WF_hit :
     RecM.WF c s (unfoldDefinitionCore e) fun result _ => ∀ e', result = some e' →
-      ∀ heads As lv nparams, EnvHitShape c.env heads nparams lv → e'.HitOK c.env heads As lv := by
+      ∀ heads As lv nparams, EnvParamUniform c.env heads nparams lv → e'.ParamUniformIn c.env heads As lv := by
   dsimp [unfoldDefinitionCore]
   split <;> [refine .getEnv ?_; exact .pure nofun]
   split
   · rename_i name levels optInfo info hdelta
     obtain ⟨_, hlookup, ⟨_, hv⟩, _, ⟨⟩, hlen⟩ := isDelta_is_some.mp hdelta
-    have hscope : ∀ heads As lv nparams, EnvHitShape c.env heads nparams lv →
-        (instantiateDeltaValue info levels).HitOK c.env heads As lv :=
+    have hscope : ∀ heads As lv nparams, EnvParamUniform c.env heads nparams lv →
+        (instantiateDeltaValue info levels).ParamUniformIn c.env heads As lv :=
       fun _ _ _ _ H => instantiateDeltaValue_hitOK H hlookup hv
     split
     · refine .get ?_
@@ -347,7 +347,7 @@ theorem unfoldDefinitionCore.WF_hit :
 
 theorem unfoldDefinition.WF_hit :
     RecM.WF c s (unfoldDefinition e) fun result _ => ∀ e', result = some e' →
-      c.HitBelow pfx e e' := by
+      c.ParamUniformBelow pfx e e' := by
   simp [unfoldDefinition]
   split
   · refine unfoldDefinitionCore.WF_hit.bind fun result _ _ hresult => ?_
@@ -373,7 +373,7 @@ unchanged. -/
 theorem whnfCore.WF_hit' {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (whnfCore e cheapProj) fun e₁ _ =>
-      c.HitBelow pfx e e₁ ∧ ∀ n us, e = .const n us → e₁ = e := by
+      c.ParamUniformBelow pfx e e₁ ∧ ∀ n us, e = .const n us → e₁ = e := by
   by_cases hc : ∃ n us, e = .const n us
   · obtain ⟨n, us, rfl⟩ := hc
     exact ((whnfCore.WF_hit he hp).and whnfCore.WF_const).mono fun _ _ _ ⟨h1, h2⟩ =>

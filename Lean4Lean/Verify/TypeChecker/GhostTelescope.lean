@@ -205,13 +205,13 @@ theorem VState.WF.vlam {c : VContext} {m} [cwf : c.MLCWF m] {s : VState}
     H.fresh (c := c.withMLC m) rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
   have hhc {ic : InferCache}
       (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-      (H : HitCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-      HitCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
+      (H : ParamUniformCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
+      ParamUniformCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
     H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
   have hhtc {ic : InferCache}
       (hres : ∀ ⦃e e₁ : Expr⦄, ic[e]? = some e₁ → FVarsIn s.ngen.Reserves e)
-      (H : HitTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
-      HitTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
+      (H : ParamUniformTyCache.WF (c.withMLC m) s.ngen.namePrefix ic) :
+      ParamUniformTyCache.WF (c.withMLC m') s.ngen.namePrefix ic :=
     H.fresh (c := c.withMLC m) rfl rfl (fun _ h => cwf'.1.find?_vlam h) h1' hres h1
   exact
   { ngen_wf := by

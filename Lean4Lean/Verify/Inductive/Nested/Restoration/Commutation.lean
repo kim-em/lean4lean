@@ -22,7 +22,7 @@ This file provides the executable-side infrastructure: the replacement head
 correspondence `RestorationMapAgreement`, the opening of closed parameter
 telescopes (`TrExprS.instantiateRevFVars`), and name agreement. The
 commutation theorem itself, under the hit-shape side condition
-(`Expr.HitShape`), is `restorationCommutes'` in
+(`Expr.ParamUniform`), is `restorationCommutes'` in
 `Nested/Restoration/CommutationUniform.lean`.
 -/
 

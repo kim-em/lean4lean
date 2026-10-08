@@ -318,7 +318,7 @@ theorem reduceProj.WF_levels {c : VContext} {s : VState} (he : c.TrExprS (.proj 
 theorem reduceProjCoreCont.WF_hit {c : VContext} {s : VState} :
     RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
       ∀ e₁, oe = some e₁ → ∀ {heads As ls}, (∀ a ∈ As, ∃ fv, a = .fvar fv) →
-        c₁.HitOK c.env heads As ls → e₁.HitOK c.env heads As ls := by
+        c₁.ParamUniformIn c.env heads As ls → e₁.ParamUniformIn c.env heads As ls := by
   unfold reduceProjCoreCont
   rw [Expr.withApp_eq]
   split <;> [skip; exact .pure nofun]
@@ -328,7 +328,7 @@ theorem reduceProjCoreCont.WF_hit {c : VContext} {s : VState} :
 
 theorem reduceProjCore.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
-    RecM.WF c s (reduceProjCore n i e) fun oe _ => ∀ e₁, oe = some e₁ → c.HitBelow pfx e e₁ := by
+    RecM.WF c s (reduceProjCore n i e) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold reduceProjCore
   extract_lets jp
   split
@@ -344,10 +344,10 @@ theorem reduceProjCore.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
 theorem reduceProj.WF_hit {c : VContext} {s : VState} (he : c.TrExprS (.proj n i e) e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (reduceProj n i e cheapProj) fun oe _ =>
-      ∀ e₁, oe = some e₁ → c.HitBelow pfx (.proj n i e) e₁ := by
+      ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx (.proj n i e) e₁ := by
   unfold reduceProj
   have .proj (e' := s) a1 _ := he
-  refine .bind (Q := fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ s) ∧ c.HitBelow pfx e e₁) ?_
+  refine .bind (Q := fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ s) ∧ c.ParamUniformBelow pfx e e₁) ?_
     fun _ _ le ⟨⟨h1, _, h3, _⟩, h2⟩ => ?_
   · split <;> [exact whnfCore.WF_fhit a1 hp; exact whnf.WF_fhit a1 hp]
   exact (reduceProjCore.WF_hit h3 (VState.LE.namePrefix_eq hp le)).mono fun _ _ _ H _ eq heads As ls P hs hl hP =>

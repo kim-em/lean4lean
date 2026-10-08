@@ -21,7 +21,7 @@ container constructor names with the container prefix replaced by
   chain `ruleRhsTrail` admits the recursor names (their occurrences in the
   rules are the heads of the recursive calls), and running it at two
   different level lists excludes them from trailing positions
-  (`HitTrailWith.toHitTrailAvoids_two`).
+  (`TrailingArgs.toHitTrailAvoids_two`).
 * `NestedValidatedRunResult.loweredRules_projsOK`: the lowered rules project
   out of no restorable name. The projection condition of the hit-shape chain
   (`CompletedRecursorConstruction.ruleRhsProjsOK`) excludes the auxiliary
@@ -41,13 +41,13 @@ namespace Lean.Expr
 open Lean4Lean
 
 /-- **Two trailing hit shapes at different levels give trailing avoidance.** -/
-theorem HitTrailWith.toHitTrailAvoids_two {heads names X : List Name} {np : Nat}
+theorem TrailingArgs.toHitTrailAvoids_two {heads names X : List Name} {np : Nat}
     {ls ls' : List Level} {e : Expr}
-    (H : HitTrailWith heads np (HitShape names [] ls) e)
-    (H' : HitTrailWith heads np (HitShape names [] ls') e)
+    (H : TrailingArgs heads np (ParamUniform names [] ls) e)
+    (H' : TrailingArgs heads np (ParamUniform names [] ls') e)
     (hne : ls ≠ ls') (hX : ∀ n ∈ X, n ∈ names)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts names) :
-    e.HitTrailAvoids heads X np := by
+    e.TrailingArgsAvoid heads X np := by
   induction H with
   | bvar => exact .bvar _
   | fvar => exact .fvar _
@@ -104,10 +104,10 @@ namespace Lean.Expr
 open Lean4Lean
 
 /-- Trailing avoidance of a list covered by two avoided lists. -/
-theorem HitTrailAvoids.of_cover {heads L L₁ L₂ : List Name} {np : Nat}
+theorem TrailingArgsAvoid.of_cover {heads L L₁ L₂ : List Name} {np : Nat}
     (hcover : ∀ n ∈ L, n ∈ L₁ ∨ n ∈ L₂) {e : Expr}
-    (h₁ : e.HitTrailAvoids heads L₁ np) (h₂ : e.HitTrailAvoids heads L₂ np) :
-    e.HitTrailAvoids heads L np := by
+    (h₁ : e.TrailingArgsAvoid heads L₁ np) (h₂ : e.TrailingArgsAvoid heads L₂ np) :
+    e.TrailingArgsAvoid heads L np := by
   induction h₁ with
   | bvar => exact .bvar _
   | fvar => exact .fvar _
@@ -257,16 +257,16 @@ variable (H : CompletedRecursorConstruction R)
 /-- **The projection condition of one rule blueprint**: its field
 declarations and its recursive-call templates satisfy the projection
 condition of the hit-shape chain. -/
-theorem blueprintProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem blueprintProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
     (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     (∀ y ∈ (H.origins.minorShapes owner howner localIndex hlocal).fields_bound.fvars,
       ∃ d, (H.origins.minorShapes owner howner localIndex hlocal).sourceFullContext.lctx.find? y
-        = some d ∧ d.DeclProjsOK (projHitOK H.localContext.env heads)) ∧
+        = some d ∧ d.DeclProjsOK (projAvoidsHeads H.localContext.env heads)) ∧
     (∀ j, j < (H.origins.minorShapes owner howner localIndex hlocal).hypotheses.size →
       (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template.ProjsOK
-        (projHitOK H.localContext.env heads)) := by
+        (projAvoidsHeads H.localContext.env heads)) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hcallRoots : RecInfoRuleBlueprintOriginAt stats
@@ -303,7 +303,7 @@ theorem blueprintProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
   rw [F.traversal_fields] at hfieldsTerm
   have hfieldDecls : ∀ y ∈ S.fields_bound.fvars, ∃ d,
       S.sourceFullContext.lctx.find? y = some d ∧
-        d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+        d.DeclProjsOK (projAvoidsHeads H.localContext.env heads) := by
     intro y hy
     obtain ⟨fv, index, name, type, bi, kind, hfv, hmem, hfind, htype⟩ :=
       hfieldsTerm _ (S.fields_bound.mem_fvars_iff.1 hy)
@@ -323,7 +323,7 @@ theorem blueprintProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
   rw [hstats] at hup
   rw [hfr] at hle
   have henv : originRoot.env = H.localContext.env := hle.env_eq.trans hTL.env_eq.symm
-  have hscope : Rorigin.HitOKScope H.localContext.env heads stats.params.toList
+  have hscope : Rorigin.ParamUniformScope H.localContext.env heads stats.params.toList
       stats.levels
       (fun fv => fv ∈ ExprArrayFVarIds S.fields ∨
         fv ∈ ExprArrayFVarIds stats.params) := by
@@ -336,7 +336,7 @@ theorem blueprintProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
       cases hfv
       rw [hle.declarations fv hmem, hfind'] at hfind
       cases hfind
-      exact LocalDecl.HitOK.of_cdecl htype
+      exact LocalDecl.ParamUniformIn.of_cdecl htype
     · rw [H.params.exprArrayFVarIds] at hpar
       have hmemP := H.params.mem_fvars_iff.1 hpar
       rw [hle.declarations fv (hparamTerm fv hmemP),
@@ -376,14 +376,14 @@ the hit-shape chain: they are built from the parameters, motives and minor
 premises of the recursor type, the constructor fields, and the recursive-call
 templates, whose substituent (a recursor applied to free variables) has no
 projection. -/
-theorem ruleRhsProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem ruleRhsProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (lvls : List Level)
     (blueprint : AddInductive.RecRuleBlueprint)
     (hmem : blueprint ∈ H.recInfos[owner]!.ruleBlueprints.toList) :
     (blueprint.build indTypes stats (H.recInfos.map (·.motive))
         (H.recInfos.flatMap (·.minors)) lvls H.localContext.lctx).rhs.ProjsOK
-      (projHitOK H.localContext.env heads) := by
+      (projAvoidsHeads H.localContext.env heads) := by
   obtain ⟨localIndex, hlocalB, hget⟩ := List.mem_iff_getElem.1 hmem
   have hlocalB' : localIndex < H.recInfos[owner]!.ruleBlueprints.size := by simpa using hlocalB
   have hlocal : localIndex < H.origins.minorTypes[owner]!.size := by
@@ -408,7 +408,7 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
       (blueprint.recursiveCalls.map fun call =>
         call.build indTypes stats (H.recInfos.map (·.motive))
           (H.recInfos.flatMap (·.minors)) lvls)).ProjsOK
-        (projHitOK H.localContext.env heads) := by
+        (projAvoidsHeads H.localContext.env heads) := by
     refine Expr.ProjsOK.mkAppN' (Expr.ProjsOK.mkAppN' (by rw [hminorFv]; trivial)
       fun a ha => ?_) fun a ha => ?_
     · rw [hBfields] at ha
@@ -440,7 +440,7 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
         (blueprint.recursiveCalls.map fun call =>
           call.build indTypes stats (H.recInfos.map (·.motive))
             (H.recInfos.flatMap (·.minors)) lvls))).ProjsOK
-        (projHitOK H.localContext.env heads) := by
+        (projAvoidsHeads H.localContext.env heads) := by
     revert hbody
     rw [hBlctx, hBfields]
     intro hbody
@@ -567,10 +567,10 @@ theorem NestedValidatedRunResult.auxRecNames_fresh_headerVEnv
       (wf.tr (safety := if isUnsafe then .unsafe else .safe)).find?_iff.2 ⟨ci, hv⟩
     rw [E.auxRecNames_fresh_source wf n hn] at hfind; cases hfind
 
-theorem hitPrimNames_not_reserved : ∀ n ∈ hitPrimNames, (`_nested).isPrefixOf n = false := by
+theorem hitPrimNames_not_reserved : ∀ n ∈ checkerPrimNames, (`_nested).isPrefixOf n = false := by
   decide
 
-theorem hitStrNames_not_reserved : ∀ n ∈ hitStrNames, (`_nested).isPrefixOf n = false := by
+theorem hitStrNames_not_reserved : ∀ n ∈ strLitNames, (`_nested).isPrefixOf n = false := by
   decide
 
 /-- **The environment condition of the hit-shape invariant at the lowered
@@ -583,7 +583,7 @@ theorem NestedValidatedRunResult.envHitShape_auxRecNames
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (ls : List Level) :
-    EnvHitShape E.production.ctorEnv E.auxRecNames 0 ls := by
+    EnvParamUniform E.production.ctorEnv E.auxRecNames 0 ls := by
   have hfresh : ∀ n ∈ E.auxRecNames, sourceProdEnv.find? n = none :=
     E.auxRecNames_fresh_source wf
   have hfreshC := E.auxRecNames_fresh_ctorEnv
@@ -795,7 +795,7 @@ rules.** The trailing provenance chain runs at the lowered recursor names
 without parameters at two different level lists (`badLevels`, `badLevels₂`):
 the recursor-pass environment does not contain them and no constant mentions
 them (`envHitShape_auxRecNames`), and the recursive calls put the recursors
-only at spine heads (`HitTrailWith.instantiate1'_argClosed`). The trailing
+only at spine heads (`TrailingArgs.instantiate1'_argClosed`). The trailing
 arguments mention them only at both level lists, hence not at all. -/
 theorem NestedValidatedRunResult.loweredRulesAvoid_auxRecNames
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
@@ -812,7 +812,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxRecNames
   rw [(C.generated.entry owner.val hi).rules_eq] at hrule'
   simp only [List.mem_map] at hrule'
   obtain ⟨blueprint, hmem, rfl⟩ := hrule'
-  have W : ∀ ls, WhnfHitOKFacts E.auxRecNames [] ls
+  have W : ∀ ls, WhnfPreservesParamUniform E.auxRecNames [] ls
       E.production.production.localContext.env := by
     intro ls
     refine .of_env ?_ (fun a ha => by simp at ha)
@@ -874,7 +874,7 @@ theorem NestedValidatedRunResult.loweredRules_projsOK
   -- the projection condition of the hit-shape chain
   have W := E.whnfHitOKFacts wf Hsources
   rw [← E.statsLevels] at W
-  have h1 : rule.rhs.ProjsOK (projHitOK P.localContext.env E.hitHeads) := by
+  have h1 : rule.rhs.ProjsOK (projAvoidsHeads P.localContext.env E.uniformHeads) := by
     have hr := hrule'
     rw [(P.generated.entry owner.val hi).rules_eq] at hr
     simp only [List.mem_map] at hr

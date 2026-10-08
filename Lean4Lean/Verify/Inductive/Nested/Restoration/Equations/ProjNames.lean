@@ -13,7 +13,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
   lowered header environment, whose projections are those of the base
   environment: old structures, absent from the restorable names.
 * Generated recursor types (`recursorProjNames`): the executable recursor type
-  satisfies the projection condition `ProjsOK (projHitOK env E.hitHeads)` of
+  satisfies the projection condition `ProjsOK (projAvoidsHeads env E.uniformHeads)` of
   the hit-shape chain (`CompletedRecursorConstruction.recursorTypeProjsOK`,
   the projection component of `recursorTypeHitShape`, which the hit-shape
   chain drops). Its translation is the canonical recursor type, which hence
@@ -93,9 +93,9 @@ def DeclProjsOK (ok : Name → Prop) : LocalDecl → Prop
   | .cdecl _ _ _ ty _ _ => ty.ProjsOK ok
   | .ldecl _ _ _ ty val _ _ => ty.ProjsOK ok ∧ val.ProjsOK ok
 
-theorem HitOK.declProjsOK {env : Lean.Kernel.Environment} {heads : List Name}
+theorem ParamUniformIn.declProjsOK {env : Lean.Kernel.Environment} {heads : List Name}
     {params : List Expr} {ls : List Level} {d : LocalDecl}
-    (H : d.HitOK env heads params ls) : d.DeclProjsOK (Lean4Lean.projHitOK env heads) := by
+    (H : d.ParamUniformIn env heads params ls) : d.DeclProjsOK (Lean4Lean.projAvoidsHeads env heads) := by
   cases d with
   | cdecl => exact H.1.2
   | ldecl _ _ _ _ v nd _ => exact ⟨H.1.2, (H.2 v (by cases nd <;> rfl)).2⟩
@@ -204,16 +204,16 @@ theorem BoundFVarTypeOrigins.declProjsOK {ok : Name → Prop} {c : AddInductive.
 and R3): the projection component of `RecInfoMinorHypothesisTypeOrigin.hitShape`. -/
 theorem RecInfoMinorHypothesisTypeOrigin.projsOK
     {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
-    (W : WhnfHitOKFacts heads params ls env)
+    (W : WhnfPreservesParamUniform heads params ls env)
     (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
     {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
     {root : AddInductive.Context} {field type : Expr}
     (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
     (henv : root.env = env)
     {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
-    {P : FVarId → Prop} (hscope : Rroot.HitOKScope env heads params ls P)
+    {P : FVarId → Prop} (hscope : Rroot.ParamUniformScope env heads params ls P)
     (hfieldP : ∀ fv, field = .fvar fv → P fv) :
-    type.ProjsOK (projHitOK env heads) := by
+    type.ProjsOK (projAvoidsHeads env heads) := by
   have hinference := O.loopInput.inference
   have hnormalization := O.loopInput.normalization
   obtain ⟨fv, hfield, hfvRoot⟩ := O.field_fvar
@@ -238,9 +238,9 @@ theorem RecInfoMinorHypothesisTypeOrigin.projsOK
   have hinferred₀ : TrExprS RF.venv recLparams RF.chk.vlctx
       O.loopInput.inferredType ty₀ := by
     rw [hinferredEq]; exact htr₀
-  have hdeclH : (LocalDecl.cdecl index fv dname dtype dbi dkind).HitOK env heads params ls :=
+  have hdeclH : (LocalDecl.cdecl index fv dname dtype dbi dkind).ParamUniformIn env heads params ls :=
     hscope.2 fv _ hfvP (by rw [Rroot.lctx_eq]; exact hdecl)
-  have hinferredH : O.loopInput.inferredType.HitOK env heads params ls := by
+  have hinferredH : O.loopInput.inferredType.ParamUniformIn env heads params ls := by
     rw [hty]
     exact hdeclH.1
   have hfieldPin : (Expr.fvar fv).FVarsIn P := by simpa [FVarsIn] using hfvP
@@ -250,7 +250,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.projsOK
     hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
   obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
     whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ hnormalization
-  have hnormalizedH : O.loopInput.normalizedType.HitOK env heads params ls :=
+  have hnormalizedH : O.loopInput.normalizedType.ParamUniformIn env heads params ls :=
     W.whnf RF henv hinferredTr ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
       hnormalization
   have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
@@ -259,7 +259,7 @@ theorem RecInfoMinorHypothesisTypeOrigin.projsOK
     O.loopTrace.hitShape W hp recursorConsumeTypeAnnotationsCompat henv RF hscope
       hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
   have hargDecls : ∀ x ∈ O.arguments_bound.fvars, ∀ decl,
-      O.current.lctx.find? x = some decl → decl.DeclProjsOK (projHitOK env heads) := by
+      O.current.lctx.find? x = some decl → decl.DeclProjsOK (projAvoidsHeads env heads) := by
     intro x hx decl hdecl
     have hxArg : Expr.fvar x ∈ O.args.toList := by
       rw [O.arguments_bound.expressions]
@@ -297,12 +297,12 @@ variable (H : CompletedRecursorConstruction R)
 /-- **The projection condition of one generated minor premise type**: the
 projection component of `minorHitShape` (field declarations, induction
 hypotheses and the minor's declared type). -/
-theorem minorProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem minorProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
     (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     (H.origins.minorShapes owner howner localIndex hlocal).origin.ProjsOK
-      (projHitOK H.localContext.env heads) := by
+      (projAvoidsHeads H.localContext.env heads) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hcallRoots : RecInfoRuleBlueprintOriginAt stats
@@ -339,7 +339,7 @@ theorem minorProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
   rw [F.traversal_fields] at hfieldsTerm
   have hfieldDecls : ∀ y ∈ S.fields_bound.fvars, ∃ d,
       S.sourceFullContext.lctx.find? y = some d ∧
-        d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+        d.DeclProjsOK (projAvoidsHeads H.localContext.env heads) := by
     intro y hy
     obtain ⟨fv, index, name, type, bi, kind, hfv, hmem, hfind, htype⟩ :=
       hfieldsTerm _ (S.fields_bound.mem_fvars_iff.1 hy)
@@ -355,14 +355,14 @@ theorem minorProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
     S.hypothesis_origins_fieldRoot origins F.traversal hshape F.traversal_eq
   have hper : ∀ j, j < S.hypotheses.size →
       ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
-        D.type.ProjsOK (projHitOK H.localContext.env heads) := by
+        D.type.ProjsOK (projAvoidsHeads H.localContext.env heads) := by
     intro j hj
     obtain ⟨originRoot, sourceType, recL, Rorigin, O, D, hle, hup, hD, -⟩ :=
       Hcalls.rooted j hj
     rw [hstats] at hup
     rw [hfr] at hle
     have henv : originRoot.env = H.localContext.env := hle.env_eq.trans hTL.env_eq.symm
-    have hscope : Rorigin.HitOKScope H.localContext.env heads stats.params.toList
+    have hscope : Rorigin.ParamUniformScope H.localContext.env heads stats.params.toList
         stats.levels
         (fun fv => fv ∈ ExprArrayFVarIds S.fields ∨
           fv ∈ ExprArrayFVarIds stats.params) := by
@@ -375,7 +375,7 @@ theorem minorProjsOK {heads : List Name} (I : H.HitShapeInputs heads)
         cases hfv
         rw [hle.declarations fv hmem, hfind'] at hfind
         cases hfind
-        exact LocalDecl.HitOK.of_cdecl htype
+        exact LocalDecl.ParamUniformIn.of_cdecl htype
       · rw [H.params.exprArrayFVarIds] at hpar
         have hmemP := H.params.mem_fvars_iff.1 hpar
         rw [hle.declarations fv (hparamTerm fv hmemP),
@@ -435,21 +435,21 @@ variable {heads : List Name}
 
 /-- Index declarations (region R1): the projection component of
 `indexDeclHitShape`. -/
-theorem indexDeclProjsOK (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem indexDeclProjsOK (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     {k : Nat} (hk : k < H.recInfos.size) {y : FVarId}
     (hy : Expr.fvar y ∈ H.recInfos[k]!.indices) :
     ∃ d, H.localContext.lctx.find? y = some d ∧
-      d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+      d.DeclProjsOK (projAvoidsHeads H.localContext.env heads) := by
   obtain ⟨type, T⟩ := H.minorSources.traces k hk
   have hparamDecls : ∀ fv ∈ ExprArrayFVarIds stats.params, ∀ d,
       H.localContext.lctx.find? fv = some d →
-        d.HitOK H.localContext.env heads stats.params.toList stats.levels := by
+        d.ParamUniformIn H.localContext.env heads stats.params.toList stats.levels := by
     intro fv hfv d hfind
     rw [H.params.exprArrayFVarIds] at hfv
     exact I.paramDecls fv hfv d hfind
   obtain ⟨-, hidx⟩ := T.hitShape W H.params_fvar rfl hparamDecls
-    (Expr.HitOK.of_avoids (I.familyHeaders k (H.sourceOwner hk)).1
+    (Expr.ParamUniformIn.of_avoids (I.familyHeaders k (H.sourceOwner hk)).1
       (I.familyHeaders k (H.sourceOwner hk)).2)
   have hyMem : y ∈ (H.bindings.indices k hk).fvars :=
     (H.bindings.indices k hk).mem_fvars_iff.2 hy
@@ -477,11 +477,11 @@ theorem majorDeclProjsOK {ok : Name → Prop} {y : FVarId}
     trivial
 
 /-- Motive declarations: `∀ indices, ∀ (t : I params indices), Sort u`. -/
-theorem motiveDeclProjsOK (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem motiveDeclProjsOK (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.map (·.motive)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧
-      d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+      d.DeclProjsOK (projAvoidsHeads H.localContext.env heads) := by
   refine H.origins.motives.declProjsOK (fun i hi => ?_) hy
   have hi' : i < H.recInfos.size := by simpa using hi
   rw [H.motiveShapes.shape i hi']
@@ -496,18 +496,18 @@ theorem motiveDeclProjsOK (I : H.HitShapeInputs heads)
   exact Array.mem_map.2 ⟨_, H.mem_recInfos hi', rfl⟩
 
 /-- Minor premise declarations. -/
-theorem minorDeclProjsOK (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem minorDeclProjsOK (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     {y : FVarId} (hy : Expr.fvar y ∈ H.recInfos.flatMap (·.minors)) :
     ∃ d, H.localContext.lctx.find? y = some d ∧
-      d.DeclProjsOK (projHitOK H.localContext.env heads) := by
+      d.DeclProjsOK (projAvoidsHeads H.localContext.env heads) := by
   obtain ⟨i, hi, hget⟩ := Array.mem_iff_getElem.mp hy
   obtain ⟨D⟩ := H.bindings.flatMinors.declarationAt H.localWF i hi
   obtain ⟨Fm⟩ := H.origins.flatMinorOrigin D
   have hDy : D.fvar = y := Expr.fvar.inj (D.expression.symm.trans hget)
   subst hDy
   refine ⟨_, D.declaration, ?_⟩
-  show D.type.ProjsOK (projHitOK H.localContext.env heads)
+  show D.type.ProjsOK (projAvoidsHeads H.localContext.env heads)
   rw [Fm.originType_eq]
   have howner := Fm.owner_lt
   have hlocal : Fm.localIndex < H.origins.minorTypes[Fm.owner]!.size := by
@@ -520,11 +520,11 @@ theorem minorDeclProjsOK (I : H.HitShapeInputs heads)
 /-- **Generated recursor types satisfy the projection condition**: the
 projection component of `recursorTypeHitShape`, for the executable recursor
 type `declareRecursors.recursorType` (before `inferImplicit`). -/
-theorem recursorTypeProjsOK (I : H.HitShapeInputs heads)
-    (W : WhnfHitOKFacts heads stats.params.toList stats.levels H.localContext.env)
+theorem recursorTypeProjsOK (I : H.ParamUniformDeclarations heads)
+    (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) :
     (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx
-      owner).ProjsOK (projHitOK H.localContext.env heads) := by
+      owner).ProjsOK (projAvoidsHeads H.localContext.env heads) := by
   have hp := H.params_fvar
   have hownerC : owner < stats.indConsts.size := by
     rw [H.validStats.types_size, ← H.recInfos_size_eq]; exact howner
@@ -532,7 +532,7 @@ theorem recursorTypeProjsOK (I : H.HitShapeInputs heads)
   have hmajorMem : H.recInfos[owner]!.major ∈ #[H.recInfos[owner]!.major] := by simp
   obtain ⟨jfv, hjfv, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.major owner howner) hmajorMem
   have hbody : (Expr.app (mkAppN H.recInfos[owner]!.motive H.recInfos[owner]!.indices)
-      H.recInfos[owner]!.major).ProjsOK (projHitOK H.localContext.env heads) := by
+      H.recInfos[owner]!.major).ProjsOK (projAvoidsHeads H.localContext.env heads) := by
     refine ⟨Expr.ProjsOK.mkAppN' (by rw [hmfv]; trivial) fun a ha => ?_,
       by rw [hjfv]; trivial⟩
     obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem (H.bindings.indices owner howner)
@@ -615,7 +615,7 @@ theorem NestedValidatedRunResult.constructorProjNames_of
   exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hinfo
 
 /-- **Field `recursorProjNames`**: the executable recursor type satisfies the
-projection condition at the heads `E.hitHeads` (no projection out of an
+projection condition at the heads `E.uniformHeads` (no projection out of an
 auxiliary family) and is translated in the recursor-pass environment, which
 registers only base structures and lowered families (no auxiliary constructor
 or recursor). The canonical recursor type is its translation. -/

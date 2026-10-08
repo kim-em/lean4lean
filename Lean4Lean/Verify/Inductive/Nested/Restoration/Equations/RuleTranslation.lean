@@ -9,8 +9,8 @@ The right-hand side of a restored recursor rule is the executable restoration
 environment of a renaming restoration substitution, given that the syntax the
 executable copies verbatim avoids the restorable names. This file restates
 that theorem with its hypotheses on the stored lowered input, in the form in
-which they are available for lowered rules (`Expr.HitTrailAvoids`,
-`Expr.LamPrefixAvoids`, `Expr.HitShapeTele`).
+which they are available for lowered rules (`Expr.TrailingArgsAvoid`,
+`Expr.LamPrefixAvoids`, `Expr.ParamUniformTele`).
 -/
 
 namespace Lean4Lean
@@ -21,9 +21,9 @@ open InductiveSignature (Restoration HeadSpecialization instantiateParams)
 
 namespace VerifyInductive
 
-theorem _root_.Lean.Expr.HitTrailAvoids.toHitTrailWith {heads names : List Name} {np : Nat}
-    {e : Expr} (H : e.HitTrailAvoids heads names np) :
-    e.HitTrailWith heads np (·.AvoidsConsts names) := by
+theorem _root_.Lean.Expr.TrailingArgsAvoid.toHitTrailWith {heads names : List Name} {np : Nat}
+    {e : Expr} (H : e.TrailingArgsAvoid heads names np) :
+    e.TrailingArgs heads np (·.AvoidsConsts names) := by
   induction H with
   | bvar => exact .bvar _
   | fvar => exact .fvar _
@@ -84,9 +84,9 @@ theorem NestedRestorationOpening.translatesLambdaTrail
       VLCtx.SameUpToDeps (fvarScope Hopen.selection.fvars Dt) Δt0 →
       RestoreHeadsTranslate r result env envT Us (Us₀.map Level.param) Hopen.params Δt0)
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
-    (Hshape : Expr.HitShapeTele (r.heads.map (·.auxiliary)) result.nparams
+    (Hshape : Expr.ParamUniformTele (r.heads.map (·.auxiliary)) result.nparams
       (Us₀.map Level.param) input)
-    (Htrail : input.HitTrailAvoids (r.heads.map (·.auxiliary)) r.restorableNames
+    (Htrail : input.TrailingArgsAvoid (r.heads.map (·.auxiliary)) r.restorableNames
       result.nparams)
     (Hdom : input.LamPrefixAvoids r.restorableNames result.nparams)
     (Hprojs : input.ProjsOK (· ∉ r.restorableNames))
@@ -96,7 +96,7 @@ theorem NestedRestorationOpening.translatesLambdaTrail
   subst hr
   have hclosed : Closed input := by simpa [VLCtx.bvars] using Hs.closed
   rcases Hopen.opening.lambdaResidualData Htel with ⟨fvars, hAs, hlen, hbody⟩
-  have HbodyTrail : Hopen.body.HitTrailWith
+  have HbodyTrail : Hopen.body.TrailingArgs
       ((InductiveSignature.compilationRestoration decl auxiliaries).heads.map (·.auxiliary))
       result.nparams
       (·.AvoidsConsts (InductiveSignature.compilationRestoration decl auxiliaries).restorableNames) := by

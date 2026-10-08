@@ -550,7 +550,7 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
       (sourceTypes.map (·.name)) oldRecName stepSource stepTarget)
     (hname : oldRecName =
       E.production.production.canonicalGeneration.recursorName owner)
-    (Hshape : Expr.HitShapeTele
+    (Hshape : Expr.ParamUniformTele
       ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
       result.nparams (lparams.map Level.param) Hstep.oldInfo.type)
     {targetEnv : VEnv}

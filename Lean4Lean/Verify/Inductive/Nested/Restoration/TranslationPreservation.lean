@@ -32,34 +32,34 @@ translation contexts (`RestoreTypedCtx`).
 
 namespace Lean.Expr
 
-/-- `HitTrailWith heads np Q e`: in `e`, every argument after the first `np` of an
+/-- `TrailingArgs heads np Q e`: in `e`, every argument after the first `np` of an
 application spine headed by a constant of `heads` satisfies `Q`. The generalization of
-`HitTrailAvoids` (without its literal clause) to an arbitrary condition. -/
-inductive HitTrailWith (heads : List Name) (np : Nat) (Q : Expr → Prop) : Expr → Prop
-  | bvar (i : Nat) : HitTrailWith heads np Q (.bvar i)
-  | fvar (fv : FVarId) : HitTrailWith heads np Q (.fvar fv)
-  | mvar (mv : MVarId) : HitTrailWith heads np Q (.mvar mv)
-  | sort (u : Level) : HitTrailWith heads np Q (.sort u)
-  | const (c : Name) (us : List Level) : HitTrailWith heads np Q (.const c us)
-  | lit (l : Literal) : HitTrailWith heads np Q (.lit l)
-  | app {f a : Expr} : HitTrailWith heads np Q f → HitTrailWith heads np Q a →
+`TrailingArgsAvoid` (without its literal clause) to an arbitrary condition. -/
+inductive TrailingArgs (heads : List Name) (np : Nat) (Q : Expr → Prop) : Expr → Prop
+  | bvar (i : Nat) : TrailingArgs heads np Q (.bvar i)
+  | fvar (fv : FVarId) : TrailingArgs heads np Q (.fvar fv)
+  | mvar (mv : MVarId) : TrailingArgs heads np Q (.mvar mv)
+  | sort (u : Level) : TrailingArgs heads np Q (.sort u)
+  | const (c : Name) (us : List Level) : TrailingArgs heads np Q (.const c us)
+  | lit (l : Literal) : TrailingArgs heads np Q (.lit l)
+  | app {f a : Expr} : TrailingArgs heads np Q f → TrailingArgs heads np Q a →
       (∀ c us, (Expr.app f a).getAppFn = .const c us → c ∈ heads →
         ∀ x ∈ ((Expr.app f a).getAppArgsList).drop np, Q x) →
-      HitTrailWith heads np Q (.app f a)
+      TrailingArgs heads np Q (.app f a)
   | lam {n : Name} {t b : Expr} {bi : BinderInfo} :
-      HitTrailWith heads np Q t → HitTrailWith heads np Q b →
-      HitTrailWith heads np Q (.lam n t b bi)
+      TrailingArgs heads np Q t → TrailingArgs heads np Q b →
+      TrailingArgs heads np Q (.lam n t b bi)
   | forallE {n : Name} {t b : Expr} {bi : BinderInfo} :
-      HitTrailWith heads np Q t → HitTrailWith heads np Q b →
-      HitTrailWith heads np Q (.forallE n t b bi)
+      TrailingArgs heads np Q t → TrailingArgs heads np Q b →
+      TrailingArgs heads np Q (.forallE n t b bi)
   | letE {n : Name} {t v b : Expr} {nd : Bool} :
-      HitTrailWith heads np Q t → HitTrailWith heads np Q v →
-      HitTrailWith heads np Q b →
-      HitTrailWith heads np Q (.letE n t v b nd)
-  | mdata {m : MData} {e : Expr} : HitTrailWith heads np Q e →
-      HitTrailWith heads np Q (.mdata m e)
-  | proj {s : Name} {i : Nat} {e : Expr} : HitTrailWith heads np Q e →
-      HitTrailWith heads np Q (.proj s i e)
+      TrailingArgs heads np Q t → TrailingArgs heads np Q v →
+      TrailingArgs heads np Q b →
+      TrailingArgs heads np Q (.letE n t v b nd)
+  | mdata {m : MData} {e : Expr} : TrailingArgs heads np Q e →
+      TrailingArgs heads np Q (.mdata m e)
+  | proj {s : Name} {i : Nat} {e : Expr} : TrailingArgs heads np Q e →
+      TrailingArgs heads np Q (.proj s i e)
 
 end Lean.Expr
 
@@ -403,7 +403,7 @@ theorem restorationTranslates'_hit
     {Δt0 : VLCtx} (Hheads : RestoreHeadsTranslate r result env envT Us auxLevels As Δt0)
     {e : Expr} {c : Name} {us : List Level} {Δs Δt : VLCtx} {s : VExpr}
     (hfn : e.getAppFn = .const c us) (hmem : c ∈ r.heads.map (·.auxiliary))
-    (Hshape : e.HitShape (r.heads.map (·.auxiliary)) As.toList auxLevels)
+    (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
     (Htrail : ∀ x ∈ e.getAppArgsList.drop result.nparams, x.AvoidsConsts r.restorableNames)
     (Hprojs : e.ProjsOK (· ∉ r.restorableNames))
     (Hctx : RestoreTypedCtx r envL envT ρ σ Us.length Δs Δt)
@@ -493,8 +493,8 @@ theorem restorationTranslates'
     (Hlitnames : ∀ l : Literal, l.toConstructor.AvoidsConsts r.restorableNames)
     {Δt0 : VLCtx} (Hheads : RestoreHeadsTranslate r result env envT Us auxLevels As Δt0)
     {e : Expr} {Δs Δt : VLCtx} {s : VExpr}
-    (Hshape : e.HitShape (r.heads.map (·.auxiliary)) As.toList auxLevels)
-    (Htrail : e.HitTrailWith (r.heads.map (·.auxiliary)) result.nparams
+    (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
+    (Htrail : e.TrailingArgs (r.heads.map (·.auxiliary)) result.nparams
       (·.AvoidsConsts r.restorableNames))
     (Hprojs : e.ProjsOK (· ∉ r.restorableNames))
     (Hctx : RestoreTypedCtx r envL envT ρ σ Us.length Δs Δt)
@@ -1070,8 +1070,8 @@ theorem NestedRestorationOpening.translatesForall
     (Htel : Expr.ForallTelescope input result.nparams suffix)
     (Hav : (Expr.forallDomainsOnly result.nparams input).AvoidsConsts r.restorableNames)
     (Hpj : (Expr.forallDomainsOnly result.nparams input).ProjsOK (· ∉ r.restorableNames))
-    (Hshape : Hopen.body.HitShape (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
-    (Htrail : Hopen.body.HitTrailWith (r.heads.map (·.auxiliary)) result.nparams
+    (Hshape : Hopen.body.ParamUniform (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
+    (Htrail : Hopen.body.TrailingArgs (r.heads.map (·.auxiliary)) result.nparams
       (·.AvoidsConsts r.restorableNames))
     (Hprojs : Hopen.body.ProjsOK (· ∉ r.restorableNames))
     (Hrestored : Closed Hopen.restoredBody)
@@ -1239,8 +1239,8 @@ theorem NestedRestorationOpening.translatesLambda
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
     (Hav : (Expr.lamDomainsOnly result.nparams input).AvoidsConsts r.restorableNames)
     (Hpj : (Expr.lamDomainsOnly result.nparams input).ProjsOK (· ∉ r.restorableNames))
-    (Hshape : Hopen.body.HitShape (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
-    (Htrail : Hopen.body.HitTrailWith (r.heads.map (·.auxiliary)) result.nparams
+    (Hshape : Hopen.body.ParamUniform (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
+    (Htrail : Hopen.body.TrailingArgs (r.heads.map (·.auxiliary)) result.nparams
       (·.AvoidsConsts r.restorableNames))
     (Hprojs : Hopen.body.ProjsOK (· ∉ r.restorableNames))
     (Hrestored : Closed Hopen.restoredBody)

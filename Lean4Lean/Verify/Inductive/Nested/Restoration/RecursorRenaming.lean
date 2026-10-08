@@ -28,36 +28,36 @@ open Lean4Lean
 
 /-! ### Input-side avoidance at hits -/
 
-/-- `HitTrailAvoids heads names np e`: in `e`, every literal and every argument
+/-- `TrailingArgsAvoid heads names np e`: in `e`, every literal and every argument
 after the first `np` of an application spine headed by a constant of `heads`
 (a *hit*; `restoreNestedNode` copies these arguments verbatim) avoids `names`.
 Parameter arguments and everything outside hits are unconstrained. -/
-inductive HitTrailAvoids (heads names : List Name) (np : Nat) : Expr → Prop
-  | bvar (i : Nat) : HitTrailAvoids heads names np (.bvar i)
-  | fvar (fv : FVarId) : HitTrailAvoids heads names np (.fvar fv)
-  | mvar (mv : MVarId) : HitTrailAvoids heads names np (.mvar mv)
-  | sort (u : Level) : HitTrailAvoids heads names np (.sort u)
-  | const (c : Name) (us : List Level) : HitTrailAvoids heads names np (.const c us)
+inductive TrailingArgsAvoid (heads names : List Name) (np : Nat) : Expr → Prop
+  | bvar (i : Nat) : TrailingArgsAvoid heads names np (.bvar i)
+  | fvar (fv : FVarId) : TrailingArgsAvoid heads names np (.fvar fv)
+  | mvar (mv : MVarId) : TrailingArgsAvoid heads names np (.mvar mv)
+  | sort (u : Level) : TrailingArgsAvoid heads names np (.sort u)
+  | const (c : Name) (us : List Level) : TrailingArgsAvoid heads names np (.const c us)
   | lit (l : Literal) : (Expr.lit l).AvoidsConsts names →
-      HitTrailAvoids heads names np (.lit l)
-  | app {f a : Expr} : HitTrailAvoids heads names np f → HitTrailAvoids heads names np a →
+      TrailingArgsAvoid heads names np (.lit l)
+  | app {f a : Expr} : TrailingArgsAvoid heads names np f → TrailingArgsAvoid heads names np a →
       (∀ c us, (Expr.app f a).getAppFn = .const c us → c ∈ heads →
         ∀ x ∈ ((Expr.app f a).getAppArgsList).drop np, x.AvoidsConsts names) →
-      HitTrailAvoids heads names np (.app f a)
+      TrailingArgsAvoid heads names np (.app f a)
   | lam {n : Name} {t b : Expr} {bi : BinderInfo} :
-      HitTrailAvoids heads names np t → HitTrailAvoids heads names np b →
-      HitTrailAvoids heads names np (.lam n t b bi)
+      TrailingArgsAvoid heads names np t → TrailingArgsAvoid heads names np b →
+      TrailingArgsAvoid heads names np (.lam n t b bi)
   | forallE {n : Name} {t b : Expr} {bi : BinderInfo} :
-      HitTrailAvoids heads names np t → HitTrailAvoids heads names np b →
-      HitTrailAvoids heads names np (.forallE n t b bi)
+      TrailingArgsAvoid heads names np t → TrailingArgsAvoid heads names np b →
+      TrailingArgsAvoid heads names np (.forallE n t b bi)
   | letE {n : Name} {t v b : Expr} {nd : Bool} :
-      HitTrailAvoids heads names np t → HitTrailAvoids heads names np v →
-      HitTrailAvoids heads names np b →
-      HitTrailAvoids heads names np (.letE n t v b nd)
-  | mdata {m : MData} {e : Expr} : HitTrailAvoids heads names np e →
-      HitTrailAvoids heads names np (.mdata m e)
-  | proj {s : Name} {i : Nat} {e : Expr} : HitTrailAvoids heads names np e →
-      HitTrailAvoids heads names np (.proj s i e)
+      TrailingArgsAvoid heads names np t → TrailingArgsAvoid heads names np v →
+      TrailingArgsAvoid heads names np b →
+      TrailingArgsAvoid heads names np (.letE n t v b nd)
+  | mdata {m : MData} {e : Expr} : TrailingArgsAvoid heads names np e →
+      TrailingArgsAvoid heads names np (.mdata m e)
+  | proj {s : Name} {i : Nat} {e : Expr} : TrailingArgsAvoid heads names np e →
+      TrailingArgsAvoid heads names np (.proj s i e)
 
 /-- `LamPrefixAvoids names n e`: the first `n` binder domains of the lambda
 telescope `e` avoid `names`. -/
@@ -140,9 +140,9 @@ theorem eq_const_of_instantiate1'_fvar {fv : FVarId} {k : Nat} {c : Name} {us : 
   | .app .., h | .lam .., h | .forallE .., h | .letE .., h | .mdata .., h | .proj .., h => by
     simp [instantiate1'] at h
 
-theorem HitTrailAvoids.instantiate1'_fvar {heads names : List Name} {np : Nat} {e : Expr}
-    (H : e.HitTrailAvoids heads names np) (fv : FVarId) (k : Nat) :
-    (instantiate1' e (.fvar fv) k).HitTrailAvoids heads names np := by
+theorem TrailingArgsAvoid.instantiate1'_fvar {heads names : List Name} {np : Nat} {e : Expr}
+    (H : e.TrailingArgsAvoid heads names np) (fv : FVarId) (k : Nat) :
+    (instantiate1' e (.fvar fv) k).TrailingArgsAvoid heads names np := by
   induction H generalizing k with
   | bvar i =>
     rcases instantiate1'_fvar_bvar i k fv with ⟨j, h⟩ | h <;> rw [h]
@@ -172,26 +172,26 @@ theorem HitTrailAvoids.instantiate1'_fvar {heads names : List Name} {np : Nat} {
   | mdata _ ih => exact .mdata (ih k)
   | proj _ ih => exact .proj (ih k)
 
-theorem HitTrailAvoids.instantiateRevList_fvars {heads names : List Name} {np : Nat}
-    {e : Expr} (H : e.HitTrailAvoids heads names np) (fvs : List FVarId) (k : Nat) :
-    (e.instantiateRevList (fvs.map .fvar) k).HitTrailAvoids heads names np := by
+theorem TrailingArgsAvoid.instantiateRevList_fvars {heads names : List Name} {np : Nat}
+    {e : Expr} (H : e.TrailingArgsAvoid heads names np) (fvs : List FVarId) (k : Nat) :
+    (e.instantiateRevList (fvs.map .fvar) k).TrailingArgsAvoid heads names np := by
   induction fvs with
   | nil => simpa using H
   | cons fv fvs ih =>
     simp only [List.map_cons, instantiateRevList]
     exact ih.instantiate1'_fvar fv k
 
-/-- The residual of a lambda telescope inherits `HitTrailAvoids`. -/
-theorem HitTrailAvoids.lambdaTelescope {heads names : List Name} {np : Nat}
+/-- The residual of a lambda telescope inherits `TrailingArgsAvoid`. -/
+theorem TrailingArgsAvoid.lambdaTelescope {heads names : List Name} {np : Nat}
     {e suffix : Expr} {n : Nat} (Htel : Lean4Lean.VerifyInductive.Expr.LambdaTelescope e n suffix)
-    (H : e.HitTrailAvoids heads names np) : suffix.HitTrailAvoids heads names np := by
+    (H : e.TrailingArgsAvoid heads names np) : suffix.TrailingArgsAvoid heads names np := by
   induction Htel with
   | nil => exact H
   | cons _ ih => cases H with | lam _ hb => exact ih hb
 
 /-- At a hit, the trailing arguments avoid the names. -/
-theorem HitTrailAvoids.trail {heads names : List Name} {np : Nat} {e : Expr}
-    (H : e.HitTrailAvoids heads names np) {c : Name} {us : List Level}
+theorem TrailingArgsAvoid.trail {heads names : List Name} {np : Nat} {e : Expr}
+    (H : e.TrailingArgsAvoid heads names np) {c : Name} {us : List Level}
     (hfn : e.getAppFn = .const c us) (hc : c ∈ heads) :
     ∀ x ∈ e.getAppArgsList.drop np, x.AvoidsConsts names := by
   cases H with
@@ -436,8 +436,8 @@ theorem restorationCommutesTrail_hit
     (Hfresh : ∀ n ∈ r.restorableNames, n ∉ X → targetEnv.constants n = none)
     {e : Expr} {c : Name} {us : List Level} {Δs Δt : VLCtx} {s t : VExpr}
     (hfn : e.getAppFn = .const c us) (hmem : c ∈ r.heads.map (·.auxiliary))
-    (Hshape : e.HitShape (r.heads.map (·.auxiliary)) As.toList auxLevels)
-    (Htrail : e.HitTrailAvoids (r.heads.map (·.auxiliary)) X result.nparams)
+    (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
+    (Htrail : e.TrailingArgsAvoid (r.heads.map (·.auxiliary)) X result.nparams)
     (Hctx : RestoreCtxRel r Δs Δt)
     (Hs : TrExprS sourceEnv Us Δs e s)
     (Ht : TrExprS targetEnv Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t) :
@@ -489,7 +489,7 @@ theorem restorationCommutesTrail_hit
 input-side avoidance.** As `restorationCommutes'`, but the restorable names
 need only be fresh in `targetEnv` outside a list `X`; the names of `X` are
 instead required to be avoided by the trailing arguments of the hits and by
-the literals of the input (`Expr.HitTrailAvoids`). With `X = []` this is
+the literals of the input (`Expr.TrailingArgsAvoid`). With `X = []` this is
 `restorationCommutes'`; with `X = r.restorableNames` no environment freshness
 is needed at all. -/
 theorem restorationCommutesTrail
@@ -502,8 +502,8 @@ theorem restorationCommutesTrail
     {X : List Name}
     (Hfresh : ∀ n ∈ r.restorableNames, n ∉ X → targetEnv.constants n = none)
     {e : Expr} {Δs Δt : VLCtx} {s t : VExpr}
-    (Hshape : e.HitShape (r.heads.map (·.auxiliary)) As.toList auxLevels)
-    (Htrail : e.HitTrailAvoids (r.heads.map (·.auxiliary)) X result.nparams)
+    (Hshape : e.ParamUniform (r.heads.map (·.auxiliary)) As.toList auxLevels)
+    (Htrail : e.TrailingArgsAvoid (r.heads.map (·.auxiliary)) X result.nparams)
     (Hctx : RestoreCtxRel r Δs Δt)
     (Hs : TrExprS sourceEnv Us Δs e s)
     (Ht : TrExprS targetEnv Us Δt (e.replace (result.restoreNestedNode env As auxRec)) t) :
@@ -677,8 +677,8 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
     (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
     {X : List Name}
     (Hfresh : ∀ n ∈ r.restorableNames, n ∉ X → targetEnv.constants n = none)
-    (Hshape : Hopen.body.HitShape (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
-    (Htrail : input.HitTrailAvoids (r.heads.map (·.auxiliary)) X result.nparams)
+    (Hshape : Hopen.body.ParamUniform (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
+    (Htrail : input.TrailingArgsAvoid (r.heads.map (·.auxiliary)) X result.nparams)
     (Hdom : input.LamPrefixAvoids X result.nparams)
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
     (hnotForall : input.isForall = false)
@@ -705,7 +705,7 @@ theorem NestedRestorationOpening.restorationCommutesLamTrail
     rw [h1] at hAs
     simpa using hAs.symm
   rw [hfvars] at hbody
-  have HbodyTrail : Hopen.body.HitTrailAvoids (r.heads.map (·.auxiliary)) X
+  have HbodyTrail : Hopen.body.TrailingArgsAvoid (r.heads.map (·.auxiliary)) X
       result.nparams := by
     rw [hbody]
     exact (Htrail.lambdaTelescope Htel).instantiateRevList_fvars _ 0
@@ -775,7 +775,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_of_trail
       (sourceTypes.map (·.name))
       (E.production.production.canonicalGeneration.recursorName owner) s t)
     (Htrail : ∀ rule ∈ Hstep.oldInfo.rules,
-      rule.rhs.HitTrailAvoids
+      rule.rhs.TrailingArgsAvoid
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) X
           result.nparams ∧
         rule.rhs.LamPrefixAvoids X result.nparams)
@@ -885,7 +885,7 @@ end Commutation
 /-- **Input-side avoidance of the lowered recursor rules** (a property of the
 lowered environment): every rule right-hand side of the lowered recursor of
 every generated owner avoids `X` in the trailing arguments of its hits
-(`Expr.HitTrailAvoids heads X`), in its literals, and in its first
+(`Expr.TrailingArgsAvoid heads X`), in its literals, and in its first
 `result.nparams` lambda domains. -/
 def NestedValidatedRunResult.LoweredRulesAvoid
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -902,7 +902,7 @@ def NestedValidatedRunResult.LoweredRulesAvoid
         (E.production.production.canonicalGeneration.recursorName owner) =
       some (.recInfo rec) →
     ∀ rule ∈ rec.rules,
-      rule.rhs.HitTrailAvoids heads X result.nparams ∧
+      rule.rhs.TrailingArgsAvoid heads X result.nparams ∧
         rule.rhs.LamPrefixAvoids X result.nparams
 
 /-- **Realization of a restored equation list modulo `X`**: as

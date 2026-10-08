@@ -57,7 +57,7 @@ theorem whnfFVar.WF_all {c : VContext} {s : VState} (he : c.TrExprS (.fvar fv) e
     RecM.WF c s (whnfFVar (.fvar fv) cheapProj) fun e₁ _ =>
       ((c.FVarsBelow (.fvar fv) e₁ ∧ c.TrExpr e₁ e' ∧
       (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧ c.LevelsBelow (.fvar fv) e₁) ∧
-      c.HitBelow pfx (.fvar fv) e₁ := by
+      c.ParamUniformBelow pfx (.fvar fv) e₁ := by
   refine .getLCtx ?_
   simp [Expr.fvarId!]; split <;>
     [skip; exact .pure ⟨⟨⟨.rfl, he.trExpr c.Ewf c.Δwf, fun _ _ _ => he⟩, .rfl⟩, .rfl⟩]
@@ -86,7 +86,7 @@ theorem whnfFVar.WF {c : VContext} {s : VState} (he : c.TrExprS (.fvar fv) e') :
 theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnfCore' e cheapProj) fun e₁ _ =>
       ((c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧ (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧
-      c.LevelsBelow e e₁) ∧ c.HitBelow s.ngen.namePrefix e e₁ := by
+      c.LevelsBelow e e₁) ∧ c.ParamUniformBelow s.ngen.namePrefix e e₁ := by
   generalize hpfx : s.ngen.namePrefix = pfx
   unfold whnfCore'; extract_lets F
   let full := (· matches Expr.fvar _ | .app .. | .letE .. | .proj ..)
@@ -111,7 +111,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     exact h2.uniq c.Ewf (.refl c.Ewf c.Δwf) he
   have hsave {e₁ s} (hs : s.ngen.namePrefix = pfx) (h1 : c.FVarsBelow e e₁)
       (h2 : c.TrExpr e₁ e') (h3 : ∀ A B, e' = .forallE A B → c.TrExprS e₁ e')
-      (h4 : c.LevelsBelow e e₁) (h5 : c.HitBelow pfx e e₁) :
+      (h4 : c.LevelsBelow e e₁) (h5 : c.ParamUniformBelow pfx e e₁) :
       (save e cheapProj e₁).WF c s P := by
     simp [save]
     split <;> [skip; exact hP ▸ .pure ⟨⟨⟨h1, h2, h3⟩, h4⟩, h5⟩]
@@ -149,8 +149,8 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
         (hl1 Us P hs (Expr.levelParamsIn_getAppFn hl) hP.getAppFn)
         (Expr.levelParamsIn_getAppArgsRevList hl)
     have hhead_hit : (∀ n us, e.getAppFn ≠ .const n us) → ∀ heads As ls P,
-        c.HitScope pfx heads As ls P → e.HitOK c.env heads As ls → FVarsIn P e →
-        (f.mkAppRevList e.getAppArgsRevList).HitOK c.env heads As ls := by
+        c.ParamUniformScope pfx heads As ls P → e.ParamUniformIn c.env heads As ls → FVarsIn P e →
+        (f.mkAppRevList e.getAppArgsRevList).ParamUniformIn c.env heads As ls := by
       intro hnc heads As ls P hs hl hP
       have hf := hh1 heads As ls P hs (hl.getAppFn_of_not_hit fun c us h => absurd h (hnc c us))
         hP.getAppFn
@@ -228,7 +228,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
       exact hsave (VState.LE.namePrefix_eq hs le₂) (h3.trans h5) (h6.defeq c.Ewf c.Δwf eq)
         (fun A B h => (hne A B h).elim)
         (VContext.LevelsBelow.trans (fun Us P hs hl hP => hhead Us P hs hl hP _ hl1) h3 hl5)
-        (VContext.HitBelow.trans (fun heads As ls P hs hl hP => hhead_hit hnc heads As ls P hs hl hP)
+        (VContext.ParamUniformBelow.trans (fun heads As ls P hs hl hP => hhead_hit hnc heads As ls P hs hl hP)
           h3 hh5)
   · let .letE h1 h2 h3 h4 := he
     refine ((whnfCore.WF_below' (h4.inst_let c.Ewf.ordered h3)).and
@@ -240,7 +240,7 @@ theorem whnfCore'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
         (fun _ _ he => he.2.2.instantiate1 he.2.1) hl
       simp only [Expr.levelParamsIn, Bool.and_eq_true] at hl'
       exact Expr.levelParamsIn_instantiate1 hl'.2 hl'.1.2
-    · refine VContext.HitBelow.trans (fun heads As ls P hs hl' hP => ?_)
+    · refine VContext.ParamUniformBelow.trans (fun heads As ls P hs hl' hP => ?_)
         (fun _ _ he => he.2.2.instantiate1 he.2.1) hh
       have ⟨_, hv, hb⟩ := hl'.letE_inv
       exact hb.instantiate1' hs.params.fvars hv 0
@@ -266,13 +266,13 @@ theorem whnfCore'.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
   (whnfCore'.WF_all he).mono fun _ _ _ h => h.1.2
 
 theorem whnfCore'.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    RecM.WF c s (whnfCore' e cheapProj) fun e₁ _ => c.HitBelow s.ngen.namePrefix e e₁ :=
+    RecM.WF c s (whnfCore' e cheapProj) fun e₁ _ => c.ParamUniformBelow s.ngen.namePrefix e e₁ :=
   (whnfCore'.WF_all he).mono fun _ _ _ h => h.2
 
 theorem whnf'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (whnf' e) fun e₁ _ =>
       ((c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧ (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧
-      c.LevelsBelow e e₁) ∧ c.HitBelow s.ngen.namePrefix e e₁ := by
+      c.LevelsBelow e e₁) ∧ c.ParamUniformBelow s.ngen.namePrefix e e₁ := by
   generalize hpfx : s.ngen.namePrefix = pfx
   unfold whnf'; extract_lets F
   generalize hP : (fun e₁ (_ : VState) => _) = P
@@ -297,7 +297,7 @@ theorem whnf'.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
   have {e e' s n} (he : c.TrExprS e e') (hs : s.ngen.namePrefix = pfx) : (loop e n).WF c s
       fun e₁ _ =>
       ((c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' ∧ (∀ A B, e' = .forallE A B → c.TrExprS e₁ e')) ∧
-      c.LevelsBelow e e₁) ∧ c.HitBelow pfx e e₁ := by
+      c.LevelsBelow e e₁) ∧ c.ParamUniformBelow pfx e e₁ := by
     induction n generalizing s e e' with | zero => exact .throw | succ n ih => ?_
     refine .getEnv <| (whnfCore'.WF_all he).bind
       fun e₁ s₁ le₁ ⟨⟨⟨h1, ⟨_, he₁, eq⟩, hs'⟩, hl1⟩, hh1⟩ => ?_
@@ -362,7 +362,7 @@ theorem whnf'.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
   (whnf'.WF_all he).mono fun _ _ _ h => h.1.2
 
 theorem whnf'.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e') :
-    RecM.WF c s (whnf' e) fun e₁ _ => c.HitBelow s.ngen.namePrefix e e₁ :=
+    RecM.WF c s (whnf' e) fun e₁ _ => c.ParamUniformBelow s.ngen.namePrefix e e₁ :=
   (whnf'.WF_all he).mono fun _ _ _ h => h.2
 
 /-- `whnfCore'` returns a constant unchanged. -/

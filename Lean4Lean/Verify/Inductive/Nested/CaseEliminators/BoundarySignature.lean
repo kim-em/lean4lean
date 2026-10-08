@@ -44,7 +44,7 @@ theorem sourceSignature_headsApplied
     (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
     {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
-      Expr.HitShapeTele heads stats.params.size stats.levels ctor.type)
+      Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     (hparamsFree : ∀ A ∈ R.params, A.containsAnyConst heads = false) :
     ∀ normalized ∈ R.sourceSignature.declaration.types, ∀ ctor ∈ normalized.ctors,

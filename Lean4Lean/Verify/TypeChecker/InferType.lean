@@ -36,7 +36,7 @@ theorem ensureForallCore.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e
 
 theorem ensureForallCore.WF_hit {c : VContext} {s : VState} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
-    RecM.WF c s (ensureForallCore e e₀) fun e1 _ => c.HitBelow pfx e e1 := by
+    RecM.WF c s (ensureForallCore e e₀) fun e1 _ => c.ParamUniformBelow pfx e e1 := by
   simp [ensureForallCore]; split
   · exact .pure .rfl
   refine (whnf.WF_hit he hp).bind fun e _ _ hl => ?_; split
@@ -445,8 +445,8 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       ((∃ projected ty', c.TrTyping (.proj st i e) ty projected ty') ∧
       ∀ Us P, c.UniverseScope Us P → e.levelParamsIn Us = true →
         ety.levelParamsIn Us = true → FVarsIn P e → ty.levelParamsIn Us = true) ∧
-      ∀ heads As ls P, c.HitScope pfx heads As ls P → (Expr.proj st i e).HitOK c.env heads As ls →
-        ety.HitOK c.env heads As ls → FVarsIn P e → ty.HitOK c.env heads As ls := by
+      ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P → (Expr.proj st i e).ParamUniformIn c.env heads As ls →
+        ety.ParamUniformIn c.env heads As ls → FVarsIn P e → ty.ParamUniformIn c.env heads As ls := by
   unfold inferProj; lift_lets; intro pe
   refine ((whnf.WF_below hty).and (whnf.WF_hit hty hpfx)).bind
     fun type _ le₀ ⟨⟨hbt, hltT, tT', htT, hdefeq⟩, hhT⟩ => ?_
@@ -725,9 +725,9 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
         ((∃ projected ty', c.TrTyping (.proj st i e) ty projected ty') ∧
         ∀ Us P, c.UniverseScope Us P → e.levelParamsIn Us = true →
           ety.levelParamsIn Us = true → FVarsIn P e → ty.levelParamsIn Us = true) ∧
-        ∀ heads As ls P, c.HitScope pfx heads As ls P →
-          (Expr.proj st i e).HitOK c.env heads As ls →
-          ety.HitOK c.env heads As ls → FVarsIn P e → ty.HitOK c.env heads As ls := by
+        ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P →
+          (Expr.proj st i e).ParamUniformIn c.env heads As ls →
+          ety.ParamUniformIn c.env heads As ls → FVarsIn P e → ty.ParamUniformIn c.env heads As ls := by
     have hFty := hFl.defeqU_l c.Ewf c.Δwf hL
     have hp := VEnv.IsDefEq.projDF hinfo hlsWF hlen' hP'len (indexArgs := args'.drop info.nparams)
       (by simp; omega) hfield hFty (by rw [List.take_append_drop]; exact hety)
@@ -776,7 +776,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
       have hfvargs : ∀ a ∈ type.getAppArgsList, FVarsIn P a :=
         (FVarsIn.mkAppList.1 (type.mkAppList_getAppArgsList ▸ hfvtype)).2
       have hcnot := hok.2 I_val hci _ (by rw [hsingle]; exact .head _)
-      have hT₀ : ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels).HitOK
+      have hT₀ : ((ConstantInfo.ctorInfo c_val).instantiateTypeLevelParams I_levels).ParamUniformIn
           c.env heads As ls :=
         .instantiateLevelParams_of_avoids (hs.env.type_avoids hcci hcnot) (hs.env.type_projs hcci)
       have h1 := hfvAfter P hs.up hfvT₀ fun k _ a ha => hfvargs a (hmem k a ha)
@@ -831,17 +831,17 @@ theorem inferLambda.loop.WF_all {c : VContext} {e₀ : Expr}
     (hlev : ∀ Us P, c.UniverseScope Us P → e₀.levelParamsIn Us = true → FVarsIn P e₀ →
       (c.withMLC m).UniverseScope Us (AllAbove c.vlctx P) ∧ ei.levelParamsIn Us = true ∧
       ∀ ty, ty.levelParamsIn Us = true → (m.mkForall n hn ty).levelParamsIn Us = true)
-    (hhit : inferOnly = true → ∀ heads As ls P, c.HitScope pfx heads As ls P →
-      e₀.HitOK c.env heads As ls → FVarsIn P e₀ →
-      (c.withMLC m).HitScope pfx heads As ls (AllAbove c.vlctx P) ∧
-      ei.HitOK c.env heads As ls ∧
-      ∀ ty, ty.HitOK c.env heads As ls → (m.mkForall n hn ty).HitOK c.env heads As ls)
+    (hhit : inferOnly = true → ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P →
+      e₀.ParamUniformIn c.env heads As ls → FVarsIn P e₀ →
+      (c.withMLC m).ParamUniformScope pfx heads As ls (AllAbove c.vlctx P) ∧
+      ei.ParamUniformIn c.env heads As ls ∧
+      ∀ ty, ty.ParamUniformIn c.env heads As ls → (m.mkForall n hn ty).ParamUniformIn c.env heads As ls)
     (hpfx : s.ngen.namePrefix = pfx)
     (hr : e.FVarsIn (· ∈ m.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', (c.withMLC m).TrExprS ei e') :
     (inferLambda.loop inferOnly arr e).WF (c.withMLC m) s fun ty _ =>
       ((∃ e' ty', c.TrTyping e₀ ty e' ty') ∧ c.LevelsBelow e₀ ty) ∧
-      (inferOnly = true → c.HitBelow pfx e₀ ty) := by
+      (inferOnly = true → c.ParamUniformBelow pfx e₀ ty) := by
   unfold inferLambda.loop
   generalize eqfvs : (m.fvarRevList n hn).map Expr.fvar = fvs at *
   simp [harr, -bind_pure_comp]; split
@@ -894,7 +894,7 @@ theorem inferLambda.loop.WF_all {c : VContext} {e₀ : Expr}
         have hne := hs.params.ne_of_not_reserves (VState.LE.namePrefix_eq hpfx le₁) res
         have ⟨kd, kb⟩ := k2.lam_inv
         refine ⟨?_, ?_, fun ty hty => k3 _ (.forallE kd (hty.abstract1 hne 0))⟩
-        · refine VContext.HitScope.cons_same (c := c.withMLC m) rfl
+        · refine VContext.ParamUniformScope.cons_same (c := c.withMLC m) rfl
             (fun fv h => mwf'.1.find?_vlam h) k1
             ⟨h1, fun _ => (fvarsIn_iff.1 h2.1).1⟩ fun decl hd => ?_
           erw [mwf'.1.find?_vlam_self] at hd; cases hd
@@ -919,7 +919,7 @@ theorem inferLambda.loop.WF_all {c : VContext} {e₀ : Expr}
     have hd : FVarsIn (· ∈ (c.withMLC m).vlctx.fvars) (e.instantiateList fvs) := by
       apply hr.instantiateList; simp [← eqfvs]; exact m.fvarRevList_prefix.subset
     refine ((inferType.WF_below' hd hinf).and_forall (ι := Unit) (H := fun _ => inferOnly = true)
-      (R := fun _ ty => (c.withMLC m).HitTyBelow pfx (e.instantiateList fvs) ty) fun _ hio => ?_).bind
+      (R := fun _ ty => (c.withMLC m).ParamUniformTyBelow pfx (e.instantiateList fvs) ty) fun _ hio => ?_).bind
       fun ty _ _ ⟨⟨⟨e', ty', hb, h1, h2, h3⟩, hl⟩, hh⟩ => ?_
     · subst hio; let ⟨_, h⟩ := hinf rfl; exact inferType.WF_hit h hpfx
     refine .stateWF fun wf => .getLCtx <| .pure ?_
@@ -949,7 +949,7 @@ theorem inferLambda.WF_all
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     (inferLambda e inferOnly).WF c s fun ty _ =>
       ((∃ e' ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty) ∧
-      (inferOnly = true → c.HitBelow s.ngen.namePrefix e ty) := by
+      (inferOnly = true → c.ParamUniformBelow s.ngen.namePrefix e ty) := by
   refine .stateWF fun wf => ?_
   refine (c.withMLC_self ▸ inferLambda.loop.WF_all (Nat.zero_le _) rfl rfl rfl rfl ?_ ?_ ?_ rfl h1)
     hinf
@@ -961,12 +961,12 @@ theorem inferApp.loop.WF_all {c : VContext} {s : VState}
     {ll lm lr : List _}
     (stk : AppStack c.venv c.lparams c.vlctx (.mkAppRevList e lm) e' lr)
     (hbelow : FVarsBelow c.vlctx e fType) (hlev : c.LevelsBelow e fType)
-    (hhit : ∀ heads As ls P, c.HitScope pfx heads As ls P →
-      ((e.mkAppRevList lm).mkAppList lr).HitOK c.env heads As ls →
+    (hhit : ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P →
+      ((e.mkAppRevList lm).mkAppList lr).ParamUniformIn c.env heads As ls →
       FVarsIn P ((e.mkAppRevList lm).mkAppList lr) →
-      (fType.HitOK c.env heads As ls ∧ ∀ a ∈ lm, a.HitOK c.env heads As ls) ∨
+      (fType.ParamUniformIn c.env heads As ls ∧ ∀ a ∈ lm, a.ParamUniformIn c.env heads As ls) ∨
       ((∃ n ∈ heads, e = .const n ls) ∧ Expr.HeadRest heads As.length ls lm.length fType ∧
-        fType.ProjsOK (projHitOK c.env heads)))
+        fType.ProjsOK (projAvoidsHeads c.env heads)))
     (hpfx : s.ngen.namePrefix = pfx)
     (hfty : c.TrExpr (fType.instantiateList lm) fty') (hety : c.HasType e' fty')
     (hargs : args = ll ++ lm.reverse ++ lr)
@@ -974,15 +974,15 @@ theorem inferApp.loop.WF_all {c : VContext} {s : VState}
     RecM.WF c s (inferApp.loop e₀ ⟨args⟩ fType j i) fun ty _ =>
       ((∃ e₁' ty', c.TrTyping (e.mkAppRevList lm |>.mkAppList lr) ty e₁' ty') ∧
       c.LevelsBelow (e.mkAppRevList lm |>.mkAppList lr) ty) ∧
-      c.HitBelow pfx (e.mkAppRevList lm |>.mkAppList lr) ty := by
-  have key : ∀ heads As ls P, c.HitScope pfx heads As ls P →
-      ((e.mkAppRevList lm).mkAppList lr).HitOK c.env heads As ls →
+      c.ParamUniformBelow pfx (e.mkAppRevList lm |>.mkAppList lr) ty := by
+  have key : ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P →
+      ((e.mkAppRevList lm).mkAppList lr).ParamUniformIn c.env heads As ls →
       FVarsIn P ((e.mkAppRevList lm).mkAppList lr) →
       ((∀ nm d b bi, fType ≠ .forallE nm d b bi) ∨ lr = []) →
-      (fType.instantiateList lm).HitOK c.env heads As ls := by
+      (fType.instantiateList lm).ParamUniformIn c.env heads As ls := by
     intro heads As ls P hs hl hP hnf
     have hp := hs.params.fvars
-    have hargsOK : ∀ x ∈ lm, x.HitOK c.env heads As ls := fun x hx =>
+    have hargsOK : ∀ x ∈ lm, x.ParamUniformIn c.env heads As ls := fun x hx =>
       hl.of_mem_getAppArgsList hp (by
         simp [Expr.getAppArgsList_mkAppList_hit, Expr.getAppArgsList_mkAppRevList_hit, hx])
     rcases hhit heads As ls P hs hl hP with ⟨hfT, _⟩ | ⟨⟨n, hn, rfl⟩, hrest, hproj⟩
@@ -1004,7 +1004,7 @@ theorem inferApp.loop.WF_all {c : VContext} {s : VState}
         have hc := (c.mlctx.noBV ▸ stk.tr.closed).getAppArgsList
           (a := x) (by rw [Expr.getAppArgsList_mkAppRevList_hit, hconst]; simpa using hx)
         exact Nat.le_zero.1 hc.looseBVarRange_le
-      refine ⟨Expr.HitShapeB.instantiateList_params (d := lm.length - As.length) hp rfl
+      refine ⟨Expr.ParamUniformBV.instantiateList_params (d := lm.length - As.length) hp rfl
         (by omega) ?_
         (fun x hx => ⟨(hargsOK x hx).1, hcl x hx⟩) hB (by omega : _ = _ + 0),
         hproj.instantiateList (fun x hx => (hargsOK x hx).2) 0⟩
@@ -1035,7 +1035,7 @@ theorem inferApp.loop.WF_all {c : VContext} {s : VState}
         simp only [Expr.levelParamsIn, Bool.and_eq_true] at this
         exact this.2
       · intro heads As ls P hs hl hP
-        have haOK : a.HitOK c.env heads As ls := hl.of_mem_getAppArgsList hs.params.fvars (by
+        have haOK : a.ParamUniformIn c.env heads As ls := hl.of_mem_getAppArgsList hs.params.fvars (by
           simp [Expr.getAppArgsList_mkAppList_hit, Expr.getAppArgsList_mkAppRevList_hit])
         rcases hhit heads As ls P hs hl hP with ⟨hfT, hlm⟩ | ⟨hhead, hrest, hproj⟩
         · refine .inl ⟨hfT.forallE_inv.2, fun x hx => ?_⟩
@@ -1067,7 +1067,7 @@ theorem inferApp.loop.WF_all {c : VContext} {s : VState}
         simp only [Expr.levelParamsIn, Bool.and_eq_true] at this
         exact this.2
       · intro heads As ls P hs hl hP
-        have haOK : a.HitOK c.env heads As ls := hl.of_mem_getAppArgsList hs.params.fvars (by
+        have haOK : a.ParamUniformIn c.env heads As ls := hl.of_mem_getAppArgsList hs.params.fvars (by
           simp [Expr.getAppArgsList_mkAppList_hit, Expr.getAppArgsList_mkAppRevList_hit])
         have hP' : FVarsIn P (e.mkAppRevList lm) := by
           have := FVarsIn.mkAppList.1 hP; exact this.1.1
@@ -1090,7 +1090,7 @@ theorem inferApp.loop.WF_all {c : VContext} {s : VState}
 
 theorem inferApp.WF_all {c : VContext} {s : VState} (he : c.TrExprS e e') :
     RecM.WF c s (inferApp e) fun ty _ => ((∃ ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty) ∧
-      c.HitBelow s.ngen.namePrefix e ty := by
+      c.ParamUniformBelow s.ngen.namePrefix e ty := by
   rw [inferApp, Expr.withApp_eq, Expr.getAppArgs_eq]
   have ⟨_, he'⟩ := AppStack.build <| e.mkAppList_getAppArgsList ▸ he
   refine ((inferType.WF_below he'.tr).and (inferType.WF_hit he'.tr rfl)).bind
@@ -1227,17 +1227,17 @@ theorem inferLet.loop.WF_all {c : VContext} {e₀ : Expr}
     (hlev : ∀ Us P, c.UniverseScope Us P → e₀.levelParamsIn Us = true → FVarsIn P e₀ →
       (c.withMLC m).UniverseScope Us (AllAbove c.vlctx P) ∧ ei.levelParamsIn Us = true ∧
       ∀ ty, ty.levelParamsIn Us = true → (m.mkForall n hn ty).levelParamsIn Us = true)
-    (hhit : inferOnly = true → ∀ heads As ls P, c.HitScope pfx heads As ls P →
-      e₀.HitOK c.env heads As ls → FVarsIn P e₀ →
-      (c.withMLC m).HitScope pfx heads As ls (AllAbove c.vlctx P) ∧
-      ei.HitOK c.env heads As ls ∧
-      ∀ ty, ty.HitOK c.env heads As ls → (m.mkForall n hn ty).HitOK c.env heads As ls)
+    (hhit : inferOnly = true → ∀ heads As ls P, c.ParamUniformScope pfx heads As ls P →
+      e₀.ParamUniformIn c.env heads As ls → FVarsIn P e₀ →
+      (c.withMLC m).ParamUniformScope pfx heads As ls (AllAbove c.vlctx P) ∧
+      ei.ParamUniformIn c.env heads As ls ∧
+      ∀ ty, ty.ParamUniformIn c.env heads As ls → (m.mkForall n hn ty).ParamUniformIn c.env heads As ls)
     (hpfx : s.ngen.namePrefix = pfx)
     (hr : e.FVarsIn (· ∈ m.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', (c.withMLC m).TrExprS ei e') :
     (inferLet.loop inferOnly arr e).WF (c.withMLC m) s fun ty _ =>
       ((∃ e' ty', c.TrTyping e₀ ty e' ty') ∧ c.LevelsBelow e₀ ty) ∧
-      (inferOnly = true → c.HitBelow pfx e₀ ty) := by
+      (inferOnly = true → c.ParamUniformBelow pfx e₀ ty) := by
   generalize eqfvs : (m.fvarRevList n hn).map Expr.fvar = fvs at *
   unfold inferLet.loop
   simp [harr, -bind_pure_comp]; split
@@ -1302,7 +1302,7 @@ theorem inferLet.loop.WF_all {c : VContext} {e₀ : Expr}
         have hne := hs.params.ne_of_not_reserves (VState.LE.namePrefix_eq hpfx le₁) res
         have ⟨kd, kv, kb⟩ := k2.letE_inv
         refine ⟨?_, ?_, fun ty hty => k3 _ ?_⟩
-        · refine VContext.HitScope.cons_same (c := c.withMLC m) rfl
+        · refine VContext.ParamUniformScope.cons_same (c := c.withMLC m) rfl
             (fun fv h => mwf'.1.find?_vlet h) k1
             ⟨h1, fun _ => ?_⟩ fun decl hd => ?_
           · simp [or_imp, forall_and]
@@ -1337,7 +1337,7 @@ theorem inferLet.loop.WF_all {c : VContext} {e₀ : Expr}
     have hd : FVarsIn (· ∈ (c.withMLC m).vlctx.fvars) (e.instantiateList fvs) := by
       apply hr.instantiateList; simp [← eqfvs]; exact m.fvarRevList_prefix.subset
     refine ((inferType.WF_below' hd hinf).and_forall (ι := Unit) (H := fun _ => inferOnly = true)
-      (R := fun _ ty => (c.withMLC m).HitTyBelow pfx (e.instantiateList fvs) ty)
+      (R := fun _ ty => (c.withMLC m).ParamUniformTyBelow pfx (e.instantiateList fvs) ty)
       fun _ hio => ?_).bind fun ty _ _ ⟨⟨⟨e', ty', hb, h1, h2, h3⟩, hl⟩, hh⟩ => ?_
     · subst hio; let ⟨_, h⟩ := hinf rfl; exact inferType.WF_hit h hpfx
     refine .stateWF fun wf => .getLCtx <| .pure ?_
@@ -1368,7 +1368,7 @@ theorem inferLet.WF_all
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     (inferLet e inferOnly).WF c s fun ty _ =>
       ((∃ e' ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty) ∧
-      (inferOnly = true → c.HitBelow s.ngen.namePrefix e ty) := by
+      (inferOnly = true → c.ParamUniformBelow s.ngen.namePrefix e ty) := by
   refine .stateWF fun wf => ?_
   refine (c.withMLC_self ▸ inferLet.loop.WF_all (Nat.zero_le _) [] rfl rfl rfl rfl rfl ?_ ?_ ?_
     rfl hr) hinf
@@ -1414,7 +1414,7 @@ theorem inferConstant.WF_eq {c : VContext} :
   · exact .pure ⟨ci, eq1, rfl⟩
 
 theorem inferFVar.WF_hit {c : VContext} :
-    (inferFVar c.toContext name).WF fun ty => c.HitTyBelow pfx (.fvar name) ty := by
+    (inferFVar c.toContext name).WF fun ty => c.ParamUniformTyBelow pfx (.fvar name) ty := by
   simp [inferFVar, ← c.lctx_eq]; split <;> [refine .pure ?_; exact .throw]
   rename_i decl h
   exact ⟨fun heads As ls P hs _ hP => (hs.decls _ _ hP h).1, nofun⟩
@@ -1428,21 +1428,21 @@ theorem inferType'.WF_all
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     (inferType' e inferOnly).WF c s fun ty _ =>
       ((∃ e' ty', c.TrTyping e ty e' ty') ∧ c.LevelsBelow e ty) ∧
-      (inferOnly = true → c.HitTyBelow s.ngen.namePrefix e ty) := by
+      (inferOnly = true → c.ParamUniformTyBelow s.ngen.namePrefix e ty) := by
   generalize hpfx : s.ngen.namePrefix = pfx
   unfold inferType'; lift_lets; intro F F1
   split <;> [exact .throw; refine .get <| .get ?_]
   split
   · rename_i h; refine .stateWF fun wf => .pure ?_
     generalize hic : cond .. = ic at h
-    have : ic.WF c s ∧ LevelsCache.WF c ic ∧ (inferOnly = true → HitTyCache.WF c pfx ic) := by
+    have : ic.WF c s ∧ LevelsCache.WF c ic ∧ (inferOnly = true → ParamUniformTyCache.WF c pfx ic) := by
       subst ic; cases inferOnly <;>
         [exact ⟨wf.inferTypeC_wf, wf.inferTypeC_levels, nofun⟩;
          exact ⟨wf.inferTypeI_wf, wf.inferTypeI_levels, fun _ => hpfx ▸ wf.inferTypeI_hit⟩]
     exact ⟨⟨(this.1 h).2.2.2.2 h1, this.2.1 h h1⟩, fun hio => this.2.2 hio h h1⟩
   generalize hP : (fun _ (_ : VState) => _) = P
   have hF {ty e' ty' s} (hs : s.ngen.namePrefix = pfx) (H : c.TrTyping e ty e' ty')
-      (HL : c.LevelsBelow e ty) (HH : inferOnly = true → c.HitTyBelow pfx e ty) :
+      (HL : c.LevelsBelow e ty) (HH : inferOnly = true → c.ParamUniformTyBelow pfx e ty) :
       (F ty).WF c s P := by
     rintro _ mwf wf a s' ⟨⟩
     refine let s' := _; ⟨s', rfl, ?_⟩
@@ -1465,12 +1465,12 @@ theorem inferType'.WF_all
         inferTypeI_hit := wf.inferTypeI_hit.insert HH' }
   have hlit {l} : c.LevelsBelow (.lit l) l.type := fun _ _ _ _ _ => Literal.levelParamsIn_type
   have hlitH {l : Literal} (hl : c.venv.ContainsLits l) :
-      c.HitTyBelow pfx (.lit l) (mkConst l.typeName) := by
+      c.ParamUniformTyBelow pfx (.lit l) (mkConst l.typeName) := by
     refine ⟨fun heads As ls P hs _ _ => ?_, nofun⟩
     cases l with
-    | natVal => exact .const (hs.env.prim (by simp [Literal.typeName, hitPrimNames]))
+    | natVal => exact .const (hs.env.prim (by simp [Literal.typeName, checkerPrimNames]))
     | strVal =>
-      exact .const (hs.env.str (c.strLitsDeclared hl) (by simp [Literal.typeName, hitStrNames]))
+      exact .const (hs.env.str (c.strLitsDeclared hl) (by simp [Literal.typeName, strLitNames]))
   have hle {s'} (le : s ≤ s') : s'.ngen.namePrefix = pfx := VState.LE.namePrefix_eq hpfx le
   split
   · extract_lets G1; split <;> [split; skip]
@@ -1506,14 +1506,14 @@ theorem inferType'.WF_all
           exact hh' heads As ls P hs he (this heads As ls P hs he.proj_inv.2 hP) hP, nofun⟩
   · exact .readThe <| (M.WF.liftExcept (x := inferFVar _ _)
       (Q := fun ty => ((∃ e' ty', c.TrTyping _ ty e' ty') ∧ c.LevelsBelow _ ty) ∧
-        c.HitTyBelow pfx _ ty)
+        c.ParamUniformTyBelow pfx _ ty)
       fun a h => ⟨⟨inferFVar.WF a h, inferFVar.WF_levels a h⟩, inferFVar.WF_hit a h⟩).lift.bind
       fun _ _ le ⟨⟨⟨_, _, h⟩, hl⟩, hh⟩ => hF (hle le) h hl fun _ => hh
   · exact .throw
   · rename_i h _; simp [Expr.hasLooseBVars, Expr.looseBVarRange'] at h
   · have hl {u : Level} : c.LevelsBelow (.sort u) (.sort u.succ) := fun _ _ _ h _ => by
       simpa [Expr.levelParamsIn, Level.paramsIn] using h
-    have hh {u : Level} : c.HitTyBelow pfx (.sort u) (.sort u.succ) :=
+    have hh {u : Level} : c.ParamUniformTyBelow pfx (.sort u) (.sort u.succ) :=
       ⟨fun _ _ _ _ _ _ _ => .sort, nofun⟩
     split <;> rename_i h
     · refine .readThe <| (M.WF.liftExcept (checkLevel.WF h1)).lift.bind fun _ _ le ⟨_, h⟩ => ?_
@@ -1589,7 +1589,7 @@ theorem inferType'.WF_all
 
 theorem inferType'.WF_hit
     (he : c.TrExprS e e') :
-    (inferType' e true).WF c s fun ty _ => c.HitTyBelow s.ngen.namePrefix e ty :=
+    (inferType' e true).WF c s fun ty _ => c.ParamUniformTyBelow s.ngen.namePrefix e ty :=
   (inferType'.WF_all he.fvarsIn fun _ => ⟨_, he⟩).mono fun _ _ _ h => h.2 rfl
 
 theorem inferType'.WF

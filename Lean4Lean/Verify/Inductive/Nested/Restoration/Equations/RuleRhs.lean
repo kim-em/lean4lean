@@ -120,8 +120,8 @@ theorem NestedRestorationOpening.hitShape_of_lowered_lam
     {input output suffix : Expr}
     (Hopen : NestedRestorationOpening result env auxRec input output)
     (Htel : Expr.LambdaTelescope input result.nparams suffix)
-    (Hshape : Expr.HitShapeTele heads result.nparams auxLevels input) :
-    Hopen.body.HitShape heads Hopen.params.toList auxLevels := by
+    (Hshape : Expr.ParamUniformTele heads result.nparams auxLevels input) :
+    Hopen.body.ParamUniform heads Hopen.params.toList auxLevels := by
   rcases Hopen.opening.lambdaResidualData Htel with ⟨fvars, hAs, hlen, hbody⟩
   have hparams : Hopen.params.toList = fvars.map Expr.fvar := by simpa using hAs
   obtain ⟨body, Hlead, HB⟩ := Hshape

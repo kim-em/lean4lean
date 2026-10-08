@@ -12,8 +12,8 @@ constructors):
 * `NestedValidatedRunResult.auxHeadsFacts`: the auxiliary heads are fresh in
   the source environment (and after the source headers are added), lie in the
   reserved `_nested` namespace, and contain every key of `aux2nested`.
-* Ingredients of `CompletedRecursorConstruction.HitShapeInputs` (assembled at
-  the head set `E.hitHeads` by `NestedValidatedRunResult.hitShapeInputs_of` in
+* Ingredients of `CompletedRecursorConstruction.ParamUniformDeclarations` (assembled at
+  the head set `E.uniformHeads` by `NestedValidatedRunResult.hitShapeInputs_of` in
   `Nested/Restoration/Uniform/Whnf.lean`):
   - `NestedValidatedRunResult.familyHeadersAvoid`: headers are not lowered,
     and both source and auxiliary headers are translated in the source
@@ -36,8 +36,8 @@ constructors):
   predicate `VExpr.HeadsApplied` (every head occurrence is applied to at least
   `nparams` arguments at `uvars` levels) makes `Restoration.expr` total
   (`VExpr.HeadsApplied.restorationExpr`); it is transported from the arity
-  form `Expr.HitArity` of `HitShape` along `TrExprS`
-  (`Expr.HitArity.trExprS`), applied to the field-telescope replay
+  form `Expr.HeadsApplied` of `ParamUniform` along `TrExprS`
+  (`Expr.HeadsApplied.trExprS`), applied to the field-telescope replay
   `sourceConstructorIndices_replay` of every consumed constructor.
 * `NestedValidatedRunResult.compilationData_of_pendingTotal`:
   `compilationData_of_pending'` with that premise discharged. -/
@@ -46,38 +46,38 @@ namespace Lean.Expr
 
 open Lean4Lean
 
-/-- `HitArity heads n k e`: every application spine of `e` headed by a constant
+/-- `HeadsApplied heads n k e`: every application spine of `e` headed by a constant
 `c ∈ heads` has at least `n` arguments and exactly `k` universe levels. This is
-the arity content of `HitShape`, forgetting which arguments the hit carries. -/
-inductive HitArity (heads : List Name) (n k : Nat) : Expr → Prop
+the arity content of `ParamUniform`, forgetting which arguments the hit carries. -/
+inductive HeadsApplied (heads : List Name) (n k : Nat) : Expr → Prop
   | hit {c : Name} {us : List Level} {args : List Expr} : c ∈ heads → us.length = k →
-      n ≤ args.length → (∀ a ∈ args, HitArity heads n k a) →
-      HitArity heads n k (mkAppList (.const c us) args)
-  | app {f a : Expr} : HitArity heads n k f → HitArity heads n k a →
-      HitArity heads n k (.app f a)
-  | const {c : Name} {us : List Level} : c ∉ heads → HitArity heads n k (.const c us)
-  | bvar (i : Nat) : HitArity heads n k (.bvar i)
-  | fvar (fv : FVarId) : HitArity heads n k (.fvar fv)
-  | mvar (mv : MVarId) : HitArity heads n k (.mvar mv)
-  | sort (u : Level) : HitArity heads n k (.sort u)
-  | lit (l : Literal) : HitArity heads n k (.lit l)
+      n ≤ args.length → (∀ a ∈ args, HeadsApplied heads n k a) →
+      HeadsApplied heads n k (mkAppList (.const c us) args)
+  | app {f a : Expr} : HeadsApplied heads n k f → HeadsApplied heads n k a →
+      HeadsApplied heads n k (.app f a)
+  | const {c : Name} {us : List Level} : c ∉ heads → HeadsApplied heads n k (.const c us)
+  | bvar (i : Nat) : HeadsApplied heads n k (.bvar i)
+  | fvar (fv : FVarId) : HeadsApplied heads n k (.fvar fv)
+  | mvar (mv : MVarId) : HeadsApplied heads n k (.mvar mv)
+  | sort (u : Level) : HeadsApplied heads n k (.sort u)
+  | lit (l : Literal) : HeadsApplied heads n k (.lit l)
   | lam {nm : Name} {t b : Expr} {bi : BinderInfo} :
-      HitArity heads n k t → HitArity heads n k b → HitArity heads n k (.lam nm t b bi)
+      HeadsApplied heads n k t → HeadsApplied heads n k b → HeadsApplied heads n k (.lam nm t b bi)
   | forallE {nm : Name} {t b : Expr} {bi : BinderInfo} :
-      HitArity heads n k t → HitArity heads n k b → HitArity heads n k (.forallE nm t b bi)
+      HeadsApplied heads n k t → HeadsApplied heads n k b → HeadsApplied heads n k (.forallE nm t b bi)
   | letE {nm : Name} {t v b : Expr} {nd : Bool} :
-      HitArity heads n k t → HitArity heads n k v → HitArity heads n k b →
-      HitArity heads n k (.letE nm t v b nd)
-  | mdata {m : MData} {e : Expr} : HitArity heads n k e → HitArity heads n k (.mdata m e)
-  | proj {s : Name} {i : Nat} {e : Expr} : HitArity heads n k e →
-      HitArity heads n k (.proj s i e)
+      HeadsApplied heads n k t → HeadsApplied heads n k v → HeadsApplied heads n k b →
+      HeadsApplied heads n k (.letE nm t v b nd)
+  | mdata {m : MData} {e : Expr} : HeadsApplied heads n k e → HeadsApplied heads n k (.mdata m e)
+  | proj {s : Name} {i : Nat} {e : Expr} : HeadsApplied heads n k e →
+      HeadsApplied heads n k (.proj s i e)
 
-theorem HitShape.hitArity {heads : List Name} {params : List Expr} {ls : List Level}
-    {e : Expr} (H : HitShape heads params ls e)
-    (hp : ∀ p ∈ params, HitArity heads params.length ls.length p) :
-    HitArity heads params.length ls.length e := by
+theorem ParamUniform.hitArity {heads : List Name} {params : List Expr} {ls : List Level}
+    {e : Expr} (H : ParamUniform heads params ls e)
+    (hp : ∀ p ∈ params, HeadsApplied heads params.length ls.length p) :
+    HeadsApplied heads params.length ls.length e := by
   induction H with
-  | hitHead hc => exact .hit hc rfl (Nat.le_refl _) hp
+  | head hc => exact .hit hc rfl (Nat.le_refl _) hp
   | app _ _ ihf iha => exact .app ihf iha
   | const hc => exact .const hc
   | bvar => exact .bvar _
@@ -97,9 +97,9 @@ private theorem abstract1_mkAppList (v : FVarId) (d : Nat) (f : Expr) (args : Li
   | nil => rfl
   | cons a args ih => simp only [mkAppList, List.map_cons]; rw [ih]; rfl
 
-theorem HitArity.abstract1 {heads : List Name} {n k : Nat} {e : Expr}
-    (H : HitArity heads n k e) (v : FVarId) (d : Nat) :
-    HitArity heads n k (Expr.abstract1 v e d) := by
+theorem HeadsApplied.abstract1 {heads : List Name} {n k : Nat} {e : Expr}
+    (H : HeadsApplied heads n k e) (v : FVarId) (d : Nat) :
+    HeadsApplied heads n k (Expr.abstract1 v e d) := by
   induction H generalizing d with
   | @hit c us args hc hus hlen _ ih =>
     rw [abstract1_mkAppList]
@@ -123,9 +123,9 @@ theorem HitArity.abstract1 {heads : List Name} {n k : Nat} {e : Expr}
   | mdata _ ih => exact .mdata (ih d)
   | proj _ ih => exact .proj (ih d)
 
-theorem HitArity.abstractList {heads : List Name} {n k : Nat} {e : Expr}
-    (H : HitArity heads n k e) (xs : List FVarId) (d : Nat) :
-    HitArity heads n k (Expr.abstractList e xs d) := by
+theorem HeadsApplied.abstractList {heads : List Name} {n k : Nat} {e : Expr}
+    (H : HeadsApplied heads n k e) (xs : List FVarId) (d : Nat) :
+    HeadsApplied heads n k (Expr.abstractList e xs d) := by
   induction xs generalizing e with
   | nil => simpa using H
   | cons x xs ih => simp only [Expr.abstractList]; exact ih (H.abstract1 x d)
@@ -459,9 +459,9 @@ theorem TrExprS.headsApplied_of_avoids {env : VEnv} {Us : List Name} {Δ : VLCtx
     cases hav with | proj _ _ _ h => exact .proj (ih h hΔ)
 
 /-- **Transport of hit arity along the expression translation.** -/
-theorem _root_.Lean.Expr.HitArity.trExprS {env : VEnv} {Us : List Name}
+theorem _root_.Lean.Expr.HeadsApplied.trExprS {env : VEnv} {Us : List Name}
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
-    {e : Expr} (H : e.HitArity heads n k) :
+    {e : Expr} (H : e.HeadsApplied heads n k) :
     ∀ {Δ : VLCtx} {e' : VExpr}, (∀ x ∈ Δ, VExpr.HeadsApplied heads n k x.2.value) →
       TrExprS env Us Δ e e' → VExpr.HeadsApplied heads n k e' := by
   induction H with
@@ -745,16 +745,16 @@ theorem ContextWF.declProjsOK {c : AddInductive.Context} (Hc : ContextWF c)
   exact ⟨(htypeTr.projsRegistered hord hΔ).mono fun s ⟨info, h⟩ => hproj s info h,
     (hvalueTr.projsRegistered hord hΔ).mono fun s ⟨info, h⟩ => hproj s info h⟩
 
-/-- **Parameter declarations satisfy `HitOK`**: they are the source parameter
+/-- **Parameter declarations satisfy `ParamUniformIn`**: they are the source parameter
 declarations of the header check, translated before any family of the block
 is installed, so they mention no head fresh in the source environment and
 project only out of structures registered there. -/
 theorem CompletedRecursorConstruction.paramDecls_hitOK
     (H : CompletedRecursorConstruction R) {env : Environment} {heads : List Name}
     (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none)
-    (hproj : ∀ s info, sourceEnv.projections s info → projHitOK env heads s) :
+    (hproj : ∀ s info, sourceEnv.projections s info → projAvoidsHeads env heads s) :
     ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
-      d.HitOK env heads stats.params.toList stats.levels := by
+      d.ParamUniformIn env heads stats.params.toList stats.levels := by
   intro fv hfv d hfind
   have hparam : Expr.fvar fv ∈ stats.params := H.params.mem_fvars_iff.1 hfv
   have hc : fv ∈ c.lctx.fvars := by
@@ -771,17 +771,17 @@ theorem CompletedRecursorConstruction.paramDecls_hitOK
   have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
     rw [R.sourceContextVEnv]; exact hfresh
   have hproj' : ∀ s info, R.sourceContext.venv.projections s info →
-      projHitOK env heads s := by
+      projAvoidsHeads env heads s := by
     rw [R.sourceContextVEnv]; exact hproj
   obtain ⟨htype, hvalue⟩ := R.sourceContext.declAvoids hfresh' hfind'
   obtain ⟨ptype, pvalue⟩ := R.sourceContext.declProjsOK hproj' hfind'
-  refine ⟨⟨Expr.HitShape.of_avoidsConsts htype, ptype⟩, fun v hv => ?_⟩
+  refine ⟨⟨Expr.ParamUniform.of_avoidsConsts htype, ptype⟩, fun v hv => ?_⟩
   cases d with
   | cdecl => simp [LocalDecl.value?] at hv
   | ldecl _ _ _ _ val nd _ =>
     have hval : val = v := by cases nd <;> simpa [LocalDecl.value?] using hv
     subst hval
-    exact ⟨Expr.HitShape.of_avoidsConsts hvalue, pvalue⟩
+    exact ⟨Expr.ParamUniform.of_avoidsConsts hvalue, pvalue⟩
 
 /-! #### Normalized constructor types -/
 
@@ -800,12 +800,12 @@ types. -/
 theorem CompletedRecursorConstruction.minorSourceHitArity
     (H : CompletedRecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
-      Expr.HitShapeTele heads stats.params.size stats.levels ctor.type)
+      Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     ((H.localContext.lctx.mkForall (H.origins.minorShapes owner howner localIndex hlocal).fields
       (H.sourceMinorSemantics owner howner localIndex hlocal).semantic.traversal.terminal).abstractList
-        H.params.fvars).HitArity heads stats.params.size stats.levels.length := by
+        H.params.fvars).HeadsApplied heads stats.params.size stats.levels.length := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hfresh := H.blueprints.fields_outer_fresh owner howner localIndex hlocal
@@ -828,9 +828,9 @@ theorem CompletedRecursorConstruction.minorSourceHitArity
     (hctorTypes owner hsourceOwner _ hctorMem)
   obtain ⟨hterm, hfieldsTerm⟩ := traversal.decisions.hitShape Hroot hp Htail
   rw [hfieldsEq] at hfieldsTerm
-  have Hfor : (H.localContext.lctx.mkForall S.fields traversal.terminal).HitShape heads
+  have Hfor : (H.localContext.lctx.mkForall S.fields traversal.terminal).ParamUniform heads
       stats.params.toList stats.levels := by
-    refine Expr.HitShape.mkForall_of_disjoint S.fields_bound.expressions hterm ?_ ?_
+    refine Expr.ParamUniform.mkForall_of_disjoint S.fields_bound.expressions hterm ?_ ?_
     · intro p hpm
       obtain ⟨pv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.params (Array.mem_toList_iff.1 hpm)
       refine ⟨pv, rfl, fun hy => hfresh pv hy ?_⟩
@@ -853,7 +853,7 @@ are head-applied. -/
 theorem CompletedRecursorConstruction.minorReplayHeadsApplied
     (H : CompletedRecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
-      Expr.HitShapeTele heads stats.params.size stats.levels ctor.type)
+      Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
@@ -887,7 +887,7 @@ construction. -/
 theorem CompletedRecursorConstruction.normalizedHeadsApplied
     (H : CompletedRecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
-      Expr.HitShapeTele heads stats.params.size stats.levels ctor.type)
+      Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
     (hparamsFree : ∀ A ∈ R.parameterScope.toCtx, A.containsAnyConst heads = false) :
     ∀ normalized ∈ H.consumedGeneration.signature.declaration.types,
@@ -1132,7 +1132,7 @@ theorem NestedValidatedRunResult.constructorTypesHitShape
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
     ∀ i, i < E.production.indTypes.size → ∀ ctor ∈ E.production.indTypes[i]!.ctors,
-      Expr.HitShapeTele E.auxHeads E.production.stats.params.size
+      Expr.ParamUniformTele E.auxHeads E.production.stats.params.size
         E.production.stats.levels ctor.type := by
   obtain ⟨-, -, -, -, -, -, hkeys, -⟩ := E.auxHeadsFacts wf Hsources
   have hmaps := E.loweredFamilyMappings wf Hsources
