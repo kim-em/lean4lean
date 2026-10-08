@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Formation
 
 /-! # Compilation certificates
 
-Per-index accumulators for the recursors and the source iota rules of a block, and the
+Per-index accumulators for the source iota rules of a block, and the
 certificate of an ordinary compilation (`OrdinaryCompilationCertificate`), from which
 `VInductDecl.CompilesTo` of section 2.2 of `docs/inductives/DESIGN.md` follows. -/
 
@@ -15,20 +15,6 @@ open scoped _root_.List
 open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
-
-/-- Append-oriented invariant of the recursor-generation loop: the `i`-th recursor built so
-far has the recursor shape of the `i`-th family. -/
-structure RecursorBuildCertificate (decl : VInductDecl)
-    (recursors : List VConstVal) : Prop where
-  covered : recursors.length ≤ decl.types.length
-  shapes : ∀ i (hrec : i < recursors.length)
-      (htype : i < decl.types.length),
-    Nonempty (decl.RecursorShape decl.types[i] recursors[i])
-
-theorem RecursorBuildCertificate.empty (decl : VInductDecl) :
-    RecursorBuildCertificate decl [] where
-  covered := Nat.zero_le _
-  shapes _ h := by simp at h
 
 /-- The complete list of source iota rules of a nested declaration, one per owned
 constructor.  Its pointwise judgment `VInductDecl.NestedIotaRule` allows the auxiliary
