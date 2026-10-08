@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Rules.IotaCertificates
+import Lean4Lean.Verify.Inductive.Recursor.Context.RecInfoTraversal
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
