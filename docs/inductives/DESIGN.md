@@ -274,6 +274,42 @@ recursors, which `elimDF`/`elimIota` never read. Every registration point carrie
 `CaseSchema.RegistrationCertificate schema base source block key`: the `Certified` certificate, the key
 (the name of the first source family) and `HeaderAgreement`.
 
+Restoration is a partial syntactic operation, `Restoration.expr`. Its metatheory goes through
+one interface for relating environments, the environment interpretation
+(`Lean4Lean/Theory/Typing/Interpretation.lean`). A `VEnv.Interpretation` maps the syntax of a
+source environment into a target: each constant is either interpreted by a closed
+universe-polymorphic term (instantiated at the occurrence's universes, so a constant may become
+an application) or renamed; projection owners and abstract eliminators (key and owner) are
+renamed. `I.Sound envS envL P` collects the obligations: closed interpreting terms
+(`Interpretation.Closed`); each interpreted constant has the interpretation of its type up to
+definitional equality (`ConstClause`); each definitional-equality rule holds after
+interpretation at every admissible universe instantiation (`DefEqClause`); and the eliminator
+and projection rules hold after interpretation in every target context satisfying the context
+invariant `P` (`EliminatorClause`, `ProjectionClause`). The transport theorem,
+`Interpretation.Sound.isDefEq`, is proved once: for every invariant closed under the context
+extensions of the typing rules (`VEnv.CtxInvariant`), a sound interpretation maps every
+derivation of `envL` from a context whose image satisfies `P` to a derivation of `envS`
+(`Sound.hasType` and `Sound.isDefEqCtx` follow). Two invariants are used: `fun _ _ => True`,
+the context-free transport, and `VEnv.TypedCtx`, well-formed contexts, which admits rules that
+hold only up to beta subject reduction. A sound interpretation for an invariant is sound for
+every stronger one (`Sound.weaken`). That no interpreting term is a Pi type
+(`Interpretation.PreservesTelescopes`) is a separate shape condition, needed only where a
+projection field type is computed by walking a constructor telescope
+(`VProjectionInfo.fieldType_interpret`, `ProjectionClause.of_fixed`).
+
+The restoration interpretation (`Restoration.interpretation`,
+`Lean4Lean/Theory/Inductive/RestorationInterpretation.lean`) interprets each auxiliary head
+(family or constructor) by its lambda telescope `λ params, J levels args` over the common
+parameters and renames every other constant and every projection owner by the recursor
+renaming (`Restoration.renaming`). `Restoration.Agrees r I` says that `I` interprets exactly the
+heads of `r`, in this way, and otherwise renames as `r` does; then `r.expr e` is a beta reduct of
+`I.expr e` for every `e` whose projection owners `I` fixes (`Restoration.Agrees.go_betaRed`),
+hence definitionally equal to it at every type in a well-formed context
+(`Restoration.Agrees.expr_simAt`). A `Restoration.Substitution envS envL r I`, a sound
+interpretation for well-formed contexts that agrees with `r`, therefore transports closed typing
+judgments and equations of `envL` to their restorations in `envS` (`Restoration.expr_hasType`,
+`Restoration.equation_wf`, `Restoration.expr_isDefEqU`).
+
 ### 2.4 Restrictions of the specification to what Lean produces
 
 Each item below closes a gap through which well-formed environments could be inconsistent or
@@ -314,11 +350,12 @@ None weakens the top-level theorem.
   the generated types. Stating them in a smaller environment or context would need
   strengthening (section 5). For the same reason `Models` does not compare family types:
   only constructor types are compared, and family applications are required to be well typed.
-- **Restored eliminators in renaming replacement.** The transport of recursor-checking derivations from
-  a lowered nested declaration to its source
-  (`Lean4Lean/Theory/Inductive/RestorationRenamingOnCtx.lean`) allows a lowered schema to be
-  matched by a registered source schema with the same signature whose restoration agrees with
-  the replacement.
+- **Restored eliminators.** The transport of recursor-checking derivations from a lowered
+  nested declaration to its source allows a lowered schema to be matched by a registered source
+  schema with the same signature whose restoration agrees with the interpretation
+  (`VEnv.RestoredEliminator.clause`, `Lean4Lean/Theory/Inductive/RestorationInterpretation.lean`).
+  Its rules hold only up to beta subject reduction, so it is an eliminator clause for
+  well-formed contexts (`VEnv.TypedCtx`).
 
 ## 3. The verified installation pipeline
 
@@ -386,10 +423,29 @@ fresh auxiliary families and its correspondence with the abstract nested expansi
 lowered declaration runs the ordinary pipeline, including its own checked formation. The
 restoration loop is then verified: restored constructors, restored recursor types and
 restored rules (`Nested/Restoration/`, with the rules in `Nested/Restoration/Equations/`). The
-typing of restored equations is transported from the lowered recursor environment by a
-context-carrying renaming restoration substitution (`Nested/Restoration/Equations/WF.lean`), which
-replaces each auxiliary head by its restoration lambda and renames recursors and projection
-type names.
+typing of restored equations is transported from the lowered recursor environment by the
+restoration substitution of the run (`NestedRun.restoredEquationSubstitution`,
+`Nested/Restoration/Equations/WF.lean`): the restoration interpretation of section 2.3 is sound
+from the lowered recursor environment into the recursor environment of the source block, for
+well-formed contexts. Soundness is built along the lowered installation. The header stage
+(`NestedRun.headerInterpretationSound`, `Nested/Restoration/HeaderRenaming.lean`) holds in every
+context: base constants and source headers are fixed, auxiliary headers are interpreted by
+their restoration lambdas. The constructor stage (`constructorInterpretationSound`) keeps the
+source constructors (whose source types are definitionally equal to the interpreted lowered
+types, by restoration at the header stage), interprets the auxiliary constructors, and adds the
+lowered eliminator as a restored eliminator and the lowered projections; the projections of
+auxiliary structure-like families are renamed to their containers and hold only up to beta
+reduction of the restoration lambdas (`ProjectionClause.of_specialization`,
+`Nested/Restoration/AuxiliaryProjections.lean`), as do those of source structures
+(`ProjectionClause.of_ctorType_betaRed`, `Nested/Restoration/Equations/ProjectionRenaming.lean`).
+The recursor stage keeps the lowered recursors under their restored names
+(`Restoration.interpretation_ofAddConstants_recursors`). The source constructor types are
+restored through the variant keeping projection owners (`Restoration.constInterpretation`), sound
+from the lowered header environment into the source header environment in every context
+(`Restoration.constInterpretation_substitution`, `Nested/Restoration/SourceConstructors.lean`).
+Lowering needs no interpretation: the lowered declaration is re-checked by the ordinary
+pipeline, and lowering is related to the source only syntactically (`Expr.replace`) and by the
+abstract nested expansion.
 
 The source block registers its own case eliminator: the checked-formation signature of the lowered
 run, under the same key, restored by the nested compilation's restoration
@@ -409,9 +465,9 @@ rule-free assembly base by them (`Nested/Restoration/Equations/RestoredRulesBase
 
 The common-parameter prefix of a source constructor is not re-checked. Lowering keeps it
 verbatim, the ordinary pipeline checks it for the lowered constructor in the lowered header
-environment, and the header stage of the restoration substitution
-(`Nested/Restoration/HeaderRenaming.lean`), which replaces each auxiliary header by its restoration
-lambda, transports that check to the source header environment, where it fixes the
+environment, and the header stage of the restoration interpretation
+(`Nested/Restoration/HeaderRenaming.lean`), which interprets each auxiliary header by its
+restoration lambda, transports that check to the source header environment, where it fixes the
 parameters and the prefix (`NestedRun.sourceCoreParameterWF`).
 
 The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-checked
@@ -840,7 +896,9 @@ Suggested order, with sizes.
    `Header/` (7k), `Constructor/` (5.5k), `Recursor/` (42k), `Rules/` (27k), `Install/` (5k),
    `Primitive/` (4.5k), `Prelude/` (1k),
    `Nested/` (65k, starting from `CaseEliminators/Certificate.lean`, `Restoration/SourceTranslations.lean`,
-   `Restoration/Equations/WF.lean`, `Restoration/Validation/StrippedEnvironment.lean`).
+   `Restoration/Equations/WF.lean`, `Restoration/Validation/StrippedEnvironment.lean`), whose
+   restoration metatheory is `Lean4Lean/Theory/Typing/Interpretation.lean` and
+   `Lean4Lean/Theory/Inductive/RestorationInterpretation.lean` (1.4k together).
 10. Quotients: `Lean4Lean/Verify/QuotInit.lean` (630).
 11. The audit: `scripts/check-inductive-audit.py`, `scripts/inductive-audit-inventory.json`.
 

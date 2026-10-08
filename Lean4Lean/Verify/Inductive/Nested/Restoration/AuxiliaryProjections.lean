@@ -3,15 +3,15 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Equations.ProjectionRenamin
 /-! Transport of the projection rules along the restoration substitution of the
 restored equations, in well-formed contexts, with no hypothesis.
 
-The renaming restoration substitution of `Nested/Restoration/Equations/WF.lean`
-transports projection rules through `ProjectionRulesRenamedOnCtx`, which only
-asks for the rules in well-formed image contexts. There beta conversion of a
+The restoration substitution of `Nested/Restoration/Equations/WF.lean`
+transports projection rules through the projection clause for well-formed contexts
+(`ProjectionClause` for `VEnv.TypedCtx`). There beta conversion of a
 typed term is beta subject reduction (`VExpr.BetaRed.simAt`) and level
 equivalence is definitional equality (`VExpr.LEquiv.defeq`).
 
 * Source projections (of source structures): the transported lowered
   constructor type beta reduces to the source constructor type registered by
-  the recursor environment (`ProjectionRulesRenamedOnCtx.of_ctorType_betaRed`).
+  the recursor environment (`ProjectionClause.of_ctorType_betaRed`).
 * Auxiliary projections (of an auxiliary structure-like family `A`, renamed to
   its container `J`): the restoration lambdas of `A` and its constructor are
   `λ params, J levels args` and `λ params, J.c levels args`. The generated
@@ -23,7 +23,7 @@ equivalence is definitional equality (`VExpr.LEquiv.defeq`).
   instantiated specialization arguments
   (`VEnv.fieldTransport_of_specialization`), and each projection rule of `A`
   is the corresponding rule of `J` after beta reducing the restoration
-  lambdas (`VEnv.ProjectionRulesRenamedOnCtx.of_specialization`).
+  lambdas (`VEnv.Interpretation.ProjectionClause.of_specialization`).
 
 The composition is `NestedRun.restoredEquationGaps` and
 `NestedRun.hrestoredWF_of`.
@@ -78,10 +78,6 @@ theorem LEquiv.forallE_inv_l {U : Nat} {A b T : VExpr} (H : LEquiv U (.forallE A
   | refl => subst hx; exact ⟨_, _, rfl, .refl, .refl⟩
   | forallE h1 h2 => cases hx; exact ⟨_, _, rfl, h1, h2⟩
   | _ => cases hx
-
-@[simp] theorem replaceRen_proj {ρ : Name → Option VExpr} {σ : Name → Name}
-    {n : Name} {i : Nat} {e : VExpr} :
-    (VExpr.proj n i e).replaceRen ρ σ = .proj (σ n) i (e.replaceRen ρ σ) := rfl
 
 namespace BetaRed
 
@@ -165,11 +161,11 @@ type instantiated at `hargs` (up to level equivalence), are definitionally
 the field types of `J`'s registered projection at the instantiated
 specialization, in well-formed contexts. -/
 theorem fieldTransport_of_specialization {envS : VEnv} (henv : envS.WF)
-    {ρ : Name → Option VExpr} {σ : Name → Name} (hρ : VExpr.ReplacementsClosed ρ)
+    {I : Interpretation} (hI : I.Closed) (hTel : I.PreservesTelescopes)
     {typeName J : Name} {info infoJ : VProjectionInfo}
     {G T B : VExpr} {Psrc Q hargs : List VExpr} {ls : List VLevel} {U₀ : Nat}
-    (hσtn : σ typeName = J)
-    (hBR : VExpr.BetaRed (info.ctorType.replaceRen ρ σ) G)
+    (hσtn : I.projOwner typeName = J)
+    (hBR : VExpr.BetaRed (I.expr info.ctorType) G)
     (hG : G = VExpr.wrapForalls Psrc (VExpr.instantiateForallPrefix T hargs))
     (hPsrc : Psrc.length = info.nparams)
     (hT : VExpr.LEquiv U₀ T (infoJ.ctorType.instL ls))
@@ -181,14 +177,14 @@ theorem fieldTransport_of_specialization {envS : VEnv} (henv : envS.WF)
       OnCtx Γ (envS.IsType U) → (∀ l ∈ lv, l.WF U) →
       info.fieldType typeName lv params index major = some F →
       ∃ F', infoJ.fieldType J (ls.map (·.inst lv))
-          (hargs.map fun a => (a.instL lv).instOuter (params.map (·.replaceRen ρ σ))) index
-          (major.replaceRen ρ σ) = some F' ∧
-        ∀ {ℓ : VLevel}, envS.HasType U Γ (F.replaceRen ρ σ) (.sort ℓ) →
-          envS.IsDefEq U Γ (F.replaceRen ρ σ) F' (.sort ℓ) := by
+          (hargs.map fun a => (a.instL lv).instOuter (params.map I.expr)) index
+          (I.expr major) = some F' ∧
+        ∀ {ℓ : VLevel}, envS.HasType U Γ (I.expr F) (.sort ℓ) →
+          envS.IsDefEq U Γ (I.expr F) F' (.sort ℓ) := by
   intro U Γ lv params index major F hΓ hlv hF
   obtain ⟨hlvLen, hparamsLen⟩ := VProjectionInfo.fieldType_lengths hF
-  have h1 := VProjectionInfo.fieldType_replaceRen_renamed (typeName := typeName) (levels := lv)
-    (params := params) (index := index) (major := major) (σ := σ) hρ info
+  have h1 := VProjectionInfo.fieldType_interpret (typeName := typeName) (levels := lv)
+    (params := params) (index := index) (major := major) hI hTel info
   rw [hF, hσtn] at h1
   obtain ⟨Y, hY, hFY⟩ := VProjectionInfo.fieldType_betaRed (ctorType' := G) hBR h1
   -- the tail of `G` at the parameters
@@ -200,14 +196,14 @@ theorem fieldTransport_of_specialization {envS : VEnv} (henv : envS.WF)
   have hX : VExpr.instantiateForallPrefix T hargs = B₀.instOuter hargs := by
     rw [hTeq]
     exact VerifyInductive.VExpr.instantiateForallPrefix_wrapForalls _ _ _ hQ₀len
-  let ps := params.map (·.replaceRen ρ σ)
+  let ps := params.map I.expr
   have hpsLen : ps.length = info.nparams := by simp [ps, hparamsLen]
   have htailG : VProjectionInfo.instantiateProjectionParameters (G.instL lv) ps =
       some (((B₀.instOuter hargs).instL lv).instOuter ps) := by
     rw [hG, hX, VExpr.instL_wrapForalls]
     exact VProjectionInfo.instantiateProjectionParameters_wrapForalls_eq _ _ _
       (by simp [hPsrc, hpsLen])
-  have hY' : VProjectionInfo.instantiateProjectionFields J (major.replaceRen ρ σ) index 0
+  have hY' : VProjectionInfo.instantiateProjectionFields J (I.expr major) index 0
       (index + 1) (((B₀.instOuter hargs).instL lv).instOuter ps) = some Y := by
     unfold VProjectionInfo.fieldType at hY
     split at hY
@@ -252,13 +248,13 @@ registering the projection `infoJ` in `envS`, with matching index count,
 field count and result-level guard, and with transported field types
 definitionally those of `J` (`fieldTransport_of_specialization`), transports
 in well-formed contexts. -/
-theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS.WF)
-    {ρ : Name → Option VExpr} {σ : Name → Name} {typeName J : Name}
+theorem Interpretation.ProjectionClause.of_specialization {envS : VEnv} (henv : envS.WF)
+    {I : Interpretation} {typeName J : Name}
     {info infoJ : VProjectionInfo} {P hargs : List VExpr} {ls : List VLevel}
     (hS : envS.projections J infoJ)
-    (htn : ρ typeName = some (VExpr.wrapLams P (VExpr.mkApps (.const J ls) hargs)))
-    (hσtn : σ typeName = J)
-    (hctor : ρ info.ctorName =
+    (htn : I.consts typeName = some (VExpr.wrapLams P (VExpr.mkApps (.const J ls) hargs)))
+    (hσtn : I.projOwner typeName = J)
+    (hctor : I.consts info.ctorName =
       some (VExpr.wrapLams P (VExpr.mkApps (.const infoJ.ctorName ls) hargs)))
     (hP : P.length = info.nparams) (hargsLen : hargs.length = infoJ.nparams)
     (hlsLen : ls.length = infoJ.uvars) (hclosedJ : infoJ.ctorType.Closed)
@@ -271,20 +267,20 @@ theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS
       OnCtx Γ (envS.IsType U) → (∀ l ∈ lv, l.WF U) →
       info.fieldType typeName lv params index major = some F →
       ∃ F', infoJ.fieldType J (ls.map (·.inst lv))
-          (hargs.map fun a => (a.instL lv).instOuter (params.map (·.replaceRen ρ σ))) index
-          (major.replaceRen ρ σ) = some F' ∧
-        ∀ {ℓ : VLevel}, envS.HasType U Γ (F.replaceRen ρ σ) (.sort ℓ) →
-          envS.IsDefEq U Γ (F.replaceRen ρ σ) F' (.sort ℓ)) :
-    ProjectionRulesRenamedOnCtx envS ρ σ typeName info where
+          (hargs.map fun a => (a.instL lv).instOuter (params.map I.expr)) index
+          (I.expr major) = some F' ∧
+        ∀ {ℓ : VLevel}, envS.HasType U Γ (I.expr F) (.sort ℓ) →
+          envS.IsDefEq U Γ (I.expr F) F' (.sort ℓ)) :
+    I.ProjectionClause envS envS.TypedCtx typeName info where
   projDF := by
     intro U Γ lv params index sourceMajor F fieldLevel major indexArgs major'
       hΓ hlv hlvLen hparams hindices hfield _ hguardA ihField ihLeft ihRight
     obtain ⟨F', hF', hdef⟩ := HF hΓ hlv hfield
     have hdefF := hdef ihField
-    simp only [VExpr.replaceRen_mkApps, List.map_append,
-      VExpr.replaceRen_const_some htn] at ihLeft ihRight
+    simp only [VEnv.Interpretation.expr_mkApps, List.map_append,
+      VEnv.Interpretation.expr_const_some htn] at ihLeft ihRight
     have hB := VExpr.BetaRed.mkApps_specialization (P := P) (J := J) (ls := ls) (lv := lv)
-      (hargs := hargs) (params.map (·.replaceRen ρ σ)) (indexArgs.map (·.replaceRen ρ σ))
+      (hargs := hargs) (params.map I.expr) (indexArgs.map I.expr)
       (by simp [hparams, hP])
     obtain ⟨u, hTu⟩ := ihLeft.isType henv.ordered hΓ
     have hTT := hB.simAt henv.ordered henv.betaSubjectReduction hΓ _ hTu
@@ -297,23 +293,23 @@ theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS
       (by simp [hlsLen]) (by simp [hargsLen])
       (by simp [hindices, hnindices]) hF' hdefF.hasType.2 ihLeft' ihRight' hclosedJ
       (hguardA.imp (hguard lv) id)
-    simp only [VExpr.replaceRen_proj, hσtn]
+    simp only [VEnv.Interpretation.expr_proj, hσtn]
     exact .defeqDF hdefF.symm hP'
   projIota := by
     intro U Γ index lv args field F hΓ ih1 h3 ih2
     have hlen : info.nparams ≤ args.length := by
       have := (List.getElem?_eq_some_iff.mp h3).1
       omega
-    simp only [VExpr.replaceRen_proj, VExpr.replaceRen_mkApps,
-      VExpr.replaceRen_const_some hctor, hσtn] at ih1 ⊢
-    have hsplit : args.map (·.replaceRen ρ σ) =
-        (args.map (·.replaceRen ρ σ)).take P.length ++
-          (args.map (·.replaceRen ρ σ)).drop P.length :=
+    simp only [VEnv.Interpretation.expr_proj, VEnv.Interpretation.expr_mkApps,
+      VEnv.Interpretation.expr_const_some hctor, hσtn] at ih1 ⊢
+    have hsplit : args.map I.expr =
+        (args.map I.expr).take P.length ++
+          (args.map I.expr).drop P.length :=
       (List.take_append_drop _ _).symm
     rw [hsplit] at ih1 ⊢
     have hB := VExpr.BetaRed.mkApps_specialization (P := P) (J := infoJ.ctorName) (ls := ls)
-      (lv := lv) (hargs := hargs) ((args.map (·.replaceRen ρ σ)).take P.length)
-      ((args.map (·.replaceRen ρ σ)).drop P.length) (by simp [hP]; omega)
+      (lv := lv) (hargs := hargs) ((args.map I.expr).take P.length)
+      ((args.map I.expr).drop P.length) (by simp [hP]; omega)
     have hsim := (VExpr.BetaRed.proj (n := J) (i := index) hB).simAt henv.ordered
       henv.betaSubjectReduction hΓ _ ih1
     refine hsim.trans (.projIota hS hsim.hasType.2 ?_ ih2)
@@ -322,18 +318,18 @@ theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS
       List.getElem?_map, hP, h3, Option.map_some]
   structEta := by
     intro U Γ lv params e hΓ hparams hnidx ih1 ih2
-    simp only [VExpr.replaceRen_proj, VExpr.replaceRen_mkApps, List.map_append,
-      List.map_map, Function.comp_def, VExpr.replaceRen_const_some hctor,
-      VExpr.replaceRen_const_some htn, hσtn] at ih1 ih2 ⊢
+    simp only [VEnv.Interpretation.expr_proj, VEnv.Interpretation.expr_mkApps, List.map_append,
+      List.map_map, Function.comp_def, VEnv.Interpretation.expr_const_some hctor,
+      VEnv.Interpretation.expr_const_some htn, hσtn] at ih1 ih2 ⊢
     have hBT := VExpr.BetaRed.mkApps_specialization (P := P) (J := J) (ls := ls) (lv := lv)
-      (hargs := hargs) (params.map (·.replaceRen ρ σ)) [] (by simp [hparams, hP])
+      (hargs := hargs) (params.map I.expr) [] (by simp [hparams, hP])
     simp only [List.append_nil] at hBT
     obtain ⟨u, hTu⟩ := ih1.isType henv.ordered hΓ
     have hTT := hBT.simAt henv.ordered henv.betaSubjectReduction hΓ _ hTu
     have hBC := VExpr.BetaRed.mkApps_specialization (P := P) (J := infoJ.ctorName)
-      (ls := ls) (lv := lv) (hargs := hargs) (params.map (·.replaceRen ρ σ))
+      (ls := ls) (lv := lv) (hargs := hargs) (params.map I.expr)
       ((List.range info.numFields).map fun index =>
-        VExpr.proj J index (e.replaceRen ρ σ)) (by simp [hparams, hP])
+        VExpr.proj J index (I.expr e)) (by simp [hparams, hP])
     have hsim := hBC.simAt henv.ordered henv.betaSubjectReduction hΓ _ ih2
     have he' := VEnv.IsDefEq.defeqDF hTT ih1
     have hC' := VEnv.IsDefEq.defeqDF hTT hsim.hasType.2
@@ -343,9 +339,9 @@ theorem ProjectionRulesRenamedOnCtx.of_specialization {envS : VEnv} (henv : envS
     exact hsim.trans (.defeqDF hTT.symm hη)
   unitLike := by
     intro U Γ lv params e e' hΓ hparams hnidx hnf ih1 ih2
-    simp only [VExpr.replaceRen_mkApps, VExpr.replaceRen_const_some htn] at ih1 ih2 ⊢
+    simp only [VEnv.Interpretation.expr_mkApps, VEnv.Interpretation.expr_const_some htn] at ih1 ih2 ⊢
     have hBT := VExpr.BetaRed.mkApps_specialization (P := P) (J := J) (ls := ls) (lv := lv)
-      (hargs := hargs) (params.map (·.replaceRen ρ σ)) [] (by simp [hparams, hP])
+      (hargs := hargs) (params.map I.expr) [] (by simp [hparams, hP])
     simp only [List.append_nil] at hBT
     obtain ⟨u, hTu⟩ := ih1.isType henv.ordered hΓ
     have hTT := hBT.simAt henv.ordered henv.betaSubjectReduction hΓ _ hTu
@@ -408,11 +404,9 @@ theorem NestedRun.projectionSourceOnCtx_of
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.recursorVEnv →
         ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
           entry.typeName ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames →
-          VEnv.ProjectionRulesRenamedOnCtx B.recursorVEnv
-            ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-              fun _ => E.lowered.signature.params)
-            (compilationRestoration sourceDecl auxiliaries).renaming
-            entry.typeName entry.info := by
+          ((compilationRestoration sourceDecl auxiliaries).interpretation
+            E.lowered.signature.params).ProjectionClause B.recursorVEnv
+            B.recursorVEnv.TypedCtx entry.typeName entry.info := by
   intro auxiliaries D B hB hV entry hentry hTN₀
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
@@ -422,7 +416,7 @@ theorem NestedRun.projectionSourceOnCtx_of
     exact h
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, -, D', Hrestoring, -⟩
-  rw [D.lambdaReplacement_eq D', D.renaming_eq D']
+  rw [D.interpretation_eq D']
   have hTN : entry.typeName ∉ (compilationRestoration sourceDecl aux').restorableNames :=
     fun h => hTN₀ ((D.restorable_iff D' _).mpr h)
   let r := compilationRestoration sourceDecl aux'
@@ -431,7 +425,7 @@ theorem NestedRun.projectionSourceOnCtx_of
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
   obtain ⟨-, hheadNames, hnp, hargs, hPclosed, -, -⟩ :=
     E.headerSetup wf hadded henvTypes Haux Hexpansion hnodup
-  have hclosed := Restoration.lambdaReplacement_closed hnp hargs hPclosed
+  have hclosed := Restoration.interpretation_closed hnp hargs hPclosed
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames'
   have hordered := henvTypes.ordered
@@ -531,15 +525,12 @@ theorem NestedRun.projectionSourceOnCtx_of
   have hfixLc : lc.type.ProjNamesFixed r.renaming :=
     Restoration.projNamesFixed_of_avoid (hPN lc (List.mem_flatMap.mpr ⟨t, ht, hlcmem⟩))
   have hBR : VExpr.BetaRed
-      (lc.type.replaceRen (r.lambdaReplacement fun _ => E.lowered.signature.params)
-        r.renaming) sc.type :=
-    Restoration.expr_betaRed
-      (fun c t' h => Restoration.lambdaReplacement_shape r (fun h hh => (hnp h hh).symm) h)
-      (fun c h hf => by simp [Restoration.lambdaReplacement, hf])
-      (fun c hf => Restoration.renaming_of_find_none hf) hfixLc hrestore
-  exact VEnv.ProjectionRulesRenamedOnCtx.of_ctorType_betaRed hSwf.ordered
-    (fun _ => hSwf.betaSubjectReduction) hclosed hS' hρtn hσtn hρctor hσctor hscClosed
-    harity hBR
+      ((r.interpretation E.lowered.signature.params).expr lc.type) sc.type :=
+    (Restoration.interpretation_agrees hnp).expr_betaRed hfixLc hrestore
+  exact VEnv.Interpretation.ProjectionClause.of_ctorType_betaRed hSwf.ordered
+    (fun _ => hSwf.betaSubjectReduction) hclosed
+    (Restoration.interpretation_preservesTelescopes _ _) hS' hρtn hσtn hσtn hρctor hσctor
+    hscClosed harity hBR
 
 /-- **Auxiliary projections in well-formed contexts.** A lowered projection
 of an auxiliary structure-like family `A` (lowered from the specialization of
@@ -571,11 +562,9 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.recursorVEnv →
         ∀ entry ∈ E.lowered.loweredDecl.projectionEntries,
           entry.typeName ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames →
-          VEnv.ProjectionRulesRenamedOnCtx C.recursorVEnv
-            ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
-              fun _ => E.lowered.signature.params)
-            (compilationRestoration sourceDecl auxiliaries).renaming
-            entry.typeName entry.info := by
+          ((compilationRestoration sourceDecl auxiliaries).interpretation
+            E.lowered.signature.params).ProjectionClause C.recursorVEnv
+            C.recursorVEnv.TypedCtx entry.typeName entry.info := by
   intro auxiliaries D C hC hV entry hentry hTN₀
   have hnodup :
       (familyNames E.lowered.loweredDecl.types ++
@@ -586,7 +575,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
   rcases E.restorationTablesRestoringAll wf Hsources with
     ⟨envTypes, generated, aux', hadded, henvTypes, Haux, Hexpansion, -, D', -,
       HauxRestoring⟩
-  rw [D.lambdaReplacement_eq D', D.renaming_eq D']
+  rw [D.interpretation_eq D']
   have hTN : entry.typeName ∈ (compilationRestoration sourceDecl aux').restorableNames :=
     (D.restorable_iff D' _).mp hTN₀
   let r := compilationRestoration sourceDecl aux'
@@ -595,7 +584,7 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
   obtain ⟨-, hheadNames, hnp, hargs, hPclosed, -, -⟩ :=
     E.headerSetup wf hadded henvTypes Haux Hexpansion hnodup
-  have hclosed := Restoration.lambdaReplacement_closed hnp hargs hPclosed
+  have hclosed := Restoration.interpretation_closed hnp hargs hPclosed
   have hfreshAll := E.restorableNames_fresh hadded Haux Hexpansion hnodup
   have hordered := henvTypes.ordered
   have hPN := E.constructorProjNames_of wf hadded Haux Hexpansion hnodup
@@ -770,21 +759,24 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
       VExpr.forallArity_wrapForalls_mkApps_const_instOuter, harityJ, List.length_map,
       List.length_drop, hPsrcLen, hloweredNparams]
     omega
-  refine VEnv.ProjectionRulesRenamedOnCtx.of_specialization hSwf
-    (info := ⟨E.lowered.loweredDecl.uvars, E.lowered.loweredDecl.nparams,
+  refine VEnv.Interpretation.ProjectionClause.of_specialization hSwf
+    (I := r.interpretation E.lowered.signature.params) (info := ⟨E.lowered.loweredDecl.uvars, E.lowered.loweredDecl.nparams,
       t.numIndices, t.resultLevel, lc.name, lc.type⟩)
     (infoJ := ⟨a.container.uvars, a.container.nparams, a.source.numIndices,
       a.source.resultLevel, c'.name, c'.type⟩)
     (P := E.lowered.signature.params) hS ?_ ?_ ?_ hPlen
     hev.argumentsLength hev.levelsLength hcClosed hni ?_ hnumFields ?_
-  · unfold Restoration.lambdaReplacement
+  · simp only [Restoration.interpretation_consts]
+    unfold Restoration.lambdaReplacement
     rw [show (compilationRestoration sourceDecl aux').heads.find?
       (fun h => h.auxiliary == t.name) = some hT from hfindT]
     rfl
-  · unfold Restoration.renaming
+  · simp only [Restoration.interpretation_projOwner]
+    unfold Restoration.renaming
     rw [show (compilationRestoration sourceDecl aux').heads.find?
       (fun h => h.auxiliary == t.name) = some hT from hfindT]
-  · unfold Restoration.lambdaReplacement
+  · simp only [Restoration.interpretation_consts]
+    unfold Restoration.lambdaReplacement
     rw [show (compilationRestoration sourceDecl aux').heads.find?
       (fun h => h.auxiliary == lc.name) = some hCt from hfindC]
     rfl
@@ -798,15 +790,11 @@ theorem NestedRun.projectionAuxiliaryOnCtx_of
     have hfixLc : lc.type.ProjNamesFixed r.renaming :=
       Restoration.projNamesFixed_of_avoid (hPN lc (List.mem_flatMap.mpr ⟨t, ht, hlcmem⟩))
     have hBR : VExpr.BetaRed
-        (lc.type.replaceRen
-          (r.lambdaReplacement fun _ => E.lowered.signature.params)
-          r.renaming) gc.type :=
-      Restoration.expr_betaRed
-        (fun c t' h => Restoration.lambdaReplacement_shape r (fun h hh => (hnp h hh).symm) h)
-        (fun c h hf => by simp [Restoration.lambdaReplacement, hf])
-        (fun c hf => Restoration.renaming_of_find_none hf) hfixLc hrestore
+        ((r.interpretation E.lowered.signature.params).expr lc.type) gc.type :=
+      (Restoration.interpretation_agrees hnp).expr_betaRed hfixLc hrestore
     intro U Γ lv params index major F hΓ hlv hF
     exact VEnv.fieldTransport_of_specialization hSwf hclosed
+      (Restoration.interpretation_preservesTelescopes _ _)
       (info := ⟨E.lowered.loweredDecl.uvars, E.lowered.loweredDecl.nparams,
         t.numIndices, t.resultLevel, lc.name, lc.type⟩)
       (infoJ := ⟨a.container.uvars, a.container.nparams, a.source.numIndices,

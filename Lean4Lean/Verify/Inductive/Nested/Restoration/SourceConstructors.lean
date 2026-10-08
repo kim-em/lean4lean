@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.RestorationDefEq
+import Lean4Lean.Theory.Inductive.RestorationInterpretation
 import Lean4Lean.Theory.Inductive.BetaSubjectReduction
 import Lean4Lean.Verify.Inductive.Nested.Restoration.CompilationData
 import Lean4Lean.Theory.Typing.EnvLemmas
@@ -12,13 +12,14 @@ validated nested run (the `sourceConstructors` field of
 `NestedCompilationRestorationFacts`).
 
 The lowered header environment `envL` is the source header environment
-`envTypes` extended by the opaque auxiliary family headers. Replacing each
-restoration head by the lambda abstraction of its container specialization
-over the common parameters (`Restoration.lambdaReplacement`) is a
-`RestorationSubstitution envTypes envL`; with beta subject reduction of the
-well-formed `envTypes` it transports the defeq of `Models.constructors`
-between a normalized and a lowered constructor type to the source
-environment (`RestoresType.of_models_constructor`).
+`envTypes` extended by the opaque auxiliary family headers. The restoration
+interpretation keeping projection owners (`Restoration.constInterpretation`), which
+interprets each restoration head by the lambda abstraction of its container
+specialization over the common parameters, is a restoration substitution from
+`envL` to `envTypes` (`Restoration.constInterpretation_substitution`; its clauses hold
+in every context). With beta subject reduction of the well-formed `envTypes` it
+transports the defeq of `Models.constructors` between a normalized and a lowered
+constructor type to the source environment (`RestoresType.of_models_constructor`).
 
 The facts not derived from the run are collected in
 `LoweredConstructorsRestore`. The specialization list and the freshness
@@ -32,25 +33,6 @@ namespace Lean4Lean
 open InductiveSignature
 
 namespace InductiveSignature
-
-/-! ### Lambda replacement on terms avoiding the restoration heads -/
-
-theorem Restoration.replaceConsts_lambdaReplacement {r : Restoration}
-    {domains : HeadSpecialization → List VExpr} :
-    ∀ {e : VExpr}, e.containsAnyConst (r.heads.map (·.auxiliary)) = false →
-      e.replaceConsts (r.lambdaReplacement domains) = e
-  | .bvar _, _ | .sort _, _ | .elim .., _ => rfl
-  | .const c ls, h => by
-    have hc : c ∉ r.heads.map (·.auxiliary) := by
-      simpa [VExpr.containsAnyConst] using h
-    exact VExpr.replaceConsts_const_none (Restoration.lambdaReplacement_eq_none hc)
-  | .app f a, h | .lam f a, h | .forallE f a, h => by
-    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
-    simp only [VExpr.replaceConsts, replaceConsts_lambdaReplacement h.1,
-      replaceConsts_lambdaReplacement h.2]
-  | .proj n i e, h => by
-    simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at h
-    simp only [VExpr.replaceConsts, replaceConsts_lambdaReplacement h.2]
 
 /-! ### The lambda replacement is a restoration substitution -/
 
@@ -83,10 +65,10 @@ theorem addConstVals_append_defeqs {env envTypes envL : VEnv}
     (VEnv.addConstVals_projections hlowered).trans
       (VEnv.addConstVals_projections htypes).symm⟩
 
-/-- The lambda replacement of a restoration table over a common closed
-parameter telescope `P` is a `RestorationSubstitution` from the extended
-header environment to the source header environment. -/
-theorem Restoration.lambdaReplacement_substitution {env envTypes envL : VEnv}
+/-- The restoration interpretation keeping projection owners, over a common closed parameter
+telescope `P`, is a restoration substitution from the extended header environment to the source
+header environment. Its clauses hold in every context. -/
+theorem Restoration.constInterpretation_substitution {env envTypes envL : VEnv}
     {sourceTC auxTC : List VConstVal} {r : Restoration} {P : List VExpr}
     (henvTypes : envTypes.WF)
     (htypes : env.addConstVals sourceTC = some envTypes)
@@ -94,95 +76,88 @@ theorem Restoration.lambdaReplacement_substitution {env envTypes envL : VEnv}
     (hnparams : ∀ h ∈ r.heads, h.nparams = P.length)
     (hargs : ∀ h ∈ r.heads, ∀ arg ∈ h.arguments, arg.ClosedN h.nparams)
     (hPclosed : ∀ i (hi : i < P.length), P[i].ClosedN i)
-    (hfresh : ∀ name ∈ r.heads.map (·.auxiliary), envTypes.constants name = none)
+    (hfresh : ∀ name ∈ r.restorableNames, envTypes.constants name = none)
     (hauxHeads : ∀ entry ∈ auxTC, entry.name ∈ r.heads.map (·.auxiliary))
-    (hrecFresh : ∀ p ∈ r.recursors, envTypes.constants p.1 = none)
     (hreplaced : ∀ h ∈ r.heads, ∀ ci, envL.constants h.auxiliary = some ci →
-      ci.type.containsAnyConst (r.heads.map (·.auxiliary)) = false ∧
+      ci.type.containsAnyConst r.restorableNames = false ∧
       envTypes.HasType ci.uvars []
         (VExpr.wrapLams P (VExpr.mkApps (.const h.target h.levels) h.arguments)) ci.type)
-    (helim : EliminatorsAvoidConsts envTypes (r.heads.map (·.auxiliary))) :
-    RestorationSubstitution envTypes envL r (r.lambdaReplacement fun _ => P) := by
+    (helim : EliminatorsAvoidConsts envTypes r.restorableNames) :
+    r.Substitution envTypes envL (r.constInterpretation P) := by
   have hordered := henvTypes.ordered
   have hon := hordered.onTypes_noFreshConsts hfresh
-  have hfix : ∀ {e : VExpr}, e.containsAnyConst (r.heads.map (·.auxiliary)) = false →
-      e.replaceConsts (r.lambdaReplacement fun _ => P) = e :=
-    Restoration.replaceConsts_lambdaReplacement
-  have hfixConst : ∀ {c ci}, envTypes.constants c = some ci →
-      ci.type.replaceConsts (r.lambdaReplacement fun _ => P) = ci.type := by
-    intro c ci hci
-    obtain ⟨_, h, _⟩ := hon.1 hci
-    exact hfix h
-  have hnotHead : ∀ {c ci}, envTypes.constants c = some ci →
-      r.lambdaReplacement (fun _ => P) c = none := by
-    intro c ci hci
-    apply Restoration.lambdaReplacement_eq_none
-    intro hmem
+  have hfix : ∀ {e : VExpr}, e.containsAnyConst r.restorableNames = false →
+      (r.constInterpretation P).expr e = e :=
+    Restoration.constInterpretation_expr_eq_self
+  have hnotR : ∀ {c ci}, envTypes.constants c = some ci → c ∉ r.restorableNames := by
+    intro c ci hci hmem
     rw [hfresh c hmem] at hci
     cases hci
+  have hfixConst : ∀ {c ci}, envTypes.constants c = some ci →
+      (r.constInterpretation P).consts c = none ∧ (r.constInterpretation P).rename c = c ∧
+      (r.constInterpretation P).expr ci.type = ci.type := by
+    intro c ci hci
+    obtain ⟨_, h, _⟩ := hon.1 hci
+    exact ⟨Restoration.lambdaReplacement_eq_none_of_not_restorable (hnotR hci),
+      Restoration.renaming_eq_self (hnotR hci), hfix h⟩
   have hfind : ∀ {c h}, r.heads.find? (fun h => h.auxiliary == c) = some h →
       h ∈ r.heads ∧ h.auxiliary = c := by
     intro c h hf
     exact ⟨List.mem_of_find?_eq_some hf, by simpa using List.find?_some hf⟩
+  have hI := Restoration.interpretation_closed hnparams hargs hPclosed
   have ⟨hdf, hel, hpr⟩ := addConstVals_append_defeqs htypes hlowered
-  refine {
-    closed := ?_
+  have S : (r.constInterpretation P).Sound envTypes envL fun _ _ => True := {
+    closed := hI
     ordered := hordered
-    replaced := ?_
-    kept := ?_
+    constants := ?_
     defeqs := ?_
     eliminators := ?_
-    projections := ?_
-    shape := ?_
-    headsFresh := ?_
-    recursorsFresh := hrecFresh }
-  · intro c t hρ
-    refine ⟨?_, Restoration.lambdaReplacement_ne_forallE r hρ⟩
-    unfold Restoration.lambdaReplacement at hρ
-    cases hf : r.heads.find? (fun h => h.auxiliary == c) with
-    | none => simp [hf] at hρ
-    | some h =>
-      simp only [hf, Option.map_some, Option.some.injEq] at hρ
-      subst hρ
-      obtain ⟨hmem, -⟩ := hfind hf
-      refine VExpr.ClosedN.wrapLams_closed (n := 0) (by simpa using hPclosed) ?_
-      refine VExpr.ClosedN.mkApps_closed trivial fun arg harg => ?_
-      have := hargs h hmem arg harg
-      rw [hnparams h hmem] at this
-      simpa using this
-  · intro c ci t hci hρ
-    unfold Restoration.lambdaReplacement at hρ
-    cases hf : r.heads.find? (fun h => h.auxiliary == c) with
-    | none => simp [hf] at hρ
-    | some h =>
-      simp only [hf, Option.map_some, Option.some.injEq] at hρ
-      subst hρ
-      obtain ⟨hmem, rfl⟩ := hfind hf
-      obtain ⟨hfree, htyped⟩ := hreplaced h hmem ci hci
-      rw [hfix hfree]
-      exact htyped
-  · intro c ci hci hρ
-    rcases lookup_of_addConstVals_append htypes hlowered hci with h | ⟨entry, hmem, rfl, -⟩
-    · exact ⟨ci, h, rfl, (hfixConst h).symm⟩
-    · exfalso
-      obtain ⟨h, hh, heq⟩ := List.mem_map.mp (hauxHeads entry hmem)
-      have hsome : (r.heads.find? (fun h => h.auxiliary == entry.name)).isSome :=
-        List.find?_isSome.mpr ⟨h, hh, by simp [heq]⟩
+    projections := ?_ }
+  · exact ⟨S.weaken fun _ => trivial, Restoration.constInterpretation_agrees hnparams⟩
+  · intro c ci hci
+    refine ⟨fun t hρ => ?_, fun hρ => ?_⟩
+    · change r.lambdaReplacement (fun _ => P) c = some t at hρ
       unfold Restoration.lambdaReplacement at hρ
-      cases hf : r.heads.find? (fun h => h.auxiliary == entry.name) with
-      | none => rw [hf] at hsome; cases hsome
-      | some _ => rw [hf] at hρ; cases hρ
+      cases hf : r.heads.find? (fun h => h.auxiliary == c) with
+      | none => simp [hf] at hρ
+      | some h =>
+        simp only [hf, Option.map_some, Option.some.injEq] at hρ
+        subst hρ
+        obtain ⟨hmem, rfl⟩ := hfind hf
+        obtain ⟨hfree, htyped⟩ := hreplaced h hmem ci hci
+        rw [hfix hfree]
+        exact htyped
+    · rcases lookup_of_addConstVals_append htypes hlowered hci with h | ⟨entry, hmem, rfl, -⟩
+      · obtain ⟨-, hr, hty⟩ := hfixConst h
+        obtain ⟨u, hu⟩ := hordered.constWF h
+        refine ⟨ci, by rw [hr]; exact h, rfl, u, ?_⟩
+        rw [hty]
+        exact hu
+      · exfalso
+        obtain ⟨h, hh, heq⟩ := List.mem_map.mp (hauxHeads entry hmem)
+        have hsome : (r.heads.find? (fun h => h.auxiliary == entry.name)).isSome :=
+          List.find?_isSome.mpr ⟨h, hh, by simp [heq]⟩
+        change r.lambdaReplacement (fun _ => P) entry.name = none at hρ
+        unfold Restoration.lambdaReplacement at hρ
+        cases hf : r.heads.find? (fun h => h.auxiliary == entry.name) with
+        | none => rw [hf] at hsome; cases hsome
+        | some _ => rw [hf] at hρ; cases hρ
   · intro df hdf'
     rw [hdf] at hdf'
     obtain ⟨h1, h2⟩ := hon.2 hdf'
-    exact ⟨df, hdf', rfl, (hfix h1.1).symm, (hfix h2.1).symm, (hfix h1.2).symm⟩
+    exact VEnv.Interpretation.DefEqClause.of_rule hdf' rfl (hfix h1.1).symm (hfix h2.1).symm
+      (hfix h1.2).symm
   · intro block schema hs
     rw [hel] at hs
     obtain ⟨ht, hrules⟩ := helim block schema hs
-    have hfix' : ∀ {e : VExpr}, e.mentionsAnyConst (r.heads.map (·.auxiliary)) = false →
-        e.replaceConsts (r.lambdaReplacement fun _ => P) = e :=
-      VExpr.replaceConsts_lambdaReplacement_of_mentions
-    refine ⟨hs, fun owner type h => hfix' (ht owner type h), ?_⟩
+    have hfix' : ∀ {e : VExpr}, e.mentionsAnyConst r.restorableNames = false →
+        (r.constInterpretation P).expr e = e := fun h =>
+      VEnv.Interpretation.expr_eq_self_of_mentions
+        (fun _ hc => Restoration.lambdaReplacement_eq_none_of_not_restorable hc)
+        (fun _ hc => Restoration.renaming_eq_self hc) (fun _ _ => rfl) h
+        (VExpr.projNamesFixed_id _)
+    refine VEnv.Interpretation.EliminatorClause.of_fixed hs (fun _ => rfl)
+      (fun owner type h => hfix' (ht owner type h)) ?_
     intro owner rules h df hdf
     obtain ⟨a, b, c⟩ := hrules owner rules h df hdf
     exact ⟨hfix' a, hfix' b, hfix' c⟩
@@ -190,12 +165,10 @@ theorem Restoration.lambdaReplacement_substitution {env envTypes envL : VEnv}
     rw [hpr] at hp
     obtain ⟨_, htn⟩ := hordered.projectionConstant hp
     have hctor := hordered.projectionConstructor hp
-    exact ⟨hp, hnotHead htn, hnotHead hctor, hfixConst hctor⟩
-  · intro c t hρ
-    exact Restoration.lambdaReplacement_shape r (fun h hmem => (hnparams h hmem).symm) hρ
-  · intro c h hf
-    obtain ⟨hmem, rfl⟩ := hfind hf
-    exact hfresh _ (List.mem_map_of_mem hmem)
+    obtain ⟨h1, h2, -⟩ := hfixConst htn
+    obtain ⟨h3, h4, h5⟩ := hfixConst hctor
+    exact VEnv.Interpretation.ProjectionClause.of_fixed hI
+      (Restoration.interpretation_preservesTelescopes r P) hp h1 h2 rfl h3 h4 h5
 
 /-! ### Constructor correspondence from a restoration substitution -/
 
@@ -226,8 +199,9 @@ substitution, the defeq of normalized and lowered constructor types in the
 lowered header environment, the restoration of the lowered constructor types
 to the source ones, and totality of restoration on the normalized types. -/
 theorem sourceConstructors_of_substitution {envS envL : VEnv} {r : Restoration}
-    {ρ : Name → Option VExpr} {U : Nat}
-    (S : RestorationSubstitution envS envL r ρ) (hβ : envS.BetaSubjectReduction U)
+    {I : VEnv.Interpretation} {U : Nat}
+    (S : r.Substitution envS envL I) (hfix : ∀ e : VExpr, e.ProjNamesFixed I.projOwner)
+    (hβ : envS.BetaSubjectReduction U)
     {normalized lowered source : List VInductiveType}
     (Hdefeq : List.Forall₂ (fun n l => List.Forall₂
       (fun nc lc : VConstVal => envL.IsDefEqU U [] nc.type lc.type) n.ctors l.ctors)
@@ -246,7 +220,8 @@ theorem sourceConstructors_of_substitution {envS envL : VEnv} {r : Restoration}
     (Lean4Lean.List.Forall₂.and_mem hnl) hls
   obtain ⟨hd, hnc, -⟩ := hd
   obtain ⟨restored, hr, hsim⟩ := hl
-  exact RestoresType.of_models_constructor S hβ hd hr hsim (Htotal n hn nc hnc)
+  exact RestoresType.of_models_constructor S hβ hd hr hsim (Htotal n hn nc hnc) (hfix _)
+    (hfix _)
 
 end InductiveSignature
 
@@ -435,10 +410,17 @@ theorem NestedRun.sourceConstructors_of_lowering
     have h2 := hP.length_eq
     simp only [List.length_reverse] at h1 h2
     omega
+  have hfreshAll : ∀ name ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
+      envTypes.constants name = none := by
+    intro name hname
+    rcases List.mem_append.mp hname with h | h
+    · exact hfresh name h
+    · obtain ⟨p, hp, rfl⟩ := List.mem_map.mp h
+      exact hrecFresh p hp
   have hreplaced : ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads, ∀ ci,
       E.lowered.constructors.toConstructorCheck.headerVEnv.constants h.auxiliary = some ci →
       ci.type.containsAnyConst
-          ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) = false ∧
+          (compilationRestoration sourceDecl auxiliaries).restorableNames = false ∧
       envTypes.HasType ci.uvars []
         (VExpr.wrapLams E.lowered.signature.params
           (VExpr.mkApps (.const h.target h.levels) h.arguments)) ci.type := by
@@ -464,7 +446,7 @@ theorem NestedRun.sourceConstructors_of_lowering
     change t.type.containsAnyConst _ = false ∧
       envTypes.HasType t.uvars [] _ t.type
     rw [huvars]
-    refine ⟨(htypeD.noFreshConsts hordered hfresh (by intro _ h; simp at h)).2.1, ?_⟩
+    refine ⟨(htypeD.noFreshConsts hordered hfreshAll (by intro _ h; simp at h)).2.1, ?_⟩
     have hPS : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
         E.lowered.signature.params.reverse sourceParams.reverse :=
       VEnv.IsDefEqCtx.trans_empty henvTypes hP (hctx.symm hordered)
@@ -485,17 +467,17 @@ theorem NestedRun.sourceConstructors_of_lowering
         (VEnv.IsDefEqU.trans henvTypes trivial hgtype.symm ⟨_, htypeD⟩)
     exact hlam.defeqU_r henvTypes trivial hchain
   -- the restoration substitution
-  have S := Restoration.lambdaReplacement_substitution
+  have S := Restoration.constInterpretation_substitution
     (r := compilationRestoration sourceDecl auxiliaries)
     (P := E.lowered.signature.params)
     henvTypes hadded hloweredSplit hheadsParams
-    (fun h hh arg harg => (hscoped.2.2.1 h hh).2 arg harg) hPclosed hfresh
+    (fun h hh arg harg => (hscoped.2.2.1 h hh).2 arg harg) hPclosed hfreshAll
     (by
       intro entry hentry
       obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hentry
       rw [hheadNames]
       exact mem_familyNames.mpr ⟨t, ht, .inl rfl⟩)
-    hrecFresh hreplaced (henvTypes.eliminatorsAvoidConsts hfresh)
+    hreplaced (henvTypes.eliminatorsAvoidConsts hfreshAll)
   -- the lowered defeq of normalized and lowered constructor types
   have hloweredUvars : E.lowered.loweredDecl.uvars = sourceDecl.uvars := by
     have h1 := E.lowered.constructors.toConstructorCheck.core.uvars
@@ -515,8 +497,8 @@ theorem NestedRun.sourceConstructors_of_lowering
     (Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       rw [hloweredUvars] at h
       exact h.2.2) Hctors)) sourceDecl.types.length
-  exact sourceConstructors_of_substitution S henvTypes.betaSubjectReduction Hdefeq
-    G.loweredConstructors G.normalizedTotal
+  exact sourceConstructors_of_substitution S VExpr.projNamesFixed_id
+    henvTypes.betaSubjectReduction Hdefeq G.loweredConstructors G.normalizedTotal
 
 end VerifyInductive
 
