@@ -467,6 +467,245 @@ theorem LeadingBinders.avoidsConsts {names : List Name} {k : Nat} {e body : Expr
 
 end Lean.Expr
 
+namespace Lean.Expr
+
+open Lean4Lean
+
+/-! ### Instantiating a recursive-call template -/
+
+/-- `ArgClosed k e`: the loose bound variables `≥ k` of `e` occur only as the
+heads of application spines reached through lambda bodies and application
+functions. A recursive-call template `fun ys => #n is (f ys)` is `ArgClosed 0`
+when its binder domains and `is` are closed, so instantiating its placeholder
+puts the recursor only at the head of the call spine. -/
+inductive ArgClosed : Nat → Expr → Prop
+  | bvar (k i : Nat) : ArgClosed k (.bvar i)
+  | closed {k : Nat} {e : Expr} : e.looseBVarRange' ≤ k → ArgClosed k e
+  | app {k : Nat} {f a : Expr} : ArgClosed k f → a.looseBVarRange' ≤ k →
+      ArgClosed k (.app f a)
+  | lam {k : Nat} {n : Name} {t b : Expr} {bi : BinderInfo} :
+      t.looseBVarRange' ≤ k → ArgClosed (k + 1) b → ArgClosed k (.lam n t b bi)
+
+theorem looseBVarRange_le_of_mem_getAppArgsList :
+    ∀ {e x : Expr}, x ∈ e.getAppArgsList → x.looseBVarRange' ≤ e.looseBVarRange'
+  | .app f a, x, hx => by
+    rw [getAppArgsList_app] at hx
+    simp only [Expr.looseBVarRange']
+    rcases List.mem_append.1 hx with hx | hx
+    · have := looseBVarRange_le_of_mem_getAppArgsList hx; omega
+    · rw [List.mem_singleton.1 hx]; omega
+  | .bvar _, _, hx | .fvar _, _, hx | .mvar _, _, hx | .sort _, _, hx | .const _ _, _, hx
+  | .lit _, _, hx | .lam .., _, hx | .forallE .., _, hx | .letE .., _, hx
+  | .mdata .., _, hx | .proj .., _, hx => by simp [getAppArgsList] at hx
+
+/-- A spine with a bound-variable head and arguments below `k`. -/
+theorem ArgClosed.mkAppList_bvar {k i : Nat} :
+    ∀ {args : List Expr}, (∀ a ∈ args, a.looseBVarRange' ≤ k) →
+      ∀ {f : Expr}, ArgClosed k f → ArgClosed k (mkAppList f args)
+  | [], _, _, hf => hf
+  | a :: args, h, _, hf => by
+    simp only [mkAppList]
+    exact mkAppList_bvar (k := k) (i := i) (fun x hx => h x (.tail _ hx))
+      (.app hf (h a (.head _)))
+
+private theorem argClosed_go {lctx : LocalContext} :
+    ∀ {l : List FVarId}, (∀ x ∈ l, ∃ i fv n ty bi kind,
+      lctx.find? x = some (.cdecl i fv n ty bi kind) ∧ ty.looseBVarRange' = 0) →
+    ∀ {b}, ArgClosed l.length b →
+      ArgClosed 0 (LocalContext.mkBindingListN.go true lctx l b)
+  | [], _, _, H => H
+  | x :: l, hx, b, H => by
+    obtain ⟨i, fv, n, ty, bi, kind, hfind, hty⟩ := hx x (.head _)
+    simp only [LocalContext.mkBindingListN.go]
+    refine argClosed_go (fun y hy => hx y (.tail _ hy)) ?_
+    simp only [LocalContext.mkBindingList1N, hfind, if_true]
+    refine .lam ?_ H
+    have := Lean4Lean.VerifyInductive.Expr.abstractN_looseBVarRange_le (e := ty)
+      (fvs := l.reverse) (k := 0)
+    simp only [hty, Nat.max_self, Nat.zero_add, List.length_reverse] at this
+    exact this
+
+/-- Closing `cdecl` variables with closed types around a body that is
+`ArgClosed` at the telescope length after abstraction. -/
+theorem ArgClosed.mkLambda {lctx : LocalContext} {ys : List FVarId} {b : Expr}
+    (hdecl : ∀ y ∈ ys, ∃ i fv n ty bi kind,
+      lctx.find? y = some (.cdecl i fv n ty bi kind) ∧ ty.looseBVarRange' = 0)
+    (H : ArgClosed ys.length (b.abstractN ys)) :
+    ArgClosed 0 (lctx.mkLambda ⟨ys.map .fvar⟩ b) := by
+  simp only [LocalContext.mkLambda]
+  rw [LocalContext.mkBinding_eqN]
+  simp only [LocalContext.mkBindingListN, LocalContext.mkBindingListN.core]
+  exact argClosed_go (fun y hy => hdecl y (List.mem_reverse.1 hy)) (by simpa using H)
+
+private theorem abstractN_mkAppList_eq (fn : Expr) (args : List Expr) (xs : List FVarId)
+    (k : Nat) :
+    (mkAppList fn args).abstractN xs k =
+      mkAppList (fn.abstractN xs k) (args.map fun a => a.abstractN xs k) := by
+  induction args generalizing fn with
+  | nil => rfl
+  | cons a l ih => simp only [mkAppList, ih, List.map_cons]; rfl
+
+/-- The body `#n is (f ys)` of a recursive-call template is `ArgClosed n`
+after abstracting `ys`, when `is`, `f` and `ys` are closed. -/
+theorem ArgClosed.callBody {ys : List FVarId} {idx args : List Expr} {f : Expr}
+    (hidx : ∀ a ∈ idx, a.looseBVarRange' = 0) (hf : f.looseBVarRange' = 0)
+    (hargs : ∀ a ∈ args, a.looseBVarRange' = 0) :
+    ArgClosed ys.length
+      ((Expr.app (mkAppList (.bvar ys.length) idx) (mkAppList f args)).abstractN ys) := by
+  have hle : ∀ a : Expr, a.looseBVarRange' = 0 → (a.abstractN ys 0).looseBVarRange' ≤
+      ys.length := by
+    intro a ha
+    have := Lean4Lean.VerifyInductive.Expr.abstractN_looseBVarRange_le (e := a)
+      (fvs := ys) (k := 0)
+    simpa [ha] using this
+  simp only [Expr.abstractN]
+  rw [abstractN_mkAppList_eq (Expr.bvar ys.length) idx]
+  refine .app (ArgClosed.mkAppList_bvar (i := ys.length) ?_ (.bvar _ _)) (hle _ ?_)
+  · intro a ha
+    simp only [List.mem_map] at ha
+    obtain ⟨b, hb, rfl⟩ := ha
+    exact hle b (hidx b hb)
+  · have hcl : ∀ a ∈ args, a.looseBVarRange' ≤ 0 := fun a ha => by simp [hargs a ha]
+    have : (mkAppList f args).looseBVarRange' ≤ 0 := by
+      clear hle hidx
+      induction args generalizing f with
+      | nil => simp [mkAppList, hf]
+      | cons a args ih =>
+        simp only [mkAppList]
+        exact ih (by simp [Expr.looseBVarRange', hf, hargs a (.head _)])
+          (fun x hx => hargs x (.tail _ hx)) (fun x hx => hcl x (.tail _ hx))
+    omega
+
+/-- A recursive-call template `lctx.mkLambda xs (#n is (f xs))` with closed
+binder domains, closed `is` and closed `f` is `ArgClosed 0`. -/
+theorem ArgClosed.callTemplate {lctx : LocalContext} {xs : Array Expr} {ys : List FVarId}
+    (hxs : xs = (ys.map Expr.fvar).toArray)
+    (hdecl : ∀ y ∈ ys, ∃ i fv n ty bi kind,
+      lctx.find? y = some (.cdecl i fv n ty bi kind) ∧ ty.looseBVarRange' = 0)
+    {idx : Array Expr} {f : Expr} (hidx : ∀ a ∈ idx.toList, a.looseBVarRange' = 0)
+    (hf : f.looseBVarRange' = 0) :
+    ArgClosed 0 (lctx.mkLambda xs ((Lean.mkAppN (.bvar xs.size) idx).app
+      (Lean.mkAppN f xs))) := by
+  subst hxs
+  rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
+    Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList]
+  have hsz : (List.map Expr.fvar ys).toArray.size = ys.length := by simp
+  rw [hsz]
+  refine ArgClosed.mkLambda hdecl (ArgClosed.callBody hidx hf ?_)
+  intro a ha
+  simp only [List.toList_toArray, List.mem_map] at ha
+  obtain ⟨y, -, rfl⟩ := ha
+  rfl
+
+namespace HitTrailWith
+
+variable {heads names : List Name} {np : Nat} {ls : List Level}
+
+/-- **Instantiating the placeholder of an `ArgClosed` template.** If `e` is in
+parameterless hit shape and `ArgClosed k`, and `v` is a closed expression
+satisfying `HitTrailWith` whose spine arguments are in parameterless hit shape,
+then `e[k := v]` satisfies `HitTrailWith` for the condition "mentions `names`
+only at `ls`", and so do its spine arguments. The substituent itself need not
+be in hit shape: it lands only at spine heads. -/
+theorem instantiate1'_argClosed {v : Expr} (hv : v.looseBVarRange' = 0)
+    (hvT : HitTrailWith heads np (HitShape names [] ls) v)
+    (hvargs : ∀ x ∈ v.getAppArgsList, HitShape names [] ls x) :
+    ∀ {k e}, ArgClosed k e → HitShape names [] ls e →
+      HitTrailWith heads np (HitShape names [] ls) (e.instantiate1' v k) ∧
+      ∀ x ∈ (e.instantiate1' v k).getAppArgsList, HitShape names [] ls x := by
+  intro k e H
+  induction H with
+  | bvar k i =>
+    intro _
+    simp only [Expr.instantiate1']
+    split
+    · exact ⟨.bvar _, by simp [getAppArgsList]⟩
+    · split
+      · rw [Expr.liftLooseBVars_eq_self (by omega)]
+        exact ⟨hvT, hvargs⟩
+      · exact ⟨.bvar _, by simp [getAppArgsList]⟩
+  | closed h =>
+    intro hs
+    rw [Expr.instantiate1'_eq_self h]
+    exact ⟨of_hitShape_nil hs, fun x hx => hs.of_mem_getAppArgsList (by simp) hx⟩
+  | @app k f a _ ha ih =>
+    intro hs
+    obtain ⟨hf, ha'⟩ := hs.app_inv_nil
+    obtain ⟨T, A⟩ := ih hf
+    simp only [Expr.instantiate1']
+    rw [Expr.instantiate1'_eq_self ha]
+    have hargs : ∀ x ∈ (Expr.app (f.instantiate1' v k) a).getAppArgsList,
+        HitShape names [] ls x := by
+      intro x hx
+      rw [getAppArgsList_app] at hx
+      rcases List.mem_append.1 hx with hx | hx
+      · exact A x hx
+      · rw [List.mem_singleton.1 hx]; exact ha'
+    exact ⟨.app T (of_hitShape_nil ha') fun _ _ _ _ x hx => hargs x (List.mem_of_mem_drop hx),
+      hargs⟩
+  | @lam k n t b bi ht _ ih =>
+    intro hs
+    obtain ⟨hts, hbs⟩ := hs.lam_inv
+    simp only [Expr.instantiate1']
+    rw [Expr.instantiate1'_eq_self ht]
+    exact ⟨.lam (of_hitShape_nil hts) (ih hbs).1, by simp [getAppArgsList]⟩
+
+/-- A spine headed by a non-constant (a free variable, say) whose arguments
+satisfy `HitTrailWith`. -/
+theorem mkAppList_of_not_const {Q : Expr → Prop} :
+    ∀ {args : List Expr} {f : Expr}, HitTrailWith heads np Q f →
+      (∀ c us, f.getAppFn ≠ .const c us) →
+      (∀ a ∈ args, HitTrailWith heads np Q a) →
+      HitTrailWith heads np Q (mkAppList f args)
+  | [], _, hf, _, _ => hf
+  | a :: args, f, hf, hfn, hargs => by
+    simp only [mkAppList]
+    exact mkAppList_of_not_const (app_of_not_const hf (hargs a (.head _)) hfn)
+      (by simpa [getAppFn] using hfn) fun x hx => hargs x (.tail _ hx)
+
+private theorem getAppArgsList_mkAppList_eq :
+    ∀ (args : List Expr) (f : Expr),
+      (mkAppList f args).getAppArgsList = f.getAppArgsList ++ args
+  | [], f => by simp [mkAppList]
+  | a :: args, f => by
+    simp only [mkAppList]
+    rw [getAppArgsList_mkAppList_eq args, getAppArgsList_app]
+    simp
+
+/-- A constant applied to free variables: the substituent of a recursive-call
+template. -/
+theorem constSpine_fvars {c : Name} {us : List Level} {args : List Expr}
+    (h : ∀ a ∈ args, ∃ fv, a = .fvar fv) :
+    (mkAppList (.const c us) args).looseBVarRange' = 0 ∧
+      HitTrailWith heads np (HitShape names [] ls) (mkAppList (.const c us) args) ∧
+      ∀ x ∈ (mkAppList (.const c us) args).getAppArgsList, HitShape names [] ls x := by
+  have hargs : ∀ x ∈ (mkAppList (.const c us) args).getAppArgsList,
+      ∃ fv, x = .fvar fv := by
+    intro x hx
+    rw [getAppArgsList_mkAppList_eq] at hx
+    simp only [getAppArgsList, List.nil_append] at hx
+    exact h x hx
+  refine ⟨?_, const_mkAppList fun a ha => ?_, fun x hx => ?_⟩
+  · have key : ∀ (args : List Expr) (f : Expr), f.looseBVarRange' = 0 →
+        (∀ a ∈ args, ∃ fv, a = .fvar fv) → (mkAppList f args).looseBVarRange' = 0 := by
+      intro args
+      induction args with
+      | nil => intro f hf _; simpa [mkAppList] using hf
+      | cons a args ih =>
+        intro f hf ha
+        simp only [mkAppList]
+        obtain ⟨fv, rfl⟩ := ha a (.head _)
+        exact ih _ (by simp [Expr.looseBVarRange', hf]) fun x hx => ha x (.tail _ hx)
+    exact key args _ rfl h
+  · obtain ⟨fv, rfl⟩ := h a ha
+    exact ⟨.fvar _, .fvar _⟩
+  · obtain ⟨fv, rfl⟩ := hargs x hx
+    exact .fvar _
+
+end HitTrailWith
+
+end Lean.Expr
+
 namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
@@ -525,6 +764,95 @@ theorem RecursorIndexTrace.hitShapeAt
     · exact hparamDecls fv h d hfind
     · exact hall fv h d hfind
 
+/-- Declarations of a recursor context have closed types. -/
+theorem RecursorContextWF.declType_closed {c : AddInductive.Context} {recLparams : List Name}
+    (R : RecursorContextWF c recLparams) {fv : FVarId} {d : LocalDecl}
+    (hfind : c.lctx.find? fv = some d) : d.type.looseBVarRange' = 0 := by
+  have hfind' : R.mlctx.lctx.find? fv = some d := by rw [R.lctx_eq]; exact hfind
+  rw [R.mlctx_wf.tr.1.find?_eq_find?_toList] at hfind'
+  have hmem : d ∈ R.mlctx.lctx.toList := List.mem_of_find?_eq_some hfind'
+  obtain ⟨_, _, _, _, _, _, htypeTr⟩ :=
+    R.mlctx_wf.tr.find?_of_mem R.checking.tr.wf hmem
+  have hcl := TrExprS.closed htypeTr
+  have hbv : R.mlctx.vlctx.bvars = 0 := R.mlctx_wf.tr.2.noBV
+  rw [hbv] at hcl
+  exact hcl.looseBVarRange_zero
+
+/-- **The pieces of a recursive-call template**: the declarations of its
+higher-order arguments satisfy `HitOK` and have closed types, and its exposed
+target type satisfies `HitOK` and is closed. The same chain as
+`RecInfoMinorHypothesisTypeOrigin.hitShape`, retaining closedness. -/
+theorem RecInfoMinorHypothesisTypeOrigin.templateFacts
+    {heads : List Name} {params : List Expr} {ls : List Level} {env : Environment}
+    (W : WhnfHitOKFacts heads params ls env)
+    (hp : ∀ p ∈ params, ∃ fv, p = .fvar fv)
+    {stats : AddInductive.InductiveStats} {recInfos : Array AddInductive.RecInfo}
+    {root : AddInductive.Context} {field type : Expr}
+    (O : RecInfoMinorHypothesisTypeOrigin stats recInfos root field type)
+    (henv : root.env = env)
+    {recLparams : List Name} (Rroot : RecursorContextWF root recLparams)
+    {P : FVarId → Prop} (hscope : Rroot.HitOKScope env heads params ls P)
+    (hfieldP : ∀ fv, field = .fvar fv → P fv) :
+    (∀ x ∈ O.arguments_bound.fvars, ∀ decl, O.current.lctx.find? x = some decl →
+        decl.HitOK env heads params ls ∧ decl.type.looseBVarRange' = 0) ∧
+      O.exposedType.HitOK env heads params ls ∧ O.exposedType.looseBVarRange' = 0 := by
+  have hinference := O.loopInput.inference
+  have hnormalization := O.loopInput.normalization
+  obtain ⟨fv, hfield, hfvRoot⟩ := O.field_fvar
+  have hfvP : P fv := hfieldP fv hfield
+  obtain ⟨fieldTarget, hfieldTr⟩ := Rroot.trFVar hfvRoot
+  subst hfield
+  obtain ⟨inferredTarget, hbelow, _, hinferredTr, hfieldTyping⟩ :=
+    getTypeFVarInRecursorContext.WF Rroot hfieldTr _ hinference
+  obtain ⟨index, dname, dtype, dbi, dkind, hdecl⟩ := Rroot.findCDecl (fv := fv) (by
+    rw [← Rroot.mlctx_wf.tr.fvars_eq, Rroot.lctx_eq]; exact hfvRoot)
+  have hty : O.loopInput.inferredType = (LocalDecl.cdecl index fv dname dtype dbi dkind).type := by
+    have h := hinference
+    rw [AddInductive.getType.run] at h
+    simp only [LocalContext.get!, Expr.fvarId!, hdecl, Except.ok.injEq] at h
+    exact h.symm
+  obtain ⟨jF, hjF, ty₀, hlctxF, htr₀, _⟩ := O.loopInput.checkBase Rroot
+  let RF := Rroot.withCheckLCtx (loopUArgsCheckLCtx root O.loopInput.prior)
+    ((Rroot.check.below jF hjF).cast hlctxF)
+  have hinferredEq : O.loopInput.inferredType = (root.lctx.get! fv).type := by
+    have h := hinference.symm.trans (AddInductive.getType.run (.fvar fv) root)
+    exact Except.ok.inj h
+  have hinferred₀ : TrExprS RF.venv recLparams RF.chk.vlctx
+      O.loopInput.inferredType ty₀ := by
+    rw [hinferredEq]; exact htr₀
+  have hdeclH : (LocalDecl.cdecl index fv dname dtype dbi dkind).HitOK env heads params ls :=
+    hscope.2 fv _ hfvP (by rw [Rroot.lctx_eq]; exact hdecl)
+  have hinferredH : O.loopInput.inferredType.HitOK env heads params ls := by
+    rw [hty]
+    exact hdeclH.1
+  have hfieldPin : (Expr.fvar fv).FVarsIn P := by simpa [FVarsIn] using hfvP
+  have hinferredP : O.loopInput.inferredType.FVarsIn P := hbelow P hscope.1 hfieldPin
+  have hinferredType : Rroot.venv.IsType recLparams.length
+      Rroot.mlctx.vlctx.toCtx inferredTarget :=
+    hfieldTyping.isType Rroot.checking.tr.wf Rroot.mlctx_wf.tr.wf.toCtx
+  obtain ⟨⟨hnormalizedBelow, hnormalizedTr⟩, _, hnormalized₀⟩ :=
+    whnfInRecursorContext.dualWF RF hinferredTr hinferred₀ _ hnormalization
+  have hnormalizedH : O.loopInput.normalizedType.HitOK env heads params ls :=
+    W.whnf RF henv hinferredTr ⟨_, hinferred₀⟩ hscope hinferredP hinferredH
+      hnormalization
+  have hnormalizedP : O.loopInput.normalizedType.FVarsIn P :=
+    hnormalizedBelow P hscope.1 hinferredP
+  obtain ⟨Rcurrent, P', T, hexpTr, _, hsc', hexposedH, _, _, hargs, _⟩ :=
+    O.loopTrace.hitShape W hp recursorConsumeTypeAnnotationsCompat henv RF hscope
+      hnormalizedTr hinferredType hnormalized₀ hnormalizedH hnormalizedP
+  refine ⟨fun x hx decl hdecl => ⟨?_, Rcurrent.declType_closed hdecl⟩, hexposedH, ?_⟩
+  · have hxArg : Expr.fvar x ∈ O.args.toList := by
+      rw [O.arguments_bound.expressions]
+      simpa using hx
+    obtain ⟨y, hy, hyP⟩ := hargs _ hxArg
+    cases hy
+    exact hsc'.2 x decl hyP (by rw [Rcurrent.lctx_eq]; exact hdecl)
+  · obtain ⟨e₂, htr, -⟩ := hexpTr
+    have hcl := TrExprS.closed htr
+    have hbv : Rcurrent.mlctx.vlctx.bvars = 0 := Rcurrent.mlctx_wf.tr.2.noBV
+    rw [hbv] at hcl
+    exact hcl.looseBVarRange_zero
+
 section TrailAssembly
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -538,8 +866,9 @@ construction, for a name list `names` and the levels `ls` (in the application,
 the auxiliary constructor names at levels that no translated constant
 carries): parameter declarations, family headers and constructor types avoid
 `names` and satisfy the projection condition, constructor types have the
-parameter telescope, and the generated recursor names and the family names of
-the majors are not in `names`. -/
+parameter telescope, and the family names of the majors are not in `names`.
+The generated recursor names may be in `names`: they occur in the rule
+right-hand sides only at the heads of the recursive calls. -/
 structure CompletedRecursorConstruction.TrailInputs
     (H : CompletedRecursorConstruction R) (names : List Name) (ls : List Level) : Prop where
   paramDecls : ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
@@ -550,7 +879,6 @@ structure CompletedRecursorConstruction.TrailInputs
     (∃ body, Expr.LeadingBinders stats.params.size ctor.type body) ∧
       ctor.type.AvoidsConsts names ∧
       ctor.type.ProjsOK (projHitOK H.localContext.env names)
-  recursorNames : ∀ i, i < stats.indConsts.size → Lean.mkRecName indTypes[i]!.name ∉ names
   familyNames : ∀ i, i < H.recInfos.size → ∀ n lv, stats.indConsts[i]! = .const n lv →
     n ∉ names
 
@@ -568,7 +896,7 @@ private theorem hQ {names : List Name} {ls : List Level} :
 `HitTrailWith` for the condition "mentions `names` only at `ls`" (the only
 other occurrences are the minor's constructor application, whose trailing
 arguments are fields); the call templates of its rule blueprint mention
-`names` only at `ls`. -/
+`names` only at `ls` and are `ArgClosed`. -/
 theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs names ls)
     (W : WhnfHitOKFacts names [] ls H.localContext.env)
     (heads : List Name) (np : Nat)
@@ -584,7 +912,9 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
       (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template.HitShape
         names [] ls ∧
       (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).targetTypeIdx <
-        stats.indConsts.size) := by
+        stats.indConsts.size ∧
+      (H.recInfos[owner]!.ruleBlueprints[localIndex]!.recursiveCalls[j]!).template.ArgClosed
+        0) := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
   have hcallRoots : RecInfoRuleBlueprintOriginAt stats
@@ -644,7 +974,8 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
       (∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
         D.type.HitShape names [] ls) ∧
       ((B.recursiveCalls[j]!).template.HitShape names [] ls ∧
-        (B.recursiveCalls[j]!).targetTypeIdx < stats.indConsts.size) := by
+        (B.recursiveCalls[j]!).targetTypeIdx < stats.indConsts.size ∧
+        (B.recursiveCalls[j]!).template.ArgClosed 0) := by
     intro j hj
     obtain ⟨originRoot, sourceType, recL, Rorigin, O, D, hle, hup, hD, hcall⟩ :=
       Hcalls.rooted j hj
@@ -686,10 +1017,21 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
       O.hitShape W hp henv Rorigin hscope hfieldP (by simp)
     refine ⟨⟨D, by rw [hD]; exact (htype.consumeTypeAnnotationsVerified) hp⟩, ?_⟩
     rw [hcall]
+    obtain ⟨ffv, hffv, -⟩ := O.field_fvar
     refine ⟨?_, by
       have := (checkPositivityStep.isValidIndApp?_some O.owner_valid).1
-      exact hstats ▸ this⟩
-    obtain ⟨ffv, hffv, -⟩ := O.field_fvar
+      exact hstats ▸ this, ?_⟩
+    rotate_left
+    · obtain ⟨hcl, -, hexpCl⟩ := O.templateFacts W hp henv Rorigin hscope hfieldP
+      refine Expr.ArgClosed.callTemplate O.arguments_bound.expressions (fun y hy => ?_) ?_
+        (by rw [hffv]; rfl)
+      · have hyCur : y ∈ O.current.lctx.fvars := O.arguments_bound.members y hy
+        obtain ⟨index, name, ty, bi, kind, hfind⟩ := O.current_wf.findCDecl y hyCur
+        exact ⟨_, _, _, _, _, _, hfind, (hcl y hy _ hfind).2⟩
+      · intro a ha
+        rw [Lean4Lean.VerifyInductive.Expr.getAppArgs_slice_toList] at ha
+        exact Nat.le_zero.1 (hexpCl ▸
+          Expr.looseBVarRange_le_of_mem_getAppArgsList (List.mem_of_mem_drop ha))
     refine Expr.HitShape.mkLambda_of_disjoint O.arguments_bound.expressions ?_ (by simp) ?_
     · refine .app (Expr.HitShape.mkAppN (.bvar _) (hexp.getAppArgs_slice hp _))
         (Expr.HitShape.mkAppN (by rw [hffv]; exact .fvar ffv) ?_)
@@ -937,14 +1279,20 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
   obtain ⟨minorFv, hminorFv, -⟩ :=
     BoundFVarArray.fvar_of_mem (H.bindings.minors owner howner) hminorMem
   simp only [AddInductive.RecRuleBlueprint.build]
-  -- the body
+  have hQ : ∀ (ys : List FVarId) x d, Expr.HitShape names [] ls x →
+      Expr.HitShape names [] ls (x.abstractN ys d) :=
+    fun ys _ d h => h.nil_abstractN ys d
+  -- the body: the minor variable applied to fields and recursive calls
   have hbody : (mkAppN (mkAppN blueprint.minor blueprint.fields)
       (blueprint.recursiveCalls.map fun call =>
         call.build indTypes stats (H.recInfos.map (·.motive))
-          (H.recInfos.flatMap (·.minors)) lvls)).HitShape names [] ls := by
-    rw [hBfields]
-    refine Expr.HitShape.mkAppN (Expr.HitShape.mkAppN (by rw [hminorFv]; exact .fvar _)
-      fun a ha => ?_) fun a ha => ?_
+          (H.recInfos.flatMap (·.minors)) lvls)).HitTrailWith heads np
+          (Expr.HitShape names [] ls) := by
+    rw [hBfields, Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
+      Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append]
+    refine Expr.HitTrailWith.mkAppList_of_not_const (by rw [hminorFv]; exact .fvar _)
+      (by rw [hminorFv]; intro c us h; cases h) fun a ha => ?_
+    rcases List.mem_append.1 ha with ha | ha
     · obtain ⟨y, rfl, -⟩ := BoundFVarArray.fvar_of_mem S.fields_bound
         (Array.mem_toList_iff.1 ha)
       exact .fvar y
@@ -954,37 +1302,48 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
       have hj' : j < blueprint.recursiveCalls.size := by simpa using hj
       have hcallEq : blueprint.recursiveCalls[j]! = call := by
         rw [getElem!_pos _ j hj']; simpa using hcallj
-      obtain ⟨htemplate, htarget⟩ := hcalls j (by rw [← hcallsSize]; exact hj')
-      rw [hcallEq] at htemplate htarget
-      simp only [AddInductive.RecCallBlueprint.build]
-      refine htemplate.instantiate1 ?_ hp
-      refine Expr.HitShape.mkAppN (Expr.HitShape.mkAppN
-        (Expr.HitShape.mkAppN (.const (I.recursorNames _ htarget)) fun a ha => ?_)
-          fun a ha => ?_) fun a ha => ?_
-      · obtain ⟨fv, rfl⟩ := H.params_fvar a ha
-        exact .fvar fv
-      · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.motives
-          (Array.mem_toList_iff.1 ha)
-        exact .fvar fv
-      · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.flatMinors
-          (Array.mem_toList_iff.1 ha)
-        exact .fvar fv
-  have hQ : ∀ (ys : List FVarId) x d, Expr.HitShape names [] ls x →
-      Expr.HitShape names [] ls (x.abstractN ys d) :=
-    fun ys _ d h => h.nil_abstractN ys d
+      obtain ⟨htemplate, -, hargCl⟩ := hcalls j (by rw [← hcallsSize]; exact hj')
+      rw [hcallEq] at htemplate hargCl
+      simp only [AddInductive.RecCallBlueprint.build, Expr.instantiate1_eq]
+      rw [Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
+        Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList,
+        Lean4Lean.VerifyInductive.Expr.mkAppN_eq_mkAppList, ← Expr.mkAppList_append,
+        ← Expr.mkAppList_append]
+      have hfv : ∀ a ∈ stats.params.toList ++ (H.recInfos.map (·.motive)).toList ++
+          (H.recInfos.flatMap (·.minors)).toList, ∃ fv, a = .fvar fv := by
+        intro a ha
+        rcases List.mem_append.1 ha with ha | ha
+        · rcases List.mem_append.1 ha with ha | ha
+          · exact H.params_fvar a ha
+          · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.motives
+              (Array.mem_toList_iff.1 ha)
+            exact ⟨fv, rfl⟩
+        · obtain ⟨fv, rfl, -⟩ := BoundFVarArray.fvar_of_mem H.bindings.flatMinors
+            (Array.mem_toList_iff.1 ha)
+          exact ⟨fv, rfl⟩
+      obtain ⟨hv, hvT, hvargs⟩ := Expr.HitTrailWith.constSpine_fvars (heads := heads)
+        (np := np) (names := names) (ls := ls)
+        (c := Lean.mkRecName indTypes[call.targetTypeIdx]!.name) (us := lvls) hfv
+      have := (Expr.HitTrailWith.instantiate1'_argClosed hv hvT hvargs hargCl htemplate).1
+      simpa only [List.append_assoc] using this
   -- the fields lambda
   have hfields : (blueprint.lctx.mkLambda blueprint.fields
       (mkAppN (mkAppN blueprint.minor blueprint.fields)
         (blueprint.recursiveCalls.map fun call =>
           call.build indTypes stats (H.recInfos.map (·.motive))
-            (H.recInfos.flatMap (·.minors)) lvls))).HitShape names [] ls := by
+            (H.recInfos.flatMap (·.minors)) lvls))).HitTrailWith heads np
+          (Expr.HitShape names [] ls) := by
     revert hbody
     rw [hBlctx, hBfields]
     intro hbody
-    refine Expr.HitShape.mkLambda_of_disjoint S.fields_bound.expressions hbody (by simp)
-      fun y hy => ?_
-    obtain ⟨i, fv, n, ty, bi, kind, hfind, hty⟩ := hfieldDecls y hy
-    exact ⟨_, hfind, hty⟩
+    refine Expr.HitTrailWith.mkLambda' S.fields_bound.expressions hbody hQ
+      (fun y hy => ?_) (fun y hy d hfind => ?_)
+    · obtain ⟨i, fv, n, ty, bi, kind, hfind, -⟩ := hfieldDecls y hy
+      exact ⟨i, fv, n, ty, bi, kind, hfind⟩
+    · obtain ⟨i, fv, n, ty, bi, kind, hfind', hty⟩ := hfieldDecls y hy
+      rw [hfind] at hfind'
+      cases hfind'
+      exact Expr.HitTrailWith.of_hitShape_nil hty
   constructor
   · refine Expr.HitTrailWith.mkLambda' H.params.expressions ?_ hQ H.paramCDecls
       (fun y hy d hfind => Expr.HitTrailWith.of_hitShape_nil
@@ -1001,7 +1360,7 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
       (fun y hy => H.type_of_find (P := fun t => t.HitTrailWith heads np
           (Expr.HitShape names [] ls))
         (H.minorDeclTrail I W heads np (H.bindings.flatMinors.mem_fvars_iff.1 hy)))
-    exact Expr.HitTrailWith.of_hitShape_nil hfields
+    exact hfields
   · have key : ∀ (ps : Array Expr), ps = (H.params.fvars.map Expr.fvar).toArray → ∀ b,
         (H.localContext.lctx.mkLambda ps b).LamPrefixAvoids names ps.size := by
       intro ps hps b
@@ -1362,7 +1721,7 @@ theorem NestedValidatedRunResult.trailInputs_of
     intro i hi
     rw [getElem!_pos E.production.indTypes i hi]
     exact Array.getElem_mem_toList hi
-  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  refine ⟨?_, ?_, ?_, ?_⟩
   · refine E.production.production.toCompletedRecursorConstruction.paramDecls_trail
       (fun n hn => ?_) (fun s info h => ?_)
     · rw [E.production_initialEnv]
@@ -1388,8 +1747,6 @@ theorem NestedValidatedRunResult.trailInputs_of
     obtain ⟨body, hl, -⟩ := E.ctorTypes_headType wf Hsources _ (hmem i hi) ctor hctor
     rw [E.statsParamsSize, hnp]
     exact ⟨body, hl.leadingBinders⟩
-  · exact E.production.production.toCompletedRecursorConstruction.recursorNames_not_mem
-      (fun _ hh => E.hitHeads_subset (E.auxCtorNames_hitHeads _ hh)) hnodup
   · refine E.production.production.toCompletedRecursorConstruction.familyNames_not_mem
       (fun n hn => ?_) (List.nodup_append.1 hnodup).1
     obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
