@@ -7,6 +7,16 @@ namespace Lean4Lean
 open Lean hiding Environment Exception
 open Kernel
 
+/-! # Checking the prelude's `Eq` declaration
+
+`Init.Prelude` declares `Eq` as an ordinary inductive, before any quotient. This file follows
+that one declaration (`PreludeEqShape`) through the executable: the primitive Bool/Nat
+recognizer rejects it, lowering leaves it unchanged, and the ordinary path of section 3.1 of
+`docs/inductives/DESIGN.md` installs it. From the header translation and the block
+installation it derives that every safety-indexed model of the output contains `Eq`, `Eq.refl`
+and `Eq.rec` with the prelude's types (`CanonicalEqEnvs`), assuming only that `Eq` was absent
+before. `addInductiveDeclaration.preludeEqExtensionWF` is the resulting `addDecl` statement. -/
+
 namespace VerifyInductive
 
 private theorem vconstant_eq_of_fields {a b : VConstant}
@@ -15,8 +25,8 @@ private theorem vconstant_eq_of_fields {a b : VConstant}
   cases b
   simp_all
 
-/-- Exact production syntax of Lean's ordinary (non-primitive) `Eq`
-toConstantsInstallation declaration, modulo binder and universe-parameter names.  As
+/-- The exact syntax of the prelude's ordinary (non-primitive) `Eq`
+declaration, modulo binder and universe-parameter names.  As
 submitted by `Init.Prelude`, `Eq` has two parameters (`α` and the left
 endpoint `a`) and one index (the right endpoint), so `nparams = 2`. -/
 def PreludeEqShape (lparams : List Name) (nparams : Nat)
@@ -72,7 +82,7 @@ theorem preludeEqType_translation
       · exact .bvar rfl
       · exact .sort rfl
 
-/-- Header translation of the exact production `Eq` declaration determines
+/-- Header translation of the exact prelude `Eq` declaration determines
 the abstract family constant uniquely. -/
 theorem TrInductDeclHeaders.preludeEqConstant
     (H : TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes)
@@ -92,8 +102,8 @@ theorem TrInductDeclHeaders.preludeEqConstant
   · apply TrExprS.unique (by trivial) Htarget.header.type
     exact preludeEqType_translation env u alphaName lhsName rhsName
 
-/-- An exact toConstantsInstallation header certificate identifies one installed production
-`Eq` entry and the corresponding canonical abstract value. -/
+/-- The header environment of the exact prelude `Eq` declaration contains one installed
+`Eq` entry, whose abstract value is the canonical `eqConst`. -/
 theorem HeaderEnvironment.preludeEqEntry
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv)
@@ -124,7 +134,7 @@ theorem HeaderEnvironment.preludeEqEntry
   exact ⟨info, target, hentryEq ▸ hentry, hinfoName,
     htargetName, htargetConstant⟩
 
-/-- The source translation of the exact toConstantsInstallation declaration fixes the
+/-- The source translation of the exact prelude `Eq` declaration fixes the
 abstract declaration: one family `Eq` with the stored type of `Eq`, one
 constructor `Eq.refl` with the stored type of `Eq.refl`, two parameters. -/
 theorem TrInductDeclCore.preludeEqDecl
@@ -187,11 +197,11 @@ theorem VInductBlock.install_rule {base env' : VEnv} {block : VInductBlock}
         subst env'
         exact VEnv.addDefEqRules_defeqs_iff.mpr (.inr hrule)
 
-/-- The completed safe ordinary run for Lean's toConstantsInstallation declaration of `Eq`
-creates the canonical abstract equality constant at every observer safety.
-Unlike later ordinary declarations, this theorem assumes only that production
-`Eq` is absent at the source; canonical equality is obtained from the actual
-header translation and staged installation of this block. -/
+/-- The safe ordinary installation of the prelude's `Eq` declaration yields models
+that contain canonical `Eq` at every safety level (`CanonicalEqEnvs`).
+The theorem assumes only that `Eq` is absent from the kernel environment before the
+declaration; canonical equality is obtained from the header translation and the block
+installation of this block. -/
 theorem OrdinaryInstallation.extendSafePreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryInstallation c stats nparams depth indTypes
@@ -269,7 +279,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
       ∀ safety, (ves'.venv safety).HasCanonicalEq := by
     intro ci hfind ⟨hciSafe, u, v, names, huv, hlps, htype⟩ safety
     refine VEnv.HasCanonicalEq.mono (wf'.mono DefinitionSafety.le_safe) ?_
-    -- `Eq.rec`: the production type translates to the stored type.
+    -- `Eq.rec`: the prelude type translates to the stored type.
     rcases (wf'.tr (safety := .safe)).find? hfind
         (by rw [hciSafe]; exact DefinitionSafety.le_rfl) with
       ⟨recConst, hrecConst, -, hrecUvars, hrecType⟩
@@ -336,7 +346,7 @@ open Kernel
 namespace VerifyInductive
 
 set_option linter.unusedSimpArgs false in
-/-- Nested-inductive lowering is a literal no-op for the toConstantsInstallation `Eq`
+/-- Nested-inductive lowering is a literal no-op for the prelude `Eq`
 syntax: its recursive constructor occurrence is the family currently being
 defined, not a nested occurrence through another inductive. -/
 theorem ElimNestedInductive.run'.preludeEqNoop
@@ -518,7 +528,7 @@ theorem ElimNestedInductive.run'.preludeEqNoopWF
   fun res hout => preludeEqNoop env fuel lparams nparams types isUnsafe res
     Hshape hAbsent hout
 
-/-- The exact toConstantsInstallation `Eq` syntax is necessarily dispatched through the
+/-- The exact prelude `Eq` syntax is necessarily dispatched through the
 ordinary branch: it has one universe parameter and two inductive parameters
 (`α` and the left endpoint), whereas primitive Bool/Nat recognition requires
 both lists to be empty. -/
@@ -533,8 +543,9 @@ theorem checkPrimitiveInductive_eq_false_of_preludeEqShape
   simp [Primitive.checkInductive]
   rfl
 
-/-- Source-aligned ordinary execution of the exact safe toConstantsInstallation `Eq`
-declaration establishes the first canonical equality environment. -/
+/-- The ordinary run of the exact safe prelude `Eq` declaration yields models with
+canonical `Eq` at every safety level, extending the source models, together with the
+source `AddInduct`. -/
 theorem OrdinaryRunResult.extendPreludeEq
     {ves : VEnvs}
     (Hrun : OrdinaryRunResult source sourceEnv
@@ -577,7 +588,7 @@ theorem OrdinaryRunResult.extendPreludeEq
   refine ⟨ves', wf', hEq', hle, ?_, hcanonical⟩
   simpa only [hlparams, hsource] using Hspec
 
-/-- Complete `AddInductive.run` refinement for the exact toConstantsInstallation `Eq`
+/-- Complete `AddInductive.run` refinement for the exact prelude `Eq`
 declaration, without assuming canonical equality in the source model. -/
 theorem AddInductive.run.preludeEqInstalledWF
     {ves : VEnvs}
@@ -621,8 +632,10 @@ theorem AddInductive.run.preludeEqInstalledWF
     Hclosed wf.envGhostFree hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
       Hrun.extendPreludeEq wf htels hAbsent hsafety hsource Hshape
 
-/-- Final-model boundary for the zero-auxiliary production branch reached by
-the exact toConstantsInstallation `Eq` declaration. -/
+/-- `addInductiveAfterLowering` on the exact prelude `Eq` declaration, after a lowering
+that produced no auxiliary families, yields well-formed models of the output that extend
+the source models and satisfy `EqReadyOrAbsent`, with the source `AddInduct`, and in which
+`Eq` is canonical (`HasCanonicalEq`) whenever the installed `Eq.rec` is the prelude's. -/
 theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
@@ -682,9 +695,9 @@ theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
       simpa [c, initialContext, htypes] using Hspec
     exact ⟨ves', wf', EqReadyOrAbsent.ofCanonical hEq', hle, Hspec', hcanonical⟩
 
-/-- End-to-end production `addInductive` boundary for the ordinary toConstantsInstallation
-`Eq` declaration.  Source checks and the exact lowering no-op are composed
-with the same source-aligned run that installs canonical abstract equality. -/
+/-- `addInductive` on the prelude `Eq` declaration yields the conclusion of
+`Environment.addInductiveAfterLowering.preludeEqExtensionWF`.  The source checks and the lowering no-op are composed
+with the ordinary run that installs canonical abstract equality. -/
 theorem Environment.addInductive.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -715,9 +728,9 @@ theorem Environment.addInductive.preludeEqExtensionWF
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
-/-- Checked `addDecl` dispatch for the exact non-primitive toConstantsInstallation `Eq`
-declaration.  The actual primitive precheck is proved to return `false`, so
-the theorem follows the production branch rather than assuming it. -/
+/-- Checked `addDecl` on the exact non-primitive prelude `Eq`
+declaration.  The primitive recognizer is proved to return `false`, so
+the theorem follows the ordinary branch rather than assuming it. -/
 theorem addInductiveDeclaration.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
