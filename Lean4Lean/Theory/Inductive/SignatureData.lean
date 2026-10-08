@@ -102,7 +102,8 @@ structure Instance (s : InductiveSignature) where
   targetLevel : VLevel
   recursorName : Fin s.families.size → Name
 
-/-- Native declarations and abstract eliminators share one equation generator.
+/-- Recursors (`.recursor`) and abstract case eliminators (`.elim`) share one equation
+generator.
 Abstract symbols are disjoint syntax, indexed within their certified block. -/
 inductive HeadMode where
   | recursor

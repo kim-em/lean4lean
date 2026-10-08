@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 
-/-! Exact universe spines of restored native heads. -/
+/-! Exact universe spines of restored heads (`Restoration.headLevels`). -/
 
 namespace Lean4Lean.InductiveSignature
 

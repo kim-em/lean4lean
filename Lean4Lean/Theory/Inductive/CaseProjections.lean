@@ -21,7 +21,7 @@ private instance decidableClosedN : ∀ (e : VExpr) (n : Nat), Decidable (e.Clos
 
 namespace InductiveSignature.CaseSchema
 
-/-- Restored syntax in the original common-parameter context. Index domains
+/-- Restored syntax in the source common-parameter context. Index domains
 are scoped over parameters and preceding indices; field domains over
 parameters and preceding fields. `major` is under parameters and all indices,
 while `constructor` and `constructorIndices` are under parameters and fields. -/
@@ -37,7 +37,7 @@ structure StructureTelescope where
 def telescopeScoped (outer : Nat) (domains : List VExpr) : Bool :=
   domains.zipIdx.all fun (domain, i) => decide (domain.ClosedN (outer + i))
 
-/-- Extract exactly one constructor and restore its original syntax before
+/-- Extract exactly one constructor and restore its source syntax before
 building dependent projections. No identity of restored parameter spines is
 assumed, so auxiliary families retain their certified specializations. -/
 def structureTelescope (schema : CaseSchema) (owner : Fin schema.signature.families.size)
@@ -89,7 +89,7 @@ def StructureTelescope.fieldTarget (data : StructureTelescope) (domain : VExpr)
       previous.map (fun projection => VExpr.mkApps projection.value data.arguments)
 
 /-- Build one case call from its derived field domain. Its motive abstracts
-all indices and the major; its sole minor abstracts every original field and
+all indices and the major; its sole minor abstracts every constructor field and
 selects the current one. Motive and minor are lifted past the call's indices
 and major while their common parameters remain free. -/
 def StructureTelescope.step (data : StructureTelescope) (block : Name) (owner : Nat)
@@ -122,7 +122,7 @@ universe arity, multiple constructors, malformed telescopes, failed
 restoration, or an overlong requested prefix return `none`.
 
 The generated values use abstract case eliminators only; the generator never
-inserts primitive projections or references a native recursor. -/
+inserts primitive projections or references a recursor constant. -/
 def projectionPrefix (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size) (uvars : Nat)
     (levels fieldSorts : List VLevel) : Option (List ProjectionFunction) := do
@@ -222,7 +222,7 @@ principle; generating these terms does not derive eta from case iota. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 
-/-- Reconstruct the original constructor from all its generated field
+/-- Reconstruct the constructor application from all its generated field
 projections in the common-parameter/major context. -/
 def StructureTelescope.etaReconstruction (data : StructureTelescope)
     (projections : List ProjectionFunction) : VExpr :=
@@ -232,7 +232,7 @@ def StructureTelescope.etaReconstruction (data : StructureTelescope)
 
 /-- A complete, closed template for the structure eta equality. Indexed
 families are rejected, matching the separate structure eta principle. Every
-field is supplied by this schema's actual projection generator. -/
+field is supplied by this schema's projection generator. -/
 def structureEta (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size) (uvars : Nat)
     (levels fieldSorts : List VLevel) : Option VDefEq := do

@@ -18,7 +18,7 @@ generated equations are stated) is transported.
 
 Its eliminator clause also admits restoration-free lowered eliminators matched
 by a registered restored source schema with the same signature
-(`RestoredEliminator`, added by `RenamingReplacementOnCtx.addEliminator`): their
+(`RestoredEliminator`, added by `RenamingReplacementOnCtx.addEliminators`): their
 rules are transported through the agreement of restoration with the renaming
 replacement up to beta (`RenamingRestorationAgreement.expr_simAt`), which needs
 the well-formed image context and so is not available to the context-free
@@ -104,7 +104,7 @@ theorem ProjectionRulesRenamed.onCtx {envS : VEnv} {ρ : Name → Option VExpr} 
 
 /-- A restoration-free eliminator `(block, schema)` of the lowered environment,
 matched in `envS` by the registered schema with the same signature, the
-original families `families` and the restoration `r`, which agrees with the
+source families `families` and the restoration `r`, which agrees with the
 renaming replacement `(ρ, σ)` (`CaseSchema.eq_with_of_signature` puts a source
 schema with the same signature in this form). Its
 elimination rules are transported through the agreement of restoration with
@@ -117,7 +117,7 @@ structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Na
     (r : InductiveSignature.Restoration) : Prop where
   /-- The lowered schema carries no restoration. -/
   restorationFree : schema.restoration = {}
-  /-- The source schema, with the same signature, the original families
+  /-- The source schema, with the same signature, the source families
   `families` and the restoration `r`, is registered under the same key. -/
   registered : envS.eliminators block
     { schema with sourceFamilies := families, restoration := r }
@@ -135,7 +135,7 @@ structure RestoredEliminator (envS : VEnv) (ρ : Name → Option VExpr) (σ : Na
     ∀ df ∈ rules, df.lhs.ProjNamesFixed σ ∧ df.rhs.ProjNamesFixed σ ∧
       df.type.ProjNamesFixed σ ∧ (r.equation df).isSome
 
-/-- A schema with the same signature as `schema` is `schema` with its original
+/-- A schema with the same signature as `schema` is `schema` with its source
 families and restoration replaced. -/
 theorem _root_.Lean4Lean.InductiveSignature.CaseSchema.eq_with_of_signature
     {schema schemaS : InductiveSignature.CaseSchema} (h : schemaS.signature = schema.signature) :

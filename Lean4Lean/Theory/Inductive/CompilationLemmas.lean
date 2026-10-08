@@ -1,6 +1,8 @@
 import Lean4Lean.Theory.Inductive.Compilation
 
-/-! Syntactic consequences of finite canonical compilation.
+/-! Syntactic consequences of finite compilation (`CompilationData`, `CompiledInductive`): no
+generated equation has a bare sort on its left, and every equation is headed by a recursor of
+the same compilation.
 
 These results use the generated equation syntax, independently of typing
 inversion or the consistency of the ambient environment.
@@ -292,7 +294,7 @@ private theorem forall₂_exists_right {R : α → β → Prop} {left : List α}
     · rcases ih ha with ⟨b', hb', h'⟩
       exact ⟨b', by simp [hb'], h'⟩
 
-/-- The shared generation witness determines each equation head and its
+/-- The shared instance determines each equation head and its
 corresponding restored recursor declaration. -/
 theorem CompilationData.equation_head_owned
     {env : VEnv} {source expanded : VInductDecl} {s : InductiveSignature}
@@ -344,7 +346,7 @@ theorem CompiledInductive.equation_lhs_ne_sort
     H
 
 /-- An equality with a bare sort as its left-hand side cannot be inserted by choosing some other
-normalized signature, lowering table, or finite provenance derivation. -/
+normalized signature, lowering table, or compilation derivation. -/
 theorem CompiledInductive.reject_sort_lhs
     {env : VEnv} {source : VInductDecl} {block : VInductBlock}
     {equation : VDefEq} {u : VLevel}

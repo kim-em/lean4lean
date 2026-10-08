@@ -1,8 +1,8 @@
 import Lean4Lean.Theory.Inductive.SingletonReconstruction
 import Lean4Lean.Theory.Inductive.CaseReductionData
 
-/-! Pure native recursor occurrence metadata. Every field is generated from
-one compilation instance and its case schema; no typing relation, matching
+/-! Pure metadata of a recursor occurrence (`RecursorData`), used by singleton reconstruction and
+prefix unfolding. Every field is generated from one compilation instance and its case schema; no typing relation, matching
 oracle, or arbitrary replacement term is part of the data. -/
 
 namespace Lean4Lean.InductiveSignature
@@ -34,13 +34,13 @@ def numIndices (data : RecursorData) : Nat :=
 
 def majorOffset (data : RecursorData) : Nat := data.indexOffset + data.numIndices
 
-/-- The native instance's actual source universe substitution, including
+/-- The instance's source universe substitution, including
 parameter-specialized auxiliary recursors. -/
 def sourceLevels (data : RecursorData) (packed : List VLevel) : List VLevel :=
   data.levels.map (·.inst packed)
 
-/-- Rebuild the constructor at one exactly saturated native occurrence.
-Offsets belong to the full mutual native recursor, while field projections
+/-- Rebuild the constructor at one exactly saturated recursor occurrence.
+Offsets belong to the full mutual recursor, while field projections
 use the selected one-family case schema. Extra application arguments remain
 outside this head computation. -/
 def reconstruct (data : RecursorData) (U : Nat) (packed fieldSorts : List VLevel)
@@ -51,16 +51,16 @@ def reconstruct (data : RecursorData) (U : Nat) (packed fieldSorts : List VLevel
     (arguments.take data.numParams)
     ((arguments.drop data.indexOffset).take data.numIndices) major
 
-/-- Canonical reconstruction uses index selectors wherever possible and
-Prop selectors for every remaining field. The native compilation's singleton
-elimination evidence must justify those remaining proof fields. The sort
+/-- Singleton reconstruction uses index selectors wherever possible and
+Prop selectors for every remaining field. Singleton elimination of the compilation
+must justify those remaining proof fields. The sort
 annotations do not choose any reconstructed value. -/
 def reconstructWithPropFields (data : RecursorData) (U : Nat) (packed : List VLevel)
     (arguments : List VExpr) : Option VExpr := do
   let source ← data.schema.structureTelescope data.owner (data.sourceLevels packed)
   data.reconstruct U packed (List.replicate source.fields.length .zero) arguments
 
-/-- Recover a fixed-length native telescope without inspecting the
+/-- Recover a fixed-length forall telescope without inspecting the
 possibly functional result of the recursor. -/
 def takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
   | 0, type => some ([], type)
@@ -69,14 +69,14 @@ def takeForalls : Nat → VExpr → Option (List VExpr × VExpr)
     return (domain :: domains, result)
   | _ + 1, _ => none
 
-/-- The actual native instance retained by finite compilation. -/
+/-- The instance of the compilation, rebuilt from the data. -/
 def recursorInstance (data : RecursorData) : Instance data.schema.signature := {
   uvars := data.uvars
   levels := data.levels
   targetLevel := data.target
   recursorName := fun owner => data.schema.signature.families[owner].name.str "rec" }
 
-/-- The unique native singleton equation, after exact restoration. -/
+/-- The unique singleton iota equation of the recursor, after exact restoration. -/
 def singletonEquation (data : RecursorData) : Option VDefEq := do
   let s := data.schema.signature
   let [ctorIndex] := (List.finRange s.constructors.size).filter
@@ -109,12 +109,12 @@ theorem takeForalls_length (h : takeForalls count type = some (domains, result))
     cases he
     simpa using congrArg Nat.succ (ih ht)
 
-/-- Whether the native generic elimination universe admits Type-valued
+/-- Whether the generic elimination universe of the recursor admits Type-valued
 instances. The source universe is tested at each occurrence, not globally. -/
 def largeTarget (data : RecursorData) : Bool :=
   data.target.eval (List.replicate data.uvars 1) != 0
 
-/-- Source sort at the native occurrence's actual universe specialization. -/
+/-- Source sort at the occurrence's universe specialization. -/
 def sourceLevel (data : RecursorData) (packed : List VLevel) : VLevel :=
   (data.schema.sourceLevel data.owner data.levels).inst packed
 

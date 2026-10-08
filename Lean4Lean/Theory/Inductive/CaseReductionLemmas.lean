@@ -227,7 +227,7 @@ private theorem extract_restored_rule {r : Restoration} {domains : List VExpr}
     simp [AppliedRule.extract, hbody, ha, hb, ho]⟩
 
 /-- Successful restoration of a generated case equation always leaves an
-extractable applied rule, with its original block and family slot. -/
+extractable applied rule, with its own block and family slot. -/
 theorem extract_of_genericEquation {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     (h : schema.genericEquations block owner = some rules) (hmem : equation ∈ rules) :
@@ -249,8 +249,8 @@ theorem extract_of_genericEquation {schema : CaseSchema}
   · simpa only [Instance.equation, g, ctor, extra, indices, args, VExpr.mkApps,
       List.foldl_append, List.foldl_cons, List.foldl_nil] using hl
 
-/-- Every generic generated equation has finite provenance in the applied
-case-rule relation; parsing adds no caller-supplied equations or assumptions. -/
+/-- Every generic generated equation is generated in the sense of the applied
+case-rule relation (`Generates`); parsing adds no caller-supplied equations or assumptions. -/
 theorem generates_of_genericEquation {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     (h : schema.genericEquations block owner = some rules) (hmem : equation ∈ rules) :
@@ -410,7 +410,7 @@ theorem Generates.capture_shape {schema : CaseSchema}
       indices, np, extra, view_familyCount, Nat.add_assoc]
     rfl
 
-/-- Capture recovers the complete binder telescope of a canonical case rule. -/
+/-- Capture recovers the complete binder telescope of a generated case rule. -/
 theorem Generates.capture_template {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule}
     (hparams : ∀ h ∈ schema.restoration.heads, h.nparams ≤ schema.signature.params.length)
@@ -448,7 +448,7 @@ private theorem instantiate_vars (arguments : List VExpr) (levels : List VLevel)
     have heq : arguments.length - 1 - (arguments.length - 1 - i) = i := by omega
     simp [vars, List.getElem_reverse, instantiateParams, VExpr.instL, VExpr.subst, hj, heq]
 
-/-- Universe and simultaneous term specialization preserve the canonical
+/-- Universe and simultaneous term specialization preserve the
 capture positions, recovering the exact actual argument list. -/
 theorem Generates.capture_specialize {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {rule : AppliedRule}

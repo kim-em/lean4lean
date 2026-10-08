@@ -7,7 +7,8 @@ import Lean4Lean.Theory.Inductive.CompilationNames
 
 namespace Lean4Lean.InductiveSignature
 
-/-- The native head chosen by exact restoration. This records only the name;
+/-- The name restoration gives a head constant: the target of an auxiliary head, otherwise the
+renamed recursor name (`recursorName`). This records only the name;
 the level and parameter substitutions are still computed by restoration. -/
 def Restoration.headName (r : Restoration) (name : Name) : Name :=
   match r.heads.find? (fun h => h.auxiliary == name) with
@@ -222,7 +223,7 @@ namespace Lean4Lean.InductiveSignature.CaseSchema
 
 /-- Every certified family has a duplicate-free list of restored constructor
 names. Auxiliary names are restored to constructors of their certified prior
-container; original constructor names are unchanged. -/
+container; source constructor names are unchanged. -/
 theorem Certified.constructor_names_nodup {schema : CaseSchema}
     (H : schema.Certified base source block)
     (owner : Fin schema.signature.families.size) :
@@ -254,9 +255,9 @@ theorem Certified.constructor_names_nodup {schema : CaseSchema}
     exact family_ctorNames_nodup (hprior.container_names a ha)
       (List.getElem_mem a.family.isLt)
 
-/-- Once restored constructor names are distinct, a native constructor
-selects exactly one generated case rule. The finite compilation proof below
-is responsible for establishing this syntactic invariant. -/
+/-- Once restored constructor names are distinct, a constructor name
+selects exactly one generated case rule. `Certified.generated_unique` below
+establishes the distinctness from the case certificate. -/
 theorem Generates.unique_of_names {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {left right : AppliedRule}
     (hnames : ((schema.view owner).constructors.toList.map
@@ -281,7 +282,7 @@ theorem Generates.unique_of_names {schema : CaseSchema}
   rw [heq] at hleftParse
   exact Option.some.inj (hleftParse.symm.trans hrightParse)
 
-/-- Finite certification makes constructor selection deterministic without
+/-- The case certificate makes constructor selection deterministic without
 assuming any matching or confluence property from a caller. -/
 theorem Certified.generated_unique {schema : CaseSchema}
     {owner : Fin schema.signature.families.size} {left right : AppliedRule}

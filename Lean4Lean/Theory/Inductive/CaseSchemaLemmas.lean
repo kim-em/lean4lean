@@ -49,7 +49,7 @@ theorem Restoration.expr_lam_parts {r : Restoration} {domain body restored : VEx
   obtain ⟨domain', hd, body', hb, h⟩ := h
   exact ⟨domain', body', hd, hb, Option.some.inj h.symm⟩
 
-/-- Restoration cannot rename an abstract symbol or confuse it with a native
+/-- Restoration cannot rename an abstract symbol or confuse it with a
 constant, including when restoring the symbol's argument spine. -/
 theorem Restoration.go_head_elim {r : Restoration} {e output : VExpr}
     {args : List VExpr} {block : Name} {owner : Nat} {levels : List VLevel}
@@ -99,7 +99,7 @@ theorem Instance.restored_abstract_equation_head {s : InductiveSignature} (g : I
 
 namespace CaseSchema
 
-/-- Every case-view constructor is the selected owner's original constructor,
+/-- Every case-view constructor is the `caseConstructor` of a constructor of the selected owner,
 with the same ordered indices and field domains. -/
 theorem view_constructor_eq_caseConstructor {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
@@ -141,8 +141,8 @@ theorem equation_of_mem {schema : CaseSchema} {owner : Fin schema.signature.fami
   obtain ⟨index, _, rfl⟩ := List.mem_map.mp hgenerated
   exact ⟨index, hrestore⟩
 
-/-- Generic case rule heads use exactly the registered block and original
-expanded owner slot, with target-first source-universe parameters. -/
+/-- Generic case rule heads use exactly the registered block and the owner
+slot in the expanded signature, with target-first source-universe parameters. -/
 theorem genericEquation_head {schema : CaseSchema}
     {owner : Fin schema.signature.families.size}
     (h : schema.genericEquations block owner = some rules) (hmem : rule ∈ rules) :

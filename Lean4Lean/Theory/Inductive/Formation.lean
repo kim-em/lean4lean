@@ -455,13 +455,12 @@ theorem VInductDecl.CtorParameterShape.mono
 Nested lowering preserves the position of every constructor field, replacing
 maximal nested applications by applications of fresh auxiliary families. The
 relations below state that source-to-expanded correspondence independently of
-the executable lowering state. They deliberately precede any change to
-`VInductDecl.WF`: the implementation refinement must first prove that its
-stateful `Expr` traversal projects to this small `VExpr` relation. -/
+the executable lowering state; the refinement proof shows that the stateful `Expr`
+traversal of lowering projects to them (section 3.3 of `docs/inductives/DESIGN.md`). -/
 
-/-- Structural expression expansion with an explicit relation for maximal
-nested-application hits. Binder depth is retained because direct inductive
-applications use depth-indexed canonical parameters. -/
+/-- Structural expression expansion with an explicit relation `leaf` for maximal
+nested occurrences (`.occurrence`). Binder depth is retained because direct inductive
+applications use depth-indexed parameter variables. -/
 inductive VExpr.NestedExprExpansion
     (leaf : Nat → VExpr → VExpr → Prop) :
     Nat → VExpr → VExpr → Prop
@@ -541,7 +540,7 @@ inductive VExpr.NestedForallPrefixExpansion
 
 /-- One positionally corresponding source/expanded constructor.  The common
 parameter prefix is retained separately from the complete structural body so
-later semantic assembly never has to replay the executable parameter loop. -/
+the proof never has to re-run the executable parameter loop. -/
 structure VInductDecl.NestedConstructorExpansion
     (leaf : Nat → VExpr → VExpr → Prop) (nparams : Nat)
     (source target : VConstVal) : Prop where
@@ -551,7 +550,7 @@ structure VInductDecl.NestedConstructorExpansion
     source.type target.type
   type : VExpr.NestedExprExpansion leaf 0 source.type target.type
 
-/-- One original family and its positionally corresponding expanded family.
+/-- One source family and its positionally corresponding expanded family.
 Headers are compared semantically; constructor bodies retain the structural
 nested-expansion relation. -/
 structure VInductDecl.NestedTypeExpansion
@@ -699,8 +698,8 @@ theorem List.Forall₂.getElem_of {α β : Type _} {R : α → β → Prop}
     | zero => exact h
     | succ i => exact ih i (by simpa using ha) (by simpa using hb)
 
-/-- A leaf cannot alter an application spine headed by a different native
-constant. Arguments remain related; their syntax need not be equal. -/
+/-- A leaf cannot alter an application spine headed by a constant `name` that heads no leaf
+output. Arguments remain related; their syntax need not be equal. -/
 theorem VExpr.NestedExprExpansion.const_spine_inv
     {leaf : Nat → VExpr → VExpr → Prop}
     (hleaf : ∀ {depth input output}, leaf depth input output →
@@ -938,8 +937,7 @@ theorem VInductDecl.SourceWF.sourceTypes
   exact hwf
 
 /-- In particular, source constructor types are checked before nested lowering.
-This is the abstract obligation whose absence exposed the erased-parameter
-kernel bug: a proof about generated auxiliary constructors cannot discharge it. -/
+No fact about the lowered or auxiliary constructors discharges this obligation. -/
 theorem VInductDecl.SourceWF.sourceConstructors
     {env : VEnv} {decl : VInductDecl}
     (H : decl.SourceWF env) :
@@ -971,7 +969,7 @@ theorem VInductBlock.WF.exists_install (H : VInductBlock.WF env block) :
     simp [VInductBlock.install, htypes, hctors, hrecs]⟩
 
 /-- Consume an exact forall prefix with the supplied arguments. Ill-shaped
-inputs are left unchanged; formation witnesses rule that branch out. -/
+inputs are left unchanged; the formation judgments rule that branch out. -/
 def VExpr.instantiateForallPrefix : VExpr → List VExpr → VExpr
   | type, [] => type
   | .forallE _ body, arg :: args =>
@@ -1108,7 +1106,7 @@ inductive VExpr.GuardedRuleRhs (recursors : List Name) : VExpr → Prop
 
 /-- Guardedness depends on the recursor collection only through membership.
 This permits an executable checker to use the concrete restoration order and
-the abstract block proof to use its canonical recursor order, once those two
+the abstract block proof to use its generated recursor order, once those two
 orders have been identified extensionally. -/
 theorem VExpr.GuardedIota.congrRecursors
     {expression : VExpr} {recursors recursors' : List Name}
@@ -1182,8 +1180,7 @@ def VInductDecl.RecursiveField.mono
 
 /-- Recursor result with an explicit motive count.  Ordinary compilation has
 one motive per source family; nested compilation may append motives for
-lowering-generated auxiliary families while retaining each source owner's
-original position. -/
+auxiliary families while keeping each source owner's position. -/
 def VInductDecl.recursorResultWithCounts (_decl : VInductDecl)
     (ownerIdx numMotives numMinors : Nat) (owner : VInductiveType) : VExpr :=
   let motiveOffset :=
@@ -1229,7 +1226,7 @@ structure VInductDecl.RecursorShape (decl : VInductDecl)
   major_take : afterIndices.takeForalls 1 = some (major, result)
   result_eq : result = decl.recursorResult ownerIdx minors.length owner
 
-/-- Canonical constructor for `RecursorShape` from the single wrapped
+/-- Build a `RecursorShape` from the single wrapped
 telescope produced by recursor generation. -/
 def VInductDecl.RecursorShape.ofWrapped
     {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
@@ -1280,11 +1277,11 @@ def VInductDecl.RecursorShape.ofWrapped
   · rw [← hmajor]
     exact VExpr.takeForalls_wrapForalls major result
 
-/-- Shape of a restored primary recursor for a nested declaration.  Lowering
+/-- Shape of a restored source recursor of a nested declaration.  Lowering
 appends auxiliary families and constructors to the mutual block, so their
-motives and minors remain in the restored primary telescope.  The original
+motives and minors remain in the restored source recursor's telescope.  The
 source families and constructors form prefixes of those two groups; the
-source owner keeps its original motive position. -/
+source owner keeps its motive position. -/
 structure VInductDecl.NestedRecursorShape (decl : VInductDecl)
     (owner : VInductiveType) (recursor : VConstVal) where
   ownerIdx : Nat
@@ -1316,7 +1313,7 @@ structure VInductDecl.NestedRecursorShape (decl : VInductDecl)
   result_eq : result = decl.recursorResultWithCounts ownerIdx
     motives.length minors.length owner
 
-/-- Canonical constructor for the nested recursor shape from its complete
+/-- Build a `NestedRecursorShape` from its complete
 restored telescope. -/
 def VInductDecl.NestedRecursorShape.ofWrapped
     {decl : VInductDecl} {owner : VInductiveType} {recursor : VConstVal}
@@ -1405,9 +1402,9 @@ def VInductDecl.RecursorShape.toNested
     simpa [VInductDecl.recursorResult] using H.result_eq
 
 /-- Reinterpret an expanded nested-recursor telescope at a compatible source
-declaration.  This is the declarative lowering boundary: auxiliary motives
+declaration.  Auxiliary motives
 and minors remain in the telescope, while the source declaration supplies
-the original family prefix, universe/parameter metadata, and owner. -/
+the source family prefix, universe/parameter metadata, and owner. -/
 def VInductDecl.NestedRecursorShape.ofCompatible
     {loweredDecl sourceDecl : VInductDecl}
     {loweredOwner sourceOwner : VInductiveType} {recursor : VConstVal}
@@ -1510,17 +1507,17 @@ structure VInductDecl.IotaRule (env : VEnv)
 
 /-- A constructor field selected by a restored nested equation.  Unlike
 `RecursiveField`, this record does not claim that the source field has a
-direct mutual-family head: a genuinely nested field may instead be consumed
+direct mutual-family head: a genuinely nested field may instead be handled
 by one of the restored auxiliary recursors. -/
 structure VInductDecl.NestedIotaField where
   fieldIndex : Nat
   arg : VExpr
 
-/-- Declarative iota equation for a restored primary nested recursor.
+/-- Declarative iota equation for a restored source recursor of a nested declaration.
 
-Lowering-generated motives and minors remain in the restored primary
-recursor telescope, so their exact counts come from the same
-`NestedRecursorShape` witness as the recursor itself.  Recursive arguments are
+The motives and minors of the auxiliary families remain in the restored source
+recursor's telescope, so their exact counts come from the same
+`NestedRecursorShape` as the recursor itself.  Recursive arguments are
 recorded by their ordered constructor-field positions rather than by
 `RecursiveArg`: the latter deliberately recognizes only direct mutual-family
 heads and therefore cannot classify fields such as `List Tree`.

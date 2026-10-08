@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.Formation
 
 /-! Constructor skeleton correspondence ignores field-domain and projection
-implementation choices while retaining forall binders, native application
+implementation choices while retaining forall binders, constant-headed application
 spines, and literal common-parameter variables. It asserts no positivity. -/
 
 namespace Lean4Lean

@@ -23,8 +23,8 @@ theorem UniformFieldNormalForm.forallE {decl : VInductDecl} {domain : VExpr}
     · simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hresult
 
 /-- The literal checked constructor telescope, with field classification
-attached to the actual domain and prefix context. This certificate is produced
-by replaying constructor checks, without selecting independent field targets. -/
+attached to the actual domain and prefix context. It is produced from the
+executable's constructor checks, without selecting independent field targets. -/
 inductive UniformCtorTail (env : VEnv) (decl : VInductDecl)
     (target : VInductiveType) (levels : List VLevel) : List VExpr → Nat → VExpr → Prop
   | result : decl.ValidIndAppAt (some target.name) depth result →

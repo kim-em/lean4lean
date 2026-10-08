@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.Compilation
 
 /-! Singleton elimination applies to the complete expanded signature. Since
-the original declaration contains a family, its singleton branch leaves no
+the source declaration contains a family, its singleton branch leaves no
 room for auxiliary families. Consequently restoration is the identity in
 this branch, even when the surrounding compilation interface permits nesting. -/
 
@@ -29,7 +29,7 @@ theorem CompilationData.restoration_of_singleton
   rw [compilation.noAuxiliaries_of_singleton singleton]
   rfl
 
-/-- The singleton signature has no expanded header beyond the original source
+/-- The singleton signature has no expanded header beyond the source
 prefix. Its checked and installed family environments therefore coincide. -/
 theorem CompilationData.typeConstants_of_singleton
     (compilation : CompilationData env source expanded s g auxiliaries block)

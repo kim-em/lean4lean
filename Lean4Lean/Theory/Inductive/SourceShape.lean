@@ -92,7 +92,7 @@ def VInductDecl.TypeShape (env : VEnv) (decl : VInductDecl)
 
 /-- Raw common-parameter shape of one constructor before normalization.
 This is separate from `CtorShape`: normalization may change the visible
-forall prefix, while the executable checker compares the original prefix
+forall prefix, while the executable checker compares the source prefix
 directly with the mutual header parameters. -/
 def VInductDecl.CtorParameterShape (env : VEnv) (decl : VInductDecl)
     (params : List VExpr) (ctor : VConstVal) : Prop :=
@@ -115,7 +115,7 @@ def VInductDecl.RawCtorShape (decl : VInductDecl) (type : VInductiveType)
 
 /-- Source-facing common-parameter formation retained by both ordinary and
 nested declarations.  The family headers identify the shared semantic
-parameter telescope, while every original constructor retains its raw
+parameter telescope, while every source constructor retains its raw
 pre-normalization prefix against that same telescope. -/
 def VInductDecl.SourceParameterWF (env : VEnv)
     (decl : VInductDecl) : Prop :=

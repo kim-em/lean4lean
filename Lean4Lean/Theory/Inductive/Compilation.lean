@@ -1,10 +1,11 @@
 import Lean4Lean.Theory.Inductive.Formation
 import Lean4Lean.Theory.Inductive.Restoration
 
-/-! Finite compilation from certified parameter specializations.
+/-! Finite compilation from certified parameter specializations (section 2.2 of
+`docs/inductives/DESIGN.md`).
 
-Every leaf is a previously installed block with its own finite compilation
-derivation. The chosen family fixes both the restoration heads and the entire
+Every container of a nested declaration is a previously installed block with its own finite
+compilation derivation (`ContainersInstalled`). The chosen family fixes both the restoration heads and the entire
 ordered constructor list. The normalized expanded signature determines every
 recursor and equation; restoration accepts no independent equation templates.
 
@@ -62,7 +63,7 @@ def specializedFamily (a : ContainerSpecialization) (uvars : Nat)
 
 /-- Scope, safety, and typing of an actual container parameter application.
 The context contains the current block's common parameters; the environment
-contains its original headers, but no current recursors or equations. -/
+contains its source headers, but no current recursors or equations. -/
 def WellFormed (a : ContainerSpecialization) (envTypes : VEnv)
     (source : VInductDecl) (params : List VExpr) : Prop :=
   a.arguments.length = a.container.nparams ∧
@@ -149,10 +150,10 @@ theorem Models.restores_empty {s : InductiveSignature} {env envTypes : VEnv}
 
 /-- The part of a finite compilation that fixes an abstract case schema: formation of the
 source and expanded declarations, the normalized model, the restoration correspondence and the
-installed source constants. It omits everything about the generated native recursors (their
+installed source constants. It omits everything about the generated recursors (their
 names, freshness, types, equations, elimination universe and the typing of their induction
 hypotheses), which the case eliminator rules `elimDF`/`elimIota` do not read. It is therefore
-available at the constructor boundary, before any generated recursor has been checked. -/
+available once the constructors are installed, before any generated recursor has been checked. -/
 structure CaseCompilationData (env : VEnv) (source expanded : VInductDecl)
     (s : InductiveSignature) (auxiliaries : List ContainerSpecialization)
     (block : VInductBlock) : Prop where
@@ -193,7 +194,7 @@ def RecursorNamesFresh (env : VEnv) (source expanded : VInductDecl)
   ∀ n ∈ (compilationRestoration source auxiliaries).recursors.map Prod.fst,
     env.constants n = none ∧ n ∉ source.sourceNames ∧ n ∉ expanded.sourceNames
 
-/-- A single expansion witness fixes formation and generated artifacts.
+/-- A single expansion fixes formation and the generated recursors and rules.
 Every auxiliary family is covered, including semantically unused auxiliaries
 introduced by erased concrete occurrences. -/
 structure CompilationData (env : VEnv) (source expanded : VInductDecl)
@@ -244,7 +245,7 @@ mutual
 
 /-- Shared finite ordinary/nested compilation. Empty specializations give
 ordinary compilation. A nested container is certified recursively by this
-same judgment, so arbitrary environment lookups cannot serve as provenance. -/
+same judgment, so no container is justified by an environment lookup alone. -/
 inductive CompiledInductive : VEnv → VInductDecl → VInductBlock → Prop
   | intro {env source expanded s g auxiliaries block} :
       InductiveSignature.CompilationData env source expanded s g auxiliaries block →
@@ -256,9 +257,9 @@ inductive CompiledInductive : VEnv → VInductDecl → VInductBlock → Prop
       block.WF env →
       CompiledInductive env source block
 
-/-- Each selected container was installed below the original source
-environment. Current headers, current recursors, and future blocks cannot
-justify a specialization. The constructors make the provenance tree finite. -/
+/-- Each selected container is a compiled block installed below the source environment
+`env`. Current headers, current recursors, and future blocks cannot justify a specialization.
+The mutual induction with `CompiledInductive` makes the tree of containers finite. -/
 inductive ContainersInstalled : VEnv →
     List InductiveSignature.ContainerSpecialization → Prop
   | nil {env} : ContainersInstalled env []
@@ -272,7 +273,8 @@ inductive ContainersInstalled : VEnv →
 
 end
 
-/-- Replay retains the original finite derivation. Lowering-only names need
+/-- A compilation remains one over a larger environment in which its block is still well
+formed (the `replay` constructor). Lowering-only names need
 not remain fresh in the larger environment, since they are never installed
 there; freshness and checking of the actual output are required explicitly. -/
 theorem CompiledInductive.mono {base env source block}
@@ -280,7 +282,7 @@ theorem CompiledInductive.mono {base env source block}
     (Hblock : block.WF env) : CompiledInductive env source block :=
   .replay H hle Hblock
 
-/-- Canonical ordinary compilation is the zero-specialization case of the
+/-- Ordinary compilation (`Compiles`) is the zero-specialization case of the
 same finite derivation. Formation and output checking are supplied by their
 existing independent judgments. -/
 theorem CompiledInductive.ordinary {env : VEnv} {source : VInductDecl}

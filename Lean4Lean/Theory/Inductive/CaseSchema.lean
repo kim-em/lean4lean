@@ -1,11 +1,11 @@
 import Lean4Lean.Theory.Inductive.Restoration
 
 /-! Per-family abstract case eliminators, generated from normalized declaration
-syntax. The full signature and restoration table are retained so certification
-can identify this data with the same finite compilation derivation.
+syntax (section 2.3 of `docs/inductives/DESIGN.md`). The full signature and restoration table
+are retained so certification can identify this data with a compilation of the declaration.
 
 Case analysis has one motive and the selected family's constructors. Recursive
-fields retain their original domains but introduce no induction hypotheses.
+fields retain their domains but introduce no induction hypotheses.
 The existing signature generator supplies every telescope and equation; this
 module accepts no eliminator types or equation bodies as input.
 -/
@@ -13,7 +13,7 @@ module accepts no eliminator types or equation bodies as input.
 namespace Lean4Lean.InductiveSignature
 
 structure CaseSchema where
-  /-- Native families owned by this block, excluding lowering auxiliaries.
+  /-- Source families owned by this block, excluding auxiliary families.
   Certification identifies this list with the checked source declaration. -/
   sourceFamilies : List Name
   signature : InductiveSignature
@@ -22,7 +22,7 @@ structure CaseSchema where
 namespace CaseSchema
 
 /-- Preserve a constructor's raw field domains when selecting case analysis.
-Recursive classification belongs to the original certified signature; treating
+Recursive classification belongs to the certified signature; treating
 these fields as case arguments does not assert a new formation derivation. -/
 def caseConstructor (schema : CaseSchema)
     (ctor : Constructor schema.signature.families.size) : Constructor 1 where
@@ -31,7 +31,7 @@ def caseConstructor (schema : CaseSchema)
   fields := (schema.signature.fieldTypes ctor).map Field.external
   indices := ctor.indices
 
-/-- A one-family view in the original constructor order. This is generator
+/-- A one-family view in the signature's constructor order. This is generator
 input only, not a separately claimed well-formed inductive declaration. -/
 def view (schema : CaseSchema) (owner : Fin schema.signature.families.size) :
     InductiveSignature where
@@ -45,8 +45,8 @@ def view (schema : CaseSchema) (owner : Fin schema.signature.families.size) :
 @[simp] theorem view_familyCount (schema : CaseSchema)
     (owner : Fin schema.signature.families.size) : (schema.view owner).families.size = 1 := rfl
 
-/-- The native name is irrelevant to the type and is overridden by the
-abstract head mode in every generated case equation. -/
+/-- The instance's recursor name is irrelevant to the case type and is replaced by the
+abstract head `.elim` in every generated case equation. -/
 def specialize (schema : CaseSchema) (owner : Fin schema.signature.families.size)
     (uvars : Nat) (levels : List VLevel) (target : VLevel) : Instance (schema.view owner) where
   uvars := uvars
@@ -65,7 +65,7 @@ def type (schema : CaseSchema) (owner : Fin schema.signature.families.size)
   schema.restoration.expr <|
     (schema.specialize owner uvars levels target).recursorType (schema.viewOwner owner)
 
-/-- Abstract equation heads retain the original owner slot, including slots
+/-- Abstract equation heads retain the owner slot of the full signature, including slots
 for auxiliary families. Both sides and the type undergo the same restoration. -/
 def equations (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size)
@@ -89,7 +89,7 @@ def genericEquations (schema : CaseSchema) (block : Name)
   schema.equations block owner schema.genericUvars schema.genericLevels (.param 0)
 
 /-- The source sort is specialized at the occurrence, independently of the
-native recursor's permitted elimination universe. -/
+recursor's permitted elimination universe. -/
 def sourceLevel (schema : CaseSchema) (owner : Fin schema.signature.families.size)
     (levels : List VLevel) : VLevel :=
   schema.signature.families[owner].resultLevel.inst levels

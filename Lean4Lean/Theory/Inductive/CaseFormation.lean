@@ -2,13 +2,15 @@ import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Theory.Inductive.CaseSchema
 import Lean4Lean.Theory.Inductive.CompilationNames
 
-/-! The schema registry uses the same finite compilation evidence as native
-inductive installation. No case types or equations are supplied by a caller.
+/-! Certification and registration of case schemas (section 2.3 of
+`docs/inductives/DESIGN.md`). A schema is certified by the case part of the same finite
+compilation certificate that inductive installation uses (`Certified`, `Registered`); no case
+types or equations are supplied by a caller.
 
 Registration additionally certifies `CaseSchema.ProjNamesRegistered`: the
 schema's generic type and generic equations project only out of structures
 registered (as projections) in the environment at registration time. This is
-an obligation on the producer of a registration (`VEnv.WF'.inductEliminators`),
+an obligation on whoever constructs a registration (`VEnv.WF'.inductEliminators`),
 not a consequence of `Certified`: the normalized index telescopes and recursive
 shapes are checked in the expanded environment, whose projection table may
 contain never-installed auxiliary structure families. -/
@@ -61,7 +63,7 @@ theorem ProjNamesRegistered.mono {schema : CaseSchema} {env env' : VEnv}
   obtain ⟨hl, hr, ht⟩ := H.2 owner rules h df hdf
   exact ⟨hl.mono hok, hr.mono hok, ht.mono hok⟩
 
-/-- Every structure registered in `env` that is an original family of the
+/-- Every structure registered in `env` that is a source family of the
 schema (at source slot `owner`) has, in the schema, exactly its registered
 constructor. Without this, a schema could add constructors to a registered
 structure, and structure eta (`unitLike`) would identify the extra
@@ -80,7 +82,7 @@ theorem StructCompat.of_projections {schema : CaseSchema} {env env' : VEnv}
   fun hinfo owner hname => H (hproj hinfo) owner hname
 
 /-- The abstract registry entry is determined by the same normalized
-signature and restoration data as the native generated block. -/
+signature and restoration data as the generated recursors of the installed block. -/
 def ofCompilation (source : VInductDecl) (signature : InductiveSignature)
     (auxiliaries : List ContainerSpecialization) : CaseSchema where
   sourceFamilies := source.types.map (·.name)
@@ -92,7 +94,7 @@ compilation. Concrete recursor checking is not needed to register its abstract
 case schemas once the source constructors and expanded formation are checked:
 the certificate is the case part `CaseCompilationData` of a compilation, which
 fixes everything the eliminator rules read and nothing about the generated
-native recursors. -/
+recursors. -/
 def Certified (schema : CaseSchema) (base : VEnv)
     (source : VInductDecl) (block : VInductBlock) : Prop :=
   ∃ expanded, ∃ auxiliaries,
@@ -102,7 +104,7 @@ def Certified (schema : CaseSchema) (base : VEnv)
     schema.sourceFamilies = source.types.map (·.name) ∧
     RecursorNamesFresh base source expanded auxiliaries
 
-/-- The family index domains of the signature restore, and the declared header of every original
+/-- The family index domains of the signature restore, and the declared header of every source
 family is, in the environment with the declaration's family headers, its restored normalized
 header. Registration requires this (`VEnv.WF'.inductEliminators`): the restored case type of an
 indexed family needs restored index domains, and the case eliminator of an indexed structure
@@ -118,7 +120,7 @@ def HeaderAgreement (schema : CaseSchema) (base : VEnv) (source : VInductDecl) :
 
 /-- **The registration certificate of a case schema.** The schema is certified by the case part
 of a compilation of `source` with block `block` over `base` (`Certified`), it is registered under
-the key of the first original family, and the declared header of every original family is its
+the key of the first source family, and the declared header of every source family is its
 restored normalized header (`HeaderAgreement`). Every registration point
 (`VEnv.WF'.inductEliminators`, `VEnv.WF'.inductProjections`, `VInductBlock.EliminatorsWF`)
 carries exactly this certificate. -/
@@ -128,8 +130,9 @@ structure Registered (schema : CaseSchema) (base : VEnv) (source : VInductDecl)
   keyHead : source.types.head?.map (·.name) = some key
   headerAgreement : schema.HeaderAgreement base source
 
-/-- Keys and native-family ownership are both fresh. Lowering auxiliaries do
-not reserve native names: they are identified by their block and owner slot. -/
+/-- The key is fresh and the source families are disjoint from those of every registered
+schema. Auxiliary families reserve no names: they are identified by their block and owner
+slot. -/
 def Fresh (schema : CaseSchema) (env : VEnv) (key : Name) : Prop :=
   (∀ previous, ¬env.eliminators key previous) ∧
   ∀ previousKey previous, env.eliminators previousKey previous →

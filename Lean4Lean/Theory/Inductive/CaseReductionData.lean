@@ -57,8 +57,8 @@ def Application.expr (a : Application) : VExpr :=
   .app (VExpr.mkApps (.elim a.block a.owner a.levels) a.arguments)
     (VExpr.mkApps (.const a.ctorName a.ctorLevels) a.ctorArguments)
 
-/-- Recognize a saturated abstract case application. There is no interpretation
-of native recursor names as abstract heads. -/
+/-- Recognize a saturated abstract case application. Recursor constants are never
+interpreted as abstract heads. -/
 def Application.extract : VExpr → Option Application
   | .app fn major =>
     match fn.getAppFnArgs, major.getAppFnArgs with
@@ -101,7 +101,7 @@ structure AppliedRule where
   body : EquationBody
   application : Application
 
-/-- Case minors receive precisely the original constructor fields, without
+/-- Case minors receive precisely the constructor fields, without
 recursive induction hypotheses. Their number is read from the generated body. -/
 def AppliedRule.numFields (rule : AppliedRule) : Nat :=
   rule.body.rhs.getAppFnArgs.2.length
@@ -135,7 +135,7 @@ theorem AppliedRule.extract_spec {block : Name} {owner : Nat}
   obtain ⟨body, hb, application, ha, ⟨hblock, howner⟩, rfl⟩ := h
   exact ⟨rfl, hb, ha, hblock, howner⟩
 
-/-- Finite provenance of one applied rule: both the equation and its parsing
+/-- Generation of one applied rule: both the equation and its parsing
 come from the selected schema, rather than being supplied by a caller. -/
 def Generates (schema : CaseSchema) (block : Name)
     (owner : Fin schema.signature.families.size) (rule : AppliedRule) : Prop :=
@@ -162,7 +162,7 @@ variable {schema : CaseSchema} {block : Name}
   {owner : Fin schema.signature.families.size} {rule : AppliedRule}
   {levels : List VLevel} {arguments : List VExpr}
 
-/-- Generated provenance fixes both the registry key and the family slot. -/
+/-- Generation fixes both the registry key and the family slot. -/
 theorem Generates.owned (h : schema.Generates block owner rule) :
     rule.application.block = block ∧ rule.application.owner = owner.val := by
   obtain ⟨_, _, _, hextract⟩ := h
@@ -243,7 +243,7 @@ private theorem recursor_varN_head {name : Name} {n : Nat}
   | succ n ih =>
     cases h with | var h => exact (spine_app_head _ _).trans (ih h)
 
-/-- Native patterns retain a native constant at their head. -/
+/-- A stored-rule pattern (delta or iota) matches only applications headed by a constant. -/
 theorem recursor_pattern_head {pattern : SimplePattern}
     {values : pattern.toPattern.Path → VExpr}
     (h : pattern.toPattern.Matches e ls values) :

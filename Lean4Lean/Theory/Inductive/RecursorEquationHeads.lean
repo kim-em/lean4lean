@@ -1,7 +1,8 @@
 import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 import Lean4Lean.Theory.Typing.StoredRuleHeads
 
-/-! Constructor heads of restored native computation equations. -/
+/-! Constructor heads of restored iota equations: each is the restored name of a constructor of
+the source declaration or of a container. -/
 
 namespace Lean4Lean.InductiveSignature
 
@@ -11,8 +12,8 @@ private theorem stripLams_wrap (domains : List VExpr) (e : VExpr) :
   | nil => rfl
   | cons d ds ih => exact ih
 
-/-- Native restoration preserves the final major argument of a generated
-recursor equation; specialization computes the constructor's native name. -/
+/-- Restoration preserves the final major argument of a generated
+recursor equation; its head is the restored constructor name (`headName`). -/
 theorem Instance.restored_equation_major {s : InductiveSignature} {g : Instance s}
     (H : CompilationData env source expanded s g auxiliaries block)
     (index : Fin s.constructors.size) {equation : VDefEq}
@@ -54,8 +55,8 @@ theorem Instance.restored_equation_major {s : InductiveSignature} {g : Instance 
   rw [stripLams_wrap]
   rfl
 
-/-- A restored constructor belongs either to the original declaration or to
-one of the earlier containers selected by the finite specialization trace. -/
+/-- A restored constructor belongs either to the source declaration or to
+one of the earlier containers selected by the specialization list. -/
 theorem CaseCompilationData.constructor_name_cases {s : InductiveSignature}
     (H : CaseCompilationData env source expanded s auxiliaries block)
     (hdisj : RecursorNamesFresh env source expanded auxiliaries)
