@@ -13,6 +13,16 @@ with the renaming restoration substitution of the run
 (`restoredEquationSubstitution`), the lowered rule translations of the
 ordinary pipeline (`ruleRhsTranslations`), and the validated nested
 auxiliaries for the replacement heads (`RestorationTableData.restoreHeadsTranslate`).
+
+This is a route to the right-hand-side translation that does not read it off
+the executable check of the restored rules, so that the check could run in the
+complete restored environment as in the C++ kernel. It is not used by the final
+assembly yet: it assumes `HF`, that the trailing arguments of auxiliary nodes and
+the parameter domains of the lowered rules avoid the auxiliary family names
+(`LoweredRulesAvoidAll.lean` proves the avoidance of every other restorable
+name). `HF` is not proved; it needs the lowering invariant that the arguments
+after the parameters at every auxiliary-family occurrence are copied source
+syntax, and the positivity facts on induction-hypothesis domains.
 -/
 
 namespace Lean4Lean
@@ -294,20 +304,7 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translates
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (Havoid : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      E.LoweredRulesAvoid E.auxHeads (compilationRestoration sourceDecl auxiliaries).restorableNames)
-    (Hprojs : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ (owner : Fin E.production.production.generationSignature.families.size)
-        (rec : RecursorVal),
-        E.loweredEnv.find?
-            (E.production.production.canonicalGeneration.recursorName owner) =
-          some (.recInfo rec) →
-        ∀ rule ∈ rec.rules,
-          rule.rhs.ProjsOK (· ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames))
+    (HF : E.LoweredRulesAvoid E.auxHeads E.auxFamilyNames)
     (B : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
@@ -427,9 +424,11 @@ theorem NestedValidatedRunResult.restoredRuleRhs_translates
   rw [hrhsEq] at Hs
   obtain ⟨body, Hlead, HB⟩ := Hshape
   have Htel := Hlead.lambdaTelescope_of_tr Hs hlenD
-  have HL := Havoid aux D owner Hstep.oldInfo Hstep.lookup _ (List.getElem_mem hjOld)
+  have HL := E.loweredRulesAvoid_restorable_of_families wf Hsources D E.auxHeads HF owner
+    Hstep.oldInfo Hstep.lookup _ (List.getElem_mem hjOld)
   rw [← hheads] at HL
-  have HP := Hprojs aux D owner Hstep.oldInfo Hstep.lookup _ (List.getElem_mem hjOld)
+  have HP := E.loweredRules_projsOK wf Hsources D owner Hstep.oldInfo Hstep.lookup _
+    (List.getElem_mem hjOld)
   rw [Hstep.restored.restoration.levelParams] at *
   -- literals
   have hres := E.restorableNames_reserved D
@@ -512,20 +511,7 @@ theorem NestedValidatedRunResult.restoredRuleRealization_base
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (Havoid : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      E.LoweredRulesAvoid E.auxHeads (compilationRestoration sourceDecl auxiliaries).restorableNames)
-    (Hprojs : ∀ auxiliaries : List ContainerSpecialization,
-      RestorationTableData sourceDecl auxiliaries result E.loweredEnv
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ (owner : Fin E.production.production.generationSignature.families.size)
-        (rec : RecursorVal),
-        E.loweredEnv.find?
-            (E.production.production.canonicalGeneration.recursorName owner) =
-          some (.recInfo rec) →
-        ∀ rule ∈ rec.rules,
-          rule.rhs.ProjsOK (· ∉ (compilationRestoration sourceDecl auxiliaries).restorableNames))
+    (HF : E.LoweredRulesAvoid E.auxHeads E.auxFamilyNames)
     (B : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
@@ -576,7 +562,7 @@ theorem NestedValidatedRunResult.restoredRuleRealization_base
   have hjNew : j < Hstep.restored.newInfo.rules.length := by
     rw [Hstep.restored.restoration.rules.length, ← hlenOwned]
     exact hj
-  obtain ⟨target, Ht, hrhs⟩ := E.restoredRuleRhs_translates wf Hsources Havoid Hprojs B hB hV
+  obtain ⟨target, Ht, hrhs⟩ := E.restoredRuleRhs_translates wf Hsources HF B hB hV
     owner Hstep j hjNew
   have hrhs := hrhs k hval auxiliaries D
   obtain ⟨huvars, hlhs, hrhs', htype⟩ := Restoration.equation_eq_some hrule
