@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Typing.SingletonExtraction.Basic
+import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.Typing.LevelEquiv
 
 /-! # Moving telescope instances between related telescopes

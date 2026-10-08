@@ -20,59 +20,8 @@ set_option linter.unusedSimpArgs false
 namespace Lean4Lean
 open VExpr
 
-namespace VExpr
-
-theorem ClosedN.of_liftN : ∀ {e : VExpr} {n j k : Nat}, (e.liftN n j).ClosedN (k + n) → j ≤ k →
-    e.ClosedN k
-  | .bvar i, n, j, k, h, hj => by
-    simp only [VExpr.liftN, ClosedN, liftVar] at h ⊢
-    split at h <;> omega
-  | .sort _, _, _, _, _, _ | .const _ _, _, _, _, _, _ | .elim _ _ _, _, _, _, _, _ => trivial
-  | .app f a, n, j, k, h, hj => ⟨ClosedN.of_liftN h.1 hj, ClosedN.of_liftN h.2 hj⟩
-  | .proj _ _ e, n, j, k, h, hj => ClosedN.of_liftN (e := e) h hj
-  | .lam A B, n, j, k, h, hj => ⟨ClosedN.of_liftN h.1 hj,
-      ClosedN.of_liftN (j := j + 1) (k := k + 1) (by simpa [Nat.add_right_comm] using h.2)
-        (by omega)⟩
-  | .forallE A B, n, j, k, h, hj => ⟨ClosedN.of_liftN h.1 hj,
-      ClosedN.of_liftN (j := j + 1) (k := k + 1) (by simpa [Nat.add_right_comm] using h.2)
-        (by omega)⟩
-
-theorem ClosedN.mkApps_inv : ∀ {f : VExpr} {args : List VExpr} {n : Nat},
-    (VExpr.mkApps f args).ClosedN n → f.ClosedN n ∧ ∀ a ∈ args, a.ClosedN n
-  | f, [], n, h => ⟨h, by simp⟩
-  | f, b :: bs, n, h => by
-    obtain ⟨⟨hf, hb⟩, hbs⟩ := ClosedN.mkApps_inv (f := .app f b) (args := bs) h
-    refine ⟨hf, fun a ha => ?_⟩
-    rcases List.mem_cons.1 ha with rfl | ha
-    · exact hb
-    · exact hbs a ha
-
-end VExpr
-
-namespace VEnv
-variable {env : VEnv} {U : Nat}
-
-end VEnv
 namespace InductiveSignature.Instance
 variable {s : InductiveSignature} (g : Instance s)
-
-/-- The index telescope at the instance's universes. -/
-def indicesAt (owner : Fin s.families.size) : List VExpr :=
-  s.families[owner].indices.map (·.instL g.levels)
-
-/-- The family applied to its parameter and index variables. -/
-def majorType (owner : Fin s.families.size) : VExpr :=
-  VExpr.mkApps (.const s.families[owner].name g.levels)
-    (vars s.params.length s.families[owner].indices.length ++
-      vars s.families[owner].indices.length 0)
-
-/-- The field telescope at the instance's universes. -/
-def fieldsAt (c : Constructor s.families.size) : List VExpr :=
-  (s.fieldTypes c).map (·.instL g.levels)
-
-/-- The constructor's result indices at the instance's universes. -/
-def ctorIndicesAt (c : Constructor s.families.size) : List VExpr :=
-  c.indices.map (·.instL g.levels)
 
 /-- The induction hypotheses of the first minor premise. -/
 def hypotheses (c : Constructor s.families.size) : List VExpr :=

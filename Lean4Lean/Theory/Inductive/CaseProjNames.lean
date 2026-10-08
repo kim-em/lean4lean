@@ -1,6 +1,5 @@
 import Lean4Lean.Theory.Inductive.ProjNamesAvoid
 import Lean4Lean.Theory.Typing.TelescopeConversion
-import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 import Lean4Lean.Theory.Typing.RecursorRegistration
 import Lean4Lean.Theory.Typing.ConstructorRigidity
 import Lean4Lean.Theory.Inductive.SingletonCompilation

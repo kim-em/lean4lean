@@ -260,6 +260,26 @@ def recursors (g : Instance s) : List VConstVal :=
 def equations (g : Instance s) (mode : HeadMode := .recursor) : List VDefEq :=
   (List.finRange s.constructors.size).map fun index => g.equation index mode
 
+variable (g : Instance s)
+
+/-- The index telescope at the instance's universes. -/
+def indicesAt (owner : Fin s.families.size) : List VExpr :=
+  s.families[owner].indices.map (·.instL g.levels)
+
+/-- The family applied to its parameter and index variables. -/
+def majorType (owner : Fin s.families.size) : VExpr :=
+  VExpr.mkApps (.const s.families[owner].name g.levels)
+    (vars s.params.length s.families[owner].indices.length ++
+      vars s.families[owner].indices.length 0)
+
+/-- The field telescope at the instance's universes. -/
+def fieldsAt (c : Constructor s.families.size) : List VExpr :=
+  (s.fieldTypes c).map (·.instL g.levels)
+
+/-- The constructor's result indices at the instance's universes. -/
+def ctorIndicesAt (c : Constructor s.families.size) : List VExpr :=
+  c.indices.map (·.instL g.levels)
+
 end Instance
 
 end InductiveSignature

@@ -33,7 +33,6 @@ import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.RestorationShapes
-import Lean4Lean.Theory.Typing.SingletonExtraction.TelescopeTyping
 import Lean4Lean.Theory.VExpr
 import Lean4Lean.Theory.VLevel
 
