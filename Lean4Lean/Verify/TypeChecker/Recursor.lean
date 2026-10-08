@@ -681,6 +681,71 @@ theorem foldl_app_proj (r : Expr) (n : Name) (e : Expr) (l : List Nat) :
   | nil => rfl
   | cons i l ih => simp [ih]
 
+theorem _root_.Lean4Lean.Kernel.Environment.isNonRecStructure_inv {env : Environment} {n : Name}
+    (h : env.isNonRecStructure n = true) :
+    ∃ sInfo : InductiveVal, ∃ ctor, env.find? n = some (.inductInfo sInfo) ∧
+      sInfo.ctors = [ctor] ∧ sInfo.numIndices = 0 := by
+  unfold Lean.Kernel.Environment.isNonRecStructure at h
+  split at h <;> [rename_i hfind; cases h]
+  exact ⟨_, _, hfind, rfl, rfl⟩
+
+/-- A type application of a family registered in the projection registry supplies exactly its
+parameters and indices: the family's type is a telescope ending in a sort, and an application
+of it at sort type has consumed the whole telescope (`HasType.mkApps_sort_arity`). -/
+theorem _root_.Lean4Lean.TypeChecker.VContext.projectionTypeArity (c : VContext) {n : Name}
+    {info : VProjectionInfo} (hinfo : c.venv.projections n info) {T : VExpr}
+    (hfam : c.venv.constants n = some ⟨info.uvars, T⟩) {ls : List VLevel} {args : List VExpr}
+    {u : VLevel} (h : c.HasType (VExpr.mkApps (.const n ls) args) (.sort u)) :
+    args.length = info.nparams + info.nindices := by
+  obtain ⟨typeConst, normalized, ownParams, rest, exprType, -, -, hlookup, hnorm, hown, -, -,
+    indices, result, hidx, hres⟩ := VEnv.Ordered.projectionShape_params c.Ewf hinfo
+  have hownLen := VExpr.takeForalls_domains_length hown
+  have hidxLen := VExpr.takeForalls_domains_length hidx
+  have hnormEq : normalized = VExpr.wrapForalls (ownParams ++ indices) result := by
+    rw [VExpr.eq_wrapForalls_of_takeForalls hown, VExpr.eq_wrapForalls_of_takeForalls hidx,
+      VExpr.wrapForalls_append]
+  have hwfApp : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx
+      (VExpr.mkApps (.const n ls) args) := ⟨_, h⟩
+  have ⟨_, hcw⟩ := VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hwfApp
+  have ⟨ci, hci, hlsw, hlen⟩ := VEnv.HasType.const_inv c.Ewf.ordered c.Δwf.toCtx hcw
+  rw [hlookup] at hci; cases hci
+  rw [hfam] at hlookup; cases hlookup
+  have hT : c.venv.IsType info.uvars [] T := c.Ewf.ordered.constWF hfam
+  rw [hnormEq] at hnorm
+  have hclose := VEnv.IsDefEq.close_sort_header c.Ewf hT hnorm
+    (by rw [List.reverse_append]; exact hres)
+  have hc := VEnv.HasType.const (Γ := c.vlctx.toCtx) hfam hlsw hlen
+  have hc' := hc.defeqU_r c.Ewf c.Δwf
+    (((hclose.instL hlsw).weak0 c.Ewf.ordered (Γ := c.vlctx.toCtx)))
+  simp only [VExpr.instL_wrapForalls, VExpr.instL] at hc'
+  have := VEnv.HasType.mkApps_sort_arity c.Ewf c.Δwf.toCtx hc' h
+  simpa [hownLen, hidxLen] using this
+
+/-- The type of a well-typed term whose head is a structure (a single-constructor family without
+indices) applies the structure to exactly the parameters of its constructor. This is what makes
+`args.shrink(nparams)` in the C++ `expand_eta_struct` a no-op. -/
+theorem _root_.Lean4Lean.TypeChecker.VContext.structTypeArgs {c : VContext} {A : Expr} {A' : VExpr}
+    {n ctor : Name} {lsI : List Level} {sInfo : InductiveVal} {mkInfo : ConstructorVal}
+    (hAS : c.TrExprS A A') (hAT : ∃ u, c.HasType A' (.sort u))
+    (hAfn : A.getAppFn = .const n lsI)
+    (hfind : c.env.find? n = some (.inductInfo sInfo)) (hsingle : sInfo.ctors = [ctor])
+    (hnind : sInfo.numIndices = 0)
+    (hci : c.env.find? ctor = some (.ctorInfo mkInfo)) (hinduct : mkInfo.induct = n) :
+    A.getAppArgs.size = mkInfo.numParams := by
+  have hAS' : c.TrExprS ((Expr.const n lsI).mkAppList A.getAppArgsList) A' := by
+    rwa [← hAfn, A.mkAppList_getAppArgsList]
+  have ⟨_, stk⟩ := AppStack.build hAS'
+  obtain ⟨lsI', P', hlsI, rfl, hPargs, hAfull⟩ := stk.constantApplication
+  have hAA := hAS'.uniq c.Ewf (.refl c.Ewf c.Δwf) hAfull
+  have .const hlcI _ _ := stk.tr
+  obtain ⟨info, hinfo, -, -, -, -, -, -, -, -, -, -, -, -, hnp, -, -, -, hsi, -, ⟨indType, hIc⟩,
+    -, -⟩ := VContext.registryShape hfind hlcI hsingle hci hinduct
+  obtain ⟨u, hAT⟩ := hAT
+  have hlen := c.projectionTypeArity hinfo hIc (hAT.defeqU_l c.Ewf c.Δwf hAA)
+  rw [← hsi, hnind, Nat.add_zero] at hlen
+  rw [← Array.length_toList, Expr.getAppArgs_toList, Lean4Lean.List.Forall₂.length_eq hPargs, hlen,
+    hnp]
+
 /-- Converting a term of structure type to its constructor applied to its projections yields a
 definitionally equal term, by structure eta. -/
 theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
@@ -714,9 +779,12 @@ theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
   simp only [hfind, hsingle, List.head?_cons]
   split <;> [rename_i mkInfo hci; exact hid]
   split <;> [exact hid; rename_i hguard']
-  split <;> [exact hid; rename_i hsize]
-  simp only [bne_iff_ne, ne_eq, Classical.not_not] at hsize
   have hinduct : mkInfo.induct = n := by simpa using hguard'
+  -- the structure type supplies exactly the parameters
+  have hsize : A.getAppArgs.size = mkInfo.numParams := by
+    obtain ⟨_, hTsort⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
+    exact VContext.structTypeArgs hAS ⟨_, hTsort.defeqU_l c.Ewf c.Δwf hAdefeq.symm⟩ hAfn hfind
+      hsingle hnind hci hinduct
   rw [foldl_app_proj]
   have hnullary : mkAppRange (Expr.const ctor lsI) 0 mkInfo.numParams A.getAppArgs =
       (Expr.const ctor lsI).mkAppList A.getAppArgsList := by

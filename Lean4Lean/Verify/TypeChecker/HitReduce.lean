@@ -153,7 +153,7 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
     (h : expandEtaStruct env eType e = r) :
     r = e ∨ ∃ I ls sInfo ctor mkInfo, eType.getAppFn = .const I ls ∧
       env.find? I = some (.inductInfo sInfo) ∧ sInfo.ctors.head? = some ctor ∧
-      env.find? ctor = some (.ctorInfo mkInfo) ∧ eType.getAppArgs.size = mkInfo.numParams ∧
+      env.find? ctor = some (.ctorInfo mkInfo) ∧ mkInfo.induct = I ∧
       r = (List.range mkInfo.numFields).foldl (fun result i => .app result (.proj I i e))
         (mkAppRange (.const ctor ls) 0 mkInfo.numParams eType.getAppArgs) := by
   subst h
@@ -163,9 +163,8 @@ theorem expandEtaStruct_eq {env : Environment} {eType e r : Expr}
   split <;> [rename_i sInfo hs; exact .inl rfl]
   split <;> [rename_i ctor hc; exact .inl rfl]
   split <;> [rename_i mkInfo hm; exact .inl rfl]
-  split <;> [exact .inl rfl; skip]
-  split <;> [exact .inl rfl; rename_i hsize]
-  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hsize, rfl⟩
+  split <;> [exact .inl rfl; rename_i hinduct]
+  exact .inr ⟨I, ls, sInfo, ctor, mkInfo, hfn, hs, hc, hm, by simpa using hinduct, rfl⟩
 
 /-- The structure-eta expansion built by `toCtorWhenStruct` is in hit shape. -/
 theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
@@ -175,10 +174,12 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
       c.HitBelow pfx w r := by
   have hid : ∀ {x : Expr}, x = w → c.HitBelow pfx w x := by rintro _ rfl; exact .rfl
   unfold toCtorWhenStruct
-  split <;> [exact .pure (hid rfl); skip]
-  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, _⟩, hT⟩ => ?_
+  split <;> [exact .pure (hid rfl); rename_i hguard]
+  have hnonrec : c.env.isNonRecStructure info.getMajorInduct = true := by
+    revert hguard; cases c.env.isNonRecStructure info.getMajorInduct <;> simp
+  refine RecM.Post.bind (inferType.WF_fhit he hp) fun T _ le ⟨⟨T', hfvT, _, hTS, hT'⟩, hT⟩ => ?_
   refine RecM.Post.bind (whnf.WF_fhit hTS (VState.LE.namePrefix_eq hp le))
-    fun A _ _ ⟨⟨hfvA, _⟩, hA⟩ => ?_
+    fun A _ _ ⟨⟨hfvA, A', hAS, hAdefeq⟩, hA⟩ => ?_
   refine RecM.Res.post ?_
   split <;> [exact .pure (hid rfl); rename_i hisConst]
   have hisConst' : A.getAppFn.isConstOf info.getMajorInduct = true := by simpa using hisConst
@@ -189,8 +190,16 @@ theorem toCtorWhenStruct.Post_hit {w : Expr} {w' : VExpr}
     have ⟨hInot, hctors⟩ := hs.env.rec_major hrec
     rcases expandEtaStruct_eq (env := c.env) (eType := A) (e := w) rfl with h | h
     · rw [h]; exact hl
-    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, -, hsize, hr⟩ := h
+    obtain ⟨I, ls', sInfo, ctor, mkInfo, hfn, hsI, hctor, hm, hinduct, hr⟩ := h
     rw [hAfn] at hfn; cases hfn
+    have hsize : A.getAppArgs.size = mkInfo.numParams := by
+      obtain ⟨sInfo', ctor', hfind', hsingle', hnind'⟩ :=
+        Kernel.Environment.isNonRecStructure_inv hnonrec
+      rw [hsI] at hfind'; cases hfind'
+      rw [hsingle'] at hctor; cases hctor
+      obtain ⟨_, hTsort⟩ := hT'.isType c.Ewf.ordered c.Δwf.toCtx
+      exact VContext.structTypeArgs hAS ⟨_, hTsort.defeqU_l c.Ewf c.Δwf hAdefeq.symm⟩ hAfn hsI
+        hsingle' hnind' hm hinduct
     rw [hr, foldl_app_proj]
     refine .mkAppList (.mkAppRange (Nat.le_of_eq hsize.symm)
       (.const (hctors sInfo hsI ctor (List.mem_of_head? hctor))) fun a h =>

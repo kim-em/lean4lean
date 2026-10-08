@@ -45,7 +45,6 @@ def expandEtaStruct (eType e : Expr) : Expr :=
   let some ctor := sInfo.ctors.head? | return e
   let some (.ctorInfo info) := env.find? ctor | return e
   if info.induct != I then return e
-  if args.size != info.numParams then return e
   let result := mkAppRange (.const ctor ls) 0 info.numParams args
   pure <| (List.range info.numFields).foldl (fun result i => .app result (.proj I i e)) result
 

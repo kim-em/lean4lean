@@ -655,7 +655,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   rejects field indices beyond `numFields`; constructor owner agreement is checked wherever a
   structure's constructor is looked up, and `isUnsafe` agreement wherever the family's
   visibility is not already known; `toCtorWhenStruct` and
-  `expandEtaStruct` return the term unchanged where the C++ kernel has `unreachable!`. Each
+  `expandEtaStruct` return the term unchanged where the C++ kernel throws, and when the type
+  of the major premise's type does not reduce to a sort. Each
   guard lets the verification justify a step from the registry entry alone, without
   injectivity or head separation. All are redundant on well-formed environments and
   well-typed terms with one exception: structure eta is not applied to a structure whose
