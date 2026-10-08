@@ -1,14 +1,14 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.CompilationLemmas
 
-/-! The legacy nested-compilation counterexample must have no finite
+/-! The ill-typed sort equation `Prop ≡ Prop → Prop` must have no finite
 canonical derivation, regardless of its proposed source or provenance.
 -/
 
-namespace Lean4Lean.Tests.InductiveEquationRejection
+namespace Lean4Lean.Tests.SortEquationRejection
 
-/-- Exactly the equation admitted by the saved legacy counterexample. -/
-def badRule : VDefEq where
+/-- The equation `Prop ≡ Prop → Prop` at `Type`. -/
+def sortEquation : VDefEq where
   uvars := 0
   lhs := .sort .zero
   rhs := .forallE (.sort .zero) (.sort .zero)
@@ -16,39 +16,39 @@ def badRule : VDefEq where
 
 /-- This excludes the bad equation in any position of any candidate block,
 not merely one chosen signature or one chosen auxiliary expansion. -/
-theorem legacyEquationRejected {env : VEnv} {source : VInductDecl}
-    {block : VInductBlock} (h : badRule ∈ block.rules) :
+theorem sortEquation_not_compiled {env : VEnv} {source : VInductDecl}
+    {block : VInductBlock} (h : sortEquation ∈ block.rules) :
     ¬ CompiledInductive env source block :=
   CompiledInductive.reject_sort_lhs h rfl
 
 /-- Adding otherwise valid generated equations before or after the bad rule
 cannot make the resulting block a finite compilation. -/
-theorem legacyEquationRejectedAmongRules {env : VEnv} {source : VInductDecl}
+theorem sortEquation_not_compiled_among_rules {env : VEnv} {source : VInductDecl}
     {block : VInductBlock} {before after : List VDefEq}
-    (h : block.rules = before ++ badRule :: after) :
+    (h : block.rules = before ++ sortEquation :: after) :
     ¬ CompiledInductive env source block := by
-  apply legacyEquationRejected
+  apply sortEquation_not_compiled
   simp [h]
 
-/-- The active installation interface also rejects the legacy equation:
+/-- The active installation interface also rejects the sort equation:
 it carries the finite derivation. -/
-theorem activeCompilationRejectsLegacyEquation {env : VEnv} {source : VInductDecl}
-    {block : VInductBlock} (h : badRule ∈ block.rules) :
+theorem compilesTo_rejects_sortEquation {env : VEnv} {source : VInductDecl}
+    {block : VInductBlock} (h : sortEquation ∈ block.rules) :
     ¬ source.CompilesTo env block := by
   intro H
-  exact legacyEquationRejected h H.compiled
+  exact sortEquation_not_compiled h H.compiled
 
 /-- Rejection is independent of the bad rule's position in the active block. -/
-theorem activeCompilationRejectsLegacyEquationAmongRules
+theorem compilesTo_rejects_sortEquation_among_rules
     {env : VEnv} {source : VInductDecl} {block : VInductBlock}
-    {before after : List VDefEq} (h : block.rules = before ++ badRule :: after) :
+    {before after : List VDefEq} (h : block.rules = before ++ sortEquation :: after) :
     ¬ source.CompilesTo env block := by
-  apply activeCompilationRejectsLegacyEquation
+  apply compilesTo_rejects_sortEquation
   simp [h]
 
-#print axioms legacyEquationRejected
-#print axioms legacyEquationRejectedAmongRules
-#print axioms activeCompilationRejectsLegacyEquation
-#print axioms activeCompilationRejectsLegacyEquationAmongRules
+#print axioms sortEquation_not_compiled
+#print axioms sortEquation_not_compiled_among_rules
+#print axioms compilesTo_rejects_sortEquation
+#print axioms compilesTo_rejects_sortEquation_among_rules
 
-end Lean4Lean.Tests.InductiveEquationRejection
+end Lean4Lean.Tests.SortEquationRejection

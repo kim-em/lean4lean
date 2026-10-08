@@ -5,7 +5,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 The old constant translation still accepts a corrupted parameter count, but
 no choice of signature in the shared compilation/realization result does. -/
 
-namespace Lean4Lean.Tests.RecursorMetadata
+namespace Lean4Lean.Tests.CorruptRecursorMetadata
 open Lean hiding Environment
 
 theorem corrupted_parameter_count_rejected
@@ -23,4 +23,4 @@ theorem corrupted_parameter_count_rejected
   change decl.nparams + 1 = decl.nparams at hcount
   omega
 
-end Lean4Lean.Tests.RecursorMetadata
+end Lean4Lean.Tests.CorruptRecursorMetadata

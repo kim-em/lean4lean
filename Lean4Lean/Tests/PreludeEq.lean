@@ -17,7 +17,7 @@ from the environment), and added to an empty environment through
 * the translations of these expressions (and of the iota rule's left-hand side
   and type) are the terms stored by `VEnv.HasCanonicalEq`. -/
 
-namespace Lean4Lean.Tests.CanonicalEq
+namespace Lean4Lean.Tests.PreludeEq
 
 open Lean Meta
 
@@ -98,4 +98,4 @@ run_meta do
     "Eq.rec rule type: translation differs"
   check (canonicalEqRecRule.uvars == r.levelParams.length) "Eq.rec rule: universe arity"
 
-end Lean4Lean.Tests.CanonicalEq
+end Lean4Lean.Tests.PreludeEq

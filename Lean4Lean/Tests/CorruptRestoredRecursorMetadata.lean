@@ -1,6 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Restoration.TrRestoredRecursorVal
 
-namespace Lean4Lean.Tests.RestoredRecursorMetadata
+namespace Lean4Lean.Tests.CorruptRestoredRecursorMetadata
 
 /-- An existential choice of signature, lowering, or restoration cannot
 justify a corrupted parameter count in a concrete restored recursor. -/
@@ -30,4 +30,4 @@ theorem rejectsExtraFamilyMetadata {env venv : VEnv} {source : VInductDecl}
 #print axioms rejectsCorruptedParameterCount
 #print axioms rejectsExtraFamilyMetadata
 
-end Lean4Lean.Tests.RestoredRecursorMetadata
+end Lean4Lean.Tests.CorruptRestoredRecursorMetadata
