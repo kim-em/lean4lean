@@ -332,8 +332,8 @@ structure VContext extends Context where
   /-- Once quotients are initialized, the quotient constants and the `Quot.lift`
   equation are present.  This is what quotient reduction reads. -/
   quot : env.quotInit = true → QuotEnvCoherent env.constants venv
-  /-- The open corner of the projection walk (`ProjectionWalkCorner`), an explicit hypothesis of
-  the checker's correctness. -/
+  /-- Canonical choice of the environment, which resolves the corner of the projection walk
+  (`projectionWalkCorner_choice`). -/
   canonicalChoice : venv.HasCanonicalChoice
   mlctx : MLCtx
   mlctx_wf : mlctx.WF venv lparams

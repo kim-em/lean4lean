@@ -83,8 +83,8 @@ theorem VEnvs.WF.canonicalEq_constants {env : Environment} {ves : VEnvs}
 equality: the output environment has well-formed abstract models extending the
 input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
 `Eq.rec`) as soon as the executable has installed `Eq.rec` with the production
-type.  Only the absence of `Eq` is assumed of the input, together with the
-checker's open hypothesis `ProjectionWalkCorner`. -/
+type.  Only the absence of `Eq` is assumed of the input, together with canonical choice
+(`VEnv.HasCanonicalChoice`) at every safety level. -/
 theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
     (wf : ves.WF env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (hAbsent : env.constants.find? ``Eq = none)

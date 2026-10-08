@@ -148,8 +148,8 @@ theorem instantiateProjectionParameters.WF {c : VContext} {args : Array Expr}
   (instantiateProjectionParameters.WF_all hT hle hlen hargs hty rfl).mono
     fun _ _ _ H t ht => (H t ht).1.1
 
-/-- The projection telescope walk. The premise `hch` is the local form of the open corner
-`ProjectionWalkCorner`: a non-dependent field whose projection is not typable. -/
+/-- The projection telescope walk. The premise `hch` is the local form of the projection-walk
+corner (`projectionWalkCorner_choice`): a non-dependent field whose projection is not typable. -/
 theorem instantiateProjectionFields.WF_all {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u) :

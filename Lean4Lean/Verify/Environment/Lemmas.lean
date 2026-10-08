@@ -1134,10 +1134,9 @@ structure CheckingEnv.ValidCore (safety : DefinitionSafety)
     Kernel.Environment.primitives.contains n →
     ci.safety = .safe ∧ ci.levelParams = []
   typeAnnotationWrappers : TypeAnnotationWrappers env
-  /-- Working carrier of the unproved conjecture `ProjectionWalkCorner`, which enters
-  explicitly as `(hch : venv.HasCanonicalChoice)` at the top-level theorems and
-  `TrEnv.toCheckingValid`. It does not depend on the environment, so every installation
-  carries it along unchanged. -/
+  /-- Canonical `Nonempty` and `Classical.choice` (`VEnv.HasCanonicalChoice`): with the registered
+  case eliminators, this resolves the projection-walk corner (`projectionWalkCorner_choice`).
+  It is a hypothesis of the top-level theorems, monotone along installations. -/
   canonicalChoice : venv.HasCanonicalChoice
 
 /-- All global invariants needed to run the verified executable type checker
