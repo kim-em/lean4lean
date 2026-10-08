@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.SingletonExtraction
 import Lean4Lean.Theory.Typing.NativeSingletonTyping
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 
 /-! # Singleton extraction data of a native recursor
 

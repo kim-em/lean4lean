@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.LoweredRulesAvoid
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Recursor provenance of a validated nested run.
 

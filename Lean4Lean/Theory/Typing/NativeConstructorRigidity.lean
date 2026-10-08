@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.CaseConstructorOrigin
+import Lean4Lean.Theory.Inductive.RecursorEquationCoverage
 import Lean4Lean.Theory.Typing.ProjectionRigidity
 
 /-! Declaration-history invariants for native constructor computation. -/

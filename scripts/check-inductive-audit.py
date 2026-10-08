@@ -150,7 +150,7 @@ def main():
                         "Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal",
                         "Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal",
                         "Lean4Lean.Theory.Inductive.CaseRegistration",
-                        "Lean4Lean.Theory.Inductive.StructureEtaProgram",
+                        "Lean4Lean.Theory.Inductive.CaseProjections",
                         "Lean4Lean.Theory.Typing.CaseReduction",
                         "Lean4Lean.Theory.Typing.NativeDeltaReduction",
                         "Lean4Lean.Theory.Typing.FullChurchRosser",

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.Basic
 import Lean4Lean.Theory.VDecl
-import Lean4Lean.Theory.InductiveShape
+import Lean4Lean.Theory.Inductive.SourceShape
 import Lean4Lean.Std.VariableBang
 
 namespace Lean4Lean

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Typing.NativePrefixLevelCongruence
-import Lean4Lean.Theory.Inductive.QuotPrefixProgram
-import Lean4Lean.Theory.Inductive.ProjectionProgram
+import Lean4Lean.Theory.Inductive.QuotPrefixUnfolding
+import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Typing.RestorationLevelCongruence
 import Lean4Lean.Theory.Inductive.SingletonReconstruction
 import Lean4Lean.Theory.Typing.NativeSingletonProgram

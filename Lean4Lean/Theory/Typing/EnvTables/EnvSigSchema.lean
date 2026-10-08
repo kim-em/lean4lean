@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.EnvTables.EnvSigSyntax
-import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 
 /-!
 # The shape of generic eliminator equations

@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.NativePrefixProgram
+import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Quot
 
 /-! Primitive quotient reconstruction at a Prop-valued source. Quot.ind

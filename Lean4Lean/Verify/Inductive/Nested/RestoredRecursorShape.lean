@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Environment.RecursorAlignment
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.RestorationShapes
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 namespace Lean4Lean
 namespace InductiveSignature

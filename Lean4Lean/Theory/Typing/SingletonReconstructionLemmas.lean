@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.CaseReduction
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 
 /-! Scope and term-renaming facts for the actual singleton reconstruction
 program. These facts retain its selected index and proof-field programs. -/

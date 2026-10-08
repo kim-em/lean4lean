@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CompilationLemmas
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 /-! Generated ordinary recursor and iota shapes.
 
 The operational shape contracts follow from the independent generator's

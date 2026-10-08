@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 import Lean4Lean.Theory.Inductive.CaseReductionData
 import Lean4Lean.Theory.DeclarationData
 import Lean4Lean.Theory.Typing.NativeRuleRegistration
@@ -12,7 +12,7 @@ import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Typing.NativeTelescope
 import Lean4Lean.Theory.Inductive.CaseReductionLemmas
 import Lean4Lean.Theory.Inductive.RestorationNaturality
-import Lean4Lean.Theory.Inductive.ProjectionProgram
+import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 
 /-! Scope for the concrete data machine from actual declaration history and

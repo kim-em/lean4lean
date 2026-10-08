@@ -2,7 +2,7 @@ import Lean4Lean.Theory.Inductive.CaseReductionData
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Inductive.CaseCapture
-import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 import Lean4Lean.Theory.Typing.NativeTelescope
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Inductive.CaseReductionLemmas

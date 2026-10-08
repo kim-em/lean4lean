@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Environment
 import Lean4Lean.Verify.TypeChecker
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
-import Lean4Lean.Theory.Inductive.StructureEtaProgram
+import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Typing.FullChurchRosser
 import Lean4Lean.Theory.Typing.NativeDeltaReduction

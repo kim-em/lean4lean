@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Replacement
 import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRestoredRecursorVal
 import Lean4Lean.Verify.TypeChecker.WHNF
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Commutation of executable nested restoration with `Restoration.expr`.
 

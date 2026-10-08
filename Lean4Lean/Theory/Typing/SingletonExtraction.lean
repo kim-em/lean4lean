@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.CanonicalEqTyping
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.CaseMajorDomain
-import Lean4Lean.Theory.Inductive.ProjectionProgram
+import Lean4Lean.Theory.Inductive.CaseProjections
 
 /-! # Extraction of singleton proof fields along type casts
 

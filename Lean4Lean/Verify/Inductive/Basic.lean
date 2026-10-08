@@ -3,7 +3,7 @@ import Init.Data.List.Sublist
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Verify.Environment.Extension
 import Lean4Lean.Verify.TypeChecker
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 namespace Lean4Lean
 

@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.Compilation
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Concrete realization of the same finite compilation and restoration witness.
 

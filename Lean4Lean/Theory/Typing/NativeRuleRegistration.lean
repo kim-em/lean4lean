@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.NativeRecursorRegistration
-import Lean4Lean.Theory.Inductive.NativeEquationOrigin
+import Lean4Lean.Theory.Inductive.RecursorEquationHeads
 import Batteries.Tactic.OpenPrivate
 
 /-! Every native rule is selected from the same finite compilation instance

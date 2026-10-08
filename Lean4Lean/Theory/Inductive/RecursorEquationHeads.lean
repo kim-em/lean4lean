@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 import Lean4Lean.Theory.Typing.NativeOrigin
 
 /-! Constructor heads of restored native computation equations. -/

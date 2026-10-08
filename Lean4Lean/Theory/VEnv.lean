@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.ProjectionData
+import Lean4Lean.Theory.ProjectionFieldType
 import Lean4Lean.Theory.Inductive.CaseSchema
 import Lean4Lean.Theory.InductBlock
 

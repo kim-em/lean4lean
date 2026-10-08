@@ -1,6 +1,6 @@
 import Lean4Lean.Theory.Inductive.CaseRegistration
 import Lean4Lean.Theory.Inductive.CaseSchemaLemmas
-import Lean4Lean.Theory.Inductive.ProjectionProgram
+import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Typing.InductiveLemmas
 import Lean4Lean.Theory.Inductive.SignatureLemmas
 

@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.NativeSingletonDefs
 import Lean4Lean.Theory.Typing.NativeSingletonSyntax
 import Lean4Lean.Theory.Typing.NativeSingletonClosed
-import Lean4Lean.Theory.Inductive.NativePrefixProgram
+import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Typing.NativeRecursorRegistration
 import Lean4Lean.Theory.Typing.Strong
 

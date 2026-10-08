@@ -8,7 +8,7 @@ import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Theory.Inductive.ConstructorArity
 import Lean4Lean.Theory.Inductive.HypothesisTyping
 import Lean4Lean.Theory.Inductive.Normalization
-import Lean4Lean.Theory.Inductive.ProjectionProgram
+import Lean4Lean.Theory.Inductive.CaseProjections
 import Lean4Lean.Theory.Inductive.RawShape
 import Lean4Lean.Theory.Inductive.Restoration
 import Lean4Lean.Theory.Inductive.RestorationDefEq

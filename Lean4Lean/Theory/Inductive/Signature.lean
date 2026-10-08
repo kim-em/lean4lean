@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Inductive.SignatureData
-import Lean4Lean.Theory.InductiveShape
+import Lean4Lean.Theory.Inductive.SourceShape
 import Lean4Lean.Theory.Typing.Lemmas
 
 /-! Typed models and elimination admissibility for the pure signature generator. -/

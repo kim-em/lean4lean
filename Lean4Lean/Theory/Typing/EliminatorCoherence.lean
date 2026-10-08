@@ -2,8 +2,8 @@ import Lean4Lean.Theory.Typing.NativeConstructorRigidity
 import Lean4Lean.Theory.Typing.QuotPrefixReduction
 import Batteries.Tactic.OpenPrivate
 import Lean4Lean.Theory.Typing.NativeRecursorRegistration
-import Lean4Lean.Theory.Inductive.NativeConstructorCoverage
-import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
+import Lean4Lean.Theory.Inductive.RecursorEquationCoverage
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 import Lean4Lean.Theory.Typing.NativeRuleRegistration
 import Lean4Lean.Theory.Typing.PatternCaptures
 import Lean4Lean.Theory.Typing.Pattern
@@ -12,7 +12,7 @@ import Lean4Lean.Theory.Typing.NativeRegistryInstallation
 import Lean4Lean.Theory.Typing.Strong
 import Lean4Lean.Theory.Typing.EnvLemmas
 import Lean4Lean.Theory.Inductive.CaseRegistration
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 import Lean4Lean.Theory.Inductive.CaseReductionData
 import Lean4Lean.Theory.DeclarationData
 import Lean4Lean.Theory.Typing.NativeCompiledRegistration

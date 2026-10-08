@@ -2,8 +2,8 @@ import Lean4Lean.Verify.Inductive.Nested.RestorationCommutation
 import Lean4Lean.Verify.Inductive.Nested.RestoredRecursorShape
 import Lean4Lean.Verify.Inductive.Nested.FormationExpansionTrace
 import Lean4Lean.Verify.Typing.ConstSupport
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
-import Lean4Lean.Theory.Inductive.CaseCertificateTransport
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
+import Lean4Lean.Theory.Inductive.CaseCertificateMono
 
 /-! Nested expansions whose leaves are inverted by a restoration table.
 

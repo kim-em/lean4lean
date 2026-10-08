@@ -2,7 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.AssemblyProviderEvidence
 import Lean4Lean.Verify.Inductive.Nested.RestoredEquations
 import Lean4Lean.Verify.Inductive.Nested.HitShapeInputs
 import Lean4Lean.Verify.Inductive.Nested.FinalShapes
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Final assembly certificate of a validated nested run: the pieces.
 

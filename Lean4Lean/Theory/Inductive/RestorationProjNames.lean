@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive
 import Lean4Lean.Theory.Inductive.CaseProjNames
 import Lean4Lean.Theory.Typing.RestorationShapes
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! # Transport of case-schema certificates
 
@@ -286,123 +286,6 @@ theorem projNamesOK_of_pieces_restored {schema : CaseSchema} {ok : Name → Prop
 
 end CaseSchema
 
-/-! ### Monotonicity of case certificates -/
-
-private theorem sourceWF_mono {decl : VInductDecl} {env env' envTypes envCtors : VEnv}
-    (H : decl.SourceWF env) (hle : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes)
-    (hctors : envTypes.addConstVals decl.constructorConstants = some envCtors) :
-    decl.SourceWF env' := by
-  rcases H with ⟨hnonempty, hnames, htypeUvars, hctorUvars, sourceTypes, sourceCtors,
-    hsourceTypes, _, hsourceTypesWF, hsourceCtorsWF⟩
-  have hsourceTypesLE : sourceTypes ≤ envTypes :=
-    VEnv.addConstVals_mono hle hsourceTypes htypes
-  exact ⟨hnonempty, hnames, htypeUvars, hctorUvars, envTypes, envCtors, htypes, hctors,
-    fun type htype => (hsourceTypesWF type htype).mono hle,
-    fun ctor hctor => (hsourceCtorsWF ctor hctor).mono hsourceTypesLE⟩
-
-private theorem formationWF_mono {decl : VInductDecl} {env env' envTypes : VEnv}
-    (H : decl.FormationWF env) (hle : env ≤ env')
-    (htypes : env'.addConstVals decl.typeConstants = some envTypes) :
-    decl.FormationWF env' := by
-  rcases H with ⟨params, resultLevel, formationTypes, hformationTypes, htypeShapes,
-    hctorShapes, hraw⟩
-  have hformationTypesLE : formationTypes ≤ envTypes :=
-    VEnv.addConstVals_mono hle hformationTypes htypes
-  exact ⟨params, resultLevel, envTypes, htypes,
-    fun type htype => ⟨(htypeShapes type htype).1, (htypeShapes type htype).2.mono hle⟩,
-    fun type htype ctor hctor =>
-      let Hctor := hctorShapes type htype ctor hctor
-      ⟨Hctor.1.mono hformationTypesLE, Hctor.2.mono hformationTypesLE⟩, hraw⟩
-
-theorem ContainerSpecialization.WellFormed.mono {a : ContainerSpecialization}
-    {envTypes envTypes' : VEnv} {source : VInductDecl} {params : List VExpr}
-    (H : a.WellFormed envTypes source params) (hle : envTypes ≤ envTypes') :
-    a.WellFormed envTypes' source params := by
-  obtain ⟨h1, h2, h3, h4, h5, type, htype⟩ := H
-  exact ⟨h1, h2, h3, h4, h5, type, htype.mono hle⟩
-
-theorem RestoresType.mono {r : Restoration} {env env' : VEnv} {U : Nat} {n s : VExpr}
-    (H : RestoresType r env U n s) (hle : env ≤ env') : RestoresType r env' U n s := by
-  obtain ⟨restored, hr, hd⟩ := H
-  exact ⟨restored, hr, hd.mono hle⟩
-
-theorem RestoresFamily.mono {r : Restoration} {env env' : VEnv} {U : Nat}
-    {n s : VInductiveType} (H : RestoresFamily r env U n s) (hle : env ≤ env') :
-    RestoresFamily r env' U n s := by
-  obtain ⟨domains, body, level, exprType, hlevel, htype, hbody⟩ := H.type
-  exact { H with
-    type := ⟨domains, body, level, exprType, hlevel, htype.mono hle, hbody.mono hle⟩
-    constructors := Lean4Lean.List.Forall₂.imp
-      (fun _ _ h => ⟨h.1, h.2.1, h.2.2.mono hle⟩) H.constructors }
-
-/-- The case part of a compilation is monotone along larger environments in which the source
-and expanded declarations still install. -/
-theorem CaseCompilationData.mono {env env' : VEnv} {source expanded : VInductDecl}
-    {s : InductiveSignature} {auxiliaries : List ContainerSpecialization}
-    {block : VInductBlock} {sourceTypes' sourceCtors' expandedTypes' expandedCtors' : VEnv}
-    (H : CaseCompilationData env source expanded s auxiliaries block) (hle : env ≤ env')
-    (hsourceTypes : env'.addConstVals source.typeConstants = some sourceTypes')
-    (hsourceCtors : sourceTypes'.addConstVals source.constructorConstants = some sourceCtors')
-    (hexpandedTypes : env'.addConstVals expanded.typeConstants = some expandedTypes')
-    (hexpandedCtors : expandedTypes'.addConstVals expanded.constructorConstants =
-      some expandedCtors') :
-    CaseCompilationData env' source expanded s auxiliaries block where
-  sourceWF := sourceWF_mono H.sourceWF hle hsourceTypes hsourceCtors
-  sourceParameters := H.sourceParameters.mono_of_addConstVals hle hsourceTypes
-  expandedWF := sourceWF_mono H.expandedWF hle hexpandedTypes hexpandedCtors
-  headerPrefix := H.headerPrefix
-  expandedFormation := formationWF_mono H.expandedFormation hle hexpandedTypes
-  model := H.model.mono hle hexpandedTypes
-  uvars := H.uvars
-  nparams := H.nparams
-  safety := H.safety
-  restorationScoped := H.restorationScoped
-  correspondence := by
-    obtain ⟨envTypes, direct, ht, hmapM, hwf, hF⟩ := H.correspondence
-    have hTle : envTypes ≤ sourceTypes' := VEnv.addConstVals_mono hle ht hsourceTypes
-    exact ⟨sourceTypes', direct, hsourceTypes, hmapM, fun a ha => (hwf a ha).mono hTle,
-      Lean4Lean.List.Forall₂.imp (fun _ _ h => h.mono hTle) hF⟩
-  familyTypesWF := by
-    obtain ⟨T, C, es, ht, hc, hes, hfam⟩ := H.familyTypesWF
-    have hTle : T ≤ expandedTypes' := VEnv.addConstVals_mono hle ht hexpandedTypes
-    have hCle : C ≤ expandedCtors' := VEnv.addConstVals_mono hTle hc hexpandedCtors
-    exact ⟨expandedTypes', expandedCtors', es, hexpandedTypes, hexpandedCtors,
-      hes.mono hle hexpandedTypes,
-      hfam.mono (VEnv.addProjections_mono (VEnv.addEliminators_mono hCle))⟩
-  types := H.types
-  ctors := H.ctors
-  projections := H.projections
-
-theorem RecursorNamesFresh.mono {env env' : VEnv} {source expanded : VInductDecl}
-    {auxiliaries : List ContainerSpecialization}
-    (H : RecursorNamesFresh env source expanded auxiliaries)
-    (hfresh : ∀ n ∈ (compilationRestoration source auxiliaries).recursors.map Prod.fst,
-      env'.constants n = none) :
-    RecursorNamesFresh env' source expanded auxiliaries :=
-  fun n hn => ⟨hfresh n hn, (H n hn).2⟩
-
-theorem _root_.Lean4Lean.CertifiedSpecializations.mono {env env' : VEnv}
-    {auxiliaries : List ContainerSpecialization}
-    (H : CertifiedSpecializations env auxiliaries) (hle : env ≤ env') :
-    CertifiedSpecializations env' auxiliaries := by
-  induction auxiliaries with
-  | nil => exact .nil
-  | cons a rest ih =>
-    cases H with
-    | cons hcompiled hblock hinstall hinst hrest =>
-      exact .cons hcompiled hblock hinstall (hinst.trans hle) (ih hrest)
-
-theorem CaseSchema.HeaderAgreement.mono {schema : CaseSchema} {env env' envTypes' : VEnv}
-    {source : VInductDecl} (H : schema.HeaderAgreement env source) (hle : env ≤ env')
-    (htypes' : env'.addConstVals source.typeConstants = some envTypes') :
-    schema.HeaderAgreement env' source := by
-  obtain ⟨RP, hRP, hhdr⟩ := H
-  refine ⟨RP, hRP, fun owner => ?_⟩
-  obtain ⟨RI, hRI, hagree⟩ := hhdr owner
-  refine ⟨RI, hRI, fun type htype hname => ?_⟩
-  obtain ⟨envTypes₀, ht₀, hdefeq⟩ := hagree type htype hname
-  exact ⟨envTypes', htypes', hdefeq.mono (VEnv.addConstVals_mono hle ht₀ htypes')⟩
 
 end InductiveSignature
 end Lean4Lean

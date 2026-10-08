@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.ProjectionProgram
+import Lean4Lean.Theory.Inductive.CaseProjections
 
 /-! Deterministic constructor reconstruction for singleton elimination.
 Index-determined data fields are read from the actual index spine. Remaining

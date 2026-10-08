@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 
 /-! Exact universe spines of restored native heads. -/
 

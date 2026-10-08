@@ -5,7 +5,7 @@ import Lean4Lean.Theory.Inductive.SignatureLemmas
 import Lean4Lean.Theory.Inductive.CompilationNames
 import Lean4Lean.Theory.Inductive.CaseSchemaLemmas
 import Lean4Lean.Theory.Inductive.CaseRegistration
-import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 
 /-! Registered eliminator schemas avoid names that are not constants.
 

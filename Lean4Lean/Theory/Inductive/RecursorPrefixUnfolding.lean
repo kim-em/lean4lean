@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 
 /-! A native singleton is reconstructed only after checking its actual
 indices. The program may be exposed at any prefix: the unsupplied telescope

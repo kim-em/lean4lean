@@ -10,7 +10,7 @@ import Lean4Lean.Theory.Typing.ProjectionLemmas
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Typing.ProjectionCornerSubst
 import Lean4Lean.Theory.Typing.RestorationShapes
-import Lean4Lean.Theory.Inductive.CaseRuleUniqueness
+import Lean4Lean.Theory.Inductive.CaseRuleConstructors
 
 /-! # Field types of the one-family view of a case schema
 

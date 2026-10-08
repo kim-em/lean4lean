@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.HitShapeInputs
-import Lean4Lean.Theory.Inductive.CaseCertificateTransport
+import Lean4Lean.Theory.Inductive.CaseCertificateMono
 
 /-! # Pieces of the case certificate of a nested declaration
 

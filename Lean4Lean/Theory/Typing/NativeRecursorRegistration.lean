@@ -1,7 +1,7 @@
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 import Lean4Lean.Theory.Inductive.CaseFormation
 import Lean4Lean.Theory.Inductive.CompilationLemmas
-import Lean4Lean.Theory.Inductive.NativeConstructorCoverage
+import Lean4Lean.Theory.Inductive.RecursorEquationCoverage
 
 /-! Native reconstruction metadata comes from an actual finite compilation
 whose whole generated block is installed below the current environment.

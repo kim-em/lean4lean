@@ -1,5 +1,5 @@
 import Lean4Lean.Theory.Typing.SingletonReconstructionLemmas
-import Lean4Lean.Theory.Inductive.NativePrefixProgram
+import Lean4Lean.Theory.Inductive.RecursorPrefixUnfolding
 import Lean4Lean.Theory.Typing.NativeSingletonProgram
 import Lean4Lean.Theory.Typing.NativePrefixTyping
 

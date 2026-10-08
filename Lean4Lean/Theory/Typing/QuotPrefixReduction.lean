@@ -1,4 +1,4 @@
-import Lean4Lean.Theory.Inductive.QuotPrefixProgram
+import Lean4Lean.Theory.Inductive.QuotPrefixUnfolding
 import Lean4Lean.Theory.Typing.NativePrefixWeakening
 import Lean4Lean.Theory.Typing.QuotLemmas
 

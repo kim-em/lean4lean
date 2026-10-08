@@ -4,7 +4,7 @@ import Lean4Lean.Theory.Typing.NativeCompiledRegistration
 import Lean4Lean.Theory.Typing.QuotLemmas
 import Lean4Lean.Theory.Typing.InductiveLemmas
 import Lean4Lean.Theory.Typing.Strong
-import Lean4Lean.Theory.Inductive.NativeRecursorData
+import Lean4Lean.Theory.Inductive.RecursorData
 import Lean4Lean.Theory.Inductive.CaseRegistration
 
 /-!
