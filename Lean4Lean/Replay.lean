@@ -128,12 +128,99 @@ inductive ReplayError where
 
 instance : Inhabited ReplayError := ⟨.msg "unreachable"⟩
 
+/-! ### The prelude's `Eq`
+
+Quotient initialization (`quotDecl`) types `Quot.lift` against `Eq`. The kernel's `checkEqType`
+only inspects the shape of `Eq` and its constructor (up to `Expr.eqv`), which is not enough for the
+abstract model of `Quot.lift`; so the driver additionally requires, before the step that
+initializes the quotient module, that `Eq`, `Eq.refl` and `Eq.rec` are the prelude's: safe
+constants whose types are literally those `Init.Prelude` produces, up to binder and universe
+parameter names (`HasProductionEq` in `Lean4Lean/Verify/CanonicalEqRealization.lean`). -/
+
+namespace ProductionEq
+
+/-- Structural equality of the expression forms occurring in the types below; `false` on any
+other form (metadata, free variables, literals, ...). -/
+def strictEq : Expr → Expr → Bool
+  | .bvar i, .bvar j => i == j
+  | .sort u, .sort v => u == v
+  | .const n ls, .const m ms => n == m && ls == ms
+  | .app f a, .app g b => strictEq f g && strictEq a b
+  | .forallE n t b bi, .forallE n' t' b' bi' =>
+    n == n' && strictEq t t' && strictEq b b' && bi == bi'
+  | _, _ => false
+
+/-- The type of `Eq` as `Init.Prelude` declares it. -/
+def eqType (u alpha lhs rhs : Name) : Expr :=
+  .forallE alpha (.sort (.param u))
+    (.forallE lhs (.bvar 0)
+      (.forallE rhs (.bvar 1) (.sort .zero) .default) .default)
+    .implicit
+
+/-- The type of `Eq.refl` as `Init.Prelude` declares it. -/
+def reflType (u alpha value : Name) : Expr :=
+  .forallE alpha (.sort (.param u))
+    (.forallE value (.bvar 0)
+      (.app (.app (.app (.const ``Eq [.param u]) (.bvar 1)) (.bvar 0))
+        (.bvar 0)) .default)
+    .implicit
+
+/-- The type the kernel generates for `Eq.rec.{u, v}`. -/
+def recType (u v alpha lhs motive motiveRhs motiveProof refl rhs proof : Name) : Expr :=
+  .forallE alpha (.sort (.param v))
+    (.forallE lhs (.bvar 0)
+      (.forallE motive
+        (.forallE motiveRhs (.bvar 1)
+          (.forallE motiveProof
+            (.app (.app (.app (.const ``Eq [.param v]) (.bvar 2)) (.bvar 1)) (.bvar 0))
+            (.sort (.param u)) .default) .default)
+        (.forallE refl
+          (.app (.app (.bvar 0) (.bvar 1))
+            (.app (.app (.const ``Eq.refl [.param v]) (.bvar 2)) (.bvar 1)))
+          (.forallE rhs (.bvar 3)
+            (.forallE proof
+              (.app (.app (.app (.const ``Eq [.param v]) (.bvar 4)) (.bvar 3)) (.bvar 0))
+              (.app (.app (.bvar 3) (.bvar 1)) (.bvar 0)) .default)
+            .implicit) .default) .implicit) .implicit) .implicit
+
+def isSafe (ci : ConstantInfo) : Bool := !ci.isUnsafe && !ci.isPartial
+
+def isEq (ci : ConstantInfo) : Bool :=
+  isSafe ci && match ci.levelParams, ci.type with
+  | [u], .forallE alpha _ (.forallE lhs _ (.forallE rhs _ _ _) _) _ =>
+    strictEq ci.type (eqType u alpha lhs rhs)
+  | _, _ => false
+
+def isRefl (ci : ConstantInfo) : Bool :=
+  isSafe ci && match ci.levelParams, ci.type with
+  | [u], .forallE alpha _ (.forallE value _ _ _) _ => strictEq ci.type (reflType u alpha value)
+  | _, _ => false
+
+def isRec (ci : ConstantInfo) : Bool :=
+  isSafe ci && match ci.levelParams, ci.type with
+  | [u, v], .forallE alpha _ (.forallE lhs _
+      (.forallE motive (.forallE motiveRhs _ (.forallE motiveProof _ _ _) _)
+        (.forallE refl _ (.forallE rhs _ (.forallE proof _ _ _) _) _) _) _) _ =>
+    u != v &&
+      strictEq ci.type (recType u v alpha lhs motive motiveRhs motiveProof refl rhs proof)
+  | _, _ => false
+
+end ProductionEq
+
+/-- `Eq`, `Eq.refl` and `Eq.rec` are the prelude's in `env`. -/
+def hasProductionEq (env : Environment) : Bool :=
+  match env.find? ``Eq, env.find? ``Eq.refl, env.find? ``Eq.rec with
+  | some e, some r, some c => ProductionEq.isEq e && ProductionEq.isRefl r && ProductionEq.isRec c
+  | _, _, _ => false
+
 /-- `env` is obtained from an environment satisfying `Start` by successful checked additions
-`Lean4Lean.addDecl · d (check := true) (fuel := fuel)`. -/
+`Lean4Lean.addDecl · d (check := true) (fuel := fuel)`; a step that initializes the quotient
+module is taken only when the prelude's `Eq` is present (`hasProductionEq`). -/
 inductive Replayed (fuel : Lean4Lean.FuelConfig) (Start : Environment → Prop) :
     Environment → Prop where
   | start : Start env → Replayed fuel Start env
   | step : Replayed fuel Start env → Lean4Lean.addDecl env d true fuel = .ok env' →
+    (d = .quotDecl → env.quotInit = false → hasProductionEq env = true) →
     Replayed fuel Start env'
 
 /-- Callbacks run around each `addDecl` call of the core. They cannot change the replay
@@ -182,15 +269,25 @@ def isTodo (name : Name) : CoreM m cfg.fuel Start Bool := do
   else
     return false
 
-/-- Add a declaration with the verified kernel, while replaying the constant `name`. -/
+/-- Add a declaration with the verified kernel, while replaying the constant `name`. Quotient
+initialization additionally requires the prelude's `Eq` (`hasProductionEq`). -/
 def addDecl (name : Name) (d : Declaration) : CoreM m cfg.fuel Start Unit := do
   let s ← get
-  let t ← hooks.beforeAdd d
-  match h : Lean4Lean.addDecl s.env d true (fuel := cfg.fuel) with
-  | .ok env =>
-    hooks.afterAdd name d s.env env t
-    set { s with env, replayed := .step s.replayed h, numAdded := s.numAdded + 1 }
-  | .error ex => throw (ReplayError.kernel name ex)
+  let eqOk : Bool := match d with
+    | .quotDecl => s.env.quotInit || hasProductionEq s.env
+    | _ => true
+  if hq : eqOk = true then
+    let t ← hooks.beforeAdd d
+    match h : Lean4Lean.addDecl s.env d true (fuel := cfg.fuel) with
+    | .ok env =>
+      hooks.afterAdd name d s.env env t
+      set { s with
+        env, numAdded := s.numAdded + 1
+        replayed := .step s.replayed h fun hd hi => by subst hd; simpa [eqOk, hi] using hq }
+    | .error ex => throw (ReplayError.kernel name ex)
+  else
+    throw (ReplayError.msg
+      s!"at {name}: initializing the quotient module needs the prelude's Eq, Eq.refl and Eq.rec")
 
 mutual
 /--
@@ -404,7 +501,7 @@ def freshConfig (src : Std.HashMap Name ConstantInfo) (fuel : Lean4Lean.FuelConf
 declaration is being added the environment is also held by the replay state, so the map is
 shared and `stage₁ := true` would lead to quadratic performance. -/
 def freshStart (mainModule : Name) : Environment :=
-  .empty mainModule (stage₁ := false)
+  Kernel.Environment.empty mainModule false
 
 /-- The pure replay of `src` from the empty environment, as in `--fresh` mode. -/
 def replayFresh (src : Std.HashMap Name ConstantInfo) (mainModule : Name := .anonymous)

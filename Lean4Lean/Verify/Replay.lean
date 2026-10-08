@@ -1,5 +1,5 @@
 import Lean4Lean.Replay
-import Lean4Lean.Verify.Environment
+import Lean4Lean.Verify.CanonicalEqRealization
 
 /-!
 # Soundness of the replay driver
@@ -35,11 +35,12 @@ open Kernel
 preserved by every successful checked `addDecl` holds for every replayed environment. -/
 theorem Replayed.induction {fuel : FuelConfig} {Start : Environment → Prop}
     (Inv : Environment → Prop) (hstart : ∀ env, Start env → Inv env)
-    (hstep : ∀ env d env', Inv env → Lean4Lean.addDecl env d true fuel = .ok env' → Inv env')
+    (hstep : ∀ env d env', Inv env → Lean4Lean.addDecl env d true fuel = .ok env' →
+      (d = .quotDecl → env.quotInit = false → hasProductionEq env = true) → Inv env')
     {env : Environment} (h : Replayed fuel Start env) : Inv env := by
   induction h with
   | start h => exact hstart _ h
-  | step _ hadd ih => exact hstep _ _ _ ih hadd
+  | step _ hadd hq ih => exact hstep _ _ _ ih hadd hq
 
 /-- The dependency-order walk only changes the environment by `addDecl`: a replayed environment
 is the result of folding successful checked `addDecl` calls over a list of declarations, from a
@@ -51,32 +52,142 @@ theorem Replayed.foldlM {fuel : FuelConfig} {Start : Environment → Prop} {env 
         (.ok env : Except Exception Environment) := by
   induction h with
   | start h => exact ⟨_, [], h, rfl⟩
-  | @step env d env' _ hadd ih =>
+  | @step env d env' _ hadd _ ih =>
     obtain ⟨env₀, ds, h₀, hds⟩ := ih
     refine ⟨env₀, ds ++ [d], h₀, ?_⟩
     simp only [List.foldlM_append, hds, List.foldlM_cons, List.foldlM_nil]
     simp only [bind, Except.bind, hadd]
     rfl
 
-/-- The list form of replay soundness from `env₀`: folding successful checked `addDecl` calls
-(with the default fuel) over any list of declarations yields an environment modelled by
-well-formed abstract environments. For the empty environment this is the list-form replay theorem
-(`VEnvs.WF.empty` together with the `Eq` bootstrap of `Verify/CanonicalEqRealization.lean`); for a
-well-formed environment with canonical `Eq` it is `ListReplaySound.of_WF`. -/
-def ListReplaySound (env₀ : Environment) : Prop :=
-  ∀ ds : List Declaration,
-    (ds.foldlM (fun env d => Lean4Lean.addDecl env d (check := true) (fuel := {})) env₀).WF
-      fun env' => ∃ ves' : VEnvs, ves'.WF env'
+/-! ### The prelude's `Eq` -/
 
-/-- A replay result from a start environment in which list replay is sound is modelled by
-well-formed abstract environments. -/
-theorem ReplayResult.wf {cfg : Config} (hfuel : cfg.fuel = {}) {start : Environment}
-    {decl : Option Name} (r : ReplayResult cfg start decl) (hstart : ListReplaySound start) :
+namespace ProductionEq
+
+theorem strictEq_eq : ∀ {a b : Expr}, strictEq a b = true → a = b
+  | .bvar _, .bvar _, h => by simp [strictEq] at h; rw [h]
+  | .sort _, .sort _, h => by simp [strictEq] at h; rw [h]
+  | .const _ _, .const _ _, h => by simp [strictEq] at h; rw [h.1, h.2]
+  | .app _ _, .app _ _, h => by
+    simp only [strictEq, Bool.and_eq_true] at h
+    rw [strictEq_eq h.1, strictEq_eq h.2]
+  | .forallE _ _ _ bi, .forallE _ _ _ bi', h => by
+    simp only [strictEq, Bool.and_eq_true, beq_iff_eq] at h
+    obtain ⟨⟨⟨hn, ht⟩, hb⟩, hbi⟩ := h
+    have : bi = bi' := by cases bi <;> cases bi' <;> first | rfl | cases hbi
+    rw [hn, strictEq_eq ht, strictEq_eq hb, this]
+  | .bvar _, .sort _, h | .bvar _, .const .., h | .bvar _, .app .., h | .bvar _, .forallE .., h
+  | .bvar _, .fvar _, h | .bvar _, .mvar _, h | .bvar _, .lam .., h | .bvar _, .letE .., h
+  | .bvar _, .lit _, h | .bvar _, .mdata .., h | .bvar _, .proj .., h => by cases h
+  | .sort _, .bvar _, h | .sort _, .const .., h | .sort _, .app .., h | .sort _, .forallE .., h
+  | .sort _, .fvar _, h | .sort _, .mvar _, h | .sort _, .lam .., h | .sort _, .letE .., h
+  | .sort _, .lit _, h | .sort _, .mdata .., h | .sort _, .proj .., h => by cases h
+  | .const .., .bvar _, h | .const .., .sort _, h | .const .., .app .., h
+  | .const .., .forallE .., h | .const .., .fvar _, h | .const .., .mvar _, h
+  | .const .., .lam .., h | .const .., .letE .., h | .const .., .lit _, h
+  | .const .., .mdata .., h | .const .., .proj .., h => by cases h
+  | .app .., .bvar _, h | .app .., .sort _, h | .app .., .const .., h
+  | .app .., .forallE .., h | .app .., .fvar _, h | .app .., .mvar _, h
+  | .app .., .lam .., h | .app .., .letE .., h | .app .., .lit _, h
+  | .app .., .mdata .., h | .app .., .proj .., h => by cases h
+  | .forallE .., .bvar _, h | .forallE .., .sort _, h | .forallE .., .const .., h
+  | .forallE .., .app .., h | .forallE .., .fvar _, h | .forallE .., .mvar _, h
+  | .forallE .., .lam .., h | .forallE .., .letE .., h | .forallE .., .lit _, h
+  | .forallE .., .mdata .., h | .forallE .., .proj .., h => by cases h
+  | .fvar _, _, h | .mvar _, _, h | .lam .., _, h | .letE .., _, h | .lit _, _, h
+  | .mdata .., _, h | .proj .., _, h => by cases h
+
+theorem isSafe_spec {ci : ConstantInfo} (h : isSafe ci = true) : ci.safety = .safe := by
+  simp only [isSafe, Bool.and_eq_true, Bool.not_eq_true'] at h
+  simp [ConstantInfo.safety, h.1, h.2]
+
+theorem eqType_eq (u a b c : Name) : eqType u a b c = VerifyInductive.eqBootstrapType u a b c :=
+  rfl
+
+theorem reflType_eq (u a b : Name) :
+    reflType u a b = VerifyInductive.eqBootstrapReflType u a b := rfl
+
+theorem recType_eq (u v a b c d e f g h : Name) :
+    recType u v a b c d e f g h = eqRecTypeExpr u v ⟨a, b, c, d, e, f, g, h⟩ := rfl
+
+theorem isEq_spec {ci : ConstantInfo} (h : isEq ci = true) : IsProductionEq ci := by
+  simp only [isEq, Bool.and_eq_true] at h
+  refine ⟨isSafe_spec h.1, ?_⟩
+  have h2 := h.2
+  split at h2
+  · exact ⟨_, _, _, _, ‹ci.levelParams = _›, (strictEq_eq h2).trans (eqType_eq ..)⟩
+  · cases h2
+
+theorem isRefl_spec {ci : ConstantInfo} (h : isRefl ci = true) : IsProductionEqRefl ci := by
+  simp only [isRefl, Bool.and_eq_true] at h
+  refine ⟨isSafe_spec h.1, ?_⟩
+  have h2 := h.2
+  split at h2
+  · exact ⟨_, _, _, ‹ci.levelParams = _›, (strictEq_eq h2).trans (reflType_eq ..)⟩
+  · cases h2
+
+theorem isRec_spec {ci : ConstantInfo} (h : isRec ci = true) : IsProductionEqRec ci := by
+  simp only [isRec, Bool.and_eq_true] at h
+  refine ⟨isSafe_spec h.1, ?_⟩
+  have h2 := h.2
+  split at h2
+  · simp only [Bool.and_eq_true, bne_iff_ne, ne_eq] at h2
+    exact ⟨_, _, _, h2.1, ‹ci.levelParams = _›, (strictEq_eq h2.2).trans (recType_eq ..)⟩
+  · cases h2
+
+end ProductionEq
+
+theorem hasProductionEq_spec {env : Environment} (h : hasProductionEq env = true) :
+    HasProductionEq env := by
+  unfold hasProductionEq at h
+  split at h
+  · rename_i e r c he hr hc
+    simp only [Bool.and_eq_true] at h
+    exact ⟨e, r, c, he, ProductionEq.isEq_spec h.1.1, hr, ProductionEq.isRefl_spec h.1.2, hc,
+      ProductionEq.isRec_spec h.2⟩
+  · cases h
+
+/-! ### From the driver's walk to `Replay` -/
+
+/-- Appending a step to a `Replay`. -/
+theorem _root_.Lean4Lean.Replay.snoc {env env₁ env₂ : Environment} {ds : List Declaration} {d : Declaration}
+    (H : Replay env ds env₁) (hadd : Lean4Lean.addDecl env₁ d (check := true) (fuel := {}) =
+      .ok env₂) (hq : d = .quotDecl → HasProductionEq env₁) : Replay env (ds ++ [d]) env₂ := by
+  induction H with
+  | nil => exact .cons hadd hq (.nil _)
+  | cons h₁ h₂ _ ih => exact .cons h₁ h₂ (ih hadd hq)
+
+/-- A step that initializes nothing: `quotDecl` on an environment whose quotient module is
+initialized returns the environment unchanged. -/
+theorem addDecl_quotDecl_of_quotInit {env env' : Environment} (hi : env.quotInit = true)
+    (h : Lean4Lean.addDecl env .quotDecl (check := true) (fuel := {}) = .ok env') :
+    env' = env := by
+  simp only [Lean4Lean.addDecl, Environment.addQuot, hi, if_true] at h
+  exact (Except.ok.inj h).symm
+
+/-- Every environment the driver builds with the default fuel is reached by a `Replay` from its
+start environment. -/
+theorem Replayed.replay {start env : Environment} (h : Replayed {} (· = start) env) :
+    ∃ ds, Replay start ds env := by
+  induction h with
+  | start h => exact ⟨[], h ▸ .nil _⟩
+  | @step env d env' _ hadd hq ih =>
+    obtain ⟨ds, H⟩ := ih
+    by_cases hd : d = .quotDecl
+    · subst hd
+      cases hi : env.quotInit
+      · exact ⟨_, H.snoc hadd fun _ => hasProductionEq_spec (hq rfl hi)⟩
+      · exact ⟨ds, addDecl_quotDecl_of_quotInit hi hadd ▸ H⟩
+    · exact ⟨_, H.snoc hadd fun h => absurd h hd⟩
+
+/-- A replay result from the empty environment with the default fuel is modelled by well-formed
+abstract environments. -/
+theorem ReplayResult.wf_empty {cfg : Config} (hfuel : cfg.fuel = {}) {m : Name} {s : Bool}
+    {decl : Option Name} (r : ReplayResult cfg (Kernel.Environment.empty m s) decl) :
     ∃ ves' : VEnvs, ves'.WF r.env := by
   have hr := r.replayed
   rw [hfuel] at hr
-  obtain ⟨env₀, ds, rfl, hds⟩ := hr.foldlM
-  exact hstart ds _ hds
+  obtain ⟨ds, H⟩ := hr.replay
+  exact H.WF_empty
 
 /-- A replay result from a well-formed start environment with canonical `Eq` is modelled by
 well-formed abstract environments with canonical `Eq` that extend the start's. -/
@@ -91,38 +202,24 @@ theorem ReplayResult.wf_of_WF {cfg : Config} (hfuel : cfg.fuel = {}) {start : En
       ∀ safety, ves.venv safety ≤ ves'.venv safety) ?_ ?_ hr
   · rintro _ rfl
     exact ⟨ves, wf, heq, fun _ => VEnv.LE.rfl⟩
-  · rintro env d env' ⟨ves₁, wf₁, heq₁, hle₁⟩ hadd
+  · rintro env d env' ⟨ves₁, wf₁, heq₁, hle₁⟩ hadd _
     obtain ⟨ves₂, wf₂, heq₂, hle₂⟩ := addDecl.WFHasCanonicalEq wf₁ heq₁ d trivial env' hadd
     exact ⟨ves₂, wf₂, heq₂, fun safety => (hle₁ safety).trans (hle₂ safety)⟩
-
-/-- List replay is sound from a well-formed environment with canonical `Eq`. -/
-theorem ListReplaySound.of_WF {env₀ : Environment} {ves : VEnvs} (wf : ves.WF env₀)
-    (heq : ves.HasCanonicalEq) : ListReplaySound env₀ := by
-  intro ds
-  induction ds generalizing env₀ ves with
-  | nil => rintro _ ⟨⟩; exact ⟨ves, wf⟩
-  | cons d ds ih =>
-    intro env' h
-    simp only [List.foldlM_cons, bind, Except.bind] at h
-    split at h
-    · cases h
-    · rename_i env₁ hadd
-      obtain ⟨ves₁, wf₁, heq₁, _⟩ := addDecl.WFHasCanonicalEq wf heq d trivial env₁ hadd
-      exact ih wf₁ heq₁ env' h
 
 /-- **Soundness of fresh replay.** If the pure replay of a source constant table `src` from the
 empty environment (`--fresh` mode, default fuel, all constants) succeeds, the environment it
 built is modelled by well-formed abstract environments, and every safe, non-partial source
 constant is present in it and agrees with the source constant (up to `==`, see the module
-docstring). The hypothesis `hfresh` is the list-form replay theorem from the empty environment. -/
-theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name}
-    (hfresh : ListReplaySound (freshStart mainModule)) :
+docstring). There is no hypothesis: the base case is `VEnvs.WF.empty`, and the driver only
+initializes the quotient module once the prelude's `Eq` is present (`hasProductionEq`), which is
+what the abstract model of `quotDecl` needs (`Replay.WF`). -/
+theorem replayFresh.WF {src : Std.HashMap Name ConstantInfo} {mainModule : Name} :
     (replayFresh src mainModule).WF fun r =>
       (∃ ves' : VEnvs, ves'.WF r.env) ∧
       ∀ n ci, src[n]? = some ci → ci.isUnsafe = false → ci.isPartial = false →
         ∃ ci', r.env.find? n = some ci' ∧ (ci' == ci) = true := by
   intro r _
-  exact ⟨r.wf rfl hfresh, fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
+  exact ⟨r.wf_empty rfl, fun n ci hci hu hp => r.agree n (r.complete rfl n ci hci hu hp) ci hci⟩
 
 /-- **Soundness of replay on top of imports.** If the pure replay of a module's constant table
 `src` into the environment `env` of its imports (default fuel, all constants) succeeds, and `env`

@@ -69,8 +69,11 @@ agreement check passed), so the theorems of `Lean4Lean/Verify/Replay.lean` cover
 run as well as the pure instance. `replayFresh.WF` states that a successful `--fresh` replay of a
 constant table (default fuel) yields an environment modelled by well-formed `VEnvs` in which every
 safe, non-partial source constant is present and `==` to the source constant (`Expr.eqv`, so up to
-binder names and annotations). Its hypothesis `ListReplaySound (freshStart _)` is the list-form
-replay theorem from the empty environment. `replayFromImports.WF` states the same on top of
+binder names and annotations). It has no hypothesis beyond the source table: the walk is turned
+into a `Replay` from `Kernel.Environment.empty` (`Replay.WF_empty`). The kernel's `checkEqType`
+compares `Eq` only up to `Expr.eqv` and does not look at `Eq.rec` or at safety, so before the step
+that initializes the quotient module the driver also checks that `Eq`, `Eq.refl` and `Eq.rec` are
+the prelude's (`hasProductionEq`, sound for `HasProductionEq`). `replayFromImports.WF` states the same on top of
 imports whose well-formedness and canonical `Eq` are assumed: imports are trusted in that mode.
 
 ### 1.3 The hypotheses

@@ -91,3 +91,46 @@ run_meta do
   check (e == s!"Replayed constant {``T} differs from the source") s!"unexpected error: {e}"
 
 end Lean4Lean.Tests.Replay
+
+/-! An `Eq` that differs from the prelude's only in the binder annotation of `α` passes the
+kernel's `checkEqType` (which compares up to `Expr.eqv`), but the driver refuses to initialize the
+quotient module on it. -/
+
+namespace Lean4Lean.Tests.Replay
+open Lean Lean4Lean.Replay
+
+def explicitOuter : Expr → Expr
+  | .forallE n t b _ => .forallE n t b .default
+  | e => e
+
+run_meta do
+  let env ← getEnv
+  let some (.inductInfo eqI) := env.find? ``Eq | throwError "no Eq"
+  let some (.ctorInfo reflI) := env.find? ``Eq.refl | throwError "no Eq.refl"
+  let some quotI := env.find? ``Quot | throwError "no Quot"
+  let src : Std.HashMap Name ConstantInfo := ({} : Std.HashMap Name ConstantInfo)
+    |>.insert ``Eq (.inductInfo { eqI with type := explicitOuter eqI.type })
+    |>.insert ``Eq.refl (.ctorInfo { reflI with type := explicitOuter reflI.type })
+    |>.insert ``Quot quotI
+  match replayFresh src with
+  | .ok _ => throwError "quotient initialization on a non-prelude Eq was accepted"
+  | .error e =>
+    let msg := errorText e
+    check (msg == s!"at {``Quot}: initializing the quotient module needs the prelude's Eq, \
+      Eq.refl and Eq.rec") s!"unexpected error: {msg}"
+  -- The kernel alone accepts it.
+  let eqDecl := Declaration.inductDecl eqI.levelParams eqI.numParams
+    [{ name := ``Eq, type := explicitOuter eqI.type,
+       ctors := [{ name := ``Eq.refl, type := explicitOuter reflI.type }] }] false
+  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) eqDecl).toOption
+    | throwError "the kernel rejected the modified Eq"
+  check (Lean4Lean.addDecl kenv .quotDecl).toBool "the kernel's checkEqType rejected it"
+  check (!hasProductionEq kenv) "hasProductionEq accepted the modified Eq"
+  -- The prelude's `Eq` passes.
+  let eqDecl := Declaration.inductDecl eqI.levelParams eqI.numParams
+    [{ name := ``Eq, type := eqI.type, ctors := [{ name := ``Eq.refl, type := reflI.type }] }] false
+  let some kenv := (Lean4Lean.addDecl (freshStart .anonymous) eqDecl).toOption
+    | throwError "the kernel rejected the prelude's Eq"
+  check (hasProductionEq kenv) "hasProductionEq rejected the prelude's Eq"
+
+end Lean4Lean.Tests.Replay
