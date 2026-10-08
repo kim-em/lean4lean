@@ -836,12 +836,12 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
   let trEnv := (C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries
   -- freshness of the restorable names in the translation environment
   have htypesEq : C.canonical.venvTypes = envTypes := by
-    have h := C.canonical.typesAdded.abstract
+    have h := C.canonical.abstract_types
     rw [C.typeValues, hadded] at h
     exact (Option.some.inj h).symm
   have hctorsAdded : envTypes.addConstVals sourceDecl.constructorConstants =
       some C.canonical.venvCtors := by
-    have h := C.canonical.ctorsAdded.abstract
+    have h := C.canonical.abstract_ctors
     rwa [C.constructorValues, htypesEq] at h
   have hctorNames := C.sourceConstructorNames
   rw [hC] at hctorNames

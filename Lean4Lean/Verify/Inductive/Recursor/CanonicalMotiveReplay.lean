@@ -232,7 +232,7 @@ theorem CompletedConstructorPhases.family_not_wrapper
         | ordinary Htypes Hctors =>
           have Hheader := (Htypes.validCore Hsource.toValidCore).tr
           exact Htypes.defnReflect hsourceWF (Hctors.defnReflect Hheader.map_wf hfindCtor)
-        | primitive Htypes Hctors _ =>
+        | primitive Htypes Hctors _ _ =>
           have Hheader := Htypes.checking Hsource.tr
           exact Htypes.defnReflect hsourceWF (Hctors.defnReflect Hheader.map_wf hfindCtor)
       obtain ⟨value, hvalue, _⟩ := R.sourceContext.checking.tr.find? hfindSource

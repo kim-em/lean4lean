@@ -1267,7 +1267,7 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
           sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
           decl.types primaryRecursors auxiliaryRecursors,
         ∃ canonicalProdEnv finalVEnv,
-          Nonempty { S : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+          Nonempty { S : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
             replay.constructorEntries replay.recursorEntries
               decl.projectionEntries canonicalProdEnv finalVEnv // S.eliminators = es } ∧
           ∀ name, outProdEnv.constants.find? name =
@@ -1339,7 +1339,7 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     (replay : CanonicalRestorationReplay c.safety c.env outEnv sourceVEnv
       envTypes ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       sourceDecl.types primaryRecursors auxiliaryRecursors)
-    (canonical : StagedBlock c.safety c.env sourceVEnv replay.typeEntries
+    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
       replay.constructorEntries replay.recursorEntries
         sourceDecl.projectionEntries canonicalProdEnv finalBaseVEnv)
     (HruleValid : CheckingEnv.Valid c.safety ruleEnv finalBaseVEnv)
@@ -1390,11 +1390,11 @@ theorem NestedLoweringResultClosed.validatedFinalAssemblyCertificate
     rw [HprimaryNames, HauxiliaryNames]
     simp only [List.map_map, Function.comp_def]
   have hcanonicalTypes : canonical.venvTypes = envTypes := by
-    have hadded := canonical.typesAdded.abstract
+    have hadded := canonical.abstract_types
     rw [replay.typeValues] at hadded
     exact Option.some.inj (hadded.symm.trans Hcore.typesAdded)
   have hcanonicalCtors : canonical.venvCtors = envCtors := by
-    have hadded := canonical.ctorsAdded.abstract
+    have hadded := canonical.abstract_ctors
     rw [hcanonicalTypes, replay.constructorValues] at hadded
     exact Option.some.inj (hadded.symm.trans Hcore.ctorsAdded)
   have Hfamilies := Hlower.primaryFamiliesOfValidation
@@ -2167,14 +2167,14 @@ private theorem NestedValidatedRunResult.assemblyOfFormationNative
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
       HbaseValid henv hinitial hctorNames Hsource HauxiliaryRecursors
       replay.recursorValues (hcornerAt (by
-        have h1 := canonical.typesAdded.abstract
+        have h1 := canonical.abstract_types
         rw [show _ = _ from replay.typeValues] at h1
         have h2 : P.initialEnv.addConstVals
             (List.map VInductiveType.toVConstVal sourceDecl.types) =
               some E.nativeSource.envTypes := Hcore.typesAdded
         rw [h2] at h1
         rw [Option.some.inj h1]
-        exact canonical.ctorsAdded.le.trans
+        exact canonical.formationAdded.constructorLE.trans
           (VEnv.addEliminators_addProjections_le.trans canonical.recursorsAdded.le))).1
   have HruleRun : Lean4Lean.validateRestoredRecursorRules.run
       (Lean4Lean.stripRecursorRules outEnv

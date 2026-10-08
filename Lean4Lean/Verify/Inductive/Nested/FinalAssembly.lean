@@ -183,7 +183,7 @@ structure NestedFinalAssemblyShape
   recursorEntries : List (ConstantInfo × VConstVal)
   canonicalProdEnv : Environment
   finalBaseVEnv : VEnv
-  canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
+  canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
     constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
       finalBaseVEnv
   productionOrder : ∀ actualEntries,
@@ -274,7 +274,7 @@ structure NestedFinalAssemblyRemainder
     (typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal))
     (canonicalProdEnv : Environment) (finalBaseVEnv : VEnv)
-    (canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
+    (canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv) where
   productionOrder : ∃ actualEntries,
@@ -312,7 +312,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     {typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal)}
     {canonicalProdEnv : Environment} {finalBaseVEnv : VEnv}
-    {canonical : StagedBlock safety sourceProdEnv sourceEnv typeEntries
+    {canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv}
     (R : NestedFinalAssemblyRemainder (sourceTypes := sourceTypes) P H
@@ -439,7 +439,7 @@ theorem NestedFinalAssemblyShape.typesAdded
       isUnsafe safety) :
     sourceEnv.addConstVals decl.typeConstants = some C.canonical.venvTypes := by
   rw [← C.typeValues]
-  exact C.canonical.typesAdded.abstract
+  exact C.canonical.abstract_types
 
 theorem NestedFinalAssemblyShape.constructorsAdded
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
@@ -449,7 +449,7 @@ theorem NestedFinalAssemblyShape.constructorsAdded
     C.canonical.venvTypes.addConstVals decl.constructorConstants =
       some C.canonical.venvCtors := by
   rw [← C.constructorValues]
-  exact C.canonical.ctorsAdded.abstract
+  exact C.canonical.abstract_ctors
 
 theorem NestedFinalAssemblyShape.primaryIotaBuild
     {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv

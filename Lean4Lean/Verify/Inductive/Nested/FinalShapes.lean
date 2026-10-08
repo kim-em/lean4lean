@@ -1066,7 +1066,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       (sourceTypes.map (fun type => type.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 ((), outEnv))
     (Hactual : FreshConstantTrace c.env actualEntries outEnv)
-    (canonical : StagedBlock c.safety c.env sourceVEnv types ctors recursors
+    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv types ctors recursors
       sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)

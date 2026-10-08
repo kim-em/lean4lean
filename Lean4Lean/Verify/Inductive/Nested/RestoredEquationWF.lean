@@ -1070,10 +1070,10 @@ theorem NestedValidatedRunResult.restoredEquationSubstitution
   have hSwf : C.finalBaseVEnv.WF := hV.tr.wf
   -- the source header environment of the shape
   have hvenvTypes : C.canonical.venvTypes = envTypes := by
-    have h1 := C.canonical.typesAdded.abstract
+    have h1 := C.canonical.abstract_types
     rw [C.typeValues, hadded] at h1
     exact (Option.some.inj h1).symm
-  have hctorsAdded := C.canonical.ctorsAdded.abstract
+  have hctorsAdded := C.canonical.abstract_ctors
   rw [C.constructorValues, hvenvTypes] at hctorsAdded
   have hleCtors : C.canonical.venvCtors ≤ C.finalBaseVEnv :=
     VEnv.addEliminators_addProjections_le.trans C.canonical.recursorsAdded.le
