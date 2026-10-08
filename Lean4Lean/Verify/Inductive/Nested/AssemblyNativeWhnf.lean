@@ -38,7 +38,7 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-private theorem forall₂_imp_mem_right {R S : α → β → Prop} :
+theorem forall₂_imp_mem_right {R S : α → β → Prop} :
     ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ →
       (∀ a b, b ∈ l₂ → R a b → S a b) → List.Forall₂ S l₁ l₂
   | _, _, .nil, _ => .nil
@@ -160,22 +160,29 @@ theorem RestoredNestedDeclarationsResult.find_restoredRecursor
   rw [← hsame]
   exact Htrace.findEntry hwf hs
 
-/-- Every installed entry of a staged constant list has the name of its
-abstract value. -/
-theorem AddConstants.name_eq
-    (H : AddConstants safety env venv entries outEnv outVEnv) :
-    ∀ entry ∈ entries, entry.1.name = entry.2.name := by
-  induction H with
-  | nil => simp
-  | cons _ _ htr _ _ _ _ ih =>
-    intro entry hentry
-    simp only [List.mem_cons] at hentry
-    rcases hentry with rfl | hentry
-    · exact htr.2
-    · exact ih entry hentry
-
 /-- The recursor entries of a final assembly shape are installed in the
 output environment under the names of their abstract values. -/
+theorem NestedFinalAssemblyBase.find_recursorEntry
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {sourceTypes : List InductiveType}
+    {auxRecNames : List Name} {outEnv : Environment}
+    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
+    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
+    {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
+    (C : NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety)
+    (hwf : sourceProdEnv.constants.WF) :
+    ∀ entry ∈ C.recursorEntries,
+      outEnv.find? entry.2.name = some entry.1 := by
+  intro entry hentry
+  rcases H.freshTrace hwf with ⟨actual, Hactual⟩
+  have hperm := C.productionOrder actual Hactual
+  have hmem : entry.1 ∈ actual := hperm.symm.mem_iff.mp
+    (List.mem_map.mpr ⟨entry, List.mem_append_right _ hentry, rfl⟩)
+  rw [← C.canonical.recursorsAdded.name_eq entry hentry]
+  exact Hactual.findEntry hwf hmem
+
 theorem NestedFinalAssemblyShape.find_recursorEntry
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
@@ -188,14 +195,8 @@ theorem NestedFinalAssemblyShape.find_recursorEntry
     (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety)
     (hwf : sourceProdEnv.constants.WF) :
     ∀ entry ∈ C.recursorEntries,
-      outEnv.find? entry.2.name = some entry.1 := by
-  intro entry hentry
-  rcases H.freshTrace hwf with ⟨actual, Hactual⟩
-  have hperm := C.productionOrder actual Hactual
-  have hmem : entry.1 ∈ actual := hperm.symm.mem_iff.mp
-    (List.mem_map.mpr ⟨entry, List.mem_append_right _ hentry, rfl⟩)
-  rw [← C.canonical.recursorsAdded.name_eq entry hentry]
-  exact Hactual.findEntry hwf hmem
+      outEnv.find? entry.2.name = some entry.1 :=
+  C.toNestedFinalAssemblyBase.find_recursorEntry hwf
 
 /-- `compilationData_of_hitShape'` at a given specialization list of
 `restorationTablesRestoringAll` (rather than at an existentially chosen one):
@@ -299,7 +300,7 @@ theorem NestedValidatedRunResult.restoredRecursorEntryInfos
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    (C : NestedFinalAssemblyShape E.restoration
+    (C : NestedFinalAssemblyBase E.restoration
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
@@ -567,11 +568,6 @@ theorem NestedValidatedRunResult.restoredRecursorRealization_of_step
       exact ⟨type, ht, Ht.mono hle⟩
   · rw [R.all, hnames]
 
-private theorem mem_zipIdx_of_mem' {l : List α} {x : α} (h : x ∈ l) :
-    ∃ i, (x, i) ∈ l.zipIdx := by
-  obtain ⟨i, hi⟩ := List.mem_iff_getElem?.mp h
-  exact ⟨i, List.mk_mem_zipIdx_iff_getElem?.mpr hi⟩
-
 /-- **The restored rules of one restored recursor.** Given the restored
 family head of its owner (with the constructor restorations of
 `CompilationData.restoredFamilyHead_spec`), every rule of the restored
@@ -684,7 +680,7 @@ theorem NestedValidatedRunResult.restoredRuleRealizations
   have hrecMem : ∀ a ∈ auxiliaries, a.auxiliary.str "rec" ∈
       (compilationRestoration sourceDecl auxiliaries).recursors.map Prod.fst := by
     intro a ha
-    obtain ⟨i, hi⟩ := mem_zipIdx_of_mem' ha
+    obtain ⟨i, hi⟩ := InductiveSignature.mem_zipIdx_of_mem ha
     exact List.mem_map.mpr ⟨_, List.mem_map.mpr ⟨(a, i), hi, rfl⟩, rfl⟩
   -- the restored constructor name
   have hctor : (Hstep.restored.newInfo.rules[j]'hjNew).ctor =

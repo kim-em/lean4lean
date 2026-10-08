@@ -965,7 +965,7 @@ theorem NestedValidatedRunResult.familyType_headType
   have hlen := Lean4Lean.List.Forall₂.length_eq hcore.types
   obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.1 howner
   have hiD : i < E.production.loweredDecl.types.length := by omega
-  have HT := Lean4Lean.VerifyInductive.List.Forall₂.getElem hcore.types i hi hiD
+  have HT := Lean4Lean.List.forall₂_getElem hcore.types i hi hiD
   have hsrcLen : sourceTypes.length = sourceDecl.types.length := by
     have := TrInductDeclCore.types_length E.nativeSource.core
     rwa [E.nativeSourceDecl_eq] at this

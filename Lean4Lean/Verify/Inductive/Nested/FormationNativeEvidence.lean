@@ -500,22 +500,6 @@ theorem TrExprS.ContextFree.targetClosed
       cases H with
       | mdata Hbody => exact ih Hbody
 
-private theorem Expr.abstractList_sort_native
-    (level : Level) (fvars : List FVarId) (depth : Nat) :
-    (Expr.sort level).abstractList fvars depth = .sort level := by
-  induction fvars with
-  | nil => rfl
-  | cons head tail ih =>
-      simp only [Expr.abstractList, Expr.abstract1, ih]
-
-private theorem Expr.abstractList_lit_native
-    (literal : Literal) (fvars : List FVarId) (depth : Nat) :
-    (Expr.lit literal).abstractList fvars depth = .lit literal := by
-  induction fvars with
-  | nil => rfl
-  | cons head tail ih =>
-      simp only [Expr.abstractList, Expr.abstract1, ih]
-
 /-- Closing exactly the selected parameters before translation agrees, after
 weakening by the live constructor-field depth, with translating the opened
 expression at the lowering hit.  Projection outputs are related through the
@@ -555,7 +539,7 @@ theorem TrExprS.abstractSelectedExpansion
           exact Hbridge.selected i hi HcanonicalLookup HcurrentLookup
   | @sort level currentLevel currentCtx HcurrentLevel =>
       have habstract : (Expr.sort level).abstractList fvars abstractDepth =
-          .sort level := Expr.abstractList_sort_native level fvars abstractDepth
+          .sort level := Lean.Expr.abstractList_sort'
       rw [habstract] at Hcanonical
       cases Hcanonical with
       | sort HcanonicalLevel =>
@@ -635,7 +619,7 @@ theorem TrExprS.abstractSelectedExpansion
   | @lit literal currentCtx currentTarget Hcontains HcurrentConstructor ih =>
       have habstract : (Expr.lit literal).abstractList fvars abstractDepth =
           .lit literal :=
-        Expr.abstractList_lit_native literal fvars abstractDepth
+        Lean.Expr.abstractList_lit'
       rw [habstract] at Hcanonical
       have heq :=
         (TrExprS.ContextFree.literal literal).translation_unique
@@ -809,16 +793,16 @@ theorem FinalLoweredGeneratedFamilyNativeSource.baseExpansionsAtReplacement
   have hiGenerated : i < generatedAbstract.length := by
     rw [← Lean4Lean.List.Forall₂.length_eq Halpha']
     exact hiCurrentAbstract
-  have HalphaAt := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have HalphaAt := Lean4Lean.List.forall₂_getElem
     Halpha' i hiCurrentAbstract hiGenerated
-  have HnativeAt := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have HnativeAt := Lean4Lean.List.forall₂_getElem
     N.baseTranslations i hiGenerated hiBase
   have HcanonicalCurrent := HnativeAt.eqv (BEq.symm HalphaAt)
   have hcurrentAbstractGet : currentAbstract[i] =
       currentArgs[i].abstractList Hselection.fvars := by
     simp [currentAbstract]
   rw [hcurrentAbstractGet] at HcanonicalCurrent
-  have HcurrentAt := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have HcurrentAt := Lean4Lean.List.forall₂_getElem
     S.baseArgsTranslation i hiCurrent (by simpa [htargetLength] using htarget)
   have HclosedAt : Closed
       (currentArgs[i].abstractList Hselection.fvars)
@@ -1233,7 +1217,7 @@ theorem CompletedRecursorPhasesResult.sourceHeaderFresh
     c.env.find? owner.name = none := by
   rcases Hheaders.sourceAligned with ⟨numNested, Haligned⟩
   have htypesLength : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    simpa using Lean4Lean.List.Forall₂.length_eq
       Hheaders.translation.types
   have hsize : stats.nindices.size = indTypes.size := by
     rw [Array.size_eq_length_toList, Hheaders.materialized.indices,
@@ -1441,7 +1425,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
   have hdecl : 0 < loweredDecl.types.length := by
     rw [List.length_take] at hprefix
     omega
-  have Hheader := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Hheader := Lean4Lean.List.forall₂_getElem
     HsourceHeaders 0 hfamily hprefix
   have hprefixEq :
       (loweredDecl.types.take (first :: rest).length)[0] =
@@ -1484,7 +1468,7 @@ theorem NestedLoweringResultClosed.auxiliaryFormationParameterContext
   have HsourceContext' := HsourceContext.mono hsourceLE
   have HparameterSource := HsourceContext'.symm henv.ordered
   have HsourceAux := HauxSource.symm henv.ordered
-  have HparameterAux := VEnv.IsDefEqCtx.transEmpty henv
+  have HparameterAux := VEnv.IsDefEqCtx.trans_empty henv
     HparameterSource HsourceAux
   simpa only [List.reverse_reverse] using HparameterAux
 
@@ -2253,7 +2237,7 @@ theorem NestedLoweringRun.allExpansionsOfNativeSources
   have Hgenerated := Hrun.generatedExpansionsOfNativeSources Htarget henv
     HtargetTypesWF N HsourceTypesWF Henv hclosures Hsources Hsource.typesAdded
       resultSelection hresultNodup hempty Hsource.uvars Hsource.nparams
-  have Hall := Lean4Lean.VerifyInductive.List.Forall₂.append' Horiginal
+  have Hall := _root_.List.Forall₂.append' Horiginal
     Hgenerated
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hsource).symm

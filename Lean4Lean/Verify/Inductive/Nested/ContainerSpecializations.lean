@@ -145,18 +145,6 @@ theorem compilationRestoration_scoped (source : VInductDecl)
     rw [compilationRestoration_heads_auxiliary] at hmem
     exact hsplit.2.2 _ hmem _ hrec rfl
 
-private theorem find?_key_of_nodup {l : List β} (key : β → Name)
-    (hnodup : (l.map key).Nodup) (hx : x ∈ l) :
-    l.find? (fun y => key y == key x) = some x := by
-  induction l with
-  | nil => simp at hx
-  | cons y l ih =>
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnodup
-    rcases List.mem_cons.mp hx with rfl | hx
-    · simp
-    · have hne : key y ≠ key x := fun h => hnodup.1 ⟨x, hx, h.symm⟩
-      simp [hne, ih hnodup.2 hx]
-
 theorem compilationRestoration_restoredHeadName_of_mem
     {source : VInductDecl} {auxiliaries : List ContainerSpecialization}
     (hnodup : (auxiliaries.flatMap (·.headNames)).Nodup)
@@ -166,7 +154,7 @@ theorem compilationRestoration_restoredHeadName_of_mem
       head.target := by
   rw [← compilationRestoration_heads_auxiliary source auxiliaries] at hnodup
   unfold Restoration.restoredHeadName
-  rw [find?_key_of_nodup (·.auxiliary) hnodup hhead]
+  rw [Lean4Lean.EnvTables.find?_name_of_mem (f := (·.auxiliary)) hnodup hhead]
 
 /-- An auxiliary constructor name restores to its container constructor. -/
 theorem compilationRestoration_restoredHeadName_constructor
@@ -531,7 +519,7 @@ private theorem directAuxConstructors_names
   | nil => rfl
   | cons hhead _ ih => simp only [List.map_cons, ih, hhead.name]
 
-private theorem nestedConstructorExpansions_names
+theorem nestedConstructorExpansions_names
     {sourceCtors targetCtors : List VConstVal}
     (H : List.Forall₂ (VInductDecl.NestedConstructorExpansion leaf nparams)
       sourceCtors targetCtors) :
@@ -777,7 +765,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxiliarySpecialization
     exact N.constructorShapes
 
 
-private theorem exists_forall₂_of_forall {R : α → β → Prop} :
+theorem exists_forall₂_of_forall {R : α → β → Prop} :
     ∀ {l : List β}, (∀ y ∈ l, ∃ x, R x y) → ∃ xs, List.Forall₂ R xs l
   | [], _ => ⟨[], .nil⟩
   | y :: l, H => by
@@ -786,14 +774,14 @@ private theorem exists_forall₂_of_forall {R : α → β → Prop} :
       ⟨xs, hxs⟩
     exact ⟨x :: xs, .cons hx hxs⟩
 
-private theorem forall₂_trInductiveType_names
+theorem forall₂_trInductiveType_names
     (H : List.Forall₂ (TrInductiveType env envTypes lparams) types decl) :
     decl.map (·.name) = types.map (·.name) := by
   induction H with
   | nil => rfl
   | cons h _ ih => simp only [List.map_cons, ih, ← h.header.name]
 
-private theorem familyNames_drop_sublist (types : List VInductiveType) (n : Nat) :
+theorem familyNames_drop_sublist (types : List VInductiveType) (n : Nat) :
     (familyNames (types.drop n)).Sublist (familyNames types) := by
   conv => rhs; rw [← List.take_append_drop n types]
   simp only [familyNames, List.flatMap_append]
@@ -1003,7 +991,7 @@ private theorem constructorListEntries_findInduct
     · rcases ih htail with ⟨info, value', hmem, hname, hinduct⟩
       exact ⟨info, value', by simp [hmem], hname, hinduct⟩
 
-private theorem constructorTypeEntries_findInduct
+theorem ConstructorTypeEntries.findInduct
     {stats : AddInductive.InductiveStats} {lparams : List Name}
     {isUnsafe : Bool} {types : List InductiveType} {owner : InductiveType}
     {entries : List (ConstantInfo × VConstVal)} {ctor : Constructor}
@@ -1046,7 +1034,7 @@ private theorem loweredConstructor_facts
       ⟨T, hT, htrT⟩
     rcases Lean4Lean.List.Forall₂.forall_exists_r htrT.ctors ctor hctor with
       ⟨C, hC, htrC⟩
-    rcases constructorTypeEntries_findInduct R.declared.sourceAligned
+    rcases ConstructorTypeEntries.findInduct R.declared.sourceAligned
         (by simpa using hT) hC with ⟨info, value, hmem, hname, hinduct⟩
     refine ⟨info, ?_, ?_⟩
     · rw [htrC.name, ← hname]

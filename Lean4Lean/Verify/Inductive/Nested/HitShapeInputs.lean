@@ -295,11 +295,6 @@ private theorem exists_forall₂_of_forall' {P : α → β → Prop} :
     obtain ⟨ys, hys⟩ := exists_forall₂_of_forall' (l := l) fun z hz => H z (by simp [hz])
     exact ⟨y :: ys, .cons hy hys⟩
 
-private theorem forall₂_length_eq' {P : α → β → Prop} :
-    ∀ {l : List α} {r : List β}, List.Forall₂ P l r → l.length = r.length
-  | _, _, .nil => rfl
-  | _, _, .cons _ t => by simp [forall₂_length_eq' t]
-
 open InductiveSignature in
 /-- `Restoration.expr` is total on terms whose head occurrences are fully
 applied at the uniform arity of the table. -/
@@ -314,7 +309,7 @@ theorem VExpr.HeadsApplied.restorationGo {heads : List Name} {n k : Nat}
     obtain ⟨ys, hys⟩ := exists_forall₂_of_forall'
       (P := fun x y => Restoration.expr.go r x [] = some y) fun x hx => ih x hx []
     rw [Restoration.expr.go_mkApps r hys]
-    have hlenys : xs.length = ys.length := forall₂_length_eq' hys
+    have hlenys : xs.length = ys.length := List.Forall₂.length_eq hys
     simp only [Restoration.expr.go]
     split
     · rename_i h hfind
@@ -473,7 +468,7 @@ theorem _root_.Lean.Expr.HitArity.trExprS {env : VEnv} {Us : List Name}
   | @hit c us args hc hus hlen _ ih =>
     intro Δ e' hΔ Htr
     obtain ⟨us', args', rfl, hus', Hargs⟩ := TrExprS.mkAppList_const_inv Htr
-    refine .hit hc (hus'.trans hus) (by rw [← forall₂_length_eq' Hargs]; exact hlen)
+    refine .hit hc (hus'.trans hus) (by rw [← List.Forall₂.length_eq Hargs]; exact hlen)
       fun a' ha' => ?_
     obtain ⟨a, ha, Ha⟩ := Lean4Lean.List.Forall₂.forall_exists_r Hargs a' ha'
     exact ih a ha hΔ Ha
@@ -873,11 +868,6 @@ theorem CompletedRecursorConstruction.minorReplayHeadsApplied
   exact ⟨hdoms, fun x hx =>
     VExpr.HeadsApplied.args_of_mkApps_const hres x (List.mem_append_right _ hx)⟩
 
-private theorem vlctxWF_append_right {env : VEnv} {U : Nat} :
-    ∀ {A B : VLCtx}, VLCtx.WF env U (A ++ B) → VLCtx.WF env U B
-  | [], _, h => h
-  | _ :: A, _, h => vlctxWF_append_right (A := A) h.1
-
 /-- The common parameter domains mention no name that is fresh in the source
 environment. -/
 theorem CompletedRecursorConstruction.paramsFree_of_fresh
@@ -886,7 +876,7 @@ theorem CompletedRecursorConstruction.paramsFree_of_fresh
     ∀ A ∈ R.parameterScope.toCtx, A.containsAnyConst heads = false := by
   have hwf := R.sourceContext.mlctx_wf.tr.wf
   rw [R.sourceMaterialized.scopeDecomposition, R.sourceParameterScope] at hwf
-  have hon := VLCtx.WF.toCtx (vlctxWF_append_right hwf)
+  have hon := VLCtx.WF.toCtx (VLCtx.WF.append_right hwf)
   have hfresh' : ∀ name ∈ heads, R.sourceContext.venv.constants name = none := by
     rw [R.sourceContextVEnv]; exact hfresh
   exact VEnv.Ordered.ctxNoFreshConsts R.sourceContext.checking.tr.wf.ordered hfresh' hon

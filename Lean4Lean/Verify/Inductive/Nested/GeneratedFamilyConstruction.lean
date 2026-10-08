@@ -268,7 +268,7 @@ theorem GeneratedFamilyInstalledContainer.specializedConstructorApplicationHasTy
     have HfamilyToCanonical : VEnv.IsDefEqCtx venv C.container.uvars []
         familyDomains.reverse canonicalParams.reverse := by
       exact HfamilyCanonical.symm henv.ordered
-    exact VEnv.IsDefEqCtx.transEmpty henv HfamilyToCanonical
+    exact VEnv.IsDefEqCtx.trans_empty henv HfamilyToCanonical
       HconstructorCanonical
   have HfamilyToConstructorLevels : VEnv.IsDefEqCtx venv outerUvars []
       (familyDomains.map (VExpr.instL levels)).reverse

@@ -58,7 +58,7 @@ theorem RestoredFamilyParameterScope.constructorDomains
     exact hparams.symm henv.ordered
   have hconstructorScope : env.IsDefEqCtx levelParams.length []
       constructorDomains.reverse scope.toCtx :=
-    VEnv.IsDefEqCtx.transEmpty henv hconstructorToParams hparamsScope
+    VEnv.IsDefEqCtx.trans_empty henv hconstructorToParams hparamsScope
   exact ⟨{
     familyDomains := Hfamily.domains
     constructorDomains := constructorDomains
@@ -68,7 +68,7 @@ theorem RestoredFamilyParameterScope.constructorDomains
     constructorTarget_eq := hconstructorTarget
     familyLength := Hfamily.length
     constructorLength := hconstructorLength.trans hnparams
-    parameterDomains := VEnv.IsDefEqCtx.transEmpty henv Hfamily.context
+    parameterDomains := VEnv.IsDefEqCtx.trans_empty henv Hfamily.context
       (hconstructorScope.symm henv.ordered) }⟩
 
 /-- Family-indexed parameter scopes connecting the production checker trace
@@ -186,7 +186,7 @@ theorem NestedExactFinalRunResult.restoredFamilyParameterScopes
       simpa only [E.production.headers.sourceContextVEnv,
         E.production_initialEnv, hlparams] using Hcached₀
     exact Hcached.mono hsourceLE
-  have HownCached := VEnv.IsDefEqCtx.transEmpty hcanonicalWF HownCommon
+  have HownCached := VEnv.IsDefEqCtx.trans_empty hcanonicalWF HownCommon
     HcommonCached
   exact ⟨{
     domains := ownParams
@@ -277,12 +277,12 @@ theorem NestedExactFinalRunResult.restoredConstructorParameterDomainsNative
       Hparams.mono hsourceCtors
   have HparamsFamily : E.assembly.canonical.venvCtors.IsDefEqCtx
       lparams.length [] params.reverse Hfamily.domains.reverse :=
-    VEnv.IsDefEqCtx.transEmpty hcanonicalWF HparamsOwn (by
+    VEnv.IsDefEqCtx.trans_empty hcanonicalWF HparamsOwn (by
       simpa using HownFamily)
   have HparamsScope : E.assembly.canonical.venvCtors.IsDefEqCtx
       lparams.length [] params.reverse
         E.production.headers.materialized.parameterScope.toCtx :=
-    VEnv.IsDefEqCtx.transEmpty hcanonicalWF HparamsFamily Hfamily.context
+    VEnv.IsDefEqCtx.trans_empty hcanonicalWF HparamsFamily Hfamily.context
   simpa [family, constructor] using
     Hfamily.constructorDomains hcanonicalWF Hconstructor
       E.assembly.uvars E.assembly.numParams HparamsScope

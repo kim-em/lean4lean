@@ -103,7 +103,7 @@ theorem CheckedConstructorParameterPrefix.ctorParameterShape
         scope.toCtx := by
       rw [← hrawContext]
       exact Hcontexts.defeqCtx
-    have hparams' := VEnv.IsDefEqCtx.transEmpty henv hparams
+    have hparams' := VEnv.IsDefEqCtx.trans_empty henv hparams
       (hrawChecked.symm henv.ordered)
     simpa [VInductDecl.ParamsDefEq, huvars] using hparams'
 
@@ -153,11 +153,11 @@ theorem CheckedConstructorsResult.rawShapes
   rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamilyTarget, rfl⟩
   rcases List.mem_iff_getElem.1 hctor with ⟨ctorIdx, hctorTarget, rfl⟩
   have hfamilySource : familyIdx < indTypes.size := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+    have hlength := Lean4Lean.List.Forall₂.length_eq Htypes
     simpa using (show familyIdx < indTypes.toList.length by
       rw [hlength]
       exact hfamilyTarget)
-  have Hfamily := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+  have Hfamily := Lean4Lean.List.forall₂_getElem Htypes
     familyIdx (by simpa using hfamilySource) hfamilyTarget
   have Hfamily' : TrInductiveTypeHeaders sourceEnv env Us
       indTypes[familyIdx] decl.types[familyIdx] := by
@@ -198,11 +198,11 @@ theorem CheckedConstructorsResult.parameterShapes
     rcases List.mem_iff_getElem.1 htarget with ⟨familyIdx, hfamilyTarget, rfl⟩
     rcases List.mem_iff_getElem.1 hctor with ⟨ctorIdx, hctorTarget, rfl⟩
     have hfamilySource : familyIdx < indTypes.size := by
-      have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+      have hlength := Lean4Lean.List.Forall₂.length_eq Htypes
       simpa using (show familyIdx < indTypes.toList.length by
         rw [hlength]
         exact hfamilyTarget)
-    have Hfamily := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+    have Hfamily := Lean4Lean.List.forall₂_getElem Htypes
       familyIdx (by simpa using hfamilySource) hfamilyTarget
     have Hfamily' : TrInductiveTypeHeaders sourceEnv env Us
         indTypes[familyIdx] decl.types[familyIdx] := by

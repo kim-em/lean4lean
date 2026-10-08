@@ -311,7 +311,7 @@ theorem NestedLoweringResultClosed.nativeSourceCore
     types := Htypes }
   have hsourceLength : skeleton.types.length ≤ loweredDecl.types.length := by
     have hownersLength : owners.length = sourceTypes.length :=
-      (Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes).symm
+      (Lean4Lean.List.Forall₂.length_eq Htypes).symm
     rw [show skeleton.types.length = owners.length by rfl, hownersLength]
     calc
       sourceTypes.length ≤ result.types.length :=

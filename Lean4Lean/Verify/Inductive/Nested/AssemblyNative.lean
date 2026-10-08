@@ -1,5 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.RuleJunction
-import Lean4Lean.Verify.Inductive.Nested.RuleShape
+import Lean4Lean.Verify.Inductive.Nested.RuleShapeBase
 import Lean4Lean.Verify.Inductive.Nested.RecursorProvenance
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryProjectionTransport
 
@@ -8,7 +8,7 @@ import Lean4Lean.Verify.Inductive.Nested.AuxiliaryProjectionTransport
 * `NestedValidatedRunResult.assemblyNative_of_restoredWF`: the final assembly
   certificate of a nested run, modulo only the well-formedness `HrestoredWF`
   of the restored generated equations in the final abstract environment of a
-  final assembly shape. It composes `hruleShape_of`, `hrules_of`,
+  final assembly base. It composes `hruleShape_of_base`, `hrules_of`,
   `hprovenance_of` and `assemblyNative_of_run`.
 * `NestedValidatedRunResult.assemblyNative`: the same certificate with no
   hypothesis beyond the run being nested, from `hrestoredWF_of`; this is used
@@ -24,7 +24,7 @@ namespace VerifyInductive
 
 /-- The final assembly certificate of a nested validated run, from the
 well-formedness `HrestoredWF` of the restored generated equations (the
-hypothesis of `hruleShape_of`, verbatim). -/
+hypothesis of `hruleShape_of_base`, verbatim). -/
 theorem NestedValidatedRunResult.assemblyNative_of_restoredWF
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -38,27 +38,27 @@ theorem NestedValidatedRunResult.assemblyNative_of_restoredWF
     (HrestoredWF : ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
-      ∀ C : NestedFinalAssemblyShape E.restoration
+      ∀ B : NestedFinalAssemblyBase E.restoration
           (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
           nparams isUnsafe (if isUnsafe then .unsafe else .safe),
-        C.production = E.production →
+        B.production = E.production →
         CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
           (Lean4Lean.stripRecursorRules outEnv
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
+              (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) B.finalBaseVEnv →
         ∀ (k : Fin E.production.production.generationSignature.constructors.size)
           (rule : VDefEq),
           (compilationRestoration sourceDecl auxiliaries).equation
               (E.production.production.canonicalGeneration.equation k) =
             some rule →
-          rule.WF C.finalBaseVEnv) :
+          rule.WF B.finalBaseVEnv) :
     Nonempty { C : NestedFinalAssemblyCertificate E.restoration
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
         nparams isUnsafe (if isUnsafe then .unsafe else .safe) //
       C.production = E.production } :=
   E.assemblyNative_of_run wf Hsources
-    (E.hrules_of wf Hsources (E.hruleShape_of wf Hsources hnested HrestoredWF))
+    (E.hrules_of wf Hsources (E.hruleShape_of_base wf Hsources hnested HrestoredWF))
     (E.hprovenance_of wf Hsources hnested hcorner)
 
 /-- The canonical equations and concrete recursor evidence are selected from

@@ -21,7 +21,7 @@ open scoped _root_.List
 
 namespace VerifyInductive
 
-private theorem List.nodup_of_map_nodup
+theorem List.nodup_of_map_nodup
     {l : List α} (f : α → β) (H : (l.map f).Nodup) : l.Nodup := by
   induction l with
   | nil => simp
@@ -159,8 +159,13 @@ def NestedEliminatorsRestored {loweredEnv : Environment}
     es = [(key, InductiveSignature.CaseSchema.ofCompilation decl sL auxiliaries)] ∧
     RestorationTableData decl auxiliaries result loweredEnv auxRec lparams
 
-/-- Exact semantic payload still needed after the executable restoration fold
-has completed.  The actual production trace supplies only freshness and its
+/-- Rule-independent part of the final nested assembly: every field of
+`NestedFinalAssemblyShape` except the two restored rule lists and their three
+rule traces.  The auxiliary recursors are instead certified by the rule-free
+`RestoredAuxiliaryRecursorTrace`.  This lets the restored generated equations
+be shown well formed in `finalBaseVEnv` before any rule list is chosen.
+
+The actual production trace supplies only freshness and its
 family-interleaved order.  Semantic typing and abstract installation occur in
 the canonical dependency order, where every mutual header precedes every
 constructor.  `productionOrder` is the exact finite join between them.
@@ -168,7 +173,7 @@ constructor.  `productionOrder` is the exact finite join between them.
 This separation is essential for mutual nested declarations: asking the
 abstract environment to follow production's per-family order would require a
 constructor to typecheck before later sibling headers existed. -/
-structure NestedFinalAssemblyShape
+structure NestedFinalAssemblyBase
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -195,20 +200,15 @@ structure NestedFinalAssemblyShape
   typesSource : decl.types = main :: rest
   primaryRecursors : List VConstVal
   auxiliaryRecursors : List VConstVal
-  primaryRules : List VDefEq
-  auxiliaryRules : List VDefEq
   sourceSemantics : RestoredSourceInductiveSemanticTrace decl lparams safety
     sourceEnv canonical.venvTypes ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.inductives
       (main :: rest)
       primaryRecursors
-  primaryIota : RestoredPrimaryIotaSemanticTrace decl
-    (canonicalRestoredShapeBlock decl primaryRecursors auxiliaryRecursors)
-      finalBaseVEnv production sourceSemantics
-      (main :: rest) primaryRules
-  auxiliarySemantics : RestoredAuxiliaryShapeTrace decl
-    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
-      primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
-      [] [] auxiliaryRecursors auxiliaryRules
+  /-- The auxiliary recursors, certified without reference to any rule list. -/
+  auxiliaryRecursorTrace : RestoredAuxiliaryRecursorTrace safety
+    ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+    ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+    H.auxiliaries [] auxiliaryRecursors
   typeValues : typeEntries.map Prod.snd = decl.typeConstants
   constructorValues : constructorEntries.map Prod.snd =
     decl.constructorConstants
@@ -221,11 +221,6 @@ structure NestedFinalAssemblyShape
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe
   sourceNonempty : sourceTypes ≠ []
-  auxiliaryWF : RestoredAuxiliaryFinalWFTrace decl
-    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
-      primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
-      ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
-      finalBaseVEnv auxiliarySemantics [] [] auxiliaryRecursors auxiliaryRules
   /-- The declaration's case eliminators, registered by the canonical staging before the
   projections, are certified. -/
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock canonical.eliminators)
@@ -236,6 +231,49 @@ structure NestedFinalAssemblyShape
   /-- The case eliminators restore the case eliminator of the lowered window. -/
   eliminatorsRestored : NestedEliminatorsRestored production result auxRec decl lparams
     canonical.eliminators
+
+/-- Exact semantic payload still needed after the executable restoration fold
+has completed: the rule-independent `NestedFinalAssemblyBase` together with
+the restored rule lists and their primary and auxiliary rule traces. -/
+structure NestedFinalAssemblyShape
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {sourceTypes : List InductiveType}
+    {auxRecNames : List Name} {outEnv : Environment}
+    (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv))
+    (sourceEnv : VEnv) (decl : VInductDecl) (lparams : List Name)
+    (nparams : Nat) (isUnsafe : Bool) (safety : DefinitionSafety)
+    extends NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety where
+  primaryRules : List VDefEq
+  auxiliaryRules : List VDefEq
+  primaryIota : RestoredPrimaryIotaSemanticTrace decl
+    (canonicalRestoredShapeBlock decl primaryRecursors auxiliaryRecursors)
+      finalBaseVEnv production sourceSemantics
+      (main :: rest) primaryRules
+  auxiliarySemantics : RestoredAuxiliaryShapeTrace decl
+    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+      primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries) H.auxiliaries
+      [] [] auxiliaryRecursors auxiliaryRules
+  auxiliaryWF : RestoredAuxiliaryFinalWFTrace decl
+    (canonicalRestoredBlock decl primaryRecursors auxiliaryRecursors
+      primaryRules auxiliaryRules) main safety ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+      ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+      finalBaseVEnv auxiliarySemantics [] [] auxiliaryRecursors auxiliaryRules
+
+/-- A final assembly shape coerces to its rule-independent base. -/
+instance
+    {result : Lean4Lean.ElimNestedInductive.Result}
+    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
+    {allIndNames : List Name} {sourceTypes : List InductiveType}
+    {auxRecNames : List Name} {outEnv : Environment}
+    {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
+      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
+    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
+    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety} :
+    CoeOut (NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety)
+      (NestedFinalAssemblyBase H sourceEnv decl lparams nparams isUnsafe safety) :=
+  ⟨NestedFinalAssemblyShape.toNestedFinalAssemblyBase⟩
 
 theorem NestedFinalAssemblyShape.constructorArityPrefix
     {result : Lean4Lean.ElimNestedInductive.Result}
@@ -326,6 +364,10 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
       (canonicalRestoredShapeBlock decl primaryRecursors auxiliaryRecursors)
         finalBaseVEnv P Hsource
       (main :: rest) primaryRules)
+    (HauxiliaryRecursors : RestoredAuxiliaryRecursorTrace safety
+      ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+      ((canonical.venvCtors.addEliminators canonical.eliminators).addProjections decl.projectionEntries)
+      H.auxiliaries [] auxiliaryRecursors)
     (htypeValues : typeEntries.map Prod.snd = decl.typeConstants)
     (hconstructorValues : constructorEntries.map Prod.snd =
       decl.constructorConstants)
@@ -364,6 +406,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   primaryRules := primaryRules
   auxiliaryRules := auxiliaryRules
   sourceSemantics := Hsource
+  auxiliaryRecursorTrace := HauxiliaryRecursors
   primaryIota := Hprimary
   auxiliarySemantics := R.auxiliarySemantics
   typeValues := htypeValues
@@ -833,7 +876,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSe
           (loweredDecl.types.take sourceTypes.length).length := by
         rw [← Lean4Lean.List.Forall₂.length_eq HsourceHeaders]
         exact hsource
-      have Hhead := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+      have Hhead := Lean4Lean.List.forall₂_getElem
         HsourceHeaders 0 hsource htarget
       have hfirst : sourceTypes[0] = first := by simp [htypes]
       rw [hfirst] at Hhead

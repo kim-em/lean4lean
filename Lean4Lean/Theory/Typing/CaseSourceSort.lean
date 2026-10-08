@@ -96,9 +96,6 @@ end Lean4Lean.VEnv
 
 namespace Lean4Lean
 
--- Name kept for the nested-inductive verification, which still refers to it.
-alias CompiledInductive.source_type_constants := CompiledInductive.types_eq
-
 /-- Every finite source header retains a normalized telescope ending in its
 recorded family sort in an environment where its exact constants are present. -/
 theorem CompiledInductive.original_family_header (H : CompiledInductive base source block) :

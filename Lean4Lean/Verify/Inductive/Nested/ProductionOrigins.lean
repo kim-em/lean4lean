@@ -72,14 +72,6 @@ private theorem Expr.constructorArity_abstractN
     simp [Expr.abstractN, AddInductive.constructorArity, *]
   all_goals split <;> simp [AddInductive.constructorArity]
 
-private theorem Expr.constructorArity_eq_of_eqv
-    {left right : Expr} (H : (left == right) = true) :
-    AddInductive.constructorArity left =
-      AddInductive.constructorArity right := by
-  induction left generalizing right <;> cases right <;>
-    simp_all [(· == ·), Expr.eqv', AddInductive.constructorArity]
-  all_goals grind
-
 private theorem Expr.ForallTelescope.constructorArity_eq
     (H : Expr.ForallTelescope input arity residual) :
     AddInductive.constructorArity input =
@@ -850,7 +842,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
   have hresultNParams : result.nparams = nparams :=
     Hlower.resultParamsSize.symm.trans hparamsSize
   have hstatsParams : stats.params.size = nparams := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    have hlength := Lean4Lean.List.Forall₂.length_eq
       Hheaders.materialized.params
     simpa [VInductDecl.paramVars, R.core.nparams] using hlength
   have hheaderFresh : stepSource.find?
@@ -1054,7 +1046,7 @@ theorem RestoredInductiveStep.productionFamilyAlignmentAt
     have hrestoredArity :
         AddInductive.constructorArity newCtorInfo.type =
           AddInductive.constructorArity sourceCtor.type :=
-      Expr.constructorArity_eq_of_eqv Hinverse.restoredType_eqv_source
+      Lean4Lean.AddInductive.constructorArity_eqv Hinverse.restoredType_eqv_source
     have harityMapping :
         AddInductive.constructorArity targetCtor.type =
           AddInductive.constructorArity sourceCtor.type :=

@@ -227,11 +227,6 @@ end VProjectionInfo
 
 namespace InductiveSignature
 
-private theorem instantiateParams_eq_instOuter_betaRed (body : VExpr) (args : List VExpr) :
-    instantiateParams body args = body.instOuter args := by
-  rw [VExpr.instOuter_eq_subst]
-  rfl
-
 /-- Restoration is a beta reduct of the renaming replacement, for terms whose
 projection names are fixed (the syntactic form of
 `RenamingRestorationSubstitution.go_simAt`). -/
@@ -322,7 +317,7 @@ theorem Restoration.go_betaRed {r : Restoration} {ρ : Name → Option VExpr}
           refine this.trans ?_
           simp only [VExpr.instL_mkApps, VExpr.instL, VExpr.instOuter_mkApps,
             VExpr.instOuter_const, ← VExpr.mkApps_append, List.map_map,
-            Function.comp_def, instantiateParams_eq_instOuter_betaRed]
+            Function.comp_def, Lean4Lean.VEnv.instantiateParams_eq_instOuter]
           exact .refl
     · next hfind =>
       have hρ : ρ c = none := by

@@ -691,9 +691,6 @@ theorem VEnv.IsDefEqU.wrapForalls_residual
         hctx' hlength ⟨_, hbody⟩
       simpa [List.reverse_cons, List.append_assoc] using hrest
 
--- Name kept for the nested-inductive verification, which still refers to it.
-alias VEnv.IsDefEqCtx.transEmpty := Lean4Lean.VEnv.IsDefEqCtx.trans_empty
-
 /-- A dependency-ordered list of well-formed constants may be viewed as a
 sequence of abstract axioms extending a well-formed environment.  Stating
 the input typing in the original environment is sufficient because each

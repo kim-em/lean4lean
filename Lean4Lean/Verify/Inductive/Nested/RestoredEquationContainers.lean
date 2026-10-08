@@ -118,14 +118,6 @@ theorem VEnv.HasType.const_mkApps_of_family {env : VEnv} {U N : Nat} (henv : env
 
 /-! ### Installed containers -/
 
-private theorem install_base_le_REC {base installed : VEnv} {block : VInductBlock}
-    (H : VInductBlock.install base block = some installed) : base ≤ installed := by
-  simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
-    Option.pure_def, Option.some.injEq] at H
-  obtain ⟨types, ht, ctors, hc, recursors, hr, rfl⟩ := H
-  exact (VEnv.addConstVals_le ht).trans <| (VEnv.addConstVals_le hc).trans <|
-    VEnv.addEliminators_addProjections_le.trans <| (VEnv.addConstVals_le hr).trans VEnv.addDefEqRules_le
-
 /-- The parameter prefix of every constructor type of an installed container
 is definitionally the parameter prefix of its family type, given that the
 family type has a syntactic parameter prefix. -/
@@ -143,7 +135,7 @@ theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.ctorParameterContext {e
   have hparams : ∃ base', base' ≤ env ∧ VInductDecl.SourceParameterWF base' decl := by
     cases H with
     | @intro _ _ base block installed hsource hformation hcompile _ hinstall hle =>
-      have hbase : base ≤ env := (install_base_le_REC hinstall).trans hle
+      have hbase : base ≤ env := (VInductBlock.install_base_le hinstall).trans hle
       cases hformation with
       | ordinary hwf => exact ⟨base, hbase, hwf.sourceParameterWF⟩
       | nested hnested hle' =>
@@ -178,8 +170,8 @@ theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.ctorParameterContext {e
   have hPC' : VEnv.IsDefEqCtx env decl.uvars [] params.reverse ctorDoms.reverse :=
     VEnv.IsDefEqCtx.mono hT'le hPC
   exact ⟨_, _, ctorDoms, ctorRest, hsplit, hctorEq, hfamLen,
-    VEnv.IsDefEqCtx.transEmpty henv h1
-      (VEnv.IsDefEqCtx.transEmpty henv (hPF'.symm henv.ordered) hPC')⟩
+    VEnv.IsDefEqCtx.trans_empty henv h1
+      (VEnv.IsDefEqCtx.trans_empty henv (hPF'.symm henv.ordered) hPC')⟩
 
 /-- An installed declaration exposes each of its constructor constants at the
 exact abstract value recorded by the source declaration (membership form). -/
@@ -193,17 +185,6 @@ theorem _root_.Lean4Lean.VEnv.InstalledInductCertificate.constructorConstant_mem
   exact H.constructorConstant i j hi hj
 
 /-! ### Auxiliary constructors -/
-
-private theorem nodup_map_inj_REC {f : α → β} :
-    ∀ {l : List α}, (l.map f).Nodup → ∀ {x y}, x ∈ l → y ∈ l → f x = f y → x = y
-  | [], _, _, _, hx, _, _ => by simp at hx
-  | a :: l, hnd, x, y, hx, hy, hxy => by
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
-    rcases List.mem_cons.mp hx with hx' | hx' <;> rcases List.mem_cons.mp hy with hy' | hy'
-    · exact hx'.trans hy'.symm
-    · subst hx'; exact absurd ⟨y, hy', hxy.symm⟩ hnd.1
-    · subst hy'; exact absurd ⟨x, hx', hxy⟩ hnd.1
-    · exact nodup_map_inj_REC hnd.2 hx' hy' hxy
 
 /-- **Typing of the restoration lambdas of the auxiliary constructors**, for
 a specialization list with its evidence and a restoring expansion of the
@@ -251,7 +232,7 @@ theorem auxiliaryConstructorLambdas_hasType
     change a.constructorName ctor = lc.name
     rw [hc.name, hdc.name, ← hev.auxiliary]
     rfl
-  have heq := nodup_map_inj_REC hnodup hh hAmem (hname.trans hAname.symm)
+  have heq := List.nodup_map_inj hnodup hh hAmem (hname.trans hAname.symm)
   subst heq
   -- restoration of the lowered constructor type
   obtain ⟨_, hgd⟩ := hdc.type
@@ -274,7 +255,7 @@ theorem auxiliaryConstructorLambdas_hasType
     (hinst.constructorUvars _ (List.mem_flatMap.mpr ⟨_, hsrc, hctor⟩))
     hctx hev.levelsWF hev.levelsLength (by rw [hfamLen, hev.argumentsLength]) htyping
   have hPS : VEnv.IsDefEqCtx envTypes decl.uvars [] params.reverse sp.reverse :=
-    VEnv.IsDefEqCtx.transEmpty henv hparams (hspCtx.symm hordered)
+    VEnv.IsDefEqCtx.trans_empty henv hparams (hspCtx.symm hordered)
   have hcappP := hcapp.defeqDFC hordered (hPS.symm hordered)
   have hlam : envTypes.HasType decl.uvars []
       (VExpr.wrapLams params (VExpr.mkApps (.const ctor.name a.levels) a.arguments))
@@ -368,15 +349,15 @@ theorem NestedValidatedRunResult.restoredEquationAuxiliaryConstructors_of
 
 /-! ### Projections with a registered constructor type -/
 
-private theorem forallArity_mkApps_of_zero :
+theorem _root_.Lean4Lean.VExpr.forallArity_mkApps_of_zero' :
     ∀ {f : VExpr} (xs : List VExpr), f.forallArity = 0 →
       (VExpr.mkApps f xs).forallArity = 0
   | _, [], h => h
-  | _, _ :: xs, _ => forallArity_mkApps_of_zero (f := .app _ _) xs rfl
+  | _, _ :: xs, _ => VExpr.forallArity_mkApps_of_zero' (f := .app _ _) xs rfl
 
 private theorem forallArity_mkApps_cons (f x : VExpr) (xs : List VExpr) :
     (VExpr.mkApps f (x :: xs)).forallArity = 0 :=
-  forallArity_mkApps_of_zero (f := .app f x) xs rfl
+  VExpr.forallArity_mkApps_of_zero' (f := .app f x) xs rfl
 
 private theorem Restoration.go_forallArity (r : Restoration) :
     ∀ (e : VExpr) (args : List VExpr) (out : VExpr), Restoration.expr.go r e args = some out →
@@ -401,10 +382,10 @@ private theorem Restoration.go_forallArity (r : Restoration) :
         · cases h
         · simp only [Option.pure_def, Option.some.injEq] at h
           subst h
-          exact forallArity_mkApps_of_zero _ rfl
+          exact VExpr.forallArity_mkApps_of_zero' _ rfl
       · simp only [Option.some.injEq] at h
         subst h
-        exact forallArity_mkApps_of_zero _ rfl
+        exact VExpr.forallArity_mkApps_of_zero' _ rfl
     rw [h0]; split <;> rfl
   | app fn arg ihf _ =>
     intro args out h
@@ -417,7 +398,7 @@ private theorem Restoration.go_forallArity (r : Restoration) :
     simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at h
     obtain ⟨d', _, b', _, rfl⟩ := h
-    rw [forallArity_mkApps_of_zero _ rfl]
+    rw [VExpr.forallArity_mkApps_of_zero' _ rfl]
     split <;> rfl
   | forallE d b _ ihb =>
     intro args out h
@@ -435,7 +416,7 @@ private theorem Restoration.go_forallArity (r : Restoration) :
     simp only [Restoration.expr.go, Option.bind_eq_bind, Option.bind_eq_some_iff,
       Option.pure_def, Option.some.injEq] at h
     obtain ⟨m', _, rfl⟩ := h
-    rw [forallArity_mkApps_of_zero _ rfl]
+    rw [VExpr.forallArity_mkApps_of_zero' _ rfl]
     split <;> rfl
 
 /-- Restoration preserves the syntactic forall arity. -/

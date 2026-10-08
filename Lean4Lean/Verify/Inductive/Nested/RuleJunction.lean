@@ -63,23 +63,6 @@ theorem NestedValidatedRunResult.hrules_of
           (C.primaryRules ++ C.auxiliaryRules) :=
   E.hrules_of_modulo wf Hsources HruleShape
 
-private theorem forall₂_imp_mem_right'' {R S : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ →
-      (∀ a b, b ∈ l₂ → R a b → S a b) → List.Forall₂ S l₁ l₂
-  | _, _, .nil, _ => .nil
-  | _, _, .cons h t, H =>
-    .cons (H _ _ List.mem_cons_self h)
-      (forall₂_imp_mem_right'' t fun a b hb => H a b (List.mem_cons_of_mem _ hb))
-
-private theorem names_of_trTypes'' {env envTypes : VEnv} {lparams : List Name} :
-    ∀ {types : List InductiveType} {decls : List VInductiveType},
-      List.Forall₂ (TrInductiveType env envTypes lparams) types decls →
-      types.map (·.name) = decls.map (·.name)
-  | _, _, .nil => rfl
-  | _, _, .cons h t => by
-    simp only [List.map_cons, names_of_trTypes'' t, List.cons.injEq, and_true]
-    exact h.header.name.symm
-
 /-- **Final assembly certificate of a validated nested run**, modulo the rule
 junction `Hrules` (discharged by `hrules_of` from the rule-shape hypothesis)
 and the recursor provenance `Hprovenance` (discharged by `hprovenance_of`).
@@ -181,7 +164,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
   have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
     have Hcore := E.nativeSource.core
     rw [E.nativeSourceDecl_eq] at Hcore
-    exact names_of_trTypes'' Hcore.types
+    exact (forall₂_trInductiveType_names Hcore.types).symm
   have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf
   have Hentries : List.Forall₂
@@ -190,7 +173,7 @@ theorem NestedValidatedRunResult.assemblyNative_of_run
         (sourceDecl.types.map (·.name)) C.finalBaseVEnv)
       (List.finRange E.production.compilationSignature.families.size)
       C.recursorEntries := by
-    refine forall₂_imp_mem_right'' hinfos ?_
+    refine forall₂_imp_mem_right hinfos ?_
     rintro owner entry hentry ⟨s, t, Hstep, hentry1, hrec, Hw⟩
     refine ⟨Hstep.restored.newInfo, hentry1, hrec, ?_⟩
     obtain ⟨head, hhead, hheadName, hlevels, hargs, happ, Hctor⟩ :=

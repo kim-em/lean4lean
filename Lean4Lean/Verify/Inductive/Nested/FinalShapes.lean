@@ -413,12 +413,6 @@ theorem NestedValidatedRunResult.one_lt_familiesSize
   rw [hN, hresult]
   omega
 
-private theorem forall₂_map_eq_fs {R : α → β → Prop} {f : α → γ} {g : β → γ}
-    (hR : ∀ a b, R a b → f a = g b) :
-    ∀ {l : List α} {r : List β}, List.Forall₂ R l r → l.map f = r.map g
-  | _, _, .nil => rfl
-  | _, _, .cons h t => by simp only [List.map_cons, hR _ _ h, forall₂_map_eq_fs hR t]
-
 /-- The source family names are the names of the source prefix of the
 lowered declaration. -/
 theorem NestedValidatedRunResult.sourceNames_eq
@@ -426,7 +420,7 @@ theorem NestedValidatedRunResult.sourceNames_eq
       sourceDecl lparams nparams isUnsafe safety outEnv) :
     sourceTypes.map (·.name) =
       (E.production.loweredDecl.types.take sourceTypes.length).map (·.name) :=
-  forall₂_map_eq_fs (fun _ _ h => h.name.symm) E.nativeSource.sourceHeaders
+  forall₂_map_eq (fun _ _ h => h.name.symm) E.nativeSource.sourceHeaders
 
 /-- A source family is installed in the lowered environment under its own
 name. -/
@@ -438,7 +432,7 @@ theorem NestedValidatedRunResult.loweredSourceKeyed
     info.name = t.name := by
   have hloweredNames : E.production.indTypes.toList.map (·.name) =
       E.production.loweredDecl.types.map (·.name) :=
-    forall₂_map_eq_fs (fun _ _ h => h.header.name.symm) E.production.constructors.core.types
+    forall₂_map_eq (fun _ _ h => h.header.name.symm) E.production.constructors.core.types
   have hmem : t.name ∈ E.production.indTypes.toList.map (·.name) := by
     rw [hloweredNames]
     have h := List.mem_map_of_mem (f := (·.name)) ht
@@ -619,43 +613,7 @@ theorem RestoredNestedDeclarationsResult.freshTraceRecursorSteps
   obtain ⟨s, t', Hstep, hmem⟩ := hheaders t ht
   exact ⟨s, t', Hstep, List.mem_append_left _ hmem⟩
 
-/-! ### The restored recursors of the staged block -/
-
-/-- The auxiliary recursors of an auxiliary recursor trace, one per restored
-recursor name, each the translation of the restored recursor at that name. -/
-theorem RestoredAuxiliaryRecursorTrace.recursorSteps
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
-    {names : List Name} {sourceEnv targetEnv : Environment}
-    {Htrace : StateForMTrace
-      (RestoredRecursorStep result loweredEnv auxRec allIndNames)
-      names sourceEnv targetEnv}
-    (H : RestoredAuxiliaryRecursorTrace safety trEnv recursorEnv Htrace
-      priorRecursors finalRecursors) :
-    ∃ added, finalRecursors = priorRecursors ++ added ∧
-      List.Forall₂ (fun (name : Name) (w : VConstVal) =>
-          ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
-            auxRec allIndNames name s t),
-            RestoredRecursorStepValue trEnv Hstep w)
-        names added := by
-  induction H with
-  | nil => exact ⟨[], by simp, .nil⟩
-  | cons Hstep Htail Hhead Hrest ih =>
-    obtain ⟨added, hfinal, Hadded⟩ := ih
-    obtain ⟨⟨_, huvars, htype⟩, hname⟩ := Hhead.translated
-    refine ⟨Hhead.recursor :: added, by simp [hfinal], .cons ⟨_, _, Hstep,
-      ?_, huvars, htype⟩ Hadded⟩
-    rw [← Hstep.restored.restoration.name]
-    exact hname.symm
-
 /-! ### The restored major family application -/
-
-private theorem vars_map_liftN (n k : Nat) :
-    (vars n 0).map (fun arg => arg.liftN k) = vars n k := by
-  simp only [vars, List.map_map]
-  apply List.map_congr_left
-  intro i _
-  simp [VExpr.liftN, Nat.add_comm]
 
 private theorem vars_closedN (n : Nat) : ∀ arg ∈ vars n 0, arg.ClosedN n := by
   intro arg harg
@@ -691,7 +649,7 @@ theorem Restoration.expr_recursorMajor_head (r : Restoration) {s : InductiveSign
     cases hmajor
     refine ⟨⟨r.recursorName s.families[owner].name, g.levels, vars s.params.length 0⟩,
       vars_closedN _, ?_⟩
-    simp only [vars_map_liftN]
+    simp only [InductiveSignature.vars_map_liftN]
   | some h =>
     obtain ⟨hnp, hcl⟩ := hheads h (List.mem_of_find?_eq_some hf)
     have hlevels : g.levels.length = h.uvars := by
@@ -999,15 +957,6 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
 
 end StagedShapes
 
-private theorem forall₂_take_fs {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.take k) (r.take k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons _ _, 0 => by simp
-  | _, _, .cons h t, k + 1 => by
-    simp only [List.take_succ_cons]
-    exact .cons h (forall₂_take_fs t k)
-
 /-- The source constructor names are constructor names of the source prefix
 of the expanded declaration. -/
 theorem NestedFormationAssembly.sourceConstructorNames
@@ -1017,7 +966,7 @@ theorem NestedFormationAssembly.sourceConstructorNames
       c.name ∈ familyNames (loweredDecl.types.take decl.types.length) := by
   intro c hc
   obtain ⟨src, hsrc, hcsrc⟩ := List.mem_flatMap.mp hc
-  have HT := forall₂_take_fs H.types decl.types.length
+  have HT := List.forall₂_take H.types decl.types.length
   rw [List.take_left' rfl, hexpanded] at HT
   obtain ⟨t, ht, hT⟩ := Lean4Lean.List.Forall₂.forall_exists_l HT src hsrc
   obtain ⟨c', hc', hcc⟩ := Lean4Lean.List.Forall₂.forall_exists_l hT.constructors c hcsrc

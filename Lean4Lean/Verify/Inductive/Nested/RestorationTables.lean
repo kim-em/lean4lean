@@ -32,6 +32,18 @@ def AuxNestedSpec (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List 
     lvls.mapM (VLevel.ofLevel Us₀) = some a.levels ∧
     List.Forall₂ (TrExprS envS Us₀ (abstractForallContext domains [])) Ys a.arguments
 
+/-- `AuxNestedSpec` in a fixed environment, with parameter domains
+definitionally equal to the context `ctx`. -/
+def AuxNestedSpecAt (envS : VEnv) (ctx : List VExpr)
+    (result : Lean4Lean.ElimNestedInductive.Result) (Us₀ : List Name)
+    (nested : Expr) (a : InductiveSignature.ContainerSpecialization) : Prop :=
+  ∃ (domains : List VExpr) (lvls : List Level) (Ys : List Expr),
+    domains.length = result.nparams ∧
+    VEnv.IsDefEqCtx envS Us₀.length [] domains.reverse ctx ∧
+    nested.abstract result.params = Expr.mkAppList (.const a.source.name lvls) Ys ∧
+    lvls.mapM (VLevel.ofLevel Us₀) = some a.levels ∧
+    List.Forall₂ (TrExprS envS Us₀ (abstractForallContext domains [])) Ys a.arguments
+
 /-- Executable facts about one run that fix the executable restoration
 tables relative to the abstract specialisation list `auxiliaries`. -/
 structure RestorationTableData (decl : VInductDecl)

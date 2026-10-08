@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.LoweredRulesAvoid
 import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
+import Lean4Lean.Verify.Inductive.Nested.HeaderRenaming
 
 /-! Recursor provenance of a validated nested run.
 
@@ -7,9 +8,9 @@ import Lean4Lean.Theory.Typing.IotaSoundnessLemmas
 hypothesis of `NestedValidatedRunResult.assemblyNative_of_run`.
 
 The hypothesis quantifies over an arbitrary specialization list carrying
-`RestorationTableData`. The first part of this file shows that the restoration
-`compilationRestoration decl auxiliaries` is determined by the table data
-(`RestorationTableData.expr_eq`), so the specialization list of
+`RestorationTableData`. The restoration `compilationRestoration decl auxiliaries`
+is determined by the table data (`RestorationTableData.expr_eq`,
+`Nested/HeaderRenaming.lean`), so the specialization list of
 `restorationTablesRestoringAll`, for which all the formation evidence is
 available, may be used instead. -/
 
@@ -23,158 +24,6 @@ namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
 
-/-! ### The restoration is determined by the restoration table data -/
-
-section TableUniqueness
-
-variable {decl : VInductDecl} {result : Lean4Lean.ElimNestedInductive.Result}
-  {env : Environment} {auxRec : NameMap Name} {Us₀ : List Name}
-
-private theorem heads_nodup {aux : List ContainerSpecialization}
-    (D : RestorationTableData decl aux result env auxRec Us₀) :
-    ((compilationRestoration decl aux).heads.map (·.auxiliary)).Nodup := by
-  rw [compilationRestoration_heads_auxiliary]
-  exact D.headNodup
-
-/-- The family data of a specialization is fixed by the tables. -/
-theorem RestorationTableData.family_transfer {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀)
-    {a : ContainerSpecialization} (ha : a ∈ aux₁) :
-    ∃ b ∈ aux₀, b.auxiliary = a.auxiliary ∧ b.source.name = a.source.name ∧
-      b.levels = a.levels ∧ b.arguments = a.arguments := by
-  obtain ⟨nested, hn⟩ := D₁.familyLookup a ha
-  obtain ⟨b, hb, hbaux, hbspec⟩ := D₀.familyKey _ nested hn
-  obtain ⟨a', ha', ha'aux, ha'spec⟩ := D₁.familyKey _ nested hn
-  -- `a` and `a'` have the same family head
-  let hA : HeadSpecialization :=
-    ⟨a.auxiliary, decl.uvars, decl.nparams, a.source.name, a.levels, a.arguments⟩
-  let hA' : HeadSpecialization :=
-    ⟨a'.auxiliary, decl.uvars, decl.nparams, a'.source.name, a'.levels, a'.arguments⟩
-  have hmemA : hA ∈ (compilationRestoration decl aux₁).heads :=
-    List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-  have hmemA' : hA' ∈ (compilationRestoration decl aux₁).heads :=
-    List.mem_flatMap.mpr ⟨a', ha', List.mem_cons_self⟩
-  have h1 := Restoration.find?_of_nodup (heads_nodup D₁) hmemA
-  have h2 := Restoration.find?_of_nodup (heads_nodup D₁) hmemA'
-  have hauxEq : hA'.auxiliary = hA.auxiliary := ha'aux
-  rw [hauxEq, h1] at h2
-  have hAA : hA = hA' := Option.some.inj h2
-  simp only [hA, hA', HeadSpecialization.mk.injEq] at hAA
-  obtain ⟨-, -, -, hsrc, hlev, hargs⟩ := hAA
-  obtain ⟨hs, hl, hr⟩ := AuxNestedSpec.unique hbspec ha'spec
-  exact ⟨b, hb, hbaux, hs.trans hsrc.symm, hl.trans hlev.symm,
-    hr.trans hargs.symm⟩
-
-/-- Every head of one table is a head of any other table of the same run. -/
-theorem RestorationTableData.find_transfer {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀)
-    {n : Name} {h : HeadSpecialization}
-    (hfind : (compilationRestoration decl aux₁).heads.find? (fun h => h.auxiliary == n) =
-      some h) :
-    (compilationRestoration decl aux₀).heads.find? (fun h => h.auxiliary == n) = some h := by
-  have hmem := List.mem_of_find?_eq_some hfind
-  have hn : h.auxiliary = n := by simpa using List.find?_some hfind
-  subst hn
-  obtain ⟨a, ha, hh⟩ := List.mem_flatMap.mp hmem
-  obtain ⟨b, hb, hbaux, hbsrc, hblev, hbargs⟩ := D₀.family_transfer D₁ ha
-  simp only [ContainerSpecialization.heads, List.mem_cons, List.mem_map] at hh
-  rcases hh with rfl | ⟨ctor, hctor, rfl⟩
-  · let hB : HeadSpecialization :=
-      ⟨b.auxiliary, decl.uvars, decl.nparams, b.source.name, b.levels, b.arguments⟩
-    have hmemB : hB ∈ (compilationRestoration decl aux₀).heads :=
-      List.mem_flatMap.mpr ⟨b, hb, List.mem_cons_self⟩
-    have := Restoration.find?_of_nodup (heads_nodup D₀) hmemB
-    simp only [hB, hbaux, hbsrc, hblev, hbargs] at this
-    exact this
-  · obtain ⟨info, hc, hind⟩ := D₁.ctorInstalled a ha ctor hctor
-    obtain ⟨ctor', hctor', hcname⟩ :=
-      D₀.ctorLookup _ info hc b hb (hind.trans hbaux.symm)
-    have hrenA : (a.constructorName ctor).replacePrefix a.auxiliary a.source.name =
-        ctor.name :=
-      (namePrefix_of_replacePrefix_ne (D₁.ctorRenamed a ha ctor hctor)).replacePrefix_replacePrefix _
-    have hrenB : (b.constructorName ctor').replacePrefix b.auxiliary b.source.name =
-        ctor'.name :=
-      (namePrefix_of_replacePrefix_ne (D₀.ctorRenamed b hb ctor' hctor')).replacePrefix_replacePrefix _
-    have hname : ctor'.name = ctor.name := by
-      rw [← hrenA, ← hrenB, ← hcname, hbaux, hbsrc]
-    let hB : HeadSpecialization :=
-      ⟨b.constructorName ctor', decl.uvars, decl.nparams, ctor'.name, b.levels, b.arguments⟩
-    have hmemB : hB ∈ (compilationRestoration decl aux₀).heads :=
-      List.mem_flatMap.mpr ⟨b, hb, List.mem_cons_of_mem _
-        (List.mem_map.mpr ⟨ctor', hctor', rfl⟩)⟩
-    have := Restoration.find?_of_nodup (heads_nodup D₀) hmemB
-    simp only [hB, ← hcname, hname, hblev, hbargs] at this
-    exact this
-
-theorem RestorationTableData.find_eq {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀) (n : Name) :
-    (compilationRestoration decl aux₀).heads.find? (fun h => h.auxiliary == n) =
-      (compilationRestoration decl aux₁).heads.find? (fun h => h.auxiliary == n) := by
-  cases h1 : (compilationRestoration decl aux₁).heads.find? (fun h => h.auxiliary == n) with
-  | some h => exact D₀.find_transfer D₁ h1
-  | none =>
-    cases h0 : (compilationRestoration decl aux₀).heads.find? (fun h => h.auxiliary == n) with
-    | none => rfl
-    | some h =>
-      have := D₁.find_transfer D₀ h0
-      rw [h1] at this
-      cases this
-
-theorem Restoration.go_congr {r r' : Restoration}
-    (hfind : ∀ n, r.heads.find? (fun h => h.auxiliary == n) =
-      r'.heads.find? (fun h => h.auxiliary == n))
-    (hrec : ∀ n, r.recursorName n = r'.recursorName n) :
-    ∀ (e : VExpr) (args : List VExpr),
-      Restoration.expr.go r e args = Restoration.expr.go r' e args := by
-  intro e
-  induction e with
-  | bvar | sort | elim => intro args; rfl
-  | const name levels =>
-    intro args
-    simp only [Restoration.expr.go, hfind name, hrec name]
-  | app fn arg ihf iha =>
-    intro args
-    simp only [Restoration.expr.go, iha, ihf]
-  | lam d b ihd ihb =>
-    intro args
-    simp only [Restoration.expr.go, ihd, ihb]
-  | forallE d b ihd ihb =>
-    intro args
-    simp only [Restoration.expr.go, ihd, ihb]
-  | proj n i m ih =>
-    intro args
-    simp only [Restoration.expr.go, ih]
-
-/-- **The restoration is determined by the restoration table data.** -/
-theorem RestorationTableData.expr_eq {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀) (e : VExpr) :
-    (compilationRestoration decl aux₀).expr e = (compilationRestoration decl aux₁).expr e :=
-  Restoration.go_congr (D₀.find_eq D₁)
-    (fun n => (D₀.recursorName n).trans (D₁.recursorName n).symm) e []
-
-theorem RestorationTableData.restorable_transfer {aux₀ aux₁ : List ContainerSpecialization}
-    (D₀ : RestorationTableData decl aux₀ result env auxRec Us₀)
-    (D₁ : RestorationTableData decl aux₁ result env auxRec Us₀) {n : Name}
-    (hn : n ∈ (compilationRestoration decl aux₁).restorableNames) :
-    n ∈ (compilationRestoration decl aux₀).restorableNames := by
-  simp only [Restoration.restorableNames, List.mem_append] at hn ⊢
-  rcases hn with hn | hn
-  · left
-    obtain ⟨h, hh, rfl⟩ := List.mem_map.mp hn
-    have h1 := Restoration.find?_of_nodup (heads_nodup D₁) hh
-    have h0 := D₀.find_transfer D₁ h1
-    exact List.mem_map.mpr ⟨h, List.mem_of_find?_eq_some h0, rfl⟩
-  · right
-    rw [compilationRestoration_recursors_fst] at hn ⊢
-    obtain ⟨a, ha, rfl⟩ := List.mem_map.mp hn
-    obtain ⟨b, hb, hbaux, -⟩ := D₀.family_transfer D₁ ha
-    exact List.mem_map.mpr ⟨b, hb, by rw [hbaux]⟩
-
-end TableUniqueness
 
 end VerifyInductive
 
@@ -246,15 +95,6 @@ end InductiveSignature
 namespace VerifyInductive
 
 open private Lean.Kernel.Environment.add from Lean.Environment
-
-private theorem names_of_trTypes' {env envTypes : VEnv} {lparams : List Name} :
-    ∀ {types : List InductiveType} {decls : List VInductiveType},
-      List.Forall₂ (TrInductiveType env envTypes lparams) types decls →
-      types.map (·.name) = decls.map (·.name)
-  | _, _, .nil => rfl
-  | _, _, .cons h t => by
-    simp only [List.map_cons, names_of_trTypes' t, List.cons.injEq, and_true]
-    exact h.header.name.symm
 
 private theorem Restoration.recursor_name' {r : Restoration} {v w : VConstVal}
     (h : r.recursor v = some w) : w.name = r.recursorName v.name := by
@@ -492,7 +332,7 @@ theorem NestedValidatedRunResult.hprovenance_of
   have hnames : sourceTypes.map (·.name) = sourceDecl.types.map (·.name) := by
     have Hcore := E.nativeSource.core
     rw [E.nativeSourceDecl_eq] at Hcore
-    exact names_of_trTypes' Hcore.types
+    exact (forall₂_trInductiveType_names Hcore.types).symm
   have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion hnodup
     hparamsSize D hscoped hwf
   -- the realization of the restored recursor of an entry
