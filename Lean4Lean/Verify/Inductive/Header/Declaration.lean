@@ -23,13 +23,13 @@ structure HeaderDeclaration
   skeletonTranslation : TrInductDeclSkeletonHeaders env Us nparams sources
     isUnsafe skeleton envTypes
   metadata : List (Nat × VLevel)
-  materialized : skeleton.withMetadata metadata = some decl
+  checked : skeleton.withMetadata metadata = some decl
   semanticPrefix : checkInductiveTypes.loopType.HeaderFormations
     env Us skeleton params commonLevel metadata skeleton.types.length
   translation : TrInductDeclHeaders env Us nparams sources isUnsafe decl
     envTypes
   headers : HeaderCertificate env decl
-  headers_eq : headers = semanticPrefix.complete materialized
+  headers_eq : headers = semanticPrefix.complete checked
 
 /-- Final semantic assembly together with the exact header target list from
 which it was built.  Keeping this equality at the assembly boundary lets the
@@ -80,7 +80,7 @@ theorem HeaderDeclaration.ofTargetsExact
     typesAdded := by simpa [htypeConstants] using htypesAdded
     types := assembleInductiveSkeletonTypes_translated
       Hsemantic.headers.translations Hconstructors.translations }
-  have Hprefix := Hsemantic.toSynthesizedPrefix skeleton rfl rfl
+  have Hprefix := Hsemantic.toFormationPrefix skeleton rfl rfl
     (by simpa [skeleton] using hparams) htypeConstants
   have hmetadataLength : Hsemantic.metadata.length =
       skeleton.types.length := by
@@ -110,10 +110,10 @@ theorem HeaderDeclaration.ofTargetsExact
     decl := decl
     skeletonTranslation := Hskeleton
     metadata := Hsemantic.metadata
-    materialized := Hmaterialized
+    checked := Hmaterialized
     semanticPrefix := Hprefix
     translation :=
-      Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.materialized
+      Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.checked
         Hskeleton Hmaterialized
     headers := Hprefix.complete Hmaterialized
     headers_eq := rfl }
@@ -124,14 +124,14 @@ theorem HeaderDeclaration.ofTargetsExact
   calc
       A.decl.typeConstants = A.skeleton.typeConstants := by
         rw [← VInductDecl.toSkeleton_typeConstants A.decl,
-          VInductDeclSkeleton.materialize_toSkeleton A.materialized]
+          VInductDeclSkeleton.withMetadata_toSkeleton A.checked]
       _ = Hsemantic.headers.targets := htypeConstants
 
 /-- The metadata used to withMetadata a declaration is exactly the resulting
 per-family index-count vector.  This is the declaration-wide counterpart of
-`materialize_typeAt`, factored out of the old traversal terminal case so the
+`withMetadata_typeAt`, factored out of the old traversal terminal case so the
 skeleton-free assembly path can reuse it. -/
-theorem VInductDeclSkeleton.materialize_numIndices
+theorem VInductDeclSkeleton.withMetadata_numIndices
     {skeleton : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {decl : VInductDecl}
     (H : skeleton.withMetadata metadata = some decl) :
@@ -155,7 +155,7 @@ theorem VInductDeclSkeleton.materialize_numIndices
               types data).map (·.numIndices) =
             datum.1 :: data.map Prod.fst
         exact congrArg (List.cons datum.1) (ih data (by omega))
-  have hlength := VInductDeclSkeleton.materialize_length H
+  have hlength := VInductDeclSkeleton.withMetadata_length H
   simp only [VInductDeclSkeleton.withMetadata] at H
   split at H
   · simp only [Option.some.injEq] at H
@@ -185,7 +185,7 @@ theorem TrInductDeclSkeletonHeaders.typeNames
 `HeaderStatsWF` interface.  All executable statistics and context
 facts are supplied by the outer fold; the declaration, header certificate and
 normalized source telescopes come solely from semantic assembly. -/
-def HeaderDeclaration.materializedResult
+def HeaderDeclaration.checkedResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
     (H : HeaderDeclaration Hc.venv envTypes c.lparams nparams
@@ -209,14 +209,14 @@ def HeaderDeclaration.materializedResult
     checkInductiveTypes.loopInd.HeaderStatsWF
       Hc.venv c.lparams Hc.mlctx.vlctx
       stats H.decl depth := by
-  have hfields := VInductDeclSkeleton.materialize_fields H.materialized
-  have herase := VInductDeclSkeleton.materialize_toSkeleton H.materialized
+  have hfields := VInductDeclSkeleton.withMetadata_fields H.checked
+  have herase := VInductDeclSkeleton.withMetadata_toSkeleton H.checked
   refine {
-    headers := H.semanticPrefix.complete H.materialized
+    headers := H.semanticPrefix.complete H.checked
     normalizedSources :=
-      H.semanticPrefix.normalizedSourceAtMaterialized H.materialized
+      H.semanticPrefix.normalizedSourceAtChecked H.checked
     normalizedShapes :=
-      H.semanticPrefix.normalizedShapeAtMaterialized H.materialized
+      H.semanticPrefix.normalizedShapeAtChecked H.checked
     isNotZero := hnotzero
     commonLevel := hcommon
     levels := ?_
@@ -224,7 +224,7 @@ def HeaderDeclaration.materializedResult
     uvars := ?_
     consts := ?_
     indices := hindices.trans
-      (VInductDeclSkeleton.materialize_numIndices H.materialized)
+      (VInductDeclSkeleton.withMetadata_numIndices H.checked)
     params := ?_
     paramFVars := Hcache.paramFVars
     parameterScope := Hsuffix.parameterDecls

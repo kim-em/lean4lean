@@ -71,7 +71,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
 
 /-- Production mutual-header metadata translates directly to the exact
 constants recovered by the skeleton-free header traversal. -/
-theorem AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
+theorem AddInductive.inductiveTypeInfos.translatedCheckedHeaders
     (Hheaders : HeaderTranslations env lparams
       indTypes.toList)
     (hindices : stats.nindices.size = indTypes.size)
@@ -114,7 +114,7 @@ theorem AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
 header constants in exact source order.  In particular the abstract
 `addConstVals` equation is obtained from execution and is not supplied by a
 caller skeleton. -/
-theorem AddInductive.declareInductiveTypes.installsMaterializedHeadersWF
+theorem AddInductive.declareInductiveTypes.installsCheckedHeadersWF
     (Hc : ContextWF c)
     (Hheaders : HeaderTranslations Hc.venv c.lparams
       indTypes.toList)
@@ -137,7 +137,7 @@ theorem AddInductive.declareInductiveTypes.installsMaterializedHeadersWF
           outEnv outVEnv := by
   let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe c.lparams
-  have Hentries := AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
+  have Hentries := AddInductive.inductiveTypeInfos.translatedCheckedHeaders
     (stats := stats) (numParams := numParams) (numNested := numNested)
     Hheaders hindices hvisible
   have Hinstall := AddConstants.ofDeclareInductiveTypeInfosExists
@@ -212,7 +212,7 @@ theorem AddInductive.declareInductiveTypes.semanticHeadersWF
         Nonempty (InstalledHeaders c Hc stats numParams indTypes
           numNested isUnsafe commonParams commonLevel Hsemantic outEnv) := by
   have Hinstall :=
-    AddInductive.declareInductiveTypes.installsMaterializedHeadersWF
+    AddInductive.declareInductiveTypes.installsCheckedHeadersWF
       Hc Hsemantic.headers hindices hvisible hnprim
   exact Hinstall.mono fun outEnv Hresult => by
     rcases Hresult with ⟨envTypes, htypes, Hinstalled⟩

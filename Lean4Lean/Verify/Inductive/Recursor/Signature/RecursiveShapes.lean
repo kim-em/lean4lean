@@ -834,7 +834,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisLift
     rw [List.take_append_drop]; exact S.fields_nodup
   have hfieldsOuter : ∀ fv ∈ S.fields_bound.fvars, fv ∉ H.params.fvars := by
     intro fv hfv hP
-    apply H.blueprints.fields_outer_fresh mowner hmowner localIndex hlocal fv hfv
+    apply H.templates.fields_outer_fresh mowner hmowner localIndex hlocal fv hfv
     rw [hPids]
     exact List.mem_append_left _ (List.mem_append_left _ hP)
   have hhypsD : ∀ fv ∈ S.hypotheses_bound.fvars.take j,
@@ -1051,9 +1051,9 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
   intro S sourceFields nmot fields hyps res hhyps hminorEq j hj
   -- The retained rows for this minor.
   obtain ⟨-, -, -, -, -, origins₁, -, horig₁, -, -, Hcalls⟩ :=
-    H.blueprints.entry mowner hmowner localIndex hlocal
+    H.templates.entry mowner hmowner localIndex hlocal
   obtain ⟨⟨origins, horig, hstats, hmotives, F, hparams, depth', -, _, Hsel, -, -, -, -, -, -, -,
-    -, -, ⟨HcallAt⟩⟩⟩ := H.blueprintSemantics.entry mowner hmowner localIndex hlocal
+    -, -, ⟨HcallAt⟩⟩⟩ := H.templateSemantics.entry mowner hmowner localIndex hlocal
   have : origins₁ = origins := Option.some.inj (horig₁.symm.trans horig)
   subst this
   obtain ⟨originRoot, sourceType, O, D, -, hDtype, hcall⟩ := Hcalls.entry j hj
@@ -1072,7 +1072,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
   -- The first-pass origin and the semantic call have the same replay trace.
   have hreplay : O.replayTrace S.fields_bound.fvars =
       Sc.generated.replayTrace S.fields_bound.fvars := by
-    rw [O.replayTrace_eq_blueprint _ hcall hoLt, hmotives, hSreplay]
+    rw [O.replayTrace_eq_template _ hcall hoLt, hmotives, hSreplay]
   -- The semantic call is scoped by the parameters and the fields before `pos`.
   have hfR : F.fieldsRecent.fvars = S.fields_bound.fvars :=
     F.fieldsRecent.toFVarArrayIn.exprArrayFVarIds.symm.trans S.fields_bound.exprArrayFVarIds

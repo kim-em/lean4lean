@@ -946,7 +946,7 @@ theorem NestedRun.TrRestoredRulesModulo.filter_restorable
   exact ⟨trEnv, fresh_filter_restorable Hfresh, HF⟩
 
 /-- **One restored equation, modulo `X`.** -/
-theorem NestedRun.restoredEquation_of_realizationModulo
+theorem NestedRun.restoredEquation_of_trModulo
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -987,7 +987,7 @@ theorem NestedRun.restoredEquation_of_realizationModulo
 realizes the executable restored rules in an environment lacking the
 restorable names outside `X`, and the lowered rules avoid `X` at their hits,
 it is the restored generated equation list. -/
-theorem NestedRun.restoredEquations_of_realizationModulo
+theorem NestedRun.restoredEquations_of_trModulo
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -1015,7 +1015,7 @@ theorem NestedRun.restoredEquations_of_realizationModulo
   show List.mapM _ ((List.finRange _).map _) = _
   rw [List.mapM_map]
   exact List.mapM_eq_some.mpr (Lean4Lean.List.Forall₂.imp (fun k _ h =>
-    E.restoredEquation_of_realizationModulo wf Hsources hheads hparamsSize D hscoped HL
+    E.restoredEquation_of_trModulo wf Hsources hheads hparamsSize D hscoped HL
       Hfresh k h) HF)
 
 

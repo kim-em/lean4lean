@@ -512,7 +512,7 @@ come from the first-pass producer certificate retained by the rule; the only
 context transport follows the literal prior-hypothesis and call-local suffixes
 recorded by the executable traversal. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.semanticMotiveTelescopeEvidence
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.typedMotiveAppliesTo
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -544,7 +544,7 @@ theorem
     VEnv.IsType.defeqU_l F.semantic.current_context.checking.tr.wf
       F.semantic.current_context.mlctx_wf.tr.wf.toCtx
       F.semantic.exposed_defeq.symm F.semantic.terminal_type
-  exact F.motiveLookup.evidence selectedOwner hrecInfo
+  exact F.motiveLookup.appliesTo selectedOwner hrecInfo
     F.semantic.current_context Hext F.semantic.exposed_translation
     HexposedType F.semantic.validated
 
@@ -552,7 +552,7 @@ theorem
 This rule-wide frame is independent of any particular recursive call; later
 call-local narrowing reuses its exact field/parameter identifier order. -/
 theorem
-    RecursorCheck.RuleAlignment.narrowFieldRuntimeScope
+    RecursorCheck.RuleAlignment.scopedFieldRuntimeScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}

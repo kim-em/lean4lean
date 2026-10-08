@@ -114,7 +114,7 @@ theorem checkClosedType.rawSourceTranslationWF (Hc : ContextWF c) :
   -- the closed translation of the header directly.
   let Hc0 := Hc.withCheckLCtx {} Hc.baseNil
   exact Hclosed.bind fun _ hclosed =>
-    (checkTypeInContext.narrowWF Hc0
+    (checkTypeInContext.checkingWF Hc0
       (hclosed.mono fun _ h => False.elim h)).mono
       fun checkedType Hchecked => by
     rcases Hchecked with ⟨typeTarget, checkedTarget₀, HtypingClosed⟩

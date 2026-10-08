@@ -182,7 +182,7 @@ theorem parameter.sourceWF
   refine AddInductive.M.WF_bind AddInductive.paramCheckLCtx.WF fun _ hL => ?_
   subst hL
   let Hci := Hc.paramCheck stats i j hj hfv
-  refine (isDefEqInContext.narrowWF Hci hdom₀ hparamTy₀).bind fun equal hequal => ?_
+  refine (isDefEqInContext.checkingWF Hci hdom₀ hparamTy₀).bind fun equal hequal => ?_
   cases equal
   · change (Except.error _).WF Q
     exact Except.WF.throw
@@ -643,7 +643,7 @@ theorem IndConstArray.ofExact
 
 /-- Promote the exact traversal-facing statistics into the positivity-facing
 application invariant. -/
-def ValidAppStatsWF.ofMaterializedHeader
+def ValidAppStatsWF.ofHeaderStats
     (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Δ stats decl depth) :
     ValidAppStatsWF env Us Δ stats decl depth where
@@ -655,7 +655,7 @@ def ValidAppStatsWF.ofMaterializedHeader
   params := H.params
   paramFVars := H.paramFVars
 
-def ValidAppStatsWF.ofMaterializedHeaderNarrow
+def ValidAppStatsWF.ofHeaderStatsScoped
     (H : checkInductiveTypes.loopInd.HeaderStatsWF
       env Us Δ stats decl depth) :
     ValidAppStatsWF env Us H.parameterScope stats decl 0 where
@@ -1685,7 +1685,7 @@ left ambient declarations in the executable context.  The concrete checker
 runs in `Hc.mlctx.vlctx`, while every declarative judgment is constructed in
 the independent `scope`; runtime WHNF results are restricted before any
 positivity rule is emitted. -/
-theorem refinesNarrow
+theorem refinesScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
@@ -1849,7 +1849,7 @@ theorem checkPositivity.WF
 
 /-- Public narrow-scope positivity refinement, including the production fuel
 lookup used by constructor checking. -/
-theorem checkPositivity.refinesNarrow
+theorem checkPositivity.refinesScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
@@ -1865,7 +1865,7 @@ theorem checkPositivity.refinesNarrow
     (AddInductive.checkPositivity stats type ctor idx c).WF
       (fun _ => decl.Positive Hc.venv scope.toCtx depth narrowType) := by
   apply checkPositivity.WF
-  exact checkPositivity.loop.refinesNarrow Hc Hruntime halign Hstats hconsume
+  exact checkPositivity.loop.refinesScoped Hc Hruntime halign Hstats hconsume
     hlit htypeNarrow htypeFull
 
 

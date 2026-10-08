@@ -654,7 +654,7 @@ theorem NestedRun.sourceNestedIotaRule
   -- the old and new rule at the position
   have Rj := Hstep.restored.recursor.restored.restoration.rules.entry j hjOld hjNew
   obtain ⟨hi', hinfo⟩ := E.generatedEntryOfStep ⟨f, hfFam⟩ Hs'
-  have RR := E.lowered.recursors.ruleRealizations
+  have RR := E.lowered.recursors.trRules
     E.lowered.recursors.ruleRhsTranslations ⟨f, hfFam⟩ hi'
   have hjEntry : j < (E.lowered.recursors.generated.entry f hi').info.rules.length := by
     rw [hinfo, ← holdEq]; exact hjOld

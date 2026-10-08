@@ -157,7 +157,7 @@ theorem _root_.Lean4Lean.TrInductDeclHeaders.typeNames
 
 /-- Once the primitive dispatch shape has been materialized, its concrete
 inductive-constant array satisfies literal disjointness automatically. -/
-theorem PrimitiveInductiveShape.materializedLiteralDisjoint
+theorem PrimitiveInductiveShape.checkedLiteralDisjoint
     (Hshape : PrimitiveInductiveShape lparams nparams types isUnsafe)
     (Hdecl : TrInductDeclHeaders env lparams nparams types isUnsafe decl
       envTypes)

@@ -808,7 +808,7 @@ theorem RecursorConstruction.minorSourceHeadsApplied
         H.params.fvars).HeadsApplied heads stats.params.size stats.levels.length := by
   have hsourceOwner := H.sourceOwner howner
   have hsrc := H.minorSources.rows owner howner hsourceOwner localIndex hlocal
-  have hfresh := H.blueprints.fields_outer_fresh owner howner localIndex hlocal
+  have hfresh := H.templates.fields_outer_fresh owner howner localIndex hlocal
   generalize H.sourceMinorSemantics owner howner localIndex hlocal = HS
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hfresh HS ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, hctorEq, hfieldsEq, -, hstatsEq, -, -, -,

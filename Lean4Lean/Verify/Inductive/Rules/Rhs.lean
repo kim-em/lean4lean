@@ -921,7 +921,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.fieldFrame with ⟨B⟩
-  rcases A.finalNarrowSelectedMinorTypeFrame B with
+  rcases A.finalScopedSelectedMinorTypeFrame B with
     ⟨T, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, hminorType, HfixedContext, Hminor⟩
   rcases A.recursiveResults T B with ⟨C⟩
@@ -945,7 +945,7 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     rw [hequationContext]
     simpa only [inserted] using HfixedContext
-  rcases A.finalCheckedNarrowEquationContextAlignmentFor B T with
+  rcases A.finalCheckedScopedEquationContextAlignmentFor B T with
     ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
       hcheckedEquationFields, HcheckedEquation⟩
   have HcheckedEquation' : VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -1265,7 +1265,7 @@ theorem
     rw [hequationContext] at h
     simp only [List.append_assoc] at h
     exact OnCtx.of_append h
-  rcases A.finalCheckedNarrowFieldAlignment B with
+  rcases A.finalCheckedScopedFieldAlignment B with
     ⟨checkedDomains, checkedResidual, hchecked, Hchecked, HcheckedB⟩
   have Hlink := A.finalInstalledCheckedFieldLink T hpositive checkedDomains
     checkedResidual hchecked Hchecked fieldDomains hypothesisDomains
@@ -1720,7 +1720,7 @@ theorem
       (abstractForallContext equationDomains [])
       (.bvar minorVar) (.bvar minorVar) :=
     TrExprS.bvar_of_abstractForallContext equationDomains [] minorVar hminorVar
-  have HfieldsTr := A.finalNarrowEquationFieldTranslationsFor B T
+  have HfieldsTr := A.finalScopedEquationFieldTranslationsFor B T
   have HpartialTr := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered Hctx HminorTr HfieldsTr HpartialWF
   have HresultsTr : List.Forall₂

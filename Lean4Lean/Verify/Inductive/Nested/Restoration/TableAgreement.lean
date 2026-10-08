@@ -1296,7 +1296,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂

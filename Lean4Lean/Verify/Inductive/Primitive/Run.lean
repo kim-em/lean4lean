@@ -188,7 +188,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
     have Hmaterialized := Hheaders.sourceStatsWF
     rw [Hheaders.sourceContextVEnv] at Hmaterialized
     exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
-      (Hshape.materializedLiteralDisjoint Hheaders.translation
+      (Hshape.checkedLiteralDisjoint Hheaders.translation
         Hmaterialized).available
       hnotPartial
       (fun _hallow owner howner =>

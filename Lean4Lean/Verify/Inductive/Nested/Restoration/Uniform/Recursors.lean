@@ -932,9 +932,9 @@ theorem minorParamUniform {heads : List Name} (I : H.ParamUniformDeclarations he
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleTemplates[localIndex]! :=
-    H.blueprints.entry owner howner localIndex hlocal
-  have hfresh := H.blueprints.fields_outer_fresh owner howner localIndex hlocal
-  obtain ⟨Hsem⟩ := H.blueprintSemantics.entry owner howner localIndex hlocal
+    H.templates.entry owner howner localIndex hlocal
+  have hfresh := H.templates.fields_outer_fresh owner howner localIndex hlocal
+  obtain ⟨Hsem⟩ := H.templateSemantics.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots hfresh Hsem ⊢
   generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, hvalid, hmotiveApp, -, -,
@@ -1286,16 +1286,16 @@ theorem ruleRhsParamUniform {heads : List Name} (I : H.ParamUniformDeclarations 
   obtain ⟨localIndex, hlocalB, hget⟩ := List.mem_iff_getElem.1 hmem
   have hlocalB' : localIndex < H.recInfos[owner]!.ruleTemplates.size := by simpa using hlocalB
   have hlocal : localIndex < H.origins.minorTypes[owner]!.size := by
-    rw [← H.blueprints.rows_size owner howner]; exact hlocalB'
+    rw [← H.templates.rows_size owner howner]; exact hlocalB'
   have hB : H.recInfos[owner]!.ruleTemplates[localIndex]! = blueprint := by
     rw [getElem!_pos _ localIndex hlocalB']; simpa using hget
   obtain ⟨hfieldDecls, -, hcalls⟩ := H.minorParamUniform I W owner howner localIndex hlocal
-  have hentry := H.blueprints.entry owner howner localIndex hlocal
+  have hentry := H.templates.entry owner howner localIndex hlocal
   rw [hB] at hcalls hentry
   obtain ⟨-, hBfields, hBlctx, hBminor, traversal, origins, -, hshape, -, -, hcallOrigins⟩ :=
     hentry
   have hcallsSize := hcallOrigins.size_eq
-  have hfresh := H.blueprints.fields_outer_fresh owner howner localIndex hlocal
+  have hfresh := H.templates.fields_outer_fresh owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at *
   -- the minor variable
   have hminorsSize : localIndex < H.recInfos[owner]!.minors.size := by
@@ -1424,7 +1424,7 @@ theorem NestedRun.generatedEntryOfStep
     ∃ hi : owner.val < E.lowered.recursors.entries.length,
       (E.lowered.recursors.generated.entry owner.val hi).info =
         Hstep.oldInfo := by
-  rcases E.lowered.recursors.metadataRealization owner with
+  rcases E.lowered.recursors.trMetadata owner with
     ⟨rec, hrec, _, M⟩
   have hlen : owner.val < E.lowered.recursors.entries.length := by
     rw [E.lowered.recursors.entries_length_eq]

@@ -279,7 +279,7 @@ hypotheses and then through this call's retained higher-order locals.  The
 target telescope is definitionally based on `B.fieldScope`; non-contiguity
 is represented solely by the core weakening. -/
 theorem
-    RecursorCheck.RuleAlignment.RecursiveCallFrame.currentCachedNarrowCore
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.currentCachedScopedCore
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -524,7 +524,7 @@ theorem
   let selectedOwner := F.semantic.generated.ownerIdx
   let sourceIndices :=
     (F.semantic.generated.exposedType.getAppArgs[stats.params.size:]).toList
-  rcases F.semanticMotiveTelescopeEvidence with ⟨binding, ⟨evidence⟩⟩
+  rcases F.typedMotiveAppliesTo with ⟨binding, ⟨evidence⟩⟩
   have hrecInfo : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
   have htranslated :=
@@ -547,7 +547,7 @@ theorem
   rw [hsemantic] at Hindices
   have HindicesFinal := Lean4Lean.List.Forall₂.imp
     (fun _ _ Hindex => Hindex.mono H.constructorVEnv_le) Hindices
-  rcases F.currentCachedNarrowCore B with
+  rcases F.currentCachedScopedCore B with
     ⟨scope, Hscope, hscope, hdrop, localDomains, hlocal,
       hcontext, Hreplay, hemb⟩
   have hscopeExact : scope.fvars = F.semantic.recent.fvars.reverse ++
@@ -1701,7 +1701,7 @@ minor's constructor fields with the literal narrow field telescope in the
 cached parameter scope.  This is the exact field-domain equality required
 before the installed minor can be applied to canonical recursive results. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorNarrowFieldAlignment
+    RecursorCheck.RuleAlignment.finalSelectedMinorScopedFieldAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1794,7 +1794,7 @@ scope.  The selected minor is the bridge: both parameter-scoped translations
 come from its retained constructor tail, while `finalSelectedMinorSharedFieldContext`
 connects that tail to the constructor checker. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedNarrowFieldAlignment
+    RecursorCheck.RuleAlignment.finalCheckedScopedFieldAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1822,7 +1822,7 @@ theorem
     ⟨_S₁, _HS₁, minorDomains, minorResidual,
       checkedDomains, checkedResidual, _hlocal₁, _htail₁,
       hminor, hchecked, Hminor, Hchecked, HminorChecked⟩
-  rcases A.finalSelectedMinorNarrowFieldAlignment B with
+  rcases A.finalSelectedMinorScopedFieldAlignment B with
     ⟨_S₂, _HS₂, narrowDomains, narrowResidual,
       hnarrow, Hnarrow, HnarrowFields⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -1868,7 +1868,7 @@ field conversion and transport the older generated parameter context to the
 cached parameter suffix.  The right side is exactly the fixed equation
 context used by `RecursiveResult`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedNarrowEquationContextAlignment
+    RecursorCheck.RuleAlignment.finalCheckedScopedEquationContextAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1904,7 +1904,7 @@ theorem
       hchecked, Hchecked, _HfieldResidual, _HtailType,
       _HtailTypeT, HcheckedContext, _HintroType, _Hintro,
       _HintroShape⟩
-  rcases A.finalCheckedNarrowFieldAlignment B with
+  rcases A.finalCheckedScopedFieldAlignment B with
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -1981,12 +1981,12 @@ theorem
       Nat.add_comm] using Haligned⟩
 
 /-- MetadataMentions-stable form of
-`finalCheckedNarrowEquationContextAlignment`.  Consumers of canonical
+`finalCheckedScopedEquationContextAlignment`.  Consumers of canonical
 recursive results already carry a particular recursor telescope translation;
 this specialization transports the equation-context conversion to that exact
 witness instead of forcing a second existential choice. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedNarrowEquationContextAlignmentFor
+    RecursorCheck.RuleAlignment.finalCheckedScopedEquationContextAlignmentFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2018,7 +2018,7 @@ theorem
           (T.motives ++ T.minors).reverse ++
             H.parameterSuffix.parameterDecls.toCtx) := by
   dsimp only
-  rcases A.finalCheckedNarrowEquationContextAlignment B with
+  rcases A.finalCheckedScopedEquationContextAlignment B with
     ⟨T₁, checkedDomains, equationFieldDomains, hchecked,
       hequationFields, Hcontext⟩
   rcases T₁.groupsResult_eq T with
@@ -2033,7 +2033,7 @@ Unlike the existential wrapper, this theorem preserves the exact checked
 field translation already compared with another independently reconstructed
 telescope. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedNarrowEquationContextAlignmentFromFrameFor
+    RecursorCheck.RuleAlignment.finalCheckedScopedEquationContextAlignmentFromFrameFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2075,7 +2075,7 @@ theorem
           inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalCheckedNarrowFieldAlignment B with
+  rcases A.finalCheckedScopedFieldAlignment B with
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -2153,7 +2153,7 @@ lookup itself, retain the conversion from the independently checked field
 context: subsequent applications can transport typed terms without silently
 changing their constructor-field telescope. -/
 theorem
-    RecursorCheck.RuleAlignment.finalNarrowSelectedMinorFrame
+    RecursorCheck.RuleAlignment.finalScopedSelectedMinorFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2194,7 +2194,7 @@ theorem
               (later.length + 1 + fixedFieldRecent.length) 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalCheckedNarrowEquationContextAlignment B with
+  rcases A.finalCheckedScopedEquationContextAlignment B with
     ⟨T, checkedDomains, equationFieldDomains, hchecked,
       hequationFields, Hcontext⟩
   let inserted := T.motives ++ T.minors
@@ -2264,7 +2264,7 @@ application obligation exactly: the surrounding equation context contains
 the narrow rule-wide fields, while the displayed minor type begins with the
 installed `fieldDomains`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalNarrowSelectedMinorTypeFrame
+    RecursorCheck.RuleAlignment.finalScopedSelectedMinorTypeFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2306,7 +2306,7 @@ theorem
     ⟨T, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, htarget, _HtargetContext,
       _HtargetResidual⟩
-  rcases A.finalNarrowSelectedMinorFrame B with
+  rcases A.finalScopedSelectedMinorFrame B with
     ⟨T₁, _checkedDomains, _equationFieldDomains, _hchecked,
       _hequationFields, Hcontext, hminor, Hminor⟩
   rcases T₁.groupsResult_eq T with
@@ -2333,7 +2333,7 @@ theorem
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor) :
     Nonempty A.FieldFrame := by
-  rcases A.narrowFieldRuntimeScope with
+  rcases A.scopedFieldRuntimeScope with
     ⟨fieldScope, HfieldScope, hfieldScopeFVars, hfieldBase,
       ⟨fieldDomains, hfieldDomains, hfieldFront⟩, hcheckAlign⟩
   rcases A.semantics.fieldContextDefEqMono with

@@ -629,7 +629,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     have hrigid := c.Ewf.projectionRigid hinfo
     rw [instantiateProjectionFields_add, bind_assoc]
     have hnf := (hcertT c.ctorTelescopes).1
-    refine (instantiateProjectionFields.WF_corner (st := st) (G := G)
+    refine (instantiateProjectionFields.WF_ctorTelescopes (st := st) (G := G)
       (m := AddInductive.constructorArity c_val.type - I_val.numParams)
       (b := result₀.instOuterAt (List.take info.nparams args') (doms₀.length - info.nparams))
       he ⟨_, hety⟩ (.inr rfl) hG (Nat.le_refl _)
@@ -674,7 +674,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
     (by rw [hP'len]; exact hnpLen)] at hR
   cases hR
   rw [hP'len, hds_def] at hRT
-  refine (instantiateProjectionFields.WF_corner (st := st) (G := G)
+  refine (instantiateProjectionFields.WF_ctorTelescopes (st := st) (G := G)
     (m := AddInductive.constructorArity c_val.type - I_val.numParams) he ⟨_, hety⟩ (.inr rfl) hG
     hile (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
     hRT (by omega) hpfx₄).bind fun r _ le₅ H => ?_

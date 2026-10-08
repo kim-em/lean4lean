@@ -62,7 +62,7 @@ structure RuleTranslations
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) extends RuleTranslationShape H where
-  realization : InductiveSignature.TrCompilation sourceEnv decl
+  trCompilation : InductiveSignature.TrCompilation sourceEnv decl
     (H.blockCertificate rules rulesWF).block H.outVEnv H.entries
 
 /-- Source nonemptiness comes from the existing declaration entry guard.
@@ -93,14 +93,14 @@ theorem RuleTranslations.compilation
     ctors := hctors
     projections := hprojections
     names := B.names
-    canonical := T.realization.compiles
+    canonical := T.trCompilation.compiles
     finite := CompiledInductive.ordinary
       (Lean4Lean.TrInductDecl.sourceWF Htranslated) R.formation.formationWF
-      T.realization.compiles B.wf htypes hctors hprojections B.names }
+      T.trCompilation.compiles B.wf htypes hctors hprojections B.names }
 
 /-- Every newly stored equation is headed by a recursor from the same joint
 generation witness, with that exact concrete entry present after installation. -/
-theorem RuleTranslations.equationProvenance
+theorem RuleTranslations.equationHeads
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -120,7 +120,7 @@ theorem RuleTranslations.equationProvenance
   rcases VEnv.addDefEqRules_defeqs_iff.mp hdf with hold | hnew
   · exact .inl (by simpa only [VEnv.addEliminators_defeqs, VEnv.addProjections_defeqs] using Hatomic.defeqs df hold)
   · right
-    rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
+    rcases T.trCompilation.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
     change T.rules = g.equations at he
     rw [he] at hnew
     rcases List.mem_map.mp hnew with ⟨index, _, rfl⟩
@@ -175,7 +175,7 @@ theorem RuleTranslations.recursorEntryOrigin
 run and its joint generation/metadata witness. It cannot be recovered from a
 generic block of translated constant types. The unsafe observer clause covers
 all new entries, so the evidence can be replayed at every observer safety. -/
-theorem RuleTranslations.recursorProvenance
+theorem RuleTranslations.newRecursorsAligned
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -186,13 +186,13 @@ theorem RuleTranslations.recursorProvenance
     (T : RuleTranslations H) :
     NewRecursorsAligned .unsafe c.env.constants sourceEnv
       outEnv.constants (H.outVEnv.addDefEqRules T.rules) := by
-  refine { defeq := T.equationProvenance, recursor := ?_ }
+  refine { defeq := T.equationHeads, recursor := ?_ }
   intro name rec hfind
   rcases T.recursorEntryOrigin hfind with hold | ⟨entry, hentry, hname, hinfo⟩
   · exact .inl hold
   · right
     intro _hsafety
-    rcases T.realization.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
+    rcases T.trCompilation.generated with ⟨s, g, envTypes, hm, ht, ha, _, hn, hr, he, hentries⟩
     change T.rules = g.equations at he
     have hrecursors : ∀ owner, H.outVEnv.constants (g.recursorName owner) =
         some (g.recursor owner).toVConstant := by
@@ -213,8 +213,8 @@ theorem RuleTranslations.recursorProvenance
     have hrecEq : rec = recInfo := ConstantInfo.recInfo.inj (hinfo.trans hsource)
     subst recInfo
     rw [he]
-    exact ⟨H.alignmentOfRealization hm g ha.levels_length ha.levels_wf hrecursors hrules hrec,
-      H.kOfRealization hm g hrec, H.majorOfRealization hm hrec⟩
+    exact ⟨H.alignmentOfTr hm g ha.levels_length ha.levels_wf hrecursors hrules hrec,
+      H.kOfTr hm g hrec, H.majorOfTr hm hrec⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -604,7 +604,7 @@ theorem RecursorConstruction.recursorTelescope_hypothesisHeader
       hyps res hhyps hminorEq j hj
   have hjCalls : j < (H.recInfos[mowner]!.ruleTemplates[localIndex]!).recursiveCalls.size := by
     obtain ⟨-, -, -, -, -, _, -, -, -, -, Hcalls⟩ :=
-      H.blueprints.entry mowner hmowner localIndex hlocal
+      H.templates.entry mowner hmowner localIndex hlocal
     rw [Hcalls.size_eq]
     exact hj
   obtain ⟨htelU, hidxU⟩ := HU mowner hmowner localIndex hlocal j hjCalls

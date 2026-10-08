@@ -129,7 +129,7 @@ structure MotiveAppliesTo
 validated terminal payload.  The only remaining inputs are the semantic
 typing of the family prefix and its parallel relation to the retained motive
 type. -/
-theorem RecursorValidatedIndAppAt.motiveTelescopeEvidence
+theorem RecursorValidatedIndAppAt.motiveAppliesTo
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorValidatedIndAppAt R.venv recLparams R.mlctx.vlctx
@@ -747,7 +747,7 @@ theorem MotiveDecl.toTelescopeAt
       (H.motiveType.lift' (Hext.shift.consN 0)) := by
     rw [hfamilyEq, hindicesLength, ← H.indexCount]
     simpa using Htelescope
-  exact Hvalidated.motiveTelescopeEvidence binding
+  exact Hvalidated.motiveAppliesTo binding
     (H.familyActualType.lift' (Hext.shift.consN 0))
     (H.familyType.lift' (Hext.shift.consN 0))
     (H.motiveType.lift' (Hext.shift.consN 0)) H.resultLevel hspine Hindices
@@ -798,7 +798,7 @@ structure RecInfoMotiveTelescopes
   telescope : ∀ target (htarget : target < recInfos.size),
     MotiveAppliesAbove Rroot stats decl target recInfos[target]!
       elimLevel
-  seed : ∀ target (htarget : target < recInfos.size),
+  motiveDecls : ∀ target (htarget : target < recInfos.size),
     ∃ S : MotiveDecl Rroot stats decl target
         recInfos[target]! elimLevel,
       VEnv.IsDefEqCtx Rroot.venv recLparams.length []
@@ -816,7 +816,7 @@ def RecInfoMotiveTelescopes.empty
     (elimLevel : Level) :
     RecInfoMotiveTelescopes Rroot stats decl parameterCtx #[] elimLevel where
   telescope target htarget := by simp at htarget
-  seed target htarget := by simp at htarget
+  motiveDecls target htarget := by simp at htarget
   canonical target htarget := by simp at htarget
 
 def RecInfoMotiveTelescopes.mono
@@ -827,8 +827,8 @@ def RecInfoMotiveTelescopes.mono
       elimLevel where
   telescope target htarget := fun R Hlater =>
     H.telescope target htarget R (Hext.trans Hlater)
-  seed target htarget := by
-    rcases H.seed target htarget with ⟨S, hparams⟩
+  motiveDecls target htarget := by
+    rcases H.motiveDecls target htarget with ⟨S, hparams⟩
     refine ⟨S.mono Hext, ?_⟩
     simpa [MotiveDecl.mono,
       ClosedMotiveTelescope.mono, Hext.venv_eq] using hparams
@@ -867,7 +867,7 @@ def RecInfoMotiveTelescopes.push
         exact Array.getElem_push_lt hold
       rw [hget]
       exact H.telescope target hold
-  seed target htarget := by
+  motiveDecls target htarget := by
     by_cases hlast : target = recInfos.size
     · subst target
       have hget : (recInfos.push next)[recInfos.size]! = next := by simp
@@ -882,7 +882,7 @@ def RecInfoMotiveTelescopes.push
         rw [dif_pos htarget, dif_pos hold]
         exact Array.getElem_push_lt hold
       rw [hget]
-      exact H.seed target hold
+      exact H.motiveDecls target hold
   canonical target htarget := by
     by_cases hlast : target = recInfos.size
     · subst target
@@ -920,9 +920,9 @@ def RecInfoMotiveTelescopes.modifyMinors
         rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos owner _ hold]
       · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos owner target _
             hold howner]
-  seed target htarget := by
+  motiveDecls target htarget := by
     have hold : target < recInfos.size := by simpa using htarget
-    rcases H.seed target hold with ⟨S, hparams⟩
+    rcases H.motiveDecls target hold with ⟨S, hparams⟩
     by_cases howner : owner = target
     · subst target
       rw [mkRecInfos.loopCtors.getElemBang_modify_self recInfos owner _ hold]

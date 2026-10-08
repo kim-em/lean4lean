@@ -231,7 +231,7 @@ structure CheckedConstructors
 family/constructor loops.  This is the constructor-formation result consumed
 by `FormationCertificate`; environment installation is intentionally a
 separate staging obligation. -/
-theorem checkConstructors.loopTypes.refinesMaterialized
+theorem checkConstructors.loopTypes.refinesChecked
     {decl : VInductDecl} {sourceEnv : VEnv}
     {params : List VExpr}
     (Hc : ContextWF c)
@@ -263,7 +263,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
   have hlevels := Hmaterialized.levelParamsTranslation hlparams
   let Hsuffix := Hmaterialized.parameterSuffix
   let Hstats :=
-    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+    checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped
       Hmaterialized
   have hparamsCtx : VEnv.IsDefEqCtx Hc.venv decl.uvars []
       params.reverse Hsuffix.parameterDecls.toCtx := by

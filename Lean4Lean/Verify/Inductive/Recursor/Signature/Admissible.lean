@@ -282,7 +282,7 @@ theorem RecursorConstruction.consumedSingletonElimination
     simpa only [R.sourceContextVEnv] using R.sourceContext.checking.tr.wf
   have hheader := Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core henvSource
   have hscope : R.parameterScope.WF R.headerVEnv c.lparams.length := by
-    rw [← R.materializedParameterScope]
+    rw [← R.checkedParameterScope]
     exact R.statsWF.parameterEmbedding.scopeWF hheader
   have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine

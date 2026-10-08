@@ -14,7 +14,7 @@ provenance `Hprovenance`. This file derives everything else from the run:
 the `CompilationData` and the certified specializations
 (`compilationData_of_tables`, given the restored equation list) and the
 realization of every concrete restored recursor entry, including its
-specialization, rules (`restoredRuleRealizations`) and major inductive
+specialization, rules (`trRestoredRules`) and major inductive
 (`restoredMajorInduct`). Freshness of the restorable names in the final
 environment is only used outside a list `X` of names (in the application, the
 renamed auxiliary recursor names, see `Nested/Restoration/RecursorRenaming.lean`). -/
@@ -202,7 +202,7 @@ theorem RestoredBlockDerivation.find_recursorEntry
 `restorationTablesRestoringAll` (rather than at an existentially chosen one):
 the restored recursors and equations of the canonical restored block of a
 shape whose rule lists are the restored generated equations (`hequations`;
-see `restoredEquations_of_hitShape` and `restoredEquations_of_realizationModulo`)
+see `restoredEquations_of_hitShape` and `restoredEquations_of_trModulo`)
 form a `CompilationData`, and the specializations are certified. -/
 theorem NestedRun.compilationData_of_tables
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -272,13 +272,13 @@ theorem NestedRun.compilationData_of_tables
   have hrecursors := E.restoredRecursors_of_paramUniform C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
   have htotal := E.normalizedTotal_of wf Hsources hheadNames
-  have HsourceCtors := E.sourceConstructors_of_evidence wf hadded henvTypes Haux Hexpansion
+  have HsourceCtors := E.sourceConstructors_of_lowering wf hadded henvTypes Haux Hexpansion
     hnodup hfresh hrecFresh
-    ⟨E.loweredConstructors_of_evidence hadded henvTypes hfreshAll Hrestoring hlevels,
+    ⟨E.loweredConstructors_of_lowering hadded henvTypes hfreshAll Hrestoring hlevels,
       fun n hn => htotal n (List.mem_of_mem_take hn)⟩
-  have HauxFamilies := E.auxiliaryFamiliesField_of_evidence wf hadded henvTypes Haux
+  have HauxFamilies := E.auxiliaryFamiliesField_of_lowering wf hadded henvTypes Haux
     Hexpansion
-    (E.auxiliaryConstructors_of_evidence wf Hsources hadded henvTypes Haux Hexpansion
+    (E.auxiliaryConstructors_of_lowering wf Hsources hadded henvTypes Haux Hexpansion
       HauxRestoring hnodup (fun n hn => htotal n (List.mem_of_mem_drop hn)))
   exact ⟨hcertified, ⟨E.compilationData_of_specializations C hC hadded hnames hwellFormed
     hscoped hdirect
@@ -576,7 +576,7 @@ the canonical restored rule list, in an abstract environment in which the
 restored recursor is installed and the restorable names outside `X` are
 fresh, provided no lowered auxiliary recursor name `A.rec` lies in `X` (for
 `X` the renamed recursor names: `auxRecName_not_renamed`). -/
-theorem NestedRun.restoredRuleRealizations
+theorem NestedRun.trRestoredRules
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
@@ -643,7 +643,7 @@ theorem NestedRun.restoredRuleRealizations
       Hstep.restored.newInfo.rules := by
   let P := E.lowered.recursors
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
-  have RR := P.ruleRealizations P.ruleRhsTranslations owner hi
+  have RR := P.trRules P.ruleRhsTranslations owner hi
   rw [hinfo] at RR
   have hmap := P.ownedConstructors_map_val owner hi
   rw [hinfo] at hmap
@@ -768,7 +768,7 @@ theorem NestedRun.restoredRuleRealizations
     exact Restoration.wrapLams_head_const
       (hheadsNotRec E.lowered.signature.constructors[index].owner)
       (VExpr.getAppFnArgs_mkApps_head _ _) hleft
-  · -- the right-hand side, from the realization at the same flattened index
+  · -- the right-hand side, from the trCompilation at the same flattened index
     have hfinLt : index.val <
         (List.finRange E.lowered.signature.constructors.size).length := by
       rw [List.length_finRange]; exact index.isLt

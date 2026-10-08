@@ -21,7 +21,7 @@ relate those contexts by nested expansion, rather than by literal equality.
 the index count.  `SourcePrefixOfLowered.numIndices` exposes the first
 projection; formation needs this second projection at the same exact source
 position. -/
-theorem VInductDeclSkeleton.materializePrefix_resultLevel
+theorem VInductDeclSkeleton.withMetadataPrefix_resultLevel
     (skeleton : VInductDeclSkeleton) (expanded source : VInductDecl)
     (hle : skeleton.types.length ≤ expanded.types.length)
     (Hmaterialize : skeleton.withMetadata
@@ -32,7 +32,7 @@ theorem VInductDeclSkeleton.materializePrefix_resultLevel
     (hexpanded : i < expanded.types.length) :
     (source.types[i]'hsource).resultLevel =
       (expanded.types[i]'hexpanded).resultLevel := by
-  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hi with
+  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize hi with
     ⟨data, hdata, hsourceLookup⟩
   have hmetadata :
       ((expanded.types.take skeleton.types.length).map fun type =>
@@ -62,8 +62,8 @@ theorem SourcePrefixOfLowered.resultLevel
       (expanded.types[i]'hexpanded).resultLevel := by
   rcases H with ⟨skeleton, Hmaterialize⟩
   have hskeleton : skeleton.types.length = source.types.length :=
-    (VInductDeclSkeleton.materialize_fields Hmaterialize).2.2.2.symm
-  apply VInductDeclSkeleton.materializePrefix_resultLevel skeleton expanded
+    (VInductDeclSkeleton.withMetadata_fields Hmaterialize).2.2.2.symm
+  apply VInductDeclSkeleton.withMetadataPrefix_resultLevel skeleton expanded
     source
   · simpa [hskeleton] using hle
   · exact Hmaterialize

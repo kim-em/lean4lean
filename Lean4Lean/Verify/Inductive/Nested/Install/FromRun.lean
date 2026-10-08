@@ -217,7 +217,7 @@ theorem AuxiliaryRecursorTranslations.recursorNames
 /-- Construct the canonical constant installation for an exact nonempty
 nested restoration using only the source semantic trace, executable recursor
 validation, and the primitive/non-delta companion traces of that same run. -/
-theorem NestedLoweringOutputClosed.existsValidatedExactStagedRestoration
+theorem NestedLoweringOutputClosed.existsValidatedExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -275,7 +275,7 @@ theorem NestedLoweringOutputClosed.existsValidatedExactStagedRestoration
     ⟨auxiliaryRecursors, Hauxiliary⟩
   rcases Hrestored.freshTraceNondelta Hc.checking.tr.map_wf with
     ⟨nondeltaEntries, Hnondelta, hnondelta⟩
-  rcases Hsource.existsExactStagedRestoration Hauxiliary Hlower Hc Hprod
+  rcases Hsource.existsExactRestoration Hauxiliary Hlower Hc Hprod
       Hcore Hparams hempty hvisible Hprimitive Hnondelta hnondelta Hcases with
     ⟨replay, canonicalProdEnv, installedVEnv, Hstaged, hlookup⟩
   exact ⟨auxiliaryRecursors, Hauxiliary, replay, canonicalProdEnv, installedVEnv,
@@ -387,7 +387,7 @@ theorem RestoredBlockBase.ofReplay
         recursorValues := replay.recursorValues
         formationAssembly := Hformation
         formationExpanded := hformationExpanded
-        materialized := Hmetadata
+        checked := Hmetadata
         uvars := huvars
         numParams := hnumParams
         unsafeEq := hunsafeEq
@@ -507,7 +507,7 @@ theorem NestedRun.nativeSourceTypeShapes
   have htype : sourceTarget.type = expandedTarget.type :=
     congrArg (fun value : VConstVal => value.type) hvalue
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
   have hnumIndices : sourceTarget.numIndices = expandedTarget.numIndices :=
     Hmetadata.numIndices hprefix i hi hiExpanded
   have hresultLevel : sourceTarget.resultLevel = expandedTarget.resultLevel :=
@@ -803,7 +803,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
     exact Eq.mp
       (congrArg (fun decl => SourcePrefixOfLowered decl P.loweredDecl)
         E.nativeSourceDecl_eq)
-      E.sourceCore.materialized
+      E.sourceCore.checked
   have HownersP : ConstructorOwnersPresent P.c.env := by
     rw [henv]
     exact Howners
@@ -893,7 +893,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
   have hvisibleP : P.c.safety ≤
       (if P.isUnsafe then DefinitionSafety.unsafe else .safe) := by
     simpa only [hsafety, hisUnsafe] using hvisible
-  rcases Hlower.existsValidatedExactStagedRestoration
+  rcases Hlower.existsValidatedExactRestoration
       (primaryProdEnv := Hrestored.sourceFamiliesEnv) HcP Hprod Hcore
       Hrestored Hsource HtypeValid HtypeRun Hparams hempty hvisibleP Hprimitive HcasesP
       with
@@ -905,7 +905,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
       finalBaseVEnv :=
-    E.finalValidOfStaged_of_paramUniform wf Hsources hnested Hlower HcP Hprod Hcore
+    E.finalValidOfInstallation_of_paramUniform wf Hsources hnested Hlower HcP Hprod Hcore
       Hmetadata Harity hempty Hrestored replay.fresh canonical replay.kernelOrder
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)
@@ -1057,7 +1057,7 @@ theorem NestedRun.assemblyBaseNativeValid
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂

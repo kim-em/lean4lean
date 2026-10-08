@@ -199,7 +199,7 @@ theorem NestedRun.canonicalGenerationLevels
   have h1 := E.lowered.recursors.toRecursorConstruction.elimLevelAdmissible
   have h2 := E.lowered.recursors.toRecursorConstruction.generator.levels
   have h3 := E.lowered.recursors.toRecursorConstruction.generator.params
-  have hscope := OrdinaryConstructorCheck.completed_parameterScope_toCtx E.lowered.constructors
+  have hscope := OrdinaryConstructorCheck.parameterScope_toCtx E.lowered.constructors
   have key : ∀ (ps : List Name) (hps : E.lowered.c.lparams = ps),
       ∃ Helim : AddInductive.AdmissibleElimLevel ps E.lowered.recursors.elimLevel,
         AddInductive.getRecLevelParams E.lowered.recursors.elimLevel

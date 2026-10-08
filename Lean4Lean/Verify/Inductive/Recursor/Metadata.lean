@@ -221,7 +221,7 @@ theorem RecursorCheck.kShape
 
 /-- Every installed recursor realizes all non-rule metadata of the canonical
 generated recursor for its owner. -/
-theorem RecursorCheck.metadataRealization
+theorem RecursorCheck.trMetadata
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)

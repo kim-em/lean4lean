@@ -89,7 +89,7 @@ def checkPositivityStep.ValidAppStatsWF.toRecursorContext
 
 /-- Restrict recursor application statistics to the exact cached-parameter
 suffix, independently of all generated ambient frames. -/
-def RecursorParameterContextSuffix.narrowStats
+def RecursorParameterContextSuffix.scopedStats
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     (H : RecursorParameterContextSuffix R stats depth)

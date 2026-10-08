@@ -1218,7 +1218,7 @@ theorem RecursorConstruction.hypothesisResidualSource
     exact h (List.mem_of_mem_take hmem)
   have hmNotFields : mfv ∉ S.fields_bound.fvars := by
     intro hmem
-    have h := H.blueprints.fields_outer_fresh mowner hmowner localIndex hlocal mfv hmem
+    have h := H.templates.fields_outer_fresh mowner hmowner localIndex hlocal mfv hmem
     apply h
     apply List.mem_append_left
     apply List.mem_append_right
@@ -1455,7 +1455,7 @@ theorem RecursorConstruction.recursorTelescope_indicesMajor
             (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible))
           (bvarSpine (stats.params.size + H.recInfos[owner]!.indices.size))])
       ((H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size) := by
-  obtain ⟨Sseed, _⟩ := H.motiveTelescopes.seed owner howner
+  obtain ⟨Sseed, _⟩ := H.motiveTelescopes.motiveDecls owner howner
   have houter := H.bindings.outerNodup H.params H.noAlias
   have hparams : H.params.fvars.Nodup := (List.nodup_append.mp (List.nodup_append.mp houter).1).1
   have hmotives : H.bindings.motives.fvars.Nodup :=

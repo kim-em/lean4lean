@@ -55,7 +55,7 @@ theorem AddInductive.runWithStats.semanticWF
   unfold AddInductive.runWithStats
   have Hcombined := Hformation.bind fun ctorEnv Hresult => by
     rcases Hresult with ⟨decl, headerEnv, Hheaders, R, hclosed⟩
-    have hlitHeaders := Hheaders.materializedAvailableLiteralDisjoint
+    have hlitHeaders := Hheaders.checkedAvailableLiteralDisjoint
     have hlitCtors :=
       R.declared.installed.availableLiteralDisjoint hlitHeaders
     have hlit : checkPositivityStep.AvailableLiteralDisjoint

@@ -1105,7 +1105,7 @@ theorem RecursorCheck.inductInfosFromDecl
     exact R.context.checking.tr.map_wf
   · exact H.generated.nonInductive
 
-theorem RecursorCheck.completedConstructorSemantics
+theorem RecursorCheck.constructorSemantics
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)

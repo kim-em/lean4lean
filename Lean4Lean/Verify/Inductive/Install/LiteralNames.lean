@@ -181,7 +181,7 @@ literals only expose reserved natural constructors.  A supported string
 literal implies that the reserved `String.ofList` lookup predates this
 ordinary header batch; `HasPrimitives`, orderedness, and source freshness then
 exclude the remaining `Char`/`List` expansion names. -/
-theorem HeaderEnvironment.materializedAvailableLiteralDisjoint
+theorem HeaderEnvironment.checkedAvailableLiteralDisjoint
     (H : HeaderEnvironment c stats decl nparams isUnsafe depth sourceEnv
       indTypes outEnv) :
     checkPositivityStep.AvailableLiteralDisjoint

@@ -251,7 +251,7 @@ theorem ConstructorCheck.recursorPhasesWF
       simp [Array.getElem!_eq_getD, Array.getD, howner]
     rw [hownerBang] at hctor
     rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
-    rcases R.checkedConstructorRuntimeSeedAt elimLevel hElim hlparams Rlocal
+    rcases R.checkedConstructorPrefixInRecursorContextAt elimLevel hElim hlparams Rlocal
         henvLocal HsuffixLocal hparameterDeclsLocal owner howner ctorIdx
         hctorIdx with
       ⟨tail, tailTarget, introTarget, Hprefix, Hnormal, HtailFVars, Htail,
@@ -282,8 +282,8 @@ theorem ConstructorCheck.recursorPhasesWF
     noIndConsts := hctxLocal
     bindings := Hbindings
     origins := Horigins
-    blueprints := Hblueprints
-    blueprintSemantics := HblueprintSemantics
+    templates := Hblueprints
+    templateSemantics := HblueprintSemantics
     minorSources := HminorSources
     minorSemantics := HminorSemantics
     majorTypes := HmajorTypes

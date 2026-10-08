@@ -568,7 +568,7 @@ theorem NestedRun.restoredEquationSubstitution
     exact Lean4Lean.List.Forall₂.imp (fun _ _ hx =>
       Lean4Lean.List.Forall₂.imp (fun _ _ hc => hc.name) hx.constructors) h1
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames'
-  have Hlowered := E.loweredConstructors_of_evidence hadded henvTypes hfreshAll Hrestoring
+  have Hlowered := E.loweredConstructors_of_lowering hadded henvTypes hfreshAll Hrestoring
     hlevels
   have S₁ := E.constructorRenamingReplacement wf hadded henvTypes Haux Hexpansion hnodup
     hauxNames hSwf hle G.eliminatorProjNames hctorsS hnames Hlowered G.constructorProjNames

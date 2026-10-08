@@ -153,7 +153,7 @@ def HeaderEnvironment.formation
   constructorParameters := Hchecked.parameterShapes
     H.context.checking.tr.wf H.translation.types
     (H.statsWF.parameterEmbedding.scopeWF H.context.checking.tr.wf)
-    (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+    (checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped
       H.statsWF).params_size
     H.statsWF.uvars.symm (by
       rw [← H.headerParams]
@@ -161,7 +161,7 @@ def HeaderEnvironment.formation
   constructors := Hchecked.checked.formation
   rawShapes := Hchecked.rawShapes H.context.checking.tr.wf H.translation.types
     (H.statsWF.parameterEmbedding.scopeWF H.context.checking.tr.wf)
-    (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+    (checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped
       H.statsWF).params_size
 
 theorem AddConstants.entryTr
@@ -229,7 +229,7 @@ theorem AddInductive.checkConstructors.checkedWF
         CheckedConstructors sourceEnv decl H.context.venv
           H.headers.params stats indTypes c.lparams
           H.statsWF.parameterScope := by
-  have Hloops := checkConstructors.loopTypes.refinesMaterialized
+  have Hloops := checkConstructors.loopTypes.refinesChecked
     H.statsWF.parameterSuffix.headerCheck H.translation.types
     H.translation.typesAdded H.statsWF
     H.headerParams H.statsWF.parameterSuffix.headerCheck_paramAligned
@@ -260,7 +260,7 @@ theorem AddInductive.checkConstructors.ownerNormalFormsWF
       H.statsWF.parameterSuffix.headerCheck stats depth :=
     H.statsWF.parameterSuffix.toHeaderCheck
   let Hstats :=
-    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+    checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped
       H.statsWF
   have Hloops := checkConstructors.loopTypes.ownerNormalFormsWF
     (Q := fun _ => ConstructorOwnerNormalForms stats indTypes)
@@ -834,8 +834,8 @@ noncomputable def HeaderEnvironment.toCheckedFormation
   parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
   statsWF := H.statsWF
-  materializedParams := H.headerParams
-  materializedParameterScope := rfl
+  checkedParams := H.headerParams
+  checkedParameterScope := rfl
   constructorTails := Hchecked.constructorTails
   ctorVEnv := venvCtors
   formation := H.formation Hchecked
@@ -1041,7 +1041,7 @@ theorem AddInductive.declareConstructors.WF
         (hregistry.monoEnv hle) hrecursors'
         (fun hq => (hquot hq).extend (fun h => h) hle hrecursors'.heads)
         ((Hinstalled.ctorTelescopes H.context.checking.tr H.context.checking.ctorTelescopes
-          (Haligned.cornerSteps htele)).mono
+          (Haligned.ctorTelescopeSteps htele)).mono
           (VEnv.addEliminators_le.trans VEnv.addProjections_le))
     exact ⟨{
       toConstructorEnvironment := D

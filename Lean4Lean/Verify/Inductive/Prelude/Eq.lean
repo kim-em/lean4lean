@@ -237,7 +237,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
   have hconstructors :
       CtorParamsAgree .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
-    exact Hrecursors.completedConstructorSemantics
+    exact Hrecursors.constructorSemantics
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
@@ -254,7 +254,7 @@ theorem OrdinaryInstallation.extendSafePreludeEq
     apply VEnv.addEliminators_addProjections_le.constants
     apply (VEnv.addConstVals_le B.installation.abstract_ctors).constants
     exact htypesEq
-  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
+  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.newRecursorsAligned Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
       hconstructors
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF

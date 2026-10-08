@@ -12,7 +12,7 @@ namespace VerifyInductive
 Projection metadata is installed between constructors and recursors, exactly
 as in `VInductBlock.install`; no flattened pre-projection installation is used
 as a surrogate for this semantic trace. -/
-theorem NestedRestorationFolds.addInductOfStagedInstallation
+theorem NestedRestorationFolds.addInductOfInstallation
     (H : NestedRestorationFolds result loweredEnv sourceProdEnv
       auxRec allIndNames types auxRecNames out)
     (envTypes envCtors : VEnv)

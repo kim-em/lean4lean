@@ -317,7 +317,7 @@ theorem RecursorCounts.ofResult
     simpa using Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl)
   families := by
     exact
-      (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader
+      (checkPositivityStep.ValidAppStatsWF.ofHeaderStats
         Hmaterialized).types_size
   params := by
     have hlen := List.Forall₂.length_eq
@@ -327,7 +327,7 @@ theorem RecursorCounts.ofResult
   minors := mkRecInfos.flatMinors_size_of_translation Hdecl hsize hcounts
   indices := by
     let Hstats :=
-      checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
+      checkPositivityStep.ValidAppStatsWF.ofHeaderStats Hmaterialized
     intro i hi
     have hiDecl : i < decl.types.length := by
       rw [← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Hdecl]

@@ -502,7 +502,7 @@ theorem NestedRun.recursorMetadataOfStep
       stepSource stepTarget) :
     RecursorMetadata E.lowered.recursors.canonicalGeneration
       E.lowered.recursors.outVEnv owner Hstep.oldInfo := by
-  rcases E.lowered.recursors.metadataRealization owner with
+  rcases E.lowered.recursors.trMetadata owner with
     ⟨rec, hrec, _, M⟩
   have hlen : owner.val < E.lowered.recursors.entries.length := by
     rw [show E.lowered.recursors.entries =

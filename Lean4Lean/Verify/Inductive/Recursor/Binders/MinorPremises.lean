@@ -375,7 +375,7 @@ structure MotiveTelescopesAt
   between sibling constructor contexts merely to recover binder freshness. -/
   rootBinding : ∀ target (htarget : target < recInfos.size),
     Nonempty (MotiveBinding Rroot recInfos[target]! elimLevel)
-  evidence : ∀ target (htarget : target < recInfos.size)
+  appliesTo : ∀ target (htarget : target < recInfos.size)
       {current : AddInductive.Context}
       (Rcurrent : RecursorContextWF current recLparams)
       (Hext : RecursorContextExtension Rroot Rcurrent)
@@ -405,7 +405,7 @@ def MotiveTelescopesAt.of
         (RecursorContextExtension.refl Rroot).contextLE
         target htarget with ⟨Hbinding⟩
     exact ⟨Hbinding.toBinding⟩
-  evidence target htarget _current Rcurrent Hext _depth _exposedType
+  appliesTo target htarget _current Rcurrent Hext _depth _exposedType
       _syntaxTarget Hexposed HsyntaxType Hvalidated := by
     rcases Hshapes.motiveBindingAtMono (Rcurrent := Rcurrent)
         Hbindings Horigins Hext.contextLE target htarget with ⟨Hbinding⟩
@@ -1514,11 +1514,11 @@ theorem MotiveTelescopesAt.rebaseMotiveCore
     rcases K.rootBinding target htarget' with ⟨binding⟩
     exact ⟨binding.congrInfo (H.motive_eq target)
       (H.indices_eq target) (H.major_eq target)⟩
-  evidence target htarget _current Rcurrent Hext _depth _exposedType
+  appliesTo target htarget _current Rcurrent Hext _depth _exposedType
       _syntaxTarget Hexposed HsyntaxType Hvalidated := by
     have htarget' : target < left.size := by
       simpa [H.size_eq] using htarget
-    rcases K.evidence target htarget' Rcurrent Hext Hexposed HsyntaxType
+    rcases K.appliesTo target htarget' Rcurrent Hext Hexposed HsyntaxType
         Hvalidated with ⟨binding, ⟨evidence⟩⟩
     let binding' := binding.congrInfo (H.motive_eq target)
       (H.indices_eq target) (H.major_eq target)
@@ -1678,7 +1678,7 @@ theorem RecInfoMotiveTelescopes.rebaseCore
   · intro target htarget
     have htarget' : target < left.size := by
       simpa [H.size_eq] using htarget
-    rcases T.seed target htarget' with ⟨S, hparams⟩
+    rcases T.motiveDecls target htarget' with ⟨S, hparams⟩
     let S' := S.congrInfo (H.indices_eq target htarget').symm
       (H.major_eq target htarget').symm
     exact ⟨S', by
@@ -1686,7 +1686,7 @@ theorem RecInfoMotiveTelescopes.rebaseCore
   · intro target htarget
     have htarget' : target < left.size := by
       simpa [H.size_eq] using htarget
-    rcases T.seed target htarget' with ⟨S, hparams⟩
+    rcases T.motiveDecls target htarget' with ⟨S, hparams⟩
     let S' := S.congrInfo (H.indices_eq target htarget').symm
       (H.major_eq target htarget').symm
     exact ⟨S'.canonical, by
@@ -1758,7 +1758,7 @@ theorem MinorsAndIndicesMatchSource.rebaseCore
   ⟨MinorsMatchConstructors.rebaseCore O A.rows H,
     A.traces.congr H.size_eq H.indices_eq⟩
 
-theorem modifyMinorAndBlueprint_coreEq
+theorem modifyMinorAndTemplate_coreEq
     (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
     (hidx : dIdx < recInfos.size) (minor : Expr)
     (blueprint : AddInductive.RecRuleTemplate) :
@@ -1790,7 +1790,7 @@ theorem modifyMinorAndBlueprint_coreEq
     · rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi' hself]
       rw [mkRecInfos.loopCtors.getElemBang_modify_ne recInfos dIdx i _ hi' hself]
 
-theorem modifyMinorAndBlueprint_motiveCoreEq
+theorem modifyMinorAndTemplate_motiveCoreEq
     (recInfos : Array AddInductive.RecInfo) (dIdx : Nat)
     (hidx : dIdx < recInfos.size)
     (minor : Expr) (blueprint : AddInductive.RecRuleTemplate) :
@@ -1863,7 +1863,7 @@ theorem continueMinor_rowsSize
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
         ruleTemplates := info.ruleTemplates.push
           (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
-    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+    let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
@@ -1948,7 +1948,7 @@ theorem continueMinor_fieldsOuterFresh
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
         ruleTemplates := info.ruleTemplates.push
           (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
-    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+    let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
@@ -2113,7 +2113,7 @@ theorem continueMinor_fieldsOuterFresh
 
 /-- Syntactic rule-blueprint origins survive inserting the current
 constructor's minor premise and its blueprint at the end of row `dIdx`. -/
-theorem continueMinor_blueprintOrigins
+theorem continueMinor_templateOrigins
     (stats : AddInductive.InductiveStats)
     {recLparams : List Name} {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
@@ -2150,7 +2150,7 @@ theorem continueMinor_blueprintOrigins
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
         ruleTemplates := info.ruleTemplates.push
           (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
-    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+    let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
@@ -2280,7 +2280,7 @@ theorem continueMinor_blueprintOrigins
 minor premise as a local and inserting it with its blueprint at the end of row
 `dIdx`: old entries are transported along the context extension, and the new
 entry is `HminorTemplateTyped`. -/
-theorem continueMinor_blueprintSemanticOrigins
+theorem continueMinor_templateSemanticOrigins
     (stats : AddInductive.InductiveStats)
     {recLparams : List Name} {c : AddInductive.Context}
     (R : RecursorContextWF c recLparams)
@@ -2324,7 +2324,7 @@ theorem continueMinor_blueprintSemanticOrigins
         minors := info.minors.push (.fvar ⟨c.ngen.curr⟩)
         ruleTemplates := info.ruleTemplates.push
           (mkTemplate (.fvar ⟨c.ngen.curr⟩)) }
-    let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+    let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
       (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
     let HoriginsMinor := Horigins.addMinor dIdx hidx
       (BindingContextLE.refl c) R.toBindingContextWF minorName minorTy
@@ -2338,7 +2338,7 @@ theorem continueMinor_blueprintSemanticOrigins
   intro cMinor next Hcore HoriginsMinor HoriginsNext Rminor
   let Hstep := RecursorContextExtension.withLocalDecl
     (name := minorName) (bi := .default) R Hminor HminorType
-  let HmotiveCore := modifyMinorAndBlueprint_motiveCoreEq recInfos dIdx hidx
+  let HmotiveCore := modifyMinorAndTemplate_motiveCoreEq recInfos dIdx hidx
     (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
   have hmotivesNext : next.map (·.motive) = recInfos.map (·.motive) := by
     apply Array.ext
@@ -2605,7 +2605,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (RecursorContextExtension.refl R) dIdx hidx minorName
     (minorTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) .default Hminor HminorType HminorShape
     HminorShapePosition HminorSemantic
-  let Hcore := modifyMinorAndBlueprint_coreEq recInfos dIdx hidx
+  let Hcore := modifyMinorAndTemplate_coreEq recInfos dIdx hidx
     (.fvar ⟨c.ngen.curr⟩) (mkTemplate (.fvar ⟨c.ngen.curr⟩))
   let HbindingsNext : RecInfoBindings cMinor next :=
     HbindingsMinor.rebaseCore Hcore
@@ -2614,14 +2614,14 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
   let HparamsMinor := Hparams.mono Hstep.contextLE
   have HblueprintsNext :
       RuleTemplatesMatch stats next HoriginsNext :=
-    continueMinor_blueprintOrigins stats R dIdx recInfos minorName
+    continueMinor_templateOrigins stats R dIdx recInfos minorName
       _ mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings
       Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       Hblueprints HminorTemplate
   have HblueprintSemanticsNext :
       TypedRuleTemplates Rminor decl stats next elimLevel
         Hsuffix.parameterDecls HoriginsNext :=
-    continueMinor_blueprintSemanticOrigins stats R dIdx recInfos minorName
+    continueMinor_templateSemanticOrigins stats R dIdx recInfos minorName
       _ mkTemplate Horigins hidx HminorShape HminorShapePosition Hbindings
       Hparams Hlater HminorSemantics HminorSemantic HminorFieldsFresh
       Hminor HminorType HblueprintSemantics HminorTemplateTyped

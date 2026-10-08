@@ -6,7 +6,7 @@ import Lean4Lean.Std.List
 /-! Constructor restoration and `CompilationData` of a validated nested run,
 for the specializations of `NestedRun.restorationTablesRestoring`.
 
-`NestedRun.sourceConstructors_of_evidence`,
+`NestedRun.sourceConstructors_of_lowering`,
 `NestedRun.loweredConstructors_of` and
 `NestedRun.auxiliaryFamilies_of` each speak about a
 specialization list obtained from an existential, so their conclusions cannot
@@ -19,7 +19,7 @@ that list.
 The universe-level premise of `loweredConstructors_of` (`ConstLevelsAt`) is
 `NestedRun.loweredConstructorLevels_heads`, and the
 restoration of the auxiliary constructor types is
-`NestedRun.auxiliaryConstructors_of_evidence`. What remains
+`NestedRun.auxiliaryConstructors_of_lowering`. What remains
 open for `NestedCompilationRestorationFacts` (`compilationData_of_pending'`):
 
 * `normalizedTotal`: restoration is defined on the normalized constructor
@@ -108,7 +108,7 @@ theorem NestedRun.restorationPrefix_of {X : Prop}
       (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   -- executable constructor names agree with the table
@@ -157,7 +157,7 @@ theorem NestedRun.restorationPrefix_of {X : Prop}
 syntactically to the source constructor types, for the specializations of
 `restorationTablesRestoring`, given the universe-level premise of
 `NestedRun.loweredConstructors_of`. -/
-theorem NestedRun.loweredConstructors_of_evidence
+theorem NestedRun.loweredConstructors_of_lowering
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -218,7 +218,7 @@ theorem NestedRun.loweredConstructors_of_evidence
 specialization list with exact lowering evidence, modulo the restoration of
 the auxiliary constructor types (the tail of
 `NestedRun.auxiliaryFamilies_of`). -/
-theorem NestedRun.auxiliaryFamiliesField_of_evidence
+theorem NestedRun.auxiliaryFamiliesField_of_lowering
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -280,7 +280,7 @@ theorem NestedRun.auxiliaryFamiliesField_of_evidence
       (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hinit : E.lowered.initialEnv =
@@ -304,7 +304,7 @@ theorem NestedRun.auxiliaryFamiliesField_of_evidence
   have hparams : E.lowered.signature.params =
       E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.lowered.recursorConstruction.generator.params
-  refine auxiliaryFamilies_of_evidence (base := ves.venv (if isUnsafe then .unsafe else .safe))
+  refine auxiliaryFamilies_of_lowering (base := ves.venv (if isUnsafe then .unsafe else .safe))
     (headerParams := E.lowered.headers.headers.params)
     henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars
     hloweredNparams (hparams ▸ hlink) ?_ hmapM (Hrestores envTypes direct htypes' hmapM)

@@ -181,7 +181,7 @@ theorem RecursorConstruction.constructorRawSourceReplay
   rw [heq] at Hraw
   have Hcached := R.recursorHeaders.parameterSuffix.cached
   have hscope : R.recursorHeaders.parameterSuffix.parameterDecls = R.parameterScope :=
-    R.materializedFinal_parameterScope
+    R.recursorHeaders_parameterScope
   rw [hscope] at Hcached
   have houter := H.bindings.outerNodup H.params H.noAlias
   have hparams := (List.nodup_append.mp (List.nodup_append.mp houter).1).1
@@ -223,7 +223,7 @@ theorem ConstructorCheck.headerAnonymousParameterWF
     VLCtx.WF R.headerVEnv c.lparams.length
       (abstractForallContext R.parameterScope.toCtx.reverse []) := by
   have Hparams := R.statsWF.paramsContext
-  rw [R.materializedParameterScope] at Hparams
+  rw [R.checkedParameterScope] at Hparams
   have Hctx := abstractForallContext.isDefEq
     (right := R.parameterScope.toCtx.reverse) (by simpa using Hparams)
   exact (Hctx.symm R.headerCheckingAnnotations.1.wf.ordered).wf

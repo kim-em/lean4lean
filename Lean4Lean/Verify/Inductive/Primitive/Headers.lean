@@ -61,7 +61,7 @@ theorem AddInductive.declareInductiveTypes.installsSemanticHeadersAtomicWF
   let infos := AddInductive.inductiveTypeInfos stats numParams indTypes
     numNested isUnsafe c.lparams
   have Hentries :=
-    AddInductive.inductiveTypeInfos.translatedMaterializedHeaders
+    AddInductive.inductiveTypeInfos.translatedCheckedHeaders
       (stats := stats) (numParams := numParams) (numNested := numNested)
       Hsemantic.headers hindices hvisible
   have Hproduction := declareInductiveTypeInfos_refines c.allowPrimitive
@@ -194,7 +194,7 @@ namespace VerifyInductive
 /-- Package skeleton-free semantic assembly against an atomic primitive
 header installation.  The resulting context remains staged until constructor
 installation completes the toConstantsInstallation batch. -/
-def HeaderDeclarationOf.primitiveDeclaredResult
+def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -237,7 +237,7 @@ def HeaderDeclarationOf.primitiveDeclaredResult
   have hmetadataLength : H.metadata.length = indTypes.toList.length := by
     calc
       H.metadata.length = H.skeleton.types.length :=
-        VInductDeclSkeleton.materialize_length H.materialized
+        VInductDeclSkeleton.withMetadata_length H.checked
       _ = indTypes.toList.length :=
         (TrInductDeclSkeletonHeaders.types_length
           H.skeletonTranslation).symm
@@ -268,10 +268,10 @@ def HeaderDeclarationOf.primitiveDeclaredResult
     apply List.map_snd_zip
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
-    H.toHeaderDeclaration.materializedResult hlevels hlevelParams
+    H.toHeaderDeclaration.checkedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
-    change H.semanticPrefix.complete H.materialized = H.headers
+    change H.semanticPrefix.complete H.checked = H.headers
     exact H.headers_eq.symm
   let context : LocalContextWF { c with env := outEnv } :=
     Hc.toLocal.withEnv (venv' := envTypes)
@@ -366,7 +366,7 @@ theorem AddInductive.declareInductiveTypes.primitiveSemanticHeadersWF
     have hindices' : stats.nindices.toList = A.metadata.map Prod.fst := by
       rw [A.metadata_eq]
       exact hindices
-    let Hheaders := A.primitiveDeclaredResult Hatomic hlevels hlevelParams
+    let Hheaders := A.toPrimitiveHeaderEnvironment Hatomic hlevels hlevelParams
       hindices' hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
     exact ⟨A.decl, envTypes, Hheaders, trivial⟩
 

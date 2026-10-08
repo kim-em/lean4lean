@@ -184,7 +184,7 @@ theorem RecursorCheck.normalizedFamilyRigid
   rw [hname]
   exact H.familyRigid family hfamily
 
-theorem RecursorCheck.alignmentOfRealization
+theorem RecursorCheck.alignmentOfTr
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
@@ -272,7 +272,7 @@ theorem RecursorCheck.familyInfo
       rcases A.constructor i hiSrc with ⟨C⟩
       simpa only [List.getElem_map, hfamilyEq] using C.name
 
-theorem RecursorCheck.majorOfRealization
+theorem RecursorCheck.majorOfTr
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)
@@ -289,7 +289,7 @@ theorem RecursorCheck.majorOfRealization
 sort (which is `Prop` by the K condition and the model's result level), the
 constructor's raw parameter prefix comes from `CtorParameterShape`, and both
 parameter telescopes agree with the common one (`ParamsDefEq`). -/
-theorem RecursorCheck.kOfRealization
+theorem RecursorCheck.kOfTr
     {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv)

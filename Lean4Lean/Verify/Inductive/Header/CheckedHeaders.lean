@@ -50,7 +50,7 @@ structure CheckedHeader
   numIndices : Nat
   resultLevel : VLevel
   translation : TrSourceConst env Us source.name source.type target
-  synthesized : HeaderFormation env Us Us.length nparams params
+  formation : HeaderFormation env Us Us.length nparams params
     (headerSkeleton target) numIndices resultLevel
   commonLevel : resultLevel ≈ commonLevel
 
@@ -213,11 +213,11 @@ def headerCertificate
   typeShapes type htype := by
     simp only [headerDecl, List.mem_map] at htype
     rcases htype with ⟨payload, _hpayload, rfl⟩
-    exact payload.2.synthesized.typeShape (H.headerDecl isUnsafe) rfl rfl
+    exact payload.2.formation.typeShape (H.headerDecl isUnsafe) rfl rfl
 
 /-- Attach the semantic payloads to any constructor-bearing skeleton with
 the same ordered header constants. -/
-theorem toSynthesizedPrefix
+theorem toFormationPrefix
     (H : CheckedHeaders env Us nparams params
       commonLevel sources)
     (skeleton : VInductDeclSkeleton)
@@ -253,7 +253,7 @@ theorem toSynthesizedPrefix
     have hmetadata : H.metadata[i] =
         (payload.2.numIndices, payload.2.resultLevel) := by
       simp [metadata, payload, hiPayload]
-    have Hheader := payload.2.synthesized.retarget htarget
+    have Hheader := payload.2.formation.retarget htarget
     rw [hmetadata]
     exact {
       header := by simpa [huvars, hnparams] using Hheader
@@ -327,7 +327,7 @@ theorem CheckedHeaders.normalizedSourceAt
   simpa [CheckedHeaders.headerDecl,
     CheckedHeader.headerType,
     VInductiveTypeSkeleton.toVInductiveType, payload, hiPayload] using
-      payload.2.synthesized.normalizedSource
+      payload.2.formation.normalizedSource
 
 /-- The skeleton-free header fold retains the concrete source telescope and
 its exact semantic family shape from the same checked replay. -/
@@ -359,7 +359,7 @@ theorem CheckedHeaders.normalizedShapeAt
   simpa [CheckedHeaders.headerDecl,
     CheckedHeader.headerType,
     VInductiveTypeSkeleton.toVInductiveType, headerSkeleton] using
-      payload.2.synthesized.normalizedShape
+      payload.2.formation.normalizedShape
 
 /-- Recovered semantic metadata is exactly the index-count vector of the
 header-only declaration. -/
@@ -435,7 +435,7 @@ theorem CheckedHeaders.headerTranslationAt
 usable materialized header result before constructor targets are known.
 Constructor checking can therefore run against this declaration and produce
 those targets without circularly assuming a constructor-bearing skeleton. -/
-def CheckedHeaders.materializedResult
+def CheckedHeaders.checkedResult
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth : Nat}
     (H : CheckedHeaders Hc.venv c.lparams

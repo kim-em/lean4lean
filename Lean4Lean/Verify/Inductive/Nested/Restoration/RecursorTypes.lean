@@ -86,7 +86,7 @@ theorem NestedRun.loweredRecursorTypeTranslation
     TrExprS E.lowered.recursors.outVEnv Hstep.oldInfo.levelParams []
       Hstep.oldInfo.type
       (E.lowered.recursors.canonicalGeneration.recursorType owner) := by
-  rcases E.lowered.recursors.metadataRealization owner with
+  rcases E.lowered.recursors.trMetadata owner with
     ⟨rec, hrec, _, M⟩
   have hlen : owner.val < E.lowered.recursors.entries.length := by
     rw [show E.lowered.recursors.entries =
@@ -149,7 +149,7 @@ theorem NestedRun.recursorOwnerOfEntry
     rw [← E.lowered.recursors.entries_length_eq]
     exact hentry
   refine ⟨⟨ownerIdx, hi⟩, rfl, ?_⟩
-  rcases E.lowered.recursors.metadataRealization ⟨ownerIdx, hi⟩ with
+  rcases E.lowered.recursors.trMetadata ⟨ownerIdx, hi⟩ with
     ⟨rec, hrec, _, M⟩
   let G := E.lowered.recursors.generated.entry ownerIdx hentry
   have h : ConstantInfo.recInfo rec = .recInfo G.info := hrec.symm.trans G.source_eq

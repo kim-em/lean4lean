@@ -39,7 +39,7 @@ theorem RecursorConstruction.argumentUniverses (H : RecursorConstruction R) :
   dsimp only
   intro j hj
   obtain ⟨⟨_, _, _, _, F, _, _, _, _, _, _, _, _, _, _, _, _, _, _, ⟨HcallAt⟩⟩⟩ :=
-    H.blueprintSemantics.entry owner howner localIndex hlocal
+    H.templateSemantics.entry owner howner localIndex hlocal
   have hj' : j < (H.origins.minorShapes owner howner localIndex hlocal).hypotheses.size := by
     rw [← HcallAt.size_eq]
     exact hj

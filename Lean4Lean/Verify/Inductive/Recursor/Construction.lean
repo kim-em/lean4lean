@@ -62,8 +62,8 @@ structure RecursorConstruction
     recursorWF.mlctx.vlctx
   bindings : RecInfoBindings localContext recInfos
   origins : RecInfoBinderTypes localContext recInfos
-  blueprints : RuleTemplatesMatch stats recInfos origins
-  blueprintSemantics : TypedRuleTemplates recursorWF decl
+  templates : RuleTemplatesMatch stats recInfos origins
+  templateSemantics : TypedRuleTemplates recursorWF decl
     stats recInfos elimLevel parameterSuffix.parameterDecls origins
   minorSources : MinorsAndIndicesMatchSource stats indTypes origins
   minorSemantics : TypedMinors recursorWF origins

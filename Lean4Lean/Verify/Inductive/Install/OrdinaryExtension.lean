@@ -126,14 +126,14 @@ theorem OrdinaryInstallation.extendSafeExact
   have hconstructors :
       CtorParamsAgree .safe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
-    exact Hrecursors.completedConstructorSemantics
+    exact Hrecursors.constructorSemantics
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
     Hrecursors.inductInfosFromDecl
   have howners : ConstructorOwnersPresent outEnv :=
     Hrecursors.constructorOwnersPresent wf.constructorOwners
-  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.recursorProvenance
+  rcases B.extendSafeExact wf htels hdecl hcompile horigins T.newRecursorsAligned
       Hrecursors.closed howners hconstructors
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF
         (wf.mono (DefinitionSafety.le_safe (a := safety)))) with
@@ -194,7 +194,7 @@ theorem OrdinaryInstallation.extendUnsafeExact
   have hconstructors :
       CtorParamsAgree .unsafe outEnv
         (Hrecursors.outVEnv.addDefEqRules T.rules) := by
-    exact Hrecursors.completedConstructorSemantics
+    exact Hrecursors.constructorSemantics
       (wf.ctorParamsAgree (safety := .unsafe)) T.rules
   have horigins :
       InductInfosFromDecl c.env.constants outEnv.constants decl :=
@@ -216,7 +216,7 @@ theorem OrdinaryInstallation.extendUnsafeExact
     · exact Hrecursors.generated.entrySafety_eq_unsafe
         hlocalSafety hrecursors
   rcases B.extendUnsafeOfHiddenExact wf htels hdecl hcompile
-      horigins T.recursorProvenance hentries Hrecursors.closed howners hconstructors
+      horigins T.newRecursorsAligned hentries Hrecursors.closed howners hconstructors
       (Hrecursors.blockEliminatorsWF T.rules T.rulesWF) with
     ⟨ves', wf', hle, hadd, hfinal⟩
   have htypes : (ves.venv .unsafe).addConstVals (Hheaders.entries.map Prod.snd) =

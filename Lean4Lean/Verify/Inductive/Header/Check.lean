@@ -80,7 +80,7 @@ theorem firstStep.initializesSemanticAccumulator
         HsuffixBase.headerCheck.chk.vlctx
       rw [hctx]
       exact h
-    rcases initialHeaderSynthesisState Hc hctx
+    rcases initialHeaderTelescopeState Hc hctx
         (target := sourceSkeleton) HtargetSkeleton
         Hchecked.typing htype with
       ⟨normalized', hnormalized', ⟨Hsynthesis⟩⟩
@@ -91,7 +91,7 @@ theorem firstStep.initializesSemanticAccumulator
         Hc stats 0 :=
       checkInductiveTypes.loopType.ParameterContextSuffix.empty
         Hc hctx hparams
-    apply checkInductiveTypes.loopType.firstHeaderSynthesisWF
+    apply checkInductiveTypes.loopType.firstHeaderTelescopeWF
       (Us := c.lparams) (target := sourceSkeleton)
       (nparams := nparams) (stats := stats)
       (type := .forallE name dom body bi) (current := normalized')
@@ -118,7 +118,7 @@ theorem firstStep.initializesSemanticAccumulator
           hlparams' hallowPrimitive' hfuel' hempty' hlevels' hnindices'
           hconsts' hvenv' halign' hnotforall hi' Hcache' Hsuffix' Hsynthesis' htype'
         subst i'
-        apply firstResult.synthesizesHeader k Q Hc' hempty'
+        apply firstResult.formsHeader k Q Hc' hempty'
           Hsynthesis' htype' halign'
         · exact (congrArg List.length hlparams').trans Htarget.uvars.symm
         · intro resultSort resultLevel hofLevel Hheader Hambient
@@ -222,7 +222,7 @@ theorem firstStep.initializesSemanticAccumulator
 
 /-- A completed noninitial narrow telescope appends one declaration-independent
 semantic header. -/
-theorem laterResult.snocsSemanticNarrow
+theorem laterResult.snocsSemanticScoped
     {source : InductiveType} {target : VConstVal}
     {priorSources : List InductiveType}
     {narrowCurrent fullCurrent : VExpr} {scope : VLCtx}
@@ -395,14 +395,14 @@ theorem laterStep.extendsSemanticAccumulator
     let Hambient : checkInductiveTypes.loopType.AmbientParamContext
         HsuffixBase.headerCheck commonParams depth := { Hambient with }
     let Hc := HsuffixBase.headerCheck
-    rcases initialLaterHeaderSynthesisState Hc HtargetSkeleton
+    rcases initialLaterHeaderTelescopeState Hc HtargetSkeleton
         hclosed with
       ⟨narrowCurrent, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
     let Hscope : ∀ h : 0 < stats.params.size,
         checkInductiveTypes.loopType.ReusedParameterScope Hsuffix 0
           (.forallE name dom body bi) := fun h =>
       initialReusedParameterScope Hc Hsuffix h HtargetSkeleton.raw hbelow
-    apply checkInductiveTypes.loopType.laterParameterSynthesisWF Hc
+    apply checkInductiveTypes.loopType.laterParameterTelescopeWF Hc
       (target := sourceSkeleton)
       (k := fun type stats nindices => show AddInductive.M alpha from do
         let type ← TypeChecker.ensureSort type
@@ -438,7 +438,7 @@ theorem laterStep.extendsSemanticAccumulator
         have hparamsBoundary := Hsuffix.paramsDefEq Hambient <|
           hcommonParams.trans hparams.symm
         rw [hparamScope] at hparamsBoundary
-        apply checkInductiveTypes.loopType.laterIndexSynthesisWF
+        apply checkInductiveTypes.loopType.laterIndexTelescopeWF
           (depth := depth) (commonParams := commonParams)
           (paramU := c.lparams.length)
           (R := fun env =>
@@ -479,7 +479,7 @@ theorem laterStep.extendsSemanticAccumulator
             apply checkInductiveTypes.loopType.result.WF
               (fuel := fuel'') (Q := Q) hforall'' rfl
             let HsemanticPrior := Hsemantic''.reindexUs hlparams'.symm
-            apply laterResult.snocsSemanticNarrow
+            apply laterResult.snocsSemanticScoped
               (source := indTypes[dIdx]) (target := Hchecked.target)
               (priorSources := indTypes.toList.take dIdx)
               k Q Hc' hnonempty
@@ -567,7 +567,7 @@ theorem laterStep.extendsSemanticAccumulator
           change TrSourceConst Hc.venv c.lparams indTypes[dIdx].name
             indTypes[dIdx].type Hchecked.target
           exact Htarget
-        rcases initialLaterHeaderSynthesisState Hc HtargetSkeleton
+        rcases initialLaterHeaderTelescopeState Hc HtargetSkeleton
             hclosed with
           ⟨narrowCurrent, hnormalizedNarrow, ⟨Hsynthesis⟩⟩
         have hscopeEmpty : Hsuffix.parameterDecls = [] := by
@@ -841,7 +841,7 @@ theorem firstLoopIndSemantic
       have hlength := congrArg List.length Hsemantic.sourceOrder
       have : Hsemantic.payloads.length = 1 := by simpa using hlength
       omega
-    exact Hsemantic.payloads[0].2.synthesized.parameterCount
+    exact Hsemantic.payloads[0].2.formation.parameterCount
   have hidxList : 0 < indTypes.toList.length := by simpa using hnonempty
   let HsemanticTake :
       checkInductiveTypes.loopType.CheckedHeaders

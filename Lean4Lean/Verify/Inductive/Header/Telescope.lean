@@ -579,7 +579,7 @@ theorem HeaderTelescope.typeShape
 tail.  Unlike `typeShape`, this theorem does not require either field to have
 been chosen before the traversal: the index counter and translated sort are
 used to construct the target itself. -/
-theorem HeaderTelescope.synthesizedTypeShape
+theorem HeaderTelescope.formationTypeShape
     {c : AddInductive.Context} {Hc : ContextWF c}
     {decl : VInductDecl} {target : VInductiveTypeSkeleton}
     (H : HeaderTelescope Hc target current
@@ -927,7 +927,7 @@ theorem HeaderTelescope.headerFormation
     have huvars' : c.lparams.length = decl.uvars :=
       huvars.trans hdeclUvars.symm
     subst nparams
-    apply H.synthesizedTypeShape (decl := decl)
+    apply H.formationTypeShape (decl := decl)
     · exact huvars'
     · exact hofLevel
     · exact hsort
@@ -968,20 +968,20 @@ theorem HeaderFormations.normalizedSourceAt
 
 /-- After exact materialization, the retained source telescope is indexed by
 the corresponding family in the resulting declaration. -/
-theorem HeaderFormations.normalizedSourceAtMaterialized
+theorem HeaderFormations.normalizedSourceAtChecked
     (H : HeaderFormations env Us skeleton params commonLevel metadata
       skeleton.types.length)
     (Hmaterialize : skeleton.withMetadata metadata = some decl)
     (i : Nat) (hi : i < decl.types.length) :
     Nonempty (HeaderSourceTelescope env Us params decl.nparams
       decl.types[i].numIndices) := by
-  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
   have hskeleton : i < skeleton.types.length := by omega
   have hmetadata : i < metadata.length := by
-    rw [VInductDeclSkeleton.materialize_length Hmaterialize]
+    rw [VInductDeclSkeleton.withMetadata_length Hmaterialize]
     exact hskeleton
   have Hsource := H.normalizedSourceAt i hskeleton hmetadata
-  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hskeleton with
+  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize hskeleton with
     ⟨data, hdata, htarget⟩
   have hdataEq : data = metadata[i] := by
     rw [List.getElem?_eq_getElem hmetadata] at hdata
@@ -1000,7 +1000,7 @@ theorem HeaderFormations.normalizedSourceAtMaterialized
 used by the checker.  In particular, the concrete source index telescope and
 the abstract index domains in the family typing are selected by one header
 replay, rather than by unrelated existential `TypeShape` proofs. -/
-theorem HeaderFormations.normalizedShapeAtMaterialized
+theorem HeaderFormations.normalizedShapeAtChecked
     (H : HeaderFormations env Us skeleton params commonLevel metadata
       skeleton.types.length)
     (Hmaterialize : skeleton.withMetadata metadata = some decl)
@@ -1017,14 +1017,14 @@ theorem HeaderFormations.normalizedShapeAtMaterialized
             sourceTelescope.ownParams.reverse)
           residual (.sort decl.types[i].resultLevel)
             (.sort (.succ decl.types[i].resultLevel)) := by
-  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
   have hskeleton : i < skeleton.types.length := by omega
   have hmetadata : i < metadata.length := by
-    rw [VInductDeclSkeleton.materialize_length Hmaterialize]
+    rw [VInductDeclSkeleton.withMetadata_length Hmaterialize]
     exact hskeleton
   have Hchecked := List.forall₂_getElem H.checked i
     (by simpa using hskeleton) hmetadata
-  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hskeleton with
+  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize hskeleton with
     ⟨data, hdata, htarget⟩
   have hdataEq : data = metadata[i] := by
     rw [List.getElem?_eq_getElem hmetadata] at hdata
@@ -1046,7 +1046,7 @@ def HeaderFormations.complete
       skeleton.types.length)
     (Hmaterialize : skeleton.withMetadata metadata = some decl) :
     HeaderCertificate env decl := by
-  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
+  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
   have hcheckedLength :
       (skeleton.types.take skeleton.types.length).length = metadata.length :=
     List.Forall₂.length_eq H.checked
@@ -1062,7 +1062,7 @@ def HeaderFormations.complete
       decl.types[i]'(by omega) =
         skeleton.types[i].toVInductiveType metadata[i].1 metadata[i].2 := by
     intro i hi
-    rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hi with
+    rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize hi with
       ⟨data, hdata, htarget⟩
     have hmetadataGet : metadata[i]? = some metadata[i] := by
       simp [hmetadata, hi]
@@ -1561,7 +1561,7 @@ theorem ReusedParameterScope.older_eq_nil
 
 /-- After the final cached parameter is consumed, the accumulated narrow
 scope is exactly the complete cached-parameter suffix. -/
-theorem ReusedParameterScope.completedScope
+theorem ReusedParameterScope.scope
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth i : Nat}
     {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
@@ -1680,7 +1680,7 @@ theorem ReusedParameterScope.olderDrop
 /-- The checker contexts of the cached-parameter step: the parameters before
 `i`, and those up to and including `i`, together with the declared type of
 parameter `i` translated among the earlier parameters. -/
-theorem ReusedParameterScope.narrowTyping
+theorem ReusedParameterScope.scopedTyping
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth i : Nat}
     {Hsuffix : ParameterContextSuffix Hc stats depth} {e : Expr}
@@ -2069,7 +2069,7 @@ theorem index.cacheWF
 header, whose checker context is aligned with the main context.  The source
 body conversion and the following executable `whnf` are composed before the
 recursive state is exposed. -/
-theorem index.cacheSynthesisWF
+theorem index.cacheTelescopeWF
     (Hc : ContextWF c) (hi : ¬ i < nparams)
     (halign : Hc.Aligned)
     (Hcache : ParameterCachePrefix Hc.venv c.lparams Hc.mlctx.vlctx
@@ -2251,7 +2251,7 @@ theorem firstParameter.cacheWF
     (Hcache.push Hc Hdom.consumed Hdom.isType)
 
 /-- Complete first-parameter branch for the synthesized header telescope. -/
-theorem firstParameter.cacheSynthesisWF
+theorem firstParameter.cacheTelescopeWF
     (Hc : ContextWF c) (hi : i < nparams)
     (hempty : stats.indConsts.isEmpty = true)
     (halign : Hc.Aligned)
@@ -2464,7 +2464,7 @@ theorem laterParameter.checkedScopeWF
     ⟨paramTy, paramTy', param', hget, hparamTy, _hparamTyEq,
       hparam, hparamType⟩
   obtain ⟨hb₀, hb₁, paramTy₀, hget₀, hparamTy₀, hparamType₀⟩ :=
-    Hscope.narrowTyping histats
+    Hscope.scopedTyping histats
   cases hnarrow with
   | forallE _hdomType₀ _hbodyType₀ hdom₀ hbody₀ =>
   rename_i dom₀ body₀
@@ -2506,7 +2506,7 @@ theorem laterParameter.checkedScopeWF
     rw [hchk₀]; exact hdom₀
   have hparamTyN : TrExprS Hc.venv c.lparams Hci.chk.vlctx paramTy Hscope.paramType := by
     rw [hchk₀]; exact hparamTy₀
-  refine (isDefEqInContext.narrowWF Hci hdomN hparamTyN).bind fun equal hequal => ?_
+  refine (isDefEqInContext.checkingWF Hci hdomN hparamTyN).bind fun equal hequal => ?_
   cases equal
   · change (Except.error _).WF Q
     exact Except.WF.throw
@@ -2542,7 +2542,7 @@ theorem laterParameter.checkedScopeWF
 /-- Recursive verifier for the first mutual header.  It follows the concrete
 fuel recursion and carries both the parameter cache and the synthesized
 abstract telescope to the terminal continuation. -/
-theorem firstHeaderSynthesisWF
+theorem firstHeaderTelescopeWF
     {target : VInductiveTypeSkeleton}
     {sourceEnv : Environment}
     {sourceSafety : DefinitionSafety}
@@ -2612,7 +2612,7 @@ theorem firstHeaderSynthesisWF
           have hambient : Hsuffix.ambientDecls = [] := by
             apply List.eq_nil_of_length_eq_zero
             simpa using Hsuffix.prefixLength
-          apply firstParameter.cacheSynthesisWF
+          apply firstParameter.cacheTelescopeWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi hempty halign (by simpa using Hcache) Hsuffix hambient
             Hsynthesis hindices Hdom hbody
@@ -2632,7 +2632,7 @@ theorem firstHeaderSynthesisWF
           · intro _
             exact ⟨hindices', rfl⟩
           · exact hnext
-        · apply index.cacheSynthesisWF
+        · apply index.cacheTelescopeWF
             (nparams := nparams) (fuel := fuel) (k := k) (Q := Q)
             Hc hi halign Hcache Hsuffix Hsynthesis Hdom hbody
           intro c' Hc' henv' hsafety' hvenv' hlparams' hallowPrimitive'
@@ -2659,7 +2659,7 @@ theorem firstHeaderSynthesisWF
 /-- Cached-parameter recursion with the independent narrow header telescope
 accumulated in lockstep.  The executable reader context remains unchanged;
 the synthesis scope grows only by the parameters consumed by this header. -/
-theorem laterParameterSynthesisWF
+theorem laterParameterTelescopeWF
     {alpha : Type} (Hc : ContextWF c)
     {target : VInductiveTypeSkeleton}
     (k : Expr → AddInductive.InductiveStats → Nat →
@@ -2720,7 +2720,7 @@ theorem laterParameterSynthesisWF
           have := (Hc.mlctx_wf.dropN _
             (by rw [Hsuffix.mlctx_length]; omega :
               depth + (stats.params.size - (i + 1)) ≤ Hc.mlctx.length)).tr.wf
-          rwa [(Hcurrent.narrowTyping histats).2.1] at this
+          rwa [(Hcurrent.scopedTyping histats).2.1] at this
         rcases Hsynthesis.consumeParameter Hc.checking.tr.wf hindices
             htypeNarrow hcurrentWF hdomain htransition with
           ⟨normalized', hnormalized', ⟨Hsynthesis'⟩⟩
@@ -2739,7 +2739,7 @@ theorem laterParameterSynthesisWF
             have hdone : i + 1 = stats.params.size := by
               rw [hparams]
               exact heq
-            exact Hcurrent.completedScope hdone)
+            exact Hcurrent.scope hdone)
           Hsynthesis' hnormalized'
           (Hbody.consumedFVars hbelow) hnormalized
       · exact parameterMismatch.WF hforall (Nat.ne_of_lt hi)
@@ -2750,7 +2750,7 @@ theorem laterParameterSynthesisWF
 /-- Traverse the index suffix of a later mutual header while keeping its
 semantic telescope independent of ambient declarations retained by the
 executable checker. -/
-theorem laterIndexSynthesisWF
+theorem laterIndexTelescopeWF
     {alpha : Type} {target : VInductiveTypeSkeleton}
     {commonParams : List VExpr}
     {paramU : Nat}

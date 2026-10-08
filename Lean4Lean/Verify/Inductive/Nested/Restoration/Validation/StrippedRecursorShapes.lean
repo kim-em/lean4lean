@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Recursors
 /-!
 # Recursor shapes of the stripped restoration environment
 
-`NestedRestorationFolds.finalValidOfStaged_of_shapes`
+`NestedRestorationFolds.finalValidOfInstallation_of_shapes`
 (`Nested/Restoration/Validation/StrippedEnvironment.lean`) proves validity of the stripped-rule
 restoration environment from a premise `Hshapes` about every fresh recursor
 of that environment. This file discharges `Hshapes` for the exact nested run,
@@ -979,10 +979,10 @@ theorem NestedExpansionData.sourceConstructorNames
 nested run, from the hit shape of `recursorParamUniform'` and the
 executable fact that lowering recorded a nested occurrence (`hnested`, the
 condition under which `addInductiveAfterLowering` restores at all). The
-remaining arguments are those of `finalValidOfStaged_of_shapes`, together
+remaining arguments are those of `finalValidOfInstallation_of_shapes`, together
 with the two restoration traces from which the staged recursor list is
 built. -/
-theorem NestedRun.finalValidOfStaged_of_paramUniform
+theorem NestedRun.finalValidOfInstallation_of_paramUniform
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -1041,7 +1041,7 @@ theorem NestedRun.finalValidOfStaged_of_paramUniform
         (Lean4Lean.restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
       installedVEnv := by
-  refine Hrestored.finalValidOfStaged_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
+  refine Hrestored.finalValidOfInstallation_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
     Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource ?_ htels
   intro name rec hfind _hs hnone
   -- the restoration tables of the run
@@ -1087,7 +1087,7 @@ theorem NestedRun.finalValidOfStaged_of_paramUniform
     exact ⟨I, ls, hfn⟩
   -- the stripped lookups
   obtain ⟨hcore, -, -⟩ :=
-    Hrestored.finalLocalValidOfStaged Hlower Hc Hprod Hsource Hmetadata Hsources
+    Hrestored.finalLocalValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
       Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have houtWF : outEnv.constants.WF := hcore.tr.map_wf

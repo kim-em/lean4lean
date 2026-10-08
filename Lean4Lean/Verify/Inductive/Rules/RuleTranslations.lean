@@ -226,7 +226,7 @@ theorem RecursorCheck.ownedConstructors_map_val
     exact hu.1
 
 /-- Rule coverage of one installed recursor against the canonical generation. -/
-theorem RecursorCheck.ruleRealizations
+theorem RecursorCheck.trRules
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations)
     (o : Fin H.generationSignature.families.size) (howner : o.val < H.entries.length) :
     List.Forall₂ (InductiveSignature.TrRecursorRule H.canonicalGeneration H.outVEnv
@@ -258,7 +258,7 @@ theorem RecursorCheck.ruleRealizations
     exact Hrhs o.val howner j hj' hk
 
 /-- Every installed recursor entry realizes the canonical generation. -/
-theorem RecursorCheck.entryRealizations
+theorem RecursorCheck.trEntries
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
     List.Forall₂ (InductiveSignature.TrRecursorEntry H.canonicalGeneration H.outVEnv)
       (List.finRange H.generationSignature.families.size) H.entries := by
@@ -268,28 +268,28 @@ theorem RecursorCheck.entryRealizations
   have hfin : (List.finRange H.generationSignature.families.size)[j] = ⟨j, hjf⟩ := by
     simp
   rw [hfin]
-  obtain ⟨rec, hsource, hvalue, M⟩ := H.metadataRealization ⟨j, hjf⟩
+  obtain ⟨rec, hsource, hvalue, M⟩ := H.trMetadata ⟨j, hjf⟩
   have hrec : rec = (H.generated.entry j hj').info := by
     have h := hsource.symm.trans (H.generated.entry j hj').source_eq
     exact ConstantInfo.recInfo.inj h
   subst hrec
-  exact ⟨_, hsource, hvalue, M.toTrRecursorVal (H.ruleRealizations Hrhs ⟨j, hjf⟩ hj')⟩
+  exact ⟨_, hsource, hvalue, M.toTrRecursorVal (H.trRules Hrhs ⟨j, hjf⟩ hj')⟩
 
 /-- The second junction: given the closed RHS translations, the completed
 recursor phase determines the full rule translation result, with the
 canonical generation's equations as the rule list. -/
-theorem RecursorCheck.completedRuleTranslation_of
+theorem RecursorCheck.ruleTranslation_of
     (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
     Nonempty (RuleTranslations H) := by
   have hrulesWF := H.equationsWF (H.equationBodyTranslations_of Hrhs)
   refine ⟨{ rules := H.canonicalGeneration.equations
             rulesWF := hrulesWF
-            realization := ?_ }⟩
+            trCompilation := ?_ }⟩
   · refine ⟨⟨H.generationSignature, H.canonicalGeneration, R.headerVEnv,
       H.generator.models, R.core.typesAdded, H.canonicalGeneration_admissible,
       ⟨R.ctorVEnv, R.eliminators, R.core.ctorsAdded, R.eliminatorsOwn, ?_, ?_⟩,
       H.generator.names, ?_, rfl,
-      H.entryRealizations Hrhs⟩⟩
+      H.trEntries Hrhs⟩⟩
     · rw [← R.contextVEnv]; exact H.generator.recursiveTypesWF
     · rw [← R.contextVEnv]; exact H.generator.familyTypesWF
     · exact H.canonicalRecursors
@@ -318,7 +318,7 @@ theorem RecursorCheck.canonicalCompletedRuleTranslation
       sourceEnv indTypes ctorEnv}
     (H : RecursorCheck R outEnv) :
     Nonempty (RuleTranslations H) :=
-  H.completedRuleTranslation_of H.ruleRhsTranslations
+  H.ruleTranslation_of H.ruleRhsTranslations
 
 end VerifyInductive
 

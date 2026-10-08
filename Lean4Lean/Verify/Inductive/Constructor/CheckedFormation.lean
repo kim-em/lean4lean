@@ -270,8 +270,8 @@ structure CheckedFormation (c : AddInductive.Context)
   sourceParameterScope : sourceStatsWF.parameterScope = parameterScope
   statsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     headerVEnv c.lparams headerMLCtx.vlctx stats decl depth
-  materializedParams : statsWF.headers.params = params
-  materializedParameterScope : statsWF.parameterScope = parameterScope
+  checkedParams : statsWF.headers.params = params
+  checkedParameterScope : statsWF.parameterScope = parameterScope
   constructorTails : ConstructorTails headerVEnv c.lparams
     parameterScope stats decl indTypes
   ctorVEnv : VEnv
@@ -537,8 +537,8 @@ theorem sourceSignatureHeader_constructor
     simpa only [R.sourceContextVEnv] using R.sourceContext.checking.tr.wf
   have hctx : R.headerVEnv.IsDefEqCtx decl.uvars []
       R.sourceSignatureHeader.params.reverse R.parameterScope.toCtx := by
-    simpa only [R.statsWF.uvars, R.materializedParams,
-      R.materializedParameterScope, R.sourceSignatureHeader_params] using R.statsWF.paramsContext
+    simpa only [R.statsWF.uvars, R.checkedParams,
+      R.checkedParameterScope, R.sourceSignatureHeader_params] using R.statsWF.paramsContext
   let owner : Fin R.sourceSignatureHeader.families.size :=
     ⟨i, by simpa [sourceSignatureHeader,
       checkInductiveTypes.loopInd.HeaderStatsWF.signatureHeader] using hi⟩

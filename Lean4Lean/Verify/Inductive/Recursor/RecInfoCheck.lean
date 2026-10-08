@@ -74,7 +74,7 @@ def ConstructorCheck.motivePassHeaderAt
   refine {
     target := decl.types[familyIdx]
     targetAt := by simp [htarget]
-    materialized := R.recursorHeaders
+    checked := R.recursorHeaders
     sourceTranslation := Hsource
     sourceTranslationUses := HsourceUses
     recursorSourceTranslationRestricted := HrecursorSource
@@ -91,7 +91,7 @@ def ConstructorCheck.motivePassHeaderAt
 /-- The common constructor boundary supplies a typed constructor application
 seed independently of whether its constants were installed ordinarily or as
 an atomic primitive batch. -/
-theorem ConstructorCheck.checkedConstructorPrefixSeedAt
+theorem ConstructorCheck.checkedConstructorPrefixAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -149,7 +149,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
         rw [← R.constructorTails.size_eq]
         exact hfamily))
       indTypes[familyIdx].ctors[ctorIdx] := by
-    rw [R.materializedFinal_parameterScope]
+    rw [R.recursorHeaders_parameterScope]
     exact Hreplay
   have Hrebased := Hreplay'.toRecursorContext
     Hmaterialized hheaderLE Helim
@@ -166,7 +166,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
     exact ⟨decl.types[familyIdx], List.getElem_mem hfamilyDecl, hctorMem⟩
   have hctorWFHeader : ctorVal.toVConstant.WF R.headerVEnv := by
     simpa [VConstant.WF, hctorUvars, R.statsWF.uvars,
-      R.materializedParams, R.headerParams] using
+      R.checkedParams, R.headerParams] using
       R.checked.types ctorVal hctorConstantMem
   have hctorWF : ctorVal.toVConstant.WF Rbase.venv := by
     simpa [Rbase, Hbase] using hctorWFHeader.mono hheaderLE
@@ -241,7 +241,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
 
 /-- Reinterpret the common checked seed in any later recursor context with
 the retained parameter suffix. -/
-theorem ConstructorCheck.checkedConstructorRuntimeSeedAt
+theorem ConstructorCheck.checkedConstructorPrefixInRecursorContextAt
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
@@ -288,7 +288,7 @@ theorem ConstructorCheck.checkedConstructorRuntimeSeedAt
   let Hbase := R.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
   let HsuffixBase := R.recursorHeaders.parameterSuffix.toRecursorContext Helim
-  rcases R.checkedConstructorPrefixSeedAt Helim hlparams familyIdx hfamily
+  rcases R.checkedConstructorPrefixAt Helim hlparams familyIdx hfamily
       ctorIdx hctor with
     ⟨_ctorVal, tail, tailNarrow, introNarrow, _hmem, _hname,
       Hprefix, Htail, HtailType, Hintro, _HintroShape,
@@ -391,7 +391,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
   let Hmaterialized := R.recursorHeaders
   let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
   let HstatsOrdinary :=
-    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
+    checkPositivityStep.ValidAppStatsWF.ofHeaderStats Hmaterialized
   let Hstats := HstatsOrdinary.toRecursorContext Helim
   let Hheaders : forall i (hi : i < indTypes.size),
       mkRecInfos.loopArgs1.MotivePassHeaderAt Hbase stats decl depth
@@ -403,7 +403,7 @@ theorem ConstructorCheck.loopInd1SemanticWF
         ((Hheaders i hi).recursorParams Helim).reverse
         Hsuffix.parameterDecls.toCtx := by
     intro i hi
-    have hmaterialized : (Hheaders i hi).materialized = Hmaterialized := rfl
+    have hmaterialized : (Hheaders i hi).checked = Hmaterialized := rfl
     change VEnv.IsDefEqCtx Rbase.venv
       (AddInductive.getRecLevelParams elimLevel c.lparams).length []
       ((Hheaders i hi).recursorParams Helim).reverse
@@ -578,7 +578,7 @@ theorem ConstructorCheck.mkRecInfosWF
   · intro current currentDepth Rcurrent henvCurrent HsuffixCurrent
       hparameterDeclsCurrent familyIdx hfamily ctor hctor
     rcases List.mem_iff_getElem.mp hctor with ⟨ctorIdx, hctorIdx, rfl⟩
-    rcases R.checkedConstructorRuntimeSeedAt elimLevel Helim hlparams
+    rcases R.checkedConstructorPrefixInRecursorContextAt elimLevel Helim hlparams
         Rcurrent (henvCurrent.trans henvFrames) HsuffixCurrent
         (hparameterDeclsCurrent.trans hparameterDeclsFrames) familyIdx
         hfamily ctorIdx hctorIdx with

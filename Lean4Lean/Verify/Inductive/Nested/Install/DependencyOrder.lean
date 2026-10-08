@@ -1016,7 +1016,7 @@ the exact restoration replay and its two executable side-condition traces.
 The source specification fixes the mutual-header and constructor abstract
 endpoints; the checking invariant constructs the final recursor endpoint.
 No endpoint or installation certificate is selected by a caller. -/
-theorem RestorationInDependencyOrder.existsStagedBlock
+theorem RestorationInDependencyOrder.existsBlockInstallation
     (projections : List VProjectionEntry)
     (es : List (Name × InductiveSignature.CaseSchema))
     (H : RestorationInDependencyOrder safety sourceProdEnv outProdEnv
@@ -1161,7 +1161,7 @@ source semantics and the block-independent auxiliary recursor trace.  Every
 layout, concrete endpoint, value split, and installation field is derived
 before restored rule semantics; the remaining inputs are the primitive-safe
 and non-delta companion traces from the same executable run. -/
-theorem SourceFamilyTranslations.existsExactStagedRestoration
+theorem SourceFamilyTranslations.existsExactRestoration
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl decl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -1233,7 +1233,7 @@ theorem SourceFamilyTranslations.existsExactStagedRestoration
     simpa only [Hheaders.sourceContextVEnv] using
       Hheaders.sourceContext.checking.tr
   obtain ⟨HcasesWF, HprojectedWF⟩ := Hcases.windowWF HsourceChecking.wf Hcore Hparams
-  rcases replay.existsStagedBlock decl.projectionEntries es HsourceChecking
+  rcases replay.existsBlockInstallation decl.projectionEntries es HsourceChecking
       HcasesWF HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with
     ⟨canonicalProdEnv, installedVEnv, Hstaged, hlookup⟩

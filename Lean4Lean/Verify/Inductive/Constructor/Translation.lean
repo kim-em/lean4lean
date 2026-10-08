@@ -52,7 +52,7 @@ theorem accumulatesSemanticTargets
     HmaterializedMono.retargetScope hscope
   let Hsuffix := Hmaterialized'.parameterSuffix
   let Hstats :=
-    checkPositivityStep.ValidAppStatsWF.ofMaterializedHeaderNarrow
+    checkPositivityStep.ValidAppStatsWF.ofHeaderStatsScoped
       Hmaterialized'
   have hheaderParams' : Hmaterialized'.headers.params = commonParams :=
     by

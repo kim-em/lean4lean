@@ -226,7 +226,7 @@ theorem NestedRun.loweredConstructorLevelsAll
       result.types P.isUnsafe P.loweredDecl Hpack.1.context.venv
         R.declared.venvCtors := R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HbaseWF : P.initialEnv.WF := by

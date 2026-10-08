@@ -370,7 +370,7 @@ structure TypedRecursiveCallsAfterHypotheses
                   S.rootScope = P ∧
                     Nonempty S.MotiveApplication
 
-theorem TypedRecursiveCallsAfterHypotheses.toStaged
+theorem TypedRecursiveCallsAfterHypotheses.toAbove
     (H : TypedRecursiveCallsAfterHypotheses indTypes stats
       motives minors lvls Rfield decl P u v done) :
     TypedRecursiveCallsAbove indTypes stats motives minors

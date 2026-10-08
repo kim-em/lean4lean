@@ -763,7 +763,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   obtain ⟨_, hft, hrfLen, Hshape⟩ := H.generatedBy_shapeTranslations o ho i hlocal
   obtain ⟨hjB, hpos, hfield, htarget, hbinders, hmajor, htemplate, Hdom, Hidx⟩ := Hshape j hj
   have hjS : j < (H.origins.minorShapes o ho i hlocal).hypotheses.size := hrfLen ▸ hj
-  obtain ⟨_, _, _, _, traversal, origins, _, horig, _, _, Hcalls⟩ := H.blueprints.entry o ho i hlocal
+  obtain ⟨_, _, _, _, traversal, origins, _, horig, _, _, Hcalls⟩ := H.templates.entry o ho i hlocal
   obtain ⟨originRoot, sourceType, O, D, _, _, hcall⟩ := Hcalls.entry j hjS
   simp only [AddInductive.RecCallTemplate.instantiate]
   rw [htemplate, hmajor, hfield, H.recAppEq]
@@ -784,7 +784,7 @@ theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
   have hdisj : ∀ x ∈ H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars),
       x ∉ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars := by
     intro x hx hxF
-    have := H.blueprints.fields_outer_fresh o ho i hlocal x hxF
+    have := H.templates.fields_outer_fresh o ho i hlocal x hxF
     rw [H.params.exprArrayFVarIds, H.bindings.motives.exprArrayFVarIds,
       H.bindings.flatMinors.exprArrayFVarIds] at this
     exact this (by simpa [List.append_assoc] using hx)
@@ -998,7 +998,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   obtain ⟨_, hft, hrfLen, Hshape⟩ := H.generatedBy_shapeTranslations o ho i hlocal
   obtain ⟨hnf, hnp, hnfam, hnctor⟩ := H.ruleCounts o ho i hlocal hk
   obtain ⟨_, hfieldsB, hlctxB, hminorB, traversal, origins, _, horig, _, _, Hcalls⟩ :=
-    H.blueprints.entry o ho i hlocal
+    H.templates.entry o ho i hlocal
   obtain ⟨hkN, hminorN⟩ := H.flatMinorFVar o ho i hlocal
   have houter := H.bindings.outerNodup H.params H.noAlias
   have hPMN : (H.params.fvars ++ (H.bindings.motives.fvars ++
@@ -1007,7 +1007,7 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   have hdisj : ∀ x ∈ H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars),
       x ∉ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars := by
     intro x hx hxF
-    have := H.blueprints.fields_outer_fresh o ho i hlocal x hxF
+    have := H.templates.fields_outer_fresh o ho i hlocal x hxF
     rw [H.params.exprArrayFVarIds, H.bindings.motives.exprArrayFVarIds,
       H.bindings.flatMinors.exprArrayFVarIds] at this
     exact this (by simpa [List.append_assoc] using hx)
@@ -1195,7 +1195,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
   refine ⟨hk, ?_⟩
   obtain ⟨hnf, hnp, hnfam, hnctor⟩ := H.ruleCounts o ho i hlocal hk
   obtain ⟨_, hfieldsB, hlctxB, hminorB, traversal, origins, _, horig, _, _, Hcalls⟩ :=
-    H.blueprints.entry o ho i hlocal
+    H.templates.entry o ho i hlocal
   obtain ⟨hkN, hminorN⟩ := H.flatMinorFVar o ho i hlocal
   have houter := H.bindings.outerNodup H.params H.noAlias
   have hPMN : (H.params.fvars ++ (H.bindings.motives.fvars ++
@@ -1204,7 +1204,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
   have hdisj : ∀ x ∈ H.params.fvars ++ (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars),
       x ∉ (H.origins.minorShapes o ho i hlocal).fields_bound.fvars := by
     intro x hx hxF
-    have := H.blueprints.fields_outer_fresh o ho i hlocal x hxF
+    have := H.templates.fields_outer_fresh o ho i hlocal x hxF
     rw [H.params.exprArrayFVarIds, H.bindings.motives.exprArrayFVarIds,
       H.bindings.flatMinors.exprArrayFVarIds] at this
     exact this (by simpa [List.append_assoc] using hx)
@@ -1441,7 +1441,7 @@ theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
         (H.generator.generation.equation ⟨recursorMinorOffset indTypes o + i, hk⟩).rhs := by
   have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho
   have hlocal : i < H.origins.minorTypes[o]!.size := by
-    rw [← H.blueprints.rows_size o howner, ← H.generated_rules_length o ho]
+    rw [← H.templates.rows_size o howner, ← H.generated_rules_length o ho]
     exact hi
   rw [H.rulesLiteral o ho i hi]
   exact H.toRecursorConstruction.ruleRhsSyn o howner i hlocal
@@ -1459,7 +1459,7 @@ theorem RecursorCheck.ruleRhsTyped {outEnv : Environment}
       ((H.generated.entry o ho).info.rules[i]).rhs X := by
   have howner : o < H.recInfos.size := by simpa [H.generated.length] using ho
   have hlocal : i < H.origins.minorTypes[o]!.size := by
-    rw [← H.blueprints.rows_size o howner, ← H.generated_rules_length o ho]
+    rw [← H.templates.rows_size o howner, ← H.generated_rules_length o ho]
     exact hi
   have hctor : i < indTypes[o]!.ctors.length := by
     rw [← H.minorTypes_size o howner]; exact hlocal

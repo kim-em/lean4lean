@@ -935,7 +935,7 @@ def fvarSelectionLift (fvars : List FVarId) (P : FVarId → Prop)
     if P fv then .cons (fvarSelectionLift fvars P)
     else .skip (fvarSelectionLift fvars P)
 
-theorem MLCtxOnlyLams.narrowFVarsSourceOracle
+theorem MLCtxOnlyLams.scopedFVarsSourceOracle
     {c : TypeChecker.MLCtx} {env : VEnv} {Us : List Name}
     (H : MLCtxOnlyLams c)
     (henv : env.WF)

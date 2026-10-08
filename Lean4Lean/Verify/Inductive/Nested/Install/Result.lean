@@ -58,7 +58,7 @@ theorem NestedInstalledRun.inductiveExtension
     simpa only [E.context_env] using Hlower
   have Hmetadata : SourcePrefixOfLowered decl
       E.lowered.loweredDecl := by
-    simpa only [E.lowered_eq] using E.assembly.materialized
+    simpa only [E.lowered_eq] using E.assembly.checked
   cases isUnsafe with
   | false =>
       exact E.safeInductiveExtension wf htels Hlower' Hmetadata
@@ -120,7 +120,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
   have hnonempty : 0 < res.types.toArray.size :=
     HlowerInitial.resultTypesSizePos
   have Hrun :=
-    Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF
+    Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF
       env lparams nparams sourceTypes isUnsafe false fuel res
       Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
@@ -197,7 +197,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
         exact wf.constructorOwners
       have Hmetadata : SourcePrefixOfLowered sourceDecl
           E'.lowered.loweredDecl := by
-        simpa only [E'.lowered_eq] using E'.assembly.materialized
+        simpa only [E'.lowered_eq] using E'.assembly.checked
       cases isUnsafe with
       | false =>
           exact E'.safeConstructorSemanticsOfParameterDomains wf HlowerExact

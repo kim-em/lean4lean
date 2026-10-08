@@ -849,7 +849,7 @@ theorem ValidationEnvironment.validProjected
 come from canonical replay, owners from the restoration trace, and projection
 metadata from the restored source families. These facts do not supply
 recursor semantics. -/
-theorem NestedRestorationFolds.finalLocalValidOfStaged
+theorem NestedRestorationFolds.finalLocalValidOfInstallation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}

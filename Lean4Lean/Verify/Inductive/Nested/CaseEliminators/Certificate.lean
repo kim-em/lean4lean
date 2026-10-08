@@ -87,7 +87,7 @@ theorem NestedRun.boundarySignatureFacts
     generalize B.sourceSignature = sL at h ⊢
     rwa [hinit] at h
   · have Hctx := B.params_scope
-    rw [hBscope, OrdinaryConstructorCheck.completed_parameterScope_toCtx] at Hctx
+    rw [hBscope, OrdinaryConstructorCheck.parameterScope_toCtx] at Hctx
     have hp : B.sourceSignature.params = B.params := B.sourceSignatureHeader_params
     rw [hp]
     generalize B.params = P at Hctx ⊢
@@ -271,7 +271,7 @@ theorem NestedRun.boundaryCaseCompilationData
   have hlevels := E.loweredConstructorLevels_heads wf Hsources hheadNames
   have HsrcRestore := sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
     (forall₂_take' Hdefeq sourceDecl.types.length)
-    (E.loweredConstructors_of_evidence hadded henvTypes hfreshAll Hrestoring hlevels)
+    (E.loweredConstructors_of_lowering hadded henvTypes hfreshAll Hrestoring hlevels)
     (fun n hn => htotal n (List.mem_of_mem_take hn))
   have hlevelsAux : ∀ t ∈ E.lowered.loweredDecl.types.drop sourceDecl.types.length,
       ∀ lc ∈ t.ctors, lc.type.ConstLevelsAt (r.heads.map (·.auxiliary))
@@ -313,7 +313,7 @@ theorem NestedRun.boundaryCaseCompilationData
             normalized.ctors family.ctors)
         (B.sourceSignature.declaration.types.drop sourceDecl.types.length) direct := by
     intro direct hmapM
-    refine auxiliaryFamilies_of_evidence (base := ves.venv (if isUnsafe then .unsafe else .safe))
+    refine auxiliaryFamilies_of_lowering (base := ves.venv (if isUnsafe then .unsafe else .safe))
       (headerParams := E.lowered.headers.headers.params)
       henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars
       hloweredNparams hPL ?_ hmapM (HauxRestore direct hmapM)

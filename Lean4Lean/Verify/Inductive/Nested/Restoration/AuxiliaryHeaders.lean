@@ -244,7 +244,7 @@ theorem auxiliaryFamily_header
 /-- The `auxiliaryFamilies` relation of `NestedCompilationRestorationFacts`, for any
 specialization list with exact lowering evidence, given the restoration of the
 auxiliary constructor types. -/
-theorem auxiliaryFamilies_of_evidence
+theorem auxiliaryFamilies_of_lowering
     {base envTypes : VEnv} {paramCtx params headerParams : List VExpr}
     {decl lowered : VInductDecl} {leaf : Nat → VExpr → VExpr → Prop}
     {r : Restoration} {auxiliaries : List ContainerSpecialization}

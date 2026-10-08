@@ -111,7 +111,7 @@ theorem InstalledHeaders.unreservedLiteralNamesDisjointOfSourceContains
 /-- The installed semantic header result itself supplies positivity's
 environment-indexed literal side condition; no caller disjointness premise
 is needed. -/
-theorem InstalledHeaders.materializedAvailableLiteralDisjoint
+theorem InstalledHeaders.checkedAvailableLiteralDisjoint
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {nparams depth : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -181,7 +181,7 @@ target assembly in the standard production header boundary.  The declaration,
 translation and header certificate are all synthesized; the remaining inputs
 are exactly the executable statistics and scope invariants retained by the
 outer header fold. -/
-def HeaderDeclarationOf.declaredResult
+def HeaderDeclarationOf.toHeaderEnvironment
     {c : AddInductive.Context} {Hc : ContextWF c}
     {stats : AddInductive.InductiveStats} {depth nparams : Nat}
     {indTypes : Array InductiveType} {numNested : Nat} {isUnsafe : Bool}
@@ -222,7 +222,7 @@ def HeaderDeclarationOf.declaredResult
   have hmetadataLength : H.metadata.length = indTypes.toList.length := by
     calc
       H.metadata.length = H.skeleton.types.length :=
-        VInductDeclSkeleton.materialize_length H.materialized
+        VInductDeclSkeleton.withMetadata_length H.checked
       _ = indTypes.toList.length :=
         (Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.types_length
           H.skeletonTranslation).symm
@@ -254,10 +254,10 @@ def HeaderDeclarationOf.declaredResult
     apply List.map_snd_zip
     simpa using Nat.le_of_eq hinfosLength.symm
   let sourceMaterialized :=
-    H.toHeaderDeclaration.materializedResult hlevels hlevelParams
+    H.toHeaderDeclaration.checkedResult hlevels hlevelParams
       hindices hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
   have hsourceHeaders : sourceMaterialized.headers = H.headers := by
-    change H.semanticPrefix.complete H.materialized = H.headers
+    change H.semanticPrefix.complete H.checked = H.headers
     exact H.headers_eq.symm
   have hle : Hc.venv ≤ Hinstalled.context.venv := by
     rw [Hinstalled.contextVEnv]
@@ -350,13 +350,13 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
           { headerCheckContext c stats with env := headerEnv }).WF fun _ =>
             ∃ decl, Nonempty (HeaderEnvironment c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv) := by
-  let HheaderMaterialized := Hsemantic.materializedResult
+  let HheaderMaterialized := Hsemantic.checkedResult
     (isUnsafe := isUnsafe) hlevels hlevelParams hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
   have hheaderParams : HheaderMaterialized.headers.params =
       commonParams := by
     simp [HheaderMaterialized,
-      checkInductiveTypes.loopType.CheckedHeaders.materializedResult,
+      checkInductiveTypes.loopType.CheckedHeaders.checkedResult,
       checkInductiveTypes.loopType.CheckedHeaders.headerCertificate]
   have Hdeclare :=
     AddInductive.declareInductiveTypes.semanticHeadersWF Hc Hsemantic
@@ -369,7 +369,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
       simpa only [Hinstalled.contextVEnv] using Hinstalled.typesAdded
     have hlitInstalled : checkPositivityStep.AvailableLiteralDisjoint
         Hinstalled.context.venv stats.indConsts :=
-      Hinstalled.materializedAvailableLiteralDisjoint HheaderMaterialized
+      Hinstalled.checkedAvailableLiteralDisjoint HheaderMaterialized
     have hjL : depth ≤ Hinstalled.context.mlctx.length := by
       rw [Hinstalled.contextMLCtx]; exact Hsuffix.depth_le
     have hdropL : Hinstalled.context.mlctx.dropN depth hjL =
@@ -406,7 +406,7 @@ theorem AddInductive.declareInductiveTypes.semanticConstructorsWF
         rw [Hassembled.metadata_eq]
         exact hindices
       refine ⟨Hassembled.decl, ⟨?_⟩⟩
-      exact Hassembled.declaredResult Hinstalled hlevels hlevelParams
+      exact Hassembled.toHeaderEnvironment Hinstalled hlevels hlevelParams
         hindicesAssembled hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
 
 end VerifyInductive

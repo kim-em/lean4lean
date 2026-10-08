@@ -34,7 +34,7 @@ theorem checkPositivityStep.isValidIndApp?.uniformNormalForm
 
 /-- Replay successful positivity in the original narrow scope, retaining every
 source-free binder and the exact universe spine checked at a recursive head. -/
-theorem checkPositivity.loop.uniformNormalFormNarrow
+theorem checkPositivity.loop.uniformNormalFormScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
@@ -188,7 +188,7 @@ theorem checkPositivity.loop.uniformNormalFormNarrow
 /-- Source-boundary form of the production positivity check. The levels
 premise is obtained from `HeaderStatsWF.levelParamsTranslation`;
 it is preserved while recursive binders are opened. -/
-theorem checkPositivity.uniformNormalFormNarrow
+theorem checkPositivity.uniformNormalFormScoped
     {decl : VInductDecl} {depth : Nat} {scope : VLCtx}
     {narrowType fullType : VExpr}
     (Hc : ContextWF c)
@@ -207,7 +207,7 @@ theorem checkPositivity.uniformNormalFormNarrow
         Hc.venv.IsDefEqU decl.uvars scope.toCtx narrowType normalized ∧
         decl.UniformFieldNormalForm levels depth normalized) := by
   apply checkPositivity.WF
-  exact checkPositivity.loop.uniformNormalFormNarrow Hc Hruntime halign Hstats
+  exact checkPositivity.loop.uniformNormalFormScoped Hc Hruntime halign Hstats
     hlevels hconsume hlit htypeNarrow htypeFull
 
 

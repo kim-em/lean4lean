@@ -18,7 +18,7 @@ def RecursorFVarSuffix.castRoot
 
 /-- A first-pass recursive-hypothesis origin and the blueprint emitted beside
 it have the same allocation-insensitive replay payload. -/
-theorem InductionHypothesisType.replayTrace_eq_blueprint
+theorem InductionHypothesisType.replayTrace_eq_template
     (O : InductionHypothesisType stats recInfos root field type)
     (call : AddInductive.RecCallTemplate)
     (hcall : call = {
@@ -634,7 +634,7 @@ theorem RuleFromTemplateTyping.toSemantics
     selection := C.selection
     decisionPositions := C.decisionPositions
     decisions := C.decisions
-    calls := C.calls.toStaged }
+    calls := C.calls.toAbove }
   exact ⟨S, binding, HmotiveTelescope, Hlookup, rfl, rfl, rfl,
     C.fieldOpening.fvars_eq_bound
       C.fieldsRecent.toFVarArrayAfter.toFVarArrayIn,
@@ -931,7 +931,7 @@ theorem RuleFromTemplate.semanticsOfProducer
         simpa using congrArg Array.size hsemanticMotives
       rw [hsizes]
       simpa using this
-    have hsourceReplay := O.replayTrace_eq_blueprint
+    have hsourceReplay := O.replayTrace_eq_template
       B.recursiveCalls[j]! hcall hsourceOwner S.fields_bound.fvars
     have hsemanticReplay' := hsemanticReplay
       H.certificate.all_args_bound.fvars

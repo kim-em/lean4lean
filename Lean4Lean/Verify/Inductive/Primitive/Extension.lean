@@ -55,10 +55,10 @@ theorem PrimitiveInstallation.extendSafeExact
       Hcert.installedVEnv := by
     simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
       BlockCertificate.installedVEnv] using
-    Hrecursors.completedConstructorSemantics
+    Hrecursors.constructorSemantics
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   rcases Hcert.extendSafeExact wf htels hdecl hcompile
-      Hrecursors.inductInfosFromDecl T.recursorProvenance
+      Hrecursors.inductInfosFromDecl T.newRecursorsAligned
       Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners) Hsemantics
       (fun safety => Hrecursors.blockEliminatorsReplay T.rules T.rulesWF

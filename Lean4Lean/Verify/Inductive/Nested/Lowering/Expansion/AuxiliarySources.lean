@@ -1549,7 +1549,7 @@ theorem LoweredAuxiliaryFamily.abstractContainerApplication
     intro Haux
     exact Hclosed.auxiliaryFormationParameterContext (R := R) Hsources
       HsourceHeaders HsourceAdded HsourceTypesWF hempty selection Haux
-  rcases Horigin.generated.cachedFamilyHeadRealization Hmap
+  rcases Horigin.generated.cachedAuxiliaryHeadTyping Hmap
       hselectionNodup Htranslations henvTypesWF
       ((Hheaders.sourceStatsWF.parameterSuffix.toRecursorContext
         (elimLevel := .zero) (by trivial)).parameterDecls.toCtx.reverse)

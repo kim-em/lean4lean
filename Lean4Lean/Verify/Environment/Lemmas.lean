@@ -978,7 +978,7 @@ theorem TrEnv'.recursorEnvCoherent (H : TrEnv' safety C Q venv) :
       · exact .inr ⟨``Quot.lift, _, _, rfl, hlift, nofun, fun q' hq' => by
           cases hq'; exact hkind⟩
   | induct _ hadd _ ih =>
-    exact ih.addInduct hadd.recursorProvenance hadd.preservesSourceFind hadd.le
+    exact ih.addInduct hadd.newRecursorsAligned hadd.preservesSourceFind hadd.le
 
 theorem TrEnv'.quotEnvCoherent (H : TrEnv' safety C Q venv) (hQ : Q = true) :
     QuotEnvCoherent C venv := by

@@ -1210,7 +1210,7 @@ theorem RecursorReusedParameterScope.older_eq_nil
     (hi : 0 < stats.params.size) : H.older = [] :=
   List.eq_nil_of_length_eq_zero (H.olderLength hi)
 
-theorem RecursorReusedParameterScope.completedScope
+theorem RecursorReusedParameterScope.scope
     {c : AddInductive.Context} {recLparams : List Name}
     {R : RecursorContextWF c recLparams}
     {stats : AddInductive.InductiveStats} {depth i : Nat}

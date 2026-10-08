@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.HeaderRenaming
 
 /-! Recursor provenance of a validated nested run.
 
-`NestedRun.hprovenance_of` discharges the `Hprovenance`
+`NestedRun.recursorsAligned_of` discharges the `Hprovenance`
 hypothesis of `NestedRun.assemblyNative_of_run`.
 
 The hypothesis quantifies over an arbitrary specialization list carrying
@@ -247,7 +247,7 @@ the run restores at all; it makes the expanded block mutual, so no restored
 recursor is K-like). The freshness premise (restorable names outside the
 renamed recursor names) is not needed: it holds for every final assembly
 shape (`finalBaseVEnv_restorableNames_fresh_of_not_renamed`). -/
-theorem NestedRun.hprovenance_of
+theorem NestedRun.recursorsAligned_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -306,7 +306,7 @@ theorem NestedRun.hprovenance_of
     exact auxiliarySpecializations_headNames Haux Hexpansion
   have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D
   rw [← hheads] at HL
-  have hequations := E.restoredEquations_of_realizationModulo wf Hsources hheads hparamsSize
+  have hequations := E.restoredEquations_of_trModulo wf Hsources hheads hparamsSize
     D hscoped HL
     (TrRestoredRulesModulo.filter_restorable ⟨C.recursorVEnv, hfreshFinal, HCrules⟩)
   obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
@@ -358,7 +358,7 @@ theorem NestedRun.hprovenance_of
         Hw.1.trans Hstep.restored.restoration.name.symm
       rw [← hname, hget]
       simp
-    have Hrules' := E.restoredRuleRealizations D hctorNames Hdata.recursorNames
+    have Hrules' := E.trRestoredRules D hctorNames Hdata.recursorNames
       Hdata.heads_not_recursors hfreshFinal (E.auxRecName_not_renamed wf Hsources D)
       Hdata.equations HCrules owner Hstep hinstalled head Hctor
     refine E.trRestoredRecursorVal_of_step D hnames owner Hstep hle hrec Hw

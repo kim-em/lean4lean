@@ -11,7 +11,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.AuxiliaryProjections
   auxiliary constructor name, see `Nested/Restoration/RecursorRenaming.lean`).
 * `NestedRun.assemblyNative_of_run`: the final assembly
   certificate from `Hrules` and the recursor provenance `Hprovenance`
-  (`hprovenance_of`), using the input-side avoidance of the renamed names by
+  (`recursorsAligned_of`), using the input-side avoidance of the renamed names by
   the lowered rules (`loweredRulesAvoid_renamed`). -/
 
 namespace Lean4Lean
@@ -67,7 +67,7 @@ theorem NestedRun.hrules_of
 
 /-- **Final assembly certificate of a validated nested run**, modulo the rule
 junction `Hrules` (discharged by `hrules_of` from the rule-shape hypothesis)
-and the recursor provenance `Hprovenance` (discharged by `hprovenance_of`).
+and the recursor provenance `Hprovenance` (discharged by `recursorsAligned_of`).
 Freshness of the restorable names in the shape's final environment is only
 asked outside the renamed auxiliary recursor names `Main.rec_k`, which is
 what holds without any naming hypothesis
@@ -140,7 +140,7 @@ theorem NestedRun.assemblyNative_of_run
     exact auxiliarySpecializations_headNames Haux Hexpansion
   have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D
   rw [← hheads] at HL
-  have hequations := E.restoredEquations_of_realizationModulo wf Hsources hheads hparamsSize
+  have hequations := E.restoredEquations_of_trModulo wf Hsources hheads hparamsSize
     D hscoped HL
     (TrRestoredRulesModulo.filter_restorable ⟨C.recursorVEnv, hfreshFinal, HCrules⟩)
   obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
@@ -186,7 +186,7 @@ theorem NestedRun.assemblyNative_of_run
         Hw.1.trans Hstep.restored.restoration.name.symm
       rw [← hname, hget]
       simp
-    have Hrules' := E.restoredRuleRealizations D hctorNames Hdata.recursorNames
+    have Hrules' := E.trRestoredRules D hctorNames Hdata.recursorNames
       Hdata.heads_not_recursors hfreshFinal (E.auxRecName_not_renamed wf Hsources D)
       Hdata.equations HCrules owner Hstep hinstalled head Hctor
     refine E.trRestoredRecursorVal_of_step D hnames owner Hstep hle hrec Hw
@@ -206,7 +206,7 @@ end Lean4Lean
   certificate of a nested run, modulo only the well-formedness `HrestoredWF`
   of the restored generated equations in the final abstract environment of a
   final assembly base. It composes `hruleShape_of_base`, `hrules_of`,
-  `hprovenance_of` and `assemblyNative_of_run`.
+  `recursorsAligned_of` and `assemblyNative_of_run`.
 * `NestedRun.assemblyNative`: the same certificate with no
   hypothesis beyond the run being nested, from `hrestoredWF_of`; this is used
   by `Nested/Install/Result.lean`. -/
@@ -256,7 +256,7 @@ theorem NestedRun.assemblyNative_of_restoredWF
       C.lowered = E.lowered } :=
   E.assemblyNative_of_run wf Hsources
     (E.hrules_of wf Hsources (E.hruleShape_of_base wf Hsources hnested HrestoredWF))
-    (E.hprovenance_of wf Hsources hnested htels)
+    (E.recursorsAligned_of wf Hsources hnested htels)
 
 /-- The canonical equations and concrete recursor evidence are selected from
 this complete successful run. This theorem does not upgrade arbitrary legacy

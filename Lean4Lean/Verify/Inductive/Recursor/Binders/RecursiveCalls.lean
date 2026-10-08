@@ -30,7 +30,7 @@ theorem checkInductiveTypes.loopType.FrontFVLift.fvars_take
 /-- Close a major-premise motive body over the most recent checker
 declarations.  Everything happens in the checker `MLCtx`, so no runtime
 translation is restricted. -/
-theorem RecursorContextWF.narrowMotiveClosure
+theorem RecursorContextWF.scopedMotiveClosure
     {c : AddInductive.Context} {U : List Name}
     (R : RecursorContextWF c U) (n : Nat) (hn : n ≤ R.chk.length)
     (indices : Array Expr)
@@ -244,7 +244,7 @@ theorem motiveSourceReplay
     rw [mlctx_fvarRevList_eq_take, hchkTake, ← hmainTake]
     exact Hrecent.reverse_eq
   have HfamNarrow :=
-    Hheader.completedRecursorNarrowFamilyApplication Helim
+    Hheader.recursorScopedFamilyApplication Helim
       Rindices Hsynthesis HnarrowStats HnarrowIndices
       hindexCount hcanonical harity henvIndices
   obtain ⟨famChk, HfamChk⟩ := HfamNarrow.1.defeqDFC henvR halign
@@ -256,7 +256,7 @@ theorem motiveSourceReplay
       henvR.ordered halign.defeqCtx
   rcases hconsume _ _ Rindices.atCheckLCtx HfamChk HfamChkType with
     ⟨majorChk, HmajorChk⟩
-  have HmotiveChk := Rindices.narrowMotiveClosure indices.size hnChk
+  have HmotiveChk := Rindices.scopedMotiveClosure indices.size hnChk
     indices hxsChk HmajorChk.consumed HmajorChk.isType
     hresultLevel
   have hdropAlign : VLCtx.IsDefEq Rindices.venv
@@ -393,7 +393,7 @@ theorem motiveSourceFVars
     cMajor.lctx.mkForall #[major] <| .sort elimLevel
   let majorBody := cMajor.lctx.mkForall #[major] (.sort elimLevel)
   have HnarrowFamily :=
-    (Hheader.recursorNarrowFamilyPrefixTranslation Helim Rindices
+    (Hheader.recursorScopedFamilyPrefixTranslation Helim Rindices
       Hsynthesis HnarrowStats henvIndices).1
   have HnarrowIndexFVars : ∀ arg ∈ indices.toList,
       arg.FVarsIn (· ∈ scope.fvars) := by
@@ -549,10 +549,10 @@ theorem canonicalMotiveTelescope
       simpa [mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels,
         mkRecInfos.loopArgs1.MotivePassHeaderAt.abstractLevels,
         AddInductive.getRecLevelParams] using
-        Hheader.materialized.levelTranslation
+        Hheader.checked.levelTranslation
     | param fresh =>
       have hshifted := VLevel.mapM_ofLevel_fresh_cons Helim
-        Hheader.materialized.levelTranslation
+        Hheader.checked.levelTranslation
       simpa [mkRecInfos.loopArgs1.MotivePassHeaderAt.recursorAbstractLevels,
         mkRecInfos.loopArgs1.MotivePassHeaderAt.abstractLevels,
         AddInductive.getRecLevelParams] using hshifted
@@ -595,7 +595,7 @@ theorem canonicalMotiveTelescope
         henvIndices
     familyApplicationType := by
       have Hfamily :=
-        (Hheader.completedRecursorNarrowFamilyApplication Helim
+        (Hheader.recursorScopedFamilyApplication Helim
           Rindices Hsynthesis HnarrowStats HnarrowIndices
           hindexCount hcanonical harity henvIndices).2.2
       rw [canonicalFamilyApp_split Hheader Hsynthesis hindicesSize harity]
@@ -773,7 +773,7 @@ premise and motive have been opened over the completed index telescope.  The
 seed lives over the recursor context extended by both new declarations, and
 its canonical parameter domains are aligned with the shared recursor
 parameter context of `Hsuffix`. -/
-theorem motiveTelescopeSeed
+theorem motiveDecl
     {base current cIndices : AddInductive.Context} {Hbase : ContextWF base}
     {decl : VInductDecl} {baseDepth runtimeDepth : Nat}
     {stats : AddInductive.InductiveStats} {source : InductiveType}
@@ -841,7 +841,7 @@ theorem motiveTelescopeSeed
     have hlength :=
       List.Forall₂.length_eq HnarrowIndices
     simpa [hindexCount] using hlength
-  rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
+  rcases Hheader.recursorMotiveTypeDefEq Helim Rindices
       Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical
       Hbound henvIndices hindicesSize hfront Hframe with
     ⟨Hcanonical, HmotiveCanonical, HmotiveCanonicalClosed,
@@ -1265,7 +1265,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
       by_cases harity : (indices.size == stats.nindices[dIdx]!) = true
       · simp only [loopK]
         rw [if_pos harity]
-        rcases Hheader.completedRecursorFrame Helim R Rindices Hsynthesis
+        rcases Hheader.recursorFrame Helim R Rindices Hsynthesis
             HnarrowStats Hruntime HnarrowIndices hindexCount hcanonical
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
         let majorTy :=
@@ -1439,7 +1439,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
                 [] S.canonical.params.reverse
                   Hsuffix.parameterDecls.toCtx := by
           rw [hprogress]
-          exact motiveTelescopeSeed Hheader hconsume Hsuffix Hroot Rindices
+          exact motiveDecl Hheader hconsume Hsuffix Hroot Rindices
             henvIndices Hsynthesis hcanonicalParams hscopeBase HnarrowStats
             Hruntime hfront halign HnarrowIndices hindexCount hcanonical
             HindexOrigins.bound Hrecent hindexUniverses harity Hframe

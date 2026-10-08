@@ -561,7 +561,7 @@ theorem
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalRecursorParameterContext with ⟨T, hparams⟩
-  rcases R.checkedConstructorPrefixSeedAt H.elimLevelAdmissible
+  rcases R.checkedConstructorPrefixAt H.elimLevelAdmissible
       H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
     ⟨_ctorVal, tail, tailTarget, introTarget, _hctorMem, _hctorName,
       Hprefix, Htail, HtailType, Hintro, HintroShape,

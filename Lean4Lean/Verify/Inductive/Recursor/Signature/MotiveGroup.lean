@@ -105,7 +105,7 @@ theorem RecursorConstruction.motiveSource_support
     let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))
     source.FVarsIn (fun fv => fv ∈ H.params.fvars) ∧ Closed source 0 := by
-  obtain ⟨S, _⟩ := H.motiveTelescopes.seed owner howner
+  obtain ⟨S, _⟩ := H.motiveTelescopes.motiveDecls owner howner
   rcases cachedParameterDecls_fvars S.motiveParameterDecls with
     ⟨parameterFVars, hparameterExprs, hparameterScopeFVars⟩
   have hstatsParams : stats.params.toList.reverse = H.params.fvars.reverse.map Expr.fvar := by
@@ -228,7 +228,7 @@ theorem RecursorConstruction.generatedMotivesTranslation
       simp [InductiveSignature.Instance.motives, hf]
     rw [htarget]
     refine ⟨Htr, ?_⟩
-    obtain ⟨S, _⟩ := H.motiveTelescopes.seed i hi'
+    obtain ⟨S, _⟩ := H.motiveTelescopes.motiveDecls i hi'
     have Hindices := S.indicesBound.mkForall_forallTelescope H.localWF
       (H.localContext.lctx.mkForall #[H.recInfos[i]!.major] (.sort H.elimLevel))
     have Hmajor := (S.majorBound.mkForall_forallTelescope H.localWF (.sort H.elimLevel)).abstractN

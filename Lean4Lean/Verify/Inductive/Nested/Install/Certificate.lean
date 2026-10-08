@@ -216,7 +216,7 @@ structure RestoredBlockBase
     sourceRecursors ++ auxiliaryRecursors
   formationAssembly : NestedExpansionData sourceEnv decl
   formationExpanded : formationAssembly.expanded = lowered.loweredDecl
-  materialized : SourcePrefixOfLowered decl lowered.loweredDecl
+  checked : SourcePrefixOfLowered decl lowered.loweredDecl
   uvars : decl.uvars = lparams.length
   numParams : decl.nparams = nparams
   unsafeEq : decl.isUnsafe = isUnsafe
@@ -414,7 +414,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
   recursorValues := R.recursorValues
   formationAssembly := Hformation
   formationExpanded := hformationExpanded
-  materialized := Hmaterialized
+  checked := Hmaterialized
   uvars := huvars
   numParams := hnumParams
   unsafeEq := hunsafeEq
@@ -559,7 +559,7 @@ noncomputable def RestoredBlockCertificate.finalEnvironment
     checking := HrestoredValid.tr
     valid := HrestoredValid
     addInduct := ?_ }
-  exact H.addInductOfStagedInstallation
+  exact H.addInductOfInstallation
     C.install.venvTypes C.install.venvCtors
     C.sourceRecursors C.auxiliaryRecursors
     C.sourceRules C.auxiliaryRules C.install.eliminators
@@ -759,7 +759,7 @@ def nestedAddInductiveContext (env : Environment) (lparams : List Name)
 discharged by `AddInductive.run.semanticWF`; its existential semantic context
 and complete recursor phases are retained because restoration needs the
 latter, whereas `semanticAddInductWF` intentionally projects them away. -/
-theorem Environment.addInductiveAfterLowering.nestedValidatedExistentialSourceSemanticWF
+theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceSemanticWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe allowPrimitive : Bool)
     (fuel : FuelConfig) (res : Lean4Lean.ElimNestedInductive.Result)

@@ -119,7 +119,7 @@ building its independent semantic telescope.  The two callbacks isolate the
 control-flow boundaries: exact parameter coverage hands the synthesized tail
 to the field verifier, while an early non-forall is discharged separately by
 the invalid-result argument. -/
-theorem checkConstructors.loopCtor.parameterSynthesisWF
+theorem checkConstructors.loopCtor.parameterTelescopeWF
     {decl : VInductDecl} {ctorVal : VConstVal}
     {original : Expr}
     (Hc : ContextWF c)
@@ -200,7 +200,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
             ⟨paramTy, paramTy', param', hget, hparamTy,
               _hparamTyEq, hparam, hparamType⟩
           obtain ⟨hb₀, hb₁, paramTy₀, hget₀, hparamTy₀, _hparamType₀⟩ :=
-            Hcurrent.narrowTyping histats
+            Hcurrent.scopedTyping histats
           have hparamAt : stats.params[i]? = some stats.params[i]! := by
             simp [Array.getElem!_eq_getD, histats]
           have hj₀ : depth + (stats.params.size - i) ≤ Hc.mlctx.length := by
@@ -268,7 +268,7 @@ theorem checkConstructors.loopCtor.parameterSynthesisWF
               have hdone : i + 1 = stats.params.size := by
                 rw [hparams]
                 exact heq
-              exact Hbody.completedScope hdone)
+              exact Hbody.scope hdone)
             (Hsegment := Hsegment.push hparamAt)
             Hsynthesis' hopenedNarrow'
             (hopenedFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
@@ -559,7 +559,7 @@ theorem checkConstructors.loopCtor.earlyParameterResult.WF
 /-- Constructor-tail refinement in the independent parameter/field scope.
 The executable traversal remains in the retained mutual-header context, but
 the resulting `CtorTailWF` never mentions those ambient declarations. -/
-theorem checkConstructors.loopCtor.tailRefinesNarrow
+theorem checkConstructors.loopCtor.tailRefinesScoped
     {decl : VInductDecl} {target : VInductiveType}
     {scope : VLCtx} {depth : Nat} {narrowType fullType : VExpr}
     (Hc : ContextWF c)
@@ -622,11 +622,11 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
             ⟨domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>
-            have Hpos := checkPositivity.refinesNarrow
+            have Hpos := checkPositivity.refinesScoped
               (ctor := ctor) (idx := i) Hc Hruntime halign Hstats
               hconsume hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
-            have Huniform := checkPositivity.uniformNormalFormNarrow
+            have Huniform := checkPositivity.uniformNormalFormScoped
               (ctor := ctor) (idx := i) Hc Hruntime halign Hstats hlevels
               hconsume hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
@@ -861,7 +861,7 @@ theorem checkConstructors.loopCtor.tailRefinesNarrow
 scope.  `tailCtx` is allowed to be definitionally equal to the normalized
 constructor parameters, which is the semantic relation supplied by mutual
 header materialization. -/
-theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
+theorem checkConstructors.loopCtor.ctorShapeRefinesScoped
     {decl : VInductDecl} {target : VInductiveType}
     {ctorVal : VConstVal} {params ownParams : List VExpr}
     {normalized tail exprType narrowType fullType : VExpr}
@@ -902,7 +902,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
       type i fuel c).WF
       (fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
         Hc.venv.IsType decl.uvars [] ctorVal.type) := by
-  have Htail := checkConstructors.loopCtor.tailRefinesNarrow
+  have Htail := checkConstructors.loopCtor.tailRefinesScoped
     (params := params) (ctor := ctor) (fuel := fuel) Hc Hruntime halign Hstats hi
     htarget htargetUvars htargetLookup htargetWF htargetShape hparamAt
     hconsume hlit hunsafe hbound hlevels htrNarrow htrFull
@@ -927,7 +927,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesNarrow
 against the verified field tail.  In particular, the normalized constructor
 type and its `takeForalls` decomposition are outputs of the synthesis
 certificate rather than assumptions reconstructed by the caller. -/
-theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
+theorem checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
     {decl : VInductDecl} {target : VInductiveType}
     {ctorVal : VConstVal} {params : List VExpr}
     {source : Expr} {current fullType : VExpr} {scope : VLCtx}
@@ -979,7 +979,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
         scope.toCtx scope.toCtx :=
       .refl (by simpa [Hstats.uvars] using Hsynthesis.scopeWF.toCtx)
     simpa [Hsynthesis.scopeCtx, hindices] using hrefl
-  apply checkConstructors.loopCtor.ctorShapeRefinesNarrow
+  apply checkConstructors.loopCtor.ctorShapeRefinesScoped
     (ctor := ctor) (fuel := fuel) Hc Hruntime halign Hstats hi htarget
     htargetUvars htargetLookup htargetWF htargetShape
     hparamAt hconsume hlit hunsafe hbound hlevels
@@ -999,7 +999,7 @@ theorem checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
 environment.  The source constructor is independently translated in the
 empty scope; the executable closed-type result supplies its retained-runtime
 translation.  Cached common parameters are consumed by
-`parameterSynthesisWF`, and all remaining binders are checked by the narrow
+`parameterTelescopeWF`, and all remaining binders are checked by the narrow
 positivity refinement. -/
 theorem checkConstructors.loopCtor.refinesCtorShape
     {decl : VInductDecl} {target : VInductiveType}
@@ -1078,7 +1078,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
             targetIdx source 0 (fuel + 1) c).WF
             (fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
               Hc.venv.IsType decl.uvars [] ctorVal.type) := by
-        exact checkConstructors.loopCtor.ctorShapeRefinesNarrow
+        exact checkConstructors.loopCtor.ctorShapeRefinesScoped
           (decl := decl) (ctorVal := ctorVal) (params := params)
           (type := source) (i := 0) (ctor := ctor) (fuel := fuel + 1) Hc
           (narrowType := ctorVal.type) (fullType := fullType)
@@ -1097,7 +1097,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
             exact VEnv.IsDefEqCtx.refl (by trivial))
           rfl (by simpa [hscope] using Hctor.type)
           (hchecked.2.1.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
-      have Htail := checkConstructors.loopCtor.tailRefinesNarrow
+      have Htail := checkConstructors.loopCtor.tailRefinesScoped
         (params := params) (type := source) (i := 0) (ctor := ctor)
         (fuel := fuel + 1) Hc
         (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
@@ -1132,7 +1132,7 @@ theorem checkConstructors.loopCtor.refinesCtorShape
       exact (VEnv.IsType.forallE hdomType hbodyType).defeqU_l
         Hc.checking.tr.wf (by trivial) heq
     let Hinitial := ConstructorSynthesisState.initial Hctor htype
-    apply checkConstructors.loopCtor.parameterSynthesisWF
+    apply checkConstructors.loopCtor.parameterTelescopeWF
       (decl := decl) (ctorVal := ctorVal) Hc
       (Q := fun _ => ∃ tail,
         ∃ tailTarget,
@@ -1174,14 +1174,14 @@ theorem checkConstructors.loopCtor.refinesCtorShape
               targetIdx source' decl.nparams (fuel' + 1) c).WF
               (fun _ => decl.CtorShape Hc.venv params target ctorVal ∧
                 Hc.venv.IsType decl.uvars [] ctorVal.type) := by
-          exact checkConstructors.loopCtor.ctorShapeRefinesOfSynthesis
+          exact checkConstructors.loopCtor.ctorShapeRefinesOfTelescope
             (ctor := ctor) (fuel := fuel' + 1) Hc
             (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix
               Hc Hsuffix) halign
             Hstats Hsynthesis' hi htarget htargetUvars htargetLookup
             htargetWF htargetShape hparamAt hconsume hlit hunsafe
             hbound hlevels hparams htrNarrow htrFull
-        have Htail := checkConstructors.loopCtor.tailRefinesNarrow
+        have Htail := checkConstructors.loopCtor.tailRefinesScoped
           (params := params) (type := source') (i := decl.nparams)
           (ctor := ctor) (fuel := fuel' + 1) Hc
           (checkInductiveTypes.loopType.FrontScopeEmbedding.ofParameterSuffix

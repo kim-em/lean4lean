@@ -972,7 +972,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             ⟨_domainLevel, hdomain⟩
           cases isUnsafe with
           | false =>
-            have Hpos := checkPositivity.refinesNarrow
+            have Hpos := checkPositivity.refinesScoped
               (ctor := ctor) (idx := i) Hc Hruntime halign Hstats
               hconsume hlit hdomNarrow
               (hdomFull.trExpr Hc.checking.tr.wf Hc.mlctx_wf.tr.wf)
@@ -1155,7 +1155,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormFromStartWF
       exact (VEnv.IsType.forallE hdomType hbodyType).defeqU_l
         Hc.checking.tr.wf (by trivial) heq
     let Hinitial := ConstructorSynthesisState.initial Hctor htype
-    apply checkConstructors.loopCtor.parameterSynthesisWF
+    apply checkConstructors.loopCtor.parameterTelescopeWF
       (decl := decl) (ctorVal := ctorVal) Hc
       (Q := fun _ => ∃ tail,
         ParameterPrefix stats 0 (.forallE name dom body bi) tail ∧

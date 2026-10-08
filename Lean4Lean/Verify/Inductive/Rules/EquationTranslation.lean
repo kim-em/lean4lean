@@ -328,7 +328,7 @@ checked-to-narrow equation-context conversion.  The targets remain the
 literal innermost de Bruijn variables: syntax-directed uniqueness rules out
 the otherwise existential targets produced by context transport. -/
 theorem
-    RecursorCheck.RuleAlignment.finalNarrowEquationFieldTranslationsFor
+    RecursorCheck.RuleAlignment.finalScopedEquationFieldTranslationsFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -365,7 +365,7 @@ theorem
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
       equationFieldDomains
-  rcases A.finalCheckedNarrowEquationContextAlignmentFor B T with
+  rcases A.finalCheckedScopedEquationContextAlignmentFor B T with
     ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
       hcheckedEquationFields, Hcontext⟩
   have hcheckedEquationLength : checkedEquationFieldDomains.length =

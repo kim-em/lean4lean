@@ -449,13 +449,13 @@ def ConstructorCheck.recursorHeaders
     paramsContext := M.paramsContext
     suffixParams := M.suffixParams }
 
-theorem ConstructorCheck.materializedFinal_parameterScope
+theorem ConstructorCheck.recursorHeaders_parameterScope
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
     R.recursorHeaders.parameterScope = R.parameterScope := by
   simp [ConstructorCheck.recursorHeaders,
     checkInductiveTypes.loopInd.HeaderStatsWF.mono,
-    R.materializedParameterScope]
+    R.checkedParameterScope]
 
 /-- Embed the ordinary formation result into the completed constructor
 boundary while retaining its staged installation traces. -/
@@ -488,8 +488,8 @@ def OrdinaryConstructorCheck.toConstructorCheck
   parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
   statsWF := H.statsWF
-  materializedParams := H.headerParams
-  materializedParameterScope := rfl
+  checkedParams := H.headerParams
+  checkedParameterScope := rfl
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails
@@ -534,8 +534,8 @@ noncomputable def PrimitiveConstructorCheck.toCheckedFormation
   parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
   statsWF := H.statsWF
-  materializedParams := H.headerParams
-  materializedParameterScope := rfl
+  checkedParams := H.headerParams
+  checkedParameterScope := rfl
   constructorTails := R.constructorTails
   ctorVEnv := R.declared.venvCtors
   formation := R.formation
@@ -592,8 +592,8 @@ noncomputable def PrimitiveConstructorCheck.toConstructorCheck
   parameterScope := H.statsWF.parameterScope
   sourceParameterScope := H.parameterScopeEq.symm
   statsWF := H.statsWF
-  materializedParams := H.headerParams
-  materializedParameterScope := rfl
+  checkedParams := H.headerParams
+  checkedParameterScope := rfl
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails

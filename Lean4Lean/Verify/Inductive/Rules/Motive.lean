@@ -998,7 +998,7 @@ theorem
 /-- The production motive translated in the canonical parameter scope, as
 replayed in the checker context of the first pass. -/
 theorem
-    RecursorCheck.finalOwnerNarrowMotiveTranslationAt
+    RecursorCheck.finalOwnerScopedMotiveTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1075,7 +1075,7 @@ theorem
           (S.canonical.motiveType.liftN
             (T.motives.take owner).length 0) := by
   dsimp only
-  rcases H.finalOwnerNarrowMotiveTranslationAt owner howner with
+  rcases H.finalOwnerScopedMotiveTranslationAt owner howner with
     ⟨T, S, narrowTarget, hparams, Hnarrow, Hcanonical, Hgenerated⟩
   let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]

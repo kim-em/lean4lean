@@ -85,7 +85,7 @@ theorem ConstructorCheck.sourceAnonymousParameterWF
     VLCtx.WF R.context.venv c.lparams.length
       (abstractForallContext R.parameterScope.toCtx.reverse []) := by
   have Hparams := R.recursorHeaders.paramsContext
-  rw [R.materializedFinal_parameterScope] at Hparams
+  rw [R.recursorHeaders_parameterScope] at Hparams
   have Hctx := abstractForallContext.isDefEq
     (right := R.parameterScope.toCtx.reverse) (by simpa using Hparams)
   exact (Hctx.symm R.context.checking.tr.wf.ordered).wf
@@ -197,7 +197,7 @@ theorem RecursorConstruction.indexDomainSource_levelParams
     {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
     (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     (H.indexDomainSource owner).levelParamsIn c.lparams = true := by
-  obtain ⟨S, _⟩ := H.motiveTelescopes.seed owner howner
+  obtain ⟨S, _⟩ := H.motiveTelescopes.motiveDecls owner howner
   have hsource := S.indexUniverses
   rw [H.localExtends.lparams_eq] at hsource
   rw [H.indexDomainSource_eq owner howner, Expr.levelParamsIn_abstractList]

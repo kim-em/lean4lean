@@ -298,7 +298,7 @@ recursors are fresh in the source header environment, modulo
 `LoweredConstructorsRestore`. The specializations are supplied by the
 caller (in `Nested.CompilationDataConstructors`, by
 `NestedRun.restorationTablesRestoring`). -/
-theorem NestedRun.sourceConstructors_of_evidence
+theorem NestedRun.sourceConstructors_of_lowering
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -354,7 +354,7 @@ theorem NestedRun.sourceConstructors_of_evidence
       (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup

@@ -127,7 +127,7 @@ header environment to the source header environment
 parameters), together with the definitional equality, in the lowered header
 environment, of the normalized and lowered constructor types of every family
 (`Models.constructors`). This is the setup of
-`NestedRun.sourceConstructors_of_evidence`. -/
+`NestedRun.sourceConstructors_of_lowering`. -/
 theorem NestedRun.constructorRestorationSubstitution
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -178,7 +178,7 @@ theorem NestedRun.constructorRestorationSubstitution
       (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
@@ -340,7 +340,7 @@ run** (the constructor-type conjunct of the `auxiliaryFamilies` field of
 `NestedCompilationRestorationFacts`), for any specialization list whose auxiliary
 families expand their generated families by restoring leaves, given that
 restoration is defined on the normalized auxiliary constructor types. -/
-theorem NestedRun.auxiliaryConstructors_of_evidence
+theorem NestedRun.auxiliaryConstructors_of_lowering
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -402,7 +402,7 @@ theorem NestedRun.auxiliaryConstructors_of_evidence
       (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hparams : E.lowered.signature.params =

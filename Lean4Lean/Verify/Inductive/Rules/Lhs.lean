@@ -1099,7 +1099,7 @@ theorem
       H.parameterSuffix.parameterDecls A.semantics.parameterTail
       (VExpr.wrapForalls originalDomains fieldResult) := by
     simpa only [← H.parameterDecls] using Htail
-  rcases A.finalCheckedNarrowEquationContextAlignmentFromFrameFor B T
+  rcases A.finalCheckedScopedEquationContextAlignmentFromFrameFor B T
       originalDomains fieldResult Hparams' horiginal Htail' HoriginalCtx with
     ⟨alignedFields, halignedFields, Haligned⟩
   have hfields : alignedFields = fieldDomains :=

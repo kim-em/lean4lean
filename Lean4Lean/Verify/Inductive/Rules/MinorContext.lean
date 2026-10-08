@@ -234,7 +234,7 @@ theorem MLCtxOnlyLams.closedTelescopeScope
     exact List.suffix_refl _
   obtain ⟨scope, Hscope, hscopeFVars, hshift, _hdeclsScope, hclose,
       m, hm, hfvm, t', HE, htgt⟩ :=
-    MLCtxOnlyLams.narrowFVarsSourceOracle H henv Hwf (· ∈ outer) hup Good hgood0 hL
+    MLCtxOnlyLams.scopedFVarsSourceOracle H henv Hwf (· ∈ outer) hup Good hgood0 hL
       (Lctx := c.lctx) (fun _ _ h => h) oracle
   have hscopeOuter : scope.fvars = outer.reverse := hscopeFVars.trans hfilter
   have hmEq : m = outer.length := by
@@ -278,7 +278,7 @@ theorem RecursorCheck.finalPairedParameterAlignmentAt
     ⟨T, hgenerated⟩
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
-  rcases H.motiveTelescopes.seed owner hrecInfo with ⟨S, hcanonical⟩
+  rcases H.motiveTelescopes.motiveDecls owner hrecInfo with ⟨S, hcanonical⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
     exact H.installed.le

@@ -987,9 +987,9 @@ abbrev ContextWF.atCheckLCtx (H : ContextWF c) : ContextWF { c with lctx := c.ch
              embed := .refl H.checking.tr.wf.ordered H.check.wf.tr.wf,
              sub := .refl _ }
 
-@[simp] theorem ContextWF.narrow_venv (H : ContextWF c) : H.atCheckLCtx.venv = H.venv := rfl
-@[simp] theorem ContextWF.narrow_mlctx (H : ContextWF c) : H.atCheckLCtx.mlctx = H.chk := rfl
-@[simp] theorem ContextWF.narrow_chk (H : ContextWF c) : H.atCheckLCtx.chk = H.chk := rfl
+@[simp] theorem ContextWF.atCheckLCtx_venv (H : ContextWF c) : H.atCheckLCtx.venv = H.venv := rfl
+@[simp] theorem ContextWF.atCheckLCtx_mlctx (H : ContextWF c) : H.atCheckLCtx.mlctx = H.chk := rfl
+@[simp] theorem ContextWF.atCheckLCtx_chk (H : ContextWF c) : H.atCheckLCtx.chk = H.chk := rfl
 
 def ContextWF.withLocalDecl (H : ContextWF c)
     (htr : TrExprS H.venv c.lparams H.mlctx.vlctx ty ty')
@@ -1366,9 +1366,9 @@ abbrev RecursorContextWF.atCheckLCtx (H : RecursorContextWF c recLparams) :
              embed := .refl H.checking.tr.wf.ordered H.check.wf.tr.wf,
              sub := .refl _ }
 
-@[simp] theorem RecursorContextWF.narrow_venv (H : RecursorContextWF c recLparams) :
+@[simp] theorem RecursorContextWF.atCheckLCtx_venv (H : RecursorContextWF c recLparams) :
     H.atCheckLCtx.venv = H.venv := rfl
-@[simp] theorem RecursorContextWF.narrow_mlctx (H : RecursorContextWF c recLparams) :
+@[simp] theorem RecursorContextWF.atCheckLCtx_mlctx (H : RecursorContextWF c recLparams) :
     H.atCheckLCtx.mlctx = H.chk := rfl
 
 /-- Extend a universe-rebased recursor context by one semantically checked
@@ -2619,7 +2619,7 @@ theorem liftTypeChecker.WF {x : TypeChecker.M α} (Hc : ContextWF c)
   rw [← Hc.check.lctx_eq]
   exact TypeChecker.M.WF.runCheckingValidMLC Hc.chkKernelFresh Hx
 
-theorem checkTypeInContext.narrowWF (Hc : ContextWF c)
+theorem checkTypeInContext.checkingWF (Hc : ContextWF c)
     (hfvars : e.FVarsIn (· ∈ Hc.chk.vlctx.fvars)) :
     ((monadLift (TypeChecker.checkType e) : AddInductive.M Expr) c).WF fun ty =>
       ∃ e' ty', TrTyping Hc.venv c.lparams Hc.chk.vlctx e ty e' ty' :=
@@ -2629,12 +2629,12 @@ theorem checkTypeInContext.WF (Hc : ContextWF c)
     (hfvars : e.FVarsIn (· ∈ Hc.chk.vlctx.fvars)) :
     ((monadLift (TypeChecker.checkType e) : AddInductive.M Expr) c).WF fun ty =>
       ∃ e' ty', TrTyping Hc.venv c.lparams Hc.mlctx.vlctx e ty e' ty' :=
-  (checkTypeInContext.narrowWF Hc hfvars).mono fun _ ⟨_, _, h⟩ => by
+  (checkTypeInContext.checkingWF Hc hfvars).mono fun _ ⟨_, _, h⟩ => by
     obtain ⟨e', he'⟩ := Hc.check.embed.trExprS Hc.checking.tr.wf h.2.1
     obtain ⟨ty', h'⟩ := Hc.check.embed.trTyping Hc.checking.tr.wf he' h
     exact ⟨e', ty', h'⟩
 
-theorem whnfInContext.narrowWF (Hc : ContextWF c)
+theorem whnfInContext.checkingWF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e') :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       FVarsBelow Hc.chk.vlctx e e₁ ∧
@@ -2651,7 +2651,7 @@ theorem whnfInContext.scopeWF (Hc : ContextWF c)
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
       FVarsBelow Hc.mlctx.vlctx e e₁ ∧
       TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' :=
-  (whnfInContext.narrowWF Hc hn).mono fun _ ⟨h1, h2⟩ =>
+  (whnfInContext.checkingWF Hc hn).mono fun _ ⟨h1, h2⟩ =>
     ⟨Hc.check.embed.fvarsBelow h1, Hc.check.embed.trExpr Hc.checking.tr.wf hn he h2⟩
 
 /-- Both the checker-context facts and their main-context transfers. -/
@@ -2663,7 +2663,7 @@ theorem whnfInContext.dualWF (Hc : ContextWF c)
         TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e') ∧
       FVarsBelow Hc.chk.vlctx e e₁ ∧
         TrExpr Hc.venv c.lparams Hc.chk.vlctx e₁ e₀ :=
-  (whnfInContext.narrowWF Hc hn).mono fun _ ⟨h1, h2⟩ =>
+  (whnfInContext.checkingWF Hc hn).mono fun _ ⟨h1, h2⟩ =>
     ⟨⟨Hc.check.embed.fvarsBelow h1, Hc.check.embed.trExpr Hc.checking.tr.wf hn he h2⟩,
       h1, h2⟩
 
@@ -2705,7 +2705,7 @@ theorem liftTypeChecker.recursorWF {x : TypeChecker.M α}
   exact TypeChecker.M.WF.runCheckingValidMLC (lparams := recLparams) (fuel := c.fuel)
     Hc.chkKernelFresh Hx
 
-theorem whnfInRecursorContext.narrowScopeWF
+theorem whnfInRecursorContext.checkingScopeWF
     (Hc : RecursorContextWF c recLparams)
     (he : TrExprS Hc.venv recLparams Hc.chk.vlctx e e') :
     ((monadLift (TypeChecker.whnf e) : AddInductive.M Expr) c).WF fun e₁ =>
@@ -2722,7 +2722,7 @@ theorem whnfInRecursorContext.dualWF
         TrExpr Hc.venv recLparams Hc.mlctx.vlctx e₁ e') ∧
       FVarsBelow Hc.chk.vlctx e e₁ ∧
         TrExpr Hc.venv recLparams Hc.chk.vlctx e₁ e₀ :=
-  (whnfInRecursorContext.narrowScopeWF Hc hn).mono fun _ ⟨h1, h2⟩ =>
+  (whnfInRecursorContext.checkingScopeWF Hc hn).mono fun _ ⟨h1, h2⟩ =>
     ⟨⟨Hc.check.embed.fvarsBelow h1, Hc.check.embed.trExpr Hc.checking.tr.wf hn he h2⟩,
       h1, h2⟩
 
@@ -2759,7 +2759,7 @@ theorem getTypeFVarInRecursorContext.WF
     exact ⟨A, hbelow, .fvar hlookup, hA,
       Hc.mlctx_wf.tr.wf.find?_wf Hc.checking.tr.wf hlookup⟩
 
-theorem ensureSortInContext.narrowScopeWF (Hc : ContextWF c)
+theorem ensureSortInContext.checkingScopeWF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e') :
     ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF
       fun e₁ => FVarsBelow Hc.chk.vlctx e e₁ ∧
@@ -2780,10 +2780,10 @@ theorem ensureSortInContext.dualWF (Hc : ContextWF c)
     ((monadLift (TypeChecker.ensureSort e e₀) : AddInductive.M Expr) c).WF fun e₁ =>
       (TrExpr Hc.venv c.lparams Hc.mlctx.vlctx e₁ e' ∧ ∃ u, e₁ = .sort u) ∧
       TrExpr Hc.venv c.lparams Hc.chk.vlctx e₁ e₂ :=
-  (ensureSortInContext.narrowScopeWF Hc hn).mono fun _ ⟨_, h2, h3⟩ =>
+  (ensureSortInContext.checkingScopeWF Hc hn).mono fun _ ⟨_, h2, h3⟩ =>
     ⟨⟨Hc.check.embed.trExpr Hc.checking.tr.wf hn he h2, h3⟩, h2⟩
 
-theorem ensureTypeInContext.narrowWF (Hc : ContextWF c)
+theorem ensureTypeInContext.checkingWF (Hc : ContextWF c)
     (he : TrExprS Hc.venv c.lparams Hc.chk.vlctx e e') :
     ((monadLift (TypeChecker.ensureType e) : AddInductive.M Expr) c).WF fun sort =>
       ∃ e'', TrExprS Hc.venv c.lparams Hc.chk.vlctx e e'' ∧
@@ -2798,7 +2798,7 @@ theorem ensureTypeInContext.WF (Hc : ContextWF c)
       ∃ e'', TrExprS Hc.venv c.lparams Hc.mlctx.vlctx e e'' ∧
         ∃ u u', sort = .sort u ∧ VLevel.ofLevel c.lparams u = some u' ∧
           Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx e'' (.sort u') :=
-  (ensureTypeInContext.narrowWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
+  (ensureTypeInContext.checkingWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
     ⟨e', he, u, u', hs, hu,
       Hc.check.embed.hasType Hc.checking.tr.wf h1 he (.sort hu) (.sort hu) hh⟩
 
@@ -2811,12 +2811,12 @@ theorem ensureTypeInContext.dualWF (Hc : ContextWF c)
         Hc.venv.HasType c.lparams.length Hc.mlctx.vlctx.toCtx e' (.sort u') ∧
         ∃ e₁, TrExprS Hc.venv c.lparams Hc.chk.vlctx e e₁ ∧
           Hc.venv.HasType c.lparams.length Hc.chk.vlctx.toCtx e₁ (.sort u') :=
-  (ensureTypeInContext.narrowWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
+  (ensureTypeInContext.checkingWF Hc hn).mono fun _ ⟨e₁, h1, u, u', hs, hu, hh⟩ =>
     ⟨u, u', hs, hu,
       Hc.check.embed.hasType Hc.checking.tr.wf h1 he (.sort hu) (.sort hu) hh,
       e₁, h1, hh⟩
 
-theorem isDefEqInContext.narrowWF (Hc : ContextWF c)
+theorem isDefEqInContext.checkingWF (Hc : ContextWF c)
     (he₁ : TrExprS Hc.venv c.lparams Hc.chk.vlctx e₁ e₁')
     (he₂ : TrExprS Hc.venv c.lparams Hc.chk.vlctx e₂ e₂') :
     ((monadLift (TypeChecker.isDefEq e₁ e₂) : AddInductive.M Bool) c).WF fun b =>

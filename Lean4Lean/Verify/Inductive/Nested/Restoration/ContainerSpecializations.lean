@@ -957,7 +957,7 @@ theorem HeaderEnvironment.commonParameterContext_eq
 
 /-- The completed constructor boundary's parameter scope is the header
 phase's common parameter context. -/
-theorem OrdinaryConstructorCheck.completed_parameterScope_toCtx
+theorem OrdinaryConstructorCheck.parameterScope_toCtx
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1186,7 +1186,7 @@ theorem NestedRun.containerSpecializations
         R.declared.venvCtors := by
     exact R.core
   have Hmetadata : SourcePrefixOfLowered sourceDecl P.loweredDecl := by
-    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.materialized
+    simpa only [E.nativeSourceDecl_eq] using E.sourceCore.checked
   have wfP : ves.WFCore P.c.env := by
     simpa only [henv] using wf
   have HsourceHeaders : List.Forall₂

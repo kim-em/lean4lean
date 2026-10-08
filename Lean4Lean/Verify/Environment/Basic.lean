@@ -405,7 +405,7 @@ def VInductDeclSkeleton.withMetadata (decl : VInductDeclSkeleton)
   cases type
   rfl
 
-theorem VInductDeclSkeleton.materialize_length
+theorem VInductDeclSkeleton.withMetadata_length
     {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {materialized : VInductDecl}
     (H : decl.withMetadata metadata = some materialized) :
@@ -415,7 +415,7 @@ theorem VInductDeclSkeleton.materialize_length
   · assumption
   · contradiction
 
-theorem VInductDeclSkeleton.materialize_fields
+theorem VInductDeclSkeleton.withMetadata_fields
     {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {materialized : VInductDecl}
     (H : decl.withMetadata metadata = some materialized) :
@@ -431,7 +431,7 @@ theorem VInductDeclSkeleton.materialize_fields
     simp [hlength]
   · contradiction
 
-theorem VInductDeclSkeleton.materialize_toSkeleton
+theorem VInductDeclSkeleton.withMetadata_toSkeleton
     {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {materialized : VInductDecl}
     (H : decl.withMetadata metadata = some materialized) :
@@ -467,7 +467,7 @@ theorem VInductDeclSkeleton.materialize_toSkeleton
     rw [zipErase _ _ (by simpa using hlength)]
   · simp at H
 
-theorem VInductDeclSkeleton.materialize_typeAt
+theorem VInductDeclSkeleton.withMetadata_typeAt
     {decl : VInductDeclSkeleton} {metadata : List (Nat × VLevel)}
     {materialized : VInductDecl}
     (H : decl.withMetadata metadata = some materialized)
@@ -476,7 +476,7 @@ theorem VInductDeclSkeleton.materialize_typeAt
       metadata[i]? = some data ∧
       materialized.types[i]? = some
         (decl.types[i].toVInductiveType data.1 data.2) := by
-  have hlength := VInductDeclSkeleton.materialize_length H
+  have hlength := VInductDeclSkeleton.withMetadata_length H
   have himetadata : i < metadata.length := by omega
   refine ⟨metadata[i], by simp [himetadata], ?_⟩
   simp only [VInductDeclSkeleton.withMetadata] at H
@@ -844,7 +844,7 @@ theorem AddInduct.preservesSourceFind
   cases H with
   | intro _ _ _ _ _ _ hpreserves => exact hpreserves hfind
 
-theorem AddInduct.recursorProvenance
+theorem AddInduct.newRecursorsAligned
     (H : AddInduct safety m₁ env₁ decl m₂ env₂) :
     NewRecursorsAligned safety m₁ env₁ m₂ env₂ := by
   cases H with

@@ -49,7 +49,7 @@ theorem RecursorConstruction.parameterDomains
     checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains,
     List.map_reverse]
   have hscope : R.recursorHeaders.parameterSuffix.parameterDecls = R.parameterScope :=
-    R.materializedFinal_parameterScope
+    R.recursorHeaders_parameterScope
   rw [hscope]
 
 /-- Translate the concrete closed parameter telescope to that source-boundary

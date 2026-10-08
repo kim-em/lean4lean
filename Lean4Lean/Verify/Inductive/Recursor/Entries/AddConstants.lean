@@ -410,7 +410,7 @@ theorem SourceCtorsCertified.ofTranslated {owners : List InductiveType}
   obtain ⟨c', -, hc'⟩ := Lean4Lean.List.Forall₂.forall_exists_l ht c hc
   exact h o ho c hc _ hc'.type
 
-theorem ConstructorListEntries.cornerSteps
+theorem ConstructorListEntries.ctorTelescopeSteps
     {stats : AddInductive.InductiveStats} {lparams : List Name} {isUnsafe : Bool}
     {owner : InductiveType} {ctors : List Constructor} {initial : Nat}
     {entries : List (ConstantInfo × VConstVal)}
@@ -430,7 +430,7 @@ theorem ConstructorListEntries.cornerSteps
       exact hcert ctor List.mem_cons_self
     · exact ih (fun c hc => hcert c (List.mem_cons_of_mem _ hc)) entry htail
 
-theorem ConstructorTypeEntries.cornerSteps
+theorem ConstructorTypeEntries.ctorTelescopeSteps
     {stats : AddInductive.InductiveStats} {lparams : List Name} {isUnsafe : Bool}
     {owners : List InductiveType} {entries : List (ConstantInfo × VConstVal)}
     (H : ConstructorTypeEntries
@@ -442,7 +442,7 @@ theorem ConstructorTypeEntries.cornerSteps
   | cons Hhead Htail ih =>
     intro entry hentry
     rcases List.mem_append.mp hentry with hhead | htail
-    · exact Hhead.cornerSteps (hcert _ List.mem_cons_self) entry hhead
+    · exact Hhead.ctorTelescopeSteps (hcert _ List.mem_cons_self) entry hhead
     · exact ih (fun o ho => hcert o (List.mem_cons_of_mem _ ho)) entry htail
 
 theorem ConstructorListEntries.findSource

@@ -257,7 +257,7 @@ variable (H : RecursorConstruction R)
 /-- **The projection condition of one rule blueprint**: its field
 declarations and its recursive-call templates satisfy the projection
 condition of the hit-shape chain. -/
-theorem blueprintProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
+theorem templateProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels H.localContext.env)
     (owner : Nat) (howner : owner < H.recInfos.size) (localIndex : Nat)
     (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
@@ -273,8 +273,8 @@ theorem blueprintProjsOK {heads : List Name} (I : H.ParamUniformDeclarations hea
       (H.origins.minorShapes owner howner localIndex hlocal)
       H.recInfos[owner]!.minors[localIndex]!
       H.recInfos[owner]!.ruleTemplates[localIndex]! :=
-    H.blueprints.entry owner howner localIndex hlocal
-  obtain ⟨Hsem⟩ := H.blueprintSemantics.entry owner howner localIndex hlocal
+    H.templates.entry owner howner localIndex hlocal
+  obtain ⟨Hsem⟩ := H.templateSemantics.entry owner howner localIndex hlocal
   generalize H.origins.minorShapes owner howner localIndex hlocal = S at hsrc hcallRoots Hsem ⊢
   generalize H.recInfos[owner]!.ruleTemplates[localIndex]! = B at hcallRoots Hsem ⊢
   obtain ⟨-, -, hsourceCtors, -, traversal, htrav, -, -, -, -, -, -, -, -,
@@ -387,11 +387,11 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads
   obtain ⟨localIndex, hlocalB, hget⟩ := List.mem_iff_getElem.1 hmem
   have hlocalB' : localIndex < H.recInfos[owner]!.ruleTemplates.size := by simpa using hlocalB
   have hlocal : localIndex < H.origins.minorTypes[owner]!.size := by
-    rw [← H.blueprints.rows_size owner howner]; exact hlocalB'
+    rw [← H.templates.rows_size owner howner]; exact hlocalB'
   have hB : H.recInfos[owner]!.ruleTemplates[localIndex]! = blueprint := by
     rw [getElem!_pos _ localIndex hlocalB']; simpa using hget
-  obtain ⟨hfieldDecls, hcalls⟩ := H.blueprintProjsOK I W owner howner localIndex hlocal
-  have hentry := H.blueprints.entry owner howner localIndex hlocal
+  obtain ⟨hfieldDecls, hcalls⟩ := H.templateProjsOK I W owner howner localIndex hlocal
+  have hentry := H.templates.entry owner howner localIndex hlocal
   rw [hB] at hcalls hentry
   obtain ⟨-, hBfields, hBlctx, hBminor, traversal, origins, -, hshape, -, -, hcallOrigins⟩ :=
     hentry

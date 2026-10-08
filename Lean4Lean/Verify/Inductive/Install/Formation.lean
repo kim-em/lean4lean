@@ -93,7 +93,7 @@ theorem AddInductive.semanticFormationCoreWF
           isUnsafe 0 { headerCheckContext c stats with env := headerEnv } = .ok checkedOut :=
         hfull
       rcases Hloop checkedOut hcheckedOut with ⟨decl, ⟨Hheaders⟩⟩
-      have hlitInstalled := Hheaders.materializedAvailableLiteralDisjoint
+      have hlitInstalled := Hheaders.checkedAvailableLiteralDisjoint
       have Hchecked := AddInductive.checkConstructors.checkedWF Hheaders
         hconsume hlitInstalled
         (fun h => Hheaders.translation.isUnsafe.trans h) hlparams

@@ -40,7 +40,7 @@ theorem RecursorConstruction.consumedMotiveAtParameters
           (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
           H.parameterSuffix.parameterDecls.toCtx target S.canonical.motiveType := by
   have henv := H.recursorWF.checking.tr.wf
-  obtain ⟨S, hparams⟩ := H.motiveTelescopes.seed owner howner
+  obtain ⟨S, hparams⟩ := H.motiveTelescopes.motiveDecls owner howner
   rw [← H.parameterDecls] at hparams
   obtain ⟨narrowTarget, Hnarrow, HnarrowType, Hcanonical⟩ := S.consumedTranslation
   let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices

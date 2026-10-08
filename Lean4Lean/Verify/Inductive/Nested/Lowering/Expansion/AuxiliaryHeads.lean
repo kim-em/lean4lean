@@ -291,7 +291,7 @@ theorem ClosedNestedOccurrenceTyping.toAuxiliaryHeadTyping
 nested-family constant applied to exactly the arguments used by auxiliary
 construction, closed over that construction's parameter selection.  Its
 translation is retained exactly, rather than only up to typing. -/
-theorem AuxiliaryFamilySpecialization.cachedFamilyHeadRealization
+theorem AuxiliaryFamilySpecialization.cachedAuxiliaryHeadTyping
     (H : AuxiliaryFamilySpecialization sourceEnv result.params
       finalState.nestedAux family)
     (Hmap : NestedAuxMapModels result finalState)

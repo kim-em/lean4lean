@@ -231,7 +231,7 @@ structure NestedSourceDeclaration
       VInductiveType.toVConstVal
   core : TrInductDeclCore sourceVEnv lparams nparams sourceTypes isUnsafe
     sourceDecl envTypes envCtors
-  materialized : SourcePrefixOfLowered sourceDecl loweredDecl
+  checked : SourcePrefixOfLowered sourceDecl loweredDecl
   headerValidationValid : CheckingEnv.Valid safety auxiliaryHeaderEnv envTypes
   validationValid : CheckingEnv.ValidCore safety validationEnv envCtors
 
@@ -318,10 +318,10 @@ theorem NestedLoweringOutputClosed.sourceCore
         Hlower.toResult.sourceTypes_length_le
       _ = loweredDecl.types.length :=
         Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
-  rcases VInductDeclSkeleton.materializeExpandedPrefix skeleton loweredDecl
+  rcases VInductDeclSkeleton.withMetadataExpandedPrefix skeleton loweredDecl
       hsourceLength with ⟨sourceDecl, Hmaterialize, Hmaterialized⟩
   have HsourceCore :=
-    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.materialized Hcore
+    Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.checked Hcore
       Hmaterialize
   have hsourceTypeValues : sourceDecl.typeConstants =
       (loweredDecl.types.take sourceTypes.length).map
@@ -329,7 +329,7 @@ theorem NestedLoweringOutputClosed.sourceCore
     calc
       sourceDecl.typeConstants = skeleton.typeConstants := by
         rw [← VInductDecl.toSkeleton_typeConstants sourceDecl,
-          VInductDeclSkeleton.materialize_toSkeleton Hmaterialize]
+          VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize]
       _ = owners.map VInductiveTypeSkeleton.toVConstVal := rfl
       _ = _ := HownerHeaders
   exact ⟨{
@@ -340,7 +340,7 @@ theorem NestedLoweringOutputClosed.sourceCore
     sourceAdded := HsourceAdded
     sourceTypeValues := hsourceTypeValues
     core := HsourceCore
-    materialized := Hmaterialized
+    checked := Hmaterialized
     headerValidationValid := HheaderValid
     validationValid := HvalidationValid }⟩
 

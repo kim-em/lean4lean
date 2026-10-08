@@ -189,7 +189,7 @@ theorem RecursorConstruction.constructorClosedParameters
     HS.semantic.fieldsRecent.toFVarArrayIn.fvars_eq_of_array_eq S.fields_bound rfl
   have hdisjoint : ∀ fv ∈ H.params.fvars, fv ∉ HS.semantic.fieldsRecent.fvars := by
     intro fv hp hf
-    have h := H.blueprints.fields_outer_fresh owner howner localIndex hlocal fv
+    have h := H.templates.fields_outer_fresh owner howner localIndex hlocal fv
       (hfields ▸ hf)
     apply h
     simp only [List.mem_append]

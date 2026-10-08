@@ -674,7 +674,7 @@ theorem TrInductDeclSkeletonHeaders.typeAt
       types[i] decl.types[i] :=
   List.forall₂_getElem H.types i hsource htarget
 
-theorem TrInductiveTypeSkeleton.materialized
+theorem TrInductiveTypeSkeleton.checked
     (H : TrInductiveTypeSkeleton env envTypes lparams type target) :
     TrInductiveType env envTypes lparams type
       (target.toVInductiveType numIndices resultLevel) where
@@ -684,14 +684,14 @@ theorem TrInductiveTypeSkeleton.materialized
 /-- Recovering arity metadata changes neither translated source constants nor
 their staging environments, so skeleton-core translation materializes to the
 complete declaration-core relation without importing `SourceWF`. -/
-theorem TrInductDeclSkeletonCore.materialized
+theorem TrInductDeclSkeletonCore.checked
     (H : TrInductDeclSkeletonCore env lparams nparams types isUnsafe skeleton
       envTypes envCtors)
     (Hmaterialize : skeleton.withMetadata metadata = some decl) :
     TrInductDeclCore env lparams nparams types isUnsafe decl
       envTypes envCtors := by
-  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
-  have herase := VInductDeclSkeleton.materialize_toSkeleton Hmaterialize
+  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
+  have herase := VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize
   have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
     rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
   have hconstructorConstants :
@@ -717,24 +717,24 @@ theorem TrInductDeclSkeletonCore.materialized
   have htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclSkeletonCore.typeAt
       H i hsourceIdx hskeletonIdx
-  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize
+  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize
       hskeletonIdx with ⟨data, hdata, htarget⟩
   have htarget' : decl.types[i] =
       skeleton.types[i].toVInductiveType data.1 data.2 := by
     simpa [List.getElem?_eq_getElem htargetIdx] using htarget
   rw [htarget']
-  exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.materialized
+  exact Lean4Lean.VerifyInductive.TrInductiveTypeSkeleton.checked
     htranslated
 
 /-- Materialization preserves the header-only translation while filling the
 semantic arity metadata recovered by the executable header checker. -/
-theorem TrInductDeclSkeletonHeaders.materialized
+theorem TrInductDeclSkeletonHeaders.checked
     (H : TrInductDeclSkeletonHeaders env lparams nparams types isUnsafe
       skeleton envTypes)
     (Hmaterialize : skeleton.withMetadata metadata = some decl) :
     TrInductDeclHeaders env lparams nparams types isUnsafe decl envTypes := by
-  have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
-  have herase := VInductDeclSkeleton.materialize_toSkeleton Hmaterialize
+  have hfields := VInductDeclSkeleton.withMetadata_fields Hmaterialize
+  have herase := VInductDeclSkeleton.withMetadata_toSkeleton Hmaterialize
   have htypeConstants : decl.typeConstants = skeleton.typeConstants := by
     rw [← VInductDecl.toSkeleton_typeConstants decl, herase]
   refine {
@@ -756,7 +756,7 @@ theorem TrInductDeclSkeletonHeaders.materialized
   have htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclSkeletonHeaders.typeAt H i
       hsourceIdx hskeletonIdx
-  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize
+  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize
       hskeletonIdx with ⟨data, hdata, htarget⟩
   have htarget' : decl.types[i] =
       skeleton.types[i].toVInductiveType data.1 data.2 := by

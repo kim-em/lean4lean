@@ -401,7 +401,7 @@ theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Exp
 
 /-- The field walk, with the projection-walk corner resolved by a telescope certificate of the
 current type. -/
-theorem instantiateProjectionFields.WF_corner {c : VContext} {G : VLevel → Prop}
+theorem instantiateProjectionFields.WF_ctorTelescopes {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e') (hmaj : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u)
     {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}

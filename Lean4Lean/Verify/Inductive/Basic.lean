@@ -20,7 +20,7 @@ declaration's recovered header metadata preserves the index count at every
 source position.  This is the metadata-level fact needed after nested
 lowering: original families retain their positions, while auxiliary families
 are appended to the expanded declaration. -/
-theorem VInductDeclSkeleton.materializePrefix_numIndices
+theorem VInductDeclSkeleton.withMetadataPrefix_numIndices
     (skeleton : VInductDeclSkeleton) (expanded source : VInductDecl)
     (hle : skeleton.types.length ≤ expanded.types.length)
     (Hmaterialize : skeleton.withMetadata
@@ -31,7 +31,7 @@ theorem VInductDeclSkeleton.materializePrefix_numIndices
     (hexpanded : i < expanded.types.length) :
     (source.types[i]'hsource).numIndices =
       (expanded.types[i]'hexpanded).numIndices := by
-  rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hi with
+  rcases VInductDeclSkeleton.withMetadata_typeAt Hmaterialize hi with
     ⟨data, hdata, hsourceLookup⟩
   have hmetadata :
       ((expanded.types.take skeleton.types.length).map fun type =>
@@ -74,8 +74,8 @@ theorem SourcePrefixOfLowered.numIndices
       (expanded.types[i]'hexpanded).numIndices := by
   rcases H with ⟨skeleton, Hmaterialize⟩
   have hskeleton : skeleton.types.length = source.types.length :=
-    (VInductDeclSkeleton.materialize_fields Hmaterialize).2.2.2.symm
-  apply VInductDeclSkeleton.materializePrefix_numIndices skeleton expanded
+    (VInductDeclSkeleton.withMetadata_fields Hmaterialize).2.2.2.symm
+  apply VInductDeclSkeleton.withMetadataPrefix_numIndices skeleton expanded
     source
   · simpa [hskeleton] using hle
   · exact Hmaterialize
@@ -86,7 +86,7 @@ source materialization from a metadata-free skeleton by taking the expanded
 metadata prefix.  This is the constructor used by the outer nested verifier;
 the source declaration is produced rather than supplied with unconstrained
 semantic arities. -/
-theorem VInductDeclSkeleton.materializeExpandedPrefix
+theorem VInductDeclSkeleton.withMetadataExpandedPrefix
     (skeleton : VInductDeclSkeleton) (expanded : VInductDecl)
     (hle : skeleton.types.length ≤ expanded.types.length) :
     ∃ source,

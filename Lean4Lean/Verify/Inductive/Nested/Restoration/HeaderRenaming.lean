@@ -436,7 +436,7 @@ theorem NestedRun.headerSetup
       (E.lowered.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.lowered.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup

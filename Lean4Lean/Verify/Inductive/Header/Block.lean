@@ -52,7 +52,7 @@ theorem initialHeaderNormalization
 
 
 /-- Definitional synthesis state used by the complete first-header recursion. -/
-theorem initialHeaderSynthesisState
+theorem initialHeaderTelescopeState
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c) (hctx : Hc.mlctx.vlctx = [])
     (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
@@ -112,7 +112,7 @@ noncomputable def initialReusedParameterScope
 /-- Initialize the narrow later-header synthesis state in the empty consumed
 scope, from the closed translation of the normalized header that the closed
 `whnf` run produces in the empty checker context. -/
-theorem initialLaterHeaderSynthesisState
+theorem initialLaterHeaderTelescopeState
     {source : InductiveType} {target : VInductiveTypeSkeleton}
     (Hc : ContextWF c)
     (Htarget : TrSourceConst Hc.venv c.lparams source.name source.type
@@ -223,7 +223,7 @@ theorem firstResult.WF
 counter and translated result sort are exported as data, together with a
 declaration-independent shape proof; no pre-existing `VInductiveType`
 metadata is assumed. -/
-theorem firstResult.synthesizesHeader
+theorem firstResult.formsHeader
     {source : VInductiveTypeSkeleton} {current : VExpr}
     {α : Type} (k : AddInductive.InductiveStats → AddInductive.M α)
     (Q : α → Prop)
