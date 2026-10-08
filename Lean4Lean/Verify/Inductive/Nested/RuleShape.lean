@@ -18,12 +18,13 @@ the restored generated equations themselves as its rule lists
   `loweredRulesAvoid_renamed`, so no naming hypothesis is needed);
 * the primary iota trace (`RestoredPrimaryIotaSemanticTrace.replaceRules`):
   every restored generated equation of a source constructor is a nested iota
-  rule of the restored block (`primaryNestedIotaRule`); its left-hand side and
-  type clauses are computed from the generator, its right-hand-side clauses
-  are the rule validator's (the right-hand sides coincide by uniqueness of
-  translation);
+  rule of the restored block (`primaryNestedIotaRule`); every clause,
+  including the right-hand-side spine and guardedness, is computed from the
+  generator through restoration (`restoredEquation_rhs`,
+  `restoredGeneratedAvoidance` in `Nested/GeneratedRuleGuard.lean`);
 * the auxiliary traces (`RestoredAuxiliaryFinalWFTrace.replaceRules`): rule
-  counts, and guardedness of the right-hand sides (rule validator).
+  counts, and guardedness of the right-hand sides, again from the generator
+  (`restoredRuleRhs_guarded`).
 
 The one semantic obligation of the traces that is not derived is the
 well-formedness of the restored generated equations in the final abstract
@@ -902,14 +903,6 @@ theorem InductiveSignature.declaration_ctors_names (s : InductiveSignature)
     · have : ¬ (s.constructors[i.val].owner.val = f.val) := fun h' => hi (Fin.ext h')
       simp [this, hi]
 
-theorem vars_canonicalRuleFieldVars (n : Nat) :
-    vars n 0 = (Lean4Lean.validateRestoredRecursorRules.canonicalRuleFieldVars n).map
-      VExpr.bvar := by
-  apply List.ext_getElem
-  · simp [Lean4Lean.validateRestoredRecursorRules.canonicalRuleFieldVars]
-  · intro i h1 h2
-    simp [vars, Lean4Lean.validateRestoredRecursorRules.canonicalRuleFieldVars]
-
 theorem Restoration.find_none_of_mem_prefix {r : Restoration} {types : List VInductiveType}
     {p : Nat} (hheads : r.heads.map (·.auxiliary) = familyNames (types.drop p))
     (hnodup : (familyNames types).Nodup) {n : Name} (hn : n ∈ familyNames (types.take p)) :
@@ -926,48 +919,9 @@ theorem Restoration.find_none_of_mem_prefix {r : Restoration} {types : List VInd
 
 /-! ### The restored primary equations are nested iota rules -/
 
-/-- The canonical left-hand-side spine of a restored generated primary equation. -/
-def canonicalPrimaryLhsSpine_ofRestored {recInfo : RecursorVal} {rule : RecursorRule}
-    {plan : Lean4Lean.validateRestoredRecursorRules.EquationLhsPlan} {D : List VExpr}
-    (np nfam nctors nf : Nat) (recName ctorName : Name) (ls levels : List VLevel)
-    (idx : List VExpr)
-    (hname : recName = recInfo.name) (hctor : ctorName = rule.ctor)
-    (hrl : ls.length = recInfo.levelParams.length)
-    (hcl : levels.length = plan.ctorLevels.length)
-    (hnp : recInfo.numParams = np)
-    (hmm : recInfo.numMotives + recInfo.numMinors = nfam + nctors)
-    (hidx : idx.length = plan.indices.size) (hnf : rule.nfields = nf) :
-    validateRestoredRecursorRules.CanonicalPrimaryLhsSpine recInfo rule plan D
-      (VExpr.mkApps (.const recName ls)
-        (vars (np + (nfam + nctors)) nf ++ idx ++
-          [VExpr.mkApps (.const ctorName levels)
-            (vars np (nfam + nctors + nf + 0) ++ vars nf 0)])) where
-  recursorLevels := ls
-  leadingArgs := vars (np + (nfam + nctors)) nf ++ idx
-  ctorLevels := levels
-  ctorArgs := vars np (nfam + nctors + nf + 0) ++ vars nf 0
-  lhs_pattern := by rw [hname, hctor, List.append_assoc]
-  recursor_levels := hrl
-  ctor_levels := hcl
-  leading_arity := by
-    simp only [List.length_append, vars_length', ← hidx]
-    omega
-  constructor_arity := by
-    simp only [List.length_append, vars_length', hnp, hnf]
-  parameter_args := by
-    rw [hnp, List.take_append_of_le_length (by simp), List.take_append_of_le_length (by simp)]
-    rw [List.take_of_length_le (by simp), vars_take]
-    congr 1
-    omega
-  field_args := by
-    rw [hnp, List.drop_append_of_le_length (by simp)]
-    rw [List.drop_of_length_le (by simp), List.nil_append, hnf]
-    exact vars_canonicalRuleFieldVars _
-
-set_option maxHeartbeats 0 in
+set_option maxHeartbeats 4000000 in
 /-- **The restored generated equation of a source constructor is a nested
-iota rule** of the restored block of a final assembly shape (in whose final
-abstract environment the stripped output environment is valid), for the
+iota rule** of the restored block of a final assembly shape, for the
 source owner and constructor at its position. Every clause is computed from
 the generator: the left-hand side and type by `equation_primary_structure`,
 the right-hand side (its spine, field arguments, recursive results and
@@ -1005,15 +959,6 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (hvalid : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv)
-    {X : List Name}
-    (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
-      n ∉ X → C.finalBaseVEnv.constants n = none)
-    (HL : E.LoweredRulesAvoid E.auxHeads X)
     (hcount : ∀ (f : Nat) (hf : f < sourceDecl.types.length),
       (sourceDecl.types[f]'hf).ctors.length = E.production.indTypes[f]!.ctors.length)
     (hauxNames : auxiliaries.map (·.auxiliary) =
@@ -1241,7 +1186,7 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     hmention (fun o => E.recursorName_not_head Haux Hexpansion hnodup o)
     (E.restoredRecursorName_mem D C) hprefixAvoid k hfieldsAvoid hrecAvoid hrule
   have hD1eq : D1 = D0 := Option.some.inj (hD1.symm.trans hD0)
-  subst hD1eq
+  subst D1
   -- the restored recursor of the family
   have howner : (C.main :: C.rest)[f]'ho = sourceDecl.types[f]'hf :=
     List.getElem_of_eq C.typesSource.symm ho
@@ -1404,13 +1349,6 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
   rw [hrecRestored, ← hrecName, hctorRestored, ← hnewCtorSrc] at hlhsEq
   obtain ⟨hord, hlt⟩ := recursiveFields_positions
     E.production.production.generationSignature.constructors[k]
-  have hfv : recursiveFieldVars E.production.production.generationSignature.constructors[k] =
-      ((Instance.recursiveFields
-        E.production.production.generationSignature.constructors[k]).map Prod.fst).map
-        fun i => E.production.production.generationSignature.constructors[k].fields.length -
-          1 - i := by
-    simp [recursiveFieldVars, List.map_map, Function.comp_def]
-  rw [hfv] at hguardGen
   have hguard := hguardGen.congrRecursors (recursors' :=
     (canonicalRestoredShapeBlock sourceDecl C.primaryRecursors C.auxiliaryRecursors).recursors.map
       (·.name)) (by
@@ -1418,15 +1356,6 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
         simp [canonicalRestoredShapeBlock, canonicalRestoredBlock])
   have hsub := recursiveFields_args_sublist
     E.production.production.generationSignature.constructors[k]
-  rw [show ((Instance.recursiveFields
-      E.production.production.generationSignature.constructors[k]).map fun p =>
-        VExpr.bvar (E.production.production.generationSignature.constructors[k].fields.length -
-          1 - p.1)) =
-      ((Instance.recursiveFields
-        E.production.production.generationSignature.constructors[k]).map Prod.fst).map
-        (fun i => VExpr.bvar
-          (E.production.production.generationSignature.constructors[k].fields.length - 1 - i))
-      by simp [List.map_map, Function.comp_def]] at hsub
   refine ⟨nestedIotaRuleOfGenerated Hrecursor.recursor hrecMem S1
     (huvars.trans (hguvars.trans hrecUvars.symm)) D0
     E.production.production.generationSignature.params.length
@@ -1641,7 +1570,7 @@ theorem NestedValidatedRunResult.hruleShape_of
       have Hk := Lean4Lean.List.forall₂_getElem Hrules _ (by simpa using hkn) hk'
       simp only [List.getElem_finRange] at Hk
       exact ⟨E.primaryNestedIotaRule wf Hsources hadded Haux Hexpansion hnodup hparamsSize D'
-          hscoped C₀ hC₀ hV hfresh HL hcountPrim hauxNames _ Hk i hi j hj rfl,
+          hscoped C₀ hC₀ hcountPrim hauxNames _ Hk i hi j hj rfl,
         HrestoredWF aux' D' C₀ hC₀ hV _ _ Hk⟩
   have Hprimary := C₀.primaryIota.replaceRules Hprim
   -- the auxiliary rules
