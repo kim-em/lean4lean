@@ -7,16 +7,17 @@ import Lean4Lean.Verify.Inductive.Rules.LhsTranslation
 
 /-! Translation of the generated iota rules to the generator's equations.
 
-The right-hand side of every installed recursor rule is a literal build of a
-retained blueprint (`RecursorCheck.rulesLiteral`).  Its
+The right-hand side of every installed recursor rule is a literal instantiation of a
+rule template (`RecursorCheck.rulesLiteral`).  Its
 translation target is determined syntactically: every constructor of
 `TrExprS` fixes its output from the source syntax and the context, and only
 the typing side conditions of `app`, `lam`, `forallE` and `letE` carry
 semantic content.  `TrExprSyn` is the typing-free shadow of `TrExprS`.  This
-file builds, constructively from the shape translations of the consumed
-generation, a `TrExprSyn` derivation of each rule's right-hand side whose
+file builds, constructively from the shape translations of the generated
+instance, a `TrExprSyn` derivation of each rule's right-hand side whose
 target is the generator's `Instance.equation` right-hand side; the typed
-translation then follows from any typed translation of the same rule. -/
+translation then follows from any typed translation of the same rule
+(`RecursorCheck.ruleRhsTranslations`). -/
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -1178,9 +1179,9 @@ theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
   have H2 := HsameF.translateLambda HFtelF HLF hlenF (Htemp.mono hle) Hres'
   exact ⟨_, Hsame.translateLambda HFtel HL hlenD Hforall H2⟩
 
-/-- The literal right-hand side built from the retained blueprint of local rule
+/-- The literal right-hand side built from the rule template of local rule
 `i` of owner `o` translates syntactically to the right-hand side of the
-consumed generation's equation for the constructor at the canonical minor
+generator's equation for the constructor at the canonical minor
 offset. -/
 theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size) :
@@ -1429,7 +1430,7 @@ theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
 
 /-- The right-hand side of every installed recursor rule translates
 syntactically (`TrExprSyn`, the typing-free shadow of `TrExprS`) to the
-right-hand side of the consumed generation's equation for the constructor at
+right-hand side of the generator's equation for the constructor at
 the canonical minor offset. -/
 theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
     (H : RecursorCheck R outEnv)
@@ -1447,8 +1448,8 @@ theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
   exact H.toRecursorConstruction.ruleRhsSyn o howner i hlocal
 
 /-- The right-hand side of every installed recursor rule has a typed
-translation in the installed environment.  The residual is typed by the
-production equation frame (`equationFrame`), transported to the
+translation in the recursor environment.  The residual is typed by the
+equation frame (`equationFrame`), transported to the
 generator's equation telescope along `domains_defeq`; the binder domains are
 typed by `ruleRhsTypedOfResidual`. -/
 theorem RecursorCheck.ruleRhsTyped {outEnv : Environment}
@@ -1480,8 +1481,8 @@ theorem RecursorCheck.ruleRhsTyped {outEnv : Environment}
   exact H.toRecursorConstruction.ruleRhsTypedOfResidual o howner i hlocal hk
     H.installed.le Htel He₂
 
-/-- The rule junction for right-hand sides: whenever the right-hand side of an
-installed rule has some typed translation in the installed environment, its
+/-- Whenever the right-hand side of an
+installed rule has some typed translation in the recursor environment, its
 translation is the generator's equation right-hand side.  The target is fixed
 constructively by `ruleRhsSyn`; the hypothesis supplies only the typing side
 conditions of `TrExprS`. -/
@@ -1499,7 +1500,7 @@ theorem RecursorCheck.ruleRhsTranslation {outEnv : Environment}
   obtain ⟨X, HX⟩ := htyped
   exact ⟨hk, HX.of_syn Hsyn⟩
 
-/-- The rule junction for right-hand sides, with no hypothesis: the right-hand
+/-- The right-hand-side translations, with no hypothesis: the right-hand
 side of every installed rule translates to the generator's equation (the form
 of `RecursorCheck.RuleRhsTranslations`). -/
 theorem RecursorCheck.ruleRhsTranslations {outEnv : Environment}

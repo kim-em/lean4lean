@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Rules.RecursiveCallScope
 
+/-! The rule-wide field frame (`RecursorCheck.RuleAlignment.FieldFrame`): the constructor fields
+of a rule, closed over the cached parameter declarations and shared by every recursive call of
+the rule. The file relates it to the field domains of the installed selected minor and to the
+checked constructor fields, and inserts the generated motive/minor block to obtain the fixed
+equation context in which every recursive result is typed. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -24,7 +30,7 @@ theorem RecursorCheck.constructorVEnv_le
   H.installed.le
 
 /-- Every retained constructor-field variable is present in the exact
-producer root of this recursive call.  Earlier induction hypotheses may make
+root context of this recursive call.  Earlier induction hypotheses may make
 that root strictly larger than the common field context, so consumers must
 use the retained extension rather than identify the two contexts. -/
 theorem
@@ -51,8 +57,8 @@ theorem
   exact F.originExtension.contextLE.fvars
     (A.typing.fieldsRecent.members fv hfieldRecent)
 
-/-- Every identifier selected by the producer's root-scope predicate is an
-actual declaration of its staged origin context. -/
+/-- Every identifier selected by the call's root-scope predicate is an
+actual declaration of the context in which the call was checked. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.rootScope_mem_originContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -104,7 +110,7 @@ theorem
     F.originContext.mlctx_wf.tr.fvars_eq] at horigin
   exact horigin
 
-/-- First-class rule-wide field narrowing witness.  Recursive-result folds
+/-- Rule-wide field frame.  Recursive-result folds
 retain one value of this structure and replay every call-local suffix above
 its exact `fieldDomains`. -/
 structure
@@ -140,14 +146,14 @@ structure
       A.typing.targetTarget).lift'
         (A.typing.fieldRootExtension.shift.consN 0) =
       VExpr.wrapForalls forwardDomains forwardResidual
-  /-- The narrow field scope is aligned with the checker context in which the
+  /-- The field frame's scope is aligned with the checker context in which the
   fields were opened. -/
   checkAlign : 0 < A.rule.allArgs.size →
     VLCtx.IsDefEq A.typing.fieldRootContext.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
       fieldScope A.typing.context.chk.vlctx
 
-/-- The rule-wide narrowing frame is literally the constructor-field
+/-- The rule-wide field frame is literally the constructor-field
 telescope abstracted over the cached parameter declarations.  This exposes
 the context hidden behind `FrontScopeEmbedding` in the form used by the
 selected-minor translation. -/
@@ -170,7 +176,7 @@ theorem
   rw [abstractForallContext_toCtx, B.runtime.front.sourceContext,
     B.scope_base, B.front]
 
-/-- The source identifiers closed by the fixed field narrowing frame are
+/-- The source identifiers closed by the fixed field frame are
 literally the generated rule's constructor-field identifiers, in source
 binder order. -/
 theorem
@@ -220,9 +226,9 @@ private theorem cachedParameterCoreDeclarations
     rcases h with ⟨fv, deps, type, _hparam, rfl⟩
     exact .cons ⟨deps, type, rfl⟩ ih
 
-/-- Forget only source-declaration provenance from the fixed field frame.
+/-- Forget only the source declarations of the fixed field frame.
 The resulting dependency-selection core retains its exact cached parameter
-and field targets, which are the targets consumed by equation assembly. -/
+and field targets, which are the targets used by equation assembly. -/
 def RecursorCheck.RuleAlignment.FieldFrame.core
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -274,7 +280,7 @@ def RecursorCheck.RuleAlignment.FieldFrame.core
     declarations := Hdeclarations
     wf := Hruntime.wf }
 
-/-- Extend the exact cached field core through the producer's skipped prior
+/-- Extend the exact cached field core through the call's skipped prior
 hypotheses and then through this call's retained higher-order locals.  The
 target telescope is definitionally based on `B.fieldScope`; non-contiguity
 is represented solely by the core weakening. -/
@@ -1260,7 +1266,7 @@ theorem
       HmajorClosed,
     HexposedClosed, HclosedTyping, HindexEq, HmajorEq⟩
 
-/-- The narrowed constructor-field telescope is well formed in the final
+/-- The field frame's constructor-field telescope is well formed in the
 recursor environment, over the exact cached parameter suffix. -/
 theorem
     RecursorCheck.RuleAlignment.FieldFrame.fieldContextWF
@@ -1697,7 +1703,7 @@ theorem
     (VEnv.IsDefEqCtx.trans_empty H.outVEnvWF Hext HnarrowInstalled)
 
 /-- Cancel the rule-wide free-variable embedding and compare the selected
-minor's constructor fields with the literal narrow field telescope in the
+minor's constructor fields with the literal field-frame telescope in the
 cached parameter scope.  This is the exact field-domain equality required
 before the installed minor can be applied to canonical recursive results. -/
 theorem
@@ -1788,9 +1794,9 @@ theorem
   exact VEnv.IsDefEqCtx.trans_empty H.outVEnvWF Hctx1
     (HfieldCtx.symm H.outVEnvWF.ordered)
 
-/-- The independently checked constructor-field telescope and the narrow
-rule-wide field telescope are definitionally equal over the cached parameter
-scope.  The selected minor is the bridge: both parameter-scoped translations
+/-- The independently checked constructor-field telescope and the
+rule-wide field-frame telescope are definitionally equal over the cached parameter
+scope.  The comparison goes through the selected minor: both parameter-scoped translations
 come from its retained constructor tail, while `installedSelectedMinorSharedFieldContext`
 connects that tail to the constructor checker. -/
 theorem
@@ -1863,7 +1869,7 @@ theorem
   exact ⟨checkedDomains, checkedResidual, hchecked, Hchecked',
     HcheckedFields⟩
 
-/-- Insert the generated motive/minor block beneath the checked-to-narrow
+/-- Insert the generated motive/minor block beneath the checked-to-frame
 field conversion and transport the older generated parameter context to the
 cached parameter suffix.  The right side is exactly the fixed equation
 context used by `RecursiveResult`. -/
@@ -1980,7 +1986,7 @@ theorem
       insertedCtx, List.reverse_append, List.append_assoc,
       Nat.add_comm] using Haligned⟩
 
-/-- MetadataMentions-stable form of
+/-- Telescope-fixed form of
 `installedCheckedScopedEquationContextAlignment`.  Consumers of canonical
 recursive results already carry a particular recursor telescope translation;
 this specialization transports the equation-context conversion to that exact
@@ -2147,7 +2153,7 @@ theorem
       insertedCtx, List.reverse_append, List.append_assoc,
       Nat.add_comm] using Haligned⟩
 
-/-- The selected minor variable is available in the same fixed narrowed
+/-- The selected minor variable is available in the same fixed
 equation context used by every canonical recursive result.  Besides the
 lookup itself, retain the conversion from the independently checked field
 context: subsequent applications can transport typed terms without silently
@@ -2258,10 +2264,10 @@ theorem
         List.append_assoc] using Hcontext,
     hminor, Hminor⟩
 
-/-- Fix the narrow selected-minor lookup to the same telescope witness that
+/-- Fix the field-frame selected-minor lookup to the same telescope witness that
 exposes its installed field/hypothesis split.  This isolates the remaining
 application obligation exactly: the surrounding equation context contains
-the narrow rule-wide fields, while the displayed minor type begins with the
+the rule-wide field-frame fields, while the displayed minor type begins with the
 installed `fieldDomains`. -/
 theorem
     RecursorCheck.RuleAlignment.installedScopedSelectedMinorTypeFrame

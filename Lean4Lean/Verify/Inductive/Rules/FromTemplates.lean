@@ -1,5 +1,12 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.MinorPremises
 
+/-! Rules built from rule templates. The minor pass of the executable records a rule template
+(`RecRuleTemplate`, with one `RecCallTemplate` per recursive call) for each constructor, and
+`mkRecRulesFromTemplates` instantiates the templates once the pass is over. This file shows
+that the instantiated rules are the rules described by `RecursorRuleSyntax`, with their typing
+(`RuleFromTemplateTyping`, `TypedRecursorRules`) taken from the facts recorded with each
+template. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -16,8 +23,8 @@ def RecursorFVarSuffix.castRoot
   cases h
   exact H
 
-/-- A first-pass recursive-hypothesis origin and the blueprint emitted beside
-it have the same allocation-insensitive replay payload. -/
+/-- An induction hypothesis type recorded by the minor pass and the call
+template emitted beside it have the same allocation-insensitive replay payload. -/
 theorem InductionHypothesisType.replayTrace_eq_template
     (O : InductionHypothesisType stats recInfos root field type)
     (call : AddInductive.RecCallTemplate)
@@ -43,7 +50,7 @@ theorem InductionHypothesisType.replayTrace_eq_template
     O.arguments_bound.toFVarArrayIn.exprArrayFVarIds,
     Array.getElem!_eq_getD, Array.getD, howner]
 
-/-- The retained-blueprint rule builder is a transparent read of the current
+/-- The rule builder from templates is a transparent read of the current
 local context followed by a pure map.  This is the executable boundary used
 by the installation proof; in particular it performs no inference, WHNF, or
 fresh-name allocation. -/
@@ -60,7 +67,7 @@ theorem AddInductive.mkRecRulesFromTemplates.WF
   simp only [AddInductive.mkRecRulesFromTemplates, getLCtx, readThe, read]
   exact Except.WF.pure rfl
 
-/-- Instantiate the producer-retained semantic call row with the completed
+/-- Instantiate the typed call row recorded by the minor pass with the complete
 minor array and the exact recursor levels.  No call generation, inference,
 or constructor traversal is replayed here. -/
 theorem TypedCallTemplates.retainedGeneratedCalls
@@ -151,8 +158,8 @@ theorem CallTemplatesMatch.boundGeneratedCalls
     simp only [AddInductive.RecCallTemplate.instantiate]
     simp [AddInductive.getIIndices, O.owner_valid]
 
-/-- A bound rule together with the exact producer components used to build
-it.  These projection equalities prevent later semantic assembly from
+/-- A bound rule together with the exact components recorded by the minor pass
+and used to build it.  These projection equalities prevent later semantic assembly from
 recovering them by replay or alpha-conversion. -/
 structure RuleFromTemplate
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -271,9 +278,9 @@ theorem RecursorFieldDecisions.selectedSublist
       simpa using ih.append
         (List.Sublist.refl [Expr.fvar ⟨c.ngen.curr⟩])
 
-/-- The retained blueprint row has exactly one entry for every constructor
-of its source owner.  This is derived from the completed second-pass row
-counts; the blueprint builder itself does not need to rerun the constructor
+/-- The rule template row has exactly one entry for every constructor
+of its source owner.  This is derived from the second-pass row
+counts; the rule builder itself does not need to rerun the constructor
 traversal to discover its output cardinality. -/
 theorem RuleTemplatesMatch.ownerRowSize
     {indTypes : Array InductiveType}
@@ -294,7 +301,7 @@ theorem RuleTemplatesMatch.ownerRowSize
     _ = indTypes[owner]!.ctors.length := hcounts owner howner
 
 /-- Per-owner minor cardinalities identify the flattened minor prefix with
-the constructor prefix consumed by recursor installation. -/
+the constructor prefix used by recursor installation. -/
 theorem recInfoMinorPrefixLength_eq
     (recInfos : Array AddInductive.RecInfo)
     (indTypes : Array InductiveType)
@@ -316,7 +323,7 @@ theorem recInfoMinorPrefixLength_eq
         getElem!_pos indTypes owner hind] using hcounts owner hrec
 
 /-- The flattened minor selected by the canonical owner offset is literally
-the row-local minor paired with that owner's retained rule blueprint. -/
+the row-local minor paired with that owner's rule template. -/
 theorem recInfoFlatMinorAtOffset
     (recInfos : Array AddInductive.RecInfo)
     (indTypes : Array InductiveType)
@@ -463,7 +470,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSource
   subst T
   exact ⟨Hretained⟩
 
-/-- Semantic payload indexed by the producer's literal components, before
+/-- Semantic payload indexed by the minor pass's literal components, before
 transport to the projections of the retained bound-rule certificate. -/
 structure RuleFromTemplateTyping
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
@@ -640,9 +647,8 @@ theorem RuleFromTemplateTyping.toTyping
       C.fieldsRecent.toFVarArrayAfter.toFVarArrayIn,
     ⟨C.calls⟩⟩
 
-/-- Exact paired first- and second-pass provenance for one recursive call.
-Both witnesses come from the retained rule blueprint; `replay` is therefore
-derived producer evidence rather than an alpha-compatibility premise. -/
+/-- Casting a recursor context along an equality of contexts leaves its
+checker context unchanged. -/
 theorem RecursorContextWF.chk_cast {c c' : AddInductive.Context}
     {U : List Name} (h : c = c') (R : RecursorContextWF c U) :
     (h ▸ R).chk = R.chk := by
@@ -691,8 +697,8 @@ structure RecursorRuleSyntax.CallAt
     semantic.generated.replayTrace H.all_args_bound.fvars
 
 /-- The motive binder and telescope retained at the exact context in which
-the rule target was validated.  This is producer evidence, not a replay of
-the completed recursor pass. -/
+the rule target was validated, as recorded by the minor pass rather than
+recomputed from the later recursor context. -/
 structure RecursorRuleSyntax.MotiveAt
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
@@ -719,7 +725,7 @@ structure RecursorRuleSyntax.MotiveAt
   motiveLookup : MotiveTelescopesAt S.context stats decl recInfos
     elimLevel
 
-/-- Row-wise producer motive evidence, indexed by the exact semantic batch
+/-- Row-wise motive facts recorded by the minor pass, indexed by the exact semantic batch
 stored for installation.  Indexing by the batch prevents a later consumer
 from pairing a telescope with a different semantic reconstruction. -/
 inductive TypedRecursorRules.MotiveAt
@@ -747,8 +753,8 @@ inductive TypedRecursorRules.MotiveAt
       MotiveAt recInfos elimLevel
         (.cons Hrule ⟨S⟩ Htail)
 
-/-- The producer evidence for one rule, tied to the exact persistent origin
-row and local constructor slot from which its blueprint was emitted. -/
+/-- The facts recorded by the minor pass for one rule, tied to the exact row of
+binder types and local constructor slot from which its template was emitted. -/
 structure RecursorRuleSyntax.MinorAt
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
@@ -778,8 +784,8 @@ theorem RecInfoBinderTypes.minorShapes_congr
   subst localIndex'
   rfl
 
-/-- Assemble the semantic certificate for the exact retained blueprint rule.
-Every field comes from first-pass producer evidence; no constructor traversal,
+/-- Assemble the semantic certificate for the rule built from a template.
+Every field comes from the facts recorded by the minor pass; no constructor traversal,
 call generation, inference, or alpha-renaming is replayed. -/
 theorem RuleFromTemplate.typingOfProducer
     {stats : AddInductive.InductiveStats}
@@ -1070,8 +1076,8 @@ theorem TypedRecursorRules.ofEntriesWithProducer
       exact ⟨.cons Hhead ⟨Shead⟩ Htail,
         ⟨.cons Hhead Shead HheadMotive Htail HtailMotive⟩⟩
 
-/-- Semantic owner row assembled from the exact retained blueprint and the
-semantic-origin row produced by the same second-pass iteration. -/
+/-- Semantic owner row assembled from the rule templates and the
+row of binder types produced by the same second-pass iteration. -/
 theorem RuleTemplatesMatch.boundGeneratedRules
     {indTypes : Array InductiveType}
     {stats : AddInductive.InductiveStats}

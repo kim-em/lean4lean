@@ -3,29 +3,31 @@ import Lean4Lean.Verify.Inductive.Recursor.Check
 import Lean4Lean.Verify.Inductive.Recursor.Signature.RecursiveShapeTranslations
 import Lean4Lean.Verify.Inductive.Recursor.Metadata
 
-/-! Well-formedness of the generator's equations for the consumed generation.
+/-! Well-formedness of the generator's equations for the instance of the recursor
+construction (`RecursorCheck.canonicalGeneration`), part of the typing of the iota rules
+(section 3.2 of `docs/inductives/DESIGN.md`).
 
-The production equation layer (`CompletedEquationFinal`) types each generated
-rule in the fixed narrowed equation context
-`parameterDecls ++ motives ++ minors ++ equationFields`, but hides that context
-behind `GeneratedEquationWitness`.  This file
+Each generated rule of the executable is typed in the fixed equation context
+`parameterDecls ++ motives ++ minors ++ equationFields` (`canonicalEquationDomains`).
+This file
 
-* re-exposes that context as `EquationFrame` (same proofs as
-  `finalCanonicalPositiveEquationWitness`/`finalCanonicalZeroEquationWitness`,
-  with the context, the minor-domain split, and the field alignment retained);
+* packages that typing with its context as `EquationFrame` (`equationFrame`,
+  with the minor-domain split and the field alignment);
 * identifies the context with the generator's equation domains
   `g.params ++ g.motives ++ g.minors ++ insertBinders (fieldTypes.map instL) extra`
   up to `IsDefEqCtx` (parameters, motives and minors syntactically, fields by
   the retained field alignment);
-* transports the production typing to the generator's equation bodies once
+* transports the typing of the executable rule to the generator's equation bodies once
   those bodies are translations of the same residual sources;
 * closes everything under `wrapLams`/`wrapForalls` and indexes the flattened
   constructor list to obtain `VDefEq.WF` for every generated equation.
 
-The single remaining input is `EquationBodyTranslations`: the generator's
-LHS, RHS and type bodies translate the rule's residual sources in the
-generator's own telescope.  `rhsResidualOfClosed` derives the RHS component
-from a closed translation `TrExprS [] rule.rhs (g.equation k).rhs`.
+The input is `EquationBodyTranslations`: the generator's LHS, RHS and type
+bodies translate the rule's residual sources in the generator's own telescope.
+`rhsResidualOfClosed` derives the RHS component from a closed translation
+`TrExprS [] rule.rhs (g.equation k).rhs`, and
+`RecursorCheck.equationBodyTranslations_of` (`Rules/RuleTranslations.lean`)
+derives all of it.
 -/
 
 namespace Lean4Lean
@@ -154,21 +156,20 @@ theorem VDefEq.WF.transportTranslatedWrapped {env : VEnv} (henv : env.WF)
     (TrExprS.uniqAbstractForallContext Hrhs Hrhs' henv hdomains)
     (TrExprS.uniqAbstractForallContext Htype Htype' henv hdomains)
 
-/-! ### The production equation frame, with its context exposed -/
+/-! ### The executable rule's equation frame, with its context exposed -/
 
-/-- The fixed narrowed equation context of the production equation layer:
-cached parameters, the inserted motive/minor block, and the narrowed field
-domains weakened beneath that block. -/
+/-- The fixed equation context of a generated rule: cached parameters, the
+inserted motive/minor block, and the field domains of the field frame weakened
+beneath that block. -/
 def canonicalEquationDomains (params motives minors fieldDomains : List VExpr) :
     List VExpr :=
   params ++ (motives ++ minors) ++
     (liftContextPrefix (motives ++ minors).length fieldDomains.reverse).reverse
 
-/-- The production equation of one generated rule together with the context in
-which it is typed.  This is the data hidden by `GeneratedEquationWitness`:
-the domains are `canonicalEquationDomains` of the recursor telescope `T` and
-the narrowed field frame `B`; the selected minor domain splits into
-`fieldDomains ++ hypothesisDomains`, and the narrowed fields are definitionally
+/-- The equation of one generated rule of the executable together with the
+context in which it is typed: the domains are `canonicalEquationDomains` of the
+recursor telescope `telescope` and the field frame `frame`; the selected minor
+domain splits into `fieldDomains ++ hypothesisDomains`, and the frame's fields are definitionally
 equal to the minor's fields re-weakened beneath the later minors. -/
 structure RecursorCheck.RuleAlignment.EquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -246,8 +247,7 @@ structure RecursorCheck.RuleAlignment.EquationFrame
       telescope.motives telescope.minors frame.fieldDomains).reverse
     rhsBody typeBody
 
-/-- Positive-arity case of `equationFrame`; the proof is that of
-`finalCanonicalPositiveEquationWitness`, retaining its context. -/
+/-- Positive-arity case of `equationFrame`. -/
 theorem
     RecursorCheck.RuleAlignment.positiveEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -575,8 +575,7 @@ theorem
     lhs_typing := HlhsTyping'
     rhs_typing := HrhsAtLhs }⟩
 
-/-- Zero-arity case of `equationFrame`; the proof is that of
-`finalCanonicalZeroEquationWitness`, retaining its context. -/
+/-- Zero-arity case of `equationFrame`. -/
 theorem
     RecursorCheck.RuleAlignment.zeroEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -817,7 +816,7 @@ theorem
     lhs_typing := by rw [hdomainsEq]; exact HlhsTyping'
     rhs_typing := by rw [hdomainsEq]; exact HrhsAtLhs }⟩
 
-/-- Every generated rule has a production equation frame. -/
+/-- Every generated rule has an equation frame. -/
 theorem
     RecursorCheck.RuleAlignment.equationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -835,7 +834,7 @@ theorem
   · exact A.zeroEquationFrame hzero
   · exact A.positiveEquationFrame (Nat.pos_of_ne_zero hzero)
 
-/-! ### The generator's telescope against the production frame -/
+/-! ### The generator's telescope against the equation frame -/
 
 section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -1004,9 +1003,9 @@ theorem RecursorCheck.RuleAlignment.EquationFrame.fieldDomains_eq
     (by simp [InductiveSignature.insertBinders, InductiveSignature.fieldTypes, hnf])
     hminor.symm
 
-/-- The production equation context is definitionally the generator's
+/-- The equation frame's context is definitionally the generator's
 equation telescope: parameters, motives and minors coincide syntactically, and
-the narrowed fields are aligned with the generator's weakened field types. -/
+the frame's fields are aligned with the generator's weakened field types. -/
 theorem RecursorCheck.RuleAlignment.EquationFrame.domains_defeq
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1045,8 +1044,9 @@ theorem RecursorCheck.RuleAlignment.EquationFrame.domains_defeq
 
 /-- The generator's three equation bodies for the rule's flattened position
 translate the rule's residual sources (LHS, RHS, and constructor motive
-application) in the generator's own equation telescope.  This is the only
-input not yet derived from `RecursorCheck`. -/
+application) in the generator's own equation telescope.  This is the input
+of `generatorEquationWF`; `RecursorCheck.equationBodyTranslations_of` derives
+it from the right-hand-side translations. -/
 structure RecursorCheck.RuleAlignment.EquationBodyTranslations
     {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
@@ -1074,7 +1074,7 @@ structure RecursorCheck.RuleAlignment.EquationBodyTranslations
     (H.canonicalGeneration.equationTypeBody ⟨recursorMinorOffset indTypes owner + i, hk⟩)
 
 /-- One generated equation is well formed once its bodies translate the
-rule's residual sources: the production frame supplies the typing, which is
+rule's residual sources: the equation frame supplies the typing, which is
 transported along the context alignment `domains_defeq`. -/
 theorem RecursorCheck.RuleAlignment.generatorEquationWF
     {H : RecursorCheck R outEnv}

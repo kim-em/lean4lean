@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Constructor.Normalization
 
+/-! Certificates for the abstract iota rule judgment `VInductDecl.IotaRule`: the recursive
+results and right-hand side of an iota rule, the selection of recursive fields and the
+equation shape, assembled by `VInductDecl.IotaRule.ofCertificates`. Also the common-parameter
+prefix of a constructor type that `loopCtorArgs` follows (`ParameterPrefix`,
+`ParameterSegment`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -283,7 +289,7 @@ def VInductDecl.IotaRule.ofCertificates
     simpa using Hrhs.results_length
   rhs_guarded := Hrhs.guarded
 
-/-- Exact concrete common-parameter prefix consumed by recursor generation.
+/-- Exact concrete common-parameter prefix used by recursor generation.
 The relation is intentionally separate from field classification: agreement
 of these substitutions with the abstract parameter telescope is established
 during constructor checking. -/
@@ -320,7 +326,7 @@ theorem ParameterPrefix.tail_eq
       exact ih Hright
 
 /-- A pure forall spine of the cached-parameter tail extends to the closed
-constructor type: the consumed parameters are free variables, which cannot
+constructor type: the instantiated parameters are free variables, which cannot
 alter the binder structure. -/
 theorem ParameterPrefix.forallSpine
     (H : ParameterPrefix stats i source tail)
@@ -343,7 +349,7 @@ theorem ParameterPrefix.forallSpine
     rw [heq]
     exact .step hbody'
 
-/-- A partially consumed common-parameter prefix.  Constructor checking
+/-- A partially instantiated common-parameter prefix.  Constructor checking
 builds this left-to-right; when `stop = stats.params.size`, it is exactly the
 complete prefix replay required by recursor generation. -/
 inductive ParameterSegment (stats : AddInductive.InductiveStats) :

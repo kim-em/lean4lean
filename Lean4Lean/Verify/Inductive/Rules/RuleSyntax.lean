@@ -1,5 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveCalls
 
+/-! The syntax of one generated iota rule (`RecursorRuleSyntax`): its constructor, binders
+(parameters, motives, minors, fields), recursive calls and right-hand side, with the de Bruijn
+form of the simultaneously abstracted binders and the unique translation of each binder group.
+`RecursorRuleSyntax.Semantics` adds the typing facts of the field and recursive-call loops,
+and the `TypedRecursiveCall*` structures type the recursive calls at their call sites. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -270,7 +276,7 @@ theorem TypedRecursiveCall.abstractedRecursor_eq
   simp [Expr.instantiate1', hsize, recursor, indices]
 
 /-- Prefix invariant for rule generation retaining both exact syntax and the
-binding evidence needed to translate every higher-order recursive result. -/
+binding facts needed to translate every higher-order recursive result. -/
 structure RecursiveCallsPrefix
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
@@ -299,10 +305,10 @@ structure TypedRecursiveCalls
         minors lvls R decl depth u[i] v[i]!,
       S.rootScope = P
 
-/-- Semantic calls in their actual producer staging.  Hypothesis allocation
-advances both the local context and validation depth; the closed generated
-rule does not justify collapsing these origins to the later installation
-context. -/
+/-- Typed recursive calls, each in the context in which the minor pass checked
+it.  Hypothesis allocation advances both the local context and validation depth;
+the closed generated rule does not justify collapsing these call contexts to the
+later installation context. -/
 structure TypedRecursiveCallsAbove
     (indTypes : Array InductiveType) (stats : AddInductive.InductiveStats)
     (motives minors : Array Expr) (lvls : List Level)
@@ -321,10 +327,10 @@ structure TypedRecursiveCallsAbove
               motives minors lvls Rorigin decl callDepth u[i] v[i]!,
               S.rootScope = P
 
-/-- The exact motive application proved while the blueprint-producing first
-pass checks one recursive field.  This evidence belongs to the call producer:
-later completed recursor contexts are siblings of the producer context and
-cannot soundly reconstruct it by weakening. -/
+/-- The exact motive application proved while the template-producing minor
+pass checks one recursive field.  It holds in the call's own context: the
+later recursor contexts are siblings of that context and cannot soundly
+reconstruct it by weakening. -/
 structure TypedRecursiveCall.MotiveApplication
     {indTypes : Array InductiveType}
     {stats : AddInductive.InductiveStats}
@@ -344,8 +350,8 @@ structure TypedRecursiveCall.MotiveApplication
   typing : S.current_context.venv.IsType recLparams.length
     S.current_context.mlctx.vlctx.toCtx target
 
-/-- Producer-staged recursive calls with the exact earlier-hypothesis suffix
-retained at every call origin.  Unlike the compatibility staging above, this
+/-- Typed recursive calls with the exact earlier-hypothesis suffix
+retained at every call's context.  Unlike the compatibility staging above, this
 is populated only by `loopUTemplates`, whose accumulator supplies the
 literal recent suffix and its position in the call row. -/
 structure TypedRecursiveCallsAfterHypotheses
@@ -626,7 +632,7 @@ theorem RecursorRuleSyntax.abstractedAllArgsTranslation
       (by simp [RecursorRuleSyntax.binders])
       H.binders_nodup domains Δ hdomains
 
-/-- The four nested production `mkLambda` calls are one exact, globally
+/-- The four nested executable `mkLambda` calls are one exact, globally
 no-alias lambda telescope over the retained binder sequence. -/
 theorem RecursorRuleSyntax.rhs_eq_bindingList
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
@@ -815,7 +821,7 @@ theorem RecursorRuleSyntax.translatedLhsResidual
   · simpa [ctorArgsSource] using HctorArgs'
 
 /-- Proof-side construction record for the `VDefEq` corresponding to one
-production `RecursorRule`. The executable record stores only its constructor,
+executable `RecursorRule`. The executable record stores only its constructor,
 field count, and RHS; this certificate makes the reconstructed LHS, common
 telescope, and equation type an explicit refinement boundary. -/
 structure RecursorRuleSyntax.EquationTranslation
@@ -1057,7 +1063,7 @@ theorem RecursorRuleSyntax.abstractedAllArgsUnique
 /-- Pointwise semantic state retained from the actual `mkRecRules` field and
 recursive-call loops.  The concrete arrays and generated results are fixed by
 `H`; this record stores only the independently checked classification and
-recursive-domain evidence that the operational `RecursorRule` omits. -/
+recursive-domain facts that the executable `RecursorRule` omits. -/
 structure RecursorRuleSyntax.Semantics
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule)
@@ -1073,8 +1079,8 @@ structure RecursorRuleSyntax.Semantics
     parameterDepth
   parameterDecls : VLCtx
   parameterDecls_eq : parameterSuffix.parameterDecls = parameterDecls
-  /-- The producer field root precedes the completed installation context.
-  Retained blueprints must preserve this direction; reversing it would amount
+  /-- The field root of the minor pass precedes the rule's recursor context.
+  Rule templates must preserve this direction; reversing it would amount
   to pretending that the fields were freshly replayed after installation. -/
   fieldRootExtension : RecursorContextExtension fieldRootContext Rroot
   fieldsRecent : RecursorFVarSuffix fieldRootContext context
@@ -1245,7 +1251,7 @@ theorem RecursorRuleSyntax.Semantics.targetFVarsIn
   exact hscope
 
 /-- Recover the typed field telescope directly from the consecutive-suffix
-certificate retained by the production constructor traversal. -/
+certificate retained by the executable constructor traversal. -/
 def RecursorRuleSyntax.Semantics.fieldTelescope
     {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
@@ -1269,10 +1275,10 @@ def RecursorRuleSyntax.Semantics.fieldTelescope
     major_translation := by simpa [domains] using Hmajor.1
     major_typing := by simpa [domains] using Hmajor.2 }
 
-/-- Transport the rule producer's field-context conversion forward to the
-completed recursor context.  The consumed telescope is exposed after the
+/-- Transport the field-context conversion of the minor pass forward to the
+rule's recursor context.  The field telescope is exposed after the
 exact free-variable lift retained by `fieldRootExtension`; no equality of
-the producer and completed local contexts is assumed. -/
+the two local contexts is assumed. -/
 theorem RecursorRuleSyntax.Semantics.fieldContextDefEqMono
     {H : RecursorRuleSyntax indTypes stats motives minors lvls
       sourceCtor minorIdx sourceRule}
@@ -1320,7 +1326,7 @@ theorem RecursorRuleSyntax.Semantics.fieldContextDefEqMono
 
 /-- Duplicate-free declaration names identify the first family selected by
 `isValidIndApp?` with the constructor owner certified by the earlier checker
-pass.  This is the explicit bridge between the scan used by rule generation
+pass.  This is the explicit link between the scan used by rule generation
 and the outer mutual-family traversal. -/
 theorem RecursorRuleSyntax.Semantics.owner_eq
     (H : RecursorRuleSyntax indTypes stats motives minors lvls
@@ -1372,7 +1378,7 @@ inductive RecursorRulesSyntax
         (ctor :: ctors) start (rule :: rules)
 
 /-- Semantic strengthening of `RecursorRulesSyntax`.  Each emitted
-source rule is paired with the exact classifier and recursive-call evidence
+source rule is paired with the exact classifier and recursive-call facts
 from the same executable iteration; the tail advances the flattened minor
 ordinal in lockstep. -/
 inductive TypedRecursorRules

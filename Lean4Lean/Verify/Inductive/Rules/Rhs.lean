@@ -1,5 +1,10 @@
 import Lean4Lean.Verify.Inductive.Rules.RecursiveResults
 
+/-! The right-hand side of a rule: all recursive results (`RuleAlignment.RecursiveResults`)
+fixed to one recursor telescope and one field frame, the application of the selected minor
+premise to the constructor fields and the recursive results, and the typed translation of the
+right-hand side in the fixed equation context (zero- and positive-arity cases). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -10,7 +15,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
-/-- One dependent recursive-hypothesis step, after the already-consumed
+/-- One dependent recursive-hypothesis step, after the already-applied
 hypotheses have been aligned.  Syntactic uniqueness of the selected minor
 telescope identifies the caller's installed domains with the domains used by
 the source replay; the common residual translation then closes the complete
@@ -186,8 +191,8 @@ theorem
       (by simpa [equationDomains, liftedCanonicalLocals] using
         HcanonicalResidualType)
 
-/-- All recursive results of one generated rule, chosen in their production
-array order and fixed to one recursor telescope and one narrowed field frame. -/
+/-- All recursive results of one generated rule, chosen in their executable
+array order and fixed to one recursor telescope and one field frame. -/
 structure
     RecursorCheck.RuleAlignment.RecursiveResults
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -236,7 +241,7 @@ def
 
 /-- The closed dependent types corresponding pointwise to `bodies`.  Keeping
 this as a parallel list makes the later minor-application fold explicit:
-each recursive-result term is consumed at exactly the same ordinal as the
+each recursive-result term is applied at exactly the same ordinal as the
 installed minor hypothesis it discharges. -/
 def
     RecursorCheck.RuleAlignment.RecursiveResults.bodyTypes
@@ -768,7 +773,7 @@ theorem
 
 /-- Every selected recursive-result body is already well formed in the one
 fixed equation context shared by the entire rule.  This is the list-level
-typing invariant consumed by the minor-application fold. -/
+typing invariant used by the minor-application fold. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveResults.bodyWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
@@ -844,7 +849,7 @@ theorem
       (A.recursiveResult T B j hj) }⟩
 
 /-- Synchronize the selected minor and every canonical recursive result on one
-recursor telescope, one narrowed field frame, and one literal anonymous
+recursor telescope, one field frame, and one literal anonymous
 equation context.  No existential witness chosen by a pointwise theorem may
 drift after this boundary. -/
 theorem
@@ -1164,7 +1169,7 @@ theorem
 /-- Positive-arity selected minors admit their canonical field application
 in the one fixed equation context shared by all recursive results.  The
 application is first typed using the source-stable outer telescope, then
-transported through the exact same checked field frame to the narrowed
+transported through the exact same checked field frame to the fixed
 equation fields.  Inverting that well-formed application additionally
 identifies those fixed fields with the selected minor's installed fields. -/
 theorem
@@ -1597,7 +1602,7 @@ theorem
     by simpa [hframeFields, liftContextPrefix, liftContextPrefixAt,
       VExpr.wrapForalls, VLCtx.toCtx, List.append_assoc] using Hminor⟩
 
-/-- Positive-arity generated RHS in its fixed narrowed equation context.
+/-- Positive-arity generated RHS in its fixed equation context.
 The selected minor, constructor fields, and generated recursive results are
 all translated strictly to the same application spine that is independently
 typed by the canonical minor fold. -/

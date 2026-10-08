@@ -1,5 +1,9 @@
 import Lean4Lean.Verify.Inductive.Rules.EquationTranslation
 
+/-! Translation and typing of one recursive-call body in the fixed equation context: the
+recursive major at the selected family, the recursor head applied to the common prefix, and
+`RecursorCheck.RuleAlignment.RecursiveCallFrame.recursiveCallBodyWF`. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +15,7 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 namespace VerifyInductive
 
 /-- The translated recursive major has the independently specified selected
-mutual family at the exact recursive-index targets.  The exposed production
+mutual family at the exact recursive-index targets.  The exposed executable
 spine is first identified at canonical parameters, then its merely
 convertible index suffix is transported pointwise. -/
 theorem
