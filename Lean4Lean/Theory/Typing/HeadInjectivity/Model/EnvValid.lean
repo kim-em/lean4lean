@@ -114,7 +114,7 @@ private theorem declaration_le (H : VDecl.WF env decl env') : env ≤ env' := by
     obtain ⟨a, ha, b, hb, c, hc, d, hd, rfl⟩ := h
     exact (VEnv.addConst_le ha).trans <| (VEnv.addConst_le hb).trans <|
       (VEnv.addConst_le hc).trans <| (VEnv.addConst_le hd).trans VEnv.addDefEq_le
-  | induct _ h =>
+  | induct h =>
     cases h with
     | intro _ _ _ _ h =>
       simp only [VInductBlock.install, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -165,7 +165,7 @@ theorem HeadsClosed.of_decl {envF env0 env' : VEnv} (hdecl : VDecl.WF env0 d env
       simp only [List.mem_singleton] at hm; subst hm
       have hn : n = ``Quot.lift := by cases h; rfl
       subst hn; exact hnone)
-  | induct _ installed =>
+  | induct installed =>
     cases installed with
     | @intro block _ _ compiled _ _ hinst =>
       have howned := compiled.equation_head_owned
@@ -224,7 +224,7 @@ theorem projections_of_decl {env0 env' : VEnv} (hdecl : VDecl.WF env0 d env') :
   | mutualDef _ hadd _ =>
     rw [VEnv.addDefEqs_projections, VEnv.addConsts_projections hadd] at hp; exact .inl hp
   | quot _ hadd => rw [VEnv.addQuot_projections hadd] at hp; exact .inl hp
-  | induct _ installed =>
+  | induct installed =>
     cases installed with
     | @intro block _ _ compiled _ _ hinst =>
       rcases (EnvTables.install_projections hinst).1 hp with ⟨entry, hentry, rfl, rfl⟩ | hp
@@ -291,9 +291,9 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.W
   | mutualDef _ hadd _ =>
     rw [VEnv.addDefEqs_projections, VEnv.addConsts_projections hadd] at hp; exact V0.proj _ _ hp
   | quot _ hadd => rw [VEnv.addQuot_projections hadd] at hp; exact V0.proj _ _ hp
-  | induct hdeclWF hadd =>
+  | induct hadd =>
     cases hadd with
-    | intro _ hcompile hblock _ hinstall =>
+    | intro hdeclWF hcompile hblock _ hinstall =>
       obtain ⟨envTypes, envCtors, envRecursors, htypes, hctors, hrecs, -, -, -, -⟩ := hblock
       have hinst := hinstall
       simp only [VInductBlock.install, htypes, hctors, hrecs, Option.bind_eq_bind,
@@ -600,7 +600,7 @@ theorem WF'.envValid {envF : VEnv} (hF : envF.WF) :
         exact Model.RuleValid.quot henvF hq (fun df' ls' hdf' h' => List.mem_singleton.1
           (hex df' hdf' ls' h')) hdr hctor hcres hpctor hQ.1 hQ.2 hdfF
       · exact @ih' hcl0 df hdf
-    | induct _ installed =>
+    | induct installed =>
       cases installed with
       | @intro block _ hdw compiled hbwf _ hinst =>
         obtain ⟨base, expanded, s, g, aux, hbase', C, hprior⟩ :=

@@ -164,7 +164,7 @@ theorem WF'.eliminatorsCoherent {ds : List VDecl} (H : VEnv.WF' ds env) :
       · apply old_projections
         rw [VEnv.addDefEqs_eq_addDefEqRules, VEnv.addDefEqRules_projections, VEnv.addConstVals_projections hadd']
     | quot _ hadd => exact ih.addQuot hadd
-    | induct _ hadd => exact ih.addInduct (show env.WF from ⟨ds, hbase⟩).ordered hadd
+    | induct hadd => exact ih.addInduct (show env.WF from ⟨ds, hbase⟩).ordered hadd
   | inductEliminators hbase henv hle hreg hconstants _ _ hcoherent hfresh _ ihBase ih =>
     intro k s hs
     rcases hs with ⟨rfl, rfl⟩ | hs

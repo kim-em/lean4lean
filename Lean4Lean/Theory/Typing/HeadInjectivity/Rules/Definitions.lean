@@ -151,7 +151,7 @@ theorem WF'.deltaRules {env : VEnv} (H : env.WF' ds) : env.DeltaRules := by
       · intro df hm _ _ n ls _ h
         simp only [List.mem_singleton] at hm; subst hm
         exact absurd h quotDefEq_lhs_ne_const
-    | induct _ installed =>
+    | induct installed =>
       cases installed with
       | @intro block _ _ compiled _ _ installed =>
         obtain ⟨base, expanded, signature, generated, auxiliaries, _, compilation, _⟩ :=

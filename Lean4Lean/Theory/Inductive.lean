@@ -652,3 +652,9 @@ inductive VEnv.AddInduct (env : VEnv) (decl : VInductDecl) : VEnv → Prop where
     VInductBlock.EliminatorsWF env decl block →
     VInductBlock.install env block = some env' →
     VEnv.AddInduct env decl env'
+
+/-- An admitted inductive declaration is well formed. -/
+theorem VEnv.AddInduct.sourceWF {env env' : VEnv} {decl : VInductDecl}
+    (H : VEnv.AddInduct env decl env') : decl.WF env := by
+  cases H with
+  | intro hdecl => exact hdecl
