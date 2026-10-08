@@ -2515,14 +2515,14 @@ inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
       AddInductive.isRecArg stats dom { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := ctorFieldCheck c stats bu } = .ok none →
       RecursorFieldDecisions stats root source { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         (bu.push (.fvar ⟨c.ngen.curr⟩)) u positions
   | recursive :
@@ -2532,14 +2532,14 @@ inductive RecursorFieldDecisions (stats : AddInductive.InductiveStats)
       AddInductive.isRecArg stats dom { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := ctorFieldCheck c stats bu } = .ok (some target) →
       RecursorFieldDecisions stats root source { c with
           ngen := c.ngen.next
           lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
           checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-            dom.consumeTypeAnnotationsVerified bi }
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
         (body.instantiate1 (.fvar ⟨c.ngen.curr⟩))
         (bu.push (.fvar ⟨c.ngen.curr⟩))
         (u.push (.fvar ⟨c.ngen.curr⟩)) (positions ++ [bu.size])

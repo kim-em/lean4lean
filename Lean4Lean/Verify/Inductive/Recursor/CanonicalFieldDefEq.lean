@@ -6,18 +6,18 @@ open Kernel
 
 /-- The first `n` binders of `consumed` are those of `raw`, with each domain
 annotation-consumed; the bodies after the `n`-th binder are unrelated. -/
-inductive Expr.ConsumedForallPrefix : Nat → Lean.Expr → Lean.Expr → Prop
-  | zero (raw consumed : Lean.Expr) : ConsumedForallPrefix 0 raw consumed
-  | succ : ConsumedForallPrefix n body body' →
-      ConsumedForallPrefix (n + 1) (.forallE name dom body bi)
-        (.forallE name' dom.consumeTypeAnnotationsVerified body' bi')
+inductive Expr.ConsumedForallPrefix (ok : Name → Bool) : Nat → Lean.Expr → Lean.Expr → Prop
+  | zero (raw consumed : Lean.Expr) : ConsumedForallPrefix ok 0 raw consumed
+  | succ : ConsumedForallPrefix ok n body body' →
+      ConsumedForallPrefix ok (n + 1) (.forallE name dom body bi)
+        (.forallE name' (dom.consumeTypeAnnotationsVerified ok) body' bi')
 
 /-- Consuming a telescope and keeping only its first `n` domains consumes
 each of those domains in place. -/
 theorem Expr.ForallTelescope.consumedForallPrefix
     (H : Expr.ForallTelescope raw n residual) :
-    Expr.ConsumedForallPrefix n raw
-      (Expr.forallDomainsOnly n (Lean4Lean.Expr.consumeForallTypes raw)) := by
+    Expr.ConsumedForallPrefix ok n raw
+      (Expr.forallDomainsOnly n (Lean4Lean.Expr.consumeForallTypes ok raw)) := by
   induction H with
   | nil => exact .zero _ _
   | cons _ ih => exact .succ ih
@@ -28,8 +28,8 @@ equal domains, in either prefix context. -/
 theorem TrExprS.consumedForallPrefix_defeq
     {env : Environment} {venv : VEnv} {safety : DefinitionSafety} {Us : List Name}
     (Hchecking : CheckingEnv safety env venv)
-    (Hwrappers : TypeAnnotationWrappers env)
-    (Hpre : Expr.ConsumedForallPrefix n raw consumed) :
+    (Hwrappers : TypeAnnotationWrappers env ok)
+    (Hpre : Expr.ConsumedForallPrefix ok n raw consumed) :
     ∀ {Δ₁ Δ₂ : VLCtx} {As Cs : List VExpr} {B D : VExpr},
       VLCtx.IsDefEq venv Us.length Δ₁ Δ₂ →
       TrExprS venv Us Δ₁ raw (VExpr.wrapForalls As B) →
@@ -114,12 +114,12 @@ theorem CompletedRecursorConstruction.sourceFields_defeq_header
     H.sourceFields_length owner howner localIndex hlocal
   have Htel := HS.semantic.traversal.fieldTelescope.abstractList H.params.fvars
   rw [HS.semantic.traversal_fields] at Htel
-  have Hpre := Htel.consumedForallPrefix
+  have Hpre := Htel.consumedForallPrefix (ok := ctorEnv.isTypeAnnotationWrapper)
   have Hsrc := (H.sourceFields_headerReplay owner howner localIndex hlocal).1
   have Hext := HS.semantic.hypothesesRecent.contextLE.trans HS.semantic.extension.contextLE
   let Hbound := HS.semantic.fieldsRecent.toBoundFVarArray.mono Hext
   have hsrc : (H.localContext.lctx.mkForall S.fields (.sort .zero)).abstractList H.params.fvars =
-      Expr.forallDomainsOnly S.fields.size (Lean4Lean.Expr.consumeForallTypes
+      Expr.forallDomainsOnly S.fields.size (Lean4Lean.Expr.consumeForallTypes ctorEnv.isTypeAnnotationWrapper
         (HS.semantic.traversal.parameterTail.abstractList H.params.fvars)) := by
     rw [← H.constructorConsumedSource owner howner localIndex hlocal HS,
       Expr.forallDomainsOnly_abstractList,

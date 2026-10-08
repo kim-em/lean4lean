@@ -328,10 +328,6 @@ theorem addMutualBlock.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env
         exact heq ▸ ((wf.hasPrimitives (safety := sf)).addConsts hnonprimCis hb).addDefEqs
       · rw [hsame sf hv]; exact wf.hasPrimitives
     safePrimitives := wf.safePrimitives_addDefs hfresh hnd hnonprim
-    typeAnnotationWrappers :=
-      VerifyInductive.TypeAnnotationWrappers.addDefinitions
-        wf.typeAnnotationWrappers (wf.tr (safety := .safe)).map_wf
-        vs hfresh hnd
     inductivesClosed := wf.inductivesClosed.addDefinitions
       (wf.tr (safety := .safe)).map_wf vs hfresh hnd
     constructorOwners := wf.constructorOwners.addDefinitions
@@ -375,7 +371,6 @@ theorem VEnvs.WFCore.extendUnsafeExact
     (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (htypeAnnotationWrappers : TypeAnnotationWrappers env')
     (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
     (hconstructorSemantics : ∀ safety,
@@ -404,7 +399,6 @@ theorem VEnvs.WFCore.extendUnsafeExact
       tr := ?_
       hasPrimitives := ?_
       safePrimitives := hsafePrimitives
-      typeAnnotationWrappers := htypeAnnotationWrappers
       inductivesClosed := hinductivesClosed
       constructorOwners := hconstructorOwners
       constructorSemantics {safety} := by
@@ -466,7 +460,6 @@ theorem VEnvs.WFCore.extendUnsafe
     (hsafePrimitives : ∀ {n ci}, env'.find? n = some ci →
       Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
-    (htypeAnnotationWrappers : TypeAnnotationWrappers env')
     (hinductivesClosed : VerifyInductive.MutualInductivesClosed env')
     (hconstructorOwners : VerifyInductive.ConstructorOwnersPresent env')
     (hconstructorSemantics : ∀ safety,
@@ -485,7 +478,7 @@ theorem VEnvs.WFCore.extendUnsafe
     ∃ ves' : VEnvs, ves'.WFCore env' ∧
       ∀ safety, ves.venv safety ≤ ves'.venv safety := by
   rcases wf.extendUnsafeExact unsafeEnv htrUnsafe htrPartial htrSafe
-      hunsafePrimitives hsafePrimitives htypeAnnotationWrappers
+      hunsafePrimitives hsafePrimitives
       hinductivesClosed hconstructorOwners hconstructorSemantics
       hinductiveProvenance hleUnsafe with ⟨ves', wf', hle, _⟩
   exact ⟨ves', wf', hle⟩
@@ -528,16 +521,6 @@ theorem VEnvs.WFCore.extendInductExact
         intro safety
         exact hprimitives safety
       safePrimitives := hsafePrimitives
-      typeAnnotationWrappers := by
-        apply wf.typeAnnotationWrappers.rebase
-        intro name ci hlookup
-        have hsource : env.constants.find? name = some ci := by
-          rwa [← (wf.tr (safety := .safe)).map_wf.find?'_eq_find?]
-        have htarget := (hadd .safe).preservesSourceFind hsource
-        have htargetWF :=
-          ((hadd .safe).aligned (wf.tr (safety := .safe)).aligned).map_wf
-        rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
-        exact htarget
       inductivesClosed := hinductivesClosed
       constructorOwners := hconstructorOwners
       constructorSemantics {safety} := by
@@ -634,9 +617,6 @@ theorem addConstCore.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       · exact preserves safety _ hvisible (hadd safety hvisible) (wf.hasPrimitives (safety := safety))
       · rw [hsame safety hvisible]; exact wf.hasPrimitives (safety := safety)
     safePrimitives := wf.safePrimitives_add ci hn hprim
-    typeAnnotationWrappers :=
-      VerifyInductive.TypeAnnotationWrappers.addConstant
-        wf.typeAnnotationWrappers (wf.tr (safety := .safe)).map_wf ci hn
     inductivesClosed := wf.inductivesClosed.addNonInductive
       (wf.tr (safety := .safe)).map_wf hn hnind
     constructorOwners := wf.constructorOwners.addNonConstructor
@@ -732,10 +712,6 @@ theorem addDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
         rw [heq]; exact preserves safety base hvisible hadd
       · rw [hsame safety hvisible]; exact wf.hasPrimitives (safety := safety)
     safePrimitives := wf.safePrimitives_add (.defnInfo v) hn hprim
-    typeAnnotationWrappers :=
-      VerifyInductive.TypeAnnotationWrappers.addConstant
-        wf.typeAnnotationWrappers (wf.tr (safety := .safe)).map_wf
-        (.defnInfo v) hn
     inductivesClosed := wf.inductivesClosed.addNonInductive
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     constructorOwners := wf.constructorOwners.addNonConstructor
@@ -811,10 +787,6 @@ theorem addUnsafeDef.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
       | .safe | .partial => wf.hasPrimitives
     safePrimitives := wf.safePrimitives_add (.defnInfo v) hn
       (by simp [ConstantInfo.name, ConstantInfo.toConstantVal, hnonprim])
-    typeAnnotationWrappers :=
-      VerifyInductive.TypeAnnotationWrappers.addConstant
-        wf.typeAnnotationWrappers (wf.tr (safety := .safe)).map_wf
-        (.defnInfo v) hn
     inductivesClosed := wf.inductivesClosed.addNonInductive
       (wf.tr (safety := .safe)).map_wf hn (by intro _ h; cases h)
     constructorOwners := wf.constructorOwners.addNonConstructor

@@ -204,12 +204,12 @@ theorem RecursorLoopUArgsPrefix.universeSupport
     let P'' : FVarId → Prop := fun fv => fv = x ∨ P' fv
     have hsc' : R'.typeChecker.UniverseScope Us P'' := by
       refine TypeChecker.VContext.UniverseScope.cons (x := x)
-        (deps := domain.consumeTypeAnnotationsVerified.fvarsList)
+        (deps := (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper).fvarsList)
         (d := .vlam consumedDom) rfl ?_ R.current_not_mem hsc ?_ ?_
       · intro fv hne
-        change (TypeChecker.MLCtx.vlam x name domain.consumeTypeAnnotationsVerified
+        change (TypeChecker.MLCtx.vlam x name (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
           consumedDom bi R.mlctx).lctx.find? fv = R.mlctx.lctx.find? fv
-        have hwf : (TypeChecker.MLCtx.vlam x name domain.consumeTypeAnnotationsVerified
+        have hwf : (TypeChecker.MLCtx.vlam x name (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
             consumedDom bi R.mlctx).WF R.venv recLparams := R'.mlctx_wf
         rw [hwf.find?_eq, R.mlctx_wf.find?_eq]
         have hbeq : (fv == x) = false := by simpa using hne
@@ -219,7 +219,7 @@ theorem RecursorLoopUArgsPrefix.universeSupport
           (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomP)).1 dep hdep
       · intro decl hdecl
         have hself := R'.mlctx_wf.find?_vlam_self
-        change (TypeChecker.MLCtx.vlam x name domain.consumeTypeAnnotationsVerified
+        change (TypeChecker.MLCtx.vlam x name (domain.consumeTypeAnnotationsVerified current.env.isTypeAnnotationWrapper)
           consumedDom bi R.mlctx).lctx.find? x = some decl at hdecl
         rw [hself] at hdecl
         cases hdecl

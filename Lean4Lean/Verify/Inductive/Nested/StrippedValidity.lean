@@ -132,7 +132,7 @@ theorem TrConstant.ofSameHeader (H : TrConstant safety venv ci ci')
 theorem Aligned.keyed (H : Aligned safety C venv)
     (h : C.find? name = some ci) : ci.name = name := by
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignoreConst H₀ _ _ hname ih
   | const H₀ _ _ _ hname ih =>
     rw [H₀.map_wf.find?_insert] at h
@@ -167,7 +167,7 @@ theorem Aligned.replaceHeader (H : Aligned safety C venv)
     (hother : ∀ y, y ≠ n → C'.find? y = C.find? y) :
     Aligned safety C' venv := by
   induction H generalizing C' ci with
-  | empty => simp [SMap.find?] at hfind
+  | empty => simp at hfind
   | @ignoreConst C₀ venv₀ m ci₀ H₀ hm hs hname ih =>
     have hwf₀ := H₀.map_wf
     by_cases hmn : n = m
@@ -634,18 +634,6 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     have hn : n ∉ names := fun hn => by rw [hfresh n hn] at h; cases h
     rw [stripLookup_not_mem hspec hn]
     exact Hactual.preservesSourceMapFind hsourceWF h
-  have hU : ∀ {name}, UnaryTypeAnnotationWrapper outEnv name →
-      UnaryTypeAnnotationWrapper S name := by
-    intro name H
-    rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hred⟩
-    exact ⟨⟨info, value, hnonrecE hlookup (by rintro r rfl; cases hdelta),
-      hsafe, hdelta, hred⟩⟩
-  have hB : ∀ {name}, BinaryTypeAnnotationWrapper outEnv name →
-      BinaryTypeAnnotationWrapper S name := by
-    intro name H
-    rcases H.operational with ⟨info, value, hlookup, hsafe, hdelta, hred⟩
-    exact ⟨⟨info, value, hnonrecE hlookup (by rintro r rfl; cases hdelta),
-      hsafe, hdelta, hred⟩⟩
   have hvalidCore : CheckingEnv.ValidCore c.safety S finalVEnv := {
     tr := {
       aligned := hSal
@@ -661,12 +649,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
       rcases hcasesE hfind with h | ⟨r, h, rfl⟩
       · exact hcore.safePrimitives h hprim
       · have := hcore.safePrimitives h hprim
-        exact this
-    typeAnnotationWrappers :=
-      ⟨hB hcore.typeAnnotationWrappers.optParam,
-        hB hcore.typeAnnotationWrappers.autoParam,
-        hU hcore.typeAnnotationWrappers.outParam,
-        hU hcore.typeAnnotationWrappers.semiOutParam⟩ }
+        exact this }
   have howners' : ConstructorOwnersPresent S := by
     intro name info h
     rcases hcasesE h with h | ⟨r, _, hr⟩

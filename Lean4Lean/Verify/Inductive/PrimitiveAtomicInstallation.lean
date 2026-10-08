@@ -74,7 +74,6 @@ def StagedContextWF.complete (H : StagedContextWF c)
     (hsafe : forall {n ci}, c.env.find? n = some ci ->
       Kernel.Environment.primitives.contains n ->
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers c.env)
     (howners : ConstructorOwnersPresent c.env)
     (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv)
     (hrecursors : RecursorEnvCoherent c.safety c.env.constants H.venv)
@@ -87,7 +86,6 @@ def StagedContextWF.complete (H : StagedContextWF c)
     safePrimitives := by
       intro n ci hfind hprimitive
       exact hsafe hfind hprimitive
-    typeAnnotationWrappers := hannotations
     corner := H.corner
     constructorOwners := howners
     projectionRegistry := hregistry
@@ -611,24 +609,6 @@ theorem AtomicAddConstants.safePrimitives
     subst ci
     exact hentries entry hentry hprimitive
 
-/-- Type-annotation wrapper identities survive an atomic constant batch; the
-argument uses only freshness, not nonprimitive names. -/
-theorem AtomicAddConstants.typeAnnotationWrappers
-    (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
-    (hwf : env.constants.WF) (hsource : TypeAnnotationWrappers env) :
-    TypeAnnotationWrappers outEnv := by
-  induction H with
-  | nil => exact hsource
-  | cons hn _htr _hciwf _hadd _hdelta _Htail ih =>
-    rename_i _venvHead ci _ci' _venvNext _rest _outProd _outAbs envHead
-    have hfreshMap : envHead.constants.find? ci.name = none := by
-      rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn
-    have hnextWF : (envHead.add ci).constants.WF := by
-      change (envHead.constants.insert ci.name ci).WF
-      exact hwf.insert ci.name ci hfreshMap
-    exact ih hnextWF
-      (TypeAnnotationWrappers.addConstant hsource hwf ci hn)
-
 /-- The executable mutual-header fold has an atomic staging trace even when
 `allowPrimitive` permits the canonical reserved family name.  The theorem
 uses only `CheckingEnv`; no validity assertion is made for the resulting
@@ -860,7 +840,6 @@ def AtomicAddConstants.completeContext
     (hsafe : forall {n ci}, outEnv.find? n = some ci ->
       Kernel.Environment.primitives.contains n ->
       ci.safety = .safe ∧ ci.levelParams = [])
-    (hannotations : TypeAnnotationWrappers outEnv)
     (howners : ConstructorOwnersPresent outEnv)
     (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
@@ -868,7 +847,7 @@ def AtomicAddConstants.completeContext
     (hcorner : ProjectionCorner c.safety outEnv outVEnv) :
     ContextWF { c with env := outEnv } :=
   (source.withEnv (H.checking source.checking) H.le hcorner).complete
-    hprimitives hsafe hannotations howners hregistry hrecursors hquot
+    hprimitives hsafe howners hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
 `DeclaredHeadersResult`, except that its checking context and installation

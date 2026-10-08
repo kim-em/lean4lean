@@ -4,9 +4,9 @@ open Lean hiding Environment Exception
 open Kernel
 
 theorem consumeTranslatedTypeAnnotations_liftN (source : Expr) (target : VExpr) :
-    consumeTranslatedTypeAnnotations source (target.liftN n k) =
-      (consumeTranslatedTypeAnnotations source target).liftN n k := by
-  fun_induction Expr.consumeTypeAnnotationsVerified source generalizing target
+    consumeTranslatedTypeAnnotations annOk source (target.liftN n k) =
+      (consumeTranslatedTypeAnnotations annOk source target).liftN n k := by
+  fun_induction Expr.consumeTypeAnnotationsVerified annOk source generalizing target
   case case1 name sourceLevels first second hannotation ih =>
     cases target <;> simp [consumeTranslatedTypeAnnotations, hannotation, VExpr.liftN]
     case app fn arg =>
@@ -20,9 +20,9 @@ theorem consumeTranslatedTypeAnnotations_liftN (source : Expr) (target : VExpr) 
   all_goals simp [consumeTranslatedTypeAnnotations, *]
 
 theorem consumeTranslatedTypeAnnotations_abstract1 (source : Expr) (target : VExpr) :
-    consumeTranslatedTypeAnnotations (source.abstract1 fv depth) target =
-      consumeTranslatedTypeAnnotations source target := by
-  fun_induction Expr.consumeTypeAnnotationsVerified source generalizing target depth
+    consumeTranslatedTypeAnnotations annOk (source.abstract1 fv depth) target =
+      consumeTranslatedTypeAnnotations annOk source target := by
+  fun_induction Expr.consumeTypeAnnotationsVerified annOk source generalizing target depth
   case case1 name sourceLevels first second hannotation ih =>
     cases target <;> simp [Expr.abstract1, consumeTranslatedTypeAnnotations, hannotation]
     case app fn arg =>

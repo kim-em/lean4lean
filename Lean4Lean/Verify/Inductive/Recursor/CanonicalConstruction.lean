@@ -33,7 +33,8 @@ structure ConsumedConstructorOrigins
         root S.recursiveFields[j]! sourceType,
       ∃ D : BoundFVarDeclarationAt S.sourceFullContext S.hypotheses j,
         BindingContextLE hypotheses.fieldRoot root ∧
-        D.type = sourceType.consumeTypeAnnotationsVerified ∧
+        D.type = (sourceType.consumeTypeAnnotationsVerified
+          S.sourceFullContext.env.isTypeAnnotationWrapper) ∧
         (InductiveSignature.Instance.recursiveFields (s := s) ctor)[j].2.target.val = O.ownerIdx ∧
         (InductiveSignature.Instance.recursiveFields (s := s) ctor)[j].2.binders.length = O.args.size
 

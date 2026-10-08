@@ -94,8 +94,8 @@ structure RecursorMotiveFrameWF
       majorSourceTarget majorTarget
   majorTr :
     let majorTy :=
-      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotationsVerified
+      ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
     TrExprS Rindices.venv
       recLparams
       Rindices.mlctx.vlctx majorTy majorTarget
@@ -122,8 +122,8 @@ structure RecursorMotiveFrameWF
   canonical telescope in their common outer context. -/
   motiveClosed :
     let majorTy :=
-      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotationsVerified
+      ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
     let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
       majorTr majorType
     let cMajor : AddInductive.Context := { c with
@@ -136,15 +136,15 @@ structure RecursorMotiveFrameWF
       ∃ closedTarget,
         TrExprS Rindices.venv recLparams
           (Rindices.mlctx.dropN indices.size hsize).vlctx
-          motiveTy.consumeTypeAnnotationsVerified closedTarget ∧
+          (motiveTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) closedTarget ∧
         Rindices.venv.IsType recLparams.length
           (Rindices.mlctx.dropN indices.size hsize).vlctx.toCtx closedTarget ∧
         closedTarget = VExpr.wrapForalls indexDomains
           (.forallE majorTarget (.sort resultLevel))
   motiveTr :
     let majorTy :=
-      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotationsVerified
+      ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
     let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
       majorTr majorType
     let cMajor : AddInductive.Context := { c with
@@ -155,7 +155,7 @@ structure RecursorMotiveFrameWF
       cMajor.lctx.mkForall #[major] <| .sort elimLevel
     TrExprS Rmajor.venv
       recLparams
-      Rmajor.mlctx.vlctx motiveTy.consumeTypeAnnotationsVerified motiveTarget
+      Rmajor.mlctx.vlctx (motiveTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) motiveTarget
   motiveType :
     let Rmajor := Rindices.withLocalDecl (name := `t) (bi := .default)
       majorTr majorType
@@ -164,15 +164,15 @@ structure RecursorMotiveFrameWF
       Rmajor.mlctx.vlctx.toCtx motiveTarget
   motiveSourceEq :
     let majorTy :=
-      (mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
-        indices).consumeTypeAnnotationsVerified
+      ((mkAppN (mkAppN stats.indConsts[familyIdx]! stats.params)
+        indices).consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
     let cMajor : AddInductive.Context := { c with
       ngen := c.ngen.next
       lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ `t majorTy .default }
     let major := Expr.fvar ⟨c.ngen.curr⟩
     let motiveTy := cMajor.lctx.mkForall indices <|
       cMajor.lctx.mkForall #[major] <| .sort elimLevel
-    motiveTy.consumeTypeAnnotationsVerified = motiveTy
+    (motiveTy.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) = motiveTy
 
 /-- The independent canonical family/motive telescope attached to one
 completed executable frame.  Its motive type is still compared with the
@@ -3068,7 +3068,7 @@ inductive Expr.ForallBinderAt : Expr → Nat → Expr → Prop
 at the top level leaves the enclosing expression unchanged. -/
 theorem Expr.ForallBinderAt.consumeTypeAnnotationsVerified_eq_self
     (H : Expr.ForallBinderAt source i domain) :
-    source.consumeTypeAnnotationsVerified = source := by
+    (source.consumeTypeAnnotationsVerified annOk) = source := by
   cases H with
   | here => apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
   | there _ => apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
@@ -4380,8 +4380,8 @@ theorem Expr.mkAppN_looseBVarRange_le
 
 theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_eq_self
     (H : Expr.ForallTelescope outer arity body)
-    (hbody : body.consumeTypeAnnotationsVerified = body) :
-    outer.consumeTypeAnnotationsVerified = outer := by
+    (hbody : (body.consumeTypeAnnotationsVerified annOk) = body) :
+    (outer.consumeTypeAnnotationsVerified annOk) = outer := by
   cases H with
   | nil => exact hbody
   | cons H =>
@@ -4389,7 +4389,7 @@ theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_eq_self
 
 theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_eq_self_of_pos
     (H : Expr.ForallTelescope outer arity body) (hpos : 0 < arity) :
-    outer.consumeTypeAnnotationsVerified = outer := by
+    (outer.consumeTypeAnnotationsVerified annOk) = outer := by
   cases H with
   | nil => simp at hpos
   | cons _ => apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
@@ -4399,13 +4399,13 @@ leading forall binders.  In the zero-binder case the residual may itself be
 the annotation payload, so it is retained existentially. -/
 theorem Expr.ForallTelescope.consumeTypeAnnotationsVerified_arity
     (H : Expr.ForallTelescope outer arity body) :
-    ∃ residual, Expr.ForallTelescope outer.consumeTypeAnnotationsVerified
+    ∃ residual, Expr.ForallTelescope (outer.consumeTypeAnnotationsVerified annOk)
       arity residual := by
   cases H with
   | nil => exact ⟨_, .nil _⟩
   | @cons body arity result name dom bi Htail =>
       have houter :
-          (Expr.forallE name dom body bi).consumeTypeAnnotationsVerified =
+          ((Expr.forallE name dom body bi).consumeTypeAnnotationsVerified annOk) =
             Expr.forallE name dom body bi := by
         apply Expr.consumeTypeAnnotationsVerified_eq_self <;> rfl
       exact ⟨_, houter ▸ Expr.ForallTelescope.cons Htail⟩

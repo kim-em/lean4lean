@@ -1224,7 +1224,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
           have hparamNext : stats.params[i + 1]? = none := by
             rw [Array.getElem?_eq_none_iff] at hparamAt ⊢
             omega
-          have hdeps : dom.consumeTypeAnnotationsVerified.fvarsList ⊆ scope.fvars :=
+          have hdeps : (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList ⊆ scope.fvars :=
             (fvarsIn_iff.mp
               (Expr.consumeTypeAnnotationsVerified_fvarsIn hdomNarrow.fvarsIn)).1
           rcases Hruntime.consumedDomain Hc Hdom hdomNarrow with
@@ -1248,7 +1248,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                 checkInductiveTypes.loopType.NarrowRuntimeScope
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
-                    dom.consumeTypeAnnotationsVerified.fvarsList),
+                    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -1258,14 +1258,14 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             have hscopeWF := halign'.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam narrowDom) :: scope)
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
               rw [Expr.instantiate1_eq]
               exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
             have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
             let Hfields' := Hfields.pushCurrentChecked name
-              dom.consumeTypeAnnotationsVerified consumedDom bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom bi
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             have hopenFvars : Hopening.fvars =
                 Hfields.toBoundFVarArray.fvars :=
@@ -1302,7 +1302,7 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
                 checkInductiveTypes.loopType.NarrowRuntimeScope
                   Hc'.venv c.lparams
                   ((some (⟨c.ngen.curr⟩,
-                    dom.consumeTypeAnnotationsVerified.fvarsList),
+                    (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                     .vlam narrowDom) :: scope)
                   Hc'.mlctx.vlctx :=
               Hruntime.withIndex Hc'.mlctx_wf.tr.wf hdeps name bi dom
@@ -1312,14 +1312,14 @@ theorem checkConstructors.loopCtor.ownerNormalFormWF
             have hscopeWF := halign'.wf
             have hopenedNarrow : TrExprS Hc'.venv c.lparams
                 ((some (⟨c.ngen.curr⟩,
-                  dom.consumeTypeAnnotationsVerified.fvarsList),
+                  (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList),
                   .vlam narrowDom) :: scope)
                 (body.instantiate1 (.fvar ⟨c.ngen.curr⟩)) narrowBody := by
               rw [Expr.instantiate1_eq]
               exact hbodyNarrow.inst_fvar Hc.checking.tr.wf.ordered hscopeWF
             have Hstats' := Hstats.withFVar Hc'.checking.tr.wf hscopeWF
             let Hfields' := Hfields.pushCurrentChecked name
-              dom.consumeTypeAnnotationsVerified consumedDom bi
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom bi
               Hdom.consumed Hdom.isType Hdom₀.consumed Hdom₀.isType
             have hopenFvars : Hopening.fvars =
                 Hfields.toBoundFVarArray.fvars :=
@@ -1891,7 +1891,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
         ⟨consumedDom₀, Hdom₀⟩
       rcases Hdom₀.body RB.narrow hbodyN₀ with ⟨body₀'', hbody₀'', hbody₀Eq⟩
       have hcons₀ : TrExprS R.venv recLparams B.m.vlctx
-          dom.consumeTypeAnnotationsVerified consumedDom₀ := Hdom₀.consumed
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom₀ := Hdom₀.consumed
       have hconsT₀ : R.venv.IsType recLparams.length B.m.vlctx.toCtx
           consumedDom₀ := Hdom₀.isType
       refine AddInductive.M.WF_bind AddInductive.getLCtx.WF fun _ hlctx => ?_
@@ -1900,9 +1900,9 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
       let c' : AddInductive.Context := { c with
         ngen := c.ngen.next
         lctx := c.lctx.mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi
         checkLCtx := (ctorFieldCheck c stats bu).mkLocalDecl ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified bi }
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) bi }
       let R' : RecursorContextWF c' recLparams :=
         R.withCheckedLocalDeclOn (name := name) (bi := bi)
           (ctorFieldCheck c stats bu) B
@@ -1937,7 +1937,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           (.fvar ⟨c.ngen.curr⟩) (.bvar 0) := by
         exact TrExprS.fvar (A := consumedDom.lift) (by
           change VLCtx.find? ((some (⟨c.ngen.curr⟩,
-            dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+            (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
               R.mlctx.vlctx) (Sum.inr ⟨c.ngen.curr⟩) = _
           simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
             VLocalDecl.value, VLocalDecl.type])
@@ -1947,7 +1947,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             some ((.bvar 0), consumedDom.liftN 1 0) := by
           change VLCtx.find?
             ((some (⟨c.ngen.curr⟩,
-                dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+                (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
               R.mlctx.vlctx)
             (.inr ⟨c.ngen.curr⟩) =
               some ((.bvar 0), consumedDom.liftN 1 0)
@@ -2034,7 +2034,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           (R.mlctx.mkForall' bu.size Hrecent.size_le
             (.forallE consumedDom consumedBody)) :=
         ⟨.sort closedLevel, HclosedConsumed⟩
-      let Hrecent' := Hrecent.pushCurrentOn name dom.consumeTypeAnnotationsVerified
+      let Hrecent' := Hrecent.pushCurrentOn name (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper)
         consumedDom bi (ctorFieldCheck c stats bu) B
         Hdom.consumed Hdom.isType hcons₀ hconsT₀
       have HclosedConsumedRoot : Rroot.venv.IsDefEqU recLparams.length
@@ -2108,7 +2108,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
             R'.venv.IsDefEqU recLparams.length baseV.toCtx root₀
               (B'.m.mkForall' (bu.push (.fvar ⟨c.ngen.curr⟩)).size hn body₀'') := by
         have h := MLCtxTopAgree.stepDropForall ⟨c.ngen.curr⟩ name
-          dom.consumeTypeAnnotationsVerified consumedDom consumedDom₀ bi hagreeB₁
+          (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper) consumedDom consumedDom₀ bi hagreeB₁
         simp only [Array.size_push]
         exact h
       have hopened₀ : TrExprS R.venv recLparams B'.m.vlctx
@@ -2168,7 +2168,7 @@ theorem recursiveDomainsRecursorRecent {alpha : Type}
           R'.mlctx.vlctx := by
         change IsFVarUpSet _
           ((some (⟨c.ngen.curr⟩,
-              dom.consumeTypeAnnotationsVerified.fvarsList), .vlam consumedDom) ::
+              (dom.consumeTypeAnnotationsVerified c.env.isTypeAnnotationWrapper).fvarsList), .vlam consumedDom) ::
             R.mlctx.vlctx)
         refine ⟨hcurrentUp', fun _ dep hdep => ?_⟩
         have hselected : dep ∈ Hopening.fvars ∨ P dep :=

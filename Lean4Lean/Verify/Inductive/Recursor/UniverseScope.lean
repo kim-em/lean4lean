@@ -29,8 +29,8 @@ theorem _root_.Except.WF.and {ε α : Type} {x : Except ε α} {Q R : α → Pro
     · split <;> rfl
 
 theorem Expr.levelParamsIn_consumeTypeAnnotationsVerified {e : Expr}
-    (H : e.levelParamsIn params = true) : e.consumeTypeAnnotationsVerified.levelParamsIn params = true := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e
+    (H : e.levelParamsIn params = true) : (e.consumeTypeAnnotationsVerified annOk).levelParamsIn params = true := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e
   all_goals simp_all [Expr.levelParamsIn]
 
 namespace VerifyInductive

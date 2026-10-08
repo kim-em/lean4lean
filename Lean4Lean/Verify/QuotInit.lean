@@ -473,7 +473,6 @@ structure QuotEnvInv (env : Environment) (V : DefinitionSafety → VEnv) : Prop 
   mapWF : env.constants.WF
   safePrimitives : ∀ {n ci}, env.find? n = some ci →
     Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []
-  typeAnnotationWrappers : TypeAnnotationWrappers env
   inductivesClosed : VerifyInductive.MutualInductivesClosed env
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
   constructorSemantics : ∀ safety,
@@ -490,8 +489,6 @@ theorem QuotEnvInv.add {env : Environment} {V V'} (H : QuotEnvInv env V) (ci : Q
     (fun h => by
       rw [show (ConstantInfo.quotInfo ci).name = ci.name from rfl, hprim] at h
       cases h)
-  typeAnnotationWrappers :=
-    VerifyInductive.TypeAnnotationWrappers.addConstant H.typeAnnotationWrappers H.mapWF _ hn
   inductivesClosed := H.inductivesClosed.addNonInductive H.mapWF hn nofun
   constructorOwners := H.constructorOwners.addNonConstructor H.mapWF hn nofun
   constructorSemantics s :=
@@ -506,7 +503,6 @@ theorem QuotEnvInv.markQuotInit {env : Environment} {V} (H : QuotEnvInv env V) :
     QuotEnvInv (markQuotInit env) V where
   mapWF := H.mapWF
   safePrimitives := H.safePrimitives
-  typeAnnotationWrappers := H.typeAnnotationWrappers.rebase id
   inductivesClosed := H.inductivesClosed.mapEnvironmentEq fun _ => rfl
   constructorOwners := H.constructorOwners
   constructorSemantics s familyName familyInfo hfamily hvisible i hi :=
@@ -555,7 +551,6 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
   have I0 : QuotEnvInv env ves.venv :=
     { mapWF := hC
       safePrimitives := wf.safePrimitives
-      typeAnnotationWrappers := wf.typeAnnotationWrappers
       inductivesClosed := wf.inductivesClosed
       constructorOwners := wf.constructorOwners
       constructorSemantics := fun _ => wf.constructorSemantics
@@ -606,7 +601,6 @@ theorem VEnvs.WFCore.addQuot {env : Environment} {ves : VEnvs} (wf : ves.WFCore 
       exact .quot (hq safety) (hves' safety) this
     hasPrimitives {safety} := wf.hasPrimitives.addQuot (hsome safety) p1 p2 p3 p4
     safePrimitives := I5.safePrimitives
-    typeAnnotationWrappers := I5.typeAnnotationWrappers
     inductivesClosed := I5.inductivesClosed
     constructorOwners := I5.constructorOwners
     constructorSemantics {safety} := I5.constructorSemantics safety

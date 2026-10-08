@@ -11,9 +11,9 @@ namespace TypeChecker
 consumer. -/
 theorem Expr.abstract1_consumeTypeAnnotationsVerified
     (e : Expr) (fv : FVarId) (k : Nat := 0) :
-    e.consumeTypeAnnotationsVerified.abstract1 fv k =
-      (e.abstract1 fv k).consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e generalizing k
+    (e.consumeTypeAnnotationsVerified annOk).abstract1 fv k =
+      ((e.abstract1 fv k).consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e generalizing k
   case case1 name levels type value h ih =>
     simpa [Expr.consumeTypeAnnotationsVerified, Expr.abstract1, h] using ih k
   case case2 name levels type value h =>
@@ -36,9 +36,9 @@ theorem Expr.abstract1_consumeTypeAnnotationsVerified
 annotation consumer. -/
 theorem Expr.abstractN_consumeTypeAnnotationsVerified
     (e : Expr) (xs : List FVarId) (k : Nat := 0) :
-    e.consumeTypeAnnotationsVerified.abstractN xs k =
-      (e.abstractN xs k).consumeTypeAnnotationsVerified := by
-  fun_induction Expr.consumeTypeAnnotationsVerified e generalizing k
+    (e.consumeTypeAnnotationsVerified annOk).abstractN xs k =
+      ((e.abstractN xs k).consumeTypeAnnotationsVerified annOk) := by
+  fun_induction Expr.consumeTypeAnnotationsVerified _ e generalizing k
   case case1 name levels type value h ih =>
     simpa [Expr.consumeTypeAnnotationsVerified, Expr.abstractN, h] using ih k
   case case2 name levels type value h =>
@@ -61,8 +61,8 @@ theorem Expr.abstractN_consumeTypeAnnotationsVerified
 annotations recognized by the executable checker. -/
 theorem Expr.abstractList_consumeTypeAnnotations
     (e : Expr) (fvars : List FVarId) (k : Nat := 0) :
-    e.consumeTypeAnnotationsVerified.abstractList fvars k =
-      (e.abstractList fvars k).consumeTypeAnnotationsVerified := by
+    (e.consumeTypeAnnotationsVerified annOk).abstractList fvars k =
+      ((e.abstractList fvars k).consumeTypeAnnotationsVerified annOk) := by
   induction fvars generalizing e with
   | nil => rfl
   | cons fv fvars ih =>
@@ -78,7 +78,7 @@ namespace VerifyInductive
 executable equation; it is not an additional checker assumption. -/
 theorem consumeTypeAnnotationsAlphaCompat :
     ConsumeTypeAnnotationsAlphaCompat := by
-  intro leftBinders rightBinders leftDomain rightDomain Halpha
+  intro ok leftBinders rightBinders leftDomain rightDomain Halpha
   unfold TypeChecker.ExprAlphaUnder at Halpha ⊢
   rw [TypeChecker.Expr.abstractList_consumeTypeAnnotations,
     TypeChecker.Expr.abstractList_consumeTypeAnnotations, Halpha]
