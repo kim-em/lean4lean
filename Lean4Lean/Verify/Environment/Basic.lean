@@ -4,6 +4,7 @@ import Lean4Lean.Declaration
 import Lean4Lean.Inductive.Add
 import Lean4Lean.Std.SMap
 import Lean4Lean.Verify.Environment.RecursorAlignment
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 
 namespace Lean4Lean
 open Lean hiding Environment Exception
@@ -720,9 +721,6 @@ nonrec theorem AddQuot.to_addQuot (H : AddQuot m₁ m₂ env₁ env₂) : env₁
 nonrec theorem AddQuot.le (H : AddQuot m₁ m₂ env₁ env₂) : env₁ ≤ env₂ :=
   open AddQuot1 in (le <| le <| le <| le fun _ _ h => h.2 ▸ VEnv.addDefEq_le) _ _ H
 
-theorem VInductBlock.install_le
-    (H : VInductBlock.install env block = some env') : env ≤ env' :=
-  VInductBlock.install_base_le H
 
 /-- Exact production metadata for one constructor in an abstract inductive
 family installed by the current declaration.  This prevents a flat constant

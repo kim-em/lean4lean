@@ -255,7 +255,7 @@ theorem VEnv.WF.ordered : WF env → Ordered env
   | ⟨ds, H⟩ => by
     induction H with
     | empty => exact .empty
-    | inductEliminators _ _ _ _ _ _ _ _ ih => exact .eliminator ih
+    | inductEliminators _ _ _ _ _ _ _ _ _ ih => exact .eliminator ih
     | decl h _ ih =>
       cases h with
       | «axiom» h1 h2 => exact .const ih h1 h2

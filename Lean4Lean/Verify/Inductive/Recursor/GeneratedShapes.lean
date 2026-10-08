@@ -1,6 +1,7 @@
 import Lean4Lean.Theory.Typing.SignatureArity
 import Lean4Lean.Theory.Typing.RecursorLemmas
 import Lean4Lean.Theory.Inductive.CompilationLemmas
+import Lean4Lean.Theory.Inductive.NativeIotaRestoration
 /-! Generated ordinary recursor and iota shapes.
 
 The operational shape contracts follow from the independent generator's
@@ -19,14 +20,6 @@ theorem Instance.equation_head {s : InductiveSignature} (g : Instance s)
     (fun _ h => by cases h) ?_ (Restoration.expr_empty (g.equation index).lhs)
   exact VExpr.getAppFnArgs_mkApps_head _ _
 
-theorem vars_eq_bvarRange (n below : Nat) :
-    vars n below = VExpr.bvarRange n (n + below) := by
-  apply List.ext_getElem
-  · simp [vars, VExpr.bvarRange]
-  · intro i hi hi'
-    simp [vars, VExpr.bvarRange] at hi hi' ⊢
-    congr 1
-    omega
 
 /-- The generated telescope has exactly the major-family shape consumed by
 the recursor reducer, with ordinary uniform constructor parameters. -/
@@ -70,33 +63,6 @@ theorem Instance.recursor_shape {s : InductiveSignature} (g : Instance s)
       vars_eq_bvarRange, Nat.add_zero]
     rw [VExpr.bvarRange_map_liftN _ _ _ (Nat.le_refl _)]
     congr 2 <;> simp [extra, hindices, Nat.add_assoc]
-
-theorem insertBinders_length (F : List VExpr) (e : Nat) : (insertBinders F e).length = F.length := by
-  simp [insertBinders]
-
-theorem insertBinders_getElem (F : List VExpr) (e i : Nat) (hi : i < (insertBinders F e).length) :
-    (insertBinders F e)[i] = (F[i]'(by simpa [insertBinders_length] using hi)).liftN e i := by
-  simp [insertBinders, List.getElem_zipIdx]
-
-/-- Inserting `e` binders between a context `P` and a telescope prefix lifts the telescope's
-domains as `insertBinders` does. -/
-theorem insertBinders_liftN (F X P : List VExpr) (e : Nat) (hX : X.length = e) :
-    ∀ i, i ≤ F.length → Ctx.LiftN e i ((F.take i).reverse ++ P)
-      (((insertBinders F e).take i).reverse ++ X ++ P)
-  | 0, _ => by simpa using Ctx.LiftN.zero (Γ := P) X hX
-  | i + 1, hi => by
-    have h1 := insertBinders_liftN F X P e hX i (by omega)
-    have hiF : i < F.length := by omega
-    have e1 : (F.take (i + 1)).reverse ++ P = F[i] :: ((F.take i).reverse ++ P) := by
-      rw [List.take_add_one, List.getElem?_eq_getElem hiF, Option.toList_some,
-        List.reverse_append, List.reverse_singleton, List.singleton_append, List.cons_append]
-    have e2 : ((insertBinders F e).take (i + 1)).reverse ++ X ++ P =
-        F[i].liftN e i :: (((insertBinders F e).take i).reverse ++ X ++ P) := by
-      rw [List.take_add_one, List.getElem?_eq_getElem (show i < (insertBinders F e).length by
-        rw [insertBinders_length]; omega), insertBinders_getElem]
-      simp
-    rw [e1, e2]
-    exact .succ h1
 
 /-- A field domain agreement in the constructor's own telescope, moved into a telescope that
 inserts `e` binders between the parameters and the fields. -/

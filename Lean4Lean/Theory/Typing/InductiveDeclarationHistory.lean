@@ -61,7 +61,7 @@ theorem WF'.inductiveStage {env : VEnv} {declarations : List VDecl}
             original', compilation, stages, .rfl⟩⟩
     · obtain ⟨stage⟩ := ih old
       exact ⟨stage.later (declaration_le declarationWF) (Nat.le_succ _)⟩
-  | inductEliminators _ _ _ _ _ _ _ _ ih =>
+  | inductEliminators _ _ _ _ _ _ _ _ _ ih =>
     obtain ⟨stage⟩ := ih member
     exact ⟨stage.later VEnv.addEliminator_le (Nat.le_refl _)⟩
   | inductProjections _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ih =>
