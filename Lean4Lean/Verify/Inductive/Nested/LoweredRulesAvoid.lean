@@ -593,7 +593,7 @@ theorem ArgClosed.callTemplate {lctx : LocalContext} {xs : Array Expr} {ys : Lis
   rw [hsz]
   refine ArgClosed.mkLambda hdecl (ArgClosed.callBody hidx hf ?_)
   intro a ha
-  simp only [List.toList_toArray, List.mem_map] at ha
+  simp only [List.mem_map] at ha
   obtain ⟨y, -, rfl⟩ := ha
   rfl
 
