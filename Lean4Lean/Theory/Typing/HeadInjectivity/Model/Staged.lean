@@ -314,7 +314,8 @@ theorem projValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.W
         exact Model.ProjValid.of_origin hF hpF (ProjOriginAt.ofEntry hbase htypes' hTF
           hdeclWF.1.originalTypes (hdeclWF.1.constructorsWF_at htypes') hdeclWF.1.2.2.2.1
           hparams.rawCtorShape hcompile.sourceNames hparams hentry) (V0.addConstVals htypes')
-      · rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes] at hold
+      · rw [VEnv.addEliminators_projections, VEnv.addConstVals_projections hctors,
+          VEnv.addConstVals_projections htypes] at hold
         exact V0.proj _ _ hold
 
 theorem headName_nil {source : VInductDecl} (n : Name) :
@@ -351,7 +352,8 @@ theorem ordinary_owner_lt {base : VEnv} {source expanded : VInductDecl}
     {s : InductiveSignature} {g : Instance s} {block : VInductBlock}
     (C : CompilationData base source expanded s g [] block) (o : Fin s.families.size) :
     o.val < source.types.length := by
-  obtain ⟨_, direct, _, hdirect, hlt, -⟩ := ShapeModel.CompilationData.family_slot C o
+  obtain ⟨_, direct, _, hdirect, hlt, -⟩ :=
+    ShapeModel.CaseCompilationData.family_slot C.toCaseCompilationData o
   have hd : direct = [] := by simpa using hdirect.symm
   subst hd
   simpa using hlt
@@ -371,13 +373,129 @@ theorem ordered_addProjections {env0 types ctors : VEnv} {decl : VInductDecl}
     (hc : types.addConstVals block.ctors = some ctors)
     (htwf : ∀ ci ∈ block.types, ci.toVConstant.WF env0)
     (hcwf : ∀ ci ∈ block.ctors, ci.toVConstant.WF types) :
-    (ctors.addProjections block.projections).Ordered := by
+    ((ctors.addEliminators block.eliminators).addProjections block.projections).Ordered := by
   have ht' := ht
   rw [hcomp.types] at ht'
   have hparams := hdw.sourceParameterWF ht'
   exact .inductProjections h0 ((h0.addConstVals htwf ht).addConstVals hcwf hc) hcomp.sourceNames
     hdw.1.originalTypes hdw.1.2.2.2.1 (hdw.1.constructorsWF_at ht') hparams hparams.rawCtorShape
     hcomp.types hcomp.ctors hcomp.projections ht hc
+
+/-- **Validity of the generic equations of a registered case eliminator** (D15), from validity of
+the environment `env` at the registration. `hsrc`: a projection entry of `envF` for a family of
+the certified declaration whose constructor is a case constructor of the registration is one of
+the declaration's own entries, and valid. -/
+theorem elimValid_of_registration {envF env base : VEnv} {key : Name} {schema : CaseSchema}
+    {source : VInductDecl} {block : VInductBlock} (hF : envF.WF)
+    (hEu : ∀ b s s', envF.eliminators b s → envF.eliminators b s' → s = s')
+    (hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c)
+    (h0 : env.Ordered) (hle : env.addEliminator key schema ≤ envF) (hble : base ≤ env)
+    (hcert : schema.Certified base source block)
+    (hconsts : ∀ value ∈ block.types ++ block.ctors,
+      env.constants value.name = some value.toVConstant)
+    (hpc0 : ProjsClosed envF env) (IH : Model.EnvValid envF env)
+    (hsrc : ∀ F ∈ source.types, ∀ info, envF.projections F.name info →
+      Model.IsCaseCtor (env.addEliminator key schema) info.ctorName →
+      (⟨F.name, info⟩ : VProjectionEntry) ∈ source.projectionEntries ∧
+        Model.ProjValid envF F.name info)
+    {owner : Fin schema.signature.families.size} {rules : List VDefEq} {df : VDefEq}
+    (hr : schema.genericEquations key owner = some rules) (hm : df ∈ rules) :
+    Model.ElimValid envF owner df := by
+  have henvF := hF.ordered
+  have hle0 : env ≤ envF :=
+    (show env ≤ env.addEliminator key schema from ⟨id, id, id, fun h => .inr h⟩).trans hle
+  have hbF : envF.eliminators key schema := hle.eliminators (.inl ⟨rfl, rfl⟩)
+  have hctorsIn : ∀ value ∈ block.ctors, envF.constants value.name = some value.toVConstant :=
+    fun v hv => hle0.constants (hconsts v (List.mem_append_right _ hv))
+  have hbase : base ≤ envF := hble.trans hle0
+  obtain ⟨rule, hgen, -⟩ := CaseSchema.generates_of_genericEquation hr hm
+  have hIrig := hF.case_family_head_rigid hbF hgen
+  have hcert' := hcert
+  obtain ⟨expanded, aux, C, hprior, hrr, -, hfresh⟩ := hcert'
+  have hpm := Model.projMajor_generic hF h0 hle C hfresh hprior hrr hble hpc0 IH hsrc hconsts
+    hr hm hIrig
+  rcases C.family_origin hfresh owner with
+    ⟨envTypes, family, htypes, hfamily, hrel, hhn, hhl⟩ | ⟨a, ha, hhn, hhl, hlev⟩
+  · obtain ⟨domains, body, level, exprType, hlev, h1, h2⟩ := hrel.type
+    have hTE : envTypes ≤ env := addConstVals_le_of htypes hble fun v hv =>
+      hconsts v (List.mem_append_left _ (by rw [C.types]; exact hv))
+    have hfc : envF.constants family.name = some family.toVConstant :=
+      hle0.constants (hconsts _ (List.mem_append_left _ (by
+        rw [C.types]; exact List.mem_map_of_mem hfamily)))
+    have hfs := Model.famSort_of henvF h0 hle0 IH hfc (h1.mono hTE) (h2.mono hTE) hlev
+    rw [← hhn, ← hrr] at hfs
+    refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
+      hpm fun levels target hlen hnz => ?_
+    rw [hrr, hhl, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
+    exact hnz
+  · have hfs := Model.famSort_container henvF h0 hle0 IH hprior hble ha
+    rw [← hhn, ← hrr] at hfs
+    refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
+      hpm fun levels target hlen hnz => ?_
+    rw [hrr, hhl, VLevel.inst_inst, List.map_map]
+    have e : (VLevel.inst (target :: levels) ∘ VLevel.inst schema.genericLevels) =
+        VLevel.inst levels := by
+      funext x
+      simp only [Function.comp_apply, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
+    rw [e, ← VLevel.inst_inst]
+    exact hnz.of_equiv (VLevel.inst_congr_l hlev)
+
+/-- The eliminators of a declaration step are valid, given validity of the environment before
+it: an inductive declaration registers its certified case eliminator at its constructor
+boundary (`VEnv.InductRegistration`). -/
+theorem elimsValid_of_decl {envF env0 env' : VEnv} {ds : List VDecl} (hF : envF.WF)
+    (hEu : ∀ b s s', envF.eliminators b s → envF.eliminators b s' → s = s')
+    (hctor : ∀ c, Model.IsCtor envF c → envF.Rigid c)
+    (hdecl : VDecl.WF env0 d env') (hbase : env0.WF' ds) (hle : env' ≤ envF)
+    (hpc : ProjsClosed envF env') (hpc0 : ProjsClosed envF env0) (V0 : Model.EnvValid envF env0)
+    (hprojV : ∀ S info, env'.projections S info → Model.ProjValid envF S info) :
+    Model.ElimsValid envF env' := by
+  refine ⟨hEu, fun b schema owner rules df hb hr hm => ?_⟩
+  rcases (VDecl.WF.eliminators_iff hdecl).1 hb with ⟨source, -, hreg⟩ | hb
+  · obtain ⟨block, envTypes, envCtors, -, hcomp, hbwf, hinst, ht, hc, hE, hcert, -, -, -⟩ := hreg
+    have h0 : env0.Ordered := (show env0.WF from ⟨ds, hbase⟩).ordered
+    obtain ⟨tE, cE, rE, htE, hcE, -, htwf, hcwf, -, -⟩ := hbwf
+    cases ht.symm.trans htE
+    cases hc.symm.trans hcE
+    have hCO : envCtors.Ordered := (h0.addConstVals htwf ht).addConstVals hcwf hc
+    obtain ⟨_, _, recursors, ht', hc', hrec, hrfl⟩ := VInductBlock.install_stages hinst
+    cases ht.symm.trans ht'
+    cases hc.symm.trans hc'
+    have hES : envCtors.addEliminators block.eliminators = envCtors.addEliminator b schema := by
+      rw [hE]; rfl
+    have hCE : envCtors.addEliminator b schema ≤ env' := by
+      rw [← hES, hrfl]
+      exact VEnv.addProjections_le.trans <| (VEnv.addConstVals_le hrec).trans
+        VEnv.addDefEqRules_le
+    have hble : env0 ≤ envCtors := (VEnv.addConstVals_le ht).trans (VEnv.addConstVals_le hc)
+    have hconsts : ∀ value ∈ block.types ++ block.ctors,
+        envCtors.constants value.name = some value.toVConstant := fun v hv => by
+      rcases List.mem_append.mp hv with hv | hv
+      · exact (VEnv.addConstVals_le hc).constants (addConstVals_get ht hv)
+      · exact addConstVals_get hc hv
+    have hpcC : ProjsClosed envF envCtors := fun S info hp hcc => by
+      have h := hpc0 S info hp (hcc.mono
+        (fun df h => by rwa [VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h)
+        (fun b s h => by
+          rwa [VEnv.addConstVals_eliminators hc, VEnv.addConstVals_eliminators ht] at h))
+      rwa [VEnv.addConstVals_projections hc, VEnv.addConstVals_projections ht]
+    have VC : Model.EnvValid envF envCtors := (V0.addConstVals ht).addConstVals hc
+    refine elimValid_of_registration hF hEu hctor hCO (hCE.trans hle) hble hcert hconsts hpcC VC
+      (fun F hF' info hp hcc => ?_) hr hm
+    have hcF : Model.IsCtor env' info.ctorName :=
+      .inr (let ⟨b', s', o, r, h, hg, he⟩ := hcc; ⟨b', s', o, r, hCE.eliminators h, hg, he⟩)
+    have hp' := hpc _ _ hp hcF
+    refine ⟨?_, hprojV _ _ hp'⟩
+    rcases (ShapeModel.install_projections hinst).1 hp' with ⟨entry, hentry, hS, hinfo⟩ | hold
+    · rw [hcomp.projections] at hentry
+      rw [hS, hinfo]; exact hentry
+    · exfalso
+      obtain ⟨_, hci⟩ := h0.projectionConstant hold
+      have ht2 := ht
+      rw [hcomp.types] at ht2
+      have := addConstVals_names_fresh ht2 _ (List.mem_map_of_mem hF')
+      rw [this] at hci; cases hci
+  · exact V0.elim.valid b schema owner rules df hb hr hm
 
 /-- **Staged validity** (D11, D15): every environment in the declaration history of a
 well-formed `envF` is valid in the model of `envF`: its rules, its projection entries and its
@@ -411,9 +529,8 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
     have V0 : Model.EnvValid envF env0 :=
       ih (h0le.trans hle) (HeadsClosed.of_decl hdecl hcl) hpc0
     have hprojV := projValid_of_decl hF hdecl hbase hle V0
-    have helim := VDecl.WF.eliminators hdecl
-    refine ⟨fun df hdf => ?_, hprojV, ⟨hEu, fun b schema owner rules df hb hr hm =>
-      V0.elim.valid b schema owner rules df (by rw [helim] at hb; exact hb) hr hm⟩⟩
+    have hElimV := elimsValid_of_decl hF hEu hctor hdecl hbase hle hpc hpc0 V0 hprojV
+    refine ⟨fun df hdf => ?_, hprojV, hElimV⟩
     have h0 : env0.Ordered := h0W.ordered
     have ih' : HeadsClosed envF env0 → ∀ df, env0.defeqs df → Model.RuleValid envF df :=
       fun _ => V0.rule
@@ -574,9 +691,7 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
               rwa [VEnv.addConstVals_defeqs hr, VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs,
                 VEnv.addConstVals_defeqs hc, VEnv.addConstVals_defeqs ht] at h),
             fun n p h => hprojV n p (VEnv.addDefEqRules_le.projections h),
-            V0.elim.of_elims fun b s h => by
-              rwa [VEnv.addConstVals_eliminators hr, VEnv.addProjections_eliminators,
-                VEnv.addConstVals_eliminators hc, VEnv.addConstVals_eliminators ht] at h⟩
+            hElimV.mono VEnv.addDefEqRules_le⟩
           have hmem : g.equation index ∈ block.rules := by
             rw [C.ordinary_rules]; exact List.mem_map.2 ⟨_, List.mem_finRange _, rfl⟩
           have hdoms : OnCtx (g.eqDoms index).reverse (recursors.IsType g.uvars) := by
@@ -611,53 +726,32 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       hpc S info hp (Model.IsCtor.mono (env := env) (env' := env.addEliminator key schema)
         (fun _ h => h) (fun _ _ h => .inr h) hc)
     have IH := ih hle0 (fun df h n ls hh hc => hcl df h n ls hh hc) hpc0
-    have hWW : env.WF := ⟨_, hW⟩
-    have h0 : env.Ordered := hWW.ordered
+    have h0 : env.Ordered := (show env.WF from ⟨_, hW⟩).ordered
     refine ⟨fun df hdf => IH.rule df hdf, fun S info hp => IH.proj S info hp,
       ⟨hEu, fun b schema' owner rules df hb hr hm => ?_⟩⟩
     rcases hb with ⟨rfl, rfl⟩ | hb
     rotate_left
     · exact IH.elim.valid _ _ _ _ _ hb hr hm
-    have hbF : envF.eliminators b schema' := hle.eliminators (.inl ⟨rfl, rfl⟩)
-    have hctorsIn : ∀ value ∈ block.ctors, envF.constants value.name = some value.toVConstant :=
-      fun v hv => hle0.constants (hcond.1 v (List.mem_append_right _ hv))
-    have hbase : base ≤ envF := hble.trans hle0
-    obtain ⟨rule, hgen, -⟩ := CaseSchema.generates_of_genericEquation hr hm
-    have hIrig := hF.case_family_head_rigid hbF hgen
-    have hcert' := hcert
-    obtain ⟨expanded, g0, aux, C, hprior, hrr, -⟩ := hcert'
-    have hpm := Model.projMajor_generic hF hWW hle C hprior hrr hble hpc IH hcond.2.2.2 hcond.1
-      hr hm hIrig
-    rcases C.family_origin owner with
-      ⟨envTypes, family, htypes, hfamily, hrel, hhn, hhl⟩ | ⟨a, ha, hhn, hhl, hlev⟩
-    · obtain ⟨domains, body, level, exprType, hlev, h1, h2⟩ := hrel.type
-      have hTE : envTypes ≤ env := addConstVals_le_of htypes hble fun v hv =>
-        hcond.1 v (List.mem_append_left _ (by rw [C.types]; exact hv))
-      have hfc : envF.constants family.name = some family.toVConstant :=
-        hle0.constants (hcond.1 _ (List.mem_append_left _ (by
-          rw [C.types]; exact List.mem_map_of_mem hfamily)))
-      have hfs := Model.famSort_of henvF h0 hle0 IH hfc (h1.mono hTE) (h2.mono hTE) hlev
-      rw [← hhn, ← hrr] at hfs
-      refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
-        hpm fun levels target hlen hnz => ?_
-      rw [hrr, hhl, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
-      exact hnz
-    · have hfs := Model.famSort_container henvF h0 hle0 IH hprior hble ha
-      rw [← hhn, ← hrr] at hfs
-      refine Model.ElimValid.of_certified henvF hEu hctor hcert hbF hr hm hctorsIn hbase hIrig hfs
-        hpm fun levels target hlen hnz => ?_
-      rw [hrr, hhl, VLevel.inst_inst, List.map_map]
-      have e : (VLevel.inst (target :: levels) ∘ VLevel.inst schema'.genericLevels) =
-          VLevel.inst levels := by
-        funext x
-        simp only [Function.comp_apply, VLevel.inst_inst, CaseSchema.genericLevels_inst' hlen]
-      rw [e, ← VLevel.inst_inst]
-      exact hnz.of_equiv (VLevel.inst_congr_l hlev)
-  | @inductProjections _ ds base envTypes envCtors decl block hbase hctorsWF _ hsource htypesWF
+    exact elimValid_of_registration hF hEu hctor h0 hle hble hcert hcond.1 hpc0 IH
+      (fun F hF' info hp hc => by
+        have hp0 := hpc _ _ hp (.inr hc)
+        exact ⟨hcond.2.2.2.1 _ hF' info hp0, IH.proj _ _ hp0⟩) hr hm
+  | @inductProjections _ ds base envTypes envCtors decl block hbase _ helimE hsource htypesWF
       hconstructorUvars hctorsWF' hspw hshape htypesSource hctorsSource hprojections htypes hctors
-      ihBase ihCtors =>
+      ihBase _ =>
+    -- The window `envCtors.addEliminators block.eliminators` registers the block's certified case
+    -- eliminator before its projection entries, so a constructor of a block structure is a case
+    -- constructor there without its entry: its validity is not that of an earlier environment.
+    -- The block's rules and entries come from `base`, and its eliminator is validated directly.
     intro hle hcl hpc
-    have hCF : envCtors ≤ envF := VEnv.addProjections_le.trans hle
+    obtain ⟨key, schema, hE, hcert, -, -⟩ := helimE
+    have hES : envCtors.addEliminators block.eliminators = envCtors.addEliminator key schema := by
+      rw [hE]; rfl
+    have hEF : envCtors.addEliminator key schema ≤ envF := by
+      rw [← hES]; exact VEnv.addProjections_le.trans hle
+    have hCF : envCtors ≤ envF :=
+      (show envCtors ≤ envCtors.addEliminator key schema from
+        ⟨id, id, id, fun h => .inr h⟩).trans hEF
     have hBC : base ≤ envCtors := (VEnv.addConstVals_le htypes).trans (VEnv.addConstVals_le hctors)
     have hdfBC : ∀ df, envCtors.defeqs df ↔ base.defeqs df := fun df => by
       rw [VEnv.addConstVals_defeqs hctors, VEnv.addConstVals_defeqs htypes]
@@ -665,41 +759,80 @@ theorem WF'.ruleValid {envF : VEnv} (hF : envF.WF) :
       rw [VEnv.addConstVals_eliminators hctors, VEnv.addConstVals_eliminators htypes]
     have hprBC : ∀ S info, envCtors.projections S info ↔ base.projections S info := fun S info => by
       rw [VEnv.addConstVals_projections hctors, VEnv.addConstVals_projections htypes]
-    have hclC : HeadsClosed envF envCtors := fun df' h n ls h' ⟨ci, hci⟩ => by
-      have := hcl df' h n ls h' ⟨ci, by simpa using hci⟩; simpa using this
     have hbW : base.WF := ⟨_, hbase⟩
-    have hpcC : ProjsClosed envF envCtors := by
+    have hclB : HeadsClosed envF base := fun df' h n ls h' ⟨ci, hci⟩ => by
+      have := hcl df' h n ls h' ⟨ci, by simpa using hBC.constants hci⟩
+      exact (hdfBC df').1 (by simpa using this)
+    have hpcB : ProjsClosed envF base := by
       intro S info hp hc
-      rcases (VEnv.addProjections_iff).1 (hpc S info hp
-        (hc.mono (fun _ h => by simpa using h) (fun _ _ h => by simpa using h))) with
+      have hcF0 : Model.IsCtor ((envCtors.addEliminators block.eliminators).addProjections
+          block.projections) info.ctorName :=
+        hc.mono (fun df h => by simpa using (hdfBC df).2 h) (fun b s h => by
+          rw [VEnv.addProjections_eliminators, VEnv.addEliminators_iff]
+          exact .inr ((helBC b s).2 h))
+      rcases (VEnv.addProjections_iff).1 (hpc S info hp hcF0) with
         ⟨entry, hentry, rfl, rfl⟩ | hold
       · exfalso
-        have hcB : Model.IsCtor base entry.info.ctorName :=
-          hc.mono (fun df h => (hdfBC df).1 h) (fun b s h => (helBC b s).1 h)
-        obtain ⟨ci, hci⟩ := hbW.isCtor_const hcB
+        obtain ⟨ci, hci⟩ := hbW.isCtor_const hc
         rw [(entry_fresh htypesSource hctorsSource hprojections htypes hctors hentry).2] at hci
         cases hci
-      · exact hold
-    have VC := ihCtors hCF hclC hpcC
-    have hclB : HeadsClosed envF base := fun df' h n ls h' ⟨ci, hci⟩ =>
-      (hdfBC df').1 (hclC df' h n ls h' ⟨ci, hBC.constants hci⟩)
-    have hpcB : ProjsClosed envF base := fun S info hp hc =>
-      (hprBC S info).1 (hpcC S info hp (hc.mono (fun df h => (hdfBC df).2 h)
-        (fun b s h => (helBC b s).2 h)))
+      · rw [VEnv.addEliminators_projections] at hold
+        exact (hprBC S info).1 hold
     have VB := ihBase (hBC.trans hCF) hclB hpcB
-    refine ⟨fun df hdf => VC.rule df (by simpa using hdf), fun S info hp => ?_,
-      ⟨hEu, fun b schema owner rules df hb hr hm =>
-        VC.elim.valid b schema owner rules df (by simpa using hb) hr hm⟩⟩
-    have hpF := hle.projections hp
-    rw [VEnv.addProjections_iff] at hp
-    rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hold
-    · rw [hprojections] at hentry
-      have htypes' := htypes
-      rw [htypesSource] at htypes'
-      exact Model.ProjValid.of_origin hF hpF (ProjOriginAt.ofEntry hbase htypes'
-        ((VEnv.addConstVals_le hctors).trans hCF) htypesWF hctorsWF' hconstructorUvars hshape
-        hsource hspw hentry) (VB.addConstVals htypes')
-    · exact VC.proj _ _ hold
+    have VC : Model.EnvValid envF envCtors := (VB.addConstVals htypes).addConstVals hctors
+    have hpcC : ProjsClosed envF envCtors := fun S info hp hc =>
+      (hprBC S info).2 (hpcB S info hp (hc.mono (fun df h => (hdfBC df).1 h)
+        (fun b s h => (helBC b s).1 h)))
+    have hprojV : ∀ S info, ((envCtors.addEliminators block.eliminators).addProjections
+        block.projections).projections S info → Model.ProjValid envF S info := by
+      intro S info hp
+      have hpF := hle.projections hp
+      rw [VEnv.addProjections_iff] at hp
+      rcases hp with ⟨entry, hentry, rfl, rfl⟩ | hold
+      · rw [hprojections] at hentry
+        have htypes' := htypes
+        rw [htypesSource] at htypes'
+        exact Model.ProjValid.of_origin hF hpF (ProjOriginAt.ofEntry hbase htypes'
+          ((VEnv.addConstVals_le hctors).trans hCF) htypesWF hctorsWF' hconstructorUvars hshape
+          hsource hspw hentry) (VB.addConstVals htypes')
+      · rw [VEnv.addEliminators_projections] at hold
+        exact VC.proj _ _ hold
+    have hCO : envCtors.Ordered :=
+      (hbW.ordered.addConstVals (fun ci hci => by
+        rw [htypesSource] at hci
+        obtain ⟨t, htm, rfl⟩ := List.mem_map.1 hci
+        exact htypesWF t htm) htypes).addConstVals
+        (fun ci hci => hctorsWF' ci (by rw [← hctorsSource]; exact hci)) hctors
+    have hconsts : ∀ value ∈ block.types ++ block.ctors,
+        envCtors.constants value.name = some value.toVConstant := fun v hv => by
+      rcases List.mem_append.mp hv with hv | hv
+      · exact (VEnv.addConstVals_le hctors).constants (addConstVals_get htypes hv)
+      · exact addConstVals_get hctors hv
+    refine ⟨fun df hdf => VB.rule df ((hdfBC df).1 (by simpa using hdf)), hprojV,
+      ⟨hEu, fun b schema' owner rules df hb hr hm => ?_⟩⟩
+    rw [VEnv.addProjections_eliminators, VEnv.addEliminators_iff, hE] at hb
+    rcases hb with hb | hb
+    · simp only [List.mem_singleton, Prod.mk.injEq] at hb
+      obtain ⟨rfl, rfl⟩ := hb
+      refine elimValid_of_registration hF hEu hctor hCO hEF hBC hcert hconsts hpcC VC
+        (fun F hF' info hp hcc => ?_) hr hm
+      have hcF0 : Model.IsCtor ((envCtors.addEliminators block.eliminators).addProjections
+          block.projections) info.ctorName :=
+        .inr (let ⟨b', s', o, r, h, hg, he⟩ := hcc
+          ⟨b', s', o, r, by rw [VEnv.addProjections_eliminators, hES]; exact h, hg, he⟩)
+      have hp0 := hpc _ _ hp hcF0
+      refine ⟨?_, hprojV _ _ hp0⟩
+      rcases (VEnv.addProjections_iff).1 hp0 with ⟨entry, hentry, hS, hinfo⟩ | hold
+      · rw [hprojections] at hentry
+        rw [hS, hinfo]; exact hentry
+      · exfalso
+        rw [VEnv.addEliminators_projections, hprBC] at hold
+        obtain ⟨_, hci⟩ := hbW.ordered.projectionConstant hold
+        have ht2 := htypes
+        rw [htypesSource] at ht2
+        have := addConstVals_names_fresh ht2 _ (List.mem_map_of_mem hF')
+        rw [this] at hci; cases hci
+    · exact VC.elim.valid _ _ _ _ _ hb hr hm
 
 /-- **Soundness of the glued observation model** for every well-formed environment. -/
 theorem WF.soundEnv {env : VEnv} (henv : env.WF) : Model.SoundEnv env := by
