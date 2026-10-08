@@ -651,9 +651,12 @@ wrapper name. The other changes cannot change a decision except through checker 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
   constructor to be the structure's unique constructor; `tryEtaStructCore`
   requires the listed constructor and applies structure eta only at never-zero sorts;
-  `isDefEqUnitLike` and `toCtorWhenK` check the arity of the type's spine; constructor owner and `isUnsafe` agreement are
-  checked wherever a structure's constructor is looked up (except in `reduceProjCore`); `toCtorWhenStruct` and
-  `expandEtaStruct` return the term unchanged where the C++ kernel has `unreachable!`. Each
+  `isDefEqUnitLike` and `toCtorWhenK` check the arity of the type's spine; constructor owner
+  agreement is checked wherever a structure's constructor is looked up, and `isUnsafe` agreement
+  wherever the family's visibility is not already known (not in `reduceProjCore` or
+  `expandEtaStruct`); `toCtorWhenStruct` and
+  `expandEtaStruct` return the term unchanged where the C++ kernel throws, and when the type
+  of the major premise's type does not reduce to a sort. Each
   guard lets the verification justify a step from the registry entry alone, without
   injectivity or head separation. All are redundant on well-formed environments and
   well-typed terms with one exception: structure eta is not applied to a structure whose

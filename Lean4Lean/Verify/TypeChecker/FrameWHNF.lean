@@ -81,7 +81,6 @@ theorem expandEtaStruct_gf (ht : GF G eType) (he : GF G e) :
   split <;> [skip; exact he]
   split <;> [skip; exact he]
   split <;> [exact he; skip]
-  split <;> [exact he; skip]
   have hfold : ∀ (l : List Nat) (r : Expr), GF G r →
       GF G (l.foldl (fun result i => result.app (.proj I i e)) r) := by
     intro l; induction l with
