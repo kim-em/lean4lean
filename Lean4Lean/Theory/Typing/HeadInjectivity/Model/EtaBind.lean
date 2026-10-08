@@ -78,22 +78,13 @@ theorem exists_list_witness {α : Type} {Q : Ob → Prop} {P : α → Ob → Pro
       | head => exact ⟨o, .head _, hP⟩
       | tail _ hb => let ⟨o', h1, h2⟩ := hK2 b hb; exact ⟨o', .tail _ h1, h2⟩
 
-theorem wrapForalls_inj_len' : ∀ {ds ds' : List VExpr} {b b' : VExpr},
-    ds.length = ds'.length → VExpr.wrapForalls ds b = VExpr.wrapForalls ds' b' → ds = ds' ∧ b = b'
-  | [], [], _, _, _, h => ⟨rfl, h⟩
-  | d :: ds, d' :: ds', _, _, hl, h => by
-    simp only [VExpr.wrapForalls, List.foldr_cons, VExpr.forallE.injEq] at h
-    obtain ⟨h1, h2⟩ := h
-    obtain ⟨rfl, rfl⟩ := wrapForalls_inj_len' (Nat.succ.inj hl) h2
-    exact ⟨by rw [h1], rfl⟩
-
 /-- The head-type premise of a rule clause names the family of the head type's major domain. -/
 theorem EtaHead.fam {T : VExpr} (h : EtaHead env I' ctor' T k)
     (eH : T = .wrapForalls dsH RH) (hlenH : dsH.length = k + 1)
     (hkH : dsH[k]? = some (.mkApps (.const I lsI) iargs)) :
     I' = I ∧ ∃ info : VProjectionInfo, env.projections I info ∧ info.ctorName = ctor' := by
   obtain ⟨info, dsH', RH', lsI', iargs', hp, hcn, eH', hlen', hk'⟩ := h
-  obtain ⟨rfl, -⟩ := wrapForalls_inj_len' (by rw [hlenH, hlen']) (eH.symm.trans eH')
+  obtain ⟨rfl, -⟩ := VExpr.wrapForalls_inj_of_length (by rw [hlenH, hlen']) (eH.symm.trans eH')
   rw [hkH] at hk'
   obtain ⟨rfl, -, -⟩ := mkApps_const_inj (Option.some.inj hk')
   exact ⟨rfl, info, hp, hcn⟩
@@ -485,13 +476,13 @@ theorem eta_field_cls {I : Name} {info : VProjectionInfo} (hp : env.projections 
       (fun i => VExpr.bvar (doms.length - info.nparams + i)) ++ idx) = R at hshape
   have eT : info.ctorType.instL lsc =
       VExpr.wrapForalls (doms.map (·.instL lsc)) (R.instL lsc) := by
-    rw [hshape, VExpr.instL_wrapForalls_pt]
+    rw [hshape, VExpr.instL_wrapForalls]
   have hTW : Ob.Sub (Obs' .id .empty ((⟨info.uvars, info.ctorType⟩ : VConstant).type.instL lsc))
       (Obs' .id .empty (.wrapForalls (doms.map (·.instL lsc)) (R.instL lsc))) :=
     fun o h => ⟨o, by rw [← eT]; exact h, .refl⟩
   have hpi : PiSD env U Δ [] (doms.map (·.instL lsc)) (R.instL lsc) := by
     obtain ⟨w, h⟩ := IsType.instL hls hwfE
-    rw [← hct, hshape, VExpr.instL_wrapForalls_pt] at h
+    rw [← hct, hshape, VExpr.instL_wrapForalls] at h
     exact piSD_of hord hle (SoundEnvAtH.soundEnvAt (hsnd U Δ hΔ)) trivial h
   have hnf := (ProjTele.of (S := I) henv (hRdef ▸ hshape) hwf hls).numFields
   simp only [List.length_map] at hnf

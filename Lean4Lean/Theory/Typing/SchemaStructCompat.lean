@@ -33,21 +33,6 @@ def SchemaStructCompat (env : VEnv) : Prop :=
       schema.originalFamilies[owner.val]? = some s →
       (schema.view owner).constructors.toList.map (·.name) = [info.ctorName]
 
-private theorem addConsts_projections {env env' : VEnv} :
-    ∀ {cis : List VDefVal}, env.addConsts cis = some env' → env'.projections = env.projections
-  | [], h => by cases h; rfl
-  | _ :: _, h => by
-    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
-      Option.bind_eq_some_iff] at h
-    obtain ⟨middle, hfirst, hrest⟩ := h
-    exact (addConsts_projections hrest).trans (VEnv.addConst_projections hfirst)
-
-private theorem addDefEqs_projections (env : VEnv) (cis : List VDefVal) :
-    (env.addDefEqs cis).projections = env.projections := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
-
 private theorem addQuot_projections {env env' : VEnv}
     (H : env.addQuot = some env') : env'.projections = env.projections := by
   simp only [VEnv.addQuot, Option.bind_eq_bind, Option.bind_eq_some_iff,
@@ -79,7 +64,7 @@ private theorem VDecl.WF.projections_fresh (H : VDecl.WF env decl env')
   | «def» _ h => exact .inl (by rw [← VEnv.addConst_projections h]; exact hproj)
   | «example» => exact .inl hproj
   | mutualDef _ h _ =>
-    exact .inl (by rwa [addDefEqs_projections, addConsts_projections h] at hproj)
+    exact .inl (by rwa [VEnv.addDefEqs_projections, VEnv.addConsts_projections h] at hproj)
   | quot _ h => exact .inl (by rwa [addQuot_projections h] at hproj)
   | induct _ h =>
     cases h with

@@ -17,21 +17,6 @@ def ExprAlphaUnder (left right : List FVarId)
 theorem ExprAlphaUnder.refl (e : Expr) (binders : List FVarId) :
     ExprAlphaUnder binders binders e e := rfl
 
-/-- Simultaneous closure commutes with the forall constructor.  This generic
-expression fact is kept here because the alpha-locality development must not
-depend on the inductive-recursors telescope modules. -/
-theorem Expr.abstractList_forallE_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.forallE name domain body bi).abstractList fvars k =
-      .forallE name (domain.abstractList fvars k)
-        (body.abstractList fvars (k + 1)) bi := by
-  induction fvars generalizing domain body k with
-  | nil => rfl
-  | cons fv fvars ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih (domain := domain.abstract1 fv k)
-        (body := body.abstract1 fv (k + 1)) (k := k)
-
 /-- Closing a free variable after lifting below `d` binders is the same as
 closing it outside those binders and lifting the resulting loose variable.
 This is the value-side algebra needed by substitution under binders. -/
@@ -96,78 +81,6 @@ theorem Expr.abstract1_instantiate1'_alpha
   | proj name index body ihBody =>
       simp only [Expr.instantiate1', Expr.abstract1]
       rw [ihBody]
-
-/-- Simultaneous closure commutes with the `let` constructor. -/
-theorem Expr.abstractList_letE_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.letE name type value body nondep).abstractList fvars k =
-      .letE name (type.abstractList fvars k)
-        (value.abstractList fvars k)
-        (body.abstractList fvars (k + 1)) nondep := by
-  induction fvars generalizing type value body k with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih (type := type.abstract1 fv k)
-        (value := value.abstract1 fv k)
-        (body := body.abstract1 fv (k + 1)) (k := k)
-
-/-- Simultaneous closure commutes with application. -/
-theorem Expr.abstractList_app_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.app fn arg).abstractList fvars k =
-      .app (fn.abstractList fvars k) (arg.abstractList fvars k) := by
-  induction fvars generalizing fn arg k with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih (fn := fn.abstract1 fv k) (arg := arg.abstract1 fv k)
-        (k := k)
-
-/-- Simultaneous closure commutes with lambda abstraction. -/
-theorem Expr.abstractList_lam_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.lam name domain body bi).abstractList fvars k =
-      .lam name (domain.abstractList fvars k)
-        (body.abstractList fvars (k + 1)) bi := by
-  induction fvars generalizing domain body k with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih (domain := domain.abstract1 fv k)
-        (body := body.abstract1 fv (k + 1)) (k := k)
-
-/-- Simultaneous closure commutes with metadata syntax. -/
-theorem Expr.abstractList_mdata_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.mdata data body).abstractList fvars k =
-      .mdata data (body.abstractList fvars k) := by
-  induction fvars generalizing body k with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih (body := body.abstract1 fv k) (k := k)
-
-/-- Simultaneous closure leaves constants unchanged. -/
-theorem Expr.abstractList_const_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.const name levels).abstractList fvars k = .const name levels := by
-  induction fvars with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih
-
-/-- Simultaneous closure commutes with projection syntax. -/
-theorem Expr.abstractList_proj_alpha
-    (fvars : List FVarId) (k : Nat) :
-    (Expr.proj name index struct).abstractList fvars k =
-      .proj name index (struct.abstractList fvars k) := by
-  induction fvars generalizing struct k with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1]
-      exact ih (struct := struct.abstract1 fv k) (k := k)
 
 /-- Ordered local declarations corresponding under simultaneous closure.
 At ordinal `i`, each declaration type is closed only over the preceding
@@ -274,17 +187,6 @@ private theorem Expr.abstractList_fvar_fresh_alpha
         simp [Expr.abstract1, Ne.symm H.1]]
       exact ih H.2
 
-/-- Closing free variables does not affect an already bound variable below
-the closure depth. -/
-private theorem Expr.abstractList_bvar_lt_alpha
-    (fvars : List FVarId) (i k : Nat) (hi : i < k) :
-    (Expr.bvar i).abstractList fvars k = .bvar i := by
-  induction fvars with
-  | nil => rfl
-  | cons fv rest ih =>
-      simp only [Expr.abstractList, Expr.abstract1, if_pos hi]
-      exact ih
-
 /-- Closing a duplicate-free free-variable spine and reopening it with the
 same identifiers is a left inverse on well-scoped expressions.  This makes
 the canonical closed form injective on every concrete WHNF cache key used in
@@ -295,7 +197,7 @@ theorem Expr.abstractList_instantiateRevList_eq_self
         (fvars.map Expr.fvar) k = e := by
   induction e generalizing k with
   | bvar i =>
-      rw [Expr.abstractList_bvar_lt_alpha fvars i k hclosed]
+      rw [Lean.Expr.abstractList_bvar_lt (i := i) (k := k) fvars hclosed]
       exact Expr.instantiateRevList_bvar_fvars_lt fvars i k hclosed
   | fvar fv =>
       by_cases hmem : fv ∈ fvars
@@ -317,7 +219,7 @@ theorem Expr.abstractList_instantiateRevList_eq_self
       rw [habstract]
       exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
   | const name levels =>
-      rw [Expr.abstractList_const_alpha]
+      rw [Lean.Expr.abstractList_const]
       exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
   | lit value =>
       have habstract : (Expr.lit value).abstractList fvars k =
@@ -327,28 +229,28 @@ theorem Expr.abstractList_instantiateRevList_eq_self
       exact Expr.instantiateRevList'_eq_self (by simp [Expr.looseBVarRange'])
   | app fn arg ihFn ihArg =>
       rcases hclosed with ⟨hfn, harg⟩
-      simp only [Expr.abstractList_app_alpha, Expr.instantiateRevList_app]
+      simp only [Lean.Expr.abstractList_app, Expr.instantiateRevList_app]
       rw [ihFn hfn, ihArg harg]
   | lam name domain body bi ihDomain ihBody =>
       rcases hclosed with ⟨hdomain, hbody⟩
-      simp only [Expr.abstractList_lam_alpha, Expr.instantiateRevList_lam]
+      simp only [Lean.Expr.abstractList_lam, Expr.instantiateRevList_lam]
       rw [ihDomain hdomain, ihBody hbody]
   | forallE name domain body bi ihDomain ihBody =>
       rcases hclosed with ⟨hdomain, hbody⟩
-      simp only [Expr.abstractList_forallE_alpha,
+      simp only [Lean.Expr.abstractList_forallE,
         Expr.instantiateRevList_forallE]
       rw [ihDomain hdomain, ihBody hbody]
   | letE name type value body nondep ihType ihValue ihBody =>
       rcases hclosed with ⟨htype, hvalue, hbody⟩
-      simp only [Expr.abstractList_letE_alpha,
+      simp only [Lean.Expr.abstractList_letE,
         Expr.instantiateRevList_letE]
       rw [ihType htype, ihValue hvalue, ihBody hbody]
   | mdata data body ihBody =>
-      simp only [Expr.abstractList_mdata_alpha,
+      simp only [Lean.Expr.abstractList_mdata,
         Expr.instantiateRevList_mdata]
       rw [ihBody hclosed]
   | proj name index body ihBody =>
-      simp only [Expr.abstractList_proj_alpha,
+      simp only [Lean.Expr.abstractList_proj,
         Expr.instantiateRevList_proj]
       rw [ihBody hclosed]
 

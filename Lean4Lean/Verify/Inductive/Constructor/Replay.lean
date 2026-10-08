@@ -748,6 +748,19 @@ def recursorDeclarationAbstractLevels
       (VLevel.inst (VLevel.prependShift lparams.length))
   | .succ _ | .max _ _ | .imax _ _ | .mvar _ => False.elim Helim
 
+theorem recursorDeclarationAbstractLevels_zero
+    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
+    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
+  subst elim
+  rfl
+
+theorem recursorDeclarationAbstractLevels_param
+    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
+    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
+  subst elim
+  simp only [recursorDeclarationAbstractLevels]
+  exact VLevel.inst_map_id VLevel.prependShift_length
+
 theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTranslation
     {c : AddInductive.Context} {Hc : ContextWF c}
     (H : checkInductiveTypes.loopInd.MaterializedHeaderResult

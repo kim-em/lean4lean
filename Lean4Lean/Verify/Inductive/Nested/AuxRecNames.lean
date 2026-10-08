@@ -1,4 +1,5 @@
 import Lean4Lean.Verify.Inductive.Nested.AssemblyNativeWhnf
+import Lean4Lean.Std.Basic
 
 /-! # Renamed auxiliary recursor names and the restorable names
 
@@ -420,11 +421,6 @@ private theorem forall₂_append' {R : α → β → Prop} :
   | _, _, _, _, .nil, h => h
   | _, _, _, _, .cons h t, h₂ => .cons h (forall₂_append' t h₂)
 
-private theorem forall₂_length' {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → l₁.length = l₂.length
-  | _, _, .nil => rfl
-  | _, _, .cons _ t => by simp [forall₂_length' t]
-
 /-- Syntax translated in an environment lacking the restorable names outside
 `X`, and avoiding `X` itself, avoids every restorable name. -/
 theorem avoidsRestorable_of_partial {r : Restoration} {X : List Name}
@@ -496,7 +492,7 @@ theorem restorationCommutesTrail_hit
     exact avoidsRestorable_of_partial Hfresh hab (hrestX a ha)
   have hRr := Hctx.translate_avoids_forall₂ hc hrest hR'' hR'
   have hPTlen : PT.length = result.nparams := by
-    rw [← forall₂_length' hPT, hAsLen]
+    rw [← Lean4Lean.List.Forall₂.length_eq hPT, hAsLen]
   simp only [Restoration.expr]
   rw [Restoration.expr.go_mkApps r (forall₂_append' hPr hRr), List.append_nil]
   have hle : h.nparams ≤ (PT ++ R').length := by simp [hnparams, hPTlen]

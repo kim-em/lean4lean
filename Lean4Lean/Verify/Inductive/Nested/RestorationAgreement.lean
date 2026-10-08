@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.RestorationCommutationHit
 import Lean4Lean.Verify.Inductive.Nested.ContainerSpecializations
 import Lean4Lean.Verify.Inductive.Nested.RestoringExpansion
+import Lean4Lean.Std.List
 
 /-! Agreement of the executable nested restoration tables with the abstract
 `compilationRestoration`.
@@ -766,7 +767,7 @@ theorem FinalLoweredGeneratedFamilyNativeSource.auxNestedSpec
         (Expr.abstract_eq_of_closed _ fvars hnodup hclosed)
     rw [habs, ← hsel, H.generated.cachedClosureAlpha sel (hsel ▸ hnodup),
       Expr.mkAppRange_from_zero _ _ _ H.generated.argsArity,
-      Expr.abstractList_mkAppList, Expr.abstractList_const', hsrcName]
+      Expr.abstractList_mkAppList, Expr.abstractList_const, hsrcName]
   · rw [hlevels]; exact N.levelsTranslation
   · rw [hargs]; exact N.baseTranslations
 
@@ -1230,17 +1231,6 @@ theorem NestedLoweringRun.resultTypes_eq
 
 /-! ### The restoration tables of an exact validated nested run -/
 
-private theorem nodup_map_inj {f : α → β} :
-    ∀ {l : List α}, (l.map f).Nodup → ∀ {x y : α}, x ∈ l → y ∈ l → f x = f y → x = y
-  | [], _, _, _, hx, _, _ => by simp at hx
-  | z :: l, h, x, y, hx, hy, hxy => by
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at h
-    rcases List.mem_cons.mp hx with rfl | hx' <;> rcases List.mem_cons.mp hy with rfl | hy'
-    · rfl
-    · exact absurd ⟨y, hy', hxy.symm⟩ h.1
-    · exact absurd ⟨x, hx', hxy⟩ h.1
-    · exact nodup_map_inj h.2 hx' hy' hxy
-
 open _root_.Lean4Lean.InductiveSignature in
 /-- The container specialisations of an exact validated nested run (as in
 `NestedValidatedRunResult.containerSpecializations`), together with the
@@ -1591,7 +1581,7 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAll
           ⟨T, hT, htrT⟩
         have hTname : T.name = owner.name := htrT.header.name
         have hTt : T = t := by
-          apply nodup_map_inj htypesNodup hT ht
+          apply Lean4Lean.List.nodup_map_inj htypesNodup hT ht
           rw [hTname, ← hown, hinduct, htname]
         subst hTt
         have hmem : ctor.name ∈ T.ctors.map (·.name) := by

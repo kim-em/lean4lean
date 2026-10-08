@@ -249,15 +249,6 @@ theorem auxiliaryFamily_header
 
 /-! ### The auxiliary suffix -/
 
-private theorem forall₂_drop' {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.drop k) (r.drop k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => by simpa using List.Forall₂.cons h t
-  | _, _, .cons _ t, k + 1 => by
-    simp only [List.drop_succ_cons]
-    exact forall₂_drop' t k
-
 private theorem forall₂_of_map_eq' {f : α → γ} {g : β → γ} :
     ∀ {l : List α} {r : List β}, l.map f = r.map g →
       List.Forall₂ (fun a b => f a = g b) l r

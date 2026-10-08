@@ -161,7 +161,7 @@ theorem native_C_absurd {s : InductiveSignature} {g : Instance s} {ls : List VLe
         (s.families.size + s.constructors.size)) ++
       [g.familyApp o (vars s.params.length ((s.families.size + s.constructors.size) +
         s.families[o].indices.length)) (vars s.families[o].indices.length 0)] from rfl,
-    instL_wrapForalls'', List.map_append, wrapForalls_append] at h
+    VExpr.instL_wrapForalls, List.map_append, wrapForalls_append] at h
   rw [show g.recDoms o = (g.params ++ g.motives ++ g.minors ++
       insertBinders (s.families[o].indices.map (·.instL g.levels))
         (s.families.size + s.constructors.size)) ++
@@ -202,7 +202,7 @@ theorem C_absurd_gen {T : VExpr} {dsH : List VExpr} {RH : VExpr} {I : Name}
     rw [List.drop_eq_getElem_cons (by omega), List.drop_eq_nil_of_le (by omega)]
     rw [List.getElem?_eq_getElem (by omega)] at hkH
     injection hkH with hkH; rw [hkH]
-  rw [eH, hsplit, instL_wrapForalls'', List.map_append, wrapForalls_append] at h
+  rw [eH, hsplit, VExpr.instL_wrapForalls, List.map_append, wrapForalls_append] at h
   obtain ⟨σ', S', h⟩ := tele_obs_inv (by simp; omega) h
   simp only [List.map_cons, List.map_nil, VExpr.wrapForalls, List.foldr_cons,
     List.foldr_nil] at h
@@ -256,7 +256,7 @@ theorem binderTy_wrapForalls_sort {ds mds0 : List VExpr} {m : Nat} {w : VLevel}
   rw [List.getD_eq_getElem?_getD, hget, Option.getD_some]
   obtain ⟨ds', h, l⟩ := liftN_wrapForalls_sort (w := w) mds0 (m + 1) 0
   refine ⟨ds'.map (·.instL ls), ?_, by simp [l]⟩
-  rw [h, instL_wrapForalls'']
+  rw [h, VExpr.instL_wrapForalls]
   rfl
 
 /-- The binder type of the motive of a generated equation is a telescope ending in the
@@ -292,7 +292,7 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
     (s.constructors[index].fields.length + s.constructors.size +
       (s.families.size - 1 - s.constructors[index].owner.val) + 1) 0
   refine ⟨ds'.map (·.instL ls), ?_, by simp [l, l0]⟩
-  rw [h, instL_wrapForalls'']
+  rw [h, VExpr.instL_wrapForalls]
   rfl
 
 set_option maxHeartbeats 1000000 in
@@ -367,7 +367,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
       huniq hci eH hlenH hkH hpm.weak ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := (g.eqDoms index).map (·.instL ls))
-      (by rw [g.equation_type_eq, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
+      (by rw [g.equation_type_eq, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
       (by have := lookup_binderTy (Γ := []) (ls := ls) (doms := g.eqDoms index)
             (x := s.constructors[index].fields.length + s.constructors.size +

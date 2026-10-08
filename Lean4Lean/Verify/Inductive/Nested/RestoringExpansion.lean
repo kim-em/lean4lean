@@ -3,6 +3,7 @@ import Lean4Lean.Verify.Inductive.Nested.RestoredRecursorShape
 import Lean4Lean.Verify.Inductive.Nested.FormationExpansionTrace
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Theory.Inductive.NativeIotaRestoration
+import Lean4Lean.Theory.Inductive.CaseCertificateTransport
 
 /-! Nested expansions whose leaves are inverted by a restoration table.
 
@@ -131,7 +132,7 @@ theorem _root_.Lean4Lean.VExpr.NestedExprExpansion.restore {r : Restoration}
   induction H with
   | hit h => exact h hs ht
   | bvar | sort | elim => rfl
-  | const => exact Restoration.expr_of_not_contains r hs
+  | const => exact Restoration.expr_of_avoid hs
   | proj _ ih =>
     simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at hs
     have h := ih hs.2 ht

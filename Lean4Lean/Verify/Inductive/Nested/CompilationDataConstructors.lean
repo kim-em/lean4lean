@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.LoweredConstructorRestoration
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryFamilyCorrespondence
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryConstructorRestoration
+import Lean4Lean.Std.List
 
 /-! Constructor restoration and `CompilationData` of a validated nested run,
 for the specializations of `NestedValidatedRunResult.restorationTablesRestoring`.
@@ -33,26 +34,6 @@ namespace VerifyInductive
 
 open Lean hiding Environment Exception
 open Kernel
-
-private theorem nodup_map_inj₃ {f : α → β} :
-    ∀ {l : List α}, (l.map f).Nodup → ∀ {x y}, x ∈ l → y ∈ l → f x = f y → x = y
-  | [], _, _, _, hx, _, _ => by simp at hx
-  | a :: l, hnd, x, y, hx, hy, hxy => by
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
-    rcases List.mem_cons.mp hx with hx' | hx' <;> rcases List.mem_cons.mp hy with hy' | hy'
-    · exact hx'.trans hy'.symm
-    · subst hx'; exact absurd ⟨y, hy', hxy.symm⟩ hnd.1
-    · subst hy'; exact absurd ⟨x, hx', hxy⟩ hnd.1
-    · exact nodup_map_inj₃ hnd.2 hx' hy' hxy
-
-private theorem forall₂_drop₃ {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.drop k) (r.drop k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => by simpa using List.Forall₂.cons h t
-  | _, _, .cons _ t, k + 1 => by
-    simp only [List.drop_succ_cons]
-    exact forall₂_drop₃ t k
 
 /-- The facts of `containerSpecializationFacts` (as repeated in the prefix of
 `NestedValidatedRunResult.loweredConstructors_of`), for the specializations of
@@ -151,7 +132,7 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
     have hmemB : InductiveSignature.HeadSpecialization.mk b.auxiliary sourceDecl.uvars
         sourceDecl.nparams b.source.name b.levels b.arguments ∈ r.heads :=
       List.mem_flatMap.mpr ⟨b, hb, List.mem_cons_self⟩
-    have hsame := nodup_map_inj₃ hheadsNodup' hmemB hmemA hba
+    have hsame := Lean4Lean.List.nodup_map_inj hheadsNodup' hmemB hmemA hba
     have hsrc : b.source.name = a.source.name :=
       congrArg InductiveSignature.HeadSpecialization.target hsame
     have hhead : nested.getAppFn = .const a.source.name lvls := by
@@ -328,7 +309,7 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
     henvTypes (VEnv.addConstVals_le hadded) Haux Hexpansion ?_ ?_ hloweredUvars
     hloweredNparams (hparams ▸ hlink) ?_ hmapM (Hrestores envTypes direct htypes' hmapM)
   · exact Lean4Lean.List.Forall₂.imp (fun _ _ h => ⟨h.2.2.1, h.2.2.2.1, h.2.2.2.2⟩)
-      (forall₂_drop₃ Hmodels.families sourceDecl.types.length)
+      (Lean4Lean.List.forall₂_drop Hmodels.families sourceDecl.types.length)
   · intro t ht
     have h := E.production.headers.headers.typeShapes t (List.mem_of_mem_drop ht)
     generalize E.production.headers.headers.params = hp at h ⊢

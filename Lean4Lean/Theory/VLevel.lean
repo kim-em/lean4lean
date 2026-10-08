@@ -62,6 +62,10 @@ instance : HasEquiv VLevel := ⟨VLevel.Equiv⟩
 theorem equiv_def' {a b : VLevel} : a ≈ b ↔ a.eval = b.eval := .rfl
 theorem equiv_def {a b : VLevel} : a ≈ b ↔ ∀ ls, a.eval ls = b.eval ls := funext_iff
 
+theorem forall₂_equiv_refl : ∀ (ls : List VLevel), List.Forall₂ (· ≈ ·) ls ls
+  | [] => .nil
+  | _ :: ls => .cons rfl (forall₂_equiv_refl ls)
+
 theorem equiv_congr_left {a b c : VLevel} (h : a ≈ b) : a ≈ c ↔ b ≈ c :=
   iff_of_eq (congrArg (· = _) h)
 

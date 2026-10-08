@@ -286,14 +286,6 @@ theorem ctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
   · obtain ⟨rfl, rfl⟩ := wrap_inj e hna trivial
     rcases hr with ⟨_, _, _, h⟩ | ⟨_, _, h⟩ | ⟨_, _, _, h⟩ <;> cases h
 
-theorem instL_wrapForalls'' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
-    (VExpr.wrapForalls ds body).instL ls =
-      VExpr.wrapForalls (ds.map (·.instL ls)) (body.instL ls) := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih =>
-    simp only [VExpr.wrapForalls, List.foldr_cons, VExpr.instL, List.map_cons] at ih ⊢; rw [ih]
-
 theorem instL_wrapLams' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
     (VExpr.wrapLams ds body).instL ls =
       VExpr.wrapLams (ds.map (·.instL ls)) (body.instL ls) := by

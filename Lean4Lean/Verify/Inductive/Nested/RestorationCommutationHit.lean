@@ -2,6 +2,7 @@ import Lean4Lean.Verify.Inductive.Nested.RestoringExpansion
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 import Lean4Lean.Verify.ExprHitShape
 import Lean4Lean.Verify.Inductive.RuleTranslation
+import Lean4Lean.Std.Basic
 
 /-! Commutation of executable nested restoration with `Restoration.expr`,
 under the hit-shape side condition.
@@ -227,11 +228,6 @@ private theorem forall₂_append {R : α → β → Prop} :
   | _, _, _, _, .nil, h => h
   | _, _, _, _, .cons h t, h₂ => .cons h (forall₂_append t h₂)
 
-private theorem forall₂_length {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → l₁.length = l₂.length
-  | _, _, .nil => rfl
-  | _, _, .cons _ t => by simp [forall₂_length t]
-
 /-- The opened parameters (free variables) translate in the restored context
 to the restorations of their source translations. -/
 theorem RestoreCtxRel.translate_fvars {r : Restoration}
@@ -325,7 +321,7 @@ theorem restorationCommutes'_hit
     exact checkPositivityStep.TrExprS.sourceAvoidsFresh Hfresh hab
   have hRr := Hctx.translate_avoids_forall₂ hc hrest hR'' hR'
   have hPTlen : PT.length = result.nparams := by
-    rw [← forall₂_length hPT, hAsLen]
+    rw [← Lean4Lean.List.Forall₂.length_eq hPT, hAsLen]
   simp only [Restoration.expr]
   rw [Restoration.expr.go_mkApps r (forall₂_append hPr hRr), List.append_nil]
   have hle : h.nparams ≤ (PT ++ R').length := by simp [hnparams, hPTlen]

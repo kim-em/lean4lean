@@ -467,14 +467,6 @@ theorem _root_.Lean4Lean.VProjectionInfo.instantiateProjectionParameters_wrapFor
       congr 2
       rw [Nat.sub_add_cancel h']
 
-@[simp] theorem _root_.Lean4Lean.VExpr.instL_wrapForalls (doms : List VExpr) (body : VExpr)
-    (ls : List VLevel) :
-    (VExpr.wrapForalls doms body).instL ls =
-      VExpr.wrapForalls (doms.map (·.instL ls)) (body.instL ls) := by
-  induction doms with
-  | nil => rfl
-  | cons d ds ih => simp [VExpr.wrapForalls, VExpr.instL] at ih ⊢; exact ih
-
 /-- Walking the field binders of a wrapped telescope selects the instantiated domain. -/
 theorem _root_.Lean4Lean.VProjectionInfo.instantiateProjectionFields_wrapForalls
     (ds : List VExpr) (body : VExpr) (k current : Nat) (hk : k < ds.length) :

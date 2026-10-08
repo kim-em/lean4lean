@@ -44,19 +44,6 @@ theorem MLCtxOnlyLams.mkForall_fvarsIn_upset
       · apply FVarsIn.abstract1_of
         simpa [TypeChecker.MLCtx.fvarRevList, Q, List.mem_cons, or_assoc] using Hbody
 
-private theorem recursorLevels_zero
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
-  subst elim
-  rfl
-
-private theorem recursorLevels_param
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
-  subst elim
-  simp only [recursorDeclarationAbstractLevels]
-  exact VLevel.inst_map_id VLevel.prependShift_length
-
 /-- Lift a previously selected original-universe translation into the actual
 recursor context without making another target choice. -/
 theorem CompletedRecursorConstruction.liftOriginalType
@@ -77,12 +64,12 @@ theorem CompletedRecursorConstruction.liftOriginalType
       (fun u u' hu => by
         simpa [Level.substParams_id, VLevel.inst_id (VLevel.WF.of_ofLevel hu)] using hu)
     rw [Expr.instantiateLevelParamsCore_id] at Hidentity
-    rw [H.parameterAnonymousContext, H.recursorEnv, recursorLevels_zero H.elimLevelAdmissible helim]
+    rw [H.parameterAnonymousContext, H.recursorEnv, recursorDeclarationAbstractLevels_zero H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hidentity
   · have hfresh : fresh ∉ c.lparams := by
       simpa [helim, AddInductive.AdmissibleElimLevel] using H.elimLevelAdmissible
     have Hrec := Hsource.prependLevelParam R.context.checking.tr.wf R.sourceAnonymousParameterWF hfresh
-    rw [H.parameterAnonymousContext, H.recursorEnv, recursorLevels_param H.elimLevelAdmissible helim]
+    rw [H.parameterAnonymousContext, H.recursorEnv, recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hrec
 
 /-- Select the field telescope in the header environment, before any current

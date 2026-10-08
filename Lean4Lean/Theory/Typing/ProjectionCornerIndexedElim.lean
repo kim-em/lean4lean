@@ -192,7 +192,7 @@ theorem corner_inhabit_elim (henv : env.WF) (hch : env.HasCanonicalChoice)
       rcases List.mem_cons.mp hl with rfl | hl
       · trivial
       · exact hls l hl
-    exact .elimDF hel hgen hclosed hperm hwf (forall₂_equiv_refl_idx _) hTyU
+    exact .elimDF hel hgen hclosed hperm hwf (VLevel.forall₂_equiv_refl _) hTyU
   exact corner_inhabit_view henv hch hΔ hinfo hls hlslen hT₀ hpl he' hwalk hD hguard
     (fam := fam) hSname huv hnp hRCIlen (hRIlen.trans hIlen) hdef hhdr'' helim
 

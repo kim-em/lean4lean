@@ -549,7 +549,7 @@ with the sequential `abstractList` unconditionally; that statement is false, sin
 @[simp] axiom abstractN_eq (e : Expr) (xs : List FVarId) :
     e.abstract ⟨xs.map .fvar⟩ = e.abstractN xs
 
-theorem abstractList_bvar_lt' (xs : List FVarId) (h : i < k) :
+theorem abstractList_bvar_lt (xs : List FVarId) (h : i < k) :
     abstractList (.bvar i) xs k = .bvar i := by
   induction xs with
   | nil => rfl
@@ -582,25 +582,25 @@ theorem abstractList_fvar (xs : List FVarId) (hnd : xs.Nodup) (v : FVarId) (k : 
       rw [ih hnd.2]
       split <;> simp_all
 
-theorem abstractList_mdata' :
+theorem abstractList_mdata :
     abstractList (.mdata m e) xs k = .mdata m (abstractList e xs k) := by
   induction xs generalizing e <;> simp_all [abstractList, abstract1]
-theorem abstractList_proj' :
+theorem abstractList_proj :
     abstractList (.proj s i e) xs k = .proj s i (abstractList e xs k) := by
   induction xs generalizing e <;> simp_all [abstractList, abstract1]
-theorem abstractList_app' :
+theorem abstractList_app :
     abstractList (.app f a) xs k = .app (abstractList f xs k) (abstractList a xs k) := by
   induction xs generalizing f a <;> simp_all [abstractList, abstract1]
-theorem abstractList_lam' : abstractList (.lam n t b bi) xs k =
+theorem abstractList_lam : abstractList (.lam n t b bi) xs k =
     .lam n (abstractList t xs k) (abstractList b xs (k+1)) bi := by
   induction xs generalizing t b <;> simp_all [abstractList, abstract1]
-theorem abstractList_forallE' : abstractList (.forallE n t b bi) xs k =
+theorem abstractList_forallE : abstractList (.forallE n t b bi) xs k =
     .forallE n (abstractList t xs k) (abstractList b xs (k+1)) bi := by
   induction xs generalizing t b <;> simp_all [abstractList, abstract1]
-theorem abstractList_letE' : abstractList (.letE n t v b bi) xs k =
+theorem abstractList_letE : abstractList (.letE n t v b bi) xs k =
     .letE n (abstractList t xs k) (abstractList v xs k) (abstractList b xs (k+1)) bi := by
   induction xs generalizing t v b <;> simp_all [abstractList, abstract1]
-theorem abstractList_const' : abstractList (.const c ls) xs k = .const c ls := by
+theorem abstractList_const : abstractList (.const c ls) xs k = .const c ls := by
   induction xs <;> simp_all [abstractList, abstract1]
 theorem abstractList_sort' : abstractList (.sort u) xs k = .sort u := by
   induction xs <;> simp_all [abstractList, abstract1]
@@ -615,29 +615,29 @@ theorem abstractN_eq_abstractList {xs : List FVarId} (hnd : xs.Nodup) :
     ∀ (e : Expr) (k : Nat), e.looseBVarRange' ≤ k → abstractN xs e k = abstractList e xs k
   | .bvar i, k, h => by
     simp only [looseBVarRange'] at h
-    rw [abstractN, abstractList_bvar_lt' _ (by omega)]
+    rw [abstractN, abstractList_bvar_lt _ (by omega)]
   | .fvar v, k, _ => by rw [abstractN, abstractList_fvar _ hnd]
   | .mdata m e, k, h => by
-    rw [abstractN, abstractList_mdata', abstractN_eq_abstractList hnd e k h]
+    rw [abstractN, abstractList_mdata, abstractN_eq_abstractList hnd e k h]
   | .proj s i e, k, h => by
-    rw [abstractN, abstractList_proj', abstractN_eq_abstractList hnd e k h]
+    rw [abstractN, abstractList_proj, abstractN_eq_abstractList hnd e k h]
   | .app f a, k, h => by
     simp only [looseBVarRange', Nat.max_le] at h
-    rw [abstractN, abstractList_app', abstractN_eq_abstractList hnd f k h.1,
+    rw [abstractN, abstractList_app, abstractN_eq_abstractList hnd f k h.1,
       abstractN_eq_abstractList hnd a k h.2]
   | .lam n t b bi, k, h => by
     simp only [looseBVarRange', Nat.max_le] at h
-    rw [abstractN, abstractList_lam', abstractN_eq_abstractList hnd t k h.1,
+    rw [abstractN, abstractList_lam, abstractN_eq_abstractList hnd t k h.1,
       abstractN_eq_abstractList hnd b (k+1) (by omega)]
   | .forallE n t b bi, k, h => by
     simp only [looseBVarRange', Nat.max_le] at h
-    rw [abstractN, abstractList_forallE', abstractN_eq_abstractList hnd t k h.1,
+    rw [abstractN, abstractList_forallE, abstractN_eq_abstractList hnd t k h.1,
       abstractN_eq_abstractList hnd b (k+1) (by omega)]
   | .letE n t v b bi, k, h => by
     simp only [looseBVarRange', Nat.max_le] at h
-    rw [abstractN, abstractList_letE', abstractN_eq_abstractList hnd t k h.1.1,
+    rw [abstractN, abstractList_letE, abstractN_eq_abstractList hnd t k h.1.1,
       abstractN_eq_abstractList hnd v k h.1.2, abstractN_eq_abstractList hnd b (k+1) (by omega)]
-  | .const c ls, k, _ => by rw [abstractN, abstractList_const']
+  | .const c ls, k, _ => by rw [abstractN, abstractList_const]
   | .sort u, k, _ => by rw [abstractN, abstractList_sort']
   | .mvar m, k, _ => by rw [abstractN, abstractList_mvar']
   | .lit l, k, _ => by rw [abstractN, abstractList_lit']

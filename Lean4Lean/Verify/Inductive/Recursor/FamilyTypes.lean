@@ -48,19 +48,6 @@ private theorem familyTypes_ctx_instL_id {env : VEnv} {Γ : List VExpr}
     simp only [List.map_cons, Hw.2.instL_id]
     exact congrArg (List.cons A) (ih H.1 Hw.1)
 
-private theorem familyTypes_recursorLevels_zero
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
-  subst elim
-  rfl
-
-private theorem familyTypes_recursorLevels_param
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
-  subst elim
-  simp only [recursorDeclarationAbstractLevels]
-  exact VLevel.inst_map_id VLevel.prependShift_length
-
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
@@ -123,7 +110,7 @@ theorem CompletedRecursorConstruction.consumedFamilyApp_isType
     have hbody := (VEnv.IsType.wrapForalls_inv henv.ordered hP hM).2
     exact (VEnv.IsType.forallE_inv henv.ordered hbody).1
   rcases hsplit with helim | ⟨fresh, helim⟩
-  · have hL := familyTypes_recursorLevels_zero H.elimLevelAdmissible helim
+  · have hL := recursorDeclarationAbstractLevels_zero H.elimLevelAdmissible helim
     have hmot := (H.sourceIndices_motive owner (level := .zero) (by
       rw [helim]; rfl)).2
     rw [H.recursorEnv, hparamCtx, hL, hPId] at hmot
@@ -132,7 +119,7 @@ theorem CompletedRecursorConstruction.consumedFamilyApp_isType
       rw [helim]; rfl
     rw [hlen, hidxId] at hmot
     exact hpeel rfl rfl hmot
-  · have hL := familyTypes_recursorLevels_param H.elimLevelAdmissible helim
+  · have hL := recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim
     have hmot := (H.sourceIndices_motive owner (level := .param 0) (by
       rw [helim]; simp [AddInductive.getRecLevelParams, VLevel.ofLevel])).2
     rw [H.recursorEnv, hparamCtx, hL] at hmot

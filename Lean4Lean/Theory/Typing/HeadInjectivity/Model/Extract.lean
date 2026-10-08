@@ -42,15 +42,6 @@ theorem forall₂_equiv_of_map_eval :
     simp only [List.map_cons, List.cons.injEq] at h
     exact .cons h.1 (forall₂_equiv_of_map_eval h.2)
 
-theorem instL_wrapForalls' (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
-    (VExpr.wrapForalls ds body).instL ls =
-      VExpr.wrapForalls (ds.map (·.instL ls)) (body.instL ls) := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih =>
-    simp only [VExpr.wrapForalls, List.foldr_cons, VExpr.instL, List.map_cons] at ih ⊢
-    rw [ih]
-
 /-! ## Observations at the identity valuation -/
 
 /-- Observations at the identity valuation of `Γ`. -/
@@ -328,7 +319,7 @@ theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Mode
     cases hci.symm.trans hci'
     have eT : ci.type.instL ls =
         VExpr.wrapForalls (doms.map (·.instL ls)) (.sort (w.inst ls)) := by
-      rw [hty, Model.instL_wrapForalls']; rfl
+      rw [hty, VExpr.instL_wrapForalls]; rfl
     have hT : env.IsType U [] (VExpr.wrapForalls (doms.map (·.instL ls)) (.sort (w.inst ls))) :=
       eT ▸ IsType.instL hls (henv.ordered.constWF hci)
     have := Model.tele_spine henv.ordered hΓ keys (doms.map (·.instL ls)) (w.inst ls) []

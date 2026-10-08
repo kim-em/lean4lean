@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.Inductive.Nested.ConstructorRestoration
 import Lean4Lean.Verify.Inductive.Nested.AuxiliaryFamilyCorrespondence
 import Lean4Lean.Verify.Inductive.Nested.LoweringLevels
+import Lean4Lean.Std.List
 
 /-! Restoration of the auxiliary constructor types of a validated nested run
 (the constructor-type conjunct of the `auxiliaryFamilies` field of
@@ -119,26 +120,6 @@ theorem auxiliaryLoweredConstructors_restore
       fun _ hT => VEnv.IsDefEqU.of_l henv trivial ⟨_, hgd⟩ hT⟩
 
 /-! ### The restoration substitution of a validated nested run -/
-
-private theorem nodup_map_inj₄ {f : α → β} :
-    ∀ {l : List α}, (l.map f).Nodup → ∀ {x y}, x ∈ l → y ∈ l → f x = f y → x = y
-  | [], _, _, _, hx, _, _ => by simp at hx
-  | a :: l, hnd, x, y, hx, hy, hxy => by
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
-    rcases List.mem_cons.mp hx with hx' | hx' <;> rcases List.mem_cons.mp hy with hy' | hy'
-    · exact hx'.trans hy'.symm
-    · subst hx'; exact absurd ⟨y, hy', hxy.symm⟩ hnd.1
-    · subst hy'; exact absurd ⟨x, hx', hxy⟩ hnd.1
-    · exact nodup_map_inj₄ hnd.2 hx' hy' hxy
-
-private theorem forall₂_drop₄ {R : α → β → Prop} :
-    ∀ {l : List α} {r : List β} (_ : List.Forall₂ R l r) (k : Nat),
-      List.Forall₂ R (l.drop k) (r.drop k)
-  | _, _, .nil, _ => by simp
-  | _, _, .cons h t, 0 => by simpa using List.Forall₂.cons h t
-  | _, _, .cons _ t, k + 1 => by
-    simp only [List.drop_succ_cons]
-    exact forall₂_drop₄ t k
 
 /-- The restoration substitution of a validated nested run from the lowered
 header environment to the source header environment
@@ -292,7 +273,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
         sourceDecl.nparams a.source.name a.levels a.arguments ∈
         (compilationRestoration sourceDecl auxiliaries).heads :=
       List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-    have heqh := nodup_map_inj₄ hscopedNodup hh hfh
+    have heqh := Lean4Lean.List.nodup_map_inj hscopedNodup hh hfh
       (hn.symm.trans (hexp.name.trans hev.auxiliary.symm))
     subst heqh
     subst hval
@@ -441,7 +422,7 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
   have Hlowered := auxiliaryLoweredConstructors_restore henvTypes Haux HauxRestoring hP
     hfreshAll hlevels hmapM
   exact sourceConstructors_of_substitution S henvTypes.betaSubjectReduction
-    (forall₂_drop₄ Hdefeq sourceDecl.types.length) Hlowered htotal
+    (Lean4Lean.List.forall₂_drop Hdefeq sourceDecl.types.length) Hlowered htotal
 
 end VerifyInductive
 

@@ -36,19 +36,6 @@ theorem TrExprS.retargetForallPrefix
   exact ⟨result, Hnew, HnewFullType, HnewRes, HnewType,
     Hfull.uniq henv (.refl henv hΔ) Hnew⟩
 
-private theorem recursorLevels_zero
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
-  subst elim
-  rfl
-
-private theorem recursorLevels_param
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
-  subst elim
-  simp only [recursorDeclarationAbstractLevels]
-  exact VLevel.inst_map_id VLevel.prependShift_length
-
 /-- The actual terminal family application is translated only after the
 consumed source-field domains have been fixed. This preserves one constructor
 context while allowing projection representations to change by typed conversion. -/

@@ -159,4 +159,10 @@ def Instance.restoredEquations {s : InductiveSignature}
   rw [h, List.mapM_pure]
   simp
 
+@[simp] theorem Restoration.expr_bvar (r : Restoration) (i : Nat) :
+    r.expr (.bvar i) = some (.bvar i) := rfl
+
+@[simp] theorem Restoration.expr_sort (r : Restoration) (u : VLevel) :
+    r.expr (.sort u) = some (.sort u) := rfl
+
 end Lean4Lean.InductiveSignature

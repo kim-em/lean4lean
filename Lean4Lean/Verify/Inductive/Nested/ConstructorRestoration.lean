@@ -5,6 +5,7 @@ import Lean4Lean.Theory.Typing.ConstantHeaderProvenance
 import Lean4Lean.Theory.Inductive.ProjectionProgram
 import Lean4Lean.Verify.Typing.ConstSupport
 import Lean4Lean.Verify.Inductive.Nested.EliminatorAvoidance
+import Lean4Lean.Std.List
 
 /-! Restoration of the constructor types of the source families of a
 validated nested run (the `sourceConstructors` field of
@@ -279,17 +280,6 @@ structure NestedConstructorRestorationGaps (envTypes : VEnv)
     ∀ ctor ∈ normalized.ctors, ∃ restored,
       (compilationRestoration sourceDecl auxiliaries).expr ctor.type = some restored
 
-private theorem nodup_map_inj' {f : α → β} :
-    ∀ {l : List α}, (l.map f).Nodup → ∀ {x y}, x ∈ l → y ∈ l → f x = f y → x = y
-  | [], _, _, _, hx, _, _ => by simp at hx
-  | a :: l, hnd, x, y, hx, hy, hxy => by
-    simp only [List.map_cons, List.nodup_cons, List.mem_map] at hnd
-    rcases List.mem_cons.mp hx with hx' | hx' <;> rcases List.mem_cons.mp hy with hy' | hy'
-    · exact hx'.trans hy'.symm
-    · subst hx'; exact absurd ⟨y, hy', hxy.symm⟩ hnd.1
-    · subst hy'; exact absurd ⟨x, hx', hxy⟩ hnd.1
-    · exact nodup_map_inj' hnd.2 hx' hy' hxy
-
 theorem mem_familyNames {types : List VInductiveType} {name : Name} :
     name ∈ familyNames types ↔ ∃ t ∈ types, name = t.name ∨ ∃ c ∈ t.ctors, name = c.name := by
   simp only [familyNames, List.mem_flatMap, List.mem_cons, List.mem_map]
@@ -462,7 +452,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
         sourceDecl.nparams a.source.name a.levels a.arguments ∈
         (compilationRestoration sourceDecl auxiliaries).heads :=
       List.mem_flatMap.mpr ⟨a, ha, List.mem_cons_self⟩
-    have heqh := nodup_map_inj' hscopedNodup hh hfh
+    have heqh := Lean4Lean.List.nodup_map_inj hscopedNodup hh hfh
       (hn.symm.trans (hexp.name.trans hev.auxiliary.symm))
     subst heqh
     subst hval

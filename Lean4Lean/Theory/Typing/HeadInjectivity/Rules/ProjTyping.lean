@@ -55,15 +55,6 @@ theorem VExpr.subst_wrapForalls_cons (d : VExpr) (ds : List VExpr) (R : VExpr)
     (VExpr.wrapForalls (d :: ds) R).subst σ =
       .forallE (d.subst σ) ((VExpr.wrapForalls ds R).subst σ.lift) := rfl
 
-theorem VExpr.instL_wrapForalls_pt (ds : List VExpr) (body : VExpr) (ls : List VLevel) :
-    (VExpr.wrapForalls ds body).instL ls =
-      VExpr.wrapForalls (ds.map (·.instL ls)) (body.instL ls) := by
-  induction ds with
-  | nil => rfl
-  | cons d ds ih =>
-    simp only [VExpr.wrapForalls, List.foldr_cons, VExpr.instL, List.map_cons] at ih ⊢
-    rw [ih]
-
 /-- Instantiating the parameters of a substituted telescope. -/
 theorem VProjectionInfo.ipp_wrapForalls :
     ∀ (as ds : List VExpr) (R : VExpr) (σ : VExpr.Subst), as.length ≤ ds.length →
@@ -212,8 +203,8 @@ theorem ProjTele.of (henv : env.Ordered) {S : Name} {info : VProjectionInfo} {do
     ProjTele env U S info ls (doms.map (·.instL ls))
       ((VExpr.mkApps (.const c lsR) args).instL ls) := by
   have hT := IsType.instL hls hwf
-  rw [hshape, VExpr.instL_wrapForalls_pt] at hT
-  refine ⟨by rw [hshape, VExpr.instL_wrapForalls_pt], ⟨c, _, _, VExpr.instL_mkApps _ _⟩,
+  rw [hshape, VExpr.instL_wrapForalls] at hT
+  refine ⟨by rw [hshape, VExpr.instL_wrapForalls], ⟨c, _, _, VExpr.instL_mkApps _ _⟩,
     fun k hk => ?_, fun k hk => ?_, ?_⟩
   · obtain ⟨u, h⟩ := IsType.wrapForalls_doms henv hT k hk
     exact ⟨u, by simpa using h⟩

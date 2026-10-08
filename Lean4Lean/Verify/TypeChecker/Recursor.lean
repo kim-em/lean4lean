@@ -1,6 +1,7 @@
 import Lean4Lean.Verify.TypeChecker.Reduce
 import Lean4Lean.Verify.EquivManager
 import Lean4Lean.Verify.Environment.Recursors
+import Lean4Lean.Std.List
 
 /-!
 # Recursor reduction
@@ -99,15 +100,6 @@ theorem _root_.Lean4Lean.FVarsIn.of_mem_getAppArgsList {P} {e a : Expr} (h : FVa
   rw [← e.mkAppList_getAppArgsList, FVarsIn.mkAppList] at h
   exact h.2 a ha
 
-/-- The translated arguments of the argument-list suffix. -/
-theorem forall₂_drop {R : α → β → Prop} {l₁ : List α} {l₂ : List β} (h : List.Forall₂ R l₁ l₂)
-    (n : Nat) : List.Forall₂ R (l₁.drop n) (l₂.drop n) := by
-  induction h generalizing n with
-  | nil => simp
-  | cons h _ ih => cases n with
-    | zero => exact .cons h (by simpa using ih 0)
-    | succ n => exact ih n
-
 /-- Inversion of the translation of a constant applied to three arguments. -/
 theorem TrExprS.app3_inv {n : Name} {ls : List Level} {a1 a2 a3 : Expr} {e' : VExpr}
     (H : c.TrExprS (.app (.app (.app (.const n ls) a1) a2) a3) e') :
@@ -193,7 +185,7 @@ theorem quotReduceRecCont.lift.WF (he : c.TrExprS e e') {ls : List Level}
   have hr : c.TrExprS ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 6))
       (VExpr.mkApps (.app args'[3] a3') (args'.drop 6)) :=
     TrExprS.mkAppList_of_wf (TrExprS.app_of_wf (hget 3 (by omega)) ha3
-      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (forall₂_drop hargs 6) hrwf
+      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (Lean4Lean.List.forall₂_drop hargs 6) hrwf
   have hfv : c.FVarsBelow e ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 6)) := by
     intro P hP hfe
     rw [FVarsIn.mkAppList]
@@ -282,7 +274,7 @@ theorem quotReduceRecCont.ind.WF (he : c.TrExprS e e') {ls : List Level}
   have hr : c.TrExprS ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5))
       (VExpr.mkApps (.app args'[3] a3') (args'.drop 5)) :=
     TrExprS.mkAppList_of_wf (TrExprS.app_of_wf (hget 3 (by omega)) ha3
-      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (forall₂_drop hargs 5) hrwf
+      (VExpr.WF.of_mkApps c.Ewf.ordered c.Δwf.toCtx hrwf)) (Lean4Lean.List.forall₂_drop hargs 5) hrwf
   have hfv : c.FVarsBelow e ((Expr.app e.getAppArgs[3] a3).mkAppList (e.getAppArgsList.drop 5)) := by
     intro P hP hfe
     rw [FVarsIn.mkAppList]
@@ -448,7 +440,7 @@ theorem inductiveReduceRecTail.WF {info : RecursorVal} {recFn : Name} {ls : List
     args'.drop (info.getMajorIdx + 1) = A'
   have hAtr : List.Forall₂ c.TrExprS A A' := by
     rw [← hA, ← hA']
-    exact ((forall₂_take hargs _).append' (forall₂_drop hMargs _)).append' (forall₂_drop hargs _)
+    exact ((forall₂_take hargs _).append' (Lean4Lean.List.forall₂_drop hMargs _)).append' (Lean4Lean.List.forall₂_drop hargs _)
   rw [hA'] at hiota
   have hdefeq : c.IsDefEqU e' (VExpr.mkApps r₀' A') := by
     refine hceq.trans c.Ewf c.Δwf (hiota.trans c.Ewf c.Δwf ?_)

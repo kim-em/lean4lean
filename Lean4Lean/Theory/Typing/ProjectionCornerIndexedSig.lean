@@ -12,10 +12,6 @@ namespace VEnv
 open InductiveSignature VExpr
 variable {env : VEnv} {U : Nat}
 
-theorem forall₂_equiv_refl_idx : ∀ l : List VLevel, List.Forall₂ (· ≈ ·) l l
-  | [] => .nil
-  | _ :: l => .cons (VLevel.equiv_def'.mpr rfl) (forall₂_equiv_refl_idx l)
-
 theorem corner_inhabit_view (henv : env.WF) (hch : env.HasCanonicalChoice)
     {Δ : List VExpr} (hΔ : OnCtx Δ (env.IsType U))
     {S : Name} {info : VProjectionInfo} (hinfo : env.projections S info)
@@ -351,7 +347,7 @@ theorem corner_inhabit_view (henv : env.WF) (hch : env.HasCanonicalChoice)
     rw [← hXdef, VExpr.liftN_instOuter _ _ (by simpa [hpl] using hdcl)]
     simp [List.map_append, VExpr.liftN, Function.comp_def]
   have hXuL := hXu.weakN henv.ordered (Ctx.LiftN.zero F'.reverse (Γ := Δ) hΓ'len)
-  have hlsE : List.Forall₂ (· ≈ ·) ls ls := forall₂_equiv_refl_idx ls
+  have hlsE : List.Forall₂ (· ≈ ·) ls ls := VLevel.forall₂_equiv_refl ls
   have hfield := VProjectionInfo.field_of_walk (decl := decl) henv hinfo hwf' hctorC hshape0
     hvalid0 hhead0 hdn hdu hle hFctx hc' hlenA' hls hlsE hnz hPA hIA he'L hmd
     (by rw [← hXlift]; exact ⟨_, hXuL⟩)

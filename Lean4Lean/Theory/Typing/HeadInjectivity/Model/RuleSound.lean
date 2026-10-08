@@ -191,7 +191,7 @@ theorem major_indicator {ci : VConstant} {ls : List VLevel} {uH : VLevel}
     ∃ u : VLevel, Obs' .id .empty (ci.type.instL ls) (piCodChain (keys.take k)
       (.piDomOb (.rigid I ((lsI.map (·.inst ls)).map (·.eval)) iargs.length u.eval))) := by
   have eT : ci.type.instL ls = .wrapForalls (dsH.map (·.instL ls)) (RH.instL ls) := by
-    rw [eH, instL_wrapForalls'']
+    rw [eH, VExpr.instL_wrapForalls]
   have hk' : k < dsH.length := by omega
   have hsplit : dsH.map (·.instL ls) =
       (dsH.take k).map (·.instL ls) ++ [(VExpr.mkApps (.const I lsI) iargs).instL ls] := by

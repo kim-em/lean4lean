@@ -10,6 +10,10 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 
+attribute [simp] Lean.Expr.abstractList_const Lean.Expr.abstractList_app Lean.Expr.abstractList_lam
+  Lean.Expr.abstractList_forallE Lean.Expr.abstractList_letE Lean.Expr.abstractList_mdata
+  Lean.Expr.abstractList_proj
+
 /-- Semantic certificate for the two locals installed after one family's
 indices have been replayed.  The starting context is already interpreted
 under the recursor universe list, so the same certificate applies to every
@@ -396,14 +400,6 @@ theorem Expr.abstractList_fvar_of_not_mem
     have hne : head ≠ fv := Ne.symm hmem.1
     simp [Expr.abstractList, Expr.abstract1, hne, ih hmem.2]
 
-@[simp] theorem Expr.abstractList_const
-    (name : Name) (levels : List Level) (fvs : List FVarId) (k : Nat) :
-    (Expr.const name levels).abstractList fvs k = .const name levels := by
-  induction fvs with
-  | nil => rfl
-  | cons fv fvs ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
-
 theorem Expr.abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
     (Expr.bvar (k + n)).abstractList fvs k =
       .bvar (k + n + fvs.length) := by
@@ -415,68 +411,8 @@ theorem Expr.abstractList_bvar_ge (fvs : List FVarId) (k n : Nat) :
       simp [Expr.abstract1]]
     simpa [Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using ih (n + 1)
 
-theorem Expr.abstractList_bvar_lt (fvs : List FVarId)
-    (h : n < k) :
-    (Expr.bvar n).abstractList fvs k = .bvar n := by
-  induction fvs with
-  | nil => simp
-  | cons fv fvs ih =>
-    simp [Expr.abstractList, Expr.abstract1, h, ih]
-
 theorem Expr.abstractN_bvar_lt (fvs : List FVarId) (_h : n < k) :
     (Expr.bvar n).abstractN fvs k = .bvar n := rfl
-
-@[simp] theorem Expr.abstractList_app :
-    (Expr.app fn arg).abstractList fvs k =
-      .app (fn.abstractList fvs k) (arg.abstractList fvs k) := by
-  induction fvs generalizing fn arg with
-  | nil => simp
-  | cons fv fvs ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
-
-@[simp] theorem Expr.abstractList_lam :
-    (Expr.lam name dom body bi).abstractList fvars k =
-      .lam name (dom.abstractList fvars k)
-        (body.abstractList fvars (k + 1)) bi := by
-  induction fvars generalizing dom body k with
-  | nil => simp
-  | cons fv fvars ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
-
-@[simp] theorem Expr.abstractList_forallE :
-    (Expr.forallE name dom body bi).abstractList fvars k =
-      .forallE name (dom.abstractList fvars k)
-        (body.abstractList fvars (k + 1)) bi := by
-  induction fvars generalizing dom body k with
-  | nil => simp
-  | cons fv fvars ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
-
-@[simp] theorem Expr.abstractList_letE :
-    (Expr.letE name ty value body nondep).abstractList fvars k =
-      .letE name (ty.abstractList fvars k)
-        (value.abstractList fvars k)
-        (body.abstractList fvars (k + 1)) nondep := by
-  induction fvars generalizing ty value body k with
-  | nil => simp
-  | cons fv fvars ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
-
-@[simp] theorem Expr.abstractList_mdata :
-    (Expr.mdata md body).abstractList fvars k =
-      .mdata md (body.abstractList fvars k) := by
-  induction fvars generalizing body k with
-  | nil => simp
-  | cons fv fvars ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
-
-@[simp] theorem Expr.abstractList_proj :
-    (Expr.proj name idx body).abstractList fvars k =
-      .proj name idx (body.abstractList fvars k) := by
-  induction fvars generalizing body k with
-  | nil => simp
-  | cons fv fvars ih =>
-    simp [Expr.abstractList, Expr.abstract1, ih]
 
 @[simp] theorem Expr.abstractN_app :
     (Expr.app fn arg).abstractN fvs k = .app (fn.abstractN fvs k) (arg.abstractN fvs k) := rfl

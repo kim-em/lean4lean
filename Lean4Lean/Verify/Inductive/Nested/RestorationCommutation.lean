@@ -75,10 +75,6 @@ theorem Restoration.expr.go_of_not_contains (r : Restoration) {e : VExpr}
     simp only [VExpr.containsAnyConst, Bool.or_eq_false_iff] at H
     simp [Restoration.expr.go, ih H.2, VExpr.mkApps]
 
-theorem Restoration.expr_of_not_contains (r : Restoration) {e : VExpr}
-    (H : e.containsAnyConst r.restorableNames = false) : r.expr e = some e :=
-  Restoration.expr.go_of_not_contains r H []
-
 end Lean4Lean.InductiveSignature
 
 namespace Lean4Lean

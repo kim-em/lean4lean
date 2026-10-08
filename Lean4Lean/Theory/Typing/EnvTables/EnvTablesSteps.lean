@@ -110,16 +110,6 @@ theorem addConsts_defeqs {cis : List VDefVal} (h : env.addConsts cis = some env'
     obtain ⟨env1, h1, h2⟩ := h
     exact (ih h2).trans (VEnv.addConst_defeqs h1)
 
-theorem addConsts_projections {cis : List VDefVal} (h : env.addConsts cis = some env') :
-    env'.projections = env.projections := by
-  induction cis generalizing env with
-  | nil => simp [VEnv.addConsts] at h; subst h; rfl
-  | cons ci cis ih =>
-    simp only [VEnv.addConsts, List.foldlM_cons, Option.bind_eq_bind,
-      Option.bind_eq_some_iff] at h
-    obtain ⟨env1, h1, h2⟩ := h
-    exact (ih h2).trans (VEnv.addConst_projections h1)
-
 theorem addDefEqs_defeqs {cis : List VDefVal} :
     (env.addDefEqs cis).defeqs df ↔ (∃ ci ∈ cis, df = ci.toDefEq) ∨ env.defeqs df := by
   induction cis generalizing env with
@@ -144,12 +134,6 @@ theorem addDefEqs_le {cis : List VDefVal} : env ≤ env.addDefEqs cis := by
   | cons ci cis ih => exact VEnv.addDefEq_le.trans (ih (env := env.addDefEq ci.toDefEq))
 
 theorem addDefEqs_constants {cis : List VDefVal} : (env.addDefEqs cis).constants = env.constants := by
-  induction cis generalizing env with
-  | nil => rfl
-  | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
-
-theorem addDefEqs_projections {cis : List VDefVal} :
-    (env.addDefEqs cis).projections = env.projections := by
   induction cis generalizing env with
   | nil => rfl
   | cons ci cis ih => exact ih (env := env.addDefEq ci.toDefEq)
@@ -242,7 +226,7 @@ theorem Tables.Inv.addDefinitions (H : T.Inv env) {cis : List VDefVal} {env1 : V
       · exact .inl ⟨v, hext.defs hv, rfl⟩
       · exact .inr (.inl h)
       · exact .inr (.inr h)
-  · rw [addDefEqs_projections, addConsts_projections hadd] at h
+  · rw [VEnv.addDefEqs_projections, VEnv.addConsts_projections hadd] at h
     exact H.projections h
 
 /-! ## The quotient -/

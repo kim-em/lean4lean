@@ -3,19 +3,6 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-private theorem recursorLevels_zero
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .zero) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.params Us.length := by
-  subst elim
-  rfl
-
-private theorem recursorLevels_param
-    (ha : AddInductive.AdmissibleElimLevel Us elim) (heq : elim = .param fresh) :
-    recursorDeclarationAbstractLevels Us ha = VLevel.prependShift Us.length := by
-  subst elim
-  simp only [recursorDeclarationAbstractLevels]
-  exact VLevel.inst_map_id VLevel.prependShift_length
-
 /-- One actual source-universe index choice, shared by its original source
 model and the recursor-universe generated motive. -/
 theorem CompletedRecursorConstruction.sourceIndexDomains
@@ -50,8 +37,8 @@ theorem CompletedRecursorConstruction.sourceIndexDomains
         simpa [Level.substParams_id, VLevel.inst_id (VLevel.WF.of_ofLevel hu)] using hu)
     rw [Expr.instantiateLevelParamsCore_id, R.sourceAnonymousParameterWF.instL_id] at Hidentity
     have Hctx := H.parameterAnonymousContext
-    rw [recursorLevels_zero H.elimLevelAdmissible helim, R.sourceAnonymousParameterWF.instL_id] at Hctx
-    rw [Hctx, H.recursorEnv, recursorLevels_zero H.elimLevelAdmissible helim]
+    rw [recursorDeclarationAbstractLevels_zero H.elimLevelAdmissible helim, R.sourceAnonymousParameterWF.instL_id] at Hctx
+    rw [Hctx, H.recursorEnv, recursorDeclarationAbstractLevels_zero H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams, VExpr.instL_wrapForalls, VExpr.instL, VLevel.inst]
       using Hidentity
   ·
@@ -59,7 +46,7 @@ theorem CompletedRecursorConstruction.sourceIndexDomains
       H.chooseOriginalIndexDomains_large owner howner helim
     refine ⟨domains, hdomains, Hsource, Htype, ?_⟩
     rw [H.parameterAnonymousContext, H.recursorEnv,
-      recursorLevels_param H.elimLevelAdmissible helim]
+      recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hrec
 
 noncomputable def CompletedRecursorConstruction.sourceIndices

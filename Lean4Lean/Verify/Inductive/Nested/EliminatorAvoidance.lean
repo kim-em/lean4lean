@@ -38,17 +38,10 @@ open InductiveSignature
 
 namespace InductiveSignature
 
-private theorem heads_find?_eq_none' {r : Restoration} {name : Name}
-    (h : name ∉ r.heads.map (·.auxiliary)) :
-    r.heads.find? (fun h => h.auxiliary == name) = none := by
-  apply List.find?_eq_none.mpr
-  intro head hmem heq
-  exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
-
 theorem Restoration.lambdaReplacement_eq_none {r : Restoration}
     {domains : HeadSpecialization → List VExpr} {c : Name}
     (h : c ∉ r.heads.map (·.auxiliary)) : r.lambdaReplacement domains c = none := by
-  simp [Restoration.lambdaReplacement, heads_find?_eq_none' h]
+  simp [Restoration.lambdaReplacement, Restoration.heads_find?_eq_none h]
 
 end InductiveSignature
 

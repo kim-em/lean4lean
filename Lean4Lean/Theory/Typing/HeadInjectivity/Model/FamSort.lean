@@ -68,7 +68,7 @@ theorem Model.famSort_of {envF E : VEnv} {I : Name} {c : VConstant} {domains : L
   have s3 := IsDefEq.strong hE (show OnCtx [] (E.IsType U) from trivial) i3
   have S1 := (V.soundAtH henvF hEF U Δ hΔ s1).1
   have S3 := (V.soundAtH henvF hEF U Δ hΔ s3).1
-  rw [Model.instL_wrapForalls'' domains (.sort level)] at S3
+  rw [VExpr.instL_wrapForalls domains (.sort level)] at S3
   have := Model.family_sort₂ S1 S3 h
   rw [this]
   exact VLevel.inst_congr_l hlev

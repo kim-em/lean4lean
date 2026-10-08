@@ -82,18 +82,11 @@ theorem Restoration.renaming_of_find_none {r : Restoration} {n : Name}
     r.renaming n = r.recursorName n := by
   simp [Restoration.renaming, h]
 
-theorem Restoration.find?_none_of_not_mem {r : Restoration} {n : Name}
-    (h : n ∉ r.heads.map (·.auxiliary)) :
-    r.heads.find? (fun h => h.auxiliary == n) = none := by
-  apply List.find?_eq_none.mpr
-  intro head hmem heq
-  exact h (List.mem_map.mpr ⟨head, hmem, by simpa using heq⟩)
-
 theorem Restoration.renaming_eq_self {r : Restoration} {n : Name}
     (h : n ∉ r.restorableNames) : r.renaming n = n := by
   have h1 : n ∉ r.heads.map (·.auxiliary) := fun hm => h (List.mem_append_left _ hm)
   have h2 : n ∉ r.recursors.map Prod.fst := fun hm => h (List.mem_append_right _ hm)
-  rw [Restoration.renaming_of_find_none (Restoration.find?_none_of_not_mem h1),
+  rw [Restoration.renaming_of_find_none (Restoration.heads_find?_eq_none h1),
     Restoration.recursorName_of_not_mem h2]
 
 theorem Restoration.lambdaReplacement_eq_none_of_not_restorable {r : Restoration}

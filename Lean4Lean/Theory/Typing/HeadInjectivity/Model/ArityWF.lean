@@ -72,7 +72,7 @@ theorem EndHead.subst {h : Name} {e : VExpr} : ∀ {σ : VExpr.Subst}, EndHead e
 theorem EndHead.instL {h : Name} {e : VExpr} {us : List VLevel} (H : EndHead e h) :
     EndHead (e.instL us) h := by
   obtain ⟨doms, ls, args, he, -⟩ := H.form
-  rw [he, Model.instL_wrapForalls'', EndHead.wrapForalls, VExpr.instL_mkApps]
+  rw [he, VExpr.instL_wrapForalls, EndHead.wrapForalls, VExpr.instL_mkApps]
   exact .of_mkApps
 
 theorem EndHead.takeForalls {h : Name} : ∀ {k : Nat} {e body : VExpr} {ds : List VExpr},

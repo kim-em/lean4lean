@@ -571,7 +571,7 @@ theorem TrExprS.abstractSelectedExpansion
       HcurrentLevels HcurrentArity =>
       have habstract : (Expr.const name levels).abstractList fvars
           abstractDepth = .const name levels := by
-        exact Expr.abstractList_const name levels fvars abstractDepth
+        exact Lean.Expr.abstractList_const
       rw [habstract] at Hcanonical
       cases Hcanonical with
       | const HcanonicalConst HcanonicalLevels HcanonicalArity =>

@@ -60,9 +60,6 @@ theorem Restoration.expr_bvar_mkApps {r : Restoration} {i : Nat} {args : List VE
   simp only [Restoration.expr.go, Option.some.injEq] at h
   exact ⟨args', hargs, h.symm⟩
 
-theorem Restoration.expr_sort {r : Restoration} {u : VLevel} : r.expr (.sort u) = some (.sort u) :=
-  rfl
-
 theorem mapM_reverse_getElem? {f : VExpr → Option VExpr} {l l' : List VExpr} {i : Nat}
     {a : VExpr} (hm : l.mapM f = some l') (h : l.reverse[i]? = some a) :
     ∃ a', f a = some a' ∧ l'.reverse[i]? = some a' := by
@@ -227,14 +224,14 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
     obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hx
-    rw [Restoration.expr_sort, Option.some.injEq] at hb'
+    rw [InductiveSignature.Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget ls
     have hcl' : (df.type.instL ls).ClosedN := hcl.1.2.instL
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
       huniq hci eH hlenH hkH hpmL.weak ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := ds'.map (·.instL ls))
-      (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
+      (by rw [ht, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
       (by have hxlt := (List.getElem?_eq_some_iff.1 hxget).1
           rw [List.length_reverse] at hxlt

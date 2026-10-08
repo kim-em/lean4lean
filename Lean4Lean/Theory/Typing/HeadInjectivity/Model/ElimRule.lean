@@ -324,14 +324,14 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     obtain ⟨ds0, e0, l0⟩ := hm _
     rw [e0] at hx
     obtain ⟨ds0', b', hds0, hb', rfl⟩ := Restoration.expr_wrapForalls_parts hx
-    rw [Restoration.expr_sort, Option.some.injEq] at hb'
+    rw [InductiveSignature.Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget (target :: levels)
     refine sound_pat_elim_empty henv hΔ hEu hb hrules hl hr hlsP hrc.1 hrc.2.1 hcrig huniq
       htype eT hlenH hkH hpmL.weak ihL.1 ihR
       fun σ S W tv o => ?_
     refine rhs_empty_motive_ctx henv hΔ (doms := ds'.map (·.instL (target :: levels)))
-      (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
+      (by rw [ht, VExpr.instL_wrapForalls]) (by rw [hr, instL_wrapLams'])
       ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
       (by have hxlt := (List.getElem?_eq_some_iff.1 hxget).1
           rw [List.length_reverse] at hxlt
