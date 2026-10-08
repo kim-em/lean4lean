@@ -47,7 +47,7 @@ theorem VContext.quotCoherent (c : VContext) (h : c.env.quotInit = true) :
 
 namespace Inner
 
-variable {c : VContext} {s : VState}
+variable {c : VContext} {s : State}
 
 theorem TrExprS.app_of_wf (hf : c.TrExprS f f') (ha : c.TrExprS a a')
     (hwf : VExpr.WF c.venv c.lparams.length c.vlctx.toCtx (.app f' a')) :
@@ -560,7 +560,7 @@ theorem toCtorWhenK.WF_all {info : RecursorVal} {major : Expr} {m' : VExpr} (hk 
     (he : c.TrExprS major m') :
     RecM.WF c s (toCtorWhenK c.env whnf inferType isDefEq info major) fun r _ =>
       (c.FVarsBelow major r ∧ c.TrExpr r m') ∧ c.LevelsBelow major r := by
-  have hid : ∀ {s : VState}, RecM.WF c s (pure major) fun r _ =>
+  have hid : ∀ {s : State}, RecM.WF c s (pure major) fun r _ =>
       (c.FVarsBelow major r ∧ c.TrExpr r m') ∧ c.LevelsBelow major r :=
     .pure ⟨⟨.rfl, he.trExpr c.Ewf c.Δwf⟩, .rfl⟩
   unfold toCtorWhenK
@@ -741,7 +741,7 @@ definitionally equal term, by structure eta. -/
 theorem toCtorWhenStruct.WF_all {w : Expr} {w' : VExpr} (he : c.TrExprS w w') :
     RecM.WF c s (toCtorWhenStruct c.env whnf inferType n w) fun r _ =>
       (c.FVarsBelow w r ∧ c.TrExpr r w') ∧ c.LevelsBelow w r := by
-  have hid : ∀ {s : VState}, RecM.WF c s (pure w) fun r _ =>
+  have hid : ∀ {s : State}, RecM.WF c s (pure w) fun r _ =>
       (c.FVarsBelow w r ∧ c.TrExpr r w') ∧ c.LevelsBelow w r :=
     .pure ⟨⟨.rfl, he.trExpr c.Ewf c.Δwf⟩, .rfl⟩
   unfold toCtorWhenStruct
@@ -975,7 +975,7 @@ theorem inductiveReduceRec.WF_all (he : c.TrExprS e e') :
     rwa [← c.trenv.map_wf.find?'_eq_find?]
   obtain ⟨-, hK⟩ := c.recursorRules hfindC hsafe
   -- the tail
-  have htail : ∀ {s : VState} (major₂ : Expr),
+  have htail : ∀ {s : State} (major₂ : Expr),
       c.FVarsBelow e.getAppArgs[info.getMajorIdx] major₂ →
       c.TrExpr major₂ (args'[info.getMajorIdx]'hmaj') →
       c.LevelsBelow e.getAppArgs[info.getMajorIdx] major₂ →
@@ -989,7 +989,7 @@ theorem inductiveReduceRec.WF_all (he : c.TrExprS e e') :
       (hlv Us P hs (Expr.levelParamsIn_of_mem_getAppArgsList hl hmem)
         (hP.of_mem_getAppArgsList hmem)) e₁ h
   -- after the K conversion
-  have hjp : ∀ {s : VState} (m₁ : Expr),
+  have hjp : ∀ {s : State} (m₁ : Expr),
       c.FVarsBelow e.getAppArgs[info.getMajorIdx] m₁ →
       c.TrExpr m₁ (args'[info.getMajorIdx]'hmaj') →
       c.LevelsBelow e.getAppArgs[info.getMajorIdx] m₁ →

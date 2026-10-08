@@ -179,7 +179,7 @@ theorem ClosedNestedOccurrencesTyped.residualTranslations
     Hresidual, by simpa [abstractForallContext_toCtx, VLCtx.toCtx] using Hbody⟩⟩
 
 private theorem checkNestedAuxiliaryList.WF
-    {c : TypeChecker.VContext} {s : TypeChecker.VState}
+    {c : TypeChecker.VContext} {s : TypeChecker.State}
     (items : List (Name × Expr))
     (hfvars : ∀ item ∈ items,
       item.2.FVarsIn (· ∈ c.vlctx.fvars)) :

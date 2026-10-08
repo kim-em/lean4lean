@@ -342,7 +342,7 @@ closing of the probe's own context (`hcl`) to discharge it with, since that is t
 cannot build without naming the binder's type. Both hypotheses are plain propositions about
 `mkRhs (.fvar id)`: `mkRhs` is a function, so nothing here is monadic. -/
 theorem ProbeBundle.probe.WF {c : VContext} {m mp : MLCtx} [cwf : c.MLCWF m] [cwfp : c.MLCWF mp]
-    {P : ProbeBundle (c.withMLC m)} {s : VState} {fail : ∀ {α}, M α}
+    {P : ProbeBundle (c.withMLC m)} {s : State} {fail : ∀ {α}, M α}
     {subst : Array Expr} {mkRhs : Expr → Expr}
     {R : (c.withMLC m).Ext → VExpr.Subst → VExpr → VExpr → Prop}
     {τ : List VExpr} {dk n k}
@@ -630,7 +630,7 @@ every argument of `go` still bound. `entry` at `a` fixes the base point to `a`, 
 `reflects` runs the induction at. `lambdaTelescope.Inv` supplies the closing (its domains and
 `VExpr.lams_appN`), and `hσm` supplies the arguments' typing, which is what makes that closing a
 `VEnv.Ctx.SubstEq`. -/
-theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s : VState}
+theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s : State}
     {e meas : Expr} {fail : ∀ {α}, M α} {ev mv : VExpr}
     (hev : (c.withMLC m₀).TrExprS e ev) (hmv : (c.withMLC m₀).TrExprS meas mv)
     (hnat : c.venv.contains ``Nat) (hsafe : c.safety = .safe)
@@ -1765,7 +1765,7 @@ contexts are built on top of `c` and are the business of `probe.WF`.
 `R` is quantified after `γ`, which is what lets the answer depend on the closing: `Nat.bitwise`
 is checked with its operator still a variable of `c`, and only a closing says which `Bool`
 operation that variable stands for. -/
-theorem unfoldNatWellFounded.WF {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s : VState}
+theorem unfoldNatWellFounded.WF {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s : State}
     {e meas : Expr} {fail : ∀ {α}, M α} {ev mv : VExpr}
     (hev : (c.withMLC m₀).TrExprS e ev) (hmv : (c.withMLC m₀).TrExprS meas mv)
     (hnat : c.venv.contains ``Nat) (hsafe : c.safety = .safe)
@@ -1792,7 +1792,7 @@ first, which is what `fun m _ => m` measures.
 The measure being fixed, so are its translation and what it is worth at the recursion's
 arguments -- that is `natFstLamApp`, and it is a closed term, so no closing reaches it -- and all
 that is left of `unfoldNatWellFounded.WF` for the caller is the value being unfolded. -/
-theorem unfoldNatWellFounded.WF₂ {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s : VState}
+theorem unfoldNatWellFounded.WF₂ {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s : State}
     {e : Expr} {fail : ∀ {α}, M α} {ev : VExpr}
     (hev : (c.withMLC m₀).TrExprS e ev)
     (hnat : c.venv.contains ``Nat) (hsafe : c.safety = .safe)

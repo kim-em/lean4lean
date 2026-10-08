@@ -313,17 +313,17 @@ end EquivManager
 namespace TypeChecker.Inner
 
 open EquivManager in
-theorem addEquiv.WF {c : VContext} {s : VState} (he₁ : c.TrExprS e₁ e') (he₂ : c.TrExpr e₂ e') :
+theorem addEquiv.WF {c : VContext} {s : State} (he₁ : c.TrExprS e₁ e') (he₂ : c.TrExpr e₂ e') :
     RecM.WF c s (modify fun st => { st with eqvManager := st.eqvManager.addEquiv e₁ e₂ })
       fun _ _ => True := by
   rintro _ mwf wf _ _ ⟨⟩
-  refine ⟨{ s with toState := _ }, rfl, .rfl, { wf with ectx := ?_ }, trivial⟩
+  refine ⟨_, rfl, .rfl, { wf with ectx := ?_ }, trivial⟩
   simp [addEquiv]; split; rename_i h1; split; rename_i h2
   have ⟨ewf, b2, b3⟩ := toNode.WF wf.ectx h1
   have ⟨ewf, c2, c3⟩ := toNode.WF ewf h2
   exact (merge.WF ewf (.defeq he₁ he₂) (c2.toNodeMap b3) c3).1
 
-theorem isDefEq.WF {c : VContext} {s : VState}
+theorem isDefEq.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
     RecM.WF c s (isDefEq e₁ e₂) fun b _ => b → c.IsDefEqU e₁' e₂' := by
   refine (isDefEqCore.WF he₁ he₂).bind fun b _ _ hb => ?_

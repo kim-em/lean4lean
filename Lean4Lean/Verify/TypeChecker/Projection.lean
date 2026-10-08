@@ -37,7 +37,7 @@ theorem projs_succ :
   funext j; simp [Function.comp, Nat.add_assoc, Nat.add_comm 1]
 
 theorem instantiateProjectionParameters.WF_all {c : VContext} {args : Array Expr} :
-    ∀ {remaining : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr} {position : Nat}
+    ∀ {remaining : Nat} {s : State} {type : Expr} {ds : List VExpr} {b : VExpr} {position : Nat}
       {xs' : List VExpr},
     c.TrExprS type (VExpr.wrapForalls ds b) → ∀ (hle : remaining ≤ ds.length)
       (hlen : xs'.length = remaining),
@@ -98,7 +98,7 @@ theorem instantiateProjectionParameters.WF_all {c : VContext} {args : Array Expr
         (VExpr.wrapForalls (VExpr.instDomains ds' a' 0) (b.inst a' (0 + ds'.length))) := by
       rw [← VExpr.wrapForalls_inst]; exact hinst
     refine (ih hT'' (by simpa using Nat.le_of_succ_le_succ hle) (by simpa using hlen) ?_ ?_
-      (VState.LE.namePrefix_eq hpfx le)).mono fun r _ _ H t ht => ?_
+      (State.LE.namePrefix_eq hpfx le)).mono fun r _ _ H t ht => ?_
     · intro k hk
       have ⟨a₁, h1, h2⟩ := hargs (k + 1) (Nat.succ_lt_succ hk)
       exact ⟨a₁, by rw [← h1]; congr 1; omega, h2⟩
@@ -141,7 +141,7 @@ substituted (`TelTrN.inst`), and a non-dependent field is deleted (`TelTrN.delet
 needs no typing of the corresponding projection. -/
 
 theorem instantiateProjectionParameters.WF_tel {c : VContext} {args : Array Expr} :
-    ∀ {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+    ∀ {remaining m : Nat} {s : State} {type : Expr} {ds : List VExpr} {b : VExpr}
       {position : Nat} {xs' : List VExpr},
     TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b) → remaining ≤ m →
     ∀ (hle : remaining ≤ ds.length) (hlen : xs'.length = remaining),
@@ -211,7 +211,7 @@ theorem instantiateProjectionParameters.WF_tel {c : VContext} {args : Array Expr
 theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u) :
-    ∀ {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+    ∀ {remaining m : Nat} {s : State} {type : Expr} {ds : List VExpr} {b : VExpr}
       {position : Nat},
     TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b) → remaining ≤ m →
     ∀ (hle : remaining ≤ ds.length),
@@ -252,7 +252,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
     refine (((whnf.WF_below_of_fvarsIn hTS).and (whnf.WF_paramUniform hTS hpfx)).and hwf).bind
       fun e₁ s₁ le₁ H₁ => ?_
     obtain ⟨⟨⟨⟨hbe, -, hs⟩, hle₁⟩, hh₁⟩, he₁⟩ := H₁
-    have hpfx₁ := VState.LE.namePrefix_eq hpfx le₁
+    have hpfx₁ := State.LE.namePrefix_eq hpfx le₁
     have h₁ := hs _ _ rfl
     split <;> [skip; exact .pure nofun]
     rename_i n d₁ body bi
@@ -264,7 +264,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
       have := hle₁ Us P hsc hlt hfvt
       simpa only [Expr.levelParamsIn, Bool.and_eq_true] using this
     -- the continuation: the walk on the rest of the telescope
-    have cont : ∀ {s : VState} (type' : Expr), s.ngen.namePrefix = pfx →
+    have cont : ∀ {s : State} (type' : Expr), s.ngen.namePrefix = pfx →
         TelTrN c.venv c.lparams m c.vlctx type'
           ((VExpr.wrapForalls ds' b).inst (.proj st position e')) →
         (∀ P, IsFVarUpSet P c.vlctx → FVarsIn P type → FVarsIn P struct → FVarsIn P type') →
@@ -318,7 +318,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
       simpa using this
     split
     · -- the body depends on the field: substitute the projection
-      have main {s : VState} (hps : s.ngen.namePrefix = pfx)
+      have main {s : State} (hps : s.ngen.namePrefix = pfx)
           (hp : c.HasType (.proj st position e') d) :
           RecM.WF c s (instantiateProjectionFields st struct maybePropType
             (body.instantiate1 (.proj st position struct)) (position + 1) remaining)
@@ -348,7 +348,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
         refine (isProp.WF hd₁).bind fun bp _ le₂ hbp => ?_
         split <;> [skip; exact .pure nofun]
         rename_i hbp'
-        exact main (VState.LE.namePrefix_eq hpfx₁ le₂) (hp0 .zero (hbp (by simpa using hbp')) hG0)
+        exact main (State.LE.namePrefix_eq hpfx₁ le₂) (hp0 .zero (hbp (by simpa using hbp')) hG0)
       · rename_i hmp
         have ⟨u, hu⟩ := hd
         exact main hpfx₁ (hp0 u hu (hG (by simpa using hmp) u))
@@ -364,7 +364,7 @@ theorem instantiateProjectionFields.WF_tel {c : VContext} {G : VLevel → Prop}
 /-- The parameter walk with an optional telescope certificate: the plain conclusions of
 `instantiateProjectionParameters.WF_all`, and the certified residual whenever `Cert` holds. -/
 theorem instantiateProjectionParameters.WF_cert {c : VContext} {args : Array Expr}
-    {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+    {remaining m : Nat} {s : State} {type : Expr} {ds : List VExpr} {b : VExpr}
     {position : Nat} {xs' : List VExpr} {Cert : Prop}
     (hT : c.TrExprS type (VExpr.wrapForalls ds b))
     (hcert : Cert → TelTrN c.venv c.lparams m c.vlctx type (VExpr.wrapForalls ds b))
@@ -406,7 +406,7 @@ current type. -/
 theorem instantiateProjectionFields.WF_ctorTelescopes {c : VContext} {G : VLevel → Prop}
     (he : c.TrExprS struct e')
     (hG0 : G .zero) (hG : maybePropType = false → ∀ u, G u)
-    {remaining m : Nat} {s : VState} {type : Expr} {ds : List VExpr} {b : VExpr}
+    {remaining m : Nat} {s : State} {type : Expr} {ds : List VExpr} {b : VExpr}
     {position : Nat} (hle : remaining ≤ ds.length)
     (hproj : ∀ m (hm : m < remaining) u,
       c.HasType ((ds[m]'(by omega)).instOuter (projs st e' position m)) (.sort u) → G u →
@@ -492,7 +492,7 @@ theorem _root_.Lean4Lean.VExpr.HeadName.of_getAppFnArgs {n : Name} {e : VExpr}
   .of_getAppFnArgs_go h
 
 /-- `whnf` of a term translating to an application of a rigid constant is not a binder. -/
-theorem whnf.WF_not_forallE {c : VContext} {s : VState} {t : Expr} {R : VExpr} {n : Name}
+theorem whnf.WF_not_forallE {c : VContext} {s : State} {t : Expr} {R : VExpr} {n : Name}
     (ht : c.TrExprS t R) (hR : R.HeadName n) (hrigid : c.venv.Rigid n) :
     RecM.WF c s (whnf t) fun w _ => ∀ nm d b bi, w ≠ .forallE nm d b bi := by
   refine (whnf.WF ht).mono fun w _ _ ⟨_, W, hW, hdef⟩ nm d b bi hw => ?_
@@ -532,7 +532,7 @@ theorem instantiateProjectionFields_add (st : Name) (struct : Expr) (mp : Bool) 
 /-- Past the fields, the walk returns nothing, or (after no further step) its input. -/
 theorem instantiateProjectionFields.WF_stuck {c : VContext} {t : Expr} {R : VExpr} {n : Name}
     (ht : c.TrExprS t R) (hR : R.HeadName n) (hrigid : c.venv.Rigid n) :
-    ∀ (r pos : Nat) (s : VState),
+    ∀ (r pos : Nat) (s : State),
       (instantiateProjectionFields st struct mp t pos r).WF c s
         fun o _ => ∀ t', o = some t' → t' = t
   | 0, _, _ => by

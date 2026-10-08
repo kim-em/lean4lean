@@ -253,10 +253,10 @@ def VContext.mk' {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (safety : DefinitionSafety := .safe) (lparams : List Name := [])
     (fuel : FuelConfig := {}) : VContext := .mk1 (wf.toVEnvAt safety) (htels _) lparams fuel
 
-theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
+theorem State.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv : VEnv}
     {wf : VEnvAt env safety venv} {htels : CtorTelescopes safety env venv} {lparams : List Name}
     {fuel : FuelConfig} :
-    VState.WF (.mk1 wf htels lparams fuel) {} where
+    State.WF (.mk1 wf htels lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
   ectx := .empty
@@ -273,7 +273,7 @@ theorem VState.WF.empty1 {env : Environment} {safety : DefinitionSafety} {venv :
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
 
-theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
+theorem State.WF.emptyChecking {env : Environment} {venv : VEnv}
     {trenv : CheckingEnv safety env venv} {hasPrimitives : venv.HasPrimitives}
     {safePrimitives : ∀ {n ci}, env.find? n = some ci →
       Environment.primitives.contains n → ci.safety = .safe ∧ ci.levelParams = []}
@@ -284,7 +284,7 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
     {constructorOwners : VerifyInductive.ConstructorOwnersPresent env}
     {listedConstructors : VerifyInductive.ListedConstructorsCoherent env}
     {lparams : List Name} {fuel : FuelConfig} :
-    VState.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
+    State.WF (.mkChecking trenv hasPrimitives safePrimitives projectionRegistry
       recursors quot ctorTelescopes constructorOwners listedConstructors lparams fuel) {} where
   trctx := .nil
   ngen_wf := nofun
@@ -302,13 +302,13 @@ theorem VState.WF.emptyChecking {env : Environment} {venv : VEnv}
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
 
-theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
+theorem State.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
     {wf : CheckingEnv.Valid safety env venv}
     {mlctx : MLCtx} {mlctx_wf : mlctx.WF venv lparams}
     {fuel : FuelConfig}
     (hfresh : ∀ fv ∈ mlctx.vlctx.fvars,
       ({} : TypeChecker.State).ngen.Reserves fv) :
-    VState.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} where
+    State.WF (.mkCheckingValidMLC wf mlctx mlctx_wf fuel) {} where
   trctx := mlctx_wf.tr
   ngen_wf := hfresh
   ectx := .empty
@@ -325,10 +325,10 @@ theorem VState.WF.emptyCheckingValidMLC {env : Environment} {venv : VEnv}
   whnf_paramUniform := .empty
   inferTypeI_paramUniform := .empty
 
-theorem VState.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
+theorem State.WF.empty {env : Environment} {ves : VEnvs} {wf : ves.WFCore env}
     {safety : DefinitionSafety} {lparams : List Name} {fuel : FuelConfig}
     {htels : ∀ safety, CtorTelescopes safety env (ves.venv safety)} :
-    VState.WF (.mk' wf htels safety lparams fuel) {} := by
+    State.WF (.mk' wf htels safety lparams fuel) {} := by
   unfold VContext.mk'; exact .empty1
 
 theorem M.WF.run1 {env : Environment} {venv : VEnv} (wf : VEnvAt env safety venv)
@@ -398,10 +398,10 @@ theorem M.WF.run {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
 processed, so the conclusion `Inv []` records that every element was handled. The body must
 `yield`; a loop that can `break` is out of scope (none of the kernel's loops do). -/
 theorem M.WF.forIn {c : VContext} {f : α → β → M (ForInStep β)}
-    {Inv : List α → β → VState → Prop}
+    {Inv : List α → β → State → Prop}
     (H : ∀ v vs b s, Inv (v :: vs) b s →
       (f v b).WF c s fun r s' => ∃ b', r = .yield b' ∧ Inv vs b' s') :
-    ∀ {vs : List α} {b : β} {s : VState}, Inv vs b s →
+    ∀ {vs : List α} {b : β} {s : State}, Inv vs b s →
       (forIn vs b f).WF c s fun b' s' => Inv [] b' s'
   | [], _, _, h => .pure h
   | v :: vs, b, s, h => by
@@ -410,7 +410,7 @@ theorem M.WF.forIn {c : VContext} {f : α → β → M (ForInStep β)}
     obtain ⟨b', rfl, hinv⟩ := hr
     exact M.WF.forIn H hinv
 
-theorem M.WF.bindThrow {c : VContext} {s : VState} {x : M α} {f : α → M β} {Q}
+theorem M.WF.bindThrow {c : VContext} {s : State} {x : M α} {f : α → M β} {Q}
     (h : x.WF c s fun _ _ => False) : (x >>= f).WF c s Q :=
   h.bind fun _ _ _ hf => hf.elim
 
@@ -420,7 +420,7 @@ theorem M.WF.forInFresh {c : VContext} {Q : Lean.DefinitionVal → β → Prop}
     {f : Lean.DefinitionVal → NameSet → M (ForInStep NameSet)}
     (H : ∀ v found s, (f v found).WF c s fun r _ =>
       found.contains v.name = false ∧ (∃ b, Q v b) ∧ r = .yield (found.insert v.name)) :
-    ∀ {vs : List Lean.DefinitionVal} {found : NameSet} {s : VState},
+    ∀ {vs : List Lean.DefinitionVal} {found : NameSet} {s : State},
       (ForIn.forIn vs found f).WF c s fun _ _ =>
         (∃ bs, List.Forall₂ Q vs bs) ∧ (vs.map (·.name)).Nodup ∧
           ∀ v ∈ vs, found.contains v.name = false
@@ -454,7 +454,7 @@ theorem M.WF.forInForall₂ {c : VContext} {f : α → Unit → M (ForInStep Uni
     {P : α → β → Prop} {R : β → β → Prop} {Q : α → β → Prop}
     (H : ∀ v ci s, P v ci → (f v ()).WF c s fun r _ =>
       (∃ ci', R ci ci' ∧ Q v ci') ∧ r = .yield ()) :
-    ∀ {vs : List α} {cis : List β} {s : VState}, List.Forall₂ P vs cis →
+    ∀ {vs : List α} {cis : List β} {s : State}, List.Forall₂ P vs cis →
       (ForIn.forIn vs () f).WF c s fun _ _ =>
         ∃ cis', List.Forall₂ R cis cis' ∧ List.Forall₂ Q vs cis' := by
   intro vs cis s h
@@ -470,16 +470,16 @@ theorem M.WF.forInForall₂ {c : VContext} {f : α → Unit → M (ForInStep Uni
 
 /-- The `FVarsBelow` is kept, not dropped: a caller that reduced a term living in some sub-context
 needs to know the result still does, and reduction is the only step where that could fail. -/
-nonrec theorem whnf.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+nonrec theorem whnf.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (whnf e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' := (whnf.WF he).run
 
-nonrec theorem whnfCore.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+nonrec theorem whnfCore.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (whnfCore e) fun e₁ _ => c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e' :=
   (whnfCore.WF he).run
 
 /-- The `M`-level wrapper falls back to `e` itself when there is nothing to unfold, so unlike the
 `RecM` form it always returns something definitionally equal to its input. -/
-nonrec theorem unfoldDefinition.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+nonrec theorem unfoldDefinition.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (unfoldDefinition e) fun e₁ _ => c.TrExpr e₁ e' := by
   refine (unfoldDefinition.WF he).run.bind fun oe _ _ H => ?_
   cases oe with
@@ -488,34 +488,34 @@ nonrec theorem unfoldDefinition.WF {c : VContext} {s : VState} (he : c.TrExprS e
 
 /-- In `inferOnly` mode the caller has to supply the translation, since that mode assumes the
 term is already known to be well typed. -/
-nonrec theorem inferType.WF' {c : VContext} {s : VState}
+nonrec theorem inferType.WF' {c : VContext} {s : State}
     (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     M.WF c s (inferType e inferOnly) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' :=
   (inferType.WF' h1 hinf).run
 
-nonrec theorem inferType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+nonrec theorem inferType.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (inferType e inferOnly) fun ty _ => ∃ ty', c.TrTyping e ty e' ty' :=
   (inferType.WF he).run
 
 /-- `checkType` is `inferType` at `inferOnly := false`, where the obligation is vacuous. -/
-theorem checkType.WF {c : VContext} {s : VState} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) :
+theorem checkType.WF {c : VContext} {s : State} (h1 : e.FVarsIn (· ∈ c.vlctx.fvars)) :
     M.WF c s (checkType e) fun ty _ => ∃ e' ty', c.TrTyping e ty e' ty' := inferType.WF' h1 nofun
 
-nonrec theorem isDefEq.WF {c : VContext} {s : VState}
+nonrec theorem isDefEq.WF {c : VContext} {s : State}
     (he₁ : c.TrExprS e₁ e₁') (he₂ : c.TrExprS e₂ e₂') :
     M.WF c s (isDefEq e₁ e₂) fun b _ => b → c.IsDefEqU e₁' e₂' :=
   (isDefEq.WF he₁ he₂).run
 
-nonrec theorem isProp.WF {c : VContext} {s : VState}
+nonrec theorem isProp.WF {c : VContext} {s : State}
     (he : c.TrExprS e e') : (isProp e).WF c s fun b _ => b → c.HasType e' (.sort .zero) :=
   (isProp.WF he).run
 
-theorem ensureSort.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem ensureSort.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (ensureSort e e₀) fun e1 _ => c.TrExpr e1 e' ∧ ∃ u, e1 = .sort u :=
   (ensureSortCore.WF he).run.mono fun _ _ _ h => ⟨h.2.1, h.1⟩
 
-theorem ensureForall.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem ensureForall.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (ensureForall e) fun e1 _ =>
       c.TrExpr e1 e' ∧ ∃ name ty body bi, e1 = .forallE name ty body bi :=
   (ensureForallCore.WF he).run.mono fun _ _ _ h => h.2
@@ -523,7 +523,7 @@ theorem ensureForall.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
 /-- At `inferOnly := false` the translation is an *output* rather than an input, so this is how a
 caller learns that a term it has not otherwise translated is a type -- which is what the primitive
 checker's `ensureType` calls are for. -/
-theorem ensureType.WF' {c : VContext} {s : VState}
+theorem ensureType.WF' {c : VContext} {s : State}
     (h1 : e.FVarsIn (· ∈ c.vlctx.fvars))
     (hinf : inferOnly = true → ∃ e', c.TrExprS e e') :
     M.WF c s (ensureType e inferOnly) fun e1 _ => ∃ e', c.TrExprS e e' ∧ ∃ u u', e1 = .sort u ∧
@@ -533,7 +533,7 @@ theorem ensureType.WF' {c : VContext} {s : VState}
   obtain ⟨_, rfl⟩ := b3; let .sort b1 := b1
   exact ⟨_, a1, _, _, rfl, b1, a3.defeqU_r c.Ewf c.Δwf b2.symm⟩
 
-theorem ensureType.WF {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem ensureType.WF {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (ensureType e inferOnly) fun e1 _ => ∃ e', c.TrExprS e e' ∧ ∃ u u', e1 = .sort u ∧
       VLevel.ofLevel c.lparams u = some u' ∧ c.HasType e' (.sort u') :=
   ensureType.WF' he.fvarsIn fun _ => ⟨_, he⟩

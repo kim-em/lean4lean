@@ -563,7 +563,7 @@ Every binder of the checker saves and restores the context-relative state
 binder; the name generator stays advanced and the `unfold` cache, which depends only on the
 environment, is kept. `isDefEqLambda` and `isDefEqForall` always compare bodies under a binder.
 With this, the cache invariant is simply "every entry is derivable in the current context"
-(`VState.WF`, `VState.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
+(`State.WF`, `State.WF.leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean`).
 
 Without scoping no invariant of that form holds. `Lean4Lean/Tests/CacheScope.lean`
 builds the countermodel environment above (no `Eq`) and a closed definition of type `SJ` with
@@ -779,7 +779,7 @@ Suggested order, with sizes.
    (1.3k together), then `Formation.lean` (1.6k).
 4. The corrections: `Lean4Lean/Theory/Typing/EliminatorCoherence.lean`,
    `SchemaStructCompat.lean`, `Instance.FreeTarget` in `Signature.lean`.
-5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `VState.WF` and
+5. The checker changes: the diff of `Lean4Lean/TypeChecker.lean` (1k), `State.WF` and
    `leaveScope` in `Lean4Lean/Verify/TypeChecker/Basic.lean` (2k), `divergences.md`,
    `Lean4Lean/Tests/CacheScope.lean`.
 6. Constructor telescopes: `Lean4Lean/Verify/Typing/TelescopeTranslation.lean` (`TelTrN`),

@@ -61,7 +61,7 @@ theorem TypeChecker.VContext.natBinLitBool {c : VContext} {fc : Name} {f : Nat �
 /-- Introduce a `Nat`-typed probe variable. Every primitive branch does this once or twice, and
 its two side conditions -- `Nat`'s translation, and that it is a type -- are always the same. -/
 theorem TypeChecker.M.WF.withNatProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF m]
-    {s₀ s : VState} {α} {f : Expr → M α} {Q} {name : Name}
+    {s₀ s : State} {α} {f : Expr → M α} {Q} {name : Name}
     (hprim : c.venv.HasPrimitives) (hnat : c.venv.contains ``Nat) (hs : s₀ ≤ s)
     (H : ∀ id, let m' := m.vlam id name q(Nat) .nat .default
       ∀ cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
@@ -74,7 +74,7 @@ theorem TypeChecker.M.WF.withNatProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF 
 
 /-- The `Bool` counterpart, for the operator the bitwise operations probe. -/
 theorem TypeChecker.M.WF.withBoolProbe {c : VContext} {m : MLCtx} [cwf : c.MLCWF m]
-    {s₀ s : VState} {α} {f : Expr → M α} {Q} {name : Name}
+    {s₀ s : State} {α} {f : Expr → M α} {Q} {name : Name}
     (hprim : c.venv.HasPrimitives) (hbool : c.venv.contains ``Bool) (hs : s₀ ≤ s)
     (H : ∀ id, let m' := m.vlam id name q(Bool) .bool .default
       ∀ cwf' s', s₀ ≤ s' → ¬s.ngen.Reserves id →
@@ -891,14 +891,14 @@ theorem MLCtx.mkLambda_natBinderTypes {env : VEnv} {Us : List Name} :
     rw [hctx] at this; simp [hlen] at this; omega
 
 theorem lambdaTelescope.loop.WF {c : VContext} {α} {k : Array Expr → Expr → M α}
-    {Q : α → VState → Prop} {s₀ : VState} {m₀ : MLCtx} [c.MLCWF m₀] {e₀ : Expr} {e₀' : VExpr}
-    (H : ∀ (fvs : Array Expr) {m' : MLCtx} [c.MLCWF m'] {s' : VState} {body} body'
+    {Q : α → State → Prop} {s₀ : State} {m₀ : MLCtx} [c.MLCWF m₀] {e₀ : Expr} {e₀' : VExpr}
+    (H : ∀ (fvs : Array Expr) {m' : MLCtx} [c.MLCWF m'] {s' : State} {body} body'
       {n} (hn : n ≤ m'.length) {As}, s₀ ≤ s' → m'.dropN n hn = m₀ →
       fvs.toList.reverse = (m'.fvarRevList n hn).map .fvar → e₀ = m'.mkLambda n hn body →
       lambdaTelescope.Inv c m₀ m' fvs n hn As e₀' body' → e₀.lambdaArity = n →
       (c.withMLC m').TrExprS body body' → (k fvs body).WF (c.withMLC m') s' Q)
-    (hQ : ∀ a (saved s' : VState), Q a s' → Q a (saved.leaveScope s'))
-    (e : Expr) (arr : Array Expr) (m : MLCtx) [c.MLCWF m] (s : VState) (e' : VExpr)
+    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.leaveScope s'))
+    (e : Expr) (arr : Array Expr) (m : MLCtx) [c.MLCWF m] (s : State) (e' : VExpr)
     {n} (hn : n ≤ m.length) (harity : e₀.lambdaArity = n + e.lambdaArity)
     (hdrop : m.dropN n hn = m₀)
     (harr : arr.toList.reverse = (m.fvarRevList n hn).map .fvar)
@@ -963,14 +963,14 @@ them, and the re-abstraction because `unfoldNatWellFounded` returns
 `lambdaTelescope.Inv` adds the translation side, which is what a caller that closes the
 telescope off again needs: the domains, the lift over them, and the variables' translations. -/
 theorem lambdaTelescope.WF {c : VContext} {α} {k : Array Expr → Expr → M α}
-    {Q : α → VState → Prop} {m : MLCtx} [c.MLCWF m] {s : VState} {e : Expr} {e' : VExpr}
+    {Q : α → State → Prop} {m : MLCtx} [c.MLCWF m] {s : State} {e : Expr} {e' : VExpr}
     (he : (c.withMLC m).TrExprS e e')
     (H : ∀ (fvs : Array Expr) {m'} [c.MLCWF m'] {s' body} body' {n} (hn : n ≤ m'.length) {As},
       s ≤ s' → m'.dropN n hn = m → fvs.toList.reverse = (m'.fvarRevList n hn).map .fvar →
       e = m'.mkLambda n hn body → lambdaTelescope.Inv c m m' fvs n hn As e' body' →
       e.lambdaArity = n →
       (c.withMLC m').TrExprS body body' → (k fvs body).WF (c.withMLC m') s' Q)
-    (hQ : ∀ a (saved s' : VState), Q a s' → Q a (saved.leaveScope s') := by
+    (hQ : ∀ a (saved s' : State), Q a s' → Q a (saved.leaveScope s') := by
       intros; assumption) :
     (lambdaTelescope e k).WF (c.withMLC m) s Q :=
   lambdaTelescope.loop.WF H hQ e #[] m s e' (n := 0) (Nat.zero_le _) (by simp) rfl (by simp) (by simp)

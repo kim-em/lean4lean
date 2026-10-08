@@ -6,7 +6,7 @@ import Lean4Lean.Verify.TypeChecker
 The nested-inductive restoration needs: when `whnf` or `inferType` is run on a term in which every
 occurrence of a *head* constant (an auxiliary family or constructor, or a constructor mentioning
 one) is applied to the parameter fvars `As` at the levels `ls` (`Expr.ParamUniform`), then the result
-has the same property. The invariant is carried by `VState.WF` and `Methods.WF`
+has the same property. The invariant is carried by `State.WF` and `Methods.WF`
 (`Lean4Lean/Verify/TypeChecker/Basic.lean`); this file states the consumer-facing results for
 the `M`-level entry points.
 
@@ -30,7 +30,7 @@ open Lean hiding Environment Exception
 open Kernel
 
 /-- `whnf` preserves parameter uniformity (`VContext.ParamUniformBelow`), together with its correctness clauses. -/
-theorem whnf.paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem whnf.paramUniform {c : VContext} {s : State} (he : c.TrExprS e e') :
     M.WF c s (whnf e) fun e₁ _ =>
       (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ e') ∧ c.ParamUniformBelow s.ngen.namePrefix e e₁ :=
   (Inner.whnf.WF_and_paramUniform he rfl).run
@@ -38,6 +38,6 @@ theorem whnf.paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e') :
 /-! ### Using the invariant -/
 
 /-- The name generator of the initial checker state. -/
-@[simp] theorem VState.initial_namePrefix : ({} : State).ngen.namePrefix = `_kernel_fresh := rfl
+@[simp] theorem State.initial_namePrefix : ({} : State).ngen.namePrefix = `_kernel_fresh := rfl
 
 end Lean4Lean.TypeChecker

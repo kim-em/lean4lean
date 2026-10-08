@@ -246,7 +246,7 @@ theorem reduceProjCore.WF (he : c.TrExprS (.proj n i e) e') :
   -- retype the projection at the reduced structure
   obtain ⟨info, ls₀, P₀, idx₀, sm, F', fl, hinfo, hls₀, huv₀, hP₀, hidx₀, hfield, hFty, hsm,
     hclosed, hguard⟩ := VEnv.HasType.proj_inv c.Ewf.ordered c.Δwf.toCtx hF
-  have main : ∀ {s : VState} (c₁ : Expr) (c₁' : VExpr), c.TrExprS c₁ c₁' → c.FVarsBelow e c₁ →
+  have main : ∀ {s : State} (c₁ : Expr) (c₁' : VExpr), c.TrExprS c₁ c₁' → c.FVarsBelow e c₁ →
       c.IsDefEqU c₁' s' → RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
         ∀ e₁, oe = some e₁ → c.FVarsBelow (.proj n i e) e₁ ∧ c.TrExpr e₁ (.proj n i s') := by
     intro s c₁ c₁' hc₁ h1 hdefeq
@@ -278,7 +278,7 @@ theorem reduceProj.WF (he : c.TrExprS (.proj n i e) e') :
 
 /-! ### Universe-parameter support of projection reduction -/
 
-theorem reduceProjCoreCont.WF_levels {c : VContext} {s : VState} :
+theorem reduceProjCoreCont.WF_levels {c : VContext} {s : State} :
     RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
       ∀ e₁, oe = some e₁ → ∀ Us, c₁.levelParamsIn Us = true → e₁.levelParamsIn Us = true := by
   unfold reduceProjCoreCont
@@ -289,7 +289,7 @@ theorem reduceProjCoreCont.WF_levels {c : VContext} {s : VState} :
   exact .pure fun e₁ heq Us h =>
     Expr.levelParamsIn_of_mem_getAppArgs h (Array.mem_of_getElem? heq)
 
-theorem reduceProjCore.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e') :
+theorem reduceProjCore.WF_levels {c : VContext} {s : State} (he : c.TrExprS e e') :
     RecM.WF c s (reduceProjCore n i e) fun oe _ => ∀ e₁, oe = some e₁ → c.LevelsBelow e e₁ := by
   unfold reduceProjCore
   extract_lets jp
@@ -302,7 +302,7 @@ theorem reduceProjCore.WF_levels {c : VContext} {s : VState} (he : c.TrExprS e e
   · exact (RecM.WF.pure (Q := fun c₁ _ => c₁ = e) rfl).bind fun c₁ _ _ h =>
       h ▸ reduceProjCoreCont.WF_levels.mono fun _ _ _ H e₁ heq Us _ _ hl _ => H e₁ heq Us hl
 
-theorem reduceProj.WF_levels {c : VContext} {s : VState} (he : c.TrExprS (.proj n i e) e') :
+theorem reduceProj.WF_levels {c : VContext} {s : State} (he : c.TrExprS (.proj n i e) e') :
     RecM.WF c s (reduceProj n i e cheapProj) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.LevelsBelow (.proj n i e) e₁ := by
   unfold reduceProj
@@ -315,7 +315,7 @@ theorem reduceProj.WF_levels {c : VContext} {s : VState} (he : c.TrExprS (.proj 
 
 /-! ### Parameter uniformity of projection reduction -/
 
-theorem reduceProjCoreCont.WF_paramUniform {c : VContext} {s : VState} :
+theorem reduceProjCoreCont.WF_paramUniform {c : VContext} {s : State} :
     RecM.WF c s (reduceProjCoreCont n i c₁) fun oe _ =>
       ∀ e₁, oe = some e₁ → ∀ {heads As ls}, (∀ a ∈ As, ∃ fv, a = .fvar fv) →
         c₁.ParamUniformIn c.env heads As ls → e₁.ParamUniformIn c.env heads As ls := by
@@ -326,7 +326,7 @@ theorem reduceProjCoreCont.WF_paramUniform {c : VContext} {s : VState} :
   repeat (split <;> [skip; exact .pure nofun])
   exact .pure fun e₁ heq _ _ _ hp h => h.of_mem_getAppArgs hp (Array.mem_of_getElem? heq)
 
-theorem reduceProjCore.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS e e')
+theorem reduceProjCore.WF_paramUniform {c : VContext} {s : State} (he : c.TrExprS e e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (reduceProjCore n i e) fun oe _ => ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx e e₁ := by
   unfold reduceProjCore
@@ -341,7 +341,7 @@ theorem reduceProjCore.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExp
       h ▸ reduceProjCoreCont.WF_paramUniform.mono fun _ _ _ H e₁ heq _ _ _ _ hs hl _ =>
         H e₁ heq hs.params.fvars hl
 
-theorem reduceProj.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS (.proj n i e) e')
+theorem reduceProj.WF_paramUniform {c : VContext} {s : State} (he : c.TrExprS (.proj n i e) e')
     (hp : s.ngen.namePrefix = pfx) :
     RecM.WF c s (reduceProj n i e cheapProj) fun oe _ =>
       ∀ e₁, oe = some e₁ → c.ParamUniformBelow pfx (.proj n i e) e₁ := by
@@ -350,5 +350,5 @@ theorem reduceProj.WF_paramUniform {c : VContext} {s : VState} (he : c.TrExprS (
   refine .bind (Q := fun e₁ _ => (c.FVarsBelow e e₁ ∧ c.TrExpr e₁ s) ∧ c.ParamUniformBelow pfx e e₁) ?_
     fun _ _ le ⟨⟨h1, _, h3, _⟩, h2⟩ => ?_
   · split <;> [exact whnfCore.WF_and_paramUniform a1 hp; exact whnf.WF_and_paramUniform a1 hp]
-  exact (reduceProjCore.WF_paramUniform h3 (VState.LE.namePrefix_eq hp le)).mono fun _ _ _ H _ eq heads As ls P hs hl hP =>
+  exact (reduceProjCore.WF_paramUniform h3 (State.LE.namePrefix_eq hp le)).mono fun _ _ _ H _ eq heads As ls P hs hl hP =>
     H _ eq heads As ls P hs (h2 heads As ls P hs hl.proj_inv.2 hP) (h1 P hs.up hP)
