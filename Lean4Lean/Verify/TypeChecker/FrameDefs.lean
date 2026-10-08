@@ -1,6 +1,7 @@
 import Lean4Lean.TypeChecker
 import Lean4Lean.Verify.NameGenerator
 import Lean4Lean.Verify.Typing.Expr
+import Lean4Lean.Verify.Axioms
 
 /-!
 # Ghost declarations in the checker's local context: definitions
@@ -10,6 +11,26 @@ executable checker but which occurs in none of the run's inputs, in no cached va
 and in no other declaration the run can reach. The frame lemma (`Verify/TypeChecker/Frame.lean`)
 says that such a run succeeds, with the same result and final state, in the local context without
 the ghosts. See `docs/inductives/STRENGTHENING_PLAN_2026-10-08.md`, component (F).
+
+Three details of `GhostRel` are forced by the executable:
+
+* The local contexts agree at a non-ghost only up to the declaration *index*
+  (`LocalDecl.setIndex 0`): `mkLocalDecl` numbers a new declaration by the size of the context,
+  which counts the ghosts, so after opening a binder the two runs hold the same declaration with
+  different indices. Nothing the checker computes reads the index (`mkBinding` ignores it, see
+  `LocalContext.mkBindingListN_congr_setIndex`).
+* Both local-context maps are well formed (`PersistentHashMap.WF`), which is what makes `find?`
+  after `mkLocalDecl`/`mkLetDecl` computable in the proofs.
+* The environment is ghost-free (`EnvGF`): the checker returns constant types, delta values and
+  recursor rule right-hand sides as results; a ghost in one of them would be looked up in the
+  local context later.
+
+`M.Framed` also records that the name generator only advances (`s.ngen ≤ s'.ngen`), so a caller
+can tell that an id generated after the run is fresh for the state before it.
+
+The statement is extensional in the repository's model of the executable: pointer-equality tests
+(`PtrEq.lean`) are modelled as pure functions of their arguments, so the two runs agree as
+functions of their inputs, not as heap-level traces.
 -/
 
 namespace Lean4Lean.TypeChecker
@@ -30,21 +51,37 @@ structure GFState (G : FVarId → Prop) (s : State) : Prop where
   unfold : ∀ ⦃e r : Expr⦄, s.unfold[e]? = some r → GF G r
   reserved : ∀ ⦃fv⦄, G fv → s.ngen.Reserves fv
 
+/-- Every expression of a constant that the checker reads is ghost-free: the type, the delta value,
+and the right-hand sides of recursor rules. -/
+structure ConstGF (G : FVarId → Prop) (ci : ConstantInfo) : Prop where
+  type : GF G ci.type
+  deltaValue : ∀ ⦃v⦄, ci.deltaValue? = some v → GF G v
+  rules : ∀ ⦃rv : RecursorVal⦄, ci = .recInfo rv → ∀ r ∈ rv.rules, GF G r.rhs
+
+/-- Every constant of the environment is ghost-free. -/
+def EnvGF (G : FVarId → Prop) (env : Environment) : Prop :=
+  ∀ ⦃n ci⦄, env.find? n = some ci → ConstGF G ci
+
 /-- `c₁` is `c₂` with ghost declarations added to its local context: the two contexts agree
-everywhere except the local context, the local contexts agree at every non-ghost, and the
-declarations of `c₂` mention no ghost. -/
+everywhere except the local context, the local contexts agree at every non-ghost (up to the
+declaration index), the declarations of `c₂` and the environment mention no ghost, and both local
+context maps are well formed. -/
 structure GhostRel (G : FVarId → Prop) (c₁ c₂ : Context) : Prop where
   eq : c₁ = { c₂ with lctx := c₁.lctx }
-  find? : ∀ ⦃fv⦄, ¬ G fv → c₁.lctx.find? fv = c₂.lctx.find? fv
+  find? : ∀ ⦃fv⦄, ¬ G fv →
+    (c₁.lctx.find? fv).map (·.setIndex 0) = (c₂.lctx.find? fv).map (·.setIndex 0)
   decls : ∀ ⦃fv d⦄, c₂.lctx.find? fv = some d →
     GF G d.type ∧ ∀ ⦃v⦄, d.value? true = some v → GF G v
+  wf₁ : c₁.lctx.fvarIdToDecl.WF
+  wf₂ : c₂.lctx.fvarIdToDecl.WF
+  env : EnvGF G c₂.env
 
 /-- A computation of the checker is *framed* for the ghosts `G` (with result invariant `R`): a
 successful run in a ghost-extended context is the same successful run in the smaller context,
-and the result and final state are ghost-free. -/
+the result and final state are ghost-free, and the name generator has only advanced. -/
 def M.Framed (G : FVarId → Prop) (x : M α) (R : α → Prop) : Prop :=
   ∀ ⦃c₁ c₂ : Context⦄ ⦃s : State⦄ ⦃a : α⦄ ⦃s' : State⦄, GhostRel G c₁ c₂ → GFState G s →
-    x c₁ s = .ok (a, s') → x c₂ s = .ok (a, s') ∧ R a ∧ GFState G s'
+    x c₁ s = .ok (a, s') → x c₂ s = .ok (a, s') ∧ R a ∧ GFState G s' ∧ s.ngen ≤ s'.ngen
 
 /-- The methods of a recursive checker run are framed on ghost-free inputs. -/
 structure Methods.Framed (G : FVarId → Prop) (m : Methods) : Prop where
