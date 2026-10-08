@@ -14,12 +14,12 @@ namespace VerifyInductive
 /-- Retained executable recursor construction before abstract targets are
 selected and installed. Every canonical translation is derived at this
 boundary from the shared source signature and these construction traces. -/
-structure CompletedRecursorConstruction
+structure RecursorConstruction
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     where
   sourceSafety : isUnsafe = (c.safety != .safe)
@@ -53,7 +53,7 @@ structure CompletedRecursorConstruction
   parameterSuffix : RecursorParameterContextSuffix recursorWF stats
     recursorDepth
   parameterDecls : parameterSuffix.parameterDecls =
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       elimLevelAdmissible).parameterDecls
   validStats : RecursorValidAppStatsWF recursorWF.venv
     (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -75,7 +75,7 @@ structure CompletedRecursorConstruction
   motiveShapes : RecInfoMotiveTypeShapes localContext recInfos
     origins.motiveTypes elimLevel
   motiveTelescopes : RecInfoMotiveTelescopes recursorWF stats decl
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       elimLevelAdmissible).parameterDecls.toCtx recInfos elimLevel
   indexRows : RecursorTranslatedOriginTypeRows recursorWF origins.indexTypes
   params : BoundFVarArray localContext stats.params
@@ -93,17 +93,17 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-theorem CompletedRecursorConstruction.sourceFamilyCount
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) : H.recInfos.size = indTypes.size := by
+theorem RecursorConstruction.sourceFamilyCount
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) : H.recInfos.size = indTypes.size := by
   have htypes := Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core
   have hrecords := H.cardinality.records
   simp only [Array.length_toList] at htypes
   omega
 
-theorem CompletedRecursorConstruction.sourceMinorOffsetBound
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.sourceMinorOffsetBound
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     recursorMinorOffset indTypes owner + localIndex < decl.ownedConstructors.length := by
   have hsourceOwner : owner < indTypes.size := by rw [← H.sourceFamilyCount]; exact howner

@@ -110,7 +110,7 @@ theorem AddInductive.formationCore.primitiveSemanticClosedWF
       fun outEnv => ∃ decl, ∃ headerEnv : Environment,
         ∃ Hheaders : PrimitiveDeclaredHeadersResult c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
-        ∃ R : PrimitiveConstructorPhasesResult Hheaders outEnv,
+        ∃ R : PrimitiveConstructorCheck Hheaders outEnv,
           MutualInductivesClosed outEnv := by
   have Hheaders :=
     AddInductive.declareInductiveTypes.primitiveSemanticHeadersClosedWF
@@ -133,9 +133,9 @@ def SemanticPrimitiveRunWithStatsResult
     (indTypes : Array InductiveType) (isUnsafe : Bool)
     (outEnv : Environment) : Prop :=
   ∃ decl, ∃ ctorEnv,
-    ∃ R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    ∃ R : ConstructorCheck c stats decl nparams isUnsafe depth
         sourceEnv indTypes ctorEnv,
-      Nonempty (CompletedRecursorPhasesResult R outEnv)
+      Nonempty (RecursorCheck R outEnv)
 
 /-- Skeleton-free primitive formation rejoins the common recursor suffix only
 after the atomic constructor endpoint has restored a valid context. -/
@@ -187,7 +187,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
     rcases Hresult with ⟨decl, _headerEnv, Hheaders, R, hclosed⟩
     have Hmaterialized := Hheaders.sourceMaterialized
     rw [Hheaders.sourceContextVEnv] at Hmaterialized
-    exact (R.completed.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
+    exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams
       (Hshape.materializedLiteralDisjoint Hheaders.translation
         Hmaterialized).available
       hnotPartial
@@ -196,7 +196,7 @@ theorem AddInductive.runWithStats.primitiveSemanticWF
           fun outEnv Hrecursors =>
             show SemanticPrimitiveRunWithStatsResult c stats nparams depth
                 Hc.venv indTypes isUnsafe outEnv
-            from ⟨decl, ctorEnv, R.completed, Hrecursors⟩
+            from ⟨decl, ctorEnv, R.toConstructorCheck, Hrecursors⟩
   simpa [AddInductive.withEnv, bind, ReaderT.bind] using Hcombined
 
 /-- Source-aligned primitive result, retaining the exact abstract model from

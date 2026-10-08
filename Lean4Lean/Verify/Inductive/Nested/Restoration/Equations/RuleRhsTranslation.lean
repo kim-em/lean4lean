@@ -196,10 +196,10 @@ theorem NestedValidatedRunResult.canonicalGenerationLevels
           (VExpr.instL (recursorDeclarationAbstractLevels lparams Helim)) := by
   have hlp : E.production.c.lparams = lparams :=
     (congrArg AddInductive.Context.lparams E.production_c).trans E.productionContext_lparams
-  have h1 := E.production.production.toCompletedRecursorConstruction.elimLevelAdmissible
-  have h2 := E.production.production.toCompletedRecursorConstruction.consumedGeneration.levels
-  have h3 := E.production.production.toCompletedRecursorConstruction.consumedGeneration.params
-  have hscope := ConstructorPhasesResult.completed_parameterScope_toCtx E.production.constructors
+  have h1 := E.production.production.toRecursorConstruction.elimLevelAdmissible
+  have h2 := E.production.production.toRecursorConstruction.consumedGeneration.levels
+  have h3 := E.production.production.toRecursorConstruction.consumedGeneration.params
+  have hscope := OrdinaryConstructorCheck.completed_parameterScope_toCtx E.production.constructors
   have key : ∀ (ps : List Name) (hps : E.production.c.lparams = ps),
       ∃ Helim : AddInductive.AdmissibleElimLevel ps E.production.production.elimLevel,
         AddInductive.getRecLevelParams E.production.production.elimLevel
@@ -211,8 +211,8 @@ theorem NestedValidatedRunResult.canonicalGenerationLevels
     intro ps hps
     subst hps
     refine ⟨h1, rfl, ?_⟩
-    change (E.production.production.toCompletedRecursorConstruction.consumedGeneration.signature.params).map
-      (VExpr.instL E.production.production.toCompletedRecursorConstruction.consumedGeneration.generation.levels) = _
+    change (E.production.production.toRecursorConstruction.consumedGeneration.signature.params).map
+      (VExpr.instL E.production.production.toRecursorConstruction.consumedGeneration.generation.levels) = _
     rw [h2, h3, hscope]
   exact key lparams hlp
 

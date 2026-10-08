@@ -325,7 +325,7 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   `positiveFields` clause of `Models`).
 - **Constructor boundary** (`Constructor/CheckedFormation.lean`). From the data available once the
   constructors are declared, the proof computes the source signature
-  (`ConstructorBoundary.sourceSignature`, with `sourceSignature_models`) and the
+  (`CheckedFormation.sourceSignature`, with `sourceSignature_models`) and the
   declaration's case eliminator `(first family, CaseSchema.ofCompilation decl signature [])`.
   Its certificate is kept in the monotone form `VInductDecl.CaseEliminators env decl reserved
   es`: `EliminatorsWF` over every extension of the source environment in which the
@@ -347,7 +347,7 @@ ordinary path (`Install/OrdinaryExtension.lean`), otherwise the nested path
   Rules are proved well typed in the recursor
   environment (`Rules/EquationWF.lean`, `Rules/Translation.lean`, `Rules/RuleTranslations.lean`).
 - **Assembly** (`Install/BlockCertificate.lean`, `Install/`). The phases assemble into one
-  `CompletedBlockCertificate` (shared by the ordinary, primitive and nested paths), which
+  `BlockCertificate` (shared by the ordinary, primitive and nested paths), which
   yields `VInductDecl.CompilesTo`, `VInductBlock.WF`, `EliminatorsWF`, the final `AddInduct`
   and the safety-indexed `VEnvs.WF` of the output.
 

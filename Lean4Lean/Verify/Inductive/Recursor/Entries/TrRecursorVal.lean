@@ -8,7 +8,7 @@ import Lean4Lean.Verify.Typing.Lemmas
 any fact about rules, parameter counts, or the K flag. This relation retains
 those facts explicitly, against the independent signature generator. It is a
 producer target for the specification migration, not an inference from
-`CompletedBlockCertificate`.
+`BlockCertificate`.
 -/
 
 namespace Lean4Lean

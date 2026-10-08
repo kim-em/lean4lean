@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.Constructors
 
 /-! Inversion of the executable's pre-installation recursor type check.
 
-`CompletedRecursorConstruction.recursorTypes` retains the translation of every
+`RecursorConstruction.recursorTypes` retains the translation of every
 closed generated recursor type produced by `checkRecursorTypes`.  Decomposing
 that translation along the five executable binder groups gives translations of
 each parameter, motive, minor, index and major domain in the abstract contexts
@@ -18,9 +18,9 @@ open Kernel
 
 /-- The retained type check, with the universe parameters named through the
 outer context. -/
-theorem CompletedRecursorConstruction.recursorTypeTranslation
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
+theorem RecursorConstruction.recursorTypeTranslation
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
     ∃ type : VExpr,
       TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
@@ -33,9 +33,9 @@ theorem CompletedRecursorConstruction.recursorTypeTranslation
 /-- Five-group decomposition of the checked recursor type, obtained solely by
 inverting the retained translation along the exact binder selections of
 `declareRecursors`. -/
-theorem CompletedRecursorConstruction.recursorTelescope
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
+theorem RecursorConstruction.recursorTelescope
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ target : VExpr,
       TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
         (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
@@ -72,9 +72,9 @@ theorem CompletedRecursorConstruction.recursorTelescope
 
 /-- The parameter group of the checked recursor type is the cached parameter
 telescope: both translate the same closed parameter prefix. -/
-theorem CompletedRecursorConstruction.recursorTelescope_params
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} {target : VExpr}
+theorem RecursorConstruction.recursorTelescope_params
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
@@ -104,9 +104,9 @@ theorem CompletedRecursorConstruction.recursorTelescope_params
 
 /-- The motive group of the checked recursor type is the generator's motive
 list: both translate the same parameter-closed motive telescope. -/
-theorem CompletedRecursorConstruction.recursorTelescope_motives
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} {target : VExpr}
+theorem RecursorConstruction.recursorTelescope_motives
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
@@ -306,9 +306,9 @@ theorem GeneratedRecursorTelescopeTranslation.getElem_minor
 /-- The flat minor slot of the checked recursor type translates the retained
 minor declaration type, closed over parameters, motives and earlier minors,
 in the generator's abstract context for that slot. -/
-theorem CompletedRecursorConstruction.recursorTelescope_minor
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_minor
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -342,9 +342,9 @@ theorem CompletedRecursorConstruction.recursorTelescope_minor
 the `insertBinders` lift of the selected source field domains; the residual
 is the translation of the hypothesis telescope and motive application closed
 over the fields. -/
-theorem CompletedRecursorConstruction.recursorTelescope_minorFields
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_minorFields
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -437,18 +437,18 @@ theorem checkInductiveTypes.loopInd.MaterializedHeaderResult.recursorLevelTransl
   | succ level | max level₁ level₂ | imax level₁ level₂ | mvar id =>
     simp [AddInductive.AdmissibleElimLevel] at Helim
 
-theorem CompletedRecursorConstruction.statsLevelsTranslation
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.statsLevelsTranslation
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) :
     stats.levels.mapM (VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)) =
       some (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) :=
   R.materialized.recursorLevelTranslation' H.lparamsNodup H.elimLevelAdmissible
 
 /-- The source motive application of a minor, with the owner of its motive
 resolved through the validated terminal application. -/
-theorem CompletedRecursorConstruction.minorMotiveAppForm
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.minorMotiveAppForm
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
     let S := H.origins.minorShapes mowner hmowner localIndex hlocal
@@ -519,9 +519,9 @@ theorem Expr.abstractList_bvar_spine (n below : Nat) (fvs : List FVarId) (k : Na
 the outer parameter, motive and earlier-minor binders: the motive is the
 canonical outer variable, the constructor spine is the canonical parameter
 and field spine, and the indices are closed pointwise. -/
-theorem CompletedRecursorConstruction.minorResidualSource
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.minorResidualSource
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (minorIdx : Nat) (hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
@@ -697,9 +697,9 @@ domains are the lifted source field domains, followed by one domain per
 hypothesis and the motive application, whose head is the owner's motive
 variable, whose last argument is the canonical constructor spine, and whose
 index arguments translate the closed terminal indices. -/
-theorem CompletedRecursorConstruction.recursorTelescope_minorResidual
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_minorResidual
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -899,9 +899,9 @@ theorem Expr.closeIndexSource (e : Expr) (fields params rest : List FVarId) (nf 
 /-- The index translations of a flat minor slot are the selected source
 constructor indices, instantiated at the recursor universes and lifted
 beneath the motives, earlier minors, fields and hypotheses. -/
-theorem CompletedRecursorConstruction.recursorTelescope_minorIndices
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat}
+theorem RecursorConstruction.recursorTelescope_minorIndices
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat}
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1074,9 +1074,9 @@ theorem CompletedRecursorConstruction.recursorTelescope_minorIndices
 /-- The `j`-th hypothesis domain of a flat minor slot translates the retained
 hypothesis declaration type, closed over the earlier hypotheses, the fields,
 and the outer binders, in the generator context of that hypothesis. -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisSlot
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_hypothesisSlot
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1142,9 +1142,9 @@ higher-order arguments, the earlier hypotheses, the fields and the outer
 binders, the motive is the canonical outer variable, the recursive field is
 the canonical field variable applied to the canonical argument spine, and
 the indices are closed pointwise. -/
-theorem CompletedRecursorConstruction.hypothesisResidualSource
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.hypothesisResidualSource
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (minorIdx : Nat) (hminor : minorIdx < (H.recInfos.flatMap (·.minors)).size)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
@@ -1295,9 +1295,9 @@ theorem CompletedRecursorConstruction.hypothesisResidualSource
 of one domain per higher-order argument, then the owner's motive variable
 applied to translations of the closed exposed indices and to the recursive
 field variable applied to the canonical argument spine. -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisShape
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_hypothesisShape
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1435,9 +1435,9 @@ theorem _root_.Lean4Lean.FVarsIn.forallDomainsOnly {P : FVarId → Prop} {e : Ex
 /-- The owner's index and major groups of the checked recursor type are the
 owner's motive telescope (its source indices and the canonical major
 domain) lifted beneath the motives and all minors. -/
-theorem CompletedRecursorConstruction.recursorTelescope_indicesMajor
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_indicesMajor
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1626,9 +1626,9 @@ theorem majorDomain_lift (name : Name) (levels : List VLevel) (nparams nidx extr
 /-- The checked recursor type is the generator's recursor type as soon as
 the minor groups agree: parameters, motives, indices, major and result are
 already identified. -/
-theorem CompletedRecursorConstruction.recursorTarget_eq_of_minors
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTarget_eq_of_minors
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1810,9 +1810,9 @@ literal domain `O.argDomains[i]!` of the hypothesis type (already closed over
 the earlier arguments), closed over the earlier hypotheses at depth `i`, the
 fields at depth `j + i` and the outer binders at depth `S.fields.size + j + i`,
 in the context extended by `A.take i`. -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_hypothesisDomains
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)

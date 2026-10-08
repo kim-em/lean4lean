@@ -12,23 +12,23 @@ open private Lean.Kernel.Environment.add from Lean.Environment
 
 namespace VerifyInductive
 /-! Facts about the completed recursor phases entered from the ordinary
-header/constructor pipeline (`ConstructorPhasesResult`).  The recursor result
-itself is `CompletedRecursorPhasesResult R.completed`; the lemmas here only
+header/constructor pipeline (`OrdinaryConstructorCheck`).  The recursor result
+itself is `RecursorCheck R.completed`; the lemmas here only
 add what is visible through the declared header and constructor traces
 (source lookups for nested restoration). -/
 
 /-- Header metadata installed at the start of the verified pipeline remains
 retrievable, unchanged, after constructors and recursors are installed. -/
-theorem CompletedRecursorPhasesResult.findHeaderOfMem
+theorem RecursorCheck.findHeaderOfMem
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hc : ContextWF c)
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (hentry : (info, value) ∈ Hheaders.entries) :
     outEnv.find? info.name = some info := by
   have hheader := Hheaders.installed.findOfMem Hc.checking.tr.map_wf hentry
@@ -42,15 +42,15 @@ theorem CompletedRecursorPhasesResult.findHeaderOfMem
 
 /-- Exact source-family metadata is present after the complete lowered
 installation, including the constructor-name list used by restoration. -/
-theorem CompletedRecursorPhasesResult.findSourceHeader
+theorem RecursorCheck.findSourceHeader
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
     (howner : owner ∈ indTypes.toList) :
     ∃ info : InductiveVal,
       outEnv.find? owner.name = some (.inductInfo info) ∧
@@ -203,15 +203,15 @@ theorem VInductDecl.NestedRecursorShape.ownerIdx_eq_of_name
 
 /-- Constructor metadata installed in the middle phase remains retrievable,
 unchanged, after recursor installation. -/
-theorem CompletedRecursorPhasesResult.findConstructorOfMem
+theorem RecursorCheck.findConstructorOfMem
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (hentry : (info, value) ∈ R.declared.entries) :
     outEnv.find? info.name = some info := by
   have hctor := R.declared.installed.findOfMem
@@ -224,15 +224,15 @@ theorem CompletedRecursorPhasesResult.findConstructorOfMem
 
 /-- Source alignment identifies the exact concrete constructor metadata that
 nested restoration will read from the final lowered environment. -/
-theorem CompletedRecursorPhasesResult.findSourceConstructor
+theorem RecursorCheck.findSourceConstructor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (howner : owner ∈ indTypes.toList) (hctor : ctor ∈ owner.ctors) :
     ∃ info : ConstructorVal,
       outEnv.find? ctor.name = some (.ctorInfo info) ∧
@@ -254,10 +254,10 @@ theorem RestoredConstructorStep.oldType_eq_ofInstalled
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hstep : RestoredConstructorStep result outEnv ctorName
       sourceProdEnv targetProdEnv)
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (howner : owner ∈ indTypes.toList) (hctor : ctor ∈ owner.ctors)
     (hname : ctorName = ctor.name) :
     Hstep.oldInfo.type = ctor.type := by
@@ -282,10 +282,10 @@ theorem RestoredConstructorStep.metadataOfInstalled
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hstep : RestoredConstructorStep result outEnv ctorName
       sourceProdEnv targetProdEnv)
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (howner : owner ∈ indTypes.toList) (hctor : ctor ∈ owner.ctors)
     (hname : ctorName = ctor.name) :
     c.safety ≤ (ConstantInfo.ctorInfo Hstep.oldInfo).safety ∧
@@ -320,10 +320,10 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     (Hstep : RestoredInductiveStep result outEnv auxRec allIndNames indType
       sourceProdEnv targetProdEnv)
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
     (howner : owner ∈ indTypes.toList)
     (hname : indType.name = owner.name) :
     Hstep.oldInfo.ctors = owner.ctors.map (fun ctor => ctor.name) := by
@@ -341,15 +341,15 @@ theorem RestoredInductiveStep.oldConstructors_eq_ofInstalled
 
 /-- Every generated primary recursor is retrievable with the exact production
 metadata retained by the verified recursor phase. -/
-theorem CompletedRecursorPhasesResult.findRecursorOfMem
+theorem RecursorCheck.findRecursorOfMem
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (hentry : (info, value) ∈ H.entries) :
     outEnv.find? info.name = some info := by
   have hlocalWF : H.localContext.env.constants.WF := by
@@ -360,15 +360,15 @@ theorem CompletedRecursorPhasesResult.findRecursorOfMem
 /-- The generated primary recursor for every lowered family is present in the
 final environment and satisfies both telescope preconditions consumed by
 nested restoration. -/
-theorem CompletedRecursorPhasesResult.findSourceRecursor
+theorem RecursorCheck.findSourceRecursor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (ownerIdx : Nat) (howner : ownerIdx < indTypes.size) :
     ∃ info : RecursorVal,
       outEnv.find? (Lean.mkRecName indTypes[ownerIdx]!.name) =
@@ -401,15 +401,15 @@ theorem CompletedRecursorPhasesResult.findSourceRecursor
 the operational nested-restoration fold. Constructor telescope syntax is the
 only remaining source-side premise; header, constructor, and recursor lookups
 and both generated recursor telescopes are derived from installation. -/
-theorem CompletedRecursorPhasesResult.restorationSources
+theorem RecursorCheck.restorationSources
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
     (HctorTelescope : ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       RestoreTelescope ctor.type nparams) :
     ∀ owner, owner ∈ indTypes.toList →
@@ -447,15 +447,15 @@ theorem CompletedRecursorPhasesResult.restorationSources
 
 /-- The installed generated entry fixes the universe arity of the old
 recursor metadata read by primary restoration. -/
-theorem CompletedRecursorPhasesResult.restoredPrimaryRecursorMetadata
+theorem RecursorCheck.restoredPrimaryRecursorMetadata
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
@@ -491,15 +491,15 @@ recursor entry and expose the complete old/restored telescope alignment.  In
 particular, callers do not choose an unrelated generated entry or reconstruct
 the local binder selection: installation, the restoration lookup, and the
 retained `mkRecInfos` state determine all of them. -/
-theorem CompletedRecursorPhasesResult.restoredPrimaryTelescopeAlignment
+theorem RecursorCheck.restoredPrimaryTelescopeAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
@@ -544,15 +544,15 @@ theorem CompletedRecursorPhasesResult.restoredPrimaryTelescopeAlignment
 universe arities admitted for generated recursors.  This packages the lookup
 argument identifying the step's old metadata with the exact generated entry,
 so later source-restoration proofs do not need to repeat it. -/
-theorem CompletedRecursorPhasesResult.restoredPrimaryRecursorUvars
+theorem RecursorCheck.restoredPrimaryRecursorUvars
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
@@ -586,15 +586,15 @@ Unlike `restoredPrimaryRecursorSemantics`, this theorem does not transport a
 shape from the expanded abstract declaration.  It derives the source shape
 from the generated concrete binder selections, operational restoration, and
 translation of the restored type in the canonical source environment. -/
-def CompletedRecursorPhasesResult.restoredSourcePrimaryRecursorRealization
+def RecursorCheck.restoredSourcePrimaryRecursorRealization
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (ownerIdx : Nat) (hentry : ownerIdx < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)

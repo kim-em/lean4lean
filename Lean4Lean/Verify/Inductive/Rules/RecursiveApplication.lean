@@ -15,20 +15,20 @@ and the eta-expanded constructor field are narrowed and then closed through
 the same replayed front, so their targets cannot come from unrelated
 existential telescope choices. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedSemanticCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
-    (B : A.NarrowFieldRuntimeFrame :=
+    (F : A.RecursiveCallFrame j hj)
+    (B : A.FieldFrame :=
       Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
@@ -265,19 +265,19 @@ theorem
 reverse ordinal, applied to the exact call-local de Bruijn spine.  This
 source identity is independent of the producer's intervening hypotheses. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.outerAbstractedAppliedMajorOrdinal
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.outerAbstractedAppliedMajorOrdinal
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallFrame j hj) :
     let fieldPosition := A.semantics.recursivePositions[j]!
     F.semantic.generated.outerAbstractedMajor A.rule.binders =
       mkAppN
@@ -336,20 +336,20 @@ theorem
 /-- Closing the neutral call-local telescope over constructor fields leaves
 only cached inductive parameters free. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.fieldAbstractedNeutralLocalForallSourceScope
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.fieldAbstractedNeutralLocalForallSourceScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
-    (B : A.NarrowFieldRuntimeFrame) :
+    (F : A.RecursiveCallFrame j hj)
+    (B : A.FieldFrame) :
     ((F.semantic.generated.current.lctx.mkForall
         F.semantic.generated.localArgs (.sort .zero)).abstractList
       A.rule.all_args_bound.fvars).FVarsIn
@@ -387,20 +387,20 @@ theorem
 groups remain paired with the same narrowed targets, and the resulting
 sources are ready for insertion of the generated motive/minor block. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.parameterClosedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.parameterClosedSemanticCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
-    (B : A.NarrowFieldRuntimeFrame :=
+    (F : A.RecursiveCallFrame j hj)
+    (B : A.FieldFrame :=
       Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
@@ -624,19 +624,19 @@ field/local telescope.  Both the dependent domains and recursive-index
 targets are lifted at the field/local cutoff, yielding the precise anonymous
 context in which the full recursive recursor application will be assembled. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticIndexFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticIndexFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -761,26 +761,26 @@ theorem
 The narrowed indices and major are lifted at one common field/local cutoff,
 ready to be consumed as a single generated-recursor suffix. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.insertedSemanticCallArgumentFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.insertedSemanticCallArgumentFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
-    (B : A.NarrowFieldRuntimeFrame :=
+    (B : A.FieldFrame :=
       Classical.choice A.narrowFieldRuntimeFrame) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
@@ -1017,14 +1017,14 @@ theorem
 
 /-- The production recursor level-parameter list and any installed abstract
 recursor selected from the completed mutual batch have the same arity. -/
-theorem CompletedRecursorPhasesResult.recursorUvarsAt
+theorem RecursorCheck.recursorUvarsAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
       H.entries[owner].2.uvars := by
@@ -1036,17 +1036,17 @@ theorem CompletedRecursorPhasesResult.recursorUvarsAt
   simpa [E.levels, H.localExtends.lparams_eq] using htranslated
 
 /-- Rule-local specialization of `recursorUvarsAt`. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.recursorUvars
+theorem RecursorCheck.RuleAlignment.recursorUvars
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (_A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (_A : H.RuleAlignment owner howner i hctor) :
     (AddInductive.getRecLevelParams H.elimLevel c.lparams).length =
       H.entries[owner].2.uvars := by
   exact H.recursorUvarsAt owner howner
@@ -1054,14 +1054,14 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.recursorUvars
 /-- Context-polymorphic translation of any installed mutual recursor head at
 its identity universe instantiation.  The owner index is supplied directly,
 so recursive calls may select a family different from the equation owner. -/
-theorem CompletedRecursorPhasesResult.finalRecursorHeadTranslationAt
+theorem RecursorCheck.finalRecursorHeadTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
     (Delta : VLCtx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -1085,7 +1085,7 @@ theorem CompletedRecursorPhasesResult.finalRecursorHeadTranslationAt
       E.translated.2
   have hname : Lean.mkRecName indTypes[owner]!.name = recursor.name :=
     E.name.symm.trans hnameInfo
-  have hlevels := R.materializedFinal.recursorLevelsTranslation
+  have hlevels := R.recursorHeaders.recursorLevelsTranslation
     H.lparamsNodup H.elimLevelAdmissible
   have hlength :
       (AddInductive.getRecLevels H.elimLevel stats.levels).length =
@@ -1103,22 +1103,22 @@ translates directly to the installed owner recursor at its identity universe
 instantiation.  This is context-polymorphic because constants do not inspect
 the local telescope. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalRecursorHeadTranslation
+    RecursorCheck.RuleAlignment.finalRecursorHeadTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (Delta : VLCtx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     TrExprS H.outVEnv Us Delta
       (.const (Lean.mkRecName indTypes[owner]!.name)
@@ -1130,19 +1130,19 @@ theorem
 the installed recursor for that call's target family.  In a mutual block this
 family need not be the owner of the equation currently being generated. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.headTranslation
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.headTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) (Delta : VLCtx) :
+    (F : A.RecursiveCallFrame j hj) (Delta : VLCtx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let recursor := (H.entries[selectedOwner]'F.entry_lt).2
@@ -1158,19 +1158,19 @@ theorem
 parameter/motive/minor prefix of its retained telescope, is well typed and
 leaves precisely its target-family index/major suffix. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.prefixTyping
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.prefixTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallFrame j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     let recursor := (H.entries[selectedOwner]'F.entry_lt).2
@@ -1203,19 +1203,19 @@ the current equation owner's canonical common prefix, then weaken it under
 the constructor fields.  This is the typing premise required to translate a
 cross-family recursive-call prefix. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.prefixTypingInEquationContext
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.prefixTypingInEquationContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -1283,19 +1283,19 @@ mutual-family owner.  This is stated against the frame's fixed generated
 telescope, so the subsequent index/major application cannot silently switch
 to another structural decomposition of the recursor type. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.canonicalOwnerMotiveDomain
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.canonicalOwnerMotiveDomain
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallFrame j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
@@ -1324,19 +1324,19 @@ index/major suffix and the domains exposed by its selected motive binder.
 Unlike the equation-owner specialization, this follows the owner recorded
 by the validated recursive call and is fixed to `F.telescope`. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveSuffixContextAlignment
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.ownerMotiveSuffixContextAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallFrame j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl
@@ -1379,19 +1379,19 @@ selected by a recursive call.  This is the mutual-recursion counterpart of
 `finalOwnerMotiveSuffixAlignmentUnderFields`: the owner is read from the
 validated call rather than from the equation currently being generated. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveSuffixAlignmentUnderFront
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.ownerMotiveSuffixAlignmentUnderFront
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (frontDomains : List VExpr)
     (hctx : OnCtx
       (((F.telescope.params ++ F.telescope.motives ++
@@ -1448,19 +1448,19 @@ theorem
 arbitrary inner front, exposes exactly the independently reconstructed
 index/major domains for that selected mutual-family owner. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveFrontWitnessTyping
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.ownerMotiveFrontWitnessTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (frontDomains : List VExpr) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let selectedOwner := F.semantic.generated.ownerIdx
@@ -1518,19 +1518,19 @@ theorem
 types.  The residual stays the selected recursor's generated result; only
 the dependent domains are replaced by those exposed by its owner motive. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.ownerMotiveSuffixTypeAlignmentUnderFront
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.ownerMotiveSuffixTypeAlignmentUnderFront
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (frontDomains : List VExpr) (prefixTarget : VExpr)
     (hctx : OnCtx
       (((F.telescope.params ++ F.telescope.motives ++
@@ -1638,19 +1638,19 @@ This is the application-facing mutual analogue of
 `finalCachedPrefixOwnerTelescope`; context transport to the equation owner's
 cached parameters is deliberately left to the caller. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.prefixOwnerTelescopeUnderFront
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.prefixOwnerTelescopeUnderFront
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (frontDomains : List VExpr) (prefixTarget : VExpr)
     (hctx : OnCtx
       (((F.telescope.params ++ F.telescope.motives ++
@@ -1748,19 +1748,19 @@ theorem
 cached outer context.  Context conversion preserves the exact prefix term,
 selected motive de Bruijn variable, and shared dependent domains. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.cachedPrefixOwnerTelescopeUnderFront
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.cachedPrefixOwnerTelescopeUnderFront
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj)
+    (F : A.RecursiveCallFrame j hj)
     (frontDomains cachedBase : List VExpr) (prefixTarget : VExpr)
     (Hfull :
       let selectedOuter := F.telescope.params ++ F.telescope.motives ++
@@ -1836,17 +1836,17 @@ theorem
 premise translates under recursor universes to the installed abstract
 constructor at the declaration-level universe instantiation. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalConstructorHeadTranslation
+    RecursorCheck.RuleAlignment.finalConstructorHeadTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (Delta : VLCtx) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let sourceCtor :=
@@ -1876,12 +1876,12 @@ theorem
   have hlookup : H.outVEnv.constants ctorVal.name =
       some ctorVal.toVConstant :=
     H.constructorVEnv_le.constants hlookupBase
-  have hlevels := R.materializedFinal.recursorLevelTranslation
+  have hlevels := R.recursorHeaders.recursorLevelTranslation
     H.lparamsNodup H.elimLevelAdmissible
   have hlength : stats.levels.length = ctorVal.uvars := by
     calc
-      stats.levels.length = decl.uvars := R.materializedFinal.levels
-      _ = c.lparams.length := R.materializedFinal.uvars.symm
+      stats.levels.length = decl.uvars := R.recursorHeaders.levels
+      _ = c.lparams.length := R.recursorHeaders.uvars.symm
       _ = ctorVal.uvars := A.ctorTranslation.uvars.symm
   have hname : ctorVal.name = sourceCtor.name := by
     simpa [ctorVal, sourceCtor] using A.ctorTranslation.name
@@ -1894,21 +1894,21 @@ fields.  This packages it with the exact dependent equation context and the
 checked constructor major already living there, so consuming the remaining
 index/major suffix cannot accidentally choose a different telescope witness. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalRecursorPrefixEquationContextWithFrame
+    RecursorCheck.RuleAlignment.finalRecursorPrefixEquationContextWithFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type recursor.type
@@ -1967,7 +1967,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalCheckedConstructorEquationContextWithFrame with
     ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,

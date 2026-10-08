@@ -14,10 +14,10 @@ by an auxiliary family or constructor (a *hit*) has the parameter variables as i
 (`Expr.ParamUniform`, `Lean4Lean/Verify/Inductive/Nested/ParamUniform.lean`). This file proves that
 the executable's generated recursors have this shape:
 
-* `CompletedRecursorConstruction.recursorTypeHitShape` and `ruleRhsHitShape`: for every owner,
+* `RecursorConstruction.recursorTypeHitShape` and `ruleRhsHitShape`: for every owner,
   the recursor type `(lctx.mkForall params motives minors indices major ...).inferImplicit`
   and every rule right-hand side `blueprint.build ...` are `Expr.ParamUniformTele heads nparams ls`.
-* `CompletedRecursorPhasesResult.generatedHitShape`: the same for each installed
+* `RecursorCheck.generatedHitShape`: the same for each installed
   `GeneratedRecursorEntry`.
 * `NestedValidatedRunResult.recursorHitShape` (with projections `recursorTypeHitShape`,
   `ruleRhsHitShape`): the same for the recursor read back by any restoration step of an exact
@@ -52,7 +52,7 @@ head set `E.uniformHeads` (auxiliary heads and main constructors) and shrunk bac
 to the auxiliary heads (`NestedValidatedRunResult.recursorHitShape'` in
 `Nested/Restoration/Uniform/Whnf.lean`).
 
-Remaining hypotheses are collected in `CompletedRecursorConstruction.ParamUniformDeclarations`; see
+Remaining hypotheses are collected in `RecursorConstruction.ParamUniformDeclarations`; see
 its docstring. -/
 
 namespace Lean.Expr
@@ -789,7 +789,7 @@ section Assembly
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 /-- **Non-`whnf` provenance hypotheses** for the hit shape of a completed
@@ -808,7 +808,7 @@ of the recursor context.
   satisfy the projection condition. The header is the input of the first
   `whnf` call of `mkRecInfos.loopInd1`, so this is what `WhnfPreservesParamUniform.whnf`
   needs at the start of the retained `loopArgs1` trace (`RecInfoIndexTraces`,
-  retained in `CompletedRecursorConstruction.minorSources`).
+  retained in `RecursorConstruction.minorSources`).
 * `constructorTypes`: the lowered constructor types are parameter telescopes in
   hit shape (from the lowering trace: every hit is
   `mkAppN (.const auxI lvls) As` with untouched source trailing arguments) and
@@ -819,8 +819,8 @@ The index domains (region R1) and the induction-hypothesis regions (R2, R3)
 need no hypothesis beyond these and `WhnfPreservesParamUniform`: they follow along the
 retained `RecursorIndexTrace`s and the rooted call origins
 (`RecInfoCallBlueprintOrigins.rooted`). -/
-structure CompletedRecursorConstruction.ParamUniformDeclarations
-    (H : CompletedRecursorConstruction R) (heads : List Name) : Prop where
+structure RecursorConstruction.ParamUniformDeclarations
+    (H : RecursorConstruction R) (heads : List Name) : Prop where
   paramDecls : ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
     d.ParamUniformIn H.localContext.env heads stats.params.toList stats.levels
   familyHeaders : ∀ i, i < indTypes.size → (indTypes[i]!.type).AvoidsConsts heads ∧
@@ -830,9 +830,9 @@ structure CompletedRecursorConstruction.ParamUniformDeclarations
       ctor.type.ProjsOK (projAvoidsHeads H.localContext.env heads)
   recursorNames : ∀ i, i < stats.indConsts.size → Lean.mkRecName indTypes[i]!.name ∉ heads
 
-namespace CompletedRecursorConstruction
+namespace RecursorConstruction
 
-variable (H : CompletedRecursorConstruction R)
+variable (H : RecursorConstruction R)
 
 include H in
 theorem params_fvar : ∀ p ∈ stats.params.toList, ∃ fv, p = .fvar fv := by
@@ -1345,15 +1345,15 @@ theorem ruleRhsHitShape {heads : List Name} (I : H.ParamUniformDeclarations head
     exact ⟨pv, rfl, fun hy => hfresh pv hy (List.mem_append_left _ (List.mem_append_left _
       (mem_exprArrayFVarIds_of_fvar_mem (Array.mem_toList_iff.1 hpm))))⟩
 
-end CompletedRecursorConstruction
+end RecursorConstruction
 
 /-! ### Installed generated recursors -/
 
 /-- Hit shape of the type and of every rule right-hand side of each generated
 recursor entry of a completed recursor phase. -/
-theorem CompletedRecursorPhasesResult.generatedHitShape
-    {outEnv : Environment} (C : CompletedRecursorPhasesResult R outEnv)
-    {heads : List Name} (I : C.toCompletedRecursorConstruction.ParamUniformDeclarations heads)
+theorem RecursorCheck.generatedHitShape
+    {outEnv : Environment} (C : RecursorCheck R outEnv)
+    {heads : List Name} (I : C.toRecursorConstruction.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads stats.params.toList stats.levels C.localContext.env)
     (i : Nat) (hi : i < C.entries.length) :
     Expr.ParamUniformTele heads stats.params.size stats.levels (C.generated.entry i hi).info.type ∧
@@ -1362,12 +1362,12 @@ theorem CompletedRecursorPhasesResult.generatedHitShape
   have howner : i < C.recInfos.size := by rw [← C.generated.length]; exact hi
   refine ⟨?_, ?_⟩
   · rw [(C.generated.entry i hi).type]
-    exact C.toCompletedRecursorConstruction.recursorTypeHitShape I W i howner
+    exact C.toRecursorConstruction.recursorTypeHitShape I W i howner
   · intro rule hrule
     rw [(C.generated.entry i hi).rules_eq] at hrule
     simp only [List.mem_map] at hrule
     obtain ⟨blueprint, hmem, rfl⟩ := hrule
-    exact C.toCompletedRecursorConstruction.ruleRhsHitShape I W i howner _ blueprint hmem
+    exact C.toRecursorConstruction.ruleRhsHitShape I W i howner _ blueprint hmem
 
 end Assembly
 
@@ -1457,12 +1457,12 @@ heads `heads` at the levels `lparams.map Level.param`.
 
 Hypotheses: `W` (the `whnf` hit-shape preservation fact, see
 `WhnfPreservesParamUniform`) and `I` (the non-`whnf` provenance, see
-`CompletedRecursorConstruction.ParamUniformDeclarations`). Both are discharged at
+`RecursorConstruction.ParamUniformDeclarations`). Both are discharged at
 `heads := E.uniformHeads` in `Nested/Restoration/Uniform/Whnf.lean`
 (`NestedValidatedRunResult.recursorHitShape'`). -/
 theorem NestedValidatedRunResult.recursorHitShape
     {heads : List Name}
-    (I : E.production.production.toCompletedRecursorConstruction.ParamUniformDeclarations heads)
+    (I : E.production.production.toRecursorConstruction.ParamUniformDeclarations heads)
     (W : WhnfPreservesParamUniform heads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env)
     (owner : Fin E.production.production.generationSignature.families.size)

@@ -31,11 +31,11 @@ theorem RestoredInductiveStep.constructorInductFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -92,11 +92,11 @@ theorem StateForMTrace.sourceFamiliesConstructorInductFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Htrace : StateForMTrace
       (RestoredInductiveStep result loweredEnv auxRec
@@ -168,11 +168,11 @@ theorem RestoredNestedDeclarationsResult.constructorInductFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
@@ -665,12 +665,12 @@ theorem RestoredConstructorValidationEnvironment.validProjected
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {es : List (Name × InductiveSignature.CaseSchema)}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -856,11 +856,11 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -871,15 +871,15 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv))
     (Hactual : FreshConstantTrace c.env actualEntries outEnv)
-    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv types ctors recursors
-      sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
+    (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
+      sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
     (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
     (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
-    CheckingEnv.ValidCore c.safety outEnv finalVEnv ∧
+    CheckingEnv.ValidCore c.safety outEnv installedVEnv ∧
       ConstructorOwnersPresent outEnv ∧
-      ProjectionRegistryCoherent c.safety outEnv.constants finalVEnv := by
+      ProjectionRegistryCoherent c.safety outEnv.constants installedVEnv := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have houtWF : outEnv.constants.WF := Hactual.targetWF hsourceWF
@@ -898,11 +898,11 @@ theorem RestoredNestedDeclarationsResult.finalLocalValidOfStaged
     have h := canonical.abstract_ctors
     rw [hctorValues, hvenvTypes] at h
     exact Option.some.inj (h.symm.trans Hsource.ctorsAdded)
-  have hle : envCtors.addProjections sourceDecl.projectionEntries ≤ finalVEnv := by
+  have hle : envCtors.addProjections sourceDecl.projectionEntries ≤ installedVEnv := by
     rw [← hvenvCtors]
     exact (VEnv.addProjections_mono VEnv.addEliminators_le).trans canonical.recursorsAdded.le
   have hregistry : ProjectionRegistryCoherent c.safety outEnv.constants
-      finalVEnv := by
+      installedVEnv := by
     apply hvalidSource.projectionRegistry.extendInductive (envTypes := envTypes)
       (envCtors := envCtors) horigins
     · intro name ci h

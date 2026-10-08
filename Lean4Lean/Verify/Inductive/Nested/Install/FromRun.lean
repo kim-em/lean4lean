@@ -59,11 +59,11 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfValidation
     {sourceVEnv : VEnv} {headerEnv ctorEnv validationEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hvalid : CheckingEnv.Valid validationSafety validationEnv envCtors)
     (Hrun : Lean4Lean.validateRestoredRecursorTypes.run validationEnv
       loweredEnv validationLparams validationSafety validationFuel result
@@ -105,8 +105,8 @@ theorem RestoredAuxiliaryGeneratedStepAlignment.recursorStepOfValidation
     {sourceVEnv : VEnv} {headerEnv ctorEnv validationEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName stepSource stepTarget}
     (A : RestoredAuxiliaryGeneratedStepAlignment Hprod Hstep)
@@ -139,8 +139,8 @@ theorem RestoredAuxiliaryGeneratedAlignmentTrace.recursorTraceOfValidation
     {sourceVEnv : VEnv} {headerEnv ctorEnv validationEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {Htrace : StateForMTrace
       (RestoredRecursorStep result loweredEnv auxRec allIndNames)
       names sourceProdEnv targetProdEnv}
@@ -224,12 +224,12 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
     {headerEnv ctorEnv validationEnv primaryProdEnv outProdEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {es : List (Name × InductiveSignature.CaseSchema)}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams (main :: rest)
       isUnsafe decl envTypes envCtors)
     (Hrestored : RestoredNestedDeclarationsResult result loweredEnv c.env
@@ -263,10 +263,10 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
         ∃ replay : CanonicalRestorationReplay c.safety c.env outProdEnv
           sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
           decl.types primaryRecursors auxiliaryRecursors,
-        ∃ canonicalProdEnv finalVEnv,
-          Nonempty { S : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
+        ∃ canonicalProdEnv installedVEnv,
+          Nonempty { S : BlockInstallation c.safety c.env sourceVEnv replay.typeEntries
             replay.constructorEntries replay.recursorEntries
-              decl.projectionEntries canonicalProdEnv finalVEnv // S.eliminators = es } ∧
+              decl.projectionEntries canonicalProdEnv installedVEnv // S.eliminators = es } ∧
           ∀ name, outProdEnv.constants.find? name =
             canonicalProdEnv.constants.find? name := by
   have Halignment := Hrestored.generatedAlignmentTraceOfProduction Hlower Hc
@@ -277,8 +277,8 @@ theorem NestedLoweringResultClosed.existsValidatedExactStagedRestoration
     ⟨nondeltaEntries, Hnondelta, hnondelta⟩
   rcases Hsource.existsExactStagedRestoration Hauxiliary Hlower Hc Hprod
       Hcore Hparams hempty hvisible Hprimitive Hnondelta hnondelta Hcases with
-    ⟨replay, canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩
-  exact ⟨auxiliaryRecursors, Hauxiliary, replay, canonicalProdEnv, finalVEnv,
+    ⟨replay, canonicalProdEnv, installedVEnv, Hstaged, hlookup⟩
+  exact ⟨auxiliaryRecursors, Hauxiliary, replay, canonicalProdEnv, installedVEnv,
     Hstaged, hlookup⟩
 
 /-- Construct the rule-independent part of the final nested certificate
@@ -312,7 +312,7 @@ theorem NestedFinalAssemblyBase.ofReplay
     (replay : CanonicalRestorationReplay c.safety c.env outEnv sourceVEnv
       envTypes ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       sourceDecl.types primaryRecursors auxiliaryRecursors)
-    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
+    (canonical : BlockInstallation c.safety c.env sourceVEnv replay.typeEntries
       replay.constructorEntries replay.recursorEntries
         sourceDecl.projectionEntries canonicalProdEnv finalBaseVEnv)
     (HruleValid : CheckingEnv.Valid c.safety ruleEnv finalBaseVEnv)
@@ -415,8 +415,8 @@ private theorem NestedInstalledProduction.rebuildIndTypes_eq
     let PhasePack := fun indTypes =>
       Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
           P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-        Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-          CompletedRecursorPhasesResult R.completed outEnv
+        Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+          RecursorCheck R.toConstructorCheck outEnv
     let pack : PhasePack newIndTypes :=
       Eq.mp (congrArg PhasePack h)
         (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
@@ -552,8 +552,8 @@ theorem NestedValidatedRunResult.nativeSourceParameterWF
     E.production_initialEnv
   obtain ⟨paramsL, envTypesL, haddedL, HtypeShapesL, HctorsL, -⟩ :=
     P.constructors.formation.formationWF.sourceParameterWF
-  have hheaderL : envTypesL = P.constructors.completed.headerVEnv := by
-    have h := P.constructors.completed.core.typesAdded
+  have hheaderL : envTypesL = P.constructors.toConstructorCheck.headerVEnv := by
+    have h := P.constructors.toConstructorCheck.core.typesAdded
     rw [haddedL] at h
     exact Option.some.inj h
   rcases E.restorationTablesRestoringAll wf Hsources with
@@ -670,7 +670,7 @@ theorem NestedValidatedRunResult.nativeSourceParameterWF
     exact (VExpr.containsAnyConst_wrapForalls_inv hclean).1
   have huvars : P.loweredDecl.uvars = sourceDecl.uvars :=
     P.constructors.core.uvars.trans (by rw [hlparams, Hsource.uvars])
-  have hdefeq' : P.constructors.completed.headerVEnv.IsDefEqCtx sourceDecl.uvars []
+  have hdefeq' : P.constructors.toConstructorCheck.headerVEnv.IsDefEqCtx sourceDecl.uvars []
       paramsL.reverse own.reverse := by
     rw [← hheaderL, ← huvars]; exact hdefeq
   have Htransported := S.isDefEqCtx hdefeq'
@@ -772,8 +772,8 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl P.nparams
         P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
@@ -918,7 +918,7 @@ private theorem NestedValidatedRunResult.assemblyBaseOfFormationNative
               some E.nativeSource.envTypes := Hcore.typesAdded
         rw [h2] at h1
         rw [Option.some.inj h1]
-        exact canonical.formationAdded.constructorLE.trans
+        exact canonical.formation.constructorLE.trans
           (VEnv.addEliminators_addProjections_le.trans canonical.recursorsAdded.le))).1
   let HformationP : NestedFormationAssembly P.initialEnv sourceDecl :=
     Eq.mpr
@@ -1039,8 +1039,8 @@ theorem NestedValidatedRunResult.assemblyBaseNativeValid
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)

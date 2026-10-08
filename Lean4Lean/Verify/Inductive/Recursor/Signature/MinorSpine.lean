@@ -37,11 +37,11 @@ theorem RecInfoMinorTraversalShape.sourceSpine
 /-- The first recursor pass and the independent generator use the same
 constructor at the same flattened offset. Replaying the cached parameter
 prefix recovers the generator's literal field and result-index telescope. -/
-theorem CompletedRecursorConstruction.minorSourceReplay
+theorem RecursorConstruction.minorSourceReplay
     {isUnsafe : Bool}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (hsourceOwner : owner < indTypes.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)

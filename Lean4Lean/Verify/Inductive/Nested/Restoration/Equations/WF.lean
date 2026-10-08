@@ -12,7 +12,7 @@ import Lean4Lean.Verify.Inductive.Nested.CaseEliminators.Restored
 
 Route. Every generated equation of the lowered production is well formed in
 the lowered recursor environment (`loweredEquationWF`, from
-`CompletedRecursorPhasesResult.equationsWF` and `ruleRhsTranslations`). A
+`RecursorCheck.equationsWF` and `ruleRhsTranslations`). A
 context-carrying renaming restoration substitution
 (`Theory/Inductive/RestorationRenamingOnCtx.lean`) from that environment into
 the final abstract environment `C.finalBaseVEnv` transports the typing of both
@@ -177,7 +177,7 @@ theorem NestedValidatedRunResult.constructorRenamingReplacement
     rw [h2, E.production_c, E.productionContext_lparams]
   have hlcWF : ∀ lc ∈ E.production.loweredDecl.constructorConstants,
       lc.uvars = sourceDecl.uvars ∧
-        lc.toVConstant.WF E.production.constructors.completed.headerVEnv := by
+        lc.toVConstant.WF E.production.constructors.toConstructorCheck.headerVEnv := by
     intro lc hlc
     obtain ⟨t, ht, hlct⟩ := List.mem_flatMap.mp hlc
     obtain ⟨T, -, hT⟩ := Lean4Lean.List.Forall₂.forall_exists_r hcore.types t ht
@@ -411,7 +411,7 @@ theorem NestedValidatedRunResult.restoredEliminators
   obtain ⟨key, sL, auxC, hcompEl, hesEq, DC⟩ := B.eliminatorsRestored
   rw [hB] at hcompEl
   intro e he
-  change e ∈ E.production.constructors.completed.eliminators at he
+  change e ∈ E.production.constructors.toConstructorCheck.eliminators at he
   rw [hcompEl, List.mem_singleton] at he
   subst he
   -- the lowered schema projects only out of base structures
@@ -429,7 +429,7 @@ theorem NestedValidatedRunResult.restoredEliminators
         df.type.projNamesAvoid (compilationRestoration sourceDecl auxiliaries).restorableNames =
           true) := by
     obtain ⟨envTypes', envCtors', ht', hc', Hel⟩ :=
-      E.production.constructors.completed.eliminatorsWF
+      E.production.constructors.toConstructorCheck.eliminatorsWF
     rcases Hel with ⟨-, hE⟩ | ⟨key', schema', hE', -, hprojs⟩
     · simp [VInductDecl.caseBlock, hcompEl] at hE
     · simp only [VInductDecl.caseBlock, hcompEl, List.cons.injEq, Prod.mk.injEq,

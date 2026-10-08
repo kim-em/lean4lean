@@ -80,19 +80,19 @@ theorem TrExprS.chooseOriginalForallDomains
   simpa [VExpr.instL_wrapForalls, VExpr.instL, VLevel.inst] using
     Hsource'.prependLevelParam henv hΔ hfresh
 
-theorem CompletedConstructorPhases.sourceAnonymousParameterWF
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem ConstructorCheck.sourceAnonymousParameterWF
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     VLCtx.WF R.context.venv c.lparams.length
       (abstractForallContext R.parameterScope.toCtx.reverse []) := by
-  have Hparams := R.materializedFinal.paramsContext
+  have Hparams := R.recursorHeaders.paramsContext
   rw [R.materializedFinal_parameterScope] at Hparams
   have Hctx := abstractForallContext.isDefEq
     (right := R.parameterScope.toCtx.reverse) (by simpa using Hparams)
   exact (Hctx.symm R.context.checking.tr.wf.ordered).wf
 
-theorem CompletedRecursorConstruction.parameterAnonymousContext
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.parameterAnonymousContext
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) :
     abstractForallContext H.parameterSuffix.parameterDecls.toCtx.reverse [] =
       (abstractForallContext R.parameterScope.toCtx.reverse []).instL
         (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible) := by
@@ -101,8 +101,8 @@ theorem CompletedRecursorConstruction.parameterAnonymousContext
 
 /-- The native index-only telescope whose source-universe support is retained
 by the first-pass replay. The major binder and elimination sort are removed. -/
-def CompletedRecursorConstruction.indexDomainSource
-    (H : CompletedRecursorConstruction R) (owner : Nat) : Expr :=
+def RecursorConstruction.indexDomainSource
+    (H : RecursorConstruction R) (owner : Nat) : Expr :=
   Expr.forallDomainsOnly H.recInfos[owner]!.indices.size
     ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
       (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))).abstractList
@@ -179,9 +179,9 @@ theorem BoundFVarArray.forallDomainsOnly
     LocalContext.mkBindingListN_eq_fold hfind hnodup]
   exact LocalContext.forallDomainsOnly_foldN hdecl body
 
-theorem CompletedRecursorConstruction.indexDomainSource_eq
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
+theorem RecursorConstruction.indexDomainSource_eq
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     H.indexDomainSource owner =
       (H.localContext.lctx.mkForall H.recInfos[owner]!.indices (.sort .zero)).abstractList
         H.params.fvars := by
@@ -193,9 +193,9 @@ theorem CompletedRecursorConstruction.indexDomainSource_eq
 
 /-- Successful construction retains the concrete index-scope check at the
 final context; ordinary context extension and parameter abstraction preserve it. -/
-theorem CompletedRecursorConstruction.indexDomainSource_levelParams
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
+theorem RecursorConstruction.indexDomainSource_levelParams
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     (H.indexDomainSource owner).levelParamsIn c.lparams = true := by
   obtain ⟨S, _⟩ := H.motiveTelescopes.seed owner howner
   have hsource := S.indexUniverses
@@ -203,9 +203,9 @@ theorem CompletedRecursorConstruction.indexDomainSource_levelParams
   rw [H.indexDomainSource_eq owner howner, Expr.levelParamsIn_abstractList]
   exact hsource
 
-theorem CompletedRecursorConstruction.chooseOriginalIndexDomains_large
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.chooseOriginalIndexDomains_large
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (helim : H.elimLevel = .param fresh) :
     ∃ sourceDomains,
       sourceDomains.length = H.recInfos[owner]!.indices.size ∧
@@ -260,9 +260,9 @@ theorem CompletedRecursorConstruction.chooseOriginalIndexDomains_large
 
 /-- Small elimination already runs at the source universes, so its concrete
 index choice requires no universe-support transport. -/
-theorem CompletedRecursorConstruction.chooseOriginalIndexDomains_small
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.chooseOriginalIndexDomains_small
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (helim : H.elimLevel = .zero) :
     ∃ sourceDomains,
       sourceDomains.length = H.recInfos[owner]!.indices.size ∧

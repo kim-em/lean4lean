@@ -20,14 +20,14 @@ namespace VerifyInductive
 sound completed-constructor boundary.  In particular, this result does not
 require a valid header-only environment or an ordinary `AddConstants` trace
 for primitive family and constructor names. -/
-structure CompletedRecursorPhasesResult
+structure RecursorCheck
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
-    (outEnv : Environment) extends CompletedRecursorConstruction R where
+    (outEnv : Environment) extends RecursorConstruction R where
   outVEnv : VEnv
   entries : List (ConstantInfo × VConstVal)
   generated : GeneratedRecursors localContext.safety
@@ -41,35 +41,35 @@ structure CompletedRecursorPhasesResult
     entries outEnv outVEnv
   closed : MutualInductivesClosed outEnv
   canonicalTargets : ∀ i (hi : i < entries.length),
-    entries[i].2 = toCompletedRecursorConstruction.nativeTarget i
+    entries[i].2 = toRecursorConstruction.nativeTarget i
 
 /-- Installation retains the exact ordered generator output; equality is
 established by choosing these targets before the loop, not by translation uniqueness. -/
-theorem CompletedRecursorPhasesResult.canonicalRecursors
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.canonicalRecursors
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
-    H.entries.map Prod.snd = H.toCompletedRecursorConstruction.generationInstance.recursors := by
-  have hsize : H.entries.length = H.toCompletedRecursorConstruction.generationSignature.families.size := by
+    (H : RecursorCheck R outEnv) :
+    H.entries.map Prod.snd = H.toRecursorConstruction.generationInstance.recursors := by
+  have hsize : H.entries.length = H.toRecursorConstruction.generationSignature.families.size := by
     rw [H.generated.length, H.cardinality.records]
-    change decl.types.length = H.toCompletedRecursorConstruction.consumedGeneration.signature.families.size
-    rw [H.toCompletedRecursorConstruction.consumedGeneration.familyCount]
+    change decl.types.length = H.toRecursorConstruction.consumedGeneration.signature.families.size
+    rw [H.toRecursorConstruction.consumedGeneration.familyCount]
     exact (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length R.core).symm
   apply List.ext_getElem
   · simp [InductiveSignature.Instance.recursors, hsize]
   · intro i hi hi'
     have hiEntry : i < H.entries.length := by simpa using hi
-    have hiFamily : i < H.toCompletedRecursorConstruction.generationSignature.families.size := by
+    have hiFamily : i < H.toRecursorConstruction.generationSignature.families.size := by
       simpa [InductiveSignature.Instance.recursors] using hi'
     simp only [List.getElem_map]
     rw [H.canonicalTargets i hiEntry]
-    simp [CompletedRecursorConstruction.nativeTarget, hiFamily,
+    simp [RecursorConstruction.nativeTarget, hiFamily,
       InductiveSignature.Instance.recursors]
 
 /-- Every emitted recursor carries the single bit selected by the executable
 K check before the recursor loop. -/
-theorem CompletedRecursorPhasesResult.generated_k
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.generated_k
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.k = H.kTarget :=
   (H.generated.entry owner howner).kChecked.unique H.kTargetChecked
@@ -78,10 +78,10 @@ theorem CompletedRecursorPhasesResult.generated_k
 /-- The installed recursor rules are literally the builds of the blueprints
 retained by `mkRecInfos`, as `declareRecursors.loop` constructs them through
 `mkRecRulesFromBlueprints` in the recursor-construction local context. -/
-theorem CompletedRecursorPhasesResult.generated_rules_eq
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.generated_rules_eq
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.rules =
       H.recInfos[owner]!.ruleBlueprints.toList.map fun blueprint =>
@@ -92,10 +92,10 @@ theorem CompletedRecursorPhasesResult.generated_rules_eq
   (H.generated.entry owner howner).rules_eq
 
 /-- Each installed recursor has exactly one rule per retained blueprint. -/
-theorem CompletedRecursorPhasesResult.generated_rules_length
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.generated_rules_length
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.rules.length =
       H.recInfos[owner]!.ruleBlueprints.size := by
@@ -103,10 +103,10 @@ theorem CompletedRecursorPhasesResult.generated_rules_length
   simp
 
 /-- Rule-wise form of `generated_rules_eq`. -/
-theorem CompletedRecursorPhasesResult.rulesLiteral
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.rulesLiteral
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry owner howner).info.rules.length) :
     (H.generated.entry owner howner).info.rules[i] =
@@ -121,10 +121,10 @@ theorem CompletedRecursorPhasesResult.rulesLiteral
 
 /-- The recursor safety metadata agrees with the source declaration because
 both flags originate in the same declaration checking context. -/
-theorem CompletedRecursorPhasesResult.generated_isUnsafe
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.generated_isUnsafe
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.isUnsafe = decl.isUnsafe := by
   rw [(H.generated.entry owner howner).isUnsafe, H.localExtends.safety_eq,
@@ -135,14 +135,14 @@ persistent constructor-owner invariant through the complete inductive block.
 Constructor entries obtain owners from the formation trace, while generated
 recursor entries are definitionally `recInfo` and therefore add no new
 constructor metadata. -/
-theorem CompletedRecursorPhasesResult.constructorOwnersPresent
+theorem RecursorCheck.constructorOwnersPresent
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (hsource : ConstructorOwnersPresent c.env) :
     ConstructorOwnersPresent outEnv := by
   have hctor : ConstructorOwnersPresent H.localContext.env := by
@@ -159,14 +159,14 @@ theorem CompletedRecursorPhasesResult.constructorOwnersPresent
 
 /-- The recursor phase adds no constructor: every constructor of the output is old, or a new
 constructor of the declaration with its safety flag and a certified type. -/
-theorem CompletedRecursorPhasesResult.ctorOrigin
+theorem RecursorCheck.ctorOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (hfind : outEnv.find? name = some (.ctorInfo ci)) :
     c.env.find? name = some (.ctorInfo ci) ∨
       (ci.isUnsafe = isUnsafe ∧ CtorTelescopeAt R.headerVEnv ci) := by
@@ -181,12 +181,12 @@ theorem CompletedRecursorPhasesResult.ctorOrigin
 /-- The exact `getElimLevel`/`mkRecInfos`/`declareRecursors` suffix, entered
 from a completed and valid constructor context.  This is shared by ordinary
 and atomic primitive formation. -/
-theorem CompletedConstructorPhases.recursorPhasesWF
+theorem ConstructorCheck.recursorPhasesWF
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv : Environment}
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (hclosed : MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
@@ -205,10 +205,10 @@ theorem CompletedConstructorPhases.recursorPhasesWF
           AddInductive.declareRecursors stats indTypes elimLevel recInfos
             kTarget c.lparams)
       { c with env := ctorEnv }).WF fun outEnv =>
-        Nonempty (CompletedRecursorPhasesResult R outEnv) := by
+        Nonempty (RecursorCheck R outEnv) := by
   apply R.getElimLevelMkRecInfosWF hlparams
     Lean4Lean.recursorConsumeTypeAnnotationsCompat hlit
-    (Q := fun outEnv => Nonempty (CompletedRecursorPhasesResult R outEnv))
+    (Q := fun outEnv => Nonempty (RecursorCheck R outEnv))
     (k := fun elimLevel kTarget recInfos =>
       AddInductive.declareRecursors stats indTypes elimLevel recInfos kTarget
         c.lparams)
@@ -260,7 +260,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
       Htail, HtailType, Hintro, HintroType⟩
   let construction (T : RecursorTypeTranslations R.context.venv localContext.lparams
       elimLevel localContext stats indTypes recInfos) :
-      CompletedRecursorConstruction R := {
+      RecursorConstruction R := {
     sourceSafety := hsourceSafety
     recursorTypes := T
     elimLevel := elimLevel
@@ -341,7 +341,7 @@ theorem CompletedConstructorPhases.recursorPhasesWF
     rcases Hout with
       ⟨outVEnv, entries, ⟨Hgenerated⟩, ⟨HruleSemantics⟩, Hinstalled, T, Htargets⟩
     exact ⟨{
-      toCompletedRecursorConstruction := construction T
+      toRecursorConstruction := construction T
       outVEnv := outVEnv
       entries := entries
       generated := Hgenerated
@@ -390,21 +390,21 @@ namespace VerifyInductive
 
 /-- The completed run fixes both the source signature and its universe
 instance. Generation and concrete metadata must use this same choice. -/
-noncomputable def CompletedRecursorPhasesResult.canonicalGeneration
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+noncomputable def RecursorCheck.canonicalGeneration
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
-    InductiveSignature.Instance H.toCompletedRecursorConstruction.generationSignature :=
-  H.toCompletedRecursorConstruction.generationInstance
+    (H : RecursorCheck R outEnv) :
+    InductiveSignature.Instance H.toRecursorConstruction.generationSignature :=
+  H.toRecursorConstruction.generationInstance
 
 /-- Admissibility belongs to the same consumed signature selected before
 installation, including the actual singleton decision and universe policy. -/
-theorem CompletedRecursorPhasesResult.canonicalGeneration_admissible
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.canonicalGeneration_admissible
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
+    (H : RecursorCheck R outEnv) :
     H.canonicalGeneration.Admissible R.headerVEnv :=
-  H.toCompletedRecursorConstruction.consumedGeneration.admissible
+  H.toRecursorConstruction.consumedGeneration.admissible
 
 end VerifyInductive
 end Lean4Lean

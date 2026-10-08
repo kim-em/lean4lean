@@ -84,8 +84,8 @@ theorem _root_.Lean4Lean.InductiveSignature.declaration_type_uvars
 /-- The completed recursor construction of the lowered declaration. -/
 noncomputable def NestedInstalledProduction.loweredConstruction
     {loweredEnv : Environment} (P : NestedInstalledProduction loweredEnv) :
-    CompletedRecursorConstruction P.constructors.completed :=
-  P.production.toCompletedRecursorConstruction
+    RecursorConstruction P.constructors.toConstructorCheck :=
+  P.production.toRecursorConstruction
 
 /-- The normalized signature of the lowered declaration. -/
 noncomputable def NestedInstalledProduction.compilationSignature
@@ -162,7 +162,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     (hnames : auxiliaries.map (·.auxiliary) =
       (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name))
     (hwellFormed : ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
-      E.production.constructors.completed.parameterScope.toCtx.reverse)
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
     (hdirect : ∀ (U : Nat) (params : List VExpr), ∃ direct,
       auxiliaries.mapM (fun a => a.specializedFamily U params) = some direct ∧
@@ -197,12 +197,12 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     rw [C.typesSource]; simp
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.production.loweredDecl.typeConstants =
-        some E.production.constructors.completed.headerVEnv :=
+        some E.production.constructors.toConstructorCheck.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.production.loweredDecl.typeConstants =
-          some E.production.constructors.completed.headerVEnv) hinit)
-      E.production.constructors.completed.core.typesAdded
-  have hloweredCtors := E.production.constructors.completed.core.ctorsAdded
+          some E.production.constructors.toConstructorCheck.headerVEnv) hinit)
+      E.production.constructors.toConstructorCheck.core.typesAdded
+  have hloweredCtors := E.production.constructors.toConstructorCheck.core.ctorsAdded
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
     (TrInductDeclCore.types_length Hsource).symm
   have hlowered := VEnv.addConstVals_append hloweredTypes hloweredCtors
@@ -210,12 +210,12 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
   have hrecursorValues : E.production.production.entries.map Prod.snd =
       E.production.compilationInstance.recursors :=
     E.production.production.canonicalRecursors
-  rw [hrecursorValues, E.production.constructors.completed.contextVEnv]
+  rw [hrecursorValues, E.production.constructors.toConstructorCheck.contextVEnv]
     at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
   simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.production.compilationInstance.recursors,
-      E.production.constructors.completed.ctorVEnv.constants recursor.name = none :=
+      E.production.constructors.toConstructorCheck.ctorVEnv.constants recursor.name = none :=
     hrecursorsFresh.2
   have HsourceWF := TrInductDeclCore.sourceWF_ofNonempty Hsource hsourceNonempty
   have hloweredUvars : E.production.loweredDecl.uvars = sourceDecl.uvars :=
@@ -236,7 +236,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     restorationScoped := hscoped
     correspondence := by
       have hparams : E.production.compilationSignature.params =
-          E.production.constructors.completed.parameterScope.toCtx.reverse :=
+          E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
         E.production.loweredConstruction.consumedGeneration.params
       obtain ⟨direct, hmapM, hshapes⟩ :=
         hdirect sourceDecl.uvars E.production.compilationSignature.params
@@ -293,24 +293,24 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
     admissible := ⟨_, hloweredTypes,
       E.production.loweredConstruction.consumedGeneration.admissible⟩
     recursiveTypesWF := by
-      refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
+      refine ⟨_, _, E.production.constructors.toConstructorCheck.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_, ?_⟩
-      · have hown := E.production.constructors.completed.eliminatorsOwn
-        generalize E.production.constructors.completed.eliminators = es at hown ⊢
+      · have hown := E.production.constructors.toConstructorCheck.eliminatorsOwn
+        generalize E.production.constructors.toConstructorCheck.eliminators = es at hown ⊢
         rw [hinit] at hown
         exact hown
-      · rw [← E.production.constructors.completed.contextVEnv]
+      · rw [← E.production.constructors.toConstructorCheck.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.recursiveTypesWF
-      · rw [← E.production.constructors.completed.contextVEnv]
+      · rw [← E.production.constructors.toConstructorCheck.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     familyTypesWF := by
-      refine ⟨_, _, E.production.constructors.completed.eliminators, hloweredTypes,
+      refine ⟨_, _, E.production.constructors.toConstructorCheck.eliminators, hloweredTypes,
         hloweredCtors, ?_, ?_⟩
-      · have hown := E.production.constructors.completed.eliminatorsOwn
-        generalize E.production.constructors.completed.eliminators = es at hown ⊢
+      · have hown := E.production.constructors.toConstructorCheck.eliminatorsOwn
+        generalize E.production.constructors.toConstructorCheck.eliminators = es at hown ⊢
         rw [hinit] at hown
         exact hown
-      · rw [← E.production.constructors.completed.contextVEnv]
+      · rw [← E.production.constructors.toConstructorCheck.contextVEnv]
         exact E.production.loweredConstruction.consumedGeneration.familyTypesWF
     recursorNames := E.production.loweredConstruction.consumedGeneration.names
     generatedNames := by
@@ -351,7 +351,7 @@ theorem NestedValidatedRunResult.compilationData_of_specializations
         simp only [List.map_append, canonicalRestoredBlock]
         rw [C.typeValues, C.constructorValues, C.recursorValues]
       rw [← hvalues]
-      exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract }
+      exact VEnv.addConstVals_names_nodup C.canonical.atomic.abstract }
 
 end VerifyInductive
 end Lean4Lean

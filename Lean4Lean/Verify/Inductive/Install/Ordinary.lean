@@ -21,8 +21,8 @@ def SemanticRunWithStatsResult
   ∃ decl headerEnv ctorEnv,
     ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv,
-    ∃ R : ConstructorPhasesResult Hheaders ctorEnv,
-      Nonempty (CompletedRecursorPhasesResult R.completed outEnv)
+    ∃ R : OrdinaryConstructorCheck Hheaders ctorEnv,
+      Nonempty (RecursorCheck R.toConstructorCheck outEnv)
 
 /-- Complete ordinary `runWithStats` refinement from skeleton-free formation.
 The existential declaration selected by constructor checking remains the
@@ -40,7 +40,7 @@ theorem AddInductive.runWithStats.semanticWF
         fun ctorEnv => ∃ decl headerEnv,
           ∃ Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe
             depth sourceEnv indTypes headerEnv,
-          ∃ _ : ConstructorPhasesResult Hheaders ctorEnv,
+          ∃ _ : OrdinaryConstructorCheck Hheaders ctorEnv,
             MutualInductivesClosed ctorEnv)
     (hlparams : c.lparams.Nodup)
     {hsourceSafety : isUnsafe = (c.safety != .safe)}
@@ -62,7 +62,7 @@ theorem AddInductive.runWithStats.semanticWF
         R.declared.context.venv stats.indConsts := by
       rw [R.declared.contextVEnv]
       exact (hlitCtors.addEliminators _).addProjections _
-    exact (R.completed.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
+    exact (R.toConstructorCheck.recursorPhasesWF (hsourceSafety := hsourceSafety) hclosed hlparams hlit hnotPartial hnprim).mono
         fun outEnv Hrecursors =>
           show SemanticRunWithStatsResult c stats nparams depth indTypes
             isUnsafe sourceEnv outEnv

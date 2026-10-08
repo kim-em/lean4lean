@@ -15,21 +15,21 @@ the matching abstract prefix and constructor major already typed.  All
 components share the same telescope witnesses, which is the handoff point
 for consuming the target indices and major premise. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCanonicalRecursorPrefixFrame
+    RecursorCheck.RuleAlignment.finalCanonicalRecursorPrefixFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type recursor.type
@@ -125,7 +125,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalRecursorPrefixEquationContextWithFrame with
     ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
@@ -145,21 +145,21 @@ translation target; uniqueness of the closed rule binders shows that both
 applications retain the exact abstract terms already typed by the recursor
 and constructor phases. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalRecursorPrefixFrame
+    RecursorCheck.RuleAlignment.finalCachedCanonicalRecursorPrefixFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let recursor := H.entries[owner].2
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type recursor.type
@@ -303,7 +303,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let recursor := H.entries[owner].2
   let parameterDecls :=
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalCanonicalRecursorPrefixFrame with
     ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
@@ -431,7 +431,7 @@ theorem
       T fieldDomains fieldResult hfields Htarget with
     ⟨levels, parameterTargets, indexTargets, hspine, hlevels,
       HparameterTargets, hindexLength, HindexTargets⟩
-  have hcanonicalLevels := R.materializedFinal.recursorLevelTranslation
+  have hcanonicalLevels := R.recursorHeaders.recursorLevelTranslation
     H.lparamsNodup H.elimLevelAdmissible
   have hlevelsCanonical : levels =
       recursorDeclarationAbstractLevels c.lparams
@@ -682,20 +682,20 @@ is applied to the independently recovered constructor indices and major;
 canonical-result instantiation identifies its exact type with the parallel
 owner-motive application. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBodyWithFrame
+    RecursorCheck.RuleAlignment.finalCachedCanonicalLhsBodyWithFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     ∃ T : GeneratedRecursorTelescopeTranslation H.outVEnv Us
         (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -734,7 +734,7 @@ theorem
           typeBody := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   rcases A.finalCachedCanonicalRecursorPrefixFrame with
     ⟨T, C, originalDomains, fieldDomains, fieldResult, introTarget,
@@ -969,17 +969,17 @@ Besides fixing the recursor telescope, this retains the checked constructor
 tail needed to compare the LHS context with the independently narrowed RHS
 context. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalCachedCanonicalLhsBodyWithFrameFor
+    RecursorCheck.RuleAlignment.finalCachedCanonicalLhsBodyWithFrameFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -988,7 +988,7 @@ theorem
       H.recInfos[owner]!.indices.size owner) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     ∃ originalDomains fieldDomains fieldResult lhsBody typeBody,
       let cachedDomains :=
@@ -1038,18 +1038,18 @@ equation context used by the canonical RHS.  Projection translation need not
 be syntactically unique, so the transported strict targets are retained and
 their typing is recovered through semantic translation uniqueness. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalFixedCanonicalLhsBodyFor
+    RecursorCheck.RuleAlignment.finalFixedCanonicalLhsBodyFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
-    (B : A.NarrowFieldRuntimeFrame)
+    (A : H.RuleAlignment owner howner i hctor)
+    (B : A.FieldFrame)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -1058,7 +1058,7 @@ theorem
       H.recInfos[owner]!.indices.size owner) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls :=
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls
     let inserted := T.motives ++ T.minors
     let equationFields :=
@@ -1080,7 +1080,7 @@ theorem
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let parameterDecls :=
-    (R.materializedFinal.parameterSuffix.toRecursorContext
+    (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
   let inserted := T.motives ++ T.minors
   let equationFields :=

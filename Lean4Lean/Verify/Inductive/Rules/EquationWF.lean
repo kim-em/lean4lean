@@ -10,7 +10,7 @@ rule in the fixed narrowed equation context
 `parameterDecls ++ motives ++ minors ++ equationFields`, but hides that context
 behind `GeneratedEquationWitness`.  This file
 
-* re-exposes that context as `CanonicalEquationFrame` (same proofs as
+* re-exposes that context as `EquationFrame` (same proofs as
   `finalCanonicalPositiveEquationWitness`/`finalCanonicalZeroEquationWitness`,
   with the context, the minor-domain split, and the field alignment retained);
 * identifies the context with the generator's equation domains
@@ -22,7 +22,7 @@ behind `GeneratedEquationWitness`.  This file
 * closes everything under `wrapLams`/`wrapForalls` and indexes the flattened
   constructor list to obtain `VDefEq.WF` for every generated equation.
 
-The single remaining input is `GeneratorBodyTranslations`: the generator's
+The single remaining input is `EquationBodyTranslations`: the generator's
 LHS, RHS and type bodies translate the rule's residual sources in the
 generator's own telescope.  `rhsResidualOfClosed` derives the RHS component
 from a closed translation `TrExprS [] rule.rhs (g.equation k).rhs`.
@@ -170,18 +170,18 @@ the domains are `canonicalEquationDomains` of the recursor telescope `T` and
 the narrowed field frame `B`; the selected minor domain splits into
 `fieldDomains ++ hypothesisDomains`, and the narrowed fields are definitionally
 equal to the minor's fields re-weakened beneath the later minors. -/
-structure CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquationFrame
+structure RecursorCheck.RuleAlignment.EquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) where
-  frame : A.NarrowFieldRuntimeFrame
+    (A : H.RuleAlignment owner howner i hctor) where
+  frame : A.FieldFrame
   telescope : GeneratedRecursorTelescopeTranslation H.outVEnv
     (AddInductive.getRecLevelParams H.elimLevel c.lparams)
     (H.generated.entry owner howner).info.type H.entries[owner].2.type
@@ -249,19 +249,19 @@ structure CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquation
 /-- Positive-arity case of `canonicalEquationFrame`; the proof is that of
 `finalCanonicalPositiveEquationWitness`, retaining its context. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalPositiveEquationFrame
+    RecursorCheck.RuleAlignment.canonicalPositiveEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :
-    Nonempty A.CanonicalEquationFrame := by
+    Nonempty A.EquationFrame := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.finalCanonicalRhsPositiveArityDetailed hpositive with
@@ -578,19 +578,19 @@ theorem
 /-- Zero-arity case of `canonicalEquationFrame`; the proof is that of
 `finalCanonicalZeroEquationWitness`, retaining its context. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalZeroEquationFrame
+    RecursorCheck.RuleAlignment.canonicalZeroEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0) :
-    Nonempty A.CanonicalEquationFrame := by
+    Nonempty A.EquationFrame := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
@@ -819,18 +819,18 @@ theorem
 
 /-- Every generated rule has a production equation frame. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalEquationFrame
+    RecursorCheck.RuleAlignment.canonicalEquationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    Nonempty A.CanonicalEquationFrame := by
+    (A : H.RuleAlignment owner howner i hctor) :
+    Nonempty A.EquationFrame := by
   by_cases hzero : A.rule.allArgs.size + A.rule.recursiveArgs.size = 0
   · exact A.canonicalZeroEquationFrame hzero
   · exact A.canonicalPositiveEquationFrame (Nat.pos_of_ne_zero hzero)
@@ -841,49 +841,49 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The installed recursor type is the canonical generation's recursor type. -/
-theorem CompletedRecursorPhasesResult.entry_type_eq
-    (H : CompletedRecursorPhasesResult R outEnv) (owner : Nat)
+theorem RecursorCheck.entry_type_eq
+    (H : RecursorCheck R outEnv) (owner : Nat)
     (howner : owner < H.entries.length)
     (hf : owner < H.generationSignature.families.size) :
     H.entries[owner].2.type = H.canonicalGeneration.recursorType ⟨owner, hf⟩ := by
   rw [H.canonicalTargets owner howner]
-  unfold CompletedRecursorConstruction.nativeTarget
+  unfold RecursorConstruction.nativeTarget
   rw [dif_pos hf]
   rfl
 
-theorem CompletedRecursorPhasesResult.params_size_eq
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.params_size_eq
+    (H : RecursorCheck R outEnv) :
     stats.params.size = H.generationSignature.params.length :=
   H.cardinality.params.trans H.consumedGeneration.models.nparams.symm
 
-theorem CompletedRecursorPhasesResult.motives_size_eq
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.motives_size_eq
+    (H : RecursorCheck R outEnv) :
     (H.recInfos.map (·.motive)).size = H.generationSignature.families.size := by
   rw [Array.size_map, ← H.consumedFamilies_size]
   change _ = H.consumedGeneration.signature.families.size
   rw [H.consumedGeneration.families]
 
-theorem CompletedRecursorPhasesResult.minors_size_eq
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.minors_size_eq
+    (H : RecursorCheck R outEnv) :
     (H.recInfos.flatMap (·.minors)).size = H.generationSignature.constructors.size :=
   H.cardinality.minors.trans H.consumedGeneration.constructorCount.symm
 
 /-- The cached parameter declarations are the canonical generation's parameters. -/
-theorem CompletedRecursorPhasesResult.parameterDecls_canonical
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.parameterDecls_canonical
+    (H : RecursorCheck R outEnv) :
     H.parameterSuffix.parameterDecls.toCtx.reverse = H.canonicalGeneration.params := by
-  rw [H.toCompletedRecursorConstruction.parameterDomains]
+  rw [H.toRecursorConstruction.parameterDomains]
   change _ = H.consumedGeneration.signature.params.map
     (·.instL H.consumedGeneration.generation.levels)
   rw [H.consumedGeneration.params, H.consumedGeneration.levels]
 
 /-- Any telescope decomposition of an installed recursor type has the
 canonical generation's parameter, motive and minor groups, syntactically. -/
-theorem CompletedRecursorPhasesResult.telescope_groups
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.telescope_groups
+    (H : RecursorCheck R outEnv)
     {env : VEnv} {Us : List Name} {source : Expr} {n owner : Nat}
     (howner : owner < H.entries.length)
     (T : GeneratedRecursorTelescopeTranslation env Us source H.entries[owner].2.type
@@ -918,13 +918,13 @@ theorem CompletedRecursorPhasesResult.telescope_groups
   exact ⟨h1, h2, h3⟩
 
 /-- The rule's field count is the field count of its retained minor shape. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.allArgs_size_eq
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.allArgs_size_eq
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
-    A.rule.allArgs.size = (H.origins.minorShapes owner A.producerOrigin.owner_lt i
-      A.producerOrigin.local_lt).fields.size := by
+    (A : H.RuleAlignment owner howner i hctor) :
+    A.rule.allArgs.size = (H.origins.minorShapes owner A.minorOrigin.owner_lt i
+      A.minorOrigin.local_lt).fields.size := by
   rcases A.finalSelectedMinorShape with
     ⟨_T, _D, _O, S, _horigin, _hlocal, _hconstructors, _hconstructor,
       hsourceFields, _HS, _hypothesisOrigins,
@@ -934,23 +934,23 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.allArgs_size_eq
       _hrootContext, _hterminalContext, _hsourceContext, _hpositions,
       hproducerShape, _Hdomain, _HdomainType⟩
   rw [← hsourceFields, ← hproducerShape]
-  exact congrArg (fun S => S.fields.size) A.producerOrigin.shape_eq
+  exact congrArg (fun S => S.fields.size) A.minorOrigin.shape_eq
 
 /-- The generated constructor of the rule's flattened position: it is owned by
 the rule's family and has the rule's field count. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.generatedConstructor
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.generatedConstructor
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     ∃ hk : recursorMinorOffset indTypes owner + i <
         H.generationSignature.constructors.size,
       (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).owner.val =
         owner ∧
       (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).fields.length =
         A.rule.allArgs.size := by
-  have hrec : owner < H.recInfos.size := A.producerOrigin.owner_lt
-  have hlocal : i < H.origins.minorTypes[owner]!.size := A.producerOrigin.local_lt
+  have hrec : owner < H.recInfos.size := A.minorOrigin.owner_lt
+  have hlocal : i < H.origins.minorTypes[owner]!.size := A.minorOrigin.local_lt
   obtain ⟨index, hindex, hown, hfields, -, -⟩ :=
     H.consumedGeneration.sourceOrigins owner hrec i hlocal
   have hk : recursorMinorOffset indTypes owner + i <
@@ -971,12 +971,12 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.generatedConstructo
 
 /-- The selected minor's field domains are the generator's field domains,
 weakened beneath the motives and the earlier minors. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquationFrame.fieldDomains_eq
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.EquationFrame.fieldDomains_eq
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    (F : A.CanonicalEquationFrame)
+    {A : H.RuleAlignment owner howner i hctor}
+    (F : A.EquationFrame)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
     (hnf : (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).fields.length =
         A.rule.allArgs.size) :
@@ -1007,12 +1007,12 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquationFr
 /-- The production equation context is definitionally the generator's
 equation telescope: parameters, motives and minors coincide syntactically, and
 the narrowed fields are aligned with the generator's weakened field types. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquationFrame.domains_defeq
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.EquationFrame.domains_defeq
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
-    (F : A.CanonicalEquationFrame)
+    {A : H.RuleAlignment owner howner i hctor}
+    (F : A.EquationFrame)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
     (hnf : (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).fields.length =
         A.rule.allArgs.size) :
@@ -1046,12 +1046,12 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalEquationFr
 /-- The generator's three equation bodies for the rule's flattened position
 translate the rule's residual sources (LHS, RHS, and constructor motive
 application) in the generator's own equation telescope.  This is the only
-input not yet derived from `CompletedRecursorPhasesResult`. -/
-structure CompletedRecursorPhasesResult.GeneratedRuleAlignment.GeneratorBodyTranslations
-    {H : CompletedRecursorPhasesResult R outEnv}
+input not yet derived from `RecursorCheck`. -/
+structure RecursorCheck.RuleAlignment.EquationBodyTranslations
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     Prop where
   lhs : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1076,13 +1076,13 @@ structure CompletedRecursorPhasesResult.GeneratedRuleAlignment.GeneratorBodyTran
 /-- One generated equation is well formed once its bodies translate the
 rule's residual sources: the production frame supplies the typing, which is
 transported along the context alignment `domains_defeq`. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.generatorEquationWF
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.generatorEquationWF
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
-    (Htr : A.GeneratorBodyTranslations hk) :
+    (Htr : A.EquationBodyTranslations hk) :
     (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).WF
       H.outVEnv := by
   rcases A.canonicalEquationFrame with ⟨F⟩
@@ -1097,18 +1097,18 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.generatorEquationWF
 
 /-- The remaining input of `equationsWF`: for every generated rule, some
 alignment of it whose sources the generator's bodies translate. -/
-def CompletedRecursorPhasesResult.GeneratorBodyTranslations
-    (H : CompletedRecursorPhasesResult R outEnv) : Prop :=
+def RecursorCheck.EquationBodyTranslations
+    (H : RecursorCheck R outEnv) : Prop :=
   ∀ owner (howner : owner < H.entries.length)
     i (hctor : i < indTypes[owner]!.ctors.length)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size),
-    ∃ A : H.GeneratedRuleAlignment owner howner i hctor, A.GeneratorBodyTranslations hk
+    ∃ A : H.RuleAlignment owner howner i hctor, A.EquationBodyTranslations hk
 
 /-- Every equation of the canonical generation is well formed in the output
 environment, given the generator body translations. -/
-theorem CompletedRecursorPhasesResult.equationsWF
-    (H : CompletedRecursorPhasesResult R outEnv)
-    (Htr : H.GeneratorBodyTranslations) :
+theorem RecursorCheck.equationsWF
+    (H : RecursorCheck R outEnv)
+    (Htr : H.EquationBodyTranslations) :
     ∀ df ∈ H.canonicalGeneration.equations, df.WF H.outVEnv := by
   intro df hdf
   simp only [InductiveSignature.Instance.equations, List.mem_map, List.mem_finRange,
@@ -1119,11 +1119,11 @@ theorem CompletedRecursorPhasesResult.equationsWF
     change k.val < H.consumedGeneration.signature.constructors.size at this
     rwa [H.consumedGeneration.constructorCount] at this
   obtain ⟨owner, hrec, localIndex, hlocal, hkEq⟩ :=
-    H.toCompletedRecursorConstruction.flatMinorIndex k.val hkOwned
+    H.toRecursorConstruction.flatMinorIndex k.val hkOwned
   have howner : owner < H.entries.length := by
     rw [H.generated.length]; exact hrec
   have hctor : localIndex < indTypes[owner]!.ctors.length := by
-    rw [← H.toCompletedRecursorConstruction.minorTypes_size owner hrec]; exact hlocal
+    rw [← H.toRecursorConstruction.minorTypes_size owner hrec]; exact hlocal
   have hk : recursorMinorOffset indTypes owner + localIndex <
       H.generationSignature.constructors.size := hkEq ▸ k.isLt
   obtain ⟨A, HA⟩ := Htr owner howner localIndex hctor hk
@@ -1132,11 +1132,11 @@ theorem CompletedRecursorPhasesResult.equationsWF
   exact A.generatorEquationWF hk HA
 
 /-- The generator's equation telescope has exactly the rule's binder count. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.equationDomains_length
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.equationDomains_length
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     (H.canonicalGeneration.equationDomains
       ⟨recursorMinorOffset indTypes owner + i, hk⟩).length = A.rule.binders.length := by
@@ -1153,12 +1153,12 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.equationDomains_len
 
 /-- Adapter from a closed translation of the installed rule RHS to the
 generator's equation RHS (the form `TrExprS [] rule.rhs (g.equation k).rhs`)
-into the residual form required by `GeneratorBodyTranslations.rhs`. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.rhsResidualOfClosed
-    {H : CompletedRecursorPhasesResult R outEnv}
+into the residual form required by `EquationBodyTranslations.rhs`. -/
+theorem RecursorCheck.RuleAlignment.rhsResidualOfClosed
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
     (hclosed : Closed A.rule.sourceRhsBody)
     (Htr : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []

@@ -23,15 +23,15 @@ namespace VerifyInductive
 generated recursor entry at the corresponding source-family position.  The
 ordinary equation proof and the restoration trace can therefore be indexed by
 one shared rule list. -/
-theorem CompletedRecursorPhasesResult.restoredPrimaryInfo_eq_generated
+theorem RecursorCheck.restoredPrimaryInfo_eq_generated
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     (owner : Nat) (hentry : owner < H.entries.length)
     (Hstep : RestoredRecursorStep result outEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)

@@ -210,8 +210,8 @@ theorem NestedValidatedRunResult.loweredConstructorLevelsAll
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)

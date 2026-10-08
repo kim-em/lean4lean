@@ -59,7 +59,7 @@ theorem AddInductive.semanticFormationCoreWF
       fun outEnv => ∃ decl headerEnv,
         ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
-        ∃ _ : ConstructorPhasesResult Hheaders outEnv, True := by
+        ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
   have HheadersAndLoop :=
     AddInductive.declareInductiveTypes.semanticConstructorsWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
@@ -75,7 +75,7 @@ theorem AddInductive.semanticFormationCoreWF
         ∃ decl headerEnv,
           ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
             isUnsafe depth Hc.venv indTypes headerEnv,
-          ∃ _ : ConstructorPhasesResult Hheaders outEnv, True :=
+          ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
     HheadersAndLoop.bind fun headerEnv Hloop => by
     have Hcheck :
         (AddInductive.checkConstructors indTypes stats isUnsafe
@@ -114,13 +114,13 @@ theorem AddInductive.semanticFormationCoreWF
               ∃ decl,
               ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
                 isUnsafe depth Hc.venv indTypes headerEnv,
-              ∃ _ : ConstructorPhasesResult Hheaders outEnv, True :=
+              ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
       Hcheck.bind fun _ Hchecked => by
       rcases Hchecked with ⟨decl, Hheaders, Hchecked, Howners, Htele⟩
       exact (AddInductive.declareConstructors.WF Hheaders
         Hchecked hvisible hnprimCtors Htele).mono fun outEnv Hdeclared => by
           rcases Hdeclared with ⟨Hdeclared, _⟩
-          let R : ConstructorPhasesResult Hheaders outEnv := {
+          let R : OrdinaryConstructorCheck Hheaders outEnv := {
             checked := Hchecked.checked
             parameterPrefixes := Hchecked.parameterPrefixes
             constructorTails := Hchecked.constructorTails
@@ -138,7 +138,7 @@ theorem AddInductive.semanticFormationCoreWF
           ∃ decl headerEnv',
             ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
               isUnsafe depth Hc.venv indTypes headerEnv',
-            ∃ _ : ConstructorPhasesResult Hheaders outEnv, True := by
+            ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True := by
       intro outEnv hout
       have Hresult := Hphases outEnv hout
       rcases Hresult with ⟨decl, Hheaders, R, _⟩
@@ -345,7 +345,7 @@ theorem AddInductive.semanticFormationCoreClosedWF
       fun outEnv => ∃ decl headerEnv,
         ∃ Hheaders : DeclaredHeadersResult c stats decl nparams
           isUnsafe depth Hc.venv indTypes headerEnv,
-        ∃ _ : ConstructorPhasesResult Hheaders outEnv,
+        ∃ _ : OrdinaryConstructorCheck Hheaders outEnv,
           MutualInductivesClosed outEnv := by
   have Hformation := AddInductive.semanticFormationCoreWF Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams

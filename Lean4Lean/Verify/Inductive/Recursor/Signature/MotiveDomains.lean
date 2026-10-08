@@ -21,9 +21,9 @@ theorem RecursorMotiveTelescopeSeed.consumedTranslation
 
 /-- Translate a completed motive over the block's one cached parameter
 choice, before any recursor declaration is installed. -/
-theorem CompletedRecursorConstruction.consumedMotiveAtParameters
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.consumedMotiveAtParameters
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
       ∃ target,
@@ -116,9 +116,9 @@ private theorem abstractList_sort (u : Level) (fvars : List FVarId) (k : Nat := 
 /-- The actual consumed index domains and the major binder are exposed from
 one pre-install translation. In particular, the terminal sort is the exact
 universe selected by the executable elimination check. -/
-theorem CompletedRecursorConstruction.consumedMotiveDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.consumedMotiveDomains
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ S : RecursorMotiveTelescopeSeed H.recursorWF stats decl owner H.recInfos[owner]! H.elimLevel,
       ∃ indices major level,
@@ -209,8 +209,8 @@ theorem AddConstants.defnReflect
 /-- A family of the block is not accepted as a type-annotation wrapper by the
 constructor environment: a wrapper is a definition, the constructor environment
 adds no definition to the source environment, and the families are fresh there. -/
-theorem CompletedConstructorPhases.family_not_wrapper
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
+theorem ConstructorCheck.family_not_wrapper
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
     ctorEnv.isTypeAnnotationWrapper family.name = false := by
   have hfresh := (VEnv.addConstVals_names_fresh R.core.typesAdded).2
@@ -258,9 +258,9 @@ theorem Expr.consumeTypeAnnotationsVerified_eq_of_head {ok : Name → Bool} {e :
 
 /-- The major premise really is the source family applied to its parameters
 and indices; reserved wrapper names cannot occur among the fresh families. -/
-theorem CompletedRecursorConstruction.majorSourceType
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.majorSourceType
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (D : BoundFVarDeclarationAt H.localContext #[H.recInfos[owner]!.major] 0) :
     D.type = mkAppN (mkAppN
       (.const (decl.types[owner]'(by simpa [H.cardinality.records] using howner)).name
@@ -315,9 +315,9 @@ theorem Expr.abstractList_fullApp
     Expr.abstractList_fvarArray fvars 0 hnd, Expr.mkAppN_eq_mkAppList]
   simp
 
-theorem CompletedRecursorConstruction.majorBinderSource
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
+theorem RecursorConstruction.majorBinderSource
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     Expr.ForallBinderAt
       ((H.localContext.lctx.mkForall H.recInfos[owner]!.indices
         (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major] (.sort H.elimLevel))).abstractList
@@ -415,9 +415,9 @@ theorem TrExprS.const_canonicalBvars_eq
 
 /-- Any strict motive translation has the same major family application,
 although its index domains may legitimately vary by typed equality. -/
-theorem CompletedRecursorConstruction.consumedMotiveMajor
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.consumedMotiveMajor
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (hindices : indices.length = H.recInfos[owner]!.indices.size)
     (hlevels : stats.levels.mapM (VLevel.ofLevel
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)) = some levels)

@@ -312,14 +312,14 @@ structure DeclaredConstructorsResult
       indTypes headerEnv)
     (outEnv : Environment) extends DeclaredConstructorsCore H outEnv where
   /-- The declaration's case eliminator, certified at the constructor boundary
-  (`ConstructorBoundary.caseEliminatorsWF`). -/
+  (`CheckedFormation.caseEliminatorsWF`). -/
   eliminators : List (Name × InductiveSignature.CaseSchema)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
   eliminatorsCertified : decl.CaseEliminators sourceEnv (fun _ => False) eliminators
   eliminatorsOwn : decl.OwnCaseEliminators sourceEnv eliminators
   /-- The eliminators are those of a constructor boundary of the declaration, so their
   signature is the boundary's source signature. -/
-  eliminatorsBoundary : ∃ B : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv
+  eliminatorsBoundary : ∃ B : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv
     indTypes, eliminators = B.caseEliminators ∧ B.params = H.headers.params ∧
       B.parameterScope = H.materialized.parameterScope
   context : ContextWF { c with env := outEnv }
@@ -814,14 +814,14 @@ theorem DeclaredConstructorsCore.ctorParamsAgree
 
 /-- The constructor boundary of a declaration whose headers and constructors are checked and
 whose constructors are declared. -/
-noncomputable def DeclaredHeadersResult.boundary
+noncomputable def DeclaredHeadersResult.toCheckedFormation
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv indTypes headerEnv)
     (Hchecked : CheckedConstructorsResult sourceEnv decl H.context.venv
       H.headers.params stats indTypes c.lparams H.materialized.parameterScope)
     (venvCtors : VEnv)
     (core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList isUnsafe decl
       H.context.venv venvCtors) :
-    ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes where
+    CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes where
   headerVEnv := H.context.venv
   sourceContext := H.sourceContext
   sourceContextVEnv := H.sourceContextVEnv
@@ -1027,7 +1027,7 @@ theorem AddInductive.declareConstructors.WF
       exact (Hinstalled.quotEnvCoherent hheaderWF hctorRecursors.heads
         (H.installed.quotEnvCoherent hsourceMapWF hheaderRecursors.heads hsourceQuot) hq).extend
         (fun h => h) VEnv.addProjections_le hrecursors.heads
-    let B := H.boundary Hchecked venvCtors core
+    let B := H.toCheckedFormation Hchecked venvCtors core
     have helimsWF := B.caseEliminatorsWF
     obtain ⟨helimWF, hprojectedWF⟩ := helimsWF.windowWF hsourceWF core hparams
     have hle : venvCtors.addProjections decl.projectionEntries ≤
@@ -1055,7 +1055,7 @@ theorem AddInductive.declareConstructors.WF
       contextVEnv := rfl
       contextMLCtx := rfl }, trivial⟩
 
-structure ConstructorPhasesResult
+structure OrdinaryConstructorCheck
     (H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv)
     (outEnv : Environment) where
@@ -1072,14 +1072,14 @@ structure ConstructorPhasesResult
   core : TrInductDeclCore sourceEnv c.lparams nparams indTypes.toList
     isUnsafe decl H.context.venv declared.venvCtors
 
-theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
+theorem OrdinaryConstructorCheck.installedConstructorSemanticCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
+    (R : OrdinaryConstructorCheck H outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     ∃ familyInfo : InductiveVal,
@@ -1095,26 +1095,26 @@ theorem ConstructorPhasesResult.installedConstructorSemanticCoherenceAt
 
 /-- The executable header and constructor folds identify every newly visible
 production inductive family with one exact source declaration position. -/
-theorem ConstructorPhasesResult.productionInductiveOrigins
+theorem OrdinaryConstructorCheck.productionInductiveOrigins
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv) :
+    (R : OrdinaryConstructorCheck H outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants decl :=
   R.declared.toDeclaredConstructorsCore.productionInductiveOrigins R.core
     ⟨R.checked, R.parameterPrefixes, R.constructorTails⟩
 
-theorem ConstructorPhasesResult.ctorParamsAgree
+theorem OrdinaryConstructorCheck.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
       indTypes headerEnv}
-    (R : ConstructorPhasesResult H outEnv)
+    (R : OrdinaryConstructorCheck H outEnv)
     (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
     CtorParamsAgree

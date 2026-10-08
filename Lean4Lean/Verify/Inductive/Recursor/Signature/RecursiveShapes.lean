@@ -7,7 +7,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Signature.FieldDomainsDefEq
 /-! Induction-hypothesis binder groups of the checked recursor type, read off
 the per-field semantic row.
 
-`CompletedRecursorConstruction.recursorTelescope_hypothesisDomains` identifies
+`RecursorConstruction.recursorTelescope_hypothesisDomains` identifies
 the `j`-th hypothesis of a minor premise of the checked recursor type as a
 telescope `A` whose domains translate the first-pass origin's argument domains
 in the full generator context (parameters, motives, earlier minors, all fields
@@ -28,7 +28,7 @@ translations in `parameters ++ fields.take pos`.  Forward weakening
 (`TrExprS.liftStep`) and syntactic uniqueness then identify every domain of
 `A`, and every index of the motive application, as
 `InductiveSignature.Instance.underFields` of these small translations.  This is
-`CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift`. -/
+`RecursorConstruction.recursorTelescope_hypothesisUnlift`. -/
 
 namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
@@ -460,9 +460,9 @@ replay trace.  Then there are a binder telescope `B0` and an index list
 `indices`, translated in `parameters ++ sourceFields.take pos` (extended by
 `B0`), whose sources are the argument domains of `O` and its exposed indices
 closed over the fields before `pos` and the parameters. -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisSmall
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.recursorTelescope_hypothesisSmall
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (F : RecInfoRuleFieldSemanticSource H.recursorWF stats
@@ -745,9 +745,9 @@ them in `parameters ++ sourceFields.take pos` (extended by `B0`), then the
 `j`-th hypothesis of the minor premise is the `underFields` embedding of `B0`
 and `indices`, applied to the owner's motive variable and the recursive field
 variable. -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisLift
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_hypothesisLift
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -971,9 +971,9 @@ translates, in `parameters ++ sourceFields.take pos ++ binders.take i`, the
 the closed exposed indices of `O`, closed the same way at depth `O.args.size`.
 The generator-context sources of `recursorTelescope_hypothesisDomains` are
 exactly the lifts of these sources (`Expr.closeShapeSource`). -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisUnlift
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.recursorTelescope_hypothesisUnlift
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)

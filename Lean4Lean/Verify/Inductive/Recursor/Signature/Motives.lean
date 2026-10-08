@@ -87,9 +87,9 @@ theorem TrExprS.rebuildForallPrefix
 The original checker supplies typehood of the residual; conversion transports
 it into the chosen index context, whose major syntax is then forced by the
 actual family-application origin. -/
-theorem CompletedRecursorConstruction.replayMotiveWithIndexDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.replayMotiveWithIndexDomains
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (hindices : indices.length = H.recInfos[owner]!.indices.size)
     (hlevels : stats.levels.mapM (VLevel.ofLevel
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)) = some levels)

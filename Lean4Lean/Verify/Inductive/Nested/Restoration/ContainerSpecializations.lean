@@ -957,14 +957,14 @@ theorem DeclaredHeadersResult.commonParameterContext_eq
 
 /-- The completed constructor boundary's parameter scope is the header
 phase's common parameter context. -/
-theorem ConstructorPhasesResult.completed_parameterScope_toCtx
+theorem OrdinaryConstructorCheck.completed_parameterScope_toCtx
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams : Nat} {isUnsafe : Bool} {depth : Nat}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv : Environment}
     {H : DeclaredHeadersResult c stats decl nparams isUnsafe depth sourceEnv
-      indTypes headerEnv} (R : ConstructorPhasesResult H ctorEnv) :
-    R.completed.parameterScope.toCtx = H.commonParameterContext :=
+      indTypes headerEnv} (R : OrdinaryConstructorCheck H ctorEnv) :
+    R.toConstructorCheck.parameterScope.toCtx = H.commonParameterContext :=
   H.commonParameterContext_eq.symm
 
 private theorem constructorListEntries_findInduct
@@ -1022,8 +1022,8 @@ private theorem loweredConstructor_facts
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv)
     {t : VInductiveType} (ht : t ∈ decl.types)
     {ctor : VConstVal} (hctor : ctor ∈ t.ctors) :
     (∃ info : ConstructorVal, outEnv.find? ctor.name = some (.ctorInfo info) ∧
@@ -1061,8 +1061,8 @@ private theorem loweredNames_nodup
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv) :
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv) :
     (familyNames decl.types ++
       decl.types.map (fun t => t.name.str "rec")).Nodup := by
   have hsource := Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core
@@ -1169,8 +1169,8 @@ theorem NestedValidatedRunResult.containerSpecializations
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)

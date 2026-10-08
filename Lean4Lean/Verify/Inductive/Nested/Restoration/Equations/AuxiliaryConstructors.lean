@@ -317,14 +317,14 @@ theorem NestedValidatedRunResult.restoredEquationAuxiliaryConstructors_of
     rwa [← auxiliarySpecializations_headNames Haux Hexpansion,
       ← compilationRestoration_heads_auxiliary] at h
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.production.loweredConstruction.consumedGeneration.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse

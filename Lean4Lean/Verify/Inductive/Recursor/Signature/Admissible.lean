@@ -58,9 +58,9 @@ theorem TrExprS.consumedTelescope_body_eq {venv : VEnv} {Us : List Name}
 
 /-- Consumption changes only binder domains: the consumed constructor's
 result indices are syntactically the header constructor's indices. -/
-theorem CompletedRecursorConstruction.sourceConstructorIndices_eq_header
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.sourceConstructorIndices_eq_header
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     H.sourceConstructorIndices owner howner localIndex hlocal =
@@ -176,18 +176,18 @@ theorem IsDefEqCtx.ofFieldPrefixes {env : VEnv} {U : Nat} {P xs ys : List VExpr}
 /-- The consumed signature's universe instance. The universe policy and
 naming are fixed by the retained construction, independently of the
 supplied signature. -/
-noncomputable def CompletedRecursorConstruction.consumedInstance
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (s : InductiveSignature) :
+noncomputable def RecursorConstruction.consumedInstance
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (s : InductiveSignature) :
     InductiveSignature.Instance s where
   uvars := (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
   levels := recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible
   targetLevel := Classical.choose H.elimLevelAdmissible.ofLevel
   recursorName owner := s.families[owner].name.str "rec"
 
-theorem CompletedRecursorConstruction.consumedInstance_target
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (s : InductiveSignature) :
+theorem RecursorConstruction.consumedInstance_target
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (s : InductiveSignature) :
     VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some (H.consumedInstance s).targetLevel :=
   Classical.choose_spec H.elimLevelAdmissible.ofLevel
@@ -195,9 +195,9 @@ theorem CompletedRecursorConstruction.consumedInstance_target
 /-- The retained construction keeps the reason for its elimination
 universe: a nonzero source block, a `Prop` target, or a singleton block
 whose only constructor passed the concrete large-elimination check. -/
-theorem CompletedRecursorConstruction.elimLevelDecision
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.elimLevelDecision
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) :
     (∀ family ∈ decl.types, family.resultLevel.IsNeverZero) ∨
     H.elimLevel = .zero ∨
     ∃ ind, indTypes = #[ind] ∧
@@ -220,9 +220,9 @@ theorem CompletedRecursorConstruction.elimLevelDecision
 /-- A singleton source block accepted by the concrete large-elimination
 check satisfies the generator's field condition for any signature carrying
 the consumed field domains and result indices, at every universe instance. -/
-theorem CompletedRecursorConstruction.consumedSingletonElimination
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {s : InductiveSignature}
+theorem RecursorConstruction.consumedSingletonElimination
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) {s : InductiveSignature}
     (hparams : s.params = R.parameterScope.toCtx.reverse)
     (hfam : s.families = H.consumedFamilies)
     (hsize : s.constructors.size = decl.ownedConstructors.length)
@@ -338,9 +338,9 @@ theorem CompletedRecursorConstruction.consumedSingletonElimination
 generator's admissibility judgment for any signature carrying the consumed
 universe count, parameters, family table, constructor count and per-minor
 field domains and result indices. -/
-theorem CompletedRecursorConstruction.consumedInstance_admissible
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.consumedInstance_admissible
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     {s : InductiveSignature} (huvars : s.uvars = decl.uvars)
     (hparams : s.params = R.parameterScope.toCtx.reverse)
     (hfam : s.families = H.consumedFamilies)

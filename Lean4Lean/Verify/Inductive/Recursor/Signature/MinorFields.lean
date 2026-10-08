@@ -46,9 +46,9 @@ open Kernel
 abstract binders placed between the parameters and the fields.  The source
 side abstracts any `extra` free variables of the same count, because the
 parameter-closed field telescope contains no free variable. -/
-theorem CompletedRecursorConstruction.minorFieldsTemplate
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.minorFieldsTemplate
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (inserted : List VExpr) (extra : List FVarId) (hextra : extra.length = inserted.length) :

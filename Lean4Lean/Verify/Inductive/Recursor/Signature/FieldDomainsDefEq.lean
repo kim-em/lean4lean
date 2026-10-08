@@ -77,9 +77,9 @@ theorem TrExprS.consumedForallPrefix_defeq
 /-- Field by field, the consumed field types are definitionally the header
 signature's field types in the field's own scope, in the header environment
 and universes. -/
-theorem CompletedRecursorConstruction.sourceFields_defeq_header
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.sourceFields_defeq_header
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let ctor := R.sourceSignatureConstructor

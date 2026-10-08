@@ -7,8 +7,8 @@ open Kernel
 
 namespace VerifyInductive
 
-def CompletedConstructorPhases.checkedRecursorConstructorTailAt
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+def ConstructorCheck.checkedRecursorConstructorTailAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
@@ -22,8 +22,8 @@ def CompletedConstructorPhases.checkedRecursorConstructorTailAt
 
 /-- Select a mutual-family header after transporting its translation and
 materialized certificate through either ordinary or atomic installation. -/
-def CompletedConstructorPhases.checkedRecursorHeaderAt
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+def ConstructorCheck.checkedRecursorHeaderAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (hlparams : c.lparams.Nodup) :
@@ -74,7 +74,7 @@ def CompletedConstructorPhases.checkedRecursorHeaderAt
   refine {
     target := decl.types[familyIdx]
     targetAt := by simp [htarget]
-    materialized := R.materializedFinal
+    materialized := R.recursorHeaders
     sourceTranslation := Hsource
     sourceTranslationUses := HsourceUses
     recursorSourceTranslationRestricted := HrecursorSource
@@ -91,8 +91,8 @@ def CompletedConstructorPhases.checkedRecursorHeaderAt
 /-- The common constructor boundary supplies a typed constructor application
 seed independently of whether its constants were installed ordinarily or as
 an atomic primitive batch. -/
-theorem CompletedConstructorPhases.checkedConstructorPrefixSeedAt
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem ConstructorCheck.checkedConstructorPrefixSeedAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
     (hlparams : c.lparams.Nodup)
@@ -100,7 +100,7 @@ theorem CompletedConstructorPhases.checkedConstructorPrefixSeedAt
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     let Hbase := R.context
     let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
-    let Hmaterialized := R.materializedFinal
+    let Hmaterialized := R.recursorHeaders
     let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
     exists ctorVal tail tailTarget introTarget,
       ctorVal ∈ (decl.types[familyIdx]'(by
@@ -136,7 +136,7 @@ theorem CompletedConstructorPhases.checkedConstructorPrefixSeedAt
           Hsuffix.parameterDecls tailTarget stats.params.size 0) := by
   let Hbase := R.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
-  let Hmaterialized := R.materializedFinal
+  let Hmaterialized := R.recursorHeaders
   let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
   have hheaderLE : R.headerVEnv <= Hbase.venv := by
     change R.headerVEnv <= R.context.venv
@@ -241,8 +241,8 @@ theorem CompletedConstructorPhases.checkedConstructorPrefixSeedAt
 
 /-- Reinterpret the common checked seed in any later recursor context with
 the retained parameter suffix. -/
-theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem ConstructorCheck.checkedConstructorRuntimeSeedAt
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -255,7 +255,7 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
     (HsuffixCurrent : RecursorParameterContextSuffix Rcurrent stats
       runtimeDepth)
     (hparameterDecls : HsuffixCurrent.parameterDecls =
-      (R.materializedFinal.parameterSuffix.toRecursorContext
+      (R.recursorHeaders.parameterSuffix.toRecursorContext
         Helim).parameterDecls)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
@@ -287,7 +287,7 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
           HsuffixCurrent.parameterDecls.toCtx tailTarget₀ := by
   let Hbase := R.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
-  let HsuffixBase := R.materializedFinal.parameterSuffix.toRecursorContext Helim
+  let HsuffixBase := R.recursorHeaders.parameterSuffix.toRecursorContext Helim
   rcases R.checkedConstructorPrefixSeedAt Helim hlparams familyIdx hfamily
       ctorIdx hctor with
     ⟨_ctorVal, tail, tailNarrow, introNarrow, _hmem, _hname,
@@ -336,9 +336,9 @@ theorem CompletedConstructorPhases.checkedConstructorRuntimeSeedAt
 
 /-- Enter the first mutual recursor pass from the completed constructor
 boundary. -/
-theorem CompletedConstructorPhases.loopInd1SemanticWF
+theorem ConstructorCheck.loopInd1SemanticWF
     {alpha : Type} {Q : alpha -> Prop}
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -352,7 +352,7 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
       (henvOut : Rout.venv = R.context.venv)
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth)
       (hparameterDeclsOut : HsuffixOut.parameterDecls =
-        (R.materializedFinal.parameterSuffix.toRecursorContext
+        (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls)
       (HstatsOut : RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -365,7 +365,7 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
-        (R.materializedFinal.parameterSuffix.toRecursorContext
+        (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls.toCtx recInfos elimLevel ->
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes ->
       (Hparams : BoundFVarArray cOut stats.params) ->
@@ -388,7 +388,7 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
           AddInductive.getRecLevelParams elimLevel c.lparams }).WF Q := by
   let Hbase := R.context
   let Rbase := Hbase.toAdmissibleRecursorContextWF Helim
-  let Hmaterialized := R.materializedFinal
+  let Hmaterialized := R.recursorHeaders
   let Hsuffix := Hmaterialized.parameterSuffix.toRecursorContext Helim
   let HstatsOrdinary :=
     checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader Hmaterialized
@@ -462,9 +462,9 @@ theorem CompletedConstructorPhases.loopInd1SemanticWF
     HnoAlias Horder Harities Hempty Hblueprints Hroot' ?_ HindexTraces
   simpa using hsize
 
-theorem CompletedConstructorPhases.mkRecInfosWF
+theorem ConstructorCheck.mkRecInfosWF
     {alpha : Type} {Q : alpha -> Prop}
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (elimLevel : Level)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel)
@@ -479,7 +479,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       Rout.venv = R.context.venv ->
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) ->
       HsuffixOut.parameterDecls =
-        (R.materializedFinal.parameterSuffix.toRecursorContext
+        (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls ->
       RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -499,7 +499,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
-        (R.materializedFinal.parameterSuffix.toRecursorContext
+        (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls.toCtx recInfos elimLevel ->
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes ->
       (Hparams : BoundFVarArray cOut stats.params) ->
@@ -563,7 +563,7 @@ theorem CompletedConstructorPhases.mkRecInfosWF
         typeCheckerLParams := some <|
           AddInductive.getRecLevelParams elimLevel c.lparams })
       R.context
-      (R.materializedFinal.parameterSuffix (Hc := R.context)).paramsBound
+      (R.recursorHeaders.parameterSuffix (Hc := R.context)).paramsBound
       rfl rfl HrootFrames)
     (fun familyIdx hfamily ctor hctor tail Hprefix => by
       rw [HrootFrames.lparams_eq]
@@ -604,9 +604,9 @@ theorem CompletedConstructorPhases.mkRecInfosWF
       HrootOut
 
 /-- Exact recursor-info prefix from the completed constructor boundary. -/
-theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
+theorem ConstructorCheck.getElimLevelMkRecInfosWF
     {alpha : Type} {Q : alpha -> Prop}
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
     (hlparams : c.lparams.Nodup)
     (hconsume : RecursorConsumeTypeAnnotationsCompat)
@@ -624,7 +624,7 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
       Rout.venv = R.context.venv ->
       (HsuffixOut : RecursorParameterContextSuffix Rout stats outDepth) ->
       HsuffixOut.parameterDecls =
-        (R.materializedFinal.parameterSuffix.toRecursorContext
+        (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls ->
       RecursorValidAppStatsWF Rout.venv
         (AddInductive.getRecLevelParams elimLevel c.lparams)
@@ -644,7 +644,7 @@ theorem CompletedConstructorPhases.getElimLevelMkRecInfosWF
       RecursorTranslatedOriginTypes Rout Horigins.motiveTypes ->
       RecInfoMotiveTypeShapes cOut recInfos Horigins.motiveTypes elimLevel ->
       RecInfoMotiveTelescopes Rout stats decl
-        (R.materializedFinal.parameterSuffix.toRecursorContext
+        (R.recursorHeaders.parameterSuffix.toRecursorContext
           Helim).parameterDecls.toCtx recInfos elimLevel ->
       RecursorTranslatedOriginTypeRows Rout Horigins.indexTypes ->
       (Hparams : BoundFVarArray cOut stats.params) ->

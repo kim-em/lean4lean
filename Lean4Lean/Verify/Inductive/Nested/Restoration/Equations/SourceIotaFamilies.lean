@@ -21,11 +21,11 @@ structure RestoredPrimaryOperationalFamilyAlignment
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hentry : familyIdx < Hprod.entries.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -65,11 +65,11 @@ theorem NestedLoweringResultClosed.primaryOperationalFamilyAlignmentAtFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (hentry : familyIdx < Hprod.entries.length)
@@ -275,11 +275,11 @@ structure RestoredPrimaryOperationalFamilySemantics
     {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
-    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
+    {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -304,11 +304,11 @@ theorem RestoredPrimaryOperationalFamilySemantics.constructorAt
     {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Hlowering : NestedLoweringResultClosed loweredSourceEnv fuel nparams
       sourceTypes { initialState with newTypes := sourceTypes.toArray } result}
-    {Hprod : CompletedRecursorPhasesResult R.completed loweredEnv}
+    {Hprod : RecursorCheck R.toConstructorCheck loweredEnv}
     {familyIdx : Nat} {hfamily : familyIdx < sourceTypes.length}
     {hentry : familyIdx < Hprod.entries.length}
     {Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames

@@ -5,9 +5,9 @@ open Kernel
 
 /-- One actual source-universe index choice, shared by its original source
 model and the recursor-universe generated motive. -/
-theorem CompletedRecursorConstruction.sourceIndexDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
+theorem RecursorConstruction.sourceIndexDomains
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     ∃ domains,
       domains.length = H.recInfos[owner]!.indices.size ∧
       TrExprS R.context.venv c.lparams
@@ -49,32 +49,32 @@ theorem CompletedRecursorConstruction.sourceIndexDomains
       recursorDeclarationAbstractLevels_param H.elimLevelAdmissible helim]
     simpa [helim, AddInductive.getRecLevelParams] using Hrec
 
-noncomputable def CompletedRecursorConstruction.sourceIndices
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) : List VExpr :=
+noncomputable def RecursorConstruction.sourceIndices
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) : List VExpr :=
   Classical.choose (H.sourceIndexDomains owner owner.isLt)
 
-theorem CompletedRecursorConstruction.sourceIndices_length
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) :
+theorem RecursorConstruction.sourceIndices_length
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.sourceIndices owner).length = H.recInfos[owner.val]!.indices.size :=
   (Classical.choose_spec (H.sourceIndexDomains owner owner.isLt)).1
 
 /-- Family metadata is chosen once from the actual accepted index replay.
 Names and result universes remain the original declaration's metadata. -/
-noncomputable def CompletedRecursorConstruction.consumedFamilies
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) : Array InductiveSignature.Family :=
+noncomputable def RecursorConstruction.consumedFamilies
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) : Array InductiveSignature.Family :=
   Array.ofFn fun owner : Fin H.recInfos.size =>
     { name := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name
       indices := H.sourceIndices owner
       resultLevel := (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel }
 
-@[simp] theorem CompletedRecursorConstruction.consumedFamilies_size
-    (H : CompletedRecursorConstruction R) : H.consumedFamilies.size = H.recInfos.size := by
+@[simp] theorem RecursorConstruction.consumedFamilies_size
+    (H : RecursorConstruction R) : H.consumedFamilies.size = H.recInfos.size := by
   simp [consumedFamilies]
 
-theorem CompletedRecursorConstruction.sourceIndices_motive
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size)
+theorem RecursorConstruction.sourceIndices_motive
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size)
     (hlevel : VLevel.ofLevel (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       H.elimLevel = some level) :
     let motive := VExpr.wrapForalls
@@ -97,25 +97,25 @@ theorem CompletedRecursorConstruction.sourceIndices_motive
   have Hchoice := Classical.choose_spec (H.sourceIndexDomains owner owner.isLt)
   exact H.replayMotiveWithIndexDomains owner owner.isLt
     (by simp [H.sourceIndices_length owner])
-    (R.materializedFinal.recursorLevelTranslation H.lparamsNodup H.elimLevelAdmissible)
+    (R.recursorHeaders.recursorLevelTranslation H.lparamsNodup H.elimLevelAdmissible)
     hlevel Hchoice.2.2.2
 
-@[simp] theorem CompletedRecursorConstruction.consumedFamilies_indices
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) :
+@[simp] theorem RecursorConstruction.consumedFamilies_indices
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).indices = H.sourceIndices owner := by
   simp [consumedFamilies]
 
-@[simp] theorem CompletedRecursorConstruction.consumedFamilies_name
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) :
+@[simp] theorem RecursorConstruction.consumedFamilies_name
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).name =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).name := by
   simp [consumedFamilies]
 
-@[simp] theorem CompletedRecursorConstruction.consumedFamilies_level
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) :
+@[simp] theorem RecursorConstruction.consumedFamilies_level
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     (H.consumedFamilies[owner.val]'(by simp [owner.isLt])).resultLevel =
       (decl.types[owner.val]'(by rw [← H.cardinality.records]; exact owner.isLt)).resultLevel := by
   simp [consumedFamilies]

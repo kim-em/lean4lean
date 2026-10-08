@@ -65,12 +65,12 @@ theorem NestedValidatedRunResult.restorableNames_fresh
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.production.loweredDecl.typeConstants =
-        some E.production.constructors.completed.headerVEnv :=
+        some E.production.constructors.toConstructorCheck.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.production.loweredDecl.typeConstants =
-          some E.production.constructors.completed.headerVEnv) hinit)
-      E.production.constructors.completed.core.typesAdded
-  have hloweredCtors := E.production.constructors.completed.core.ctorsAdded
+          some E.production.constructors.toConstructorCheck.headerVEnv) hinit)
+      E.production.constructors.toConstructorCheck.core.typesAdded
+  have hloweredCtors := E.production.constructors.toConstructorCheck.core.ctorsAdded
   have Hsource := E.nativeSource.core
   rw [E.nativeSourceDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
@@ -105,7 +105,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh
     obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hentry
     exact ⟨t, ht, rfl⟩
   have hbaseLE : (ves.venv (if isUnsafe then .unsafe else .safe)) ≤
-      E.production.constructors.completed.headerVEnv := VEnv.addConstVals_le hloweredTypes
+      E.production.constructors.toConstructorCheck.headerVEnv := VEnv.addConstVals_le hloweredTypes
   have hbaseFresh : ∀ name ∈ familyNames
       (E.production.loweredDecl.types.drop sourceDecl.types.length),
       (ves.venv (if isUnsafe then .unsafe else .safe)).constants name = none := by
@@ -140,15 +140,15 @@ theorem NestedValidatedRunResult.restorableNames_fresh
   have hrecursorValues : E.production.production.entries.map Prod.snd =
       E.production.compilationInstance.recursors :=
     E.production.production.canonicalRecursors
-  rw [hrecursorValues, E.production.constructors.completed.contextVEnv]
+  rw [hrecursorValues, E.production.constructors.toConstructorCheck.contextVEnv]
     at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
   simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.production.compilationInstance.recursors,
-      E.production.constructors.completed.ctorVEnv.constants recursor.name = none :=
+      E.production.constructors.toConstructorCheck.ctorVEnv.constants recursor.name = none :=
     hrecursorsFresh.2
   have hbaseCtorLE : (ves.venv (if isUnsafe then .unsafe else .safe)) ≤
-      E.production.constructors.completed.ctorVEnv :=
+      E.production.constructors.toConstructorCheck.ctorVEnv :=
     hbaseLE.trans (VEnv.addConstVals_le hloweredCtors)
   have hrecBase : ∀ t ∈ E.production.loweredDecl.types,
       (ves.venv (if isUnsafe then .unsafe else .safe)).constants (t.name.str "rec") = none := by
@@ -172,7 +172,7 @@ theorem NestedValidatedRunResult.restorableNames_fresh
         E.production.compilationInstance.recursors :=
       List.mem_map.mpr ⟨owner, List.mem_finRange owner, rfl⟩
     have := hctorFresh _ hmem
-    change E.production.constructors.completed.ctorVEnv.constants
+    change E.production.constructors.toConstructorCheck.ctorVEnv.constants
       (E.production.compilationInstance.recursorName owner) = none at this
     rw [hname] at this
     exact VEnv.LE.constants_eq_none_left hbaseCtorLE this

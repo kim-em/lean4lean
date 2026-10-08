@@ -6,9 +6,9 @@ import Lean4Lean.Verify.Inductive.Rules.Translation
 
 /-! Assembly of the completed rule translation from the closed RHS translations.
 
-`CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation` (in
+`RecursorCheck.canonicalCompletedRuleTranslation` (in
 `CompletedRuleTranslation`) asks for the
-full `CompletedRuleTranslationResult` of a completed recursor run.  Everything
+full `RuleTranslations` of a completed recursor run.  Everything
 except the translation of each installed rule's closed right-hand side to the
 generator's equation right-hand side is derived here:
 
@@ -82,13 +82,13 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The single remaining input: every installed rule's closed right-hand side
 translates to the generator's equation right-hand side at its flattened
 constructor position. -/
-def CompletedRecursorPhasesResult.RuleRhsTranslations
-    (H : CompletedRecursorPhasesResult R outEnv) : Prop :=
+def RecursorCheck.RuleRhsTranslations
+    (H : RecursorCheck R outEnv) : Prop :=
   ∀ owner (howner : owner < H.entries.length) (i : Nat)
     (hi : i < (H.generated.entry owner howner).info.rules.length)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size),
@@ -97,29 +97,29 @@ def CompletedRecursorPhasesResult.RuleRhsTranslations
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs
 
 /-- The generator body translations follow from the closed RHS translations. -/
-theorem CompletedRecursorPhasesResult.generatorBodyTranslations_of
-    (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations) :
-    H.GeneratorBodyTranslations := by
+theorem RecursorCheck.generatorBodyTranslations_of
+    (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
+    H.EquationBodyTranslations := by
   intro owner howner i hctor hk
   rcases H.generatedRuleAlignment owner howner i hctor with ⟨A⟩
   exact ⟨A, A.generatorBodyTranslationsOfClosedRhs hk
     (Hrhs owner howner i A.sourceRule_lt hk)⟩
 
-theorem CompletedRecursorPhasesResult.recInfos_size_eq_source
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.recInfos_size_eq_source
+    (H : RecursorCheck R outEnv) :
     H.recInfos.size = indTypes.size := H.sourceFamilyCount
 
-theorem CompletedRecursorPhasesResult.constructors_size_offset
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.constructors_size_offset
+    (H : RecursorCheck R outEnv) :
     H.generationSignature.constructors.size = recursorMinorOffset indTypes indTypes.size := by
   change H.consumedGeneration.signature.constructors.size = _
   rw [H.consumedGeneration.constructorCount]
-  exact H.toCompletedRecursorConstruction.ownedConstructors_length_offset
+  exact H.toRecursorConstruction.ownedConstructors_length_offset
 
 /-- The generated constructor at a flattened source position is owned by that
 position's family. -/
-theorem CompletedRecursorPhasesResult.generatedConstructor_owner
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.generatedConstructor_owner
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < indTypes.size)
     (l : Nat) (hl : l < indTypes[owner]!.ctors.length)
     (hk : recursorMinorOffset indTypes owner + l < H.generationSignature.constructors.size) :
@@ -127,26 +127,26 @@ theorem CompletedRecursorPhasesResult.generatedConstructor_owner
       owner := by
   have hrec : owner < H.recInfos.size := by rw [H.recInfos_size_eq_source]; exact howner
   have hlocal : l < H.origins.minorTypes[owner]!.size := by
-    rw [H.toCompletedRecursorConstruction.minorTypes_size owner hrec]; exact hl
+    rw [H.toRecursorConstruction.minorTypes_size owner hrec]; exact hl
   obtain ⟨index, hindex, hown, -, -, -⟩ := H.consumedGeneration.sourceOrigins owner hrec l hlocal
   have : H.generationSignature.constructors[recursorMinorOffset indTypes owner + l] =
       H.consumedGeneration.signature.constructors[index] := by
     simp only [Fin.getElem_fin, hindex]; rfl
   rw [this]; exact hown
 
-theorem CompletedRecursorPhasesResult.ownedConstructors_length_eq
-    (H : CompletedRecursorPhasesResult R outEnv) :
+theorem RecursorCheck.ownedConstructors_length_eq
+    (H : RecursorCheck R outEnv) :
     decl.ownedConstructors.length = H.generationSignature.constructors.size := by
   change _ = H.consumedGeneration.signature.constructors.size
   rw [H.consumedGeneration.constructorCount]
 
 /-- The installed rule names the generated constructor at its flattened
 position. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.ruleCtor_eq
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.ruleCtor_eq
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).ctor =
       (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).name := by
@@ -167,11 +167,11 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.ruleCtor_eq
   exact hsource.trans hname.symm
 
 /-- The installed rule's field count is the generated constructor's. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.ruleNFields_eq
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.ruleNFields_eq
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).nfields =
       (H.generationSignature.constructors[recursorMinorOffset indTypes owner + i]).fields.length := by
@@ -180,8 +180,8 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.ruleNFields_eq
 
 /-- The generated constructors owned by a family form the contiguous block of
 its source constructors. -/
-theorem CompletedRecursorPhasesResult.ownedConstructors_map_val
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.ownedConstructors_map_val
+    (H : RecursorCheck R outEnv)
     (o : Fin H.generationSignature.families.size) (howner : o.val < H.entries.length) :
     (H.generationSignature.ownedConstructors o).map Fin.val =
       List.range' (recursorMinorOffset indTypes o.val)
@@ -203,10 +203,10 @@ theorem CompletedRecursorPhasesResult.ownedConstructors_map_val
   have hk' : k.val < decl.ownedConstructors.length := by
     rw [H.ownedConstructors_length_eq]; exact k.isLt
   obtain ⟨o', hrec', l', hlocal', hkEq⟩ :=
-    H.toCompletedRecursorConstruction.flatMinorIndex k.val hk'
+    H.toRecursorConstruction.flatMinorIndex k.val hk'
   have hsrc' : o' < indTypes.size := by rw [← H.recInfos_size_eq_source]; exact hrec'
   have hl' : l' < indTypes[o']!.ctors.length := by
-    rw [← H.toCompletedRecursorConstruction.minorTypes_size o' hrec']; exact hlocal'
+    rw [← H.toRecursorConstruction.minorTypes_size o' hrec']; exact hlocal'
   have hk2 : recursorMinorOffset indTypes o' + l' < H.generationSignature.constructors.size :=
     hkEq ▸ k.isLt
   have hown := H.generatedConstructor_owner o' hsrc' l' hl' hk2
@@ -226,8 +226,8 @@ theorem CompletedRecursorPhasesResult.ownedConstructors_map_val
     exact hu.1
 
 /-- Rule coverage of one installed recursor against the canonical generation. -/
-theorem CompletedRecursorPhasesResult.ruleRealizations
-    (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations)
+theorem RecursorCheck.ruleRealizations
+    (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations)
     (o : Fin H.generationSignature.families.size) (howner : o.val < H.entries.length) :
     List.Forall₂ (InductiveSignature.RuleRealization H.canonicalGeneration H.outVEnv
         (H.generated.entry o.val howner).info.levelParams)
@@ -258,8 +258,8 @@ theorem CompletedRecursorPhasesResult.ruleRealizations
     exact Hrhs o.val howner j hj' hk
 
 /-- Every installed recursor entry realizes the canonical generation. -/
-theorem CompletedRecursorPhasesResult.entryRealizations
-    (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations) :
+theorem RecursorCheck.entryRealizations
+    (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
     List.Forall₂ (InductiveSignature.RecursorEntryRealization H.canonicalGeneration H.outVEnv)
       (List.finRange H.generationSignature.families.size) H.entries := by
   apply List.forall₂_of_getElem (by simp [H.entries_length_eq])
@@ -278,9 +278,9 @@ theorem CompletedRecursorPhasesResult.entryRealizations
 /-- The second junction: given the closed RHS translations, the completed
 recursor phase determines the full rule translation result, with the
 canonical generation's equations as the rule list. -/
-theorem CompletedRecursorPhasesResult.completedRuleTranslation_of
-    (H : CompletedRecursorPhasesResult R outEnv) (Hrhs : H.RuleRhsTranslations) :
-    Nonempty (CompletedRuleTranslationResult H) := by
+theorem RecursorCheck.completedRuleTranslation_of
+    (H : RecursorCheck R outEnv) (Hrhs : H.RuleRhsTranslations) :
+    Nonempty (RuleTranslations H) := by
   have hrulesWF := H.equationsWF (H.generatorBodyTranslations_of Hrhs)
   refine ⟨{ rules := H.canonicalGeneration.equations
             rulesWF := hrulesWF
@@ -309,15 +309,15 @@ namespace VerifyInductive
 metadata witness. No rule, telescope, or equation witness is chosen by the
 caller. Source nonemptiness is needed only when forming the installation
 certificate. -/
-theorem CompletedRecursorPhasesResult.canonicalCompletedRuleTranslation
+theorem RecursorCheck.canonicalCompletedRuleTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
-    Nonempty (CompletedRuleTranslationResult H) :=
+    (H : RecursorCheck R outEnv) :
+    Nonempty (RuleTranslations H) :=
   H.completedRuleTranslation_of H.ruleRhsTranslations
 
 end VerifyInductive

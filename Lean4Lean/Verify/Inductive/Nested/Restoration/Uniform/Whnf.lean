@@ -27,7 +27,7 @@ exact validated nested run.
 * `NestedValidatedRunResult.whnfHitOKFacts`: the resulting `WhnfPreservesParamUniform`
   (`Nested/Restoration/Uniform/Recursors.lean`).
 * `NestedValidatedRunResult.hitShapeInputs_of`: the non-`whnf` inputs
-  `CompletedRecursorConstruction.ParamUniformDeclarations` at `E.uniformHeads`.
+  `RecursorConstruction.ParamUniformDeclarations` at `E.uniformHeads`.
 * `NestedValidatedRunResult.recursorHitShape'`: the hit shape of the lowered
   recursor types and rule right-hand sides at the auxiliary heads, from the run
   alone.
@@ -802,8 +802,8 @@ theorem NestedValidatedRunResult.generatedFamilyType_forall
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
@@ -1287,7 +1287,7 @@ recursor pass, derived from the run alone:
 
 * parameter declarations: translated in the source environment, where the
   heads are fresh and every registered projection names an old structure
-  (`CompletedRecursorConstruction.paramDecls_hitOK`, `projHitOK_of_old`);
+  (`RecursorConstruction.paramDecls_hitOK`, `projHitOK_of_old`);
 * family headers: translated in the source environment
   (`NestedValidatedRunResult.familyType_tr`);
 * constructor types: head types for `E.uniformHeads`
@@ -1299,12 +1299,12 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.toCompletedRecursorConstruction.ParamUniformDeclarations
+    E.production.production.toRecursorConstruction.ParamUniformDeclarations
       E.uniformHeads := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh := E.hitHeads_fresh wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
-      E.production.production.toCompletedRecursorConstruction.localContext.env.find?
+      E.production.production.toRecursorConstruction.localContext.env.find?
         n = some ci := by
     intro n ci h
     have := E.ctorEnv_preserves wf h
@@ -1328,7 +1328,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     rw [getElem!_pos E.production.indTypes i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_⟩
-  · refine E.production.production.toCompletedRecursorConstruction.paramDecls_hitOK
+  · refine E.production.production.toRecursorConstruction.paramDecls_hitOK
       (fun n hn => ?_) (fun s info h => ?_)
     · rw [E.production_initialEnv]
       cases hc : (ves.venv sf).constants n with
@@ -1352,7 +1352,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     obtain ⟨body, hl, hb⟩ := E.ctorTypes_headType wf Hsources _ (hmem i hi) ctor hctor
     rw [E.statsLevels, E.statsParamsSize, hnp]
     exact ⟨body, hl.leadingBinders, hb⟩
-  · exact E.production.production.toCompletedRecursorConstruction.recursorNames_not_mem
+  · exact E.production.production.toRecursorConstruction.recursorNames_not_mem
       (fun _ hh => E.hitHeads_subset hh) hnodup
 
 /-- **Hit shape of the lowered recursor type and rule right-hand sides of an

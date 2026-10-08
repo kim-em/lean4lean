@@ -14,7 +14,7 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration.Uniform.Whnf
   environment: old structures, absent from the restorable names.
 * Generated recursor types (`recursorProjNames`): the executable recursor type
   satisfies the projection condition `ProjsOK (projAvoidsHeads env E.uniformHeads)` of
-  the hit-shape chain (`CompletedRecursorConstruction.recursorTypeProjsOK`,
+  the hit-shape chain (`RecursorConstruction.recursorTypeProjsOK`,
   the projection component of `recursorTypeHitShape`, which the hit-shape
   chain drops). Its translation is the canonical recursor type, which hence
   neither projects out of a head (in particular an auxiliary family) nor out
@@ -287,12 +287,12 @@ section Assembly
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
-namespace CompletedRecursorConstruction
+namespace RecursorConstruction
 
-variable (H : CompletedRecursorConstruction R)
+variable (H : RecursorConstruction R)
 
 /-- **The projection condition of one generated minor premise type**: the
 projection component of `minorHitShape` (field declarations, induction
@@ -560,7 +560,7 @@ theorem recursorTypeProjsOK (I : H.ParamUniformDeclarations heads)
 
 end Outer
 
-end CompletedRecursorConstruction
+end RecursorConstruction
 
 end Assembly
 
@@ -643,42 +643,42 @@ theorem NestedValidatedRunResult.recursorProjNames_of
       (E.production.production.canonicalGeneration.recursorType owner).projNamesAvoid
         (compilationRestoration sourceDecl auxiliaries).restorableNames = true := by
   intro owner
-  have hfam := E.production.production.toCompletedRecursorConstruction.consumedGeneration.familyCount
+  have hfam := E.production.production.toRecursorConstruction.consumedGeneration.familyCount
   have howner : owner.val < E.production.indTypes.size := by
     have := owner.isLt
-    simp only [CompletedRecursorConstruction.generationSignature] at this
+    simp only [RecursorConstruction.generationSignature] at this
     omega
-  have hrecSize : E.production.production.toCompletedRecursorConstruction.recInfos.size =
+  have hrecSize : E.production.production.toRecursorConstruction.recInfos.size =
       E.production.indTypes.size := by
-    rw [E.production.production.toCompletedRecursorConstruction.cardinality.records]
+    rw [E.production.production.toRecursorConstruction.cardinality.records]
     simpa using (Lean4Lean.VerifyInductive.TrInductDeclCore.types_length
-      E.production.constructors.completed.core).symm
+      E.production.constructors.toConstructorCheck.core).symm
   have hrec : owner.val <
-      E.production.production.toCompletedRecursorConstruction.recInfos.size := by
+      E.production.production.toRecursorConstruction.recInfos.size := by
     omega
-  have htr := E.production.production.toCompletedRecursorConstruction.canonicalTypeTranslations
+  have htr := E.production.production.toRecursorConstruction.canonicalTypeTranslations
     owner.val howner
-  have hnative : (E.production.production.toCompletedRecursorConstruction.nativeTarget
+  have hnative : (E.production.production.toRecursorConstruction.nativeTarget
       owner.val).type =
       E.production.production.canonicalGeneration.recursorType owner := by
-    simp only [CompletedRecursorConstruction.nativeTarget, dif_pos owner.isLt,
+    simp only [RecursorConstruction.nativeTarget, dif_pos owner.isLt,
       Instance.recursor]
     rfl
   rw [hnative] at htr
   have W := E.whnfHitOKFacts wf Hsources
   rw [← E.statsLevels] at W
-  have hsrc := E.production.production.toCompletedRecursorConstruction.recursorTypeProjsOK
+  have hsrc := E.production.production.toRecursorConstruction.recursorTypeProjsOK
     (E.hitShapeInputs_of wf Hsources) W owner.val hrec
   have h1 := htr.projNamesOK_of_source hsrc VLCtx.ProjNamesOK.nil
   have h2 := htr.targetProjsRegistered
-    E.production.constructors.completed.context.checking.tr.wf.ordered trivial
+    E.production.constructors.toConstructorCheck.context.checking.tr.wf.ordered trivial
     VLCtx.ProjNamesOK.nil
   have hheadNames : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
       familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) := by
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
   refine (h1.and h2).projNamesAvoid fun S ⟨hhit, info, hinfo⟩ hmem => ?_
-  rw [E.production.constructors.completed.contextVEnv] at hinfo
+  rw [E.production.constructors.toConstructorCheck.contextVEnv] at hinfo
   rcases VEnv.addProjections_iff.mp hinfo with ⟨entry, hentry, rfl, -⟩ | hbase
   · simp only [VInductDecl.projectionEntries, List.mem_filterMap] at hentry
     obtain ⟨t, ht, hsome⟩ := hentry
@@ -698,8 +698,8 @@ theorem NestedValidatedRunResult.recursorProjNames_of
         exact (List.nodup_append.1 hnodup).2.2 _ h1 _ h2 rfl
     · cases hsome
   · rw [VEnv.addEliminators_projections,
-      VEnv.addConstVals_projections_eq E.production.constructors.completed.core.ctorsAdded,
-      VEnv.addConstVals_projections_eq E.production.constructors.completed.core.typesAdded,
+      VEnv.addConstVals_projections_eq E.production.constructors.toConstructorCheck.core.ctorsAdded,
+      VEnv.addConstVals_projections_eq E.production.constructors.toConstructorCheck.core.typesAdded,
       E.production_initialEnv] at hbase
     exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
 

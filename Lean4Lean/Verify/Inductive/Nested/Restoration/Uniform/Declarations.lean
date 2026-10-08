@@ -12,13 +12,13 @@ constructors):
 * `NestedValidatedRunResult.auxHeadsFacts`: the auxiliary heads are fresh in
   the source environment (and after the source headers are added), lie in the
   reserved `_nested` namespace, and contain every key of `aux2nested`.
-* Ingredients of `CompletedRecursorConstruction.ParamUniformDeclarations` (assembled at
+* Ingredients of `RecursorConstruction.ParamUniformDeclarations` (assembled at
   the head set `E.uniformHeads` by `NestedValidatedRunResult.hitShapeInputs_of` in
   `Nested/Restoration/Uniform/Whnf.lean`):
   - `NestedValidatedRunResult.familyHeadersAvoid`: headers are not lowered,
     and both source and auxiliary headers are translated in the source
     environment, where the heads are fresh.
-  - `CompletedRecursorConstruction.paramDecls_of_fresh` and
+  - `RecursorConstruction.paramDecls_of_fresh` and
     `paramDecls_hitOK`: the parameters are declarations of the source
     context, translated in the source environment where the heads are fresh
     (`TrExprS.sourceAvoidsFresh`) and only its structures are registered
@@ -29,7 +29,7 @@ constructors):
     the source translations for the source families, the native payload
     `NestedGeneratedFamilyNativeSources` for the generated ones), so
     `LoweredConstructorMapping.hitShapeTele` applies.
-  - `CompletedRecursorConstruction.recursorNames_not_mem`: from the
+  - `RecursorConstruction.recursorNames_not_mem`: from the
     distinctness of family and recursor names.
 * `NestedValidatedRunResult.normalizedTotal_of`: `Restoration.expr` is total
   on every normalized constructor type of the compilation signature. The
@@ -678,7 +678,7 @@ section Completed
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 theorem familyNames_drop_subset {types : List VInductiveType} {k : Nat} {name : Name}
@@ -686,7 +686,7 @@ theorem familyNames_drop_subset {types : List VInductiveType} {k : Nat} {name : 
   obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 h
   exact List.mem_flatMap.2 ⟨t, List.mem_of_mem_drop ht, hn⟩
 
-theorem CompletedRecursorConstruction.indTypeName_eq (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.indTypeName_eq (H : RecursorConstruction R)
     {i : Nat} (hi : i < decl.types.length) :
     (decl.types[i]'hi).name = indTypes[i]!.name := by
   have hrec : i < H.recInfos.size := by rw [H.recInfos_size_eq]; exact hi
@@ -699,8 +699,8 @@ theorem CompletedRecursorConstruction.indTypeName_eq (H : CompletedRecursorConst
 /-- **Recursor names are not heads**, when the heads are family or
 constructor names of the declaration and the family names are distinct from
 the recursor names. -/
-theorem CompletedRecursorConstruction.recursorNames_not_mem
-    (H : CompletedRecursorConstruction R) {heads : List Name}
+theorem RecursorConstruction.recursorNames_not_mem
+    (H : RecursorConstruction R) {heads : List Name}
     (hheads : ∀ h ∈ heads, h ∈ familyNames decl.types)
     (hnodup : (familyNames decl.types ++
       decl.types.map (fun t => t.name.str "rec")).Nodup) :
@@ -749,8 +749,8 @@ theorem ContextWF.declProjsOK {c : AddInductive.Context} (Hc : ContextWF c)
 declarations of the header check, translated before any family of the block
 is installed, so they mention no head fresh in the source environment and
 project only out of structures registered there. -/
-theorem CompletedRecursorConstruction.paramDecls_hitOK
-    (H : CompletedRecursorConstruction R) {env : Environment} {heads : List Name}
+theorem RecursorConstruction.paramDecls_hitOK
+    (H : RecursorConstruction R) {env : Environment} {heads : List Name}
     (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none)
     (hproj : ∀ s info, sourceEnv.projections s info → projAvoidsHeads env heads s) :
     ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
@@ -797,8 +797,8 @@ theorem abstractForallContext_headsApplied {heads : List Name} {n k : Nat}
 constructor's field telescope over its checked result, with the parameters
 abstracted) has hit arity, given the hit shape of the lowered constructor
 types. -/
-theorem CompletedRecursorConstruction.minorSourceHitArity
-    (H : CompletedRecursorConstruction R) {heads : List Name}
+theorem RecursorConstruction.minorSourceHitArity
+    (H : RecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
       Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (owner : Nat) (howner : owner < H.recInfos.size)
@@ -850,8 +850,8 @@ theorem CompletedRecursorConstruction.minorSourceHitArity
 
 /-- The field domains and result indices selected for a consumed constructor
 are head-applied. -/
-theorem CompletedRecursorConstruction.minorReplayHeadsApplied
-    (H : CompletedRecursorConstruction R) {heads : List Name}
+theorem RecursorConstruction.minorReplayHeadsApplied
+    (H : RecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
       Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
@@ -870,8 +870,8 @@ theorem CompletedRecursorConstruction.minorReplayHeadsApplied
 
 /-- The common parameter domains mention no name that is fresh in the source
 environment. -/
-theorem CompletedRecursorConstruction.paramsFree_of_fresh
-    (_H : CompletedRecursorConstruction R) {heads : List Name}
+theorem RecursorConstruction.paramsFree_of_fresh
+    (_H : RecursorConstruction R) {heads : List Name}
     (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none) :
     ∀ A ∈ R.parameterScope.toCtx, A.containsAnyConst heads = false := by
   have hwf := R.sourceContext.mlctx_wf.tr.wf
@@ -884,8 +884,8 @@ theorem CompletedRecursorConstruction.paramsFree_of_fresh
 /-- **Every normalized constructor type of the consumed generation signature
 is head-applied** at the parameter count and universe arity of the
 construction. -/
-theorem CompletedRecursorConstruction.normalizedHeadsApplied
-    (H : CompletedRecursorConstruction R) {heads : List Name}
+theorem RecursorConstruction.normalizedHeadsApplied
+    (H : RecursorConstruction R) {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
       Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
     (hlit : ∀ l : Literal, (Expr.lit l).AvoidsConsts heads)
@@ -1017,8 +1017,8 @@ theorem NestedValidatedRunResult.loweredFamilyMappings
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)

@@ -25,7 +25,7 @@ of the minor premises, so complete avoidance is false; the argument is:
   that every occurrence of `names` in `e` carries the levels `ls`. Every
   constant of the recursor-pass environment has a type avoiding the auxiliary
   constructor names, so the environment condition holds at any level list.
-* `CompletedRecursorConstruction.ruleRhsTrail`: the trailing provenance chain
+* `RecursorConstruction.ruleRhsTrail`: the trailing provenance chain
   (the counterpart of `ruleRhsHitShape`) for the predicate
   `Expr.TrailingArgs heads np (Expr.ParamUniform names [] ls)`: the `whnf` regions
   R1 to R3, the constructor field domains, the motives, the major premises and
@@ -858,7 +858,7 @@ section TrailAssembly
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
 /-- **Inputs of the trailing-argument provenance** of a completed recursor
@@ -869,8 +869,8 @@ carries): parameter declarations, family headers and constructor types avoid
 parameter telescope, and the family names of the majors are not in `names`.
 The generated recursor names may be in `names`: they occur in the rule
 right-hand sides only at the heads of the recursive calls. -/
-structure CompletedRecursorConstruction.TrailInputs
-    (H : CompletedRecursorConstruction R) (names : List Name) (ls : List Level) : Prop where
+structure RecursorConstruction.TrailInputs
+    (H : RecursorConstruction R) (names : List Name) (ls : List Level) : Prop where
   paramDecls : ∀ fv ∈ H.params.fvars, ∀ d, H.localContext.lctx.find? fv = some d →
     d.ParamUniformIn H.localContext.env names [] ls ∧ d.type.AvoidsConsts names
   familyHeaders : ∀ i, i < indTypes.size → (indTypes[i]!.type).AvoidsConsts names ∧
@@ -882,9 +882,9 @@ structure CompletedRecursorConstruction.TrailInputs
   familyNames : ∀ i, i < H.recInfos.size → ∀ n lv, stats.indConsts[i]! = .const n lv →
     n ∉ names
 
-namespace CompletedRecursorConstruction
+namespace RecursorConstruction
 
-variable (H : CompletedRecursorConstruction R)
+variable (H : RecursorConstruction R)
 
 private theorem hQ {names : List Name} {ls : List Level} :
     ∀ (ys : List FVarId) x d, Expr.ParamUniform names [] ls x →
@@ -1110,7 +1110,7 @@ theorem minorTrail {names : List Name} {ls : List Level} (I : H.TrailInputs name
     cases hfind
     exact Expr.TrailingArgs.of_hitShape_nil hDshape
 
-end CompletedRecursorConstruction
+end RecursorConstruction
 
 end TrailAssembly
 
@@ -1128,12 +1128,12 @@ section TrailAssembly2
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
-namespace CompletedRecursorConstruction
+namespace RecursorConstruction
 
-variable (H : CompletedRecursorConstruction R) {names : List Name} {ls : List Level}
+variable (H : RecursorConstruction R) {names : List Name} {ls : List Level}
 
 /-- Index declarations of every family (region R1). -/
 theorem indexDeclNil (I : H.TrailInputs names ls)
@@ -1370,7 +1370,7 @@ theorem ruleRhsTrail (I : H.TrailInputs names ls)
         exact ⟨i, fv, n, ty, bi, kind, hfind, (I.paramDecls y hy _ hfind).2⟩
     exact key _ H.params.expressions _
 
-end CompletedRecursorConstruction
+end RecursorConstruction
 
 end TrailAssembly2
 
@@ -1384,13 +1384,13 @@ open Kernel
 namespace VerifyInductive
 
 /-- Major family names are not constructor names. -/
-theorem CompletedRecursorConstruction.familyNames_not_mem
+theorem RecursorConstruction.familyNames_not_mem
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {names : List Name}
+    (H : RecursorConstruction R) {names : List Name}
     (hnames : ∀ n ∈ names, n ∈ decl.types.flatMap (fun t => t.ctors.map (·.name)))
     (hnodup : (InductiveSignature.familyNames decl.types).Nodup) :
     ∀ i, i < H.recInfos.size → ∀ n lv, stats.indConsts[i]! = .const n lv → n ∉ names := by
@@ -1403,13 +1403,13 @@ theorem CompletedRecursorConstruction.familyNames_not_mem
 
 /-- The parameter declarations of a completed recursor construction avoid every
 name fresh in the source environment and satisfy the projection condition. -/
-theorem CompletedRecursorConstruction.paramDecls_trail
+theorem RecursorConstruction.paramDecls_trail
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) {env : Environment} {heads : List Name}
+    (H : RecursorConstruction R) {env : Environment} {heads : List Name}
     {ls : List Level}
     (hfresh : ∀ name ∈ heads, sourceEnv.constants name = none)
     (hproj : ∀ s info, sourceEnv.projections s info → projAvoidsHeads env heads s) :
@@ -1692,13 +1692,13 @@ theorem NestedValidatedRunResult.trailInputs_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.toCompletedRecursorConstruction.TrailInputs
+    E.production.production.toRecursorConstruction.TrailInputs
       E.auxCtorNames (badLevels lparams) := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh : ∀ n ∈ E.auxCtorNames, sourceProdEnv.find? n = none :=
     fun n hn => E.hitHeads_fresh wf n (E.auxCtorNames_hitHeads n hn)
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
-      E.production.production.toCompletedRecursorConstruction.localContext.env.find?
+      E.production.production.toRecursorConstruction.localContext.env.find?
         n = some ci := by
     intro n ci h
     have := E.ctorEnv_preserves wf h
@@ -1722,7 +1722,7 @@ theorem NestedValidatedRunResult.trailInputs_of
     rw [getElem!_pos E.production.indTypes i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_⟩
-  · refine E.production.production.toCompletedRecursorConstruction.paramDecls_trail
+  · refine E.production.production.toRecursorConstruction.paramDecls_trail
       (fun n hn => ?_) (fun s info h => ?_)
     · rw [E.production_initialEnv]
       cases hc : (ves.venv sf).constants n with
@@ -1747,7 +1747,7 @@ theorem NestedValidatedRunResult.trailInputs_of
     obtain ⟨body, hl, -⟩ := E.ctorTypes_headType wf Hsources _ (hmem i hi) ctor hctor
     rw [E.statsParamsSize, hnp]
     exact ⟨body, hl.leadingBinders⟩
-  · refine E.production.production.toCompletedRecursorConstruction.familyNames_not_mem
+  · refine E.production.production.toRecursorConstruction.familyNames_not_mem
       (fun n hn => ?_) (List.nodup_append.1 hnodup).1
     obtain ⟨t, ht, hn⟩ := List.mem_flatMap.1 hn
     exact List.mem_flatMap.2 ⟨t, List.mem_of_mem_drop ht, hn⟩
@@ -1897,7 +1897,7 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxCtorNames
   rw [(C.generated.entry owner.val hi).rules_eq] at hrule'
   simp only [List.mem_map] at hrule'
   obtain ⟨blueprint, hmem, rfl⟩ := hrule'
-  obtain ⟨HT, HL⟩ := C.toCompletedRecursorConstruction.ruleRhsTrail
+  obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
     (E.trailInputs_of wf Hsources) (E.whnfHitOKFacts_auxCtorNames wf Hsources)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.production.stats.levels) blueprint hmem

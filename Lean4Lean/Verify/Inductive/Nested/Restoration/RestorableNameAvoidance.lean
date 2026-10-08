@@ -24,7 +24,7 @@ container constructor names with the container prefix replaced by
   (`TrailingArgs.toHitTrailAvoids_two`).
 * `NestedValidatedRunResult.loweredRules_projsOK`: the lowered rules project
   out of no restorable name. The projection condition of the hit-shape chain
-  (`CompletedRecursorConstruction.ruleRhsProjsOK`) excludes the auxiliary
+  (`RecursorConstruction.ruleRhsProjsOK`) excludes the auxiliary
   families and constructors; the translation of a rule in the recursor-pass
   environment registers only base structures and lowered families, which
   excludes the recursor names.
@@ -247,12 +247,12 @@ section RuleProjs
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth
     sourceEnv indTypes ctorEnv}
 
-namespace CompletedRecursorConstruction
+namespace RecursorConstruction
 
-variable (H : CompletedRecursorConstruction R)
+variable (H : RecursorConstruction R)
 
 /-- **The projection condition of one rule blueprint**: its field
 declarations and its recursive-call templates satisfy the projection
@@ -455,7 +455,7 @@ theorem ruleRhsProjsOK {heads : List Name} (I : H.ParamUniformDeclarations heads
       H.localWF.findCDecl y (H.params.members y hy)
     exact ⟨_, hfind, (I.paramDecls y hy _ hfind).declProjsOK⟩
 
-end CompletedRecursorConstruction
+end RecursorConstruction
 
 end RuleProjs
 
@@ -512,13 +512,13 @@ theorem NestedValidatedRunResult.auxRecNames_fresh_ctorEnv
   let P := E.production.production
   have hwf : P.localContext.env.constants.WF := by
     rw [P.localExtends.env_eq]
-    exact E.production.constructors.completed.context.checking.tr.map_wf
+    exact E.production.constructors.toConstructorCheck.context.checking.tr.map_wf
   intro n hn
   obtain ⟨t, ht, rfl⟩ := List.mem_map.1 hn
   obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.1 (List.mem_of_mem_drop ht)
-  have hname := P.toCompletedRecursorConstruction.indTypeName_eq hi
-  have hrec : i < P.toCompletedRecursorConstruction.recInfos.size := by
-    rw [P.toCompletedRecursorConstruction.recInfos_size_eq]; exact hi
+  have hname := P.toRecursorConstruction.indTypeName_eq hi
+  have hrec : i < P.toRecursorConstruction.recInfos.size := by
+    rw [P.toRecursorConstruction.recInfos_size_eq]; exact hi
   have hent : i < P.entries.length := by rw [P.generated.length]; exact hrec
   have G := P.generated.entry i hent
   have hfresh := P.installed.entry_fresh hwf P.entries[i] (List.getElem_mem hent)
@@ -715,13 +715,13 @@ theorem NestedValidatedRunResult.trailInputs_auxRecNames
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
     (ls : List Level) :
-    E.production.production.toCompletedRecursorConstruction.TrailInputs
+    E.production.production.toRecursorConstruction.TrailInputs
       E.auxRecNames ls := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh : ∀ n ∈ E.auxRecNames, sourceProdEnv.find? n = none :=
     E.auxRecNames_fresh_source wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
-      E.production.production.toCompletedRecursorConstruction.localContext.env.find?
+      E.production.production.toRecursorConstruction.localContext.env.find?
         n = some ci := by
     intro n ci h
     have := E.ctorEnv_preserves wf h
@@ -744,7 +744,7 @@ theorem NestedValidatedRunResult.trailInputs_auxRecNames
     rw [getElem!_pos E.production.indTypes i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_⟩
-  · refine E.production.production.toCompletedRecursorConstruction.paramDecls_trail
+  · refine E.production.production.toRecursorConstruction.paramDecls_trail
       (fun n hn => ?_) (fun s info h => ?_)
     · rw [E.production_initialEnv]
       cases hc : (ves.venv sf).constants n with
@@ -771,11 +771,11 @@ theorem NestedValidatedRunResult.trailInputs_auxRecNames
     rw [E.statsParamsSize, hnp]
     exact ⟨body, hl.leadingBinders⟩
   · intro i hi n lv hn hmemN
-    have H := E.production.production.toCompletedRecursorConstruction
+    have H := E.production.production.toRecursorConstruction
     have hi' : i < E.production.loweredDecl.types.length := by
-      rw [← E.production.production.toCompletedRecursorConstruction.recInfos_size_eq]
+      rw [← E.production.production.toRecursorConstruction.recInfos_size_eq]
       exact hi
-    have h := E.production.production.toCompletedRecursorConstruction.validStats.indConstAt hi'
+    have h := E.production.production.toRecursorConstruction.validStats.indConstAt hi'
     rw [getElem!_def, h] at hn
     cases hn
     exact E.auxRecNames_not_familyNames wf Hsources hmemN
@@ -818,11 +818,11 @@ theorem NestedValidatedRunResult.loweredRulesAvoid_auxRecNames
     refine .of_env ?_ (fun a ha => by simp at ha)
     rw [E.recursorPassEnv]
     exact E.envHitShape_auxRecNames wf Hsources ls
-  obtain ⟨HT, HL⟩ := C.toCompletedRecursorConstruction.ruleRhsTrail
+  obtain ⟨HT, HL⟩ := C.toRecursorConstruction.ruleRhsTrail
     (E.trailInputs_auxRecNames wf Hsources (badLevels lparams)) (W _)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.production.stats.levels) blueprint hmem
-  obtain ⟨HT', -⟩ := C.toCompletedRecursorConstruction.ruleRhsTrail
+  obtain ⟨HT', -⟩ := C.toRecursorConstruction.ruleRhsTrail
     (E.trailInputs_auxRecNames wf Hsources (badLevels₂ lparams)) (W _)
     heads result.nparams owner.val howner
     (AddInductive.getRecLevels C.elimLevel E.production.stats.levels) blueprint hmem
@@ -879,7 +879,7 @@ theorem NestedValidatedRunResult.loweredRules_projsOK
     rw [(P.generated.entry owner.val hi).rules_eq] at hr
     simp only [List.mem_map] at hr
     obtain ⟨blueprint, hmem, rfl⟩ := hr
-    exact P.toCompletedRecursorConstruction.ruleRhsProjsOK (E.hitShapeInputs_of wf Hsources)
+    exact P.toRecursorConstruction.ruleRhsProjsOK (E.hitShapeInputs_of wf Hsources)
       W owner.val howner _ blueprint hmem
   -- registration of the projected structures
   obtain ⟨j, hj, hjrule⟩ := List.mem_iff_getElem.1 hrule'
@@ -892,7 +892,7 @@ theorem NestedValidatedRunResult.loweredRules_projsOK
     exact auxiliarySpecializations_headNames Haux Hexpansion
   refine (h1.and' h2).mono fun S ⟨hhit, info, hinfo⟩ hmem0 => ?_
   have hmem := D.restorableNames_subset D' S hmem0
-  rw [P.installed.projections_eq, E.production.constructors.completed.contextVEnv] at hinfo
+  rw [P.installed.projections_eq, E.production.constructors.toConstructorCheck.contextVEnv] at hinfo
   rcases VEnv.addProjections_iff.mp hinfo with ⟨entry, hentry, rfl, -⟩ | hbase
   · simp only [VInductDecl.projectionEntries, List.mem_filterMap] at hentry
     obtain ⟨t, ht, hsome⟩ := hentry
@@ -912,8 +912,8 @@ theorem NestedValidatedRunResult.loweredRules_projsOK
         exact (List.nodup_append.1 hnodup).2.2 _ h1 _ h2 rfl
     · cases hsome
   · rw [VEnv.addEliminators_projections,
-      VEnv.addConstVals_projections_eq E.production.constructors.completed.core.ctorsAdded,
-      VEnv.addConstVals_projections_eq E.production.constructors.completed.core.typesAdded,
+      VEnv.addConstVals_projections_eq E.production.constructors.toConstructorCheck.core.ctorsAdded,
+      VEnv.addConstVals_projections_eq E.production.constructors.toConstructorCheck.core.typesAdded,
       E.production_initialEnv] at hbase
     exact E.baseProjection_not_restorable wf hadded Haux Hexpansion hnodup hbase hmem
 

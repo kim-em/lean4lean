@@ -512,7 +512,7 @@ def PrimitiveConstructorCorePhasesResult.complete
     {H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     (R : PrimitiveConstructorCorePhasesResult H outEnv) :
-    PrimitiveConstructorPhasesResult H outEnv where
+    PrimitiveConstructorCheck H outEnv where
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
   constructorTails := R.constructorTails
@@ -585,7 +585,7 @@ theorem AddInductive.primitiveConstructorPhases.WF
     ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : PrimitiveConstructorPhasesResult H outEnv, True := by
+        ∃ _ : PrimitiveConstructorCheck H outEnv, True := by
   exact (AddInductive.primitiveConstructorCorePhases.WF H Hshape hvisible).mono
     fun _ Hcore => by
       rcases Hcore with ⟨R, _⟩

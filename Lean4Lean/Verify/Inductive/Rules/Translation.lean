@@ -8,7 +8,7 @@ import Lean4Lean.Verify.Inductive.Rules.LhsTranslation
 /-! Translation of the generated iota rules to the generator's equations.
 
 The right-hand side of every installed recursor rule is a literal build of a
-retained blueprint (`CompletedRecursorPhasesResult.rulesLiteral`).  Its
+retained blueprint (`RecursorCheck.rulesLiteral`).  Its
 translation target is determined syntactically: every constructor of
 `TrExprS` fixes its output from the source syntax and the context, and only
 the typing side conditions of `app`, `lam`, `forallE` and `letE` carry
@@ -621,7 +621,7 @@ open Kernel
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 theorem recursorLevelLift {lparams : List Name} {elim : Level}
     (ha : AddInductive.AdmissibleElimLevel lparams elim)
@@ -667,7 +667,7 @@ theorem recLevelsTranslationOf {lparams : List Name} {elim : Level} {levels : Li
 
 /-- The minor premise of local rule `i` of owner `o` is the flat minor binder
 at the canonical offset. -/
-theorem CompletedRecursorConstruction.flatMinorFVar (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.flatMinorFVar (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.bindings.flatMinors.fvars.length,
       H.recInfos[o]!.minors[i]! =
@@ -702,7 +702,7 @@ theorem CompletedRecursorConstruction.flatMinorFVar (H : CompletedRecursorConstr
   rw [getElem!_pos H.recInfos o ho, getElem!_pos _ i hrow, ← hget']
   simp
 
-theorem CompletedRecursorConstruction.recAppEq (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.recAppEq (H : RecursorConstruction R)
     (fn : Lean.Expr) :
     mkAppN (mkAppN (mkAppN fn stats.params) (H.recInfos.map (·.motive)))
         (H.recInfos.flatMap (·.minors)) =
@@ -715,7 +715,7 @@ theorem CompletedRecursorConstruction.recAppEq (H : CompletedRecursorConstructio
   rw [Lean.Expr.mkAppN_eq_mkAppList, Lean.Expr.mkAppN_eq_mkAppList, Lean.Expr.mkAppN_eq_mkAppList, h1, h2, h3]
   simp
 
-theorem CompletedRecursorConstruction.ruleCounts (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.ruleCounts (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
     (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size) :
     H.consumedGeneration.signature.constructors[recursorMinorOffset indTypes o + i].fields.length =
@@ -736,7 +736,7 @@ theorem CompletedRecursorConstruction.ruleCounts (H : CompletedRecursorConstruct
 
 /-- Every generated recursive call of a rule, closed over the fields and the
 outer binders, translates syntactically to the generator's recursive call. -/
-theorem CompletedRecursorConstruction.ruleCallSyn (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.ruleCallSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
     (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size)
     (Γdoms : List VExpr)
@@ -978,7 +978,7 @@ theorem CompletedRecursorConstruction.ruleCallSyn (H : CompletedRecursorConstruc
 generator's equation telescope, closes to a typed translation of the whole
 right-hand side: the binder domains are typed by the checked minor-premise
 telescope (`minorTranslation`) and the field template (`minorFieldsTemplate`). -/
-theorem CompletedRecursorConstruction.ruleRhsTypedOfResidual (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.ruleRhsTypedOfResidual (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size)
     (hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size)
     {env : VEnv} (hle : R.context.venv ≤ env) {res : Lean.Expr} {e₂ : VExpr}
@@ -1182,7 +1182,7 @@ theorem CompletedRecursorConstruction.ruleRhsTypedOfResidual (H : CompletedRecur
 `i` of owner `o` translates syntactically to the right-hand side of the
 consumed generation's equation for the constructor at the canonical minor
 offset. -/
-theorem CompletedRecursorConstruction.ruleRhsSyn (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.ruleRhsSyn (H : RecursorConstruction R)
     (o : Nat) (ho : o < H.recInfos.size) (i : Nat) (hlocal : i < H.origins.minorTypes[o]!.size) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size,
       TrExprSyn (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
@@ -1431,8 +1431,8 @@ theorem CompletedRecursorConstruction.ruleRhsSyn (H : CompletedRecursorConstruct
 syntactically (`TrExprSyn`, the typing-free shadow of `TrExprS`) to the
 right-hand side of the consumed generation's equation for the constructor at
 the canonical minor offset. -/
-theorem CompletedRecursorPhasesResult.ruleRhsSyn {outEnv : Environment}
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.ruleRhsSyn {outEnv : Environment}
+    (H : RecursorCheck R outEnv)
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
     ∃ hk : recursorMinorOffset indTypes o + i < H.consumedGeneration.signature.constructors.size,
@@ -1444,15 +1444,15 @@ theorem CompletedRecursorPhasesResult.ruleRhsSyn {outEnv : Environment}
     rw [← H.blueprints.rows_size o howner, ← H.generated_rules_length o ho]
     exact hi
   rw [H.rulesLiteral o ho i hi]
-  exact H.toCompletedRecursorConstruction.ruleRhsSyn o howner i hlocal
+  exact H.toRecursorConstruction.ruleRhsSyn o howner i hlocal
 
 /-- The right-hand side of every installed recursor rule has a typed
 translation in the installed environment.  The residual is typed by the
 production equation frame (`canonicalEquationFrame`), transported to the
 generator's equation telescope along `domains_defeq`; the binder domains are
 typed by `ruleRhsTypedOfResidual`. -/
-theorem CompletedRecursorPhasesResult.ruleRhsTyped {outEnv : Environment}
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.ruleRhsTyped {outEnv : Environment}
+    (H : RecursorCheck R outEnv)
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length) :
     ∃ X, TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
@@ -1477,7 +1477,7 @@ theorem CompletedRecursorPhasesResult.ruleRhsTyped {outEnv : Environment}
   generalize A.rule.sourceRhsBody.abstractList A.rule.binders = res at Htel He₂
   rw [H.rulesLiteral o ho i hi] at Htel
   rw [H.rulesLiteral o ho i hi]
-  exact H.toCompletedRecursorConstruction.ruleRhsTypedOfResidual o howner i hlocal hk
+  exact H.toRecursorConstruction.ruleRhsTypedOfResidual o howner i hlocal hk
     H.installed.le Htel He₂
 
 /-- The rule junction for right-hand sides: whenever the right-hand side of an
@@ -1485,8 +1485,8 @@ installed rule has some typed translation in the installed environment, its
 translation is the generator's equation right-hand side.  The target is fixed
 constructively by `ruleRhsSyn`; the hypothesis supplies only the typing side
 conditions of `TrExprS`. -/
-theorem CompletedRecursorPhasesResult.ruleRhsTranslation {outEnv : Environment}
-    (H : CompletedRecursorPhasesResult R outEnv)
+theorem RecursorCheck.ruleRhsTranslation {outEnv : Environment}
+    (H : RecursorCheck R outEnv)
     (o : Nat) (ho : o < H.entries.length)
     (i : Nat) (hi : i < (H.generated.entry o ho).info.rules.length)
     (htyped : ∃ X, TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
@@ -1501,9 +1501,9 @@ theorem CompletedRecursorPhasesResult.ruleRhsTranslation {outEnv : Environment}
 
 /-- The rule junction for right-hand sides, with no hypothesis: the right-hand
 side of every installed rule translates to the generator's equation (the form
-of `CompletedRecursorPhasesResult.RuleRhsTranslations`). -/
-theorem CompletedRecursorPhasesResult.ruleRhsTranslations {outEnv : Environment}
-    (H : CompletedRecursorPhasesResult R outEnv) :
+of `RecursorCheck.RuleRhsTranslations`). -/
+theorem RecursorCheck.ruleRhsTranslations {outEnv : Environment}
+    (H : RecursorCheck R outEnv) :
     ∀ owner (howner : owner < H.entries.length) (i : Nat)
       (hi : i < (H.generated.entry owner howner).info.rules.length)
       (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size),

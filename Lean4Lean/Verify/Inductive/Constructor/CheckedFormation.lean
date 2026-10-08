@@ -9,7 +9,7 @@ import Lean4Lean.Theory.Typing.ProjectionLemmas
 
 /-! # The constructor boundary and its source signature
 
-`ConstructorBoundary` is the data available once every constructor of a declaration is checked
+`CheckedFormation` is the data available once every constructor of a declaration is checked
 and declared, before any checker run in the projected environment: the header materialization,
 the checked constructor tails and the abstract translation. The source signature of the
 declaration (`sourceSignature`, whose model is `sourceSignature_models`) is computed from it, so
@@ -252,7 +252,7 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel InductiveSignature
 
-structure ConstructorBoundary (c : AddInductive.Context)
+structure CheckedFormation (c : AddInductive.Context)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (nparams : Nat) (isUnsafe : Bool) (depth : Nat)
     (sourceEnv : VEnv) (indTypes : Array InductiveType) where
@@ -432,14 +432,14 @@ theorem CheckedConstructorTailReplayAt.signatureConstructor
   rw [← htype]
   exact (hsource.trans henv trivial hclosed').symm
 
-namespace ConstructorBoundary
+namespace CheckedFormation
 variable {isUnsafe : Bool}
 
 /-- Constructor identities are unique in the actual production array as
 well as in its translated table. This identifies retained replay witnesses
 with the constructors visited by subsequent passes. -/
 theorem productionConstructorNames
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     (indTypes.toList.flatMap (·.ctors)).map Lean.Constructor.name =
       decl.constructorConstants.map VConstVal.name := by
   have names : ∀ {sources targets},
@@ -464,7 +464,7 @@ theorem productionConstructorNames
   exact names R.core.types
 
 theorem productionConstructorNames_nodup
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ((indTypes.toList.flatMap (·.ctors)).map Lean.Constructor.name).Nodup := by
   rw [R.productionConstructorNames]
   exact VEnv.addConstVals_names_nodup R.core.ctorsAdded
@@ -472,19 +472,19 @@ theorem productionConstructorNames_nodup
 /-- Shared source-universe parameters and family choices, before the
 eliminator's additional universe is introduced. -/
 noncomputable def sourceSignatureHeader
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) : InductiveSignature :=
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : InductiveSignature :=
   R.sourceMaterialized.signatureHeader
 
 theorem sourceSignatureHeader_params
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignatureHeader.params = R.params :=
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignatureHeader.params = R.params :=
   R.sourceHeaderParams
 
 theorem sourceSignatureHeader_params_length
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignatureHeader.params.length = decl.nparams :=
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignatureHeader.params.length = decl.nparams :=
   R.sourceMaterialized.signatureParams_length
 
 theorem sourceSignatureHeader_families
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     List.Forall₂ (fun f src =>
       f.name = src.name ∧ f.indices.length = src.numIndices ∧
       f.resultLevel = src.resultLevel ∧
@@ -510,7 +510,7 @@ theorem sourceSignatureHeader_families
 /-- Each checked source constructor supplies one constructor over the same
 source family table. Ordered source names identify the replay's exact target. -/
 theorem sourceSignatureHeader_constructor
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (i : Nat) (hi : i < decl.types.length)
     (j : Nat) (hj : j < decl.types[i].ctors.length) :
     ∃ ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size,
@@ -566,7 +566,7 @@ theorem sourceSignatureHeader_constructor
       ⟨indTypes[i], by simpa using Array.getElem_mem hip, List.getElem_mem hjp⟩, hreplay⟩
 
 theorem sourceSignatureHeader_ownedConstructor
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (pair : VInductiveType × VConstVal) (hpair : pair ∈ decl.ownedConstructors) :
     ∃ ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size,
       R.sourceSignatureHeader.families[ctor.owner].name = pair.1.name ∧
@@ -589,17 +589,17 @@ theorem sourceSignatureHeader_ownedConstructor
 /-- Choose each constructor once, in the declaration's exact flattened
 order. All later generation uses these same source-universe choices. -/
 noncomputable def sourceSignatureConstructor
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
     InductiveSignature.Constructor R.sourceSignatureHeader.families.size :=
   Classical.choose (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem i.isLt))
 
 noncomputable def sourceSignature
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) : InductiveSignature :=
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : InductiveSignature :=
   { R.sourceSignatureHeader with
     constructors := Array.ofFn R.sourceSignatureConstructor }
 
 theorem sourceSignatureConstructor_name
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
     (R.sourceSignatureConstructor i).name = decl.ownedConstructors[i].2.name :=
   (Classical.choose_spec
     (R.sourceSignatureHeader_ownedConstructor _ (List.getElem_mem i.isLt))).2.1
@@ -607,7 +607,7 @@ theorem sourceSignatureConstructor_name
 /-- The selected constructor keeps its source family's position, not just
 its name. Distinct installed header names determine the owner index. -/
 theorem sourceSignatureConstructor_owner
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length)
     (owner : Nat) (howner : owner < decl.types.length)
     (hfamily : decl.ownedConstructors[i].1 = decl.types[owner]) :
     (R.sourceSignatureConstructor i).owner.val = owner := by
@@ -633,12 +633,12 @@ theorem sourceSignatureConstructor_owner
   simpa only [List.getElem_map] using hname
 
 theorem sourceSignature_fieldType
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (field : Field R.sourceSignatureHeader.families.size) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (field : Field R.sourceSignatureHeader.families.size) :
     R.sourceSignature.fieldType k field = R.sourceSignatureHeader.fieldType k field := by
   cases field <;> rfl
 
 theorem sourceSignature_fieldTypes
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
     R.sourceSignature.fieldTypes ctor = R.sourceSignatureHeader.fieldTypes ctor := by
   unfold fieldTypes
   apply List.map_congr_left
@@ -646,13 +646,13 @@ theorem sourceSignature_fieldTypes
   exact R.sourceSignature_fieldType field.1
 
 theorem sourceSignature_constructorType
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (ctor : InductiveSignature.Constructor R.sourceSignatureHeader.families.size) :
     R.sourceSignature.constructorType ctor = R.sourceSignatureHeader.constructorType ctor := by
   simp only [constructorType, sourceSignature_fieldTypes]
   rfl
 
 theorem sourceSignature_fieldModel
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (field : Field R.sourceSignatureHeader.families.size) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (field : Field R.sourceSignatureHeader.families.size) :
     SignatureFieldModel env decl' R.sourceSignature ctx k field ↔
       SignatureFieldModel env decl' R.sourceSignatureHeader ctx k field := by
   cases field <;> rfl
@@ -660,7 +660,7 @@ theorem sourceSignature_fieldModel
 /-- Every selected source constructor keeps its exact production replay,
 including the literal tail used to determine fields and result indices. -/
 theorem sourceSignatureConstructor_replay
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
     ∃ production ∈ indTypes.toList.flatMap (·.ctors),
       SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
         decl.ownedConstructors[i].1 production decl.ownedConstructors[i].2
@@ -678,7 +678,7 @@ theorem sourceSignatureConstructor_replay
 this name. Global constructor freshness rules out a different source
 telescope hidden by the existential replay witness. -/
 theorem sourceSignature_replay_of_source
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length)
     (source : Constructor) (hsource : source ∈ indTypes.toList.flatMap (·.ctors))
     (hname : source.name = decl.ownedConstructors[i].2.name) :
     SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
@@ -695,7 +695,7 @@ theorem sourceSignature_replay_of_source
 /-- Arity comes from the exact retained replay of each selected constructor,
 not from comparing the types of a fully applied family. -/
 theorem sourceSignature_constructorArity
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ∀ ctor ∈ R.sourceSignature.constructors.toList,
       ctor.indices.length = R.sourceSignature.families[ctor.owner].indices.length := by
   intro ctor member
@@ -734,7 +734,7 @@ theorem sourceSignature_constructorArity
 /-- The complete checked source signature models the original declaration.
 Its normalization choices are fixed before recursor generation begins. -/
 private theorem sourceSignature_models_of_nonempty
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) (hnonempty : decl.types ≠ []) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (hnonempty : decl.types ≠ []) :
     R.sourceSignature.Models sourceEnv decl := by
   apply sourceModelsOfTables (s := R.sourceSignature)
     (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF R.core hnonempty
@@ -781,7 +781,7 @@ private theorem sourceSignature_models_of_nonempty
 /-- Source extraction is total even for an empty intermediate table; the
 public installation boundary separately enforces declaration nonemptiness. -/
 theorem sourceSignature_models
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignature.Models sourceEnv decl := by
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : R.sourceSignature.Models sourceEnv decl := by
   by_cases hempty : decl.types = []
   · have hfamilies : R.sourceSignature.families = #[] := by
       apply Array.eq_empty_of_size_eq_zero
@@ -800,14 +800,14 @@ theorem sourceSignature_models
 /-! ### The case eliminator certified at the constructor boundary -/
 
 theorem headerWF
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     R.headerVEnv.WF :=
   Lean4Lean.VerifyInductive.TrInductDeclCore.envTypesWF R.core
     (by rw [← R.sourceContextVEnv]; exact R.sourceContext.checking.tr.wf)
 
 /-- The family applications of the source signature are typed in the header environment. -/
 theorem sourceSignature_familyTypesWF_header
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     R.sourceSignature.FamilyTypesWF R.headerVEnv decl.uvars := by
   intro owner
   have henv := R.headerWF
@@ -855,12 +855,12 @@ theorem sourceSignature_familyTypesWF_header
 
 /-- The key of the declaration's case eliminator: its first family. -/
 noncomputable def caseKey
-    (_R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) : Name :=
+    (_R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) : Name :=
   (decl.types.head?.map (·.name)).getD default
 
 /-- The declaration's case schema: the source signature, without restoration. -/
 noncomputable def caseSchema
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     InductiveSignature.CaseSchema :=
   InductiveSignature.CaseSchema.ofCompilation decl R.sourceSignature []
 
@@ -868,7 +868,7 @@ open Classical in
 /-- The declaration's case eliminators: none for an empty declaration (which has no
 projections), its case schema under its key otherwise. -/
 noncomputable def caseEliminators
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     List (Name × InductiveSignature.CaseSchema) :=
   if decl.types = [] then [] else [(R.caseKey, R.caseSchema)]
 
@@ -881,7 +881,7 @@ private theorem mapM_expr_empty (l : List VExpr) :
 /-- Every piece of the source signature projects only out of structures registered at the
 constructor boundary. -/
 theorem caseSchema_projNamesRegistered
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (hdeclNe : decl.types ≠ []) :
     R.caseSchema.ProjNamesRegistered R.ctorVEnv R.caseKey := by
   have hsrcWF : sourceEnv.WF := by
@@ -952,7 +952,7 @@ theorem caseSchema_projNamesRegistered
 
 /-- The original families' declared headers are their normalized headers. -/
 theorem caseSchema_headerAgreement
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     R.caseSchema.HeaderAgreement sourceEnv decl := by
   refine ⟨R.sourceSignatureHeader.params, mapM_expr_empty _, fun owner => ?_⟩
   refine ⟨(R.sourceSignatureHeader.families[owner.val]'owner.isLt).indices, mapM_expr_empty _,
@@ -980,7 +980,7 @@ theorem caseSchema_headerAgreement
 
 /-- **The declaration's case eliminator is certified at the constructor boundary.** -/
 theorem caseEliminatorsWF
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock R.caseEliminators) := by
   refine ⟨R.headerVEnv, R.ctorVEnv, R.core.typesAdded, R.core.ctorsAdded, ?_⟩
   by_cases hne : decl.types = []
@@ -1001,7 +1001,7 @@ theorem caseEliminatorsWF
     | cons family families => simp [caseKey, htypes]
 
 private theorem caseIngredients
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ordinaryCaseIngredients sourceEnv decl R.caseEliminators := by
   by_cases hne : decl.types = []
   · exact .inl ⟨hne, by simp [caseEliminators, hne]⟩
@@ -1019,20 +1019,20 @@ private theorem caseIngredients
 
 /-- **The declaration's case eliminators are certified along every extension.** -/
 theorem caseEliminatorsCertified
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     decl.CaseEliminators sourceEnv (fun _ => False) R.caseEliminators :=
   R.caseIngredients.caseEliminators
 
 /-- The declaration's case eliminators are its own restoration-free case schemas. -/
 theorem caseEliminatorsOwn
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     decl.OwnCaseEliminators sourceEnv R.caseEliminators :=
   R.caseIngredients.own
 
 /-- The window of the declaration: its constructor stage with its case eliminators, and then
 with its projection entries, is well formed. -/
 theorem windowWF
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     (R.ctorVEnv.addEliminators R.caseEliminators).WF ∧
       ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections
         decl.projectionEntries).WF :=
@@ -1041,16 +1041,16 @@ theorem windowWF
 
 /-- The constructor stage with the declaration's case eliminators is well formed. -/
 theorem casesWF
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     (R.ctorVEnv.addEliminators R.caseEliminators).WF :=
   R.windowWF.1
 
 /-- The constructor stage with the declaration's case eliminators and projections is well
 formed. -/
 theorem projectedWF
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ((R.ctorVEnv.addEliminators R.caseEliminators).addProjections decl.projectionEntries).WF :=
   R.windowWF.2
 
-end ConstructorBoundary
+end CheckedFormation
 end Lean4Lean.VerifyInductive

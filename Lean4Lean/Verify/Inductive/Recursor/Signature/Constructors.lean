@@ -39,9 +39,9 @@ theorem TrExprS.retargetForallPrefix
 /-- The actual terminal family application is translated only after the
 consumed source-field domains have been fixed. This preserves one constructor
 context while allowing projection representations to change by typed conversion. -/
-theorem CompletedRecursorConstruction.sourceConstructorTail
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.sourceConstructorTail
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (HS : RecInfoMinorSemanticSourceAt H.recursorWF
@@ -112,9 +112,9 @@ theorem TrExprS.forallTelescope_residual
         simpa [abstractForallContext, List.map_append, List.append_assoc] using
           ih (by simpa using hlen) Hbody
 
-theorem CompletedRecursorConstruction.constructorTerminalSpine
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.constructorTerminalSpine
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (HS : RecInfoMinorSemanticSourceAt H.recursorWF
@@ -171,9 +171,9 @@ theorem CompletedRecursorConstruction.constructorTerminalSpine
   congr 1
   exact (VExpr.const.inj hname).1.symm.trans hfamilyOwner
 
-theorem CompletedRecursorConstruction.constructorClosedParameters
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.constructorClosedParameters
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (HS : RecInfoMinorSemanticSourceAt H.recursorWF
@@ -225,9 +225,9 @@ theorem TrExprS.shiftedCanonicalBvars_eq
     have heq := TrExprS.bvar_eq_of_abstractForallContext h (by omega)
     simpa [InductiveSignature.vars, List.getElem_reverse] using heq
 
-theorem CompletedRecursorConstruction.constructorResultIndices
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.constructorResultIndices
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (HS : RecInfoMinorSemanticSourceAt H.recursorWF
@@ -263,7 +263,7 @@ theorem CompletedRecursorConstruction.constructorResultIndices
   obtain ⟨levels, args, hspine, hlevels, Hargs⟩ :=
     checkPositivityStep.TrExprS.constAppSpine Hres hclosedHead
   have hlevelsEq : levels = VLevel.params decl.uvars :=
-    Option.some.inj (hlevels.symm.trans (R.materializedFinal.levelParamsTranslation H.lparamsNodup))
+    Option.some.inj (hlevels.symm.trans (R.recursorHeaders.levelParamsTranslation H.lparamsNodup))
   subst levels
   have hsplit : HS.semantic.traversal.terminal.getAppArgsList = stats.params.toList ++
       HS.semantic.traversal.terminal.getAppArgsList.drop stats.params.size := by
@@ -292,9 +292,9 @@ theorem CompletedRecursorConstruction.constructorResultIndices
   rw [hresult] at Hfull Htype
   exact ⟨indices, Hfull, Htype, Hindices⟩
 
-theorem CompletedRecursorConstruction.constructorTerminalOwner
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.constructorTerminalOwner
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (HS : RecInfoMinorSemanticSourceAt H.recursorWF
@@ -321,9 +321,9 @@ theorem CompletedRecursorConstruction.constructorTerminalOwner
     simpa only [List.getElem_map] using hname
   simpa only [htargetEq] using hvalid
 
-theorem CompletedRecursorConstruction.constructorIndices_length
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.constructorIndices_length
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (HS : RecInfoMinorSemanticSourceAt H.recursorWF
@@ -345,8 +345,8 @@ theorem CompletedRecursorConstruction.constructorIndices_length
 
 /-- Choose the actual semantic replay once, before choosing a constructor's
 result indices. The executable traversal identity is retained in this replay. -/
-noncomputable def CompletedRecursorConstruction.sourceMinorSemantics
-    (H : CompletedRecursorConstruction R)
+noncomputable def RecursorConstruction.sourceMinorSemantics
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     RecInfoMinorSemanticSourceAt H.recursorWF
@@ -355,16 +355,16 @@ noncomputable def CompletedRecursorConstruction.sourceMinorSemantics
 
 /-- Result indices are selected in the original universe context, after the
 shared field domains have already been fixed. -/
-noncomputable def CompletedRecursorConstruction.sourceConstructorIndices
-    (H : CompletedRecursorConstruction R)
+noncomputable def RecursorConstruction.sourceConstructorIndices
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) : List VExpr :=
   Classical.choose (H.constructorResultIndices owner howner localIndex hlocal
     (H.sourceMinorSemantics owner howner localIndex hlocal))
 
-theorem CompletedRecursorConstruction.sourceConstructorIndices_replay
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.sourceConstructorIndices_replay
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let S := H.origins.minorShapes owner howner localIndex hlocal
@@ -387,8 +387,8 @@ theorem CompletedRecursorConstruction.sourceConstructorIndices_replay
   Classical.choose_spec (H.constructorResultIndices owner howner localIndex hlocal
     (H.sourceMinorSemantics owner howner localIndex hlocal))
 
-theorem CompletedRecursorConstruction.sourceConstructorIndices_length
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.sourceConstructorIndices_length
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     (H.sourceConstructorIndices owner howner localIndex hlocal).length =
@@ -406,9 +406,9 @@ open Kernel
 /-- The one selected consumed constructor is definitionally equal to its
 retained raw source model in the original header environment, before the
 constructors are installed. -/
-theorem CompletedRecursorConstruction.sourceConstructorDefEq
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.sourceConstructorDefEq
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let S := H.origins.minorShapes owner howner localIndex hlocal

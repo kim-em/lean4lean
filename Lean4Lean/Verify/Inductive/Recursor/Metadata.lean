@@ -4,7 +4,7 @@ import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 /-! Recursor metadata realization for completed recursor phases.
 
 Every field of `RecursorRealization` except the rule list is established for
-each installed recursor entry of a `CompletedRecursorPhasesResult`, against the
+each installed recursor entry of a `RecursorCheck`, against the
 single canonical generation instance chosen by that result.
 -/
 
@@ -14,7 +14,7 @@ namespace InductiveSignature
 /-- `RecursorRealization` without its rule coverage: the name, universe arity,
 translated type, cardinalities, major premise, mutual block, safety, and K
 metadata of one concrete recursor. -/
-structure RecursorMetadataRealization {s : InductiveSignature} (g : Instance s)
+structure RecursorMetadata {s : InductiveSignature} (g : Instance s)
     (venv : VEnv) (owner : Fin s.families.size) (rec : Lean.RecursorVal) : Prop where
   name : rec.name = g.recursorName owner
   uvars : rec.levelParams.length = g.uvars
@@ -32,10 +32,10 @@ structure RecursorMetadataRealization {s : InductiveSignature} (g : Instance s)
     ∀ ctor ∈ s.constructors.toList, ctor.fields = []
 
 /-- Metadata together with rule coverage is a full recursor realization. -/
-theorem RecursorMetadataRealization.toRecursorRealization
+theorem RecursorMetadata.toRecursorRealization
     {s : InductiveSignature} {g : Instance s} {venv : VEnv}
     {owner : Fin s.families.size} {rec : Lean.RecursorVal}
-    (H : RecursorMetadataRealization g venv owner rec)
+    (H : RecursorMetadata g venv owner rec)
     (rules : List.Forall₂ (RuleRealization g venv rec.levelParams)
       (s.ownedConstructors owner) rec.rules) :
     RecursorRealization g venv owner rec :=
@@ -104,20 +104,20 @@ theorem RecursorParamPrefix.constructorArity
 
 /-- Installed recursor entries are indexed by the canonical signature's
 families. -/
-theorem CompletedRecursorPhasesResult.entries_length_eq
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.entries_length_eq
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) :
+    (H : RecursorCheck R outEnv) :
     H.entries.length = H.generationSignature.families.size := by
   rw [H.generated.length]
   change _ = H.consumedGeneration.signature.families.size
   rw [H.consumedGeneration.families, H.consumedFamilies_size]
 
 /-- The head constant of the generated major premise is the owner family. -/
-theorem CompletedRecursorPhasesResult.generated_getMajorInduct
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.generated_getMajorInduct
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     (H.generated.entry owner howner).info.getMajorInduct =
       (decl.types[owner]'(by
@@ -143,10 +143,10 @@ theorem CompletedRecursorPhasesResult.generated_getMajorInduct
 
 /-- A successful K check pins down the canonical signature: one family, one
 constructor without fields beyond the parameters, in `Prop`. -/
-theorem CompletedRecursorPhasesResult.kShape
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.kShape
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) (hk : H.kTarget = true) :
+    (H : RecursorCheck R outEnv) (hk : H.kTarget = true) :
     H.generationSignature.families.size = 1 ∧
     H.generationSignature.constructors.size = 1 ∧
     (∀ owner : Fin H.generationSignature.families.size,
@@ -221,16 +221,16 @@ theorem CompletedRecursorPhasesResult.kShape
 
 /-- Every installed recursor realizes all non-rule metadata of the canonical
 generated recursor for its owner. -/
-theorem CompletedRecursorPhasesResult.metadataRealization
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.metadataRealization
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Fin H.generationSignature.families.size) :
     ∃ rec : Lean.RecursorVal,
       (H.entries[owner.val]'(by rw [H.entries_length_eq]; exact owner.isLt)).1 = .recInfo rec ∧
       (H.entries[owner.val]'(by rw [H.entries_length_eq]; exact owner.isLt)).2 =
         H.canonicalGeneration.recursor owner ∧
-      InductiveSignature.RecursorMetadataRealization H.canonicalGeneration H.outVEnv owner rec := by
+      InductiveSignature.RecursorMetadata H.canonicalGeneration H.outVEnv owner rec := by
   have hi : owner.val < H.entries.length := by rw [H.entries_length_eq]; exact owner.isLt
   have hrecInfo : owner.val < H.recInfos.size := by rw [← H.generated.length]; exact hi
   have hfamCons : H.generationSignature.families = H.consumedFamilies :=
@@ -238,7 +238,7 @@ theorem CompletedRecursorPhasesResult.metadataRealization
   let E := H.generated.entry owner.val hi
   have htarget : H.entries[owner.val].2 = H.canonicalGeneration.recursor owner := by
     rw [H.canonicalTargets owner.val hi]
-    unfold CompletedRecursorConstruction.nativeTarget
+    unfold RecursorConstruction.nativeTarget
     rw [dif_pos owner.isLt]
     rfl
   have Htr := E.translated

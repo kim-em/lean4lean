@@ -67,40 +67,40 @@ end InductiveSignature
 
 namespace VerifyInductive
 
-theorem CompletedRecursorPhasesResult.headerLE
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.headerLE
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) : R.headerVEnv ≤ H.outVEnv :=
+    (H : RecursorCheck R outEnv) : R.headerVEnv ≤ H.outVEnv :=
   R.installation.constructorLE.trans (R.ctorLE.trans H.installed.le)
 
-theorem CompletedRecursorPhasesResult.sourceLE
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.sourceLE
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) : sourceEnv ≤ H.outVEnv :=
+    (H : RecursorCheck R outEnv) : sourceEnv ≤ H.outVEnv :=
   R.installation.headerLE.trans H.headerLE
 
-theorem CompletedRecursorPhasesResult.familyConstant
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.familyConstant
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
     H.outVEnv.constants family.name = some family.toVConstant :=
   H.headerLE.constants (VEnv.addConstVals_get R.core.typesAdded
     (List.mem_map.mpr ⟨family, hf, rfl⟩))
 
-theorem CompletedRecursorPhasesResult.constructorConstant
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.constructorConstant
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (ctor : VConstVal) (hc : ctor ∈ decl.constructorConstants) :
     H.outVEnv.constants ctor.name = some ctor.toVConstant :=
   (R.ctorLE.trans H.installed.le).constants
     (VEnv.addConstVals_get R.core.ctorsAdded hc)
 
-theorem CompletedRecursorPhasesResult.familyRigid
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.familyRigid
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
     H.outVEnv.Rigid family.name := by
   have hsourceWF : sourceEnv.WF := R.sourceContextVEnv ▸ R.sourceContext.checking.tr.wf
@@ -108,26 +108,26 @@ theorem CompletedRecursorPhasesResult.familyRigid
     family.toVConstVal (List.mem_map.mpr ⟨family, hf, rfl⟩)
   have hrigid := hsourceWF.ordered.rigid_of_absent hfresh
   intro df hdf ls hhead
-  have hdf' := H.staged.combinedAtomic.defeqs df hdf
+  have hdf' := H.installation.atomic.defeqs df hdf
   rw [VEnv.addProjections_defeqs, VEnv.addEliminators_defeqs] at hdf'
   exact hrigid df hdf' ls hhead
 
 /-- Typing the normalized constructor result against its family's sort
 telescope determines the number of indices. -/
-theorem CompletedRecursorPhasesResult.normalizedIndexArity
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.normalizedIndexArity
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (_H : CompletedRecursorPhasesResult R outEnv)
+    (_H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
     (index : Fin s.constructors.size) :
     s.constructors[index].indices.length =
       s.families[s.constructors[index].owner].indices.length :=
   hm.constructorArity _ (by simp)
 
-theorem CompletedRecursorPhasesResult.rawConstructorShape
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.rawConstructorShape
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
     (index : Fin s.constructors.size) :
     ∃ fields, Nonempty (VConstructorShape H.outVEnv s.constructors[index].name
@@ -149,10 +149,10 @@ theorem CompletedRecursorPhasesResult.rawConstructorShape
 
 /-- The installed constructor's type is definitionally equal to the signature's constructor
 type. -/
-theorem CompletedRecursorPhasesResult.constructorTypeDefEq
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.constructorTypeDefEq
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
     (index : Fin s.constructors.size) :
     ∀ ctorUvars ctorDoms ctorBody,
@@ -174,20 +174,20 @@ theorem CompletedRecursorPhasesResult.constructorTypeDefEq
   rw [htype, hm.uvars]
   exact hctype.mono H.headerLE
 
-theorem CompletedRecursorPhasesResult.normalizedFamilyRigid
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.normalizedFamilyRigid
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl)
     (owner : Fin s.families.size) : H.outVEnv.Rigid s.families[owner].name := by
   rcases hm.family owner with ⟨family, hfamily, hname, _⟩
   rw [hname]
   exact H.familyRigid family hfamily
 
-theorem CompletedRecursorPhasesResult.alignmentOfRealization
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.alignmentOfRealization
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) (g : s.Instance)
     (hlevels : g.levels.length = s.uvars) (hlevelsWF : ∀ l ∈ g.levels, l.WF g.uvars)
     (hrecursors : ∀ owner, H.outVEnv.constants (g.recursorName owner) = some (g.recursor owner).toVConstant)
@@ -230,10 +230,10 @@ theorem CompletedRecursorPhasesResult.alignmentOfRealization
 
 /-- The installed header has the concrete inductive kind and the exact
 constructor-name list retained by formation. -/
-theorem CompletedRecursorPhasesResult.familyInfo
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.familyInfo
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (family : VInductiveType) (hf : family ∈ decl.types) :
     ∃ info : InductiveVal,
       outEnv.constants.find? family.name = some (.inductInfo info) ∧
@@ -244,7 +244,7 @@ theorem CompletedRecursorPhasesResult.familyInfo
   rcases List.mem_map.mp hvalue with ⟨entry, he, hvalue⟩
   have hall : entry ∈ R.headerEntries ++ R.constructorEntries ++ H.entries := by
     simp [he]
-  have ha := H.staged.combinedAtomic
+  have ha := H.installation.atomic
   have hwf := R.sourceContext.checking.tr.map_wf
   have houtWF := ha.targetMapWF hwf
   have hname : entry.1.name = family.name := by
@@ -272,10 +272,10 @@ theorem CompletedRecursorPhasesResult.familyInfo
       rcases A.constructor i hiSrc with ⟨C⟩
       simpa only [List.getElem_map, hfamilyEq] using C.name
 
-theorem CompletedRecursorPhasesResult.majorOfRealization
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.majorOfRealization
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) {g : s.Instance}
     {owner : Fin s.families.size} {rec : RecursorVal}
     (hr : InductiveSignature.RecursorRealization g H.outVEnv owner rec) :
@@ -289,10 +289,10 @@ theorem CompletedRecursorPhasesResult.majorOfRealization
 sort (which is `Prop` by the K condition and the model's result level), the
 constructor's raw parameter prefix comes from `CtorParameterShape`, and both
 parameter telescopes agree with the common one (`ParamsDefEq`). -/
-theorem CompletedRecursorPhasesResult.kOfRealization
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorCheck.kOfRealization
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     {s : InductiveSignature} (hm : s.Models sourceEnv decl) (g : s.Instance)
     {owner : Fin s.families.size} {rec : RecursorVal}
     (hr : InductiveSignature.RecursorRealization g H.outVEnv owner rec) :

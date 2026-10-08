@@ -22,15 +22,15 @@ theorem AtomicAddConstants.freshTrace
 to a concrete installation of the same constants in any fresh order.  The
 permutation argument is used only to identify production maps; abstract
 typing remains tied to the header/constructor/projection/recursor stages. -/
-theorem CompletedStagedBlock.validCoreOfFreshPermutation
-    (H : CompletedStagedBlock safety source sourceVEnv types ctors recursors
+theorem BlockInstallation.validCoreOfFreshPermutation
+    (H : BlockInstallation safety source sourceVEnv types ctors recursors
       projections canonicalTarget targetVEnv)
     (Hactual : FreshConstantTrace source actualEntries actualTarget)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (Hsource : CheckingEnv.ValidCore safety source sourceVEnv) :
     CheckingEnv.ValidCore safety actualTarget targetVEnv := by
   have HcanonicalValid := H.validCore Hsource
-  have heq := Hactual.lookupEqOfPerm H.combinedAtomic.freshTrace
+  have heq := Hactual.lookupEqOfPerm H.atomic.freshTrace
     Hsource.tr.map_wf hperm
   exact CheckingEnv.ValidCore.mapExt HcanonicalValid
     (Hactual.targetWF Hsource.tr.map_wf) fun name => (heq name).symm
@@ -231,11 +231,11 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     {stepSource stepTarget : Environment}
@@ -553,7 +553,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
     {headerEnv ctorEnv loweredEnv sourceProdEnv targetProdEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {Htrace : StateForMTrace
       (RestoredInductiveStep result loweredEnv auxRec
@@ -564,7 +564,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactCanonicalPrimaryReplay
       sourceVEnv envTypes envCtors Htrace owners primaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
@@ -617,15 +617,15 @@ recursor batch determines its generated owner and complete restoration
 telescope alignment.  No semantic recursor payload is selected here: the
 installed entry position and the concrete restoration lookup force the
 owner and old `RecursorVal`. -/
-theorem CompletedRecursorPhasesResult.restoredTelescopeAlignmentOfGeneratedName
+theorem RecursorCheck.restoredTelescopeAlignmentOfGeneratedName
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceVEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)
     (hgenerated : oldRecName ∈
@@ -668,8 +668,8 @@ structure RestoredAuxiliaryGeneratedStepAlignment
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv) where
   ownerIdx : Nat
@@ -690,8 +690,8 @@ inductive RestoredAuxiliaryGeneratedAlignmentTrace
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name} :
     ∀ {names : List Name} {sourceEnv targetEnv : Environment},
@@ -717,8 +717,8 @@ theorem StateForMTrace.generatedAlignmentTrace
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     {result : Lean4Lean.ElimNestedInductive.Result}
     {auxRec : NameMap Name} {allIndNames : List Name}
     {names : List Name} {sourceEnv targetEnv : Environment}
@@ -753,11 +753,11 @@ theorem NestedLoweringResultClosed.auxRecNameGeneratedAtFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hrecName : recName ∈
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1) :
@@ -807,11 +807,11 @@ theorem RestoredNestedDeclarationsResult.generatedAlignmentTraceOfProduction
     {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).2
@@ -1034,10 +1034,10 @@ theorem CanonicalRestorationReplay.existsStagedBlock
       (H.typeEntries.map Prod.snd) = some envTypes)
     (hconstructorsAbstract : envTypes.addConstVals
       (H.constructorEntries.map Prod.snd) = some envCtors) :
-    ∃ canonicalProdEnv finalVEnv,
-      Nonempty { S : CompletedStagedBlock safety sourceProdEnv sourceVEnv H.typeEntries
+    ∃ canonicalProdEnv installedVEnv,
+      Nonempty { S : BlockInstallation safety sourceProdEnv sourceVEnv H.typeEntries
         H.constructorEntries H.recursorEntries projections canonicalProdEnv
-          finalVEnv // S.eliminators = es } ∧
+          installedVEnv // S.eliminators = es } ∧
       ∀ name, outProdEnv.constants.find? name =
         canonicalProdEnv.constants.find? name := by
   rcases H.existsCanonicalFresh Hchecking.map_wf with
@@ -1087,13 +1087,13 @@ theorem CanonicalRestorationReplay.existsStagedBlock
       (fun entry hentry => (H.recursors entry hentry).2)
       (fun entry hentry => hnonprimitive entry (by simp [hentry]))
       (fun entry hentry => hnondeltaCanonical entry (by simp [hentry]))
-      HcheckingProjected VEnv.LE.rfl with ⟨finalVEnv, HrecursorsAdded⟩
-  exact ⟨canonicalProdEnv, finalVEnv, ⟨⟨{
+      HcheckingProjected VEnv.LE.rfl with ⟨installedVEnv, HrecursorsAdded⟩
+  exact ⟨canonicalProdEnv, installedVEnv, ⟨⟨{
     envTypes := prodTypes
     venvTypes := envTypes
     envCtors := prodCtors
     venvCtors := envCtors
-    formationAdded := .ordinary HtypesAdded HconstructorsAdded
+    formation := .ordinary HtypesAdded HconstructorsAdded
     eliminators := es
     casesWF := HcasesWF
     projectedWF := HprojectedWF
@@ -1168,7 +1168,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     {headerEnv ctorEnv loweredEnv primaryProdEnv outProdEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     {HprimaryTrace : StateForMTrace
       (RestoredInductiveStep result loweredEnv auxRec
@@ -1190,7 +1190,7 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
       auxiliaryRecursors)
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hcore : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe decl envTypes envCtors)
     (Hparams : decl.SourceParameterWF sourceVEnv)
@@ -1206,10 +1206,10 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
     ∃ replay : CanonicalRestorationReplay c.safety c.env outProdEnv
         sourceVEnv envTypes ((envCtors.addEliminators es).addProjections decl.projectionEntries)
         decl.types primaryRecursors auxiliaryRecursors,
-      ∃ canonicalProdEnv finalVEnv,
-        Nonempty { S : CompletedStagedBlock c.safety c.env sourceVEnv replay.typeEntries
+      ∃ canonicalProdEnv installedVEnv,
+        Nonempty { S : BlockInstallation c.safety c.env sourceVEnv replay.typeEntries
           replay.constructorEntries replay.recursorEntries
-            decl.projectionEntries canonicalProdEnv finalVEnv // S.eliminators = es } ∧
+            decl.projectionEntries canonicalProdEnv installedVEnv // S.eliminators = es } ∧
         ∀ name, outProdEnv.constants.find? name =
           canonicalProdEnv.constants.find? name := by
   rcases Hsource.existsExactCanonicalPrimaryReplay Hlower Hc Hprod hempty
@@ -1236,8 +1236,8 @@ theorem RestoredSourceInductiveSemanticTrace.existsExactStagedRestoration
   rcases replay.existsStagedBlock decl.projectionEntries es HsourceChecking
       HcasesWF HprojectedWF Hprimitive Hnondelta
       hnondelta htypesAbstract hconstructorsAbstract with
-    ⟨canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩
-  exact ⟨replay, canonicalProdEnv, finalVEnv, Hstaged, hlookup⟩
+    ⟨canonicalProdEnv, installedVEnv, Hstaged, hlookup⟩
+  exact ⟨replay, canonicalProdEnv, installedVEnv, Hstaged, hlookup⟩
 
 end VerifyInductive
 end Lean4Lean

@@ -167,9 +167,9 @@ theorem recursorMinorOffset_unique (indTypes : Array InductiveType)
 
 /-- The consumed minor row of each owner has the owner's source constructor
 count. -/
-theorem CompletedRecursorConstruction.minorTypes_size
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
+theorem RecursorConstruction.minorTypes_size
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size) :
     H.origins.minorTypes[owner]!.size = indTypes[owner]!.ctors.length := by
   have hsize := (H.origins.minors owner howner).size_eq
   have hcounts := H.minorCounts owner howner
@@ -177,9 +177,9 @@ theorem CompletedRecursorConstruction.minorTypes_size
 
 /-- The total number of owned constructors is the production offset after
 the last family. -/
-theorem CompletedRecursorConstruction.ownedConstructors_length_offset
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (_H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.ownedConstructors_length_offset
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (_H : RecursorConstruction R) :
     decl.ownedConstructors.length = recursorMinorOffset indTypes indTypes.size := by
   have htotal := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructors_length R.core
   rw [recursorMinorOffset_size]
@@ -189,9 +189,9 @@ theorem CompletedRecursorConstruction.ownedConstructors_length_offset
 
 /-- Every flattened constructor position is the minor offset of a unique
 owner plus a local index within that owner's consumed minor row. -/
-theorem CompletedRecursorConstruction.flatMinorIndex
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (k : Nat) (hk : k < decl.ownedConstructors.length) :
+theorem RecursorConstruction.flatMinorIndex
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R) (k : Nat) (hk : k < decl.ownedConstructors.length) :
     ∃ owner, ∃ _howner : owner < H.recInfos.size,
       ∃ localIndex, ∃ _hlocal : localIndex < H.origins.minorTypes[owner]!.size,
         k = recursorMinorOffset indTypes owner + localIndex := by
@@ -201,9 +201,9 @@ theorem CompletedRecursorConstruction.flatMinorIndex
   have howner' : owner < H.recInfos.size := by rw [H.sourceFamilyCount]; exact howner
   exact ⟨owner, howner', localIndex, by rw [H.minorTypes_size owner howner']; exact hlocal, rfl⟩
 
-theorem CompletedRecursorConstruction.flatMinorIndex_unique
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.flatMinorIndex_unique
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorConstruction R)
     {owner owner' localIndex localIndex' : Nat}
     (howner : owner < H.recInfos.size) (howner' : owner' < H.recInfos.size)
     (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -298,14 +298,14 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- A signature over the consumed data of the completed construction: cached
 parameters, the consumed families, and one constructor per minor whose field
 types are the consumed field domains and whose indices are the consumed
 terminal indices. The classification of its fields is unconstrained here. -/
-structure CompletedRecursorConstruction.ConsumedSignatureData
-    (H : CompletedRecursorConstruction R) (s : InductiveSignature) : Prop where
+structure RecursorConstruction.ConsumedSignatureData
+    (H : RecursorConstruction R) (s : InductiveSignature) : Prop where
   uvars : s.uvars = decl.uvars
   params : s.params = R.parameterScope.toCtx.reverse
   families : s.families = H.consumedFamilies
@@ -320,14 +320,14 @@ structure CompletedRecursorConstruction.ConsumedSignatureData
       s.fieldTypes s.constructors[k] = H.sourceFields owner howner localIndex hlocal ∧
       s.constructors[k].indices = H.sourceConstructorIndices owner howner localIndex hlocal
 
-theorem CompletedRecursorConstruction.ConsumedSignatureData.family_getElem
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.family_getElem
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s) (i : Nat) (hi : i < s.families.size) :
     s.families[i] = H.consumedFamilies[i]'(by rw [← D.families]; exact hi) := by
   simp only [D.families]
 
-theorem CompletedRecursorConstruction.ConsumedSignatureData.family_name
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.family_name
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s) (i : Fin s.families.size) (owner : Nat)
     (howner : owner < H.recInfos.size) (heq : i.val = owner) :
     s.families[i].name = (decl.types[owner]'(by rw [← H.cardinality.records]; exact howner)).name := by
@@ -335,8 +335,8 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.family_name
   rw [Fin.getElem_fin, D.family_getElem]
   exact H.consumedFamilies_name ⟨i.val, howner⟩
 
-theorem CompletedRecursorConstruction.ConsumedSignatureData.family_indices
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.family_indices
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s) (i : Fin s.families.size) (owner : Nat)
     (howner : owner < H.recInfos.size) (heq : i.val = owner) :
     s.families[i].indices = H.sourceIndices ⟨owner, howner⟩ := by
@@ -347,8 +347,8 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.family_indices
 /-- The closed type of each consumed constructor is definitionally the
 source constructor at the same flattened position, in the header
 environment. -/
-theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorType_defeq
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.constructorType_defeq
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -370,7 +370,7 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorType_defe
           ⟨recursorMinorOffset indTypes owner + localIndex, bound⟩))
         (decl.ownedConstructors[recursorMinorOffset indTypes owner + localIndex]'bound).2.type :=
       hmodel.2.2.1
-    simpa only [ConstructorBoundary.sourceSignature_constructorType] using ht
+    simpa only [CheckedFormation.sourceSignature_constructorType] using ht
   have hdefeq := H.sourceConstructorDefEq owner howner localIndex hlocal
   have hreplay := (H.sourceConstructorIndices_replay owner howner localIndex hlocal).2.1
   have henv := R.headerCheckingAnnotations.1.wf
@@ -419,8 +419,8 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorType_defe
 
 /-- Every consumed field is, in its own consumed prefix scope, definitionally a
 strictly positive normal form: the header's normal form for the same field. -/
-theorem CompletedRecursorConstruction.ConsumedSignatureData.fieldPositive
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.fieldPositive
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -487,8 +487,8 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.fieldPositive
 
 /-- The consumed constructor at a flattened position names the source
 constructor's family and constructor at that position. -/
-theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorNames
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.constructorNames
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
@@ -528,8 +528,8 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorNames
   · exact hname.trans (hhdrName.symm.trans (R.sourceSignatureConstructor_name _))
 
 /-- Consumed signatures model the source declaration. -/
-theorem CompletedRecursorConstruction.ConsumedSignatureData.models
-    {H : CompletedRecursorConstruction R} {s : InductiveSignature}
+theorem RecursorConstruction.ConsumedSignatureData.models
+    {H : RecursorConstruction R} {s : InductiveSignature}
     (D : H.ConsumedSignatureData s) :
     s.Models sourceEnv decl := by
   have hparams : s.params.length = decl.nparams := by

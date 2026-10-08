@@ -1153,21 +1153,21 @@ theorem ConstructorTypeEntries.ctorOfEntry
 /-- Every constructor visible in the lowered production environment either
 predates the inductive installation or is a constructor of one of the
 installed families, recording that family as its owner. -/
-theorem CompletedRecursorPhasesResult.ctorInfoOrigin
+theorem RecursorCheck.ctorInfoOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : CompletedRecursorPhasesResult R.completed outEnv) (hwf : c.env.constants.WF)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (H : RecursorCheck R.toConstructorCheck outEnv) (hwf : c.env.constants.WF)
     {n : Name} {info : ConstructorVal}
     (hfind : outEnv.find? n = some (.ctorInfo info)) :
     c.env.find? n = some (.ctorInfo info) ∨
       ∃ owner ∈ indTypes.toList, ∃ ctor ∈ owner.ctors,
         n = ctor.name ∧ info.induct = owner.name := by
-  rcases H.staged.combinedAtomic.entryOrigin hwf hfind with hold | ⟨entry, hentry, hname, hfound⟩
+  rcases H.installation.atomic.entryOrigin hwf hfind with hold | ⟨entry, hentry, hname, hfound⟩
   · exact .inl hold
   · right
     rcases List.mem_append.mp hentry with h12 | hrec
@@ -1279,8 +1279,8 @@ theorem NestedValidatedRunResult.restorationTablesRestoringAllSpec
   let PhasePack := fun indTypes =>
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
-      Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        CompletedRecursorPhasesResult R.completed E.loweredEnv
+      Sigma fun R : OrdinaryConstructorCheck Hheaders P.ctorEnv =>
+        RecursorCheck R.toConstructorCheck E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)

@@ -112,13 +112,13 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv outEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.typeTranslation
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.typeTranslation
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext
@@ -228,11 +228,11 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.typeTranslation
   rw [key] at hlift
   exact VExpr.liftN_inj.mp hlift
 
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.lhsTranslation
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.lhsTranslation
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size) :
     TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext
@@ -273,7 +273,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.lhsTranslation
   have hdomainsLength : (H.canonicalGeneration.equationDomains ⟨minorIdx, hk⟩).length =
       A.rule.binders.length := A.equationDomains_length hk
   have hbindersNodup : A.rule.binders.Nodup := A.rule.binders_nodup
-  have hrec : owner < H.recInfos.size := A.producerOrigin.owner_lt
+  have hrec : owner < H.recInfos.size := A.minorOrigin.owner_lt
   have hmotiveLt : owner < (H.recInfos.map (·.motive)).size := by simpa using hrec
   obtain ⟨hmotiveFVars, hmotiveFVar⟩ := A.rule.motives_bound.getElem_eq_fvar owner hmotiveLt
   have hmotive : H.recInfos[owner]!.motive =
@@ -326,7 +326,7 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.lhsTranslation
       (H.generationSignature.families.size + H.generationSignature.constructors.size) := by
     simp only [n, H.params_size_eq, H.motives_size_eq, H.minors_size_eq]
     omega
-  have hlevels := R.materializedFinal.recursorLevelsTranslation
+  have hlevels := R.recursorHeaders.recursorLevelsTranslation
     H.lparamsNodup H.elimLevelAdmissible
   have hrecLevels' : recLevels = VLevel.params H.canonicalGeneration.uvars :=
     Option.some.inj (hrecLevels.symm.trans hlevels)
@@ -358,11 +358,11 @@ theorem RuleLhs.closed_of_abstractedTranslation {env : VEnv} {Us : List Name}
   simp only [abstractForallContext_bvars, VLCtx.bvars, hlen, Nat.add_zero] at h
   exact Expr.closed_of_abstractList (depth := 0) (by simpa using h)
 
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.sourceRhsBody_closed
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.sourceRhsBody_closed
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     Closed A.rule.sourceRhsBody := by
   rcases A.canonicalEquationFrame with ⟨F⟩
   obtain ⟨hk, -, hnf⟩ := A.generatedConstructor
@@ -372,32 +372,32 @@ theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.sourceRhsBody_close
     F.rhs_translation
 
 /-- The generator body translations reduce to the RHS component. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.generatorBodyTranslationsOfRhs
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.generatorBodyTranslationsOfRhs
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
     (Hrhs : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (abstractForallContext
         (H.canonicalGeneration.equationDomains ⟨recursorMinorOffset indTypes owner + i, hk⟩) [])
       (A.rule.sourceRhsBody.abstractList A.rule.binders)
       (H.canonicalGeneration.equationRhsBody ⟨recursorMinorOffset indTypes owner + i, hk⟩)) :
-    A.GeneratorBodyTranslations hk :=
+    A.EquationBodyTranslations hk :=
   ⟨A.lhsTranslation hk, Hrhs, A.typeTranslation hk⟩
 
 /-- The generator body translations from a closed translation of the
 installed rule RHS to the generator's equation RHS. -/
-theorem CompletedRecursorPhasesResult.GeneratedRuleAlignment.generatorBodyTranslationsOfClosedRhs
-    {H : CompletedRecursorPhasesResult R outEnv}
+theorem RecursorCheck.RuleAlignment.generatorBodyTranslationsOfClosedRhs
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (hk : recursorMinorOffset indTypes owner + i < H.generationSignature.constructors.size)
     (Htr : TrExprS H.outVEnv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       ((H.generated.entry owner howner).info.rules[i]'A.sourceRule_lt).rhs
       (H.canonicalGeneration.equation ⟨recursorMinorOffset indTypes owner + i, hk⟩).rhs) :
-    A.GeneratorBodyTranslations hk :=
+    A.EquationBodyTranslations hk :=
   A.generatorBodyTranslationsOfRhs hk (A.rhsResidualOfClosed hk A.sourceRhsBody_closed Htr)
 
 end

@@ -41,10 +41,10 @@ structure ConsumedConstructorOrigins
 /-- One source-normalized generation witness, selected from the complete
 actual construction before installation. The raw formation signature is not
 forced to retain the consumed binder syntax of the generated declarations. -/
-structure CompletedRecursorConstruction.ConsumedGeneration
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+structure RecursorConstruction.ConsumedGeneration
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) where
+    (H : RecursorConstruction R) where
   signature : InductiveSignature
   generation : InductiveSignature.Instance signature
   models : signature.Models sourceEnv decl
@@ -89,10 +89,10 @@ structure CompletedRecursorConstruction.ConsumedGeneration
 
 /-- The consumed signature's constructors carry the retained source origins
 of their minors. -/
-theorem CompletedRecursorConstruction.consumedSignature_origins
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorConstruction.consumedSignature_origins
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     Nonempty (ConsumedConstructorOrigins (H.consumedSignature HU)
@@ -116,7 +116,7 @@ theorem CompletedRecursorConstruction.consumedSignature_origins
     hypotheses_eq := horig
     recursiveCount := ?_
     recursive := ?_ }⟩
-  · simp [CompletedRecursorConstruction.consumedConstructorAt, H.sourceFields_length, hfieldsT]
+  · simp [RecursorConstruction.consumedConstructorAt, H.sourceFields_length, hfieldsT]
   · rw [hrec]; exact hspec.1 traversal htrav
   · rw [hrec]; exact hspec.2.1
   · intro j hj
@@ -131,10 +131,10 @@ theorem CompletedRecursorConstruction.consumedSignature_origins
 
 /-- The junction, under the universe support of the hypothesis arguments: the
 explicit generation witness whose signature is `H.consumedSignature HU`. -/
-noncomputable def CompletedRecursorConstruction.consumedGenerationOf
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+noncomputable def RecursorConstruction.consumedGenerationOf
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.ConsumedGeneration := by
   have D := H.consumedSignatureData HU
   have hfamCount : (H.consumedSignature HU).families.size = indTypes.size := by
@@ -196,31 +196,31 @@ noncomputable def CompletedRecursorConstruction.consumedGenerationOf
 definitionally `H.consumedSignature H.argumentUniverses` and the facts
 retained by the construction (for instance
 `consumedGeneration_shapeTranslations`) are available about it. -/
-noncomputable def CompletedRecursorConstruction.consumedGeneration
-    (H : CompletedRecursorConstruction R) : H.ConsumedGeneration :=
+noncomputable def RecursorConstruction.consumedGeneration
+    (H : RecursorConstruction R) : H.ConsumedGeneration :=
   H.consumedGenerationOf H.argumentUniverses
 
-theorem CompletedRecursorConstruction.consumedGeneration_signature
-    (H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.consumedGeneration_signature
+    (H : RecursorConstruction R) :
     H.consumedGeneration.signature = H.consumedSignature H.argumentUniverses := rfl
 
-noncomputable def CompletedRecursorConstruction.generationSignature
-    (H : CompletedRecursorConstruction R) : InductiveSignature := H.consumedGeneration.signature
+noncomputable def RecursorConstruction.generationSignature
+    (H : RecursorConstruction R) : InductiveSignature := H.consumedGeneration.signature
 
-noncomputable def CompletedRecursorConstruction.generationInstance
-    (H : CompletedRecursorConstruction R) : InductiveSignature.Instance H.generationSignature :=
+noncomputable def RecursorConstruction.generationInstance
+    (H : RecursorConstruction R) : InductiveSignature.Instance H.generationSignature :=
   H.consumedGeneration.generation
 
-noncomputable def CompletedRecursorConstruction.nativeTarget
-    (H : CompletedRecursorConstruction R) (owner : Nat) : VConstVal :=
+noncomputable def RecursorConstruction.nativeTarget
+    (H : RecursorConstruction R) (owner : Nat) : VConstVal :=
   if h : owner < H.generationSignature.families.size then
     H.generationInstance.recursor ⟨owner, h⟩
   else { name := .anonymous, uvars := 0, type := .sort .zero }
 
-theorem CompletedRecursorConstruction.nativeTarget_eq
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorConstruction.nativeTarget_eq
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < indTypes.size) :
     H.nativeTarget owner = {
       name := Lean.mkRecName indTypes[owner]!.name
       uvars := (AddInductive.getRecLevelParams H.elimLevel c.lparams).length
@@ -236,10 +236,10 @@ theorem CompletedRecursorConstruction.nativeTarget_eq
   congr 1
   exact congrArg (fun name : Name => name.str "rec") hfName
 
-theorem CompletedRecursorConstruction.canonicalTypeTranslations
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorConstruction.canonicalTypeTranslations
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R)
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < indTypes.size) :
     TrExprS R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams) []

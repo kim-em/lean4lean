@@ -102,11 +102,11 @@ def NestedFinalAssemblyCertificate.blockCertificate
     {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
     (C : NestedFinalAssemblyCertificate H sourceEnv decl lparams nparams
       isUnsafe safety) :
-    CompletedBlockCertificate safety sourceProdEnv sourceEnv C.typeEntries
+    BlockCertificate safety sourceProdEnv sourceEnv C.typeEntries
       C.constructorEntries C.recursorEntries
       (C.primaryRules ++ C.auxiliaryRules) C.canonicalProdEnv
         C.finalBaseVEnv where
-  staged := C.canonical
+  installation := C.canonical
   projections := decl.projectionEntries
   typesWF := by
     rw [C.typeValues]
@@ -140,7 +140,7 @@ theorem NestedFinalAssemblyCertificate.block_eq_canonicalRestoredBlock
     C.blockCertificate.block =
       { canonicalRestoredBlock decl C.primaryRecursors C.auxiliaryRecursors
         C.primaryRules C.auxiliaryRules with eliminators := C.canonical.eliminators } := by
-  simp [CompletedBlockCertificate.block, canonicalRestoredBlock,
+  simp [BlockCertificate.block, canonicalRestoredBlock,
     NestedFinalAssemblyCertificate.blockCertificate, C.typeValues,
     C.constructorValues, C.recursorValues]
 
@@ -170,7 +170,7 @@ theorem NestedFinalAssemblyCertificate.compilation
   have hnames : List.Nodup
       ((block.types ++ block.ctors ++ block.recursors).map (·.name)) := by
     rw [← hvalues]
-    exact VEnv.addConstVals_names_nodup C.canonical.combinedAtomic.abstract
+    exact VEnv.addConstVals_names_nodup C.canonical.atomic.abstract
   have Hcanonical := (C.realization.congr_eliminators C.canonical.eliminators).compiles
   exact {
     types := rfl
@@ -220,12 +220,12 @@ theorem NestedFinalAssemblyCertificate.productionInductiveOrigins
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
     (Hc : ContextWF c)
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
@@ -269,11 +269,11 @@ theorem NestedFinalAssemblyCertificate.constructorOwnersPresent
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (henv : c.env = sourceProdEnv)
@@ -329,7 +329,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   let actual := Classical.choice HactualExists
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.canonicalProdEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.canonical.combinedAtomic.freshTrace
+    actual.property.lookupEqOfPerm C.canonical.atomic.freshTrace
       Hvalid.tr.map_wf (C.productionOrder actual.val actual.property)
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.canonicalProdEnv.find? name := by
@@ -337,7 +337,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     change outEnv.constants.find?' name =
       C.canonicalProdEnv.constants.find?' name
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
-      (C.canonical.combinedAtomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
+      (C.canonical.atomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
   have valid (observer : DefinitionSafety) :
       CheckingEnv.Valid observer sourceProdEnv (ves.venv observer) :=
@@ -346,15 +346,15 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
       wf.constructorOwners wf.projectionRegistryCoherent ((hcorner _))
   have replay (observer : DefinitionSafety) :
       ∃ replayBase,
-        ∃ Breplay : CompletedBlockCertificate observer sourceProdEnv
+        ∃ Breplay : BlockCertificate observer sourceProdEnv
           (ves.venv observer) C.typeEntries C.constructorEntries
           C.recursorEntries (C.primaryRules ++ C.auxiliaryRules)
           C.canonicalProdEnv replayBase,
         Breplay.projections = decl.projectionEntries ∧
         AddInduct observer sourceProdEnv.constants (ves.venv observer) decl
-          outEnv.constants Breplay.finalVEnv ∧
-        B.finalVEnv ≤ Breplay.finalVEnv ∧
-        Breplay.staged.eliminators = B.staged.eliminators := by
+          outEnv.constants Breplay.installedVEnv ∧
+        B.installedVEnv ≤ Breplay.installedVEnv ∧
+        Breplay.installation.eliminators = B.installation.eliminators := by
     have hB : B.block = _ := C.block_eq_canonicalRestoredBlock
     have Hreplay : VInductBlock.EliminatorsReplay (ves.venv observer) decl B.block :=
       (C.eliminatorsCertified (ves.venv observer) (wf.mono DefinitionSafety.le_safe)
@@ -370,16 +370,16 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
         C.compilation Hreplay with
       ⟨replayBase, Breplay, hprojections, Habstract, hout, heliminators⟩
     have HcheckingCanonical : CheckingEnv observer C.canonicalProdEnv
-        replayBase := (Breplay.staged.validCore (valid observer).toValidCore).tr
+        replayBase := (Breplay.installation.validCore (valid observer).toValidCore).tr
     have Hchecking : CheckingEnv observer outEnv replayBase :=
       CheckingEnv.mapExt HcheckingCanonical
         (actual.property.targetWF Hvalid.tr.map_wf)
         (fun name => (hlookup name).symm)
     have hdeclObserver : decl.WF (ves.venv observer) :=
       abstractAddInduct_declWF Habstract
-    have HcheckingRules : CheckingEnv observer outEnv Breplay.finalVEnv := {
+    have HcheckingRules : CheckingEnv observer outEnv Breplay.installedVEnv := {
       aligned := by
-        rw [CompletedBlockCertificate.finalVEnv]
+        rw [BlockCertificate.installedVEnv]
         exact aligned_addDefEqs Hchecking.aligned
           (C.primaryRules ++ C.auxiliaryRules)
       wf := by
@@ -393,7 +393,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
     }
     have Hprovenance : NewRecursorsAligned observer
         sourceProdEnv.constants (ves.venv observer) outEnv.constants
-        Breplay.finalVEnv :=
+        Breplay.installedVEnv :=
       (C.provenance.rebaseBlock (wf.mono DefinitionSafety.le_safe) hout
         B.install Breplay.install rfl).ofUnsafe
     have Hadd := H.addInductConcrete Habstract HcheckingRules Hprovenance
@@ -411,7 +411,7 @@ private theorem NestedFinalAssemblyCertificate.extendSafe
   let adds (observer : DefinitionSafety) := (certSpec observer).2.1
   let outputLE (observer : DefinitionSafety) := (certSpec observer).2.2.1
   let next (observer : DefinitionSafety) :=
-    (cert observer).finalVEnv
+    (cert observer).installedVEnv
   have hcompletedCanonical :
       CtorParamsAgree .safe C.canonicalProdEnv
         (C.finalBaseVEnv.addDefEqRules
@@ -515,12 +515,12 @@ theorem NestedFinalAssemblyCertificate.safeInductiveFinalResultOfProduction
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams false depth
       (ves.venv .safe) result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)
@@ -595,7 +595,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
   have hperm := C.productionOrder actual.val actual.property
   have hlookup : ∀ name, outEnv.constants.find? name =
       C.canonicalProdEnv.constants.find? name :=
-    actual.property.lookupEqOfPerm C.canonical.combinedAtomic.freshTrace
+    actual.property.lookupEqOfPerm C.canonical.atomic.freshTrace
       Hvalid.tr.map_wf hperm
   have hlookupEnv : ∀ name, outEnv.find? name =
       C.canonicalProdEnv.find? name := by
@@ -603,7 +603,7 @@ private theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResult
     change outEnv.constants.find?' name =
       C.canonicalProdEnv.constants.find?' name
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
-      (C.canonical.combinedAtomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
+      (C.canonical.atomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
   let F := C.finalEnvironment Hvalid
   have HcheckingRules : CheckingEnv .unsafe outEnv
@@ -764,12 +764,12 @@ theorem NestedFinalAssemblyCertificate.unsafeInductiveFinalResultOfProduction
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams true depth
       (ves.venv .unsafe) result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {fuel : Nat} {initialState : Lean4Lean.ElimNestedInductive.State}
     (wf : ves.WFCore sourceProdEnv) (hcorner : ∀ safety, CtorTelescopes safety sourceProdEnv (ves.venv safety))
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hmetadata : MaterializedInductivePrefix decl loweredDecl)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Harity : decl.ConstructorArityPrefix loweredDecl)

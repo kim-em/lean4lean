@@ -405,7 +405,7 @@ theorem NestedValidatedRunResult.headerSetup
         (sourceDecl.typeConstants ++
           (E.production.loweredDecl.types.drop sourceDecl.types.length).map
             VInductiveType.toVConstVal) =
-        some E.production.constructors.completed.headerVEnv ∧
+        some E.production.constructors.toConstructorCheck.headerVEnv ∧
       (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
         familyNames (E.production.loweredDecl.types.drop sourceDecl.types.length) ∧
       (∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads,
@@ -416,7 +416,7 @@ theorem NestedValidatedRunResult.headerSetup
         E.production.compilationSignature.params[i].ClosedN i) ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
       (∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads, ∀ ci,
-        E.production.constructors.completed.headerVEnv.constants h.auxiliary = some ci →
+        E.production.constructors.toConstructorCheck.headerVEnv.constants h.auxiliary = some ci →
         ci.type.containsAnyConst
             (compilationRestoration sourceDecl auxiliaries).restorableNames = false ∧
         envTypes.HasType ci.uvars []
@@ -433,10 +433,10 @@ theorem NestedValidatedRunResult.headerSetup
     simp only [familyNames, List.flatMap_append]
     exact List.sublist_append_right _ _
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
@@ -444,11 +444,11 @@ theorem NestedValidatedRunResult.headerSetup
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.production.loweredDecl.typeConstants =
-        some E.production.constructors.completed.headerVEnv :=
+        some E.production.constructors.toConstructorCheck.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.production.loweredDecl.typeConstants =
-          some E.production.constructors.completed.headerVEnv) hinit)
-      E.production.constructors.completed.core.typesAdded
+          some E.production.constructors.toConstructorCheck.headerVEnv) hinit)
+      E.production.constructors.toConstructorCheck.core.typesAdded
   have Hsource := E.nativeSource.core
   rw [E.nativeSourceDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
@@ -462,7 +462,7 @@ theorem NestedValidatedRunResult.headerSetup
       (sourceDecl.typeConstants ++
         (E.production.loweredDecl.types.drop sourceDecl.types.length).map
           VInductiveType.toVConstVal) =
-        some E.production.constructors.completed.headerVEnv := by
+        some E.production.constructors.toConstructorCheck.headerVEnv := by
     rw [hprefix, VInductDecl.typeConstants, List.map_drop, List.take_append_drop]
     exact hloweredTypes
   have hheadNames : (compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary) =
@@ -470,7 +470,7 @@ theorem NestedValidatedRunResult.headerSetup
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
   have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.production.loweredConstruction.consumedGeneration.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
@@ -596,7 +596,7 @@ theorem NestedValidatedRunResult.headerRenamingReplacement
     {envT : VEnv} (hT : envT.Ordered) (hle : envTypes ≤ envT)
     (Helim : EliminatorProjNamesAvoid (ves.venv (if isUnsafe then .unsafe else .safe))
       (compilationRestoration sourceDecl auxiliaries).restorableNames) :
-    VEnv.RenamingReplacement envT E.production.constructors.completed.headerVEnv
+    VEnv.RenamingReplacement envT E.production.constructors.toConstructorCheck.headerVEnv
       ((compilationRestoration sourceDecl auxiliaries).lambdaReplacement
         fun _ => E.production.compilationSignature.params)
       (compilationRestoration sourceDecl auxiliaries).renaming := by
@@ -666,7 +666,7 @@ theorem NestedValidatedRunResult.headerRenamingReplacement
       rw [hheadNames]
       exact mem_familyNames.mpr ⟨t, ht, .inl rfl⟩
     obtain ⟨hd, hf, hdmem, hdaux⟩ := Restoration.find?_of_mem_heads hmem
-    have hget' : E.production.constructors.completed.headerVEnv.constants hd.auxiliary =
+    have hget' : E.production.constructors.toConstructorCheck.headerVEnv.constants hd.auxiliary =
         some t.toVConstVal.toVConstant := by rw [hdaux]; exact hget
     obtain ⟨hfree, htyped⟩ := hrepl hd hdmem _ hget'
     refine ⟨fun t' ht' => ?_, fun hnone => ?_⟩

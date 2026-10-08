@@ -16,17 +16,17 @@ hypothesis suffix from the producer.  Thus the call origin is related to the
 rule root by executable allocation history, not by an assumed context
 equality. -/
 structure
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame
+    RecursorCheck.RuleAlignment.RecursiveCallFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
   sourceShape : RecInfoMinorTypeShape
   hypothesisOrigins : RecInfoMinorHypothesisTypeOrigins
@@ -66,9 +66,9 @@ structure
       fv ∈ ExprArrayFVarIds stats.params
   replay : sourceOrigin.replayTrace sourceShape.fields_bound.fvars =
     semantic.generated.replayTrace A.rule.all_args_bound.fvars
-  semantic_eq : HEq semantic (A.producerReplayAt j hj).semantic
+  semantic_eq : HEq semantic (A.minorReplayAt j hj).semantic
   producerReplay_eq :
-    (A.producerReplayAt j hj).semantic.generated.replayTrace
+    (A.minorReplayAt j hj).semantic.generated.replayTrace
         A.rule.all_args_bound.fvars =
       semantic.generated.replayTrace A.rule.all_args_bound.fvars
   entry_lt : semantic.generated.ownerIdx < H.entries.length
@@ -87,39 +87,39 @@ structure
 
 /-- The generic extension view is derived from the retained producer trace.
 It is not a field or premise of the call frame. -/
-def CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.originExtension
+def RecursorCheck.RuleAlignment.RecursiveCallFrame.originExtension
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallFrame j hj) :
     RecursorContextExtension A.semantics.context F.originContext :=
   F.originRecent.contextExtension
 
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.recursiveCallRecursorFrame
+    RecursorCheck.RuleAlignment.recursiveCallRecursorFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    Nonempty (A.RecursiveCallRecursorFrame j hj) := by
-  let Horigin := A.producerOrigin
+    Nonempty (A.RecursiveCallFrame j hj) := by
+  let Horigin := A.minorOrigin
   let Hproducer := Horigin.producer
-  let P := A.producerReplayAt j hj
+  let P := A.minorReplayAt j hj
   let originRoot := P.originRoot
   let Rorigin := P.originContext
   let S := P.semantic
@@ -131,7 +131,7 @@ theorem
   rcases H.finalRecursorTelescopeTranslationAt
       S.generated.ownerIdx hentry with ⟨T⟩
   exact ⟨{
-    sourceShape := A.producerMinorShape
+    sourceShape := A.minorShape
     hypothesisOrigins := P.hypothesisOrigins
     hypothesisOrigins_eq := P.hypothesisOrigins_eq
     sourceOriginRoot := P.sourceOriginRoot
@@ -512,19 +512,19 @@ come from the first-pass producer certificate retained by the rule; the only
 context transport follows the literal prior-hypothesis and call-local suffixes
 recorded by the executable traversal. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.RecursiveCallRecursorFrame.semanticMotiveTelescopeEvidence
+    RecursorCheck.RuleAlignment.RecursiveCallFrame.semanticMotiveTelescopeEvidence
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (F : A.RecursiveCallRecursorFrame j hj) :
+    (F : A.RecursiveCallFrame j hj) :
     let selectedOwner := F.semantic.generated.ownerIdx
     ∃ binding : RecursorMotiveBinding F.semantic.current_context
         H.recInfos[selectedOwner]! H.elimLevel,
@@ -552,17 +552,17 @@ theorem
 This rule-wide frame is independent of any particular recursive call; later
 call-local narrowing reuses its exact field/parameter identifier order. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.narrowFieldRuntimeScope
+    RecursorCheck.RuleAlignment.narrowFieldRuntimeScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor) :
+    (A : H.RuleAlignment owner howner i hctor) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let parameterDecls := A.semantics.parameterSuffix.parameterDecls
     ∃ fieldScope,

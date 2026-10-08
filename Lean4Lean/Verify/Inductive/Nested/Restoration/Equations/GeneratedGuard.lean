@@ -564,12 +564,12 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
     E.production_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.production.loweredDecl.typeConstants =
-        some E.production.constructors.completed.headerVEnv :=
+        some E.production.constructors.toConstructorCheck.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.production.loweredDecl.typeConstants =
-          some E.production.constructors.completed.headerVEnv) hinit)
-      E.production.constructors.completed.core.typesAdded
-  have hloweredCtors := E.production.constructors.completed.core.ctorsAdded
+          some E.production.constructors.toConstructorCheck.headerVEnv) hinit)
+      E.production.constructors.toConstructorCheck.core.typesAdded
+  have hloweredCtors := E.production.constructors.toConstructorCheck.core.ctorsAdded
   have hloweredDecl : C.formationAssembly.expanded = E.production.loweredDecl := by
     rw [C.formationExpanded, hC]
   obtain ⟨hRfresh, -⟩ := E.restorationRecursorNames wf Hsources C.formationAssembly hloweredDecl
@@ -601,11 +601,11 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
     rcases List.mem_append.mp hfam with h | h
     · exact .inl (hr₁ ▸ h)
     · exact .inr (hHeads ▸ hr₂ ▸ h)
-  have hLfresh : ∀ n ∈ L, E.production.constructors.completed.context.venv.constants n = none := by
+  have hLfresh : ∀ n ∈ L, E.production.constructors.toConstructorCheck.context.venv.constants n = none := by
     intro n hn
-    rw [E.production.constructors.completed.contextVEnv]
+    rw [E.production.constructors.toConstructorCheck.contextVEnv]
     simp only [VEnv.addProjections_constants, VEnv.addEliminators_constants]
-    cases hlook : E.production.constructors.completed.ctorVEnv.constants n with
+    cases hlook : E.production.constructors.toConstructorCheck.ctorVEnv.constants n with
     | none => rfl
     | some ci =>
       exfalso
@@ -637,7 +637,7 @@ theorem NestedValidatedRunResult.restoredGeneratedAvoidance
     omega
   obtain ⟨type, Htr, Htype⟩ := H.recursorTypeTranslation o.val ho
   have heq := Htr.uniqueS (H.consumedGeneration.types o.val o.isLt)
-  have hord := E.production.constructors.completed.context.checking.tr.wf.ordered
+  have hord := E.production.constructors.toConstructorCheck.context.checking.tr.wf.ordered
   obtain ⟨u, hu⟩ := Htype
   have := (VEnv.IsDefEq.noFreshConsts hord hLfresh (by intro t ht; simp at ht) hu).1
   rw [heq] at this

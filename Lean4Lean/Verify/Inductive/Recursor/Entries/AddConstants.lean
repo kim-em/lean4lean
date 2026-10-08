@@ -756,13 +756,13 @@ theorem AddConstants.ofConstructorTypes
       exact (ih HnextValid hnextLe hnprimTail).mono
         fun outEnv Htail => by
           rcases Htail with
-            ⟨finalVEnv, tailEntries, htailValues, HtailInstalled,
+            ⟨installedVEnv, tailEntries, htailValues, HtailInstalled,
               HtailAligned, htailCtor, htailNind⟩
           have hvalues : (headEntries ++ tailEntries).map Prod.snd =
               (target :: targets).flatMap
                 (fun target : VInductiveType => target.ctors) := by
             simp [hheadValues, htailValues]
-          exact ⟨finalVEnv, headEntries ++ tailEntries, hvalues,
+          exact ⟨installedVEnv, headEntries ++ tailEntries, hvalues,
             HheadInstalled.append HtailInstalled,
             .cons HheadAligned HtailAligned, by
               intro entryInfo entryValue hentry

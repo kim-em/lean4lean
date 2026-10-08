@@ -15,13 +15,13 @@ declaration. -/
 structure InductiveSpecificationResult
     (sourceEnv : VEnv) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
-    (finalVEnv : VEnv) where
+    (installedVEnv : VEnv) where
   decl : VInductDecl
   envTypes : VEnv
   envCtors : VEnv
   source : TrInductDeclCore sourceEnv lparams nparams sourceTypes isUnsafe
     decl envTypes envCtors
-  extension : VEnv.AddInduct sourceEnv decl finalVEnv
+  extension : VEnv.AddInduct sourceEnv decl installedVEnv
 
 /-- Ordinary runs and primitive-bootstrap runs share the same independent
 source judgment; this alias documents the ordinary use site. -/

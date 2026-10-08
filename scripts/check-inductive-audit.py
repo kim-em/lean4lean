@@ -29,7 +29,7 @@ ROOTS = {
     "Lean4Lean.TypeChecker.whnf.WF",
     "Lean4Lean.TypeChecker.Inner.reduceRecursor.WF",
     "Lean4Lean.VEnv.NormalEq.parRed",
-    "Lean4Lean.VerifyInductive.CompletedRecursorConstruction.canonicalTypeTranslations",
+    "Lean4Lean.VerifyInductive.RecursorConstruction.canonicalTypeTranslations",
     "Lean4Lean.VEnv.PrefixUnfold.defeq",
     "Lean4Lean.VEnv.IsDefEq.full_church_rosser",
 }

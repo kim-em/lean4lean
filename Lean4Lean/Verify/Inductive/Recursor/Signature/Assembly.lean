@@ -435,15 +435,15 @@ theorem InductiveSignature.recursiveFields_markFields {s : InductiveSignature}
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The argument telescope and the exposed indices of every recursive call
 retained by the rule blueprints mention only the declaration's universe
 parameters (never the fresh elimination universe).  The blueprint producer
 retains this fact in each semantic call row
 (`RecInfoCallBlueprintSemanticOrigin.universes`); see
-`CompletedRecursorConstruction.argumentUniverses`. -/
-def CompletedRecursorConstruction.ArgumentUniverses (H : CompletedRecursorConstruction R) : Prop :=
+`RecursorConstruction.argumentUniverses`. -/
+def RecursorConstruction.ArgumentUniverses (H : RecursorConstruction R) : Prop :=
   ∀ owner (_howner : owner < H.recInfos.size) localIndex
     (_hlocal : localIndex < H.origins.minorTypes[owner]!.size),
     let B := H.recInfos[owner]!.ruleBlueprints[localIndex]!
@@ -536,8 +536,8 @@ blueprint call `C` of that induction hypothesis (the call from which
   (`abstractN (ExprArrayFVarIds C.args)`), then over the fields before `pos`
   and the parameters at depths `C.args.size` and `pos + C.args.size`, in
   `parameters ++ sourceFields.take pos ++ binders`. -/
-def CompletedRecursorConstruction.RecursiveShapeSources
-    (H : CompletedRecursorConstruction R)
+def RecursorConstruction.RecursiveShapeSources
+    (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (j pos target : Nat) (binders indices : List VExpr) : Prop :=
@@ -566,8 +566,8 @@ def CompletedRecursorConstruction.RecursiveShapeSources
 /-- `recursorTelescope_hypothesisUnlift`, returned to the declaration's
 universes: the `j`-th induction hypothesis of a flat minor slot is the
 generator's hypothesis for some declaration-universe binders and indices. -/
-theorem CompletedRecursorConstruction.recursorTelescope_hypothesisHeader
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.recursorTelescope_hypothesisHeader
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size)
     {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
@@ -725,8 +725,8 @@ theorem CompletedRecursorConstruction.recursorTelescope_hypothesisHeader
 
 /-! ### Flat minor positions -/
 
-theorem CompletedRecursorConstruction.minorPrefixLength_eq
-    (H : CompletedRecursorConstruction R) (owner : Nat)
+theorem RecursorConstruction.minorPrefixLength_eq
+    (H : RecursorConstruction R) (owner : Nat)
     (howner : owner ≤ H.recInfos.size) :
     ((H.recInfos.toList.take owner).flatMap (fun info => info.minors.toList)).length =
       recursorMinorOffset indTypes owner := by
@@ -743,8 +743,8 @@ theorem CompletedRecursorConstruction.minorPrefixLength_eq
 
 /-- The flattened minor declaration at the canonical offset of a minor row
 has that row's retained minor type. -/
-theorem CompletedRecursorConstruction.flatMinorDeclaration
-    (H : CompletedRecursorConstruction R)
+theorem RecursorConstruction.flatMinorDeclaration
+    (H : RecursorConstruction R)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     ∃ D : BoundFVarDeclarationAt H.localContext (H.recInfos.flatMap (·.minors))
@@ -835,15 +835,15 @@ theorem abstractForallContext_append_nil (A B : List VExpr) :
   simp [abstractForallContext, List.reverse_append, List.map_append]
 
 /-- A signature carrying only the consumed parameters and family table. -/
-noncomputable def CompletedRecursorConstruction.familySignature
-    (H : CompletedRecursorConstruction R) : InductiveSignature where
+noncomputable def RecursorConstruction.familySignature
+    (H : RecursorConstruction R) : InductiveSignature where
   uvars := decl.uvars
   params := R.parameterScope.toCtx.reverse
   families := H.consumedFamilies
   constructors := #[]
 
-theorem CompletedRecursorConstruction.recursorTelescope_motives_eq
-    (H : CompletedRecursorConstruction R) {owner₁ owner₂ : Nat}
+theorem RecursorConstruction.recursorTelescope_motives_eq
+    (H : RecursorConstruction R) {owner₁ owner₂ : Nat}
     {target₁ target₂ : VExpr}
     (T₁ : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -863,8 +863,8 @@ theorem CompletedRecursorConstruction.recursorTelescope_motives_eq
     (H.consumedInstance_target _)
   exact h₁.trans h₂.symm
 
-theorem CompletedRecursorConstruction.recursorTelescope_minors_eq
-    (H : CompletedRecursorConstruction R) {owner₁ owner₂ : Nat}
+theorem RecursorConstruction.recursorTelescope_minors_eq
+    (H : RecursorConstruction R) {owner₁ owner₂ : Nat}
     (howner₁ : owner₁ < H.recInfos.size) (howner₂ : owner₂ < H.recInfos.size)
     {target₁ target₂ : VExpr}
     (T₁ : GeneratedRecursorTelescopeTranslation R.context.venv
@@ -960,8 +960,8 @@ theorem RecInfoMinorHypothesisTypeOrigin.ownerIdx_lt
 are the traversal's recursive positions, each induction hypothesis of the
 checked recursor type is the generator's hypothesis for its shape, and each
 shape's target and arity are those of the retained hypothesis origin. -/
-def CompletedRecursorConstruction.MinorShapeSpec
-    (H : CompletedRecursorConstruction R)
+def RecursorConstruction.MinorShapeSpec
+    (H : RecursorConstruction R)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size)
     (shapes : List (Nat × InductiveSignature.Recursive H.consumedFamilies.size)) : Prop :=
@@ -1002,8 +1002,8 @@ def CompletedRecursorConstruction.MinorShapeSpec
       H.RecursiveShapeSources mowner hmowner localIndex hlocal j shapes[j].1
         shapes[j].2.target.val shapes[j].2.binders shapes[j].2.indices)
 
-theorem CompletedRecursorConstruction.minorShapes_exist
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.minorShapes_exist
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (mowner : Nat) (hmowner : mowner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[mowner]!.size) :
     ∃ shapes, H.MinorShapeSpec mowner hmowner localIndex hlocal shapes := by
@@ -1111,15 +1111,15 @@ theorem CompletedRecursorConstruction.minorShapes_exist
 /-! ### The consumed signature -/
 
 /-- The chosen recursive shapes of one consumed constructor. -/
-noncomputable def CompletedRecursorConstruction.consumedShapes
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+noncomputable def RecursorConstruction.consumedShapes
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     List (Nat × InductiveSignature.Recursive H.consumedFamilies.size) :=
   Classical.choose (H.minorShapes_exist HU owner howner localIndex hlocal)
 
-theorem CompletedRecursorConstruction.consumedShapes_spec
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedShapes_spec
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     H.MinorShapeSpec owner howner localIndex hlocal
@@ -1127,8 +1127,8 @@ theorem CompletedRecursorConstruction.consumedShapes_spec
   Classical.choose_spec (H.minorShapes_exist HU owner howner localIndex hlocal)
 
 /-- The consumed constructor of one minor row entry. -/
-noncomputable def CompletedRecursorConstruction.consumedConstructorAt
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+noncomputable def RecursorConstruction.consumedConstructorAt
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     InductiveSignature.Constructor H.consumedFamilies.size where
@@ -1139,8 +1139,8 @@ noncomputable def CompletedRecursorConstruction.consumedConstructorAt
   indices := H.sourceConstructorIndices owner howner localIndex hlocal
 
 /-- The consumed constructor at a flattened constructor position. -/
-noncomputable def CompletedRecursorConstruction.consumedConstructor
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+noncomputable def RecursorConstruction.consumedConstructor
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (k : Fin decl.ownedConstructors.length) :
     InductiveSignature.Constructor H.consumedFamilies.size :=
   let h := H.flatMinorIndex k.val k.isLt
@@ -1149,8 +1149,8 @@ noncomputable def CompletedRecursorConstruction.consumedConstructor
   H.consumedConstructorAt HU (Classical.choose h) (Classical.choose howner)
     (Classical.choose (Classical.choose_spec howner)) (Classical.choose hlocal)
 
-theorem CompletedRecursorConstruction.consumedConstructorAt_congr
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedConstructorAt_congr
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner owner' : Nat} (howner : owner < H.recInfos.size) (howner' : owner' < H.recInfos.size)
     {localIndex localIndex' : Nat} (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hlocal' : localIndex' < H.origins.minorTypes[owner']!.size)
@@ -1160,8 +1160,8 @@ theorem CompletedRecursorConstruction.consumedConstructorAt_congr
   subst h1 h2
   rfl
 
-theorem CompletedRecursorConstruction.consumedConstructor_eq
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedConstructor_eq
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex < decl.ownedConstructors.length) :
@@ -1180,16 +1180,16 @@ theorem CompletedRecursorConstruction.consumedConstructor_eq
 /-- The consumed signature: cached parameters, consumed families, and one
 constructor per minor with the consumed field domains, marked recursive at
 the traversal's recursive positions. -/
-@[reducible] noncomputable def CompletedRecursorConstruction.consumedSignature
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) : InductiveSignature where
+@[reducible] noncomputable def RecursorConstruction.consumedSignature
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses) : InductiveSignature where
   uvars := decl.uvars
   params := R.parameterScope.toCtx.reverse
   families := H.consumedFamilies
   constructors := Array.ofFn (H.consumedConstructor HU)
   isUnsafe := decl.isUnsafe
 
-theorem CompletedRecursorConstruction.consumedSignature_constructor
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedSignature_constructor
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex < (H.consumedSignature HU).constructors.size) :
@@ -1198,16 +1198,16 @@ theorem CompletedRecursorConstruction.consumedSignature_constructor
   simp only [consumedSignature, Array.getElem_ofFn]
   exact H.consumedConstructor_eq HU owner howner localIndex hlocal _
 
-theorem CompletedRecursorConstruction.consumedConstructorAt_fieldTypes
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedConstructorAt_fieldTypes
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     (H.consumedSignature HU).fieldTypes (H.consumedConstructorAt HU owner howner localIndex hlocal) =
       H.sourceFields owner howner localIndex hlocal :=
   InductiveSignature.fieldTypes_markFields _ _ _ _ rfl
 
-theorem CompletedRecursorConstruction.consumedConstructorAt_recursiveFields
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedConstructorAt_recursiveFields
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     InductiveSignature.Instance.recursiveFields (s := H.consumedSignature HU)
@@ -1230,8 +1230,8 @@ theorem CompletedRecursorConstruction.consumedConstructorAt_recursiveFields
     rw [H.sourceFields_length]
     exact this
 
-theorem CompletedRecursorConstruction.consumedSignatureData
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
+theorem RecursorConstruction.consumedSignatureData
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     H.ConsumedSignatureData (H.consumedSignature HU) where
   uvars := rfl
   params := rfl
@@ -1249,8 +1249,8 @@ theorem CompletedRecursorConstruction.consumedSignatureData
 
 /-! ### The minor group of the checked recursor type -/
 
-theorem CompletedRecursorConstruction.recursorTelescope_minor_eq
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.recursorTelescope_minor_eq
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1327,8 +1327,8 @@ theorem CompletedRecursorConstruction.recursorTelescope_minor_eq
     List.map_congr_left (fun e _ => (VExpr.liftN_liftN_comm _ _ _ _ _ (Nat.zero_le _)).symm)
   rw [hidxs]
 
-theorem CompletedRecursorConstruction.flatMinors_size_eq
-    (H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.flatMinors_size_eq
+    (H : RecursorConstruction R) :
     (H.recInfos.flatMap (·.minors)).size = decl.ownedConstructors.length := by
   have hflatSize : (H.recInfos.flatMap (·.minors)).size =
       (indTypes.flatMap fun type => type.ctors.toArray).size :=
@@ -1343,8 +1343,8 @@ theorem CompletedRecursorConstruction.flatMinors_size_eq
 
 /-- The minor group of every checked recursor type is the generator's minor
 list for the consumed signature. -/
-theorem CompletedRecursorConstruction.recursorTelescope_minors_consumed
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.recursorTelescope_minors_consumed
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     {owner : Nat} (howner : owner < H.recInfos.size) {target : VExpr}
     (T : GeneratedRecursorTelescopeTranslation R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
@@ -1412,8 +1412,8 @@ theorem BoundFVarArray.forallDomainsOnly_add
     LocalContext.mkBindingListN_eq_fold hfind hnodup]
   exact LocalContext.forallDomainsOnly_foldN_add hdecl k body
 
-theorem CompletedRecursorConstruction.recursorType_forallDomainsOnly
-    (H : CompletedRecursorConstruction R) (owner : Nat) :
+theorem RecursorConstruction.recursorType_forallDomainsOnly
+    (H : RecursorConstruction R) (owner : Nat) :
     Expr.forallDomainsOnly
         (stats.params.size + (H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size)
         (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner) =
@@ -1432,8 +1432,8 @@ theorem CompletedRecursorConstruction.recursorType_forallDomainsOnly
     H.bindings.flatMinors.forallDomainsOnly_add H.localWF hminors]
   rfl
 
-theorem CompletedRecursorConstruction.recursorType_prefixTelescope
-    (H : CompletedRecursorConstruction R) (owner : Nat) :
+theorem RecursorConstruction.recursorType_prefixTelescope
+    (H : RecursorConstruction R) (owner : Nat) :
     ∃ residual, Expr.ForallTelescope
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
       (stats.params.size + (H.recInfos.map (·.motive)).size + (H.recInfos.flatMap (·.minors)).size)
@@ -1461,8 +1461,8 @@ theorem CompletedRecursorConstruction.recursorType_prefixTelescope
 
 /-! ### The generated recursor types of the consumed signature -/
 
-theorem CompletedRecursorConstruction.consumedSignature_types
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedSignature_types
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < (H.consumedSignature HU).families.size) :
     TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (AddInductive.declareRecursors.recursorType stats H.recInfos H.localContext.lctx owner)
@@ -1477,8 +1477,8 @@ theorem CompletedRecursorConstruction.consumedSignature_types
   rw [heq] at Htr
   exact Htr
 
-theorem CompletedRecursorConstruction.consumedSignature_minorTranslation
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
+theorem RecursorConstruction.consumedSignature_minorTranslation
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     TrExprS R.context.venv (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (H.localContext.lctx.mkForall stats.params <|
         H.localContext.lctx.mkForall (H.recInfos.map (·.motive)) <|
@@ -1521,8 +1521,8 @@ theorem CompletedRecursorConstruction.consumedSignature_minorTranslation
     rw [H.recursorType_forallDomainsOnly, hp, hm, hmi, ← hp'] at Hd
     exact Hd
 
-theorem CompletedRecursorConstruction.consumedSignature_recursiveTypesWF
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses) :
+theorem RecursorConstruction.consumedSignature_recursiveTypesWF
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses) :
     (H.consumedInstance (H.consumedSignature HU)).RecursiveTypesWF R.context.venv := by
   by_cases hempty : H.recInfos.size = 0
   · intro index

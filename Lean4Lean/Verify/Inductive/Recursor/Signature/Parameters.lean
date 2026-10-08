@@ -38,26 +38,26 @@ theorem checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains
 
 /-- The generated parameter domains descend from the actual cached source
 scope, with exactly the executable recursor universe substitution. -/
-theorem CompletedRecursorConstruction.parameterDomains
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorConstruction.parameterDomains
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) :
+    (H : RecursorConstruction R) :
     H.parameterSuffix.parameterDecls.toCtx.reverse =
       R.parameterScope.toCtx.reverse.map
         (VExpr.instL (recursorDeclarationAbstractLevels c.lparams H.elimLevelAdmissible)) := by
   rw [H.parameterDecls,
     checkInductiveTypes.loopType.ParameterContextSuffix.recursorDomains,
     List.map_reverse]
-  have hscope : R.materializedFinal.parameterSuffix.parameterDecls = R.parameterScope :=
+  have hscope : R.recursorHeaders.parameterSuffix.parameterDecls = R.parameterScope :=
     R.materializedFinal_parameterScope
   rw [hscope]
 
 /-- Translate the concrete closed parameter telescope to that source-boundary
 choice, without deriving a literal target from translation uniqueness. -/
-theorem CompletedRecursorConstruction.sourceParameterTranslation
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+theorem RecursorConstruction.sourceParameterTranslation
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorConstruction R) :
+    (H : RecursorConstruction R) :
     TrExprS R.context.venv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams) []
       (H.localContext.lctx.mkForall stats.params (.sort .zero))
@@ -68,8 +68,8 @@ theorem CompletedRecursorConstruction.sourceParameterTranslation
   rw [H.recursorEnv, H.recursorWF.lctx_eq, H.parameterDomains] at Htr
   exact Htr
 
-theorem CompletedConstructorPhases.sourceParameterContext
-    (R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
+theorem ConstructorCheck.sourceParameterContext
+    (R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv) :
     sourceEnv.IsDefEqCtx decl.uvars [] R.params.reverse R.parameterScope.toCtx := by
   have Hctx := R.sourceMaterialized.paramsContext
   rw [R.sourceHeaderParams, R.sourceParameterScope,

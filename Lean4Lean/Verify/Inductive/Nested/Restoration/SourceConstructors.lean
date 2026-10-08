@@ -351,10 +351,10 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     simp only [familyNames, List.flatMap_append]
     exact List.sublist_append_right _ _
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
@@ -363,11 +363,11 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.production.loweredDecl.typeConstants =
-        some E.production.constructors.completed.headerVEnv :=
+        some E.production.constructors.toConstructorCheck.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.production.loweredDecl.typeConstants =
-          some E.production.constructors.completed.headerVEnv) hinit)
-      E.production.constructors.completed.core.typesAdded
+          some E.production.constructors.toConstructorCheck.headerVEnv) hinit)
+      E.production.constructors.toConstructorCheck.core.typesAdded
   have Hsource := E.nativeSource.core
   rw [E.nativeSourceDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
@@ -381,7 +381,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
       (sourceDecl.typeConstants ++
         (E.production.loweredDecl.types.drop sourceDecl.types.length).map
           VInductiveType.toVConstVal) =
-        some E.production.constructors.completed.headerVEnv := by
+        some E.production.constructors.toConstructorCheck.headerVEnv := by
     rw [hprefix, VInductDecl.typeConstants, List.map_drop, List.take_append_drop]
     exact hloweredTypes
   have Hmodels : E.production.compilationSignature.Models
@@ -396,7 +396,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     exact auxiliarySpecializations_headNames Haux Hexpansion
   -- the common parameter telescope
   have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.production.loweredConstruction.consumedGeneration.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
@@ -436,7 +436,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     simp only [List.length_reverse] at h1 h2
     omega
   have hreplaced : ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads, ∀ ci,
-      E.production.constructors.completed.headerVEnv.constants h.auxiliary = some ci →
+      E.production.constructors.toConstructorCheck.headerVEnv.constants h.auxiliary = some ci →
       ci.type.containsAnyConst
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) = false ∧
       envTypes.HasType ci.uvars []
@@ -498,7 +498,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     hrecFresh hreplaced (henvTypes.eliminatorsAvoidConsts hfresh)
   -- the lowered defeq of normalized and lowered constructor types
   have hloweredUvars : E.production.loweredDecl.uvars = sourceDecl.uvars := by
-    have h1 := E.production.constructors.completed.core.uvars
+    have h1 := E.production.constructors.toConstructorCheck.core.uvars
     have h2 := E.nativeSource.core.uvars
     rw [E.nativeSourceDecl_eq] at h2
     rw [h1, h2, E.production_c, E.productionContext_lparams]
@@ -510,7 +510,7 @@ theorem NestedValidatedRunResult.sourceConstructors_of_evidence
     Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       simpa using congrArg List.length h.2.2.2.2) Hmodels.families
   have Hdefeq := forall₂_take' (forall₂_ctors_split (R := fun nc lc : VConstVal =>
-      E.production.constructors.completed.headerVEnv.IsDefEqU sourceDecl.uvars []
+      E.production.constructors.toConstructorCheck.headerVEnv.IsDefEqU sourceDecl.uvars []
         nc.type lc.type) Hlengths
     (Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       rw [hloweredUvars] at h

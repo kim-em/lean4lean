@@ -500,7 +500,7 @@ theorem NestedValidatedRunResult.recursorMetadataOfStep
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
       (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    RecursorMetadataRealization E.production.production.canonicalGeneration
+    RecursorMetadata E.production.production.canonicalGeneration
       E.production.production.outVEnv owner Hstep.oldInfo := by
   rcases E.production.production.metadataRealization owner with
     ⟨rec, hrec, _, M⟩

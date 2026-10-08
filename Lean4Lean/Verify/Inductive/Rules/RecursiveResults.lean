@@ -15,24 +15,24 @@ recursor telescope and rule-wide field narrowing are parameters, so every
 array position is closed and typed in the same literal `equationDomains`;
 only its higher-order local telescope varies with the recursive field. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultTypingFor
+    RecursorCheck.RuleAlignment.canonicalRecursiveResultTypingFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
-    (B : A.NarrowFieldRuntimeFrame)
+    (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
@@ -40,7 +40,7 @@ theorem
         T.motives ++ T.minors ++
           (liftContextPrefix (T.motives ++ T.minors).length
             B.fieldDomains.reverse).reverse
-    ∃ F : A.RecursiveCallRecursorFrame j hj,
+    ∃ F : A.RecursiveCallFrame j hj,
       ∃ (localDomains : List VExpr)
           (resultBody resultType templateTarget : VExpr),
         equationDomains.length = A.rule.binders.length ∧
@@ -129,26 +129,26 @@ theorem
 higher-order local telescope remains entry-specific, while its closed lambda
 and forall type both live in the single context shared by the whole RHS. -/
 structure
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt
+    RecursorCheck.RuleAlignment.RecursiveResult
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
-    (B : A.NarrowFieldRuntimeFrame)
+    (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) where
-  frame : A.RecursiveCallRecursorFrame j hj
+  frame : A.RecursiveCallFrame j hj
   localDomains : List VExpr
   resultBody : VExpr
   resultType : VExpr
@@ -256,26 +256,26 @@ structure
       (VExpr.wrapForalls localDomains resultType)
 
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.canonicalRecursiveResultAt
+    RecursorCheck.RuleAlignment.canonicalRecursiveResultAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
-    (B : A.NarrowFieldRuntimeFrame)
+    (B : A.FieldFrame)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size) :
-    Nonempty (A.CanonicalRecursiveResultAt T B j hj) := by
+    Nonempty (A.RecursiveResult T B j hj) := by
   rcases A.canonicalRecursiveResultTypingFor T B j hj with
     ⟨F, localDomains, resultBody, resultType, templateTarget, hequation,
       hlocal, HequationCtx, HlocalForall, Htelescope, Htranslation,
@@ -322,26 +322,26 @@ the independently checked selected-motive application.  The source is the
 exact complete higher-order domain produced by the recursive-call replay,
 closed over production's full rule binder list. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullForallTranslation
+    RecursorCheck.RuleAlignment.RecursiveResult.fullForallTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner}
-    {B : A.NarrowFieldRuntimeFrame}
+    {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    (E : A.RecursiveResult T B j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
@@ -451,26 +451,26 @@ fixed equation context while retaining the complete canonical higher-order
 domain.  Both its dependent local domains and its real residual are lifted
 at their exact respective cutoffs. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullForallTranslationAfter
+    RecursorCheck.RuleAlignment.RecursiveResult.fullForallTranslationAfter
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner}
-    {B : A.NarrowFieldRuntimeFrame}
+    {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (E : A.RecursiveResult T B j hj)
     (previous : List VExpr) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
@@ -520,26 +520,26 @@ theorem
 translations for the eta-expanded recursive-field lambda over the same local
 selection. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.templateTranslation
+    RecursorCheck.RuleAlignment.RecursiveResult.templateTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner}
-    {B : A.NarrowFieldRuntimeFrame}
+    {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    (E : A.RecursiveResult T B j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let equationDomains :=
       H.parameterSuffix.parameterDecls.toCtx.reverse ++
@@ -615,28 +615,28 @@ theorem
 result from any translation of its eta-expanded field template in the fixed
 equation context.  The template contributes only the shared lambda-domain
 derivations; the actual recursive-call residual is the independently checked
-one retained by `CanonicalRecursiveResultAt`. -/
+one retained by `RecursiveResult`. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.CanonicalRecursiveResultAt.fullTranslationOfTemplate
+    RecursorCheck.RuleAlignment.RecursiveResult.fullTranslationOfTemplate
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    {A : H.GeneratedRuleAlignment owner howner i hctor}
+    {A : H.RuleAlignment owner howner i hctor}
     {T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner}
-    {B : A.NarrowFieldRuntimeFrame}
+    {B : A.FieldFrame}
     {j : Nat} {hj : j < A.rule.recursiveArgs.size}
-    (E : A.CanonicalRecursiveResultAt T B j hj)
+    (E : A.RecursiveResult T B j hj)
     (templateTarget : VExpr)
     (Htemplate :
       let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
@@ -676,26 +676,26 @@ while the corresponding recursive result is already closed and typed in the
 fixed equation context.  The remaining RHS argument proof can therefore
 focus solely on relating these two displayed types. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisCanonicalResultFrame
+    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisCanonicalResultFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size)
-    (B : A.NarrowFieldRuntimeFrame)
+    (B : A.FieldFrame)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
-    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    (E : A.RecursiveResult T B j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ S : RecInfoMinorTypeShape,
@@ -1787,26 +1787,26 @@ the canonical recursive-result domain is transported past the already
 consumed hypotheses.  Both targets expose their exact dependent local
 domain lists, ready for `SameForallPrefix.translatedContextsExact`. -/
 theorem
-    CompletedRecursorPhasesResult.GeneratedRuleAlignment.finalSelectedMinorHypothesisCanonicalWholeDomains
+    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisCanonicalWholeDomains
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
+    {H : RecursorCheck R outEnv}
     {owner : Nat} {howner : owner < H.entries.length}
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
-    (A : H.GeneratedRuleAlignment owner howner i hctor)
+    (A : H.RuleAlignment owner howner i hctor)
     (j : Nat) (hj : j < A.rule.recursiveArgs.size)
-    (B : A.NarrowFieldRuntimeFrame)
+    (B : A.FieldFrame)
     (T : GeneratedRecursorTelescopeTranslation H.outVEnv
       (AddInductive.getRecLevelParams H.elimLevel c.lparams)
       (H.generated.entry owner howner).info.type H.entries[owner].2.type
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner)
-    (E : A.CanonicalRecursiveResultAt T B j hj) :
+    (E : A.RecursiveResult T B j hj) :
     let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
     let minorIdx := recursorMinorOffset indTypes owner + i
     ∃ S : RecInfoMinorTypeShape,

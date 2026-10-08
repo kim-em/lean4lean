@@ -230,8 +230,8 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    by simpa [B, B0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
-      CompletedBlockCertificate.block] using
+    by simpa [B, B0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
+      BlockCertificate.block] using
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hconstructors :
@@ -244,15 +244,15 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
     Hrecursors.productionInductiveOrigins
   have htypeValue : target.toVConstVal ∈ Hheaders.entries.map Prod.snd :=
     List.mem_map.mpr ⟨(.inductInfo eqInfo, target.toVConstVal), hentry, rfl⟩
-  have htypesEq : B.staged.venvTypes.constants ``Eq = some eqConst := by
-    have hlookup := VEnv.addConstVals_get B.staged.abstract_types htypeValue
+  have htypesEq : B.installation.venvTypes.constants ``Eq = some eqConst := by
+    have hlookup := VEnv.addConstVals_get B.installation.abstract_types htypeValue
     simpa [htargetName, htargetConstant] using hlookup
   have houtEq :
       (Hrecursors.outVEnv.addDefEqRules T.rules).constants ``Eq = some eqConst := by
     apply VEnv.addDefEqRules_le.constants
-    apply (VEnv.addConstVals_le B.staged.abstract_recursors).constants
+    apply (VEnv.addConstVals_le B.installation.abstract_recursors).constants
     apply VEnv.addEliminators_addProjections_le.constants
-    apply (VEnv.addConstVals_le B.staged.abstract_ctors).constants
+    apply (VEnv.addConstVals_le B.installation.abstract_ctors).constants
     exact htypesEq
   rcases B.extendSafeExact wf hcorner hdecl hcompile horigins T.recursorProvenance Hrecursors.closed
       (Hrecursors.constructorOwnersPresent wf.constructorOwners)
@@ -285,11 +285,11 @@ theorem SemanticRunWithStatsResult.extendSafeEqBootstrap
       ⟨family, refl, hdeclTypes, hfamilyName, hfamilyConst, hfamilyCtors, hreflName,
         hreflConst, hdeclParams⟩
     -- The generated rule is the stored rule.
-    have hinstall : B.block.install (ves.venv .safe) = some B.finalVEnv := B.install
+    have hinstall : B.block.install (ves.venv .safe) = some B.installedVEnv := B.install
     have hrules : B.block.rules = [canonicalEqRecRule] := by
       have Hcompiles : InductiveSignature.Compiles (ves.venv .safe) decl B.block := by
-        simpa [B, B0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
-      CompletedBlockCertificate.block] using
+        simpa [B, B0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
+      BlockCertificate.block] using
           (show OrdinaryCompilationCertificate _ decl B0.block from
             T.compilation hnonempty).canonical
       refine Hcompiles.eqRecRules hdeclTypes hfamilyName (by simp [hfamilyCtors])

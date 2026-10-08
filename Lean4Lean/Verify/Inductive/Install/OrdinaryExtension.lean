@@ -119,8 +119,8 @@ theorem SemanticRunWithStatsResult.extendSafeExact
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) B.block :=
-    by simpa [B, B0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
-      CompletedBlockCertificate.block] using
+    by simpa [B, B0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
+      BlockCertificate.block] using
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hconstructors :
@@ -185,8 +185,8 @@ theorem SemanticRunWithStatsResult.extendUnsafeExact
   have hdecl : decl.WF (ves.venv .unsafe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .unsafe) B.block :=
-    by simpa [B, B0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
-      CompletedBlockCertificate.block] using
+    by simpa [B, B0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
+      BlockCertificate.block] using
       (show OrdinaryCompilationCertificate _ decl B0.block from
         T.compilation hnonempty).compilesTo
   have hisUnsafe : isUnsafe = true := by

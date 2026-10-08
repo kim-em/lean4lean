@@ -26,11 +26,11 @@ open Kernel
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The recursive shapes of a consumed constructor, for any universe support. -/
-theorem CompletedRecursorConstruction.consumedSignature_shapeTranslations
-    (H : CompletedRecursorConstruction R) (HU : H.ArgumentUniverses)
+theorem RecursorConstruction.consumedSignature_shapeTranslations
+    (H : RecursorConstruction R) (HU : H.ArgumentUniverses)
     (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size)
     (hk : recursorMinorOffset indTypes owner + localIndex <
@@ -88,7 +88,7 @@ theorem CompletedRecursorConstruction.consumedSignature_shapeTranslations
   have hx : rf[j] = (H.consumedShapes HU owner howner localIndex hlocal)[j] :=
     List.getElem_of_eq hrec hj
   obtain ⟨hpos, hfield, hsrc⟩ := hspec.2.2.2.2 j hj'
-  dsimp only [CompletedRecursorConstruction.RecursiveShapeSources] at hsrc
+  dsimp only [RecursorConstruction.RecursiveShapeSources] at hsrc
   obtain ⟨h1, h2, h3, h4, h5, h6, h7⟩ := hsrc
   dsimp only
   rw [hx, hft]
@@ -101,8 +101,8 @@ blueprint call `C := B.recursiveCalls[j]!` is the call of this hypothesis
 are the declaration-universe translations, in the small context
 `parameters ++ fields.take pos ++ binders`, of `C`'s argument domains and
 target indices closed over the earlier fields and the parameters. -/
-theorem CompletedRecursorConstruction.consumedGeneration_shapeTranslations
-    (H : CompletedRecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
+theorem RecursorConstruction.consumedGeneration_shapeTranslations
+    (H : RecursorConstruction R) (owner : Nat) (howner : owner < H.recInfos.size)
     (localIndex : Nat) (hlocal : localIndex < H.origins.minorTypes[owner]!.size) :
     let G := H.consumedGeneration
     let S := H.origins.minorShapes owner howner localIndex hlocal
@@ -144,7 +144,7 @@ theorem CompletedRecursorConstruction.consumedGeneration_shapeTranslations
             r.indices := by
   intro G S k B
   have hk : k < (H.consumedSignature H.argumentUniverses).constructors.size := by
-    simp only [CompletedRecursorConstruction.consumedSignature, Array.size_ofFn]
+    simp only [RecursorConstruction.consumedSignature, Array.size_ofFn]
     exact H.sourceMinorOffsetBound owner howner localIndex hlocal
   exact ⟨hk, H.consumedSignature_shapeTranslations H.argumentUniverses owner howner localIndex
     hlocal hk⟩

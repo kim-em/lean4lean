@@ -81,7 +81,7 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
           E.production.headers.commonParameterContext →
         ∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl params) ∧
       (∀ a ∈ auxiliaries, a.WellFormed envTypes sourceDecl
-        E.production.constructors.completed.parameterScope.toCtx.reverse) ∧
+        E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse) ∧
       (compilationRestoration sourceDecl auxiliaries).Scoped ∧
       (∀ (U : Nat) (params : List VExpr), ∃ direct,
         auxiliaries.mapM (fun a => a.specializedFamily U params) = some direct ∧
@@ -105,10 +105,10 @@ theorem NestedValidatedRunResult.restorationPrefix_of {X : Prop}
     simp only [familyNames, List.flatMap_append]
     exact List.sublist_append_right _ _
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   -- executable constructor names agree with the table
@@ -277,10 +277,10 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
   have henvEq : envTypes' = envTypes := Option.some.inj (htypes'.symm.trans hadded)
   subst envTypes'
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hinit : E.production.initialEnv =
@@ -302,7 +302,7 @@ theorem NestedValidatedRunResult.auxiliaryFamiliesField_of_evidence
     rw [E.nativeSourceDecl_eq] at h
     rw [h, E.production.constructors.core.nparams, E.production_nparams]
   have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.production.loweredConstruction.consumedGeneration.params
   refine auxiliaryFamilies_of_evidence (base := ves.venv (if isUnsafe then .unsafe else .safe))
     (headerParams := E.production.headers.headers.params)

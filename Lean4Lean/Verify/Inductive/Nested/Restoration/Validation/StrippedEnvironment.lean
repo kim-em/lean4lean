@@ -513,11 +513,11 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -528,8 +528,8 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
       auxRec (sourceTypes.map (fun type => type.name)) sourceTypes auxRecNames
       ((), outEnv))
     (Hactual : FreshConstantTrace c.env actualEntries outEnv)
-    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv types ctors recursors
-      sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
+    (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
+      sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
     (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
@@ -540,18 +540,18 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
           name = some (.recInfo rec) →
       c.safety ≤ (ConstantInfo.recInfo rec).safety →
       c.env.constants.find? name = none →
-      RecursorAlignmentCore finalVEnv rec ∧
+      RecursorAlignmentCore installedVEnv rec ∧
       KLikeRecursor (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames)).constants
-        finalVEnv rec ∧
+        installedVEnv rec ∧
       ∃ info, (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames)).constants.find?
           rec.getMajorInduct = some (.inductInfo info))
-    (hcorner : CtorTelescopes c.safety outEnv finalVEnv) :
+    (hcorner : CtorTelescopes c.safety outEnv installedVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
-      finalVEnv := by
+      installedVEnv := by
   obtain ⟨hcore, howners, hregistry⟩ :=
     Hrestored.finalLocalValidOfStaged Hlower Hc Hprod Hsource Hmetadata Hsources
       Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
@@ -596,7 +596,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     have hn : n ∉ names := fun hn => by rw [hfresh n hn] at h; cases h
     rw [stripLookup_not_mem hspec hn]
     exact Hactual.preservesSourceMapFind hsourceWF h
-  have hvalidCore : CheckingEnv.ValidCore c.safety S finalVEnv := {
+  have hvalidCore : CheckingEnv.ValidCore c.safety S installedVEnv := {
     tr := {
       aligned := hSal
       wf := hcore.tr.wf
@@ -618,7 +618,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     · rcases howners name info h with ⟨owner, ho⟩
       exact ⟨owner, hnonrecE ho (fun _ h => by cases h)⟩
     · cases hr
-  have hregistry' : ProjectionRegistryCoherent c.safety S.constants finalVEnv := by
+  have hregistry' : ProjectionRegistryCoherent c.safety S.constants installedVEnv := by
     intro familyName familyInfo constructorName constructorInfo hfam hvis hsingle
       hctor hinduct
     have hfam' : outEnv.constants.find? familyName =
@@ -636,7 +636,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     exact ⟨{ P with
       constructor_lookup :=
         stripLookup_nonrec hspec P.constructor_lookup (fun _ h => by cases h) }⟩
-  have hrecursors : RecursorEnvCoherent c.safety S.constants finalVEnv := by
+  have hrecursors : RecursorEnvCoherent c.safety S.constants installedVEnv := by
     refine hvalidSource.recursors.extend hpres ?_ canonical.le
       (fun df hdf => Or.inl (canonical.defeqs df hdf))
     intro n rec hfind hs
@@ -647,7 +647,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
       rw [hfind] at h
       cases h
       exact Or.inl rfl
-  have hquot : S.quotInit = true → QuotEnvCoherent S.constants finalVEnv := by
+  have hquot : S.quotInit = true → QuotEnvCoherent S.constants installedVEnv := by
     intro hq
     rw [hSquot, Hactual.quotInit_eq] at hq
     exact (hvalidSource.quot hq).extend hpres canonical.le hrecursors.heads

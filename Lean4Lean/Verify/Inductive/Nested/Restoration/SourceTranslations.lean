@@ -412,11 +412,11 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtBase
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[]) :
     RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
@@ -425,7 +425,7 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtBase
     Hrun.restoreAuxConstructorsFreshOfInstallation
       ((((Hheaders.installed.append R.declared.installed).addEliminators
         (es := R.declared.eliminators)).addProjections
-          (projections := decl.projectionEntries)).append Hprod.staged.recursorsAdded)
+          (projections := decl.projectionEntries)).append Hprod.installation.recursorsAdded)
       Hc.checking.tr.map_wf Howners hempty
 
 /-- Lift generated-constructor freshness through the source-header prefix
@@ -438,11 +438,11 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtHeaderPrefix
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (HsourceHeaders : List.Forall₂
@@ -494,11 +494,11 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -552,11 +552,11 @@ theorem NestedLoweringResultClosed.sourceRecursorUnmappedAtFresh
     {sourceVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
     (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find?
@@ -625,11 +625,11 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
     {sourceVEnv canonicalEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hfamily : familyIdx < sourceTypes.length)
     (Htranslations : List.Forall₂ (fun source constructor =>
@@ -671,11 +671,11 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFreshOfValidation
     {sourceVEnv sourceTypesVEnv : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent c.env)
     (HsourceHeaders : List.Forall₂
@@ -726,11 +726,11 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -827,11 +827,11 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -868,11 +868,11 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFreshExactOwner
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -1020,11 +1020,11 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -1102,11 +1102,11 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtTypes
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Howners : ConstructorOwnersPresent c.env)
@@ -1142,16 +1142,16 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtTypes
 /-- Specialize `restorationSources` from the installed lowered family list
 back to each original source family, using the lowering trace for name
 preservation and target constructor telescopes. -/
-theorem CompletedRecursorPhasesResult.restorationSourcesOfLowering
+theorem RecursorCheck.restorationSourcesOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv res.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
     (Hlower : NestedLoweringResult prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res) :
     ∀ owner, owner ∈ sourceTypes →
@@ -1179,16 +1179,16 @@ theorem CompletedRecursorPhasesResult.restorationSourcesOfLowering
 the installed recursor of one of the dynamically generated lowered families.
 Consequently its type and every rule RHS satisfy the telescope discipline
 required by restoration. -/
-theorem CompletedRecursorPhasesResult.auxRestorationSourcesOfLowering
+theorem RecursorCheck.auxRestorationSourcesOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
     {headerEnv ctorEnv outEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv res.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck outEnv)
     (Hlower : NestedLoweringResult prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res) :
     ∀ recName,
@@ -1243,9 +1243,9 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv res.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hlower : NestedLoweringResult sourceProdEnv loweringFuel nparams
       sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res)
@@ -1314,9 +1314,9 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
     {headerEnv ctorEnv loweredEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv res.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed loweredEnv)
+    (Hc : ContextWF c) (H : RecursorCheck R.toConstructorCheck loweredEnv)
     (Hlower : NestedLoweringResultClosed sourceProdEnv loweringFuel nparams
       sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res)

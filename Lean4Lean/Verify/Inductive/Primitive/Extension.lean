@@ -48,13 +48,13 @@ theorem SemanticPrimitiveRunWithStatsResult.extendSafeExact
   have hdecl : decl.WF (ves.venv .safe) :=
     R.formation.declWF Htranslated.sourceWF
   have hcompile : decl.CompilesTo (ves.venv .safe) Hcert.block := by
-    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
-      CompletedBlockCertificate.block] using
+    simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
+      BlockCertificate.block] using
       (T.compilation hnonempty).compilesTo
   have Hsemantics : CtorParamsAgree .safe outEnv
-      Hcert.finalVEnv := by
-    simpa [Hcert, Hcert0, CompletedBlockCertificate.sf_mono, CompletedStagedBlock.sf_mono,
-      CompletedBlockCertificate.finalVEnv] using
+      Hcert.installedVEnv := by
+    simpa [Hcert, Hcert0, BlockCertificate.sf_mono, BlockInstallation.sf_mono,
+      BlockCertificate.installedVEnv] using
     Hrecursors.completedConstructorSemantics
       (wf.ctorParamsAgree (safety := .safe)) T.rules
   rcases Hcert.extendSafeExact wf hcorner hdecl hcompile

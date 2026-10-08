@@ -6,13 +6,13 @@ import Lean4Lean.Theory.Inductive.CaseCertificateMono
 The source declaration of a nested run registers the case schema of the boundary signature of
 its lowered declaration, restored by the nested compilation restoration. This file proves the
 facts about a constructor boundary that this needs beyond the restoration-free certificate of
-`ConstructorBoundary.caseEliminatorsCertified`:
+`CheckedFormation.caseEliminatorsCertified`:
 
 * the constructor types of the boundary signature are head-applied whenever the production
   constructor types have hit shape, so restoration is total on them
-  (`ConstructorBoundary.sourceSignature_headsApplied`);
+  (`CheckedFormation.sourceSignature_headsApplied`);
 * the pieces of the boundary signature project only out of structures registered in the source
-  environment (`ConstructorBoundary.sourceSignature_pieces_projNamesOK`). -/
+  environment (`CheckedFormation.sourceSignature_pieces_projNamesOK`). -/
 
 open Lean4Lean.InductiveSignature
 
@@ -20,13 +20,13 @@ namespace Lean4Lean.VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-namespace ConstructorBoundary
+namespace CheckedFormation
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats} {decl : VInductDecl}
   {nparams : Nat} {isUnsafe : Bool} {depth : Nat} {sourceEnv : VEnv}
   {indTypes : Array InductiveType}
 
 theorem stats_params_fvars
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     ∃ pfvs : List FVarId, stats.params = (pfvs.map Expr.fvar).toArray := by
   have h := R.materialized.paramFVars
   refine ⟨stats.params.toList.map fun e => match e with | .fvar fv => fv | _ => default, ?_⟩
@@ -41,7 +41,7 @@ theorem stats_params_fvars
 /-- **The constructor types of the boundary signature are head-applied**, given the hit shape
 of the production constructor types and parameters avoiding the heads. -/
 theorem sourceSignature_headsApplied
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     {heads : List Name}
     (hctorTypes : ∀ i, i < indTypes.size → ∀ ctor ∈ indTypes[i]!.ctors,
       Expr.ParamUniformTele heads stats.params.size stats.levels ctor.type)
@@ -97,7 +97,7 @@ theorem sourceSignature_headsApplied
 /-- **The pieces of the boundary signature project only out of structures registered in the
 source environment.** -/
 theorem sourceSignature_pieces_projNamesOK
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (hdeclNe : decl.types ≠ []) :
     let ok := fun S => ∃ info, sourceEnv.projections S info
     (∀ e ∈ R.sourceSignature.params, e.ProjNamesOK ok) ∧
@@ -156,7 +156,7 @@ the source environment, where the restorable names are fresh, so restoration fix
 families of a declaration whose headers form a prefix of the boundary's declaration agree with
 it. -/
 theorem restored_headerAgreement
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (hdeclNe : decl.types ≠ []) {schema : CaseSchema} {source : VInductDecl}
     (hsig : schema.signature = R.sourceSignature)
     (hfresh : ∀ name ∈ schema.restoration.restorableNames, sourceEnv.constants name = none)
@@ -229,7 +229,7 @@ theorem restored_headerAgreement
 
 /-- The boundary parameters mention no name that is fresh in the source environment. -/
 theorem params_avoid
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes)
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes)
     (hdeclNe : decl.types ≠ []) {names : List Name}
     (hfresh : ∀ name ∈ names, sourceEnv.constants name = none) :
     ∀ A ∈ R.params, A.containsAnyConst names = false := by
@@ -252,13 +252,13 @@ theorem params_avoid
 
 /-- The boundary parameters, in the source environment, are the boundary's parameter scope. -/
 theorem params_scope
-    (R : ConstructorBoundary c stats decl nparams isUnsafe depth sourceEnv indTypes) :
+    (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) :
     sourceEnv.IsDefEqCtx decl.uvars [] R.params.reverse R.parameterScope.toCtx := by
   have Hctx := R.sourceMaterialized.paramsContext
   rw [R.sourceHeaderParams, R.sourceParameterScope,
     R.sourceContextVEnv, R.sourceMaterialized.uvars] at Hctx
   exact Hctx
 
-end ConstructorBoundary
+end CheckedFormation
 
 end Lean4Lean.VerifyInductive

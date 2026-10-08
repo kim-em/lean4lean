@@ -32,8 +32,8 @@ structure NestedInstalledProduction (outEnv : Environment) where
   ctorEnv : Environment
   headers : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
     initialEnv indTypes headerEnv
-  constructors : ConstructorPhasesResult headers ctorEnv
-  production : CompletedRecursorPhasesResult constructors.completed outEnv
+  constructors : OrdinaryConstructorCheck headers ctorEnv
+  production : RecursorCheck constructors.toConstructorCheck outEnv
 
 end VerifyInductive
 end Lean4Lean

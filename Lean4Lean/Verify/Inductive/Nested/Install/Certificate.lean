@@ -154,7 +154,7 @@ def NestedEliminatorsRestored {loweredEnv : Environment}
     (es : List (Name × InductiveSignature.CaseSchema)) : Prop :=
   ∃ (key : Name) (sL : InductiveSignature)
     (auxiliaries : List InductiveSignature.ContainerSpecialization),
-    P.constructors.completed.eliminators =
+    P.constructors.toConstructorCheck.eliminators =
       [(key, InductiveSignature.CaseSchema.ofCompilation P.loweredDecl sL [])] ∧
     es = [(key, InductiveSignature.CaseSchema.ofCompilation decl sL auxiliaries)] ∧
     RestorationTableData decl auxiliaries result loweredEnv auxRec lparams
@@ -188,7 +188,7 @@ structure NestedFinalAssemblyBase
   recursorEntries : List (ConstantInfo × VConstVal)
   canonicalProdEnv : Environment
   finalBaseVEnv : VEnv
-  canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
+  canonical : BlockInstallation safety sourceProdEnv sourceEnv typeEntries
     constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
       finalBaseVEnv
   productionOrder : ∀ actualEntries,
@@ -311,7 +311,7 @@ structure NestedFinalAssemblyRemainder
     (typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal))
     (canonicalProdEnv : Environment) (finalBaseVEnv : VEnv)
-    (canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
+    (canonical : BlockInstallation safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv) where
   productionOrder : ∃ actualEntries,
@@ -349,7 +349,7 @@ noncomputable def NestedFinalAssemblyRemainder.certificate
     {typeEntries constructorEntries recursorEntries :
       List (ConstantInfo × VConstVal)}
     {canonicalProdEnv : Environment} {finalBaseVEnv : VEnv}
-    {canonical : CompletedStagedBlock safety sourceProdEnv sourceEnv typeEntries
+    {canonical : BlockInstallation safety sourceProdEnv sourceEnv typeEntries
       constructorEntries recursorEntries decl.projectionEntries canonicalProdEnv
         finalBaseVEnv}
     (R : NestedFinalAssemblyRemainder (sourceTypes := sourceTypes) P H

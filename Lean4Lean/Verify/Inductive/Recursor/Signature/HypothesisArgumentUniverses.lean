@@ -27,13 +27,13 @@ section
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The universe support of every retained recursive call, read off the
 producer's semantic call rows (`RecInfoCallBlueprintSemanticOrigin.universes`).
 Every row's root context extends the recursor context and so has the
 declaration's universe parameters. -/
-theorem CompletedRecursorConstruction.argumentUniverses (H : CompletedRecursorConstruction R) :
+theorem RecursorConstruction.argumentUniverses (H : RecursorConstruction R) :
     H.ArgumentUniverses := by
   intro owner howner localIndex hlocal
   dsimp only

@@ -158,14 +158,14 @@ theorem TrExprS.constHead_eq {env : VEnv} {Us : List Name} {Δ : VLCtx}
 
 /-- The domain at the major position of a generated recursor type is an
 application of the owner family constant. -/
-theorem CompletedRecursorPhasesResult.generated_majorBinder
+theorem RecursorCheck.generated_majorBinder
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv)
+    (H : RecursorCheck R outEnv)
     (owner : Nat) (howner : owner < H.entries.length) :
     ∃ domain, Expr.ForallBinderAt (H.generated.entry owner howner).info.type
         (H.generated.entry owner howner).info.getMajorIdx domain ∧
@@ -797,8 +797,8 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
       (sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
       recursors)
-    {finalVEnv : VEnv}
-    (hfinal : ∀ w ∈ recursors, finalVEnv.constants w.name = some w.toVConstant)
+    {installedVEnv : VEnv}
+    (hfinal : ∀ w ∈ recursors, installedVEnv.constants w.name = some w.toVConstant)
     (hfamilies : 1 < E.production.production.generationSignature.families.size)
     (hnestedHead : ∀ name nested, result.aux2nested.find? name = some nested →
       ∃ c ls, nested.getAppFn = .const c ls)
@@ -810,7 +810,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
       (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     RestoredRecursorShapeInputs E.production.production.canonicalGeneration
-        (compilationRestoration sourceDecl auxiliaries) finalVEnv owner
+        (compilationRestoration sourceDecl auxiliaries) installedVEnv owner
         { Hstep.restored.newInfo with rules := [] } ∧
       ∃ hi : owner.val < E.production.loweredDecl.types.length,
         ((E.production.loweredDecl.types[owner.val]'hi).name ∉
@@ -906,7 +906,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
       obtain ⟨nested, hnested⟩ := D.familyLookup a ha
       exact ⟨nested, haeq ▸ hnested⟩
   obtain ⟨hi', domain, c, ls, Hbinder, hc, hdisj⟩ := E.restoredMajorHead wf Hsources
-    (D.agreement finalVEnv lparams) hheads hparamsSize D.paramsFVars hnestedHead owner Hstep
+    (D.agreement installedVEnv lparams) hheads hparamsSize D.paramsFVars hnestedHead owner Hstep
     hfamRec hfamKey
   have Htr' : TrExprS ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries)
       Hstep.restored.newInfo.levelParams [] Hstep.restored.newInfo.type
@@ -936,7 +936,7 @@ theorem NestedValidatedRunResult.strippedRecursorOfStep
   refine ⟨⟨?_, R.numParams.trans M.numParams, R.numIndices.trans M.numIndices,
     R.numMotives.trans M.numMotives, R.numMinors.trans M.numMinors, ?_, ?_⟩, hi', ?_⟩
   · refine ⟨type, ht, ?_⟩
-    change finalVEnv.constants Hstep.restored.newInfo.name =
+    change installedVEnv.constants Hstep.restored.newInfo.name =
       some ⟨Hstep.restored.newInfo.levelParams.length, type⟩
     rw [hname, hconst, ← hnew, hwuvars, ← hwtype]
   · change Hstep.restored.newInfo.k = false
@@ -997,14 +997,14 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
     {sourceVEnv envTypes envCtors : VEnv} {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams' isUnsafe'
       depth sourceVEnv result.types.toArray headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State} {fuel : Nat}
     {actualEntries : List ConstantInfo}
     {types ctors recursors : List (ConstantInfo × VConstVal)}
-    {canonicalProdEnv : Environment} {finalVEnv : VEnv}
+    {canonicalProdEnv : Environment} {installedVEnv : VEnv}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams' sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed E.loweredEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck E.loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams' sourceTypes
       isUnsafe' sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -1015,8 +1015,8 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       (sourceTypes.map (fun type => type.name)) sourceTypes
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 ((), outEnv))
     (Hactual : FreshConstantTrace c.env actualEntries outEnv)
-    (canonical : CompletedStagedBlock c.safety c.env sourceVEnv types ctors recursors
-      sourceDecl.projectionEntries canonicalProdEnv finalVEnv)
+    (canonical : BlockInstallation c.safety c.env sourceVEnv types ctors recursors
+      sourceDecl.projectionEntries canonicalProdEnv installedVEnv)
     (hperm : actualEntries ~ (types ++ ctors ++ recursors).map Prod.fst)
     (htypeValues : types.map Prod.snd = sourceDecl.typeConstants)
     (hctorValues : ctors.map Prod.snd = sourceDecl.constructorConstants)
@@ -1035,12 +1035,12 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       ((envCtors.addEliminators es).addProjections sourceDecl.projectionEntries) recEnv
       Hrestored.auxiliaries [] auxiliaryRecursors)
     (hrecValues : recursors.map Prod.snd = primaryRecursors ++ auxiliaryRecursors)
-    (hcorner : CtorTelescopes c.safety outEnv finalVEnv) :
+    (hcorner : CtorTelescopes c.safety outEnv installedVEnv) :
     CheckingEnv.Valid c.safety
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           sourceTypes (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1))
-      finalVEnv := by
+      installedVEnv := by
   refine Hrestored.finalValidOfStaged_of_shapes Hlower Hc Hprod Hsource Hmetadata Hsources
     Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource ?_ hcorner
   intro name rec hfind _hs hnone
@@ -1075,7 +1075,7 @@ theorem NestedValidatedRunResult.finalValidOfStaged_of_hitShape
       rw [List.length_map]; exact Lean4Lean.List.Forall₂.length_eq Hprimary) |>.mpr
     ⟨List.forall₂_map_left_iff.mpr Hprimary, Hadded⟩
   have hfinal : ∀ w ∈ primaryRecursors ++ auxiliaryRecursors,
-      finalVEnv.constants w.name = some w.toVConstant := by
+      installedVEnv.constants w.name = some w.toVConstant := by
     intro w hw
     have hadd := canonical.recursorsAdded.abstract
     rw [hrecValues] at hadd

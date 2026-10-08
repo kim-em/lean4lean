@@ -16,67 +16,67 @@ namespace VerifyInductive
 /-- Owner-prefix accumulation of reconstructed equations and their typing
 proofs.  Keeping the equation traversal independent of the final block lets
 this invariant grow in exactly the order used by `declareRecursors`. -/
-structure CompletedRecursorPhasesResult.GeneratedEquationBuild
+structure RecursorCheck.EquationPrefix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) (Us : List Name)
+    (H : RecursorCheck R outEnv) (Us : List Name)
     (owner : Nat) (rules : List VDefEq) : Prop where
-  equations : H.GeneratedIotaEquationTranslations Us [] owner rules
+  equations : H.IotaEquationTranslations Us [] owner rules
   rulesWF : ∀ rule ∈ rules, rule.WF H.outVEnv
 
-def CompletedRecursorPhasesResult.GeneratedEquationBuild.empty
+def RecursorCheck.EquationPrefix.empty
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) (Us : List Name) :
-    H.GeneratedEquationBuild Us 0 [] where
+    (H : RecursorCheck R outEnv) (Us : List Name) :
+    H.EquationPrefix Us 0 [] where
   equations := .nil
   rulesWF _ h := by simp at h
 
 /-- The installed rule list of an ordinary recursor run and its typing in the
 environment with the recursors. The compilation realization of
-`CompletedRuleTranslationResult` fixes the list as the canonical equations. -/
-structure CompletedRuleTranslationShape
+`RuleTranslations` fixes the list as the canonical equations. -/
+structure RuleTranslationShape
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) where
+    (H : RecursorCheck R outEnv) where
   rules : List VDefEq
   rulesWF : ∀ df ∈ rules, df.WF H.outVEnv
 
-structure CompletedRuleTranslationResult
+structure RuleTranslations
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    (H : CompletedRecursorPhasesResult R outEnv) extends CompletedRuleTranslationShape H where
+    (H : RecursorCheck R outEnv) extends RuleTranslationShape H where
   realization : InductiveSignature.CompilationRealization sourceEnv decl
     (H.blockCertificate rules rulesWF).block H.outVEnv H.entries
 
 /-- Source nonemptiness comes from the existing declaration entry guard.
 The completed run supplies formation and block typing, so the finite
 derivation is constructed here without an additional caller proof. -/
-theorem CompletedRuleTranslationResult.compilation
+theorem RuleTranslations.compilation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    (T : CompletedRuleTranslationResult H)
+    {H : RecursorCheck R outEnv}
+    (T : RuleTranslations H)
     (hnonempty : indTypes.toList ≠ []) :
     OrdinaryCompilationCertificate sourceEnv decl
       (H.blockCertificate T.rules T.rulesWF).block := by
@@ -84,7 +84,7 @@ theorem CompletedRuleTranslationResult.compilation
   have htypes : B.block.types = decl.typeConstants := R.headerValues
   have hctors : B.block.ctors = decl.constructorConstants := R.constructorValues
   have hprojections : B.block.projections = decl.projectionEntries := by
-    simp [B, CompletedBlockCertificate.block]
+    simp [B, BlockCertificate.block]
   have Htranslated :=
     Lean4Lean.VerifyInductive.TrInductDeclCore.toTrInductDeclOfNonempty R.core
       (Lean4Lean.VerifyInductive.TrInductDeclCore.nonempty R.core hnonempty)
@@ -100,20 +100,20 @@ theorem CompletedRuleTranslationResult.compilation
 
 /-- Every newly stored equation is headed by a recursor from the same joint
 generation witness, with that exact concrete entry present after installation. -/
-theorem CompletedRuleTranslationResult.equationProvenance
+theorem RuleTranslations.equationProvenance
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    (T : CompletedRuleTranslationResult H) :
+    {H : RecursorCheck R outEnv}
+    (T : RuleTranslations H) :
     ∀ df, (H.outVEnv.addDefEqRules T.rules).defeqs df → sourceEnv.defeqs df ∨
       ∃ head ls rec, df.lhs.stripLams.getAppFnArgs.1 = .const head ls ∧
         outEnv.constants.find? head = some (.recInfo rec) := by
   let B := H.blockCertificate T.rules T.rulesWF
-  have Hatomic := B.staged.combinedAtomic
+  have Hatomic := B.installation.atomic
   have hmapWF : c.env.constants.WF := R.sourceContext.checking.tr.map_wf
   have houtMapWF : outEnv.constants.WF := Hatomic.targetMapWF hmapWF
   intro df hdf
@@ -137,21 +137,21 @@ theorem CompletedRuleTranslationResult.equationProvenance
 
 /-- Formation headers and constructors cannot introduce a concrete recursor;
 every new recursor lookup comes from the exact generated entry list. -/
-theorem CompletedRuleTranslationResult.recursorEntryOrigin
+theorem RuleTranslations.recursorEntryOrigin
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    (T : CompletedRuleTranslationResult H)
+    {H : RecursorCheck R outEnv}
+    (T : RuleTranslations H)
     {name : Name} {rec : RecursorVal}
     (hfind : outEnv.constants.find? name = some (.recInfo rec)) :
     c.env.constants.find? name = some (.recInfo rec) ∨
       ∃ entry ∈ H.entries, name = entry.1.name ∧ .recInfo rec = entry.1 := by
   let B := H.blockCertificate T.rules T.rulesWF
-  have Hatomic := B.staged.combinedAtomic
+  have Hatomic := B.installation.atomic
   have hmapWF : c.env.constants.WF := R.sourceContext.checking.tr.map_wf
   have houtMapWF : outEnv.constants.WF := Hatomic.targetMapWF hmapWF
   have hfind' : outEnv.find? name = some (.recInfo rec) := by
@@ -175,15 +175,15 @@ theorem CompletedRuleTranslationResult.recursorEntryOrigin
 run and its joint generation/metadata witness. It cannot be recovered from a
 generic block of translated constant types. The unsafe observer clause covers
 all new entries, so the evidence can be replayed at every observer safety. -/
-theorem CompletedRuleTranslationResult.recursorProvenance
+theorem RuleTranslations.recursorProvenance
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
     {ctorEnv outEnv : Environment}
-    {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv}
-    {H : CompletedRecursorPhasesResult R outEnv}
-    (T : CompletedRuleTranslationResult H) :
+    {H : RecursorCheck R outEnv}
+    (T : RuleTranslations H) :
     NewRecursorsAligned .unsafe c.env.constants sourceEnv
       outEnv.constants (H.outVEnv.addDefEqRules T.rules) := by
   refine { defeq := T.equationProvenance, recursor := ?_ }

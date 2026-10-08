@@ -807,13 +807,13 @@ theorem AtomicAddConstants.ofConstructorTypes
         hle.trans HheadInstalled.le
       exact (ih HnextChecking hnextLe).mono fun outEnv Htail => by
         rcases Htail with
-          ⟨finalVEnv, tailEntries, htailValues, HtailInstalled,
+          ⟨installedVEnv, tailEntries, htailValues, HtailInstalled,
             HtailAligned, htailCtor, htailNind⟩
         have hvalues : (headEntries ++ tailEntries).map Prod.snd =
             (target :: targets).flatMap
               (fun target : VInductiveType => target.ctors) := by
           simp [hheadValues, htailValues]
-        exact ⟨finalVEnv, headEntries ++ tailEntries, hvalues,
+        exact ⟨installedVEnv, headEntries ++ tailEntries, hvalues,
           HheadInstalled.append HtailInstalled,
           .cons HheadAligned HtailAligned, by
             intro entryInfo entryValue hentry
@@ -923,7 +923,7 @@ structure PrimitiveDeclaredConstructorsResult
 needed by recursor generation as the ordinary constructor phases, but keeps
 its atomic installation history separate.  A later shared-interface adapter
 can consume either result without manufacturing a valid header-only context. -/
-structure PrimitiveConstructorPhasesResult
+structure PrimitiveConstructorCheck
     (H : PrimitiveDeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (outEnv : Environment) where

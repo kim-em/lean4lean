@@ -157,11 +157,11 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
       (·.auxiliary), envTypes.constants name = none)
     (hrecFresh : ∀ p ∈ (compilationRestoration sourceDecl auxiliaries).recursors,
       envTypes.constants p.1 = none) :
-    ∃ ρ, RestorationSubstitution envTypes E.production.constructors.completed.headerVEnv
+    ∃ ρ, RestorationSubstitution envTypes E.production.constructors.toConstructorCheck.headerVEnv
         (compilationRestoration sourceDecl auxiliaries) ρ ∧
       List.Forall₂ (fun n l : VInductiveType => List.Forall₂
           (fun nc lc : VConstVal =>
-            E.production.constructors.completed.headerVEnv.IsDefEqU sourceDecl.uvars []
+            E.production.constructors.toConstructorCheck.headerVEnv.IsDefEqU sourceDecl.uvars []
               nc.type lc.type) n.ctors l.ctors)
         E.production.compilationSignature.declaration.types
         E.production.loweredDecl.types := by
@@ -175,10 +175,10 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     simp only [familyNames, List.flatMap_append]
     exact List.sublist_append_right _ _
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hscoped := auxiliarySpecializations_scoped Haux Hexpansion hsuffixNodup
@@ -186,11 +186,11 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
       ves.venv (if isUnsafe then .unsafe else .safe) := E.production_initialEnv
   have hloweredTypes : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
       E.production.loweredDecl.typeConstants =
-        some E.production.constructors.completed.headerVEnv :=
+        some E.production.constructors.toConstructorCheck.headerVEnv :=
     Eq.mp (congrArg (fun env : VEnv => env.addConstVals
         E.production.loweredDecl.typeConstants =
-          some E.production.constructors.completed.headerVEnv) hinit)
-      E.production.constructors.completed.core.typesAdded
+          some E.production.constructors.toConstructorCheck.headerVEnv) hinit)
+      E.production.constructors.toConstructorCheck.core.typesAdded
   have Hsource := E.nativeSource.core
   rw [E.nativeSourceDecl_eq] at Hsource
   have hsourceLength : sourceDecl.types.length = sourceTypes.length :=
@@ -204,7 +204,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
       (sourceDecl.typeConstants ++
         (E.production.loweredDecl.types.drop sourceDecl.types.length).map
           VInductiveType.toVConstVal) =
-        some E.production.constructors.completed.headerVEnv := by
+        some E.production.constructors.toConstructorCheck.headerVEnv := by
     rw [hprefix, VInductDecl.typeConstants, List.map_drop, List.take_append_drop]
     exact hloweredTypes
   have Hmodels : E.production.compilationSignature.Models
@@ -218,7 +218,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     rw [compilationRestoration_heads_auxiliary]
     exact auxiliarySpecializations_headNames Haux Hexpansion
   have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.production.loweredConstruction.consumedGeneration.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse
@@ -257,7 +257,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     simp only [List.length_reverse] at h1 h2
     omega
   have hreplaced : ∀ h ∈ (compilationRestoration sourceDecl auxiliaries).heads, ∀ ci,
-      E.production.constructors.completed.headerVEnv.constants h.auxiliary = some ci →
+      E.production.constructors.toConstructorCheck.headerVEnv.constants h.auxiliary = some ci →
       ci.type.containsAnyConst
           ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) = false ∧
       envTypes.HasType ci.uvars []
@@ -317,7 +317,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
       exact mem_familyNames.mpr ⟨t, ht, .inl rfl⟩)
     hrecFresh hreplaced (henvTypes.eliminatorsAvoidConsts hfresh)
   have hloweredUvars : E.production.loweredDecl.uvars = sourceDecl.uvars := by
-    have h1 := E.production.constructors.completed.core.uvars
+    have h1 := E.production.constructors.toConstructorCheck.core.uvars
     have h2 := E.nativeSource.core.uvars
     rw [E.nativeSourceDecl_eq] at h2
     rw [h1, h2, E.production_c, E.productionContext_lparams]
@@ -329,7 +329,7 @@ theorem NestedValidatedRunResult.constructorRestorationSubstitution
     Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       simpa using congrArg List.length h.2.2.2.2) Hmodels.families
   exact ⟨_, S, forall₂_ctors_split (R := fun nc lc : VConstVal =>
-      E.production.constructors.completed.headerVEnv.IsDefEqU sourceDecl.uvars []
+      E.production.constructors.toConstructorCheck.headerVEnv.IsDefEqU sourceDecl.uvars []
         nc.type lc.type) Hlengths
     (Lean4Lean.List.Forall₂.imp (fun _ _ h => by
       rw [hloweredUvars] at h
@@ -399,14 +399,14 @@ theorem NestedValidatedRunResult.auxiliaryConstructors_of_evidence
     Haux Hexpansion hnodup hfresh hrecFresh
   -- the common parameter telescope
   have hlink : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
-      (E.production.constructors.completed.parameterScope.toCtx.reverse).reverse
+      (E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse).reverse
       E.production.headers.commonParameterContext := by
     rw [List.reverse_reverse,
-      ConstructorPhasesResult.completed_parameterScope_toCtx]
+      OrdinaryConstructorCheck.completed_parameterScope_toCtx]
     exact VEnv.IsDefEqCtx.mono (VEnv.addConstVals_le hadded)
       (E.commonParameterContext_refl wf)
   have hparams : E.production.compilationSignature.params =
-      E.production.constructors.completed.parameterScope.toCtx.reverse :=
+      E.production.constructors.toConstructorCheck.parameterScope.toCtx.reverse :=
     E.production.loweredConstruction.consumedGeneration.params
   have hP : VEnv.IsDefEqCtx envTypes sourceDecl.uvars []
       E.production.compilationSignature.params.reverse

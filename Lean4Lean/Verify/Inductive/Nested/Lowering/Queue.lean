@@ -2052,8 +2052,8 @@ theorem RestoredConstructorMappingTrace.ofInstalled
     {headerEnv ctorEnv : Environment}
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hprod : RecursorCheck R.toConstructorCheck loweredEnv)
     (howner : owner ∈ indTypes.toList)
     (Hmapping : LoweredConstructorMappings mappingEnv params nparams result
       sources state (targets, finalState))

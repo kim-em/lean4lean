@@ -20,13 +20,13 @@ namespace VerifyInductive
 open Lean hiding Environment Exception
 open Kernel
 
-namespace CompletedConstructorPhases
+namespace ConstructorCheck
 
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
 
-end CompletedConstructorPhases
+end ConstructorCheck
 
 theorem vars_append_canonical (a b : Nat) :
     InductiveSignature.vars a b ++ InductiveSignature.vars b 0 = recursorCanonicalVars (a + b) := by
@@ -35,13 +35,13 @@ theorem vars_append_canonical (a b : Nat) :
 variable {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
   {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
   {sourceEnv : VEnv} {indTypes : Array InductiveType} {ctorEnv : Environment}
-  {R : CompletedConstructorPhases c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+  {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
 
 /-- The consumed index telescope of each family, over the cached parameter
 context, is a well-formed context.  It is read off the recursor pass's index
 replay (`sourceIndexDomains`). -/
-theorem CompletedRecursorConstruction.consumedIndices_onCtx
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) :
+theorem RecursorConstruction.consumedIndices_onCtx
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     OnCtx ((H.sourceIndices owner).reverse ++ R.parameterScope.toCtx)
       (R.context.venv.IsType c.lparams.length) := by
   have henv : R.context.venv.WF := R.context.checking.tr.wf
@@ -54,8 +54,8 @@ theorem CompletedRecursorConstruction.consumedIndices_onCtx
 universes, contains the family applied to the canonical parameter and index
 variables, over the consumed index telescope in the cached parameter
 context. -/
-theorem CompletedRecursorConstruction.consumedFamilyApp_isType
-    (H : CompletedRecursorConstruction R) (owner : Fin H.recInfos.size) :
+theorem RecursorConstruction.consumedFamilyApp_isType
+    (H : RecursorConstruction R) (owner : Fin H.recInfos.size) :
     R.context.venv.IsType c.lparams.length
       ((H.sourceIndices owner).reverse ++ R.parameterScope.toCtx)
       (VExpr.mkApps
@@ -128,8 +128,8 @@ universes); its sort from the declared family constant, whose header is
 definitionally a telescope ending in the recorded sort (source formation).
 No definitional agreement of the consumed index domains with the declared
 ones is used, and the checked recursor type is not consulted. -/
-theorem CompletedRecursorConstruction.consumedFamilyTypesWF
-    (H : CompletedRecursorConstruction R) {s : InductiveSignature}
+theorem RecursorConstruction.consumedFamilyTypesWF
+    (H : RecursorConstruction R) {s : InductiveSignature}
     (hp : s.params = R.parameterScope.toCtx.reverse) (hf : s.families = H.consumedFamilies) :
     s.FamilyTypesWF R.context.venv decl.uvars := by
   intro owner
