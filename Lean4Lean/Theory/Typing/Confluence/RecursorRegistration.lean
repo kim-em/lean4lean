@@ -51,9 +51,6 @@ theorem Pattern.RHS.applyArgs_apply {p : Pattern} (head : p.RHS) (args : List p.
 end Lean4Lean
 
 namespace Lean4Lean
-namespace VEnv.InductRegistration
-open InductiveSignature
-end VEnv.InductRegistration
 namespace VInductBlock
 open InductiveSignature
 /-- The projection stage of a certified block is well formed. -/
@@ -75,9 +72,6 @@ theorem EliminatorsWF.projectionsWF {base envTypes envCtors : VEnv} {decl : VInd
     parameters parameters.rawCtorShape hcompile.types hcompile.ctors
     hcompile.projections htypes hctors
 end VInductBlock
-end Lean4Lean
-namespace Lean4Lean
-open InductiveSignature
 end Lean4Lean
 
 namespace Lean4Lean
@@ -122,8 +116,6 @@ theorem InductiveSignature.CaseCompilationData.ctor_result
   have h2 := hhead
   rw [← VExpr.forallResult_of_head hhead, ← VExpr.forallResult_wrapForalls doms, ← heq] at h2
   exact ⟨_, h2⟩
-namespace VEnv
-end VEnv
 end Lean4Lean
 
 namespace Lean4Lean.VEnv
@@ -292,15 +284,6 @@ theorem RecursorRegistered.constructor_index_unique
 end Lean4Lean.VEnv
 
 namespace Lean4Lean
-namespace InductiveSignature
-@[simp] theorem vars_length_hi (n k : Nat) : (vars n k).length = n := by simp [vars]
-namespace Instance
-variable {s : InductiveSignature} (g : Instance s) (index : Fin s.constructors.size)
-end Instance
-end InductiveSignature
-end Lean4Lean
-
-namespace Lean4Lean
 namespace VExpr
 theorem Subst.ofList_ge (args : List VExpr) (h : args.length ≤ k) :
     Subst.ofList args k = .bvar (k - args.length) := dif_neg (Nat.not_lt.2 h)
@@ -314,10 +297,4 @@ theorem liftN_instOuter (X : VExpr) (args : List VExpr) (hX : X.ClosedN args.len
   simp only [Subst.comp, Subst.ofList_lt _ hi, List.length_map,
     Subst.ofList_lt (args.map _) (by simpa using hi), List.getElem_map]
 end VExpr
-namespace VEnv
-variable {env : VEnv} {U : Nat}
-end VEnv
-namespace VEnv
-variable {env : VEnv} {U : Nat}
-end VEnv
 end Lean4Lean

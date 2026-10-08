@@ -83,9 +83,6 @@ theorem HasType.inhabit_trueFamily (henv : env.WF) (hΓ : OnCtx Γ (env.IsType U
   rw [instOuter_closed0 VExpr.trueTy_closed, instOuter_closed0 (by simp [VExpr.ClosedN])] at hβ
   exact HasType.wrapLams_of hctx (.defeqDF hβ.symm HasType.truePf)
 end VEnv
-namespace InductiveSignature.Instance
-variable {s : InductiveSignature} (g : Instance s)
-end InductiveSignature.Instance
 namespace VEnv
 open InductiveSignature
 variable {env : VEnv} {U : Nat}

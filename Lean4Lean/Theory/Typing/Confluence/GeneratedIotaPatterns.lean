@@ -171,11 +171,6 @@ theorem app_uniq (H : GeneratedIotaPattern env registry p rhs)
 end GeneratedIotaPattern
 end Lean4Lean.VEnv
 
-namespace Lean4Lean
-namespace VEnv
-open InductiveSignature
-end VEnv
-end Lean4Lean
 namespace Lean4Lean.VEnv
 open InductiveSignature
 set_option maxHeartbeats 1000000 in
