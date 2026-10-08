@@ -655,7 +655,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
         · exact hcore.tr.of_value h hs hv
         · cases hv }
     hasPrimitives := hcore.hasPrimitives
-    projectionCorner := hcore.projectionCorner
+    canonicalChoice := hcore.canonicalChoice
     safePrimitives := by
       intro n ci hfind hprim
       rcases hcasesE hfind with h | ⟨r, h, rfl⟩

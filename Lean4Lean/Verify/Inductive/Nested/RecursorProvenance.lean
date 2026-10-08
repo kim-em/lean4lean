@@ -424,7 +424,7 @@ theorem NestedValidatedRunResult.hprovenance_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (hnested : result.aux2nested.size ≠ 0) (hcorner : ProjectionWalkCorner) :
+    (hnested : result.aux2nested.size ≠ 0) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice) :
     ∀ auxiliaries : List ContainerSpecialization,
       RestorationTableData sourceDecl auxiliaries result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams →
@@ -539,7 +539,7 @@ theorem NestedValidatedRunResult.hprovenance_of
     (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
       (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
       wf.safePrimitives wf.typeAnnotationWrappers wf.constructorOwners
-      wf.projectionRegistryCoherent hcorner
+      wf.projectionRegistryCoherent (hch _)
   have hheadsSrc := Hvalid.recursors.heads
   have hsrcWF : sourceProdEnv.constants.WF := Hvalid.tr.map_wf
   have hfinalWF : C.finalBaseVEnv.WF := (C.canonical.validCore Hvalid.toValidCore).tr.wf

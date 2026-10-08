@@ -29,12 +29,12 @@ structure StagedContextWF (c : AddInductive.Context) where
   /-- The semantic checker context, embedded in the main one. -/
   check : CheckBase venv c.lparams mlctx c.lctx c.checkLCtx
   /-- The open projection-walk corner, carried to the restored checker context. -/
-  projectionCorner : ProjectionWalkCorner
+  canonicalChoice : venv.HasCanonicalChoice
 
 def ContextWF.toStaged (H : ContextWF c) : StagedContextWF c where
   venv := H.venv
   checking := H.checking.tr
-  projectionCorner := H.checking.projectionCorner
+  canonicalChoice := H.checking.canonicalChoice
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -54,7 +54,7 @@ def StagedContextWF.withEnv (H : StagedContextWF c)
     StagedContextWF { c with env := env' } where
   venv := venv'
   checking := hchecking
-  projectionCorner := H.projectionCorner
+  canonicalChoice := H.canonicalChoice.mono hle
   mlctx := H.mlctx
   mlctx_wf := H.mlctx_wf.mono hle
   typeCheckerLParams_eq := H.typeCheckerLParams_eq
@@ -87,7 +87,7 @@ def StagedContextWF.complete (H : StagedContextWF c)
       intro n ci hfind hprimitive
       exact hsafe hfind hprimitive
     typeAnnotationWrappers := hannotations
-    projectionCorner := H.projectionCorner
+    canonicalChoice := H.canonicalChoice
     constructorOwners := howners
     projectionRegistry := hregistry
     recursors := hrecursors

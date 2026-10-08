@@ -612,7 +612,7 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   refine (instantiateProjectionFields.WF_all (st := st) (G := G) he ⟨_, hety⟩ (.inr rfl) hG hafter'
     hile (fun m hm u hu hGu => by simpa using hproj m (by omega) u (by simpa using hu) hGu)
     (fun _ m _ D body' hres hD hnG body hbody hcl =>
-      ProjectionWalkCorner.full c.projectionCorner c.Ewf c.Δwf hinfo hlsWF hlen' L₀ hP'len
+      projectionWalkCorner_choice c.Ewf c.canonicalChoice c.Δwf hinfo hlsWF hlen' L₀ hP'len
         (idx := args'.drop info.nparams) (by rw [List.take_append_drop]; exact hety)
         (j := m) (by
           rw [VProjectionInfo.instantiateProjectionParameters_append, hR₁0]; simpa [projs] using hres)

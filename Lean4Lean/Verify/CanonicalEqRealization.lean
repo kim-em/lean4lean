@@ -86,7 +86,7 @@ input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
 type.  Only the absence of `Eq` is assumed of the input, together with the
 checker's open hypothesis `ProjectionWalkCorner`. -/
 theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
-    (wf : ves.WF env) (hcorner : ProjectionWalkCorner)
+    (wf : ves.WF env) (hch : ∀ safety, (ves.venv safety).HasCanonicalChoice)
     (hAbsent : env.constants.find? ``Eq = none)
     {lparams : List Name} {nparams : Nat} {types : List InductiveType} {isUnsafe : Bool}
     (Hshape : VerifyInductive.EqBootstrapShape lparams nparams types isUnsafe)
@@ -97,7 +97,7 @@ theorem addDecl.eqBootstrapHasCanonicalEq {env : Environment} {ves : VEnvs}
         ∀ ci, outEnv.find? ``Eq.rec = some ci → IsProductionEqRec ci →
           ves'.HasCanonicalEq :=
   (VerifyInductive.addInductiveDeclaration.eqBootstrapFinalEnvironmentWF env lparams
-      nparams types isUnsafe fuel ves wf hcorner hAbsent Hshape).mono
+      nparams types isUnsafe fuel ves wf hch hAbsent Hshape).mono
     fun _ ⟨ves', wf', _, hle, _, hcanonical⟩ => ⟨ves', wf', hle, hcanonical⟩
 
 end Lean4Lean
