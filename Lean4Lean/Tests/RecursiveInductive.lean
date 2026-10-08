@@ -64,7 +64,7 @@ def evenOddDecl : Declaration :=
 /-- A higher-order recursive field opens a call-local binder while recursor
 rules are generated.  The reader-local name generator may reuse that binder's
 identifier for the minor installed immediately afterwards, so this declaration
-regresses the collision that retained recursor blueprints must survive. -/
+regresses the collision that the recorded rule templates must survive. -/
 def higherOrderRecursiveDecl : Declaration :=
   .inductDecl [] 0 [{
     name := `L4LHigherOrderTree
@@ -81,7 +81,7 @@ def higherOrderRecursiveDecl : Declaration :=
     }]
   }] false
 
-/-- The canonical toConstantsInstallation shape recognized by the primitive dispatch. -/
+/-- The prelude's `Bool` declaration, in the shape recognized by the primitive dispatch. -/
 def primitiveBoolDecl : Declaration :=
   .inductDecl [] 0 [{
     name := ``Bool

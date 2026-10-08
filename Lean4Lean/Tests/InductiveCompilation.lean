@@ -117,7 +117,7 @@ private def collidingInstance : Instance collidingSignature where
   recursorName := fun owner => collidingSignature.families[owner].name.str "rec"
 
 /-- Unique table keys alone cannot prevent an auxiliary from intercepting a
-primary generated recursor. This table is scoped, but Tree.rec is ambiguous. -/
+generated source recursor. This table is scoped, but Tree.rec is ambiguous. -/
 theorem collidingRestorationScoped :
     (compilationRestoration collisionSource [collidingSpecialization]).Scoped := by
   simp [Restoration.Scoped, compilationRestoration, collisionSource,
@@ -131,7 +131,7 @@ example : (compilationRestoration collisionSource [collidingSpecialization]).exp
     (.const `Tree.rec []) = some (list (.succ .zero) tree) := rfl
 
 /-- The generated-name condition rejects the collision before restoration
-can reinterpret the primary recursor as the specialized container. -/
+can reinterpret the source recursor as the specialized container. -/
 theorem collidingGenerationRejected (env : VEnv) (block : VInductBlock) :
     ¬ CompilationData env collisionSource collidingSignature.declaration
       collidingSignature collidingInstance [collidingSpecialization] block := by

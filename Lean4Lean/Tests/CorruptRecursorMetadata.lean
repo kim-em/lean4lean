@@ -1,9 +1,9 @@
 import Lean4Lean.Verify.Environment.Basic
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
 
-/-! Regression for the metadata-erasure witness from the branch review.
-The old constant translation still accepts a corrupted parameter count, but
-no choice of signature in the shared compilation/realization result does. -/
+/-! A recursor entry with a corrupted parameter count is still accepted by the constant
+translation `TrConstVal`, but it is not the translation of a compiled block
+(`InductiveSignature.TrCompilation`), whatever the signature. -/
 
 namespace Lean4Lean.Tests.CorruptRecursorMetadata
 open Lean hiding Environment

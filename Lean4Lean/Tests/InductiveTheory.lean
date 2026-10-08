@@ -451,8 +451,8 @@ private theorem parameterless_recursor_motive
   cases hi : insertBinders (List.map (VExpr.instL g.levels) f.indices) 0 with
   | nil => exact ⟨_, _, _, rfl⟩
   | cons a as => exact ⟨_, _, _, rfl⟩
-/-- The old positive fixture had an arbitrary sort in place of the motive.
-No signature modeling this source can generate that recursor. -/
+/-- A recursor type with an arbitrary sort in place of the motive.
+No signature modelling this source can generate that recursor. -/
 private def malformedEnumRecursor : VConstVal where
   name := `Enum0.rec
   uvars := 0
@@ -479,7 +479,8 @@ theorem malformed_enum_not_canonical :
   cases ht
 
 /-- The ordinary entry into the finite judgment, `CompiledInductive.ordinary`,
-needs a canonical generation witness, which the malformed block lacks. -/
+needs `InductiveSignature.Compiles` (a signature generating the block), which the malformed
+block lacks. -/
 theorem malformed_enum_not_ordinary :
     ¬ ∃ _ : InductiveSignature.Compiles .empty enumDecl malformedEnumBlock,
       enumDecl.CompilesTo .empty malformedEnumBlock :=
