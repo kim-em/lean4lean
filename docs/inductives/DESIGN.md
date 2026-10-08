@@ -245,7 +245,7 @@ in `env`, constructors in the types environment, recursors in the environment wi
 constructors, eliminators and projections, rules in the environment with recursors),
 the eliminators are certified (`VInductBlock.EliminatorsWF`: either the declaration has no
 families and the block registers no eliminator, or it registers exactly one, with a
-`CaseSchema.Registered` certificate and projecting only out of structures registered at the
+`CaseSchema.RegistrationCertificate` and projecting only out of structures registered at the
 constructor stage), and `install` succeeds.
 
 `VEnv.WF'` (`Lean4Lean/Theory/Typing/Env.lean`) has, besides `empty` and `decl`, two
@@ -268,7 +268,7 @@ and equations are computed. `CaseSchema.Certified` is `CaseCompilationData`: the
 compilation that fixes the schema (formation, model, restoration correspondence and scoping,
 installed source constants, family typing), without anything about the generated
 recursors, which `elimDF`/`elimIota` never read. Every registration point carries
-`CaseSchema.Registered schema base source block key`: the `Certified` certificate, the key
+`CaseSchema.RegistrationCertificate schema base source block key`: the `Certified` certificate, the key
 (the name of the first source family) and `HeaderAgreement`.
 
 ### 2.4 Restrictions of the specification to what Lean produces

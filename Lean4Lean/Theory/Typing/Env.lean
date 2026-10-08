@@ -73,7 +73,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
   could add constructors to a registered structure, which structure eta
   makes inconsistent.
 
-  The certificate `CaseSchema.Registered` consists of `CaseSchema.Certified`,
+  The certificate `CaseSchema.RegistrationCertificate` consists of `CaseSchema.Certified`,
   the case part of a compilation (`CaseCompilationData`: formation, model,
   restoration correspondence and scoping, installed source constants, family
   typing) together with freshness of the restoration's auxiliary recursor
@@ -88,7 +88,7 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
     VEnv.WF' baseDecls base →
     VEnv.WF' ds env →
     base ≤ env →
-    schema.Registered base source block key →
+    schema.RegistrationCertificate base source block key →
     (∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant) →
     env.defeqs = base.defeqs →
@@ -101,7 +101,8 @@ inductive VEnv.WF' : List VDecl → VEnv → Prop where
       {decl : VInductDecl} {block : VInductBlock} :
     VEnv.WF' baseDecls base →
     VEnv.WF' ds (envCtors.addEliminators block.eliminators) →
-    (∃ key schema, block.eliminators = [(key, schema)] ∧ schema.Registered base decl block key) →
+    (∃ key schema, block.eliminators = [(key, schema)] ∧
+      schema.RegistrationCertificate base decl block key) →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →
@@ -121,7 +122,7 @@ theorem VEnv.WF.inductEliminators {base env : VEnv}
     {source : VInductDecl} {block : VInductBlock}
     {schema : InductiveSignature.CaseSchema}
     (hbase : base.WF) (henv : env.WF) (hle : base ≤ env)
-    (hreg : schema.Registered base source block key)
+    (hreg : schema.RegistrationCertificate base source block key)
     (hconstants : ∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant)
     (hequations : env.defeqs = base.defeqs)
@@ -144,7 +145,7 @@ theorem VEnv.WF.inductProjections
     {block : VInductBlock}
     (hbase : base.WF) (hctorsWF : (envCtors.addEliminators block.eliminators).WF)
     (hcovered : ∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Registered base decl block key)
+      schema.RegistrationCertificate base decl block key)
     (hsource : decl.sourceNames.Nodup)
     (htypesWF : ∀ type ∈ decl.types, type.toVConstant.WF base)
     (hconstructorUvars :

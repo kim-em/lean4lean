@@ -569,7 +569,8 @@ theorem VEnv.InstalledBelow.constructorConstant
 
 
 /-- The declaration has no families and the block registers no case eliminator, or the block
-registers exactly one case eliminator with a registration certificate (`CaseSchema.Registered`:
+registers exactly one case eliminator with a registration certificate
+(`CaseSchema.RegistrationCertificate`:
 the case-only compilation certificate, the key of the first family and header agreement),
 projecting only out of structures registered in the constructor environment. It is installed after the
 constructors and before the projections (`VInductBlock.install`). -/
@@ -578,7 +579,7 @@ def VInductBlock.EliminatorsWF (env : VEnv) (decl : VInductDecl) (block : VInduc
     envTypes.addConstVals block.ctors = some envCtors ∧
     ((decl.types = [] ∧ block.eliminators = []) ∨
     ∃ key schema, block.eliminators = [(key, schema)] ∧
-      schema.Registered env decl block key ∧ schema.ProjNamesRegistered envCtors key)
+      schema.RegistrationCertificate env decl block key ∧ schema.ProjNamesRegistered envCtors key)
 
 /-- The block skeleton of a declaration after its constructors: families, constructors,
 projections and case eliminators, without generated recursors. -/
@@ -604,12 +605,12 @@ theorem InductiveSignature.CaseSchema.Certified.congr_block {schema : InductiveS
       projections := hprojections.trans hdata.projections },
     hprior, hr, hnames, hfresh⟩
 
-theorem InductiveSignature.CaseSchema.Registered.congr_block
+theorem InductiveSignature.CaseSchema.RegistrationCertificate.congr_block
     {schema : InductiveSignature.CaseSchema} {base : VEnv} {source : VInductDecl}
     {block block' : VInductBlock} {key : Name}
-    (H : schema.Registered base source block key) (htypes : block'.types = block.types)
+    (H : schema.RegistrationCertificate base source block key) (htypes : block'.types = block.types)
     (hctors : block'.ctors = block.ctors) (hprojections : block'.projections = block.projections) :
-    schema.Registered base source block' key :=
+    schema.RegistrationCertificate base source block' key :=
   { H with certified := H.certified.congr_block htypes hctors hprojections }
 
 /-- Eliminator certification only reads a block's families, constructors and eliminators. -/

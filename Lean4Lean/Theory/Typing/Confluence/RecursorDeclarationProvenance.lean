@@ -131,7 +131,7 @@ inductive RecursorRegistryHistory : VEnv → List VDecl → (Name → Option Rec
       {schema : CaseSchema} {key : Name} (previous : RecursorRegistryHistory env declarations table)
       (baseHistory : base.WF' baseDeclarations)
       (hle : base ≤ env)
-      (registered : schema.Registered base source block key)
+      (registered : schema.RegistrationCertificate base source block key)
       (constants : ∀ value ∈ block.types ++ block.ctors,
         env.constants value.name = some value.toVConstant)
       (equations : env.defeqs = base.defeqs)
@@ -146,7 +146,7 @@ inductive RecursorRegistryHistory : VEnv → List VDecl → (Name → Option Rec
         declarations table)
       (baseHistory : base.WF' baseDeclarations)
       (covered : ∃ key schema, block.eliminators = [(key, schema)] ∧
-        schema.Registered base source block key)
+        schema.RegistrationCertificate base source block key)
       (sourceNames : source.sourceNames.Nodup)
       (typeHeadersWF : ∀ type ∈ source.types, type.toVConstant.WF base)
       (constructorUvars : ∀ ctor ∈ source.constructorConstants, ctor.uvars = source.uvars)

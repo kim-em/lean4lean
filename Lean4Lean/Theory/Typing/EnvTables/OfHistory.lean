@@ -62,7 +62,7 @@ inductive Tables.OfHistory : VEnv → Tables → Prop
   | elim {base env : VEnv} {T : Tables} {source : VInductDecl} {block : VInductBlock}
       {schema : CaseSchema} {key : Name} :
     Tables.OfHistory env T → base.WF → env.WF → base ≤ env →
-    schema.Registered base source block key →
+    schema.RegistrationCertificate base source block key →
     (∀ value ∈ block.types ++ block.ctors,
       env.constants value.name = some value.toVConstant) → env.defeqs = base.defeqs →
     schema.ProjNamesRegistered env key → source.ProjectionsCoherent env →
@@ -74,7 +74,7 @@ inductive Tables.OfHistory : VEnv → Tables → Prop
   | proj {base envTypes envCtors : VEnv} {T : Tables} {decl : VInductDecl}
       {block : VInductBlock} {key : Name} {schema : CaseSchema} :
     Tables.OfHistory base T → base.WF → (envCtors.addEliminators block.eliminators).WF →
-    block.eliminators = [(key, schema)] → schema.Registered base decl block key →
+    block.eliminators = [(key, schema)] → schema.RegistrationCertificate base decl block key →
     decl.sourceNames.Nodup →
     (∀ type ∈ decl.types, type.toVConstant.WF base) →
     (∀ ctor ∈ decl.constructorConstants, ctor.uvars = decl.uvars) →

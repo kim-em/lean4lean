@@ -9,7 +9,7 @@ registry invariant `VEnv.RegistryInv` of every well-formed environment (section 
 Registration also carries the certified fact
 `CaseSchema.ProjNamesRegistered` (the schema projects only out of structures
 registered at registration time). It is a hypothesis of
-`Registered.register_after_constructors`, and it is exposed for every registry entry by
+`RegistrationCertificate.register_after_constructors`, and it is exposed for every registry entry by
 `VEnv.WF.eliminatorsProjNamesRegistered`. -/
 
 namespace Lean4Lean
@@ -46,7 +46,7 @@ theorem le (R : VEnv.InductRegistration env decl key schema env') : env ≤ env'
 
 /-- The registered block's families and constructors are installed. -/
 theorem constants (R : VEnv.InductRegistration env decl key schema env') :
-    ∃ block : VInductBlock, schema.Registered env decl block key ∧
+    ∃ block : VInductBlock, schema.RegistrationCertificate env decl block key ∧
       ∀ value ∈ block.types ++ block.ctors, env'.constants value.name = some value.toVConstant := by
   obtain ⟨block, envTypes, envCtors, _, _, _, hinstall, ht, hc, _, hreg, _⟩ := R
   refine ⟨block, hreg, fun value hv => ?_⟩
@@ -94,7 +94,7 @@ All four facts are established by one induction over the history (`VEnv.WF'.regi
 structure VEnv.RegistryInv (env : VEnv) : Prop where
   origin : ∀ {key schema}, env.eliminators key schema →
     ∃ (base : VEnv) (source : VInductDecl) (block : VInductBlock), base.WF ∧ base ≤ env ∧
-      schema.Registered base source block key ∧
+      schema.RegistrationCertificate base source block key ∧
       ∀ value ∈ block.types ++ block.ctors, env.constants value.name = some value.toVConstant
   projNames : ∀ {key schema}, env.eliminators key schema → schema.ProjNamesRegistered env key
   unique : ∀ {key left right}, env.eliminators key left → env.eliminators key right →
@@ -425,9 +425,9 @@ theorem Fresh.of_registry_eq {schema : CaseSchema} {base env : VEnv}
 /-- Register all case schemas immediately after source headers and
 constructors. The case certificate suffices; the generated
 recursors and their equations are neither installed nor assumed correct. -/
-theorem Registered.register_after_constructors {schema : CaseSchema}
+theorem RegistrationCertificate.register_after_constructors {schema : CaseSchema}
     {base envTypes envCtors : VEnv}
-    (R : schema.Registered base source block key) (hbase : base.WF)
+    (R : schema.RegistrationCertificate base source block key) (hbase : base.WF)
     (htypes : base.addConstVals block.types = some envTypes)
     (hctors : envTypes.addConstVals block.ctors = some envCtors)
     (hprojs : schema.ProjNamesRegistered envCtors key) :

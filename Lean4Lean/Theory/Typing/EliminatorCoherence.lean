@@ -56,7 +56,7 @@ The specification excludes the example: `inductEliminators` requires
 `VEnv.WF.eliminatorsCoherent` (`EliminatorCoherenceOfWF.lean`) derives
 `VEnv.EliminatorsCoherent` from `VEnv.WF` (section 2.4 of `docs/inductives/DESIGN.md`). The
 verified pipeline never registers a schema for foreign projection metadata:
-`Registered.register_after_constructors` proves the premise from freshness. -/
+`RegistrationCertificate.register_after_constructors` proves the premise from freshness. -/
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 open VExpr

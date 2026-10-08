@@ -4,8 +4,8 @@ import Lean4Lean.Theory.Inductive.CompilationNames
 
 /-! Certification and registration of case schemas (section 2.3 of
 `docs/inductives/DESIGN.md`). A schema is certified by the case part of the same finite
-compilation certificate that inductive installation uses (`Certified`, `Registered`); no case
-types or equations are supplied by a caller.
+compilation certificate that inductive installation uses (`Certified`,
+`RegistrationCertificate`); no case types or equations are supplied by a caller.
 
 Registration additionally certifies `CaseSchema.ProjNamesRegistered`: the
 schema's generic type and generic equations project only out of structures
@@ -124,7 +124,7 @@ the key of the first source family, and the declared header of every source fami
 restored normalized header (`HeaderAgreement`). Every registration point
 (`VEnv.WF'.inductEliminators`, `VEnv.WF'.inductProjections`, `VInductBlock.EliminatorsWF`)
 carries exactly this certificate. -/
-structure Registered (schema : CaseSchema) (base : VEnv) (source : VInductDecl)
+structure RegistrationCertificate (schema : CaseSchema) (base : VEnv) (source : VInductDecl)
     (block : VInductBlock) (key : Name) : Prop where
   certified : schema.Certified base source block
   keyHead : source.types.head?.map (·.name) = some key

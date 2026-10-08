@@ -55,7 +55,7 @@ def VEnv.InductRegistration (env : VEnv) (decl : VInductDecl) (key : Name)
     VInductBlock.install env block = some env' ∧
     env.addConstVals block.types = some envTypes ∧
     envTypes.addConstVals block.ctors = some envCtors ∧
-    block.eliminators = [(key, schema)] ∧ schema.Registered env decl block key ∧
+    block.eliminators = [(key, schema)] ∧ schema.RegistrationCertificate env decl block key ∧
     schema.ProjNamesRegistered envCtors key
 
 theorem VEnv.AddInduct.eliminators_iff (H : VEnv.AddInduct env decl env') :
