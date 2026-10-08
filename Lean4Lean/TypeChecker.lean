@@ -287,13 +287,11 @@ def inferProj (typeName : Name) (idx : Nat) (struct structType : Expr) : RecM Ex
   if args.size != I_val.numParams + I_val.numIndices then fail
   let c_info ← env.get c
   -- The listed constructor must be a constructor owned by the projected
-  -- structure, and the field index must be below its field count.  Both are
-  -- redundant for well-formed environments (see `divergences.md`) and let the
-  -- verification relate the constructor metadata to the abstract projection
-  -- registry of exactly this family.
+  -- structure. This is redundant for well-formed environments (see `divergences.md`)
+  -- and lets the verification relate the constructor metadata to the abstract
+  -- projection registry of exactly this family.
   let .ctorInfo c_val := c_info | fail
   if c_val.induct != I_name then fail
-  if c_val.numFields ≤ idx then fail
   let some afterParameters ← instantiateProjectionParameters
       (c_info.instantiateTypeLevelParams I_levels) args 0 I_val.numParams
     | fail

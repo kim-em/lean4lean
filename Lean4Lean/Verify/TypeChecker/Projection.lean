@@ -652,4 +652,117 @@ theorem instantiateProjectionFields.WF_corner {c : VContext} {G : VLevel → Pro
         ⟨⟨⟨⟨R, hR, hR'.toTrExprS⟩, h1⟩, h2⟩, h3⟩
   · exact instantiateProjectionFields.WF_all he hmaj hG0 hG hT hle hproj hch hpfx
 
+
+/-! ### The walk past the fields
+
+`inferProj` does not compare the field index with the constructor's field count: like
+`type_checker::infer_proj`, it walks the constructor telescope and fails when a binder is missing.
+Past the fields the walk reaches the constructor's result type, an application of the rigid
+structure type, which `whnf` cannot turn into a binder (head inversion). -/
+
+/-- An application spine headed by the constant `n`. -/
+def _root_.Lean4Lean.VExpr.HeadName (n : Name) : VExpr → Prop
+  | .const m _ => m = n
+  | .app f _ => VExpr.HeadName n f
+  | _ => False
+
+theorem _root_.Lean4Lean.VExpr.HeadName.eq_mkApps {n : Name} :
+    ∀ {e : VExpr}, e.HeadName n → ∃ ls xs, e = VExpr.mkApps (.const n ls) xs
+  | .const m ls, h => ⟨ls, [], by cases h; rfl⟩
+  | .app f a, h => by
+    obtain ⟨ls, xs, rfl⟩ := VExpr.HeadName.eq_mkApps (e := f) h
+    exact ⟨ls, xs ++ [a], by simp [VExpr.mkApps]⟩
+
+theorem _root_.Lean4Lean.VExpr.HeadName.inst {n : Name} {e : VExpr} (h : e.HeadName n) :
+    (e.inst a k).HeadName n := by
+  induction e generalizing k with
+  | app f _ ihf _ => exact ihf h
+  | const => exact h
+  | _ => exact h.elim
+
+theorem _root_.Lean4Lean.VExpr.HeadName.instL {n : Name} {e : VExpr} (h : e.HeadName n) :
+    (e.instL ls).HeadName n := by
+  induction e with
+  | app f _ ihf _ => exact ihf h
+  | const => exact h
+  | _ => exact h.elim
+
+theorem _root_.Lean4Lean.VExpr.HeadName.instOuterAt {n : Name} :
+    ∀ {e : VExpr} (args : List VExpr) (k : Nat), e.HeadName n → (e.instOuterAt args k).HeadName n
+  | _, [], _, h => h
+  | _, _ :: as, k, h => VExpr.HeadName.instOuterAt as k h.inst
+
+theorem _root_.Lean4Lean.VExpr.HeadName.of_lequiv {n : Name} {e e' : VExpr}
+    (H : VExpr.LEquiv U e e') (h : e'.HeadName n) : e.HeadName n := by
+  induction H with
+  | refl => exact h
+  | const => exact h
+  | app _ _ ihf _ => exact ihf h
+  | _ => exact h.elim
+
+theorem _root_.Lean4Lean.VExpr.HeadName.of_getAppFnArgs_go {n : Name} {e : VExpr}
+    {args : List VExpr} {ls : List VLevel}
+    (h : (VExpr.getAppFnArgs.go e args).1 = .const n ls) : e.HeadName n := by
+  induction e generalizing args with
+  | app f a ihf _ => exact ihf (args := a :: args) h
+  | const => simp [VExpr.getAppFnArgs.go] at h; exact h.1
+  | _ => simp [VExpr.getAppFnArgs.go] at h
+
+theorem _root_.Lean4Lean.VExpr.HeadName.of_getAppFnArgs {n : Name} {e : VExpr}
+    {ls : List VLevel} (h : e.getAppFnArgs.1 = .const n ls) : e.HeadName n :=
+  .of_getAppFnArgs_go h
+
+/-- `whnf` of a term translating to an application of a rigid constant is not a binder. -/
+theorem whnf.WF_not_forallE {c : VContext} {s : VState} {t : Expr} {R : VExpr} {n : Name}
+    (ht : c.TrExprS t R) (hR : R.HeadName n) (hrigid : c.venv.Rigid n) :
+    RecM.WF c s (whnf t) fun w _ => ∀ nm d b bi, w ≠ .forallE nm d b bi := by
+  refine (whnf.WF ht).mono fun w _ _ ⟨_, W, hW, hdef⟩ nm d b bi hw => ?_
+  subst hw
+  let .forallE hA hB _ _ := hW
+  obtain ⟨ls, xs, rfl⟩ := hR.eq_mkApps
+  have ⟨_, hu⟩ := VEnv.IsType.forallE hA hB
+  exact VEnv.IsDefEqU.rigidApp_forallE_inv c.Ewf c.Δwf.toCtx hrigid
+    (hu.defeqU_l c.Ewf c.Δwf hdef) hdef.symm
+
+/-- Splitting the field walk after `k` steps. -/
+theorem instantiateProjectionFields_add (st : Name) (struct : Expr) (mp : Bool) :
+    ∀ (k r : Nat) (type : Expr) (pos : Nat),
+      instantiateProjectionFields st struct mp type pos (k + r) =
+        (instantiateProjectionFields st struct mp type pos k >>= fun
+          | some t => instantiateProjectionFields st struct mp t (pos + k) r
+          | none => pure none)
+  | 0, r, type, pos => by simp [instantiateProjectionFields]
+  | k + 1, r, type, pos => by
+    rw [show k + 1 + r = (k + r) + 1 by omega]
+    simp only [instantiateProjectionFields, bind_assoc]
+    congr 1; funext w
+    split
+    · split
+      · split
+        · simp only [bind_assoc]; congr 1; funext b
+          split <;> first
+            | simp; done
+            | rw [instantiateProjectionFields_add st struct mp k r,
+                show pos + 1 + k = pos + (k + 1) by omega]
+        · rw [instantiateProjectionFields_add st struct mp k r,
+            show pos + 1 + k = pos + (k + 1) by omega]
+      · rw [instantiateProjectionFields_add st struct mp k r,
+          show pos + 1 + k = pos + (k + 1) by omega]
+    · simp
+
+/-- Past the fields, the walk returns nothing, or (after no further step) its input. -/
+theorem instantiateProjectionFields.WF_stuck {c : VContext} {t : Expr} {R : VExpr} {n : Name}
+    (ht : c.TrExprS t R) (hR : R.HeadName n) (hrigid : c.venv.Rigid n) :
+    ∀ (r pos : Nat) (s : VState),
+      (instantiateProjectionFields st struct mp t pos r).WF c s
+        fun o _ => ∀ t', o = some t' → t' = t
+  | 0, _, _ => by
+    unfold instantiateProjectionFields; exact .pure fun _ h => (Option.some.inj h).symm
+  | _ + 1, _, _ => by
+    unfold instantiateProjectionFields
+    refine (whnf.WF_not_forallE ht hR hrigid).bind fun w _ _ hw => ?_
+    split
+    · exact absurd rfl (hw _ _ _ _)
+    · exact .pure nofun
+
 end Lean4Lean.TypeChecker.Inner
