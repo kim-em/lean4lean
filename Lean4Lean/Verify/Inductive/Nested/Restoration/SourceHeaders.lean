@@ -1,5 +1,6 @@
 import Lean4Lean.Verify.Inductive.Nested.Install.DependencyOrder
 import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.Environment
+import Lean4Lean.Verify.Inductive.Nested.Restoration.Validation.ConstructorEnvironment
 
 namespace Lean4Lean
 
@@ -63,6 +64,91 @@ theorem NestedLoweringOutputClosed.sourceHeaderPrefix
   subst hdecl
   simpa only [List.getElem_take] using Hheader
 
+/-- The source environment's lookups survive the complete lowered installation. -/
+theorem RecursorCheck.preservesBaseFind
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hc : ContextWF c)
+    (H : RecursorCheck R.toConstructorCheck outEnv)
+    (hfind : c.env.find? name = some found) :
+    outEnv.find? name = some found := by
+  have hheader := Hheaders.installed.preservesSourceFind Hc.checking.tr.map_wf hfind
+  have hctor := R.declared.installed.preservesFind
+    Hheaders.context.checking.tr.map_wf hheader
+  have hlocalWF : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.declared.context.checking.tr.map_wf
+  apply H.installed.preservesFind hlocalWF
+  rwa [H.localExtends.env_eq]
+
+/-- Every listed constructor of the complete lowered installation is coherent. -/
+theorem RecursorCheck.listedConstructors
+    {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
+    {sourceEnv : VEnv} {indTypes : Array InductiveType}
+    {headerEnv ctorEnv outEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats decl nparams isUnsafe depth
+      sourceEnv indTypes headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hc : ContextWF c)
+    (H : RecursorCheck R.toConstructorCheck outEnv) :
+    ListedConstructorsCoherent outEnv := by
+  have hlocalWF : H.localContext.env.constants.WF := by
+    rw [H.localExtends.env_eq]
+    exact R.declared.context.checking.tr.map_wf
+  exact ListedConstructorsCoherent.ofInductInfosFromDecl Hc.checking.tr.map_wf
+    (H.installed.targetMapWF hlocalWF) Hc.checking.listedConstructors
+    Hheaders.sourcePresent (H.preservesBaseFind Hc) H.inductInfosFromDecl
+
+/-- Every constant of the complete lowered installation is stored under its own name. -/
+theorem RecursorCheck.find?_name
+    {R : ConstructorCheck c stats decl nparams isUnsafe depth sourceEnv indTypes ctorEnv}
+    (H : RecursorCheck R outEnv) (hfind : outEnv.find? name = some found) :
+    found.name = name := by
+  have hchecking : CheckingEnv H.localContext.safety H.localContext.env R.context.venv := by
+    rw [H.localExtends.env_eq, H.localExtends.safety_eq]
+    exact R.context.checking.tr
+  exact (H.installed.checking hchecking).find?_name hfind
+
+/-- Each source header restored into a header-only side environment was absent from the
+environment the side environment extends. -/
+theorem ConstructorValidationSteps.headerFresh
+    {loweredEnv : Environment} {allIndNames : List Name}
+    {types : List InductiveType} {sourceEnv targetEnv : Environment}
+    (H : ConstructorValidationSteps
+      (fun indType source target => ValidationHeaderStep loweredEnv
+        allIndNames indType.name source target) types sourceEnv targetEnv)
+    (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types)
+    (hlookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo)) :
+    sourceEnv.find? oldInfo.name = none := by
+  induction H with
+  | nil => simp at hmem
+  | @cons head source middle tail target Hstep Htail ih =>
+    let ci : ConstantInfo := .inductInfo { Hstep.oldInfo with all := allIndNames }
+    have hfresh : source.find? ci.name = none :=
+      find?_none_of_contains_false hwf
+        (by simpa [ci, ConstantInfo.name, ConstantInfo.toConstantVal] using
+          Hstep.fresh)
+    have hmiddle : middle = source.add ci := Hstep.output
+    have hmiddleWF : middle.constants.WF := by
+      rw [hmiddle]
+      exact constantsWF_add_checked hwf hfresh
+    simp only [List.mem_cons] at hmem
+    rcases hmem with rfl | hmem
+    · cases ConstantInfo.inductInfo.inj (Option.some.inj (hlookup.symm.trans Hstep.lookup))
+      simpa [ci, ConstantInfo.name, ConstantInfo.toConstantVal] using hfresh
+    · have hmid := ih hmiddleWF hmem
+      cases hsrc : source.find? oldInfo.name with
+      | none => rfl
+      | some found =>
+        rw [hmiddle, findAddFresh_of_find hwf ci hfresh hsrc] at hmid
+        cases hmid
+
 private theorem restoredHeaderValidationValidAux
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
@@ -95,7 +181,8 @@ private theorem restoredHeaderValidationValidAux
     (Hvalid : CheckingEnv.Valid c.safety currentProdEnv currentVEnv)
     (Hle : sourceVEnv ≤ currentVEnv)
     (Hadded : currentVEnv.addConstVals
-      (remainingTargets.map VInductiveType.toVConstVal) = some targetVEnv) :
+      (remainingTargets.map VInductiveType.toVConstVal) = some targetVEnv)
+    (Hlisted : ListedConstructorsCoherent targetProdEnv) :
     CheckingEnv.Valid c.safety targetProdEnv targetVEnv := by
   induction Htranslations generalizing currentProdEnv currentVEnv
       targetProdEnv with
@@ -179,6 +266,15 @@ private theorem restoredHeaderValidationValidAux
               simp only [VInductDecl.typeConstants]
               exact List.mem_map.mpr
                 ⟨target, HtargetMem target (by simp), rfl⟩
+            rw [HvalidationHead.output] at HvalidationTail
+            have hnextWF := constantsWF_add_checked (ci := .inductInfo
+              { HvalidationHead.oldInfo with all := sourceTypes.map (fun type => type.name) })
+              Hvalid.tr.map_wf hfresh
+            have HnextListed : ListedConstructorsCoherent (currentProdEnv.add
+                (.inductInfo { HvalidationHead.oldInfo with
+                  all := sourceTypes.map (fun type => type.name) })) := by
+              rcases HvalidationTail.headersFreshExtension hnextWF with ⟨_, Hfresh⟩
+              exact Hlisted.ofSub fun h => Hfresh.preservesSourceFind hnextWF h
             have HvalidNext : CheckingEnv.Valid c.safety
                 (currentProdEnv.add
                   (.inductInfo { HvalidationHead.oldInfo with
@@ -189,8 +285,7 @@ private theorem restoredHeaderValidationValidAux
                 (ci' := target.toVConstVal.toVConstant) hfresh hnprim
                 HheadTr'.1 (Hheader.wf.mono Hle)
                 (by simpa [HheadTr'.2] using hadd) rfl trivial
-                (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
-            rw [HvalidationHead.output] at HvalidationTail
+                (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun) HnextListed
             apply ih HvalidationTail
             · intro nextSource hmem
               exact HsourceMem nextSource (by simp [hmem])
@@ -199,6 +294,52 @@ private theorem restoredHeaderValidationValidAux
             · exact HvalidNext
             · exact Hle.trans (VEnv.addConst_le hadd)
             · exact Hadded
+            · exact Hlisted
+
+/-- The header-only side environment lists no present constant beyond those its source
+environment already lists coherently: the restored headers list the lowered constructors,
+which are absent there. -/
+theorem ValidationHeaderEnvironment.listedOfLowering
+    {result : Lean4Lean.ElimNestedInductive.Result} {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
+    {loweredDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
+    {sourceVEnv : VEnv} {headerEnv ctorEnv loweredEnv : Environment}
+    {Hheaders : HeaderEnvironment c stats loweredDecl nparams isUnsafe
+      depth sourceVEnv result.types.toArray headerEnv}
+    {R : OrdinaryConstructorCheck Hheaders ctorEnv}
+    (Hvalidation : ValidationHeaderEnvironment loweredEnv c.env
+      (sourceTypes.map (fun type => type.name)) sourceTypes validationEnv)
+    (Hc : ContextWF c) (Hprod : RecursorCheck R.toConstructorCheck loweredEnv) :
+    ListedConstructorsCoherent validationEnv := by
+  have hsourceWF := Hc.checking.tr.map_wf
+  have hsub : ∀ {name found}, c.env.find? name = some found →
+      validationEnv.find? name = some found := by
+    intro name found h
+    rcases Hvalidation.headers.headersFreshExtension hsourceWF with ⟨_, Hfresh⟩
+    exact Hfresh.preservesSourceFind hsourceWF h
+  have Hlowered := Hprod.listedConstructors Hc
+  intro familyName familyInfo hfamily name hname found hfound
+  rcases Hvalidation.headers.headerFindCases hsourceWF hfamily with hold |
+      ⟨indType, hmem, oldInfo, hlookup, hfamilyName, hfamilyInfo⟩
+  · rcases Hheaders.sourcePresent familyName familyInfo hold name hname with ⟨old, hold'⟩
+    rw [hsub hold'] at hfound
+    cases hfound
+    exact Hc.checking.listedConstructors familyName familyInfo hold name hname _ hold'
+  · cases hfamilyInfo
+    have hname' : name ∈ oldInfo.ctors := hname
+    have hheaderName : oldInfo.name = indType.name := Hprod.find?_name hlookup
+    rcases Hvalidation.headers.headerFindCases hsourceWF hfound with hfoundOld |
+        ⟨indType', _, oldInfo', hlookup', hfoundName, hfoundInfo⟩
+    · rcases Hlowered indType.name oldInfo hlookup name hname' found
+          (Hprod.preservesBaseFind Hc hfoundOld) with ⟨info, rfl, hinduct, -⟩
+      rcases Hc.checking.constructorOwners name info hfoundOld with ⟨owner, howner, -⟩
+      have hfresh := Hvalidation.headers.headerFresh hsourceWF hmem hlookup
+      rw [hheaderName, ← hinduct, howner] at hfresh
+      cases hfresh
+    · have hname'' : oldInfo'.name = indType'.name := Hprod.find?_name hlookup'
+      rw [hfoundName, hname''] at hname'
+      rcases Hlowered indType.name oldInfo hlookup indType'.name hname' _ hlookup' with
+        ⟨_, hctor, -⟩
+      cases hctor
 
 /-- The executable header-only side environment used by nested auxiliary
 validation models exactly the abstract source-header prefix selected by the
@@ -241,6 +382,7 @@ theorem ValidationHeaderEnvironment.validOfLowering
     exact Hbase
   · exact VEnv.LE.rfl
   · exact Hadded
+  · exact Hvalidation.listedOfLowering Hc Hprod
 
 end VerifyInductive
 end Lean4Lean

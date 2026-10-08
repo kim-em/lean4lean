@@ -122,7 +122,8 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
   have Hrun :=
     Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
       env lparams nparams sourceTypes isUnsafe false fuel res
-      Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners hctx
+      Hc' wf.inductivesClosed wf.envGhostFree wf.constructorOwners
+      wf.inductiveConstructorsCoherent.present hctx
       hnonempty (inductiveSafety_notPartial isUnsafe)
       Hinputs Hsources rfl Hlower hnested
   exact Hrun.mono fun outEnv Hout => by
@@ -141,7 +142,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
           (ves.venv (if isUnsafe then .unsafe else .safe)) :=
       (wf.tr (safety := if isUnsafe then .unsafe else .safe)).toCheckingValid
         (wf.hasPrimitives (safety := if isUnsafe then .unsafe else .safe))
-        wf.safePrimitives wf.constructorOwners
+        wf.safePrimitives wf.constructorOwners wf.inductiveConstructorsCoherent.listed
         wf.projectionRegistryCoherent ((htels _))
     let E' : NestedInstalledRun res env sourceTypes
         (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams

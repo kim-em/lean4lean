@@ -142,7 +142,7 @@ theorem AddInductive.run.primitiveExtensionModelWF
         Nonempty (SourceAddInduct (ves.venv .safe) c.lparams
           nparams types (c.safety != .safe) (ves'.venv .safe)) := by
   have Hrun := AddInductive.run.primitiveSourceAlignedWF
-    nparams numNested Hc wf.inductivesClosed Hshape hctx hnonempty
+    nparams numNested Hc wf.inductivesClosed wf.inductiveConstructorsCoherent.present Hshape hctx hnonempty
     HnotPartial
   exact Hrun.mono fun outEnv Hresult => by
     have Hresult' : PrimitiveRunResult

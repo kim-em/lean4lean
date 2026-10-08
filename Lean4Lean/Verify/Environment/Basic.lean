@@ -65,6 +65,24 @@ def ConstructorOwnersPresent (env : Environment) : Prop :=
     ∃ owner, env.find? info.induct = some (.inductInfo owner) ∧
       name ∈ owner.ctors ∧ info.isUnsafe = owner.isUnsafe
 
+/-- Every constructor name that a present inductive header lists is, if present, a
+constructor whose recorded inductive is that header, with the header's `isUnsafe`.  Presence
+is a premise because in the staged environments of an inductive declaration a header is
+installed before the constructors it lists; on a complete environment this follows from
+`InductiveConstructorsCoherent`. -/
+def ListedConstructorsCoherent (env : Environment) : Prop :=
+  ∀ familyName familyInfo, env.find? familyName = some (.inductInfo familyInfo) →
+    ∀ name ∈ familyInfo.ctors, ∀ ci, env.find? name = some ci →
+      ∃ info, ci = .ctorInfo info ∧ info.induct = familyName ∧
+        info.isUnsafe = familyInfo.isUnsafe
+
+/-- Every constructor name that a present inductive header lists is present: no header is
+waiting for its constructors.  This holds for the environments a declaration starts from,
+and is what makes a fresh name unlisted. -/
+def ListedConstructorsPresent (env : Environment) : Prop :=
+  ∀ familyName familyInfo, env.find? familyName = some (.inductInfo familyInfo) →
+    ∀ name ∈ familyInfo.ctors, ∃ ci, env.find? name = some ci
+
 /-- Mutual-member evidence depends only on production constant lookup. -/
 theorem InductiveMemberInfos.mapEnvironmentEq
     {source targetEnv : Environment}
@@ -126,6 +144,23 @@ def InductiveConstructorsCoherent (env : Environment) : Prop :=
     env.find? familyName = some (.inductInfo familyInfo) →
     ∀ i (hi : i < familyInfo.ctors.length),
       Nonempty (CtorInfoCoherentAt env familyName familyInfo i hi)
+
+/-- On a complete environment every listed constructor is a coherent constructor. -/
+theorem InductiveConstructorsCoherent.listed {env : Environment}
+    (H : InductiveConstructorsCoherent env) : ListedConstructorsCoherent env := by
+  intro familyName familyInfo hfamily name hname ci hci
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
+  rcases H familyName familyInfo hfamily i hi with ⟨C⟩
+  rw [C.lookup] at hci
+  exact ⟨C.info, (Option.some.inj hci).symm, C.induct, C.isUnsafe⟩
+
+/-- On a complete environment every listed constructor is present. -/
+theorem InductiveConstructorsCoherent.present {env : Environment}
+    (H : InductiveConstructorsCoherent env) : ListedConstructorsPresent env := by
+  intro familyName familyInfo hfamily name hname
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
+  rcases H familyName familyInfo hfamily i hi with ⟨C⟩
+  exact ⟨_, C.lookup⟩
 
 /-- Semantic common-parameter coherence for one visible production
 constructor.  Concrete parameter domains need only be definitionally equal;

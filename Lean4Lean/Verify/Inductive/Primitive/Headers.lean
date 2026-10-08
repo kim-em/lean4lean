@@ -226,7 +226,8 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
       Hc commonParams depth)
     (hcommon : VLevel.ofLevel c.lparams stats.resultLevel =
       some commonLevel)
-    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero) :
+    (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
+    (hpresent : ListedConstructorsPresent c.env) :
     PrimitiveHeaderEnvironment c stats H.decl nparams isUnsafe depth
       Hc.venv indTypes outEnv := by
   let infos := AddInductive.inductiveTypeInfos stats nparams indTypes
@@ -296,6 +297,7 @@ def HeaderDeclarationOf.toPrimitiveHeaderEnvironment
     translation := by rw [hcontextVEnv]; exact H.translation
     installed := by rw [hcontextVEnv]; simpa [entries, infos] using Hinstalled
     sourceContext := Hc
+    sourcePresent := hpresent
     sourceContextVEnv := rfl
     sourceStatsWF := sourceMaterialized
     sourceHeaderParams := congrArg (fun headers => headers.params) hsourceHeaders
@@ -348,7 +350,8 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersWF
     (Hshape : PrimitiveInductiveShape c.lparams nparams indTypes.toList
       isUnsafe)
     (hvisible : c.safety ≤
-      (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
+      (if isUnsafe then DefinitionSafety.unsafe else .safe))
+    (hpresent : ListedConstructorsPresent c.env) :
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe c).WF fun outEnv =>
         ∃ decl, ∃ envTypes : VEnv,
@@ -367,7 +370,7 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersWF
       rw [A.metadata_eq]
       exact hindices
     let Hheaders := A.toPrimitiveHeaderEnvironment Hatomic hlevels hlevelParams
-      hindices' hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero
+      hindices' hconsts hparams Hcache Hsuffix Hambient hcommon hnotzero hpresent
     exact ⟨A.decl, envTypes, Hheaders, trivial⟩
 
 end VerifyInductive

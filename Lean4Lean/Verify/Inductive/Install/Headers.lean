@@ -280,6 +280,7 @@ def HeaderDeclarationOf.toHeaderEnvironment
       simpa only [entries, infos, Hinstalled.contextVEnv] using
         Hinstalled.installed
     sourceContext := Hc
+    sourcePresent := Hinstalled.sourcePresent
     sourceContextVEnv := rfl
     sourceStatsWF := sourceMaterialized
     sourceHeaderParams := congrArg (fun headers => headers.params) hsourceHeaders
@@ -343,13 +344,15 @@ theorem AddInductive.declareInductiveTypes.constructorsWF
         isUnsafe c.lparams).toList,
       ¬ Kernel.Environment.primitives.contains info.name)
     (hconsume : ConsumeTypeAnnotationsCompat)
-    (hlparams : c.lparams.Nodup) :
+    (hlparams : c.lparams.Nodup)
+    (hpresent : ListedConstructorsPresent c.env) :
     (AddInductive.declareInductiveTypes stats nparams indTypes numNested
-      isUnsafe c).WF fun headerEnv =>
+      isUnsafe c).WF fun headerEnv => headerEnv.constants.WF ∧
+        (ConstructorNamesAbsent indTypes headerEnv →
         (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe 0
           { headerCheckContext c stats with env := headerEnv }).WF fun _ =>
             ∃ decl, Nonempty (HeaderEnvironment c stats decl nparams
-              isUnsafe depth Hc.venv indTypes headerEnv) := by
+              isUnsafe depth Hc.venv indTypes headerEnv)) := by
   let HheaderMaterialized := Hsemantic.checkedResult
     (isUnsafe := isUnsafe) hlevels hlevelParams hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
@@ -360,9 +363,10 @@ theorem AddInductive.declareInductiveTypes.constructorsWF
       checkInductiveTypes.loopType.CheckedHeaders.headerCertificate]
   have Hdeclare :=
     AddInductive.declareInductiveTypes.headersWF Hc Hsemantic
-      hindicesSize hvisible hnprim
-  exact Hdeclare.mono fun headerEnv Hinstalled => by
-    rcases Hinstalled with ⟨Hinstalled⟩
+      hindicesSize hvisible hnprim hpresent
+  exact Hdeclare.mono fun headerEnv ⟨hheaderWF, Hinstalled⟩ => by
+    refine ⟨hheaderWF, fun habsent => ?_⟩
+    rcases Hinstalled habsent with ⟨Hinstalled⟩
     have htypesAdded : Hc.venv.addConstVals
         (Hsemantic.headerDecl isUnsafe).typeConstants =
           some Hinstalled.context.venv := by

@@ -75,6 +75,7 @@ def LocalContextWF.toContextWF (H : LocalContextWF c)
       Kernel.Environment.primitives.contains n ->
       ci.safety = .safe ∧ ci.levelParams = [])
     (howners : ConstructorOwnersPresent c.env)
+    (hlisted : ListedConstructorsCoherent c.env)
     (hregistry : ProjectionRegistryCoherent c.safety c.env.constants H.venv)
     (hrecursors : RecursorEnvCoherent c.safety c.env.constants H.venv)
     (hquot : c.env.quotInit = true → QuotEnvCoherent c.env.constants H.venv) :
@@ -88,6 +89,7 @@ def LocalContextWF.toContextWF (H : LocalContextWF c)
       exact hsafe hfind hprimitive
     ctorTelescopes := H.ctorTelescopes
     constructorOwners := howners
+    listedConstructors := hlisted
     projectionRegistry := hregistry
     recursors := hrecursors
     quot := hquot }
@@ -837,6 +839,48 @@ def AtomicAddConstants.toConstantsInstallation
     PrimitiveConstantsInstallation venv outVEnv constants where
   installed := by simpa [hvalues] using H.abstract
 
+/-- Atomic form of `AddConstants.listedConstructorsOfDeclaration`: after the headers and
+then the constructors of a declaration are installed on an environment whose listed
+constructors are present and coherent, every listed constructor is coherent. -/
+theorem AtomicAddConstants.listedConstructorsOfDeclaration
+    (Hheaders : AtomicAddConstants safety env venv headerEntries headerEnv headerVEnv)
+    (Hctors : AtomicAddConstants safety' headerEnv venv' ctorEntries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hlisted : ListedConstructorsCoherent env) (hpresent : ListedConstructorsPresent env)
+    (hinfos : ∀ entry ∈ headerEntries, ∃ numNested, ∃ info ∈ (AddInductive.inductiveTypeInfos
+      stats nparams indTypes numNested isUnsafe lparams).toList, entry.1 = .inductInfo info)
+    (hentries : ConstructorTypeEntries (AddInductive.constructorInfo stats lparams isUnsafe)
+      indTypes.toList ctorEntries) :
+    ListedConstructorsCoherent outEnv := by
+  have hheaderWF := Hheaders.targetMapWF hwf
+  intro familyName familyInfo hfamily name hname found hfound
+  rcases Hctors.entryOrigin hheaderWF hfamily with hfamilyHeader | ⟨entry, hentry, -, hentryEq⟩
+  · rcases Hheaders.entryOrigin hwf hfamilyHeader with hold | ⟨entry, hentry, hentryName, hentryEq⟩
+    · rcases hpresent familyName familyInfo hold name hname with ⟨old, hold'⟩
+      have hout := Hctors.preservesSourceFind hheaderWF (Hheaders.preservesSourceFind hwf hold')
+      rw [hfound] at hout
+      cases hout
+      exact hlisted familyName familyInfo hold name hname _ hold'
+    · rcases hinfos entry hentry with ⟨numNested, info, hinfo, hfst⟩
+      rw [hfst] at hentryEq hentryName
+      cases hentryEq
+      rcases inductiveTypeInfos_ctors stats nparams indTypes numNested isUnsafe lparams hinfo
+        with ⟨owner, howner, hownerName, hctors, hunsafe⟩
+      rw [hctors] at hname
+      obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hname
+      rcases hentries.findSourceInduct howner hctor with
+        ⟨ctorInfo, value, hmem, hctorName, hinduct, hctorUnsafe⟩
+      have hctorFind : outEnv.find? ctorInfo.name = some (.ctorInfo ctorInfo) :=
+        Hctors.findEntry hheaderWF hmem
+      rw [hctorName, hfound] at hctorFind
+      cases hctorFind
+      refine ⟨ctorInfo, rfl, ?_, hctorUnsafe.trans hunsafe.symm⟩
+      rw [hinduct, hentryName, ← hownerName]
+      rfl
+  · rcases hentries.ownerOfEntry hentry with ⟨_, _, _, hctorEq, -⟩
+    rw [hctorEq] at hentryEq
+    cases hentryEq
+
 /-- The completed staged trace regains `ContextWF` in one step.  The three
 global premises are intentionally stated only for the final environment. -/
 def AtomicAddConstants.completeContext
@@ -847,13 +891,14 @@ def AtomicAddConstants.completeContext
       Kernel.Environment.primitives.contains n ->
       ci.safety = .safe ∧ ci.levelParams = [])
     (howners : ConstructorOwnersPresent outEnv)
+    (hlisted : ListedConstructorsCoherent outEnv)
     (hregistry : ProjectionRegistryCoherent c.safety outEnv.constants outVEnv)
     (hrecursors : RecursorEnvCoherent c.safety outEnv.constants outVEnv)
     (hquot : outEnv.quotInit = true → QuotEnvCoherent outEnv.constants outVEnv)
     (htels : CtorTelescopes c.safety outEnv outVEnv) :
     ContextWF { c with env := outEnv } :=
   (source.withEnv (H.checking source.checking) H.le htels).toContextWF
-    hprimitives hsafe howners hregistry hrecursors hquot
+    hprimitives hsafe howners hlisted hregistry hrecursors hquot
 
 /-- Header result for the primitive branch.  It mirrors the ordinary
 `HeaderEnvironment`, except that its checking context and installation
@@ -880,6 +925,8 @@ structure PrimitiveHeaderEnvironment (c : AddInductive.Context)
   installed : AtomicAddConstants c.safety c.env sourceEnv entries
     outEnv context.venv
   sourceContext : ContextWF c
+  /-- Every constructor a header of the source environment lists is present there. -/
+  sourcePresent : ListedConstructorsPresent c.env
   sourceContextVEnv : sourceContext.venv = sourceEnv
   sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth

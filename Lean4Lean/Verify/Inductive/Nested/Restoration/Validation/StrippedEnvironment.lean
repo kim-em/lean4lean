@@ -552,7 +552,7 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
       (Lean4Lean.stripRecursorRules outEnv
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
       installedVEnv := by
-  obtain ⟨hcore, howners, hregistry⟩ :=
+  obtain ⟨hcore, howners, hregistry, hlisted⟩ :=
     Hrestored.localValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
       Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
@@ -651,7 +651,17 @@ theorem NestedRestorationFolds.validOfInstallation_of_shapes
     intro hq
     rw [hSquot, Hactual.quotInit_eq] at hq
     exact (hvalidSource.quot hq).extend hpres canonical.le hrecursors.heads
-  exact hvalidCore.toValid howners' hregistry' hrecursors hquot
+  have hlisted' : ListedConstructorsCoherent S := by
+    intro familyName familyInfo hfamily name hname found hfound
+    have hfamilyOut : outEnv.find? familyName = some (.inductInfo familyInfo) := by
+      rcases hcasesE hfamily with h | ⟨r, _, hr⟩
+      · exact h
+      · cases hr
+    rcases hcasesE hfound with h | ⟨r, hr, -⟩
+    · exact hlisted familyName familyInfo hfamilyOut name hname found h
+    · rcases hlisted familyName familyInfo hfamilyOut name hname _ hr with ⟨_, hctor, -⟩
+      cases hctor
+  exact hvalidCore.toValid howners' hlisted' hregistry' hrecursors hquot
     (htels.ofCtors fun h => by
       rcases hcasesE h with h | ⟨r, _, he⟩
       · exact h

@@ -499,8 +499,17 @@ theorem AddInductive.declareConstructors.primitiveWF
       apply Hcombined.quotEnvCoherent hsourceMapWF hrecursors.heads
       have h := H.sourceContext.checking.quot
       rwa [H.sourceContextVEnv] at h
+    have hlisted : ListedConstructorsCoherent outEnv := by
+      refine H.installed.listedConstructorsOfDeclaration (nparams := nparams) Hinstalled hsourceMapWF
+        H.sourceContext.checking.listedConstructors H.sourcePresent ?_ Haligned
+      intro entry hentry
+      rcases H.infos with ⟨numNested, hinfos⟩
+      have : entry.1 ∈ H.entries.map Prod.fst := List.mem_map_of_mem hentry
+      rw [hinfos] at this
+      rcases List.mem_map.mp this with ⟨info, hinfo, heq⟩
+      exact ⟨numNested, info, hinfo, heq.symm⟩
     let Hcontext := Hinstalled.completeContext H.context
-      hprimitives hsafe howners hregistry hrecursors hquot
+      hprimitives hsafe howners hlisted hregistry hrecursors hquot
       (Hinstalled.ctorTelescopes H.context.checking H.context.ctorTelescopes (Haligned.ctorTelescopeSteps hctors))
     have hctorsAdded : H.context.venv.addConstVals
         decl.constructorConstants = some venvCtors := by

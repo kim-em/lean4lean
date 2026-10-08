@@ -840,8 +840,12 @@ theorem ValidationEnvironment.validProjected
     intro hq
     rw [H.quotInit_eq hsourceWF] at hq
     exact (hsourceQuot hq).extend hpres hle hrecursors.heads
-  exact ((hvalid.addEliminators hcasesWF).addProjections hprojectedWF).toValid howners hregistry
-    hrecursors hquot (htels.mono (VEnv.addEliminators_le.trans VEnv.addProjections_le))
+  have hlisted : ListedConstructorsCoherent validationEnv :=
+    (ListedConstructorsCoherent.ofInductInfosFromDecl hsourceWF hprimaryWF
+      Hc.checking.listedConstructors Hheaders.sourcePresent
+      (fun h => HprimaryFresh.preservesSourceFind hsourceWF h) Hprimary).ofSub hsubset
+  exact ((hvalid.addEliminators hcasesWF).addProjections hprojectedWF).toValid howners hlisted
+    hregistry hrecursors hquot (htels.mono (VEnv.addEliminators_le.trans VEnv.addProjections_le))
 
 
 /-! ### The final restored environment -/
@@ -880,7 +884,8 @@ theorem NestedRestorationFolds.localValidOfInstallation
     (hvalidSource : CheckingEnv.Valid c.safety c.env sourceVEnv) :
     CheckingEnv.ValidCore c.safety outEnv installedVEnv ∧
       ConstructorOwnersPresent outEnv ∧
-      ProjectionRegistryCoherent c.safety outEnv.constants installedVEnv := by
+      ProjectionRegistryCoherent c.safety outEnv.constants installedVEnv ∧
+      ListedConstructorsCoherent outEnv := by
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have Howners : ConstructorOwnersPresent c.env := Hc.checking.constructorOwners
   have houtWF : outEnv.constants.WF := Hactual.targetWF hsourceWF
@@ -933,7 +938,10 @@ theorem NestedRestorationFolds.localValidOfInstallation
       exact hle.projections
         (VEnv.addProjections_iff.mpr (Or.inl ⟨entry, hentry, rfl, rfl⟩))
   exact ⟨canonical.validCoreOfFreshPermutation Hactual hperm hvalidSource.toValidCore,
-    howners, hregistry⟩
+    howners, hregistry,
+    ListedConstructorsCoherent.ofInductInfosFromDecl hsourceWF houtWF
+      Hc.checking.listedConstructors Hheaders.sourcePresent
+      (fun h => Hactual.preservesSourceFind hsourceWF h) horigins⟩
 
 end VerifyInductive
 end Lean4Lean

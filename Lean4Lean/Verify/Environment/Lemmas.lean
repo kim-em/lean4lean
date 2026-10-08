@@ -153,6 +153,155 @@ theorem ConstructorOwnersPresent.addConstructor
     exact ⟨oldOwner,
       (find?_add_of_ne hwf (.ctorInfo info) hfresh hne).trans holdOwner, hmem'⟩
 
+/-- Lookup classification for one fresh addition (public form of `find?_add_cases`). -/
+theorem findAddFresh_cases {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hfind : (env.add ci).find? name = some found) :
+    (name = ci.name ∧ found = ci) ∨ env.find? name = some found :=
+  find?_add_cases hwf ci hfresh hfind
+
+/-- An old lookup survives one fresh addition. -/
+theorem findAddFresh_of_find {env : Environment} (hwf : env.constants.WF)
+    (ci : ConstantInfo) (hfresh : env.find? ci.name = none)
+    (hfind : env.find? name = some found) :
+    (env.add ci).find? name = some found := by
+  have hne : ci.name ≠ name := by
+    intro heq
+    subst name
+    rw [hfind] at hfresh
+    cases hfresh
+  rw [find?_add_of_ne hwf ci hfresh hne]
+  exact hfind
+
+/-- Adding a fresh constant preserves listed-constructor coherence when every present header
+that lists its name is coherent with it, and, for a header, when the names it lists are absent
+afterwards. -/
+theorem ListedConstructorsCoherent.add
+    {ci : ConstantInfo}
+    (H : ListedConstructorsCoherent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hold : ∀ familyName familyInfo,
+      env.find? familyName = some (.inductInfo familyInfo) → ci.name ∈ familyInfo.ctors →
+      ∃ info, ci = .ctorInfo info ∧ info.induct = familyName ∧
+        info.isUnsafe = familyInfo.isUnsafe)
+    (hnew : ∀ familyInfo, ci = .inductInfo familyInfo →
+      ∀ name ∈ familyInfo.ctors, (env.add ci).find? name = none) :
+    ListedConstructorsCoherent (env.add ci) := by
+  intro familyName familyInfo hfamily name hname found hfound
+  rcases find?_add_cases hwf ci hfresh hfamily with ⟨-, hheader⟩ | hfamilyOld
+  · rw [hnew familyInfo hheader.symm name hname] at hfound
+    cases hfound
+  · rcases find?_add_cases hwf ci hfresh hfound with ⟨hnameEq, hfoundEq⟩ | hfoundOld
+    · subst hnameEq hfoundEq
+      exact hold familyName familyInfo hfamilyOld hname
+    · exact H familyName familyInfo hfamilyOld name hname found hfoundOld
+
+/-- Listed-constructor coherence passes to an environment whose lookups are all lookups of a
+coherent one. -/
+theorem ListedConstructorsCoherent.ofSub {env env' : Environment}
+    (H : ListedConstructorsCoherent env')
+    (hsub : ∀ {name found}, env.find? name = some found → env'.find? name = some found) :
+    ListedConstructorsCoherent env :=
+  fun familyName familyInfo hfamily name hname found hfound =>
+    H familyName familyInfo (hsub hfamily) name hname found (hsub hfound)
+
+/-- After a declaration's families are installed with their constructors, every listed
+constructor is coherent: an old header lists only old constants, and each header of the
+declaration is aligned with its installed constructors. -/
+theorem ListedConstructorsCoherent.ofInductInfosFromDecl {source target : Environment}
+    (hsourceWF : source.constants.WF) (htargetWF : target.constants.WF)
+    (hlisted : ListedConstructorsCoherent source) (hpresent : ListedConstructorsPresent source)
+    (hsub : ∀ {name found}, source.find? name = some found → target.find? name = some found)
+    (H : InductInfosFromDecl source.constants target.constants decl) :
+    ListedConstructorsCoherent target := by
+  intro familyName familyInfo hfamily name hname found hfound
+  have hfamilyMap : target.constants.find? familyName = some (.inductInfo familyInfo) := by
+    rwa [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?] at hfamily
+  rcases H familyName familyInfo hfamilyMap with hold | ⟨familyIdx, hfamilyName, ⟨A⟩⟩
+  · have hold' : source.find? familyName = some (.inductInfo familyInfo) := by
+      rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
+      exact hold
+    rcases hpresent familyName familyInfo hold' name hname with ⟨old, hold''⟩
+    rw [hsub hold''] at hfound
+    cases hfound
+    exact hlisted familyName familyInfo hold' name hname _ hold''
+  · obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
+    have hctor : i < (decl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
+      rw [← A.constructors]; exact hi
+    rcases A.constructor i hctor with ⟨C⟩
+    have hlookup : target.find? familyInfo.ctors[i] = some (.ctorInfo C.info) := by
+      rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
+      exact C.lookup
+    rw [hlookup] at hfound
+    cases hfound
+    exact ⟨C.info, rfl, C.induct.trans hfamilyName.symm, C.isUnsafe.trans A.isUnsafe.symm⟩
+
+/-- After a declaration's families are installed with their constructors, every listed
+constructor is present. -/
+theorem ListedConstructorsPresent.ofInductInfosFromDecl {source target : Environment}
+    (hsourceWF : source.constants.WF) (htargetWF : target.constants.WF)
+    (hpresent : ListedConstructorsPresent source)
+    (hsub : ∀ {name found}, source.find? name = some found → target.find? name = some found)
+    (H : InductInfosFromDecl source.constants target.constants decl) :
+    ListedConstructorsPresent target := by
+  intro familyName familyInfo hfamily name hname
+  have hfamilyMap : target.constants.find? familyName = some (.inductInfo familyInfo) := by
+    rwa [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?] at hfamily
+  rcases H familyName familyInfo hfamilyMap with hold | ⟨familyIdx, -, ⟨A⟩⟩
+  · have hold' : source.find? familyName = some (.inductInfo familyInfo) := by
+      rw [Lean.Kernel.Environment.find?, hsourceWF.find?'_eq_find?]
+      exact hold
+    rcases hpresent familyName familyInfo hold' name hname with ⟨old, hold''⟩
+    exact ⟨old, hsub hold''⟩
+  · obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hname
+    have hctor : i < (decl.types[familyIdx]'A.familyIdx_lt).ctors.length := by
+      rw [← A.constructors]; exact hi
+    rcases A.constructor i hctor with ⟨C⟩
+    refine ⟨.ctorInfo C.info, ?_⟩
+    rw [Lean.Kernel.Environment.find?, htargetWF.find?'_eq_find?]
+    exact C.lookup
+
+/-- A fresh name is listed by no header of an environment whose listed constructors are all
+present. -/
+theorem ListedConstructorsPresent.unlisted
+    (H : ListedConstructorsPresent env) (hfresh : env.find? name = none)
+    (hfamily : env.find? familyName = some (.inductInfo familyInfo)) :
+    name ∉ familyInfo.ctors := by
+  intro hmem
+  rcases H familyName familyInfo hfamily name hmem with ⟨ci, hci⟩
+  rw [hfresh] at hci
+  cases hci
+
+/-- Adding a fresh constant that is not an inductive header to an environment whose listed
+constructors are all present preserves listed-constructor coherence. -/
+theorem ListedConstructorsCoherent.addOfPresent
+    {ci : ConstantInfo}
+    (H : ListedConstructorsCoherent env) (hpresent : ListedConstructorsPresent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnotHeader : ∀ familyInfo, ci ≠ .inductInfo familyInfo) :
+    ListedConstructorsCoherent (env.add ci) :=
+  H.add hwf hfresh
+    (fun _ _ hfamily hmem => absurd hmem (hpresent.unlisted hfresh hfamily))
+    (fun familyInfo h => absurd h (hnotHeader familyInfo))
+
+/-- Adding a fresh constant that is not an inductive header preserves the presence of listed
+constructors. -/
+theorem ListedConstructorsPresent.add
+    {ci : ConstantInfo}
+    (H : ListedConstructorsPresent env)
+    (hwf : env.constants.WF) (hfresh : env.find? ci.name = none)
+    (hnotHeader : ∀ familyInfo, ci ≠ .inductInfo familyInfo) :
+    ListedConstructorsPresent (env.add ci) := by
+  intro familyName familyInfo hfamily name hname
+  rcases find?_add_cases hwf ci hfresh hfamily with ⟨-, hheader⟩ | hfamilyOld
+  · exact absurd hheader.symm (hnotHeader familyInfo)
+  · rcases H familyName familyInfo hfamilyOld name hname with ⟨found, hfound⟩
+    by_cases hne : ci.name = name
+    · subst hne
+      rw [hfresh] at hfound
+      cases hfound
+    · exact ⟨found, (find?_add_of_ne hwf ci hfresh hne).trans hfound⟩
+
 /-- A fresh mutual-definition fold contains no constructor metadata and
 hence preserves constructor-owner presence. -/
 theorem ConstructorOwnersPresent.addDefinitions
@@ -469,6 +618,34 @@ theorem Aligned.find?_iff (H : Aligned safety C venv) :
     rw [← heq]
     exact ih
 
+/-- Every constant of an aligned constant map is stored under its own name. -/
+theorem Aligned.find?_name (H : Aligned safety C venv)
+    (h : C.find? name = some ci) : ci.name = name := by
+  induction H with
+  | empty => simp at h
+  | ignoreConst H _ _ hname ih =>
+    rw [H.map_wf.find?_insert] at h
+    split at h
+    · rename_i heq
+      cases h
+      rw [hname]
+      exact LawfulBEq.eq_of_beq heq
+    · exact ih h
+  | const H _ _ _ hname ih =>
+    rw [H.map_wf.find?_insert] at h
+    split at h
+    · rename_i heq
+      cases h
+      rw [hname]
+      exact LawfulBEq.eq_of_beq heq
+    · exact ih h
+  | defeq _ ih => exact ih h
+  | projections _ ih => exact ih h
+  | eliminators _ ih => exact ih h
+  | mapExt _ _ heq ih =>
+    rw [← heq] at h
+    exact ih h
+
 theorem Aligned.addQuot1 {Q : Prop}
     (H1 : ∀ c env, Aligned safety c env → P c env → Q)
     (C env) (wf : Aligned safety C env) (H2 : AddQuot1 n k ci P C env) : Q := by
@@ -746,6 +923,11 @@ theorem CheckingEnv.find? (H : CheckingEnv safety env venv)
     (h : env.find? name = some ci) (hs : safety ≤ ci.safety) :
     ∃ ci', venv.constants name = some ci' ∧ TrConstant safety venv ci ci' :=
   H.aligned.find? (H.map_wf.find?'_eq_find? _ ▸ h) hs
+
+/-- Every constant of a checking environment is stored under its own name. -/
+theorem CheckingEnv.find?_name (H : CheckingEnv safety env venv)
+    (h : env.find? name = some ci) : ci.name = name :=
+  H.aligned.find?_name (H.map_wf.find?'_eq_find? _ ▸ h)
 
 theorem CheckingEnv.find?_uniq (H : CheckingEnv safety env venv)
     (h : env.find? name = some ci) (hs : venv.constants name = some ci') :
@@ -1067,6 +1249,10 @@ structure CheckingEnv.Valid (safety : DefinitionSafety)
     (env : Environment) (venv : VEnv) : Prop extends
     CheckingEnv.ValidCore safety env venv where
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
+  /-- Every constructor name a present header lists is, if present, a constructor of that
+  header. This is what identifies the constant a structure lists with its registered
+  constructor. -/
+  listedConstructors : VerifyInductive.ListedConstructorsCoherent env
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv
   /-- Every visible recursor is aligned with the stored iota equations, and every stored
   equation is headed by a non-inductive constant. This is what recursor reduction reads. -/
@@ -1085,10 +1271,11 @@ theorem TrEnv.toCheckingValid (H : TrEnv safety env venv)
       Kernel.Environment.primitives.contains n →
       ci.safety = .safe ∧ ci.levelParams = [])
     (howners : VerifyInductive.ConstructorOwnersPresent env)
+    (hlisted : VerifyInductive.ListedConstructorsCoherent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
     (htels : CtorTelescopes safety env venv) :
     CheckingEnv.Valid safety env venv :=
-  ⟨⟨H.toChecking, hprims, hsafe⟩, howners, hregistry,
+  ⟨⟨H.toChecking, hprims, hsafe⟩, howners, hlisted, hregistry,
     H.recursorEnvCoherent, H.quotEnvCoherent, htels⟩
 
 theorem CheckingEnv.ValidCore.add (H : CheckingEnv.ValidCore safety env venv)
@@ -1129,7 +1316,8 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     (hdelta : ci.deltaValue? = none)
     (hstep : ProjectionRegistryStep env.constants venv' ci)
     (hrec : RecursorInstallStep safety env.constants venv' ci)
-    (hcstep : CtorTelescopeStep safety venv ci) :
+    (hcstep : CtorTelescopeStep safety venv ci)
+    (hlisted : VerifyInductive.ListedConstructorsCoherent (env.add ci)) :
     CheckingEnv.Valid safety (env.add ci) venv' := by
   have hcore := H.toValidCore.add hn hnprim htr hci hadd hdelta
   have hfresh : env.constants.find? ci.name = none := by
@@ -1150,6 +1338,7 @@ theorem CheckingEnv.Valid.add (H : CheckingEnv.Valid safety env venv)
     · exact h
   refine { hcore with
     constructorOwners := ?_
+    listedConstructors := hlisted
     projectionRegistry := ?_
     recursors := hrecursors
     quot := hquot
@@ -1228,6 +1417,7 @@ theorem CheckingEnv.Valid.addEliminators
     CheckingEnv.Valid safety env (venv.addEliminators es) where
   toValidCore := H.toValidCore.addEliminators hwf
   constructorOwners := H.constructorOwners
+  listedConstructors := H.listedConstructors
   projectionRegistry := H.projectionRegistry.monoEnv VEnv.addEliminators_le
   recursors := H.recursors.extendSimple (fun h => h) (fun h _ => h)
     VEnv.addEliminators_le (fun _ h => by simpa using h)
@@ -1242,6 +1432,7 @@ theorem CheckingEnv.Valid.addProjections
     CheckingEnv.Valid safety env (venv.addProjections entries) where
   toValidCore := H.toValidCore.addProjections hwf
   constructorOwners := H.constructorOwners
+  listedConstructors := H.listedConstructors
   projectionRegistry := H.projectionRegistry.monoEnv VEnv.addProjections_le
   recursors := H.recursors.addProjections entries
   quot hq := (H.quot hq).extend (fun h => h) VEnv.addProjections_le
@@ -1253,6 +1444,7 @@ constructor-owner presence and registry coherence are known. -/
 theorem CheckingEnv.ValidCore.toValid
     (H : CheckingEnv.ValidCore safety env venv)
     (howners : VerifyInductive.ConstructorOwnersPresent env)
+    (hlisted : VerifyInductive.ListedConstructorsCoherent env)
     (hregistry : ProjectionRegistryCoherent safety env.constants venv)
     (hrecursors : RecursorEnvCoherent safety env.constants venv)
     (hquot : env.quotInit = true → QuotEnvCoherent env.constants venv)
@@ -1260,6 +1452,7 @@ theorem CheckingEnv.ValidCore.toValid
     CheckingEnv.Valid safety env venv :=
   { H with
     constructorOwners := howners
+    listedConstructors := hlisted
     projectionRegistry := hregistry
     recursors := hrecursors
     quot := hquot

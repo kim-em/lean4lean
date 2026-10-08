@@ -687,7 +687,7 @@ theorem BlockCertificate.extendSafeExact
       CheckingEnv.Valid safety prodEnv (ves.venv safety) :=
     (wf.tr (safety := safety)).toCheckingValid
       (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-      wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
+      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
   rcases H.rebaseAddInductSafe (valid .unsafe)
       (wf.mono DefinitionSafety.unsafe_le) hdecl hcompile horigins hprovenance
       (Hreplay .unsafe) with
@@ -823,7 +823,7 @@ theorem BlockCertificate.extendUnsafeOfHiddenExact
       (ves.venv .unsafe) :=
     (wf.tr (safety := .unsafe)).toCheckingValid
       (wf.hasPrimitives (safety := .unsafe)) wf.safePrimitives
-      wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
+      wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
   have hiddenPartial : ∀ entry ∈ types ++ ctors ++ recursors,
       ¬ DefinitionSafety.partial ≤ entry.1.safety := by
     intro entry hentry

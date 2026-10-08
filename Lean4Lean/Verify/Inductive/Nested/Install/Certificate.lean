@@ -768,6 +768,7 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
     (Hclosed : MutualInductivesClosed env)
     (HenvGF : TypeChecker.EnvGhostFree (fun _ => True) env)
     (Howners : ConstructorOwnersPresent env)
+    (Hpresent : ListedConstructorsPresent env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < res.types.toArray.size)
     (HnotPartial :
@@ -810,7 +811,8 @@ theorem Environment.addInductiveAfterLowering.nestedValidatedRawSourceWF
   have Hrun := AddInductive.run.sourceAlignedWF
     (types := res.types) nparams res.aux2nested.size Hc (by
       simpa [c, nestedAddInductiveContext] using Hclosed) (by
-      simpa [c, nestedAddInductiveContext] using HenvGF) hctx hnonempty
+      simpa [c, nestedAddInductiveContext] using HenvGF) (by
+      simpa [c, nestedAddInductiveContext] using Hpresent) hctx hnonempty
       HnotPartial
       (fun Hc' hallowPrimitive hfuel Hsemantic =>
         Hinputs Hc' hallowPrimitive hfuel Hsemantic)

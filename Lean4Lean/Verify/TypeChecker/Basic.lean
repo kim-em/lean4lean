@@ -292,6 +292,10 @@ structure VContext extends Context where
   This is what identifies a constructor at the head of a term with the constructor of its
   structure in structure eta. -/
   constructorOwners : VerifyInductive.ConstructorOwnersPresent env
+  /-- Every constructor name a present header lists is, if present, a constructor of that
+  header, with its `isUnsafe`. This is what identifies the constant a structure lists with the
+  constructor of its projection registry entry. -/
+  listedConstructors : VerifyInductive.ListedConstructorsCoherent env
   /-- Every visible singleton family whose constructor is present aligns with
   the abstract projection registry.  This is what projection inference reads. -/
   projectionRegistry : ProjectionRegistryCoherent safety env.constants venv

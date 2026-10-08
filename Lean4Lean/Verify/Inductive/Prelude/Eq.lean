@@ -618,7 +618,7 @@ theorem AddInductive.run.preludeEqInstalledWF
     change 0 < 1
     decide
   exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
-    Hclosed wf.envGhostFree hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
+    Hclosed wf.envGhostFree wf.inductiveConstructorsCoherent.present hctx hsize (by simp [hsafety]) Hinputs).mono fun _ Hrun =>
       Hrun.extendPreludeEq wf htels hAbsent hsafety hsource Hshape
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by

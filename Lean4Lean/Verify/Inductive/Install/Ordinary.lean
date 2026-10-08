@@ -100,6 +100,7 @@ theorem AddInductive.runWithStats.closedWF
     (hnotzero : stats.isNotZero = stats.resultLevel.isNeverZero)
     (Hclosed : MutualInductivesClosed c.env)
     (HenvGF : TypeChecker.EnvGhostFree (fun _ => True) c.env)
+    (Hpresent : ListedConstructorsPresent c.env)
     (hvisible : c.safety ≤
       (if isUnsafe then DefinitionSafety.unsafe else .safe))
     (hnprimTypes : c.allowPrimitive = true → ∀ info ∈
@@ -124,7 +125,7 @@ theorem AddInductive.runWithStats.closedWF
   · exact AddInductive.formationCoreClosedWF Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
       Hcache Hsuffix Hambient hcommon hnotzero Hclosed hvisible hnprimTypes
-      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams HenvGF
+      Lean4Lean.consumeTypeAnnotationsCompat hnprimCtors hlparams HenvGF Hpresent
   · exact hlparams
   · exact hnotPartial
   · exact hnprimRecursors
@@ -180,6 +181,7 @@ theorem AddInductive.run.sourceAlignedWF
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
     (HenvGF : TypeChecker.EnvGhostFree (fun _ => True) c.env)
+    (Hpresent : ListedConstructorsPresent c.env)
     (hctx : Hc.mlctx.vlctx = [])
     (hnonempty : 0 < types.toArray.size)
     (HnotPartial : c.safety ≠ .partial)
@@ -221,6 +223,9 @@ theorem AddInductive.run.sourceAlignedWF
     have HenvGF' : TypeChecker.EnvGhostFree (fun _ => True) c'.env := by
       rw [henv]
       exact HenvGF
+    have Hpresent' : ListedConstructorsPresent c'.env := by
+      rw [henv]
+      exact Hpresent
     have hvisible : c'.safety ≤
         (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
       rw [hsafety]
@@ -236,7 +241,7 @@ theorem AddInductive.run.sourceAlignedWF
     exact (AddInductive.runWithStats.closedWF
       (hsourceSafety := by rw [hsafety]) Hsemantic hlevels
       hlevelParams hindicesSize hindices hconsts hparams hcommonParams
-      Hcache Hsuffix Hambient hcommon hnotzero Hclosed' HenvGF' hvisible I.freshTypes
+      Hcache Hsuffix Hambient hcommon hnotzero Hclosed' HenvGF' Hpresent' hvisible I.freshTypes
       I.freshConstructors hlparamsNodup hnotPartial
       I.freshRecursors).mono fun outEnv Hrun =>
         ⟨c', stats, depth, commonParams, commonLevel, Hc', henv, hsafety,

@@ -14,7 +14,7 @@ namespace VerifyInductive
 recovered from each successful production `checkName`, so the abstract
 `addConstVals` equation is an output rather than a premise. -/
 theorem AddConstants.ofDeclareInductiveTypeInfosExists
-    (Hvalid : CheckingEnv.Valid safety env venv)
+    (Hvalid : CheckingEnv safety env venv)
     (Hentries : List.Forall₂
       (fun info ci' =>
         TrConstVal safety sourceEnv (.inductInfo info) ci' ∧
@@ -33,7 +33,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
     exact Except.WF.pure ⟨venv, .nil⟩
   | @cons info ci' infos values Hentry _ ih =>
     rw [AddInductive.declareInductiveTypeInfos]
-    exact (checkName.WF Hvalid.tr.map_wf info.name allowPrimitive).bind
+    exact (checkName.WF Hvalid.map_wf info.name allowPrimitive).bind
       fun _ hchecked => by
         have hnprimHead :
             ¬ Kernel.Environment.primitives.contains info.name := by
@@ -47,7 +47,7 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
           intro hallow info hinfo
           exact hnprim hallow info (by simp [hinfo])
         have hn : env.find? info.name = none := hchecked.1
-        rcases CheckingEnv.exists_addConst Hvalid.tr hn
+        rcases CheckingEnv.exists_addConst Hvalid hn
             ci'.toVConstant with ⟨nextVEnv, haddRaw⟩
         have htr : TrConstVal safety venv (.inductInfo info) ci' :=
           Hentry.1.mono hle
@@ -56,10 +56,9 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
         have hadd : venv.addConst info.name ci'.toVConstant =
             some nextVEnv := by
           simpa [hname] using haddRaw
-        have HnextValid : CheckingEnv.Valid safety
+        have HnextValid : CheckingEnv safety
             (env.add (.inductInfo info)) nextVEnv :=
-          Hvalid.add (ci := .inductInfo info) hn hnprimHead htr.1 hwf hadd rfl
-            trivial (RecursorInstallStep.of_not_rec nofun) (.of_not_ctor nofun)
+          Hvalid.add (ci := .inductInfo info) hn htr.1 hwf hadd rfl
         have hnextLe : sourceEnv ≤ nextVEnv :=
           hle.trans (VEnv.addConst_le hadd)
         exact (ih HnextValid hnextLe hnprimTail).mono
@@ -68,6 +67,89 @@ theorem AddConstants.ofDeclareInductiveTypeInfosExists
             exact ⟨outVEnv, by
               simpa using AddConstants.cons (ci := .inductInfo info)
                 (ci' := ci') hn hnprimHead htr hwf hadd rfl Htail⟩
+
+/-- The constructor names of a declaration are absent from an environment. -/
+def ConstructorNamesAbsent (indTypes : Array InductiveType) (env : Environment) : Prop :=
+  ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors, env.find? ctor.name = none
+
+/-- The constructor fold of `declareConstructors` succeeds only on names absent from every
+environment it extends. -/
+theorem AddInductive.declareConstructors.ctorFoldAbsent
+    (allowPrimitive : Bool) (mk : Nat → Constructor → ConstantInfo)
+    (hmk : ∀ i ctor, (mk i ctor).name = ctor.name) (base : Environment) :
+    ∀ (ctors : List Constructor) (cidx : Nat) (env : Environment), env.constants.WF →
+      (∀ {n x}, base.find? n = some x → env.find? n = some x) →
+      (ctors.foldlM (init := (cidx, env)) fun (state : Nat × Environment)
+          (ctor : Constructor) => do
+        let (cidx, env) := state
+        env.checkName ctor.name allowPrimitive
+        pure (cidx + 1, env.add (mk cidx ctor))).WF fun r =>
+        r.2.constants.WF ∧ (∀ {n x}, base.find? n = some x → r.2.find? n = some x) ∧
+        ∀ ctor ∈ ctors, base.find? ctor.name = none
+  | [], _, _, hwf, hsub => Except.WF.pure ⟨hwf, hsub, by simp⟩
+  | ctor :: ctors, cidx, env, hwf, hsub => by
+    rw [List.foldlM_cons]
+    refine Except.WF.bind (Q := fun r => r.2.constants.WF ∧
+        (∀ {n x}, base.find? n = some x → r.2.find? n = some x) ∧
+        base.find? ctor.name = none) ?_ fun r ⟨hwf', hsub', habs⟩ => ?_
+    · refine (checkName.WF hwf ctor.name allowPrimitive).bind fun _ ⟨hn, _⟩ => ?_
+      have hn' : env.find? (mk cidx ctor).name = none := by rw [hmk]; exact hn
+      have hnMap : env.constants.find? (mk cidx ctor).name = none := by
+        rwa [Lean.Kernel.Environment.find?, hwf.find?'_eq_find?] at hn'
+      refine Except.WF.pure ⟨?_, ?_, ?_⟩
+      · change (env.constants.insert (mk cidx ctor).name (mk cidx ctor)).WF
+        exact hwf.insert _ _ hnMap
+      · intro n x h
+        exact findAddFresh_of_find hwf _ hn' (hsub h)
+      · cases hb : base.find? ctor.name with
+        | none => rfl
+        | some x => rw [hsub hb] at hn; cases hn
+    · exact (ctorFoldAbsent allowPrimitive mk hmk base ctors r.1 r.2 hwf' hsub').mono
+        fun r' ⟨h1, h2, h3⟩ => ⟨h1, h2, by
+          intro c hc
+          simp only [List.mem_cons] at hc
+          rcases hc with rfl | hc
+          · exact habs
+          · exact h3 c hc⟩
+
+/-- `declareConstructors` succeeds only when every constructor name is absent from the
+environment it starts from. -/
+theorem AddInductive.declareConstructors.namesAbsent
+    {c : AddInductive.Context} (hwf : c.env.constants.WF) :
+    (AddInductive.declareConstructors stats indTypes isUnsafe c).WF fun _ =>
+      ConstructorNamesAbsent indTypes c.env := by
+  let mk := fun (owner : InductiveType) (cidx : Nat) (ctor : Constructor) =>
+    ConstantInfo.ctorInfo (AddInductive.constructorInfo stats c.lparams isUnsafe owner cidx ctor)
+  have outer : ∀ (owners : List InductiveType) (env : Environment), env.constants.WF →
+      (∀ {n x}, c.env.find? n = some x → env.find? n = some x) →
+      (owners.foldlM (init := env) fun (env : Environment) (owner : InductiveType) => do
+        let (_, env) ← owner.ctors.foldlM (init := (0, env)) fun
+            (state : Nat × Environment) (ctor : Constructor) => do
+          let (cidx, env) := state
+          env.checkName ctor.name c.allowPrimitive
+          pure (cidx + 1, env.add (mk owner cidx ctor))
+        pure env).WF fun _ =>
+        ∀ owner ∈ owners, ∀ ctor ∈ owner.ctors, c.env.find? ctor.name = none := by
+    intro owners
+    induction owners with
+    | nil => intro _ _ _; exact Except.WF.pure (by simp)
+    | cons owner owners ih =>
+      intro env hwf hsub
+      rw [List.foldlM_cons]
+      refine Except.WF.bind (Q := fun env' : Environment => env'.constants.WF ∧
+            (∀ {n x}, c.env.find? n = some x → env'.find? n = some x) ∧
+            ∀ ctor ∈ owner.ctors, c.env.find? ctor.name = none) ?_ fun env' h => ?_
+      · exact Except.WF.bind (AddInductive.declareConstructors.ctorFoldAbsent
+          c.allowPrimitive (mk owner) (by intros; rfl) c.env owner.ctors 0 env hwf hsub)
+          fun ⟨_, _⟩ h => Except.WF.pure h
+      · rcases h with ⟨hwf', hsub', habs⟩
+        exact (ih env' hwf' hsub').mono fun _ h o ho ctor hctor => by
+          simp only [List.mem_cons] at ho
+          rcases ho with rfl | ho
+          · exact habs ctor hctor
+          · exact h o ho ctor hctor
+  rw [AddInductive.declareConstructors, ← Array.foldlM_toList]
+  exact outer indTypes.toList c.env hwf id
 
 /-- Production mutual-header metadata translates directly to the exact
 constants recovered by the skeleton-free header traversal. -/
@@ -141,7 +223,7 @@ theorem AddInductive.declareInductiveTypes.installsCheckedHeadersWF
     (stats := stats) (numParams := numParams) (numNested := numNested)
     Hheaders hindices hvisible
   have Hinstall := AddConstants.ofDeclareInductiveTypeInfosExists
-    (allowPrimitive := c.allowPrimitive) Hc.checking Hentries VEnv.LE.rfl
+    (allowPrimitive := c.allowPrimitive) Hc.checking.tr Hentries VEnv.LE.rfl
       (by simpa [infos] using hnprim)
   change (AddInductive.declareInductiveTypeInfos c.allowPrimitive
     infos.toList c.env).WF _
@@ -191,6 +273,8 @@ structure InstalledHeaders
   typesAdded : Hc.venv.addConstVals
     (Hsemantic.headerDecl isUnsafe).typeConstants = some envTypes
   headers : HeaderCertificate Hc.venv (Hsemantic.headerDecl isUnsafe)
+  /-- Every constructor a header of the source environment lists is present there. -/
+  sourcePresent : ListedConstructorsPresent c.env
 
 /-- Package exact abstract installation, the valid installed checking
 context, and the header certificate while retaining every semantic payload
@@ -206,19 +290,31 @@ theorem AddInductive.declareInductiveTypes.headersWF
     (hnprim : c.allowPrimitive = true → ∀ info ∈
       (AddInductive.inductiveTypeInfos stats numParams indTypes numNested
         isUnsafe c.lparams).toList,
-      ¬ Kernel.Environment.primitives.contains info.name) :
+      ¬ Kernel.Environment.primitives.contains info.name)
+    (hpresent : ListedConstructorsPresent c.env) :
     (AddInductive.declareInductiveTypes stats numParams indTypes numNested
-      isUnsafe c).WF fun outEnv =>
+      isUnsafe c).WF fun outEnv => outEnv.constants.WF ∧
+        (ConstructorNamesAbsent indTypes outEnv →
         Nonempty (InstalledHeaders c Hc stats numParams indTypes
-          numNested isUnsafe commonParams commonLevel Hsemantic outEnv) := by
+          numNested isUnsafe commonParams commonLevel Hsemantic outEnv)) := by
   have Hinstall :=
     AddInductive.declareInductiveTypes.installsCheckedHeadersWF
       Hc Hsemantic.headers hindices hvisible hnprim
   exact Hinstall.mono fun outEnv Hresult => by
     rcases Hresult with ⟨envTypes, htypes, Hinstalled⟩
+    refine ⟨Hinstalled.targetMapWF Hc.checking.tr.map_wf, fun habsent => ?_⟩
+    have habsentInfos : ∀ info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
+        numNested isUnsafe c.lparams).toList, ∀ name ∈ info.ctors, outEnv.find? name = none := by
+      intro info hinfo name hname
+      rcases inductiveTypeInfos_ctors stats numParams indTypes numNested isUnsafe c.lparams
+        hinfo with ⟨owner, howner, -, hctors, -⟩
+      rw [hctors] at hname
+      obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hname
+      exact habsent owner howner ctor hctor
     exact ⟨{
       envTypes := envTypes
-      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking) Hinstalled.le
+      context := Hc.withEnv (Hinstalled.validHeaders Hc.checking hpresent habsentInfos)
+        Hinstalled.le
       contextVEnv := rfl
       contextMLCtx := rfl
       installed := Hinstalled
@@ -234,7 +330,8 @@ theorem AddInductive.declareInductiveTypes.headersWF
       typesAdded := by
         rw [Hsemantic.headerDecl_typeConstants]
         exact htypes
-      headers := Hsemantic.headerCertificate isUnsafe }⟩
+      headers := Hsemantic.headerCertificate isUnsafe
+      sourcePresent := hpresent }⟩
 
 end VerifyInductive
 end Lean4Lean

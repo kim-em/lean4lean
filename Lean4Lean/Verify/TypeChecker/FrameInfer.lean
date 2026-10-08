@@ -260,9 +260,6 @@ theorem inferProj.framed (hs : GhostFree G struct) (hst : GhostFree G structType
   rename_i c
   split <;> try exact hfailb
   refine (RecM.Framed.liftExcept (envGet_gf henv)).bind fun c_info ⟨_, hc⟩ => ?_
-  split <;> [skip; exact hfail]
-  rename_i c_val
-  split <;> try exact hfailb
   refine (instantiateProjectionParameters.framed hargs _ _ _
     (hc.type.instantiateLevelParams hIl)).bind fun _ h => ?_
   split <;> [skip; exact hfail]

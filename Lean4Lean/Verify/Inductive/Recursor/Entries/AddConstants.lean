@@ -529,6 +529,48 @@ theorem ConstructorTypeEntries.findSource
       exact ⟨info, value, List.mem_append_right _ hmem, hname, htype,
         hlevels, hunsafe⟩
 
+theorem ConstructorListEntries.findSourceInduct
+    {initial : Nat}
+    (H : ConstructorListEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe owner)
+      initial ctors entries)
+    (hctor : ctor ∈ ctors) :
+    ∃ info : ConstructorVal, ∃ value : VConstVal,
+      (.ctorInfo info, value) ∈ entries ∧
+      info.name = ctor.name ∧ info.induct = owner.name ∧ info.isUnsafe = isUnsafe := by
+  cases H with
+  | nil => simp at hctor
+  | cons Htail =>
+    rename_i tail tailEntries headValue
+    simp only [List.mem_cons] at hctor
+    rcases hctor with rfl | htail
+    · exact ⟨AddInductive.constructorInfo stats lparams isUnsafe owner
+        initial ctor, headValue, by simp,
+        by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo],
+        by simp [AddInductive.constructorInfo]⟩
+    · rcases Htail.findSourceInduct htail with ⟨info, value, hmem, hrest⟩
+      exact ⟨info, value, by simp [hmem], hrest⟩
+
+/-- The constructor entry emitted for a source constructor records its source family as
+owner. -/
+theorem ConstructorTypeEntries.findSourceInduct
+    (H : ConstructorTypeEntries
+      (AddInductive.constructorInfo stats lparams isUnsafe) types entries)
+    (howner : owner ∈ types) (hctor : ctor ∈ owner.ctors) :
+    ∃ info : ConstructorVal, ∃ value : VConstVal,
+      (.ctorInfo info, value) ∈ entries ∧
+      info.name = ctor.name ∧ info.induct = owner.name ∧ info.isUnsafe = isUnsafe := by
+  induction H generalizing owner with
+  | nil => simp at howner
+  | cons Hhead Htail ih =>
+    simp only [List.mem_cons] at howner
+    rcases howner with rfl | htailOwner
+    · rcases Hhead.findSourceInduct hctor with ⟨info, value, hmem, hrest⟩
+      exact ⟨info, value, List.mem_append_left _ hmem, hrest⟩
+    · rcases ih htailOwner hctor with ⟨info, value, hmem, hrest⟩
+      exact ⟨info, value, List.mem_append_right _ hmem, hrest⟩
+
 /-- Family-major positional constructor alignment. -/
 theorem ConstructorTypeEntries.findAt
     (H : ConstructorTypeEntries mkInfo types entries)
@@ -813,44 +855,6 @@ theorem AddConstants.validCore
   | cons hn hnprim htr hwf hadd hdelta _ ih =>
     exact ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta)
 
-/-- A lockstep installation of constants none of which is a constructor
-preserves the full checking invariant: inductive headers and all other
-constants carry no projection-registry obligation. -/
-theorem AddConstants.valid
-    (H : AddConstants safety env venv entries outEnv outVEnv)
-    (hvalid : CheckingEnv.Valid safety env venv)
-    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal,
-      entry.1 ≠ .ctorInfo info)
-    (hrecs : ∀ entry ∈ entries, ∀ rec : RecursorVal,
-      entry.1 ≠ .recInfo rec) :
-    CheckingEnv.Valid safety outEnv outVEnv := by
-  induction H with
-  | nil => exact hvalid
-  | @cons venv ci ci' venv' rest outEnv outVEnv env hn hnprim htr hwf hadd
-      hdelta _ ih =>
-    have hstep : ProjectionRegistryStep env.constants venv' ci :=
-      ProjectionRegistryStep.of_not_ctor fun info =>
-        hkinds (ci, ci') (by simp) info
-    have hrec : RecursorInstallStep safety env.constants venv' ci :=
-      RecursorInstallStep.of_not_rec fun rec =>
-        hrecs (ci, ci') (by simp) rec
-    exact ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep hrec
-      (.of_not_ctor fun info => hkinds (ci, ci') (by simp) info))
-      (fun entry hentry => hkinds entry (by simp [hentry]))
-      fun entry hentry => hrecs entry (by simp [hentry])
-
-/-- Mutual-header installation preserves the full checking invariant. -/
-theorem AddConstants.validHeaders {infos : List InductiveVal} {values : List VConstVal}
-    (H : AddConstants safety env venv
-      (List.zip (infos.map (fun info => .inductInfo info)) values) outEnv outVEnv)
-    (hvalid : CheckingEnv.Valid safety env venv) :
-    CheckingEnv.Valid safety outEnv outVEnv := by
-  refine H.valid hvalid ?_ ?_ <;>
-  · intro entry hentry info heq
-    rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨_, _, hfst⟩
-    rw [← hfst] at heq
-    cases heq
-
 theorem AddConstants.abstract
     (H : AddConstants safety env venv entries outEnv outVEnv) :
     venv.addConstVals (entries.map Prod.snd) = some outVEnv := by
@@ -933,6 +937,23 @@ theorem InductiveHeaderEntries.originInfo
     · exact ⟨_, by simp, rfl⟩
     · rcases ih htail with ⟨info, hinfo, heq⟩
       exact ⟨info, by simp [hinfo], heq⟩
+
+/-- Every emitted header lists exactly the constructor names of its source family. -/
+theorem inductiveTypeInfos_ctors
+    (stats : AddInductive.InductiveStats) (numParams : Nat)
+    (indTypes : Array InductiveType) (numNested : Nat) (isUnsafe : Bool)
+    (lparams : List Name) {info : InductiveVal}
+    (h : info ∈ (AddInductive.inductiveTypeInfos stats numParams indTypes
+        numNested isUnsafe lparams).toList) :
+    ∃ owner ∈ indTypes.toList, info.name = owner.name ∧
+      info.ctors = owner.ctors.map (·.name) ∧ info.isUnsafe = isUnsafe := by
+  simp only [AddInductive.inductiveTypeInfos, Array.toList_zipWith] at h
+  rw [List.mem_iff_getElem] at h
+  obtain ⟨i, hi, rfl⟩ := h
+  have hi' : i < indTypes.toList.length := by
+    simp only [List.length_zipWith] at hi; omega
+  simp only [List.getElem_zipWith]
+  exact ⟨indTypes.toList[i], List.getElem_mem hi', by simp⟩
 
 /-- Every source family occurs in the production header array when the
 computed index-count array has the checked family cardinality. -/
@@ -1182,6 +1203,146 @@ theorem AddConstants.findEntry
       have hi : info = ci := congrArg Prod.fst hhead
       simpa [hi] using hinstalled
     · exact ih hnextWF htail
+
+/-- A lockstep installation of constants none of which is a constructor
+preserves the full checking invariant: inductive headers and all other
+constants carry no projection-registry obligation.  For listed-constructor
+coherence, every name a header of the source lists must be present there or
+absent from the final environment, and the names the installed headers list
+must be absent from the final environment. -/
+theorem AddConstants.valid
+    (H : AddConstants safety env venv entries outEnv outVEnv)
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (hkinds : ∀ entry ∈ entries, ∀ info : ConstructorVal,
+      entry.1 ≠ .ctorInfo info)
+    (hrecs : ∀ entry ∈ entries, ∀ rec : RecursorVal,
+      entry.1 ≠ .recInfo rec)
+    (hpending : ∀ familyName familyInfo,
+      env.find? familyName = some (.inductInfo familyInfo) →
+      ∀ name ∈ familyInfo.ctors,
+        (∃ found, env.find? name = some found) ∨ outEnv.find? name = none)
+    (hheaders : ∀ entry ∈ entries, ∀ familyInfo, entry.1 = .inductInfo familyInfo →
+      ∀ name ∈ familyInfo.ctors, outEnv.find? name = none) :
+    CheckingEnv.Valid safety outEnv outVEnv := by
+  induction H with
+  | nil => exact hvalid
+  | @cons venv ci ci' venv' rest outEnv outVEnv env hn hnprim htr hwf hadd
+      hdelta Htail ih =>
+    have hmapWF := hvalid.tr.map_wf
+    have hnMap : env.constants.find? ci.name = none := by
+      rwa [Lean.Kernel.Environment.find?, hmapWF.find?'_eq_find?] at hn
+    have hnextWF : (env.add ci).constants.WF := by
+      change (env.constants.insert ci.name ci).WF
+      exact hmapWF.insert ci.name ci hnMap
+    have hself : (env.add ci).find? ci.name = some ci := by
+      change (env.constants.insert ci.name ci).find?' ci.name = some ci
+      rw [(hmapWF.insert ci.name ci hnMap).find?'_eq_find?, hmapWF.find?_insert]
+      simp
+    have hstep : ProjectionRegistryStep env.constants venv' ci :=
+      ProjectionRegistryStep.of_not_ctor fun info =>
+        hkinds (ci, ci') (by simp) info
+    have hrec : RecursorInstallStep safety env.constants venv' ci :=
+      RecursorInstallStep.of_not_rec fun rec =>
+        hrecs (ci, ci') (by simp) rec
+    have hlisted : ListedConstructorsCoherent (env.add ci) := by
+      apply hvalid.listedConstructors.add hmapWF hn
+      · intro familyName familyInfo hfamily hmem
+        rcases hpending familyName familyInfo hfamily ci.name hmem with
+          ⟨found, hfound⟩ | habsent
+        · rw [hn] at hfound
+          cases hfound
+        · rw [Htail.preservesSourceFind hnextWF hself] at habsent
+          cases habsent
+      · intro familyInfo hci name hname
+        cases hfind : (env.add ci).find? name with
+        | none => rfl
+        | some found =>
+          have hout := Htail.preservesSourceFind hnextWF hfind
+          rw [hheaders (ci, ci') (by simp) familyInfo hci name hname] at hout
+          cases hout
+    refine ih (hvalid.add hn hnprim htr.1 hwf hadd hdelta hstep hrec
+      (.of_not_ctor fun info => hkinds (ci, ci') (by simp) info) hlisted)
+      (fun entry hentry => hkinds entry (by simp [hentry]))
+      (fun entry hentry => hrecs entry (by simp [hentry])) ?_
+      (fun entry hentry => hheaders entry (by simp [hentry]))
+    intro familyName familyInfo hfamily name hname
+    rcases findAddFresh_cases hmapWF ci hn hfamily with ⟨-, hheader⟩ | hold
+    · exact Or.inr (hheaders (ci, ci') (by simp) familyInfo hheader.symm name hname)
+    · rcases hpending familyName familyInfo hold name hname with
+        ⟨found, hfound⟩ | habsent
+      · exact Or.inl ⟨found, findAddFresh_of_find hmapWF ci hn hfound⟩
+      · exact Or.inr habsent
+
+/-- Mutual-header installation preserves the full checking invariant when
+every constructor a header of the source lists is present, and the
+constructors the installed headers list are absent from the result (the
+staged environment in which their types are checked). -/
+theorem AddConstants.validHeaders {infos : List InductiveVal} {values : List VConstVal}
+    (H : AddConstants safety env venv
+      (List.zip (infos.map (fun info => .inductInfo info)) values) outEnv outVEnv)
+    (hvalid : CheckingEnv.Valid safety env venv)
+    (hpresent : ListedConstructorsPresent env)
+    (habsent : ∀ info ∈ infos, ∀ name ∈ info.ctors, outEnv.find? name = none) :
+    CheckingEnv.Valid safety outEnv outVEnv := by
+  refine H.valid hvalid ?_ ?_ ?_ ?_
+  · intro entry hentry info heq
+    rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨_, _, hfst⟩
+    rw [← hfst] at heq
+    cases heq
+  · intro entry hentry info heq
+    rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨_, _, hfst⟩
+    rw [← hfst] at heq
+    cases heq
+  · intro familyName familyInfo hfamily name hname
+    exact Or.inl (hpresent familyName familyInfo hfamily name hname)
+  · intro entry hentry familyInfo heq name hname
+    rcases List.mem_map.mp (List.of_mem_zip hentry).1 with ⟨info, hinfo, hfst⟩
+    rw [← hfst] at heq
+    cases heq
+    exact habsent _ hinfo name hname
+
+/-- After the headers and then the constructors of a declaration are installed on an
+environment whose listed constructors are present and coherent, every listed constructor is
+coherent: the old headers list only old constants, and each new header lists exactly the
+constructors installed for its family. -/
+theorem AddConstants.listedConstructorsOfDeclaration
+    (Hheaders : AddConstants safety env venv headerEntries headerEnv headerVEnv)
+    (Hctors : AddConstants safety' headerEnv venv' ctorEntries outEnv outVEnv)
+    (hwf : env.constants.WF)
+    (hlisted : ListedConstructorsCoherent env) (hpresent : ListedConstructorsPresent env)
+    (hinfos : ∀ entry ∈ headerEntries, ∃ numNested, ∃ info ∈ (AddInductive.inductiveTypeInfos
+      stats nparams indTypes numNested isUnsafe lparams).toList, entry.1 = .inductInfo info)
+    (hentries : ConstructorTypeEntries (AddInductive.constructorInfo stats lparams isUnsafe)
+      indTypes.toList ctorEntries) :
+    ListedConstructorsCoherent outEnv := by
+  have hheaderWF := Hheaders.targetMapWF hwf
+  intro familyName familyInfo hfamily name hname found hfound
+  rcases Hctors.entryOrigin hheaderWF hfamily with hfamilyHeader | ⟨entry, hentry, -, hentryEq⟩
+  · rcases Hheaders.entryOrigin hwf hfamilyHeader with hold | ⟨entry, hentry, hentryName, hentryEq⟩
+    · rcases hpresent familyName familyInfo hold name hname with ⟨old, hold'⟩
+      have hout := Hctors.preservesSourceFind hheaderWF (Hheaders.preservesSourceFind hwf hold')
+      rw [hfound] at hout
+      cases hout
+      exact hlisted familyName familyInfo hold name hname _ hold'
+    · rcases hinfos entry hentry with ⟨numNested, info, hinfo, hfst⟩
+      rw [hfst] at hentryEq hentryName
+      cases hentryEq
+      rcases inductiveTypeInfos_ctors stats nparams indTypes numNested isUnsafe lparams hinfo
+        with ⟨owner, howner, hownerName, hctors, hunsafe⟩
+      rw [hctors] at hname
+      obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hname
+      rcases hentries.findSourceInduct howner hctor with
+        ⟨ctorInfo, value, hmem, hctorName, hinduct, hctorUnsafe⟩
+      have hctorFind : outEnv.find? ctorInfo.name = some (.ctorInfo ctorInfo) :=
+        Hctors.findEntry hheaderWF hmem
+      rw [hctorName, hfound] at hctorFind
+      cases hctorFind
+      refine ⟨ctorInfo, rfl, ?_, hctorUnsafe.trans hunsafe.symm⟩
+      rw [hinduct, hentryName, ← hownerName]
+      rfl
+  · rcases hentries.ownerOfEntry hentry with ⟨_, _, _, hctorEq, -⟩
+    rw [hctorEq] at hentryEq
+    cases hentryEq
 
 /-- Installing a batch containing no inductive headers preserves the
 persistent constructor-parameter semantics.  Exact production lookups are

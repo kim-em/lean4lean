@@ -119,6 +119,8 @@ structure HeaderEnvironment (c : AddInductive.Context)
     indTypes.toList isUnsafe decl context.venv
   installed : AddConstants c.safety c.env sourceEnv entries outEnv context.venv
   sourceContext : ContextWF c
+  /-- Every constructor a header of the source environment lists is present there. -/
+  sourcePresent : ListedConstructorsPresent c.env
   sourceContextVEnv : sourceContext.venv = sourceEnv
   sourceStatsWF : checkInductiveTypes.loopInd.HeaderStatsWF
     sourceContext.venv c.lparams sourceContext.mlctx.vlctx stats decl depth
@@ -1039,6 +1041,16 @@ theorem AddInductive.declareConstructors.WF
     have hvalid : CheckingEnv.Valid c.safety outEnv
         ((venvCtors.addEliminators B.caseEliminators).addProjections decl.projectionEntries) :=
       ((hvalidCore.addEliminators helimWF).addProjections hprojectedWF).toValid howners
+        (H.installed.listedConstructorsOfDeclaration Hinstalled hsourceMapWF
+          H.sourceContext.checking.listedConstructors H.sourcePresent
+          (by
+            intro entry hentry
+            rcases H.infos with ⟨numNested, hinfos⟩
+            have : entry.1 ∈ H.entries.map Prod.fst := List.mem_map_of_mem hentry
+            rw [hinfos] at this
+            rcases List.mem_map.mp this with ⟨info, hinfo, heq⟩
+            exact ⟨numNested, info, hinfo, heq.symm⟩)
+          Haligned)
         (hregistry.monoEnv hle) hrecursors'
         (fun hq => (hquot hq).extend (fun h => h) hle hrecursors'.heads)
         ((Hinstalled.ctorTelescopes H.context.checking.tr H.context.checking.ctorTelescopes

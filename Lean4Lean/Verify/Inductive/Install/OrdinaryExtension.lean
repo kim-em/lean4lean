@@ -349,7 +349,7 @@ theorem AddInductive.run.extensionModelWF
     | nil => simp [htypes] at hnonempty
     | cons _ _ => simp [htypes]
   exact (AddInductive.run.sourceAlignedWF nparams numNested Hc
-    Hclosed wf.envGhostFree hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
+    Hclosed wf.envGhostFree wf.inductiveConstructorsCoherent.present hctx hsize HnotPartial Hinputs).mono fun _ Hrun => by
       exact Hrun.extendWithSpecification wf htels hsource HnotPartial hnonempty
 
 end VerifyInductive

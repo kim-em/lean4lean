@@ -471,8 +471,9 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   have harity : type.getAppArgs.size = I_val.numParams + I_val.numIndices := by simpa using harity
   refine (M.WF.liftExcept envGet.WF).lift.bind fun cci _ le₂ hcci => ?_
   have hpfx₂ := VState.LE.namePrefix_eq hpfx₁ le₂
-  split <;> [rename_i c_val; exact hfail']
-  split <;> [exact hfail; rename_i hinduct]
+  -- the constant the structure lists is a constructor of the structure
+  obtain ⟨c_val, rfl, hinduct', -⟩ :=
+    c.listedConstructors st I_val hci mkC (by simp [hsingle]) cci hcci
   -- the spine of the whnf'd structure type
   have htT' : c.TrExprS ((Expr.const st I_levels).mkAppList type.getAppArgsList) tT' := by
     rw [← hI, type.mkAppList_getAppArgsList]; exact htT
@@ -480,7 +481,6 @@ theorem inferProj.WF_all (hb : c.FVarsBelow e ety) (he : c.TrExprS e e')
   have ⟨args', hargs, htT''⟩ := stk.translatedArguments
   have .const (us' := ls') hfc hls hlen := stk.tr
   -- registry facts
-  have hinduct' : c_val.induct = st := by simpa using hinduct
   have ⟨info, hinfo, hname, decl, doms, result, hwf, hctor, hshape, hvalid, hhead, hdn, hdu, hle,
     hnp, hnf, hnf', hsp, hsi, hidxs, hind, hsort, hparam⟩ :=
     VContext.registryShape hci hfc hsingle hcci hinduct'

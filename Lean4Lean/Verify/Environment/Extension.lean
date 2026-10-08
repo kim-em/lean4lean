@@ -235,6 +235,9 @@ theorem VEnvAt.addAxioms {env : Environment} {venv : VEnv} {bs : DefinitionSafet
         quot := htr.quotEnvCoherent
         constructorOwners := wf.constructorOwners.addNonConstructor wf.tr.map_wf
           hd.2.2.1 nofun
+        listedConstructors := wf.listedConstructors.addOfPresent wf.listedPresent
+          wf.tr.map_wf hd.2.2.1 nofun
+        listedPresent := wf.listedPresent.add wf.tr.map_wf hd.2.2.1 nofun
         hasPrimitives := wf.hasPrimitives.addConst hd.2.2.2 h₁'
         safePrimitives := wf.safePrimitives_add _ (hax ▸ hd.2.2.1)
           (by rw [hax]; simp [hd.2.2.2])

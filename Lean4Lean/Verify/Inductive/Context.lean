@@ -881,7 +881,7 @@ def ContextWF.initial {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
   venv := ves.venv safety
   checking := (wf.tr (safety := safety)).toCheckingValid
     (wf.hasPrimitives (safety := safety)) wf.safePrimitives
-    wf.constructorOwners wf.projectionRegistryCoherent ((htels _))
+    wf.constructorOwners wf.inductiveConstructorsCoherent.listed wf.projectionRegistryCoherent ((htels _))
   mlctx := .nil
   mlctx_wf := trivial
   typeCheckerLParams_eq := rfl

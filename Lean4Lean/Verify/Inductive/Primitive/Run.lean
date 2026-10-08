@@ -20,6 +20,7 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
       checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (Hclosed : MutualInductivesClosed c.env)
+    (Hpresent : ListedConstructorsPresent c.env)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
     (hindicesSize : stats.nindices.size = indTypes.size)
@@ -54,7 +55,7 @@ theorem AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
     AddInductive.declareInductiveTypes.primitiveHeadersWF
       (numNested := numNested) Hsemantic hlevels hlevelParams hindicesSize
       hindices hconsts hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero
-      Hshape hvisible
+      Hshape hvisible Hpresent
   have Hproduction := declareInductiveTypeInfos_refines c.allowPrimitive
     infos.toList c.env Hc.checking.tr.map_wf
   change (AddInductive.declareInductiveTypeInfos c.allowPrimitive
@@ -80,6 +81,7 @@ theorem AddInductive.formationCore.primitiveClosedWF
       checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (Hclosed : MutualInductivesClosed c.env)
+    (Hpresent : ListedConstructorsPresent c.env)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
     (hindicesSize : stats.nindices.size = indTypes.size)
@@ -114,7 +116,7 @@ theorem AddInductive.formationCore.primitiveClosedWF
           MutualInductivesClosed outEnv := by
   have Hheaders :=
     AddInductive.declareInductiveTypes.primitiveHeadersClosedWF
-      (numNested := numNested) Hsemantic Hclosed hlevels hlevelParams
+      (numNested := numNested) Hsemantic Hclosed Hpresent hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon hnotzero Hshape hvisible
   exact Hheaders.bind fun headerEnv Hheader => by
@@ -148,6 +150,7 @@ theorem AddInductive.runWithStats.primitiveWF
       checkInductiveTypes.loopType.CheckedHeaders
         Hc.venv c.lparams nparams commonParams commonLevel indTypes.toList)
     (Hclosed : MutualInductivesClosed c.env)
+    (Hpresent : ListedConstructorsPresent c.env)
     (hlevels : stats.levels.length = c.lparams.length)
     (hlevelParams : stats.levels = c.lparams.map .param)
     (hindicesSize : stats.nindices.size = indTypes.size)
@@ -179,7 +182,7 @@ theorem AddInductive.runWithStats.primitiveWF
   unfold AddInductive.runWithStats
   have Hformation :=
     AddInductive.formationCore.primitiveClosedWF
-      (numNested := numNested) Hsemantic Hclosed hlevels hlevelParams
+      (numNested := numNested) Hsemantic Hclosed Hpresent hlevels hlevelParams
       hindicesSize hindices
       hconsts hparams hcommonParams Hcache Hsuffix Hambient hcommon hnotzero Hshape
       hvisible
@@ -228,6 +231,7 @@ theorem AddInductive.run.primitiveSourceAlignedWF
     (nparams numNested : Nat)
     (Hc : ContextWF c)
     (Hclosed : MutualInductivesClosed c.env)
+    (Hpresent : ListedConstructorsPresent c.env)
     (Hshape : PrimitiveInductiveShape c.lparams nparams
       types.toArray.toList (c.safety != .safe))
     (hctx : Hc.mlctx.vlctx = [])
@@ -255,6 +259,9 @@ theorem AddInductive.run.primitiveSourceAlignedWF
     have Hclosed' : MutualInductivesClosed c'.env := by
       rw [henv]
       exact Hclosed
+    have Hpresent' : ListedConstructorsPresent c'.env := by
+      rw [henv]
+      exact Hpresent
     have hvisible : c'.safety ≤
         (if c.safety != .safe then DefinitionSafety.unsafe else .safe) := by
       rw [hsafety]
@@ -271,7 +278,7 @@ theorem AddInductive.run.primitiveSourceAlignedWF
     have hnotPartial : c'.safety ≠ .partial := by
       simpa [hsafety] using HnotPartial
     exact (AddInductive.runWithStats.primitiveWF
-      (hsourceSafety := by rw [hsafety]) (numNested := numNested) Hsemantic Hclosed' hlevels hlevelParams
+      (hsourceSafety := by rw [hsafety]) (numNested := numNested) Hsemantic Hclosed' Hpresent' hlevels hlevelParams
       hindicesSize hindices hconsts hparams hcommonParams Hcache Hsuffix
       Hambient hcommon hnotzero Hshape' hvisible hlparamsNodup
       hnotPartial).mono

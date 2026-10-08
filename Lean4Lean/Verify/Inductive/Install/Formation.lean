@@ -50,7 +50,8 @@ theorem AddInductive.formationCoreWF
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hlparams : c.lparams.Nodup)
-    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env)
+    (hpresent : ListedConstructorsPresent c.env) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -64,7 +65,7 @@ theorem AddInductive.formationCoreWF
     AddInductive.declareInductiveTypes.constructorsWF
       Hsemantic hlevels hlevelParams hindicesSize hindices hconsts hparams
       hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
-      hconsume hlparams
+      hconsume hlparams hpresent
   have Hcombined :
       ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
         isUnsafe >>= fun headerEnv =>
@@ -76,7 +77,27 @@ theorem AddInductive.formationCoreWF
           ∃ Hheaders : HeaderEnvironment c stats decl nparams
             isUnsafe depth Hc.venv indTypes headerEnv,
           ∃ _ : OrdinaryConstructorCheck Hheaders outEnv, True :=
-    HheadersAndLoop.bind fun headerEnv Hloop => by
+    HheadersAndLoop.bind fun headerEnv ⟨hheaderWF, Hloop⟩ => by
+    change ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
+      AddInductive.declareConstructors stats indTypes isUnsafe)
+        { c with env := headerEnv }).WF _
+    intro outEnvFinal houtFinal
+    -- The constructor names are checked fresh only when the constructors are declared, after
+    -- their types are checked; that check succeeding is what makes the staged header
+    -- environment, in which the types are checked, list no present constant.
+    have hfresh : ConstructorNamesAbsent indTypes headerEnv := by
+      change (AddInductive.checkConstructors indTypes stats isUnsafe
+        { c with env := headerEnv } >>= fun _ =>
+          AddInductive.declareConstructors stats indTypes isUnsafe
+            { c with env := headerEnv }) = .ok outEnvFinal at houtFinal
+      cases hcheck : AddInductive.checkConstructors indTypes stats isUnsafe
+          { c with env := headerEnv } with
+      | error e => rw [hcheck] at houtFinal; cases houtFinal
+      | ok u =>
+        rw [hcheck] at houtFinal
+        exact AddInductive.declareConstructors.namesAbsent
+          (c := { c with env := headerEnv }) hheaderWF outEnvFinal houtFinal
+    have Hloop := Hloop hfresh
     have Hcheck :
         (AddInductive.checkConstructors indTypes stats isUnsafe
           { c with env := headerEnv }).WF fun _ =>
@@ -143,10 +164,7 @@ theorem AddInductive.formationCoreWF
       have Hresult := Hphases outEnv hout
       rcases Hresult with ⟨decl, Hheaders, R, _⟩
       exact ⟨decl, headerEnv, Hheaders, R, trivial⟩
-    change ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
-      AddInductive.declareConstructors stats indTypes isUnsafe)
-        { c with env := headerEnv }).WF _
-    exact Hphases'
+    exact Hphases' outEnvFinal houtFinal
   exact Hcombined
 
 end VerifyInductive
@@ -336,7 +354,8 @@ theorem AddInductive.formationCoreClosedWF
       ∀ owner ∈ indTypes.toList, ∀ ctor ∈ owner.ctors,
       ¬ Kernel.Environment.primitives.contains ctor.name)
     (hlparams : c.lparams.Nodup)
-    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env) :
+    (henv : TypeChecker.EnvGhostFree (fun _ => True) c.env)
+    (hpresent : ListedConstructorsPresent c.env) :
     ((AddInductive.declareInductiveTypes stats nparams indTypes numNested
       isUnsafe >>= fun headerEnv =>
         AddInductive.withEnv headerEnv do
@@ -350,7 +369,7 @@ theorem AddInductive.formationCoreClosedWF
   have Hformation := AddInductive.formationCoreWF Hsemantic
     hlevels hlevelParams hindicesSize hindices hconsts hparams
     hcommonParams Hcache Hsuffix Hambient hcommon hnotzero hvisible hnprimTypes
-    hconsume hnprimCtors hlparams henv
+    hconsume hnprimCtors hlparams henv hpresent
   intro outEnv hout
   rcases Hformation outEnv hout with ⟨decl, headerEnv, Hheaders, R, _⟩
   have hclosedHeaders := Hheaders.closesMutuals Hclosed
