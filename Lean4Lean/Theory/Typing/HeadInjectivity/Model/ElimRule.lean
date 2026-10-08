@@ -271,7 +271,7 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     · exact .inl (List.mem_append_left _ (mem_vars' (by omega) (by omega)))
   rcases hperm.admissible with hnz | hsmall
   · exact sound_pat_elim henv hΔ hEu hb hrules hmem hl hr hcov hlsP hrc.1 hrc.2.1 htype eT hlenH
-      hkH hIrig hcf hcis (hnp _) (fun ⟨_, _, h, _⟩ => hnp _ _ h) hcrig huniq
+      hkH hIrig hcf hcis (.inl ⟨hnp _, fun ⟨_, _, h, _⟩ => hnp _ _ h⟩) hcrig huniq
       (fun keys hkl hobs => C_absurd_gen hΔ hlw eT hlenH hkH hIrig hfs
         (hnzL levels target hperm.length hnz) hkl hobs) ihL ihR
       (.elimIota hb hrules hmem hrc hperm hLd.defeq hRd.defeq)
@@ -285,8 +285,9 @@ theorem ElimValid.of_certified {schema : CaseSchema} {owner : Fin schema.signatu
     rw [Restoration.expr_sort, Option.some.injEq] at hb'
     subst hb'
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget (target :: levels)
-    refine sound_pat_elim_empty henv hΔ hEu hb hrules hl hr hlsP hrc.1 hrc.2.1 hcrig huniq ihL.1
-      ihR fun σ S W tv o => ?_
+    refine sound_pat_elim_empty henv hΔ hEu hb hrules hl hr hlsP hrc.1 hrc.2.1 hcrig huniq
+      htype eT hlenH hkH (.inl ⟨hnp _, fun ⟨_, _, h, _⟩ => hnp _ _ h⟩) ihL.1 ihR
+      fun σ S W tv o => ?_
     refine rhs_empty_motive_ctx henv hΔ (doms := ds'.map (·.instL (target :: levels)))
       (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)

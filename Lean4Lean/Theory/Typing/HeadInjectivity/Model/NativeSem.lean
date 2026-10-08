@@ -140,6 +140,12 @@ theorem sound_pat_empty {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead 
         (lead' ++ [.mkApps (.const ctor' lsC') (ms' ++ fs'.map .bvar)])) →
       df'.rhs = .wrapLams doms' body' →
       lead'.length = lead.length ∧ (ctor' = ctor → df' = df))
+    {ci : VConstant} {dsH : List VExpr} {RH : VExpr} {I : Name} {lsI : List VLevel}
+    {iargs : List VExpr}
+    (hci : env.constants n = some ci) (eH : ci.type = .wrapForalls dsH RH)
+    (hlenH : dsH.length = lead.length + 1)
+    (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs))
+    (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
     (ihL : SoundAt env U Δ Γ (df.lhs.instL ls) (df.lhs.instL ls) (df.type.instL ls))
     (ihR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls) ∧
       HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
@@ -151,7 +157,7 @@ theorem sound_pat_empty {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead 
   refine ⟨fun o h => ?_, fun o h => absurd h (hE σ' S W' tv' o),
     (ihL σ σ S W.left tv tv).2.2.1, (ihR.1 σ' σ' S W' tv' tv').2.2.1⟩
   obtain ⟨o', h1, -⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hpctor hdr huniq
-    ihR.2 ihR.1 W.left tv o h
+    hci eH hlenH hkH hfam ihR.2 ihR.1 W.left tv o h
   exact absurd h1 (hE σ S W.left tv o')
 
 end

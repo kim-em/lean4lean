@@ -312,7 +312,8 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     have hnz' := hnz s.families[s.constructors[index].owner]
       (Array.mem_toList_iff.2 (Array.getElem_mem s.constructors[index].owner.isLt))
     exact sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
+      hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (hctor _ hcis) hctor
+      hpctor hdr huniq
       (fun keys hkl hobs => absurd (by rw [eH] at hobs; exact hobs)
         (fun h => native_C_absurd hΔ hlw hrigF hfs hnz' (by rw [hlenH, hkl]) h))
       ihL ihR (.extra hdf hlw hlen)
@@ -320,7 +321,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     obtain ⟨mds, emds, lmds⟩ := motive_binderTy g index ls
     have hcl' : ((g.equation index).type.instL ls).ClosedN := hcl.1.2.instL
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
-      huniq ihL.1 ihR fun σ S W tv o => ?_
+      huniq hci eH hlenH hkH (.inl ⟨hnpF, hnpC⟩) ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := (g.eqDoms index).map (·.instL ls))
       (by rw [g.equation_type_eq, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
@@ -339,7 +340,8 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
       ihR.1 W tv o
   · -- singleton elimination: mode C with propositional major-only fields
     refine sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH
-      hkH hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
+      hkH hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (hctor _ hcis)
+      hctor hpctor hdr huniq
       (fun keys hkl hobs => ⟨fun df' ls' hdf' hh => ?_, fun x hx hnl v vS Wv tvv => ?_⟩) ihL ihR
       (.extra hdf hlw hlen)
     · have hm := hex df' hdf' ls' hh

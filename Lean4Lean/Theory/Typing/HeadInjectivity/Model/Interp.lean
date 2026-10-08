@@ -156,13 +156,19 @@ variable (env : VEnv) (U : Nat) (Δ : List VExpr)
 
 /-- The binding of a rule's variables from the keys of a head chain (section 10.2 of the
 notes): a variable occurring bare among the leading arguments takes the key at its first
-occurrence; otherwise it is the `j`-th field of the major and is read, in mode AB, from the
-constructor observations `Km` of the major key, and in mode C it is any term of its type,
-which is a proposition, with no observations. The anchor `τ` takes a member of each class;
-classes are required to be typed at the variable's type. -/
+occurrence; otherwise it is the `j`-th field of the major and is
+* (AB) read, in mode AB, from the constructor observations `Km` of the major key;
+* (proof) in any mode, any term of its type, which is a proposition, with no observations;
+* (eta, decision D16) in mode AB, when the major's constructor `ctor` is the constructor of the
+  projection-registered family `I` and the entry is never zero at the constructor's levels
+  `lsC` (instantiated at `ls`), a member of the class of the projections of the major key's
+  class `cm` onto the field, with the observations of the field recorded in the field
+  observations of `Km`.
+The anchor `τ` takes a member of each class; classes are required to be typed at the
+variable's type. -/
 def RuleBind (doms : List VExpr) (ls : List VLevel) (lead : List VExpr) (msLen : Nat)
-    (fs : List Nat) (mC : Bool) (keys : List Key) (Km : List Ob) (τ : VExpr.Subst)
-    (S' : Nat → Ob → Prop) : Prop :=
+    (fs : List Nat) (mC : Bool) (I ctor : Name) (lsC : List VLevel) (keys : List Key)
+    (cm : VExpr → Prop) (Km : List Ob) (τ : VExpr.Subst) (S' : Nat → Ob → Prop) : Prop :=
   (∀ x, Backed (S' x)) ∧ ∀ x < doms.length,
     (∃ i : Nat, ∃ k : Key, lead[i]? = some (VExpr.bvar x) ∧ (∀ j < i, lead[j]? ≠ some (VExpr.bvar x)) ∧
       keys[i]? = some k ∧
@@ -172,11 +178,29 @@ def RuleBind (doms : List VExpr) (ls : List VLevel) (lead : List VExpr) (msLen :
       ((mC = false ∧ ∃ c, .ctorArg (msLen + j) c ∈ Km ∧
           TypedElCls env U Δ (TyCls env U Δ ((binderTy doms ls x).subst τ)) c ∧ c (τ x) ∧
           S' x = fun k => ∃ pre, .ctorArgOb (msLen + j) pre k ∈ Km) ∨
-       (mC = true ∧
-          (∃ X, TyCls env U Δ ((binderTy doms ls x).subst τ) X ∧ env.HasType U Δ (τ x) X) ∧
+       ((∃ X, TyCls env U Δ ((binderTy doms ls x).subst τ) X ∧ env.HasType U Δ (τ x) X) ∧
           (∃ P, TyCls env U Δ ((binderTy doms ls x).subst τ) P ∧
             env.HasType U Δ P (.sort .zero)) ∧
-          S' x = fun _ => False)))
+          S' x = fun _ => False) ∨
+       (mC = false ∧ ∃ info : VProjectionInfo, env.projections I info ∧ info.ctorName = ctor ∧
+          info.nparams ≤ msLen + j ∧
+          (info.resultLevel.inst (lsC.map (·.inst ls))).IsNeverZero ∧
+          TypedElCls env U Δ (TyCls env U Δ ((binderTy doms ls x).subst τ))
+            (projCls env U Δ I (msLen + j - info.nparams) cm
+              (TyCls env U Δ ((binderTy doms ls x).subst τ))) ∧
+          projCls env U Δ I (msLen + j - info.nparams) cm
+            (TyCls env U Δ ((binderTy doms ls x).subst τ)) (τ x) ∧
+          S' x = fun k => ∃ L, .fieldOb I (msLen + j - info.nparams) L k ∈ Km)))
+
+/-- The head type identifies the major family `I` of a rule as a projection-registered family
+whose constructor is `ctor` (decision D16): the head type is a telescope of `k+1` domains whose
+last is an application of `I`. This replaces the `ctorHead` observation of the major, which
+constructor spines of projection-registered families never have. -/
+def EtaHead (I ctor : Name) (headType : VExpr) (k : Nat) : Prop :=
+  ∃ (info : VProjectionInfo) (dsH : List VExpr) (RH : VExpr) (lsI : List VLevel)
+    (iargs : List VExpr), env.projections I info ∧ info.ctorName = ctor ∧
+    headType = .wrapForalls dsH RH ∧ dsH.length = k + 1 ∧
+    dsH[k]? = some (.mkApps (.const I lsI) iargs)
 
 end
 
@@ -261,12 +285,15 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
         df' = df) →
     (mC = true → Obs .id .empty (ci.type.instL ls)
         (piCodChain lkeys (.piDomOb (.rigid I ℓsI mI fun _ => 0)))) →
-    (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) →
-    RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' →
+    (mC = false → (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∨
+      EtaHead env I ctor ci.type lkeys.length) →
+    RuleBind env U Δ doms ls lead ms.length fs mC I ctor lsC lkeys cm Km τ S' →
     KeysBacked (lkeys ++ [(Dm, cm, Km)]) → Obs τ S' (body.instL ls) o →
     Obs σ S (.const n ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
   /-- The eliminator rule clause (stage E): the rule clause for a generic case equation of a
-  registered schema, in mode AB only (case schemas have no singleton elimination). -/
+  registered schema, in mode AB only (case schemas have no singleton elimination), the major
+  identified by a `ctorHead` observation or, for projection-registered families, by the
+  generic type (`EtaHead`). -/
   | elimRule {schema : InductiveSignature.CaseSchema}
       {owner : Fin schema.signature.families.size} :
     env.eliminators b schema → schema.genericEquations b owner = some rules → df ∈ rules →
@@ -275,8 +302,9 @@ inductive Obs : VExpr.Subst → ObSets → VExpr → Ob → Prop
     df.rhs = .wrapLams doms body →
     schema.genericType owner = some type → (∀ τ ∈ τs, Obs .id .empty (type.instL ls) τ) →
     TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (type.instL ls)) (.elim b owner.val ls)) (wrap (lkeys ++ [(Dm, cm, Km)]) o) τs → lkeys.length = lead.length →
-    (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) →
-    RuleBind env U Δ doms ls lead ms.length fs false lkeys Km τ S' →
+    ((∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∨
+      EtaHead env I ctor type lkeys.length) →
+    RuleBind env U Δ doms ls lead ms.length fs false I ctor lsC lkeys cm Km τ S' →
     KeysBacked (lkeys ++ [(Dm, cm, Km)]) → Obs τ S' (body.instL ls) o →
     Obs σ S (.elim b owner.val ls) (wrap (lkeys ++ [(Dm, cm, Km)]) o)
   /-- A projection observes the field observations of its major (decision D12). -/
@@ -374,8 +402,9 @@ theorem const_iff : Obs' σ S (.const n ls) o ↔
           df'.lhs.stripLams.getAppFnArgs.1 = .const n ls' → df' = df) ∧
       (mC = true → Obs' .id .empty (ci.type.instL ls)
           (piCodChain lkeys (.piDomOb (.rigid I ℓsI mI fun _ => 0)))) ∧
-      (mC = false → ∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∧
-      RuleBind env U Δ doms ls lead ms.length fs mC lkeys Km τ S' ∧
+      (mC = false → (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∨
+        EtaHead env I ctor ci.type lkeys.length) ∧
+      RuleBind env U Δ doms ls lead ms.length fs mC I ctor lsC lkeys cm Km τ S' ∧
       KeysBacked (lkeys ++ [(Dm, cm, Km)]) ∧ Obs' τ S' (body.instL ls) p) ∨
     (∃ fam info ci τs keys r, o = wrap keys r ∧ env.projections fam info ∧
       info.ctorName = n ∧ env.constants n = some ci ∧
@@ -443,7 +472,7 @@ theorem const_indep : Obs' σ S (.const n ls) o ↔ Obs' σ' S' (.const n ls) o 
 
 theorem elim_iff : Obs' σ S (.elim b i ls) o ↔
     ∃ (schema : InductiveSignature.CaseSchema) (owner : Fin schema.signature.families.size),
-      ∃ rules df doms lsP lead ctor lsC ms fs body type τs lkeys Dm cm Km p τ S',
+      ∃ rules df doms lsP lead ctor lsC ms fs body type τs lkeys Dm cm Km p τ S' I,
       i = owner.val ∧ o = wrap (lkeys ++ [(Dm, cm, Km)]) p ∧ env.eliminators b schema ∧
       schema.genericEquations b owner = some rules ∧ df ∈ rules ∧
       df.lhs = .wrapLams doms (.mkApps (.elim b owner.val lsP)
@@ -451,15 +480,16 @@ theorem elim_iff : Obs' σ S (.elim b i ls) o ↔
       df.rhs = .wrapLams doms body ∧
       schema.genericType owner = some type ∧ (∀ τ ∈ τs, Obs' .id .empty (type.instL ls) τ) ∧
       TypedOb env U Δ (ElCls env U Δ (TyCls env U Δ (type.instL ls)) (.elim b owner.val ls)) (wrap (lkeys ++ [(Dm, cm, Km)]) p) τs ∧ lkeys.length = lead.length ∧
-      (∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∧
-      RuleBind env U Δ doms ls lead ms.length fs false lkeys Km τ S' ∧
+      ((∃ ℓs, .ctorHead ctor ℓs (ms.length + fs.length) ∈ Km) ∨
+        EtaHead env I ctor type lkeys.length) ∧
+      RuleBind env U Δ doms ls lead ms.length fs false I ctor lsC lkeys cm Km τ S' ∧
       KeysBacked (lkeys ++ [(Dm, cm, Km)]) ∧ Obs' τ S' (body.instL ls) p := by
   constructor
   · intro h; cases h with
     | elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12 =>
-      exact ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, rfl, h1, h2, h3,
-        h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩
-  · rintro ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, rfl, h1, h2, h3,
+      exact ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, rfl, h1, h2,
+        h3, h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩
+  · rintro ⟨_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, rfl, rfl, h1, h2, h3,
       h4, h5, h6, h7, h8, h9, h10, h11, hb, h12⟩
     exact .elimRule h1 h2 h3 h4 h5 h6 h7 h8 h9 h10 h11 hb h12
 
@@ -814,16 +844,24 @@ theorem forall₂_inst_congr {ls ls' : List VLevel} (h : List.Forall₂ (· ≈ 
   | a :: l => .cons (VLevel.inst_congr rfl h) (forall₂_inst_congr h l)
 
 theorem _root_.Lean4Lean.VEnv.Model.RuleBind.lvEq
-    (h : RuleBind env U Δ doms ls lead msLen fs mC keys Km τ S')
+    (h : RuleBind env U Δ doms ls lead msLen fs mC I cN lsC keys cm Km τ S')
     (w1 : ∀ l ∈ ls, l.WF U) (w2 : ∀ l ∈ ls', l.WF U) (hls : List.Forall₂ (· ≈ ·) ls ls') :
-    RuleBind env U Δ doms ls' lead msLen fs mC keys Km τ S' := by
+    RuleBind env U Δ doms ls' lead msLen fs mC I cN lsC keys cm Km τ S' := by
   refine ⟨h.1, fun x hx => ?_⟩
   have e : TyCls env U Δ ((binderTy doms ls x).subst τ) =
       TyCls env U Δ ((binderTy doms ls' x).subst τ) :=
     TyCls.eq_of_lvEq ((LvEq.instL _ w1 w2 hls).subst τ)
+  have hnz : ∀ l : VLevel, (l.inst (lsC.map (·.inst ls))).IsNeverZero →
+      (l.inst (lsC.map (·.inst ls'))).IsNeverZero := fun l h =>
+    VLevel.IsNeverZero.of_equiv h
+      (VLevel.inst_congr (VLevel.equiv_def.2 fun _ => rfl) (forall₂_inst_congr hls lsC))
   have := h.2 x hx
   rw [e] at this
-  exact this
+  rcases this with h1 | ⟨h1, j, hj, h2 | h2 | ⟨h3, info, h4, h5, h6, h7, h8⟩⟩
+  · exact .inl h1
+  · exact .inr ⟨h1, j, hj, .inl h2⟩
+  · exact .inr ⟨h1, j, hj, .inr (.inl h2)⟩
+  · exact .inr ⟨h1, j, hj, .inr (.inr ⟨h3, info, h4, h5, h6, hnz _ h7, h8⟩)⟩
 
 /-- The value class of a constant transfers to equivalent levels. -/
 theorem _root_.Lean4Lean.VEnv.Model.constCls_lvEq {T : VExpr} {ls ls' : List VLevel}

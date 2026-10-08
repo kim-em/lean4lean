@@ -209,7 +209,8 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
     exact sound_pat henv hΔ hdf hl hr hcov hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis hnpF hnpC (hctor _ hcis) hctor hpctor hdr huniq
+      hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (hctor _ hcis) hctor
+      hpctor hdr huniq
       (fun keys hkl hobs => absurd hobs fun h =>
         C_absurd_gen hΔ hlw eH hlenH hkH hrigF hfs (hnzL hnz).inst hkl h)
       ihL ihR (.extra hdf hlw hlen)
@@ -225,7 +226,7 @@ theorem RuleValid.nested {s : InductiveSignature} {g : Instance s} {aux : List C
     obtain ⟨mds, emds, lmds⟩ := binderTy_wrapForalls_sort hxget ls
     have hcl' : (df.type.instL ls).ClosedN := hcl.1.2.instL
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
-      huniq ihL.1 ihR fun σ S W tv o => ?_
+      huniq hci eH hlenH hkH (.inl ⟨hnpF, hnpC⟩) ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := ds'.map (·.instL ls))
       (by rw [ht, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
