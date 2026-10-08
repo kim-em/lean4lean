@@ -594,7 +594,7 @@ theorem TrDefVal.mono {env env' : VEnv} (henv : env ≤ env')
 
 theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
   induction H with
-  | empty => exact .empty
+  | empty => exact .empty_stage _
   | ignoreConst _ h1 _ _ ih
   | const _ h1 _ _ _ ih => exact ih.insert _ _ h1
   | defeq _ ih => exact ih
@@ -605,7 +605,7 @@ theorem Aligned.map_wf (H : Aligned safety C venv) : C.WF := by
 theorem Aligned.find?_iff (H : Aligned safety C venv) :
     (∃ ci, C.find? name = some ci ∧ safety ≤ ci.safety) ↔ ∃ ci, venv.constants name = some ci := by
   induction H with
-  | empty => simp [SMap.find?, VEnv.empty]
+  | empty => simp [VEnv.empty]
   | ignoreConst H _ h2 _ ih =>
     simp [H.map_wf.find?_insert]; split <;> [skip; assumption]
     rename_i eq1 eq2; subst eq2; simp [← ih, *]
@@ -696,7 +696,7 @@ theorem Aligned.find? (H : Aligned safety C venv)
       (∃ ci', env₂.constants name = some ci' ∧ TrConstant safety env₂ ci ci')
     | ⟨_, h1, h2⟩ => ⟨_, H.constants h1, h2.mono H⟩
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignoreConst h1 _ _ _ ih =>
     rw [h1.map_wf.find?_insert] at h; split at h
     · cases h; contradiction
@@ -725,7 +725,7 @@ theorem Aligned.find?_uniq (H : Aligned safety C venv)
     (h : C.find? name = some ci) (hs : venv.constants name = some ci') :
     ci.name = name ∧ TrConstant safety venv ci ci' := by
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignoreConst H h2 h3 _ ih =>
     simp [H.map_wf.find?_insert] at h; split at h
     · rename_i n ci _ h'; subst n h'
@@ -809,7 +809,7 @@ theorem TrEnv'.of_value (H : TrEnv' safety C Q venv) (h : C.find? name = some ci
       C.find? name = some ci ∨ n = name ∧ ci' = ci := by
     rw [hC.find?_insert]; simp; split <;> simp +contextual [*]
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignore h1 h2 H ih =>
     obtain h | ⟨rfl, rfl⟩ := this H.map_wf h
     · exact ih h
@@ -1086,8 +1086,8 @@ theorem TrEnv'.recursorEnvCoherent (H : TrEnv' safety C Q venv) :
   induction H with
   | empty =>
     refine ⟨?_, ?_, ?_⟩
-    · intro name rec h; simp [SMap.find?] at h
-    · intro name rec h; simp [SMap.find?] at h
+    · intro name rec h; simp at h
+    · intro name rec h; simp at h
     · intro df h; exact h.elim
   | ignore h1 h2 h3 ih => exact ih.insertInvisible h3.map_wf h1 h2
   | «axiom» _ h2 _ h4 h5 ih =>

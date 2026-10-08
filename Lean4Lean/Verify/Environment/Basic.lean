@@ -880,7 +880,8 @@ def ProductionInductiveOrigins
 
 variable (safety : DefinitionSafety) in
 inductive Aligned : ConstMap → VEnv → Prop where
-  | empty : Aligned {} .empty
+  /-- The empty constant map, in either stage. -/
+  | empty {s : Bool} : Aligned { stage₁ := s } .empty
   | ignoreConst : Aligned C venv → C.find? n = none → ¬safety ≤ ci.safety →
     ci.name = n → Aligned (C.insert n ci) venv
   | const : Aligned C venv → C.find? n = none → TrConstant safety venv ci ci' →
@@ -1715,7 +1716,9 @@ def TrDefBlock (cis : List DefinitionVal) (cis' : List VDefVal) : Prop :=
 
 variable (safety : DefinitionSafety) in
 inductive TrEnv' : ConstMap → Bool → VEnv → Prop where
-  | empty : TrEnv' {} false .empty
+  /-- The empty constant map, in either stage: the executable replays from
+  `Kernel.Environment.empty` with `stage₁ := false`. -/
+  | empty {s : Bool} : TrEnv' { stage₁ := s } false .empty
   | ignore :
     C.find? ci.name = none → ¬safety ≤ ci.safety →
     TrEnv' C Q env →

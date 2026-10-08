@@ -337,14 +337,14 @@ is reconstructed from execution), and quotient initialization is verified by
 def _root_.Lean.Declaration.IsModelled
     (_env : Environment) (_ves : VEnvs) (_decl : Declaration) : Prop := True
 
-/-- Successful checked addition of a declaration preserves the core invariant, extends every
-safety-indexed abstract environment, and preserves the constructor certificates. The
-projection-walk corner is supplied by `hcorner`; quotient initialization needs the abstract `Eq`
-at every safety level (`hq`). -/
-theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+/-- `addDecl.WF` with quotient readiness assumed only for `quotDecl`, the one form whose
+abstract rule needs it. This is the form a replay from the empty environment uses, since `Eq`
+does not exist before the prelude declares it. -/
+theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
-    (hq : ∀ safety, (ves.venv safety).QuotReady)
-    (decl : Declaration) (_hdecl : decl.IsModelled env ves) :
+    (decl : Declaration)
+    (hq : decl = .quotDecl → ∀ safety, (ves.venv safety).QuotReady)
+    (_hdecl : decl.IsModelled env ves) :
     (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
       ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         VEnvs.CertPres env env' ves ves' := by
@@ -360,12 +360,61 @@ theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
   | opaqueDecl v =>
     exact (addOpaque.WF wf hcorner v).mono fun _ ⟨ves', hwf, hc, _, h⟩ =>
       ⟨ves', hwf, (h · |>.le), hc⟩
-  | quotDecl => exact addQuot.WF wf hq
+  | quotDecl => exact addQuot.WF wf (hq rfl)
   | mutualDefnDecl vs =>
     exact (addMutual.WF wf hcorner vs).mono fun _ ⟨ves', hwf, hc, h⟩ => ⟨ves', hwf, h, hc⟩
   | inductDecl lparams nparams types isUnsafe =>
     exact addInductiveDeclaration.finalPreservesWF wf hcorner
       lparams nparams types isUnsafe {}
+
+/-- Successful checked addition of a declaration preserves the core invariant, extends every
+safety-indexed abstract environment, and preserves the constructor certificates. The
+projection-walk corner is supplied by `hcorner`; quotient initialization needs the abstract `Eq`
+at every safety level (`hq`). -/
+theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
+    (hcorner : ∀ safety, ProjectionCorner safety env (ves.venv safety))
+    (hq : ∀ safety, (ves.venv safety).QuotReady)
+    (decl : Declaration) (hdecl : decl.IsModelled env ves) :
+    (addDecl env decl (check := true) (fuel := {})).WF fun env' =>
+      ∃ ves' : VEnvs, ves'.WFCore env' ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
+        VEnvs.CertPres env env' ves ves' :=
+  addDecl.WF_quotReadyAt wf hcorner decl (fun _ => hq) hdecl
+
+/-! ### The empty environment -/
+
+theorem _root_.Lean.Kernel.Environment.empty_find? (m : Name) (s : Bool) (n : Name) :
+    (Kernel.Environment.empty m s).find? n = none := by
+  change ({ stage₁ := s } : ConstMap).find?' n = none
+  rw [(SMap.WF.empty_stage s).find?'_eq_find?]; simp
+
+/-- The model of the empty environment: the empty abstract environment at every safety level. -/
+def VEnvs.empty : VEnvs := ⟨fun _ => .empty⟩
+
+theorem VEnv.HasPrimitives.empty : VEnv.empty.HasPrimitives := by
+  intro p _
+  rcases p with ⟨n, spec⟩
+  cases spec <;> simp [PrimSpec.Holds, VEnv.ReflectsNatNat, VEnv.ReflectsNatNatNat,
+    VEnv.ReflectsNatNatBool, VEnv.ReflectsNatBitwise, VEnv.contains, VEnv.empty]
+
+/-- Every field of the core invariant holds for the empty environment that a replay starts
+from (`Kernel.Environment.empty`, in either stage); all but the translation are vacuous. -/
+theorem VEnvs.WFCore.empty (m : Name) (s : Bool) :
+    VEnvs.empty.WFCore (Kernel.Environment.empty m s) where
+  tr := .empty
+  hasPrimitives := VEnv.HasPrimitives.empty
+  safePrimitives h := by simp [Kernel.Environment.empty_find?] at h
+  inductivesClosed _ _ h := by simp [Kernel.Environment.empty_find?] at h
+  constructorOwners _ _ h := by simp [Kernel.Environment.empty_find?] at h
+  constructorSemantics _ _ h := by simp [Kernel.Environment.empty_find?] at h
+  inductiveProvenance _ _ h := by
+    change ({ stage₁ := s } : ConstMap).find? _ = _ at h; simp at h
+  mono _ := VEnv.LE.rfl
+
+/-- **Base case.** The empty environment satisfies the invariant: it has no constructors, so
+the constructor certificates hold vacuously. -/
+theorem VEnvs.WF.empty (m : Name) (s : Bool) :
+    VEnvs.empty.WF (Kernel.Environment.empty m s) :=
+  .ofNoCtors (.empty m s) (by simp [Kernel.Environment.empty_find?])
 
 /-! ### Canonical equality -/
 

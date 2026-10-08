@@ -132,7 +132,7 @@ theorem TrConstant.ofSameHeader (H : TrConstant safety venv ci ci')
 theorem Aligned.keyed (H : Aligned safety C venv)
     (h : C.find? name = some ci) : ci.name = name := by
   induction H with
-  | empty => simp [SMap.find?] at h
+  | empty => simp at h
   | ignoreConst H₀ _ _ hname ih
   | const H₀ _ _ _ hname ih =>
     rw [H₀.map_wf.find?_insert] at h
@@ -167,7 +167,7 @@ theorem Aligned.replaceHeader (H : Aligned safety C venv)
     (hother : ∀ y, y ≠ n → C'.find? y = C.find? y) :
     Aligned safety C' venv := by
   induction H generalizing C' ci with
-  | empty => simp [SMap.find?] at hfind
+  | empty => simp at hfind
   | @ignoreConst C₀ venv₀ m ci₀ H₀ hm hs hname ih =>
     have hwf₀ := H₀.map_wf
     by_cases hmn : n = m
