@@ -202,7 +202,8 @@ theorem whnfFVar.framed {id : FVarId} (hid : ¬ G id) :
       cases l₂.find? id with
       | none => simp
       | some d₂ =>
-        cases d₁ <;> cases d₂ <;> simp [LocalDecl.setIndex] <;> (intros; subst_vars; rfl)
+        cases d₁ <;> cases d₂ <;> simp [LocalDecl.setIndex]
+        all_goals (intros; subst_vars; rfl)
   · simp only [Expr.fvarId!]
     split
     · rename_i h; exact RecM.Framed.whnfCore ((hl h).2 value?_ldecl)
