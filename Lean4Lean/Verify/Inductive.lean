@@ -35,3 +35,12 @@ import Lean4Lean.Verify.Inductive.Prelude.Eq
 import Lean4Lean.Verify.Inductive.Nested.Install.BlockCertificate
 import Lean4Lean.Verify.Inductive.Dispatch
 import Lean4Lean.Verify.Inductive.Recursor.Entries.TrRecursorVal
+
+/-!
+# Verification of inductive declarations
+
+Collects the verification of the executable inductive checker (`Lean4Lean/Verify/Inductive/`):
+headers, constructors, checked formation, recursors and rules, block installation, primitive
+families and nested declarations (section 3 of `docs/inductives/DESIGN.md`). The dispatch
+theorems that use them are in `Lean4Lean/Verify/Environment.lean`.
+-/

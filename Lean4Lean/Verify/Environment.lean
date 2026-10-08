@@ -132,9 +132,10 @@ theorem addOpaque.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (ht
     exact .opaque (ci' := ci') ⟨⟨htr, hname⟩, hvalue.mono hto⟩
       (by rwa [← old.map_wf.find?'_eq_find?]) (hci.mono hto) hadd old
 
-/-- Exact declaration-dispatch bridge for inductives.  The primitive-family
-precheck is retained in the premise so the verified continuation receives the
-same `allowPrimitive` bit as the executable branch. -/
+/-- Dispatch of an inductive declaration: `addDecl` satisfies `Q` if, for every result
+`allowPrimitive` of the primitive-family precheck `Primitive.checkInductive`, the call to
+`Environment.addInductive` with that bit does. The premise keeps the precheck so that the
+verified continuation receives the same `allowPrimitive` bit as the executable branch. -/
 theorem addInductiveDeclaration.WF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
@@ -157,11 +158,12 @@ theorem addInductiveDeclaration.WF
   simpa [addDecl] using Hcombined
 
 /-- Complete checked declaration dispatch across the primitive, ordinary,
-and nested execution paths.  The executable primitive precheck selects the
-primitive branch; otherwise the verified lowering result selects ordinary
-versus the exact nested continuation.  Inductive soundness does not depend on
-the presence or interpretation of the separately bootstrapped `Eq` constant.
-The independent source specification additionally assumes that the source
+and nested execution paths, with the source-facing result: the output environment carries an
+`InductiveExtension` of the submitted declaration.  The executable primitive precheck selects the
+primitive branch; otherwise the verified lowering result selects the ordinary or the nested
+continuation.  Inductive soundness does not depend on the presence or interpretation of the
+prelude's `Eq`.
+The source specification additionally assumes that the source
 declaration has no loose bound variables; the executable only rejects
 metavariables and free variables, and nested lowering would silently repair
 loose bound variables while re-closing constructor types.  Environment
@@ -192,8 +194,9 @@ theorem addInductiveDeclaration.WF_spec
       VerifyInductive.Environment.addInductive.primitiveInductiveExtensionWF
         env lparams nparams types isUnsafe fuel ves wf htels Hprimitive
 
-/-- Traditional environment-preservation theorem for the complete inductive
-declaration dispatch.  This is unconditional: it is derived from the
+/-- Environment preservation for the complete inductive declaration dispatch: the core
+invariant, monotonicity of every safety-indexed model, and preservation of the constructor
+telescopes.  It has no hypothesis on the source declaration: it is derived from the
 well-formedness halves of the three execution branches, not from the
 source-facing specification. -/
 theorem addInductiveDeclaration.WF_preserves
@@ -359,8 +362,8 @@ theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WFCor
 
 /-- Successful checked addition of a declaration preserves the core invariant, extends every
 safety-indexed abstract environment, and preserves the constructor certificates. The
-projection-walk corner is supplied by `hcorner`; quotient initialization needs the abstract `Eq`
-at every safety level (`hq`). -/
+constructor telescopes walked by projection inference are covered by `htels`; quotient
+initialization needs the abstract `Eq` at every safety level (`hq`). -/
 theorem addDecl.WF {env : Environment} {ves : VEnvs} (wf : ves.WFCore env)
     (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (hq : ∀ safety, (ves.venv safety).QuotReady)
@@ -419,8 +422,9 @@ theorem VEnvs.HasCanonicalEq.mono {ves ves' : VEnvs} (h : ves.HasCanonicalEq)
 /-- The top-level preservation theorem in the canonical-`Eq` formulation. Its hypotheses are the
 well-formedness of the current environment (`VEnvs.WF`: the core invariant together with the
 constructor telescope certificates) and canonical equality at every safety level; the output
-environment again satisfies `VEnvs.WF`. On this branch the checker runs in scoped contexts, so no strengthening hypothesis is needed, and the
-certificates resolve the projection-walk corner, so no choice hypothesis is needed either.
+environment again satisfies `VEnvs.WF`. The checker runs in scoped contexts, so no
+strengthening hypothesis is needed, and the constructor telescope certificates cover the
+non-dependent fields walked by projection inference, so no choice hypothesis is needed either.
 Canonical equality is used only for quotient initialization, whose abstract rule types
 `Quot.lift` against `Eq` at every safety level (`VEnv.HasCanonicalEq.quotReady`). -/
 theorem addDecl.WF_of_canonicalEq {env : Environment} {ves : VEnvs} (wf : ves.WF env)

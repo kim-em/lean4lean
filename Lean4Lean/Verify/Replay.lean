@@ -11,7 +11,7 @@ rebuilds a `Declaration` from each `ConstantInfo`, and adds it with the verified
 the source's, and finally checks that every replayed constant is present in the environment it
 built and agrees with the source constant.
 
-The core carries its own soundness evidence in its types: its state records that the current
+The core carries the facts its soundness needs in its types: its state records that the current
 environment is reached from the start environment by successful `addDecl` calls (`Replayed`),
 and its result (`ReplayResult`) records the final agreement check. So the theorems below are about
 *every* `ReplayResult`, and apply to the pure instance `replayPure`/`replayFresh` as well as to the
@@ -20,7 +20,7 @@ unfolding the dependency walk (a `partial def`).
 
 Agreement is up to `==` on `ConstantInfo`: the derived equality, which compares expressions with
 `Expr.eqv`, so it ignores binder names and binder annotations. This is the same comparison the
-driver has always used for constructors and recursors.
+driver uses for constructors and recursors.
 
 The per-declaration theorems are stated for the default fuel `{}`, which is also the executable's
 configuration when no `--config` flag is given. The walk lemma `Replayed.foldlM` holds for any
@@ -34,7 +34,7 @@ open Kernel
 
 /-! ### Replays -/
 
-/-- The prelude's `Eq`, `Eq.refl` and `Eq.rec` are declared in `env` with their production
+/-- The prelude's `Eq`, `Eq.refl` and `Eq.rec` are declared in `env` with the prelude's
 types. -/
 def HasPreludeEq (env : Environment) : Prop :=
   ∃ eqInfo reflInfo recInfo,

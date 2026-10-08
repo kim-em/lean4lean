@@ -543,8 +543,8 @@ def abstractN (xs : List FVarId) : Expr → (k :_:= 0) → Expr
   | e@(.mvar _), _
   | e@(.lit _), _ => e
 
-/-- This could be an `@[implemented_by]`. The earlier form of this axiom equated `abstract`
-with the sequential `abstractList` unconditionally; that statement is false, since
+/-- This could be an `@[implemented_by]`. `abstract` is modelled by the simultaneous
+`abstractN`, not by the sequential `abstractList`: the two differ in general, since
 `(Expr.bvar 0).abstract #[.fvar x] = .bvar 0` while `abstractList` returns `.bvar 1`. -/
 @[simp] axiom abstractN_eq (e : Expr) (xs : List FVarId) :
     e.abstract ⟨xs.map .fvar⟩ = e.abstractN xs

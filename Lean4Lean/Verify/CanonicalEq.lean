@@ -6,7 +6,7 @@ import Lean4Lean.Verify.Environment
 `Eq.rec` and the iota rule of `Eq.rec`.  This file connects them to the
 declaration `Init.Prelude` submits.
 
-* `Lean4Lean/Verify/Inductive/Prelude/EqSyntax.lean` states the production
+* `Lean4Lean/Verify/Inductive/Prelude/EqSyntax.lean` states the prelude's
   expressions literally (`preludeEqType`, `preludeEqReflType`,
   `eqRecTypeExpr`, `eqRecRuleRhsExpr`, `eqRecRuleLhsExpr`, `eqRecRuleTypeExpr`,
   generic only in binder and universe-parameter names) and proves that every
@@ -16,15 +16,15 @@ declaration `Init.Prelude` submits.
   (`Lean4Lean/Theory/Inductive/CanonicalEqSignature.lean`): an ordinary
   compilation of the declaration generates exactly the stored iota rule once its
   recursor has the stored type.
-* `addDecl.preludeEq_hasCanonicalEq` (below): checked addition of the toConstantsInstallation
+* `addDecl.preludeEq_hasCanonicalEq` (below): checked addition of the prelude's `Eq`
   declaration (`PreludeEqShape`) produces abstract environments satisfying
   `HasCanonicalEq`, provided the executable installs `Eq.rec` with the
-  production type (`IsPreludeEqRec`).  The executable recursor construction
+  prelude's type (`IsPreludeEqRec`).  The executable recursor construction
   is not modelled syntactically, so this is a hypothesis on the output;
   `Lean4Lean/Tests/PreludeEq.lean` checks it for the declaration of
   `Init.Prelude`.
 * `VEnvs.WFCore.canonicalEq_constants` (below): in any well-formed model of an
-  environment whose production `Eq`, `Eq.refl` and `Eq.rec` have the production
+  environment whose `Eq`, `Eq.refl` and `Eq.rec` have the prelude's
   types, the three constant clauses of `HasCanonicalEq` hold at every safety.
 -/
 
@@ -37,7 +37,7 @@ private theorem vconstant_ext {a b : VConstant} (huvars : a.uvars = b.uvars)
     (htype : a.type = b.type) : a = b := by
   cases a; cases b; simp_all
 
-/-- The translated constant of a safe production constant whose type
+/-- The translated constant of a safe kernel constant whose type
 translates uniquely. -/
 private theorem VEnvs.WFCore.constant_of_kernel {env : Environment} {ves : VEnvs}
     (wf : ves.WFCore env) {name : Name} {ci : ConstantInfo} {uvars : Nat} {type : VExpr}
@@ -53,7 +53,7 @@ private theorem VEnvs.WFCore.constant_of_kernel {env : Environment} {ves : VEnvs
   exact congrArg some (vconstant_ext (hciUvars.symm.trans huvars) (htype hciType))
 
 /-- The constant clauses of `HasCanonicalEq` hold in every well-formed model of
-an environment containing the production `Eq`, `Eq.refl` and `Eq.rec`. -/
+an environment containing the prelude's `Eq`, `Eq.refl` and `Eq.rec`. -/
 theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
     (wf : ves.WFCore env) {eqInfo reflInfo recInfo : ConstantInfo}
     (hEq : env.find? ``Eq = some eqInfo) (hEqProd : IsPreludeEq eqInfo)
@@ -79,10 +79,10 @@ theorem VEnvs.WFCore.canonicalEq_constants {env : Environment} {ves : VEnvs}
     rw [hRecLps, hRecType] at H
     exact TrExprS.eq_canonicalEqRecType hvw H
 
-/-- Checked addition of Lean's toConstantsInstallation `Eq` declaration realizes canonical
+/-- Checked addition of the prelude's `Eq` declaration realizes canonical
 equality: the output environment has well-formed abstract models extending the
 input ones, and these satisfy `HasCanonicalEq` (including the iota rule of
-`Eq.rec`) as soon as the executable has installed `Eq.rec` with the production
+`Eq.rec`) as soon as the executable has installed `Eq.rec` with the prelude's
 type.  Only the absence of `Eq` is assumed of the input, together with the constructor telescope
 certificates at every safety level. -/
 theorem addDecl.preludeEq_hasCanonicalEq {env : Environment} {ves : VEnvs}

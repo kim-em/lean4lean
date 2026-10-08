@@ -2,9 +2,9 @@ import Lean4Lean.Verify.ExprParamUniform
 import Lean4Lean.Declaration
 
 /-!
-# Hit shapes through the type checker: syntactic layer
+# Parameter uniformity through the type checker: syntactic layer
 
-The hit-shape invariant of the verified type checker (`VContext.ParamUniformBelow` in
+The parameter-uniformity invariant of the verified type checker (`VContext.ParamUniformBelow` in
 `Lean4Lean/Verify/TypeChecker/Basic.lean`) tracks, besides `Expr.ParamUniform`, that every projection
 node names a structure whose constructors are compatible with the head set (`Expr.ProjsOK`), and
 it constrains the environment by `EnvParamUniform`. This file collects the definitions and the purely
@@ -454,24 +454,24 @@ def StrLitsDeclared (env : Lean.Kernel.Environment) : Prop :=
 
 /-- A projection on the structure `s` is compatible with the head set: neither `s` nor any
 constructor of `s` is a head. (Lowering never renames projections, so projections on auxiliary
-families do not occur; projections on a main family whose constructor mentions an auxiliary
+families do not occur; projections on a source family whose constructor mentions an auxiliary
 family would produce field types at arbitrary parameters.) -/
 def projAvoidsHeads (env : Lean.Kernel.Environment) (heads : List Name) (s : Name) : Prop :=
   s ∉ heads ∧ ∀ v, env.find? s = some (.inductInfo v) → ∀ c ∈ v.ctors, c ∉ heads
 
-/-- The type of a head constant (instantiated at the hit levels): a forall telescope of `nparams`
-parameters around a body in bound-variable hit shape. -/
+/-- The type of a head constant (instantiated at the levels `ls`): a forall telescope of `nparams`
+parameters around a parameter-uniform body in bound-variable form. -/
 def HeadType (heads : List Name) (nparams : Nat) (ls : List Level) (t : Expr) : Prop :=
   ∃ body, t.LeadingForalls nparams body ∧ Expr.ParamUniformBV heads nparams ls 0 body
 
-/-- The environment condition of the hit-shape invariant, for the head set `heads` (in the
+/-- The environment condition of the parameter-uniformity invariant, for the head set `heads` (in the
 nested-inductive application: the auxiliary families, their constructors, and the constructors
-of the main families), `nparams` parameters and hit levels `ls`.
+of the source families), `nparams` parameters and block levels `ls`.
 
 * Every constant outside `heads`, every definition value and every recursor rule mentions no
   head.
 * Heads are inductive families or constructors, and their types at
-  the levels `ls` are parameter telescopes around bound-variable hit shapes.
+  the levels `ls` are parameter telescopes around parameter-uniform bodies in bound-variable form.
 * No recursor eliminates a head family or a family with a head constructor (the K-like and
   structure-eta expansions build constructor applications from the major premise's type).
 * Projection nodes in the environment respect `projAvoidsHeads` (no projections on heads or on
@@ -515,7 +515,7 @@ open Lean4Lean
 
 /-! ### The combined predicate -/
 
-/-- Hit shape together with the projection condition: the predicate the type checker
+/-- Parameter uniformity together with the projection condition: the predicate the type checker
 preserves. -/
 def ParamUniformIn (env : Lean.Kernel.Environment) (heads : List Name) (As : List Expr) (ls : List Level)
     (e : Expr) : Prop :=
