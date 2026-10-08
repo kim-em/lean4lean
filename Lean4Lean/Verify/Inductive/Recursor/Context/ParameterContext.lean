@@ -585,14 +585,14 @@ theorem VConstVal.type_instL_recursorDeclarationAbstractLevels
 
 /-- Rebase one retained constructor replay into the exact parameter scope
 and universe list used at the start of recursor generation. -/
-theorem CheckedConstructorTailReplayAt.toRecursorContext
+theorem CheckedConstructorTailAt.toRecursorContext
     {c : AddInductive.Context} {Hc : ContextWF c}
     {sourceEnv : VEnv} {decl : VInductDecl}
     {target : VInductiveType} {source : Constructor}
     (Hmaterialized :
       checkInductiveTypes.loopInd.HeaderStatsWF
         Hc.venv c.lparams Hc.mlctx.vlctx stats decl depth)
-    (H : CheckedConstructorTailReplayAt sourceEnv c.lparams
+    (H : CheckedConstructorTailAt sourceEnv c.lparams
       Hmaterialized.parameterScope stats decl target source)
     (henv : sourceEnv ≤ Hc.venv)
     (Helim : AddInductive.AdmissibleElimLevel c.lparams elimLevel) :

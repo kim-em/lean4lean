@@ -456,7 +456,7 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
-        ∃ O : H.origins.FlatMinorOrigin D,
+        ∃ O : H.origins.FlatMinorBinderType D,
           ∃ S : MinorPremiseType,
           let sourceBinders := H.params.fvars ++
             H.bindings.motives.fvars ++
@@ -1207,7 +1207,7 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
-      ∃ O : H.origins.FlatMinorOrigin D,
+      ∃ O : H.origins.FlatMinorBinderType D,
       ∃ S : MinorPremiseType,
       ∃ scope,
       ∃ Hscope : checkInductiveTypes.loopType.ScopeEmbedding
@@ -1797,7 +1797,7 @@ theorem
     {D : FVarDeclAt H.localContext
       (H.recInfos.flatMap (·.minors))
       (recursorMinorOffset indTypes owner + i)}
-    (O : H.origins.FlatMinorOrigin D) :
+    (O : H.origins.FlatMinorBinderType D) :
     O.owner = owner ∧ O.localIndex = i := by
   let minorIdx := recursorMinorOffset indTypes owner + i
   let originIdx := recursorMinorOffset indTypes O.owner + O.localIndex

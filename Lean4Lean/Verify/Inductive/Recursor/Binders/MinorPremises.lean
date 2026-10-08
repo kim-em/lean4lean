@@ -1700,12 +1700,12 @@ theorem RecInfoArities.rebaseCore
   rw [← H.indices_eq i hi']
   exact A i hi'
 
-theorem MinorPremiseType.HasHypothesisTypeOrigins.rebaseCore
+theorem MinorPremiseType.HasInductionHypothesisTypes.rebaseCore
     (S : MinorPremiseType)
-    (P : MinorPremiseType.HasHypothesisTypeOrigins S stats left)
+    (P : MinorPremiseType.HasInductionHypothesisTypes S stats left)
     (H : RecInfoEqExceptRules left right) :
-    MinorPremiseType.HasHypothesisTypeOrigins S stats right := by
-  unfold MinorPremiseType.HasHypothesisTypeOrigins at P ⊢
+    MinorPremiseType.HasInductionHypothesisTypes S stats right := by
+  unfold MinorPremiseType.HasInductionHypothesisTypes at P ⊢
   cases hopt : S.hypothesis_type_origins with
   | none => simp [hopt] at P
   | some origins =>
@@ -1734,7 +1734,7 @@ theorem MinorsMatchConstructors.rebaseCore
       hctor, hfields, hrecursive, hstats, hvalid, hmotive,
       hroot, hterminal, hfull⟩
   refine ⟨horigin, hindex, hsource,
-    MinorPremiseType.HasHypothesisTypeOrigins.rebaseCore _
+    MinorPremiseType.HasInductionHypothesisTypes.rebaseCore _
       hhypotheses H,
     traversal, htraversal, hctor, hfields, hrecursive, hstats, hvalid,
     ?_, hroot, hterminal, hfull⟩
@@ -2498,7 +2498,7 @@ theorem continueMinorSemantics {alpha : Type} {Q : alpha → Prop}
     (HminorSource : HminorShape.sourceConstructors =
       indTypes[dIdx]!.ctors)
     (HminorHypothesisOrigins :
-      HminorShape.HasHypothesisTypeOrigins stats recInfos)
+      HminorShape.HasInductionHypothesisTypes stats recInfos)
     (HminorSemantic :
       Nonempty (TypedMinorTraversalAt R HminorShape
         Hsuffix.parameterDecls))

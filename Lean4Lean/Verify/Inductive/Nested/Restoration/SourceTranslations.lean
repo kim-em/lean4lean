@@ -744,7 +744,7 @@ theorem NestedLoweringOutputClosed.sourcePrimaryRecursorRealizationAtFresh
     (targetType : VExpr)
     (Htype : TrExprS recEnv Hstep.restored.recursor.oldInfo.levelParams []
       Hstep.restored.recursor.restored.newInfo.type targetType) :
-    ∃ recursor, Nonempty (SourceRecursorRealization sourceDecl
+    ∃ recursor, Nonempty (TrSourceRecursor sourceDecl
       (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
       recursor) := by
   rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
@@ -850,7 +850,7 @@ theorem NestedLoweringOutputClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
         (Hprod.recInfos.flatMap (·.minors)).size +
         Hprod.recInfos[familyIdx]!.indices.size + 1)
       targetType) :
-    ∃ recursor, Nonempty (SourceRecursorRealization sourceDecl
+    ∃ recursor, Nonempty (TrSourceRecursor sourceDecl
       (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
       recursor) :=
   H.sourcePrimaryRecursorRealizationAtFresh Hprod Hsource Hmetadata hempty

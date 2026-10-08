@@ -13,12 +13,12 @@ namespace VerifyInductive
 
 /-! This module deliberately sits below recursor installation. -/
 
-inductive ConstructorValidationStateTrace (P : α → σ → σ → Type) :
+inductive ConstructorValidationSteps (P : α → σ → σ → Type) :
     List α → σ → σ → Type
-  | nil : ConstructorValidationStateTrace P [] source source
+  | nil : ConstructorValidationSteps P [] source source
   | cons : P head source middle →
-      ConstructorValidationStateTrace P tail middle target →
-      ConstructorValidationStateTrace P (head :: tail) source target
+      ConstructorValidationSteps P tail middle target →
+      ConstructorValidationSteps P (head :: tail) source target
 
 private theorem constructorValidationForM_refines
     (step : α → StateT σ (Except Exception) Unit)
@@ -30,7 +30,7 @@ private theorem constructorValidationForM_refines
       ∀ source,
       (items.forM step source).WF fun out =>
         out.1 = () ∧ Nonempty
-          (ConstructorValidationStateTrace P items source out.2) := by
+          (ConstructorValidationSteps P items source out.2) := by
   intro items
   induction items with
   | nil =>
@@ -159,7 +159,7 @@ structure ValidationFamilyStep
     (sourceEnv targetEnv : Environment) where
   oldInfo : InductiveVal
   lookup : loweredEnv.find? indType.name = some (.inductInfo oldInfo)
-  constructors : ConstructorValidationStateTrace
+  constructors : ConstructorValidationSteps
     (ValidationConstructorStep result loweredEnv allowPrimitive)
     oldInfo.ctors sourceEnv targetEnv
 
@@ -199,11 +199,11 @@ structure ValidationEnvironment
     (allowPrimitive : Bool) (types : List InductiveType)
     (targetEnv : Environment) where
   headerEnv : Environment
-  headers : ConstructorValidationStateTrace
+  headers : ConstructorValidationSteps
     (fun indType source target => ValidationHeaderStep loweredEnv
       allIndNames indType.name source target)
     types sourceEnv headerEnv
-  constructors : ConstructorValidationStateTrace
+  constructors : ConstructorValidationSteps
     (ValidationFamilyStep result loweredEnv
       allowPrimitive)
     types headerEnv targetEnv
@@ -214,7 +214,7 @@ cached nested-family applications. -/
 structure ValidationHeaderEnvironment
     (loweredEnv sourceEnv : Environment) (allIndNames : List Name)
     (types : List InductiveType) (targetEnv : Environment) where
-  headers : ConstructorValidationStateTrace
+  headers : ConstructorValidationSteps
     (fun indType source target => ValidationHeaderStep loweredEnv
       allIndNames indType.name source target)
     types sourceEnv targetEnv

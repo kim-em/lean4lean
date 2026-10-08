@@ -104,7 +104,7 @@ structure SourceRecursorRefinement
 /-- One abstract source recursor realized by a particular restored concrete
 recursor.  The equality field prevents the source witness and refinement
 proof from drifting to different constants. -/
-structure SourceRecursorRealization
+structure TrSourceRecursor
     (sourceDecl : VInductDecl) (sourceOwner : VInductiveType)
     (Hstep : RestoredRecursorStep result loweredEnv auxRec allIndNames
       oldRecName sourceProdEnv targetProdEnv)

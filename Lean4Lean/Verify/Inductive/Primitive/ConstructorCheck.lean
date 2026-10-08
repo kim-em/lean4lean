@@ -172,7 +172,7 @@ private theorem primitiveTailReplay
     (hmem : ctorVal ∈ target.ctors)
     (htr : TrSourceConstRaw env Us source.name source.type ctorVal)
     (Htail : ConstructorTailCertificate env decl target [] 0 ctorVal.type) :
-    CheckedConstructorTailReplayAt env Us [] stats decl target source := by
+    CheckedConstructorTailAt env Us [] stats decl target source := by
   have htailType : env.IsType Us.length [] ctorVal.type := by
     simpa [huvars] using Htail.isType
   have htailType' := htailType

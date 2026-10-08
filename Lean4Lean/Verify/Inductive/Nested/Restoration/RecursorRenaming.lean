@@ -908,7 +908,7 @@ def NestedRun.LoweredRulesAvoid
 /-- **Realization of a restored equation list modulo `X`**: as
 `RestoredRulesRealization`, but the translation environment need only lack
 the restorable names outside `X`. -/
-def NestedRun.RestoredRulesRealizationModulo
+def NestedRun.TrRestoredRulesModulo
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
@@ -931,7 +931,7 @@ theorem fresh_filter_restorable {R X : List Name} {P : Name → Prop}
   simp [List.mem_filter, hX, hn]
 
 /-- Realization modulo `X` is realization modulo the restorable names of `X`. -/
-theorem NestedRun.RestoredRulesRealizationModulo.filter_restorable
+theorem NestedRun.TrRestoredRulesModulo.filter_restorable
     {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceEnv : VEnv} {sourceDecl : VInductDecl} {lparams : List Name}
@@ -940,8 +940,8 @@ theorem NestedRun.RestoredRulesRealizationModulo.filter_restorable
     {E : NestedRun result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv}
     {r : Restoration} {X : List Name} {rules : List VDefEq}
-    (H : E.RestoredRulesRealizationModulo r X rules) :
-    E.RestoredRulesRealizationModulo r (X.filter (· ∈ r.restorableNames)) rules := by
+    (H : E.TrRestoredRulesModulo r X rules) :
+    E.TrRestoredRulesModulo r (X.filter (· ∈ r.restorableNames)) rules := by
   obtain ⟨trEnv, Hfresh, HF⟩ := H
   exact ⟨trEnv, fresh_filter_restorable Hfresh, HF⟩
 
@@ -1007,7 +1007,7 @@ theorem NestedRun.restoredEquations_of_realizationModulo
     (HL : E.LoweredRulesAvoid
       ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary)) X)
     {rules : List VDefEq}
-    (H : E.RestoredRulesRealizationModulo (compilationRestoration sourceDecl auxiliaries) X
+    (H : E.TrRestoredRulesModulo (compilationRestoration sourceDecl auxiliaries) X
       rules) :
     E.lowered.generatedInstance.restoredEquations
       (compilationRestoration sourceDecl auxiliaries) = some rules := by

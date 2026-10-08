@@ -16,7 +16,7 @@ def MotiveTypes.empty (c : AddInductive.Context)
 /-- Row-wise inverse image of one declaration in production's flattened
 minor array.  It records the mutual-family owner, the constructor-local
 position, and the exact type used when that minor premise was introduced. -/
-structure RecInfoBinderTypes.FlatMinorOrigin
+structure RecInfoBinderTypes.FlatMinorBinderType
     (H : RecInfoBinderTypes c recInfos)
     (D : FVarDeclAt c (recInfos.flatMap (·.minors)) i) where
   owner : Nat
@@ -35,7 +35,7 @@ witness. -/
 theorem RecInfoBinderTypes.flatMinorOrigin
     (H : RecInfoBinderTypes c recInfos)
     (D : FVarDeclAt c (recInfos.flatMap (·.minors)) i) :
-    Nonempty (H.FlatMinorOrigin D) := by
+    Nonempty (H.FlatMinorBinderType D) := by
   have hmember : Expr.fvar D.fvar ∈ recInfos.flatMap (·.minors) := by
     rw [← D.expression]
     exact Array.getElem_mem D.inBounds

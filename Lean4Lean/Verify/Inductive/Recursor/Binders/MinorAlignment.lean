@@ -184,7 +184,7 @@ def MinorsMatchConstructors
       S.origin = H.minorTypes[owner]![localIndex]! ∧
       S.localIndex = localIndex ∧
       S.sourceConstructors = indTypes[owner]!.ctors ∧
-      S.HasHypothesisTypeOrigins stats recInfos ∧
+      S.HasInductionHypothesisTypes stats recInfos ∧
         ∃ traversal, S.traversal = some traversal ∧
           traversal.constructor = S.constructor ∧
           traversal.fields = S.fields ∧
@@ -624,7 +624,7 @@ theorem MinorsMatchConstructors.addMinor
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
     (hsource : Hshape.sourceConstructors = indTypes[dIdx]!.ctors)
-    (hhypothesisOrigins : Hshape.HasHypothesisTypeOrigins stats recInfos)
+    (hhypothesisOrigins : Hshape.HasInductionHypothesisTypes stats recInfos)
     (htraversal : ∃ traversal,
       Hshape.traversal = some traversal ∧
       traversal.constructor = Hshape.constructor ∧
@@ -697,9 +697,9 @@ theorem MinorsMatchConstructors.addMinor
     simp only
     rw [hmotiveGet]
   have hypothesisOriginsNext (S : MinorPremiseType)
-      (HS : S.HasHypothesisTypeOrigins stats recInfos) :
-      S.HasHypothesisTypeOrigins stats nextRecInfos := by
-    unfold MinorPremiseType.HasHypothesisTypeOrigins at HS ⊢
+      (HS : S.HasInductionHypothesisTypes stats recInfos) :
+      S.HasInductionHypothesisTypes stats nextRecInfos := by
+    unfold MinorPremiseType.HasInductionHypothesisTypes at HS ⊢
     cases horigins : S.hypothesis_type_origins with
     | none => simp [horigins] at HS
     | some origins =>
@@ -740,7 +740,7 @@ theorem MinorsMatchConstructors.addMinor
         S.origin = H.minorTypes[owner]![localIndex]! ∧
         S.localIndex = localIndex ∧
         S.sourceConstructors = indTypes[owner]!.ctors ∧
-        S.HasHypothesisTypeOrigins stats nextRecInfos ∧
+        S.HasInductionHypothesisTypes stats nextRecInfos ∧
           ∃ traversal, S.traversal = some traversal ∧
             traversal.constructor = S.constructor ∧
             traversal.fields = S.fields ∧
@@ -859,7 +859,7 @@ theorem MinorsAndIndicesMatchSource.addMinor
       Hshape.localIndex = H.minorTypes[dIdx]!.size ∧
       Hshape.origin = minorTy)
     (hsource : Hshape.sourceConstructors = indTypes[dIdx]!.ctors)
-    (hhypothesisOrigins : Hshape.HasHypothesisTypeOrigins stats recInfos)
+    (hhypothesisOrigins : Hshape.HasInductionHypothesisTypes stats recInfos)
     (htraversal : ∃ traversal,
       Hshape.traversal = some traversal ∧
       traversal.constructor = Hshape.constructor ∧

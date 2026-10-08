@@ -1329,7 +1329,7 @@ def ConstructorParamPrefixRows.complete
     (H.rows familyIdx hfamily hfamily).spines ctorIdx hctor hctor
 
 /-- Full independently checked tail replay for one production constructor. -/
-def CheckedConstructorTailReplayAt
+def CheckedConstructorTailAt
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (source : Constructor) : Prop :=
@@ -1353,7 +1353,7 @@ structure ConstructorTailReplayRow
     (done : Nat) : Prop where
   covered : done ≤ ctors.length
   replays : ∀ i, i < done → (hi : i < ctors.length) →
-    CheckedConstructorTailReplayAt env Us scope stats decl target ctors[i]
+    CheckedConstructorTailAt env Us scope stats decl target ctors[i]
 
 def ConstructorTailReplayRow.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
@@ -1366,7 +1366,7 @@ def ConstructorTailReplayRow.empty
 def ConstructorTailReplayRow.push
     (H : ConstructorTailReplayRow env Us scope stats decl target ctors done)
     (hi : done < ctors.length)
-    (Hreplay : CheckedConstructorTailReplayAt env Us scope stats decl target
+    (Hreplay : CheckedConstructorTailAt env Us scope stats decl target
       ctors[done]) :
     ConstructorTailReplayRow env Us scope stats decl target ctors (done + 1) where
   covered := by omega
@@ -1418,7 +1418,7 @@ structure ConstructorTails
   size_eq : indTypes.size = decl.types.length
   replay : ∀ (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
       (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length),
-    CheckedConstructorTailReplayAt env Us scope stats decl
+    CheckedConstructorTailAt env Us scope stats decl
       decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx]
 
 def ConstructorTailReplayRows.complete

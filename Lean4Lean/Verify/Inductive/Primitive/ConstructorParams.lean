@@ -13,7 +13,7 @@ namespace VerifyInductive
 
 /-- Internal completed primitive prefix before its persistent production
 origin/coherence fields are packaged for the common recursor boundary. -/
-structure PrimitiveConstructorCorePhasesResult
+structure PrimitiveConstructorCoreCheck
     (H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv)
     (outEnv : Environment) where
@@ -33,14 +33,14 @@ structure PrimitiveConstructorCorePhasesResult
 and recover its exact abstract semantic witness.  This is the primitive
 counterpart of the ordinary two-fold positional bridge; it uses only the
 staged header map WF and never asserts a valid header-only context. -/
-theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoherenceAt
+theorem PrimitiveConstructorCoreCheck.installedConstructorSemanticCoherenceAt
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCorePhasesResult H outEnv)
+    (R : PrimitiveConstructorCoreCheck H outEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
     ∃ familyInfo : InductiveVal,
@@ -167,14 +167,14 @@ theorem PrimitiveConstructorCorePhasesResult.installedConstructorSemanticCoheren
 
 /-- The two atomic primitive installation stages identify every newly visible
 production inductive family with its exact source declaration position. -/
-theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
+theorem PrimitiveConstructorCoreCheck.productionInductiveOrigins
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCorePhasesResult H outEnv) :
+    (R : PrimitiveConstructorCoreCheck H outEnv) :
     InductInfosFromDecl c.env.constants outEnv.constants decl := by
   intro familyName familyInfo hfamily
   have hsourceWF := H.sourceContext.checking.tr.map_wf
@@ -413,14 +413,14 @@ theorem PrimitiveConstructorCorePhasesResult.productionInductiveOrigins
 /-- Atomic primitive header and constructor installation preserves semantic
 coherence for old families and establishes it positionally for the newly
 installed canonical family. -/
-theorem PrimitiveConstructorCorePhasesResult.ctorParamsAgree
+theorem PrimitiveConstructorCoreCheck.ctorParamsAgree
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCorePhasesResult H outEnv)
+    (R : PrimitiveConstructorCoreCheck H outEnv)
     (Hsource : CtorParamsAgree
       safety c.env sourceEnv) :
     CtorParamsAgree
@@ -504,14 +504,14 @@ theorem PrimitiveConstructorCorePhasesResult.ctorParamsAgree
 
 /-- Package the internally accumulated finite evidence as the public
 primitive constructor-phase result consumed by the common recursor adapter. -/
-def PrimitiveConstructorCorePhasesResult.complete
+def PrimitiveConstructorCoreCheck.complete
     {c : AddInductive.Context}
     {stats : AddInductive.InductiveStats} {decl : VInductDecl}
     {nparams depth : Nat} {isUnsafe : Bool} {sourceEnv : VEnv}
     {indTypes : Array InductiveType} {headerEnv outEnv : Environment}
     {H : PrimitiveHeaderEnvironment c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
-    (R : PrimitiveConstructorCorePhasesResult H outEnv) :
+    (R : PrimitiveConstructorCoreCheck H outEnv) :
     PrimitiveConstructorCheck H outEnv where
   checked := R.checked
   parameterPrefixes := R.parameterPrefixes
@@ -537,7 +537,7 @@ theorem AddInductive.primitiveConstructorCorePhases.WF
     ((AddInductive.checkConstructors indTypes stats isUnsafe >>= fun _ =>
       AddInductive.declareConstructors stats indTypes isUnsafe)
       { c with env := headerEnv }).WF fun outEnv =>
-        ∃ _ : PrimitiveConstructorCorePhasesResult H outEnv, True := by
+        ∃ _ : PrimitiveConstructorCoreCheck H outEnv, True := by
   exact (AddInductive.checkConstructors.primitiveCoreWF H Hshape).bind
     fun _ Hchecked =>
       (AddInductive.declareConstructors.primitiveWF H Hshape

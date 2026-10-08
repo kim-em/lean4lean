@@ -12,7 +12,7 @@ def ConstructorCheck.checkedRecursorConstructorTailAt
       sourceEnv indTypes ctorEnv)
     (familyIdx : Nat) (hfamily : familyIdx < indTypes.size)
     (ctorIdx : Nat) (hctor : ctorIdx < indTypes[familyIdx].ctors.length) :
-    CheckedConstructorTailReplayAt R.headerVEnv c.lparams
+    CheckedConstructorTailAt R.headerVEnv c.lparams
       R.parameterScope stats decl
       (decl.types[familyIdx]'(by
         rw [← R.constructorTails.size_eq]
@@ -143,7 +143,7 @@ theorem ConstructorCheck.checkedConstructorPrefixSeedAt
     exact R.installation.constructorLE.trans R.ctorLE
   have Hreplay := R.checkedRecursorConstructorTailAt
     familyIdx hfamily ctorIdx hctor
-  have Hreplay' : CheckedConstructorTailReplayAt R.headerVEnv c.lparams
+  have Hreplay' : CheckedConstructorTailAt R.headerVEnv c.lparams
       Hmaterialized.parameterScope stats decl
       (decl.types[familyIdx]'(by
         rw [← R.constructorTails.size_eq]

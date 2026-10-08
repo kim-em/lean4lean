@@ -37,7 +37,7 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       ∃ D : FVarDeclAt H.localContext
           (H.recInfos.flatMap (·.minors)) minorIdx,
-        ∃ O : H.origins.FlatMinorOrigin D,
+        ∃ O : H.origins.FlatMinorBinderType D,
           ∃ S : MinorPremiseType,
             S.origin = D.type ∧
             S.localIndex = i ∧
@@ -102,7 +102,7 @@ theorem
         H.origins.minorTypes[O.owner]![O.localIndex]! ∧
       S.localIndex = O.localIndex ∧
       S.sourceConstructors = indTypes[O.owner]!.ctors ∧
-      S.HasHypothesisTypeOrigins stats H.recInfos ∧
+      S.HasInductionHypothesisTypes stats H.recInfos ∧
         ∃ traversal, S.traversal = some traversal ∧
           traversal.constructor = S.constructor ∧
           traversal.fields = S.fields ∧

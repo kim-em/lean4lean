@@ -103,8 +103,8 @@ open InductiveSignature in
 /-- The executable singleton decision interpreted against the literal tail
 retained with the source constructor selection, in the retained parameter
 scope itself. -/
-private theorem SourceConstructorReplay.singletonFieldsInScope
-    (H : SourceConstructorReplay env Us scope stats decl family source sourceCtor s ctor)
+private theorem SourceConstructorTelescope.singletonFieldsInScope
+    (H : SourceConstructorTelescope env Us scope stats decl family source sourceCtor s ctor)
     (Hc : ContextWF c) (hchk : Hc.chk.vlctx = []) (hus : Us = c.lparams)
     (hle : env ≤ Hc.venv) (henv : env.WF)
     (hscope : scope.WF env Us.length)
@@ -287,7 +287,7 @@ theorem RecursorConstruction.consumedSingletonElimination
   have hspine := R.parameterPrefixes.spines 0 (by simp [hind]) 0 (by simp [hind, hsource])
   simp only [hind, Array.getElem_singleton, hsource, List.getElem_cons_zero] at hspine
   obtain ⟨arity, hspine⟩ := hspine
-  have Hheader := SourceConstructorReplay.singletonFieldsInScope hreplay
+  have Hheader := SourceConstructorTelescope.singletonFieldsInScope hreplay
     (R.context.withCheckLCtx {} R.context.baseNil) rfl rfl
     (R.installation.constructorLE.trans R.ctorLE) hheader hscope
     R.core.uvars htrace hspine

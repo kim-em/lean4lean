@@ -79,7 +79,7 @@ theorem refinesTypeWithReplay
         ⟨tail, tailTarget, Hparam, sourceDomains, Hcomparisons,
           Htranslated, Htail, HctorNarrow,
           Hsynthesis, HctorShape, HctorType, Hspine⟩
-      have HtailReplay : CheckedConstructorTailReplayAt Hc.venv c.lparams
+      have HtailReplay : CheckedConstructorTailAt Hc.venv c.lparams
           tailScope stats decl target source.ctors[ctorIdx] :=
         ⟨target.ctors[ctorIdx], tail, tailTarget, sourceDomains,
           List.getElem_mem htarget, HctorNarrow, Hparam, Hcomparisons,

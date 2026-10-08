@@ -830,7 +830,7 @@ been identified.  This certificate still makes no validity claim. -/
 def AtomicAddConstants.bootstrap
     (H : AtomicAddConstants safety env venv entries outEnv outVEnv)
     (hvalues : entries.map Prod.snd = constants) :
-    PrimitiveBootstrapInstallation venv outVEnv constants where
+    PrimitiveConstantsInstallation venv outVEnv constants where
   installed := by simpa [hvalues] using H.abstract
 
 /-- The completed staged trace regains `ContextWF` in one step.  The three

@@ -386,7 +386,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
     {outerRoot : AddInductive.Context} {recLparams : List Name}
     {Router : RecursorContextWF outerRoot recLparams}
     (HS : TypedMinorTraversal Router S)
-    (Hhas : S.HasHypothesisTypeOrigins stats recInfos)
+    (Hhas : S.HasInductionHypothesisTypes stats recInfos)
     (hrecursiveFields : HS.traversal.recursiveFields = S.recursiveFields)
     (indTypes : Array InductiveType) (lvls : List Level)
     (minorIdx : Nat)
@@ -417,7 +417,7 @@ theorem RuleTemplateMatchesMinor.boundGeneratedRuleOfSemanticSource
     S.hypotheses_size indTypes (recInfos.flatMap (·.minors)) lvls
   have Hhas' : origins.stats = stats ∧
       origins.recInfos.map (·.motive) = recInfos.map (·.motive) := by
-    simpa [MinorPremiseType.HasHypothesisTypeOrigins, horigins] using Hhas
+    simpa [MinorPremiseType.HasInductionHypothesisTypes, horigins] using Hhas
   have hstats : origins.stats = stats := by
     exact Hhas'.1
   have hmotives : origins.recInfos.map (·.motive) =

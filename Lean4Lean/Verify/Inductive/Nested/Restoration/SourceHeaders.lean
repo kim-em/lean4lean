@@ -81,7 +81,7 @@ private theorem restoredHeaderValidationValidAux
     {remainingTargets : List VInductiveType}
     {currentProdEnv targetProdEnv : Environment}
     {currentVEnv targetVEnv : VEnv}
-    (Hvalidation : ConstructorValidationStateTrace
+    (Hvalidation : ConstructorValidationSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         (sourceTypes.map (fun type => type.name)) indType.name source target)
       remainingSources currentProdEnv targetProdEnv)

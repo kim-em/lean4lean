@@ -319,7 +319,7 @@ open Kernel InductiveSignature
 /-- The exact production telescope retained with a selected constructor.
 Typed source correspondence alone cannot recover literal index occurrences
 or the translations needed when generating a recursor. -/
-def SourceConstructorReplay (env : VEnv) (Us : List Name) (scope : VLCtx)
+def SourceConstructorTelescope (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (source : Constructor) (sourceCtor : VConstVal)
     (s : InductiveSignature) (ctor : InductiveSignature.Constructor s.families.size) : Prop :=
@@ -353,8 +353,8 @@ theorem sourceConstructor_tail_eq {s : InductiveSignature}
 
 /-- The selected constructor keeps the literal result arity already checked
 by its original tail certificate. No semantic inversion is required. -/
-theorem SourceConstructorReplay.constructorArity
-    (H : SourceConstructorReplay env Us scope stats decl target source sourceCtor s ctor)
+theorem SourceConstructorTelescope.constructorArity
+    (H : SourceConstructorTelescope env Us scope stats decl target source sourceCtor s ctor)
     (names : (decl.types.map (·.name)).Nodup) (targetMember : target ∈ decl.types)
     (params : s.params.length = decl.nparams)
     (family : s.families[ctor.owner].indices.length = target.numIndices) :
@@ -367,10 +367,10 @@ theorem SourceConstructorReplay.constructorArity
 /-- A later constructor pass consumes the same cached parameter prefix.
 Its residual therefore translates to the literal telescope selected for
 generation, without making another normalization choice. -/
-theorem SourceConstructorReplay.tailTranslation
+theorem SourceConstructorTelescope.tailTranslation
     {s : InductiveSignature}
     {ctor : InductiveSignature.Constructor s.families.size}
-    (H : SourceConstructorReplay env Us scope stats decl target source sourceCtor s ctor)
+    (H : SourceConstructorTelescope env Us scope stats decl target source sourceCtor s ctor)
     (hprefix : ParameterPrefix stats 0 source.type residual) :
     TrExprS env Us scope residual
       (VExpr.wrapForalls (s.fieldTypes ctor)
@@ -384,11 +384,11 @@ theorem SourceConstructorReplay.tailTranslation
 /-- The retained constructor replay produces a generator constructor over
 the shared parameter and family table. Its stored type is related to the
 actual source constructor chosen by that replay. -/
-theorem CheckedConstructorTailReplayAt.signatureConstructor
+theorem CheckedConstructorTailAt.signatureConstructor
     {env : VEnv} {decl : VInductDecl} {s : InductiveSignature}
     {Us : List Name} {scope : VLCtx} {source : Constructor}
     {target : VInductiveType}
-    (H : CheckedConstructorTailReplayAt env Us scope stats decl target source)
+    (H : CheckedConstructorTailAt env Us scope stats decl target source)
     (henv : env.WF) (hu : Us.length = decl.uvars)
     (huvars : s.uvars = decl.uvars) (hparams : s.params.length = decl.nparams)
     (hnames : s.families.toList.map (·.name) = decl.types.map (·.name))
@@ -401,7 +401,7 @@ theorem CheckedConstructorTailReplayAt.signatureConstructor
       (∀ i (hi : i < ctor.fields.length),
         SignatureFieldModel env decl s
           (((s.fieldTypes ctor).take i).reverse ++ s.params.reverse) i ctor.fields[i]) ∧
-      SourceConstructorReplay env Us scope stats decl target source sourceCtor s ctor := by
+      SourceConstructorTelescope env Us scope stats decl target source sourceCtor s ctor := by
   obtain ⟨sourceCtor, tail, tailTarget, sourceDomains, hmem, hraw, hprefix, hcomparisons, htranslation, htail,
     ⟨hsynthesis⟩⟩ := H
   have hindices : hsynthesis.indices = [] :=
@@ -523,7 +523,7 @@ theorem sourceSignatureHeader_constructor
           (((R.sourceSignatureHeader.fieldTypes ctor).take k).reverse ++
             R.sourceSignatureHeader.params.reverse) k ctor.fields[k]) ∧
       ∃ production ∈ indTypes.toList.flatMap (·.ctors),
-        SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
+        SourceConstructorTelescope R.headerVEnv c.lparams R.parameterScope stats decl
           decl.types[i] production decl.types[i].ctors[j] R.sourceSignatureHeader ctor := by
   have hip : i < indTypes.size := by
     simpa only [R.constructorTails.size_eq] using hi
@@ -578,7 +578,7 @@ theorem sourceSignatureHeader_ownedConstructor
           (((R.sourceSignatureHeader.fieldTypes ctor).take k).reverse ++
             R.sourceSignatureHeader.params.reverse) k ctor.fields[k]) ∧
       ∃ production ∈ indTypes.toList.flatMap (·.ctors),
-        SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
+        SourceConstructorTelescope R.headerVEnv c.lparams R.parameterScope stats decl
           pair.1 production pair.2 R.sourceSignatureHeader ctor := by
   obtain ⟨family, hfamily, hmapped⟩ := List.mem_flatMap.mp hpair
   obtain ⟨ctor, hctor, rfl⟩ := List.mem_map.mp hmapped
@@ -662,7 +662,7 @@ including the literal tail used to determine fields and result indices. -/
 theorem sourceSignatureConstructor_replay
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length) :
     ∃ production ∈ indTypes.toList.flatMap (·.ctors),
-      SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
+      SourceConstructorTelescope R.headerVEnv c.lparams R.parameterScope stats decl
         decl.ownedConstructors[i].1 production decl.ownedConstructors[i].2
         R.sourceSignature (R.sourceSignatureConstructor i) := by
   have hmodel := Classical.choose_spec
@@ -681,7 +681,7 @@ theorem sourceSignature_replay_of_source
     (R : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv indTypes) (i : Fin decl.ownedConstructors.length)
     (source : Constructor) (hsource : source ∈ indTypes.toList.flatMap (·.ctors))
     (hname : source.name = decl.ownedConstructors[i].2.name) :
-    SourceConstructorReplay R.headerVEnv c.lparams R.parameterScope stats decl
+    SourceConstructorTelescope R.headerVEnv c.lparams R.parameterScope stats decl
       decl.ownedConstructors[i].1 source decl.ownedConstructors[i].2
       R.sourceSignature (R.sourceSignatureConstructor i) := by
   obtain ⟨production, hproduction, hreplay⟩ := R.sourceSignatureConstructor_replay i

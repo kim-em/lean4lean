@@ -339,12 +339,12 @@ theorem AddInductive.declareConstructors.primitiveWF
       exact H.sourceContext.checking.hasPrimitives
     have hprimitives : venvCtors.HasPrimitives := by
       rcases H.translation.primitiveAbstractConstants Hshape with hbool | hnat
-      · have Hb : PrimitiveBootstrapInstallation sourceEnv venvCtors
+      · have Hb : PrimitiveConstantsInstallation sourceEnv venvCtors
             primitiveBoolConstants := by
           rw [← hbool]
           exact Hbootstrap
         exact Hb.boolHasPrimitives hsourcePrimitives
-      · have Hn : PrimitiveBootstrapInstallation sourceEnv venvCtors
+      · have Hn : PrimitiveConstantsInstallation sourceEnv venvCtors
             primitiveNatConstants := by
           rw [← hnat]
           exact Hbootstrap

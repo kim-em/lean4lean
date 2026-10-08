@@ -15,13 +15,13 @@ namespace VerifyInductive
 
 /-- Two retained executions of the deterministic source-header restoration
 fold have the same endpoint. -/
-theorem ConstructorValidationStateTrace.headerTarget_eq
-    (Hleft : ConstructorValidationStateTrace
+theorem ConstructorValidationSteps.headerTarget_eq
+    (Hleft : ConstructorValidationSteps
       (fun indType : InductiveType => fun source target =>
         ValidationHeaderStep loweredEnv
         allIndNames indType.name source target)
       types sourceEnv leftTarget)
-    (Hright : ConstructorValidationStateTrace
+    (Hright : ConstructorValidationSteps
       (fun indType : InductiveType => fun source target =>
         ValidationHeaderStep loweredEnv
         allIndNames indType.name source target)
@@ -46,7 +46,7 @@ private theorem installRestoredSourceConstructors
     (Hle : canonicalEnv ≤ currentVEnv)
     (Hsource : RestoredConstructorTranslations result loweredEnv lparams safety
       canonicalEnv names traceProdEnv traceTargetEnv sources constructors)
-    (Hvalidation : ConstructorValidationStateTrace
+    (Hvalidation : ConstructorValidationSteps
       (ValidationConstructorStep result loweredEnv false)
       names currentProdEnv targetProdEnv) :
     ∃ targetVEnv,
@@ -143,7 +143,7 @@ private theorem installRestoredSourceFamilies
     (Hrestoration : FoldSteps
       (RestoredInductiveStep result loweredEnv auxRec allIndNames)
       remainingSources restorationSource restorationTarget)
-    (Hvalidation : ConstructorValidationStateTrace
+    (Hvalidation : ConstructorValidationSteps
       (ValidationFamilyStep result loweredEnv false)
       remainingSources currentProdEnv targetProdEnv)
     (HremainingHeaders : List.Forall₂

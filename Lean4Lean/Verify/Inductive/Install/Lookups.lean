@@ -618,7 +618,7 @@ def RecursorCheck.restoredSourcePrimaryRecursorRealization
       H.recInfos[ownerIdx]!.indices.size)
     (Htype : TrExprS canonicalEnv Hstep.oldInfo.levelParams []
       Hstep.restored.newInfo.type recursor.type) :
-    SourceRecursorRealization sourceDecl
+    TrSourceRecursor sourceDecl
       (sourceDecl.types[ownerIdx]'hsourceOwner) Hstep canonicalEnv recursor := by
   have hrecInfo : ownerIdx < H.recInfos.size := by
     simpa [H.generated.length] using hentry

@@ -308,10 +308,10 @@ theorem FoldSteps.inductiveFindCases
 
 /-! ### Lookups in the constructor validation environment -/
 
-theorem ConstructorValidationStateTrace.headersFreshTrace
+theorem ConstructorValidationSteps.headersFreshTrace
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -333,10 +333,10 @@ theorem ConstructorValidationStateTrace.headersFreshTrace
     rw [← hmiddle]
     exact Htail'
 
-theorem ConstructorValidationStateTrace.headerFind
+theorem ConstructorValidationSteps.headerFind
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) (hmem : indType ∈ types) :
@@ -367,10 +367,10 @@ theorem ConstructorValidationStateTrace.headerFind
       simpa [ci, ConstantInfo.name, ConstantInfo.toConstantVal] using this
     · exact ih hmiddleWF hmem
 
-theorem ConstructorValidationStateTrace.headerFindCases
+theorem ConstructorValidationSteps.headerFindCases
     {loweredEnv : Environment} {allIndNames : List Name}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (fun indType source target => ValidationHeaderStep loweredEnv
         allIndNames indType.name source target) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
@@ -404,11 +404,11 @@ theorem ConstructorValidationStateTrace.headerFindCases
     · right
       exact ⟨indType, by simp [hmem], oldInfo, hlookup, hn, hci⟩
 
-theorem ConstructorValidationStateTrace.constructorsFreshTrace
+theorem ConstructorValidationSteps.constructorsFreshTrace
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -431,11 +431,11 @@ theorem ConstructorValidationStateTrace.constructorsFreshTrace
     rw [← hmiddle]
     exact Htail'
 
-theorem ConstructorValidationStateTrace.constructorFindCases
+theorem ConstructorValidationSteps.constructorFindCases
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {names : List Name} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (ValidationConstructorStep result loweredEnv allowPrimitive)
       names sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)
@@ -471,11 +471,11 @@ theorem ConstructorValidationStateTrace.constructorFindCases
     · right
       exact ⟨cn, by simp [hmem], ctorOld, hlookup, hn, hci⟩
 
-theorem ConstructorValidationStateTrace.familiesFreshTrace
+theorem ConstructorValidationSteps.familiesFreshTrace
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF) :
@@ -488,11 +488,11 @@ theorem ConstructorValidationStateTrace.familiesFreshTrace
     rcases ih hmiddleWF with ⟨entries', Htail'⟩
     exact ⟨entries ++ entries', Hhead.append Htail'⟩
 
-theorem ConstructorValidationStateTrace.familiesFindCases
+theorem ConstructorValidationSteps.familiesFindCases
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv : Environment} {allowPrimitive : Bool}
     {types : List InductiveType} {sourceEnv targetEnv : Environment}
-    (H : ConstructorValidationStateTrace
+    (H : ConstructorValidationSteps
       (ValidationFamilyStep result loweredEnv
         allowPrimitive) types sourceEnv targetEnv)
     (hwf : sourceEnv.constants.WF)

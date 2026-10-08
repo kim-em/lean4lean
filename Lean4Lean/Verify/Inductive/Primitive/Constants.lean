@@ -45,7 +45,7 @@ def primitiveNatConstants : List VConstVal :=
 /-- Evidence that a complete finite batch was installed in one abstract
 environment transition.  In particular, this certificate makes no claim that
 any proper prefix of `constants` produces a valid checking environment. -/
-structure PrimitiveBootstrapInstallation
+structure PrimitiveConstantsInstallation
     (env out : VEnv) (constants : List VConstVal) : Prop where
   installed : env.addConstVals constants = some out
 
@@ -203,15 +203,15 @@ theorem VEnv.HasPrimitives.addNatBootstrap
 
 /-- The completed atomic Bool batch restores `HasPrimitives`; no validity
 claim is made about its family-only prefix. -/
-theorem PrimitiveBootstrapInstallation.boolHasPrimitives
-    (B : PrimitiveBootstrapInstallation env out primitiveBoolConstants)
+theorem PrimitiveConstantsInstallation.boolHasPrimitives
+    (B : PrimitiveConstantsInstallation env out primitiveBoolConstants)
     (H : env.HasPrimitives) : out.HasPrimitives :=
   VEnv.HasPrimitives.addBoolBootstrap H B.installed
 
 /-- The completed atomic Nat batch restores `HasPrimitives`; no validity claim
 is made about its family-only prefix. -/
-theorem PrimitiveBootstrapInstallation.natHasPrimitives
-    (B : PrimitiveBootstrapInstallation env out primitiveNatConstants)
+theorem PrimitiveConstantsInstallation.natHasPrimitives
+    (B : PrimitiveConstantsInstallation env out primitiveNatConstants)
     (H : env.HasPrimitives) : out.HasPrimitives :=
   VEnv.HasPrimitives.addNatBootstrap H B.installed
 

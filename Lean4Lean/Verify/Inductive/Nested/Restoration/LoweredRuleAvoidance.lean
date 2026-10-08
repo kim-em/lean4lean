@@ -8,7 +8,7 @@ The restored-equation junction modulo the renamed auxiliary recursor names
 residue `NestedRun.LoweredRulesAvoid heads X`: in the lowered
 rule right-hand sides, the trailing arguments of the hits, the literals and the
 parameter domains avoid `X`. Only the restorable names of `X` matter
-(`RestoredRulesRealizationModulo.filter_restorable`), and those are auxiliary
+(`TrRestoredRulesModulo.filter_restorable`), and those are auxiliary
 constructor names (`restorableRenamed_auxCtorNames`: lowered auxiliary recursor
 names are never renamed, and auxiliary family names are numeric `_nested.i`
 while renamed names are string extensions `Main.rec_k`).

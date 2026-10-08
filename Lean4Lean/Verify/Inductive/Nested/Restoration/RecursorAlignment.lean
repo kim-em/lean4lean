@@ -308,7 +308,7 @@ theorem NestedRun.hprovenance_of
   rw [← hheads] at HL
   have hequations := E.restoredEquations_of_realizationModulo wf Hsources hheads hparamsSize
     D hscoped HL
-    (RestoredRulesRealizationModulo.filter_restorable ⟨C.recursorVEnv, hfreshFinal, HCrules⟩)
+    (TrRestoredRulesModulo.filter_restorable ⟨C.recursorVEnv, hfreshFinal, HCrules⟩)
   obtain ⟨Hcertified, ⟨Hdata⟩⟩ := E.compilationData_of_tables wf Hsources C hC hadded
     henvTypes Haux Hexpansion hparamsSize D Hrestoring HauxRestoring hequations
   have hwf : sourceProdEnv.constants.WF := (wf.tr (safety := .safe)).map_wf

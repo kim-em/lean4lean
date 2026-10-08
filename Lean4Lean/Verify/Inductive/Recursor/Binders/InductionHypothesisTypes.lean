@@ -386,7 +386,7 @@ structure MinorPremiseType where
 
 /-- A semantic minor retained its completed hypothesis-origin table, and the
 table was produced with the expected inductive statistics. -/
-def MinorPremiseType.HasHypothesisTypeOrigins
+def MinorPremiseType.HasInductionHypothesisTypes
     (S : MinorPremiseType) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo) : Prop :=
   match S.hypothesis_type_origins with
@@ -397,15 +397,15 @@ def MinorPremiseType.HasHypothesisTypeOrigins
 theorem MinorPremiseType.hypothesisTypeOrigins_exists
     (S : MinorPremiseType) (stats : AddInductive.InductiveStats)
     (recInfos : Array AddInductive.RecInfo)
-    (H : S.HasHypothesisTypeOrigins stats recInfos) :
+    (H : S.HasInductionHypothesisTypes stats recInfos) :
     ∃ origins, S.hypothesis_type_origins = some origins ∧
       origins.stats = stats ∧
         origins.recInfos.map (·.motive) = recInfos.map (·.motive) := by
   cases h : S.hypothesis_type_origins with
-  | none => simp [MinorPremiseType.HasHypothesisTypeOrigins, h] at H
+  | none => simp [MinorPremiseType.HasInductionHypothesisTypes, h] at H
   | some origins =>
       exact ⟨origins, rfl, by
-        simpa [MinorPremiseType.HasHypothesisTypeOrigins, h] using H⟩
+        simpa [MinorPremiseType.HasInductionHypothesisTypes, h] using H⟩
 
 /-- The retained first-pass hypothesis array is the exact inner forall
 telescope of the generated minor source type.  Its residual is expressed
