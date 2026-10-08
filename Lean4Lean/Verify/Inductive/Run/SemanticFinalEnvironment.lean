@@ -8,31 +8,13 @@ open Kernel
 
 namespace VerifyInductive
 
-private theorem property_of_mem_zipWith
-    (f : α → β → γ) (P : γ → Prop)
-    (hproperty : ∀ a b, P (f a b)) :
-    ∀ {as : List α} {bs : List β} {value : γ},
-      value ∈ List.zipWith f as bs → P value := by
-  intro as
-  induction as with
-  | nil => simp
-  | cons a as ih =>
-    intro bs value hmem
-    cases bs with
-    | nil => simp at hmem
-    | cons b bs =>
-      simp only [List.zipWith_cons_cons, List.mem_cons] at hmem
-      rcases hmem with rfl | htail
-      · exact hproperty a b
-      · exact ih htail
-
 private theorem inductiveTypeInfo_isUnsafe
     (hinfo : info ∈ (AddInductive.inductiveTypeInfos stats nparams
       indTypes numNested isUnsafe lparams).toList) :
     info.isUnsafe = isUnsafe := by
   simp only [AddInductive.inductiveTypeInfos, Array.toList_zipWith,
     Array.toList_map] at hinfo
-  apply property_of_mem_zipWith
+  apply List.property_of_mem_zipWith
     (f := fun (indType : InductiveType) (numIndices : Nat) =>
       show InductiveVal from {
         name := indType.name

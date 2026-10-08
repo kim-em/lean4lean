@@ -94,14 +94,6 @@ end Lean4Lean.InductiveSignature
 namespace Lean4Lean.VEnv
 open InductiveSignature
 
-private theorem forall₂_snoc_inv' {R : α → β → Prop} :
-    ∀ {l₀ : List α} {x : α} {l : List β}, List.Forall₂ R (l₀ ++ [x]) l →
-    ∃ l₀' x', l = l₀' ++ [x'] ∧ List.Forall₂ R l₀ l₀' ∧ R x x'
-  | [], _, _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _ :: _, _, _, .cons h t =>
-    let ⟨l₀', x', e, t', h'⟩ := forall₂_snoc_inv' t
-    ⟨_ :: l₀', x', by rw [e]; rfl, .cons h t', h'⟩
-
 /-- The restored native recursor type is a telescope whose major domain is an
 application of the restored family head of its owner. -/
 theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
@@ -114,7 +106,7 @@ theorem NativeRecursorData.recursorType_major {data : NativeRecursorData}
           data.levels)) args) := by
   unfold NativeRecursorData.recursorType Instance.recursorType at H
   obtain ⟨domains, body, rfl, hrel, _⟩ := Restoration.wrapForalls_forall₂ H
-  obtain ⟨pre', x', rfl, hpre, hx⟩ := forall₂_snoc_inv' hrel
+  obtain ⟨pre', x', rfl, hpre, hx⟩ := List.forall₂_snoc_left hrel
   have hpl := Lean4Lean.List.Forall₂.length_eq hpre
   have hoff : pre'.length = data.majorOffset := by
     rw [← hpl]

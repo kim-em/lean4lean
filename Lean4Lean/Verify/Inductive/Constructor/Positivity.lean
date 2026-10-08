@@ -484,12 +484,6 @@ structure ValidAppStatsWF (env : VEnv) (Us : List Name) (Δ : VLCtx)
     (decl.paramVars depth)
   paramFVars : ∀ param ∈ stats.params, ∃ fv, param = .fvar fv
 
-theorem forall₂_length_eq
-    (H : List.Forall₂ R as bs) : as.length = bs.length := by
-  induction H with
-  | nil => rfl
-  | cons _ _ ih => simp [ih]
-
 theorem List.mapM_some_length
     {xs : List α} {ys : List β} {f : α → Option β}
     (H : xs.mapM f = some ys) :
@@ -526,7 +520,7 @@ theorem forall₂_get?_eq_some
 theorem ValidAppStatsWF.params_size
     (H : ValidAppStatsWF env Us Δ stats decl depth) :
     stats.params.size = decl.nparams := by
-  have := forall₂_length_eq H.params
+  have := List.Forall₂.length_eq H.params
   simpa [VInductDecl.paramVars] using this
 
 theorem ValidAppStatsWF.types_size
@@ -558,7 +552,7 @@ theorem ValidAppStatsWF.paramAt
     simp [hi]
   have htarget : ∃ param', (decl.paramVars depth)[i]? = some param' := by
     have hi' : i < (decl.paramVars depth).length := by
-      have hlen := forall₂_length_eq H.params
+      have hlen := List.Forall₂.length_eq H.params
       simpa using hlen ▸ hi
     exact ⟨(decl.paramVars depth)[i], List.getElem?_eq_getElem hi'⟩
   rcases htarget with ⟨param', htarget⟩
@@ -712,15 +706,11 @@ theorem AvailableLiteralDisjoint.addEliminators
   | natVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
   | strVal _ => simpa [VEnv.ContainsLits, VEnv.contains] using hlit
 
-theorem forall₂_append {R : α → β → Prop}
-    (H₁ : List.Forall₂ R as₁ bs₁) (H₂ : List.Forall₂ R as₂ bs₂) :
-    List.Forall₂ R (as₁ ++ as₂) (bs₁ ++ bs₂) := by
-  induction H₁ with
-  | nil => exact H₂
-  | cons h _ ih => exact .cons h ih
-
 /-- Split the right-hand list at the boundary forced by an appended
 left-hand list in a `Forall₂` derivation. -/
+-- Name kept for the nested-inductive verification, which still refers to it.
+alias forall₂_append := _root_.List.Forall₂.append'
+
 theorem List.Forall₂.split_left
     (H : List.Forall₂ R (as ++ bs) cs) :
     ∃ cs₁ cs₂, cs = cs₁ ++ cs₂ ∧
@@ -732,16 +722,6 @@ theorem List.Forall₂.split_left
       | cons hab htail =>
         rcases ih htail with ⟨cs₁, cs₂, rfl, hleft, hright⟩
         exact ⟨_ :: cs₁, cs₂, by simp, .cons hab hleft, hright⟩
-
-theorem List.Forall₂.drop
-    (H : List.Forall₂ R as bs) (n : Nat) :
-    List.Forall₂ R (as.drop n) (bs.drop n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons hab _ ih =>
-    cases n with
-    | zero => exact .cons hab (ih 0)
-    | succ n => exact ih n
 
 /-- Exact inversion of a translated concrete application list.  Unlike the
 typechecker-oriented `AppStack`, this retains the final abstract spine, which
@@ -824,7 +804,7 @@ theorem TrExprS.constAppSpine
     cases H
     rename_i f' _ _ arg' _ _ hfn harg
     rcases ihFn hfn hhead with ⟨levels', args', hspine, hlevels, hargs⟩
-    have hargs' := forall₂_append hargs (.cons harg .nil)
+    have hargs' := List.Forall₂.append' hargs (.cons harg .nil)
     refine ⟨levels', args' ++ [arg'], ?_, hlevels, ?_⟩
     · simp [hspine]
     · simpa only [Expr.getAppArgsList_app] using hargs'
@@ -1129,7 +1109,7 @@ theorem ValidAppStatsWF.translatedParam
   have hsource : type.getAppArgsList[j]? = some type.getAppArgs[j] := by
     rw [← Expr.getAppArgs_toList]
     simp [hjArgs]
-  have hlen := forall₂_length_eq hargs
+  have hlen := List.Forall₂.length_eq hargs
   have hjArgs' : j < args'.length := by
     rw [← hlen, ← Expr.getAppArgs_toList]
     simp [hjArgs]
@@ -1492,7 +1472,7 @@ theorem ValidAppStatsWF.translatedIndexNoOccurrence
     (hctx : VLCtx.NoIndConsts (decl.types.map (·.name)) Δ)
     (hlower : stats.params.size ≤ j) (hupper : j < args'.length) :
     args'[j].SourceConstFree (decl.types.map (·.name)) := by
-  have hlen := forall₂_length_eq hargs
+  have hlen := List.Forall₂.length_eq hargs
   have hjArgs : j < type.getAppArgs.size := by
     have hsize : type.getAppArgs.size = type.getAppArgsList.length := by
       rw [← Expr.getAppArgs_toList]
@@ -1527,7 +1507,7 @@ theorem isValidIndAppIdx.validIndAppAt
     omega
   have hargsLen : args'.length =
       decl.nparams + decl.types[typeIdx].numIndices := by
-    have htranslated := forall₂_length_eq hargs
+    have htranslated := List.Forall₂.length_eq hargs
     have hsource : type.getAppArgsList.length = type.getAppArgs.size := by
       rw [← Expr.getAppArgs_toList]
       simp
@@ -1586,7 +1566,7 @@ theorem isValidIndAppIdx.isType
     omega
   have hargsLength : args.length =
       decl.nparams + decl.types[typeIdx].numIndices := by
-    have htranslated := forall₂_length_eq _hargs
+    have htranslated := List.Forall₂.length_eq _hargs
     have hsource : type.getAppArgsList.length = type.getAppArgs.size := by
       rw [← Expr.getAppArgs_toList]
       simp

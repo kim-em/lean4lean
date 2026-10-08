@@ -64,7 +64,7 @@ theorem CompilationData.major_cases {base : VEnv} {src exp : VInductDecl}
     have hrel' := List.mapM_eq_some.mp hdirect
     have hlen := Lean4Lean.List.Forall₂.length_eq hrel'
     have hjb : s.constructors[j].owner.val - src.types.length < aux.length := by omega
-    obtain ⟨_, hdf⟩ := forall₂_getElem_exists hrel' (s.constructors[j].owner.val - src.types.length) hjb
+    obtain ⟨_, hdf⟩ := List.forall₂_getElem_exists hrel' (s.constructors[j].owner.val - src.types.length) hjb
     have ha := List.getElem_mem hjb
     obtain ⟨dc, hdc, hdcn, _⟩ := Lean4Lean.List.Forall₂.forall_exists_l hrel.constructors _
       (s.declarationCtor_family j)

@@ -252,7 +252,7 @@ def CompletedRecursorPhasesResult.GeneratedRuleAlignment.NarrowFieldRuntimeFrame
       (fun fv entry => ∃ deps type,
         entry = (some (fv, deps), .vlam type))
       B.fieldScope.fvars B.fieldScope := by
-    have Happ := Lean4Lean.VerifyInductive.List.Forall₂.append'
+    have Happ := List.Forall₂.append'
       Hfront Hparams
     have hscope : B.fieldScope.take Hruntime.frontSourceDomains.length ++
         H.parameterSuffix.parameterDecls = B.fieldScope := by
@@ -528,7 +528,7 @@ theorem
   have hrecInfo : selectedOwner < H.recInfos.size := by
     simpa [selectedOwner, H.generated.length] using F.entry_lt
   have htranslated :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    List.Forall₂.length_eq
       evidence.indices_translation
   have hsourceArity := checkPositivityStep.getIIndices.index_arity
     F.semantic.generated.owner_valid

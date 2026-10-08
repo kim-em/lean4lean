@@ -447,7 +447,7 @@ theorem
   have hownerBang : H.recInfos[owner]! = H.recInfos[owner] := by
     simp [Array.getElem!_eq_getD, Array.getD, hownerRecInfo]
   have HownerMotive :=
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem HcanonicalMotives owner
+    List.forall₂_getElem HcanonicalMotives owner
       (by simpa using hownerMotive) (by simpa using hownerMotive)
   have HownerMotiveCanonical : TrExprS H.outVEnv Us
       (abstractForallContext canonicalDomains [])
@@ -883,7 +883,7 @@ theorem
     simpa only [Us, cachedDomains, parameterDecls, ownerTarget,
       majorTarget, List.reverse_append, List.reverse_reverse,
       List.append_assoc] using HapplyCanonical
-  have HargsTr := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  have HargsTr := List.Forall₂.append'
     HindexTargets (List.Forall₂.cons HmajorTr List.Forall₂.nil)
   have HlhsWF : VExpr.WF H.outVEnv Us.length cachedDomains.reverse
       lhsBody := ⟨typeBody, Hlhs'⟩

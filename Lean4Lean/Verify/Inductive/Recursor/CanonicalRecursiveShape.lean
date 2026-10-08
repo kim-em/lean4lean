@@ -310,7 +310,7 @@ theorem RecInfoMinorTypeShape.recursiveField_pos (S : RecInfoMinorTypeShape)
   have hF := Hsel.arguments_at_positions
   have hlen := Lean4Lean.List.Forall₂.length_eq hF
   have hjSel : j < sel.length := by rw [hlen]; simpa using hj
-  obtain ⟨hp, hget⟩ := List.Forall₂.getElem hF j hjSel (by simpa using hj)
+  obtain ⟨hp, hget⟩ := List.forall₂_getElem hF j hjSel (by simpa using hj)
   have hsize := S.fields_bound.length_fvars
   refine ⟨sel[j].fieldIndex, by omega, ?_⟩
   rw [getElem!_pos S.recursiveFields j hj]

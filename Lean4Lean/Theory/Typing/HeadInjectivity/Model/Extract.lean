@@ -209,7 +209,7 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
   obtain ⟨ci, keys, hci, hls, hkeys, hQ⟩ := spine_data henv hnr hΓ hu
   have hk' : List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Γ k.1 (a.subst .id) ∧
       ∀ x ∈ k.2.2, OI env U Γ a x) keys args :=
-    forall₂_imp (fun k a ⟨h1, h2, _⟩ => ⟨by rw [VExpr.subst_id]; exact h1, h2⟩) hkeys
+    List.Forall₂.imp (fun k a ⟨h1, h2, _⟩ => ⟨by rw [VExpr.subst_id]; exact h1, h2⟩) hkeys
   let LeftEnd : Ob → Prop := fun r => r = .rigid c (ls.map (·.eval)) keys.length u.eval ∨
     ∃ i, ∃ h : i < keys.length, r = .rigidArg i (keys[i]).2.1
   have hle : ∀ r, LeftEnd r → RigidEnd c (ls.map (·.eval)) keys r := by
@@ -247,13 +247,13 @@ theorem rigid_analysis (henv : env.Ordered) (hnr : SoundEnv env) (hΓ : OnCtx Γ
   rcases hr1 with ⟨_, e⟩ | ⟨_, _, e⟩
   · injection e with ec eℓ en
     refine ⟨ci, keys, u.eval, hci, hls, hkeys, hQ _ (hsort _ (.inl rfl)), ec, eℓ, ?_⟩
-    refine forall₂_of_getElem (by rw [en, List.Forall₂.length_eq hk1]) fun i h₁ h₂ => ?_
+    refine List.forall₂_of_getElem (by rw [en, List.Forall₂.length_eq hk1]) fun i h₁ h₂ => ?_
     obtain ⟨keys'', hk2, hr2⟩ := hR _ (.inr ⟨i, h₁, rfl⟩)
     rcases hr2 with ⟨_, e⟩ | ⟨j, hj, e⟩
     · cases e
     · injection e with eij ecl
       subst eij
-      obtain ⟨_, hcl⟩ := forall₂_getElem hk2 i hj
+      obtain ⟨_, hcl⟩ := List.forall₂_getElem_exists hk2 i hj
       rw [ecl, hcl, VExpr.subst_id]; exact ElCls.self
   · cases e
 
@@ -324,7 +324,7 @@ theorem WF.headInjectivityCore_of_sound {env : VEnv} (henv : env.WF) (hnr : Mode
       eT ▸ IsType.instL hls (henv.ordered.constWF hci)
     have := Model.tele_spine henv.ordered hΓ keys (doms.map (·.instL ls)) (w.inst ls) []
       .id args args' τs₀ _ .nil hT (fun τ hτ => ⟨_, _, .nil, eT ▸ hτs₀ τ hτ⟩) hty₀
-      (Model.forall₂_imp (fun k a ⟨h1, _, X, hX, h2⟩ => ⟨h1, X, h2 ▸ .self, hX⟩) hkeys) hk'
+      (List.Forall₂.imp (fun k a ⟨h1, _, X, hX, h2⟩ => ⟨h1, X, h2 ▸ .self, hX⟩) hkeys) hk'
     rwa [VExpr.subst_id, ← eT] at this
 
 end VEnv

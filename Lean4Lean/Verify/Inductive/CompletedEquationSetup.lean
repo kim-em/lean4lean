@@ -1064,7 +1064,7 @@ theorem
       A.semantics.target_valid |>.trans (by simp [A.semantic_owner])
   have hindexTargetsLength : indexTargets.length = T.indices.length := by
     have htranslated :=
-      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HindexTargets
+      List.Forall₂.length_eq HindexTargets
     have harity := H.arities owner (by
       simpa [H.generated.length] using howner)
     rw [T.indices_length, harity, ← hindicesLength]

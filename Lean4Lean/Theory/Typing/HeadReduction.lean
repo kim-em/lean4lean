@@ -581,7 +581,7 @@ theorem StRed.expose_spine
     refine ⟨sourceArgs ++ [sourceArg], ?_, ?_⟩
     · rw [VExpr.mkApps_append]
       exact hroot.trans hsource.app
-    · simpa only [List.reverse_cons] using case_forall₂_append hargs (.cons harg .nil)
+    · simpa only [List.reverse_cons] using List.Forall₂.append' hargs (.cons harg .nil)
 
 open InductiveSignature.CaseSchema in
 theorem StRed.expose_case (hm : MatchedCaseStep env univs Γ₂ rule actual)

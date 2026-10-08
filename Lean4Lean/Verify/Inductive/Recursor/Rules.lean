@@ -815,9 +815,9 @@ theorem BoundGeneratedRecursiveCalls.abstractedIotaResults
         recursiveArgs[i] recursiveResults[i])) :
     IotaRecursiveResultsCertificate recursors fieldVars
       recursiveArgs recursiveResults := by
-  have hargsLen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hargsLen := List.Forall₂.length_eq Hargs
   have hresultsLen :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hresults
+    List.Forall₂.length_eq Hresults
   have hargsSize : u.size = recursiveArgs.length := by
     simpa using hargsLen
   have hresultsSize : v.size = recursiveResults.length := by
@@ -828,9 +828,9 @@ theorem BoundGeneratedRecursiveCalls.abstractedIotaResults
   have hiU : i < u.size := by omega
   have hiV : i < v.size := by omega
   rcases H.entries i hiU hiU with ⟨Hentry⟩
-  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Harg := List.forall₂_getElem
     Hargs i (by simpa using hiU) hiArg
-  have Hresult := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Hresult := List.forall₂_getElem
     Hresults i (by simpa using hiV) hiResult
   apply Hpoint i hiU hiArg hiResult Hentry
   · simpa using Harg
@@ -878,9 +878,9 @@ theorem StagedSemanticBoundGeneratedRecursiveCalls.abstractedIotaResults
   intro i hi hiarg hiresult Hentry _HArg _Hresult
   rcases H.entries i hi hi with
     ⟨originRoot, Rorigin, Hext, callDepth, E, _hscope⟩
-  have hargTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have hargTr := List.forall₂_getElem
     Hargs i (by simpa using hi) hiarg
-  have hresultTr := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have hresultTr := List.forall₂_getElem
     Hresults i (by simpa [H.size] using hi) hiresult
   rcases Hbound.getElem_eq_fvar i hi with ⟨hiFvars, hsource⟩
   let fv := Hbound.fvars[i]
@@ -1527,7 +1527,7 @@ theorem BoundGeneratedRecursorRule.iotaEquationCertificate
   have hparamSourceLength : paramSource.length = decl.nparams := by
     simp [paramSource, hparams]
   have hleadingParamsLength : leadingParams.length = decl.nparams := by
-    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    have hlen := List.Forall₂.length_eq
       HleadingParams
     omega
   have hctorParamsLength : ctorParams.length = decl.nparams := by
@@ -1535,11 +1535,11 @@ theorem BoundGeneratedRecursorRule.iotaEquationCertificate
     exact hleadingParamsLength
   have hleadingLength : leadingArgs.length = decl.nparams +
       decl.types.length + decl.ownedConstructors.length + owner.numIndices := by
-    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hleading
+    have hlen := List.Forall₂.length_eq Hleading
     simpa [hparams, hmotives, hminors, hindices, Nat.add_assoc]
       using hlen.symm
   have hctorLength : ctorArgs.length = decl.nparams + H.allArgs.size := by
-    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HctorArgs
+    have hlen := List.Forall₂.length_eq HctorArgs
     simpa [hparams] using hlen.symm
   have hbindersLength : H.binders.length = stats.params.size + motives.size +
       minors.size + H.allArgs.size := by
@@ -1789,12 +1789,12 @@ theorem BoundGeneratedRecursorRule.abstractedRecursiveHeadsInScope
   intro field hfield
   rcases List.mem_filterMap.mp hfield with ⟨arg, harg, hhead⟩
   rcases List.mem_iff_getElem.mp harg with ⟨i, hiArgs, hargEq⟩
-  have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hlen := List.Forall₂.length_eq Hargs
   have hiSource : i <
       (H.recursiveArgs.map fun arg => arg.abstractList H.binders).toList.length :=
     by omega
   have hiArray : i < H.recursiveArgs.size := by simpa using hiSource
-  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Harg := List.forall₂_getElem
     Hargs i hiSource hiArgs
   rcases H.recursive_args_bound.getElem_eq_fvar i hiArray with
     ⟨hiFvars, hsource⟩
@@ -1885,12 +1885,12 @@ theorem BoundGeneratedRecursorRule.abstractedAllArgsNoConsts
     ∀ arg ∈ args, arg.containsAnyConst names = false := by
   intro arg harg
   rcases List.mem_iff_getElem.mp harg with ⟨i, hiArgs, hargEq⟩
-  have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hargs
+  have hlen := List.Forall₂.length_eq Hargs
   have hiSource : i <
       (H.allArgs.map fun value => value.abstractList H.binders).toList.length :=
     by omega
   have hiArray : i < H.allArgs.size := by simpa using hiSource
-  have Harg := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Harg := List.forall₂_getElem
     Hargs i hiSource hiArgs
   rcases H.all_args_bound.getElem_eq_fvar i hiArray with
     ⟨hiFvars, hsource⟩

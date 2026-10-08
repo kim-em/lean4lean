@@ -268,12 +268,12 @@ theorem sourceModelsOfTablesPositive {s : InductiveSignature} {decl : VInductDec
       normalized.numIndices = source.numIndices ∧
       normalized.resultLevel ≈ source.resultLevel ∧
       List.Forall₂ C normalized.ctors source.ctors) s.declaration.types decl.types := by
-    apply Lean4Lean.List.forall₂_of_getElem (by
+    apply List.forall₂_of_getElem (by
       simpa [InductiveSignature.declaration] using Lean4Lean.List.Forall₂.length_eq Hfamilies)
     intro i hi hi'
     have hsize : i < s.families.size := by simpa [InductiveSignature.declaration] using hi
     let owner : Fin s.families.size := ⟨i, hsize⟩
-    have hget := Lean4Lean.List.forall₂_getElem Hfamilies i (by simpa using hsize) hi'
+    have hget := List.forall₂_getElem Hfamilies i (by simpa using hsize) hi'
     have he : s.declaration.types[i] = s.declarationFamily owner := by
       simp [InductiveSignature.declaration, InductiveSignature.declarationFamily, owner]
     rw [he]
@@ -516,7 +516,7 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.constructorNames
       have := hdr.owner.isLt
       have h' : hdr.owner.val = owner := hhdrOwner
       omega
-    have hfamily := Lean4Lean.List.forall₂_getElem R.sourceSignatureHeader_families owner
+    have hfamily := List.forall₂_getElem R.sourceSignatureHeader_families owner
       (by simpa using hheader) hdeclOwner
     have hfin : hdr.owner = ⟨owner, hheader⟩ := Fin.ext hhdrOwner
     have hm' := (congrArg (fun j : Fin R.sourceSignatureHeader.families.size =>
@@ -549,7 +549,7 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.models
       s.families[ctor.owner].name = pair.1.name ∧ ctor.name = pair.2.name ∧
       R.headerVEnv.IsDefEqU decl.uvars [] (s.constructorType ctor) pair.2.type)
       s.constructors.toList decl.ownedConstructors := by
-    apply Lean4Lean.List.forall₂_of_getElem (by simpa using D.size)
+    apply List.forall₂_of_getElem (by simpa using D.size)
     intro k hk hk'
     obtain ⟨owner, howner, localIndex, hlocal, rfl⟩ := H.flatMinorIndex k hk'
     have hk2 : recursorMinorOffset indTypes owner + localIndex < s.constructors.size := by
@@ -595,7 +595,7 @@ theorem CompletedRecursorConstruction.ConsumedSignatureData.models
     (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceWF R.core hempty
       (Lean4Lean.VerifyInductive.TrInductDeclCore.sourceNames_nodup R.core))
     R.core.typesAdded D.uvars hparams D.safety ?_ Hctors Hpositive Harity
-  apply Lean4Lean.List.forall₂_of_getElem (by
+  apply List.forall₂_of_getElem (by
     simp [hfamSize, H.cardinality.records])
   intro i hi hi'
   have howner : i < H.recInfos.size := by rw [H.cardinality.records]; exact hi'

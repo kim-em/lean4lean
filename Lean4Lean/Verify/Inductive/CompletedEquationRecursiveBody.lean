@@ -1019,7 +1019,7 @@ theorem
   have HcanonicalMotives := A.rule.abstractedMotivesTranslation
     (env := H.outVEnv) (Us := Us) equationDomains [] hequationLength
   have HmotiveBase :=
-    Lean4Lean.VerifyInductive.List.Forall₂.getElem HcanonicalMotives
+    List.forall₂_getElem HcanonicalMotives
       selectedOwner (by simpa using hselectedMotiveBound)
         (by simpa using hselectedMotiveBound)
   have HmotiveBase' : TrExprS H.outVEnv Us
@@ -1123,7 +1123,7 @@ theorem
     rw [hsourceMotiveHead', ← htargetMotiveHead]
     simpa [hlocal, abstractForallContext, List.reverse_append,
       List.append_assoc] using HmotiveWeak
-  have HmotiveArgs := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  have HmotiveArgs := List.Forall₂.append'
     Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
   have HmotiveApplication₀ := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered Hctx HmotiveHead HmotiveArgs HrightWF
@@ -1225,7 +1225,7 @@ theorem
         VLCtx.toCtx_map_anonymousLams equationDomains.reverse
     rw [hequationCtx]
     exact Hclosed
-  have Hargs := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  have Hargs := List.Forall₂.append'
     Hindices (List.Forall₂.cons Hmajor List.Forall₂.nil)
   have Hcall := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered Hctx Hprefix Hargs HleftWF

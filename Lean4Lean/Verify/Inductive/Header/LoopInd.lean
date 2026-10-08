@@ -532,7 +532,7 @@ def MaterializedHeaderResult.parameterSuffix
   narrowParams := by
     have hsize : stats.params.size = decl.nparams := by
       have hlength :=
-        Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.narrowParams
+        List.Forall₂.length_eq H.narrowParams
       simpa [VInductDecl.paramVars] using hlength
     rw [hsize,
       checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl]

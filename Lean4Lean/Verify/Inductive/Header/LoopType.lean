@@ -782,7 +782,7 @@ theorem FVarNarrowScope.scopeWF
 theorem FVarNarrowScope.fvars_length
     (H : FVarNarrowScope env Us scope runtime) :
     scope.fvars.length = scope.length :=
-  Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.declarations
+  List.Forall₂.length_eq H.declarations
 
 theorem VLCtx.fvars_length_of_noBV {scope : VLCtx} (H : scope.NoBV) :
     scope.fvars.length = scope.length := by
@@ -2346,7 +2346,7 @@ theorem SynthesizedHeaderPrefix.normalizedSourceAt
     (hmetadata : i < metadata.length) :
     Nonempty (NormalizedHeaderSourceTelescope env Us params
       skeleton.nparams metadata[i].1) := by
-  have Hchecked := Lean4Lean.VerifyInductive.List.Forall₂.getElem H.checked i
+  have Hchecked := List.forall₂_getElem H.checked i
     (by simpa using hi) hmetadata
   exact Hchecked.header.normalizedSource
 
@@ -2406,7 +2406,7 @@ theorem SynthesizedHeaderPrefix.normalizedShapeAtMaterialized
   have hmetadata : i < metadata.length := by
     rw [VInductDeclSkeleton.materialize_length Hmaterialize]
     exact hskeleton
-  have Hchecked := Lean4Lean.VerifyInductive.List.Forall₂.getElem H.checked i
+  have Hchecked := List.forall₂_getElem H.checked i
     (by simpa using hskeleton) hmetadata
   rcases VInductDeclSkeleton.materialize_typeAt Hmaterialize hskeleton with
     ⟨data, hdata, htarget⟩
@@ -2433,14 +2433,14 @@ def SynthesizedHeaderPrefix.complete
   have hfields := VInductDeclSkeleton.materialize_fields Hmaterialize
   have hcheckedLength :
       (skeleton.types.take skeleton.types.length).length = metadata.length :=
-    Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.checked
+    List.Forall₂.length_eq H.checked
   have hmetadata : metadata.length = skeleton.types.length := by
     simpa using hcheckedLength.symm
   have checkedAt : ∀ i (hi : i < skeleton.types.length),
       SynthesizedHeaderMetadata env Us skeleton.uvars skeleton.nparams
         params commonLevel skeleton.types[i] metadata[i] := by
     intro i hi
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.getElem H.checked i
+    simpa using List.forall₂_getElem H.checked i
       (by simpa using hi) (by simpa [hmetadata] using hi)
   have materializedAt : ∀ i (hi : i < skeleton.types.length),
       decl.types[i]'(by omega) =
@@ -2616,7 +2616,7 @@ def ParameterContextSuffix.push
       simp [entry, VLCtx.find?, VLCtx.next, VLocalDecl.value,
         VLocalDecl.type]
     simpa [Array.toList_push, cachedParamVars_succ] using
-      Lean4Lean.VerifyInductive.List.Forall₂.append' hold
+      List.Forall₂.append' hold
         (.cons hnew .nil)
   · have hscope : Hc.mlctx.vlctx = H.parameterDecls := by
       simpa [hprefix] using H.context
@@ -2654,7 +2654,7 @@ def ParameterContextSuffix.withIndex
 theorem ParameterContextSuffix.parameterDecls_length
     (H : ParameterContextSuffix Hc stats depth) :
     H.parameterDecls.length = stats.params.size := by
-  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+  have hlength := List.Forall₂.length_eq
     H.cached
   simpa using hlength.symm
 
@@ -2674,7 +2674,7 @@ theorem ParameterContextSuffix.parameterAt
     simpa using hj'
   have hright : j < H.parameterDecls.length := by
     exact hj
-  have hcached := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have hcached := List.forall₂_getElem
     H.cached j hleft hright
   simp only [List.getElem_reverse, Array.getElem_toList] at hcached
   change CachedParameterDecl stats.params[stats.params.size - 1 - j]
@@ -3211,7 +3211,7 @@ theorem ParameterCachePrefix.push
       simp only [VLCtx.find?, VLCtx.next, beq_self_eq_true, if_true,
         VLocalDecl.value, VLocalDecl.type])
   refine ⟨?_, ?_⟩
-  · simpa using Lean4Lean.VerifyInductive.List.Forall₂.append'
+  · simpa using List.Forall₂.append'
       hold (.cons hfresh .nil)
   · intro param hparam
     simp only [Array.mem_push] at hparam

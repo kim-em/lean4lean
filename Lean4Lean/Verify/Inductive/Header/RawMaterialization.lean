@@ -30,7 +30,7 @@ def snoc (H : MaterializedSourceHeaderAccumulator env Us sources)
     (Htarget : TrSourceConst env Us source.name source.type target) :
     MaterializedSourceHeaderAccumulator env Us (sources ++ [source]) where
   targets := H.targets ++ [target]
-  translations := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  translations := List.Forall₂.append'
     H.translations (.cons Htarget .nil)
 
 def raw (H : MaterializedSourceHeaderAccumulator env Us sources) :

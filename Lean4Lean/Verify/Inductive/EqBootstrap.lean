@@ -9,14 +9,6 @@ open Kernel
 
 namespace VerifyInductive
 
-private theorem forall₂_leftSingleton
-    (H : List.Forall₂ R [a] bs) :
-    ∃ b, bs = [b] ∧ R a b := by
-  cases H with
-  | cons hab Htail =>
-    cases Htail
-    exact ⟨_, rfl, hab⟩
-
 private theorem vconstant_eq_of_fields {a b : VConstant}
     (huvars : a.uvars = b.uvars) (htype : a.type = b.type) : a = b := by
   cases a
@@ -93,7 +85,7 @@ theorem TrInductDeclHeaders.eqBootstrapConstant
       hlparams, _hnparams, _hunsafe, htypes⟩
   subst lparams
   subst types
-  rcases forall₂_leftSingleton H.types with ⟨target, hdecl, Htarget⟩
+  rcases List.Forall₂.leftSingleton H.types with ⟨target, hdecl, Htarget⟩
   refine ⟨target, hdecl, Htarget.header.name, ?_⟩
   apply vconstant_eq_of_fields
   · simpa [eqConst] using Htarget.header.uvars
@@ -145,8 +137,8 @@ theorem TrInductDeclCore.eqBootstrapDecl
   rcases Hshape with
     ⟨u, alphaName, lhsName, rhsName, reflAlphaName, reflValueName,
       rfl, rfl, rfl, rfl⟩
-  rcases forall₂_leftSingleton H.types with ⟨family, hdecl, Hfamily⟩
-  rcases forall₂_leftSingleton Hfamily.ctors with ⟨refl, hctors, Hrefl⟩
+  rcases List.Forall₂.leftSingleton H.types with ⟨family, hdecl, Hfamily⟩
+  rcases List.Forall₂.leftSingleton Hfamily.ctors with ⟨refl, hctors, Hrefl⟩
   refine ⟨family, refl, hdecl, Hfamily.header.name, ?_, hctors, Hrefl.name, ?_,
     H.nparams⟩
   · apply vconstant_eq_of_fields

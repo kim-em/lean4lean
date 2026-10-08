@@ -214,7 +214,7 @@ theorem resultSemantics {alpha : Type} {Q : alpha → Prop}
             harity henvIndices hconsume Hrecent with ⟨Hframe⟩
         have hindicesSize : indices.size = nindices := by
           have hlength :=
-            Lean4Lean.VerifyInductive.List.Forall₂.length_eq' HnarrowIndices
+            List.Forall₂.length_eq HnarrowIndices
           simpa [hindexCount] using hlength
         rcases Hheader.completedRecursorMotiveTypeDefEq Helim Rindices
             Hsynthesis HnarrowStats Hruntime HnarrowIndices hcanonical

@@ -443,7 +443,7 @@ theorem DeclaredConstructorsCore.installedConstructorSemanticCoherenceAt
   have hfinalWF : D.venvCtors.WF :=
     (D.installed.checking H.context.checking.tr).wf
   have hparamsSize : stats.params.size = decl.nparams := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    have hlength := List.Forall₂.length_eq
       H.materialized.params
     simpa [VInductDecl.paramVars] using hlength
   let C : InductiveConstructorCoherenceAt outEnv familyInfo.name familyInfo
@@ -530,7 +530,7 @@ theorem DeclaredConstructorsCore.productionInductiveOrigins
               core).symm
           _ = indTypes.size := by simp
       have hparamsSize : stats.params.size = decl.nparams := by
-        have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+        have hlength := List.Forall₂.length_eq
           H.materialized.params
         simpa [VInductDecl.paramVars] using hlength
       have hinfosSize : infos.size = indTypes.size := by

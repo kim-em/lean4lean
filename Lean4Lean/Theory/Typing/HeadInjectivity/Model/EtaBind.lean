@@ -114,7 +114,7 @@ theorem projctor_spine_inv {σ : VExpr.Subst} {S : ObSets} (hrig : env.Rigid c)
     obtain ⟨rfl, e2⟩ := wrap_inj e trivial trivial
     cases e2
     have hil : info.nparams + i < keys.length := (List.getElem?_eq_some_iff.1 hkj).1
-    obtain ⟨hil', _, hcov⟩ := forall₂_getElem hk _ hil
+    obtain ⟨hil', _, hcov⟩ := List.forall₂_getElem_exists hk _ hil
     have hkj' : keys[info.nparams + i] = kj := (List.getElem?_eq_some_iff.1 hkj).2
     rw [hkj'] at hcov
     obtain ⟨k', hk', l⟩ := hcov k hk₀

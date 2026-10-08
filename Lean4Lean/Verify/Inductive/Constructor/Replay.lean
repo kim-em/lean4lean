@@ -171,11 +171,11 @@ theorem refinesBlockWithReplay
   by_cases hidx : targetIdx < indTypes.size
   · have htarget : targetIdx < decl.types.length := by
       have hlength : indTypes.size = decl.types.length := by
-        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+        simpa using List.Forall₂.length_eq Htypes
       omega
     have Htarget : TrInductiveTypeHeaders sourceEnv envTypes c.lparams
         indTypes[targetIdx] decl.types[targetIdx] := by
-      have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+      have Htarget' := List.forall₂_getElem Htypes
         targetIdx (by simpa using hidx) htarget
       rw [Array.getElem_toList] at Htarget'
       exact Htarget'
@@ -199,13 +199,13 @@ theorem refinesBlockWithReplay
         Hshape Hfinish
   · have heq : targetIdx = indTypes.size := by
       have hlength : indTypes.size = decl.types.length := by
-        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+        simpa using List.Forall₂.length_eq Htypes
       have := Hprefix.covered
       omega
     apply result.WF (Q := Q) hidx
     apply Hfinish
     · have hlength : indTypes.size = decl.types.length := by
-        simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+        simpa using List.Forall₂.length_eq Htypes
       simpa [heq, hlength] using Hprefix
     · simpa [heq] using Hreplays
     · simpa [heq] using Htails
@@ -272,7 +272,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
     subst params
     simpa [Hmaterialized.uvars] using Hmaterialized.paramsContext
   have hindTypesSize : indTypes.size = decl.types.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Htypes
+    simpa using List.Forall₂.length_eq Htypes
   apply checkConstructors.loopTypes.refinesBlockWithReplay
     (Q := fun _ => CheckedConstructorsResult sourceEnv decl Hc.venv
       params stats indTypes c.lparams Hmaterialized.parameterScope)
@@ -284,7 +284,7 @@ theorem checkConstructors.loopTypes.refinesMaterialized
       Hctor checkedType fullType checkedType' hchecked
     have Htarget : TrInductiveTypeHeaders sourceEnv Hc.venv c.lparams
         indTypes[targetIdx] decl.types[targetIdx] := by
-      have Htarget' := Lean4Lean.VerifyInductive.List.Forall₂.getElem Htypes
+      have Htarget' := List.forall₂_getElem Htypes
         targetIdx (by simpa using hsource) htarget
       rw [Array.getElem_toList] at Htarget'
       exact Htarget'
@@ -1114,7 +1114,7 @@ def RecursorParameterContextSuffix.withAmbientChecked
 theorem RecursorParameterContextSuffix.parameterDecls_length
     (H : RecursorParameterContextSuffix R stats depth) :
     H.parameterDecls.length = stats.params.size := by
-  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' H.cached
+  have hlength := List.Forall₂.length_eq H.cached
   simpa using hlength.symm
 
 theorem RecursorParameterContextSuffix.depth_le
@@ -1152,7 +1152,7 @@ theorem RecursorParameterContextSuffix.parameterAt
   have hleft : j < stats.params.toList.reverse.length := by
     simpa using hj'
   have hright : j < H.parameterDecls.length := hj
-  have hcached := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have hcached := List.forall₂_getElem
     H.cached j hleft hright
   simp only [List.getElem_reverse, Array.getElem_toList] at hcached
   change checkInductiveTypes.loopType.CachedParameterDecl
@@ -1883,7 +1883,7 @@ def RecursorParameterContextSuffix.narrowStats
   params := by
     have hsize : stats.params.size = decl.nparams := by
       have hlength :=
-        Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hstats.params
+        List.Forall₂.length_eq Hstats.params
       simpa [VInductDecl.paramVars] using hlength
     rw [← checkInductiveTypes.loopType.cachedParamVars_eq_paramVars decl,
       ← hsize]
@@ -1920,7 +1920,7 @@ theorem RecursorValidAppStatsWF.withFVar
 theorem RecursorValidAppStatsWF.params_size
     (H : RecursorValidAppStatsWF env recLparams scope stats decl depth) :
     stats.params.size = decl.nparams := by
-  have hlength := checkPositivityStep.forall₂_length_eq H.params
+  have hlength := List.Forall₂.length_eq H.params
   simpa [VInductDecl.paramVars] using hlength
 
 theorem RecursorValidAppStatsWF.types_size
@@ -1971,7 +1971,7 @@ theorem RecursorValidAppStatsWF.paramAt
     simp [hi]
   have htarget : ∃ param', (decl.paramVars depth)[i]? = some param' := by
     have hi' : i < (decl.paramVars depth).length := by
-      have hlength := checkPositivityStep.forall₂_length_eq H.params
+      have hlength := List.Forall₂.length_eq H.params
       simpa using hlength ▸ hi
     exact ⟨(decl.paramVars depth)[i], List.getElem?_eq_getElem hi'⟩
   rcases htarget with ⟨param', htarget⟩
@@ -1999,7 +1999,7 @@ theorem RecursorValidAppStatsWF.translatedParam
   have hsource : type.getAppArgsList[j]? = some type.getAppArgs[j] := by
     rw [← Expr.getAppArgs_toList]
     simp [hjArgs]
-  have hlength := checkPositivityStep.forall₂_length_eq hargs
+  have hlength := List.Forall₂.length_eq hargs
   have hjArgs' : j < args'.length := by
     rw [← hlength, ← Expr.getAppArgs_toList]
     simp [hjArgs]
@@ -2055,7 +2055,7 @@ theorem RecursorValidAppStatsWF.translatedIndexNoOccurrence
       (decl.types.map (·.name)) scope)
     (hlower : stats.params.size ≤ j) (hupper : j < args'.length) :
     args'[j].SourceConstFree (decl.types.map (·.name)) := by
-  have hlength := checkPositivityStep.forall₂_length_eq hargs
+  have hlength := List.Forall₂.length_eq hargs
   have hjArgs : j < type.getAppArgs.size := by
     have hsize : type.getAppArgs.size = type.getAppArgsList.length := by
       rw [← Expr.getAppArgs_toList]
@@ -2098,7 +2098,7 @@ theorem RecursorValidAppStatsWF.validIndAppAtTarget
     exact hlength.symm.trans H.levels
   have hargsLen : args'.length =
       decl.nparams + decl.types[typeIdx].numIndices := by
-    have htranslated := checkPositivityStep.forall₂_length_eq hargs
+    have htranslated := List.Forall₂.length_eq hargs
     have hsource : type.getAppArgsList.length = type.getAppArgs.size := by
       rw [← Expr.getAppArgs_toList]
       simp
@@ -2175,7 +2175,7 @@ theorem RecursorValidAppStatsWF.translatedIndices
     have hnindices : stats.nindices[typeIdx]! =
         (decl.types[typeIdx]'hi).numIndices := by
       simp [Array.getElem!_eq_getD, H.nindicesAt hi]
-    have hargsLength := checkPositivityStep.forall₂_length_eq hargs
+    have hargsLength := List.Forall₂.length_eq hargs
     have hsourceLength : type.getAppArgsList.length =
         type.getAppArgs.size := by
       rw [← Expr.getAppArgs_toList]
@@ -2188,7 +2188,7 @@ theorem RecursorValidAppStatsWF.translatedIndices
     omega
   have hindicesTr : List.Forall₂ (TrExprS env recLparams scope)
       (type.getAppArgs[stats.params.size:]).toList indices' := by
-    have hdrop := checkPositivityStep.List.Forall₂.drop
+    have hdrop := List.forall₂_drop
       hargs stats.params.size
     have hparamsSize := H.params_size
     rw [hparamsSize] at hdrop ⊢
@@ -2676,7 +2676,7 @@ theorem RecursorFieldSelectionsAt.arguments_at_positions
       rw [heq]
       exact (Array.getElem_push_lt hpos).symm
     rw [Array.toList_push]
-    apply checkPositivityStep.forall₂_append lift
+    apply List.Forall₂.append' lift
     apply List.Forall₂.cons
     · refine ⟨by simp [hindex], ?_⟩
       simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm

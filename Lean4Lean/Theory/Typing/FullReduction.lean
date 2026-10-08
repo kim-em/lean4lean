@@ -263,7 +263,7 @@ theorem NormalEq.fullStep_structEta (hΓ : OnCtx Γ (env.IsType univs))
       (List.mem_map.mpr ⟨i, himem, rfl⟩))
     simpa only [List.getElem_map, List.getElem_range] using
       (NormalEq.projDF h (H.symm hΓ))
-  have hctorEq := NormalEq.mkApps_spine hΓ (.refl hhead) (case_forall₂_append hparams hfields) ht
+  have hctorEq := NormalEq.mkApps_spine hΓ (.refl hhead) (List.Forall₂.append' hparams hfields) ht
   have htleft := ((hctorEq.defeq hΓ).of_l henv hΓ ht).hasType.2
   exact ⟨_, .tail .rfl (.structEta hl hp hi hsleft htleft), hctorEq.symm hΓ⟩
 
@@ -516,15 +516,10 @@ inductive HeadEquiv : VExpr → VExpr → Prop where
   | elim : List.Forall₂ (· ≈ ·) ls' ls → HeadEquiv (.elim block owner ls') (.elim block owner ls)
 
 omit [Params] in
-private theorem levels_equiv_rfl : ∀ (ls : List VLevel), List.Forall₂ (· ≈ ·) ls ls
-  | [] => .nil
-  | _ :: ls => .cons rfl (levels_equiv_rfl ls)
-
-omit [Params] in
 theorem RigidHead.equiv_rfl (h : RigidHead e) : HeadEquiv e e := by
   cases h with
-  | const => exact .const (levels_equiv_rfl _)
-  | elim => exact .elim (levels_equiv_rfl _)
+  | const => exact .const (VLevel.forall₂_equiv_refl _)
+  | elim => exact .elim (VLevel.forall₂_equiv_refl _)
 
 omit [Params] in
 theorem RigidHead.mkApps_eq_app (hh : RigidHead h)
@@ -612,7 +607,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
   cases H with
   | refl _ =>
     subst hR
-    refine .inr (.inl ⟨h, targs ++ bs, hh.equiv_rfl, ?_, case_forall₂_append hrefl hbs⟩)
+    refine .inr (.inl ⟨h, targs ++ bs, hh.equiv_rfl, ?_, List.Forall₂.append' hrefl hbs⟩)
     rw [VExpr.mkApps_append]; exact .rfl
   | proofIrrel l1 l2 _ => exact .inl (HasType.mkApps_proof hΓ l1 l2 ht)
   | constDF _ _ _ _ l5 =>
@@ -658,7 +653,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
         NormalEqF.forall₂_refl (η := true) fun a ha => hbs' a (List.mem_cons_of_mem _ ha)
       have hfix : List.Forall₂ (NormalEq Γ) ((targs ++ [b]) ++ bs₀') (targs ++ b' :: bs₀') := by
         rw [List.append_assoc, List.singleton_append]
-        exact case_forall₂_append hrefl (.cons hb hbs₁)
+        exact List.Forall₂.append' hrefl (.cons hb hbs₁)
       rcases ih _ (by omega) hb' hbs₀ ht' with hp | ⟨h', targs', he, hr, hn⟩ |
           ⟨A, g, m, targs₁, B, hm, hr, hg, hn, hty⟩
       · exact .inl hp
@@ -682,7 +677,7 @@ theorem NormalEqN.spine_expose (hΓ : OnCtx Γ (env.IsType univs)) (hh : RigidHe
         NormalEqF.forall₂_refl (η := true) fun a ha => hbs' a (List.mem_cons_of_mem _ ha)
       have hfix : List.Forall₂ (NormalEq Γ) ((targs ++ [b]) ++ bs₀') (targs ++ b' :: bs₀') := by
         rw [List.append_assoc, List.singleton_append]
-        exact case_forall₂_append hrefl (.cons hb hbs₁)
+        exact List.Forall₂.append' hrefl (.cons hb hbs₁)
       rcases ih _ (by omega) hb' hbs₀ ht with hp | ⟨h', targs', he, hr, hn⟩ |
           ⟨A, g, m, targs₁, B, hm, hr, hg, hn, hty⟩
       · exact .inl hp
@@ -1123,15 +1118,6 @@ theorem lift'_mkApps (fn : VExpr) (args : List VExpr) (ρ : Lift) :
   | nil => rfl
   | cons a args ih => exact ih (.app fn a)
 
-omit [Params] in
-private theorem forall₂_snoc_inv {R : α → β → Prop} :
-    ∀ {l : List α} {l₀ : List β} {b : β}, List.Forall₂ R l (l₀ ++ [b]) →
-    ∃ l₀' a, l = l₀' ++ [a] ∧ List.Forall₂ R l₀' l₀ ∧ R a b
-  | _, [], _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _, _ :: _, _, .cons h t =>
-    let ⟨l₀', a, e, t', h'⟩ := forall₂_snoc_inv t
-    ⟨_ :: l₀', a, by rw [e]; rfl, .cons h t', h'⟩
-
 /-- Transport a constant-spine match along a pointwise relation of arguments,
 at arbitrary head levels. -/
 theorem _root_.Lean4Lean.Pattern.Matches.constVarN_transport {R : VExpr → VExpr → Prop} :
@@ -1151,7 +1137,7 @@ theorem _root_.Lean4Lean.Pattern.Matches.constVarN_transport {R : VExpr → VExp
     cases H with
     | var H' =>
       obtain ⟨vs₀, rfl, rfl⟩ := RigidHead.const.mkApps_eq_app hE
-      obtain ⟨vs₀', v', rfl, hR₀, hv⟩ := forall₂_snoc_inv hR
+      obtain ⟨vs₀', v', rfl, hR₀, hv⟩ := List.forall₂_snoc_right hR
       obtain ⟨m3, hm, hm3⟩ := constVarN_transport k H' hR₀ (ls' := ls')
       refine ⟨fun x => Option.elim x v' m3, ?_, ?_⟩
       · rw [mkApps_concat]; exact .var hm
@@ -1386,7 +1372,7 @@ theorem SpineTransport.redex {hd : List VLevel → VExpr} (hhd : ∀ ls, RigidHe
   have hEt' := hEt
   simp only [VExpr.lift', lift'_mkApps, hlift] at hEt' H
   obtain ⟨_, _, hFt, hMt⟩ := hEt'.app_inv henv hΓ
-  exact main n hΓ W (levels_equiv_rfl ls₀)
+  exact main n hΓ W (VLevel.forall₂_equiv_refl ls₀)
     (NormalEqF.forall₂_refl (η := true) fun a ha => schema_mkApps_arg_type hΓ hFt ha) (.refl hMt) hEt H
 
 
@@ -1745,7 +1731,7 @@ theorem NormalEqN.fullStep_rigidRule {name : Name}
   · simp only [List.append_nil] at hrel
     have ⟨⟨_, hA⟩, _⟩ := let ⟨_, h⟩ := hty.isType henv hΓ; h.forallE_inv henv
     have hΓ' : OnCtx (A :: Γ) (env.IsType univs) := ⟨hΓ, _, hA⟩
-    obtain ⟨rhs₁, hr₁, hn₁⟩ := congr hΓ hr (levels_equiv_rfl ls)
+    obtain ⟨rhs₁, hr₁, hn₁⟩ := congr hΓ hr (VLevel.forall₂_equiv_refl ls)
       (let ⟨_, h⟩ := schema_mkApps_head_type hΓ hd.hasType.2
        let ⟨_, _, hw, _⟩ := h.const_inv henv hΓ; hw)
       (Lean4Lean.List.Forall₂.imp (fun _ _ (h : NormalEq Γ _ _) => h.symm hΓ)

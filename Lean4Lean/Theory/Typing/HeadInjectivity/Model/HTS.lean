@@ -306,14 +306,6 @@ section
 variable (henv : env.Ordered) (hΔ : OnCtx Δ (env.IsType U))
 include henv hΔ
 
-omit henv hΔ in
-theorem forall₂_split {R : α → β → Prop} :
-    ∀ {l₁ : List α} {as : List β} {a : β}, List.Forall₂ R l₁ (as ++ [a]) →
-      ∃ l x, l₁ = l ++ [x] ∧ List.Forall₂ R l as ∧ R x a
-  | _, [], _, .cons h .nil => ⟨[], _, rfl, .nil, h⟩
-  | _, _ :: _, _, .cons h H =>
-    let ⟨l, x, e, h1, h2⟩ := forall₂_split H; ⟨_ :: l, x, by rw [e]; rfl, .cons h h1, h2⟩
-
 /-- The data of the spine lemma for a key with its domain type. -/
 def KeyData (env : VEnv) (U : Nat) (Δ Γ : List VExpr) (σ : VExpr.Subst) (S : ObSets)
     (ka : Key × VExpr) (a : VExpr) : Prop :=
@@ -406,7 +398,7 @@ theorem HTS.spineH (H : HTS env U Δ Γ e T) {hd args} (he : e = .mkApps hd args
     rcases mkApps_inv he with ⟨rfl, he'⟩ | ⟨as, a', rfl, he'⟩
     · rcases hhd with ⟨_, _, rfl⟩ | ⟨_, _, _, rfl⟩ <;> cases he'
     injection he' with hf ha; subst ha
-    obtain ⟨Ks₀, Ka, rfl, hKs₀, hKa⟩ := forall₂_split hKs
+    obtain ⟨Ks₀, Ka, rfl, hKs₀, hKa⟩ := List.forall₂_snoc_right hKs
     -- observation keys for the argument, large enough for the type observations
     have hτ' : ∀ τ ∈ τs, Obs' (σ.cons (a.subst σ)) (S.cons (Obs' σ S a)) B τ :=
       fun τ hτ => Obs.inst_iff.1 (hτs τ hτ)

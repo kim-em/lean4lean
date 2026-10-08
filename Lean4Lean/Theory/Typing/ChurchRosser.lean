@@ -889,7 +889,7 @@ theorem ParRed.elim_prefix
       obtain ⟨args', rfl, hargs⟩ := ih (by simp only [List.length_append, List.length_singleton] at hlen; omega) hf
       refine ⟨args' ++ [arg'], ?_, ?_⟩
       · simp [VExpr.mkApps, List.foldl_append]
-      · exact case_forall₂_append hargs (.cons ha .nil)
+      · exact List.Forall₂.append' hargs (.cons ha .nil)
     | beta =>
       have hfn := VExpr.app.inj hshape |>.1
       exact False.elim (VExpr.mkApps_ne_lam (by intros; intro h; cases h) _ hfn.symm)
@@ -923,7 +923,7 @@ theorem ParRed.rigid_const_spine (hrigid : env.NativeHeadRigid name)
     | @app _ _ _ _ arg' hf ha =>
       cases hshape
       obtain ⟨args', rfl, hargs⟩ := ih hf
-      refine ⟨args' ++ [arg'], ?_, case_forall₂_append hargs (.cons ha .nil)⟩
+      refine ⟨args' ++ [arg'], ?_, List.Forall₂.append' hargs (.cons ha .nil)⟩
       simp [VExpr.mkApps, List.foldl_append]
     | beta =>
       have hfn := VExpr.app.inj hshape |>.1

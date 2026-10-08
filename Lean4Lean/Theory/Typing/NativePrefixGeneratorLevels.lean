@@ -47,21 +47,6 @@ private theorem levels_getD {R : α → β → Prop} (H : List.Forall₂ R a b)
     | zero => exact h
     | succ i => exact ih i
 
-private theorem levels_take {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih =>
-    cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
-
-private theorem levels_append {R : α → β → Prop} (H : List.Forall₂ R a b)
-    (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
-  induction H with
-  | nil => exact H'
-  | cons h hs ih => exact .cons h ih
-
 private theorem levels_vars (n k : Nat) : List.Forall₂ (EqUpToLevels U) (vars n k) (vars n k) := by
   unfold vars
   apply Lean4Lean.List.Forall₂.rfl
@@ -108,7 +93,7 @@ theorem generate_levels {levels levels' : List VLevel}
     (EqUpToLevels.instL_expr _ hl hl' he) hsupply
   obtain ⟨domains', result', htake', hdoms, hresult⟩ := takeForalls_levels hres htake
   let remaining := 6 - args.length
-  have hall := levels_append (levels_lift ha remaining) (levels_vars (U := U) remaining 0)
+  have hall := List.Forall₂.append' (levels_lift ha remaining) (levels_vars (U := U) remaining 0)
   have hdefault : EqUpToLevels U (default : VExpr) default := .sort trivial trivial rfl
   have halpha := levels_getD hall hdefault 0
   have hrelation := levels_getD hall hdefault 1
@@ -127,7 +112,7 @@ theorem generate_levels {levels levels' : List VLevel}
   have hconstructor := EqUpToLevels.mkApps_args
     (EqUpToLevels.const (c := ``Quot.mk) (by simpa using hlevelWF) (by simpa using hlevelWF') (.cons hlevel .nil))
     (.cons halpha (.cons hrelation (.cons hproof .nil)))
-  have hcaptures := levels_append (levels_take hall 5) (.cons hproof .nil)
+  have hcaptures := List.Forall₂.append' (List.forall₂_take hall 5) (.cons hproof .nil)
   simp only [bind, hsupply', htake', hbody, Option.bind_some]
   exact ⟨_, rfl, ⟨hdoms, hresult, hconstructor, rfl, rfl, hcaptures, he, hl'⟩⟩
 
@@ -164,10 +149,10 @@ theorem singletonProgram_levels {data : NativeRecursorData} {levels levels' : Li
     (EqUpToLevels.instL_expr _ hl hl' he) hsupply
   obtain ⟨domains', result', htake', hdoms, hresult⟩ := takeForalls_levels hres htake
   let remaining := data.majorOffset + 1 - args.length
-  have hall := levels_append (levels_lift ha remaining) (levels_vars (U := U) remaining 0)
+  have hall := List.Forall₂.append' (levels_lift ha remaining) (levels_vars (U := U) remaining 0)
   obtain ⟨constructor', fields', hrecon', heconstructor, hefields⟩ :=
     singletonRecon_levels hl hl' he hall hrecon
-  have hecaptures := levels_append (levels_take hall data.indexOffset) hefields
+  have hecaptures := List.Forall₂.append' (List.forall₂_take hall data.indexOffset) hefields
   dsimp only [remaining] at hrecon'
   simp only [bind, htype, hsupply', htake', hrecon', hequation, hbody, Option.bind_some]
   have hcaplen := Lean4Lean.List.Forall₂.length_eq hecaptures

@@ -168,7 +168,7 @@ omit henv hΔ in
 theorem forall₂_split' {R : α → β → Prop} :
     ∀ {l₁ : List α} {as : List β} {a : β}, List.Forall₂ R l₁ (as ++ [a]) →
       ∃ l x, l₁ = l ++ [x] ∧ List.Forall₂ R l as ∧ R x a :=
-  forall₂_split
+  List.forall₂_snoc_right
 
 /-- The domain class of a bare-variable argument is the class of the variable's type. -/
 theorem bvar_dom_cls (W : Ctx.SubstEq env U Δ v v Γ) (H : HTS env U Δ Γ (.bvar x) A')
@@ -245,8 +245,8 @@ theorem bind_lead {doms lead : List VExpr} {ls : List VLevel} {v : VExpr.Subst} 
   have ha : (lead.map (·.instL ls))[i]'(by simpa using hil) = .bvar x := by
     simp only [List.getElem_map]
     rw [(List.getElem?_eq_some_iff.1 hi).2]; rfl
-  obtain ⟨_, hkd⟩ := forall₂_getElem hinfoL i hi'
-  obtain ⟨_, hks⟩ := forall₂_getElem hKsi i (by simpa using hil)
+  obtain ⟨_, hkd⟩ := List.forall₂_getElem_exists hinfoL i hi'
+  obtain ⟨_, hks⟩ := List.forall₂_getElem_exists hKsi i (by simpa using hil)
   rw [ha] at hkd
   simp only [List.getElem_map, ha, argDemand, hx, ite_true] at hks
   obtain ⟨h1, h2, h3, h4, -⟩ := hkd
@@ -279,8 +279,8 @@ theorem bind_field {doms margs : List VExpr} {ls : List VLevel} {v : VExpr.Subst
   have hlen := List.Forall₂.length_eq hcinfo
   have hq' : q < cinfo.length := by omega
   have ha : margs[q] = .bvar x := (List.getElem?_eq_some_iff.1 hq).2
-  obtain ⟨_, hkd⟩ := forall₂_getElem hcinfo q hq'
-  obtain ⟨_, hks⟩ := forall₂_getElem hcKs q (by simpa using hql)
+  obtain ⟨_, hkd⟩ := List.forall₂_getElem_exists hcinfo q hq'
+  obtain ⟨_, hks⟩ := List.forall₂_getElem_exists hcKs q (by simpa using hql)
   rw [ha] at hkd
   simp only [List.getElem_map, ha, argDemand, hx, ite_true] at hks
   obtain ⟨h1, -, h3, h4, -⟩ := hkd
@@ -352,7 +352,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
   obtain ⟨ci₀, info, hci₀, -, ⟨uH, hHT, -⟩, hinfo, hKsi, P1, -, dP2⟩ :=
     hX.spine henv hΔ rfl Wv tvv _ hKs τc hτc
   cases hci.symm.trans hci₀
-  obtain ⟨infoL, kaM, rfl, hinfoL, hkaM⟩ := forall₂_split hinfo
+  obtain ⟨infoL, kaM, rfl, hinfoL, hkaM⟩ := List.forall₂_snoc_right hinfo
   obtain ⟨KsL, KsM, eKs, hKsiL, -⟩ := forall₂_split' hKsi
   obtain ⟨rfl, -⟩ := List.append_inj' eKs rfl
   obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 p hpty
@@ -465,7 +465,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         hX.spine henv hΔ rfl Wv tvv _ hKs2 τc hτc
       have hbk2 := KeyData.forall₂_backed hinfo2
       cases hci.symm.trans hci2
-      obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := forall₂_split hinfo2
+      obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := List.forall₂_snoc_right hinfo2
       obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
       obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
       cases e2
@@ -595,7 +595,7 @@ theorem pat_rhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
           hX.spine henv hΔ rfl Wv tvv _ hKs2 τc hτc
         have hbk2 := KeyData.forall₂_backed hinfo2
         cases hci.symm.trans hci2
-        obtain ⟨infoL2, kaM2, rfl, hinfoL2, hkaM2⟩ := forall₂_split hinfo2
+        obtain ⟨infoL2, kaM2, rfl, hinfoL2, hkaM2⟩ := List.forall₂_snoc_right hinfo2
         obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
         obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
         cases e2
@@ -730,7 +730,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     have := List.Forall₂.length_eq hkeys; simpa using this
   obtain ⟨ekeys, rfl⟩ := wrap_inj_len (by simp [hklen, hlen'', hleadlen]) e
   subst ekeys
-  obtain ⟨lkeys', mk, ekl, hkeysL, hkM⟩ := forall₂_split hkeys
+  obtain ⟨lkeys', mk, ekl, hkeysL, hkM⟩ := List.forall₂_snoc_right hkeys
   obtain ⟨rfl, emk⟩ := List.append_inj' ekl (by simp [hlen'', hleadlen])
   cases emk
   obtain ⟨hcmM, hKmcov⟩ := hkM
@@ -788,7 +788,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     rcases hend with h | ⟨i, hi, h⟩ | ⟨_, _, _, _, h⟩
     · cases h
     · injection h with e1 e2; subst e1; subst e2
-      obtain ⟨_, hci', -⟩ := forall₂_getElem hck _ hi
+      obtain ⟨_, hci', -⟩ := List.forall₂_getElem_exists hck _ hi
       have := hmargs j x hj
       rw [List.getElem?_eq_some_iff] at this
       obtain ⟨_, ha⟩ := this
@@ -804,7 +804,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     · cases h
     · cases h
     · injection h with e1 e2 e3; subst e1
-      obtain ⟨_, -, hcov⟩ := forall₂_getElem hck _ hi
+      obtain ⟨_, -, hcov⟩ := List.forall₂_getElem_exists hck _ hi
       have := hmargs j x hj
       rw [List.getElem?_eq_some_iff] at this
       obtain ⟨_, ha⟩ := this
@@ -829,7 +829,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         have hil : i < lkeys.length := by
           have := List.Forall₂.length_eq hkeysL
           have := (List.getElem?_eq_some_iff.1 hi).1; simp at *; omega
-        obtain ⟨_, -, hcov⟩ := forall₂_getElem hkeysL i hil
+        obtain ⟨_, -, hcov⟩ := List.forall₂_getElem_exists hkeysL i hil
         have hk : lkeys[i] = k := by
           have := List.getElem?_eq_some_iff.1 hki; exact this.2
         rw [hk] at hcov
@@ -887,7 +887,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     · have hil : i < lkeys.length := by
         have := List.Forall₂.length_eq hkeysL
         have := (List.getElem?_eq_some_iff.1 hi).1; simp at *; omega
-      obtain ⟨_, hcls, -⟩ := forall₂_getElem hkeysL i hil
+      obtain ⟨_, hcls, -⟩ := List.forall₂_getElem_exists hkeysL i hil
       have hk : lkeys[i] = k := (List.getElem?_eq_some_iff.1 hki).2
       have ha : (lead''.map (·.instL ls))[i]'(by
           have := List.Forall₂.length_eq hkeysL; omega) = .bvar x := by

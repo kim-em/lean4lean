@@ -16,36 +16,12 @@ local notation "Obs'" => Obs env U Δ
 
 /-! ## Lists -/
 
-theorem forall₂_getElem {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → ∀ i (h₁ : i < l₁.length),
-      ∃ h₂ : i < l₂.length, R l₁[i] l₂[i]
-  | _, _, .nil, _, h => nomatch h
-  | _, _, .cons h _, 0, _ => ⟨Nat.zero_lt_succ _, h⟩
-  | _, _, .cons _ H, i+1, h₁ =>
-    let ⟨h₂, h⟩ := forall₂_getElem H i (Nat.lt_of_succ_lt_succ h₁); ⟨Nat.succ_lt_succ h₂, h⟩
-
-theorem forall₂_of_getElem {R : α → β → Prop} :
-    ∀ {l₁ : List α} {l₂ : List β}, l₁.length = l₂.length →
-      (∀ i (h₁ : i < l₁.length) (h₂ : i < l₂.length), R l₁[i] l₂[i]) → List.Forall₂ R l₁ l₂
-  | [], [], _, _ => .nil
-  | [], _ :: _, h, _ => nomatch h
-  | _ :: _, [], h, _ => nomatch h
-  | _ :: _, _ :: _, h, H =>
-    .cons (H 0 (Nat.zero_lt_succ _) (Nat.zero_lt_succ _))
-      (forall₂_of_getElem (Nat.succ.inj h) fun i h₁ h₂ =>
-        H (i+1) (Nat.succ_lt_succ h₁) (Nat.succ_lt_succ h₂))
-
 theorem forall₂_zip {R : γ → α → Prop} {R' : γ → β → Prop} {P : α → β → Prop}
     (H : ∀ k a b, R k a → R' k b → P a b) :
     ∀ {ks : List γ} {l₁ : List α} {l₂ : List β},
       List.Forall₂ R ks l₁ → List.Forall₂ R' ks l₂ → List.Forall₂ P l₁ l₂
   | _, _, _, .nil, .nil => .nil
   | _, _, _, .cons h1 H1, .cons h2 H2 => .cons (H _ _ _ h1 h2) (forall₂_zip H H1 H2)
-
-theorem forall₂_imp {R R' : α → β → Prop} (H : ∀ a b, R a b → R' a b) :
-    ∀ {l₁ : List α} {l₂ : List β}, List.Forall₂ R l₁ l₂ → List.Forall₂ R' l₁ l₂
-  | _, _, .nil => .nil
-  | _, _, .cons h H' => .cons (H _ _ h) (forall₂_imp H H')
 
 /-! ## Syntax -/
 

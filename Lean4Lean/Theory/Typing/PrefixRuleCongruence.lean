@@ -83,7 +83,7 @@ theorem CongrRel.instantiateParams_args (I : CongrRel R)
   simp only [← hlen]
   split
   · rename_i hi
-    exact .inr (Lean4Lean.List.forall₂_getElem hs _ (by omega) (by omega))
+    exact .inr (List.forall₂_getElem hs _ (by omega) (by omega))
   · exact .inl (Eq.refl _)
 
 omit [Params] in
@@ -116,22 +116,6 @@ end Congr
 
 section Native
 variable {R : List VExpr → VExpr → VExpr → Prop}
-
-omit [Params] in
-private theorem rel_append {R : α → β → Prop} (H : List.Forall₂ R a b)
-    (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
-  induction H with
-  | nil => exact H'
-  | cons h hs ih => exact .cons h ih
-
-omit [Params] in
-private theorem rel_take {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
 
 private theorem rel_vars (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs)) (hn : n ≤ Γ.length) :
     List.Forall₂ (R Γ) (vars n 0) (vars n 0) := by
@@ -216,8 +200,8 @@ private theorem rel_eta_match {domains : List VExpr} (hpos : 0 < domains.length)
       (vars (domains.length - 1) 0).map (·.liftN 1) ++ [ctor'],
     by simp only [mkApps_append]; rfl, by simp only [mkApps_append]; rfl, hlevels, hlevels,
     Lean4Lean.List.Forall₂.rfl (fun _ _ => show _ ≈ _ from rfl), ?_⟩
-  apply rel_append
-  · apply rel_append
+  apply List.Forall₂.append'
+  · apply List.Forall₂.append'
     · apply List.forall₂_map_left_iff.mpr
       apply List.forall₂_map_right_iff.mpr
       apply List.forall₂_map_left_iff.mpr
@@ -308,8 +292,8 @@ theorem NativePrefixReplay.congr_rel (I : ArgRel R) {name : Name} {levels : List
           instantiateParams (p.equationBody.domains[j].instL p.levels) (p.captures.take j) :
             .sort u := by
         simpa only [instantiateParams_eq_instOuter] using hdom
-      have hn := I.defeq hctx (I.instantiateParams hctx (rel_take hcaptures j) hdom') hdom'
-      have ht := I.defeq hctx (Lean4Lean.List.forall₂_getElem hcaptures j hj₀ hj) hold
+      have hn := I.defeq hctx (I.instantiateParams hctx (List.forall₂_take hcaptures j) hdom') hdom'
+      have ht := I.defeq hctx (List.forall₂_getElem hcaptures j hj₀ hj) hold
       have hn' : IsDefEqU env univs _ _ _ := ⟨_, hn⟩
       simp only [instantiateParams_eq_instOuter] at hn'
       have hnew := ht.hasType.2.defeqU_r henv hctx hn'
@@ -391,7 +375,7 @@ theorem NativePrefixReplay.quot_rel_components (I : ArgRel R) {levels : List VLe
       (QuotPrefixProgram.prefixArguments args) (QuotPrefixProgram.prefixArguments args') := by
     unfold QuotPrefixProgram.prefixArguments
     rw [← halen]
-    apply rel_append
+    apply List.Forall₂.append'
     · apply List.forall₂_map_left_iff.mpr
       apply List.forall₂_map_right_iff.mpr
       exact Lean4Lean.List.Forall₂.imp (fun _ _ h => I.weakN W h) ha
@@ -407,7 +391,7 @@ theorem NativePrefixReplay.quot_rel_components (I : ArgRel R) {levels : List VLe
       rw [← Lean4Lean.List.Forall₂.length_eq hall]
       exact hil
     simpa only [List.getElem?_eq_getElem hil, List.getElem?_eq_getElem hir, Option.getD_some] using
-      Lean4Lean.List.forall₂_getElem hall i hil hir
+      List.forall₂_getElem hall i hil hir
   have hp : R (program.domains.reverse ++ Γ)
       (QuotPrefixProgram.prefixProof levels args) (QuotPrefixProgram.prefixProof levels args') := by
     have hm : QuotPrefixProgram.prefixProof levels args ∈ program.captures := by
@@ -423,7 +407,7 @@ theorem NativePrefixReplay.quot_rel_components (I : ArgRel R) {levels : List VLe
       (.cons (hnorm 0 (by decide)) (.cons (hnorm 1 (by decide)) (.cons (hnorm 5 (by decide)) .nil))) ht
   constructor
   · rw [hcaptures, hcaptures']
-    exact rel_append (rel_take hall 5) (.cons hp .nil)
+    exact List.Forall₂.append' (List.forall₂_take hall 5) (.cons hp .nil)
   · obtain ⟨proposition, _, _, hc⟩ := H.major_prop
     rw [hctor] at hc
     obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hctx

@@ -183,7 +183,7 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     rcases hTT with ⟨uH, hHT, -⟩ | ⟨-, uH, hHT, -⟩
     · exact ⟨[], .id, .empty, uH, hHT, .nil, TV.empty⟩
     · exact ⟨_, v, vS, uH, hHT, Wv, tvv⟩
-  obtain ⟨infoL, kaM, rfl, hinfoL, hkaM⟩ := forall₂_split hinfo
+  obtain ⟨infoL, kaM, rfl, hinfoL, hkaM⟩ := List.forall₂_snoc_right hinfo
   obtain ⟨KsL, KsM, eKs, hKsiL, -⟩ := forall₂_split' hKsi
   obtain ⟨rfl, -⟩ := List.append_inj' eKs rfl
   obtain ⟨τ₀, hτ₀, hty₀⟩ := P1 p hpty
@@ -272,7 +272,7 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
         hX.spineH henv hΔ rfl (.inr ⟨_, _, _, rfl⟩) Wv tvv _ hKs2 τc hτc
       have hbk2 := KeyData.forall₂_backed hinfo2
       obtain rfl := HeadTy.elim_eq hEu hTh2 hb htype
-      obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := forall₂_split hinfo2
+      obtain ⟨infoL2, kaM2, rfl, hinfoL2, -⟩ := List.forall₂_snoc_right hinfo2
       obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
       obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
       cases e2
@@ -402,7 +402,7 @@ theorem pat_rhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
           hX.spineH henv hΔ rfl (.inr ⟨_, _, _, rfl⟩) Wv tvv _ hKs2 τc hτc
         have hbk2 := KeyData.forall₂_backed hinfo2
         obtain rfl := HeadTy.elim_eq hEu hTh2 hb htype
-        obtain ⟨infoL2, kaM2, rfl, hinfoL2, hkaM2⟩ := forall₂_split hinfo2
+        obtain ⟨infoL2, kaM2, rfl, hinfoL2, hkaM2⟩ := List.forall₂_snoc_right hinfo2
         obtain ⟨KsL2, KsM2, eKs2, hKsiL2, hKsM2⟩ := forall₂_split' hKsi2
         obtain ⟨rfl, e2⟩ := List.append_inj' eKs2 rfl
         cases e2
@@ -527,7 +527,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     have := List.Forall₂.length_eq hkeys; simpa using this
   obtain ⟨ekeys, rfl⟩ := wrap_inj_len (by simp [hklen, hlen'', hleadlen]) e
   subst ekeys
-  obtain ⟨lkeys', mk, ekl, hkeysL, hkM⟩ := forall₂_split hkeys
+  obtain ⟨lkeys', mk, ekl, hkeysL, hkM⟩ := List.forall₂_snoc_right hkeys
   obtain ⟨rfl, emk⟩ := List.append_inj' ekl (by simp [hlen'', hleadlen])
   cases emk
   obtain ⟨hcmM, hKmcov⟩ := hkM
@@ -582,7 +582,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     rcases hend with h | ⟨i, hi, h⟩ | ⟨_, _, _, _, h⟩
     · cases h
     · injection h with e1 e2; subst e1; subst e2
-      obtain ⟨_, hci', -⟩ := forall₂_getElem hck _ hi
+      obtain ⟨_, hci', -⟩ := List.forall₂_getElem_exists hck _ hi
       have := hmargs j x hj
       rw [List.getElem?_eq_some_iff] at this
       obtain ⟨_, ha⟩ := this
@@ -598,7 +598,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     · cases h
     · cases h
     · injection h with e1 e2 e3; subst e1
-      obtain ⟨_, -, hcov⟩ := forall₂_getElem hck _ hi
+      obtain ⟨_, -, hcov⟩ := List.forall₂_getElem_exists hck _ hi
       have := hmargs j x hj
       rw [List.getElem?_eq_some_iff] at this
       obtain ⟨_, ha⟩ := this
@@ -623,7 +623,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
         have hil : i < lkeys.length := by
           have := List.Forall₂.length_eq hkeysL
           have := (List.getElem?_eq_some_iff.1 hi).1; simp at *; omega
-        obtain ⟨_, -, hcov⟩ := forall₂_getElem hkeysL i hil
+        obtain ⟨_, -, hcov⟩ := List.forall₂_getElem_exists hkeysL i hil
         have hk : lkeys[i] = k := by
           have := List.getElem?_eq_some_iff.1 hki; exact this.2
         rw [hk] at hcov
@@ -681,7 +681,7 @@ theorem pat_lhs_sub_elim {df : VDefEq} {b : Name} {schema : InductiveSignature.C
     · have hil : i < lkeys.length := by
         have := List.Forall₂.length_eq hkeysL
         have := (List.getElem?_eq_some_iff.1 hi).1; simp at *; omega
-      obtain ⟨_, hcls, -⟩ := forall₂_getElem hkeysL i hil
+      obtain ⟨_, hcls, -⟩ := List.forall₂_getElem_exists hkeysL i hil
       have hk : lkeys[i] = k := (List.getElem?_eq_some_iff.1 hki).2
       have ha : (lead''.map (·.instL ls))[i]'(by
           have := List.Forall₂.length_eq hkeysL; omega) = .bvar x := by

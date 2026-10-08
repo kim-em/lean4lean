@@ -381,7 +381,7 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
       (AddInductive.getRecLevelParams elimLevel c.lparams).length
       Hscope.older.toCtx currentDomain Hscope.paramType := by
   have hparameterCount : stats.params.size = decl.nparams := by
-    have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    have hlength := List.Forall₂.length_eq
       H.materialized.narrowParams
     simpa [VInductDecl.paramVars] using hlength
   have hiDecl : i < decl.nparams := by
@@ -423,7 +423,7 @@ theorem CheckedRecursorHeaderAt.recursorCurrentDomainDefEq
       checkInductiveTypes.loopType.CachedParameterDecl.forall₂_toCtx_length
         H.materialized.cachedScope
     have hcachedLength :=
-      Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+      List.Forall₂.length_eq
         H.materialized.cachedScope
     have hbaseLength : H.materialized.headers.params.length =
         stats.params.size := by
@@ -623,7 +623,7 @@ theorem CheckedRecursorHeaderAt.shape
 theorem CheckedRecursorHeaderAt.parameterCount
     (H : CheckedRecursorHeaderAt Hc stats decl depth source familyIdx) :
     stats.params.size = decl.nparams := by
-  have hlength := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+  have hlength := List.Forall₂.length_eq
     H.materialized.narrowParams
   simpa [VInductDecl.paramVars] using hlength
 
@@ -858,14 +858,14 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowArguments
       (stats.params.toList ++ indices.toList)
       (canonicalIndexVars (decl.nparams + H.target.numIndices)) := by
   have htranslated : indices.size = indexTargets.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hindices
+    simpa using List.Forall₂.length_eq Hindices
   have hguard : indices.size = stats.nindices[familyIdx]! := by
     simpa using harity
   have hfamily : stats.nindices[familyIdx]! = H.target.numIndices := by
     simp [Array.getElem!_eq_getD, H.indexCount]
   have hnindices : nindices = H.target.numIndices := by omega
   have Hall :=
-    Lean4Lean.VerifyInductive.List.Forall₂.append' Hstats.params Hindices
+    List.Forall₂.append' Hstats.params Hindices
   rw [hcanonical, VInductDecl.paramVars_append_canonicalIndexVars] at Hall
   simpa [hnindices, H.parameterCount] using Hall
 
@@ -1521,7 +1521,7 @@ theorem CheckedRecursorHeaderAt.completedRecursorNarrowFamilyApplication
         (.const H.target.name (H.recursorAbstractLevels Helim))
         (canonicalIndexVars (decl.nparams + H.target.numIndices))) := by
   have htranslated : indices.size = indexTargets.length := by
-    simpa using Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hindices
+    simpa using List.Forall₂.length_eq Hindices
   have hguard : indices.size = stats.nindices[familyIdx]! := by
     simpa using harity
   have hfamily : stats.nindices[familyIdx]! = H.target.numIndices := by
@@ -2155,7 +2155,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               (indices.push (.fvar ⟨current.ngen.curr⟩)).toList
               ((indexTargets.map fun result => result.liftN 1 0) ++
                 [.bvar 0]) := by
-            simpa using checkPositivityStep.forall₂_append HindicesWeak
+            simpa using List.Forall₂.append' HindicesWeak
               (.cons Hindex .nil)
           have hopened := R.instantiateFresh (name := name) (bi := bi)
             Hdom.consumed Hdom.isType hbodyConsumed
@@ -2238,7 +2238,7 @@ theorem continueRecursorIndexSynthesisSemantics {alpha : Type}
               ((indexTargets.map fun result => result.liftN 1 0) ++
                 [.bvar 0]) := by
             rw [Array.toList_push]
-            exact checkPositivityStep.forall₂_append
+            exact List.Forall₂.append'
               HnarrowIndicesWeak (.cons HnarrowIndex .nil)
           have hopenedNarrow : TrExprS R'.venv
               (AddInductive.getRecLevelParams elimLevel base.lparams)

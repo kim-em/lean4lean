@@ -654,12 +654,6 @@ theorem InstForallsC.wrapForalls_eq (H : InstForallsC env U Γ (VExpr.wrapForall
     (hlen : args.length = doms.length) : res = body.instOuter args :=
   H.toInstForalls.wrapForalls_eq hlen
 
-theorem _root_.List.Forall₂.append' {R : α → β → Prop} {a b : List α} {c d : List β}
-    (h1 : List.Forall₂ R a c) (h2 : List.Forall₂ R b d) : List.Forall₂ R (a ++ b) (c ++ d) := by
-  induction h1 with
-  | nil => exact h2
-  | cons h _ ih => exact .cons h ih
-
 /-- Argument lists that differ only at variables the body does not use instantiate it identically. -/
 theorem _root_.Lean4Lean.VExpr.instOuter_congr_of_skips :
     ∀ (args args₂ : List VExpr) (E : VExpr), args.length = args₂.length →
@@ -704,18 +698,6 @@ theorem _root_.Lean4Lean.VExpr.wrapForalls_split (doms : List VExpr) (body : VEx
   calc VExpr.wrapForalls doms body
       = VExpr.wrapForalls (doms.take m ++ doms.drop m) body := by rw [List.take_append_drop]
     _ = _ := by rw [List.drop_eq_getElem_cons hm, VExpr.wrapForalls_append]; rfl
-
-theorem _root_.Lean4Lean.List.forall₂_of_getElem {R : α → β → Prop} {a : List α} {b : List β}
-    (hlen : a.length = b.length) (h : ∀ i (hi : i < a.length) (hi' : i < b.length), R a[i] b[i]) :
-    List.Forall₂ R a b := by
-  induction a generalizing b with
-  | nil => cases b with | nil => exact .nil | cons => simp at hlen
-  | cons x xs ih =>
-    cases b with
-    | nil => simp at hlen
-    | cons y ys =>
-      exact .cons (h 0 (by simp) (by simp)) (ih (by simpa using hlen) fun i hi hi' =>
-        h (i + 1) (by simpa using hi) (by simpa using hi'))
 
 /-- The typing data of a fully applied registered constructor: its universe levels, the typing of
 its arguments along the constructor telescope, and its type as an application of the structure. -/
@@ -1101,13 +1083,6 @@ theorem VProjectionInfo.field_typing_of_ctorApp {decl : VInductDecl}
       env.HasType U Γ field F := fun index =>
   (VProjectionInfo.field_typing_aux henv hinfo hwf hctor hshape hvalid hhead hdn hdu hle
     index).1 hΓ
-
-theorem _root_.Lean4Lean.List.forall₂_getElem {R : α → β → Prop} :
-    ∀ {a : List α} {b : List β}, List.Forall₂ R a b → ∀ (i : Nat) (h : i < a.length)
-      (h' : i < b.length), R a[i] b[i]
-  | _, _, .cons h _, 0, _, _ => h
-  | _, _, .cons _ H, i + 1, hi, hi' =>
-    List.forall₂_getElem H i (by simpa using hi) (by simpa using hi')
 
 /-- Congruence along an application spine typed against a wrapped telescope. -/
 theorem IsDefEq.mkApps_congr (henv : VEnv.WF env) (hΓ : OnCtx Γ (env.IsType U)) :

@@ -152,7 +152,7 @@ theorem RecursorFieldSelections.arguments_at_positions
         rw [heq]
         exact (Array.getElem_push_lt hpos).symm
       rw [Array.toList_push]
-      apply checkPositivityStep.forall₂_append lift
+      apply List.Forall₂.append' lift
       apply List.Forall₂.cons
       · refine ⟨by simp [hindex], ?_⟩
         simpa [hindex] using (@Array.getElem_push_eq Expr bu arg).symm
@@ -172,17 +172,17 @@ theorem RecursorFieldSelections.translations_of_all
       exact ⟨[], .nil⟩
   | @nonrecursive bu u fields arg H ih =>
       rw [Array.toList_push] at Hall
-      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hall with
+      rcases List.forall₂_snoc_left Hall with
         ⟨allPrefix, _translatedArg, _hall, HallPrefix, _Harg⟩
       exact ih HallPrefix
   | @recursive bu u fields arg cert H hindex ih =>
       rw [Array.toList_push] at Hall
-      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hall with
+      rcases List.forall₂_snoc_left Hall with
         ⟨allPrefix, translatedArg, _hall, HallPrefix, Harg⟩
       rcases ih HallPrefix with ⟨recursivePrefix, HrecursivePrefix⟩
       refine ⟨recursivePrefix ++ [translatedArg], ?_⟩
       rw [Array.toList_push]
-      exact checkPositivityStep.forall₂_append HrecursivePrefix
+      exact List.Forall₂.append' HrecursivePrefix
         (.cons Harg .nil)
 
 /-- Translation preserves the selector's ordered-sublist invariant. The only
@@ -201,17 +201,17 @@ theorem RecursorFieldSelections.translatedSublist
       exact .slnil
   | @nonrecursive bu u fields arg H ih =>
       rw [Array.toList_push] at Hbu
-      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hbu with
+      rcases List.forall₂_snoc_left Hbu with
         ⟨allPrefix, translatedArg, rfl,
         HbuPrefix, _⟩
       have Hsub := ih HbuPrefix Hu Hunique
       exact Hsub.trans (List.sublist_append_left allPrefix [translatedArg])
   | @recursive bu u fields arg cert H hindex ih =>
       rw [Array.toList_push] at Hbu Hu
-      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hbu with
+      rcases List.forall₂_snoc_left Hbu with
         ⟨allPrefix, translatedArg, rfl,
         HbuPrefix, HargAll⟩
-      rcases Lean4Lean.VerifyInductive.List.Forall₂.unsnoc Hu with
+      rcases List.forall₂_snoc_left Hu with
         ⟨recursivePrefix, recursiveArg, rfl,
         HuPrefix, HargRec⟩
       have HuniquePrefix : ∀ old ∈ u.toList,
@@ -288,7 +288,7 @@ theorem RecursorFieldSelections.exists_materialization
     ∃ fields, RecursorFieldsMaterialize env decl certs args fields := by
   apply RecursorFieldsMaterialize.exists_of_length
   rw [H.fields_length]
-  have hlen := checkPositivityStep.forall₂_length_eq hargs
+  have hlen := List.Forall₂.length_eq hargs
   simpa using hlen
 
 theorem RecursorFieldsMaterialize.positions_ordered
@@ -330,11 +330,11 @@ theorem RecursorFieldsMaterialize.fields_at_positions
   have hjRec : j < recursiveArgs.length := by omega
   have hjU : j < u.toList.length := by
     simpa only [Array.length_toList, ← Hsel.fields_length, hcertFields] using hj
-  have Halign := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Halign := List.forall₂_getElem
     Hsel.arguments_at_positions j hjCert hjU
   rcases Halign with ⟨hpos, hsource⟩
   have hposAll : certs[j].fieldIndex < allArgs.length := by
-    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hbu
+    have hlen := List.Forall₂.length_eq Hbu
     have hp : certs[j].fieldIndex < bu.toList.length := by
       simpa using hpos
     omega
@@ -346,9 +346,9 @@ theorem RecursorFieldsMaterialize.fields_at_positions
     simpa [hj, hjRec] using h
   refine ⟨hposEq.symm ▸ hposAll, ?_⟩
   rw [hargEq]
-  have Hrec := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Hrec := List.forall₂_getElem
     Hu j hjU hjRec
-  have Hfield := Lean4Lean.VerifyInductive.List.Forall₂.getElem
+  have Hfield := List.forall₂_getElem
     Hbu certs[j].fieldIndex (by simpa using hpos) hposAll
   have hsourceList : u.toList[j] = bu.toList[certs[j].fieldIndex] := by
     simpa using hsource
@@ -1003,7 +1003,7 @@ theorem RecursorCardinalityCertificate.ofResult
       (checkPositivityStep.ValidAppStatsWF.ofMaterializedHeader
         Hmaterialized).types_size
   params := by
-    have hlen := Lean4Lean.VerifyInductive.List.Forall₂.length_eq'
+    have hlen := List.Forall₂.length_eq
       Hmaterialized.narrowParams
     simpa [VInductDecl.paramVars] using hlen
   motives := mkRecInfos.motives_size_of_translation Hdecl hsize

@@ -33,7 +33,7 @@ def snoc (H : CheckedSourceConstructorAccumulator env Us sources)
     (Htarget : TrSourceConstRaw env Us source.name source.type target) :
     CheckedSourceConstructorAccumulator env Us (sources ++ [source]) where
   targets := H.targets ++ [target]
-  translations := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  translations := List.Forall₂.append'
     H.translations (.cons Htarget .nil)
 
 end CheckedSourceConstructorAccumulator
@@ -62,7 +62,7 @@ def snoc (H : CheckedSourceConstructorRows env Us sources)
     (row : CheckedSourceConstructorAccumulator env Us source.ctors) :
     CheckedSourceConstructorRows env Us (sources ++ [source]) where
   targets := H.targets ++ [row.targets]
-  translations := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  translations := List.Forall₂.append'
     H.translations (.cons row.translations .nil)
 
 end CheckedSourceConstructorRows
@@ -115,8 +115,8 @@ theorem assembleInductiveSkeletonTypes_headers
     (assembleInductiveSkeletonTypes headers constructors).map
       VInductiveTypeSkeleton.toVConstVal = headers := by
   have hlength : constructors.length = headers.length := by
-    rw [← Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hconstructors,
-      Lean4Lean.VerifyInductive.List.Forall₂.length_eq' Hheaders]
+    rw [← List.Forall₂.length_eq Hconstructors,
+      List.Forall₂.length_eq Hheaders]
   have go : ∀ (hs : List VConstVal) (cs : List (List VConstVal)),
       cs.length = hs.length →
       (assembleInductiveSkeletonTypes hs cs).map

@@ -44,18 +44,6 @@ theorem vars_split_inj {p e f p' e' f' : Nat} (he : 1 ≤ e) (he' : 1 ≤ e')
 
 /-! ## Positional correspondence -/
 
-theorem forall₂_getElem_exists {R : α → β → Prop} {l₁ : List α} {l₂ : List β}
-    (h : List.Forall₂ R l₁ l₂) (i : Nat) (hi : i < l₁.length) :
-    ∃ hi' : i < l₂.length, R l₁[i] l₂[i] := by
-  induction h generalizing i with
-  | nil => cases hi
-  | cons hab _ ih =>
-    cases i with
-    | zero => exact ⟨by simp, hab⟩
-    | succ i =>
-      obtain ⟨h2, hr⟩ := ih i (by simpa using hi)
-      exact ⟨by simpa using h2, hr⟩
-
 theorem declaration_types_getElem (s : InductiveSignature) (o : Fin s.families.size) :
     s.declaration.types[o.val]'(by simp [declaration]) = s.declarationFamily o := by
   simp [declaration, declarationFamily]
@@ -74,7 +62,7 @@ theorem CaseCompilationData.family_slot {base : VEnv} {src exp : VInductDecl}
         RestoresFamily (compilationRestoration src aux) envTypes src.uvars
           (s.declarationFamily o) ((src.types ++ direct)[o.val]) := by
   obtain ⟨envTypes, direct, hT, hdirect, _, hfamilies⟩ := hdata.correspondence
-  obtain ⟨h2, hr⟩ := forall₂_getElem_exists hfamilies o.val (by simp [declaration])
+  obtain ⟨h2, hr⟩ := List.forall₂_getElem_exists hfamilies o.val (by simp [declaration])
   refine ⟨envTypes, direct, hT, hdirect, h2, ?_⟩
   rw [← declaration_types_getElem]
   exact hr
@@ -127,7 +115,7 @@ theorem CaseCompilationData.auxiliary_recursorName {base : VEnv} {src exp : VInd
   rw [List.getElem_append_right ho] at hname
   have hrel' := List.mapM_eq_some.mp hdirect
   have hlen := Lean4Lean.List.Forall₂.length_eq hrel'
-  obtain ⟨hlt', hdf⟩ := forall₂_getElem_exists hrel' (o.val - src.types.length)
+  obtain ⟨hlt', hdf⟩ := List.forall₂_getElem_exists hrel' (o.val - src.types.length)
     (by simp at hlt; omega)
   rw [ContainerSpecialization.directFamily_name hdf] at hname
   have hj : o.val - src.types.length < aux.zipIdx.length := by simp; omega

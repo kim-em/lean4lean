@@ -8,22 +8,6 @@ open VExpr Params InductiveSignature InductiveSignature.NativeRecursorData
 variable [Params]
 
 omit [Params] in
-private theorem normal_append {R : α → β → Prop} (H : List.Forall₂ R a b)
-    (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
-  induction H with
-  | nil => exact H'
-  | cons h hs ih => exact .cons h ih
-
-omit [Params] in
-private theorem normal_take {R : α → β → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
-
-omit [Params] in
 theorem nativeEtaBody_spine (n : Nat) (fn : VExpr) :
     nativeEtaBody n fn = mkApps (fn.liftN n) (vars n 0) := by
   induction n generalizing fn with
@@ -114,8 +98,8 @@ private theorem native_eta_match {domains : List VExpr} (hpos : 0 < domains.leng
       (vars (domains.length - 1) 0).map (·.liftN 1) ++ [ctor'],
     by simp only [mkApps_append]; rfl, by simp only [mkApps_append]; rfl, hlevels, hlevels,
     Lean4Lean.List.Forall₂.rfl (fun _ _ => show _ ≈ _ from rfl), ?_⟩
-  apply normal_append
-  · apply normal_append
+  apply List.Forall₂.append'
+  · apply List.Forall₂.append'
     · apply List.forall₂_map_left_iff.mpr
       apply List.forall₂_map_right_iff.mpr
       apply List.forall₂_map_left_iff.mpr
@@ -187,9 +171,9 @@ theorem NativePrefixReplay.congr_normal {name : Name} {levels : List VLevel}
       have hold := H.captures_typed j hj₀ hd₀
       obtain ⟨u, hdom⟩ := hold.isType henv hctx
       have hn := NormalEqF.instantiateParams_args
-        (e := p.equationBody.domains[j].instL p.levels) hctx (normal_take hcaptures j)
+        (e := p.equationBody.domains[j].instL p.levels) hctx (List.forall₂_take hcaptures j)
         (by simpa only [instantiateParams_eq_instOuter] using hdom)
-      have ht := ((Lean4Lean.List.forall₂_getElem hcaptures j hj₀ hj).defeq hctx).of_l henv hctx hold
+      have ht := ((List.forall₂_getElem hcaptures j hj₀ hj).defeq hctx).of_l henv hctx hold
       have hnew := ht.hasType.2.defeqU_r henv hctx (by
         simpa only [instantiateParams_eq_instOuter] using hn.defeq hctx)
       apply HasType.defeqDFC henv W

@@ -176,7 +176,7 @@ noncomputable def CompletedRecursorConstruction.consumedGenerationOf
     rw [hsourceBang]
     refine hname.trans ?_
     simpa using hownerTr.header.name
-  · apply Lean4Lean.List.forall₂_of_getElem (by simp)
+  · apply List.forall₂_of_getElem (by simp)
     intro k hk hk'
     obtain ⟨owner, howner, localIndex, hlocal, rfl⟩ := H.flatMinorIndex k hk'
     have hk2 : recursorMinorOffset indTypes owner + localIndex <

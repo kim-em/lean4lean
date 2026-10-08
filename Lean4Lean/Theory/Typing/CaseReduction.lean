@@ -375,12 +375,6 @@ private theorem case_forall₂_drop (h : List.Forall₂ R xs ys) :
     | zero => exact .cons h ht
     | succ n => exact ih (n := n)
 
-theorem case_forall₂_append (h : List.Forall₂ R xs ys) (h' : List.Forall₂ R xs' ys') :
-    List.Forall₂ R (xs ++ xs') (ys ++ ys') := by
-  induction h with
-  | nil => exact h'
-  | cons h _ ih => exact .cons h ih
-
 theorem case_forall₂_get (h : List.Forall₂ R xs ys) (hi : i < xs.length) (hi' : i < ys.length) :
     R xs[i] ys[i] := by
   induction h generalizing i with
@@ -393,7 +387,7 @@ theorem CaseApplicationRelated.capture {rule : AppliedRule} (H : CaseApplication
     List.Forall₂ R (rule.capture a) (rule.capture b) := by
   unfold AppliedRule.capture
   rw [H.ctorArguments.length_eq]
-  exact case_forall₂_append (case_forall₂_take H.arguments) (case_forall₂_drop H.ctorArguments)
+  exact List.Forall₂.append' (case_forall₂_take H.arguments) (case_forall₂_drop H.ctorArguments)
 
 theorem CaseStep.arguments_typed (H : CaseStep env U Γ rule levels arguments)
     (h : e ∈ arguments) : ∃ type, env.HasType U Γ e type := by

@@ -121,7 +121,7 @@ def RecursorTranslatedOriginTypes.push
     targets := liftedTargets ++ [ty'.liftN 1 0]
     translated := by
       rw [Array.toList_push]
-      apply checkPositivityStep.forall₂_append
+      apply List.Forall₂.append'
       · apply checkPositivityStep.forall₂_map_right H.translated
         intro source target Hsource
         exact Hsource.weakFV R.checking.tr.wf.ordered W R'.mlctx_wf.tr.wf
@@ -160,7 +160,7 @@ def RecursorTranslatedOriginTypes.pushChecked
     targets := liftedTargets ++ [ty'.liftN 1 0]
     translated := by
       rw [Array.toList_push]
-      apply checkPositivityStep.forall₂_append
+      apply List.Forall₂.append'
       · apply checkPositivityStep.forall₂_map_right H.translated
         intro source target Hsource
         exact Hsource.weakFV R.checking.tr.wf.ordered W R'.mlctx_wf.tr.wf

@@ -52,7 +52,7 @@ private theorem BinaryTypeAnnotationWrapper.applicationDefEq_closed
     exact ⟨_, hfirst,
       hbeta.uniq Hchecking.wf
         (.refl Hchecking.wf hDelta) (hfirst.trExpr Hchecking.wf.ordered hDelta)⟩
-  · exact (VerifyInductive.List.Forall₂.length_eq'
+  · exact (List.Forall₂.length_eq
       (List.mapM_eq_some.1 hlevels)).symm.trans <|
       harity.trans huvars.symm
 
@@ -95,7 +95,7 @@ private theorem UnaryTypeAnnotationWrapper.applicationDefEq_closed
     exact ⟨_, harg,
       hbeta.uniq Hchecking.wf
         (.refl Hchecking.wf hDelta) (harg.trExpr Hchecking.wf.ordered hDelta)⟩
-  · exact (VerifyInductive.List.Forall₂.length_eq'
+  · exact (List.Forall₂.length_eq
       (List.mapM_eq_some.1 hlevels)).symm.trans <|
       harity.trans huvars.symm
 

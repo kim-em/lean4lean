@@ -63,7 +63,7 @@ theorem CaseCompilationData.aux_slot {base : VEnv} {source expanded : VInductDec
   obtain ⟨_, direct, _, hdirect, hlt, hrel⟩ := EnvTables.CaseCompilationData.family_slot C o
   have hrel' := List.mapM_eq_some.mp hdirect
   obtain ⟨hi, hai⟩ := List.getElem?_eq_some_iff.1 ha
-  obtain ⟨hdi, hdf⟩ := EnvTables.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
+  obtain ⟨hdi, hdf⟩ := List.forall₂_getElem_exists hrel' (o.val - source.types.length) hi
   rw [List.getElem_append_right ho] at hrel
   rw [hai] at hdf
   have hname : s.families[o].name = a.auxiliary :=

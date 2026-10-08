@@ -73,28 +73,6 @@ private theorem forall₂_of_cond {R : VExpr → VExpr → Prop} {P : VExpr → 
   | nil => exact .nil
   | cons h _ ih => exact .cons (h (hp _ (by simp))) (ih fun e he => hp e (by simp [he]))
 
-private theorem rel_take' {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.take n) (b.take n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .nil
-    | succ n => exact .cons h (ih n)
-
-private theorem rel_drop' {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b) (n : Nat) :
-    List.Forall₂ R (a.drop n) (b.drop n) := by
-  induction H generalizing n with
-  | nil => simp
-  | cons h hs ih => cases n with
-    | zero => exact .cons h hs
-    | succ n => exact ih n
-
-private theorem rel_append' {R : VExpr → VExpr → Prop} (H : List.Forall₂ R a b)
-    (H' : List.Forall₂ R a' b') : List.Forall₂ R (a ++ a') (b ++ b') := by
-  induction H with
-  | nil => exact H'
-  | cons h _ ih => exact .cons h ih
-
 /-- The singleton reconstruction transports along any relation of its arguments
 that is a typed congruence: every reconstructed term that is typed is related. -/
 theorem occ_rel {R : VExpr → VExpr → Prop} (henv : env.WF) (hΔ : OnCtx Δ (env.IsType U))
@@ -116,7 +94,7 @@ theorem occ_rel {R : VExpr → VExpr → Prop} (henv : env.WF) (hΔ : OnCtx Δ (
     simp only [PropElim.occ]
     split
     · rename_i k _
-      refine ⟨rel_append' ih1 (.cons ?_ .nil), rel_append' ih2 (.cons ?_ .nil)⟩
+      refine ⟨List.Forall₂.append' ih1 (.cons ?_ .nil), List.Forall₂.append' ih2 (.cons ?_ .nil)⟩
       · rintro ⟨_, ht⟩
         have hw := mkApps_arguments_wf (fn := .const ``Eq.refl _) (args := [_, _]) henv hΔ ⟨_, ht.hasType.1⟩
         obtain ⟨_, hhead⟩ := hw.1
@@ -127,7 +105,7 @@ theorem occ_rel {R : VExpr → VExpr → Prop} (henv : env.WF) (hΔ : OnCtx Δ (
         have hX' := hX.hasType.1
         rw [← instantiateParams_eq_instOuter] at hX' ⊢
         rw [← instantiateParams_eq_instOuter]
-        exact inst (rel_append' hps (rel_take' hidx k)) hX'
+        exact inst (List.Forall₂.append' hps (List.forall₂_take hidx k)) hX'
       · intro hw
         exact rel_getD_typed (P := VExpr.WF env U Δ) hidx
           (fun ⟨_, h⟩ => refl h.hasType.1) k hw
@@ -137,10 +115,10 @@ theorem occ_rel {R : VExpr → VExpr → Prop} (henv : env.WF) (hΔ : OnCtx Δ (
         rintro ⟨_, ht⟩
         have hw := mkApps_arguments_wf henv hΔ ⟨_, ht.hasType.1⟩
         refine mkApps (refl hw.1.choose_spec.hasType.1) ?_ ht.hasType.1
-        refine rel_append' (rel_append' (rel_append' hps hidx)
+        refine List.Forall₂.append' (List.Forall₂.append' (List.Forall₂.append' hps hidx)
           (.cons (refl (hw.2 m (by simp)).choose_spec.hasType.1) .nil)) ?_
         exact forall₂_of_cond ih1 fun e he => hw.2 e (by simp [he])
-      exact ⟨rel_append' ih1 (.cons hnew .nil), rel_append' ih2 (.cons hnew .nil)⟩
+      exact ⟨List.Forall₂.append' ih1 (.cons hnew .nil), List.Forall₂.append' ih2 (.cons hnew .nil)⟩
 
 
 open NativeRecursorData in
@@ -175,7 +153,7 @@ theorem NativePrefixReplay.singleton_rel_components {R : List VExpr → VExpr �
       (data.prefixArguments args) (data.prefixArguments args') := by
     unfold prefixArguments
     rw [← halen]
-    apply rel_append'
+    apply List.Forall₂.append'
     · apply List.forall₂_map_left_iff.mpr
       apply List.forall₂_map_right_iff.mpr
       exact Lean4Lean.List.Forall₂.imp (fun _ _ h => weakN W h) ha
@@ -188,10 +166,10 @@ theorem NativePrefixReplay.singleton_rel_components {R : List VExpr → VExpr �
       exact refl hctx (.bvar (Lookup.ofLt hi').2)
   have hdrop : ∀ n, List.Forall₂ (R (program.domains.reverse ++ Γ))
       ((data.prefixArguments args).drop n) ((data.prefixArguments args').drop n) :=
-    fun n => rel_drop' hall n
+    fun n => List.forall₂_drop hall n
   have hocc := occ_rel (R := R (program.domains.reverse ++ Γ)) (P := data.propParams levels)
     (S := S) (E := E) (m := .bvar 0) henv hctx (refl hctx) (mkApps hctx) (inst hctx)
-    (rel_take' hall data.numParams) (rel_take' (hdrop data.indexOffset) data.numIndices)
+    (List.forall₂_take hall data.numParams) (List.forall₂_take (hdrop data.indexOffset) data.numIndices)
     S.fields.length
   have hfieldsTyped : ∀ e ∈ data.singletonFields S E levels args,
       VExpr.WF env U (program.domains.reverse ++ Γ) e := by
@@ -204,12 +182,12 @@ theorem NativePrefixReplay.singleton_rel_components {R : List VExpr → VExpr �
     forall₂_of_cond hocc.2 hfieldsTyped
   constructor
   · rw [hcapture, hcapture']
-    exact rel_append' (rel_take' hall _) hfields
+    exact List.Forall₂.append' (List.forall₂_take hall _) hfields
   · obtain ⟨proposition, hp, hm, hc⟩ := H.major_prop
     rw [hctor] at hc
     rw [hctor, hctor']
     have hw := mkApps_arguments_wf henv hctx ⟨_, hc⟩
     exact mkApps hctx (refl hctx hw.1.choose_spec.hasType.1)
-      (rel_append' (rel_take' hall _) hfields) hc
+      (List.Forall₂.append' (List.forall₂_take hall _) hfields) hc
 
 end Lean4Lean.VEnv

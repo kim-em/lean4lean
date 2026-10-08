@@ -79,7 +79,7 @@ theorem CompletedRecursorConstruction.minorSourceReplay
   have habstractCtor : localIndex < decl.types[owner].ctors.length := by
     have hlength := Lean4Lean.List.Forall₂.length_eq hownerTr.ctors
     omega
-  have hctorTr := Lean4Lean.List.forall₂_getElem hownerTr.ctors localIndex hctor' habstractCtor
+  have hctorTr := List.forall₂_getElem hownerTr.ctors localIndex hctor' habstractCtor
   have hpair := Lean4Lean.VerifyInductive.TrInductDeclCore.ownedConstructorAtMinorOffset
     R.core owner localIndex hsourceOwner hctor habstractOwner habstractCtor hindex
   have hctorEq' : indTypes[owner].ctors[localIndex] = S.constructor := by

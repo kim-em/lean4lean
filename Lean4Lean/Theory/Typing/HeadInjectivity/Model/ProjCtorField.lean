@@ -599,7 +599,7 @@ theorem HTS.spineCod (H : HTS env U Δ Γ e T) {c ls args} (he : e = .mkApps (.c
     obtain ⟨ci, hci, hls, hlen, ih⟩ := ihf hf W tv
     refine ⟨ci, hci, hls, hlen, fun keys hk x hx => ?_⟩
     unfold ChainArgs at hk
-    obtain ⟨keys', k, rfl, hk', ⟨hka, hkK⟩⟩ := forall₂_split hk
+    obtain ⟨keys', k, rfl, hk', ⟨hka, hkK⟩⟩ := List.forall₂_snoc_right hk
     rw [piCodChain_append, piCodChain_cons, piCodChain_nil] at hx
     obtain ⟨x₁, hx₁, l₁⟩ := ih keys' hk' _ hx
     obtain ⟨K₀, y, rfl, hKK₀, ly⟩ := l₁.piCodOb_inv
@@ -952,7 +952,7 @@ theorem fam_field_obs {S : Name} {info : VProjectionInfo} (hp : env.projections 
   have hargs : List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1
       (a.subst (VExpr.argSubst ys)) ∧ ∀ x ∈ k.2.2, Obs' (VExpr.argSubst ys) S' a x)
       keysF (famArgs info doms.length idx ls) := by
-    refine forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
+    refine List.forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
     · obtain ⟨-, e2, -⟩ := KF.cls i _ (List.getElem?_eq_getElem h1)
       rw [e2]; congr 1
       simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h2]
@@ -995,7 +995,7 @@ theorem fam_field_obs {S : Name} {info : VProjectionInfo} (hp : env.projections 
         List.getElem?_eq_getElem (show i < keysD.length by omega)]
   have hFor : List.Forall₂ (fun (k k' : Key) => ∀ y, y ∈ k.2.2 ↔ y ∈ k'.2.2)
       (keysF.take info.nparams ++ FL) (keysD.take (info.nparams + j)) := by
-    refine forall₂_of_getElem (by simp; omega) fun i h1 h2 => ?_
+    refine List.forall₂_of_getElem (by simp; omega) fun i h1 h2 => ?_
     have hi : i < info.nparams + j := by omega
     obtain ⟨kd, hkd, hKi, hpi⟩ := hK i hi
     rw [List.getElem?_eq_getElem h1, Option.some.injEq] at hKi
@@ -1246,7 +1246,7 @@ theorem ctor_field_obs {S : Name} {info : VProjectionInfo} (hp : env.projections
       from rfl, C.tele.shape]; exact h1 τ hτ) h2 (by omega)
     ⟨j, _, k, rfl, by omega, by simp [fieldCtx]; omega, fun i Li hLi => ?_, _, hkj, hkk⟩
     KD.backed)⟩
-  · refine forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
+  · refine List.forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
     · obtain ⟨-, e2, -⟩ := KD.cls i _ (List.getElem?_eq_getElem h1)
       rw [e2]; congr 1
       rw [List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem h2]; rfl
@@ -1270,7 +1270,7 @@ theorem KeysAt.chainArgs {D args : List VExpr} {keys : List Key} {S' : ObSets}
       ∃ a, args[i]? = some a ∧ Obs' σ S0 a y) :
     ChainArgs env U Δ σ S0 keys args := by
   have hl : keys.length = args.length := by have := K.len; have := K.ylen; simp at *; omega
-  refine forall₂_of_getElem hl fun i h1 h2 => ⟨?_, fun y hy => ?_⟩
+  refine List.forall₂_of_getElem hl fun i h1 h2 => ⟨?_, fun y hy => ?_⟩
   · obtain ⟨-, e2, -⟩ := K.cls i _ (List.getElem?_eq_getElem h1)
     rw [e2, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_eq_getElem h2]
     exact ElCls.self
@@ -1297,7 +1297,7 @@ theorem fam_rigid_obs {S : Name} {info : VProjectionInfo} (hrig : env.Rigid S)
   have hargs : List.Forall₂ (fun (k : Key) a => k.2.1 = ElCls env U Δ k.1
       (a.subst (VExpr.argSubst ys)) ∧ ∀ x ∈ k.2.2, Obs' (VExpr.argSubst ys) S' a x)
       keysF (famArgs info doms.length idx ls) := by
-    refine forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
+    refine List.forall₂_of_getElem (by omega) fun i h1 h2 => ⟨?_, fun x hx => ?_⟩
     · obtain ⟨-, e2, -⟩ := KF.cls i _ (List.getElem?_eq_getElem h1)
       rw [e2]; congr 1
       simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem h2]

@@ -56,7 +56,7 @@ def snoc (H : CheckedSourceHeaderAccumulator env Us sources)
     (source : InductiveType) (payload : CheckedSourceHeaderPayload env Us source) :
     CheckedSourceHeaderAccumulator env Us (sources ++ [source]) where
   targets := H.targets ++ [payload.target]
-  translations := Lean4Lean.VerifyInductive.List.Forall₂.append'
+  translations := List.Forall₂.append'
     H.translations (.cons payload.translation .nil)
 
 @[simp] theorem empty_targets : (empty env Us).targets = [] := rfl
