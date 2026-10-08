@@ -1,4 +1,5 @@
-import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
+import Lean4Lean.Theory.Typing.Basic
+import Lean4Lean.Theory.Typing.Pattern
 
 /-! Concrete stored delta patterns of ordinary definitions. The right-hand
 side is the actual installed value, and lookup fixes one value per name. -/

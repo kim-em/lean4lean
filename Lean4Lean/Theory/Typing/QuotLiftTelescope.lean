@@ -1,5 +1,6 @@
 import Lean4Lean.Theory.Typing.DefinitionRegistryInstallation
 import Lean4Lean.Theory.Typing.Pattern
+import Lean4Lean.Theory.Typing.PrefixUnfolding.QuotLift
 
 /-! Typing soundness of the actual primitive quotient iota pattern. -/
 
