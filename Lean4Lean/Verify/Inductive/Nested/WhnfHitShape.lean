@@ -879,7 +879,7 @@ theorem NestedValidatedRunResult.generatedFamilyType_forall
     Sigma fun Hheaders : DeclaredHeadersResult P.c P.stats P.loweredDecl
         P.nparams P.isUnsafe P.depth P.initialEnv indTypes P.headerEnv =>
       Sigma fun R : ConstructorPhasesResult Hheaders P.ctorEnv =>
-        RecursorPhasesResult R E.loweredEnv
+        CompletedRecursorPhasesResult R.completed E.loweredEnv
   let Hpack : PhasePack result.types.toArray :=
     Eq.mp (congrArg PhasePack hindTypes)
       (⟨P.headers, P.constructors, P.production⟩ : PhasePack P.indTypes)
@@ -1375,12 +1375,12 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes) :
-    E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs
+    E.production.production.toCompletedRecursorConstruction.HitShapeInputs
       E.hitHeads := by
   let sf : DefinitionSafety := if isUnsafe then .unsafe else .safe
   have hfresh := E.hitHeads_fresh wf
   have hpres : ∀ {n ci}, sourceProdEnv.find? n = some ci →
-      E.production.production.completed.toCompletedRecursorConstruction.localContext.env.find?
+      E.production.production.toCompletedRecursorConstruction.localContext.env.find?
         n = some ci := by
     intro n ci h
     have := E.ctorEnv_preserves wf h
@@ -1404,7 +1404,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     rw [getElem!_pos E.production.indTypes i hi]
     exact Array.getElem_mem_toList hi
   refine ⟨?_, ?_, ?_, ?_⟩
-  · refine E.production.production.completed.toCompletedRecursorConstruction.paramDecls_hitOK
+  · refine E.production.production.toCompletedRecursorConstruction.paramDecls_hitOK
       (fun n hn => ?_) (fun s info h => ?_)
     · rw [E.production_initialEnv]
       cases hc : (ves.venv sf).constants n with
@@ -1428,7 +1428,7 @@ theorem NestedValidatedRunResult.hitShapeInputs_of
     obtain ⟨body, hl, hb⟩ := E.ctorTypes_headType wf Hsources _ (hmem i hi) ctor hctor
     rw [E.statsLevels, E.statsParamsSize, hnp]
     exact ⟨body, hl.leadingBinders, hb⟩
-  · exact E.production.production.completed.toCompletedRecursorConstruction.recursorNames_not_mem
+  · exact E.production.production.toCompletedRecursorConstruction.recursorNames_not_mem
       (fun _ hh => E.hitHeads_subset hh) hnodup
 
 /-- **Hit shape of the lowered recursor type and rule right-hand sides of an
@@ -1440,11 +1440,11 @@ theorem NestedValidatedRunResult.recursorHitShape_hitHeads
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     Expr.HitShapeTele E.hitHeads result.nparams (lparams.map Level.param)
         Hstep.oldInfo.type ∧
@@ -1469,11 +1469,11 @@ theorem NestedValidatedRunResult.recursorHitShape'
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
     (wf : ves.WF sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     Expr.HitShapeTele E.auxHeads result.nparams (lparams.map Level.param)
         Hstep.oldInfo.type ∧

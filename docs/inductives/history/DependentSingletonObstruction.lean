@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Inductive.SingletonReconstruction
 
 /-!
-Run with `lake env lean docs/inductives/DependentSingletonObstruction.lean`.
+Run with `lake env lean docs/inductives/history/DependentSingletonObstruction.lean`.
 
 This is a reproduction of the current reconstruction obstruction, not a
 regression requiring a future generator to preserve the defect. It reads the

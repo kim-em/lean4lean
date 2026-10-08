@@ -1032,7 +1032,7 @@ theorem NestedLoweringResultClosed.originalFamilyRestoredRealizationAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -1567,7 +1567,7 @@ theorem NestedLoweringResultClosed.originalFamilyRestoredSemanticsAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -1599,7 +1599,7 @@ theorem NestedLoweringResultClosed.auxiliaryCanonicalParameterContext
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (hempty : initialState.nestedAux = #[])
@@ -1697,14 +1697,14 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtBase
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[]) :
     RestoreAuxConstructorsFresh result loweredEnv sourceVEnv := by
   rcases H with ⟨finalState, Hrun, _Hcache, _Hparams⟩
   simpa [RestoreAuxConstructorsFresh] using
     Hrun.restoreAuxConstructorsFreshOfInstallation
-      Hprod.staged.productionTrace Hc.checking.tr.map_wf Howners hempty
+      Hprod.declaredStaged.productionTrace Hc.checking.tr.map_wf Howners hempty
 
 /-- Lift generated-constructor freshness through the source-header prefix
 reconstructed directly from lowering, without source constructors or a
@@ -1720,7 +1720,7 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtHeaderPrefix
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])
     (HsourceHeaders : List.Forall₂
@@ -1809,7 +1809,7 @@ theorem NestedLoweringResultClosed.sourceConstructorRestorationTraceAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
     (Hstep : RestoredInductiveStep result loweredEnv auxRec allIndNames
@@ -1867,7 +1867,7 @@ theorem NestedLoweringResultClosed.auxRecKeyGeneratedAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hmap : (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find? old =
       some new) :
@@ -1930,20 +1930,23 @@ theorem NestedLoweringResultClosed.auxRecKeyFreshAtCtors
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (hmap : (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find? old =
       some new) :
     R.declared.venvCtors.constants old = none := by
   have hmem : old ∈ (Hprod.entries.map Prod.snd).map (·.name) :=
     H.auxRecKeyGeneratedAtFresh Hc Hprod hempty hmap
-  simpa using Hprod.recursorNamesFresh [] (by simp) old hmem
+  have hfresh := Hprod.recursorNamesFresh [] (by simp) old hmem
+  change R.declared.context.venv.constants old = none at hfresh
+  rw [R.declared.contextVEnv] at hfresh
+  simpa using hfresh
 
 /-- Every retained generated-recursors declaration type avoids the entire
 fresh recursor-name set.  The proof uses its semantic translation in the
 pre-recursors constructor environment, so it applies uniformly to motive,
 minor, index, and major declarations. -/
-theorem RecursorPhasesResult.declarationTypeAvoidsGeneratedRecursors
+theorem CompletedRecursorPhasesResult.declarationTypeAvoidsGeneratedRecursors
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1951,14 +1954,14 @@ theorem RecursorPhasesResult.declarationTypeAvoidsGeneratedRecursors
     {Hheaders : DeclaredHeadersResult c stats decl nparams isUnsafe depth
       sourceEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (H : RecursorPhasesResult R outEnv)
+    (H : CompletedRecursorPhasesResult R.completed outEnv)
     (D : BoundFVarDeclarationAt H.localContext xs i) :
     D.type.AvoidsConsts ((H.entries.map Prod.snd).map (·.name)) := by
   rcases H.recursorWF.translatedDeclarationType D with ⟨target, Htype⟩
   apply checkPositivityStep.TrExprS.sourceAvoidsFresh _ Htype
   intro name hname
-  rw [H.recursorEnv, ConstructorPhasesResult.completed, R.declared.contextVEnv]
-  simpa using H.recursorNamesFresh [] (by simp) name hname
+  rw [H.recursorEnv]
+  exact H.recursorNamesFresh [] (by simp) name hname
 
 /-- Production restoration never renames the primary recursor of an
 original mutual-family member.  Original families occupy positions strictly
@@ -1974,7 +1977,7 @@ theorem NestedLoweringResultClosed.sourceRecursorUnmappedAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length) :
     (Lean4Lean.mkAuxRecNameMap loweredEnv sourceTypes).2.find?
@@ -2047,7 +2050,7 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hfamily : familyIdx < sourceTypes.length)
     (Htranslations : List.Forall₂ (fun source constructor =>
@@ -2093,7 +2096,7 @@ theorem NestedLoweringResultClosed.sourceConstructorSemanticsAtFreshOfValidation
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent c.env)
     (HsourceHeaders : List.Forall₂
@@ -2148,7 +2151,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -2249,7 +2252,7 @@ theorem NestedLoweringResultClosed.sourcePrimaryRecursorRealizationAtFreshOfTele
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)
@@ -2290,7 +2293,7 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFreshExactOwner
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -2380,7 +2383,7 @@ theorem NestedLoweringResultClosed.sourceInductiveSemanticsAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (hempty : initialState.nestedAux = #[])
     (familyIdx : Nat) (hfamily : familyIdx < sourceTypes.length)
@@ -2479,7 +2482,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshExactOwners
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -2552,7 +2555,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -2627,7 +2630,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfRealizations
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -2695,7 +2698,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTranslatedTypes
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -2746,7 +2749,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceAtFreshOfTelescopeTranslat
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed loweredSourceEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -2828,7 +2831,7 @@ theorem NestedLoweringResultClosed.restoreAuxConstructorsFreshAtTypes
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Howners : ConstructorOwnersPresent c.env)
@@ -2866,7 +2869,7 @@ its restored suffix into the source constructor environment.  This
 owner-generic core is shared by primary and auxiliary restoration: ordinary
 header production supplies the unchanged parameter telescope, and the suffix
 invariant supplies every later binder and the residual. -/
-theorem RecursorPhasesResult.restoredTelescopeOfSuffix
+theorem CompletedRecursorPhasesResult.restoredTelescopeOfSuffix
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat} {isUnsafe : Bool}
     {sourceVEnv envTypes envCtors : VEnv}
@@ -2874,7 +2877,7 @@ theorem RecursorPhasesResult.restoredTelescopeOfSuffix
     {Hheaders : DeclaredHeadersResult c stats loweredDecl nparams isUnsafe depth
       sourceVEnv indTypes headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       sourceIsUnsafe sourceDecl envTypes envCtors)
     (ownerIdx : Nat) (hentry : ownerIdx < Hprod.entries.length)
@@ -2914,8 +2917,7 @@ theorem RecursorPhasesResult.restoredTelescopeOfSuffix
         envCtors.IsType Us.length []
           (VExpr.wrapForalls parameterDomains
             (.sort (.zero : VLevel))) := by
-    simpa [E, Us, sourceSuffix, parameterDomains, template] using
-      Hprod.sourceRecursorParameterTemplateAt ownerIdx hentry hsourceLE
+    exact Hprod.sourceRecursorParameterTemplateAt ownerIdx hentry hsourceLE
   rcases HtemplateData with
     ⟨HtemplateTelescope, HtemplatePrefix, Htemplate, HtemplateType⟩
   have hparams : result.nparams = stats.params.size :=
@@ -3001,7 +3003,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (hrecEnv : envCtors ≤ recEnv) (hrecWF : recEnv.WF)
@@ -3067,8 +3069,7 @@ theorem NestedLoweringResultClosed.restoredPrimaryTelescopeAtFreshOfSuffix
         recEnv.IsType Us.length []
           (VExpr.wrapForalls parameterDomains
             (.sort (.zero : VLevel))) := by
-    simpa [E, Us, sourceSuffix, parameterDomains, template] using
-      Hprod.sourceRecursorParameterTemplateAt familyIdx hentry hsourceLE
+    exact Hprod.sourceRecursorParameterTemplateAt familyIdx hentry hsourceLE
   rcases HtemplateData with
     ⟨HtemplateTelescope, HtemplatePrefix, Htemplate, HtemplateType⟩
   have hparams : result.nparams = stats.params.size :=
@@ -3150,7 +3151,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledTelescopes
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -3205,7 +3206,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
@@ -3246,7 +3247,7 @@ theorem NestedLoweringResultClosed.sourceSemanticTraceOfInstalledSuffixes
 /-- Specialize `restorationSources` from the installed lowered family list
 back to each original source family, using the lowering trace for name
 preservation and target constructor telescopes. -/
-theorem RecursorPhasesResult.restorationSourcesOfLowering
+theorem CompletedRecursorPhasesResult.restorationSourcesOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
@@ -3255,7 +3256,7 @@ theorem RecursorPhasesResult.restorationSourcesOfLowering
       sourceEnv res.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
     (Hlower : NestedLoweringResult prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res) :
     ∀ owner, owner ∈ sourceTypes →
@@ -3283,7 +3284,7 @@ theorem RecursorPhasesResult.restorationSourcesOfLowering
 the installed recursor of one of the dynamically generated lowered families.
 Consequently its type and every rule RHS satisfy the telescope discipline
 required by restoration. -/
-theorem RecursorPhasesResult.auxRestorationSourcesOfLowering
+theorem CompletedRecursorPhasesResult.auxRestorationSourcesOfLowering
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {res : Lean4Lean.ElimNestedInductive.Result}
@@ -3292,7 +3293,7 @@ theorem RecursorPhasesResult.auxRestorationSourcesOfLowering
       sourceEnv res.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R outEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed outEnv)
     (Hlower : NestedLoweringResult prodEnv fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res) :
     ∀ recName,
@@ -3349,7 +3350,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringWF
       sourceEnv res.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hlower : NestedLoweringResult sourceProdEnv loweringFuel nparams
       sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res)
@@ -3420,7 +3421,7 @@ theorem Environment.restoreNestedAfterInstall.ofLoweringClosedWF
       sourceEnv res.types.toArray headerEnv}
     {R : ConstructorPhasesResult Hheaders ctorEnv}
     {initialState : Lean4Lean.ElimNestedInductive.State}
-    (Hc : ContextWF c) (H : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (H : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hlower : NestedLoweringResultClosed sourceProdEnv loweringFuel nparams
       sourceTypes
       { initialState with newTypes := sourceTypes.toArray } res)

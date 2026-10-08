@@ -1,12 +1,13 @@
 # E1 follow-up: inductive-side strengthening sites (G3/G4), design
 
-Worktree `lean4lean-e1`, branch `agent/verify-inductives-e1`, HEAD 087c898 (2026-10-06). Read-only study.
+Branch `agent/verify-inductives-e1` at 087c898 (2026-10-06; the branch has since been merged into
+`agent/verify-inductives`). Read-only study.
 Fresh grep of `weakN_iff|weak'_iff|weakN_inv|weak'_inv|weakFV_inv|weakFV'_inv|weakBV_inv|restrictUpSet|skips`
-under `Lean4Lean/Verify/Inductive/`: 79 hits, saved with the enclosing declaration of each hit in
-`/tmp/l4l-scratch/e1-inductive-grep.txt`. The `skips` hits are all docstrings
+under `Lean4Lean/Verify/Inductive/`: 79 hits, recorded with the enclosing declaration of each hit in
+a scratch file that was not kept. The `skips` hits are all docstrings
 (`Bindings.lean:15`, `LoopType.lean:1379`, `CompletedEquationRecursiveCall.lean:3901`,
 `Equation/RecursiveCall.lean:3946`). The two class (a) sites (`FirstPass.lean:2436/2521`) were fixed
-in 087c898 and now use `IsDefEqU.weakN`. Cone status comes from `/tmp/l4l-scratch/weakn-graph-all.tsv`.
+in 087c898 and now use `IsDefEqU.weakN`. Cone status comes from the dependency table of history/WEAKN_SCOPE.md (scratch data, not kept).
 
 ## 0. Summary
 

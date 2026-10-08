@@ -1,7 +1,7 @@
 import Lean4Lean.Theory.Typing.Basic
 
 /-!
-Run: lake env lean docs/inductives/OneSidedBudgetObstruction.lean
+Run: lake env lean docs/inductives/history/OneSidedBudgetObstruction.lean
 
 This checks a limitation of the proposed raw, finite-index simulation:
 charge the left evaluation, allow arbitrarily many right steps, and compare

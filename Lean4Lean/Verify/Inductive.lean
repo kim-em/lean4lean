@@ -7,7 +7,8 @@ import Lean4Lean.Verify.Inductive.Nested.Mapping
 import Lean4Lean.Verify.Inductive.Nested.FormationEvidence
 import Lean4Lean.Verify.Inductive.Nested.Opening
 import Lean4Lean.Verify.Inductive.Recursor.TelescopeRestriction
-import Lean4Lean.Verify.Inductive.Equation.Setup
+import Lean4Lean.Verify.Inductive.CompletedRecursorSetup
+import Lean4Lean.Verify.Inductive.Recursor.ReplayCompat
 import Lean4Lean.Verify.Inductive.Nested.OriginalHeaderSeedRebase
 import Lean4Lean.Verify.Inductive.Nested.GeneratedFamilySemantics
 import Lean4Lean.Verify.Inductive.Nested.PrimaryEquations
@@ -19,7 +20,6 @@ import Lean4Lean.Verify.Inductive.Nested.Restoration
 import Lean4Lean.Verify.Typing.Lemmas
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationList
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
-import Lean4Lean.Verify.Inductive.Equation.Canonical
 import Lean4Lean.Verify.Inductive.Recursor.Rules
 import Lean4Lean.Verify.Inductive.Nested.EquationRestorationBatch
 import Lean4Lean.Verify.Inductive.Primitive
@@ -33,7 +33,6 @@ import Lean4Lean.Verify.Inductive.Run.SemanticSpecification
 import Lean4Lean.Verify.Inductive.Run.FinalResult
 import Lean4Lean.Verify.Inductive.OrdinaryFinalDispatch
 import Lean4Lean.Verify.Inductive.PrimitiveDispatch
-import Lean4Lean.Verify.Inductive.PrimitiveFinalDispatch
 import Lean4Lean.Verify.Inductive.PrimitiveSemanticRun
 import Lean4Lean.Verify.Inductive.CompletedRuleTranslation
 import Lean4Lean.Verify.Inductive.PrimitiveFinalSpecification

@@ -1,5 +1,5 @@
 /-!
-Run with `lake env lean docs/inductives/StrengtheningFalsification.lean`.
+Run with `lake env lean docs/inductives/history/StrengtheningFalsification.lean`.
 
 Evidence for the falsification study of `VEnv.strengthening_of_canonicalEq`
 (`docs/inductives/STRENGTHENING_NOTES.md`). Plain Lean, no lean4lean imports, no

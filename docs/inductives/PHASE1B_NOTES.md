@@ -1,9 +1,9 @@
 # Phase 1b notes: the injectivity half of `VEnv.WF.headInversion`
 
-Branch `agent/verify-inductives-headinj` (worktree `lean4lean-e3`). Standing goal:
-`docs/inductives/GOAL.md`. Background: `docs/inductives/PHASE1_SPIKE.md` (the obstruction),
-`docs/inductives/PHASE1B_ASTRA_REVIEW.md` (second-opinion review of the candidate routes),
-`docs/inductives/BASE_OBLIGATIONS_DESIGN.md`. The separation half is Phase 1a, branch
+Branch `agent/verify-inductives-headinj` (merged into `agent/verify-inductives`). Standing goal:
+`docs/inductives/GOAL.md`. Background: `docs/inductives/history/PHASE1_SPIKE.md` (the obstruction),
+`docs/inductives/history/PHASE1B_ASTRA_REVIEW.md` (second-opinion review of the candidate routes),
+`docs/inductives/history/BASE_OBLIGATIONS_DESIGN.md`. The separation half is Phase 1a, branch
 `agent/verify-inductives-headinv` (`docs/inductives/PHASE1_NOTES.md` there).
 
 Mission: prove the fields `forallE_forallE`, the argument part of `rigid_rigid`,
@@ -272,7 +272,7 @@ Then `TypeChain.collapse` (as in `UniqueTyping.lean`) turns chains into single l
   model is the glued model with classes forgotten, and the separation half can be taken from
   either. Recorded so the two branches can be merged into one model.
 
-## 7. Second review of route G (Astra, /tmp transcript summarised here)
+## 7. Second review of route G (Astra; the transcript was not kept and is summarised here)
 
 Astra found no counterexample to chain-level injectivity and judged the syntactic layer
 (section 5) viable; it raised the following points, all adopted:

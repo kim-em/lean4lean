@@ -124,7 +124,7 @@ private theorem installRestoredSourceFamilies
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent c.env)
     (HsourceHeaders : List.Forall₂
@@ -248,7 +248,7 @@ theorem NestedLoweringResultClosed.nativeSourceCore
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsources : SourceSyntaxChecks sourceTypes)
     (Howners : ConstructorOwnersPresent c.env)
     (hempty : initialState.nestedAux = #[])

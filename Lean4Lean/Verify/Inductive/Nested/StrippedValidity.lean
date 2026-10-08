@@ -555,7 +555,7 @@ theorem RestoredNestedDeclarationsResult.finalValidOfStaged_of_shapes
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (Hlower : NestedLoweringResultClosed c.env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
-    (Hc : ContextWF c) (Hprod : RecursorPhasesResult R loweredEnv)
+    (Hc : ContextWF c) (Hprod : CompletedRecursorPhasesResult R.completed loweredEnv)
     (Hsource : TrInductDeclCore sourceVEnv c.lparams nparams sourceTypes
       isUnsafe sourceDecl envTypes envCtors)
     (Hmetadata : MaterializedInductivePrefix sourceDecl loweredDecl)

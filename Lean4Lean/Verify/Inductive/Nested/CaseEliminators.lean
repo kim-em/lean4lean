@@ -584,7 +584,7 @@ theorem NestedValidatedRunResult.loweredRecursorNames_fresh
     List.mem_map.2 ⟨owner, List.mem_finRange owner, rfl⟩
   have hrecursorValues : E.production.production.entries.map Prod.snd =
       E.production.compilationInstance.recursors :=
-    E.production.production.completed.canonicalRecursors
+    E.production.production.canonicalRecursors
   rw [← hrecursorValues] at hmem
   have Hinst := E.production.production.installed
   obtain ⟨info, hentry⟩ := Hinst.existsEntryOfValue hmem

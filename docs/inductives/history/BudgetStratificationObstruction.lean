@@ -1,6 +1,6 @@
 import Lean
 
--- Run: lake env lean docs/inductives/BudgetStratificationObstruction.lean
+-- Run: lake env lean docs/inductives/history/BudgetStratificationObstruction.lean
 
 /-!
 A termination obstruction for one proposed foundation, not for inductive

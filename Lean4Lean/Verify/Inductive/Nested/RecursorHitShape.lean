@@ -1447,19 +1447,19 @@ theorem NestedValidatedRunResult.statsParamsSize :
 /-- The generated entry of an owner is the recursor read back by any
 restoration step at the owner's recursor name. -/
 theorem NestedValidatedRunResult.generatedEntryOfStep
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    ∃ hi : owner.val < E.production.production.completed.entries.length,
-      (E.production.production.completed.generated.entry owner.val hi).info =
+    ∃ hi : owner.val < E.production.production.entries.length,
+      (E.production.production.generated.entry owner.val hi).info =
         Hstep.oldInfo := by
-  rcases E.production.production.completed.metadataRealization owner with
+  rcases E.production.production.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
-  have hlen : owner.val < E.production.production.completed.entries.length := by
-    rw [E.production.production.completed.entries_length_eq]
+  have hlen : owner.val < E.production.production.entries.length := by
+    rw [E.production.production.entries_length_eq]
     exact owner.isLt
   refine ⟨hlen, ?_⟩
   have hmem := List.getElem_mem (l := E.production.production.entries)
@@ -1475,7 +1475,7 @@ theorem NestedValidatedRunResult.generatedEntryOfStep
   have heq : rec = Hstep.oldInfo := by
     injection h2 with h
     injection h
-  have hG := (E.production.production.completed.generated.entry owner.val hlen).source_eq
+  have hG := (E.production.production.generated.entry owner.val hlen).source_eq
   rw [hrec] at hG
   injection hG with hG
   rw [← heq, hG]
@@ -1494,14 +1494,14 @@ Hypotheses: `W` (the `whnf` hit-shape preservation fact, see
 (`NestedValidatedRunResult.recursorHitShape'`). -/
 theorem NestedValidatedRunResult.recursorHitShape
     {heads : List Name}
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs heads)
+    (I : E.production.production.toCompletedRecursorConstruction.HitShapeInputs heads)
     (W : WhnfHitOKFacts heads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     Expr.HitShapeTele heads result.nparams (lparams.map Level.param) Hstep.oldInfo.type ∧
       ∀ rule ∈ Hstep.oldInfo.rules,
@@ -1509,21 +1509,21 @@ theorem NestedValidatedRunResult.recursorHitShape
   obtain ⟨hi, hinfo⟩ := E.generatedEntryOfStep owner Hstep
   rw [← E.statsLevels] at W ⊢
   rw [← E.statsParamsSize]
-  have H := E.production.production.completed.generatedHitShape I W owner.val hi
+  have H := E.production.production.generatedHitShape I W owner.val hi
   rw [hinfo] at H
   exact H
 
 /-- `recursorHitShape`, type component. -/
 theorem NestedValidatedRunResult.recursorTypeHitShape
     {heads : List Name}
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs heads)
+    (I : E.production.production.toCompletedRecursorConstruction.HitShapeInputs heads)
     (W : WhnfHitOKFacts heads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     Expr.HitShapeTele heads result.nparams (lparams.map Level.param) Hstep.oldInfo.type :=
   (E.recursorHitShape I W owner Hstep).1
@@ -1531,14 +1531,14 @@ theorem NestedValidatedRunResult.recursorTypeHitShape
 /-- `recursorHitShape`, rule component. -/
 theorem NestedValidatedRunResult.ruleRhsHitShape
     {heads : List Name}
-    (I : E.production.production.completed.toCompletedRecursorConstruction.HitShapeInputs heads)
+    (I : E.production.production.toCompletedRecursorConstruction.HitShapeInputs heads)
     (W : WhnfHitOKFacts heads E.production.stats.params.toList (lparams.map Level.param)
       E.production.production.localContext.env)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
     ∀ rule ∈ Hstep.oldInfo.rules,
       Expr.HitShapeTele heads result.nparams (lparams.map Level.param) rule.rhs :=

@@ -888,10 +888,10 @@ theorem NestedValidatedRunResult.hrestoredWF_of
             (Lean4Lean.restoredRecursorNames
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
               (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv →
-        ∀ (k : Fin E.production.production.completed.generationSignature.constructors.size)
+        ∀ (k : Fin E.production.production.generationSignature.constructors.size)
           (rule : VDefEq),
           (compilationRestoration sourceDecl auxiliaries).equation
-              (E.production.production.completed.canonicalGeneration.equation k) =
+              (E.production.production.canonicalGeneration.equation k) =
             some rule →
           rule.WF C.finalBaseVEnv :=
   E.hrestoredWF_of_gaps wf Hsources (E.restoredEquationGaps wf Hsources)

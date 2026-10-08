@@ -5,9 +5,10 @@ import Lean4Lean.Theory.Inductive.CanonicalEqSignature
 
 The declaration of `Eq` submitted by `Init.Prelude`, and the type and iota rule
 of the recursor `Eq.rec` that the kernel generates for it, stated literally
-(generic only in binder and universe-parameter names).  Each translates
-(`TrExprSyn`, hence every `TrExprS` derivation) to the corresponding stored term
-of `VEnv.HasCanonicalEq`. -/
+(generic only in binder and universe-parameter names).  The three types
+translate (`TrExprSyn`, hence every `TrExprS` derivation) to the corresponding
+stored terms of `VEnv.HasCanonicalEq`; the iota-rule expressions are checked
+against the stored rule by `Lean4Lean/Tests/CanonicalEq.lean`. -/
 
 namespace Lean4Lean
 
@@ -174,24 +175,6 @@ theorem eqRecTypeExpr_syn {u v : Name} (huv : u ≠ v) (n : EqRecBinderNames) :
     canonicalEqRecMotive canonicalEqRecMinor
   canonical_eq_tr_syn
 
-theorem eqRecRuleRhsExpr_syn {u v : Name} (huv : u ≠ v) (n : EqRecBinderNames) :
-    TrExprSyn [u, v] [] (eqRecRuleRhsExpr u v n) canonicalEqRecRule.rhs := by
-  unfold eqRecRuleRhsExpr eqRecMotiveExprU eqRecMinorExpr canonicalEqRecRule
-    canonicalEqRecMotive canonicalEqRecMinor
-  canonical_eq_tr_syn
-
-theorem eqRecRuleLhsExpr_syn {u v : Name} (huv : u ≠ v) (n : EqRecBinderNames) :
-    TrExprSyn [u, v] [] (eqRecRuleLhsExpr u v n) canonicalEqRecRule.lhs := by
-  unfold eqRecRuleLhsExpr eqRecMotiveExprU eqRecMinorExpr canonicalEqRecRule
-    canonicalEqRecMotive canonicalEqRecMinor
-  canonical_eq_tr_syn
-
-theorem eqRecRuleTypeExpr_syn {u v : Name} (huv : u ≠ v) (n : EqRecBinderNames) :
-    TrExprSyn [u, v] [] (eqRecRuleTypeExpr u v n) canonicalEqRecRule.type := by
-  unfold eqRecRuleTypeExpr eqRecMotiveExprU eqRecMinorExpr canonicalEqRecRule
-    canonicalEqRecMotive canonicalEqRecMinor
-  canonical_eq_tr_syn
-
 /-! ### Every translation is the stored term -/
 
 section
@@ -208,18 +191,6 @@ theorem TrExprS.eq_canonicalEqReflType {u a b : Name}
 theorem TrExprS.eq_canonicalEqRecType {u v : Name} (huv : u ≠ v) {n : EqRecBinderNames}
     (H : TrExprS env [u, v] [] (eqRecTypeExpr u v n) e) : e = canonicalEqRecType :=
   H.toSyn.unique (eqRecTypeExpr_syn huv n)
-
-theorem TrExprS.eq_canonicalEqRecRuleRhs {u v : Name} (huv : u ≠ v) {n : EqRecBinderNames}
-    (H : TrExprS env [u, v] [] (eqRecRuleRhsExpr u v n) e) : e = canonicalEqRecRule.rhs :=
-  H.toSyn.unique (eqRecRuleRhsExpr_syn huv n)
-
-theorem TrExprS.eq_canonicalEqRecRuleLhs {u v : Name} (huv : u ≠ v) {n : EqRecBinderNames}
-    (H : TrExprS env [u, v] [] (eqRecRuleLhsExpr u v n) e) : e = canonicalEqRecRule.lhs :=
-  H.toSyn.unique (eqRecRuleLhsExpr_syn huv n)
-
-theorem TrExprS.eq_canonicalEqRecRuleType {u v : Name} (huv : u ≠ v) {n : EqRecBinderNames}
-    (H : TrExprS env [u, v] [] (eqRecRuleTypeExpr u v n) e) : e = canonicalEqRecRule.type :=
-  H.toSyn.unique (eqRecRuleTypeExpr_syn huv n)
 
 end
 

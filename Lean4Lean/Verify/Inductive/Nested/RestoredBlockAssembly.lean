@@ -467,20 +467,20 @@ theorem NestedValidatedRunResult.recursorMetadataOfStep
     {outEnv : Environment}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {auxRec : NameMap Name} {allIndNames : List Name}
     {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv auxRec allIndNames
-      (E.production.production.completed.canonicalGeneration.recursorName owner)
+      (E.production.production.canonicalGeneration.recursorName owner)
       stepSource stepTarget) :
-    RecursorMetadataRealization E.production.production.completed.canonicalGeneration
-      E.production.production.completed.outVEnv owner Hstep.oldInfo := by
-  rcases E.production.production.completed.metadataRealization owner with
+    RecursorMetadataRealization E.production.production.canonicalGeneration
+      E.production.production.outVEnv owner Hstep.oldInfo := by
+  rcases E.production.production.metadataRealization owner with
     ⟨rec, hrec, _, M⟩
   have hlen : owner.val < E.production.production.entries.length := by
     rw [show E.production.production.entries =
-      E.production.production.completed.entries from rfl,
-      E.production.production.completed.entries_length_eq]
+      E.production.production.entries from rfl,
+      E.production.production.entries_length_eq]
     exact owner.isLt
   have hmem := List.getElem_mem (l := E.production.production.entries)
     (n := owner.val) hlen
@@ -516,13 +516,13 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped)
-    (owner : Fin E.production.production.completed.generationSignature.families.size)
+    (owner : Fin E.production.production.generationSignature.families.size)
     {oldRecName : Name} {stepSource stepTarget : Environment}
     (Hstep : RestoredRecursorStep result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
       (sourceTypes.map (·.name)) oldRecName stepSource stepTarget)
     (hname : oldRecName =
-      E.production.production.completed.canonicalGeneration.recursorName owner)
+      E.production.production.canonicalGeneration.recursorName owner)
     (Hshape : Expr.HitShapeTele
       ((compilationRestoration sourceDecl auxiliaries).heads.map (·.auxiliary))
       result.nparams (lparams.map Level.param) Hstep.oldInfo.type)
@@ -531,7 +531,7 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
       targetEnv.constants n = none)
     {w : VConstVal} (Hw : RestoredRecursorStepValue targetEnv Hstep w) :
     (compilationRestoration sourceDecl auxiliaries).recursor
-      (E.production.production.completed.canonicalGeneration.recursor owner) =
+      (E.production.production.canonicalGeneration.recursor owner) =
         some w := by
   subst hname
   obtain ⟨hwname, hwuvars, Ht⟩ := Hw
@@ -543,17 +543,17 @@ theorem NestedValidatedRunResult.restoredRecursor_of_step
   have Hinput : Hstep.oldInfo.type.FVarsIn fun _ => False :=
     Hs.fvarsIn.mono fun _ h => by simp [VLCtx.fvars] at h
   have htype : (compilationRestoration sourceDecl auxiliaries).expr
-      (E.production.production.completed.canonicalGeneration.recursorType owner) =
+      (E.production.production.canonicalGeneration.recursorType owner) =
         some w.type :=
     Hstep.restored.restoration.typeRestorationCommutes' hparamsSize
       (D.agreement targetEnv _) hscoped.argumentsClosed Hfresh Hshape
       (fun Hopen => Hopen.restoredBody_closed D Htel hclosed) Htel Hinput hclosed Hs Ht
   have hrecName : (compilationRestoration sourceDecl auxiliaries).recursorName
-      (E.production.production.completed.canonicalGeneration.recursorName owner) =
+      (E.production.production.canonicalGeneration.recursorName owner) =
         w.name := by
     rw [D.recursorName, hwname, Hstep.restored.mappedName]
     exact (nameMap_getD_eq _ _ _).symm
-  have huvars : E.production.production.completed.canonicalGeneration.uvars = w.uvars := by
+  have huvars : E.production.production.canonicalGeneration.uvars = w.uvars := by
     rw [← M.uvars, ← hwuvars, Hstep.restored.restoration.levelParams]
   simp only [Restoration.recursor, InductiveSignature.Instance.recursor, htype,
     Option.bind_eq_bind, Option.pure_def, Option.bind_some, hrecName]
@@ -693,8 +693,8 @@ theorem NestedValidatedRunResult.recursorNames_order
       sourceDecl lparams nparams isUnsafe safety outEnv)
     (hnonempty : sourceTypes ≠ []) :
     (List.finRange
-        E.production.production.completed.generationSignature.families.size).map
-        E.production.production.completed.canonicalGeneration.recursorName =
+        E.production.production.generationSignature.families.size).map
+        E.production.production.canonicalGeneration.recursorName =
       sourceTypes.map (fun t => Lean.mkRecName t.name) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
   let P := E.production
@@ -703,12 +703,12 @@ theorem NestedValidatedRunResult.recursorNames_order
       ← Lean4Lean.VerifyInductive.TrInductDeclCore.types_length P.constructors.core]
   -- generated names in owner order
   have hgen : (List.finRange
-        E.production.production.completed.generationSignature.families.size).map
-        E.production.production.completed.canonicalGeneration.recursorName =
+        E.production.production.generationSignature.families.size).map
+        E.production.production.canonicalGeneration.recursorName =
       P.indTypes.toList.map (fun t => Lean.mkRecName t.name) := by
-    have hN : E.production.production.completed.generationSignature.families.size =
+    have hN : E.production.production.generationSignature.families.size =
         P.indTypes.toList.length := by
-      rw [← E.production.production.completed.entries_length_eq]
+      rw [← E.production.production.entries_length_eq]
       exact hentries
     apply List.ext_getElem
     · simp only [List.length_map, List.length_finRange]; exact hN
@@ -821,16 +821,16 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
     List.Forall₂ (fun owner w =>
         (compilationRestoration sourceDecl auxiliaries).recursor
-          (E.production.production.completed.canonicalGeneration.recursor owner) = some w ∧
+          (E.production.production.canonicalGeneration.recursor owner) = some w ∧
         ∃ (s t : Environment) (Hstep : RestoredRecursorStep result E.loweredEnv
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
           (sourceTypes.map (·.name))
-          (E.production.production.completed.canonicalGeneration.recursorName owner) s t),
+          (E.production.production.canonicalGeneration.recursorName owner) s t),
           RestoredRecursorStepValue
             ((C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections
               sourceDecl.projectionEntries) Hstep w)
       (List.finRange
-        E.production.production.completed.generationSignature.families.size)
+        E.production.production.generationSignature.families.size)
       (C.primaryRecursors ++ C.auxiliaryRecursors) := by
   let r := compilationRestoration sourceDecl auxiliaries
   let trEnv := (C.canonical.venvCtors.addEliminators C.canonical.eliminators).addProjections sourceDecl.projectionEntries
@@ -864,8 +864,8 @@ theorem NestedValidatedRunResult.restoredRecursorEntries_of_hitShape
         (sourceTypes.map (·.name)) name s t),
         RestoredRecursorStepValue trEnv Hstep w)
       ((List.finRange
-          E.production.production.completed.generationSignature.families.size).map
-          E.production.production.completed.canonicalGeneration.recursorName)
+          E.production.production.generationSignature.families.size).map
+          E.production.production.canonicalGeneration.recursorName)
       (C.primaryRecursors ++ C.auxiliaryRecursors) := by
     have hnonempty : sourceTypes ≠ [] := C.sourceNonempty
     rw [E.recursorNames_order hnonempty]
@@ -982,25 +982,25 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
-    ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+    ∀ (owner : Fin E.production.production.generationSignature.families.size)
       {s t : Environment}
       (Hstep : RestoredRecursorStep result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
         (sourceTypes.map (·.name))
-        (E.production.production.completed.canonicalGeneration.recursorName owner) s t),
+        (E.production.production.canonicalGeneration.recursorName owner) s t),
       (∃ type, (compilationRestoration sourceDecl auxiliaries).expr
-          (E.production.production.completed.canonicalGeneration.recursorType owner) =
+          (E.production.production.canonicalGeneration.recursorType owner) =
             some type ∧
         C.finalBaseVEnv.constants Hstep.restored.newInfo.name =
           some ⟨Hstep.restored.newInfo.levelParams.length, type⟩) ∧
       Hstep.restored.newInfo.numParams =
-        E.production.production.completed.generationSignature.params.length ∧
+        E.production.production.generationSignature.params.length ∧
       Hstep.restored.newInfo.numIndices =
-        E.production.production.completed.generationSignature.families[owner].indices.length ∧
+        E.production.production.generationSignature.families[owner].indices.length ∧
       Hstep.restored.newInfo.numMotives =
-        E.production.production.completed.generationSignature.families.size ∧
+        E.production.production.generationSignature.families.size ∧
       Hstep.restored.newInfo.numMinors =
-        E.production.production.completed.generationSignature.constructors.size := by
+        E.production.production.generationSignature.constructors.size := by
   intro owner s t Hstep
   have Hentries := E.restoredRecursorEntries_of_hitShape C hC wf Hsources hadded Haux Hexpansion
     hnodup hparamsSize D hscoped
@@ -1017,7 +1017,7 @@ theorem NestedValidatedRunResult.restoredRecursorShapeFields
   simp only [Restoration.recursor, InductiveSignature.Instance.recursor,
     Option.bind_eq_bind, Option.pure_def] at hrec
   cases ht : (compilationRestoration sourceDecl auxiliaries).expr
-      (E.production.production.completed.canonicalGeneration.recursorType owner) with
+      (E.production.production.canonicalGeneration.recursorType owner) with
   | none => simp [ht] at hrec
   | some type =>
     simp only [ht, Option.bind_some, Option.some.injEq] at hrec
@@ -1063,33 +1063,33 @@ theorem NestedValidatedRunResult.restoredRecursorShapeInputs_of_hitShape
     (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
       (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
     (hscoped : (compilationRestoration sourceDecl auxiliaries).Scoped) :
-    ∀ (owner : Fin E.production.production.completed.generationSignature.families.size)
+    ∀ (owner : Fin E.production.production.generationSignature.families.size)
       {s t : Environment}
       (Hstep : RestoredRecursorStep result E.loweredEnv
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
         (sourceTypes.map (·.name))
-        (E.production.production.completed.canonicalGeneration.recursorName owner) s t),
+        (E.production.production.canonicalGeneration.recursorName owner) s t),
       Hstep.restored.newInfo.k = false →
       (∃ head : RestoredFamilyHead,
         Hstep.restored.newInfo.getMajorInduct = head.name ∧
         (∀ arg ∈ head.arguments,
-          arg.ClosedN E.production.production.completed.generationSignature.params.length) ∧
+          arg.ClosedN E.production.production.generationSignature.params.length) ∧
         (compilationRestoration sourceDecl auxiliaries).expr
-          (E.production.production.completed.canonicalGeneration.familyApp owner
-            (vars E.production.production.completed.generationSignature.params.length
-              (E.production.production.completed.generationSignature.families.size +
-                E.production.production.completed.generationSignature.constructors.size +
-                E.production.production.completed.generationSignature.families[owner].indices.length))
-            (vars E.production.production.completed.generationSignature.families[owner].indices.length
+          (E.production.production.canonicalGeneration.familyApp owner
+            (vars E.production.production.generationSignature.params.length
+              (E.production.production.generationSignature.families.size +
+                E.production.production.generationSignature.constructors.size +
+                E.production.production.generationSignature.families[owner].indices.length))
+            (vars E.production.production.generationSignature.families[owner].indices.length
               0)) =
           some (VExpr.mkApps (.const head.name head.levels)
             (head.arguments.map (fun arg => arg.liftN
-              (E.production.production.completed.generationSignature.families.size +
-                E.production.production.completed.generationSignature.constructors.size +
-                E.production.production.completed.generationSignature.families[owner].indices.length)) ++
-              vars E.production.production.completed.generationSignature.families[owner].indices.length
+              (E.production.production.generationSignature.families.size +
+                E.production.production.generationSignature.constructors.size +
+                E.production.production.generationSignature.families[owner].indices.length)) ++
+              vars E.production.production.generationSignature.families[owner].indices.length
                 0))) →
-      RestoredRecursorShapeInputs E.production.production.completed.canonicalGeneration
+      RestoredRecursorShapeInputs E.production.production.canonicalGeneration
         (compilationRestoration sourceDecl auxiliaries) C.finalBaseVEnv owner
         { Hstep.restored.newInfo with rules := [] } := by
   intro owner s t Hstep hk hspecialization
@@ -1221,8 +1221,9 @@ theorem NestedValidatedRunResult.compilationData_of_specializations_rules
   have hrecursorsAdded := E.production.production.installed.abstract
   have hrecursorValues : E.production.production.entries.map Prod.snd =
       E.production.compilationInstance.recursors :=
-    E.production.production.completed.canonicalRecursors
-  rw [hrecursorValues] at hrecursorsAdded
+    E.production.production.canonicalRecursors
+  rw [hrecursorValues, E.production.constructors.completed.contextVEnv]
+    at hrecursorsAdded
   have hrecursorsFresh := VEnv.addConstVals_names_fresh hrecursorsAdded
   simp only [VEnv.addEliminators_constants, VEnv.addProjections_constants] at hrecursorsFresh
   have hctorFresh : ∀ recursor ∈ E.production.compilationInstance.recursors,
@@ -1376,13 +1377,13 @@ theorem NestedValidatedRunResult.recursorName_mem_lowered
     {outEnv : Environment}
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes sourceEnv
       sourceDecl lparams nparams isUnsafe safety outEnv)
-    (owner : Fin E.production.production.completed.generationSignature.families.size) :
-    E.production.production.completed.canonicalGeneration.recursorName owner ∈
+    (owner : Fin E.production.production.generationSignature.families.size) :
+    E.production.production.canonicalGeneration.recursorName owner ∈
       E.production.loweredDecl.types.map (fun t => t.name.str "rec") := by
   have hiE : owner.val < E.production.production.entries.length := by
     rw [show E.production.production.entries =
-      E.production.production.completed.entries from rfl,
-      E.production.production.completed.entries_length_eq]
+      E.production.production.entries from rfl,
+      E.production.production.entries_length_eq]
     exact owner.isLt
   obtain ⟨owner', hown, h⟩ := E.recursorOwnerOfEntry hiE
   have : owner' = owner := Fin.ext hown
@@ -1429,15 +1430,15 @@ theorem NestedValidatedRunResult.recursorName_not_head
       generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
     (hnodup : (familyNames E.production.loweredDecl.types ++
       E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
-    (owner : Fin E.production.production.completed.generationSignature.families.size) :
+    (owner : Fin E.production.production.generationSignature.families.size) :
     (compilationRestoration sourceDecl auxiliaries).heads.find?
         (fun h => h.auxiliary ==
-          E.production.production.completed.canonicalGeneration.recursorName owner) =
+          E.production.production.canonicalGeneration.recursorName owner) =
       none := by
   apply List.find?_eq_none.mpr
   intro h hh heq
   have heq' : h.auxiliary =
-      E.production.production.completed.canonicalGeneration.recursorName owner := by
+      E.production.production.canonicalGeneration.recursorName owner := by
     simpa using heq
   have hmem : h.auxiliary ∈ (compilationRestoration sourceDecl auxiliaries).heads.map
       (·.auxiliary) := List.mem_map_of_mem hh
