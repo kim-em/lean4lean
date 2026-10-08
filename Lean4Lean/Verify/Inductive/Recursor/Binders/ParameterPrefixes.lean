@@ -1352,63 +1352,67 @@ def CheckedConstructorTailAt
         env Us (constructorTelescopeTarget ctorVal) scope tailTarget
         stats.params.size 0)
 
-structure ConstructorTailReplayRow
+/-- The constructors among the first `done` of `ctors` whose checked parameter prefix
+and tail are known (`CheckedConstructorTailAt`). -/
+structure ConstructorTailPrefixRow
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (ctors : List Constructor)
     (done : Nat) : Prop where
   covered : done ≤ ctors.length
-  replays : ∀ i, i < done → (hi : i < ctors.length) →
+  tails : ∀ i, i < done → (hi : i < ctors.length) →
     CheckedConstructorTailAt env Us scope stats decl target ctors[i]
 
-def ConstructorTailReplayRow.empty
+def ConstructorTailPrefixRow.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (target : VInductiveType) (ctors : List Constructor) :
-    ConstructorTailReplayRow env Us scope stats decl target ctors 0 where
+    ConstructorTailPrefixRow env Us scope stats decl target ctors 0 where
   covered := Nat.zero_le _
-  replays _ hi := by omega
+  tails _ hi := by omega
 
-def ConstructorTailReplayRow.push
-    (H : ConstructorTailReplayRow env Us scope stats decl target ctors done)
+def ConstructorTailPrefixRow.push
+    (H : ConstructorTailPrefixRow env Us scope stats decl target ctors done)
     (hi : done < ctors.length)
     (Hreplay : CheckedConstructorTailAt env Us scope stats decl target
       ctors[done]) :
-    ConstructorTailReplayRow env Us scope stats decl target ctors (done + 1) where
+    ConstructorTailPrefixRow env Us scope stats decl target ctors (done + 1) where
   covered := by omega
-  replays i hidone hi' := by
+  tails i hidone hi' := by
     by_cases hlast : i = done
     · subst i
       exact Hreplay
-    · exact H.replays i (by omega) hi'
+    · exact H.tails i (by omega) hi'
 
-structure ConstructorTailReplayRows
+/-- The families among the first `done` of `indTypes` all of whose constructors
+have a known checked parameter prefix and tail. -/
+structure ConstructorTailPrefixRows
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (indTypes : Array InductiveType) (done : Nat) : Prop where
   size_eq : indTypes.size = decl.types.length
   covered : done ≤ indTypes.size
   rows : ∀ i, i < done → (hi : i < indTypes.size) →
-    ConstructorTailReplayRow env Us scope stats decl decl.types[i]
+    ConstructorTailPrefixRow env Us scope stats decl decl.types[i]
       indTypes[i].ctors indTypes[i].ctors.length
 
-def ConstructorTailReplayRows.empty
+def ConstructorTailPrefixRows.empty
     (env : VEnv) (Us : List Name) (scope : VLCtx)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (indTypes : Array InductiveType)
     (hsize : indTypes.size = decl.types.length) :
-    ConstructorTailReplayRows env Us scope stats decl indTypes 0 where
+    ConstructorTailPrefixRows env Us scope stats decl indTypes 0 where
   size_eq := hsize
   covered := Nat.zero_le _
   rows _ hi := by omega
 
-def ConstructorTailReplayRows.push
-    (H : ConstructorTailReplayRows env Us scope stats decl indTypes done)
+def ConstructorTailPrefixRows.push
+    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes done)
     (hi : done < indTypes.size)
-    (Hrow : ConstructorTailReplayRow env Us scope stats decl
+    (Hrow : ConstructorTailPrefixRow env Us scope stats decl
       (decl.types[done]'(by rw [← H.size_eq]; exact hi))
       indTypes[done].ctors indTypes[done].ctors.length) :
-    ConstructorTailReplayRows env Us scope stats decl indTypes (done + 1) where
+    ConstructorTailPrefixRows env Us scope stats decl indTypes (done + 1) where
   size_eq := H.size_eq
   covered := by omega
   rows i hidone hi' := by
@@ -1427,13 +1431,13 @@ structure ConstructorTails
     CheckedConstructorTailAt env Us scope stats decl
       decl.types[familyIdx] indTypes[familyIdx].ctors[ctorIdx]
 
-def ConstructorTailReplayRows.complete
-    (H : ConstructorTailReplayRows env Us scope stats decl indTypes
+def ConstructorTailPrefixRows.complete
+    (H : ConstructorTailPrefixRows env Us scope stats decl indTypes
       indTypes.size) :
     ConstructorTails env Us scope stats decl indTypes where
   size_eq := H.size_eq
   replay familyIdx hfamily ctorIdx hctor :=
-    (H.rows familyIdx hfamily hfamily).replays ctorIdx hctor hctor
+    (H.rows familyIdx hfamily hfamily).tails ctorIdx hctor hctor
 
 end VerifyInductive
 end Lean4Lean

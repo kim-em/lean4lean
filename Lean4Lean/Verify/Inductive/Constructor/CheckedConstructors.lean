@@ -30,7 +30,7 @@ theorem refinesTypeWithReplay
     (Hprefix : ConstructorTypePrefix envTypes decl params target ctorIdx)
     (Hreplay : ConstructorParamPrefixRow stats source.ctors ctorIdx)
     {tailScope : VLCtx}
-    (Htails : ConstructorTailReplayRow Hc.venv c.lparams tailScope stats
+    (Htails : ConstructorTailPrefixRow Hc.venv c.lparams tailScope stats
       decl target source.ctors ctorIdx)
     (Hshape : ∀ i (hsource : i < source.ctors.length)
       (htarget : i < target.ctors.length),
@@ -63,7 +63,7 @@ theorem refinesTypeWithReplay
     (Hfinish : ConstructorTypePrefix envTypes decl params target
         target.ctors.length →
       ConstructorParamPrefixRow stats source.ctors source.ctors.length →
-      ConstructorTailReplayRow Hc.venv c.lparams tailScope stats decl target
+      ConstructorTailPrefixRow Hc.venv c.lparams tailScope stats decl target
         source.ctors source.ctors.length →
       Q ()) :
     (AddInductive.checkConstructors.loopCtors stats isUnsafe targetIdx
@@ -106,7 +106,7 @@ theorem refinesTypeWithReplay
           Hprefix
     have HreplayComplete : ConstructorParamPrefixRow stats source.ctors
         source.ctors.length := by simpa [heq] using Hreplay
-    have HtailsComplete : ConstructorTailReplayRow Hc.venv c.lparams
+    have HtailsComplete : ConstructorTailPrefixRow Hc.venv c.lparams
         tailScope stats decl target source.ctors source.ctors.length := by
       simpa [heq] using Htails
     exact Hfinish Hcomplete HreplayComplete HtailsComplete
@@ -128,7 +128,7 @@ theorem refinesBlockWithReplay
     (Hprefix : ConstructorTypesPrefix envTypes decl params targetIdx)
     (Hreplays : ConstructorParamPrefixRows stats indTypes targetIdx)
     {tailScope : VLCtx}
-    (Htails : ConstructorTailReplayRows Hc.venv c.lparams tailScope stats
+    (Htails : ConstructorTailPrefixRows Hc.venv c.lparams tailScope stats
       decl indTypes targetIdx)
     (Hshape : ∀ targetIdx (hsource : targetIdx < indTypes.size)
       (htarget : targetIdx < decl.types.length)
@@ -168,7 +168,7 @@ theorem refinesBlockWithReplay
     (Hfinish : ConstructorTypesPrefix envTypes decl params
         decl.types.length →
       ConstructorParamPrefixRows stats indTypes indTypes.size →
-      ConstructorTailReplayRows Hc.venv c.lparams tailScope stats decl
+      ConstructorTailPrefixRows Hc.venv c.lparams tailScope stats decl
         indTypes indTypes.size →
       Q ()) :
     (AddInductive.checkConstructors.loopTypes indTypes stats isUnsafe
@@ -192,7 +192,7 @@ theorem refinesBlockWithReplay
       Hc Htarget
       (ConstructorTypePrefix.empty envTypes decl params decl.types[targetIdx])
       (ConstructorParamPrefixRow.empty stats indTypes[targetIdx].ctors)
-      (ConstructorTailReplayRow.empty Hc.venv c.lparams tailScope stats decl
+      (ConstructorTailPrefixRow.empty Hc.venv c.lparams tailScope stats decl
         decl.types[targetIdx] indTypes[targetIdx].ctors)
     · intro i hsource htarget' Hctor checkedType type' checkedType' hchecked
       exact Hshape targetIdx hidx htarget i hsource htarget' Hctor
@@ -283,7 +283,7 @@ theorem checkConstructors.loopTypes.refinesChecked
       params stats indTypes c.lparams Hmaterialized.parameterScope)
     Hc Htypes (ConstructorTypesPrefix.empty Hc.venv decl params)
     (ConstructorParamPrefixRows.empty stats indTypes)
-    (ConstructorTailReplayRows.empty Hc.venv c.lparams
+    (ConstructorTailPrefixRows.empty Hc.venv c.lparams
       Hmaterialized.parameterScope stats decl indTypes hindTypesSize)
   · intro targetIdx hsource htarget ctorIdx hctorSource hctorTarget
       Hctor checkedType fullType checkedType' hchecked

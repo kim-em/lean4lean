@@ -42,11 +42,11 @@ theorem InductionHypothesisType.replayTrace_eq_template
     (howner : O.ownerIdx < recInfos.size)
     (fieldBinders : List FVarId) :
     O.replayTrace fieldBinders =
-      recCallTemplateReplayTrace call (recInfos.map (·.motive))
+      recCallTemplateShape call (recInfos.map (·.motive))
         fieldBinders := by
   subst call
   simp [InductionHypothesisType.replayTrace,
-    recCallTemplateReplayTrace,
+    recCallTemplateShape,
     O.arguments_bound.toFVarArrayIn.exprArrayFVarIds,
     Array.getElem!_eq_getD, Array.getD, howner]
 
@@ -943,9 +943,9 @@ theorem RuleFromTemplate.typingOfProducer
       H.certificate.all_args_bound.fvars
     rw [hsemanticMotives] at hsourceReplay
     have hblueprintBinders :
-        recCallTemplateReplayTrace B.recursiveCalls[j]!
+        recCallTemplateShape B.recursiveCalls[j]!
             (recInfos.map (·.motive)) S.fields_bound.fvars =
-          recCallTemplateReplayTrace B.recursiveCalls[j]!
+          recCallTemplateShape B.recursiveCalls[j]!
             (recInfos.map (·.motive))
               H.certificate.all_args_bound.fvars := by
       rw [hfieldBinders]

@@ -21,7 +21,7 @@ namespace VerifyInductive
 /-- The alpha-invariant shape of a recursive-call template.  This is the
 common normal form of the minor-pass `loopUArgs` run and the call generated
 during rule construction. -/
-def recCallTemplateReplayTrace
+def recCallTemplateShape
     (call : AddInductive.RecCallTemplate) (motives : Array Expr)
     (fieldBinders : List FVarId) : InductionHypothesisShape where
   ownerIdx := call.targetTypeIdx
@@ -57,7 +57,7 @@ structure TypedCallTemplate
         Nonempty S.MotiveApplication ∧
         ∀ fieldBinders,
           S.generated.replayTrace fieldBinders =
-            recCallTemplateReplayTrace call motives fieldBinders
+            recCallTemplateShape call motives fieldBinders
   /-- The argument telescope and exposed indices mention only the
   declaration's universe parameters. -/
   universes : (call.lctx.mkForall call.args (.sort .zero)).levelParamsIn root.lparams = true ∧
@@ -1034,7 +1034,7 @@ theorem inductionHypothesisTypeOriginOfInferredScope
     · intro fieldBinders
       simp [S, Hgenerated, call,
         RecursiveCall.replayTrace,
-        recCallTemplateReplayTrace,
+        recCallTemplateShape,
         Hargs.toFVarArrayAfter.toFVarArrayIn.exprArrayFVarIds]
       rfl
 
