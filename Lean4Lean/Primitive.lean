@@ -284,10 +284,11 @@ def unfoldNatWellFounded (e meas : Expr) (fail : ∀ {α}, M α) : M Probe := do
     let .forallE _ A _ _ ← whnf (← inferType F) | fail
     unless ← isDefEq ty A do fail
     return (F, lctx.mkLambda fvs a₀)
-  -- `F` is read again here, in the context the probe is returned to, and the `ih` binder's type
-  -- `Dom` is computed from that reading. This is scoped so that no conversion fact outlives its
-  -- binder: what was found about `F` under the measure's binders is not carried out of them.
-  let .forallE _ A cod _ ← whnf (← checkType F) | fail
+  -- `F`'s type is read again here, in the context the probe is returned to, and the `ih` binder's
+  -- type `Dom` is computed from that reading: what was found about `F` under the measure's
+  -- binders is not carried out of them. (`F` itself is well typed here: it mentions none of those
+  -- binders, which are `Nat`s, so substituting `Nat.zero` for them leaves it alone.)
+  let .forallE _ A cod _ ← whnf (← inferType F) | fail
   let dom ← withLocalDecl `a .default A fun a => do
     let .forallE _ dom _ _ ← whnf (cod.instantiate1 a) | fail
     return .lam `a A (dom.abstract #[a]) .default

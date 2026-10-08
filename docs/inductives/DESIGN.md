@@ -546,11 +546,12 @@ of `Init.Prelude` and `Init.Core` are unaffected. This is one of several diverge
 executable; `divergences.md` lists all of them, with an audit table of every executable change
 (section 7.2).
 
-One primitive check was adjusted for the same reason (`Lean4Lean/Primitive.lean`): the
-functional of a well-founded definition is checked in the outer context, rather than relying on
-facts established under the measure's binders. The closed pieces of a `reflectNatNat` condition
-are read only under the gadget's binders; the verification brings those readings to the outer
-context by substituting inhabitants for the binders.
+The primitive recognizer (`Lean4Lean/Primitive.lean`) reads the closed pieces of a
+`reflectNatNat` condition, and the functional of a well-founded definition, only under binders
+(the condition gadget's, the measure telescope's). The verification brings those readings to the
+outer context without strengthening: every such binder is inhabited there (by `Nat.zero`, or by
+the gadget's own arguments at it), and substituting the inhabitant leaves a term that does not
+mention the binder alone (`TrExprS.peel_outer`, `MLCtx.trExprS_dropN_nat`).
 
 ### 5.3 The projection-walk corner
 
@@ -688,9 +689,6 @@ wrapper name. The other changes cannot change a decision except through checker 
   invariant, so that the empty environment satisfies `VEnvs.WF` (section 1.2).
 - `Quot.ind`'s major binder is explicit (section 6), and projections are compared by
   structure name in `isDefEqCore'` and the equivalence manager; both now match the C++ kernel.
-- **Primitive recognizer** (`Lean4Lean/Primitive.lean`): an extra `checkType` call reads a
-  well-founded functional in the outer context (section 5.2); it concerns only reserved
-  primitive names.
 
 ## 8. Tests
 
