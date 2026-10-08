@@ -295,3 +295,15 @@ deletion (`weakN_iff` family, `weakN_inv`, `InstForalls.defeq`, `FullHeadStrengt
 Countermodel) and no `VEnv.Strengthening` definition. The choice-based corner chain is kept only as
 `addDecl.WF_of_canonicalChoice`; the renames of the corner files and of
 `InhabitedStrengthening.lean` will be absorbed when the mainline is merged.
+
+## 10. Outcome (2026-10-08, HEAD of agent/verify-inductives-strengthening)
+
+`addDecl.WF_of_canonicalEq (wf : ves.WF env) (heq) (decl) (hdecl)` holds without canonical choice;
+`VEnvs.WF = VEnvs.WFCore + ctorCert`, certificate vacuous without constructors
+(`VEnvs.WF.ofNoCtors`) and preserved by every path (`VEnvs.CertPres`). The choice route survives as
+`addDecl.WF_of_canonicalChoice` over `VEnvs.WFCore`. Checks run by the lead on the merged state:
+`lake build` 895 jobs, 0 sorry; `lake build Lean4Lean.Tests` 569 jobs, 0 sorry;
+`lake build Lean4Lean.Experimental` 263 jobs (56 inherited prototype sorries); fresh replays
+`Init.Prelude` 1975, `Init.Core` 3953; audit `--self-test` passed, `--require-complete` "No sorry
+dependencies; all remaining axioms are listed"; 32 axioms, no `sorryAx`; no executable file changed.
+Declarative strengthening (`Γ, A ⊢ e : B` ⟹ `Γ ⊢ e : B`) remains open and is not used.
