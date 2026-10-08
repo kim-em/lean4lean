@@ -49,6 +49,43 @@ def ProofBinder (env : VEnv) (U : Nat) (Δ : List VExpr) (doms : List VExpr) (ls
     (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧ env.HasType U Δ P (.sort .zero)) ∧
     ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ → ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0]
 
+/-- The static facts about the family `I` of a rule's major that select its binding mode: `I`
+is not projection-registered and `ctor` is not a projection constructor, or `I` has a valid
+projection entry with the constructor `ctor`, `np` parameters, `nf` fields and a result level
+equivalent to `L`. Discharged for well-formed environments in `Model/Staged.lean`. -/
+def ProjMajor (env : VEnv) (I ctor : Name) (np nf : Nat) (L : VLevel) : Prop :=
+  ((∀ info, ¬ env.projections I info) ∧ ¬ IsProjCtor env ctor) ∨
+  ∃ info, env.projections I info ∧ ProjValid env I info ∧ info.ctorName = ctor ∧
+    info.nparams = np ∧ info.numFields = nf ∧ info.resultLevel ≈ L
+
+theorem ProjMajor.weak {I ctor : Name} {np nf : Nat} {L : VLevel}
+    (h : ProjMajor env I ctor np nf L) : MajorFam0 env I ctor := by
+  rcases h with h | ⟨info, h1, -, h2, -⟩
+  · exact .inl h
+  · exact .inr ⟨info, h1, h2⟩
+
+/-- `MajorFam` from `ProjMajor` at a major with exactly the registered numbers of parameter and
+field arguments, given that the family's level is never zero at the major's levels or that the
+fields not bound by the leading arguments are proofs. -/
+theorem ProjMajor.majorFam {I ctor : Name} {L : VLevel} {Γ doms lead ms : List VExpr}
+    {fs : List Nat} {ls lsC : List VLevel}
+    (h : ProjMajor env I ctor ms.length fs.length L)
+    (hnz : (L.inst (lsC.map (·.inst ls))).IsNeverZero ∨
+      ∀ x < doms.length, (∀ i : Nat, lead[i]? ≠ some (VExpr.bvar x)) →
+        ∀ v vS, Ctx.SubstEq env U Δ v v ((doms.map (·.instL ls)).reverse ++ Γ) →
+        TV env U Δ ((doms.map (·.instL ls)).reverse ++ Γ) v vS →
+        (∃ P, TyCls env U Δ ((binderTy doms ls x).subst v) P ∧
+          env.HasType U Δ P (.sort .zero)) ∧
+        ∀ τ, Obs env U Δ v vS (binderTy doms ls x) τ →
+          ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0]) :
+    MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC := by
+  rcases h with h | ⟨info, hp, hPV, hcn, hnp, hnf, hL⟩
+  · exact .inl h
+  refine .inr ⟨info, hp, hPV, hcn, by omega, fun x j _ _ => by omega, ?_⟩
+  rcases hnz with hnz | hnz
+  · exact .inl (hnz.of_equiv (VLevel.inst_congr_l (Eq.symm hL : L ≈ info.resultLevel)))
+  · exact .inr hnz
+
 theorem eqLead_length_owner {s : InductiveSignature} {g : Instance s}
     (H : CompilationData base source expanded s g aux block) (index : Fin s.constructors.size) :
     (g.eqLead index).length = s.params.length + (s.families.size + s.constructors.size) +
@@ -258,6 +295,7 @@ theorem motive_binderTy {s : InductiveSignature} (g : Instance s)
   rw [h, instL_wrapForalls'']
   rfl
 
+set_option maxHeartbeats 1000000 in
 /-- **Validity of an ordinary native recursor rule** (stages B and D). -/
 theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' installed : VEnv}
     (henv : env.Ordered) (hdr : env.DefRules)
@@ -266,8 +304,9 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     (C : CompilationData base source expanded s g [] block)
     (hinst : block.install base' = some installed) (hle : installed ≤ env)
     (index : Fin s.constructors.size) (hdf : env.defeqs (g.equation index))
-    (hnpF : ∀ info, ¬ env.projections s.families[s.constructors[index].owner].name info)
-    (hnpC : ¬ IsProjCtor env s.constructors[index].name)
+    (hpm : ProjMajor env s.families[s.constructors[index].owner].name s.constructors[index].name
+      s.params.length s.constructors[index].fields.length
+      s.families[s.constructors[index].owner].resultLevel)
     (hex : HeadExcl env (g.recursorName s.constructors[index].owner) block.rules)
     (hfs : FamSort env s.families[s.constructors[index].owner].name
         s.families[s.constructors[index].owner].resultLevel)
@@ -306,13 +345,18 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
   have hcf : CtorFam env s.constructors[index].name s.families[s.constructors[index].owner].name :=
     ⟨_, _, hci', hfch⟩
   have huniq := native_uniq C index hex
+  have hpm' : ProjMajor env s.families[s.constructors[index].owner].name
+      s.constructors[index].name (eqMs index).length (eqFs index).length
+      s.families[s.constructors[index].owner].resultLevel := by
+    simpa [eqMs, eqFs, vars_length'] using hpm
   obtain ⟨envE, hE, hadm⟩ := C.admissible
   rcases hadm.elimination with hnz | hsmall | hsing
   · -- data families: mode C is impossible
     have hnz' := hnz s.families[s.constructors[index].owner]
       (Array.mem_toList_iff.2 (Array.getElem_mem s.constructors[index].owner.isLt))
     exact sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH hkH
-      hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (hctor _ hcis) hctor
+      hrigF hcf hcis (hpm'.majorFam (.inl (by rw [← VLevel.inst_inst]; exact hnz'.inst)))
+      (hctor _ hcis) hctor
       hpctor hdr huniq
       (fun keys hkl hobs => absurd (by rw [eH] at hobs; exact hobs)
         (fun h => native_C_absurd hΔ hlw hrigF hfs hnz' (by rw [hlenH, hkl]) h))
@@ -321,7 +365,7 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
     obtain ⟨mds, emds, lmds⟩ := motive_binderTy g index ls
     have hcl' : ((g.equation index).type.instL ls).ClosedN := hcl.1.2.instL
     refine sound_pat_empty henv hΔ hdf hl hr hlsP hcl.1.1 hcl.2.1 (hctor _ hcis) hctor hpctor hdr
-      huniq hci eH hlenH hkH (.inl ⟨hnpF, hnpC⟩) ihL.1 ihR fun σ S W tv o => ?_
+      huniq hci eH hlenH hkH hpm.weak ihL.1 ihR fun σ S W tv o => ?_
     refine rhs_empty_motive henv hΔ (doms := (g.eqDoms index).map (·.instL ls))
       (by rw [g.equation_type_eq, instL_wrapForalls'']) (by rw [hr, instL_wrapLams'])
       hcl' ihT.2 (by simp only [VExpr.instL_mkApps, VExpr.instL]; rfl)
@@ -339,18 +383,16 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
         rw [VLevel.eval_inst]; exact (VLevel.equiv_def.1 hsmall _).trans rfl)
       ihR.1 W tv o
   · -- singleton elimination: mode C with propositional major-only fields
-    refine sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH
-      hkH hrigF hcf hcis (.inl ⟨hnpF, hnpC⟩) (hctor _ hcis)
-      hctor hpctor hdr huniq
-      (fun keys hkl hobs => ⟨fun df' ls' hdf' hh => ?_, fun x hx hnl v vS Wv tvv => ?_⟩) ihL ihR
-      (.extra hdf hlw hlen)
-    · have hm := hex df' hdf' ls' hh
-      rw [C.ordinary_rules] at hm
-      obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
-      have h1 := hsing.1.2.1
-      have : j = index := Fin.ext (by have := j.isLt; have := index.isLt; omega)
-      rw [this]
-    · have notLead : VExpr.bvar x ∉ g.eqLead index := fun hy => by
+    have hpf : ∀ x < (g.eqDoms index).length,
+        (∀ i : Nat, (g.eqLead index)[i]? ≠ some (VExpr.bvar x)) →
+        ∀ v vS, Ctx.SubstEq env U Δ v v (((g.eqDoms index).map (·.instL ls)).reverse ++ Γ) →
+        TV env U Δ (((g.eqDoms index).map (·.instL ls)).reverse ++ Γ) v vS →
+        (∃ P, TyCls env U Δ ((binderTy (g.eqDoms index) ls x).subst v) P ∧
+          env.HasType U Δ P (.sort .zero)) ∧
+        ∀ τ, Obs env U Δ v vS (binderTy (g.eqDoms index) ls x) τ →
+          ∃ cv', TypedOb env U Δ cv' τ [.sort fun _ => 0] := by
+      intro x hx hnl v vS Wv tvv
+      have notLead : VExpr.bvar x ∉ g.eqLead index := fun hy => by
         obtain ⟨i, hi, e⟩ := List.getElem_of_mem hy
         exact hnl i (List.getElem?_eq_some_iff.2 ⟨hi, e⟩)
       have hdl := g.eqDoms_length index
@@ -371,6 +413,17 @@ theorem RuleValid.native {s : InductiveSignature} {g : Instance s} {base' instal
         (s.constructors[index].fields.length - 1 - x) (by omega) hidx v vS Wv tvv
       rwa [show s.constructors[index].fields.length - 1 -
         (s.constructors[index].fields.length - 1 - x) = x by omega] at this
+    refine sound_pat henv hΔ hdf hl hr (g.equation_cov index) hlsP hcl.1.1 hcl.2.1 hci eH hlenH
+      hkH hrigF hcf hcis (hpm'.majorFam (.inr hpf)) (hctor _ hcis)
+      hctor hpctor hdr huniq
+      (fun keys hkl hobs => ⟨fun df' ls' hdf' hh => ?_, hpf⟩) ihL ihR
+      (.extra hdf hlw hlen)
+    · have hm := hex df' hdf' ls' hh
+      rw [C.ordinary_rules] at hm
+      obtain ⟨j, -, rfl⟩ := List.mem_map.1 hm
+      have h1 := hsing.1.2.1
+      have : j = index := Fin.ext (by have := j.isLt; have := index.isLt; omega)
+      rw [this]
 
 end Model
 end VEnv

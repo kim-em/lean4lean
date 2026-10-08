@@ -703,7 +703,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
     (hci : env.constants n = some ci) (eH : ci.type = .wrapForalls dsH RH)
     (hlenH : dsH.length = lead.length + 1)
     (hkH : dsH[lead.length]? = some (.mkApps (.const I lsI) iargs))
-    (hfam : MajorFam env U Δ Γ I ctor doms lead ms fs ls lsC)
+    (hfam : MajorFam0 env I ctor)
     (hRH : HTS env U Δ Γ (df.rhs.instL ls) (df.type.instL ls))
     (hR : SoundAt env U Δ Γ (df.rhs.instL ls) (df.rhs.instL ls) (df.type.instL ls))
     (W : Ctx.SubstEq env U Δ σ σ Γ) (tv : TV env U Δ Γ σ S) :
@@ -761,7 +761,7 @@ theorem pat_lhs_sub {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms :
         have hll : lkeys.length = lead.length := hlen''.trans hleadlen
         obtain ⟨rfl, info', hpi', hcn'⟩ :=
           hEH.fam eH (by rw [hll]; exact hlenH) (by rw [hll]; exact hkH)
-        rcases hfam with ⟨hnp, -⟩ | ⟨info, hpi, -, hcn, -⟩
+        rcases hfam with ⟨hnp, -⟩ | ⟨info, hpi, hcn⟩
         · exact absurd hpi' (hnp _)
         · cases henv.projections_unique hpi hpi'
           exact hcn'.symm.trans hcn
@@ -977,7 +977,7 @@ theorem sound_pat {df : VDefEq} {n : Name} {lsP : List VLevel} {doms lead ms : L
   refine ⟨fun o h => ?_, fun o h => ?_, (ihL.1 σ σ S W.left tv tv).2.2.1,
     (ihR.1 σ' σ' S W' tv' tv').2.2.1⟩
   · obtain ⟨o', h1, l⟩ := pat_lhs_sub henv hΔ hdf hl hr hlsP hlcl hrcl hcrig hctor hpctor hdr huniq
-      hci eH hlenH hkH hfam ihR.2 ihR.1 W.left tv o h
+      hci eH hlenH hkH hfam.weak ihR.2 ihR.1 W.left tv o h
     exact ⟨o', (Obs.closed_iff_id hRc).2 ((Obs.closed_iff_id hRc).1 h1), l⟩
   · obtain ⟨o', h1, l⟩ := pat_rhs_sub henv hΔ hdf hl hr hcov hlsP hci eH hlenH hkH hIrig hcf
       hcis hfam hC ihL.2 ihR.1 heq W' tv' o h

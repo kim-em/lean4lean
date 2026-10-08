@@ -1,5 +1,7 @@
 import Lean4Lean.Theory.Typing.HeadInversionDefs
 import Lean4Lean.Theory.Typing.ShapeModel.RuleValidHistory
+import Lean4Lean.Theory.Typing.HeadInjectivity.Fields
+import Lean4Lean.Theory.Typing.HeadInjectivity.Model.Separation
 
 /-! # Head inversion for types: the base obligation of the inversion layer
 
@@ -23,13 +25,13 @@ theorem _root_.Lean4Lean.VEnv.WF.headSeparation {env : VEnv} (henv : env.WF) :
     env.HeadSeparation :=
   ShapeModel.headSeparation_of_wf henv
 
-/-- The remaining semantic obligation of the inversion layer: injectivity of type heads.
-
-It is to be discharged by a Coquand–Huber style adequacy theorem
-(`docs/inductives/PHASE1_SPIKE.md`, Phase 1b). The separation half is proved
-(`VEnv.WF.headSeparation`). -/
+/-- Injectivity of type heads for every well-formed environment: the chain-level core from
+soundness of the glued observation model (`VEnv.WF.headInjectivityCore`,
+`Theory/Typing/HeadInjectivity/Model/Staged.lean`), lifted by the syntactic layer
+(`VEnv.HeadInjectivityCore.toHeadInjectivity`). -/
 theorem _root_.Lean4Lean.VEnv.WF.headInjectivity {env : VEnv} (henv : env.WF) :
-    env.HeadInjectivity := sorry
+    env.HeadInjectivity :=
+  henv.headInjectivityCore.toHeadInjectivity henv
 
 /-- The base obligation of the inversion layer, assembled from separation and injectivity.
 

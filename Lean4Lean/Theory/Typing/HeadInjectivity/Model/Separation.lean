@@ -78,15 +78,9 @@ theorem WF.headSeparation_of_sound {env : VEnv} (henv : env.WF) (hnr : Model.Sou
   sort_rigid hΓ hrig h := Model.sort_rigid henv.ordered hnr hΓ hrig h
   forallE_rigid hΓ hrig h := Model.forallE_rigid henv.ordered hnr hΓ hrig h
 
-/-- **Head separation** for well-formed environments without projections (the scope of
-stages B, D and E; `ProjFree` is dropped when stage C lands). -/
-theorem WF.headSeparationModel {env : VEnv} (henv : env.WF) (hB : env.ProjFree) :
-    env.HeadSeparation := by
-  obtain ⟨ds, H⟩ := henv
-  have hvalid := WF'.ruleValid ⟨ds, H⟩ hB.projections H .rfl (fun _ h _ _ _ _ => h)
-  exact WF.headSeparation_of_sound ⟨ds, H⟩ fun hΔ H' =>
-    Model.sound (VEnv.WF.ordered ⟨ds, H⟩) hΔ .rfl hvalid.1 (fun n p h => absurd h (hB.projections n p))
-      ⟨fun _ _ _ h1 h2 => VEnv.WF.eliminators_unique ⟨ds, H⟩ h1 h2, hvalid.2⟩ H'
+/-- **Head separation** for every well-formed environment, from the glued model. -/
+theorem WF.headSeparationModel {env : VEnv} (henv : env.WF) : env.HeadSeparation :=
+  WF.headSeparation_of_sound henv henv.soundEnv
 
 end VEnv
 end Lean4Lean

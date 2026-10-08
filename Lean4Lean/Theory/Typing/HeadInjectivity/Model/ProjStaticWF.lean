@@ -189,7 +189,7 @@ private theorem quotLift_declared (henv : env.Ordered) (hq : env.defeqs quotDefE
   (henv.defEqWF hq).1.head_const_lookup henv (Γ := []) ⟨⟩ quotDefEq_head
 
 /-- A fresh entry of a declaration names a family and a constructor fresh in the base. -/
-private theorem entry_fresh {base envTypes envCtors : VEnv} {decl : VInductDecl}
+theorem entry_fresh {base envTypes envCtors : VEnv} {decl : VInductDecl}
     {block : VInductBlock} (htypesSource : block.types = decl.typeConstants)
     (hctorsSource : block.ctors = decl.constructorConstants)
     (hprojections : block.projections = decl.projectionEntries)
