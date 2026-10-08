@@ -133,17 +133,15 @@ def Condition.check (cond : Condition) (fail : ∀ {α}, M α)
   match cond.impl with
   | .reflectNatNat asBool reflect proof =>
     reflect.check fail
-    -- `toDec` is read on its own, in the context the check runs in, so that the gadget's reading
-    -- of it under its binders is known to be this one. `prop`, `asBool` and `proof` need no such
-    -- reading: the gadget reads them under its two `Nat` binders only, which `Nat.zero` inhabits,
-    -- so the verification instantiates them away.
-    _ ← checkType reflect.toDec
     let y := .bvar 0; let x := .bvar 1
     -- `toDec` under binders that name its argument types, applied to the three pieces. Written
     -- this way -- rather than `mkApp3 reflect.toDec …`, which it beta-reduces to -- the one
     -- `checkType` below does for all three: the arguments are checked against the binders, so
     -- `prop x y : Prop`, `asBool x y : Bool` and `proof x y : type (prop x y) (asBool x y)`,
-    -- which is everything a consumer needs and consistent by construction.
+    -- which is everything a consumer needs and consistent by construction. The four closed
+    -- pieces are read only here, under the gadget's binders; those binders are inhabited (by
+    -- `Nat.zero`, and then by the arguments at it), which is how the verification brings the
+    -- readings out of them.
     let e := .lam0 q(Nat) <| .lam0 q(Nat) <| mkApp3
       (.lam0 q(Prop) <| .lam0 q(Bool) <| .lam0 (mkApp2 reflect.type (.bvar 1) (.bvar 0)) <|
         mkApp3 reflect.toDec (.bvar 2) (.bvar 1) (.bvar 0))
