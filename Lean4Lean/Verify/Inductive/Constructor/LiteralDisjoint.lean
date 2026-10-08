@@ -1,5 +1,9 @@
 import Lean4Lean.Verify.Inductive.Constructor.Positivity
 
+/-! The literal branch of the positivity check: literal expansion exposes only a
+fixed finite set of constants (`literalConstructorNames`), so it cannot
+mention a family of a block whose names avoid that set. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -70,8 +74,8 @@ theorem IndConstArray.literalDisjoint
       induction s.toList <;> simp_all [Expr.findAny]
 
 /-- Natural-number literal expansion only exposes the two reserved natural
-constructors.  This local form remains usable during the ordinary toConstantsInstallation
-window where string-literal support is not yet available. -/
+constructors.  This local form remains usable while the prelude is declared
+and string-literal support is not yet available. -/
 theorem IndConstArray.natLiteralDisjoint
     {levels : List Level} {indConsts : Array Expr} {names : List Name}
     (H : IndConstArray levels indConsts names)
@@ -96,7 +100,7 @@ theorem IndConstArray.natLiteralDisjoint
 
 end checkPositivityStep
 
-/-- Header materialization exposes the exact family-name array, so the finite
+/-- The header checks expose the exact family-name array, so the finite
 source-name condition is sufficient at every downstream positivity call. -/
 theorem checkInductiveTypes.loopInd.HeaderStatsWF.literalDisjoint
     (H : checkInductiveTypes.loopInd.HeaderStatsWF
@@ -113,7 +117,7 @@ theorem checkInductiveTypes.loopInd.HeaderStatsWF.literalDisjoint
     checkPositivityStep.IndConstArray.ofExact hconsts
   exact Harray.literalDisjoint hdisjoint
 
-/-- Materialized family constants cannot occur in a natural-number literal
+/-- Checked family constants cannot occur in a natural-number literal
 when neither reserved natural constructor is a family name. -/
 theorem checkInductiveTypes.loopInd.HeaderStatsWF.natLiteralDisjoint
     (H : checkInductiveTypes.loopInd.HeaderStatsWF

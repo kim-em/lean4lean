@@ -1,6 +1,11 @@
 import Lean4Lean.Verify.Inductive.Recursor.Binders.RecursiveFields
 import Lean4Lean.Verify.Typing.RawShape
 
+/-! The checked common-parameter prefix of each constructor determines its raw
+syntactic shape (`CheckedConstructors.rawShapes`,
+`CheckedConstructors.parameterShapes`) without inverting definitional
+equality between forall types. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,7 +16,7 @@ namespace VerifyInductive
 
 /-- Exact raw translation state corresponding to a successful constructor
 parameter prefix.  `rawScope` uses the domains selected by the structural
-translation of the original constructor, while the executable trace's scope
+translation of the source constructor, while the executable's scope
 uses the cached mutual parameters.  Keeping their pointwise local-context
 conversion is what avoids forall injectivity. -/
 def CheckedConstructorParameterPrefix.RawTranslation
@@ -27,7 +32,7 @@ def CheckedConstructorParameterPrefix.RawTranslation
     TrExprS env Us rawScope current residual
 
 /-- Build the raw translation state directly from the exact structural
-translation and the successful executable comparison trace.  At each step
+translation and the successful executable comparisons.  At each step
 the two translations of the same concrete domain are compared directly;
 the proof never inverts definitional equality between forall expressions. -/
 theorem CheckedConstructorParameterPrefix.rawTranslation
@@ -81,7 +86,7 @@ theorem CheckedConstructorParameterPrefix.rawTranslation
       · simp [VLCtx.toCtx, hrawContext, List.reverse_append]
       · simpa [Expr.instantiate1_eq, hparamFVar] using Hopened
 
-/-- Package the exact raw-prefix producer state in the independent formation
+/-- Package the exact raw-prefix translation state in the independent formation
 judgment. -/
 theorem CheckedConstructorParameterPrefix.ctorParameterShape
     {decl : VInductDecl} {ctor : VConstVal} {params : List VExpr}
@@ -137,7 +142,7 @@ theorem CheckedConstructorParameterPrefix.rawCtorShape
   rw [htarget]
   exact hres.wrapForalls domains
 
-/-- The completed constructor replay yields the raw syntactic shape of every
+/-- The checked constructors yield the raw syntactic shape of every
 source constructor, positionally aligned with the declaration. -/
 theorem CheckedConstructors.rawShapes
     (H : CheckedConstructors sourceEnv decl env params stats indTypes
@@ -178,7 +183,7 @@ theorem CheckedConstructors.rawShapes
     Htail
   exact Hshape.of_rawShapeRel (TrExprS.rawShape .base Hctor.type Hraw.type)
 
-/-- The completed constructor replay already contains every successful raw
+/-- The checked constructors already contain every successful raw
 parameter comparison.  Pair it with the declaration translation at the same
 family/constructor indices to obtain the independent raw shape judgment,
 without changing the executable loop or adding a semantic callback. -/

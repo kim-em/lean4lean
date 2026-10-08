@@ -3,6 +3,10 @@ import Lean4Lean.Verify.Inductive.Header.Check
 import Lean4Lean.Verify.Inductive.Header.CheckedHeaders
 import Lean4Lean.Verify.Inductive.Recursor.Binders.ParameterPrefixes
 
+/-! Constructor checking against the installed header-only declaration
+accumulates the raw constructor targets, from which the constructor-bearing
+declaration and its source translation are assembled. -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -11,8 +15,8 @@ open Kernel
 namespace VerifyInductive
 namespace checkConstructors.loopTypes
 
-/-- Check every constructor against the installed header-only semantic
-declaration while accumulating the raw abstract constructor targets produced
+/-- Check every constructor against the installed header-only declaration
+while accumulating the raw abstract constructor targets produced
 by those same executable checks.  No constructor-bearing declaration is an
 input: it is deliberately assembled only after this traversal finishes. -/
 theorem accumulatesTargets
@@ -117,8 +121,8 @@ theorem accumulatesTargets
     exact HcheckedSemantic.mono fun _ _ => hR
   · exact Hfinish
 
-/-- The completed constructor traversal determines the final constructor-
-bearing declaration, its full source header translation, and its exact
+/-- The constructor traversal determines the constructor-bearing
+declaration, its full source header translation, and its exact
 installed header target list. -/
 theorem assemblesHeadersExact
     {c : AddInductive.Context} {Hc : ContextWF c}

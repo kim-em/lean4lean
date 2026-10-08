@@ -1,6 +1,12 @@
 import Lean4Lean.Verify.Inductive.Primitive.BatchInstallation
 import Lean4Lean.Verify.Inductive.Constructor.CheckedFormation
 
+/-! The formation installation (`FormationInstallation`: headers and constructors
+added one constant at a time, or as an atomic primitive batch) and the
+constructor check (`ConstructorCheck`), the input of the recursor phase, with
+its ordinary and primitive constructions (section 3.2 of
+`docs/inductives/DESIGN.md`). -/
+
 namespace Lean4Lean
 
 open Lean hiding Environment Exception
@@ -8,12 +14,12 @@ open Kernel
 
 namespace VerifyInductive
 
-/-- The two sound installation histories that can reach the completed
-constructor boundary.  Ordinary declarations preserve validity after every
+/-- The two sound installation histories that can reach the constructor
+environment.  Ordinary declarations preserve validity after every
 constant; primitive Bool/Nat declarations instead regain it only after the
 whole header/constructor batch, which is why the primitive case records that
-the batch is exactly the canonical Bool or Nat batch and that its primitive
-production names are safe and universe-monomorphic. -/
+the batch is exactly the Bool or Nat batch and that its primitive
+kernel names are safe and universe-monomorphic. -/
 inductive FormationInstallation (safety : DefinitionSafety)
     (sourceEnv : Environment) (sourceVEnv : VEnv)
     (headerEntries : List (ConstantInfo × VConstVal))
@@ -146,7 +152,7 @@ theorem FormationInstallation.headerMapWF
   | ordinary Htypes _ => exact Htypes.targetMapWF hwf
   | primitive Htypes _ _ _ => exact Htypes.targetMapWF hwf
 
-/-- A retained header entry is visible at the completed constructor endpoint
+/-- A retained header entry is visible in the constructor environment
 for both ordinary and atomic primitive histories. -/
 theorem FormationInstallation.findHeaderEntry
     (H : FormationInstallation safety sourceEnv sourceVEnv
@@ -163,7 +169,7 @@ theorem FormationInstallation.findHeaderEntry
       exact Hctors.preservesSourceFind hheaderWF
         (Htypes.findEntry hwf hentry)
 
-/-- Every constant of the completed constructor environment is old or an installed entry. -/
+/-- Every constant of the constructor environment is a base constant or an installed entry. -/
 theorem FormationInstallation.entryOrigin
     (H : FormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
@@ -201,9 +207,9 @@ theorem FormationInstallation.atomic
         (AtomicAddConstants.ofAddConstants Hctors)
   | primitive Htypes Hctors _ _ => exact Htypes.append Hctors
 
-/-- The completed formation prefix restores `HasPrimitives`: ordinary
+/-- The formation prefix restores `HasPrimitives`: ordinary
 installation never touches a primitive name, and a primitive batch is the
-complete canonical Bool or Nat toConstantsInstallation. -/
+complete Bool or Nat constant batch. -/
 theorem FormationInstallation.hasPrimitives
     (H : FormationInstallation safety sourceEnv sourceVEnv
       headerEntries headerEnv headerVEnv ctorEntries ctorEnv ctorVEnv)
@@ -218,7 +224,7 @@ theorem FormationInstallation.hasPrimitives
       · rw [hnat] at hadd
         exact VEnv.HasPrimitives.addNatConstants Hsource hadd
 
-/-- The completed formation endpoint carries the local checking invariants,
+/-- The formation installation carries the local checking invariants,
 for both installation histories. -/
 theorem FormationInstallation.validCore
     (H : FormationInstallation safety sourceEnv sourceVEnv
@@ -272,9 +278,10 @@ theorem ConstructorTypeEntries.mem_info
     · obtain ⟨o, ho, c, hc, i, h⟩ := ih e he
       exact ⟨o, List.mem_cons_of_mem _ ho, c, hc, i, h⟩
 
-/-- Stable input boundary for recursor generation.  It contains only facts
-available after every constructor is installed and the final checking context
-is valid.  No field requires a valid header-only context. -/
+/-- The constructor check, the input of the recursor phase.  It contains only
+facts available after every constructor is installed and the checking context
+over the recursor-checking environment is valid.  No field requires a valid
+header-only context. -/
 structure ConstructorCheck (c : AddInductive.Context)
     (stats : AddInductive.InductiveStats) (decl : VInductDecl)
     (nparams : Nat) (isUnsafe : Bool) (depth : Nat)
@@ -314,7 +321,7 @@ structure ConstructorCheck (c : AddInductive.Context)
   eliminatorsWF : VInductBlock.EliminatorsWF sourceEnv decl (decl.caseBlock eliminators)
   eliminatorsCertified : decl.CaseEliminators sourceEnv (fun _ => False) eliminators
   eliminatorsOwn : decl.OwnCaseEliminators sourceEnv eliminators
-  /-- The eliminators are those of a constructor boundary of the declaration. -/
+  /-- The eliminators are those of a checked formation of the declaration. -/
   eliminatorsBoundary : ∃ B : CheckedFormation c stats decl nparams isUnsafe depth sourceEnv
     indTypes, eliminators = B.caseEliminators ∧ B.params = params ∧
       B.parameterScope = parameterScope
@@ -330,7 +337,7 @@ structure ConstructorCheck (c : AddInductive.Context)
     CtorParamsAgree safety c.env sourceEnv ->
     CtorParamsAgree safety ctorEnv ctorVEnv
 
-/-- Every constructor of the completed constructor environment is old, or a new constructor of
+/-- Every constructor of the constructor environment is a base constant, or a new constructor of
 the declaration, with the declaration's safety flag and a certified type. -/
 theorem ConstructorCheck.ctorOrigin
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
@@ -351,8 +358,8 @@ theorem ConstructorCheck.ctorOrigin
     obtain ⟨T, hT⟩ := R.telescopes owner howner ctor hctor
     exact ⟨T, by simpa [AddInductive.constructorInfo] using hT⟩
 
-/-- The constructor-complete abstract environment admits the exact projection
-prefix of this declaration as a genuine staged well-formed environment. -/
+/-- The abstract constructor environment with the declaration's case
+eliminators and projection entries is well formed. -/
 theorem ConstructorCheck.projectedWF
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
@@ -360,7 +367,7 @@ theorem ConstructorCheck.projectedWF
   rw [← R.contextVEnv]
   exact R.context.checking.tr.wf
 
-/-- The constructor-complete abstract environment with the declaration's case eliminators is
+/-- The abstract constructor environment with the declaration's case eliminators is
 well formed. -/
 theorem ConstructorCheck.casesWF
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
@@ -379,10 +386,10 @@ theorem ConstructorCheck.ctorLE
   rw [R.contextVEnv]
   exact VEnv.addEliminators_addProjections_le
 
-/-- The exact header/constructor installation trace preserves the persistent
-constructor-owner invariant.  New constructor metadata obtains its owner from
-the family-major constructor trace, and that owner's header is found in the
-matching generated-header trace. -/
+/-- The header and constructor installation preserves the constructor-owner
+invariant.  New constructor metadata obtains its owner from the family-major
+constructor installation, and that owner's header is found among the
+installed headers. -/
 theorem ConstructorCheck.constructorOwnersPresent
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv)
@@ -418,8 +425,8 @@ theorem ConstructorCheck.constructorOwnersPresent
     exact R.installation.findHeaderEntry
       R.sourceContext.checking.tr.map_wf hentry
 
-/-- Transport the retained header materialization to the final valid
-constructor environment only when recursor checking begins. -/
+/-- Transport the retained checked headers to the valid constructor
+environment, at the start of the recursor phase. -/
 def ConstructorCheck.recursorHeaders
     (R : ConstructorCheck c stats decl nparams isUnsafe depth
       sourceEnv indTypes ctorEnv) :
@@ -457,8 +464,8 @@ theorem ConstructorCheck.recursorHeaders_parameterScope
     checkInductiveTypes.loopInd.HeaderStatsWF.mono,
     R.checkedParameterScope]
 
-/-- Embed the ordinary formation result into the completed constructor
-boundary while retaining its staged installation traces. -/
+/-- Embed the ordinary constructor check into `ConstructorCheck`, retaining
+its header and constructor installations. -/
 def OrdinaryConstructorCheck.toConstructorCheck
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -512,7 +519,7 @@ def OrdinaryConstructorCheck.toConstructorCheck
   inductInfosFromDecl := R.inductInfosFromDecl
   ctorParamsAgree := fun Hsource => R.ctorParamsAgree Hsource
 
-/-- The constructor boundary of a completed primitive formation run. -/
+/-- The checked formation of a primitive formation run. -/
 noncomputable def PrimitiveConstructorCheck.toCheckedFormation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
@@ -559,8 +566,8 @@ theorem PrimitiveConstructorCheck.projectedChecking
     exact R.declared.context.checking
   exact (hchecking.addEliminators R.toCheckedFormation.casesWF).addProjections R.toCheckedFormation.projectedWF
 
-/-- The atomic primitive formation pipeline embeds into the same completed
-recursor boundary. -/
+/-- The primitive constructor check, with its atomic formation batch, embeds
+into the same `ConstructorCheck`. -/
 noncomputable def PrimitiveConstructorCheck.toConstructorCheck
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
