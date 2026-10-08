@@ -254,6 +254,13 @@ theorem RecM.Framed.panic [Inhabited α] {R : α → Prop} (h : R default) :
     RecM.Framed G (panicWithPosWithDecl m d l c msg : RecM α) R := by
   simp only [panicWithPosWithDecl]; exact RecM.Framed.pure h
 
+theorem RecM.Framed.ite {c : Prop} [Decidable c] {x y : RecM α} {R}
+    (h1 : RecM.Framed G x R) (h2 : RecM.Framed G y R) :
+    RecM.Framed G (if c then x else y) R := by
+  split
+  · exact h1
+  · exact h2
+
 theorem RecM.Framed.mono {x : RecM α} {R R'} (h : RecM.Framed G x R) (H : ∀ a, R a → R' a) :
     RecM.Framed G x R' := fun _ hm => (h hm).mono H
 
