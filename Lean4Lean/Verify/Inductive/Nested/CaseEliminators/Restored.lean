@@ -168,7 +168,7 @@ theorem genericEquations_restorable {schema : CaseSchema} (h0 : schema.restorati
         (schema.view owner).constructors.toList := Array.getElem_mem_toList _
     obtain ⟨c, -, -, hc⟩ := view_constructors_mem hmemc
     rw [hc]
-    exact EnvTables.caseConstructor_recursiveFields schema owner c
+    exact InductiveSignature.CaseSchema.caseConstructor_recursiveFields c
   obtain ⟨hl, hr, hty⟩ := equation_restorable_of_recursorType _ _ hOK index hrec
     block owner.val
   have hl' := (restore_go_isSome r _ []).mpr (by simpa using hl)
