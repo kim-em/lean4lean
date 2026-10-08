@@ -397,7 +397,7 @@ private theorem RestoredInductiveStep.unsafeFreshTraceAt
     (hwf : sourceProdEnv.constants.WF) :
     ∃ entries, FreshExtension sourceProdEnv entries targetProdEnv ∧
       ∀ entry ∈ entries, entry.safety = .unsafe := by
-  rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
   obtain ⟨hresultFamily, htargetEq⟩ :=

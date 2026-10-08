@@ -280,7 +280,7 @@ theorem NestedRun.hruleShape_of_base
     E.restorationPrefix_of wf hadded henvTypes Haux Hexpansion hnodup D' True.intro
   rcases E.assemblyBaseNativeValid wf Hsources hnested with ⟨⟨B, hB, hV⟩⟩
   have hfresh := fresh_filter_restorable
-    (E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources B hB D')
+    (E.recursorVEnv_restorableNames_fresh_of_not_renamed wf Hsources B hB D')
   have HL := E.loweredRulesAvoid_renamed wf Hsources Haux Hexpansion D'
   -- the restored generated equations
   have hrecs := E.restoredRecursorList_of_paramUniform B hB wf Hsources hadded Haux Hexpansion

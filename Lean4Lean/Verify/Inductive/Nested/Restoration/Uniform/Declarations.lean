@@ -1081,7 +1081,7 @@ theorem NestedRun.loweredFamilyMappings
   by_cases hsrc : i < sourceTypes.length
   · have hj : i < ({ initialState with newTypes := sourceTypes.toArray }).newTypes.size := by
       simpa using hsrc
-    rcases Hrun.finalMappingAtInitialAlignedLvls
+    rcases Hrun.resolvedMappingAtInitialAlignedLvls
         (Hrun.resultNamesNodupOfEmpty (by simpa using hempty)) hj with
       ⟨params, stepState, target, loweredState, hresultParams,
         _hsize, Hmapping, htarget, hstepLvls⟩
@@ -1107,7 +1107,7 @@ theorem NestedRun.loweredFamilyMappings
     have htarget : sourceTypes.length + k < P.loweredDecl.types.length := by omega
     rcases N.sourceAt k hgen hi htarget with ⟨Horigin, Nsource, -⟩
     have Hmap := Hrun.resultAuxMapModelsOfEmpty (by simpa using hempty)
-    have M := Horigin.lowered.finalMapping Horigin.later Hmap
+    have M := Horigin.lowered.resolvedMapping Horigin.later Hmap
     have hlv : Horigin.stepState.lvls = lparams.map Level.param :=
       ((Horigin.lowered.nestedAuxLE.lvls.symm.trans Horigin.later.lvls.symm).trans
         Hrun.lvls).trans hinitLvls

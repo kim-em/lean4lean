@@ -264,7 +264,7 @@ theorem
     Nonempty A.EquationFrame := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalCanonicalRhsPositiveArityDetailed hpositive with
+  rcases A.installedCanonicalRhsPositiveArityDetailed hpositive with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
       equationFields, rhsBody, _rhsType, hfields, hhypotheses,
       hminorType, hequationFieldsLength, hequationFields, _hrhsType,
@@ -291,7 +291,7 @@ theorem
     (mkAppN H.recInfos[owner]!.motive
       (AddInductive.getIIndices stats A.rule.target).2)
     A.rule.sourceConstructorMajor
-  rcases A.finalFixedCanonicalLhsBodyFor B T with
+  rcases A.installedFixedCanonicalLhsBodyFor B T with
     ⟨lhsBody, lhsType, HlhsCtx, HlhsTranslation, HlhsTyping,
       HlhsType, HexpectedTranslation⟩
   have HlhsCtx' : OnCtx equationDomains.reverse
@@ -312,7 +312,7 @@ theorem
       (expected.abstractList A.rule.binders) lhsType := by
     simpa [equationDomains, equationFields, inserted, H.parameterDecls,
       expected] using HexpectedTranslation
-  rcases A.finalSelectedMinorPositiveAlignedResidual hpositive with
+  rcases A.installedSelectedMinorPositiveAlignedResidual hpositive with
     ⟨Tsource, S, traversal, HS, _hypothesisOrigins,
       sourceFieldDomains, sourceHypothesisDomains, sourceResidual,
       _hhypothesisStats, _hhypothesisRecInfos, hconstructor,
@@ -402,7 +402,7 @@ theorem
     rw [houterRemaining, hliftedInner] at Hinserted₀
     simpa [installedResidual, expected, Expr.abstractList_app,
       hinnerLength.symm, List.append_assoc] using Hinserted₀
-  have Hparams := H.finalRecursorParameterContextFor howner T
+  have Hparams := H.installedRecursorParameterContextFor howner T
   have Hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
       T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
     simpa only [Us, ← H.parameterDecls] using Hparams
@@ -462,7 +462,7 @@ theorem
     have Hvlctx := abstractForallContext.isDefEq HfullBase'
     simpa [abstractForallContext, List.reverse_append, List.map_append,
       List.append_assoc] using Hinserted.defeqDFC' H.outVEnvWF Hvlctx
-  have Hhypotheses := A.finalCanonicalRecursiveHypothesisContext B T C
+  have Hhypotheses := A.installedCanonicalRecursiveHypothesisContext B T C
     fieldDomains hypothesisDomains targetResidual hfields hhypotheses
       hminorType (by simpa [minorIdx, remaining, installedFields,
         equationDomains, equationFields, inserted, List.append_assoc]
@@ -595,7 +595,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
-  rcases A.finalCanonicalMinorApplicationZeroArity hzero with
+  rcases A.installedCanonicalMinorApplicationZeroArity hzero with
     ⟨B, T, C, targetResidual, hbodies, hminorType, Hctx, Hminor⟩
   have hframeFields : B.fieldDomains = [] :=
     List.eq_nil_of_length_eq_zero
@@ -616,7 +616,7 @@ theorem
     simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
       liftContextPrefixAt, abstractForallContext_toCtx, VLCtx.toCtx,
       List.append_assoc] using Hctx
-  rcases A.finalFixedCanonicalLhsBodyFor B T with
+  rcases A.installedFixedCanonicalLhsBodyFor B T with
     ⟨lhsBody, lhsType, HlhsCtx, HlhsTranslation, HlhsTyping,
       HlhsType, HexpectedTranslation⟩
   have HlhsTranslation' : TrExprS H.outVEnv Us
@@ -638,7 +638,7 @@ theorem
     simpa [equationDomains, inserted, hframeFields, liftContextPrefix,
       liftContextPrefixAt, H.parameterDecls, expected]
       using HexpectedTranslation
-  rcases A.finalSelectedMinorAlignedResidual with
+  rcases A.installedSelectedMinorAlignedResidual with
     ⟨Tsource, S, traversal, HS, _hypothesisOrigins,
       sourceFieldDomains, sourceHypothesisDomains, sourceResidual,
       _hhypothesisStats, _hhypothesisRecInfos, hconstructor,
@@ -706,7 +706,7 @@ theorem
     rw [houterRemaining] at Hinserted₀
     simpa [installedResidual, expected, Expr.abstractList_app,
       List.append_assoc] using Hinserted₀
-  have Hparams := H.finalRecursorParameterContextFor howner T
+  have Hparams := H.installedRecursorParameterContextFor howner T
   have Hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
       T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
     simpa only [Us, ← H.parameterDecls] using Hparams
@@ -925,7 +925,7 @@ theorem RecursorCheck.RuleAlignment.allArgs_size_eq
     (A : H.RuleAlignment owner howner i hctor) :
     A.rule.allArgs.size = (H.origins.minorShapes owner A.minorOrigin.owner_lt i
       A.minorOrigin.local_lt).fields.size := by
-  rcases A.finalSelectedMinorShape with
+  rcases A.installedSelectedMinorShape with
     ⟨_T, _D, _O, S, _horigin, _hlocal, _hconstructors, _hconstructor,
       hsourceFields, _HS, _hypothesisOrigins,
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,

@@ -83,7 +83,7 @@ theorem NestedLoweringOutputClosed.sourceOperationalFamilyAlignmentAtFresh
       htarget, hnames, Hmappings, Htrace, Hconstructors⟩
   have holdRecName : Lean.mkRecName sourceTypes[familyIdx].name =
       Lean.mkRecName result.types.toArray[familyIdx]!.name := by
-    rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+    rcases H.sourceResolvedMappingAtFreshAligned hempty hfamily with
       ⟨_fvars, _stepState, mappedTarget, _loweredState, _hparams, _hnodup,
         _hsize, Hmapping, hmappedTarget⟩
     obtain ⟨hresult, hmappedEq⟩ := _root_.getElem?_eq_some_iff.mp hmappedTarget

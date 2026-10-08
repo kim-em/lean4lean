@@ -328,7 +328,7 @@ checked-to-narrow equation-context conversion.  The targets remain the
 literal innermost de Bruijn variables: syntax-directed uniqueness rules out
 the otherwise existential targets produced by context transport. -/
 theorem
-    RecursorCheck.RuleAlignment.finalScopedEquationFieldTranslationsFor
+    RecursorCheck.RuleAlignment.installedScopedEquationFieldTranslationsFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -365,7 +365,7 @@ theorem
   let equationDomains :=
     H.parameterSuffix.parameterDecls.toCtx.reverse ++ inserted ++
       equationFieldDomains
-  rcases A.finalCheckedScopedEquationContextAlignmentFor B T with
+  rcases A.installedCheckedScopedEquationContextAlignmentFor B T with
     ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
       hcheckedEquationFields, Hcontext⟩
   have hcheckedEquationLength : checkedEquationFieldDomains.length =
@@ -641,7 +641,7 @@ theorem
         (T.motives ++ T.minors).length A.rule.allArgs.size) := by
     exact A.canonicalConstructorMajor_eq T fieldDomains introTarget
       hfields HintroShape
-  have Hhead := A.finalConstructorHeadTranslation
+  have Hhead := A.installedConstructorHeadTranslation
     (abstractForallContext domains [])
   have Hargs := A.canonicalConstructorArgsTranslation
     T fieldDomains hfields
@@ -845,7 +845,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let domains := (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   dsimp only
-  have Hhead := A.finalRecursorHeadTranslation
+  have Hhead := A.installedRecursorHeadTranslation
     (abstractForallContext domains [])
   have Hargs := A.canonicalRecursorPrefixTranslation T fieldDomains hfields
   have htoCtx : ∀ types : List VExpr,

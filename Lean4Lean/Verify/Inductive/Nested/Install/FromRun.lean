@@ -593,7 +593,7 @@ theorem NestedRun.nativeSourceParameterWF
     exact hctorTarget
   have HsourceCtor := TrInductiveType.ctorAt HsourceType ctorIdx hsourceCtor hctorTarget
   -- The lowered constructor at the same position.
-  rcases E.lowering.sourceFinalMappingAtFreshAligned (initialState :=
+  rcases E.lowering.sourceResolvedMappingAtFreshAligned (initialState :=
       { lvls := lparams.map .param, newTypes := #[] }) rfl hsourceFamily with
     ⟨_, _, loweredType, _, _, _, _, Hmapping, hloweredType⟩
   rcases Hmapping.constructors.mappingAt ctorIdx hsourceCtor with
@@ -905,7 +905,7 @@ private theorem NestedRun.assemblyBaseOfFormationNative
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).2 (main :: rest)
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv (main :: rest)).1))
       finalBaseVEnv :=
-    E.finalValidOfInstallation_of_paramUniform wf Hsources hnested Hlower HcP Hprod Hcore
+    E.validOfInstallation_of_paramUniform wf Hsources hnested Hlower HcP Hprod Hcore
       Hmetadata Harity hempty Hrestored replay.fresh canonical replay.kernelOrder
       (by simpa [VInductDecl.typeConstants] using replay.typeValues)
       (by simpa [VInductDecl.constructorConstants] using replay.constructorValues)

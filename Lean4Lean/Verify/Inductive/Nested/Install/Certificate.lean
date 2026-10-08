@@ -524,7 +524,7 @@ structure RestoredBlockCertificate
 
 /-- Assemble the final independent nested judgment and the concrete restored
 environment alignment from the same trace-indexed certificate. -/
-noncomputable def RestoredBlockCertificate.finalEnvironment
+noncomputable def RestoredBlockCertificate.extension
     {result : Lean4Lean.ElimNestedInductive.Result}
     {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
     {allIndNames : List Name} {sourceTypes : List InductiveType}
@@ -744,7 +744,7 @@ structure NestedInstalledRun
   assembly : RestoredBlockCertificate restoration sourceEnv decl lparams
     nparams isUnsafe safety
   lowered_eq : assembly.lowered = lowered
-  finalResult : NestedInstallResult sourceEnv decl lparams nparams
+  installedResult : NestedInstallResult sourceEnv decl lparams nparams
     sourceTypes isUnsafe safety outEnv
 
 /-- The checker context used by the production post-lowering pipeline. -/

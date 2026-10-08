@@ -248,7 +248,7 @@ theorem RestoredInductiveStep.restoredHeaderTranslationAtFresh
       (if isUnsafe then DefinitionSafety.unsafe else .safe)) :
     TrConstVal c.safety sourceVEnv
       (.inductInfo Hstep.restored.header.newInfo) header := by
-  rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _mappingState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
   obtain ⟨hresultFamily, htargetEq⟩ :=
@@ -762,7 +762,7 @@ theorem NestedLoweringOutputClosed.auxRecNameGeneratedAtFresh
     (hrecName : recName ∈
       (Lean4Lean.mkAuxRecNameMap loweredEnv (main :: rest)).1) :
     recName ∈ (Hprod.entries.map Prod.snd).map (·.name) := by
-  rcases Hlower.sourceFinalMappingAtFreshAligned hempty (j := 0) (by simp) with
+  rcases Hlower.sourceResolvedMappingAtFreshAligned hempty (j := 0) (by simp) with
     ⟨_mainFVars, _mainState, mainTarget, _mainLoweredState, _mainParams,
       _mainNodup, _mainSize, Hmain, hmainTarget⟩
   have hmainMem : mainTarget ∈ result.types.toArray.toList := by

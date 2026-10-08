@@ -16,7 +16,7 @@ declarations, not by inspecting the translated target: the source closes the
 owner indices and major, and abstraction over the preceding recursor binders
 preserves that telescope. -/
 theorem
-    RecursorCheck.finalOwnerMotiveTelescopeShapeAt
+    RecursorCheck.installedOwnerMotiveTelescopeShapeAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -42,7 +42,7 @@ theorem
             VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
           resultLevel.WF Us.length := by
   dsimp only
-  rcases H.finalOwnerMotiveFrameAt owner howner with
+  rcases H.installedOwnerMotiveFrameAt owner howner with
     ⟨T, S, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
       suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
@@ -103,7 +103,7 @@ theorem
 uniqueness transports the semantic shape to the exact `T` already selected
 by an equation frame. -/
 theorem
-    RecursorCheck.finalOwnerMotiveTelescopeShapeForAt
+    RecursorCheck.installedOwnerMotiveTelescopeShapeForAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -130,7 +130,7 @@ theorem
           VExpr.wrapForalls motiveDomains (.sort resultLevel) ∧
         resultLevel.WF Us.length := by
   dsimp only
-  rcases H.finalOwnerMotiveTelescopeShapeAt owner howner with
+  rcases H.installedOwnerMotiveTelescopeShapeAt owner howner with
     ⟨T₀, S, hparameters, motiveDomains, resultLevel,
       hdomainLength, hsuffixLength, hmotive, hresultLevel⟩
   rcases T₀.groupsResult_eq T with
@@ -379,7 +379,7 @@ theorem RecursorCheck.ownerMotiveSuffixContextFor
 /-- Arbitrary-witness specialization of the complete suffix alignment, for
 direct use with the telescope retained by the canonical equation frame. -/
 theorem
-    RecursorCheck.RuleAlignment.finalOwnerMotiveSuffixContextAlignmentFor
+    RecursorCheck.RuleAlignment.installedOwnerMotiveSuffixContextAlignmentFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -415,7 +415,7 @@ theorem
           (suffix.reverse ++ outer.reverse)
           (expected.reverse ++ outer.reverse) := by
   dsimp only
-  rcases H.finalOwnerMotiveTelescopeShapeForAt owner howner T with
+  rcases H.installedOwnerMotiveTelescopeShapeForAt owner howner T with
     ⟨S, hparameters, motiveDomains, resultLevel,
       hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
   have hownerRecInfo : owner < H.recInfos.size := by
@@ -432,7 +432,7 @@ owner index/major alignment.  This is the context conversion needed by the
 equation LHS: the generated recursor suffix and the independent motive
 domains are weakened through precisely the same locally bound fields. -/
 theorem
-    RecursorCheck.RuleAlignment.finalOwnerMotiveSuffixAlignmentUnderFields
+    RecursorCheck.RuleAlignment.installedOwnerMotiveSuffixAlignmentUnderFields
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -475,7 +475,7 @@ theorem
           (liftContextPrefix fieldDomains.length expected.reverse ++
             fieldDomains.reverse ++ outer.reverse) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalOwnerMotiveSuffixContextAlignmentFor T with
+  rcases A.installedOwnerMotiveSuffixContextAlignmentFor T with
     ⟨S, hparameters, motiveDomains, resultLevel,
       hdomainLength, hmotive, Hsuffix⟩
   let outer := T.params ++ T.motives ++ T.minors
@@ -508,7 +508,7 @@ types in the canonical equation context.  The common residual is the
 generated owner-motive application `T.result`; only the dependent domains
 differ, and `closeWrapForalls` discharges exactly that distinction. -/
 theorem
-    RecursorCheck.RuleAlignment.finalOwnerMotiveSuffixTypeAlignment
+    RecursorCheck.RuleAlignment.installedOwnerMotiveSuffixTypeAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -555,7 +555,7 @@ theorem
           ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
           (T.result.liftN fieldDomains.length suffix.length)) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalOwnerMotiveSuffixAlignmentUnderFields T fieldDomains hctx with
+  rcases A.installedOwnerMotiveSuffixAlignmentUnderFields T fieldDomains hctx with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
       hdomainLength, hmotive, Haligned⟩
   let outer := T.params ++ T.motives ++ T.minors
@@ -625,10 +625,10 @@ theorem
 /-- The owner-motive local itself is the comparison function for concrete
 suffix application.  After weakening beneath constructor fields, its type
 has exactly the independent domains appearing on the right side of
-`finalOwnerMotiveSuffixTypeAlignment`, but ends in the elimination sort
+`installedOwnerMotiveSuffixTypeAlignment`, but ends in the elimination sort
 rather than the generated recursor result. -/
 theorem
-    RecursorCheck.RuleAlignment.finalOwnerMotiveFieldWitnessTyping
+    RecursorCheck.RuleAlignment.installedOwnerMotiveFieldWitnessTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -663,7 +663,7 @@ theorem
           ((liftContextPrefix fieldDomains.length expected.reverse).reverse)
           (.sort resultLevel)) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases H.finalOwnerMotiveTelescopeShapeForAt owner howner T with
+  rcases H.installedOwnerMotiveTelescopeShapeForAt owner howner T with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
       hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
   have hownerRecInfo : owner < H.recInfos.size := by
@@ -695,7 +695,7 @@ parameter domains to the cached constructor-checking parameter context.  The
 owner variable and its complete dependent function type are unchanged; only
 the outer parameter domains are converted. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCachedOwnerMotiveWitnessTyping
+    RecursorCheck.RuleAlignment.installedCachedOwnerMotiveWitnessTyping
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -754,7 +754,7 @@ theorem
   let cachedDomains :=
     (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++
       fieldDomains
-  rcases A.finalOwnerMotiveFieldWitnessTyping T fieldDomains with
+  rcases A.installedOwnerMotiveFieldWitnessTyping T fieldDomains with
     ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Hmotive⟩
   have HmotiveCanonical : H.outVEnv.HasType Us.length
       canonicalDomains.reverse
@@ -780,7 +780,7 @@ Their residuals deliberately differ: the prefix returns the generated
 recursor result, while the motive application returns an elimination sort.
 This is the exact interface consumed by `mkApps_sameTelescopeDomains`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCachedPrefixOwnerTelescope
+    RecursorCheck.RuleAlignment.installedCachedPrefixOwnerTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -878,12 +878,12 @@ theorem
         fieldDomains.length 0) :=
     HprefixCached.defeqDFC H.outVEnvWF.ordered
       (Hfull.symm H.outVEnvWF.ordered)
-  rcases A.finalOwnerMotiveSuffixTypeAlignment T fieldDomains prefixTarget
+  rcases A.installedOwnerMotiveSuffixTypeAlignment T fieldDomains prefixTarget
       (by simpa [canonicalDomains] using HcanonicalCtx)
       (by simpa [canonicalDomains] using HprefixCanonical) with
     ⟨alignedDomains, alignedLevel, halignedLength, halignedMotive,
       Haligned⟩
-  rcases A.finalCachedOwnerMotiveWitnessTyping T fieldDomains Hfull with
+  rcases A.installedCachedOwnerMotiveWitnessTyping T fieldDomains Hfull with
     ⟨motiveDomains, resultLevel, hdomainLength, hmotive, Hmotive⟩
   have hdomains : motiveDomains = alignedDomains := by
     apply VExpr.wrapForalls_prefix_domains_eq hdomainLength halignedLength
@@ -930,7 +930,7 @@ interleaved executable ambient prefix and the very parameter scope aligned
 with the generated telescope.  No index, major, or current-motive weakening
 remains hidden in this frame. -/
 theorem
-    RecursorCheck.finalOwnerClosedMotiveFrameAt
+    RecursorCheck.installedOwnerClosedMotiveFrameAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -976,7 +976,7 @@ theorem
                 (H.params.fvars ++ H.bindings.motives.fvars.take owner))
           T.motives[owner]! := by
   dsimp only
-  rcases H.finalOwnerMotiveDomainTranslationAt owner howner with
+  rcases H.installedOwnerMotiveDomainTranslationAt owner howner with
     ⟨T, S, hparameters, Hgenerated, _HgeneratedType⟩
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
     rw [H.recursorEnv]
@@ -998,7 +998,7 @@ theorem
 /-- The production motive translated in the canonical parameter scope, as
 replayed in the checker context of the first pass. -/
 theorem
-    RecursorCheck.finalOwnerScopedMotiveTranslationAt
+    RecursorCheck.installedOwnerScopedMotiveTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1034,7 +1034,7 @@ theorem
                   (H.params.fvars ++ H.bindings.motives.fvars.take owner))
             T.motives[owner]! := by
   dsimp only
-  rcases H.finalOwnerClosedMotiveFrameAt owner howner with
+  rcases H.installedOwnerClosedMotiveFrameAt owner howner with
     ⟨T, S, _hparameters, hsource, _W, _Hcontext, _hdecomposition,
       _HclosedTr, _HclosedType, _HclosedCanonical, _hmotiveType,
       Hgenerated⟩
@@ -1049,7 +1049,7 @@ motive, then transport it to the generated parameter telescope.  Earlier
 mutual motives are absent from the concrete source, so adding their abstract
 binders is precisely ordinary bound-variable weakening. -/
 theorem
-    RecursorCheck.finalOwnerCanonicalMotiveDomainAt
+    RecursorCheck.installedOwnerCanonicalMotiveDomainAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1075,7 +1075,7 @@ theorem
           (S.canonical.motiveType.liftN
             (T.motives.take owner).length 0) := by
   dsimp only
-  rcases H.finalOwnerScopedMotiveTranslationAt owner howner with
+  rcases H.installedOwnerScopedMotiveTranslationAt owner howner with
     ⟨T, S, narrowTarget, hparams, Hnarrow, Hcanonical, Hgenerated⟩
   let source := H.localContext.lctx.mkForall H.recInfos[owner]!.indices
     (H.localContext.lctx.mkForall #[H.recInfos[owner]!.major]

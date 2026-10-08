@@ -165,8 +165,8 @@ The independent source specification additionally assumes that the source
 declaration has no loose bound variables; the executable only rejects
 metavariables and free variables, and nested lowering would silently repair
 loose bound variables while re-closing constructor types.  Environment
-preservation itself (`finalPreservesWF`) does not need this hypothesis. -/
-theorem addInductiveDeclaration.finalResultWF
+preservation itself (`WF_preserves`) does not need this hypothesis. -/
+theorem addInductiveDeclaration.WF_spec
     {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig)
@@ -196,7 +196,7 @@ theorem addInductiveDeclaration.finalResultWF
 declaration dispatch.  This is unconditional: it is derived from the
 well-formedness halves of the three execution branches, not from the
 source-facing specification. -/
-theorem addInductiveDeclaration.finalPreservesWF
+theorem addInductiveDeclaration.WF_preserves
     {env : Environment} {ves : VEnvs} (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
     (lparams : List Name) (nparams : Nat) (types : List InductiveType)
     (isUnsafe : Bool) (fuel : FuelConfig) :
@@ -217,7 +217,7 @@ theorem addInductiveDeclaration.finalPreservesWF
       (VerifyInductive.VEnvs.WFCore.environmentTypesClosed wf)
     intro res Hsources Hlower
     by_cases haux : res.aux2nested.size = 0
-    · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryFinalModelWF
+    · exact VerifyInductive.Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
         env lparams nparams types isUnsafe fuel res ves wf htels Hlower.toResult haux
     · exact
         (VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
@@ -354,7 +354,7 @@ theorem addDecl.WF_quotReadyAt {env : Environment} {ves : VEnvs} (wf : ves.WFCor
   | mutualDefnDecl vs =>
     exact (addMutual.WF wf htels vs).mono fun _ ⟨ves', hwf, hc, h⟩ => ⟨ves', hwf, h, hc⟩
   | inductDecl lparams nparams types isUnsafe =>
-    exact addInductiveDeclaration.finalPreservesWF wf htels
+    exact addInductiveDeclaration.WF_preserves wf htels
       lparams nparams types isUnsafe {}
 
 /-- Successful checked addition of a declaration preserves the core invariant, extends every

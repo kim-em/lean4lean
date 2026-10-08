@@ -246,7 +246,7 @@ lowering recorded a nested occurrence (`hnested`, the condition under which
 the run restores at all; it makes the expanded block mutual, so no restored
 recursor is K-like). The freshness premise (restorable names outside the
 renamed recursor names) is not needed: it holds for every final assembly
-shape (`finalBaseVEnv_restorableNames_fresh_of_not_renamed`). -/
+shape (`recursorVEnv_restorableNames_fresh_of_not_renamed`). -/
 theorem NestedRun.recursorsAligned_of
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -282,7 +282,7 @@ theorem NestedRun.recursorsAligned_of
   -- transfer the hypotheses to the specialization list of the tables
   have hexpr : ∀ e, (compilationRestoration sourceDecl auxiliaries).expr e =
       (compilationRestoration sourceDecl aux₁).expr e := D.expr_eq D₁
-  have hfreshFinal := E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC D
+  have hfreshFinal := E.recursorVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC D
   have HCrules : List.Forall₂
       (E.TrRestoredRecursorRule (compilationRestoration sourceDecl auxiliaries)
         C.recursorVEnv)

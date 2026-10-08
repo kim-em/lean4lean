@@ -17,7 +17,7 @@ domain.  In particular, the retained second-pass shape names the same source
 family and constructor slot as rule generation, rather than merely occupying
 the same flattened minor position. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorShape
+    RecursorCheck.RuleAlignment.installedSelectedMinorShape
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -87,7 +87,7 @@ theorem
                         T.minors.take minorIdx) []).toCtx
                     T.minors[minorIdx]! := by
   dsimp only
-  rcases A.finalSelectedMinorDomain with
+  rcases A.installedSelectedMinorDomain with
     ⟨T, D, O, _discardedShape, Hdomain, HdomainType⟩
   have hposition := A.selectedMinorOriginPosition O
   have hsourceOwner : O.owner < indTypes.size := by
@@ -196,9 +196,9 @@ theorem
 /-- Recover the exact translation-side context in which the selected minor
 source was completed, together with its executable extension into the final
 recursor context.  This is the semantic strengthening of the structural
-`BindingContextLE` returned by `finalSelectedMinorShape`. -/
+`BindingContextLE` returned by `installedSelectedMinorShape`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorSource
+    RecursorCheck.RuleAlignment.installedSelectedMinorSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -215,7 +215,7 @@ theorem
         S.localIndex = i ∧
         HS.semantic.traversal.parameterTail =
           A.typing.parameterTail := by
-  rcases A.finalSelectedMinorDomain with
+  rcases A.installedSelectedMinorDomain with
     ⟨_T, _D, O, _discardedShape, _Hdomain, _HdomainType⟩
   have hposition := A.selectedMinorOriginPosition O
   have hsourceOwner : O.owner < indTypes.size := by
@@ -260,7 +260,7 @@ generation.  This is the first semantic join between the two executable
 passes; the source expression is identified structurally, while its target
 is preserved from the first pass. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorSharedTail
+    RecursorCheck.RuleAlignment.installedSelectedMinorSharedTail
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -285,7 +285,7 @@ theorem
           TrExprS H.outVEnv Us parameterDecls
             A.typing.parameterTail target := by
   dsimp only
-  rcases A.finalSelectedMinorSource with
+  rcases A.installedSelectedMinorSource with
     ⟨S, HS, hlocal, htail⟩
   rcases HS.semantic.parameterTranslationAtSuffix with
     ⟨target, Htarget⟩
@@ -312,7 +312,7 @@ telescope reconstructed during final rule generation are definitionally
 equal, because they translate the same constructor tail in the same exact
 parameter context. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorSharedTailDefEq
+    RecursorCheck.RuleAlignment.installedSelectedMinorSharedTailDefEq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -343,9 +343,9 @@ theorem
           H.outVEnv.IsDefEqU Us.length parameterDecls.toCtx target
             (VExpr.wrapForalls fieldDomains fieldResult) := by
   dsimp only
-  rcases A.finalSelectedMinorSharedTail with
+  rcases A.installedSelectedMinorSharedTail with
     ⟨S, HS, target, hlocal, htail, Htarget⟩
-  rcases A.finalCheckedConstructorFieldFrame with
+  rcases A.installedCheckedConstructorFieldFrame with
     ⟨_T, fieldDomains, fieldResult, _introTarget, _hparams, hfields,
       Hfields, _HfieldResidual, _HtailType, _HtailTypeT,
       _HfieldContext, _HintroType, _Hintro, _HintroShape⟩
@@ -370,7 +370,7 @@ context conversion rather than list equality: the first minor pass and the
 later constructor check may translate annotation-consumed domains to
 different, convertible representatives. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorSharedFieldContext
+    RecursorCheck.RuleAlignment.installedSelectedMinorSharedFieldContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -405,7 +405,7 @@ theorem
             (minorFieldDomains.reverse ++ parameterDecls.toCtx)
             (checkedFieldDomains.reverse ++ parameterDecls.toCtx) := by
   dsimp only
-  rcases A.finalSelectedMinorSharedTailDefEq with
+  rcases A.installedSelectedMinorSharedTailDefEq with
     ⟨S, HS, target, checkedFieldDomains, checkedFieldResult, hlocal,
       htail, hcheckedLength, Hminor, Hchecked, Hsame⟩
   rcases TrExprS.forallTelescope_shape A.typing.fieldOpening.telescope
@@ -450,7 +450,7 @@ and typehood of every abstract domain, so later applications can compare a
 particular field or recursive-hypothesis domain rather than only their
 cardinalities. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorTypedTelescope
+    RecursorCheck.RuleAlignment.installedSelectedMinorTypedTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -498,7 +498,7 @@ theorem
           (A.rule.allArgs.size + A.rule.recursiveArgs.size)
           T.minors[minorIdx]! := by
   dsimp only
-  rcases A.finalSelectedMinorShape with
+  rcases A.installedSelectedMinorShape with
     ⟨T, D, _O, S, horigin, hlocal, _hconstructors, hconstructor,
       hfieldCount, Hsemantic, hypothesisOrigins, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, traversal, htraversal,
@@ -548,7 +548,7 @@ body below the selected outer prefix and as a completely closed telescope.
 This is the comparison frame used to relate the installed minor domains to
 the semantic field and recursive-result domains. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorExactClosedTelescope
+    RecursorCheck.RuleAlignment.installedSelectedMinorExactClosedTelescope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -617,7 +617,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
-  rcases A.finalSelectedMinorTypedTelescope with
+  rcases A.installedSelectedMinorTypedTelescope with
     ⟨T, S, _hypothesisOrigins, traversal,
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
       htraversal, _htraversalFields, _htraversalRecursiveFields,
@@ -631,7 +631,7 @@ theorem
       HS.semantic.traversal.parameterTail = A.typing.parameterTail :=
     (congrArg ConstructorFieldTraversal.parameterTail
       hsemanticTraversal).trans hparameterTail
-  rcases A.finalSelectedMinorPrefixDefEqCtx with
+  rcases A.installedSelectedMinorPrefixDefEqCtx with
     ⟨T₀, scope, Hscope, hscope, hscopeShift, hscopeSource, Hprefix₀⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparams, hmotives, hminors, _hindices, _hmajor, _hresult⟩
@@ -706,7 +706,7 @@ by its eventual application: genuine constructor fields followed by recursive
 hypotheses.  Unlike `finalSelectedMinorTranslatedSplit`, this retains the
 binder-by-binder source/target translation certificate. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorTypedSplit
+    RecursorCheck.RuleAlignment.installedSelectedMinorTypedSplit
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -774,7 +774,7 @@ theorem
             (A.rule.allArgs.size + A.rule.recursiveArgs.size)
             T.minors[minorIdx]! := by
   dsimp only
-  rcases A.finalSelectedMinorTypedTelescope with
+  rcases A.installedSelectedMinorTypedTelescope with
     ⟨T, S, hypothesisOrigins, traversal,
       hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos, htraversal,
       htraversalFields, htraversalRecursiveFields, htraversalStats,
@@ -810,7 +810,7 @@ the first-pass constructor shape; the final equation type comparison needs
 that shape to identify the residual motive application with the independently
 reconstructed constructor motive on the LHS. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorAlignedResidual
+    RecursorCheck.RuleAlignment.installedSelectedMinorAlignedResidual
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -878,7 +878,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
-  rcases A.finalSelectedMinorShape with
+  rcases A.installedSelectedMinorShape with
     ⟨T, D, _O, S, horigin, _hlocal, _hconstructors, hconstructor,
       hsourceFields, ⟨HS⟩, hypothesisOrigins,
       _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,
@@ -1040,10 +1040,10 @@ theorem
     hmotiveApp', hsourceFields, hsourceHypotheses,
     hfields, hhypotheses, htarget, Hresidual, HresidualType⟩
 
-/-- Specialization of `finalSelectedMinorAlignedResidual` for
+/-- Specialization of `installedSelectedMinorAlignedResidual` for
 callers that have already split off the positive-arity case. -/
 def
-    RecursorCheck.RuleAlignment.finalSelectedMinorPositiveAlignedResidual
+    RecursorCheck.RuleAlignment.installedSelectedMinorPositiveAlignedResidual
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1055,7 +1055,7 @@ def
     {i : Nat} {hctor : i < indTypes[owner]!.ctors.length}
     (A : H.RuleAlignment owner howner i hctor)
     (_hpositive : 0 < A.rule.allArgs.size + A.rule.recursiveArgs.size) :=
-  A.finalSelectedMinorAlignedResidual
+  A.installedSelectedMinorAlignedResidual
 
 /-- After each constructor pass closes its own fresh field identifiers, the
 minor result retained by `mkRecType` is literally the constructor-motive
@@ -1582,7 +1582,7 @@ older parameter/motive/minor prefix is recovered from the complete generated
 recursor context, so no local-context well-formedness premise remains hidden
 in the eventual minor application. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorTargetContext
+    RecursorCheck.RuleAlignment.installedSelectedMinorTargetContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1614,7 +1614,7 @@ theorem
             (abstractForallContext base []).toCtx)
           targetResidual := by
   dsimp only
-  rcases A.finalSelectedMinorTypedSplit with
+  rcases A.installedSelectedMinorTypedSplit with
     ⟨T, _S, _hypothesisOrigins, _traversal, fieldDomains,
       hypothesisDomains, _sourceResidual, targetResidual,
       _hhypothesisOrigins, _hhypothesisStats, _hhypothesisRecInfos,
@@ -1653,7 +1653,7 @@ theorem
 ordinal `j`.  The source binder is retained explicitly, and its abstract
 target is literally the `j`th member of the hypothesis suffix. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisDomainAt
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisDomainAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1717,7 +1717,7 @@ theorem
                 (T.params ++ T.motives ++ T.minors.take minorIdx) [])).toCtx
             hypothesisDomains[j]! := by
   dsimp only
-  rcases A.finalSelectedMinorTypedSplit with
+  rcases A.installedSelectedMinorTypedSplit with
     ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
       _sourceResidual, targetResidual, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
@@ -1769,7 +1769,7 @@ with the exact declaration type introduced by `mkRecInfos.loopU`.  Thus the
 pointwise target-domain certificate is no longer mediated by an arbitrary
 existential source expression. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisDeclarationDomainAt
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisDeclarationDomainAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1855,7 +1855,7 @@ theorem
                 (A.minorReplayAt j hj).semantic.generated.replayTrace
                   A.rule.all_args_bound.fvars := by
   dsimp only
-  rcases A.finalSelectedMinorHypothesisDomainAt j hj with
+  rcases A.installedSelectedMinorHypothesisDomainAt j hj with
     ⟨T, S, hypothesisOrigins, traversal, fieldDomains, hypothesisDomains,
       targetResidual, sourceDomain, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,

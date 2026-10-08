@@ -71,7 +71,7 @@ and the recursor provenance `Hprovenance` (discharged by `recursorsAligned_of`).
 Freshness of the restorable names in the shape's final environment is only
 asked outside the renamed auxiliary recursor names `Main.rec_k`, which is
 what holds without any naming hypothesis
-(`finalBaseVEnv_restorableNames_fresh_of_not_renamed`); the input-side
+(`recursorVEnv_restorableNames_fresh_of_not_renamed`); the input-side
 avoidance of the renamed names by the lowered rules is
 `loweredRulesAvoid_renamed`. -/
 theorem NestedRun.assemblyNative_of_run

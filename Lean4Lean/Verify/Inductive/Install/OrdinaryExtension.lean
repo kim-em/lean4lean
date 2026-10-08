@@ -315,7 +315,7 @@ theorem OrdinaryRunResult.extendWithSpecification
 
 /-- Complete ordinary refinement retaining the independent source judgment,
 without any equality-toConstantsInstallation premise. -/
-theorem AddInductive.run.finalSpecificationModelWF
+theorem AddInductive.run.extensionModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
@@ -523,7 +523,7 @@ theorem LoweringQueue.types_eq_of_aux2nested_size_eq_zero
       cases Hnext with
       | step hidx Hlowered =>
           rename_i iStep stateStep fuelStep outStep target loweredState
-          have Hmapping := Hlowered.finalMapping
+          have Hmapping := Hlowered.resolvedMapping
             Htail.resultNestedAuxLE Hmap
           have hclosed :
               InductiveConstructorsClosed stateStep.newTypes[iStep] :=
@@ -674,7 +674,7 @@ theorem NestedLoweringOutput.resultTypes_nonempty
 /-- Well-formedness of the ordinary (zero-auxiliary) branch alone.  Unlike the
 specification-facing endpoints below, this needs no closedness of the source
 syntax: the checked block is whatever lowering produced. -/
-theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
+theorem Environment.addInductiveAfterLowering.ordinaryInstalledModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
@@ -714,7 +714,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalModelWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-  have Hrun := AddInductive.run.finalSpecificationModelWF
+  have Hrun := AddInductive.run.extensionModelWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering
@@ -730,7 +730,7 @@ successful source precheck and zero-auxiliary lowering trace prove that the
 block checked by `AddInductive.run` is literally the original declaration;
 the final model and independent source judgment therefore come from the same
 execution. -/
-theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
+theorem Environment.addInductiveAfterLowering.ordinaryExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (sourceTypes : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
@@ -778,7 +778,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-  have Hrun := AddInductive.run.finalSpecificationModelWF
+  have Hrun := AddInductive.run.extensionModelWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hsource
     wf.inductivesClosed hctx hnonempty hnotPartial Hinputs
   unfold Environment.addInductiveAfterLowering

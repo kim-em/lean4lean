@@ -1305,7 +1305,7 @@ theorem VLCtx.FVLift.of_append_lams : ∀ (X : VLCtx) {Q : VLCtx},
 generated scope that starts with the parameters; the generated binders above
 them form a contiguous free-variable weakening. -/
 theorem
-    RecursorCheck.RuleAlignment.finalPrefixParameterBase
+    RecursorCheck.RuleAlignment.installedPrefixParameterBase
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1350,7 +1350,7 @@ theorem
     rw [← VLCtx.fvars_length_of_lams hPlams, hPfvars, List.length_reverse]
   have hOlen : outerScope.length = (H.params.fvars ++ restBinders).length := by
     rw [← VLCtx.fvars_length_of_lams hOlams, houterFVars, List.length_reverse]
-  have Hparams := H.finalRecursorParameterContextFor howner T
+  have Hparams := H.installedRecursorParameterContextFor howner T
   rw [← H.parameterDecls] at Hparams
   have hTparams : T.params.length = H.params.fvars.length := by
     have := Hparams.length_eq
@@ -1436,7 +1436,7 @@ which the fields were opened: the minor's source binders are literally the
 checker's field declarations, and the checker's closure of the constructor
 tail agrees with the parameter-scope translation. -/
 theorem
-    RecursorCheck.RuleAlignment.finalInstalledCheckedFieldLink
+    RecursorCheck.RuleAlignment.installedInstalledCheckedFieldLink
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1480,7 +1480,7 @@ theorem
   let n := A.rule.allArgs.size
   let Trest := T.motives ++ T.minors.take minorIdx
   let base := T.params ++ T.motives ++ T.minors.take minorIdx
-  rcases A.finalSelectedMinorExactClosedTelescope hpositive with
+  rcases A.installedSelectedMinorExactClosedTelescope hpositive with
     ⟨T₁, S, HS, scope, Hscope, narrowTarget, _fullTarget, _hfullTargetEq,
       hSfields, _hShyps, hparameterTail, hscope, _hscopeShift, _Hfull,
       _HfullEq, _hscopeSource, Hprefix₁, HabstractTyped, _Hclosed,
@@ -1586,7 +1586,7 @@ theorem
   let Mdoms := MLCtxForallDomains M S.fields.size hnM
   have hMdomsLen : Mdoms.length = n := (hagM.forallDomains_length hnM).trans hSn
   -- The parameter base of the selected scope.
-  obtain ⟨HPQ, W⟩ := A.finalPrefixParameterBase T Hscope
+  obtain ⟨HPQ, W⟩ := A.installedPrefixParameterBase T Hscope
     (H.bindings.motives.fvars ++ H.bindings.flatMinors.fvars.take minorIdx)
     Trest (by simpa [sourceBinders, List.append_assoc] using hscope)
     (by simpa [Trest, base, List.append_assoc] using Hprefix)
@@ -1701,7 +1701,7 @@ minor's constructor fields with the literal narrow field telescope in the
 cached parameter scope.  This is the exact field-domain equality required
 before the installed minor can be applied to canonical recursive results. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorScopedFieldAlignment
+    RecursorCheck.RuleAlignment.installedSelectedMinorScopedFieldAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1728,7 +1728,7 @@ theorem
             (B.fieldDomains.reverse ++
               H.parameterSuffix.parameterDecls.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalSelectedMinorSource with
+  rcases A.installedSelectedMinorSource with
     ⟨S, HS, _hlocal, htail⟩
   rcases HS.semantic.parameterTranslationAtSuffix with
     ⟨narrowTarget, Hnarrow₀⟩
@@ -1791,10 +1791,10 @@ theorem
 /-- The independently checked constructor-field telescope and the narrow
 rule-wide field telescope are definitionally equal over the cached parameter
 scope.  The selected minor is the bridge: both parameter-scoped translations
-come from its retained constructor tail, while `finalSelectedMinorSharedFieldContext`
+come from its retained constructor tail, while `installedSelectedMinorSharedFieldContext`
 connects that tail to the constructor checker. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedScopedFieldAlignment
+    RecursorCheck.RuleAlignment.installedCheckedScopedFieldAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1818,11 +1818,11 @@ theorem
         (B.fieldDomains.reverse ++
           H.parameterSuffix.parameterDecls.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalSelectedMinorSharedFieldContext with
+  rcases A.installedSelectedMinorSharedFieldContext with
     ⟨_S₁, _HS₁, minorDomains, minorResidual,
       checkedDomains, checkedResidual, _hlocal₁, _htail₁,
       hminor, hchecked, Hminor, Hchecked, HminorChecked⟩
-  rcases A.finalSelectedMinorScopedFieldAlignment B with
+  rcases A.installedSelectedMinorScopedFieldAlignment B with
     ⟨_S₂, _HS₂, narrowDomains, narrowResidual,
       hnarrow, Hnarrow, HnarrowFields⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -1868,7 +1868,7 @@ field conversion and transport the older generated parameter context to the
 cached parameter suffix.  The right side is exactly the fixed equation
 context used by `RecursiveResult`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedScopedEquationContextAlignment
+    RecursorCheck.RuleAlignment.installedCheckedScopedEquationContextAlignment
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1899,12 +1899,12 @@ theorem
             (T.motives ++ T.minors).reverse ++
               H.parameterSuffix.parameterDecls.toCtx) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalCheckedConstructorFieldFrame with
+  rcases A.installedCheckedConstructorFieldFrame with
     ⟨T, checkedDomains, checkedResidual, _introTarget, hparams,
       hchecked, Hchecked, _HfieldResidual, _HtailType,
       _HtailTypeT, HcheckedContext, _HintroType, _Hintro,
       _HintroShape⟩
-  rcases A.finalCheckedScopedFieldAlignment B with
+  rcases A.installedCheckedScopedFieldAlignment B with
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -1981,12 +1981,12 @@ theorem
       Nat.add_comm] using Haligned⟩
 
 /-- MetadataMentions-stable form of
-`finalCheckedScopedEquationContextAlignment`.  Consumers of canonical
+`installedCheckedScopedEquationContextAlignment`.  Consumers of canonical
 recursive results already carry a particular recursor telescope translation;
 this specialization transports the equation-context conversion to that exact
 witness instead of forcing a second existential choice. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedScopedEquationContextAlignmentFor
+    RecursorCheck.RuleAlignment.installedCheckedScopedEquationContextAlignmentFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2018,7 +2018,7 @@ theorem
           (T.motives ++ T.minors).reverse ++
             H.parameterSuffix.parameterDecls.toCtx) := by
   dsimp only
-  rcases A.finalCheckedScopedEquationContextAlignment B with
+  rcases A.installedCheckedScopedEquationContextAlignment B with
     ⟨T₁, checkedDomains, equationFieldDomains, hchecked,
       hequationFields, Hcontext⟩
   rcases T₁.groupsResult_eq T with
@@ -2033,7 +2033,7 @@ Unlike the existential wrapper, this theorem preserves the exact checked
 field translation already compared with another independently reconstructed
 telescope. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedScopedEquationContextAlignmentFromFrameFor
+    RecursorCheck.RuleAlignment.installedCheckedScopedEquationContextAlignmentFromFrameFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2075,7 +2075,7 @@ theorem
           inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx) := by
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases A.finalCheckedScopedFieldAlignment B with
+  rcases A.installedCheckedScopedFieldAlignment B with
     ⟨otherCheckedDomains, otherCheckedResidual, hotherChecked,
       HotherChecked, HotherNarrow⟩
   have hrecBase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -2153,7 +2153,7 @@ lookup itself, retain the conversion from the independently checked field
 context: subsequent applications can transport typed terms without silently
 changing their constructor-field telescope. -/
 theorem
-    RecursorCheck.RuleAlignment.finalScopedSelectedMinorFrame
+    RecursorCheck.RuleAlignment.installedScopedSelectedMinorFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2194,7 +2194,7 @@ theorem
               (later.length + 1 + fixedFieldRecent.length) 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalCheckedScopedEquationContextAlignment B with
+  rcases A.installedCheckedScopedEquationContextAlignment B with
     ⟨T, checkedDomains, equationFieldDomains, hchecked,
       hequationFields, Hcontext⟩
   let inserted := T.motives ++ T.minors
@@ -2264,7 +2264,7 @@ application obligation exactly: the surrounding equation context contains
 the narrow rule-wide fields, while the displayed minor type begins with the
 installed `fieldDomains`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalScopedSelectedMinorTypeFrame
+    RecursorCheck.RuleAlignment.installedScopedSelectedMinorTypeFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -2302,11 +2302,11 @@ theorem
                 (later.length + 1 + fixedFieldRecent.length) 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalSelectedMinorTargetContext with
+  rcases A.installedSelectedMinorTargetContext with
     ⟨T, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, htarget, _HtargetContext,
       _HtargetResidual⟩
-  rcases A.finalScopedSelectedMinorFrame B with
+  rcases A.installedScopedSelectedMinorFrame B with
     ⟨T₁, _checkedDomains, _equationFieldDomains, _hchecked,
       _hequationFields, Hcontext, hminor, Hminor⟩
   rcases T₁.groupsResult_eq T with

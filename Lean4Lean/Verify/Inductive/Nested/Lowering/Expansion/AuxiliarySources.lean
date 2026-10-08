@@ -70,7 +70,7 @@ cache key close the same source container application, up to Lean expression
 equivalence.  The proof cancels the two concrete parameter openings using the
 producer-retained selections and scope evidence. -/
 theorem LoweredOccurrenceSpine.cachedSourceApplicationEqv
-    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -149,7 +149,7 @@ theorem LoweredOccurrenceSpine.cachedSourceApplicationEqv
 
 /-- Head and ordered parameter-spine consequences of the cache alpha law. -/
 theorem LoweredOccurrenceSpine.cachedSourceSpines
-    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -729,7 +729,7 @@ selected parameters are closed and the live constructor fields are opened.
 The proof uses a leaf-free expansion; projection nodes are justified only by
 their environment-indexed support certificates. -/
 theorem AuxiliaryFamilySourceData.baseExpansionsAtReplacement
-    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {Htarget : TrExprS targetVEnv lparams targetCtx output targetValue}
@@ -1823,7 +1823,7 @@ theorem NestedLowering.auxiliaryFamilySources
     intro i
     have hresult := hresultAt i
     have htarget := htargetAt i
-    rcases Hrun.finalGeneratedFamilyOriginAt
+    rcases Hrun.resolvedAuxiliaryFamilyAt
         (VerifyInductive.VEnvs.WFCore.environmentTypesClosed wf)
         wf.inductivesClosed Hsources (by simp) (by simp) hresult with
       ⟨Horigin⟩
@@ -1880,7 +1880,7 @@ theorem AuxiliaryFamilySources.sourceForReplacement
       lparams loweredDecl)
     (Htarget : TrInductDeclCore baseVEnv lparams nparams result.types
       isUnsafe loweredDecl targetEnvTypes targetEnvCtors)
-    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result traceFinalState}
     {Hselection : CDeclArray lctx As}
     {HtargetExpr : TrExprS targetEnvTypes lparams targetCtx output targetValue}
@@ -2023,7 +2023,7 @@ theorem AuxiliaryFamilySources.replacementCompat
   rcases T.sourceSpine HsourceExpr with ⟨S⟩
   have Htrailing := TrExprS.forall₂_abstractExpansionAbsolute Hctx HbaseDepth
     S.trailingTranslation T.trailingTranslation
-  rcases T.finalGeneratedFamilyOrigin Hrun Henv hclosures Hsources rfl hempty
+  rcases T.resolvedAuxiliaryFamily Hrun Henv hclosures Hsources rfl hempty
       with ⟨O⟩
   rcases N.sourceForReplacement Htarget T O hempty with
     ⟨i, hi, hresult, htarget, Ocanonical, hresultFinal, Nsource, hsourceEq⟩

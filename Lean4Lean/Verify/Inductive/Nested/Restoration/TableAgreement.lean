@@ -944,7 +944,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
     ∀ {lctx : LocalContext} {As : Array Expr}
       {input state output nextState traceFinalState depth fieldDepth sourceValue
         targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx result.params As input state output
+      NodeReplacementResolved prodEnv lctx result.params As input state output
         nextState result traceFinalState →
       NestedExpansionLookupCtx
         ((compilationRestoration sourceDecl auxiliaries).RestoringLeaf
@@ -979,7 +979,7 @@ theorem AuxiliaryFamilySources.restoringReplacement
   rcases T.sourceSpine HsourceExpr with ⟨S⟩
   have Htrailing := TrExprS.forall₂_abstractExpansionAbove Hlift Hctx HbaseDepth
     S.trailingTranslation T.trailingTranslation
-  rcases T.finalGeneratedFamilyOrigin Hrun Henv hclosures Hsources rfl hempty
+  rcases T.resolvedAuxiliaryFamily Hrun Henv hclosures Hsources rfl hempty
       with ⟨O⟩
   rcases N.sourceForReplacement Htarget T O hempty with
     ⟨i, hi, hresult, htarget, Ocanonical, hresultFinal, Nsource, hsourceEq⟩
@@ -1521,8 +1521,8 @@ theorem NestedRun.restorationTablesRestoringAllSpec
         List.mem_map.mpr ⟨t, ht, by rw [htname]; rfl⟩
       exact (List.nodup_append.mp hloweredNodup).2.2 _ hfam _ hrec rfl
     · intro c nested hfind
-      have hmem := Hrun.finalCacheEntryOfResultLookup hfind
-      rcases (Hrun.finalAuxFamilyPosition rfl).position nested c hmem with
+      have hmem := Hrun.resolvedCacheEntryOfResultLookup hfind
+      rcases (Hrun.resolvedAuxFamilyPosition rfl).position nested c hmem with
         ⟨j, hj, hinit, hname⟩
       have htypesEq := Hrun.resultTypes_eq
       simp only [List.size_toArray] at hinit hj
@@ -1668,7 +1668,7 @@ theorem NestedRun.restorationTablesRestoringAllSpec
     rcases N.sourceAt i hgen hresult htarget with ⟨Horigin, Nsource, hsourceEq⟩
     have HtargetType := Lean4Lean.VerifyInductive.TrInductDeclCore.typeAt
       Htarget (sourceTypes.length + i) hresult htarget
-    have Hmapping := Horigin.finalMapping Hmap
+    have Hmapping := Horigin.resolvedMapping Hmap
     have Hheader : NestedTypeExpansionHeader P.initialEnv sourceDecl
         Nsource.payload.source P.loweredDecl.types[sourceTypes.length + i] :=
       Hmapping.abstractHeaderExpansion Nsource.payload.translation HtargetType hbaseWF

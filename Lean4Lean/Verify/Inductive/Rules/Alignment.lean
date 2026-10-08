@@ -262,7 +262,7 @@ theorem RecursorCheck.recursorTelescopeTranslationAt
   refine ⟨?_⟩
   simpa [E.levels, H.localExtends.lparams_eq] using T
 
-theorem RecursorCheck.finalRecursorTelescopeTranslationAt
+theorem RecursorCheck.installedRecursorTelescopeTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -284,7 +284,7 @@ theorem RecursorCheck.finalRecursorTelescopeTranslationAt
 are definitionally equal.  The proof is deliberately factored through the
 concrete generated source binders, so it does not assume that independently
 translated abstract domain lists are syntactically identical. -/
-theorem RecursorCheck.finalRecursorCommonPrefixContextAt
+theorem RecursorCheck.installedRecursorCommonPrefixContextAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -317,7 +317,7 @@ theorem RecursorCheck.finalRecursorCommonPrefixContextAt
   exact H.generatedRecursorCommonPrefixBinderDomainAt
     owner₁ howner₁ owner₂ howner₂ i hi Hbinder₁ Hbinder₂
 
-theorem RecursorCheck.RuleAlignment.finalRecursorTelescopeTranslation
+theorem RecursorCheck.RuleAlignment.installedRecursorTelescopeTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -334,7 +334,7 @@ theorem RecursorCheck.RuleAlignment.finalRecursorTelescopeTranslation
       stats.params.size (H.recInfos.map (·.motive)).size
       (H.recInfos.flatMap (·.minors)).size
       H.recInfos[owner]!.indices.size owner) := by
-  exact H.finalRecursorTelescopeTranslationAt owner howner
+  exact H.installedRecursorTelescopeTranslationAt owner howner
 
 /-- The parameter domains recovered from the installed generated recursor
 are definitionally equal to the independently checked cached parameter
@@ -342,7 +342,7 @@ scope.  This is the canonical equation-context bridge: it compares contexts,
 not syntax, and is derived from translation of the same concrete `mkForall`
 prefix on both sides. -/
 theorem
-    RecursorCheck.finalRecursorParameterContextAt
+    RecursorCheck.installedRecursorParameterContextAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -366,7 +366,7 @@ theorem
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases H.finalRecursorTelescopeTranslationAt owner howner with ⟨T⟩
+  rcases H.installedRecursorTelescopeTranslationAt owner howner with ⟨T⟩
   let E := H.generated.entry owner howner
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
@@ -442,9 +442,9 @@ theorem
   simpa only [hleftEq, hrightEq, parameterDecls, ← H.parameterDecls,
     VLCtx.toCtx, List.append_nil, List.reverse_reverse] using hcontexts
 
-/-- Rule-local specialization of `finalRecursorParameterContextAt`. -/
+/-- Rule-local specialization of `installedRecursorParameterContextAt`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalRecursorParameterContext
+    RecursorCheck.RuleAlignment.installedRecursorParameterContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -466,14 +466,14 @@ theorem
         H.recInfos[owner]!.indices.size owner,
       VEnv.IsDefEqCtx H.outVEnv Us.length []
         T.params.reverse parameterDecls.toCtx := by
-  exact H.finalRecursorParameterContextAt owner howner
+  exact H.installedRecursorParameterContextAt owner howner
 
 /-- Every retained translation of the installed generated recursor has the
 same canonical parameter context.  The existential witness selected by
-`finalRecursorParameterContextAt` is immaterial because the five retained
+`installedRecursorParameterContextAt` is immaterial because the five retained
 telescope groups are uniquely determined by the common source and target. -/
 theorem
-    RecursorCheck.finalRecursorParameterContextFor
+    RecursorCheck.installedRecursorParameterContextFor
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -493,7 +493,7 @@ theorem
       T.params.reverse
       (R.recursorHeaders.parameterSuffix.toRecursorContext
         H.elimLevelAdmissible).parameterDecls.toCtx := by
-  rcases H.finalRecursorParameterContextAt owner howner with
+  rcases H.installedRecursorParameterContextAt owner howner with
     ⟨T₀, Hparams⟩
   have hparams : T.params = T₀.params :=
     (T.groupsResult_eq T₀).1
@@ -505,7 +505,7 @@ checker and recursor generator only through their common source tail; the
 abstract parameter contexts are related by conversion, not by syntactic
 equality. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedConstructorFieldFrame
+    RecursorCheck.RuleAlignment.installedCheckedConstructorFieldFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -560,7 +560,7 @@ theorem
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.finalRecursorParameterContext with ⟨T, hparams⟩
+  rcases A.installedRecursorParameterContext with ⟨T, hparams⟩
   rcases R.checkedConstructorPrefixAt H.elimLevelAdmissible
       H.lparamsNodup owner A.sourceOwner_lt i A.sourceCtor_lt with
     ⟨_ctorVal, tail, tailTarget, introTarget, _hctorMem, _hctorName,
@@ -1044,7 +1044,7 @@ theorem
 fields.  `fieldDomains` is rebuilt from the lifted context prefix, so the
 resulting canonical equation context remains valid for dependent fields. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCheckedConstructorEquationContextWithFrame
+    RecursorCheck.RuleAlignment.installedCheckedConstructorEquationContextWithFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1106,7 +1106,7 @@ theorem
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.finalCheckedConstructorFieldFrame with
+  rcases A.installedCheckedConstructorFieldFrame with
     ⟨T, originalDomains, fieldResult, introTarget, hparams, hfields,
       Htail, HfieldResidual, _HtailType, HtailTypeT, HfieldContext,
       HintroType, _Hintro, HintroShape⟩

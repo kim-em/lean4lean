@@ -452,7 +452,7 @@ private theorem RestoredBlockCertificate.extendSafe
         hinstall
         (cert observer).install
   rcases Hmodels with ⟨ves', wf', hle, hexact⟩
-  refine ⟨ves', wf', hle, ⟨C.finalEnvironment Hvalid⟩, ?_, fun venvH htypesH => ?_⟩
+  refine ⟨ves', wf', hle, ⟨C.extension Hvalid⟩, ?_, fun venvH htypesH => ?_⟩
   · rw [hexact .safe]
     exact (adds .safe).toVEnv
   · rw [hexact .safe]
@@ -605,7 +605,7 @@ private theorem RestoredBlockCertificate.unsafeInductiveExtension
     rw [(actual.property.targetWF Hvalid.tr.map_wf).find?'_eq_find?,
       (C.install.atomic.targetMapWF Hvalid.tr.map_wf).find?'_eq_find?]
     exact hlookup name
-  let F := C.finalEnvironment Hvalid
+  let F := C.extension Hvalid
   have HcheckingRules : CheckingEnv .unsafe outEnv
       (C.recursorVEnv.addDefEqRules
         (C.sourceRules ++ C.auxiliaryRules)) := {

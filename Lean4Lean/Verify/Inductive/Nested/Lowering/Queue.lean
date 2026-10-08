@@ -641,7 +641,7 @@ theorem ConstructorLowering.Resolved.restoredType_translation
   apply Hsource.eqv
   simpa [beq_comm] using Hinverse.restoredType_eqv_source
 
-theorem ConstructorLowering.finalMapping
+theorem ConstructorLowering.resolvedMapping
     (H : ConstructorLowering env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
@@ -652,7 +652,7 @@ theorem ConstructorLowering.finalMapping
       hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize, Hreplace, htype⟩
   exact ⟨lctx, tail, As, lowered, openedState, Hopening, hlctxWF.wf, Hselection,
     hnodupAs, hopenedTypes, hopenedAux, hopenedNext, hsize,
-    Hreplace.finalMapping Hlater Hmap, htype⟩
+    Hreplace.resolvedMapping Hlater Hmap, htype⟩
 
 theorem ElimNestedInductive.lowerConstructor.translationPending
     (params : Array Expr) (nparams : Nat) (ctor : Constructor)
@@ -899,7 +899,7 @@ theorem LoweredRestoredConstructors.sourceTyping
         intro tail htail
         exact Hdisjoint tail (by simp [htail])
 
-theorem ConstructorLowerings.finalMapping
+theorem ConstructorLowerings.resolvedMapping
     (H : ConstructorLowerings env params nparams sources state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
@@ -908,7 +908,7 @@ theorem ConstructorLowerings.finalMapping
   | nil => exact .nil
   | cons Hhead Htail ih =>
     exact .cons
-      (Hhead.finalMapping (Htail.nestedAuxLE.trans Hlater) Hmap)
+      (Hhead.resolvedMapping (Htail.nestedAuxLE.trans Hlater) Hmap)
       (ih Hlater Hmap)
 
 theorem ConstructorLowerings.targetsRestoreTelescope
@@ -1005,12 +1005,12 @@ theorem FamilyLowering.auxFVarsIn
     NestedAuxFVarsIn P out.2 :=
   H.constructors.auxFVarsIn Hsource Hparams Hstate
 
-theorem FamilyLowering.finalMapping
+theorem FamilyLowering.resolvedMapping
     (H : FamilyLowering env params nparams source state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
     FamilyLowering.Resolved env params nparams finalResult source state out :=
-  ⟨H.name, H.type, H.constructors.finalMapping Hlater Hmap⟩
+  ⟨H.name, H.type, H.constructors.resolvedMapping Hlater Hmap⟩
 
 theorem FamilyLowering.targetRestoreTelescope
     (H : FamilyLowering env params nparams source state out) :
@@ -1872,7 +1872,7 @@ theorem NestedLowering.translationAtInitial
 /-- Once final cache-name uniqueness is supplied, every initially declared
 family has a positional lowering certificate whose constructor bodies are
 all interpreted by the actual final restoration map. -/
-theorem NestedLowering.finalMappingAtInitial
+theorem NestedLowering.resolvedMappingAtInitial
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
@@ -1886,14 +1886,14 @@ theorem NestedLowering.finalMappingAtInitial
     ⟨params, stepState, target, loweredState, hparams, Htranslated,
       htarget, Hlater⟩
   exact ⟨params, stepState, target, loweredState, hparams,
-    Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
+    Htranslated.resolvedMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
 
-/-- Parameter-aligned form of `finalMappingAtInitial`.  The expression
+/-- Parameter-aligned form of `resolvedMappingAtInitial`.  The expression
 mapping for each source family is performed with exactly the parameter array
 stored in the final restoration record, rather than merely with an array of
 the same size.  This identity is what later lets restoration cancel the
 abstraction performed when a nested application was cached. -/
-theorem NestedLowering.finalMappingAtInitialAligned
+theorem NestedLowering.resolvedMappingAtInitialAligned
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
@@ -1918,11 +1918,11 @@ theorem NestedLowering.finalMappingAtInitialAligned
   rw [hvalue] at Htranslated
   exact ⟨params, stepState, target, loweredState,
     Hqueue.resultContext.2, Hopening.initial_size,
-    Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
+    Htranslated.resolvedMapping Hlater (H.resultAuxMapModels hauxNames), htarget⟩
 
-/-- `finalMappingAtInitialAligned`, additionally recording that the lowering
+/-- `resolvedMappingAtInitialAligned`, additionally recording that the lowering
 step of the family starts from the universe arguments of the initial state. -/
-theorem NestedLowering.finalMappingAtInitialAlignedLvls
+theorem NestedLowering.resolvedMappingAtInitialAlignedLvls
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hauxNames : (finalState.nestedAux.toList.map Prod.snd).Nodup)
@@ -1948,7 +1948,7 @@ theorem NestedLowering.finalMappingAtInitialAlignedLvls
   rw [hvalue] at Htranslated
   exact ⟨params, stepState, target, loweredState,
     Hqueue.resultContext.2, Hopening.initial_size,
-    Htranslated.finalMapping Hlater (H.resultAuxMapModels hauxNames), htarget,
+    Htranslated.resolvedMapping Hlater (H.resultAuxMapModels hauxNames), htarget,
     (Htranslated.nestedAuxLE.lvls.symm.trans Hlater.lvls.symm).trans H.lvls⟩
 
 theorem NestedLowering.preservesInitialTypeName

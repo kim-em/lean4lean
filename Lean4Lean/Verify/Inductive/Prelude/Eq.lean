@@ -579,7 +579,7 @@ theorem OrdinaryRunResult.extendPreludeEq
 
 /-- Complete `AddInductive.run` refinement for the exact toConstantsInstallation `Eq`
 declaration, without assuming canonical equality in the source model. -/
-theorem AddInductive.run.preludeEqFinalWF
+theorem AddInductive.run.preludeEqInstalledWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
@@ -623,7 +623,7 @@ theorem AddInductive.run.preludeEqFinalWF
 
 /-- Final-model boundary for the zero-auxiliary production branch reached by
 the exact toConstantsInstallation `Eq` declaration. -/
-theorem Environment.addInductiveAfterLowering.preludeEqFinalEnvironmentWF
+theorem Environment.addInductiveAfterLowering.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool)
     (fuel : FuelConfig) (res : ElimNestedInductive.Result)
@@ -669,7 +669,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqFinalEnvironmentWF
     intro c' stats depth commonParams commonLevel Hc' hallow _hfuel _Hsemantic
     exact PrimitiveNamesFresh.ofAllowPrimitiveFalse
       (by simpa [c, initialContext] using hallow)
-  have Hrun := AddInductive.run.preludeEqFinalWF
+  have Hrun := AddInductive.run.preludeEqInstalledWF
     (c := c) (types := res.types) (ves := ves) nparams 0 Hc wf htels hAbsent
     (by rfl) hsource wf.inductivesClosed (by rfl) Hshape' Hinputs
   unfold Environment.addInductiveAfterLowering
@@ -685,7 +685,7 @@ theorem Environment.addInductiveAfterLowering.preludeEqFinalEnvironmentWF
 /-- End-to-end production `addInductive` boundary for the ordinary toConstantsInstallation
 `Eq` declaration.  Source checks and the exact lowering no-op are composed
 with the same source-aligned run that installs canonical abstract equality. -/
-theorem Environment.addInductive.preludeEqFinalEnvironmentWF
+theorem Environment.addInductive.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -710,7 +710,7 @@ theorem Environment.addInductive.preludeEqFinalEnvironmentWF
     fuel.inductiveFuel lparams nparams types isUnsafe Hshape hAbsentFind
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
-      Environment.addInductiveAfterLowering.preludeEqFinalEnvironmentWF env
+      Environment.addInductiveAfterLowering.preludeEqExtensionWF env
         lparams nparams types isUnsafe fuel res ves wf htels hAbsent Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
@@ -718,7 +718,7 @@ theorem Environment.addInductive.preludeEqFinalEnvironmentWF
 /-- Checked `addDecl` dispatch for the exact non-primitive toConstantsInstallation `Eq`
 declaration.  The actual primitive precheck is proved to return `false`, so
 the theorem follows the production branch rather than assuming it. -/
-theorem addInductiveDeclaration.preludeEqFinalEnvironmentWF
+theorem addInductiveDeclaration.preludeEqExtensionWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -732,7 +732,7 @@ theorem addInductiveDeclaration.preludeEqFinalEnvironmentWF
             nparams types false (ves'.venv .safe)) ∧
       (∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
         ∀ safety, (ves'.venv safety).HasCanonicalEq) := by
-  have Hrun := Environment.addInductive.preludeEqFinalEnvironmentWF env
+  have Hrun := Environment.addInductive.preludeEqExtensionWF env
     lparams nparams types isUnsafe fuel ves wf htels hAbsent Hshape
   have hcheck := checkPrimitiveInductive_eq_false_of_preludeEqShape env Hshape
   simpa [Lean4Lean.addDecl, hcheck, bind, Except.bind] using Hrun

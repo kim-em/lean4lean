@@ -15,7 +15,7 @@ final environment fails.
 
 This file proves what holds without any naming hypothesis:
 
-* `NestedRun.finalBaseVEnv_restorableNames_fresh_of_not_renamed`:
+* `NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed`:
   every restorable name which is not a renamed recursor name is absent from
   the final abstract environment of any final assembly shape.
 * `Restoration.recursors_snd_str`: every renamed recursor name is a string
@@ -296,7 +296,7 @@ environment (`restorableNames_fresh_ctors`), the primary restored recursors
 keep their lowered names `T.rec` (distinct from the auxiliary names by the
 lowered declaration's name uniqueness), and the remaining installed names are
 renamed recursor names. No hypothesis on names is needed. -/
-theorem NestedRun.finalBaseVEnv_restorableNames_fresh_of_not_renamed
+theorem NestedRun.recursorVEnv_restorableNames_fresh_of_not_renamed
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
     {sourceDecl : VInductDecl} {lparams : List Name} {nparams : Nat}
@@ -747,7 +747,7 @@ in `trEnv` outside a list `X`, provided the lowered rule right-hand sides of
 the step avoid `X` in the trailing arguments of their hits, in their literals
 and in their parameter domains (`Htrail`). For `X` the renamed recursor names,
 the freshness holds in every final assembly environment without hypotheses
-(`finalBaseVEnv_restorableNames_fresh_of_not_renamed`); for
+(`recursorVEnv_restorableNames_fresh_of_not_renamed`); for
 `X = restorableNames` no freshness is needed. -/
 theorem NestedRun.restoredRuleRhs_of_trail
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
@@ -1103,7 +1103,7 @@ theorem NestedRun.auxRecName_not_renamed
 
 /-- **The rule junction without any naming hypothesis**, with freshness of the
 restorable names in the final environment weakened to the restorable names
-that are not renamed recursor names (`finalBaseVEnv_restorableNames_fresh_of_not_renamed`).
+that are not renamed recursor names (`recursorVEnv_restorableNames_fresh_of_not_renamed`).
 This is the strongest freshness conclusion available: a renamed recursor name
 that coincides with a restorable name is installed in every final
 environment. -/
@@ -1145,7 +1145,7 @@ theorem NestedRun.hrules_of_modulo
           (C.sourceRules ++ C.auxiliaryRules) := by
   intro auxiliaries D
   obtain ⟨C, hC, HC⟩ := HruleShape auxiliaries D
-  exact ⟨C, hC, E.finalBaseVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC D, HC⟩
+  exact ⟨C, hC, E.recursorVEnv_restorableNames_fresh_of_not_renamed wf Hsources C hC D, HC⟩
 
 end VerifyInductive
 end Lean4Lean

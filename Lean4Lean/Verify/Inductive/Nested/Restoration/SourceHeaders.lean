@@ -111,7 +111,7 @@ private theorem restoredHeaderValidationValidAux
             HsourceMem source (by simp)
           rcases List.mem_iff_getElem.mp hsourceGlobal with
             ⟨familyIdx, hfamily, heq⟩
-          rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+          rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
             ⟨_fvars, _mappingState, loweredTarget, _loweredState, _hparams,
               _hnodup, _hsize, Hmapping, htarget⟩
           obtain ⟨hresultFamily, htargetEq⟩ :=

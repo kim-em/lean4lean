@@ -53,12 +53,12 @@ projections and computation rules, may be added. The theorem does not address co
 the declarative theory `VEnv.IsDefEq` itself.
 
 For inductive declarations there is also a source-facing statement,
-`addInductiveDeclaration.finalResultWF` (same file). It returns an `InductiveExtension`,
+`addInductiveDeclaration.WF_spec` (same file). It returns an `InductiveExtension`,
 whose `specification` field ties the output to an abstract `VEnv.AddInduct` of the exact
 translation of the submitted source declaration (`TrInductDeclCore`), so a model cannot be
 attributed to a different (for example lowered) declaration. It assumes that the source has
 no loose bound variables (`SourceBVarClosed`), which the executable does not check;
-`finalPreservesWF`, used by `addDecl.WF`, does not need it.
+`WF_preserves`, used by `addDecl.WF`, does not need it.
 
 ### 1.2 End to end: the replay driver
 
@@ -306,7 +306,7 @@ None weakens the top-level theorem.
 
 ### 3.1 Dispatch
 
-`addInductiveDeclaration.finalPreservesWF` (`Lean4Lean/Verify/Environment.lean`) splits on
+`addInductiveDeclaration.WF_preserves` (`Lean4Lean/Verify/Environment.lean`) splits on
 the executable's own branch selection. Primitive declarations (`Bool` and `Nat`, recognized
 by `Primitive.checkInductive`) go through `Lean4Lean/Verify/Inductive/Primitive/`. For
 other declarations the verified lowering result decides: no auxiliary families means the

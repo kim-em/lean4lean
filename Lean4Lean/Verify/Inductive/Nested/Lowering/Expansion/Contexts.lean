@@ -1001,7 +1001,7 @@ theorem SelectedParameterTargets.translatedSelection
 concrete trace fixes the auxiliary name and universe arguments; the anchored
 constructor context fixes the translated common-parameter prefix. -/
 structure LoweredOccurrenceSpine
-    (Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    (Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result finalState)
     (Hselection : CDeclArray lctx As)
     (Htarget : TrExprS targetVEnv lparams targetCtx output targetValue)
@@ -1034,8 +1034,8 @@ structure LoweredOccurrenceSpine
   trailingTranslation : List.Forall₂ (TrExprS targetVEnv lparams targetCtx)
     (input.getAppArgsList.drop value.numParams) trailing
 
-theorem NodeReplacementFinalTrace.targetSpine
-    (Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+theorem NodeReplacementResolved.targetSpine
+    (Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result finalState)
     (Hselection : CDeclArray lctx As)
     (Harity : As.size = result.params.size)
@@ -1108,7 +1108,7 @@ theorem LoweredOccurrenceSpine.sourceSpine
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
     {input output : Expr} {state nextState finalState :
       Lean4Lean.ElimNestedInductive.State}
-    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result finalState}
     {Hselection : CDeclArray lctx As}
     {targetVEnv : VEnv} {lparams : List Name} {targetCtx : VLCtx}
@@ -1146,12 +1146,12 @@ theorem LoweredOccurrenceSpine.sourceSpine
 
 /-- The exact auxiliary name selected by the translated target spine rejoins
 the append-only generated-family queue without any name/equality heuristic. -/
-theorem LoweredOccurrenceSpine.finalGeneratedFamilyOrigin
+theorem LoweredOccurrenceSpine.resolvedAuxiliaryFamily
     {prodEnv : Environment} {lctx : LocalContext}
     {result : Lean4Lean.ElimNestedInductive.Result} {As : Array Expr}
     {input output : Expr} {state nextState finalState :
       Lean4Lean.ElimNestedInductive.State}
-    {Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input
+    {Htrace : NodeReplacementResolved prodEnv lctx result.params As input
       state output nextState result finalState}
     {Hselection : CDeclArray lctx As}
     {targetVEnv : VEnv} {lparams : List Name} {targetCtx : VLCtx}
@@ -1405,7 +1405,7 @@ theorem ExprLowering.Resolved.abstractExpansionAbove
     (Hscope : input.FVarsIn (· ∈ Hselection.fvars))
     (Hhit : ∀ {input state output nextState finalState depth fieldDepth
         sourceTarget targetTarget sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1627,7 +1627,7 @@ theorem ConstructorLowering.Resolved.abstractExpansionAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1752,7 +1752,7 @@ theorem ConstructorLowerings.Resolved.abstractExpansionsAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1855,7 +1855,7 @@ theorem FamilyLowering.Resolved.abstractExpansionAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         leaf
@@ -1910,7 +1910,7 @@ theorem FamilyLowering.Resolved.abstractExpansion
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         (VInductDecl.NestedOccurrenceReplacementAbs headerVEnv decl generated)
@@ -1971,7 +1971,7 @@ theorem NestedLoweringOutputClosed.originalHeaderExpansionAtFresh
       _ ≤ result.types.length := H.toResult.sourceTypes_length_le
       _ = loweredDecl.types.length :=
         Lean4Lean.VerifyInductive.TrInductDeclCore.types_length Htarget
-  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases H.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, targetConcrete, nextState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
   obtain ⟨_hresult, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
@@ -1991,7 +1991,7 @@ theorem NestedLoweringOutputClosed.originalHeaderExpansionAtFresh
 /-- Exact interpretation of successful replacement leaves for one closed
 lowering result and one independently translated source/expanded block.  In
 contrast to a generic expression provider, every quantified replacement is
-an actual `NodeReplacementHasFinalMapping` into this exact final result,
+an actual `NodeReplacementHasResolvedMapping` into this exact final result,
 and both translations use the exact mutual-header environments. -/
 def NestedFormationReplacementCompat
     (prodEnv : Environment) (result : Lean4Lean.ElimNestedInductive.Result)
@@ -2000,7 +2000,7 @@ def NestedFormationReplacementCompat
   ∀ {lctx : LocalContext} {As : Array Expr}
       {input state output nextState finalState depth fieldDepth sourceValue targetValue
         sourceCtx targetCtx},
-    NodeReplacementFinalTrace prodEnv lctx result.params As input state output
+    NodeReplacementResolved prodEnv lctx result.params As input state output
       nextState result finalState →
     NestedExpansionLookupCtx
       (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv sourceDecl generated)
@@ -2066,7 +2066,7 @@ theorem LoweredAuxiliaryFamily.abstractExpansion
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState →
       NestedExpansionLookupCtx
         (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
@@ -2086,7 +2086,7 @@ theorem LoweredAuxiliaryFamily.abstractExpansion
     VInductDecl.NestedTypeExpansion baseVEnv decl
       (VInductDecl.NestedOccurrenceReplacementAbs baseVEnv decl generated)
       Hsource.source target := by
-  have Hmapping := H.finalMapping Hmap
+  have Hmapping := H.resolvedMapping Hmap
   have Hheader : NestedTypeExpansionHeader baseVEnv decl Hsource.source target :=
     Hmapping.abstractHeaderExpansion Hsource.translation Htarget henv huvars
       Hsource.numIndices Hsource.resultLevel
@@ -2115,7 +2115,7 @@ theorem NestedLoweringOutputClosed.originalExpansionAtFreshAboveLvls
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx result.params As input state
+      NodeReplacementResolved prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx
         leaf depth sourceCtx targetCtx →
@@ -2147,7 +2147,7 @@ theorem NestedLoweringOutputClosed.originalExpansionAtFreshAboveLvls
         newTypes := sourceTypes.toArray }).newTypes.size := by
     simpa using hfamily
   rcases H with ⟨finalState, Hrun, Hcache, Hparams⟩
-  rcases Hrun.finalMappingAtInitialAlignedLvls
+  rcases Hrun.resolvedMappingAtInitialAlignedLvls
       (Hrun.resultNamesNodupOfEmpty (by simpa using hempty)) hjInitial with
     ⟨params, stepState, targetConcrete, loweredState, hresultParams,
       _hsize, Hmapping, htarget, hstepLvls⟩
@@ -2195,7 +2195,7 @@ theorem NestedLoweringOutputClosed.originalExpansionsAboveLvls
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx result.params As input state
+      NodeReplacementResolved prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
       (selection : CDeclArray lctx As) →
@@ -2258,7 +2258,7 @@ theorem NestedLoweringOutputClosed.originalExpansionsAbove
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx result.params As input state
+      NodeReplacementResolved prodEnv lctx result.params As input state
         output nextState result finalState →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
       (selection : CDeclArray lctx As) →

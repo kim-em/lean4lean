@@ -876,7 +876,7 @@ theorem AuxiliaryGenerationBatch.targetResultMapped
 /-- Both cache reuse and fresh mutual-family generation expose the same
 restoration-facing fact: the returned auxiliary application is keyed in the
 final map by the normalized source-family application it replaced. -/
-theorem OccurrenceReplacement.finalMapping
+theorem OccurrenceReplacement.resolvedMapping
     (H : OccurrenceReplacement env lctx params As targetName levels args
       value state out)
     (Hlater : NestedAuxLE out.2 finalState)
@@ -907,7 +907,7 @@ theorem OccurrenceReplacement.finalMapping
     rw [Hbuilt.nested]
     simp
 
-def NodeReplacementHasFinalMapping
+def NodeReplacementHasResolvedMapping
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
     (lowered : Expr) (finalResult : Lean4Lean.ElimNestedInductive.Result) : Prop :=
@@ -923,11 +923,11 @@ def NodeReplacementHasFinalMapping
       finalResult.aux2nested.find? auxName = some nested
 
 /-- Non-erased successful-hit provenance.  Unlike
-`NodeReplacementHasFinalMapping`, this retains the exact cache-or-generation
+`NodeReplacementHasResolvedMapping`, this retains the exact cache-or-generation
 branch and the state at which it completed.  In the generated branch this is
 the persistent path back to `AuxiliaryFamilySpec`; cached hits remain identifiable
 as cache reuse and can be joined to final generated-family origins. -/
-def NodeReplacementFinalTrace
+def NodeReplacementResolved
     (env : Environment) (lctx : LocalContext) (params As : Array Expr)
     (input : Expr) (state : Lean4Lean.ElimNestedInductive.State)
     (lowered : Expr) (nextState : Lean4Lean.ElimNestedInductive.State)
@@ -943,14 +943,14 @@ def NodeReplacementFinalTrace
 
 /-- Forget the retained operational branch only after clients that need
 generated-family provenance have had a chance to inspect it. -/
-theorem NodeReplacementFinalTrace.mapping
-    (H : NodeReplacementFinalTrace env lctx params As input state lowered
+theorem NodeReplacementResolved.mapping
+    (H : NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState) :
-    NodeReplacementHasFinalMapping env lctx params As input state lowered
+    NodeReplacementHasResolvedMapping env lctx params As input state lowered
       finalResult := by
   rcases H with
     ⟨value, targetName, levels, Hcandidate, hhead, Hrecognized, Hlater, Hmap⟩
-  rcases Hrecognized.finalMapping Hlater Hmap with
+  rcases Hrecognized.resolvedMapping Hlater Hmap with
     ⟨auxName, auxLevels, nested, replacement, hauxLevels, hresult, hreplacement,
       hnested, hlookup⟩
   cases hresult
@@ -959,8 +959,8 @@ theorem NodeReplacementFinalTrace.mapping
 
 /-- A mapped lowering hit introduces only its selected parameter variables;
 all trailing arguments are inherited from the source application. -/
-theorem NodeReplacementHasFinalMapping.outputFVarsIn
-    (H : NodeReplacementHasFinalMapping env lctx params As input state
+theorem NodeReplacementHasResolvedMapping.outputFVarsIn
+    (H : NodeReplacementHasResolvedMapping env lctx params As input state
       lowered finalResult)
     (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
@@ -986,8 +986,8 @@ theorem NodeReplacementHasFinalMapping.outputFVarsIn
     rw [← Expr.getAppArgs_toList]
     exact List.mem_of_mem_drop harg
 
-theorem NodeReplacementFinalTrace.outputFVarsIn
-    (H : NodeReplacementFinalTrace env lctx params As input state lowered
+theorem NodeReplacementResolved.outputFVarsIn
+    (H : NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState)
     (Hselection : CDeclArray lctx As)
     (Hinput : input.FVarIdsIn (· ∈ Hselection.fvars)) :
@@ -1115,8 +1115,8 @@ the abstraction/reopening part of `restoreNestedNode`.  The only local
 scoping premise is that abstracting the constructor-opening parameters has
 removed all free variables; constructor lowering establishes that fact from
 its closed source type. -/
-theorem NodeReplacementHasFinalMapping.reopens
-    (H : NodeReplacementHasFinalMapping env lctx params As input state
+theorem NodeReplacementHasResolvedMapping.reopens
+    (H : NodeReplacementHasResolvedMapping env lctx params As input state
       lowered finalResult)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
@@ -1192,8 +1192,8 @@ theorem NestedOccurrence.abstractedPrefixClosed
 
 /-- Constructor-scoped specialization of `reopens`; the closedness premise
 is derived from the source body's free-variable invariant. -/
-theorem NodeReplacementHasFinalMapping.reopensOfFVars
-    (H : NodeReplacementHasFinalMapping env lctx params As input state
+theorem NodeReplacementHasResolvedMapping.reopensOfFVars
+    (H : NodeReplacementHasResolvedMapping env lctx params As input state
       lowered finalResult)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
@@ -1208,8 +1208,8 @@ theorem NodeReplacementHasFinalMapping.reopensOfFVars
   intro value targetName levels Hcandidate hhead
   exact Hcandidate.abstractedPrefixClosed Hselection Hinput hhead
 
-theorem NodeReplacementFinalTrace.reopensOfFVars
-    (H : NodeReplacementFinalTrace env lctx params As input state lowered
+theorem NodeReplacementResolved.reopensOfFVars
+    (H : NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState)
     (hresultParams : finalResult.params = params)
     (fvars : List FVarId)
@@ -1225,12 +1225,12 @@ theorem NodeReplacementFinalTrace.reopensOfFVars
 
 /-- Successful node replacement with its cache-or-generation branch retained
 verbatim. -/
-theorem NodeReplacement.finalTrace
+theorem NodeReplacement.resolvedTrace
     (H : NodeReplacement env lctx params As input state
       (some lowered, nextState))
     (Hlater : NestedAuxLE nextState finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
-    NodeReplacementFinalTrace env lctx params As input state lowered
+    NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState := by
   cases H with
   | recognized Hcandidate hhead Hrecognized =>
@@ -1245,7 +1245,7 @@ inductive ExprLowering.Resolved
     (finalResult : Lean4Lean.ElimNestedInductive.Result) :
     Expr → Lean4Lean.ElimNestedInductive.State →
       Expr × Lean4Lean.ElimNestedInductive.State → Prop
-  | occurrence : NodeReplacementFinalTrace env lctx params As input state output
+  | occurrence : NodeReplacementResolved env lctx params As input state output
       nextState finalResult finalState →
       ExprLowering.Resolved env lctx params As finalResult input state
         (output, nextState)
@@ -2077,8 +2077,8 @@ theorem ExprLowering.nestedAuxLE
 
 /-- A successful replacement hit leaves the universe arguments `lvls` of the
 lowering state unchanged. -/
-theorem NodeReplacementFinalTrace.lvls
-    (H : NodeReplacementFinalTrace env lctx params As input state lowered
+theorem NodeReplacementResolved.lvls
+    (H : NodeReplacementResolved env lctx params As input state lowered
       nextState finalResult finalState) : nextState.lvls = state.lvls := by
   rcases H with ⟨_, _, _, _, _, Hrecognized, _, _⟩
   exact Hrecognized.nestedAuxLE.lvls
@@ -2201,13 +2201,13 @@ theorem ExprLowering.auxFVarsIn
     exact ihBody Hinput Hparams
       (Hnode.auxFVarsIn HAs Hinput Hparams Hstate)
 
-theorem ExprLowering.finalMapping
+theorem ExprLowering.resolvedMapping
     (H : ExprLowering env lctx params As input state out)
     (Hlater : NestedAuxLE out.2 finalState)
     (Hmap : NestedAuxMapModels finalResult finalState) :
     ExprLowering.Resolved env lctx params As finalResult input state out := by
   induction H generalizing finalState with
-  | occurrence Hnode => exact .occurrence (Hnode.finalTrace Hlater Hmap)
+  | occurrence Hnode => exact .occurrence (Hnode.resolvedTrace Hlater Hmap)
   | bvar Hnode => exact .bvar Hnode
   | fvar Hnode => exact .fvar Hnode
   | mvar Hnode => exact .mvar Hnode

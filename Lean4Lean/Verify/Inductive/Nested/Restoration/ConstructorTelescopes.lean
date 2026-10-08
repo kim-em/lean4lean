@@ -92,7 +92,7 @@ theorem NestedRun.restoredCtorOrigin
           { initialState with newTypes := sourceTypes.toArray } result := by
         rw [henv']
         simpa [initialState] using E.lowering
-      rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+      rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
         ⟨_, _, loweredTarget, _, _, _, _, Hmapping, htarget⟩
       obtain ⟨hresultFamily, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
       rcases Hprod.findSourceHeaderAt Hc familyIdx (by simpa using hresultFamily) with

@@ -182,7 +182,7 @@ theorem Environment.addInductiveAfterLowering.nestedInductiveExtensionWF
       nativeSourceDecl_eq := V'.nativeSourceDecl_eq
       assembly := C
       lowered_eq := hproduction
-      finalResult := C.finalEnvironment Hvalid }
+      installedResult := C.extension Hvalid }
     have HlowerExact : NestedLoweringOutputClosed E'.context.env
         fuel.inductiveFuel nparams sourceTypes
         { ({ lvls := lparams.map .param, newTypes := #[] } :

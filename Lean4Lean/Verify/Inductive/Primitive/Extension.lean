@@ -124,7 +124,7 @@ theorem PrimitiveRunResult.extendSafeWithSpecification
 
 /-- Complete primitive `AddInductive.run` refinement without an
 equality-toConstantsInstallation premise. -/
-theorem AddInductive.run.primitiveFinalSpecificationModelWF
+theorem AddInductive.run.primitiveExtensionModelWF
     {ves : VEnvs}
     (nparams numNested : Nat)
     (Hc : ContextWF c)
@@ -151,7 +151,7 @@ theorem AddInductive.run.primitiveFinalSpecificationModelWF
     exact Hresult'.extendSafeWithSpecification wf htels
 
 /-- Primitive post-lowering refinement with no equality-toConstantsInstallation premise. -/
-theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
+theorem Environment.addInductiveAfterLowering.primitiveExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (res : ElimNestedInductive.Result)
@@ -185,7 +185,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
       ContextWF.initial wf .safe lparams true fuel htels
   have hsource : Hc.venv = ves.venv .safe := rfl
   have hctx : Hc.mlctx.vlctx = [] := rfl
-  have Hrun := AddInductive.run.primitiveFinalSpecificationModelWF
+  have Hrun := AddInductive.run.primitiveExtensionModelWF
     (c := c) (ves := ves) nparams 0 Hc wf' (by simpa [c, primitiveAddInductiveContext] using htels) hsource Hshape' hctx
     hnonempty hnotPartial
   unfold Environment.addInductiveAfterLowering
@@ -193,7 +193,7 @@ theorem Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
   simpa [c, primitiveAddInductiveContext] using Hrun
 
 /-- End-to-end primitive refinement without an equality-toConstantsInstallation premise. -/
-theorem Environment.addInductive.primitiveFinalSpecificationModelWF
+theorem Environment.addInductive.primitiveExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -212,14 +212,14 @@ theorem Environment.addInductive.primitiveFinalSpecificationModelWF
     fuel.inductiveFuel lparams nparams types isUnsafe Hshape
   have Hcombined := Hsources.bind fun _ _ =>
     Hlowering.bind fun res Hres =>
-      Environment.addInductiveAfterLowering.primitiveFinalSpecificationModelWF
+      Environment.addInductiveAfterLowering.primitiveExtensionModelWF
         env lparams nparams types isUnsafe fuel res ves wf htels Hshape
         Hres.1 Hres.2
   simpa [Environment.addInductive] using Hcombined
 
 /-- Checked primitive declaration refinement without an equality-toConstantsInstallation
 premise. -/
-theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
+theorem addInductiveDeclaration.primitiveExtensionModelWF
     (env : Environment) (lparams : List Name) (nparams : Nat)
     (types : List InductiveType) (isUnsafe : Bool) (fuel : FuelConfig)
     (ves : VEnvs) (wf : ves.WFCore env) (htels : ∀ safety, CtorTelescopes safety env (ves.venv safety))
@@ -231,7 +231,7 @@ theorem addInductiveDeclaration.primitiveFinalSpecificationModelWF
           VEnvs.CtorTelescopesPreserved env outEnv ves ves' ∧
           Nonempty (SourceAddInduct (ves.venv .safe) lparams
             nparams types isUnsafe (ves'.venv .safe)) := by
-  have Hrun := Environment.addInductive.primitiveFinalSpecificationModelWF
+  have Hrun := Environment.addInductive.primitiveExtensionModelWF
     env lparams nparams types isUnsafe fuel ves wf htels Hshape
   have hcheck := (checkPrimitiveInductive_eq_true_iff env lparams nparams
     types isUnsafe).mpr Hshape

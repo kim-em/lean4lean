@@ -19,8 +19,8 @@ private theorem Expr.constructorArity_mkAppList_of_zero
   | cons arg args ih =>
       exact ih (e := .app e arg) rfl
 
-private theorem NodeReplacementFinalTrace.output_constructorArity_eq_zero
-    (H : NodeReplacementFinalTrace env lctx params As input state output
+private theorem NodeReplacementResolved.output_constructorArity_eq_zero
+    (H : NodeReplacementResolved env lctx params As input state output
       nextState result finalState) :
     AddInductive.constructorArity output = 0 := by
   rcases H.mapping with
@@ -33,8 +33,8 @@ private theorem NodeReplacementFinalTrace.output_constructorArity_eq_zero
   apply Expr.constructorArity_mkAppList_of_zero
   rfl
 
-private theorem NodeReplacementFinalTrace.input_constructorArity_eq_zero
-    (H : NodeReplacementFinalTrace env lctx params As input state output
+private theorem NodeReplacementResolved.input_constructorArity_eq_zero
+    (H : NodeReplacementResolved env lctx params As input state output
       nextState result finalState) :
     AddInductive.constructorArity input = 0 := by
   rcases H with
@@ -610,7 +610,7 @@ theorem RestoredInductiveStep.restoredConstructorOwnerAt
     (Hctor : RestoredConstructorStep result loweredEnv
       Hstep.oldInfo.ctors[ctorIdx] ctorSource ctorTarget) :
     Hctor.restored.newInfo.induct = Hstep.restored.header.newInfo.name := by
-  rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _mappingState, target, _loweredState, _hparams, _hnodup,
       _hparamsSize, Hmapping, htarget⟩
   obtain ⟨hresultFamily, htargetEq⟩ :=
@@ -784,7 +784,7 @@ theorem RestoredInductiveStep.inductInfoAlignmentAt
     (hstepWF : stepSource.constants.WF) :
     InductInfoAlignment stepTarget.constants sourceDecl familyIdx
       Hstep.restored.header.newInfo := by
-  rcases Hlower.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases Hlower.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨fvars, _mappingState, target, _loweredState, hparams, hnodup,
       hparamsSize, Hmapping, htarget⟩
   obtain ⟨hresultFamily, htargetEq⟩ :=

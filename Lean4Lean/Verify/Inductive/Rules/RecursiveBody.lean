@@ -126,7 +126,7 @@ theorem
       F.telescope.params.reverse C.params.reverse :=
     VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
       HselectedSource (HcanonicalSource.symm H.outVEnvWF.ordered)
-  rcases H.finalRecursorParameterContextAt selectedOwner F.entry_lt with
+  rcases H.installedRecursorParameterContextAt selectedOwner F.entry_lt with
     ⟨Tselected, HselectedCached⟩
   rcases Tselected.groupsResult_eq F.telescope with
     ⟨hselectedParams, _hselectedMotives, _hselectedMinors,
@@ -247,7 +247,7 @@ theorem
     rw [hdecomposition, hadded] at HctxPlain
     simpa [cachedFull, inserted, List.reverse_append,
       List.append_assoc] using HctxPlain
-  rcases A.finalRecursorParameterContext with ⟨T₀, HparamsT⟩
+  rcases A.installedRecursorParameterContext with ⟨T₀, HparamsT⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparamsT, _hmotivesT, _hminorsT, _hindicesT,
       _hmajorT, _hresultT⟩
@@ -265,7 +265,7 @@ theorem
   have HTFull : OnCtx (frontDomains.reverse ++ Touter.reverse)
       (H.outVEnv.IsType Us.length) :=
     (HcachedToT.symm H.outVEnvWF.ordered).isType
-  have Hcommon := H.finalRecursorCommonPrefixContextAt
+  have Hcommon := H.installedRecursorCommonPrefixContextAt
     owner howner selectedOwner F.entry_lt T F.telescope
   have HTToSelected :=
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix
@@ -676,7 +676,7 @@ theorem
     (T.params ++ T.motives ++ T.minors) ++ fieldDomains
   let cachedDomains :=
     (parameterDecls.toCtx.reverse ++ T.motives ++ T.minors) ++ fieldDomains
-  rcases A.finalRecursorParameterContext with ⟨T₀, hparams₀⟩
+  rcases A.installedRecursorParameterContext with ⟨T₀, hparams₀⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparamsT, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
   rw [hparamsT] at hparams₀
@@ -906,7 +906,7 @@ theorem
     rw [hdecomposition, hadded] at Hctx'
     simpa [cachedBase, inserted, List.reverse_append,
       List.append_assoc] using Hctx'
-  rcases A.finalRecursorParameterContext with ⟨T₀, Hparams⟩
+  rcases A.installedRecursorParameterContext with ⟨T₀, Hparams⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparamsT, _hmotivesT, _hminorsT, _hindicesT,
       _hmajorT, _hresultT⟩
@@ -935,7 +935,7 @@ theorem
     (HcachedToT.symm H.outVEnvWF.ordered).isType
   let selectedOuter := F.telescope.params ++ F.telescope.motives ++
     F.telescope.minors
-  have Hcommon := H.finalRecursorCommonPrefixContextAt
+  have Hcommon := H.installedRecursorCommonPrefixContextAt
     owner howner selectedOwner F.entry_lt T F.telescope
   have HTToSelected :=
     Lean4Lean.VerifyInductive.VEnv.IsDefEqCtx.extendSamePrefix

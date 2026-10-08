@@ -96,7 +96,7 @@ theorem addDecl.preludeEq_hasCanonicalEq {env : Environment} {ves : VEnvs}
       ∃ ves' : VEnvs, ves'.WFCore outEnv ∧ (∀ safety, ves.venv safety ≤ ves'.venv safety) ∧
         ∀ ci, outEnv.find? ``Eq.rec = some ci → IsPreludeEqRec ci →
           ves'.HasCanonicalEq :=
-  (VerifyInductive.addInductiveDeclaration.preludeEqFinalEnvironmentWF env lparams
+  (VerifyInductive.addInductiveDeclaration.preludeEqExtensionWF env lparams
       nparams types isUnsafe fuel ves wf htels hAbsent Hshape).mono
     fun _ ⟨ves', wf', _, hle, _, hcanonical⟩ => ⟨ves', wf', hle, hcanonical⟩
 

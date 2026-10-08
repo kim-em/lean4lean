@@ -489,7 +489,7 @@ theorem LowerNextStep.generatedFamilyOrigins
 
 /-- Every generated final result slot has exact source-generation and
 lowering provenance. -/
-theorem LoweringQueue.finalGeneratedFamilyOriginAt
+theorem LoweringQueue.resolvedAuxiliaryFamilyAt
     (H : LoweringQueue env params nparams lctx i fuel state out)
     (Henv : EnvironmentTypesClosed env)
     (hclosures : MutualInductivesClosed env)
@@ -525,7 +525,7 @@ theorem LoweringQueue.resultTypes
 
 /-- End-to-end generated-suffix provenance, indexed by the exact final result
 position. -/
-theorem NestedLowering.finalGeneratedFamilyOriginAt
+theorem NestedLowering.resolvedAuxiliaryFamilyAt
     (H : NestedLowering env fuel nparams types initialState out)
     (Henv : EnvironmentTypesClosed env)
     (hclosures : MutualInductivesClosed env)
@@ -560,7 +560,7 @@ theorem NestedLowering.finalGeneratedFamilyOriginAt
       simpa [Array.getElem!_eq_getD, Array.getD, hjState, hjInitial] using heq
     rw [hvalue]
     exact Hsources.constructorsClosed hmember
-  have Hfinal := Hqueue.finalGeneratedFamilyOriginAt Henv hclosures Hpending Horigins
+  have Hfinal := Hqueue.resolvedAuxiliaryFamilyAt Henv hclosures Hpending Horigins
     hsuffix hj
   rw [Hqueue.resultContext.2]
   exact Hfinal
@@ -568,7 +568,7 @@ theorem NestedLowering.finalGeneratedFamilyOriginAt
 /-- Every final auxiliary-cache entry points back to a concrete generated
 suffix slot.  This is derived from the paired cache/queue pushes of the
 executable lowering trace, rather than assumed as a semantic provider. -/
-theorem NestedLowering.finalAuxFamilyPosition
+theorem NestedLowering.resolvedAuxFamilyPosition
     (H : NestedLowering env fuel nparams types initialState out)
     (hempty : initialState.nestedAux = #[]) :
     AuxiliaryCachePositions initialState.newTypes.size out.2 := by
@@ -605,7 +605,7 @@ structure CachedAuxiliaryFamily
 in the final lowering cache.  This reverse direction is what lets a local
 replacement hit rejoin the generated-family queue provenance carried by the
 whole lowering run. -/
-theorem NestedLowering.finalCacheEntryOfResultLookup
+theorem NestedLowering.resolvedCacheEntryOfResultLookup
     (H : NestedLowering env fuel nparams types initialState
       (result, finalState))
     (hlookup : result.aux2nested.find? auxName = some nested) :
@@ -629,7 +629,7 @@ theorem NestedLowering.cachedAuxiliaryFamily
     (hentry : (nested, auxName) ∈ finalState.nestedAux) :
     Nonempty (CachedAuxiliaryFamily env result.params nparams
       initialState.newTypes.size finalState nested auxName) := by
-  rcases (H.finalAuxFamilyPosition hempty).position nested auxName hentry with
+  rcases (H.resolvedAuxFamilyPosition hempty).position nested auxName hentry with
     ⟨j, hj, hinitial, hname⟩
   rcases H.source with
     ⟨_first, _rest, _tail, _paramsState, _lctx, _params, _htypes,
@@ -638,7 +638,7 @@ theorem NestedLowering.cachedAuxiliaryFamily
   have hjResult : j < result.types.length := by
     rw [Hqueue.resultTypes]
     simpa using hj
-  rcases H.finalGeneratedFamilyOriginAt Henv hclosures Hsources hinitialTypes hinitial
+  rcases H.resolvedAuxiliaryFamilyAt Henv hclosures Hsources hinitialTypes hinitial
     hjResult with ⟨Horigin⟩
   have hfamily : result.types[j] = finalState.newTypes[j] := by
     have harr : result.types.toArray = finalState.newTypes := by
@@ -699,15 +699,15 @@ theorem NestedLowering.cachedAuxiliaryFamilyOfLookup
     Nonempty (CachedAuxiliaryFamily env result.params nparams
       initialState.newTypes.size finalState nested auxName) :=
   H.cachedAuxiliaryFamily Henv hclosures Hsources hinitialTypes hempty
-    (H.finalCacheEntryOfResultLookup hlookup)
+    (H.resolvedCacheEntryOfResultLookup hlookup)
 
-theorem LoweredAuxiliaryFamily.finalMapping
+theorem LoweredAuxiliaryFamily.resolvedMapping
     (H : LoweredAuxiliaryFamily env params nparams finalState
       target)
     (Hmap : NestedAuxMapModels result finalState) :
     FamilyLowering.Resolved env params nparams result H.source H.stepState
       (target, H.loweredState) :=
-  H.lowered.finalMapping H.later Hmap
+  H.lowered.resolvedMapping H.later Hmap
 
 end VerifyInductive
 end Lean4Lean

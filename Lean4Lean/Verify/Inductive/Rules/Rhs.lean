@@ -16,7 +16,7 @@ telescope identifies the caller's installed domains with the domains used by
 the source replay; the common residual translation then closes the complete
 higher-order domain on both sides. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisCanonicalWholeDomainDefEq
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisCanonicalWholeDomainDefEq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -97,7 +97,7 @@ theorem
           (E.resultType.liftN canonicalPrevious.length
             E.localDomains.length)) (.sort level) := by
   dsimp only at Hbase ⊢
-  rcases A.finalSelectedMinorHypothesisCanonicalWholeDomains j hj B T E with
+  rcases A.installedSelectedMinorHypothesisCanonicalWholeDomains j hj B T E with
     ⟨S, hypothesisOrigins, fieldDomains, hypothesisDomains,
       targetResidual, D, originRoot, sourceType, O,
       hypothesisLocalDomains, hypothesisResidual,
@@ -427,9 +427,9 @@ theorem
 /-- Inductively align the complete installed recursive-hypothesis telescope
 with the canonical closed result types.  At ordinal `j`, the induction
 hypothesis is exactly the base-context conversion required by
-`finalSelectedMinorHypothesisCanonicalWholeDomainDefEq`. -/
+`installedSelectedMinorHypothesisCanonicalWholeDomainDefEq`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalRecursiveHypothesisContext
+    RecursorCheck.RuleAlignment.installedCanonicalRecursiveHypothesisContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -551,7 +551,7 @@ theorem
         simpa [installedFields, installedBase, equationDomains,
           canonicalPrevious,
           List.reverse_append, List.append_assoc] using Hprior
-      rcases A.finalSelectedMinorHypothesisCanonicalWholeDomainDefEq
+      rcases A.installedSelectedMinorHypothesisCanonicalWholeDomainDefEq
           fieldDomains hypothesisDomains targetResidual hfields hhypotheses
           B T htarget n hnlt E canonicalPrevious hcanonicalPreviousLength
           HpointBase with
@@ -848,7 +848,7 @@ recursor telescope, one narrowed field frame, and one literal anonymous
 equation context.  No existential witness chosen by a pointwise theorem may
 drift after this boundary. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalMinorApplicationFrame
+    RecursorCheck.RuleAlignment.installedCanonicalMinorApplicationFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -921,7 +921,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
   rcases A.fieldFrame with ⟨B⟩
-  rcases A.finalScopedSelectedMinorTypeFrame B with
+  rcases A.installedScopedSelectedMinorTypeFrame B with
     ⟨T, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, hminorType, HfixedContext, Hminor⟩
   rcases A.recursiveResults T B with ⟨C⟩
@@ -945,7 +945,7 @@ theorem
       (H.outVEnv.IsType Us.length) := by
     rw [hequationContext]
     simpa only [inserted] using HfixedContext
-  rcases A.finalCheckedScopedEquationContextAlignmentFor B T with
+  rcases A.installedCheckedScopedEquationContextAlignmentFor B T with
     ⟨checkedDomains, checkedEquationFieldDomains, hchecked,
       hcheckedEquationFields, HcheckedEquation⟩
   have HcheckedEquation' : VEnv.IsDefEqCtx H.outVEnv Us.length []
@@ -999,7 +999,7 @@ the selected minor applies to the canonical field variables.  The selected
 minor is stored outside the equation fields, so its declared type is read
 off directly by a variable lookup in the outer telescope. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalMinorFieldContextOfApplication
+    RecursorCheck.RuleAlignment.installedCanonicalMinorFieldContextOfApplication
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1168,7 +1168,7 @@ transported through the exact same checked field frame to the narrowed
 equation fields.  Inverting that well-formed application additionally
 identifies those fixed fields with the selected minor's installed fields. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalMinorApplicationPositiveArity
+    RecursorCheck.RuleAlignment.installedCanonicalMinorApplicationPositiveArity
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1237,7 +1237,7 @@ theorem
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalCanonicalMinorApplicationFrame with
+  rcases A.installedCanonicalMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, hminorType, HfixedContext,
       _HcheckedFrame, Hminor, _HbodyTyping, _HopenTyping, _HbodyWF⟩
@@ -1265,9 +1265,9 @@ theorem
     rw [hequationContext] at h
     simp only [List.append_assoc] at h
     exact OnCtx.of_append h
-  rcases A.finalCheckedScopedFieldAlignment B with
+  rcases A.installedCheckedScopedFieldAlignment B with
     ⟨checkedDomains, checkedResidual, hchecked, Hchecked, HcheckedB⟩
-  have Hlink := A.finalInstalledCheckedFieldLink T hpositive checkedDomains
+  have Hlink := A.installedInstalledCheckedFieldLink T hpositive checkedDomains
     checkedResidual hchecked Hchecked fieldDomains hypothesisDomains
     targetResidual hfields hminorType
   have Ha := VEnv.IsDefEqCtx.insertSameMiddle H.outVEnvWF.ordered
@@ -1309,7 +1309,7 @@ theorem
   rw [liftContextPrefix_liftContextPrefix] at Hb
   simp only [List.append_assoc] at Hb
   rw [hfullContext, hremainingLength] at Hb
-  have Hparams := H.finalRecursorParameterContextFor howner T
+  have Hparams := H.installedRecursorParameterContextFor howner T
   rw [← H.parameterDecls] at Hparams
   have HouterT : VEnv.IsDefEqCtx H.outVEnv Us.length []
       (inserted.reverse ++ H.parameterSuffix.parameterDecls.toCtx)
@@ -1334,7 +1334,7 @@ theorem
   have HfieldContext := VEnv.IsDefEqCtx.trans_empty H.outVEnvWF
     (Ha'.symm H.outVEnvWF.ordered) Hb'
   have HinstalledFields :=
-    A.finalCanonicalMinorFieldContextOfApplication B T fieldDomains
+    A.installedCanonicalMinorFieldContextOfApplication B T fieldDomains
       hypothesisDomains targetResidual hfields hminorType (by
         simpa [equationFieldDomains, inserted, later] using HfieldContext)
   have HinstalledTyping : H.outVEnv.HasType Us.length
@@ -1356,7 +1356,7 @@ theorem
 /-- Apply all canonical recursive results to a selected minor that has
 already been applied to the fixed equation fields. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalMinorRecursiveApplicationOfContext
+    RecursorCheck.RuleAlignment.installedCanonicalMinorRecursiveApplicationOfContext
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1471,7 +1471,7 @@ theorem
     simpa [remaining, later] using List.drop_eq_getElem_cons hminor
   have hremainingLength : remaining.length = later.length + 1 := by
     simp [hremaining]
-  have Hparams := H.finalRecursorParameterContextFor howner T
+  have Hparams := H.installedRecursorParameterContextFor howner T
   have Hparams' : VEnv.IsDefEqCtx H.outVEnv Us.length []
       T.params.reverse H.parameterSuffix.parameterDecls.toCtx := by
     simpa only [Us, ← H.parameterDecls] using Hparams
@@ -1501,7 +1501,7 @@ theorem
     simpa [equationPrefix, installedPrefix, equationDomains,
       equationFields, inserted, List.reverse_append,
       List.append_assoc] using HbaseMixed
-  have Hhypotheses := A.finalCanonicalRecursiveHypothesisContext B T C
+  have Hhypotheses := A.installedCanonicalRecursiveHypothesisContext B T C
     fieldDomains hypothesisDomains targetResidual hfields hhypotheses
       htarget (by simpa [Us, minorIdx, remaining, installedFields,
         equationDomains, equationFields, inserted,
@@ -1536,7 +1536,7 @@ variable itself is the complete RHS and is already typed in the fixed
 equation context.  Isolating this case lets the positive-arity replay theorem
 remain honest about the nonempty telescope premise it uses. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalMinorApplicationZeroArity
+    RecursorCheck.RuleAlignment.installedCanonicalMinorApplicationZeroArity
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1573,7 +1573,7 @@ theorem
   dsimp only
   have hfieldsZero : A.rule.allArgs.size = 0 := by omega
   have hhypothesesZero : A.rule.recursiveArgs.size = 0 := by omega
-  rcases A.finalCanonicalMinorApplicationFrame with
+  rcases A.installedCanonicalMinorApplicationFrame with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, hminorType, Hctx, _HcheckedEquation, Hminor,
       _HbodyTyping, _HopenBodyTyping, _HbodyWF⟩
@@ -1602,7 +1602,7 @@ The selected minor, constructor fields, and generated recursive results are
 all translated strictly to the same application spine that is independently
 typed by the canonical minor fold. -/
 theorem
-    RecursorCheck.RuleAlignment.finalCanonicalRhsPositiveArityDetailed
+    RecursorCheck.RuleAlignment.installedCanonicalRhsPositiveArityDetailed
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1681,7 +1681,7 @@ theorem
   dsimp only
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalCanonicalMinorApplicationPositiveArity hpositive with
+  rcases A.installedCanonicalMinorApplicationPositiveArity hpositive with
     ⟨B, T, C, fieldDomains, hypothesisDomains, targetResidual,
       hfields, hhypotheses, hminorType, Hctx, _Hminor, HpartialWF,
       Hfield, Hpartial⟩
@@ -1695,7 +1695,7 @@ theorem
   let minorVar := equationFields.length + later.length
   let fn := VExpr.mkApps (.bvar minorVar)
     (bvarSpine equationFields.length)
-  have Hrhs := A.finalCanonicalMinorRecursiveApplicationOfContext B T C
+  have Hrhs := A.installedCanonicalMinorRecursiveApplicationOfContext B T C
       fieldDomains hypothesisDomains targetResidual hfields hhypotheses
       hminorType Hctx Hfield Hpartial
   let finalType := VExpr.applyForallType
@@ -1720,7 +1720,7 @@ theorem
       (abstractForallContext equationDomains [])
       (.bvar minorVar) (.bvar minorVar) :=
     TrExprS.bvar_of_abstractForallContext equationDomains [] minorVar hminorVar
-  have HfieldsTr := A.finalScopedEquationFieldTranslationsFor B T
+  have HfieldsTr := A.installedScopedEquationFieldTranslationsFor B T
   have HpartialTr := checkPositivityStep.TrExprS.mkAppList
     H.outVEnvWF.ordered Hctx HminorTr HfieldsTr HpartialWF
   have HresultsTr : List.Forall₂

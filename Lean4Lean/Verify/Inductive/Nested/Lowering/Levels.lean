@@ -11,7 +11,7 @@ the `lvls` fields of `ConstructorLowering`,
 premise of the replacement leaves in
 `NestedLoweringOutputClosed.originalExpansionsAboveLvls`. Projected through
 the translation, every replacement hit is a level leaf
-(`NodeReplacementFinalTrace.levelLeaf`), so the lowered constructor types of
+(`NodeReplacementResolved.levelLeaf`), so the lowered constructor types of
 the source families use the auxiliary family and constructor names only at
 `VLevel.params sourceDecl.uvars` (`NestedRun.loweredConstructorLevels`).
 -/
@@ -31,7 +31,7 @@ arguments `lparams.map .param` translates to an auxiliary head at
 `VLevel.params`; its common-parameter arguments are bound variables, and its
 trailing arguments copy the source's up to an expansion whose leaves are level
 leaves again. -/
-theorem NodeReplacementFinalTrace.levelLeaf
+theorem NodeReplacementResolved.levelLeaf
     {names : List Name} {sourceDecl : VInductDecl} {lparams : List Name}
     {result : Lean4Lean.ElimNestedInductive.Result}
     (hlparams : lparams.Nodup) (huvars : sourceDecl.uvars = lparams.length)
@@ -41,7 +41,7 @@ theorem NodeReplacementFinalTrace.levelLeaf
     {lctx : LocalContext} {As : Array Expr}
     {input state output nextState traceFinalState depth fieldDepth sourceValue
       targetValue sourceCtx targetCtx}
-    (Htrace : NodeReplacementFinalTrace prodEnv lctx result.params As input state
+    (Htrace : NodeReplacementResolved prodEnv lctx result.params As input state
       output nextState result traceFinalState)
     (Hctx : NestedExpansionLookupCtx
       (VExpr.LevelLeaf names (VLevel.params sourceDecl.uvars)) depth sourceCtx targetCtx)
@@ -114,7 +114,7 @@ theorem LoweredAuxiliaryFamily.abstractExpansionAboveLvls
     (Hhit : ∀ {lctx : LocalContext} {As : Array Expr}
         {input state output nextState finalState' depth fieldDepth sourceValue
           targetValue sourceCtx targetCtx},
-      NodeReplacementFinalTrace prodEnv lctx params As input state output
+      NodeReplacementResolved prodEnv lctx params As input state output
         nextState result finalState' →
       NestedExpansionLookupCtx leaf depth sourceCtx targetCtx →
       (selection : CDeclArray lctx As) →
@@ -129,7 +129,7 @@ theorem LoweredAuxiliaryFamily.abstractExpansionAboveLvls
       state.lvls = finalState.lvls →
       leaf depth sourceValue targetValue) :
     VInductDecl.NestedTypeExpansion baseVEnv decl leaf Hsource.source target := by
-  have Hmapping := H.finalMapping Hmap
+  have Hmapping := H.resolvedMapping Hmap
   have Hheader : NestedTypeExpansionHeader baseVEnv decl Hsource.source target :=
     Hmapping.abstractHeaderExpansion Hsource.translation Htarget henv huvars
       Hsource.numIndices Hsource.resultLevel

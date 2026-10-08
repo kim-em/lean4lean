@@ -128,7 +128,7 @@ theorem
     exact S.validated.target_lt
   have hentry : S.generated.ownerIdx < H.entries.length := by
     simpa [H.generated.length] using hrecInfo
-  rcases H.finalRecursorTelescopeTranslationAt
+  rcases H.installedRecursorTelescopeTranslationAt
       S.generated.ownerIdx hentry with ⟨T⟩
   exact ⟨{
     sourceShape := A.minorShape

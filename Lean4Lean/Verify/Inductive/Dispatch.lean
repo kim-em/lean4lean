@@ -25,7 +25,7 @@ theorem Environment.addInductiveAfterLowering.ordinaryInductiveExtensionWF
       isUnsafe false fuel res).WF fun outEnv =>
         Nonempty (InductiveExtension env outEnv ves lparams nparams sourceTypes
           isUnsafe) := by
-  exact (Environment.addInductiveAfterLowering.ordinaryFinalSpecificationModelWF
+  exact (Environment.addInductiveAfterLowering.ordinaryExtensionModelWF
     env lparams nparams sourceTypes isUnsafe fuel res ves wf htels Hsources HsourcesB
     Hlower haux).mono
       fun _ ⟨ves', wf', hle, ⟨Hspec⟩, hcert⟩ =>
@@ -45,7 +45,7 @@ theorem Environment.addInductive.primitiveInductiveExtensionWF
   have hisUnsafe : isUnsafe = false := Hshape.2.2.1
   subst isUnsafe
   exact
-    (Environment.addInductive.primitiveFinalSpecificationModelWF
+    (Environment.addInductive.primitiveExtensionModelWF
       env lparams nparams types false fuel ves wf htels Hshape).mono
       fun _ ⟨ves', wf', hle, hcert, ⟨Hspec⟩⟩ =>
         ⟨{
@@ -69,7 +69,7 @@ theorem addInductiveDeclaration.primitiveInductiveExtensionWF
   have hisUnsafe : isUnsafe = false := Hshape.2.2.1
   subst isUnsafe
   exact
-    (addInductiveDeclaration.primitiveFinalSpecificationModelWF
+    (addInductiveDeclaration.primitiveExtensionModelWF
       env lparams nparams types false fuel ves wf htels Hshape).mono
       fun _ ⟨ves', wf', hle, hcert, ⟨Hspec⟩⟩ =>
         ⟨{

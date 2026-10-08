@@ -254,7 +254,7 @@ share the same parameter context.  This is the first direct bridge from the
 five-group executable telescope to the permutation-free semantic telescope;
 subsequent index alignment can therefore work under either parameter list
 without reusing an executable `isDefEq` success as an assumption. -/
-theorem RecursorCheck.finalPairedParameterAlignmentAt
+theorem RecursorCheck.installedPairedParameterAlignmentAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -274,7 +274,7 @@ theorem RecursorCheck.finalPairedParameterAlignmentAt
         VEnv.IsDefEqCtx H.outVEnv Us.length []
           T.params.reverse S.canonical.params.reverse := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
-  rcases H.finalRecursorParameterContextAt owner howner with
+  rcases H.installedRecursorParameterContextAt owner howner with
     ⟨T, hgenerated⟩
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
@@ -293,7 +293,7 @@ domain is checked under parameters and strictly earlier motives only; hence
 the remaining comparison with `C.motiveType` is a context-transport problem,
 not another inversion of the production telescope. -/
 theorem
-    RecursorCheck.finalOwnerMotiveFrameAt
+    RecursorCheck.installedOwnerMotiveFrameAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -337,7 +337,7 @@ theorem
                 (T.params ++ T.motives.take owner) []).toCtx
               T.motives[owner]! := by
   dsimp only
-  rcases H.finalPairedParameterAlignmentAt owner howner with
+  rcases H.installedPairedParameterAlignmentAt owner howner with
     ⟨T, S, hparameters⟩
   have hrecInfo : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
@@ -392,7 +392,7 @@ away.  The left side is now the exact production declaration shape closed
 over the source binders corresponding to the target context on the right.
 This is the form needed for the final comparison with `C.motiveType`. -/
 theorem
-    RecursorCheck.finalOwnerMotiveDomainTranslationAt
+    RecursorCheck.installedOwnerMotiveDomainTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -424,7 +424,7 @@ theorem
             (T.params ++ T.motives.take owner) []).toCtx
           T.motives[owner]! := by
   dsimp only
-  rcases H.finalOwnerMotiveFrameAt owner howner with
+  rcases H.installedOwnerMotiveFrameAt owner howner with
     ⟨T, S, hparameters, D, _hdeclarationOrigin, hdeclarationShape,
       suffixSource, name, sourceDomain, sourceBody, bi, bodyTarget,
       _Hsource, _hsource, hsourceDomain, Hdomain, HdomainType⟩
@@ -436,7 +436,7 @@ this rule's flattened minor slot.  The source selected structurally from the
 translated recursor is exactly the declaration type recorded by the second
 `mkRecInfos` pass, closed over parameters, motives, and earlier minors. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorDomain
+    RecursorCheck.RuleAlignment.installedSelectedMinorDomain
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -471,7 +471,7 @@ theorem
               T.minors[minorIdx]! := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let minorIdx := recursorMinorOffset indTypes owner + i
-  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  rcases A.installedRecursorTelescopeTranslation with ⟨T⟩
   have hminor : minorIdx < T.minors.length := by
     rw [T.minors_length]
     exact A.rule.minor_valid
@@ -530,7 +530,7 @@ dependency-closed subset of the interleaved recursor context.  The proof
 reads each declaration's domain from the fully closed generated recursor
 telescope, so skipped indices and majors cannot enter the retained set. -/
 theorem
-    RecursorCheck.RuleAlignment.finalMinorPrefixUp
+    RecursorCheck.RuleAlignment.installedMinorPrefixUp
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -561,7 +561,7 @@ theorem
       selections.minors.fvars = H.bindings.flatMinors.fvars := rfl
   have hselectionNoAlias : selections.NoAlias :=
     H.bindings.selectionNoAlias H.localWF H.params H.noAlias owner hrecInfo
-  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  rcases A.installedRecursorTelescopeTranslation with ⟨T⟩
   have HsourceClosed :
       (H.generated.entry owner howner).info.type.FVarsIn
         (fun _ => False) := by
@@ -683,7 +683,7 @@ theorem
 generated minor form a dependency-closed subset of the interleaved recursor
 context. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorPrefixUp
+    RecursorCheck.RuleAlignment.installedSelectedMinorPrefixUp
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -701,7 +701,7 @@ theorem
       H.recursorWF.mlctx.vlctx := by
   dsimp only
   let minorIdx := recursorMinorOffset indTypes owner + i
-  apply A.finalMinorPrefixUp minorIdx
+  apply A.installedMinorPrefixUp minorIdx
   rw [H.bindings.flatMinors.length_fvars]
   exact Nat.le_of_lt A.rule.minor_valid
 
@@ -951,7 +951,7 @@ theorem Expr.closed_mkAppList_fvars {f : Expr} (hf : Closed f) :
 from the closed translation of the generated recursor type rather than by
 restricting runtime translations. -/
 theorem
-    RecursorCheck.RuleAlignment.finalPrefixClosedScope
+    RecursorCheck.RuleAlignment.installedPrefixClosedScope
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -994,7 +994,7 @@ theorem
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars
-  rcases A.finalRecursorTelescopeTranslation with ⟨T⟩
+  rcases A.installedRecursorTelescopeTranslation with ⟨T⟩
   have hrec : owner < H.recInfos.size := by
     simpa [H.generated.length] using howner
   let E := H.generated.entry owner howner
@@ -1185,7 +1185,7 @@ closed source domain: one over the scope's semantic domains and one over the
 generated recursor telescope.  Their context comparison is the remaining
 bridge needed by the canonical RHS application. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorExactClosedDomain
+    RecursorCheck.RuleAlignment.installedSelectedMinorExactClosedDomain
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1239,7 +1239,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
-  rcases A.finalSelectedMinorDomain with
+  rcases A.installedSelectedMinorDomain with
     ⟨T, D, O, S, Hdomain, HdomainType⟩
   let outerBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars
@@ -1264,9 +1264,9 @@ theorem
     simp only [k, outerBinders, List.append_assoc]
     rw [Nat.add_assoc, List.drop_length_add_append, List.drop_length_add_append,
       List.drop_eq_getElem_cons hminorLt, hminorFv]
-  have hup := A.finalSelectedMinorPrefixUp
+  have hup := A.installedSelectedMinorPrefixUp
   obtain ⟨scope, Hscope, hscope, hscopeShift, hscopeSource, hBClosed, t', HE⟩ :=
-    A.finalPrefixClosedScope k hk (by rw [htake]; exact hup)
+    A.installedPrefixClosedScope k hk (by rw [htake]; exact hup)
   rw [htake] at hscope hscopeShift hscopeSource
   rw [hdropEq] at HE
   have hbase : H.recursorWF.venv ≤ H.outVEnv := by
@@ -1311,7 +1311,7 @@ its arity is precisely the generated parameter/motive/earlier-minor prefix.
 This is the binder-by-binder comparison input missing from the earlier
 whole-domain closing theorem. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorExactPrefixSource
+    RecursorCheck.RuleAlignment.installedSelectedMinorExactPrefixSource
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1364,7 +1364,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
-  rcases A.finalSelectedMinorExactClosedDomain with
+  rcases A.installedSelectedMinorExactClosedDomain with
     ⟨T, _D, _O, _S, scope, Hscope, _narrowTarget, hscope,
       hscopeShift, hscopeSource, _Hnarrow, _Hclosed, _HscopeWF,
       _Hdomain, _HdomainType⟩
@@ -1398,7 +1398,7 @@ the same source domain at every retained slot.  The proof selects the exact
 local declaration on both sides, rather than appealing to whole-expression
 equality. -/
 theorem
-    RecursorCheck.RuleAlignment.finalMinorPrefixBinderEq
+    RecursorCheck.RuleAlignment.installedMinorPrefixBinderEq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1637,7 +1637,7 @@ theorem
 production recursor have the same domain at every retained parameter,
 motive, and earlier-minor slot. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorPrefixBinderEq
+    RecursorCheck.RuleAlignment.installedSelectedMinorPrefixBinderEq
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1662,7 +1662,7 @@ theorem
       prefixDomain = recursorDomain := by
   dsimp only
   let minorIdx := recursorMinorOffset indTypes owner + i
-  apply A.finalMinorPrefixBinderEq minorIdx
+  apply A.installedMinorPrefixBinderEq minorIdx
   rw [H.bindings.flatMinors.length_fvars]
   exact Nat.le_of_lt A.rule.minor_valid
 
@@ -1671,7 +1671,7 @@ definitionally equal to the generated recursor's parameter/motive/earlier-
 minor prefix.  This closes the dependent outer-context conversion needed to
 type the canonical rule right-hand side. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorPrefixDefEqCtx
+    RecursorCheck.RuleAlignment.installedSelectedMinorPrefixDefEqCtx
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1708,7 +1708,7 @@ theorem
   let minorIdx := recursorMinorOffset indTypes owner + i
   let sourceBinders := H.params.fvars ++ H.bindings.motives.fvars ++
     H.bindings.flatMinors.fvars.take minorIdx
-  rcases A.finalSelectedMinorExactPrefixSource with
+  rcases A.installedSelectedMinorExactPrefixSource with
     ⟨T, scope, Hscope, prefixSource, hscope, hscopeShift, hscopeSource,
       hprefixSource, hprefixLocal, _HprefixTr, _HprefixType, HprefixTelescope,
       hselectedLength⟩
@@ -1755,7 +1755,7 @@ theorem
               H.recInfos[owner]!.indices.size + 1 := hfullLength) (by
         intro position hposition _hiPrefix _hiRecursor
           prefixDomain recursorDomain HprefixBinder HrecursorBinder
-        apply A.finalSelectedMinorPrefixBinderEq position hposition
+        apply A.installedSelectedMinorPrefixBinderEq position hposition
         · rw [← hprefixLocal]
           exact HprefixBinder
         · exact HrecursorBinder)

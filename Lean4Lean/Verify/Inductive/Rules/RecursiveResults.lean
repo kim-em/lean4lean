@@ -676,7 +676,7 @@ while the corresponding recursive result is already closed and typed in the
 fixed equation context.  The remaining RHS argument proof can therefore
 focus solely on relating these two displayed types. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisCanonicalResultFrame
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisCanonicalResultFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -956,7 +956,7 @@ theorem
           (VExpr.wrapLams E.localDomains E.resultBody)
           (VExpr.wrapForalls E.localDomains E.resultType) := by
   dsimp only
-  rcases A.finalSelectedMinorHypothesisDeclarationDomainAt j hj with
+  rcases A.installedSelectedMinorHypothesisDeclarationDomainAt j hj with
     ⟨T₀, S, hypothesisOrigins, traversal, fieldDomains,
       hypothesisDomains, targetResidual, D, hhypothesisOrigins,
       hhypothesisStats, hhypothesisRecInfos, htraversal, htraversalFields,
@@ -1787,7 +1787,7 @@ the canonical recursive-result domain is transported past the already
 consumed hypotheses.  Both targets expose their exact dependent local
 domain lists, ready for `SameForallPrefix.translatedContextsExact`. -/
 theorem
-    RecursorCheck.RuleAlignment.finalSelectedMinorHypothesisCanonicalWholeDomains
+    RecursorCheck.RuleAlignment.installedSelectedMinorHypothesisCanonicalWholeDomains
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1904,7 +1904,7 @@ theorem
           (equationDomains ++ liftedPrevious ++ liftedCanonicalLocals) []).toCtx
         (E.resultType.liftN liftedPrevious.length E.localDomains.length) := by
   dsimp only
-  rcases A.finalSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
+  rcases A.installedSelectedMinorHypothesisCanonicalResultFrame j hj B T E with
     ⟨S, hypothesisOrigins, _traversal, fieldDomains,
       hypothesisDomains, targetResidual, D, originRoot, sourceType, O,
       _hhypothesisOrigins, hhypothesisStats, hhypothesisRecInfos,

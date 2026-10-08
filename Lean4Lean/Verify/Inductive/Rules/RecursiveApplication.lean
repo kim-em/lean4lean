@@ -888,7 +888,7 @@ theorem
   let liftedFront :=
     (liftContextPrefix inserted.length
       (fieldDomains ++ localDomains).reverse).reverse
-  rcases A.finalRecursorParameterContext with ⟨T₀, hparams⟩
+  rcases A.installedRecursorParameterContext with ⟨T₀, hparams⟩
   rcases T₀.groupsResult_eq T with
     ⟨hparamsT, _hmotives, _hminors, _hindices, _hmajor, _hresult⟩
   rw [hparamsT] at hparams
@@ -1054,7 +1054,7 @@ theorem RecursorCheck.RuleAlignment.recursorUvars
 /-- Context-polymorphic translation of any installed mutual recursor head at
 its identity universe instantiation.  The owner index is supplied directly,
 so recursive calls may select a family different from the equation owner. -/
-theorem RecursorCheck.finalRecursorHeadTranslationAt
+theorem RecursorCheck.installedRecursorHeadTranslationAt
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1103,7 +1103,7 @@ translates directly to the installed owner recursor at its identity universe
 instantiation.  This is context-polymorphic because constants do not inspect
 the local telescope. -/
 theorem
-    RecursorCheck.RuleAlignment.finalRecursorHeadTranslation
+    RecursorCheck.RuleAlignment.installedRecursorHeadTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1124,7 +1124,7 @@ theorem
       (.const (Lean.mkRecName indTypes[owner]!.name)
         (AddInductive.getRecLevels H.elimLevel stats.levels))
       (.const recursor.name (VLevel.params Us.length)) := by
-  exact H.finalRecursorHeadTranslationAt owner howner Delta
+  exact H.installedRecursorHeadTranslationAt owner howner Delta
 
 /-- The recursor head selected by a validated recursive call translates to
 the installed recursor for that call's target family.  In a mutual block this
@@ -1151,7 +1151,7 @@ theorem
         (AddInductive.getRecLevels H.elimLevel stats.levels))
       (.const recursor.name (VLevel.params Us.length)) := by
   rw [F.semantic.generated.recursorName_eq_owner]
-  exact H.finalRecursorHeadTranslationAt
+  exact H.installedRecursorHeadTranslationAt
     F.semantic.generated.ownerIdx F.entry_lt Delta
 
 /-- The selected recursive recursor, canonically applied to the common
@@ -1248,7 +1248,7 @@ theorem
   let ownerOuter := T.params ++ T.motives ++ T.minors
   let selectedOuter := F.telescope.params ++ F.telescope.motives ++
     F.telescope.minors
-  have Hcommon := H.finalRecursorCommonPrefixContextAt
+  have Hcommon := H.installedRecursorCommonPrefixContextAt
     owner howner selectedOwner F.entry_lt T F.telescope
   have HownerCtx : OnCtx (fieldDomains.reverse ++ ownerOuter.reverse)
       (H.outVEnv.IsType Us.length) := by
@@ -1311,7 +1311,7 @@ theorem
           (F.telescope.motives.take selectedOwner).length 0) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
-  rcases H.finalOwnerCanonicalMotiveDomainAt selectedOwner F.entry_lt with
+  rcases H.installedOwnerCanonicalMotiveDomainAt selectedOwner F.entry_lt with
     ⟨T, S, hparameters, Hdomain⟩
   rcases T.groupsResult_eq F.telescope with
     ⟨hparams, hmotives, _hminors, _hindices, _hmajor, _hresult⟩
@@ -1360,7 +1360,7 @@ theorem
           (expected.reverse ++ outer.reverse) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
-  rcases H.finalOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
+  rcases H.installedOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
       F.telescope with
     ⟨S, hparameters, motiveDomains, resultLevel,
       hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
@@ -1376,7 +1376,7 @@ theorem
 
 /-- Insert an arbitrary well-formed inner front beneath the suffix alignment
 selected by a recursive call.  This is the mutual-recursion counterpart of
-`finalOwnerMotiveSuffixAlignmentUnderFields`: the owner is read from the
+`installedOwnerMotiveSuffixAlignmentUnderFields`: the owner is read from the
 validated call rather than from the equation currently being generated. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.ownerMotiveSuffixAlignmentUnderFront
@@ -1483,7 +1483,7 @@ theorem
           (.sort resultLevel)) := by
   let Us := AddInductive.getRecLevelParams H.elimLevel c.lparams
   let selectedOwner := F.semantic.generated.ownerIdx
-  rcases H.finalOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
+  rcases H.installedOwnerMotiveTelescopeShapeForAt selectedOwner F.entry_lt
       F.telescope with
     ⟨_S, _hparameters, motiveDomains, resultLevel,
       hdomainLength, _hsuffixLength, hmotive, _hresultLevel⟩
@@ -1635,7 +1635,7 @@ theorem
 /-- In a call-selected recursor context, the common prefix and selected
 owner motive consume literally the same dependent index/major telescope.
 This is the application-facing mutual analogue of
-`finalCachedPrefixOwnerTelescope`; context transport to the equation owner's
+`installedCachedPrefixOwnerTelescope`; context transport to the equation owner's
 cached parameters is deliberately left to the caller. -/
 theorem
     RecursorCheck.RuleAlignment.RecursiveCallFrame.prefixOwnerTelescopeUnderFront
@@ -1836,7 +1836,7 @@ theorem
 premise translates under recursor universes to the installed abstract
 constructor at the declaration-level universe instantiation. -/
 theorem
-    RecursorCheck.RuleAlignment.finalConstructorHeadTranslation
+    RecursorCheck.RuleAlignment.installedConstructorHeadTranslation
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1894,7 +1894,7 @@ fields.  This packages it with the exact dependent equation context and the
 checked constructor major already living there, so consuming the remaining
 index/major suffix cannot accidentally choose a different telescope witness. -/
 theorem
-    RecursorCheck.RuleAlignment.finalRecursorPrefixEquationContextWithFrame
+    RecursorCheck.RuleAlignment.installedRecursorPrefixEquationContextWithFrame
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {decl : VInductDecl} {nparams depth : Nat} {isUnsafe : Bool}
     {sourceEnv : VEnv} {indTypes : Array InductiveType}
@@ -1969,7 +1969,7 @@ theorem
   let parameterDecls :=
     (R.recursorHeaders.parameterSuffix.toRecursorContext
       H.elimLevelAdmissible).parameterDecls
-  rcases A.finalCheckedConstructorEquationContextWithFrame with
+  rcases A.installedCheckedConstructorEquationContextWithFrame with
     ⟨T, originalDomains, fieldDomains, fieldResult, introTarget,
       hparams, horiginal, hlifted, Htail, HoriginalCtx, hfields, Hctx,
       Hmajor, Htarget, HintroShape⟩

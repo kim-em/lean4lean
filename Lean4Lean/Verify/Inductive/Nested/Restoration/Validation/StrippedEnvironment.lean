@@ -504,9 +504,9 @@ theorem NestedRestorationFolds.restoredRecursorNamesFresh
 invariant against the final abstract environment, given the alignment of
 every new visible recursor of the stripped map.  The local invariants,
 constructor owners and projection registry are transported from
-`finalLocalValidOfInstallation`; old recursors and the quotient facts come from the
+`localValidOfInstallation`; old recursors and the quotient facts come from the
 source environment, since every stripped name is fresh there. -/
-theorem NestedRestorationFolds.finalValidOfInstallation_of_shapes
+theorem NestedRestorationFolds.validOfInstallation_of_shapes
     {c : AddInductive.Context} {stats : AddInductive.InductiveStats}
     {loweredDecl sourceDecl : VInductDecl} {depth : Nat}
     {isUnsafe : Bool} {sourceVEnv envTypes envCtors : VEnv}
@@ -553,7 +553,7 @@ theorem NestedRestorationFolds.finalValidOfInstallation_of_shapes
         (Lean4Lean.restoredRecursorNames auxRec sourceTypes auxRecNames))
       installedVEnv := by
   obtain ⟨hcore, howners, hregistry⟩ :=
-    Hrestored.finalLocalValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
+    Hrestored.localValidOfInstallation Hlower Hc Hprod Hsource Hmetadata Hsources
       Harity hempty Hactual canonical hperm htypeValues hctorValues hvalidSource
   have hsourceWF : c.env.constants.WF := Hc.checking.tr.map_wf
   have houtWF : outEnv.constants.WF := hcore.tr.map_wf

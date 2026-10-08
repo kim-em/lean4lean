@@ -140,7 +140,7 @@ theorem RecursorCheck.RuleAlignment.typeTranslation
   obtain ⟨Y, HY⟩ := F.type_translation.defeqDFC H.outVEnvWF (abstractForallContext.isDefEq D)
   suffices hY : Y = H.canonicalGeneration.equationTypeBody ⟨minorIdx, hk⟩ by
     rw [← hY]; exact HY
-  rcases A.finalSelectedMinorAlignedResidual with
+  rcases A.installedSelectedMinorAlignedResidual with
     ⟨T, S, traversal, HS, _hypothesisOrigins,
       fieldDomains, hypothesisDomains, targetResidual,
       _hhypothesisStats, _hhypothesisRecInfos, hconstructor,

@@ -214,7 +214,7 @@ theorem NestedLoweringOutput.sourceTranslationAt
 /-- End-to-end source-family mapping, with the one still-unproved production
 fresh-name obligation exposed at the final cache boundary rather than hidden
 inside the semantic certificate. -/
-theorem NestedLoweringOutput.sourceFinalMappingAt
+theorem NestedLoweringOutput.sourceResolvedMappingAt
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -236,14 +236,14 @@ theorem NestedLoweringOutput.sourceFinalMappingAt
       ({ initialState with
         newTypes := sourceTypes.toArray }).newTypes.size := by
     simpa using hj
-  rcases Hrun.finalMappingAtInitial hauxNames hjInitial with
+  rcases Hrun.resolvedMappingAtInitial hauxNames hjInitial with
     ⟨params, stepState, target, loweredState, hparams, Hmapped, htarget⟩
   exact ⟨params, stepState, target, loweredState, hparams,
     by simpa using Hmapped, htarget⟩
 
 /-- The source-family mapping with cache uniqueness discharged from the empty
 production cache. -/
-theorem NestedLoweringOutput.sourceFinalMappingAtOfEmpty
+theorem NestedLoweringOutput.sourceResolvedMappingAtOfEmpty
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -254,12 +254,12 @@ theorem NestedLoweringOutput.sourceFinalMappingAtOfEmpty
       FamilyLowering.Resolved env params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target := by
-  rcases H.sourceFinalMappingAt hj with ⟨finalState, Hrun, Hmapped⟩
+  rcases H.sourceResolvedMappingAt hj with ⟨finalState, Hrun, Hmapped⟩
   apply Hmapped
   apply Hrun.resultNamesNodupOfEmpty
   simpa using hempty
 
-theorem NestedLoweringOutput.sourceFinalMappingAtFresh
+theorem NestedLoweringOutput.sourceResolvedMappingAtFresh
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -270,11 +270,11 @@ theorem NestedLoweringOutput.sourceFinalMappingAtFresh
       FamilyLowering.Resolved env params nparams result sourceTypes[j]
         stepState (target, loweredState) ∧
       result.types[j]? = some target :=
-  H.sourceFinalMappingAtOfEmpty hempty hj
+  H.sourceResolvedMappingAtOfEmpty hempty hj
 
 /-- Fresh-cache source mapping with the lowering parameters identified with
 the parameters retained by the production restoration record. -/
-theorem NestedLoweringOutput.sourceFinalMappingAtFreshAligned
+theorem NestedLoweringOutput.sourceResolvedMappingAtFreshAligned
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutput env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -291,7 +291,7 @@ theorem NestedLoweringOutput.sourceFinalMappingAtFreshAligned
       ({ initialState with
         newTypes := sourceTypes.toArray }).newTypes.size := by
     simpa using hj
-  apply Hrun.finalMappingAtInitialAligned _ hjInitial
+  apply Hrun.resolvedMappingAtInitialAligned _ hjInitial
   apply Hrun.resultNamesNodupOfEmpty
   simpa using hempty
 
@@ -329,7 +329,7 @@ theorem NestedLoweringOutput.sourceOwnedConstructors_length_le
     · simp [List.length_take, htypes]
     · intro i hresult hsource
       rw [List.getElem_map, List.getElem_take, List.getElem_map]
-      rcases H.sourceFinalMappingAtFresh hempty (j := i) (by simpa using hsource)
+      rcases H.sourceResolvedMappingAtFresh hempty (j := i) (by simpa using hsource)
           with ⟨_params, _stepState, target, _loweredState, _hparams,
             Hmapping, htarget⟩
       obtain ⟨hiResult, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
@@ -348,7 +348,7 @@ theorem NestedLoweringOutput.sourceOwnedConstructors_length_le
 /-- Closed-lowering specialization of the aligned source mapping.  It
 exposes the exact duplicate-free free-variable presentation of the final
 parameter array needed by abstraction/instantiation cancellation. -/
-theorem NestedLoweringOutputClosed.sourceFinalMappingAtFreshAligned
+theorem NestedLoweringOutputClosed.sourceResolvedMappingAtFreshAligned
     {initialState : Lean4Lean.ElimNestedInductive.State}
     (H : NestedLoweringOutputClosed env fuel nparams sourceTypes
       { initialState with newTypes := sourceTypes.toArray } result)
@@ -362,7 +362,7 @@ theorem NestedLoweringOutputClosed.sourceFinalMappingAtFreshAligned
         stepState (target, loweredState) ∧
       result.types[j]? = some target := by
   rcases H.resultParamsNodup with ⟨fvars, hresultParams, hnodup⟩
-  rcases H.toResult.sourceFinalMappingAtFreshAligned hempty hj with
+  rcases H.toResult.sourceResolvedMappingAtFreshAligned hempty hj with
     ⟨params, stepState, target, loweredState, hparams, hsize,
       Hmapping, htarget⟩
   rw [← hparams] at Hmapping
@@ -386,7 +386,7 @@ theorem NestedLoweringOutputClosed.sourceHeaderTranslationAtFresh
       TrSourceConst sourceVEnv lparams sourceTypes[familyIdx].name
         sourceTypes[familyIdx].type
         (decl.types[familyIdx]'hdecl).toVConstVal := by
-  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases H.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
   obtain ⟨hsourceCore, htargetEq⟩ :=
@@ -520,7 +520,7 @@ theorem NestedLoweringOutputClosed.sourceConstructorRestorationTraceAtFresh
             result.params nparams c.safety c.lparams
               sourceTypes[familyIdx].ctors stepState target.ctors loweredState
               Hstep.restored.headerEnv Hstep.restored.constructorEnv := by
-  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases H.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨fvars, stepState, target, loweredState, hparams, hnodup, hsize,
       Hmapping, htarget⟩
   have htargetMem : target ∈ result.types.toArray.toList := by
@@ -570,7 +570,7 @@ theorem NestedLoweringOutputClosed.sourceRecursorUnmappedAtFresh
       (main :: rest)
       { initialState with newTypes := (main :: rest).toArray } result :=
     ⟨finalState, Hrun, Hcache, Hparams⟩
-  rcases Hclosed.sourceFinalMappingAtFreshAligned hempty (j := 0) (by simp) with
+  rcases Hclosed.sourceResolvedMappingAtFreshAligned hempty (j := 0) (by simp) with
     ⟨_mainFVars, _mainState, mainTarget, _mainLoweredState, _mainParams,
       _mainNodup, _mainSize, Hmain, hmainTarget⟩
   have hmainMem : mainTarget ∈ result.types.toArray.toList := by
@@ -591,7 +591,7 @@ theorem NestedLoweringOutputClosed.sourceRecursorUnmappedAtFresh
     mkRecName_injective (hrecName.trans rfl)
   rcases List.mem_drop_iff_getElem.mp hsuffix with
     ⟨suffixIdx, hsuffixBound, hsuffixGet⟩
-  rcases Hclosed.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases Hclosed.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_familyFVars, _familyState, familyTarget, _familyLoweredState,
       _familyParams, _familyNodup, _familySize, Hfamily, hfamilyTarget⟩
   have hfamilyInfo : mainInfo.all[familyIdx]? =
@@ -747,7 +747,7 @@ theorem NestedLoweringOutputClosed.trSourceRecursorAtFresh
     ∃ recursor, Nonempty (TrSourceRecursor sourceDecl
       (sourceDecl.types[familyIdx]'hdecl) Hstep.restored.recursor recEnv
       recursor) := by
-  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases H.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
   obtain ⟨hresultIdx, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
@@ -894,7 +894,7 @@ theorem NestedLoweringOutputClosed.sourceInductiveTypingAtFreshExactOwner
     Nonempty { S : SourceFamilyTranslation sourceDecl c.lparams
         c.safety sourceVEnv envTypes envCtors Hstep //
       S.owner = sourceDecl.types[familyIdx]'hdecl } := by
-  rcases H.sourceFinalMappingAtFreshAligned hempty hfamily with
+  rcases H.sourceResolvedMappingAtFreshAligned hempty hfamily with
     ⟨_fvars, _stepState, target, _loweredState, _hparams, _hnodup,
       _hsize, Hmapping, htarget⟩
   obtain ⟨hresultIdx, htargetEq⟩ := _root_.getElem?_eq_some_iff.mp htarget
@@ -1059,7 +1059,7 @@ theorem NestedLoweringOutputClosed.sourceTraceAtFreshOfTelescopeTranslations
   apply Hrestored.inductives.sourceInductiveTraceExactOwners
     Hsource.types
   intro familyIdx hfamily hdecl stepSource stepTarget Hstep Htype
-  rcases H.toResult.sourceFinalMappingAtFresh hempty hfamily with
+  rcases H.toResult.sourceResolvedMappingAtFresh hempty hfamily with
     ⟨_mappingParams, _mappingState, _mappingTarget, _mappingLowered,
       _mappingSize, _mapping, htarget⟩
   have hresult : familyIdx < result.types.length :=
