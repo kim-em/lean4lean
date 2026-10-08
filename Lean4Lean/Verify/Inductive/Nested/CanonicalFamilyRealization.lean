@@ -14,7 +14,7 @@ and parameter arrays; only the independently installed family lookup is
 needed to replay that syntax in the target environment.
 
 This is the original-family counterpart of
-`ClosedNestedAuxiliaryTranslation.toRestoredFamilyRealizationZero`: callers
+`ClosedNestedAuxiliaryTranslation.toGeneratedFamilyHeadRealization`: callers
 do not supply an opaque translation of the family application. -/
 def RecursorCanonicalMotiveTelescope.toRestoredFamilyRealization
     (C : RecursorCanonicalMotiveTelescope env levelParams stats decl target info

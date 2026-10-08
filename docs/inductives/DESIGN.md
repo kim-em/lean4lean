@@ -376,6 +376,14 @@ validated in a copy of the restored environment in which every restored recursor
 are known to be well formed. The proof consumes these checks as evidence
 (`Nested/StrippedValidity.lean`, `Nested/CheckedGuardedIota.lean`).
 
+The parametric nested applications `I Ds` (leanprover/lean4#14577) are type-checked
+(`validateNestedAuxiliaries`), as in the C++ kernel. For a nested occurrence of a family with
+indices, `I Ds` is a type family and its auxiliary family is itself indexed. The proof closes
+each application with lambdas over the lowering parameters and its inferred type with foralls
+over the same parameters (`ClosedValidatedNestedAuxiliaries`, `Nested/Lowering.lean`), which
+is well formed in both cases, and uses only the resulting typing of the restored head
+(`GeneratedFamilyHeadRealization`).
+
 ### 3.4 Reconstructed and checked facts
 
 Everything about an inductive declaration's abstract counterpart is reconstructed from the
@@ -635,11 +643,9 @@ the two agree. No axiom is added.
 Every behavioural change to the executable is classified in the audit table at the end of
 `divergences.md`: a refactor with the C++ kernel's decisions, a divergence documented there, or
 (with an entry) a divergence found by the audit. Scoped caches (section 5.2) are not the only
-divergence. Two can change a decision against the C++ kernel: scoped caches reject a term
-whose acceptance needs a conversion fact outside its scope, and `validateNestedAuxiliaries`
-rejects a nested occurrence of a family with indices (`Lean4Lean/Tests/NestedIndexedFamily.lean`;
-the stored nested application is a type family there, and the verification needs a type).
-The wrapper stripping below can change a decision only on an environment that redefines a
+divergence, but they are the only one that can change a decision against the C++ kernel on an
+environment whose type-annotation wrappers are the prelude's: they reject a term whose
+acceptance needs a conversion fact outside its scope. The wrapper stripping below can change a decision only on an environment that redefines a
 wrapper name. The other changes cannot change a decision except through checker fuel, as follows.
 
 - **Redundant guards**, each listed in `divergences.md`: `reduceProjCore` requires the
@@ -664,8 +670,8 @@ wrapper name. The other changes cannot change a decision except through checker 
   restoration validation of section 3.3 re-checks restored declarations in side environments,
   additionally re-checks constructor parameter prefixes, and validates restored rules in the
   stripped environment with guardedness, shape and equation-type checks, all stricter than the
-  C++ kernel's revalidation (leanprover/lean4#14621); and it requires each nested application
-  `I Ds` to be a type, the divergence above.
+  C++ kernel's revalidation (leanprover/lean4#14621). The nested applications `I Ds`
+  themselves are only type-checked, as in the C++ kernel.
 - **Caching**: `whnf` results are cached only for applications, constants, lambdas and
   projections (`Lean4Lean/WHNFCacheKey.lean`), which keeps the cache invariant within reach
   of the translation; this affects performance only.
@@ -703,8 +709,9 @@ wrapper name. The other changes cannot change a decision except through checker 
   specialization while the native recursor eliminates only into `Prop`);
 - negative tests: `InductiveEquationRejection.lean`, `RecursorMetadata.lean`,
   `RestoredRecursorMetadata.lean` (corrupted metadata admits no certificate).
-- recorded divergence: `NestedIndexedFamily.lean` (a nested occurrence of an indexed family
-  accepted by the C++ kernel and rejected by lean4lean, section 7.2).
+- nested indexed families: `NestedIndexedFamily.lean` (nested occurrences of indexed families,
+  and indexed families with parameters inside nested blocks; the generated types,
+  constructors and recursors are compared with the kernel's).
 
 `Replay.lean` runs the pure replay core on a hand-built constant table (an axiom, an inductive
 type, a definition, an inductive predicate and a theorem) from the empty environment and checks

@@ -1914,7 +1914,10 @@ def buildEquationLhsPlan (env : Environment) (recInfo : RecursorVal)
   let majorArgs := majorDomain.getAppArgs
   if majorArgs.size < ctorInfo.numParams then
     throw <| .other s!"restored recursor '{recInfo.name}' has an invalid major family spine"
-  let ctorParams := majorArgs.extract 0 ctorInfo.numParams
+  -- The major domain sits below the recursor's index binders; the parameter
+  -- arguments do not mention those binders and are read back at rule depth.
+  let ctorParams := (majorArgs.extract 0 ctorInfo.numParams).map
+    (·.lowerLooseBVars recInfo.numIndices recInfo.numIndices)
   let .const majorName ctorLevels := majorDomain.getAppFn
     | throw <| .other s!"restored recursor '{recInfo.name}' has an invalid major family head"
   unless majorName == ctorInfo.induct do
@@ -2102,8 +2105,7 @@ def validateNestedAuxiliaries (env : Environment) (lparams : List Name)
   TypeChecker.M.run env (safety := safety) (lctx := res.lctx)
       (lparams := lparams) (fuel := fuel) do
     res.aux2nested.forM fun _ e => do
-      let type ← TypeChecker.checkType e
-      _ ← TypeChecker.ensureSort type e
+      _ ← TypeChecker.checkType e
 
 /-- The names of the recursors produced by nested restoration: the primary recursors of the
 source types and the auxiliary recursors, each renamed through `recNameMap`. -/
