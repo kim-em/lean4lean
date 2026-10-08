@@ -15,6 +15,7 @@ import Lean4Lean.Theory.Typing.NativeCaptureTransport
 import Lean4Lean.Theory.Typing.CaseReduction
 import Lean4Lean.Theory.Typing.ChurchRosser
 import Lean4Lean.Verify.Typing.ProjectionDesugaring
+import Lean4Lean.Verify.Replay
 
 /-! Audit the transitive dependency closure, including opaque theorem bodies.
 Run through `scripts/check-inductive-audit.py`; this file emits one JSON record
@@ -80,6 +81,9 @@ elab "#inductive_audit " ids:ident* : command => do
 #inductive_audit Lean4Lean.addDecl.WFHasCanonicalEq
 #inductive_audit Lean4Lean.addDecl.WFHasCanonicalChoice
 #inductive_audit Lean4Lean.addQuot.WF
+#inductive_audit Lean4Lean.Replay.replayFresh.WF
+#inductive_audit Lean4Lean.Replay.replayFromImports.WF
+#inductive_audit Lean4Lean.Replay.Replayed.foldlM
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.inductiveFinalResultWF
 #inductive_audit Lean4Lean.VerifyInductive.addInductiveDeclaration.primitiveInductiveFinalResultWF
 #inductive_audit Lean4Lean.VerifyInductive.Environment.addInductiveAfterLowering.nestedInductiveFinalResultWF
