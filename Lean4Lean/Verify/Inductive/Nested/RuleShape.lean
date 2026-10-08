@@ -1,4 +1,4 @@
-import Lean4Lean.Verify.Inductive.Nested.LoweredRulesAvoid
+import Lean4Lean.Verify.Inductive.Nested.GeneratedRuleGuard
 
 /-! The rule-shape hypothesis `HruleShape` of `NestedValidatedRunResult.hrules_of`.
 
@@ -18,12 +18,13 @@ the restored generated equations themselves as its rule lists
   `loweredRulesAvoid_renamed`, so no naming hypothesis is needed);
 * the primary iota trace (`RestoredPrimaryIotaSemanticTrace.replaceRules`):
   every restored generated equation of a source constructor is a nested iota
-  rule of the restored block (`primaryNestedIotaRule`); its left-hand side and
-  type clauses are computed from the generator, its right-hand-side clauses
-  are the rule validator's (the right-hand sides coincide by uniqueness of
-  translation);
+  rule of the restored block (`primaryNestedIotaRule`); every clause,
+  including the right-hand-side spine and guardedness, is computed from the
+  generator through restoration (`restoredEquation_rhs`,
+  `restoredGeneratedAvoidance` in `Nested/GeneratedRuleGuard.lean`);
 * the auxiliary traces (`RestoredAuxiliaryFinalWFTrace.replaceRules`): rule
-  counts, and guardedness of the right-hand sides (rule validator).
+  counts, and guardedness of the right-hand sides, again from the generator
+  (`restoredRuleRhs_guarded`).
 
 The one semantic obligation of the traces that is not derived is the
 well-formedness of the restored generated equations in the final abstract
@@ -681,8 +682,11 @@ theorem NestedValidatedRunResult.stepRules_length
   rw [hinfo] at h
   exact ⟨h, Hs.restored.restoration.rules.length.trans h⟩
 
-/-- The right-hand side of a restored auxiliary rule is guarded for the
-restored recursor names (the rule validator). -/
+/-- The right-hand side of a restored generated equation is guarded for the
+restored recursor names. It is the restored domain telescope over the minor
+premise applied to the field variables and the restored recursive calls
+(`restoredEquation_rhs`); the domains mention no restored recursor
+(`restoredGeneratedAvoidance`). -/
 theorem NestedValidatedRunResult.restoredRuleRhs_guarded
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -691,37 +695,58 @@ theorem NestedValidatedRunResult.restoredRuleRhs_guarded
     (E : NestedValidatedRunResult result sourceProdEnv sourceTypes
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe) outEnv)
-    {venv : VEnv}
-    (hvalid : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) venv)
-    {recName : Name}
-    (hrecName : recName ∈ (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
-    {s t : Environment}
-    (Hstep : RestoredRecursorStep result E.loweredEnv
-      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
-      (sourceTypes.map (·.name)) recName s t)
-    (j : Nat) (hj : j < Hstep.restored.newInfo.rules.length) {target : VExpr}
-    (Ht : TrExprS venv Hstep.restored.newInfo.levelParams []
-      (Hstep.restored.newInfo.rules[j]'hj).rhs target) :
-    target.GuardedRuleRhs
+    (wf : ves.WFCore sourceProdEnv) (Hsources : SourceSyntaxChecks sourceTypes)
+    {envTypes : VEnv} {generated : List VInductiveType}
+    {auxiliaries : List ContainerSpecialization}
+    (hadded : (ves.venv (if isUnsafe then .unsafe else .safe)).addConstVals
+      sourceDecl.typeConstants = some envTypes)
+    (Haux : List.Forall₂ (AuxiliarySpecializationEvidence
+      (ves.venv (if isUnsafe then .unsafe else .safe)) envTypes
+      E.production.headers.commonParameterContext sourceDecl)
+      auxiliaries generated)
+    (Hexpansion : List.Forall₂ (VInductDecl.NestedTypeExpansion
+        (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl
+        (VInductDecl.NestedAuxiliarySourceAbsolute
+          (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl generated))
+      generated (E.production.loweredDecl.types.drop sourceDecl.types.length))
+    (hnodup : (familyNames E.production.loweredDecl.types ++
+      E.production.loweredDecl.types.map (fun t => t.name.str "rec")).Nodup)
+    (hauxNames : auxiliaries.map (·.auxiliary) =
+      (E.production.loweredDecl.types.drop sourceDecl.types.length).map (·.name))
+    (D : RestorationTableData sourceDecl auxiliaries result E.loweredEnv
+      (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 lparams)
+    (C : NestedFinalAssemblyShape E.restoration
+      (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
+      nparams isUnsafe (if isUnsafe then .unsafe else .safe))
+    (hC : C.production = E.production)
+    (k : Fin E.production.production.generationSignature.constructors.size)
+    {rule : VDefEq}
+    (hrule : (compilationRestoration sourceDecl auxiliaries).equation
+      (E.production.production.canonicalGeneration.equation k) = some rule) :
+    rule.rhs.GuardedRuleRhs
       ((sourceTypes.map (·.name)).map (fun name =>
           let oldName := Lean.mkRecName name
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName) ++
         (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1.map fun oldName =>
           (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName) := by
-  have hrun := E.recursorRuleValidation
-  obtain ⟨rule, hrule⟩ : ∃ rule, Hstep.restored.newInfo.rules[j]'hj = rule := ⟨_, rfl⟩
-  rw [hrule] at Ht
-  have hmem : rule ∈ Hstep.restored.newInfo.rules := hrule ▸ List.getElem_mem hj
-  rw [Hstep.restored.produced] at hmem Ht
-  obtain ⟨_, _, abstractRule, -, Hrhs, -, -, -, -, Hguard⟩ :=
-    validateRestoredRecursorRules.auxiliaryValidatedAbstractRule_of_run hvalid hrun hrecName
-      Hstep.lookup hmem
-  rw [Ht.uniqueS Hrhs]
-  exact Hguard
+  obtain ⟨L, hmention, hrecType⟩ := E.restoredGeneratedAvoidance wf Hsources hadded Haux
+    Hexpansion hauxNames C hC
+  obtain ⟨hprefix, hpieces⟩ := recursorType_pieces_avoid _
+    E.production.production.generationSignature.constructors[k].owner (hrecType _)
+  obtain ⟨hfields, -, hrec⟩ := hpieces k
+  obtain ⟨Dm, calls, -, hDm, -, hrhs, hguard⟩ := restoredEquation_rhs _ _ hmention
+    (fun o => E.recursorName_not_head Haux Hexpansion hnodup o)
+    (E.restoredRecursorName_mem D C) hprefix k hfields hrec hrule
+  have hnames : (sourceTypes.map (·.name)).map (fun name =>
+          let oldName := Lean.mkRecName name
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName) ++
+        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1.map (fun oldName =>
+          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD oldName oldName) =
+      (C.primaryRecursors ++ C.auxiliaryRecursors).map (·.name) := by
+    rw [C.recursors_names, List.map_map]
+    rfl
+  rw [hnames, hrhs]
+  exact VExpr.GuardedRuleRhs.wrapLams_of_mentions hDm hguard
 
 /-- Offsets telescope: the rule counts of a run of consecutive families sum
 to the difference of their offsets. -/
@@ -738,19 +763,6 @@ theorem recursorMinorOffset_sum (indTypes : Array InductiveType) (p : Nat) :
     simp only [List.map_cons, List.map_nil, List.sum_cons, List.sum_nil, Nat.add_zero]
     rw [← Nat.add_assoc, hstep]
     omega
-
-theorem stepValues_names {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv : Environment} {auxRec : NameMap Name} {allIndNames : List Name}
-    {env : VEnv} :
-    ∀ {names : List Name} {added : List VConstVal},
-      List.Forall₂ (fun (name : Name) (w : VConstVal) =>
-        ∃ (s t : Environment) (Hstep : RestoredRecursorStep result loweredEnv
-          auxRec allIndNames name s t), RestoredRecursorStepValue env Hstep w) names added →
-      added.map (·.name) = names.map (fun oldName => auxRec.getD oldName oldName)
-  | _, _, .nil => rfl
-  | _, _, .cons h t => by
-    obtain ⟨_, _, Hstep, hname, -, -⟩ := h
-    simp only [List.map_cons, stepValues_names t, hname, Hstep.restored.mappedName]
 
 /-! ### The restored generated equation of a source constructor -/
 
@@ -777,16 +789,6 @@ private theorem Restoration.expr_wrapLams_eq_RS (r : Restoration) (doms : List V
     rw [← Restoration.expr_eq_go, ← Restoration.expr_eq_go, ih]
     cases hd : r.expr d <;> cases hds : ds.mapM r.expr <;>
       cases hb : r.expr body <;> simp [VExpr.mkApps, VExpr.wrapLams]
-
-theorem Restoration.expr_mkApps_const_of_find_none {r : Restoration} {c : Name}
-    {ls : List VLevel} (args : List VExpr)
-    (h : r.heads.find? (fun h => h.auxiliary == c) = none) :
-    r.expr (VExpr.mkApps (.const c ls) args) =
-      (args.mapM r.expr).map fun args' => VExpr.mkApps (.const (r.recursorName c) ls) args' := by
-  rw [Restoration.expr_mkApps]
-  cases ha : args.mapM r.expr with
-  | none => rfl
-  | some args' => simp [Restoration.expr.go, h]
 
 /-- The restored generated equation of a constructor whose owner's recursor
 name and whose own name are not restoration heads. -/
@@ -901,25 +903,6 @@ theorem InductiveSignature.declaration_ctors_names (s : InductiveSignature)
     · have : ¬ (s.constructors[i.val].owner.val = f.val) := fun h' => hi (Fin.ext h')
       simp [this, hi]
 
-theorem vars_take (n m k : Nat) :
-    (vars (n + m) k).take n = vars n (k + m) := by
-  apply List.ext_getElem
-  · simp
-  · intro i h1 h2
-    simp only [List.getElem_take, vars, List.getElem_map, List.getElem_reverse,
-      List.getElem_range, List.length_range]
-    congr 1
-    simp only [vars, List.length_map, List.length_reverse, List.length_range] at h2
-    omega
-
-theorem vars_canonicalRuleFieldVars (n : Nat) :
-    vars n 0 = (Lean4Lean.validateRestoredRecursorRules.canonicalRuleFieldVars n).map
-      VExpr.bvar := by
-  apply List.ext_getElem
-  · simp [Lean4Lean.validateRestoredRecursorRules.canonicalRuleFieldVars]
-  · intro i h1 h2
-    simp [vars, Lean4Lean.validateRestoredRecursorRules.canonicalRuleFieldVars]
-
 theorem Restoration.find_none_of_mem_prefix {r : Restoration} {types : List VInductiveType}
     {p : Nat} (hheads : r.heads.map (·.auxiliary) = familyNames (types.drop p))
     (hnodup : (familyNames types).Nodup) {n : Name} (hn : n ∈ familyNames (types.take p)) :
@@ -936,71 +919,14 @@ theorem Restoration.find_none_of_mem_prefix {r : Restoration} {types : List VInd
 
 /-! ### The restored primary equations are nested iota rules -/
 
-theorem NestedFinalAssemblyShape.recursors_names
-    {result : Lean4Lean.ElimNestedInductive.Result}
-    {loweredEnv sourceProdEnv : Environment} {auxRec : NameMap Name}
-    {allIndNames : List Name} {sourceTypes : List InductiveType}
-    {auxRecNames : List Name} {outEnv : Environment}
-    {H : RestoredNestedDeclarationsResult result loweredEnv sourceProdEnv
-      auxRec allIndNames sourceTypes auxRecNames ((), outEnv)}
-    {sourceEnv : VEnv} {decl : VInductDecl} {lparams : List Name}
-    {nparams : Nat} {isUnsafe : Bool} {safety : DefinitionSafety}
-    (C : NestedFinalAssemblyShape H sourceEnv decl lparams nparams isUnsafe safety) :
-    (C.primaryRecursors ++ C.auxiliaryRecursors).map (·.name) =
-      sourceTypes.map (fun indType =>
-        let oldName := Lean.mkRecName indType.name
-        auxRec.getD oldName oldName) ++
-      auxRecNames.map (fun oldName => auxRec.getD oldName oldName) := by
-  obtain ⟨added, hadded', Hadded⟩ := C.auxiliarySemantics.recursorSteps
-  simp only [List.nil_append] at hadded'
-  rw [List.map_append, C.sourceSemantics.recursorNames, hadded', stepValues_names Hadded]
-
-/-- The canonical left-hand-side spine of a restored generated primary equation. -/
-def canonicalPrimaryLhsSpine_ofRestored {recInfo : RecursorVal} {rule : RecursorRule}
-    {plan : Lean4Lean.validateRestoredRecursorRules.EquationLhsPlan} {D : List VExpr}
-    (np nfam nctors nf : Nat) (recName ctorName : Name) (ls levels : List VLevel)
-    (idx : List VExpr)
-    (hname : recName = recInfo.name) (hctor : ctorName = rule.ctor)
-    (hrl : ls.length = recInfo.levelParams.length)
-    (hcl : levels.length = plan.ctorLevels.length)
-    (hnp : recInfo.numParams = np)
-    (hmm : recInfo.numMotives + recInfo.numMinors = nfam + nctors)
-    (hidx : idx.length = plan.indices.size) (hnf : rule.nfields = nf) :
-    validateRestoredRecursorRules.CanonicalPrimaryLhsSpine recInfo rule plan D
-      (VExpr.mkApps (.const recName ls)
-        (vars (np + (nfam + nctors)) nf ++ idx ++
-          [VExpr.mkApps (.const ctorName levels)
-            (vars np (nfam + nctors + nf + 0) ++ vars nf 0)])) where
-  recursorLevels := ls
-  leadingArgs := vars (np + (nfam + nctors)) nf ++ idx
-  ctorLevels := levels
-  ctorArgs := vars np (nfam + nctors + nf + 0) ++ vars nf 0
-  lhs_pattern := by rw [hname, hctor, List.append_assoc]
-  recursor_levels := hrl
-  ctor_levels := hcl
-  leading_arity := by
-    simp only [List.length_append, vars_length', ← hidx]
-    omega
-  constructor_arity := by
-    simp only [List.length_append, vars_length', hnp, hnf]
-  parameter_args := by
-    rw [hnp, List.take_append_of_le_length (by simp), List.take_append_of_le_length (by simp)]
-    rw [List.take_of_length_le (by simp), vars_take]
-    congr 1
-    omega
-  field_args := by
-    rw [hnp, List.drop_append_of_le_length (by simp)]
-    rw [List.drop_of_length_le (by simp), List.nil_append, hnf]
-    exact vars_canonicalRuleFieldVars _
-
 set_option maxHeartbeats 4000000 in
 /-- **The restored generated equation of a source constructor is a nested
-iota rule** of the restored block of a final assembly shape (in whose final
-abstract environment the stripped output environment is valid), for the
-source owner and constructor at its position. Its right-hand side is the rule
-validator's (by uniqueness of translation), so the right-hand-side clauses
-are those of the validator's equation; the left-hand side and type clauses
-are computed from the generator. -/
+iota rule** of the restored block of a final assembly shape, for the
+source owner and constructor at its position. Every clause is computed from
+the generator: the left-hand side and type by `equation_primary_structure`,
+the right-hand side (its spine, field arguments, recursive results and
+guardedness) by `restoredEquation_rhs`, whose recursor avoidance comes from
+`restoredGeneratedAvoidance`. -/
 theorem NestedValidatedRunResult.primaryNestedIotaRule
     {ves : VEnvs} {result : Lean4Lean.ElimNestedInductive.Result}
     {sourceProdEnv : Environment} {sourceTypes : List InductiveType}
@@ -1033,15 +959,6 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
       (ves.venv (if isUnsafe then .unsafe else .safe)) sourceDecl lparams
       nparams isUnsafe (if isUnsafe then .unsafe else .safe))
     (hC : C.production = E.production)
-    (hvalid : CheckingEnv.Valid (if isUnsafe then .unsafe else .safe)
-      (Lean4Lean.stripRecursorRules outEnv
-        (Lean4Lean.restoredRecursorNames
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2 sourceTypes
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)) C.finalBaseVEnv)
-    {X : List Name}
-    (Hfresh : ∀ n ∈ (compilationRestoration sourceDecl auxiliaries).restorableNames,
-      n ∉ X → C.finalBaseVEnv.constants n = none)
-    (HL : E.LoweredRulesAvoid E.auxHeads X)
     (hcount : ∀ (f : Nat) (hf : f < sourceDecl.types.length),
       (sourceDecl.types[f]'hf).ctors.length = E.production.indTypes[f]!.ctors.length)
     (hauxNames : auxiliaries.map (·.auxiliary) =
@@ -1056,10 +973,6 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     Nonempty (sourceDecl.NestedIotaRule
       (canonicalRestoredShapeBlock sourceDecl C.primaryRecursors C.auxiliaryRecursors)
       (sourceDecl.types[f]'hf) ((sourceDecl.types[f]'hf).ctors[j]'hj) rule) := by
-  -- the realization of the rule
-  obtain ⟨owner', j', s', t', Hs', hj', hk', huvars, Ht, -, -⟩ :=
-    E.restoredRuleRealization_of_equation wf Hsources hadded Haux Hexpansion hnodup
-      hparamsSize D hscoped C hC hvalid Hfresh HL k hrule
   have hfamSize : E.production.production.generationSignature.families.size =
       E.production.indTypes.size := by
     rw [← E.production.production.entries_length_eq,
@@ -1075,15 +988,15 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
   have hfFam : f < E.production.production.generationSignature.families.size := by
     omega
   have hpSize' : sourceDecl.types.length ≤ E.production.indTypes.size := by omega
+  -- the generated recursor step of the family
+  have huvars : rule.uvars = E.production.production.canonicalGeneration.uvars :=
+    (Restoration.equation_eq_some hrule).1
+  have hinfos := E.restoredRecursorEntryInfos C hC wf Hsources hadded Haux Hexpansion
+    hnodup hparamsSize D hscoped (wf.tr (safety := .safe)).map_wf
+  obtain ⟨_, -, s', t', Hs', -⟩ :=
+    Lean4Lean.List.Forall₂.forall_exists_l hinfos ⟨f, hfFam⟩ (List.mem_finRange _)
   -- the owner and position of the rule
   have hlocal : j < E.production.indTypes[f]!.ctors.length := hcount f hf ▸ hj
-  have hlocal' : j' < E.production.indTypes[owner'.val]!.ctors.length :=
-    (E.stepRules_length owner' Hs' rfl).2 ▸ hj'
-  obtain ⟨howner, hjj⟩ := recursorMinorOffset_unique E.production.indTypes (by omega)
-    (by omega) hlocal hlocal' (hk.symm.trans hk')
-  subst hjj
-  have hown : owner' = ⟨f, hfFam⟩ := Fin.ext howner.symm
-  subst hown
   -- the source family
   obtain ⟨ho, hr, s0, m0, Hstep, Hrecursor, ⟨Hcons⟩, hrecEq⟩ := C.sourceSemantics.at f hf'
   have hprimName : Lean.mkRecName (sourceTypes[f]'hf').name =
@@ -1099,47 +1012,6 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
     rw [holdEq, (E.stepRules_length ⟨f, hfFam⟩ Hs' rfl).1]; exact hlocal
   have hjNew : j < Hstep.restored.recursor.restored.newInfo.rules.length := by
     rw [Hstep.restored.recursor.restored.restoration.rules.length]; exact hjOld
-  have Hexact := validateRestoredRecursorRules.primaryValidatedExactRule_of_run hvalid E.recursorRuleValidation (List.getElem_mem hf') Hstep.restored.recursor.lookup
-    (List.getElem_mem hjOld)
-  dsimp only at Hexact
-  rw [← Hstep.restored.recursor.restored.produced] at Hexact
-  have HnewRule : Hstep.restored.recursor.restored.newInfo.rules[j] =
-      result.restoreRule E.loweredEnv (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
-        (Lean.mkRecName (sourceTypes[f]'hf').name)
-        ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD
-          (Lean.mkRecName (sourceTypes[f]'hf').name)
-          (Lean.mkRecName (sourceTypes[f]'hf').name))
-        Hstep.restored.recursor.oldInfo.rules[j] := by
-    have HrulesEq : Hstep.restored.recursor.restored.newInfo.rules =
-        Hstep.restored.recursor.oldInfo.rules.map
-          (result.restoreRule E.loweredEnv (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2
-            (Lean.mkRecName (sourceTypes[f]'hf').name)
-            ((Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).2.getD
-              (Lean.mkRecName (sourceTypes[f]'hf').name)
-              (Lean.mkRecName (sourceTypes[f]'hf').name))) := by
-      simpa only [Lean4Lean.ElimNestedInductive.Result.restoreRecursor] using
-        congrArg RecursorVal.rules Hstep.restored.recursor.restored.produced
-    apply (List.getElem_eq_iff hjNew).2
-    rw [HrulesEq, List.getElem?_map, List.getElem?_eq_getElem hjOld]
-    rfl
-  rw [← HnewRule] at Hexact
-  rcases Hexact with
-    ⟨_lhs, _lhsInferred, _residual, _plan, _canonicalPlan, domains, _lhsBody,
-      rhsBody, _typeBody, abstractRule, _Hbuild, _Hplan, _Hindices,
-      _HctorUvars, _Hprefix, _Hcanonical, Hrhs, _Hlhs, _HruleUvars,
-      _, _Htelescope, _hresidual, hdomains, _HlhsWrapped,
-      HrhsWrapped, _HtypeWrapped, Hguard, _, shape, ⟨HrhsSpine⟩⟩
-  -- the right-hand side is the validator's
-  have Ht' : TrExprS C.finalBaseVEnv Hstep.restored.recursor.restored.newInfo.levelParams []
-      (Hstep.restored.recursor.restored.newInfo.rules[j]'hjNew).rhs rule.rhs := by
-    have key : ∀ (info : RecursorVal) (h : j < info.rules.length),
-        info = Hs'.restored.newInfo →
-        TrExprS C.finalBaseVEnv info.levelParams [] (info.rules[j]'h).rhs rule.rhs := by
-      intro info h hinfo
-      subst hinfo
-      exact Ht
-    exact key _ hjNew hnewEq
-  have hrhsEq : abstractRule.rhs = rule.rhs := Hrhs.uniqueS Ht'
   -- the generated constructor
   have hkOwner : E.production.production.generationSignature.constructors[k].owner =
       ⟨f, hfFam⟩ := by
@@ -1305,18 +1177,16 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
       E.production.production.generationSignature.constructors[k].indices.length := by
     rw [← Lean4Lean.List.Forall₂.length_eq (List.mapM_eq_some.mp hidx)]
     simp
-  have hdomLen : domains.length =
-      Hstep.restored.recursor.restored.newInfo.numParams +
-        Hstep.restored.recursor.restored.newInfo.numMotives +
-        Hstep.restored.recursor.restored.newInfo.numMinors +
-        (Hstep.restored.recursor.restored.newInfo.rules[j]'hjNew).nfields :=
-    hdomains.trans shape.source_arity |>.trans shape.arity_eq
-  have hlenEq : domains.length = D0.length := by
-    rw [hdomLen, hD0len, hnumP, hnumM, hnumMin, hnewFields]
-  obtain ⟨hdomEq, hbodyEq⟩ := VExpr.wrapLams_inj_of_length hlenEq
-    (HrhsWrapped.symm.trans (hrhsEq.trans hrhsEq0))
-  subst hdomEq
-  subst hbodyEq
+  -- the restored right-hand side
+  obtain ⟨L, hmention, hrecType⟩ := E.restoredGeneratedAvoidance wf Hsources hadded Haux
+    Hexpansion hauxNames C hC
+  obtain ⟨hprefixAvoid, hpieces⟩ := recursorType_pieces_avoid _ ⟨f, hfFam⟩ (hrecType _)
+  obtain ⟨hfieldsAvoid, -, hrecAvoid⟩ := hpieces k
+  obtain ⟨D1, calls, hD1, -, hcallsLen, hrhsGen, hguardGen⟩ := restoredEquation_rhs _ _
+    hmention (fun o => E.recursorName_not_head Haux Hexpansion hnodup o)
+    (E.restoredRecursorName_mem D C) hprefixAvoid k hfieldsAvoid hrecAvoid hrule
+  have hD1eq : D1 = D0 := Option.some.inj (hD1.symm.trans hD0)
+  subst D1
   -- the restored recursor of the family
   have howner : (C.main :: C.rest)[f]'ho = sourceDecl.types[f]'hf :=
     List.getElem_of_eq C.typesSource.symm ho
@@ -1472,40 +1342,45 @@ theorem NestedValidatedRunResult.primaryNestedIotaRule
   have hguvars : E.production.production.canonicalGeneration.uvars =
       Hstep.restored.recursor.restored.newInfo.levelParams.length := by
     rw [Hstep.restored.recursor.restored.restoration.levelParams, holdEq, M.uvars]
-  -- the left-hand side spine
-  let plan : Lean4Lean.validateRestoredRecursorRules.EquationLhsPlan := {
-    ctorLevels := List.replicate
-      E.production.production.canonicalGeneration.levels.length Level.zero
-    ctorParams := #[]
-    indices := (List.replicate idx.length (default : Expr)).toArray }
-  have Hlhs := canonicalPrimaryLhsSpine_ofRestored (plan := plan) (D := domains)
-    (rule := Hstep.restored.recursor.restored.newInfo.rules[j]'hjNew)
+  -- the nested iota rule
+  have hnewCtorSrc : ((sourceDecl.types[f]'hf).ctors[j]'hj).name =
+      (Hstep.restored.recursor.restored.newInfo.rules[j]'hjNew).ctor :=
+    hctorNameSrc.trans hnewCtor.symm
+  rw [hrecRestored, ← hrecName, hctorRestored, ← hnewCtorSrc] at hlhsEq
+  obtain ⟨hord, hlt⟩ := recursiveFields_positions
+    E.production.production.generationSignature.constructors[k]
+  have hguard := hguardGen.congrRecursors (recursors' :=
+    (canonicalRestoredShapeBlock sourceDecl C.primaryRecursors C.auxiliaryRecursors).recursors.map
+      (·.name)) (by
+        intro name
+        simp [canonicalRestoredShapeBlock, canonicalRestoredBlock])
+  have hsub := recursiveFields_args_sublist
+    E.production.production.generationSignature.constructors[k]
+  refine ⟨nestedIotaRuleOfGenerated Hrecursor.recursor hrecMem S1
+    (huvars.trans (hguvars.trans hrecUvars.symm)) D0
     E.production.production.generationSignature.params.length
-    E.production.production.generationSignature.families.size
-    E.production.production.generationSignature.constructors.size
     E.production.production.generationSignature.constructors[k].fields.length
-    _ _ (VLevel.params E.production.production.canonicalGeneration.uvars)
-    E.production.production.canonicalGeneration.levels idx
-    hrecRestored hctorRestored (by simp [VLevel.params, hguvars]) (by simp [plan]) hnumP
-    (by rw [hnumM, hnumMin]) (by simp [plan]) hnewFields
-  have Hguard' : rhsBody.GuardedIota
-      ((canonicalRestoredShapeBlock sourceDecl C.primaryRecursors C.auxiliaryRecursors).recursors.map
-        (·.name))
-      (Lean4Lean.validateRestoredRecursorRules.recursiveFieldVars
-        ((sourceTypes.map (·.name)).map Lean.mkRecName ++
-          (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1)
-        (Hstep.restored.recursor.oldInfo.rules[j]'hjOld).rhs) 0 := by
-    simp only [canonicalRestoredShapeBlock, canonicalRestoredBlock]
-    rw [C.recursors_names]
-    simpa [List.map_map, Function.comp_def] using Hguard
-  exact ⟨validateRestoredRecursorRules.nestedIotaRule_of_canonicalSpines Hrecursor.recursor
-    hrecMem S1 hrecName hrecUvars (hdeclNp.trans hnumP.symm)
-    (by show sourceDecl.nparams + Lm.length + Lmi.length = _
-        rw [hLm, hLmi, hdeclNp, hnumP, hnumM, hnumMin])
-    (by simp [plan, hownerIdx, ← hctorIdx, hidxLen])
-    (by simp [plan, hlevels])
-    (hctorNameSrc.trans hnewCtor.symm) hdomLen hlhsEq hrhsEq0 htypeEq0
-    (huvars.trans hguvars) Hlhs shape HrhsSpine Hguard'⟩
+    (E.production.production.generationSignature.families.size +
+      E.production.production.generationSignature.constructors.size)
+    (VLevel.params E.production.production.canonicalGeneration.uvars)
+    E.production.production.canonicalGeneration.levels idx calls
+    ((Instance.recursiveFields
+      E.production.production.generationSignature.constructors[k]).map Prod.fst)
+    (E.production.production.generationSignature.constructors[k].fields.length +
+      E.production.production.generationSignature.constructors.size - 1 - k.val) T0
+    hdeclNp ?_ ?_ ?_ hlhsEq hrhsGen htypeEq0 ?_ hlevels ?_ hord ?_ hsub ?_ hguard⟩
+  · show _ = Lm.length + Lmi.length
+    rw [hLm, hLmi]
+  · rw [hD0len]; omega
+  · rw [hidxLen, hctorIdx, hownerIdx]
+  · simp only [VLevel.params, List.length_map, List.length_range]
+    exact hguvars.trans hrecUvars.symm
+  · have := k.isLt
+    rw [hD0len]; omega
+  · intro i hi
+    obtain ⟨p, hp, rfl⟩ := List.mem_map.mp hi
+    exact hlt p hp
+  · rw [hcallsLen, List.length_map]
 
 /-! ### The rule-shape hypothesis -/
 
@@ -1695,7 +1570,7 @@ theorem NestedValidatedRunResult.hruleShape_of
       have Hk := Lean4Lean.List.forall₂_getElem Hrules _ (by simpa using hkn) hk'
       simp only [List.getElem_finRange] at Hk
       exact ⟨E.primaryNestedIotaRule wf Hsources hadded Haux Hexpansion hnodup hparamsSize D'
-          hscoped C₀ hC₀ hV hfresh HL hcountPrim hauxNames _ Hk i hi j hj rfl,
+          hscoped C₀ hC₀ hcountPrim hauxNames _ Hk i hi j hj rfl,
         HrestoredWF aux' D' C₀ hC₀ hV _ _ Hk⟩
   have Hprimary := C₀.primaryIota.replaceRules Hprim
   -- the auxiliary rules
@@ -1745,28 +1620,10 @@ theorem NestedValidatedRunResult.hruleShape_of
         rules.length := by omega
     have hmn : recursorMinorOffset E.production.indTypes sourceDecl.types.length + i <
         E.production.production.generationSignature.constructors.size := by omega
-    obtain ⟨owner, j, s, t, Hstep, hj, hk, -, Ht, -, -⟩ :=
-      Lean4Lean.List.forall₂_getElem Hreal _ (by simpa using hmn) hm
-    simp only [List.getElem_finRange, Fin.val_cast] at hk
-    have hjcnt := (E.stepRules_length owner Hstep rfl).2
-    have howner : sourceTypes.length ≤ owner.val := by
-      apply Classical.byContradiction
-      intro hlt
-      have hstep := recursorMinorOffset_step E.production.indTypes owner.val (by omega)
-      have hmono := recursorMinorOffset_mono E.production.indTypes (owner.val + 1)
-        sourceDecl.types.length (by omega) hpSize
-      omega
-    have hrecAux : E.production.production.canonicalGeneration.recursorName owner ∈
-        (Lean4Lean.mkAuxRecNameMap E.loweredEnv sourceTypes).1 := by
-      have h := hauxName (owner.val - sourceTypes.length) (by omega)
-      have hown : (⟨sourceTypes.length + (owner.val - sourceTypes.length), by omega⟩ :
-          Fin E.production.production.generationSignature.families.size) = owner :=
-        Fin.ext (by simp only; omega)
-      rw [hown] at h
-      rw [← h]
-      exact List.getElem_mem _
+    have Hk := Lean4Lean.List.forall₂_getElem Hrules _ (by simpa using hmn) hm
     rw [hblockNames]
-    exact E.restoredRuleRhs_guarded hV hrecAux Hstep j hj Ht
+    exact E.restoredRuleRhs_guarded wf Hsources hadded Haux Hexpansion hnodup hauxNames D' C₀
+      hC₀ _ Hk
   have Hwf : ∀ rule ∈ rules.drop
       (recursorMinorOffset E.production.indTypes sourceDecl.types.length),
       rule.WF C₀.finalBaseVEnv := by
