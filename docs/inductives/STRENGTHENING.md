@@ -6,9 +6,9 @@ fragment. It also challenges strengthening at a fixed result type. This is a
 stronger obstruction than the earlier failure of a deterministic selector or
 of literal inverse reduction.
 
-The evidence has distinct scopes. `SingletonStrengthening.lean` checks source
+The evidence has distinct scopes. `history/SingletonStrengthening.lean` checks source
 admissibility and the exact combination of the branch's equality inference
-rules. `SingletonStrengtheningModel.lean` checks the finite semantic
+rules. `history/SingletonStrengtheningModel.lean` checks the finite semantic
 calculations, beta and naturality for arbitrary fibers with object transport,
 and the different types returned by the actual generic extensions. The
 groupoid interpretation and its soundness for the selected
@@ -231,8 +231,8 @@ checker/producer caller contracts must stay unchanged.
 Commands for the design evidence:
 
 ```sh
-lake env lean docs/inductives/SingletonStrengthening.lean
-lake env lean docs/inductives/SingletonStrengtheningModel.lean
+lake env lean docs/inductives/history/SingletonStrengthening.lean
+lake env lean docs/inductives/history/SingletonStrengtheningModel.lean
 ```
 
 ## Current status: strengthening as an explicit environment hypothesis

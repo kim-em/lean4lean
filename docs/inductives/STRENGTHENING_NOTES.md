@@ -30,8 +30,8 @@ statement is still a conjecture: the argument below is a proof *plan* whose load
 step is the completeness of a conversion-certificate calculus (Part 3), which in turn rests
 on confluence (obligation (c)) and on uniqueness/injectivity (obligation (a)).
 
-Kernel-checked evidence: `docs/inductives/StrengtheningFalsification.lean` (plain Lean, no
-lean4lean imports, `lake env lean docs/inductives/StrengtheningFalsification.lean`). For
+Kernel-checked evidence: `docs/inductives/history/StrengtheningFalsification.lean` (plain Lean, no
+lean4lean imports, `lake env lean docs/inductives/history/StrengtheningFalsification.lean`). For
 every attacked mechanism it checks the larger-context chain and the smaller-context
 replacement, each link an instance of `proofIrrel`, iota, K (= `proofIrrel` + `Eq.rec`
 iota), `appDF`, `symm`, `trans`.
@@ -106,7 +106,7 @@ extractⱼ m := I.rec ps
   Index patterns before a data position that mention later fields are harmless: the
   equations mention only `d'<ᵢ`.
 
-Lean-checked instances (`StrengtheningFalsification.lean`): the countermodel `I`/`J`
+Lean-checked instances (`history/StrengtheningFalsification.lean`): the countermodel `I`/`J`
 (section 0, including the full smaller-context chain `SI ≡ SJ`), a three-index dependent
 family whose two data slots both need casts and whose second proof field depends on the
 first (section 1), a proof index with a non-injective pattern before a cast data slot
@@ -143,7 +143,7 @@ Prop structures with data fields cannot be eta-expanded (the data projections vi
 larger-context chain uses `out d` as the proof field. A counterexample needs a redex whose
 major is a proof that `d` makes reducible. The major is a subterm of the redex, hence
 `q`-free and present (typed) in `Γ`, and section 1.2 extracts the field from it; `out` and
-`d` are never needed (`StrengtheningFalsification.lean` section 8, including the case
+`d` are never needed (`history/StrengtheningFalsification.lean` section 8, including the case
 where the major is bound inside an endpoint's own lambda). There is no variant in which an
 endpoint typable in `Γ` reduces through a proof major that is absent from `Γ`: a major
 that mentions `d` occurs only in intermediate terms, and the canonical certificate never
@@ -449,8 +449,8 @@ a premise is produced, which must now produce a certificate.
 
 ## Part 3 status (2026-10-06): the missing metatheorem
 
-Two further design reviews were recorded in `STRENGTHENING_ASTRA_REVIEW2.md`
-(architecture) and `STRENGTHENING_ASTRA_REVIEW3.md` (termination of certified
+Two further design reviews were recorded in `history/STRENGTHENING_ASTRA_REVIEW2.md`
+(architecture) and `history/STRENGTHENING_ASTRA_REVIEW3.md` (termination of certified
 transitivity).
 
 The certificate route needs the following theorem. Let `Synth`, `NEq` and `Conv` be a

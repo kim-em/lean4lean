@@ -16,8 +16,7 @@ Obligations (a) to (c) below are the ones that were open when the statement
 was written; all three are closed on the branch (HANDOFF.md "Final state").
 
 ```text
-Finish branch agent/verify-inductives of lean4lean (worktree
-~/worktrees/lean4lean/lean4lean-agent-verify-inductives; push to remote kim-em).
+Finish branch agent/verify-inductives of lean4lean (push to remote kim-em).
 
 DONE means all of: (1) `lake build` of the whole project reports zero
 "declaration uses sorry" and `grep -rn sorry Lean4Lean` finds none outside
@@ -42,13 +41,13 @@ REMAINING OBLIGATIONS (the only sorries, all in Lean4Lean/Theory/Typing):
     ShapeLogRel*.lean and Experimental/UniqueTyping.lean, ported to this
     branch's VExpr (elim, proj, extra rules, K-like Eq.rec, singleton
     families, projections, structure eta, unit-like) and repaired where
-    docs/inductives/PHASE1_SPIKE.md shows the checked K/singleton step forces
+    docs/inductives/history/PHASE1_SPIKE.md shows the checked K/singleton step forces
     equality reflection (cast-pushing reduction inside the relation, or a
     better repair found on the way). Deliver all eight HeadInversion fields.
 (b) `strengthening_of_canonicalEq` (UniqueTyping.lean): strengthening for
     environments containing canonical Eq (falsification study first, then
     singleton eta and a conversion-certificate calculus, per
-    docs/inductives/BASE_OBLIGATIONS_DESIGN.md section 3). If the study
+    docs/inductives/history/BASE_OBLIGATIONS_DESIGN.md section 3). If the study
     refutes it, find the weakest true hypothesis that real environments
     satisfy, restate, record, and continue.
 (c) `FullStep.strip` (FullReduction.lean): general confluence (branch
