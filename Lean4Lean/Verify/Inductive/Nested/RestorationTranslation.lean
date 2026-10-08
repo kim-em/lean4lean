@@ -709,6 +709,33 @@ theorem Expr.forallDomainsOnly_instantiate1'_fvar :
   | n + 1, .lam .., _, _ | n + 1, .letE .., _, _ | n + 1, .mdata .., _, _
   | n + 1, .proj .., _, _ => by simp [Expr.forallDomainsOnly, Expr.instantiate1']
 
+/-- The leading lambda domains of a term, with the residual body replaced by
+`Sort 0`. -/
+def Expr.lamDomainsOnly : Nat → Expr → Expr
+  | 0, _ => .sort .zero
+  | n + 1, .lam name domain body bi => .lam name domain (lamDomainsOnly n body) bi
+  | _, _ => .sort .zero
+
+theorem Expr.lamDomainsOnly_instantiate1'_fvar :
+    ∀ (n : Nat) (e : Expr) (fv : FVarId) (d : Nat),
+      (Expr.lamDomainsOnly n e).instantiate1' (.fvar fv) d =
+        Expr.lamDomainsOnly n (e.instantiate1' (.fvar fv) d)
+  | 0, _, _, _ => by simp [Expr.lamDomainsOnly, Expr.instantiate1']
+  | n + 1, .lam _ _ body _, fv, d => by
+    simp [Expr.lamDomainsOnly, Expr.instantiate1',
+      Expr.lamDomainsOnly_instantiate1'_fvar n body fv (d + 1)]
+  | n + 1, .bvar i, fv, d => by
+    simp only [Expr.lamDomainsOnly, Expr.instantiate1']
+    split
+    · rfl
+    · split
+      · simp [Expr.liftLooseBVars', Expr.lamDomainsOnly]
+      · rfl
+  | n + 1, .fvar _, _, _ | n + 1, .mvar _, _, _ | n + 1, .sort _, _, _
+  | n + 1, .const .., _, _ | n + 1, .lit _, _, _ | n + 1, .app .., _, _
+  | n + 1, .forallE .., _, _ | n + 1, .letE .., _, _ | n + 1, .mdata .., _, _
+  | n + 1, .proj .., _, _ => by simp [Expr.lamDomainsOnly, Expr.instantiate1']
+
 theorem MLCtx.length_dropN : ∀ (c : TypeChecker.MLCtx) (n : Nat) (h : n ≤ c.length),
     (c.dropN n h).length = c.length - n
   | _, 0, _ => by simp
@@ -1016,6 +1043,227 @@ theorem NestedRestorationOpening.translatesForall
   refine ⟨_, houtput ▸ Hclose.1, Hclose.2, ?_⟩
   rw [hs]
   exact hfor _ _ _ _ _ hr
+
+
+/-- Lambda counterpart of `RestoreParamOpening.toMLCtxForall`. -/
+theorem RestoreParamOpening.toMLCtxLambda {env : VEnv} {Us : List Name}
+    (henv : env.WF) {r : Restoration}
+    {lctx : LocalContext} {As : Array Expr} {e : Expr} {n : Nat}
+    {outLctx : LocalContext} {outAs : Array Expr} {tail residual : Expr}
+    (Hopen : RestoreParamOpening lctx As e n outLctx outAs tail)
+    (Htel : Expr.LambdaTelescope e n residual)
+    (houtWF : outLctx.WF)
+    (m : TypeChecker.MLCtx) (hm : m.lctx = lctx) (hmWF : m.WF env Us)
+    {target : VExpr} (He : TrExprS env Us m.vlctx e target)
+    (Hav : (Expr.lamDomainsOnly n e).AvoidsConsts r.restorableNames)
+    (Hpj : (Expr.lamDomainsOnly n e).ProjsOK (· ∉ r.restorableNames))
+    (Hm : MLCtxAvoids r m) :
+    ∃ (m' : TypeChecker.MLCtx) (tgt : VExpr) (hn : n ≤ m'.length),
+      m'.lctx = outLctx ∧ m'.WF env Us ∧ m'.dropN n hn = m ∧ MLCtxAvoids r m' ∧
+      TrExprS env Us m'.vlctx tail tgt ∧
+      target = m'.mkLambda' n hn tgt := by
+  induction Hopen generalizing m target residual with
+  | done => exact ⟨m, target, Nat.zero_le _, hm, hmWF, rfl, Hm, He, rfl⟩
+  | forallE Hnext ih => cases Htel
+  | lam Hnext ih =>
+    rename_i n' outLctx' outAs' tail' lctx' As' name dom body bi id
+    cases Htel with
+    | cons Htel' =>
+    cases He with
+    | lam HdomainType Hdomain Hbody =>
+      rename_i domainTarget bodyTarget
+      have hcurrentWF : lctx'.WF := hm ▸ hmWF.tr.1
+      have hidFresh : lctx'.find? id = none := by
+        rcases Hnext.context_extension with
+          ⟨decls, hlctx, _hparams, _hlength⟩
+        have hnodup := houtWF.nodup
+        rw [hlctx, List.map_append] at hnodup
+        simp only [LocalContext.mkLocalDecl_toList, List.map_cons,
+          LocalDecl.fvarId] at hnodup
+        have hidNotMem : id ∉ lctx'.toList.map (fun d => d.fvarId) := by
+          exact (List.nodup_cons.mp
+            (List.nodup_append.mp hnodup).2.1).1
+        rw [hcurrentWF.find?_eq_find?_toList]
+        exact List.find?_eq_none.mpr (by
+          intro decl hdecl hmatch
+          have hfv : decl.fvarId = id := (LawfulBEq.eq_of_beq hmatch).symm
+          exact hidNotMem (List.mem_map.mpr ⟨decl, hdecl, hfv⟩))
+      let nextMLCtx := TypeChecker.MLCtx.vlam id name dom domainTarget bi m
+      have hnextWF : nextMLCtx.WF env Us :=
+        ⟨hmWF, by simpa [nextMLCtx, hm] using hidFresh,
+          Hdomain, HdomainType⟩
+      have Hbody' : TrExprS env Us nextMLCtx.vlctx
+          (body.instantiate1 (.fvar id)) bodyTarget := by
+        rw [Expr.instantiate1_eq]
+        exact Hbody.inst_fvar henv.ordered hnextWF.tr.wf
+      simp only [Expr.lamDomainsOnly] at Hav Hpj
+      cases Hav with
+      | lam _ _ _ _ HavDom HavBody =>
+      have HavBody' : (Expr.lamDomainsOnly n' (body.instantiate1 (.fvar id))).AvoidsConsts
+          r.restorableNames := by
+        rw [Expr.instantiate1_eq, ← Expr.lamDomainsOnly_instantiate1'_fvar]
+        exact HavBody.instantiate1'_fvar id 0
+      have HpjBody' : (Expr.lamDomainsOnly n' (body.instantiate1 (.fvar id))).ProjsOK
+          (· ∉ r.restorableNames) := by
+        rw [Expr.instantiate1_eq, ← Expr.lamDomainsOnly_instantiate1'_fvar]
+        exact Hpj.2.instantiate1' Expr.ProjsOK.fvar 0
+      rcases ih (by rw [Expr.instantiate1_eq]; exact Htel'.instantiate1' _ 0) houtWF nextMLCtx
+          (by simp [nextMLCtx, TypeChecker.MLCtx.lctx, hm]) hnextWF Hbody'
+          HavBody' HpjBody' ⟨HavDom, Hpj.1, Hm⟩ with
+        ⟨m', tgt, hn, hlctx', hwf', hdrop, hav', Htail, htarget⟩
+      have hn' : n' + 1 ≤ m'.length := by
+        have := congrArg TypeChecker.MLCtx.length hdrop
+        rw [MLCtx.length_dropN] at this
+        simp [nextMLCtx] at this
+        omega
+      refine ⟨m', tgt, hn', hlctx', hwf', ?_, hav', Htail, ?_⟩
+      · exact MLCtx.dropN_succ_of_vlam m' n' hn' hdrop
+      · rw [MLCtx.mkLambda'_succ m' n' hn' tgt hdrop, ← htarget]
+
+/-- **Restoration of a closed lambda telescope translates** (the
+counterpart of `translatesForall` for rule right-hand sides). -/
+theorem NestedRestorationOpening.translatesLambda
+    (S : InductiveSignature.RenamingRestorationSubstitutionOnCtx envT envL r ρ σ)
+    {result : Lean4Lean.ElimNestedInductive.Result} {env : Environment}
+    {auxRec : NameMap Name} {Us : List Name} {auxLevels : List Level}
+    {input output suffix : Expr} {s : VExpr}
+    (Hopen : NestedRestorationOpening result env auxRec input output)
+    (hLwf : envL.WF) (hTwf : envT.WF) (hβ : envT.BetaSubjectReduction Us.length)
+    (A : RestorationMapAgreement r result env auxRec envT Us auxLevels)
+    (hc : ∀ h ∈ r.heads, ∀ e ∈ h.arguments, e.ClosedN h.nparams)
+    (Hlits : ∀ l, envL.ContainsLits l → envT.ContainsLits l)
+    (Hlitnames : ∀ l : Literal, l.toConstructor.AvoidsConsts r.restorableNames)
+    (Hheads : ∀ MT : TypeChecker.MLCtx, MT.lctx = Hopen.lctx → MT.WF envT Us →
+      RestoreHeadsTranslate r result env envT Us auxLevels Hopen.params MT.vlctx)
+    (Htel : Expr.LambdaTelescope input result.nparams suffix)
+    (Hav : (Expr.lamDomainsOnly result.nparams input).AvoidsConsts r.restorableNames)
+    (Hpj : (Expr.lamDomainsOnly result.nparams input).ProjsOK (· ∉ r.restorableNames))
+    (Hshape : Hopen.body.HitShape (r.heads.map (·.auxiliary)) Hopen.params.toList auxLevels)
+    (Htrail : Hopen.body.HitTrailWith (r.heads.map (·.auxiliary)) result.nparams
+      (·.AvoidsConsts r.restorableNames))
+    (Hprojs : Hopen.body.ProjsOK (· ∉ r.restorableNames))
+    (Hrestored : Closed Hopen.restoredBody)
+    (Hs : TrExprS envL Us [] input s) :
+    ∃ t, TrExprS envT Us [] output t ∧ VExpr.WF envT Us.length [] t ∧
+      r.expr s = some t := by
+  rcases RestoreParamOpening.toMLCtxLambda hLwf (r := r) Hopen.opening Htel Hopen.lctxWF
+      .nil rfl trivial Hs Hav Hpj trivial with
+    ⟨ML, sR, hn, hML, hMLwf, hdrop, havML, HsR, hs⟩
+  have hMLlen : ML.length = result.nparams := by
+    have := MLCtx.length_dropN ML result.nparams hn
+    rw [hdrop] at this
+    simp at this
+    omega
+  rcases MLCtx.restore S hβ hc Hlits ML hMLwf havML with
+    ⟨MT, hMT, hMTwf, hlen, Hctx, -, hlam⟩
+  have hn' : result.nparams ≤ MT.length := by omega
+  have hparams := Hopen.selection.expressions
+  have HAs : ∀ a ∈ Hopen.params.toList, ∃ fv, a = .fvar fv := by
+    intro a ha
+    rw [hparams] at ha
+    simp at ha
+    rcases ha with ⟨fv, _, rfl⟩
+    exact ⟨fv, rfl⟩
+  have hsize : Hopen.params.size = result.nparams := Hopen.opening.initial_size
+  rcases restorationTranslates' S hLwf.ordered hβ A hc HAs hsize Hlits Hlitnames
+      (Hheads MT (hMT.trans hML) hMTwf) Hshape Htrail Hprojs Hctx ⟨0, 0, .refl⟩ HsR with
+    ⟨tR, HtR, hr⟩
+  rw [← Hopen.replacement.eq_replace] at HtR
+  have hokR := HsR.projNamesOK_of_source Hprojs Hctx.projs
+  obtain ⟨T, HtRTy⟩ := Hctx.wf S hβ (HsR.wf hLwf.ordered Hctx.wfs) hr hokR
+  have Hclose := hMTwf.mkLambda_trS hTwf HtR HtRTy result.nparams hn'
+  rw [MLCtx.dropN_length_eq_nil MT result.nparams hn' (by omega)] at Hclose
+  have harr : Hopen.params.toList.reverse =
+      (MT.fvarRevList result.nparams hn').map Expr.fvar := by
+    have hall : MT.fvarRevList result.nparams hn' = MT.vlctx.fvars := by
+      have key : ∀ (c : TypeChecker.MLCtx) (n : Nat) (h : n ≤ c.length), n = c.length →
+          c.fvarRevList n h = c.vlctx.fvars := by
+        rintro c n h rfl; exact c.fvarRevList_all
+      exact key MT _ hn' (by omega)
+    rw [hall, ← hMTwf.tr.fvars_eq, hMT, hML]
+    exact Hopen.opening.root_params_reverse_fvars
+  have houtput : output = MT.mkLambda result.nparams hn' Hopen.restoredBody := by
+    have h1 := hMTwf.mkLambda_eq result.nparams hn' harr Hrestored
+    rw [hMT, hML] at h1
+    refine Hopen.output_eq.trans ?_
+    rw [← h1]
+    cases hk : result.nparams with
+    | zero =>
+      have hsize0 : Hopen.params.size = 0 := by rw [hsize, hk]
+      have hnil : Hopen.params = #[] := Array.size_eq_zero_iff.mp hsize0
+      have hlambda : Hopen.lctx.mkLambda #[] Hopen.restoredBody = Hopen.restoredBody := by
+        rw [LocalContext.mkLambda]
+        change LocalContext.mkBinding true Hopen.lctx
+          (([] : List FVarId).map Expr.fvar).toArray Hopen.restoredBody =
+            Hopen.restoredBody
+        rw [LocalContext.mkBinding_eqN]
+        exact LocalContext.mkBindingListN_nil
+      rw [hnil]
+      split
+      · rw [hlambda, LocalContext.mkForall_empty]
+      · rfl
+    | succ k =>
+      have hnotFor : input.isForall = false := by
+        have Htel' := Htel
+        rw [hk] at Htel'
+        cases Htel'
+        rfl
+      simp [hnotFor]
+  refine ⟨_, houtput ▸ Hclose.1, ⟨_, Hclose.2⟩, ?_⟩
+  rw [hs]
+  exact hlam _ _ _ _ _ hr
+
+
+/-! ### Contexts differing only in recorded dependencies -/
+
+/-- Two translation contexts with the same declarations and the same free
+variables, whose recorded dependency lists may differ. Lookups and the typing
+context ignore the dependency lists. -/
+inductive VLCtx.SameUpToDeps : VLCtx → VLCtx → Prop
+  | nil : VLCtx.SameUpToDeps [] []
+  | none {Δ₁ Δ₂ : VLCtx} {d : VLocalDecl} :
+      VLCtx.SameUpToDeps Δ₁ Δ₂ → VLCtx.SameUpToDeps ((none, d) :: Δ₁) ((none, d) :: Δ₂)
+  | some {Δ₁ Δ₂ : VLCtx} {d : VLocalDecl} {fv : FVarId} {deps₁ deps₂ : List FVarId} :
+      VLCtx.SameUpToDeps Δ₁ Δ₂ →
+      VLCtx.SameUpToDeps ((some (fv, deps₁), d) :: Δ₁) ((some (fv, deps₂), d) :: Δ₂)
+
+theorem VLCtx.SameUpToDeps.find? {Δ₁ Δ₂ : VLCtx} (H : VLCtx.SameUpToDeps Δ₁ Δ₂) :
+    ∀ v, Δ₁.find? v = Δ₂.find? v := by
+  induction H with
+  | nil => intro v; rfl
+  | none _ ih => intro v; simp only [VLCtx.find?, ih]
+  | some _ ih =>
+    intro v
+    cases v with
+    | inl n => simp only [VLCtx.find?, VLCtx.next, ih]
+    | inr fv' =>
+      simp only [VLCtx.find?, VLCtx.next]
+      split <;> simp [ih]
+
+theorem VLCtx.SameUpToDeps.toCtx {Δ₁ Δ₂ : VLCtx} (H : VLCtx.SameUpToDeps Δ₁ Δ₂) :
+    Δ₁.toCtx = Δ₂.toCtx := by
+  induction H with
+  | nil => rfl
+  | @none _ _ d _ ih | @some _ _ d _ _ _ _ ih => cases d <;> simp [VLCtx.toCtx, ih]
+
+theorem TrExprS.sameUpToDeps {env : VEnv} {Us : List Name} {Δ₁ Δ₂ : VLCtx}
+    {e : Expr} {v : VExpr} (H : TrExprS env Us Δ₁ e v)
+    (hΔ : VLCtx.SameUpToDeps Δ₁ Δ₂) : TrExprS env Us Δ₂ e v := by
+  induction H generalizing Δ₂ with
+  | bvar h => exact .bvar (hΔ.find? _ ▸ h)
+  | fvar h => exact .fvar (hΔ.find? _ ▸ h)
+  | sort h => exact .sort h
+  | const h1 h2 h3 => exact .const h1 h2 h3
+  | app h1 h2 _ _ ih1 ih2 =>
+    exact .app (hΔ.toCtx ▸ h1) (hΔ.toCtx ▸ h2) (ih1 hΔ) (ih2 hΔ)
+  | lam h1 _ _ ih1 ih2 => exact .lam (hΔ.toCtx ▸ h1) (ih1 hΔ) (ih2 hΔ.none)
+  | forallE h1 h2 _ _ ih1 ih2 =>
+    exact .forallE (hΔ.toCtx ▸ h1) (hΔ.toCtx ▸ h2) (ih1 hΔ) (ih2 hΔ.none)
+  | letE h1 _ _ _ ih1 ih2 ih3 =>
+    exact .letE (hΔ.toCtx ▸ h1) (ih1 hΔ) (ih2 hΔ) (ih3 hΔ.none)
+  | lit h _ ih => exact .lit h (ih hΔ)
+  | mdata _ ih => exact .mdata (ih hΔ)
+  | proj _ hp ih => exact .proj (ih hΔ) (hΔ.toCtx ▸ hp)
 
 end VerifyInductive
 end Lean4Lean
