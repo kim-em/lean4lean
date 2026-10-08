@@ -40,6 +40,22 @@ no longer exists. Full build, `Lean4Lean.Tests`, replays (`Init.Prelude`
 `hcorner` by the base branch's `projectionWalkCorner_of_choice` (plan in
 `docs/inductives/E1_INDUCTIVE_DESIGN.md` section 5).
 
+**E1 status (2026-10-08, branch `agent/verify-inductives-e1`):** the projection-walk corner
+hypothesis is deleted. Top-level theorem: `addDecl.WF_of_canonicalEq (wf : ves.WF env)
+(heq : ∀ safety, (ves.venv safety).HasCanonicalEq) (hch : ∀ safety,
+(ves.venv safety).HasCanonicalChoice) (decl) (hdecl : decl.IsModelled env ves)`. Its cone has no
+sorry (`#print axioms`: standard axioms plus the implementation axioms of
+`Verify/Axioms.lean`); `check-inductive-audit.py --require-complete` passes (inventory
+`openProofs: []`), after merging the mainline 8375f1f4 (headInversion proved). Every inductive
+block installs certified case eliminators before its projections (certified at the constructor
+boundary, `Verify/Inductive/ConstructorBoundary.lean`; nested blocks in
+`Verify/Inductive/Nested/CaseEliminators.lean`, transported by the restored-eliminator
+alternative of `RenamingReplacementOnCtx`); the corner is resolved for every registered
+structure, with or without indices, by `VEnv.WF.corner_inhabit_choice`
+(`Theory/Typing/ProjectionCornerChoice.lean`) and `projectionWalkCorner_choice`. Decisions and
+spec corrections: `docs/inductives/E1_INDUCTIVE_DESIGN.md` §5.4. Full build, Tests,
+Experimental, audit self-test and require-complete, and both fresh replays (1975, 3953) pass.
+
 Work in flight (2026-10-06, all unbudgeted, each in its own worktree under
 `~/worktrees/lean4lean/`):
 - `lean4lean-cr`, branch `agent/verify-inductives-cr`: **`FullStep.strip`,
