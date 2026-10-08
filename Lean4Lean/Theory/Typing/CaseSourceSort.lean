@@ -40,21 +40,6 @@ private theorem isType_wrapForalls_inv {env : VEnv} {U : Nat} (henv : env.Ordere
       ⟨hΓ, hinv.1⟩ hinv.2
     simpa [List.reverse_cons, List.append_assoc] using this
 
-private theorem wrapForalls_congr_body {env : VEnv} {U : Nat} :
-    ∀ {domains Γ : List VExpr} {body body' : VExpr} {level : VLevel},
-      OnCtx (domains.reverse ++ Γ) (env.IsType U) →
-      env.IsDefEq U (domains.reverse ++ Γ) body body' (.sort level) →
-      ∃ level', env.IsDefEq U Γ (VExpr.wrapForalls domains body)
-        (VExpr.wrapForalls domains body') (.sort level')
-  | [], _, _, _, level, _, h => ⟨level, h⟩
-  | d :: ds, Γ, body, body', level, hctx, h => by
-    have hctx' : OnCtx (ds.reverse ++ d :: Γ) (env.IsType U) := by
-      simpa [List.reverse_cons, List.append_assoc] using hctx
-    obtain ⟨l', hrest⟩ := wrapForalls_congr_body hctx'
-      (by simpa [List.reverse_cons, List.append_assoc] using h)
-    obtain ⟨dl, hd⟩ := (OnCtx.of_append hctx').2
-    exact ⟨.imax dl l', .forallEDF hd hrest⟩
-
 /-- Close the open header form: a well-formed type definitionally equal to a
 telescope whose body is definitionally a sort in the telescope's scope is
 definitionally the telescope ending in that sort. -/
@@ -67,7 +52,7 @@ theorem IsDefEq.close_sort_header {env : VEnv} {U : Nat} {T A body : VExpr}
   have hW : env.IsType U [] (VExpr.wrapForalls domains body) :=
     hT.defeqU_l henv trivial ⟨A, h1⟩
   have hctx := isType_wrapForalls_inv henv.ordered (Γ := []) trivial hW
-  obtain ⟨_, hw⟩ := wrapForalls_congr_body (Γ := []) (by simpa using hctx) (by simpa using h2)
+  obtain ⟨_, hw⟩ := VExpr.wrapForalls_defeq (Γ := []) (by simpa using hctx) (by simpa using h2)
   exact IsDefEqU.trans henv trivial ⟨_, h1⟩ ⟨_, hw⟩
 
 private theorem addConst_le_target {base added current : VEnv}

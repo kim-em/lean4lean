@@ -162,6 +162,31 @@ theorem OnCtx.of_append {Γ' Γ : List VExpr} {P}
   | nil => exact h
   | cons A Γ' ih => exact ih h.1
 
+/-- Close a sort-level definitional equality over a dependent forall telescope. -/
+theorem _root_.Lean4Lean.VExpr.wrapForalls_defeq
+    {env : VEnv} {U : Nat} {domains Γ : List VExpr}
+    {body body' : VExpr} {bodyLevel : VLevel}
+    (hctx : OnCtx (domains.reverse ++ Γ) (env.IsType U))
+    (hbody : env.IsDefEq U (domains.reverse ++ Γ)
+      body body' (.sort bodyLevel)) :
+    ∃ resultLevel, env.IsDefEq U Γ
+      (VExpr.wrapForalls domains body)
+      (VExpr.wrapForalls domains body') (.sort resultLevel) := by
+  induction domains generalizing Γ with
+  | nil =>
+    exact ⟨bodyLevel, by simpa [VExpr.wrapForalls] using hbody⟩
+  | cons dom domains ih =>
+    have hctx' : OnCtx (domains.reverse ++ (dom :: Γ))
+        (env.IsType U) := by
+      simpa [List.reverse_cons, List.append_assoc] using hctx
+    have hdomCtx : OnCtx (dom :: Γ) (env.IsType U) :=
+      OnCtx.of_append hctx'
+    rcases hdomCtx.2 with ⟨domLevel, hdom⟩
+    rcases ih hctx' (by
+      simpa [List.reverse_cons, List.append_assoc] using hbody) with
+      ⟨resultLevel, hrest⟩
+    exact ⟨.imax domLevel resultLevel, .forallEDF hdom hrest⟩
+
 theorem OnCtx.lookup (h : OnCtx Γ P) (hL : Lookup Γ n A)
     (hP : ∀ {Γ A B}, P Γ A → P (B::Γ) A.lift) : P Γ A :=
   match hL, h with

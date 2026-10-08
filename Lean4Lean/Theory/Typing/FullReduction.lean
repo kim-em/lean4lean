@@ -217,19 +217,6 @@ theorem FullReduction.defeqDFC (hΓ : OnCtx Γ₀ (env.IsType univs))
   | rfl => exact .rfl
   | tail before h ih => exact .tail ih (h.defeqDFC hΓ W (FullReduction.hasType (W.isType' hΓ) before he))
 
-private theorem eta_arguments_wf (hΓ : OnCtx Γ (env.IsType univs))
-    (H : VExpr.WF env univs Γ (mkApps fn args)) :
-    ∀ arg ∈ args, VExpr.WF env univs Γ arg := by
-  induction args generalizing fn with
-  | nil => simp
-  | cons a args ih =>
-    have hf := VExpr.WF.of_mkApps (f := fn.app a) (args := args) henv.ordered hΓ H
-    obtain ⟨_, _, _, ha⟩ := hf.app_inv henv.ordered hΓ
-    intro arg hm
-    rcases List.mem_cons.mp hm with rfl | hm
-    · exact ⟨_, ha⟩
-    · exact ih H arg hm
-
 /-- Structure expansion respects normal equality of the major. All field
 projections are taken at the same concrete registry entry and parameter spine. -/
 theorem NormalEq.fullStep_structEta (hΓ : OnCtx Γ (env.IsType univs))
@@ -246,7 +233,7 @@ theorem NormalEq.fullStep_structEta (hΓ : OnCtx Γ (env.IsType univs))
         (mkApps (.const info.ctorName levels)
           (params ++ (List.range info.numFields).map fun index => .proj family index right)) := by
   have hsleft := ((H.defeq hΓ).of_r henv hΓ hs).hasType.1
-  have hargs := eta_arguments_wf hΓ ⟨_, ht⟩
+  have hargs := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩
   obtain ⟨_, hhead⟩ := VExpr.WF.of_mkApps henv.ordered hΓ ⟨_, ht⟩
   have hparams : List.Forall₂ (NormalEq Γ) params params := by
     apply List.forall₂_of_getElem rfl

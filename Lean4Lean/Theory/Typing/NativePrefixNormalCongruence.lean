@@ -21,19 +21,6 @@ theorem nativeEtaBody_spine (n : Nat) (fn : VExpr) :
     simp only [lift, liftN, liftN_liftN, Nat.zero_add, Nat.add_comm 1]
     rfl
 
-private theorem native_arguments_wf (hΓ : OnCtx Γ (env.IsType univs))
-    (H : VExpr.WF env univs Γ (mkApps fn args)) :
-    ∀ arg ∈ args, VExpr.WF env univs Γ arg := by
-  induction args generalizing fn with
-  | nil => simp
-  | cons a args ih =>
-    have hf := VExpr.WF.of_mkApps (f := fn.app a) (args := args) henv.ordered hΓ H
-    obtain ⟨_, _, _, ha⟩ := hf.app_inv henv.ordered hΓ
-    intro arg hm
-    rcases List.mem_cons.mp hm with rfl | hm
-    · exact ⟨_, ha⟩
-    · exact ih H arg hm
-
 omit [Params] in
 theorem NativeSpineMatch.symm {env : VEnv} (H : NativeSpineMatch env U Γ actual expected) :
     NativeSpineMatch env U Γ expected actual := by
@@ -72,7 +59,7 @@ theorem NativeSpineMatch.instOuter_normal {name : Name} {levels : List VLevel} (
   apply List.forall₂_map_right_iff.mpr
   apply Lean4Lean.List.Forall₂.rfl
   intro template hm
-  have hwf := native_arguments_wf hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
+  have hwf := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
   obtain ⟨A, hA⟩ := hwf
   have hA : HasType env univs Γ (InductiveSignature.instantiateParams template captures) A := by
     rw [instantiateParams_eq_instOuter]

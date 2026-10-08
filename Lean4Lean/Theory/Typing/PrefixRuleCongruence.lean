@@ -125,24 +125,11 @@ private theorem rel_vars (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs)) (hn 
   obtain ⟨i, hi, rfl⟩ := he
   exact I.refl hΓ (.bvar (Lookup.ofLt (by omega)).2)
 
-private theorem rel_arguments_wf (hΓ : OnCtx Γ (env.IsType univs))
-    (H : VExpr.WF env univs Γ (mkApps fn args)) :
-    ∀ arg ∈ args, VExpr.WF env univs Γ arg := by
-  induction args generalizing fn with
-  | nil => simp
-  | cons a args ih =>
-    have hf := VExpr.WF.of_mkApps (f := fn.app a) (args := args) henv.ordered hΓ H
-    obtain ⟨_, _, _, ha⟩ := hf.app_inv henv.ordered hΓ
-    intro arg hm
-    rcases List.mem_cons.mp hm with rfl | hm
-    · exact ⟨_, ha⟩
-    · exact ih H arg hm
-
 /-- Related arguments of a typed spine are definitionally equal. -/
 theorem ArgRel.forall₂_defeq (I : ArgRel R) (hΓ : OnCtx Γ (env.IsType univs))
     (ht : Γ ⊢ VExpr.mkApps fn args : T) (ha : List.Forall₂ (R Γ) args args') :
     List.Forall₂ (IsDefEqU env univs Γ) args args' := by
-  have hwf := rel_arguments_wf hΓ ⟨_, ht⟩
+  have hwf := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩
   clear ht
   induction ha with
   | nil => exact .nil
@@ -177,7 +164,7 @@ theorem NativeSpineMatch.instOuter_defeq {name : Name} {levels : List VLevel}
   apply List.forall₂_map_right_iff.mpr
   apply Lean4Lean.List.Forall₂.rfl
   intro template hm
-  have hwf := rel_arguments_wf hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
+  have hwf := VExpr.WF.args_of_mkApps henv.ordered hΓ ⟨_, ht⟩ _ (List.mem_map.mpr ⟨template, hm, rfl⟩)
   obtain ⟨A, hA⟩ := hwf
   exact hc hA.hasType.1
 

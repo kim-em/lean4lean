@@ -100,17 +100,6 @@ theorem generate_anyArity {levels : List VLevel} (H : generate levels args = som
   simp only [bind, hsupply, Option.bind_some, hresidual, htake]
   exact ⟨_, rfl⟩
 
-private theorem instantiateParams_inst' {body : VExpr} {captures : List VExpr}
-    (hclosed : body.ClosedN captures.length) :
-    (instantiateParams body captures).inst arg k =
-      instantiateParams body (captures.map (·.inst arg k)) := by
-  rw [instantiateParams_eq_instOuter, instantiateParams_eq_instOuter,
-    instOuter_eq_subst, instOuter_eq_subst, instN_eq, subst_subst]
-  apply subst_congr_closedN hclosed
-  intro i hi
-  simp only [Subst.comp, Subst.ofList, List.length_map, dif_pos hi,
-    List.getElem_map, ← instN_eq]
-
 private theorem getD_inst (l : List VExpr) (i : Nat) :
     (l[i]?.getD default).inst arg k = (l.map (·.inst arg k))[i]?.getD default := by
   rw [List.getElem?_map]; cases l[i]? <;> rfl
@@ -149,7 +138,7 @@ theorem generate_supply_one {levels : List VLevel} {args : List VExpr}
   cases hLate
   refine ⟨domain, _, rfl, ?_⟩
   change (wrapLams ds _).inst arg = wrapLams (instDomains ds arg 0) _
-  rw [wrapLams_inst, Nat.zero_add, hds, instantiateParams_inst' hclosed.instL]
+  rw [wrapLams_inst, Nat.zero_add, hds, InductiveSignature.instantiateParams_inst hclosed.instL]
   congr 2
   have hall : ((args.map (·.liftN (6 - args.length)) ++ vars (6 - args.length) 0).map
       (·.inst arg n)) = (args ++ [arg]).map (·.liftN (6 - (args ++ [arg]).length)) ++

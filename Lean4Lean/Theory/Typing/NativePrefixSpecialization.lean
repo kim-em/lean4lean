@@ -27,7 +27,7 @@ theorem takeForalls_instDomains
     simp only [VExpr.inst, takeForalls, bind, ih ht, Option.bind_some,
       Option.pure_def, instDomains, Nat.add_assoc, Nat.add_comm 1]
 
-private theorem instantiateParams_inst {body : VExpr} {captures : List VExpr}
+theorem _root_.Lean4Lean.InductiveSignature.instantiateParams_inst {body : VExpr} {captures : List VExpr}
     (hclosed : body.ClosedN captures.length) :
     (instantiateParams body captures).inst arg k =
       instantiateParams body (captures.map (·.inst arg k)) := by

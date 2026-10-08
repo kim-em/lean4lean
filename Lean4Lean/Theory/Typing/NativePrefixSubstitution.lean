@@ -6,7 +6,6 @@ import Batteries.Tactic.OpenPrivate
 
 namespace Lean4Lean.InductiveSignature.CaseSchema
 open VExpr VEnv
-open private instantiateParams_inst from Lean4Lean.Theory.Typing.NativePrefixSpecialization
 
 end Lean4Lean.InductiveSignature.CaseSchema
 
@@ -35,13 +34,12 @@ def PrefixProgram.instN (program : PrefixProgram) (arg : VExpr) (k : Nat) : Pref
     (program.instN arg k).type = program.type.inst arg k := by
   simp only [PrefixProgram.instN, PrefixProgram.type, wrapForalls_inst]
 
-open private instantiateParams_inst from Lean4Lean.Theory.Typing.NativePrefixSpecialization
 
 theorem PrefixProgram.rhs_instN (program : PrefixProgram)
     (hclosed : program.equationBody.rhs.ClosedN program.captures.length) :
     (program.instN arg k).rhs = program.rhs.inst arg k := by
   simp only [PrefixProgram.instN, PrefixProgram.rhs, wrapLams_inst,
-    instantiateParams_inst (hclosed.instL (ls := program.levels))]
+    InductiveSignature.instantiateParams_inst (hclosed.instL (ls := program.levels))]
 
 private theorem vars_inst_above (n k : Nat) (arg : VExpr) :
     (vars n 0).map (·.inst arg (k+n)) = vars n 0 := by
@@ -102,7 +100,6 @@ end Lean4Lean.InductiveSignature.NativeRecursorData
 
 namespace Lean4Lean.VEnv
 open VExpr InductiveSignature InductiveSignature.NativeRecursorData
-open private instantiateParams_inst from Lean4Lean.Theory.Typing.NativePrefixSpecialization
 
 theorem nativeEtaBody_instN (source arg : VExpr) (n k : Nat) :
     (nativeEtaBody n source).inst arg (k+n) = nativeEtaBody n (source.inst arg k) := by
@@ -160,7 +157,7 @@ theorem NativePrefixReplay.instN (henv : env.WF)
         (program.captures.take j).length := by
       simpa only [List.length_take, Nat.min_eq_left (Nat.le_of_lt hj₀)] using
         (hscope.2.2 j hd).instL (ls := program.levels)
-    rw [← instantiateParams_eq_instOuter, instantiateParams_inst hclosed] at ht
+    rw [← instantiateParams_eq_instOuter, InductiveSignature.instantiateParams_inst hclosed] at ht
     simp only [PrefixProgram.instN, List.getElem_map, List.map_take, instantiateParams_eq_instOuter] at ht ⊢
     exact ht
   · obtain ⟨proposition, hp, hm, hc⟩ := H.major_prop
@@ -169,7 +166,7 @@ theorem NativePrefixReplay.instN (henv : env.WF)
     have hm' := hm.instN henv.ordered Wext harg
     simpa only [PrefixProgram.instN, VExpr.inst, instVar, if_pos (show 0 < k + program.domains.length by omega)] using hm'
   · have hm := H.native_lhs.instN henv Wext harg
-    rw [← instantiateParams_eq_instOuter, instantiateParams_inst (hscope.1.instL (ls := program.levels))] at hm
+    rw [← instantiateParams_eq_instOuter, InductiveSignature.instantiateParams_inst (hscope.1.instL (ls := program.levels))] at hm
     have hlength : k + program.domains.length = (k + (program.domains.length-1)) + 1 := by omega
     simp only [VExpr.inst] at hm
     rw [hlength, ← lift_instN_lo, nativeEtaBody_instN] at hm
