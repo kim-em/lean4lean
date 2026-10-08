@@ -557,6 +557,46 @@ theorem _root_.Lean4Lean.VExpr.liftN_one_one_inst_subst_cons {e u k : VExpr} {B 
       Lift.liftVar, VExpr.Subst.id]
 
 set_option maxHeartbeats 1000000 in
+/-- Counting the binders of `m` above its first `n` entries: each of them adds at most one. -/
+theorem MLCtx.toCtx_length_le_dropN : ∀ (n) (m : MLCtx) (hn : n ≤ m.length),
+    m.vlctx.toCtx.length ≤ n + (m.dropN n hn).vlctx.toCtx.length
+  | 0, _, _ => by simp
+  | n+1, .vlam .., hn => by
+    have := MLCtx.toCtx_length_le_dropN n _ (Nat.le_of_succ_le_succ hn)
+    simp [VLCtx.toCtx] at this ⊢; omega
+  | n+1, .vlet .., hn => by
+    have := MLCtx.toCtx_length_le_dropN n _ (Nat.le_of_succ_le_succ hn)
+    simp [VLCtx.toCtx] at this ⊢; omega
+
+/-- A closed term that mentions none of the top `n` variables of `m`, each a `Nat` binder, has a
+translation in the context below them as well. Each binder is inhabited there by `Nat.zero`, and
+substituting it for the (abstracted) variable leaves the term alone; no strengthening is needed.
+This is how a term found under the measure telescope of `unfoldNatWellFounded` is read in the
+context the telescope was entered at. -/
+theorem MLCtx.trExprS_dropN_nat {env : VEnv} {Us : List Name} (henv : env.Ordered)
+    (hprim : env.HasPrimitives) (hnat : env.contains ``Nat) :
+    ∀ (n) (m : MLCtx) (hn : n ≤ m.length) {e : Expr} {e' : VExpr},
+    m.vlctx.toCtx = List.replicate n .nat ++ (m.dropN n hn).vlctx.toCtx →
+    Closed e → FVarsIn (· ∉ m.fvarRevList n hn) e →
+    TrExprS env Us m.vlctx e e' → ∃ e₀, TrExprS env Us (m.dropN n hn).vlctx e e₀
+  | 0, _, _, _, _, _, _, _, H => ⟨_, H⟩
+  | n+1, .vlam id _ _ _ _ m, hn, e, e', hctx, hcl, hfv, H => by
+    simp only [MLCtx.vlctx, VLCtx.toCtx, MLCtx.dropN, List.replicate_succ, List.cons_append,
+      List.cons.injEq] at hctx
+    obtain ⟨rfl, hctx⟩ := hctx
+    simp only [MLCtx.fvarRevList] at hfv
+    have h1 := H.abstract (v₀ := id) .zero
+    rw [FVarsIn.abstract_eq_self (hfv.mono fun _ h e => h (e ▸ List.mem_cons_self ..)) hcl] at h1
+    obtain ⟨hz, hzT⟩ := TrExprS.natZero (Us := Us) (Δ := m.vlctx) hprim hnat
+    have h2 := TrExprS.inst henv hzT h1 hz
+    rw [Expr.instantiate1_eq_self hcl.looseBVarRange_zero] at h2
+    exact MLCtx.trExprS_dropN_nat henv hprim hnat n m _ hctx hcl
+      (hfv.mono fun _ h e => h (List.mem_cons_of_mem _ e)) h2
+  | n+1, .vlet _ _ _ _ _ _ m, hn, e, e', hctx, _, _, _ => by
+    have := MLCtx.toCtx_length_le_dropN n m (Nat.le_of_succ_le_succ hn)
+    have := congrArg List.length hctx
+    simp [VLCtx.toCtx] at this; omega
+
 /-- The recognizer's own half: it returns a bundle, and the unfolding facts hold of it. This is
 the plumbing -- tracking translations through `lambdaTelescope`, `whnfCore`, `unfoldDefinition`
 and the `withApp` destructuring, and turning the checked defeq tests into the fields of
@@ -612,11 +652,12 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
   have hfailb : ∀ {α β} {k : α → M β} {c s Q}, (fail >>= k).WF c s Q :=
     .bind (hfail (Q := fun _ _ => False)) fun _ _ _ h => h.elim
   unfold unfoldNatWellFounded
-  -- The recognizer reads `F` twice: under the measure's telescope, where its domain is compared
-  -- with the packed argument's type, and again in `c` itself, where the bundle's typings of `F`
-  -- and `dom` come from. The telescope's postcondition is therefore stated relative to that
-  -- second reading, which is supplied after the telescope is closed.
-  refine .bind (Q := fun r _ => FVarsIn (· ∈ (c.withMLC m₀).vlctx.fvars) r.1 ∧
+  -- The recognizer reads `F`'s type twice: under the measure's telescope, where its domain is
+  -- compared with the packed argument's type, and again in `c` itself, where the bundle's typings
+  -- of `F` and `dom` come from. The telescope's postcondition is therefore stated relative to that
+  -- second reading, which is supplied after the telescope is closed; the telescope exports the
+  -- translation of `F` in `c` that it runs on (`MLCtx.trExprS_dropN_nat`).
+  refine .bind (Q := fun r _ => (∃ F₀, (c.withMLC m₀).TrExprS r.1 F₀) ∧
       ∀ (dom : Expr) (F' Aty X dom' : VExpr),
         (c.withMLC m₀).TrExprS r.1 F' → (c.withMLC m₀).HasType F' (.forallE Aty X) →
         (c.withMLC m₀).TrExprS dom dom' →
@@ -633,9 +674,9 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
   · -- `F` read in `c`: its type reduces to a pi, whose domain is the `Aty` of the bundle, and the
     -- `ih` binder's type is read off the codomain under a binder of that type
     obtain ⟨F, pack⟩ := r
-    obtain ⟨hFfv, hr⟩ := hr
+    obtain ⟨⟨F', hFS⟩, hr⟩ := hr
     have hΓ0 := (c.withMLC m₀).Δwf.toCtx
-    refine .bind (checkType.WF hFfv) fun _ _ _ ⟨F', _, _, hFS, hTS, hFT⟩ => ?_
+    refine .bind (inferType.WF hFS) fun _ _ _ ⟨_, _, _, hTS, hFT⟩ => ?_
     refine .bind (whnf.WF hTS) fun _ _ _ h1 => ?_
     obtain ⟨hw1b, _, hw1S, hw1eq⟩ := h1
     split <;> try exact hfail
@@ -1151,7 +1192,22 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
     let .forallE (ty' := Adomv) (body' := codv) _ _ hAS _ := hw1S
     refine .bind (isDefEq.WF htyS hAS) fun _ _ _ htyA => ?_
     split <;> [skip; exact hfailb]
-    refine .pure ⟨by rw [hFaF]; exact hFfv, ?_⟩
+    have hAsNat : As = List.replicate As.length VExpr.nat := by
+      have h := (MLCtx.mkLambda_natBinderTypes (Bs := As.reverse) hwf'
+        (by simpa using hinv.len) (by rw [hdrop]; exact hinv.toCtx) (hlam ▸ hnd)).1
+      simpa [hinv.len] using congrArg List.reverse h
+    -- `F` read in `c`: it mentions none of the telescope's variables, each a `Nat` binder, so
+    -- instantiating them with `Nat.zero` brings its reading here down to `c`
+    have hF₀ : ∃ F₀, (c.withMLC m₀).TrExprS Fa F₀ := by
+      rw [hFaF]
+      show ∃ F₀, TrExprS c.venv c.lparams m₀.vlctx F F₀
+      rw [← hdrop]
+      refine MLCtx.trExprS_dropN_nat c.Ewf.ordered c.hasPrimitives hnat n m' hn ?_ hFclosed ?_ hFF
+      · have h := hinv.toCtx
+        rw [hAsNat, hinv.len, List.reverse_replicate, ← hdrop] at h; exact h
+      · exact (FVarsIn.of_abstractList hFF.fvarsIn (Nat.le_of_eq hFlb)).mono fun _ h =>
+          by simpa using h.2
+    refine .pure ⟨hF₀, ?_⟩
     intro dom F' Aty X dom' hFbase hFX hdomBase udom hdomT resTy hFTfinal
     -- `F`'s reading in `c`, weakened over the telescope, is a reading here too; so the type found
     -- here is that one's, and its domain is `Aty` lifted
@@ -1187,10 +1243,6 @@ theorem unfoldNatWellFounded.WF' {c : VContext} {m₀ : MLCtx} [c.MLCWF m₀] {s
       hpackeq ▸ VEnv.HasType.lams c.Ewf hctxAs' ha₀Aty
     have ha₀Aty' : c.venv.HasType c.lparams.length (As.reverse ++ (c.withMLC m₀).vlctx.toCtx) a₀'
         (Aty.liftN As.length 0) := by rw [hinv.len]; exact ha₀Aty
-    have hAsNat : As = List.replicate As.length VExpr.nat := by
-      have h := (MLCtx.mkLambda_natBinderTypes (Bs := As.reverse) hwf'
-        (by simpa using hinv.len) (by rw [hdrop]; exact hinv.toCtx) (hlam ▸ hnd)).1
-      simpa [hinv.len] using congrArg List.reverse h
     refine ⟨⟨⟨_, _, _⟩, F', hFbase, _, hpackS, dom', hdomBase, Aty,
       As, a₀', hpackeq, hctxAs', ha₀Aty', hAsNat,
       ⟨udom, hdomT⟩, resTy, hFTfinal⟩, rfl, by rw [hinv.len, harity],
